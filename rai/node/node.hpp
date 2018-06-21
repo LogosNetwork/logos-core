@@ -5,6 +5,7 @@
 #include <rai/node/bootstrap.hpp>
 #include <rai/node/stats.hpp>
 #include <rai/node/wallet.hpp>
+#include <rai/consensus/consensus_manager.hpp>
 
 #include <condition_variable>
 #include <memory>
@@ -448,6 +449,7 @@ public:
 	rai::stat_config stat_config;
 	rai::block_hash state_block_parse_canary;
 	rai::block_hash state_block_generate_canary;
+	ConsensusManagerConfig consensus_manager_config;
 	static std::chrono::seconds constexpr keepalive_period = std::chrono::seconds (60);
 	static std::chrono::seconds constexpr keepalive_cutoff = keepalive_period * 5;
 	static std::chrono::minutes constexpr wallet_backup_interval = std::chrono::minutes (5);
@@ -549,6 +551,12 @@ public:
 	void add_initial_peers ();
 	void block_confirm (std::shared_ptr<rai::block>);
 	rai::uint128_t delta ();
+
+	// consensus-related functionality.
+	// TODO: refactor
+	rai::process_return on_send_request(std::shared_ptr<rai::block> block);
+	bool validate_send_request(std::shared_ptr<rai::block> block, rai::process_return & result);
+
 	boost::asio::io_service & service;
 	rai::node_config config;
 	rai::alarm & alarm;
@@ -574,6 +582,7 @@ public:
 	rai::block_arrival block_arrival;
 	rai::online_reps online_reps;
 	rai::stat stats;
+    ConsensusManager consensus_manager_;
 	static double constexpr price_max = 16.0;
 	static double constexpr free_cutoff = 1024.0;
 	static std::chrono::seconds constexpr period = std::chrono::seconds (60);

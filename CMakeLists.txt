@@ -298,6 +298,10 @@ add_library (rai_lib_static STATIC ${RAI_LIB_SOURCES})
 add_library (node
 	${PLATFORM_NODE_SOURCE}
 	${SECURE_RPC_SOURCE}
+	rai/consensus/consensus_connection.cpp
+	rai/consensus/consensus_manager.cpp
+	rai/consensus/peer_acceptor.cpp
+	rai/consensus/primary_delegate.cpp
 	rai/node/bootstrap.cpp
 	rai/node/bootstrap.hpp
 	rai/node/common.cpp

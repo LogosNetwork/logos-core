@@ -1,5 +1,7 @@
 #include <rai/node/node.hpp>
 
+#include <rai/consensus/consensus_manager.hpp>
+
 #include <rai/lib/interface.h>
 #include <rai/node/common.hpp>
 #include <rai/node/rpc.hpp>
@@ -797,26 +799,26 @@ state_block_generate_canary (0)
 	switch (rai::rai_network)
 	{
 		case rai::rai_networks::rai_test_network:
-			preconfigured_representatives.push_back (rai::genesis_account);
+//			preconfigured_representatives.push_back (rai::genesis_account);
 			break;
 		case rai::rai_networks::rai_beta_network:
-			preconfigured_peers.push_back ("rai-beta.raiblocks.net");
-			preconfigured_representatives.push_back (rai::account ("C93F714298E6061E549E52BB8885085319BE977B3FE8F03A1B726E9BE4BE38DE"));
-			state_block_parse_canary = rai::block_hash ("5005F5283DE8D2DAB0DAC41DE9BD23640F962B4F0EA7D3128C2EA3D78D578E27");
-			state_block_generate_canary = rai::block_hash ("FC18E2265FB835E8CF60E63531053A768CEDF5194263B01A5C95574944E4660D");
+//			preconfigured_peers.push_back ("rai-beta.raiblocks.net");
+//			preconfigured_representatives.push_back (rai::account ("C93F714298E6061E549E52BB8885085319BE977B3FE8F03A1B726E9BE4BE38DE"));
+//			state_block_parse_canary = rai::block_hash ("5005F5283DE8D2DAB0DAC41DE9BD23640F962B4F0EA7D3128C2EA3D78D578E27");
+//			state_block_generate_canary = rai::block_hash ("FC18E2265FB835E8CF60E63531053A768CEDF5194263B01A5C95574944E4660D");
 			break;
 		case rai::rai_networks::rai_live_network:
-			preconfigured_peers.push_back ("rai.raiblocks.net");
-			preconfigured_representatives.push_back (rai::account ("A30E0A32ED41C8607AA9212843392E853FCBCB4E7CB194E35C94F07F91DE59EF"));
-			preconfigured_representatives.push_back (rai::account ("67556D31DDFC2A440BF6147501449B4CB9572278D034EE686A6BEE29851681DF"));
-			preconfigured_representatives.push_back (rai::account ("5C2FBB148E006A8E8BA7A75DD86C9FE00C83F5FFDBFD76EAA09531071436B6AF"));
-			preconfigured_representatives.push_back (rai::account ("AE7AC63990DAAAF2A69BF11C913B928844BF5012355456F2F164166464024B29"));
-			preconfigured_representatives.push_back (rai::account ("BD6267D6ECD8038327D2BCC0850BDF8F56EC0414912207E81BCF90DFAC8A4AAA"));
-			preconfigured_representatives.push_back (rai::account ("2399A083C600AA0572F5E36247D978FCFC840405F8D4B6D33161C0066A55F431"));
-			preconfigured_representatives.push_back (rai::account ("2298FAB7C61058E77EA554CB93EDEEDA0692CBFCC540AB213B2836B29029E23A"));
-			preconfigured_representatives.push_back (rai::account ("3FE80B4BC842E82C1C18ABFEEC47EA989E63953BC82AC411F304D13833D52A56"));
-			state_block_parse_canary = rai::block_hash ("89F1C0AC4C5AD23964AB880571E3EA67FDC41BD11AB20E67F0A29CF94CD4E24A");
-			state_block_generate_canary = rai::block_hash ("B6DC4D64801BEC7D81DAA086A5733D251E8CBA0E9226FD6173D97C0569EC2998");
+//			preconfigured_peers.push_back ("rai.raiblocks.net");
+//			preconfigured_representatives.push_back (rai::account ("A30E0A32ED41C8607AA9212843392E853FCBCB4E7CB194E35C94F07F91DE59EF"));
+//			preconfigured_representatives.push_back (rai::account ("67556D31DDFC2A440BF6147501449B4CB9572278D034EE686A6BEE29851681DF"));
+//			preconfigured_representatives.push_back (rai::account ("5C2FBB148E006A8E8BA7A75DD86C9FE00C83F5FFDBFD76EAA09531071436B6AF"));
+//			preconfigured_representatives.push_back (rai::account ("AE7AC63990DAAAF2A69BF11C913B928844BF5012355456F2F164166464024B29"));
+//			preconfigured_representatives.push_back (rai::account ("BD6267D6ECD8038327D2BCC0850BDF8F56EC0414912207E81BCF90DFAC8A4AAA"));
+//			preconfigured_representatives.push_back (rai::account ("2399A083C600AA0572F5E36247D978FCFC840405F8D4B6D33161C0066A55F431"));
+//			preconfigured_representatives.push_back (rai::account ("2298FAB7C61058E77EA554CB93EDEEDA0692CBFCC540AB213B2836B29029E23A"));
+//			preconfigured_representatives.push_back (rai::account ("3FE80B4BC842E82C1C18ABFEEC47EA989E63953BC82AC411F304D13833D52A56"));
+//			state_block_parse_canary = rai::block_hash ("89F1C0AC4C5AD23964AB880571E3EA67FDC41BD11AB20E67F0A29CF94CD4E24A");
+//			state_block_generate_canary = rai::block_hash ("B6DC4D64801BEC7D81DAA086A5733D251E8CBA0E9226FD6173D97C0569EC2998");
 			break;
 		default:
 			assert (false);
@@ -871,6 +873,10 @@ void rai::node_config::serialize_json (boost::property_tree::ptree & tree_a) con
 	tree_a.put ("lmdb_max_dbs", lmdb_max_dbs);
 	tree_a.put ("state_block_parse_canary", state_block_parse_canary.to_string ());
 	tree_a.put ("state_block_generate_canary", state_block_generate_canary.to_string ());
+
+	boost::property_tree::ptree consensus_manager;
+	consensus_manager_config.SerializeJson(consensus_manager);
+	tree_a.add_child("ConsensusManager", consensus_manager);
 }
 
 bool rai::node_config::upgrade_json (unsigned version, boost::property_tree::ptree & tree_a)
@@ -1080,6 +1086,8 @@ bool rai::node_config::deserialize_json (bool & upgraded_a, boost::property_tree
 		{
 			result = true;
 		}
+
+		result |= consensus_manager_config.DeserializeJson(tree_a.get_child("ConsensusManager"));
 	}
 	catch (std::runtime_error const &)
 	{
@@ -1491,7 +1499,8 @@ warmed_up (0),
 block_processor (*this),
 block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
 online_reps (*this),
-stats (config.stat_config)
+stats (config.stat_config),
+consensus_manager_(service_a, alarm_a, log, config.consensus_manager_config)
 {
 	wallets.observer = [this](bool active) {
 		observers.wallet (active);
@@ -2468,6 +2477,24 @@ void rai::node::block_confirm (std::shared_ptr<rai::block> block_a)
 rai::uint128_t rai::node::delta ()
 {
 	auto result ((online_reps.online_stake () / 100) * config.online_weight_quorum);
+	return result;
+}
+
+bool rai::node::validate_send_request(std::shared_ptr<rai::block> block, rai::process_return & result)
+{
+	return true;
+}
+
+rai::process_return rai::node::on_send_request(std::shared_ptr<rai::block> block)
+{
+	consensus_manager_.OnSendRequest(block);
+
+	process_return result;
+	if(!validate_send_request(block, result))
+	{
+		return result;
+	}
+
 	return result;
 }
 
