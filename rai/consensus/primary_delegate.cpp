@@ -3,67 +3,67 @@
 constexpr uint8_t PrimaryDelegate::QUORUM_SIZE;
 
 PrimaryDelegate::PrimaryDelegate(Log & log)
-    : log_(log)
+    : _log(log)
 {}
 
-void PrimaryDelegate::OnConsensusMessage(const PrepareMessage & message)
+void PrimaryDelegate::ProcessMessage(const PrepareMessage & message)
 {
     if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE))
     {
-        state_ = ConsensusState::POST_PREPARE;
-        consensus_count_ = 0;
+        AdvanceState();
 
         PostPrepareMessage response;
         Send(&response, sizeof(response));
     }
 }
 
-void PrimaryDelegate::OnConsensusMessage(const CommitMessage & message)
+void PrimaryDelegate::ProcessMessage(const CommitMessage & message)
 {
     if(ProceedWithMessage(message, ConsensusState::POST_PREPARE))
     {
-        state_ = ConsensusState::POST_COMMIT;
-        consensus_count_ = 0;
+        AdvanceState();
 
         PostCommitMessage response;
         Send(&response, sizeof(response));
+
+        OnConsensusReached();
     }
 }
 
-template<typename Msg>
-bool PrimaryDelegate::Validate(const Msg & msg)
+template<typename MSG>
+bool PrimaryDelegate::Validate(const MSG & msg)
 {
     return true;
 }
 
-bool PrimaryDelegate::ReachedQuorum(uint8_t count)
+bool PrimaryDelegate::ReachedQuorum()
 {
-    return count >= QUORUM_SIZE;
+    return _consensus_count >= QUORUM_SIZE;
 }
 
 template<typename MSG>
 bool PrimaryDelegate::ProceedWithMessage(const MSG & message, ConsensusState expected_state)
 {
-    if(state_ != expected_state)
+    if(_state != expected_state)
     {
-        BOOST_LOG(log_) << "PrimaryDelegate - Error! Received "
+        BOOST_LOG(_log) << "PrimaryDelegate - Error! Received "
                         << MessageToName(message)
                         << " message while in "
-                        << StateToString(state_);
+                        << StateToString(_state);
 
         return false;
     }
 
     if(Validate(message))
     {
-        consensus_count_++;
+        _consensus_count++;
     }
     else
     {
         return false;
     }
 
-    if(ReachedQuorum(consensus_count_))
+    if(ReachedQuorum())
     {
         return true;
     }
@@ -71,16 +71,16 @@ bool PrimaryDelegate::ProceedWithMessage(const MSG & message, ConsensusState exp
     return false;
 }
 
-void PrimaryDelegate::AdvanceState(ConsensusState & state, uint8_t increment)
+void PrimaryDelegate::AdvanceState(uint8_t increment)
 {
-    if(state == ConsensusState::VOID)
+    if(_state == ConsensusState::VOID)
     {
-        state = ConsensusState::PRE_PREPARE;
+        _state = ConsensusState::PRE_PREPARE;
     }
     else
     {
-        state = static_cast<ConsensusState>(uint8_t(state) + increment);
+        _state = static_cast<ConsensusState>(uint8_t(_state) + increment);
     }
 
-    consensus_count_ = 0;
+    _consensus_count = 0;
 }

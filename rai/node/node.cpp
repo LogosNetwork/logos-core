@@ -534,10 +534,14 @@ void rai::alarm::run ()
 			auto & operation (operations.top ());
 			if (operation.function)
 			{
-				if (operation.wakeup <= std::chrono::steady_clock::now ())
+			    if(pending_operations.find(operation.id) == pending_operations.end())
+			    {
+                    remove_operation(operation.id);
+			    }
+			    else if (operation.wakeup <= std::chrono::steady_clock::now ())
 				{
 					service.post (operation.function);
-					operations.pop ();
+					remove_operation(operation.id);
 				}
 				else
 				{
@@ -557,11 +561,29 @@ void rai::alarm::run ()
 	}
 }
 
-void rai::alarm::add (std::chrono::steady_clock::time_point const & wakeup_a, std::function<void()> const & operation)
+void rai::alarm::add(std::chrono::steady_clock::time_point const & wakeup_a, std::function<void()> const & operation)
 {
-	std::lock_guard<std::mutex> lock (mutex);
-	operations.push (rai::operation ({ wakeup_a, operation }));
-	condition.notify_all ();
+	std::lock_guard<std::mutex> lock(mutex);
+
+    Handle handle = operation_handle++;
+
+	operations.push(rai::operation({wakeup_a, operation, handle}));
+	pending_operations.insert(handle);
+
+	condition.notify_all();
+}
+
+void rai::alarm::cancel(Handle handle)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+
+    pending_operations.erase(handle);
+}
+
+void rai::alarm::remove_operation(Handle handle)
+{
+    operations.pop();
+    pending_operations.erase(handle);
 }
 
 rai::logging::logging () :
@@ -1500,7 +1522,7 @@ block_processor (*this),
 block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
 online_reps (*this),
 stats (config.stat_config),
-consensus_manager_(service_a, alarm_a, log, config.consensus_manager_config)
+consensus_manager_(service_a, store, alarm_a, log, config.consensus_manager_config)
 {
 	wallets.observer = [this](bool active) {
 		observers.wallet (active);
@@ -2480,20 +2502,21 @@ rai::uint128_t rai::node::delta ()
 	return result;
 }
 
-bool rai::node::validate_send_request(std::shared_ptr<rai::block> block, rai::process_return & result)
+bool rai::node::ValidateSendRequest(std::shared_ptr<rai::state_block> block, rai::process_return & result)
 {
 	return true;
 }
 
-rai::process_return rai::node::on_send_request(std::shared_ptr<rai::block> block)
+rai::process_return rai::node::OnSendRequest(std::shared_ptr<rai::state_block> block)
 {
-	consensus_manager_.OnSendRequest(block);
-
 	process_return result;
-	if(!validate_send_request(block, result))
+
+	if(!ValidateSendRequest(block, result))
 	{
 		return result;
 	}
+
+    consensus_manager_.OnSendRequest(block);
 
 	return result;
 }

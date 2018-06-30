@@ -2,13 +2,18 @@
 
 #include <rai/node/node.hpp>
 
-ConsensusManager::ConsensusManager(boost::asio::io_service & service,
+constexpr uint8_t ConsensusManager::BATCH_TIMEOUT_DELAY;
+
+ConsensusManager::ConsensusManager(Service & service,
+                                   Store & store,
                                    rai::alarm & alarm,
                                    Log & log,
                                    const Config & config)
     : PrimaryDelegate(log)
-    , alarm_(alarm)
-    , peer_acceptor_(service, log,
+    , _handler(alarm)
+    , _persistence_manager(store)
+    , _alarm(alarm)
+    , _peer_acceptor(service, log,
                      Endpoint(boost::asio::ip::make_address_v4(config.local_address),
                               config.peer_port),
                      this)
@@ -30,9 +35,9 @@ ConsensusManager::ConsensusManager(boost::asio::io_service & service,
 
         if(ConnectionPolicy()(local_endpoint, endpoint))
         {
-            connections_.push_back(
-                    std::make_shared<ConsensusConnection>(service, alarm, log_,
-                                                          endpoint, this));
+            _connections.push_back(
+                    std::make_shared<ConsensusConnection>(service, alarm, _log,
+                                                          endpoint, this, _persistence_manager));
         }
         else
         {
@@ -40,43 +45,113 @@ ConsensusManager::ConsensusManager(boost::asio::io_service & service,
         }
     }
 
-    peer_acceptor_.Start(server_endpoints);
-
-
-    // Testing
-    alarm_.add(std::chrono::steady_clock::now() + std::chrono::seconds(40),
-              [this](){ this->OnSendRequest(nullptr); });
+    if(server_endpoints.size())
+    {
+        _peer_acceptor.Start(server_endpoints);
+    }
 }
 
-void ConsensusManager::OnSendRequest(std::shared_ptr<rai::block> block)
+void ConsensusManager::OnSendRequest(std::shared_ptr<rai::state_block> block)
 {
-    state_ = ConsensusState::PRE_PREPARE;
+    std::lock_guard<std::mutex> lock(_mutex);
 
-    BOOST_LOG (log_) << "ConsensusManager - Send request initiated";
+    BOOST_LOG (_log) << "ConsensusManager::OnSendRequest()";
 
-    PrePrepareMessage msg;
-
-    for(auto conn : connections_)
+    if(!Validate(block))
     {
-        conn->Send(msg);
+        BOOST_LOG (_log) << "ConsensusManager - block validation for send request failed.";
+        return;
     }
 
+    if(_handler.Empty())
+    {
+        ScheduleBatchTimeout();
+    }
 
-    // Testing
-    alarm_.add(std::chrono::steady_clock::now() + std::chrono::seconds(15),
-              [this](){ this->OnSendRequest(nullptr); });
+    _handler.InsertBlock(block);
+
+    if(ReadyForConsensus())
+    {
+        InitiateConsensus();
+    }
 }
 
-void ConsensusManager::OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<boost::asio::ip::tcp::socket> socket)
+void ConsensusManager::OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket> socket)
 {
-    connections_.push_back(std::make_shared<ConsensusConnection>(socket, alarm_, log_, endpoint, this));
+    _connections.push_back(std::make_shared<ConsensusConnection>(socket, _alarm, _log,
+                                                                 endpoint, this, _persistence_manager));
 }
 
 void ConsensusManager::Send(void * data, size_t size)
 {
-    for(auto conn : connections_)
+    for(auto conn : _connections)
     {
         conn->Send(data, size);
     }
 }
 
+// TODO: Compare new send message against others
+//       sent in this batch.
+//
+bool ConsensusManager::Validate(std::shared_ptr<rai::state_block> block)
+{
+    return _persistence_manager.Validate(*block);
+}
+
+void ConsensusManager::OnConsensusReached()
+{
+    _persistence_manager.StoreBatchMessage(_handler.GetNextBatch());
+
+    _handler.PopFront();
+
+    if(_handler.BatchReady())
+    {
+        InitiateConsensus();
+    }
+}
+
+void ConsensusManager::InitiateConsensus()
+{
+    Send(&_handler.GetNextBatch(), sizeof(BatchStateBlock));
+
+    _state = ConsensusState::PRE_PREPARE;
+}
+
+void ConsensusManager::OnBatchTimeout()
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    CancelBatchTimeout();
+
+    if(!_handler.Empty())
+    {
+        if(ReadyForConsensus())
+        {
+            InitiateConsensus();
+        }
+    }
+}
+
+bool ConsensusManager::ReadyForConsensus()
+{
+    return (_state == ConsensusState::VOID || _state == ConsensusState::POST_COMMIT)
+            && _handler.BatchReady();
+}
+
+void ConsensusManager::ScheduleBatchTimeout()
+{
+    _batch_timeout_scheduled = true;
+
+    _batch_timeout_handle =
+            _alarm.add(std::chrono::seconds(BATCH_TIMEOUT_DELAY),
+                       std::bind(&ConsensusManager::OnBatchTimeout, this));
+}
+
+void ConsensusManager::CancelBatchTimeout()
+{
+    if(_batch_timeout_scheduled)
+    {
+        _alarm.cancel(_batch_timeout_handle);
+        _batch_timeout_scheduled = false;
+    }
+}

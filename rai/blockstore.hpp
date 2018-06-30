@@ -2,6 +2,9 @@
 
 #include <rai/common.hpp>
 
+#include <rai/consensus/messages/messages.hpp>
+#include <rai/consensus/persistence/state_block_locator.hpp>
+
 namespace rai
 {
 /**
@@ -109,6 +112,13 @@ public:
 	size_t unchecked_count (MDB_txn *);
 	std::unordered_multimap<rai::block_hash, std::shared_ptr<rai::block>> unchecked_cache;
 
+    // consensus-prototype additions
+	block_hash batch_block_put(BatchStateBlock const &);
+	void state_block_put(CompressedStateBlock const &, StateBlockLocator const &);
+	bool state_block_exists(const CompressedStateBlock & block);
+    bool state_block_exists(const block_hash & hash);
+	bool account_get(rai::account const & account_a, rai::account_info & info_a);
+
 	void checksum_put (MDB_txn *, uint64_t, uint8_t, rai::checksum const &);
 	bool checksum_get (MDB_txn *, uint64_t, uint8_t, rai::checksum &);
 	void checksum_del (MDB_txn *, uint64_t, uint8_t);
@@ -144,6 +154,25 @@ public:
 	void clear (MDB_dbi);
 
 	rai::mdb_env environment;
+
+    /**
+     * Maps block hash to batch block
+     * rai::block_hash -> BatchStateMessage
+     */
+    MDB_dbi batch_db;
+
+    /**
+     * Maps block hash to location in batch_blocks
+     * where block is stored.
+     * rai::block_hash -> location
+     */
+    MDB_dbi state_db;
+
+    /**
+     * Maps head block to owning account
+     * rai::block_hash -> rai::account
+     */
+    MDB_dbi account_db;
 
 	/**
 	 * Maps head block to owning account

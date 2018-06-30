@@ -2605,7 +2605,7 @@ void rai::rpc_handler::process ()
 			{
 				rai::transaction transaction (node.store.environment, nullptr, true);
 				result = block->type() == block_type::send ?
-						node.on_send_request(block) :
+						node.OnSendRequest(std::dynamic_pointer_cast<rai::state_block>(block)) :
 						node.block_processor.process_receive_one (transaction, block);
 			}
 			switch (result.code)

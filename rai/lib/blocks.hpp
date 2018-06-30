@@ -235,6 +235,7 @@ public:
 class state_hashables
 {
 public:
+    state_hashables() = default;
 	state_hashables (rai::account const &, rai::block_hash const &, rai::account const &, rai::amount const &, rai::uint256_union const &);
 	state_hashables (bool &, rai::stream &);
 	state_hashables (bool &, boost::property_tree::ptree const &);
@@ -257,6 +258,7 @@ public:
 class state_block : public rai::block
 {
 public:
+    state_block() = default;
 	state_block (rai::account const &, rai::block_hash const &, rai::account const &, rai::amount const &, rai::uint256_union const &, rai::raw_key const &, rai::public_key const &, uint64_t);
 	state_block (bool &, rai::stream &);
 	state_block (bool &, boost::property_tree::ptree const &);
@@ -300,3 +302,34 @@ std::unique_ptr<rai::block> deserialize_block (rai::stream &, rai::block_type);
 std::unique_ptr<rai::block> deserialize_block_json (boost::property_tree::ptree const &);
 void serialize_block (rai::stream &, rai::block const &);
 }
+
+struct CompressedStateBlock
+{
+    using Storage256 = std::array<uint8_t, 32>;
+    using Storage128 = std::array<uint8_t, 16>;
+
+    CompressedStateBlock(const rai::state_block & block)
+        : account       (block.hashables.account.bytes)
+        , previous      (block.hashables.previous.bytes)
+        , representative(block.hashables.representative.bytes)
+        , balance       (block.hashables.balance.bytes)
+        , link          (block.hashables.link.bytes)
+    {}
+
+    CompressedStateBlock() = default;
+
+    void Hash(blake2b_state & hash) const
+    {
+        blake2b_update(&hash, account.data(), sizeof(account));
+        blake2b_update(&hash, previous.data(), sizeof(previous));
+        blake2b_update(&hash, representative.data(), sizeof(representative));
+        blake2b_update(&hash, balance.data(), sizeof(balance));
+        blake2b_update(&hash, link.data(), sizeof(link));
+    }
+
+    Storage256 account;
+    Storage256 previous;
+    Storage256 representative;
+    Storage128 balance;
+    Storage256 link;
+} __attribute__((packed));
