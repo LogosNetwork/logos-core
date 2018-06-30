@@ -120,25 +120,52 @@ public:
 	static unsigned constexpr announce_interval_ms = (rai::rai_network == rai::rai_networks::rai_test_network) ? 10 : 16000;
 	static size_t constexpr election_history_size = 2048;
 };
-class operation
+struct operation
 {
-public:
+    using Handle    = uint64_t;
+    using TimePoint = std::chrono::steady_clock::time_point;
+
 	bool operator> (rai::operation const &) const;
-	std::chrono::steady_clock::time_point wakeup;
+
+	TimePoint             wakeup;
 	std::function<void()> function;
+	Handle                id;
 };
 class alarm
 {
 public:
+
+
+    using Handle         = uint64_t;
+    using OperationQueue = std::priority_queue<operation,
+                                               std::vector<operation>,
+                                               std::greater<operation>
+                                               >;
+
 	alarm (boost::asio::io_service &);
 	~alarm ();
 	void add (std::chrono::steady_clock::time_point const &, std::function<void()> const &);
+
+	template<typename REP, typename PERIOD>
+    Handle add(std::chrono::duration<REP, PERIOD> const & duration, std::function<void()> const & handler)
+	{
+	    add(std::chrono::steady_clock::now() + duration,
+	        handler);
+	}
+
 	void run ();
-	boost::asio::io_service & service;
-	std::mutex mutex;
-	std::condition_variable condition;
-	std::priority_queue<operation, std::vector<operation>, std::greater<operation>> operations;
-	std::thread thread;
+
+	void cancel(Handle handle);
+
+	void remove_operation(Handle handle);
+
+	boost::asio::io_service &  service;
+    std::unordered_set<Handle> pending_operations;
+	std::mutex                 mutex;
+	std::condition_variable    condition;
+	OperationQueue             operations;
+	std::thread                thread;
+	Handle                     operation_handle;
 };
 class gap_information
 {
@@ -554,8 +581,8 @@ public:
 
 	// consensus-related functionality.
 	// TODO: refactor
-	rai::process_return on_send_request(std::shared_ptr<rai::block> block);
-	bool validate_send_request(std::shared_ptr<rai::block> block, rai::process_return & result);
+	rai::process_return OnSendRequest(std::shared_ptr<rai::state_block> block);
+	bool ValidateSendRequest(std::shared_ptr<rai::state_block> block, rai::process_return & result);
 
 	boost::asio::io_service & service;
 	rai::node_config config;

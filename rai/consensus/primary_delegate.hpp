@@ -16,11 +16,15 @@ public:
 
     PrimaryDelegate(Log & log);
 
-    void OnConsensusMessage(const PrepareMessage & message);
-    void OnConsensusMessage(const CommitMessage & message);
+    template<typename MSG>
+    void OnConsensusMessage(const MSG & message)
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        ProcessMessage(message);
+    }
 
-    template<typename Msg>
-    bool Validate(const Msg & msg);
+    template<typename MSG>
+    bool Validate(const MSG & msg);
 
     virtual ~PrimaryDelegate()
     {}
@@ -29,19 +33,25 @@ public:
 
 protected:
 
-    ConsensusState state_ = ConsensusState::VOID;
+    std::mutex     _mutex;
+    ConsensusState _state = ConsensusState::VOID;
 
 private:
 
     static constexpr uint8_t QUORUM_SIZE = 4;
 
-    bool ReachedQuorum(uint8_t count);
+    void ProcessMessage(const PrepareMessage & message);
+    void ProcessMessage(const CommitMessage & message);
+
+    bool ReachedQuorum();
 
     template<typename MSG>
     bool ProceedWithMessage(const MSG & message, ConsensusState expected_state);
 
-    void AdvanceState(ConsensusState & state, uint8_t increment = 2);
+    void AdvanceState(uint8_t increment = 2);
 
-    Log &   log_;
-    uint8_t consensus_count_ = 0;
+    virtual void OnConsensusReached() = 0;
+
+    Log &   _log;
+    uint8_t _consensus_count = 0;
 };

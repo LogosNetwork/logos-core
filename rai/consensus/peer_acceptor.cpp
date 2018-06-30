@@ -1,41 +1,46 @@
 #include <rai/consensus/peer_acceptor.hpp>
 
-PeerAcceptor::PeerAcceptor(boost::asio::io_service & service,
+PeerAcceptor::PeerAcceptor(Service & service,
                            Log & log,
                            const Endpoint & local_endpoint,
                            PeerManager * manager)
-    : acceptor_(service)
-    , service_(service)
-    , log_(log)
-    , local_endpoint_(local_endpoint)
-    , manager_(manager)
+    : _acceptor(service)
+    , _service(service)
+    , _log(log)
+    , _local_endpoint(local_endpoint)
+    , _manager(manager)
 {}
 
 void PeerAcceptor::Start(const std::set<Address> & server_endpoints)
 {
-    server_endpoints_ = server_endpoints;
+    if(!server_endpoints.size())
+    {
+        return;
+    }
 
-    acceptor_.open(local_endpoint_.protocol ());
-    acceptor_.set_option(Acceptor::reuse_address (true));
+    _server_endpoints = server_endpoints;
+
+    _acceptor.open(_local_endpoint.protocol ());
+    _acceptor.set_option(Acceptor::reuse_address (true));
 
     boost::system::error_code ec;
-    acceptor_.bind(local_endpoint_, ec);
+    _acceptor.bind(_local_endpoint, ec);
 
     if (ec)
     {
-        BOOST_LOG (log_) << "PeerAcceptor - Error while binding for Consensus on port " << local_endpoint_.port() << " :" << ec.message();
+        BOOST_LOG (_log) << "PeerAcceptor - Error while binding for Consensus on port " << _local_endpoint.port() << " :" << ec.message();
 
         throw std::runtime_error(ec.message ());
     }
 
-    acceptor_.listen();
+    _acceptor.listen();
     Accept();
 }
 
 void PeerAcceptor::Accept()
 {
-    auto socket(std::make_shared<Socket> (service_));
-    acceptor_.async_accept(*socket, accepted_endpoint_, [this, socket](boost::system::error_code const & ec) {
+    auto socket(std::make_shared<Socket> (_service));
+    _acceptor.async_accept(*socket, _accepted_endpoint, [this, socket](boost::system::error_code const & ec) {
         OnAccept(ec, socket);
     });
 }
@@ -44,23 +49,23 @@ void PeerAcceptor::OnAccept(boost::system::error_code const & ec, std::shared_pt
 {
     if (!ec)
     {
-        BOOST_LOG (log_) << "PeerAcceptor - Connection accepted from " << accepted_endpoint_;
+        BOOST_LOG (_log) << "PeerAcceptor - Connection accepted from " << _accepted_endpoint;
 
-        auto peer = server_endpoints_.find(accepted_endpoint_.address());
+        auto peer = _server_endpoints.find(_accepted_endpoint.address());
 
-        if(peer == server_endpoints_.end())
+        if(peer == _server_endpoints.end())
         {
-            BOOST_LOG (log_) << "PeerAcceptor - Unrecognized peer: " << accepted_endpoint_.address();
+            BOOST_LOG (_log) << "PeerAcceptor - Unrecognized peer: " << _accepted_endpoint.address();
         }
         else
         {
-            manager_->OnConnectionAccepted(accepted_endpoint_, socket);
+            _manager->OnConnectionAccepted(_accepted_endpoint, socket);
         }
 
         Accept();
     }
     else
     {
-        BOOST_LOG (log_) << "PeerAcceptor - Error while accepting peer connections: " << ec.message();
+        BOOST_LOG (_log) << "PeerAcceptor - Error while accepting peer connections: " << ec.message();
     }
 }

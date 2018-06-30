@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <array>
 
+#include <blake2/blake2.h>
+
 enum class MessageType : uint8_t
 {
     Pre_Prepare  = 0,

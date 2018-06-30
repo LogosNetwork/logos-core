@@ -9,9 +9,9 @@
 #include <memory>
 #include <set>
 
-
 class PeerAcceptor
 {
+    using Service  = boost::asio::io_service;
     using Socket   = boost::asio::ip::tcp::socket;
     using Acceptor = boost::asio::ip::tcp::acceptor;
 	using Endpoint = boost::asio::ip::tcp::endpoint;
@@ -20,7 +20,7 @@ class PeerAcceptor
 
 public:
 
-	PeerAcceptor(boost::asio::io_service & service,
+	PeerAcceptor(Service & service,
 	             Log & log,
 				 const Endpoint & local_endpoint,
 				 PeerManager * manager);
@@ -29,17 +29,16 @@ public:
 
 	void Accept();
 
-	void OnAccept(boost::system::error_code const & ec, std::shared_ptr<boost::asio::ip::tcp::socket> socket);
+	void OnAccept(boost::system::error_code const & ec, std::shared_ptr<Socket> socket);
 
 private:
 
-	std::set<Address>         server_endpoints_;
-	Acceptor                  acceptor_;
-	boost::asio::io_service & service_;
-	Log &                     log_;
-	Endpoint                  local_endpoint_;
-	Endpoint                  accepted_endpoint_;
-	PeerManager *             manager_;
+	std::set<Address> _server_endpoints;
+	Acceptor          _acceptor;
+	Service &         _service;
+	Log &             _log;
+	Endpoint          _local_endpoint;
+	Endpoint          _accepted_endpoint;
+	PeerManager *     _manager;
 };
-
 

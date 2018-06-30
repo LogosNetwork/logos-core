@@ -256,6 +256,12 @@ checksum (0)
 	if (!error_a)
 	{
 		rai::transaction transaction (environment, nullptr, true);
+
+		// consensus-prototype
+		error_a |= mdb_dbi_open (transaction, "batch_blocks", MDB_CREATE, &batch_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "state_blocks", MDB_CREATE, &state_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "account", MDB_CREATE, &account_db) != 0;
+
 		error_a |= mdb_dbi_open (transaction, "frontiers", MDB_CREATE, &frontiers) != 0;
 		error_a |= mdb_dbi_open (transaction, "accounts", MDB_CREATE, &accounts) != 0;
 		error_a |= mdb_dbi_open (transaction, "send", MDB_CREATE, &send_blocks) != 0;
@@ -868,6 +874,27 @@ bool rai::block_store::account_get (MDB_txn * transaction_a, rai::account const 
 	return result;
 }
 
+bool rai::block_store::account_get(rai::account const & account_a, rai::account_info & info_a)
+{
+    rai::mdb_val value;
+    rai::transaction transaction(environment, nullptr, true);
+
+    auto status (mdb_get (transaction, accounts, rai::mdb_val (account_a), value));
+    assert (status == 0 || status == MDB_NOTFOUND);
+    bool result;
+    if (status == MDB_NOTFOUND)
+    {
+        result = true;
+    }
+    else
+    {
+        rai::bufferstream stream (reinterpret_cast<uint8_t const *> (value.data ()), value.size ());
+        result = info_a.deserialize (stream);
+        assert (!result);
+    }
+    return result;
+}
+
 void rai::block_store::frontier_put (MDB_txn * transaction_a, rai::block_hash const & block_a, rai::account const & account_a)
 {
 	auto status (mdb_put (transaction_a, frontiers, rai::mdb_val (block_a), rai::mdb_val (account_a), 0));
@@ -1165,6 +1192,57 @@ void rai::block_store::checksum_del (MDB_txn * transaction_a, uint64_t prefix, u
 	uint64_t key (prefix | mask);
 	auto status (mdb_del (transaction_a, checksum, rai::mdb_val (sizeof (key), &key), nullptr));
 	assert (status == 0);
+}
+
+template<typename BLOCK_TYPE>
+rai::block_hash GetBlockHash(const BLOCK_TYPE & block)
+{
+    rai::block_hash result;
+
+    blake2b_state hash;
+    assert(blake2b_init(&hash, sizeof(result.bytes)) == 0);
+    block.Hash(hash);
+    assert(blake2b_final(&hash, result.bytes.data(), sizeof(result.bytes)) == 0);
+
+    return result;
+}
+
+rai::block_hash rai::block_store::batch_block_put (BatchStateBlock const & block)
+{
+    block_hash result = GetBlockHash(block);
+    transaction transaction(environment, nullptr, true);
+
+    assert(mdb_put(transaction, batch_db, rai::mdb_val(result),
+                   mdb_val(sizeof(BatchStateBlock), const_cast<BatchStateBlock *>(&block)), 0)
+           == 0);
+
+    return result;
+}
+
+void rai::block_store::state_block_put(CompressedStateBlock const & block, StateBlockLocator const & locator)
+{
+    block_hash result = GetBlockHash(block);
+    transaction transaction(environment, nullptr, true);
+
+    assert(mdb_put(transaction, state_db, rai::mdb_val(result),
+                   mdb_val(sizeof(StateBlockLocator), const_cast<StateBlockLocator *>(&locator)), 0)
+           == 0);
+}
+
+bool rai::block_store::state_block_exists(const CompressedStateBlock & block)
+{
+    return state_block_exists(GetBlockHash(block));
+}
+
+bool rai::block_store::state_block_exists(const block_hash & hash)
+{
+    rai::mdb_val junk;
+    rai::transaction transaction(environment, nullptr, true);
+
+    auto status (mdb_get (transaction, state_db, rai::mdb_val (hash), junk));
+    assert (status == 0 || status == MDB_NOTFOUND);
+
+    return status == 0;
 }
 
 void rai::block_store::flush (MDB_txn * transaction_a)

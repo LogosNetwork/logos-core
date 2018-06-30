@@ -301,7 +301,9 @@ add_library (node
 	rai/consensus/consensus_connection.cpp
 	rai/consensus/consensus_manager.cpp
 	rai/consensus/peer_acceptor.cpp
+	rai/consensus/persistence/persistence_manager.cpp
 	rai/consensus/primary_delegate.cpp
+	rai/consensus/request_handler.cpp
 	rai/node/bootstrap.cpp
 	rai/node/bootstrap.hpp
 	rai/node/common.cpp

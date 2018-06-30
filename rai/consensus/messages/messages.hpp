@@ -3,14 +3,20 @@
 #include <rai/consensus/messages/common.hpp>
 #include <rai/lib/blocks.hpp>
 
-using BlockList = std::array<rai::state_block, CONSENSUS_BATCH_SIZE>;
+//using BlockList = std::array<CompressedStateBlock, CONSENSUS_BATCH_SIZE>;
+using BlockList = rai::state_block [CONSENSUS_BATCH_SIZE];
 
 struct BatchStateBlock : MessagePrequel<MessageType::Pre_Prepare>
 {
-    uint8_t   block_count;
-    //BlockList blocks;
+    void Hash(blake2b_state & hash) const
+    {
+        blake2b_update(&hash, blocks, sizeof(BlockList));
+    }
+
+    uint8_t   block_count = 0;
+    BlockList blocks;
     Signature signature;
-} __attribute__((packed));
+};
 
 template<MessageType type, typename Enable = void>
 struct PostPhaseMessage;
