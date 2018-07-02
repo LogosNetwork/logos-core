@@ -1237,12 +1237,29 @@ bool rai::block_store::state_block_exists(const CompressedStateBlock & block)
 bool rai::block_store::state_block_exists(const block_hash & hash)
 {
     rai::mdb_val junk;
-    rai::transaction transaction(environment, nullptr, true);
+    rai::transaction transaction(environment, nullptr, false);
 
     auto status (mdb_get (transaction, state_db, rai::mdb_val (hash), junk));
     assert (status == 0 || status == MDB_NOTFOUND);
 
     return status == 0;
+}
+
+bool rai::block_store::account_db_empty()
+{
+    rai::transaction transaction(environment, nullptr, false);
+
+    rai::store_iterator begin(transaction, account_db);
+    rai::store_iterator end(nullptr);
+
+    return begin == end;
+}
+
+void rai::block_store::account_put(const rai::account & account, const rai::account_info & info)
+{
+    rai::transaction transaction(environment, nullptr, true);
+    assert(mdb_put(transaction, account_db, rai::mdb_val(account), info.val(), 0)
+           == 0);
 }
 
 void rai::block_store::flush (MDB_txn * transaction_a)

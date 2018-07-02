@@ -1684,12 +1684,29 @@ consensus_manager_(service_a, store, alarm_a, log, config.consensus_manager_conf
 		{
 			BOOST_LOG (log) << "Constructing node";
 		}
-		rai::transaction transaction (store.environment, nullptr, true);
-		if (store.latest_begin (transaction) == store.latest_end ())
+
 		{
-			// Store was empty meaning we just created it, add the genesis block
-			rai::genesis genesis;
-			genesis.initialize (transaction, store);
+            rai::transaction transaction (store.environment, nullptr, true);
+            if (store.latest_begin (transaction) == store.latest_end ())
+            {
+                // Store was empty meaning we just created it, add the genesis block
+                rai::genesis genesis;
+                genesis.initialize (transaction, store);
+            }
+		}
+
+		// check consensus-prototype account_db
+		if(store.account_db_empty())
+		{
+		    store.account_put (genesis_account,
+		                       {
+		                               /* No head */ 0,
+		                               /* No Rep  */ 0,
+		                               /* No Open */ 0,
+		                               std::numeric_limits<rai::uint128_t>::max(),
+		                               rai::seconds_since_epoch(),
+		                               0
+		                       });
 		}
 	}
 	if (rai::rai_network == rai::rai_networks::rai_live_network)

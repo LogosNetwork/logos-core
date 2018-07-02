@@ -118,6 +118,8 @@ public:
 	bool state_block_exists(const CompressedStateBlock & block);
     bool state_block_exists(const block_hash & hash);
 	bool account_get(rai::account const & account_a, rai::account_info & info_a);
+	bool account_db_empty();
+	void account_put (rai::account const &, rai::account_info const &);
 
 	void checksum_put (MDB_txn *, uint64_t, uint8_t, rai::checksum const &);
 	bool checksum_get (MDB_txn *, uint64_t, uint8_t, rai::checksum &);
