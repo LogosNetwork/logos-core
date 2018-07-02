@@ -11,7 +11,7 @@ ConsensusManager::ConsensusManager(Service & service,
                                    const Config & config)
     : PrimaryDelegate(log)
     , _handler(alarm)
-    , _persistence_manager(store)
+    , _persistence_manager(store, log)
     , _alarm(alarm)
     , _peer_acceptor(service, log,
                      Endpoint(boost::asio::ip::make_address_v4(config.local_address),
@@ -101,6 +101,7 @@ bool ConsensusManager::Validate(std::shared_ptr<rai::state_block> block)
 void ConsensusManager::OnConsensusReached()
 {
     _persistence_manager.StoreBatchMessage(_handler.GetNextBatch());
+    _persistence_manager.ApplyBatchMessage(_handler.GetNextBatch());
 
     _handler.PopFront();
 
