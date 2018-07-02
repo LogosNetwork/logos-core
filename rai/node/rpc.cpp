@@ -340,7 +340,11 @@ void rai::rpc_handler::account_info ()
 		const bool pending = request.get<bool> ("pending", false);
 		rai::transaction transaction (node.store.environment, nullptr, false);
 		rai::account_info info;
-		if (!node.store.account_get (transaction, account, info))
+
+		boost::optional<std::string> consensus_db (request.get_optional<std::string> ("consensus_db"));
+		MDB_dbi db = consensus_db.is_initialized() ? node.store.account_db : node.store.accounts;
+
+		if (!node.store.account_get (transaction, account, info, db))
 		{
 			boost::property_tree::ptree response_l;
 			response_l.put ("frontier", info.head.to_string ());

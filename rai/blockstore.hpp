@@ -70,7 +70,8 @@ public:
 	void frontier_del (MDB_txn *, rai::block_hash const &);
 
 	void account_put (MDB_txn *, rai::account const &, rai::account_info const &);
-	bool account_get (MDB_txn *, rai::account const &, rai::account_info &);
+    bool account_get (MDB_txn *, rai::account const &, rai::account_info &);
+	bool account_get (MDB_txn *, rai::account const &, rai::account_info &, MDB_dbi);
 	void account_del (MDB_txn *, rai::account const &);
 	bool account_exists (MDB_txn *, rai::account const &);
 	size_t account_count (MDB_txn *);

@@ -857,8 +857,13 @@ bool rai::block_store::account_exists (MDB_txn * transaction_a, rai::account con
 
 bool rai::block_store::account_get (MDB_txn * transaction_a, rai::account const & account_a, rai::account_info & info_a)
 {
+    return account_get(transaction_a, account_a, info_a, accounts);
+}
+
+bool rai::block_store::account_get (MDB_txn * transaction_a, rai::account const & account_a, rai::account_info & info_a, MDB_dbi db)
+{
 	rai::mdb_val value;
-	auto status (mdb_get (transaction_a, accounts, rai::mdb_val (account_a), value));
+	auto status (mdb_get (transaction_a, db, rai::mdb_val (account_a), value));
 	assert (status == 0 || status == MDB_NOTFOUND);
 	bool result;
 	if (status == MDB_NOTFOUND)
