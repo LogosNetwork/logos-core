@@ -10,7 +10,7 @@
 
 namespace rai
 {
-void error_response (std::function<void(boost::property_tree::ptree const &)> response_a, std::string const & message_a);
+void error_response_ (std::function<void(boost::property_tree::ptree const &)> response_a, std::string const & message_a);
 class node;
 /** Configuration options for RPC TLS */
 class rpc_secure_config

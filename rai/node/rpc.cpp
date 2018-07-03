@@ -194,12 +194,14 @@ void rai::rpc::observer_action (rai::account const & account_a)
 	}
 }
 
-void rai::error_response (std::function<void(boost::property_tree::ptree const &)> response_a, std::string const & message_a)
+void rai::error_response_ (std::function<void(boost::property_tree::ptree const &)> response_a, std::string const & message_a)
 {
 	boost::property_tree::ptree response_l;
 	response_l.put ("error", message_a);
 	response_a (response_l);
 }
+
+#define error_response(r,m) {error_response_(r,m);return;}
 
 namespace
 {
