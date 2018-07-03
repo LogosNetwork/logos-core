@@ -1479,6 +1479,18 @@ rai::process_return rai::block_processor::process_receive_one (MDB_txn * transac
 			}
 			break;
 		}
+
+		// Logos - added new process_result values not used
+		// by the original rai code. But they shouldn't occur
+		// here.
+		default:
+		{
+		    if (node.config.logging.ledger_logging ())
+            {
+                BOOST_LOG (node.log) << "Received unhandled process_result";
+            }
+		    break;
+		}
 	}
 	return result;
 }
@@ -1522,7 +1534,7 @@ block_processor (*this),
 block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
 online_reps (*this),
 stats (config.stat_config),
-consensus_manager_(service_a, store, alarm_a, log, config.consensus_manager_config)
+_consensus_manager(service_a, store, alarm_a, log, config.consensus_manager_config)
 {
 	wallets.observer = [this](bool active) {
 		observers.wallet (active);
@@ -2519,21 +2531,17 @@ rai::uint128_t rai::node::delta ()
 	return result;
 }
 
-bool rai::node::ValidateSendRequest(std::shared_ptr<rai::state_block> block, rai::process_return & result)
-{
-	return true;
-}
-
 rai::process_return rai::node::OnSendRequest(std::shared_ptr<rai::state_block> block)
 {
 	process_return result;
 
-	if(!ValidateSendRequest(block, result))
+	if(!block)
 	{
-		return result;
+	    result.code = process_result::invalid_block_type;
+	    return result;
 	}
 
-    consensus_manager_.OnSendRequest(block);
+	_consensus_manager.OnSendRequest(block, result);
 
 	return result;
 }

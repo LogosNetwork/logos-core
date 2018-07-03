@@ -582,7 +582,6 @@ public:
 	// consensus-related functionality.
 	// TODO: refactor
 	rai::process_return OnSendRequest(std::shared_ptr<rai::state_block> block);
-	bool ValidateSendRequest(std::shared_ptr<rai::state_block> block, rai::process_return & result);
 
 	boost::asio::io_service & service;
 	rai::node_config config;
@@ -609,7 +608,7 @@ public:
 	rai::block_arrival block_arrival;
 	rai::online_reps online_reps;
 	rai::stat stats;
-    ConsensusManager consensus_manager_;
+    ConsensusManager _consensus_manager;
 	static double constexpr price_max = 16.0;
 	static double constexpr free_cutoff = 1024.0;
 	static std::chrono::seconds constexpr period = std::chrono::seconds (60);

@@ -51,13 +51,13 @@ ConsensusManager::ConsensusManager(Service & service,
     }
 }
 
-void ConsensusManager::OnSendRequest(std::shared_ptr<rai::state_block> block)
+void ConsensusManager::OnSendRequest(std::shared_ptr<rai::state_block> block, rai::process_return & result)
 {
     std::lock_guard<std::mutex> lock(_mutex);
 
     BOOST_LOG (_log) << "ConsensusManager::OnSendRequest()";
 
-    if(!Validate(block))
+    if(!Validate(block, result))
     {
         BOOST_LOG (_log) << "ConsensusManager - block validation for send request failed.";
         return;
@@ -93,9 +93,9 @@ void ConsensusManager::Send(void * data, size_t size)
 // TODO: Compare new send message against others
 //       sent in this batch.
 //
-bool ConsensusManager::Validate(std::shared_ptr<rai::state_block> block)
+bool ConsensusManager::Validate(std::shared_ptr<rai::state_block> block, rai::process_return & result)
 {
-    return _persistence_manager.Validate(*block);
+    return _persistence_manager.Validate(*block, result);
 }
 
 void ConsensusManager::OnConsensusReached()

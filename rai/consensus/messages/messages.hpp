@@ -5,6 +5,7 @@
 
 //using BlockList = std::array<CompressedStateBlock, CONSENSUS_BATCH_SIZE>;
 using BlockList = rai::state_block [CONSENSUS_BATCH_SIZE];
+using PublicKey = rai::public_key;
 
 struct BatchStateBlock : MessagePrequel<MessageType::Pre_Prepare>
 {
@@ -40,6 +41,11 @@ struct StandardPhaseMessage<type, typename std::enable_if<
 {
     Signature signature;
 } __attribute__((packed));
+
+struct KeyAdvertisement
+{
+    PublicKey public_key;
+};
 
 using PrePrepareMessage = BatchStateBlock;
 

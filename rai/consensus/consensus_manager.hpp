@@ -32,7 +32,7 @@ public:
 	                 Log & log,
 					 const Config & config);
 
-	void OnSendRequest(std::shared_ptr<rai::state_block> block);
+	void OnSendRequest(std::shared_ptr<rai::state_block> block, rai::process_return & result);
 
     void OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket> socket) override;
 
@@ -44,7 +44,7 @@ private:
 
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;
 
-    bool Validate(std::shared_ptr<rai::state_block> block);
+    bool Validate(std::shared_ptr<rai::state_block> block, rai::process_return & result);
 
     void OnConsensusReached() override;
     void InitiateConsensus();
@@ -58,6 +58,7 @@ private:
     Connections        _connections;
     RequestHandler     _handler;
     PersistenceManager _persistence_manager;
+    rai::keypair       _keypair;
 	rai::alarm &       _alarm;
 	PeerAcceptor       _peer_acceptor;
 	Log                _log;

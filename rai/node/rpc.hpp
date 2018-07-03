@@ -216,6 +216,7 @@ public:
 	void work_peer_add ();
 	void work_peers ();
 	void work_peers_clear ();
+	bool is_logos_request ();
 	std::string body;
 	rai::node & node;
 	rai::rpc & rpc;

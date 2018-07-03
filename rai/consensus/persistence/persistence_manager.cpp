@@ -30,16 +30,18 @@ void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message)
     }
 }
 
-bool PersistenceManager::Validate(const rai::state_block & block)
+bool PersistenceManager::Validate(const rai::state_block & block, rai::process_return & result)
 {
     // Have we seen this block before?
     if(_store.state_block_exists(block))
     {
+        result.code = rai::process_result::old;
         return false;
     }
 
     if(block.hashables.account.is_zero())
     {
+        result.code = rai::process_result::opened_burn_account;
         return false;
     }
 
@@ -54,11 +56,13 @@ bool PersistenceManager::Validate(const rai::state_block & block)
         // no previous block set
         if(block.hashables.previous.is_zero())
         {
+            result.code = rai::process_result::fork;
             return false;
         }
 
         if(!_store.state_block_exists(block.hashables.previous))
         {
+            result.code = rai::process_result::gap_previous;
             return false;
         }
 
@@ -66,6 +70,7 @@ bool PersistenceManager::Validate(const rai::state_block & block)
 
         if(block.hashables.previous != info.head)
         {
+            result.code = rai::process_result::fork;
             return false;
         }
     }
@@ -75,6 +80,7 @@ bool PersistenceManager::Validate(const rai::state_block & block)
     {
         // Currently do not accept state blocks
         // with non-existent accounts.
+        result.code = rai::process_result::not_implemented;
         return false;
 
         if(!block.hashables.previous.is_zero())
@@ -86,6 +92,7 @@ bool PersistenceManager::Validate(const rai::state_block & block)
     if(!is_send)
     {
         // Currently, we only accept send requests
+        result.code = rai::process_result::not_implemented;
         return false;
 
         if(block.hashables.link.is_zero())
@@ -94,7 +101,14 @@ bool PersistenceManager::Validate(const rai::state_block & block)
         }
     }
 
+    result.code = rai::process_result::progress;
     return true;
+}
+
+bool PersistenceManager::Validate(const rai::state_block & block)
+{
+    rai::process_return ignored_result;
+    return Validate(block, ignored_result);
 }
 
 // Currently designed only to handle

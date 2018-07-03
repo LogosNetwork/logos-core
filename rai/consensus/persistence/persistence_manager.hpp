@@ -19,6 +19,7 @@ public:
     void StoreBatchMessage(const BatchStateBlock & message);
     void ApplyBatchMessage(const BatchStateBlock & message);
 
+    bool Validate(const rai::state_block & block, rai::process_return & result);
     bool Validate(const rai::state_block & block);
 
 private:
