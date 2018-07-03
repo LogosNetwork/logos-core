@@ -212,20 +212,22 @@ enum class vote_code
 
 enum class process_result
 {
-	progress, // Hasn't been seen before, signed correctly
-	bad_signature, // Signature was bad, forged or transmission error
-	old, // Already seen and was valid
-	negative_spend, // Malicious attempt to spend a negative amount
-	fork, // Malicious fork based on previous
-	unreceivable, // Source block doesn't exist or has already been received
-	gap_previous, // Block marked as previous is unknown
-	gap_source, // Block marked as source is unknown
-	state_block_disabled, // Awaiting state block canary block
+	progress,              // Hasn't been seen before, signed correctly
+	bad_signature,         // Signature was bad, forged or transmission error
+	old,                   // Already seen and was valid
+	negative_spend,        // Malicious attempt to spend a negative amount
+	fork,                  // Malicious fork based on previous
+	unreceivable,          // Source block doesn't exist or has already been received
+	gap_previous,          // Block marked as previous is unknown
+	gap_source,            // Block marked as source is unknown
+	state_block_disabled,  // Awaiting state block canary block
 	not_receive_from_send, // Receive does not have a send source
-	account_mismatch, // Account number in open block doesn't match send destination
-	opened_burn_account, // The impossible happened, someone found the private key associated with the public key '0'.
-	balance_mismatch, // Balance and amount delta don't match
-	block_position // This block cannot follow the previous block
+	account_mismatch,      // Account number in open block doesn't match send destination
+	opened_burn_account,   // The impossible happened, someone found the private key associated with the public key '0'.
+	balance_mismatch,      // Balance and amount delta don't match
+	block_position,        // This block cannot follow the previous block
+	invalid_block_type,    // Logos - Only allow state blocks
+	not_implemented        // Logos - The block cannot be processed
 };
 class process_return
 {

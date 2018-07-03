@@ -341,8 +341,7 @@ void rai::rpc_handler::account_info ()
 		rai::transaction transaction (node.store.environment, nullptr, false);
 		rai::account_info info;
 
-		boost::optional<std::string> consensus_db (request.get_optional<std::string> ("consensus_db"));
-		MDB_dbi db = consensus_db.is_initialized() ? node.store.account_db : node.store.accounts;
+		MDB_dbi db = is_logos_request() ? node.store.account_db : node.store.accounts;
 
 		if (!node.store.account_get (transaction, account, info, db))
 		{
@@ -2608,7 +2607,7 @@ void rai::rpc_handler::process ()
 			rai::process_return result;
 			{
 				rai::transaction transaction (node.store.environment, nullptr, true);
-				result = block->type() == block_type::send ?
+				result = is_logos_request() ?
 						node.OnSendRequest(std::dynamic_pointer_cast<rai::state_block>(block)) :
 						node.block_processor.process_receive_one (transaction, block);
 			}
@@ -5048,6 +5047,12 @@ void rai::rpc_handler::process_request ()
 	{
 		error_response (response, "Internal server error in RPC");
 	}
+}
+
+bool rai::rpc_handler::is_logos_request()
+{
+    boost::optional<std::string> logos_flag(request.get_optional<std::string> ("logos"));
+    return logos_flag.is_initialized();
 }
 
 rai::payment_observer::payment_observer (std::function<void(boost::property_tree::ptree const &)> const & response_a, rai::rpc & rpc_a, rai::account const & account_a, rai::amount const & amount_a) :
