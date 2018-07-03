@@ -2602,16 +2602,23 @@ void rai::rpc_handler::process ()
 	std::shared_ptr<rai::block> block (rai::deserialize_block_json (block_l));
 	if (block != nullptr)
 	{
-		if (!rai::work_validate (*block))
+	    bool logos(is_logos_request());
+
+		if (logos || !rai::work_validate (*block))
 		{
-			auto hash (block->hash ());
-			node.block_arrival.add (hash);
+            auto hash (block->hash ());
+
+		    if(!logos)
+		    {
+		        node.block_arrival.add (hash);
+		    }
+
 			rai::process_return result;
 			{
 				rai::transaction transaction (node.store.environment, nullptr, true);
-				result = is_logos_request() ?
-						node.OnSendRequest(std::dynamic_pointer_cast<rai::state_block>(block)) :
-						node.block_processor.process_receive_one (transaction, block);
+				result = logos ?
+						    node.OnSendRequest(std::dynamic_pointer_cast<rai::state_block>(block)) :
+						    node.block_processor.process_receive_one (transaction, block);
 			}
 			switch (result.code)
 			{
