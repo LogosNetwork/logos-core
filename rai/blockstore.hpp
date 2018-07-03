@@ -115,8 +115,8 @@ public:
 
     // consensus-prototype additions
 	block_hash batch_block_put(BatchStateBlock const &);
-	void state_block_put(CompressedStateBlock const &, StateBlockLocator const &);
-	bool state_block_exists(const CompressedStateBlock & block);
+	void state_block_put(state_block const &, StateBlockLocator const &);
+	bool state_block_exists(const state_block & block);
     bool state_block_exists(const block_hash & hash);
 	bool account_get(rai::account const & account_a, rai::account_info & info_a);
 	bool account_db_empty();
