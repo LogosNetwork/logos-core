@@ -113,6 +113,8 @@ void ConsensusManager::OnConsensusReached()
 
 void ConsensusManager::InitiateConsensus()
 {
+    CancelBatchTimeout();
+
     Send(&_handler.GetNextBatch(), sizeof(BatchStateBlock));
 
     _state = ConsensusState::PRE_PREPARE;
@@ -122,11 +124,16 @@ void ConsensusManager::OnBatchTimeout()
 {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    CancelBatchTimeout();
+    if(!_batch_timeout_scheduled)
+    {
+        return;
+    }
+
+    _batch_timeout_scheduled = false;
 
     if(!_handler.Empty())
     {
-        if(ReadyForConsensus())
+        if(StateReadyForConsensus())
         {
             InitiateConsensus();
         }
@@ -135,8 +142,12 @@ void ConsensusManager::OnBatchTimeout()
 
 bool ConsensusManager::ReadyForConsensus()
 {
-    return (_state == ConsensusState::VOID || _state == ConsensusState::POST_COMMIT)
-            && _handler.BatchReady();
+    return StateReadyForConsensus() && _handler.BatchReady();
+}
+
+bool ConsensusManager::StateReadyForConsensus()
+{
+    return _state == ConsensusState::VOID || _state == ConsensusState::POST_COMMIT;
 }
 
 void ConsensusManager::ScheduleBatchTimeout()

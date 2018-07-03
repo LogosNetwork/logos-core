@@ -1217,26 +1217,31 @@ rai::block_hash rai::block_store::batch_block_put (BatchStateBlock const & block
     block_hash result = GetBlockHash(block);
     transaction transaction(environment, nullptr, true);
 
-    assert(mdb_put(transaction, batch_db, rai::mdb_val(result),
-                   mdb_val(sizeof(BatchStateBlock), const_cast<BatchStateBlock *>(&block)), 0)
-           == 0);
+    auto status(mdb_put(transaction, batch_db, rai::mdb_val(result),
+                        mdb_val(sizeof(BatchStateBlock),
+                                const_cast<BatchStateBlock *>(&block)),
+                        0));
+
+    assert(status == 0);
 
     return result;
 }
 
-void rai::block_store::state_block_put(CompressedStateBlock const & block, StateBlockLocator const & locator)
+void rai::block_store::state_block_put(state_block const & block, StateBlockLocator const & locator)
 {
-    block_hash result = GetBlockHash(block);
     transaction transaction(environment, nullptr, true);
 
-    assert(mdb_put(transaction, state_db, rai::mdb_val(result),
-                   mdb_val(sizeof(StateBlockLocator), const_cast<StateBlockLocator *>(&locator)), 0)
-           == 0);
+    auto status(mdb_put(transaction, state_db, rai::mdb_val(block.hash()),
+                        mdb_val(sizeof(StateBlockLocator),
+                                const_cast<StateBlockLocator *>(&locator)),
+                        0));
+
+    assert(status == 0);
 }
 
-bool rai::block_store::state_block_exists(const CompressedStateBlock & block)
+bool rai::block_store::state_block_exists(const state_block & block)
 {
-    return state_block_exists(GetBlockHash(block));
+    return state_block_exists(block.hash());
 }
 
 bool rai::block_store::state_block_exists(const block_hash & hash)
@@ -1263,8 +1268,9 @@ bool rai::block_store::account_db_empty()
 void rai::block_store::account_put(const rai::account & account, const rai::account_info & info)
 {
     rai::transaction transaction(environment, nullptr, true);
-    assert(mdb_put(transaction, account_db, rai::mdb_val(account), info.val(), 0)
-           == 0);
+    auto status(mdb_put(transaction, account_db, rai::mdb_val(account), info.val(), 0));
+
+    assert(status == 0);
 }
 
 void rai::block_store::flush (MDB_txn * transaction_a)

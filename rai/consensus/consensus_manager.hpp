@@ -51,6 +51,7 @@ private:
     void OnBatchTimeout();
 
     bool ReadyForConsensus();
+    bool StateReadyForConsensus();
 
     void ScheduleBatchTimeout();
     void CancelBatchTimeout();
