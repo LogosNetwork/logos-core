@@ -28,9 +28,9 @@ public:
     BatchStateBlock & GetNextBatch();
     void PopFront();
 
-    void InsertBlock(std::shared_ptr<rai::state_block> block);
-
 private:
+
+    void InsertBlock(std::shared_ptr<rai::state_block> block);
 
     BatchList    _batches;
     rai::alarm & _alarm;

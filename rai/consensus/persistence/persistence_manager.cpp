@@ -24,7 +24,7 @@ void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message)
 
 void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message)
 {
-    for(uint8_t i = 0; i < CONSENSUS_BATCH_SIZE; ++i)
+    for(uint8_t i = 0; i < message.block_count; ++i)
     {
         ApplyStateMessage(message.blocks[i]);
     }
@@ -60,10 +60,25 @@ bool PersistenceManager::Validate(const rai::state_block & block, rai::process_r
             return false;
         }
 
-        if(!_store.state_block_exists(block.hashables.previous))
+        // This account has never issued a send transaction
+        // The previous will be the open.
+        if(info.block_count == 1)
         {
-            result.code = rai::process_result::gap_previous;
-            return false;
+            if(!_store.receive_exists(block.hashables.previous))
+            {
+                result.code = rai::process_result::gap_previous;
+                return false;
+            }
+        }
+
+        // This account has issued at least one send transaction.
+        else
+        {
+            if(!_store.state_block_exists(block.hashables.previous))
+            {
+                result.code = rai::process_result::gap_previous;
+                return false;
+            }
         }
 
         is_send = block.hashables.balance < info.balance;
@@ -154,14 +169,26 @@ void PersistenceManager::UpdateDestinationState(const rai::state_block & block, 
     // Destination account doesn't exist yet
     if(account_error)
     {
-       _store.account_put(rai::account(block.hashables.link),
+        rai::state_block open(/* Account  */ rai::account(block.hashables.link),
+                              /* Previous */ 0,
+                              /* Rep      */ 0,
+                              /* Balance  */ quantity,
+                              /* Link     */ block.hash(),
+                              /* Priv Key */ rai::raw_key(),
+                              /* Pub Key  */ rai::public_key(),
+                              /* Work     */ 0);
+
+        auto hash(open.hash());
+
+        _store.receive_put(hash, open);
+        _store.account_put(rai::account(block.hashables.link),
                           {
-                                /* No head */ 0,
-                                /* No Rep  */ 0,
-                                /* No Open */ 0,
-                                quantity,
-                                rai::seconds_since_epoch(),
-                                0
+                                /* Head    */ hash,
+                                /* Rep     */ hash,
+                                /* Open    */ hash,
+                                /* Balance */ quantity,
+                                /* Time    */ rai::seconds_since_epoch(),
+                                /* Count   */ 1
                           });
     }
 

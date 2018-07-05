@@ -261,6 +261,7 @@ extern rai::account const & rai_test_account;
 extern rai::account const & rai_beta_account;
 extern rai::account const & rai_live_account;
 extern std::string const & rai_test_genesis;
+extern std::string const & logos_test_genesis;
 extern std::string const & rai_beta_genesis;
 extern std::string const & rai_live_genesis;
 extern std::string const & genesis_block;

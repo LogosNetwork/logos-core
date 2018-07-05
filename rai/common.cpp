@@ -45,6 +45,17 @@ char const * live_genesis_data = R"%%%({
 	"signature": "9F0C933C8ADE004D808EA1985FA746A7E95BA2A38F867640F53EC8F180BDFE9E2C1268DEAD7C2664F356E37ABA362BC58E46DBA03E523A7B5A19E4B6EB12BB02"
 })%%%";
 
+char const * logos_genesis_data = R"%%%({
+    "type": "state",
+    "account": "xrb_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
+    "previous": "0",
+    "representative": "xrb_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
+    "balance": "340282366920938463463374607431768211455",
+    "link": "B0311EA55708D6A53C75CDBF88300259C6D018522FE3D4D0A242E431F9E8B6D0",
+    "work": "0",
+    "signature": "ECDA914373A2F0CA1296475BAEE40500A7F0A7AD72A5A80C81D7FAB7F6C802B2CC7DB50F5DD0FB25B2EF11761FA7344A158DD5A700B21BD47DE5BD0F63153A02"
+})%%%";
+
 class ledger_constants
 {
 public:
@@ -57,6 +68,7 @@ public:
 	rai_test_genesis (test_genesis_data),
 	rai_beta_genesis (beta_genesis_data),
 	rai_live_genesis (live_genesis_data),
+	logos_test_genesis (logos_genesis_data),
 	genesis_account (rai::rai_network == rai::rai_networks::rai_test_network ? rai_test_account : rai::rai_network == rai::rai_networks::rai_beta_network ? rai_beta_account : rai_live_account),
 	genesis_block (rai::rai_network == rai::rai_networks::rai_test_network ? rai_test_genesis : rai::rai_network == rai::rai_networks::rai_beta_network ? rai_beta_genesis : rai_live_genesis),
 	genesis_amount (std::numeric_limits<rai::uint128_t>::max ()),
@@ -75,6 +87,7 @@ public:
 	std::string rai_test_genesis;
 	std::string rai_beta_genesis;
 	std::string rai_live_genesis;
+    std::string logos_test_genesis;
 	rai::account genesis_account;
 	std::string genesis_block;
 	rai::uint128_t genesis_amount;
@@ -99,6 +112,7 @@ rai::account const & rai::rai_live_account (globals.rai_live_account);
 std::string const & rai::rai_test_genesis (globals.rai_test_genesis);
 std::string const & rai::rai_beta_genesis (globals.rai_beta_genesis);
 std::string const & rai::rai_live_genesis (globals.rai_live_genesis);
+std::string const & rai::logos_test_genesis (globals.logos_test_genesis);
 
 rai::account const & rai::genesis_account (globals.genesis_account);
 std::string const & rai::genesis_block (globals.genesis_block);

@@ -121,6 +121,8 @@ public:
 	bool account_get(rai::account const & account_a, rai::account_info & info_a);
 	bool account_db_empty();
 	void account_put (rai::account const &, rai::account_info const &);
+	void receive_put(const block_hash & hash, const state_block & block);
+	bool receive_exists(const block_hash & hash);
 
 	void checksum_put (MDB_txn *, uint64_t, uint8_t, rai::checksum const &);
 	bool checksum_get (MDB_txn *, uint64_t, uint8_t, rai::checksum &);
@@ -176,6 +178,12 @@ public:
      * rai::block_hash -> rai::account
      */
     MDB_dbi account_db;
+
+    /**
+     * Maps block hash to receive block.
+     * rai::block_hash -> rai::state_block
+     */
+    MDB_dbi receive_db;
 
 	/**
 	 * Maps head block to owning account

@@ -2614,12 +2614,17 @@ void rai::rpc_handler::process ()
 		    }
 
 			rai::process_return result;
-			{
-				rai::transaction transaction (node.store.environment, nullptr, true);
-				result = logos ?
-						    node.OnSendRequest(std::dynamic_pointer_cast<rai::state_block>(block)) :
-						    node.block_processor.process_receive_one (transaction, block);
-			}
+
+            if (logos)
+            {
+                result = node.OnSendRequest(std::dynamic_pointer_cast<rai::state_block>(block));
+            }
+            else
+            {
+                rai::transaction transaction (node.store.environment, nullptr, true);
+                result = node.block_processor.process_receive_one (transaction, block);
+            }
+
 			switch (result.code)
 			{
 				case rai::process_result::progress:
@@ -2680,6 +2685,21 @@ void rai::rpc_handler::process ()
 					error_response (response, "Account mismatch");
 					break;
 				}
+                case rai::process_result::invalid_block_type:
+                {
+                    error_response (response, "Invalid block type");
+                    break;
+                }
+                case rai::process_result::not_implemented:
+                {
+                    error_response (response, "Not implemented");
+                    break;
+                }
+                case rai::process_result::opened_burn_account:
+                {
+                    error_response (response, "Invalid account (burn account)");
+                    break;
+                }
 				default:
 				{
 					error_response (response, "Error processing block");
