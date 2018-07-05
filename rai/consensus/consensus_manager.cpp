@@ -65,7 +65,9 @@ void ConsensusManager::OnSendRequest(std::shared_ptr<rai::state_block> block, ra
 
     if(_handler.Empty())
     {
-        ScheduleBatchTimeout();
+        // TODO: Improve and simplify timeout
+        //       logic
+        //ScheduleBatchTimeout();
     }
 
     _handler.OnRequest(block);
