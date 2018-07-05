@@ -68,7 +68,7 @@ void ConsensusManager::OnSendRequest(std::shared_ptr<rai::state_block> block, ra
         ScheduleBatchTimeout();
     }
 
-    _handler.InsertBlock(block);
+    _handler.OnRequest(block);
 
     if(ReadyForConsensus())
     {

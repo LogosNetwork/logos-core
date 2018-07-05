@@ -1710,14 +1710,31 @@ _consensus_manager(service_a, store, alarm_a, log, config.consensus_manager_conf
 		// check consensus-prototype account_db
 		if(store.account_db_empty())
 		{
+		    auto error (false);
+
+		    // Construct genesis open block
+		    //
+		    boost::property_tree::ptree tree;
+		    std::stringstream istream(rai::logos_test_genesis);
+		    boost::property_tree::read_json(istream, tree);
+		    state_block logos_genesis_block(error, tree);
+
+		    if(error)
+		    {
+		        throw std::runtime_error("Failed to initialize Logos genesis block.");
+		    }
+
+		    store.receive_put(logos_genesis_block.hash(),
+		                      logos_genesis_block);
+
 		    store.account_put (genesis_account,
 		                       {
-		                               /* No head */ 0,
-		                               /* No Rep  */ 0,
-		                               /* No Open */ 0,
-		                               std::numeric_limits<rai::uint128_t>::max(),
-		                               rai::seconds_since_epoch(),
-		                               0
+                                   /* Head    */ logos_genesis_block.hash(),
+                                   /* Rep     */ logos_genesis_block.hash(),
+                                   /* Open    */ logos_genesis_block.hash(),
+                                   /* Balance */ std::numeric_limits<rai::uint128_t>::max(),
+                                   /* Time    */ rai::seconds_since_epoch(),
+                                   /* Count   */ 1
 		                       });
 		}
 	}
