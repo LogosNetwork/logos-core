@@ -10,7 +10,7 @@ void PrimaryDelegate::ProcessMessage(const PrepareMessage & message)
 {
     if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE))
     {
-        AdvanceState();
+        AdvanceState(ConsensusState::POST_PREPARE);
 
         PostPrepareMessage response;
         Send(&response, sizeof(response));
@@ -21,7 +21,7 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage & message)
 {
     if(ProceedWithMessage(message, ConsensusState::POST_PREPARE))
     {
-        AdvanceState();
+        AdvanceState(ConsensusState::POST_COMMIT);
 
         PostCommitMessage response;
         Send(&response, sizeof(response));
@@ -71,16 +71,8 @@ bool PrimaryDelegate::ProceedWithMessage(const MSG & message, ConsensusState exp
     return false;
 }
 
-void PrimaryDelegate::AdvanceState(uint8_t increment)
+void PrimaryDelegate::AdvanceState(ConsensusState new_state)
 {
-    if(_state == ConsensusState::VOID)
-    {
-        _state = ConsensusState::PRE_PREPARE;
-    }
-    else
-    {
-        _state = static_cast<ConsensusState>(uint8_t(_state) + increment);
-    }
-
+    _state = new_state;
     _consensus_count = 0;
 }
