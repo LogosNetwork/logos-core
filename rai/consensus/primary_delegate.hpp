@@ -48,7 +48,7 @@ private:
     template<typename MSG>
     bool ProceedWithMessage(const MSG & message, ConsensusState expected_state);
 
-    void AdvanceState(uint8_t increment = 2);
+    void AdvanceState(ConsensusState new_state);
 
     virtual void OnConsensusReached() = 0;
 
