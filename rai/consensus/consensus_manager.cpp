@@ -67,6 +67,7 @@ void ConsensusManager::OnSendRequest(std::shared_ptr<rai::state_block> block, ra
     {
         // TODO: Improve and simplify timeout
         //       logic
+        //
         //ScheduleBatchTimeout();
     }
 

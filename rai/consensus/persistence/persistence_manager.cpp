@@ -54,25 +54,14 @@ bool PersistenceManager::Validate(const rai::state_block & block, rai::process_r
     if(!account_error)
     {
         // no previous block set
-        if(block.hashables.previous.is_zero())
+        if(block.hashables.previous.is_zero() && info.block_count)
         {
             result.code = rai::process_result::fork;
             return false;
         }
 
-        // This account has never issued a send transaction
-        // The previous will be the open.
-        if(info.block_count == 1)
-        {
-            if(!_store.receive_exists(block.hashables.previous))
-            {
-                result.code = rai::process_result::gap_previous;
-                return false;
-            }
-        }
-
         // This account has issued at least one send transaction.
-        else
+        if(info.block_count)
         {
             if(!_store.state_block_exists(block.hashables.previous))
             {
@@ -183,12 +172,12 @@ void PersistenceManager::UpdateDestinationState(const rai::state_block & block, 
         _store.receive_put(hash, open);
         _store.account_put(rai::account(block.hashables.link),
                           {
-                                /* Head    */ hash,
+                                /* Head    */ 0,
                                 /* Rep     */ hash,
                                 /* Open    */ hash,
                                 /* Balance */ quantity,
                                 /* Time    */ rai::seconds_since_epoch(),
-                                /* Count   */ 1
+                                /* Count   */ 0
                           });
     }
 
@@ -199,4 +188,3 @@ void PersistenceManager::UpdateDestinationState(const rai::state_block & block, 
         info.modified = rai::seconds_since_epoch();
     }
 }
-

@@ -1729,12 +1729,12 @@ _consensus_manager(service_a, store, alarm_a, log, config.consensus_manager_conf
 
 		    store.account_put (genesis_account,
 		                       {
-                                   /* Head    */ logos_genesis_block.hash(),
-                                   /* Rep     */ logos_genesis_block.hash(),
+                                   /* Head    */ 0,
+                                   /* Rep     */ 0,
                                    /* Open    */ logos_genesis_block.hash(),
                                    /* Balance */ std::numeric_limits<rai::uint128_t>::max(),
                                    /* Time    */ rai::seconds_since_epoch(),
-                                   /* Count   */ 1
+                                   /* Count   */ 0
 		                       });
 		}
 	}
