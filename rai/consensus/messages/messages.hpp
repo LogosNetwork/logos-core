@@ -3,7 +3,6 @@
 #include <rai/consensus/messages/common.hpp>
 #include <rai/lib/blocks.hpp>
 
-//using BlockList = std::array<CompressedStateBlock, CONSENSUS_BATCH_SIZE>;
 using BlockList = rai::state_block [CONSENSUS_BATCH_SIZE];
 using PublicKey = rai::public_key;
 
@@ -42,7 +41,7 @@ struct StandardPhaseMessage<type, typename std::enable_if<
     Signature signature;
 } __attribute__((packed));
 
-struct KeyAdvertisement
+struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert>
 {
     PublicKey public_key;
 };

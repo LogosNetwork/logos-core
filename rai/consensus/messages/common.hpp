@@ -8,12 +8,17 @@
 
 enum class MessageType : uint8_t
 {
+    // Consensus
     Pre_Prepare  = 0,
     Prepare      = 1,
     Post_Prepare = 2,
     Commit       = 3,
     Post_Commit  = 4,
 
+    // Advertisements
+    Key_Advert   = 5,
+
+    // Invalid
     Unknown
 };
 

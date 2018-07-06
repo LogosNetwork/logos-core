@@ -11,10 +11,12 @@ ConsensusConnection::ConsensusConnection(Service & service,
                                          Log & log,
                                          const Endpoint & endpoint,
                                          PrimaryDelegate * primary,
-                                         PersistenceManager & persistence_manager)
+                                         PersistenceManager & persistence_manager,
+                                         MessageValidator & validator)
     : _socket(new Socket(service))
     , _endpoint(endpoint)
     , _persistence_manager(persistence_manager)
+    , _validator(validator)
     , _log(log)
     , _primary(primary)
     , _alarm(alarm)
@@ -28,16 +30,17 @@ ConsensusConnection::ConsensusConnection(std::shared_ptr<Socket> socket,
                                          Log & log,
                                          const Endpoint & endpoint,
                                          PrimaryDelegate * primary,
-                                         PersistenceManager & persistence_manager)
+                                         PersistenceManager & persistence_manager,
+                                         MessageValidator & validator)
     : _socket(socket)
     , _endpoint(endpoint)
     , _persistence_manager(persistence_manager)
+    , _validator(validator)
     , _alarm(alarm)
     , _log(log)
     , _primary(primary)
-    , _connected(true)
 {
-    Read();
+    OnConnect();
 }
 
 void ConsensusConnection::Send(const void * data, size_t size)
@@ -60,8 +63,7 @@ void ConsensusConnection::Send(const void * data, size_t size)
 void ConsensusConnection::Connect()
 {
     _socket->async_connect(_endpoint,
-                           std::bind(&ConsensusConnection::OnConnect, this,
-                                     std::placeholders::_1));
+                           [this](boost::system::error_code const & ec) { OnConnect(ec); });
 }
 
 void ConsensusConnection::Read()
@@ -73,25 +75,35 @@ void ConsensusConnection::Read()
                                       std::placeholders::_2));
 }
 
+void ConsensusConnection::OnConnect()
+{
+    BOOST_LOG(_log) << "ConsensusConnection - Connected to "
+                    << _endpoint;
+
+    _connected = true;
+
+    SendKeyAdvertisement();
+    Read();
+}
+
 void ConsensusConnection::OnConnect(boost::system::error_code const & ec)
 {
-    if(!ec)
+    if(ec)
     {
-        BOOST_LOG(_log) << "ConsensusConnection - Connected to " << _endpoint;
-        _connected = true;
-
-        Read();
-    }
-    else
-    {
-        BOOST_LOG(_log) << "ConsensusConnection - Error connecting to " << _endpoint << " : " << ec.message()
-                        << " Retrying in " << int(CONNECT_RETRY_DELAY) << " seconds.";
+        BOOST_LOG(_log) << "ConsensusConnection - Error connecting to "
+                        << _endpoint << " : " << ec.message()
+                        << " Retrying in " << int(CONNECT_RETRY_DELAY)
+                        << " seconds.";
 
         _socket->close();
 
-        _alarm.add(std::chrono::steady_clock::now() + std::chrono::seconds(CONNECT_RETRY_DELAY),
+        _alarm.add(std::chrono::seconds(CONNECT_RETRY_DELAY),
                    std::bind(&ConsensusConnection::Connect, this));
+
+        return;
     }
+
+    OnConnect();
 }
 
 void ConsensusConnection::OnData(boost::system::error_code const & ec, size_t size)
@@ -156,6 +168,15 @@ void ConsensusConnection::OnData(boost::system::error_code const & ec, size_t si
                                               std::placeholders::_1,
                                               std::placeholders::_2));
             break;
+        case MessageType::Key_Advert:
+            boost::asio::async_read(*_socket, boost::asio::buffer(_receive_buffer.data() + sizeof(Prequel),
+                                                                  sizeof(KeyAdvertisement) -
+                                                                  sizeof(Prequel)
+                                                                  ),
+                                    std::bind(&ConsensusConnection::OnMessage, this,
+                                              std::placeholders::_1,
+                                              std::placeholders::_2));
+            break;
         case MessageType::Unknown:
             BOOST_LOG(_log) << "ConsensusConnection - Received unknown message type";
             break;
@@ -205,6 +226,12 @@ void ConsensusConnection::OnMessage(boost::system::error_code const & ec, size_t
             OnConsensusMessage(msg);
             break;
         }
+        case MessageType::Key_Advert: {
+            BOOST_LOG(_log) << "ConsensusConnection - Received key advertisement";
+            auto msg (*reinterpret_cast<KeyAdvertisement*>(_receive_buffer.data()));
+            _validator.OnPublicKey(msg.public_key);
+            break;
+        }
         case MessageType::Unknown:
             BOOST_LOG(_log) << "ConsensusConnection - Received unknown message type";
             break;
@@ -220,8 +247,7 @@ void ConsensusConnection::OnConsensusMessage(const PrePrepareMessage & message)
         _state = ConsensusState::PREPARE;
         _cur_batch.reset(new PrePrepareMessage(message));
 
-        PrepareMessage response;
-        Send(response);
+        SendMessage<PrepareMessage>();
     }
 }
 
@@ -231,8 +257,7 @@ void ConsensusConnection::OnConsensusMessage(const PostPrepareMessage & message)
     {
         _state = ConsensusState::COMMIT;
 
-        CommitMessage response;
-        Send(response);
+        SendMessage<CommitMessage>();
     }
 }
 
@@ -241,6 +266,8 @@ void ConsensusConnection::OnConsensusMessage(const PostCommitMessage & message)
     if(ProceedWithMessage(message, ConsensusState::COMMIT))
     {
         _persistence_manager.StoreBatchMessage(*_cur_batch);
+        _persistence_manager.ApplyBatchMessage(*_cur_batch);
+
         _state = ConsensusState::VOID;
     }
 }
@@ -252,17 +279,17 @@ void ConsensusConnection::OnConsensusMessage(const StandardPhaseMessage<Type> & 
 }
 
 template<typename MSG>
-bool ConsensusConnection::Validate(const MSG & msg)
+bool ConsensusConnection::Validate(const MSG & message)
 {
-    return true;
+    return _validator.Validate(message);
 }
 
 template<>
-bool ConsensusConnection::Validate<PrePrepareMessage>(const PrePrepareMessage & msg)
+bool ConsensusConnection::Validate<PrePrepareMessage>(const PrePrepareMessage & message)
 {
-    for(uint8_t i = 0; i < msg.block_count; ++i)
+    for(uint8_t i = 0; i < message.block_count; ++i)
     {
-        if(!_persistence_manager.Validate(msg.blocks[i]))
+        if(!_persistence_manager.Validate(message.blocks[i]))
         {
             return false;
         }
@@ -288,5 +315,20 @@ bool ConsensusConnection::ProceedWithMessage(const MSG & message, ConsensusState
     }
 
     return false;
+}
+
+template<typename MSG>
+void ConsensusConnection::SendMessage()
+{
+    MSG response;
+    _validator.Sign(response);
+    Send(response);
+}
+
+void ConsensusConnection::SendKeyAdvertisement()
+{
+    KeyAdvertisement advert;
+    advert.public_key = _validator.GetPublicKey();
+    Send(advert);
 }
 
