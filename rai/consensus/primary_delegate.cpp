@@ -2,8 +2,11 @@
 
 constexpr uint8_t PrimaryDelegate::QUORUM_SIZE;
 
-PrimaryDelegate::PrimaryDelegate(Log & log)
+PrimaryDelegate::PrimaryDelegate(Log & log,
+                                 MessageValidator & validator)
     : _log(log)
+    , _validator(validator) // NOTE: Don't use _validator in this constructor
+                            //       as it's not initialized yet.
 {}
 
 void PrimaryDelegate::ProcessMessage(const PrepareMessage & message)
@@ -11,9 +14,7 @@ void PrimaryDelegate::ProcessMessage(const PrepareMessage & message)
     if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE))
     {
         AdvanceState(ConsensusState::POST_PREPARE);
-
-        PostPrepareMessage response;
-        Send(&response, sizeof(response));
+        Send<PostPrepareMessage>();
     }
 }
 
@@ -22,19 +23,25 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage & message)
     if(ProceedWithMessage(message, ConsensusState::POST_PREPARE))
     {
         AdvanceState(ConsensusState::POST_COMMIT);
-
-        PostCommitMessage response;
-        Send(&response, sizeof(response));
-
-        OnConsensusReached();
+        Send<PostCommitMessage>();
     }
 }
 
 template<typename MSG>
-bool PrimaryDelegate::Validate(const MSG & msg)
+bool PrimaryDelegate::Validate(const MSG & message)
 {
-    return true;
+    return _validator.Validate(message);
 }
+
+template<typename MSG>
+void PrimaryDelegate::Send()
+{
+    MSG response;
+    _validator.Sign(response);
+
+    Send(&response, sizeof(response));
+}
+
 
 bool PrimaryDelegate::ReachedQuorum()
 {

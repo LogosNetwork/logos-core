@@ -26,6 +26,9 @@ std::string MessageToName(const MSG & message)
         case MessageType::Post_Commit:
             ret = "Post_Commit";
             break;
+        case MessageType::Key_Advert:
+            ret = "Key Advertisement";
+            break;
         case MessageType::Unknown:
             ret = "Unknown";
             break;

@@ -3,8 +3,8 @@
 #include <rai/consensus/persistence/persistence_manager.hpp>
 #include <rai/consensus/consensus_manager_config.hpp>
 #include <rai/consensus/consensus_connection.hpp>
-#include <rai/consensus/request_handler.hpp>
 #include <rai/consensus/messages/messages.hpp>
+#include <rai/consensus/message_validator.hpp>
 #include <rai/consensus/primary_delegate.hpp>
 #include <rai/consensus/request_handler.hpp>
 #include <rai/consensus/peer_acceptor.hpp>
@@ -36,7 +36,7 @@ public:
 
     void OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket> socket) override;
 
-    void Send(void * data, size_t size) override;
+    void Send(const void * data, size_t size) override;
 
     virtual ~ConsensusManager() {}
 
@@ -59,7 +59,7 @@ private:
     Connections        _connections;
     RequestHandler     _handler;
     PersistenceManager _persistence_manager;
-    rai::keypair       _keypair;
+    MessageValidator   _validator;
 	rai::alarm &       _alarm;
 	PeerAcceptor       _peer_acceptor;
 	Log                _log;

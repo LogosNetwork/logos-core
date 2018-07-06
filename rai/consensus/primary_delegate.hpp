@@ -1,5 +1,6 @@
 #pragma once
 
+#include <rai/consensus/message_validator.hpp>
 #include <rai/consensus/messages/messages.hpp>
 #include <rai/consensus/consensus_state.hpp>
 #include <rai/consensus/messages/util.hpp>
@@ -14,7 +15,8 @@ class PrimaryDelegate
 
 public:
 
-    PrimaryDelegate(Log & log);
+    PrimaryDelegate(Log & log,
+                    MessageValidator & validator);
 
     template<typename MSG>
     void OnConsensusMessage(const MSG & message)
@@ -24,12 +26,15 @@ public:
     }
 
     template<typename MSG>
-    bool Validate(const MSG & msg);
+    bool Validate(const MSG & message);
 
     virtual ~PrimaryDelegate()
     {}
 
-    virtual void Send(void * data, size_t size) = 0;
+    template<typename MSG>
+    void Send();
+
+    virtual void Send(const void * data, size_t size) = 0;
 
 protected:
 
@@ -52,6 +57,7 @@ private:
 
     virtual void OnConsensusReached() = 0;
 
-    Log &   _log;
-    uint8_t _consensus_count = 0;
+    Log &              _log;
+    MessageValidator & _validator;
+    uint8_t            _consensus_count = 0;
 };

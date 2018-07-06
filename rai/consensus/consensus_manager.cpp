@@ -9,7 +9,8 @@ ConsensusManager::ConsensusManager(Service & service,
                                    rai::alarm & alarm,
                                    Log & log,
                                    const Config & config)
-    : PrimaryDelegate(log)
+    : PrimaryDelegate(log,
+                      _validator)
     , _handler(alarm)
     , _persistence_manager(store, log)
     , _alarm(alarm)
@@ -37,7 +38,8 @@ ConsensusManager::ConsensusManager(Service & service,
         {
             _connections.push_back(
                     std::make_shared<ConsensusConnection>(service, alarm, _log,
-                                                          endpoint, this, _persistence_manager));
+                                                          endpoint, this, _persistence_manager,
+                                                          _validator));
         }
         else
         {
@@ -82,10 +84,11 @@ void ConsensusManager::OnSendRequest(std::shared_ptr<rai::state_block> block, ra
 void ConsensusManager::OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket> socket)
 {
     _connections.push_back(std::make_shared<ConsensusConnection>(socket, _alarm, _log,
-                                                                 endpoint, this, _persistence_manager));
+                                                                 endpoint, this, _persistence_manager,
+                                                                 _validator));
 }
 
-void ConsensusManager::Send(void * data, size_t size)
+void ConsensusManager::Send(const void * data, size_t size)
 {
     for(auto conn : _connections)
     {

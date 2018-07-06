@@ -1,6 +1,7 @@
 #pragma once
 
 #include <rai/consensus/persistence/persistence_manager.hpp>
+#include <rai/consensus/message_validator.hpp>
 #include <rai/consensus/messages/messages.hpp>
 #include <rai/consensus/primary_delegate.hpp>
 #include <rai/consensus/consensus_state.hpp>
@@ -26,19 +27,23 @@ class ConsensusConnection
 
 public:
 
+    // TODO: Consolidate constructors
+    //
 	ConsensusConnection(Service & service,
 	                    rai::alarm & alarm,
 	                    Log & log,
 	                    const Endpoint & endpoint,
 	                    PrimaryDelegate * primary,
-	                    PersistenceManager & persistence_manager);
+	                    PersistenceManager & persistence_manager,
+	                    MessageValidator & validator);
 
 	ConsensusConnection(std::shared_ptr<Socket> socket,
                         rai::alarm & alarm,
                         Log & log,
                         const Endpoint & endpoint,
                         PrimaryDelegate * primary,
-                        PersistenceManager & persistence_manager);
+                        PersistenceManager & persistence_manager,
+                        MessageValidator & validator);
 
 	void Send(const void * data, size_t size);
 
@@ -58,6 +63,7 @@ private:
     void Connect();
     void Read();
 
+    void OnConnect();
     void OnConnect(boost::system::error_code const & ec);
     void OnData(boost::system::error_code const & ec, size_t size);
     void OnMessage(boost::system::error_code const & ec, size_t size);
@@ -72,16 +78,22 @@ private:
     void OnConsensusMessage(const StandardPhaseMessage<Type> & message);
 
     template<typename MSG>
-    bool Validate(const MSG & msg);
+    bool Validate(const MSG & message);
 
     template<typename MSG>
     bool ProceedWithMessage(const MSG & message, ConsensusState expected_state);
+
+    template<typename MSG>
+    void SendMessage();
+
+    void SendKeyAdvertisement();
 
     ReceiveBuffer                      _receive_buffer;
     std::shared_ptr<Socket>            _socket;
     Endpoint                           _endpoint;
     std::shared_ptr<PrePrepareMessage> _cur_batch;
     PersistenceManager &               _persistence_manager;
+    MessageValidator &                 _validator;
     rai::alarm &                       _alarm;
     Log &                              _log;
     PrimaryDelegate *                  _primary;
