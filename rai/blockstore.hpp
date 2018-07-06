@@ -174,8 +174,8 @@ public:
     MDB_dbi state_db;
 
     /**
-     * Maps head block to owning account
-     * rai::block_hash -> rai::account
+     * Maps account to account information, head, rep, open, balance, timestamp and block count.
+     * rai::account -> rai::block_hash, rai::block_hash, rai::block_hash, rai::amount, uint64_t, uint64_t
      */
     MDB_dbi account_db;
 
