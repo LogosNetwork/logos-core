@@ -1179,22 +1179,9 @@ void rai::block_store::checksum_del (MDB_txn * transaction_a, uint64_t prefix, u
 	assert (status == 0);
 }
 
-template<typename BLOCK_TYPE>
-rai::block_hash GetBlockHash(const BLOCK_TYPE & block)
-{
-    rai::block_hash result;
-
-    blake2b_state hash;
-    assert(blake2b_init(&hash, sizeof(result.bytes)) == 0);
-    block.Hash(hash);
-    assert(blake2b_final(&hash, result.bytes.data(), sizeof(result.bytes)) == 0);
-
-    return result;
-}
-
 rai::block_hash rai::block_store::batch_block_put (BatchStateBlock const & block)
 {
-    block_hash result = GetBlockHash(block);
+    auto result = block.Hash();
     transaction transaction(environment, nullptr, true);
 
     auto status(mdb_put(transaction, batch_db, rai::mdb_val(result),

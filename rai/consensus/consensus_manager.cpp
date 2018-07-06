@@ -121,7 +121,10 @@ void ConsensusManager::InitiateConsensus()
 {
     CancelBatchTimeout();
 
-    Send(&_handler.GetNextBatch(), sizeof(BatchStateBlock));
+    auto & batch = _handler.GetNextBatch();
+
+    OnConsensusInitiated(batch.Hash());
+    Send(&batch, sizeof(BatchStateBlock));
 
     _state = ConsensusState::PRE_PREPARE;
 }

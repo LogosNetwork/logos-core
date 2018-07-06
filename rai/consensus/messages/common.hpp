@@ -1,5 +1,7 @@
 #pragma once
 
+#include <rai/lib/blocks.hpp>
+
 #include <type_traits>
 #include <cstdint>
 #include <array>
@@ -27,22 +29,36 @@ static const size_t CONSENSUS_SIG_SIZE      = 32;
 static const size_t CONSENSUS_AGG_SIG_SIZE  = 32;
 static const size_t CONSENSUS_BATCH_SIZE    = 100;
 
-using Hash         = std::array<uint8_t, CONSENSUS_HASH_SIZE>;
+// TODO: modify
+//
 using Signature    = std::array<uint8_t, CONSENSUS_SIG_SIZE>;
 using AggSignature = std::array<uint8_t, CONSENSUS_AGG_SIG_SIZE>;
+
+using BlockList = rai::state_block [CONSENSUS_BATCH_SIZE];
+using PublicKey = rai::public_key;
+using BlockHash = rai::block_hash;
+
+inline uint64_t GetStamp()
+{
+    using namespace std::chrono;
+
+    return duration_cast< milliseconds >(
+                system_clock::now().time_since_epoch()).count();
+}
 
 template<MessageType type_param>
 struct MessagePrequel
 {
-    uint8_t           version;
-    const MessageType type{type_param};
-} __attribute__((packed));
+    const uint8_t     version = 0;
+    const MessageType type = type_param;
+};
 
 template<MessageType type>
 struct MessageHeader : MessagePrequel<type>
 {
-    Hash     hash;
-    uint64_t timestamp;
-} __attribute__((packed));
+
+    uint64_t  timestamp = GetStamp();
+    BlockHash hash;
+};
 
 using Prequel = MessagePrequel<MessageType::Unknown>;
