@@ -92,6 +92,7 @@ private:
     std::shared_ptr<Socket>            _socket;
     Endpoint                           _endpoint;
     std::shared_ptr<PrePrepareMessage> _cur_batch;
+    BlockHash                          _cur_batch_hash;
     PersistenceManager &               _persistence_manager;
     MessageValidator &                 _validator;
     rai::alarm &                       _alarm;

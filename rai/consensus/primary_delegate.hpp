@@ -38,6 +38,8 @@ public:
 
 protected:
 
+    void OnConsensusInitiated(const BlockHash & hash);
+
     std::mutex     _mutex;
     ConsensusState _state = ConsensusState::VOID;
 
@@ -59,5 +61,6 @@ private:
 
     Log &              _log;
     MessageValidator & _validator;
+    BlockHash          _cur_batch_hash;
     uint8_t            _consensus_count = 0;
 };

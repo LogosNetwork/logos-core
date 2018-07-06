@@ -37,11 +37,17 @@ template<typename MSG>
 void PrimaryDelegate::Send()
 {
     MSG response;
+
+    response.hash = _cur_batch_hash;
     _validator.Sign(response);
 
     Send(&response, sizeof(response));
 }
 
+void PrimaryDelegate::OnConsensusInitiated(const BlockHash & hash)
+{
+    _cur_batch_hash = hash;
+}
 
 bool PrimaryDelegate::ReachedQuorum()
 {

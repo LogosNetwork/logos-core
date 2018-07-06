@@ -246,6 +246,7 @@ void ConsensusConnection::OnConsensusMessage(const PrePrepareMessage & message)
     {
         _state = ConsensusState::PREPARE;
         _cur_batch.reset(new PrePrepareMessage(message));
+        _cur_batch_hash = message.Hash();
 
         SendMessage<PrepareMessage>();
     }
@@ -321,7 +322,10 @@ template<typename MSG>
 void ConsensusConnection::SendMessage()
 {
     MSG response;
+
+    response.hash = _cur_batch_hash;
     _validator.Sign(response);
+
     Send(response);
 }
 
