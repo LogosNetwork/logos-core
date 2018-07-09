@@ -21,7 +21,7 @@ public:
     template<typename MSG>
     void OnConsensusMessage(const MSG & message)
     {
-        std::lock_guard<std::mutex> lock(_mutex);
+        std::lock_guard<std::recursive_mutex> lock(_mutex);
         ProcessMessage(message);
     }
 
@@ -40,8 +40,11 @@ protected:
 
     void OnConsensusInitiated(const BlockHash & hash);
 
-    std::mutex     _mutex;
-    ConsensusState _state = ConsensusState::VOID;
+    // TODO: Revert to std::mutex after
+    //       benchmark.
+    //
+    std::recursive_mutex _mutex;
+    ConsensusState       _state = ConsensusState::VOID;
 
 private:
 

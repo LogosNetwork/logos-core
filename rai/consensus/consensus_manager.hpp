@@ -23,6 +23,7 @@ class ConsensusManager : public PeerManager,
     using ConnectionPolicy = std::less<boost::asio::ip::tcp::endpoint>;
     using Connections      = std::vector<std::shared_ptr<ConsensusConnection>>;
     using Store            = rai::block_store;
+    using BlockBuffer      = std::list<std::shared_ptr<rai::state_block>>;
 
 public:
 
@@ -33,6 +34,7 @@ public:
 					 const Config & config);
 
 	void OnSendRequest(std::shared_ptr<rai::state_block> block, rai::process_return & result);
+	void OnBenchmarkSendRequest(std::shared_ptr<rai::state_block> block, rai::process_return & result);
 
     void OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket> socket) override;
 
@@ -56,14 +58,18 @@ private:
     void ScheduleBatchTimeout();
     void CancelBatchTimeout();
 
+    void SendBufferedBlocks();
+
     Connections        _connections;
     RequestHandler     _handler;
     PersistenceManager _persistence_manager;
     MessageValidator   _validator;
 	rai::alarm &       _alarm;
 	PeerAcceptor       _peer_acceptor;
+	BlockBuffer        _buffer;
 	Log                _log;
 	uint64_t           _batch_timeout_handle;
 	bool               _batch_timeout_scheduled = false;
+	bool               _using_buffered_blocks   = false;
 };
 
