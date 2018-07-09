@@ -42,6 +42,8 @@ public:
 
     virtual ~ConsensusManager() {}
 
+    void BufferComplete(rai::process_return & result);
+
 private:
 
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;

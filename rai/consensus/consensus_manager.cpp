@@ -81,12 +81,6 @@ void ConsensusManager::OnBenchmarkSendRequest(std::shared_ptr<rai::state_block> 
 
     _using_buffered_blocks = true;
     _buffer.push_back(block);
-
-    if(!block->hashables.representative.is_zero())
-    {
-        result.code = rai::process_result::buffering_done;
-        SendBufferedBlocks();
-    }
 }
 
 void ConsensusManager::OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket> socket)
@@ -159,4 +153,10 @@ void ConsensusManager::SendBufferedBlocks()
         OnSendRequest(_buffer.front(), unused);
         _buffer.pop_front();
     }
+}
+
+void ConsensusManager::BufferComplete(rai::process_return & result)
+{
+    result.code = rai::process_result::buffering_done;
+    SendBufferedBlocks();
 }
