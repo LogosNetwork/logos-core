@@ -227,7 +227,9 @@ enum class process_result
 	balance_mismatch,      // Balance and amount delta don't match
 	block_position,        // This block cannot follow the previous block
 	invalid_block_type,    // Logos - Only allow state blocks
-	not_implemented        // Logos - The block cannot be processed
+	not_implemented,       // Logos - The block cannot be processed
+    buffered,              // Logos - The block has been buffered for benchmarking
+    buffering_done         // Logos - The last block has been buffered and consensus will begin
 };
 class process_return
 {

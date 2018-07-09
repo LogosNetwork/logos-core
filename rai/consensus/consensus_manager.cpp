@@ -55,7 +55,7 @@ ConsensusManager::ConsensusManager(Service & service,
 
 void ConsensusManager::OnSendRequest(std::shared_ptr<rai::state_block> block, rai::process_return & result)
 {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
 
     BOOST_LOG (_log) << "ConsensusManager::OnSendRequest()";
 
@@ -78,6 +78,22 @@ void ConsensusManager::OnSendRequest(std::shared_ptr<rai::state_block> block, ra
     if(ReadyForConsensus())
     {
         InitiateConsensus();
+    }
+}
+
+void ConsensusManager::OnBenchmarkSendRequest(std::shared_ptr<rai::state_block> block, rai::process_return & result)
+{
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+
+    BOOST_LOG (_log) << "ConsensusManager::OnBenchmarkSendRequest()";
+
+    _using_buffered_blocks = true;
+    _buffer.push_back(block);
+
+    if(!block->hashables.representative.is_zero())
+    {
+        result.code = rai::process_result::buffering_done;
+        SendBufferedBlocks();
     }
 }
 
@@ -115,6 +131,11 @@ void ConsensusManager::OnConsensusReached()
     {
         InitiateConsensus();
     }
+
+    if(_using_buffered_blocks)
+    {
+        SendBufferedBlocks();
+    }
 }
 
 void ConsensusManager::InitiateConsensus()
@@ -131,7 +152,7 @@ void ConsensusManager::InitiateConsensus()
 
 void ConsensusManager::OnBatchTimeout()
 {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
 
     if(!_batch_timeout_scheduled)
     {
@@ -174,5 +195,16 @@ void ConsensusManager::CancelBatchTimeout()
     {
         _alarm.cancel(_batch_timeout_handle);
         _batch_timeout_scheduled = false;
+    }
+}
+
+void ConsensusManager::SendBufferedBlocks()
+{
+    rai::process_return unused;
+
+    for(uint8_t i = 0; i < _buffer.size() && i < CONSENSUS_BATCH_SIZE; ++i)
+    {
+        OnSendRequest(_buffer.front(), unused);
+        _buffer.pop_front();
     }
 }

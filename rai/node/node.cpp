@@ -2548,7 +2548,7 @@ rai::uint128_t rai::node::delta ()
 	return result;
 }
 
-rai::process_return rai::node::OnSendRequest(std::shared_ptr<rai::state_block> block)
+rai::process_return rai::node::OnSendRequest(std::shared_ptr<rai::state_block> block, bool should_buffer)
 {
 	process_return result;
 
@@ -2558,7 +2558,15 @@ rai::process_return rai::node::OnSendRequest(std::shared_ptr<rai::state_block> b
 	    return result;
 	}
 
-	_consensus_manager.OnSendRequest(block, result);
+	if(should_buffer)
+	{
+        result.code = process_result::buffered;
+	    _consensus_manager.OnBenchmarkSendRequest(block, result);
+	}
+	else
+	{
+        _consensus_manager.OnSendRequest(block, result);
+	}
 
 	return result;
 }

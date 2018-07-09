@@ -1110,7 +1110,7 @@ void rai::rpc_handler::block_create ()
 		}
 		rai::uint256_union representative (0);
 		boost::optional<std::string> representative_text (request.get_optional<std::string> ("representative"));
-		if (representative_text.is_initialized ())
+		if (!is_logos_request() && representative_text.is_initialized ())
 		{
 			auto error_representative (representative.decode_account (representative_text.get ()));
 			if (error_representative)
@@ -2604,7 +2604,7 @@ void rai::rpc_handler::process ()
 	{
 	    bool logos(is_logos_request());
 
-		if (logos || !rai::work_validate (*block))
+		if(logos || !rai::work_validate (*block))
 		{
             auto hash (block->hash ());
 
@@ -2615,9 +2615,10 @@ void rai::rpc_handler::process ()
 
 			rai::process_return result;
 
-            if (logos)
+            if(logos)
             {
-                result = node.OnSendRequest(std::dynamic_pointer_cast<rai::state_block>(block));
+                result = node.OnSendRequest(std::dynamic_pointer_cast<rai::state_block>(block),
+                                            should_buffer_request());
             }
             else
             {
@@ -2698,6 +2699,16 @@ void rai::rpc_handler::process ()
                 case rai::process_result::opened_burn_account:
                 {
                     error_response (response, "Invalid account (burn account)");
+                    break;
+                }
+                case rai::process_result::buffered:
+                {
+                    error_response (response, "Buffered");
+                    break;
+                }
+                case rai::process_result::buffering_done:
+                {
+                    error_response (response, "Buffering Done");
                     break;
                 }
 				default:
@@ -5078,10 +5089,20 @@ void rai::rpc_handler::process_request ()
 	}
 }
 
+bool rai::rpc_handler::flag_present(const std::string & flag_name)
+{
+    boost::optional<std::string> flag(request.get_optional<std::string>(flag_name));
+    return flag.is_initialized();
+}
+
 bool rai::rpc_handler::is_logos_request()
 {
-    boost::optional<std::string> logos_flag(request.get_optional<std::string> ("logos"));
-    return logos_flag.is_initialized();
+    return flag_present("logos");
+}
+
+bool rai::rpc_handler::should_buffer_request()
+{
+    return flag_present("buffer");
 }
 
 rai::payment_observer::payment_observer (std::function<void(boost::property_tree::ptree const &)> const & response_a, rai::rpc & rpc_a, rai::account const & account_a, rai::amount const & amount_a) :

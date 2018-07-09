@@ -217,6 +217,8 @@ public:
 	void work_peers ();
 	void work_peers_clear ();
 	bool is_logos_request ();
+    bool should_buffer_request ();
+    bool flag_present (const std::string & flag_name);
 	std::string body;
 	rai::node & node;
 	rai::rpc & rpc;

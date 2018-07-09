@@ -12,6 +12,7 @@ struct BatchStateBlock : MessagePrequel<MessageType::Pre_Prepare>
         auto status (blake2b_init (&hash, sizeof (result.bytes)));
         assert (status == 0);
 
+        blake2b_update(&hash, &block_count, sizeof(uint8_t));
         blake2b_update(&hash, blocks, sizeof(BlockList));
 
         status = blake2b_final (&hash, result.bytes.data (), sizeof (result.bytes));
