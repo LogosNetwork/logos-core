@@ -2571,6 +2571,15 @@ rai::process_return rai::node::OnSendRequest(std::shared_ptr<rai::state_block> b
 	return result;
 }
 
+rai::process_return rai::node::BufferComplete()
+{
+    process_return result;
+
+    _consensus_manager.BufferComplete(result);
+
+    return result;
+}
+
 namespace
 {
 class confirmed_visitor : public rai::block_visitor

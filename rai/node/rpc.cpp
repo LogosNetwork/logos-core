@@ -2703,12 +2703,16 @@ void rai::rpc_handler::process ()
                 }
                 case rai::process_result::buffered:
                 {
-                    error_response (response, "Buffered");
+                    boost::property_tree::ptree response_l;
+                    response_l.put ("result", "Buffered");
+                    response (response_l);
                     break;
                 }
                 case rai::process_result::buffering_done:
                 {
-                    error_response (response, "Buffering Done");
+                    boost::property_tree::ptree response_l;
+                    response_l.put ("result", "Buffering Done");
+                    response (response_l);
                     break;
                 }
 				default:
@@ -5074,6 +5078,10 @@ void rai::rpc_handler::process_request ()
 		{
 			work_peers_clear ();
 		}
+		else if (action == "buffer_complete")
+        {
+            buffer_complete ();
+        }
 		else
 		{
 			error_response (response, "Unknown command");
@@ -5089,10 +5097,21 @@ void rai::rpc_handler::process_request ()
 	}
 }
 
-bool rai::rpc_handler::flag_present(const std::string & flag_name)
+
+void rai::rpc_handler::buffer_complete()
 {
-    boost::optional<std::string> flag(request.get_optional<std::string>(flag_name));
-    return flag.is_initialized();
+    auto result = node.BufferComplete();
+
+    if(result.code == process_result::buffering_done)
+    {
+        boost::property_tree::ptree response_l;
+        response_l.put ("result", "Buffering Done");
+        response (response_l);
+    }
+    else
+    {
+        error_response(response, "Signaling buffer completion failed.");
+    }
 }
 
 bool rai::rpc_handler::is_logos_request()
@@ -5103,6 +5122,12 @@ bool rai::rpc_handler::is_logos_request()
 bool rai::rpc_handler::should_buffer_request()
 {
     return flag_present("buffer");
+}
+
+bool rai::rpc_handler::flag_present(const std::string & flag_name)
+{
+    boost::optional<std::string> flag(request.get_optional<std::string>(flag_name));
+    return flag.is_initialized();
 }
 
 rai::payment_observer::payment_observer (std::function<void(boost::property_tree::ptree const &)> const & response_a, rai::rpc & rpc_a, rai::account const & account_a, rai::amount const & amount_a) :

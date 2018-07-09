@@ -581,8 +581,10 @@ public:
 
 	// consensus-related functionality.
 	// TODO: refactor
-	rai::process_return OnSendRequest(std::shared_ptr<rai::state_block> block,
-	                                  bool should_buffer);
+	process_return OnSendRequest(std::shared_ptr<state_block> block,
+	                             bool should_buffer);
+	process_return BufferComplete();
+
 
 	boost::asio::io_service & service;
 	rai::node_config config;
