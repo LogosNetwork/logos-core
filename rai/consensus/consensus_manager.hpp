@@ -50,13 +50,9 @@ private:
 
     void OnConsensusReached() override;
     void InitiateConsensus();
-    void OnBatchTimeout();
 
     bool ReadyForConsensus();
     bool StateReadyForConsensus();
-
-    void ScheduleBatchTimeout();
-    void CancelBatchTimeout();
 
     void SendBufferedBlocks();
 
@@ -68,8 +64,6 @@ private:
 	PeerAcceptor       _peer_acceptor;
 	BlockBuffer        _buffer;
 	Log                _log;
-	uint64_t           _batch_timeout_handle;
-	bool               _batch_timeout_scheduled = false;
 	bool               _using_buffered_blocks   = false;
 };
 

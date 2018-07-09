@@ -65,14 +65,6 @@ void ConsensusManager::OnSendRequest(std::shared_ptr<rai::state_block> block, ra
         return;
     }
 
-    if(_handler.Empty())
-    {
-        // TODO: Improve and simplify timeout
-        //       logic
-        //
-        //ScheduleBatchTimeout();
-    }
-
     _handler.OnRequest(block);
 
     if(ReadyForConsensus())
@@ -140,34 +132,12 @@ void ConsensusManager::OnConsensusReached()
 
 void ConsensusManager::InitiateConsensus()
 {
-    CancelBatchTimeout();
-
     auto & batch = _handler.GetNextBatch();
 
     OnConsensusInitiated(batch.Hash());
     Send(&batch, sizeof(BatchStateBlock));
 
     _state = ConsensusState::PRE_PREPARE;
-}
-
-void ConsensusManager::OnBatchTimeout()
-{
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-
-    if(!_batch_timeout_scheduled)
-    {
-        return;
-    }
-
-    _batch_timeout_scheduled = false;
-
-    if(!_handler.Empty())
-    {
-        if(StateReadyForConsensus())
-        {
-            InitiateConsensus();
-        }
-    }
 }
 
 bool ConsensusManager::ReadyForConsensus()
@@ -178,24 +148,6 @@ bool ConsensusManager::ReadyForConsensus()
 bool ConsensusManager::StateReadyForConsensus()
 {
     return _state == ConsensusState::VOID || _state == ConsensusState::POST_COMMIT;
-}
-
-void ConsensusManager::ScheduleBatchTimeout()
-{
-    _batch_timeout_scheduled = true;
-
-    _batch_timeout_handle =
-            _alarm.add(std::chrono::seconds(BATCH_TIMEOUT_DELAY),
-                       std::bind(&ConsensusManager::OnBatchTimeout, this));
-}
-
-void ConsensusManager::CancelBatchTimeout()
-{
-    if(_batch_timeout_scheduled)
-    {
-        _alarm.cancel(_batch_timeout_handle);
-        _batch_timeout_scheduled = false;
-    }
 }
 
 void ConsensusManager::SendBufferedBlocks()
