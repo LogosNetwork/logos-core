@@ -17,7 +17,7 @@ public:
                        Log & log);
 
     void StoreBatchMessage(const BatchStateBlock & message);
-    void ApplyBatchMessage(const BatchStateBlock & message);
+    void ApplyBatchMessage(const BatchStateBlock & message, uint8_t delegate_id);
 
     bool Validate(const rai::state_block & block, rai::process_return & result);
     bool Validate(const rai::state_block & block);

@@ -267,7 +267,7 @@ void ConsensusConnection::OnConsensusMessage(const PostCommitMessage & message)
     if(ProceedWithMessage(message, ConsensusState::COMMIT))
     {
         _persistence_manager.StoreBatchMessage(*_cur_batch);
-        _persistence_manager.ApplyBatchMessage(*_cur_batch);
+        _persistence_manager.ApplyBatchMessage(*_cur_batch, _delegate_ids.remote);
 
         _state = ConsensusState::VOID;
     }

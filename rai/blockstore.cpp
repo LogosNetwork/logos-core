@@ -262,6 +262,7 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "state_db", MDB_CREATE, &state_db) != 0;
         error_a |= mdb_dbi_open (transaction, "account_db", MDB_CREATE, &account_db) != 0;
         error_a |= mdb_dbi_open (transaction, "receive_db", MDB_CREATE, &receive_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "batch_tips_db", MDB_CREATE, &batch_tips_db) != 0;
 
 		error_a |= mdb_dbi_open (transaction, "frontiers", MDB_CREATE, &frontiers) != 0;
 		error_a |= mdb_dbi_open (transaction, "accounts", MDB_CREATE, &accounts) != 0;
@@ -1278,6 +1279,37 @@ bool rai::block_store::receive_exists(const block_hash & hash)
     assert(status == 0 || status == MDB_NOTFOUND);
 
     return status == 0;
+}
+
+void rai::block_store::batch_tip_put(uint8_t delegate_id, const block_hash & hash)
+{
+    rai::transaction transaction(environment, nullptr, true);
+    auto status(mdb_put(transaction, batch_tips_db, rai::mdb_val(sizeof(delegate_id),
+                                                                 &delegate_id),
+                        mdb_val(sizeof(block_hash),
+                                const_cast<block_hash *>(&hash)), 0));
+
+    assert(status == 0);
+}
+
+bool rai::block_store::batch_tip_get(uint8_t delegate_id, block_hash & hash)
+{
+    rai::mdb_val value;
+    rai::transaction transaction(environment, nullptr, false);
+
+    auto status (mdb_get (transaction, batch_tips_db, rai::mdb_val(sizeof(delegate_id),
+                                                                          &delegate_id), value));
+    assert (status == 0 || status == MDB_NOTFOUND);
+    bool result;
+    if (status == MDB_NOTFOUND)
+    {
+        result = true;
+    }
+    else
+    {
+        memcpy(&hash, reinterpret_cast<uint8_t const *> (value.data ()), value.size());
+    }
+    return result;
 }
 
 void rai::block_store::flush (MDB_txn * transaction_a)
