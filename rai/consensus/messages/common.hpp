@@ -4,6 +4,7 @@
 
 #include <type_traits>
 #include <cstdint>
+#include <bitset>
 #include <array>
 
 #include <blake2/blake2.h>
@@ -24,6 +25,7 @@ enum class MessageType : uint8_t
     Unknown
 };
 
+static const size_t NUM_DELEGATES           = 32;
 static const size_t CONSENSUS_HASH_SIZE     = 32;
 static const size_t CONSENSUS_SIG_SIZE      = 32;
 static const size_t CONSENSUS_AGG_SIG_SIZE  = 32;
@@ -34,9 +36,10 @@ static const size_t CONSENSUS_BATCH_SIZE    = 100;
 using Signature    = std::array<uint8_t, CONSENSUS_SIG_SIZE>;
 using AggSignature = std::array<uint8_t, CONSENSUS_AGG_SIG_SIZE>;
 
-using BlockList = rai::state_block [CONSENSUS_BATCH_SIZE];
-using PublicKey = rai::public_key;
-using BlockHash = rai::block_hash;
+using BlockList       = rai::state_block [CONSENSUS_BATCH_SIZE];
+using PublicKey       = rai::public_key;
+using BlockHash       = rai::block_hash;
+using ParicipationMap = std::bitset<NUM_DELEGATES>;
 
 inline uint64_t GetStamp()
 {

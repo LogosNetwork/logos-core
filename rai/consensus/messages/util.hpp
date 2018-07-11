@@ -36,5 +36,3 @@ std::string MessageToName(const MSG & message)
 
     return ret;
 }
-
-

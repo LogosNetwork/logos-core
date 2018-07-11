@@ -2,19 +2,17 @@
 
 constexpr uint8_t PrimaryDelegate::QUORUM_SIZE;
 
-PrimaryDelegate::PrimaryDelegate(Log & log,
-                                 MessageValidator & validator)
-    : _log(log)
-    , _validator(validator) // NOTE: Don't use _validator in this constructor
-                            //       as it's not initialized yet.
+PrimaryDelegate::PrimaryDelegate(MessageValidator & validator)
+    : _validator(validator) // NOTE: Don't use _validator in this constructor
+                            //       as it's not yet initialized.
 {}
 
 void PrimaryDelegate::ProcessMessage(const PrepareMessage & message)
 {
     if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE))
     {
-        AdvanceState(ConsensusState::POST_PREPARE);
         Send<PostPrepareMessage>();
+        AdvanceState(ConsensusState::POST_PREPARE);
     }
 }
 
@@ -22,8 +20,8 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage & message)
 {
     if(ProceedWithMessage(message, ConsensusState::POST_PREPARE))
     {
-        AdvanceState(ConsensusState::POST_COMMIT);
         Send<PostCommitMessage>();
+        AdvanceState(ConsensusState::POST_COMMIT);
     }
 }
 
@@ -39,7 +37,7 @@ void PrimaryDelegate::Send()
     MSG response;
 
     response.hash = _cur_batch_hash;
-    _validator.Sign(response);
+    _validator.Sign(response, _signatures);
 
     Send(&response, sizeof(response));
 }
@@ -70,6 +68,7 @@ bool PrimaryDelegate::ProceedWithMessage(const MSG & message, ConsensusState exp
     if(Validate(message))
     {
         _consensus_count++;
+        _signatures.push_back({_cur_delegate_id, message.signature});
     }
     else
     {
@@ -88,4 +87,5 @@ void PrimaryDelegate::AdvanceState(ConsensusState new_state)
 {
     _state = new_state;
     _consensus_count = 0;
+    _signatures.clear();
 }

@@ -8,16 +8,16 @@ const uint8_t ConsensusConnection::CONNECT_RETRY_DELAY;
 
 ConsensusConnection::ConsensusConnection(Service & service,
                                          rai::alarm & alarm,
-                                         Log & log,
                                          const Endpoint & endpoint,
                                          PrimaryDelegate * primary,
                                          PersistenceManager & persistence_manager,
-                                         MessageValidator & validator)
+                                         MessageValidator & validator,
+                                         const DelegateIdentities & ids)
     : _socket(new Socket(service))
     , _endpoint(endpoint)
+    , _delegate_ids(ids)
     , _persistence_manager(persistence_manager)
     , _validator(validator)
-    , _log(log)
     , _primary(primary)
     , _alarm(alarm)
 {
@@ -27,17 +27,17 @@ ConsensusConnection::ConsensusConnection(Service & service,
 
 ConsensusConnection::ConsensusConnection(std::shared_ptr<Socket> socket,
                                          rai::alarm & alarm,
-                                         Log & log,
                                          const Endpoint & endpoint,
                                          PrimaryDelegate * primary,
                                          PersistenceManager & persistence_manager,
-                                         MessageValidator & validator)
+                                         MessageValidator & validator,
+                                         const DelegateIdentities & ids)
     : _socket(socket)
     , _endpoint(endpoint)
+    , _delegate_ids(ids)
     , _persistence_manager(persistence_manager)
     , _validator(validator)
     , _alarm(alarm)
-    , _log(log)
     , _primary(primary)
 {
     OnConnect();
@@ -229,7 +229,7 @@ void ConsensusConnection::OnMessage(boost::system::error_code const & ec, size_t
         case MessageType::Key_Advert: {
             BOOST_LOG(_log) << "ConsensusConnection - Received key advertisement";
             auto msg (*reinterpret_cast<KeyAdvertisement*>(_receive_buffer.data()));
-            _validator.OnPublicKey(msg.public_key);
+            _validator.OnPublicKey(_delegate_ids.remote, msg.public_key);
             break;
         }
         case MessageType::Unknown:
@@ -276,7 +276,7 @@ void ConsensusConnection::OnConsensusMessage(const PostCommitMessage & message)
 template<MessageType Type>
 void ConsensusConnection::OnConsensusMessage(const StandardPhaseMessage<Type> & message)
 {
-    _primary->OnConsensusMessage(message);
+    _primary->OnConsensusMessage(message, _delegate_ids.remote);
 }
 
 template<typename MSG>

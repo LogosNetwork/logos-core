@@ -24,6 +24,7 @@ class ConsensusManager : public PeerManager,
     using Connections      = std::vector<std::shared_ptr<ConsensusConnection>>;
     using Store            = rai::block_store;
     using BlockBuffer      = std::list<std::shared_ptr<rai::state_block>>;
+    using Delegates        = std::vector<std::string>;
 
 public:
 
@@ -58,7 +59,11 @@ private:
 
     void SendBufferedBlocks();
 
+    void EstablishDelegateIds(const std::string & local_address);
+    uint8_t GetDelegateId(const std::string & address);
+
     Connections        _connections;
+    Delegates          _delegates;
     RequestHandler     _handler;
     PersistenceManager _persistence_manager;
     MessageValidator   _validator;
@@ -66,6 +71,7 @@ private:
 	PeerAcceptor       _peer_acceptor;
 	BlockBuffer        _buffer;
 	Log                _log;
-	bool               _using_buffered_blocks   = false;
+    uint8_t            _delegate_id;
+	bool               _using_buffered_blocks = false;
 };
 

@@ -9,9 +9,8 @@ ConsensusManager::ConsensusManager(Service & service,
                                    rai::alarm & alarm,
                                    Log & log,
                                    const Config & config)
-    : PrimaryDelegate(log,
-                      _validator)
-    , _handler(alarm)
+    : PrimaryDelegate(_validator)
+    , _delegates(config.stream_peers)
     , _persistence_manager(store, log)
     , _alarm(alarm)
     , _peer_acceptor(service, log,
@@ -24,7 +23,11 @@ ConsensusManager::ConsensusManager(Service & service,
     auto local_endpoint(Endpoint(boost::asio::ip::make_address_v4(config.local_address),
                         config.peer_port));
 
-    for(const auto & peer : config.stream_peers)
+    EstablishDelegateIds(config.local_address);
+
+    uint8_t remote_delegate_id = 0;
+
+    for(const auto & peer : _delegates)
     {
         auto endpoint = Endpoint(boost::asio::ip::make_address_v4(peer),
                                  local_endpoint.port());
@@ -36,15 +39,19 @@ ConsensusManager::ConsensusManager(Service & service,
 
         if(ConnectionPolicy()(local_endpoint, endpoint))
         {
+            ConsensusConnection::DelegateIdentities ids{_delegate_id, remote_delegate_id};
+
             _connections.push_back(
-                    std::make_shared<ConsensusConnection>(service, alarm, _log,
-                                                          endpoint, this, _persistence_manager,
-                                                          _validator));
+                    std::make_shared<ConsensusConnection>(service, alarm, endpoint,
+                                                          this, _persistence_manager,
+                                                          _validator, ids));
         }
         else
         {
             server_endpoints.insert(endpoint.address());
         }
+
+        remote_delegate_id++;
     }
 
     if(server_endpoints.size())
@@ -85,9 +92,12 @@ void ConsensusManager::OnBenchmarkSendRequest(std::shared_ptr<rai::state_block> 
 
 void ConsensusManager::OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket> socket)
 {
-    _connections.push_back(std::make_shared<ConsensusConnection>(socket, _alarm, _log,
-                                                                 endpoint, this, _persistence_manager,
-                                                                 _validator));
+    ConsensusConnection::DelegateIdentities ids{_delegate_id,
+                                                GetDelegateId(endpoint.address().to_string())};
+
+    _connections.push_back(std::make_shared<ConsensusConnection>(socket, _alarm, endpoint,
+                                                                 this, _persistence_manager,
+                                                                 _validator, ids));
 }
 
 void ConsensusManager::Send(const void * data, size_t size)
@@ -130,6 +140,8 @@ void ConsensusManager::InitiateConsensus()
     auto & batch = _handler.GetNextBatch();
 
     OnConsensusInitiated(batch.Hash());
+
+    _validator.Sign(batch);
     Send(&batch, sizeof(BatchStateBlock));
 
     _state = ConsensusState::PRE_PREPARE;
@@ -165,4 +177,23 @@ void ConsensusManager::BufferComplete(rai::process_return & result)
 {
     result.code = rai::process_result::buffering_done;
     SendBufferedBlocks();
+}
+
+void ConsensusManager::EstablishDelegateIds(const std::string & local_address)
+{
+    std::sort(_delegates.begin(), _delegates.end());
+
+    _delegate_id = GetDelegateId(local_address);
+
+    if(_delegate_id == _delegates.size())
+    {
+        throw std::runtime_error("ConsensusManager - Failed to find local address in delegate list.");
+    }
+}
+
+uint8_t ConsensusManager::GetDelegateId(const std::string & address)
+{
+    return std::distance(_delegates.begin(),
+                         std::find(_delegates.begin(), _delegates.end(),
+                                   address));
 }

@@ -27,23 +27,29 @@ class ConsensusConnection
 
 public:
 
+    struct DelegateIdentities
+    {
+        uint8_t local;
+        uint8_t remote;
+    };
+
     // TODO: Consolidate constructors
     //
 	ConsensusConnection(Service & service,
 	                    rai::alarm & alarm,
-	                    Log & log,
 	                    const Endpoint & endpoint,
 	                    PrimaryDelegate * primary,
 	                    PersistenceManager & persistence_manager,
-	                    MessageValidator & validator);
+	                    MessageValidator & validator,
+	                    const DelegateIdentities & ids);
 
 	ConsensusConnection(std::shared_ptr<Socket> socket,
                         rai::alarm & alarm,
-                        Log & log,
                         const Endpoint & endpoint,
                         PrimaryDelegate * primary,
                         PersistenceManager & persistence_manager,
-                        MessageValidator & validator);
+                        MessageValidator & validator,
+                        const DelegateIdentities & ids);
 
 	void Send(const void * data, size_t size);
 
@@ -52,6 +58,7 @@ public:
     {
         Send(reinterpret_cast<const void *>(&data), sizeof(data));
     }
+
 
 private:
 
@@ -93,10 +100,11 @@ private:
     Endpoint                           _endpoint;
     std::shared_ptr<PrePrepareMessage> _cur_batch;
     BlockHash                          _cur_batch_hash;
+    DelegateIdentities                 _delegate_ids;
     PersistenceManager &               _persistence_manager;
     MessageValidator &                 _validator;
     rai::alarm &                       _alarm;
-    Log &                              _log;
+    Log                                _log;
     PrimaryDelegate *                  _primary;
     ConsensusState                     _state     = ConsensusState::VOID;
     bool                               _connected = false;
