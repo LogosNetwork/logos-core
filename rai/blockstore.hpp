@@ -123,6 +123,8 @@ public:
 	void account_put (rai::account const &, rai::account_info const &);
 	void receive_put(const block_hash & hash, const state_block & block);
 	bool receive_exists(const block_hash & hash);
+	void batch_tip_put(uint8_t delegate_id, const block_hash & hash);
+	bool batch_tip_get(uint8_t delegate_id, block_hash & hash);
 
 	void checksum_put (MDB_txn *, uint64_t, uint8_t, rai::checksum const &);
 	bool checksum_get (MDB_txn *, uint64_t, uint8_t, rai::checksum &);
@@ -184,6 +186,13 @@ public:
      * rai::block_hash -> rai::state_block
      */
     MDB_dbi receive_db;
+
+    /**
+     * Maps delegate id to hash of most
+     * recent batch block.
+     * uint8_t -> rai::block_hash
+     */
+    MDB_dbi batch_tips_db;
 
 	/**
 	 * Maps head block to owning account

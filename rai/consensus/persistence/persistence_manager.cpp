@@ -22,12 +22,16 @@ void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message)
     }
 }
 
-void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message)
+void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, uint8_t delegate_id)
 {
     for(uint8_t i = 0; i < message.block_count; ++i)
     {
         ApplyStateMessage(message.blocks[i]);
     }
+
+    // TODO: Reuse precomputed hash
+    //
+    _store.batch_tip_put(delegate_id, message.Hash());
 }
 
 bool PersistenceManager::Validate(const rai::state_block & block, rai::process_return & result)
