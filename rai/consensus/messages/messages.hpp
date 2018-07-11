@@ -4,22 +4,9 @@
 
 struct BatchStateBlock : MessagePrequel<MessageType::Pre_Prepare>
 {
-    BlockHash Hash() const
-    {
-        rai::uint256_union result;
-        blake2b_state hash;
+    static const size_t HASHABLE_BYTES;
 
-        auto status (blake2b_init (&hash, sizeof (result.bytes)));
-        assert (status == 0);
-
-        blake2b_update(&hash, &block_count, sizeof(uint8_t));
-        blake2b_update(&hash, blocks, sizeof(BlockList));
-
-        status = blake2b_final (&hash, result.bytes.data (), sizeof (result.bytes));
-        assert (status == 0);
-
-        return result;
-    }
+    BlockHash Hash() const;
 
     uint8_t   block_count = 0;
     BlockList blocks;
@@ -36,9 +23,9 @@ struct PostPhaseMessage<type, typename std::enable_if<
 {
     static const size_t HASHABLE_BYTES;
 
-    uint64_t     participation_map;
-    AggSignature signature;
-} __attribute__((packed));
+    ParicipationMap participation_map;
+    AggSignature    signature;
+};
 
 template<MessageType type, typename Enable = void>
 struct StandardPhaseMessage;
@@ -51,7 +38,7 @@ struct StandardPhaseMessage<type, typename std::enable_if<
     static const size_t HASHABLE_BYTES;
 
     Signature signature;
-} __attribute__((packed));
+};
 
 struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert>
 {
@@ -65,6 +52,7 @@ using CommitMessage  = StandardPhaseMessage<MessageType::Commit>;
 
 using PostPrepareMessage = PostPhaseMessage<MessageType::Post_Prepare>;
 using PostCommitMessage  = PostPhaseMessage<MessageType::Post_Commit>;
+
 
 template<MessageType type>
 const size_t PostPhaseMessage<type, typename std::enable_if<

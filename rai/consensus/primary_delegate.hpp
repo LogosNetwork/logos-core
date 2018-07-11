@@ -11,17 +11,19 @@
 class PrimaryDelegate
 {
 
-    using Log = boost::log::sources::logger_mt;
+    using Log        = boost::log::sources::logger_mt;
+    using Signatures = std::vector<MessageValidator::DelegateSignature>;
 
 public:
 
-    PrimaryDelegate(Log & log,
-                    MessageValidator & validator);
+    PrimaryDelegate(MessageValidator & validator);
 
     template<typename MSG>
-    void OnConsensusMessage(const MSG & message)
+    void OnConsensusMessage(const MSG & message, uint8_t delegate_id)
     {
         std::lock_guard<std::recursive_mutex> lock(_mutex);
+
+        _cur_delegate_id = delegate_id;
         ProcessMessage(message);
     }
 
@@ -62,8 +64,10 @@ private:
 
     virtual void OnConsensusReached() = 0;
 
-    Log &              _log;
+    Signatures         _signatures;
+    Log                _log;
     MessageValidator & _validator;
     BlockHash          _cur_batch_hash;
+    uint8_t            _cur_delegate_id = 0;
     uint8_t            _consensus_count = 0;
 };

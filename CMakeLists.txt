@@ -300,6 +300,8 @@ add_library (node
 	${SECURE_RPC_SOURCE}
 	rai/consensus/consensus_connection.cpp
 	rai/consensus/consensus_manager.cpp
+	rai/consensus/message_validator.cpp
+	rai/consensus/messages/messages.cpp
 	rai/consensus/peer_acceptor.cpp
 	rai/consensus/persistence/persistence_manager.cpp
 	rai/consensus/primary_delegate.cpp

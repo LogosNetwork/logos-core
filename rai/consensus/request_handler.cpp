@@ -1,9 +1,5 @@
 #include <rai/consensus/request_handler.hpp>
 
-RequestHandler::RequestHandler(rai::alarm & alarm)
-    : _alarm(alarm)
-{}
-
 void RequestHandler::OnRequest(std::shared_ptr<rai::state_block> block)
 {
     if(_batches.empty())
@@ -32,11 +28,6 @@ void RequestHandler::InsertBlock(std::shared_ptr<rai::state_block> block)
 
     _handle->blocks[_batch_index++] = *block;
     _handle->block_count++;
-}
-
-bool RequestHandler::BatchReady()
-{
-    return _batches.size() > 1;
 }
 
 BatchStateBlock & RequestHandler::GetNextBatch()
