@@ -113,14 +113,15 @@ void ConsensusManager::OnConsensusReached()
 
     _handler.PopFront();
 
-    if(_handler.BatchReady())
-    {
-        InitiateConsensus();
-    }
-
     if(_using_buffered_blocks)
     {
         SendBufferedBlocks();
+        return;
+    }
+
+    if(!_handler.Empty())
+    {
+        InitiateConsensus();
     }
 }
 
@@ -136,7 +137,7 @@ void ConsensusManager::InitiateConsensus()
 
 bool ConsensusManager::ReadyForConsensus()
 {
-    return StateReadyForConsensus() && _handler.BatchReady();
+    return StateReadyForConsensus() && !_handler.Empty();
 }
 
 bool ConsensusManager::StateReadyForConsensus()
@@ -152,6 +153,11 @@ void ConsensusManager::SendBufferedBlocks()
     {
         OnSendRequest(_buffer.front(), unused);
         _buffer.pop_front();
+    }
+
+    if(!_buffer.size())
+    {
+        BOOST_LOG (_log) << "ConsensusManager - No more buffered blocks for consensus" << std::endl;
     }
 }
 
