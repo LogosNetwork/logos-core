@@ -14,3 +14,15 @@
 [submodule "phc-winner-argon2"]
 	path = phc-winner-argon2
 	url = https://github.com/clemahieu/phc-winner-argon2.git
+[submodule "bls_agg/mcl"]
+	path = bls_agg/mcl
+	url = ../../peng-pl/mcl.git
+[submodule "bls_agg/bls"]
+	path = bls_agg/bls
+	url = ../../peng-pl/bls.git
+[submodule "bls_agg/cybozulib"]
+	path = bls_agg/cybozulib
+	url = ../../peng-pl/cybozulib.git
+[submodule "bls_agg/xbyak"]
+	path = bls_agg/xbyak
+	url = ../../peng-pl/xbyak.git
