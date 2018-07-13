@@ -20,14 +20,6 @@ class MessageValidator
     using SignatureVec   = bls::SignatureVec;
     using Keys           = std::unordered_map<uint8_t, PublicKeyReal>;
 
-public:
-
-    struct DelegateSignature
-    {
-        uint8_t   delegate_id;
-        Signature signature;
-    };
-
     PublicKeyReal PublicKeyAggregate(const ParicipationMap &pmap)
     {
     	PublicKeyVec keyvec;
@@ -43,7 +35,17 @@ public:
         return apk;
     }
 
+public:
+
+    struct DelegateSignature
+    {
+        uint8_t   delegate_id;
+        Signature signature;
+    };
+
     // Aggregate sign
+    //TODO ask with Devon: this function aggregates the signatures to one, then put it in message.
+    //                       Didn't sign new data
     template<typename MSG>
     void Sign(MSG & message, const std::vector<DelegateSignature> & signatures) throw(bls::Exception)
     {
@@ -56,6 +58,7 @@ public:
             SignatureReal sigReal;
         	string sig_str(reinterpret_cast<const char*>(&message.signature), CONSENSUS_SIG_SIZE);
         	sigReal.deserialize(sig_str);
+        	//TODO ask Devon: are the individual signatures already verified?
         	sigvec.push_back(sigReal);
             keyvec.push_back(_keys[sig.delegate_id]);
         }
@@ -89,6 +92,8 @@ public:
         // to identify those delegates that
         // signed, and access their public
         // keys using _keys.
+    	if (message.participation_map.none())
+    		return false;
 
     	//public key agg
         auto apk = PublicKeyAggregate(message.participation_map);

@@ -10,7 +10,7 @@ void MessageValidator::OnPublicKey(uint8_t delegate_id, const PublicKey & key)  
     BOOST_LOG (_log) << "MessageValidator - Received public key: "
                      << k.to_string()
                      << " from delegate "
-                     << delegate_id;
+                     << (int)delegate_id;
 
     _keys[delegate_id] = k;
 }

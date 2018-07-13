@@ -13,7 +13,7 @@ set (CPACK_PACKAGE_VENDOR "Nano Currency")
 set(CMAKE_INSTALL_RPATH "@executable_path/../Frameworks")
 
 set (RAIBLOCKS_GUI OFF CACHE BOOL "")
-set (RAIBLOCKS_TEST OFF CACHE BOOL "")
+set (RAIBLOCKS_TEST ON CACHE BOOL "")
 set (RAIBLOCKS_SECURE_RPC OFF CACHE BOOL "")
 
 option(RAIBLOCKS_ASAN_INT "Enable ASan+UBSan+Integer overflow" OFF)
@@ -365,26 +365,28 @@ set_property (CACHE ACTIVE_NETWORK PROPERTY STRINGS rai_test_network rai_beta_ne
 
 if (RAIBLOCKS_TEST)
 	add_executable (core_test
-		rai/core_test/block.cpp
-		rai/core_test/block_store.cpp
-		rai/core_test/interface.cpp
-		rai/core_test/conflicts.cpp
-		rai/core_test/daemon.cpp
-		rai/core_test/entry.cpp
-		rai/core_test/gap_cache.cpp
-		rai/core_test/ledger.cpp
-		rai/core_test/network.cpp
-		rai/core_test/node.cpp
-		rai/core_test/message.cpp
-		rai/core_test/message_parser.cpp
-		rai/core_test/processor_service.cpp
-		rai/core_test/peer_container.cpp
-		rai/core_test/rpc.cpp
-		rai/core_test/uint256_union.cpp
-		rai/core_test/versioning.cpp
-		rai/core_test/wallet.cpp
-		rai/core_test/wallets.cpp
-		rai/core_test/work_pool.cpp)
+		rai/core_test/message_validator.cpp
+#		rai/core_test/block.cpp
+#		rai/core_test/block_store.cpp
+#		rai/core_test/interface.cpp
+#		rai/core_test/conflicts.cpp
+#		rai/core_test/daemon.cpp
+#		rai/core_test/entry.cpp
+#		rai/core_test/gap_cache.cpp
+#		rai/core_test/ledger.cpp
+#		rai/core_test/network.cpp
+#		rai/core_test/node.cpp
+#		rai/core_test/message.cpp
+#		rai/core_test/message_parser.cpp
+#		rai/core_test/processor_service.cpp
+#		rai/core_test/peer_container.cpp
+#		rai/core_test/rpc.cpp
+#		rai/core_test/uint256_union.cpp
+#		rai/core_test/versioning.cpp
+#		rai/core_test/wallet.cpp
+#		rai/core_test/wallets.cpp
+#		rai/core_test/work_pool.cpp
+	)
 
 	add_executable (slow_test
 		rai/slow_test/node.cpp)
