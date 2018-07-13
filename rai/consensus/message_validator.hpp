@@ -44,8 +44,6 @@ public:
     };
 
     // Aggregate sign
-    //TODO ask with Devon: this function aggregates the signatures to one, then put it in message.
-    //                       Didn't sign new data
     template<typename MSG>
     void Sign(MSG & message, const std::vector<DelegateSignature> & signatures) throw(bls::Exception)
     {
@@ -56,14 +54,13 @@ public:
         {
             message.participation_map[sig.delegate_id] = true;
             SignatureReal sigReal;
-        	string sig_str(reinterpret_cast<const char*>(&message.signature), CONSENSUS_SIG_SIZE);
+        	string sig_str(reinterpret_cast<const char*>(&sig.signature), CONSENSUS_SIG_SIZE);
         	sigReal.deserialize(sig_str);
-        	//TODO ask Devon: are the individual signatures already verified?
         	sigvec.push_back(sigReal);
             keyvec.push_back(_keys[sig.delegate_id]);
         }
 
-        // Now sign the message with the aggregate sig
+        // Now aggregate sig
         SignatureReal asig;
         asig.aggregateFrom(sigvec, keyvec);
 
@@ -99,7 +96,7 @@ public:
         auto apk = PublicKeyAggregate(message.participation_map);
 
         //message
-    	string msg(reinterpret_cast<const char*>(&message), PostPhaseMessage<type>::HASHABLE_BYTES);
+    	string msg(reinterpret_cast<const char*>(&reference), PostPhaseMessage<type>::HASHABLE_BYTES);
 
     	//sig
     	SignatureReal sig;
@@ -115,14 +112,17 @@ public:
     }
 
     // Single validation
-    //TODO probably need another version that verifies other node's signature
     template<MessageType type>
     bool Validate(const StandardPhaseMessage<type> & message, uint8_t delegate_id)
     {
+    	if(_keys.find(delegate_id) == _keys.end())
+    	{
+    		return false;
+    	}
+
     	SignatureReal sig;
     	string msg(reinterpret_cast<const char*>(&message), StandardPhaseMessage<type>::HASHABLE_BYTES);
     	string sig_str(reinterpret_cast<const char*>(&message.signature), CONSENSUS_SIG_SIZE);
-
     	try{
     		sig.deserialize(sig_str);
     	}
@@ -130,7 +130,8 @@ public:
     	{
     		return false;
     	}
-    	return sig.verify(_keypair.pub, msg);
+
+    	return sig.verify(_keys[delegate_id], msg);
     }
 
     void OnPublicKey(uint8_t delegate_id, const PublicKey & key) throw(bls::Exception);
