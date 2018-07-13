@@ -28,13 +28,13 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage & message)
 template<typename MSG>
 bool PrimaryDelegate::Validate(const MSG & message)
 {
-    return _validator.Validate(message);
+    return _validator.Validate(message, _cur_delegate_id);
 }
 
 template<typename MSG>
 void PrimaryDelegate::Send()
 {
-    MSG response;
+    MSG response(_cur_batch_timestamp);
 
     response.hash = _cur_batch_hash;
     _validator.Sign(response, _signatures);
@@ -42,9 +42,10 @@ void PrimaryDelegate::Send()
     Send(&response, sizeof(response));
 }
 
-void PrimaryDelegate::OnConsensusInitiated(const BlockHash & hash)
+void PrimaryDelegate::OnConsensusInitiated(const BatchStateBlock & block)
 {
-    _cur_batch_hash = hash;
+    _cur_batch_hash = block.Hash();
+    _cur_batch_timestamp = block.timestamp;
 }
 
 bool PrimaryDelegate::ReachedQuorum()

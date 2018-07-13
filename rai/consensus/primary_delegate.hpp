@@ -40,7 +40,7 @@ public:
 
 protected:
 
-    void OnConsensusInitiated(const BlockHash & hash);
+    void OnConsensusInitiated(const BatchStateBlock & block);
 
     // TODO: Revert to std::mutex after
     //       benchmark.
@@ -68,6 +68,7 @@ private:
     Log                _log;
     MessageValidator & _validator;
     BlockHash          _cur_batch_hash;
+    uint64_t           _cur_batch_timestamp;
     uint8_t            _cur_delegate_id = 0;
     uint8_t            _consensus_count = 0;
 };

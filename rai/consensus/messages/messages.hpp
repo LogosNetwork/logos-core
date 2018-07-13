@@ -2,7 +2,7 @@
 
 #include <rai/consensus/messages/common.hpp>
 
-struct BatchStateBlock : MessagePrequel<MessageType::Pre_Prepare>
+struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare>
 {
     static const size_t HASHABLE_BYTES;
 
@@ -10,6 +10,23 @@ struct BatchStateBlock : MessagePrequel<MessageType::Pre_Prepare>
 
     uint8_t   block_count = 0;
     BlockList blocks;
+    Signature signature;
+};
+
+template<MessageType type, typename Enable = void>
+struct StandardPhaseMessage;
+
+template<MessageType type>
+struct StandardPhaseMessage<type, typename std::enable_if<
+    type == MessageType::Prepare ||
+    type == MessageType::Commit>::type> : MessageHeader<type>
+{
+    static const size_t HASHABLE_BYTES;
+
+    StandardPhaseMessage(uint64_t timestamp)
+        : MessageHeader<type>(timestamp)
+    {}
+
     Signature signature;
 };
 
@@ -23,21 +40,12 @@ struct PostPhaseMessage<type, typename std::enable_if<
 {
     static const size_t HASHABLE_BYTES;
 
+    PostPhaseMessage(uint64_t timestamp)
+        : MessageHeader<type>(timestamp)
+    {}
+
     ParicipationMap participation_map;
     AggSignature    signature;
-};
-
-template<MessageType type, typename Enable = void>
-struct StandardPhaseMessage;
-
-template<MessageType type>
-struct StandardPhaseMessage<type, typename std::enable_if<
-    type == MessageType::Prepare ||
-    type == MessageType::Commit>::type> : MessageHeader<type>
-{
-    static const size_t HASHABLE_BYTES;
-
-    Signature signature;
 };
 
 struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert>
@@ -65,4 +73,4 @@ template<MessageType type>
 const size_t StandardPhaseMessage<type, typename std::enable_if<
     type == MessageType::Prepare ||
     type == MessageType::Commit>::type>::HASHABLE_BYTES = sizeof(StandardPhaseMessage<MessageType::Prepare>)
-                                                               - sizeof(Signature);
+                                                          - sizeof(Signature);

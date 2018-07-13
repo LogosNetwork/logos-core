@@ -266,6 +266,8 @@ void ConsensusConnection::OnConsensusMessage(const PostCommitMessage & message)
 {
     if(ProceedWithMessage(message, ConsensusState::COMMIT))
     {
+        assert(_cur_batch);
+
         _persistence_manager.StoreBatchMessage(*_cur_batch);
         _persistence_manager.ApplyBatchMessage(*_cur_batch, _delegate_ids.remote);
 
@@ -282,7 +284,21 @@ void ConsensusConnection::OnConsensusMessage(const StandardPhaseMessage<Type> & 
 template<typename MSG>
 bool ConsensusConnection::Validate(const MSG & message)
 {
-    return _validator.Validate(message);
+    if(_state == ConsensusState::PREPARE)
+    {
+        return _validator.Validate(message, *_cur_prepare);
+    }
+
+    if(_state == ConsensusState::COMMIT)
+    {
+        return _validator.Validate(message, *_cur_commit);
+    }
+
+    BOOST_LOG(_log) << "ConsensusConnection - Attempting to validate "
+                    << MessageToName(message) << " while in "
+                    << StateToString(_state);
+
+    return false;
 }
 
 template<>
@@ -321,10 +337,12 @@ bool ConsensusConnection::ProceedWithMessage(const MSG & message, ConsensusState
 template<typename MSG>
 void ConsensusConnection::SendMessage()
 {
-    MSG response;
+    MSG response(_cur_batch->timestamp);
 
     response.hash = _cur_batch_hash;
     _validator.Sign(response);
+
+    StoreResponse(response);
 
     Send(response);
 }
@@ -336,3 +354,12 @@ void ConsensusConnection::SendKeyAdvertisement()
     Send(advert);
 }
 
+void ConsensusConnection::StoreResponse(const PrepareMessage & message)
+{
+    _cur_prepare.reset(new PrepareMessage(message));
+}
+
+void ConsensusConnection::StoreResponse(const CommitMessage & message)
+{
+    _cur_commit.reset(new CommitMessage(message));
+}

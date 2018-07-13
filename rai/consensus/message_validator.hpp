@@ -41,8 +41,8 @@ public:
     {}
 
     // Aggregate validation
-    template<MessageType type>
-    bool Validate(const PostPhaseMessage<type> & message)
+    template<MessageType type, MessageType type2>
+    bool Validate(const PostPhaseMessage<type> & message, const StandardPhaseMessage<type2> & reference)
     {
         // Use message.participation_map
         // to identify those delegates that
@@ -53,7 +53,7 @@ public:
 
     // Single validation
     template<MessageType type>
-    bool Validate(const StandardPhaseMessage<type> & message)
+    bool Validate(const StandardPhaseMessage<type> & message, uint8_t delegate_id)
     {
         return true;
     }

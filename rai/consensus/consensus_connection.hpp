@@ -95,10 +95,15 @@ private:
 
     void SendKeyAdvertisement();
 
+    void StoreResponse(const PrepareMessage & message);
+    void StoreResponse(const CommitMessage & message);
+
     ReceiveBuffer                      _receive_buffer;
     std::shared_ptr<Socket>            _socket;
     Endpoint                           _endpoint;
     std::shared_ptr<PrePrepareMessage> _cur_batch;
+    std::shared_ptr<PrepareMessage>    _cur_prepare;
+    std::shared_ptr<CommitMessage>     _cur_commit;
     BlockHash                          _cur_batch_hash;
     DelegateIdentities                 _delegate_ids;
     PersistenceManager &               _persistence_manager;

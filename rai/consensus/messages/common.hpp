@@ -59,8 +59,15 @@ struct MessagePrequel
 template<MessageType type>
 struct MessageHeader : MessagePrequel<type>
 {
+    MessageHeader(uint64_t timestamp)
+        : timestamp(timestamp)
+    {}
 
-    uint64_t  timestamp = GetStamp();
+    MessageHeader()
+        : timestamp(GetStamp())
+    {}
+
+    uint64_t  timestamp;
     BlockHash hash;
 };
 
