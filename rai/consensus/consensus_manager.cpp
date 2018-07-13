@@ -139,7 +139,7 @@ void ConsensusManager::InitiateConsensus()
 {
     auto & batch = _handler.GetNextBatch();
 
-    OnConsensusInitiated(batch.Hash());
+    OnConsensusInitiated(batch);
 
     _validator.Sign(batch);
     Send(&batch, sizeof(BatchStateBlock));
