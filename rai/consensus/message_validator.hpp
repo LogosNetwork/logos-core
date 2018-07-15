@@ -112,8 +112,8 @@ public:
     }
 
     // Single validation
-    template<MessageType type>
-    bool Validate(const StandardPhaseMessage<type> & message, uint8_t delegate_id)
+    template<typename MSG>
+    bool Validate(const MSG & message, uint8_t delegate_id)
     {
     	if(_keys.find(delegate_id) == _keys.end())
     	{
@@ -121,7 +121,7 @@ public:
     	}
 
     	SignatureReal sig;
-    	string msg(reinterpret_cast<const char*>(&message), StandardPhaseMessage<type>::HASHABLE_BYTES);
+    	string msg(reinterpret_cast<const char*>(&message), MSG::HASHABLE_BYTES);
     	string sig_str(reinterpret_cast<const char*>(&message.signature), CONSENSUS_SIG_SIZE);
     	try{
     		sig.deserialize(sig_str);
@@ -144,5 +144,3 @@ private:
     Keys    _keys;
     KeyPair _keypair;
 };
-
-
