@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.8.11)
-include(ExternalProject)
 project (rai)
 
+include(ExternalProject)
 set (CPACK_PACKAGE_VERSION_MAJOR "14")
 set (CPACK_PACKAGE_VERSION_MINOR "0")
 set (CPACK_PACKAGE_VERSION_PATCH "0")
@@ -133,35 +133,36 @@ add_library (ed25519
 	ed25519-donna/ed25519-randombytes-custom.h
 	ed25519-donna/ed25519.h
 	ed25519-donna/ed25519.c)
-	
+
 ##########################################################################
 
-message ("${CMAKE_CURRENT_BINARY_DIR}")
+#message ("${CMAKE_CURRENT_BINARY_DIR}")
+#message ("${CMAKE_SOURCE_DIR}")
 #find_package(GMP REQUIRED)
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/bls_agg/bls/include/)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/bls_agg/cybozulib/include/)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/bls_agg/mcl/include/)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/bls_agg/xbyak/include/)
+include_directories(${CMAKE_SOURCE_DIR}/bls_agg/bls/include/)
+include_directories(${CMAKE_SOURCE_DIR}/bls_agg/cybozulib/include/)
+include_directories(${CMAKE_SOURCE_DIR}/bls_agg/mcl/include/)
+include_directories(${CMAKE_SOURCE_DIR}/bls_agg/xbyak/include/)
 
 ExternalProject_Add(project_BLS
-  SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/bls_agg/bls
-  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/bls_agg/bls
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/bls_agg/bls
+  PREFIX ${CMAKE_SOURCE_DIR}/bls_agg/bls
   CONFIGURE_COMMAND ""
-  BUILD_COMMAND make 
+  BUILD_COMMAND make
   INSTALL_COMMAND ""
   BUILD_IN_SOURCE 1
 )
 
 add_library(BLS STATIC IMPORTED)
-set_property(TARGET BLS PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/bls_agg/bls/lib/libbls.a)
+set_property(TARGET BLS PROPERTY IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/bls_agg/bls/lib/libbls.a)
 add_dependencies(BLS project_BLS)
 
 add_library(MCL STATIC IMPORTED)
-set_target_properties( MCL PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/bls_agg/mcl/lib/libmcl.a)
+set_target_properties( MCL PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/bls_agg/mcl/lib/libmcl.a)
 
 add_library(MCLbn256 STATIC IMPORTED)
-set_target_properties( MCLbn256 PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/bls_agg/mcl/lib/libmclbn256.a)
+set_target_properties( MCLbn256 PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/bls_agg/mcl/lib/libmclbn256.a)
 
 set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp)
 
@@ -366,26 +367,26 @@ set_property (CACHE ACTIVE_NETWORK PROPERTY STRINGS rai_test_network rai_beta_ne
 if (RAIBLOCKS_TEST)
 	add_executable (core_test
 		rai/core_test/message_validator.cpp
-#		rai/core_test/block.cpp
-#		rai/core_test/block_store.cpp
-#		rai/core_test/interface.cpp
-#		rai/core_test/conflicts.cpp
-#		rai/core_test/daemon.cpp
-#		rai/core_test/entry.cpp
-#		rai/core_test/gap_cache.cpp
-#		rai/core_test/ledger.cpp
-#		rai/core_test/network.cpp
-#		rai/core_test/node.cpp
-#		rai/core_test/message.cpp
-#		rai/core_test/message_parser.cpp
-#		rai/core_test/processor_service.cpp
-#		rai/core_test/peer_container.cpp
-#		rai/core_test/rpc.cpp
-#		rai/core_test/uint256_union.cpp
-#		rai/core_test/versioning.cpp
-#		rai/core_test/wallet.cpp
-#		rai/core_test/wallets.cpp
-#		rai/core_test/work_pool.cpp
+		rai/core_test/block.cpp
+		rai/core_test/block_store.cpp
+		rai/core_test/interface.cpp
+		rai/core_test/conflicts.cpp
+		rai/core_test/daemon.cpp
+		rai/core_test/entry.cpp
+		rai/core_test/gap_cache.cpp
+		rai/core_test/ledger.cpp
+		rai/core_test/network.cpp
+		rai/core_test/node.cpp
+		rai/core_test/message.cpp
+		rai/core_test/message_parser.cpp
+		rai/core_test/processor_service.cpp
+		rai/core_test/peer_container.cpp
+		rai/core_test/rpc.cpp
+		rai/core_test/uint256_union.cpp
+		rai/core_test/versioning.cpp
+		rai/core_test/wallet.cpp
+		rai/core_test/wallets.cpp
+		rai/core_test/work_pool.cpp
 	)
 
 	add_executable (slow_test
@@ -463,7 +464,6 @@ target_link_libraries (rai_lib ed25519 ${BLS_libs} xxhash blake2 ${CRYPTOPP_LIBR
 target_link_libraries (rai_lib_static ed25519 ${BLS_libs} xxhash blake2 ${CRYPTOPP_LIBRARY})
 
 target_link_libraries (rai_node node secure lmdb ed25519 ${BLS_libs} rai_lib_static argon2 ${OPENSSL_LIBRARIES} ${CRYPTOPP_LIBRARY} libminiupnpc-static ${Boost_ATOMIC_LIBRARY} ${Boost_CHRONO_LIBRARY} ${Boost_REGEX_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_LOG_LIBRARY} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_LOG_SETUP_LIBRARY} ${Boost_THREAD_LIBRARY} ${PLATFORM_LIBS})
-#BLS MCL crypto gmpxx gmp
 
 set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE)
 if (RAIBLOCKS_GUI)
