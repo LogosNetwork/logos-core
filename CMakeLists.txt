@@ -13,7 +13,7 @@ set (CPACK_PACKAGE_VENDOR "Nano Currency")
 set(CMAKE_INSTALL_RPATH "@executable_path/../Frameworks")
 
 set (RAIBLOCKS_GUI OFF CACHE BOOL "")
-set (RAIBLOCKS_TEST ON CACHE BOOL "")
+set (RAIBLOCKS_TEST OFF CACHE BOOL "")
 set (RAIBLOCKS_SECURE_RPC OFF CACHE BOOL "")
 
 option(RAIBLOCKS_ASAN_INT "Enable ASan+UBSan+Integer overflow" OFF)
