@@ -22,6 +22,8 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage & message)
     {
         Send<PostCommitMessage>();
         AdvanceState(ConsensusState::POST_COMMIT);
+
+        OnConsensusReached();
     }
 }
 
@@ -58,7 +60,7 @@ bool PrimaryDelegate::ProceedWithMessage(const MSG & message, ConsensusState exp
 {
     if(_state != expected_state)
     {
-        BOOST_LOG(_log) << "PrimaryDelegate - Error! Received "
+        BOOST_LOG(_log) << "PrimaryDelegate - Disregarding message: Received "
                         << MessageToName(message)
                         << " message while in "
                         << StateToString(_state);
