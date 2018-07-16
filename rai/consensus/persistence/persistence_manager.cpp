@@ -1,7 +1,6 @@
 #include <rai/consensus/persistence/persistence_manager.hpp>
 #include <rai/consensus/persistence/state_block_locator.hpp>
 #include <rai/common.hpp>
-#include <rai/node/common.hpp>
 
 PersistenceManager::PersistenceManager(Store & store,
                                        Log & log)
@@ -11,14 +10,14 @@ PersistenceManager::PersistenceManager(Store & store,
 
 void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message)
 {
-    auto hash(_store.batch_block_put(message));
+    auto hash(_store.store.batch_block_put(message));
 
     StateBlockLocator locator_template {hash, 0};
 
     for(uint8_t i = 0; i < CONSENSUS_BATCH_SIZE; ++i)
     {
         locator_template.index = i;
-        _store.state_block_put(message.blocks[i], locator_template);
+        _store.store.state_block_put(message.blocks[i], locator_template);
     }
 }
 
@@ -31,13 +30,15 @@ void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, uint
 
     // TODO: Reuse precomputed hash
     //
-    _store.batch_tip_put(delegate_id, message.Hash());
+    _store.store.batch_tip_put(delegate_id, message.Hash());
 }
 
 bool PersistenceManager::Validate(const rai::state_block & block, rai::process_return & result)
 {
+    auto hash = block.hash();
+
     // Have we seen this block before?
-    if(_store.state_block_exists(block))
+    if(_store.StateBlockExists(hash))
     {
         result.code = rai::process_result::old;
         return false;
@@ -52,7 +53,7 @@ bool PersistenceManager::Validate(const rai::state_block & block, rai::process_r
     auto is_send(false);
 
     rai::account_info info;
-    auto account_error(_store.account_get(block.hashables.account, info));
+    auto account_error(_store.store.account_get(block.hashables.account, info));
 
     // account exists
     if(!account_error)
@@ -67,7 +68,7 @@ bool PersistenceManager::Validate(const rai::state_block & block, rai::process_r
         // This account has issued at least one send transaction.
         if(info.block_count)
         {
-            if(!_store.state_block_exists(block.hashables.previous))
+            if(!_store.StateBlockExists(block.hashables.previous))
             {
                 result.code = rai::process_result::gap_previous;
                 return false;
@@ -109,6 +110,11 @@ bool PersistenceManager::Validate(const rai::state_block & block, rai::process_r
         }
     }
 
+    // Cache this block so that subsequent
+    // send requests may refer to it before
+    // it has been confirmed by validation.
+    _store.pending_blocks.insert(hash);
+
     result.code = rai::process_result::progress;
     return true;
 }
@@ -117,6 +123,11 @@ bool PersistenceManager::Validate(const rai::state_block & block)
 {
     rai::process_return ignored_result;
     return Validate(block, ignored_result);
+}
+
+void PersistenceManager::ClearCache()
+{
+    _store.pending_blocks.clear();
 }
 
 // Currently designed only to handle
@@ -134,7 +145,7 @@ void PersistenceManager::ApplyStateMessage(const rai::state_block & block)
 bool PersistenceManager::UpdateSourceState(const rai::state_block & block, rai::amount & quantity)
 {
     rai::account_info info;
-    auto account_error(_store.account_get(block.hashables.account, info));
+    auto account_error(_store.store.account_get(block.hashables.account, info));
 
     if(account_error)
     {
@@ -149,7 +160,7 @@ bool PersistenceManager::UpdateSourceState(const rai::state_block & block, rai::
     info.head = block.hash();
     info.modified = rai::seconds_since_epoch();
 
-    _store.account_put(block.hashables.account, info);
+    _store.store.account_put(block.hashables.account, info);
 
     return false;
 }
@@ -157,7 +168,7 @@ bool PersistenceManager::UpdateSourceState(const rai::state_block & block, rai::
 void PersistenceManager::UpdateDestinationState(const rai::state_block & block, rai::amount quantity)
 {
     rai::account_info info;
-    auto account_error(_store.account_get(block.hashables.link, info));
+    auto account_error(_store.store.account_get(block.hashables.link, info));
 
     // Destination account doesn't exist yet
     if(account_error)
@@ -173,16 +184,16 @@ void PersistenceManager::UpdateDestinationState(const rai::state_block & block, 
 
         auto hash(open.hash());
 
-        _store.receive_put(hash, open);
-        _store.account_put(rai::account(block.hashables.link),
-                          {
-                                /* Head    */ 0,
-                                /* Rep     */ hash,
-                                /* Open    */ hash,
-                                /* Balance */ quantity,
-                                /* Time    */ rai::seconds_since_epoch(),
-                                /* Count   */ 0
-                          });
+        _store.store.receive_put(hash, open);
+        _store.store.account_put(rai::account(block.hashables.link),
+                                 {
+                                     /* Head    */ 0,
+                                     /* Rep     */ hash,
+                                     /* Open    */ hash,
+                                     /* Balance */ quantity,
+                                     /* Time    */ rai::seconds_since_epoch(),
+                                     /* Count   */ 0
+                                 });
     }
 
     // Destination account exists already
