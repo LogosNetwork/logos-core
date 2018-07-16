@@ -821,6 +821,8 @@ state_block_generate_canary (0)
 	switch (rai::rai_network)
 	{
 		case rai::rai_networks::rai_test_network:
+//          LOGOS: ARCHIVE NANO
+//          -------------------
 //			preconfigured_representatives.push_back (rai::genesis_account);
 			break;
 		case rai::rai_networks::rai_beta_network:
@@ -2056,18 +2058,20 @@ bool rai::parse_tcp_endpoint (std::string const & string, rai::tcp_endpoint & en
 
 void rai::node::start ()
 {
-	network.receive ();
-	ongoing_keepalive ();
-	ongoing_bootstrap ();
-	ongoing_store_flush ();
-	ongoing_rep_crawl ();
-	bootstrap.start ();
-	backup_wallet ();
-	active.announce_votes ();
-	online_reps.recalculate_stake ();
-	port_mapping.start ();
-	add_initial_peers ();
-	observers.started ();
+//  LOGOS: ARCHIVE NANO
+//  -------------------
+//	network.receive ();
+//	ongoing_keepalive ();
+//	ongoing_bootstrap ();
+//	ongoing_store_flush ();
+//	ongoing_rep_crawl ();
+//	bootstrap.start ();
+//	backup_wallet ();
+//	active.announce_votes ();
+//	online_reps.recalculate_stake ();
+//	port_mapping.start ();
+//	add_initial_peers ();
+//	observers.started ();
 }
 
 void rai::node::stop ()

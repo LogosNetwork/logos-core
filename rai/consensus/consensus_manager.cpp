@@ -108,9 +108,6 @@ void ConsensusManager::Send(const void * data, size_t size)
     }
 }
 
-// TODO: Compare new send message against others
-//       sent in this batch.
-//
 bool ConsensusManager::Validate(std::shared_ptr<rai::state_block> block, rai::process_return & result)
 {
     return _persistence_manager.Validate(*block, result);
@@ -120,6 +117,8 @@ void ConsensusManager::OnConsensusReached()
 {
     _persistence_manager.StoreBatchMessage(_handler.GetNextBatch());
     _persistence_manager.ApplyBatchMessage(_handler.GetNextBatch(), _delegate_id);
+
+    _persistence_manager.ClearCache();
 
     _handler.PopFront();
 
