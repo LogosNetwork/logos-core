@@ -1,14 +1,13 @@
 #pragma once
 
 #include <rai/consensus/messages/messages.hpp>
+#include <rai/consensus/messages/common.hpp>
 #include <rai/common.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 #include <boost/log/sources/logger.hpp>
 
 #include <bls/bls.hpp>
-#include "messages/common.hpp"
-
 
 class MessageValidator
 {
@@ -23,6 +22,7 @@ class MessageValidator
     PublicKeyReal PublicKeyAggregate(const ParicipationMap &pmap)
     {
     	PublicKeyVec keyvec;
+
         for(int i = 0; i < pmap.size(); ++i)
         {
         	if(pmap[i])
@@ -30,7 +30,9 @@ class MessageValidator
         		keyvec.push_back(_keys[i]);
         	}
         }
+
         PublicKeyReal apk;
+
         apk.aggregateFrom(keyvec);
         return apk;
     }
@@ -50,11 +52,14 @@ public:
         // Set participation map:
     	PublicKeyVec keyvec;
     	SignatureVec sigvec;
+
         for(auto & sig : signatures)
         {
             message.participation_map[sig.delegate_id] = true;
+
             SignatureReal sigReal;
         	string sig_str(reinterpret_cast<const char*>(&sig.signature), CONSENSUS_SIG_SIZE);
+
         	sigReal.deserialize(sig_str);
         	sigvec.push_back(sigReal);
             keyvec.push_back(_keys[sig.delegate_id]);
@@ -74,8 +79,10 @@ public:
     void Sign(MSG & message)
     {
     	string msg(reinterpret_cast<const char*>(&message), MSG::HASHABLE_BYTES);
+
     	SignatureReal sig;
     	_keypair.prv.sign(sig, msg);
+
     	string sig_str;
     	sig.serialize(sig_str);
     	memcpy(&message.signature, sig_str.data(), CONSENSUS_SIG_SIZE);
@@ -90,7 +97,9 @@ public:
         // signed, and access their public
         // keys using _keys.
     	if (message.participation_map.none())
+    	{
     		return false;
+    	}
 
     	//public key agg
         auto apk = PublicKeyAggregate(message.participation_map);
@@ -101,13 +110,16 @@ public:
     	//sig
     	SignatureReal sig;
     	string sig_str(reinterpret_cast<const char*>(&message.signature), CONSENSUS_SIG_SIZE);
-    	try{
+
+    	try
+    	{
     		sig.deserialize(sig_str);
     	}
     	catch (const bls::Exception &)
     	{
     		return false;
     	}
+
         return sig.verify(apk, msg);
     }
 
@@ -121,9 +133,12 @@ public:
     	}
 
     	SignatureReal sig;
+
     	string msg(reinterpret_cast<const char*>(&message), MSG::HASHABLE_BYTES);
     	string sig_str(reinterpret_cast<const char*>(&message.signature), CONSENSUS_SIG_SIZE);
-    	try{
+
+    	try
+    	{
     		sig.deserialize(sig_str);
     	}
     	catch (const bls::Exception &)
