@@ -11,9 +11,11 @@
 class PersistenceManager
 {
 
-    using Store = rai::block_store;
-    using Log   = boost::log::sources::logger_mt;
-    using Hash  = rai::block_hash;
+    using Store        = rai::block_store;
+    using Log          = boost::log::sources::logger_mt;
+    using Hash         = rai::block_hash;
+    using AccountCache = std::unordered_map<rai::account, rai::account_info>;
+    using BlockCache   = std::unordered_set<Hash>;
 
 public:
 
@@ -42,10 +44,28 @@ private:
                     || store.state_block_exists(hash);
         }
 
+        bool GetAccount(const rai::account & account, rai::account_info & info)
+        {
+            if(pending_account_changes.find(account) != pending_account_changes.end())
+            {
+                info = pending_account_changes[account];
+                return true;
+            }
+
+            return store.account_get(account, info);
+        }
+
+        void ClearCache()
+        {
+            pending_blocks.clear();
+            pending_account_changes.clear();
+        }
+
         // Contains blocks validated by this delegate
         // but not yet confirmed via consensus.
-        std::unordered_set<Hash> pending_blocks;
-        Store &                  store;
+        BlockCache   pending_blocks;
+        AccountCache pending_account_changes;
+        Store &      store;
     };
 
     void ApplyStateMessage(const rai::state_block & block);
