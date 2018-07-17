@@ -53,7 +53,7 @@ bool PersistenceManager::Validate(const rai::state_block & block, rai::process_r
     auto is_send(false);
 
     rai::account_info info;
-    auto account_error(_store.store.account_get(block.hashables.account, info));
+    auto account_error(_store.GetAccount(block.hashables.account, info));
 
     // account exists
     if(!account_error)
@@ -115,6 +115,11 @@ bool PersistenceManager::Validate(const rai::state_block & block, rai::process_r
     // it has been confirmed by validation.
     _store.pending_blocks.insert(hash);
 
+    // Also cache pending account changes
+    info.block_count++;
+    info.head = block.hash();
+    _store.pending_account_changes[block.hashables.account] = info;
+
     result.code = rai::process_result::progress;
     return true;
 }
@@ -127,7 +132,7 @@ bool PersistenceManager::Validate(const rai::state_block & block)
 
 void PersistenceManager::ClearCache()
 {
-    _store.pending_blocks.clear();
+    _store.ClearCache();
 }
 
 // Currently designed only to handle
