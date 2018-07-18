@@ -49,7 +49,7 @@ private:
             if(pending_account_changes.find(account) != pending_account_changes.end())
             {
                 info = pending_account_changes[account];
-                return true;
+                return false;
             }
 
             return store.account_get(account, info);
