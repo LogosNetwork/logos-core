@@ -50,8 +50,6 @@ bool PersistenceManager::Validate(const rai::state_block & block, rai::process_r
         return false;
     }
 
-    auto is_send(false);
-
     rai::account_info info;
     auto account_error(_store.GetAccount(block.hashables.account, info));
 
@@ -75,8 +73,6 @@ bool PersistenceManager::Validate(const rai::state_block & block, rai::process_r
             }
         }
 
-        is_send = block.hashables.balance < info.balance;
-
         if(block.hashables.previous != info.head)
         {
             result.code = rai::process_result::fork;
@@ -98,26 +94,16 @@ bool PersistenceManager::Validate(const rai::state_block & block, rai::process_r
         }
     }
 
-    if(!is_send)
-    {
-        // Currently, we only accept send requests
-        result.code = rai::process_result::not_implemented;
-        return false;
-
-        if(block.hashables.link.is_zero())
-        {
-            return false;
-        }
-    }
-
     // Cache this block so that subsequent
     // send requests may refer to it before
     // it has been confirmed by validation.
     _store.pending_blocks.insert(hash);
 
-    // Also cache pending account changes
+
     info.block_count++;
     info.head = block.hash();
+
+    // Also cache pending account changes
     _store.pending_account_changes[block.hashables.account] = info;
 
     result.code = rai::process_result::progress;
@@ -139,15 +125,13 @@ void PersistenceManager::ClearCache()
 // send transactions.
 void PersistenceManager::ApplyStateMessage(const rai::state_block & block)
 {
-    rai::amount quantity;
-
-    if(!UpdateSourceState(block, quantity))
+    if(!UpdateSourceState(block))
     {
-        UpdateDestinationState(block, quantity);
+        UpdateDestinationState(block);
     }
 }
 
-bool PersistenceManager::UpdateSourceState(const rai::state_block & block, rai::amount & quantity)
+bool PersistenceManager::UpdateSourceState(const rai::state_block & block)
 {
     rai::account_info info;
     auto account_error(_store.store.account_get(block.hashables.account, info));
@@ -158,10 +142,8 @@ bool PersistenceManager::UpdateSourceState(const rai::state_block & block, rai::
         return true;
     }
 
-    quantity = info.balance.number() - block.hashables.balance.number();
-
     info.block_count++;
-    info.balance = block.hashables.balance;
+    info.balance = info.balance.number() + block.hashables.amount.number();
     info.head = block.hash();
     info.modified = rai::seconds_since_epoch();
 
@@ -170,7 +152,7 @@ bool PersistenceManager::UpdateSourceState(const rai::state_block & block, rai::
     return false;
 }
 
-void PersistenceManager::UpdateDestinationState(const rai::state_block & block, rai::amount quantity)
+void PersistenceManager::UpdateDestinationState(const rai::state_block & block)
 {
     rai::account_info info;
     auto account_error(_store.store.account_get(block.hashables.link, info));
@@ -181,7 +163,7 @@ void PersistenceManager::UpdateDestinationState(const rai::state_block & block, 
         rai::state_block open(/* Account  */ rai::account(block.hashables.link),
                               /* Previous */ 0,
                               /* Rep      */ 0,
-                              /* Balance  */ quantity,
+                              /* Amount   */ block.hashables.amount,
                               /* Link     */ block.hash(),
                               /* Priv Key */ rai::raw_key(),
                               /* Pub Key  */ rai::public_key(),
@@ -195,7 +177,7 @@ void PersistenceManager::UpdateDestinationState(const rai::state_block & block, 
                                      /* Head    */ 0,
                                      /* Rep     */ hash,
                                      /* Open    */ hash,
-                                     /* Balance */ quantity,
+                                     /* Amount  */ block.hashables.amount,
                                      /* Time    */ rai::seconds_since_epoch(),
                                      /* Count   */ 0
                                  });
@@ -204,7 +186,7 @@ void PersistenceManager::UpdateDestinationState(const rai::state_block & block, 
     // Destination account exists already
     else
     {
-        info.balance = info.balance.number() + quantity.number();
+        info.balance = info.balance.number() + block.hashables.amount.number();
         info.modified = rai::seconds_since_epoch();
     }
 }

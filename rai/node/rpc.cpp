@@ -1275,7 +1275,7 @@ void rai::rpc_handler::block_create ()
 					{
 						work = node.work_generate_blocking (previous.is_zero () ? pub : previous);
 					}
-					rai::state_block state (pub, previous, representative, balance, link, prv, pub, work);
+					rai::state_block state (pub, previous, representative, amount, link, prv, pub, work);
 					boost::property_tree::ptree response_l;
 					response_l.put ("hash", state.hash ().to_string ());
 					std::string contents;
@@ -1771,7 +1771,7 @@ public:
 			tree.put ("representative", block_a.hashables.representative.to_account ());
 			tree.put ("link", block_a.hashables.link.to_string ());
 		}
-		auto balance (block_a.hashables.balance.number ());
+		auto balance (block_a.hashables.amount.number ());
 		auto previous_balance (handler.node.ledger.balance (transaction, block_a.hashables.previous));
 		if (balance < previous_balance)
 		{

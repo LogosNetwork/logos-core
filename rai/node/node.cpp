@@ -1734,7 +1734,7 @@ _consensus_manager(service_a, store, alarm_a, log, config.consensus_manager_conf
                                    /* Head    */ 0,
                                    /* Rep     */ 0,
                                    /* Open    */ logos_genesis_block.hash(),
-                                   /* Balance */ std::numeric_limits<rai::uint128_t>::max(),
+                                   /* Amount  */ std::numeric_limits<rai::uint128_t>::max(),
                                    /* Time    */ rai::seconds_since_epoch(),
                                    /* Count   */ 0
 		                       });

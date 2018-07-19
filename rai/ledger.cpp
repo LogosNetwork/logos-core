@@ -109,9 +109,9 @@ public:
 			representative = ledger.representative (transaction, block_a.hashables.previous);
 		}
 		auto balance (ledger.balance (transaction, block_a.hashables.previous));
-		auto is_send (block_a.hashables.balance < balance);
+		auto is_send (block_a.hashables.amount < balance);
 		// Add in amount delta
-		ledger.store.representation_add (transaction, hash, 0 - block_a.hashables.balance.number ());
+		ledger.store.representation_add (transaction, hash, 0 - block_a.hashables.amount.number ());
 		if (!representative.is_zero ())
 		{
 			// Move existing representation
@@ -130,7 +130,7 @@ public:
 		}
 		else if (!block_a.hashables.link.is_zero ())
 		{
-			rai::pending_info info (ledger.account (transaction, block_a.hashables.link), block_a.hashables.balance.number () - balance);
+			rai::pending_info info (ledger.account (transaction, block_a.hashables.link), block_a.hashables.amount.number () - balance);
 			ledger.store.pending_put (transaction, rai::pending_key (block_a.hashables.account, block_a.hashables.link), info);
 			ledger.stats.inc (rai::stat::type::rollback, rai::stat::detail::receive);
 		}
@@ -198,7 +198,7 @@ void ledger_processor::state_block_impl (rai::state_block const & block_a)
 			if (result.code == rai::process_result::progress)
 			{
 				rai::account_info info;
-				result.amount = block_a.hashables.balance;
+				result.amount = block_a.hashables.amount;
 				auto is_send (false);
 				auto account_error (ledger.store.account_get (transaction, block_a.hashables.account, info));
 				if (!account_error)
@@ -210,7 +210,7 @@ void ledger_processor::state_block_impl (rai::state_block const & block_a)
 						result.code = ledger.store.block_exists (transaction, block_a.hashables.previous) ? rai::process_result::progress : rai::process_result::gap_previous; // Does the previous block exist in the ledger? (Unambigious)
 						if (result.code == rai::process_result::progress)
 						{
-							is_send = block_a.hashables.balance < info.balance;
+							is_send = block_a.hashables.amount < info.balance;
 							result.amount = is_send ? (info.balance.number () - result.amount.number ()) : (result.amount.number () - info.balance.number ());
 							result.code = block_a.hashables.previous == info.head ? rai::process_result::progress : rai::process_result::fork; // Is the previous block the account's head block? (Ambigious)
 						}
@@ -263,7 +263,7 @@ void ledger_processor::state_block_impl (rai::state_block const & block_a)
 						ledger.store.representation_add (transaction, info.rep_block, 0 - info.balance.number ());
 					}
 					// Add in amount delta
-					ledger.store.representation_add (transaction, hash, block_a.hashables.balance.number ());
+					ledger.store.representation_add (transaction, hash, block_a.hashables.amount.number ());
 
 					if (is_send)
 					{
@@ -278,7 +278,7 @@ void ledger_processor::state_block_impl (rai::state_block const & block_a)
 						ledger.stats.inc (rai::stat::type::ledger, rai::stat::detail::receive);
 					}
 
-					ledger.change_latest (transaction, block_a.hashables.account, hash, hash, block_a.hashables.balance, info.block_count + 1, true);
+					ledger.change_latest (transaction, block_a.hashables.account, hash, hash, block_a.hashables.amount, info.block_count + 1, true);
 					if (!ledger.store.frontier_get (transaction, info.head).is_zero ())
 					{
 						ledger.store.frontier_del (transaction, info.head);
@@ -631,7 +631,7 @@ bool rai::ledger::is_send (MDB_txn * transaction_a, rai::state_block const & blo
 	rai::block_hash previous (block_a.hashables.previous);
 	if (!previous.is_zero ())
 	{
-		if (block_a.hashables.balance < balance (transaction_a, previous))
+		if (block_a.hashables.amount < balance (transaction_a, previous))
 		{
 			result = true;
 		}

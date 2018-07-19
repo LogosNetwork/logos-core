@@ -70,8 +70,8 @@ private:
 
     void ApplyStateMessage(const rai::state_block & block);
 
-    bool UpdateSourceState(const rai::state_block & block, rai::amount & quantity);
-    void UpdateDestinationState(const rai::state_block & block, rai::amount quantity);
+    bool UpdateSourceState(const rai::state_block & block);
+    void UpdateDestinationState(const rai::state_block & block);
 
 
     DynamicStorage _store;

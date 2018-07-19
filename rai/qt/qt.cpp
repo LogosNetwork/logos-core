@@ -523,7 +523,7 @@ public:
 	}
 	void state_block (rai::state_block const & block_a)
 	{
-		auto balance (block_a.hashables.balance.number ());
+		auto balance (block_a.hashables.amount.number ());
 		auto previous_balance (ledger.balance (transaction, block_a.hashables.previous));
 		account = block_a.hashables.account;
 		if (balance < previous_balance)
