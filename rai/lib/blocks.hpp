@@ -251,7 +251,7 @@ public:
 	rai::account representative;
 	// Current balance of this account
 	// Allows lookup of account balance simply by looking at the head block
-	rai::amount balance;
+	rai::amount amount;
 	// Link field contains source block_hash if receiving, destination account if sending
 	rai::uint256_union link;
 };
@@ -312,7 +312,7 @@ struct CompressedStateBlock
         : account       (block.hashables.account.bytes)
         , previous      (block.hashables.previous.bytes)
         , representative(block.hashables.representative.bytes)
-        , balance       (block.hashables.balance.bytes)
+        , balance       (block.hashables.amount.bytes)
         , link          (block.hashables.link.bytes)
     {}
 

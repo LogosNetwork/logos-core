@@ -334,7 +334,7 @@ TEST (state_block, serialization)
 	ASSERT_EQ (key1.pub, block1.hashables.account);
 	ASSERT_EQ (rai::block_hash (1), block1.previous ());
 	ASSERT_EQ (key2.pub, block1.hashables.representative);
-	ASSERT_EQ (rai::amount (2), block1.hashables.balance);
+	ASSERT_EQ (rai::amount (2), block1.hashables.amount);
 	ASSERT_EQ (rai::uint256_union (4), block1.hashables.link);
 	std::vector<uint8_t> bytes;
 	{
@@ -351,7 +351,7 @@ TEST (state_block, serialization)
 	block2.hashables.account.clear ();
 	block2.hashables.previous.clear ();
 	block2.hashables.representative.clear ();
-	block2.hashables.balance.clear ();
+	block2.hashables.amount.clear ();
 	block2.hashables.link.clear ();
 	block2.signature.clear ();
 	block2.work = 0;
@@ -370,7 +370,7 @@ TEST (state_block, serialization)
 	block3.hashables.account.clear ();
 	block3.hashables.previous.clear ();
 	block3.hashables.representative.clear ();
-	block3.hashables.balance.clear ();
+	block3.hashables.amount.clear ();
 	block3.hashables.link.clear ();
 	block3.signature.clear ();
 	block3.work = 0;
@@ -395,9 +395,9 @@ TEST (state_block, hashing)
 	ASSERT_NE (hash, block.hash ());
 	block.hashables.representative.bytes[0] ^= 0x1;
 	ASSERT_EQ (hash, block.hash ());
-	block.hashables.balance.bytes[0] ^= 0x1;
+	block.hashables.amount.bytes[0] ^= 0x1;
 	ASSERT_NE (hash, block.hash ());
-	block.hashables.balance.bytes[0] ^= 0x1;
+	block.hashables.amount.bytes[0] ^= 0x1;
 	ASSERT_EQ (hash, block.hash ());
 	block.hashables.link.bytes[0] ^= 0x1;
 	ASSERT_NE (hash, block.hash ());

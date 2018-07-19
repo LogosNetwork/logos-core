@@ -50,7 +50,7 @@ char const * logos_genesis_data = R"%%%({
     "account": "xrb_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
     "previous": "0",
     "representative": "xrb_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
-    "balance": "340282366920938463463374607431768211455",
+    "amount": "340282366920938463463374607431768211455",
     "link": "B0311EA55708D6A53C75CDBF88300259C6D018522FE3D4D0A242E431F9E8B6D0",
     "work": "0",
     "signature": "ECDA914373A2F0CA1296475BAEE40500A7F0A7AD72A5A80C81D7FAB7F6C802B2CC7DB50F5DD0FB25B2EF11761FA7344A158DD5A700B21BD47DE5BD0F63153A02"
@@ -475,7 +475,7 @@ void rai::amount_visitor::state_block (rai::state_block const & block_a)
 {
 	balance_visitor prev (transaction, store);
 	prev.compute (block_a.hashables.previous);
-	result = block_a.hashables.balance.number ();
+	result = block_a.hashables.amount.number ();
 	result = result < prev.result ? prev.result - result : result - prev.result;
 	current = 0;
 }
@@ -568,7 +568,7 @@ void rai::balance_visitor::change_block (rai::change_block const & block_a)
 
 void rai::balance_visitor::state_block (rai::state_block const & block_a)
 {
-	result = block_a.hashables.balance.number ();
+	result = block_a.hashables.amount.number ();
 	current = 0;
 }
 
