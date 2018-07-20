@@ -143,7 +143,7 @@ bool PersistenceManager::UpdateSourceState(const rai::state_block & block)
     }
 
     info.block_count++;
-    info.balance = info.balance.number() + block.hashables.amount.number();
+    info.balance = info.balance.number() - block.hashables.amount.number();
     info.head = block.hash();
     info.modified = rai::seconds_since_epoch();
 
