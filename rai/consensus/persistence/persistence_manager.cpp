@@ -10,14 +10,14 @@ PersistenceManager::PersistenceManager(Store & store,
 
 void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message)
 {
-    auto hash(_store.store.batch_block_put(message));
+    auto hash(_store.batch_block_put(message));
 
     StateBlockLocator locator_template {hash, 0};
 
     for(uint8_t i = 0; i < CONSENSUS_BATCH_SIZE; ++i)
     {
         locator_template.index = i;
-        _store.store.state_block_put(message.blocks[i], locator_template);
+        _store.state_block_put(message.blocks[i], locator_template);
     }
 }
 
@@ -30,15 +30,16 @@ void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, uint
 
     // TODO: Reuse precomputed hash
     //
-    _store.store.batch_tip_put(delegate_id, message.Hash());
+    _store.batch_tip_put(delegate_id, message.Hash());
 }
 
-bool PersistenceManager::Validate(const rai::state_block & block, rai::process_return & result)
+bool PersistenceManager::Validate(const rai::state_block & block, rai::process_return & result, uint8_t delegate_id)
 {
     auto hash = block.hash();
+    auto store = GetStore(delegate_id);
 
     // Have we seen this block before?
-    if(_store.StateBlockExists(hash))
+    if(store.StateBlockExists(hash))
     {
         result.code = rai::process_result::old;
         return false;
@@ -51,7 +52,7 @@ bool PersistenceManager::Validate(const rai::state_block & block, rai::process_r
     }
 
     rai::account_info info;
-    auto account_error(_store.GetAccount(block.hashables.account, info));
+    auto account_error(store.GetAccount(block.hashables.account, info));
 
     // account exists
     if(!account_error)
@@ -66,7 +67,7 @@ bool PersistenceManager::Validate(const rai::state_block & block, rai::process_r
         // This account has issued at least one send transaction.
         if(info.block_count)
         {
-            if(!_store.StateBlockExists(block.hashables.previous))
+            if(!store.StateBlockExists(block.hashables.previous))
             {
                 result.code = rai::process_result::gap_previous;
                 return false;
@@ -97,28 +98,28 @@ bool PersistenceManager::Validate(const rai::state_block & block, rai::process_r
     // Cache this block so that subsequent
     // send requests may refer to it before
     // it has been confirmed by validation.
-    _store.pending_blocks.insert(hash);
+    store.pending_blocks.insert(hash);
 
 
     info.block_count++;
     info.head = block.hash();
 
     // Also cache pending account changes
-    _store.pending_account_changes[block.hashables.account] = info;
+    store.pending_account_changes[block.hashables.account] = info;
 
     result.code = rai::process_result::progress;
     return true;
 }
 
-bool PersistenceManager::Validate(const rai::state_block & block)
+bool PersistenceManager::Validate(const rai::state_block & block, uint8_t delegate_id)
 {
     rai::process_return ignored_result;
-    return Validate(block, ignored_result);
+    return Validate(block, ignored_result, delegate_id);
 }
 
-void PersistenceManager::ClearCache()
+void PersistenceManager::ClearCache(uint8_t delegate_id)
 {
-    _store.ClearCache();
+    GetStore(delegate_id).ClearCache();
 }
 
 // Currently designed only to handle
@@ -134,7 +135,7 @@ void PersistenceManager::ApplyStateMessage(const rai::state_block & block)
 bool PersistenceManager::UpdateSourceState(const rai::state_block & block)
 {
     rai::account_info info;
-    auto account_error(_store.store.account_get(block.hashables.account, info));
+    auto account_error(_store.account_get(block.hashables.account, info));
 
     if(account_error)
     {
@@ -147,7 +148,7 @@ bool PersistenceManager::UpdateSourceState(const rai::state_block & block)
     info.head = block.hash();
     info.modified = rai::seconds_since_epoch();
 
-    _store.store.account_put(block.hashables.account, info);
+    _store.account_put(block.hashables.account, info);
 
     return false;
 }
@@ -155,7 +156,7 @@ bool PersistenceManager::UpdateSourceState(const rai::state_block & block)
 void PersistenceManager::UpdateDestinationState(const rai::state_block & block)
 {
     rai::account_info info;
-    auto account_error(_store.store.account_get(block.hashables.link, info));
+    auto account_error(_store.account_get(block.hashables.link, info));
 
     // Destination account doesn't exist yet
     if(account_error)
@@ -171,16 +172,16 @@ void PersistenceManager::UpdateDestinationState(const rai::state_block & block)
 
         auto hash(open.hash());
 
-        _store.store.receive_put(hash, open);
-        _store.store.account_put(rai::account(block.hashables.link),
-                                 {
-                                     /* Head    */ 0,
-                                     /* Rep     */ hash,
-                                     /* Open    */ hash,
-                                     /* Amount  */ block.hashables.amount,
-                                     /* Time    */ rai::seconds_since_epoch(),
-                                     /* Count   */ 0
-                                 });
+        _store.receive_put(hash, open);
+        _store.account_put(rai::account(block.hashables.link),
+                           {
+                               /* Head    */ 0,
+                               /* Rep     */ hash,
+                               /* Open    */ hash,
+                               /* Amount  */ block.hashables.amount,
+                               /* Time    */ rai::seconds_since_epoch(),
+                               /* Count   */ 0
+                           });
     }
 
     // Destination account exists already
@@ -189,4 +190,16 @@ void PersistenceManager::UpdateDestinationState(const rai::state_block & block)
         info.balance = info.balance.number() + block.hashables.amount.number();
         info.modified = rai::seconds_since_epoch();
     }
+}
+
+PersistenceManager::DynamicStorage & PersistenceManager::GetStore(uint8_t delegate_id)
+{
+    std::lock_guard<std::mutex> lock(_dynamic_storage_mutex);
+
+    if(_dynamic_storage.find(delegate_id) == _dynamic_storage.end())
+    {
+        _dynamic_storage.insert({delegate_id, DynamicStorage(_store)});
+    }
+
+    return _dynamic_storage.find(delegate_id)->second;
 }
