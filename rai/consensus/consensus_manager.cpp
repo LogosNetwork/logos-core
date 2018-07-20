@@ -110,7 +110,7 @@ void ConsensusManager::Send(const void * data, size_t size)
 
 bool ConsensusManager::Validate(std::shared_ptr<rai::state_block> block, rai::process_return & result)
 {
-    return _persistence_manager.Validate(*block, result);
+    return _persistence_manager.Validate(*block, result, _delegate_id);
 }
 
 void ConsensusManager::OnConsensusReached()
@@ -118,7 +118,7 @@ void ConsensusManager::OnConsensusReached()
     _persistence_manager.StoreBatchMessage(_handler.GetNextBatch());
     _persistence_manager.ApplyBatchMessage(_handler.GetNextBatch(), _delegate_id);
 
-    _persistence_manager.ClearCache();
+    _persistence_manager.ClearCache(_delegate_id);
 
     _handler.PopFront();
 

@@ -271,6 +271,8 @@ void ConsensusConnection::OnConsensusMessage(const PostCommitMessage & message)
         _persistence_manager.StoreBatchMessage(*_cur_batch);
         _persistence_manager.ApplyBatchMessage(*_cur_batch, _delegate_ids.remote);
 
+        _persistence_manager.ClearCache(_delegate_ids.remote);
+
         _state = ConsensusState::VOID;
     }
 }
@@ -306,7 +308,7 @@ bool ConsensusConnection::Validate<PrePrepareMessage>(const PrePrepareMessage & 
 {
     for(uint8_t i = 0; i < message.block_count; ++i)
     {
-        if(!_persistence_manager.Validate(message.blocks[i]))
+        if(!_persistence_manager.Validate(message.blocks[i], _delegate_ids.remote))
         {
             return false;
         }

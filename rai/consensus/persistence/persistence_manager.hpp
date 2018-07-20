@@ -11,11 +11,14 @@
 class PersistenceManager
 {
 
+    class DynamicStorage;
+
     using Store        = rai::block_store;
     using Log          = boost::log::sources::logger_mt;
     using Hash         = rai::block_hash;
     using AccountCache = std::unordered_map<rai::account, rai::account_info>;
     using BlockCache   = std::unordered_set<Hash>;
+    using StorageMap   = std::unordered_map<uint8_t, DynamicStorage>;
 
 public:
 
@@ -25,10 +28,10 @@ public:
     void StoreBatchMessage(const BatchStateBlock & message);
     void ApplyBatchMessage(const BatchStateBlock & message, uint8_t delegate_id);
 
-    bool Validate(const rai::state_block & block, rai::process_return & result);
-    bool Validate(const rai::state_block & block);
+    bool Validate(const rai::state_block & block, rai::process_return & result, uint8_t delegate_id);
+    bool Validate(const rai::state_block & block, uint8_t delegate_id);
 
-    void ClearCache();
+    void ClearCache(uint8_t delegate_id);
 
 private:
 
@@ -73,9 +76,13 @@ private:
     bool UpdateSourceState(const rai::state_block & block);
     void UpdateDestinationState(const rai::state_block & block);
 
+    DynamicStorage & GetStore(uint8_t delegate_id);
 
-    DynamicStorage _store;
-    Log &          _log;
+
+    StorageMap _dynamic_storage;
+    std::mutex _dynamic_storage_mutex;
+    Store &    _store;
+    Log &      _log;
 };
 
 
