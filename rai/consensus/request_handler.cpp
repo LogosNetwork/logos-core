@@ -44,3 +44,8 @@ void RequestHandler::PopFront()
 
     _batches.pop_front();
 }
+
+bool RequestHandler::BatchFull()
+{
+    return _batches.size() && _batches.front().block_count == CONSENSUS_BATCH_SIZE;
+}

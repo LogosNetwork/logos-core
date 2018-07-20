@@ -148,6 +148,11 @@ void ConsensusManager::InitiateConsensus()
 
 bool ConsensusManager::ReadyForConsensus()
 {
+    if(_using_buffered_blocks)
+    {
+        return StateReadyForConsensus() && _handler.BatchFull();
+    }
+
     return StateReadyForConsensus() && !_handler.Empty();
 }
 

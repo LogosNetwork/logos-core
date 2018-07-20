@@ -24,6 +24,7 @@ public:
     bool Empty();
     BatchStateBlock & GetNextBatch();
     void PopFront();
+    bool BatchFull();
 
 private:
 
