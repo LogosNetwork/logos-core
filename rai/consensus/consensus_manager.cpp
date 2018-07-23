@@ -25,21 +25,20 @@ ConsensusManager::ConsensusManager(Service & service,
 
     EstablishDelegateIds(config.local_address);
 
-    uint8_t remote_delegate_id = 0;
-
-    for(const auto & peer : _delegates)
+    for(uint8_t i = 0; i < _delegates.size(); ++i)
     {
+        auto & peer = _delegates[i];
         auto endpoint = Endpoint(boost::asio::ip::make_address_v4(peer),
                                  local_endpoint.port());
 
-        if(endpoint == local_endpoint)
+        if(i == _delegate_id)
         {
             continue;
         }
 
-        if(ConnectionPolicy()(local_endpoint, endpoint))
+        if(_delegate_id < i)
         {
-            ConsensusConnection::DelegateIdentities ids{_delegate_id, remote_delegate_id};
+            ConsensusConnection::DelegateIdentities ids{_delegate_id, i};
 
             _connections.push_back(
                     std::make_shared<ConsensusConnection>(service, alarm, endpoint,
@@ -50,8 +49,6 @@ ConsensusManager::ConsensusManager(Service & service,
         {
             server_endpoints.insert(endpoint.address());
         }
-
-        remote_delegate_id++;
     }
 
     if(server_endpoints.size())
@@ -64,11 +61,13 @@ void ConsensusManager::OnSendRequest(std::shared_ptr<rai::state_block> block, ra
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    BOOST_LOG (_log) << "ConsensusManager::OnSendRequest()";
+    BOOST_LOG (_log) << "ConsensusManager::OnSendRequest() - hash: " << block->hash().to_string();
 
     if(!Validate(block, result))
     {
-        BOOST_LOG (_log) << "ConsensusManager - block validation for send request failed.";
+        BOOST_LOG (_log) << "ConsensusManager - block validation for send request failed. Result code: "
+                         << rai::ProcessResultToString(result.code)
+                         << " hash " << block->hash().to_string();
         return;
     }
 
@@ -84,7 +83,7 @@ void ConsensusManager::OnBenchmarkSendRequest(std::shared_ptr<rai::state_block> 
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    BOOST_LOG (_log) << "ConsensusManager::OnBenchmarkSendRequest()";
+    BOOST_LOG (_log) << "ConsensusManager::OnBenchmarkSendRequest() - hash: " << block->hash().to_string();
 
     _using_buffered_blocks = true;
     _buffer.push_back(block);
@@ -115,8 +114,13 @@ bool ConsensusManager::Validate(std::shared_ptr<rai::state_block> block, rai::pr
 
 void ConsensusManager::OnConsensusReached()
 {
+    static uint64_t messages_stored = 0;
+
     _persistence_manager.StoreBatchMessage(_handler.GetNextBatch());
     _persistence_manager.ApplyBatchMessage(_handler.GetNextBatch(), _delegate_id);
+
+    messages_stored += _handler.GetNextBatch().block_count;
+    BOOST_LOG(_log) << "ConsensusManager - Stored " << messages_stored << " blocks.";
 
     _persistence_manager.ClearCache(_delegate_id);
 
@@ -150,6 +154,7 @@ bool ConsensusManager::ReadyForConsensus()
 {
     if(_using_buffered_blocks)
     {
+
         return StateReadyForConsensus() && _handler.BatchFull();
     }
 
@@ -165,7 +170,7 @@ void ConsensusManager::SendBufferedBlocks()
 {
     rai::process_return unused;
 
-    for(uint8_t i = 0; i < _buffer.size() && i < CONSENSUS_BATCH_SIZE; ++i)
+    for(uint8_t i = 0; _buffer.size() && i < CONSENSUS_BATCH_SIZE; ++i)
     {
         OnSendRequest(_buffer.front(), unused);
         _buffer.pop_front();
@@ -179,6 +184,8 @@ void ConsensusManager::SendBufferedBlocks()
 
 void ConsensusManager::BufferComplete(rai::process_return & result)
 {
+    BOOST_LOG(_log) << "Buffered " << _buffer.size() << " blocks.";
+
     result.code = rai::process_result::buffering_done;
     SendBufferedBlocks();
 }

@@ -46,6 +46,8 @@ void PrimaryDelegate::Send()
 
 void PrimaryDelegate::OnConsensusInitiated(const BatchStateBlock & block)
 {
+    BOOST_LOG(_log) << "PrimaryDelegate - Initiating Consensus with PrePrepare hash: " << block.Hash().to_string();
+
     _cur_batch_hash = block.Hash();
     _cur_batch_timestamp = block.timestamp;
 }
