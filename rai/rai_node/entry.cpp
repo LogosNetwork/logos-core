@@ -12,7 +12,7 @@
 int main (int argc, char * const * argv)
 {
 	//TODO find a better place to call, as long as before the 1st BLS operation, e.g. key generation
-	bls::init();
+	//bls::init();
 
 	boost::program_options::options_description description ("Command line options");
 	rai::add_node_options (description);

@@ -774,3 +774,68 @@ rai::block_hash rai::genesis::hash () const
 {
 	return open->hash ();
 }
+
+std::string rai::ProcessResultToString(rai::process_result result)
+{
+    std::string ret;
+
+    switch(result)
+    {
+    case process_result::progress:
+        ret = "Progress";
+        break;
+    case process_result::bad_signature:
+        ret = "Bad Signature";
+        break;
+    case process_result::old:
+        ret = "Old";
+        break;
+    case process_result::negative_spend:
+        ret = "Negative Spend";
+        break;
+    case process_result::fork:
+        ret = "Fork";
+        break;
+    case process_result::unreceivable:
+        ret = "Unreceivable";
+        break;
+    case process_result::gap_previous:
+        ret = "Gap Previous";
+        break;
+    case process_result::gap_source:
+        ret = "Gap Source";
+        break;
+    case process_result::state_block_disabled:
+        ret = "State Block Disabled";
+        break;
+    case process_result::not_receive_from_send:
+        ret = "Not Receive From Send";
+        break;
+    case process_result::account_mismatch:
+        ret = "Account Mismatch";
+        break;
+    case process_result::opened_burn_account:
+        ret = "Opened Burn Account";
+        break;
+    case process_result::balance_mismatch:
+        ret = "Balance Mismatch";
+        break;
+    case process_result::block_position:
+        ret = "Block Position";
+        break;
+    case process_result::invalid_block_type:
+        ret = "Invalid Block Type";
+        break;
+    case process_result::not_implemented:
+        ret = "Not Implemented";
+        break;
+    case process_result::buffered:
+        ret = "Buffered";
+        break;
+    case process_result::buffering_done:
+        ret = "Buffering Done";
+        break;
+    }
+
+    return ret;
+}

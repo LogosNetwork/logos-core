@@ -36,7 +36,7 @@ void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, uint
 bool PersistenceManager::Validate(const rai::state_block & block, rai::process_return & result, uint8_t delegate_id)
 {
     auto hash = block.hash();
-    auto store = GetStore(delegate_id);
+    auto & store = GetStore(delegate_id);
 
     // Have we seen this block before?
     if(store.StateBlockExists(hash))

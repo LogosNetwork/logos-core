@@ -209,7 +209,6 @@ enum class vote_code
 	replay, // Vote does not have the highest sequence number, it's a replay
 	vote // Vote has the highest sequence number
 };
-
 enum class process_result
 {
 	progress,              // Hasn't been seen before, signed correctly
@@ -231,6 +230,9 @@ enum class process_result
     buffered,              // Logos - The block has been buffered for benchmarking
     buffering_done         // Logos - The last block has been buffered and consensus will begin
 };
+
+std::string ProcessResultToString(process_result result);
+
 class process_return
 {
 public:

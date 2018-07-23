@@ -78,7 +78,8 @@ void ConsensusConnection::Read()
 void ConsensusConnection::OnConnect()
 {
     BOOST_LOG(_log) << "ConsensusConnection - Connected to "
-                    << _endpoint;
+                    << _endpoint << ". Remote delegate id: "
+                    << uint64_t(_delegate_ids.remote);
 
     _connected = true;
 
