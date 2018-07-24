@@ -63,7 +63,7 @@ public:
 private:
 
     static constexpr uint8_t  CONNECT_RETRY_DELAY = 5;
-	static constexpr uint16_t BUFFER_SIZE         = 32768;
+	static constexpr uint64_t BUFFER_SIZE         = sizeof(PrePrepareMessage);
 
     using ReceiveBuffer = std::array<uint8_t, BUFFER_SIZE>;
 
