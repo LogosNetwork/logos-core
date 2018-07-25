@@ -30,7 +30,7 @@ static const size_t CONSENSUS_HASH_SIZE     = 32;
 static const size_t CONSENSUS_SIG_SIZE      = 32;
 static const size_t CONSENSUS_AGG_SIG_SIZE  = 32;
 static const size_t CONSENSUS_PUB_KEY_SIZE  = 64;
-static const size_t CONSENSUS_BATCH_SIZE    = 100;
+static const size_t CONSENSUS_BATCH_SIZE    = 200;
 
 using Signature    = std::array<uint8_t, CONSENSUS_SIG_SIZE>;
 using AggSignature = std::array<uint8_t, CONSENSUS_AGG_SIG_SIZE>;
