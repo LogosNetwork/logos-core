@@ -9,10 +9,10 @@ struct ConsensusManagerConfig
 	{
 		auto result(false);
 
-		auto stream_peers_tree(tree.get_child("stream_peers"));
-		for(auto & entry : stream_peers_tree)
+		auto delegates_tree(tree.get_child("delegates"));
+		for(auto & entry : delegates_tree)
 		{
-			stream_peers.push_back(entry.second.get<std::string> (""));
+			delegates.push_back(entry.second.get<std::string> (""));
 		}
 
 		local_address = tree.get<std::string>("local_address");
@@ -31,22 +31,22 @@ struct ConsensusManagerConfig
 
 	void SerializeJson(boost::property_tree::ptree & tree) const
 	{
-		boost::property_tree::ptree stream_peers_tree;
+		boost::property_tree::ptree delegates_tree;
 
-		for (auto & peer : stream_peers)
+		for (auto & peer : delegates)
 		{
 			boost::property_tree::ptree entry;
 			entry.put ("", peer);
-			stream_peers_tree.push_back (std::make_pair ("", entry));
+			delegates_tree.push_back (std::make_pair ("", entry));
 		}
 
-		tree.add_child("stream_peers", stream_peers_tree);
+		tree.add_child("delegates", delegates_tree);
 
         tree.put("peer_port", std::to_string(peer_port));
         tree.put("local_address", local_address);
 	}
 
-	std::vector<std::string> stream_peers;
+	std::vector<std::string> delegates;
     uint16_t                 peer_port;
     std::string              local_address;
 };

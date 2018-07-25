@@ -10,7 +10,7 @@ ConsensusManager::ConsensusManager(Service & service,
                                    Log & log,
                                    const Config & config)
     : PrimaryDelegate(_validator)
-    , _delegates(config.stream_peers)
+    , _delegates(config.delegates)
     , _persistence_manager(store, log)
     , _alarm(alarm)
     , _peer_acceptor(service, log,
