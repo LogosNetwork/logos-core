@@ -114,16 +114,16 @@ public:
 	std::unordered_multimap<rai::block_hash, std::shared_ptr<rai::block>> unchecked_cache;
 
     // consensus-prototype additions
-	block_hash batch_block_put(BatchStateBlock const &);
-	void state_block_put(state_block const &, StateBlockLocator const &);
+	block_hash batch_block_put(BatchStateBlock const &, MDB_txn *);
+	void state_block_put(state_block const &, StateBlockLocator const &, MDB_txn *);
 	bool state_block_exists(const state_block & block);
     bool state_block_exists(const block_hash & hash);
 	bool account_get(rai::account const & account_a, rai::account_info & info_a);
 	bool account_db_empty();
-	void account_put (rai::account const &, rai::account_info const &);
-	void receive_put(const block_hash & hash, const state_block & block);
+	void account_put (rai::account const &, rai::account_info const &, MDB_txn *);
+	void receive_put(const block_hash & hash, const state_block & block, MDB_txn * transaction);
 	bool receive_exists(const block_hash & hash);
-	void batch_tip_put(uint8_t delegate_id, const block_hash & hash);
+	void batch_tip_put(uint8_t delegate_id, const block_hash & hash, MDB_txn *);
 	bool batch_tip_get(uint8_t delegate_id, block_hash & hash);
 
 	void checksum_put (MDB_txn *, uint64_t, uint8_t, rai::checksum const &);

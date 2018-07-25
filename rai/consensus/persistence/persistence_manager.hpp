@@ -25,8 +25,7 @@ public:
     PersistenceManager(Store & store,
                        Log & log);
 
-    void StoreBatchMessage(const BatchStateBlock & message);
-    void ApplyBatchMessage(const BatchStateBlock & message, uint8_t delegate_id);
+    void ApplyUpdates(const BatchStateBlock & message, uint8_t delegate_id);
 
     bool Validate(const rai::state_block & block, rai::process_return & result, uint8_t delegate_id);
     bool Validate(const rai::state_block & block, uint8_t delegate_id);
@@ -71,10 +70,13 @@ private:
         Store &      store;
     };
 
-    void ApplyStateMessage(const rai::state_block & block);
+    void StoreBatchMessage(const BatchStateBlock & message, MDB_txn * transaction);
+    void ApplyBatchMessage(const BatchStateBlock & message, uint8_t delegate_id, MDB_txn * transaction);
 
-    bool UpdateSourceState(const rai::state_block & block);
-    void UpdateDestinationState(const rai::state_block & block);
+    void ApplyStateMessage(const rai::state_block & block, MDB_txn * transaction);
+
+    bool UpdateSourceState(const rai::state_block & block, MDB_txn * transaction);
+    void UpdateDestinationState(const rai::state_block & block, MDB_txn * transaction);
 
     DynamicStorage & GetStore(uint8_t delegate_id);
 

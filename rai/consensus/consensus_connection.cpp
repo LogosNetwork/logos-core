@@ -269,11 +269,7 @@ void ConsensusConnection::OnConsensusMessage(const PostCommitMessage & message)
     {
         assert(_cur_batch);
 
-        _persistence_manager.StoreBatchMessage(*_cur_batch);
-        _persistence_manager.ApplyBatchMessage(*_cur_batch, _delegate_ids.remote);
-
-        _persistence_manager.ClearCache(_delegate_ids.remote);
-
+        _persistence_manager.ApplyUpdates(*_cur_batch, _delegate_ids.remote);
         _state = ConsensusState::VOID;
     }
 }
