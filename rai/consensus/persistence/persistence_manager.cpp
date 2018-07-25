@@ -8,29 +8,14 @@ PersistenceManager::PersistenceManager(Store & store,
     , _log(log)
 {}
 
-void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message)
+void PersistenceManager::ApplyUpdates(const BatchStateBlock & message, uint8_t delegate_id)
 {
-    auto hash(_store.batch_block_put(message));
+    rai::transaction transaction(_store.environment, nullptr, true);
 
-    StateBlockLocator locator_template {hash, 0};
+    StoreBatchMessage(message, transaction);
+    ApplyBatchMessage(message, delegate_id, transaction);
 
-    for(uint8_t i = 0; i < CONSENSUS_BATCH_SIZE; ++i)
-    {
-        locator_template.index = i;
-        _store.state_block_put(message.blocks[i], locator_template);
-    }
-}
-
-void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, uint8_t delegate_id)
-{
-    for(uint8_t i = 0; i < message.block_count; ++i)
-    {
-        ApplyStateMessage(message.blocks[i]);
-    }
-
-    // TODO: Reuse precomputed hash
-    //
-    _store.batch_tip_put(delegate_id, message.Hash());
+    ClearCache(delegate_id);
 }
 
 bool PersistenceManager::Validate(const rai::state_block & block, rai::process_return & result, uint8_t delegate_id)
@@ -122,17 +107,42 @@ void PersistenceManager::ClearCache(uint8_t delegate_id)
     GetStore(delegate_id).ClearCache();
 }
 
-// Currently designed only to handle
-// send transactions.
-void PersistenceManager::ApplyStateMessage(const rai::state_block & block)
+void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message, MDB_txn * transaction)
 {
-    if(!UpdateSourceState(block))
+    auto hash(_store.batch_block_put(message, transaction));
+
+    StateBlockLocator locator_template {hash, 0};
+
+    for(uint8_t i = 0; i < CONSENSUS_BATCH_SIZE; ++i)
     {
-        UpdateDestinationState(block);
+        locator_template.index = i;
+        _store.state_block_put(message.blocks[i],
+                               locator_template,
+                               transaction);
     }
 }
 
-bool PersistenceManager::UpdateSourceState(const rai::state_block & block)
+void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, uint8_t delegate_id, MDB_txn * transaction)
+{
+    for(uint8_t i = 0; i < message.block_count; ++i)
+    {
+        ApplyStateMessage(message.blocks[i], transaction);
+    }
+
+    _store.batch_tip_put(delegate_id, message.Hash(), transaction);
+}
+
+// Currently designed only to handle
+// send transactions.
+void PersistenceManager::ApplyStateMessage(const rai::state_block & block, MDB_txn * transaction)
+{
+    if(!UpdateSourceState(block, transaction))
+    {
+        UpdateDestinationState(block, transaction);
+    }
+}
+
+bool PersistenceManager::UpdateSourceState(const rai::state_block & block, MDB_txn * transaction)
 {
     rai::account_info info;
     auto account_error(_store.account_get(block.hashables.account, info));
@@ -148,12 +158,12 @@ bool PersistenceManager::UpdateSourceState(const rai::state_block & block)
     info.head = block.hash();
     info.modified = rai::seconds_since_epoch();
 
-    _store.account_put(block.hashables.account, info);
+    _store.account_put(block.hashables.account, info, transaction);
 
     return false;
 }
 
-void PersistenceManager::UpdateDestinationState(const rai::state_block & block)
+void PersistenceManager::UpdateDestinationState(const rai::state_block & block, MDB_txn * transaction)
 {
     rai::account_info info;
     auto account_error(_store.account_get(block.hashables.link, info));
@@ -172,7 +182,7 @@ void PersistenceManager::UpdateDestinationState(const rai::state_block & block)
 
         auto hash(open.hash());
 
-        _store.receive_put(hash, open);
+        _store.receive_put(hash, open, transaction);
         _store.account_put(rai::account(block.hashables.link),
                            {
                                /* Head    */ 0,
@@ -181,7 +191,8 @@ void PersistenceManager::UpdateDestinationState(const rai::state_block & block)
                                /* Amount  */ block.hashables.amount,
                                /* Time    */ rai::seconds_since_epoch(),
                                /* Count   */ 0
-                           });
+                           },
+                           transaction);
     }
 
     // Destination account exists already
@@ -189,6 +200,9 @@ void PersistenceManager::UpdateDestinationState(const rai::state_block & block)
     {
         info.balance = info.balance.number() + block.hashables.amount.number();
         info.modified = rai::seconds_since_epoch();
+
+        _store.account_put(rai::account(block.hashables.link), info,
+                           transaction);
     }
 }
 

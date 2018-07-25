@@ -114,15 +114,15 @@ bool ConsensusManager::Validate(std::shared_ptr<rai::state_block> block, rai::pr
 
 void ConsensusManager::OnConsensusReached()
 {
-    static uint64_t messages_stored = 0;
+    _persistence_manager.ApplyUpdates(_handler.GetNextBatch(), _delegate_id);
 
-    _persistence_manager.StoreBatchMessage(_handler.GetNextBatch());
-    _persistence_manager.ApplyBatchMessage(_handler.GetNextBatch(), _delegate_id);
-
-    messages_stored += _handler.GetNextBatch().block_count;
-    BOOST_LOG(_log) << "ConsensusManager - Stored " << messages_stored << " blocks.";
-
-    _persistence_manager.ClearCache(_delegate_id);
+    // Helpful for benchmarking
+    //
+    {
+        static uint64_t messages_stored = 0;
+        messages_stored += _handler.GetNextBatch().block_count;
+        BOOST_LOG(_log) << "ConsensusManager - Stored " << messages_stored << " blocks.";
+    }
 
     _handler.PopFront();
 

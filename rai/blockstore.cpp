@@ -1180,10 +1180,9 @@ void rai::block_store::checksum_del (MDB_txn * transaction_a, uint64_t prefix, u
 	assert (status == 0);
 }
 
-rai::block_hash rai::block_store::batch_block_put (BatchStateBlock const & block)
+rai::block_hash rai::block_store::batch_block_put (BatchStateBlock const & block, MDB_txn * transaction)
 {
     auto result = block.Hash();
-    transaction transaction(environment, nullptr, true);
 
     auto status(mdb_put(transaction, batch_db, rai::mdb_val(result),
                         mdb_val(sizeof(BatchStateBlock),
@@ -1194,10 +1193,8 @@ rai::block_hash rai::block_store::batch_block_put (BatchStateBlock const & block
     return result;
 }
 
-void rai::block_store::state_block_put(state_block const & block, StateBlockLocator const & locator)
+void rai::block_store::state_block_put(state_block const & block, StateBlockLocator const & locator, MDB_txn * transaction)
 {
-    transaction transaction(environment, nullptr, true);
-
     auto status(mdb_put(transaction, state_db, rai::mdb_val(block.hash()),
                         mdb_val(sizeof(StateBlockLocator),
                                 const_cast<StateBlockLocator *>(&locator)), 0));
@@ -1252,17 +1249,15 @@ bool rai::block_store::account_db_empty()
     return begin == end;
 }
 
-void rai::block_store::account_put(const rai::account & account, const rai::account_info & info)
+void rai::block_store::account_put(const rai::account & account, const rai::account_info & info, MDB_txn * transaction)
 {
-    rai::transaction transaction(environment, nullptr, true);
     auto status(mdb_put(transaction, account_db, rai::mdb_val(account), info.val(), 0));
 
     assert(status == 0);
 }
 
-void rai::block_store::receive_put(const block_hash & hash, const state_block & block)
+void rai::block_store::receive_put(const block_hash & hash, const state_block & block, MDB_txn * transaction)
 {
-    rai::transaction transaction(environment, nullptr, true);
     auto status(mdb_put(transaction, receive_db, rai::mdb_val(hash),
                         mdb_val(sizeof(state_block),
                                 const_cast<state_block *>(&block)), 0));
@@ -1281,9 +1276,8 @@ bool rai::block_store::receive_exists(const block_hash & hash)
     return status == 0;
 }
 
-void rai::block_store::batch_tip_put(uint8_t delegate_id, const block_hash & hash)
+void rai::block_store::batch_tip_put(uint8_t delegate_id, const block_hash & hash, MDB_txn * transaction)
 {
-    rai::transaction transaction(environment, nullptr, true);
     auto status(mdb_put(transaction, batch_tips_db, rai::mdb_val(sizeof(delegate_id),
                                                                  &delegate_id),
                         mdb_val(sizeof(block_hash),

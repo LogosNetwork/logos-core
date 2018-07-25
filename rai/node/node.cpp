@@ -1699,15 +1699,14 @@ _consensus_manager(service_a, store, alarm_a, log, config.consensus_manager_conf
 			BOOST_LOG (log) << "Constructing node";
 		}
 
-		{
-            rai::transaction transaction (store.environment, nullptr, true);
-            if (store.latest_begin (transaction) == store.latest_end ())
-            {
-                // Store was empty meaning we just created it, add the genesis block
-                rai::genesis genesis;
-                genesis.initialize (transaction, store);
-            }
-		}
+
+        rai::transaction transaction (store.environment, nullptr, true);
+        if (store.latest_begin (transaction) == store.latest_end ())
+        {
+            // Store was empty meaning we just created it, add the genesis block
+            rai::genesis genesis;
+            genesis.initialize (transaction, store);
+        }
 
 		// check consensus-prototype account_db
 		if(store.account_db_empty())
@@ -1727,17 +1726,19 @@ _consensus_manager(service_a, store, alarm_a, log, config.consensus_manager_conf
 		    }
 
 		    store.receive_put(logos_genesis_block.hash(),
-		                      logos_genesis_block);
+		                      logos_genesis_block,
+		                      transaction);
 
-		    store.account_put (genesis_account,
-		                       {
-                                   /* Head    */ 0,
-                                   /* Rep     */ 0,
-                                   /* Open    */ logos_genesis_block.hash(),
-                                   /* Amount  */ std::numeric_limits<rai::uint128_t>::max(),
-                                   /* Time    */ rai::seconds_since_epoch(),
-                                   /* Count   */ 0
-		                       });
+		    store.account_put(genesis_account,
+		                      {
+                                  /* Head    */ 0,
+                                  /* Rep     */ 0,
+                                  /* Open    */ logos_genesis_block.hash(),
+                                  /* Amount  */ std::numeric_limits<rai::uint128_t>::max(),
+                                  /* Time    */ rai::seconds_since_epoch(),
+                                  /* Count   */ 0
+		                      },
+		                      transaction);
 		}
 	}
 	if (rai::rai_network == rai::rai_networks::rai_live_network)
