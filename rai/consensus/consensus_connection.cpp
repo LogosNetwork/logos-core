@@ -303,7 +303,7 @@ bool ConsensusConnection::Validate(const MSG & message)
 template<>
 bool ConsensusConnection::Validate<PrePrepareMessage>(const PrePrepareMessage & message)
 {
-    for(uint8_t i = 0; i < message.block_count; ++i)
+    for(uint64_t i = 0; i < message.block_count; ++i)
     {
         if(!_persistence_manager.Validate(message.blocks[i], _delegate_ids.remote))
         {

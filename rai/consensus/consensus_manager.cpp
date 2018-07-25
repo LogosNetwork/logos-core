@@ -170,7 +170,7 @@ void ConsensusManager::SendBufferedBlocks()
 {
     rai::process_return unused;
 
-    for(uint8_t i = 0; _buffer.size() && i < CONSENSUS_BATCH_SIZE; ++i)
+    for(uint64_t i = 0; _buffer.size() && i < CONSENSUS_BATCH_SIZE; ++i)
     {
         OnSendRequest(_buffer.front(), unused);
         _buffer.pop_front();
