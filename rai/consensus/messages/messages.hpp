@@ -8,7 +8,7 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare>
 
     BlockHash Hash() const;
 
-    uint8_t   block_count = 0;
+    uint64_t  block_count = 0;
     BlockList blocks;
     Signature signature;
 };

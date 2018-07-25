@@ -32,5 +32,5 @@ private:
 
     BatchList    _batches;
     Handle       _handle;
-    uint8_t      _batch_index  = 0;
+    uint64_t     _batch_index  = 0;
 };

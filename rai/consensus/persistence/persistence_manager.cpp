@@ -113,7 +113,7 @@ void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message, MDB_
 
     StateBlockLocator locator_template {hash, 0};
 
-    for(uint8_t i = 0; i < CONSENSUS_BATCH_SIZE; ++i)
+    for(uint64_t i = 0; i < CONSENSUS_BATCH_SIZE; ++i)
     {
         locator_template.index = i;
         _store.state_block_put(message.blocks[i],
@@ -124,7 +124,7 @@ void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message, MDB_
 
 void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, uint8_t delegate_id, MDB_txn * transaction)
 {
-    for(uint8_t i = 0; i < message.block_count; ++i)
+    for(uint64_t i = 0; i < message.block_count; ++i)
     {
         ApplyStateMessage(message.blocks[i], transaction);
     }
