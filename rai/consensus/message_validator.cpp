@@ -1,6 +1,11 @@
 #include <rai/consensus/message_validator.hpp>
 #include <string>
 
+void MessageValidator::Init(uint8_t my_delegate_id)
+{
+    _keys[my_delegate_id] = _keypair.pub;
+}
+
 void MessageValidator::OnPublicKey(uint8_t delegate_id, const PublicKey & key)  throw(bls::Exception)
 {
 	std::string keystring(reinterpret_cast<const char*>(&key), CONSENSUS_PUB_KEY_SIZE);

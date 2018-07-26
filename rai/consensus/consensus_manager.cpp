@@ -24,7 +24,7 @@ ConsensusManager::ConsensusManager(Service & service,
                         config.peer_port));
 
     EstablishDelegateIds(config.local_address);
-    _validator.init(_delegate_id);
+    _validator.Init(_delegate_id);
 
     for(uint8_t i = 0; i < _delegates.size(); ++i)
     {
@@ -110,12 +110,15 @@ void ConsensusManager::Send(const void * data, size_t size)
 
 bool ConsensusManager::Validate(std::shared_ptr<rai::state_block> block, rai::process_return & result)
 {
-	auto good_sig = ! rai::validate_message (block->hashables.account, block->hash(), block->signature);
-	if(!good_sig)
-        BOOST_LOG(_log) << "ConsensusManager - Validate, bad signature " << block->signature.to_string()
-		<< " account " << block->hashables.account.to_string();
+	if(rai::validate_message(block->hashables.account, block->hash(), block->signature))
+	{
+        BOOST_LOG(_log) << "ConsensusManager - Validate, bad signature: " << block->signature.to_string()
+		                << " account: " << block->hashables.account.to_string();
 
-    return good_sig && _persistence_manager.Validate(*block, result, _delegate_id);
+        return false;
+	}
+
+    return _persistence_manager.Validate(*block, result, _delegate_id);
 }
 
 void ConsensusManager::OnConsensusReached()
