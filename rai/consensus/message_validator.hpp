@@ -45,10 +45,7 @@ public:
         Signature signature;
     };
 
-    void init(uint8_t my_delegate_id)
-    {
-       _keys[my_delegate_id] = _keypair.pub;
-    }
+    void Init(uint8_t my_delegate_id);
 
     // Aggregate sign
     template<typename MSG>
