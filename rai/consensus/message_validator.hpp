@@ -19,24 +19,6 @@ class MessageValidator
     using SignatureVec   = bls::SignatureVec;
     using Keys           = std::unordered_map<uint8_t, PublicKeyReal>;
 
-    PublicKeyReal PublicKeyAggregate(const ParicipationMap &pmap)
-    {
-    	PublicKeyVec keyvec;
-
-        for(int i = 0; i < pmap.size(); ++i)
-        {
-        	if(pmap[i])
-        	{
-        		keyvec.push_back(_keys[i]);
-        	}
-        }
-
-        PublicKeyReal apk;
-
-        apk.aggregateFrom(keyvec);
-        return apk;
-    }
-
 public:
 
     struct DelegateSignature
@@ -80,6 +62,8 @@ public:
     template<typename MSG>
     void Sign(MSG & message)
     {
+        std::lock_guard<std::mutex> lock(_mutex);
+
     	string msg(reinterpret_cast<const char*>(&message), MSG::HASHABLE_BYTES);
 
     	SignatureReal sig;
@@ -94,7 +78,7 @@ public:
     template<MessageType type, MessageType type2>
     bool Validate(const PostPhaseMessage<type> & message, const StandardPhaseMessage<type2> & reference)
     {
-        return true;
+        std::lock_guard<std::mutex> lock(_mutex);
 
         // Use message.participation_map
         // to identify those delegates that
@@ -131,7 +115,10 @@ public:
     template<typename MSG>
     bool Validate(const MSG & message, uint8_t delegate_id)
     {
-        return true;
+        // TODO: Validate PrePrepare messages
+        //
+        std::lock_guard<std::mutex> lock(_mutex);
+
     	if(_keys.find(delegate_id) == _keys.end())
     	{
     		return false;
@@ -160,7 +147,10 @@ public:
 
 private:
 
-    Log     _log;
-    Keys    _keys;
-    KeyPair _keypair;
+    PublicKeyReal PublicKeyAggregate(const ParicipationMap &pmap);
+
+    Log        _log;
+    Keys       _keys;
+    KeyPair    _keypair;
+    std::mutex _mutex;
 };
