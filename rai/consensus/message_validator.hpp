@@ -45,6 +45,11 @@ public:
         Signature signature;
     };
 
+    void init(uint8_t my_delegate_id)
+    {
+       _keys[my_delegate_id] = _keypair.pub;
+    }
+
     // Aggregate sign
     template<typename MSG>
     void Sign(MSG & message, const std::vector<DelegateSignature> & signatures) throw(bls::Exception)
