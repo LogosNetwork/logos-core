@@ -115,6 +115,7 @@ bool ConsensusManager::Validate(std::shared_ptr<rai::state_block> block, rai::pr
         BOOST_LOG(_log) << "ConsensusManager - Validate, bad signature: " << block->signature.to_string()
 		                << " account: " << block->hashables.account.to_string();
 
+        result.code = rai::process_result::bad_signature;
         return false;
 	}
 
