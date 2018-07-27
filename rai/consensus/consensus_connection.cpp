@@ -265,7 +265,7 @@ void ConsensusConnection::OnConsensusMessage(const PostPrepareMessage & message)
 
 void ConsensusConnection::OnConsensusMessage(const PostCommitMessage & message)
 {
-    if(ProceedWithMessage(message, ConsensusState::COMMIT))
+    if(ProceedWithMessage(message))
     {
         assert(_cur_batch);
 
@@ -319,10 +319,24 @@ bool ConsensusConnection::ProceedWithMessage(const MSG & message, ConsensusState
 {
     if(_state != expected_state)
     {
-        BOOST_LOG(_log) << "ConsensusConnection - Error! Received " << MessageToName(message)
+        BOOST_LOG(_log) << "ConsensusConnection - Received " << MessageToName(message)
                         << " message while in " << StateToString(_state);
+    }
 
-        return false;
+    if(Validate(message))
+    {
+        return true;
+    }
+
+    return false;
+}
+
+bool ConsensusConnection::ProceedWithMessage(const PostCommitMessage & message)
+{
+    if(_state != ConsensusState::COMMIT)
+    {
+        BOOST_LOG(_log) << "ConsensusConnection - Proceeding with Post_Commit"
+                        << " message received while in " << StateToString(_state);
     }
 
     if(Validate(message))

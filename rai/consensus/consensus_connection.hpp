@@ -89,6 +89,7 @@ private:
 
     template<typename MSG>
     bool ProceedWithMessage(const MSG & message, ConsensusState expected_state);
+    bool ProceedWithMessage(const PostCommitMessage & message);
 
     template<typename MSG>
     void SendMessage();
