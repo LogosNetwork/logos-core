@@ -12,6 +12,8 @@
 
 #include <boost/log/sources/record_ostream.hpp>
 
+#include "delegate_key_store.h"
+
 class ConsensusManager : public PeerManager,
                          public PrimaryDelegate
 {
@@ -66,6 +68,7 @@ private:
     Delegates          _delegates;
     RequestHandler     _handler;
     PersistenceManager _persistence_manager;
+    DelegateKeyStore   _key_store;
     MessageValidator   _validator;
 	rai::alarm &       _alarm;
 	PeerAcceptor       _peer_acceptor;

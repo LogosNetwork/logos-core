@@ -12,6 +12,7 @@ ConsensusManager::ConsensusManager(Service & service,
     : PrimaryDelegate(_validator)
     , _delegates(config.delegates)
     , _persistence_manager(store, log)
+	, _validator(0, _key_store)
     , _alarm(alarm)
     , _peer_acceptor(service, log,
                      Endpoint(boost::asio::ip::make_address_v4(config.local_address),
@@ -24,7 +25,8 @@ ConsensusManager::ConsensusManager(Service & service,
                         config.peer_port));
 
     EstablishDelegateIds(config.local_address);
-    _validator.Init(_delegate_id);
+    _validator.UpdateMyId(_delegate_id);
+    _key_store.OnPublicKey(_delegate_id, _validator.GetPublicKey());
 
     for(uint8_t i = 0; i < _delegates.size(); ++i)
     {
@@ -45,7 +47,7 @@ ConsensusManager::ConsensusManager(Service & service,
             _connections.push_back(
                     std::make_shared<ConsensusConnection>(service, alarm, endpoint,
                                                           this, _persistence_manager,
-                                                          _validator, ids));
+                                                          _key_store, _validator, ids));
         }
         else
         {
@@ -100,7 +102,7 @@ void ConsensusManager::OnConnectionAccepted(const Endpoint& endpoint, std::share
     std::lock_guard<std::mutex> lock(_connection_mutex);
     _connections.push_back(std::make_shared<ConsensusConnection>(socket, _alarm, endpoint,
                                                                  this, _persistence_manager,
-                                                                 _validator, ids));
+                                                                 _key_store, _validator, ids));
 }
 
 void ConsensusManager::Send(const void * data, size_t size)

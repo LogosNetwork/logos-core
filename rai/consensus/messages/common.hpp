@@ -53,6 +53,7 @@ struct MessagePrequel
 {
     const uint8_t     version = 0;
     const MessageType type = type_param;
+    const uint8_t     pad[6] = {0,0,0,0,0,0};
 };
 
 template<MessageType type>
@@ -60,10 +61,12 @@ struct MessageHeader : MessagePrequel<type>
 {
     MessageHeader(uint64_t timestamp)
         : timestamp(timestamp)
+        , hash(0)
     {}
 
     MessageHeader()
         : timestamp(GetStamp())
+        , hash(0)
     {}
 
     uint64_t  timestamp;
