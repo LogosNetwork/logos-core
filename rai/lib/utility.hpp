@@ -4,6 +4,7 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+#include <string>
 
 namespace rai
 {
@@ -29,4 +30,6 @@ public:
 	std::mutex mutex;
 	std::vector<std::function<void(T...)>> observers;
 };
+
+std::string string_to_hex_str(const std::string& input);
 }

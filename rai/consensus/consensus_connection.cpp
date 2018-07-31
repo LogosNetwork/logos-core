@@ -11,12 +11,14 @@ ConsensusConnection::ConsensusConnection(Service & service,
                                          const Endpoint & endpoint,
                                          PrimaryDelegate * primary,
                                          PersistenceManager & persistence_manager,
+										 DelegateKeyStore & key_store,
                                          MessageValidator & validator,
                                          const DelegateIdentities & ids)
     : _socket(new Socket(service))
     , _endpoint(endpoint)
     , _delegate_ids(ids)
     , _persistence_manager(persistence_manager)
+	, _key_store(key_store)
     , _validator(validator)
     , _primary(primary)
     , _alarm(alarm)
@@ -30,12 +32,14 @@ ConsensusConnection::ConsensusConnection(std::shared_ptr<Socket> socket,
                                          const Endpoint & endpoint,
                                          PrimaryDelegate * primary,
                                          PersistenceManager & persistence_manager,
+										 DelegateKeyStore & key_store,
                                          MessageValidator & validator,
                                          const DelegateIdentities & ids)
     : _socket(socket)
     , _endpoint(endpoint)
     , _delegate_ids(ids)
     , _persistence_manager(persistence_manager)
+	, _key_store(key_store)
     , _validator(validator)
     , _alarm(alarm)
     , _primary(primary)
@@ -229,8 +233,8 @@ void ConsensusConnection::OnMessage(boost::system::error_code const & ec, size_t
             break;
         }
         case MessageType::Key_Advert: {
-            auto msg (*reinterpret_cast<const KeyAdvertisement*>(_receive_buffer.data()));
-            _validator.OnPublicKey(_delegate_ids.remote, msg.public_key);
+            auto msg (*reinterpret_cast<KeyAdvertisement*>(_receive_buffer.data()));
+            _key_store.OnPublicKey(_delegate_ids.remote, msg.public_key);
             break;
         }
         case MessageType::Unknown:

@@ -40,6 +40,7 @@ public:
 	                    const Endpoint & endpoint,
 	                    PrimaryDelegate * primary,
 	                    PersistenceManager & persistence_manager,
+	                    DelegateKeyStore & key_store,
 	                    MessageValidator & validator,
 	                    const DelegateIdentities & ids);
 
@@ -48,6 +49,7 @@ public:
                         const Endpoint & endpoint,
                         PrimaryDelegate * primary,
                         PersistenceManager & persistence_manager,
+                        DelegateKeyStore & key_store,
                         MessageValidator & validator,
                         const DelegateIdentities & ids);
 
@@ -110,6 +112,7 @@ private:
     BlockHash                          _cur_batch_hash;
     DelegateIdentities                 _delegate_ids;
     PersistenceManager &               _persistence_manager;
+    DelegateKeyStore &                 _key_store;
     MessageValidator &                 _validator;
     rai::alarm &                       _alarm;
     Log                                _log;
