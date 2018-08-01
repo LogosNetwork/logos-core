@@ -70,6 +70,7 @@ private:
 	rai::alarm &       _alarm;
 	PeerAcceptor       _peer_acceptor;
 	BlockBuffer        _buffer;
+    std::mutex         _connection_mutex;
 	Log                _log;
     uint8_t            _delegate_id;
 	bool               _using_buffered_blocks = false;

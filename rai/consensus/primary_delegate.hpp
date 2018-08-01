@@ -50,7 +50,7 @@ protected:
 
 private:
 
-    static constexpr uint8_t QUORUM_SIZE = 3;
+    static constexpr uint8_t QUORUM_SIZE = 31;
 
     void ProcessMessage(const PrepareMessage & message);
     void ProcessMessage(const CommitMessage & message);
