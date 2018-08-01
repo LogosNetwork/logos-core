@@ -4,12 +4,11 @@
 
 #include <string>
 
-template<typename MSG>
-std::string MessageToName(const MSG & message)
+inline std::string MessageToName(MessageType type)
 {
     std::string ret;
 
-    switch(message.type)
+    switch(type)
     {
         case MessageType::Pre_Prepare:
             ret = "Pre_Prepare";
@@ -35,4 +34,10 @@ std::string MessageToName(const MSG & message)
     }
 
     return ret;
+}
+
+template<typename MSG>
+std::string MessageToName(const MSG & message)
+{
+    return MessageToName(message.type);
 }

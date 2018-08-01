@@ -41,6 +41,7 @@ ConsensusManager::ConsensusManager(Service & service,
         {
             ConsensusConnection::DelegateIdentities ids{_delegate_id, i};
 
+            std::lock_guard<std::mutex> lock(_connection_mutex);
             _connections.push_back(
                     std::make_shared<ConsensusConnection>(service, alarm, endpoint,
                                                           this, _persistence_manager,
@@ -95,6 +96,8 @@ void ConsensusManager::OnConnectionAccepted(const Endpoint& endpoint, std::share
     ConsensusConnection::DelegateIdentities ids{_delegate_id,
                                                 GetDelegateId(endpoint.address().to_string())};
 
+
+    std::lock_guard<std::mutex> lock(_connection_mutex);
     _connections.push_back(std::make_shared<ConsensusConnection>(socket, _alarm, endpoint,
                                                                  this, _persistence_manager,
                                                                  _validator, ids));
@@ -102,6 +105,8 @@ void ConsensusManager::OnConnectionAccepted(const Endpoint& endpoint, std::share
 
 void ConsensusManager::Send(const void * data, size_t size)
 {
+    std::lock_guard<std::mutex> lock(_connection_mutex);
+
     for(auto conn : _connections)
     {
         conn->Send(data, size);
@@ -164,8 +169,8 @@ bool ConsensusManager::ReadyForConsensus()
 {
     if(_using_buffered_blocks)
     {
-
-        return StateReadyForConsensus() && _handler.BatchFull();
+        return StateReadyForConsensus() && (_handler.BatchFull() ||
+                                           (_buffer.empty() && !_handler.Empty()));
     }
 
     return StateReadyForConsensus() && !_handler.Empty();

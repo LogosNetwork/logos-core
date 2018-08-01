@@ -99,6 +99,8 @@ private:
     void StoreResponse(const PrepareMessage & message);
     void StoreResponse(const CommitMessage & message);
 
+    void AdjustSocket();
+
     ReceiveBuffer                      _receive_buffer;
     std::shared_ptr<Socket>            _socket;
     Endpoint                           _endpoint;

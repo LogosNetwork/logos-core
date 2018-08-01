@@ -48,16 +48,16 @@ void ConsensusConnection::Send(const void * data, size_t size)
     auto send_buffer (std::make_shared<std::vector<uint8_t>>(size, uint8_t(0)));
     std::memcpy(send_buffer->data(), data, size);
 
-    boost::asio::async_write(*_socket, boost::asio::buffer(send_buffer->data(),
-                                                           send_buffer->size()),
-                             [send_buffer, this](boost::system::error_code const & ec, size_t size_a)
-                             {
-                                  if(ec)
-                                  {
-                                      BOOST_LOG(_log) << "ConsensusConnection - Error on write to socket: "
-                                                      << ec.message();
-                                  }
-                             });
+    boost::system::error_code ec;
+    boost::asio::write(*_socket, boost::asio::buffer(send_buffer->data(),
+                                                     send_buffer->size()), ec);
+
+    if(ec)
+    {
+        BOOST_LOG(_log) << "ConsensusConnection - Error on write to socket: "
+                      << ec.message() << ". Remote endpoint: "
+                      << _endpoint;
+    }
 }
 
 void ConsensusConnection::Connect()
@@ -83,6 +83,7 @@ void ConsensusConnection::OnConnect()
 
     _connected = true;
 
+    AdjustSocket();
     SendKeyAdvertisement();
     Read();
 }
@@ -111,7 +112,7 @@ void ConsensusConnection::OnData(boost::system::error_code const & ec, size_t si
 {
     if(size != sizeof(Prequel))
     {
-        BOOST_LOG(_log) << "ConsensusConnection - Error, only received " << size << " bytes";
+        BOOST_LOG(_log) << "ConsensusConnection - Error, received " << size << " bytes";
         return;
     }
 
@@ -195,46 +196,44 @@ void ConsensusConnection::OnMessage(boost::system::error_code const & ec, size_t
     }
 
     MessageType type (static_cast<MessageType> (_receive_buffer.data()[1]));
+
+    BOOST_LOG(_log) << "ConsensusConnection - Received "
+                    << MessageToName(type)
+                    << " message.";
+
     switch (type)
     {
         case MessageType::Pre_Prepare: {
-            BOOST_LOG(_log) << "ConsensusConnection - Received pre prepare message";
-            auto msg (*reinterpret_cast<PrePrepareMessage*>(_receive_buffer.data()));
+            auto msg (*reinterpret_cast<const PrePrepareMessage*>(_receive_buffer.data()));
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Prepare: {
-            BOOST_LOG(_log) << "ConsensusConnection - Received prepare message";
-            auto msg (*reinterpret_cast<PrepareMessage*>(_receive_buffer.data()));
+            auto msg (*reinterpret_cast<const PrepareMessage*>(_receive_buffer.data()));
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Post_Prepare: {
-            BOOST_LOG(_log) << "ConsensusConnection - Received post prepare message";
-            auto msg (*reinterpret_cast<PostPrepareMessage*>(_receive_buffer.data()));
+            auto msg (*reinterpret_cast<const PostPrepareMessage*>(_receive_buffer.data()));
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Commit: {
-            BOOST_LOG(_log) << "ConsensusConnection - Received commit message";
-            auto msg (*reinterpret_cast<CommitMessage*>(_receive_buffer.data()));
+            auto msg (*reinterpret_cast<const CommitMessage*>(_receive_buffer.data()));
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Post_Commit: {
-            BOOST_LOG(_log) << "ConsensusConnection - Received post commit message";
-            auto msg (*reinterpret_cast<PostCommitMessage*>(_receive_buffer.data()));
+            auto msg (*reinterpret_cast<const PostCommitMessage*>(_receive_buffer.data()));
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Key_Advert: {
-            BOOST_LOG(_log) << "ConsensusConnection - Received key advertisement";
-            auto msg (*reinterpret_cast<KeyAdvertisement*>(_receive_buffer.data()));
+            auto msg (*reinterpret_cast<const KeyAdvertisement*>(_receive_buffer.data()));
             _validator.OnPublicKey(_delegate_ids.remote, msg.public_key);
             break;
         }
         case MessageType::Unknown:
-            BOOST_LOG(_log) << "ConsensusConnection - Received unknown message type";
             break;
     }
 
@@ -375,4 +374,13 @@ void ConsensusConnection::StoreResponse(const PrepareMessage & message)
 void ConsensusConnection::StoreResponse(const CommitMessage & message)
 {
     _cur_commit.reset(new CommitMessage(message));
+}
+
+void ConsensusConnection::AdjustSocket()
+{
+    boost::asio::socket_base::receive_buffer_size receive_option(12108864);
+    boost::asio::socket_base::send_buffer_size send_option(12108864);
+
+    _socket->set_option(receive_option);
+    _socket->set_option(send_option);
 }

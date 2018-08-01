@@ -33,6 +33,9 @@ public:
     template<typename MSG>
     void Sign(MSG & message, const std::vector<DelegateSignature> & signatures) throw(bls::Exception)
     {
+        // TODO: BLS failing
+        return;
+
         // Set participation map:
     	PublicKeyVec keyvec;
     	SignatureVec sigvec;
@@ -62,6 +65,9 @@ public:
     template<typename MSG>
     void Sign(MSG & message)
     {
+        // TODO: BLS failing
+        return;
+
         std::lock_guard<std::mutex> lock(_mutex);
 
     	string msg(reinterpret_cast<const char*>(&message), MSG::HASHABLE_BYTES);
