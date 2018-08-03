@@ -1,4 +1,4 @@
-#include "utility.hpp"
+#include <rai/lib/utility.hpp>
 
 std::string string_to_hex_str(const std::string& input)
 {
