@@ -6,13 +6,12 @@
 #include <rai/consensus/messages/messages.hpp>
 #include <rai/consensus/message_validator.hpp>
 #include <rai/consensus/primary_delegate.hpp>
+#include <rai/consensus/delegate_key_store.h>
 #include <rai/consensus/request_handler.hpp>
 #include <rai/consensus/peer_acceptor.hpp>
 #include <rai/consensus/peer_manager.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
-
-#include "delegate_key_store.h"
 
 class ConsensusManager : public PeerManager,
                          public PrimaryDelegate
