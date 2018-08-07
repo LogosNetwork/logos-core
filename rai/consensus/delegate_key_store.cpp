@@ -1,4 +1,4 @@
-#include <rai/consensus/delegate_key_store.h>
+#include <rai/consensus/delegate_key_store.hpp>
 
 using PublicKeyReal  = bls::PublicKey;
 using PublicKeyVec   = bls::PublicKeyVec;
