@@ -24,7 +24,7 @@ public:
 
 private:
 
-    Log         _log;
-    Keys        _keys;
-    std::mutex  _mutex;
+    Log        _log;
+    Keys       _keys;
+    std::mutex _mutex;
 };

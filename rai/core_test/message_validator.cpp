@@ -4,7 +4,7 @@
 #include <vector>
 
 using namespace std;
-#include <rai/consensus/delegate_key_store.h>
+#include <rai/consensus/delegate_key_store.hpp>
 #include <rai/consensus/message_validator.hpp>
 
 using KeyStores = DelegateKeyStore *;

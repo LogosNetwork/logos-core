@@ -1,6 +1,7 @@
 #pragma once
 
 #include <rai/consensus/persistence/persistence_manager.hpp>
+#include <rai/consensus/delegate_key_store.hpp>
 #include <rai/consensus/message_validator.hpp>
 #include <rai/consensus/messages/messages.hpp>
 #include <rai/consensus/primary_delegate.hpp>
