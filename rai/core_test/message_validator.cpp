@@ -27,7 +27,7 @@ Nodes setup_nodes()
 		vector<PublicKey> pkeys;
 		for(int i = 0; i < NUM_DELEGATES; ++i)
 		{
-	        nodes.push_back(MessageValidator(i, dks[i]));
+	        nodes.push_back(MessageValidator(dks[i]));
 			pkeys.push_back(nodes[i].GetPublicKey());
 		}
 

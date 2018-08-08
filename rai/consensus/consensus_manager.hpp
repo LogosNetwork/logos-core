@@ -17,15 +17,14 @@ class ConsensusManager : public PeerManager,
                          public PrimaryDelegate
 {
 
-    using Service          = boost::asio::io_service;
-    using Address          = boost::asio::ip::address;
-	using Config           = ConsensusManagerConfig;
-    using Log              = boost::log::sources::logger_mt;
-    using ConnectionPolicy = std::less<boost::asio::ip::tcp::endpoint>;
-    using Connections      = std::vector<std::shared_ptr<ConsensusConnection>>;
-    using Store            = rai::block_store;
-    using BlockBuffer      = std::list<std::shared_ptr<rai::state_block>>;
-    using Delegates        = std::vector<std::string>;
+    using Service     = boost::asio::io_service;
+    using Address     = boost::asio::ip::address;
+	using Config      = ConsensusManagerConfig;
+    using Log         = boost::log::sources::logger_mt;
+    using Connections = std::vector<std::shared_ptr<ConsensusConnection>>;
+    using Store       = rai::block_store;
+    using BlockBuffer = std::list<std::shared_ptr<rai::state_block>>;
+    using Delegates   = std::vector<Config::Delegate>;
 
 public:
 
@@ -59,9 +58,6 @@ private:
     bool StateReadyForConsensus();
 
     void SendBufferedBlocks();
-
-    void EstablishDelegateIds(const std::string & local_address);
-    uint8_t GetDelegateId(const std::string & address);
 
     Connections        _connections;
     Delegates          _delegates;

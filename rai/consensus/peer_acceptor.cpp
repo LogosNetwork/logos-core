@@ -28,8 +28,8 @@ void PeerAcceptor::Start(const std::set<Address> & server_endpoints)
 
     if (ec)
     {
-        BOOST_LOG (_log) << "PeerAcceptor - Error while binding for Consensus on port "
-                         << _local_endpoint.port() << " :"
+        BOOST_LOG (_log) << "PeerAcceptor - Error while binding for Consensus on "
+                         << _local_endpoint << " - "
                          << ec.message();
 
         throw std::runtime_error(ec.message());

@@ -27,8 +27,7 @@ public:
         Signature signature;
     };
 
-    MessageValidator(uint8_t my_delegate_id, DelegateKeyStore & key_store);
-    void UpdateMyId(uint8_t my_delegate_id);//TODO remove this function
+    MessageValidator(DelegateKeyStore & key_store);
 
     // Aggregate sign
     template<typename MSG>
@@ -149,6 +148,5 @@ private:
 
     Log                 _log;
     KeyPair             _keypair;
-    uint8_t             _my_delegate_id;
     DelegateKeyStore &  _keys;
 };
