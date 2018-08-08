@@ -13,8 +13,8 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleIconFile</key>
-	<string>RaiBlocks.icns</string>
+	<string>Logos.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>net.raiblocks.rai_wallet</string>
+	<string>net.logos.logos_wallet</string>
 </dict>
 </plist>
