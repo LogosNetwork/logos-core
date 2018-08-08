@@ -14,36 +14,34 @@ ConsensusManager::ConsensusManager(Service & service,
     , _handler()
     , _delegates(config.delegates)
     , _persistence_manager(store, log)
-    , _validator(0, _key_store)
+    , _validator(_key_store)
     , _alarm(alarm)
     , _peer_acceptor(service, log,
                      Endpoint(boost::asio::ip::make_address_v4(config.local_address),
                               config.peer_port),
                      this)
+    , _delegate_id(config.delegate_id)
 {
     std::set<Address> server_endpoints;
 
     auto local_endpoint(Endpoint(boost::asio::ip::make_address_v4(config.local_address),
                         config.peer_port));
 
-    EstablishDelegateIds(config.local_address);
-    _validator.UpdateMyId(_delegate_id);
     _key_store.OnPublicKey(_delegate_id, _validator.GetPublicKey());
 
-    for(uint8_t i = 0; i < _delegates.size(); ++i)
+    for(auto & delegate : _delegates)
     {
-        auto & peer = _delegates[i];
-        auto endpoint = Endpoint(boost::asio::ip::make_address_v4(peer),
+        auto endpoint = Endpoint(boost::asio::ip::make_address_v4(delegate.ip),
                                  local_endpoint.port());
 
-        if(i == _delegate_id)
+        if(delegate.id == _delegate_id)
         {
             continue;
         }
 
-        if(_delegate_id < i)
+        if(_delegate_id < delegate.id)
         {
-            ConsensusConnection::DelegateIdentities ids{_delegate_id, i};
+            ConsensusConnection::DelegateIdentities ids{_delegate_id, delegate.id};
 
             std::lock_guard<std::mutex> lock(_connection_mutex);
             _connections.push_back(
@@ -97,8 +95,14 @@ void ConsensusManager::OnBenchmarkSendRequest(std::shared_ptr<logos::state_block
 
 void ConsensusManager::OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket> socket)
 {
-    ConsensusConnection::DelegateIdentities ids{_delegate_id,
-                                                GetDelegateId(endpoint.address().to_string())};
+    auto entry = std::find_if(_delegates.begin(), _delegates.end(),
+                              [&](const Config::Delegate & delegate){
+                                  return delegate.ip == endpoint.address().to_string();
+                              });
+
+    assert(entry != _delegates.end());
+
+    ConsensusConnection::DelegateIdentities ids{_delegate_id, entry->id};
 
     std::lock_guard<std::mutex> lock(_connection_mutex);
     _connections.push_back(std::make_shared<ConsensusConnection>(socket, _alarm, endpoint,
@@ -206,23 +210,4 @@ void ConsensusManager::BufferComplete(logos::process_return & result)
 
     result.code = logos::process_result::buffering_done;
     SendBufferedBlocks();
-}
-
-void ConsensusManager::EstablishDelegateIds(const std::string & local_address)
-{
-    std::sort(_delegates.begin(), _delegates.end());
-
-    _delegate_id = GetDelegateId(local_address);
-
-    if(_delegate_id == _delegates.size())
-    {
-        throw std::runtime_error("ConsensusManager - Failed to find local address in delegate list.");
-    }
-}
-
-uint8_t ConsensusManager::GetDelegateId(const std::string & address)
-{
-    return std::distance(_delegates.begin(),
-                         std::find(_delegates.begin(), _delegates.end(),
-                                   address));
 }

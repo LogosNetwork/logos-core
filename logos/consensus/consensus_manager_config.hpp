@@ -5,14 +5,29 @@
 struct ConsensusManagerConfig
 {
 
+    struct Delegate
+    {
+        std::string ip;
+        uint8_t     id;
+    };
+
 	bool DeserializeJson(boost::property_tree::ptree & tree)
 	{
-		auto result(false);
+		auto delegates_tree(tree.get_child("delegate_peers"));
 
-		auto delegates_tree(tree.get_child("delegates"));
-		for(auto & entry : delegates_tree)
+		for(auto & delegate : delegates_tree)
 		{
-			delegates.push_back(entry.second.get<std::string> (""));
+		    try
+		    {
+		        auto ip = delegate.second.get<std::string>("ip_address");
+		        auto id = std::stoul(delegate.second.get<std::string>("delegate_id"));
+
+                delegates.push_back(Delegate{ip, uint8_t(id)});
+		    }
+		    catch(std::logic_error const &)
+		    {
+		        return true;
+		    }
 		}
 
 		local_address = tree.get<std::string>("local_address");
@@ -20,35 +35,41 @@ struct ConsensusManagerConfig
         try
         {
             peer_port = std::stoul(tree.get<std::string>("peer_port"));
+            delegate_id = std::stoul(tree.get<std::string>("delegate_id"));
         }
-        catch (std::logic_error const &)
+        catch(std::logic_error const &)
         {
-            result = true;
+            return true;
         }
 
-		return result;
+		return false;
 	}
 
 	void SerializeJson(boost::property_tree::ptree & tree) const
 	{
 		boost::property_tree::ptree delegates_tree;
 
-		for (auto & peer : delegates)
+		for (auto & delegate : delegates)
 		{
 			boost::property_tree::ptree entry;
-			entry.put ("", peer);
-			delegates_tree.push_back (std::make_pair ("", entry));
+
+			entry.put("ip_address", delegate.ip);
+            entry.put("delegate_id", delegate.id);
+
+            delegates_tree.push_back(std::make_pair("", entry));
 		}
 
-		tree.add_child("delegates", delegates_tree);
+		tree.add_child("delegate_peers", delegates_tree);
 
-        tree.put("peer_port", std::to_string(peer_port));
         tree.put("local_address", local_address);
+        tree.put("peer_port", std::to_string(peer_port));
+        tree.put("delegate_id", std::to_string(delegate_id));
 	}
 
-	std::vector<std::string> delegates;
-    uint16_t                 peer_port;
-    std::string              local_address;
+	std::vector<Delegate> delegates;
+    std::string           local_address;
+    uint16_t              peer_port;
+    uint8_t               delegate_id;
 };
 
 

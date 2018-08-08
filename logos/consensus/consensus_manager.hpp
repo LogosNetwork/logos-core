@@ -20,9 +20,8 @@ class ConsensusManager : public PeerManager,
 
     using Service          = boost::asio::io_service;
     using Address          = boost::asio::ip::address;
-	using Config           = ConsensusManagerConfig;
+    using Config           = ConsensusManagerConfig;
     using Log              = boost::log::sources::logger_mt;
-    using ConnectionPolicy = std::less<boost::asio::ip::tcp::endpoint>;
     using Connections      = std::vector<std::shared_ptr<ConsensusConnection>>;
     using Store            = logos::block_store;
     using BlockBuffer      = std::list<std::shared_ptr<logos::state_block>>;
@@ -30,14 +29,14 @@ class ConsensusManager : public PeerManager,
 
 public:
 
-	ConsensusManager(Service & service,
-	                 Store & store,
-	                 logos::alarm & alarm,
-	                 Log & log,
-					 const Config & config);
+    ConsensusManager(Service & service,
+		     Store & store,
+		     logos::alarm & alarm,
+		     Log & log,
+		     const Config & config);
 
-	void OnSendRequest(std::shared_ptr<logos::state_block> block, logos::process_return & result);
-	void OnBenchmarkSendRequest(std::shared_ptr<logos::state_block> block, logos::process_return & result);
+    void OnSendRequest(std::shared_ptr<logos::state_block> block, logos::process_return & result);
+    void OnBenchmarkSendRequest(std::shared_ptr<logos::state_block> block, logos::process_return & result);
 
     void OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket> socket) override;
 
@@ -61,21 +60,18 @@ private:
 
     void SendBufferedBlocks();
 
-    void EstablishDelegateIds(const std::string & local_address);
-    uint8_t GetDelegateId(const std::string & address);
-
     Connections        _connections;
     Delegates          _delegates;
     RequestHandler     _handler;
     PersistenceManager _persistence_manager;
     DelegateKeyStore   _key_store;
     MessageValidator   _validator;
-	logos::alarm &       _alarm;
-	PeerAcceptor       _peer_acceptor;
-	BlockBuffer        _buffer;
+    logos::alarm &     _alarm;
+    PeerAcceptor       _peer_acceptor;
+    BlockBuffer        _buffer;
     std::mutex         _connection_mutex;
-	Log                _log;
+    Log                _log;
     uint8_t            _delegate_id;
-	bool               _using_buffered_blocks = false;
+    bool               _using_buffered_blocks = false;
 };
 
