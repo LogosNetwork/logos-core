@@ -383,7 +383,14 @@ void logos::logging::init (boost::filesystem::path const & application_path_a)
 		{
 			boost::log::add_console_log (std::cerr, boost::log::keywords::format = "[%TimeStamp%]: %Message%");
 		}
-		boost::log::add_file_log (boost::log::keywords::target = application_path_a / "log", boost::log::keywords::file_name = application_path_a / "log" / "log_%Y-%m-%d_%H-%M-%S.%N.log", boost::log::keywords::rotation_size = rotation_size, boost::log::keywords::auto_flush = flush, boost::log::keywords::scan_method = boost::log::sinks::file::scan_method::scan_matching, boost::log::keywords::max_size = max_size, boost::log::keywords::format = "[%TimeStamp%]: %Message%");
+
+		boost::log::add_file_log (boost::log::keywords::target = application_path_a / "log",
+		                          boost::log::keywords::file_name = application_path_a / "log" / "log_%Y-%m-%d_%H-%M-%S.%N.log",
+		                          boost::log::keywords::rotation_size = rotation_size,
+		                          boost::log::keywords::auto_flush = flush,
+		                          boost::log::keywords::scan_method = boost::log::sinks::file::scan_method::scan_matching,
+		                          boost::log::keywords::max_size = max_size,
+		                          boost::log::keywords::format = "[%TimeStamp%]: %Message%");
 	}
 }
 
@@ -1648,7 +1655,7 @@ bool logos::parse_tcp_endpoint (std::string const & string, logos::tcp_endpoint 
 
 void logos::node::start ()
 {
-//  LOGOS: ARCHIVE NANO
+//  LOGOS: ARCHIVE
 //  -------------------
 //	network.receive ();
 //	ongoing_keepalive ();

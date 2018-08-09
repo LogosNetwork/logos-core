@@ -236,6 +236,14 @@ checksum (0)
 	if (!error_a)
 	{
 		logos::transaction transaction (environment, nullptr, true);
+
+		// consensus-prototype
+		error_a |= mdb_dbi_open (transaction, "batch_db", MDB_CREATE, &batch_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "state_db", MDB_CREATE, &state_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "account_db", MDB_CREATE, &account_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "receive_db", MDB_CREATE, &receive_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "batch_tips_db", MDB_CREATE, &batch_tips_db) != 0;
+
 		error_a |= mdb_dbi_open (transaction, "frontiers", MDB_CREATE, &frontiers) != 0;
 		error_a |= mdb_dbi_open (transaction, "accounts", MDB_CREATE, &accounts) != 0;
 		error_a |= mdb_dbi_open (transaction, "state", MDB_CREATE, &state_blocks) != 0;
