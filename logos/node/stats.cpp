@@ -369,6 +369,9 @@ std::string logos::stat::detail_to_string (uint32_t key)
 		case logos::stat::detail::change:
 			res = "change";
 			break;
+		case logos::stat::detail::delegate:
+			res = "delegate";
+			break;
 		case logos::stat::detail::confirm_ack:
 			res = "confirm_ack";
 			break;

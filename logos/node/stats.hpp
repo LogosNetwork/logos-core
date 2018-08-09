@@ -201,6 +201,7 @@ public:
 		receive,
 		open,
 		change,
+		delegate,
 		state_block,
 
 		// message specific

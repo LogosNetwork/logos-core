@@ -2409,12 +2409,22 @@ void logos::rpc_handler::process ()
 	std::shared_ptr<logos::block> block (logos::deserialize_block_json (block_l));
 	if (block != nullptr)
 	{
-		if (!logos::work_validate (*block))
+        bool logos(is_logos_request());
+		if (logos || !logos::work_validate (*block))
 		{
 			auto hash (block->hash ());
-			node.block_arrival.add (hash);
+		    if(!logos)
+		    {
+			    node.block_arrival.add (hash);
+            }
 			logos::process_return result;
-			{
+            if(logos)
+            {
+                result = node.OnSendRequest(std::dynamic_pointer_cast<logos::state_block>(block),
+                                            should_buffer_request());
+            }
+            else
+            {
 				logos::transaction transaction (node.store.environment, nullptr, true);
 				result = node.block_processor.process_receive_one (transaction, block);
 			}
@@ -2478,6 +2488,35 @@ void logos::rpc_handler::process ()
 					error_response (response, "Account mismatch");
 					break;
 				}
+                case logos::process_result::invalid_block_type:
+                {
+                    error_response (response, "Invalid block type");
+                    break;
+                }
+                case logos::process_result::not_implemented:
+                {
+                    error_response (response, "Not implemented");
+                    break;
+                }
+                case logos::process_result::opened_burn_account:
+                {
+                    error_response (response, "Invalid account (burn account)");
+                    break;
+                }
+                case logos::process_result::buffered:
+                {
+                    boost::property_tree::ptree response_l;
+                    response_l.put ("result", "Buffered");
+                    response (response_l);
+                    break;
+                }
+                case logos::process_result::buffering_done:
+                {
+                    boost::property_tree::ptree response_l;
+                    response_l.put ("result", "Buffering Done");
+                    response (response_l);
+                    break;
+                }
 				default:
 				{
 					error_response (response, "Error processing block");
