@@ -25,6 +25,8 @@ class ConsensusManager : public PeerManager,
     using Store       = rai::block_store;
     using BlockBuffer = std::list<std::shared_ptr<rai::state_block>>;
     using Delegates   = std::vector<Config::Delegate>;
+    using Endpoint    = boost::asio::ip::tcp::endpoint;
+    using Socket      = boost::asio::ip::tcp::socket;
 
 public:
 
@@ -58,14 +60,17 @@ private:
     bool StateReadyForConsensus();
 
     void SendBufferedBlocks();
+    void BatchBlockCallback(const BatchStateBlock & block);
 
     Connections        _connections;
+    Endpoint           _callback_endpoint;
     Delegates          _delegates;
     RequestHandler     _handler;
     PersistenceManager _persistence_manager;
     DelegateKeyStore   _key_store;
     MessageValidator   _validator;
 	rai::alarm &       _alarm;
+	Service &          _service;
 	PeerAcceptor       _peer_acceptor;
 	BlockBuffer        _buffer;
     std::mutex         _connection_mutex;

@@ -2,6 +2,9 @@
 
 #include <rai/node/node.hpp>
 
+#include <boost/beast/core/flat_buffer.hpp>
+#include <boost/beast/http.hpp>
+
 constexpr uint8_t ConsensusManager::BATCH_TIMEOUT_DELAY;
 
 ConsensusManager::ConsensusManager(Service & service,
@@ -14,6 +17,7 @@ ConsensusManager::ConsensusManager(Service & service,
     , _persistence_manager(store, log)
 	, _validator(_key_store)
     , _alarm(alarm)
+    , _service(service)
     , _peer_acceptor(service, log,
                      Endpoint(boost::asio::ip::make_address_v4(config.local_address),
                               config.peer_port),
@@ -63,13 +67,13 @@ void ConsensusManager::OnSendRequest(std::shared_ptr<rai::state_block> block, ra
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    BOOST_LOG (_log) << "ConsensusManager::OnSendRequest() - hash: " << block->hash().to_string();
+    BOOST_LOG(_log) << "ConsensusManager::OnSendRequest() - hash: " << block->hash().to_string();
 
     if(!Validate(block, result))
     {
-        BOOST_LOG (_log) << "ConsensusManager - block validation for send request failed. Result code: "
-                         << rai::ProcessResultToString(result.code)
-                         << " hash " << block->hash().to_string();
+        BOOST_LOG(_log) << "ConsensusManager - block validation for send request failed. Result code: "
+                        << rai::ProcessResultToString(result.code)
+                        << " hash " << block->hash().to_string();
         return;
     }
 
@@ -85,7 +89,7 @@ void ConsensusManager::OnBenchmarkSendRequest(std::shared_ptr<rai::state_block> 
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    BOOST_LOG (_log) << "ConsensusManager::OnBenchmarkSendRequest() - hash: " << block->hash().to_string();
+    BOOST_LOG(_log) << "ConsensusManager::OnBenchmarkSendRequest() - hash: " << block->hash().to_string();
 
     _using_buffered_blocks = true;
     _buffer.push_back(block);
@@ -144,6 +148,9 @@ void ConsensusManager::OnConsensusReached()
         BOOST_LOG(_log) << "ConsensusManager - Stored " << messages_stored << " blocks.";
     }
 
+    // BatchBlock Callback
+    BatchBlockCallback(_handler.GetNextBatch());
+
     _handler.PopFront();
 
     if(_using_buffered_blocks)
@@ -198,7 +205,7 @@ void ConsensusManager::SendBufferedBlocks()
 
     if(!_buffer.size())
     {
-        BOOST_LOG (_log) << "ConsensusManager - No more buffered blocks for consensus" << std::endl;
+        BOOST_LOG(_log) << "ConsensusManager - No more buffered blocks for consensus" << std::endl;
     }
 }
 
@@ -208,4 +215,77 @@ void ConsensusManager::BufferComplete(rai::process_return & result)
 
     result.code = rai::process_result::buffering_done;
     SendBufferedBlocks();
+}
+
+void ConsensusManager::BatchBlockCallback(const BatchStateBlock & block)
+{
+    auto sock(std::make_shared<Socket>(_service));
+
+    auto address(_callback_endpoint.address().to_string());
+    auto port(_callback_endpoint.port());
+
+    sock->async_connect(_callback_endpoint, [this, sock, address, port, block](boost::system::error_code const & ec) {
+
+        if(ec)
+        {
+            BOOST_LOG(_log) << boost::str(boost::format("Unable to connect to callback address: %1%:%2%: %3%") % address % port % ec.message());
+            return;
+        }
+
+        for(uint64_t i = 0; i < block.block_count; ++i)
+        {
+            boost::property_tree::ptree event;
+            event.add("hash", block.blocks[i].hash().to_string());
+            event.add("account", block.blocks[i].hashables.account.to_string());
+            event.add("amount", block.blocks[i].hashables.amount.to_string_dec());
+
+//            event.add("account", account_a.to_account());
+//            event.add("hash", block_a->hash().to_string());
+//            std::string block_text;
+//            block_a->serialize_json(block_text);
+//            event.add("block", block_text);
+//            event.add("amount", amount_a.to_string_dec());
+
+            std::stringstream ostream;
+            boost::property_tree::write_json(ostream, event);
+            ostream.flush();
+            auto body(std::make_shared<std::string>(ostream.str()));
+
+            auto req(std::make_shared<boost::beast::http::request<boost::beast::http::string_body>>());
+            req->method(boost::beast::http::verb::post);
+            req->target("/");
+            req->version(11);
+            req->insert(boost::beast::http::field::host, address);
+            req->insert(boost::beast::http::field::content_type, "application/json");
+            req->body() = *body;
+            //req->prepare(*req);
+            //boost::beast::http::prepare(req);
+            req->prepare_payload();
+
+            boost::beast::http::async_write(*sock, *req, [this, sock, address, port, req](boost::system::error_code const & ec, size_t bytes_transferred) {
+                if(ec)
+                {
+                    BOOST_LOG(_log) << boost::str(boost::format("Unable to send callback: %1%:%2%: %3%") % address % port % ec.message());
+                    return;
+                }
+
+                auto sb(std::make_shared<boost::beast::flat_buffer>());
+                auto resp(std::make_shared<boost::beast::http::response<boost::beast::http::string_body>>());
+
+                boost::beast::http::async_read(*sock, *sb, *resp, [this, sb, resp, sock, address, port](boost::system::error_code const & ec, size_t bytes_transferred) {
+                    if(ec)
+                    {
+                        BOOST_LOG(_log) << boost::str(boost::format("Unable complete callback: %1%:%2%: %3%") % address % port % ec.message());
+                        return;
+                    }
+
+                    if(resp->result() != boost::beast::http::status::ok)
+                    {
+                        BOOST_LOG(_log) << boost::str(boost::format("Callback to %1%:%2% failed with status: %3%") % address % port % resp->result());
+                    }
+                });
+
+            });
+        }
+    });
 }

@@ -13,6 +13,8 @@ struct ConsensusManagerConfig
 
 	bool DeserializeJson(boost::property_tree::ptree & tree)
 	{
+	    auto rpc_tree(tree.get_child(""));
+
 		auto delegates_tree(tree.get_child("delegate_peers"));
 
 		for(auto & delegate : delegates_tree)
@@ -31,10 +33,12 @@ struct ConsensusManagerConfig
 		}
 
 		local_address = tree.get<std::string>("local_address");
+		callback_address = tree.get<std::string>("callback_address");
 
         try
         {
             peer_port = std::stoul(tree.get<std::string>("peer_port"));
+            callback_port = std::stoul(tree.get<std::string>("callback_port"));
             delegate_id = std::stoul(tree.get<std::string>("delegate_id"));
         }
         catch(std::logic_error const &)
@@ -45,6 +49,8 @@ struct ConsensusManagerConfig
 		return false;
 	}
 
+	// TODO: Test serialization
+	//
 	void SerializeJson(boost::property_tree::ptree & tree) const
 	{
 		boost::property_tree::ptree delegates_tree;
@@ -62,14 +68,16 @@ struct ConsensusManagerConfig
 		tree.add_child("delegate_peers", delegates_tree);
 
         tree.put("local_address", local_address);
+        tree.put("callback_address", callback_address);
+        tree.put("callback_port", std::to_string(callback_port));
         tree.put("peer_port", std::to_string(peer_port));
         tree.put("delegate_id", std::to_string(delegate_id));
 	}
 
 	std::vector<Delegate> delegates;
     std::string           local_address;
+    std::string           callback_address;
+    uint16_t              callback_port;
     uint16_t              peer_port;
     uint8_t               delegate_id;
 };
-
-
