@@ -28,8 +28,8 @@ void PeerAcceptor::Start(const std::set<Address> & server_endpoints)
 
     if (ec)
     {
-        BOOST_LOG (_log) << "PeerAcceptor - Error while binding for Consensus on port "
-                         << _local_endpoint.port() << " :"
+        BOOST_LOG (_log) << "PeerAcceptor - Error while binding for Consensus on "
+                         << _local_endpoint << " - "
                          << ec.message();
 
         throw std::runtime_error(ec.message());
@@ -56,6 +56,12 @@ void PeerAcceptor::OnAccept(boost::system::error_code const & ec, std::shared_pt
                         << ec.message();
        return;
     }
+
+#ifdef MULTI_IP
+    char buff[16];
+    boost::asio::read(*socket, boost::asio::buffer(buff,sizeof(buff)));
+    _accepted_endpoint.address(boost::asio::ip::make_address_v4(buff));
+#endif
 
     BOOST_LOG (_log) << "PeerAcceptor - Connection accepted from "
                      << _accepted_endpoint;

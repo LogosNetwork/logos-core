@@ -1,15 +1,9 @@
 #include <logos/consensus/message_validator.hpp>
 #include <string>
 
-MessageValidator::MessageValidator(uint8_t my_delegate_id, DelegateKeyStore & key_store)
-    : _my_delegate_id(my_delegate_id)
-    , _keys(key_store)
+MessageValidator::MessageValidator(DelegateKeyStore & key_store)
+    : _keys(key_store)
 {}
-
-void MessageValidator::UpdateMyId(uint8_t my_delegate_id)
-{
-    _my_delegate_id = my_delegate_id;
-}
 
 PublicKey MessageValidator::GetPublicKey()
 {

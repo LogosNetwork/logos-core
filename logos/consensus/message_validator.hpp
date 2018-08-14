@@ -27,8 +27,7 @@ public:
         Signature signature;
     };
 
-    MessageValidator(uint8_t my_delegate_id, DelegateKeyStore & key_store);
-    void UpdateMyId(uint8_t my_delegate_id);//TODO remove this function
+    MessageValidator(DelegateKeyStore & key_store);
 
     // Aggregate sign
     template<typename MSG>
@@ -36,6 +35,7 @@ public:
     {
         PublicKeyVec keyvec;
         SignatureVec sigvec;
+
         for(auto & sig : signatures)
         {
             message.participation_map[sig.delegate_id] = true;
@@ -72,17 +72,17 @@ public:
     {
         string msg(reinterpret_cast<const char*>(&message), MSG::HASHABLE_BYTES);
 
-    	SignatureReal sig;
-    	_keypair.prv.sign(sig, msg);
+        SignatureReal sig;
+        _keypair.prv.sign(sig, msg);
 
-    	string sig_str;
-    	sig.serialize(sig_str);
-    	memcpy(&message.signature, sig_str.data(), CONSENSUS_SIG_SIZE);
+        string sig_str;
+        sig.serialize(sig_str);
+        memcpy(&message.signature, sig_str.data(), CONSENSUS_SIG_SIZE);
     }
 
     // Aggregate validation
-    template<MessageType type, MessageType type2>
-    bool Validate(const PostPhaseMessage<type> & message, const StandardPhaseMessage<type2> & reference)
+    template<MessageType type, MessageType type2, ConsensusType consensus_type>
+    bool Validate(const PostPhaseMessage<type, consensus_type> & message, const StandardPhaseMessage<type2, consensus_type> & reference)
     {
         if (message.participation_map.none())
         {
@@ -94,11 +94,12 @@ public:
         auto apk = _keys.GetAggregatedPublicKey(message.participation_map);
 
         //message
-        string msg(reinterpret_cast<const char*>(&reference), StandardPhaseMessage<type2>::HASHABLE_BYTES);
+        string msg(reinterpret_cast<const char*>(&reference), StandardPhaseMessage<type2, consensus_type>::HASHABLE_BYTES);
 
         //deserialize sig
         SignatureReal sig;
         string sig_str(reinterpret_cast<const char*>(&message.signature), CONSENSUS_SIG_SIZE);
+
         try
         {
             sig.deserialize(sig_str);
@@ -113,16 +114,21 @@ public:
         return sig.verify(apk, msg);
     }
 
-    // Single validation
+    // Single validation.
+    //
+    // TODO: Validate PrePrepare messages
+    //
     template<typename MSG>
     bool Validate(const MSG & message, uint8_t delegate_id)
     {
+
         //message
         string msg(reinterpret_cast<const char*>(&message), MSG::HASHABLE_BYTES);
 
         //deserialize sig
         SignatureReal sig;
         string sig_str(reinterpret_cast<const char*>(&message.signature), CONSENSUS_SIG_SIZE);
+
         try
         {
             sig.deserialize(sig_str);
@@ -142,6 +148,5 @@ private:
 
     Log                 _log;
     KeyPair             _keypair;
-    uint8_t             _my_delegate_id;
     DelegateKeyStore &  _keys;
 };

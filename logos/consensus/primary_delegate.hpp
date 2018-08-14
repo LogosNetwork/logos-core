@@ -40,7 +40,8 @@ public:
 
 protected:
 
-    void OnConsensusInitiated(const BatchStateBlock & block);
+    template<ConsensusType consensus_type>
+    void OnConsensusInitiated(const PrePrepareMessage<consensus_type> & block);
 
     // TODO: Revert to std::mutex after
     //       benchmark.
@@ -50,10 +51,12 @@ protected:
 
 private:
 
-    static constexpr uint8_t QUORUM_SIZE = 7;
+    static constexpr uint8_t QUORUM_SIZE = 3;
 
-    void ProcessMessage(const PrepareMessage & message);
-    void ProcessMessage(const CommitMessage & message);
+    template<ConsensusType consensus_type>
+    void ProcessMessage(const PrepareMessage<consensus_type> & message);
+    template<ConsensusType consensus_type>
+    void ProcessMessage(const CommitMessage<consensus_type> & message);
 
     bool ReachedQuorum();
 

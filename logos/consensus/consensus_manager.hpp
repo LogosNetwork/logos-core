@@ -3,30 +3,35 @@
 #include <logos/consensus/persistence/persistence_manager.hpp>
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/consensus/consensus_connection.hpp>
+#include <logos/consensus/batchblock_consensus_connection.hpp>
+#include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/request_handler.hpp>
-#include <logos/consensus/peer_acceptor.hpp>
-#include <logos/consensus/peer_manager.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 
-#include "delegate_key_store.hpp"
+class IConsensusManager
+{
+public:
+  IConsensusManager() {}
+  virtual ~IConsensusManager() {}
+  virtual std::shared_ptr<IConsensusConnection> BindIOChannel(std::shared_ptr<IIOChannel>, const DelegateIdentities &) = 0;
+};
 
-class ConsensusManager : public PeerManager,
-                         public PrimaryDelegate
+template<ConsensusType consensus_type>
+class ConsensusManager : public PrimaryDelegate,
+                         public IConsensusManager
 {
 
-    using Service          = boost::asio::io_service;
-    using Address          = boost::asio::ip::address;
-	using Config           = ConsensusManagerConfig;
-    using Log              = boost::log::sources::logger_mt;
-    using ConnectionPolicy = std::less<boost::asio::ip::tcp::endpoint>;
-    using Connections      = std::vector<std::shared_ptr<ConsensusConnection>>;
-    using Store            = logos::block_store;
-    using BlockBuffer      = std::list<std::shared_ptr<logos::state_block>>;
-    using Delegates        = std::vector<std::string>;
+protected:
+
+    using Service     = boost::asio::io_service;
+	using Config      = ConsensusManagerConfig;
+    using Log         = boost::log::sources::logger_mt;
+    using Connections = std::vector<std::shared_ptr<IConsensusConnectionOutChannel>>;
+    using Store       = logos::block_store;
 
 public:
 
@@ -34,48 +39,50 @@ public:
 	                 Store & store,
 	                 logos::alarm & alarm,
 	                 Log & log,
-					 const Config & config);
+					 const Config & config,
+                   DelegateKeyStore & key_store,
+                   MessageValidator & validator);
 
-	void OnSendRequest(std::shared_ptr<logos::state_block> block, logos::process_return & result);
-	void OnBenchmarkSendRequest(std::shared_ptr<logos::state_block> block, logos::process_return & result);
-
-    void OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket> socket) override;
+	void OnSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result);
+	virtual void OnBenchmarkSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result) = 0;
 
     void Send(const void * data, size_t size) override;
 
     virtual ~ConsensusManager() {}
 
-    void BufferComplete(logos::process_return & result);
+    virtual std::shared_ptr<IConsensusConnection> BindIOChannel(std::shared_ptr<IIOChannel>, const DelegateIdentities &) override;
 
-private:
+protected:
 
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;
 
-    bool Validate(std::shared_ptr<logos::state_block> block, logos::process_return & result);
+	  virtual void ApplyUpdates(const PrePrepareMessage<consensus_type> &, uint8_t delegate_id) = 0;
+
+    virtual bool Validate(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result) = 0;
 
     void OnConsensusReached() override;
+    virtual uint64_t OnConsensusReached_StoredCount() = 0;
+    virtual bool OnConsensusReached_Ext() = 0;
     void InitiateConsensus();
 
-    bool ReadyForConsensus();
+    virtual bool ReadyForConsensus() = 0;
     bool StateReadyForConsensus();
 
-    void SendBufferedBlocks();
+    virtual void SendBufferedBlocks() = 0;
 
-    void EstablishDelegateIds(const std::string & local_address);
-    uint8_t GetDelegateId(const std::string & address);
+    virtual void QueueRequest(std::shared_ptr<RequestMessage<ConsensusType::BatchStateBlock>>) = 0;
+    virtual PrePrepareMessage<ConsensusType::BatchStateBlock> & PrePrepare_GetNext() = 0;
+    virtual void PrePrepare_PopFront() = 0;
+    virtual bool PrePrepare_QueueEmpty() = 0;
+    virtual bool PrePrepare_QueueFull() = 0;
 
     Connections        _connections;
-    Delegates          _delegates;
-    RequestHandler     _handler;
     PersistenceManager _persistence_manager;
-    DelegateKeyStore   _key_store;
-    MessageValidator   _validator;
+    DelegateKeyStore & _key_store;
+    MessageValidator & _validator;
 	logos::alarm &       _alarm;
-	PeerAcceptor       _peer_acceptor;
-	BlockBuffer        _buffer;
     std::mutex         _connection_mutex;
 	Log                _log;
     uint8_t            _delegate_id;
-	bool               _using_buffered_blocks = false;
 };
 

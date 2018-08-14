@@ -1,5 +1,9 @@
 #include <logos/consensus/primary_delegate.hpp>
 
+template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::BatchStateBlock>&);
+template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::BatchStateBlock>&);
+template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::BatchStateBlock>&);
+
 constexpr uint8_t PrimaryDelegate::QUORUM_SIZE;
 
 PrimaryDelegate::PrimaryDelegate(MessageValidator & validator)
@@ -7,20 +11,22 @@ PrimaryDelegate::PrimaryDelegate(MessageValidator & validator)
                             //       as it's not yet initialized.
 {}
 
-void PrimaryDelegate::ProcessMessage(const PrepareMessage & message)
+template<ConsensusType consensus_type>
+void PrimaryDelegate::ProcessMessage(const PrepareMessage<consensus_type> & message)
 {
     if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE))
     {
-        Send<PostPrepareMessage>();
+        Send<PostPrepareMessage<consensus_type>>();
         AdvanceState(ConsensusState::POST_PREPARE);
     }
 }
 
-void PrimaryDelegate::ProcessMessage(const CommitMessage & message)
+template<ConsensusType consensus_type>
+void PrimaryDelegate::ProcessMessage(const CommitMessage<consensus_type> & message)
 {
     if(ProceedWithMessage(message, ConsensusState::POST_PREPARE))
     {
-        Send<PostCommitMessage>();
+        Send<PostCommitMessage<consensus_type>>();
         AdvanceState(ConsensusState::POST_COMMIT);
 
         OnConsensusReached();
@@ -44,7 +50,8 @@ void PrimaryDelegate::Send()
     Send(&response, sizeof(response));
 }
 
-void PrimaryDelegate::OnConsensusInitiated(const BatchStateBlock & block)
+template<ConsensusType consensus_type>
+void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<consensus_type> & block)
 {
     BOOST_LOG(_log) << "PrimaryDelegate - Initiating Consensus with PrePrepare hash: " << block.Hash().to_string();
 
