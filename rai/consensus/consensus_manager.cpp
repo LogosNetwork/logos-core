@@ -224,7 +224,11 @@ void ConsensusManager::BatchBlockCallback(const BatchStateBlock & block)
     auto address(_callback_endpoint.address().to_string());
     auto port(_callback_endpoint.port());
 
+    BOOST_LOG(_log) << "ConsensusManager::BatchBlockCallback()";
+
     sock->async_connect(_callback_endpoint, [this, sock, address, port, block](boost::system::error_code const & ec) {
+
+        BOOST_LOG(_log) << "ConsensusManager::BatchBlockCallback - on connect";
 
         if(ec)
         {
@@ -263,6 +267,10 @@ void ConsensusManager::BatchBlockCallback(const BatchStateBlock & block)
             req->prepare_payload();
 
             boost::beast::http::async_write(*sock, *req, [this, sock, address, port, req](boost::system::error_code const & ec, size_t bytes_transferred) {
+
+
+                BOOST_LOG(_log) << "ConsensusManager::BatchBlockCallback - on write";
+
                 if(ec)
                 {
                     BOOST_LOG(_log) << boost::str(boost::format("Unable to send callback: %1%:%2%: %3%") % address % port % ec.message());
