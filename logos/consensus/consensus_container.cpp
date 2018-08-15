@@ -1,3 +1,15 @@
+//===-- logos/consensus/consensus_container.cpp - ConsensusContainer class implementation -------*- C++ -*-===//
+//
+// Open source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains implementation of the ConsensusContainer class, which encapsulates
+/// consensus related types
+///
+//===----------------------------------------------------------------------===//
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>

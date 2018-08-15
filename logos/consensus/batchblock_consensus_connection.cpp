@@ -1,3 +1,15 @@
+//===-- logos/consensus/batchblock_consensus_connection.cpp - BatchBlockConsensusConnection class implementation -------*- C++ -*-===//
+//
+// Open source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains implementation of the BatchBlockConsensusConnection class, which
+/// handles specifics of BatchBlock consensus
+///
+//===----------------------------------------------------------------------===//
 #include <logos/consensus/batchblock_consensus_connection.hpp>
 
 bool BatchBlockConsensusConnection::Validate(const PrePrepareMessage<ConsensusType::BatchStateBlock> & message)

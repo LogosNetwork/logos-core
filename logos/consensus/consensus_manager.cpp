@@ -39,7 +39,7 @@ void ConsensusManager<consensus_type>::OnSendRequest(std::shared_ptr<RequestMess
 
     QueueRequest(block);
 
-    if(ReadyForConsensus())
+    if(ReadyForConsensus_Ext())
     {
         InitiateConsensus();
     }
@@ -93,6 +93,12 @@ void ConsensusManager<consensus_type>::InitiateConsensus()
     Send(&pre_prepare, sizeof(PrePrepareMessage<consensus_type>));
 
     _state = ConsensusState::PRE_PREPARE;
+}
+
+template<ConsensusType consensus_type>
+bool ConsensusManager<consensus_type>::ReadyForConsensus()
+{
+    return StateReadyForConsensus() && !PrePrepare_QueueEmpty();
 }
 
 template<ConsensusType consensus_type>

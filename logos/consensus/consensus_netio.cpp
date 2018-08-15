@@ -1,3 +1,15 @@
+//===-- logos/consensus/consensus_netio.hpp - ConsensusNetIO and ConsensusNetIOManager class implementation -------*- C++ -*-===//
+//
+// Open source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains implementation of the ConsensusNetIO and ConsensusNetIOManager classes, which handle
+/// network connections between the delegates
+///
+//===----------------------------------------------------------------------===//
 #include <logos/consensus/consensus_netio.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/node/node.hpp>
@@ -5,7 +17,7 @@
 const uint8_t ConsensusNetIO::CONNECT_RETRY_DELAY;
 
 ConsensusNetIO::ConsensusNetIO(_Service & service,
-                               _Endpoint endpoint, 
+                               const _Endpoint & endpoint, 
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
                                DelegateKeyStore & key_store,
@@ -28,7 +40,7 @@ ConsensusNetIO::ConsensusNetIO(_Service & service,
 }
 
 ConsensusNetIO::ConsensusNetIO(std::shared_ptr<_Socket> socket, 
-                               _Endpoint endpoint, 
+                               const _Endpoint & endpoint, 
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
                                DelegateKeyStore & key_store,

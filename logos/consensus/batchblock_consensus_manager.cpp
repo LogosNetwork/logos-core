@@ -1,3 +1,15 @@
+//===-- logos/consensus/batchblock_consensus_manager.cpp - BatchBlockConsensusManager class implementation -------*- C++ -*-===//
+//
+// Open source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains implementation of the BatchBlockConsensusManager class, which
+/// handles specifics of BatchBlock consensus
+///
+//===----------------------------------------------------------------------===//
 #include <logos/consensus/batchblock_consensus_manager.hpp>
 
 void BatchBlockConsensusManager::OnBenchmarkSendRequest(std::shared_ptr<RequestMessage<ConsensusType::BatchStateBlock>> block, logos::process_return & result)
@@ -49,7 +61,7 @@ bool BatchBlockConsensusManager::Validate(std::shared_ptr<RequestMessage<Consens
 }
 
 // TBD have to separate specialized part from general consensus processing
-bool BatchBlockConsensusManager::ReadyForConsensus()
+bool BatchBlockConsensusManager::ReadyForConsensus_Ext()
 {
     if(_using_buffered_blocks)
     {
@@ -57,7 +69,7 @@ bool BatchBlockConsensusManager::ReadyForConsensus()
                                            (_buffer.empty() && !_handler.Empty()));
     }
 
-    return StateReadyForConsensus() && !_handler.Empty();
+    return ReadyForConsensus();
 }
 
 void BatchBlockConsensusManager::QueueRequest(std::shared_ptr<RequestMessage<ConsensusType::BatchStateBlock>> request)

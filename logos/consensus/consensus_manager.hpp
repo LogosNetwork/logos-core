@@ -65,7 +65,8 @@ protected:
     virtual bool OnConsensusReached_Ext() = 0;
     void InitiateConsensus();
 
-    virtual bool ReadyForConsensus() = 0;
+    bool ReadyForConsensus();
+    virtual bool ReadyForConsensus_Ext() { return ReadyForConsensus(); }
     bool StateReadyForConsensus();
 
     virtual void SendBufferedBlocks() = 0;
