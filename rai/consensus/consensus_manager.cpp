@@ -13,6 +13,8 @@ ConsensusManager::ConsensusManager(Service & service,
                                    Log & log,
                                    const Config & config)
     : PrimaryDelegate(_validator)
+    , _callback_endpoint(boost::asio::ip::make_address_v4(config.callback_address),
+                         config.callback_port)
     , _delegates(config.delegates)
     , _persistence_manager(store, log)
 	, _validator(_key_store)
