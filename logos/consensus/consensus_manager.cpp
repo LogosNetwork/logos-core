@@ -10,8 +10,9 @@ ConsensusManager::ConsensusManager(Service & service,
                                    Log & log,
                                    const Config & config)
     : PrimaryDelegate(_validator)
-    , _log(log)
-    , _handler()
+    , _client(Endpoint(boost::asio::ip::make_address_v4(config.callback_address),
+                       config.callback_port),
+              service)
     , _delegates(config.delegates)
     , _persistence_manager(store, log)
     , _validator(_key_store)
@@ -65,13 +66,13 @@ void ConsensusManager::OnSendRequest(std::shared_ptr<logos::state_block> block, 
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    BOOST_LOG (_log) << "ConsensusManager::OnSendRequest() - hash: " << block->hash().to_string();
+    BOOST_LOG(_log) << "ConsensusManager::OnSendRequest() - hash: " << block->hash().to_string();
 
     if(!Validate(block, result))
     {
-        BOOST_LOG (_log) << "ConsensusManager - block validation for send request failed. Result code: "
-                         << logos::ProcessResultToString(result.code)
-                         << " hash " << block->hash().to_string();
+        BOOST_LOG(_log) << "ConsensusManager - block validation for send request failed. Result code: "
+                        << logos::ProcessResultToString(result.code)
+                        << " hash " << block->hash().to_string();
         return;
     }
 
@@ -87,7 +88,7 @@ void ConsensusManager::OnBenchmarkSendRequest(std::shared_ptr<logos::state_block
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    BOOST_LOG (_log) << "ConsensusManager::OnBenchmarkSendRequest() - hash: " << block->hash().to_string();
+    BOOST_LOG(_log) << "ConsensusManager::OnBenchmarkSendRequest() - hash: " << block->hash().to_string();
 
     _using_buffered_blocks = true;
     _buffer.push_back(block);
@@ -146,6 +147,8 @@ void ConsensusManager::OnConsensusReached()
         BOOST_LOG(_log) << "ConsensusManager - Stored " << messages_stored << " blocks.";
     }
 
+    _client.OnBatchBlock(_handler.GetNextBatch());
+
     _handler.PopFront();
 
     if(_using_buffered_blocks)
@@ -200,7 +203,7 @@ void ConsensusManager::SendBufferedBlocks()
 
     if(!_buffer.size())
     {
-        BOOST_LOG (_log) << "ConsensusManager - No more buffered blocks for consensus" << std::endl;
+        BOOST_LOG(_log) << "ConsensusManager - No more buffered blocks for consensus" << std::endl;
     }
 }
 

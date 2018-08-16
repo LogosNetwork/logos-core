@@ -51,9 +51,11 @@ inline uint64_t GetStamp()
 template<MessageType type_param>
 struct MessagePrequel
 {
-    const uint8_t     version = 0;
-    const MessageType type = type_param;
-    const uint8_t     pad[6] = {0,0,0,0,0,0}; // FIXME Do not use manual padding
+    static const size_t PADDING_SIZE = 6;
+
+    const uint8_t     version           = 0;
+    const MessageType type              = type_param;
+    const uint8_t     pad[PADDING_SIZE] = {0,0,0,0,0,0}; // FIXME Do not use manual padding
 };
 
 template<MessageType type>

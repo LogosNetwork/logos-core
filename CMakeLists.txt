@@ -319,7 +319,7 @@ add_library (node
 	logos/consensus/persistence/persistence_manager.cpp
 	logos/consensus/primary_delegate.cpp
 	logos/consensus/request_handler.cpp
-    logos/consensus/delegate_key_store.cpp
+	logos/consensus/delegate_key_store.cpp
 	logos/node/bootstrap.cpp
 	logos/node/bootstrap.hpp
 	logos/node/common.cpp
@@ -337,7 +337,12 @@ add_library (node
 	logos/node/stats.hpp
 	logos/node/stats.cpp
 	logos/node/working.hpp
-	logos/node/xorshift.hpp)
+	logos/node/xorshift.hpp
+	logos/wallet_server/client/callback_handler.cpp
+	logos/wallet_server/client/callback_manager.cpp
+	logos/wallet_server/client/common.hpp
+	logos/wallet_server/client/wallet_server_client.cpp)
+
 
 
 SET (ACTIVE_NETWORK logos_live_network CACHE STRING "Selects which network parameters are used")

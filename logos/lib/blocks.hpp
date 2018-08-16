@@ -106,6 +106,7 @@ public:
 	logos::account representative () const override;
 	void serialize (logos::stream &) const override;
 	void serialize_json (std::string &) const override;
+	boost::property_tree::ptree serialize_json () const;
 	bool deserialize (logos::stream &);
 	bool deserialize_json (boost::property_tree::ptree const &);
 	void visit (logos::block_visitor &) const override;

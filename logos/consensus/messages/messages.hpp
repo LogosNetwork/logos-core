@@ -7,6 +7,7 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare>
     static const size_t HASHABLE_BYTES;
 
     BlockHash Hash() const;
+    std::string SerializeJson() const;
 
     uint64_t  block_count = 0;
     BlockList blocks;

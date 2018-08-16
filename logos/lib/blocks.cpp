@@ -224,21 +224,29 @@ void logos::state_block::serialize (logos::stream & stream_a) const
 
 void logos::state_block::serialize_json (std::string & string_a) const
 {
-	boost::property_tree::ptree tree;
-	tree.put ("type", "state");
-	tree.put ("account", hashables.account.to_account ());
-	tree.put ("previous", hashables.previous.to_string ());
-	tree.put ("representative", representative ().to_account ());
-	tree.put ("amount", hashables.amount.to_string_dec ());
-	tree.put ("link", hashables.link.to_string ());
-	tree.put ("link_as_account", hashables.link.to_account ());
-	std::string signature_l;
-	signature.encode_hex (signature_l);
-	tree.put ("signature", signature_l);
-	tree.put ("work", logos::to_string_hex (work));
+	boost::property_tree::ptree tree = serialize_json ();
 	std::stringstream ostream;
 	boost::property_tree::write_json (ostream, tree);
 	string_a = ostream.str ();
+}
+
+boost::property_tree::ptree logos::state_block::serialize_json () const
+{
+    boost::property_tree::ptree tree;
+
+    tree.put ("type", "state");
+    tree.put ("account", hashables.account.to_account ());
+    tree.put ("previous", hashables.previous.to_string ());
+    tree.put ("representative", representative ().to_account ());
+    tree.put ("amount", hashables.amount.to_string_dec ());
+    tree.put ("link", hashables.link.to_string ());
+    tree.put ("link_as_account", hashables.link.to_account ());
+    std::string signature_l;
+    signature.encode_hex (signature_l);
+    tree.put ("signature", signature_l);
+    tree.put ("work", logos::to_string_hex (work));
+
+    return tree;
 }
 
 bool logos::state_block::deserialize (logos::stream & stream_a)

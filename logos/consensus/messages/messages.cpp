@@ -20,3 +20,23 @@ BlockHash BatchStateBlock::Hash() const
 
     return result;
 }
+
+std::string BatchStateBlock::SerializeJson() const
+{
+    boost::property_tree::ptree batch_state_block;
+
+    batch_state_block.put("hash", Hash().to_string());
+
+    boost::property_tree::ptree blocks_tree;
+
+    for(uint64_t i = 0; i < block_count; ++i)
+    {
+        blocks_tree.push_back(std::make_pair("", blocks[i].serialize_json()));
+    }
+
+    batch_state_block.add_child("blocks", blocks_tree);
+
+    std::stringstream ostream;
+    boost::property_tree::write_json(ostream, batch_state_block);
+    return ostream.str();
+}

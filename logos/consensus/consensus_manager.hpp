@@ -1,8 +1,10 @@
 #pragma once
 
+#include <logos/wallet_server/client/wallet_server_client.hpp>
 #include <logos/consensus/persistence/persistence_manager.hpp>
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/consensus/consensus_connection.hpp>
+#include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
@@ -12,28 +14,26 @@
 
 #include <boost/log/sources/record_ostream.hpp>
 
-#include "delegate_key_store.hpp"
-
 class ConsensusManager : public PeerManager,
                          public PrimaryDelegate
 {
 
-    using Service          = boost::asio::io_service;
-    using Address          = boost::asio::ip::address;
-    using Config           = ConsensusManagerConfig;
-    using Log              = boost::log::sources::logger_mt;
-    using Connections      = std::vector<std::shared_ptr<ConsensusConnection>>;
-    using Store            = logos::block_store;
-    using BlockBuffer      = std::list<std::shared_ptr<logos::state_block>>;
-    using Delegates        = std::vector<std::string>;
+    using Service     = boost::asio::io_service;
+    using Address     = boost::asio::ip::address;
+    using Config      = ConsensusManagerConfig;
+    using Log         = boost::log::sources::logger_mt;
+    using Connections = std::vector<std::shared_ptr<ConsensusConnection>>;
+    using Store       = logos::block_store;
+    using BlockBuffer = std::list<std::shared_ptr<logos::state_block>>;
+    using Delegates   = std::vector<Config::Delegate>;
 
 public:
 
     ConsensusManager(Service & service,
-		     Store & store,
-		     logos::alarm & alarm,
-		     Log & log,
-		     const Config & config);
+		             Store & store,
+		             logos::alarm & alarm,
+		             Log & log,
+		             const Config & config);
 
     void OnSendRequest(std::shared_ptr<logos::state_block> block, logos::process_return & result);
     void OnBenchmarkSendRequest(std::shared_ptr<logos::state_block> block, logos::process_return & result);
@@ -60,6 +60,7 @@ private:
 
     void SendBufferedBlocks();
 
+    WalletServerClient _client;
     Connections        _connections;
     Delegates          _delegates;
     RequestHandler     _handler;
