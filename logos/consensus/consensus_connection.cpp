@@ -193,7 +193,7 @@ void ConsensusConnection<consensus_type>::OnConsensusMessage(const PostCommitMes
     {
         assert(_cur_pre_prepare);
 
-        _persistence_manager.ApplyUpdates(*_cur_pre_prepare, _delegate_ids.remote);
+        ApplyUpdates(*_cur_pre_prepare, _delegate_ids.remote);
         _state = ConsensusState::VOID;
     }
 }
@@ -303,3 +303,4 @@ void ConsensusConnection<consensus_type>::OnPrequel(boost::system::error_code co
 }
 
 template class ConsensusConnection<ConsensusType::BatchStateBlock>;
+template class ConsensusConnection<ConsensusType::MicroBlock>;

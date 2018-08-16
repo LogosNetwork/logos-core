@@ -34,7 +34,7 @@ enum class ConsensusType : uint8_t
     Any = 2
 };
  // The number of types excluding Any
-const uint8_t NumberOfConsensus = 1; // TBD, excluded MicroBlock - is not supported yet
+const uint8_t NumberOfConsensus = 2; 
 
 static const size_t NUM_DELEGATES           = 32;
 static const size_t CONSENSUS_HASH_SIZE     = 32;

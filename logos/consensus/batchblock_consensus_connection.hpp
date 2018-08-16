@@ -48,6 +48,13 @@ protected:
 	  \return true if validated false otherwise
 	*/
     virtual bool Validate(const PrePrepareMessage<ConsensusType::BatchStateBlock> & message) override;
+
+	//! Commit the block to the database
+	/*
+		\param block to commit to the database
+		\param remote delegate id
+	*/
+	virtual void ApplyUpdates(const PrePrepareMessage<ConsensusType::BatchStateBlock> & block, uint8_t delegate_id) override;
 };
 
 //! BatchBlockConsensusConnection parameterized by consensus type 

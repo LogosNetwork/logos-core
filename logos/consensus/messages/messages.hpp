@@ -1,6 +1,7 @@
 #pragma once
 
 #include <logos/consensus/messages/common.hpp>
+#include <logos/microblock/microblock.hpp>
 
 struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::BatchStateBlock>
 {
@@ -84,10 +85,10 @@ struct PrePrepareMessage<consensus_type, typename std::enable_if< consensus_type
 {
 };
 
-//template<ConsensusType consensus_type>
-//struct PrePrepareMessage<consensus_type, typename std::enable_if< consensus_type == ConsensusType::MicroBlock>::type> : MicroBlock
-//{
-//};
+template<ConsensusType consensus_type>
+struct PrePrepareMessage<consensus_type, typename std::enable_if< consensus_type == ConsensusType::MicroBlock>::type> : MicroBlock
+{
+};
 
 // Request Message type for specific consensus type, could be different from Pre-Prepare message
 // for instance in case of BatchStateBlock the Request Message is logos::state_block, but for MicroBlock
@@ -100,7 +101,7 @@ struct RequestMessage<consensus_type, typename std::enable_if< consensus_type ==
 {
 };
 
-//template<ConsensusType consensus_type>
-//struct RequestMessage<consensus_type, typename std::enable_if< consensus_type == ConsensusType::MicroBlock>::type> : MicroBlock
-//{
-//};
+template<ConsensusType consensus_type>
+struct RequestMessage<consensus_type, typename std::enable_if< consensus_type == ConsensusType::MicroBlock>::type> : PrePrepareMessage<ConsensusType::MicroBlock>
+{
+};

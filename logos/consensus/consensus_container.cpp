@@ -22,9 +22,14 @@ ConsensusContainer::ConsensusContainer(Service & service,
                                        const Config & config)
     : _validator(_key_store)
     , _batchblock_consensus_manager(service, store, alarm, log, config.consensus_manager_config, _key_store, _validator)
-    , _consensus_netio_manager({{ConsensusType::BatchStateBlock, _batchblock_consensus_manager}}, 
+    , _microblock_consensus_manager(service, store, alarm, log, config.consensus_manager_config, _key_store, _validator)
+    , _consensus_netio_manager(
+        {
+            {ConsensusType::BatchStateBlock, _batchblock_consensus_manager},
+            {ConsensusType::MicroBlock, _microblock_consensus_manager}
+        }, 
         service, alarm, config.consensus_manager_config, _key_store, _validator)
-    //, _micro_block_handler(alarm, store, NUM_DELEGATES, config.microblock_generation_interval)
+    , _microblock_handler(alarm, store, NUM_DELEGATES, config.microblock_generation_interval)
 {
 }
 
@@ -56,7 +61,7 @@ void ConsensusContainer::BufferComplete(logos::process_return & result)
     _batchblock_consensus_manager.BufferComplete(result);
 }
 
-//void ConsensusContainer::StartMicroBlock(std::function<void(MicroBlock&)> cb)
-//{
-//    _micro_block_handler.Start(cb);
-//}
+void ConsensusContainer::StartMicroBlock(std::function<void(MicroBlock&)> cb)
+{
+    _microblock_handler.Start(cb);
+}

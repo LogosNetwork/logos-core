@@ -15,8 +15,9 @@
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/batchblock_consensus_manager.hpp>
+#include <logos/consensus/microblock_consensus_manager.hpp>
 #include <logos/consensus/consensus_netio.hpp>
-//#include <logos/microblock/microblock.hpp>
+#include <logos/microblock/microblock.hpp>
 
 namespace logos {
     class node_config;
@@ -70,12 +71,13 @@ public:
     void BufferComplete(logos::process_return & result);
 
     // MicroBlock
-    //void StartMicroBlock(std::function<void(MicroBlock&)>);
+    void StartMicroBlock(std::function<void(MicroBlock&)>);
 
 private:
     DelegateKeyStore            _key_store; //!< Delegates public key store
     MessageValidator            _validator; //!< Validator/Signer of consensus messages
     BatchBlockConsensusManager  _batchblock_consensus_manager; //!< Handles batch block consensus handling
+	MicroBlockConsensusManager	_microblock_consensus_manager; //!< Handles micro block consensus handling
     ConsensusNetIOManager       _consensus_netio_manager; //!< Establishes connections between the delegates
-    //MicroBlockHandler           _micro_block_handler;
+    MicroBlockHandler           _microblock_handler; //!< Handles microblock processing
 };

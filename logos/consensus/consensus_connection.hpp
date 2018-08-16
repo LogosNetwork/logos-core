@@ -80,6 +80,8 @@ protected:
 
     using ReceiveBuffer = std::array<uint8_t, BUFFER_SIZE>;
 
+    virtual void ApplyUpdates(const PrePrepareMessage<consensus_type> &, uint8_t delegate_id) = 0;
+
     void OnData(boost::system::error_code const & ec, size_t size);
     void OnMessage(boost::system::error_code const & ec, size_t size);
 

@@ -69,8 +69,6 @@ protected:
     virtual bool ReadyForConsensus_Ext() { return ReadyForConsensus(); }
     bool StateReadyForConsensus();
 
-    virtual void SendBufferedBlocks() = 0;
-
     virtual void QueueRequest(std::shared_ptr<RequestMessage<consensus_type>>) = 0;
     virtual PrePrepareMessage<consensus_type> & PrePrepare_GetNext() = 0;
     virtual void PrePrepare_PopFront() = 0;

@@ -24,3 +24,8 @@ bool BatchBlockConsensusConnection::Validate(const PrePrepareMessage<ConsensusTy
 
     return true;
 }
+
+void BatchBlockConsensusConnection::ApplyUpdates(const PrePrepareMessage<ConsensusType::BatchStateBlock> & block, uint8_t delegate_id)
+{
+    _persistence_manager.ApplyUpdates(block, delegate_id);
+}

@@ -314,7 +314,9 @@ add_library (node
 	${PLATFORM_NODE_SOURCE}
 	${SECURE_RPC_SOURCE}
 	logos/consensus/batchblock_consensus_connection.cpp
+	logos/consensus/microblock_consensus_connection.cpp
 	logos/consensus/batchblock_consensus_manager.cpp
+	logos/consensus/microblock_consensus_manager.cpp
 	logos/consensus/consensus_connection.cpp
 	logos/consensus/consensus_container.cpp
 	logos/consensus/consensus_manager.cpp
@@ -326,6 +328,7 @@ add_library (node
 	logos/consensus/primary_delegate.cpp
 	logos/consensus/request_handler.cpp
 	logos/consensus/delegate_key_store.cpp
+	logos/microblock/microblock.cpp
 	logos/node/bootstrap.cpp
 	logos/node/bootstrap.hpp
 	logos/node/common.cpp
