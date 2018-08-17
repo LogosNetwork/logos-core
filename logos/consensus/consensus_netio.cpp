@@ -69,18 +69,18 @@ void ConsensusNetIO::Connect(std::string local_ip)
 
 void ConsensusNetIO::Send(const void *data, size_t size)
 {
+    // multiple threads can send at the same time
+    // TODO - MUST IMPLMENT ASYNC_WRITE + QUEUE
+    std::lock_guard<std::mutex> lock(_send_mutex);
+    
     if (!_connected)
     {
         BOOST_LOG(_log) << "ConsensusNetIO - socket not connected yet";
         return;
     }
 
-    auto send_buffer (std::make_shared<std::vector<uint8_t>>(size, uint8_t(0)));
-    std::memcpy(send_buffer->data(), data, size);
-
     boost::system::error_code ec;
-    boost::asio::write(*_socket, boost::asio::buffer(send_buffer->data(),
-                                                     send_buffer->size()), ec);
+    boost::asio::write(*_socket, boost::asio::buffer(data, size), ec);
 
     if(ec)
     {

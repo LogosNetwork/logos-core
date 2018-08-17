@@ -223,6 +223,7 @@ private:
     MessageValidator &                      _validator; //!< Validator/Signer of consensus messages
     _IOBinder                               _io_channel_binder; //!< Network i/o to consensus binder
     std::recursive_mutex &                  _connection_mutex; //!< Consensus_connection access mutex
+    std::mutex                              _send_mutex; //!< Protect concurrent writes
 };
 
 //! ConsensusNetIOManagare manages connections to peers
