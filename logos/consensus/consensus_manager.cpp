@@ -31,9 +31,9 @@ void ConsensusManager<consensus_type>::OnSendRequest(std::shared_ptr<RequestMess
 
     if(!Validate(block, result))
     {
-        BOOST_LOG (_log) << "ConsensusManager - block validation for send request failed. Result code: "
-                         << logos::ProcessResultToString(result.code)
-                         << " hash " << block->hash().to_string();
+        BOOST_LOG(_log) << "ConsensusManager - block validation for send request failed. Result code: "
+                        << logos::ProcessResultToString(result.code)
+                        << " hash " << block->hash().to_string();
         return;
     }
 

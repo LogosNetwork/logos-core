@@ -1,5 +1,6 @@
 #pragma once
 
+#include <logos/wallet_server/client/wallet_server_client.hpp>
 #include <logos/consensus/persistence/persistence_manager.hpp>
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/consensus/consensus_connection.hpp>
@@ -81,7 +82,7 @@ protected:
     MessageValidator & _validator;
 	logos::alarm &       _alarm;
     std::mutex         _connection_mutex;
-	Log                _log;
+    Log                _log;
     uint8_t            _delegate_id;
 };
 

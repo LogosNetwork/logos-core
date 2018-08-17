@@ -1,5 +1,6 @@
 #pragma once
 
+#include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/messages/common.hpp>
 #include <logos/common.hpp>
@@ -8,7 +9,6 @@
 #include <boost/log/sources/logger.hpp>
 
 #include <bls/bls.hpp>
-#include "delegate_key_store.hpp"
 
 class MessageValidator
 {
