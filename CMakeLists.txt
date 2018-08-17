@@ -346,7 +346,12 @@ add_library (node
 	logos/node/stats.hpp
 	logos/node/stats.cpp
 	logos/node/working.hpp
-	logos/node/xorshift.hpp)
+	logos/node/xorshift.hpp
+	logos/wallet_server/client/callback_handler.cpp
+	logos/wallet_server/client/callback_manager.cpp
+	logos/wallet_server/client/common.hpp
+	logos/wallet_server/client/wallet_server_client.cpp)
+
 
 
 SET (ACTIVE_NETWORK logos_live_network CACHE STRING "Selects which network parameters are used")

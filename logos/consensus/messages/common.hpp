@@ -66,7 +66,7 @@ struct MessagePrequel
     const uint8_t     version = 0;
     const MessageType type = type_param;
     const ConsensusType consensus_type = consensus_param;
-	const uint8_t     pad[PADDING_SIZE] = {0,0,0,0,0};
+	const uint8_t     pad[PADDING_SIZE] = {0,0,0,0,0}; // FIXME Do not use manual padding
 };
 
 template<MessageType type, ConsensusType consensus>
