@@ -14,9 +14,9 @@
 
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
-#include <logos/consensus/batchblock_consensus_manager.hpp>
-#include <logos/consensus/microblock_consensus_manager.hpp>
-#include <logos/consensus/consensus_netio.hpp>
+#include <logos/consensus/batchstateblock/batchblock_consensus_manager.hpp>
+#include <logos/consensus/microblock/microblock_consensus_manager.hpp>
+#include <logos/consensus/consensus_netio_manager.hpp>
 #include <logos/microblock/microblock.hpp>
 
 namespace logos {

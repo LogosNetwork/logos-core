@@ -14,7 +14,7 @@
 
 
 #include <logos/consensus/consensus_manager.hpp>
-#include <logos/consensus/microblock_consensus_connection.hpp>
+#include <logos/consensus/microblock/microblock_consensus_connection.hpp>
 
 //!< MicroBlockConsensusManager handles specifics of MicroBlock consensus
 class MicroBlockConsensusManager: public ConsensusManager<ConsensusType::MicroBlock>

@@ -10,7 +10,7 @@
 /// handles specifics of BatchBlock consensus
 ///
 //===----------------------------------------------------------------------===//
-#include <logos/consensus/batchblock_consensus_connection.hpp>
+#include <logos/consensus/batchstateblock/batchblock_consensus_connection.hpp>
 
 bool BatchBlockConsensusConnection::Validate(const PrePrepareMessage<ConsensusType::BatchStateBlock> & message)
 {

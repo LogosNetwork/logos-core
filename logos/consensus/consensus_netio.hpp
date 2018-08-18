@@ -1,4 +1,4 @@
-//===-- logos/consensus/consensus_netio.hpp - ConsensusNetIO and ConsensusNetIOManager class declaration -------*- C++ -*-===//
+//===-- logos/consensus/consensus_netio.hpp - ConsensusNetIO class declaration -------*- C++ -*-===//
 //
 // Open source
 // License. See LICENSE.TXT for details.
@@ -6,15 +6,12 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the ConsensusNetIO and ConsensusNetIOManager classes, which handle
-/// network connections between the delegates
+/// This file contains the declaration of the ConsensusNetIO classes, which provide
+/// net io interface to the underlying socket
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include <logos/consensus/peer_manager.hpp>
-#include <logos/consensus/peer_acceptor.hpp>
-#include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 
@@ -28,22 +25,7 @@
 #include <map>
 
 class IConsensusConnection;
-class IConsensusManager;
 class MessageValidator;
-class ConsensusNetIO;
-struct DelegateIdentities;
-
-//! Aliases
-using _Service   = boost::asio::io_service;
-using _Endpoint  = boost::asio::ip::tcp::endpoint;
-using _Socket    = boost::asio::ip::tcp::socket;
-using _Log       = boost::log::sources::logger_mt;
-using _Config    = ConsensusManagerConfig;
-using _Address   = boost::asio::ip::address;
-using _ErrorCode = boost::system::error_code;
-using _Delegates = std::vector<_Config::Delegate>;
-using _IOBinder  = function<void(std::shared_ptr<ConsensusNetIO>, uint8_t)>;
-using _ConsensusManagers = std::map<ConsensusType, IConsensusManager&>;
 
 namespace logos
 {
@@ -83,6 +65,14 @@ public:
   based on the delegate's id ordering.
 */
 class ConsensusNetIO: public IIOChannel, public std::enable_shared_from_this<ConsensusNetIO> {
+    //! Aliases
+    using Service   = boost::asio::io_service;
+    using Endpoint  = boost::asio::ip::tcp::endpoint;
+    using Socket    = boost::asio::ip::tcp::socket;
+    using Log       = boost::log::sources::logger_mt;
+    using Address   = boost::asio::ip::address;
+    using ErrorCode = boost::system::error_code;
+    using IOBinder  = function<void(std::shared_ptr<ConsensusNetIO>, uint8_t)>;
 public:
     //! Class constructor
     /*!
@@ -98,13 +88,13 @@ public:
       \param local_ip local ip of this node's delegate
       \param connection_mutex mutex to protect consensus connections
     */
-    ConsensusNetIO(_Service & service,
-                   const _Endpoint & endpoint, 
+    ConsensusNetIO(Service & service,
+                   const Endpoint & endpoint, 
                    logos::alarm & alarm, 
                    const uint8_t remote_delegate_id, 
                    DelegateKeyStore & key_store,
                    MessageValidator & validator,
-                   _IOBinder binder,
+                   IOBinder binder,
                    std::string local_ip,
                    std::recursive_mutex & connection_mutex);
 
@@ -121,13 +111,13 @@ public:
       \param binder callback for binding netio interface to related consensus
       \param connection_mutex mutex to protect consensus connections
     */
-    ConsensusNetIO(std::shared_ptr<_Socket> socket, 
-                   const _Endpoint & endpoint, 
+    ConsensusNetIO(std::shared_ptr<Socket> socket, 
+                   const Endpoint & endpoint, 
                    logos::alarm & alarm, 
                    const uint8_t remote_delegate_id, 
                    DelegateKeyStore & key_store,
                    MessageValidator & validator,
-                   _IOBinder binder,
+                   IOBinder binder,
                    std::recursive_mutex & connection_mutex);
 
     //! Class destractor
@@ -191,13 +181,13 @@ private:
       \param ec error code
       \param local_ip send ip to the connected peer
     */
-    void OnConnect(_ErrorCode const &ec, std::string local_ip);
+    void OnConnect(ErrorCode const &ec, std::string local_ip);
     //! Call back for async read
     /*!
       \param ec error code
       \param size size of received data
     */
-    void OnData(_ErrorCode const & ec, size_t size);
+    void OnData(ErrorCode const & ec, size_t size);
     //! Send public key to the connected peer
     void SendKeyAdvertisement();
     //! Public key callback
@@ -205,85 +195,23 @@ private:
       \param ec error code
       \param size size of received data
     */
-    void OnPublicKey(_ErrorCode const & ec, size_t size);
+    void OnPublicKey(ErrorCode const & ec, size_t size);
 
     static constexpr uint8_t  CONNECT_RETRY_DELAY = 5; //!< Retry connecting to the peer
     using ReceiveBuffer = std::array<uint8_t, sizeof(KeyAdvertisement)>; //!< Receive buffer size
 
-    std::shared_ptr<_Socket>                _socket; //!< Connected socket
+    std::shared_ptr<Socket>                _socket; //!< Connected socket
     ReceiveBuffer                           _receive_buffer; //!< receive buffer
-    _Log                                    _log; //!< boost asio log
-    _Endpoint                               _endpoint; //!< remote peer endpoint
-    logos::alarm &                           _alarm; //!< alarm reference
+    Log                                     _log; //!< boost asio log
+    Endpoint                                _endpoint; //!< remote peer endpoint
+    logos::alarm &                          _alarm; //!< alarm reference
     bool                                    _connected; //!< connected flag
     uint8_t                                 _remote_delegate_id; //!< id of connected pper
     //! vector of consensus bound to the network connection
     std::shared_ptr<IConsensusConnection>   _consensus_connections[static_cast<uint8_t>(NumberOfConsensus)]; 
     DelegateKeyStore &                      _key_store; //!< Delegates public key store
     MessageValidator &                      _validator; //!< Validator/Signer of consensus messages
-    _IOBinder                               _io_channel_binder; //!< Network i/o to consensus binder
+    IOBinder                                _io_channel_binder; //!< Network i/o to consensus binder
     std::recursive_mutex &                  _connection_mutex; //!< Consensus_connection access mutex
     std::mutex                              _send_mutex; //!< Protect concurrent writes
-};
-
-//! ConsensusNetIOManagare manages connections to peers
-/*!
-  Creates ConsensusNetIO instances either as the client to connect to remote peers
-  or as accepted connection
-*/
-class ConsensusNetIOManager : public PeerManager {
-public:
-
-    
-    //! Class constractor
-    /*!
-      The constractor is called by node
-      \param consensus_managers dictionary of consensus_manager
-      \param service reference to boost asio service
-      \param reference to alarm
-      \param config reference to consensus manager configuration
-      \param key_store delegates public key store
-      \param validator validator/signer of consensus messages
-    */
-    ConsensusNetIOManager(
-        _ConsensusManagers consensus_managers,
-        _Service & service, 
-        logos::alarm & alarm, 
-        const _Config & config,
-        DelegateKeyStore & key_store,
-        MessageValidator & validator); 
-
-    ~ConsensusNetIOManager() 
-    {
-    }
-
-    //! Server connection accepted call back
-    /*!
-      Called by PeerAcceptor
-      \param endpoint connected peer endpoint
-      \param socket connected peed socket
-    */
-    void OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket>) override;
-
-    //! Bind connected net connections to ConsensusConnection
-    /*!
-      Calls registered consensus managers to bind netio channel to consensus connection
-      \param netio channel
-      \param delegate_id connected delegate id
-    */
-    void BindIOChannel(std::shared_ptr<ConsensusNetIO> netio, uint8_t delegate_id);
-
-private:
-
-    _Delegates                                      _delegates; //!< List of all delegates
-    _ConsensusManagers                              _consensus_managers; //!< Dictionary of registered consensus managers
-    std::vector<std::shared_ptr<ConsensusNetIO>>    _connections; //!< NetIO connections
-    _Log                                            _log; //!< boost asio log
-    logos::alarm &                                  _alarm; //!< alarm
-    PeerAcceptor                                    _peer_acceptor; //!< PeerAcceptor instance
-    DelegateKeyStore &                              _key_store; //!< Delegates public key store
-    MessageValidator &                              _validator; //!< Validator/Signer of consensus messages
-    std::recursive_mutex                            _connection_mutex; //!< NetIO connections access mutex
-    std::recursive_mutex                            _bind_mutex; //!< NetIO consensus connections mutes
-    uint8_t                                         _delegate_id; //!< The delegate id
 };

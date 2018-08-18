@@ -1,4 +1,4 @@
-#include <logos/consensus/microblock_consensus_manager.hpp>
+#include <logos/consensus/microblock/microblock_consensus_manager.hpp>
 
 void MicroBlockConsensusManager::OnBenchmarkSendRequest(std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>> block, logos::process_return & result)
 {

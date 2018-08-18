@@ -10,7 +10,7 @@
 /// handles specifics of MicroBlock consensus
 ///
 //===----------------------------------------------------------------------===//
-#include <logos/consensus/microblock_consensus_connection.hpp>
+#include <logos/consensus/microblock/microblock_consensus_connection.hpp>
 
 bool MicroBlockConsensusConnection::Validate(const PrePrepareMessage<ConsensusType::MicroBlock> & message)
 {

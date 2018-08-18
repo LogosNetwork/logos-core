@@ -10,7 +10,7 @@
 /// handles specifics of BatchBlock consensus
 ///
 //===----------------------------------------------------------------------===//
-#include <logos/consensus/batchblock_consensus_manager.hpp>
+#include <logos/consensus/batchstateblock/batchblock_consensus_manager.hpp>
 
 void BatchBlockConsensusManager::OnBenchmarkSendRequest(std::shared_ptr<RequestMessage<ConsensusType::BatchStateBlock>> block, logos::process_return & result)
 {

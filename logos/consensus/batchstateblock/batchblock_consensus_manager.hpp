@@ -13,7 +13,7 @@
 #pragma once
 
 #include <logos/consensus/consensus_manager.hpp>
-#include <logos/consensus/batchblock_consensus_connection.hpp>
+#include <logos/consensus/batchstateblock/batchblock_consensus_connection.hpp>
 #include <logos/consensus/request_handler.hpp>
 
 //!< BatckBlockConsensusManager handles specifics of BatchBlock consensus

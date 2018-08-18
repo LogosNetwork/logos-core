@@ -11,21 +11,20 @@
 ///
 //===----------------------------------------------------------------------===//
 #include <logos/consensus/consensus_netio.hpp>
-#include <logos/consensus/messages/messages.hpp>
 #include <logos/node/node.hpp>
 
 const uint8_t ConsensusNetIO::CONNECT_RETRY_DELAY;
 
-ConsensusNetIO::ConsensusNetIO(_Service & service,
-                               const _Endpoint & endpoint, 
+ConsensusNetIO::ConsensusNetIO(Service & service,
+                               const Endpoint & endpoint, 
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
-                               _IOBinder iobinder,
+                               IOBinder iobinder,
                                std::string local_ip,
                                std::recursive_mutex & connection_mutex) 
-        : _socket(new _Socket(service))
+        : _socket(new Socket(service))
         , _endpoint(endpoint)
         , _alarm(alarm)
         , _remote_delegate_id(remote_delegate_id)
@@ -39,13 +38,13 @@ ConsensusNetIO::ConsensusNetIO(_Service & service,
     Connect(local_ip);
 }
 
-ConsensusNetIO::ConsensusNetIO(std::shared_ptr<_Socket> socket, 
-                               const _Endpoint & endpoint, 
+ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket, 
+                               const Endpoint & endpoint, 
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
-                               _IOBinder iobinder,
+                               IOBinder iobinder,
                                std::recursive_mutex & connection_mutex) 
         : _socket(socket)
         , _endpoint(endpoint)
@@ -64,7 +63,7 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<_Socket> socket,
 void ConsensusNetIO::Connect(std::string local_ip)
 {
     _socket->async_connect(_endpoint,
-                           [this, local_ip](_ErrorCode const & ec) { OnConnect(ec, local_ip); });
+                           [this, local_ip](ErrorCode const & ec) { OnConnect(ec, local_ip); });
 }
 
 void ConsensusNetIO::Send(const void *data, size_t size)
@@ -112,7 +111,7 @@ void ConsensusNetIO::OnConnect(std::string local_ip)
     ReadPrequel();
 }
 
-void ConsensusNetIO::OnConnect(_ErrorCode const & ec, std::string local_ip)
+void ConsensusNetIO::OnConnect(ErrorCode const & ec, std::string local_ip)
 {
     if(ec)
     {
@@ -153,7 +152,7 @@ void ConsensusNetIO::AsyncRead(boost::asio::mutable_buffer buffer, std::function
     boost::asio::async_read(*_socket, buffer, cb);
 }
 
-void ConsensusNetIO::OnData(_ErrorCode const & ec, size_t size)
+void ConsensusNetIO::OnData(ErrorCode const & ec, size_t size)
 {
     ConsensusType consensus_type (static_cast<ConsensusType> (_receive_buffer.data()[2]));
     MessageType message_type (static_cast<MessageType> (_receive_buffer.data()[1]));
@@ -186,7 +185,7 @@ void ConsensusNetIO::OnData(_ErrorCode const & ec, size_t size)
     }
 }
  
-void ConsensusNetIO::OnPublicKey(_ErrorCode const & ec, size_t size)
+void ConsensusNetIO::OnPublicKey(ErrorCode const & ec, size_t size)
 {
     if(ec)
     {
@@ -220,80 +219,3 @@ void ConsensusNetIO::AdjustSocket()
     _socket->set_option(send_option);
 }
 
-ConsensusNetIOManager::ConsensusNetIOManager(_ConsensusManagers consensus_managers,
-                                             _Service & service, 
-                                             logos::alarm & alarm, 
-                                             const _Config & config,
-                                             DelegateKeyStore & key_store,
-                                             MessageValidator & validator) 
-    : _delegates(config.delegates)
-    , _consensus_managers(consensus_managers)
-    , _alarm(alarm)
-    , _peer_acceptor(service, _log, Endpoint(boost::asio::ip::make_address_v4(config.local_address), 
-        config.peer_port), this)
-    , _key_store(key_store)
-    , _validator(validator)
-    , _delegate_id(config.delegate_id)
-{
-    std::set<_Address> server_endpoints;
-
-    auto local_endpoint(Endpoint(boost::asio::ip::make_address_v4(config.local_address),
-                        config.peer_port));
-
-    _key_store.OnPublicKey(_delegate_id, _validator.GetPublicKey());
-
-    for(auto & delegate : _delegates)
-    {
-        auto endpoint = Endpoint(boost::asio::ip::make_address_v4(delegate.ip),
-                                 local_endpoint.port());
-
-        if(delegate.id == _delegate_id)
-        {
-            continue;
-        }
-
-        if(_delegate_id < delegate.id)
-        {
-            std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
-            _connections.push_back(std::make_shared<ConsensusNetIO>(service, endpoint, _alarm,
-                                                                    delegate.id, _key_store, _validator,
-                                                                    std::bind(&ConsensusNetIOManager::BindIOChannel, this, std::placeholders::_1, std::placeholders::_2), 
-                                                                    config.local_address, _connection_mutex));
-        }
-        else
-        {
-            server_endpoints.insert(endpoint.address());
-        }
-    }
-
-    if(server_endpoints.size())
-    {
-        _peer_acceptor.Start(server_endpoints);
-    }
-}
-
-void ConsensusNetIOManager::OnConnectionAccepted(const _Endpoint& endpoint, std::shared_ptr<Socket> socket)
-{
-    auto entry = std::find_if(_delegates.begin(), _delegates.end(),
-                              [&](const _Config::Delegate & delegate){
-                                  return delegate.ip == endpoint.address().to_string();
-                              });
-
-    assert(entry != _delegates.end());
-
-    std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
-    _connections.push_back(std::make_shared<ConsensusNetIO>(socket, endpoint, _alarm, entry->id, _key_store, _validator,
-        std::bind(&ConsensusNetIOManager::BindIOChannel, this, std::placeholders::_1, std::placeholders::_2),
-        _connection_mutex));
-}
-
-void ConsensusNetIOManager::BindIOChannel(std::shared_ptr<ConsensusNetIO> netio, uint8_t remote_delegate_id)
-{
-    std::lock_guard<std::recursive_mutex> lock(_bind_mutex);
-    DelegateIdentities ids{_delegate_id, remote_delegate_id};
-    for (auto it = _consensus_managers.begin(); it != _consensus_managers.end(); ++it)
-    {
-        auto consensus_connection = it->second.BindIOChannel(netio, ids);
-        netio->AddConsensusConnection(it->first, consensus_connection);
-    }
-}
