@@ -39,7 +39,7 @@ void ConsensusManager<consensus_type>::OnSendRequest(std::shared_ptr<RequestMess
 
     QueueRequest(block);
 
-    if(ReadyForConsensus_Ext())
+    if(ReadyForConsensusExt())
     {
         InitiateConsensus();
     }
@@ -59,24 +59,24 @@ void ConsensusManager<consensus_type>::Send(const void * data, size_t size)
 template<ConsensusType consensus_type>
 void ConsensusManager<consensus_type>::OnConsensusReached()
 {
-    ApplyUpdates(PrePrepare_GetNext(), _delegate_id);
+    ApplyUpdates(PrePrepareGetNext(), _delegate_id);
 
     // Helpful for benchmarking
     //
     {
         static uint64_t messages_stored = 0;
-        messages_stored += OnConsensusReached_StoredCount();
+        messages_stored += OnConsensusReachedStoredCount();
         BOOST_LOG(_log) << "ConsensusManager - Stored " << messages_stored << " blocks.";
     }
 
-    PrePrepare_PopFront();
+    PrePreparePopFront();
 
-    if(OnConsensusReached_Ext())
+    if(OnConsensusReachedExt())
     {
         return;
     }
 
-    if(!PrePrepare_QueueEmpty())
+    if(!PrePrepareQueueEmpty())
     {
         InitiateConsensus();
     }
@@ -85,7 +85,7 @@ void ConsensusManager<consensus_type>::OnConsensusReached()
 template<ConsensusType consensus_type>
 void ConsensusManager<consensus_type>::InitiateConsensus()
 {
-    auto & pre_prepare = PrePrepare_GetNext();
+    auto & pre_prepare = PrePrepareGetNext();
 
     OnConsensusInitiated(pre_prepare);
 
@@ -98,7 +98,7 @@ void ConsensusManager<consensus_type>::InitiateConsensus()
 template<ConsensusType consensus_type>
 bool ConsensusManager<consensus_type>::ReadyForConsensus()
 {
-    return StateReadyForConsensus() && !PrePrepare_QueueEmpty();
+    return StateReadyForConsensus() && !PrePrepareQueueEmpty();
 }
 
 template<ConsensusType consensus_type>
@@ -110,7 +110,7 @@ bool ConsensusManager<consensus_type>::StateReadyForConsensus()
 template<ConsensusType consensus_type>
 std::shared_ptr<IConsensusConnection> ConsensusManager<consensus_type>::BindIOChannel(std::shared_ptr<IIOChannel> iochannel, const DelegateIdentities & ids)
 {
-    auto consensus_connection = std::make_shared<ConsensusConnectionT<consensus_type>>(iochannel, _alarm,
+    auto consensus_connection = std::make_shared<ConsensusConnection<consensus_type>>(iochannel, _alarm,
                                                    this, _persistence_manager,
                                                    _key_store, _validator, ids);
     _connections.push_back(consensus_connection);

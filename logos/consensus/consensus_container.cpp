@@ -21,8 +21,10 @@ ConsensusContainer::ConsensusContainer(Service & service,
                                        Log & log,
                                        const Config & config)
     : _validator(_key_store)
-    , _batchblock_consensus_manager(service, store, alarm, log, config.consensus_manager_config, _key_store, _validator)
-    , _microblock_consensus_manager(service, store, alarm, log, config.consensus_manager_config, _key_store, _validator)
+    , _batchblock_consensus_manager(service, store, alarm, log, 
+            config.consensus_manager_config, _key_store, _validator)
+    , _microblock_consensus_manager(service, store, alarm, log, 
+            config.consensus_manager_config, _key_store, _validator)
     , _consensus_netio_manager(
         {
             {ConsensusType::BatchStateBlock, _batchblock_consensus_manager},
@@ -33,7 +35,10 @@ ConsensusContainer::ConsensusContainer(Service & service,
 {
 }
 
-logos::process_return ConsensusContainer::OnSendRequest(std::shared_ptr<logos::state_block> block, bool should_buffer)
+logos::process_return 
+ConsensusContainer::OnSendRequest(
+    std::shared_ptr<logos::state_block> block, 
+    bool should_buffer)
 {
     logos::process_return result;
 
@@ -46,22 +51,28 @@ logos::process_return ConsensusContainer::OnSendRequest(std::shared_ptr<logos::s
 	if(should_buffer)
 	{
         result.code = logos::process_result::buffered;
-	    _batchblock_consensus_manager.OnBenchmarkSendRequest(static_pointer_cast<RequestMessage<ConsensusType::BatchStateBlock>>(block), result);
+	    _batchblock_consensus_manager.OnBenchmarkSendRequest(
+            static_pointer_cast<RequestMessage<ConsensusType::BatchStateBlock>>(block), result);
 	}
 	else
 	{
-        _batchblock_consensus_manager.OnSendRequest(static_pointer_cast<RequestMessage<ConsensusType::BatchStateBlock>>(block), result);
+        _batchblock_consensus_manager.OnSendRequest(
+            static_pointer_cast<RequestMessage<ConsensusType::BatchStateBlock>>(block), result);
 	}
 
 	return result;
 }
 
-void ConsensusContainer::BufferComplete(logos::process_return & result)
+void 
+ConsensusContainer::BufferComplete(
+    logos::process_return & result)
 {
     _batchblock_consensus_manager.BufferComplete(result);
 }
 
-void ConsensusContainer::StartMicroBlock(std::function<void(MicroBlock&)> cb)
+void 
+ConsensusContainer::StartMicroBlock(
+    std::function<void(MicroBlock&)> cb)
 {
     _microblock_handler.Start(cb);
 }

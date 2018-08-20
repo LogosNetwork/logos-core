@@ -30,7 +30,7 @@ protected:
     using Service     = boost::asio::io_service;
 	using Config      = ConsensusManagerConfig;
     using Log         = boost::log::sources::logger_mt;
-    using Connections = std::vector<std::shared_ptr<IConsensusConnectionOutChannel>>;
+    using Connections = std::vector<std::shared_ptr<ConsensusConnection<consensus_type>>>;
     using Store       = logos::block_store;
 
 public:
@@ -44,7 +44,7 @@ public:
                    MessageValidator & validator);
 
 	void OnSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result);
-	virtual void OnBenchmarkSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result) = 0;
+	virtual void OnBenchmarkSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result) = 0; 
 
     void Send(const void * data, size_t size) override;
 
@@ -56,24 +56,24 @@ protected:
 
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;
 
-	  virtual void ApplyUpdates(const PrePrepareMessage<consensus_type> &, uint8_t delegate_id) = 0;
+	virtual void ApplyUpdates(const PrePrepareMessage<consensus_type> &, uint8_t delegate_id) = 0;
 
     virtual bool Validate(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result) = 0;
 
     void OnConsensusReached() override;
-    virtual uint64_t OnConsensusReached_StoredCount() = 0;
-    virtual bool OnConsensusReached_Ext() = 0;
+    virtual uint64_t OnConsensusReachedStoredCount() = 0;
+    virtual bool OnConsensusReachedExt() = 0;
     void InitiateConsensus();
 
     bool ReadyForConsensus();
-    virtual bool ReadyForConsensus_Ext() { return ReadyForConsensus(); }
+    virtual bool ReadyForConsensusExt() { return ReadyForConsensus(); }
     bool StateReadyForConsensus();
 
     virtual void QueueRequest(std::shared_ptr<RequestMessage<consensus_type>>) = 0;
-    virtual PrePrepareMessage<consensus_type> & PrePrepare_GetNext() = 0;
-    virtual void PrePrepare_PopFront() = 0;
-    virtual bool PrePrepare_QueueEmpty() = 0;
-    virtual bool PrePrepare_QueueFull() = 0;
+    virtual PrePrepareMessage<consensus_type> & PrePrepareGetNext() = 0;
+    virtual void PrePreparePopFront() = 0;
+    virtual bool PrePrepareQueueEmpty() = 0;
+    virtual bool PrePrepareQueueFull() = 0;
 
     Connections        _connections;
     PersistenceManager _persistence_manager;

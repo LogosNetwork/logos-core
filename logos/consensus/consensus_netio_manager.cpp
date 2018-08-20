@@ -48,10 +48,12 @@ ConsensusNetIOManager::ConsensusNetIOManager(ConsensusManagers consensus_manager
         if(_delegate_id < delegate.id)
         {
             std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
-            _connections.push_back(std::make_shared<ConsensusNetIO>(service, endpoint, _alarm,
-                                                                    delegate.id, _key_store, _validator,
-                                                                    std::bind(&ConsensusNetIOManager::BindIOChannel, this, std::placeholders::_1, std::placeholders::_2), 
-                                                                    config.local_address, _connection_mutex));
+            _connections.push_back(std::make_shared<ConsensusNetIO>(
+                service, endpoint, _alarm,
+                delegate.id, _key_store, _validator,
+                std::bind(&ConsensusNetIOManager::BindIOChannel, this, std::placeholders::_1, 
+                    std::placeholders::_2), 
+                config.local_address, _connection_mutex));
         }
         else
         {
@@ -65,7 +67,10 @@ ConsensusNetIOManager::ConsensusNetIOManager(ConsensusManagers consensus_manager
     }
 }
 
-void ConsensusNetIOManager::OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket> socket)
+void 
+ConsensusNetIOManager::OnConnectionAccepted(
+    const Endpoint& endpoint, 
+    std::shared_ptr<Socket> socket)
 {
     auto entry = std::find_if(_delegates.begin(), _delegates.end(),
                               [&](const Config::Delegate & delegate){
@@ -75,12 +80,17 @@ void ConsensusNetIOManager::OnConnectionAccepted(const Endpoint& endpoint, std::
     assert(entry != _delegates.end());
 
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
-    _connections.push_back(std::make_shared<ConsensusNetIO>(socket, endpoint, _alarm, entry->id, _key_store, _validator,
-        std::bind(&ConsensusNetIOManager::BindIOChannel, this, std::placeholders::_1, std::placeholders::_2),
+    _connections.push_back(std::make_shared<ConsensusNetIO>(socket, endpoint, _alarm, 
+        entry->id, _key_store, _validator,
+        std::bind(&ConsensusNetIOManager::BindIOChannel, this, std::placeholders::_1, 
+            std::placeholders::_2),
         _connection_mutex));
 }
 
-void ConsensusNetIOManager::BindIOChannel(std::shared_ptr<ConsensusNetIO> netio, uint8_t remote_delegate_id)
+void 
+ConsensusNetIOManager::BindIOChannel(
+    std::shared_ptr<ConsensusNetIO> netio, 
+    uint8_t remote_delegate_id)
 {
     std::lock_guard<std::recursive_mutex> lock(_bind_mutex);
     DelegateIdentities ids{_delegate_id, remote_delegate_id};

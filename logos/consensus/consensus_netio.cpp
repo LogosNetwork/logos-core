@@ -34,7 +34,8 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
         , _io_channel_binder(iobinder)
         , _connection_mutex(connection_mutex)
 {
-    BOOST_LOG(_log) << "ConsensusNetIO - Trying to connect to: " << _endpoint << " remote delegate id " << (int)remote_delegate_id;
+    BOOST_LOG(_log) << "ConsensusNetIO - Trying to connect to: " << 
+        _endpoint << " remote delegate id " << (int)remote_delegate_id;
     Connect(local_ip);
 }
 
@@ -60,13 +61,18 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
     OnConnect("");
 }
 
-void ConsensusNetIO::Connect(std::string local_ip)
+void 
+ConsensusNetIO::Connect(
+    std::string local_ip)
 {
     _socket->async_connect(_endpoint,
                            [this, local_ip](ErrorCode const & ec) { OnConnect(ec, local_ip); });
 }
 
-void ConsensusNetIO::Send(const void *data, size_t size)
+void 
+ConsensusNetIO::Send(
+    const void *data, 
+    size_t size)
 {
     // multiple threads can send at the same time
     // TODO - MUST IMPLMENT ASYNC_WRITE + QUEUE
@@ -89,7 +95,9 @@ void ConsensusNetIO::Send(const void *data, size_t size)
     }
 }
 
-void ConsensusNetIO::OnConnect(std::string local_ip)
+void 
+ConsensusNetIO::OnConnect(
+    std::string local_ip)
 {
     BOOST_LOG(_log) << "ConsensusConnection - Connected to "
                     << _endpoint << ". Remote delegate id: "
@@ -111,7 +119,10 @@ void ConsensusNetIO::OnConnect(std::string local_ip)
     ReadPrequel();
 }
 
-void ConsensusNetIO::OnConnect(ErrorCode const & ec, std::string local_ip)
+void 
+ConsensusNetIO::OnConnect(
+    ErrorCode const & ec, 
+    std::string local_ip)
 {
     if(ec)
     {
@@ -131,14 +142,16 @@ void ConsensusNetIO::OnConnect(ErrorCode const & ec, std::string local_ip)
     OnConnect(local_ip);
 }
 
-void ConsensusNetIO::SendKeyAdvertisement()
+void 
+ConsensusNetIO::SendKeyAdvertisement()
 {
     KeyAdvertisement advert;
     advert.public_key = _validator.GetPublicKey();
     Send(advert);
 }
 
-void ConsensusNetIO::ReadPrequel()
+void 
+ConsensusNetIO::ReadPrequel()
 {
     boost::asio::async_read(*_socket, boost::asio::buffer(_receive_buffer.data(),
                                                           sizeof(Prequel)),
@@ -147,12 +160,18 @@ void ConsensusNetIO::ReadPrequel()
                                       std::placeholders::_2));
 }
 
-void ConsensusNetIO::AsyncRead(boost::asio::mutable_buffer buffer, std::function<void(boost::system::error_code const &, size_t)> cb)
+void 
+ConsensusNetIO::AsyncRead(
+    boost::asio::mutable_buffer buffer, 
+    std::function<void(boost::system::error_code const &, size_t)> cb)
 {
     boost::asio::async_read(*_socket, buffer, cb);
 }
 
-void ConsensusNetIO::OnData(ErrorCode const & ec, size_t size)
+void 
+ConsensusNetIO::OnData(
+    ErrorCode const & ec, 
+    size_t size)
 {
     ConsensusType consensus_type (static_cast<ConsensusType> (_receive_buffer.data()[2]));
     MessageType message_type (static_cast<MessageType> (_receive_buffer.data()[1]));
@@ -161,7 +180,8 @@ void ConsensusNetIO::OnData(ErrorCode const & ec, size_t size)
     {
         if (message_type != MessageType::Key_Advert)
         {
-            BOOST_LOG(_log) << "ConsensusNetIO - unexpected message type for consensus Any " << _receive_buffer.data()[2];
+            BOOST_LOG(_log) << "ConsensusNetIO - unexpected message type for consensus Any " << 
+                               _receive_buffer.data()[2];
             return;
         }
         else
@@ -185,7 +205,10 @@ void ConsensusNetIO::OnData(ErrorCode const & ec, size_t size)
     }
 }
  
-void ConsensusNetIO::OnPublicKey(ErrorCode const & ec, size_t size)
+void 
+ConsensusNetIO::OnPublicKey(
+    ErrorCode const & ec, 
+    size_t size)
 {
     if(ec)
     {
@@ -203,14 +226,18 @@ void ConsensusNetIO::OnPublicKey(ErrorCode const & ec, size_t size)
     ReadPrequel();
 }
 
-void ConsensusNetIO::AddConsensusConnection(ConsensusType t, std::shared_ptr<IConsensusConnection> consensus_connection)
+void 
+ConsensusNetIO::AddConsensusConnection(
+    ConsensusType t, 
+    std::shared_ptr<IConsensusConnection> consensus_connection)
 {
     BOOST_LOG(_log) << "ConsensusNetIO - Added consensus connection " << ConsensusToName(t) << ' ' <<
             (int)(static_cast<uint8_t>(t)) << ' ' << (int)_remote_delegate_id;
     _consensus_connections[(int)static_cast<uint8_t>(t)] = consensus_connection;
 }
 
-void ConsensusNetIO::AdjustSocket()
+void 
+ConsensusNetIO::AdjustSocket()
 {
     boost::asio::socket_base::receive_buffer_size receive_option(12108864);
     boost::asio::socket_base::send_buffer_size send_option(12108864);
@@ -218,4 +245,3 @@ void ConsensusNetIO::AdjustSocket()
     _socket->set_option(receive_option);
     _socket->set_option(send_option);
 }
-

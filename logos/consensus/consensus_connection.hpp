@@ -34,16 +34,8 @@ public:
   virtual void OnPrequel(boost::system::error_code const & ec, const uint8_t *data, size_t size) = 0;
 };
 
-// ConsensusConnection's Interface to ConnectionManager
-class IConsensusConnectionOutChannel {
-public:
-  IConsensusConnectionOutChannel() {}
-  virtual ~IConsensusConnectionOutChannel() {}
-  virtual void Send(const void *, size_t) = 0;
-};
-
 template<ConsensusType consensus_type>
-class ConsensusConnection : public IConsensusConnection, public IConsensusConnectionOutChannel
+class ConsensusConnection : public IConsensusConnection
 {
 protected:
 
@@ -62,7 +54,7 @@ public:
 	                    MessageValidator & validator,
 	                    const DelegateIdentities & ids);
 
-	virtual void Send(const void * data, size_t size) override;
+	void Send(const void * data, size_t size);
 
     template<typename TYPE>
     void Send(const TYPE & data)
@@ -80,7 +72,7 @@ protected:
 
     using ReceiveBuffer = std::array<uint8_t, BUFFER_SIZE>;
 
-    virtual void ApplyUpdates(const PrePrepareMessage<consensus_type> &, uint8_t delegate_id) = 0;
+    void ApplyUpdates(const PrePrepareMessage<consensus_type> &, uint8_t delegate_id);
 
     void OnData(boost::system::error_code const & ec, size_t size);
     void OnMessage(boost::system::error_code const & ec, size_t size);
@@ -96,7 +88,7 @@ protected:
 
     template<typename MSG>
     bool Validate(const MSG & message);
-    virtual bool Validate(const PrePrepareMessage<consensus_type> & message) = 0;
+    bool Validate(const PrePrepareMessage<consensus_type> & message);
 
     template<typename MSG>
     bool ProceedWithMessage(const MSG & message, ConsensusState expected_state);
@@ -126,6 +118,3 @@ protected:
     ConsensusState                     _state     = ConsensusState::VOID;
     bool                               _connected = false;
 };
-
-template<ConsensusType consensus_type, typename Type = void>
-struct ConsensusConnectionT;

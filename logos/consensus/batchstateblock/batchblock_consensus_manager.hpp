@@ -13,7 +13,6 @@
 #pragma once
 
 #include <logos/consensus/consensus_manager.hpp>
-#include <logos/consensus/batchstateblock/batchblock_consensus_connection.hpp>
 #include <logos/consensus/request_handler.hpp>
 
 //!< BatckBlockConsensusManager handles specifics of BatchBlock consensus
@@ -21,7 +20,7 @@ class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchSt
 {
 
 		//!< Aliases
-    using BlockBuffer      	  = std::list<std::shared_ptr<RequestMessage<ConsensusType::BatchStateBlock>>>;
+    using BlockBuffer = std::list<std::shared_ptr<RequestMessage<ConsensusType::BatchStateBlock>>>;
 public:
 
 	//!< Class constructor
@@ -55,7 +54,7 @@ public:
 		\param block state block
 		\param result result of the operation
 	*/
-	virtual void OnBenchmarkSendRequest(std::shared_ptr<RequestMessage<ConsensusType::BatchStateBlock>> block, logos::process_return & result) override;
+	void OnBenchmarkSendRequest(std::shared_ptr<RequestMessage<ConsensusType::BatchStateBlock>> block, logos::process_return & result) override;
 
 	//!< Indicates that the buffering is complete
 	/*!
@@ -70,28 +69,28 @@ protected:
 		\param block the batch block to commit to the database
 		\param delegate_id delegate id
 	*/
-	virtual void ApplyUpdates(const PrePrepareMessage<ConsensusType::BatchStateBlock> &block, uint8_t delegate_id) override;
+	void ApplyUpdates(const PrePrepareMessage<ConsensusType::BatchStateBlock> &block, uint8_t delegate_id) override;
 
 	//! Checks if consensus have to be initiated
 	/*!
 	  The extended override does additional processing if _using_buffered_blocks is true
 		\return true if ready false otherwise
 	*/
-	virtual bool ReadyForConsensus_Ext() override;
+	bool ReadyForConsensusExt() override;
 
 	//! Returns number of stored blocks
 	/*!
 		Benchmarking related
 		\return number of stored blocks
 	*/
-  virtual uint64_t OnConsensusReached_StoredCount() override;
+  uint64_t OnConsensusReachedStoredCount() override;
 
 	//! Sends buffered blocks 
 	/*!
 		Benchmark related
 		\return true if using buffered blocks
 	*/
-  virtual bool OnConsensusReached_Ext() override;
+  bool OnConsensusReachedExt() override;
 
 	//! Validates state block
 	/*!
@@ -99,7 +98,9 @@ protected:
 		\param result of the validation
 		\return true if validated false otherwise
 	*/
-	virtual bool Validate(std::shared_ptr<RequestMessage<ConsensusType::BatchStateBlock>> block, logos::process_return & result) override;
+	bool Validate(
+		std::shared_ptr<RequestMessage<ConsensusType::BatchStateBlock>> block, 
+		logos::process_return & result) override;
 
 	//!< Sends buffered blocks
 	/*!
@@ -111,28 +112,29 @@ protected:
 	/*!
 		Queues state block
 	*/
-	virtual void QueueRequest(std::shared_ptr<RequestMessage<ConsensusType::BatchStateBlock>>) override;
+	void QueueRequest(
+		std::shared_ptr<RequestMessage<ConsensusType::BatchStateBlock>>) override;
 
 	//!< Gets next available BatchStateBlock
 	/*!
 		\return reference to BatchStateBlock
 	*/
-  virtual PrePrepareMessage<ConsensusType::BatchStateBlock> & PrePrepare_GetNext() override;
+  PrePrepareMessage<ConsensusType::BatchStateBlock> & PrePrepareGetNext() override;
 
 	//!< Pops the BatchStateBlock from the queue
-  virtual void PrePrepare_PopFront() override;
+  void PrePreparePopFront() override;
 
 	//!< Checks if the BatchStateBlock queue is empty
 	/*!
 		\return true if empty false otherwise
 	*/
-  virtual bool PrePrepare_QueueEmpty() override;
+  bool PrePrepareQueueEmpty() override;
 
 	//!< Checks if the BatchStateBlock queue is full
 	/*!
 		\return true if full false otherwise
 	*/
-  virtual bool PrePrepare_QueueFull() override;
+  bool PrePrepareQueueFull() override;
 
 private:
 

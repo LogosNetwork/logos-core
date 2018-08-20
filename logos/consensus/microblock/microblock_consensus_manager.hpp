@@ -14,7 +14,6 @@
 
 
 #include <logos/consensus/consensus_manager.hpp>
-#include <logos/consensus/microblock/microblock_consensus_connection.hpp>
 
 //!< MicroBlockConsensusManager handles specifics of MicroBlock consensus
 class MicroBlockConsensusManager: public ConsensusManager<ConsensusType::MicroBlock>
@@ -39,7 +38,8 @@ public:
 					           const Config & config,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator)
-		: ConsensusManager<ConsensusType::MicroBlock>(service, store, alarm, log, config, key_store, validator)
+		: ConsensusManager<ConsensusType::MicroBlock>(
+			service, store, alarm, log, config, key_store, validator)
 	{
 	}
 
@@ -52,7 +52,9 @@ public:
 		\param block state block
 		\param result result of the operation
 	*/
-    virtual void OnBenchmarkSendRequest(std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>>, logos::process_return & ) override;
+    void OnBenchmarkSendRequest(
+		std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>>, 
+		logos::process_return & ) override;
 
 protected:
     //! Commit to the store
@@ -61,21 +63,23 @@ protected:
 		\param block the micro block to commit to the database
 		\param delegate_id delegate id
 	*/
-	virtual void ApplyUpdates(const PrePrepareMessage<ConsensusType::MicroBlock> &, uint8_t delegate_id) override;
+	void ApplyUpdates(
+		const PrePrepareMessage<ConsensusType::MicroBlock> &, 
+		uint8_t delegate_id) override;
 
     //! Returns number of stored blocks
 	/*!
 		Benchmarking related
 		\return number of stored blocks
 	*/
-    virtual uint64_t OnConsensusReached_StoredCount() override;
+    uint64_t OnConsensusReachedStoredCount() override;
 
     //! Sends buffered blocks 
 	/*!
 		Benchmark related
 		\return true if using buffered blocks
 	*/
-    virtual bool OnConsensusReached_Ext() override;
+    bool OnConsensusReachedExt() override;
 
     //! Validates state block
 	/*!
@@ -83,34 +87,36 @@ protected:
 		\param result of the validation
 		\return true if validated false otherwise
 	*/
-	virtual bool Validate(std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>> block, logos::process_return & result) override;
+	bool Validate(
+		std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>> block, 
+		logos::process_return & result) override;
 
     //!< Queues request message
 	/*!
 		Queues micro block
 	*/
-	virtual void QueueRequest(std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>>) override;
+	void QueueRequest(std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>>) override;
 
     //!< Gets next available MicroBlock
 	/*!
 		\return reference to MicroBlock
 	*/
-    virtual PrePrepareMessage<ConsensusType::MicroBlock> & PrePrepare_GetNext() override;
+    PrePrepareMessage<ConsensusType::MicroBlock> & PrePrepareGetNext() override;
 
     //!< Pops the MicroBlock from the queue
-    virtual void PrePrepare_PopFront() override;
+    void PrePreparePopFront() override;
 
     //!< Checks if the MicroBlock queue is empty
 	/*!
 		\return true if empty false otherwise
 	*/
-    virtual bool PrePrepare_QueueEmpty() override;
+    bool PrePrepareQueueEmpty() override;
 
     //!< Checks if the MicroBlock queue is full
 	/*!
 		\return true if full false otherwise
 	*/
-    virtual bool PrePrepare_QueueFull() override;
+    bool PrePrepareQueueFull() override;
 
 private:
     std::shared_ptr<PrePrepareMessage<ConsensusType::MicroBlock>>  _cur_microblock; //!< Currently handled microblock
