@@ -298,6 +298,8 @@ SET (LOGOS_LIB_SOURCES
 	logos/lib/blocks.hpp
 	logos/lib/interface.cpp
 	logos/lib/interface.h
+	logos/lib/merkle.cpp
+	logos/lib/merkle.hpp
 	logos/lib/numbers.cpp
 	logos/lib/numbers.hpp
 	logos/lib/utility.cpp
@@ -311,15 +313,23 @@ add_library (logos_lib_static STATIC ${LOGOS_LIB_SOURCES})
 add_library (node
 	${PLATFORM_NODE_SOURCE}
 	${SECURE_RPC_SOURCE}
+	logos/consensus/batchstateblock/batchblock_consensus_connection.cpp
+	logos/consensus/batchstateblock/batchblock_consensus_manager.cpp
 	logos/consensus/consensus_connection.cpp
+	logos/consensus/consensus_container.cpp
 	logos/consensus/consensus_manager.cpp
+	logos/consensus/consensus_netio.cpp
+	logos/consensus/consensus_netio_manager.cpp
 	logos/consensus/message_validator.cpp
 	logos/consensus/messages/messages.cpp
+	logos/consensus/microblock/microblock_consensus_connection.cpp
+	logos/consensus/microblock/microblock_consensus_manager.cpp
 	logos/consensus/peer_acceptor.cpp
 	logos/consensus/persistence/persistence_manager.cpp
 	logos/consensus/primary_delegate.cpp
 	logos/consensus/request_handler.cpp
 	logos/consensus/delegate_key_store.cpp
+	logos/microblock/microblock.cpp
 	logos/node/bootstrap.cpp
 	logos/node/bootstrap.hpp
 	logos/node/common.cpp
@@ -417,3 +427,4 @@ target_link_libraries (logos_core node secure lmdb ed25519 ${BLS_libs} logos_lib
 set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE)
 
 include (CPack)
+#add_definitions (-DMULTI_IP)

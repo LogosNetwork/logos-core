@@ -2,71 +2,32 @@
 
 #include <logos/node/node.hpp>
 
-constexpr uint8_t ConsensusManager::BATCH_TIMEOUT_DELAY;
+template<ConsensusType consensus_type>
+constexpr uint8_t ConsensusManager<consensus_type>::BATCH_TIMEOUT_DELAY;
 
-ConsensusManager::ConsensusManager(Service & service,
+template<ConsensusType consensus_type>
+ConsensusManager<consensus_type>::ConsensusManager(Service & service,
                                    Store & store,
                                    logos::alarm & alarm,
                                    Log & log,
-                                   const Config & config)
-    : PrimaryDelegate(_validator)
-    , _client(Endpoint(boost::asio::ip::make_address_v4(config.callback_address),
-                       config.callback_port),
-              service)
-    , _delegates(config.delegates)
+                                   const Config & config,
+                                   DelegateKeyStore & key_store,
+                                   MessageValidator & validator)
+    : PrimaryDelegate(validator)
     , _persistence_manager(store, log)
-    , _validator(_key_store)
+    , _key_store(key_store)
+	, _validator(validator)
     , _alarm(alarm)
-    , _peer_acceptor(service, log,
-                     Endpoint(boost::asio::ip::make_address_v4(config.local_address),
-                              config.peer_port),
-                     this)
     , _delegate_id(config.delegate_id)
 {
-    std::set<Address> server_endpoints;
-
-    auto local_endpoint(Endpoint(boost::asio::ip::make_address_v4(config.local_address),
-                        config.peer_port));
-
-    _key_store.OnPublicKey(_delegate_id, _validator.GetPublicKey());
-
-    for(auto & delegate : _delegates)
-    {
-        auto endpoint = Endpoint(boost::asio::ip::make_address_v4(delegate.ip),
-                                 local_endpoint.port());
-
-        if(delegate.id == _delegate_id)
-        {
-            continue;
-        }
-
-        if(_delegate_id < delegate.id)
-        {
-            ConsensusConnection::DelegateIdentities ids{_delegate_id, delegate.id};
-
-            std::lock_guard<std::mutex> lock(_connection_mutex);
-            _connections.push_back(
-                    std::make_shared<ConsensusConnection>(service, alarm, endpoint,
-                                                          this, _persistence_manager,
-                                                          _key_store,_validator, ids));
-        }
-        else
-        {
-            server_endpoints.insert(endpoint.address());
-        }
-    }
-
-    if(server_endpoints.size())
-    {
-        _peer_acceptor.Start(server_endpoints);
-    }
 }
 
-void ConsensusManager::OnSendRequest(std::shared_ptr<logos::state_block> block, logos::process_return & result)
+template<ConsensusType consensus_type>
+void ConsensusManager<consensus_type>::OnSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    BOOST_LOG(_log) << "ConsensusManager::OnSendRequest() - hash: " << block->hash().to_string();
+    BOOST_LOG (_log) << "ConsensusManager<consensus_type>::OnSendRequest() - hash: " << block->hash().to_string();
 
     if(!Validate(block, result))
     {
@@ -76,42 +37,16 @@ void ConsensusManager::OnSendRequest(std::shared_ptr<logos::state_block> block, 
         return;
     }
 
-    _handler.OnRequest(block);
+    QueueRequest(block);
 
-    if(ReadyForConsensus())
+    if(ReadyForConsensusExt())
     {
         InitiateConsensus();
     }
 }
 
-void ConsensusManager::OnBenchmarkSendRequest(std::shared_ptr<logos::state_block> block, logos::process_return & result)
-{
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-
-    BOOST_LOG(_log) << "ConsensusManager::OnBenchmarkSendRequest() - hash: " << block->hash().to_string();
-
-    _using_buffered_blocks = true;
-    _buffer.push_back(block);
-}
-
-void ConsensusManager::OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket> socket)
-{
-    auto entry = std::find_if(_delegates.begin(), _delegates.end(),
-                              [&](const Config::Delegate & delegate){
-                                  return delegate.ip == endpoint.address().to_string();
-                              });
-
-    assert(entry != _delegates.end());
-
-    ConsensusConnection::DelegateIdentities ids{_delegate_id, entry->id};
-
-    std::lock_guard<std::mutex> lock(_connection_mutex);
-    _connections.push_back(std::make_shared<ConsensusConnection>(socket, _alarm, endpoint,
-                                                                 this, _persistence_manager,
-                                                                 _key_store,_validator, ids));
-}
-
-void ConsensusManager::Send(const void * data, size_t size)
+template<ConsensusType consensus_type>
+void ConsensusManager<consensus_type>::Send(const void * data, size_t size)
 {
     std::lock_guard<std::mutex> lock(_connection_mutex);
 
@@ -121,96 +56,66 @@ void ConsensusManager::Send(const void * data, size_t size)
     }
 }
 
-bool ConsensusManager::Validate(std::shared_ptr<logos::state_block> block, logos::process_return & result)
+template<ConsensusType consensus_type>
+void ConsensusManager<consensus_type>::OnConsensusReached()
 {
-	if(logos::validate_message(block->hashables.account, block->hash(), block->signature))
-	{
-        BOOST_LOG(_log) << "ConsensusManager - Validate, bad signature: " << block->signature.to_string()
-		                << " account: " << block->hashables.account.to_string();
-
-        result.code = logos::process_result::bad_signature;
-        return false;
-	}
-
-    return _persistence_manager.Validate(*block, result, _delegate_id);
-}
-
-void ConsensusManager::OnConsensusReached()
-{
-    _persistence_manager.ApplyUpdates(_handler.GetNextBatch(), _delegate_id);
+    ApplyUpdates(PrePrepareGetNext(), _delegate_id);
 
     // Helpful for benchmarking
     //
     {
         static uint64_t messages_stored = 0;
-        messages_stored += _handler.GetNextBatch().block_count;
+        messages_stored += OnConsensusReachedStoredCount();
         BOOST_LOG(_log) << "ConsensusManager - Stored " << messages_stored << " blocks.";
     }
 
-    _client.OnBatchBlock(_handler.GetNextBatch());
+    PrePreparePopFront();
 
-    _handler.PopFront();
-
-    if(_using_buffered_blocks)
+    if(OnConsensusReachedExt())
     {
-        SendBufferedBlocks();
         return;
     }
 
-    if(!_handler.Empty())
+    if(!PrePrepareQueueEmpty())
     {
         InitiateConsensus();
     }
 }
 
-void ConsensusManager::InitiateConsensus()
+template<ConsensusType consensus_type>
+void ConsensusManager<consensus_type>::InitiateConsensus()
 {
-    auto & batch = _handler.GetNextBatch();
+    auto & pre_prepare = PrePrepareGetNext();
 
-    OnConsensusInitiated(batch);
+    OnConsensusInitiated(pre_prepare);
 
-    _validator.Sign(batch);
-    Send(&batch, sizeof(BatchStateBlock));
+    _validator.Sign(pre_prepare);
+    Send(&pre_prepare, sizeof(PrePrepareMessage<consensus_type>));
 
     _state = ConsensusState::PRE_PREPARE;
 }
 
-bool ConsensusManager::ReadyForConsensus()
+template<ConsensusType consensus_type>
+bool ConsensusManager<consensus_type>::ReadyForConsensus()
 {
-    if(_using_buffered_blocks)
-    {
-        return StateReadyForConsensus() && (_handler.BatchFull() ||
-                                           (_buffer.empty() && !_handler.Empty()));
-    }
-
-    return StateReadyForConsensus() && !_handler.Empty();
+    return StateReadyForConsensus() && !PrePrepareQueueEmpty();
 }
 
-bool ConsensusManager::StateReadyForConsensus()
+template<ConsensusType consensus_type>
+bool ConsensusManager<consensus_type>::StateReadyForConsensus()
 {
     return _state == ConsensusState::VOID || _state == ConsensusState::POST_COMMIT;
 }
 
-void ConsensusManager::SendBufferedBlocks()
+template<ConsensusType consensus_type>
+std::shared_ptr<IConsensusConnection> ConsensusManager<consensus_type>::BindIOChannel(std::shared_ptr<IIOChannel> iochannel, const DelegateIdentities & ids)
 {
-    logos::process_return unused;
-
-    for(uint64_t i = 0; _buffer.size() && i < CONSENSUS_BATCH_SIZE; ++i)
-    {
-        OnSendRequest(_buffer.front(), unused);
-        _buffer.pop_front();
-    }
-
-    if(!_buffer.size())
-    {
-        BOOST_LOG(_log) << "ConsensusManager - No more buffered blocks for consensus" << std::endl;
-    }
+    auto consensus_connection = std::make_shared<ConsensusConnection<consensus_type>>(iochannel, _alarm,
+                                                   this, _persistence_manager,
+                                                   _key_store, _validator, ids);
+    _connections.push_back(consensus_connection);
+    return consensus_connection;
 }
 
-void ConsensusManager::BufferComplete(logos::process_return & result)
-{
-    BOOST_LOG(_log) << "Buffered " << _buffer.size() << " blocks.";
-
-    result.code = logos::process_result::buffering_done;
-    SendBufferedBlocks();
-}
+template class ConsensusManager<ConsensusType::BatchStateBlock>;
+template class ConsensusManager<ConsensusType::MicroBlock>;

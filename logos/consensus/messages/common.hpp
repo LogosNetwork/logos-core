@@ -25,6 +25,17 @@ enum class MessageType : uint8_t
     Unknown
 };
 
+// Consensus type has to be sequential
+ // because it is also an index.
+enum class ConsensusType : uint8_t
+{
+    BatchStateBlock = 0,
+    MicroBlock = 1,
+    Any = 2
+};
+ // The number of types excluding Any
+const uint8_t NumberOfConsensus = 2; 
+
 static const size_t NUM_DELEGATES           = 32;
 static const size_t CONSENSUS_HASH_SIZE     = 32;
 static const size_t CONSENSUS_SIG_SIZE      = 32;
@@ -48,31 +59,29 @@ inline uint64_t GetStamp()
                 system_clock::now().time_since_epoch()).count();
 }
 
-template<MessageType type_param>
+template<MessageType type_param, ConsensusType consensus_param>
 struct MessagePrequel
 {
-    static const size_t PADDING_SIZE = 6;
-
-    const uint8_t     version           = 0;
-    const MessageType type              = type_param;
-    const uint8_t     pad[PADDING_SIZE] = {0,0,0,0,0,0}; // FIXME Do not use manual padding
+	static const size_t PADDING_SIZE = 5;
+    const uint8_t     version = 0;
+    const MessageType type = type_param;
+    const ConsensusType consensus_type = consensus_param;
+	const uint8_t     pad[PADDING_SIZE] = {0,0,0,0,0}; // FIXME Do not use manual padding
 };
 
-template<MessageType type>
-struct MessageHeader : MessagePrequel<type>
+template<MessageType type, ConsensusType consensus>
+struct MessageHeader : MessagePrequel<type, consensus>
 {
     MessageHeader(uint64_t timestamp)
         : timestamp(timestamp)
-        , hash(0)
     {}
 
     MessageHeader()
         : timestamp(GetStamp())
-        , hash(0)
     {}
 
     uint64_t  timestamp;
     BlockHash hash;
 };
 
-using Prequel = MessagePrequel<MessageType::Unknown>;
+using Prequel = MessagePrequel<MessageType::Unknown, ConsensusType::Any>;

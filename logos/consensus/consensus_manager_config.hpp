@@ -38,7 +38,9 @@ struct ConsensusManagerConfig
         try
         {
             peer_port = std::stoul(tree.get<std::string>("peer_port"));
+          
             callback_port = std::stoul(tree.get<std::string>("callback_port"));
+
             delegate_id = std::stoul(tree.get<std::string>("delegate_id"));
         }
         catch(std::logic_error const &)

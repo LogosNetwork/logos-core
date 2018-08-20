@@ -57,6 +57,12 @@ void PeerAcceptor::OnAccept(boost::system::error_code const & ec, std::shared_pt
        return;
     }
 
+#ifdef MULTI_IP
+    char buff[16];
+    boost::asio::read(*socket, boost::asio::buffer(buff,sizeof(buff)));
+    _accepted_endpoint.address(boost::asio::ip::make_address_v4(buff));
+#endif
+
     BOOST_LOG (_log) << "PeerAcceptor - Connection accepted from "
                      << _accepted_endpoint;
 

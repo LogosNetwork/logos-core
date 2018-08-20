@@ -165,6 +165,44 @@ bool logos::store_iterator::operator!= (logos::store_iterator const & other_a) c
 	return !(*this == other_a);
 }
 
+template<typename T>
+void logos::block_store::put(MDB_dbi &db, const mdb_val &key, const T &t, MDB_txn *transaction)
+{
+
+    auto status(mdb_put(transaction, db, key, mdb_val(sizeof(T),
+                                const_cast<T *>(&t)), 0));
+
+    assert(status == 0);
+}
+
+template<typename T>
+logos::block_hash logos::block_store::put(MDB_dbi &db, const T &t, MDB_txn *transaction)
+{
+    auto key = t.Hash();
+    put<T>(db, key, t, transaction);
+    return key;
+}
+
+template<typename T>
+bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, T &t)
+{
+    logos::mdb_val value;
+    logos::transaction transaction(environment, nullptr, false);
+
+    auto status (mdb_get (transaction, db, key, value));
+    assert (status == 0 || status == MDB_NOTFOUND);
+    bool result = false;
+    if (status == MDB_NOTFOUND)
+    {
+        result = true;
+    }
+    else
+    {
+    memcpy((void*)&t, (void*)reinterpret_cast<T*> (value.data ()), value.size());
+    }
+  return result;
+}
+
 logos::store_iterator logos::block_store::block_info_begin (MDB_txn * transaction_a, logos::block_hash const & hash_a)
 {
 	logos::store_iterator result (transaction_a, blocks_info, logos::mdb_val (hash_a));
@@ -243,6 +281,10 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "account_db", MDB_CREATE, &account_db) != 0;
         error_a |= mdb_dbi_open (transaction, "receive_db", MDB_CREATE, &receive_db) != 0;
         error_a |= mdb_dbi_open (transaction, "batch_tips_db", MDB_CREATE, &batch_tips_db) != 0;
+
+		// microblock-prototype
+        error_a |= mdb_dbi_open (transaction, "micro_block_db", MDB_CREATE, &micro_block_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "micro_block_tip_db", MDB_CREATE, &micro_block_tip_db) != 0;
 
 		error_a |= mdb_dbi_open (transaction, "frontiers", MDB_CREATE, &frontiers) != 0;
 		error_a |= mdb_dbi_open (transaction, "accounts", MDB_CREATE, &accounts) != 0;
@@ -810,6 +852,34 @@ bool logos::block_store::state_block_exists(const block_hash & hash)
     assert (status == 0 || status == MDB_NOTFOUND);
 
     return status == 0;
+}
+
+bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchStateBlock & block)
+{
+  return get<BatchStateBlock>(batch_db, hash, block);
+}
+
+logos::block_hash logos::block_store::micro_block_put(MicroBlock const &block, MDB_txn *transaction)
+{
+    return put<MicroBlock>(micro_block_db, block, transaction);
+}
+
+bool logos::block_store::micro_block_get(logos::block_hash &hash, MicroBlock &block)
+{
+  return get<MicroBlock>(micro_block_db, mdb_val(hash), block);
+}
+
+void logos::block_store::micro_block_tip_put(const block_hash& hash, MDB_txn *transaction)
+{
+  const uint8_t key = 0; // only one tip
+    put<block_hash>(micro_block_tip_db, logos::mdb_val(sizeof(key),const_cast<uint8_t*>(&key)), hash, transaction);
+}
+
+bool logos::block_store::micro_block_tip_get(block_hash &hash)
+{
+  const uint8_t i = 0; // only one tip
+  mdb_val key(sizeof(i), const_cast<uint8_t*>(&i));
+  return get<block_hash>(micro_block_tip_db, key, hash);
 }
 
 bool logos::block_store::account_get(logos::account const & account_a, logos::account_info & info_a)

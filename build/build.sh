@@ -237,6 +237,7 @@ fi
 # Build Logos
 echo "Building Logos..."
 cd ${BUILD_DIR}
+
 git submodule update --init --recursive
 cmake -DBOOST_ROOT="$BOOST_ROOT" -DACTIVE_NETWORK="$activeNetwork" -DCMAKE_BUILD_TYPE="$cmakeBuildType" \
     -G "Unix Makefiles" ..\

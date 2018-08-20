@@ -9,70 +9,79 @@
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/request_handler.hpp>
-#include <logos/consensus/peer_acceptor.hpp>
-#include <logos/consensus/peer_manager.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 
-class ConsensusManager : public PeerManager,
-                         public PrimaryDelegate
+class IConsensusManager
+{
+public:
+  IConsensusManager() {}
+  virtual ~IConsensusManager() {}
+  virtual std::shared_ptr<IConsensusConnection> BindIOChannel(std::shared_ptr<IIOChannel>, const DelegateIdentities &) = 0;
+};
+
+template<ConsensusType consensus_type>
+class ConsensusManager : public PrimaryDelegate,
+                         public IConsensusManager
 {
 
+protected:
+
     using Service     = boost::asio::io_service;
-    using Address     = boost::asio::ip::address;
-    using Config      = ConsensusManagerConfig;
+	using Config      = ConsensusManagerConfig;
     using Log         = boost::log::sources::logger_mt;
-    using Connections = std::vector<std::shared_ptr<ConsensusConnection>>;
+    using Connections = std::vector<std::shared_ptr<ConsensusConnection<consensus_type>>>;
     using Store       = logos::block_store;
-    using BlockBuffer = std::list<std::shared_ptr<logos::state_block>>;
-    using Delegates   = std::vector<Config::Delegate>;
 
 public:
 
-    ConsensusManager(Service & service,
-		             Store & store,
-		             logos::alarm & alarm,
-		             Log & log,
-		             const Config & config);
+	ConsensusManager(Service & service,
+	                 Store & store,
+	                 logos::alarm & alarm,
+	                 Log & log,
+					 const Config & config,
+                   DelegateKeyStore & key_store,
+                   MessageValidator & validator);
 
-    void OnSendRequest(std::shared_ptr<logos::state_block> block, logos::process_return & result);
-    void OnBenchmarkSendRequest(std::shared_ptr<logos::state_block> block, logos::process_return & result);
-
-    void OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket> socket) override;
+	void OnSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result);
+	virtual void OnBenchmarkSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result) = 0; 
 
     void Send(const void * data, size_t size) override;
 
     virtual ~ConsensusManager() {}
 
-    void BufferComplete(logos::process_return & result);
+    virtual std::shared_ptr<IConsensusConnection> BindIOChannel(std::shared_ptr<IIOChannel>, const DelegateIdentities &) override;
 
-private:
+protected:
 
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;
 
-    bool Validate(std::shared_ptr<logos::state_block> block, logos::process_return & result);
+	virtual void ApplyUpdates(const PrePrepareMessage<consensus_type> &, uint8_t delegate_id) = 0;
+
+    virtual bool Validate(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result) = 0;
 
     void OnConsensusReached() override;
+    virtual uint64_t OnConsensusReachedStoredCount() = 0;
+    virtual bool OnConsensusReachedExt() = 0;
     void InitiateConsensus();
 
     bool ReadyForConsensus();
+    virtual bool ReadyForConsensusExt() { return ReadyForConsensus(); }
     bool StateReadyForConsensus();
 
-    void SendBufferedBlocks();
+    virtual void QueueRequest(std::shared_ptr<RequestMessage<consensus_type>>) = 0;
+    virtual PrePrepareMessage<consensus_type> & PrePrepareGetNext() = 0;
+    virtual void PrePreparePopFront() = 0;
+    virtual bool PrePrepareQueueEmpty() = 0;
+    virtual bool PrePrepareQueueFull() = 0;
 
-    WalletServerClient _client;
     Connections        _connections;
-    Delegates          _delegates;
-    RequestHandler     _handler;
     PersistenceManager _persistence_manager;
-    DelegateKeyStore   _key_store;
-    MessageValidator   _validator;
-    logos::alarm &     _alarm;
-    PeerAcceptor       _peer_acceptor;
-    BlockBuffer        _buffer;
+    DelegateKeyStore & _key_store;
+    MessageValidator & _validator;
+	logos::alarm &       _alarm;
     std::mutex         _connection_mutex;
     Log                _log;
     uint8_t            _delegate_id;
-    bool               _using_buffered_blocks = false;
 };
 

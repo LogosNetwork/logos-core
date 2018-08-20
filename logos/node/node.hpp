@@ -5,7 +5,7 @@
 #include <logos/node/bootstrap.hpp>
 #include <logos/node/stats.hpp>
 #include <logos/node/wallet.hpp>
-#include <logos/consensus/consensus_manager.hpp>
+#include <logos/consensus/consensus_container.hpp>
 
 #include <condition_variable>
 #include <memory>
@@ -389,6 +389,7 @@ public:
 	static std::chrono::seconds constexpr keepalive_period = std::chrono::seconds (60);
 	static std::chrono::seconds constexpr keepalive_cutoff = keepalive_period * 5;
 	static std::chrono::minutes constexpr wallet_backup_interval = std::chrono::minutes (5);
+	std::chrono::seconds microblock_generation_interval;
 };
 class node_observers
 {
@@ -503,7 +504,7 @@ public:
 	logos::block_arrival block_arrival;
 	//CH logos::online_reps online_reps;
 	logos::stat stats;
-    ConsensusManager _consensus_manager;
+    ConsensusContainer _consensus_container;
 	static double constexpr price_max = 16.0;
 	static double constexpr free_cutoff = 1024.0;
 	static std::chrono::seconds constexpr period = std::chrono::seconds (60);

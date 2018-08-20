@@ -4,7 +4,7 @@
 
 #include <string>
 
-inline std::string MessageToName(MessageType type)
+inline std::string MessageToName(const MessageType & type)
 {
     std::string ret;
 
@@ -31,6 +31,29 @@ inline std::string MessageToName(MessageType type)
         case MessageType::Unknown:
             ret = "Unknown";
             break;
+        default:
+            ret = "Undefined";
+    }
+
+    return ret;
+}
+
+inline std::string ConsensusToName(const ConsensusType & type)
+{
+    std::string ret;
+    switch (type)
+    {
+        case ConsensusType::BatchStateBlock:
+            ret = "BatchStateBlock";
+            break;
+        case ConsensusType::MicroBlock:
+            ret = "BatchStateBlock";
+            break;
+        case ConsensusType::Any:
+            ret = "Any";
+            break;
+        default:
+            ret = "Undefined";
     }
 
     return ret;
@@ -40,4 +63,10 @@ template<typename MSG>
 std::string MessageToName(const MSG & message)
 {
     return MessageToName(message.type);
+}
+
+template<typename MSG>
+std::string ConsensusToName(const MSG & message)
+{
+    return ConsensusToName(message.type);
 }
