@@ -61,15 +61,15 @@ BatchBlockConsensusManager::Validate(
   std::shared_ptr<RequestMessage<ConsensusType::BatchStateBlock>> block, 
   logos::process_return & result)
 {
-	if(logos::validate_message(block->hashables.account, block->hash(), block->signature))
-	{
+    if(logos::validate_message(block->hashables.account, block->hash(), block->signature))
+    {
         BOOST_LOG(_log) << "BatchBlockConsensusManager - Validate, bad signature: " 
           << block->signature.to_string()
-		      << " account: " << block->hashables.account.to_string();
+              << " account: " << block->hashables.account.to_string();
 
         result.code = logos::process_result::bad_signature;
         return false;
-	}
+    }
 
     return _persistence_manager.Validate(*block, result, _delegate_id);
 }

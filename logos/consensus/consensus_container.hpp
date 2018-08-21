@@ -33,7 +33,7 @@ class ConsensusContainer
 {
     //! Aliases
     using Service          = boost::asio::io_service;
-	using Config           = logos::node_config;
+    using Config           = logos::node_config;
     using Log              = boost::log::sources::logger_mt;
     using Store            = logos::block_store;
 public:
@@ -77,7 +77,7 @@ private:
     DelegateKeyStore            _key_store; //!< Delegates public key store
     MessageValidator            _validator; //!< Validator/Signer of consensus messages
     BatchBlockConsensusManager  _batchblock_consensus_manager; //!< Handles batch block consensus handling
-	MicroBlockConsensusManager	_microblock_consensus_manager; //!< Handles micro block consensus handling
+    MicroBlockConsensusManager    _microblock_consensus_manager; //!< Handles micro block consensus handling
     ConsensusNetIOManager       _consensus_netio_manager; //!< Establishes connections between the delegates
     MicroBlockHandler           _microblock_handler; //!< Handles microblock processing
 };

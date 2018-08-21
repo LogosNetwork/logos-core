@@ -122,8 +122,8 @@ void MicroBlockHandler::Start(
         MicroBlock block;
         BuildMicroBlock(block);
         cb(block);
-		return;
-	}); // start microblock processing
+        return;
+    }); // start microblock processing
 }
 
 bool MicroBlockHandler::VerifyMicroBlock(MicroBlock &block)

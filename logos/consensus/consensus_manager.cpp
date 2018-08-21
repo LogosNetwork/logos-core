@@ -16,7 +16,7 @@ ConsensusManager<consensus_type>::ConsensusManager(Service & service,
     : PrimaryDelegate(validator)
     , _persistence_manager(store, log)
     , _key_store(key_store)
-	, _validator(validator)
+    , _validator(validator)
     , _alarm(alarm)
     , _delegate_id(config.delegate_id)
 {

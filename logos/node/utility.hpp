@@ -35,70 +35,70 @@ void open_or_create (std::fstream &, std::string const &);
 template <typename T>
 bool fetch_object (T & object, std::iostream & stream_a)
 {
-	assert (stream_a.tellg () == std::streampos (0) || stream_a.tellg () == std::streampos (-1));
-	assert (stream_a.tellp () == std::streampos (0) || stream_a.tellp () == std::streampos (-1));
-	bool error (false);
-	boost::property_tree::ptree tree;
-	try
-	{
-		boost::property_tree::read_json (stream_a, tree);
-	}
-	catch (std::runtime_error const &)
-	{
-		auto pos (stream_a.tellg ());
-		if (pos != std::streampos (0))
-		{
-			error = true;
-		}
-	}
-	if (!error)
-	{
-		auto updated (false);
-		error = object.deserialize_json (updated, tree);
-	}
-	return error;
+    assert (stream_a.tellg () == std::streampos (0) || stream_a.tellg () == std::streampos (-1));
+    assert (stream_a.tellp () == std::streampos (0) || stream_a.tellp () == std::streampos (-1));
+    bool error (false);
+    boost::property_tree::ptree tree;
+    try
+    {
+        boost::property_tree::read_json (stream_a, tree);
+    }
+    catch (std::runtime_error const &)
+    {
+        auto pos (stream_a.tellg ());
+        if (pos != std::streampos (0))
+        {
+            error = true;
+        }
+    }
+    if (!error)
+    {
+        auto updated (false);
+        error = object.deserialize_json (updated, tree);
+    }
+    return error;
 }
 // Reads a json object from the stream and if was changed, write the object back to the stream
 template <typename T>
 bool fetch_object (T & object, boost::filesystem::path const & path_a, std::fstream & stream_a)
 {
-	bool error (false);
-	logos::open_or_create (stream_a, path_a.string ());
-	if (!stream_a.fail ())
-	{
-		boost::property_tree::ptree tree;
-		try
-		{
-			boost::property_tree::read_json (stream_a, tree);
-		}
-		catch (std::runtime_error const &)
-		{
-			auto pos (stream_a.tellg ());
-			if (pos != std::streampos (0))
-			{
-				error = true;
-			}
-		}
-		if (!error)
-		{
-			auto updated (false);
-			error = object.deserialize_json (updated, tree);
-			if (!error && updated)
-			{
-				stream_a.close ();
-				stream_a.open (path_a.string (), std::ios_base::out | std::ios_base::trunc);
-				try
-				{
-					boost::property_tree::write_json (stream_a, tree);
-				}
-				catch (std::runtime_error const &)
-				{
-					error = true;
-				}
-			}
-		}
-	}
-	return error;
+    bool error (false);
+    logos::open_or_create (stream_a, path_a.string ());
+    if (!stream_a.fail ())
+    {
+        boost::property_tree::ptree tree;
+        try
+        {
+            boost::property_tree::read_json (stream_a, tree);
+        }
+        catch (std::runtime_error const &)
+        {
+            auto pos (stream_a.tellg ());
+            if (pos != std::streampos (0))
+            {
+                error = true;
+            }
+        }
+        if (!error)
+        {
+            auto updated (false);
+            error = object.deserialize_json (updated, tree);
+            if (!error && updated)
+            {
+                stream_a.close ();
+                stream_a.open (path_a.string (), std::ios_base::out | std::ios_base::trunc);
+                try
+                {
+                    boost::property_tree::write_json (stream_a, tree);
+                }
+                catch (std::runtime_error const &)
+                {
+                    error = true;
+                }
+            }
+        }
+    }
+    return error;
 }
 
 /**
@@ -107,10 +107,10 @@ bool fetch_object (T & object, boost::filesystem::path const & path_a, std::fstr
 class mdb_env
 {
 public:
-	mdb_env (bool &, boost::filesystem::path const &, int max_dbs = 128);
-	~mdb_env ();
-	operator MDB_env * () const;
-	MDB_env * environment;
+    mdb_env (bool &, boost::filesystem::path const &, int max_dbs = 128);
+    ~mdb_env ();
+    operator MDB_env * () const;
+    MDB_env * environment;
 };
 
 /**
@@ -119,17 +119,17 @@ public:
 class mdb_val
 {
 public:
-	mdb_val ();
-	mdb_val (MDB_val const &);
-	mdb_val (size_t, void *);
-	mdb_val (logos::uint128_union const &);
-	mdb_val (logos::uint256_union const &);
-	void * data () const;
-	size_t size () const;
-	logos::uint256_union uint256 () const;
-	operator MDB_val * () const;
-	operator MDB_val const & () const;
-	MDB_val value;
+    mdb_val ();
+    mdb_val (MDB_val const &);
+    mdb_val (size_t, void *);
+    mdb_val (logos::uint128_union const &);
+    mdb_val (logos::uint256_union const &);
+    void * data () const;
+    size_t size () const;
+    logos::uint256_union uint256 () const;
+    operator MDB_val * () const;
+    operator MDB_val const & () const;
+    MDB_val value;
 };
 
 /**
@@ -139,10 +139,10 @@ public:
 class transaction
 {
 public:
-	transaction (logos::mdb_env &, MDB_txn *, bool);
-	~transaction ();
-	operator MDB_txn * () const;
-	MDB_txn * handle;
-	logos::mdb_env & environment;
+    transaction (logos::mdb_env &, MDB_txn *, bool);
+    ~transaction ();
+    operator MDB_txn * () const;
+    MDB_txn * handle;
+    logos::mdb_env & environment;
 };
 }

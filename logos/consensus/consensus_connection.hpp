@@ -47,14 +47,14 @@ protected:
 public:
 
     ConsensusConnection(std::shared_ptr<IIOChannel> iochannel,
-	                    logos::alarm & alarm,
+                        logos::alarm & alarm,
                         PrimaryDelegate * primary,
-	                    PersistenceManager & persistence_manager,
+                        PersistenceManager & persistence_manager,
                         DelegateKeyStore & key_store,
-	                    MessageValidator & validator,
-	                    const DelegateIdentities & ids);
+                        MessageValidator & validator,
+                        const DelegateIdentities & ids);
 
-	void Send(const void * data, size_t size);
+    void Send(const void * data, size_t size);
 
     template<typename TYPE>
     void Send(const TYPE & data)
@@ -68,7 +68,7 @@ public:
 
 protected:
 
-	static constexpr uint64_t BUFFER_SIZE         = sizeof(PrePrepareMessage<consensus_type>);
+    static constexpr uint64_t BUFFER_SIZE         = sizeof(PrePrepareMessage<consensus_type>);
 
     using ReceiveBuffer = std::array<uint8_t, BUFFER_SIZE>;
 
