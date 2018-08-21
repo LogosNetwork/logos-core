@@ -28,23 +28,23 @@ class ConsensusManager : public PrimaryDelegate,
 protected:
 
     using Service     = boost::asio::io_service;
-	using Config      = ConsensusManagerConfig;
+    using Config      = ConsensusManagerConfig;
     using Log         = boost::log::sources::logger_mt;
     using Connections = std::vector<std::shared_ptr<ConsensusConnection<consensus_type>>>;
     using Store       = logos::block_store;
 
 public:
 
-	ConsensusManager(Service & service,
-	                 Store & store,
-	                 logos::alarm & alarm,
-	                 Log & log,
-					 const Config & config,
+    ConsensusManager(Service & service,
+                     Store & store,
+                     logos::alarm & alarm,
+                     Log & log,
+                     const Config & config,
                    DelegateKeyStore & key_store,
                    MessageValidator & validator);
 
-	void OnSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result);
-	virtual void OnBenchmarkSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result) = 0; 
+    void OnSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result);
+    virtual void OnBenchmarkSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result) = 0; 
 
     void Send(const void * data, size_t size) override;
 
@@ -56,7 +56,7 @@ protected:
 
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;
 
-	virtual void ApplyUpdates(const PrePrepareMessage<consensus_type> &, uint8_t delegate_id) = 0;
+    virtual void ApplyUpdates(const PrePrepareMessage<consensus_type> &, uint8_t delegate_id) = 0;
 
     virtual bool Validate(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result) = 0;
 
@@ -79,7 +79,7 @@ protected:
     PersistenceManager _persistence_manager;
     DelegateKeyStore & _key_store;
     MessageValidator & _validator;
-	logos::alarm &       _alarm;
+    logos::alarm &       _alarm;
     std::mutex         _connection_mutex;
     Log                _log;
     uint8_t            _delegate_id;

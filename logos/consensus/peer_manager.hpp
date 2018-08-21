@@ -6,14 +6,14 @@ class PeerManager
 {
 protected:
 
-	using Endpoint = boost::asio::ip::tcp::endpoint;
-	using Socket   = boost::asio::ip::tcp::socket;
+    using Endpoint = boost::asio::ip::tcp::endpoint;
+    using Socket   = boost::asio::ip::tcp::socket;
 
 public:
 
-	virtual ~PeerManager() = default;
+    virtual ~PeerManager() = default;
 
-	virtual void OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket>) = 0;
+    virtual void OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket>) = 0;
 };
 
 

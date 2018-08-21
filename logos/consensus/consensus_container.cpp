@@ -42,25 +42,25 @@ ConsensusContainer::OnSendRequest(
 {
     logos::process_return result;
 
-	if(!block)
-	{
-	    result.code = logos::process_result::invalid_block_type;
-	    return result;
-	}
+    if(!block)
+    {
+        result.code = logos::process_result::invalid_block_type;
+        return result;
+    }
 
-	if(should_buffer)
-	{
+    if(should_buffer)
+    {
         result.code = logos::process_result::buffered;
-	    _batchblock_consensus_manager.OnBenchmarkSendRequest(
+        _batchblock_consensus_manager.OnBenchmarkSendRequest(
             static_pointer_cast<RequestMessage<ConsensusType::BatchStateBlock>>(block), result);
-	}
-	else
-	{
+    }
+    else
+    {
         _batchblock_consensus_manager.OnSendRequest(
             static_pointer_cast<RequestMessage<ConsensusType::BatchStateBlock>>(block), result);
-	}
+    }
 
-	return result;
+    return result;
 }
 
 void 

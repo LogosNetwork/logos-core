@@ -7,9 +7,9 @@ namespace logos
 {
 boost::filesystem::path app_path ()
 {
-	auto entry (getpwuid (getuid ()));
-	assert (entry != nullptr);
-	boost::filesystem::path result (entry->pw_dir);
-	return result;
+    auto entry (getpwuid (getuid ()));
+    assert (entry != nullptr);
+    boost::filesystem::path result (entry->pw_dir);
+    return result;
 }
 }
