@@ -219,15 +219,15 @@ void ConsensusNetIO::AsyncReadCb(uint8_t *data, uint size, uint offset, function
         {
             BOOST_LOG(_log) << "ConsensusNetIO::AsyncRead received: " << s << " size " << 
                 size << " offset " << offset << " torecv " << torecv;
-        }
-        offset += torecv;
-        if (offset == size)
-        {
-            cb(ec, size);
-        }
-        else
-        {
-            AsyncReadCb(data, size, offset, cb);
+            offset += torecv;
+            if (offset == size)
+            {
+                cb(ec, size);
+            }
+            else
+            {
+                AsyncReadCb(data, size, offset, cb);
+            }
         }
     });
 
