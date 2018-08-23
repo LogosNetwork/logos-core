@@ -19,6 +19,7 @@
 #include <boost/log/sources/logger.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ip/udp.hpp>
 #include <boost/asio/write.hpp>
 
 #include <functional>
@@ -52,7 +53,7 @@ public:
       \param buffer boost asio buffer to store the read data
       \param cb call back handler
     */
-    virtual void AsyncRead(boost::asio::mutable_buffer buffer, std::function<void(boost::system::error_code const&, size_t)> cb) = 0;
+    virtual void AsyncRead(void*, size_t, std::function<void(const boost::system::error_code &, size_t)> cb) = 0;
     //! Read consensus message's prequel
     virtual void ReadPrequel() = 0;
 };
@@ -67,8 +68,8 @@ public:
 class ConsensusNetIO: public IIOChannel, public std::enable_shared_from_this<ConsensusNetIO> {
     //! Aliases
     using Service   = boost::asio::io_service;
-    using Endpoint  = boost::asio::ip::tcp::endpoint;
-    using Socket    = boost::asio::ip::tcp::socket;
+    using Endpoint  = boost::asio::ip::udp::endpoint;
+    using Socket    = boost::asio::ip::udp::socket;
     using Log       = boost::log::sources::logger_mt;
     using Address   = boost::asio::ip::address;
     using ErrorCode = boost::system::error_code;
@@ -157,7 +158,7 @@ public:
       \param buffer boost asio buffer to store the read data
       \param cb call back handler
     */
-    virtual void AsyncRead(boost::asio::mutable_buffer buffer, std::function<void(boost::system::error_code const &, size_t)>) override;
+    virtual void AsyncRead(void *, size_t, std::function<void(boost::system::error_code const &, size_t)>) override;
 
     //! Change socket read/write buffering options
     void AdjustSocket();
@@ -187,7 +188,7 @@ private:
       \param ec error code
       \param size size of received data
     */
-    void OnData(ErrorCode const & ec, size_t size);
+    void OnData(const ErrorCode & ec, size_t size);
     //! Send public key to the connected peer
     void SendKeyAdvertisement();
     //! Public key callback
@@ -195,7 +196,10 @@ private:
       \param ec error code
       \param size size of received data
     */
-    void OnPublicKey(ErrorCode const & ec, size_t size);
+    void OnPublicKey(const ErrorCode & ec, size_t size);
+
+    void AsyncReadCb(uint8_t *data, uint size, uint offset, function<void(const ErrorCode&, size_t)>);
+    static const uint max_udp_size = 65000;
 
     static constexpr uint8_t  CONNECT_RETRY_DELAY = 5; //!< Retry connecting to the peer
     using ReceiveBuffer = std::array<uint8_t, sizeof(KeyAdvertisement)>; //!< Receive buffer size

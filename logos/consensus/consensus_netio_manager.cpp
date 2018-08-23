@@ -22,31 +22,31 @@ ConsensusNetIOManager::ConsensusNetIOManager(ConsensusManagers consensus_manager
     : _delegates(config.delegates)
     , _consensus_managers(consensus_managers)
     , _alarm(alarm)
-    , _peer_acceptor(service, _log, Endpoint(boost::asio::ip::make_address_v4(config.local_address), 
-        config.peer_port), this)
+    //, _peer_acceptor(service, _log, Endpoint(boost::asio::ip::make_address_v4(config.local_address), 
+    //    config.peer_port), this)
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
 {
     std::set<Address> server_endpoints;
 
-    auto local_endpoint(Endpoint(boost::asio::ip::make_address_v4(config.local_address),
-                        config.peer_port));
 
     _key_store.OnPublicKey(_delegate_id, _validator.GetPublicKey());
 
     for(auto & delegate : _delegates)
     {
-        auto endpoint = Endpoint(boost::asio::ip::make_address_v4(delegate.ip),
-                                 local_endpoint.port());
+        auto port = config.peer_port + _delegate_id + delegate.id +
+            ((_delegate_id == 0 || delegate.id == 0) ? 0 : 1);
+
+        auto endpoint = Endpoint(boost::asio::ip::make_address_v4(delegate.ip), port);
 
         if(delegate.id == _delegate_id)
         {
             continue;
         }
 
-        if(_delegate_id < delegate.id)
-        {
+        //if(_delegate_id < delegate.id)
+        //{
             std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
             _connections.push_back(std::make_shared<ConsensusNetIO>(
                 service, endpoint, _alarm,
@@ -54,20 +54,20 @@ ConsensusNetIOManager::ConsensusNetIOManager(ConsensusManagers consensus_manager
                 std::bind(&ConsensusNetIOManager::BindIOChannel, this, std::placeholders::_1, 
                     std::placeholders::_2), 
                 config.local_address, _connection_mutex));
-        }
-        else
-        {
-            server_endpoints.insert(endpoint.address());
-        }
+        //}
+        //else
+        //{
+        //    server_endpoints.insert(endpoint.address());
+        //}
     }
 
-    if(server_endpoints.size())
-    {
-        _peer_acceptor.Start(server_endpoints);
-    }
+    //if(server_endpoints.size())
+    //{
+    //    _peer_acceptor.Start(server_endpoints);
+    //}
 }
 
-void 
+/*void 
 ConsensusNetIOManager::OnConnectionAccepted(
     const Endpoint& endpoint, 
     std::shared_ptr<Socket> socket)
@@ -85,7 +85,7 @@ ConsensusNetIOManager::OnConnectionAccepted(
         std::bind(&ConsensusNetIOManager::BindIOChannel, this, std::placeholders::_1, 
             std::placeholders::_2),
         _connection_mutex));
-}
+}*/
 
 void 
 ConsensusNetIOManager::BindIOChannel(

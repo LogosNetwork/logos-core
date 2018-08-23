@@ -35,8 +35,22 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
         , _connection_mutex(connection_mutex)
 {
     BOOST_LOG(_log) << "ConsensusNetIO - Trying to connect to: " << 
-        _endpoint << " remote delegate id " << (int)remote_delegate_id;
-    Connect(local_ip);
+        _endpoint << " remote delegate id " << (int)remote_delegate_id <<
+        " from " << local_ip << ":" << _endpoint.port();
+
+    _socket->open(boost::asio::ip::udp::v4());
+    //boost::asio::socket_base::reuse_address option;
+    //_socket->set_option(option);
+    ErrorCode ec;
+    _socket->bind(Endpoint(boost::asio::ip::make_address_v4(local_ip), _endpoint.port()), ec);
+    if (ec)
+    {
+        BOOST_LOG(_log) << "ConsensusNetIO - failed to bind " << ec.message();
+    }
+    //OnConnect("");
+    //Connect(local_ip);
+    _alarm.add(std::chrono::seconds(CONNECT_RETRY_DELAY+10),
+                   std::bind(&ConsensusNetIO::Connect, this, local_ip));
 }
 
 ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket, 
@@ -84,14 +98,39 @@ ConsensusNetIO::Send(
         return;
     }
 
+    BOOST_LOG(_log) << "ConsensusNetIO - sending " << size;
+
     boost::system::error_code ec;
-    boost::asio::write(*_socket, boost::asio::buffer(data, size), ec);
+    //boost::asio::write(*_socket, boost::asio::buffer(data, size), ec);
+    uint sizeof_prequel = sizeof(Prequel);
+    //sent = _socket->send_to(boost::asio::buffer(data, size), _endpoint, 0, ec);
+    uint sent = _socket->send_to(boost::asio::buffer(data, sizeof_prequel), _endpoint, 0, ec);
+    uint offset = sizeof_prequel;
+    uint cnt = 0;
+    while (offset != size)
+    {
+        cnt++;
+        uint tosend = size - offset;
+        tosend = (tosend > max_udp_size) ? max_udp_size : tosend;
+        BOOST_LOG(_log) << "ConsensusConnection - sending " << tosend << " size " << size << " offset " << offset;
+        sent = _socket->send_to(boost::asio::buffer(((uint8_t*)data) + offset, tosend), _endpoint, 0, ec);
+        if (sent != tosend)
+        {
+            BOOST_LOG(_log) << "ConsensusConnection - Error send: " << sent << " " << tosend;
+            return;
+        }
+        offset += tosend;
+    }
 
     if(ec)
     {
         BOOST_LOG(_log) << "ConsensusConnection - Error on write to socket: "
                       << ec.message() << ". Remote endpoint: "
                       << _endpoint;
+    }
+    else
+    {
+        BOOST_LOG(_log) << "ConsensusConnection - sent: " << offset << " " << cnt << " to " << _endpoint;
     }
 }
 
@@ -153,28 +192,67 @@ ConsensusNetIO::SendKeyAdvertisement()
 void 
 ConsensusNetIO::ReadPrequel()
 {
-    boost::asio::async_read(*_socket, boost::asio::buffer(_receive_buffer.data(),
+    BOOST_LOG(_log) << "ConsensusNetIO - receiving prequel from " << _endpoint;
+    _socket->async_receive_from(boost::asio::buffer(_receive_buffer.data(),
                                                           sizeof(Prequel)),
+                                                          _endpoint,
                             std::bind(&ConsensusNetIO::OnData, this,
                                       std::placeholders::_1,
                                       std::placeholders::_2));
 }
 
+void ConsensusNetIO::AsyncReadCb(uint8_t *data, uint size, uint offset, function<void(const ErrorCode&, size_t)> cb)
+{
+    uint torecv = ((size-offset) > max_udp_size) ? max_udp_size : size-offset;
+    _socket->async_receive_from(boost::asio::buffer(data+offset, torecv), _endpoint, 
+        [this, data, size, offset, cb, torecv](const ErrorCode &ec, size_t s)mutable->void
+    {
+        if (ec)
+        {
+            BOOST_LOG(_log) << "ConsensusNetIO::AsyncRead Error - failed: " << ec.message();
+        }
+        else if (s != torecv)
+        {
+            BOOST_LOG(_log) << "ConsensusNetIO::AsyncRead Error - received less : " << s << " " << torecv;
+        }
+        else
+        {
+            BOOST_LOG(_log) << "ConsensusNetIO::AsyncRead received: " << s << " size " << 
+                size << " offset " << offset << " torecv " << torecv;
+        }
+        offset += torecv;
+        if (offset == size)
+        {
+            cb(ec, size);
+        }
+        else
+        {
+            AsyncReadCb(data, size, offset, cb);
+        }
+    });
+
+}
+
 void 
 ConsensusNetIO::AsyncRead(
-    boost::asio::mutable_buffer buffer, 
-    std::function<void(boost::system::error_code const &, size_t)> cb)
+    void *data_,
+    size_t size_,
+    std::function<void(const boost::system::error_code &, size_t)> cb)
 {
-    boost::asio::async_read(*_socket, buffer, cb);
+    BOOST_LOG(_log) << "ConsensusNetIO - receiving from " << _endpoint << " size " << size_;
+    AsyncReadCb((uint8_t*)data_, size_, 0, cb);
 }
 
 void 
 ConsensusNetIO::OnData(
-    ErrorCode const & ec, 
+    const ErrorCode & ec, 
     size_t size)
 {
     ConsensusType consensus_type (static_cast<ConsensusType> (_receive_buffer.data()[2]));
     MessageType message_type (static_cast<MessageType> (_receive_buffer.data()[1]));
+
+    BOOST_LOG(_log) << "ConsensusNetIO - received " << size << " " << ConsensusToName(consensus_type) <<
+    " " << MessageToName(message_type) << " from " << _endpoint;
 
     if (consensus_type == ConsensusType::Any)
     {
@@ -186,10 +264,10 @@ ConsensusNetIO::OnData(
         }
         else
         {
-            AsyncRead(boost::asio::buffer(_receive_buffer.data() + sizeof(Prequel),
+            AsyncRead(_receive_buffer.data() + sizeof(Prequel),
                                             sizeof(KeyAdvertisement)-
                                             sizeof(Prequel)
-                                            ),
+                                            ,
                                             std::bind(&ConsensusNetIO::OnPublicKey, this,
                                                         std::placeholders::_1,
                                                         std::placeholders::_2));
@@ -214,6 +292,10 @@ ConsensusNetIO::OnPublicKey(
     {
         BOOST_LOG(_log) << "ConsensusNetIO - Error receiving message: " << ec.message();
         return;
+    }
+    else
+    {
+        BOOST_LOG(_log) << "ConsensusNetIO - received public key from: " << (int)_remote_delegate_id;
     }
 
     auto msg (*reinterpret_cast<KeyAdvertisement*>(_receive_buffer.data()));

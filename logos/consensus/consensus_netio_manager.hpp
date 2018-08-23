@@ -25,11 +25,11 @@ class IConsensusManager;
   Creates ConsensusNetIO instances either as the client to connect to remote peers
   or as accepted connection
 */
-class ConsensusNetIOManager : public PeerManager {
+class ConsensusNetIOManager { //: public PeerManager {
     //! Aliases
     using Service   = boost::asio::io_service;
-    using Endpoint  = boost::asio::ip::tcp::endpoint;
-    using Socket    = boost::asio::ip::tcp::socket;
+    using Endpoint  = boost::asio::ip::udp::endpoint;
+    using Socket    = boost::asio::ip::udp::socket;
     using Log       = boost::log::sources::logger_mt;
     using Config    = ConsensusManagerConfig;
     using Address   = boost::asio::ip::address;
@@ -66,7 +66,7 @@ public:
       \param endpoint connected peer endpoint
       \param socket connected peed socket
     */
-    void OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket>) override;
+    //void OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket>) override;
 
     //! Bind connected net connections to ConsensusConnection
     /*!
@@ -83,7 +83,7 @@ private:
     std::vector<std::shared_ptr<ConsensusNetIO>>    _connections; //!< NetIO connections
     Log                                             _log; //!< boost asio log
     logos::alarm &                                  _alarm; //!< alarm
-    PeerAcceptor                                    _peer_acceptor; //!< PeerAcceptor instance
+    //PeerAcceptor                                    _peer_acceptor; //!< PeerAcceptor instance
     DelegateKeyStore &                              _key_store; //!< Delegates public key store
     MessageValidator &                              _validator; //!< Validator/Signer of consensus messages
     std::recursive_mutex                            _connection_mutex; //!< NetIO connections access mutex

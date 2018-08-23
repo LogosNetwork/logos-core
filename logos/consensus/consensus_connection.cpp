@@ -47,55 +47,55 @@ void ConsensusConnection<consensus_type>::OnData(boost::system::error_code const
     switch (type)
     {
         case MessageType::Pre_Prepare:
-            _iochannel->AsyncRead(boost::asio::buffer(_receive_buffer.data() + sizeof(Prequel),
+            _iochannel->AsyncRead(_receive_buffer.data() + sizeof(Prequel),
                                                                   sizeof(PrePrepareMessage<consensus_type>) -
                                                                   sizeof(Prequel)
-                                                                  ),
+                                                                  ,
                                     std::bind(&ConsensusConnection<consensus_type>::OnMessage, this,
                                               std::placeholders::_1,
                                               std::placeholders::_2));
             break;
         case MessageType::Prepare:
-            _iochannel->AsyncRead(boost::asio::buffer(_receive_buffer.data() + sizeof(Prequel),
+            _iochannel->AsyncRead(_receive_buffer.data() + sizeof(Prequel),
                                                                   sizeof(PrepareMessage<consensus_type>) -
                                                                   sizeof(Prequel)
-                                                                  ),
+                                                                  ,
                                     std::bind(&ConsensusConnection<consensus_type>::OnMessage, this,
                                               std::placeholders::_1,
                                               std::placeholders::_2));
             break;
         case MessageType::Post_Prepare:
-            _iochannel->AsyncRead(boost::asio::buffer(_receive_buffer.data() + sizeof(Prequel),
+            _iochannel->AsyncRead(_receive_buffer.data() + sizeof(Prequel),
                                                                   sizeof(PostPrepareMessage<consensus_type>) -
                                                                   sizeof(Prequel)
-                                                                  ),
+                                                                  ,
                                     std::bind(&ConsensusConnection<consensus_type>::OnMessage, this,
                                               std::placeholders::_1,
                                               std::placeholders::_2));
             break;
         case MessageType::Commit:
-            _iochannel->AsyncRead(boost::asio::buffer(_receive_buffer.data() + sizeof(Prequel),
+            _iochannel->AsyncRead(_receive_buffer.data() + sizeof(Prequel),
                                                                   sizeof(CommitMessage<consensus_type>) -
                                                                   sizeof(Prequel)
-                                                                  ),
+                                                                  ,
                                     std::bind(&ConsensusConnection<consensus_type>::OnMessage, this,
                                               std::placeholders::_1,
                                               std::placeholders::_2));
             break;
         case MessageType::Post_Commit:
-            _iochannel->AsyncRead(boost::asio::buffer(_receive_buffer.data() + sizeof(Prequel),
+            _iochannel->AsyncRead(_receive_buffer.data() + sizeof(Prequel),
                                                                   sizeof(PostCommitMessage<consensus_type>) -
                                                                   sizeof(Prequel)
-                                                                  ),
+                                                                  ,
                                     std::bind(&ConsensusConnection<consensus_type>::OnMessage, this,
                                               std::placeholders::_1,
                                               std::placeholders::_2));
             break;
         case MessageType::Key_Advert:
-            _iochannel->AsyncRead(boost::asio::buffer(_receive_buffer.data() + sizeof(Prequel),
+            _iochannel->AsyncRead(_receive_buffer.data() + sizeof(Prequel),
                                                                   sizeof(KeyAdvertisement) -
                                                                   sizeof(Prequel)
-                                                                  ),
+                                                                  ,
                                     std::bind(&ConsensusConnection<consensus_type>::OnMessage, this,
                                               std::placeholders::_1,
                                               std::placeholders::_2));
