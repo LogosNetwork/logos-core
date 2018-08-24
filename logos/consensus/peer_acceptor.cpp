@@ -11,14 +11,14 @@ PeerAcceptor::PeerAcceptor(Service & service,
     , _manager(manager)
 {}
 
-void PeerAcceptor::Start(const std::set<Address> & server_endpoints)
+void PeerAcceptor::Start(const std::set<Address> & allowed_addresses)
 {
-    if(!server_endpoints.size())
+    if(allowed_addresses.empty())
     {
         return;
     }
 
-    _server_endpoints = server_endpoints;
+    _allowed_addresses = allowed_addresses;
 
     _acceptor.open(_local_endpoint.protocol ());
     _acceptor.set_option(Acceptor::reuse_address (true));
@@ -57,12 +57,12 @@ void PeerAcceptor::OnAccept(boost::system::error_code const & ec, std::shared_pt
        return;
     }
 
-    BOOST_LOG (_log) << "PeerAcceptor - Connection accepted from "
+    BOOST_LOG (_log) << "PeerAcceptor - Connection request received from "
                      << _accepted_endpoint;
 
-    auto peer = _server_endpoints.find(_accepted_endpoint.address());
+    auto peer = _allowed_addresses.find(_accepted_endpoint.address());
 
-    if(peer == _server_endpoints.end())
+    if(peer == _allowed_addresses.end())
     {
         BOOST_LOG (_log) << "PeerAcceptor - Unrecognized peer: "
                          << _accepted_endpoint.address();

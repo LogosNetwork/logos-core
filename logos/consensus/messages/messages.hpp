@@ -52,6 +52,7 @@ struct PostPhaseMessage<type, typename std::enable_if<
 struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert>
 {
     PublicKey public_key;
+    uint8_t   remote_delegate_id;
 };
 
 using PrePrepareMessage = BatchStateBlock;

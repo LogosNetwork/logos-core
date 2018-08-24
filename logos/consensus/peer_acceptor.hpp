@@ -25,7 +25,7 @@ public:
 				 const Endpoint & local_endpoint,
 				 PeerManager * manager);
 
-	void Start(const std::set<Address> & server_endpoints);
+	void Start(const std::set<Address> & allowed_addresses);
 
 	void Accept();
 
@@ -33,7 +33,7 @@ public:
 
 private:
 
-	std::set<Address> _server_endpoints;
+	std::set<Address> _allowed_addresses;
 	Acceptor          _acceptor;
 	Service &         _service;
 	Log &             _log;

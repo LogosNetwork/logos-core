@@ -23,7 +23,7 @@ ConsensusManager::ConsensusManager(Service & service,
                      this)
     , _delegate_id(config.delegate_id)
 {
-    std::set<Address> server_endpoints;
+    std::set<Address> allowed_addresses;
 
     auto local_endpoint(Endpoint(boost::asio::ip::make_address_v4(config.local_address),
                         config.peer_port));
@@ -33,7 +33,7 @@ ConsensusManager::ConsensusManager(Service & service,
     for(auto & delegate : _delegates)
     {
         auto endpoint = Endpoint(boost::asio::ip::make_address_v4(delegate.ip),
-                                 local_endpoint.port());
+                                 delegate.peer_port);
 
         if(delegate.id == _delegate_id)
         {
@@ -52,13 +52,13 @@ ConsensusManager::ConsensusManager(Service & service,
         }
         else
         {
-            server_endpoints.insert(endpoint.address());
+            allowed_addresses.insert(endpoint.address());
         }
     }
 
-    if(server_endpoints.size())
+    if(allowed_addresses.size())
     {
-        _peer_acceptor.Start(server_endpoints);
+        _peer_acceptor.Start(allowed_addresses);
     }
 }
 
@@ -96,6 +96,11 @@ void ConsensusManager::OnBenchmarkSendRequest(std::shared_ptr<logos::state_block
 
 void ConsensusManager::OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket> socket)
 {
+    /*
+     * if launching multiple nodes on one box, the IP would be the same therefore the following 'entry'
+     * variable is not correctly associated. This will be fixed after connection: the client will send
+     * over its delegate_id and the server will update this piece of information if it's assigned wrongly
+     */
     auto entry = std::find_if(_delegates.begin(), _delegates.end(),
                               [&](const Config::Delegate & delegate){
                                   return delegate.ip == endpoint.address().to_string();

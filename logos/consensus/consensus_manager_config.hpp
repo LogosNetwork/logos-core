@@ -7,8 +7,9 @@ struct ConsensusManagerConfig
 
     struct Delegate
     {
-        std::string ip;
         uint8_t     id;
+        std::string ip;
+        uint16_t    peer_port;
     };
 
 	bool DeserializeJson(boost::property_tree::ptree & tree)
@@ -21,10 +22,10 @@ struct ConsensusManagerConfig
 		{
 		    try
 		    {
-		        auto ip = delegate.second.get<std::string>("ip_address");
 		        auto id = std::stoul(delegate.second.get<std::string>("delegate_id"));
-
-		        delegates.push_back(Delegate{ip, uint8_t(id)});
+		        auto ip = delegate.second.get<std::string>("ip_address");
+		        auto peer_port = std::stoul(delegate.second.get<std::string>("peer_port"));
+		        delegates.push_back(Delegate{uint8_t(id), ip, uint16_t(peer_port)});
 		    }
 		    catch(std::logic_error const &)
 		    {
@@ -37,9 +38,9 @@ struct ConsensusManagerConfig
 
         try
         {
-            peer_port = std::stoul(tree.get<std::string>("peer_port"));
-            callback_port = std::stoul(tree.get<std::string>("callback_port"));
-            delegate_id = std::stoul(tree.get<std::string>("delegate_id"));
+            peer_port = uint16_t(std::stoul(tree.get<std::string>("peer_port")));
+            callback_port = uint16_t(std::stoul(tree.get<std::string>("callback_port")));
+            delegate_id = uint8_t(std::stoul(tree.get<std::string>("delegate_id")));
         }
         catch(std::logic_error const &)
         {
@@ -61,6 +62,7 @@ struct ConsensusManagerConfig
 
             entry.put("ip_address", delegate.ip);
             entry.put("delegate_id", delegate.id);
+            entry.put("peer_port", delegate.peer_port);
 
             delegates_tree.push_back(std::make_pair("", entry));
         }

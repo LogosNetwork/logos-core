@@ -81,10 +81,6 @@ void ConsensusConnection::Read()
 
 void ConsensusConnection::OnConnect()
 {
-    BOOST_LOG(_log) << "ConsensusConnection - Connected to "
-                    << _endpoint << ". Remote delegate id: "
-                    << uint64_t(_delegate_ids.remote);
-
     _connected = true;
 
     AdjustSocket();
@@ -240,8 +236,15 @@ void ConsensusConnection::OnMessage(boost::system::error_code const & ec, size_t
         case MessageType::Key_Advert: {
             //BOOST_LOG(_log) << "ConsensusConnection - Received key advertisement";
             auto msg (*reinterpret_cast<KeyAdvertisement*>(_receive_buffer.data()));
+            if(_delegate_ids.remote != msg.remote_delegate_id) {
+                _delegate_ids.remote = msg.remote_delegate_id;
+            }
+            BOOST_LOG(_log) << "ConsensusConnection - Connected to "
+                            << _endpoint << ". Remote delegate id: "
+                            << uint64_t(_delegate_ids.remote);
+
             _key_store.OnPublicKey(_delegate_ids.remote, msg.public_key);
-            
+
             break;
         }
         case MessageType::Unknown:
@@ -375,6 +378,7 @@ void ConsensusConnection::SendKeyAdvertisement()
 {
     KeyAdvertisement advert;
     advert.public_key = _validator.GetPublicKey();
+    advert.remote_delegate_id = _delegate_ids.local;
     Send(advert);
 }
 

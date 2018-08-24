@@ -114,7 +114,7 @@ private:
     PersistenceManager &               _persistence_manager;
     DelegateKeyStore &                 _key_store;
     MessageValidator &                 _validator;
-    logos::alarm &                       _alarm;
+    logos::alarm &                     _alarm;
     Log                                _log;
     PrimaryDelegate *                  _primary;
     ConsensusState                     _state     = ConsensusState::VOID;
