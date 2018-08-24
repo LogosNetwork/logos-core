@@ -14,28 +14,10 @@ struct ConsensusManagerConfig
 
 	bool DeserializeJson(boost::property_tree::ptree & tree)
 	{
-	    auto rpc_tree(tree.get_child(""));
-
-		auto delegates_tree(tree.get_child("delegate_peers"));
-
-		for(auto & delegate : delegates_tree)
-		{
-		    try
-		    {
-		        auto id = std::stoul(delegate.second.get<std::string>("delegate_id"));
-		        auto ip = delegate.second.get<std::string>("ip_address");
-		        auto peer_port = std::stoul(delegate.second.get<std::string>("peer_port"));
-		        delegates.push_back(Delegate{uint8_t(id), ip, uint16_t(peer_port)});
-		    }
-		    catch(std::logic_error const &)
-		    {
-		        return true;
-		    }
-		}
+        auto rpc_tree(tree.get_child(""));
 
         local_address = tree.get<std::string>("local_address");
         callback_address = tree.get<std::string>("callback_address");
-
         try
         {
             peer_port = uint16_t(std::stoul(tree.get<std::string>("peer_port")));
@@ -47,7 +29,32 @@ struct ConsensusManagerConfig
             return true;
         }
 
-		return false;
+        auto delegates_tree(tree.get_child("delegate_peers"));
+        for(auto & delegate : delegates_tree)
+        {
+            try
+            {
+                auto delegate_id = std::stoul(delegate.second.get<std::string>("delegate_id"));
+                auto delegate_ip = delegate.second.get<std::string>("ip_address");
+                /*
+                 * if in the config, user specifies the peer port, then use the port in the config
+                 * other wise, use the peering port for the primary delegate
+                 */
+                auto delegate_peer_port = peer_port;
+                try
+                {
+                    delegate_peer_port = std::stoul(delegate.second.get<std::string>("peer_port"));
+                }
+                catch(std::runtime_error const &){}
+
+                delegates.push_back(Delegate{uint8_t(delegate_id), delegate_ip, uint16_t(delegate_peer_port)});
+            }
+            catch(std::logic_error const &)
+            {
+                return true;
+            }
+        }
+        return false;
 	}
 
 	// TODO: Test serialization
