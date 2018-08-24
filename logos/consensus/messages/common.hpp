@@ -34,6 +34,7 @@ enum class MessageType : uint8_t
 /// - explicitly instanciate newconsensus consensus connection in consensus_connection.cpp (end of file)
 /// - explicitly instanciate newconsensus consensus manager in consensus_manager.cpp (end of file)
 /// - explicitly instanciate newconsensus function in primary_delegate.cpp (top of file)
+/// - update ConsensusToName in messages/util.hpp
 /// - add new files to CMakeLists.txt
 ////////////////////
 // Consensus type has to be sequential
@@ -43,7 +44,7 @@ enum class ConsensusType : uint8_t
     BatchStateBlock = 0,
     MicroBlock = 1,
     Epoch = 2,
-    Any = 100 /// keep it 100 so adding a new type would not change compatibility with any
+    Any = 0xff /// keep it 0xff so adding a new type would not change compatibility with Any
 };
  // The number of consensus excluding Any
 const uint8_t NumberOfConsensus = 3;

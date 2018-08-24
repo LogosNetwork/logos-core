@@ -47,7 +47,10 @@ inline std::string ConsensusToName(const ConsensusType & type)
             ret = "BatchStateBlock";
             break;
         case ConsensusType::MicroBlock:
-            ret = "BatchStateBlock";
+            ret = "MicroBlock";
+            break;
+        case ConsensusType::Epoch:
+            ret = "Epoch";
             break;
         case ConsensusType::Any:
             ret = "Any";
