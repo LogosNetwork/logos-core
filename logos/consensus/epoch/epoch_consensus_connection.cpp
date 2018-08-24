@@ -1,4 +1,4 @@
-//===-- logos/consensus/microblock/microblock_consensus_connection.cpp - ConsensusConnection class specialization -------*- C++ -*-===//
+//===-- logos/consensus/epoch/epoch_consensus_connection.cpp - ConsensusConnection class specialization -------*- C++ -*-===//
 //
 // Open source
 // License. See LICENSE.TXT for details.
@@ -7,7 +7,7 @@
 ///
 /// \file
 /// This file contains specialization of the ConsensusConnection class, which
-/// handles specifics of MicroBlock consensus
+/// handles specifics of Epoch consensus
 ///
 //===----------------------------------------------------------------------===//
 #include <logos/consensus/consensus_connection.hpp>
@@ -20,8 +20,8 @@
 */
 template<>
 bool 
-ConsensusConnection<ConsensusType::MicroBlock>::Validate(
-    const PrePrepareMessage<ConsensusType::MicroBlock> & message)
+ConsensusConnection<ConsensusType::Epoch>::Validate(
+    const PrePrepareMessage<ConsensusType::Epoch> & message)
 {
     return true;
 }
@@ -34,8 +34,8 @@ ConsensusConnection<ConsensusType::MicroBlock>::Validate(
 */
 template<>
 void 
-ConsensusConnection<ConsensusType::MicroBlock>::ApplyUpdates(
-    const PrePrepareMessage<ConsensusType::MicroBlock> & block, 
+ConsensusConnection<ConsensusType::Epoch>::ApplyUpdates(
+    const PrePrepareMessage<ConsensusType::Epoch> & block, 
     uint8_t delegate_id)
 {
     return;

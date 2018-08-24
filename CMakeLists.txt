@@ -320,6 +320,8 @@ add_library (node
 	logos/consensus/consensus_manager.cpp
 	logos/consensus/consensus_netio.cpp
 	logos/consensus/consensus_netio_manager.cpp
+	logos/consensus/epoch/epoch_consensus_connection.cpp
+	logos/consensus/epoch/epoch_consensus_manager.cpp
 	logos/consensus/message_validator.cpp
 	logos/consensus/messages/messages.cpp
 	logos/consensus/microblock/microblock_consensus_connection.cpp
@@ -329,7 +331,9 @@ add_library (node
 	logos/consensus/primary_delegate.cpp
 	logos/consensus/request_handler.cpp
 	logos/consensus/delegate_key_store.cpp
+	logos/epoch/epoch.cpp
 	logos/microblock/microblock.cpp
+	logos/microblock/microblock_tester.cpp
 	logos/node/bootstrap.cpp
 	logos/node/bootstrap.hpp
 	logos/node/common.cpp
@@ -427,4 +431,4 @@ target_link_libraries (logos_core node secure lmdb ed25519 ${BLS_libs} logos_lib
 set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE)
 
 include (CPack)
-#add_definitions (-DMULTI_IP)
+#add_definitions (-DMULTI_IP -DMICROBLOCK_TEST)

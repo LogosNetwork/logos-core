@@ -15,10 +15,6 @@
 #include <logos/lib/merkle.hpp>
 #include <logos/lib/numbers.hpp>
 
-// TBD MUST HAVE .h file with global system constants or access to global configuration
-// Perhaps node_config should be singleton?
-const uint8_t NUMBER_DELEGATES = 32;
-
 namespace logos {
     class block_store;
 }
@@ -29,34 +25,30 @@ using BlockStore = logos::block_store;
 /// If primary delegate fails to propose then next in line delegate (based on the voting power) proposes
 /// the microblock. Microblock is used for checkpointing and bootstraping.
 struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::MicroBlock> {
-    MicroBlock() : MessageHeader(0), previous(0), merkleRoot(0), numberBlocks(0), delegateNumber(0),
+    MicroBlock() : MessageHeader(0), previous(0), merkleRoot(0), delegate(0),
         epochNumber(0), microBlockNumber(0) { tips={0};signature={0};}
     /// Calculate block's hash
     BlockHash Hash() const {
         return ::Hash([&](function<void(const void *data,size_t)> cb)mutable->void {
-            cb(previous.bytes.data(), sizeof(previous));
-            cb(merkleRoot.bytes.data(), sizeof(previous));
             cb(&timestamp, sizeof(timestamp));
-            cb(&numberBlocks, sizeof(numberBlocks));
-            cb(&delegateNumber, sizeof(delegateNumber));
+            cb(previous.bytes.data(), sizeof(previous));
+            cb(merkleRoot.bytes.data(), sizeof(merkleRoot));
+            cb(&delegate, sizeof(delegate));
             cb(&epochNumber, sizeof(epochNumber));
             cb(&microBlockNumber, sizeof(microBlockNumber));
-            cb(signature.data(), sizeof(signature));
+            cb(tips.data(), NUM_DELEGATES * sizeof(BlockHash)); 
         });
     }
     /// Overide to mirror state_block
     BlockHash hash() const { return Hash(); }
     static const size_t HASHABLE_BYTES; //<! hashable bytes of the micrblock - used in signing
-    const uint8_t version = 0; //!< Core's software version
     BlockHash previous; //!< Previous microblock'hash or current epoch if this is the first block
     BlockHash merkleRoot; //!< Merkle root of the batch blocks included in this microblock
-    //uint64_t timestamp; //!< Consensus time stamp
-    uint16_t numberBlocks; //!< Number of batch bloks in this microblock
-    uint8_t delegateNumber; //!< Delegate number (0-31) who proposed this microblock
+    logos::account delegate; //!< Delegate who proposed this microblock
     uint epochNumber; //!< Current epoch
     uint8_t microBlockNumber; //!< Microblock number within this epoch
-    std::array<BlockHash,NUMBER_DELEGATES> tips; //!< Delegate's batch block tips
-    std::array<uint8_t, 32> signature; //!< Multisignature
+    std::array<BlockHash,NUM_DELEGATES> tips; //!< Delegate's batch block tips
+    Signature signature; //!< Multisignature
 };
 
 namespace logos {

@@ -25,10 +25,13 @@ ConsensusContainer::ConsensusContainer(Service & service,
             config.consensus_manager_config, _key_store, _validator)
     , _microblock_consensus_manager(service, store, alarm, log, 
             config.consensus_manager_config, _key_store, _validator)
+    , _epoch_consensus_manager(service, store, alarm, log, 
+            config.consensus_manager_config, _key_store, _validator)
     , _consensus_netio_manager(
         {
             {ConsensusType::BatchStateBlock, _batchblock_consensus_manager},
-            {ConsensusType::MicroBlock, _microblock_consensus_manager}
+            {ConsensusType::MicroBlock, _microblock_consensus_manager},
+            {ConsensusType::Epoch, _epoch_consensus_manager}
         }, 
         service, alarm, config.consensus_manager_config, _key_store, _validator)
     , _microblock_handler(alarm, store, NUM_DELEGATES, config.microblock_generation_interval)
@@ -75,4 +78,20 @@ ConsensusContainer::StartMicroBlock(
     std::function<void(MicroBlock&)> cb)
 {
     _microblock_handler.Start(cb);
+}
+
+void
+ConsensusContainer::BuildMicroBlock(MicroBlock &block)
+{
+    _microblock_handler.BuildMicroBlock(block);
+}
+
+logos::process_return
+ConsensusContainer::OnSendRequest(std::shared_ptr<MicroBlock> block)
+{
+    logos::process_return result;
+    _microblock_consensus_manager.OnSendRequest(
+        std::static_pointer_cast<RequestMessage<ConsensusType::MicroBlock>>(block), result);;
+
+    return result;
 }

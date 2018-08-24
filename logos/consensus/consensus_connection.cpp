@@ -304,3 +304,4 @@ void ConsensusConnection<consensus_type>::OnPrequel(boost::system::error_code co
 
 template class ConsensusConnection<ConsensusType::BatchStateBlock>;
 template class ConsensusConnection<ConsensusType::MicroBlock>;
+template class ConsensusConnection<ConsensusType::Epoch>;

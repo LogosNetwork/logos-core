@@ -5,6 +5,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/persistence/state_block_locator.hpp>
 #include <logos/microblock/microblock.hpp>
+#include <logos/epoch/epoch.hpp>
 
 namespace logos
 {
@@ -143,6 +144,12 @@ public:
   	void micro_block_tip_put(const block_hash&, MDB_txn*);
   	bool micro_block_tip_get(block_hash &);
 
+	// epoch
+  	logos::block_hash epoch_put(Epoch const &, MDB_txn*);
+  	bool epoch_get(block_hash &, Epoch &);
+  	void epoch_tip_put(const block_hash&, MDB_txn*);
+  	bool epoch_tip_get(block_hash &);
+
 	void checksum_put (MDB_txn *, uint64_t, uint8_t, logos::checksum const &);
 	bool checksum_get (MDB_txn *, uint64_t, uint8_t, logos::checksum &);
 	void checksum_del (MDB_txn *, uint64_t, uint8_t);
@@ -213,6 +220,19 @@ public:
      * 'microblocktip' -> logos::block_hash
      */
   	MDB_dbi micro_block_tip_db;
+
+	/**
+   	 * Maps block hash to epoch
+     * logos::block_hash -> 
+     */
+  	MDB_dbi epoch_db;
+
+  	/**
+     * Epoch tip
+     * references epoch tip
+     * 'epochtip' -> logos::block_hash
+     */
+  	MDB_dbi epoch_tip_db;
 
 	/**
 	 * Maps head block to owning account

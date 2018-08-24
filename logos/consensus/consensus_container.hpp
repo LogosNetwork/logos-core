@@ -16,6 +16,7 @@
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/batchstateblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
+#include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 #include <logos/consensus/consensus_netio_manager.hpp>
 #include <logos/microblock/microblock.hpp>
 
@@ -73,11 +74,16 @@ public:
     // MicroBlock
     void StartMicroBlock(std::function<void(MicroBlock&)>);
 
+    void BuildMicroBlock(MicroBlock&);
+
+    logos::process_return OnSendRequest(std::shared_ptr<MicroBlock>);
+
 private:
     DelegateKeyStore            _key_store; //!< Delegates public key store
     MessageValidator            _validator; //!< Validator/Signer of consensus messages
     BatchBlockConsensusManager  _batchblock_consensus_manager; //!< Handles batch block consensus handling
 	MicroBlockConsensusManager	_microblock_consensus_manager; //!< Handles micro block consensus handling
+	EpochConsensusManager	    _epoch_consensus_manager; //!< Handles epoch consensus handling
     ConsensusNetIOManager       _consensus_netio_manager; //!< Establishes connections between the delegates
     MicroBlockHandler           _microblock_handler; //!< Handles microblock processing
 };

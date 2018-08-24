@@ -36,6 +36,10 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
 {
     BOOST_LOG(_log) << "ConsensusNetIO - Trying to connect to: " << 
         _endpoint << " remote delegate id " << (int)remote_delegate_id;
+    _socket->open(boost::asio::ip::tcp::v4());
+    boost::asio::socket_base::reuse_address option;
+    _socket->set_option(option);
+    _socket->bind(Endpoint(boost::asio::ip::make_address_v4(local_ip), 0));
     Connect(local_ip);
 }
 

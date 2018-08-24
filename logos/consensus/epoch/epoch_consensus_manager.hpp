@@ -1,4 +1,4 @@
-//===-- logos/consensus/microblock/microblock_consensus_manager.hpp - MicroBlockConsensusManager class declaration -------*- C++ -*-===//
+//===-- logos/consensus/epoch/epoch_consensus_manager.hpp - ConsensusManager class declaration -------*- C++ -*-===//
 //
 // Open source
 // License. See LICENSE.TXT for details.
@@ -6,8 +6,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains declaration of the MicroBlockConsensusManager class, which
-/// handles specifics of MicroBlock consensus
+/// This file contains declaration of the EpochConsensusManager class, which
+/// handles specifics of Epoch consensus
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -15,8 +15,8 @@
 
 #include <logos/consensus/consensus_manager.hpp>
 
-//!< MicroBlockConsensusManager handles specifics of MicroBlock consensus
-class MicroBlockConsensusManager: public ConsensusManager<ConsensusType::MicroBlock>
+//!< EpochConsensusManager handles specifics of Epoch consensus
+class EpochConsensusManager: public ConsensusManager<ConsensusType::Epoch>
 {
 public:
 
@@ -31,21 +31,21 @@ public:
 		\param key_store delegates public key store
 		\param validator validator/signer of consensus messages
 	*/
-	MicroBlockConsensusManager(Service & service,
+	EpochConsensusManager(Service & service,
 	                           Store & store,
 	                           logos::alarm & alarm,
 	                           Log & log,
 					           const Config & config,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator)
-		: ConsensusManager<ConsensusType::MicroBlock>(
+		: ConsensusManager<ConsensusType::Epoch>(
 			service, store, alarm, log, config, key_store, validator)
 	{
 		queue = 1;
 	}
 
     //!< Class destractor
-    ~MicroBlockConsensusManager() {}
+    ~EpochConsensusManager() {}
 
     //!< Handles benchmark request
 	/*!
@@ -54,7 +54,7 @@ public:
 		\param result result of the operation
 	*/
     void OnBenchmarkSendRequest(
-		std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>>, 
+		std::shared_ptr<RequestMessage<ConsensusType::Epoch>>, 
 		logos::process_return & ) override;
 
 protected:
@@ -65,7 +65,7 @@ protected:
 		\param delegate_id delegate id
 	*/
 	void ApplyUpdates(
-		const PrePrepareMessage<ConsensusType::MicroBlock> &, 
+		const PrePrepareMessage<ConsensusType::Epoch> &, 
 		uint8_t delegate_id) override;
 
     //! Returns number of stored blocks
@@ -89,37 +89,37 @@ protected:
 		\return true if validated false otherwise
 	*/
 	bool Validate(
-		std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>> block, 
+		std::shared_ptr<RequestMessage<ConsensusType::Epoch>> block, 
 		logos::process_return & result) override;
 
     //!< Queues request message
 	/*!
 		Queues micro block
 	*/
-	void QueueRequest(std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>>) override;
+	void QueueRequest(std::shared_ptr<RequestMessage<ConsensusType::Epoch>>) override;
 
-    //!< Gets next available MicroBlock
+    //!< Gets next available Epoch
 	/*!
-		\return reference to MicroBlock
+		\return reference to Epoch
 	*/
-    PrePrepareMessage<ConsensusType::MicroBlock> & PrePrepareGetNext() override;
+    PrePrepareMessage<ConsensusType::Epoch> & PrePrepareGetNext() override;
 
-    //!< Pops the MicroBlock from the queue
+    //!< Pops the Epoch from the queue
     void PrePreparePopFront() override;
 
-    //!< Checks if the MicroBlock queue is empty
+    //!< Checks if the Epoch queue is empty
 	/*!
 		\return true if empty false otherwise
 	*/
     bool PrePrepareQueueEmpty() override;
 
-    //!< Checks if the MicroBlock queue is full
+    //!< Checks if the Epoch queue is full
 	/*!
 		\return true if full false otherwise
 	*/
     bool PrePrepareQueueFull() override;
 
 private:
-    std::shared_ptr<PrePrepareMessage<ConsensusType::MicroBlock>>  _cur_microblock; //!< Currently handled microblock
+    std::shared_ptr<PrePrepareMessage<ConsensusType::Epoch>>  _cur_epoch; //!< Currently handled epoch
 	int queue;
 };

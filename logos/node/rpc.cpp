@@ -1,6 +1,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <logos/node/rpc.hpp>
+#include <logos/microblock/microblock_tester.hpp>
 
 #include <logos/lib/interface.h>
 #include <logos/node/node.hpp>
@@ -4698,6 +4699,10 @@ void logos::rpc_handler::process_request ()
         {
             buffer_complete ();
         }
+		else if (MicroBlockTester::microblock_tester(action, response, node))
+		{
+			return;
+		}
 		else
 		{
 			error_response (response, "Unknown command");

@@ -286,6 +286,10 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "micro_block_db", MDB_CREATE, &micro_block_db) != 0;
         error_a |= mdb_dbi_open (transaction, "micro_block_tip_db", MDB_CREATE, &micro_block_tip_db) != 0;
 
+		// microblock-prototype
+        error_a |= mdb_dbi_open (transaction, "epoch_db", MDB_CREATE, &epoch_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "epoch_tip_db", MDB_CREATE, &epoch_tip_db) != 0;
+
 		error_a |= mdb_dbi_open (transaction, "frontiers", MDB_CREATE, &frontiers) != 0;
 		error_a |= mdb_dbi_open (transaction, "accounts", MDB_CREATE, &accounts) != 0;
 		error_a |= mdb_dbi_open (transaction, "state", MDB_CREATE, &state_blocks) != 0;
@@ -880,6 +884,29 @@ bool logos::block_store::micro_block_tip_get(block_hash &hash)
   const uint8_t i = 0; // only one tip
   mdb_val key(sizeof(i), const_cast<uint8_t*>(&i));
   return get<block_hash>(micro_block_tip_db, key, hash);
+}
+
+logos::block_hash logos::block_store::epoch_put(Epoch const &block, MDB_txn *transaction)
+{
+    return put<Epoch>(epoch_db, block, transaction);
+}
+
+bool logos::block_store::epoch_get(logos::block_hash &hash, Epoch &block)
+{
+  return get<Epoch>(epoch_db, mdb_val(hash), block);
+}
+
+void logos::block_store::epoch_tip_put(const block_hash& hash, MDB_txn *transaction)
+{
+  const uint8_t key = 0; // only one tip
+    put<block_hash>(epoch_tip_db, logos::mdb_val(sizeof(key),const_cast<uint8_t*>(&key)), hash, transaction);
+}
+
+bool logos::block_store::epoch_tip_get(block_hash &hash)
+{
+  const uint8_t i = 0; // only one tip
+  mdb_val key(sizeof(i), const_cast<uint8_t*>(&i));
+  return get<block_hash>(epoch_tip_db, key, hash);
 }
 
 bool logos::block_store::account_get(logos::account const & account_a, logos::account_info & info_a)

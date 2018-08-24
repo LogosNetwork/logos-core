@@ -6,7 +6,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definition of the MicroBlock and MicroBlockHandler classes, which are used
+/// This file contains definition of the MicroBlock and MicroBlockHandler classes, which are used
 /// in the Microblock processing
 ///
 //===----------------------------------------------------------------------===//
@@ -76,6 +76,7 @@ MicroBlockHandler::BuildMicroBlock(
             base_timestamp = blocks[delegate].back().timestamp;
     }
 
+    uint16_t numberBlocks = 0;
     // prepare merkle tree nodes, pre-calculate first level of parents as we are iteratig over the delegate's blockchains
     for (uint8_t delegate = 0; delegate < nDelegates; ++delegate) 
     {
@@ -84,9 +85,9 @@ MicroBlockHandler::BuildMicroBlock(
         {
            if (it->timestamp - base_timestamp < interval_msec ) 
            {
-               ++block.numberBlocks;
+               ++numberBlocks;
                block.tips[delegate] = it->hash;
-               if (block.numberBlocks % 2 == 0)
+               if (numberBlocks % 2 == 0)
                     merkle.push_back(Hash(previous_hash, it->hash));
                else
                     previous_hash = it->hash;
@@ -97,16 +98,16 @@ MicroBlockHandler::BuildMicroBlock(
     }
 
     // odd number of blocks, duplicate the last block
-    if (block.numberBlocks % 2)
+    if (numberBlocks % 2)
         merkle.push_back(Hash(previous_hash, previous_hash));
     
     // is it possible we don't have any blocks?
-    assert (block.numberBlocks != 0);
+    assert (numberBlocks != 0);
 
     block.previous = previous.previous; // TBD, previous microblock's hash but could be epoch
     block.merkleRoot = MerkleRoot(merkle); 
     block.timestamp = logos::seconds_since_epoch(); // TBD, either consensus stamp or the most recent stamp of included batch block
-    block.delegateNumber = 0; // TBD, delegate who proposed this block (in this case self)
+    block.delegate = 0; // TBD, delegate who proposed this block (in this case self)
     block.epochNumber = 0; // TBD, current epoch
     block.microBlockNumber = 0; // TBD, microblock number in this epoch
     block.signature = {0}; // TBD, the consensus's multisig

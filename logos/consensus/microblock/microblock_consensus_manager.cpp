@@ -1,3 +1,15 @@
+//===-- logos/consensus/microblock/microblock_consensus_manager.cpp - ConsensusConnection class specialization -------*- C++ -*-===//
+//
+// Open source
+// License. See LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains specialization of the ConsensusManager class, which
+/// handles specifics of MicroBlock consensus
+///
+//===----------------------------------------------------------------------===//
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
 
 void 
@@ -35,18 +47,19 @@ MicroBlockConsensusManager::PrePrepareGetNext()
 void 
 MicroBlockConsensusManager::PrePreparePopFront()
 {
+    queue = 0;
 }
 
 bool 
 MicroBlockConsensusManager::PrePrepareQueueEmpty()
 {
-    return false;
+    return !queue;
 }
 
 bool 
 MicroBlockConsensusManager::PrePrepareQueueFull()
 {
-    return false;
+    return queue;
 }
 
 void 
@@ -65,5 +78,5 @@ MicroBlockConsensusManager::OnConsensusReachedStoredCount()
 bool 
 MicroBlockConsensusManager::OnConsensusReachedExt()
 {
-  return false;
+  return true;
 }

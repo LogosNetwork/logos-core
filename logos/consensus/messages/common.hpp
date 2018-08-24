@@ -24,17 +24,29 @@ enum class MessageType : uint8_t
     // Invalid
     Unknown
 };
-
+////////////////////
+/// To implement a new type of consensus :
+/// - define consensus type in consensus/messages/common.hpp - add new consensus type before Any
+///   and update NumberOfConsensus
+/// - add PrePrepareMessage and Request message for specific consensus in messages/messages.hpp (enf of file)
+/// - add newconsensus type folder in consensus
+/// - implement newconsensus_consensus_connection.cpp, and newconsensus_consensus_manager.[ch]pp
+/// - explicitly instanciate newconsensus consensus connection in consensus_connection.cpp (end of file)
+/// - explicitly instanciate newconsensus consensus manager in consensus_manager.cpp (end of file)
+/// - explicitly instanciate newconsensus function in primary_delegate.cpp (top of file)
+/// - add new files to CMakeLists.txt
+////////////////////
 // Consensus type has to be sequential
  // because it is also an index.
 enum class ConsensusType : uint8_t
 {
     BatchStateBlock = 0,
     MicroBlock = 1,
-    Any = 2
+    Epoch = 2,
+    Any = 100 /// keep it 100 so adding a new type would not change compatibility with any
 };
- // The number of types excluding Any
-const uint8_t NumberOfConsensus = 2; 
+ // The number of consensus excluding Any
+const uint8_t NumberOfConsensus = 3;
 
 static const size_t NUM_DELEGATES           = 32;
 static const size_t CONSENSUS_HASH_SIZE     = 32;

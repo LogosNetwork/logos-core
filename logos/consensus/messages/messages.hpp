@@ -2,6 +2,7 @@
 
 #include <logos/consensus/messages/common.hpp>
 #include <logos/microblock/microblock.hpp>
+#include <logos/epoch/epoch.hpp>
 
 struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::BatchStateBlock>
 {
@@ -77,7 +78,7 @@ const size_t StandardPhaseMessage<type, consensus, typename std::enable_if<
     type == MessageType::Commit>::type>::HASHABLE_BYTES = sizeof(StandardPhaseMessage<MessageType::Prepare, consensus>)
                                                           - sizeof(Signature);
 
-// Pre-Prepare Message type for specific consensus type
+/// Pre-Prepare Message type for specific consensus type
 template<ConsensusType consensus_type, typename Type = void>
 struct PrePrepareMessage;
 
@@ -91,9 +92,14 @@ struct PrePrepareMessage<consensus_type, typename std::enable_if< consensus_type
 {
 };
 
-// Request Message type for specific consensus type, could be different from Pre-Prepare message
-// for instance in case of BatchStateBlock the Request Message is logos::state_block, but for MicroBlock
-// consensus type it is MicroBlock
+template<ConsensusType consensus_type>
+struct PrePrepareMessage<consensus_type, typename std::enable_if< consensus_type == ConsensusType::Epoch>::type> : Epoch
+{
+};
+
+/// Request Message type for specific consensus type, could be different from Pre-Prepare message
+/// for instance in case of BatchStateBlock the Request Message is logos::state_block, but for MicroBlock
+/// consensus type it is MicroBlock
 template<ConsensusType consensus_type, typename Type = void>
 struct RequestMessage;
 
@@ -104,5 +110,10 @@ struct RequestMessage<consensus_type, typename std::enable_if< consensus_type ==
 
 template<ConsensusType consensus_type>
 struct RequestMessage<consensus_type, typename std::enable_if< consensus_type == ConsensusType::MicroBlock>::type> : PrePrepareMessage<ConsensusType::MicroBlock>
+{
+};
+
+template<ConsensusType consensus_type>
+struct RequestMessage<consensus_type, typename std::enable_if< consensus_type == ConsensusType::Epoch>::type> : PrePrepareMessage<ConsensusType::Epoch>
 {
 };

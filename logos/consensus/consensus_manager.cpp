@@ -119,3 +119,4 @@ std::shared_ptr<IConsensusConnection> ConsensusManager<consensus_type>::BindIOCh
 
 template class ConsensusManager<ConsensusType::BatchStateBlock>;
 template class ConsensusManager<ConsensusType::MicroBlock>;
+template class ConsensusManager<ConsensusType::Epoch>;
