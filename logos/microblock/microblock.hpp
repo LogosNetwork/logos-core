@@ -21,9 +21,12 @@ namespace logos {
 using BlockHash = logos::block_hash;
 using BlockStore = logos::block_store;
 
-/// Microblocks are created periodically. Primary delegate is the first one to propose the microblock. 
+/// Microblocks are used for checkpointing and boostrapping. Microblock proposal time is every 20 minutes. 
+/// Microblock cut off time is 10 minutes. Microblock previous always references the previous microblock. 
+/// The last microblock (#720) in current epoch triggers generation of the next epoch.
+/// Primary delegate is the first one to propose the microblock. 
 /// If primary delegate fails to propose then next in line delegate (based on the voting power) proposes
-/// the microblock. Microblock is used for checkpointing and bootstraping.
+/// the microblock. 
 struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::MicroBlock> {
     MicroBlock() : MessageHeader(0), previous(0), merkleRoot(0), delegate(0),
         epochNumber(0), microBlockNumber(0) { tips={0};signature={0};}

@@ -50,10 +50,10 @@ ConsensusNetIOManager::ConsensusNetIOManager(ConsensusManagers consensus_manager
             std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
             _connections.push_back(std::make_shared<ConsensusNetIO>(
                 service, endpoint, _alarm,
-                delegate.id, _key_store, _validator,
+                delegate.id, _delegate_id, _key_store, _validator,
                 std::bind(&ConsensusNetIOManager::BindIOChannel, this, std::placeholders::_1, 
                     std::placeholders::_2), 
-                config.local_address, _connection_mutex));
+                _connection_mutex));
         }
         else
         {
@@ -77,11 +77,13 @@ ConsensusNetIOManager::OnConnectionAccepted(
                                   return delegate.ip == endpoint.address().to_string();
                               });
 
-    assert(entry != _delegates.end());
+    // remote delegate id is piggy backed to the public key message and
+    // is updated when the public key message is received
+    uint8_t remote_delegate_id = (entry != _delegates.end()) ? entry->id : 0;
 
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
     _connections.push_back(std::make_shared<ConsensusNetIO>(socket, endpoint, _alarm, 
-        entry->id, _key_store, _validator,
+        remote_delegate_id, _delegate_id, _key_store, _validator,
         std::bind(&ConsensusNetIOManager::BindIOChannel, this, std::placeholders::_1, 
             std::placeholders::_2),
         _connection_mutex));
@@ -93,6 +95,9 @@ ConsensusNetIOManager::BindIOChannel(
     uint8_t remote_delegate_id)
 {
     std::lock_guard<std::recursive_mutex> lock(_bind_mutex);
+
+    BOOST_LOG(_log) << "ConsensusNetIO: Binding io channel of local " << (int)_delegate_id <<
+        " to remote " << (int)remote_delegate_id;
     DelegateIdentities ids{_delegate_id, remote_delegate_id};
     for (auto it = _consensus_managers.begin(); it != _consensus_managers.end(); ++it)
     {

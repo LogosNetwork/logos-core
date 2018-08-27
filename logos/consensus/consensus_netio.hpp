@@ -82,20 +82,20 @@ public:
       \param endpoint reference to peer's address
       \param alarm reference to alarm
       \param remote_delegate_id id of connected delegate
+      \param local_delegate_id id of the local delegate
       \param key_store delegates public key store
       \param validator validator/signer of consensus messages
       \param binder callback for binding netio interface to related consensus
-      \param local_ip local ip of this node's delegate
       \param connection_mutex mutex to protect consensus connections
     */
     ConsensusNetIO(Service & service,
                    const Endpoint & endpoint, 
                    logos::alarm & alarm, 
                    const uint8_t remote_delegate_id, 
+                   const uint8_t local_delegate_id, 
                    DelegateKeyStore & key_store,
                    MessageValidator & validator,
                    IOBinder binder,
-                   std::string local_ip,
                    std::recursive_mutex & connection_mutex);
 
     //! Class constructor
@@ -106,6 +106,7 @@ public:
       \param endpoint reference to peer's address
       \param alarm reference to alarm
       \param remote_delegate_id id of connected delegate
+      \param local_delegate_id id of the local delegate
       \param key_store delegates public key store
       \param validator validator/signer of consensus messages
       \param binder callback for binding netio interface to related consensus
@@ -115,6 +116,7 @@ public:
                    const Endpoint & endpoint, 
                    logos::alarm & alarm, 
                    const uint8_t remote_delegate_id, 
+                   const uint8_t local_delegate_id, 
                    DelegateKeyStore & key_store,
                    MessageValidator & validator,
                    IOBinder binder,
@@ -166,22 +168,19 @@ private:
     //! Async connect to the peer
     /*!
       Asynchronously connect to the peer
-      \param local_ip send ip to the connected peer
     */
-    void Connect(std::string local_ip);
+    void Connect();
     //! Connected call back
     /*!
       Async connect call back
-      \param local_ip send ip to the connected peer
     */
-    void OnConnect(std::string local_ip);
+    void OnConnect();
     //! Connected call back with error code set
     /*!
       Async connect call back
       \param ec error code
-      \param local_ip send ip to the connected peer
     */
-    void OnConnect(ErrorCode const &ec, std::string local_ip);
+    void OnConnect(ErrorCode const &ec);
     //! Call back for async read
     /*!
       \param ec error code
@@ -207,6 +206,7 @@ private:
     logos::alarm &                          _alarm; //!< alarm reference
     bool                                    _connected; //!< connected flag
     uint8_t                                 _remote_delegate_id; //!< id of connected pper
+    uint8_t                                 _local_delegate_id; //!< id of the local delegate
     //! vector of consensus bound to the network connection
     std::shared_ptr<IConsensusConnection>   _consensus_connections[static_cast<uint8_t>(NumberOfConsensus)]; 
     DelegateKeyStore &                      _key_store; //!< Delegates public key store

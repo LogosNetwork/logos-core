@@ -19,15 +19,16 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
                                const Endpoint & endpoint, 
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
+                               const uint8_t local_delegate_id, 
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
                                IOBinder iobinder,
-                               std::string local_ip,
                                std::recursive_mutex & connection_mutex) 
         : _socket(new Socket(service))
         , _endpoint(endpoint)
         , _alarm(alarm)
         , _remote_delegate_id(remote_delegate_id)
+        , _local_delegate_id(local_delegate_id)
         , _consensus_connections{0}
         , _key_store(key_store)
         , _validator(validator)
@@ -36,17 +37,14 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
 {
     BOOST_LOG(_log) << "ConsensusNetIO - Trying to connect to: " << 
         _endpoint << " remote delegate id " << (int)remote_delegate_id;
-    _socket->open(boost::asio::ip::tcp::v4());
-    boost::asio::socket_base::reuse_address option;
-    _socket->set_option(option);
-    _socket->bind(Endpoint(boost::asio::ip::make_address_v4(local_ip), 0));
-    Connect(local_ip);
+    Connect();
 }
 
 ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket, 
                                const Endpoint & endpoint, 
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
+                               const uint8_t local_delegate_id, 
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
                                IOBinder iobinder,
@@ -56,21 +54,21 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
         , _alarm(alarm)
         , _connected(false)
         , _remote_delegate_id(remote_delegate_id)
+        , _local_delegate_id(local_delegate_id)
         , _consensus_connections{0}
         , _key_store(key_store)
         , _validator(validator)
         , _io_channel_binder(iobinder)
         , _connection_mutex(connection_mutex)
 {
-    OnConnect("");
+    OnConnect();
 }
 
 void 
-ConsensusNetIO::Connect(
-    std::string local_ip)
+ConsensusNetIO::Connect()
 {
     _socket->async_connect(_endpoint,
-                           [this, local_ip](ErrorCode const & ec) { OnConnect(ec, local_ip); });
+                           [this](ErrorCode const & ec) { OnConnect(ec); });
 }
 
 void 
@@ -93,40 +91,29 @@ ConsensusNetIO::Send(
 
     if(ec)
     {
-        BOOST_LOG(_log) << "ConsensusConnection - Error on write to socket: "
+        BOOST_LOG(_log) << "ConsensusNetIO - Error on write to socket: "
                       << ec.message() << ". Remote endpoint: "
                       << _endpoint;
     }
 }
 
 void 
-ConsensusNetIO::OnConnect(
-    std::string local_ip)
+ConsensusNetIO::OnConnect()
 {
-    BOOST_LOG(_log) << "ConsensusConnection - Connected to "
+    BOOST_LOG(_log) << "ConsensusNetIO - Connected to "
                     << _endpoint << ". Remote delegate id: "
                     << uint64_t(_remote_delegate_id);
 
     _connected = true;
 
     AdjustSocket();
-#ifdef MULTI_IP
-    if (local_ip != "")
-    {
-        char buff[16];
-        sprintf (buff, "%s", local_ip.c_str());
-        BOOST_LOG(_log) << "ConsensusConnection - Sending my address " << buff << " to remote";
-        Send((void*)buff, 16);
-    }
- #endif
     SendKeyAdvertisement();
     ReadPrequel();
 }
 
 void 
 ConsensusNetIO::OnConnect(
-    ErrorCode const & ec, 
-    std::string local_ip)
+    ErrorCode const & ec)
 {
     if(ec)
     {
@@ -138,12 +125,12 @@ ConsensusNetIO::OnConnect(
         _socket->close();
 
         _alarm.add(std::chrono::seconds(CONNECT_RETRY_DELAY),
-                   std::bind(&ConsensusNetIO::Connect, this, local_ip));
+                   std::bind(&ConsensusNetIO::Connect, this));
 
         return;
     }
 
-    OnConnect(local_ip);
+    OnConnect();
 }
 
 void 
@@ -151,6 +138,7 @@ ConsensusNetIO::SendKeyAdvertisement()
 {
     KeyAdvertisement advert;
     advert.public_key = _validator.GetPublicKey();
+    advert.remote_delegate_id = _local_delegate_id;
     Send(advert);
 }
 
@@ -221,6 +209,10 @@ ConsensusNetIO::OnPublicKey(
     }
 
     auto msg (*reinterpret_cast<KeyAdvertisement*>(_receive_buffer.data()));
+
+    // update remote delegate id
+    _remote_delegate_id = msg.remote_delegate_id;
+
     _key_store.OnPublicKey(_remote_delegate_id, msg.public_key);
     
     // make sure shared pointer is initialized by ConsensusNetIOManager

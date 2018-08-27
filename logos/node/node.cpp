@@ -5,6 +5,8 @@
 #include <logos/lib/interface.h>
 #include <logos/node/common.hpp>
 #include <logos/node/rpc.hpp>
+#include <logos/epoch/epoch.hpp>
+#include <logos/microblock/microblock.hpp>
 
 #include <algorithm>
 #include <future>
@@ -1393,6 +1395,14 @@ _consensus_container(service_a, store, alarm_a, log, config)
                                   /* Count   */ 0
 		                      },
 		                      transaction);
+		}
+
+		// check epoch and microblock
+		logos::block_hash epoch_tip;
+		if (store.epoch_tip_get(epoch_tip)) // no tip, no epoch, no microblock - create genesis
+		{
+			Epoch epoch;
+			MicroBlock microBlock;
 		}
 	}
 	if (logos::logos_network ==logos::logos_networks::logos_live_network)

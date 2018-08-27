@@ -20,12 +20,14 @@ using namespace logos;
 const size_t MicroBlock::HASHABLE_BYTES = sizeof(MicroBlock)
                                             - sizeof(Signature);
 
-// batch block hash and timestamp
+/// batch block hash and timestamp
 struct entry {
     BlockHash hash;
     uint64_t timestamp;
 };
 
+/// Microblock cut off time is calculated as Tc = TEi + Mi * 10 where TEi is the i-th epoch (previous epoch),
+/// Mi is current microblock sequence number
 bool
 MicroBlockHandler::BuildMicroBlock(
     MicroBlock &block) //!< block to build in/out

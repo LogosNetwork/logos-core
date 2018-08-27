@@ -54,6 +54,7 @@ struct PostPhaseMessage<type, consensus, typename std::enable_if<
 struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert, ConsensusType::Any>
 {
     PublicKey public_key;
+    uint8_t   remote_delegate_id;
 };
 
 //using PrePrepareMessage = BatchStateBlock;
