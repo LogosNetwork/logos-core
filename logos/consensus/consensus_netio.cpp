@@ -1,19 +1,11 @@
-//===-- logos/consensus/consensus_netio.hpp - ConsensusNetIO and ConsensusNetIOManager class implementation -------*- C++ -*-===//
-//
-// Open source
-// License. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-///
-/// \file
+/// @file
 /// This file contains implementation of the ConsensusNetIO and ConsensusNetIOManager classes, which handle
-/// network connections between the delegates
-///
-//===----------------------------------------------------------------------===//
+/// network connections between the delegates.
 #include <logos/consensus/consensus_netio.hpp>
 #include <logos/node/node.hpp>
 
 const uint8_t ConsensusNetIO::CONNECT_RETRY_DELAY;
+const size_t  ConsensusNetIO::SOCKET_BUFF_SIZE;
 
 ConsensusNetIO::ConsensusNetIO(Service & service,
                                const Endpoint & endpoint, 
@@ -24,18 +16,20 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
                                IOBinder iobinder,
                                std::string local_ip,
                                std::recursive_mutex & connection_mutex) 
-        : _socket(new Socket(service))
-        , _endpoint(endpoint)
-        , _alarm(alarm)
-        , _remote_delegate_id(remote_delegate_id)
-        , _consensus_connections{0}
-        , _key_store(key_store)
-        , _validator(validator)
-        , _io_channel_binder(iobinder)
-        , _connection_mutex(connection_mutex)
+    : _socket(new Socket(service))
+    , _endpoint(endpoint)
+    , _alarm(alarm)
+    , _remote_delegate_id(remote_delegate_id)
+    , _connections{0}
+    , _key_store(key_store)
+    , _validator(validator)
+    , _io_channel_binder(iobinder)
+    , _connection_mutex(connection_mutex)
 {
-    BOOST_LOG(_log) << "ConsensusNetIO - Trying to connect to: " << 
-        _endpoint << " remote delegate id " << (int)remote_delegate_id;
+    BOOST_LOG(_log) << "ConsensusNetIO - Trying to connect to: "
+                    <<  _endpoint << " remote delegate id "
+                    << (int)remote_delegate_id;
+
     Connect(local_ip);
 }
 
@@ -52,7 +46,7 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
         , _alarm(alarm)
         , _connected(false)
         , _remote_delegate_id(remote_delegate_id)
-        , _consensus_connections{0}
+        , _connections{0}
         , _key_store(key_store)
         , _validator(validator)
         , _io_channel_binder(iobinder)
@@ -63,10 +57,11 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
 
 void 
 ConsensusNetIO::Connect(
-    std::string local_ip)
+    const std::string & local_ip)
 {
     _socket->async_connect(_endpoint,
-                           [this, local_ip](ErrorCode const & ec) { OnConnect(ec, local_ip); });
+                           [this, local_ip](ErrorCode const & ec)
+                           {OnConnect(ec, local_ip);});
 }
 
 void 
@@ -74,8 +69,7 @@ ConsensusNetIO::Send(
     const void *data, 
     size_t size)
 {
-    // multiple threads can send at the same time
-    // TODO - MUST IMPLMENT ASYNC_WRITE + QUEUE
+    // TODO - Make writes asynchronous
     std::lock_guard<std::mutex> lock(_send_mutex);
     
     if (!_connected)
@@ -97,7 +91,7 @@ ConsensusNetIO::Send(
 
 void 
 ConsensusNetIO::OnConnect(
-    std::string local_ip)
+    const std::string & local_ip)
 {
     BOOST_LOG(_log) << "ConsensusConnection - Connected to "
                     << _endpoint << ". Remote delegate id: "
@@ -106,6 +100,7 @@ ConsensusNetIO::OnConnect(
     _connected = true;
 
     AdjustSocket();
+
 #ifdef MULTI_IP
     if (local_ip != "")
     {
@@ -115,6 +110,7 @@ ConsensusNetIO::OnConnect(
         Send((void*)buff, 16);
     }
  #endif
+
     SendKeyAdvertisement();
     ReadPrequel();
 }
@@ -122,7 +118,7 @@ ConsensusNetIO::OnConnect(
 void 
 ConsensusNetIO::OnConnect(
     ErrorCode const & ec, 
-    std::string local_ip)
+    const std::string & local_ip)
 {
     if(ec)
     {
@@ -180,8 +176,8 @@ ConsensusNetIO::OnData(
     {
         if (message_type != MessageType::Key_Advert)
         {
-            BOOST_LOG(_log) << "ConsensusNetIO - unexpected message type for consensus Any " << 
-                               _receive_buffer.data()[2];
+            BOOST_LOG(_log) << "ConsensusNetIO - unexpected message type for consensus Any "
+                            << _receive_buffer.data()[2];
             return;
         }
         else
@@ -194,14 +190,19 @@ ConsensusNetIO::OnData(
                                                         std::placeholders::_1,
                                                         std::placeholders::_2));
         }
-    } else {
-        int idx = (int)static_cast<uint8_t>(consensus_type);
-        if (!(idx >= 0 && idx < NumberOfConsensus) || _consensus_connections[idx] == 0)
+    }
+    else
+    {
+        auto idx = ConsensusTypeToIndex(consensus_type);
+
+        if (!(idx >= 0 && idx < CONSENSUS_TYPE_COUNT) || _connections[idx] == 0)
         {
-            BOOST_LOG(_log) << "ConsensusNetIO - _consensus_connections is NULL: " << idx;
+            BOOST_LOG(_log) << "ConsensusNetIO - _consensus_connections is NULL: "
+                            << idx;
             return;
         }
-        _consensus_connections[idx]->OnPrequel(ec, _receive_buffer.data(), size);
+
+        _connections[idx]->OnPrequel(ec, _receive_buffer.data(), size);
     }
 }
  
@@ -216,10 +217,11 @@ ConsensusNetIO::OnPublicKey(
         return;
     }
 
-    auto msg (*reinterpret_cast<KeyAdvertisement*>(_receive_buffer.data()));
-    _key_store.OnPublicKey(_remote_delegate_id, msg.public_key);
+    _key_store.OnPublicKey(_remote_delegate_id,
+                           reinterpret_cast<KeyAdvertisement*>(
+                                   _receive_buffer.data())->public_key
+                           );
     
-    // make sure shared pointer is initialized by ConsensusNetIOManager
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
     _io_channel_binder(shared_from_this(), _remote_delegate_id);
 
@@ -231,16 +233,18 @@ ConsensusNetIO::AddConsensusConnection(
     ConsensusType t, 
     std::shared_ptr<IConsensusConnection> consensus_connection)
 {
-    BOOST_LOG(_log) << "ConsensusNetIO - Added consensus connection " << ConsensusToName(t) << ' ' <<
-            (int)(static_cast<uint8_t>(t)) << ' ' << (int)_remote_delegate_id;
-    _consensus_connections[(int)static_cast<uint8_t>(t)] = consensus_connection;
+    BOOST_LOG(_log) << "ConsensusNetIO - Added consensus connection " << ConsensusToName(t)
+                    << ' ' << ConsensusTypeToIndex(t)
+                    << ' ' << uint64_t(_remote_delegate_id);
+
+    _connections[ConsensusTypeToIndex(t)] = consensus_connection;
 }
 
 void 
 ConsensusNetIO::AdjustSocket()
 {
-    boost::asio::socket_base::receive_buffer_size receive_option(12108864);
-    boost::asio::socket_base::send_buffer_size send_option(12108864);
+    boost::asio::socket_base::receive_buffer_size receive_option(SOCKET_BUFF_SIZE);
+    boost::asio::socket_base::send_buffer_size send_option(SOCKET_BUFF_SIZE);
 
     _socket->set_option(receive_option);
     _socket->set_option(send_option);

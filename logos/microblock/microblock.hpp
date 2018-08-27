@@ -5,7 +5,7 @@
 //
 //===----------------------------------------------------------------------===//
 ///
-/// \file
+/// @file
 /// This file contains the declaration of the MicroBlock and MicroBlockHandler classes, which are used
 /// in the Microblock processing
 ///
@@ -47,16 +47,16 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
     /// Overide to mirror state_block
     BlockHash hash() const { return Hash(); }
     static const size_t HASHABLE_BYTES; //<! hashable bytes of the micrblock - used in signing
-    const uint8_t version = 0; //!< Core's software version
-    BlockHash previous; //!< Previous microblock'hash or current epoch if this is the first block
-    BlockHash merkleRoot; //!< Merkle root of the batch blocks included in this microblock
-    //uint64_t timestamp; //!< Consensus time stamp
-    uint16_t numberBlocks; //!< Number of batch bloks in this microblock
-    uint8_t delegateNumber; //!< Delegate number (0-31) who proposed this microblock
-    uint epochNumber; //!< Current epoch
-    uint8_t microBlockNumber; //!< Microblock number within this epoch
-    std::array<BlockHash,NUMBER_DELEGATES> tips; //!< Delegate's batch block tips
-    std::array<uint8_t, 32> signature; //!< Multisignature
+    const uint8_t version = 0; ///< Core's software version
+    BlockHash previous; ///< Previous microblock'hash or current epoch if this is the first block
+    BlockHash merkleRoot; ///< Merkle root of the batch blocks included in this microblock
+    //uint64_t timestamp; ///< Consensus time stamp
+    uint16_t numberBlocks; ///< Number of batch bloks in this microblock
+    uint8_t delegateNumber; ///< Delegate number (0-31) who proposed this microblock
+    uint epochNumber; ///< Current epoch
+    uint8_t microBlockNumber; ///< Microblock number within this epoch
+    std::array<BlockHash,NUMBER_DELEGATES> tips; ///< Delegate's batch block tips
+    std::array<uint8_t, 32> signature; ///< Multisignature
 };
 
 namespace logos {
@@ -65,15 +65,15 @@ class alarm;
 /// Handle MicroBlock processing
 class MicroBlockHandler : public std::enable_shared_from_this<MicroBlockHandler> {
     logos::alarm &alarm;
-    BlockStore &store; //!< reference to the block store
-    uint8_t nDelegates; //!< number of delegates
-    std::chrono::seconds interval; //!< microblock generation interval (seconds)
+    BlockStore &store; ///< reference to the block store
+    uint8_t nDelegates; ///< number of delegates
+    std::chrono::seconds interval; ///< microblock generation interval (seconds)
 public:
     /// Class constructor
-    /// \param s logos::alarm reference
-    /// \param s logos::block_store reference
-    /// \param n number of delegates
-    /// \param i microblock process period interval
+    /// @param s logos::alarm reference
+    /// @param s logos::block_store reference
+    /// @param n number of delegates
+    /// @param i microblock process period interval
     MicroBlockHandler(logos::alarm &a, BlockStore &s, uint8_t n, std::chrono::seconds i) : alarm(a), store(s), nDelegates(n),
         interval(i) {}
 
@@ -82,22 +82,22 @@ public:
 
     /// Start periodic microblock processing
     /// called by node::start
-    /// \param callback function that takes as the argument generated microblock
+    /// @param callback function that takes as the argument generated microblock
     void Start(
         std::function<void(MicroBlock&)>
     );
 
     /// Build the block, called periodically by node
     /// Could be called by any delegate
-    /// \param block to build [in|out]
-    /// \returns true on success
+    /// @param block to build [in|out]
+    /// @returns true on success
     bool BuildMicroBlock(MicroBlock &block);
 
     /// Verify the proposed block
-    /// \param block to verify [in]
-    /// \return true if verified (TBD, perhaps enum to address all possible failure scenarios
+    /// @param block to verify [in]
+    /// @return true if verified (TBD, perhaps enum to address all possible failure scenarios
     /// 1. exists and matches; 2. doesn't exist but all data matches 3. doesn't exist and there is
     /// a different block matching the same parent. 4. doesn't exist and there is no parent that this
     /// block references, the block # is ahead of the current block #.)
-    bool VerifyMicroBlock(MicroBlock &block); //!< Verify this microblock either exists or can be built and matches this block
+    bool VerifyMicroBlock(MicroBlock &block); ///< Verify this microblock either exists or can be built and matches this block
 };

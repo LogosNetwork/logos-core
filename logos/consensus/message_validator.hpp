@@ -12,12 +12,12 @@
 
 class MessageValidator
 {
-    using Log            = boost::log::sources::logger_mt;
-    using KeyPair        = bls::KeyPair;
-    using PublicKeyReal  = bls::PublicKey;
-    using PublicKeyVec   = bls::PublicKeyVec;
-    using SignatureReal  = bls::Signature;
-    using SignatureVec   = bls::SignatureVec;
+    using Log           = boost::log::sources::logger_mt;
+    using KeyPair       = bls::KeyPair;
+    using PublicKeyReal = bls::PublicKey;
+    using PublicKeyVec  = bls::PublicKeyVec;
+    using SignatureReal = bls::Signature;
+    using SignatureVec  = bls::SignatureVec;
 
 public:
 
