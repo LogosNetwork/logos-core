@@ -73,3 +73,8 @@ std::string ConsensusToName(const MSG & message)
 {
     return ConsensusToName(message.type);
 }
+
+inline size_t ConsensusTypeToIndex(ConsensusType type)
+{
+    return uint64_t(static_cast<uint8_t>(type));
+}

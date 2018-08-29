@@ -1,15 +1,6 @@
-//===-- logos/consensus/consensus_container.cpp - ConsensusContainer class implementation -------*- C++ -*-===//
-//
-// Open source
-// License. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-///
-/// \file
+/// @file
 /// This file contains implementation of the ConsensusContainer class, which encapsulates
-/// consensus related types
-///
-//===----------------------------------------------------------------------===//
+/// consensus related types.
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
@@ -21,22 +12,23 @@ ConsensusContainer::ConsensusContainer(Service & service,
                                        Log & log,
                                        const Config & config)
     : _validator(_key_store)
-    , _batchblock_consensus_manager(service, store, alarm, log, 
+    , _batch_manager(service, store, alarm, log, 
             config.consensus_manager_config, _key_store, _validator)
-    , _microblock_consensus_manager(service, store, alarm, log, 
+    , _micro_manager(service, store, alarm, log, 
             config.consensus_manager_config, _key_store, _validator)
-    , _epoch_consensus_manager(service, store, alarm, log, 
+    , _epoch_manager(service, store, alarm, log, 
             config.consensus_manager_config, _key_store, _validator)
-    , _consensus_netio_manager(
+    , _netio_manager(
         {
-            {ConsensusType::BatchStateBlock, _batchblock_consensus_manager},
-            {ConsensusType::MicroBlock, _microblock_consensus_manager},
-            {ConsensusType::Epoch, _epoch_consensus_manager}
+            {ConsensusType::BatchStateBlock, _batch_manager},
+            {ConsensusType::MicroBlock, _micro_manager},
+            {ConsensusType::Epoch, _epoch_manager}
         }, 
-        service, alarm, config.consensus_manager_config, _key_store, _validator)
-    , _microblock_handler(alarm, store, NUM_DELEGATES, config.microblock_generation_interval)
-{
-}
+        service, alarm, config.consensus_manager_config, 
+		_key_store, _validator)
+    , _microblock_handler(alarm, store, NUM_DELEGATES, 
+						  config.microblock_generation_interval)
+{}
 
 logos::process_return 
 ConsensusContainer::OnSendRequest(
@@ -51,26 +43,29 @@ ConsensusContainer::OnSendRequest(
 	    return result;
 	}
 
-	if(should_buffer)
-	{
-        result.code = logos::process_result::buffered;
-	    _batchblock_consensus_manager.OnBenchmarkSendRequest(
-            static_pointer_cast<RequestMessage<ConsensusType::BatchStateBlock>>(block), result);
-	}
-	else
-	{
-        _batchblock_consensus_manager.OnSendRequest(
-            static_pointer_cast<RequestMessage<ConsensusType::BatchStateBlock>>(block), result);
-	}
 
-	return result;
+    using Request = RequestMessage<ConsensusType::BatchStateBlock>;
+
+    if(should_buffer)
+    {
+        result.code = logos::process_result::buffered;
+        _batch_manager.OnBenchmarkSendRequest(
+            static_pointer_cast<Request>(block), result);
+    }
+    else
+    {
+        _batch_manager.OnSendRequest(
+            static_pointer_cast<Request>(block), result);
+    }
+
+    return result;
 }
 
 void 
 ConsensusContainer::BufferComplete(
     logos::process_return & result)
 {
-    _batchblock_consensus_manager.BufferComplete(result);
+    _batch_manager.BufferComplete(result);
 }
 
 void 
@@ -89,9 +84,11 @@ ConsensusContainer::BuildMicroBlock(MicroBlock &block)
 logos::process_return
 ConsensusContainer::OnSendRequest(std::shared_ptr<MicroBlock> block)
 {
+	using Request = RequestMessage<ConsensusType::MicroBlock>;
+	
     logos::process_return result;
-    _microblock_consensus_manager.OnSendRequest(
-        std::static_pointer_cast<RequestMessage<ConsensusType::MicroBlock>>(block), result);;
+    _micro_manager.OnSendRequest(
+        std::static_pointer_cast<Request>(block), result);;
 
     return result;
 }

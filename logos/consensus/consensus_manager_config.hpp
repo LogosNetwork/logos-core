@@ -11,26 +11,26 @@ struct ConsensusManagerConfig
         uint8_t     id;
     };
 
-	bool DeserializeJson(boost::property_tree::ptree & tree)
-	{
-	    auto rpc_tree(tree.get_child(""));
+    bool DeserializeJson(boost::property_tree::ptree & tree)
+    {
+        auto rpc_tree(tree.get_child(""));
 
-		auto delegates_tree(tree.get_child("delegate_peers"));
+        auto delegates_tree(tree.get_child("delegate_peers"));
 
-		for(auto & delegate : delegates_tree)
-		{
-		    try
-		    {
-		        auto ip = delegate.second.get<std::string>("ip_address");
-		        auto id = std::stoul(delegate.second.get<std::string>("delegate_id"));
+        for(auto & delegate : delegates_tree)
+        {
+            try
+            {
+                auto ip = delegate.second.get<std::string>("ip_address");
+                auto id = std::stoul(delegate.second.get<std::string>("delegate_id"));
 
-		        delegates.push_back(Delegate{ip, uint8_t(id)});
-		    }
-		    catch(std::logic_error const &)
-		    {
-		        return true;
-		    }
-		}
+                delegates.push_back(Delegate{ip, uint8_t(id)});
+            }
+            catch(std::logic_error const &)
+            {
+                return true;
+            }
+        }
 
         local_address = tree.get<std::string>("local_address");
         callback_address = tree.get<std::string>("callback_address");
@@ -48,14 +48,14 @@ struct ConsensusManagerConfig
             return true;
         }
 
-		return false;
-	}
+        return false;
+    }
 
-	// TODO: Test serialization
-	//
-	void SerializeJson(boost::property_tree::ptree & tree) const
-	{
-	    boost::property_tree::ptree delegates_tree;
+    // TODO: Test serialization
+    //
+    void SerializeJson(boost::property_tree::ptree & tree) const
+    {
+        boost::property_tree::ptree delegates_tree;
 
         for (auto & delegate : delegates)
         {

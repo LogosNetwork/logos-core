@@ -6,21 +6,20 @@
 
 template<ConsensusType consensus_type>
 ConsensusConnection<consensus_type>::ConsensusConnection(std::shared_ptr<IIOChannel> iochannel,
-                                         logos::alarm & alarm,
-                                         PrimaryDelegate * primary,
-                                         PersistenceManager & persistence_manager,
-                                         DelegateKeyStore & key_store,
-                                         MessageValidator & validator,
-                                         const DelegateIdentities & ids)
-        : _iochannel(iochannel) 
-        , _delegate_ids(ids)
-        , _persistence_manager(persistence_manager)
-        , _key_store(key_store)
-        , _validator(validator)
-        , _primary(primary)
-        , _alarm(alarm)
-{
-}
+                                                         logos::alarm & alarm,
+                                                         PrimaryDelegate * primary,
+                                                         PersistenceManager & persistence_manager,
+                                                         DelegateKeyStore & key_store,
+                                                         MessageValidator & validator,
+                                                         const DelegateIdentities & ids)
+    : _iochannel(iochannel)
+    , _delegate_ids(ids)
+    , _persistence_manager(persistence_manager)
+    , _key_store(key_store)
+    , _validator(validator)
+    , _primary(primary)
+    , _alarm(alarm)
+{}
 
 template<ConsensusType consensus_type>
 void ConsensusConnection<consensus_type>::Send(const void * data, size_t size)
@@ -48,7 +47,7 @@ void ConsensusConnection<consensus_type>::OnData(boost::system::error_code const
     {
         case MessageType::Pre_Prepare:
             _iochannel->AsyncRead(boost::asio::buffer(_receive_buffer.data() + sizeof(Prequel),
-                                                                  sizeof(PrePrepareMessage<consensus_type>) -
+                                                                  sizeof(PrePrepare) -
                                                                   sizeof(Prequel)
                                                                   ),
                                     std::bind(&ConsensusConnection<consensus_type>::OnMessage, this,
@@ -57,7 +56,7 @@ void ConsensusConnection<consensus_type>::OnData(boost::system::error_code const
             break;
         case MessageType::Prepare:
             _iochannel->AsyncRead(boost::asio::buffer(_receive_buffer.data() + sizeof(Prequel),
-                                                                  sizeof(PrepareMessage<consensus_type>) -
+                                                                  sizeof(Prepare) -
                                                                   sizeof(Prequel)
                                                                   ),
                                     std::bind(&ConsensusConnection<consensus_type>::OnMessage, this,
@@ -66,7 +65,7 @@ void ConsensusConnection<consensus_type>::OnData(boost::system::error_code const
             break;
         case MessageType::Post_Prepare:
             _iochannel->AsyncRead(boost::asio::buffer(_receive_buffer.data() + sizeof(Prequel),
-                                                                  sizeof(PostPrepareMessage<consensus_type>) -
+                                                                  sizeof(PostPrepare) -
                                                                   sizeof(Prequel)
                                                                   ),
                                     std::bind(&ConsensusConnection<consensus_type>::OnMessage, this,
@@ -75,7 +74,7 @@ void ConsensusConnection<consensus_type>::OnData(boost::system::error_code const
             break;
         case MessageType::Commit:
             _iochannel->AsyncRead(boost::asio::buffer(_receive_buffer.data() + sizeof(Prequel),
-                                                                  sizeof(CommitMessage<consensus_type>) -
+                                                                  sizeof(Commit) -
                                                                   sizeof(Prequel)
                                                                   ),
                                     std::bind(&ConsensusConnection<consensus_type>::OnMessage, this,
@@ -84,7 +83,7 @@ void ConsensusConnection<consensus_type>::OnData(boost::system::error_code const
             break;
         case MessageType::Post_Commit:
             _iochannel->AsyncRead(boost::asio::buffer(_receive_buffer.data() + sizeof(Prequel),
-                                                                  sizeof(PostCommitMessage<consensus_type>) -
+                                                                  sizeof(PostCommit) -
                                                                   sizeof(Prequel)
                                                                   ),
                                     std::bind(&ConsensusConnection<consensus_type>::OnMessage, this,
@@ -126,27 +125,27 @@ void ConsensusConnection<consensus_type>::OnMessage(boost::system::error_code co
     switch (type)
     {
         case MessageType::Pre_Prepare: {
-            auto msg (*reinterpret_cast<const PrePrepareMessage<consensus_type>*>(_receive_buffer.data()));
+            auto msg (*reinterpret_cast<const PrePrepare*>(_receive_buffer.data()));
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Prepare: {
-            auto msg (*reinterpret_cast<const PrepareMessage<consensus_type>*>(_receive_buffer.data()));
+            auto msg (*reinterpret_cast<const Prepare*>(_receive_buffer.data()));
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Post_Prepare: {
-            auto msg (*reinterpret_cast<const PostPrepareMessage<consensus_type>*>(_receive_buffer.data()));
+            auto msg (*reinterpret_cast<const PostPrepare*>(_receive_buffer.data()));
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Commit: {
-            auto msg (*reinterpret_cast<const CommitMessage<consensus_type>*>(_receive_buffer.data()));
+            auto msg (*reinterpret_cast<const Commit*>(_receive_buffer.data()));
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Post_Commit: {
-            auto msg (*reinterpret_cast<const PostCommitMessage<consensus_type>*>(_receive_buffer.data()));
+            auto msg (*reinterpret_cast<const PostCommit*>(_receive_buffer.data()));
             OnConsensusMessage(msg);
             break;
         }
@@ -163,12 +162,12 @@ void ConsensusConnection<consensus_type>::OnMessage(boost::system::error_code co
 }
 
 template<ConsensusType consensus_type>
-void ConsensusConnection<consensus_type>::OnConsensusMessage(const PrePrepareMessage<consensus_type> & message)
+void ConsensusConnection<consensus_type>::OnConsensusMessage(const PrePrepare & message)
 {
     if(ProceedWithMessage(message, ConsensusState::VOID))
     {
         _state = ConsensusState::PREPARE;
-        _cur_pre_prepare.reset(new PrePrepareMessage<consensus_type>(message));
+        _cur_pre_prepare.reset(new PrePrepare(message));
         _cur_pre_prepare_hash = message.Hash();
 
         SendMessage<PrepareMessage<consensus_type>>();
@@ -176,7 +175,7 @@ void ConsensusConnection<consensus_type>::OnConsensusMessage(const PrePrepareMes
 }
 
 template<ConsensusType consensus_type>
-void ConsensusConnection<consensus_type>::OnConsensusMessage(const PostPrepareMessage<consensus_type> & message)
+void ConsensusConnection<consensus_type>::OnConsensusMessage(const PostPrepare & message)
 {
     if(ProceedWithMessage(message, ConsensusState::PREPARE))
     {
@@ -187,7 +186,7 @@ void ConsensusConnection<consensus_type>::OnConsensusMessage(const PostPrepareMe
 }
 
 template<ConsensusType consensus_type>
-void ConsensusConnection<consensus_type>::OnConsensusMessage(const PostCommitMessage<consensus_type> & message)
+void ConsensusConnection<consensus_type>::OnConsensusMessage(const PostCommit & message)
 {
     if(ProceedWithMessage(message))
     {
@@ -200,7 +199,7 @@ void ConsensusConnection<consensus_type>::OnConsensusMessage(const PostCommitMes
 
 template<ConsensusType consensus_type>
 template<MessageType Type>
-void ConsensusConnection<consensus_type>::OnConsensusMessage(const StandardPhaseMessage<Type, consensus_type> & message)
+void ConsensusConnection<consensus_type>::OnConsensusMessage(const SPMessage<Type> & message)
 {
     _primary->OnConsensusMessage(message, _delegate_ids.remote);
 }
@@ -228,7 +227,8 @@ bool ConsensusConnection<consensus_type>::Validate(const MSG & message)
 
 template<ConsensusType consensus_type>
 template<typename MSG>
-bool ConsensusConnection<consensus_type>::ProceedWithMessage(const MSG & message, ConsensusState expected_state)
+bool ConsensusConnection<consensus_type>::ProceedWithMessage(const MSG & message,
+                                                             ConsensusState expected_state)
 {
     if(_state != expected_state)
     {
@@ -245,7 +245,7 @@ bool ConsensusConnection<consensus_type>::ProceedWithMessage(const MSG & message
 }
 
 template<ConsensusType consensus_type>
-bool ConsensusConnection<consensus_type>::ProceedWithMessage(const PostCommitMessage<consensus_type> & message)
+bool ConsensusConnection<consensus_type>::ProceedWithMessage(const PostCommit & message)
 {
     if(_state != ConsensusState::COMMIT)
     {
@@ -284,19 +284,20 @@ void ConsensusConnection<consensus_type>::SendKeyAdvertisement()
 }
 
 template<ConsensusType consensus_type>
-void ConsensusConnection<consensus_type>::StoreResponse(const PrepareMessage<consensus_type> & message)
+void ConsensusConnection<consensus_type>::StoreResponse(const Prepare & message)
 {
-    _cur_prepare.reset(new PrepareMessage<consensus_type>(message));
+    _cur_prepare.reset(new Prepare(message));
 }
 
 template<ConsensusType consensus_type>
-void ConsensusConnection<consensus_type>::StoreResponse(const CommitMessage<consensus_type> & message)
+void ConsensusConnection<consensus_type>::StoreResponse(const Commit & message)
 {
-    _cur_commit.reset(new CommitMessage<consensus_type>(message));
+    _cur_commit.reset(new Commit(message));
 }
 
 template<ConsensusType consensus_type>
-void ConsensusConnection<consensus_type>::OnPrequel(boost::system::error_code const & ec, const uint8_t *data, size_t size)
+void ConsensusConnection<consensus_type>::OnPrequel(boost::system::error_code const & ec,
+                                                    const uint8_t *data, size_t size)
 {
     std::memcpy(_receive_buffer.data(), data, size);
     OnData(ec, size);

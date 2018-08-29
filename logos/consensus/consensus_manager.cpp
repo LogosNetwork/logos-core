@@ -19,8 +19,7 @@ ConsensusManager<consensus_type>::ConsensusManager(Service & service,
 	, _validator(validator)
     , _alarm(alarm)
     , _delegate_id(config.delegate_id)
-{
-}
+{}
 
 template<ConsensusType consensus_type>
 void ConsensusManager<consensus_type>::OnSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result)

@@ -1,30 +1,22 @@
-//===-- logos/consensus/epoch/epoch_consensus_manager.cpp - ConsensusManager class specialization -------*- C++ -*-===//
-//
-// Open source
-// License. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-///
-/// \file
+/// @file
 /// This file contains specialization of the ConsensusManager class, which
 /// handles specifics of Epoch consensus
 ///
-//===----------------------------------------------------------------------===//
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 
 void 
 EpochConsensusManager::OnBenchmarkSendRequest(
-    std::shared_ptr<RequestMessage<ConsensusType::Epoch>> block, 
+    std::shared_ptr<Request> block,
     logos::process_return & result)
 {
-    _cur_epoch = static_pointer_cast<PrePrepareMessage<ConsensusType::Epoch>>(block);
+    _cur_epoch = static_pointer_cast<PrePrepare>(block);
     BOOST_LOG (_log) << "EpochConsensusManager::OnBenchmarkSendRequest() - hash: " 
                      << block->hash().to_string();
 }
 
 bool 
 EpochConsensusManager::Validate(
-    std::shared_ptr<RequestMessage<ConsensusType::Epoch>> block, 
+    std::shared_ptr<Request> block,
     logos::process_return & result)
 {
     result.code = logos::process_result::progress;
@@ -33,13 +25,13 @@ EpochConsensusManager::Validate(
 
 void 
 EpochConsensusManager::QueueRequest(
-    std::shared_ptr<RequestMessage<ConsensusType::Epoch>> request)
+    std::shared_ptr<Request> request)
 {
-    _cur_epoch = static_pointer_cast<PrePrepareMessage<ConsensusType::Epoch>>(request);
+    _cur_epoch = static_pointer_cast<PrePrepare>(request);
 }
 
-PrePrepareMessage<ConsensusType::Epoch> & 
-EpochConsensusManager::PrePrepareGetNext()
+auto
+EpochConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
   return *_cur_epoch;
 }
@@ -64,7 +56,7 @@ EpochConsensusManager::PrePrepareQueueFull()
 
 void 
 EpochConsensusManager::ApplyUpdates(
-    const PrePrepareMessage<ConsensusType::Epoch> & pre_prepare, 
+    const PrePrepare & pre_prepare,
     uint8_t delegate_id)
 {
 }

@@ -46,15 +46,14 @@ enum class ConsensusType : uint8_t
     Epoch = 2,
     Any = 0xff /// keep it 0xff so adding a new type would not change compatibility with Any
 };
- // The number of consensus excluding Any
-const uint8_t NumberOfConsensus = 3;
 
-static const size_t NUM_DELEGATES           = 32;
-static const size_t CONSENSUS_HASH_SIZE     = 32;
-static const size_t CONSENSUS_SIG_SIZE      = 32;
-static const size_t CONSENSUS_AGG_SIG_SIZE  = 32;
-static const size_t CONSENSUS_PUB_KEY_SIZE  = 64;
-static const size_t CONSENSUS_BATCH_SIZE    = 1500;
+static const size_t CONSENSUS_TYPE_COUNT   = 3;
+static const size_t NUM_DELEGATES          = 32;
+static const size_t CONSENSUS_HASH_SIZE    = 32;
+static const size_t CONSENSUS_SIG_SIZE     = 32;
+static const size_t CONSENSUS_AGG_SIG_SIZE = 32;
+static const size_t CONSENSUS_PUB_KEY_SIZE = 64;
+static const size_t CONSENSUS_BATCH_SIZE   = 1500;
 
 using Signature    = std::array<uint8_t, CONSENSUS_SIG_SIZE>;
 using AggSignature = std::array<uint8_t, CONSENSUS_AGG_SIG_SIZE>;
@@ -75,11 +74,12 @@ inline uint64_t GetStamp()
 template<MessageType type_param, ConsensusType consensus_param>
 struct MessagePrequel
 {
-	static const size_t PADDING_SIZE = 5;
-    const uint8_t     version = 0;
-    const MessageType type = type_param;
+    static const size_t PADDING_SIZE = 5;
+
+    const uint8_t       version = 0;
+    const MessageType   type = type_param;
     const ConsensusType consensus_type = consensus_param;
-	const uint8_t     pad[PADDING_SIZE] = {0,0,0,0,0}; // FIXME Do not use manual padding
+    const uint8_t       pad[PADDING_SIZE] = {0,0,0,0,0}; // FIXME Do not use manual padding
 };
 
 template<MessageType type, ConsensusType consensus>

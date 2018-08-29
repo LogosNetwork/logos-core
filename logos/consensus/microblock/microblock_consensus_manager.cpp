@@ -1,30 +1,18 @@
-//===-- logos/consensus/microblock/microblock_consensus_manager.cpp - ConsensusConnection class specialization -------*- C++ -*-===//
-//
-// Open source
-// License. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-///
-/// \file
-/// This file contains specialization of the ConsensusManager class, which
-/// handles specifics of MicroBlock consensus
-///
-//===----------------------------------------------------------------------===//
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
 
-void 
+void
 MicroBlockConsensusManager::OnBenchmarkSendRequest(
-    std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>> block, 
+    std::shared_ptr<Request> block,
     logos::process_return & result)
 {
-    _cur_microblock = static_pointer_cast<PrePrepareMessage<ConsensusType::MicroBlock>>(block);
+    _cur_microblock = static_pointer_cast<PrePrepare>(block);
     BOOST_LOG (_log) << "MicroBlockConsensusManager::OnBenchmarkSendRequest() - hash: " 
                      << block->hash().to_string();
 }
 
 bool 
 MicroBlockConsensusManager::Validate(
-    std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>> block, 
+    std::shared_ptr<Request> block,
     logos::process_return & result)
 {
     result.code = logos::process_result::progress;
@@ -33,15 +21,15 @@ MicroBlockConsensusManager::Validate(
 
 void 
 MicroBlockConsensusManager::QueueRequest(
-    std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>> request)
+    std::shared_ptr<Request> request)
 {
-    _cur_microblock = static_pointer_cast<PrePrepareMessage<ConsensusType::MicroBlock>>(request);
+    _cur_microblock = static_pointer_cast<PrePrepare>(request);
 }
 
-PrePrepareMessage<ConsensusType::MicroBlock> & 
-MicroBlockConsensusManager::PrePrepareGetNext()
+auto
+MicroBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
-  return *_cur_microblock;
+    return *_cur_microblock;
 }
 
 void 
@@ -64,19 +52,18 @@ MicroBlockConsensusManager::PrePrepareQueueFull()
 
 void 
 MicroBlockConsensusManager::ApplyUpdates(
-    const PrePrepareMessage<ConsensusType::MicroBlock> & pre_prepare, 
+    const PrePrepare & pre_prepare,
     uint8_t delegate_id)
-{
-}
+{}
 
 uint64_t 
 MicroBlockConsensusManager::OnConsensusReachedStoredCount()
 {
-  return 1;
+    return 1;
 }
 
 bool 
 MicroBlockConsensusManager::OnConsensusReachedExt()
 {
-  return true;
+    return true;
 }

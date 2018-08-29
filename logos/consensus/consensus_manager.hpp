@@ -14,10 +14,17 @@
 
 class IConsensusManager
 {
+
 public:
+
   IConsensusManager() {}
+
   virtual ~IConsensusManager() {}
-  virtual std::shared_ptr<IConsensusConnection> BindIOChannel(std::shared_ptr<IIOChannel>, const DelegateIdentities &) = 0;
+
+  virtual
+  std::shared_ptr<IConsensusConnection>
+  BindIOChannel(std::shared_ptr<IIOChannel>,
+                const DelegateIdentities &) = 0;
 };
 
 template<ConsensusType consensus_type>
@@ -28,10 +35,13 @@ class ConsensusManager : public PrimaryDelegate,
 protected:
 
     using Service     = boost::asio::io_service;
-	using Config      = ConsensusManagerConfig;
+    using Config      = ConsensusManagerConfig;
     using Log         = boost::log::sources::logger_mt;
     using Connections = std::vector<std::shared_ptr<ConsensusConnection<consensus_type>>>;
     using Store       = logos::block_store;
+    using Manager     = ConsensusManager<consensus_type>;
+    using Request     = RequestMessage<consensus_type>;
+    using PrePrepare  = PrePrepareMessage<consensus_type>;
 
 public:
 
@@ -43,22 +53,26 @@ public:
                    DelegateKeyStore & key_store,
                    MessageValidator & validator);
 
-	void OnSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result);
-	virtual void OnBenchmarkSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result) = 0; 
+    void OnSendRequest(std::shared_ptr<Request> block, logos::process_return & result);
+
+    virtual void OnBenchmarkSendRequest(std::shared_ptr<Request> block,
+                                        logos::process_return & result) = 0;
 
     void Send(const void * data, size_t size) override;
 
     virtual ~ConsensusManager() {}
 
-    virtual std::shared_ptr<IConsensusConnection> BindIOChannel(std::shared_ptr<IIOChannel>, const DelegateIdentities &) override;
+    virtual
+    std::shared_ptr<IConsensusConnection> BindIOChannel(std::shared_ptr<IIOChannel>,
+                                                        const DelegateIdentities &) override;
 
 protected:
 
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;
 
-	virtual void ApplyUpdates(const PrePrepareMessage<consensus_type> &, uint8_t delegate_id) = 0;
+    virtual void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) = 0;
 
-    virtual bool Validate(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result) = 0;
+    virtual bool Validate(std::shared_ptr<Request> block, logos::process_return & result) = 0;
 
     void OnConsensusReached() override;
     virtual uint64_t OnConsensusReachedStoredCount() = 0;
@@ -69,9 +83,10 @@ protected:
     virtual bool ReadyForConsensusExt() { return ReadyForConsensus(); }
     bool StateReadyForConsensus();
 
-    virtual void QueueRequest(std::shared_ptr<RequestMessage<consensus_type>>) = 0;
-    virtual PrePrepareMessage<consensus_type> & PrePrepareGetNext() = 0;
-    virtual void PrePreparePopFront() = 0;
+    virtual void PrePreparePopFront() {};
+
+    virtual void QueueRequest(std::shared_ptr<Request>) = 0;
+    virtual PrePrepare & PrePrepareGetNext() = 0;
     virtual bool PrePrepareQueueEmpty() = 0;
     virtual bool PrePrepareQueueFull() = 0;
 
@@ -79,7 +94,7 @@ protected:
     PersistenceManager _persistence_manager;
     DelegateKeyStore & _key_store;
     MessageValidator & _validator;
-	logos::alarm &       _alarm;
+    logos::alarm &     _alarm;
     std::mutex         _connection_mutex;
     Log                _log;
     uint8_t            _delegate_id;
