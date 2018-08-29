@@ -1248,7 +1248,7 @@ void logos::rpc_handler::block_create ()
                 {
                     if (work == 0)
                     {
-                        work = node.work_generate_blocking (previous.is_zero () ? pub : previous);
+                        //work = node.work_generate_blocking (previous.is_zero () ? pub : previous);
                     }
                     logos::state_block state (pub, previous, representative, amount, link, prv, pub, work);
                     boost::property_tree::ptree response_l;
