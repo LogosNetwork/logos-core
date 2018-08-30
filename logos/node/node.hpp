@@ -63,7 +63,6 @@ class alarm
 {
 public:
 
-
     using Handle         = uint64_t;
     using OperationQueue = std::priority_queue<operation,
                                                std::vector<operation>,

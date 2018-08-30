@@ -29,42 +29,31 @@ struct DelegateIdentities
 /// ConsensusConnection's Interface to ConsensusNetIO.
 class IConsensusConnection
 {
-
 public:
 
   virtual ~IConsensusConnection() {}
 
-  virtual void OnPrequel(boost::system::error_code const & ec,
-                         const uint8_t *data, size_t size) = 0;
+  virtual void OnPrequel(const uint8_t * data) = 0;
 };
 
-template<ConsensusType consensus_type>
+template<ConsensusType CT>
 class ConsensusConnection : public IConsensusConnection
 {
-
 protected:
 
-    // Boost aliases
-    using Service     = boost::asio::io_service;
-    using Endpoint    = boost::asio::ip::tcp::endpoint;
-    using Socket      = boost::asio::ip::tcp::socket;
     using Log         = boost::log::sources::logger_mt;
+    using PrePrepare  = PrePrepareMessage<CT>;
+    using Prepare     = PrepareMessage<CT>;
+    using Commit      = CommitMessage<CT>;
+    using PostPrepare = PostPrepareMessage<CT>;
+    using PostCommit  = PostCommitMessage<CT>;
 
-    // Message type aliases
-    using PrePrepare  = PrePrepareMessage<consensus_type>;
-    using Prepare     = PrepareMessage<consensus_type>;
-    using Commit      = CommitMessage<consensus_type>;
-    using PostPrepare = PostPrepareMessage<consensus_type>;
-    using PostCommit  = PostCommitMessage<consensus_type>;
-
-    // Other
     template<MessageType TYPE>
-    using SPMessage   = StandardPhaseMessage<TYPE, consensus_type>;
+    using SPMessage   = StandardPhaseMessage<TYPE, CT>;
 
 public:
 
     ConsensusConnection(std::shared_ptr<IIOChannel> iochannel,
-                        logos::alarm & alarm,
                         PrimaryDelegate * primary,
                         PersistenceManager & persistence_manager,
                         DelegateKeyStore & key_store,
@@ -81,7 +70,7 @@ public:
 
     virtual ~ConsensusConnection() {}
 
-    void OnPrequel(boost::system::error_code const & ec, const uint8_t *data, size_t size);
+    void OnPrequel(const uint8_t * data) override;
 
 protected:
 
@@ -91,8 +80,8 @@ protected:
 
     void ApplyUpdates(const PrePrepare &, uint8_t delegate_id);
 
-    void OnData(boost::system::error_code const & ec, size_t size);
-    void OnMessage(boost::system::error_code const & ec, size_t size);
+    void OnData();
+    void OnMessage(const uint8_t * data);
 
     // Messages received by backup delegates
     void OnConsensusMessage(const PrePrepare & message);
@@ -100,8 +89,8 @@ protected:
     void OnConsensusMessage(const PostCommit & message);
 
     // Messages received by primary delegates
-    template<MessageType Type>
-    void OnConsensusMessage(const SPMessage<Type> & message);
+    template<MessageType MT>
+    void OnConsensusMessage(const SPMessage<MT> & message);
 
     template<typename MSG>
     bool Validate(const MSG & message);
@@ -129,7 +118,6 @@ protected:
     PersistenceManager &        _persistence_manager;
     DelegateKeyStore &          _key_store;
     MessageValidator &          _validator;
-    logos::alarm &              _alarm;
     Log                         _log;
     PrimaryDelegate *           _primary;
     ConsensusState              _state     = ConsensusState::VOID;
