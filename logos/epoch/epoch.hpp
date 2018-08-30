@@ -1,13 +1,7 @@
-//
-// Open source
-// License. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
 ///
-/// \file
+/// @file
 /// This file contains declaration of the Epoch
 ///
-//===----------------------------------------------------------------------===//
 #pragma once
 #include <logos/consensus/messages/common.hpp>
 #include <logos/lib/merkle.hpp>
@@ -48,12 +42,12 @@ public:
         });
     }
     BlockHash hash() { return Hash(); }
-    static const size_t                     HASHABLE_BYTES; /// hashable bytes of the epoch - used in signing
-    logos::account                          account; /// account address of the epoch's proposer
-    uint                                    epochNumber; /// epoch number
-    BlockHash                               previous; /// previous epoch number
-    BlockHash                               microBlockTip; /// microblock tip of this epoch
-    std::array<Delegate, NUM_DELEGATES>     delegates; /// delegate'ls list
-    uint64_t                                transactionFeePool; /// this epoch's transaction fee pool
-    Signature                               signature; /// signature of hashable bytes
+    static const size_t                     HASHABLE_BYTES;     ///< hashable bytes of the epoch - used in signing
+    logos::account                          account;            ///< account address of the epoch's proposer
+    uint                                    epochNumber;        ///< epoch number
+    BlockHash                               previous;           ///< previous epoch number
+    BlockHash                               microBlockTip;      ///< microblock tip of this epoch
+    std::array<Delegate, NUM_DELEGATES>     delegates;          ///< delegate'ls list
+    uint64_t                                transactionFeePool; ///< this epoch's transaction fee pool
+    Signature                               signature;          ///< signature of hashable bytes
 };

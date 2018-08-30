@@ -1,15 +1,6 @@
-//===-- logos/microblock/microblock.cpp - Microblock and MicroBlockHandler class definition -------*- C++ -*-===//
-//
-// Open source
-// License. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-///
-/// \file
-/// This file contains definition of the MicroBlock and MicroBlockHandler classes, which are used
+/// @file
+/// This file contains the definition of the MicroBlock and MicroBlockHandler classes, which are used
 /// in the Microblock processing
-///
-//===----------------------------------------------------------------------===//
 #include <logos/microblock/microblock.hpp>
 #include <logos/blockstore.hpp>
 #include <logos/lib/merkle.hpp>
@@ -30,7 +21,7 @@ struct entry {
 /// Mi is current microblock sequence number
 bool
 MicroBlockHandler::BuildMicroBlock(
-    MicroBlock &block) //!< block to build in/out
+    MicroBlock &block) ///< block to build in/out
 {
     vector<BlockHash> merkle; // holds first level of parents
     BlockHash previous_hash(0); // previous leaf's hash in merkle tree
@@ -119,7 +110,7 @@ MicroBlockHandler::BuildMicroBlock(
 
 //!< Start periodic microblock processing
 void MicroBlockHandler::Start(
-    std::function<void(MicroBlock &)> cb) //!< call back to process generated microblock
+    std::function<void(MicroBlock &)> cb) ///< call back to process generated microblock
 {
     alarm.add(std::chrono::steady_clock::now () + interval,[&]()mutable->void{
         MicroBlock block;
