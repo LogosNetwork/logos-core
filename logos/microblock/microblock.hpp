@@ -19,30 +19,39 @@ using BlockStore = logos::block_store;
 /// If primary delegate fails to propose then next in line delegate (based on the voting power) proposes
 /// the microblock. 
 struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::MicroBlock> {
-    MicroBlock() : MessageHeader(0), previous(0), merkleRoot(0), delegate(0),
-        epochNumber(0), microBlockNumber(0) { tips={0};signature={0};}
+    MicroBlock()
+        : MessageHeader(0)
+        , _previous(0)
+        , _merkle_root(0)
+        , _delegate(0)
+        , _epoch_number(0)
+        , _micro_block_number(0)
+        {
+            _tips={0};
+            signature={0};
+        }
     /// Calculate block's hash
     BlockHash Hash() const {
         return ::Hash([&](function<void(const void *data,size_t)> cb)mutable->void {
             cb(&timestamp, sizeof(timestamp));
-            cb(previous.bytes.data(), sizeof(previous));
-            cb(merkleRoot.bytes.data(), sizeof(merkleRoot));
-            cb(&delegate, sizeof(delegate));
-            cb(&epochNumber, sizeof(epochNumber));
-            cb(&microBlockNumber, sizeof(microBlockNumber));
-            cb(tips.data(), NUM_DELEGATES * sizeof(BlockHash)); 
+            cb(_previous.bytes.data(), sizeof(_previous));
+            cb(_merkle_root.bytes.data(), sizeof(_merkle_root));
+            cb(&_delegate, sizeof(_delegate));
+            cb(&_epoch_number, sizeof(_epoch_number));
+            cb(&_micro_block_number, sizeof(_micro_block_number));
+            cb(_tips.data(), NUM_DELEGATES * sizeof(BlockHash));
         });
     }
     /// Overide to mirror state_block
     BlockHash hash() const { return Hash(); }
-    static const size_t HASHABLE_BYTES; ///< hashable bytes of the micrblock - used in signing
-    BlockHash previous; 		        ///< Previous microblock'hash or current epoch if this is the first block
-    BlockHash merkleRoot; 		        ///< Merkle root of the batch blocks included in this microblock
-    logos::account delegate; 	        ///< Delegate who proposed this microblock
-    uint epochNumber; 			        ///< Current epoch
-    uint8_t microBlockNumber;	        ///< Microblock number within this epoch
-    std::array<BlockHash,NUM_DELEGATES> tips; ///< Delegate's batch block tips
-    Signature signature; 		        ///< Multisignature
+    static const size_t HASHABLE_BYTES;         ///< hashable bytes of the micrblock - used in signing
+    BlockHash           _previous; 		        ///< Previous microblock'hash or current epoch if this is the first block
+    BlockHash           _merkle_root; 		    ///< Merkle root of the batch blocks included in this microblock
+    logos::account      _delegate; 	            ///< Delegate who proposed this microblock
+    uint                _epoch_number; 			///< Current epoch
+    uint8_t             _micro_block_number;	///< Microblock number within this epoch
+    std::array<BlockHash,NUM_DELEGATES> _tips;  ///< Delegate's batch block tips
+    Signature           signature; 		        ///< Multisignature
 };
 
 namespace logos {
@@ -50,18 +59,25 @@ class alarm;
 }
 /// Handle MicroBlock processing
 class MicroBlockHandler : public std::enable_shared_from_this<MicroBlockHandler> {
-    logos::alarm &alarm;
-    BlockStore &store; 				///< reference to the block store
-    uint8_t nDelegates; 			///< number of delegates
-    std::chrono::seconds interval; 	///< microblock generation interval (seconds)
+    logos::alarm &       _alarm;       ///< alarm
+    BlockStore &         _store; 		///< reference to the block store
+    uint8_t              _n_delegates; 	///< number of delegates
+    std::chrono::seconds _interval; 	///< microblock generation interval (seconds)
 public:
     /// Class constructor
     /// @param s logos::alarm reference
     /// @param s logos::block_store reference
     /// @param n number of delegates
     /// @param i microblock process period interval
-    MicroBlockHandler(logos::alarm &a, BlockStore &s, uint8_t n, std::chrono::seconds i) : alarm(a), store(s), nDelegates(n),
-        interval(i) {}
+    MicroBlockHandler(logos::alarm &a,
+                      BlockStore &s,
+                      uint8_t n,
+                      std::chrono::seconds i)
+        : _alarm(a)
+        , _store(s)
+        , _n_delegates(n)
+        , _interval(i)
+        {}
 
     /// Class distructor
     virtual ~MicroBlockHandler() {}

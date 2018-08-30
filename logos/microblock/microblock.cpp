@@ -27,22 +27,22 @@ MicroBlockHandler::BuildMicroBlock(
     BlockHash previous_hash(0); // previous leaf's hash in merkle tree
     BlockHash hash;
     MicroBlock previous; 
-    uint64_t interval_msec = interval.count() * 1000; // interval is in seconds, timestamp msec
+    uint64_t interval_msec = _interval.count() * 1000; // interval is in seconds, timestamp msec
 
     // is this the very first microblock (TBD have to point to the current epoch if first)
-    bool no_previous = store.micro_block_tip_get(hash);
-    no_previous = !no_previous ? store.micro_block_get(hash, previous) : no_previous; 
+    bool no_previous = _store.micro_block_tip_get(hash);
+    no_previous = !no_previous ? _store.micro_block_get(hash, previous) : no_previous;
 
     // delegate's chain from the current tip to the previous microblock tips or complete chain if 
     // no previous
-    std::vector<std::vector<entry>> blocks(nDelegates);
+    std::vector<std::vector<entry>> blocks(_n_delegates);
 
     // get the most recent time stamp from the batch block tips
     // need it to include the batch blocks within the time interval
-    for (uint8_t delegate = 0; delegate < nDelegates; ++delegate) 
+    for (uint8_t delegate = 0; delegate < _n_delegates; ++delegate)
     {
         // get the delegate's chain tip
-        if (false == store.batch_tip_get(delegate, hash)) // ignore if can't get it?
+        if (false == _store.batch_tip_get(delegate, hash)) // ignore if can't get it?
         {
             BatchStateBlock batch;
             bool not_found = false; // is it possible we can't find the block?
@@ -50,8 +50,8 @@ MicroBlockHandler::BuildMicroBlock(
             // done with this delegate's blockchain if reached the previous tip
             // might get the whole chain if no previous (first microblock ever; what about first in epoch)
             // what if delegates are different?
-            for (not_found = store.batch_block_get(hash, batch); !not_found && hash != previous.tips[delegate]; 
-                hash = batch.hash, not_found = store.batch_block_get(hash, batch)) 
+            for (not_found = _store.batch_block_get(hash, batch); !not_found && hash != previous._tips[delegate];
+                hash = batch.hash, not_found = _store.batch_block_get(hash, batch))
             {
                 // collect the blocks for this delegate
                 blocks[delegate].push_back(entry{hash,batch.timestamp});
@@ -63,7 +63,7 @@ MicroBlockHandler::BuildMicroBlock(
 
     // get the oldest timestamp, the blocks has batch-blocks with the most recent first
     uint64_t base_timestamp = blocks[0].back().timestamp;
-    for (uint8_t delegate = 1; delegate < nDelegates; ++delegate) 
+    for (uint8_t delegate = 1; delegate < _n_delegates; ++delegate)
     {
         if (blocks[delegate].back().timestamp < base_timestamp)
             base_timestamp = blocks[delegate].back().timestamp;
@@ -71,7 +71,7 @@ MicroBlockHandler::BuildMicroBlock(
 
     uint16_t numberBlocks = 0;
     // prepare merkle tree nodes, pre-calculate first level of parents as we are iteratig over the delegate's blockchains
-    for (uint8_t delegate = 0; delegate < nDelegates; ++delegate) 
+    for (uint8_t delegate = 0; delegate < _n_delegates; ++delegate)
     {
         // iterate oldest first
         for (auto it = blocks[delegate].rbegin(); it != blocks[delegate].rend(); ++it)
@@ -79,7 +79,7 @@ MicroBlockHandler::BuildMicroBlock(
            if (it->timestamp - base_timestamp < interval_msec ) 
            {
                ++numberBlocks;
-               block.tips[delegate] = it->hash;
+               block._tips[delegate] = it->hash;
                if (numberBlocks % 2 == 0)
                     merkle.push_back(Hash(previous_hash, it->hash));
                else
@@ -97,12 +97,12 @@ MicroBlockHandler::BuildMicroBlock(
     // is it possible we don't have any blocks?
     assert (numberBlocks != 0);
 
-    block.previous = previous.previous; // TBD, previous microblock's hash but could be epoch
-    block.merkleRoot = MerkleRoot(merkle); 
+    block._previous = previous._previous; // TBD, previous microblock's hash but could be epoch
+    block._merkle_root = MerkleRoot(merkle);
     block.timestamp = logos::seconds_since_epoch(); // TBD, either consensus stamp or the most recent stamp of included batch block
-    block.delegate = 0; // TBD, delegate who proposed this block (in this case self)
-    block.epochNumber = 0; // TBD, current epoch
-    block.microBlockNumber = 0; // TBD, microblock number in this epoch
+    block._delegate = 0; // TBD, delegate who proposed this block (in this case self)
+    block._epoch_number = 0; // TBD, current epoch
+    block._micro_block_number = 0; // TBD, microblock number in this epoch
     block.signature = {0}; // TBD, the consensus's multisig
 
     return true;
@@ -112,7 +112,7 @@ MicroBlockHandler::BuildMicroBlock(
 void MicroBlockHandler::Start(
     std::function<void(MicroBlock &)> cb) ///< call back to process generated microblock
 {
-    alarm.add(std::chrono::steady_clock::now () + interval,[&]()mutable->void{
+    _alarm.add(std::chrono::steady_clock::now () + _interval,[&]()mutable->void{
         MicroBlock block;
         BuildMicroBlock(block);
         cb(block);
