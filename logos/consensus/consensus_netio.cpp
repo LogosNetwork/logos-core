@@ -1,13 +1,10 @@
 /// @file
 /// This file contains implementation of the ConsensusNetIO and ConsensusNetIOManager classes, which handle
-/// network connections between the delegates
-///
-//===----------------------------------------------------------------------===//
+/// network connections between the delegates.
 #include <logos/consensus/consensus_netio.hpp>
 #include <logos/node/node.hpp>
 
 const uint8_t ConsensusNetIO::CONNECT_RETRY_DELAY;
-const size_t  ConsensusNetIO::SOCKET_BUFF_SIZE;
 
 ConsensusNetIO::ConsensusNetIO(Service & service,
                                const Endpoint & endpoint, 
@@ -18,16 +15,17 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
                                MessageValidator & validator,
                                IOBinder iobinder,
                                std::recursive_mutex & connection_mutex) 
-        : _socket(new Socket(service))
-        , _endpoint(endpoint)
-        , _alarm(alarm)
-        , _remote_delegate_id(remote_delegate_id)
-        , _local_delegate_id(local_delegate_id)
-        , _connections{0}
-        , _key_store(key_store)
-        , _validator(validator)
-        , _io_channel_binder(iobinder)
-        , _connection_mutex(connection_mutex)
+    : _socket(new Socket(service))
+    , _endpoint(endpoint)
+    , _alarm(alarm)
+    , _remote_delegate_id(remote_delegate_id)
+    , _local_delegate_id(local_delegate_id)
+    , _connections{0}
+    , _key_store(key_store)
+    , _validator(validator)
+    , _io_channel_binder(iobinder)
+    , _assembler(_socket)
+    , _connection_mutex(connection_mutex)
 {
     BOOST_LOG(_log) << "ConsensusNetIO - Trying to connect to: "
                     <<  _endpoint << " remote delegate id "
@@ -45,17 +43,18 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
                                MessageValidator & validator,
                                IOBinder iobinder,
                                std::recursive_mutex & connection_mutex) 
-        : _socket(socket)
-        , _endpoint(endpoint)
-        , _alarm(alarm)
-        , _connected(false)
-        , _remote_delegate_id(remote_delegate_id)
-        , _local_delegate_id(local_delegate_id)
-        , _connections{0}
-        , _key_store(key_store)
-        , _validator(validator)
-        , _io_channel_binder(iobinder)
-        , _connection_mutex(connection_mutex)
+    : _socket(socket)
+    , _endpoint(endpoint)
+    , _alarm(alarm)
+    , _connected(false)
+    , _remote_delegate_id(remote_delegate_id)
+    , _local_delegate_id(local_delegate_id)
+    , _connections{0}
+    , _key_store(key_store)
+    , _validator(validator)
+    , _io_channel_binder(iobinder)
+    , _assembler(_socket)
+    , _connection_mutex(connection_mutex)
 {
     OnConnect();
 }
@@ -68,7 +67,7 @@ ConsensusNetIO::Connect()
 						   { OnConnect(ec); });
 }
 
-void 
+void
 ConsensusNetIO::Send(
     const void *data, 
     size_t size)
@@ -102,7 +101,6 @@ ConsensusNetIO::OnConnect()
 
     _connected = true;
 
-    AdjustSocket();
     SendKeyAdvertisement();
     ReadPrequel();
 }
@@ -138,49 +136,41 @@ ConsensusNetIO::SendKeyAdvertisement()
     Send(advert);
 }
 
-void 
+void
 ConsensusNetIO::ReadPrequel()
 {
-    boost::asio::async_read(*_socket, boost::asio::buffer(_receive_buffer.data(),
-                                                          sizeof(Prequel)),
-                            std::bind(&ConsensusNetIO::OnData, this,
-                                      std::placeholders::_1,
-                                      std::placeholders::_2));
+    _assembler.ReadPrequel(std::bind(&ConsensusNetIO::OnData, this,
+                                     std::placeholders::_1));
 }
 
-void 
-ConsensusNetIO::AsyncRead(
-    boost::asio::mutable_buffer buffer, 
-    std::function<void(boost::system::error_code const &, size_t)> cb)
+void
+ConsensusNetIO::AsyncRead(size_t bytes,
+                          ReadCallback callback)
 {
-    boost::asio::async_read(*_socket, buffer, cb);
+    _assembler.ReadBytes(callback, bytes);
 }
 
-void 
-ConsensusNetIO::OnData(
-    ErrorCode const & ec, 
-    size_t size)
+void
+ConsensusNetIO::OnData(const uint8_t * data)
 {
-    ConsensusType consensus_type (static_cast<ConsensusType> (_receive_buffer.data()[2]));
-    MessageType message_type (static_cast<MessageType> (_receive_buffer.data()[1]));
+    ConsensusType consensus_type (static_cast<ConsensusType> (data[2]));
+    MessageType message_type (static_cast<MessageType> (data[1]));
 
     if (consensus_type == ConsensusType::Any)
     {
         if (message_type != MessageType::Key_Advert)
         {
             BOOST_LOG(_log) << "ConsensusNetIO - unexpected message type for consensus Any "
-                            << _receive_buffer.data()[2];
+                            << data[2];
             return;
         }
         else
         {
-            AsyncRead(boost::asio::buffer(_receive_buffer.data() + sizeof(Prequel),
-                                            sizeof(KeyAdvertisement)-
-                                            sizeof(Prequel)
-                                            ),
-                                            std::bind(&ConsensusNetIO::OnPublicKey, this,
-                                                        std::placeholders::_1,
-                                                        std::placeholders::_2));
+            memcpy(_receive_buffer.data(), data, sizeof(Prequel));
+            _assembler.ReadBytes(std::bind(&ConsensusNetIO::OnPublicKey, this,
+                                           std::placeholders::_1),
+                                 sizeof(KeyAdvertisement) -
+                                 sizeof(Prequel));
         }
     }
     else
@@ -194,20 +184,15 @@ ConsensusNetIO::OnData(
             return;
         }
 
-        _connections[idx]->OnPrequel(ec, _receive_buffer.data(), size);
+        _connections[idx]->OnPrequel(data);
     }
 }
- 
+
 void 
-ConsensusNetIO::OnPublicKey(
-    ErrorCode const & ec, 
-    size_t size)
+ConsensusNetIO::OnPublicKey(const uint8_t * data)
 {
-    if(ec)
-    {
-        BOOST_LOG(_log) << "ConsensusNetIO - Error receiving message: " << ec.message();
-        return;
-    }
+    memcpy(_receive_buffer.data() + sizeof(Prequel), data,
+           sizeof(KeyAdvertisement) - sizeof(Prequel));
 
     auto msg (*reinterpret_cast<KeyAdvertisement*>(_receive_buffer.data()));
 
@@ -225,21 +210,11 @@ ConsensusNetIO::OnPublicKey(
 void 
 ConsensusNetIO::AddConsensusConnection(
     ConsensusType t, 
-    std::shared_ptr<IConsensusConnection> consensus_connection)
+    std::shared_ptr<IConsensusConnection> connection)
 {
     BOOST_LOG(_log) << "ConsensusNetIO - Added consensus connection " << ConsensusToName(t)
                     << ' ' << ConsensusTypeToIndex(t)
                     << ' ' << uint64_t(_remote_delegate_id);
 
-    _connections[ConsensusTypeToIndex(t)] = consensus_connection;
-}
-
-void 
-ConsensusNetIO::AdjustSocket()
-{
-    boost::asio::socket_base::receive_buffer_size receive_option(SOCKET_BUFF_SIZE);
-    boost::asio::socket_base::send_buffer_size send_option(SOCKET_BUFF_SIZE);
-
-    _socket->set_option(receive_option);
-    _socket->set_option(send_option);
+    _connections[ConsensusTypeToIndex(t)] = connection;
 }

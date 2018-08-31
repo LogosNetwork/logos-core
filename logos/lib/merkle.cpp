@@ -1,14 +1,7 @@
-//===-- logos/lib/merkle.cpp - Merkle functions definition -------*- C++ -*-===//
-//
-// Open source
-// License. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
 ///
-/// \file
+/// @file
 /// This file contains the definition of Merkle tree related functions
 ///
-//===----------------------------------------------------------------------===//
 #include <logos/lib/merkle.hpp>
 #include <blake2/blake2.h>
 

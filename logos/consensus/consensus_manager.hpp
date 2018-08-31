@@ -45,13 +45,13 @@ protected:
 
 public:
 
-	ConsensusManager(Service & service,
-	                 Store & store,
-	                 logos::alarm & alarm,
-	                 Log & log,
-					 const Config & config,
-                   DelegateKeyStore & key_store,
-                   MessageValidator & validator);
+    ConsensusManager(Service & service,
+                     Store & store,
+                     logos::alarm & alarm,
+                     Log & log,
+                     const Config & config,
+                     DelegateKeyStore & key_store,
+                     MessageValidator & validator);
 
     void OnSendRequest(std::shared_ptr<Request> block, logos::process_return & result);
 

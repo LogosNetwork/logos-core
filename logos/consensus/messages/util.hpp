@@ -78,3 +78,41 @@ inline size_t ConsensusTypeToIndex(ConsensusType type)
 {
     return uint64_t(static_cast<uint8_t>(type));
 }
+
+template<ConsensusType CT>
+inline size_t MessageTypeToSize(MessageType type)
+{
+    size_t ret = 0;
+
+    switch (type)
+    {
+        case MessageType::Pre_Prepare: {
+            ret =  sizeof(PrePrepareMessage<CT>);
+            break;
+        }
+        case MessageType::Prepare: {
+            ret = sizeof(PrepareMessage<CT>);
+            break;
+        }
+        case MessageType::Post_Prepare: {
+            ret = sizeof(PostPrepareMessage<CT>);
+            break;
+        }
+        case MessageType::Commit: {
+            ret = sizeof(CommitMessage<CT>);
+            break;
+        }
+        case MessageType::Post_Commit: {
+            ret = sizeof(PostCommitMessage<CT>);
+            break;
+        }
+        case MessageType::Key_Advert: {
+            ret = sizeof(KeyAdvertisement);
+            break;
+        }
+        case MessageType::Unknown:
+            break;
+    }
+
+    return ret;
+}

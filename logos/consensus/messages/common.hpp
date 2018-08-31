@@ -37,7 +37,7 @@ enum class MessageType : uint8_t
 /// - update ConsensusToName in messages/util.hpp
 /// - add new files to CMakeLists.txt
 ////////////////////
-// Consensus type has to be sequential
+// ConsensusType values must be sequential
  // because it is also an index.
 enum class ConsensusType : uint8_t
 {

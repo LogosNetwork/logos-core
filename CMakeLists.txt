@@ -326,6 +326,7 @@ add_library (node
 	logos/consensus/messages/messages.cpp
 	logos/consensus/microblock/microblock_consensus_connection.cpp
 	logos/consensus/microblock/microblock_consensus_manager.cpp
+	logos/consensus/net_io_assembler.cpp
 	logos/consensus/peer_acceptor.cpp
 	logos/consensus/persistence/persistence_manager.cpp
 	logos/consensus/primary_delegate.cpp

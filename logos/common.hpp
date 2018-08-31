@@ -14,11 +14,11 @@ namespace boost
 template <>
 struct hash<logos::uint256_union>
 {
-	size_t operator() (logos::uint256_union const & value_a) const
-	{
-		std::hash<logos::uint256_union> hash;
-		return hash (value_a);
-	}
+    size_t operator() (logos::uint256_union const & value_a) const
+    {
+        std::hash<logos::uint256_union> hash;
+        return hash (value_a);
+    }
 };
 }
 namespace logos
@@ -33,14 +33,14 @@ class block_store;
 class balance_visitor : public logos::block_visitor
 {
 public:
-	balance_visitor (MDB_txn *, logos::block_store &);
-	virtual ~balance_visitor () = default;
-	void compute (logos::block_hash const &);
-	void state_block (logos::state_block const &) override;
-	MDB_txn * transaction;
-	logos::block_store & store;
-	logos::block_hash current;
-	logos::uint128_t result;
+    balance_visitor (MDB_txn *, logos::block_store &);
+    virtual ~balance_visitor () = default;
+    void compute (logos::block_hash const &);
+    void state_block (logos::state_block const &) override;
+    MDB_txn * transaction;
+    logos::block_store & store;
+    logos::block_hash current;
+    logos::uint128_t result;
 };
 
 /**
@@ -49,15 +49,15 @@ public:
 class amount_visitor : public logos::block_visitor
 {
 public:
-	amount_visitor (MDB_txn *, logos::block_store &);
-	virtual ~amount_visitor () = default;
-	void compute (logos::block_hash const &);
-	void state_block (logos::state_block const &) override;
-	void from_send (logos::block_hash const &);
-	MDB_txn * transaction;
-	logos::block_store & store;
-	logos::block_hash current;
-	logos::uint128_t result;
+    amount_visitor (MDB_txn *, logos::block_store &);
+    virtual ~amount_visitor () = default;
+    void compute (logos::block_hash const &);
+    void state_block (logos::state_block const &) override;
+    void from_send (logos::block_hash const &);
+    MDB_txn * transaction;
+    logos::block_store & store;
+    logos::block_hash current;
+    logos::uint128_t result;
 };
 
 /**
@@ -66,14 +66,14 @@ public:
 class representative_visitor : public logos::block_visitor
 {
 public:
-	representative_visitor (MDB_txn * transaction_a, logos::block_store & store_a);
-	virtual ~representative_visitor () = default;
-	void compute (logos::block_hash const & hash_a);
-	void state_block (logos::state_block const & block_a) override;
-	MDB_txn * transaction;
-	logos::block_store & store;
-	logos::block_hash current;
-	logos::block_hash result;
+    representative_visitor (MDB_txn * transaction_a, logos::block_store & store_a);
+    virtual ~representative_visitor () = default;
+    void compute (logos::block_hash const & hash_a);
+    void state_block (logos::state_block const & block_a) override;
+    MDB_txn * transaction;
+    logos::block_store & store;
+    logos::block_hash current;
+    logos::block_hash result;
 };
 
 /**
@@ -83,10 +83,10 @@ public:
 class keypair
 {
 public:
-	keypair ();
-	keypair (std::string const &);
-	logos::public_key pub;
-	logos::raw_key prv;
+    keypair ();
+    keypair (std::string const &);
+    logos::public_key pub;
+    logos::raw_key prv;
 };
 
 std::unique_ptr<logos::block> deserialize_block (MDB_val const &);
@@ -97,22 +97,22 @@ std::unique_ptr<logos::block> deserialize_block (MDB_val const &);
 class account_info
 {
 public:
-	account_info ();
-	account_info (MDB_val const &);
-	account_info (logos::account_info const &) = default;
-	account_info (logos::block_hash const &, logos::block_hash const &, logos::block_hash const &, logos::amount const &, uint64_t, uint64_t);
-	void serialize (logos::stream &) const;
-	bool deserialize (logos::stream &);
-	bool operator== (logos::account_info const &) const;
-	bool operator!= (logos::account_info const &) const;
-	logos::mdb_val val () const;
-	logos::block_hash head;
-	logos::block_hash rep_block;
-	logos::block_hash open_block;
-	logos::amount balance;
-	/** Seconds since posix epoch */
-	uint64_t modified;
-	uint64_t block_count;
+    account_info ();
+    account_info (MDB_val const &);
+    account_info (logos::account_info const &) = default;
+    account_info (logos::block_hash const &, logos::block_hash const &, logos::block_hash const &, logos::amount const &, uint64_t, uint64_t);
+    void serialize (logos::stream &) const;
+    bool deserialize (logos::stream &);
+    bool operator== (logos::account_info const &) const;
+    bool operator!= (logos::account_info const &) const;
+    logos::mdb_val val () const;
+    logos::block_hash head;
+    logos::block_hash rep_block;
+    logos::block_hash open_block;
+    logos::amount balance;
+    /** Seconds since posix epoch */
+    uint64_t modified;
+    uint64_t block_count;
 };
 
 /**
@@ -121,100 +121,100 @@ public:
 class pending_info
 {
 public:
-	pending_info ();
-	pending_info (MDB_val const &);
-	pending_info (logos::account const &, logos::amount const &);
-	void serialize (logos::stream &) const;
-	bool deserialize (logos::stream &);
-	bool operator== (logos::pending_info const &) const;
-	logos::mdb_val val () const;
-	logos::account source;
-	logos::amount amount;
+    pending_info ();
+    pending_info (MDB_val const &);
+    pending_info (logos::account const &, logos::amount const &);
+    void serialize (logos::stream &) const;
+    bool deserialize (logos::stream &);
+    bool operator== (logos::pending_info const &) const;
+    logos::mdb_val val () const;
+    logos::account source;
+    logos::amount amount;
 };
 class pending_key
 {
 public:
-	pending_key (logos::account const &, logos::block_hash const &);
-	pending_key (MDB_val const &);
-	void serialize (logos::stream &) const;
-	bool deserialize (logos::stream &);
-	bool operator== (logos::pending_key const &) const;
-	logos::mdb_val val () const;
-	logos::account account;
-	logos::block_hash hash;
+    pending_key (logos::account const &, logos::block_hash const &);
+    pending_key (MDB_val const &);
+    void serialize (logos::stream &) const;
+    bool deserialize (logos::stream &);
+    bool operator== (logos::pending_key const &) const;
+    logos::mdb_val val () const;
+    logos::account account;
+    logos::block_hash hash;
 };
 class block_info
 {
 public:
-	block_info ();
-	block_info (MDB_val const &);
-	block_info (logos::account const &, logos::amount const &);
-	void serialize (logos::stream &) const;
-	bool deserialize (logos::stream &);
-	bool operator== (logos::block_info const &) const;
-	logos::mdb_val val () const;
-	logos::account account;
-	logos::amount balance;
+    block_info ();
+    block_info (MDB_val const &);
+    block_info (logos::account const &, logos::amount const &);
+    void serialize (logos::stream &) const;
+    bool deserialize (logos::stream &);
+    bool operator== (logos::block_info const &) const;
+    logos::mdb_val val () const;
+    logos::account account;
+    logos::amount balance;
 };
 class block_counts
 {
 public:
-	block_counts ();
-	size_t sum ();
-	size_t send;
-	size_t receive;
-	size_t open;
-	size_t change;
-	size_t state;
+    block_counts ();
+    size_t sum ();
+    size_t send;
+    size_t receive;
+    size_t open;
+    size_t change;
+    size_t state;
 };
 class vote
 {
 public:
-	vote () = default;
-	vote (logos::vote const &);
-	vote (bool &, logos::stream &);
-	vote (bool &, logos::stream &, logos::block_type);
-	vote (logos::account const &, logos::raw_key const &, uint64_t, std::shared_ptr<logos::block>);
-	vote (MDB_val const &);
-	logos::uint256_union hash () const;
-	bool operator== (logos::vote const &) const;
-	bool operator!= (logos::vote const &) const;
-	void serialize (logos::stream &, logos::block_type);
-	void serialize (logos::stream &);
-	bool deserialize (logos::stream &);
-	std::string to_json () const;
-	// Vote round sequence number
-	uint64_t sequence;
-	std::shared_ptr<logos::block> block;
-	// Account that's voting
-	logos::account account;
-	// Signature of sequence + block hash
-	logos::signature signature;
+    vote () = default;
+    vote (logos::vote const &);
+    vote (bool &, logos::stream &);
+    vote (bool &, logos::stream &, logos::block_type);
+    vote (logos::account const &, logos::raw_key const &, uint64_t, std::shared_ptr<logos::block>);
+    vote (MDB_val const &);
+    logos::uint256_union hash () const;
+    bool operator== (logos::vote const &) const;
+    bool operator!= (logos::vote const &) const;
+    void serialize (logos::stream &, logos::block_type);
+    void serialize (logos::stream &);
+    bool deserialize (logos::stream &);
+    std::string to_json () const;
+    // Vote round sequence number
+    uint64_t sequence;
+    std::shared_ptr<logos::block> block;
+    // Account that's voting
+    logos::account account;
+    // Signature of sequence + block hash
+    logos::signature signature;
 };
 enum class vote_code
 {
-	invalid, // Vote is not signed correctly
-	replay, // Vote does not have the highest sequence number, it's a replay
-	vote // Vote has the highest sequence number
+    invalid, // Vote is not signed correctly
+    replay, // Vote does not have the highest sequence number, it's a replay
+    vote // Vote has the highest sequence number
 };
 enum class process_result
 {
-	progress,              // Hasn't been seen before, signed correctly
-	bad_signature,         // Signature was bad, forged or transmission error
-	old,                   // Already seen and was valid
-	negative_spend,        // Malicious attempt to spend a negative amount
-	fork,                  // Malicious fork based on previous
-	unreceivable,          // Source block doesn't exist or has already been received
-	gap_previous,          // Block marked as previous is unknown
-	gap_source,            // Block marked as source is unknown
-	state_block_disabled,  // Awaiting state block canary block
-	not_receive_from_send, // Receive does not have a send source
-	account_mismatch,      // Account number in open block doesn't match send destination
-	opened_burn_account,   // The impossible happened, someone found the private key associated with the public key '0'.
-	balance_mismatch,      // Balance and amount delta don't match
-	block_position,        // This block cannot follow the previous block
-	invalid_block_type,    // Logos - Only allow state blocks
-	not_implemented,       // Logos - The block cannot be processed
+    progress,              // Hasn't been seen before, signed correctly
+    bad_signature,         // Signature was bad, forged or transmission error
+    old,                   // Already seen and was valid
+    negative_spend,        // Malicious attempt to spend a negative amount
+    fork,                  // Malicious fork based on previous
+    unreceivable,          // Source block doesn't exist or has already been received
+    gap_previous,          // Block marked as previous is unknown
+    gap_source,            // Block marked as source is unknown
+    state_block_disabled,  // Awaiting state block canary block
+    not_receive_from_send, // Receive does not have a send source
+    account_mismatch,      // Account number in open block doesn't match send destination
+    opened_burn_account,   // The impossible happened, someone found the private key associated with the public key '0'.
+    balance_mismatch,      // Balance and amount delta don't match
+    block_position,        // This block cannot follow the previous block
+    invalid_block_type,    // Logos - Only allow state blocks
+    not_implemented,       // Logos - The block cannot be processed
     buffered,              // Logos - The block has been buffered for benchmarking
     buffering_done         // Logos - The last block has been buffered and consensus will begin
 };
@@ -224,28 +224,28 @@ std::string ProcessResultToString(process_result result);
 class process_return
 {
 public:
-	logos::process_result code;
-	logos::account account;
-	logos::amount amount;
-	logos::account pending_account;
-	boost::optional<bool> state_is_send;
+    logos::process_result code;
+    logos::account account;
+    logos::amount amount;
+    logos::account pending_account;
+    boost::optional<bool> state_is_send;
 };
 enum class tally_result
 {
-	vote,
-	changed,
-	confirm
+    vote,
+    changed,
+    confirm
 };
 class votes
 {
 public:
-	votes (std::shared_ptr<logos::block>);
-	logos::tally_result vote (std::shared_ptr<logos::vote>);
-	bool uncontested ();
-	// Root block of fork
-	logos::block_hash id;
-	// All votes received by account
-	std::unordered_map<logos::account, std::shared_ptr<logos::block>> rep_votes;
+    votes (std::shared_ptr<logos::block>);
+    logos::tally_result vote (std::shared_ptr<logos::vote>);
+    bool uncontested ();
+    // Root block of fork
+    logos::block_hash id;
+    // All votes received by account
+    std::unordered_map<logos::account, std::shared_ptr<logos::block>> rep_votes;
 };
 extern logos::keypair const & zero_key;
 extern logos::keypair const & test_genesis_key;
@@ -266,9 +266,9 @@ extern logos::block_hash const & not_an_account;
 class genesis
 {
 public:
-	explicit genesis ();
-	void initialize (MDB_txn *, logos::block_store &) const;
-	logos::block_hash hash () const;
-	//CH std::unique_ptr<logos::open_block> open;
+    explicit genesis ();
+    void initialize (MDB_txn *, logos::block_store &) const;
+    logos::block_hash hash () const;
+    //CH std::unique_ptr<logos::open_block> open;
 };
 }

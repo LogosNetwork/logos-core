@@ -1,18 +1,14 @@
 /// @file
 /// This file contains the declaration of the ConsensusNetIO classes, which provide
 /// an interface to the underlying socket.
-///
-//===----------------------------------------------------------------------===//
 #pragma once
 
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/consensus/net_io_assembler.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
-#include <boost/log/sources/logger.hpp>
 #include <boost/asio/io_service.hpp>
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/write.hpp>
 
 #include <functional>
 #include <map>
@@ -28,6 +24,11 @@ namespace logos
 /// ConsensusNetIO public interface, passed to ConsensusConnection.
 class IIOChannel
 {
+
+protected:
+
+    using ReadCallback =
+            std::function<void(const uint8_t * data)>;
 
 public:
 
@@ -47,9 +48,9 @@ public:
     /// Reads data from the connected peer.
     ///     @param buffer boost asio buffer to store the read data
     ///     @param cb call back handler
-    virtual void AsyncRead(boost::asio::mutable_buffer buffer,
-                           std::function<void(boost::system::error_code const &,
-                                              size_t)> cb) = 0;
+    virtual void AsyncRead(size_t bytes,
+                           ReadCallback callback) = 0;
+
     /// Read consensus message's prequel.
     virtual void ReadPrequel() = 0;
 };
@@ -143,7 +144,8 @@ public:
     /// Adds specific consensus type to be serviced by this netio channel.
     ///     @param t consensus type
     ///     @param consensus_connection specific consensus connection
-    void AddConsensusConnection(ConsensusType t, std::shared_ptr<IConsensusConnection> consensus_connection);
+    void AddConsensusConnection(ConsensusType t,
+                                std::shared_ptr<IConsensusConnection> connection);
 
     /// Read prequel header, dispatch the message
     /// to respective consensus type.
@@ -152,9 +154,10 @@ public:
     /// Asynchronous read.
     ///
     /// Reads data from the connected peer.
-    ///     @param buffer boost asio buffer to store the read data
-    ///     @param cb call back handler
-    virtual void AsyncRead(boost::asio::mutable_buffer buffer, std::function<void(boost::system::error_code const &, size_t)>) override;
+    ///     @param bytes number of bytes to read
+    ///     @param callback called upon reading data
+    virtual void AsyncRead(size_t bytes,
+                           ReadCallback callback) override;
 
     /// Change socket read/write buffering options
     void AdjustSocket();
@@ -179,9 +182,8 @@ private:
 
     /// Call back for async read
     ///
-    ///     @param ec error code
-    ///     @param size size of received data
-    void OnData(ErrorCode const & ec, size_t size);
+    ///     @param data data received
+    void OnData(const uint8_t * data);
 
     /// Send public key to the connected peer.
     void SendKeyAdvertisement();
@@ -190,11 +192,10 @@ private:
     ///
     ///     @param ec error code
     ///     @param size size of received data
-    void OnPublicKey(ErrorCode const & ec, size_t size);
+    void OnPublicKey(const uint8_t * data);
 
 
     static constexpr uint8_t CONNECT_RETRY_DELAY = 5;        ///< Reconnect delay in seconds.
-    static constexpr size_t  SOCKET_BUFF_SIZE    = 12108864; ///< Size of socket buffer.
 
     std::shared_ptr<Socket> _socket;             ///< Connected socket
     ReceiveBuffer           _receive_buffer;     ///< receive buffer
@@ -208,6 +209,7 @@ private:
     DelegateKeyStore &      _key_store;          ///< Delegates' public key store
     MessageValidator &      _validator;          ///< Validator/Signer of consensus messages
     IOBinder                _io_channel_binder;  ///< Network i/o to consensus binder
+    NetIOAssembler          _assembler;          ///< Assembles messages from TCP buffer
     std::recursive_mutex &  _connection_mutex;   ///< _connections access mutex
     std::mutex              _send_mutex;         ///< Protect concurrent writes
 };

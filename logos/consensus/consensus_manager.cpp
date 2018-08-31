@@ -7,16 +7,16 @@ constexpr uint8_t ConsensusManager<consensus_type>::BATCH_TIMEOUT_DELAY;
 
 template<ConsensusType consensus_type>
 ConsensusManager<consensus_type>::ConsensusManager(Service & service,
-                                   Store & store,
-                                   logos::alarm & alarm,
-                                   Log & log,
-                                   const Config & config,
-                                   DelegateKeyStore & key_store,
-                                   MessageValidator & validator)
+                                                   Store & store,
+                                                   logos::alarm & alarm,
+                                                   Log & log,
+                                                   const Config & config,
+                                                   DelegateKeyStore & key_store,
+                                                   MessageValidator & validator)
     : PrimaryDelegate(validator)
     , _persistence_manager(store, log)
     , _key_store(key_store)
-	, _validator(validator)
+    , _validator(validator)
     , _alarm(alarm)
     , _delegate_id(config.delegate_id)
 {}
@@ -109,7 +109,7 @@ bool ConsensusManager<consensus_type>::StateReadyForConsensus()
 template<ConsensusType consensus_type>
 std::shared_ptr<IConsensusConnection> ConsensusManager<consensus_type>::BindIOChannel(std::shared_ptr<IIOChannel> iochannel, const DelegateIdentities & ids)
 {
-    auto consensus_connection = std::make_shared<ConsensusConnection<consensus_type>>(iochannel, _alarm,
+    auto consensus_connection = std::make_shared<ConsensusConnection<consensus_type>>(iochannel,
                                                    this, _persistence_manager,
                                                    _key_store, _validator, ids);
     _connections.push_back(consensus_connection);
