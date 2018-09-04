@@ -259,12 +259,12 @@ ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
         {
             buffers.push_back(boost::asio::const_buffer((*entry)->data(),
                                                         (*entry)->size()));
-
-            boost::asio::async_write(*_socket, buffers,
-                                     std::bind(&ConsensusNetIO::OnWrite, this,
-                                               std::placeholders::_1,
-                                               std::placeholders::_2));
         }
+
+        boost::asio::async_write(*_socket, buffers,
+                                 std::bind(&ConsensusNetIO::OnWrite, this,
+                                           std::placeholders::_1,
+                                           std::placeholders::_2));
     }
     else
     {
