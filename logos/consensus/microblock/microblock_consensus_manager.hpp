@@ -23,12 +23,11 @@ public:
     ///     @param[in] validator validator/signer of consensus messages
     MicroBlockConsensusManager(Service & service,
                                Store & store,
-                               logos::alarm & alarm,
                                Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator)
-        : Manager(service, store, alarm, log,
+        : Manager(service, store, log,
                   config, key_store, validator)
     {}
 
@@ -58,13 +57,7 @@ protected:
     ///
     /// Benchmarking related.
     ///     @return number of stored blocks
-    uint64_t OnConsensusReachedStoredCount() override;
-
-    /// Sends buffered blocks.
-    ///
-    /// Benchmark related.
-    ///     @return true if using buffered blocks
-    bool OnConsensusReachedExt() override;
+    uint64_t GetStoredCount() override;
 
     /// Validates state blocks.
     ///     @param[in]  block the block to be validated

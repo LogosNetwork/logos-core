@@ -7,7 +7,7 @@
 const uint8_t ConsensusNetIO::CONNECT_RETRY_DELAY;
 
 ConsensusNetIO::ConsensusNetIO(Service & service,
-                               const Endpoint & endpoint, 
+                               const Endpoint & endpoint,
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
                                DelegateKeyStore & key_store,
@@ -44,7 +44,6 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
     : _socket(socket)
     , _endpoint(endpoint)
     , _alarm(alarm)
-    , _connected(false)
     , _remote_delegate_id(remote_delegate_id)
     , _connections{0}
     , _key_store(key_store)
@@ -70,23 +69,30 @@ ConsensusNetIO::Send(
     const void *data, 
     size_t size)
 {
-    // TODO - Make writes asynchronous
-    std::lock_guard<std::mutex> lock(_send_mutex);
-    
     if (!_connected)
     {
         BOOST_LOG(_log) << "ConsensusNetIO - socket not connected yet";
         return;
     }
 
-    boost::system::error_code ec;
-    boost::asio::write(*_socket, boost::asio::buffer(data, size), ec);
+    auto send_buffer(std::make_shared<std::vector<uint8_t>>(size, uint8_t(0)));
+    std::memcpy(send_buffer->data(), data, size);
 
-    if(ec)
+    std::lock_guard<std::mutex> lock(_send_mutex);
+
+    if(!_sending)
     {
-        BOOST_LOG(_log) << "ConsensusConnection - Error on write to socket: "
-                      << ec.message() << ". Remote endpoint: "
-                      << _endpoint;
+        _sending = true;
+
+        boost::asio::async_write(*_socket,
+                                 boost::asio::buffer(send_buffer->data(),
+                                                     size),
+                                 [this, send_buffer](const ErrorCode & ec, size_t size)
+                                 { OnWrite(ec, size); });
+    }
+    else
+    {
+        _queued_writes.push_back(send_buffer);
     }
 }
 
@@ -217,11 +223,52 @@ ConsensusNetIO::OnPublicKey(const uint8_t * data)
 void 
 ConsensusNetIO::AddConsensusConnection(
     ConsensusType t, 
-    std::shared_ptr<IConsensusConnection> connection)
+    std::shared_ptr<PrequelParser> connection)
 {
-    BOOST_LOG(_log) << "ConsensusNetIO - Added consensus connection " << ConsensusToName(t)
+    BOOST_LOG(_log) << "ConsensusNetIO - Added consensus connection "
+                    << ConsensusToName(t)
                     << ' ' << ConsensusTypeToIndex(t)
                     << ' ' << uint64_t(_remote_delegate_id);
 
     _connections[ConsensusTypeToIndex(t)] = connection;
 }
+
+void
+ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
+{
+    if(error)
+    {
+        BOOST_LOG(_log) << "ConsensusConnection - Error on write to socket: "
+                        << error.message() << ". Remote endpoint: "
+                        << _endpoint;
+    }
+
+    std::lock_guard<std::mutex> lock(_send_mutex);
+
+    auto begin = _queued_writes.begin();
+    auto end = _queued_writes.begin();
+    std::advance(end, _queue_reservation);
+
+    _queued_writes.erase(begin, end);
+
+    if((_queue_reservation = _queued_writes.size()))
+    {
+        std::vector<boost::asio::const_buffer> buffers;
+
+        for(auto entry = _queued_writes.begin(); entry != _queued_writes.end(); ++entry)
+        {
+            buffers.push_back(boost::asio::const_buffer((*entry)->data(),
+                                                        (*entry)->size()));
+
+            boost::asio::async_write(*_socket, buffers,
+                                     std::bind(&ConsensusNetIO::OnWrite, this,
+                                               std::placeholders::_1,
+                                               std::placeholders::_2));
+        }
+    }
+    else
+    {
+        _sending = false;
+    }
+}
+

@@ -12,9 +12,9 @@ ConsensusContainer::ConsensusContainer(Service & service,
                                        Log & log,
                                        const Config & config)
     : _validator(_key_store)
-    , _batch_manager(service, store, alarm, log, 
+    , _batch_manager(service, store, log,
                      config.consensus_manager_config, _key_store, _validator)
-    , _micro_manager(service, store, alarm, log, 
+    , _micro_manager(service, store, log,
                      config.consensus_manager_config, _key_store, _validator)
     , _net_io_manager(
           {

@@ -9,7 +9,7 @@
 #include <logos/consensus/peer_acceptor.hpp>
 #include <logos/consensus/peer_manager.hpp>
 
-class IConsensusManager;
+class ChannelBinder;
 
 /// ConsensusNetIOManager manages connections to peers.
 ///
@@ -27,7 +27,7 @@ class ConsensusNetIOManager : public PeerManager
     using Delegates   = std::vector<Config::Delegate>;
 
     //TODO: Should be unordered_map
-    using Managers    = std::map<ConsensusType, IConsensusManager&>;
+    using Managers    = std::map<ConsensusType, ChannelBinder&>;
     using Connections = std::vector<std::shared_ptr<ConsensusNetIO>>;
 
 public:

@@ -10,7 +10,7 @@ MicroBlockConsensusManager::OnBenchmarkSendRequest(
                      << block->hash().to_string();
 }
 
-bool 
+bool
 MicroBlockConsensusManager::Validate(
     std::shared_ptr<Request> block,
     logos::process_return & result)
@@ -19,7 +19,7 @@ MicroBlockConsensusManager::Validate(
     return true;
 }
 
-void 
+void
 MicroBlockConsensusManager::QueueRequest(
     std::shared_ptr<Request> request)
 {
@@ -32,32 +32,26 @@ MicroBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
     return *_cur_microblock;
 }
 
-bool 
+bool
 MicroBlockConsensusManager::PrePrepareQueueEmpty()
 {
     return false;
 }
 
-bool 
+bool
 MicroBlockConsensusManager::PrePrepareQueueFull()
 {
     return false;
 }
 
-void 
+void
 MicroBlockConsensusManager::ApplyUpdates(
     const PrePrepare & pre_prepare,
     uint8_t delegate_id)
 {}
 
-uint64_t 
-MicroBlockConsensusManager::OnConsensusReachedStoredCount()
+uint64_t
+MicroBlockConsensusManager::GetStoredCount()
 {
     return 1;
-}
-
-bool 
-MicroBlockConsensusManager::OnConsensusReachedExt()
-{
-    return false;
 }

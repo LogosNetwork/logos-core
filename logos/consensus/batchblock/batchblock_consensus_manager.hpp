@@ -26,12 +26,11 @@ public:
     ///     @param[in] validator validator/signer of consensus messages.
     BatchBlockConsensusManager(Service & service, 
                                Store & store,
-                               logos::alarm & alarm,
                                Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator)
-        : Manager(service, store, alarm, log,
+        : Manager(service, store, log,
                   config, key_store, validator)
     {}
 
@@ -63,19 +62,18 @@ protected:
     ///
     ///  The extended override does additional processing if _using_buffered_blocks is true
     ///      @return true if ready false otherwise.
-    bool ReadyForConsensusExt() override;
+    bool ReadyForConsensus() override;
 
     /// Returns number of stored blocks.
     ///
     /// Benchmarking related.
     ///     @return number of stored blocks
-    uint64_t OnConsensusReachedStoredCount() override;
+    uint64_t GetStoredCount() override;
 
     /// Sends buffered blocks.
     ///
     /// Benchmark related.
-    ///     @return true if using buffered blocks
-    bool OnConsensusReachedExt() override;
+    void OnConsensusReached() override;
 
     /// Validates state block.
     ///     @param result of the validation

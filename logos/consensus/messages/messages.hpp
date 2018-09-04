@@ -18,7 +18,9 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
 
 // Prepare and Commit messages
 //
-template<MessageType type, ConsensusType consensus, typename Enable = void>
+template<MessageType type, ConsensusType consensus,
+         typename Enable = void
+         >
 struct StandardPhaseMessage;
 
 template<MessageType type, ConsensusType consensus>
@@ -37,7 +39,9 @@ struct StandardPhaseMessage<type, consensus, typename std::enable_if<
 
 // Post Prepare and Post Commit messages
 //
-template<MessageType type, ConsensusType consensus, typename Enable = void>
+template<MessageType type, ConsensusType consensus,
+         typename Enable = void
+         >
 struct PostPhaseMessage;
 
 template<MessageType type, ConsensusType consensus>
@@ -57,7 +61,8 @@ struct PostPhaseMessage<type, consensus, typename std::enable_if<
 
 // Key advertisement
 //
-struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert, ConsensusType::Any>
+struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert,
+                                         ConsensusType::Any>
 {
     PublicKey public_key;
 };
