@@ -629,7 +629,6 @@ void logos::node_config::serialize_json (boost::property_tree::ptree & tree_a) c
 {
     tree_a.put ("version", "12");
     tree_a.put ("peering_port", std::to_string (peering_port));
-    tree_a.put ("microblock_generation_interval", std::to_string (microblock_generation_interval.count()));
     tree_a.put ("bootstrap_fraction_numerator", std::to_string (bootstrap_fraction_numerator));
     tree_a.put ("receive_minimum", receive_minimum.to_string_dec ());
     boost::property_tree::ptree logging_l;
@@ -800,7 +799,6 @@ bool logos::node_config::deserialize_json (bool & upgraded_a, boost::property_tr
         upgraded_a |= upgrade_json (std::stoull (version_l.get ()), tree_a);
         auto peering_port_l (tree_a.get<std::string> ("peering_port"));
         auto bootstrap_fraction_numerator_l (tree_a.get<std::string> ("bootstrap_fraction_numerator"));
-        auto microblock_generation_interval_l (tree_a.get<std::string> ("microblock_generation_interval", "1500"));
         auto receive_minimum_l (tree_a.get<std::string> ("receive_minimum"));
         auto & logging_l (tree_a.get_child ("logging"));
         work_peers.clear ();
@@ -864,7 +862,6 @@ bool logos::node_config::deserialize_json (bool & upgraded_a, boost::property_tr
         try
         {
             peering_port = std::stoul (peering_port_l);
-            microblock_generation_interval = std::chrono::duration<long>(std::stoul(microblock_generation_interval_l));
             bootstrap_fraction_numerator = std::stoul (bootstrap_fraction_numerator_l);
             password_fanout = std::stoul (password_fanout_l);
             io_threads = std::stoul (io_threads_l);

@@ -6,6 +6,9 @@
 #include <logos/lib/merkle.hpp>
 #include <logos/lib/numbers.hpp>
 
+static const uint16_t MICROBLOCK_PROPOSAL_TIME = 1200; // 20 minutes
+static const uint16_t MICROBLOCK_CUTOFF_TIME = 600; // 10 minutes
+
 namespace logos {
     class block_store;
 }
@@ -26,6 +29,7 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
         , _delegate(0)
         , _epoch_number(0)
         , _micro_block_number(0)
+        , _number_batch_blocks(0)
         {
             _tips={0};
             signature={0};
@@ -40,6 +44,7 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
             cb(&_epoch_number, sizeof(_epoch_number));
             cb(&_micro_block_number, sizeof(_micro_block_number));
             cb(_tips.data(), NUM_DELEGATES * sizeof(BlockHash));
+            cb(&_number_batch_blocks, sizeof(_number_batch_blocks));
         });
     }
     /// Overide to mirror state_block
@@ -51,6 +56,7 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
     uint                _epoch_number; 			///< Current epoch
     uint8_t             _micro_block_number;	///< Microblock number within this epoch
     std::array<BlockHash,NUM_DELEGATES> _tips;  ///< Delegate's batch block tips
+    uint                _number_batch_blocks;   ///< Number of batch blocks in the microblock
     Signature           signature; 		        ///< Multisignature
 };
 
@@ -59,10 +65,11 @@ class alarm;
 }
 /// Handle MicroBlock processing
 class MicroBlockHandler : public std::enable_shared_from_this<MicroBlockHandler> {
-    logos::alarm &       _alarm;       ///< alarm
-    BlockStore &         _store; 		///< reference to the block store
-    uint8_t              _n_delegates; 	///< number of delegates
-    std::chrono::seconds _interval; 	///< microblock generation interval (seconds)
+    logos::alarm &       _alarm;            ///< alarm
+    BlockStore &         _store; 		    ///< reference to the block store
+    uint8_t              _n_delegates; 	    ///< number of delegates
+    std::chrono::seconds _interval_cutoff;  ///< microblock inclusion cutoff time
+    std::chrono::seconds _interval_proposal;///< microblock proposal time
 public:
     /// Class constructor
     /// @param s logos::alarm reference
@@ -71,12 +78,12 @@ public:
     /// @param i microblock process period interval
     MicroBlockHandler(logos::alarm &a,
                       BlockStore &s,
-                      uint8_t n,
-                      std::chrono::seconds i)
+                      uint8_t n)
         : _alarm(a)
         , _store(s)
         , _n_delegates(n)
-        , _interval(i)
+        , _interval_cutoff(std::chrono::seconds(MICROBLOCK_CUTOFF_TIME))
+        , _interval_proposal(std::chrono::seconds(MICROBLOCK_PROPOSAL_TIME))
         {}
 
     /// Class distructor
