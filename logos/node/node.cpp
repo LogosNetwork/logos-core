@@ -1398,8 +1398,28 @@ _consensus_container(service_a, store, alarm_a, log, config)
         logos::block_hash epoch_tip;
         if (store.epoch_tip_get(epoch_tip)) // no tip, no epoch, no microblock - create genesis
         {
+            MicroBlock micro_block;
             Epoch epoch;
-            MicroBlock microBlock;
+
+            micro_block._delegate = genesis_account;
+            micro_block.timestamp = GetStamp();
+            micro_block._epoch_number = -1;
+            micro_block._micro_block_number = -1;
+
+            logos::block_hash hash = store.micro_block_put(micro_block, transaction);
+            store.micro_block_tip_put(hash, transaction);
+
+            epoch._epoch_number = -1;
+            epoch.timestamp = GetStamp();
+            epoch._account = genesis_account;
+            epoch._micro_block_tip = hash;
+            for (uint8_t i = 0; i < NUM_DELEGATES; ++i) {
+                Delegate delegate = {i, 0, 0};
+                epoch._delegates[i] = delegate;
+            }
+
+            hash = store.epoch_put(epoch, transaction);
+            store.epoch_tip_put(hash, transaction);
         }
     }
     if (logos::logos_network ==logos::logos_networks::logos_live_network)

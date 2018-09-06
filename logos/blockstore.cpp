@@ -985,7 +985,7 @@ bool logos::block_store::batch_tip_get(uint8_t delegate_id, block_hash & hash)
     auto status (mdb_get (transaction, batch_tips_db, logos::mdb_val(sizeof(delegate_id),
                                                                           &delegate_id), value));
     assert (status == 0 || status == MDB_NOTFOUND);
-    bool result;
+    bool result = false;
     if (status == MDB_NOTFOUND)
     {
         result = true;

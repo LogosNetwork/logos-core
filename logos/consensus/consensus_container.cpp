@@ -71,6 +71,8 @@ void
 ConsensusContainer::StartMicroBlock()
 {
     // if the block meets last in epoch condition (time stamp ~ 0:20 or 12:20 GMT)
+    // exception is recall if the recall happened then the new epoch is extended
+    // there should be a global recall flag
     // then start epoch construction
     function<void()> repeat = [&]() -> void {
        _microblock_handler.Start([&](std::shared_ptr<MicroBlock> block)->void {
