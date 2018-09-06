@@ -62,7 +62,7 @@ MicroBlockTester::block_create_test(std::function<void(boost::property_tree::ptr
         batch_block.blocks[i_state].hashables.amount = 1000;
         batch_block.blocks[i_state].hashables.link = logos::block_hash(0);
       }
-      batch_block.hash = previous[i_del];
+      batch_block.previous = previous[i_del];
       previous[i_del] = batch_block.Hash();
       node.store.batch_block_put(batch_block, transaction);
       node.store.batch_tip_put(i_del, previous[i_del], transaction);

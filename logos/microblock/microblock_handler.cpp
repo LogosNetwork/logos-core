@@ -53,7 +53,7 @@ MicroBlockHandler::BuildMicroBlock(
             // what if delegates are different?
             for (not_found = _store.batch_block_get(hash, batch);
                     !not_found && (!no_previous && hash != previous._tips[delegate] || no_previous);
-                    hash = batch.hash, not_found = _store.batch_block_get(hash, batch))
+                    hash = batch.previous, not_found = _store.batch_block_get(hash, batch))
             {
                 if (batch.timestamp > batch_block_tip_time &&
                     batch.timestamp <= (batch_block_tip_time + interval_cutoff_msec))
@@ -96,7 +96,7 @@ MicroBlockHandler::BuildMicroBlock(
         block._epoch_number = epoch._epoch_number + 1;
     }
 
-    block._previous = (!no_previous) ? previous._previous : 0; // previous microblock's hash or NULL for first block
+    block.previous = (!no_previous) ? previous.previous : 0; // previous microblock's hash or NULL for first block
     block._merkle_root = MerkleRoot(merkle);
     block.timestamp; // is set in the MessageHeader constructor
     block._delegate = _delegate_id;

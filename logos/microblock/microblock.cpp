@@ -10,7 +10,7 @@ BlockHash
 MicroBlock::Hash() const {
     return ::Hash([&](std::function<void(const void *data, size_t)> cb)mutable -> void {
         cb(&timestamp, sizeof(timestamp));
-        cb(_previous.bytes.data(), sizeof(_previous));
+        cb(previous.bytes.data(), sizeof(previous));
         cb(_merkle_root.bytes.data(), sizeof(_merkle_root));
         cb(&_delegate, sizeof(_delegate));
         cb(&_epoch_number, sizeof(_epoch_number));

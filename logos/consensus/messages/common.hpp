@@ -94,7 +94,7 @@ struct MessageHeader : MessagePrequel<type, consensus>
     {}
 
     uint64_t  timestamp;
-    BlockHash hash;
+    BlockHash previous;
 };
 
 using Prequel = MessagePrequel<MessageType::Unknown, ConsensusType::Any>;

@@ -26,11 +26,11 @@ public:
         : MessageHeader(0)
         , _account(0)
         , _epoch_number(0)
-        , _previous(0)
         , _micro_block_tip(0)
         , _transaction_fee_pool(0)
     {
         _delegates = {0};
+        previous = 0;
         signature = {0};
     }
     ~Epoch() {}
@@ -40,7 +40,7 @@ public:
             cb(&timestamp, sizeof(timestamp));
             cb(&_epoch_number, sizeof(_epoch_number));
             cb(_account.bytes.data(), sizeof(_account));
-            cb(_previous.bytes.data(), sizeof(_previous));
+            cb(previous.bytes.data(), sizeof(previous));
             cb(_micro_block_tip.bytes.data(), sizeof(_micro_block_tip));
             cb(_delegates.data(), NUM_DELEGATES * sizeof(Delegate));
             cb(&_transaction_fee_pool, sizeof(_transaction_fee_pool));
@@ -50,7 +50,6 @@ public:
     static const size_t                     HASHABLE_BYTES;        ///< hashable bytes of the epoch - used in signing
     logos::account                          _account;              ///< account address of the epoch's proposer
     uint                                    _epoch_number;         ///< epoch number
-    BlockHash                               _previous;             ///< previous epoch number
     BlockHash                               _micro_block_tip;      ///< microblock tip of this epoch
     std::array<Delegate, NUM_DELEGATES>     _delegates;            ///< delegate'ls list
     uint64_t                                _transaction_fee_pool; ///< this epoch's transaction fee pool

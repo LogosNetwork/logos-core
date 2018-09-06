@@ -17,12 +17,6 @@ using BlockStore = logos::block_store;
 
 /// Handle MicroBlock processing
 class MicroBlockHandler : public std::enable_shared_from_this<MicroBlockHandler> {
-    logos::alarm &       _alarm;            ///< alarm
-    BlockStore &         _store; 		    ///< reference to the block store
-    std::chrono::seconds _interval_cutoff;  ///< microblock inclusion cutoff time
-    std::chrono::seconds _interval_proposal;///< microblock proposal time
-    uint8_t              _delegate_id;      ///< local delegate id
-    MessageValidator &   _validator;        ///< validator used for message signing
 public:
     /// Class constructor
     /// @param s logos::alarm reference
@@ -64,4 +58,12 @@ public:
     /// a different block matching the same parent. 4. doesn't exist and there is no parent that this
     /// block references, the block # is ahead of the current block #.)
     bool VerifyMicroBlock(MicroBlock &block);
+
+private:
+    logos::alarm &       _alarm;            ///< alarm
+    BlockStore &         _store; 		    ///< reference to the block store
+    std::chrono::seconds _interval_cutoff;  ///< microblock inclusion cutoff time
+    std::chrono::seconds _interval_proposal;///< microblock proposal time
+    uint8_t              _delegate_id;      ///< local delegate id
+    MessageValidator &   _validator;        ///< validator used for message signing
 };
