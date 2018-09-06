@@ -334,6 +334,7 @@ add_library (node
 	logos/consensus/delegate_key_store.cpp
 	logos/epoch/epoch.cpp
 	logos/microblock/microblock.cpp
+	logos/microblock/microblock_handler.cpp
 	logos/microblock/microblock_tester.cpp
 	logos/node/bootstrap.cpp
 	logos/node/bootstrap.hpp

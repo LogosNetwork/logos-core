@@ -127,7 +127,7 @@ MicroBlockTester::generate_microblock(std::function<void(boost::property_tree::p
   logos::transaction transaction(node.store.environment, nullptr, true);
   boost::property_tree::ptree response_l;
   auto block = std::make_shared<MicroBlock>();
-  node._consensus_container.BuildMicroBlock(*block);
+  node._consensus_container.BuildMicroBlock(block);
   // start consensus, commit when done
   logos::block_hash hash = node.store.micro_block_put(*block, transaction);
   node.store.micro_block_tip_put(hash, transaction);

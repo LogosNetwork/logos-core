@@ -7,9 +7,9 @@
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 #include <logos/consensus/consensus_netio_manager.hpp>
+#include <logos/microblock/microblock_handler.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
-#include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
 
 namespace logos
@@ -66,12 +66,11 @@ public:
     void BufferComplete(logos::process_return & result);
 
     /// Start MicroBlock event loop
-	///		@param[in] event call back function
-    void StartMicroBlock(std::function<void(MicroBlock&)>);
+    void StartMicroBlock();
 
 	/// Build MicroBlock
 	///		@param[in,out] microblock to build
-    void BuildMicroBlock(MicroBlock&);
+    void BuildMicroBlock(std::shared_ptr<MicroBlock>);
 
 	/// Initiate MicroBlock consensus
 	///		@param[in] MicroBlock containing the transaction

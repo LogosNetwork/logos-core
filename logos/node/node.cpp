@@ -1680,6 +1680,7 @@ void logos::node::start ()
 //    add_initial_peers ();
 //    observers.started ();
 // CH added starting logic here instead of inside constructors
+    _consensus_container.StartMicroBlock();
 }
 
 void logos::node::stop ()

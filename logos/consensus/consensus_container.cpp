@@ -26,7 +26,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
         }, 
         service, alarm, config.consensus_manager_config, 
 		_key_store, _validator)
-    , _microblock_handler(alarm, store, NUM_DELEGATES)
+    , _microblock_handler(alarm, store, config.consensus_manager_config.delegate_id, _validator)
 {}
 
 logos::process_return 
@@ -68,16 +68,23 @@ ConsensusContainer::BufferComplete(
 }
 
 void 
-ConsensusContainer::StartMicroBlock(
-    std::function<void(MicroBlock&)> cb)
+ConsensusContainer::StartMicroBlock()
 {
-    _microblock_handler.Start(cb);
+    // if the block meets last in epoch condition (time stamp ~ 0:20 or 12:20 GMT)
+    // then start epoch construction
+    function<void()> repeat = [&]() -> void {
+       _microblock_handler.Start([&](std::shared_ptr<MicroBlock> block)->void {
+           OnSendRequest(block);
+           repeat();
+       });
+    };
+    repeat();
 }
 
 void
-ConsensusContainer::BuildMicroBlock(MicroBlock &block)
+ConsensusContainer::BuildMicroBlock(std::shared_ptr<MicroBlock> block)
 {
-    _microblock_handler.BuildMicroBlock(block);
+    _microblock_handler.BuildMicroBlock(*block);
 }
 
 logos::process_return
