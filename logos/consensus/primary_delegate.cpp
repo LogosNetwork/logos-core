@@ -50,6 +50,7 @@ void PrimaryDelegate::Send()
 {
     MSG response(_cur_batch_timestamp);
 
+    response.previous = _cur_batch_hash;
     _validator.Sign(response, _signatures);
 
     Send(&response, sizeof(response));

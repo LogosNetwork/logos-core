@@ -104,7 +104,6 @@ MicroBlockHandler::BuildMicroBlock(
     block.timestamp = GetStamp();
     block._delegate = _delegate_id;
     block._micro_block_number = first_micro_block ? 0 : previous._micro_block_number + 1;
-    _validator.Sign(block);
 
     return true;
 }

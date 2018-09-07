@@ -232,6 +232,7 @@ void ConsensusConnection<CT>::SendMessage()
 {
     MSG response(_cur_pre_prepare->timestamp);
 
+    response.previous = _cur_pre_prepare_hash;
     _validator.Sign(response);
 
     StoreResponse(response);
