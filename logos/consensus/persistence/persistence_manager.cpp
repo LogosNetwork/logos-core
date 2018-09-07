@@ -126,7 +126,9 @@ void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, uint
 {
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
-        ApplyStateMessage(message.blocks[i], transaction);
+        ApplyStateMessage(message.blocks[i],
+                          message.timestamp,
+                          transaction);
     }
 
     _store.batch_tip_put(delegate_id, message.Hash(), transaction);
@@ -134,11 +136,14 @@ void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, uint
 
 // Currently designed only to handle
 // send transactions.
-void PersistenceManager::ApplyStateMessage(const logos::state_block & block, MDB_txn * transaction)
+void PersistenceManager::ApplyStateMessage(
+        const logos::state_block & block,
+        uint64_t timestamp,
+        MDB_txn * transaction)
 {
     if(!UpdateSourceState(block, transaction))
     {
-        UpdateDestinationState(block, transaction);
+        UpdateDestinationState(block, timestamp, transaction);
     }
 }
 
@@ -163,47 +168,42 @@ bool PersistenceManager::UpdateSourceState(const logos::state_block & block, MDB
     return false;
 }
 
-void PersistenceManager::UpdateDestinationState(const logos::state_block & block, MDB_txn * transaction)
+void PersistenceManager::UpdateDestinationState(
+        const logos::state_block & block,
+        uint64_t timestamp,
+        MDB_txn * transaction)
 {
     logos::account_info info;
     auto account_error(_store.account_get(block.hashables.link, info));
 
+    logos::state_block receive(
+            /* Account   */ logos::account(block.hashables.link),
+            /* Previous  */ info.receive_head,
+            /* Rep       */ 0,
+            /* Amount    */ block.hashables.amount,
+            /* Link      */ block.hash(),
+            /* Priv Key  */ logos::raw_key(),
+            /* Pub Key   */ logos::public_key(),
+            /* Work      */ 0,
+            /* Timestamp */ timestamp
+    );
+
+    auto hash(receive.hash());
+
     // Destination account doesn't exist yet
     if(account_error)
     {
-        logos::state_block open(/* Account  */ logos::account(block.hashables.link),
-                              /* Previous */ 0,
-                              /* Rep      */ 0,
-                              /* Amount   */ block.hashables.amount,
-                              /* Link     */ block.hash(),
-                              /* Priv Key */ logos::raw_key(),
-                              /* Pub Key  */ logos::public_key(),
-                              /* Work     */ 0);
-
-        auto hash(open.hash());
-
-        _store.receive_put(hash, open, transaction);
-        _store.account_put(logos::account(block.hashables.link),
-                           {
-                               /* Head    */ 0,
-                               /* Rep     */ hash,
-                               /* Open    */ hash,
-                               /* Amount  */ block.hashables.amount,
-                               /* Time    */ logos::seconds_since_epoch(),
-                               /* Count   */ 0
-                           },
-                           transaction);
+        info.open_block = hash;
     }
 
-    // Destination account exists already
-    else
-    {
-        info.balance = info.balance.number() + block.hashables.amount.number();
-        info.modified = logos::seconds_since_epoch();
+    info.receive_head = hash;
+    info.balance = info.balance.number() + block.hashables.amount.number();
+    info.modified = logos::seconds_since_epoch();
 
-        _store.account_put(logos::account(block.hashables.link), info,
-                           transaction);
-    }
+    _store.account_put(logos::account(block.hashables.link),
+                       info, transaction);
+
+    PlaceReceive(receive, transaction);
 }
 
 PersistenceManager::DynamicStorage & PersistenceManager::GetStore(uint8_t delegate_id)
@@ -216,4 +216,50 @@ PersistenceManager::DynamicStorage & PersistenceManager::GetStore(uint8_t delega
     }
 
     return _dynamic_storage.find(delegate_id)->second;
+}
+
+void PersistenceManager::PlaceReceive(
+        logos::state_block & receive,
+        MDB_txn * transaction)
+{
+    logos::state_block prev;
+    logos::state_block cur;
+
+    auto hash = receive.hash();
+
+    if(!_store.state_block_get(receive.hashables.previous, cur, transaction))
+    {
+        // Returns true if 'a' should precede 'b'
+        // in the receive chain.
+        auto receive_cmp = [](const logos::state_block & a,
+                              const logos::state_block & b)
+                              {
+                                  if(a.timestamp != b.timestamp)
+                                  {
+                                      return a.timestamp < b.timestamp;
+                                  }
+
+                                  return a.hash() < b.hash();
+                              };
+
+        while(receive_cmp(receive, cur))
+        {
+            prev = cur;
+            if(!_store.state_block_get(cur.hashables.previous, cur, transaction))
+            {
+                break;
+            }
+        }
+
+        if(!prev.hashables.account.is_zero())
+        {
+            std::memcpy(receive.hashables.previous.bytes.data(),
+                        prev.hashables.previous.bytes.data(),
+                        sizeof(receive.hashables.previous.bytes));
+
+            prev.hashables.previous = hash;
+        }
+    }
+
+    _store.receive_put(hash, receive, transaction);
 }

@@ -1230,6 +1230,30 @@ block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
 stats (config.stat_config),
 _consensus_container(service_a, store, alarm_a, log, config)
 {
+
+// Used to modify the database file with the new account_info field.
+// TODO: remove eventually - can be reused for now
+//    std::ifstream infile("/home/ubuntu/Downloads/blocks1600_accounts");
+//    std::string line;
+//    {
+//        logos::transaction transaction(store.environment, nullptr, true);
+//        while (std::getline(infile, line))
+//        {
+//            account a(line);
+//            //std::cout << "account: " << a.to_string() << std::endl;
+//
+//            account_info info;
+//            if(store.account_get(a, info))
+//            {
+//                std::cout << "FAILED TO FIND ACCOUNT: " << a.to_string() << std::endl;
+//                continue;
+//            }
+//            //store.account_put(a, info, transaction);
+//            // process pair (a,b)
+//        }
+//    }
+//    exit(0);
+
     wallets.observer = [this](bool active) {
         observers.wallet (active);
     };
@@ -1385,12 +1409,13 @@ _consensus_container(service_a, store, alarm_a, log, config)
 
             store.account_put(genesis_account,
                               {
-                                  /* Head    */ 0,
-                                  /* Rep     */ 0,
-                                  /* Open    */ logos_genesis_block.hash(),
-                                  /* Amount  */ std::numeric_limits<logos::uint128_t>::max(),
-                                  /* Time    */ logos::seconds_since_epoch(),
-                                  /* Count   */ 0
+                                  /* Head         */ 0,
+                                  /* Receive Head */ 0,
+                                  /* Rep          */ 0,
+                                  /* Open         */ logos_genesis_block.hash(),
+                                  /* Amount       */ std::numeric_limits<logos::uint128_t>::max(),
+                                  /* Time         */ logos::seconds_since_epoch(),
+                                  /* Count        */ 0
                               },
                               transaction);
         }

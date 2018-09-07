@@ -115,21 +115,22 @@ public:
     std::unordered_multimap<logos::block_hash, std::shared_ptr<logos::block>> unchecked_cache;
 
     template<typename T> void put(MDB_dbi&, const mdb_val &, const T &, MDB_txn *);
-      template<typename T> logos::block_hash put(MDB_dbi&, const T &, MDB_txn *);
-      template<typename T> bool get(MDB_dbi&, const mdb_val &key, T &);
-      template<typename T> bool get(MDB_dbi& db, const logos::block_hash &hash, T &t)
-      {
+    template<typename T> logos::block_hash put(MDB_dbi&, const T &, MDB_txn *);
+    template<typename T> bool get(MDB_dbi&, const mdb_val &key, T &);
+    template<typename T> bool get(MDB_dbi& db, const logos::block_hash &hash, T &t)
+    {
         mdb_val key(hash);
         return get<T>(db,key,t);
-      }
+    }
 
     // consensus-prototype additions
     block_hash batch_block_put(BatchStateBlock const &, MDB_txn *);
-    bool batch_block_get (const logos::block_hash &hash, BatchStateBlock & block);
+    bool batch_block_get(const logos::block_hash & hash, BatchStateBlock & block);
+    bool state_block_get(const logos::block_hash & hash, logos::state_block & block, MDB_txn *);
     void state_block_put(state_block const &, StateBlockLocator const &, MDB_txn *);
     bool state_block_exists(const state_block & block);
     bool state_block_exists(const block_hash & hash);
-    bool account_get(logos::account const & account_a, logos::account_info & info_a);
+    bool account_get(logos::account const & account_a, account_info & info_a);
     bool account_db_empty();
     void account_put (logos::account const &, logos::account_info const &, MDB_txn *);
     void receive_put(const block_hash & hash, const state_block & block, MDB_txn * transaction);
@@ -138,10 +139,10 @@ public:
     bool batch_tip_get(uint8_t delegate_id, block_hash & hash);
 
     // micro-block
-      logos::block_hash micro_block_put(MicroBlock const &, MDB_txn*);
-      bool micro_block_get(block_hash &, MicroBlock &);
-      void micro_block_tip_put(const block_hash&, MDB_txn*);
-      bool micro_block_tip_get(block_hash &);
+    logos::block_hash micro_block_put(MicroBlock const &, MDB_txn*);
+    bool micro_block_get(block_hash &, MicroBlock &);
+    void micro_block_tip_put(const block_hash&, MDB_txn*);
+    bool micro_block_tip_get(block_hash &);
 
     void checksum_put (MDB_txn *, uint64_t, uint8_t, logos::checksum const &);
     bool checksum_get (MDB_txn *, uint64_t, uint8_t, logos::checksum &);
@@ -201,18 +202,18 @@ public:
     MDB_dbi batch_tips_db;
 
     /**
-        * Maps block hash to micro block
+     * Maps block hash to micro block
      * logos::block_hash -> version(1 byte), previous(logos::block_hash), merkle root(logos::block_hash), timestamp(8bytes), number batch blocks(2 bytes)
      * batch block tips [32] -> logos::block_hash, delegate number (1byte), epoch number (4bytes), micro block number (1 byte)
      */
-      MDB_dbi micro_block_db;
+    MDB_dbi micro_block_db;
 
-      /**
+    /**
      * Micro block tip
      * references micro block tip
      * 'microblocktip' -> logos::block_hash
      */
-      MDB_dbi micro_block_tip_db;
+    MDB_dbi micro_block_tip_db;
 
     /**
      * Maps head block to owning account

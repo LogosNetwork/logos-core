@@ -189,36 +189,55 @@ std::unique_ptr<logos::block> logos::deserialize_block (MDB_val const & val_a)
     return deserialize_block (stream);
 }
 
-logos::account_info::account_info () :
-head (0),
-rep_block (0),
-open_block (0),
-balance (0),
-modified (0),
-block_count (0)
-{
-}
+logos::account_info::account_info ()
+    : head (0)
+    , receive_head (0)
+    , rep_block (0)
+    , open_block (0)
+    , balance (0)
+    , modified (0)
+    , block_count (0)
+{}
 
 logos::account_info::account_info (MDB_val const & val_a)
 {
     assert (val_a.mv_size == sizeof (*this));
-    static_assert (sizeof (head) + sizeof (rep_block) + sizeof (open_block) + sizeof (balance) + sizeof (modified) + sizeof (block_count) == sizeof (*this), "Class not packed");
-    std::copy (reinterpret_cast<uint8_t const *> (val_a.mv_data), reinterpret_cast<uint8_t const *> (val_a.mv_data) + sizeof (*this), reinterpret_cast<uint8_t *> (this));
+
+    static_assert (sizeof (head) +
+                   sizeof (receive_head) +
+                   sizeof (rep_block) +
+                   sizeof (open_block) +
+                   sizeof (balance) +
+                   sizeof (modified) +
+                   sizeof (block_count) == sizeof (*this),
+                   "Class not packed");
+
+    std::copy (reinterpret_cast<uint8_t const *> (val_a.mv_data),
+               reinterpret_cast<uint8_t const *> (val_a.mv_data) + sizeof (*this),
+               reinterpret_cast<uint8_t *> (this));
 }
 
-logos::account_info::account_info (logos::block_hash const & head_a, logos::block_hash const & rep_block_a, logos::block_hash const & open_block_a, logos::amount const & balance_a, uint64_t modified_a, uint64_t block_count_a) :
-head (head_a),
-rep_block (rep_block_a),
-open_block (open_block_a),
-balance (balance_a),
-modified (modified_a),
-block_count (block_count_a)
-{
-}
+logos::account_info::account_info (
+        logos::block_hash const & head_a,
+        logos::block_hash const & receive_head_a,
+        logos::block_hash const & rep_block_a,
+        logos::block_hash const & open_block_a,
+        logos::amount const & balance_a,
+        uint64_t modified_a,
+        uint64_t block_count_a)
+    : head (head_a)
+    , receive_head (receive_head_a)
+    , rep_block (rep_block_a)
+    , open_block (open_block_a)
+    , balance (balance_a)
+    , modified (modified_a)
+    , block_count (block_count_a)
+{}
 
 void logos::account_info::serialize (logos::stream & stream_a) const
 {
     write (stream_a, head.bytes);
+    write (stream_a, receive_head.bytes);
     write (stream_a, rep_block.bytes);
     write (stream_a, open_block.bytes);
     write (stream_a, balance.bytes);
@@ -231,19 +250,23 @@ bool logos::account_info::deserialize (logos::stream & stream_a)
     auto error (read (stream_a, head.bytes));
     if (!error)
     {
-        error = read (stream_a, rep_block.bytes);
+        error = read (stream_a, receive_head.bytes);
         if (!error)
         {
-            error = read (stream_a, open_block.bytes);
+            error = read (stream_a, rep_block.bytes);
             if (!error)
             {
-                error = read (stream_a, balance.bytes);
+                error = read (stream_a, open_block.bytes);
                 if (!error)
                 {
-                    error = read (stream_a, modified);
+                    error = read (stream_a, balance.bytes);
                     if (!error)
                     {
-                        error = read (stream_a, block_count);
+                        error = read (stream_a, modified);
+                        if (!error)
+                        {
+                            error = read (stream_a, block_count);
+                        }
                     }
                 }
             }
@@ -254,7 +277,13 @@ bool logos::account_info::deserialize (logos::stream & stream_a)
 
 bool logos::account_info::operator== (logos::account_info const & other_a) const
 {
-    return head == other_a.head && rep_block == other_a.rep_block && open_block == other_a.open_block && balance == other_a.balance && modified == other_a.modified && block_count == other_a.block_count;
+    return head == other_a.head &&
+           rep_block == other_a.rep_block &&
+           receive_head == other_a.receive_head &&
+           open_block == other_a.open_block &&
+           balance == other_a.balance &&
+           modified == other_a.modified &&
+           block_count == other_a.block_count;
 }
 
 bool logos::account_info::operator!= (logos::account_info const & other_a) const

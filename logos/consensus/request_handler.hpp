@@ -21,16 +21,17 @@ public:
 
     void OnRequest(std::shared_ptr<logos::state_block> block);
 
-    bool Empty();
     BatchStateBlock & GetNextBatch();
+
     void PopFront();
     bool BatchFull();
+    bool Empty();
 
 private:
 
     void InsertBlock(std::shared_ptr<logos::state_block> block);
 
-    BatchList    _batches;
-    Handle       _handle;
-    uint64_t     _batch_index  = 0;
+    BatchList _batches;
+    Handle    _handle;
+    uint64_t  _batch_index = 0;
 };

@@ -61,7 +61,7 @@ ConsensusNetIO::Connect(
 {
     _socket->async_connect(_endpoint,
                            [this, local_ip](ErrorCode const & ec)
-                           {OnConnect(ec, local_ip);});
+                           { OnConnect(ec, local_ip); });
 }
 
 void
@@ -271,4 +271,3 @@ ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
         _sending = false;
     }
 }
-

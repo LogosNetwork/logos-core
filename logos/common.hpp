@@ -100,13 +100,22 @@ public:
     account_info ();
     account_info (MDB_val const &);
     account_info (logos::account_info const &) = default;
-    account_info (logos::block_hash const &, logos::block_hash const &, logos::block_hash const &, logos::amount const &, uint64_t, uint64_t);
+
+    account_info (logos::block_hash const & head,
+                  logos::block_hash const & receive_head,
+                  logos::block_hash const & rep_block,
+                  logos::block_hash const & open_block,
+                  logos::amount const & balance,
+                  uint64_t modified,
+                  uint64_t block_count);
+
     void serialize (logos::stream &) const;
     bool deserialize (logos::stream &);
     bool operator== (logos::account_info const &) const;
     bool operator!= (logos::account_info const &) const;
     logos::mdb_val val () const;
     logos::block_hash head;
+    logos::block_hash receive_head;
     logos::block_hash rep_block;
     logos::block_hash open_block;
     logos::amount balance;

@@ -69,14 +69,22 @@ logos::block_hash logos::block::hash () const
     return result;
 }
 
+logos::state_hashables::state_hashables ()
+{
+    account.clear();
+    previous.clear();
+    representative.clear();
+    amount.clear();
+    link.clear();
+}
+
 logos::state_hashables::state_hashables (logos::account const & account_a, logos::block_hash const & previous_a, logos::account const & representative_a, logos::amount const & amount_a, logos::uint256_union const & link_a) :
 account (account_a),
 previous (previous_a),
 representative (representative_a),
 amount (amount_a),
 link (link_a)
-{
-}
+{}
 
 logos::state_hashables::state_hashables (bool & error_a, logos::stream & stream_a)
 {
@@ -141,12 +149,20 @@ void logos::state_hashables::hash (blake2b_state & hash_a) const
     blake2b_update (&hash_a, link.bytes.data (), sizeof (link.bytes));
 }
 
-logos::state_block::state_block (logos::account const & account_a, logos::block_hash const & previous_a, logos::account const & representative_a, logos::amount const & amount_a, logos::uint256_union const & link_a, logos::raw_key const & prv_a, logos::public_key const & pub_a, uint64_t work_a) :
-hashables (account_a, previous_a, representative_a, amount_a, link_a),
-signature (logos::sign_message (prv_a, pub_a, hash ())),
-work (work_a)
-{
-}
+logos::state_block::state_block (logos::account const & account_a,
+                                 logos::block_hash const & previous_a,
+                                 logos::account const & representative_a,
+                                 logos::amount const & amount_a,
+                                 logos::uint256_union const & link_a,
+                                 logos::raw_key const & prv_a,
+                                 logos::public_key const & pub_a,
+                                 uint64_t work_a,
+                                 uint64_t timestamp)
+    : hashables (account_a, previous_a, representative_a, amount_a, link_a)
+    , signature (logos::sign_message (prv_a, pub_a, hash ()))
+    , work (work_a)
+    , timestamp(timestamp)
+{}
 
 logos::state_block::state_block (bool & error_a, logos::stream & stream_a) :
 hashables (error_a, stream_a)
@@ -158,6 +174,11 @@ hashables (error_a, stream_a)
         {
             error_a = logos::read (stream_a, work);
             boost::endian::big_to_native_inplace (work);
+            if (!error_a)
+            {
+                error_a = logos::read (stream_a, timestamp);
+                boost::endian::big_to_native_inplace (timestamp);
+            }
         }
     }
 }
@@ -172,6 +193,7 @@ hashables (error_a, tree_a)
             auto type_l (tree_a.get<std::string> ("type"));
             auto signature_l (tree_a.get<std::string> ("signature"));
             auto work_l (tree_a.get<std::string> ("work"));
+            auto timestamp_l (tree_a.get_optional<std::string> ("timestamp"));
             error_a = type_l != "state";
             if (!error_a)
             {
@@ -179,6 +201,12 @@ hashables (error_a, tree_a)
                 if (!error_a)
                 {
                     error_a = signature.decode_hex (signature_l);
+                    if (!error_a)
+                    {
+                        timestamp = timestamp_l.is_initialized() ?
+                                    std::stoull(timestamp_l.get()) :
+                                    0;
+                    }
                 }
             }
         }
@@ -220,6 +248,7 @@ void logos::state_block::serialize (logos::stream & stream_a) const
     write (stream_a, hashables.link);
     write (stream_a, signature);
     write (stream_a, boost::endian::native_to_big (work));
+    write (stream_a, boost::endian::native_to_big (timestamp));
 }
 
 void logos::state_block::serialize_json (std::string & string_a) const
@@ -245,6 +274,7 @@ boost::property_tree::ptree logos::state_block::serialize_json () const
     signature.encode_hex (signature_l);
     tree.put ("signature", signature_l);
     tree.put ("work", logos::to_string_hex (work));
+    tree.put ("timestamp", std::to_string (timestamp));
 
     return tree;
 }
@@ -271,6 +301,11 @@ bool logos::state_block::deserialize (logos::stream & stream_a)
                         {
                             error = read (stream_a, work);
                             boost::endian::big_to_native_inplace (work);
+                            if (!error)
+                            {
+                                error = read (stream_a, timestamp);
+                                boost::endian::big_to_native_inplace (timestamp);
+                            }
                         }
                     }
                 }
@@ -293,6 +328,7 @@ bool logos::state_block::deserialize_json (boost::property_tree::ptree const & t
         auto link_l (tree_a.get<std::string> ("link"));
         auto work_l (tree_a.get<std::string> ("work"));
         auto signature_l (tree_a.get<std::string> ("signature"));
+        auto timestamp_l (tree_a.get_optional<std::string> ("timestamp"));
         error = hashables.account.decode_account (account_l);
         if (!error)
         {
@@ -312,6 +348,12 @@ bool logos::state_block::deserialize_json (boost::property_tree::ptree const & t
                             if (!error)
                             {
                                 error = signature.decode_hex (signature_l);
+                                if (!error)
+                                {
+                                    timestamp = timestamp_l.is_initialized() ?
+                                                std::stoull(timestamp_l.get()) :
+                                                0;
+                                }
                             }
                         }
                     }
@@ -343,7 +385,14 @@ bool logos::state_block::operator== (logos::block const & other_a) const
 
 bool logos::state_block::operator== (logos::state_block const & other_a) const
 {
-    return hashables.account == other_a.hashables.account && hashables.previous == other_a.hashables.previous && hashables.representative == other_a.hashables.representative && hashables.amount == other_a.hashables.amount && hashables.link == other_a.hashables.link && signature == other_a.signature && work == other_a.work;
+    return hashables.account == other_a.hashables.account &&
+           hashables.previous == other_a.hashables.previous &&
+           hashables.representative == other_a.hashables.representative &&
+           hashables.amount == other_a.hashables.amount &&
+           hashables.link == other_a.hashables.link &&
+           signature == other_a.signature &&
+           work == other_a.work &&
+           timestamp == other_a.timestamp;
 }
 
 bool logos::state_block::valid_predecessor (logos::block const & block_a) const
