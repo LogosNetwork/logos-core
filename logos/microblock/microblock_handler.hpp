@@ -7,6 +7,7 @@
 
 static const uint16_t MICROBLOCK_PROPOSAL_TIME = 1200; // 20 minutes
 static const uint16_t MICROBLOCK_CUTOFF_TIME = 600; // 10 minutes
+static const uint16_t CLOCK_DRIFT = 20; // 40 seconds
 
 namespace logos {
     class block_store;
@@ -25,14 +26,12 @@ public:
     /// @param i microblock process period interval
     MicroBlockHandler(logos::alarm &a,
                       BlockStore &s,
-                      uint8_t delegate_id,
-                      MessageValidator & validator)
+                      uint8_t delegate_id)
         : _alarm(a)
         , _store(s)
         , _interval_cutoff(std::chrono::seconds(MICROBLOCK_CUTOFF_TIME))
         , _interval_proposal(std::chrono::seconds(MICROBLOCK_PROPOSAL_TIME))
         , _delegate_id(delegate_id)
-        , _validator(validator)
         {}
 
     /// Class distructor
@@ -59,11 +58,16 @@ public:
     /// block references, the block # is ahead of the current block #.)
     bool VerifyMicroBlock(MicroBlock &block);
 
+    /// Verify this microblock either exists or can be built and matches this block
+    /// @param block to save to the database [in]
+    void ApplyUpdates(MicroBlock &block);
+
+    void WalkBatchBlocks(BatchStateBlock &start, BatchStateBlock &end, std::function<void(const BatchStateBlock&)>);
+
 private:
     logos::alarm &       _alarm;            ///< alarm
     BlockStore &         _store; 		    ///< reference to the block store
     std::chrono::seconds _interval_cutoff;  ///< microblock inclusion cutoff time
     std::chrono::seconds _interval_proposal;///< microblock proposal time
     uint8_t              _delegate_id;      ///< local delegate id
-    MessageValidator &   _validator;        ///< validator used for message signing
 };

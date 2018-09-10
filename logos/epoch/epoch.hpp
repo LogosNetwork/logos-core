@@ -7,6 +7,8 @@
 #include <logos/lib/merkle.hpp>
 #include <logos/lib/numbers.hpp>
 
+static const uint16_t EPOCH_PROPOSAL_TIME = 12 * 3600; // 12 hours
+
 /// An election result entry, i.e. a delegate with it stake, and the votes
 /// it received
 struct Delegate 

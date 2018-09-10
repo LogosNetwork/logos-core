@@ -26,7 +26,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
         }, 
         service, alarm, config.consensus_manager_config, 
 		_key_store, _validator)
-    , _microblock_handler(alarm, store, config.consensus_manager_config.delegate_id, _validator)
+    , _microblock_handler(alarm, store, config.consensus_manager_config.delegate_id)
 {}
 
 logos::process_return 

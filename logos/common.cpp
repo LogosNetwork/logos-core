@@ -113,6 +113,7 @@ logos::uint128_t const & logos::genesis_amount (globals.genesis_amount);
 logos::block_hash const & logos::not_a_block (globals.not_a_block);
 logos::block_hash const & logos::not_an_account (globals.not_an_account);
 logos::account const & logos::burn_account (globals.burn_account);
+std::vector<logos::keypair> logos::genesis_delegates;
 
 logos::votes::votes (std::shared_ptr<logos::block> block_a) :
 id (block_a->root ())

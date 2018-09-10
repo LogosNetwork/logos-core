@@ -117,8 +117,8 @@ public:
 
     template<typename T> void put(MDB_dbi&, const mdb_val &, const T &, MDB_txn *);
       template<typename T> logos::block_hash put(MDB_dbi&, const T &, MDB_txn *);
-      template<typename T> bool get(MDB_dbi&, const mdb_val &key, T &);
-      template<typename T> bool get(MDB_dbi& db, const logos::block_hash &hash, T &t)
+      template<typename T> bool get(MDB_dbi&, const mdb_val &key, const T &);
+      template<typename T> bool get(MDB_dbi& db, const logos::block_hash &hash, const T &t)
       {
         mdb_val key(hash);
         return get<T>(db,key,t);
@@ -140,9 +140,10 @@ public:
 
     // micro-block
       logos::block_hash micro_block_put(MicroBlock const &, MDB_txn*);
-      bool micro_block_get(block_hash &, MicroBlock &);
+      bool micro_block_get(const block_hash &, MicroBlock &);
       void micro_block_tip_put(const block_hash&, MDB_txn*);
-      bool micro_block_tip_get(block_hash &);
+      bool micro_block_tip_get(const block_hash &);
+      bool micro_block_exists(const block_hash &);
 
     // epoch
     logos::block_hash epoch_put(Epoch const &, MDB_txn*);

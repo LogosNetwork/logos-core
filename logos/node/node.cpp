@@ -1398,28 +1398,99 @@ _consensus_container(service_a, store, alarm_a, log, config)
         logos::block_hash epoch_tip;
         if (store.epoch_tip_get(epoch_tip)) // no tip, no epoch, no microblock - create genesis
         {
-            MicroBlock micro_block;
-            Epoch epoch;
 
-            micro_block._delegate = genesis_account;
-            micro_block.timestamp = GetStamp();
-            micro_block._epoch_number = -1;
-            micro_block._micro_block_number = -1;
+            // create genesis accounts
+            for (int del = 0; del < NUM_DELEGATES*2; ++del)
+            {
+                char buff[5];
+                sprintf(buff, "%02x", del);
+                logos::keypair pair(buff);
+                genesis_delegates.push_back(pair);
 
-            logos::block_hash hash = store.micro_block_put(micro_block, transaction);
-            store.micro_block_tip_put(hash, transaction);
+                logos::amount amount(100000 + del * 100);
+                uint64_t work = 0;
 
-            epoch._epoch_number = -1;
-            epoch.timestamp = GetStamp();
-            epoch._account = genesis_account;
-            epoch._micro_block_tip = hash;
-            for (uint8_t i = 0; i < NUM_DELEGATES; ++i) {
-                Delegate delegate = {i, 0, 0};
-                epoch._delegates[i] = delegate;
+                logos::state_block state(pair.pub,  // account
+                                         0,         // previous
+                                         pair.pub,  // representative
+                                         amount,
+                                         pair.pub,  // link
+                                         pair.prv,
+                                         pair.pub,
+                                         work);
+
+                store.receive_put(state.hash(),
+                                  state,
+                                  transaction);
+
+                store.account_put(pair.pub,
+                                  {
+                                      /* Head    */ 0,
+                                      /* Rep     */ 0,
+                                      /* Open    */ state.hash(),
+                                      /* Amount  */ amount,
+                                      /* Time    */ logos::seconds_since_epoch(),
+                                      /* Count   */ 0
+                                  },
+                                  transaction);
+                std::string contents;
+                state.serialize_json(contents);
+                BOOST_LOG(log) << "initializing delegate " << del << " " << sizeof(state) << " " <<
+                                                pair.prv.data.to_string() << " " <<
+                                                pair.pub.to_string() << " " <<
+                                                pair.pub.to_account() << " " <<
+                                                state.hash().to_string() << "\n\t\t" << contents;
             }
 
-            hash = store.epoch_put(epoch, transaction);
-            store.epoch_tip_put(hash, transaction);
+
+            logos::block_hash epoch_hash(0);
+            logos::block_hash microblock_hash(0);
+
+            time_t rawtime;
+            struct tm *ptm;
+
+            time(&rawtime);
+            ptm = gmtime(&rawtime);
+
+            // set time stamps to 12 hour
+            int h = ptm->tm_hour / EPOCH_PROPOSAL_TIME;
+            int hours = ptm->tm_hour - h * EPOCH_PROPOSAL_TIME;
+            rawtime -= hours * 3600 - ptm->tm_min * 60 - ptm->tm_sec;
+            uint64_t timestamp = rawtime * 1000; // milliseconds;
+
+            for (int e = 0; e < 3; e++)
+            {
+                Epoch epoch;
+                MicroBlock micro_block;
+
+                micro_block._delegate = genesis_account;
+                micro_block.timestamp = GetStamp();
+                micro_block._epoch_number = e;
+                micro_block._micro_block_number = 0;
+                micro_block.previous = microblock_hash;
+
+                microblock_hash = store.micro_block_put(micro_block, transaction);
+
+                epoch._epoch_number = e;
+                epoch.timestamp = timestamp - 12 * 60 * 60 * 1000 * (2 - e);
+                epoch._account = genesis_account;
+                epoch._micro_block_tip = microblock_hash;
+                epoch.previous = epoch_hash;
+                for (uint8_t i = 0; i < NUM_DELEGATES; ++i) {
+                    Delegate delegate = {0, 0, 0};
+                    if (0 != i)
+                    {
+                        uint64_t del = i + (e - 1) * 8;
+                        delegate = {genesis_delegates[del].prv.data, 0, 100000 + del * 100};
+                    }
+                    epoch._delegates[i] = delegate;
+                }
+
+                epoch_hash = store.epoch_put(epoch, transaction);
+            }
+
+            store.epoch_tip_put(epoch_hash, transaction);
+            store.micro_block_tip_put(microblock_hash, transaction);
         }
     }
     if (logos::logos_network ==logos::logos_networks::logos_live_network)

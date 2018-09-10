@@ -184,7 +184,7 @@ logos::block_hash logos::block_store::put(MDB_dbi &db, const T &t, MDB_txn *tran
 }
 
 template<typename T>
-bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, T &t)
+bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, const T &t)
 {
     logos::mdb_val value;
     logos::transaction transaction(environment, nullptr, false);
@@ -868,7 +868,7 @@ logos::block_hash logos::block_store::micro_block_put(MicroBlock const &block, M
     return put<MicroBlock>(micro_block_db, block, transaction);
 }
 
-bool logos::block_store::micro_block_get(logos::block_hash &hash, MicroBlock &block)
+bool logos::block_store::micro_block_get(const logos::block_hash &hash, MicroBlock &block)
 {
   return get<MicroBlock>(micro_block_db, mdb_val(hash), block);
 }
@@ -879,11 +879,17 @@ void logos::block_store::micro_block_tip_put(const block_hash& hash, MDB_txn *tr
     put<block_hash>(micro_block_tip_db, logos::mdb_val(sizeof(key),const_cast<uint8_t*>(&key)), hash, transaction);
 }
 
-bool logos::block_store::micro_block_tip_get(block_hash &hash)
+bool logos::block_store::micro_block_tip_get(const block_hash &hash)
 {
   const uint8_t i = 0; // only one tip
   mdb_val key(sizeof(i), const_cast<uint8_t*>(&i));
   return get<block_hash>(micro_block_tip_db, key, hash);
+}
+
+bool logos::block_store::micro_block_exists(const logos::block_hash &hash)
+{
+    MicroBlock mb;
+    return (false == micro_block_get(hash, mb));
 }
 
 logos::block_hash logos::block_store::epoch_put(Epoch const &block, MDB_txn *transaction)

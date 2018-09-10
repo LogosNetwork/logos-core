@@ -7,6 +7,13 @@
 #include <time.h>
 using namespace logos;
 
+void
+MicroBlockHandler::WalkBatchBlocks(
+        BatchStateBlock &start, BatchStateBlock &end, std::function<void(const BatchStateBlock&)> cb)
+{
+
+}
+
 /// Microblock cut off time is calculated as Tc = TEi + Mi * 10 where TEi is the i-th epoch (previous epoch),
 /// Mi is current microblock sequence number
 bool
@@ -128,7 +135,62 @@ void MicroBlockHandler::Start(
 	});
 }
 
-bool MicroBlockHandler::VerifyMicroBlock(MicroBlock &block)
+bool
+MicroBlockHandler::VerifyMicroBlock(
+        MicroBlock &block)
 {
+    BlockHash hash = block.Hash();
+
+    // block exists
+    if (_store.micro_block_exists(hash))
+    {
+        return true;
+    }
+
+    Epoch current_epoch;
+    MicroBlock previous_microblock;
+
+    // previous microblock doesn't exist
+    if (_store.micro_block_get(block.previous, previous_microblock))
+    {
+        return false;
+    }
+
+    assert(false == _store.epoch_tip_get(hash));
+    assert(false == _store.epoch_get(hash, current_epoch));
+
+    // previous and proposed microblock are in the same epoch
+    if (block._epoch_number == previous_microblock._epoch_number &&
+            block._micro_block_number != (previous_microblock._micro_block_number + 1))
+    {
+        return false;
+    }
+
+    // proposed microblock must be in new epoch
+    if (block._epoch_number != (previous_microblock._epoch_number + 1) ||
+            block._micro_block_number != 0)
+    {
+        return false;
+    }
+
+    // timestamp should be equal to the cutoff interval plus allowed clock drift
+    if (false == (abs(block.timestamp - previous_microblock.timestamp) <= CLOCK_DRIFT))
+    {
+        return false;
+    }
+
+    // should verify the delegate - the account exists in the epoch's delegate list TBD
+    // need to find corresponding epoch
+
+    // calculate Merkle root
+
     return true;
+}
+
+void MicroBlockHandler::ApplyUpdates(MicroBlock &block)
+{
+    logos::transaction transaction(_store.environment, nullptr, true);
+
+    BlockHash hash = _store.micro_block_put(block, transaction);
+    _store.micro_block_tip_put(hash, transaction);
 }
