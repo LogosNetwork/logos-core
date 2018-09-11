@@ -203,9 +203,16 @@ hashables (error_a, tree_a)
                     error_a = signature.decode_hex (signature_l);
                     if (!error_a)
                     {
-                        timestamp = timestamp_l.is_initialized() ?
-                                    std::stoull(timestamp_l.get()) :
-                                    0;
+                        try
+                        {
+                            timestamp = timestamp_l.is_initialized() ?
+                                        std::stoull(timestamp_l.get()) :
+                                        0;
+                        }
+                        catch(std::logic_error const &)
+                        {
+                            error_a = true;
+                        }
                     }
                 }
             }
@@ -350,9 +357,16 @@ bool logos::state_block::deserialize_json (boost::property_tree::ptree const & t
                                 error = signature.decode_hex (signature_l);
                                 if (!error)
                                 {
-                                    timestamp = timestamp_l.is_initialized() ?
-                                                std::stoull(timestamp_l.get()) :
-                                                0;
+                                    try
+                                    {
+                                        timestamp = timestamp_l.is_initialized() ?
+                                                    std::stoull(timestamp_l.get()) :
+                                                    0;
+                                    }
+                                    catch(std::logic_error const &)
+                                    {
+                                        error = true;
+                                    }
                                 }
                             }
                         }
