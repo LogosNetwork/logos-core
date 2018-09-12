@@ -4,14 +4,10 @@
 #pragma once
 #include <logos/consensus/message_validator.hpp>
 #include <logos/microblock/microblock.hpp>
-
-static const uint16_t MICROBLOCK_PROPOSAL_TIME = 1200; // 20 minutes
-static const uint16_t MICROBLOCK_CUTOFF_TIME = 600; // 10 minutes
-static const uint16_t CLOCK_DRIFT = 20; // 40 seconds
+#include <logos/lib/epoch_time_util.hpp>
 
 namespace logos {
     class block_store;
-    class alarm;
 }
 
 using BlockStore = logos::block_store;
@@ -24,11 +20,9 @@ public:
     /// @param s logos::block_store reference
     /// @param n number of delegates
     /// @param i microblock process period interval
-    MicroBlockHandler(logos::alarm &a,
-                      BlockStore &s,
+    MicroBlockHandler(BlockStore &s,
                       uint8_t delegate_id)
-        : _alarm(a)
-        , _store(s)
+        : _store(s)
         , _interval_cutoff(std::chrono::seconds(MICROBLOCK_CUTOFF_TIME))
         , _interval_proposal(std::chrono::seconds(MICROBLOCK_PROPOSAL_TIME))
         , _delegate_id(delegate_id)
@@ -47,8 +41,9 @@ public:
     /// Build the block, called periodically by node
     /// Could be called by any delegate
     /// @param block to build [in|out]
+    /// @param last_micro_block last microblock in the poch [in]
     /// @returns true on success
-    bool BuildMicroBlock(MicroBlock &block);
+    bool BuildMicroBlock(MicroBlock &block, bool last_micro_block);
 
     /// Verify this microblock either exists or can be built and matches this block
     /// @param block to verify [in]
@@ -60,12 +55,17 @@ public:
 
     /// Verify this microblock either exists or can be built and matches this block
     /// @param block to save to the database [in]
-    void ApplyUpdates(MicroBlock &block);
+    void ApplyUpdates(const MicroBlock &block);
+
+    /// Verify this microblock either exists or can be built and matches this block
+    /// @param block to save to the database [in]
+    /// @param transaction transaction [in]
+    /// @returns microblock hash
+    BlockHash ApplyUpdates(const MicroBlock &block, const logos::transaction &);
 
     void WalkBatchBlocks(BatchStateBlock &start, BatchStateBlock &end, std::function<void(const BatchStateBlock&)>);
 
 private:
-    logos::alarm &       _alarm;            ///< alarm
     BlockStore &         _store; 		    ///< reference to the block store
     std::chrono::seconds _interval_cutoff;  ///< microblock inclusion cutoff time
     std::chrono::seconds _interval_proposal;///< microblock proposal time

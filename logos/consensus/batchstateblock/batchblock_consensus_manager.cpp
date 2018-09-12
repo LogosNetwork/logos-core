@@ -2,8 +2,9 @@
 /// This file contains implementation of the BatchBlockConsensusManager class, which
 /// handles specifics of BatchBlock consensus
 #include <logos/consensus/batchstateblock/batchblock_consensus_manager.hpp>
+#include <logos/consensus/batchstateblock/batchblock_consensus_connection.hpp>
 
-void 
+void
 BatchBlockConsensusManager::OnBenchmarkSendRequest(
   std::shared_ptr<Request> block,
   logos::process_return & result)
@@ -133,4 +134,17 @@ BatchBlockConsensusManager::OnConsensusReachedExt()
     }
 
     return false;
+}
+
+std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>>
+BatchBlockConsensusManager::MakeConsensusConnection(
+    std::shared_ptr<IIOChannel> iochannel,
+    PrimaryDelegate* primary,
+    DelegateKeyStore& key_store,
+    MessageValidator& validator,
+    const DelegateIdentities& ids)
+{
+    return std::make_shared<BatchBlockConsensusConnection>(iochannel,
+                                                 primary, _persistence_manager,
+                                                 key_store, validator, ids);
 }

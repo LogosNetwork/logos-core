@@ -18,22 +18,23 @@ MicroBlockHandler::WalkBatchBlocks(
 /// Mi is current microblock sequence number
 bool
 MicroBlockHandler::BuildMicroBlock(
-    MicroBlock &block)   ///< block to build in/out
+    MicroBlock &block,   ///< block to build in/out
+    bool last_micro_block)
 {
     vector<BlockHash> merkle; // holds first level of parents
     BlockHash previous_hash(0); // previous leaf's hash in merkle tree
     BlockHash previous_micro_block_hash;
     BlockHash hash;
     MicroBlock previous; // previous microblock
-    uint64_t interval_cutoff_msec = _interval_cutoff.count() * 1000; // interval is in seconds, timestamp msec
+    uint64_t interval_cutoff_msec = _interval_cutoff.count() * 60 * 1000; // interval is in min, timestamp msec
 
     // is this the very first microblock then previous points to the genesis microblock
     // with epoch number -1
     assert(false == _store.micro_block_tip_get(previous_micro_block_hash));
     assert(false == _store.micro_block_get(previous_micro_block_hash, previous));
 
-    // the first microblock
-    bool first_ever_micro_block = previous._epoch_number == -1;
+    // there are three genesis epoch blocks 0-2
+    bool first_ever_micro_block = previous._epoch_number == 2;
 
     // batch block is inserted into the microblock if the batch block's time stamp is
     // greater than the time stamp of the previous tip batch block time stamp and less or equal to the
@@ -94,10 +95,12 @@ MicroBlockHandler::BuildMicroBlock(
     if (block._number_batch_blocks % 2)
         merkle.push_back(Hash(previous_hash, previous_hash));
 
-    assert (block._number_batch_blocks != 0);
+    // should be allowed to have no blocks so at least it doesn't crash
+    // for instance the node is disconnected for a while
+    //assert (block._number_batch_blocks != 0);
 
-    // should it be allowed to have no tips?
-    assert(std::count(block._tips.begin(), block._tips.end(), 0) == 0);
+    // should it be allowed to have no tips? same as above, i.e disconnected for a while
+    //assert(std::count(block._tips.begin(), block._tips.end(), 0) == 0);
 
     Epoch epoch;
     assert(false == _store.epoch_tip_get(hash));
@@ -111,28 +114,9 @@ MicroBlockHandler::BuildMicroBlock(
     block.timestamp = GetStamp();
     block._delegate = _delegate_id;
     block._micro_block_number = first_micro_block ? 0 : previous._micro_block_number + 1;
+    block._last_micro_block = last_micro_block == true;
 
     return true;
-}
-
-//!< Start periodic microblock processing
-void MicroBlockHandler::Start(
-    std::function<void(std::shared_ptr<MicroBlock>)> cb) ///< call back to process generated microblock
-{
-    time_t rawtime;
-    struct tm *ptm;
-
-    time(&rawtime);
-    ptm = gmtime(&rawtime);
-    ptm->tm_min; // 0-59
-    // have to run on every 0,20,40 min on the hour
-    int n = ptm->tm_min / MICROBLOCK_PROPOSAL_TIME;
-    int i = (n + 1) * MICROBLOCK_PROPOSAL_TIME - ptm->tm_min;
-    _alarm.add(std::chrono::steady_clock::now () + std::chrono::minutes(i), [&]()mutable->void{
-        auto block(std::make_shared<MicroBlock>());
-        BuildMicroBlock(*block);
-        cb(block);
-	});
 }
 
 bool
@@ -174,7 +158,7 @@ MicroBlockHandler::VerifyMicroBlock(
     }
 
     // timestamp should be equal to the cutoff interval plus allowed clock drift
-    if (false == (abs(block.timestamp - previous_microblock.timestamp) <= CLOCK_DRIFT))
+    if (false == (abs(block.timestamp - previous_microblock.timestamp) <= LOCAL_CLOCK_DRIFT))
     {
         return false;
     }
@@ -187,10 +171,18 @@ MicroBlockHandler::VerifyMicroBlock(
     return true;
 }
 
-void MicroBlockHandler::ApplyUpdates(MicroBlock &block)
+void
+MicroBlockHandler::ApplyUpdates(const MicroBlock &block)
 {
     logos::transaction transaction(_store.environment, nullptr, true);
+    ApplyUpdates(block, transaction);
+}
+
+BlockHash
+MicroBlockHandler::ApplyUpdates(const MicroBlock &block, const logos::transaction &transaction)
+{
 
     BlockHash hash = _store.micro_block_put(block, transaction);
     _store.micro_block_tip_put(hash, transaction);
+    return hash;
 }

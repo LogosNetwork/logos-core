@@ -302,6 +302,8 @@ SET (LOGOS_LIB_SOURCES
 	logos/lib/merkle.hpp
 	logos/lib/numbers.cpp
 	logos/lib/numbers.hpp
+	logos/lib/epoch_time_util.cpp
+	logos/lib/epoch_time_util.hpp
 	logos/lib/utility.cpp
 	logos/lib/utility.hpp
 	logos/lib/work.hpp
@@ -332,7 +334,10 @@ add_library (node
 	logos/consensus/primary_delegate.cpp
 	logos/consensus/request_handler.cpp
 	logos/consensus/delegate_key_store.cpp
+	logos/epoch/archiver.cpp
 	logos/epoch/epoch.cpp
+	logos/epoch/epoch_handler.cpp
+	logos/epoch/event_proposer.cpp
 	logos/microblock/microblock.cpp
 	logos/microblock/microblock_handler.cpp
 	logos/microblock/microblock_tester.cpp

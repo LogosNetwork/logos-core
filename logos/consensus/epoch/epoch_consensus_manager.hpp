@@ -92,6 +92,17 @@ protected:
 	///		@return true if full false otherwise
     bool PrePrepareQueueFull() override;
 
+	/// Create specialized instance of ConsensusConnection
+	///     @param iochannel NetIOChannel pointer
+	///     @param primary PrimaryDelegate pointer
+	///     @param key_store Delegates' public key store
+	///     @param validator Validator/Signer of consensus messages
+	///     @param ids Delegate's id
+	///     @return ConsensusConnection
+	std::shared_ptr<ConsensusConnection<ConsensusType::Epoch>> MakeConsensusConnection(
+			std::shared_ptr<IIOChannel> iochannel, PrimaryDelegate* primary, DelegateKeyStore& key_store,
+			MessageValidator& validator, const DelegateIdentities& ids) override;
+
 private:
     std::shared_ptr<PrePrepare>  _cur_epoch; ///!< Currently handled epoch
 	int queue;

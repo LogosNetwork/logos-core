@@ -12,4 +12,5 @@ public:
     static void precreate_account(std::function<void(boost::property_tree::ptree const &)> response, logos::node &node);
     static void read_accounts(std::function<void(boost::property_tree::ptree const &)> response, logos::node &node);
     static void generate_microblock(std::function<void(boost::property_tree::ptree const &)> response, logos::node &node);
+    static void generate_epoch(std::function<void(boost::property_tree::ptree const &)> response, logos::node &node);
 };

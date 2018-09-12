@@ -90,6 +90,10 @@ protected:
     virtual bool PrePrepareQueueEmpty() = 0;
     virtual bool PrePrepareQueueFull() = 0;
 
+    virtual std::shared_ptr<ConsensusConnection<consensus_type>> MakeConsensusConnection(
+            std::shared_ptr<IIOChannel>, PrimaryDelegate*, DelegateKeyStore&,
+            MessageValidator&, const DelegateIdentities&) = 0;
+
     Connections        _connections;
     PersistenceManager _persistence_manager;
     DelegateKeyStore & _key_store;

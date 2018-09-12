@@ -5,7 +5,7 @@
 #include <logos/lib/interface.h>
 #include <logos/node/common.hpp>
 #include <logos/node/rpc.hpp>
-#include <logos/epoch/epoch.hpp>
+#include <logos/epoch/epoch_handler.hpp>
 #include <logos/microblock/microblock.hpp>
 
 #include <algorithm>
@@ -1227,7 +1227,8 @@ warmed_up (0),
 block_processor (*this),
 block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
 stats (config.stat_config),
-_consensus_container(service_a, store, alarm_a, log, config)
+_consensus_container(service_a, store, alarm_a, log, config),
+_archiver(alarm_a, store, config.consensus_manager_config.delegate_id, _consensus_container)
 {
     wallets.observer = [this](bool active) {
         observers.wallet (active);
@@ -1435,29 +1436,19 @@ _consensus_container(service_a, store, alarm_a, log, config)
                                   transaction);
                 std::string contents;
                 state.serialize_json(contents);
-                BOOST_LOG(log) << "initializing delegate " << del << " " << sizeof(state) << " " <<
+                /*BOOST_LOG(log) << "initializing delegate " << del << " " << sizeof(state) << " " <<
                                                 pair.prv.data.to_string() << " " <<
                                                 pair.pub.to_string() << " " <<
                                                 pair.pub.to_account() << " " <<
-                                                state.hash().to_string() << "\n\t\t" << contents;
+                                                state.hash().to_string() << "\n\t\t" << contents;*/
             }
 
 
             logos::block_hash epoch_hash(0);
             logos::block_hash microblock_hash(0);
-
-            time_t rawtime;
-            struct tm *ptm;
-
-            time(&rawtime);
-            ptm = gmtime(&rawtime);
-
-            // set time stamps to 12 hour
-            int h = ptm->tm_hour / EPOCH_PROPOSAL_TIME;
-            int hours = ptm->tm_hour - h * EPOCH_PROPOSAL_TIME;
-            rawtime -= hours * 3600 - ptm->tm_min * 60 - ptm->tm_sec;
-            uint64_t timestamp = rawtime * 1000; // milliseconds;
-
+            MicroBlockHandler microblock_handler(store,
+                    config.consensus_manager_config.delegate_id);
+            EpochHandler epoch_handler(store);
             for (int e = 0; e < 3; e++)
             {
                 Epoch epoch;
@@ -1469,10 +1460,10 @@ _consensus_container(service_a, store, alarm_a, log, config)
                 micro_block._micro_block_number = 0;
                 micro_block.previous = microblock_hash;
 
-                microblock_hash = store.micro_block_put(micro_block, transaction);
+                microblock_hash = microblock_handler.ApplyUpdates(micro_block, transaction);
 
                 epoch._epoch_number = e;
-                epoch.timestamp = timestamp - 12 * 60 * 60 * 1000 * (2 - e);
+                epoch.timestamp = GetStamp();
                 epoch._account = genesis_account;
                 epoch._micro_block_tip = microblock_hash;
                 epoch.previous = epoch_hash;
@@ -1486,11 +1477,8 @@ _consensus_container(service_a, store, alarm_a, log, config)
                     epoch._delegates[i] = delegate;
                 }
 
-                epoch_hash = store.epoch_put(epoch, transaction);
+                epoch_hash = epoch_handler.ApplyUpdates(epoch, transaction);
             }
-
-            store.epoch_tip_put(epoch_hash, transaction);
-            store.micro_block_tip_put(microblock_hash, transaction);
         }
     }
     if (logos::logos_network ==logos::logos_networks::logos_live_network)
@@ -1771,7 +1759,7 @@ void logos::node::start ()
 //    add_initial_peers ();
 //    observers.started ();
 // CH added starting logic here instead of inside constructors
-    _consensus_container.StartMicroBlock();
+    _archiver.Start();
 }
 
 void logos::node::stop ()

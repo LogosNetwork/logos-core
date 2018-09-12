@@ -5,11 +5,22 @@
 
 #include <logos/epoch/epoch.hpp>
 
+namespace logos {
+    class block_store;
+    class transaction;
+}
+
+using BlockStore = logos::block_store;
+
 /// EpochHandler builds, validates, persists, triggers the Epoch
 class EpochHandler 
 {
 public:
-    EpochHandler() {}
+    /// Class constructor
+    /// @param s logos::block_store reference [in]
+    EpochHandler(BlockStore &s)
+        : _store(s)
+        {}
     virtual ~EpochHandler() {}
 
     /// Validate Epoch block
@@ -20,9 +31,16 @@ public:
     /// @param block save the block to the database [in]
     void ApplyUpdates(const Epoch&);
 
+    /// Apply epoch to the database
+    /// @param epoch to write to the database [in]
+    /// @param transaction transaction [in]
+    /// @returns hash of the epoch
+    logos::block_hash ApplyUpdates(const Epoch&, const logos::transaction&);
+
     /// Build Epoch block
     /// @param block build the block [in|out]
     void BuildEpochBlock(Epoch&);
 
 private:
+    BlockStore &    _store;          ///< reference to block store
 };

@@ -2,6 +2,7 @@
 /// This file contains specialization of the ConsensusManager class, which
 /// handles specifics of Epoch consensus
 ///
+#include <logos/consensus/epoch/epoch_consensus_connection.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 
 void 
@@ -71,4 +72,16 @@ bool
 EpochConsensusManager::OnConsensusReachedExt()
 {
   return true;
+}
+
+std::shared_ptr<ConsensusConnection<ConsensusType::Epoch>>
+EpochConsensusManager::MakeConsensusConnection(
+        std::shared_ptr<IIOChannel> iochannel,
+        PrimaryDelegate* primary,
+        DelegateKeyStore& key_store,
+        MessageValidator& validator,
+        const DelegateIdentities& ids)
+{
+    return std::make_shared<EpochConsensusConnection>(iochannel, primary,
+            key_store, validator, ids);
 }

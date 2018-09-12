@@ -22,6 +22,7 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
         , _delegate(0)
         , _epoch_number(0)
         , _micro_block_number(0)
+        , _last_micro_block(0)
         , _number_batch_blocks(0)
         {
             _tips={0};
@@ -39,6 +40,7 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
     logos::account      _delegate; 	            ///< Delegate who proposed this microblock
     uint                _epoch_number; 			///< Current epoch
     uint8_t             _micro_block_number;	///< Microblock number within this epoch
+    uint8_t             _last_micro_block;      ///< The last microblock in the poch
     std::array<BlockHash,NUM_DELEGATES> _tips;  ///< Delegate's batch block tips
     uint                _number_batch_blocks;   ///< Number of batch blocks in the microblock
     Signature           signature; 		        ///< Multisignature

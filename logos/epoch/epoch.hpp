@@ -7,8 +7,6 @@
 #include <logos/lib/merkle.hpp>
 #include <logos/lib/numbers.hpp>
 
-static const uint16_t EPOCH_PROPOSAL_TIME = 12 * 3600; // 12 hours
-
 /// An election result entry, i.e. a delegate with it stake, and the votes
 /// it received
 struct Delegate 
@@ -24,6 +22,7 @@ struct Epoch : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Epoch>
 {
     using BlockHash = logos::block_hash;
 public:
+    /// Class constructor
     Epoch()
         : MessageHeader(0)
         , _account(0)
@@ -36,6 +35,7 @@ public:
         signature = {0};
     }
     ~Epoch() {}
+
     /// Calculate epoch's block hash
     BlockHash Hash() const {
         return ::Hash([&](function<void(const void *data,size_t)> cb)mutable->void {

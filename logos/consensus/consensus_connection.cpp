@@ -6,13 +6,11 @@
 template<ConsensusType CT>
 ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IIOChannel> iochannel,
                                              PrimaryDelegate * primary,
-                                             PersistenceManager & persistence_manager,
                                              DelegateKeyStore & key_store,
                                              MessageValidator & validator,
                                              const DelegateIdentities & ids)
     : _iochannel(iochannel)
     , _delegate_ids(ids)
-    , _persistence_manager(persistence_manager)
     , _key_store(key_store)
     , _validator(validator)
     , _primary(primary)
@@ -270,3 +268,4 @@ void ConsensusConnection<CT>::OnPrequel(const uint8_t *data)
 template class ConsensusConnection<ConsensusType::BatchStateBlock>;
 template class ConsensusConnection<ConsensusType::MicroBlock>;
 template class ConsensusConnection<ConsensusType::Epoch>;
+

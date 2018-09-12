@@ -43,6 +43,10 @@ logos::block_hash
 MerkleRoot(
   vector<logos::block_hash> &merkle)
 {
+  if (merkle.size() == 0)
+  {
+    return 0;
+  }
   while (merkle.size() > 1)
   {
     if (merkle.size() % 2) // make the number of nodes even

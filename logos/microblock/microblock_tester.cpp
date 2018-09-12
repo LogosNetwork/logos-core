@@ -2,6 +2,8 @@
 #include <logos/blockstore.hpp>
 #include <logos/lib/blocks.hpp>
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/lib/epoch_time_util.hpp>
+#include <logos/microblock/microblock_handler.hpp>
 
 bool 
 MicroBlockTester::microblock_tester(std::string &action, std::function<void(boost::property_tree::ptree const &)> response, logos::node &node)
@@ -22,6 +24,10 @@ MicroBlockTester::microblock_tester(std::string &action, std::function<void(boos
     else if (action == "generate_microblock")
     {
         generate_microblock(response, node);
+    }
+    else if (action == "generate_epoch")
+    {
+        generate_epoch(response, node);
     }
     else
     {
@@ -126,12 +132,28 @@ MicroBlockTester::generate_microblock(std::function<void(boost::property_tree::p
 {
   logos::transaction transaction(node.store.environment, nullptr, true);
   boost::property_tree::ptree response_l;
-  auto block = std::make_shared<MicroBlock>();
-  node._consensus_container.BuildMicroBlock(block);
-  // start consensus, commit when done
-  logos::block_hash hash = node.store.micro_block_put(*block, transaction);
-  node.store.micro_block_tip_put(hash, transaction);
-  node._consensus_container.OnSendRequest(block);
-  response_l.put ("hash", hash.to_string());
+  EventProposer proposer(node.alarm);
+  proposer.ProposeMicroblockOnce([&node]()->void{
+      MicroBlockHandler handler(node.store, node.config.consensus_manager_config.delegate_id);
+      auto micro_block = std::make_shared<MicroBlock>();
+      handler.BuildMicroBlock(*micro_block, false);
+      node._consensus_container.OnSendRequest(micro_block);
+  }, std::chrono::seconds(1));
+  response_l.put ("result", "sent");
   response (response_l);
+}
+
+void
+MicroBlockTester::generate_epoch(std::function<void(boost::property_tree::ptree const &)> response, logos::node &node)
+{
+    logos::transaction transaction(node.store.environment, nullptr, true);
+    boost::property_tree::ptree response_l;
+    EventProposer proposer(node.alarm);
+    proposer.ProposeTransitionOnce([&node]()->void{
+        EpochHandler handler(node.store);
+        auto epoch = std::make_shared<Epoch>();
+        node._consensus_container.OnSendRequest(epoch);
+    }, std::chrono::seconds(1));
+    response_l.put ("result", "sent");
+    response (response_l);
 }

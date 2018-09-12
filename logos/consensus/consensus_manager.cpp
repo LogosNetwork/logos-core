@@ -1,4 +1,7 @@
 #include <logos/consensus/consensus_manager.hpp>
+//#include <logos/consensus/epoch/epoch_consensus_connection.hpp>
+//#include <logos/consensus/microblock/microblock_consensus_connection.hpp>
+//#include <logos/consensus/batchstateblock/batchblock_consensus_connection.hpp>
 
 #include <logos/node/node.hpp>
 
@@ -109,9 +112,10 @@ bool ConsensusManager<consensus_type>::StateReadyForConsensus()
 template<ConsensusType consensus_type>
 std::shared_ptr<IConsensusConnection> ConsensusManager<consensus_type>::BindIOChannel(std::shared_ptr<IIOChannel> iochannel, const DelegateIdentities & ids)
 {
-    auto consensus_connection = std::make_shared<ConsensusConnection<consensus_type>>(iochannel,
-                                                   this, _persistence_manager,
-                                                   _key_store, _validator, ids);
+    /*auto consensus_connection = std::make_shared<ConsensusConnection<consensus_type>>(iochannel,
+                                                                                      this, _persistence_manager,
+                                                                                      _key_store, _validator, ids);*/
+    auto consensus_connection = MakeConsensusConnection(iochannel, this, _key_store, _validator, ids);
     _connections.push_back(consensus_connection);
     return consensus_connection;
 }

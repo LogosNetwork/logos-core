@@ -55,7 +55,6 @@ public:
 
     ConsensusConnection(std::shared_ptr<IIOChannel> iochannel,
                         PrimaryDelegate * primary,
-                        PersistenceManager & persistence_manager,
                         DelegateKeyStore & key_store,
                         MessageValidator & validator,
                         const DelegateIdentities & ids);
@@ -78,7 +77,7 @@ protected:
 
     using ReceiveBuffer = std::array<uint8_t, BUFFER_SIZE>;
 
-    void ApplyUpdates(const PrePrepare &, uint8_t delegate_id);
+    virtual void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) = 0;
 
     void OnData();
     void OnMessage(const uint8_t * data);
@@ -94,7 +93,7 @@ protected:
 
     template<typename MSG>
     bool Validate(const MSG & message);
-    bool Validate(const PrePrepare & message);
+    virtual bool Validate(const PrePrepare & message) = 0;
 
     template<typename MSG>
     bool ProceedWithMessage(const MSG & message, ConsensusState expected_state);
@@ -115,7 +114,6 @@ protected:
     std::shared_ptr<Commit>     _cur_commit;
     BlockHash                   _cur_pre_prepare_hash;
     DelegateIdentities          _delegate_ids;
-    PersistenceManager &        _persistence_manager;
     DelegateKeyStore &          _key_store;
     MessageValidator &          _validator;
     Log                         _log;

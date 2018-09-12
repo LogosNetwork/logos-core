@@ -7,10 +7,8 @@
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 #include <logos/consensus/consensus_netio_manager.hpp>
-#include <logos/microblock/microblock_handler.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
-#include <logos/epoch/epoch.hpp>
 
 namespace logos
 {
@@ -65,16 +63,13 @@ public:
     ///     @param[out] result result of the operation
     void BufferComplete(logos::process_return & result);
 
-    /// Start MicroBlock event loop
-    void StartMicroBlock();
-
-	/// Build MicroBlock
-	///		@param[in,out] microblock to build
-    void BuildMicroBlock(std::shared_ptr<MicroBlock>);
-
 	/// Initiate MicroBlock consensus
-	///		@param[in] MicroBlock containing the transaction
+	///		@param[in] MicroBlock containing the batch blocks
     logos::process_return OnSendRequest(std::shared_ptr<MicroBlock>);
+
+    /// Initiate MicroBlock consensus
+    ///		@param[in] Epoch containing the microblocks
+    logos::process_return OnSendRequest(std::shared_ptr<Epoch>);
 
 private:
     DelegateKeyStore            _key_store; 		 ///< Store delegates public keys
@@ -83,5 +78,4 @@ private:
 	MicroBlockConsensusManager	_micro_manager; 	 ///< Handles micro block consensus
 	EpochConsensusManager	    _epoch_manager; 	 ///< Handles epoch consensus
     ConsensusNetIOManager       _netio_manager; 	 ///< Establishes connections to other delegates
-    MicroBlockHandler           _microblock_handler; ///< Handles microblock processing
 };

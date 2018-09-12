@@ -1,3 +1,4 @@
+#include <logos/consensus/microblock/microblock_consensus_connection.hpp>
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
 
 void
@@ -66,4 +67,16 @@ bool
 MicroBlockConsensusManager::OnConsensusReachedExt()
 {
     return true;
+}
+
+std::shared_ptr<ConsensusConnection<ConsensusType::MicroBlock>>
+MicroBlockConsensusManager::MakeConsensusConnection(
+        std::shared_ptr<IIOChannel> iochannel,
+        PrimaryDelegate* primary,
+        DelegateKeyStore& key_store,
+        MessageValidator& validator,
+        const DelegateIdentities& ids)
+{
+    return std::make_shared<MicroBlockConsensusConnection>(iochannel, primary,
+            key_store, validator, ids);
 }

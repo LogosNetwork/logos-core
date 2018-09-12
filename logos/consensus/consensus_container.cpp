@@ -26,7 +26,6 @@ ConsensusContainer::ConsensusContainer(Service & service,
         }, 
         service, alarm, config.consensus_manager_config, 
 		_key_store, _validator)
-    , _microblock_handler(alarm, store, config.consensus_manager_config.delegate_id)
 {}
 
 logos::process_return 
@@ -67,28 +66,6 @@ ConsensusContainer::BufferComplete(
     _batch_manager.BufferComplete(result);
 }
 
-void 
-ConsensusContainer::StartMicroBlock()
-{
-    // if the block meets last in epoch condition (time stamp ~ 0:20 or 12:20 GMT)
-    // exception is recall if the recall happened then the new epoch is extended
-    // there should be a global recall flag
-    // then start epoch construction
-    function<void()> repeat = [&]() -> void {
-       _microblock_handler.Start([&](std::shared_ptr<MicroBlock> block)->void {
-           OnSendRequest(block);
-           repeat();
-       });
-    };
-    repeat();
-}
-
-void
-ConsensusContainer::BuildMicroBlock(std::shared_ptr<MicroBlock> block)
-{
-    _microblock_handler.BuildMicroBlock(*block);
-}
-
 logos::process_return
 ConsensusContainer::OnSendRequest(std::shared_ptr<MicroBlock> block)
 {
@@ -97,6 +74,18 @@ ConsensusContainer::OnSendRequest(std::shared_ptr<MicroBlock> block)
     logos::process_return result;
     _micro_manager.OnSendRequest(
         std::static_pointer_cast<Request>(block), result);;
+
+    return result;
+}
+
+logos::process_return
+ConsensusContainer::OnSendRequest(std::shared_ptr<Epoch> block)
+{
+    using Request = RequestMessage<ConsensusType::Epoch>;
+
+    logos::process_return result;
+    _epoch_manager.OnSendRequest(
+            std::static_pointer_cast<Request>(block), result);;
 
     return result;
 }
