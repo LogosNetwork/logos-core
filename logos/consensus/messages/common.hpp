@@ -18,7 +18,7 @@ enum class MessageType : uint8_t
     Commit       = 3,
     Post_Commit  = 4,
 
-    // Advertisements
+    // Other
     Key_Advert   = 5,
 
     // Invalid

@@ -3,9 +3,9 @@
 /// an interface to the underlying socket.
 #pragma once
 
+#include <logos/consensus/network/net_io_assembler.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
-#include <logos/consensus/net_io_assembler.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 #include <boost/asio/io_service.hpp>
@@ -203,7 +203,7 @@ private:
     void OnWrite(const ErrorCode & error, size_t size);
 
 
-    static constexpr uint8_t CONNECT_RETRY_DELAY = 5;    ///< Reconnect delay in seconds.
+    static constexpr uint8_t CONNECT_RETRY_DELAY = 5;   ///< Reconnect delay in seconds.
 
     std::shared_ptr<Socket> _socket;                    ///< Connected socket
     ReceiveBuffer           _receive_buffer;            ///< receive buffer

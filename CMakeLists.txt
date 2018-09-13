@@ -318,14 +318,14 @@ add_library (node
 	logos/consensus/consensus_connection.cpp
 	logos/consensus/consensus_container.cpp
 	logos/consensus/consensus_manager.cpp
-	logos/consensus/consensus_netio.cpp
-	logos/consensus/consensus_netio_manager.cpp
 	logos/consensus/message_validator.cpp
 	logos/consensus/messages/messages.cpp
 	logos/consensus/microblock/microblock_consensus_connection.cpp
 	logos/consensus/microblock/microblock_consensus_manager.cpp
-	logos/consensus/net_io_assembler.cpp
-	logos/consensus/peer_acceptor.cpp
+	logos/consensus/network/consensus_netio.cpp
+	logos/consensus/network/consensus_netio_manager.cpp
+	logos/consensus/network/net_io_assembler.cpp
+	logos/consensus/network/peer_acceptor.cpp
 	logos/consensus/persistence/persistence_manager.cpp
 	logos/consensus/primary_delegate.cpp
 	logos/consensus/request_handler.cpp

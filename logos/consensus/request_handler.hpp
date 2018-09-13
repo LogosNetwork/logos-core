@@ -7,11 +7,6 @@
 #include <memory>
 #include <list>
 
-namespace logos
-{
-    class alarm;
-}
-
 class RequestHandler
 {
     using BatchList = std::list<BatchStateBlock>;

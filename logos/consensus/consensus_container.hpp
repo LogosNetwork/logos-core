@@ -5,7 +5,7 @@
 
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
-#include <logos/consensus/consensus_netio_manager.hpp>
+#include <logos/consensus/network/consensus_netio_manager.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/microblock/microblock.hpp>

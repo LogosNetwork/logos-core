@@ -18,20 +18,20 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
 
 // Prepare and Commit messages
 //
-template<MessageType type, ConsensusType consensus,
-         typename Enable = void
+template<MessageType MT, ConsensusType CT,
+         typename E = void
          >
 struct StandardPhaseMessage;
 
-template<MessageType type, ConsensusType consensus>
-struct StandardPhaseMessage<type, consensus, typename std::enable_if<
-    type == MessageType::Prepare ||
-    type == MessageType::Commit>::type> : MessageHeader<type, consensus>
+template<MessageType MT, ConsensusType CT>
+struct StandardPhaseMessage<MT, CT, typename std::enable_if<
+    MT == MessageType::Prepare ||
+    MT == MessageType::Commit>::type> : MessageHeader<MT, CT>
 {
     static const size_t HASHABLE_BYTES;
 
     StandardPhaseMessage(uint64_t timestamp)
-        : MessageHeader<type, consensus>(timestamp)
+        : MessageHeader<MT, CT>(timestamp)
     {}
 
     Signature signature;
@@ -39,20 +39,20 @@ struct StandardPhaseMessage<type, consensus, typename std::enable_if<
 
 // Post Prepare and Post Commit messages
 //
-template<MessageType type, ConsensusType consensus,
+template<MessageType MT, ConsensusType CT,
          typename Enable = void
          >
 struct PostPhaseMessage;
 
-template<MessageType type, ConsensusType consensus>
-struct PostPhaseMessage<type, consensus, typename std::enable_if<
-    type == MessageType::Post_Prepare ||
-    type == MessageType::Post_Commit>::type> : MessageHeader<type, consensus>
+template<MessageType MT, ConsensusType CT>
+struct PostPhaseMessage<MT, CT, typename std::enable_if<
+    MT == MessageType::Post_Prepare ||
+    MT == MessageType::Post_Commit>::type> : MessageHeader<MT, CT>
 {
     static const size_t HASHABLE_BYTES;
 
     PostPhaseMessage(uint64_t timestamp)
-        : MessageHeader<type, consensus>(timestamp)
+        : MessageHeader<MT, CT>(timestamp)
     {}
 
     ParicipationMap participation_map;
@@ -69,66 +69,76 @@ struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert,
 
 // Convenience aliases for message names.
 //
-template<ConsensusType consensus>
-using PrepareMessage = StandardPhaseMessage<MessageType::Prepare, consensus>;
+template<ConsensusType CT>
+using PrepareMessage = StandardPhaseMessage<MessageType::Prepare, CT>;
 
-template<ConsensusType consensus>
-using CommitMessage  = StandardPhaseMessage<MessageType::Commit, consensus>;
+template<ConsensusType CT>
+using CommitMessage  = StandardPhaseMessage<MessageType::Commit, CT>;
 
-template<ConsensusType consensus>
-using PostPrepareMessage = PostPhaseMessage<MessageType::Post_Prepare, consensus>;
+template<ConsensusType CT>
+using PostPrepareMessage = PostPhaseMessage<MessageType::Post_Prepare, CT>;
 
-template<ConsensusType consensus>
-using PostCommitMessage  = PostPhaseMessage<MessageType::Post_Commit, consensus>;
+template<ConsensusType CT>
+using PostCommitMessage  = PostPhaseMessage<MessageType::Post_Commit, CT>;
 
 // Number of bytes from the beginning of the
 // message that should be included in hashes
 // of the message.
 //
-template<MessageType type, ConsensusType consensus>
-const size_t PostPhaseMessage<type, consensus, typename std::enable_if<
-    type == MessageType::Post_Prepare ||
-    type == MessageType::Post_Commit>::type>::HASHABLE_BYTES = sizeof(PostPhaseMessage<MessageType::Post_Prepare, consensus>)
-                                                               - sizeof(uint64_t)
-                                                               - sizeof(AggSignature);
+template<MessageType MT, ConsensusType CT>
+const size_t PostPhaseMessage<MT, CT, typename std::enable_if<
+    MT == MessageType::Post_Prepare ||
+    MT == MessageType::Post_Commit>::type>::HASHABLE_BYTES = sizeof(PostPhaseMessage<MessageType::Post_Prepare, CT>)
+                                                             - sizeof(uint64_t)
+                                                             - sizeof(AggSignature);
 
-template<MessageType type, ConsensusType consensus>
-const size_t StandardPhaseMessage<type, consensus, typename std::enable_if<
-    type == MessageType::Prepare ||
-    type == MessageType::Commit>::type>::HASHABLE_BYTES = sizeof(StandardPhaseMessage<MessageType::Prepare, consensus>)
-                                                          - sizeof(Signature);
+template<MessageType MT, ConsensusType CT>
+const size_t StandardPhaseMessage<MT, CT, typename std::enable_if<
+    MT == MessageType::Prepare ||
+    MT == MessageType::Commit>::type>::HASHABLE_BYTES = sizeof(StandardPhaseMessage<MessageType::Prepare, CT>)
+                                                        - sizeof(Signature);
 
 // Pre-Prepare Message definitions.
 //
-template<ConsensusType consensus_type, typename Type = void>
+template<ConsensusType CT, typename E = void>
 struct PrePrepareMessage;
 
-template<ConsensusType consensus_type>
-struct PrePrepareMessage<consensus_type,
+template<ConsensusType CT>
+struct PrePrepareMessage<CT,
     typename std::enable_if<
-        consensus_type == ConsensusType::BatchStateBlock>::type> : BatchStateBlock
+        CT == ConsensusType::BatchStateBlock>::type> : BatchStateBlock
 {};
 
-template<ConsensusType consensus_type>
-struct PrePrepareMessage<consensus_type,
+template<ConsensusType CT>
+struct PrePrepareMessage<CT,
     typename std::enable_if<
-        consensus_type == ConsensusType::MicroBlock>::type> : MicroBlock
+        CT == ConsensusType::MicroBlock>::type> : MicroBlock
 {};
 
 // Request Message specializations. The underlying type can
 // vary based on the consensus type.
 //
-template<ConsensusType consensus_type, typename Type = void>
+template<ConsensusType CT, typename Type = void>
 struct RequestMessage;
 
-template<ConsensusType consensus_type>
-struct RequestMessage<consensus_type,
+template<ConsensusType CT>
+struct RequestMessage<CT,
     typename std::enable_if<
-        consensus_type == ConsensusType::BatchStateBlock>::type> : logos::state_block
+        CT == ConsensusType::BatchStateBlock>::type> : logos::state_block
 {};
 
-template<ConsensusType consensus_type>
-struct RequestMessage<consensus_type,
+template<ConsensusType CT>
+struct RequestMessage<CT,
     typename std::enable_if<
-        consensus_type == ConsensusType::MicroBlock>::type> : PrePrepareMessage<ConsensusType::MicroBlock>
+        CT == ConsensusType::MicroBlock>::type> : PrePrepareMessage<ConsensusType::MicroBlock>
 {};
+
+enum class RejectionReason : uint8_t
+{
+    Old_Timestamp = 0
+};
+
+struct RejectionMessage
+{
+    RejectionReason reason;
+};

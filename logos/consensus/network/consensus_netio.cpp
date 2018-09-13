@@ -1,7 +1,7 @@
 /// @file
 /// This file contains implementation of the ConsensusNetIO and ConsensusNetIOManager classes, which handle
 /// network connections between the delegates.
-#include <logos/consensus/consensus_netio.hpp>
+#include <logos/consensus/network/consensus_netio.hpp>
 #include <logos/node/node.hpp>
 
 const uint8_t ConsensusNetIO::CONNECT_RETRY_DELAY;

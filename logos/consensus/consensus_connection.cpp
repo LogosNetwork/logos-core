@@ -1,5 +1,5 @@
+#include <logos/consensus/network/consensus_netio.hpp>
 #include <logos/consensus/consensus_connection.hpp>
-#include <logos/consensus/consensus_netio.hpp>
 
 #include <boost/asio/read.hpp>
 

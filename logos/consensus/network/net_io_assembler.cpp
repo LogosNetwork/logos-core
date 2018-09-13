@@ -1,5 +1,5 @@
+#include <logos/consensus/network/net_io_assembler.hpp>
 #include <logos/consensus/messages/messages.hpp>
-#include <logos/consensus/net_io_assembler.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 
