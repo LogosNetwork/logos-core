@@ -14,6 +14,10 @@ using BlockStore = logos::block_store;
 
 /// Handle MicroBlock processing
 class MicroBlockHandler : public std::enable_shared_from_this<MicroBlockHandler> {
+
+    using Log       = boost::log::sources::logger_mt;
+    using BatchTips = std::array<BlockHash,NUM_DELEGATES>;
+
 public:
     /// Class constructor
     /// @param s logos::alarm reference
@@ -51,7 +55,7 @@ public:
     /// 1. exists and matches; 2. doesn't exist but all data matches 3. doesn't exist and there is
     /// a different block matching the same parent. 4. doesn't exist and there is no parent that this
     /// block references, the block # is ahead of the current block #.)
-    bool VerifyMicroBlock(MicroBlock &block);
+    bool VerifyMicroBlock(const MicroBlock &block);
 
     /// Verify this microblock either exists or can be built and matches this block
     /// @param block to save to the database [in]
@@ -63,11 +67,36 @@ public:
     /// @returns microblock hash
     BlockHash ApplyUpdates(const MicroBlock &block, const logos::transaction &);
 
-    void WalkBatchBlocks(BatchStateBlock &start, BatchStateBlock &end, std::function<void(const BatchStateBlock&)>);
-
 private:
+
+    /// Walk delegates' batch block chain
+    /// @param start tips to start the walk [in]
+    /// @param end tips to end the walk [in]
+    /// @param cb function to call for each delegate's batch block
+    void WalkBatchBlocks(const BatchTips &start, const BatchTips &end,
+            std::function<void(uint8_t, const BatchStateBlock&)>);
+
+    /// Walk delegates' batch block chain
+    /// @param start tips to start the walk [in]
+    /// @param end tips to end the walk [in]
+    /// @param tips foound batch block tips [in]
+    /// @param num_blocks number of selected batch blocks [in]
+    /// @param timestamp timestamp of the previous microblock [in]
+    /// @returns Merkle root
+    BlockHash FastMerkleTree(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks,
+            uint64_t timestamp);
+
+    /// Calculate Merkle root and get batch block tips
+    /// @param start tips to start the walk [in]
+    /// @param end tips to end the walk [in]
+    /// @param tips foound batch block tips [in]
+    /// @param num_blocks number of selected batch blocks [in]
+    /// @returns Merkle root
+    BlockHash SlowMerkleTree(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks);
+
     BlockStore &         _store; 		    ///< reference to the block store
     std::chrono::seconds _interval_cutoff;  ///< microblock inclusion cutoff time
     std::chrono::seconds _interval_proposal;///< microblock proposal time
     uint8_t              _delegate_id;      ///< local delegate id
+    Log                  _log;              ///< boost asio log
 };

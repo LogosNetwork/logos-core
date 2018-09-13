@@ -1449,13 +1449,13 @@ _archiver(alarm_a, store, config.consensus_manager_config.delegate_id, _consensu
             MicroBlockHandler microblock_handler(store,
                     config.consensus_manager_config.delegate_id);
             EpochHandler epoch_handler(store);
-            for (int e = 0; e < 3; e++)
+            for (int e = 0; e <= GENESIS_EPOCH; e++)
             {
                 Epoch epoch;
                 MicroBlock micro_block;
 
                 micro_block._delegate = genesis_account;
-                micro_block.timestamp = GetStamp();
+                micro_block.timestamp = 0; // every node hast to have the same hash
                 micro_block._epoch_number = e;
                 micro_block._micro_block_number = 0;
                 micro_block.previous = microblock_hash;
@@ -1463,7 +1463,7 @@ _archiver(alarm_a, store, config.consensus_manager_config.delegate_id, _consensu
                 microblock_hash = microblock_handler.ApplyUpdates(micro_block, transaction);
 
                 epoch._epoch_number = e;
-                epoch.timestamp = GetStamp();
+                epoch.timestamp = 0; // every node hast to have the same hash
                 epoch._account = genesis_account;
                 epoch._micro_block_tip = microblock_hash;
                 epoch.previous = epoch_hash;

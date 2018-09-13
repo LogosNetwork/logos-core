@@ -16,7 +16,18 @@ MicroBlockConsensusManager::Validate(
     std::shared_ptr<Request> block,
     logos::process_return & result)
 {
+    if (logos::validate_message(block->_delegate, block->hash(), block->_signature))
+    {
+        BOOST_LOG(_log) << "MicroBlockConsensusManager - Validate, bad signature: "
+                        << block->_signature.to_string()
+                        << " account: " << block->_delegate.to_string();
+
+        result.code = logos::process_result::bad_signature;
+        return false;
+    }
+
     result.code = logos::process_result::progress;
+
     return true;
 }
 
@@ -55,7 +66,9 @@ void
 MicroBlockConsensusManager::ApplyUpdates(
     const PrePrepare & pre_prepare,
     uint8_t delegate_id)
-{}
+{
+    _microblock_handler.ApplyUpdates(pre_prepare);
+}
 
 uint64_t 
 MicroBlockConsensusManager::OnConsensusReachedStoredCount()
@@ -78,5 +91,5 @@ MicroBlockConsensusManager::MakeConsensusConnection(
         const DelegateIdentities& ids)
 {
     return std::make_shared<MicroBlockConsensusConnection>(iochannel, primary,
-            key_store, validator, ids);
+            key_store, validator, ids, _microblock_handler);
 }

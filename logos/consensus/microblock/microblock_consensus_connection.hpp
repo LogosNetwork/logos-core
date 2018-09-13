@@ -6,6 +6,7 @@
 #pragma once
 
 #include <logos/consensus/consensus_connection.hpp>
+#include <logos/microblock/microblock_handler.hpp>
 
 class MicroBlockConsensusConnection :
         public ConsensusConnection<ConsensusType::MicroBlock>
@@ -21,8 +22,10 @@ public:
                                   PrimaryDelegate * primary,
                                   DelegateKeyStore & key_store,
                                   MessageValidator & validator,
-                                  const DelegateIdentities & ids)
+                                  const DelegateIdentities & ids,
+                                  MicroBlockHandler & microblock_handler)
         : ConsensusConnection<ConsensusType::MicroBlock>(iochannel, primary, key_store, validator, ids)
+        , _microblock_handler(microblock_handler)
     {}
     ~MicroBlockConsensusConnection() {}
 
@@ -35,4 +38,7 @@ public:
     /// @param message PrePrepare message [in]
     /// @param delegate_id delegate id [in]
     void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) override;
+
+private:
+    MicroBlockHandler &  _microblock_handler;
 };

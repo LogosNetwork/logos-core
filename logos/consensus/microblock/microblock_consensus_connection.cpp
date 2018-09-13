@@ -9,7 +9,7 @@ bool
 MicroBlockConsensusConnection::Validate(
     const PrePrepare & message)
 {
-    return true;
+    return _microblock_handler.VerifyMicroBlock(message);
 }
 
 void
@@ -17,5 +17,5 @@ MicroBlockConsensusConnection::ApplyUpdates(
     const PrePrepare & block,
     uint8_t delegate_id)
 {
-    return;
+    _microblock_handler.ApplyUpdates(block);
 }

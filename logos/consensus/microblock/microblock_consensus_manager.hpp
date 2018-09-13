@@ -3,6 +3,7 @@
 /// handles specifics of MicroBlock consensus.
 #pragma once
 
+#include <logos/microblock/microblock_handler.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 
 /// MicroBlockConsensusManager handles the specifics of MicroBlock consensus.
@@ -30,6 +31,7 @@ public:
                                MessageValidator & validator)
         : Manager(service, store, alarm, log,
                   config, key_store, validator)
+        , _microblock_handler(store, config.delegate_id)
     {
 		queue = 1;
 	}
@@ -106,6 +108,7 @@ protected:
             MessageValidator& validator, const DelegateIdentities& ids) override;
 private:
 
-    std::shared_ptr<PrePrepare>  _cur_microblock; ///< Currently handled microblock
+    std::shared_ptr<PrePrepare>  _cur_microblock;     ///< Currently handled microblock
+    MicroBlockHandler            _microblock_handler; ///< Is used for validation and database commit
 	int queue;
 };

@@ -7,6 +7,8 @@
 #include <logos/lib/merkle.hpp>
 #include <logos/lib/numbers.hpp>
 
+static const uint GENESIS_EPOCH = 2;
+
 /// An election result entry, i.e. a delegate with it stake, and the votes
 /// it received
 struct Delegate 

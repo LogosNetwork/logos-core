@@ -57,3 +57,32 @@ MerkleRoot(
   }
   return merkle[0];
 }
+
+logos::block_hash
+MerkleHelper(
+  function<void( function<void(const logos::block_hash&)> )> iterator)
+{
+  vector<logos::block_hash> merkle;
+  logos::block_hash previous_hash(0);
+  int cnt = 0;
+
+  iterator([&](const logos::block_hash & hash)mutable->void{
+      ++cnt;
+      if (cnt %2 == 0)
+      {
+        merkle.push_back(Hash(previous_hash, hash));
+      }
+      else
+      {
+        previous_hash = hash;
+      }
+  });
+
+  if (cnt %2 )
+  {
+    merkle.push_back(Hash(previous_hash, previous_hash));
+  }
+
+  return MerkleRoot(merkle);
+}
+
