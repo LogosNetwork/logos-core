@@ -1,4 +1,4 @@
-#include <logos/consensus/request_handler.hpp>
+#include <logos/consensus/batchblock/request_handler.hpp>
 
 void RequestHandler::OnRequest(std::shared_ptr<logos::state_block> block)
 {

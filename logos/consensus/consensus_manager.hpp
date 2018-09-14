@@ -2,13 +2,13 @@
 
 #include <logos/wallet_server/client/wallet_server_client.hpp>
 #include <logos/consensus/persistence/persistence_manager.hpp>
+#include <logos/consensus/batchblock/request_handler.hpp>
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/consensus/consensus_connection.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
-#include <logos/consensus/request_handler.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 

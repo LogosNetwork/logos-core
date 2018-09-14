@@ -3,6 +3,20 @@
 /// handles specifics of BatchBlock consensus
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 
+constexpr uint8_t BatchBlockConsensusManager::DELIGATE_ID_MASK;
+
+BatchBlockConsensusManager::BatchBlockConsensusManager(
+        Service & service,
+        Store & store,
+        Log & log,
+        const Config & config,
+        DelegateKeyStore & key_store,
+        MessageValidator & validator)
+    : Manager(service, store, log,
+              config, key_store, validator)
+    , _secondary_handler(service, this)
+{}
+
 void
 BatchBlockConsensusManager::OnBenchmarkSendRequest(
   std::shared_ptr<Request> block,
@@ -25,6 +39,13 @@ BatchBlockConsensusManager::BufferComplete(
 
     result.code = logos::process_result::buffering_done;
     SendBufferedBlocks();
+}
+
+void
+BatchBlockConsensusManager::OnRequestReady(
+    std::shared_ptr<logos::state_block> block)
+{
+    _handler.OnRequest(block);
 }
 
 void
@@ -81,7 +102,28 @@ void
 BatchBlockConsensusManager::QueueRequest(
   std::shared_ptr<Request> request)
 {
-    _handler.OnRequest(request);
+    // The last five bits of the previous hash
+    // (or the account for new accounts) will
+    // determine the ID of the designated primary
+    // for that account.
+    //
+    logos::uint256_t indicator =
+            request->hashables.previous.is_zero() ?
+                    request->hashables.account.number() :
+                    request->hashables.previous.number();
+
+    uint8_t designated_deligate_id =
+            uint8_t(request->hashables.previous.number() &
+                    ((1<<DELIGATE_ID_MASK)-1));
+
+    if(designated_deligate_id == _delegate_id)
+    {
+        _handler.OnRequest(request);
+    }
+    else
+    {
+        _secondary_handler.OnRequest(request);
+    }
 }
 
 auto
