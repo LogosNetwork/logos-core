@@ -25,6 +25,7 @@ class EventProposer
     using Log           = boost::log::sources::logger_mt;
     using MicroCb       = std::function<void()>;
     using TransitionCb  = std::function<void()>;
+    using EpochCb       = std::function<void()>;
 public:
     /// Class constructor
     /// @param alarm logos::alarm reference [in]
@@ -38,7 +39,7 @@ public:
     /// Generates one off event to propose microblock
     /// @param mcb callback to call when the event occurs [in]
     /// @param seconds generate event seconds from now [in]
-    void ProposeMicroblockOnce(MicroCb mcb, std::chrono::seconds seconds);
+    void ProposeMicroblockOnce(MicroCb mcb, std::chrono::seconds seconds = std::chrono::seconds(0));
 
     /// Generates periodic event to propose epoch transition
     /// @param tcb callback to call when the event occurs [in]
@@ -47,13 +48,19 @@ public:
     /// Generates one off event to propose epoch transition
     /// @param tcb callback to call when the event occurs [in]
     /// @param seconds generate event seconds from now [in]
-    void ProposeTransitionOnce(TransitionCb tcb, std::chrono::seconds seconds);
+    void ProposeTransitionOnce(TransitionCb tcb, std::chrono::seconds seconds = std::chrono::seconds(0));
+
+    /// Generates one off event to propose epoch transition
+    /// @param ecb callback to call when the event occurs [in]
+    void ProposeEpoch();
 
     /// Start microblock and epoch transition event loop
     /// @param mcb callback to call when the microblock event occurs [in]
     /// @param tcb callback to call when the epoch transition event occurs [in]
-    void Start(MicroCb mcb, TransitionCb tcb);
+    /// @param ecb callback to call when the epoch should be proposed [in]
+    void Start(MicroCb mcb, TransitionCb tcb, EpochCb ecb);
 private:
-    logos::alarm &      _alarm; ///< logos::alarm reference
-    Log                 _log;   ///< boost asio log
+    logos::alarm &      _alarm;     ///< logos::alarm reference
+    EpochCb             _epoch_cb;  ///< delayed epoch call back
+    Log                 _log;       ///< boost asio log
 };

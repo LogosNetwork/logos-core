@@ -249,6 +249,12 @@ public:
     // All votes received by account
     std::unordered_map<logos::account, std::shared_ptr<logos::block>> rep_votes;
 };
+struct genesis_delegate
+{
+   logos::keypair   key;
+   uint64_t        _vote;
+   uint64_t        _stake;
+};
 extern logos::keypair const & zero_key;
 extern logos::keypair const & test_genesis_key;
 extern logos::account const & logos_test_account;
@@ -261,7 +267,7 @@ extern std::string const & genesis_block;
 extern logos::account const & genesis_account;
 extern logos::account const & burn_account;
 extern logos::uint128_t const & genesis_amount;
-extern std::vector<logos::keypair> genesis_delegates;
+extern std::vector<genesis_delegate> genesis_delegates;
 // A block hash that compares inequal to any real block hash
 extern logos::block_hash const & not_a_block;
 // An account number that compares inequal to any real account number

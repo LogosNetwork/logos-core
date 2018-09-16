@@ -23,6 +23,7 @@ struct Delegate
 struct Epoch : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Epoch>
 {
     using BlockHash = logos::block_hash;
+    using HashCb    = function<void(const void *data,size_t)>;
 public:
     /// Class constructor
     Epoch()
@@ -38,24 +39,38 @@ public:
     }
     ~Epoch() {}
 
+    /// Calculate Proposer's  hash
+    /// @param cb call back to add data to the hash
+    void ProposerHash(HashCb cb) const
+    {
+        cb(&timestamp, sizeof(timestamp));
+        cb(&_epoch_number, sizeof(_epoch_number));
+        cb(_account.bytes.data(), sizeof(_account));
+        cb(previous.bytes.data(), sizeof(previous));
+        cb(_micro_block_tip.bytes.data(), sizeof(_micro_block_tip));
+        cb(_delegates.data(), NUM_DELEGATES * sizeof(Delegate));
+        cb(&_transaction_fee_pool, sizeof(_transaction_fee_pool));
+    }
+
     /// Calculate epoch's block hash
     BlockHash Hash() const {
-        return ::Hash([&](function<void(const void *data,size_t)> cb)mutable->void {
-            cb(&timestamp, sizeof(timestamp));
-            cb(&_epoch_number, sizeof(_epoch_number));
-            cb(_account.bytes.data(), sizeof(_account));
-            cb(previous.bytes.data(), sizeof(previous));
-            cb(_micro_block_tip.bytes.data(), sizeof(_micro_block_tip));
-            cb(_delegates.data(), NUM_DELEGATES * sizeof(Delegate));
-            cb(&_transaction_fee_pool, sizeof(_transaction_fee_pool));
+        return ::Hash([&](HashCb cb)mutable->void {
+            ProposerHash(cb);
         });
     }
-    BlockHash hash() { return Hash(); }
+    /// Calculate epoch's block hash
+    BlockHash hash() const
+    {
+        return ::Hash([&](HashCb cb)mutable->void {
+            ProposerHash(cb);
+        });
+    }
     static const size_t                     HASHABLE_BYTES;        ///< hashable bytes of the epoch - used in signing
     logos::account                          _account;              ///< account address of the epoch's proposer
     uint                                    _epoch_number;         ///< epoch number
     BlockHash                               _micro_block_tip;      ///< microblock tip of this epoch
     std::array<Delegate, NUM_DELEGATES>     _delegates;            ///< delegate'ls list
     uint64_t                                _transaction_fee_pool; ///< this epoch's transaction fee pool
+    logos::signature                        _signature;            ///< proposer's signature
     Signature                               signature;             ///< signature of hashable bytes
 };

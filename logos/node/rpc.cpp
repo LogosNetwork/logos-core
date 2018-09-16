@@ -4699,7 +4699,7 @@ void logos::rpc_handler::process_request ()
         {
             buffer_complete ();
         }
-        else if (MicroBlockTester::microblock_tester(action, response, node))
+        else if (MicroBlockTester::microblock_tester(action, request, response, node))
         {
             return;
         }

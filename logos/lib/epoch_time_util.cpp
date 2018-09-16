@@ -40,7 +40,7 @@ std::chrono::seconds
 EpochTimeUtil::GetNextEpochTime(
     bool skip )
 {
-    static int sec = EPOCH_PROPOSAL_TIME * 12 * 60 * 60;
+    static int sec = EPOCH_PROPOSAL_TIME * 60 * 60;
 
     return GetNextTime(skip, sec, [](struct tm &gmt)mutable->void{
         gmt.tm_hour = gmt.tm_hour - (gmt.tm_hour % EPOCH_PROPOSAL_TIME);

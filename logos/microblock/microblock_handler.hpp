@@ -9,11 +9,12 @@
 namespace logos {
     class block_store;
 }
+class IRecallHandler;
 
 using BlockStore = logos::block_store;
 
 /// Handle MicroBlock processing
-class MicroBlockHandler : public std::enable_shared_from_this<MicroBlockHandler> {
+class MicroBlockHandler {
 
     using Log       = boost::log::sources::logger_mt;
     using BatchTips = std::array<BlockHash,NUM_DELEGATES>;
@@ -25,11 +26,11 @@ public:
     /// @param n number of delegates
     /// @param i microblock process period interval
     MicroBlockHandler(BlockStore &s,
-                      uint8_t delegate_id)
+                      uint8_t delegate_id,
+                      IRecallHandler & recall_handler)
         : _store(s)
-        , _interval_cutoff(std::chrono::seconds(MICROBLOCK_CUTOFF_TIME))
-        , _interval_proposal(std::chrono::seconds(MICROBLOCK_PROPOSAL_TIME))
         , _delegate_id(delegate_id)
+        , _recall_handler(recall_handler)
         {}
 
     /// Class distructor
@@ -94,9 +95,8 @@ private:
     /// @returns Merkle root
     BlockHash SlowMerkleTree(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks);
 
-    BlockStore &         _store; 		    ///< reference to the block store
-    std::chrono::seconds _interval_cutoff;  ///< microblock inclusion cutoff time
-    std::chrono::seconds _interval_proposal;///< microblock proposal time
-    uint8_t              _delegate_id;      ///< local delegate id
-    Log                  _log;              ///< boost asio log
+    BlockStore &            _store; 		    ///< reference to the block store
+    uint8_t                 _delegate_id;       ///< local delegate id
+    IRecallHandler &        _recall_handler;    ///< recall handler reference
+    Log                     _log;               ///< boost asio log
 };

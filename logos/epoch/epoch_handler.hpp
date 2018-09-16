@@ -3,6 +3,9 @@
 /// in the Epoch processing
 #pragma once
 
+#include <logos/epoch/epoch_voting_manager.hpp>
+#include <boost/log/sources/record_ostream.hpp>
+#include <boost/log/sources/logger.hpp>
 #include <logos/epoch/epoch.hpp>
 
 namespace logos {
@@ -13,13 +16,18 @@ namespace logos {
 using BlockStore = logos::block_store;
 
 /// EpochHandler builds, validates, persists, triggers the Epoch
-class EpochHandler 
+class EpochHandler
 {
+    using Log           = boost::log::sources::logger_mt;
 public:
     /// Class constructor
     /// @param s logos::block_store reference [in]
-    EpochHandler(BlockStore &s)
+    EpochHandler(BlockStore &s,
+                 uint8_t delegate_id,
+                 EpochVotingManager & voting_manager)
         : _store(s)
+        , _delegate_id(delegate_id)
+        , _voting_manager(voting_manager)
         {}
     virtual ~EpochHandler() {}
 
@@ -42,5 +50,8 @@ public:
     void BuildEpochBlock(Epoch&);
 
 private:
-    BlockStore &    _store;          ///< reference to block store
+    BlockStore &            _store;          ///< reference to block store
+    uint8_t                 _delegate_id;    ///< delegate id
+    EpochVotingManager &    _voting_manager; ///< voting manager
+    Log                     _log;            ///< boost log reference
 };

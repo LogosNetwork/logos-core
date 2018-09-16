@@ -2,6 +2,7 @@
 /// This file contains the definition of the MicroBlockHandler class, which is used
 /// in the Microblock processing
 #include <logos/microblock/microblock_handler.hpp>
+#include <logos/microblock/microblock_tester.hpp>
 #include <logos/blockstore.hpp>
 #include <logos/node/node.hpp>
 #include <time.h>
@@ -73,7 +74,7 @@ MicroBlockHandler::SlowMerkleTree(
         BlockHash hash;
     };
     array<vector<pair>, NUM_DELEGATES> entries;
-    uint64_t min_timestamp = GetStamp() + LOCAL_CLOCK_DRIFT;
+    uint64_t min_timestamp = GetStamp() + LOCAL_CLOCK_DRIFT * 1000;
 
     // frist get hashes and timestamps of all blocks; and min timestamp to use as the base
     WalkBatchBlocks(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable->void{
@@ -156,13 +157,13 @@ MicroBlockHandler::BuildMicroBlock(
     block._epoch_number = first_micro_block ? previous._epoch_number + 1 : previous._epoch_number;
     block.previous = previous_micro_block_hash;
     block.timestamp = GetStamp();
-    block._delegate = genesis_delegates[_delegate_id].pub;
+    block._delegate = genesis_delegates[_delegate_id].key.pub;
     block._micro_block_number = first_micro_block ? 0 : previous._micro_block_number + 1;
     block._last_micro_block = (last_micro_block == true);
     BOOST_LOG(_log) << "MicroBlockHandler::BuildMicroBlock SIGNING MICROBLOCK WITH DELEGATE ID " <<
         (int)_delegate_id << " THIS WILL NOT WORK DURING TRANSITION BECAUSE DELEGATE ID WILL BE DUPLICATE";
-    block._signature = logos::sign_message(genesis_delegates[_delegate_id].prv,
-            genesis_delegates[_delegate_id].pub, block.Hash());
+    block._signature = logos::sign_message(genesis_delegates[_delegate_id].key.prv,
+            genesis_delegates[_delegate_id].key.pub, block.Hash());
 
     return true;
 }
@@ -180,6 +181,15 @@ MicroBlockHandler::VerifyMicroBlock(
         return true;
     }
 
+    // Account exists
+    logos::account_info info;
+    if (_store.account_get(block._delegate, info))
+    {
+        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock account doesn't exist " <<
+            block._delegate.to_account();
+        return false;
+    }
+
     Epoch current_epoch;
     MicroBlock previous_microblock;
 
@@ -194,17 +204,18 @@ MicroBlockHandler::VerifyMicroBlock(
     assert(false == _store.epoch_get(hash, current_epoch));
 
     // previous and proposed microblock are in the same epoch
-    if (block._epoch_number == previous_microblock._epoch_number &&
-            block._micro_block_number != (previous_microblock._micro_block_number + 1))
+    if (block._epoch_number == previous_microblock._epoch_number)
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock epoch number failed epoch #:" <<
-            block._epoch_number << " block #:" << block._micro_block_number <<
-            " previous block #:" << previous_microblock._micro_block_number;
-        return false;
+        if (block._micro_block_number != (previous_microblock._micro_block_number + 1))
+        {
+            BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock epoch number failed epoch #:" <<
+                            block._epoch_number << " block #:" << block._micro_block_number <<
+                            " previous block #:" << previous_microblock._micro_block_number;
+            return false;
+        }
     }
-
     // proposed microblock must be in new epoch
-    if (block._epoch_number != (previous_microblock._epoch_number + 1) ||
+    else if (block._epoch_number != (previous_microblock._epoch_number + 1) ||
             block._micro_block_number != 0)
     {
         BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock epoch number failed epoch #:" << block._epoch_number <<
@@ -215,12 +226,23 @@ MicroBlockHandler::VerifyMicroBlock(
 
     // timestamp should be equal to the cutoff interval plus allowed clock drift
     // unless it's the first microblock after genesis
-    if (previous_microblock._epoch_number != GENESIS_EPOCH &&
-            (block.timestamp - previous_microblock.timestamp) > LOCAL_CLOCK_DRIFT)
+    // Except if it is a recall
+    int tdiff = ((int64_t)block.timestamp - (int64_t)previous_microblock.timestamp)/1000 -
+            MICROBLOCK_CUTOFF_TIME * 60; //sec
+    bool is_test_network = (logos::logos_network == logos::logos_networks::logos_test_network);
+    if (!is_test_network && (current_epoch._epoch_number != GENESIS_EPOCH || block._micro_block_number > 0) &&
+            (!_recall_handler.IsRecall() && abs(tdiff) > LOCAL_CLOCK_DRIFT ||
+             _recall_handler.IsRecall() && block.timestamp <= previous_microblock.timestamp))
     {
         BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock bad timestamp block ts:" << block.timestamp <<
-            " previous block ts:" << previous_microblock.timestamp;
+            " previous block ts:" << previous_microblock.timestamp << " tdiff: " << tdiff <<
+            " epoch # : " << block._epoch_number << " microblock #: " << block._micro_block_number;
         return false;
+    }
+    if (is_test_network)
+    {
+        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock WARNING: RUNNING WITH THE TEST FLAG ENABLED, "
+                           "SOME VALIDATION IS DISABLED";
     }
 
     BlockHash merkle_root = MerkleHelper([&](function<void(const BlockHash&)> cb)->void{

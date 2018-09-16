@@ -4,20 +4,22 @@
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
+#include <logos/epoch/archiver.hpp>
 #include <logos/node/node.hpp>
 
 ConsensusContainer::ConsensusContainer(Service & service,
                                        Store & store,
                                        logos::alarm & alarm,
                                        Log & log,
-                                       const Config & config)
+                                       const Config & config,
+                                       Archiver & archiver)
     : _validator(_key_store)
     , _batch_manager(service, store, alarm, log, 
             config.consensus_manager_config, _key_store, _validator)
     , _micro_manager(service, store, alarm, log, 
-            config.consensus_manager_config, _key_store, _validator)
+            config.consensus_manager_config, _key_store, _validator, archiver)
     , _epoch_manager(service, store, alarm, log, 
-            config.consensus_manager_config, _key_store, _validator)
+            config.consensus_manager_config, _key_store, _validator, archiver)
     , _netio_manager(
         {
             {ConsensusType::BatchStateBlock, _batch_manager},

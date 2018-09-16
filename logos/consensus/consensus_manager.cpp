@@ -29,7 +29,8 @@ void ConsensusManager<consensus_type>::OnSendRequest(std::shared_ptr<RequestMess
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    BOOST_LOG (_log) << "ConsensusManager<consensus_type>::OnSendRequest() - hash: " << block->hash().to_string();
+    BOOST_LOG (_log) << "ConsensusManager<" << ConsensusToName(consensus_type) <<
+        ">::OnSendRequest() - hash: " << block->hash().to_string();
 
     if(!Validate(block, result))
     {
@@ -68,7 +69,8 @@ void ConsensusManager<consensus_type>::OnConsensusReached()
     {
         static uint64_t messages_stored = 0;
         messages_stored += OnConsensusReachedStoredCount();
-        BOOST_LOG(_log) << "ConsensusManager - Stored " << messages_stored << " blocks.";
+        BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(consensus_type) <<
+            "> - Stored " << messages_stored << " blocks.";
     }
 
     PrePreparePopFront();

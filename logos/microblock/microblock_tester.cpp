@@ -5,9 +5,16 @@
 #include <logos/lib/epoch_time_util.hpp>
 #include <logos/microblock/microblock_handler.hpp>
 
-bool 
-MicroBlockTester::microblock_tester(std::string &action, std::function<void(boost::property_tree::ptree const &)> response, logos::node &node)
+boost::property_tree::ptree MicroBlockTester::_request;
+
+bool
+MicroBlockTester::microblock_tester(
+    std::string &action,
+    boost::property_tree::ptree request,
+    std::function<void(boost::property_tree::ptree const &)> response,
+    logos::node &node)
 {
+    _request = request;
     bool res = true;
     if (action == "block_create_test")
     {
@@ -29,6 +36,12 @@ MicroBlockTester::microblock_tester(std::string &action, std::function<void(boos
     {
         generate_epoch(response, node);
     }
+    else if (action == "disable_test")
+    {
+        boost::property_tree::ptree response_l;
+        response_l.put ("result", "disabled");
+        response (response_l);
+    }
     else
     {
         res = false;
@@ -37,7 +50,9 @@ MicroBlockTester::microblock_tester(std::string &action, std::function<void(boos
 }
 
 void 
-MicroBlockTester::block_create_test(std::function<void(boost::property_tree::ptree const &)> response, logos::node &node)
+MicroBlockTester::block_create_test(
+    std::function<void(boost::property_tree::ptree const &)> response,
+    logos::node &node)
 {
   logos::transaction transaction(node.store.environment, nullptr, true);
   boost::property_tree::ptree response_l;
@@ -78,7 +93,9 @@ MicroBlockTester::block_create_test(std::function<void(boost::property_tree::ptr
 }
 
 void 
-MicroBlockTester::precreate_account(std::function<void(boost::property_tree::ptree const &)> response, logos::node &node)
+MicroBlockTester::precreate_account(
+    std::function<void(boost::property_tree::ptree const &)> response,
+    logos::node &node)
 {
   logos::transaction transaction(node.store.environment, nullptr, false);
   // tmp precreate the database
@@ -105,7 +122,9 @@ MicroBlockTester::precreate_account(std::function<void(boost::property_tree::ptr
 }
 
 void 
-MicroBlockTester::read_accounts(std::function<void(boost::property_tree::ptree const &)> response, logos::node &node)
+MicroBlockTester::read_accounts(
+    std::function<void(boost::property_tree::ptree const &)> response,
+    logos::node &node)
 {
   boost::property_tree::ptree response_l;
   logos::transaction transaction(node.store.environment, nullptr, false);
@@ -127,33 +146,32 @@ MicroBlockTester::read_accounts(std::function<void(boost::property_tree::ptree c
   response (response_l);
 }
 
-void 
-MicroBlockTester::generate_microblock(std::function<void(boost::property_tree::ptree const &)> response, logos::node &node)
+void
+MicroBlockTester::generate_microblock(
+    std::function<void(boost::property_tree::ptree const &)> response,
+    logos::node &node)
 {
   logos::transaction transaction(node.store.environment, nullptr, true);
   boost::property_tree::ptree response_l;
-  EventProposer proposer(node.alarm);
-  proposer.ProposeMicroblockOnce([&node]()->void{
-      MicroBlockHandler handler(node.store, node.config.consensus_manager_config.delegate_id);
-      auto micro_block = std::make_shared<MicroBlock>();
-      handler.BuildMicroBlock(*micro_block, false);
-      node._consensus_container.OnSendRequest(micro_block);
-  }, std::chrono::seconds(1));
+  bool last_block = _request.get<bool>("last", false);
+  node._archiver.Test_ProposeMicroBlock(node._consensus_container, last_block);
   response_l.put ("result", "sent");
   response (response_l);
 }
 
 void
-MicroBlockTester::generate_epoch(std::function<void(boost::property_tree::ptree const &)> response, logos::node &node)
+MicroBlockTester::generate_epoch(
+   std::function<void(boost::property_tree::ptree const &)> response,
+   logos::node &node)
 {
-    logos::transaction transaction(node.store.environment, nullptr, true);
     boost::property_tree::ptree response_l;
+    /*logos::transaction transaction(node.store.environment, nullptr, true);
     EventProposer proposer(node.alarm);
     proposer.ProposeTransitionOnce([&node]()->void{
         EpochHandler handler(node.store);
         auto epoch = std::make_shared<Epoch>();
         node._consensus_container.OnSendRequest(epoch);
-    }, std::chrono::seconds(1));
-    response_l.put ("result", "sent");
+    }, std::chrono::seconds(1)); */
+    response_l.put ("result", "not-implemented");
     response (response_l);
 }

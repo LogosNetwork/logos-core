@@ -5,6 +5,8 @@
 
 #include <logos/consensus/consensus_manager.hpp>
 
+class IArchiverEpochHandler;
+
 ///< EpochConsensusManager handles specifics of Epoch consensus
 class EpochConsensusManager: public ConsensusManager<ConsensusType::Epoch>
 {
@@ -26,9 +28,11 @@ public:
 	                      Log & log,
 					      const Config & config,
                           DelegateKeyStore & key_store,
-                          MessageValidator & validator)
+                          MessageValidator & validator,
+                          IArchiverEpochHandler & handler)
 		: Manager(service, store, alarm, log,
 				  config, key_store, validator)
+		, _epoch_handler(handler)
 	{
 		queue = 1;
 	}
@@ -104,6 +108,7 @@ protected:
 			MessageValidator& validator, const DelegateIdentities& ids) override;
 
 private:
-    std::shared_ptr<PrePrepare>  _cur_epoch; ///!< Currently handled epoch
+    std::shared_ptr<PrePrepare>  _cur_epoch; 	///< Currently handled epoch
+    IArchiverEpochHandler &      _epoch_handler;///< Epoch handler
 	int queue;
 };

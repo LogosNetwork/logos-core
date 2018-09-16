@@ -12,10 +12,12 @@ EventProposer::EventProposer(logos::alarm & alarm)
 void
 EventProposer::Start(
     MicroCb mcb,
-    TransitionCb tcb)
+    TransitionCb tcb,
+    EpochCb ecb)
 {
     ProposeMicroblock(mcb);
     ProposeTransition(tcb);
+    _epoch_cb = ecb;
 }
 
 void
@@ -60,4 +62,10 @@ EventProposer::ProposeTransition(TransitionCb cb)
         cb();
         ProposeTransition(cb);
     });
+}
+
+void
+EventProposer::ProposeEpoch()
+{
+    _alarm.service.post(_epoch_cb);
 }

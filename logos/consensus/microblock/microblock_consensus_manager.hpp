@@ -3,8 +3,9 @@
 /// handles specifics of MicroBlock consensus.
 #pragma once
 
-#include <logos/microblock/microblock_handler.hpp>
 #include <logos/consensus/consensus_manager.hpp>
+
+class IArchiverMicroBlockHandler;
 
 /// MicroBlockConsensusManager handles the specifics of MicroBlock consensus.
 class MicroBlockConsensusManager: public ConsensusManager<ConsensusType::MicroBlock>
@@ -28,10 +29,11 @@ public:
                                Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
-                               MessageValidator & validator)
+                               MessageValidator & validator,
+                               IArchiverMicroBlockHandler & handler)
         : Manager(service, store, alarm, log,
                   config, key_store, validator)
-        , _microblock_handler(store, config.delegate_id)
+        , _microblock_handler(handler)
     {
 		queue = 1;
 	}
@@ -109,6 +111,6 @@ protected:
 private:
 
     std::shared_ptr<PrePrepare>  _cur_microblock;     ///< Currently handled microblock
-    MicroBlockHandler            _microblock_handler; ///< Is used for validation and database commit
+    IArchiverMicroBlockHandler & _microblock_handler; ///< Is used for validation and database commit
 	int queue;
 };

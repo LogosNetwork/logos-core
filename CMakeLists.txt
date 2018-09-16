@@ -337,6 +337,8 @@ add_library (node
 	logos/epoch/archiver.cpp
 	logos/epoch/epoch.cpp
 	logos/epoch/epoch_handler.cpp
+	logos/epoch/recall_handler.cpp
+	logos/epoch/epoch_voting_manager.cpp
 	logos/epoch/event_proposer.cpp
 	logos/microblock/microblock.cpp
 	logos/microblock/microblock_handler.cpp

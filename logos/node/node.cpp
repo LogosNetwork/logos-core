@@ -1227,8 +1227,9 @@ warmed_up (0),
 block_processor (*this),
 block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
 stats (config.stat_config),
-_consensus_container(service_a, store, alarm_a, log, config),
-_archiver(alarm_a, store, config.consensus_manager_config.delegate_id, _consensus_container)
+_recall_handler(),
+_archiver(alarm_a, store, _recall_handler, config.consensus_manager_config.delegate_id),
+_consensus_container(service_a, store, alarm_a, log, config, _archiver)
 {
     wallets.observer = [this](bool active) {
         observers.wallet (active);
@@ -1405,8 +1406,10 @@ _archiver(alarm_a, store, config.consensus_manager_config.delegate_id, _consensu
             {
                 char buff[5];
                 sprintf(buff, "%02x", del);
-                logos::keypair pair(buff);
-                genesis_delegates.push_back(pair);
+                logos::genesis_delegate delegate{logos::keypair(buff), 0, 100000 + (uint64_t)del * 100};
+                logos::keypair & pair = delegate.key;
+
+                genesis_delegates.push_back(delegate);
 
                 logos::amount amount(100000 + del * 100);
                 uint64_t work = 0;
@@ -1444,41 +1447,7 @@ _archiver(alarm_a, store, config.consensus_manager_config.delegate_id, _consensu
             }
 
 
-            logos::block_hash epoch_hash(0);
-            logos::block_hash microblock_hash(0);
-            MicroBlockHandler microblock_handler(store,
-                    config.consensus_manager_config.delegate_id);
-            EpochHandler epoch_handler(store);
-            for (int e = 0; e <= GENESIS_EPOCH; e++)
-            {
-                Epoch epoch;
-                MicroBlock micro_block;
-
-                micro_block._delegate = genesis_account;
-                micro_block.timestamp = 0; // every node hast to have the same hash
-                micro_block._epoch_number = e;
-                micro_block._micro_block_number = 0;
-                micro_block.previous = microblock_hash;
-
-                microblock_hash = microblock_handler.ApplyUpdates(micro_block, transaction);
-
-                epoch._epoch_number = e;
-                epoch.timestamp = 0; // every node hast to have the same hash
-                epoch._account = genesis_account;
-                epoch._micro_block_tip = microblock_hash;
-                epoch.previous = epoch_hash;
-                for (uint8_t i = 0; i < NUM_DELEGATES; ++i) {
-                    Delegate delegate = {0, 0, 0};
-                    if (0 != i)
-                    {
-                        uint64_t del = i + (e - 1) * 8;
-                        delegate = {genesis_delegates[del].prv.data, 0, 100000 + del * 100};
-                    }
-                    epoch._delegates[i] = delegate;
-                }
-
-                epoch_hash = epoch_handler.ApplyUpdates(epoch, transaction);
-            }
+            _archiver.CreateGenesisBlocks(transaction);
         }
     }
     if (logos::logos_network ==logos::logos_networks::logos_live_network)
@@ -1759,7 +1728,7 @@ void logos::node::start ()
 //    add_initial_peers ();
 //    observers.started ();
 // CH added starting logic here instead of inside constructors
-    _archiver.Start();
+    _archiver.Start(_consensus_container);
 }
 
 void logos::node::stop ()

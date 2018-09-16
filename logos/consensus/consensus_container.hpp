@@ -16,12 +16,23 @@ namespace logos
     class state_block;
 }
 
+class Archiver;
+
+class IInternalConsensusCb
+{
+public:
+    IInternalConsensusCb() = default;
+    virtual ~IInternalConsensusCb() = default;
+    virtual logos::process_return OnSendRequest(std::shared_ptr<MicroBlock>) = 0;
+    virtual logos::process_return OnSendRequest(std::shared_ptr<Epoch>) = 0;
+};
+
 /// Encapsulates consensus related objects.
 ///
 /// This class serves as a container for ConsensusManagers
 /// and other consensus-related types and provides an interface
 /// to the node object.
-class ConsensusContainer 
+class ConsensusContainer : public IInternalConsensusCb
 {
 
     using Service = boost::asio::io_service;
@@ -39,11 +50,13 @@ public:
     ///     @param[in] alarm reference to alarm
     ///     @param[in] log reference to boost log
     ///     @param[in] config reference to node_config
+    ///     @param[in] archiver epoch/microblock related consensus validation and persistence
     ConsensusContainer(Service & service,
                        Store & store,
                        logos::alarm & alarm,
                        Log & log,
-                       const Config & config);
+                       const Config & config,
+                       Archiver & archiver);
 
     ~ConsensusContainer() = default;
 
@@ -63,13 +76,15 @@ public:
     ///     @param[out] result result of the operation
     void BufferComplete(logos::process_return & result);
 
+protected:
+
 	/// Initiate MicroBlock consensus
 	///		@param[in] MicroBlock containing the batch blocks
-    logos::process_return OnSendRequest(std::shared_ptr<MicroBlock>);
+    logos::process_return OnSendRequest(std::shared_ptr<MicroBlock>) override;
 
     /// Initiate MicroBlock consensus
     ///		@param[in] Epoch containing the microblocks
-    logos::process_return OnSendRequest(std::shared_ptr<Epoch>);
+    logos::process_return OnSendRequest(std::shared_ptr<Epoch>) override;
 
 private:
     DelegateKeyStore            _key_store; 		 ///< Store delegates public keys
