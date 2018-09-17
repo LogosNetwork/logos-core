@@ -8,8 +8,7 @@
 class IArchiverMicroBlockHandler;
 
 /// MicroBlockConsensusManager handles the specifics of MicroBlock consensus.
-class MicroBlockConsensusManager: public ConsensusManager<ConsensusType::MicroBlock>
-{
+class MicroBlockConsensusManager: public ConsensusManager<ConsensusType::MicroBlock> {
 
 public:
 
@@ -23,20 +22,18 @@ public:
     ///     @param[in] config reference to ConsensusManagerConfig configuration
     ///     @param[in] key_store delegates public key store
     ///     @param[in] validator validator/signer of consensus messages
-    MicroBlockConsensusManager(Service & service,
-                               Store & store,
-                               logos::alarm & alarm,
-                               Log & log,
-                               const Config & config,
-                               DelegateKeyStore & key_store,
-                               MessageValidator & validator,
-                               IArchiverMicroBlockHandler & handler)
-        : Manager(service, store, alarm, log,
-                  config, key_store, validator)
-        , _microblock_handler(handler)
-    {
-		queue = 1;
-	}
+    MicroBlockConsensusManager(Service &service,
+                               Store &store,
+                               logos::alarm &alarm,
+                               Log &log,
+                               const Config &config,
+                               DelegateKeyStore &key_store,
+                               MessageValidator &validator,
+                               IArchiverMicroBlockHandler &handler)
+            : Manager(service, store, alarm, log,
+                      config, key_store, validator), _microblock_handler(handler) {
+        queue = 1;
+    }
 
     ~MicroBlockConsensusManager() = default;
 
@@ -46,8 +43,8 @@ public:
     ///     @param[in]  block state block
     ///     @param[out] result result of the operation
     void OnBenchmarkSendRequest(
-        std::shared_ptr<Request>,
-        logos::process_return & ) override;
+            std::shared_ptr<Request>,
+            logos::process_return &) override;
 
 protected:
 
@@ -57,8 +54,8 @@ protected:
     ///     @param[in] block the micro block to commit to the database
     ///     @param[in] delegate_id delegate id
     void ApplyUpdates(
-        const PrePrepare &,
-        uint8_t delegate_id) override;
+            const PrePrepare &,
+            uint8_t delegate_id) override;
 
     /// Returns number of stored blocks.
     ///
@@ -71,21 +68,21 @@ protected:
     ///     @param[out] result of the validation
     ///     @return true if validated false otherwise
     bool Validate(
-        std::shared_ptr<Request> block,
-        logos::process_return & result) override;
+            std::shared_ptr<Request> block,
+            logos::process_return &result) override;
 
     /// Queues micro block.
     void QueueRequest(std::shared_ptr<Request>) override;
 
     /// Gets next available MicroBlock.
     ///     @return reference to MicroBlock
-    PrePrepare & PrePrepareGetNext() override;
+    PrePrepare &PrePrepareGetNext() override;
 
     ///< Pops the MicroBlock from the queue
     void PrePreparePopFront() override;
 
     ///< Checks if the MicroBlock queue is empty
-	///		@return true if empty false otherwise
+    ///		@return true if empty false otherwise
     bool PrePrepareQueueEmpty() override;
 
     /// Checks if the MicroBlock queue is full.
@@ -100,11 +97,12 @@ protected:
     ///     @param ids Delegate's id
     ///     @return ConsensusConnection
     std::shared_ptr<ConsensusConnection<ConsensusType::MicroBlock>> MakeConsensusConnection(
-            std::shared_ptr<IOChannel> iochannel, PrimaryDelegate* primary,
-            MessageValidator& validator, const DelegateIdentities& ids) override;
+            std::shared_ptr<IOChannel> iochannel, PrimaryDelegate *primary,
+            MessageValidator &validator, const DelegateIdentities &ids) override;
+
 private:
 
-    std::shared_ptr<PrePrepare>  _cur_microblock;     ///< Currently handled microblock
-    IArchiverMicroBlockHandler & _microblock_handler; ///< Is used for validation and database commit
-	int queue;
+    std::shared_ptr<PrePrepare> _cur_microblock;     ///< Currently handled microblock
+    IArchiverMicroBlockHandler &_microblock_handler; ///< Is used for validation and database commit
+    int queue;
 };

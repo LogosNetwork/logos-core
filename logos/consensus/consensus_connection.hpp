@@ -1,7 +1,6 @@
 #pragma once
 
 #include <logos/consensus/persistence/persistence_manager.hpp>
-#include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/primary_delegate.hpp>

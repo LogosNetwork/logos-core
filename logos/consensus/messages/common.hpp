@@ -38,7 +38,7 @@ enum class MessageType : uint8_t
 /// - add new files to CMakeLists.txt
 ////////////////////
 // ConsensusType values must be sequential
- // because it is also an index.
+// because it is also an index.
 enum class ConsensusType : uint8_t
 {
     BatchStateBlock = 0,

@@ -7,7 +7,7 @@
 const uint8_t ConsensusNetIO::CONNECT_RETRY_DELAY;
 
 ConsensusNetIO::ConsensusNetIO(Service & service,
-                               const Endpoint & endpoint, 
+                               const Endpoint & endpoint,
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
                                const uint8_t local_delegate_id, 
@@ -58,7 +58,7 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
     OnConnect();
 }
 
-void 
+void
 ConsensusNetIO::Connect()
 {
     _socket->async_connect(_endpoint,
@@ -133,7 +133,7 @@ ConsensusNetIO::OnConnect(
     OnConnect();
 }
 
-void 
+void
 ConsensusNetIO::SendKeyAdvertisement()
 {
     KeyAdvertisement advert;

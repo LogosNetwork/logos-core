@@ -64,7 +64,7 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
     }
 }
 
-void 
+void
 ConsensusNetIOManager::OnConnectionAccepted(
     const Endpoint& endpoint, 
     std::shared_ptr<Socket> socket)
@@ -88,7 +88,7 @@ ConsensusNetIOManager::OnConnectionAccepted(
             	  std::placeholders::_2), _connection_mutex));
 }
 
-void 
+void
 ConsensusNetIOManager::BindIOChannel(
     std::shared_ptr<ConsensusNetIO> netio, 
     uint8_t remote_delegate_id)

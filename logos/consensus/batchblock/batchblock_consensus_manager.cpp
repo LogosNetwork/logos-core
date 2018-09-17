@@ -18,7 +18,7 @@ BatchBlockConsensusManager::OnBenchmarkSendRequest(
     _buffer.push_back(block);
 }
 
-void 
+void
 BatchBlockConsensusManager::BufferComplete(
   logos::process_return & result)
 {
@@ -28,7 +28,7 @@ BatchBlockConsensusManager::BufferComplete(
     SendBufferedBlocks();
 }
 
-void 
+void
 BatchBlockConsensusManager::SendBufferedBlocks()
 {
     logos::process_return unused;
@@ -48,7 +48,7 @@ BatchBlockConsensusManager::SendBufferedBlocks()
     }
 }
 
-bool 
+bool
 BatchBlockConsensusManager::Validate(
   std::shared_ptr<Request> block,
   logos::process_return & result)
@@ -124,7 +124,7 @@ BatchBlockConsensusManager::GetStoredCount()
     return _handler.GetNextBatch().block_count;
 }
 
-void 
+void
 BatchBlockConsensusManager::OnConsensusReached()
 {
     Manager::OnConsensusReached();
