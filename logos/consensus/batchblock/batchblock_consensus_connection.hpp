@@ -18,13 +18,12 @@ public:
     /// @param key_store Delegates' public key store [in]
     /// @param validator Validator/Signer of consensus message [in]
     /// @param ids remote/local delegate id [in]
-    BatchBlockConsensusConnection(std::shared_ptr<IIOChannel> iochannel,
+    BatchBlockConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                                   PrimaryDelegate * primary,
                                   PersistenceManager & persistence_manager,
-                                  DelegateKeyStore & key_store,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids)
-        : ConsensusConnection<ConsensusType::BatchStateBlock>(iochannel, primary, key_store, validator,ids)
+        : ConsensusConnection<ConsensusType::BatchStateBlock>(iochannel, primary, validator,ids)
         , _persistence_manager(persistence_manager)
     {}
     ~BatchBlockConsensusConnection() {}

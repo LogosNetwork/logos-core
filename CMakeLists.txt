@@ -315,8 +315,8 @@ add_library (logos_lib_static STATIC ${LOGOS_LIB_SOURCES})
 add_library (node
 	${PLATFORM_NODE_SOURCE}
 	${SECURE_RPC_SOURCE}
-	logos/consensus/batchstateblock/batchblock_consensus_connection.cpp
-	logos/consensus/batchstateblock/batchblock_consensus_manager.cpp
+	logos/consensus/batchblock/batchblock_consensus_connection.cpp
+	logos/consensus/batchblock/batchblock_consensus_manager.cpp
 	logos/consensus/consensus_connection.cpp
 	logos/consensus/consensus_container.cpp
 	logos/consensus/consensus_manager.cpp

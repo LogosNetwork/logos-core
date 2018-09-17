@@ -3,7 +3,7 @@
 /// consensus related types
 #pragma once
 
-#include <logos/consensus/batchstateblock/batchblock_consensus_manager.hpp>
+#include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 #include <logos/consensus/consensus_netio_manager.hpp>

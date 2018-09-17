@@ -111,7 +111,12 @@ public:
         }
 
         //verify
-        return sig.verify(apk, msg);
+        bool res = sig.verify(apk, msg);
+        if (false == res)
+        {
+            BOOST_LOG (_log) << "MessageValidator - signature validation failed";
+        }
+        return res;
     }
 
     // Single validation.

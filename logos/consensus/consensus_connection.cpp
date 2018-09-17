@@ -4,14 +4,12 @@
 #include <boost/asio/read.hpp>
 
 template<ConsensusType CT>
-ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IIOChannel> iochannel,
+ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                                              PrimaryDelegate * primary,
-                                             DelegateKeyStore & key_store,
                                              MessageValidator & validator,
                                              const DelegateIdentities & ids)
     : _iochannel(iochannel)
     , _delegate_ids(ids)
-    , _key_store(key_store)
     , _validator(validator)
     , _primary(primary)
 {}
@@ -60,13 +58,10 @@ void ConsensusConnection<CT>::OnData()
                                              std::placeholders::_1));
             break;
         case MessageType::Key_Advert:
-            _iochannel->AsyncRead(sizeof(KeyAdvertisement) -
-                                  sizeof(Prequel),
-                                  std::bind(&ConsensusConnection<CT>::OnMessage, this,
-                                            std::placeholders::_1));
-            break;
         case MessageType::Unknown:
-            BOOST_LOG(_log) << "ConsensusConnection - Received unknown message type";
+            BOOST_LOG(_log) << "ConsensusConnection - Error - Received "
+                            << MessageToName(type)
+                            << " message type";
             break;
         default:
             break;
@@ -112,11 +107,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
             OnConsensusMessage(msg);
             break;
         }
-        case MessageType::Key_Advert: {
-            auto msg (*reinterpret_cast<KeyAdvertisement*>(_receive_buffer.data()));
-            _key_store.OnPublicKey(_delegate_ids.remote, msg.public_key);
-            break;
-        }
+        case MessageType::Key_Advert:
         case MessageType::Unknown:
             break;
     }

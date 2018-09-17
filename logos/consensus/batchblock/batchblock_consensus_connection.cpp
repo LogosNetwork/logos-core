@@ -1,7 +1,7 @@
 /// @file
 /// This file contains specializations of the ConsensusConnection class, which
 /// handle the specifics of BatchBlock consensus.
-#include <logos/consensus/batchstateblock/batchblock_consensus_connection.hpp>
+#include <logos/consensus/batchblock/batchblock_consensus_connection.hpp>
 
 /// Validate BatchStateBlock message.
 ///

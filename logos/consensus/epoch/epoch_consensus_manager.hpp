@@ -62,13 +62,7 @@ protected:
 	///
 	/// Benchmarking related.
 	///     @return number of stored blocks
-    uint64_t OnConsensusReachedStoredCount() override;
-
-	/// Sends buffered blocks.
-	///
-	/// Benchmark related.
-	///     @return true if using buffered blocks
-    bool OnConsensusReachedExt() override;
+    uint64_t GetStoredCount() override;
 
 	/// Validates epoch block.
 	///     @param[in]  block the block to be validated
@@ -104,7 +98,7 @@ protected:
 	///     @param ids Delegate's id
 	///     @return ConsensusConnection
 	std::shared_ptr<ConsensusConnection<ConsensusType::Epoch>> MakeConsensusConnection(
-			std::shared_ptr<IIOChannel> iochannel, PrimaryDelegate* primary, DelegateKeyStore& key_store,
+			std::shared_ptr<IOChannel> iochannel, PrimaryDelegate* primary,
 			MessageValidator& validator, const DelegateIdentities& ids) override;
 
 private:

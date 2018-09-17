@@ -97,27 +97,48 @@ MicroBlockTester::precreate_account(
     std::function<void(boost::property_tree::ptree const &)> response,
     logos::node &node)
 {
-  logos::transaction transaction(node.store.environment, nullptr, false);
-  // tmp precreate the database
+  logos::transaction transaction(node.store.environment, nullptr, true);
   boost::property_tree::ptree response_l;
   logos::keypair pair;
-  response_l.put ("account", pair.pub.to_account ());
-  logos::account account(pair.pub);
-  logos::account_info info =
-    {
-        /* Head    */ 0,
-        /* Rep     */ 0,
-        /* Open    */ 0,
-        /* Balance */ 10000,
-        /* Time    */ logos::seconds_since_epoch(),
-        /* Count   */ 0
-    };
-  node.store.account_put(account, info, transaction);
-  bool result = node.store.account_get(account, info);
-  assert(result == false);
-  response_l.put ("private", pair.prv.data.to_string ());
-  response_l.put ("public", pair.pub.to_string ());
-  response_l.put ("account", pair.pub.to_account ());
+
+  logos::amount amount(100000);
+  uint64_t work = 0;
+
+  logos::state_block state(pair.pub,  // account
+                           0,         // previous
+                           pair.pub,  // representative
+                           amount,
+                           pair.pub,  // link
+                           pair.prv,
+                           pair.pub,
+                           work);
+    std::string contents;
+    state.serialize_json(contents);
+    boost::log::sources::logger_mt log;
+    BOOST_LOG(log) << "initializing delegate " <<
+                                    pair.prv.data.to_string() << " " <<
+                                    pair.pub.to_string() << " " <<
+                                    pair.pub.to_account() << " " <<
+                                    state.hash().to_string() << "\n" << contents;
+
+  node.store.receive_put(state.hash(),
+                      state,
+                      transaction);
+
+  node.store.account_put(pair.pub,
+                      {
+                              /* Head    */ 0,
+                              /* Previous*/ 0,
+                              /* Rep     */ 0,
+                              /* Open    */ state.hash(),
+                              /* Amount  */ amount,
+                              /* Time    */ logos::seconds_since_epoch(),
+                              /* Count   */ 0
+                      },
+                      transaction);
+  response_l.put("private", pair.prv.data.to_string());
+  response_l.put("public", pair.pub.to_string());
+  response_l.put("account", pair.pub.to_account());
   response (response_l);
 }
 

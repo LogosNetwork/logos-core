@@ -68,7 +68,7 @@ public:
 class state_hashables
 {
 public:
-    state_hashables() = default;
+    state_hashables();
     state_hashables (logos::account const &, logos::block_hash const &, logos::account const &, logos::amount const &, logos::uint256_union const &);
     state_hashables (bool &, logos::stream &);
     state_hashables (bool &, boost::property_tree::ptree const &);
@@ -92,7 +92,17 @@ class state_block : public logos::block
 {
 public:
     state_block() = default;
-    state_block (logos::account const &, logos::block_hash const &, logos::account const &, logos::amount const &, logos::uint256_union const &, logos::raw_key const &, logos::public_key const &, uint64_t);
+
+    state_block (logos::account const & account,
+                 logos::block_hash const & previous,
+                 logos::account const & representative,
+                 logos::amount const & amount,
+                 logos::uint256_union const & link,
+                 logos::raw_key const & prv,
+                 logos::public_key const & pub,
+                 uint64_t work,
+                 uint64_t timestamp = 0);
+
     state_block (bool &, logos::stream &);
     state_block (bool &, boost::property_tree::ptree const &);
     virtual ~state_block () = default;
@@ -120,6 +130,7 @@ public:
     logos::state_hashables hashables;
     logos::signature signature;
     uint64_t work;
+    uint64_t timestamp = 0;
 };
 class block_visitor
 {

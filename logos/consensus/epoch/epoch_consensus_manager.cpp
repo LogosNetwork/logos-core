@@ -78,25 +78,18 @@ EpochConsensusManager::ApplyUpdates(
 }
 
 uint64_t 
-EpochConsensusManager::OnConsensusReachedStoredCount()
+EpochConsensusManager::GetStoredCount()
 {
   return 1;
 }
 
-bool 
-EpochConsensusManager::OnConsensusReachedExt()
-{
-  return true;
-}
-
 std::shared_ptr<ConsensusConnection<ConsensusType::Epoch>>
 EpochConsensusManager::MakeConsensusConnection(
-        std::shared_ptr<IIOChannel> iochannel,
+        std::shared_ptr<IOChannel> iochannel,
         PrimaryDelegate* primary,
-        DelegateKeyStore& key_store,
         MessageValidator& validator,
         const DelegateIdentities& ids)
 {
     return std::make_shared<EpochConsensusConnection>(iochannel, primary,
-            key_store, validator, ids, _epoch_handler);
+            validator, ids, _epoch_handler);
 }

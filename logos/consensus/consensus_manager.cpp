@@ -5,11 +5,11 @@
 
 #include <logos/node/node.hpp>
 
-template<ConsensusType consensus_type>
-constexpr uint8_t ConsensusManager<consensus_type>::BATCH_TIMEOUT_DELAY;
+template<ConsensusType CT>
+constexpr uint8_t ConsensusManager<CT>::BATCH_TIMEOUT_DELAY;
 
-template<ConsensusType consensus_type>
-ConsensusManager<consensus_type>::ConsensusManager(Service & service,
+template<ConsensusType CT>
+ConsensusManager<CT>::ConsensusManager(Service & service,
                                                    Store & store,
                                                    logos::alarm & alarm,
                                                    Log & log,
@@ -24,32 +24,33 @@ ConsensusManager<consensus_type>::ConsensusManager(Service & service,
     , _delegate_id(config.delegate_id)
 {}
 
-template<ConsensusType consensus_type>
-void ConsensusManager<consensus_type>::OnSendRequest(std::shared_ptr<RequestMessage<consensus_type>> block, logos::process_return & result)
+template<ConsensusType CT>
+void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
+                                         logos::process_return & result)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    BOOST_LOG (_log) << "ConsensusManager<" << ConsensusToName(consensus_type) <<
+    BOOST_LOG (_log) << "ConsensusManager<" << ConsensusToName(CT) <<
         ">::OnSendRequest() - hash: " << block->hash().to_string();
 
     if(!Validate(block, result))
     {
         BOOST_LOG(_log) << "ConsensusManager - block validation for send request failed. Result code: "
                         << logos::ProcessResultToString(result.code)
-                        << " hash " << block->hash().to_string();
+                        << " hash: " << block->hash().to_string();
         return;
     }
 
     QueueRequest(block);
 
-    if(ReadyForConsensusExt())
+    if(ReadyForConsensus())
     {
         InitiateConsensus();
     }
 }
 
-template<ConsensusType consensus_type>
-void ConsensusManager<consensus_type>::Send(const void * data, size_t size)
+template<ConsensusType CT>
+void ConsensusManager<CT>::Send(const void * data, size_t size)
 {
     std::lock_guard<std::mutex> lock(_connection_mutex);
 
@@ -59,8 +60,8 @@ void ConsensusManager<consensus_type>::Send(const void * data, size_t size)
     }
 }
 
-template<ConsensusType consensus_type>
-void ConsensusManager<consensus_type>::OnConsensusReached()
+template<ConsensusType CT>
+void ConsensusManager<CT>::OnConsensusReached()
 {
     ApplyUpdates(PrePrepareGetNext(), _delegate_id);
 
@@ -68,17 +69,12 @@ void ConsensusManager<consensus_type>::OnConsensusReached()
     //
     {
         static uint64_t messages_stored = 0;
-        messages_stored += OnConsensusReachedStoredCount();
-        BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(consensus_type) <<
+        messages_stored += GetStoredCount();
+        BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
             "> - Stored " << messages_stored << " blocks.";
     }
 
     PrePreparePopFront();
-
-    if(OnConsensusReachedExt())
-    {
-        return;
-    }
 
     if(!PrePrepareQueueEmpty())
     {
@@ -86,40 +82,39 @@ void ConsensusManager<consensus_type>::OnConsensusReached()
     }
 }
 
-template<ConsensusType consensus_type>
-void ConsensusManager<consensus_type>::InitiateConsensus()
+template<ConsensusType CT>
+void ConsensusManager<CT>::InitiateConsensus()
 {
     auto & pre_prepare = PrePrepareGetNext();
 
     OnConsensusInitiated(pre_prepare);
 
     _validator.Sign(pre_prepare);
-    Send(&pre_prepare, sizeof(PrePrepareMessage<consensus_type>));
+    Send(&pre_prepare, sizeof(PrePrepare));
 
     _state = ConsensusState::PRE_PREPARE;
 }
 
-template<ConsensusType consensus_type>
-bool ConsensusManager<consensus_type>::ReadyForConsensus()
+template<ConsensusType CT>
+bool ConsensusManager<CT>::ReadyForConsensus()
 {
     return StateReadyForConsensus() && !PrePrepareQueueEmpty();
 }
 
-template<ConsensusType consensus_type>
-bool ConsensusManager<consensus_type>::StateReadyForConsensus()
+template<ConsensusType CT>
+bool ConsensusManager<CT>::StateReadyForConsensus()
 {
     return _state == ConsensusState::VOID || _state == ConsensusState::POST_COMMIT;
 }
 
-template<ConsensusType consensus_type>
-std::shared_ptr<IConsensusConnection> ConsensusManager<consensus_type>::BindIOChannel(std::shared_ptr<IIOChannel> iochannel, const DelegateIdentities & ids)
+template<ConsensusType CT>
+std::shared_ptr<PrequelParser>
+ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
+                                    const DelegateIdentities & ids)
 {
-    /*auto consensus_connection = std::make_shared<ConsensusConnection<consensus_type>>(iochannel,
-                                                                                      this, _persistence_manager,
-                                                                                      _key_store, _validator, ids);*/
-    auto consensus_connection = MakeConsensusConnection(iochannel, this, _key_store, _validator, ids);
-    _connections.push_back(consensus_connection);
-    return consensus_connection;
+    auto connection = MakeConsensusConnection(iochannel, this, _validator, ids);
+    _connections.push_back(connection);
+    return connection;
 }
 
 template class ConsensusManager<ConsensusType::BatchStateBlock>;

@@ -71,19 +71,19 @@ inline uint64_t GetStamp()
                 system_clock::now().time_since_epoch()).count();
 }
 
-template<MessageType type_param, ConsensusType consensus_param>
+template<MessageType MT, ConsensusType CT>
 struct MessagePrequel
 {
     static const size_t PADDING_SIZE = 5;
 
-    const uint8_t       version = 0;
-    const MessageType   type = type_param;
-    const ConsensusType consensus_type = consensus_param;
+    const uint8_t       version           = 0;
+    const MessageType   type              = MT;
+    const ConsensusType consensus_type    = CT;
     const uint8_t       pad[PADDING_SIZE] = {0,0,0,0,0}; // FIXME Do not use manual padding
 };
 
-template<MessageType type, ConsensusType consensus>
-struct MessageHeader : MessagePrequel<type, consensus>
+template<MessageType MT, ConsensusType CT>
+struct MessageHeader : MessagePrequel<MT, CT>
 {
     MessageHeader(uint64_t timestamp)
         : timestamp(timestamp)

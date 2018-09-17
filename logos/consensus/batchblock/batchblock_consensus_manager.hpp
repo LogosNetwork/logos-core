@@ -63,19 +63,18 @@ protected:
     ///
     ///  The extended override does additional processing if _using_buffered_blocks is true
     ///      @return true if ready false otherwise.
-    bool ReadyForConsensusExt() override;
+    bool ReadyForConsensus() override;
 
     /// Returns number of stored blocks.
     ///
     /// Benchmarking related.
     ///     @return number of stored blocks
-    uint64_t OnConsensusReachedStoredCount() override;
+    uint64_t GetStoredCount() override;
 
     /// Sends buffered blocks.
     ///
     /// Benchmark related.
-    ///     @return true if using buffered blocks
-    bool OnConsensusReachedExt() override;
+    void OnConsensusReached() override;
 
     /// Validates state block.
     ///     @param result of the validation
@@ -120,7 +119,7 @@ protected:
     ///     @param ids Delegate's id
     ///     @return ConsensusConnection
     std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>> MakeConsensusConnection(
-            std::shared_ptr<IIOChannel> iochannel, PrimaryDelegate* primary, DelegateKeyStore& key_store,
+            std::shared_ptr<IOChannel> iochannel, PrimaryDelegate* primary,
             MessageValidator& validator, const DelegateIdentities& ids) override;
 
 private:

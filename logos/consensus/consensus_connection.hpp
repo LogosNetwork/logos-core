@@ -13,7 +13,7 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/write.hpp>
 
-class IIOChannel;
+class IOChannel;
 
 namespace logos
 {
@@ -27,17 +27,17 @@ struct DelegateIdentities
 };
 
 /// ConsensusConnection's Interface to ConsensusNetIO.
-class IConsensusConnection
+class PrequelParser
 {
 public:
 
-  virtual ~IConsensusConnection() {}
+  virtual ~PrequelParser() {}
 
   virtual void OnPrequel(const uint8_t * data) = 0;
 };
 
 template<ConsensusType CT>
-class ConsensusConnection : public IConsensusConnection
+class ConsensusConnection : public PrequelParser
 {
 protected:
 
@@ -53,9 +53,8 @@ protected:
 
 public:
 
-    ConsensusConnection(std::shared_ptr<IIOChannel> iochannel,
+    ConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                         PrimaryDelegate * primary,
-                        DelegateKeyStore & key_store,
                         MessageValidator & validator,
                         const DelegateIdentities & ids);
 
@@ -107,14 +106,13 @@ protected:
     void StoreResponse(const Prepare & message);
     void StoreResponse(const Commit & message);
 
-    std::shared_ptr<IIOChannel> _iochannel;
+    std::shared_ptr<IOChannel>  _iochannel;
     ReceiveBuffer               _receive_buffer;
     std::shared_ptr<PrePrepare> _cur_pre_prepare;
     std::shared_ptr<Prepare>    _cur_prepare;
     std::shared_ptr<Commit>     _cur_commit;
     BlockHash                   _cur_pre_prepare_hash;
     DelegateIdentities          _delegate_ids;
-    DelegateKeyStore &          _key_store;
     MessageValidator &          _validator;
     Log                         _log;
     PrimaryDelegate *           _primary;

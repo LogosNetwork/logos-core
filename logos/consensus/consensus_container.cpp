@@ -69,7 +69,8 @@ ConsensusContainer::BufferComplete(
 }
 
 logos::process_return
-ConsensusContainer::OnSendRequest(std::shared_ptr<MicroBlock> block)
+ConsensusContainer::OnSendRequest(
+    std::shared_ptr<MicroBlock> block)
 {
 	using Request = RequestMessage<ConsensusType::MicroBlock>;
 	
@@ -81,7 +82,8 @@ ConsensusContainer::OnSendRequest(std::shared_ptr<MicroBlock> block)
 }
 
 logos::process_return
-ConsensusContainer::OnSendRequest(std::shared_ptr<Epoch> block)
+ConsensusContainer::OnSendRequest(
+    std::shared_ptr<Epoch> block)
 {
     using Request = RequestMessage<ConsensusType::Epoch>;
 

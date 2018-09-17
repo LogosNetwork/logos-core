@@ -71,14 +71,20 @@ private:
     };
 
     void StoreBatchMessage(const BatchStateBlock & message, MDB_txn * transaction);
-    void ApplyBatchMessage(const BatchStateBlock & message, uint8_t delegate_id, MDB_txn * transaction);
+    void ApplyBatchMessage(const BatchStateBlock & message, uint8_t delegate_id,
+                           MDB_txn * transaction);
 
-    void ApplyStateMessage(const logos::state_block & block, MDB_txn * transaction);
+    void ApplyStateMessage(const logos::state_block & block, uint64_t timestamp,
+                           MDB_txn * transaction);
 
     bool UpdateSourceState(const logos::state_block & block, MDB_txn * transaction);
-    void UpdateDestinationState(const logos::state_block & block, MDB_txn * transaction);
+    void UpdateDestinationState(const logos::state_block & block, uint64_t timestamp,
+                                MDB_txn * transaction);
 
     DynamicStorage & GetStore(uint8_t delegate_id);
+
+    void PlaceReceive(logos::state_block & receive,
+                      MDB_txn * transaction);
 
 
     StorageMap _dynamic_storage;

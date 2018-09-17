@@ -12,24 +12,24 @@
 
 #include <boost/log/sources/record_ostream.hpp>
 
-class IConsensusManager
+class ChannelBinder
 {
 
 public:
 
-  IConsensusManager() {}
+  ChannelBinder() {}
 
-  virtual ~IConsensusManager() {}
+  virtual ~ChannelBinder() {}
 
   virtual
-  std::shared_ptr<IConsensusConnection>
-  BindIOChannel(std::shared_ptr<IIOChannel>,
+  std::shared_ptr<PrequelParser>
+  BindIOChannel(std::shared_ptr<IOChannel>,
                 const DelegateIdentities &) = 0;
 };
 
-template<ConsensusType consensus_type>
+template<ConsensusType CT>
 class ConsensusManager : public PrimaryDelegate,
-                         public IConsensusManager
+                         public ChannelBinder
 {
 
 protected:
@@ -37,11 +37,11 @@ protected:
     using Service     = boost::asio::io_service;
     using Config      = ConsensusManagerConfig;
     using Log         = boost::log::sources::logger_mt;
-    using Connections = std::vector<std::shared_ptr<ConsensusConnection<consensus_type>>>;
+    using Connections = std::vector<std::shared_ptr<ConsensusConnection<CT>>>;
     using Store       = logos::block_store;
-    using Manager     = ConsensusManager<consensus_type>;
-    using Request     = RequestMessage<consensus_type>;
-    using PrePrepare  = PrePrepareMessage<consensus_type>;
+    using Manager     = ConsensusManager<CT>;
+    using Request     = RequestMessage<CT>;
+    using PrePrepare  = PrePrepareMessage<CT>;
 
 public:
 
@@ -53,7 +53,8 @@ public:
                      DelegateKeyStore & key_store,
                      MessageValidator & validator);
 
-    void OnSendRequest(std::shared_ptr<Request> block, logos::process_return & result);
+    void OnSendRequest(std::shared_ptr<Request> block,
+                       logos::process_return & result);
 
     virtual void OnBenchmarkSendRequest(std::shared_ptr<Request> block,
                                         logos::process_return & result) = 0;
@@ -63,8 +64,9 @@ public:
     virtual ~ConsensusManager() {}
 
     virtual
-    std::shared_ptr<IConsensusConnection> BindIOChannel(std::shared_ptr<IIOChannel>,
-                                                        const DelegateIdentities &) override;
+    std::shared_ptr<PrequelParser>
+    BindIOChannel(std::shared_ptr<IOChannel>,
+                  const DelegateIdentities &) override;
 
 protected:
 
@@ -72,15 +74,15 @@ protected:
 
     virtual void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) = 0;
 
-    virtual bool Validate(std::shared_ptr<Request> block, logos::process_return & result) = 0;
+    virtual bool Validate(std::shared_ptr<Request> block,
+                          logos::process_return & result) = 0;
+
+    virtual uint64_t GetStoredCount() = 0;
 
     void OnConsensusReached() override;
-    virtual uint64_t OnConsensusReachedStoredCount() = 0;
-    virtual bool OnConsensusReachedExt() = 0;
     void InitiateConsensus();
 
-    bool ReadyForConsensus();
-    virtual bool ReadyForConsensusExt() { return ReadyForConsensus(); }
+    virtual bool ReadyForConsensus();
     bool StateReadyForConsensus();
 
     virtual void PrePreparePopFront() {};
@@ -90,8 +92,8 @@ protected:
     virtual bool PrePrepareQueueEmpty() = 0;
     virtual bool PrePrepareQueueFull() = 0;
 
-    virtual std::shared_ptr<ConsensusConnection<consensus_type>> MakeConsensusConnection(
-            std::shared_ptr<IIOChannel>, PrimaryDelegate*, DelegateKeyStore&,
+    virtual std::shared_ptr<ConsensusConnection<CT>> MakeConsensusConnection(
+            std::shared_ptr<IOChannel>, PrimaryDelegate*,
             MessageValidator&, const DelegateIdentities&) = 0;
 
     Connections        _connections;

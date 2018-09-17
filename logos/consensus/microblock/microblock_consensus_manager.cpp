@@ -74,25 +74,17 @@ MicroBlockConsensusManager::ApplyUpdates(
 }
 
 uint64_t 
-MicroBlockConsensusManager::OnConsensusReachedStoredCount()
+MicroBlockConsensusManager::GetStoredCount()
 {
     return 1;
 }
-
-bool 
-MicroBlockConsensusManager::OnConsensusReachedExt()
-{
-    return true;
-}
-
 std::shared_ptr<ConsensusConnection<ConsensusType::MicroBlock>>
 MicroBlockConsensusManager::MakeConsensusConnection(
-        std::shared_ptr<IIOChannel> iochannel,
+        std::shared_ptr<IOChannel> iochannel,
         PrimaryDelegate* primary,
-        DelegateKeyStore& key_store,
         MessageValidator& validator,
         const DelegateIdentities& ids)
 {
     return std::make_shared<MicroBlockConsensusConnection>(iochannel, primary,
-            key_store, validator, ids, _microblock_handler);
+            validator, ids, _microblock_handler);
 }

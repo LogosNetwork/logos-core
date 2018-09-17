@@ -1,8 +1,8 @@
 /// @file
 /// This file contains implementation of the BatchBlockConsensusManager class, which
 /// handles specifics of BatchBlock consensus
-#include <logos/consensus/batchstateblock/batchblock_consensus_manager.hpp>
-#include <logos/consensus/batchstateblock/batchblock_consensus_connection.hpp>
+#include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
+#include <logos/consensus/batchblock/batchblock_consensus_connection.hpp>
 
 void
 BatchBlockConsensusManager::OnBenchmarkSendRequest(
@@ -66,8 +66,8 @@ BatchBlockConsensusManager::Validate(
     return _persistence_manager.Validate(*block, result, _delegate_id);
 }
 
-bool 
-BatchBlockConsensusManager::ReadyForConsensusExt()
+bool
+BatchBlockConsensusManager::ReadyForConsensus()
 {
     if(_using_buffered_blocks)
     {
@@ -75,10 +75,10 @@ BatchBlockConsensusManager::ReadyForConsensusExt()
                             (_buffer.empty() && !_handler.Empty()));
     }
 
-    return ReadyForConsensus();
+    return Manager::ReadyForConsensus();
 }
 
-void 
+void
 BatchBlockConsensusManager::QueueRequest(
   std::shared_ptr<Request> request)
 {
@@ -92,25 +92,25 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
             _handler.GetNextBatch());
 }
 
-void 
+void
 BatchBlockConsensusManager::PrePreparePopFront()
 {
     _handler.PopFront();
 }
 
-bool 
+bool
 BatchBlockConsensusManager::PrePrepareQueueEmpty()
 {
     return _handler.Empty();
 }
 
-bool 
+bool
 BatchBlockConsensusManager::PrePrepareQueueFull()
 {
     return _handler.BatchFull();
 }
 
-void 
+void
 BatchBlockConsensusManager::ApplyUpdates(
   const PrePrepare & pre_prepare,
   uint8_t delegate_id)
@@ -118,33 +118,31 @@ BatchBlockConsensusManager::ApplyUpdates(
     _persistence_manager.ApplyUpdates(pre_prepare, _delegate_id);
 }
 
-uint64_t 
-BatchBlockConsensusManager::OnConsensusReachedStoredCount()
+uint64_t
+BatchBlockConsensusManager::GetStoredCount()
 {
     return _handler.GetNextBatch().block_count;
 }
 
-bool 
-BatchBlockConsensusManager::OnConsensusReachedExt()
+void 
+BatchBlockConsensusManager::OnConsensusReached()
 {
+    Manager::OnConsensusReached();
+
     if(_using_buffered_blocks)
     {
         SendBufferedBlocks();
-        return true;
     }
-
-    return false;
 }
 
 std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>>
 BatchBlockConsensusManager::MakeConsensusConnection(
-    std::shared_ptr<IIOChannel> iochannel,
+    std::shared_ptr<IOChannel> iochannel,
     PrimaryDelegate* primary,
-    DelegateKeyStore& key_store,
     MessageValidator& validator,
     const DelegateIdentities& ids)
 {
     return std::make_shared<BatchBlockConsensusConnection>(iochannel,
                                                  primary, _persistence_manager,
-                                                 key_store, validator, ids);
+                                                 validator, ids);
 }

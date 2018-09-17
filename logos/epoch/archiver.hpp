@@ -7,6 +7,7 @@
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/epoch/event_proposer.hpp>
 #include <logos/epoch/epoch_handler.hpp>
+#include <logos/consensus/primary_delegate.hpp>
 
 class IInternalConsensusCb;
 class IRecallHandler;
@@ -107,7 +108,7 @@ private:
     /// @returns true if primary delegate
     bool IsPrimaryDelegate(const BlockHash &hash)
     {
-        uint8_t primary_delegate = (uint8_t)(hash.bytes[31] & SELECT_PRIMARY_DELEGATE);
+        uint8_t primary_delegate = (uint8_t)(hash.bytes[0] & SELECT_PRIMARY_DELEGATE) % PrimaryDelegate::QUORUM_SIZE;
         return (primary_delegate == _delegate_id);
     }
 

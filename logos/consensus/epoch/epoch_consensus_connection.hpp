@@ -20,13 +20,12 @@ public:
     /// @param key_store Delegates' public key store [in]
     /// @param validator Validator/Signer of consensus message [in]
     /// @param ids remote/local delegate id [in]
-    EpochConsensusConnection(std::shared_ptr<IIOChannel> iochannel,
+    EpochConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                              PrimaryDelegate * primary,
-                             DelegateKeyStore & key_store,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
                              IArchiverEpochHandler & handler)
-        : ConsensusConnection<ConsensusType::Epoch>(iochannel, primary, key_store, validator, ids)
+        : ConsensusConnection<ConsensusType::Epoch>(iochannel, primary, validator, ids)
         , _epoch_handler(handler)
     {}
     ~EpochConsensusConnection() {}
