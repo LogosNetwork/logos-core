@@ -76,7 +76,8 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
     memcpy(_receive_buffer.data() + sizeof(Prequel), data,
            MessageTypeToSize<CT>(type) - sizeof(Prequel));
 
-    BOOST_LOG(_log) << "ConsensusConnection - Received "
+    BOOST_LOG(_log) << "ConsensusConnection<"
+                    << ConsensusToName(CT) << ">- Received "
                     << MessageToName(type)
                     << " message.";
 

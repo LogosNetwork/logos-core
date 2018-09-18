@@ -15,7 +15,7 @@ MicroBlock::Hash() const {
         cb(&_delegate, sizeof(_delegate));
         cb(&_epoch_number, sizeof(_epoch_number));
         cb(&_micro_block_number, sizeof(_micro_block_number));
-        cb(_tips.data(), NUM_DELEGATES * sizeof(BlockHash));
+        cb(_tips, NUM_DELEGATES * sizeof(BlockHash));
         cb(&_number_batch_blocks, sizeof(_number_batch_blocks));
     });
 }

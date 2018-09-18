@@ -10,7 +10,7 @@
 
 void
 EpochVotingManager::GetNextEpochDelegates(
-   std::array<Delegate, NUM_DELEGATES> &delegates)
+   Delegates &delegates)
 {
     int constexpr num_epochs = 3;
     int constexpr num_new_delegates = 8;
@@ -24,9 +24,9 @@ EpochVotingManager::GetNextEpochDelegates(
     {
         assert(false == _store.epoch_get(hash, previous_epochs[e]));
         hash = previous_epochs[e].previous;
-        int d = 0;
-        for (auto delegate : previous_epochs[e]._delegates)
+        for (int i = 0, d = 0; i < NUM_DELEGATES; ++i)
         {
+            Delegate &delegate = previous_epochs[e]._delegates[i];
             all_delegates[delegate._account] = true;
             if (e == (num_epochs-1))
             {
@@ -57,17 +57,18 @@ EpochVotingManager::GetNextEpochDelegates(
 
 bool
 EpochVotingManager::ValidateEpochDelegates(
-   const std::array<Delegate, NUM_DELEGATES> &delegates)
+   const Delegates &delegates)
 {
    std::unordered_map<logos::public_key,bool> verify;
+
    for (auto delegate : logos::genesis_delegates)
    {
        verify[delegate.key.pub] = true;
    }
 
-   for (auto delegate : delegates)
+   for (int i = 0; i < NUM_DELEGATES; ++i)
    {
-       if (verify.find(delegate._account) == verify.end())
+       if (verify.find(delegates[i]._account) == verify.end())
        {
            return false;
        }

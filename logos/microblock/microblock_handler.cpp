@@ -23,7 +23,7 @@ MicroBlockHandler::WalkBatchBlocks(
         BlockHash hash = start[delegate];
         BatchStateBlock batch;
         for (bool not_found = _store.batch_block_get(hash, batch);
-             !not_found && hash != end[delegate]; // tips are 0 in genesis
+             !not_found && hash != end[delegate];
              hash = batch.previous, not_found = _store.batch_block_get(hash, batch)) {
             cb(delegate, batch);
         }
@@ -114,10 +114,10 @@ MicroBlockHandler::BuildMicroBlock(
     bool last_micro_block)
 {
     BlockHash previous_micro_block_hash;
-    MicroBlock previous;
+    MicroBlock previous_micro_block;
 
     assert(false == _store.micro_block_tip_get(previous_micro_block_hash));
-    assert(false == _store.micro_block_get(previous_micro_block_hash, previous));
+    assert(false == _store.micro_block_get(previous_micro_block_hash, previous_micro_block));
 
     // collect current batch block tips
     BatchTips start = {0};
@@ -130,14 +130,15 @@ MicroBlockHandler::BuildMicroBlock(
     }
 
     // first microblock after genesis
-    if (previous._epoch_number == GENESIS_EPOCH)
+    if (previous_micro_block._epoch_number == GENESIS_EPOCH)
     {
-        block._merkle_root = SlowMerkleTree(start, previous._tips, block._tips, block._number_batch_blocks);
+        block._merkle_root = SlowMerkleTree(start, previous_micro_block._tips, block._tips,
+                block._number_batch_blocks);
     }
     else
     {
-        block._merkle_root = FastMerkleTree(start, previous._tips, block._tips, block._number_batch_blocks,
-                previous.timestamp);
+        block._merkle_root = FastMerkleTree(start, previous_micro_block._tips, block._tips,
+                block._number_batch_blocks, previous_micro_block.timestamp);
     }
 
     // should be allowed to have no blocks so at least it doesn't crash
@@ -154,12 +155,16 @@ MicroBlockHandler::BuildMicroBlock(
     // first micro block in this epoch
     bool first_micro_block = epoch._micro_block_tip == previous_micro_block_hash;
 
-    block._epoch_number = first_micro_block ? previous._epoch_number + 1 : previous._epoch_number;
+    block._epoch_number = first_micro_block
+            ? previous_micro_block._epoch_number + 1
+            : previous_micro_block._epoch_number;
     block.previous = previous_micro_block_hash;
     block.timestamp = GetStamp();
     block._delegate = genesis_delegates[_delegate_id].key.pub;
-    block._micro_block_number = first_micro_block ? 0 : previous._micro_block_number + 1;
-    block._last_micro_block = (last_micro_block == true);
+    block._micro_block_number = first_micro_block
+            ? 0
+            : previous_micro_block._micro_block_number + 1;
+    block._last_micro_block = last_micro_block;
     BOOST_LOG(_log) << "MicroBlockHandler::BuildMicroBlock SIGNING MICROBLOCK WITH DELEGATE ID " <<
         (int)_delegate_id << " THIS WILL NOT WORK DURING TRANSITION BECAUSE DELEGATE ID WILL BE DUPLICATE";
     block._signature = logos::sign_message(genesis_delegates[_delegate_id].key.prv,

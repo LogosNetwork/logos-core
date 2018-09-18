@@ -15,6 +15,7 @@ namespace logos
 /// Epoch voting manager
 class EpochVotingManager {
     using BlockStore = logos::block_store;
+    using Delegates = Delegate[NUM_DELEGATES];
 public:
     /// Class constructor
     /// @param store logos block store reference [in]
@@ -26,12 +27,12 @@ public:
 
     /// Get the list of next epoch delegates
     /// @param delegates list of new delegates [in,out]
-    void GetNextEpochDelegates(std::array<Delegate, NUM_DELEGATES> &delegates);
+    void GetNextEpochDelegates(Delegates &delegates);
 
     /// Verify epoch delegates
     /// @param delegates list of epoch delegates [in,out]
     /// @returns true if valid
-    bool ValidateEpochDelegates(const std::array<Delegate, NUM_DELEGATES> &delegates);
+    bool ValidateEpochDelegates(const Delegates &delegates);
 
 private:
 

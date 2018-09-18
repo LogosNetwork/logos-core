@@ -17,7 +17,7 @@ using BlockStore = logos::block_store;
 class MicroBlockHandler {
 
     using Log       = boost::log::sources::logger_mt;
-    using BatchTips = std::array<BlockHash,NUM_DELEGATES>;
+    using BatchTips = BlockHash[NUM_DELEGATES];
 
 public:
     /// Class constructor
