@@ -67,5 +67,15 @@ EventProposer::ProposeTransition(TransitionCb cb)
 void
 EventProposer::ProposeEpoch()
 {
-    _alarm.service.post(_epoch_cb);
+    // MicroBlocks are committed to the database in PostCommit.
+    // There is some latency in PostCommit propagation to Delegates.
+    // Consequently if an Epoch block is proposed too soon
+    // then some Delegates might not have the most recent MicroBlock committed
+    // yet, which results in bootstraping.
+    // Introduce some delay (temp) to Epoch block proposal to alleviate this issue.
+    // Another option (TBD) is to see if there is Commit message with the
+    // most recent microblock hash and don't fail Epoch block validation.
+    //_alarm.service.post(_epoch_cb);
+    std::chrono::seconds lapse(5);
+    _alarm.add(std::chrono::steady_clock::now() + lapse, _epoch_cb);
 }
