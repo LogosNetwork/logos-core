@@ -32,10 +32,11 @@ EpochHandler::Validate(
     }
 
     // verify microblock tip exists
-    if (_store.micro_block_tip_get(epoch.previous))
+    BlockHash micro_block_tip;
+    if (_store.micro_block_tip_get(micro_block_tip) || epoch._micro_block_tip != micro_block_tip)
     {
         BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock previous micro block doesn't exist " <<
-                        epoch._micro_block_tip.to_string();
+                        epoch._micro_block_tip.to_string() << " " << micro_block_tip.to_string();
         return false;
     }
 

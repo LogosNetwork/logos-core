@@ -108,7 +108,7 @@ private:
     /// @returns true if primary delegate
     bool IsPrimaryDelegate(const BlockHash &hash)
     {
-        uint8_t primary_delegate = (uint8_t)(hash.bytes[0] & SELECT_PRIMARY_DELEGATE) % PrimaryDelegate::QUORUM_SIZE;
+        uint8_t primary_delegate = (uint8_t)(hash.bytes[0] & SELECT_PRIMARY_DELEGATE) % (PrimaryDelegate::QUORUM_SIZE+1);
         return (primary_delegate == _delegate_id);
     }
 
