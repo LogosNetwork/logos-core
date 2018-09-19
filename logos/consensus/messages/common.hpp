@@ -36,18 +36,19 @@ enum class MessageType : uint8_t
 /// - explicitly instanciate newconsensus function in primary_delegate.cpp (top of file)
 /// - update ConsensusToName in messages/util.hpp
 /// - add new files to CMakeLists.txt
+#define CONSENSUS_TYPE(...) \
+  struct ConsensusType_Size { int __VA_ARGS__; }; \
+  enum class ConsensusType:uint8_t { __VA_ARGS__,Any=0xff}; \
+  static constexpr size_t CONSENSUS_TYPE_COUNT = (sizeof(ConsensusType_Size)/sizeof(int));
 ////////////////////
-// ConsensusType values must be sequential
-// because it is also an index.
-enum class ConsensusType : uint8_t
-{
-    BatchStateBlock = 0,
-    MicroBlock = 1,
-    Epoch = 2,
-    Any = 0xff /// keep it 0xff so adding a new type would not change compatibility with Any
-};
+// Add new consensus types at the end
+CONSENSUS_TYPE
+(
+    BatchStateBlock,
+    MicroBlock,
+    Epoch
+);
 
-static const size_t CONSENSUS_TYPE_COUNT   = 3;
 static const size_t NUM_DELEGATES          = 32;
 static const size_t CONSENSUS_HASH_SIZE    = 32;
 static const size_t CONSENSUS_SIG_SIZE     = 32;
