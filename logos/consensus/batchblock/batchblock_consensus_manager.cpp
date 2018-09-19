@@ -45,7 +45,10 @@ void
 BatchBlockConsensusManager::OnRequestReady(
     std::shared_ptr<logos::state_block> block)
 {
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+
     _handler.OnRequest(block);
+    Manager::OnRequestQueued();
 }
 
 void
@@ -113,8 +116,7 @@ BatchBlockConsensusManager::QueueRequest(
                     request->hashables.previous.number();
 
     uint8_t designated_deligate_id =
-            uint8_t(request->hashables.previous.number() &
-                    ((1<<DELIGATE_ID_MASK)-1));
+            uint8_t(indicator & ((1<<DELIGATE_ID_MASK)-1));
 
     if(designated_deligate_id == _delegate_id)
     {

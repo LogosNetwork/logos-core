@@ -184,7 +184,7 @@ bool ConsensusConnection<CT>::Validate(const MSG & message)
 template<ConsensusType CT>
 template<typename MSG>
 bool ConsensusConnection<CT>::ProceedWithMessage(const MSG & message,
-                                                             ConsensusState expected_state)
+                                                 ConsensusState expected_state)
 {
     if(_state != expected_state)
     {

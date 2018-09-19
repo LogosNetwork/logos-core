@@ -76,8 +76,6 @@ void SecondaryRequestHandler::OnRequestDone(const logos::block_hash & hash)
 
 void SecondaryRequestHandler::OnRequestReady(const logos::block_hash & hash)
 {
-    std::lock_guard<std::mutex> lock(_mutex);
-
     auto entry = _requests.find(hash);
 
     if(entry == _requests.end())
@@ -88,5 +86,8 @@ void SecondaryRequestHandler::OnRequestReady(const logos::block_hash & hash)
     }
 
     _promoter->OnRequestReady(entry->second._block);
+
+    std::lock_guard<std::mutex> lock(_mutex);
+
     _requests.erase(hash);
 }

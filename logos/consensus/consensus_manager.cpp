@@ -35,7 +35,12 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
     }
 
     QueueRequest(block);
+    OnRequestQueued();
+}
 
+template<ConsensusType CT>
+void ConsensusManager<CT>::OnRequestQueued()
+{
     if(ReadyForConsensus())
     {
         InitiateConsensus();

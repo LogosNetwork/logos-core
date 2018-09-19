@@ -55,6 +55,8 @@ public:
     void OnSendRequest(std::shared_ptr<Request> block,
                        logos::process_return & result);
 
+    void OnRequestQueued();
+
     virtual void OnBenchmarkSendRequest(std::shared_ptr<Request> block,
                                         logos::process_return & result) = 0;
 
