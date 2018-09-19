@@ -86,10 +86,8 @@ EpochConsensusManager::GetStoredCount()
 std::shared_ptr<ConsensusConnection<ConsensusType::Epoch>>
 EpochConsensusManager::MakeConsensusConnection(
         std::shared_ptr<IOChannel> iochannel,
-        PrimaryDelegate* primary,
-        MessageValidator& validator,
         const DelegateIdentities& ids)
 {
-    return std::make_shared<EpochConsensusConnection>(iochannel, primary,
-            validator, ids, _epoch_handler);
+    return std::make_shared<EpochConsensusConnection>(iochannel, *this,
+            _validator, ids, _epoch_handler);
 }

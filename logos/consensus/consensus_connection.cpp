@@ -5,7 +5,7 @@
 
 template<ConsensusType CT>
 ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochannel,
-                                             PrimaryDelegate * primary,
+                                             PrimaryDelegate & primary,
                                              MessageValidator & validator,
                                              const DelegateIdentities & ids)
     : _iochannel(iochannel)
@@ -156,7 +156,7 @@ template<ConsensusType CT>
 template<MessageType MT>
 void ConsensusConnection<CT>::OnConsensusMessage(const SPMessage<MT> & message)
 {
-    _primary->OnConsensusMessage(message, _delegate_ids.remote);
+    _primary.OnConsensusMessage(message, _delegate_ids.remote);
 }
 
 template<ConsensusType CT>

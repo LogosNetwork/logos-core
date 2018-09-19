@@ -11,7 +11,7 @@ Archiver::Archiver(logos::alarm & alarm,
                    BlockStore & store,
                    IRecallHandler & recall_handler,
                    uint8_t delegate_id)
-    : _event_proposer(alarm)
+    : _event_proposer(alarm, IsFirstEpoch(store))
     , _micro_block_handler(store, delegate_id, recall_handler)
     , _voting_manager(store)
     , _epoch_handler(store, delegate_id, _voting_manager)
@@ -106,4 +106,16 @@ Archiver::CreateGenesisBlocks(logos::transaction &transaction)
 
         epoch_hash = _epoch_handler.ApplyUpdates(epoch, transaction);
     }
+}
+
+bool
+Archiver::IsFirstEpoch(BlockStore &store)
+{
+    BlockHash hash;
+    Epoch epoch;
+
+    assert(false == store.epoch_tip_get(hash));
+    assert(false == store.epoch_get(hash, epoch));
+
+    return epoch._epoch_number == GENESIS_EPOCH;
 }

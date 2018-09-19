@@ -5,8 +5,11 @@
 #include <logos/epoch/event_proposer.hpp>
 #include <logos/node/node.hpp>
 
-EventProposer::EventProposer(logos::alarm & alarm)
+EventProposer::EventProposer(logos::alarm & alarm,
+                             bool first_epoch)
     : _alarm(alarm)
+    , _skip_transition(first_epoch)
+    , _skip_micro_block(first_epoch)
     {}
 
 void
@@ -40,10 +43,9 @@ void
 EventProposer::ProposeMicroblock(MicroCb cb)
 {
     EpochTimeUtil util;
-    static bool skip = true;
 
-    std::chrono::seconds lapse = util.GetNextMicroBlockTime(skip);
-    skip = false;
+    std::chrono::seconds lapse = util.GetNextMicroBlockTime(_skip_micro_block);
+    _skip_micro_block = false;
     _alarm.add(std::chrono::steady_clock::now() + lapse, [this, cb]()mutable->void{
         cb();
         ProposeMicroblock(cb);
@@ -54,10 +56,9 @@ void
 EventProposer::ProposeTransition(TransitionCb cb)
 {
     EpochTimeUtil util;
-    static bool skip = true;
 
-    std::chrono::seconds lapse = util.GetNextEpochTime(skip);
-    skip = false;
+    std::chrono::seconds lapse = util.GetNextEpochTime(_skip_transition);
+    _skip_transition = false;
     _alarm.add(std::chrono::steady_clock::now() + lapse, [this, cb]()mutable->void{
         cb();
         ProposeTransition(cb);

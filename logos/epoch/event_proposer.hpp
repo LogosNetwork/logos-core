@@ -29,7 +29,7 @@ class EventProposer
 public:
     /// Class constructor
     /// @param alarm logos::alarm reference [in]
-    EventProposer(logos::alarm &);
+    EventProposer(logos::alarm &, bool first_epoch);
     ~EventProposer() = default;
 
     /// Generates periodic event to propose microblock
@@ -60,7 +60,9 @@ public:
     /// @param ecb callback to call when the epoch should be proposed [in]
     void Start(MicroCb mcb, TransitionCb tcb, EpochCb ecb);
 private:
-    logos::alarm &      _alarm;     ///< logos::alarm reference
-    EpochCb             _epoch_cb;  ///< delayed epoch call back
-    Log                 _log;       ///< boost asio log
+    logos::alarm &      _alarm;            ///< logos::alarm reference
+    EpochCb             _epoch_cb;         ///< delayed epoch call back
+    Log                 _log;              ///< boost asio log
+    bool                _skip_transition;  ///< skip first Epoch transition due time
+    bool                _skip_micro_block; ///< skip first MicroBlock transition due time
 };

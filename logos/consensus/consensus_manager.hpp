@@ -93,8 +93,7 @@ protected:
     virtual bool PrePrepareQueueFull() = 0;
 
     virtual std::shared_ptr<ConsensusConnection<CT>> MakeConsensusConnection(
-            std::shared_ptr<IOChannel>, PrimaryDelegate*,
-            MessageValidator&, const DelegateIdentities&) = 0;
+            std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
 
     Connections        _connections;
     PersistenceManager _persistence_manager;

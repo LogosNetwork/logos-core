@@ -53,7 +53,7 @@ protected:
 public:
 
     ConsensusConnection(std::shared_ptr<IOChannel> iochannel,
-                        PrimaryDelegate * primary,
+                        PrimaryDelegate & primary,
                         MessageValidator & validator,
                         const DelegateIdentities & ids);
 
@@ -114,7 +114,7 @@ protected:
     DelegateIdentities          _delegate_ids;
     MessageValidator &          _validator;
     Log                         _log;
-    PrimaryDelegate *           _primary;
+    PrimaryDelegate &           _primary;
     ConsensusState              _state     = ConsensusState::VOID;
     bool                        _connected = false;
 };

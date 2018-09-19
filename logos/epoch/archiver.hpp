@@ -112,6 +112,10 @@ private:
         return (primary_delegate == _delegate_id);
     }
 
+    /// Is this the first Epoch
+    /// @param store reference to block store
+    bool IsFirstEpoch(BlockStore &store);
+
     EpochVotingManager  _voting_manager;
     EventProposer       _event_proposer;
     MicroBlockHandler   _micro_block_handler;

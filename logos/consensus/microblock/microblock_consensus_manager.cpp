@@ -81,10 +81,8 @@ MicroBlockConsensusManager::GetStoredCount()
 std::shared_ptr<ConsensusConnection<ConsensusType::MicroBlock>>
 MicroBlockConsensusManager::MakeConsensusConnection(
         std::shared_ptr<IOChannel> iochannel,
-        PrimaryDelegate* primary,
-        MessageValidator& validator,
         const DelegateIdentities& ids)
 {
-    return std::make_shared<MicroBlockConsensusConnection>(iochannel, primary,
-            validator, ids, _microblock_handler);
+    return std::make_shared<MicroBlockConsensusConnection>(iochannel, *this,
+            _validator, ids, _microblock_handler);
 }

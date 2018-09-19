@@ -21,7 +21,7 @@ public:
     /// @param validator Validator/Signer of consensus message [in]
     /// @param ids remote/local delegate id [in]
     EpochConsensusConnection(std::shared_ptr<IOChannel> iochannel,
-                             PrimaryDelegate * primary,
+                             PrimaryDelegate & primary,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
                              IArchiverEpochHandler & handler)

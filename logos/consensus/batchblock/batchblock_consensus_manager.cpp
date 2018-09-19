@@ -138,11 +138,9 @@ BatchBlockConsensusManager::OnConsensusReached()
 std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>>
 BatchBlockConsensusManager::MakeConsensusConnection(
     std::shared_ptr<IOChannel> iochannel,
-    PrimaryDelegate* primary,
-    MessageValidator& validator,
     const DelegateIdentities& ids)
 {
     return std::make_shared<BatchBlockConsensusConnection>(iochannel,
-                                                 primary, _persistence_manager,
-                                                 validator, ids);
+                                                 *this, _persistence_manager,
+                                                 _validator, ids);
 }

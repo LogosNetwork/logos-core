@@ -112,7 +112,7 @@ std::shared_ptr<PrequelParser>
 ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                                     const DelegateIdentities & ids)
 {
-    auto connection = MakeConsensusConnection(iochannel, this, _validator, ids);
+    auto connection = MakeConsensusConnection(iochannel, ids);
     _connections.push_back(connection);
     return connection;
 }

@@ -98,8 +98,7 @@ protected:
 	///     @param ids Delegate's id
 	///     @return ConsensusConnection
 	std::shared_ptr<ConsensusConnection<ConsensusType::Epoch>> MakeConsensusConnection(
-			std::shared_ptr<IOChannel> iochannel, PrimaryDelegate* primary,
-			MessageValidator& validator, const DelegateIdentities& ids) override;
+			std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
 
 private:
     std::shared_ptr<PrePrepare>  _cur_epoch; 	///< Currently handled epoch
