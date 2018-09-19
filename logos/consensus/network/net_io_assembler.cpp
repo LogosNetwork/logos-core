@@ -60,6 +60,12 @@ void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size
 
     _buffer_size += size;
 
+    if(_buffer_size == BUFFER_CAPACITY)
+    {
+        BOOST_LOG(_log) << "NetIOAssembler - Error: Buffer"
+                        << " size has reached capacity.";
+    }
+
     ReadBytes(_callback, _bytes_to_read, true);
 }
 
