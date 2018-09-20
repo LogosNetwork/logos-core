@@ -96,7 +96,6 @@ protected:
             std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
 
     Connections        _connections;
-    PersistenceManager _persistence_manager;
     DelegateKeyStore & _key_store;
     MessageValidator & _validator;
     logos::alarm &     _alarm;

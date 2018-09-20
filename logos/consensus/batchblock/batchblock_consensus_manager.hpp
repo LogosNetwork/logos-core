@@ -33,6 +33,8 @@ public:
                                MessageValidator & validator)
         : Manager(service, store, alarm, log,
                   config, key_store, validator)
+        , _persistence_manager(store, log)
+
     {}
 
     ~BatchBlockConsensusManager() = default;
@@ -126,4 +128,5 @@ private:
     bool           _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
     BlockBuffer    _buffer;                        ///< Buffered state blocks.
     RequestHandler _handler;                       ///< Queue of batch state blocks.
+    PersistenceManager _persistence_manager;       ///< Database interface and request validation
 };

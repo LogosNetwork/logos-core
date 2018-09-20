@@ -38,7 +38,20 @@ public:
     virtual void CommitToDatabase(const Epoch&) = 0;
 };
 
-/// Container for epoch/microblock handling related classes
+/// Container for Epoch/MicroBlock handling, Event proposing, Voting manager, and
+/// Recall handler
+/// Archiver
+/// - starts MicroBlock and Epoch Transition timers
+/// - provides bridge between consensus and handlers via IArchiverMicroBlockHandler
+///     and IArchiverEpochHandler, where each handler implements validation
+///     and database update
+/// - ties handlers to EventProposer; i.e. when the last MicroBlock is committed to
+///   the database, the archiver calls EventProposer::ProposeEpoch to start
+///   creation of the Epoch block
+/// - interfaces to VotingManager to validate delegates in the proposed Epoch block
+///   and fetch delegates for the proposed Epoch block
+/// - interfaces to recall handler to check whether a recall happened in the
+///   current epoch
 class Archiver : public IArchiverEpochHandler,
                  public IArchiverMicroBlockHandler
 {

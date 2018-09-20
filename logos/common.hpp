@@ -260,7 +260,7 @@ public:
 };
 struct genesis_delegate
 {
-   logos::keypair   key;
+   logos::keypair   key; ///< EDDSA key for signing Micro/Epoch blocks (TBD, should come from wallet)
    uint64_t        _vote;
    uint64_t        _stake;
 };

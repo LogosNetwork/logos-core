@@ -17,7 +17,6 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
                                                    DelegateKeyStore & key_store,
                                                    MessageValidator & validator)
     : PrimaryDelegate(validator)
-    , _persistence_manager(store, log)
     , _key_store(key_store)
     , _validator(validator)
     , _alarm(alarm)
