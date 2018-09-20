@@ -109,7 +109,7 @@ MicroBlockHandler::SlowMerkleTree(
 /// Microblock cut off time is calculated as Tc = TEi + Mi * 10 where TEi is the i-th epoch (previous epoch),
 /// Mi is current microblock sequence number
 bool
-MicroBlockHandler::BuildMicroBlock(
+MicroBlockHandler::Build(
     MicroBlock &block,
     bool last_micro_block)
 {
@@ -174,7 +174,7 @@ MicroBlockHandler::BuildMicroBlock(
 }
 
 bool
-MicroBlockHandler::VerifyMicroBlock(
+MicroBlockHandler::Validate(
         const MicroBlock &block)
 {
     BlockHash hash = block.Hash();

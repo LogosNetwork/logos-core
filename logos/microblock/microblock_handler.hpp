@@ -36,19 +36,12 @@ public:
     /// Class distructor
     virtual ~MicroBlockHandler() {}
 
-    /// Start periodic microblock processing
-    /// called by node::start
-    /// @param callback function that takes as the argument generated microblock
-    void Start(
-        std::function<void(std::shared_ptr<MicroBlock>)>
-    );
-
     /// Build the block, called periodically by node
     /// Could be called by any delegate
     /// @param block to build [in|out]
     /// @param last_micro_block last microblock in the poch [in]
     /// @returns true on success
-    bool BuildMicroBlock(MicroBlock &block, bool last_micro_block);
+    bool Build(MicroBlock &block, bool last_micro_block);
 
     /// Verify this microblock either exists or can be built and matches this block
     /// @param block to verify [in]
@@ -56,7 +49,7 @@ public:
     /// 1. exists and matches; 2. doesn't exist but all data matches 3. doesn't exist and there is
     /// a different block matching the same parent. 4. doesn't exist and there is no parent that this
     /// block references, the block # is ahead of the current block #.)
-    bool VerifyMicroBlock(const MicroBlock &block);
+    bool Validate(const MicroBlock &block);
 
     /// Verify this microblock either exists or can be built and matches this block
     /// @param block to save to the database [in]

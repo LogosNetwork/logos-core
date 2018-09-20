@@ -64,6 +64,8 @@ void ConsensusConnection<CT>::OnData()
                             << " message type";
             break;
         default:
+            BOOST_LOG(_log) << "ConsensusConnection - Error - Received invalid message type "
+                            << (int)(_receive_buffer.data()[1]);
             break;
     }
 }

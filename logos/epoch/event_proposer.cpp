@@ -18,13 +18,13 @@ EventProposer::Start(
     TransitionCb tcb,
     EpochCb ecb)
 {
-    ProposeMicroblock(mcb);
+    ProposeMicroBlock(mcb);
     ProposeTransition(tcb);
     _epoch_cb = ecb;
 }
 
 void
-EventProposer::ProposeMicroblockOnce(MicroCb cb, std::chrono::seconds lapse)
+EventProposer::ProposeMicroBlockOnce(MicroCb cb, std::chrono::seconds lapse)
 {
     _alarm.add(std::chrono::steady_clock::now() + lapse, [this, cb]()mutable->void{
         cb();
@@ -40,7 +40,7 @@ EventProposer::ProposeTransitionOnce(TransitionCb cb, std::chrono::seconds lapse
 }
 
 void
-EventProposer::ProposeMicroblock(MicroCb cb)
+EventProposer::ProposeMicroBlock(MicroCb cb)
 {
     EpochTimeUtil util;
 
@@ -48,7 +48,7 @@ EventProposer::ProposeMicroblock(MicroCb cb)
     _skip_micro_block = false;
     _alarm.add(std::chrono::steady_clock::now() + lapse, [this, cb]()mutable->void{
         cb();
-        ProposeMicroblock(cb);
+        ProposeMicroBlock(cb);
     });
 }
 

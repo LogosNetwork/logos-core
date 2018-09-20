@@ -47,7 +47,7 @@ public:
 
     /// Build Epoch block
     /// @param block build the block [in|out]
-    void BuildEpochBlock(Epoch&);
+    void Build(Epoch&);
 
 private:
     BlockStore &            _store;          ///< reference to block store

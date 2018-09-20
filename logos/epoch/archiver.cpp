@@ -26,7 +26,7 @@ Archiver::Start(IInternalConsensusCb &consensus)
     auto micro_cb = [this, &consensus](){
         EpochTimeUtil util;
         auto micro_block = std::make_shared<MicroBlock>();
-       _micro_block_handler.BuildMicroBlock(*micro_block, util.IsEpochTime());
+       _micro_block_handler.Build(*micro_block, util.IsEpochTime());
 
         if (IsPrimaryDelegate(micro_block->previous)) {
             BOOST_LOG(_log) << "Archiver::Start MICROBLOCK IS SENT TO CONSENSUS delegate " <<
@@ -41,7 +41,7 @@ Archiver::Start(IInternalConsensusCb &consensus)
     auto epoch_cb = [this, &consensus]()->void
     {
         auto epoch = std::make_shared<Epoch>();
-        _epoch_handler.BuildEpochBlock(*epoch);
+        _epoch_handler.Build(*epoch);
 
         if (IsPrimaryDelegate(epoch->previous)) {
             BOOST_LOG(_log) << "Archiver::Start EPOCH IS SENT TO CONSENSUS delegate " <<
@@ -63,9 +63,9 @@ Archiver::Start(IInternalConsensusCb &consensus)
 void
 Archiver::Test_ProposeMicroBlock(IInternalConsensusCb &consensus, bool last_microblock)
 {
-    _event_proposer.ProposeMicroblockOnce([this, &consensus, last_microblock]()->void {
+    _event_proposer.ProposeMicroBlockOnce([this, &consensus, last_microblock]()->void {
         auto micro_block = std::make_shared<MicroBlock>();
-        _micro_block_handler.BuildMicroBlock(*micro_block, last_microblock);
+        _micro_block_handler.Build(*micro_block, last_microblock);
         consensus.OnSendRequest(micro_block);
     });
 }

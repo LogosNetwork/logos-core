@@ -77,7 +77,7 @@ public:
     /// @returns true if validated
     bool Validate(const MicroBlock& block) override
     {
-        return _micro_block_handler.VerifyMicroBlock(block);
+        return _micro_block_handler.Validate(block);
     }
 
     /// Commit micro block to the database, propose epoch

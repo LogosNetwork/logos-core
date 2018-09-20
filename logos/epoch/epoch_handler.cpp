@@ -70,7 +70,7 @@ EpochHandler::ApplyUpdates(
 }
 
 void
-EpochHandler::BuildEpochBlock(Epoch &epoch)
+EpochHandler::Build(Epoch &epoch)
 {
     BlockHash previous_epoch_hash;
     BlockHash previous_micro_block_hash;

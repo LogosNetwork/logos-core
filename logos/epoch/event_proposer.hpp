@@ -34,12 +34,12 @@ public:
 
     /// Generates periodic event to propose microblock
     /// @param mcb callback to call when the event occurs [in]
-    void ProposeMicroblock(MicroCb mcb);
+    void ProposeMicroBlock(MicroCb mcb);
 
     /// Generates one off event to propose microblock
     /// @param mcb callback to call when the event occurs [in]
     /// @param seconds generate event seconds from now [in]
-    void ProposeMicroblockOnce(MicroCb mcb, std::chrono::seconds seconds = std::chrono::seconds(0));
+    void ProposeMicroBlockOnce(MicroCb mcb, std::chrono::seconds seconds = std::chrono::seconds(0));
 
     /// Generates periodic event to propose epoch transition
     /// @param tcb callback to call when the event occurs [in]
