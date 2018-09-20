@@ -15,18 +15,28 @@ EpochHandler::Validate(
     logos::account_info info;
     if (_store.account_get(epoch._account, info))
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock account doesn't exist " <<
+        BOOST_LOG(_log) << "EpochHandler::Validate account doesn't exist " <<
                         epoch._account.to_account();
         return false;
     }
 
-    assert(false == _store.epoch_tip_get(previous_epoch_hash));
-    assert(false == _store.epoch_get(previous_epoch_hash, previous_epoch));
+    if (_store.epoch_tip_get(previous_epoch_hash))
+    {
+        BOOST_LOG(_log) << "EpochHandler::Validate failed to get epoch tip";
+        return false;
+    }
+
+    if (_store.epoch_get(previous_epoch_hash, previous_epoch))
+    {
+        BOOST_LOG(_log) << "EpochHandler::Validate failed to get epoch: " <<
+            previous_epoch_hash.to_string();
+        return false;
+    }
 
     // verify epoch number = previous + 1
     if (epoch._epoch_number != (previous_epoch._epoch_number + 1))
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock account invalid epoch number " <<
+        BOOST_LOG(_log) << "EpochHandler::Validate account invalid epoch number " <<
                         epoch._epoch_number << " " << previous_epoch._epoch_number;
         return false;
     }
@@ -35,19 +45,19 @@ EpochHandler::Validate(
     BlockHash micro_block_tip;
     if (_store.micro_block_tip_get(micro_block_tip) || epoch._micro_block_tip != micro_block_tip)
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock previous micro block doesn't exist " <<
+        BOOST_LOG(_log) << "EpochHandler::Validate previous micro block doesn't exist " <<
                         epoch._micro_block_tip.to_string() << " " << micro_block_tip.to_string();
         return false;
     }
 
     if (!_voting_manager.ValidateEpochDelegates(epoch._delegates))
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock invalid deligates ";
+        BOOST_LOG(_log) << "EpochHandler::Validate invalid deligates ";
         return false;
     }
 
     // verify transaction fee pool? TBD
-    BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock  WARNING TRANSACTION POOL IS NOT VALIDATED";
+    BOOST_LOG(_log) << "EpochHandler::Validate  WARNING TRANSACTION POOL IS NOT VALIDATED";
 
     return true;
 }
@@ -69,7 +79,7 @@ EpochHandler::ApplyUpdates(
     return epoch_hash;
 }
 
-void
+bool
 EpochHandler::Build(Epoch &epoch)
 {
     BlockHash previous_epoch_hash;
@@ -77,10 +87,31 @@ EpochHandler::Build(Epoch &epoch)
     Epoch previous_epoch;
     MicroBlock last_micro_block;
 
-    assert(false == _store.epoch_tip_get(previous_epoch_hash));
-    assert(false == _store.epoch_get(previous_epoch_hash, previous_epoch));
-    assert(false == _store.micro_block_tip_get(previous_micro_block_hash));
-    assert(false == _store.micro_block_get(previous_micro_block_hash, last_micro_block));
+    if (_store.epoch_tip_get(previous_epoch_hash))
+    {
+        BOOST_LOG(_log) << "EpochHandler::Build failed to get epoch tip";
+        return false;
+    }
+
+    if (_store.epoch_get(previous_epoch_hash, previous_epoch))
+    {
+        BOOST_LOG(_log) << "EpochHandler::Build failed to get epoch: " <<
+            previous_epoch_hash.to_string();
+        return false;
+    }
+
+    if (_store.micro_block_tip_get(previous_micro_block_hash))
+    {
+        BOOST_LOG(_log) << "EpochHandler::Build failed to get micro block tip";
+        return false;
+    }
+
+    if (_store.micro_block_get(previous_micro_block_hash, last_micro_block))
+    {
+        BOOST_LOG(_log) << "EpochHandler::Build failed to get micro block: " <<
+            previous_micro_block_hash.to_string();
+        return false;
+    }
 
     epoch.previous = previous_epoch_hash;
     epoch._account = logos::genesis_delegates[_delegate_id].key.pub;
@@ -90,4 +121,6 @@ EpochHandler::Build(Epoch &epoch)
     epoch._transaction_fee_pool = 0; // where does it come from?
     epoch._signature = logos::sign_message(logos::genesis_delegates[_delegate_id].key.prv,
                                            logos::genesis_delegates[_delegate_id].key.pub, epoch.hash());
+
+    return true;
 }

@@ -18,8 +18,9 @@ struct Delegate
     uint64_t        _stake;
 };
 
-/// A epoch block is proposed after every epoch to summarize the epoch. 
-/// It includes the summary of all the successful delegate consensus sessions.
+/// A epoch block is proposed after the last micro block.
+/// Like micro blocks, epoch block is used for checkpointing and boostrapping.
+/// In addition, it enables delegates transition and facilitates governance.
 struct Epoch : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Epoch>
 {
     using BlockHash = logos::block_hash;

@@ -67,8 +67,8 @@ EpochTimeUtil::IsEpochTime()
 {
     time_t rawtime;
     struct tm gmt;
-    static int min = MICROBLOCK_PROPOSAL_TIME * 60 - LOCAL_CLOCK_DRIFT;
-    static int max = MICROBLOCK_PROPOSAL_TIME * 60 + LOCAL_CLOCK_DRIFT;
+    static int min = MICROBLOCK_PROPOSAL_TIME * 60 - CLOCK_DRIFT;
+    static int max = MICROBLOCK_PROPOSAL_TIME * 60 + CLOCK_DRIFT;
 
     time(&rawtime);
     assert(gmtime_r(&rawtime, &gmt) != NULL);

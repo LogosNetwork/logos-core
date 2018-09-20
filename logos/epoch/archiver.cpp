@@ -26,7 +26,11 @@ Archiver::Start(IInternalConsensusCb &consensus)
     auto micro_cb = [this, &consensus](){
         EpochTimeUtil util;
         auto micro_block = std::make_shared<MicroBlock>();
-       _micro_block_handler.Build(*micro_block, util.IsEpochTime());
+       if (false == _micro_block_handler.Build(*micro_block, util.IsEpochTime()))
+       {
+           BOOST_LOG(_log) << "Archiver::Start failed to build micro block";
+           return;
+       }
 
         if (IsPrimaryDelegate(micro_block->previous)) {
             BOOST_LOG(_log) << "Archiver::Start MICROBLOCK IS SENT TO CONSENSUS delegate " <<
@@ -41,7 +45,11 @@ Archiver::Start(IInternalConsensusCb &consensus)
     auto epoch_cb = [this, &consensus]()->void
     {
         auto epoch = std::make_shared<Epoch>();
-        _epoch_handler.Build(*epoch);
+        if (false == _epoch_handler.Build(*epoch))
+        {
+            BOOST_LOG(_log) << "Archiver::Start failed to build epoch block";
+            return;
+        }
 
         if (IsPrimaryDelegate(epoch->previous)) {
             BOOST_LOG(_log) << "Archiver::Start EPOCH IS SENT TO CONSENSUS delegate " <<
@@ -54,7 +62,7 @@ Archiver::Start(IInternalConsensusCb &consensus)
     };
 
     auto transition_cb = [this](){
-        BOOST_LOG(_log) << "Archiver::Start " << "EPOCH TRANSITION IS NOT IMPLEMENTED";
+        BOOST_LOG(_log) << "Archiver::Start EPOCH TRANSITION IS NOT IMPLEMENTED";
     };
 
     _event_proposer.Start(micro_cb, transition_cb, epoch_cb);
@@ -65,7 +73,11 @@ Archiver::Test_ProposeMicroBlock(IInternalConsensusCb &consensus, bool last_micr
 {
     _event_proposer.ProposeMicroBlockOnce([this, &consensus, last_microblock]()->void {
         auto micro_block = std::make_shared<MicroBlock>();
-        _micro_block_handler.Build(*micro_block, last_microblock);
+        if (false == _micro_block_handler.Build(*micro_block, last_microblock))
+        {
+            BOOST_LOG(_log) << "Archiver::Test_ProposeMicroBlock faile to build micro block";
+            return;
+        }
         consensus.OnSendRequest(micro_block);
     });
 }
@@ -114,8 +126,18 @@ Archiver::IsFirstEpoch(BlockStore &store)
     BlockHash hash;
     Epoch epoch;
 
-    assert(false == store.epoch_tip_get(hash));
-    assert(false == store.epoch_get(hash, epoch));
+    if (store.epoch_tip_get(hash))
+    {
+        BOOST_LOG(_log) << "Archiver::IsFirstEpoch failed to get epoch tip";
+        return false;
+    }
+
+    if (store.epoch_get(hash, epoch))
+    {
+        BOOST_LOG(_log) << "Archiver::IsFirstEpoch failed to get epoch: " <<
+            hash.to_string();
+        return false;
+    }
 
     return epoch._epoch_number == GENESIS_EPOCH;
 }

@@ -9,12 +9,7 @@
 
 using BlockHash = logos::block_hash;
 
-/// Microblocks are used for checkpointing and boostrapping. Microblock proposal time is every 20 minutes. 
-/// Microblock cut off time is 10 minutes. Microblock previous always references the previous microblock. 
-/// The last microblock (#720) in current epoch triggers generation of the next epoch.
-/// Primary delegate is the first one to propose the microblock. 
-/// If primary delegate fails to propose then next in line delegate (based on the voting power) proposes
-/// the microblock. 
+/// Microblocks are used for checkpointing and bootstrapping.
 struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::MicroBlock> {
     MicroBlock()
         : MessageHeader(0)

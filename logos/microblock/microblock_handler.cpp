@@ -74,7 +74,7 @@ MicroBlockHandler::SlowMerkleTree(
         BlockHash hash;
     };
     array<vector<pair>, NUM_DELEGATES> entries;
-    uint64_t min_timestamp = GetStamp() + LOCAL_CLOCK_DRIFT * 1000;
+    uint64_t min_timestamp = GetStamp() + CLOCK_DRIFT * 1000;
 
     // frist get hashes and timestamps of all blocks; and min timestamp to use as the base
     WalkBatchBlocks(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable->void{
@@ -116,8 +116,17 @@ MicroBlockHandler::Build(
     BlockHash previous_micro_block_hash;
     MicroBlock previous_micro_block;
 
-    assert(false == _store.micro_block_tip_get(previous_micro_block_hash));
-    assert(false == _store.micro_block_get(previous_micro_block_hash, previous_micro_block));
+    if (_store.micro_block_tip_get(previous_micro_block_hash))
+    {
+        BOOST_LOG(_log) << "MicroBlockHandler::Build failed to get micro block tip";
+        return false;
+    }
+    if (_store.micro_block_get(previous_micro_block_hash, previous_micro_block))
+    {
+        BOOST_LOG(_log) << "MicroBlockHandler::Build failed to get micro block: " <<
+            previous_micro_block_hash.to_string();
+        return false;
+    }
 
     // collect current batch block tips
     BatchTips start = {0};
@@ -143,15 +152,26 @@ MicroBlockHandler::Build(
 
     // should be allowed to have no blocks so at least it doesn't crash
     // for instance the node is disconnected for a while
-    //assert (block._number_batch_blocks != 0);
+    // (block._number_batch_blocks != 0);
 
     // should it be allowed to have no tips? same as above, i.e disconnected for a while
-    //assert(std::count(block._tips.begin(), block._tips.end(), 0) == 0);
+    // (std::count(block._tips.begin(), block._tips.end(), 0) == 0);
 
     Epoch epoch;
     BlockHash hash;
-    assert(false == _store.epoch_tip_get(hash));
-    assert(false == _store.epoch_get(hash, epoch));
+    if (_store.epoch_tip_get(hash))
+    {
+        BOOST_LOG(_log) << "MicroBlockHandler::Build failed to get epoch tip";
+        return false;
+    }
+
+    if (_store.epoch_get(hash, epoch))
+    {
+        BOOST_LOG(_log) << "MicroBlockHandler::Build failed to get epoch: " <<
+            hash.to_string();
+        return false;
+    }
+
     // first micro block in this epoch
     bool first_micro_block = epoch._micro_block_tip == previous_micro_block_hash;
 
@@ -205,8 +225,18 @@ MicroBlockHandler::Validate(
         return false;
     }
 
-    assert(false == _store.epoch_tip_get(hash));
-    assert(false == _store.epoch_get(hash, current_epoch));
+    if (_store.epoch_tip_get(hash))
+    {
+        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get epoch tip";
+        return false;
+    }
+
+    if (_store.epoch_get(hash, current_epoch))
+    {
+        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get epoch: " <<
+            hash.to_string();
+        return false;
+    }
 
     // previous and proposed microblock are in the same epoch
     if (block._epoch_number == previous_microblock._epoch_number)
@@ -236,7 +266,7 @@ MicroBlockHandler::Validate(
             MICROBLOCK_CUTOFF_TIME * 60; //sec
     bool is_test_network = (logos::logos_network == logos::logos_networks::logos_test_network);
     if (!is_test_network && (current_epoch._epoch_number != GENESIS_EPOCH || block._micro_block_number > 0) &&
-            (!_recall_handler.IsRecall() && abs(tdiff) > LOCAL_CLOCK_DRIFT ||
+            (!_recall_handler.IsRecall() && abs(tdiff) > CLOCK_DRIFT ||
              _recall_handler.IsRecall() && block.timestamp <= previous_microblock.timestamp))
     {
         BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock bad timestamp block ts:" << block.timestamp <<

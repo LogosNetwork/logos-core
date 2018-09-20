@@ -19,10 +19,20 @@ EpochVotingManager::GetNextEpochDelegates(
     std::unordered_map<logos::public_key,bool> all_delegates;
 
     // get all delegate in the previous 3 epochs
-    assert(false == _store.epoch_tip_get(hash));
+    if (_store.epoch_tip_get(hash))
+    {
+        BOOST_LOG(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch tip";
+        return;
+    }
+
     for (int e = 0; e < num_epochs; ++e)
     {
-        assert(false == _store.epoch_get(hash, previous_epochs[e]));
+        if (_store.epoch_get(hash, previous_epochs[e]))
+        {
+            BOOST_LOG(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch: " <<
+                hash.to_string();
+            return;
+        }
         hash = previous_epochs[e].previous;
         for (int i = 0, d = 0; i < NUM_DELEGATES; ++i)
         {
