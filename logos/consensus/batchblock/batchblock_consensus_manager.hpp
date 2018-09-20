@@ -4,6 +4,7 @@
 #pragma once
 
 #include <logos/consensus/batchblock/secondary_request_handler.hpp>
+#include <logos/consensus/batchblock/bb_consensus_connection.hpp>
 #include <logos/consensus/batchblock/request_handler.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 
@@ -12,6 +13,7 @@ class RequestPromoter
 public:
 
     virtual void OnRequestReady(std::shared_ptr<logos::state_block> block) = 0;
+    virtual void OnPostCommit(const BatchStateBlock & block) = 0;
 
     virtual ~RequestPromoter() {}
 };
@@ -58,6 +60,11 @@ public:
     void BufferComplete(logos::process_return & result);
 
     void OnRequestReady(std::shared_ptr<logos::state_block> block) override;
+    void OnPostCommit(const BatchStateBlock & block) override;
+
+    std::shared_ptr<PrequelParser>
+    BindIOChannel(std::shared_ptr<IOChannel>,
+                  const DelegateIdentities &) override;
 
 protected:
 

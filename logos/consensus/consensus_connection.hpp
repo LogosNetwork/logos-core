@@ -101,6 +101,8 @@ protected:
     void StoreResponse(const Prepare & message);
     void StoreResponse(const Commit & message);
 
+    virtual void OnPostCommit(const PrePrepare & message);
+
     std::shared_ptr<IOChannel>  _iochannel;
     ReceiveBuffer               _receive_buffer;
     std::shared_ptr<PrePrepare> _cur_pre_prepare;

@@ -64,7 +64,6 @@ public:
 
     virtual ~ConsensusManager() {}
 
-    virtual
     std::shared_ptr<PrequelParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) override;

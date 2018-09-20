@@ -1,5 +1,6 @@
 #pragma once
 
+#include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/blocks.hpp>
 
 #include <unordered_map>
@@ -58,7 +59,7 @@ public:
 
     void OnRequest(std::shared_ptr<logos::state_block> block);
 
-    void OnPostCommit();
+    void OnPostCommit(const BatchStateBlock & block);
 
     void OnRequestDone(const logos::block_hash & hash) override;
     void OnRequestReady(const logos::block_hash & hash) override;

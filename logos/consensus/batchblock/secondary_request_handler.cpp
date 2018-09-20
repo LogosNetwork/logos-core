@@ -61,9 +61,21 @@ void SecondaryRequestHandler::OnRequest(std::shared_ptr<logos::state_block> bloc
                       std::forward_as_tuple(_service, block, this));
 }
 
-void SecondaryRequestHandler::OnPostCommit()
+void SecondaryRequestHandler::OnPostCommit(const BatchStateBlock & block)
 {
-    std::lock_guard<std::mutex> lock(_mutex);
+    for(uint64_t i = 0; i < block.block_count; ++i)
+    {
+        auto hash = block.blocks[i].hash();
+        if(_requests.find(hash) != _requests.end())
+        {
+            BOOST_LOG(_log) << "SecondaryRequestHandler::OnPostCommit - "
+                            << "Removing request with hash: "
+                            << hash.to_string();
+
+            std::lock_guard<std::mutex> lock(_mutex);
+            _requests.erase(hash);
+        }
+    }
 
 }
 

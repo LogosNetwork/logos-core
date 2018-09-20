@@ -148,7 +148,9 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
     {
         assert(_cur_pre_prepare);
 
+        OnPostCommit(*_cur_pre_prepare);
         ApplyUpdates(*_cur_pre_prepare, _delegate_ids.remote);
+
         _state = ConsensusState::VOID;
     }
 }
@@ -250,6 +252,10 @@ void ConsensusConnection<CT>::StoreResponse(const Commit & message)
 {
     _cur_commit.reset(new Commit(message));
 }
+
+template<ConsensusType CT>
+void ConsensusConnection<CT>::OnPostCommit(const PrePrepare & message)
+{}
 
 template<ConsensusType CT>
 void ConsensusConnection<CT>::OnPrequel(const uint8_t *data)

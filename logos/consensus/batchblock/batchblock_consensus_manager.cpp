@@ -52,6 +52,27 @@ BatchBlockConsensusManager::OnRequestReady(
 }
 
 void
+BatchBlockConsensusManager::OnPostCommit(
+        const BatchStateBlock & block)
+{
+    _secondary_handler.OnPostCommit(block);
+}
+
+std::shared_ptr<PrequelParser>
+BatchBlockConsensusManager::BindIOChannel(
+        std::shared_ptr<IOChannel> iochannel,
+        const DelegateIdentities & ids)
+{
+    auto connection =
+            std::make_shared<BBConsensusConnection>(
+                    iochannel, this, this, _persistence_manager,
+                    _validator, ids);
+
+    _connections.push_back(connection);
+    return connection;
+}
+
+void
 BatchBlockConsensusManager::SendBufferedBlocks()
 {
     logos::process_return unused;
