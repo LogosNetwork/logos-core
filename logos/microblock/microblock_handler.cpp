@@ -22,10 +22,17 @@ MicroBlockHandler::BatchBlocksIterator(
     {
         BlockHash hash = start[delegate];
         BatchStateBlock batch;
-        for (bool not_found = _store.batch_block_get(hash, batch);
+        bool not_found = false;
+        for (not_found = _store.batch_block_get(hash, batch);
              !not_found && hash != end[delegate];
              hash = batch.previous, not_found = _store.batch_block_get(hash, batch)) {
             batchblock_receiver(delegate, batch);
+        }
+        if (not_found && hash != 0)
+        {
+            BOOST_LOG(_log) << "MicroBlockHander::BatchBlocksIterator failed to get batch state block: " <<
+                hash.to_string();
+            return;
         }
     }
 }
@@ -38,7 +45,7 @@ MicroBlockHandler::FastMerkleTree(
     uint &num_blocks,
     uint64_t timestamp)
 {
-   uint64_t cutoff_msec = timestamp + MICROBLOCK_CUTOFF_TIME * 60 *1000;
+   uint64_t cutoff_msec = GetCutOffTimeMsec(timestamp);
    return merkle::MerkleHelper([&](merkle::HashReceiverCb element_receiver)->void {
        BatchBlocksIterator(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable -> void {
           if (batch.timestamp < cutoff_msec)
@@ -80,7 +87,7 @@ MicroBlockHandler::SlowMerkleTree(
 
     // iterate over all blocks, selecting the ones that less then cutoff time
     // and calcuate the merkle root with the MerkleHelper
-    uint64_t cutoff_msec = min_timestamp + MICROBLOCK_CUTOFF_TIME * 60 *1000;
+    uint64_t cutoff_msec = GetCutOffTimeMsec(min_timestamp);
 
     return merkle::MerkleHelper([&](merkle::HashReceiverCb element_receiver)->void {
         for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate) {

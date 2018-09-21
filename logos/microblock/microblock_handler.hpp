@@ -95,6 +95,14 @@ private:
     /// @returns Merkle root
     BlockHash SlowMerkleTree(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks);
 
+    /// Get microblock cut-off time in milliseconds
+    /// @param timestamp the base time stamp
+    /// @returns cut-off time
+    uint64_t GetCutOffTimeMsec(const uint64_t timestamp)
+    {
+        return (timestamp + MICROBLOCK_CUTOFF_TIME * 60 *1000);
+    }
+
     BlockStore &            _store; 		    ///< reference to the block store
     uint8_t                 _delegate_id;       ///< local delegate id
     IRecallHandler &        _recall_handler;    ///< recall handler reference
