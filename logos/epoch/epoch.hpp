@@ -55,14 +55,14 @@ public:
 
     /// Calculate epoch's block hash
     BlockHash Hash() const {
-        return ::Hash([&](HashCb cb)mutable->void {
+        return merkle::Hash([&](HashCb cb)mutable->void {
             ProposerHash(cb);
         });
     }
     /// Calculate epoch's block hash
     BlockHash hash() const
     {
-        return ::Hash([&](HashCb cb)mutable->void {
+        return merkle::Hash([&](HashCb cb)mutable->void {
             ProposerHash(cb);
         });
     }

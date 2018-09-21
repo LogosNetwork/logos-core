@@ -13,10 +13,10 @@
 using namespace logos;
 
 void
-MicroBlockHandler::WalkBatchBlocks(
+MicroBlockHandler::BatchBlocksIterator(
     const BatchTips &start,
     const BatchTips &end,
-    std::function<void(uint8_t, const BatchStateBlock&)> cb)
+    IteratorBatchBlockReceiverCb batchblock_receiver)
 {
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
     {
@@ -25,14 +25,11 @@ MicroBlockHandler::WalkBatchBlocks(
         for (bool not_found = _store.batch_block_get(hash, batch);
              !not_found && hash != end[delegate];
              hash = batch.previous, not_found = _store.batch_block_get(hash, batch)) {
-            cb(delegate, batch);
+            batchblock_receiver(delegate, batch);
         }
     }
 }
 
-/// If the previous microblock has the time stamp (any microblock after the genesis block)
-/// then can just walk the batch blocks and select the onces that are less than the
-/// cutoff time
 BlockHash
 MicroBlockHandler::FastMerkleTree(
     const BatchTips &start,
@@ -42,8 +39,8 @@ MicroBlockHandler::FastMerkleTree(
     uint64_t timestamp)
 {
    uint64_t cutoff_msec = timestamp + MICROBLOCK_CUTOFF_TIME * 60 *1000;
-   return MerkleHelper([&](function<void(const BlockHash&)> cb)->void {
-       WalkBatchBlocks(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable -> void {
+   return merkle::MerkleHelper([&](merkle::HashReceiverCb element_receiver)->void {
+       BatchBlocksIterator(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable -> void {
           if (batch.timestamp < cutoff_msec)
           {
               BlockHash hash = batch.Hash();
@@ -52,16 +49,12 @@ MicroBlockHandler::FastMerkleTree(
                   tips[delegate] = hash;
               }
               num_blocks++;
-              cb(hash);
+              element_receiver(hash);
           }
        });
    });
 }
 
-/// The first after genesis microblock doesn't have the previous time stamp reference
-/// because genesis blocks have to have 0 timestamp so all nodes have the same hash
-/// Therefore the approach is to collect all batch blocks and use the oldest time stamp
-/// as the reference. Then filter collected batch blocks based on the time stamp
 BlockHash
 MicroBlockHandler::SlowMerkleTree(
     const BatchTips &start,
@@ -77,7 +70,7 @@ MicroBlockHandler::SlowMerkleTree(
     uint64_t min_timestamp = GetStamp() + CLOCK_DRIFT * 1000;
 
     // frist get hashes and timestamps of all blocks; and min timestamp to use as the base
-    WalkBatchBlocks(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable->void{
+    BatchBlocksIterator(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable->void{
        entries[delegate].push_back({batch.timestamp, batch.Hash()});
        if (batch.timestamp < min_timestamp)
        {
@@ -89,7 +82,7 @@ MicroBlockHandler::SlowMerkleTree(
     // and calcuate the merkle root with the MerkleHelper
     uint64_t cutoff_msec = min_timestamp + MICROBLOCK_CUTOFF_TIME * 60 *1000;
 
-    return MerkleHelper([&](function<void(const BlockHash&)> cb)->void {
+    return merkle::MerkleHelper([&](merkle::HashReceiverCb element_receiver)->void {
         for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate) {
             for (auto it : entries[delegate]) {
                 if (it.timestamp >= (min_timestamp + cutoff_msec)) {
@@ -100,7 +93,7 @@ MicroBlockHandler::SlowMerkleTree(
                     tips[delegate] = it.hash;
                 }
                 num_blocks++;
-                cb(it.hash);
+                element_receiver(it.hash);
             }
         }
     });
@@ -280,8 +273,8 @@ MicroBlockHandler::Validate(
                            "SOME VALIDATION IS DISABLED";
     }
 
-    BlockHash merkle_root = MerkleHelper([&](function<void(const BlockHash&)> cb)->void{
-        WalkBatchBlocks(block._tips, previous_microblock._tips, [&](uint8_t delegate, const BatchStateBlock &batch)->void{
+    BlockHash merkle_root = merkle::MerkleHelper([&](function<void(const BlockHash&)> cb)->void{
+        BatchBlocksIterator(block._tips, previous_microblock._tips, [&](uint8_t delegate, const BatchStateBlock &batch)->void{
             cb(batch.Hash());
         });
     });

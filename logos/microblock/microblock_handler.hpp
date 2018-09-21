@@ -11,7 +11,9 @@ namespace logos {
 }
 class IRecallHandler;
 
-using BlockStore = logos::block_store;
+using BlockStore                    = logos::block_store;
+using IteratorBatchBlockReceiverCb  = std::function<void(uint8_t, const BatchStateBlock&)>;
+using BatchBlockReceiverCb          = std::function<void(const BatchStateBlock&)>;
 
 /// Handle MicroBlock processing
 class MicroBlockHandler {
@@ -44,11 +46,8 @@ public:
     bool Build(MicroBlock &block, bool last_micro_block);
 
     /// Verify this microblock either exists or can be built and matches this block
-    /// @param block to verify [in]
-    /// @return true if verified (TBD, perhaps enum to address all possible failure scenarios
-    /// 1. exists and matches; 2. doesn't exist but all data matches 3. doesn't exist and there is
-    /// a different block matching the same parent. 4. doesn't exist and there is no parent that this
-    /// block references, the block # is ahead of the current block #.)
+    /// @param block to validate [in]
+    /// @return true if validated
     bool Validate(const MicroBlock &block);
 
     /// Verify this microblock either exists or can be built and matches this block
@@ -63,28 +62,36 @@ public:
 
 private:
 
-    /// Walk delegates' batch block chain
-    /// @param start tips to start the walk [in]
-    /// @param end tips to end the walk [in]
-    /// @param cb function to call for each delegate's batch block
-    void WalkBatchBlocks(const BatchTips &start, const BatchTips &end,
-            std::function<void(uint8_t, const BatchStateBlock&)>);
+    /// Iterates each delegates' batch state block chain.
+    /// @param start tips to start iteration [in]
+    /// @param end tips to end iteration [in]
+    /// @param cb function to call for each delegate's batch state block, the function's argument are
+    ///   delegate id and BatchStateBlock
+    void BatchBlocksIterator(const BatchTips &start, const BatchTips &end, IteratorBatchBlockReceiverCb cb);
 
-    /// Walk delegates' batch block chain
-    /// @param start tips to start the walk [in]
-    /// @param end tips to end the walk [in]
-    /// @param tips foound batch block tips [in]
-    /// @param num_blocks number of selected batch blocks [in]
+    /// Calculate Merkle root and get batch block tips.
+    /// If the previous micro block' time stamp (PMBTS) is not 0 (genesis block time stamp is 0)
+    /// then iterate over delegates batch block chain and select blocks with the time stamp
+    /// less than the PMBTS + micro block cut-off time (10 minutes). Calculate Merkle Tree root
+    /// from the selected blocks.
+    /// @param start tips to start iteration [in]
+    /// @param end tips to end iteration [in]
+    /// @param tips new batch block tips [in|out]
+    /// @param num_blocks number of selected batch blocks [out]
     /// @param timestamp timestamp of the previous microblock [in]
     /// @returns Merkle root
     BlockHash FastMerkleTree(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks,
-            uint64_t timestamp);
+            const uint64_t timestamp);
 
-    /// Calculate Merkle root and get batch block tips
-    /// @param start tips to start the walk [in]
-    /// @param end tips to end the walk [in]
-    /// @param tips foound batch block tips [in]
-    /// @param num_blocks number of selected batch blocks [in]
+    /// Calculate Merkle root and get batch block tips.
+    /// Genesis micro block time stamp is 0. Therefore, the first micro block following the genesis
+    /// micro block has to collect all batch state blocks from the current batch state block tips
+    /// and find the oldest time stamp (OTS) of these blocks. Then the algorithm is as above
+    /// with OTS replacing PMBTS.
+    /// @param start tips to start iteration [in]
+    /// @param end tips to end iteration [in]
+    /// @param tips new batch block tips [in|out]
+    /// @param num_blocks number of selected batch blocks [out]
     /// @returns Merkle root
     BlockHash SlowMerkleTree(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks);
 
