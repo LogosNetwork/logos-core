@@ -12,10 +12,10 @@ using namespace std;
 
 namespace merkle {
 
-    using HashUpdaterCb         = function<void(const void *, size_t)>;
-    using HashDataProviderCb    = function<void(HashUpdaterCb)>;
-    using HashReceiverCb     = function<void(const logos::block_hash&)>;
-    using HashIteratorProviderCb= function<void(HashReceiverCb)>;
+    using HashUpdaterCb             = function<void(const void *, size_t)>;
+    using HashDataProviderCb        = function<void(HashUpdaterCb)>;
+    using HashReceiverCb            = function<void(const logos::block_hash&)>;
+    using HashIteratorProviderCb    = function<void(HashReceiverCb)>;
 
     /// Calculate blake2 hash.
     /// The caller has to pass in HashDataProviderCb. Hash passes HashUpdaterCb to the

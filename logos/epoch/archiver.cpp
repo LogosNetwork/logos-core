@@ -128,8 +128,10 @@ Archiver::IsFirstEpoch(BlockStore &store)
 
     if (store.epoch_tip_get(hash))
     {
-        BOOST_LOG(_log) << "Archiver::IsFirstEpoch failed to get epoch tip";
-        return false;
+        Log log;
+        BOOST_LOG(log) <<
+            "Archiver::IsFirstEpoch failed to get epoch tip. Genesis blocks are being generated.";
+        return true;
     }
 
     if (store.epoch_get(hash, epoch))

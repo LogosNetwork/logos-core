@@ -21,18 +21,8 @@ EpochConsensusManager::Validate(
     std::shared_ptr<Request> block,
     logos::process_return & result)
 {
-    if (logos::validate_message(block->_account, block->hash(), block->_signature))
-    {
-        BOOST_LOG(_log) << "EpochConsensusManager - Validate, bad signature: "
-                        << block->_signature.to_string()
-                        << " account: " << block->_account.to_string();
-
-        result.code = logos::process_result::bad_signature;
-
-        return false;
-    }
-
     result.code = logos::process_result::progress;
+
     return true;
 }
 

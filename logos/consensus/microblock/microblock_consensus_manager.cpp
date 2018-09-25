@@ -17,16 +17,6 @@ MicroBlockConsensusManager::Validate(
     std::shared_ptr<Request> block,
     logos::process_return & result)
 {
-    if (logos::validate_message(block->_delegate, block->hash(), block->_signature))
-    {
-        BOOST_LOG(_log) << "MicroBlockConsensusManager - Validate, bad signature: "
-                        << block->_signature.to_string()
-                        << " account: " << block->_delegate.to_string();
-
-        result.code = logos::process_result::bad_signature;
-        return false;
-    }
-
     result.code = logos::process_result::progress;
 
     return true;

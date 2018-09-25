@@ -119,8 +119,6 @@ EpochHandler::Build(Epoch &epoch)
     epoch._micro_block_tip = previous_micro_block_hash;
     _voting_manager.GetNextEpochDelegates(epoch._delegates);
     epoch._transaction_fee_pool = 0; // where does it come from?
-    epoch._signature = logos::sign_message(logos::genesis_delegates[_delegate_id].key.prv,
-                                           logos::genesis_delegates[_delegate_id].key.pub, epoch.hash());
 
     return true;
 }

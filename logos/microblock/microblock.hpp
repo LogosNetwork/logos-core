@@ -20,7 +20,6 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
         , _last_micro_block(0)
         , _tips{0}
         , _number_batch_blocks(0)
-        , _signature(0)
         {
             signature={0};
             previous = 0;
@@ -39,6 +38,5 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
     uint8_t             _last_micro_block;      ///< The last microblock in the epoch
     BlockHash           _tips[NUM_DELEGATES];   ///< Delegate's batch block tips
     uint                _number_batch_blocks;   ///< Number of batch blocks in the microblock
-    logos::signature    _signature;             ///< Block proposer's signature
     Signature           signature; 		        ///< Multisignature
 };

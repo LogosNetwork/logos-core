@@ -185,10 +185,6 @@ MicroBlockHandler::Build(
             ? 0
             : previous_micro_block._micro_block_number + 1;
     block._last_micro_block = last_micro_block;
-    BOOST_LOG(_log) << "MicroBlockHandler::BuildMicroBlock SIGNING MICROBLOCK WITH DELEGATE ID " <<
-        (int)_delegate_id << " THIS WILL NOT WORK DURING TRANSITION BECAUSE DELEGATE ID WILL BE DUPLICATE";
-    block._signature = logos::sign_message(genesis_delegates[_delegate_id].key.prv,
-            genesis_delegates[_delegate_id].key.pub, block.Hash());
 
     return true;
 }
@@ -215,7 +211,7 @@ MicroBlockHandler::Validate(
         return false;
     }
 
-    Epoch current_epoch;
+    Epoch previous_epoch;
     MicroBlock previous_microblock;
 
     // previous microblock doesn't exist
@@ -231,7 +227,7 @@ MicroBlockHandler::Validate(
         return false;
     }
 
-    if (_store.epoch_get(hash, current_epoch))
+    if (_store.epoch_get(hash, previous_epoch))
     {
         BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get epoch: " <<
             hash.to_string();
@@ -265,7 +261,7 @@ MicroBlockHandler::Validate(
     int tdiff = ((int64_t)block.timestamp - (int64_t)previous_microblock.timestamp)/1000 -
             MICROBLOCK_CUTOFF_TIME * 60; //sec
     bool is_test_network = (logos::logos_network == logos::logos_networks::logos_test_network);
-    if (!is_test_network && (current_epoch._epoch_number != GENESIS_EPOCH || block._micro_block_number > 0) &&
+    if (!is_test_network && (previous_epoch._epoch_number != GENESIS_EPOCH || block._micro_block_number > 0) &&
             (!_recall_handler.IsRecall() && abs(tdiff) > CLOCK_DRIFT ||
              _recall_handler.IsRecall() && block.timestamp <= previous_microblock.timestamp))
     {
