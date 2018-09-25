@@ -43,18 +43,24 @@ SecondaryRequestHandler::SecondaryRequestHandler(Service & service, RequestPromo
     , _promoter(promoter)
 {}
 
+bool SecondaryRequestHandler::Contains(const logos::block_hash & hash)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    return _requests.find(hash) != _requests.end();
+}
+
 void SecondaryRequestHandler::OnRequest(std::shared_ptr<logos::state_block> block)
 {
     auto hash = block->hash();
 
+    std::lock_guard<std::mutex> lock(_mutex);
     if(_requests.find(hash) != _requests.end())
     {
         BOOST_LOG(_log) << "Ignoring duplicate secondary request with hash: "
                         << hash.to_string();
         return;
     }
-
-    std::lock_guard<std::mutex> lock(_mutex);
 
     _requests.emplace(std::piecewise_construct,
                       std::forward_as_tuple(hash),
@@ -66,13 +72,14 @@ void SecondaryRequestHandler::OnPostCommit(const BatchStateBlock & block)
     for(uint64_t i = 0; i < block.block_count; ++i)
     {
         auto hash = block.blocks[i].hash();
+
+        std::lock_guard<std::mutex> lock(_mutex);
         if(_requests.find(hash) != _requests.end())
         {
             BOOST_LOG(_log) << "SecondaryRequestHandler::OnPostCommit - "
                             << "Removing request with hash: "
                             << hash.to_string();
 
-            std::lock_guard<std::mutex> lock(_mutex);
             _requests.erase(hash);
         }
     }
@@ -88,6 +95,8 @@ void SecondaryRequestHandler::OnRequestDone(const logos::block_hash & hash)
 
 void SecondaryRequestHandler::OnRequestReady(const logos::block_hash & hash)
 {
+    std::lock_guard<std::mutex> lock(_mutex);
+
     auto entry = _requests.find(hash);
 
     if(entry == _requests.end())
@@ -98,8 +107,6 @@ void SecondaryRequestHandler::OnRequestReady(const logos::block_hash & hash)
     }
 
     _promoter->OnRequestReady(entry->second._block);
-
-    std::lock_guard<std::mutex> lock(_mutex);
 
     _requests.erase(hash);
 }

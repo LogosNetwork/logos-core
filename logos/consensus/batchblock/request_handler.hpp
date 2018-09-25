@@ -22,6 +22,8 @@ public:
     bool BatchFull();
     bool Empty();
 
+    bool Contains(const logos::block_hash & hash);
+
 private:
 
     void InsertBlock(std::shared_ptr<logos::state_block> block);

@@ -2517,6 +2517,13 @@ void logos::rpc_handler::process ()
                     response (response_l);
                     break;
                 }
+                case logos::process_result::pending:
+                {
+                    boost::property_tree::ptree response_l;
+                    response_l.put ("result", "Already Pending");
+                    response (response_l);
+                    break;
+                }
                 default:
                 {
                     error_response (response, "Error processing block");

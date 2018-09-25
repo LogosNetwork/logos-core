@@ -761,6 +761,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
     case process_result::buffering_done:
         ret = "Buffering Done";
         break;
+    case process_result::pending:
+        ret = "Already Pending";
+        break;
     }
 
     return ret;

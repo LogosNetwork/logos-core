@@ -57,6 +57,8 @@ public:
 
     SecondaryRequestHandler(Service & service, RequestPromoter * promoter);
 
+    bool Contains(const logos::block_hash & hash);
+
     void OnRequest(std::shared_ptr<logos::state_block> block);
 
     void OnPostCommit(const BatchStateBlock & block);

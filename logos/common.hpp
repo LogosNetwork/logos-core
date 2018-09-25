@@ -225,7 +225,8 @@ enum class process_result
     invalid_block_type,    // Logos - Only allow state blocks
     not_implemented,       // Logos - The block cannot be processed
     buffered,              // Logos - The block has been buffered for benchmarking
-    buffering_done         // Logos - The last block has been buffered and consensus will begin
+    buffering_done,        // Logos - The last block has been buffered and consensus will begin
+    pending                // Logos - The block has already been received and is pending consensus
 };
 
 std::string ProcessResultToString(process_result result);

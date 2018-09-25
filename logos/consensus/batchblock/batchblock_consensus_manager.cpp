@@ -97,6 +97,15 @@ BatchBlockConsensusManager::Validate(
   std::shared_ptr<Request> block,
   logos::process_return & result)
 {
+    auto hash = block->hash();
+
+    if(_handler.Contains(hash) ||
+            _secondary_handler.Contains(hash))
+    {
+        result.code = logos::process_result::pending;
+        return false;
+    }
+
     if(logos::validate_message(block->hashables.account, block->hash(), block->signature))
     {
         BOOST_LOG(_log) << "BatchBlockConsensusManager - Validate, bad signature: " 
