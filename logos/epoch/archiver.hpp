@@ -9,7 +9,7 @@
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/consensus/primary_delegate.hpp>
 
-class IInternalConsensusCb;
+class InternalConsensus;
 class IRecallHandler;
 class MicroBlockTester;
 
@@ -19,21 +19,21 @@ namespace logos
     class block_store;
 }
 
-class IArchiverMicroBlockHandler
+class ArchiverMicroBlockHandler
 {
 public:
     using EpochConsensusCb = std::function<logos::process_return(std::shared_ptr<Epoch>)>;
-    IArchiverMicroBlockHandler() = default;
-    virtual ~IArchiverMicroBlockHandler() = default;
+    ArchiverMicroBlockHandler() = default;
+    virtual ~ArchiverMicroBlockHandler() = default;
     virtual bool Validate(const MicroBlock&) = 0;
     virtual void CommitToDatabase(const MicroBlock&) = 0;
 };
 
-class IArchiverEpochHandler
+class ArchiverEpochHandler
 {
 public:
-    IArchiverEpochHandler() = default;
-    virtual ~IArchiverEpochHandler() = default;
+    ArchiverEpochHandler() = default;
+    virtual ~ArchiverEpochHandler() = default;
     virtual bool Validate(const Epoch&) = 0;
     virtual void CommitToDatabase(const Epoch&) = 0;
 };
@@ -52,8 +52,8 @@ public:
 ///   and fetch delegates for the proposed Epoch block
 /// - interfaces to recall handler to check whether a recall happened in the
 ///   current epoch
-class Archiver : public IArchiverEpochHandler,
-                 public IArchiverMicroBlockHandler
+class Archiver : public ArchiverEpochHandler,
+                 public ArchiverMicroBlockHandler
 {
     friend MicroBlockTester;
 
@@ -70,7 +70,7 @@ public:
 
     /// Start archiving events
     /// @param internal consensus interface reference
-    void Start(IInternalConsensusCb&);
+    void Start(InternalConsensus&);
 
     /// Validate Micro block
     /// @param block micro block to validate
@@ -114,7 +114,7 @@ private:
     /// Used by MicroBlockTester to start microblock generation
     /// @param consensus send microblock for consensus [in]
     /// @param last_microblock last microblock flag
-    void Test_ProposeMicroBlock(IInternalConsensusCb&, bool last_microblock);
+    void Test_ProposeMicroBlock(InternalConsensus&, bool last_microblock);
 
     /// Is this primary delegate
     /// @param hash of the previous block

@@ -5,8 +5,8 @@
 
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
+#include <logos/consensus/network/consensus_netio_manager.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
-#include <logos/consensus/consensus_netio_manager.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
 
@@ -18,11 +18,11 @@ namespace logos
 
 class Archiver;
 
-class IInternalConsensusCb
+class InternalConsensus
 {
 public:
-    IInternalConsensusCb() = default;
-    virtual ~IInternalConsensusCb() = default;
+    InternalConsensus() = default;
+    virtual ~InternalConsensus() = default;
     virtual logos::process_return OnSendRequest(std::shared_ptr<MicroBlock>) = 0;
     virtual logos::process_return OnSendRequest(std::shared_ptr<Epoch>) = 0;
 };
@@ -32,7 +32,7 @@ public:
 /// This class serves as a container for ConsensusManagers
 /// and other consensus-related types and provides an interface
 /// to the node object.
-class ConsensusContainer : public IInternalConsensusCb
+class ConsensusContainer : public InternalConsensus
 {
 
     using Service = boost::asio::io_service;

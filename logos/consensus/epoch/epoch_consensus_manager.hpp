@@ -5,7 +5,7 @@
 
 #include <logos/consensus/consensus_manager.hpp>
 
-class IArchiverEpochHandler;
+class ArchiverEpochHandler;
 
 ///< EpochConsensusManager handles specifics of Epoch consensus
 class EpochConsensusManager: public ConsensusManager<ConsensusType::Epoch>
@@ -17,20 +17,18 @@ public:
 	/// Called by ConsensusContainer.
 	///     @param[in] service reference to boost asio service
 	///     @param[in] store reference to blockstore
-	///     @param[in] alarm reference to alarm
 	///     @param[in] log reference to boost asio log
 	///     @param[in] config reference to ConsensusManagerConfig configuration
 	///     @param[in] key_store delegates public key store
 	///     @param[in] validator validator/signer of consensus messages
 	EpochConsensusManager(Service & service,
 	                      Store & store,
-	                      logos::alarm & alarm,
 	                      Log & log,
 					      const Config & config,
                           DelegateKeyStore & key_store,
                           MessageValidator & validator,
-                          IArchiverEpochHandler & handler)
-		: Manager(service, store, alarm, log,
+                          ArchiverEpochHandler & handler)
+		: Manager(service, store, log,
 				  config, key_store, validator)
 		, _epoch_handler(handler)
 	{
@@ -102,6 +100,6 @@ protected:
 
 private:
     std::shared_ptr<PrePrepare>  _cur_epoch; 	///< Currently handled epoch
-    IArchiverEpochHandler &      _epoch_handler;///< Epoch handler
+    ArchiverEpochHandler &       _epoch_handler;///< Epoch handler
 	int queue;
 };

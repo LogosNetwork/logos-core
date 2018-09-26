@@ -14,11 +14,6 @@
 
 class IOChannel;
 
-namespace logos
-{
-    class alarm;
-}
-
 struct DelegateIdentities
 {
     uint8_t local;
@@ -104,6 +99,8 @@ protected:
 
     void StoreResponse(const Prepare & message);
     void StoreResponse(const Commit & message);
+
+    virtual void OnPostCommit(const PrePrepare & message);
 
     std::shared_ptr<IOChannel>  _iochannel;
     ReceiveBuffer               _receive_buffer;

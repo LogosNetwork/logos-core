@@ -21,7 +21,7 @@ Archiver::Archiver(logos::alarm & alarm,
     {}
 
 void
-Archiver::Start(IInternalConsensusCb &consensus)
+Archiver::Start(InternalConsensus &consensus)
 {
     auto micro_cb = [this, &consensus](){
         EpochTimeUtil util;
@@ -69,7 +69,7 @@ Archiver::Start(IInternalConsensusCb &consensus)
 }
 
 void
-Archiver::Test_ProposeMicroBlock(IInternalConsensusCb &consensus, bool last_microblock)
+Archiver::Test_ProposeMicroBlock(InternalConsensus &consensus, bool last_microblock)
 {
     _event_proposer.ProposeMicroBlockOnce([this, &consensus, last_microblock]()->void {
         auto micro_block = std::make_shared<MicroBlock>();

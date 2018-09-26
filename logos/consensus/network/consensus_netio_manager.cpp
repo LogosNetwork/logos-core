@@ -1,7 +1,7 @@
 /// @file
 /// This file contains implementation of the ConsensusNetIOManager classes, which handle
 /// network connections between the delegates
-#include <logos/consensus/consensus_netio_manager.hpp>
+#include <logos/consensus/network/consensus_netio_manager.hpp>
 #include <logos/node/node.hpp>
 
 using boost::asio::ip::make_address_v4;

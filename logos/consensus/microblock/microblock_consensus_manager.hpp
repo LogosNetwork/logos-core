@@ -5,7 +5,7 @@
 
 #include <logos/consensus/consensus_manager.hpp>
 
-class IArchiverMicroBlockHandler;
+class ArchiverMicroBlockHandler;
 
 /// MicroBlockConsensusManager handles the specifics of MicroBlock consensus.
 class MicroBlockConsensusManager: public ConsensusManager<ConsensusType::MicroBlock>
@@ -18,20 +18,18 @@ public:
     /// Called by ConsensusContainer.
     ///     @param[in] service reference to boost asio service
     ///     @param[in] store reference to blockstore
-    ///     @param[in] alarm reference to alarm
     ///     @param[in] log reference to boost asio log
     ///     @param[in] config reference to ConsensusManagerConfig configuration
     ///     @param[in] key_store delegates public key store
     ///     @param[in] validator validator/signer of consensus messages
     MicroBlockConsensusManager(Service & service,
                                Store & store,
-                               logos::alarm & alarm,
                                Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
-                               IArchiverMicroBlockHandler & handler)
-        : Manager(service, store, alarm, log,
+                               ArchiverMicroBlockHandler & handler)
+        : Manager(service, store, log,
                   config, key_store, validator)
         , _microblock_handler(handler)
     {
@@ -104,6 +102,6 @@ protected:
 private:
 
     std::shared_ptr<PrePrepare>  _cur_microblock;     ///< Currently handled microblock
-    IArchiverMicroBlockHandler & _microblock_handler; ///< Is used for validation and database commit
+    ArchiverMicroBlockHandler &  _microblock_handler; ///< Is used for validation and database commit
 	int queue;
 };

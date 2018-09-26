@@ -3,9 +3,9 @@
 /// an interface to the underlying socket.
 #pragma once
 
+#include <logos/consensus/network/net_io_assembler.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
-#include <logos/consensus/net_io_assembler.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 #include <boost/asio/io_service.hpp>
@@ -78,6 +78,7 @@ class ConsensusNetIO: public IOChannel,
     using QueuedWrites  = std::list<std::shared_ptr<std::vector<uint8_t>>>;
 
 public:
+
     /// Class constructor
     ///
     /// This constructor is called by ConsensusNetIOManager to initiate a client
@@ -179,7 +180,7 @@ private:
     ///
     /// Async connect call back.
     ///  @param ec error code
-    void OnConnect(ErrorCode const &ec);
+    void OnConnect(ErrorCode const & ec);
 
     /// Call back for async read
     ///
@@ -199,21 +200,21 @@ private:
 
     static constexpr uint8_t CONNECT_RETRY_DELAY = 5;        ///< Reconnect delay in seconds.
 
-    std::shared_ptr<Socket> _socket;             ///< Connected socket
-    ReceiveBuffer           _receive_buffer;     ///< receive buffer
+    std::shared_ptr<Socket> _socket;             		///< Connected socket
+    ReceiveBuffer           _receive_buffer;     		///< receive buffer
 	QueuedWrites            _queued_writes;             ///< data waiting to get sent on the network
-    Log                     _log;                ///< boost asio log
-    Endpoint                _endpoint;           ///< remote peer endpoint
-    logos::alarm &          _alarm;              ///< alarm reference
-    uint8_t                 _remote_delegate_id; ///< id of connected peer
-    uint8_t                 _local_delegate_id;  ///< id of the local delegate
-    Connections             _connections;        ///< vector of connections bound to the net i/o
-    DelegateKeyStore &      _key_store;          ///< Delegates' public key store
-    MessageValidator &      _validator;          ///< Validator/Signer of consensus messages
-    IOBinder                _io_channel_binder;  ///< Network i/o to consensus binder
-    NetIOAssembler          _assembler;          ///< Assembles messages from TCP buffer
-    std::recursive_mutex &  _connection_mutex;   ///< _connections access mutex
-    std::mutex              _send_mutex;         ///< Protect concurrent writes
+    Log                     _log;                		///< boost asio log
+    Endpoint                _endpoint;           		///< remote peer endpoint
+    logos::alarm &          _alarm;              		///< alarm reference
+    uint8_t                 _remote_delegate_id; 		///< id of connected peer
+    uint8_t                 _local_delegate_id;  		///< id of the local delegate
+    Connections             _connections;       		///< vector of connections bound to the net i/o
+    DelegateKeyStore &      _key_store;          		///< Delegates' public key store
+    MessageValidator &      _validator;          		///< Validator/Signer of consensus messages
+    IOBinder                _io_channel_binder;  		///< Network i/o to consensus binder
+    NetIOAssembler          _assembler;          		///< Assembles messages from TCP buffer
+    std::recursive_mutex &  _connection_mutex;   		///< _connections access mutex
+    std::mutex              _send_mutex;         		///< Protect concurrent writes
 	uint64_t                _queue_reservation = 0;     ///< How many queued entries are being sent?
     bool                    _connected         = false; ///< is the socket is connected?
     bool                    _sending           = false; ///< is an async write in progress?

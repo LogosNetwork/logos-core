@@ -8,7 +8,7 @@
 
 #include <logos/consensus/consensus_connection.hpp>
 
-class IArchiverEpochHandler;
+class ArchiverEpochHandler;
 
 class EpochConsensusConnection :
         public ConsensusConnection<ConsensusType::Epoch>
@@ -24,7 +24,7 @@ public:
                              PrimaryDelegate & primary,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
-                             IArchiverEpochHandler & handler)
+                             ArchiverEpochHandler & handler)
         : ConsensusConnection<ConsensusType::Epoch>(iochannel, primary, validator, ids)
         , _epoch_handler(handler)
     {}
@@ -41,5 +41,5 @@ public:
     void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) override;
 
 private:
-    IArchiverEpochHandler & _epoch_handler; ///< Epoch handler
+    ArchiverEpochHandler & _epoch_handler; ///< Epoch handler
 };

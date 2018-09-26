@@ -1,5 +1,5 @@
+#include <logos/consensus/network/consensus_netio.hpp>
 #include <logos/consensus/consensus_connection.hpp>
-#include <logos/consensus/consensus_netio.hpp>
 
 #include <boost/asio/read.hpp>
 
@@ -149,7 +149,9 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
     {
         assert(_cur_pre_prepare);
 
+        OnPostCommit(*_cur_pre_prepare);
         ApplyUpdates(*_cur_pre_prepare, _delegate_ids.remote);
+
         _state = ConsensusState::VOID;
     }
 }
@@ -185,7 +187,7 @@ bool ConsensusConnection<CT>::Validate(const MSG & message)
 template<ConsensusType CT>
 template<typename MSG>
 bool ConsensusConnection<CT>::ProceedWithMessage(const MSG & message,
-                                                             ConsensusState expected_state)
+                                                 ConsensusState expected_state)
 {
     if(_state != expected_state)
     {
@@ -251,6 +253,10 @@ void ConsensusConnection<CT>::StoreResponse(const Commit & message)
 {
     _cur_commit.reset(new Commit(message));
 }
+
+template<ConsensusType CT>
+void ConsensusConnection<CT>::OnPostCommit(const PrePrepare & message)
+{}
 
 template<ConsensusType CT>
 void ConsensusConnection<CT>::OnPrequel(const uint8_t *data)

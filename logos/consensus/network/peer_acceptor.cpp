@@ -1,4 +1,4 @@
-#include <logos/consensus/peer_acceptor.hpp>
+#include <logos/consensus/network/peer_acceptor.hpp>
 
 PeerAcceptor::PeerAcceptor(Service & service,
                            Log & log,

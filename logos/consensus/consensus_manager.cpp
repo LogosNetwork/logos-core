@@ -1,9 +1,4 @@
 #include <logos/consensus/consensus_manager.hpp>
-//#include <logos/consensus/epoch/epoch_consensus_connection.hpp>
-//#include <logos/consensus/microblock/microblock_consensus_connection.hpp>
-//#include <logos/consensus/batchstateblock/batchblock_consensus_connection.hpp>
-
-#include <logos/node/node.hpp>
 
 template<ConsensusType CT>
 constexpr uint8_t ConsensusManager<CT>::BATCH_TIMEOUT_DELAY;
@@ -11,7 +6,6 @@ constexpr uint8_t ConsensusManager<CT>::BATCH_TIMEOUT_DELAY;
 template<ConsensusType CT>
 ConsensusManager<CT>::ConsensusManager(Service & service,
                                                    Store & store,
-                                                   logos::alarm & alarm,
                                                    Log & log,
                                                    const Config & config,
                                                    DelegateKeyStore & key_store,
@@ -19,7 +13,6 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     : PrimaryDelegate(validator)
     , _key_store(key_store)
     , _validator(validator)
-    , _alarm(alarm)
     , _delegate_id(config.delegate_id)
 {}
 
@@ -41,7 +34,12 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
     }
 
     QueueRequest(block);
+    OnRequestQueued();
+}
 
+template<ConsensusType CT>
+void ConsensusManager<CT>::OnRequestQueued()
+{
     if(ReadyForConsensus())
     {
         InitiateConsensus();

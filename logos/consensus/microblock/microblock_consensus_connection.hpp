@@ -7,7 +7,7 @@
 
 #include <logos/consensus/consensus_connection.hpp>
 
-class IArchiverMicroBlockHandler;
+class ArchiverMicroBlockHandler;
 
 class MicroBlockConsensusConnection :
         public ConsensusConnection<ConsensusType::MicroBlock>
@@ -23,7 +23,7 @@ public:
                                   PrimaryDelegate & primary,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
-                                  IArchiverMicroBlockHandler & handler)
+                                  ArchiverMicroBlockHandler & handler)
         : ConsensusConnection<ConsensusType::MicroBlock>(iochannel, primary, validator, ids)
         , _microblock_handler(handler)
     {}
@@ -40,5 +40,5 @@ public:
     void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) override;
 
 private:
-    IArchiverMicroBlockHandler &  _microblock_handler;
+    ArchiverMicroBlockHandler &  _microblock_handler;
 };

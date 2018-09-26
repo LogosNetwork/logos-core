@@ -1,5 +1,5 @@
+#include <logos/consensus/network/net_io_assembler.hpp>
 #include <logos/consensus/messages/messages.hpp>
-#include <logos/consensus/net_io_assembler.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 
@@ -49,7 +49,7 @@ void NetIOAssembler::AsyncRead()
                                       std::placeholders::_2));
 }
 
-void NetIOAssembler::OnData(boost::system::error_code const & error, size_t size)
+void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size)
 {
     if(error)
     {
@@ -59,6 +59,12 @@ void NetIOAssembler::OnData(boost::system::error_code const & error, size_t size
     }
 
     _buffer_size += size;
+
+    if(_buffer_size == BUFFER_CAPACITY)
+    {
+        BOOST_LOG(_log) << "NetIOAssembler - Error: Buffer"
+                        << " size has reached capacity.";
+    }
 
     ReadBytes(_callback, _bytes_to_read, true);
 }

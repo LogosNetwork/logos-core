@@ -3,11 +3,24 @@
 /// handles specifics of BatchBlock consensus.
 #pragma once
 
+#include <logos/consensus/batchblock/secondary_request_handler.hpp>
+#include <logos/consensus/batchblock/bb_consensus_connection.hpp>
+#include <logos/consensus/batchblock/request_handler.hpp>
 #include <logos/consensus/consensus_manager.hpp>
-#include <logos/consensus/request_handler.hpp>
+
+class RequestPromoter
+{
+public:
+
+    virtual void OnRequestReady(std::shared_ptr<logos::state_block> block) = 0;
+    virtual void OnPostCommit(const BatchStateBlock & block) = 0;
+
+    virtual ~RequestPromoter() {}
+};
 
 /// ConsensusManager that handles BatchBlock consensus.
-class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchStateBlock>
+class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchStateBlock>,
+                                  public RequestPromoter
 {
 
     using BlockBuffer = std::list<std::shared_ptr<Request>>;
@@ -19,25 +32,18 @@ public:
     /// This constructor is called by ConsensusContainer.
     ///     @param[in] service reference to boost asio service.
     ///     @param[in] store reference to blockstore.
-    ///     @param[in] alarm reference to alarm.
     ///     @param[in] log reference to boost asio log.
     ///     @param[in] config reference to ConsensusManagerConfig.
     ///     @param[in] key_store stores delegates' public keys.
     ///     @param[in] validator validator/signer of consensus messages.
     BatchBlockConsensusManager(Service & service, 
                                Store & store,
-                               logos::alarm & alarm,
                                Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
-                               MessageValidator & validator)
-        : Manager(service, store, alarm, log,
-                  config, key_store, validator)
-        , _persistence_manager(store, log)
+                               MessageValidator & validator);
 
-    {}
-
-    ~BatchBlockConsensusManager() = default;
+    virtual ~BatchBlockConsensusManager() {};
 
     /// Handles benchmark requests.
     ///     @param[in]  block state block.
@@ -51,6 +57,13 @@ public:
     /// effort.
     ///     @param[out] result result of the operation
     void BufferComplete(logos::process_return & result);
+
+    void OnRequestReady(std::shared_ptr<logos::state_block> block) override;
+    void OnPostCommit(const BatchStateBlock & block) override;
+
+    std::shared_ptr<PrequelParser>
+    BindIOChannel(std::shared_ptr<IOChannel>,
+                  const DelegateIdentities &) override;
 
 protected:
 
@@ -125,8 +138,11 @@ protected:
 
 private:
 
-    bool           _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
-    BlockBuffer    _buffer;                        ///< Buffered state blocks.
-    RequestHandler _handler;                       ///< Queue of batch state blocks.
-    PersistenceManager _persistence_manager;       ///< Database interface and request validation
+    static constexpr uint8_t DELIGATE_ID_MASK = 5;
+
+    bool                    _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
+    BlockBuffer             _buffer;                        ///< Buffered state blocks.
+    RequestHandler          _handler;                       ///< Primary queue of batch state blocks.
+    PersistenceManager		_persistence_manager;			///< Database interface and request validation
+    SecondaryRequestHandler _secondary_handler;             ///< Secondary queue of batch state blocks.
 };

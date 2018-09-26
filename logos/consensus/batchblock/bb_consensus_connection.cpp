@@ -1,14 +1,33 @@
 /// @file
 /// This file contains specializations of the ConsensusConnection class, which
 /// handle the specifics of BatchBlock consensus.
-#include <logos/consensus/batchblock/batchblock_consensus_connection.hpp>
+#include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
+#include <logos/consensus/batchblock/bb_consensus_connection.hpp>
+
+BBConsensusConnection::BBConsensusConnection(
+        std::shared_ptr<IOChannel> iochannel,
+        PrimaryDelegate & primary,
+        RequestPromoter & promoter,
+        PersistenceManager & persistence_manager,
+        MessageValidator & validator,
+        const DelegateIdentities & ids)
+    : Connection(iochannel, primary,
+                 validator, ids)
+    , _promoter(promoter)
+    , _persistence_manager(persistence_manager)
+{}
+
+void BBConsensusConnection::OnPostCommit(const PrePrepare & message)
+{
+    _promoter.OnPostCommit(message);
+}
 
 /// Validate BatchStateBlock message.
 ///
 ///     @param message message to validate
 ///     @return true if validated false otherwise
 bool
-BatchBlockConsensusConnection::Validate(
+BBConsensusConnection::Validate(
     const PrePrepare & message)
 {
     for(uint64_t i = 0; i < message.block_count; ++i)
@@ -27,7 +46,7 @@ BatchBlockConsensusConnection::Validate(
 ///     @param block to commit to the database
 ///     @param remote delegate id
 void
-BatchBlockConsensusConnection::ApplyUpdates(
+BBConsensusConnection::ApplyUpdates(
     const PrePrepare & block,
     uint8_t delegate_id)
 {
