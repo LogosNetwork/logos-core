@@ -13,7 +13,7 @@ using BlockHash = logos::block_hash;
 struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::MicroBlock> {
     MicroBlock()
         : MessageHeader(0)
-        , _merkle_root(0)
+        //, _merkle_root(0)
         , _delegate(0)
         , _epoch_number(0)
         , _micro_block_number(0)
@@ -31,7 +31,7 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
     /// Overide to mirror state_block
     BlockHash hash() const { return Hash(); }
     static const size_t HASHABLE_BYTES;         ///< hashable bytes of the micrblock - used in signing
-    BlockHash           _merkle_root; 		    ///< Merkle root of the batch blocks included in this microblock
+    //BlockHash           _merkle_root; 		    ///< Merkle root of the batch blocks included in this microblock
     logos::account      _delegate; 	            ///< Delegate who proposed this microblock
     uint                _epoch_number; 			///< Current epoch
     uint16_t            _micro_block_number;	///< Microblock number within this epoch

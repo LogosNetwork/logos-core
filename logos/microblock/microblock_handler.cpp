@@ -139,7 +139,7 @@ MicroBlockHandler::Build(
     }
 
     // first microblock after genesis
-    if (previous_micro_block._epoch_number == GENESIS_EPOCH)
+    /*if (previous_micro_block._epoch_number == GENESIS_EPOCH)
     {
         block._merkle_root = SlowMerkleTree(start, previous_micro_block._tips, block._tips,
                 block._number_batch_blocks);
@@ -148,7 +148,7 @@ MicroBlockHandler::Build(
     {
         block._merkle_root = FastMerkleTree(start, previous_micro_block._tips, block._tips,
                 block._number_batch_blocks, previous_micro_block.timestamp);
-    }
+    }*/
 
     // should be allowed to have no blocks so at least it doesn't crash
     // for instance the node is disconnected for a while
@@ -282,12 +282,12 @@ MicroBlockHandler::Validate(
         });
     });
 
-    if (merkle_root != block._merkle_root)
+    /*if (merkle_root != block._merkle_root)
     {
         BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock merkle root failed " << merkle_root.to_string() <<
                         " previous " << previous_microblock._merkle_root.to_string();
         return false;
-    }
+    }*/
 
     return true;
 }
