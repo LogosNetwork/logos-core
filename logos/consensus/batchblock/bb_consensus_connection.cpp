@@ -19,7 +19,7 @@ BBConsensusConnection::BBConsensusConnection(
 
 void BBConsensusConnection::OnPrePrepare(const PrePrepare & message)
 {
-    _promoter->OnPrePrepare(message);
+    _promoter.OnPrePrepare(message);
 }
 
 bool BBConsensusConnection::IsPrePrepared(const logos::block_hash & hash)
