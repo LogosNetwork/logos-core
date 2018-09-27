@@ -40,32 +40,41 @@ void SecondaryRequestHandler::OnRequest(std::shared_ptr<logos::state_block> bloc
 
 void SecondaryRequestHandler::OnTimeout(const Error & error)
 {
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::vector<Request> ready_requests;
 
-    if(error)
     {
-        BOOST_LOG(_log) << "SecondaryRequestHandler::OnTimeout - Error: "
-                        << error.message();
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        if(error)
+        {
+            BOOST_LOG(_log) << "SecondaryRequestHandler::OnTimeout - Error: "
+                            << error.message();
+        }
+
+        auto now = Clock::universal_time();
+        auto entry = _requests.get<0>().begin();
+
+        for(; entry != _requests.get<0>().end() && entry->expiration <= now;
+            ++entry)
+        {
+            ready_requests.push_back(*entry);
+        }
+
+        _requests.get<0>().erase(_requests.get<0>().begin(), entry);
+
+        if(!_requests.empty())
+        {
+            auto timeout = std::max(MIN_TIMEOUT.ticks(),
+                                    (_requests.get<0>().begin()->expiration
+                                     - now).seconds());
+
+            ScheduleTimer(Seconds(timeout));
+        }
     }
 
-    auto now = Clock::universal_time();
-    auto entry = _requests.get<0>().begin();
-
-    for(; entry != _requests.get<0>().end() && entry->expiration <= now;
-        ++entry)
+    for(auto & request : ready_requests)
     {
-        _promoter->OnRequestReady(entry->block);
-    }
-
-    _requests.get<0>().erase(_requests.get<0>().begin(), entry);
-
-    if(!_requests.empty())
-    {
-        auto timeout = std::max(MIN_TIMEOUT.ticks(),
-                                (_requests.get<0>().begin()->expiration
-                                 - now).seconds());
-
-        ScheduleTimer(Seconds(timeout));
+        _promoter->OnRequestReady(request.block);
     }
 }
 
