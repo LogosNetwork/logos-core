@@ -41,7 +41,9 @@ public:
     /// @param delegate_id delegate id [in]
     void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) override;
 
-    void OnPostCommit(const PrePrepare & message) override;
+    void OnPrePrepare(const PrePrepare & message) override;
+
+    bool IsPrePrepared(const logos::block_hash & hash);
 
 private:
     RequestPromoter &           _promoter;            ///< secondary list request promoter

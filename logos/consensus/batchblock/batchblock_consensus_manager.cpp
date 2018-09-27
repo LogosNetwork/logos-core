@@ -54,10 +54,10 @@ BatchBlockConsensusManager::OnRequestReady(
 }
 
 void
-BatchBlockConsensusManager::OnPostCommit(
+BatchBlockConsensusManager::OnPrePrepare(
         const BatchStateBlock & block)
 {
-    _secondary_handler.OnPostCommit(block);
+    _secondary_handler.OnPrePrepare(block);
 }
 
 std::shared_ptr<PrequelParser>
@@ -102,7 +102,8 @@ BatchBlockConsensusManager::Validate(
     auto hash = block->hash();
 
     if(_handler.Contains(hash) ||
-            _secondary_handler.Contains(hash))
+            _secondary_handler.Contains(hash) ||
+            IsPrePrepared(hash))
     {
         result.code = logos::process_result::pending;
         return false;
@@ -183,6 +184,22 @@ bool
 BatchBlockConsensusManager::PrePrepareQueueFull()
 {
     return _handler.BatchFull();
+}
+
+bool
+BatchBlockConsensusManager::IsPrePrepared(const logos::block_hash & hash)
+{
+    std::lock_guard<std::mutex> lock(_connection_mutex);
+
+    for(auto conn : _connections)
+    {
+        if(static_pointer_cast<BBConsensusConnection>(conn)->IsPrePrepared(hash))
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void

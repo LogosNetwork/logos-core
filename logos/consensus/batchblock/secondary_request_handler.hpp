@@ -2,56 +2,54 @@
 
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/blocks.hpp>
+#include <logos/common.hpp>
 
 #include <unordered_map>
 
 #include <boost/log/sources/record_ostream.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index_container.hpp>
 #include <boost/asio/deadline_timer.hpp>
 #include <boost/log/sources/logger.hpp>
 #include <boost/asio/io_service.hpp>
 
 class RequestPromoter;
 
-class RequestManager
+using boost::multi_index::ordered_non_unique;
+using boost::multi_index::hashed_unique;
+using boost::multi_index::indexed_by;
+using boost::multi_index::member;
+
+class SecondaryRequestHandler
 {
-public:
 
-    virtual void OnRequestDone(const logos::block_hash & hash) = 0;
-    virtual void OnRequestReady(const logos::block_hash & hash) = 0;
-
-    virtual ~RequestManager() {}
-};
-
-class SecondaryRequestHandler : public RequestManager
-{
     class Request;
 
-    using Service  = boost::asio::io_service;
-    using Error    = boost::system::error_code;
-    using Log      = boost::log::sources::logger_mt;
-    using BlockPtr = std::shared_ptr<logos::state_block>;
-    using Seconds  = boost::posix_time::seconds;
-    using Requests = std::unordered_map<logos::block_hash,
-                                        Request>;
+    using Timer     = boost::asio::deadline_timer;
+    using Service   = boost::asio::io_service;
+    using Error     = boost::system::error_code;
+    using Log       = boost::log::sources::logger_mt;
+    using BlockPtr  = std::shared_ptr<logos::state_block>;
+    using Seconds   = boost::posix_time::seconds;
+    using Clock     = boost::posix_time::second_clock;
+    using TimePoint = boost::posix_time::ptime;
 
     struct Request
     {
-        using Timer = boost::asio::deadline_timer;
-
-        Request(Service & service,
-                BlockPtr block,
-                RequestManager * manager);
-
-        void OnTimeout(const Error & error);
-        void Cancel();
-
-        static const Seconds REQUEST_TIMEOUT;
-
-        RequestManager * _manager;
-        BlockPtr         _block;
-        Timer            _timer;
-        Log              _log;
+        logos::block_hash hash;
+        BlockPtr          block;
+        TimePoint         expiration;
     };
+
+    using Requests =
+            boost::multi_index_container<
+                Request,
+                indexed_by<
+                    ordered_non_unique<member<Request, TimePoint, &Request::expiration>>,
+                    hashed_unique<member<Request, logos::block_hash, &Request::hash>>
+                >
+            >;
 
 public:
 
@@ -60,17 +58,22 @@ public:
     bool Contains(const logos::block_hash & hash);
 
     void OnRequest(std::shared_ptr<logos::state_block> block);
+    void OnTimeout(const Error & error);
 
-    void OnPostCommit(const BatchStateBlock & block);
-
-    void OnRequestDone(const logos::block_hash & hash) override;
-    void OnRequestReady(const logos::block_hash & hash) override;
+    void OnPrePrepare(const BatchStateBlock & block);
 
 private:
+
+    void ScheduleTimer(const Seconds & timeout);
+    void PruneRequests(const BatchStateBlock & block);
+
+    static const Seconds REQUEST_TIMEOUT;
+    static const Seconds MIN_TIMEOUT;
 
     Requests          _requests;
     Service &         _service;
     RequestPromoter * _promoter;
     Log               _log;
     std::mutex        _mutex;
+    Timer             _timer;
 };

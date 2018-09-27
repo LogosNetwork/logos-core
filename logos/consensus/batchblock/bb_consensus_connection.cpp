@@ -17,9 +17,29 @@ BBConsensusConnection::BBConsensusConnection(
     , _persistence_manager(persistence_manager)
 {}
 
-void BBConsensusConnection::OnPostCommit(const PrePrepare & message)
+void BBConsensusConnection::OnPrePrepare(const PrePrepare & message)
 {
-    _promoter.OnPostCommit(message);
+    _promoter->OnPrePrepare(message);
+}
+
+bool BBConsensusConnection::IsPrePrepared(const logos::block_hash & hash)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    if(!_cur_pre_prepare)
+    {
+        return false;
+    }
+
+    for(uint64_t i = 0; i < _cur_pre_prepare->block_count; ++i)
+    {
+        if(hash == _cur_pre_prepare->blocks[i].hash())
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /// Validate BatchStateBlock message.

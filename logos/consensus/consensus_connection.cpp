@@ -124,7 +124,14 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
     if(ProceedWithMessage(message, ConsensusState::VOID))
     {
         _state = ConsensusState::PREPARE;
-        _cur_pre_prepare.reset(new PrePrepare(message));
+
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            _cur_pre_prepare.reset(new PrePrepare(message));
+        }
+
+        OnPrePrepare(*_cur_pre_prepare);
+
         _cur_pre_prepare_hash = message.Hash();
 
         SendMessage<PrepareMessage<CT>>();
@@ -149,9 +156,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
     {
         assert(_cur_pre_prepare);
 
-        OnPostCommit(*_cur_pre_prepare);
         ApplyUpdates(*_cur_pre_prepare, _delegate_ids.remote);
-
         _state = ConsensusState::VOID;
     }
 }
@@ -255,7 +260,7 @@ void ConsensusConnection<CT>::StoreResponse(const Commit & message)
 }
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::OnPostCommit(const PrePrepare & message)
+void ConsensusConnection<CT>::OnPrePrepare(const PrePrepare & message)
 {}
 
 template<ConsensusType CT>
