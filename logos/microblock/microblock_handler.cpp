@@ -106,6 +106,68 @@ MicroBlockHandler::SlowMerkleTree(
     });
 }
 
+void
+MicroBlockHandler::GetTipsFast(
+    const BatchTips &start,
+    const BatchTips &end,
+    BatchTips &tips,
+    uint &num_blocks,
+    uint64_t timestamp)
+{
+    uint64_t cutoff_msec = GetCutOffTimeMsec(timestamp);
+    BatchBlocksIterator(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable -> void {
+        if (batch.timestamp < cutoff_msec)
+        {
+            BlockHash hash = batch.Hash();
+            if (tips[delegate] == 0)
+            {
+                tips[delegate] = hash;
+            }
+            num_blocks++;
+        }
+    });
+}
+
+void
+MicroBlockHandler::GetTipsSlow(
+    const BatchTips &start,
+    const BatchTips &end,
+    BatchTips &tips,
+    uint &num_blocks)
+{
+    struct pair {
+        uint64_t timestamp;
+        BlockHash hash;
+    };
+    array<vector<pair>, NUM_DELEGATES> entries;
+    uint64_t min_timestamp = GetStamp() + CLOCK_DRIFT * 1000;
+
+    // frist get hashes and timestamps of all blocks; and min timestamp to use as the base
+    BatchBlocksIterator(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable->void{
+        entries[delegate].push_back({batch.timestamp, batch.Hash()});
+        if (batch.timestamp < min_timestamp)
+        {
+            min_timestamp = batch.timestamp;
+        }
+    });
+
+    // iterate over all blocks, selecting the ones that less then cutoff time
+    uint64_t cutoff_msec = GetCutOffTimeMsec(min_timestamp);
+
+    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate) {
+        for (auto it : entries[delegate]) {
+            if (it.timestamp >= (min_timestamp + cutoff_msec)) {
+                continue;
+            }
+            if (tips[delegate] == 0)
+            {
+                tips[delegate] = it.hash;
+            }
+            num_blocks++;
+        }
+    }
+}
+
 /// Microblock cut off time is calculated as Tc = TEi + Mi * 10 where TEi is the i-th epoch (previous epoch),
 /// Mi is current microblock sequence number
 bool
@@ -139,16 +201,16 @@ MicroBlockHandler::Build(
     }
 
     // first microblock after genesis
-    /*if (previous_micro_block._epoch_number == GENESIS_EPOCH)
+    if (previous_micro_block._epoch_number == GENESIS_EPOCH)
     {
-        block._merkle_root = SlowMerkleTree(start, previous_micro_block._tips, block._tips,
+        GetTipsSlow(start, previous_micro_block._tips, block._tips,
                 block._number_batch_blocks);
     }
     else
     {
-        block._merkle_root = FastMerkleTree(start, previous_micro_block._tips, block._tips,
+        GetTipsFast(start, previous_micro_block._tips, block._tips,
                 block._number_batch_blocks, previous_micro_block.timestamp);
-    }*/
+    }
 
     // should be allowed to have no blocks so at least it doesn't crash
     // for instance the node is disconnected for a while

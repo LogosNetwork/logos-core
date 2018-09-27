@@ -95,6 +95,22 @@ private:
     /// @returns Merkle root
     BlockHash SlowMerkleTree(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks);
 
+    /// Get tips to include in the micro block
+    /// @param start tips to start iteration [in]
+    /// @param end tips to end iteration [in]
+    /// @param tips new batch block tips [in|out]
+    /// @param num_blocks number of selected batch blocks [out]
+    /// @param timestamp timestamp of the previous microblock [in]
+    void GetTipsFast(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks,
+            const uint64_t timestamp);
+
+    /// Get tips to include in the micro block
+    /// @param start tips to start iteration [in]
+    /// @param end tips to end iteration [in]
+    /// @param tips new batch block tips [in|out]
+    /// @param num_blocks number of selected batch blocks [out]
+    void GetTipsSlow(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks);
+
     /// Get microblock cut-off time in milliseconds
     /// @param timestamp the base time stamp
     /// @returns cut-off time
