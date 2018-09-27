@@ -13,7 +13,8 @@ class RequestPromoter
 public:
 
     virtual void OnRequestReady(std::shared_ptr<logos::state_block> block) = 0;
-    virtual void OnPostCommit(const BatchStateBlock & block) = 0;
+
+    virtual void OnPrePrepare(const BatchStateBlock & block) = 0;
 
     virtual ~RequestPromoter() {}
 };
@@ -60,7 +61,8 @@ public:
     void BufferComplete(logos::process_return & result);
 
     void OnRequestReady(std::shared_ptr<logos::state_block> block) override;
-    void OnPostCommit(const BatchStateBlock & block) override;
+
+    void OnPrePrepare(const BatchStateBlock & block) override;
 
     std::shared_ptr<PrequelParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
@@ -126,6 +128,8 @@ protected:
     ///
     ///     @return true if full false otherwise
     bool PrePrepareQueueFull() override;
+
+    bool IsPrePrepared(const logos::block_hash & hash);
 
 private:
 

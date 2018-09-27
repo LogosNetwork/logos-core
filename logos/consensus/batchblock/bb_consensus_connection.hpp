@@ -18,7 +18,9 @@ public:
                           MessageValidator & validator,
                           const DelegateIdentities & ids);
 
-    void OnPostCommit(const PrePrepare & message) override;
+    void OnPrePrepare(const PrePrepare & message) override;
+
+    bool IsPrePrepared(const logos::block_hash & hash);
 
 private:
 
