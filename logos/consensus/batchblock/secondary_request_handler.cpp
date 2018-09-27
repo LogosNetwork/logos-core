@@ -69,9 +69,9 @@ void SecondaryRequestHandler::OnTimeout(const Error & error)
 
         if(!_requests.empty())
         {
-            auto timeout = std::max(MIN_TIMEOUT.ticks(),
+            auto timeout = std::max(MIN_TIMEOUT.total_seconds(),
                                     (_requests.get<0>().begin()->expiration
-                                     - now).seconds());
+                                     - now).total_seconds());
 
             BOOST_LOG(_log) << "SecondaryRequestHandler::OnTimeout - Timeout occurs again in " << timeout << "seconds.";
 
