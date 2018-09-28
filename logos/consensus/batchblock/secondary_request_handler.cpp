@@ -22,8 +22,6 @@ void SecondaryRequestHandler::OnRequest(std::shared_ptr<logos::state_block> bloc
 {
     auto hash = block->hash();
 
-    BOOST_LOG(_log) << "SecondaryRequestHandler::OnRequest";
-
     std::lock_guard<std::mutex> lock(_mutex);
     if(_requests.get<1>().find(hash) != _requests.get<1>().end())
     {
@@ -36,7 +34,6 @@ void SecondaryRequestHandler::OnRequest(std::shared_ptr<logos::state_block> bloc
 
     if(_requests.size() == 1)
     {
-        BOOST_LOG(_log) << "SecondaryRequestHandler::OnRequest - Timeout occurs again in " << REQUEST_TIMEOUT.ticks() << "seconds.";
         ScheduleTimer(REQUEST_TIMEOUT);
     }
 }
@@ -44,8 +41,6 @@ void SecondaryRequestHandler::OnRequest(std::shared_ptr<logos::state_block> bloc
 void SecondaryRequestHandler::OnTimeout(const Error & error)
 {
     std::vector<Request> ready_requests;
-
-    BOOST_LOG(_log) << "SecondaryRequestHandler::OnTimeout";
 
     {
         std::lock_guard<std::mutex> lock(_mutex);
@@ -72,8 +67,6 @@ void SecondaryRequestHandler::OnTimeout(const Error & error)
             auto timeout = std::max(MIN_TIMEOUT.total_seconds(),
                                     (_requests.get<0>().begin()->expiration
                                      - now).total_seconds());
-
-            BOOST_LOG(_log) << "SecondaryRequestHandler::OnTimeout - Timeout occurs again in " << timeout << "seconds.";
 
             ScheduleTimer(Seconds(timeout));
         }
