@@ -47,7 +47,10 @@ inline std::string ConsensusToName(const ConsensusType & type)
             ret = "BatchStateBlock";
             break;
         case ConsensusType::MicroBlock:
-            ret = "BatchStateBlock";
+            ret = "MicroBlock";
+            break;
+        case ConsensusType::Epoch:
+            ret = "Epoch";
             break;
         case ConsensusType::Any:
             ret = "Any";
@@ -73,7 +76,9 @@ std::string ConsensusToName(const MSG & message)
 
 inline size_t ConsensusTypeToIndex(ConsensusType type)
 {
-    return uint64_t(static_cast<uint8_t>(type));
+    size_t index = uint64_t(static_cast<uint8_t>(type));
+    assert(index < CONSENSUS_TYPE_COUNT);
+    return index;
 }
 
 template<ConsensusType CT>

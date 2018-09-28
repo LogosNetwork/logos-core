@@ -18,23 +18,37 @@ enum class MessageType : uint8_t
     Commit       = 3,
     Post_Commit  = 4,
 
-    // Advertisements
+    // Other
     Key_Advert   = 5,
 
     // Invalid
     Unknown
 };
+////////////////////
+/// To implement a new type of consensus :
+/// - define consensus type in consensus/messages/common.hpp - add new consensus type before Any
+///   and update NumberOfConsensus
+/// - add PrePrepareMessage and Request message for specific consensus in messages/messages.hpp (enf of file)
+/// - add newconsensus type folder in consensus
+/// - implement newconsensus_consensus_connection.cpp, and newconsensus_consensus_manager.[ch]pp
+/// - explicitly instanciate newconsensus consensus connection in consensus_connection.cpp (end of file)
+/// - explicitly instanciate newconsensus consensus manager in consensus_manager.cpp (end of file)
+/// - explicitly instanciate newconsensus function in primary_delegate.cpp (top of file)
+/// - update ConsensusToName in messages/util.hpp
+/// - add new files to CMakeLists.txt
+#define CONSENSUS_TYPE(...) \
+  struct ConsensusType_Size { int __VA_ARGS__; }; \
+  enum class ConsensusType:uint8_t { __VA_ARGS__,Any=0xff}; \
+  static constexpr size_t CONSENSUS_TYPE_COUNT = (sizeof(ConsensusType_Size)/sizeof(int));
+////////////////////
+// Add new consensus types at the end
+CONSENSUS_TYPE
+(
+    BatchStateBlock,
+    MicroBlock,
+    Epoch
+);
 
-// ConsensusType values must be sequential
-// because it is also an index.
-enum class ConsensusType : uint8_t
-{
-    BatchStateBlock = 0,
-    MicroBlock      = 1,
-    Any             = 2
-};
-
-static const size_t CONSENSUS_TYPE_COUNT   = 2;
 static const size_t NUM_DELEGATES          = 32;
 static const size_t CONSENSUS_HASH_SIZE    = 32;
 static const size_t CONSENSUS_SIG_SIZE     = 32;
@@ -81,7 +95,7 @@ struct MessageHeader : MessagePrequel<MT, CT>
     {}
 
     uint64_t  timestamp;
-    BlockHash hash;
+    BlockHash previous;
 };
 
 using Prequel = MessagePrequel<MessageType::Unknown, ConsensusType::Any>;

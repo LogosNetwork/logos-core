@@ -10,6 +10,7 @@
 
 class PrimaryDelegate
 {
+    friend class Archiver;
 
     using Log        = boost::log::sources::logger_mt;
     using Signatures = std::vector<MessageValidator::DelegateSignature>;

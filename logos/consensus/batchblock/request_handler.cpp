@@ -1,4 +1,4 @@
-#include <logos/consensus/request_handler.hpp>
+#include <logos/consensus/batchblock/request_handler.hpp>
 
 void RequestHandler::OnRequest(std::shared_ptr<logos::state_block> block)
 {
@@ -34,6 +34,22 @@ bool RequestHandler::BatchFull()
 bool RequestHandler::Empty()
 {
     return _batches.empty();
+}
+
+bool RequestHandler::Contains(const logos::block_hash & hash)
+{
+    for(auto & batch : _batches)
+    {
+        for(uint64_t i = 0; i < batch.block_count; ++i)
+        {
+            if(hash == batch.blocks[i].hash())
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 void RequestHandler::InsertBlock(std::shared_ptr<logos::state_block> block)

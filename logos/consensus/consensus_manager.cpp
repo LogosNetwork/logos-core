@@ -5,13 +5,12 @@ constexpr uint8_t ConsensusManager<CT>::BATCH_TIMEOUT_DELAY;
 
 template<ConsensusType CT>
 ConsensusManager<CT>::ConsensusManager(Service & service,
-                                       Store & store,
-                                       Log & log,
-                                       const Config & config,
-                                       DelegateKeyStore & key_store,
-                                       MessageValidator & validator)
+                                                   Store & store,
+                                                   Log & log,
+                                                   const Config & config,
+                                                   DelegateKeyStore & key_store,
+                                                   MessageValidator & validator)
     : PrimaryDelegate(validator)
-    , _persistence_manager(store, log)
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
@@ -23,8 +22,8 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    BOOST_LOG (_log) << "ConsensusManager::OnSendRequest() - hash: "
-                     << block->hash().to_string();
+    BOOST_LOG (_log) << "ConsensusManager<" << ConsensusToName(CT) <<
+        ">::OnSendRequest() - hash: " << block->hash().to_string();
 
     if(!Validate(block, result))
     {
@@ -35,7 +34,12 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
     }
 
     QueueRequest(block);
+    OnRequestQueued();
+}
 
+template<ConsensusType CT>
+void ConsensusManager<CT>::OnRequestQueued()
+{
     if(ReadyForConsensus())
     {
         InitiateConsensus();
@@ -63,9 +67,8 @@ void ConsensusManager<CT>::OnConsensusReached()
     {
         static uint64_t messages_stored = 0;
         messages_stored += GetStoredCount();
-
-        BOOST_LOG(_log) << "ConsensusManager - Stored "
-                        << messages_stored << " blocks.";
+        BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
+            "> - Stored " << messages_stored << " blocks.";
     }
 
     PrePreparePopFront();
@@ -106,14 +109,11 @@ std::shared_ptr<PrequelParser>
 ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                                     const DelegateIdentities & ids)
 {
-    auto connection =
-            std::make_shared<ConsensusConnection<CT>>(
-                    iochannel, this, _persistence_manager,
-                    _validator, ids);
-
+    auto connection = MakeConsensusConnection(iochannel, ids);
     _connections.push_back(connection);
     return connection;
 }
 
 template class ConsensusManager<ConsensusType::BatchStateBlock>;
 template class ConsensusManager<ConsensusType::MicroBlock>;
+template class ConsensusManager<ConsensusType::Epoch>;

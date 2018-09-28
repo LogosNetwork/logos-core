@@ -48,8 +48,7 @@ protected:
 public:
 
     ConsensusConnection(std::shared_ptr<IOChannel> iochannel,
-                        PrimaryDelegate * primary,
-                        PersistenceManager & persistence_manager,
+                        PrimaryDelegate & primary,
                         MessageValidator & validator,
                         const DelegateIdentities & ids);
 
@@ -71,7 +70,7 @@ protected:
 
     using ReceiveBuffer = std::array<uint8_t, BUFFER_SIZE>;
 
-    void ApplyUpdates(const PrePrepare &, uint8_t delegate_id);
+    virtual void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) = 0;
 
     void OnData();
     void OnMessage(const uint8_t * data);
@@ -87,7 +86,7 @@ protected:
 
     template<typename MSG>
     bool Validate(const MSG & message);
-    bool Validate(const PrePrepare & message);
+    virtual bool Validate(const PrePrepare & message) = 0;
 
     template<typename MSG>
     bool ProceedWithMessage(const MSG & message, ConsensusState expected_state);
@@ -101,17 +100,19 @@ protected:
     void StoreResponse(const Prepare & message);
     void StoreResponse(const Commit & message);
 
+    virtual void OnPrePrepare(const PrePrepare & message);
+
     std::shared_ptr<IOChannel>  _iochannel;
     ReceiveBuffer               _receive_buffer;
+    std::mutex                  _mutex;
     std::shared_ptr<PrePrepare> _cur_pre_prepare;
     std::shared_ptr<Prepare>    _cur_prepare;
     std::shared_ptr<Commit>     _cur_commit;
     BlockHash                   _cur_pre_prepare_hash;
     DelegateIdentities          _delegate_ids;
-    PersistenceManager &        _persistence_manager;
     MessageValidator &          _validator;
     Log                         _log;
-    PrimaryDelegate *           _primary;
+    PrimaryDelegate &           _primary;
     ConsensusState              _state     = ConsensusState::VOID;
     bool                        _connected = false;
 };

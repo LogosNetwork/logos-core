@@ -1,7 +1,7 @@
 /// @file
 /// This file contains implementation of the ConsensusNetIOManager classes, which handle
 /// network connections between the delegates
-#include <logos/consensus/consensus_netio_manager.hpp>
+#include <logos/consensus/network/consensus_netio_manager.hpp>
 #include <logos/node/node.hpp>
 
 using boost::asio::ip::make_address_v4;
@@ -45,12 +45,11 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
 
             _connections.push_back(std::make_shared<ConsensusNetIO>(
                 service, endpoint, _alarm,
-                delegate.id, _key_store, _validator,
+                delegate.id, _delegate_id, _key_store, _validator,
                 std::bind(&ConsensusNetIOManager::BindIOChannel,
                           this,
                           std::placeholders::_1,
                           std::placeholders::_2),
-                          config.local_address,
                           _connection_mutex));
         }
         else
@@ -75,17 +74,18 @@ ConsensusNetIOManager::OnConnectionAccepted(
                                   return delegate.ip == endpoint.address().to_string();
                               });
 
-    assert(entry != _delegates.end());
+    // remote delegate id is piggy backed to the public key message and
+    // is updated when the public key message is received
+    uint8_t remote_delegate_id = (entry != _delegates.end()) ? entry->id : 0;
 
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
-
     _connections.push_back(std::make_shared<ConsensusNetIO>(
-            socket, endpoint, _alarm,
-            entry->id, _key_store, _validator,
-            std::bind(&ConsensusNetIOManager::BindIOChannel,
-                      this,
-                      std::placeholders::_1,
-                      std::placeholders::_2), _connection_mutex));
+		socket, endpoint, _alarm, 
+        remote_delegate_id, _delegate_id, _key_store, _validator,
+        std::bind(&ConsensusNetIOManager::BindIOChannel, 
+				  this, 
+				  std::placeholders::_1, 
+            	  std::placeholders::_2), _connection_mutex));
 }
 
 void

@@ -6,6 +6,9 @@ template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<Co
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::MicroBlock>&);
 template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::MicroBlock>&);
 template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::MicroBlock>&);
+template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Epoch>&);
+template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Epoch>&);
+template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Epoch>&);
 
 constexpr uint8_t PrimaryDelegate::QUORUM_SIZE;
 
@@ -47,7 +50,7 @@ void PrimaryDelegate::Send()
 {
     MSG response(_cur_batch_timestamp);
 
-    response.hash = _cur_batch_hash;
+    response.previous = _cur_batch_hash;
     _validator.Sign(response, _signatures);
 
     Send(&response, sizeof(response));

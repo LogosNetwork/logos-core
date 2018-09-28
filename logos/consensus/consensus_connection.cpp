@@ -1,17 +1,15 @@
+#include <logos/consensus/network/consensus_netio.hpp>
 #include <logos/consensus/consensus_connection.hpp>
-#include <logos/consensus/consensus_netio.hpp>
 
 #include <boost/asio/read.hpp>
 
 template<ConsensusType CT>
 ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochannel,
-                                             PrimaryDelegate * primary,
-                                             PersistenceManager & persistence_manager,
+                                             PrimaryDelegate & primary,
                                              MessageValidator & validator,
                                              const DelegateIdentities & ids)
     : _iochannel(iochannel)
     , _delegate_ids(ids)
-    , _persistence_manager(persistence_manager)
     , _validator(validator)
     , _primary(primary)
 {}
@@ -66,6 +64,8 @@ void ConsensusConnection<CT>::OnData()
                             << " message type";
             break;
         default:
+            BOOST_LOG(_log) << "ConsensusConnection - Error - Received invalid message type "
+                            << (int)(_receive_buffer.data()[1]);
             break;
     }
 }
@@ -78,7 +78,8 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
     memcpy(_receive_buffer.data() + sizeof(Prequel), data,
            MessageTypeToSize<CT>(type) - sizeof(Prequel));
 
-    BOOST_LOG(_log) << "ConsensusConnection - Received "
+    BOOST_LOG(_log) << "ConsensusConnection<"
+                    << ConsensusToName(CT) << ">- Received "
                     << MessageToName(type)
                     << " message.";
 
@@ -123,7 +124,14 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
     if(ProceedWithMessage(message, ConsensusState::VOID))
     {
         _state = ConsensusState::PREPARE;
-        _cur_pre_prepare.reset(new PrePrepare(message));
+
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            _cur_pre_prepare.reset(new PrePrepare(message));
+        }
+
+        OnPrePrepare(*_cur_pre_prepare);
+
         _cur_pre_prepare_hash = message.Hash();
 
         SendMessage<PrepareMessage<CT>>();
@@ -157,7 +165,7 @@ template<ConsensusType CT>
 template<MessageType MT>
 void ConsensusConnection<CT>::OnConsensusMessage(const SPMessage<MT> & message)
 {
-    _primary->OnConsensusMessage(message, _delegate_ids.remote);
+    _primary.OnConsensusMessage(message, _delegate_ids.remote);
 }
 
 template<ConsensusType CT>
@@ -184,7 +192,7 @@ bool ConsensusConnection<CT>::Validate(const MSG & message)
 template<ConsensusType CT>
 template<typename MSG>
 bool ConsensusConnection<CT>::ProceedWithMessage(const MSG & message,
-                                                             ConsensusState expected_state)
+                                                 ConsensusState expected_state)
 {
     if(_state != expected_state)
     {
@@ -223,7 +231,7 @@ void ConsensusConnection<CT>::SendMessage()
 {
     MSG response(_cur_pre_prepare->timestamp);
 
-    response.hash = _cur_pre_prepare_hash;
+    response.previous = _cur_pre_prepare_hash;
     _validator.Sign(response);
 
     StoreResponse(response);
@@ -252,6 +260,10 @@ void ConsensusConnection<CT>::StoreResponse(const Commit & message)
 }
 
 template<ConsensusType CT>
+void ConsensusConnection<CT>::OnPrePrepare(const PrePrepare & message)
+{}
+
+template<ConsensusType CT>
 void ConsensusConnection<CT>::OnPrequel(const uint8_t *data)
 {
     std::memcpy(_receive_buffer.data(), data, sizeof(Prequel));
@@ -260,3 +272,5 @@ void ConsensusConnection<CT>::OnPrequel(const uint8_t *data)
 
 template class ConsensusConnection<ConsensusType::BatchStateBlock>;
 template class ConsensusConnection<ConsensusType::MicroBlock>;
+template class ConsensusConnection<ConsensusType::Epoch>;
+

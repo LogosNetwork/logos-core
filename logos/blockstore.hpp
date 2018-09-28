@@ -5,6 +5,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/persistence/state_block_locator.hpp>
 #include <logos/microblock/microblock.hpp>
+#include <logos/epoch/epoch.hpp>
 
 namespace logos
 {
@@ -116,8 +117,8 @@ public:
 
     template<typename T> void put(MDB_dbi&, const mdb_val &, const T &, MDB_txn *);
     template<typename T> logos::block_hash put(MDB_dbi&, const T &, MDB_txn *);
-    template<typename T> bool get(MDB_dbi&, const mdb_val &key, T &);
-    template<typename T> bool get(MDB_dbi& db, const logos::block_hash &hash, T &t)
+    template<typename T> bool get(MDB_dbi&, const mdb_val &key, const T &);
+    template<typename T> bool get(MDB_dbi& db, const logos::block_hash &hash, const T &t)
     {
         mdb_val key(hash);
         return get<T>(db,key,t);
@@ -139,10 +140,17 @@ public:
     bool batch_tip_get(uint8_t delegate_id, block_hash & hash);
 
     // micro-block
-    logos::block_hash micro_block_put(MicroBlock const &, MDB_txn*);
-    bool micro_block_get(block_hash &, MicroBlock &);
-    void micro_block_tip_put(const block_hash&, MDB_txn*);
-    bool micro_block_tip_get(block_hash &);
+      logos::block_hash micro_block_put(MicroBlock const &, MDB_txn*);
+      bool micro_block_get(const block_hash &, MicroBlock &);
+      void micro_block_tip_put(const block_hash&, MDB_txn*);
+      bool micro_block_tip_get(const block_hash &);
+      bool micro_block_exists(const block_hash &);
+
+    // epoch
+    logos::block_hash epoch_put(Epoch const &, MDB_txn*);
+    bool epoch_get(block_hash &, Epoch &);
+    void epoch_tip_put(const block_hash&, MDB_txn*);
+    bool epoch_tip_get(block_hash &);
 
     void checksum_put (MDB_txn *, uint64_t, uint8_t, logos::checksum const &);
     bool checksum_get (MDB_txn *, uint64_t, uint8_t, logos::checksum &);
@@ -216,9 +224,22 @@ public:
     MDB_dbi micro_block_tip_db;
 
     /**
-     * Maps head block to owning account
-     * logos::block_hash -> logos::account
+   	 * Maps block hash to epoch
+     * logos::block_hash -> 
      */
+    MDB_dbi epoch_db;
+
+  	/**
+     * Epoch tip
+     * references epoch tip
+     * 'epochtip' -> logos::block_hash
+     */
+    MDB_dbi epoch_tip_db;
+
+	/**
+	 * Maps head block to owning account
+	 * logos::block_hash -> logos::account
+	 */
     MDB_dbi frontiers;
 
     /**

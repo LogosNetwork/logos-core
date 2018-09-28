@@ -2,13 +2,13 @@
 
 #include <logos/wallet_server/client/wallet_server_client.hpp>
 #include <logos/consensus/persistence/persistence_manager.hpp>
+#include <logos/consensus/batchblock/request_handler.hpp>
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/consensus/consensus_connection.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
-#include <logos/consensus/request_handler.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 
@@ -55,6 +55,8 @@ public:
     void OnSendRequest(std::shared_ptr<Request> block,
                        logos::process_return & result);
 
+    void OnRequestQueued();
+
     virtual void OnBenchmarkSendRequest(std::shared_ptr<Request> block,
                                         logos::process_return & result) = 0;
 
@@ -62,7 +64,6 @@ public:
 
     virtual ~ConsensusManager() {}
 
-    virtual
     std::shared_ptr<PrequelParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) override;
@@ -91,8 +92,10 @@ protected:
     virtual bool PrePrepareQueueEmpty() = 0;
     virtual bool PrePrepareQueueFull() = 0;
 
+    virtual std::shared_ptr<ConsensusConnection<CT>> MakeConsensusConnection(
+            std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
+
     Connections        _connections;
-    PersistenceManager _persistence_manager;
     DelegateKeyStore & _key_store;
     MessageValidator & _validator;
     std::mutex         _connection_mutex;

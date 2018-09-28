@@ -6,6 +6,7 @@
 #include <boost/property_tree/ptree.hpp>
 
 #include <unordered_map>
+#include <vector>
 
 #include <blake2/blake2.h>
 
@@ -85,6 +86,7 @@ class keypair
 public:
     keypair ();
     keypair (std::string const &);
+    keypair (const keypair &k) { pub = k.pub; prv.data = k.prv.data; }
     logos::public_key pub;
     logos::raw_key prv;
 };
@@ -225,7 +227,8 @@ enum class process_result
     invalid_block_type,    // Logos - Only allow state blocks
     not_implemented,       // Logos - The block cannot be processed
     buffered,              // Logos - The block has been buffered for benchmarking
-    buffering_done         // Logos - The last block has been buffered and consensus will begin
+    buffering_done,        // Logos - The last block has been buffered and consensus will begin
+    pending                // Logos - The block has already been received and is pending consensus
 };
 
 std::string ProcessResultToString(process_result result);
@@ -256,6 +259,12 @@ public:
     // All votes received by account
     std::unordered_map<logos::account, std::shared_ptr<logos::block>> rep_votes;
 };
+struct genesis_delegate
+{
+   logos::keypair   key; ///< EDDSA key for signing Micro/Epoch blocks (TBD, should come from wallet)
+   uint64_t        _vote;
+   uint64_t        _stake;
+};
 extern logos::keypair const & zero_key;
 extern logos::keypair const & test_genesis_key;
 extern logos::account const & logos_test_account;
@@ -268,6 +277,7 @@ extern std::string const & genesis_block;
 extern logos::account const & genesis_account;
 extern logos::account const & burn_account;
 extern logos::uint128_t const & genesis_amount;
+extern std::vector<genesis_delegate> genesis_delegates;
 // A block hash that compares inequal to any real block hash
 extern logos::block_hash const & not_a_block;
 // An account number that compares inequal to any real account number

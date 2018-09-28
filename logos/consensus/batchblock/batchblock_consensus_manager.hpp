@@ -3,11 +3,25 @@
 /// handles specifics of BatchBlock consensus.
 #pragma once
 
+#include <logos/consensus/batchblock/secondary_request_handler.hpp>
+#include <logos/consensus/batchblock/bb_consensus_connection.hpp>
+#include <logos/consensus/batchblock/request_handler.hpp>
 #include <logos/consensus/consensus_manager.hpp>
-#include <logos/consensus/request_handler.hpp>
+
+class RequestPromoter
+{
+public:
+
+    virtual void OnRequestReady(std::shared_ptr<logos::state_block> block) = 0;
+
+    virtual void OnPrePrepare(const BatchStateBlock & block) = 0;
+
+    virtual ~RequestPromoter() {}
+};
 
 /// ConsensusManager that handles BatchBlock consensus.
-class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchStateBlock>
+class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchStateBlock>,
+                                  public RequestPromoter
 {
 
     using BlockBuffer = std::list<std::shared_ptr<Request>>;
@@ -19,7 +33,6 @@ public:
     /// This constructor is called by ConsensusContainer.
     ///     @param[in] service reference to boost asio service.
     ///     @param[in] store reference to blockstore.
-    ///     @param[in] alarm reference to alarm.
     ///     @param[in] log reference to boost asio log.
     ///     @param[in] config reference to ConsensusManagerConfig.
     ///     @param[in] key_store stores delegates' public keys.
@@ -29,12 +42,9 @@ public:
                                Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
-                               MessageValidator & validator)
-        : Manager(service, store, log,
-                  config, key_store, validator)
-    {}
+                               MessageValidator & validator);
 
-    ~BatchBlockConsensusManager() = default;
+    virtual ~BatchBlockConsensusManager() {};
 
     /// Handles benchmark requests.
     ///     @param[in]  block state block.
@@ -48,6 +58,14 @@ public:
     /// effort.
     ///     @param[out] result result of the operation
     void BufferComplete(logos::process_return & result);
+
+    void OnRequestReady(std::shared_ptr<logos::state_block> block) override;
+
+    void OnPrePrepare(const BatchStateBlock & block) override;
+
+    std::shared_ptr<PrequelParser>
+    BindIOChannel(std::shared_ptr<IOChannel>,
+                  const DelegateIdentities &) override;
 
 protected:
 
@@ -110,9 +128,25 @@ protected:
     ///     @return true if full false otherwise
     bool PrePrepareQueueFull() override;
 
+    /// Create specialized instance of ConsensusConnection
+    ///     @param iochannel NetIOChannel pointer
+    ///     @param primary PrimaryDelegate pointer
+    ///     @param key_store Delegates' public key store
+    ///     @param validator Validator/Signer of consensus messages
+    ///     @param ids Delegate's id
+    ///     @return ConsensusConnection
+    std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>> MakeConsensusConnection(
+            std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
+            
+    bool IsPrePrepared(const logos::block_hash & hash);
+
 private:
 
-    bool           _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
-    BlockBuffer    _buffer;                        ///< Buffered state blocks.
-    RequestHandler _handler;                       ///< Queue of batch state blocks.
+    static constexpr uint8_t DELIGATE_ID_MASK = 5;
+
+    bool                    _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
+    BlockBuffer             _buffer;                        ///< Buffered state blocks.
+    RequestHandler          _handler;                       ///< Primary queue of batch state blocks.
+    PersistenceManager		_persistence_manager;			///< Database interface and request validation
+    SecondaryRequestHandler _secondary_handler;             ///< Secondary queue of batch state blocks.
 };

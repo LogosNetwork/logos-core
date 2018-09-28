@@ -4,9 +4,9 @@
 #pragma once
 
 #include <logos/consensus/consensus_manager_config.hpp>
+#include <logos/consensus/network/consensus_netio.hpp>
+#include <logos/consensus/network/peer_acceptor.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
-#include <logos/consensus/consensus_netio.hpp>
-#include <logos/consensus/peer_acceptor.hpp>
 #include <logos/consensus/peer_manager.hpp>
 
 class ChannelBinder;
