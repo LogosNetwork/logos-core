@@ -441,3 +441,5 @@ target_link_libraries (logos_core node secure lmdb ed25519 ${BLS_libs} logos_lib
 set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE)
 
 include (CPack)
+
+add_subdirectory(logos/p2p)
