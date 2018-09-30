@@ -49,7 +49,7 @@ void NetIOAssembler::AsyncRead()
                                       std::placeholders::_2));
 }
 
-void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size)
+void NetIOAssembler::OnData(boost::system::error_code const & error, size_t size)
 {
     if(error)
     {

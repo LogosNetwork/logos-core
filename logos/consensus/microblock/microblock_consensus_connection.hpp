@@ -21,10 +21,11 @@ public:
     /// @param ids remote/local delegate id [in]
     MicroBlockConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                                   PrimaryDelegate & primary,
+                                  RequestPromoter<ConsensusType::MicroBlock> & promoter,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler)
-        : ConsensusConnection<ConsensusType::MicroBlock>(iochannel, primary, validator, ids)
+        : ConsensusConnection<ConsensusType::MicroBlock>(iochannel, primary, promoter, validator, ids)
         , _microblock_handler(handler)
     {}
     ~MicroBlockConsensusConnection() {}
@@ -38,6 +39,8 @@ public:
     /// @param message PrePrepare message [in]
     /// @param delegate_id delegate id [in]
     void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) override;
+
+    bool IsPrePrepared(const logos::block_hash & hash) override;
 
 private:
     ArchiverMicroBlockHandler &  _microblock_handler;

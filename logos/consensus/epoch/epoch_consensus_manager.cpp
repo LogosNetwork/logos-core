@@ -27,11 +27,11 @@ EpochConsensusManager::Validate(
 }
 
 void 
-EpochConsensusManager::QueueRequest(
+EpochConsensusManager::QueueRequestPrimary(
     std::shared_ptr<Request> request)
 {
     _cur_epoch = static_pointer_cast<PrePrepare>(request);
-    queue = 1;
+    _enqueued = true;
 }
 
 auto
@@ -44,19 +44,19 @@ void
 EpochConsensusManager::PrePreparePopFront()
 {
     _cur_epoch.reset();
-    queue = 0;
+    _enqueued = false;
 }
 
 bool 
 EpochConsensusManager::PrePrepareQueueEmpty()
 {
-    return !queue;
+    return !_enqueued;
 }
 
 bool 
 EpochConsensusManager::PrePrepareQueueFull()
 {
-    return queue;
+    return _enqueued;
 }
 
 void 
@@ -73,11 +73,23 @@ EpochConsensusManager::GetStoredCount()
   return 1;
 }
 
+bool
+EpochConsensusManager::PrimaryContains(const logos::block_hash &hash)
+{
+    return (_cur_epoch && _cur_epoch->hash() == hash);
+}
+
+void
+EpochConsensusManager::QueueRequestSecondary(std::shared_ptr<Request> request)
+{
+    _secondary_handler.OnRequest(request, boost::posix_time::seconds(_delegate_id * SECONDARY_LIST_TIMEOUT));
+}
+
 std::shared_ptr<ConsensusConnection<ConsensusType::Epoch>>
 EpochConsensusManager::MakeConsensusConnection(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities& ids)
 {
-    return std::make_shared<EpochConsensusConnection>(iochannel, *this,
+    return std::make_shared<EpochConsensusConnection>(iochannel, *this, *this,
             _validator, ids, _epoch_handler);
 }

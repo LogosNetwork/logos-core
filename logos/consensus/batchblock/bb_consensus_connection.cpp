@@ -1,26 +1,19 @@
 /// @file
 /// This file contains specializations of the ConsensusConnection class, which
 /// handle the specifics of BatchBlock consensus.
-#include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/batchblock/bb_consensus_connection.hpp>
 
 BBConsensusConnection::BBConsensusConnection(
         std::shared_ptr<IOChannel> iochannel,
         PrimaryDelegate & primary,
-        RequestPromoter & promoter,
+        RequestPromoter<ConsensusType::BatchStateBlock> & promoter,
         PersistenceManager & persistence_manager,
         MessageValidator & validator,
         const DelegateIdentities & ids)
-    : Connection(iochannel, primary,
+    : Connection(iochannel, primary, promoter,
                  validator, ids)
-    , _promoter(promoter)
     , _persistence_manager(persistence_manager)
 {}
-
-void BBConsensusConnection::OnPrePrepare(const PrePrepare & message)
-{
-    _promoter.OnPrePrepare(message);
-}
 
 bool BBConsensusConnection::IsPrePrepared(const logos::block_hash & hash)
 {

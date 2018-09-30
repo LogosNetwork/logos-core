@@ -37,7 +37,7 @@ private:
     void ReadBytes(ReadCallback cb, size_t bytes, bool read_in_progress);
     void AsyncRead();
 
-    void OnData(const boost::system::error_code & error, size_t size);
+    void OnData(boost::system::error_code const & error, size_t size);
 
     void ProcessCallback();
     void DoProcessCallback();

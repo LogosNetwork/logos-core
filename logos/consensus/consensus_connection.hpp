@@ -20,6 +20,9 @@ struct DelegateIdentities
     uint8_t remote;
 };
 
+template<ConsensusType CT>
+class RequestPromoter;
+
 /// ConsensusConnection's Interface to ConsensusNetIO.
 class PrequelParser
 {
@@ -49,6 +52,7 @@ public:
 
     ConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                         PrimaryDelegate & primary,
+                        RequestPromoter<CT> & promoter,
                         MessageValidator & validator,
                         const DelegateIdentities & ids);
 
@@ -63,6 +67,8 @@ public:
     virtual ~ConsensusConnection() {}
 
     void OnPrequel(const uint8_t * data) override;
+
+    virtual bool IsPrePrepared(const logos::block_hash & hash) = 0;
 
 protected:
 
@@ -100,7 +106,7 @@ protected:
     void StoreResponse(const Prepare & message);
     void StoreResponse(const Commit & message);
 
-    virtual void OnPrePrepare(const PrePrepare & message);
+    void OnPrePrepare(const PrePrepare & message);
 
     std::shared_ptr<IOChannel>  _iochannel;
     ReceiveBuffer               _receive_buffer;
@@ -114,5 +120,5 @@ protected:
     Log                         _log;
     PrimaryDelegate &           _primary;
     ConsensusState              _state     = ConsensusState::VOID;
-    bool                        _connected = false;
+    RequestPromoter<CT> &       _promoter; ///< secondary list request promoter
 };
