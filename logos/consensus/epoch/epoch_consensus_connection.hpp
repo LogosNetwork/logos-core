@@ -22,10 +22,11 @@ public:
     /// @param ids remote/local delegate id [in]
     EpochConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                              PrimaryDelegate & primary,
+                             RequestPromoter<ConsensusType::Epoch> & promoter,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
                              ArchiverEpochHandler & handler)
-        : ConsensusConnection<ConsensusType::Epoch>(iochannel, primary, validator, ids)
+        : ConsensusConnection<ConsensusType::Epoch>(iochannel, primary, promoter, validator, ids)
         , _epoch_handler(handler)
     {}
     ~EpochConsensusConnection() {}
@@ -39,6 +40,8 @@ public:
     /// @param message PrePrepare message [in]
     /// @param delegate_id delegate id [in]
     void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) override;
+
+    bool IsPrePrepared(const logos::block_hash & hash) override;
 
 private:
     ArchiverEpochHandler & _epoch_handler; ///< Epoch handler

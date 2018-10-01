@@ -14,6 +14,7 @@
 #include <boost/log/sources/logger.hpp>
 #include <boost/asio/io_service.hpp>
 
+template<ConsensusType CT>
 class RequestPromoter;
 
 using boost::multi_index::ordered_non_unique;
@@ -21,19 +22,20 @@ using boost::multi_index::hashed_unique;
 using boost::multi_index::indexed_by;
 using boost::multi_index::member;
 
+template<ConsensusType CT>
 class SecondaryRequestHandler
 {
-
     class Request;
 
     using Timer     = boost::asio::deadline_timer;
     using Service   = boost::asio::io_service;
     using Error     = boost::system::error_code;
     using Log       = boost::log::sources::logger_mt;
-    using BlockPtr  = std::shared_ptr<logos::state_block>;
+    using BlockPtr  = std::shared_ptr<RequestMessage<CT>>;
     using Seconds   = boost::posix_time::seconds;
     using Clock     = boost::posix_time::second_clock;
     using TimePoint = boost::posix_time::ptime;
+    using PrePrepare= PrePrepareMessage<CT>;
 
     struct Request
     {
@@ -53,27 +55,29 @@ class SecondaryRequestHandler
 
 public:
 
-    SecondaryRequestHandler(Service & service, RequestPromoter * promoter);
+    SecondaryRequestHandler(Service & service, RequestPromoter<CT> & promoter);
 
     bool Contains(const logos::block_hash & hash);
 
-    void OnRequest(std::shared_ptr<logos::state_block> block);
+    void OnRequest(std::shared_ptr<RequestMessage<CT>> block, Seconds seconds = REQUEST_TIMEOUT);
     void OnTimeout(const Error & error);
 
-    void OnPrePrepare(const BatchStateBlock & block);
+    void OnPrePrepare(const PrePrepare & block);
 
 private:
 
+    void PruneRequest(const logos::block_hash & hash);
+
     void ScheduleTimer(const Seconds & timeout);
-    void PruneRequests(const BatchStateBlock & block);
+    void PruneRequests(const PrePrepare & block);
 
     static const Seconds REQUEST_TIMEOUT;
     static const Seconds MIN_TIMEOUT;
 
-    Requests          _requests;
-    Service &         _service;
-    RequestPromoter * _promoter;
-    Log               _log;
-    std::mutex        _mutex;
-    Timer             _timer;
+    Requests                _requests;
+    Service &               _service;
+    RequestPromoter<CT> &   _promoter;
+    Log                     _log;
+    std::mutex              _mutex;
+    Timer                   _timer;
 };

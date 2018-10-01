@@ -32,14 +32,7 @@ Archiver::Start(InternalConsensus &consensus)
            return;
        }
 
-        if (IsPrimaryDelegate(micro_block->previous)) {
-            BOOST_LOG(_log) << "Archiver::Start MICROBLOCK IS SENT TO CONSENSUS delegate " <<
-                                  (int)_delegate_id;
-            consensus.OnSendRequest(micro_block);
-        } else {
-            BOOST_LOG(_log) << "Archiver::Start MICROBLOCK IS SENT TO THE SECONDARY LIST (TBD) delegate " <<
-                                  (int)_delegate_id;
-        }
+       consensus.OnSendRequest(micro_block);
     };
 
     auto epoch_cb = [this, &consensus]()->void
@@ -51,14 +44,7 @@ Archiver::Start(InternalConsensus &consensus)
             return;
         }
 
-        if (IsPrimaryDelegate(epoch->previous)) {
-            BOOST_LOG(_log) << "Archiver::Start EPOCH IS SENT TO CONSENSUS delegate " <<
-                                  (int)_delegate_id;
-            consensus.OnSendRequest(epoch);
-        } else {
-            BOOST_LOG(_log) << "Archiver::Start EPOCH IS SENT TO THE SECONDARY LIST (TBD) delegate " <<
-                                  (int)_delegate_id;
-        }
+        consensus.OnSendRequest(epoch);
     };
 
     auto transition_cb = [this](){

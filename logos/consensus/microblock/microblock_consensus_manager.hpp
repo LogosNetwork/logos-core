@@ -32,8 +32,8 @@ public:
         : Manager(service, store, log,
                   config, key_store, validator)
         , _microblock_handler(handler)
+        , _enqueued(false)
     {
-		queue = 1;
 	}
 
     ~MicroBlockConsensusManager() = default;
@@ -73,7 +73,7 @@ protected:
         logos::process_return & result) override;
 
     /// Queues micro block.
-    void QueueRequest(std::shared_ptr<Request>) override;
+    void QueueRequestPrimary(std::shared_ptr<Request>) override;
 
     /// Gets next available MicroBlock.
     ///     @return reference to MicroBlock
@@ -90,6 +90,15 @@ protected:
     ///     @return true if full false otherwise
     bool PrePrepareQueueFull() override;
 
+    /// Primary list contains request with the hash
+    /// @param request's hash
+    /// @returns true if the request is in the list
+    bool PrimaryContains(const logos::block_hash&) override;
+
+    /// Queue request in the secondary list
+    /// @param request
+    void QueueRequestSecondary(std::shared_ptr<Request>) override;
+
     /// Create specialized instance of ConsensusConnection
     ///     @param iochannel NetIOChannel pointer
     ///     @param primary PrimaryDelegate pointer
@@ -103,5 +112,5 @@ private:
 
     std::shared_ptr<PrePrepare>  _cur_microblock;     ///< Currently handled microblock
     ArchiverMicroBlockHandler &  _microblock_handler; ///< Is used for validation and database commit
-	int queue;
+	int                          _enqueued;           ///< Request is enqueued
 };

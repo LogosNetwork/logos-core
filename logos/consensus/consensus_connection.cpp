@@ -1,3 +1,4 @@
+#include <logos/consensus/consensus_manager.hpp>
 #include <logos/consensus/network/consensus_netio.hpp>
 #include <logos/consensus/consensus_connection.hpp>
 
@@ -6,12 +7,14 @@
 template<ConsensusType CT>
 ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                                              PrimaryDelegate & primary,
+                                             RequestPromoter<CT> & promoter,
                                              MessageValidator & validator,
                                              const DelegateIdentities & ids)
     : _iochannel(iochannel)
     , _delegate_ids(ids)
     , _validator(validator)
     , _primary(primary)
+    , _promoter(promoter)
 {}
 
 template<ConsensusType CT>
@@ -260,14 +263,16 @@ void ConsensusConnection<CT>::StoreResponse(const Commit & message)
 }
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::OnPrePrepare(const PrePrepare & message)
-{}
-
-template<ConsensusType CT>
 void ConsensusConnection<CT>::OnPrequel(const uint8_t *data)
 {
     std::memcpy(_receive_buffer.data(), data, sizeof(Prequel));
     OnData();
+}
+
+template<ConsensusType CT>
+void ConsensusConnection<CT>::OnPrePrepare(const PrePrepare & message)
+{
+    _promoter.OnPrePrepare(message);
 }
 
 template class ConsensusConnection<ConsensusType::BatchStateBlock>;

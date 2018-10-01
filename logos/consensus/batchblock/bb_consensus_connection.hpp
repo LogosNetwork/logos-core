@@ -7,8 +7,6 @@
 
 #include <logos/consensus/consensus_connection.hpp>
 
-class RequestPromoter;
-
 class BBConsensusConnection : public ConsensusConnection<ConsensusType::BatchStateBlock>
 {
 
@@ -25,7 +23,7 @@ public:
     /// @param ids remote/local delegate id [in]
     BBConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                                   PrimaryDelegate & primary,
-                                  RequestPromoter & promoter,
+                                  RequestPromoter<ConsensusType::BatchStateBlock> & promoter,
                                   PersistenceManager & persistence_manager,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids);
@@ -41,11 +39,8 @@ public:
     /// @param delegate_id delegate id [in]
     void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) override;
 
-    void OnPrePrepare(const PrePrepare & message) override;
-
-    bool IsPrePrepared(const logos::block_hash & hash);
+    bool IsPrePrepared(const logos::block_hash & hash) override;
 
 private:
-    RequestPromoter &           _promoter;            ///< secondary list request promoter
     PersistenceManager &        _persistence_manager; ///< PersistenceManager reference
 };
