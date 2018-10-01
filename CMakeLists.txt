@@ -113,6 +113,7 @@ if (BOOST_CUSTOM)
 endif (BOOST_CUSTOM)
 
 find_package (Boost 1.67.0 REQUIRED COMPONENTS date_time filesystem system log log_setup thread program_options regex chrono atomic)
+#find_package (Boost 1.66.0 REQUIRED COMPONENTS date_time filesystem system log log_setup thread program_options regex chrono atomic)
 include_directories (${Boost_INCLUDE_DIR})
 
 add_library (ed25519
@@ -151,6 +152,9 @@ set_target_properties( MCL PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/bls_
 
 add_library(MCLbn256 STATIC IMPORTED)
 set_target_properties( MCLbn256 PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/bls_agg/mcl/lib/libmclbn256.a)
+
+# With Efence
+#set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp efence)
 
 set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp)
 
@@ -313,6 +317,14 @@ add_library (logos_lib_static STATIC ${LOGOS_LIB_SOURCES})
 add_library (node
 	${PLATFORM_NODE_SOURCE}
 	${SECURE_RPC_SOURCE}
+    logos/bootstrap/bootstrap.cpp
+    logos/bootstrap/bulk_pull.cpp
+    logos/bootstrap/bulk_push.cpp
+    logos/bootstrap/frontier.cpp
+    logos/bootstrap/batch_block_bulk_pull.cpp
+    logos/bootstrap/batch_block_validator.cpp
+    logos/bootstrap/microblock.cpp
+    logos/bootstrap/batch_block_frontier.cpp
 	logos/consensus/batchblock/batchblock_consensus_connection.cpp
 	logos/consensus/batchblock/batchblock_consensus_manager.cpp
 	logos/consensus/consensus_connection.cpp
@@ -331,8 +343,6 @@ add_library (node
 	logos/consensus/request_handler.cpp
 	logos/consensus/delegate_key_store.cpp
 	logos/microblock/microblock.cpp
-	logos/node/bootstrap.cpp
-	logos/node/bootstrap.hpp
 	logos/node/common.cpp
 	logos/node/common.hpp
 	logos/node/node.hpp
@@ -361,27 +371,7 @@ set_property (CACHE ACTIVE_NETWORK PROPERTY STRINGS logos_test_network logos_bet
 
 if (LOGOS_TEST)
 	add_executable (core_test
-		logos/core_test/message_validator.cpp
-		logos/core_test/block.cpp
-		logos/core_test/block_store.cpp
-		logos/core_test/interface.cpp
-		logos/core_test/conflicts.cpp
-		logos/core_test/daemon.cpp
-		logos/core_test/entry.cpp
-		logos/core_test/gap_cache.cpp
-		logos/core_test/ledger.cpp
-		logos/core_test/network.cpp
 		logos/core_test/node.cpp
-		logos/core_test/message.cpp
-		logos/core_test/message_parser.cpp
-		logos/core_test/processor_service.cpp
-		logos/core_test/peer_container.cpp
-		logos/core_test/rpc.cpp
-		logos/core_test/uint256_union.cpp
-		logos/core_test/versioning.cpp
-		logos/core_test/wallet.cpp
-		logos/core_test/wallets.cpp
-		logos/core_test/work_pool.cpp
 	)
 
 	add_executable (slow_test

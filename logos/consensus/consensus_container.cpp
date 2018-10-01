@@ -25,7 +25,9 @@ ConsensusContainer::ConsensusContainer(Service & service,
           _key_store, _validator)
     , _microblock_handler(alarm, store, NUM_DELEGATES,
                           config.microblock_generation_interval)
-{}
+{
+    std::cout << " ConsensusContainer::ConsensusContainer done... " << std::endl;
+}
 
 logos::process_return 
 ConsensusContainer::OnSendRequest(

@@ -67,6 +67,11 @@ public:
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) override;
 
+    PersistenceManager& get_persistence_manager() // ASK DEVON
+    {
+        return _persistence_manager;
+    }
+
 protected:
 
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;

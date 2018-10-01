@@ -8,6 +8,9 @@ PersistenceManager::PersistenceManager(Store & store,
     , _log(log)
 {}
 
+// Ask DEVON
+// Can we pass in a transaction, and then if we fail to validate, can we mdb_txn_abort() it ?
+// And then, bootstrap from another peer ?
 void PersistenceManager::ApplyUpdates(const BatchStateBlock & message, uint8_t delegate_id)
 {
     logos::transaction transaction(_store.environment, nullptr, true);

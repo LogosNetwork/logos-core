@@ -63,6 +63,7 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
     {
         _peer_acceptor.Start(server_endpoints);
     }
+    std::cout << "ConsensusNetIOManager::ConsensusNetIOManager done..." << std::endl;
 }
 
 void

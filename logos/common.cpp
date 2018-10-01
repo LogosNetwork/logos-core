@@ -201,6 +201,7 @@ logos::account_info::account_info ()
 
 logos::account_info::account_info (MDB_val const & val_a)
 {
+    std::cout << "val_a.mv_size: " << val_a.mv_size << " sizeof account_info: " << sizeof(*this) << std::endl;
     assert (val_a.mv_size == sizeof (*this));
 
     static_assert (sizeof (head) +

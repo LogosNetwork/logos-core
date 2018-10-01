@@ -1,0 +1,97 @@
+~~~~ ~~~~
+    see line 507 bulk_pull.cpp attempt to reconnect
+
+        connection->socket->connect(connection->endpoint);
+        if(connection->socket->is_open()) {
+            send_next ();
+        }
+
+[1] -> ask about an api for validation
+
+[2] add missing functionality...
+    see 'TODOFUNC'
+    -> ask about sequence and next pointer
+       not done yet, 
+
+       what we can do is use a previous pointer
+       and not validate the sequence, just applyupdate.
+
+       sequence number can be arbitrary
+
+[3] -> add caching to the validator as discussed.
+
+[4] test, test, test...
+    all next week
+
+~~~~ ~~~~
+
+[See node->background and pulls.pop_front(), line 203 bootstrap.cpp
+ looks like it runs in a seperate thread
+]
+
+In frontier, we send in our request our tips and sequences which we are not doing now. Then, in server, I send my tips and sequences which we do now. However, we want to instead send a walk of the chains vertically by sending a request for each block. We would initiate that on server, where the server would push tips for push on client, and for pull on client we would pass in our request for next block. We may want to add a flag of push or pull in the request.
+Thus in client, we use the flag to decide if we will push or pull and if we push, we somehow have to push across delegates. Thus, we would need to get all our pushes in a request, and construct multiple push requests. If we pull, we would send in the server multiple requests for each block they are pulling across delegates and when the client receives this, they do multiple pull requests.
+
+I think we would need a list of delegates that indicates which ones we pull or push from. Then, we would need to send a request for all pulls that indicates which block to get. On client, we take this request and construct a pull request. In pushing, we loop through and construct multiple push requests across delegates in body of receive frontier.
+We can do it sequentially.
+
+[0]
+    transaction rollback in lmdb
+
+    mdb_txn_begin(env, NULL, MDB_RDONLY, &txn); -> See where we begin txn in logos...
+    mdb_txn_abort(MDB_txn * txn)
+    mdb_txn_commit(MDB_txn * txn)
+
+    http://www.lmdb.tech/doc/group__mdb.html#ga73a5938ae4c3239ee11efa07eb22b882
+
+    In nano, we have logos::transaction::transaction(logos::mdb_env & environment_a, MDB_txn * parent_a, bool write)
+
+    logos/node/utility.cpp, this is a constructor for a transaction.
+
+    -->> See 'Ask DEVON' comment, we may want to pass in a transaction,
+    and abort if we fail, we can keep this in the validator...
+
+    -->> see 'RGDSTOP' and ask about this...
+
+
+
+[3] serialization
+~~~~ ~~~~
+
+[0] Remove Validate from validator
+    -->> Work
+    DONE.
+
+[1] How to actually correctly validate with micro block ?
+    Is it a micro block per delegate and so therefore
+    we construct per delegate ? What are we doing now,
+    review the idd...
+
+    its one micro block with all 32 delegates tips...
+    -->> so, just double check our code...
+    DONE. Seems ok.
+
+    transaction rollback in lmdb
+
+    mdb_txn_begin(env, NULL, MDB_RDONLY, &txn); -> See where we begin txn in logos...
+    mdb_txn_abort(MDB_txn * txn)
+    mdb_txn_commit(MDB_txn * txn)
+
+    http://www.lmdb.tech/doc/group__mdb.html#ga73a5938ae4c3239ee11efa07eb22b882
+
+    In nano, we have logos::transaction::transaction(logos::mdb_env & environment_a, MDB_txn * parent_a, bool write)
+
+    logos/node/utility.cpp, this is a constructor for a transaction.
+
+    -->> See 'Ask DEVON' comment, we may want to pass in a transaction,
+    and abort if we fail, we can keep this in the validator...
+
+    how to bootstrap from another peer in the event we abort ?
+
+    bootstrap_initiator.stop
+    bootstrap_initiator.bootstrap
+    logos::bootstrap_initiator::add_observer
+    current_attempt
+
+    We have logos::bootstrap_initiator::bootstrap (logos::endpoint const & endpoint_a, bool add_to_peers)
+    to bootstrap from a specific peer...

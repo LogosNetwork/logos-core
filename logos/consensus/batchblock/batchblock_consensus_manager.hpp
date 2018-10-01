@@ -32,7 +32,9 @@ public:
                                MessageValidator & validator)
         : Manager(service, store, log,
                   config, key_store, validator)
-    {}
+    {
+        std::cout << "BatchBlockConsensusManager::BatchBlockConsensusManager done..." << std::endl;
+    }
 
     ~BatchBlockConsensusManager() = default;
 

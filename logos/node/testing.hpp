@@ -8,6 +8,7 @@ class system
 {
 public:
     system (uint16_t, size_t);
+    system (uint16_t, boost::filesystem::path &data_path);
     ~system ();
     void generate_activity (logos::node &, std::vector<logos::account> &);
     void generate_mass_activity (uint32_t, logos::node &);

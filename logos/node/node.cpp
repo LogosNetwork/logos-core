@@ -573,6 +573,7 @@ node_config (logos::network::node_port, logos::logging ())
 {
 }
 
+#define _DEBUG 1 // RGD Hack
 logos::node_config::node_config (uint16_t peering_port_a, logos::logging const & logging_a) :
 peering_port (peering_port_a),
 logging (logging_a),
@@ -596,13 +597,17 @@ state_block_generate_canary (0)
         case logos::logos_networks::logos_test_network:
 //          LOGOS: ARCHIVE NANO
 //          -------------------
-//            preconfigured_representatives.push_back (logos::genesis_account);
+#ifdef _DEBUG // RGD Hack
+            preconfigured_representatives.push_back (logos::genesis_account);
+#endif
             break;
         case logos::logos_networks::logos_beta_network:
-//            preconfigured_peers.push_back ("logos-beta.logos.network");
-//            preconfigured_representatives.push_back (logos::account ("C93F714298E6061E549E52BB8885085319BE977B3FE8F03A1B726E9BE4BE38DE"));
-//            state_block_parse_canary = logos::block_hash ("5005F5283DE8D2DAB0DAC41DE9BD23640F962B4F0EA7D3128C2EA3D78D578E27");
-//            state_block_generate_canary = logos::block_hash ("FC18E2265FB835E8CF60E63531053A768CEDF5194263B01A5C95574944E4660D");
+#ifdef _DEBUG
+            preconfigured_peers.push_back ("logos-beta.logos.network");
+            preconfigured_representatives.push_back (logos::account ("C93F714298E6061E549E52BB8885085319BE977B3FE8F03A1B726E9BE4BE38DE"));
+            state_block_parse_canary = logos::block_hash ("5005F5283DE8D2DAB0DAC41DE9BD23640F962B4F0EA7D3128C2EA3D78D578E27");
+            state_block_generate_canary = logos::block_hash ("FC18E2265FB835E8CF60E63531053A768CEDF5194263B01A5C95574944E4660D");
+#endif
             break;
         case logos::logos_networks::logos_live_network:
 //            preconfigured_peers.push_back ("logos.logos.network");
@@ -1218,6 +1223,7 @@ store (init_a.block_store_init, application_path_a / "data.ldb", config_a.lmdb_m
 gap_cache (*this),
 ledger (store, stats, config.state_block_parse_canary, config.state_block_generate_canary),
 network (*this, config.peering_port),
+_validator(new BatchBlock::validator(this)),
 bootstrap_initiator (*this),
 bootstrap (service_a, config.peering_port, *this),
 peers (network.endpoint ()),
@@ -1227,9 +1233,16 @@ port_mapping (*this),
 warmed_up (0),
 block_processor (*this),
 block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
-stats (config.stat_config),
-_consensus_container(service_a, store, alarm_a, log, config)
+stats (config.stat_config)//,
+//_consensus_container(service_a, store, alarm_a, log, config) // RGD Hack
 {
+    if(!boost::filesystem::exists(application_path_a)) {
+        std::cout << "error opening path: " << std::endl;
+    }
+	logos::logging logging1;
+    std::cout << "application path: " << application_path_a << std::endl;
+	logging1.init (application_path_a);
+    std::cout << "line: " << __LINE__ << " file: " << __FILE__ << std::endl;
 
 // Used to modify the database file with the new account_info field.
 // TODO: remove eventually - can be reused for now
@@ -1370,6 +1383,7 @@ _consensus_container(service_a, store, alarm_a, log, config)
 
     BOOST_LOG (log) << "Node starting, version: " << LOGOS_VERSION_MAJOR << "." << LOGOS_VERSION_MINOR;
     BOOST_LOG (log) << boost::str (boost::format ("Work pool running %1% threads") % work.threads.size ());
+    std::cout << "init_a.error(): " << init_a.error() << std::endl;
     if (!init_a.error ())
     {
         if (config.logging.node_lifetime_tracing ())
@@ -1452,6 +1466,8 @@ _consensus_container(service_a, store, alarm_a, log, config)
             }
         }*/
     }
+
+    std::cout << "line: " << __LINE__ << " file: " << __FILE__ << std::endl;
 }
 
 logos::node::~node ()
@@ -1685,18 +1701,18 @@ void logos::node::start ()
 {
 //  LOGOS: ARCHIVE
 //  -------------------
-//    network.receive ();
-//    ongoing_keepalive ();
-//    ongoing_bootstrap ();
-//    ongoing_store_flush ();
-//    ongoing_rep_crawl ();
-//    bootstrap.start ();
-//    backup_wallet ();
-//    active.announce_votes ();
-//    online_reps.recalculate_stake ();
-//    port_mapping.start ();
-//    add_initial_peers ();
-//    observers.started ();
+    network.receive (); // RGD Hack
+    ongoing_keepalive ();
+    ongoing_bootstrap ();
+    ongoing_store_flush ();
+    //ongoing_rep_crawl ();
+    bootstrap.start ();
+    backup_wallet ();
+    //active.announce_votes ();
+    //online_reps.recalculate_stake ();
+    port_mapping.start ();
+    add_initial_peers ();
+    observers.started ();
 // CH added starting logic here instead of inside constructors
 }
 
@@ -2153,14 +2169,16 @@ void logos::node::add_initial_peers ()
 
 logos::process_return logos::node::OnSendRequest(std::shared_ptr<logos::state_block> block, bool should_buffer)
 {
-    return _consensus_container.OnSendRequest(block, should_buffer);
+    process_return result;
+    return result;
+    //return _consensus_container.OnSendRequest(block, should_buffer); // RGD Hack
 }
 
 logos::process_return logos::node::BufferComplete()
 {
     process_return result;
 
-    _consensus_container.BufferComplete(result);
+    //_consensus_container.BufferComplete(result); // RGD Hack
 
     return result;
 }

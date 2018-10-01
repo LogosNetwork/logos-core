@@ -194,10 +194,12 @@ logos::fan::fan (logos::uint256_union const & key, size_t count_a)
     std::unique_ptr<logos::uint256_union> first (new logos::uint256_union (key));
     for (auto i (1); i < count_a; ++i)
     {
+#if 0 // MEMORY
         std::unique_ptr<logos::uint256_union> entry (new logos::uint256_union);
         random_pool.GenerateBlock (entry->bytes.data (), entry->bytes.size ());
         *first ^= *entry;
         values.push_back (std::move (entry));
+#endif
     }
     values.push_back (std::move (first));
 }

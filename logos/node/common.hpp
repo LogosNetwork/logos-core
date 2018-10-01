@@ -2,6 +2,7 @@
 
 #include <logos/common.hpp>
 #include <logos/lib/interface.h>
+#include <logos/consensus/messages/common.hpp>
 
 #include <boost/asio.hpp>
 
@@ -84,16 +85,17 @@ namespace logos
 {
 enum class message_type : uint8_t
 {
-    invalid,
-    not_a_type,
-    keepalive,
-    publish,
-    confirm_req,
-    confirm_ack,
-    bulk_pull,
-    bulk_push,
-    frontier_req,
-    bulk_pull_blocks
+    invalid, // 0
+    not_a_type, // 1
+    keepalive, // 2
+    publish, // 3
+    confirm_req, // 4
+    confirm_ack, // 5
+    bulk_pull, // 6
+    bulk_push, // 7
+    frontier_req, // 8
+    bulk_pull_blocks, // 9
+    batch_blocks_pull // 10
 };
 enum class bulk_pull_blocks_mode : uint8_t
 {
@@ -173,16 +175,50 @@ public:
     logos::account start;
     uint32_t age;
     uint32_t count;
+    uint64_t nr_delegate; // RGD total number of delegates we are requesting frontier for.
 };
 class bulk_pull : public message
 {
 public:
     bulk_pull ();
-    bool deserialize (logos::stream &) override;
+    bool deserialize (logos::stream &) override; // RGDSERVER Need to implement these for us.
     void serialize (logos::stream &) override;
     void visit (logos::message_visitor &) const override;
     logos::uint256_union start;
     logos::block_hash end;
+    uint64_t timestamp_start; // RGD
+    uint64_t timestamp_end;
+    uint64_t seq_start;
+    uint64_t seq_end;
+    int      delegate_id; // Call for each delegate.
+    BlockHash e_start;
+    BlockHash e_end;
+    BlockHash m_start; // RGDSERVER I think this has to point to micro/epoch blocks.
+    BlockHash m_end;
+    BlockHash b_start;
+    BlockHash b_end;
+
+    static constexpr int SIZE = 
+                        sizeof (logos::uint256_union)   // start
+                        + sizeof (logos::uint256_union) // end
+                        + sizeof(uint64_t) // timestamp_start
+                        + sizeof(uint64_t) // timestamp_end
+                        + sizeof(uint64_t) // seq_start
+                        + sizeof(uint64_t) // seq_end
+                        + sizeof(int)      // delegate_id
+                        + sizeof(logos::uint256_union) + sizeof(logos::uint256_union)  // e_start-e_end
+                        + sizeof(logos::uint256_union) + sizeof(logos::uint256_union)  // m_start-m_end
+                        + sizeof(logos::uint256_union) + sizeof(logos::uint256_union); // b_start-b_end
+    friend
+    std::ostream& operator<<(std::ostream &out, const bulk_pull &obj)
+    {
+        out << " bulk_pull: ts start: " << obj.timestamp_start << " ts end: " << obj.timestamp_end << " seq_end: " << obj.seq_end
+            << " delegate_id: " << obj.delegate_id << " e_start: " << obj.e_start.to_string() << " e_end: " << obj.e_end.to_string()
+            << " m_start: " << obj.m_start.to_string() << " m_end: " << obj.m_end.to_string() 
+            << " b_start: " << obj.b_start.to_string() << " b_end: " << obj.b_end.to_string() << "\n";
+        return out;
+    }
+
 };
 class bulk_pull_blocks : public message
 {

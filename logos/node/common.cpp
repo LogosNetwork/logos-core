@@ -203,13 +203,21 @@ bool logos::frontier_req::deserialize (logos::stream & stream_a)
         result = read (stream_a, start.bytes);
         if (!result)
         {
-            result = read (stream_a, age);
-            if (!result)
+            result = read(stream_a, nr_delegate);
+            if(!result)
             {
-                result = read (stream_a, count);
+                result = read (stream_a, age);
+                if (!result)
+                {
+                    result = read (stream_a, count);
+                }
             }
         }
     }
+    std::cout << "logos::frontier_req::deserialize: result " << result 
+              << " age: " << age << std::endl
+              <<  " count: " << count << std::endl
+              << " nr_delegate: " << nr_delegate << std::endl;
     return result;
 }
 
@@ -217,7 +225,11 @@ void logos::frontier_req::serialize (logos::stream & stream_a)
 {
     write_header (stream_a);
     write (stream_a, start.bytes);
+    std::cout << "logos::frontier_req::serialize: nr_delegate: " << nr_delegate << std::endl;
+    write (stream_a, nr_delegate);
+    std::cout << "logos::frontier_req::serialize: age: " << age << std::endl;
     write (stream_a, age);
+    std::cout << "logos::frontier_req::serialize: count: " << count << std::endl;
     write (stream_a, count);
 }
 
@@ -241,20 +253,55 @@ void logos::bulk_pull::visit (logos::message_visitor & visitor_a) const
     visitor_a.bulk_pull (*this);
 }
 
-bool logos::bulk_pull::deserialize (logos::stream & stream_a)
+bool logos::bulk_pull::deserialize (logos::stream & stream_a) // RGDSERVER Implement these.
 {
     auto result (read_header (stream_a, version_max, version_using, version_min, type, extensions));
     assert (!result);
-    assert (logos::message_type::bulk_pull == type);
     if (!result)
     {
-        assert (type == logos::message_type::bulk_pull);
+        assert (((logos::message_type::bulk_pull == type) || 
+                (logos::message_type::batch_blocks_pull == type)));
+        //assert (type == logos::message_type::bulk_pull);
         result = read (stream_a, start);
         if (!result)
         {
             result = read (stream_a, end);
+            if(!result) {
+                result = read(stream_a,timestamp_start);
+                if(!result) {
+                    result = read(stream_a,timestamp_end);
+                    if(!result) {
+                        result = read(stream_a,delegate_id);
+                        if(!result) {
+                            result = read(stream_a,seq_start);
+                            if(!result) {
+                                result = read(stream_a,seq_end);
+                                if(!result) {
+                                    result = read(stream_a,e_start);
+                                    if(!result) {
+                                        result = read(stream_a,e_end);
+                                        if(!result) {
+                                            result = read(stream_a,m_start);
+                                            if(!result) {
+                                                result = read(stream_a,m_end);
+                                                if(!result) {
+                                                    result = read(stream_a,b_start);
+                                                    if(!result) {
+                                                        result = read(stream_a,b_end); // Yeah, I know...
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
+    std::cout << "logos::bulk_pull:: result: " << result << std::endl;
     return result;
 }
 
@@ -263,6 +310,17 @@ void logos::bulk_pull::serialize (logos::stream & stream_a)
     write_header (stream_a);
     write (stream_a, start);
     write (stream_a, end);
+	write (stream_a, timestamp_start);
+	write (stream_a, timestamp_end);
+    write (stream_a, delegate_id);
+    write (stream_a, seq_start);
+    write (stream_a, seq_end);
+    write (stream_a, e_start);
+    write (stream_a, e_end);
+    write (stream_a, m_start);
+    write (stream_a, m_end);
+    write (stream_a, b_start);
+    write (stream_a, b_end);
 }
 
 logos::bulk_pull_blocks::bulk_pull_blocks () :

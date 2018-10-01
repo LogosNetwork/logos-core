@@ -29,7 +29,9 @@ public:
                                MessageValidator & validator)
         : Manager(service, store, log,
                   config, key_store, validator)
-    {}
+    {
+        std::cout << "MicroBlockConsensusManager::MicroBlockConsensusManager done..." << std::endl;
+    }
 
     ~MicroBlockConsensusManager() = default;
 

@@ -24,12 +24,12 @@ namespace logos
 class ConsensusContainer 
 {
 
+public: // ASK DEVON
+
     using Service = boost::asio::io_service;
     using Config  = logos::node_config;
     using Log     = boost::log::sources::logger_mt;
     using Store   = logos::block_store;
-
-public:
 
     /// Class constructor.
     ///
@@ -64,6 +64,11 @@ public:
     void BufferComplete(logos::process_return & result);
 
     void StartMicroBlock(std::function<void(MicroBlock&)>);
+
+    BatchBlockConsensusManager& get_batch_manager() // ASK DEVON
+    {
+        return _batch_manager;
+    }
 
 private:
 

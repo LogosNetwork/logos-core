@@ -75,7 +75,7 @@ public:
     /// @param n number of delegates
     /// @param i microblock process period interval
     MicroBlockHandler(logos::alarm &a, BlockStore &s, uint8_t n, std::chrono::seconds i) : alarm(a), store(s), nDelegates(n),
-        interval(i) {}
+        interval(i) { std::cout << "MicroBlockHandler::MicroBlockHandler done..." << std::endl; }
 
     /// Class distructor
     virtual ~MicroBlockHandler() {}

@@ -28,6 +28,12 @@ void write (logos::stream & stream_a, T const & value)
     auto amount_written (stream_a.sputn (reinterpret_cast<uint8_t const *> (&value), sizeof (value)));
     assert (amount_written == sizeof (value));
 }
+template <typename T>
+void write (logos::stream & stream_a, T * value, size_t size) // RGDSERVER
+{
+	auto amount_written (stream_a.sputn (reinterpret_cast<uint8_t const *> (value), size)); // Raw binary write.
+	assert (amount_written == size);
+}
 class block_visitor;
 enum class block_type : uint8_t
 {
@@ -37,7 +43,11 @@ enum class block_type : uint8_t
     receive = 3,
     open = 4,
     change = 5,
-    state = 6
+    state = 6,
+    batch_block = 7,
+    micro_block = 8,
+    epoch_block = 9,
+    frontier_block = 10,
 };
 class block
 {
