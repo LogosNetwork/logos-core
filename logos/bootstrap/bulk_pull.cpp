@@ -235,7 +235,7 @@ void logos::bulk_pull_client::received_type ()
 #endif
 			connection->start_timeout ();
 			boost::asio::async_read (connection->socket, boost::asio::buffer 
-                (connection->receive_buffer.data () + 1, sizeof(BatchBlock::bulk_pull_response) - 1), 
+                (connection->receive_buffer.data () + 1, sizeof(BatchBlock::bulk_pull_response) - 1),
                 [this_l](boost::system::error_code const & ec, size_t size_a) {
 				    this_l->connection->stop_timeout ();
 				    this_l->received_block (ec, size_a);
@@ -309,6 +309,7 @@ void logos::bulk_pull_client::received_type ()
 				    this_l->received_block (ec, size_a);
 			});
 #endif
+            //receive_block();
 			break;
 		}
 	}
@@ -384,7 +385,7 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
             std::cout << "RGDFIXME13: delegate_id: " << pull.delegate_id << " line: " << __LINE__ << std::endl;
             std::cout << "RGDFIXME error " << std::endl;
 #endif
-			receive_block (); // RGD Hack Read more blocks. This implements a loop.
+			//receive_block (); // RGD Hack Read more blocks. This implements a loop.
 		    if (connection->node->config.logging.bulk_pull_logging ())
 			{
 			    BOOST_LOG (connection->node->log) << "Error deserializing block received from pull request";
@@ -503,7 +504,8 @@ void logos::bulk_pull_server::send_next ()
                 boost::asio::write(*connection->socket, boost::asio::buffer (send_buffer1->data (), send_buffer1->size ()),
                     boost::asio::transfer_all());
 #endif
-			    async_write (*connection->socket, boost::asio::buffer (send_buffer1->data (), send_buffer1->size ()), [this_l,send_buffer1](boost::system::error_code const & ec, size_t size_a) {
+                int size = (sizeof(BatchBlock::bulk_pull_response));
+			    async_write (*connection->socket, boost::asio::buffer (send_buffer1->data (), size), [this_l,send_buffer1](boost::system::error_code const & ec, size_t size_a) {
 				    this_l->sent_action (ec, size_a);
 			    });
            } else
@@ -559,7 +561,7 @@ void logos::bulk_pull_server::sent_action (boost::system::error_code const & ec,
 #ifdef _DEBUG
         std::cout << "logos::bulk_pull_server::sent_action:: error: message: " << ec.message() << std::endl;
 #endif
-        send_next ();
+        //send_next ();
 		if (connection->node->config.logging.bulk_pull_logging ())
 		{
 			BOOST_LOG (connection->node->log) << boost::str (boost::format ("Unable to bulk send block: %1%") % ec.message ());

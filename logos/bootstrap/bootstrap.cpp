@@ -1037,11 +1037,12 @@ public:
                 std::cout << "RGDFIXME99 delegate_id<0>: " << pull->delegate_id << std::endl;
                 auto response(std::make_shared<logos::bulk_pull_server>(connection,std::move(pull)));
 		        response->send_next ();
-                break;
             } else {
                 std::cout << "RGDFIXME99 error<0> size: " << connection->requests.size() << std::endl;
             }
+            connection->requests.pop();
         }
+        std::cout << "RGDFIXME99 error<1> size: " << connection->requests.size() << std::endl;
 #if 0
 		auto response (std::make_shared<logos::bulk_pull_server> (connection, std::unique_ptr<logos::bulk_pull> (static_cast<logos::bulk_pull *> (connection->requests.front ().release ()))));
 		response->send_next ();
@@ -1186,6 +1187,7 @@ void logos::bootstrap_server::add_request (std::unique_ptr<logos::message> messa
 
 void logos::bootstrap_server::finish_request ()
 {
+#if 0
 #ifdef _DEBUG
     std::cout << "logos::bootstrap_server::finish_request" << std::endl;
 #endif
@@ -1204,6 +1206,7 @@ void logos::bootstrap_server::finish_request ()
         std::cout << "RGDFIXME logos::bootstrap_server::finish_request: run_next: empty" << std::endl;
 #endif
     }
+#endif
 }
 
 
