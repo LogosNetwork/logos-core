@@ -20,7 +20,7 @@ constexpr double bootstrap_minimum_blocks_per_sec = 10.0;
 constexpr double bootstrap_minimum_frontier_blocks_per_sec = 1000.0;
 constexpr unsigned bootstrap_frontier_retry_limit = 16;
 constexpr double bootstrap_minimum_termination_time_sec = 30.0;
-constexpr unsigned bootstrap_max_new_connections = 10;
+constexpr unsigned bootstrap_max_new_connections = 128; // RGD: Increase limit from 10.
 constexpr unsigned bulk_push_cost_limit = 200;
 
 namespace logos

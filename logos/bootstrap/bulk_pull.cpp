@@ -175,7 +175,7 @@ void logos::bulk_pull_client::request_batch_block()
 		}
 		else
 		{
-            std::cout << "RGDFIXME13: delegate_id: " << this_l->pull.delegate_id << " line: " << __LINE__ << " ec.message: " << ec.message() << std::endl;
+            std::cout << "RGDFIXME13: bulk_pull_client: delegate_id: " << this_l->pull.delegate_id << " line: " << __LINE__ << " ec.message: " << ec.message() << std::endl;
 			if (this_l->connection->node->config.logging.bulk_pull_logging ())
 			{
 				BOOST_LOG (this_l->connection->node->log) << boost::str (boost::format ("Error sending bulk pull request to %1%: to %2%") % ec.message () % this_l->connection->endpoint);
@@ -205,7 +205,7 @@ void logos::bulk_pull_client::receive_block ()
 				BOOST_LOG (this_l->connection->node->log) << boost::str (boost::format ("Error receiving block type: %1%") % ec.message ());
 			}
 #ifdef _DEBUG
-            std::cout << "RGDFIXME13: delegate_id: " << this_l->pull.delegate_id << " line: " << __LINE__ << " ec.message: " << ec.message() << std::endl;
+            std::cout << "RGDFIXME91: bulk_pull_client: delegate_id: " << this_l->pull.delegate_id << " line: " << __LINE__ << " ec.message: " << ec.message() << std::endl;
             std::cout << "receive_block:: error" << std::endl;
 #endif
 		}
@@ -234,6 +234,7 @@ void logos::bulk_pull_client::received_type ()
             std::cout << "logos::bulk_pull_client::received_type: logos::block_type::batch_block" << std::endl;
 #endif
 			connection->start_timeout ();
+            std::cout << "RGDFIXME91 logos::bulk_pull_client::received_type: logos::block_type::batch_block sizeof: " << (sizeof(BatchBlock::bulk_pull_response) - 1) << std::endl;
 			boost::asio::async_read (connection->socket, boost::asio::buffer 
                 (connection->receive_buffer.data () + 1, sizeof(BatchBlock::bulk_pull_response) - 1),
                 [this_l](boost::system::error_code const & ec, size_t size_a) {
@@ -293,7 +294,7 @@ void logos::bulk_pull_client::received_type ()
 		default:
 		{
 #ifdef _DEBUG
-            std::cout << "logos::bulk_pull_client::received_type: default: received unknown type block: " << (int)type << " delegate_id: " << pull.delegate_id << std::endl;
+            std::cout << "RGDFIXME91 logos::bulk_pull_client::received_type: default: received unknown type block: " << (int)type << " delegate_id: " << pull.delegate_id << std::endl;
 #endif
 			if (connection->node->config.logging.network_packet_logging ())
 			{
@@ -399,7 +400,7 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
 			BOOST_LOG (connection->node->log) << boost::str (boost::format ("Error bulk receiving block: %1%") % ec.message ());
 		}
 #ifdef _DEBUG
-        std::cout << "RGDFIXME13: delegate_id: " << pull.delegate_id << " line: " << __LINE__ << std::endl;
+        std::cout << "RGDFIXME91: bulk_pull_client: delegate_id: " << pull.delegate_id << " line: " << __LINE__ << " ec.message: " << ec.message() << std::endl;
         std::cout << "logos::bulk_pull_client::received_block: receive error" << std::endl;
 #endif
 	}
@@ -505,6 +506,13 @@ void logos::bulk_pull_server::send_next ()
                     boost::asio::transfer_all());
 #endif
                 int size = (sizeof(BatchBlock::bulk_pull_response));
+                std::cout << "RGDFIXME91 sizeof: " << size << std::endl;
+#if 0
+                size = boost::asio::write(*connection->socket, boost::asio::buffer (send_buffer1->data (), size),
+                    boost::asio::transfer_all());
+                boost::system::error_code ec;
+                sent_action(ec,size);
+#endif
 			    async_write (*connection->socket, boost::asio::buffer (send_buffer1->data (), size), [this_l,send_buffer1](boost::system::error_code const & ec, size_t size_a) {
 				    this_l->sent_action (ec, size_a);
 			    });
@@ -546,7 +554,10 @@ std::unique_ptr<logos::block> logos::bulk_pull_server::get_next ()
 void logos::bulk_pull_server::sent_action (boost::system::error_code const & ec, size_t size_a)
 {
 #ifdef _DEBUG
-    std::cout << "logos::bulk_pull_server::sent_action delegate_id:" << request->delegate_id << std::endl;
+    std::cout << "logos::bulk_pull_server::sent_action delegate_id:" << request->delegate_id << " size_a: " << size_a << std::endl;
+    if(size_a < 348104) {
+        std::cout << "logos::bulk_pull_server::sent_action delegate_id: size_a: " << size_a << " ec.message: " << ec.message() << std::endl;
+    }
 #endif
 
 	if (!ec)

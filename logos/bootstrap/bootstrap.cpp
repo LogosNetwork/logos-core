@@ -8,6 +8,8 @@
 
 #include <boost/log/trivial.hpp>
 
+#include "backtrace.hpp"
+
 #define _DEBUG 1
 
 static std::vector<logos::request_info> req_s;
@@ -31,7 +33,7 @@ void logos::socket_timeout::start (std::chrono::steady_clock::time_point timeout
 #ifdef _DEBUG
                 std::cout << "logos::socket_timeout::start: socket->close" << std::endl;
 #endif
-				client_l->socket.close ();
+				// client_l->socket.close (); // FIXME!!!
 				if (client_l->node->config.logging.bulk_pull_logging ())
 				{
 					BOOST_LOG (client_l->node->log) << boost::str (boost::format ("Disconnecting from %1% due to timeout") % client_l->socket.remote_endpoint ());
@@ -116,6 +118,7 @@ void logos::bootstrap_client::run ()
 				BOOST_LOG (this_l->node->log) << boost::str (boost::format ("Connection established to %1%") % this_l->endpoint);
 			}
             default_client = this_l->shared_from_this(); // FIXME
+            do_backtrace();
 #ifdef _DEBUG
             std::cout << "logos::bootstrap_client::run: pool_connection called" << std::endl;
 #endif
@@ -469,6 +472,7 @@ void logos::bootstrap_attempt::populate_connections ()
 	{
 		std::unique_lock<std::mutex> lock (mutex);
 		num_pulls = pulls.size ();
+        std::cout << "RGDFIXME101 num_pulls: " << num_pulls << std::endl;
 		for (auto & c : clients)
 		{
 			if (auto client = c.lock ())
@@ -489,6 +493,7 @@ void logos::bootstrap_attempt::populate_connections ()
 						BOOST_LOG (node->log) << boost::str (boost::format ("Stopping slow peer %1% (elapsed sec %2%s > %3%s and %4% blocks per second < %5%)") % client->endpoint.address ().to_string () % elapsed_sec % bootstrap_minimum_termination_time_sec % blocks_per_sec % bootstrap_minimum_blocks_per_sec);
 					}
 
+                    std::cout << "RGDFIXME91: client->stop" << std::endl;
 					client->stop (true);
 				}
 			}
@@ -532,8 +537,11 @@ void logos::bootstrap_attempt::populate_connections ()
 	if (connections < target)
 	{
 		auto delta = std::min ((target - connections) * 2, bootstrap_max_new_connections);
+        std::cout << "RGDFIXME101 delta: " << delta << " target: " << target << " connections: " << connections << " max: " << bootstrap_max_new_connections << std::endl;
+
 		// TODO - tune this better
 		// Not many peers respond, need to try to make more connections than we need.
+        delta = 32; // FIXME!!!
 		for (int i = 0; i < delta; i++)
 		{
 			auto peer (node->peers.bootstrap_peer ());
@@ -598,7 +606,7 @@ void logos::bootstrap_attempt::stop ()
 #ifdef _DEBUG
             std::cout << "logos::bootstrap_attempt::stop: socket->close" << std::endl;
 #endif
-		    client->socket.close ();
+		    // client->socket.close (); // FIXME!!!
 		}
 	}
 	if (auto i = frontiers.lock ())
@@ -629,6 +637,10 @@ void logos::bootstrap_attempt::add_pull (logos::pull_info const & pull)
 
 	pulls.push_back (pull);
     if(idle.empty()) {
+        std::cout << "logos::bootstrap_attempt::add_pull: using default_client:" << std::endl;
+        char data[2]={1,0};
+        int bytes = boost::asio::write(default_client->socket, boost::asio::buffer(data,1), boost::asio::transfer_all());
+        std::cout << "RGDFIXME91 bytes written on default_client: " << bytes << std::endl;
         idle.push_front(default_client); // RGD: FIXME There is a race condition regarding idle...
     }
     request_pull(lock); // RGD: FIXME Force this to start processing...
@@ -848,7 +860,7 @@ void logos::bootstrap_listener::stop ()
 #ifdef _DEBUG
    std::cout << "logos::bootstrap_listener::stop: acceptor->close" << std::endl;
 #endif
-	acceptor.close ();
+	// acceptor.close (); // FIXME!!!
 	for (auto & i : connections_l)
 	{
 		auto connection (i.second.lock ());
@@ -857,7 +869,7 @@ void logos::bootstrap_listener::stop ()
 #ifdef _DEBUG
             std::cout << "logos::bootstrap_listener::stop: socket->close" << std::endl;
 #endif
-			connection->socket->close ();
+			// connection->socket->close (); // FIXME!!!
 		}
 	}
 }
