@@ -13,7 +13,7 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
         MessageValidator & validator)
     : Manager(service, store, log,
               config, key_store, validator)
-    , _persistence_manager(store, log)
+    , _persistence_manager(store)
 {}
 
 void
@@ -189,7 +189,7 @@ BatchBlockConsensusManager::MakeConsensusConnection(
     std::shared_ptr<IOChannel> iochannel,
     const DelegateIdentities& ids)
 {
-    return std::make_shared<BBConsensusConnection>(iochannel,
-                                                 *this, *this, _persistence_manager,
-                                                 _validator, ids);
+    return std::make_shared<BBConsensusConnection>(
+            iochannel, *this, *this, _persistence_manager,
+            _validator, ids);
 }

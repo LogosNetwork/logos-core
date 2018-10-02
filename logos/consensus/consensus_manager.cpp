@@ -28,20 +28,23 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
 
     auto hash = block->hash();
 
-    BOOST_LOG (_log) << "ConsensusManager<" << ConsensusToName(CT) <<
-        ">::OnSendRequest() - hash: " << hash.to_string();
+    BOOST_LOG (_log) << "ConsensusManager<" << ConsensusToName(CT)
+                     << ">::OnSendRequest() - hash: "
+                     << hash.to_string();
 
     if (IsPendingRequest(block))
     {
         result.code = logos::process_result::pending;
-        BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
-            "> - pending request " << hash.to_string();
+        BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT)
+                        << "> - pending request "
+                        << hash.to_string();
         return;
     }
 
     if(!Validate(block, result))
     {
-        BOOST_LOG(_log) << "ConsensusManager - block validation for send request failed. Result code: "
+        BOOST_LOG(_log) << "ConsensusManager - block validation for send request failed."
+                        << " Result code: "
                         << logos::ProcessResultToString(result.code)
                         << " hash: " << hash.to_string();
         return;
@@ -100,8 +103,12 @@ void ConsensusManager<CT>::OnConsensusReached()
     {
         static uint64_t messages_stored = 0;
         messages_stored += GetStoredCount();
-        BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
-            "> - Stored " << messages_stored << " blocks.";
+
+        BOOST_LOG(_log) << "ConsensusManager<"
+                        << ConsensusToName(CT)
+                        << "> - Stored "
+                        << messages_stored
+                        << " blocks.";
     }
 
     PrePreparePopFront();

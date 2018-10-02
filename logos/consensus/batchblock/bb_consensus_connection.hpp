@@ -22,11 +22,12 @@ public:
     /// @param validator Validator/Signer of consensus message [in]
     /// @param ids remote/local delegate id [in]
     BBConsensusConnection(std::shared_ptr<IOChannel> iochannel,
-                                  PrimaryDelegate & primary,
-                                  RequestPromoter<ConsensusType::BatchStateBlock> & promoter,
-                                  PersistenceManager & persistence_manager,
-                                  MessageValidator & validator,
-                                  const DelegateIdentities & ids);
+                          PrimaryDelegate & primary,
+                          RequestPromoter & promoter,
+                          PersistenceManager & persistence_manager,
+                          MessageValidator & validator,
+                          const DelegateIdentities & ids);
+
     ~BBConsensusConnection() {}
 
     /// Validate PrePrepare message

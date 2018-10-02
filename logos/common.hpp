@@ -116,6 +116,8 @@ public:
     bool operator== (logos::account_info const &) const;
     bool operator!= (logos::account_info const &) const;
     logos::mdb_val val () const;
+    logos::block_hash reservation;
+    uint64_t reservation_epoch;
     logos::block_hash head;
     logos::block_hash receive_head;
     logos::block_hash rep_block;
@@ -228,7 +230,9 @@ enum class process_result
     not_implemented,       // Logos - The block cannot be processed
     buffered,              // Logos - The block has been buffered for benchmarking
     buffering_done,        // Logos - The last block has been buffered and consensus will begin
-    pending                // Logos - The block has already been received and is pending consensus
+    pending,               // Logos - The block has already been received and is pending consensus
+    already_reserved       // Logos - The account has already been reserved by a different
+                           //         block within the reservation period.
 };
 
 std::string ProcessResultToString(process_result result);
