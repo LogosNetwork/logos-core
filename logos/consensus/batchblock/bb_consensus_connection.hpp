@@ -11,6 +11,7 @@ class BBConsensusConnection : public ConsensusConnection<ConsensusType::BatchSta
 {
 
     using Connection = ConsensusConnection<ConsensusType::BatchStateBlock>;
+    using Promoter   = RequestPromoter<ConsensusType::BatchStateBlock>;
 
 public:
     /// Class constructor
@@ -23,7 +24,7 @@ public:
     /// @param ids remote/local delegate id [in]
     BBConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                           PrimaryDelegate & primary,
-                          RequestPromoter & promoter,
+                          Promoter & promoter,
                           PersistenceManager & persistence_manager,
                           MessageValidator & validator,
                           const DelegateIdentities & ids);

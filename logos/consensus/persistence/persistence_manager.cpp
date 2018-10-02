@@ -84,7 +84,7 @@ bool PersistenceManager::Validate(const logos::state_block & block, logos::proce
             }
         }
 
-        if(block.hashables.amount.number() > info.balance)
+        if(block.hashables.amount > info.balance)
         {
             result.code = logos::process_result::balance_mismatch;
             return false;

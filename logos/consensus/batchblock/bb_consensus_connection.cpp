@@ -6,7 +6,7 @@
 BBConsensusConnection::BBConsensusConnection(
         std::shared_ptr<IOChannel> iochannel,
         PrimaryDelegate & primary,
-        RequestPromoter<ConsensusType::BatchStateBlock> & promoter,
+        Promoter & promoter,
         PersistenceManager & persistence_manager,
         MessageValidator & validator,
         const DelegateIdentities & ids)

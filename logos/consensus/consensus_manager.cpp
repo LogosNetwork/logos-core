@@ -13,7 +13,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
                                        const Config & config,
                                        DelegateKeyStore & key_store,
                                        MessageValidator & validator)
-    : PrimaryDelegate(validator)
+    : PrimaryDelegate(service, validator)
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)

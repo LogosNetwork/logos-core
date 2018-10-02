@@ -11,7 +11,8 @@ enum class ConsensusState : uint8_t
     COMMIT,
     POST_COMMIT,
 
-    VOID
+    VOID,
+    RECALL
 };
 
 inline
@@ -38,6 +39,9 @@ std::string StateToString(ConsensusState state)
             break;
         case ConsensusState::VOID:
             ret = "Void";
+            break;
+        case ConsensusState::RECALL:
+            ret = "Recall";
             break;
     }
 
