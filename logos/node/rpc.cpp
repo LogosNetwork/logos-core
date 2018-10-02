@@ -2440,88 +2440,111 @@ void logos::rpc_handler::process ()
                 }
                 case logos::process_result::gap_previous:
                 {
-                    error_response (response, "Gap previous block");
+                    error_response (response,
+                                    ProcessResultToString(result.code));
                     break;
                 }
                 case logos::process_result::gap_source:
                 {
-                    error_response (response, "Gap source block");
+                    error_response (response,
+                                    ProcessResultToString(result.code));
                     break;
                 }
                 case logos::process_result::state_block_disabled:
                 {
-                    error_response (response, "State blocks are disabled");
+                    error_response (response,
+                                    ProcessResultToString(result.code));
                     break;
                 }
                 case logos::process_result::old:
                 {
-                    error_response (response, "Old block");
+                    error_response (response,
+                                    ProcessResultToString(result.code));
                     break;
                 }
                 case logos::process_result::bad_signature:
                 {
-                    error_response (response, "Bad signature");
+                    error_response (response,
+                                    ProcessResultToString(result.code));
                     break;
                 }
                 case logos::process_result::negative_spend:
                 {
-                    // TODO once we get RPC versioning, this should be changed to "negative spend"
-                    error_response (response, "Overspend");
+                    error_response (response,
+                                    ProcessResultToString(result.code));
                     break;
                 }
                 case logos::process_result::unreceivable:
                 {
-                    error_response (response, "Unreceivable");
+                    error_response (response,
+                                    ProcessResultToString(result.code));
                     break;
                 }
                 case logos::process_result::not_receive_from_send:
                 {
-                    error_response (response, "Not receive from send");
+                    error_response (response,
+                                    ProcessResultToString(result.code));
                     break;
                 }
                 case logos::process_result::fork:
                 {
-                    error_response (response, "Fork");
+                    error_response (response,
+                                    ProcessResultToString(result.code));
                     break;
                 }
                 case logos::process_result::account_mismatch:
                 {
-                    error_response (response, "Account mismatch");
+                    error_response (response,
+                                    ProcessResultToString(result.code));
                     break;
                 }
                 case logos::process_result::invalid_block_type:
                 {
-                    error_response (response, "Invalid block type");
+                    error_response (response,
+                                    ProcessResultToString(result.code));
                     break;
                 }
                 case logos::process_result::not_implemented:
                 {
-                    error_response (response, "Not implemented");
+                    error_response (response,
+                                    ProcessResultToString(result.code));
                     break;
                 }
                 case logos::process_result::opened_burn_account:
                 {
-                    error_response (response, "Invalid account (burn account)");
+                    error_response (response,
+                                    ProcessResultToString(result.code));
                     break;
                 }
                 case logos::process_result::buffered:
                 {
                     boost::property_tree::ptree response_l;
-                    response_l.put ("result", "Buffered");
+                    response_l.put ("result",
+                                    ProcessResultToString(result.code));
                     response (response_l);
                     break;
                 }
                 case logos::process_result::buffering_done:
                 {
                     boost::property_tree::ptree response_l;
-                    response_l.put ("result", "Buffering Done");
+                    response_l.put ("result",
+                                    ProcessResultToString(result.code));
                     response (response_l);
                     break;
                 }
                 case logos::process_result::pending:
                 {
                     boost::property_tree::ptree response_l;
-                    response_l.put ("result", "Already Pending");
+                    response_l.put ("result",
+                                    ProcessResultToString(result.code));
+                    response (response_l);
+                    break;
+                }
+                case logos::process_result::balance_mismatch:
+                {
+                    boost::property_tree::ptree response_l;
+                    response_l.put ("result",
+                                    ProcessResultToString(result.code));
                     response (response_l);
                     break;
                 }

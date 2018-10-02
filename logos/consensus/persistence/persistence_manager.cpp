@@ -63,6 +63,7 @@ bool PersistenceManager::Validate(const logos::state_block & block, logos::proce
             return false;
         }
 
+        // TODO
         uint64_t current_epoch = 0;
 
         // Account is not reserved.
@@ -81,6 +82,12 @@ bool PersistenceManager::Validate(const logos::state_block & block, logos::proce
                 result.code = logos::process_result::already_reserved;
                 return false;
             }
+        }
+
+        if(block.hashables.amount.number() > info.balance)
+        {
+            result.code = logos::process_result::balance_mismatch;
+            return false;
         }
     }
 

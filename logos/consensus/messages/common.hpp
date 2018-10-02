@@ -24,7 +24,7 @@ enum class MessageType : uint8_t
     // Invalid
     Unknown
 };
-////////////////////
+
 /// To implement a new type of consensus :
 /// - define consensus type in consensus/messages/common.hpp - add new consensus type before Any
 ///   and update NumberOfConsensus
@@ -40,7 +40,7 @@ enum class MessageType : uint8_t
   struct ConsensusType_Size { int __VA_ARGS__; }; \
   enum class ConsensusType:uint8_t { __VA_ARGS__,Any=0xff}; \
   static constexpr size_t CONSENSUS_TYPE_COUNT = (sizeof(ConsensusType_Size)/sizeof(int));
-////////////////////
+
 // Add new consensus types at the end
 CONSENSUS_TYPE
 (

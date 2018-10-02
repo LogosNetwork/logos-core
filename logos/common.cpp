@@ -733,7 +733,7 @@ std::string logos::ProcessResultToString(logos::process_result result)
         ret = "Bad Signature";
         break;
     case process_result::old:
-        ret = "Old";
+        ret = "Old Block";
         break;
     case process_result::negative_spend:
         ret = "Negative Spend";
@@ -745,13 +745,13 @@ std::string logos::ProcessResultToString(logos::process_result result)
         ret = "Unreceivable";
         break;
     case process_result::gap_previous:
-        ret = "Gap Previous";
+        ret = "Gap Previous Block";
         break;
     case process_result::gap_source:
-        ret = "Gap Source";
+        ret = "Gap Source Block";
         break;
     case process_result::state_block_disabled:
-        ret = "State Block Disabled";
+        ret = "State Blocks Are Disabled";
         break;
     case process_result::not_receive_from_send:
         ret = "Not Receive From Send";
@@ -760,7 +760,7 @@ std::string logos::ProcessResultToString(logos::process_result result)
         ret = "Account Mismatch";
         break;
     case process_result::opened_burn_account:
-        ret = "Opened Burn Account";
+        ret = "Invalid account (burn account)";
         break;
     case process_result::balance_mismatch:
         ret = "Balance Mismatch";
