@@ -93,8 +93,8 @@ public:
     ///     @param local_ip local ip of this node's delegate
     ///     @param connection_mutex mutex to protect consensus connections
     ConsensusNetIO(Service & service,
-                   const Endpoint & endpoint, 
-                   logos::alarm & alarm, 
+                   const Endpoint & endpoint,
+                   logos::alarm & alarm,
                    const uint8_t remote_delegate_id, 
                    const uint8_t local_delegate_id, 
                    DelegateKeyStore & key_store,
@@ -108,6 +108,7 @@ public:
     /// peer being connected acts as the server.
     ///     @param socket connected peer's socket
     ///     @param endpoint reference to peer's address/port
+    ///     @param keyadvert received key advertisement
     ///     @param alarm reference to alarm
     ///     @param remote_delegate_id id of connected delegate
     ///     @param key_store delegates' public key store
@@ -115,8 +116,9 @@ public:
     ///     @param binder callback for binding netio interface to a consensus manager
     ///     @param connection_mutex mutex to protect consensus connections
     ConsensusNetIO(std::shared_ptr<Socket> socket, 
-                   const Endpoint & endpoint, 
-                   logos::alarm & alarm, 
+                   const Endpoint & endpoint,
+                   std::shared_ptr<KeyAdvertisement> keyadvert,
+                   logos::alarm & alarm,
                    const uint8_t remote_delegate_id, 
                    const uint8_t local_delegate_id, 
                    DelegateKeyStore & key_store,
@@ -124,14 +126,14 @@ public:
                    IOBinder binder,
                    std::recursive_mutex & connection_mutex);
 
-    virtual ~ConsensusNetIO() {}
+    virtual ~ConsensusNetIO() = default;
 
     /// Send data
     ///
     ///  Sends data to the connected peer
     ///  @param data data to be send
     ///  @param size of the data
-    virtual void Send(const void *data, size_t size) override;
+    void Send(const void *data, size_t size) override;
 
     /// Sends specific message to the connected peer.
     ///     @param data message to be send
@@ -151,18 +153,15 @@ public:
 
     /// Read prequel header, dispatch the message
     /// to respective consensus type.
-    virtual void ReadPrequel() override;
+    void ReadPrequel() override;
 
     /// Asynchronous read.
     ///
     /// Reads data from the connected peer.
     ///     @param bytes number of bytes to read
     ///     @param callback called upon reading data
-    virtual void AsyncRead(size_t bytes,
+    void AsyncRead(size_t bytes,
                            ReadCallback callback) override;
-
-    /// Change socket read/write buffering options
-    void AdjustSocket();
 
 private:
 
@@ -175,6 +174,12 @@ private:
     ///
     /// Async connect call back.
     void OnConnect();
+
+    /// Connected call back.
+    ///
+    /// Async connect call back.
+    /// @param advert peer's public key message
+    void OnConnect(std::shared_ptr<KeyAdvertisement> advert);
 
     /// Connected call back with error code set.
     ///
@@ -192,9 +197,13 @@ private:
 
     /// Public key callback.
     ///
-    ///     @param ec error code
-    ///     @param size size of received data
+    ///     @param data received data
     void OnPublicKey(const uint8_t * data);
+
+    /// Public key callback.
+    ///
+    ///     @param received message
+    void OnPublicKeyMsg(const KeyAdvertisement &msg);
 
     void OnWrite(const ErrorCode & error, size_t size);
 

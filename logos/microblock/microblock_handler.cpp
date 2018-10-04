@@ -338,13 +338,25 @@ MicroBlockHandler::Validate(
                            "SOME VALIDATION IS DISABLED";
     }
 
-    BlockHash merkle_root = merkle::MerkleHelper([&](function<void(const BlockHash&)> cb)->void{
+    /// verify can iterate the chain and the number of blocks checks out
+    int number_batch_blocks = 0;
+    BatchBlocksIterator(block._tips, previous_microblock._tips, [&number_batch_blocks](uint8_t, const BatchStateBlock &) mutable -> void {
+       ++number_batch_blocks;
+    });
+    if (number_batch_blocks != block._number_batch_blocks)
+    {
+        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock number of batch blocks doesn't match in block: " <<
+                        block._number_batch_blocks << " to database: " << number_batch_blocks;
+        return false;
+    }
+
+    /*BlockHash merkle_root = merkle::MerkleHelper([&](function<void(const BlockHash&)> cb)->void{
         BatchBlocksIterator(block._tips, previous_microblock._tips, [&](uint8_t delegate, const BatchStateBlock &batch)->void{
             cb(batch.Hash());
         });
     });
 
-    /*if (merkle_root != block._merkle_root)
+    if (merkle_root != block._merkle_root)
     {
         BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock merkle root failed " << merkle_root.to_string() <<
                         " previous " << previous_microblock._merkle_root.to_string();

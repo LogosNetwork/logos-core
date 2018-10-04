@@ -35,7 +35,8 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
 }
 
 ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket, 
-                               const Endpoint & endpoint, 
+                               const Endpoint & endpoint,
+                               std::shared_ptr<KeyAdvertisement> advert,
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
                                const uint8_t local_delegate_id, 
@@ -55,7 +56,7 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
     , _assembler(_socket)
     , _connection_mutex(connection_mutex)
 {
-    OnConnect();
+    OnConnect(advert);
 }
 
 void
@@ -101,7 +102,7 @@ ConsensusNetIO::Send(
 void 
 ConsensusNetIO::OnConnect()
 {
-    BOOST_LOG(_log) << "ConsensusNetIO - Connected to "
+    BOOST_LOG(_log) << "ConsensusNetIO - Client Connected to "
                     << _endpoint << ". Remote delegate id: "
                     << uint64_t(_remote_delegate_id);
 
@@ -109,6 +110,21 @@ ConsensusNetIO::OnConnect()
 
     SendKeyAdvertisement();
     ReadPrequel();
+}
+
+void
+ConsensusNetIO::OnConnect(std::shared_ptr<KeyAdvertisement> advert)
+{
+    BOOST_LOG(_log) << "ConsensusNetIO - Server Connected to "
+                    << _endpoint << ". Remote delegate id: "
+                    << uint64_t(_remote_delegate_id);
+
+    _connected = true;
+
+    SendKeyAdvertisement();
+    _alarm.add(std::chrono::steady_clock::now(), [this, advert](){
+        OnPublicKeyMsg(*advert);
+    });
 }
 
 void 
@@ -138,6 +154,7 @@ ConsensusNetIO::SendKeyAdvertisement()
 {
     KeyAdvertisement advert;
     advert.public_key = _validator.GetPublicKey();
+    advert.epoch_number = ConsensusContainer::GetCurEpochId();
     advert.remote_delegate_id = _local_delegate_id;
     Send(advert);
 }
@@ -202,11 +219,17 @@ ConsensusNetIO::OnPublicKey(const uint8_t * data)
 
     auto msg (*reinterpret_cast<KeyAdvertisement*>(_receive_buffer.data()));
 
+    OnPublicKeyMsg(msg);
+}
+
+void
+ConsensusNetIO::OnPublicKeyMsg(const KeyAdvertisement &msg)
+{
     // update remote delegate id
     _remote_delegate_id = msg.remote_delegate_id;
 
     _key_store.OnPublicKey(_remote_delegate_id, msg.public_key);
-    
+
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
     _io_channel_binder(shared_from_this(), _remote_delegate_id);
 

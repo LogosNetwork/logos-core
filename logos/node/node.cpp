@@ -1474,9 +1474,18 @@ _consensus_container(service_a, store, alarm_a, log, config, _archiver)
 
 
             _archiver.CreateGenesisBlocks(transaction);
+
+            ConsensusContainer::SetCurEpochId(GENESIS_EPOCH+1);
         }
         else // load genesis delegates
         {
+            Epoch previous_epoch;
+            if (store.epoch_get(epoch_tip, previous_epoch))
+            {
+                BOOST_LOG(log) << "Failed to get epoch";
+                return;
+            }
+            ConsensusContainer::SetCurEpochId(previous_epoch._epoch_number+1);
             // create genesis accounts
             for (int del = 0; del < NUM_DELEGATES*2; ++del) {
                 char buff[5];

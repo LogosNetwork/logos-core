@@ -66,6 +66,7 @@ struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert,
                                          ConsensusType::Any>
 {
     PublicKey public_key;
+    uint      epoch_number;
     uint8_t   remote_delegate_id;
 };
 

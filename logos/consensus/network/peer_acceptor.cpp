@@ -3,7 +3,7 @@
 PeerAcceptor::PeerAcceptor(Service & service,
                            Log & log,
                            const Endpoint & local_endpoint,
-                           PeerManager * manager)
+                           PeerManager & manager)
     : _acceptor(service)
     , _service(service)
     , _log(log)
@@ -69,7 +69,7 @@ void PeerAcceptor::OnAccept(boost::system::error_code const & ec, std::shared_pt
     }
     else
     {
-        _manager->OnConnectionAccepted(_accepted_endpoint, socket);
+        _manager.OnConnectionAccepted(_accepted_endpoint, socket);
     }
 
     Accept();

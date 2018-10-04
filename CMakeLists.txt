@@ -332,6 +332,7 @@ add_library (node
 	logos/consensus/network/consensus_netio_manager.cpp
 	logos/consensus/network/net_io_assembler.cpp
 	logos/consensus/network/peer_acceptor.cpp
+	logos/consensus/network/epoch_peer_manager.cpp
 	logos/consensus/persistence/persistence_manager.cpp
 	logos/consensus/primary_delegate.cpp
 	logos/consensus/delegate_key_store.cpp

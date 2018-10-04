@@ -11,13 +11,11 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
                                              logos::alarm & alarm, 
                                              const Config & config,
                                              DelegateKeyStore & key_store,
-                                             MessageValidator & validator) 
+                                             MessageValidator & validator,
+                                             PeerAcceptorStarter & starter)
     : _delegates(config.delegates)
     , _consensus_managers(consensus_managers)
     , _alarm(alarm)
-    , _peer_acceptor(service, _log,
-                     Endpoint(make_address_v4(config.local_address),
-                              config.peer_port), this)
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
@@ -60,28 +58,20 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
 
     if(server_endpoints.size())
     {
-        _peer_acceptor.Start(server_endpoints);
+        starter.Start(server_endpoints);
     }
 }
 
 void
 ConsensusNetIOManager::OnConnectionAccepted(
     const Endpoint& endpoint, 
-    std::shared_ptr<Socket> socket)
+    std::shared_ptr<Socket> socket,
+    std::shared_ptr<KeyAdvertisement> advert)
 {
-    auto entry = std::find_if(_delegates.begin(), _delegates.end(),
-                              [&](const Config::Delegate & delegate){
-                                  return delegate.ip == endpoint.address().to_string();
-                              });
-
-    // remote delegate id is piggy backed to the public key message and
-    // is updated when the public key message is received
-    uint8_t remote_delegate_id = (entry != _delegates.end()) ? entry->id : 0;
-
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
     _connections.push_back(std::make_shared<ConsensusNetIO>(
-		socket, endpoint, _alarm, 
-        remote_delegate_id, _delegate_id, _key_store, _validator,
+		socket, endpoint, advert, _alarm,
+        advert->remote_delegate_id, _delegate_id, _key_store, _validator,
         std::bind(&ConsensusNetIOManager::BindIOChannel, 
 				  this, 
 				  std::placeholders::_1, 
