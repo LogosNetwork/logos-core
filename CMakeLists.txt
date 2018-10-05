@@ -385,9 +385,9 @@ if (LOGOS_TEST)
 		logos/core_test/node.cpp
 	)
 
-	add_executable (slow_test
-		logos/slow_test/node.cpp)
-	
+	#add_executable (slow_test
+    #   logos/slow_test/node.cpp)
+
 	set_target_properties (core_test slow_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1")
 	set_target_properties (core_test slow_test PROPERTIES LINK_FLAGS "${PLATFORM_LINK_FLAGS}")
 endif (LOGOS_TEST)
