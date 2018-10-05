@@ -4,6 +4,9 @@
 #include <logos/lib/work.hpp>
 #include <logos/node/stats.hpp>
 #include <logos/node/wallet.hpp>
+#include <logos/node/bootstrap.hpp>
+#include <logos/epoch/archiver.hpp>
+#include <logos/epoch/recall_handler.hpp>
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/bootstrap/bootstrap_interface.hpp>
 #include <logos/bootstrap/batch_block_validator.hpp>
@@ -389,7 +392,6 @@ public:
     static std::chrono::seconds constexpr keepalive_period = std::chrono::seconds (60);
     static std::chrono::seconds constexpr keepalive_cutoff = keepalive_period * 5;
     static std::chrono::minutes constexpr wallet_backup_interval = std::chrono::minutes (5);
-    std::chrono::seconds microblock_generation_interval;
 };
 class node_observers
 {
@@ -505,7 +507,9 @@ public:
     //CH logos::online_reps online_reps;
     logos::stat stats;
     BatchBlock::validator *_validator; 
-    //ConsensusContainer _consensus_container; // RGD Hack...
+    RecallHandler _recall_handler;
+    Archiver _archiver;
+    //ConsensusContainer _consensus_container;
     static double constexpr price_max = 16.0;
     static double constexpr free_cutoff = 1024.0;
     static std::chrono::seconds constexpr period = std::chrono::seconds (60);

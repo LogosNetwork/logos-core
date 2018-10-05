@@ -7,11 +7,6 @@
 #include <memory>
 #include <list>
 
-namespace logos
-{
-    class alarm;
-}
-
 class RequestHandler
 {
     using BatchList = std::list<BatchStateBlock>;
@@ -26,6 +21,8 @@ public:
     void PopFront();
     bool BatchFull();
     bool Empty();
+
+    bool Contains(const logos::block_hash & hash);
 
 private:
 

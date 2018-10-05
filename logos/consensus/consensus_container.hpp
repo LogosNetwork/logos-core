@@ -5,10 +5,10 @@
 
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
-#include <logos/consensus/consensus_netio_manager.hpp>
+#include <logos/consensus/network/consensus_netio_manager.hpp>
+#include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
-#include <logos/microblock/microblock.hpp>
 
 namespace logos
 {
@@ -16,12 +16,23 @@ namespace logos
     class state_block;
 }
 
+class Archiver;
+
+class InternalConsensus
+{
+public:
+    InternalConsensus() = default;
+    virtual ~InternalConsensus() = default;
+    virtual logos::process_return OnSendRequest(std::shared_ptr<MicroBlock>) = 0;
+    virtual logos::process_return OnSendRequest(std::shared_ptr<Epoch>) = 0;
+};
+
 /// Encapsulates consensus related objects.
 ///
 /// This class serves as a container for ConsensusManagers
 /// and other consensus-related types and provides an interface
 /// to the node object.
-class ConsensusContainer 
+class ConsensusContainer : public InternalConsensus
 {
 
 public: // ASK DEVON
@@ -39,11 +50,13 @@ public: // ASK DEVON
     ///     @param[in] alarm reference to alarm
     ///     @param[in] log reference to boost log
     ///     @param[in] config reference to node_config
+    ///     @param[in] archiver epoch/microblock related consensus validation and persistence
     ConsensusContainer(Service & service,
                        Store & store,
                        logos::alarm & alarm,
                        Log & log,
-                       const Config & config);
+                       const Config & config,
+                       Archiver & archiver);
 
     ~ConsensusContainer() = default;
 
@@ -63,7 +76,7 @@ public: // ASK DEVON
     ///     @param[out] result result of the operation
     void BufferComplete(logos::process_return & result);
 
-    void StartMicroBlock(std::function<void(MicroBlock&)>);
+protected:
 
     BatchBlockConsensusManager& get_batch_manager() // ASK DEVON
     {
@@ -71,11 +84,19 @@ public: // ASK DEVON
     }
 
 private:
+	/// Initiate MicroBlock consensus
+	///		@param[in] MicroBlock containing the batch blocks
+    logos::process_return OnSendRequest(std::shared_ptr<MicroBlock>) override;
 
-    DelegateKeyStore           _key_store;          ///< Stores delegates' public keys
-    MessageValidator           _validator;          ///< Validator/Signer of consensus messages
-    BatchBlockConsensusManager _batch_manager;      ///< Handles batch block consensus
-    MicroBlockConsensusManager _micro_manager;      ///< Handles micro block consensus
-    ConsensusNetIOManager      _net_io_manager;     ///< Establishes connections to other delegates
-    MicroBlockHandler          _microblock_handler; ///< Handles microblock processing
+    /// Initiate MicroBlock consensus
+    ///		@param[in] Epoch containing the microblocks
+    logos::process_return OnSendRequest(std::shared_ptr<Epoch>) override;
+
+private:
+    DelegateKeyStore            _key_store; 		 ///< Store delegates public keys
+    MessageValidator            _validator; 		 ///< Validator/Signer of consensus messages
+    BatchBlockConsensusManager  _batch_manager; 	 ///< Handles batch block consensus
+	MicroBlockConsensusManager	_micro_manager; 	 ///< Handles micro block consensus
+	EpochConsensusManager	    _epoch_manager; 	 ///< Handles epoch consensus
+    ConsensusNetIOManager       _netio_manager; 	 ///< Establishes connections to other delegates
 };

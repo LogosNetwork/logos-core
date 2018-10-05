@@ -5,6 +5,8 @@
 #include <logos/lib/interface.h>
 #include <logos/node/common.hpp>
 #include <logos/node/rpc.hpp>
+#include <logos/epoch/epoch_handler.hpp>
+#include <logos/microblock/microblock.hpp>
 
 #include <algorithm>
 #include <future>
@@ -632,7 +634,6 @@ void logos::node_config::serialize_json (boost::property_tree::ptree & tree_a) c
 {
     tree_a.put ("version", "12");
     tree_a.put ("peering_port", std::to_string (peering_port));
-    tree_a.put ("microblock_generation_interval", std::to_string (microblock_generation_interval.count()));
     tree_a.put ("bootstrap_fraction_numerator", std::to_string (bootstrap_fraction_numerator));
     tree_a.put ("receive_minimum", receive_minimum.to_string_dec ());
     boost::property_tree::ptree logging_l;
@@ -803,7 +804,6 @@ bool logos::node_config::deserialize_json (bool & upgraded_a, boost::property_tr
         upgraded_a |= upgrade_json (std::stoull (version_l.get ()), tree_a);
         auto peering_port_l (tree_a.get<std::string> ("peering_port"));
         auto bootstrap_fraction_numerator_l (tree_a.get<std::string> ("bootstrap_fraction_numerator"));
-        auto microblock_generation_interval_l (tree_a.get<std::string> ("microblock_generation_interval", "1500"));
         auto receive_minimum_l (tree_a.get<std::string> ("receive_minimum"));
         auto & logging_l (tree_a.get_child ("logging"));
         work_peers.clear ();
@@ -867,7 +867,6 @@ bool logos::node_config::deserialize_json (bool & upgraded_a, boost::property_tr
         try
         {
             peering_port = std::stoul (peering_port_l);
-            microblock_generation_interval = std::chrono::duration<long>(std::stoul(microblock_generation_interval_l));
             bootstrap_fraction_numerator = std::stoul (bootstrap_fraction_numerator_l);
             password_fanout = std::stoul (password_fanout_l);
             io_threads = std::stoul (io_threads_l);
@@ -1233,8 +1232,10 @@ port_mapping (*this),
 warmed_up (0),
 block_processor (*this),
 block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
-stats (config.stat_config)//,
-//_consensus_container(service_a, store, alarm_a, log, config) // RGD Hack
+stats (config.stat_config),
+_recall_handler(),
+_archiver(alarm_a, store, _recall_handler, config.consensus_manager_config.delegate_id)//,
+//_consensus_container(service_a, store, alarm_a, log, config, _archiver)
 {
     if(!boost::filesystem::exists(application_path_a)) {
         std::cout << "error opening path: " << std::endl;
@@ -1432,6 +1433,73 @@ stats (config.stat_config)//,
                                   /* Count        */ 0
                               },
                               transaction);
+        }
+
+        // check epoch and microblock
+        logos::block_hash epoch_tip;
+        if (store.epoch_tip_get(epoch_tip)) // no tip, no epoch, no microblock - create genesis
+        {
+
+            // create genesis accounts
+            for (int del = 0; del < NUM_DELEGATES*2; ++del)
+            {
+                char buff[5];
+                sprintf(buff, "%02x", del);
+                logos::genesis_delegate delegate{logos::keypair(buff), 0, 100000 + (uint64_t)del * 100};
+                logos::keypair & pair = delegate.key;
+
+                genesis_delegates.push_back(delegate);
+
+                logos::amount amount(100000 + del * 100);
+                uint64_t work = 0;
+
+                logos::state_block state(pair.pub,  // account
+                                         0,         // previous
+                                         pair.pub,  // representative
+                                         amount,
+                                         pair.pub,  // link
+                                         pair.prv,
+                                         pair.pub,
+                                         work);
+
+                store.receive_put(state.hash(),
+                                  state,
+                                  transaction);
+
+                store.account_put(pair.pub,
+                                  {
+                                      /* Head    */ 0,
+                                      /* Previous*/ 0,
+                                      /* Rep     */ 0,
+                                      /* Open    */ state.hash(),
+                                      /* Amount  */ amount,
+                                      /* Time    */ logos::seconds_since_epoch(),
+                                      /* Count   */ 0
+                                  },
+                                  transaction);
+                std::string contents;
+                state.serialize_json(contents);
+                /*BOOST_LOG(log) << "initializing delegate " << del << " " << sizeof(state) << " " <<
+                                                pair.prv.data.to_string() << " " <<
+                                                pair.pub.to_string() << " " <<
+                                                pair.pub.to_account() << " " <<
+                                                state.hash().to_string() << "\n\t\t" << contents;*/
+            }
+
+
+            _archiver.CreateGenesisBlocks(transaction);
+        }
+        else // load genesis delegates
+        {
+            // create genesis accounts
+            for (int del = 0; del < NUM_DELEGATES*2; ++del) {
+                char buff[5];
+                sprintf(buff, "%02x", del);
+                logos::genesis_delegate delegate{logos::keypair(buff), 0, 100000 + (uint64_t) del * 100};
+                logos::keypair &pair = delegate.key;
+
+                genesis_delegates.push_back(delegate);
+            }
         }
     }
     if (logos::logos_network ==logos::logos_networks::logos_live_network)
@@ -1714,6 +1782,7 @@ void logos::node::start ()
     add_initial_peers ();
     observers.started ();
 // CH added starting logic here instead of inside constructors
+    _archiver.Start(_consensus_container);
 }
 
 void logos::node::stop ()

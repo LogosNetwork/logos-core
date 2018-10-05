@@ -3,8 +3,9 @@
 /// handles specifics of BatchBlock consensus.
 #pragma once
 
+#include <logos/consensus/batchblock/bb_consensus_connection.hpp>
+#include <logos/consensus/batchblock/request_handler.hpp>
 #include <logos/consensus/consensus_manager.hpp>
-#include <logos/consensus/request_handler.hpp>
 
 /// ConsensusManager that handles BatchBlock consensus.
 class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchStateBlock>
@@ -19,7 +20,6 @@ public:
     /// This constructor is called by ConsensusContainer.
     ///     @param[in] service reference to boost asio service.
     ///     @param[in] store reference to blockstore.
-    ///     @param[in] alarm reference to alarm.
     ///     @param[in] log reference to boost asio log.
     ///     @param[in] config reference to ConsensusManagerConfig.
     ///     @param[in] key_store stores delegates' public keys.
@@ -29,14 +29,9 @@ public:
                                Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
-                               MessageValidator & validator)
-        : Manager(service, store, log,
-                  config, key_store, validator)
-    {
-        std::cout << "BatchBlockConsensusManager::BatchBlockConsensusManager done..." << std::endl;
-    }
+                               MessageValidator & validator);
 
-    ~BatchBlockConsensusManager() = default;
+    virtual ~BatchBlockConsensusManager() {};
 
     /// Handles benchmark requests.
     ///     @param[in]  block state block.
@@ -50,6 +45,10 @@ public:
     /// effort.
     ///     @param[out] result result of the operation
     void BufferComplete(logos::process_return & result);
+
+    std::shared_ptr<PrequelParser>
+    BindIOChannel(std::shared_ptr<IOChannel>,
+                  const DelegateIdentities &) override;
 
 protected:
 
@@ -92,7 +91,7 @@ protected:
     /// Queues request message.
     ///
     /// Queues state block.
-    void QueueRequest(
+    void QueueRequestPrimary(
         std::shared_ptr<Request>) override;
 
     /// Gets next available BatchStateBlock.
@@ -112,9 +111,27 @@ protected:
     ///     @return true if full false otherwise
     bool PrePrepareQueueFull() override;
 
+    /// Primary list contains request with the hash
+    /// @param request's hash
+    /// @returns true if the request is in the list
+    bool PrimaryContains(const logos::block_hash&) override;
+
+    /// Create specialized instance of ConsensusConnection
+    ///     @param iochannel NetIOChannel pointer
+    ///     @param primary PrimaryDelegate pointer
+    ///     @param key_store Delegates' public key store
+    ///     @param validator Validator/Signer of consensus messages
+    ///     @param ids Delegate's id
+    ///     @return ConsensusConnection
+    std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>> MakeConsensusConnection(
+            std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
+
+    uint8_t DesignatedDelegate(std::shared_ptr<Request> request) override;
+
 private:
 
-    bool           _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
-    BlockBuffer    _buffer;                        ///< Buffered state blocks.
-    RequestHandler _handler;                       ///< Queue of batch state blocks.
+    bool                    _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
+    BlockBuffer             _buffer;                        ///< Buffered state blocks.
+    RequestHandler          _handler;                       ///< Primary queue of batch state blocks.
+    PersistenceManager		_persistence_manager;			///< Database interface and request validation
 };

@@ -113,6 +113,7 @@ logos::uint128_t const & logos::genesis_amount (globals.genesis_amount);
 logos::block_hash const & logos::not_a_block (globals.not_a_block);
 logos::block_hash const & logos::not_an_account (globals.not_an_account);
 logos::account const & logos::burn_account (globals.burn_account);
+std::vector<logos::genesis_delegate> logos::genesis_delegates;
 
 logos::votes::votes (std::shared_ptr<logos::block> block_a) :
 id (block_a->root ())
@@ -761,6 +762,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
         break;
     case process_result::buffering_done:
         ret = "Buffering Done";
+        break;
+    case process_result::pending:
+        ret = "Already Pending";
         break;
     }
 

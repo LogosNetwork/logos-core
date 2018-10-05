@@ -306,6 +306,8 @@ SET (LOGOS_LIB_SOURCES
 	logos/lib/merkle.hpp
 	logos/lib/numbers.cpp
 	logos/lib/numbers.hpp
+	logos/lib/epoch_time_util.cpp
+	logos/lib/epoch_time_util.hpp
 	logos/lib/utility.cpp
 	logos/lib/utility.hpp
 	logos/lib/work.hpp
@@ -325,23 +327,32 @@ add_library (node
     logos/bootstrap/batch_block_validator.cpp
     logos/bootstrap/microblock.cpp
     logos/bootstrap/batch_block_frontier.cpp
-	logos/consensus/batchblock/batchblock_consensus_connection.cpp
 	logos/consensus/batchblock/batchblock_consensus_manager.cpp
+	logos/consensus/batchblock/bb_consensus_connection.cpp
+	logos/consensus/batchblock/request_handler.cpp
+	logos/consensus/secondary_request_handler.cpp
 	logos/consensus/consensus_connection.cpp
 	logos/consensus/consensus_container.cpp
 	logos/consensus/consensus_manager.cpp
-	logos/consensus/consensus_netio.cpp
-	logos/consensus/consensus_netio_manager.cpp
+	logos/consensus/epoch/epoch_consensus_connection.cpp
+	logos/consensus/epoch/epoch_consensus_manager.cpp
 	logos/consensus/message_validator.cpp
 	logos/consensus/messages/messages.cpp
 	logos/consensus/microblock/microblock_consensus_connection.cpp
 	logos/consensus/microblock/microblock_consensus_manager.cpp
-	logos/consensus/net_io_assembler.cpp
-	logos/consensus/peer_acceptor.cpp
+	logos/consensus/network/consensus_netio.cpp
+	logos/consensus/network/consensus_netio_manager.cpp
+	logos/consensus/network/net_io_assembler.cpp
+	logos/consensus/network/peer_acceptor.cpp
 	logos/consensus/persistence/persistence_manager.cpp
 	logos/consensus/primary_delegate.cpp
-	logos/consensus/request_handler.cpp
 	logos/consensus/delegate_key_store.cpp
+	logos/epoch/archiver.cpp
+	logos/epoch/epoch.cpp
+	logos/epoch/epoch_handler.cpp
+	logos/epoch/recall_handler.cpp
+	logos/epoch/epoch_voting_manager.cpp
+	logos/epoch/event_proposer.cpp
 	logos/microblock/microblock.cpp
 	logos/node/common.cpp
 	logos/node/common.hpp
@@ -418,4 +429,3 @@ target_link_libraries (logos_core node secure lmdb ed25519 ${BLS_libs} logos_lib
 set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE)
 
 include (CPack)
-#add_definitions (-DMULTI_IP)

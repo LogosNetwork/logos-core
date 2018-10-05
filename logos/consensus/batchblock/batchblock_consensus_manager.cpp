@@ -2,6 +2,19 @@
 /// This file contains implementation of the BatchBlockConsensusManager class, which
 /// handles specifics of BatchBlock consensus
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
+#include <logos/consensus/batchblock/bb_consensus_connection.hpp>
+
+BatchBlockConsensusManager::BatchBlockConsensusManager(
+        Service & service,
+        Store & store,
+        Log & log,
+        const Config & config,
+        DelegateKeyStore & key_store,
+        MessageValidator & validator)
+    : Manager(service, store, log,
+              config, key_store, validator)
+    , _persistence_manager(store, log)
+{}
 
 void
 BatchBlockConsensusManager::OnBenchmarkSendRequest(
@@ -25,6 +38,22 @@ BatchBlockConsensusManager::BufferComplete(
 
     result.code = logos::process_result::buffering_done;
     SendBufferedBlocks();
+}
+
+
+
+std::shared_ptr<PrequelParser>
+BatchBlockConsensusManager::BindIOChannel(
+        std::shared_ptr<IOChannel> iochannel,
+        const DelegateIdentities & ids)
+{
+    auto connection =
+            std::make_shared<BBConsensusConnection>(
+                    iochannel, *this, *this, _persistence_manager,
+                    _validator, ids);
+
+    _connections.push_back(connection);
+    return connection;
 }
 
 void
@@ -78,7 +107,7 @@ BatchBlockConsensusManager::ReadyForConsensus()
 }
 
 void
-BatchBlockConsensusManager::QueueRequest(
+BatchBlockConsensusManager::QueueRequestPrimary(
   std::shared_ptr<Request> request)
 {
     _handler.OnRequest(request);
@@ -132,4 +161,35 @@ BatchBlockConsensusManager::OnConsensusReached()
     {
         SendBufferedBlocks();
     }
+}
+
+uint8_t
+BatchBlockConsensusManager::DesignatedDelegate(std::shared_ptr<Request> request)
+{
+    // The last five bits of the previous hash
+    // (or the account for new accounts) will
+    // determine the ID of the designated primary
+    // for that account.
+    //
+    logos::uint256_t indicator =  request->hashables.previous.is_zero() ?
+           request->hashables.account.number() :
+           request->hashables.previous.number();
+
+    return uint8_t(indicator & ((1<<DELIGATE_ID_MASK)-1));
+}
+
+bool
+BatchBlockConsensusManager::PrimaryContains(const logos::block_hash &hash)
+{
+    return _handler.Contains(hash);
+}
+
+std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>>
+BatchBlockConsensusManager::MakeConsensusConnection(
+    std::shared_ptr<IOChannel> iochannel,
+    const DelegateIdentities& ids)
+{
+    return std::make_shared<BBConsensusConnection>(iochannel,
+                                                 *this, *this, _persistence_manager,
+                                                 _validator, ids);
 }
