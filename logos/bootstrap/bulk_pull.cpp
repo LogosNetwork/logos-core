@@ -463,7 +463,7 @@ void logos::bulk_pull_server::send_next ()
            BlockHash bsb = BatchBlock::getNextBatchStateBlock(connection->node->store, request->delegate_id, current_bsb);
 #ifdef _DEBUG
            //for(; iter_count < 2; iter_count++) // run for several iterations... RGDFIXME was 
-           if(iter_count++ < 3)
+           if(iter_count++ < 9)
 #else
            if(!bsb.is_zero() && bsb != request->b_end)
 #endif

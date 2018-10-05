@@ -133,6 +133,13 @@ void logos::frontier_req_client::received_frontier (boost::system::error_code co
 void logos::frontier_req_client::received_batch_block_frontier(boost::system::error_code const &ec, size_t size_a)
 {
 #ifdef _DEBUG
+    static int count = 0;
+    if(count++ > 32) {
+        return;
+    }
+#endif
+
+#ifdef _DEBUG
     std::cout << "logos::frontier_req_client::received_batch_block_frontier: ec: " << ec << std::endl;
 #endif
 

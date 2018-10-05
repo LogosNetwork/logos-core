@@ -23,6 +23,7 @@ public:
     BlockHash current_bsb; 
     int request_id;
     int iter_count;
+    logos::request_info *request;
 };
 
 class bulk_push_server : public std::enable_shared_from_this<logos::bulk_push_server>
