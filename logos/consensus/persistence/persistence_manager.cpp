@@ -122,8 +122,16 @@ void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message, MDB_
     }
 }
 
+int blocks = 0;
+
 void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, uint8_t delegate_id, MDB_txn * transaction)
 {
+    blocks += message.block_count;
+    if(blocks == CONSENSUS_BATCH_SIZE || blocks == 48000 || blocks == 96000 || blocks == 192000) {
+        BOOST_LOG(_log) << "ApplyBatchMessage:: " << blocks;
+    }
+
+
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
         ApplyStateMessage(message.blocks[i], transaction);
