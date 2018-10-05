@@ -13,6 +13,7 @@
 #define _DEBUG 1
 
 static std::vector<logos::request_info> req_s;
+static std::vector<logos::request_info> req_s2;
 static std::shared_ptr<logos::bootstrap_client> default_client;
 
 logos::socket_timeout::socket_timeout (logos::bootstrap_client & client_a) :
@@ -117,6 +118,7 @@ void logos::bootstrap_client::run ()
 			{
 				BOOST_LOG (this_l->node->log) << boost::str (boost::format ("Connection established to %1%") % this_l->endpoint);
 			}
+            std::cout << "logos::bootstrap_client::run: default_client init" << std::endl;
             default_client = this_l->shared_from_this(); // FIXME
             do_backtrace();
 #ifdef _DEBUG
@@ -263,25 +265,131 @@ void logos::bootstrap_attempt::request_pull (std::unique_lock<std::mutex> & lock
 void logos::bootstrap_attempt::request_push (std::unique_lock<std::mutex> & lock_a)
 { // RGD: Called from 'logos::bootstrap_attempt::run'
 	bool error (false);
+    std::cout << "RGDFIXME999 logos::bootstrap_attempt::request_push called: req_s.size: " << req_s.size() << std::endl;
+
+    if(req_s.size() == 0) {// nothing to do.
+        return; // FIXME!!!
+    }
 	auto connection_shared = connection_frontier_request.lock ();
+#define _WORKS 1
+#ifdef _WORKS
     if(!connection_shared) {
+        std::cout << "RGDFIXME999 logos::bootstrap_attempt::request_push first connection_shared is null: " << (default_client==nullptr) << " clients.size: " << clients.size() << std::endl;
 	    auto connection_l (connection (lock_a));
 	    connection_frontier_request = connection_l;
         connection_shared = connection_frontier_request.lock();
         if(!connection_shared) {
+            std::cout << "RGDFIXME999 logos::bootstrap_attempt::request_push setting default client: " << (default_client==nullptr) << std::endl;
             connection_shared = default_client; // FIXME -- Their code seems to lose a connection toward the end...
+            if(!connection_shared) {
+#if 0 // FIXME!!!
+			    auto peer (node->peers.bootstrap_peer ());
+				auto client (std::make_shared<logos::bootstrap_client> (node, shared_from_this (), logos::tcp_endpoint (peer.address (), peer.port ())));
+                connection_shared = client;
+#endif
+            }
+        }
+    }
+#else // DOESN'T WORK
+    if(!connection_shared) {
+            connection_shared = default_client; // FIXME -- Their code seems to lose a connection toward the end...
+    }
+#endif
+    if(connection_shared)
+	{ 
+        if(connection_shared->attempt->req.size() == 0) {
+        //if(req_s.size() > 0) {
+           std::cout << "RGDFIXME999 req_s2.size: " << req_s2.size() << std::endl;
+           std::cout << "RGDFIXME999 req.size: " << req_s.size() << std::endl;
+           connection_shared->attempt->req = req_s; // FIXME -- Their code has empty req
+        } /* else {
+            return;
+        }
+        */
+
+#if 0
+        if(connection_shared->attempt->req.size() == 0) {
+            return; // FIXME!!!
+        }
+#endif
+
+#ifdef _DEBUG
+        std::cout << "RGDFIXME999 logos::bootstrap_attempt::request_push: dump request: { " << std::endl;
+        for(int i = 0; i < req_s.size(); ++i) {
+           std::cout << "RGDFIXME999 logos::bootstrap_attempt::request_push: dump request: delegate_id: " << req_s[i].delegate_id << std::endl;
+        }
+        std::cout << "RGDFIXME999 logos::bootstrap_attempt::request_push: dump request: } " << std::endl;
+#endif
+		auto client (std::make_shared<logos::bulk_push_client> (connection_shared));
+        std::cout << "logos::bootstrap_attempt::request_push: running client->start: req_s.size: " << req_s.size() << std::endl;
+        std::cout << " RGDFIXME999 line: " << __LINE__ << std::endl;
+        std::cout << " RGDFIXME999 line: " << __LINE__ << std::endl;
+		client->start ();
+        std::cout << " RGDFIXME999 line: " << __LINE__ << std::endl;
+		push = client;
+        std::cout << " RGDFIXME999 line: " << __LINE__ << std::endl;
+		auto future (client->promise.get_future ());
+        std::cout << " RGDFIXME999 line: " << __LINE__ << std::endl;
+		lock_a.unlock ();
+        std::cout << " RGDFIXME999 line: " << __LINE__ << std::endl;
+        std::cout << " RGDFIXME999 line: " << __LINE__ << std::endl;
+		error = consume_future (future);
+        if(!error) {
+            req_s.clear();
+        } else {
+            std::cout << "RGDFIXME999 future is true"  << std::endl;
+        }
+        std::cout << " RGDFIXME999 line: " << __LINE__ << std::endl;
+		lock_a.lock ();
+        std::cout << " RGDFIXME999 line: " << __LINE__ << std::endl;
+	} else {
+#ifdef _DEBUG
+        std::cout << "RGDFIXME999 logos::bootstrap_attempt::request_push: connection_shared is null" << std::endl;
+#endif
+    }
+	if (node->config.logging.network_logging ())
+	{
+		BOOST_LOG (node->log) << "Exiting bulk push client";
+		if (error)
+		{
+			BOOST_LOG (node->log) << "Bulk push client failed";
+		}
+	}
+#if 0
+	bool error (false);
+	auto connection_shared = connection_frontier_request.lock ();
+    if(!connection_shared) {
+        std::cout << "logos::bootstrap_attempt::request_push first connection_shared is null: " << (default_client==nullptr) << " clients.size: " << clients.size() << std::endl;
+	    auto connection_l (connection (lock_a));
+	    connection_frontier_request = connection_l;
+        connection_shared = connection_frontier_request.lock();
+        if(!connection_shared) {
+            std::cout << "logos::bootstrap_attempt::request_push setting default client: " << (default_client==nullptr) << std::endl;
+            connection_shared = default_client; // FIXME -- Their code seems to lose a connection toward the end...
+            if(!connection_shared) {
+#if 0 // FIXME!!!
+			    auto peer (node->peers.bootstrap_peer ());
+				auto client (std::make_shared<logos::bootstrap_client> (node, shared_from_this (), logos::tcp_endpoint (peer.address (), peer.port ())));
+                connection_shared = client;
+#endif
+            }
         }
     }
     if(connection_shared)
 	{ 
-        connection_shared->attempt->req = req_s; // FIXME -- Their code has empty req
+        if(connection_shared->attempt->req.size() == 0) {
+           std::cout << "RGDFIXME103 req_s2.size: " << req_s2.size() << std::endl;
+           std::cout << "RGDFIXME103 req.size: " << req_s.size() << std::endl;
+           connection_shared->attempt->req = req_s; // FIXME -- Their code has empty req
+        }
 #ifdef _DEBUG
         for(int i = 0; i < req_s.size(); ++i) {
            std::cout << "logos::bootstrap_attempt::request_push: dump request: delegate_id: " << req_s[i].delegate_id << std::endl;
         }
 #endif
-        req_s.clear();
 		auto client (std::make_shared<logos::bulk_push_client> (connection_shared));
+        std::cout << "logos::bootstrap_attempt::request_push: running client->start: req_s.size: " << req_s.size() << std::endl;
+        req_s.clear();
 		client->start ();
 		push = client;
 		auto future (client->promise.get_future ());
@@ -301,6 +409,7 @@ void logos::bootstrap_attempt::request_push (std::unique_lock<std::mutex> & lock
 			BOOST_LOG (node->log) << "Bulk push client failed";
 		}
 	}
+#endif
 }
 
 bool logos::bootstrap_attempt::still_pulling ()
@@ -313,6 +422,14 @@ bool logos::bootstrap_attempt::still_pulling ()
     std::cout << "logos::bootstrap_attempt::still_pulling: running: " << running << " more_pulls: " << more_pulls << " still_pulling: " << still_pulling << std::endl;
 #endif
 	return running && (more_pulls || still_pulling);
+}
+
+bool logos::bootstrap_attempt::still_pushing()
+{
+	assert (!mutex.try_lock());
+	auto running (!stopped);
+	auto more_pushes (!req_s.empty ());
+	return running && (more_pushes);
 }
 
 void logos::bootstrap_attempt::run ()
@@ -357,10 +474,27 @@ void logos::bootstrap_attempt::run ()
 	{
 		BOOST_LOG (node->log) << "Completed pulls";
 	}
-	request_push (lock);
+    std::cout << "RGDFIXME1031 req_s2.size: " << req_s2.size() << std::endl;
+    std::cout << "still_pushing enter while..." << std::endl;
+#if 0
+    while(still_pushing()) {
+        while(still_pushing()) {
+        if(!req_s2.empty ()) {
+            std::cout << "still_pushing request_push..." << std::endl;
+            request_push(lock);
+        } else {
+            std::cout << "still_pushing wait..." << std::endl;
+            condition.wait(lock);
+        }
+      }
+    }
+    std::cout << "still_pushing done while..." << std::endl;
+#endif
+    std::cout << "RGDFIXME999 calling request_push from run..." << std::endl;
+    request_push(lock);
 	stopped = true;
 	condition.notify_all ();
-	idle.clear ();
+	// idle.clear (); // FIXME!!! Must wait till threads using this have stopped, else mem fault...
 #ifdef _DEBUG
     std::cout << "bootstrap_attempt::run end }" << std::endl;
 #endif
@@ -637,10 +771,12 @@ void logos::bootstrap_attempt::add_pull (logos::pull_info const & pull)
 
 	pulls.push_back (pull);
     if(idle.empty()) {
+#if 0 // FIXME!!!
         std::cout << "logos::bootstrap_attempt::add_pull: using default_client:" << std::endl;
         char data[2]={1,0};
         int bytes = boost::asio::write(default_client->socket, boost::asio::buffer(data,1), boost::asio::transfer_all());
         std::cout << "RGDFIXME91 bytes written on default_client: " << bytes << std::endl;
+#endif
         idle.push_front(default_client); // RGD: FIXME There is a race condition regarding idle...
     }
     request_pull(lock); // RGD: FIXME Force this to start processing...
@@ -706,12 +842,19 @@ void logos::bootstrap_attempt::add_bulk_push_target (logos::block_hash const & h
 
 void logos::bootstrap_attempt::add_bulk_push_target(logos::request_info r)
 {
-	std::lock_guard<std::mutex> lock (mutex);
+	//std::lock_guard<std::mutex> lock (mutex);
+    std::unique_lock<std::mutex> lock(mutex);
+
 #ifdef _DEBUG
-    std::cout << "logos::bootstrap_attempt::add_bulk_push_target: " << std::endl;
+    std::cout << "RGDFIXME999 logos::bootstrap_attempt::add_bulk_push_target: " << std::endl;
 #endif
     req.push_back(r);
     req_s.push_back(r);
+    req_s2 = req_s;
+    std::cout << "logos::bootstrap_attempt::add_bulk_push_target: req_s.size: " << req_s.size() << std::endl;
+    std::cout << "RGDFIXME1032 req_s2.size: " << req_s2.size() << std::endl;
+    //request_push(lock);
+    //condition.notify_all();
 }
 
 logos::bootstrap_initiator::bootstrap_initiator (logos::node & node_a) :
@@ -767,16 +910,20 @@ void logos::bootstrap_initiator::run_bootstrap ()
 		if (attempt != nullptr)
 		{
 			lock.unlock ();
+            std::cout << "RGDFIXME103 attempt::run begin " << std::endl;
 			attempt->run (); // RGD Call bootstrap_attempt::run
 			lock.lock ();
+            std::cout << "RGDFIXME103 attempt::run end " << std::endl;
 			attempt = nullptr;
 			condition.notify_all ();
 		}
 		else
 		{
+            std::cout << "RGDFIXME103 waiting: " << stopped << std::endl;
 			condition.wait (lock);
 		}
 	}
+    std::cout << "RGDFIXME103 stopped: " << stopped << std::endl;
 }
 
 void logos::bootstrap_initiator::add_observer (std::function<void(bool)> const & observer_a)

@@ -143,6 +143,7 @@ public:
 	void requeue_pull (logos::pull_info const &);
 	void add_pull (logos::pull_info const &);
 	bool still_pulling ();
+    bool still_pushing ();
 	void process_fork (MDB_txn *, std::shared_ptr<logos::block>);
 	unsigned target_connections (size_t pulls_remaining);
 	bool should_log ();

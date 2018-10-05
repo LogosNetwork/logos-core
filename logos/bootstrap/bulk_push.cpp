@@ -24,7 +24,7 @@ void logos::bulk_push_client::start ()
 	logos::bulk_push message;
     request_id = 0;
     iter_count = 0;
-    logos::request_info *request = &connection->attempt->req[request_id];
+    request = &connection->attempt->req[request_id];
 
     if(request) {
         current_epoch = request->e_start;
@@ -48,10 +48,14 @@ void logos::bulk_push_client::start ()
 		}
 		else
 		{
+#ifdef _DEBUG
+            std::cout << "logos::bulk_push_client::start: network error: " << ec.message() << " delegate_id: " << this_l->request->delegate_id << std::endl;
+#endif
 			if (this_l->connection->node->config.logging.bulk_pull_logging ())
 			{
 				BOOST_LOG (this_l->connection->node->log) << boost::str (boost::format ("Unable to send bulk_push request: %1%") % ec.message ());
 			}
+            this_l->promise.set_value(true);
 		}
 	});
 }
@@ -61,7 +65,6 @@ void logos::bulk_push_client::push (MDB_txn * transaction_a)
 	{
         //for(int i = 0; i < connection->attempt->req.size(); ++i)
         if(request_id < connection->attempt->req.size()) {
-            logos::request_info *request = &connection->attempt->req[request_id]; // Process all requests in the vector...
 	        //while(!current_micro.is_zero())
             if(!current_micro.is_zero()) {
                 auto send_buffer(std::make_shared<std::vector<uint8_t>>(BatchBlock::bulk_pull_response_mesg_len, uint8_t(0)));
@@ -89,7 +92,13 @@ void logos::bulk_push_client::push (MDB_txn * transaction_a)
                         if(!ec)
 			            {
 				            this_l->send_next();
-			            }
+			            } else
+                        {
+#ifdef _DEBUG
+                            std::cout << "logos::bulk_push_client::push: network error: " << ec.message() << " delegate_id: " << this_l->request->delegate_id << std::endl;
+#endif
+                            this_l->promise.set_value (true);
+                        }
 			        });
 	            }
 	        } 
@@ -130,7 +139,12 @@ void logos::bulk_push_client::push (MDB_txn * transaction_a)
                         if(!ec)
 			            {
                             this_l->send_next();
-			            }
+			            } else {
+#ifdef _DEBUG
+                            std::cout << "logos::bulk_push_client::push: network error: " << ec.message() << " delegate_id: " << this_l->request->delegate_id << std::endl;
+#endif
+                            this_l->promise.set_value (true);
+                        }
 				    });
 	            }
 	        }
@@ -152,6 +166,7 @@ void logos::bulk_push_client::send_next ()
         if(request_id >= connection->attempt->req.size()) {
             send_finished();
         } else {
+            request = &connection->attempt->req[request_id]; // Process all requests in the vector...
 		    logos::transaction transaction (connection->node->store.environment, nullptr, false);
             push(transaction);
         }
@@ -202,7 +217,7 @@ void logos::bulk_push_server::receive ()
 		else
 		{
 #ifdef _DEBUG
-            std::cout << "logos::bulk_push_server::receive: error: " << ec.message() << std::endl;
+            std::cout << "logos::bulk_push_server::receive: networ error: " << ec.message() << std::endl;
 #endif
 			if (this_l->connection->node->config.logging.bulk_pull_logging ())
 			{
@@ -297,7 +312,7 @@ void logos::bulk_push_server::received_block (boost::system::error_code const & 
                 if(connection->node->_validator->validate(block)) {
 				    if (connection->node->config.logging.bulk_pull_logging ())
 				    {
-					    BOOST_LOG (connection->node->log) << " bulk_pull_client::received_block got invalid batch block " << hash.to_string();
+					    BOOST_LOG (connection->node->log) << " bulk_push_server::received_block got invalid batch block " << hash.to_string();
 				    }
 #ifndef _DEBUG
 			        connection->finish_request();
@@ -337,5 +352,9 @@ void logos::bulk_push_server::received_block (boost::system::error_code const & 
 			    }
 		    }
 	    }
+    } else {
+#ifdef _DEBUG
+        std::cout << "logos::bulk_push_server::received_block: network error: " << ec.message() << std::endl;
+#endif
     }
 }

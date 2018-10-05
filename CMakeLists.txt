@@ -154,9 +154,9 @@ add_library(MCLbn256 STATIC IMPORTED)
 set_target_properties( MCLbn256 PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/bls_agg/mcl/lib/libmclbn256.a)
 
 # With Efence
-#set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp efence)
+set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp efence)
 
-set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp)
+#set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp)
 
 ##########################################################################
 
