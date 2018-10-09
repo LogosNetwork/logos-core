@@ -33,6 +33,7 @@ public:
 
 private:
 
+    std::set<Address> _allowed_addresses;
     std::set<Address> _server_endpoints;
     Acceptor          _acceptor;
     Service &         _service;

@@ -37,7 +37,7 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
         }
 
         auto endpoint = Endpoint(make_address_v4(delegate.ip),
-                                 local_endpoint.port());
+				 delegate.peer_port);
 
         if(_delegate_id < delegate.id)
         {

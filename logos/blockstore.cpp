@@ -518,7 +518,7 @@ bool logos::block_store::account_get (MDB_txn * transaction_a, logos::account co
     {
         logos::bufferstream stream (reinterpret_cast<uint8_t const *> (value.data ()), value.size ());
         result = info_a.deserialize (stream);
-        assert (!result);
+	//assert (!result);
     }
     return result;
 }
@@ -956,7 +956,7 @@ bool logos::block_store::account_get(logos::account const & account_a, account_i
     {
         bufferstream stream (reinterpret_cast<uint8_t const *> (value.data ()), value.size ());
         result = info_a.deserialize (stream);
-        assert (!result);
+	//assert (!result);
     }
     return result;
 }

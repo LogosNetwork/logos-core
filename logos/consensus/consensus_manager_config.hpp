@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <boost/property_tree/ptree.hpp>
 
 struct ConsensusManagerConfig
@@ -24,8 +25,9 @@ struct ConsensusManagerConfig
             {
                 auto ip = delegate.second.get<std::string>("ip_address");
                 auto id = std::stoul(delegate.second.get<std::string>("delegate_id"));
+		auto port = std::stoul(delegate.second.get<std::string>("peer_port"));
 
-                delegates.push_back(Delegate{ip, uint8_t(id)});
+		delegates.push_back(Delegate{uint8_t(id), ip, uint16_t(port)});
             }
             catch(std::logic_error const &)
             {
