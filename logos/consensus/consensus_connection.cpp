@@ -244,6 +244,7 @@ void ConsensusConnection<CT>::SendKeyAdvertisement()
 {
     KeyAdvertisement advert;
     advert.public_key = _validator.GetPublicKey();
+    advert.remote_delegate_id = _delegate_ids.local;
     Send(advert);
 }
 

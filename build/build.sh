@@ -187,14 +187,14 @@ cd ${BUILD_DIR}/../..
 
 # Install Boost if not present
 
-BOOST_BASENAME=boost_1_66_0
+BOOST_BASENAME=boost_1_67_0
 BOOST_ROOT=${BOOST_ROOT-/usr/local/boost}
 if [ -d "$BOOST_ROOT" ]; then
     echo "Boost directory already exists, please remove if you want Boost rebuilt"
 else
-    BOOST_URL=https://downloads.sourceforge.net/project/boost/boost/1.66.0/${BOOST_BASENAME}.tar.bz2
+    BOOST_URL=https://downloads.sourceforge.net/project/boost/boost/1.67.0/${BOOST_BASENAME}.tar.bz2
     BOOST_ARCHIVE="${BOOST_BASENAME}.tar.bz2"
-    BOOST_ARCHIVE_SHA256='5721818253e6a0989583192f96782c4a98eb6204965316df9f5ad75819225ca9'
+    BOOST_ARCHIVE_SHA256='2684c972994ee57fc5632e03bf044746f6eb45d4920c343937a465fd67a5adba'
     if [ -f "$BOOST_ARCHIVE" ]; then
         echo "boost.tar.gz is already in the local directory, skipping the long download"
     else

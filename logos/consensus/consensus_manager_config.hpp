@@ -7,8 +7,9 @@ struct ConsensusManagerConfig
 
     struct Delegate
     {
-        std::string ip;
         uint8_t     id;
+        std::string ip;
+        uint16_t    peer_port;
     };
 
     bool DeserializeJson(boost::property_tree::ptree & tree)
@@ -34,7 +35,6 @@ struct ConsensusManagerConfig
 
         local_address = tree.get<std::string>("local_address");
         callback_address = tree.get<std::string>("callback_address");
-
         try
         {
             peer_port = std::stoul(tree.get<std::string>("peer_port"));
@@ -63,6 +63,7 @@ struct ConsensusManagerConfig
 
             entry.put("ip_address", delegate.ip);
             entry.put("delegate_id", delegate.id);
+            entry.put("peer_port", delegate.peer_port);
 
             delegates_tree.push_back(std::make_pair("", entry));
         }

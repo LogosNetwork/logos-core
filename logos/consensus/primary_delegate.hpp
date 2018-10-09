@@ -52,7 +52,7 @@ protected:
 
 private:
 
-    static constexpr uint8_t QUORUM_SIZE = 31;
+    static constexpr uint8_t QUORUM_SIZE = 7;
 
     template<ConsensusType consensus_type>
     void ProcessMessage(const PrepareMessage<consensus_type> & message);

@@ -38,7 +38,8 @@ size_t constexpr logos::block_arrival::arrival_size_min;
 std::chrono::seconds constexpr logos::block_arrival::arrival_time_min;
 
 logos::network::network (logos::node & node_a, uint16_t port) :
-socket (node_a.service, logos::endpoint (boost::asio::ip::address_v6::any (), port)),
+//socket (node_a.service, logos::endpoint (boost::asio::ip::address_v6::any (), port)),
+socket (node_a.service),
 resolver (node_a.service),
 node (node_a),
 on (true)
