@@ -9,10 +9,6 @@
 
 #include <vector>
 
-#if 0
-class COutPoint;
-class CTransaction;
-#endif
 class uint256;
 
 //! 20,000 items with fp rate < 0.1% or 10,000 items and <0.0001%
@@ -79,15 +75,9 @@ public:
     }
 
     void insert(const std::vector<unsigned char>& vKey);
-#if 0
-    void insert(const COutPoint& outpoint);
-#endif
     void insert(const uint256& hash);
 
     bool contains(const std::vector<unsigned char>& vKey) const;
-#if 0
-    bool contains(const COutPoint& outpoint) const;
-#endif
     bool contains(const uint256& hash) const;
 
     void clear();
@@ -96,11 +86,6 @@ public:
     //! True if the size is <= MAX_BLOOM_FILTER_SIZE and the number of hash functions is <= MAX_HASH_FUNCS
     //! (catch a filter which was just deserialized which was too big)
     bool IsWithinSizeConstraints() const;
-
-#if 0
-    //! Also adds any outputs which match the filter to the filter (to match their spending txes)
-    bool IsRelevantAndUpdate(const CTransaction& tx);
-#endif
 
     //! Checks for empty and full filters to avoid wasting cpu
     void UpdateEmptyFull();

@@ -8,18 +8,12 @@
 
 #include <addrdb.h>
 #include <addrman.h>
-#if 0
-#include <amount.h>
-#endif
 #include <bloom.h>
 #include <compat.h>
 #include <hash.h>
 #include <limitedmap.h>
 #include <netaddress.h>
 #include <p2p.h>
-#if 0
-#include <policy/feerate.h>
-#endif
 #include <propagate.h>
 #include <protocol.h>
 #include <random.h>

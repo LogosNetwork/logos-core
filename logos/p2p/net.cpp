@@ -11,14 +11,8 @@
 
 #include <chainparams.h>
 #include <clientversion.h>
-#if 0
-#include <consensus/consensus.h>
-#endif
 #include <crypto/common.h>
 #include <crypto/sha256.h>
-#if 0
-#include <primitives/transaction.h>
-#endif
 #include <netbase.h>
 #include <scheduler.h>
 #include <ui_interface.h>
@@ -878,14 +872,6 @@ const uint256& CNetMessage::GetMessageHash() const
     return data_hash;
 }
 
-
-
-
-
-
-
-
-
 // requires LOCK(cs_vSend)
 size_t CConnman::SocketSendData(CNode *pnode) const
 {
@@ -1600,11 +1586,6 @@ void StopMapPort()
 }
 #endif
 
-
-
-
-
-
 void CConnman::ThreadDNSAddressSeed()
 {
     // goal: only query DNS seeds if address need is acute
@@ -1669,17 +1650,6 @@ void CConnman::ThreadDNSAddressSeed()
 
     LogPrintf("%d addresses found from DNS seeds\n", found);
 }
-
-
-
-
-
-
-
-
-
-
-
 
 void CConnman::DumpAddresses()
 {
@@ -2076,11 +2046,6 @@ void CConnman::ThreadMessageHandler()
         fMsgProcWake = false;
     }
 }
-
-
-
-
-
 
 bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, bool fWhitelisted)
 {

@@ -7,8 +7,6 @@
 #define BITCOIN_NET_PROCESSING_H
 
 #include <net.h>
-//#include <validationinterface.h>
-//#include <consensus/params.h>
 
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
@@ -23,25 +21,6 @@ private:
 
 public:
     explicit PeerLogicValidation(CConnman* connman, CScheduler &scheduler, bool enable_bip61);
-
-#if 0
-    /**
-     * Overridden from CValidationInterface.
-     */
-    void BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexConnected, const std::vector<CTransactionRef>& vtxConflicted) override;
-    /**
-     * Overridden from CValidationInterface.
-     */
-    void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) override;
-    /**
-     * Overridden from CValidationInterface.
-     */
-    void BlockChecked(const CBlock& block, const CValidationState& state) override;
-    /**
-     * Overridden from CValidationInterface.
-     */
-    void NewPoWValidBlock(const CBlockIndex *pindex, const std::shared_ptr<const CBlock>& pblock) override;
-#endif
 
     /** Initialize a peer by adding it to mapNodeState and pushing a message requesting its version */
     void InitializeNode(CNode* pnode) override;
