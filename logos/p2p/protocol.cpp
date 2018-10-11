@@ -18,29 +18,10 @@ namespace NetMsgType {
 const char *VERSION="version";
 const char *VERACK="verack";
 const char *ADDR="addr";
-const char *INV="inv";
-const char *GETDATA="getdata";
-const char *MERKLEBLOCK="merkleblock";
-const char *GETBLOCKS="getblocks";
-const char *GETHEADERS="getheaders";
-const char *TX="tx";
-const char *HEADERS="headers";
-const char *BLOCK="block";
 const char *GETADDR="getaddr";
-const char *MEMPOOL="mempool";
 const char *PING="ping";
 const char *PONG="pong";
-const char *NOTFOUND="notfound";
-const char *FILTERLOAD="filterload";
-const char *FILTERADD="filteradd";
-const char *FILTERCLEAR="filterclear";
 const char *REJECT="reject";
-const char *SENDHEADERS="sendheaders";
-const char *FEEFILTER="feefilter";
-const char *SENDCMPCT="sendcmpct";
-const char *CMPCTBLOCK="cmpctblock";
-const char *GETBLOCKTXN="getblocktxn";
-const char *BLOCKTXN="blocktxn";
 const char *PROPAGATE="propagate";
 } // namespace NetMsgType
 
@@ -51,29 +32,10 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::VERSION,
     NetMsgType::VERACK,
     NetMsgType::ADDR,
-    NetMsgType::INV,
-    NetMsgType::GETDATA,
-    NetMsgType::MERKLEBLOCK,
-    NetMsgType::GETBLOCKS,
-    NetMsgType::GETHEADERS,
-    NetMsgType::TX,
-    NetMsgType::HEADERS,
-    NetMsgType::BLOCK,
     NetMsgType::GETADDR,
-    NetMsgType::MEMPOOL,
     NetMsgType::PING,
     NetMsgType::PONG,
-    NetMsgType::NOTFOUND,
-    NetMsgType::FILTERLOAD,
-    NetMsgType::FILTERADD,
-    NetMsgType::FILTERCLEAR,
     NetMsgType::REJECT,
-    NetMsgType::SENDHEADERS,
-    NetMsgType::FEEFILTER,
-    NetMsgType::SENDCMPCT,
-    NetMsgType::CMPCTBLOCK,
-    NetMsgType::GETBLOCKTXN,
-    NetMsgType::BLOCKTXN,
     NetMsgType::PROPAGATE,
 };
 const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes+ARRAYLEN(allNetMessageTypes));
@@ -158,45 +120,6 @@ void CAddress::Init()
 {
     nServices = NODE_NONE;
     nTime = 100000000;
-}
-
-CInv::CInv()
-{
-    type = 0;
-    hash.SetNull();
-}
-
-CInv::CInv(int typeIn, const uint256& hashIn) : type(typeIn), hash(hashIn) {}
-
-bool operator<(const CInv& a, const CInv& b)
-{
-    return (a.type < b.type || (a.type == b.type && a.hash < b.hash));
-}
-
-std::string CInv::GetCommand() const
-{
-    std::string cmd;
-    if (type & MSG_WITNESS_FLAG)
-        cmd.append("witness-");
-    int masked = type & MSG_TYPE_MASK;
-    switch (masked)
-    {
-    case MSG_TX:             return cmd.append(NetMsgType::TX);
-    case MSG_BLOCK:          return cmd.append(NetMsgType::BLOCK);
-    case MSG_FILTERED_BLOCK: return cmd.append(NetMsgType::MERKLEBLOCK);
-    case MSG_CMPCT_BLOCK:    return cmd.append(NetMsgType::CMPCTBLOCK);
-    default:
-        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
-    }
-}
-
-std::string CInv::ToString() const
-{
-    try {
-        return strprintf("%s %s", GetCommand(), hash.ToString());
-    } catch(const std::out_of_range &) {
-        return strprintf("0x%08x %s", type, hash.ToString());
-    }
 }
 
 const std::vector<std::string> &getAllNetMessageTypes()

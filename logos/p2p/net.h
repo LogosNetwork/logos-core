@@ -639,7 +639,6 @@ public:
 
     CCriticalSection cs_sendProcessing;
 
-    std::deque<CInv> vRecvGetData;
     uint64_t nRecvBytes;
     std::atomic<int> nRecvVersion;
 
@@ -710,7 +709,6 @@ public:
     std::vector<uint256> vInventoryBlockToSend;
     CCriticalSection cs_inventory;
     std::set<uint256> setAskFor;
-    std::multimap<int64_t, CInv> mapAskFor;
     int64_t nNextInvSend;
     // Used for headers announcements - unfiltered blocks to relay
     // Also protected by cs_inventory
@@ -831,34 +829,11 @@ public:
         }
     }
 
-
-    void AddInventoryKnown(const CInv& inv)
-    {
-        {
-            LOCK(cs_inventory);
-            filterInventoryKnown.insert(inv.hash);
-        }
-    }
-
-    void PushInventory(const CInv& inv)
-    {
-        LOCK(cs_inventory);
-        if (inv.type == MSG_TX) {
-            if (!filterInventoryKnown.contains(inv.hash)) {
-                setInventoryTxToSend.insert(inv.hash);
-            }
-        } else if (inv.type == MSG_BLOCK) {
-            vInventoryBlockToSend.push_back(inv.hash);
-        }
-    }
-
     void PushBlockHash(const uint256 &hash)
     {
         LOCK(cs_inventory);
         vBlockHashesToAnnounce.push_back(hash);
     }
-
-    void AskFor(const CInv& inv);
 
     void CloseSocketDisconnect();
 
