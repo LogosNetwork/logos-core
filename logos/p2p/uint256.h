@@ -104,16 +104,6 @@ public:
     }
 };
 
-/** 160-bit opaque blob.
- * @note This type is called uint160 for historical reasons only. It is an opaque
- * blob of 160 bits and has no integer operations.
- */
-class uint160 : public base_blob<160> {
-public:
-    uint160() {}
-    explicit uint160(const std::vector<unsigned char>& vch) : base_blob<160>(vch) {}
-};
-
 /** 256-bit opaque blob.
  * @note This type is called uint256 for historical reasons only. It is an
  * opaque blob of 256 bits and has no integer operations. Use arith_uint256 if

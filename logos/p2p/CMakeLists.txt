@@ -26,8 +26,6 @@ add_library (p2p
 	crypto/hmac_sha256.h
 	crypto/hmac_sha512.cpp
 	crypto/hmac_sha512.h
-	crypto/ripemd160.cpp
-	crypto/ripemd160.h
 	crypto/sha256.cpp
 	crypto/sha256.h
 	crypto/sha512.cpp
