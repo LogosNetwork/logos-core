@@ -3,8 +3,6 @@ add_library (p2p
 	addrdb.h
 	addrman.cpp
 	addrman.h
-	arith_uint256.cpp
-	arith_uint256.h
 	bloom.cpp
 	bloom.h
 	chainparams.cpp

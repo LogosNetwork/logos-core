@@ -6,7 +6,6 @@
 #include <net_processing.h>
 
 #include <addrman.h>
-#include <arith_uint256.h>
 #include <chainparams.h>
 #include <hash.h>
 #include <netmessagemaker.h>
@@ -22,7 +21,7 @@
 #include <memory>
 
 #if defined(NDEBUG)
-//# error "Bitcoin cannot be compiled without assertions."
+# error "Bitcoin cannot be compiled without assertions."
 #endif
 
 /** Expiration time for orphan transactions in seconds */
