@@ -17,8 +17,8 @@
 constexpr double bootstrap_connection_scale_target_blocks = 50000.0;
 constexpr double bootstrap_connection_warmup_time_sec = 5.0;
 constexpr double bootstrap_minimum_blocks_per_sec = 10.0;
-constexpr double bootstrap_minimum_frontier_blocks_per_sec = 1000.0;
-constexpr unsigned bootstrap_frontier_retry_limit = 16;
+constexpr double bootstrap_minimum_tips_blocks_per_sec = 1000.0;
+constexpr unsigned bootstrap_tips_retry_limit = 16;
 constexpr double bootstrap_minimum_termination_time_sec = 30.0;
 constexpr unsigned bootstrap_max_new_connections = 128; // RGD: Increase limit from 10.
 constexpr unsigned bulk_push_cost_limit = 200;
@@ -123,7 +123,7 @@ public:
     BlockHash b_end;
     pull_type type;
 };
-class frontier_req_client;
+class tips_req_client;
 class bulk_push_client;
 class bootstrap_attempt : public std::enable_shared_from_this<bootstrap_attempt>
 {
@@ -134,7 +134,7 @@ public:
 	std::shared_ptr<logos::bootstrap_client> connection (std::unique_lock<std::mutex> &);
 	bool consume_future (std::future<bool> &);
 	void populate_connections ();
-	bool request_frontier (std::unique_lock<std::mutex> &);
+	bool request_tips (std::unique_lock<std::mutex> &);
 	void request_pull (std::unique_lock<std::mutex> &);
 	void request_push (std::unique_lock<std::mutex> &);
 	void add_connection (logos::endpoint const &);
@@ -151,8 +151,8 @@ public:
     void add_bulk_push_target (logos::request_info);
 	std::chrono::steady_clock::time_point next_log;
 	std::deque<std::weak_ptr<logos::bootstrap_client>> clients;
-	std::weak_ptr<logos::bootstrap_client> connection_frontier_request;
-	std::weak_ptr<logos::frontier_req_client> frontiers;
+	std::weak_ptr<logos::bootstrap_client> connection_tips_request;
+	std::weak_ptr<logos::tips_req_client> tips;
 	std::weak_ptr<logos::bulk_push_client> push;
 	std::deque<logos::pull_info> pulls;
 	std::deque<std::shared_ptr<logos::bootstrap_client>> idle;
@@ -244,7 +244,7 @@ public:
 	void receive_header_action (boost::system::error_code const &, size_t);
 	void receive_bulk_pull_action (boost::system::error_code const &, size_t);
 	void receive_bulk_pull_blocks_action (boost::system::error_code const &, size_t);
-	void receive_frontier_req_action (boost::system::error_code const &, size_t);
+	void receive_tips_req_action (boost::system::error_code const &, size_t);
 	void receive_bulk_push_action ();
 	void add_request (std::unique_ptr<logos::message>);
 	void finish_request ();

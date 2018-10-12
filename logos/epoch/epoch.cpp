@@ -4,5 +4,7 @@
 ///
 #include <logos/epoch/epoch.hpp>
 
+// TODO
+// Subtract size of next pointer...
 const size_t Epoch::HASHABLE_BYTES = sizeof(Epoch)
                                             - sizeof(Signature);

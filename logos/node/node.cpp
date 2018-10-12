@@ -1234,8 +1234,10 @@ block_processor (*this),
 block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
 stats (config.stat_config),
 _recall_handler(),
-_archiver(alarm_a, store, _recall_handler, config.consensus_manager_config.delegate_id)//,
-//_consensus_container(service_a, store, alarm_a, log, config, _archiver)
+_archiver(alarm_a, store, _recall_handler, config.consensus_manager_config.delegate_id)
+#ifdef _PRODUCTION
+,_consensus_container(service_a, store, alarm_a, log, config, _archiver)
+#endif
 {
     if(!boost::filesystem::exists(application_path_a)) {
         std::cout << "error opening path: " << std::endl;
@@ -1782,7 +1784,9 @@ void logos::node::start ()
     add_initial_peers ();
     observers.started ();
 // CH added starting logic here instead of inside constructors
+#ifdef _PRODUCTION
     _archiver.Start(_consensus_container);
+#endif
 }
 
 void logos::node::stop ()
@@ -2239,15 +2243,20 @@ void logos::node::add_initial_peers ()
 logos::process_return logos::node::OnSendRequest(std::shared_ptr<logos::state_block> block, bool should_buffer)
 {
     process_return result;
+#ifndef _PRODUCTION
     return result;
-    //return _consensus_container.OnSendRequest(block, should_buffer); // RGD Hack
+#else
+    return _consensus_container.OnSendRequest(block, should_buffer);
+#endif
 }
 
 logos::process_return logos::node::BufferComplete()
 {
     process_return result;
 
-    //_consensus_container.BufferComplete(result); // RGD Hack
+#ifdef _PRODUCTION
+    _consensus_container.BufferComplete(result);
+#endif
 
     return result;
 }

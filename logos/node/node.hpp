@@ -4,7 +4,7 @@
 #include <logos/lib/work.hpp>
 #include <logos/node/stats.hpp>
 #include <logos/node/wallet.hpp>
-#include <logos/node/bootstrap.hpp>
+#include <logos/bootstrap/bootstrap_interface.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/epoch/recall_handler.hpp>
 #include <logos/consensus/consensus_container.hpp>
@@ -509,7 +509,9 @@ public:
     BatchBlock::validator *_validator; 
     RecallHandler _recall_handler;
     Archiver _archiver;
-    //ConsensusContainer _consensus_container;
+#ifdef _PRODUCTION
+    ConsensusContainer _consensus_container;
+#endif
     static double constexpr price_max = 16.0;
     static double constexpr free_cutoff = 1024.0;
     static std::chrono::seconds constexpr period = std::chrono::seconds (60);

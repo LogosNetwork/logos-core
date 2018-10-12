@@ -11,33 +11,62 @@
 #include <logos/consensus/consensus_manager.hpp>
 #include <logos/consensus/persistence/persistence_manager.hpp>
 
+#include <logos/epoch/epoch.hpp>
+#include <logos/epoch/epoch_voting_manager.hpp>
+#include <logos/epoch/epoch_handler.hpp>
+#include <logos/epoch/recall_handler.hpp>
+
+#include <logos/microblock/microblock.hpp>
+#include <logos/microblock/microblock_handler.hpp>
+
+
 namespace BatchBlock {
     class validator;
 }
 
 #include <logos/node/node.hpp>
 
-namespace BatchBlock {
+#include <logos/bootstrap/epoch.hpp>
+#include <logos/bootstrap/microblock.hpp>
+#include <logos/bootstrap/backtrace.hpp>
 
-class EpochBlock; // TODO Use correct struct when available...
+namespace BatchBlock {
 
 class validator {
 
-    std::vector<std::shared_ptr<bulk_pull_response> > bsb; // Batch State Blocks received.
-    std::vector<std::shared_ptr<BatchBlock::bulk_pull_response_micro> > micro;       // Micro.
-    std::vector<std::shared_ptr<EpochBlock> > epoch;       // Epoch.
+    std::vector<std::shared_ptr<BatchBlock::bulk_pull_response> > bsb; // Batch State Blocks received.
+    std::vector<std::shared_ptr<BatchBlock::bulk_pull_response_micro> > micro; // Micro.
+    std::vector<std::shared_ptr<BatchBlock::bulk_pull_response_epoch> > epoch; // Epoch.
 
-    static constexpr int NR_BLOCKS = 65536;     // Max blocks we wait for before processing.
+    static constexpr int NR_BLOCKS = 4096; // Max blocks we wait for before processing.
+
     logos::node *node;
+
     uint64_t nextMicro;
     uint64_t nextEpoch;
+
     std::mutex mutex;
 
-    // TODO Add Merkle tree
-    //      Add micro blocks queue
-    //      Add epoch blocks queue
-    //      Add get methods for micro and epoch blocks
-    //      DONE.
+    // For validation of epoch/micro blocks.
+    shared_ptr<RecallHandler>       recall;
+    shared_ptr<EpochVotingManager>  voting_manager;
+    shared_ptr<EpochHandler>        epoch_handler;
+    shared_ptr<MicroBlockHandler>   micro_handler;
+ 
+    uint64_t nextMicro_counter;
+    uint64_t nextEpoch_counter;
+    uint64_t micro_validation_error_counter;
+    uint64_t epoch_validation_error_counter;
+    uint64_t micro_not_ready_counter;
+    uint64_t epoch_not_ready_counter;
+
+    // TODO: Ask for valid values.
+    static int constexpr NEXT_MICRO_COUNTER_MAX             = 100;
+    static int constexpr NEXT_EPOCH_COUNTER_MAX             = 100;
+    static int constexpr MICRO_VALIDATION_ERROR_COUNTER_MAX = 100;
+    static int constexpr EPOCH_VALIDATION_ERROR_COUNTER_MAX = 100;
+    static int constexpr MICRO_NOT_READY_COUNTER_MAX        = 100;
+    static int constexpr EPOCH_NOT_READY_COUNTER_MAX        = 100;
 
     public:
 
@@ -46,15 +75,9 @@ class validator {
 
     // CTOR
     validator(logos::node *n);
+    virtual ~validator();
 
-    // TODO init()
-    //      determine our current micro block
-    //      walk the tree constructing merkle tree up to tip
-    //      make this tree available for validate()
-    //      -> actually, get the vector of MicroBlock and Epoch block
-    //      -> Put those queues on bootstrap_client (some place globally accessible and populate when get the epoch and the micro blocks from peer)
-    //         actually, we can put it here since we are on the node and therefore should be accessible by anything in bootstrap.
-    bool init();
+    bool reset();
 
     void add_micro_block(std::shared_ptr<BatchBlock::bulk_pull_response_micro> &m)
     {
@@ -62,7 +85,7 @@ class validator {
         micro.push_back(m);
     }
 
-    void add_epoch_block(std::shared_ptr<EpochBlock> &e)
+    void add_epoch_block(std::shared_ptr<BatchBlock::bulk_pull_response_epoch> &e)
     {
         std::lock_guard<std::mutex> lock(mutex); // DEBUG Might need additional locking in this class...
         epoch.push_back(e);

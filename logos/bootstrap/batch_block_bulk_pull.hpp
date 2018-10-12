@@ -8,9 +8,7 @@
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/persistence/persistence_manager.hpp>
 
-#include <logos/bootstrap/batch_block_frontier.hpp>
-
-//class MicroBlock { public: uint8_t delegateNumber; BlockHash Hash() { return BlockHash(); } }; // TODO: Use Greg's code...
+#include <logos/bootstrap/batch_block_tips.hpp>
 
 namespace BatchBlock {
 
@@ -19,7 +17,7 @@ enum bulk_pull_protocol {
     BULK_PULL_RESPONSE = 65,
 };
 
-struct bulk_pull_request {
+struct bulk_pull_request { // RGD TODO Remove if not used.
     const int process_code = BULK_PULL_REQUEST;
     int delegate_id;
     uint64_t timestamp;
@@ -34,7 +32,7 @@ struct bulk_pull_response {
     BatchStateBlock block;
 };
 
-struct bulk_pull_response_micro { // RGD EMERGENCY How do we know what we are sending if we have two seperate types of blocks ? How do we know how much to read ? Put it all in one block...
+struct bulk_pull_response_micro {
     const logos::block_type block_type = logos::block_type::micro_block;
     char pad[3]={0}; // RGD
     const int process_code = BULK_PULL_RESPONSE;
@@ -42,7 +40,15 @@ struct bulk_pull_response_micro { // RGD EMERGENCY How do we know what we are se
     MicroBlock micro;
 };
 
-constexpr int bulk_pull_response_mesg_len = (sizeof(bulk_pull_response) + sizeof(bulk_pull_response_micro));
+struct bulk_pull_response_epoch {
+    const logos::block_type block_type = logos::block_type::epoch_block;
+    char pad[3]={0}; // RGD
+    const int process_code = BULK_PULL_RESPONSE;
+    int delegate_id;
+    Epoch epoch;
+};
+
+constexpr int bulk_pull_response_mesg_len = (sizeof(bulk_pull_response) + sizeof(bulk_pull_response_micro) + sizeof(bulk_pull_response_epoch));
 
 bool Validate(ConsensusContainer &manager, BatchStateBlock &block, int delegate_id);
 void ApplyUpdates(ConsensusContainer &manager, const BatchStateBlock & message, uint8_t delegate_id);

@@ -1,5 +1,26 @@
-#include "batch_block_bulk_pull.hpp"
-#include "microblock.hpp"
+#include <logos/bootstrap/backtrace.hpp>
+#include <logos/bootstrap/batch_block_bulk_pull.hpp>
+#include <logos/bootstrap/microblock.hpp>
+
+BlockHash Micro::getMicroBlockTip(Store& s, int delegate)
+{
+    BlockHash hash;
+    if(!s.micro_block_tip_get(hash)) {
+        return hash;
+    }
+    return BlockHash();
+}
+
+uint32_t  Micro::getMicroBlockSeqNr(Store& s, int delegate) // TODOFUNC
+{
+#ifdef _DEBUG
+    return 0;
+#else
+    BlockHash hash = BatchBlock::getMicroBlockTip(s,delegate);
+    std::shared_ptr<MicroBlock> tip = Micro::readMicroBlock(s,hash);
+    return tip->_micro_block_number;
+#endif
+}
 
 BlockHash Micro::getNextMicroBlock(Store &store, int delegate, MicroBlock &b) // TODOFUNC
 {
@@ -10,6 +31,9 @@ BlockHash Micro::getNextMicroBlock(Store &store, int delegate, MicroBlock &b) //
 BlockHash Micro::getNextMicroBlock(Store &store, int delegate, BlockHash &hash) // TODOFUNC
 {
     MicroBlock micro;
+    if(hash.is_zero()) {
+        return hash;
+    }
     store.micro_block_get(hash, micro);
     return micro.previous; // TESTING Previous... may need to pass in the end not the start for testing
 }

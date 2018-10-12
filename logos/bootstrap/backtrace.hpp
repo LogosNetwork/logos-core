@@ -7,6 +7,8 @@
 
 #define BT_BUF_SIZE 100
 
+#define _DEBUG 1
+
 inline
 void do_backtrace()
 {

@@ -154,9 +154,9 @@ add_library(MCLbn256 STATIC IMPORTED)
 set_target_properties( MCLbn256 PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/bls_agg/mcl/lib/libmclbn256.a)
 
 # With Efence
-set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp efence)
+#set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp efence)
 
-#set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp)
+set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp)
 
 ##########################################################################
 
@@ -322,11 +322,12 @@ add_library (node
     logos/bootstrap/bootstrap.cpp
     logos/bootstrap/bulk_pull.cpp
     logos/bootstrap/bulk_push.cpp
-    logos/bootstrap/frontier.cpp
+    logos/bootstrap/tips.cpp
     logos/bootstrap/batch_block_bulk_pull.cpp
     logos/bootstrap/batch_block_validator.cpp
+    logos/bootstrap/epoch.cpp
     logos/bootstrap/microblock.cpp
-    logos/bootstrap/batch_block_frontier.cpp
+    logos/bootstrap/batch_block_tips.cpp
 	logos/consensus/batchblock/batchblock_consensus_manager.cpp
 	logos/consensus/batchblock/bb_consensus_connection.cpp
 	logos/consensus/batchblock/request_handler.cpp
@@ -354,6 +355,8 @@ add_library (node
 	logos/epoch/epoch_voting_manager.cpp
 	logos/epoch/event_proposer.cpp
 	logos/microblock/microblock.cpp
+    logos/microblock/microblock_handler.cpp
+    logos/microblock/microblock_tester.cpp
 	logos/node/common.cpp
 	logos/node/common.hpp
 	logos/node/node.hpp
@@ -388,8 +391,8 @@ if (LOGOS_TEST)
 	#add_executable (slow_test
     #   logos/slow_test/node.cpp)
 
-	set_target_properties (core_test slow_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1")
-	set_target_properties (core_test slow_test PROPERTIES LINK_FLAGS "${PLATFORM_LINK_FLAGS}")
+	set_target_properties (core_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1")
+	set_target_properties (core_test PROPERTIES LINK_FLAGS "${PLATFORM_LINK_FLAGS}")
 endif (LOGOS_TEST)
 
 add_executable (logos_core
@@ -418,7 +421,7 @@ endif (WIN32)
 if (LOGOS_TEST)
 	target_link_libraries (core_test node secure lmdb ed25519 ${BLS_libs} logos_lib_static argon2 ${OPENSSL_LIBRARIES} ${CRYPTOPP_LIBRARY} gtest_main gtest libminiupnpc-static ${Boost_ATOMIC_LIBRARY} ${Boost_CHRONO_LIBRARY} ${Boost_REGEX_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_LOG_LIBRARY} ${Boost_LOG_SETUP_LIBRARY} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${PLATFORM_LIBS})
 
-	target_link_libraries (slow_test node secure lmdb ed25519 ${BLS_libs} logos_lib_static argon2 ${OPENSSL_LIBRARIES} ${CRYPTOPP_LIBRARY} gtest_main gtest libminiupnpc-static ${Boost_ATOMIC_LIBRARY} ${Boost_CHRONO_LIBRARY} ${Boost_REGEX_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_LOG_LIBRARY} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_LOG_SETUP_LIBRARY} ${Boost_THREAD_LIBRARY} ${PLATFORM_LIBS})
+	#target_link_libraries (slow_test node secure lmdb ed25519 ${BLS_libs} logos_lib_static argon2 ${OPENSSL_LIBRARIES} ${CRYPTOPP_LIBRARY} gtest_main gtest libminiupnpc-static ${Boost_ATOMIC_LIBRARY} ${Boost_CHRONO_LIBRARY} ${Boost_REGEX_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_LOG_LIBRARY} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_LOG_SETUP_LIBRARY} ${Boost_THREAD_LIBRARY} ${PLATFORM_LIBS})
 endif (LOGOS_TEST)
 
 target_link_libraries (logos_lib ed25519 ${BLS_libs} xxhash blake2 ${CRYPTOPP_LIBRARY})

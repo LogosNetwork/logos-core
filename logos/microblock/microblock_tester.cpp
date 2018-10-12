@@ -175,7 +175,9 @@ MicroBlockTester::generate_microblock(
   logos::transaction transaction(node.store.environment, nullptr, true);
   boost::property_tree::ptree response_l;
   bool last_block = _request.get<bool>("last", false);
+#ifdef _PRODUCTION
   node._archiver.Test_ProposeMicroBlock(node._consensus_container, last_block);
+#endif
   response_l.put ("result", "sent");
   response (response_l);
 }

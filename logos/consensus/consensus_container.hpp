@@ -76,8 +76,6 @@ public: // ASK DEVON
     ///     @param[out] result result of the operation
     void BufferComplete(logos::process_return & result);
 
-protected:
-
     BatchBlockConsensusManager& get_batch_manager() // ASK DEVON
     {
         return _batch_manager;

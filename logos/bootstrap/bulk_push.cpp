@@ -1,3 +1,4 @@
+#include <logos/bootstrap/backtrace.hpp>
 #include <logos/bootstrap/bootstrap.hpp>
 #include <logos/bootstrap/bulk_push.hpp>
 
@@ -6,7 +7,6 @@
 
 #include <boost/log/trivial.hpp>
 
-#define _DEBUG 1
 #define MAX_ITER 4
 
 logos::bulk_push_client::bulk_push_client (std::shared_ptr<logos::bootstrap_client> const & connection_a) :
@@ -64,9 +64,43 @@ void logos::bulk_push_client::push (MDB_txn * transaction_a)
 { // RGD: Called from 'logos::bulk_push_client::start'
 	{
         //for(int i = 0; i < connection->attempt->req.size(); ++i)
-        if(request_id < connection->attempt->req.size()) {
-	        //while(!current_micro.is_zero())
-            if(!current_micro.is_zero()) {
+        if(request_id <= connection->attempt->req.size()) {
+            if(!current_epoch.is_zero() && current_epoch != request->e_end) {
+                auto send_buffer(std::make_shared<std::vector<uint8_t>>(BatchBlock::bulk_pull_response_mesg_len, uint8_t(0)));
+	            BlockHash epoch_block = Micro::getNextMicroBlock(connection->node->store, request->delegate_id, current_epoch);
+	            if(!epoch_block.is_zero() && epoch_block != request->e_end) {
+	                std::shared_ptr<Epoch> e = EpochBlock::readEpochBlock(connection->node->store, epoch_block);
+	                if(!e) {
+                        send_finished(); // End the transmission on memory error.
+	                }
+	                BatchBlock::bulk_pull_response_epoch resp;
+	                resp.delegate_id = request->delegate_id; // m->delegateNumber;
+	                memcpy(&resp.epoch,&(*e),sizeof(Epoch));
+	                current_epoch = epoch_block; // Advance pointer...
+	
+	                {
+                       memcpy(send_buffer->data(),(void *)&resp, sizeof(resp));
+	                }
+	
+			        auto this_l (shared_from_this ());
+			        if (connection->node->config.logging.bulk_pull_logging ())
+			        {
+				        BOOST_LOG (connection->node->log) << boost::str (boost::format ("Sending block: %1%") % e->Hash ().to_string ());
+			        }
+			        async_write (connection->socket, boost::asio::buffer (send_buffer->data(), sizeof(BatchBlock::bulk_pull_response_micro)), [this_l](boost::system::error_code const & ec, size_t size_a) {
+                        if(!ec)
+			            {
+				            this_l->send_next();
+			            } else
+                        {
+#ifdef _DEBUG
+                            std::cout << "logos::bulk_push_client::push: network error: " << ec.message() << " delegate_id: " << this_l->request->delegate_id << std::endl;
+#endif
+                            this_l->promise.set_value (true);
+                        }
+			        });
+	            }
+            } else if(!current_micro.is_zero() && current_micro != request->m_end) {
                 auto send_buffer(std::make_shared<std::vector<uint8_t>>(BatchBlock::bulk_pull_response_mesg_len, uint8_t(0)));
 	            BlockHash micro_block = Micro::getNextMicroBlock(connection->node->store, request->delegate_id, current_micro);
 	            if(!micro_block.is_zero() && micro_block != request->m_end) {
@@ -75,7 +109,7 @@ void logos::bulk_push_client::push (MDB_txn * transaction_a)
                         send_finished(); // End the transmission on memory error.
 	                }
 	                BatchBlock::bulk_pull_response_micro resp;
-	                resp.delegate_id = m->delegateNumber;
+	                resp.delegate_id = request->delegate_id; // m->delegateNumber;
 	                memcpy(&resp.micro,&(*m),sizeof(MicroBlock));
 	                current_micro = micro_block; // Advance pointer...
 	
@@ -106,7 +140,7 @@ void logos::bulk_push_client::push (MDB_txn * transaction_a)
             if(iter_count++ < MAX_ITER)
 #else
 	        //while(!current_bsb.is_zero())
-            if(!current_bsb.is_zero())
+            else if(!current_bsb.is_zero() && current_bsb != request->b_end)
 #endif
             {
                auto send_buffer(std::make_shared<std::vector<uint8_t>>(BatchBlock::bulk_pull_response_mesg_len, uint8_t(0)));
@@ -163,7 +197,7 @@ void logos::bulk_push_client::send_next ()
         // Do we have more to send...
         request_id++;
         iter_count = 0;
-        if(request_id >= connection->attempt->req.size()) {
+        if(request_id > connection->attempt->req.size()) {
             send_finished();
         } else {
             request = &connection->attempt->req[request_id]; // Process all requests in the vector...
@@ -255,7 +289,16 @@ void logos::bulk_push_server::received_type ()
 			});
 			break;
 		}
-		case logos::block_type::state:
+		case logos::block_type::epoch_block:
+        {
+			boost::asio::async_read (*connection->socket, boost::asio::buffer 
+                (receive_buffer.data () + 1, sizeof(BatchBlock::bulk_pull_response_epoch) - 1),
+                [this_l](boost::system::error_code const & ec, size_t size_a) {
+				    this_l->received_block (ec, size_a);
+			});
+			break;
+		}
+case logos::block_type::state:
 		{
 			connection->node->stats.inc (logos::stat::type::bootstrap, logos::stat::detail::state_block, logos::stat::dir::in);
 			boost::asio::async_read (*connection->socket, boost::asio::buffer (receive_buffer.data () + 1, logos::state_block::size), [this_l](boost::system::error_code const & ec, size_t size_a) {
@@ -271,10 +314,14 @@ void logos::bulk_push_server::received_type ()
 			    {
 			        BOOST_LOG (connection->node->log) << " bulk_pull_client::received_block got invalid batch block ";
 			    }
-            }
+#ifndef _DEBUG
+                connection->stop(true);
+#endif
+            } else {
 #ifndef _DEBUG
 			connection->finish_request();
 #endif
+            }
 			break;
 		}
 		default:
@@ -315,6 +362,10 @@ void logos::bulk_push_server::received_block (boost::system::error_code const & 
 					    BOOST_LOG (connection->node->log) << " bulk_push_server::received_block got invalid batch block " << hash.to_string();
 				    }
 #ifndef _DEBUG
+                    connection->stop(true);
+#endif
+                } else {
+#ifndef _DEBUG
 			        connection->finish_request();
 #endif
                 }
@@ -331,6 +382,19 @@ void logos::bulk_push_server::received_block (boost::system::error_code const & 
 					BOOST_LOG (connection->node->log) << " bulk_pull_client::received_block got block hash " << hash.to_string();
 				}
                 connection->node->_validator->add_micro_block(block);
+				receive(); // RGD: Read more blocks if available...
+            }
+        } else if(type == logos::block_type::epoch_block) {
+			uint8_t *data = receive_buffer.data(); // Get it from wire.
+            std::shared_ptr<BatchBlock::bulk_pull_response_epoch> block(new BatchBlock::bulk_pull_response_epoch);
+            if(block) {
+                memcpy(&(*block),data,sizeof(BatchBlock::bulk_pull_response_epoch));
+                BlockHash hash = block->epoch.Hash();
+				if (connection->node->config.logging.bulk_pull_logging ())
+				{
+					BOOST_LOG (connection->node->log) << " bulk_pull_client::received_block got block hash " << hash.to_string();
+				}
+                connection->node->_validator->add_epoch_block(block);
 				receive(); // RGD: Read more blocks if available...
             }
         } else {

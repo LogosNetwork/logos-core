@@ -1,4 +1,5 @@
-#include "batch_block_bulk_pull.hpp"
+#include <logos/bootstrap/backtrace.hpp>
+#include <logos/bootstrap/batch_block_bulk_pull.hpp>
 
 // RGD:
 // Discuss this with Devon
@@ -30,8 +31,11 @@ void BatchBlock::ApplyUpdates(ConsensusContainer &manager, const BatchStateBlock
 BlockHash BatchBlock::getNextBatchStateBlock(Store &store, int delegate, BlockHash &hash) // TODOFUNC
 {
     BatchStateBlock batch;
+    if(hash.is_zero()) {
+        return hash;
+    }
     store.batch_block_get(hash, batch);
-    return batch.hash; // TESTING This is currently the previous pointer... May need to pass in the end not the start for testing
+    return batch.Hash(); // TESTING This is currently the previous pointer... May need to pass in the end not the start for testing
 }
 
 std::shared_ptr<BatchStateBlock> BatchBlock::readBatchStateBlock(Store &store, BlockHash &hash)

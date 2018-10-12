@@ -72,5 +72,7 @@ public:
     BlockHash               _micro_block_tip;             ///< microblock tip of this epoch
     Delegate                _delegates[NUM_DELEGATES];    ///< delegate'ls list
     uint64_t                _transaction_fee_pool;        ///< this epoch's transaction fee pool
+    // TODO
+    // Add next
     Signature               signature;                    ///< signature of hashable bytes
 };

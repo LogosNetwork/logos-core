@@ -18,6 +18,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _validator(validator)
     , _delegate_id(config.delegate_id)
     , _secondary_handler(service, *this)
+    , _persistence_manager(store, log)
 {}
 
 template<ConsensusType CT>

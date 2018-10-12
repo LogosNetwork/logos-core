@@ -74,6 +74,8 @@ EpochHandler::ApplyUpdates(
     const Epoch &epoch,
     const logos::transaction &transaction)
 {
+// TODO
+// Read previous, update field
     logos::block_hash  epoch_hash = _store.epoch_put(epoch, transaction);
     _store.epoch_tip_put(epoch_hash, transaction);
     return epoch_hash;

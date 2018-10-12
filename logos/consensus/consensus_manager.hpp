@@ -146,5 +146,6 @@ protected:
     Log                         _log;
     uint8_t                     _delegate_id;
     SecondaryRequestHandler<CT> _secondary_handler;             ///< Secondary queue of blocks.
+    PersistenceManager          _persistence_manager;
 };
 

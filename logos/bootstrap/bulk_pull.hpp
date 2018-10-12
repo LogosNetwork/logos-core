@@ -19,6 +19,7 @@ public:
 	logos::block_hash first ();
 	std::shared_ptr<logos::bootstrap_client> connection;
 	logos::block_hash expected;
+    logos::block_hash end_transmission;
 	logos::pull_info pull;
 };
 
