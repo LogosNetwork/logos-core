@@ -12,7 +12,6 @@
 #include <chainparams.h>
 #include <clientversion.h>
 #include <crypto/common.h>
-#include <crypto/sha512.h>
 #include <netbase.h>
 #include <scheduler.h>
 #include <ui_interface.h>

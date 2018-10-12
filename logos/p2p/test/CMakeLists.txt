@@ -5,7 +5,8 @@ add_executable (p2p-standalone
 target_include_directories(p2p-standalone PRIVATE .)
 
 target_link_libraries (p2p-standalone
-	p2p)
+	p2p
+	blake2)
 
 target_compile_definitions(p2p
 	PRIVATE

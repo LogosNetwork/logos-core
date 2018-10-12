@@ -5,7 +5,7 @@
 
 #include <random.h>
 
-#include <crypto/sha512.h>
+#include <hash.h>
 #include <support/cleanse.h>
 #ifdef WIN32
 #include <compat.h> // for Windows API
@@ -301,7 +301,7 @@ static unsigned char rng_state[32] = {0};
 static uint64_t rng_counter = 0;
 
 static void AddDataToRng(void* data, size_t len) {
-    CSHA512 hasher;
+    CHash512 hasher;
     hasher.Write((const unsigned char*)&len, sizeof(len));
     hasher.Write((const unsigned char*)data, len);
     unsigned char buf[64];
@@ -319,7 +319,7 @@ static void AddDataToRng(void* data, size_t len) {
 void GetStrongRandBytes(unsigned char* out, int num)
 {
     assert(num <= 32);
-    CSHA512 hasher;
+    CHash512 hasher;
     unsigned char buf[64];
 
     // First source: OpenSSL's RNG

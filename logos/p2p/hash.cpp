@@ -4,8 +4,12 @@
 
 #include <hash.h>
 #include <crypto/common.h>
-#include <crypto/hmac_sha512.h>
 
+std::string Hash512AutoDetect()
+{
+    std::string ret = "standard";
+    return ret;
+}
 
 inline uint32_t ROTL32(uint32_t x, int8_t r)
 {
@@ -66,16 +70,6 @@ unsigned int MurmurHash3(unsigned int nHashSeed, const std::vector<unsigned char
     h1 ^= h1 >> 16;
 
     return h1;
-}
-
-void BIP32Hash(const ChainCode &chainCode, unsigned int nChild, unsigned char header, const unsigned char data[32], unsigned char output[64])
-{
-    unsigned char num[4];
-    num[0] = (nChild >> 24) & 0xFF;
-    num[1] = (nChild >> 16) & 0xFF;
-    num[2] = (nChild >>  8) & 0xFF;
-    num[3] = (nChild >>  0) & 0xFF;
-    CHMAC_SHA512(chainCode.begin(), chainCode.size()).Write(&header, 1).Write(data, 32).Write(num, 4).Finalize(output);
 }
 
 #define ROTL(x, b) (uint64_t)(((x) << (b)) | ((x) >> (64 - (b))))

@@ -22,12 +22,8 @@ add_library (p2p
 	crypto/common.h
 	crypto/hmac_sha256.cpp
 	crypto/hmac_sha256.h
-	crypto/hmac_sha512.cpp
-	crypto/hmac_sha512.h
 	crypto/sha256.cpp
 	crypto/sha256.h
-	crypto/sha512.cpp
-	crypto/sha512.h
 	fs.cpp
 	fs.h
 	hash.cpp

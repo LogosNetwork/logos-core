@@ -46,8 +46,8 @@ bool CNetAddr::SetInternal(const std::string &name)
     if (name.empty()) {
         return false;
     }
-    unsigned char hash[32] = {};
-    CSHA512().Write((const unsigned char*)name.data(), name.size()).Finalize(hash);
+    unsigned char hash[64] = {};
+    CHash512().Write((const unsigned char*)name.data(), name.size()).Finalize(hash);
     memcpy(ip, g_internal_prefix, sizeof(g_internal_prefix));
     memcpy(ip + sizeof(g_internal_prefix), hash, sizeof(ip) - sizeof(g_internal_prefix));
     return true;

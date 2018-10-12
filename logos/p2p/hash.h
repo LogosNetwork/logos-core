@@ -6,39 +6,47 @@
 #ifndef BITCOIN_HASH_H
 #define BITCOIN_HASH_H
 
-#include <crypto/sha512.h>
+#include "../../blake2/blake2.h"
 #include <prevector.h>
 #include <serialize.h>
 #include <uint512.h>
 #include <version.h>
 
 #include <vector>
+#include <string>
 
 typedef uint512 ChainCode;
 
-/** A hasher class for Bitcoin's 512-bit hash (double SHA-512). */
+/** A hasher class for 512-bit hash (Blake2b). */
 class CHash512 {
 private:
-    CSHA512 sha;
+    blake2b_state__ state;
 public:
-    static const size_t OUTPUT_SIZE = CSHA512::OUTPUT_SIZE;
+    static const size_t OUTPUT_SIZE = BLAKE2B_OUTBYTES;
+
+    CHash512() {
+	Reset();
+    }
 
     void Finalize(unsigned char hash[OUTPUT_SIZE]) {
-	unsigned char buf[CSHA512::OUTPUT_SIZE];
-        sha.Finalize(buf);
-	sha.Reset().Write(buf, CSHA512::OUTPUT_SIZE).Finalize(hash);
+	blake2b_final(&state, hash, OUTPUT_SIZE);
     }
 
     CHash512& Write(const unsigned char *data, size_t len) {
-        sha.Write(data, len);
+	blake2b_update(&state, data, len);
         return *this;
     }
 
     CHash512& Reset() {
-        sha.Reset();
+	blake2b_init(&state, OUTPUT_SIZE);
         return *this;
     }
 };
+
+/** Autodetect the best available Blake2b implementation.
+ *  Returns the name of the implementation.
+ */
+std::string Hash512AutoDetect();
 
 /** Compute the 512-bit hash of an object. */
 template<typename T1>
@@ -142,8 +150,6 @@ uint512 SerializeHash(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL
 }
 
 unsigned int MurmurHash3(unsigned int nHashSeed, const std::vector<unsigned char>& vDataToHash);
-
-void BIP32Hash(const ChainCode &chainCode, unsigned int nChild, unsigned char header, const unsigned char data[32], unsigned char output[64]);
 
 /** SipHash-2-4 */
 class CSipHasher
