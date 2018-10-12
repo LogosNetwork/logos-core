@@ -148,6 +148,11 @@ void Transform(uint64_t* s, const unsigned char* chunk)
 
 } // namespace
 
+std::string SHA512AutoDetect()
+{
+    std::string ret = "standard";
+    return ret;
+}
 
 ////// SHA-512
 

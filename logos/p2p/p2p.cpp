@@ -601,8 +601,8 @@ bool AppInitSanityChecks()
     // ********************************************************* Step 4: sanity checks
 
     // Initialize elliptic curve code
-    std::string sha256_algo = SHA256AutoDetect();
-    LogPrintf("Using the '%s' SHA256 implementation\n", sha256_algo);
+    std::string sha512_algo = SHA512AutoDetect();
+    LogPrintf("Using the '%s' SHA512 implementation\n", sha512_algo);
     RandomInit();
 
     // Sanity check

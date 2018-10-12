@@ -6,68 +6,68 @@
 #ifndef BITCOIN_HASH_H
 #define BITCOIN_HASH_H
 
-#include <crypto/sha256.h>
+#include <crypto/sha512.h>
 #include <prevector.h>
 #include <serialize.h>
-#include <uint256.h>
+#include <uint512.h>
 #include <version.h>
 
 #include <vector>
 
-typedef uint256 ChainCode;
+typedef uint512 ChainCode;
 
-/** A hasher class for Bitcoin's 256-bit hash (double SHA-256). */
-class CHash256 {
+/** A hasher class for Bitcoin's 512-bit hash (double SHA-512). */
+class CHash512 {
 private:
-    CSHA256 sha;
+    CSHA512 sha;
 public:
-    static const size_t OUTPUT_SIZE = CSHA256::OUTPUT_SIZE;
+    static const size_t OUTPUT_SIZE = CSHA512::OUTPUT_SIZE;
 
     void Finalize(unsigned char hash[OUTPUT_SIZE]) {
-        unsigned char buf[CSHA256::OUTPUT_SIZE];
+	unsigned char buf[CSHA512::OUTPUT_SIZE];
         sha.Finalize(buf);
-        sha.Reset().Write(buf, CSHA256::OUTPUT_SIZE).Finalize(hash);
+	sha.Reset().Write(buf, CSHA512::OUTPUT_SIZE).Finalize(hash);
     }
 
-    CHash256& Write(const unsigned char *data, size_t len) {
+    CHash512& Write(const unsigned char *data, size_t len) {
         sha.Write(data, len);
         return *this;
     }
 
-    CHash256& Reset() {
+    CHash512& Reset() {
         sha.Reset();
         return *this;
     }
 };
 
-/** Compute the 256-bit hash of an object. */
+/** Compute the 512-bit hash of an object. */
 template<typename T1>
-inline uint256 Hash(const T1 pbegin, const T1 pend)
+inline uint512 Hash(const T1 pbegin, const T1 pend)
 {
     static const unsigned char pblank[1] = {};
-    uint256 result;
-    CHash256().Write(pbegin == pend ? pblank : (const unsigned char*)&pbegin[0], (pend - pbegin) * sizeof(pbegin[0]))
+    uint512 result;
+    CHash512().Write(pbegin == pend ? pblank : (const unsigned char*)&pbegin[0], (pend - pbegin) * sizeof(pbegin[0]))
               .Finalize((unsigned char*)&result);
     return result;
 }
 
-/** Compute the 256-bit hash of the concatenation of two objects. */
+/** Compute the 512-bit hash of the concatenation of two objects. */
 template<typename T1, typename T2>
-inline uint256 Hash(const T1 p1begin, const T1 p1end,
+inline uint512 Hash(const T1 p1begin, const T1 p1end,
                     const T2 p2begin, const T2 p2end) {
     static const unsigned char pblank[1] = {};
-    uint256 result;
-    CHash256().Write(p1begin == p1end ? pblank : (const unsigned char*)&p1begin[0], (p1end - p1begin) * sizeof(p1begin[0]))
+    uint512 result;
+    CHash512().Write(p1begin == p1end ? pblank : (const unsigned char*)&p1begin[0], (p1end - p1begin) * sizeof(p1begin[0]))
               .Write(p2begin == p2end ? pblank : (const unsigned char*)&p2begin[0], (p2end - p2begin) * sizeof(p2begin[0]))
               .Finalize((unsigned char*)&result);
     return result;
 }
 
-/** A writer stream (for serialization) that computes a 256-bit hash. */
+/** A writer stream (for serialization) that computes a 512-bit hash. */
 class CHashWriter
 {
 private:
-    CHash256 ctx;
+    CHash512 ctx;
 
     const int nType;
     const int nVersion;
@@ -83,8 +83,8 @@ public:
     }
 
     // invalidates the object
-    uint256 GetHash() {
-        uint256 result;
+    uint512 GetHash() {
+	uint512 result;
         ctx.Finalize((unsigned char*)&result);
         return result;
     }
@@ -132,9 +132,9 @@ public:
     }
 };
 
-/** Compute the 256-bit hash of an object's serialization. */
+/** Compute the 512-bit hash of an object's serialization. */
 template<typename T>
-uint256 SerializeHash(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL_VERSION)
+uint512 SerializeHash(const T& obj, int nType=SER_GETHASH, int nVersion=PROTOCOL_VERSION)
 {
     CHashWriter ss(nType, nVersion);
     ss << obj;
@@ -167,7 +167,7 @@ public:
     uint64_t Finalize() const;
 };
 
-/** Optimized SipHash-2-4 implementation for uint256.
+/** Optimized SipHash-2-4 implementation for uint512.
  *
  *  It is identical to:
  *    SipHasher(k0, k1)
@@ -177,7 +177,7 @@ public:
  *      .Write(val.GetUint64(3))
  *      .Finalize()
  */
-uint64_t SipHashUint256(uint64_t k0, uint64_t k1, const uint256& val);
-uint64_t SipHashUint256Extra(uint64_t k0, uint64_t k1, const uint256& val, uint32_t extra);
+uint64_t SipHashUint512(uint64_t k0, uint64_t k1, const uint512& val);
+uint64_t SipHashUint512Extra(uint64_t k0, uint64_t k1, const uint512& val, uint32_t extra);
 
 #endif // BITCOIN_HASH_H

@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <string>
 
 /** A hasher class for SHA-512. */
 class CSHA512
@@ -24,5 +25,10 @@ public:
     void Finalize(unsigned char hash[OUTPUT_SIZE]);
     CSHA512& Reset();
 };
+
+/** Autodetect the best available SHA512 implementation.
+ *  Returns the name of the implementation.
+ */
+std::string SHA512AutoDetect();
 
 #endif // BITCOIN_CRYPTO_SHA512_H

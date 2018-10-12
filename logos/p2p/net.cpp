@@ -12,7 +12,7 @@
 #include <chainparams.h>
 #include <clientversion.h>
 #include <crypto/common.h>
-#include <crypto/sha256.h>
+#include <crypto/sha512.h>
 #include <netbase.h>
 #include <scheduler.h>
 #include <ui_interface.h>
@@ -83,8 +83,6 @@ CCriticalSection cs_mapLocalHost;
 std::map<CNetAddr, LocalServiceInfo> mapLocalHost;
 static bool vfLimited[NET_MAX] = {};
 std::string strSubVersion;
-
-limitedmap<uint256, int64_t> mapAlreadyAskedFor(MAX_INV_SZ);
 
 void CConnman::AddOneShot(const std::string& strDest)
 {
@@ -389,7 +387,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
     const int default_port = Params().GetDefaultPort();
     if (pszDest) {
         std::vector<CService> resolved;
-        if (Lookup(pszDest, resolved,  default_port, fNameLookup && !HaveNameProxy(), 256) && !resolved.empty()) {
+	if (Lookup(pszDest, resolved,  default_port, fNameLookup && !HaveNameProxy(), 256) && !resolved.empty()) {
             addrConnect = CAddress(resolved[GetRand(resolved.size())], NODE_NONE);
             if (!addrConnect.IsValid()) {
                 LogPrint(BCLog::NET, "Resolver returned invalid address %s for %s\n", addrConnect.ToString(), pszDest);
@@ -853,8 +851,8 @@ int CNetMessage::readData(const char *pch, unsigned int nBytes)
     unsigned int nCopy = std::min(nRemaining, nBytes);
 
     if (vRecv.size() < nDataPos + nCopy) {
-        // Allocate up to 256 KiB ahead, but never more than the total message size.
-        vRecv.resize(std::min(hdr.nMessageSize, nDataPos + nCopy + 256 * 1024));
+	// Allocate up to 256 KiB ahead, but never more than the total message size.
+	vRecv.resize(std::min(hdr.nMessageSize, nDataPos + nCopy + 256 * 1024));
     }
 
     hasher.Write((const unsigned char*)pch, nCopy);
@@ -864,7 +862,7 @@ int CNetMessage::readData(const char *pch, unsigned int nBytes)
     return nCopy;
 }
 
-const uint256& CNetMessage::GetMessageHash() const
+const uint512& CNetMessage::GetMessageHash() const
 {
     assert(complete());
     if (data_hash.IsNull())
@@ -1628,7 +1626,7 @@ void CConnman::ThreadDNSAddressSeed()
             if (!resolveSource.SetInternal(host)) {
                 continue;
             }
-            unsigned int nMaxIPs = 256; // Limits number of IPs learned from a DNS seed
+	    unsigned int nMaxIPs = 256; // Limits number of IPs learned from a DNS seed
             if (LookupHost(host.c_str(), vIPs, nMaxIPs, true))
             {
                 for (const CNetAddr& ip : vIPs)
@@ -2705,7 +2703,7 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     nRefCount = 0;
     nSendSize = 0;
     nSendOffset = 0;
-    hashContinue = uint256();
+    hashContinue = uint512();
     nStartingHeight = -1;
     filterInventoryKnown.reset();
     fSendMempool = false;
@@ -2761,7 +2759,7 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
 
     std::vector<unsigned char> serializedHeader;
     serializedHeader.reserve(CMessageHeader::HEADER_SIZE);
-    uint256 hash = Hash(msg.data.data(), msg.data.data() + nMessageSize);
+    uint512 hash = Hash(msg.data.data(), msg.data.data() + nMessageSize);
     CMessageHeader hdr(Params().MessageStart(), msg.command.c_str(), nMessageSize);
     memcpy(hdr.pchChecksum, hash.begin(), CMessageHeader::CHECKSUM_SIZE);
 

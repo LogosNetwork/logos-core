@@ -9,7 +9,7 @@
 
 #include <vector>
 
-class uint256;
+class uint512;
 
 //! 20,000 items with fp rate < 0.1% or 10,000 items and <0.0001%
 static const unsigned int MAX_BLOOM_FILTER_SIZE = 36000; // bytes
@@ -75,10 +75,10 @@ public:
     }
 
     void insert(const std::vector<unsigned char>& vKey);
-    void insert(const uint256& hash);
+    void insert(const uint512& hash);
 
     bool contains(const std::vector<unsigned char>& vKey) const;
-    bool contains(const uint256& hash) const;
+    bool contains(const uint512& hash) const;
 
     void clear();
     void reset(const unsigned int nNewTweak);
@@ -103,7 +103,7 @@ public:
  * insert()'ed ... but may also return true for items that were not inserted.
  *
  * It needs around 1.8 bytes per element per factor 0.1 of false positive rate.
- * (More accurately: 3/(log(256)*log(2)) * log(1/fpRate) * nElements bytes)
+ * (More accurately: 3/(log(512)*log(2)) * log(1/fpRate) * nElements bytes)
  */
 class CRollingBloomFilter
 {
@@ -114,9 +114,9 @@ public:
     CRollingBloomFilter(const unsigned int nElements, const double nFPRate);
 
     void insert(const std::vector<unsigned char>& vKey);
-    void insert(const uint256& hash);
+    void insert(const uint512& hash);
     bool contains(const std::vector<unsigned char>& vKey) const;
-    bool contains(const uint256& hash) const;
+    bool contains(const uint512& hash) const;
 
     void reset();
 

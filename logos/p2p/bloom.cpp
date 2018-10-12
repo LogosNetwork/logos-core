@@ -54,7 +54,7 @@ void CBloomFilter::insert(const std::vector<unsigned char>& vKey)
     isEmpty = false;
 }
 
-void CBloomFilter::insert(const uint256& hash)
+void CBloomFilter::insert(const uint512& hash)
 {
     std::vector<unsigned char> data(hash.begin(), hash.end());
     insert(data);
@@ -76,7 +76,7 @@ bool CBloomFilter::contains(const std::vector<unsigned char>& vKey) const
     return true;
 }
 
-bool CBloomFilter::contains(const uint256& hash) const
+bool CBloomFilter::contains(const uint512& hash) const
 {
     std::vector<unsigned char> data(hash.begin(), hash.end());
     return contains(data);
@@ -184,7 +184,7 @@ void CRollingBloomFilter::insert(const std::vector<unsigned char>& vKey)
     }
 }
 
-void CRollingBloomFilter::insert(const uint256& hash)
+void CRollingBloomFilter::insert(const uint512& hash)
 {
     std::vector<unsigned char> vData(hash.begin(), hash.end());
     insert(vData);
@@ -204,7 +204,7 @@ bool CRollingBloomFilter::contains(const std::vector<unsigned char>& vKey) const
     return true;
 }
 
-bool CRollingBloomFilter::contains(const uint256& hash) const
+bool CRollingBloomFilter::contains(const uint512& hash) const
 {
     std::vector<unsigned char> vData(hash.begin(), hash.end());
     return contains(vData);

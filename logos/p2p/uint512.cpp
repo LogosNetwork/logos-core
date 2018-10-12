@@ -3,7 +3,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <uint256.h>
+#include <uint512.h>
 
 #include <utilstrencodings.h>
 
@@ -64,9 +64,9 @@ std::string base_blob<BITS>::ToString() const
     return (GetHex());
 }
 
-// Explicit instantiations for base_blob<256>
-template base_blob<256>::base_blob(const std::vector<unsigned char>&);
-template std::string base_blob<256>::GetHex() const;
-template std::string base_blob<256>::ToString() const;
-template void base_blob<256>::SetHex(const char*);
-template void base_blob<256>::SetHex(const std::string&);
+// Explicit instantiations for base_blob<512>
+template base_blob<512>::base_blob(const std::vector<unsigned char>&);
+template std::string base_blob<512>::GetHex() const;
+template std::string base_blob<512>::ToString() const;
+template void base_blob<512>::SetHex(const char*);
+template void base_blob<512>::SetHex(const std::string&);

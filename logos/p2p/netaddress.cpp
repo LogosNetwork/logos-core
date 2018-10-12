@@ -47,7 +47,7 @@ bool CNetAddr::SetInternal(const std::string &name)
         return false;
     }
     unsigned char hash[32] = {};
-    CSHA256().Write((const unsigned char*)name.data(), name.size()).Finalize(hash);
+    CSHA512().Write((const unsigned char*)name.data(), name.size()).Finalize(hash);
     memcpy(ip, g_internal_prefix, sizeof(g_internal_prefix));
     memcpy(ip + sizeof(g_internal_prefix), hash, sizeof(ip) - sizeof(g_internal_prefix));
     return true;
@@ -384,7 +384,7 @@ std::vector<unsigned char> CNetAddr::GetGroup() const
 
 uint64_t CNetAddr::GetHash() const
 {
-    uint256 hash = Hash(&ip[0], &ip[16]);
+    uint512 hash = Hash(&ip[0], &ip[16]);
     uint64_t nRet;
     memcpy(&nRet, &hash, sizeof(nRet));
     return nRet;

@@ -73,8 +73,8 @@ add_library (p2p
 	torcontrol.h
 	ui_interface.cpp
 	ui_interface.h
-	uint256.cpp
-	uint256.h
+	uint512.cpp
+	uint512.h
 	util.cpp
 	util.h
 	utilmemory.h

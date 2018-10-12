@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_UINT256_H
-#define BITCOIN_UINT256_H
+#ifndef BITCOIN_UINT512_H
+#define BITCOIN_UINT512_H
 
 #include <assert.h>
 #include <cstring>
@@ -104,15 +104,15 @@ public:
     }
 };
 
-/** 256-bit opaque blob.
- * @note This type is called uint256 for historical reasons only. It is an
- * opaque blob of 256 bits and has no integer operations. Use arith_uint256 if
+/** 512-bit opaque blob.
+ * @note This type is called uint512 for historical reasons only. It is an
+ * opaque blob of 512 bits and has no integer operations. Use arith_uint512 if
  * those are required.
  */
-class uint256 : public base_blob<256> {
+class uint512 : public base_blob<512> {
 public:
-    uint256() {}
-    explicit uint256(const std::vector<unsigned char>& vch) : base_blob<256>(vch) {}
+    uint512() {}
+    explicit uint512(const std::vector<unsigned char>& vch) : base_blob<512>(vch) {}
 
     /** A cheap hash function that just returns 64 bits from the result, it can be
      * used when the contents are considered uniformly random. It is not appropriate
@@ -125,25 +125,25 @@ public:
     }
 };
 
-/* uint256 from const char *.
- * This is a separate function because the constructor uint256(const char*) can result
- * in dangerously catching uint256(0).
+/* uint512 from const char *.
+ * This is a separate function because the constructor uint512(const char*) can result
+ * in dangerously catching uint512(0).
  */
-inline uint256 uint256S(const char *str)
+inline uint512 uint512S(const char *str)
 {
-    uint256 rv;
+    uint512 rv;
     rv.SetHex(str);
     return rv;
 }
-/* uint256 from std::string.
- * This is a separate function because the constructor uint256(const std::string &str) can result
- * in dangerously catching uint256(0) via std::string(const char*).
+/* uint512 from std::string.
+ * This is a separate function because the constructor uint512(const std::string &str) can result
+ * in dangerously catching uint512(0) via std::string(const char*).
  */
-inline uint256 uint256S(const std::string& str)
+inline uint512 uint512S(const std::string& str)
 {
-    uint256 rv;
+    uint512 rv;
     rv.SetHex(str);
     return rv;
 }
 
-#endif // BITCOIN_UINT256_H
+#endif // BITCOIN_UINT512_H

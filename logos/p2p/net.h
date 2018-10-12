@@ -19,7 +19,7 @@
 #include <random.h>
 #include <streams.h>
 #include <sync.h>
-#include <uint256.h>
+#include <uint512.h>
 #include <threadinterrupt.h>
 
 #include <atomic>
@@ -523,8 +523,6 @@ extern bool fDiscover;
 extern bool fListen;
 extern bool fRelayTxes;
 
-extern limitedmap<uint256, int64_t> mapAlreadyAskedFor;
-
 /** Subversion as sent to the P2P network in `version` messages */
 extern std::string strSubVersion;
 
@@ -575,8 +573,8 @@ public:
 
 class CNetMessage {
 private:
-    mutable CHash256 hasher;
-    mutable uint256 data_hash;
+    mutable CHash512 hasher;
+    mutable uint512 data_hash;
 public:
     bool in_data;                   // parsing header (false) or data (true)
 
@@ -604,7 +602,7 @@ public:
         return (hdr.nMessageSize == nDataPos);
     }
 
-    const uint256& GetMessageHash() const;
+    const uint512& GetMessageHash() const;
 
     void SetVersion(int nVersionIn)
     {
@@ -687,32 +685,21 @@ protected:
     mapMsgCmdSize mapRecvBytesPerMsgCmd;
 
 public:
-    uint256 hashContinue;
+    uint512 hashContinue;
     std::atomic<int> nStartingHeight;
 
     // flood relay
     std::vector<CAddress> vAddrToSend;
     CRollingBloomFilter addrKnown;
     bool fGetAddr;
-    std::set<uint256> setKnown;
+    std::set<uint512> setKnown;
     int64_t nNextAddrSend;
     int64_t nNextLocalAddrSend;
 
     // inventory based relay
     CRollingBloomFilter filterInventoryKnown;
-    // Set of transaction ids we still have to announce.
-    // They are sorted by the mempool before relay, so the order is not important.
-    std::set<uint256> setInventoryTxToSend;
-    // List of block ids we still have announce.
-    // There is no final sorting before sending, as they are always sent immediately
-    // and in the order requested.
-    std::vector<uint256> vInventoryBlockToSend;
     CCriticalSection cs_inventory;
-    std::set<uint256> setAskFor;
     int64_t nNextInvSend;
-    // Used for headers announcements - unfiltered blocks to relay
-    // Also protected by cs_inventory
-    std::vector<uint256> vBlockHashesToAnnounce;
     // Used for BIP35 mempool sending, also protected by cs_inventory
     bool fSendMempool;
 
@@ -827,12 +814,6 @@ public:
                 vAddrToSend.push_back(_addr);
             }
         }
-    }
-
-    void PushBlockHash(const uint256 &hash)
-    {
-        LOCK(cs_inventory);
-        vBlockHashesToAnnounce.push_back(hash);
     }
 
     void CloseSocketDisconnect();

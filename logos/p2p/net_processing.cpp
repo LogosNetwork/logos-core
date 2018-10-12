@@ -83,14 +83,6 @@ namespace {
     int nSyncStarted GUARDED_BY(cs_main) = 0;
 
     /**
-     * Sources of received blocks, saved to be able to send them reject
-     * messages or ban them when processing happens afterwards.
-     * Set mapBlockSource[hash].second to false if the node should not be
-     * punished if the block is invalid.
-     */
-    std::map<uint256, std::pair<NodeId, bool>> mapBlockSource GUARDED_BY(cs_main);
-
-    /**
      * Filter for transactions that were recently rejected by
      * AcceptToMemoryPool. These are not rerequested until the chain tip
      * changes, at which point the entire filter is reset.
@@ -110,7 +102,6 @@ namespace {
      * Memory used: 1.3 MB
      */
     std::unique_ptr<CRollingBloomFilter> recentRejects GUARDED_BY(cs_main);
-    uint256 hashRecentRejectsChainTip GUARDED_BY(cs_main);
 
     /** Stack of nodes which we have set to announce using compact blocks */
     std::list<NodeId> lNodesAnnouncingHeaderAndIDs GUARDED_BY(cs_main);
@@ -142,11 +133,6 @@ namespace {
 } // namespace
 
 namespace {
-struct CBlockReject {
-    unsigned char chRejectCode;
-    std::string strRejectReason;
-    uint256 hashBlock;
-};
 
 /**
  * Maintain validation-specific state about nodes, protected by cs_main, instead
@@ -167,8 +153,6 @@ struct CNodeState {
     const std::string name;
     //! The best known block we know this peer has announced.
     const CBlockIndex *pindexBestKnownBlock;
-    //! The hash of the last unknown block this peer has announced.
-    uint256 hashLastUnknownBlock;
     //! The last full block we both have.
     const CBlockIndex *pindexLastCommonBlock;
     //! The best header we have sent our peer.
@@ -242,7 +226,6 @@ struct CNodeState {
         nMisbehavior = 0;
         fShouldBan = false;
         pindexBestKnownBlock = nullptr;
-        hashLastUnknownBlock.SetNull();
         pindexLastCommonBlock = nullptr;
         pindexBestHeaderSent = nullptr;
         nUnconnectingHeaders = 0;
@@ -424,7 +407,6 @@ PeerLogicValidation::PeerLogicValidation(CConnman* connmanIn, CScheduler &schedu
     // Initialize global variables that cannot be constructed at startup.
     recentRejects.reset(new CRollingBloomFilter(120000, 0.000001));
 
-//    const Consensus::Params& consensusParams = Params().GetConsensus();
     // Stale tip checking and peer eviction are on two different timers, but we
     // don't want them to get out of sync due to drift in the scheduler, so we
     // combine them in one function and schedule at the quicker (peer-eviction)
@@ -434,11 +416,6 @@ PeerLogicValidation::PeerLogicValidation(CConnman* connmanIn, CScheduler &schedu
 }
 
 // All of the following cache a recent block, and are protected by cs_most_recent_block
-//static CCriticalSection cs_most_recent_block;
-//static std::shared_ptr<const CBlock> most_recent_block GUARDED_BY(cs_most_recent_block);
-//static std::shared_ptr<const CBlockHeaderAndShortTxIDs> most_recent_compact_block GUARDED_BY(cs_most_recent_block);
-//static uint256 most_recent_block_hash GUARDED_BY(cs_most_recent_block);
-//static bool fWitnessesPresentInMostRecentCompactBlock GUARDED_BY(cs_most_recent_block);
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -974,7 +951,7 @@ bool PeerLogicValidation::ProcessMessages(CNode* pfrom, std::atomic<bool>& inter
 
     // Checksum
     CDataStream& vRecv = msg.vRecv;
-    const uint256& hash = msg.GetMessageHash();
+    const uint512& hash = msg.GetMessageHash();
     if (memcmp(hash.begin(), hdr.pchChecksum, CMessageHeader::CHECKSUM_SIZE) != 0)
     {
         LogPrint(BCLog::NET, "%s(%s, %u bytes): CHECKSUM ERROR expected %s was %s\n", __func__,
