@@ -15,7 +15,7 @@ private:
 public:
 	p2p_interface() : p2p(0) {}
 	~p2p_interface(){ Shutdown(); }
-	bool Init(int argc, char **argv);
+	bool Init(int argc, char **argv, void *lmdb_env, void *lmdb_dbi);
 	void Shutdown();
 	bool PropagateMessage(const void *message, unsigned size);
 	virtual bool ReceiveMessageCallback(const void *message, unsigned size) = 0;

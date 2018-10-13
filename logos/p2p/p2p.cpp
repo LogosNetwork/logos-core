@@ -9,6 +9,7 @@
 
 #include "p2p.h"
 
+#include <addrdb.h>
 #include <addrman.h>
 #include <chainparams.h>
 #include <clientversion.h>
@@ -865,7 +866,7 @@ bool Propagate(PropagateMessage &mess) {
 }; // end of the class p2p_internal
 
 
-bool p2p_interface::Init(int argc, char **argv) {
+bool p2p_interface::Init(int argc, char **argv, void *lmdb_env, void *lmdb_dbi) {
 	if (p2p) return false;
 	SetupEnvironment();
 	p2p = new p2p_internal(this);
@@ -876,6 +877,8 @@ bool p2p_interface::Init(int argc, char **argv) {
 		fprintf(stderr, "Error parsing command line arguments: %s\n", error.c_str());
 		return false;
 	}
+	g_p2p_lmdb_env = (MDB_env *)lmdb_env;
+	g_p2p_lmdb_dbi = (MDB_dbi *)lmdb_dbi;
 
 	// Process help and version before taking care about datadir
 	if (HelpRequested(gArgs) || gArgs.IsArgSet("-version")) {

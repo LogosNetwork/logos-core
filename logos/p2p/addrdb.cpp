@@ -14,6 +14,9 @@
 #include <tinyformat.h>
 #include <util.h>
 
+MDB_env *g_p2p_lmdb_env;
+MDB_dbi *g_p2p_lmdb_dbi;
+
 namespace {
 
 template <typename Stream, typename Data>
@@ -33,29 +36,30 @@ bool SerializeDB(Stream& stream, const Data& data)
 }
 
 template <typename Data>
-bool SerializeFileDB(const std::string& prefix, const fs::path& path, const Data& data)
+bool SerializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi *dbi, const Data& data)
 {
-    // Generate random temporary filename
-    unsigned short randv = 0;
-    GetRandBytes((unsigned char*)&randv, sizeof(randv));
-    std::string tmpfn = strprintf("%s.%04x", prefix, randv);
-
-    // open temp output file, and associate with CAutoFile
-    fs::path pathTmp = GetDataDir() / tmpfn;
-    FILE *file = fsbridge::fopen(pathTmp, "wb");
-    CAutoFile fileout(file, SER_DISK, CLIENT_VERSION);
-    if (fileout.IsNull())
-        return error("%s: Failed to open file %s", __func__, pathTmp.string());
+    CDataStream s(0, 0);
+    MDB_txn *txn;
+    int err;
 
     // Serialize
-    if (!SerializeDB(fileout, data)) return false;
-    if (!FileCommit(fileout.Get()))
-        return error("%s: Failed to flush file %s", __func__, pathTmp.string());
-    fileout.fclose();
+    if (!SerializeDB(s, data))
+	return error("%s: Failed to serialize %s data", __func__, prefix.c_str());
 
-    // replace existing file, if any, with new file
-    if (!RenameOver(pathTmp, path))
-        return error("%s: Rename-into-place failed", __func__);
+    MDB_val key = { prefix.size(), (void *)prefix.c_str() }, value = { s.size(), s.data() };
+
+    if ((err = mdb_txn_begin(env, 0, 0, &txn)))
+	return error("%s: Failed to open %s write transaction, error %d", __func__, prefix.c_str(), err);
+
+    if ((err = mdb_put(txn, *dbi, &key, &value, 0))) {
+	mdb_txn_abort(txn);
+	return error("%s: Failed to put %s data, error %d", __func__, prefix.c_str(), err);
+    }
+
+    if ((err = mdb_txn_commit(txn))) {
+	mdb_txn_abort(txn);
+	return error("%s: Failed to commit %s transaction, error %d", __func__, prefix.c_str(), err);
+    }
 
     return true;
 }
@@ -92,47 +96,53 @@ bool DeserializeDB(Stream& stream, Data& data, bool fCheckSum = true)
 }
 
 template <typename Data>
-bool DeserializeFileDB(const fs::path& path, Data& data)
+bool DeserializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi *dbi, Data& data)
 {
-    // open input file, and associate with CAutoFile
-    FILE *file = fsbridge::fopen(path, "rb");
-    CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
-    if (filein.IsNull())
-        return error("%s: Failed to open file %s", __func__, path.string());
+    MDB_txn *txn;
+    int err;
+    MDB_val key = { prefix.size(), (void *)prefix.c_str() }, value;
 
-    return DeserializeDB(filein, data);
+    if ((err = mdb_txn_begin(env, 0, MDB_RDONLY, &txn)))
+	return error("%s: Failed to open %s read transaction, error %d", __func__, prefix.c_str(), err);
+
+    if ((err = mdb_get(txn, *dbi, &key, &value))) {
+	mdb_txn_abort(txn);
+	return error("%s: Failed to get %s data, error %d", __func__, prefix.c_str(), err);
+    }
+
+    CDataStream s((const char *)value.mv_data, (const char *)value.mv_data + value.mv_size, 0, 0);
+
+    // Deserialize
+    if (!DeserializeDB(s, data)) {
+	mdb_txn_abort(txn);
+	return error("%s: Failed to deserialize %s data", __func__, prefix.c_str());
+    }
+
+    mdb_txn_abort(txn);
+
+    return true;
 }
 
-}
-
-CBanDB::CBanDB()
-{
-    pathBanlist = GetDataDir() / "banlist.dat";
 }
 
 bool CBanDB::Write(const banmap_t& banSet)
 {
-    return SerializeFileDB("banlist", pathBanlist, banSet);
+    return SerializeLMDB("banlist", env, dbi, banSet);
 }
 
 bool CBanDB::Read(banmap_t& banSet)
 {
-    return DeserializeFileDB(pathBanlist, banSet);
-}
-
-CAddrDB::CAddrDB()
-{
-    pathAddr = GetDataDir() / "peers.dat";
+    return DeserializeLMDB("banlist", env, dbi, banSet);
 }
 
 bool CAddrDB::Write(const CAddrMan& addr)
 {
-    return SerializeFileDB("peers", pathAddr, addr);
+    return SerializeLMDB("peers", env, dbi, addr);
 }
 
 bool CAddrDB::Read(CAddrMan& addr)
 {
-    return DeserializeFileDB(pathAddr, addr);
+    return DeserializeLMDB("peers", env, dbi, addr);
 }
 
 bool CAddrDB::Read(CAddrMan& addr, CDataStream& ssPeers)

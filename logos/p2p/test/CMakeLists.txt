@@ -6,7 +6,8 @@ target_include_directories(p2p-standalone PRIVATE .)
 
 target_link_libraries (p2p-standalone
 	p2p
-	blake2)
+	blake2
+	lmdb)
 
 target_compile_definitions(p2p
 	PRIVATE
