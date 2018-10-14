@@ -198,6 +198,7 @@ logos::account_info::account_info ()
     , balance (0)
     , modified (0)
     , block_count (0)
+    , receive_count (0)
 {}
 
 logos::account_info::account_info (MDB_val const & val_a)
@@ -210,7 +211,8 @@ logos::account_info::account_info (MDB_val const & val_a)
                    sizeof (open_block) +
                    sizeof (balance) +
                    sizeof (modified) +
-                   sizeof (block_count) == sizeof (*this),
+                   sizeof (block_count) +
+                   sizeof (receive_count) == sizeof (*this),
                    "Class not packed");
 
     std::copy (reinterpret_cast<uint8_t const *> (val_a.mv_data),
@@ -225,7 +227,8 @@ logos::account_info::account_info (
         logos::block_hash const & open_block_a,
         logos::amount const & balance_a,
         uint64_t modified_a,
-        uint64_t block_count_a)
+        uint64_t block_count_a,
+        uint64_t receive_count_a)
     : head (head_a)
     , receive_head (receive_head_a)
     , rep_block (rep_block_a)
@@ -233,6 +236,7 @@ logos::account_info::account_info (
     , balance (balance_a)
     , modified (modified_a)
     , block_count (block_count_a)
+    , receive_count (receive_count_a)
 {}
 
 void logos::account_info::serialize (logos::stream & stream_a) const
@@ -244,6 +248,7 @@ void logos::account_info::serialize (logos::stream & stream_a) const
     write (stream_a, balance.bytes);
     write (stream_a, modified);
     write (stream_a, block_count);
+    write (stream_a, receive_count);
 }
 
 bool logos::account_info::deserialize (logos::stream & stream_a)
@@ -267,6 +272,10 @@ bool logos::account_info::deserialize (logos::stream & stream_a)
                         if (!error)
                         {
                             error = read (stream_a, block_count);
+                            if (!error)
+                            {
+                                error = read (stream_a, receive_count);
+                            }
                         }
                     }
                 }
@@ -284,7 +293,8 @@ bool logos::account_info::operator== (logos::account_info const & other_a) const
            open_block == other_a.open_block &&
            balance == other_a.balance &&
            modified == other_a.modified &&
-           block_count == other_a.block_count;
+           block_count == other_a.block_count &&
+           receive_count == other_a.receive_count;
 }
 
 bool logos::account_info::operator!= (logos::account_info const & other_a) const

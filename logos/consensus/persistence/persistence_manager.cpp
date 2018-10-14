@@ -196,6 +196,7 @@ void PersistenceManager::UpdateDestinationState(
         info.open_block = hash;
     }
 
+    info.receive_count++;
     info.receive_head = hash;
     info.balance = info.balance.number() + block.hashables.amount.number();
     info.modified = logos::seconds_since_epoch();

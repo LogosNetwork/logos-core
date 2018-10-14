@@ -1416,7 +1416,8 @@ _consensus_container(service_a, store, alarm_a, log, config, _archiver)
                                   /* Open         */ logos_genesis_block.hash(),
                                   /* Amount       */ std::numeric_limits<logos::uint128_t>::max(),
                                   /* Time         */ logos::seconds_since_epoch(),
-                                  /* Count        */ 0
+                                  /* Count        */ 0,
+                                  /* Receive      */ 0
                               },
                               transaction);
         }
@@ -1460,7 +1461,8 @@ _consensus_container(service_a, store, alarm_a, log, config, _archiver)
                                       /* Open    */ state.hash(),
                                       /* Amount  */ amount,
                                       /* Time    */ logos::seconds_since_epoch(),
-                                      /* Count   */ 0
+                                      /* Count   */ 0,
+                                      /* Receive */ 0
                                   },
                                   transaction);
                 std::string contents;

@@ -135,6 +135,7 @@ public:
     bool account_db_empty();
     void account_put (logos::account const &, logos::account_info const &, MDB_txn *);
     void receive_put(const block_hash & hash, const state_block & block, MDB_txn * transaction);
+    bool receive_get(const block_hash & hash, state_block & block);
     bool receive_exists(const block_hash & hash);
     void batch_tip_put(uint8_t delegate_id, const block_hash & hash, MDB_txn *);
     bool batch_tip_get(uint8_t delegate_id, block_hash & hash);

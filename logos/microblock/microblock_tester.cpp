@@ -133,7 +133,8 @@ MicroBlockTester::precreate_account(
                               /* Open    */ state.hash(),
                               /* Amount  */ amount,
                               /* Time    */ logos::seconds_since_epoch(),
-                              /* Count   */ 0
+                              /* Count   */ 0,
+                              /* Receive */ 0
                       },
                       transaction);
   response_l.put("private", pair.prv.data.to_string());

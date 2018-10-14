@@ -259,7 +259,7 @@ void logos::rpc_handler::account_block_count ()
         if (!node.store.account_get (transaction, account, info))
         {
             boost::property_tree::ptree response_l;
-            response_l.put ("block_count", std::to_string (info.block_count));
+            response_l.put ("block_count", std::to_string (info.block_count + info.receive_count));
             response (response_l);
         }
         else
@@ -344,34 +344,35 @@ void logos::rpc_handler::account_info ()
         logos::transaction transaction (node.store.environment, nullptr, false);
         logos::account_info info;
 
-        MDB_dbi db = is_logos_request() ? node.store.account_db : node.store.accounts;
+        MDB_dbi db = node.store.account_db;
 
         if (!node.store.account_get (transaction, account, info, db))
         {
             boost::property_tree::ptree response_l;
             response_l.put ("frontier", info.head.to_string ());
+            response_l.put ("receive_tip", info.receive_head.to_string ());
             response_l.put ("open_block", info.open_block.to_string ());
             response_l.put ("representative_block", info.rep_block.to_string ());
             std::string balance;
             logos::uint128_union (info.balance).encode_dec (balance);
             response_l.put ("balance", balance);
             response_l.put ("modified_timestamp", std::to_string (info.modified));
-            response_l.put ("block_count", std::to_string (info.block_count));
+            response_l.put ("block_count", std::to_string (info.block_count + info.receive_count));
             if (representative)
             {
-                auto block (node.store.block_get (transaction, info.rep_block));
-                assert (block != nullptr);
-                response_l.put ("representative", block->representative ().to_account ());
+//                auto block (node.store.block_get (transaction, info.rep_block));
+//                assert (block != nullptr);
+//                response_l.put ("representative", block->representative ().to_account ());
             }
             if (weight)
             {
-                auto account_weight (node.ledger.weight (transaction, account));
-                response_l.put ("weight", account_weight.convert_to<std::string> ());
+//                auto account_weight (node.ledger.weight (transaction, account));
+//                response_l.put ("weight", account_weight.convert_to<std::string> ());
             }
             if (pending)
             {
-                auto account_pending (node.ledger.account_pending (transaction, account));
-                response_l.put ("pending", account_pending.convert_to<std::string> ());
+//                auto account_pending (node.ledger.account_pending (transaction, account));
+//                response_l.put ("pending", account_pending.convert_to<std::string> ());
             }
             response (response_l);
         }
@@ -881,28 +882,29 @@ void logos::rpc_handler::block ()
 {
     std::string hash_text (request.get<std::string> ("hash"));
     logos::uint256_union hash;
-    auto error (hash.decode_hex (hash_text));
-    if (!error)
-    {
-        logos::transaction transaction (node.store.environment, nullptr, false);
-        auto block (node.store.block_get (transaction, hash));
-        if (block != nullptr)
-        {
-            boost::property_tree::ptree response_l;
-            std::string contents;
-            block->serialize_json (contents);
-            response_l.put ("contents", contents);
-            response (response_l);
-        }
-        else
-        {
-            error_response (response, "Block not found");
-        }
-    }
-    else
+    if (hash.decode_hex (hash_text))
     {
         error_response (response, "Bad hash number");
     }
+    logos::transaction transaction (node.store.environment, nullptr, false);
+    boost::property_tree::ptree response_l;
+    logos::state_block block;
+    std::string block_type;
+    if (!node.store.state_block_get(hash, block, transaction))
+    {
+        block_type = "send";
+    }
+    else if (!node.store.receive_get(hash, block))
+    {
+        block_type = "receive";
+    }
+    if (block_type.empty())
+    {
+        error_response (response, "Block not found");
+    }
+    response_l = block.serialize_json ();
+    response_l.put ("type", block_type);
+    response (response_l);
 }
 
 
@@ -910,107 +912,106 @@ void logos::rpc_handler::blocks ()
 {
     std::vector<std::string> hashes;
     boost::property_tree::ptree response_l;
-    boost::property_tree::ptree blocks;
     logos::transaction transaction (node.store.environment, nullptr, false);
     for (boost::property_tree::ptree::value_type & hashes : request.get_child ("hashes"))
     {
         std::string hash_text = hashes.second.data ();
         logos::uint256_union hash;
-        auto error (hash.decode_hex (hash_text));
-        if (!error)
-        {
-            auto block (node.store.block_get (transaction, hash));
-            if (block != nullptr)
-            {
-                std::string contents;
-                block->serialize_json (contents);
-                blocks.put (hash_text, contents);
-            }
-            else
-            {
-                error_response (response, "Block not found");
-            }
-        }
-        else
+        if (hash.decode_hex (hash_text))
         {
             error_response (response, "Bad hash number");
         }
+        logos::state_block block;
+        std::string block_type;
+        if(!node.store.state_block_get(hash, block, transaction)) {
+            block_type = "send";
+        }
+        else if (!node.store.receive_get(hash, block))
+        {
+            block_type = "receive";
+        }
+        if (block_type.empty())
+        {
+            error_response (response, "Block not found");
+        }
+        auto contents (block.serialize_json ());
+        contents.put ("type", block_type);
+        response_l.add_child (hash_text, contents);
     }
-    response_l.add_child ("blocks", blocks);
     response (response_l);
 }
 
-void logos::rpc_handler::blocks_info ()
-{
-    const bool pending = request.get<bool> ("pending", false);
-    const bool source = request.get<bool> ("source", false);
-    const bool balance = request.get<bool> ("balance", false);
-    std::vector<std::string> hashes;
-    boost::property_tree::ptree response_l;
-    boost::property_tree::ptree blocks;
-    logos::transaction transaction (node.store.environment, nullptr, false);
-    for (boost::property_tree::ptree::value_type & hashes : request.get_child ("hashes"))
-    {
-        std::string hash_text = hashes.second.data ();
-        logos::uint256_union hash;
-        auto error (hash.decode_hex (hash_text));
-        if (!error)
-        {
-            auto block (node.store.block_get (transaction, hash));
-            if (block != nullptr)
-            {
-                boost::property_tree::ptree entry;
-                auto account (node.ledger.account (transaction, hash));
-                entry.put ("block_account", account.to_account ());
-                auto amount (node.ledger.amount (transaction, hash));
-                entry.put ("amount", amount.convert_to<std::string> ());
-                std::string contents;
-                block->serialize_json (contents);
-                entry.put ("contents", contents);
-                if (pending)
-                {
-                    bool exists (false);
-                    auto destination (node.ledger.block_destination (transaction, *block));
-                    if (!destination.is_zero ())
-                    {
-                        exists = node.store.pending_exists (transaction, logos::pending_key (destination, hash));
-                    }
-                    entry.put ("pending", exists ? "1" : "0");
-                }
-                if (source)
-                {
-                    logos::block_hash source_hash (node.ledger.block_source (transaction, *block));
-                    std::unique_ptr<logos::block> block_a (node.store.block_get (transaction, source_hash));
-                    if (block_a != nullptr)
-                    {
-                        auto source_account (node.ledger.account (transaction, source_hash));
-                        entry.put ("source_account", source_account.to_account ());
-                    }
-                    else
-                    {
-                        entry.put ("source_account", "0");
-                    }
-                }
-                if (balance)
-                {
-                    auto balance (node.ledger.balance (transaction, hash));
-                    entry.put ("balance", balance.convert_to<std::string> ());
-                }
-                blocks.push_back (std::make_pair (hash_text, entry));
-            }
-            else
-            {
-                error_response (response, "Block not found");
-            }
-        }
-        else
-        {
-            error_response (response, "Bad hash number");
-        }
-    }
-    response_l.add_child ("blocks", blocks);
-    response (response_l);
-}
+//void logos::rpc_handler::blocks_info ()
+//{
+//    const bool pending = request.get<bool> ("pending", false);
+//    const bool source = request.get<bool> ("source", false);
+//    const bool balance = request.get<bool> ("balance", false);
+//    std::vector<std::string> hashes;
+//    boost::property_tree::ptree response_l;
+//    boost::property_tree::ptree blocks;
+//    logos::transaction transaction (node.store.environment, nullptr, false);
+//    for (boost::property_tree::ptree::value_type & hashes : request.get_child ("hashes"))
+//    {
+//        std::string hash_text = hashes.second.data ();
+//        logos::uint256_union hash;
+//        auto error (hash.decode_hex (hash_text));
+//        if (!error)
+//        {
+//            auto block (node.store.block_get (transaction, hash));
+//            if (block != nullptr)
+//            {
+//                boost::property_tree::ptree entry;
+//                auto account (node.ledger.account (transaction, hash));
+//                entry.put ("block_account", account.to_account ());
+//                auto amount (node.ledger.amount (transaction, hash));
+//                entry.put ("amount", amount.convert_to<std::string> ());
+//                std::string contents;
+//                block->serialize_json (contents);
+//                entry.put ("contents", contents);
+//                if (pending)
+//                {
+//                    bool exists (false);
+//                    auto destination (node.ledger.block_destination (transaction, *block));
+//                    if (!destination.is_zero ())
+//                    {
+//                        exists = node.store.pending_exists (transaction, logos::pending_key (destination, hash));
+//                    }
+//                    entry.put ("pending", exists ? "1" : "0");
+//                }
+//                if (source)
+//                {
+//                    logos::block_hash source_hash (node.ledger.block_source (transaction, *block));
+//                    std::unique_ptr<logos::block> block_a (node.store.block_get (transaction, source_hash));
+//                    if (block_a != nullptr)
+//                    {
+//                        auto source_account (node.ledger.account (transaction, source_hash));
+//                        entry.put ("source_account", source_account.to_account ());
+//                    }
+//                    else
+//                    {
+//                        entry.put ("source_account", "0");
+//                    }
+//                }
+//                if (balance)
+//                {
+//                    auto balance (node.ledger.balance (transaction, hash));
+//                    entry.put ("balance", balance.convert_to<std::string> ());
+//                }
+//                blocks.push_back (std::make_pair (hash_text, entry));
+//            }
+//            else
+//            {
+//                error_response (response, "Block not found");
+//            }
+//        }
+//        else
+//        {
+//            error_response (response, "Bad hash number");
+//        }
+//    }
+//    response_l.add_child ("blocks", blocks);
+//    response (response_l);
+//}
 
 void logos::rpc_handler::block_account ()
 {
@@ -1063,6 +1064,7 @@ void logos::rpc_handler::block_create ()
 {
     if (rpc.config.enable_control)
     {
+        bool is_logos_request (true);  // TODO: remove once representative logic is implemented
         std::string type (request.get<std::string> ("type"));
         logos::uint256_union wallet (0);
         boost::optional<std::string> wallet_text (request.get_optional<std::string> ("wallet"));
@@ -1086,7 +1088,7 @@ void logos::rpc_handler::block_create ()
         }
         logos::uint256_union representative (0);
         boost::optional<std::string> representative_text (request.get_optional<std::string> ("representative"));
-        if (!is_logos_request() && representative_text.is_initialized ())
+        if (!is_logos_request && representative_text.is_initialized ())
         {
             auto error_representative (representative.decode_account (representative_text.get ()));
             if (error_representative)
@@ -1245,7 +1247,7 @@ void logos::rpc_handler::block_create ()
             }
             if (type == "state")
             {
-                if (previous_text.is_initialized () && (!representative.is_zero () || is_logos_request()) && (!link.is_zero () || link_text.is_initialized ()))
+                if (previous_text.is_initialized () && (!representative.is_zero () || is_logos_request) && (!link.is_zero () || link_text.is_initialized ()))
                 {
                     if (work == 0)
                     {
@@ -1628,102 +1630,126 @@ public:
 
 void logos::rpc_handler::account_history ()
 {
-    std::string account_text;
+    std::string account_text = request.get<std::string> ("account");
     std::string count_text (request.get<std::string> ("count"));
     bool output_raw (request.get_optional<bool> ("raw") == true);
     auto error (false);
-    logos::block_hash hash;
+    logos::block_hash send_hash, receive_hash;
     auto head_str (request.get_optional<std::string> ("head"));
     logos::transaction transaction (node.store.environment, nullptr, false);
+
+    // get account
+    logos::uint256_union account;
+    if (account.decode_account (account_text))
+    {
+        error_response (response, "Bad account number");
+    }
+
+    logos::account_info info;
+    if (node.store.account_get (transaction, account, info))
+    {
+        error_response (response, "Account not found.");
+    }
+
+    send_hash = info.head;
+    receive_hash = info.receive_head;
+    // get optional head block // TODO: support receive block as well
     if (head_str)
     {
-        error = hash.decode_hex (*head_str);
-        if (!error)
-        {
-            account_text = node.ledger.account (transaction, hash).to_account ();
-        }
-        else
+        if (send_hash.decode_hex (*head_str))
         {
             error_response (response, "Invalid block hash");
         }
     }
-    else
+
+    // get count + offset
+    uint64_t count;
+    if (decode_unsigned (count_text, count))
     {
-        account_text = request.get<std::string> ("account");
-        logos::uint256_union account;
-        error = account.decode_account (account_text);
-        if (!error)
+        error_response (response, "Invalid count limit");
+    }
+    uint64_t offset = 0;
+    auto offset_text (request.get_optional<std::string> ("offset"));
+    if (offset_text && decode_unsigned (*offset_text, offset))
+    {
+        error_response (response, "Invalid offset");
+    }
+
+    boost::property_tree::ptree response_l;
+    boost::property_tree::ptree history;
+    response_l.put ("account", account_text);
+    logos::state_block send_block, receive_block;
+    bool send_block_not_found (node.store.state_block_get (send_hash, send_block, transaction));
+    bool receive_block_not_found (node.store.receive_get (receive_hash, receive_block));
+    bool put_send (false);
+    while (!(send_block_not_found && receive_block_not_found) && count > 0)
+    {
+        // compare timestamp of send and receive, serialize whichever is more recent
+        if (send_block_not_found)  // at end of send chain?
         {
-            hash = node.ledger.latest (transaction, account);
+            put_send = false;
+        }
+        else if (receive_block_not_found)  // at end of receive chain?
+        {
+            put_send = true;
         }
         else
         {
-            error_response (response, "Bad account number");
+            put_send = send_block.timestamp > receive_block.timestamp;
         }
-    }
-    if (!error)
-    {
-        uint64_t count;
-        if (!decode_unsigned (count_text, count))
+
+        logos::state_block receive_link_block;  // i.e. source send block
+        if (!put_send)
         {
-            uint64_t offset = 0;
-            auto offset_text (request.get_optional<std::string> ("offset"));
-            if (!offset_text || !decode_unsigned (*offset_text, offset))
-            {
-                boost::property_tree::ptree response_l;
-                boost::property_tree::ptree history;
-                if (!error)
-                {
-                    response_l.put ("account", account_text);
-                    auto block (node.store.block_get (transaction, hash));
-                    while (block != nullptr && count > 0)
-                    {
-                        if (offset > 0)
-                        {
-                            --offset;
-                        }
-                        else
-                        {
-                            boost::property_tree::ptree entry;
-                            history_visitor visitor (*this, output_raw, transaction, entry, hash);
-                            block->visit (visitor);
-                            if (!entry.empty ())
-                            {
-                                entry.put ("hash", hash.to_string ());
-                                if (output_raw)
-                                {
-                                    entry.put ("work", logos::to_string_hex (block->block_work ()));
-                                    entry.put ("signature", block->block_signature ().to_string ());
-                                }
-                                history.push_back (std::make_pair ("", entry));
-                            }
-                            --count;
-                        }
-                        hash = block->previous ();
-                        block = node.store.block_get (transaction, hash);
-                    }
-                    response_l.add_child ("history", history);
-                    if (!hash.is_zero ())
-                    {
-                        response_l.put ("previous", hash.to_string ());
-                    }
-                    response (response_l);
-                }
-                else
-                {
-                    error_response (response, "Failed to decode head block hash");
-                }
-            }
-            else
-            {
-                error_response (response, "Invalid offset");
-            }
+            auto error (node.store.state_block_get (receive_block.hashables.link, receive_link_block, transaction));
+            assert (!error);
+        }
+        const logos::state_block & display_block = put_send ? send_block : receive_link_block;
+        const logos::block_hash & hash = put_send ? send_hash : receive_hash;
+
+        if (offset > 0)
+        {
+            --offset;
         }
         else
         {
-            error_response (response, "Invalid count limit");
+            boost::property_tree::ptree entry;
+            entry.put ("type", put_send ? "send" : "receive");
+            entry.put ("hash", hash.to_string ());
+            // always show the account id of the other party in transaction
+            entry.put ("account", put_send ? display_block.hashables.link.to_account() : display_block.hashables.account.to_account ());
+            entry.put ("amount", display_block.hashables.amount.to_string_dec ());
+            entry.put ("timestamp", std::to_string (display_block.timestamp));
+            if (output_raw)
+            {
+                entry.put ("representative", display_block.hashables.representative.to_account ());
+                entry.put ("link", display_block.hashables.link.to_string ());
+                entry.put ("previous", display_block.previous().to_string ());
+
+                entry.put ("work", logos::to_string_hex (display_block.block_work ()));
+                entry.put ("signature", display_block.block_signature ().to_string ());
+            }
+
+            history.push_back (std::make_pair ("", entry));
+            --count;
+        }
+        if (put_send)
+        {
+            send_hash = send_block.previous();
+            send_block_not_found = node.store.state_block_get (send_hash, send_block, transaction);
+        }
+        else
+        {
+            receive_hash = receive_block.previous();
+            receive_block_not_found = node.store.receive_get (receive_hash, receive_block);
         }
     }
+    response_l.add_child ("history", history);
+    if (!send_hash.is_zero ())  // TODO: fix pagination
+    {
+        response_l.put ("previous", send_hash.to_string ());
+    }
+    response (response_l);
 }
 
 void logos::rpc_handler::keepalive ()
@@ -2410,7 +2436,7 @@ void logos::rpc_handler::process ()
     std::shared_ptr<logos::block> block (logos::deserialize_block_json (block_l));
     if (block != nullptr)
     {
-        bool logos(is_logos_request());
+        bool logos (true);  // TODO: clean up legacy code below
         if (logos || !logos::work_validate (*block))
         {
             auto hash (block->hash ());
@@ -2421,8 +2447,9 @@ void logos::rpc_handler::process ()
             logos::process_return result;
             if(logos)
             {
-                result = node.OnSendRequest(std::dynamic_pointer_cast<logos::state_block>(block),
-                                            should_buffer_request());
+                auto timestamped_block (std::dynamic_pointer_cast<logos::state_block>(block));
+                timestamped_block->timestamp = GetStamp();
+                result = node.OnSendRequest(timestamped_block, should_buffer_request());
             }
             else
             {
@@ -4366,10 +4393,6 @@ void logos::rpc_handler::process_request ()
         else if (action == "blocks")
         {
             blocks ();
-        }
-        else if (action == "blocks_info")
-        {
-            blocks_info ();
         }
         else if (action == "block_account")
         {

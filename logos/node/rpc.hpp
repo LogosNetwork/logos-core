@@ -136,7 +136,6 @@ public:
     void block ();
     //CH void block_confirm ();
     void blocks ();
-    void blocks_info ();
     void block_account ();
     void block_count ();
     void block_count_type ();
