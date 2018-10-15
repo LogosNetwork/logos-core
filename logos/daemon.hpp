@@ -1,13 +1,9 @@
 #include <logos/node/node.hpp>
 #include <logos/node/rpc.hpp>
+#include <logos/p2p/p2p.h>
 
 namespace logos_daemon
 {
-class daemon
-{
-public:
-    void run (boost::filesystem::path const &);
-};
 class daemon_config
 {
 public:
@@ -20,5 +16,11 @@ public:
     logos::node_config node;
     bool opencl_enable;
     logos::opencl_config opencl;
+    p2p_config p2p_conf;
+};
+class daemon
+{
+public:
+    void run (boost::filesystem::path const &, daemon_config &);
 };
 }

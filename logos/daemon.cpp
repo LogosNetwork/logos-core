@@ -93,10 +93,8 @@ bool logos_daemon::daemon_config::upgrade_json (unsigned version_a, boost::prope
     return result;
 }
 
-void logos_daemon::daemon::run (boost::filesystem::path const & data_path)
+void logos_daemon::daemon::run (boost::filesystem::path const & data_path, logos_daemon::daemon_config &config)
 {
-    boost::filesystem::create_directories (data_path);
-    logos_daemon::daemon_config config (data_path);
     auto config_path ((data_path / "config.json"));
     std::fstream config_file;
     std::unique_ptr<logos::thread_runner> runner;
@@ -118,7 +116,8 @@ void logos_daemon::daemon::run (boost::filesystem::path const & data_path)
             auto node (std::make_shared<logos::node> (init, service, data_path, alarm, config.node, opencl_work));
             if (!init.error ())
             {
-                node->start ();
+		node->p2p_conf = config.p2p_conf;
+		node->start ();
                 std::unique_ptr<logos::rpc> rpc = get_rpc (service, *node, config.rpc);
                 if (rpc && config.rpc_enable)
                 {

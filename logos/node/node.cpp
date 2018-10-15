@@ -1767,6 +1767,7 @@ void logos::node::start ()
 //    observers.started ();
 // CH added starting logic here instead of inside constructors
     _archiver.Start(_consensus_container);
+    p2p.Init(p2p_conf);
 }
 
 void logos::node::stop ()

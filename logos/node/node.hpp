@@ -8,6 +8,7 @@
 #include <logos/epoch/archiver.hpp>
 #include <logos/epoch/recall_handler.hpp>
 #include <logos/consensus/consensus_container.hpp>
+#include <logos/p2p/p2p.h>
 
 #include <condition_variable>
 #include <memory>
@@ -507,6 +508,8 @@ public:
     RecallHandler _recall_handler;
     Archiver _archiver;
     ConsensusContainer _consensus_container;
+    p2p_interface p2p;
+    p2p_config p2p_conf;
     static double constexpr price_max = 16.0;
     static double constexpr free_cutoff = 1024.0;
     static std::chrono::seconds constexpr period = std::chrono::seconds (60);

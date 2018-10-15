@@ -9,6 +9,13 @@
 
 class p2p_internal;
 
+struct p2p_config {
+	int argc;
+	char **argv;
+	void *lmdb_env;
+	void *lmdb_dbi;
+};
+
 class p2p_interface {
 private:
 	p2p_internal *p2p;
@@ -16,9 +23,10 @@ public:
 	p2p_interface() : p2p(0) {}
 	~p2p_interface(){ Shutdown(); }
 	bool Init(int argc, char **argv, void *lmdb_env, void *lmdb_dbi);
+	bool Init(p2p_config &c) { Init(c.argc, c.argv, c.lmdb_env, c.lmdb_dbi); }
 	void Shutdown();
 	bool PropagateMessage(const void *message, unsigned size);
-	virtual bool ReceiveMessageCallback(const void *message, unsigned size) = 0;
+	virtual bool ReceiveMessageCallback(const void *message, unsigned size) { return false; }
 };
 
 #endif
