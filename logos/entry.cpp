@@ -36,7 +36,7 @@ int main (int argc, char * const * argv)
         ("platform", boost::program_options::value<std::string> (), "Defines the <platform> for OpenCL commands")
         ("device", boost::program_options::value<std::string> (), "Defines <device> for OpenCL command")
 	("threads", boost::program_options::value<std::string> (), "Defines <threads> count for OpenCL command")
-	("p2p", boost::program_options::value<std::string> (), "Use option <arg> of p2p layer, try --p2p --help for options list");
+	("p2p", boost::program_options::value<std::vector<std::string> >(), "Pass <arg> to p2p layer, try --p2p --help for options list");
     // clang-format on
 
     boost::program_options::variables_map vm;
@@ -54,14 +54,12 @@ int main (int argc, char * const * argv)
 	logos_daemon::daemon_config config (data_path);
 	int nopts = 1;
 	vector<char *> opts;
-	opts.push_back(strdup("logos-p2p"));
-	for (const auto& it : vm) {
-	    if (it.first == "--p2p") {
-		auto& value = it.second.value();
-		if (auto v = boost::any_cast<std::string>(&value)) {
-		    opts.push_back(strdup(v->c_str()));
-		    nopts++;
-		}
+	opts.push_back(strdup(argv[0]));
+	if (vm.count ("p2p") > 0) {
+	    auto v = vm["p2p"].as<std::vector<std::string> > ();
+	    for (auto it : v) {
+		opts.push_back(strdup(it.c_str()));
+		nopts++;
 	    }
 	}
 	config.p2p_conf.argc = nopts;

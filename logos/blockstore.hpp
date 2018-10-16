@@ -295,5 +295,11 @@ public:
      * logos::uint256_union (arbitrary key) -> blob
      */
     MDB_dbi meta;
+
+    /**
+     * P2p databases (peers, banlist).
+     * std::string (database name) -> std::vector<uint8_t>
+     */
+    MDB_dbi p2p_db;
 };
 }

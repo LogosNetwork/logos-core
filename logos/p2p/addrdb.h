@@ -78,14 +78,14 @@ public:
 typedef std::map<CSubNet, CBanEntry> banmap_t;
 
 extern MDB_env *g_p2p_lmdb_env;
-extern MDB_dbi *g_p2p_lmdb_dbi;
+extern MDB_dbi g_p2p_lmdb_dbi;
 
 /** Access to the (IP) address database (peers.dat) */
 class CAddrDB
 {
 private:
     MDB_env *env;
-    MDB_dbi *dbi;
+    MDB_dbi dbi;
 public:
     CAddrDB(): env(g_p2p_lmdb_env), dbi(g_p2p_lmdb_dbi) {}
     bool Write(const CAddrMan& addr);
@@ -98,7 +98,7 @@ class CBanDB
 {
 private:
     MDB_env *env;
-    MDB_dbi *dbi;
+    MDB_dbi dbi;
 public:
     CBanDB(): env(g_p2p_lmdb_env), dbi(g_p2p_lmdb_dbi) {}
     bool Write(const banmap_t& banSet);

@@ -15,7 +15,7 @@
 #include <util.h>
 
 MDB_env *g_p2p_lmdb_env;
-MDB_dbi *g_p2p_lmdb_dbi;
+MDB_dbi g_p2p_lmdb_dbi;
 
 namespace {
 
@@ -36,7 +36,7 @@ bool SerializeDB(Stream& stream, const Data& data)
 }
 
 template <typename Data>
-bool SerializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi *dbi, const Data& data)
+bool SerializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, const Data& data)
 {
     CDataStream s(0, 0);
     MDB_txn *txn;
@@ -51,7 +51,7 @@ bool SerializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi *dbi, const 
     if ((err = mdb_txn_begin(env, 0, 0, &txn)))
 	return error("%s: Failed to open %s write transaction, error %d", __func__, prefix.c_str(), err);
 
-    if ((err = mdb_put(txn, *dbi, &key, &value, 0))) {
+    if ((err = mdb_put(txn, dbi, &key, &value, 0))) {
 	mdb_txn_abort(txn);
 	return error("%s: Failed to put %s data, error %d", __func__, prefix.c_str(), err);
     }
@@ -96,7 +96,7 @@ bool DeserializeDB(Stream& stream, Data& data, bool fCheckSum = true)
 }
 
 template <typename Data>
-bool DeserializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi *dbi, Data& data)
+bool DeserializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, Data& data)
 {
     MDB_txn *txn;
     int err;
@@ -105,7 +105,7 @@ bool DeserializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi *dbi, Data
     if ((err = mdb_txn_begin(env, 0, MDB_RDONLY, &txn)))
 	return error("%s: Failed to open %s read transaction, error %d", __func__, prefix.c_str(), err);
 
-    if ((err = mdb_get(txn, *dbi, &key, &value))) {
+    if ((err = mdb_get(txn, dbi, &key, &value))) {
 	mdb_txn_abort(txn);
 	return error("%s: Failed to get %s data, error %d", __func__, prefix.c_str(), err);
     }

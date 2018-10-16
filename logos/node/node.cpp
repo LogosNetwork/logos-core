@@ -1767,6 +1767,8 @@ void logos::node::start ()
 //    observers.started ();
 // CH added starting logic here instead of inside constructors
     _archiver.Start(_consensus_container);
+    p2p_conf.lmdb_env = store.environment.environment;
+    p2p_conf.lmdb_dbi = store.p2p_db;
     p2p.Init(p2p_conf);
 }
 
@@ -1784,6 +1786,7 @@ void logos::node::stop ()
     bootstrap.stop ();
     port_mapping.stop ();
     wallets.stop ();
+    p2p.Shutdown ();
 }
 
 void logos::node::keepalive_preconfigured (std::vector<std::string> const & peers_a)
