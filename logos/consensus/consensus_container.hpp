@@ -11,6 +11,7 @@
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/node/node_identity_manager.hpp>
+#include <logos/epoch/epoch_transition.hpp>
 
 #include <queue>
 
@@ -23,54 +24,6 @@ namespace logos
 
 class Archiver;
 class PeerAcceptorStarter;
-
-enum class EpochTransitionState
-{
-    Connecting,
-    EpochTransitionStart,
-    EpochStart,
-    None
-};
-
-inline std::string
-TransitionStateToName(const EpochTransitionState &state)
-{
-    switch(state)
-    {
-        case EpochTransitionState::Connecting:
-            return "Connecting";
-        case EpochTransitionState::EpochTransitionStart:
-            return "EpochTransitionStart";
-        case EpochTransitionState::EpochStart:
-            return "EpochStart";
-        case EpochTransitionState::None:
-            return "None";
-    }
-}
-
-enum class EpochTransitionDelegate
-{
-    New,
-    Persistent,
-    Retiring,
-    None
-};
-
-inline std::string
-TransitionDelegateToName(const EpochTransitionDelegate &delegate)
-{
-    switch(delegate)
-    {
-        case EpochTransitionDelegate::New:
-            return "New";
-        case EpochTransitionDelegate::Persistent:
-            return "Persistent";
-        case EpochTransitionDelegate::Retiring:
-            return "Retiring";
-        case EpochTransitionDelegate::None:
-            return "None";
-    }
-}
 
 /// Optimize access to the _cur_epoch in ConsensusContainer
 /// It only needs to be locked during transition, for simplicity T-5min : T+20sec
@@ -202,7 +155,7 @@ public:
     /// @param endpoint connected endpoing
     /// @param socket connected socket
     /// @param advert key advertisement received from the client
-    void PeerBinder(const Endpoint&, std::shared_ptr<Socket>, std::shared_ptr<KeyAdvertisement>);
+    void PeerBinder(const Endpoint, std::shared_ptr<Socket>, std::shared_ptr<KeyAdvertisement>);
 
     /// Start Epoch Transition
     void EpochTransitionEventsStart() override;

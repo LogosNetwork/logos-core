@@ -18,14 +18,14 @@ EpochPeerManager::EpochPeerManager(Service& service,
 {}
 
 void
-EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint &endpoint,
+EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint endpoint,
                                        std::shared_ptr<EpochPeerManager::Socket> socket)
 {
     auto pub = std::make_shared<KeyAdvertisement>();
 
     boost::asio::async_read(*socket,
                            boost::asio::buffer(pub.get(),sizeof(KeyAdvertisement)),
-                           [this, &endpoint, socket, pub](const ErrorCode &error, size_t size) {
+                           [this, endpoint, socket, pub](const ErrorCode &error, size_t size) {
         if (error)
         {
             BOOST_LOG(_log) << "EpochPeerManager::OnConnectionAccepted error: " << error.message();

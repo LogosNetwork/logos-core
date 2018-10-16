@@ -33,13 +33,13 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
     BOOST_LOG(_log) << "ConsensusNetIO - Trying to connect to: "
                     <<  _endpoint << " remote delegate id "
                     << (int)remote_delegate_id
-                    << " delegates set new " << (delegates_set == ConnectingDelegatesSet::New);
+                    << " delegates set " << DelegatesSetToName(delegates_set);
 
     Connect();
 }
 
 ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket, 
-                               const Endpoint & endpoint,
+                               const Endpoint endpoint,
                                std::shared_ptr<KeyAdvertisement> advert,
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
@@ -254,7 +254,7 @@ ConsensusNetIO::AddConsensusConnection(
                     << " local delegate " << uint64_t(_local_delegate_id)
                     << " remote delegate " << uint64_t(_remote_delegate_id)
                     << " global " << (int)NodeIdentityManager::_global_delegate_idx
-                    << " delegates set new " << (_delegates_set == ConnectingDelegatesSet::New);
+                    << " delegates set " << DelegatesSetToName(_delegates_set);
 
     _connections[ConsensusTypeToIndex(t)] = connection;
 }
@@ -307,8 +307,8 @@ ConsensusNetIO::Close()
 {
     if (_socket != nullptr)
     {
-        BOOST_LOG(_log) << "ConsensusNetIO::Close closing socket, delegates set new "
-                        << (_delegates_set == ConnectingDelegatesSet::New) << ", delegate "
+        BOOST_LOG(_log) << "ConsensusNetIO::Close closing socket, delegates set "
+                        << DelegatesSetToName(_delegates_set) << ", delegate "
                         << (int)_local_delegate_id << ", remote delegate " << (int)_remote_delegate_id
                         << ", global " << (int)NodeIdentityManager::_global_delegate_idx;
         _connected = false;

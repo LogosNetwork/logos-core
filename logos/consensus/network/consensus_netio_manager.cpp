@@ -79,7 +79,7 @@ ConsensusNetIOManager::~ConsensusNetIOManager()
 
 void
 ConsensusNetIOManager::OnConnectionAccepted(
-    const Endpoint& endpoint, 
+    const Endpoint endpoint,
     std::shared_ptr<Socket> socket,
     std::shared_ptr<KeyAdvertisement> advert)
 {

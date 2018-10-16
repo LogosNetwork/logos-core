@@ -58,7 +58,7 @@ public:
     ///     @param endpoint connected peer endpoint
     ///     @param socket connected peer socket
     ///     @param advert peer's public key message
-    void OnConnectionAccepted(const Endpoint& endpoint,
+    void OnConnectionAccepted(const Endpoint endpoint,
                               std::shared_ptr<Socket>,
                               std::shared_ptr<KeyAdvertisement>);
 
@@ -73,15 +73,15 @@ public:
 
 private:
 
-    Delegates            _delegates;          ///< List of all delegates
-    Managers             _consensus_managers; ///< Dictionary of registered consensus managers
-    Connections          _connections;        ///< NetIO connections
-    Log                  _log;                ///< boost asio log
-    logos::alarm &       _alarm;              ///< alarm
-    DelegateKeyStore &   _key_store;          ///< Delegates' public key store
-    MessageValidator &   _validator;          ///< Validator/Signer of consensus messages
-    std::recursive_mutex _connection_mutex;   ///< NetIO connections access mutex
-    std::recursive_mutex _bind_mutex;         ///< NetIO consensus connections mutex
-    uint8_t              _delegate_id;        ///< The local delegate id
-    const ConnectingDelegatesSet _delegates_set; ///< Type of connecting delegates set during epoch transition
+    Delegates                      _delegates;          ///< List of all delegates
+    Managers                       _consensus_managers; ///< Dictionary of registered consensus managers
+    Connections                    _connections;        ///< NetIO connections
+    Log                            _log;                ///< boost asio log
+    logos::alarm &                 _alarm;              ///< alarm
+    DelegateKeyStore &             _key_store;          ///< Delegates' public key store
+    MessageValidator &             _validator;          ///< Validator/Signer of consensus messages
+    std::recursive_mutex           _connection_mutex;   ///< NetIO connections access mutex
+    std::recursive_mutex           _bind_mutex;         ///< NetIO consensus connections mutex
+    uint8_t                        _delegate_id;        ///< The local delegate id
+    const ConnectingDelegatesSet & _delegates_set;      ///< Type of connecting delegates during epoch transition
 };

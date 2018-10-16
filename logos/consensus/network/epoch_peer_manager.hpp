@@ -32,7 +32,7 @@ class EpochPeerManager : public PeerManager,
     using Socket      = boost::asio::ip::tcp::socket;
     using Log         = boost::log::sources::logger_mt;
     using Config      = ConsensusManagerConfig;
-    using PeerBinder  = std::function<void(const Endpoint&, std::shared_ptr<Socket>, std::shared_ptr<KeyAdvertisement>)>;
+    using PeerBinder  = std::function<void(const Endpoint, std::shared_ptr<Socket>, std::shared_ptr<KeyAdvertisement>)>;
     using ErrorCode   = boost::system::error_code;
 
 public:
@@ -46,7 +46,7 @@ public:
     /// Accepts connection from a peer
     /// @param endpoint remote peer's endpoint
     /// @param socket accepted socket
-    void OnConnectionAccepted(const Endpoint& endpoint, std::shared_ptr<Socket>) override;
+    void OnConnectionAccepted(const Endpoint endpoint, std::shared_ptr<Socket>) override;
 
     /// Get PeerAcceptor
     /// @param end_points peers endpoints

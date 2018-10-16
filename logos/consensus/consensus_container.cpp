@@ -192,7 +192,7 @@ ConsensusContainer::OnSendRequest(
 
 void
 ConsensusContainer::PeerBinder(
-    const Endpoint &endpoint,
+    const Endpoint endpoint,
     std::shared_ptr<Socket> socket,
     std::shared_ptr<KeyAdvertisement> advert)
 {
@@ -351,12 +351,15 @@ ConsensusContainer::EpochStart(uint8_t delegate_idx)
     _alarm.add(EPOCH_TRANSITION_END,
                std::bind(&ConsensusContainer::EpochTransitionEnd, this, delegate_idx));
 
-    if ((_transition_delegate == EpochTransitionDelegate::Persistent ||
-        _transition_delegate == EpochTransitionDelegate::Retiring) && _trans_epoch != nullptr)
+    // can be used as a flag to not attempt reconnection for the outgoing delegate set
+    // when end of file is received on the socket
+    if (_transition_delegate == EpochTransitionDelegate::Persistent && _trans_epoch != nullptr)
     {
-        // can be used as a flag to not attempt reconnection for the outgoing delegate set
-        // when end of file is received on the socket
         _trans_epoch->_delegates_set = ConnectingDelegatesSet::Outgoing;
+    }
+    else if (_transition_delegate == EpochTransitionDelegate::Retiring && _cur_epoch != nullptr)
+    {
+        _cur_epoch->_delegates_set = ConnectingDelegatesSet::Outgoing;
     }
 
     _transition_state = EpochTransitionState::EpochStart;

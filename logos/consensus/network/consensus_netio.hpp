@@ -117,7 +117,7 @@ public:
     ///     @param binder callback for binding netio interface to a consensus manager
     ///     @param connection_mutex mutex to protect consensus connections
     ConsensusNetIO(std::shared_ptr<Socket> socket, 
-                   const Endpoint & endpoint,
+                   const Endpoint endpoint,
                    std::shared_ptr<KeyAdvertisement> keyadvert,
                    logos::alarm & alarm,
                    const uint8_t remote_delegate_id, 
@@ -210,27 +210,30 @@ private:
     ///     @param received message
     void OnPublicKeyMsg(const KeyAdvertisement &msg);
 
+    /// async_write callback
+    /// @param error error code
+    /// @param size size of written data
     void OnWrite(const ErrorCode & error, size_t size);
 
-    static constexpr uint8_t CONNECT_RETRY_DELAY = 5;        ///< Reconnect delay in seconds.
+    static constexpr uint8_t CONNECT_RETRY_DELAY = 5;     ///< Reconnect delay in seconds.
 
-    std::shared_ptr<Socket> _socket;             		///< Connected socket
-    std::atomic_bool        _connected;                 ///< is the socket is connected?
-    ReceiveBuffer           _receive_buffer;     		///< receive buffer
-	QueuedWrites            _queued_writes;             ///< data waiting to get sent on the network
-    Log                     _log;                		///< boost asio log
-    Endpoint                _endpoint;           		///< remote peer endpoint
-    logos::alarm &          _alarm;              		///< alarm reference
-    uint8_t                 _remote_delegate_id; 		///< id of connected peer
-    uint8_t                 _local_delegate_id;  		///< id of the local delegate
-    Connections             _connections;       		///< vector of connections bound to the net i/o
-    DelegateKeyStore &      _key_store;          		///< Delegates' public key store
-    MessageValidator &      _validator;          		///< Validator/Signer of consensus messages
-    IOBinder                _io_channel_binder;  		///< Network i/o to consensus binder
-    NetIOAssembler          _assembler;          		///< Assembles messages from TCP buffer
-    std::recursive_mutex &  _connection_mutex;   		///< _connections access mutex
-    std::mutex              _send_mutex;         		///< Protect concurrent writes
-	uint64_t                _queue_reservation = 0;     ///< How many queued entries are being sent?
-    bool                    _sending           = false; ///< is an async write in progress?
-    const ConnectingDelegatesSet _delegates_set;        ///< Type of connecting delegates set during epoch transition
+    std::shared_ptr<Socket>        _socket;               ///< Connected socket
+    std::atomic_bool               _connected;            ///< is the socket is connected?
+    ReceiveBuffer                  _receive_buffer;       ///< receive buffer
+	QueuedWrites                   _queued_writes;        ///< data waiting to get sent on the network
+    Log                            _log;                  ///< boost asio log
+    Endpoint                       _endpoint;             ///< remote peer endpoint
+    logos::alarm &                 _alarm;                ///< alarm reference
+    uint8_t                        _remote_delegate_id;   ///< id of connected peer
+    uint8_t                        _local_delegate_id;    ///< id of the local delegate
+    Connections                    _connections;       	  ///< vector of connections bound to the net i/o
+    DelegateKeyStore &             _key_store;            ///< Delegates' public key store
+    MessageValidator &             _validator;            ///< Validator/Signer of consensus messages
+    IOBinder                       _io_channel_binder;    ///< Network i/o to consensus binder
+    NetIOAssembler                 _assembler;            ///< Assembles messages from TCP buffer
+    std::recursive_mutex &         _connection_mutex;     ///< _connections access mutex
+    std::mutex                     _send_mutex;           ///< Protect concurrent writes
+	uint64_t                       _queue_reservation = 0;///< How many queued entries are being sent?
+    bool                           _sending = false;      ///< is an async write in progress?
+    const ConnectingDelegatesSet & _delegates_set;        ///< Type of connecting delegates set during epoch transition
 };

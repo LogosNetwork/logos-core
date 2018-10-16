@@ -6,7 +6,7 @@
 
 NetIOAssembler::NetIOAssembler(std::shared_ptr<Socket> socket,
                                const std::atomic_bool & connected,
-                               ConnectingDelegatesSet delegates_set)
+                               const ConnectingDelegatesSet & delegates_set)
     : _socket(socket)
     , _connected(connected)
     , _delegates_set(delegates_set)
@@ -63,7 +63,7 @@ void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size
         {
             BOOST_LOG(_log) << "NetIOAssembler - Error receiving message: "
                             << error.message() << " global " << (int)NodeIdentityManager::_global_delegate_idx
-                            << " delegates set is new " << (_delegates_set == ConnectingDelegatesSet::New);
+                            << " delegates set " << DelegatesSetToName(_delegates_set);
         }
         return;
     }

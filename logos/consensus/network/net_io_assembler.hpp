@@ -18,7 +18,7 @@ class NetIOAssembler
 
 public:
 
-    NetIOAssembler(std::shared_ptr<Socket> socket, const std::atomic_bool & connected, ConnectingDelegatesSet);
+    NetIOAssembler(std::shared_ptr<Socket> socket, const std::atomic_bool & connected, const ConnectingDelegatesSet&);
     ~NetIOAssembler() = default;
 
     void ReadPrequel(ReadCallback callback);
@@ -47,15 +47,15 @@ private:
 
     bool Proceed(ReadCallback callback, size_t bytes);
 
-    Buffer                  _buffer;
-    ReadCallback            _callback;
-    QueuedRequest           _queued_request;
-    std::shared_ptr<Socket> _socket;
-    Log                     _log;
-    size_t                  _buffer_size         = 0;
-    size_t                  _bytes_to_read       = 0;
-    bool                    _processing_callback = false;
-    const std::atomic_bool& _connected;
-    ConnectingDelegatesSet  _delegates_set;
+    Buffer                         _buffer;
+    ReadCallback                   _callback;
+    QueuedRequest                  _queued_request;
+    std::shared_ptr<Socket>        _socket;
+    Log                            _log;
+    size_t                         _buffer_size         = 0;
+    size_t                         _bytes_to_read       = 0;
+    bool                           _processing_callback = false;
+    const std::atomic_bool&        _connected;
+    const ConnectingDelegatesSet & _delegates_set;
 };
 

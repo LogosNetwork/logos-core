@@ -1,6 +1,7 @@
 #pragma once
 
 #include <logos/consensus/messages/common.hpp>
+#include <logos/epoch/epoch_transition.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
 
@@ -58,15 +59,6 @@ struct PostPhaseMessage<MT, CT, typename std::enable_if<
 
     ParicipationMap participation_map;
     AggSignature    signature;
-};
-
-// Represents two sets of delegates during
-// Epoch transition
-enum class ConnectingDelegatesSet : uint8_t
-{
-    Current,
-    New,
-    Outgoing
 };
 
 // Key advertisement
