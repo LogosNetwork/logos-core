@@ -47,9 +47,10 @@ public:
         const Config & config,
         DelegateKeyStore & key_store,
         MessageValidator & validator,
-        PeerAcceptorStarter & starter);
+        PeerAcceptorStarter & starter,
+        const ConnectingDelegatesSet & delegates_set);
 
-    ~ConsensusNetIOManager() = default;
+    ~ConsensusNetIOManager();
 
     /// Server connection accepted call back.
     ///
@@ -82,4 +83,5 @@ private:
     std::recursive_mutex _connection_mutex;   ///< NetIO connections access mutex
     std::recursive_mutex _bind_mutex;         ///< NetIO consensus connections mutex
     uint8_t              _delegate_id;        ///< The local delegate id
+    const ConnectingDelegatesSet _delegates_set; ///< Type of connecting delegates set during epoch transition
 };

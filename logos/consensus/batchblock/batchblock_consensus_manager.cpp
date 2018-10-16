@@ -4,6 +4,8 @@
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/batchblock/bb_consensus_connection.hpp>
 
+RequestHandler BatchBlockConsensusManager::_handler;
+
 BatchBlockConsensusManager::BatchBlockConsensusManager(
         Service & service,
         Store & store,

@@ -24,6 +24,7 @@ public:
                  Log & log,
                  const Endpoint & local_endpoint,
                  PeerManager & manager);
+    ~PeerAcceptor() = default;
 
     void Start(const std::set<Address> & server_endpoints);
 

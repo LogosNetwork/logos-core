@@ -27,7 +27,7 @@ public:
                                   PersistenceManager & persistence_manager,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids);
-    ~BBConsensusConnection() {}
+    ~BBConsensusConnection() = default;
 
     /// Validate PrePrepare message
     /// @param messasge PrePrepare message [in]

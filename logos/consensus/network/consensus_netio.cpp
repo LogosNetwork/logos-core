@@ -14,8 +14,10 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
                                IOBinder iobinder,
-                               std::recursive_mutex & connection_mutex) 
+                               std::recursive_mutex & connection_mutex,
+                               const ConnectingDelegatesSet & delegates_set)
     : _socket(new Socket(service))
+    , _connected(false)
     , _endpoint(endpoint)
     , _alarm(alarm)
     , _remote_delegate_id(remote_delegate_id)
@@ -24,12 +26,14 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
     , _key_store(key_store)
     , _validator(validator)
     , _io_channel_binder(iobinder)
-    , _assembler(_socket)
+    , _assembler(_socket, _connected, delegates_set)
     , _connection_mutex(connection_mutex)
+    , _delegates_set(delegates_set)
 {
     BOOST_LOG(_log) << "ConsensusNetIO - Trying to connect to: "
                     <<  _endpoint << " remote delegate id "
-                    << (int)remote_delegate_id;
+                    << (int)remote_delegate_id
+                    << " delegates set new " << (delegates_set == ConnectingDelegatesSet::New);
 
     Connect();
 }
@@ -43,8 +47,10 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
                                IOBinder iobinder,
-                               std::recursive_mutex & connection_mutex) 
+                               std::recursive_mutex & connection_mutex,
+                               const ConnectingDelegatesSet & delegates_set)
     : _socket(socket)
+    , _connected(false)
     , _endpoint(endpoint)
     , _alarm(alarm)
     , _remote_delegate_id(remote_delegate_id)
@@ -53,8 +59,9 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
     , _key_store(key_store)
     , _validator(validator)
     , _io_channel_binder(iobinder)
-    , _assembler(_socket)
+    , _assembler(_socket, _connected, delegates_set)
     , _connection_mutex(connection_mutex)
+    , _delegates_set(delegates_set)
 {
     OnConnect(advert);
 }
@@ -154,7 +161,7 @@ ConsensusNetIO::SendKeyAdvertisement()
 {
     KeyAdvertisement advert;
     advert.public_key = _validator.GetPublicKey();
-    advert.epoch_number = ConsensusContainer::GetCurEpochId();
+    advert.delegates_set = _delegates_set;
     advert.remote_delegate_id = _local_delegate_id;
     Send(advert);
 }
@@ -244,7 +251,10 @@ ConsensusNetIO::AddConsensusConnection(
     BOOST_LOG(_log) << "ConsensusNetIO - Added consensus connection "
                     << ConsensusToName(t)
                     << ' ' << ConsensusTypeToIndex(t)
-                    << ' ' << uint64_t(_remote_delegate_id);
+                    << " local delegate " << uint64_t(_local_delegate_id)
+                    << " remote delegate " << uint64_t(_remote_delegate_id)
+                    << " global " << (int)NodeIdentityManager::_global_delegate_idx
+                    << " delegates set new " << (_delegates_set == ConnectingDelegatesSet::New);
 
     _connections[ConsensusTypeToIndex(t)] = connection;
 }
@@ -254,9 +264,13 @@ ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
 {
     if(error)
     {
-        BOOST_LOG(_log) << "ConsensusConnection - Error on write to socket: "
-                        << error.message() << ". Remote endpoint: "
-                        << _endpoint;
+        if (_connected)
+        {
+            BOOST_LOG(_log) << "ConsensusConnection - Error on write to socket: "
+                            << error.message() << ". Remote endpoint: "
+                            << _endpoint;
+        }
+        return;
     }
 
     std::lock_guard<std::mutex> lock(_send_mutex);
@@ -285,5 +299,20 @@ ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
     else
     {
         _sending = false;
+    }
+}
+
+void
+ConsensusNetIO::Close()
+{
+    if (_socket != nullptr)
+    {
+        BOOST_LOG(_log) << "ConsensusNetIO::Close closing socket, delegates set new "
+                        << (_delegates_set == ConnectingDelegatesSet::New) << ", delegate "
+                        << (int)_local_delegate_id << ", remote delegate " << (int)_remote_delegate_id
+                        << ", global " << (int)NodeIdentityManager::_global_delegate_idx;
+        _connected = false;
+        _socket->cancel();
+        _socket->close();
     }
 }

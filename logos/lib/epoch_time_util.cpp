@@ -40,10 +40,10 @@ std::chrono::seconds
 EpochTimeUtil::GetNextEpochTime(
     bool skip )
 {
-    static int sec = EPOCH_PROPOSAL_TIME * 60 * 60;
+    static int sec = TConvert<Seconds>(EPOCH_PROPOSAL_TIME).count();
 
     return GetNextTime(skip, sec, [](struct tm &gmt)mutable->void{
-        gmt.tm_hour = gmt.tm_hour - (gmt.tm_hour % EPOCH_PROPOSAL_TIME);
+        gmt.tm_hour = gmt.tm_hour - (gmt.tm_hour % EPOCH_PROPOSAL_TIME.count());
         gmt.tm_min = 0;
         gmt.tm_sec = 0;
     });
@@ -54,10 +54,10 @@ std::chrono::seconds
 EpochTimeUtil::GetNextMicroBlockTime(
     bool skip)
 {
-    static int sec = MICROBLOCK_PROPOSAL_TIME * 60;
+    static int sec = TConvert<Seconds>(MICROBLOCK_PROPOSAL_TIME).count();
 
     return GetNextTime(skip, sec, [](struct tm &gmt)mutable->void{
-        gmt.tm_min = gmt.tm_min - (gmt.tm_min % MICROBLOCK_PROPOSAL_TIME);
+        gmt.tm_min = gmt.tm_min - (gmt.tm_min % MICROBLOCK_PROPOSAL_TIME.count());
         gmt.tm_sec = 0;
     });
 }
@@ -67,8 +67,8 @@ EpochTimeUtil::IsEpochTime()
 {
     time_t rawtime;
     struct tm gmt;
-    static int min = MICROBLOCK_PROPOSAL_TIME * 60 - CLOCK_DRIFT;
-    static int max = MICROBLOCK_PROPOSAL_TIME * 60 + CLOCK_DRIFT;
+    static int min = TConvert<Seconds>(MICROBLOCK_PROPOSAL_TIME - CLOCK_DRIFT).count();
+    static int max = TConvert<Seconds>(MICROBLOCK_PROPOSAL_TIME + CLOCK_DRIFT).count();
 
     time(&rawtime);
     assert(gmtime_r(&rawtime, &gmt) != NULL);

@@ -57,7 +57,7 @@ EventProposer::ProposeTransition(TransitionCb cb)
 {
     EpochTimeUtil util;
 
-    std::chrono::seconds lapse = util.GetNextEpochTime(_skip_transition);
+    Seconds lapse = util.GetNextEpochTime(_skip_transition) - EPOCH_DELEGATES_CONNECT;
     _skip_transition = false;
     _alarm.add(std::chrono::steady_clock::now() + lapse, [this, cb]()mutable->void{
         cb();

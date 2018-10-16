@@ -12,13 +12,15 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
                                              const Config & config,
                                              DelegateKeyStore & key_store,
                                              MessageValidator & validator,
-                                             PeerAcceptorStarter & starter)
+                                             PeerAcceptorStarter & starter,
+                                             const ConnectingDelegatesSet & delegates_set)
     : _delegates(config.delegates)
     , _consensus_managers(consensus_managers)
     , _alarm(alarm)
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
+    , _delegates_set(delegates_set)
 {
     std::set<Address> server_endpoints;
 
@@ -48,7 +50,7 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
                           this,
                           std::placeholders::_1,
                           std::placeholders::_2),
-                          _connection_mutex));
+                          _connection_mutex, _delegates_set));
         }
         else
         {
@@ -59,6 +61,19 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
     if(server_endpoints.size())
     {
         starter.Start(server_endpoints);
+    }
+}
+
+ConsensusNetIOManager::~ConsensusNetIOManager()
+{
+    std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
+
+    BOOST_LOG(_log) << "~ConsensusNetIOManager, connections " << _connections.size()
+                    << " delegates set new " << (_delegates_set == ConnectingDelegatesSet::New);
+
+    for (auto conn : _connections)
+    {
+        conn->Close();
     }
 }
 
@@ -75,7 +90,7 @@ ConsensusNetIOManager::OnConnectionAccepted(
         std::bind(&ConsensusNetIOManager::BindIOChannel, 
 				  this, 
 				  std::placeholders::_1, 
-            	  std::placeholders::_2), _connection_mutex));
+            	  std::placeholders::_2), _connection_mutex, _delegates_set));
 }
 
 void

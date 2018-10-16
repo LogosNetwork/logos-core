@@ -23,7 +23,6 @@ EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint &endpoin
 {
     auto pub = std::make_shared<KeyAdvertisement>();
 
-    // read peer's handshake
     boost::asio::async_read(*socket,
                            boost::asio::buffer(pub.get(),sizeof(KeyAdvertisement)),
                            [this, &endpoint, socket, pub](const ErrorCode &error, size_t size) {
@@ -35,8 +34,8 @@ EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint &endpoin
 
         if (pub->type != MessageType::Key_Advert || pub->consensus_type != ConsensusType::Any)
         {
-            BOOST_LOG(_log) << "EpochPeerManager::OnConnectionAccepted invalid message " <<
-                MessageToName(pub->type) << " " << ConsensusToName(pub->consensus_type);
+            BOOST_LOG(_log) << "EpochPeerManager::OnConnectionAccepted invalid message "
+                            << MessageToName(pub->type) << " " << ConsensusToName(pub->consensus_type);
             return;
         }
 

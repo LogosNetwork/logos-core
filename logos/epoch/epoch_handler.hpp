@@ -22,11 +22,10 @@ class EpochHandler
 public:
     /// Class constructor
     /// @param s logos::block_store reference [in]
+    /// @param voting_manager delegate's voting manager [in]
     EpochHandler(BlockStore &s,
-                 uint8_t delegate_id,
                  EpochVotingManager & voting_manager)
         : _store(s)
-        , _delegate_id(delegate_id)
         , _voting_manager(voting_manager)
         {}
     virtual ~EpochHandler() {}
@@ -50,8 +49,7 @@ public:
     bool Build(Epoch&);
 
 private:
-    BlockStore &            _store;          ///< reference to block store
-    uint8_t                 _delegate_id;    ///< delegate id
-    EpochVotingManager &    _voting_manager; ///< voting manager
-    Log                     _log;            ///< boost log reference
+    BlockStore &            _store;           ///< reference to block store
+    EpochVotingManager &    _voting_manager;  ///< voting manager
+    Log                     _log;             ///< boost log reference
 };

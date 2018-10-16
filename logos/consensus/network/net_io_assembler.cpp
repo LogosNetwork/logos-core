@@ -1,10 +1,15 @@
 #include <logos/consensus/network/net_io_assembler.hpp>
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/node/node_identity_manager.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 
-NetIOAssembler::NetIOAssembler(std::shared_ptr<Socket> socket)
+NetIOAssembler::NetIOAssembler(std::shared_ptr<Socket> socket,
+                               const std::atomic_bool & connected,
+                               ConnectingDelegatesSet delegates_set)
     : _socket(socket)
+    , _connected(connected)
+    , _delegates_set(delegates_set)
 {}
 
 void NetIOAssembler::ReadPrequel(ReadCallback callback)
@@ -53,8 +58,13 @@ void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size
 {
     if(error)
     {
-        BOOST_LOG(_log) << "NetIOAssembler - Error receiving message: "
-                        << error.message();
+        // cancelled at the end of epoch transition
+        if (_connected && _delegates_set != ConnectingDelegatesSet::Outgoing)
+        {
+            BOOST_LOG(_log) << "NetIOAssembler - Error receiving message: "
+                            << error.message() << " global " << (int)NodeIdentityManager::_global_delegate_idx
+                            << " delegates set is new " << (_delegates_set == ConnectingDelegatesSet::New);
+        }
         return;
     }
 

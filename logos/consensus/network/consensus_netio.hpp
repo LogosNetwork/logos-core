@@ -100,7 +100,8 @@ public:
                    DelegateKeyStore & key_store,
                    MessageValidator & validator,
                    IOBinder binder,
-                   std::recursive_mutex & connection_mutex);
+                   std::recursive_mutex & connection_mutex,
+                   const ConnectingDelegatesSet & delegates_set);
 
     /// Class constructor.
     ///
@@ -124,7 +125,8 @@ public:
                    DelegateKeyStore & key_store,
                    MessageValidator & validator,
                    IOBinder binder,
-                   std::recursive_mutex & connection_mutex);
+                   std::recursive_mutex & connection_mutex,
+                   const ConnectingDelegatesSet & delegates_set);
 
     virtual ~ConsensusNetIO() = default;
 
@@ -162,6 +164,9 @@ public:
     ///     @param callback called upon reading data
     void AsyncRead(size_t bytes,
                            ReadCallback callback) override;
+
+
+    void Close();
 
 private:
 
@@ -210,6 +215,7 @@ private:
     static constexpr uint8_t CONNECT_RETRY_DELAY = 5;        ///< Reconnect delay in seconds.
 
     std::shared_ptr<Socket> _socket;             		///< Connected socket
+    std::atomic_bool        _connected;                 ///< is the socket is connected?
     ReceiveBuffer           _receive_buffer;     		///< receive buffer
 	QueuedWrites            _queued_writes;             ///< data waiting to get sent on the network
     Log                     _log;                		///< boost asio log
@@ -225,6 +231,6 @@ private:
     std::recursive_mutex &  _connection_mutex;   		///< _connections access mutex
     std::mutex              _send_mutex;         		///< Protect concurrent writes
 	uint64_t                _queue_reservation = 0;     ///< How many queued entries are being sent?
-    bool                    _connected         = false; ///< is the socket is connected?
     bool                    _sending           = false; ///< is an async write in progress?
+    const ConnectingDelegatesSet _delegates_set;        ///< Type of connecting delegates set during epoch transition
 };

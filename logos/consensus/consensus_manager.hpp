@@ -89,6 +89,9 @@ public:
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) override;
 
+    /// Update secondary request handler promoter
+    void UpdateRequestPromoter();
+
 protected:
 
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;
@@ -134,12 +137,23 @@ protected:
     virtual std::shared_ptr<ConsensusConnection<CT>> MakeConsensusConnection(
             std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
 
-    Connections                 _connections;
-    DelegateKeyStore &          _key_store;
-    MessageValidator &          _validator;
-    std::mutex                  _connection_mutex;
-    Log                         _log;
-    uint8_t                     _delegate_id;
-    SecondaryRequestHandler<CT> _secondary_handler;             ///< Secondary queue of blocks.
+    /// singleton secondary handler
+    static SecondaryRequestHandler<CT> & SecondaryRequestHandlerInstance(
+        Service & service,
+        RequestPromoter<CT>* promoter)
+    {
+        // Promoter is assigned once when the object is constructed
+        // Promoter is updated during transition
+        static SecondaryRequestHandler<CT> handler(service, promoter);
+        return handler;
+    }
+
+    Connections                     _connections;
+    DelegateKeyStore &              _key_store;
+    MessageValidator &              _validator;
+    std::mutex                      _connection_mutex;
+    Log                             _log;
+    uint8_t                         _delegate_id;
+    SecondaryRequestHandler<CT> &   _secondary_handler;    ///< Secondary queue of blocks.
 };
 

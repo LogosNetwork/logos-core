@@ -17,7 +17,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
-    , _secondary_handler(service, *this)
+    , _secondary_handler(SecondaryRequestHandlerInstance(service, this))
 {}
 
 template<ConsensusType CT>
@@ -207,6 +207,13 @@ ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
     auto connection = MakeConsensusConnection(iochannel, ids);
     _connections.push_back(connection);
     return connection;
+}
+
+template<ConsensusType CT>
+void
+ConsensusManager<CT>::UpdateRequestPromoter()
+{
+    _secondary_handler.UpdateRequestPromoter(this);
 }
 
 template class ConsensusManager<ConsensusType::BatchStateBlock>;

@@ -60,13 +60,22 @@ struct PostPhaseMessage<MT, CT, typename std::enable_if<
     AggSignature    signature;
 };
 
+// Represents two sets of delegates during
+// Epoch transition
+enum class ConnectingDelegatesSet : uint8_t
+{
+    Current,
+    New,
+    Outgoing
+};
+
 // Key advertisement
 //
 struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert,
                                          ConsensusType::Any>
 {
     PublicKey public_key;
-    uint      epoch_number;
+    ConnectingDelegatesSet delegates_set;
     uint8_t   remote_delegate_id;
 };
 

@@ -28,7 +28,7 @@ public:
         : ConsensusConnection<ConsensusType::MicroBlock>(iochannel, primary, promoter, validator, ids)
         , _microblock_handler(handler)
     {}
-    ~MicroBlockConsensusConnection() {}
+    ~MicroBlockConsensusConnection() = default;
 
     /// Validate PrePrepare message
     /// @param messasge PrePrepare message [in]

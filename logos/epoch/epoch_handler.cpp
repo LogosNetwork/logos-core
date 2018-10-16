@@ -1,6 +1,7 @@
 /// @file
 /// This file contains implementation of the EpochHandler class, which is used
 /// in the Epoch processing
+#include <logos/node/node_identity_manager.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/blockstore.hpp>
 
@@ -114,11 +115,11 @@ EpochHandler::Build(Epoch &epoch)
     }
 
     epoch.previous = previous_epoch_hash;
-    epoch._account = logos::genesis_delegates[_delegate_id].key.pub;
+    epoch._account = NodeIdentityManager::_delegate_account;
     epoch._epoch_number = previous_epoch._epoch_number + 1;
     epoch._micro_block_tip = previous_micro_block_hash;
     _voting_manager.GetNextEpochDelegates(epoch._delegates);
-    epoch._transaction_fee_pool = 0; // where does it come from?
+    epoch._transaction_fee_pool = 0; // where does it come from? TBD
 
     return true;
 }

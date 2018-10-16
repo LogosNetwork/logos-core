@@ -31,7 +31,7 @@ public:
                                DelegateKeyStore & key_store,
                                MessageValidator & validator);
 
-    virtual ~BatchBlockConsensusManager() {};
+    ~BatchBlockConsensusManager() = default;
 
     /// Handles benchmark requests.
     ///     @param[in]  block state block.
@@ -132,6 +132,6 @@ private:
 
     bool                    _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
     BlockBuffer             _buffer;                        ///< Buffered state blocks.
-    RequestHandler          _handler;                       ///< Primary queue of batch state blocks.
+    static RequestHandler   _handler;                       ///< Primary queue of batch state blocks.
     PersistenceManager		_persistence_manager;			///< Database interface and request validation
 };

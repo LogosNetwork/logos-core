@@ -1,4 +1,5 @@
 #include <logos/consensus/network/peer_acceptor.hpp>
+#include <logos/node/node_identity_manager.hpp>
 
 PeerAcceptor::PeerAcceptor(Service & service,
                            Log & log,
@@ -15,6 +16,14 @@ void PeerAcceptor::Start(const std::set<Address> & server_endpoints)
 {
     if(!server_endpoints.size())
     {
+        return;
+    }
+
+    if (_acceptor.is_open())
+    {
+        BOOST_LOG(_log) << "PeerAcceptor::Start, acceptor is already active "
+                        << (int)NodeIdentityManager::_global_delegate_idx << " "
+                        << NodeIdentityManager::_delegates_ip[NodeIdentityManager::_delegate_account];
         return;
     }
 
@@ -62,7 +71,8 @@ void PeerAcceptor::OnAccept(boost::system::error_code const & ec, std::shared_pt
 
     auto peer = _server_endpoints.find(_accepted_endpoint.address());
 
-    if(peer == _server_endpoints.end())
+    // IP should be in handshake and signed - part of identity management? TODO
+    if(false == NodeIdentityManager::_run_local && peer == _server_endpoints.end())
     {
         BOOST_LOG (_log) << "PeerAcceptor - Unrecognized peer: "
                          << _accepted_endpoint.address();

@@ -74,7 +74,7 @@ MicroBlockHandler::SlowMerkleTree(
         BlockHash hash;
     };
     array<vector<pair>, NUM_DELEGATES> entries;
-    uint64_t min_timestamp = GetStamp() + CLOCK_DRIFT * 1000;
+    uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
 
     // frist get hashes and timestamps of all blocks; and min timestamp to use as the base
     BatchBlocksIterator(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable->void{
@@ -140,7 +140,7 @@ MicroBlockHandler::GetTipsSlow(
         BlockHash hash;
     };
     array<vector<pair>, NUM_DELEGATES> entries;
-    uint64_t min_timestamp = GetStamp() + CLOCK_DRIFT * 1000;
+    uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
 
     // frist get hashes and timestamps of all blocks; and min timestamp to use as the base
     BatchBlocksIterator(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable->void{
@@ -242,7 +242,7 @@ MicroBlockHandler::Build(
             : previous_micro_block._epoch_number;
     block.previous = previous_micro_block_hash;
     block.timestamp = GetStamp();
-    block._delegate = genesis_delegates[_delegate_id].key.pub;
+    block._delegate = NodeIdentityManager::_delegate_account;
     block._micro_block_number = first_micro_block
             ? 0
             : previous_micro_block._micro_block_number + 1;
@@ -321,10 +321,10 @@ MicroBlockHandler::Validate(
     // unless it's the first microblock after genesis
     // Except if it is a recall
     int tdiff = ((int64_t)block.timestamp - (int64_t)previous_microblock.timestamp)/1000 -
-            MICROBLOCK_CUTOFF_TIME * 60; //sec
+            TConvert<Seconds>(MICROBLOCK_CUTOFF_TIME).count(); //sec
     bool is_test_network = (logos::logos_network == logos::logos_networks::logos_test_network);
     if (!is_test_network && (previous_epoch._epoch_number != GENESIS_EPOCH || block._micro_block_number > 0) &&
-            (!_recall_handler.IsRecall() && abs(tdiff) > CLOCK_DRIFT ||
+            (!_recall_handler.IsRecall() && abs(tdiff) > CLOCK_DRIFT.count() ||
              _recall_handler.IsRecall() && block.timestamp <= previous_microblock.timestamp))
     {
         BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock bad timestamp block ts:" << block.timestamp <<

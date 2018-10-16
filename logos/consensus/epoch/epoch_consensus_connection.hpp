@@ -29,7 +29,7 @@ public:
         : ConsensusConnection<ConsensusType::Epoch>(iochannel, primary, promoter, validator, ids)
         , _epoch_handler(handler)
     {}
-    ~EpochConsensusConnection() {}
+    ~EpochConsensusConnection() = default;
 
     /// Validate PrePrepare message
     /// @param messasge PrePrepare message [in]
