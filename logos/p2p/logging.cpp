@@ -5,8 +5,8 @@
 
 #include <logging.h>
 #include <utiltime.h>
-
-const char * const DEFAULT_DEBUGLOGFILE = "debug.log";
+#include <ctype.h>
+#include <boost/log/sources/record_ostream.hpp>
 
 /**
  * NOTE: the logger instances is leaked on exit. This is ugly, but will be
@@ -24,33 +24,6 @@ const char * const DEFAULT_DEBUGLOGFILE = "debug.log";
 BCLog::Logger* const g_logger = new BCLog::Logger();
 
 bool fLogIPs = DEFAULT_LOGIPS;
-
-static int FileWriteStr(const std::string &str, FILE *fp)
-{
-    return fwrite(str.data(), 1, str.size(), fp);
-}
-
-bool BCLog::Logger::OpenDebugLog()
-{
-    std::lock_guard<std::mutex> scoped_lock(m_file_mutex);
-
-    assert(m_fileout == nullptr);
-    assert(!m_file_path.empty());
-
-    m_fileout = fsbridge::fopen(m_file_path, "a");
-    if (!m_fileout) {
-        return false;
-    }
-
-    setbuf(m_fileout, nullptr); // unbuffered
-    // dump buffered messages from before we opened the log
-    while (!m_msgs_before_open.empty()) {
-        FileWriteStr(m_msgs_before_open.front(), m_fileout);
-        m_msgs_before_open.pop_front();
-    }
-
-    return true;
-}
 
 void BCLog::Logger::EnableCategory(BCLog::LogFlags flag)
 {
@@ -168,106 +141,9 @@ std::vector<CLogCategoryActive> ListActiveLogCategories()
     return ret;
 }
 
-std::string BCLog::Logger::LogTimestampStr(const std::string &str)
-{
-    std::string strStamped;
-
-    if (!m_log_timestamps)
-        return str;
-
-    if (m_started_new_line) {
-        int64_t nTimeMicros = GetTimeMicros();
-        strStamped = FormatISO8601DateTime(nTimeMicros/1000000);
-        if (m_log_time_micros) {
-            strStamped.pop_back();
-            strStamped += strprintf(".%06dZ", nTimeMicros%1000000);
-        }
-        int64_t mocktime = GetMockTime();
-        if (mocktime) {
-            strStamped += " (mocktime: " + FormatISO8601DateTime(mocktime) + ")";
-        }
-        strStamped += ' ' + str;
-    } else
-        strStamped = str;
-
-    if (!str.empty() && str[str.size()-1] == '\n')
-        m_started_new_line = true;
-    else
-        m_started_new_line = false;
-
-    return strStamped;
-}
-
 void BCLog::Logger::LogPrintStr(const std::string &str)
 {
-    std::string strTimestamped = LogTimestampStr(str);
-
-    if (m_print_to_console) {
-        // print to console
-        fwrite(strTimestamped.data(), 1, strTimestamped.size(), stdout);
-        fflush(stdout);
-    }
-    if (m_print_to_file) {
-        std::lock_guard<std::mutex> scoped_lock(m_file_mutex);
-
-        // buffer if we haven't opened the log yet
-        if (m_fileout == nullptr) {
-            m_msgs_before_open.push_back(strTimestamped);
-        }
-        else
-        {
-            // reopen the log file, if requested
-            if (m_reopen_file) {
-                m_reopen_file = false;
-                FILE* new_fileout = fsbridge::fopen(m_file_path, "a");
-                if (new_fileout) {
-                    setbuf(new_fileout, nullptr); // unbuffered
-                    fclose(m_fileout);
-                    m_fileout = new_fileout;
-                }
-            }
-            FileWriteStr(strTimestamped, m_fileout);
-        }
-    }
-}
-
-void BCLog::Logger::ShrinkDebugFile()
-{
-    // Amount of debug.log to save at end when shrinking (must fit in memory)
-    constexpr size_t RECENT_DEBUG_HISTORY_SIZE = 10 * 1000000;
-
-    assert(!m_file_path.empty());
-
-    // Scroll debug.log if it's getting too big
-    FILE* file = fsbridge::fopen(m_file_path, "r");
-
-    // Special files (e.g. device nodes) may not have a size.
-    size_t log_size = 0;
-    try {
-        log_size = fs::file_size(m_file_path);
-    } catch (const fs::filesystem_error&) {}
-
-    // If debug.log file is more than 10% bigger the RECENT_DEBUG_HISTORY_SIZE
-    // trim it down by saving only the last RECENT_DEBUG_HISTORY_SIZE bytes
-    if (file && log_size > 11 * (RECENT_DEBUG_HISTORY_SIZE / 10))
-    {
-        // Restart the file with some of the end
-        std::vector<char> vch(RECENT_DEBUG_HISTORY_SIZE, 0);
-        if (fseek(file, -((long)vch.size()), SEEK_END)) {
-            LogPrintf("Failed to shrink debug log file: fseek(...) failed\n");
-            fclose(file);
-            return;
-        }
-        int nBytes = fread(vch.data(), 1, vch.size(), file);
-        fclose(file);
-
-        file = fsbridge::fopen(m_file_path, "w");
-        if (file)
-        {
-            fwrite(vch.data(), 1, nBytes, file);
-            fclose(file);
-        }
-    }
-    else if (file != nullptr)
-        fclose(file);
+    std::string s = str;
+    while (isspace(s[s.length() - 1])) s.pop_back();
+    if(s.length()) BOOST_LOG(*log) << "[p2p] " << s;
 }

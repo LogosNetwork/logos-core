@@ -15,12 +15,9 @@
 #include <mutex>
 #include <string>
 #include <vector>
+#include <boost/log/sources/logger.hpp>
 
-static const bool DEFAULT_LOGTIMEMICROS = false;
 static const bool DEFAULT_LOGIPS        = false;
-static const bool DEFAULT_LOGTIMESTAMPS = true;
-extern const char * const DEFAULT_DEBUGLOGFILE;
-
 extern bool fLogIPs;
 
 struct CLogCategoryActive
@@ -59,7 +56,6 @@ namespace BCLog {
     class Logger
     {
     private:
-        FILE* m_fileout = nullptr;
         std::mutex m_file_mutex;
         std::list<std::string> m_msgs_before_open;
 
@@ -73,26 +69,14 @@ namespace BCLog {
         /** Log categories bitfield. */
         std::atomic<uint32_t> m_categories{0};
 
-        std::string LogTimestampStr(const std::string& str);
-
     public:
-        bool m_print_to_console = false;
-        bool m_print_to_file = false;
-
-        bool m_log_timestamps = DEFAULT_LOGTIMESTAMPS;
-        bool m_log_time_micros = DEFAULT_LOGTIMEMICROS;
-
-        fs::path m_file_path;
-        std::atomic<bool> m_reopen_file{false};
+	boost::log::sources::logger_mt *log;
 
         /** Send a string to the log output */
         void LogPrintStr(const std::string &str);
 
         /** Returns whether logs will be written to any output */
-        bool Enabled() const { return m_print_to_console || m_print_to_file; }
-
-        bool OpenDebugLog();
-        void ShrinkDebugFile();
+	bool Enabled() const { return true; }
 
         uint32_t GetCategoryMask() const { return m_categories.load(); }
 
@@ -103,7 +87,7 @@ namespace BCLog {
 
         bool WillLogCategory(LogFlags category) const;
 
-        bool DefaultShrinkDebugFile() const;
+	bool DefaultShrinkDebugFile() const;
     };
 
 } // namespace BCLog
