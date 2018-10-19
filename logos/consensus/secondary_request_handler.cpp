@@ -19,7 +19,7 @@ bool SecondaryRequestHandler<CT>::Contains(const logos::block_hash & hash)
 {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    return _requests.get<1>().find(hash) != _requests.get<1>().end();
+    return _requests.template get<1>().find(hash) != _requests.template get<1>().end();
 }
 
 template<ConsensusType CT>
@@ -28,7 +28,7 @@ void SecondaryRequestHandler<CT>::OnRequest(std::shared_ptr<RequestMessage<CT>> 
     auto hash = block->hash();
 
     std::lock_guard<std::mutex> lock(_mutex);
-    if(_requests.get<1>().find(hash) != _requests.get<1>().end())
+    if(_requests.template get<1>().find(hash) != _requests.template get<1>().end())
     {
         BOOST_LOG(_log) << "Ignoring duplicate secondary request with hash: "
                         << hash.to_string();
@@ -58,20 +58,20 @@ void SecondaryRequestHandler<CT>::OnTimeout(const Error & error)
         }
 
         auto now = Clock::universal_time();
-        auto entry = _requests.get<0>().begin();
+	auto entry = _requests.template get<0>().begin();
 
-        for(; entry != _requests.get<0>().end() && entry->expiration <= now;
+	for(; entry != _requests.template get<0>().end() && entry->expiration <= now;
             ++entry)
         {
             ready_requests.push_back(*entry);
         }
 
-        _requests.get<0>().erase(_requests.get<0>().begin(), entry);
+	_requests.template get<0>().erase(_requests.template get<0>().begin(), entry);
 
         if(!_requests.empty())
         {
             auto timeout = std::max(MIN_TIMEOUT.total_seconds(),
-                                    (_requests.get<0>().begin()->expiration
+				    (_requests.template get<0>().begin()->expiration
                                      - now).total_seconds());
 
             ScheduleTimer(Seconds(timeout));
@@ -103,12 +103,12 @@ void SecondaryRequestHandler<CT>::PruneRequest(const logos::block_hash & hash)
 {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    if(_requests.get<1>().find(hash) != _requests.get<1>().end()) {
+    if(_requests.template get<1>().find(hash) != _requests.template get<1>().end()) {
         BOOST_LOG(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT) << ">::PruneRequests - "
                         << "Removing request with hash: "
                         << hash.to_string();
 
-        _requests.get<1>().erase(hash);
+	_requests.template get<1>().erase(hash);
     }
 }
 
