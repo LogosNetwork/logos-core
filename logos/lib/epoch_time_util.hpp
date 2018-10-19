@@ -14,6 +14,7 @@ static const uint16_t EPOCH_PROPOSAL_TIME = 12; // 12 hours
 static const uint16_t MICROBLOCK_PROPOSAL_TIME = 10; // 10 minutes
 static const uint16_t MICROBLOCK_CUTOFF_TIME = 10; // 10 minutes
 static const uint16_t CLOCK_DRIFT = 20; // 20 seconds
+static const uint16_t SECONDARY_LIST_TIMEOUT = 10; // 10 seconds
 
 /// Defines times for epoch and microblock events
 class EpochTimeUtil {

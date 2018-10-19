@@ -44,9 +44,9 @@ public:
     /// @param cb call back to add data to the hash
     void ProposerHash(HashCb cb) const
     {
-        cb(&timestamp, sizeof(timestamp));
+        //cb(&timestamp, sizeof(timestamp));
         cb(&_epoch_number, sizeof(_epoch_number));
-        cb(_account.bytes.data(), sizeof(_account));
+        //cb(_account.bytes.data(), sizeof(_account));
         cb(previous.bytes.data(), sizeof(previous));
         cb(_micro_block_tip.bytes.data(), sizeof(_micro_block_tip));
         cb(_delegates, NUM_DELEGATES * sizeof(Delegate));

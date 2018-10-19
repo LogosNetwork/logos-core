@@ -31,8 +31,8 @@ public:
 		: Manager(service, store, log,
 				  config, key_store, validator)
 		, _epoch_handler(handler)
+		, _enqueued(false)
 	{
-		queue = 1;
 	}
 
     ~EpochConsensusManager() = default;
@@ -71,7 +71,7 @@ protected:
 		logos::process_return & result) override;
 
     /// Queues epoch block
-	void QueueRequest(std::shared_ptr<Request>) override;
+	void QueueRequestPrimary(std::shared_ptr<Request>) override;
 
     /// Gets next available epoch block
 	///		@return reference to epoch block
@@ -84,9 +84,16 @@ protected:
 	///		@return true if empty false otherwise
     bool PrePrepareQueueEmpty() override;
 
-    ///< Checks if the Epoch queue is full
+    /// Checks if the Epoch queue is full
 	///		@return true if full false otherwise
     bool PrePrepareQueueFull() override;
+
+    /// Primary list contains request with the hash
+    /// @param request's hash
+    /// @returns true if the request is in the list
+    bool PrimaryContains(const logos::block_hash&) override;
+
+	void QueueRequestSecondary(std::shared_ptr<Request> request) override;
 
 	/// Create specialized instance of ConsensusConnection
 	///     @param iochannel NetIOChannel pointer
@@ -101,5 +108,5 @@ protected:
 private:
     std::shared_ptr<PrePrepare>  _cur_epoch; 	///< Currently handled epoch
     ArchiverEpochHandler &       _epoch_handler;///< Epoch handler
-	int queue;
+	bool 						 _enqueued;   	///< Request is enqueued
 };

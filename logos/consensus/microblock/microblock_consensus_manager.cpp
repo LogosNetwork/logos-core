@@ -23,11 +23,11 @@ MicroBlockConsensusManager::Validate(
 }
 
 void
-MicroBlockConsensusManager::QueueRequest(
+MicroBlockConsensusManager::QueueRequestPrimary(
     std::shared_ptr<Request> request)
 {
     _cur_microblock = static_pointer_cast<PrePrepare>(request);
-    queue = 1;
+    _enqueued = true;
 }
 
 auto
@@ -40,19 +40,19 @@ void
 MicroBlockConsensusManager::PrePreparePopFront()
 {
     _cur_microblock.reset();
-    queue = 0;
+    _enqueued = false;
 }
 
 bool
 MicroBlockConsensusManager::PrePrepareQueueEmpty()
 {
-    return !queue;
+    return !_enqueued;
 }
 
 bool
 MicroBlockConsensusManager::PrePrepareQueueFull()
 {
-    return queue;
+    return _enqueued;
 }
 
 void
@@ -68,11 +68,24 @@ MicroBlockConsensusManager::GetStoredCount()
 {
     return 1;
 }
+
+bool
+MicroBlockConsensusManager::PrimaryContains(const logos::block_hash &hash)
+{
+    return (_cur_microblock && _cur_microblock->hash() == hash);
+}
+
+void
+MicroBlockConsensusManager::QueueRequestSecondary(std::shared_ptr<Request> request)
+{
+    _secondary_handler.OnRequest(request, boost::posix_time::seconds(_delegate_id * SECONDARY_LIST_TIMEOUT));
+}
+
 std::shared_ptr<ConsensusConnection<ConsensusType::MicroBlock>>
 MicroBlockConsensusManager::MakeConsensusConnection(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities& ids)
 {
-    return std::make_shared<MicroBlockConsensusConnection>(iochannel, *this,
+    return std::make_shared<MicroBlockConsensusConnection>(iochannel, *this, *this,
             _validator, ids, _microblock_handler);
 }

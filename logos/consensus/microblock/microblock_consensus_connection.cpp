@@ -20,3 +20,12 @@ MicroBlockConsensusConnection::ApplyUpdates(
 {
     _microblock_handler.CommitToDatabase(block);
 }
+
+bool
+MicroBlockConsensusConnection::IsPrePrepared(
+    const logos::block_hash & hash)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    return (_cur_pre_prepare && hash == _cur_pre_prepare->hash());
+}
