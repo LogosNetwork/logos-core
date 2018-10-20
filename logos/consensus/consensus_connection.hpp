@@ -13,6 +13,7 @@
 #include <boost/asio/write.hpp>
 
 class IOChannel;
+class EpochEventsNotifier;
 
 struct DelegateIdentities
 {
@@ -54,7 +55,8 @@ public:
                         PrimaryDelegate & primary,
                         RequestPromoter<CT> & promoter,
                         MessageValidator & validator,
-                        const DelegateIdentities & ids);
+                        const DelegateIdentities & ids,
+                        EpochEventsNotifier & events_notifier);
 
     void Send(const void * data, size_t size);
 
@@ -121,4 +123,5 @@ protected:
     PrimaryDelegate &           _primary;
     ConsensusState              _state     = ConsensusState::VOID;
     RequestPromoter<CT> &       _promoter; ///< secondary list request promoter
+    EpochEventsNotifier &       _events_notifier;
 };

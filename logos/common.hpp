@@ -228,7 +228,8 @@ enum class process_result
     not_implemented,       // Logos - The block cannot be processed
     buffered,              // Logos - The block has been buffered for benchmarking
     buffering_done,        // Logos - The last block has been buffered and consensus will begin
-    pending                // Logos - The block has already been received and is pending consensus
+    pending,               // Logos - The block has already been received and is pending consensus
+    new_epoch              // LOGOS - Persistent delegates rejects PrePrepare once start proposing for new epoch
 };
 
 std::string ProcessResultToString(process_result result);

@@ -322,6 +322,7 @@ add_library (node
 	logos/consensus/consensus_connection.cpp
 	logos/consensus/consensus_container.cpp
 	logos/consensus/consensus_manager.cpp
+	logos/consensus/epoch_manager.cpp
 	logos/consensus/epoch/epoch_consensus_connection.cpp
 	logos/consensus/epoch/epoch_consensus_manager.cpp
 	logos/consensus/message_validator.cpp

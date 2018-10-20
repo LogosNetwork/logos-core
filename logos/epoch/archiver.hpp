@@ -84,7 +84,7 @@ public:
     void CommitToDatabase(const MicroBlock& block) override
     {
         _micro_block_handler.ApplyUpdates(block);
-        if (block._last_micro_block) {
+        if (block.last_micro_block) {
             _event_proposer.ProposeEpoch();
         }
     }

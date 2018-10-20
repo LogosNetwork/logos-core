@@ -32,20 +32,20 @@ NodeIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         Epoch epoch;
         MicroBlock micro_block;
 
-        micro_block._delegate = logos::genesis_account;
+        micro_block.account = logos::genesis_account;
         micro_block.timestamp = 0;
-        micro_block._epoch_number = e;
-        micro_block._micro_block_number = 0;
-        micro_block._last_micro_block = 0;
+        micro_block.epoch_number = e;
+        micro_block.micro_block_number = 0;
+        micro_block.last_micro_block = 0;
         micro_block.previous = microblock_hash;
 
         microblock_hash = _store.micro_block_put(micro_block, transaction);
         _store.micro_block_tip_put(microblock_hash, transaction);
 
-        epoch._epoch_number = e;
+        epoch.epoch_number = e;
         epoch.timestamp = 0;
-        epoch._account = logos::genesis_account;
-        epoch._micro_block_tip = microblock_hash;
+        epoch.account = logos::genesis_account;
+        epoch.micro_block_tip = microblock_hash;
         epoch.previous = epoch_hash;
         for (uint8_t i = 0; i < NUM_DELEGATES; ++i) {
             Delegate delegate = {0, 0, 0};
@@ -57,7 +57,7 @@ NodeIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 logos::keypair pair(buff);
                 delegate = {pair.pub, 0, 100000 + (uint64_t)del * 100};
             }
-            epoch._delegates[i] = delegate;
+            epoch.delegates[i] = delegate;
         }
 
         epoch_hash = _store.epoch_put(epoch, transaction);
@@ -86,7 +86,7 @@ NodeIdentityManager::Init(const Config &config)
             return;
         }
 
-        epoch_number = previous_epoch._epoch_number + 1;
+        epoch_number = previous_epoch.epoch_number + 1;
     }
 
     // TBD: this is done out of order, genesis accounts are created in node::node(), needs to be reconciled
@@ -205,8 +205,8 @@ NodeIdentityManager::IdentifyDelegates(
     for (uint8_t del = 0; del < NUM_DELEGATES; ++del)
     {
         // update delegates for the requested epoch
-        delegates[del] = epoch._delegates[del]._account;
-        if (epoch._delegates[del]._account == _delegate_account)
+        delegates[del] = epoch.delegates[del].account;
+        if (epoch.delegates[del].account == _delegate_account)
         {
             delegate_idx = del;
         }

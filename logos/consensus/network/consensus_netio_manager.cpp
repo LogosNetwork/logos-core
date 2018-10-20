@@ -2,6 +2,7 @@
 /// This file contains implementation of the ConsensusNetIOManager classes, which handle
 /// network connections between the delegates
 #include <logos/consensus/network/consensus_netio_manager.hpp>
+#include <logos/consensus/epoch_manager.hpp>
 #include <logos/node/node.hpp>
 
 using boost::asio::ip::make_address_v4;
@@ -13,14 +14,14 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
                                              DelegateKeyStore & key_store,
                                              MessageValidator & validator,
                                              PeerAcceptorStarter & starter,
-                                             const ConnectingDelegatesSet & delegates_set)
+                                             EpochInfo & epoch_info)
     : _delegates(config.delegates)
     , _consensus_managers(consensus_managers)
     , _alarm(alarm)
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
-    , _delegates_set(delegates_set)
+    , _epoch_info(epoch_info)
 {
     std::set<Address> server_endpoints;
 
@@ -50,7 +51,7 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
                           this,
                           std::placeholders::_1,
                           std::placeholders::_2),
-                          _connection_mutex, _delegates_set));
+                          _connection_mutex, _epoch_info));
         }
         else
         {
@@ -69,7 +70,8 @@ ConsensusNetIOManager::~ConsensusNetIOManager()
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
 
     BOOST_LOG(_log) << "~ConsensusNetIOManager, connections " << _connections.size()
-                    << " delegates set new " << (_delegates_set == ConnectingDelegatesSet::New);
+                    << " connection " << TransitionConnectionToName(_epoch_info.GetConnection())
+                    << " " << (int)NodeIdentityManager::_global_delegate_idx;
 
     for (auto conn : _connections)
     {
@@ -90,7 +92,7 @@ ConsensusNetIOManager::OnConnectionAccepted(
         std::bind(&ConsensusNetIOManager::BindIOChannel, 
 				  this, 
 				  std::placeholders::_1, 
-            	  std::placeholders::_2), _connection_mutex, _delegates_set));
+            	  std::placeholders::_2), _connection_mutex, _epoch_info));
 }
 
 void

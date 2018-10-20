@@ -13,6 +13,8 @@
 
 #include <boost/log/sources/record_ostream.hpp>
 
+class EpochEventsNotifier;
+
 class ChannelBinder
 {
 
@@ -67,7 +69,8 @@ public:
                      Log & log,
                      const Config & config,
                      DelegateKeyStore & key_store,
-                     MessageValidator & validator);
+                     MessageValidator & validator,
+                     EpochEventsNotifier & events_notifier);
 
     void OnSendRequest(std::shared_ptr<Request> block,
                        logos::process_return & result);
@@ -155,5 +158,6 @@ protected:
     Log                             _log;
     uint8_t                         _delegate_id;
     SecondaryRequestHandler<CT> &   _secondary_handler;    ///< Secondary queue of blocks.
+    EpochEventsNotifier &           _events_notifier;      ///< Notifies epoch manager of transition related events
 };
 

@@ -14,12 +14,12 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
     MicroBlock()
         : MessageHeader(0)
         //, _merkle_root(0)
-        , _delegate(0)
-        , _epoch_number(0)
-        , _micro_block_number(0)
-        , _last_micro_block(0)
-        , _tips{0}
-        , _number_batch_blocks(0)
+        , account(0)
+        , epoch_number(0)
+        , micro_block_number(0)
+        , last_micro_block(0)
+        , tips{0}
+        , number_batch_blocks(0)
         {
             signature={0};
             previous = 0;
@@ -31,12 +31,12 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
     /// Overide to mirror state_block
     BlockHash hash() const { return Hash(); }
     static const size_t HASHABLE_BYTES;         ///< hashable bytes of the micrblock - used in signing
-    //BlockHash           _merkle_root; 		    ///< Merkle root of the batch blocks included in this microblock
-    logos::account      _delegate; 	            ///< Delegate who proposed this microblock
-    uint                _epoch_number; 			///< Current epoch
-    uint16_t            _micro_block_number;	///< Microblock number within this epoch
-    uint8_t             _last_micro_block;      ///< The last microblock in the epoch
-    BlockHash           _tips[NUM_DELEGATES];   ///< Delegate's batch block tips
-    uint                _number_batch_blocks;   ///< Number of batch blocks in the microblock
+    //BlockHash           _merkle_root; 		///< Merkle root of the batch blocks included in this microblock
+    logos::account      account; 	            ///< Delegate who proposed this microblock
+    uint                epoch_number; 			///< Current epoch
+    uint16_t            micro_block_number;	///< Microblock number within this epoch
+    uint8_t             last_micro_block;      ///< The last microblock in the epoch
+    BlockHash           tips[NUM_DELEGATES];   ///< Delegate's batch block tips
+    uint                number_batch_blocks;   ///< Number of batch blocks in the microblock
     Signature           signature; 		        ///< Multisignature
 };

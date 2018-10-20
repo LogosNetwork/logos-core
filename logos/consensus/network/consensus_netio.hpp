@@ -15,6 +15,7 @@
 
 class PrequelParser;
 class MessageValidator;
+class EpochInfo;
 
 namespace logos
 {
@@ -92,6 +93,7 @@ public:
     ///     @param binder callback for binding netio interface to a consensus manager
     ///     @param local_ip local ip of this node's delegate
     ///     @param connection_mutex mutex to protect consensus connections
+    ///     @param epoch_info epoch transition info
     ConsensusNetIO(Service & service,
                    const Endpoint & endpoint,
                    logos::alarm & alarm,
@@ -101,7 +103,7 @@ public:
                    MessageValidator & validator,
                    IOBinder binder,
                    std::recursive_mutex & connection_mutex,
-                   const ConnectingDelegatesSet & delegates_set);
+                   EpochInfo & epoch_info);
 
     /// Class constructor.
     ///
@@ -116,7 +118,8 @@ public:
     ///     @param validator validator/signer of consensus messages
     ///     @param binder callback for binding netio interface to a consensus manager
     ///     @param connection_mutex mutex to protect consensus connections
-    ConsensusNetIO(std::shared_ptr<Socket> socket, 
+    ///     @param epoch_info epoch transition info
+    ConsensusNetIO(std::shared_ptr<Socket> socket,
                    const Endpoint endpoint,
                    std::shared_ptr<KeyAdvertisement> keyadvert,
                    logos::alarm & alarm,
@@ -126,7 +129,7 @@ public:
                    MessageValidator & validator,
                    IOBinder binder,
                    std::recursive_mutex & connection_mutex,
-                   const ConnectingDelegatesSet & delegates_set);
+                   EpochInfo & epoch_info);
 
     virtual ~ConsensusNetIO() = default;
 
@@ -235,5 +238,5 @@ private:
     std::mutex                     _send_mutex;           ///< Protect concurrent writes
 	uint64_t                       _queue_reservation = 0;///< How many queued entries are being sent?
     bool                           _sending = false;      ///< is an async write in progress?
-    const ConnectingDelegatesSet & _delegates_set;        ///< Type of connecting delegates set during epoch transition
+    EpochInfo &                    _epoch_info;           ///< Epoch transition info
 };

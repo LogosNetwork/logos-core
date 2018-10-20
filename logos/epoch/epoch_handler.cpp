@@ -14,10 +14,10 @@ EpochHandler::Validate(
 
     // Account must exist
     logos::account_info info;
-    if (_store.account_get(epoch._account, info))
+    if (_store.account_get(epoch.account, info))
     {
         BOOST_LOG(_log) << "EpochHandler::Validate account doesn't exist " <<
-                        epoch._account.to_account();
+                        epoch.account.to_account();
         return false;
     }
 
@@ -35,23 +35,23 @@ EpochHandler::Validate(
     }
 
     // verify epoch number = previous + 1
-    if (epoch._epoch_number != (previous_epoch._epoch_number + 1))
+    if (epoch.epoch_number != (previous_epoch.epoch_number + 1))
     {
         BOOST_LOG(_log) << "EpochHandler::Validate account invalid epoch number " <<
-                        epoch._epoch_number << " " << previous_epoch._epoch_number;
+                        epoch.epoch_number << " " << previous_epoch.epoch_number;
         return false;
     }
 
     // verify microblock tip exists
     BlockHash micro_block_tip;
-    if (_store.micro_block_tip_get(micro_block_tip) || epoch._micro_block_tip != micro_block_tip)
+    if (_store.micro_block_tip_get(micro_block_tip) || epoch.micro_block_tip != micro_block_tip)
     {
         BOOST_LOG(_log) << "EpochHandler::Validate previous micro block doesn't exist " <<
-                        epoch._micro_block_tip.to_string() << " " << micro_block_tip.to_string();
+                        epoch.micro_block_tip.to_string() << " " << micro_block_tip.to_string();
         return false;
     }
 
-    if (!_voting_manager.ValidateEpochDelegates(epoch._delegates))
+    if (!_voting_manager.ValidateEpochDelegates(epoch.delegates))
     {
         BOOST_LOG(_log) << "EpochHandler::Validate invalid deligates ";
         return false;
@@ -115,11 +115,11 @@ EpochHandler::Build(Epoch &epoch)
     }
 
     epoch.previous = previous_epoch_hash;
-    epoch._account = NodeIdentityManager::_delegate_account;
-    epoch._epoch_number = previous_epoch._epoch_number + 1;
-    epoch._micro_block_tip = previous_micro_block_hash;
-    _voting_manager.GetNextEpochDelegates(epoch._delegates);
-    epoch._transaction_fee_pool = 0; // where does it come from? TBD
+    epoch.account = NodeIdentityManager::_delegate_account;
+    epoch.epoch_number = previous_epoch.epoch_number + 1;
+    epoch.micro_block_tip = previous_micro_block_hash;
+    _voting_manager.GetNextEpochDelegates(epoch.delegates);
+    epoch.transaction_fee_pool = 0; // where does it come from? TBD
 
     return true;
 }

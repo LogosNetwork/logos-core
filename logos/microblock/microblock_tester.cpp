@@ -234,11 +234,11 @@ MicroBlockTester::informational(
     size_t s = sizeof(epoch);
     std::stringstream str;
     uint64_t start = (uint64_t)&epoch;
-    uint64_t account = (uint64_t)&(epoch._account);
-    uint64_t enumber = (uint64_t)&(epoch._epoch_number);
-    uint64_t tip = (uint64_t)&(epoch._micro_block_tip);
-    uint64_t del = (uint64_t)&(epoch._delegates);
-    uint64_t fee = (uint64_t)&(epoch._transaction_fee_pool);
+    uint64_t account = (uint64_t)&(epoch.account);
+    uint64_t enumber = (uint64_t)&(epoch.epoch_number);
+    uint64_t tip = (uint64_t)&(epoch.micro_block_tip);
+    uint64_t del = (uint64_t)&(epoch.delegates);
+    uint64_t fee = (uint64_t)&(epoch.transaction_fee_pool);
     uint64_t sig = (uint64_t)&(epoch.signature);
     str <<  "epoch offsets: account " << (account - start) << " enumber " << (enumber-start)
         << " tip " << (tip-start) << " delegates " << (del-start) << " fee " << (fee-start)

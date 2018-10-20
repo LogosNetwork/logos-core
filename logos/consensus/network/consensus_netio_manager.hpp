@@ -10,6 +10,7 @@
 
 class ChannelBinder;
 class PeerAcceptorStarter;
+class EpochInfo;
 
 /// ConsensusNetIOManager manages connections to peers.
 ///
@@ -48,7 +49,7 @@ public:
         DelegateKeyStore & key_store,
         MessageValidator & validator,
         PeerAcceptorStarter & starter,
-        const ConnectingDelegatesSet & delegates_set);
+        EpochInfo & epoch_info);
 
     ~ConsensusNetIOManager();
 
@@ -83,5 +84,5 @@ private:
     std::recursive_mutex           _connection_mutex;   ///< NetIO connections access mutex
     std::recursive_mutex           _bind_mutex;         ///< NetIO consensus connections mutex
     uint8_t                        _delegate_id;        ///< The local delegate id
-    const ConnectingDelegatesSet & _delegates_set;      ///< Type of connecting delegates during epoch transition
+    EpochInfo &                    _epoch_info;      ///< Epoch transition info
 };

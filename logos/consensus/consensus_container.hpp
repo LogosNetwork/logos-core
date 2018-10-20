@@ -24,6 +24,7 @@ namespace logos
 
 class Archiver;
 class PeerAcceptorStarter;
+class EpochManager;
 
 /// Optimize access to the _cur_epoch in ConsensusContainer
 /// It only needs to be locked during transition, for simplicity T-5min : T+20sec
@@ -77,32 +78,7 @@ class ConsensusContainer : public InternalConsensus
     using Endpoint   = boost::asio::ip::tcp::endpoint;
     using Socket     = boost::asio::ip::tcp::socket;
     using Accounts   = logos::account[NUM_DELEGATES];
-
-    struct EpochManager {
-        EpochManager(Service & service,
-                     Store & store,
-                     Alarm & alarm,
-                     Log & log,
-                     const Config & config,
-                     Archiver & archiver,
-                     PeerAcceptorStarter & starter,
-                     ConnectingDelegatesSet delegates_set);
-        ~EpochManager() {}
-        DelegateKeyStore            _key_store; 		 ///< Store delegates public keys
-        MessageValidator            _validator; 		 ///< Validator/Signer of consensus messages
-        BatchBlockConsensusManager  _batch_manager; 	 ///< Handles batch block consensus
-        MicroBlockConsensusManager	_micro_manager; 	 ///< Handles micro block consensus
-        EpochConsensusManager	    _epoch_manager; 	 ///< Handles epoch consensus
-        ConnectingDelegatesSet      _delegates_set;      ///< Type of connecting delegates set during epoch transition
-        ConsensusNetIOManager       _netio_manager; 	 ///< Establishes connections to other delegates
-        /// Update secondary request handler promoter during epoch transition
-        void UpdateRequestPromoter()
-        {
-            _batch_manager.UpdateRequestPromoter();
-            _micro_manager.UpdateRequestPromoter();
-            _epoch_manager.UpdateRequestPromoter();
-        }
-    };
+    using BindingMap = std::map<EpochConnection, std::shared_ptr<EpochManager>>;
 
     struct ConnectionCache {
         std::shared_ptr<Socket> socket;
@@ -149,7 +125,7 @@ public:
 
     /// Get current epoch id
     /// @returns current epoch id
-    static uint GetCurEpochId() { return _cur_epoch_number; }
+    static uint GetCurEpochNumber() { return _cur_epoch_number; }
 
     /// Binds connected socket to the correct delegates set, mostly applicable during epoch transition
     /// @param endpoint connected endpoing
@@ -197,6 +173,25 @@ private:
     /// Submit connections queue for binding to the correct epoch
     void BindConnectionsQueue();
 
+    /// Swap Persistent delegate's EpochManager (current with transition)
+    /// Happens either at Epoch Start time or after Epoch Transtion Start time
+    /// if received PostCommit with E#_i
+    /// @return true if no error
+    bool OnNewEpochPostCommit();
+
+    /// Transition Retiring delegate to ForwardOnly
+    /// @return true if no error
+    bool OnNewEpochReject();
+
+    /// Create EpochManager instance
+    /// @param epoch_number manager's epoch number
+    /// @param config delegate's configuration
+    /// @param del type of transition delegate
+    /// @param con type of delegate's set connection
+    std::shared_ptr<EpochManager>
+    CreateEpochManager(uint epoch_number, const ConsensusManagerConfig &config,
+        EpochTransitionDelegate delegate, EpochConnection connnection);
+
     static std::atomic_uint             _cur_epoch_number;          ///< current epoch number
     EpochPeerManager                    _peer_manager;              ///< processes accept callback
     std::mutex                          _mutex;                     ///< protects access to _cur_epoch
@@ -212,4 +207,5 @@ private:
     std::atomic<EpochTransitionState>   _transition_state;          ///< transition state
     EpochTransitionDelegate             _transition_delegate;       ///< type of delegate during transition
     std::queue<ConnectionCache>         _connections_queue;         ///< queue for delegates set connections
+    BindingMap                          _binding_map;               ///< map for binding connection to epoch manager
 };

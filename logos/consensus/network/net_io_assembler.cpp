@@ -1,15 +1,16 @@
 #include <logos/consensus/network/net_io_assembler.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/node/node_identity_manager.hpp>
+#include <logos/consensus/epoch_manager.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 
 NetIOAssembler::NetIOAssembler(std::shared_ptr<Socket> socket,
                                const std::atomic_bool & connected,
-                               const ConnectingDelegatesSet & delegates_set)
+                               EpochInfo & epoch_info)
     : _socket(socket)
     , _connected(connected)
-    , _delegates_set(delegates_set)
+    , _epoch_info(epoch_info)
 {}
 
 void NetIOAssembler::ReadPrequel(ReadCallback callback)
@@ -59,11 +60,13 @@ void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size
     if(error)
     {
         // cancelled at the end of epoch transition
-        if (_connected && _delegates_set != ConnectingDelegatesSet::Outgoing)
+        if (_connected && !_epoch_info.IsWaitingDisconnect())
         {
             BOOST_LOG(_log) << "NetIOAssembler - Error receiving message: "
                             << error.message() << " global " << (int)NodeIdentityManager::_global_delegate_idx
-                            << " delegates set " << DelegatesSetToName(_delegates_set);
+                            << " connection " << _epoch_info.GetConnectionName()
+                            << " delegate " << _epoch_info.GetDelegateName()
+                            << " state " << _epoch_info.GetStateName();
         }
         return;
     }

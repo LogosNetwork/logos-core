@@ -765,6 +765,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
     case process_result::pending:
         ret = "Already Pending";
         break;
+    case process_result::new_epoch:
+         ret = "New Epoch";
+        break;
     }
 
     return ret;

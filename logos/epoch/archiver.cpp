@@ -89,5 +89,5 @@ Archiver::IsFirstEpoch(BlockStore &store)
         return false;
     }
 
-    return epoch._epoch_number == GENESIS_EPOCH;
+    return epoch.epoch_number == GENESIS_EPOCH;
 }
