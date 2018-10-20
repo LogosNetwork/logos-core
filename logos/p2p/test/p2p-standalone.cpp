@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <pthread.h>
 #include "../p2p.h"
 #include "../../../lmdb/libraries/liblmdb/lmdb.h"
 #include <boost/move/utility_core.hpp>
@@ -15,6 +16,7 @@
 #include <boost/log/sources/global_logger_storage.hpp>
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
+#include <boost/asio.hpp>
 
 BOOST_LOG_INLINE_GLOBAL_LOGGER_DEFAULT(my_logger, boost::log::sources::logger_mt)
 
@@ -25,6 +27,11 @@ class p2p_standalone : public p2p_interface {
 	}
 };
 
+static void *io_service_run(void *io_service) {
+	((boost::asio::io_service *)io_service)->run();
+	return 0;
+}
+
 int main(int argc, char **argv) {
 	p2p_standalone p2p;
 	p2p_config config;
@@ -32,6 +39,7 @@ int main(int argc, char **argv) {
 	char buf[256], *str;
 	const char *mess;
 	int err;
+	pthread_t thread;
 
 	printf("This is p2p standalone application. Initializing...\n");
 
@@ -47,6 +55,11 @@ int main(int argc, char **argv) {
 				  boost::log::keywords::format = "[%TimeStamp%]: %Message%");
 	boost::log::sources::logger_mt& lg = my_logger::get();
 	config.boost_logger_mt = &lg;
+
+	boost::asio::io_service io_service;
+	config.boost_io_service = &io_service;
+	pthread_create(&thread, 0, &io_service_run, config.boost_io_service);
+	pthread_detach(thread);
 
 	err = mdb_env_create(&config.lmdb_env);
 	if (err) { mess = "env create"; goto fail; }

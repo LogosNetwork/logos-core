@@ -66,6 +66,7 @@ private:
 	const bool DEFAULT_STOPAFTERBLOCKIMPORT;
 	const char* FEE_ESTIMATES_FILENAME;
 	ServiceFlags nLocalServices;
+	boost::asio::io_service *io_service;
 	int nMaxConnections;
 	int nUserMaxConnections;
 	int nFD;
@@ -76,14 +77,15 @@ private:
 	PropagateStore store;
 
 public:
-	p2p_internal(p2p_interface *p2p) :
+	p2p_internal(p2p_interface *p2p, p2p_config &config) :
 		interface(p2p),
 		fFeeEstimatesInitialized(false),
 		DEFAULT_PROXYRANDOMIZE(true),
 		DEFAULT_REST_ENABLE(false),
 		DEFAULT_STOPAFTERBLOCKIMPORT(false),
 		FEE_ESTIMATES_FILENAME("fee_estimates.dat"),
-		nLocalServices(ServiceFlags(NODE_NETWORK | NODE_NETWORK_LIMITED))
+		nLocalServices(ServiceFlags(NODE_NETWORK | NODE_NETWORK_LIMITED)),
+		io_service((boost::asio::io_service *)config.boost_io_service)
 		{}
 
 	~p2p_internal(){}
@@ -658,6 +660,7 @@ bool AppInitMain()
     CConnman& connman = *g_connman;
     connman.p2p = interface;
     connman.p2p_store = &store;
+    connman.io_service = io_service;
 
     peerLogic.reset(new PeerLogicValidation(&connman, scheduler, gArgs.GetBoolArg("-enablebip61", DEFAULT_ENABLE_BIP61)));
 
@@ -843,7 +846,7 @@ bool p2p_interface::Init(p2p_config &config) {
 	if (p2p) return false;
 	g_logger->log = (boost::log::sources::logger_mt *)config.boost_logger_mt;
 	SetupEnvironment();
-	p2p = new p2p_internal(this);
+	p2p = new p2p_internal(this, config);
 	if (!p2p) return false;
 	p2p->SetupServerArgs();
 	std::string error;

@@ -28,6 +28,7 @@
 #include <thread>
 #include <memory>
 #include <condition_variable>
+#include <boost/asio.hpp>
 
 #ifndef WIN32
 #include <arpa/inet.h>
@@ -321,6 +322,7 @@ public:
 
     p2p_interface *p2p;
     PropagateStore *p2p_store;
+    boost::asio::io_service *io_service;
 
 private:
     struct ListenSocket {
