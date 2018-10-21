@@ -112,6 +112,35 @@ struct CSerializedNetMsg
     std::string command;
 };
 
+class AsioSession : public std::enable_shared_from_this<AsioSession>
+{
+public:
+    AsioSession(boost::asio::io_service& ios) : socket(ios) {}
+    boost::asio::ip::tcp::socket& get_socket() { return socket; }
+    void start();
+    void handle_read(std::shared_ptr<AsioSession>& s, const boost::system::error_code& err,
+		size_t bytes_transferred);
+private:
+    boost::asio::ip::tcp::socket socket;
+    enum { max_length = 1024 };
+    char data[max_length];
+};
+
+class CConnman;
+
+class AsioServer {
+public:
+    AsioServer(CConnman *, boost::asio::ip::address &, short port, bool wlisted);
+    void handle_accept(std::shared_ptr<AsioSession>, const boost::system::error_code&);
+    void shutdown();
+private:
+    CConnman *connman;
+    boost::asio::ip::tcp::acceptor acceptor;
+    bool whitelisted;
+    bool in_shutdown;
+    friend class CConnman;
+};
+
 class NetEventsInterface;
 class CConnman
 {
@@ -325,12 +354,7 @@ public:
     boost::asio::io_service *io_service;
 
 private:
-    struct ListenSocket {
-        SOCKET socket;
-        bool whitelisted;
-
-        ListenSocket(SOCKET socket_, bool whitelisted_) : socket(socket_), whitelisted(whitelisted_) {}
-    };
+    using ListenSocket = AsioServer *;
 
     bool BindListenPort(const CService &bindAddr, std::string& strError, bool fWhitelisted = false);
     bool Bind(const CService &addr, unsigned int flags);
@@ -340,7 +364,7 @@ private:
     void ProcessOneShot();
     void ThreadOpenConnections(std::vector<std::string> connect);
     void ThreadMessageHandler();
-    void AcceptConnection(const ListenSocket& hListenSocket);
+    bool AcceptConnection(const ListenSocket& hListenSocket, boost::asio::ip::tcp::socket &socket);
     void ThreadSocketHandler();
     void ThreadDNSAddressSeed();
 
@@ -451,6 +475,7 @@ private:
     std::atomic<int64_t> m_next_send_inv_to_incoming{0};
 
     friend struct CConnmanTest;
+    friend class AsioServer;
 };
 extern std::unique_ptr<CConnman> g_connman;
 void Discover();

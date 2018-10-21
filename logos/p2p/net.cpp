@@ -1059,21 +1059,42 @@ bool CConnman::AttemptToEvictConnection()
     return false;
 }
 
-void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
-    struct sockaddr_storage sockaddr;
-    socklen_t len = sizeof(sockaddr);
-    SOCKET hSocket = accept(hListenSocket.socket, (struct sockaddr*)&sockaddr, &len);
-    CAddress addr;
+void AsioSession::start()
+{
+    socket.async_read_some(boost::asio::buffer(data, max_length),
+		boost::bind(&AsioSession::handle_read, this, shared_from_this(),
+		boost::asio::placeholders::error,
+		boost::asio::placeholders::bytes_transferred));
+}
+
+void AsioSession::handle_read(std::shared_ptr<AsioSession>& s,
+		const boost::system::error_code& err, size_t bytes_transferred)
+{
+    if (!err) {
+	LogPrintf("Received %d bytes", bytes_transferred); // TODO: use received bytes
+	socket.async_read_some(boost::asio::buffer(data, max_length),
+		boost::bind(&AsioSession::handle_read, this, shared_from_this(),
+		boost::asio::placeholders::error,
+		boost::asio::placeholders::bytes_transferred));
+    } else {
+	LogPrintf("Error in receive: %s", err.message());
+    }
+}
+
+bool CConnman::AcceptConnection(const ListenSocket& hListenSocket, boost::asio::ip::tcp::socket& socket) {
     int nInbound = 0;
     int nMaxInbound = nMaxConnections - (nMaxOutbound + nMaxFeeler);
 
-    if (hSocket != INVALID_SOCKET) {
-        if (!addr.SetSockAddr((const struct sockaddr*)&sockaddr)) {
-            LogPrintf("Warning: Unknown socket family\n");
-        }
+    boost::asio::ip::tcp::endpoint endpoint = socket.remote_endpoint();
+    CService saddr = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
+    CAddress addr(saddr, NODE_NONE);
+
+    if (!addr.IsIPv4() && !addr.IsIPv6()) {
+	LogPrintf("Warning: Unknown socket family\n");
+	return false;
     }
 
-    bool whitelisted = hListenSocket.whitelisted || IsWhitelistedRange(addr);
+    bool whitelisted = hListenSocket->whitelisted || IsWhitelistedRange(addr);
     {
         LOCK(cs_vNodes);
         for (const CNode* pnode : vNodes) {
@@ -1081,36 +1102,15 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
         }
     }
 
-    if (hSocket == INVALID_SOCKET)
-    {
-        int nErr = WSAGetLastError();
-        if (nErr != WSAEWOULDBLOCK)
-            LogPrintf("socket error accept failed: %s\n", NetworkErrorString(nErr));
-        return;
-    }
-
     if (!fNetworkActive) {
         LogPrintf("connection from %s dropped: not accepting new connections\n", addr.ToString());
-        CloseSocket(hSocket);
-        return;
+	return false;
     }
-
-    if (!IsSelectableSocket(hSocket))
-    {
-        LogPrintf("connection from %s dropped: non-selectable socket\n", addr.ToString());
-        CloseSocket(hSocket);
-        return;
-    }
-
-    // According to the internet TCP_NODELAY is not carried into accepted sockets
-    // on all platforms.  Set it again here just to be sure.
-    SetSocketNoDelay(hSocket);
 
     if (IsBanned(addr) && !whitelisted)
     {
         LogPrint(BCLog::NET, "connection from %s dropped (banned)\n", addr.ToString());
-        CloseSocket(hSocket);
-        return;
+	return false;
     }
 
     if (nInbound >= nMaxInbound)
@@ -1118,14 +1118,17 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
         if (!AttemptToEvictConnection()) {
             // No connection to evict, disconnect the new connection
             LogPrint(BCLog::NET, "failed to find an eviction candidate - connection dropped (full)\n");
-            CloseSocket(hSocket);
-            return;
+	    return false;
         }
     }
 
     NodeId id = GetNewNodeId();
     uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
-    CAddress addr_bind = GetBindAddress(hSocket);
+
+    endpoint = socket.local_endpoint();
+    saddr = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
+    CAddress addr_bind(saddr, NODE_NONE);
+    SOCKET hSocket = socket.native_handle(); // TODO: replace native socket in Node by AsioSession
 
     CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addr, CalculateKeyedNetGroup(addr), nonce, addr_bind, "", true);
     pnode->AddRef();
@@ -1138,6 +1141,43 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
         LOCK(cs_vNodes);
         vNodes.push_back(pnode);
     }
+
+    return true;
+}
+
+AsioServer::AsioServer(CConnman *conn, boost::asio::ip::address &addr, short port, bool wlisted)
+	: connman(conn), acceptor(*conn->io_service, boost::asio::ip::tcp::endpoint(addr, port)),
+	  whitelisted(wlisted), in_shutdown(false)
+{
+    std::shared_ptr<AsioSession> session = std::make_shared<AsioSession>(*connman->io_service);
+    acceptor.async_accept(session->get_socket(),
+			boost::bind(&AsioServer::handle_accept, this, session,
+			boost::asio::placeholders::error));
+}
+
+void AsioServer::handle_accept(std::shared_ptr<AsioSession> session, const boost::system::error_code& err)
+{
+    if (err) {
+	LogPrintf("Error: can't accept connection: %s\n", err.message());
+	session.reset();
+    } else if (!connman->AcceptConnection(this, session->get_socket())) {
+	session.reset();
+    } else {
+	session->start();
+	session = std::make_shared<AsioSession>(*connman->io_service);
+    }
+    if (!in_shutdown) {
+	acceptor.async_accept(session->get_socket(),
+		boost::bind(&AsioServer::handle_accept, this, session,
+		boost::asio::placeholders::error));
+    } else {
+	session = 0;
+    }
+}
+
+void AsioServer::shutdown() {
+    acceptor.cancel();
+    in_shutdown = true;
 }
 
 void CConnman::ThreadSocketHandler()
@@ -1233,12 +1273,6 @@ void CConnman::ThreadSocketHandler()
         SOCKET hSocketMax = 0;
         bool have_fds = false;
 
-        for (const ListenSocket& hListenSocket : vhListenSocket) {
-            FD_SET(hListenSocket.socket, &fdsetRecv);
-            hSocketMax = std::max(hSocketMax, hListenSocket.socket);
-            have_fds = true;
-        }
-
         {
             LOCK(cs_vNodes);
             for (CNode* pnode : vNodes)
@@ -1297,17 +1331,6 @@ void CConnman::ThreadSocketHandler()
             FD_ZERO(&fdsetError);
             if (!interruptNet.sleep_for(std::chrono::milliseconds(timeout.tv_usec/1000)))
                 return;
-        }
-
-        //
-        // Accept new connections
-        //
-        for (const ListenSocket& hListenSocket : vhListenSocket)
-        {
-            if (hListenSocket.socket != INVALID_SOCKET && FD_ISSET(hListenSocket.socket, &fdsetRecv))
-            {
-                AcceptConnection(hListenSocket);
-            }
         }
 
         //
@@ -2046,6 +2069,7 @@ void CConnman::ThreadMessageHandler()
 
 bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, bool fWhitelisted)
 {
+#if 0
     strError = "";
     int nOne = 1;
 
@@ -2106,6 +2130,31 @@ bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, b
     }
 
     vhListenSocket.push_back(ListenSocket(hListenSocket, fWhitelisted));
+#endif
+    std::string addr = addrBind.ToStringIP();
+    short port = addrBind.GetPort();
+    struct sockaddr_storage sockaddr;
+    socklen_t len = sizeof(sockaddr);
+    if (!addrBind.GetSockAddr((struct sockaddr*)&sockaddr, &len))
+    {
+	strError = strprintf("Error: Bind address family for %s not supported", addrBind.ToString());
+	LogPrintf("%s\n", strError);
+	return false;
+    }
+
+    ListenSocket sock;
+
+    try {
+	boost::asio::ip::address asio_addr = boost::asio::ip::make_address(addr);
+	sock = new AsioServer(this, asio_addr, port, fWhitelisted);
+    } catch(std::exception &ex) {
+	strError = strprintf("Error: Unable to bind to %s: %s\n", addrBind.ToString(), ex.what());
+	LogPrintf("%s\n", strError);
+	return false;
+    }
+
+    vhListenSocket.push_back(sock);
+    LogPrintf("Bound to %s\n", addrBind.ToString());
 
     if (addrBind.IsRoutable() && fDiscover && !fWhitelisted)
         AddLocal(addrBind, LOCAL_BIND);
@@ -2409,10 +2458,10 @@ void CConnman::Stop()
     // Close sockets
     for (CNode* pnode : vNodes)
         pnode->CloseSocketDisconnect();
-    for (ListenSocket& hListenSocket : vhListenSocket)
-        if (hListenSocket.socket != INVALID_SOCKET)
-            if (!CloseSocket(hListenSocket.socket))
-                LogPrintf("CloseSocket(hListenSocket) failed with error %s\n", NetworkErrorString(WSAGetLastError()));
+    for (ListenSocket& hListenSocket : vhListenSocket) {
+	hListenSocket->shutdown();
+	//delete hListenSocket; // TODO: use shared_ptr
+    }
 
     // clean up some globals (to help leak detection)
     for (CNode *pnode : vNodes) {

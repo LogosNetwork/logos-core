@@ -8,8 +8,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <pthread.h>
-#include "../p2p.h"
-#include "../../../lmdb/libraries/liblmdb/lmdb.h"
+#include <signal.h>
 #include <boost/move/utility_core.hpp>
 #include <boost/log/sources/logger.hpp>
 #include <boost/log/sources/record_ostream.hpp>
@@ -17,6 +16,8 @@
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
 #include <boost/asio.hpp>
+#include "../../../lmdb/libraries/liblmdb/lmdb.h"
+#include "../p2p.h"
 
 BOOST_LOG_INLINE_GLOBAL_LOGGER_DEFAULT(my_logger, boost::log::sources::logger_mt)
 
@@ -27,8 +28,13 @@ class p2p_standalone : public p2p_interface {
 	}
 };
 
-static void *io_service_run(void *io_service) {
-	((boost::asio::io_service *)io_service)->run();
+static void *io_service_run(void *arg) {
+	p2p_config *config = (p2p_config *)arg;
+	boost::log::sources::logger_mt *log = (boost::log::sources::logger_mt *)config->boost_logger_mt;
+	boost::system::error_code ec;
+	BOOST_LOG(*log) << "Boost io_service start";
+	((boost::asio::io_service *)config->boost_io_service)->run(ec);
+	BOOST_LOG(*log) << "Boost io_service finish: " << ec.message();
 	return 0;
 }
 
@@ -40,8 +46,10 @@ int main(int argc, char **argv) {
 	const char *mess;
 	int err;
 	pthread_t thread;
+	void *res;
 
 	printf("This is p2p standalone application. Initializing...\n");
+	signal(SIGTTIN, SIG_IGN);
 
 	config.argc = argc;
 	config.argv = argv;
@@ -58,8 +66,6 @@ int main(int argc, char **argv) {
 
 	boost::asio::io_service io_service;
 	config.boost_io_service = &io_service;
-	pthread_create(&thread, 0, &io_service_run, config.boost_io_service);
-	pthread_detach(thread);
 
 	err = mdb_env_create(&config.lmdb_env);
 	if (err) { mess = "env create"; goto fail; }
@@ -75,6 +81,7 @@ int main(int argc, char **argv) {
 	if (err) { mess = "txn commit"; goto fail; }
 
 	if (!p2p.Init(config)) return 0;
+	pthread_create(&thread, 0, &io_service_run, &config);
 	printf("Type 'exit' to exit the program or message to send.\n");
 
 	for(;;) {
@@ -89,6 +96,8 @@ int main(int argc, char **argv) {
 
 	printf("Shutdown...\n");
 	p2p.Shutdown();
+	io_service.stop();
+	pthread_join(thread, &res);
 	printf("Bye-bye!\n");
 
 	return 0;
