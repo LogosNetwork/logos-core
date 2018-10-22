@@ -32,8 +32,6 @@ ConsensusContainer::ConsensusContainer(Service & service,
     , _transition_state(EpochTransitionState::None)
     , _transition_delegate(EpochTransitionDelegate::None)
 {
-    // a node can start just a few seconds before the transition TODO
-
     // Is this instance "epoch transition enabled"?
     // Currently require that all_delegates is twice the size of delegates
     bool epoch_transition_enabled = true;
@@ -297,8 +295,20 @@ ConsensusContainer::EpochTransitionEventsStart()
 
     _alarm.add(Seconds(5), std::bind(&ConsensusContainer::BindConnectionsQueue, this));
 
-    _alarm.add(EPOCH_DELEGATES_CONNECT-EPOCH_TRANSITION_START,
-        std::bind(&ConsensusContainer::EpochTransitionStart, this, delegate_idx));
+    // TODO recall may have different timers
+    auto lapse = EPOCH_DELEGATES_CONNECT - EPOCH_TRANSITION_START;
+    EpochTimeUtil util;
+    auto epoch_start = util.GetNextEpochTime();
+    if (epoch_start > EPOCH_TRANSITION_START && epoch_start < lapse)
+    {
+        lapse = epoch_start - EPOCH_TRANSITION_START;
+    }
+    else if (epoch_start < EPOCH_TRANSITION_START)
+    {
+        lapse = epoch_start;
+    }
+
+    _alarm.add(lapse, std::bind(&ConsensusContainer::EpochTransitionStart, this, delegate_idx));
 }
 
 void
@@ -336,8 +346,11 @@ ConsensusContainer::EpochTransitionStart(uint8_t delegate_idx)
         _trans_epoch = nullptr;
     }
 
-    _alarm.add(EPOCH_START,
-               std::bind(&ConsensusContainer::EpochStart, this, delegate_idx));
+    EpochTimeUtil util;
+    auto epoch_start = util.GetNextEpochTime();
+    auto lapse = epoch_start < EPOCH_START ? epoch_start : EPOCH_START;
+
+    _alarm.add(lapse, std::bind(&ConsensusContainer::EpochStart, this, delegate_idx));
 }
 
 bool
@@ -398,8 +411,7 @@ ConsensusContainer::EpochStart(uint8_t delegate_idx)
 
     _cur_epoch_number++;
 
-    _alarm.add(EPOCH_TRANSITION_END,
-               std::bind(&ConsensusContainer::EpochTransitionEnd, this, delegate_idx));
+    _alarm.add(EPOCH_TRANSITION_END, std::bind(&ConsensusContainer::EpochTransitionEnd, this, delegate_idx));
 }
 
 void
