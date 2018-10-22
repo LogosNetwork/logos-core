@@ -60,7 +60,6 @@ protected:
     //       benchmark.
     //
     std::recursive_mutex _mutex;
-    Timer                _primary_timer;
     ConsensusState       _state           = ConsensusState::VOID;
     uint64_t             _prepare_weight  = 0;
     uint8_t              _cur_delegate_id = 0;
@@ -83,13 +82,17 @@ private:
 
     void CheckRejection();
 
+    template<ConsensusType C>
     void OnPrePrepareTimeout(const Error & error);
+    template<ConsensusType C>
     void OnPostPrepareTimeout(const Error & error);
 
+    template<ConsensusType C>
     void OnTimeout(const Error & error,
                    const std::string & timeout,
                    ConsensusState expected_state);
 
+    template<ConsensusType C>
     void CycleTimers();
 
     bool ReachedQuorum();
@@ -109,6 +112,7 @@ private:
     Log                _log;
     MessageValidator & _validator;
     Timer              _recall_timer;
+    Timer              _primary_timer;
     BlockHash          _cur_batch_hash;
     uint64_t           _cur_batch_timestamp = 0;
     uint8_t            _delegates_responded = 0;

@@ -126,6 +126,10 @@ void ConsensusManager<CT>::OnConsensusReached()
 template<ConsensusType CT>
 void ConsensusManager<CT>::InitiateConsensus()
 {
+    BOOST_LOG(_log) << "Initiating "
+                    << ConsensusToName(CT)
+                    << " consensus.";
+
     auto & pre_prepare = PrePrepareGetNext();
 
     OnConsensusInitiated(pre_prepare);
@@ -184,11 +188,6 @@ ConsensusManager<CT>::QueueRequest(
 
 template<ConsensusType CT>
 void
-ConsensusManager<CT>::OnDelegatesConnected()
-{}
-
-template<ConsensusType CT>
-void
 ConsensusManager<CT>::QueueRequestSecondary(
     std::shared_ptr<Request> request)
 {
@@ -222,11 +221,6 @@ ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
 {
     auto connection = MakeConsensusConnection(iochannel, ids);
     _connections.push_back(connection);
-
-    if(++_channels_bound == QUORUM_SIZE)
-    {
-        OnDelegatesConnected();
-    }
 
     return connection;
 }

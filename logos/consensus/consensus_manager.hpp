@@ -111,7 +111,6 @@ protected:
 
     void QueueRequest(std::shared_ptr<Request>);
 
-    virtual void OnDelegatesConnected();
     virtual void PrePreparePopFront() {};
     virtual void QueueRequestPrimary(std::shared_ptr<Request>) = 0;
     virtual void QueueRequestSecondary(std::shared_ptr<Request>);
@@ -142,7 +141,6 @@ protected:
     MessageValidator &          _validator;
     std::mutex                  _connection_mutex;
     Log                         _log;
-    uint64_t                    _channels_bound = 0;
     uint8_t                     _delegate_id;
 };
 

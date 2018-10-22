@@ -22,13 +22,12 @@ const PrimaryDelegate::Seconds PrimaryDelegate::RECALL_TIMEOUT{300};
 
 PrimaryDelegate::PrimaryDelegate(Service & service,
                                  MessageValidator & validator)
-    : _primary_timer(service, PRIMARY_TIMEOUT)
-
     // NOTE: Don't use _validator in this constructor
     //       as it's not yet initialized.
     //
+    : _primary_timer(service)
     , _validator(validator)
-    , _recall_timer(service, RECALL_TIMEOUT)
+    , _recall_timer(service)
 {}
 
 template<ConsensusType C>
@@ -47,7 +46,7 @@ void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message)
 {
     if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE))
     {
-        CycleTimers();
+        CycleTimers<C>();
 
         Send<PostPrepareMessage<C>>();
         AdvanceState(ConsensusState::POST_PREPARE);
@@ -63,7 +62,7 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage<C> & message)
 {
     if(ProceedWithMessage(message, ConsensusState::POST_PREPARE))
     {
-        CycleTimers();
+        CycleTimers<C>();
 
         Send<PostCommitMessage<C>>();
         AdvanceState(ConsensusState::POST_COMMIT);
@@ -85,7 +84,9 @@ void PrimaryDelegate::CheckRejection()
 {
     if(AllDelegatesResponded())
     {
-        if(!_primary_timer.cancel())
+        Error aborted = boost::asio::error::operation_aborted;
+
+        if(!_primary_timer.cancel(aborted))
         {
             _timer_cancelled = true;
         }
@@ -94,28 +95,35 @@ void PrimaryDelegate::CheckRejection()
     }
 }
 
+template<ConsensusType C>
 void PrimaryDelegate::OnPrePrepareTimeout(const Error & error)
 {
-    OnTimeout(error,
-              "PrePrepare",
-              ConsensusState::PRE_PREPARE);
+    OnTimeout<C>(error,
+                 "PrePrepare",
+                 ConsensusState::PRE_PREPARE);
 }
 
+template<ConsensusType C>
 void PrimaryDelegate::OnPostPrepareTimeout(const Error & error)
 {
-    OnTimeout(error,
-              "PostPrepare",
-              ConsensusState::POST_PREPARE);
+    OnTimeout<C>(error,
+                 "PostPrepare",
+                 ConsensusState::POST_PREPARE);
 }
 
+template<ConsensusType C>
 void PrimaryDelegate::OnTimeout(const Error & error,
         const std::string & timeout,
         ConsensusState expected_state)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    BOOST_LOG(_log) << timeout
-                    << " timeout expired.";
+    auto timeout_str = timeout + " (" + ConsensusToName(C) + ")";
+
+    BOOST_LOG(_log) << timeout_str
+                    << " timeout expired."
+                    << "Error code: "
+                    << error.message();
 
     if(_timer_cancelled)
     {
@@ -130,14 +138,14 @@ void PrimaryDelegate::OnTimeout(const Error & error,
             return;
         }
 
-        BOOST_LOG(_log) << timeout
+        BOOST_LOG(_log) << timeout_str
                         << " timeout - Error: "
                         << error.message();
     }
 
     if(_state != expected_state)
     {
-        BOOST_LOG(_log) << timeout
+        BOOST_LOG(_log) << timeout_str
                         << " timeout expired during unexpected state."
                         << " Aborting timeout.";
         return;
@@ -146,22 +154,27 @@ void PrimaryDelegate::OnTimeout(const Error & error,
     _state = ConsensusState::RECALL;
 }
 
+template<ConsensusType C>
 void PrimaryDelegate::CycleTimers()
 {
-    if(!_primary_timer.cancel())
+    Error aborted = boost::asio::error::operation_aborted;
+
+    if(!_primary_timer.cancel(aborted))
     {
         _timer_cancelled = true;
     }
 
+    _primary_timer.expires_from_now(PRIMARY_TIMEOUT);
+
     if(_state == ConsensusState::PRE_PREPARE)
     {
         _primary_timer.async_wait(
-                [this](const Error & error){OnPrePrepareTimeout(error);});
+                [this](const Error & error){OnPrePrepareTimeout<C>(error);});
     }
     else
     {
         _primary_timer.async_wait(
-                [this](const Error & error){OnPostPrepareTimeout(error);});
+                [this](const Error & error){OnPostPrepareTimeout<C>(error);});
     }
 }
 
@@ -194,8 +207,9 @@ void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
     _cur_batch_hash = block.Hash();
     _cur_batch_timestamp = block.timestamp;
 
+    _primary_timer.expires_from_now(PRIMARY_TIMEOUT);
     _primary_timer.async_wait(
-            [this](const Error & error){OnPrePrepareTimeout(error);});
+            [this](const Error & error){OnPrePrepareTimeout<C>(error);});
 }
 
 bool PrimaryDelegate::ReachedQuorum()

@@ -11,7 +11,7 @@ template<ConsensusType CT>
 SecondaryRequestHandler<CT>::SecondaryRequestHandler(Service & service, RequestPromoter<CT> & promoter)
     : _service(service)
     , _promoter(promoter)
-    , _timer(service, REQUEST_TIMEOUT)
+    , _timer(service)
 {}
 
 template<ConsensusType CT>
