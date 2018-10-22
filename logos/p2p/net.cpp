@@ -362,6 +362,58 @@ static CAddress GetBindAddress(SOCKET sock)
     return addr_bind;
 }
 
+void AsioSession::start()
+{
+    socket.async_read_some(boost::asio::buffer(data, max_length),
+		boost::bind(&AsioSession::handle_read, this, shared_from_this(),
+		boost::asio::placeholders::error,
+		boost::asio::placeholders::bytes_transferred));
+}
+
+void AsioSession::handle_read(std::shared_ptr<AsioSession>& s,
+		const boost::system::error_code& err, size_t bytes_transferred)
+{
+    if (!err) {
+	LogPrintf("Received %d bytes", bytes_transferred); // TODO: use received bytes
+	socket.async_read_some(boost::asio::buffer(data, max_length),
+		boost::bind(&AsioSession::handle_read, this, shared_from_this(),
+		boost::asio::placeholders::error,
+		boost::asio::placeholders::bytes_transferred));
+    } else {
+	LogPrintf("Error in receive: %s", err.message());
+    }
+}
+
+AsioClient::AsioClient(CConnman *conn) : connman(conn), resolver(*conn->io_service)
+{
+}
+
+void AsioClient::connect(const std::string &host, const std::string &service) {
+    resolver.async_resolve(host, service, boost::bind(&AsioClient::resolve_handler, this, _1, _2));
+}
+
+void AsioClient::resolve_handler(const boost::system::error_code& ec, boost::asio::ip::tcp::resolver::results_type results)
+{
+    if (ec) {
+	LogPrintf("Resolve error: %s", ec.message());
+    } else {
+	std::shared_ptr<AsioSession> session = std::make_shared<AsioSession>(*connman->io_service);
+	boost::asio::async_connect(session->get_socket(), results,
+		boost::bind(&AsioClient::connect_handler, this, session, _1, _2));
+    }
+}
+
+void AsioClient::connect_handler(std::shared_ptr<AsioSession> session, const boost::system::error_code& ec,
+		const boost::asio::ip::tcp::endpoint& endpoint)
+{
+    if (ec) {
+	LogPrintf("Connect error: %s", ec.message());
+    } else {
+	session->start();
+    }
+    // TODO: delete this
+}
+
 CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, bool manual_connection)
 {
     if (pszDest == nullptr) {
@@ -1057,28 +1109,6 @@ bool CConnman::AttemptToEvictConnection()
         }
     }
     return false;
-}
-
-void AsioSession::start()
-{
-    socket.async_read_some(boost::asio::buffer(data, max_length),
-		boost::bind(&AsioSession::handle_read, this, shared_from_this(),
-		boost::asio::placeholders::error,
-		boost::asio::placeholders::bytes_transferred));
-}
-
-void AsioSession::handle_read(std::shared_ptr<AsioSession>& s,
-		const boost::system::error_code& err, size_t bytes_transferred)
-{
-    if (!err) {
-	LogPrintf("Received %d bytes", bytes_transferred); // TODO: use received bytes
-	socket.async_read_some(boost::asio::buffer(data, max_length),
-		boost::bind(&AsioSession::handle_read, this, shared_from_this(),
-		boost::asio::placeholders::error,
-		boost::asio::placeholders::bytes_transferred));
-    } else {
-	LogPrintf("Error in receive: %s", err.message());
-    }
 }
 
 bool CConnman::AcceptConnection(const ListenSocket& hListenSocket, boost::asio::ip::tcp::socket& socket) {

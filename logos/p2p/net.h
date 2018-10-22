@@ -128,6 +128,20 @@ private:
 
 class CConnman;
 
+class AsioClient {
+public:
+    AsioClient(CConnman *conn);
+    void connect(const std::string &host, const std::string &service);
+    void resolve_handler(const boost::system::error_code& ec,
+		boost::asio::ip::tcp::resolver::results_type results);
+    void connect_handler(std::shared_ptr<AsioSession> session, const boost::system::error_code& ec,
+		const boost::asio::ip::tcp::endpoint& endpoint);
+private:
+    CConnman *connman;
+    boost::asio::ip::tcp::resolver resolver;
+    friend class CConnman;
+};
+
 class AsioServer {
 public:
     AsioServer(CConnman *, boost::asio::ip::address &, short port, bool wlisted);
@@ -475,6 +489,7 @@ private:
     std::atomic<int64_t> m_next_send_inv_to_incoming{0};
 
     friend struct CConnmanTest;
+    friend class AsioClient;
     friend class AsioServer;
 };
 extern std::unique_ptr<CConnman> g_connman;
