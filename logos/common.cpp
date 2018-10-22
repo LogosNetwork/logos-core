@@ -784,7 +784,13 @@ std::string logos::ProcessResultToString(logos::process_result result)
         ret = "Already Pending";
         break;
     case process_result::already_reserved:
-        ret = "Already Reserved";
+        ret = "Account already Reserved";
+        break;
+    case process_result::initializing:
+        ret = "Delegate is initializing";
+        break;
+    case process_result::insufficient_fee:
+        ret = "Transaction fee is insufficient";
         break;
     }
 

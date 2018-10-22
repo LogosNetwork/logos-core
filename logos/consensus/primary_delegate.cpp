@@ -2,53 +2,95 @@
 
 #include <boost/asio/error.hpp>
 
+template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::BatchStateBlock>&);
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::BatchStateBlock>&);
 template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::BatchStateBlock>&);
 template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::BatchStateBlock>&);
+template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::MicroBlock>&);
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::MicroBlock>&);
 template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::MicroBlock>&);
 template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::MicroBlock>&);
+template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::Epoch>&);
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Epoch>&);
 template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Epoch>&);
 template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Epoch>&);
 
-constexpr uint8_t  PrimaryDelegate::QUORUM_SIZE;
+constexpr uint8_t PrimaryDelegate::QUORUM_SIZE;
 
 const PrimaryDelegate::Seconds PrimaryDelegate::PRIMARY_TIMEOUT{60};
 const PrimaryDelegate::Seconds PrimaryDelegate::RECALL_TIMEOUT{300};
 
 PrimaryDelegate::PrimaryDelegate(Service & service,
                                  MessageValidator & validator)
+    : _primary_timer(service, PRIMARY_TIMEOUT)
+
     // NOTE: Don't use _validator in this constructor
     //       as it's not yet initialized.
-    : _validator(validator)
-    , _primary_timer(service, PRIMARY_TIMEOUT)
+    //
+    , _validator(validator)
     , _recall_timer(service, RECALL_TIMEOUT)
 {}
 
-template<ConsensusType consensus_type>
-void PrimaryDelegate::ProcessMessage(const PrepareMessage<consensus_type> & message)
+template<ConsensusType C>
+void PrimaryDelegate::ProcessMessage(const RejectionMessage<C> & message)
+{
+    if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE))
+    {
+        OnRejection(message);
+
+        CheckRejection();
+    }
+}
+
+template<ConsensusType C>
+void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message)
 {
     if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE))
     {
         CycleTimers();
 
-        Send<PostPrepareMessage<consensus_type>>();
+        Send<PostPrepareMessage<C>>();
         AdvanceState(ConsensusState::POST_PREPARE);
+    }
+    else
+    {
+        CheckRejection();
     }
 }
 
-template<ConsensusType consensus_type>
-void PrimaryDelegate::ProcessMessage(const CommitMessage<consensus_type> & message)
+template<ConsensusType C>
+void PrimaryDelegate::ProcessMessage(const CommitMessage<C> & message)
 {
     if(ProceedWithMessage(message, ConsensusState::POST_PREPARE))
     {
         CycleTimers();
 
-        Send<PostCommitMessage<consensus_type>>();
+        Send<PostCommitMessage<C>>();
         AdvanceState(ConsensusState::POST_COMMIT);
 
         OnConsensusReached();
+    }
+}
+
+void PrimaryDelegate::OnRejection(const RejectionMessage<ConsensusType::BatchStateBlock> & message)
+{}
+
+void PrimaryDelegate::OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message)
+{}
+
+void PrimaryDelegate::OnRejection(const RejectionMessage<ConsensusType::Epoch> & message)
+{}
+
+void PrimaryDelegate::CheckRejection()
+{
+    if(AllDelegatesResponded())
+    {
+        if(!_primary_timer.cancel())
+        {
+            _timer_cancelled = true;
+        }
+
+        OnPrePrepareRejected();
     }
 }
 
@@ -75,6 +117,12 @@ void PrimaryDelegate::OnTimeout(const Error & error,
     BOOST_LOG(_log) << timeout
                     << " timeout expired.";
 
+    if(_timer_cancelled)
+    {
+        _timer_cancelled = false;
+        return;
+    }
+
     if(error)
     {
         if(error == boost::asio::error::operation_aborted)
@@ -100,7 +148,10 @@ void PrimaryDelegate::OnTimeout(const Error & error,
 
 void PrimaryDelegate::CycleTimers()
 {
-    _primary_timer.cancel();
+    if(!_primary_timer.cancel())
+    {
+        _timer_cancelled = true;
+    }
 
     if(_state == ConsensusState::PRE_PREPARE)
     {
@@ -114,16 +165,16 @@ void PrimaryDelegate::CycleTimers()
     }
 }
 
-template<typename MSG>
-bool PrimaryDelegate::Validate(const MSG & message)
+template<typename M>
+bool PrimaryDelegate::Validate(const M & message)
 {
     return _validator.Validate(message, _cur_delegate_id);
 }
 
-template<typename MSG>
+template<typename M>
 void PrimaryDelegate::Send()
 {
-    MSG response(_cur_batch_timestamp);
+    M response(_cur_batch_timestamp);
 
     response.previous = _cur_batch_hash;
     _validator.Sign(response, _signatures);
@@ -131,22 +182,34 @@ void PrimaryDelegate::Send()
     Send(&response, sizeof(response));
 }
 
-template<ConsensusType consensus_type>
-void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<consensus_type> & block)
+void PrimaryDelegate::UpdateVotes()
+{}
+
+template<ConsensusType C>
+void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
 {
-    BOOST_LOG(_log) << "PrimaryDelegate - Initiating Consensus with PrePrepare hash: " << block.Hash().to_string();
+    BOOST_LOG(_log) << "PrimaryDelegate - Initiating Consensus with PrePrepare hash: "
+                    << block.Hash().to_string();
 
     _cur_batch_hash = block.Hash();
     _cur_batch_timestamp = block.timestamp;
+
+    _primary_timer.async_wait(
+            [this](const Error & error){OnPrePrepareTimeout(error);});
 }
 
 bool PrimaryDelegate::ReachedQuorum()
 {
-    return _consensus_count >= QUORUM_SIZE;
+    return _prepare_weight >= QUORUM_SIZE;
 }
 
-template<typename MSG>
-bool PrimaryDelegate::ProceedWithMessage(const MSG & message, ConsensusState expected_state)
+bool PrimaryDelegate::AllDelegatesResponded()
+{
+    return _delegates_responded == NUM_DELEGATES - 1;
+}
+
+template<typename M>
+bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expected_state)
 {
     if(_state != expected_state)
     {
@@ -160,8 +223,16 @@ bool PrimaryDelegate::ProceedWithMessage(const MSG & message, ConsensusState exp
 
     if(Validate(message))
     {
-        _consensus_count++;
-        _signatures.push_back({_cur_delegate_id, message.signature});
+        _delegates_responded++;
+
+        // Rejection message signatures are not
+        // aggregated.
+        if(message.type != MessageType::Rejection)
+        {
+            _prepare_weight++;
+            _signatures.push_back({_cur_delegate_id,
+                                   message.signature});
+        }
     }
     else
     {
@@ -179,6 +250,15 @@ bool PrimaryDelegate::ProceedWithMessage(const MSG & message, ConsensusState exp
 void PrimaryDelegate::AdvanceState(ConsensusState new_state)
 {
     _state = new_state;
-    _consensus_count = 0;
+    _prepare_weight = 0;
+    _delegates_responded = 0;
     _signatures.clear();
+
+    OnStateAdvanced();
 }
+
+void PrimaryDelegate::OnStateAdvanced()
+{}
+
+void PrimaryDelegate::OnPrePrepareRejected()
+{}

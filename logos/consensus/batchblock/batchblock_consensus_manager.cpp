@@ -14,7 +14,10 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
     : Manager(service, store, log,
               config, key_store, validator)
     , _persistence_manager(store)
-{}
+    , _service(service)
+{
+    _state = ConsensusState::INITIALIZING;
+}
 
 void
 BatchBlockConsensusManager::OnBenchmarkSendRequest(
@@ -40,8 +43,6 @@ BatchBlockConsensusManager::BufferComplete(
     SendBufferedBlocks();
 }
 
-
-
 std::shared_ptr<PrequelParser>
 BatchBlockConsensusManager::BindIOChannel(
         std::shared_ptr<IOChannel> iochannel,
@@ -50,7 +51,7 @@ BatchBlockConsensusManager::BindIOChannel(
     auto connection =
             std::make_shared<BBConsensusConnection>(
                     iochannel, *this, *this, _persistence_manager,
-                    _validator, ids);
+                    _validator, ids, _service);
 
     _connections.push_back(connection);
     return connection;
@@ -91,7 +92,7 @@ BatchBlockConsensusManager::Validate(
         return false;
     }
 
-    return _persistence_manager.Validate(*block, result, _delegate_id);
+    return _persistence_manager.Validate(*block, result, false);
 }
 
 bool
@@ -116,8 +117,11 @@ BatchBlockConsensusManager::QueueRequestPrimary(
 auto
 BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
-    return reinterpret_cast<PrePrepare&>(
-            _handler.GetNextBatch());
+    auto & batch = reinterpret_cast<
+            PrePrepare&>(_handler.GetNextBatch());
+
+    batch.sequence = _sequence;
+    return batch;
 }
 
 void
@@ -156,6 +160,7 @@ void
 BatchBlockConsensusManager::OnConsensusReached()
 {
     Manager::OnConsensusReached();
+    _sequence++;
 
     if(_using_buffered_blocks)
     {
@@ -171,7 +176,7 @@ BatchBlockConsensusManager::DesignatedDelegate(std::shared_ptr<Request> request)
     // determine the ID of the designated primary
     // for that account.
     //
-    logos::uint256_t indicator =  request->hashables.previous.is_zero() ?
+    logos::uint256_t indicator = request->hashables.previous.is_zero() ?
            request->hashables.account.number() :
            request->hashables.previous.number();
 
@@ -191,5 +196,201 @@ BatchBlockConsensusManager::MakeConsensusConnection(
 {
     return std::make_shared<BBConsensusConnection>(
             iochannel, *this, *this, _persistence_manager,
-            _validator, ids);
+            _validator, ids, _service);
+}
+
+void
+BatchBlockConsensusManager::AcquirePrePrepare(const PrePrepare & message)
+{
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+
+    _handler.PushBack(message);
+}
+
+void
+BatchBlockConsensusManager::OnRejection(
+        const Rejection & message)
+{
+    switch(message.reason)
+    {
+    case RejectionReason::Clock_Drift:
+        break;
+    case RejectionReason::Contains_Invalid_Request:
+    {
+        auto block_count = _handler.GetNextBatch().block_count;
+
+        for(uint64_t i = 0; i < block_count; ++i)
+        {
+            if(!message.rejection_map[i])
+            {
+                _weights[i].reject_weight++;
+                _weights[i].supporting_delegates.insert(_cur_delegate_id);
+            }
+        }
+
+        break;
+    }
+    case RejectionReason::Bad_Signature:
+        break;
+    case RejectionReason::Void:
+        break;
+    }
+}
+
+void
+BatchBlockConsensusManager::OnStateAdvanced()
+{
+    _weights.fill(Weights());
+}
+
+void
+BatchBlockConsensusManager::OnPrePrepareRejected()
+{
+    // Pairs a set of Delegate ID's with indexes,
+    // where the indexes represent the requests
+    // supported by those delegates.
+    using SupportMap = std::pair<std::unordered_set<uint8_t>,
+                                 std::unordered_set<uint64_t>>;
+
+    // TODO: Hash the set of delegate ID's to make
+    //       lookup constant rather than O(n).
+    std::list<SupportMap> subsets;
+
+    auto block_count = _handler.GetNextBatch().block_count;
+
+    // For each request, collect the delegate
+    // ID's of those delegates that voted for
+    // it.
+    for(uint64_t i = 0; i < block_count; ++i)
+    {
+        if(_prepare_weight + _weights[i].reject_weight >= QUORUM_SIZE)
+        {
+            auto entry = std::find_if(
+                    subsets.begin(), subsets.end(),
+                    [this, i](const SupportMap & map)
+                    {
+                        return map.first == _weights[i].supporting_delegates;
+                    });
+
+            if(entry == subsets.end())
+            {
+                std::unordered_set<uint64_t> indexes;
+                indexes.insert(i);
+
+                subsets.push_back(
+                        std::make_pair(
+                                _weights[i].supporting_delegates,
+                                indexes));
+            }
+            else
+            {
+                entry->second.insert(i);
+            }
+        }
+        else
+        {
+            // Reject the request at index i.
+        }
+    }
+
+    // Returns true if all elements
+    // in set b can be found in set
+    // a.
+    auto contains = [](const std::unordered_set<uint8_t> & a,
+                       const std::unordered_set<uint8_t> & b)
+        {
+            for(auto e : b)
+            {
+                if(a.find(e) == a.end())
+                {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+    // Attempt to group requests with overlapping
+    // subsets of supporting delegates. This
+    // does not find the optimal grouping which
+    // would require also considering proper subsets.
+    for(auto a = subsets.begin(); a != subsets.end(); ++a)
+    {
+        auto b = a;
+        b++;
+
+        for(; b != subsets.end(); ++b)
+        {
+            auto & a_set = a->first;
+            auto & b_set = b->first;
+
+            bool advance = false;
+
+            if(a_set.size() > b_set.size())
+            {
+                if(contains(a_set, b_set))
+                {
+                    a->first = b->first;
+                    a->second.insert(b->second.begin(),
+                                     b->second.end());
+
+                    advance = true;
+                }
+            }
+            else
+            {
+                if(contains(b_set, a_set))
+                {
+                    a->second.insert(b->second.begin(),
+                                     b->second.end());
+
+                    advance = true;
+                }
+
+            }
+
+            if(advance)
+            {
+                auto tmp = b;
+                tmp++;
+                subsets.erase(b);
+                b = tmp;
+            }
+        }
+    }
+
+    std::list<BatchStateBlock> batches;
+
+    // Create new pre-prepare messages
+    // based on the subsets.
+    for(auto & subset : subsets)
+    {
+        batches.push_back(BatchStateBlock());
+        batches.back().block_count = subset.second.size();
+
+        auto & batch = _handler.GetNextBatch();
+        auto & indexes = subset.second;
+
+        uint64_t i = 0;
+        auto itr = indexes.begin();
+
+        for(; itr != indexes.end(); ++itr, ++i)
+        {
+            batches.back().blocks[i] = batch.blocks[*itr];
+        }
+    }
+
+    _handler.PopFront();
+    _handler.InsertFront(batches);
+
+    _state = ConsensusState::PRE_PREPARE;
+
+    OnRequestQueued();
+}
+
+void
+BatchBlockConsensusManager::OnDelegatesConnected()
+{
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+
+    InitiateConsensus();
 }

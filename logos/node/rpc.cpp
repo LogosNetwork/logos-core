@@ -1124,6 +1124,16 @@ void logos::rpc_handler::block_create ()
                 error_response (response, "Bad amount number");
             }
         }
+        logos::uint128_union transaction_fee (0);
+        boost::optional<std::string> transaction_fee_text (request.get_optional<std::string> ("transaction_fee"));
+        if (transaction_fee_text.is_initialized ())
+        {
+            auto error_transaction_fee (transaction_fee.decode_dec (transaction_fee_text.get ()));
+            if (error_transaction_fee)
+            {
+                error_response (response, "Bad transaction fee number");
+            }
+        }
         uint64_t work (0);
         boost::optional<std::string> work_text (request.get_optional<std::string> ("work"));
         if (work_text.is_initialized ())
@@ -1251,7 +1261,7 @@ void logos::rpc_handler::block_create ()
                     {
                         work = node.work_generate_blocking (previous.is_zero () ? pub : previous);
                     }
-                    logos::state_block state (pub, previous, representative, amount, link, prv, pub, work);
+                    logos::state_block state (pub, previous, representative, amount, transaction_fee, link, prv, pub, work);
                     boost::property_tree::ptree response_l;
                     response_l.put ("hash", state.hash ().to_string ());
                     std::string contents;
@@ -2546,6 +2556,18 @@ void logos::rpc_handler::process ()
                     response_l.put ("result",
                                     ProcessResultToString(result.code));
                     response (response_l);
+                    break;
+                }
+                case logos::process_result::already_reserved:
+                {
+                    error_response (response,
+                                    ProcessResultToString(result.code));
+                    break;
+                }
+                case logos::process_result::initializing:
+                {
+                    error_response (response,
+                                    ProcessResultToString(result.code));
                     break;
                 }
                 default:

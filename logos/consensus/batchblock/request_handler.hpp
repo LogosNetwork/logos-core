@@ -14,9 +14,14 @@ class RequestHandler
 
 public:
 
+    RequestHandler();
+
     void OnRequest(std::shared_ptr<logos::state_block> block);
 
     BatchStateBlock & GetNextBatch();
+
+    void InsertFront(const BatchList & batches);
+    void PushBack(const BatchStateBlock & batch);
 
     void PopFront();
     bool BatchFull();
@@ -27,6 +32,7 @@ public:
 private:
 
     void InsertBlock(std::shared_ptr<logos::state_block> block);
+    void PushBackEmptyBatch();
 
     BatchList _batches;
     Handle    _handle;

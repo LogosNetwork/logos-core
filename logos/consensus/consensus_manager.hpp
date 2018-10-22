@@ -31,14 +31,16 @@ public:
 template<ConsensusType CT>
 class RequestPromoter
 {
+
 protected:
-    using Request     = RequestMessage<CT>;
-    using PrePrepare  = PrePrepareMessage<CT>;
+    using Request    = RequestMessage<CT>;
+    using PrePrepare = PrePrepareMessage<CT>;
+
 public:
 
     virtual void OnRequestReady(std::shared_ptr<Request> block) = 0;
-
     virtual void OnPrePrepare(const PrePrepare & block) = 0;
+    virtual void AcquirePrePrepare(const PrePrepare & message) {}
 
     virtual ~RequestPromoter() {}
 };
@@ -92,8 +94,7 @@ public:
 protected:
 
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;
-
-    static constexpr uint8_t DELIGATE_ID_MASK = 5;
+    static constexpr uint8_t DELIGATE_ID_MASK    = 5;
 
     virtual void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) = 0;
 
@@ -110,6 +111,7 @@ protected:
 
     void QueueRequest(std::shared_ptr<Request>);
 
+    virtual void OnDelegatesConnected();
     virtual void PrePreparePopFront() {};
     virtual void QueueRequestPrimary(std::shared_ptr<Request>) = 0;
     virtual void QueueRequestSecondary(std::shared_ptr<Request>);
@@ -135,11 +137,12 @@ protected:
             std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
 
     Connections                 _connections;
+    SecondaryRequestHandler<CT> _secondary_handler;
     DelegateKeyStore &          _key_store;
     MessageValidator &          _validator;
     std::mutex                  _connection_mutex;
     Log                         _log;
+    uint64_t                    _channels_bound = 0;
     uint8_t                     _delegate_id;
-    SecondaryRequestHandler<CT> _secondary_handler;             ///< Secondary queue of blocks.
 };
 

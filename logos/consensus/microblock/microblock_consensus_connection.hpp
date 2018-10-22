@@ -33,7 +33,7 @@ public:
     /// Validate PrePrepare message
     /// @param messasge PrePrepare message [in]
     /// @returns true on success
-    bool Validate(const PrePrepare & message) override;
+    bool DoValidate(const PrePrepare & message) override;
 
     /// Commit PrePrepare message to the database
     /// @param message PrePrepare message [in]

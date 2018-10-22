@@ -12,8 +12,10 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
     BlockHash Hash() const;
     std::string SerializeJson() const;
 
+    uint64_t  sequence;
     uint64_t  block_count = 0;
     BlockList blocks;
+    BlockHash next;
     Signature signature;
 };
 
@@ -75,13 +77,13 @@ template<ConsensusType CT>
 using PrepareMessage = StandardPhaseMessage<MessageType::Prepare, CT>;
 
 template<ConsensusType CT>
-using CommitMessage  = StandardPhaseMessage<MessageType::Commit, CT>;
+using CommitMessage = StandardPhaseMessage<MessageType::Commit, CT>;
 
 template<ConsensusType CT>
 using PostPrepareMessage = PostPhaseMessage<MessageType::Post_Prepare, CT>;
 
 template<ConsensusType CT>
-using PostCommitMessage  = PostPhaseMessage<MessageType::Post_Commit, CT>;
+using PostCommitMessage = PostPhaseMessage<MessageType::Post_Commit, CT>;
 
 // Number of bytes from the beginning of the
 // message that should be included in hashes
@@ -146,13 +148,3 @@ struct RequestMessage<CT,
 	typename std::enable_if< 
 		CT == ConsensusType::Epoch>::type> : PrePrepareMessage<ConsensusType::Epoch>
 {};
-
-enum class RejectionReason : uint8_t
-{
-    Old_Timestamp = 0
-};
-
-struct RejectionMessage
-{
-    RejectionReason reason;
-};

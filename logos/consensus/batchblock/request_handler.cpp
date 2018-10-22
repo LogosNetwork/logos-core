@@ -1,5 +1,19 @@
 #include <logos/consensus/batchblock/request_handler.hpp>
 
+#include <logos/lib/blocks.hpp>
+
+RequestHandler::RequestHandler()
+{
+    // After startup consensus is performed
+    // with an empty batch block.
+    //
+    _batches.push_back(BatchStateBlock());
+    _batches.push_back(BatchStateBlock());
+
+    _handle = _batches.end();
+    _handle--;
+}
+
 void RequestHandler::OnRequest(std::shared_ptr<logos::state_block> block)
 {
     if(_batches.empty())
@@ -14,6 +28,23 @@ void RequestHandler::OnRequest(std::shared_ptr<logos::state_block> block)
 BatchStateBlock & RequestHandler::GetNextBatch()
 {
     return _batches.front();
+}
+
+void RequestHandler::InsertFront(const BatchList & batches)
+{
+    _batches.insert(_batches.begin(), batches.begin(), batches.end());
+
+    if(_batches.size() == batches.size())
+    {
+        PushBackEmptyBatch();
+    }
+}
+
+void RequestHandler::PushBack(const BatchStateBlock & batch)
+{
+    _batches.insert(_batches.end(), batch);
+
+    PushBackEmptyBatch();
 }
 
 void RequestHandler::PopFront()
@@ -64,4 +95,14 @@ void RequestHandler::InsertBlock(std::shared_ptr<logos::state_block> block)
 
     _handle->blocks[_batch_index++] = *block;
     _handle->block_count++;
+}
+
+void RequestHandler::PushBackEmptyBatch()
+{
+    _batches.push_back(BatchStateBlock());
+
+    _handle = _batches.end();
+    _handle--;
+
+    _batch_index = 0;
 }

@@ -12,6 +12,17 @@ class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchSt
 {
 
     using BlockBuffer = std::list<std::shared_ptr<Request>>;
+    using Rejection   = RejectionMessage<ConsensusType::BatchStateBlock>;
+
+    struct Weights
+    {
+        using Delegates = std::unordered_set<uint8_t>;
+
+        uint64_t  reject_weight = 0;
+        Delegates supporting_delegates;
+    };
+
+    using WeightList = std::array<Weights, CONSENSUS_BATCH_SIZE>;
 
 public:
 
@@ -61,7 +72,8 @@ protected:
 
     /// Checks if the system is ready to initiate consensus.
     ///
-    ///  The extended override does additional processing if _using_buffered_blocks is true
+    ///  The extended override does additional processing if
+    ///  _using_buffered_blocks is true.
     ///      @return true if ready false otherwise.
     bool ReadyForConsensus() override;
 
@@ -130,8 +142,19 @@ protected:
 
 private:
 
-    bool                    _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
-    BlockBuffer             _buffer;                        ///< Buffered state blocks.
-    RequestHandler          _handler;                       ///< Primary queue of batch state blocks.
-    PersistenceManager		_persistence_manager;			///< Database interface and request validation
+    void AcquirePrePrepare(const PrePrepare & message) override;
+
+    void OnRejection(const Rejection & message) override;
+    void OnStateAdvanced() override;
+    void OnPrePrepareRejected() override;
+
+    void OnDelegatesConnected() override;
+
+    WeightList         _weights;
+    bool               _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
+    BlockBuffer        _buffer;                        ///< Buffered state blocks.
+    RequestHandler     _handler;                       ///< Primary queue of batch state blocks.
+    PersistenceManager _persistence_manager;		   ///< Database interface and request validation
+    Service &          _service;
+    uint64_t           _sequence = 0;
 };

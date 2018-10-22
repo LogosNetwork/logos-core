@@ -1234,7 +1234,7 @@ _consensus_container(service_a, store, alarm_a, log, config, _archiver)
 
 // Used to modify the database file with the new account_info field.
 // TODO: remove eventually - can be reused for now
-//    std::ifstream infile("/home/ubuntu/Downloads/blocks1600_accounts");
+//    std::ifstream infile("/home/ubuntu/Downloads/blocks3200_accounts");
 //    std::string line;
 //    {
 //        logos::transaction transaction(store.environment, nullptr, true);
@@ -1249,6 +1249,8 @@ _consensus_container(service_a, store, alarm_a, log, config, _archiver)
 //                std::cout << "FAILED TO FIND ACCOUNT: " << a.to_string() << std::endl;
 //                continue;
 //            }
+//            if(info.balance.number() > 0)
+//                std::cout << "Account balance: " << info.balance.number() << std::endl;
 //            //store.account_put(a, info, transaction);
 //            // process pair (a,b)
 //        }
@@ -1443,6 +1445,7 @@ _consensus_container(service_a, store, alarm_a, log, config, _archiver)
                                          0,         // previous
                                          pair.pub,  // representative
                                          amount,
+                                         0,
                                          pair.pub,  // link
                                          pair.prv,
                                          pair.pub,
