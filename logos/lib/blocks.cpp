@@ -75,14 +75,21 @@ logos::state_hashables::state_hashables ()
     previous.clear();
     representative.clear();
     amount.clear();
+    transaction_fee.clear();
     link.clear();
 }
 
-logos::state_hashables::state_hashables (logos::account const & account_a, logos::block_hash const & previous_a, logos::account const & representative_a, logos::amount const & amount_a, logos::uint256_union const & link_a) :
+logos::state_hashables::state_hashables (logos::account const & account_a,
+                                         logos::block_hash const & previous_a,
+                                         logos::account const & representative_a,
+                                         logos::amount const & amount_a,
+                                         logos::amount const & transaction_fee,
+                                         logos::uint256_union const & link_a) :
 account (account_a),
 previous (previous_a),
 representative (representative_a),
 amount (amount_a),
+transaction_fee(transaction_fee),
 link (link_a)
 {}
 
@@ -100,7 +107,11 @@ logos::state_hashables::state_hashables (bool & error_a, logos::stream & stream_
                 error_a = logos::read (stream_a, amount);
                 if (!error_a)
                 {
-                    error_a = logos::read (stream_a, link);
+                    error_a = logos::read (stream_a, transaction_fee);
+                    if (!error_a)
+                    {
+                        error_a = logos::read (stream_a, link);
+                    }
                 }
             }
         }
@@ -114,7 +125,8 @@ logos::state_hashables::state_hashables (bool & error_a, boost::property_tree::p
         auto account_l (tree_a.get<std::string> ("account"));
         auto previous_l (tree_a.get<std::string> ("previous"));
         auto representative_l (tree_a.get<std::string> ("representative"));
-        auto balance_l (tree_a.get<std::string> ("amount"));
+        auto amount_l (tree_a.get<std::string> ("amount"));
+        auto fee_l (tree_a.get<std::string> ("amount"));
         auto link_l (tree_a.get<std::string> ("link"));
         error_a = account.decode_account (account_l);
         if (!error_a)
@@ -125,10 +137,14 @@ logos::state_hashables::state_hashables (bool & error_a, boost::property_tree::p
                 error_a = representative.decode_account (representative_l);
                 if (!error_a)
                 {
-                    error_a = amount.decode_dec (balance_l);
+                    error_a = amount.decode_dec (amount_l);
                     if (!error_a)
                     {
-                        error_a = link.decode_account (link_l) && link.decode_hex (link_l);
+                        error_a = transaction_fee.decode_dec (fee_l);
+                        if (!error_a)
+                        {
+                            error_a = link.decode_account (link_l) && link.decode_hex (link_l);
+                        }
                     }
                 }
             }
@@ -146,6 +162,7 @@ void logos::state_hashables::hash (blake2b_state & hash_a) const
     blake2b_update (&hash_a, previous.bytes.data (), sizeof (previous.bytes));
     blake2b_update (&hash_a, representative.bytes.data (), sizeof (representative.bytes));
     blake2b_update (&hash_a, amount.bytes.data (), sizeof (amount.bytes));
+    blake2b_update (&hash_a, transaction_fee.bytes.data (), sizeof (transaction_fee.bytes));
     blake2b_update (&hash_a, link.bytes.data (), sizeof (link.bytes));
 }
 
@@ -153,12 +170,18 @@ logos::state_block::state_block (logos::account const & account_a,
                                  logos::block_hash const & previous_a,
                                  logos::account const & representative_a,
                                  logos::amount const & amount_a,
+                                 logos::amount const & transaction_fee,
                                  logos::uint256_union const & link_a,
                                  logos::raw_key const & prv_a,
                                  logos::public_key const & pub_a,
                                  uint64_t work_a,
                                  uint64_t timestamp)
-    : hashables (account_a, previous_a, representative_a, amount_a, link_a)
+    : hashables (account_a,
+                 previous_a,
+                 representative_a,
+                 amount_a,
+                 transaction_fee,
+                 link_a)
     , signature (logos::sign_message (prv_a, pub_a, hash ()))
     , work (work_a)
     , timestamp(timestamp)
@@ -252,6 +275,7 @@ void logos::state_block::serialize (logos::stream & stream_a) const
     write (stream_a, hashables.previous);
     write (stream_a, hashables.representative);
     write (stream_a, hashables.amount);
+    write (stream_a, hashables.transaction_fee);
     write (stream_a, hashables.link);
     write (stream_a, signature);
     write (stream_a, boost::endian::native_to_big (work));
@@ -275,6 +299,7 @@ boost::property_tree::ptree logos::state_block::serialize_json () const
     tree.put ("previous", hashables.previous.to_string ());
     tree.put ("representative", representative ().to_account ());
     tree.put ("amount", hashables.amount.to_string_dec ());
+    tree.put ("transaction_fee", hashables.transaction_fee.to_string_dec ());
     tree.put ("link", hashables.link.to_string ());
     tree.put ("link_as_account", hashables.link.to_account ());
     std::string signature_l;
@@ -300,18 +325,22 @@ bool logos::state_block::deserialize (logos::stream & stream_a)
                 error = read (stream_a, hashables.amount);
                 if (!error)
                 {
-                    error = read (stream_a, hashables.link);
+                    error = read (stream_a, hashables.transaction_fee);
                     if (!error)
                     {
-                        error = read (stream_a, signature);
+                        error = read (stream_a, hashables.link);
                         if (!error)
                         {
-                            error = read (stream_a, work);
-                            boost::endian::big_to_native_inplace (work);
+                            error = read (stream_a, signature);
                             if (!error)
                             {
-                                error = read (stream_a, timestamp);
-                                boost::endian::big_to_native_inplace (timestamp);
+                                error = read (stream_a, work);
+                                boost::endian::big_to_native_inplace (work);
+                                if (!error)
+                                {
+                                    error = read (stream_a, timestamp);
+                                    boost::endian::big_to_native_inplace (timestamp);
+                                }
                             }
                         }
                     }
@@ -331,7 +360,7 @@ bool logos::state_block::deserialize_json (boost::property_tree::ptree const & t
         auto account_l (tree_a.get<std::string> ("account"));
         auto previous_l (tree_a.get<std::string> ("previous"));
         auto representative_l (tree_a.get<std::string> ("representative"));
-        auto balance_l (tree_a.get<std::string> ("balance"));
+        auto amount_l (tree_a.get<std::string> ("amount"));
         auto link_l (tree_a.get<std::string> ("link"));
         auto work_l (tree_a.get<std::string> ("work"));
         auto signature_l (tree_a.get<std::string> ("signature"));
@@ -345,27 +374,31 @@ bool logos::state_block::deserialize_json (boost::property_tree::ptree const & t
                 error = hashables.representative.decode_account (representative_l);
                 if (!error)
                 {
-                    error = hashables.amount.decode_dec (balance_l);
+                    error = hashables.amount.decode_dec (amount_l);
                     if (!error)
                     {
-                        error = hashables.link.decode_account (link_l) && hashables.link.decode_hex (link_l);
+                        error = hashables.transaction_fee.decode_dec (amount_l);
                         if (!error)
                         {
-                            error = logos::from_string_hex (work_l, work);
+                            error = hashables.link.decode_account (link_l) && hashables.link.decode_hex (link_l);
                             if (!error)
                             {
-                                error = signature.decode_hex (signature_l);
+                                error = logos::from_string_hex (work_l, work);
                                 if (!error)
                                 {
-                                    try
+                                    error = signature.decode_hex (signature_l);
+                                    if (!error)
                                     {
-                                        timestamp = timestamp_l.is_initialized() ?
-                                                    std::stoull(timestamp_l.get()) :
-                                                    0;
-                                    }
-                                    catch(std::logic_error const &)
-                                    {
-                                        error = true;
+                                        try
+                                        {
+                                            timestamp = timestamp_l.is_initialized() ?
+                                                        std::stoull(timestamp_l.get()) :
+                                                        0;
+                                        }
+                                        catch(std::logic_error const &)
+                                        {
+                                            error = true;
+                                        }
                                     }
                                 }
                             }
@@ -403,6 +436,7 @@ bool logos::state_block::operator== (logos::state_block const & other_a) const
            hashables.previous == other_a.hashables.previous &&
            hashables.representative == other_a.hashables.representative &&
            hashables.amount == other_a.hashables.amount &&
+           hashables.transaction_fee == other_a.hashables.transaction_fee &&
            hashables.link == other_a.hashables.link &&
            signature == other_a.signature &&
            work == other_a.work &&

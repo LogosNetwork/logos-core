@@ -53,7 +53,8 @@ void SecondaryRequestHandler<CT>::OnTimeout(const Error & error)
 
         if(error)
         {
-            BOOST_LOG(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT) << ">::OnTimeout - Error: "
+            BOOST_LOG(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT)
+                            << ">::OnTimeout - Error: "
                             << error.message();
         }
 
@@ -103,8 +104,10 @@ void SecondaryRequestHandler<CT>::PruneRequest(const logos::block_hash & hash)
 {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    if(_requests.get<1>().find(hash) != _requests.get<1>().end()) {
-        BOOST_LOG(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT) << ">::PruneRequests - "
+    if(_requests.get<1>().find(hash) != _requests.get<1>().end())
+    {
+        BOOST_LOG(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT)
+                        << ">::PruneRequests - "
                         << "Removing request with hash: "
                         << hash.to_string();
 

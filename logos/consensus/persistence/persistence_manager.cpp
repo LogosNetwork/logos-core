@@ -2,6 +2,8 @@
 #include <logos/consensus/persistence/state_block_locator.hpp>
 #include <logos/common.hpp>
 
+constexpr uint128_t PersistenceManager::MIN_TRANSACTION_FEE;
+
 PersistenceManager::PersistenceManager(Store & store)
     : _reservations(store)
     , _store(store)
@@ -11,24 +13,25 @@ void PersistenceManager::ApplyUpdates(const BatchStateBlock & message, uint8_t d
 {
     logos::transaction transaction(_store.environment, nullptr, true);
 
-    StoreBatchMessage(message, transaction);
-    ApplyBatchMessage(message, delegate_id, transaction);
+    StoreBatchMessage(message, transaction, delegate_id);
+    ApplyBatchMessage(message, transaction);
 }
 
-bool PersistenceManager::Validate(const logos::state_block & block, logos::process_return & result, uint8_t delegate_id)
+bool PersistenceManager::Validate(const logos::state_block & block,
+                                  logos::process_return & result,
+                                  bool allow_duplicates)
 {
     auto hash = block.hash();
-
-    // Have we seen this block before?
-    if(_store.state_block_exists(hash))
-    {
-        result.code = logos::process_result::old;
-        return false;
-    }
 
     if(block.hashables.account.is_zero())
     {
         result.code = logos::process_result::opened_burn_account;
+        return false;
+    }
+
+    if(block.hashables.transaction_fee.number() < MIN_TRANSACTION_FEE)
+    {
+        result.code = logos::process_result::insufficient_fee;
         return false;
     }
 
@@ -59,7 +62,32 @@ bool PersistenceManager::Validate(const logos::state_block & block, logos::proce
 
         if(block.hashables.previous != info.head)
         {
-            result.code = logos::process_result::fork;
+            // Allow duplicate requests (hash == info.head)
+            // received from batch blocks.
+            if(hash == info.head)
+            {
+                if(allow_duplicates)
+                {
+                    result.code = logos::process_result::progress;
+                    return true;
+                }
+                else
+                {
+                    result.code = logos::process_result::old;
+                    return false;
+                }
+            }
+            else
+            {
+                result.code = logos::process_result::fork;
+                return false;
+            }
+        }
+
+        // Have we seen this block before?
+        if(_store.state_block_exists(hash))
+        {
+            result.code = logos::process_result::old;
             return false;
         }
 
@@ -84,7 +112,8 @@ bool PersistenceManager::Validate(const logos::state_block & block, logos::proce
             }
         }
 
-        if(block.hashables.amount > info.balance)
+        if(block.hashables.amount.number() + block.hashables.transaction_fee.number()
+                > info.balance.number())
         {
             result.code = logos::process_result::balance_mismatch;
             return false;
@@ -109,15 +138,36 @@ bool PersistenceManager::Validate(const logos::state_block & block, logos::proce
     return true;
 }
 
-bool PersistenceManager::Validate(const logos::state_block & block, uint8_t delegate_id)
+bool PersistenceManager::Validate(const logos::state_block & block)
 {
     logos::process_return ignored_result;
-    return Validate(block, ignored_result, delegate_id);
+    return Validate(block, ignored_result);
 }
 
-void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message, MDB_txn * transaction)
+void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message,
+                                           MDB_txn * transaction,
+                                           uint8_t delegate_id)
 {
     auto hash(_store.batch_block_put(message, transaction));
+
+    BatchStateBlock prev;
+
+    if(_store.batch_block_get(message.previous, prev, transaction))
+    {
+        // TODO: bootstrap here.
+        //
+        if(!message.previous.is_zero())
+        {
+            BOOST_LOG(_log) << "PersistenceManager::StoreBatchMessage - "
+                            << "Failed to find previous: "
+                            << message.previous.to_string();
+        }
+    }
+    else
+    {
+        prev.next = hash;
+        _store.batch_block_put(prev, transaction);
+    }
 
     StateBlockLocator locator_template {hash, 0};
 
@@ -128,9 +178,11 @@ void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message, MDB_
                                locator_template,
                                transaction);
     }
+
+    _store.batch_tip_put(delegate_id, message.Hash(), transaction);
 }
 
-void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, uint8_t delegate_id, MDB_txn * transaction)
+void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, MDB_txn * transaction)
 {
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
@@ -141,8 +193,6 @@ void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, uint
         std::lock_guard<std::mutex> lock(_reservation_mutex);
         _reservations.Release(message.blocks[i].hashables.account);
     }
-
-    _store.batch_tip_put(delegate_id, message.Hash(), transaction);
 }
 
 // Currently designed only to handle
@@ -169,8 +219,17 @@ bool PersistenceManager::UpdateSourceState(const logos::state_block & block, MDB
         return true;
     }
 
+    // This can happen when a duplicate request
+    // is accepted. We can ignore this transaction.
+    if(block.hashables.previous != info.head)
+    {
+        return true;
+    }
+
     info.block_count++;
-    info.balance = info.balance.number() - block.hashables.amount.number();
+    info.balance = info.balance.number() -
+                   block.hashables.amount.number() -
+                   block.hashables.transaction_fee.number();
     info.head = block.hash();
     info.modified = logos::seconds_since_epoch();
 
@@ -184,6 +243,11 @@ void PersistenceManager::UpdateDestinationState(
         uint64_t timestamp,
         MDB_txn * transaction)
 {
+    // Protects against a race condition concerning
+    // simultaneous receives for the same account.
+    //
+    std::lock_guard<std::mutex> lock(_destination_mutex);
+
     logos::account_info info;
     auto account_error(_store.account_get(block.hashables.link, info));
 
@@ -192,6 +256,7 @@ void PersistenceManager::UpdateDestinationState(
             /* Previous  */ info.receive_head,
             /* Rep       */ 0,
             /* Amount    */ block.hashables.amount,
+            /* Amount    */ block.hashables.transaction_fee,
             /* Link      */ block.hash(),
             /* Priv Key  */ logos::raw_key(),
             /* Pub Key   */ logos::public_key(),
@@ -244,7 +309,9 @@ void PersistenceManager::PlaceReceive(
         while(receive_cmp(receive, cur))
         {
             prev = cur;
-            if(!_store.state_block_get(cur.hashables.previous, cur, transaction))
+            if(!_store.state_block_get(cur.hashables.previous,
+                                       cur,
+                                       transaction))
             {
                 break;
             }

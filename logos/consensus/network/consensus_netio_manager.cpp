@@ -43,14 +43,17 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
         {
             std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
 
-            _connections.push_back(std::make_shared<ConsensusNetIO>(
-                service, endpoint, _alarm,
-                delegate.id, _delegate_id, _key_store, _validator,
-                std::bind(&ConsensusNetIOManager::BindIOChannel,
-                          this,
-                          std::placeholders::_1,
-                          std::placeholders::_2),
-                          _connection_mutex));
+            auto bc = [this](std::shared_ptr<ConsensusNetIO> netio,
+                             uint8_t id)
+                      {
+                          BindIOChannel(netio, id);
+                      };
+
+            _connections.push_back(
+                std::make_shared<ConsensusNetIO>(
+                        service, endpoint, _alarm, delegate.id,
+                        _delegate_id, _key_store, _validator,
+                        bc, _connection_mutex));
         }
         else
         {
@@ -76,16 +79,22 @@ ConsensusNetIOManager::OnConnectionAccepted(
 
     // remote delegate id is piggy backed to the public key message and
     // is updated when the public key message is received
-    uint8_t remote_delegate_id = (entry != _delegates.end()) ? entry->id : 0;
+    uint8_t remote_delegate_id = entry != _delegates.end() ?
+                                 entry->id : 0;
 
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
-    _connections.push_back(std::make_shared<ConsensusNetIO>(
-		socket, endpoint, _alarm, 
-        remote_delegate_id, _delegate_id, _key_store, _validator,
-        std::bind(&ConsensusNetIOManager::BindIOChannel, 
-				  this, 
-				  std::placeholders::_1, 
-            	  std::placeholders::_2), _connection_mutex));
+
+    auto bc = [this](std::shared_ptr<ConsensusNetIO> netio,
+                     uint8_t id)
+              {
+                  BindIOChannel(netio, id);
+              };
+
+    _connections.push_back(
+            std::make_shared<ConsensusNetIO>(
+                socket, endpoint, _alarm, remote_delegate_id,
+                _delegate_id, _key_store, _validator,
+                bc, _connection_mutex));
 }
 
 void

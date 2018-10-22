@@ -102,12 +102,14 @@ MicroBlockTester::precreate_account(
   logos::keypair pair;
 
   logos::amount amount(100000);
+  logos::amount fee(1000);
   uint64_t work = 0;
 
   logos::state_block state(pair.pub,  // account
                            0,         // previous
                            pair.pub,  // representative
                            amount,
+                           fee,
                            pair.pub,  // link
                            pair.prv,
                            pair.pub,

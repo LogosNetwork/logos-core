@@ -12,6 +12,7 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
                                              const DelegateIdentities & ids)
     : _iochannel(iochannel)
     , _delegate_ids(ids)
+    , _reason(RejectionReason::Void)
     , _validator(validator)
     , _primary(primary)
     , _promoter(promoter)
@@ -60,6 +61,12 @@ void ConsensusConnection<CT>::OnData()
                                    std::bind(&ConsensusConnection<CT>::OnMessage, this,
                                              std::placeholders::_1));
             break;
+        case MessageType::Rejection:
+            _iochannel->AsyncRead(sizeof(Rejection) -
+                                  sizeof(Prequel),
+                                   std::bind(&ConsensusConnection<CT>::OnMessage, this,
+                                             std::placeholders::_1));
+            break;
         case MessageType::Key_Advert:
         case MessageType::Unknown:
             BOOST_LOG(_log) << "ConsensusConnection - Error - Received "
@@ -88,28 +95,39 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
 
     switch (type)
     {
-        case MessageType::Pre_Prepare: {
+        case MessageType::Pre_Prepare:
+        {
             auto msg (*reinterpret_cast<const PrePrepare*>(_receive_buffer.data()));
             OnConsensusMessage(msg);
             break;
         }
-        case MessageType::Prepare: {
+        case MessageType::Prepare:
+        {
             auto msg (*reinterpret_cast<const Prepare*>(_receive_buffer.data()));
             OnConsensusMessage(msg);
             break;
         }
-        case MessageType::Post_Prepare: {
+        case MessageType::Post_Prepare:
+        {
             auto msg (*reinterpret_cast<const PostPrepare*>(_receive_buffer.data()));
             OnConsensusMessage(msg);
             break;
         }
-        case MessageType::Commit: {
+        case MessageType::Commit:
+        {
             auto msg (*reinterpret_cast<const Commit*>(_receive_buffer.data()));
             OnConsensusMessage(msg);
             break;
         }
-        case MessageType::Post_Commit: {
+        case MessageType::Post_Commit:
+        {
             auto msg (*reinterpret_cast<const PostCommit*>(_receive_buffer.data()));
+            OnConsensusMessage(msg);
+            break;
+        }
+        case MessageType::Rejection:
+        {
+            auto msg (*reinterpret_cast<const Rejection*>(_receive_buffer.data()));
             OnConsensusMessage(msg);
             break;
         }
@@ -124,20 +142,25 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
 template<ConsensusType CT>
 void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
 {
+    _pre_prepare_timestamp = message.timestamp;
+    _pre_prepare_hash = message.Hash();
+
     if(ProceedWithMessage(message, ConsensusState::VOID))
     {
         _state = ConsensusState::PREPARE;
 
         {
             std::lock_guard<std::mutex> lock(_mutex);
-            _cur_pre_prepare.reset(new PrePrepare(message));
+            _pre_prepare.reset(new PrePrepare(message));
         }
 
-        OnPrePrepare(*_cur_pre_prepare);
-
-        _cur_pre_prepare_hash = message.Hash();
-
+        OnPrePrepare(*_pre_prepare);
         SendMessage<PrepareMessage<CT>>();
+    }
+    else
+    {
+        Reject();
+        ResetRejectionStatus();
     }
 }
 
@@ -149,6 +172,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostPrepare & message)
         _state = ConsensusState::COMMIT;
 
         SendMessage<CommitMessage<CT>>();
+        HandlePostPrepare(message);
     }
 }
 
@@ -157,32 +181,55 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
 {
     if(ProceedWithMessage(message))
     {
-        assert(_cur_pre_prepare);
+        assert(_pre_prepare);
 
-        ApplyUpdates(*_cur_pre_prepare, _delegate_ids.remote);
+        ApplyUpdates(*_pre_prepare, _delegate_ids.remote);
         _state = ConsensusState::VOID;
     }
 }
 
 template<ConsensusType CT>
-template<MessageType MT>
-void ConsensusConnection<CT>::OnConsensusMessage(const SPMessage<MT> & message)
+template<typename M>
+void ConsensusConnection<CT>::OnConsensusMessage(const M & message)
 {
     _primary.OnConsensusMessage(message, _delegate_ids.remote);
 }
 
 template<ConsensusType CT>
-template<typename MSG>
-bool ConsensusConnection<CT>::Validate(const MSG & message)
+bool ConsensusConnection<CT>::Validate(const PrePrepare & message)
+{
+    if(!_validator.Validate(message, _delegate_ids.remote))
+    {
+        _reason = RejectionReason::Bad_Signature;
+        return false;
+    }
+
+    if(!ValidateTimestamp(message))
+    {
+        _reason = RejectionReason::Clock_Drift;
+        return false;
+    }
+
+    if(!DoValidate(message))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+template<ConsensusType CT>
+template<typename M>
+bool ConsensusConnection<CT>::Validate(const M & message)
 {
     if(_state == ConsensusState::PREPARE)
     {
-        return _validator.Validate(message, *_cur_prepare);
+        return ValidateSignature(message, *_prepare);
     }
 
     if(_state == ConsensusState::COMMIT)
     {
-        return _validator.Validate(message, *_cur_commit);
+        return ValidateSignature(message, *_commit);
     }
 
     BOOST_LOG(_log) << "ConsensusConnection - Attempting to validate "
@@ -193,8 +240,37 @@ bool ConsensusConnection<CT>::Validate(const MSG & message)
 }
 
 template<ConsensusType CT>
-template<typename MSG>
-bool ConsensusConnection<CT>::ProceedWithMessage(const MSG & message,
+template<typename M, typename S>
+bool ConsensusConnection<CT>::ValidateSignature(const M & m, const S & s)
+{
+    if(!_validator.Validate(m, s))
+    {
+        _reason = RejectionReason::Bad_Signature;
+        return false;
+    }
+
+    return true;
+}
+
+template<ConsensusType CT>
+bool ConsensusConnection<CT>::ValidateTimestamp(const PrePrepare & message)
+{
+    auto now = GetStamp();
+    auto ts = message.timestamp;
+
+    auto drift = now > ts ? now - ts : ts - now;
+
+    if(drift > MAX_CLOCK_DRIFT_MS)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+template<ConsensusType CT>
+template<typename M>
+bool ConsensusConnection<CT>::ProceedWithMessage(const M & message,
                                                  ConsensusState expected_state)
 {
     if(_state != expected_state)
@@ -203,12 +279,12 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const MSG & message,
                         << " message while in " << StateToString(_state);
     }
 
-    if(Validate(message))
+    if(!Validate(message))
     {
-        return true;
+        return false;
     }
 
-    return false;
+    return true;
 }
 
 template<ConsensusType CT>
@@ -222,24 +298,13 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const PostCommit & message)
 
     if(Validate(message))
     {
+        _sequence_number++;
+        _previous_hash = message.previous;
+
         return true;
     }
 
     return false;
-}
-
-template<ConsensusType CT>
-template<typename MSG>
-void ConsensusConnection<CT>::SendMessage()
-{
-    MSG response(_cur_pre_prepare->timestamp);
-
-    response.previous = _cur_pre_prepare_hash;
-    _validator.Sign(response);
-
-    StoreResponse(response);
-
-    Send(response);
 }
 
 template<ConsensusType CT>
@@ -253,13 +318,17 @@ void ConsensusConnection<CT>::SendKeyAdvertisement()
 template<ConsensusType CT>
 void ConsensusConnection<CT>::StoreResponse(const Prepare & message)
 {
-    _cur_prepare.reset(new Prepare(message));
+    _prepare.reset(new Prepare(message));
 }
+
+template<ConsensusType CT>
+void ConsensusConnection<CT>::StoreResponse(const Rejection & message)
+{}
 
 template<ConsensusType CT>
 void ConsensusConnection<CT>::StoreResponse(const Commit & message)
 {
-    _cur_commit.reset(new Commit(message));
+    _commit.reset(new Commit(message));
 }
 
 template<ConsensusType CT>
@@ -273,9 +342,30 @@ template<ConsensusType CT>
 void ConsensusConnection<CT>::OnPrePrepare(const PrePrepare & message)
 {
     _promoter.OnPrePrepare(message);
+    HandlePrePrepare(message);
 }
+
+template<ConsensusType CT>
+void ConsensusConnection<CT>::HandlePrePrepare(const PrePrepare & message)
+{}
+
+template<ConsensusType CT>
+void ConsensusConnection<CT>::HandlePostPrepare(const PostPrepare & message)
+{}
+
+template<ConsensusType CT>
+template<typename M>
+void ConsensusConnection<CT>::UpdateMessage(M & message)
+{}
+
+template<ConsensusType CT>
+void ConsensusConnection<CT>::Reject()
+{}
+
+template<ConsensusType CT>
+void ConsensusConnection<CT>::ResetRejectionStatus()
+{}
 
 template class ConsensusConnection<ConsensusType::BatchStateBlock>;
 template class ConsensusConnection<ConsensusType::MicroBlock>;
 template class ConsensusConnection<ConsensusType::Epoch>;
-

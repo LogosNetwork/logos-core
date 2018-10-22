@@ -14,10 +14,10 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
                                        DelegateKeyStore & key_store,
                                        MessageValidator & validator)
     : PrimaryDelegate(service, validator)
+    , _secondary_handler(service, *this)
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
-    , _secondary_handler(service, *this)
 {}
 
 template<ConsensusType CT>
@@ -32,7 +32,13 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
                      << ">::OnSendRequest() - hash: "
                      << hash.to_string();
 
-    if (IsPendingRequest(block))
+    if(_state == ConsensusState::INITIALIZING)
+    {
+        result.code = logos::process_result::initializing;
+        return;
+    }
+
+    if(IsPendingRequest(block))
     {
         result.code = logos::process_result::pending;
         BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT)
@@ -64,8 +70,7 @@ void ConsensusManager<CT>::OnRequestQueued()
 }
 
 template<ConsensusType CT>
-void
-ConsensusManager<CT>::OnRequestReady(
+void ConsensusManager<CT>::OnRequestReady(
     std::shared_ptr<Request> block)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
@@ -75,8 +80,7 @@ ConsensusManager<CT>::OnRequestReady(
 }
 
 template<ConsensusType CT>
-void
-ConsensusManager<CT>::OnPrePrepare(
+void ConsensusManager<CT>::OnPrePrepare(
     const PrePrepare & block)
 {
     _secondary_handler.OnPrePrepare(block);
@@ -180,6 +184,11 @@ ConsensusManager<CT>::QueueRequest(
 
 template<ConsensusType CT>
 void
+ConsensusManager<CT>::OnDelegatesConnected()
+{}
+
+template<ConsensusType CT>
+void
 ConsensusManager<CT>::QueueRequestSecondary(
     std::shared_ptr<Request> request)
 {
@@ -213,6 +222,12 @@ ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
 {
     auto connection = MakeConsensusConnection(iochannel, ids);
     _connections.push_back(connection);
+
+    if(++_channels_bound == QUORUM_SIZE)
+    {
+        OnDelegatesConnected();
+    }
+
     return connection;
 }
 

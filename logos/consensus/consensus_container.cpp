@@ -30,7 +30,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
 		_key_store, _validator)
 {}
 
-logos::process_return 
+logos::process_return
 ConsensusContainer::OnSendRequest(
     std::shared_ptr<logos::state_block> block, 
     bool should_buffer)
@@ -42,7 +42,6 @@ ConsensusContainer::OnSendRequest(
 	    result.code = logos::process_result::invalid_block_type;
 	    return result;
 	}
-
 
     using Request = RequestMessage<ConsensusType::BatchStateBlock>;
 
@@ -61,7 +60,7 @@ ConsensusContainer::OnSendRequest(
     return result;
 }
 
-void 
+void
 ConsensusContainer::BufferComplete(
     logos::process_return & result)
 {

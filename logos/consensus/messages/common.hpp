@@ -20,6 +20,7 @@ enum class MessageType : uint8_t
 
     // Other
     Key_Advert   = 5,
+    Rejection    = 6,
 
     // Invalid
     Unknown
@@ -63,6 +64,7 @@ using PublicKey    = std::array<uint8_t, CONSENSUS_PUB_KEY_SIZE>;
 using BlockList       = logos::state_block [CONSENSUS_BATCH_SIZE];
 using BlockHash       = logos::block_hash;
 using ParicipationMap = std::bitset<NUM_DELEGATES>;
+using RejectionMap    = std::bitset<CONSENSUS_BATCH_SIZE>;
 
 inline uint64_t GetStamp()
 {
