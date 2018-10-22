@@ -54,6 +54,14 @@ BatchBlockConsensusManager::BindIOChannel(
                     _validator, ids, _service);
 
     _connections.push_back(connection);
+	
+    if(++_channels_bound == QUORUM_SIZE)
+    {
+        BOOST_LOG(_log) << "CALLING ONDELEGATESCONNECTED()";
+
+        OnDelegatesConnected();
+    }
+
     return connection;
 }
 

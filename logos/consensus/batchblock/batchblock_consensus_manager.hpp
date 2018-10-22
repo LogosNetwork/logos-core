@@ -148,7 +148,7 @@ private:
     void OnStateAdvanced() override;
     void OnPrePrepareRejected() override;
 
-    void OnDelegatesConnected() override;
+    void OnDelegatesConnected();
 
     WeightList         _weights;
     bool               _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
@@ -156,5 +156,6 @@ private:
     RequestHandler     _handler;                       ///< Primary queue of batch state blocks.
     PersistenceManager _persistence_manager;		   ///< Database interface and request validation
     Service &          _service;
-    uint64_t           _sequence = 0;
+    uint64_t           _sequence       = 0;
+    uint64_t           _channels_bound = 0;
 };
