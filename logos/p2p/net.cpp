@@ -384,12 +384,13 @@ void AsioSession::handle_read(std::shared_ptr<AsioSession>& s,
     }
 }
 
-AsioClient::AsioClient(CConnman *conn) : connman(conn), resolver(*conn->io_service)
+AsioClient::AsioClient(CConnman *conn, const char *nam, CSemaphoreGrant *grant, int fl)
+	: connman(conn), name(nam), grantOutbound(grant), flags(fl), resolver(*conn->io_service)
 {
 }
 
-void AsioClient::connect(const std::string &host, const std::string &service) {
-    resolver.async_resolve(host, service, boost::bind(&AsioClient::resolve_handler, this, _1, _2));
+void AsioClient::connect(const std::string &host, const std::string &port) {
+    resolver.async_resolve(host, port, boost::bind(&AsioClient::resolve_handler, this, _1, _2));
 }
 
 void AsioClient::resolve_handler(const boost::system::error_code& ec, boost::asio::ip::tcp::resolver::results_type results)
@@ -403,29 +404,83 @@ void AsioClient::resolve_handler(const boost::system::error_code& ec, boost::asi
     }
 }
 
+bool CConnman::ConnectNodeFinish(AsioClient *client, boost::asio::ip::tcp::socket &socket){
+    boost::asio::ip::tcp::endpoint endpoint = socket.remote_endpoint();
+    CService saddr = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
+    CAddress addr(saddr, NODE_NONE);
+
+    // It is possible that we already have a connection to the IP/port resolved to.
+    // In that case, drop the connection that was just created, and return the existing CNode instead.
+    // Also store the name we used to connect in that CNode, so that future FindNode() calls to that
+    // name catch this early.
+    if (client->name) {
+	LOCK(cs_vNodes);
+	CNode* pnode = FindNode(saddr);
+	if (pnode)
+	{
+	    pnode->MaybeSetAddrName(std::string(client->name));
+	    LogPrintf("Failed to open new connection, already connected\n");
+	    return false;
+	}
+    }
+
+    endpoint = socket.local_endpoint();
+    CService saddr_bind = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
+    CAddress addr_bind(saddr_bind, NODE_NONE);
+    SOCKET hSocket = socket.native_handle(); // TODO: replace native socket in Node by AsioSession
+
+    // Add node
+    NodeId id = GetNewNodeId();
+    uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
+    CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addr, CalculateKeyedNetGroup(addr), nonce, addr_bind,
+		client->name ? client->name : "", false);
+    pnode->AddRef();
+
+    if (client->grantOutbound)
+	client->grantOutbound->MoveTo(pnode->grantOutbound);
+    if (client->flags & CONN_ONE_SHOT)
+	pnode->fOneShot = true;
+    if (client->flags & CONN_FEELER)
+	pnode->fFeeler = true;
+    if (client->flags & CONN_MANUAL)
+	pnode->m_manual_connection = true;
+
+    LogPrint(BCLog::NET, "connection to %s (%s) established\n", (client->name ? client->name : ""),
+		saddr.ToString().c_str());
+
+    m_msgproc->InitializeNode(pnode);
+    {
+	LOCK(cs_vNodes);
+	vNodes.push_back(pnode);
+    }
+    return true;
+}
+
 void AsioClient::connect_handler(std::shared_ptr<AsioSession> session, const boost::system::error_code& ec,
 		const boost::asio::ip::tcp::endpoint& endpoint)
 {
     if (ec) {
 	LogPrintf("Connect error: %s", ec.message());
+    } else if (!connman->ConnectNodeFinish(this, session->get_socket())){
+	LogPrintf("Can't create connected node");
     } else {
 	session->start();
     }
-    // TODO: delete this
+    delete this;
 }
 
-CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, bool manual_connection)
+void CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, CSemaphoreGrant *grantOutbound, int flags)
 {
     if (pszDest == nullptr) {
         if (IsLocal(addrConnect))
-            return nullptr;
+	    return;
 
         // Look for an existing connection
         CNode* pnode = FindNode(static_cast<CService>(addrConnect));
         if (pnode)
         {
             LogPrintf("Failed to open new connection, already connected\n");
-            return nullptr;
+	    return;
         }
     }
 
@@ -434,31 +489,22 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         pszDest ? pszDest : addrConnect.ToString(),
         pszDest ? 0.0 : (double)(GetAdjustedTime() - addrConnect.nTime)/3600.0);
 
-    // Resolve
-    const int default_port = Params().GetDefaultPort();
+    AsioClient *client = new AsioClient(this, pszDest, grantOutbound, flags);
+    std::string host, port;
+
     if (pszDest) {
-        std::vector<CService> resolved;
-	if (Lookup(pszDest, resolved,  default_port, fNameLookup && !HaveNameProxy(), 256) && !resolved.empty()) {
-            addrConnect = CAddress(resolved[GetRand(resolved.size())], NODE_NONE);
-            if (!addrConnect.IsValid()) {
-                LogPrint(BCLog::NET, "Resolver returned invalid address %s for %s\n", addrConnect.ToString(), pszDest);
-                return nullptr;
-            }
-            // It is possible that we already have a connection to the IP/port pszDest resolved to.
-            // In that case, drop the connection that was just created, and return the existing CNode instead.
-            // Also store the name we used to connect in that CNode, so that future FindNode() calls to that
-            // name catch this early.
-            LOCK(cs_vNodes);
-            CNode* pnode = FindNode(static_cast<CService>(addrConnect));
-            if (pnode)
-            {
-                pnode->MaybeSetAddrName(std::string(pszDest));
-                LogPrintf("Failed to open new connection, already connected\n");
-                return nullptr;
-            }
-        }
+	int default_port = Params().GetDefaultPort();
+	SplitHostPort(std::string(pszDest), default_port, host);
+	port = std::to_string(default_port);
+    } else {
+	host = addrConnect.ToStringIP();
+	port = addrConnect.ToStringPort();
     }
 
+    client->connect(host, port);
+
+// TODO: add proxy for commented fragment below
+#if 0
     // Connect
     bool connected = false;
     SOCKET hSocket = INVALID_SOCKET;
@@ -499,15 +545,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         CloseSocket(hSocket);
         return nullptr;
     }
-
-    // Add node
-    NodeId id = GetNewNodeId();
-    uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
-    CAddress addr_bind = GetBindAddress(hSocket);
-    CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addrConnect, CalculateKeyedNetGroup(addrConnect), nonce, addr_bind, pszDest ? pszDest : "", false);
-    pnode->AddRef();
-
-    return pnode;
+#endif
 }
 
 void CConnman::DumpBanlist()
@@ -2028,24 +2066,9 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
     } else if (FindNode(std::string(pszDest)))
         return;
 
-    CNode* pnode = ConnectNode(addrConnect, pszDest, fCountFailure, manual_connection);
-
-    if (!pnode)
-        return;
-    if (grantOutbound)
-        grantOutbound->MoveTo(pnode->grantOutbound);
-    if (fOneShot)
-        pnode->fOneShot = true;
-    if (fFeeler)
-        pnode->fFeeler = true;
-    if (manual_connection)
-        pnode->m_manual_connection = true;
-
-    m_msgproc->InitializeNode(pnode);
-    {
-        LOCK(cs_vNodes);
-        vNodes.push_back(pnode);
-    }
+    int flags = (fOneShot ? CONN_ONE_SHOT : 0) | (fFeeler ? CONN_FEELER : 0)
+		| (manual_connection ? CONN_MANUAL : 0) | (fCountFailure ? CONN_FAILURE : 0);
+    ConnectNode(addrConnect, pszDest, grantOutbound, flags);
 }
 
 void CConnman::ThreadMessageHandler()

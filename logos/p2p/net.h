@@ -128,16 +128,26 @@ private:
 
 class CConnman;
 
+enum ConnFlags {
+	CONN_ONE_SHOT	= 1,
+	CONN_FEELER	= 2,
+	CONN_MANUAL	= 4,
+	CONN_FAILURE	= 8,
+};
+
 class AsioClient {
 public:
-    AsioClient(CConnman *conn);
-    void connect(const std::string &host, const std::string &service);
+    AsioClient(CConnman *conn, const char *nam, CSemaphoreGrant *grant, int fl);
+    void connect(const std::string &host, const std::string &port);
     void resolve_handler(const boost::system::error_code& ec,
 		boost::asio::ip::tcp::resolver::results_type results);
     void connect_handler(std::shared_ptr<AsioSession> session, const boost::system::error_code& ec,
 		const boost::asio::ip::tcp::endpoint& endpoint);
 private:
     CConnman *connman;
+    const char *name;
+    CSemaphoreGrant *grantOutbound;
+    int flags;
     boost::asio::ip::tcp::resolver resolver;
     friend class CConnman;
 };
@@ -390,7 +400,8 @@ private:
     CNode* FindNode(const CService& addr);
 
     bool AttemptToEvictConnection();
-    CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, bool manual_connection);
+    void ConnectNode(CAddress addrConnect, const char *pszDest, CSemaphoreGrant *grantOutbound, int flags);
+    bool ConnectNodeFinish(AsioClient *client, boost::asio::ip::tcp::socket &socket);
     bool IsWhitelistedRange(const CNetAddr &addr);
 
     void DeleteNode(CNode* pnode);
