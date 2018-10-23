@@ -10,9 +10,13 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
         Log & log,
         const Config & config,
         DelegateKeyStore & key_store,
-        MessageValidator & validator)
+        MessageValidator & validator,
+        const std::string & callback_address,
+        const uint16_t & callback_port,
+        const std::string & callback_target)
     : Manager(service, store, log,
-              config, key_store, validator)
+              config, key_store, validator,
+              callback_address, callback_port, callback_target)
     , _persistence_manager(store, log)
 {}
 
@@ -110,6 +114,7 @@ void
 BatchBlockConsensusManager::QueueRequestPrimary(
   std::shared_ptr<Request> request)
 {
+    BOOST_LOG(_log) << "BatchBlockConsensusManager::QueueRequestPrimary";
     _handler.OnRequest(request);
 }
 

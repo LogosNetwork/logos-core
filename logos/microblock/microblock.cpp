@@ -19,3 +19,15 @@ MicroBlock::Hash() const {
         cb(&_number_batch_blocks, sizeof(_number_batch_blocks));
     });
 }
+
+std::string MicroBlock::SerializeJson() const
+{
+    boost::property_tree::ptree micro_block;
+
+    micro_block.put("hash", Hash().to_string());
+    // TODO: add more block content here
+
+    std::stringstream ostream;
+    boost::property_tree::write_json(ostream, micro_block);
+    return ostream.str();
+}

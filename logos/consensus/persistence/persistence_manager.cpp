@@ -55,6 +55,8 @@ bool PersistenceManager::Validate(const logos::state_block & block, logos::proce
             if(!store.StateBlockExists(block.hashables.previous))
             {
                 result.code = logos::process_result::gap_previous;
+                BOOST_LOG (_log) << "GAP_PREVIOUS: cannot find previous hash " << block.hashables.previous.to_string()
+                                 << "; current account info head is: " << info.head.to_string();
                 return false;
             }
         }

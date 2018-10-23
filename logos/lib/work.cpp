@@ -153,7 +153,7 @@ void logos::work_pool::stop ()
 
 void logos::work_pool::generate (logos::uint256_union const & root_a, std::function<void(boost::optional<uint64_t> const &)> callback_a)
 {
-    assert (!root_a.is_zero ());
+//    assert (!root_a.is_zero ());
     boost::optional<uint64_t> result;
     if (opencl)
     {

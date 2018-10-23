@@ -29,7 +29,10 @@ public:
                                Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
-                               MessageValidator & validator);
+                               MessageValidator & validator,
+                               const std::string & callback_address,
+                               const uint16_t & callback_port,
+                               const std::string & callback_target);
 
     virtual ~BatchBlockConsensusManager() {};
 

@@ -235,10 +235,9 @@ void logos::rpc_handler::account_balance ()
     auto error (account.decode_account (account_text));
     if (!error)
     {
-        auto balance (node.balance_pending (account));
+        auto balance (node.balance (account));
         boost::property_tree::ptree response_l;
-        response_l.put ("balance", balance.first.convert_to<std::string> ());
-        response_l.put ("pending", balance.second.convert_to<std::string> ());
+        response_l.put ("balance", balance.convert_to<std::string> ());
         response (response_l);
     }
     else
@@ -314,7 +313,7 @@ void logos::rpc_handler::account_create ()
     }
 }
 
-void logos::rpc_handler::account_get ()
+void logos::rpc_handler::account_from_key ()
 {
     std::string key_text (request.get<std::string> ("key"));
     logos::uint256_union pub;
@@ -387,7 +386,7 @@ void logos::rpc_handler::account_info ()
     }
 }
 
-void logos::rpc_handler::account_key ()
+void logos::rpc_handler::account_to_key ()
 {
     std::string account_text (request.get<std::string> ("account"));
     logos::account account;
@@ -4322,9 +4321,9 @@ void logos::rpc_handler::process_request ()
         {
             account_create ();
         }
-        else if (action == "account_get")
+        else if (action == "account_from_key")
         {
-            account_get ();
+            account_from_key ();
         }
         else if (action == "account_history")
         {
@@ -4334,9 +4333,9 @@ void logos::rpc_handler::process_request ()
         {
             account_info ();
         }
-        else if (action == "account_key")
+        else if (action == "account_to_key")
         {
-            account_key ();
+            account_to_key ();
         }
         else if (action == "account_list")
         {

@@ -27,9 +27,13 @@ public:
 					      const Config & config,
                           DelegateKeyStore & key_store,
                           MessageValidator & validator,
-                          ArchiverEpochHandler & handler)
+                          ArchiverEpochHandler & handler,
+						  const std::string & callback_address,
+						  const uint16_t & callback_port,
+						  const std::string & callback_target)
 		: Manager(service, store, log,
-				  config, key_store, validator)
+				  config, key_store, validator,
+				  callback_address, callback_port, callback_target)
 		, _epoch_handler(handler)
 		, _enqueued(false)
 	{

@@ -10,6 +10,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
+#include <logos/lib/utility.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 
@@ -67,7 +68,10 @@ public:
                      Log & log,
                      const Config & config,
                      DelegateKeyStore & key_store,
-                     MessageValidator & validator);
+                     MessageValidator & validator,
+                     const std::string & callback_address,
+                     const uint16_t & callback_port,
+                     const std::string & callback_target);
 
     void OnSendRequest(std::shared_ptr<Request> block,
                        logos::process_return & result);
@@ -134,6 +138,7 @@ protected:
     virtual std::shared_ptr<ConsensusConnection<CT>> MakeConsensusConnection(
             std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
 
+    Service &                   _service;
     Connections                 _connections;
     DelegateKeyStore &          _key_store;
     MessageValidator &          _validator;
@@ -141,5 +146,13 @@ protected:
     Log                         _log;
     uint8_t                     _delegate_id;
     SecondaryRequestHandler<CT> _secondary_handler;             ///< Secondary queue of blocks.
+
+    /// For sending callbacks to observing clients.
+    /// TODO: migrate everything (and lambda function in consensus_manager.cpp) to a separate class under node
+    /// once P2P functionality is implemented.
+    const std::string &     _callback_address;
+    const uint16_t &        _callback_port;
+    const std::string &     _callback_target;
+    logos::observer_set<PrePrepare> _block_callback;
 };
 

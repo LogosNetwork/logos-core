@@ -30,6 +30,10 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
 
     /// Overide to mirror state_block
     BlockHash hash() const { return Hash(); }
+
+    /// JSON representation of MicroBlock (primarily for RPC messages)
+    std::string SerializeJson() const;
+
     static const size_t HASHABLE_BYTES;         ///< hashable bytes of the micrblock - used in signing
     //BlockHash           _merkle_root; 		    ///< Merkle root of the batch blocks included in this microblock
     logos::account      _delegate; 	            ///< Delegate who proposed this microblock
