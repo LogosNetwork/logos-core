@@ -112,21 +112,23 @@ struct CSerializedNetMsg
     std::string command;
 };
 
+class CConnman;
+
 class AsioSession : public std::enable_shared_from_this<AsioSession>
 {
 public:
-    AsioSession(boost::asio::io_service& ios) : socket(ios) {}
+    AsioSession(boost::asio::io_service& ios, CConnman *connman_) : socket(ios), connman(connman_), pnode(0) {}
     boost::asio::ip::tcp::socket& get_socket() { return socket; }
-    void start();
+    void start(CNode *pnode_);
     void handle_read(std::shared_ptr<AsioSession>& s, const boost::system::error_code& err,
 		size_t bytes_transferred);
 private:
     boost::asio::ip::tcp::socket socket;
-    enum { max_length = 1024 };
+    CConnman *connman;
+    CNode* pnode;
+    enum { max_length = 0x10000 };
     char data[max_length];
 };
-
-class CConnman;
 
 enum ConnFlags {
 	CONN_ONE_SHOT	= 1,
@@ -388,7 +390,8 @@ private:
     void ProcessOneShot();
     void ThreadOpenConnections(std::vector<std::string> connect);
     void ThreadMessageHandler();
-    bool AcceptConnection(const ListenSocket& hListenSocket, boost::asio::ip::tcp::socket &socket);
+    CNode *AcceptConnection(const ListenSocket& hListenSocket, boost::asio::ip::tcp::socket &socket);
+    bool AcceptReceivedBytes(CNode* pnode, const char *pchBuf, int nBytes);
     void ThreadSocketHandler();
     void ThreadDNSAddressSeed();
 
@@ -401,7 +404,7 @@ private:
 
     bool AttemptToEvictConnection();
     void ConnectNode(CAddress addrConnect, const char *pszDest, CSemaphoreGrant *grantOutbound, int flags);
-    bool ConnectNodeFinish(AsioClient *client, boost::asio::ip::tcp::socket &socket);
+    CNode *ConnectNodeFinish(AsioClient *client, boost::asio::ip::tcp::socket &socket);
     bool IsWhitelistedRange(const CNetAddr &addr);
 
     void DeleteNode(CNode* pnode);
@@ -502,6 +505,7 @@ private:
     friend struct CConnmanTest;
     friend class AsioClient;
     friend class AsioServer;
+    friend class AsioSession;
 };
 extern std::unique_ptr<CConnman> g_connman;
 void Discover();

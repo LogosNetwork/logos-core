@@ -362,8 +362,9 @@ static CAddress GetBindAddress(SOCKET sock)
     return addr_bind;
 }
 
-void AsioSession::start()
+void AsioSession::start(CNode *pnode_)
 {
+    pnode = pnode_;
     socket.async_read_some(boost::asio::buffer(data, max_length),
 		boost::bind(&AsioSession::handle_read, this, shared_from_this(),
 		boost::asio::placeholders::error,
@@ -373,14 +374,17 @@ void AsioSession::start()
 void AsioSession::handle_read(std::shared_ptr<AsioSession>& s,
 		const boost::system::error_code& err, size_t bytes_transferred)
 {
-    if (!err) {
-	LogPrintf("Received %d bytes", bytes_transferred); // TODO: use received bytes
+    if (err) {
+	LogPrintf("Error in receive: %s", err.message());
+	connman->AcceptReceivedBytes(pnode, data, -1);
+    } else if (!connman->AcceptReceivedBytes(pnode, data, bytes_transferred)) {
+	LogPrintf("Error in accept %d received bytes", bytes_transferred);
+    } else {
+	LogPrintf("Received %d bytes", bytes_transferred);
 	socket.async_read_some(boost::asio::buffer(data, max_length),
 		boost::bind(&AsioSession::handle_read, this, shared_from_this(),
 		boost::asio::placeholders::error,
 		boost::asio::placeholders::bytes_transferred));
-    } else {
-	LogPrintf("Error in receive: %s", err.message());
     }
 }
 
@@ -398,13 +402,13 @@ void AsioClient::resolve_handler(const boost::system::error_code& ec, boost::asi
     if (ec) {
 	LogPrintf("Resolve error: %s", ec.message());
     } else {
-	std::shared_ptr<AsioSession> session = std::make_shared<AsioSession>(*connman->io_service);
+	std::shared_ptr<AsioSession> session = std::make_shared<AsioSession>(*connman->io_service, connman);
 	boost::asio::async_connect(session->get_socket(), results,
 		boost::bind(&AsioClient::connect_handler, this, session, _1, _2));
     }
 }
 
-bool CConnman::ConnectNodeFinish(AsioClient *client, boost::asio::ip::tcp::socket &socket){
+CNode *CConnman::ConnectNodeFinish(AsioClient *client, boost::asio::ip::tcp::socket &socket){
     boost::asio::ip::tcp::endpoint endpoint = socket.remote_endpoint();
     CService saddr = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
     CAddress addr(saddr, NODE_NONE);
@@ -420,7 +424,7 @@ bool CConnman::ConnectNodeFinish(AsioClient *client, boost::asio::ip::tcp::socke
 	{
 	    pnode->MaybeSetAddrName(std::string(client->name));
 	    LogPrintf("Failed to open new connection, already connected\n");
-	    return false;
+	    return nullptr;
 	}
     }
 
@@ -453,18 +457,19 @@ bool CConnman::ConnectNodeFinish(AsioClient *client, boost::asio::ip::tcp::socke
 	LOCK(cs_vNodes);
 	vNodes.push_back(pnode);
     }
-    return true;
+    return pnode;
 }
 
 void AsioClient::connect_handler(std::shared_ptr<AsioSession> session, const boost::system::error_code& ec,
 		const boost::asio::ip::tcp::endpoint& endpoint)
 {
+    CNode *pnode;
     if (ec) {
 	LogPrintf("Connect error: %s", ec.message());
-    } else if (!connman->ConnectNodeFinish(this, session->get_socket())){
-	LogPrintf("Can't create connected node");
+    } else if (!(pnode = connman->ConnectNodeFinish(this, session->get_socket()))){
+	LogPrintf("Connected node already exists");
     } else {
-	session->start();
+	session->start(pnode);
     }
     delete this;
 }
@@ -503,7 +508,7 @@ void CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, CSemaphore
 
     client->connect(host, port);
 
-// TODO: add proxy for commented fragment below
+// TODO: add proxy support as in commented fragment below
 #if 0
     // Connect
     bool connected = false;
@@ -1149,7 +1154,7 @@ bool CConnman::AttemptToEvictConnection()
     return false;
 }
 
-bool CConnman::AcceptConnection(const ListenSocket& hListenSocket, boost::asio::ip::tcp::socket& socket) {
+CNode *CConnman::AcceptConnection(const ListenSocket& hListenSocket, boost::asio::ip::tcp::socket& socket) {
     int nInbound = 0;
     int nMaxInbound = nMaxConnections - (nMaxOutbound + nMaxFeeler);
 
@@ -1159,7 +1164,7 @@ bool CConnman::AcceptConnection(const ListenSocket& hListenSocket, boost::asio::
 
     if (!addr.IsIPv4() && !addr.IsIPv6()) {
 	LogPrintf("Warning: Unknown socket family\n");
-	return false;
+	return nullptr;
     }
 
     bool whitelisted = hListenSocket->whitelisted || IsWhitelistedRange(addr);
@@ -1172,13 +1177,13 @@ bool CConnman::AcceptConnection(const ListenSocket& hListenSocket, boost::asio::
 
     if (!fNetworkActive) {
         LogPrintf("connection from %s dropped: not accepting new connections\n", addr.ToString());
-	return false;
+	return nullptr;
     }
 
     if (IsBanned(addr) && !whitelisted)
     {
         LogPrint(BCLog::NET, "connection from %s dropped (banned)\n", addr.ToString());
-	return false;
+	return nullptr;
     }
 
     if (nInbound >= nMaxInbound)
@@ -1186,7 +1191,7 @@ bool CConnman::AcceptConnection(const ListenSocket& hListenSocket, boost::asio::
         if (!AttemptToEvictConnection()) {
             // No connection to evict, disconnect the new connection
             LogPrint(BCLog::NET, "failed to find an eviction candidate - connection dropped (full)\n");
-	    return false;
+	    return nullptr;
         }
     }
 
@@ -1210,14 +1215,14 @@ bool CConnman::AcceptConnection(const ListenSocket& hListenSocket, boost::asio::
         vNodes.push_back(pnode);
     }
 
-    return true;
+    return pnode;
 }
 
 AsioServer::AsioServer(CConnman *conn, boost::asio::ip::address &addr, short port, bool wlisted)
 	: connman(conn), acceptor(*conn->io_service, boost::asio::ip::tcp::endpoint(addr, port)),
 	  whitelisted(wlisted), in_shutdown(false)
 {
-    std::shared_ptr<AsioSession> session = std::make_shared<AsioSession>(*connman->io_service);
+    std::shared_ptr<AsioSession> session = std::make_shared<AsioSession>(*connman->io_service, connman);
     acceptor.async_accept(session->get_socket(),
 			boost::bind(&AsioServer::handle_accept, this, session,
 			boost::asio::placeholders::error));
@@ -1225,14 +1230,15 @@ AsioServer::AsioServer(CConnman *conn, boost::asio::ip::address &addr, short por
 
 void AsioServer::handle_accept(std::shared_ptr<AsioSession> session, const boost::system::error_code& err)
 {
+    CNode *pnode;
     if (err) {
 	LogPrintf("Error: can't accept connection: %s\n", err.message());
 	session.reset();
-    } else if (!connman->AcceptConnection(this, session->get_socket())) {
+    } else if (!(pnode = connman->AcceptConnection(this, session->get_socket()))) {
 	session.reset();
     } else {
-	session->start();
-	session = std::make_shared<AsioSession>(*connman->io_service);
+	session->start(pnode);
+	session = std::make_shared<AsioSession>(*connman->io_service, connman);
     }
     if (!in_shutdown) {
 	acceptor.async_accept(session->get_socket(),
@@ -1246,6 +1252,57 @@ void AsioServer::handle_accept(std::shared_ptr<AsioSession> session, const boost
 void AsioServer::shutdown() {
     acceptor.cancel();
     in_shutdown = true;
+}
+
+bool CConnman::AcceptReceivedBytes(CNode* pnode, const char *pchBuf, int nBytes) {
+    bool res = true;
+    if (nBytes > 0)
+    {
+	bool notify = false;
+	if (!pnode->ReceiveMsgBytes(pchBuf, nBytes, notify)) {
+	    pnode->CloseSocketDisconnect();
+	    res = false;
+	}
+	RecordBytesRecv(nBytes);
+	if (notify) {
+	    size_t nSizeAdded = 0;
+	    auto it(pnode->vRecvMsg.begin());
+	    for (; it != pnode->vRecvMsg.end(); ++it) {
+		if (!it->complete())
+		    break;
+		nSizeAdded += it->vRecv.size() + CMessageHeader::HEADER_SIZE;
+	    }
+	    {
+		LOCK(pnode->cs_vProcessMsg);
+		pnode->vProcessMsg.splice(pnode->vProcessMsg.end(), pnode->vRecvMsg, pnode->vRecvMsg.begin(), it);
+		pnode->nProcessQueueSize += nSizeAdded;
+		pnode->fPauseRecv = pnode->nProcessQueueSize > nReceiveFloodSize;
+	    }
+	    WakeMessageHandler();
+	}
+    }
+    else if (nBytes == 0)
+    {
+	// socket closed gracefully
+	if (!pnode->fDisconnect) {
+	    LogPrint(BCLog::NET, "socket closed\n");
+	}
+	pnode->CloseSocketDisconnect();
+	res = false;
+    }
+    else if (nBytes < 0)
+    {
+	// error
+	int nErr = WSAGetLastError();
+	if (nErr != WSAEWOULDBLOCK && nErr != WSAEMSGSIZE && nErr != WSAEINTR && nErr != WSAEINPROGRESS)
+	{
+	    if (!pnode->fDisconnect)
+		LogPrintf("socket recv error %s\n", NetworkErrorString(nErr));
+	    pnode->CloseSocketDisconnect();
+	    res = false;
+	}
+    }
+    return res;
 }
 
 void CConnman::ThreadSocketHandler()
@@ -1376,7 +1433,7 @@ void CConnman::ThreadSocketHandler()
                     continue;
                 }
                 if (select_recv) {
-                    FD_SET(pnode->hSocket, &fdsetRecv);
+		    //FD_SET(pnode->hSocket, &fdsetRecv);
                 }
             }
         }
@@ -1441,49 +1498,8 @@ void CConnman::ThreadSocketHandler()
                         continue;
                     nBytes = recv(pnode->hSocket, pchBuf, sizeof(pchBuf), MSG_DONTWAIT);
                 }
-                if (nBytes > 0)
-                {
-                    bool notify = false;
-                    if (!pnode->ReceiveMsgBytes(pchBuf, nBytes, notify))
-                        pnode->CloseSocketDisconnect();
-                    RecordBytesRecv(nBytes);
-                    if (notify) {
-                        size_t nSizeAdded = 0;
-                        auto it(pnode->vRecvMsg.begin());
-                        for (; it != pnode->vRecvMsg.end(); ++it) {
-                            if (!it->complete())
-                                break;
-                            nSizeAdded += it->vRecv.size() + CMessageHeader::HEADER_SIZE;
-                        }
-                        {
-                            LOCK(pnode->cs_vProcessMsg);
-                            pnode->vProcessMsg.splice(pnode->vProcessMsg.end(), pnode->vRecvMsg, pnode->vRecvMsg.begin(), it);
-                            pnode->nProcessQueueSize += nSizeAdded;
-                            pnode->fPauseRecv = pnode->nProcessQueueSize > nReceiveFloodSize;
-                        }
-                        WakeMessageHandler();
-                    }
-                }
-                else if (nBytes == 0)
-                {
-                    // socket closed gracefully
-                    if (!pnode->fDisconnect) {
-                        LogPrint(BCLog::NET, "socket closed\n");
-                    }
-                    pnode->CloseSocketDisconnect();
-                }
-                else if (nBytes < 0)
-                {
-                    // error
-                    int nErr = WSAGetLastError();
-                    if (nErr != WSAEWOULDBLOCK && nErr != WSAEMSGSIZE && nErr != WSAEINTR && nErr != WSAEINPROGRESS)
-                    {
-                        if (!pnode->fDisconnect)
-                            LogPrintf("socket recv error %s\n", NetworkErrorString(nErr));
-                        pnode->CloseSocketDisconnect();
-                    }
-                }
-            }
+		AcceptReceivedBytes(pnode, pchBuf, nBytes);
+	    }
 
             //
             // Send
