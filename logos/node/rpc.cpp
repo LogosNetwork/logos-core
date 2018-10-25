@@ -339,7 +339,6 @@ void logos::rpc_handler::account_info ()
     {
         const bool representative = request.get<bool> ("representative", false);
         const bool weight = request.get<bool> ("weight", false);
-        const bool pending = request.get<bool> ("pending", false);
         logos::transaction transaction (node.store.environment, nullptr, false);
         logos::account_info info;
 
@@ -357,22 +356,8 @@ void logos::rpc_handler::account_info ()
             response_l.put ("balance", balance);
             response_l.put ("modified_timestamp", std::to_string (info.modified));
             response_l.put ("block_count", std::to_string (info.block_count + info.receive_count));
-            if (representative)
-            {
-//                auto block (node.store.block_get (transaction, info.rep_block));
-//                assert (block != nullptr);
-//                response_l.put ("representative", block->representative ().to_account ());
-            }
-            if (weight)
-            {
-//                auto account_weight (node.ledger.weight (transaction, account));
-//                response_l.put ("weight", account_weight.convert_to<std::string> ());
-            }
-            if (pending)
-            {
-//                auto account_pending (node.ledger.account_pending (transaction, account));
-//                response_l.put ("pending", account_pending.convert_to<std::string> ());
-            }
+            if (representative) {}
+            if (weight) {}
             response (response_l);
         }
         else
