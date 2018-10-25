@@ -120,12 +120,15 @@ public:
     AsioSession(boost::asio::io_service& ios, CConnman *connman_) : socket(ios), connman(connman_), pnode(0) {}
     boost::asio::ip::tcp::socket& get_socket() { return socket; }
     void start(CNode *pnode_);
-    void handle_read(std::shared_ptr<AsioSession>& s, const boost::system::error_code& err,
-		size_t bytes_transferred);
+    void async_write(const char *buf, size_t bytes);
 private:
     boost::asio::ip::tcp::socket socket;
     CConnman *connman;
     CNode* pnode;
+    void handle_read(std::shared_ptr<AsioSession> s, const boost::system::error_code& err,
+		size_t bytes_transferred);
+    void handle_write(std::shared_ptr<AsioSession> s, const boost::system::error_code& err,
+		size_t bytes_transferred);
     enum { max_length = 0x10000 };
     char data[max_length];
 };
@@ -390,7 +393,7 @@ private:
     void ProcessOneShot();
     void ThreadOpenConnections(std::vector<std::string> connect);
     void ThreadMessageHandler();
-    CNode *AcceptConnection(const ListenSocket& hListenSocket, boost::asio::ip::tcp::socket &socket);
+    CNode *AcceptConnection(const ListenSocket& hListenSocket, std::shared_ptr<AsioSession> session);
     bool AcceptReceivedBytes(CNode* pnode, const char *pchBuf, int nBytes);
     void ThreadSocketHandler();
     void ThreadDNSAddressSeed();
@@ -404,14 +407,15 @@ private:
 
     bool AttemptToEvictConnection();
     void ConnectNode(CAddress addrConnect, const char *pszDest, CSemaphoreGrant *grantOutbound, int flags);
-    CNode *ConnectNodeFinish(AsioClient *client, boost::asio::ip::tcp::socket &socket);
+    CNode *ConnectNodeFinish(AsioClient *client, std::shared_ptr<AsioSession> session);
     bool IsWhitelistedRange(const CNetAddr &addr);
 
     void DeleteNode(CNode* pnode);
 
     NodeId GetNewNodeId();
 
-    size_t SocketSendData(CNode *pnode) const;
+    void SocketSendData(CNode *pnode);
+    bool SocketSendFinish(CNode *pnode, int nBytes);
     //!check is the banlist has unwritten changes
     bool BannedSetIsDirty();
     //!set the "dirty" flag for the banlist
@@ -679,7 +683,8 @@ class CNode
 public:
     // socket
     std::atomic<ServiceFlags> nServices;
-    SOCKET hSocket;
+    SOCKET hSocket; // TODO: remove it; replaced by session
+    std::shared_ptr<AsioSession> session;
     size_t nSendSize; // total size of all vSendMsg entries
     size_t nSendOffset; // offset inside the first vSendMsg already sent
     uint64_t nSendBytes;
@@ -736,6 +741,7 @@ public:
     std::atomic_bool fPauseRecv;
     std::atomic_bool fPauseSend;
     uint64_t next_propagate_index;
+    bool sendCompleted;
 protected:
 
     mapMsgCmdSize mapSendBytesPerMsgCmd;
@@ -784,7 +790,7 @@ public:
     CAmount lastSentFeeFilter;
     int64_t nextSendTimeFeeFilter;
 
-    CNode(NodeId id, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, SOCKET hSocketIn, const CAddress &addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string &addrNameIn = "", bool fInboundIn = false);
+    CNode(NodeId id, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, SOCKET hSocketIn, std::shared_ptr<AsioSession> sessionIn, const CAddress &addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string &addrNameIn = "", bool fInboundIn = false);
     ~CNode();
     CNode(const CNode&) = delete;
     CNode& operator=(const CNode&) = delete;

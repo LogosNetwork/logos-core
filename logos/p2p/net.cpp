@@ -371,9 +371,10 @@ void AsioSession::start(CNode *pnode_)
 		boost::asio::placeholders::bytes_transferred));
 }
 
-void AsioSession::handle_read(std::shared_ptr<AsioSession>& s,
+void AsioSession::handle_read(std::shared_ptr<AsioSession> s,
 		const boost::system::error_code& err, size_t bytes_transferred)
 {
+    LogPrintf("handle_read: number of shared_ptr refs: %ld", s.use_count());
     if (err) {
 	LogPrintf("Error in receive: %s", err.message());
 	connman->AcceptReceivedBytes(pnode, data, -1);
@@ -386,6 +387,27 @@ void AsioSession::handle_read(std::shared_ptr<AsioSession>& s,
 		boost::asio::placeholders::error,
 		boost::asio::placeholders::bytes_transferred));
     }
+}
+
+void AsioSession::handle_write(std::shared_ptr<AsioSession> s,
+		const boost::system::error_code& err, size_t bytes_transferred)
+{
+    LogPrintf("handle_write: number of shared_ptr refs: %ld", s.use_count());
+    if (err) {
+	LogPrintf("Error in transmit: %s", err.message());
+	connman->SocketSendFinish(pnode, -1);
+    } else if (!connman->SocketSendFinish(pnode, bytes_transferred)) {
+	LogPrintf("Error in accept %d transmitted bytes", bytes_transferred);
+    } else {
+	LogPrintf("Transmitted %d bytes", bytes_transferred);
+    }
+}
+
+void AsioSession::async_write(const char *buf, size_t bytes) {
+    boost::asio::async_write(socket, boost::asio::buffer(buf, bytes),
+		boost::bind(&AsioSession::handle_write, this, shared_from_this(),
+		boost::asio::placeholders::error,
+		boost::asio::placeholders::bytes_transferred));
 }
 
 AsioClient::AsioClient(CConnman *conn, const char *nam, CSemaphoreGrant *grant, int fl)
@@ -408,8 +430,8 @@ void AsioClient::resolve_handler(const boost::system::error_code& ec, boost::asi
     }
 }
 
-CNode *CConnman::ConnectNodeFinish(AsioClient *client, boost::asio::ip::tcp::socket &socket){
-    boost::asio::ip::tcp::endpoint endpoint = socket.remote_endpoint();
+CNode *CConnman::ConnectNodeFinish(AsioClient *client, std::shared_ptr<AsioSession> session){
+    boost::asio::ip::tcp::endpoint endpoint = session->get_socket().remote_endpoint();
     CService saddr = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
     CAddress addr(saddr, NODE_NONE);
 
@@ -428,15 +450,15 @@ CNode *CConnman::ConnectNodeFinish(AsioClient *client, boost::asio::ip::tcp::soc
 	}
     }
 
-    endpoint = socket.local_endpoint();
+    endpoint = session->get_socket().local_endpoint();
     CService saddr_bind = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
     CAddress addr_bind(saddr_bind, NODE_NONE);
-    SOCKET hSocket = socket.native_handle(); // TODO: replace native socket in Node by AsioSession
+    SOCKET hSocket = session->get_socket().native_handle(); // TODO: replace native socket in Node by AsioSession
 
     // Add node
     NodeId id = GetNewNodeId();
     uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
-    CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addr, CalculateKeyedNetGroup(addr), nonce, addr_bind,
+    CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, session, addr, CalculateKeyedNetGroup(addr), nonce, addr_bind,
 		client->name ? client->name : "", false);
     pnode->AddRef();
 
@@ -466,7 +488,7 @@ void AsioClient::connect_handler(std::shared_ptr<AsioSession> session, const boo
     CNode *pnode;
     if (ec) {
 	LogPrintf("Connect error: %s", ec.message());
-    } else if (!(pnode = connman->ConnectNodeFinish(this, session->get_socket()))){
+    } else if (!(pnode = connman->ConnectNodeFinish(this, session))){
 	LogPrintf("Connected node already exists");
     } else {
 	session->start(pnode);
@@ -964,57 +986,54 @@ const uint512& CNetMessage::GetMessageHash() const
     return data_hash;
 }
 
-// requires LOCK(cs_vSend)
-size_t CConnman::SocketSendData(CNode *pnode) const
-{
+bool CConnman::SocketSendFinish(CNode *pnode, int nBytes) {
     auto it = pnode->vSendMsg.begin();
-    size_t nSentSize = 0;
-
-    while (it != pnode->vSendMsg.end()) {
-        const auto &data = *it;
-        assert(data.size() > pnode->nSendOffset);
-        int nBytes = 0;
-        {
-            LOCK(pnode->cs_hSocket);
-            if (pnode->hSocket == INVALID_SOCKET)
-                break;
-            nBytes = send(pnode->hSocket, reinterpret_cast<const char*>(data.data()) + pnode->nSendOffset, data.size() - pnode->nSendOffset, MSG_NOSIGNAL | MSG_DONTWAIT);
-        }
-        if (nBytes > 0) {
-            pnode->nLastSend = GetSystemTimeInSeconds();
-            pnode->nSendBytes += nBytes;
-            pnode->nSendOffset += nBytes;
-            nSentSize += nBytes;
-            if (pnode->nSendOffset == data.size()) {
-                pnode->nSendOffset = 0;
-                pnode->nSendSize -= data.size();
-                pnode->fPauseSend = pnode->nSendSize > nSendBufferMaxSize;
-                it++;
-            } else {
-                // could not send full message; stop sending more
-                break;
-            }
-        } else {
-            if (nBytes < 0) {
-                // error
-                int nErr = WSAGetLastError();
-                if (nErr != WSAEWOULDBLOCK && nErr != WSAEMSGSIZE && nErr != WSAEINTR && nErr != WSAEINPROGRESS)
-                {
-                    LogPrintf("socket send error %s\n", NetworkErrorString(nErr));
-                    pnode->CloseSocketDisconnect();
-                }
-            }
-            // couldn't send anything at all
-            break;
-        }
-    }
-
-    if (it == pnode->vSendMsg.end()) {
-        assert(pnode->nSendOffset == 0);
-        assert(pnode->nSendSize == 0);
+    const auto &data = *it;
+    if (nBytes > 0) {
+	pnode->nLastSend = GetSystemTimeInSeconds();
+	pnode->nSendBytes += nBytes;
+	pnode->nSendOffset += nBytes;
+	RecordBytesSent(nBytes);
+	if (pnode->nSendOffset == data.size()) {
+	    pnode->nSendOffset = 0;
+	    pnode->nSendSize -= data.size();
+	    pnode->fPauseSend = pnode->nSendSize > nSendBufferMaxSize;
+	    ++it;
+	} else {
+	    pnode->CloseSocketDisconnect();
+	    return false;
+	}
+    } else {
+	if (nBytes < 0) {
+	    // error
+	    int nErr = WSAGetLastError();
+	    //if (nErr != WSAEWOULDBLOCK && nErr != WSAEMSGSIZE && nErr != WSAEINTR && nErr != WSAEINPROGRESS)
+	    {
+		LogPrintf("socket send error %s\n", NetworkErrorString(nErr));
+		pnode->CloseSocketDisconnect();
+		return false;
+	    }
+	}
     }
     pnode->vSendMsg.erase(pnode->vSendMsg.begin(), it);
-    return nSentSize;
+    pnode->sendCompleted = true;
+    return true;
+}
+
+// requires LOCK(cs_vSend)
+void CConnman::SocketSendData(CNode *pnode)
+{
+    auto it = pnode->vSendMsg.begin();
+
+    if (pnode->sendCompleted && it != pnode->vSendMsg.end()) {
+        const auto &data = *it;
+        assert(data.size() > pnode->nSendOffset);
+        {
+            LOCK(pnode->cs_hSocket);
+	    pnode->sendCompleted = false;
+	    pnode->session->async_write(reinterpret_cast<const char*>(data.data()), data.size());
+        }
+    }
 }
 
 struct NodeEvictionCandidate
@@ -1154,11 +1173,11 @@ bool CConnman::AttemptToEvictConnection()
     return false;
 }
 
-CNode *CConnman::AcceptConnection(const ListenSocket& hListenSocket, boost::asio::ip::tcp::socket& socket) {
+CNode *CConnman::AcceptConnection(const ListenSocket& hListenSocket, std::shared_ptr<AsioSession> session) {
     int nInbound = 0;
     int nMaxInbound = nMaxConnections - (nMaxOutbound + nMaxFeeler);
 
-    boost::asio::ip::tcp::endpoint endpoint = socket.remote_endpoint();
+    boost::asio::ip::tcp::endpoint endpoint = session->get_socket().remote_endpoint();
     CService saddr = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
     CAddress addr(saddr, NODE_NONE);
 
@@ -1198,12 +1217,12 @@ CNode *CConnman::AcceptConnection(const ListenSocket& hListenSocket, boost::asio
     NodeId id = GetNewNodeId();
     uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
 
-    endpoint = socket.local_endpoint();
+    endpoint = session->get_socket().local_endpoint();
     saddr = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
     CAddress addr_bind(saddr, NODE_NONE);
-    SOCKET hSocket = socket.native_handle(); // TODO: replace native socket in Node by AsioSession
+    SOCKET hSocket = session->get_socket().native_handle(); // TODO: replace native socket in Node by AsioSession
 
-    CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addr, CalculateKeyedNetGroup(addr), nonce, addr_bind, "", true);
+    CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, session, addr, CalculateKeyedNetGroup(addr), nonce, addr_bind, "", true);
     pnode->AddRef();
     pnode->fWhitelisted = whitelisted;
     m_msgproc->InitializeNode(pnode);
@@ -1234,7 +1253,7 @@ void AsioServer::handle_accept(std::shared_ptr<AsioSession> session, const boost
     if (err) {
 	LogPrintf("Error: can't accept connection: %s\n", err.message());
 	session.reset();
-    } else if (!(pnode = connman->AcceptConnection(this, session->get_socket()))) {
+    } else if (!(pnode = connman->AcceptConnection(this, session))) {
 	session.reset();
     } else {
 	session->start(pnode);
@@ -1504,13 +1523,10 @@ void CConnman::ThreadSocketHandler()
             //
             // Send
             //
-            if (sendSet)
+	    if (sendSet && pnode->sendCompleted)
             {
                 LOCK(pnode->cs_vSend);
-                size_t nBytes = SocketSendData(pnode);
-                if (nBytes) {
-                    RecordBytesSent(nBytes);
-                }
+		SocketSendData(pnode);
             }
 
             //
@@ -2784,7 +2800,7 @@ int CConnman::GetBestHeight() const
 
 unsigned int CConnman::GetReceiveFloodSize() const { return nReceiveFloodSize; }
 
-CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, SOCKET hSocketIn, const CAddress& addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string& addrNameIn, bool fInboundIn) :
+CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, SOCKET hSocketIn, std::shared_ptr<AsioSession> sessionIn, const CAddress& addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string& addrNameIn, bool fInboundIn) :
     nTimeConnected(GetSystemTimeInSeconds()),
     addr(addrIn),
     addrBind(addrBindIn),
@@ -2800,6 +2816,7 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
 {
     nServices = NODE_NONE;
     hSocket = hSocketIn;
+    session = sessionIn;
     nRecvVersion = INIT_PROTO_VERSION;
     nLastSend = 0;
     nLastRecv = 0;
@@ -2846,6 +2863,7 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     fPauseSend = false;
     nProcessQueueSize = 0;
     next_propagate_index = 0;
+    sendCompleted = true;
 
     for (const std::string &msg : getAllNetMessageTypes())
         mapRecvBytesPerMsgCmd[msg] = 0;
@@ -2882,7 +2900,6 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
 
     CVectorWriter{SER_NETWORK, INIT_PROTO_VERSION, serializedHeader, 0, hdr};
 
-    size_t nBytesSent = 0;
     {
         LOCK(pnode->cs_vSend);
         bool optimisticSend(pnode->vSendMsg.empty());
@@ -2898,11 +2915,9 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
             pnode->vSendMsg.push_back(std::move(msg.data));
 
         // If write queue empty, attempt "optimistic write"
-        if (optimisticSend == true)
-            nBytesSent = SocketSendData(pnode);
+	if (optimisticSend == true && pnode->sendCompleted)
+	    SocketSendData(pnode);
     }
-    if (nBytesSent)
-        RecordBytesSent(nBytesSent);
 }
 
 bool CConnman::ForNode(NodeId id, std::function<bool(CNode* pnode)> func)
