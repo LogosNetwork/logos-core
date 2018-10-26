@@ -29,12 +29,9 @@ public:
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
                                ArchiverMicroBlockHandler & handler,
-                               const std::string & callback_address,
-                               const uint16_t & callback_port,
-                               const std::string & callback_target)
+                               BlocksCallback & blocks_callback)
         : Manager(service, store, log,
-                  config, key_store, validator,
-                  callback_address, callback_port, callback_target)
+                  config, key_store, validator, blocks_callback)
         , _microblock_handler(handler)
         , _enqueued(false)
     {

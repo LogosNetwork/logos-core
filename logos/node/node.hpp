@@ -5,6 +5,7 @@
 #include <logos/node/stats.hpp>
 #include <logos/node/wallet.hpp>
 #include <logos/node/bootstrap.hpp>
+#include <logos/node/client_callback.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/epoch/recall_handler.hpp>
 #include <logos/consensus/consensus_container.hpp>
@@ -507,6 +508,7 @@ public:
     RecallHandler _recall_handler;
     Archiver _archiver;
     ConsensusContainer _consensus_container;
+    BlocksCallback _blocks_callback;
     static double constexpr price_max = 16.0;
     static double constexpr free_cutoff = 1024.0;
     static std::chrono::seconds constexpr period = std::chrono::seconds (60);

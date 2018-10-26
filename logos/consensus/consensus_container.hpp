@@ -56,7 +56,8 @@ public:
                        logos::alarm & alarm,
                        Log & log,
                        const Config & config,
-                       Archiver & archiver);
+                       Archiver & archiver,
+                       BlocksCallback & blocks_callback);
 
     ~ConsensusContainer() = default;
 
@@ -93,4 +94,5 @@ private:
 	MicroBlockConsensusManager	_micro_manager; 	 ///< Handles micro block consensus
 	EpochConsensusManager	    _epoch_manager; 	 ///< Handles epoch consensus
     ConsensusNetIOManager       _netio_manager; 	 ///< Establishes connections to other delegates
+    BlocksCallback &            _blocks_callback;    ///< Handles sending content to client observer
 };

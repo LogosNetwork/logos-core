@@ -1229,7 +1229,8 @@ block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
 stats (config.stat_config),
 _recall_handler(),
 _archiver(alarm_a, store, _recall_handler, config.consensus_manager_config.delegate_id),
-_consensus_container(service_a, store, alarm_a, log, config, _archiver)
+_blocks_callback(service_a, log, config.callback_address, config.callback_port, config.callback_target, config.logging.callback_logging ()),
+_consensus_container(service_a, store, alarm_a, log, config, _archiver, _blocks_callback)
 {
 
 // Used to modify the database file with the new account_info field.

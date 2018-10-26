@@ -11,8 +11,25 @@ std::string Epoch::SerializeJson() const
 {
     boost::property_tree::ptree epoch_block;
 
+    epoch_block.put("timestamp", std::to_string(timestamp));
+    epoch_block.put("previous", previous.to_string());
     epoch_block.put("hash", Hash().to_string());
-    // TODO: add more block content here
+    epoch_block.put("account", _account.to_string());
+    epoch_block.put("epoch_number", std::to_string(_epoch_number));
+    epoch_block.put("micro_block_tip", _micro_block_tip.to_string());
+    boost::property_tree::ptree delegates;
+    for (const auto & delegate : _delegates) {
+        boost::property_tree::ptree tip_member;
+        tip_member.put("account", delegate._account.to_string());
+        tip_member.put("vote", std::to_string(delegate._vote));
+        tip_member.put("stake", std::to_string(delegate._stake));
+        delegates.push_back(std::make_pair("", tip_member));
+    }
+    epoch_block.add_child("delegates", delegates);
+    epoch_block.put("transaction_fee_pool", std::to_string(_transaction_fee_pool));
+    logos::uint256_union signature_tmp; // hacky fix, need to replicate uint256_union functionalities
+    signature_tmp.bytes = signature;
+    epoch_block.put("signature", signature_tmp.to_string ());
 
     std::stringstream ostream;
     boost::property_tree::write_json(ostream, epoch_block);
