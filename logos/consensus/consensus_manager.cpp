@@ -97,7 +97,7 @@ void ConsensusManager<CT>::OnConsensusReached()
 {
     auto pre_prepare (PrePrepareGetNext());
     ApplyUpdates(pre_prepare, _delegate_id);
-    _blocks_callback.NotifyClient(pre_prepare);  // TODO: would rather use a shared pointer to avoid copying the whole BlockList for BSB
+    _blocks_callback.NotifyClient<CT>(pre_prepare);  // TODO: would rather use a shared pointer to avoid copying the whole BlockList for BSB
 
     // Helpful for benchmarking
     //

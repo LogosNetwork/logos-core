@@ -30,6 +30,8 @@ public:
                    const std::string & callback_target,
                    const bool & callback_logging);
 
+    virtual ~ClientCallback() {}
+
 protected:
     Service &   _service;
     Log &       _log;
@@ -53,8 +55,12 @@ public:
 
     void SendMessage (std::shared_ptr<std::string> body);
 
-    void NotifyClient (BatchStateBlock block);
-    void NotifyClient (MicroBlock block);
-    void NotifyClient (Epoch block);
+    template <ConsensusType CT>
+    void NotifyClient (PrePrepareMessage<CT> block)
+    { // implementation of non-specialized template needs to be visible to all usages
+        _service.post([this, block] () {
+            SendMessage(std::make_shared<std::string> (block.SerializeJson ()));
+        });
+    }
 
 };

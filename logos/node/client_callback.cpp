@@ -105,24 +105,3 @@ void BlocksCallback::SendMessage (std::shared_ptr<std::string> body)
         });
     }
 }
-
-void BlocksCallback::NotifyClient (BatchStateBlock block)
-{
-    _service.post([this, block] () {
-        SendMessage(std::make_shared<std::string> (block.SerializeJson ()));
-    });
-}
-
-void BlocksCallback::NotifyClient (MicroBlock block)
-{
-    _service.post([this, block] () {
-        SendMessage(std::make_shared<std::string> (block.SerializeJson ()));
-    });
-}
-
-void BlocksCallback::NotifyClient (Epoch block)
-{
-    _service.post([this, block] () {
-        SendMessage(std::make_shared<std::string> (block.SerializeJson ()));
-    });
-}

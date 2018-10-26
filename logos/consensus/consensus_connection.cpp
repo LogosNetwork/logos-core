@@ -162,7 +162,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
         assert(_cur_pre_prepare);
 
         ApplyUpdates(*_cur_pre_prepare, _delegate_ids.remote);
-        _blocks_callback.NotifyClient(*_cur_pre_prepare);
+        _blocks_callback.NotifyClient<CT>(*_cur_pre_prepare);
         _state = ConsensusState::VOID;
     }
 }
