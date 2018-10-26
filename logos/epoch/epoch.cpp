@@ -6,11 +6,17 @@
 
 const size_t Epoch::HASHABLE_BYTES = sizeof(Epoch)
                                             - sizeof(Signature);
-
 std::string Epoch::SerializeJson() const
 {
     boost::property_tree::ptree epoch_block;
+    SerializeJson(epoch_block);
+    std::stringstream ostream;
+    boost::property_tree::write_json(ostream, epoch_block);
+    return ostream.str();
+}
 
+void Epoch::SerializeJson(boost::property_tree::ptree & epoch_block) const
+{
     epoch_block.put("timestamp", std::to_string(timestamp));
     epoch_block.put("previous", previous.to_string());
     epoch_block.put("hash", Hash().to_string());
@@ -30,8 +36,4 @@ std::string Epoch::SerializeJson() const
     logos::uint256_union signature_tmp; // hacky fix, need to replicate uint256_union functionalities
     signature_tmp.bytes = signature;
     epoch_block.put("signature", signature_tmp.to_string ());
-
-    std::stringstream ostream;
-    boost::property_tree::write_json(ostream, epoch_block);
-    return ostream.str();
 }

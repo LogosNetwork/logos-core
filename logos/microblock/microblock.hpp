@@ -33,6 +33,7 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
 
     /// JSON representation of MicroBlock (primarily for RPC messages)
     std::string SerializeJson() const;
+    void SerializeJson(boost::property_tree::ptree &) const;
 
     static const size_t HASHABLE_BYTES;         ///< hashable bytes of the micrblock - used in signing
     //BlockHash           _merkle_root; 		    ///< Merkle root of the batch blocks included in this microblock

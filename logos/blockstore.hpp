@@ -124,6 +124,11 @@ public:
         return get<T>(db,key,t);
     }
 
+    // abstract away consensus types
+    bool consensus_block_get (const logos::block_hash & hash, BatchStateBlock & block);
+    bool consensus_block_get (const logos::block_hash & hash, MicroBlock & block);
+    bool consensus_block_get (const logos::block_hash & hash, Epoch & block);
+
     // consensus-prototype additions
     block_hash batch_block_put(BatchStateBlock const &, MDB_txn *);
     bool batch_block_get(const logos::block_hash & hash, BatchStateBlock & block);
@@ -149,7 +154,7 @@ public:
 
     // epoch
     logos::block_hash epoch_put(Epoch const &, MDB_txn*);
-    bool epoch_get(block_hash &, Epoch &);
+    bool epoch_get(const block_hash &, Epoch &);
     void epoch_tip_put(const block_hash&, MDB_txn*);
     bool epoch_tip_get(block_hash &);
 

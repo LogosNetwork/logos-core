@@ -862,6 +862,57 @@ void logos::rpc_handler::available_supply ()
     response (response_l);
 }
 
+void logos::rpc_handler::batch_blocks ()
+{
+    consensus_blocks<BatchStateBlock>();
+}
+
+void logos::rpc_handler::batch_blocks_latest ()
+{
+    std::string delegate_id_text (request.get<std::string> ("delegate_id"));
+    uint64_t delegate_id;
+    if (decode_unsigned(delegate_id_text, delegate_id))
+    {
+        error_response (response, "Bad delegate ID");
+    }
+    if (delegate_id >= static_cast<uint64_t>(NUM_DELEGATES))
+    {
+        error_response (response, "Delegate ID out of range");
+    }
+
+    std::string count_text (request.get<std::string> ("count"));
+    uint64_t count;
+    if (decode_unsigned(count_text, count))
+    {
+        error_response (response, "Invalid count limit");
+    }
+
+    boost::property_tree::ptree response_l;
+    boost::property_tree::ptree response_batch_blocks;
+
+    BatchStateBlock batch;
+    logos::block_hash hash;
+    bool batch_exists (!node.store.batch_tip_get(delegate_id, hash));
+    if (batch_exists)
+    {
+        batch_exists = !node.store.batch_block_get(hash, batch);
+        assert (batch_exists);
+    }
+    while (batch_exists && count > 0)
+    {
+        boost::property_tree::ptree response_batch;
+        batch.SerializeJson (response_batch);
+        response_batch_blocks.push_back(std::make_pair("", response_batch));
+        hash = batch.previous;
+        batch_exists = !node.store.batch_block_get(hash, batch);
+        count--;
+    }
+
+    response_l.add_child ("batch_blocks", response_batch_blocks);
+    response_l.put ("delegate_id", delegate_id);
+    response (response_l);
+}
+
 void logos::rpc_handler::block ()
 {
     std::string hash_text (request.get<std::string> ("hash"));
@@ -896,6 +947,7 @@ void logos::rpc_handler::blocks ()
 {
     std::vector<std::string> hashes;
     boost::property_tree::ptree response_l;
+    boost::property_tree::ptree blocks;
     logos::transaction transaction (node.store.environment, nullptr, false);
     for (boost::property_tree::ptree::value_type & hashes : request.get_child ("hashes"))
     {
@@ -920,8 +972,10 @@ void logos::rpc_handler::blocks ()
         }
         auto contents (block.serialize_json ());
         contents.put ("type", block_type);
-        response_l.add_child (hash_text, contents);
+        contents.put ("hash", hash_text);
+        blocks.push_back (std::make_pair("", contents));
     }
+    response_l.add_child ("blocks", blocks);
     response (response_l);
 }
 
@@ -1406,6 +1460,35 @@ void logos::rpc_handler::chain ()
     }
 }
 
+template <typename  CT>
+void logos::rpc_handler::consensus_blocks ()
+{
+    std::vector<std::string> hashes;
+    boost::property_tree::ptree response_l;
+    boost::property_tree::ptree blocks;
+    logos::transaction transaction (node.store.environment, nullptr, false);
+    for (boost::property_tree::ptree::value_type & hashes : request.get_child ("hashes"))
+    {
+        std::string hash_text = hashes.second.data ();
+        BlockHash hash;
+        if (hash.decode_hex (hash_text))
+        {
+            error_response (response, "Bad hash number");
+        }
+        CT response_block;
+        if (node.store.consensus_block_get(hash, response_block))
+        {
+            error_response (response, "Block not found");
+        }
+        boost::property_tree::ptree contents;
+        response_block.SerializeJson (contents);
+        contents.put ("hash", hash_text);
+        blocks.push_back (std::make_pair("", contents));
+    }
+    response_l.add_child ("blocks", blocks);
+    response (response_l);
+}
+
 void logos::rpc_handler::delegators ()
 {
     std::string account_text (request.get<std::string> ("account"));
@@ -1501,6 +1584,43 @@ void logos::rpc_handler::deterministic_key ()
     {
         error_response (response, "Bad seed");
     }
+}
+
+void logos::rpc_handler::epochs ()
+{
+    consensus_blocks<Epoch>();
+}
+
+void logos::rpc_handler::epochs_latest ()
+{
+    std::string count_text (request.get<std::string> ("count"));
+    uint64_t count;
+    if (decode_unsigned (count_text, count))
+    {
+        error_response (response, "Invalid count limit");
+    }
+    boost::property_tree::ptree response_l;
+    boost::property_tree::ptree response_epochs;
+
+    Epoch epoch;
+    logos::block_hash hash;
+    bool epoch_exists (!node.store.epoch_tip_get(hash));
+    if (epoch_exists)
+    {
+        epoch_exists = !node.store.epoch_get(hash, epoch);
+        assert (epoch_exists);
+    }
+    while (epoch_exists && count > 0)
+    {
+        boost::property_tree::ptree response_epoch;
+        epoch.SerializeJson (response_epoch);
+        response_epochs.push_back(std::make_pair("", response_epoch));
+        hash = epoch.previous;
+        epoch_exists = !node.store.epoch_get(hash, epoch);
+        count--;
+    }
+    response_l.add_child("epochs", response_epochs);
+    response (response_l);
 }
 
 void logos::rpc_handler::frontiers ()
@@ -1919,6 +2039,43 @@ void logos::rpc_handler::ledger ()
     {
         error_response (response, "RPC control is disabled");
     }
+}
+
+void logos::rpc_handler::micro_blocks ()
+{
+    consensus_blocks<MicroBlock>();
+}
+
+void logos::rpc_handler::micro_blocks_latest ()
+{
+    std::string count_text (request.get<std::string> ("count"));
+    uint64_t count;
+    if (decode_unsigned (count_text, count))
+    {
+        error_response (response, "Invalid count limit");
+    }
+    boost::property_tree::ptree response_l;
+    boost::property_tree::ptree response_micro_blocks;
+
+    MicroBlock micro_block;
+    logos::block_hash hash;
+    bool micro_block_exists (!node.store.micro_block_tip_get(hash));
+    if (micro_block_exists)
+    {
+        micro_block_exists = !node.store.micro_block_get(hash, micro_block);
+        assert (micro_block_exists);
+    }
+    while (micro_block_exists && count > 0)
+    {
+        boost::property_tree::ptree response_micro_block;
+        micro_block.SerializeJson (response_micro_block);
+        response_micro_blocks.push_back(std::make_pair("", response_micro_block));
+        hash = micro_block.previous;
+        micro_block_exists = !node.store.micro_block_get(hash, micro_block);
+        count--;
+    }
+    response_l.add_child("micro_blocks", response_micro_blocks);
+    response (response_l);
 }
 
 void logos::rpc_handler::mrai_from_raw ()
@@ -4366,6 +4523,14 @@ void logos::rpc_handler::process_request ()
         {
             available_supply ();
         }
+        else if (action == "batch_blocks")
+        {
+            batch_blocks ();
+        }
+        else if (action == "batch_blocks_latest")
+        {
+            batch_blocks_latest ();
+        }
         else if (action == "block")
         {
             block ();
@@ -4430,6 +4595,14 @@ void logos::rpc_handler::process_request ()
         {
             //CH confirmation_history ();
         }
+        else if (action == "epochs")
+        {
+            epochs ();
+        }
+        else if (action == "epochs_latest")
+        {
+            epochs_latest ();
+        }
         else if (action == "frontiers")
         {
             frontiers ();
@@ -4466,6 +4639,14 @@ void logos::rpc_handler::process_request ()
         else if (action == "ledger")
         {
             ledger ();
+        }
+        else if (action == "micro_blocks")
+        {
+            micro_blocks ();
+        }
+        else if (action == "micro_blocks_latest")
+        {
+            micro_blocks_latest ();
         }
         else if (action == "mrai_from_raw")
         {
@@ -4724,7 +4905,8 @@ void logos::rpc_handler::process_request ()
     }
     catch (std::runtime_error const & err)
     {
-        error_response (response, "Unable to parse JSON");
+//        error_response (response, "Unable to parse JSON");
+        error_response (response, err.what());
     }
     catch (...)
     {

@@ -24,7 +24,14 @@ BlockHash BatchStateBlock::Hash() const
 std::string BatchStateBlock::SerializeJson() const
 {
     boost::property_tree::ptree batch_state_block;
+    SerializeJson (batch_state_block);
+    std::stringstream ostream;
+    boost::property_tree::write_json(ostream, batch_state_block);
+    return ostream.str();
+}
 
+void BatchStateBlock::SerializeJson(boost::property_tree::ptree & batch_state_block) const
+{
     batch_state_block.put("timestamp", std::to_string(timestamp));
     batch_state_block.put("previous", previous.to_string());
     batch_state_block.put("hash", Hash().to_string());
@@ -41,8 +48,4 @@ std::string BatchStateBlock::SerializeJson() const
     }
 
     batch_state_block.add_child("blocks", blocks_tree);
-
-    std::stringstream ostream;
-    boost::property_tree::write_json(ostream, batch_state_block);
-    return ostream.str();
 }

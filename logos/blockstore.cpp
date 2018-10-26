@@ -822,6 +822,19 @@ void logos::block_store::checksum_del (MDB_txn * transaction_a, uint64_t prefix,
     assert (status == 0);
 }
 
+bool logos::block_store::consensus_block_get (const logos::block_hash & hash, BatchStateBlock & block)
+{
+    return batch_block_get (hash, block);
+}
+bool logos::block_store::consensus_block_get (const logos::block_hash & hash, MicroBlock & block)
+{
+    return micro_block_get (hash, block);
+}
+bool logos::block_store::consensus_block_get (const logos::block_hash & hash, Epoch & block)
+{
+    return epoch_get (hash, block);
+}
+
 logos::block_hash logos::block_store::batch_block_put (BatchStateBlock const & block, MDB_txn * transaction)
 {
     auto result = block.Hash();
@@ -922,7 +935,7 @@ logos::block_hash logos::block_store::epoch_put(Epoch const &block, MDB_txn *tra
     return put<Epoch>(epoch_db, block, transaction);
 }
 
-bool logos::block_store::epoch_get(logos::block_hash &hash, Epoch &block)
+bool logos::block_store::epoch_get(const logos::block_hash &hash, Epoch &block)
 {
   return get<Epoch>(epoch_db, mdb_val(hash), block);
 }
