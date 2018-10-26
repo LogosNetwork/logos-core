@@ -117,7 +117,9 @@ class CConnman;
 class AsioSession : public std::enable_shared_from_this<AsioSession>
 {
 public:
-    AsioSession(boost::asio::io_service& ios, CConnman *connman_) : socket(ios), connman(connman_), pnode(0) {}
+    AsioSession(boost::asio::io_service& ios, CConnman *connman_)
+		: socket(ios), connman(connman_), pnode(0), id(-1ll) {}
+    ~AsioSession();
     boost::asio::ip::tcp::socket& get_socket() { return socket; }
     void start(CNode *pnode_);
     void async_write(const char *buf, size_t bytes);
@@ -125,6 +127,7 @@ private:
     boost::asio::ip::tcp::socket socket;
     CConnman *connman;
     CNode* pnode;
+    NodeId id;
     void handle_read(std::shared_ptr<AsioSession> s, const boost::system::error_code& err,
 		size_t bytes_transferred);
     void handle_write(std::shared_ptr<AsioSession> s, const boost::system::error_code& err,
@@ -157,16 +160,18 @@ private:
     friend class CConnman;
 };
 
-class AsioServer {
+class AsioServer : public std::enable_shared_from_this<AsioServer> {
 public:
     AsioServer(CConnman *, boost::asio::ip::address &, short port, bool wlisted);
-    void handle_accept(std::shared_ptr<AsioSession>, const boost::system::error_code&);
+    ~AsioServer();
+    void start();
     void shutdown();
 private:
     CConnman *connman;
     boost::asio::ip::tcp::acceptor acceptor;
     bool whitelisted;
     bool in_shutdown;
+    void handle_accept(std::shared_ptr<AsioServer>, std::shared_ptr<AsioSession>, const boost::system::error_code&);
     friend class CConnman;
 };
 
@@ -383,7 +388,7 @@ public:
     boost::asio::io_service *io_service;
 
 private:
-    using ListenSocket = AsioServer *;
+    using ListenSocket = std::shared_ptr<AsioServer>;
 
     bool BindListenPort(const CService &bindAddr, std::string& strError, bool fWhitelisted = false);
     bool Bind(const CService &addr, unsigned int flags);
@@ -393,7 +398,7 @@ private:
     void ProcessOneShot();
     void ThreadOpenConnections(std::vector<std::string> connect);
     void ThreadMessageHandler();
-    CNode *AcceptConnection(const ListenSocket& hListenSocket, std::shared_ptr<AsioSession> session);
+    CNode *AcceptConnection(std::shared_ptr<AsioSession> session, bool sock_whitelisted);
     bool AcceptReceivedBytes(CNode* pnode, const char *pchBuf, int nBytes);
     void ThreadSocketHandler();
     void ThreadDNSAddressSeed();
@@ -683,7 +688,6 @@ class CNode
 public:
     // socket
     std::atomic<ServiceFlags> nServices;
-    SOCKET hSocket; // TODO: remove it; replaced by session
     std::shared_ptr<AsioSession> session;
     size_t nSendSize; // total size of all vSendMsg entries
     size_t nSendOffset; // offset inside the first vSendMsg already sent
@@ -790,7 +794,7 @@ public:
     CAmount lastSentFeeFilter;
     int64_t nextSendTimeFeeFilter;
 
-    CNode(NodeId id, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, SOCKET hSocketIn, std::shared_ptr<AsioSession> sessionIn, const CAddress &addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string &addrNameIn = "", bool fInboundIn = false);
+    CNode(NodeId id, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, std::shared_ptr<AsioSession> sessionIn, const CAddress &addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string &addrNameIn = "", bool fInboundIn = false);
     ~CNode();
     CNode(const CNode&) = delete;
     CNode& operator=(const CNode&) = delete;
@@ -891,6 +895,7 @@ public:
     std::string GetAddrName() const;
     //! Sets the addrName only if it was not previously set
     void MaybeSetAddrName(const std::string& addrNameIn);
+    friend class AsioSession;
 };
 
 
