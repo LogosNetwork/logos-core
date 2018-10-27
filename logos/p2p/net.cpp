@@ -362,12 +362,17 @@ static CAddress GetBindAddress(SOCKET sock)
     return addr_bind;
 }
 
-AsioSession::~AsioSession() {
+AsioSession::~AsioSession()
+{
     LogPrint(BCLog::NET, "Session removed, peer=%lld", id);
 }
 
 void AsioSession::start(CNode *pnode_)
 {
+    if (pnode) {
+	LogPrint(BCLog::NET, "Double session start ignored, peer=%ld\n", id);
+	return;
+    }
     pnode = pnode_;
     id = pnode->id;
     LogPrint(BCLog::NET, "Session started, peer=%lld", id);
@@ -377,17 +382,33 @@ void AsioSession::start(CNode *pnode_)
 		boost::asio::placeholders::bytes_transferred));
 }
 
+void AsioSession::shutdown()
+{
+    if (!pnode) {
+	LogPrint(BCLog::NET, "Double session shutdown ignored, peer=%ld\n", id);
+	return;
+    }
+    pnode = 0;
+    boost::system::error_code error;
+    socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, error);
+    if (error) {
+	LogPrint(BCLog::NET, "Error in session shutdown, peer=%ld: %s\n", id, error.message());
+    } else {
+	LogPrint(BCLog::NET, "Session shutdown, peer=%ld\n", id);
+    }
+}
+
 void AsioSession::handle_read(std::shared_ptr<AsioSession> s,
 		const boost::system::error_code& err, size_t bytes_transferred)
 {
-    LogPrint(BCLog::NET, "handle_read: number of shared_ptr refs: %ld, peer=%lld", s.use_count(), id);
+    //LogPrint(BCLog::NET, "Session handle_read called, %ld shared_ptr refs, peer=%lld", s.use_count(), id);
     if (err) {
 	LogPrint(BCLog::NET, "Error in receive, peer=%lld: %s", id, err.message());
-	connman->AcceptReceivedBytes(pnode, data, -1);
+	if (pnode) connman->AcceptReceivedBytes(pnode, data, -1);
     } else if (!connman->AcceptReceivedBytes(pnode, data, bytes_transferred)) {
 	LogPrint(BCLog::NET, "Error in accept %d received bytes, peer=%lld", bytes_transferred, id);
     } else {
-	LogPrint(BCLog::NET, "Received %ld bytes, peer=%lld", bytes_transferred, id);
+	//LogPrint(BCLog::NET, "Received %ld bytes, peer=%lld", bytes_transferred, id);
 	socket.async_read_some(boost::asio::buffer(data, max_length),
 		boost::bind(&AsioSession::handle_read, this, shared_from_this(),
 		boost::asio::placeholders::error,
@@ -398,14 +419,15 @@ void AsioSession::handle_read(std::shared_ptr<AsioSession> s,
 void AsioSession::handle_write(std::shared_ptr<AsioSession> s,
 		const boost::system::error_code& err, size_t bytes_transferred)
 {
-    LogPrint(BCLog::NET, "handle_write: number of shared_ptr refs: %ld, peer=%lld", s.use_count(), id);
+    //LogPrint(BCLog::NET, "Session handle_write called, %ld shared_ptr refs, peer=%lld", s.use_count(), id);
     if (err) {
 	LogPrint(BCLog::NET, "Error in transmit, peer=%lld: %s", id, err.message());
 	connman->SocketSendFinish(pnode, -1);
     } else if (!connman->SocketSendFinish(pnode, bytes_transferred)) {
 	LogPrint(BCLog::NET, "Error in accept %d transmitted bytes, peer=%lld", bytes_transferred, id);
     } else {
-	LogPrint(BCLog::NET, "Transmitted %d bytes, peer=%lld", bytes_transferred, id);
+	//LogPrint(BCLog::NET, "Transmitted %d bytes, peer=%lld", bytes_transferred, id);
+	sem_post(&connman->dataWritten);
     }
 }
 
@@ -605,14 +627,7 @@ void CNode::CloseSocketDisconnect()
     fDisconnect = true;
     LOCK(cs_hSocket);
     if (session) {
-	boost::system::error_code error;
-	session->get_socket().shutdown(boost::asio::ip::tcp::socket::shutdown_both, error);
-	if (error) {
-	    LogPrint(BCLog::NET, "error disconnecting peer=%d: %s\n", id, error.message());
-	} else {
-	    LogPrint(BCLog::NET, "disconnecting peer=%d\n", id);
-	}
-	session = 0;
+	session->shutdown();
     }
 }
 
@@ -1289,8 +1304,8 @@ void AsioServer::handle_accept(std::shared_ptr<AsioServer> ptr, std::shared_ptr<
 }
 
 void AsioServer::shutdown() {
-    acceptor.cancel();
     in_shutdown = true;
+    acceptor.cancel();
     LogPrint(BCLog::NET, "AsioServer shutdown\n");
 }
 
@@ -1350,6 +1365,18 @@ void CConnman::ThreadSocketHandler()
     unsigned int nPrevNodeCount = 0;
     while (!interruptNet)
     {
+	//
+	// Wait 1/20 of second or write-to-peer event
+	//
+	struct timespec tspec;
+	clock_gettime(CLOCK_REALTIME, &tspec);
+	tspec.tv_nsec += 50000000;
+	if (tspec.tv_nsec >= 1000000000) {
+	    tspec.tv_nsec -= 1000000000;
+	    tspec.tv_sec++;
+	}
+	sem_timedwait(&dataWritten, &tspec);
+
         //
         // Disconnect nodes
         //
@@ -2181,6 +2208,7 @@ CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In) : nSeed0(nSeed0In), nSe
 
     Options connOptions;
     Init(connOptions);
+    sem_init(&dataWritten, 0, 0);
 }
 
 NodeId CConnman::GetNewNodeId()
@@ -2434,6 +2462,7 @@ CConnman::~CConnman()
 {
     Interrupt();
     Stop();
+    sem_destroy(&dataWritten);
 }
 
 size_t CConnman::GetAddressCount() const
@@ -2734,6 +2763,7 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
 
 CNode::~CNode()
 {
+    session->shutdown();
 }
 
 bool CConnman::NodeFullyConnected(const CNode* pnode)
@@ -2772,6 +2802,9 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
         // If write queue empty, attempt "optimistic write"
 	if (optimisticSend == true && pnode->sendCompleted)
 	    SocketSendData(pnode);
+	else
+	    // else push sending thread
+	    sem_post(&dataWritten);
     }
 }
 

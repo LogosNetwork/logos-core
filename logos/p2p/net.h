@@ -28,6 +28,7 @@
 #include <thread>
 #include <memory>
 #include <condition_variable>
+#include <semaphore.h>
 #include <boost/asio.hpp>
 
 #ifndef WIN32
@@ -122,6 +123,7 @@ public:
     ~AsioSession();
     boost::asio::ip::tcp::socket& get_socket() { return socket; }
     void start(CNode *pnode_);
+    void shutdown();
     void async_write(const char *buf, size_t bytes);
 private:
     boost::asio::ip::tcp::socket socket;
@@ -386,6 +388,7 @@ public:
     p2p_interface *p2p;
     PropagateStore *p2p_store;
     boost::asio::io_service *io_service;
+    sem_t dataWritten;
 
 private:
     using ListenSocket = std::shared_ptr<AsioServer>;
