@@ -118,11 +118,11 @@ class CConnman;
 class AsioSession : public std::enable_shared_from_this<AsioSession>
 {
 public:
-    AsioSession(boost::asio::io_service& ios, CConnman *connman_)
-		: socket(ios), connman(connman_), pnode(0), id(-1ll) {}
+    AsioSession(boost::asio::io_service& ios, CConnman *connman_);
     ~AsioSession();
     boost::asio::ip::tcp::socket& get_socket() { return socket; }
-    void start(CNode *pnode_);
+    void setNode(CNode *pnode_);
+    void start();
     void shutdown();
     void async_write(const char *buf, size_t bytes);
 private:

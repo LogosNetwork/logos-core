@@ -362,20 +362,30 @@ static CAddress GetBindAddress(SOCKET sock)
     return addr_bind;
 }
 
-AsioSession::~AsioSession()
+AsioSession::AsioSession(boost::asio::io_service& ios, CConnman *connman_)
+		: socket(ios), connman(connman_), pnode(0), id(-1ll)
 {
-    LogPrint(BCLog::NET, "Session removed, peer=%lld", id);
+    LogPrint(BCLog::NET, "Session created, this=%p", this);
 }
 
-void AsioSession::start(CNode *pnode_)
+AsioSession::~AsioSession()
 {
+    LogPrint(BCLog::NET, "Session removed, this=%p, peer=%lld", this, id);
+}
+
+void AsioSession::setNode(CNode *pnode_) {
     if (pnode) {
-	LogPrint(BCLog::NET, "Double session start ignored, peer=%ld\n", id);
+	LogPrint(BCLog::NET, "Double node set, peer=%ld\n", id);
 	return;
     }
     pnode = pnode_;
     id = pnode->id;
-    LogPrint(BCLog::NET, "Session started, peer=%lld", id);
+}
+
+void AsioSession::start()
+{
+    // debug socket number to track file descriptor leaks
+    LogPrint(BCLog::NET, "Session started, this=%p, socket=%d, peer=%lld", this, socket.native_handle(), id);
     socket.async_read_some(boost::asio::buffer(data, max_length),
 		boost::bind(&AsioSession::handle_read, this, shared_from_this(),
 		boost::asio::placeholders::error,
@@ -422,7 +432,7 @@ void AsioSession::handle_write(std::shared_ptr<AsioSession> s,
     //LogPrint(BCLog::NET, "Session handle_write called, %ld shared_ptr refs, peer=%lld", s.use_count(), id);
     if (err) {
 	LogPrint(BCLog::NET, "Error in transmit, peer=%lld: %s", id, err.message());
-	connman->SocketSendFinish(pnode, -1);
+	if (pnode) connman->SocketSendFinish(pnode, -1);
     } else if (!connman->SocketSendFinish(pnode, bytes_transferred)) {
 	LogPrint(BCLog::NET, "Error in accept %d transmitted bytes, peer=%lld", bytes_transferred, id);
     } else {
@@ -512,13 +522,12 @@ CNode *CConnman::ConnectNodeFinish(AsioClient *client, std::shared_ptr<AsioSessi
 void AsioClient::connect_handler(std::shared_ptr<AsioSession> session, const boost::system::error_code& ec,
 		const boost::asio::ip::tcp::endpoint& endpoint)
 {
-    CNode *pnode;
     if (ec) {
 	LogPrintf("Connect error: %s", ec.message());
-    } else if (!(pnode = connman->ConnectNodeFinish(this, session))){
+    } else if (!connman->ConnectNodeFinish(this, session)){
 	LogPrintf("Connected node already exists");
     } else {
-	session->start(pnode);
+	session->start();
     }
     delete this;
 }
@@ -1283,14 +1292,13 @@ AsioServer::~AsioServer() {
 
 void AsioServer::handle_accept(std::shared_ptr<AsioServer> ptr, std::shared_ptr<AsioSession> session, const boost::system::error_code& err)
 {
-    CNode *pnode;
     if (err) {
 	LogPrint(BCLog::NET, "Error: can't accept connection: %s\n", err.message());
 	session.reset();
-    } else if (!(pnode = connman->AcceptConnection(session, whitelisted))) {
+    } else if (!connman->AcceptConnection(session, whitelisted)) {
 	session.reset();
     } else {
-	session->start(pnode);
+	session->start();
 	session = std::make_shared<AsioSession>(*connman->io_service, connman);
     }
     if (!in_shutdown) {
@@ -2759,11 +2767,14 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     } else {
         LogPrint(BCLog::NET, "Added connection peer=%d\n", id);
     }
+
+    session->setNode(this);
 }
 
 CNode::~CNode()
 {
     session->shutdown();
+    LogPrint(BCLog::NET, "Node destroyed, peer=%d\n", id);
 }
 
 bool CConnman::NodeFullyConnected(const CNode* pnode)
