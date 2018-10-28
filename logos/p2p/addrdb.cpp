@@ -38,7 +38,7 @@ bool SerializeDB(Stream& stream, const Data& data)
 template <typename Data>
 bool SerializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, const Data& data)
 {
-    CDataStream s(0, 0);
+    CDataStream s(SER_DISK, CLIENT_VERSION);
     MDB_txn *txn;
     int err;
 
@@ -110,7 +110,7 @@ bool DeserializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, Data&
 	return error("%s: Failed to get %s data, error %d", __func__, prefix.c_str(), err);
     }
 
-    CDataStream s((const char *)value.mv_data, (const char *)value.mv_data + value.mv_size, 0, 0);
+    CDataStream s((const char *)value.mv_data, (const char *)value.mv_data + value.mv_size, SER_DISK, CLIENT_VERSION);
 
     // Deserialize
     if (!DeserializeDB(s, data)) {
