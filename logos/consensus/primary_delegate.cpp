@@ -32,7 +32,7 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage<consensus_type> & messa
 {
     if(ProceedWithMessage(message, ConsensusState::POST_PREPARE))
     {
-        Send<PostCommitMessage<consensus_type>>();
+	Send<PostCommitMessage<consensus_type>>(true);
         AdvanceState(ConsensusState::POST_COMMIT);
 
         OnConsensusReached();
@@ -46,14 +46,14 @@ bool PrimaryDelegate::Validate(const MSG & message)
 }
 
 template<typename MSG>
-void PrimaryDelegate::Send()
+void PrimaryDelegate::Send(bool propagate)
 {
     MSG response(_cur_batch_timestamp);
 
     response.previous = _cur_batch_hash;
     _validator.Sign(response, _signatures);
 
-    Send(&response, sizeof(response));
+    Send(&response, sizeof(response), propagate);
 }
 
 template<ConsensusType consensus_type>

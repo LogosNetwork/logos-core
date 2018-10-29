@@ -77,7 +77,7 @@ public:
     virtual void OnBenchmarkSendRequest(std::shared_ptr<Request> block,
                                         logos::process_return & result) = 0;
 
-    void Send(const void * data, size_t size) override;
+    void Send(const void * data, size_t size, bool propagate = false) override;
 
     virtual ~ConsensusManager() {}
 

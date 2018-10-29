@@ -80,13 +80,17 @@ ConsensusManager<CT>::OnPrePrepare(
 }
 
 template<ConsensusType CT>
-void ConsensusManager<CT>::Send(const void * data, size_t size)
+void ConsensusManager<CT>::Send(const void * data, size_t size, bool propagate)
 {
     std::lock_guard<std::mutex> lock(_connection_mutex);
 
     for(auto conn : _connections)
     {
         conn->Send(data, size);
+    }
+
+    if (propagate) {
+	// TODO: propagate message
     }
 }
 

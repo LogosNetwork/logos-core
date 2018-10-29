@@ -35,9 +35,9 @@ public:
     {}
 
     template<typename MSG>
-    void Send();
+    void Send(bool prapagate = false);
 
-    virtual void Send(const void * data, size_t size) = 0;
+    virtual void Send(const void * data, size_t size, bool propagate = false) = 0;
 
 protected:
 
