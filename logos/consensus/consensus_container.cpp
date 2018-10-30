@@ -320,9 +320,6 @@ ConsensusContainer::EpochTransitionEventsStart()
         lapse = epoch_start;
     }
 
-    BOOST_LOG(_log) << "Next event EpochTransitionStart in " << lapse.count() << " "
-                    << (int)NodeIdentityManager::_global_delegate_idx;
-
     _alarm.add(lapse, std::bind(&ConsensusContainer::EpochTransitionStart, this, delegate_idx));
 }
 

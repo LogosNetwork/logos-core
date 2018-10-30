@@ -121,8 +121,10 @@ public:
     template<typename MSG>
     bool Validate(const MSG & message, uint8_t delegate_id)
     {
+
         //message
         string msg(reinterpret_cast<const char*>(&message), MSG::HASHABLE_BYTES);
+
         //deserialize sig
         SignatureReal sig;
         string sig_str(reinterpret_cast<const char*>(&message.signature), CONSENSUS_SIG_SIZE);
