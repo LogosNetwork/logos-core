@@ -1,6 +1,7 @@
 #pragma once
 
 #include <logos/consensus/messages/common.hpp>
+#include <logos/epoch/epoch_transition.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
 
@@ -15,6 +16,7 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
     uint64_t  sequence;
     uint64_t  block_count = 0;
     BlockList blocks;
+    uint      epoch_number = 0;
     BlockHash next;
     Signature signature;
 };
@@ -68,6 +70,7 @@ struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert,
                                          ConsensusType::Any>
 {
     PublicKey public_key;
+    EpochConnection connection;
     uint8_t   remote_delegate_id;
 };
 

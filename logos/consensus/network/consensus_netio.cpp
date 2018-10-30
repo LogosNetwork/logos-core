@@ -2,6 +2,7 @@
 /// This file contains implementation of the ConsensusNetIO and ConsensusNetIOManager classes, which handle
 /// network connections between the delegates.
 #include <logos/consensus/network/consensus_netio.hpp>
+#include <logos/consensus/epoch_manager.hpp>
 #include <logos/node/node.hpp>
 
 const uint8_t ConsensusNetIO::CONNECT_RETRY_DELAY;
@@ -14,8 +15,10 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
                                IOBinder iobinder,
-                               std::recursive_mutex & connection_mutex) 
+                               std::recursive_mutex & connection_mutex,
+                               EpochInfo & epoch_info)
     : _socket(new Socket(service))
+    , _connected(false)
     , _endpoint(endpoint)
     , _alarm(alarm)
     , _remote_delegate_id(remote_delegate_id)
@@ -24,26 +27,31 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
     , _key_store(key_store)
     , _validator(validator)
     , _io_channel_binder(iobinder)
-    , _assembler(_socket)
+    , _assembler(_socket, _connected, epoch_info)
     , _connection_mutex(connection_mutex)
+    , _epoch_info(epoch_info)
 {
     BOOST_LOG(_log) << "ConsensusNetIO - Trying to connect to: "
                     <<  _endpoint << " remote delegate id "
-                    << (int)remote_delegate_id;
+                    << (int)remote_delegate_id
+                    << " connection " << _epoch_info.GetConnectionName();
 
     Connect();
 }
 
 ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket, 
-                               const Endpoint & endpoint, 
+                               const Endpoint endpoint,
+                               std::shared_ptr<KeyAdvertisement> advert,
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
                                const uint8_t local_delegate_id, 
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
                                IOBinder iobinder,
-                               std::recursive_mutex & connection_mutex) 
+                               std::recursive_mutex & connection_mutex,
+                               EpochInfo & epoch_info)
     : _socket(socket)
+    , _connected(false)
     , _endpoint(endpoint)
     , _alarm(alarm)
     , _remote_delegate_id(remote_delegate_id)
@@ -52,10 +60,11 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
     , _key_store(key_store)
     , _validator(validator)
     , _io_channel_binder(iobinder)
-    , _assembler(_socket)
+    , _assembler(_socket, _connected, epoch_info)
     , _connection_mutex(connection_mutex)
+    , _epoch_info(epoch_info)
 {
-    OnConnect();
+    OnConnect(advert);
 }
 
 void
@@ -101,7 +110,7 @@ ConsensusNetIO::Send(
 void 
 ConsensusNetIO::OnConnect()
 {
-    BOOST_LOG(_log) << "ConsensusNetIO - Connected to "
+    BOOST_LOG(_log) << "ConsensusNetIO - Client Connected to "
                     << _endpoint << ". Remote delegate id: "
                     << uint64_t(_remote_delegate_id);
 
@@ -109,6 +118,21 @@ ConsensusNetIO::OnConnect()
 
     SendKeyAdvertisement();
     ReadPrequel();
+}
+
+void
+ConsensusNetIO::OnConnect(std::shared_ptr<KeyAdvertisement> advert)
+{
+    BOOST_LOG(_log) << "ConsensusNetIO - Server Connected to "
+                    << _endpoint << ". Remote delegate id: "
+                    << uint64_t(_remote_delegate_id);
+
+    _connected = true;
+
+    SendKeyAdvertisement();
+    _alarm.add(std::chrono::steady_clock::now(), [this, advert](){
+        OnPublicKeyMsg(*advert);
+    });
 }
 
 void 
@@ -138,6 +162,7 @@ ConsensusNetIO::SendKeyAdvertisement()
 {
     KeyAdvertisement advert;
     advert.public_key = _validator.GetPublicKey();
+    advert.connection = _epoch_info.GetConnection();
     advert.remote_delegate_id = _local_delegate_id;
     Send(advert);
 }
@@ -202,11 +227,17 @@ ConsensusNetIO::OnPublicKey(const uint8_t * data)
 
     auto msg (*reinterpret_cast<KeyAdvertisement*>(_receive_buffer.data()));
 
+    OnPublicKeyMsg(msg);
+}
+
+void
+ConsensusNetIO::OnPublicKeyMsg(const KeyAdvertisement &msg)
+{
     // update remote delegate id
     _remote_delegate_id = msg.remote_delegate_id;
 
     _key_store.OnPublicKey(_remote_delegate_id, msg.public_key);
-    
+
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
     _io_channel_binder(shared_from_this(), _remote_delegate_id);
 
@@ -221,7 +252,10 @@ ConsensusNetIO::AddConsensusConnection(
     BOOST_LOG(_log) << "ConsensusNetIO - Added consensus connection "
                     << ConsensusToName(t)
                     << ' ' << ConsensusTypeToIndex(t)
-                    << ' ' << uint64_t(_remote_delegate_id);
+                    << " local delegate " << uint64_t(_local_delegate_id)
+                    << " remote delegate " << uint64_t(_remote_delegate_id)
+                    << " global " << (int)NodeIdentityManager::_global_delegate_idx
+                    << " Connection " << _epoch_info.GetConnectionName();
 
     _connections[ConsensusTypeToIndex(t)] = connection;
 }
@@ -231,9 +265,13 @@ ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
 {
     if(error)
     {
-        BOOST_LOG(_log) << "ConsensusConnection - Error on write to socket: "
-                        << error.message() << ". Remote endpoint: "
-                        << _endpoint;
+        if (_connected)
+        {
+            BOOST_LOG(_log) << "ConsensusConnection - Error on write to socket: "
+                            << error.message() << ". Remote endpoint: "
+                            << _endpoint;
+        }
+        return;
     }
 
     std::lock_guard<std::mutex> lock(_send_mutex);
@@ -262,5 +300,20 @@ ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
     else
     {
         _sending = false;
+    }
+}
+
+void
+ConsensusNetIO::Close()
+{
+    if (_socket != nullptr)
+    {
+        BOOST_LOG(_log) << "ConsensusNetIO::Close closing socket, connection "
+                        << _epoch_info.GetConnectionName() << ", delegate "
+                        << (int)_local_delegate_id << ", remote delegate " << (int)_remote_delegate_id
+                        << ", global " << (int)NodeIdentityManager::_global_delegate_idx;
+        _connected = false;
+        _socket->cancel();
+        _socket->close();
     }
 }

@@ -64,8 +64,7 @@ public:
     /// @param alarm logos alarm reference [in]
     /// @param store logos block_store reference [in]
     /// @param recall recall handler interface [in]
-    /// @param delegate_id this delegate id [in]
-    Archiver(logos::alarm&, BlockStore&, IRecallHandler &, uint8_t);
+    Archiver(logos::alarm&, BlockStore&, IRecallHandler &);
     ~Archiver() = default;
 
     /// Start archiving events
@@ -85,7 +84,7 @@ public:
     void CommitToDatabase(const MicroBlock& block) override
     {
         _micro_block_handler.ApplyUpdates(block);
-        if (block._last_micro_block) {
+        if (block.last_micro_block) {
             _event_proposer.ProposeEpoch();
         }
     }
@@ -105,9 +104,6 @@ public:
         _epoch_handler.ApplyUpdates(block);
     }
 
-    /// Create genesis Epoch's and MicroBlock's
-    void CreateGenesisBlocks(logos::transaction &transaction);
-
 private:
     static constexpr uint8_t SELECT_PRIMARY_DELEGATE = 0x1F;
 
@@ -115,15 +111,6 @@ private:
     /// @param consensus send microblock for consensus [in]
     /// @param last_microblock last microblock flag
     void Test_ProposeMicroBlock(InternalConsensus&, bool last_microblock);
-
-    /// Is this primary delegate
-    /// @param hash of the previous block
-    /// @returns true if primary delegate
-    bool IsPrimaryDelegate(const BlockHash &hash)
-    {
-        uint8_t primary_delegate = (uint8_t)(hash.bytes[0] & SELECT_PRIMARY_DELEGATE) % (PrimaryDelegate::QUORUM_SIZE+1);
-        return (primary_delegate == _delegate_id);
-    }
 
     /// Is this the first Epoch
     /// @param store reference to block store
@@ -135,6 +122,5 @@ private:
     EpochHandler        _epoch_handler;
     IRecallHandler &     _recall_handler;
     logos::block_store &_store;
-    uint8_t             _delegate_id;
     Log                 _log;
 };

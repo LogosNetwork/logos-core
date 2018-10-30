@@ -8,7 +8,8 @@ template<ConsensusType CT>
 const  boost::posix_time::seconds SecondaryRequestHandler<CT>::MIN_TIMEOUT{2};
 
 template<ConsensusType CT>
-SecondaryRequestHandler<CT>::SecondaryRequestHandler(Service & service, RequestPromoter<CT> & promoter)
+SecondaryRequestHandler<CT>::SecondaryRequestHandler(Service & service,
+                                                     RequestPromoter<CT>* promoter)
     : _service(service)
     , _promoter(promoter)
     , _timer(service)
@@ -79,9 +80,16 @@ void SecondaryRequestHandler<CT>::OnTimeout(const Error & error)
         }
     }
 
+    std::lock_guard<std::mutex> lock(_promoter_mutex);
+    if (_promoter == nullptr)
+    {
+        BOOST_LOG(_log) << "SecondaryRequestHandler::OnTimeout promoter is nullptr";
+        return;
+    }
+
     for(auto & request : ready_requests)
     {
-        _promoter.OnRequestReady(request.block);
+        _promoter->OnRequestReady(request.block);
     }
 }
 
@@ -113,6 +121,13 @@ void SecondaryRequestHandler<CT>::PruneRequest(const logos::block_hash & hash)
 
         _requests.get<1>().erase(hash);
     }
+}
+
+template <ConsensusType CT>
+void SecondaryRequestHandler<CT>::UpdateRequestPromoter(RequestPromoter<CT>* promoter)
+{
+    std::lock_guard<std::mutex> lock(_promoter_mutex);
+    _promoter = promoter;
 }
 
 template<>

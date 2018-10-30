@@ -235,7 +235,8 @@ enum class process_result
                            //         block within the reservation period.
     initializing,          // Logos - The delegate is currently initializing and is
                            //         not accepting transactions.
-    insufficient_fee       // Logos - Transaction fee is insufficient.
+    insufficient_fee,      // Logos - Transaction fee is insufficient.
+    new_epoch              // LOGOS - Persistent delegates rejects PrePrepare once start proposing for new epoch
 };
 
 std::string ProcessResultToString(process_result result);

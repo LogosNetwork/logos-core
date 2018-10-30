@@ -74,7 +74,7 @@ MicroBlockHandler::SlowMerkleTree(
         BlockHash hash;
     };
     array<vector<pair>, NUM_DELEGATES> entries;
-    uint64_t min_timestamp = GetStamp() + CLOCK_DRIFT * 1000;
+    uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
 
     // frist get hashes and timestamps of all blocks; and min timestamp to use as the base
     BatchBlocksIterator(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable->void{
@@ -140,7 +140,7 @@ MicroBlockHandler::GetTipsSlow(
         BlockHash hash;
     };
     array<vector<pair>, NUM_DELEGATES> entries;
-    uint64_t min_timestamp = GetStamp() + CLOCK_DRIFT * 1000;
+    uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
 
     // frist get hashes and timestamps of all blocks; and min timestamp to use as the base
     BatchBlocksIterator(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable->void{
@@ -201,15 +201,15 @@ MicroBlockHandler::Build(
     }
 
     // first microblock after genesis
-    if (previous_micro_block._epoch_number == GENESIS_EPOCH)
+    if (previous_micro_block.epoch_number == GENESIS_EPOCH)
     {
-        GetTipsSlow(start, previous_micro_block._tips, block._tips,
-                block._number_batch_blocks);
+        GetTipsSlow(start, previous_micro_block.tips, block.tips,
+                block.number_batch_blocks);
     }
     else
     {
-        GetTipsFast(start, previous_micro_block._tips, block._tips,
-                block._number_batch_blocks, previous_micro_block.timestamp);
+        GetTipsFast(start, previous_micro_block.tips, block.tips,
+                block.number_batch_blocks, previous_micro_block.timestamp);
     }
 
     // should be allowed to have no blocks so at least it doesn't crash
@@ -235,18 +235,18 @@ MicroBlockHandler::Build(
     }
 
     // first micro block in this epoch
-    bool first_micro_block = epoch._micro_block_tip == previous_micro_block_hash;
+    bool first_micro_block = epoch.micro_block_tip == previous_micro_block_hash;
 
-    block._epoch_number = first_micro_block
-            ? previous_micro_block._epoch_number + 1
-            : previous_micro_block._epoch_number;
+    block.epoch_number = first_micro_block
+            ? previous_micro_block.epoch_number + 1
+            : previous_micro_block.epoch_number;
     block.previous = previous_micro_block_hash;
     block.timestamp = GetStamp();
-    block._delegate = genesis_delegates[_delegate_id].key.pub;
-    block._micro_block_number = first_micro_block
+    block.account = NodeIdentityManager::_delegate_account;
+    block.micro_block_number = first_micro_block
             ? 0
-            : previous_micro_block._micro_block_number + 1;
-    block._last_micro_block = last_micro_block;
+            : previous_micro_block.micro_block_number + 1;
+    block.last_micro_block = last_micro_block;
 
     return true;
 }
@@ -266,10 +266,10 @@ MicroBlockHandler::Validate(
 
     // Account exists
     logos::account_info info;
-    if (_store.account_get(block._delegate, info))
+    if (_store.account_get(block.account, info))
     {
         BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock account doesn't exist " <<
-            block._delegate.to_account();
+            block.account.to_account();
         return false;
     }
 
@@ -297,23 +297,23 @@ MicroBlockHandler::Validate(
     }
 
     // previous and proposed microblock are in the same epoch
-    if (block._epoch_number == previous_microblock._epoch_number)
+    if (block.epoch_number == previous_microblock.epoch_number)
     {
-        if (block._micro_block_number != (previous_microblock._micro_block_number + 1))
+        if (block.micro_block_number != (previous_microblock.micro_block_number + 1))
         {
             BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock epoch number failed epoch #:" <<
-                            block._epoch_number << " block #:" << block._micro_block_number <<
-                            " previous block #:" << previous_microblock._micro_block_number;
+                            block.epoch_number << " block #:" << block.micro_block_number <<
+                            " previous block #:" << previous_microblock.micro_block_number;
             return false;
         }
     }
     // proposed microblock must be in new epoch
-    else if (block._epoch_number != (previous_microblock._epoch_number + 1) ||
-            block._micro_block_number != 0)
+    else if (block.epoch_number != (previous_microblock.epoch_number + 1) ||
+            block.micro_block_number != 0)
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock epoch number failed epoch #:" << block._epoch_number <<
-            " previous block epoch #:" << previous_microblock._epoch_number <<
-            " block #:" << block._micro_block_number;
+        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock epoch number failed epoch #:" << block.epoch_number <<
+            " previous block epoch #:" << previous_microblock.epoch_number <<
+            " block #:" << block.micro_block_number;
         return false;
     }
 
@@ -321,15 +321,15 @@ MicroBlockHandler::Validate(
     // unless it's the first microblock after genesis
     // Except if it is a recall
     int tdiff = ((int64_t)block.timestamp - (int64_t)previous_microblock.timestamp)/1000 -
-            MICROBLOCK_CUTOFF_TIME * 60; //sec
+            TConvert<Seconds>(MICROBLOCK_CUTOFF_TIME).count(); //sec
     bool is_test_network = (logos::logos_network == logos::logos_networks::logos_test_network);
-    if (!is_test_network && (previous_epoch._epoch_number != GENESIS_EPOCH || block._micro_block_number > 0) &&
-            (!_recall_handler.IsRecall() && abs(tdiff) > CLOCK_DRIFT ||
+    if (!is_test_network && (previous_epoch.epoch_number != GENESIS_EPOCH || block.micro_block_number > 0) &&
+            (!_recall_handler.IsRecall() && abs(tdiff) > CLOCK_DRIFT.count() ||
              _recall_handler.IsRecall() && block.timestamp <= previous_microblock.timestamp))
     {
         BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock bad timestamp block ts:" << block.timestamp <<
             " previous block ts:" << previous_microblock.timestamp << " tdiff: " << tdiff <<
-            " epoch # : " << block._epoch_number << " microblock #: " << block._micro_block_number;
+            " epoch # : " << block.epoch_number << " microblock #: " << block.micro_block_number;
         return false;
     }
     if (is_test_network)
@@ -338,13 +338,25 @@ MicroBlockHandler::Validate(
                            "SOME VALIDATION IS DISABLED";
     }
 
-    BlockHash merkle_root = merkle::MerkleHelper([&](function<void(const BlockHash&)> cb)->void{
+    /// verify can iterate the chain and the number of blocks checks out
+    int number_batch_blocks = 0;
+    BatchBlocksIterator(block.tips, previous_microblock.tips, [&number_batch_blocks](uint8_t, const BatchStateBlock &) mutable -> void {
+       ++number_batch_blocks;
+    });
+    if (number_batch_blocks != block.number_batch_blocks)
+    {
+        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock number of batch blocks doesn't match in block: " <<
+                        block.number_batch_blocks << " to database: " << number_batch_blocks;
+        return false;
+    }
+
+    /*BlockHash merkle_root = merkle::MerkleHelper([&](function<void(const BlockHash&)> cb)->void{
         BatchBlocksIterator(block._tips, previous_microblock._tips, [&](uint8_t delegate, const BatchStateBlock &batch)->void{
             cb(batch.Hash());
         });
     });
 
-    /*if (merkle_root != block._merkle_root)
+    if (merkle_root != block._merkle_root)
     {
         BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock merkle root failed " << merkle_root.to_string() <<
                         " previous " << previous_microblock._merkle_root.to_string();

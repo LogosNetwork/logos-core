@@ -13,6 +13,8 @@
 
 #include <boost/log/sources/record_ostream.hpp>
 
+class EpochEventsNotifier;
+
 class ChannelBinder
 {
 
@@ -69,7 +71,8 @@ public:
                      Log & log,
                      const Config & config,
                      DelegateKeyStore & key_store,
-                     MessageValidator & validator);
+                     MessageValidator & validator,
+                     EpochEventsNotifier & events_notifier);
 
     void OnSendRequest(std::shared_ptr<Request> block,
                        logos::process_return & result);
@@ -90,6 +93,9 @@ public:
     std::shared_ptr<PrequelParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) override;
+
+    /// Update secondary request handler promoter
+    void UpdateRequestPromoter();
 
 protected:
 
@@ -135,12 +141,24 @@ protected:
     virtual std::shared_ptr<ConsensusConnection<CT>> MakeConsensusConnection(
             std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
 
-    Connections                 _connections;
-    SecondaryRequestHandler<CT> _secondary_handler;
-    DelegateKeyStore &          _key_store;
-    MessageValidator &          _validator;
-    std::mutex                  _connection_mutex;
-    Log                         _log;
-    uint8_t                     _delegate_id;
+    /// singleton secondary handler
+    static SecondaryRequestHandler<CT> & SecondaryRequestHandlerInstance(
+        Service & service,
+        RequestPromoter<CT>* promoter)
+    {
+        // Promoter is assigned once when the object is constructed
+        // Promoter is updated during transition
+        static SecondaryRequestHandler<CT> handler(service, promoter);
+        return handler;
+    }
+
+    Connections                     _connections;
+    DelegateKeyStore &              _key_store;
+    MessageValidator &              _validator;
+    std::mutex                      _connection_mutex;
+    Log                             _log;
+    uint8_t                         _delegate_id;
+    SecondaryRequestHandler<CT> &   _secondary_handler;    ///< Secondary queue of blocks.
+    EpochEventsNotifier &           _events_notifier;      ///< Notifies epoch manager of transition related events
 };
 

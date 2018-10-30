@@ -1,6 +1,7 @@
-#include <logos/consensus/consensus_manager.hpp>
 #include <logos/consensus/network/consensus_netio.hpp>
 #include <logos/consensus/consensus_connection.hpp>
+#include <logos/consensus/consensus_manager.hpp>
+#include <logos/consensus/epoch_manager.hpp>
 
 #include <boost/asio/read.hpp>
 
@@ -9,13 +10,15 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
                                              PrimaryDelegate & primary,
                                              RequestPromoter<CT> & promoter,
                                              MessageValidator & validator,
-                                             const DelegateIdentities & ids)
+                                             const DelegateIdentities & ids,
+                                             EpochEventsNotifier & events_notifer)
     : _iochannel(iochannel)
     , _delegate_ids(ids)
     , _reason(RejectionReason::Void)
     , _validator(validator)
     , _primary(primary)
     , _promoter(promoter)
+    , _events_notifier(events_notifer)
 {}
 
 template<ConsensusType CT>
@@ -185,6 +188,8 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
 
         ApplyUpdates(*_pre_prepare, _delegate_ids.remote);
         _state = ConsensusState::VOID;
+
+        _events_notifier.OnNewEpochPostCommit(_cur_pre_prepare->epoch_number);
     }
 }
 

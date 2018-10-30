@@ -82,7 +82,8 @@ EpochConsensusManager::PrimaryContains(const logos::block_hash &hash)
 void
 EpochConsensusManager::QueueRequestSecondary(std::shared_ptr<Request> request)
 {
-    _secondary_handler.OnRequest(request, boost::posix_time::seconds(_delegate_id * SECONDARY_LIST_TIMEOUT));
+    _secondary_handler.OnRequest(request,
+        boost::posix_time::seconds(_delegate_id * SECONDARY_LIST_TIMEOUT.count()));
 }
 
 std::shared_ptr<ConsensusConnection<ConsensusType::Epoch>>
@@ -91,5 +92,5 @@ EpochConsensusManager::MakeConsensusConnection(
         const DelegateIdentities& ids)
 {
     return std::make_shared<EpochConsensusConnection>(iochannel, *this, *this,
-            _validator, ids, _epoch_handler);
+            _validator, ids, _epoch_handler, _events_notifier);
 }

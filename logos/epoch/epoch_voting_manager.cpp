@@ -14,9 +14,9 @@ EpochVotingManager::GetNextEpochDelegates(
 {
     int constexpr num_epochs = 3;
     int constexpr num_new_delegates = 8;
-    std::array<Epoch, num_epochs> previous_epochs;
+    Epoch previous_epoch;
     BlockHash hash;
-    std::unordered_map<logos::public_key,bool> all_delegates;
+    std::unordered_map<logos::public_key,bool> delegates3epochs;
 
     // get all delegate in the previous 3 epochs
     if (_store.epoch_tip_get(hash))
@@ -27,42 +27,43 @@ EpochVotingManager::GetNextEpochDelegates(
 
     for (int e = 0; e < num_epochs; ++e)
     {
-        if (_store.epoch_get(hash, previous_epochs[e]))
+        if (_store.epoch_get(hash, previous_epoch))
         {
-            BOOST_LOG(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch: " <<
-                hash.to_string();
+            BOOST_LOG(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch: "
+                            << hash.to_string();
             return;
         }
-        hash = previous_epochs[e].previous;
-        for (int i = 0, d = 0; i < NUM_DELEGATES; ++i)
+        hash = previous_epoch.previous;
+        for (int del = 0; del < NUM_DELEGATES; ++del)
         {
-            Delegate &delegate = previous_epochs[e]._delegates[i];
-            all_delegates[delegate._account] = true;
-            if (e == (num_epochs-1))
+            Delegate &delegate = previous_epoch.delegates[del];
+            delegates3epochs[delegate.account] = true;
+            if (e == 0)
             {
                 // populate new delegates from the most recent epoch
-                delegates[d] = delegate;
-                ++d;
+                delegates[del] = delegate;
             }
         }
     }
 
-    // replace first 8 for now
-    int new_delegate = 0;
+    // replace last 8 for now
+    int new_delegate = NUM_DELEGATES - num_new_delegates;
     for (auto delegate : logos::genesis_delegates)
     {
-       if (all_delegates.find(delegate.key.pub) == all_delegates.end())
+       if (delegates3epochs.find(delegate.key.pub) == delegates3epochs.end())
        {
-          delegates[new_delegate]._account = delegate.key.pub;
-           delegates[new_delegate]._stake = delegate._stake;
-           delegates[new_delegate]._vote = delegate._vote;
+          delegates[new_delegate].account = delegate.key.pub;
+           delegates[new_delegate].stake = delegate._stake;
+           delegates[new_delegate].vote = delegate._vote;
           ++new_delegate;
-          if (num_new_delegates == new_delegate)
+          if (NUM_DELEGATES == new_delegate)
           {
               break;
           }
        }
     }
+    std::sort(std::begin(delegates), std::end(delegates),
+        [](const Delegate &d1, const Delegate &d2){return d1.stake < d2.stake;});
 }
 
 bool
@@ -78,8 +79,10 @@ EpochVotingManager::ValidateEpochDelegates(
 
    for (int i = 0; i < NUM_DELEGATES; ++i)
    {
-       if (verify.find(delegates[i]._account) == verify.end())
+       if (verify.find(delegates[i].account) == verify.end())
        {
+           BOOST_LOG(_log) << "EpochVotingManager::ValidateEpochDelegates invalild account "
+                           << delegates[i].account.to_account();
            return false;
        }
    }

@@ -13,9 +13,10 @@ BBConsensusConnection::BBConsensusConnection(
         PersistenceManager & persistence_manager,
         MessageValidator & validator,
         const DelegateIdentities & ids,
+        EpochEventsNotifier & events_notifier,
         Service & service)
     : Connection(iochannel, primary, promoter,
-                 validator, ids)
+                 validator, ids, events_notifier)
     , _timer(service)
     , _persistence_manager(persistence_manager)
 {}

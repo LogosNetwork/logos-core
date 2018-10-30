@@ -22,15 +22,17 @@ public:
     ///     @param[in] config reference to ConsensusManagerConfig configuration
     ///     @param[in] key_store delegates public key store
     ///     @param[in] validator validator/signer of consensus messages
+    ///     @param[in] events_notifier epoch transition helper
     MicroBlockConsensusManager(Service & service,
                                Store & store,
                                Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
-                               ArchiverMicroBlockHandler & handler)
+                               ArchiverMicroBlockHandler & handler,
+                               EpochEventsNotifier & events_notifier)
         : Manager(service, store, log,
-                  config, key_store, validator)
+                  config, key_store, validator, events_notifier)
         , _microblock_handler(handler)
         , _enqueued(false)
     {

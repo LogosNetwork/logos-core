@@ -1228,8 +1228,9 @@ block_processor (*this),
 block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
 stats (config.stat_config),
 _recall_handler(),
-_archiver(alarm_a, store, _recall_handler, config.consensus_manager_config.delegate_id),
-_consensus_container(service_a, store, alarm_a, log, config, _archiver)
+_identity_manager(store, config.consensus_manager_config),
+_archiver(alarm_a, store, _recall_handler),
+_consensus_container(service_a, store, alarm_a, log, config.consensus_manager_config, _archiver, _identity_manager)
 {
 
 // Used to modify the database file with the new account_info field.
@@ -1421,74 +1422,7 @@ _consensus_container(service_a, store, alarm_a, log, config, _archiver)
                                   /* Count        */ 0
                               },
                               transaction);
-        }
-
-        // check epoch and microblock
-        logos::block_hash epoch_tip;
-        if (store.epoch_tip_get(epoch_tip)) // no tip, no epoch, no microblock - create genesis
-        {
-
-            // create genesis accounts
-            for (int del = 0; del < NUM_DELEGATES*2; ++del)
-            {
-                char buff[5];
-                sprintf(buff, "%02x", del);
-                logos::genesis_delegate delegate{logos::keypair(buff), 0, 100000 + (uint64_t)del * 100};
-                logos::keypair & pair = delegate.key;
-
-                genesis_delegates.push_back(delegate);
-
-                logos::amount amount(100000 + del * 100);
-                uint64_t work = 0;
-
-                logos::state_block state(pair.pub,  // account
-                                         0,         // previous
-                                         pair.pub,  // representative
-                                         amount,
-                                         0,
-                                         pair.pub,  // link
-                                         pair.prv,
-                                         pair.pub,
-                                         work);
-
-                store.receive_put(state.hash(),
-                                  state,
-                                  transaction);
-
-                store.account_put(pair.pub,
-                                  {
-                                      /* Head    */ 0,
-                                      /* Previous*/ 0,
-                                      /* Rep     */ 0,
-                                      /* Open    */ state.hash(),
-                                      /* Amount  */ amount,
-                                      /* Time    */ logos::seconds_since_epoch(),
-                                      /* Count   */ 0
-                                  },
-                                  transaction);
-                std::string contents;
-                state.serialize_json(contents);
-                /*BOOST_LOG(log) << "initializing delegate " << del << " " << sizeof(state) << " " <<
-                                                pair.prv.data.to_string() << " " <<
-                                                pair.pub.to_string() << " " <<
-                                                pair.pub.to_account() << " " <<
-                                                state.hash().to_string() << "\n\t\t" << contents;*/
-            }
-
-
-            _archiver.CreateGenesisBlocks(transaction);
-        }
-        else // load genesis delegates
-        {
-            // create genesis accounts
-            for (int del = 0; del < NUM_DELEGATES*2; ++del) {
-                char buff[5];
-                sprintf(buff, "%02x", del);
-                logos::genesis_delegate delegate{logos::keypair(buff), 0, 100000 + (uint64_t) del * 100};
-                logos::keypair &pair = delegate.key;
-
-                genesis_delegates.push_back(delegate);
-            }
+            _identity_manager.CreateGenesisAccounts(transaction);
         }
     }
     if (logos::logos_network ==logos::logos_networks::logos_live_network)

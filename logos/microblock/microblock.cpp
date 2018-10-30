@@ -13,9 +13,9 @@ MicroBlock::Hash() const {
         cb(previous.bytes.data(), sizeof(previous));
         //cb(_merkle_root.bytes.data(), sizeof(_merkle_root));
         //cb(&_delegate, sizeof(_delegate));
-        cb(&_epoch_number, sizeof(_epoch_number));
-        cb(&_micro_block_number, sizeof(_micro_block_number));
-        cb(_tips, NUM_DELEGATES * sizeof(BlockHash));
-        cb(&_number_batch_blocks, sizeof(_number_batch_blocks));
+        cb(&epoch_number, sizeof(epoch_number));
+        cb(&micro_block_number, sizeof(micro_block_number));
+        cb(tips, NUM_DELEGATES * sizeof(BlockHash));
+        cb(&number_batch_blocks, sizeof(number_batch_blocks));
     });
 }

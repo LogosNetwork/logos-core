@@ -35,12 +35,14 @@ public:
     ///     @param[in] config reference to ConsensusManagerConfig.
     ///     @param[in] key_store stores delegates' public keys.
     ///     @param[in] validator validator/signer of consensus messages.
-    BatchBlockConsensusManager(Service & service, 
+    ///     @param[in] events_notifier transition helper
+    BatchBlockConsensusManager(Service & service,
                                Store & store,
                                Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
-                               MessageValidator & validator);
+                               MessageValidator & validator,
+                               EpochEventsNotifier & events_notifier);
 
     virtual ~BatchBlockConsensusManager() {};
 

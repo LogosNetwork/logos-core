@@ -19,16 +19,19 @@ public:
     /// @param key_store Delegates' public key store [in]
     /// @param validator Validator/Signer of consensus message [in]
     /// @param ids remote/local delegate id [in]
+    /// @param events_notifier epoch transition helper [in]
     MicroBlockConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                                   PrimaryDelegate & primary,
                                   RequestPromoter<ConsensusType::MicroBlock> & promoter,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
-                                  ArchiverMicroBlockHandler & handler)
-        : ConsensusConnection<ConsensusType::MicroBlock>(iochannel, primary, promoter, validator, ids)
+                                  ArchiverMicroBlockHandler & handler,
+                                  EpochEventsNotifier & events_notifier)
+        : ConsensusConnection<ConsensusType::MicroBlock>(iochannel, primary, promoter, validator, ids,
+                                                         events_notifier)
         , _microblock_handler(handler)
     {}
-    ~MicroBlockConsensusConnection() {}
+    ~MicroBlockConsensusConnection() = default;
 
     /// Validate PrePrepare message
     /// @param messasge PrePrepare message [in]

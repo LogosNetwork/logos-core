@@ -56,7 +56,7 @@ class SecondaryRequestHandler
 public:
 
     SecondaryRequestHandler(Service & service,
-                            RequestPromoter<CT> & promoter);
+                            RequestPromoter<CT> *promoter);
 
     bool Contains(const logos::block_hash & hash);
 
@@ -66,6 +66,8 @@ public:
     void OnTimeout(const Error & error);
 
     void OnPrePrepare(const PrePrepare & block);
+
+    void UpdateRequestPromoter(RequestPromoter<CT>* promoter);
 
 private:
 
@@ -77,10 +79,11 @@ private:
     static const Seconds REQUEST_TIMEOUT;
     static const Seconds MIN_TIMEOUT;
 
-    Requests              _requests;
-    Service &             _service;
-    RequestPromoter<CT> & _promoter;
-    Log                   _log;
-    std::mutex            _mutex;
-    Timer                 _timer;
+    Requests                _requests;
+    Service &               _service;
+    RequestPromoter<CT>*    _promoter;
+    Log                     _log;
+    std::mutex              _mutex;
+    Timer                   _timer;
+    std::mutex              _promoter_mutex;
 };

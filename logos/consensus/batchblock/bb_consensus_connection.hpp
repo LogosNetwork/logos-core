@@ -26,12 +26,14 @@ public:
     /// @param key_store Delegates' public key store [in]
     /// @param validator Validator/Signer of consensus message [in]
     /// @param ids remote/local delegate id [in]
+    /// @param events_notifier epoch transition helper [in]
     BBConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                           PrimaryDelegate & primary,
                           Promoter & promoter,
                           PersistenceManager & persistence_manager,
                           MessageValidator & validator,
                           const DelegateIdentities & ids,
+                          EpochEventsNotifier & events_notifier,
                           Service & service);
 
     ~BBConsensusConnection() {}

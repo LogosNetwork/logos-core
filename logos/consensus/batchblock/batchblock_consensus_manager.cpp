@@ -4,15 +4,18 @@
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/batchblock/bb_consensus_connection.hpp>
 
+RequestHandler BatchBlockConsensusManager::_handler;
+
 BatchBlockConsensusManager::BatchBlockConsensusManager(
         Service & service,
         Store & store,
         Log & log,
         const Config & config,
         DelegateKeyStore & key_store,
-        MessageValidator & validator)
+        MessageValidator & validator,
+        EpochEventsNotifier & events_notifier)
     : Manager(service, store, log,
-              config, key_store, validator)
+              config, key_store, validator, events_notifier)
     , _persistence_manager(store)
     , _service(service)
 {
@@ -43,6 +46,8 @@ BatchBlockConsensusManager::BufferComplete(
     SendBufferedBlocks();
 }
 
+
+
 std::shared_ptr<PrequelParser>
 BatchBlockConsensusManager::BindIOChannel(
         std::shared_ptr<IOChannel> iochannel,
@@ -51,10 +56,10 @@ BatchBlockConsensusManager::BindIOChannel(
     auto connection =
             std::make_shared<BBConsensusConnection>(
                     iochannel, *this, *this, _persistence_manager,
-                    _validator, ids, _service);
+                    _validator, ids, _events_notifer);
 
     _connections.push_back(connection);
-	
+
     if(++_channels_bound == QUORUM_SIZE)
     {
         BOOST_LOG(_log) << "CALLING ONDELEGATESCONNECTED()";
@@ -204,7 +209,7 @@ BatchBlockConsensusManager::MakeConsensusConnection(
 {
     return std::make_shared<BBConsensusConnection>(
             iochannel, *this, *this, _persistence_manager,
-            _validator, ids, _service);
+            _validator, ids, _service, _events_notifier);
 }
 
 void

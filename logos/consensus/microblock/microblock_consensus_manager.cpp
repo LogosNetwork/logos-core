@@ -78,7 +78,8 @@ MicroBlockConsensusManager::PrimaryContains(const logos::block_hash &hash)
 void
 MicroBlockConsensusManager::QueueRequestSecondary(std::shared_ptr<Request> request)
 {
-    _secondary_handler.OnRequest(request, boost::posix_time::seconds(_delegate_id * SECONDARY_LIST_TIMEOUT));
+    _secondary_handler.OnRequest(request,
+        boost::posix_time::seconds(_delegate_id * SECONDARY_LIST_TIMEOUT.count()));
 }
 
 std::shared_ptr<ConsensusConnection<ConsensusType::MicroBlock>>
@@ -87,5 +88,5 @@ MicroBlockConsensusManager::MakeConsensusConnection(
         const DelegateIdentities& ids)
 {
     return std::make_shared<MicroBlockConsensusConnection>(iochannel, *this, *this,
-            _validator, ids, _microblock_handler);
+            _validator, ids, _microblock_handler, _events_notifier);
 }
