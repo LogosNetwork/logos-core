@@ -9,6 +9,7 @@
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
+#include <logos/p2p/p2p.h>
 
 namespace logos
 {
@@ -56,7 +57,8 @@ public:
                        logos::alarm & alarm,
                        Log & log,
                        const Config & config,
-                       Archiver & archiver);
+		       Archiver & archiver,
+		       p2p_interface & p2p);
 
     ~ConsensusContainer() = default;
 

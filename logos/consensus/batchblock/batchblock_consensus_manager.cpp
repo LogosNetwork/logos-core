@@ -10,9 +10,10 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
         Log & log,
         const Config & config,
         DelegateKeyStore & key_store,
-        MessageValidator & validator)
+	MessageValidator & validator,
+	p2p_interface & p2p)
     : Manager(service, store, log,
-              config, key_store, validator)
+	      config, key_store, validator, p2p)
     , _persistence_manager(store, log)
 {}
 

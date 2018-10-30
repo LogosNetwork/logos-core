@@ -12,14 +12,15 @@ ConsensusContainer::ConsensusContainer(Service & service,
                                        logos::alarm & alarm,
                                        Log & log,
                                        const Config & config,
-                                       Archiver & archiver)
+				       Archiver & archiver,
+				       p2p_interface & p2p)
     : _validator(_key_store)
     , _batch_manager(service, store, log,
-            config.consensus_manager_config, _key_store, _validator)
+	    config.consensus_manager_config, _key_store, _validator, p2p)
     , _micro_manager(service, store, log,
-            config.consensus_manager_config, _key_store, _validator, archiver)
+	    config.consensus_manager_config, _key_store, _validator, archiver, p2p)
     , _epoch_manager(service, store, log,
-            config.consensus_manager_config, _key_store, _validator, archiver)
+	    config.consensus_manager_config, _key_store, _validator, archiver, p2p)
     , _netio_manager(
         {
             {ConsensusType::BatchStateBlock, _batch_manager},

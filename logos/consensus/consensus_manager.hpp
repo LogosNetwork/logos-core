@@ -10,6 +10,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
+#include <logos/p2p/p2p.h>
 
 #include <boost/log/sources/record_ostream.hpp>
 
@@ -67,7 +68,8 @@ public:
                      Log & log,
                      const Config & config,
                      DelegateKeyStore & key_store,
-                     MessageValidator & validator);
+		     MessageValidator & validator,
+		     p2p_interface & p2p);
 
     void OnSendRequest(std::shared_ptr<Request> block,
                        logos::process_return & result);
@@ -141,5 +143,6 @@ protected:
     Log                         _log;
     uint8_t                     _delegate_id;
     SecondaryRequestHandler<CT> _secondary_handler;             ///< Secondary queue of blocks.
+    p2p_interface &		_p2p;
 };
 

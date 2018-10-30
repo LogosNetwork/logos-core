@@ -1229,7 +1229,7 @@ block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
 stats (config.stat_config),
 _recall_handler(),
 _archiver(alarm_a, store, _recall_handler, config.consensus_manager_config.delegate_id),
-_consensus_container(service_a, store, alarm_a, log, config, _archiver)
+_consensus_container(service_a, store, alarm_a, log, config, _archiver, p2p)
 {
 
 // Used to modify the database file with the new account_info field.

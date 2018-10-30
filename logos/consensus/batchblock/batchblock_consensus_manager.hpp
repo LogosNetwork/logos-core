@@ -29,7 +29,8 @@ public:
                                Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
-                               MessageValidator & validator);
+			       MessageValidator & validator,
+			       p2p_interface & p2p);
 
     virtual ~BatchBlockConsensusManager() {};
 

@@ -12,12 +12,14 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
                                        Log & log,
                                        const Config & config,
                                        DelegateKeyStore & key_store,
-                                       MessageValidator & validator)
+				       MessageValidator & validator,
+				       p2p_interface & p2p)
     : PrimaryDelegate(validator)
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
     , _secondary_handler(service, *this)
+    , _p2p(p2p)
 {}
 
 template<ConsensusType CT>
@@ -90,7 +92,13 @@ void ConsensusManager<CT>::Send(const void * data, size_t size, bool propagate)
     }
 
     if (propagate) {
-	// TODO: propagate message
+	if (_p2p.PropagateMessage(data, size)) {
+	    BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
+		"> - message propagated.";
+	} else {
+	    BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
+		"> - message not propagated.";
+	}
     }
 }
 

@@ -27,9 +27,10 @@ public:
 					      const Config & config,
                           DelegateKeyStore & key_store,
                           MessageValidator & validator,
-                          ArchiverEpochHandler & handler)
+			  ArchiverEpochHandler & handler,
+			  p2p_interface & p2p)
 		: Manager(service, store, log,
-				  config, key_store, validator)
+				  config, key_store, validator, p2p)
 		, _epoch_handler(handler)
 		, _enqueued(false)
 	{

@@ -28,9 +28,10 @@ public:
                                const Config & config,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
-                               ArchiverMicroBlockHandler & handler)
-        : Manager(service, store, log,
-                  config, key_store, validator)
+			       ArchiverMicroBlockHandler & handler,
+			       p2p_interface & p2p)
+       : Manager(service, store, log,
+		  config, key_store, validator, p2p)
         , _microblock_handler(handler)
         , _enqueued(false)
     {
