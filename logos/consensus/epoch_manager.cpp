@@ -46,7 +46,8 @@ void
 EpochManager::OnNewEpochPostCommit(
     uint epoch_number)
 {
-    if ((_epoch_number + 1) == epoch_number)
+    if (_delegate == EpochTransitionDelegate::Persistent &&
+            (_epoch_number + 1) == epoch_number)
     {
         _on_new_epoch_postcommit();
     }

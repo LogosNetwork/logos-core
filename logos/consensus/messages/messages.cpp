@@ -15,9 +15,8 @@ BlockHash BatchStateBlock::Hash() const
 
     blake2b_update(&hash, &sequence, sizeof(sequence));
     blake2b_update(&hash, &block_count, sizeof(block_count));
-    blake2b_update(&hash, blocks, sizeof(BlockList));
     blake2b_update(&hash, &epoch_number, sizeof(epoch_number));
-    blake2b_update(&hash, &epoch_sequence, sizeof(epoch_sequence));
+    blake2b_update(&hash, blocks, sizeof(BlockList));
 
     status = blake2b_final(&hash, result.bytes.data(), sizeof(result.bytes));
     assert(status == 0);

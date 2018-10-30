@@ -28,14 +28,13 @@ public:
     /// @param ids remote/local delegate id [in]
     /// @param events_notifier epoch transition helper [in]
     BBConsensusConnection(std::shared_ptr<IOChannel> iochannel,
-                          PrimaryDelegate & primary,
-                          Promoter & promoter,
-                          PersistenceManager & persistence_manager,
-                          MessageValidator & validator,
-                          const DelegateIdentities & ids,
-                          EpochEventsNotifier & events_notifier,
-                          Service & service);
-
+                                  PrimaryDelegate & primary,
+                                  Promoter & promoter,
+                                  PersistenceManager & persistence_manager,
+                                  MessageValidator & validator,
+                                  const DelegateIdentities & ids,
+								  Service & service,
+                                  EpochEventsNotifier & events_notifier);
     ~BBConsensusConnection() {}
 
     /// Validate PrePrepare message

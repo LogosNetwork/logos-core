@@ -121,7 +121,6 @@ public:
     ///     @param epoch_info epoch transition info
     ConsensusNetIO(std::shared_ptr<Socket> socket,
                    const Endpoint endpoint,
-                   std::shared_ptr<KeyAdvertisement> keyadvert,
                    logos::alarm & alarm,
                    const uint8_t remote_delegate_id, 
                    const uint8_t local_delegate_id, 
@@ -183,12 +182,6 @@ private:
     /// Async connect call back.
     void OnConnect();
 
-    /// Connected call back.
-    ///
-    /// Async connect call back.
-    /// @param advert peer's public key message
-    void OnConnect(std::shared_ptr<KeyAdvertisement> advert);
-
     /// Connected call back with error code set.
     ///
     /// Async connect call back.
@@ -207,11 +200,6 @@ private:
     ///
     ///     @param data received data
     void OnPublicKey(const uint8_t * data);
-
-    /// Public key callback.
-    ///
-    ///     @param received message
-    void OnPublicKeyMsg(const KeyAdvertisement &msg);
 
     /// async_write callback
     /// @param error error code

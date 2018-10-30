@@ -15,8 +15,9 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
 
     uint64_t  sequence;
     uint64_t  block_count = 0;
-    BlockList blocks;
     uint      epoch_number = 0;
+    uint      padding = 0;
+    BlockList blocks;
     BlockHash next;
     Signature signature;
 };
@@ -70,8 +71,13 @@ struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert,
                                          ConsensusType::Any>
 {
     PublicKey public_key;
+};
+
+struct ConnectedClientIds
+{
+    uint epoch_number;
+    uint8_t delegate_id;
     EpochConnection connection;
-    uint8_t   remote_delegate_id;
 };
 
 // Convenience aliases for message names.

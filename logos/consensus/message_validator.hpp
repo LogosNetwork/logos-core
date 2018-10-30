@@ -123,7 +123,6 @@ public:
     {
         //message
         string msg(reinterpret_cast<const char*>(&message), MSG::HASHABLE_BYTES);
-
         //deserialize sig
         SignatureReal sig;
         string sig_str(reinterpret_cast<const char*>(&message.signature), CONSENSUS_SIG_SIZE);

@@ -29,6 +29,11 @@ public:
 
     bool Contains(const logos::block_hash & hash);
 
+    size_t QueueSize()
+    {
+        return _batches.size();
+    }
+
 private:
 
     void InsertBlock(std::shared_ptr<logos::state_block> block);

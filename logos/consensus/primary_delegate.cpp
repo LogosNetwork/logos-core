@@ -147,6 +147,8 @@ void PrimaryDelegate::OnTimeout(const Error & error,
     {
         BOOST_LOG(_log) << timeout_str
                         << " timeout expired during unexpected state."
+                        << " state " << StateToString(_state)
+                        << " expected state " << StateToString(expected_state)
                         << " Aborting timeout.";
         return;
     }

@@ -7,11 +7,12 @@ RequestHandler::RequestHandler()
     // After startup consensus is performed
     // with an empty batch block.
     //
+    /* TODO temp to get arround of empty BSB sent on start, while not every delegate is interconnected
     _batches.push_back(BatchStateBlock());
     _batches.push_back(BatchStateBlock());
 
     _handle = _batches.end();
-    _handle--;
+    _handle--;*/
 }
 
 void RequestHandler::OnRequest(std::shared_ptr<logos::state_block> block)

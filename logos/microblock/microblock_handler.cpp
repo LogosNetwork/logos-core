@@ -243,9 +243,9 @@ MicroBlockHandler::Build(
     block.previous = previous_micro_block_hash;
     block.timestamp = GetStamp();
     block.account = NodeIdentityManager::_delegate_account;
-    block.micro_block_number = first_micro_block
+    block.sequence = first_micro_block
             ? 0
-            : previous_micro_block.micro_block_number + 1;
+            : previous_micro_block.sequence + 1;
     block.last_micro_block = last_micro_block;
 
     return true;
@@ -299,21 +299,21 @@ MicroBlockHandler::Validate(
     // previous and proposed microblock are in the same epoch
     if (block.epoch_number == previous_microblock.epoch_number)
     {
-        if (block.micro_block_number != (previous_microblock.micro_block_number + 1))
+        if (block.sequence != (previous_microblock.sequence + 1))
         {
             BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock epoch number failed epoch #:" <<
-                            block.epoch_number << " block #:" << block.micro_block_number <<
-                            " previous block #:" << previous_microblock.micro_block_number;
+                            block.epoch_number << " block #:" << block.sequence <<
+                            " previous block #:" << previous_microblock.sequence;
             return false;
         }
     }
     // proposed microblock must be in new epoch
     else if (block.epoch_number != (previous_microblock.epoch_number + 1) ||
-            block.micro_block_number != 0)
+            block.sequence != 0)
     {
         BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock epoch number failed epoch #:" << block.epoch_number <<
             " previous block epoch #:" << previous_microblock.epoch_number <<
-            " block #:" << block.micro_block_number;
+            " block #:" << block.sequence;
         return false;
     }
 
@@ -323,13 +323,13 @@ MicroBlockHandler::Validate(
     int tdiff = ((int64_t)block.timestamp - (int64_t)previous_microblock.timestamp)/1000 -
             TConvert<Seconds>(MICROBLOCK_CUTOFF_TIME).count(); //sec
     bool is_test_network = (logos::logos_network == logos::logos_networks::logos_test_network);
-    if (!is_test_network && (previous_epoch.epoch_number != GENESIS_EPOCH || block.micro_block_number > 0) &&
+    if (!is_test_network && (previous_epoch.epoch_number != GENESIS_EPOCH || block.sequence > 0) &&
             (!_recall_handler.IsRecall() && abs(tdiff) > CLOCK_DRIFT.count() ||
              _recall_handler.IsRecall() && block.timestamp <= previous_microblock.timestamp))
     {
         BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock bad timestamp block ts:" << block.timestamp <<
             " previous block ts:" << previous_microblock.timestamp << " tdiff: " << tdiff <<
-            " epoch # : " << block.epoch_number << " microblock #: " << block.micro_block_number;
+            " epoch # : " << block.epoch_number << " microblock #: " << block.sequence;
         return false;
     }
     if (is_test_network)
@@ -349,19 +349,6 @@ MicroBlockHandler::Validate(
                         block.number_batch_blocks << " to database: " << number_batch_blocks;
         return false;
     }
-
-    /*BlockHash merkle_root = merkle::MerkleHelper([&](function<void(const BlockHash&)> cb)->void{
-        BatchBlocksIterator(block._tips, previous_microblock._tips, [&](uint8_t delegate, const BatchStateBlock &batch)->void{
-            cb(batch.Hash());
-        });
-    });
-
-    if (merkle_root != block._merkle_root)
-    {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock merkle root failed " << merkle_root.to_string() <<
-                        " previous " << previous_microblock._merkle_root.to_string();
-        return false;
-    }*/
 
     return true;
 }

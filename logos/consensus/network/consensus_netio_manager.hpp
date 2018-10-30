@@ -51,17 +51,16 @@ public:
         PeerAcceptorStarter & starter,
         EpochInfo & epoch_info);
 
-    ~ConsensusNetIOManager() = default;
+    ~ConsensusNetIOManager();
 
     /// Server connection accepted call back.
     ///
     /// Called by PeerAcceptor.
     ///     @param endpoint connected peer endpoint
     ///     @param socket connected peer socket
-    ///     @param advert peer's public key message
     void OnConnectionAccepted(const Endpoint endpoint,
                               std::shared_ptr<Socket>,
-                              std::shared_ptr<KeyAdvertisement>);
+                              const ConnectedClientIds &ids);
 
     /// Bind connected IO Channel to ConsensusConnection.
     ///

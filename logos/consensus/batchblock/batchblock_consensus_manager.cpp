@@ -3,6 +3,7 @@
 /// handles specifics of BatchBlock consensus
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/batchblock/bb_consensus_connection.hpp>
+#include <logos/consensus/epoch_manager.hpp>
 
 RequestHandler BatchBlockConsensusManager::_handler;
 
@@ -19,7 +20,9 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
     , _persistence_manager(store)
     , _service(service)
 {
+    /* TODO remove once full integration with fallback/rejection is complete
     _state = ConsensusState::INITIALIZING;
+     */
 }
 
 void
@@ -56,7 +59,7 @@ BatchBlockConsensusManager::BindIOChannel(
     auto connection =
             std::make_shared<BBConsensusConnection>(
                     iochannel, *this, *this, _persistence_manager,
-                    _validator, ids, _events_notifer);
+                    _validator, ids, _service, _events_notifier);
 
     _connections.push_back(connection);
 
@@ -133,7 +136,10 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
     auto & batch = reinterpret_cast<
             PrePrepare&>(_handler.GetNextBatch());
 
+    batch.timestamp = GetStamp();
     batch.sequence = _sequence;
+    batch.epoch_number = _events_notifier.GetEpochNumber();
+
     return batch;
 }
 
@@ -244,6 +250,10 @@ BatchBlockConsensusManager::OnRejection(
         break;
     }
     case RejectionReason::Bad_Signature:
+        break;
+    case RejectionReason::Invalid_Epoch:
+        break;
+    case RejectionReason::New_Epoch:
         break;
     case RejectionReason::Void:
         break;
@@ -403,7 +413,11 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 void
 BatchBlockConsensusManager::OnDelegatesConnected()
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-
-    InitiateConsensus();
+    // if not in Epoch's transition
+    if (_events_notifier.GetState() == EpochTransitionState::None) {
+        /* TODO temp to get arround of empty BSB sent on start, while not every delegate is interconnected
+        std::lock_guard<std::recursive_mutex> lock(_mutex);
+        InitiateConsensus();
+        */
+    }
 }

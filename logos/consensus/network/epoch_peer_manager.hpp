@@ -32,7 +32,7 @@ class EpochPeerManager : public PeerManager,
     using Socket      = boost::asio::ip::tcp::socket;
     using Log         = boost::log::sources::logger_mt;
     using Config      = ConsensusManagerConfig;
-    using PeerBinder  = std::function<void(const Endpoint, std::shared_ptr<Socket>, std::shared_ptr<KeyAdvertisement>)>;
+    using PeerBinder  = std::function<void(const Endpoint, std::shared_ptr<Socket>, ConnectedClientIds)>;
     using ErrorCode   = boost::system::error_code;
 
 public:

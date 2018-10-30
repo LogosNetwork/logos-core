@@ -74,7 +74,7 @@ std::string MessageToName(const MSG & message)
 template<typename MSG>
 std::string ConsensusToName(const MSG & message)
 {
-    return ConsensusToName(message.type);
+    return ConsensusToName(message.consensus_type);
 }
 
 inline size_t ConsensusTypeToIndex(ConsensusType type)
@@ -117,4 +117,23 @@ inline size_t MessageTypeToSize(MessageType type)
     }
 
     return ret;
+}
+
+inline std::string RejectionReasonToName(RejectionReason reason)
+{
+    switch (reason)
+    {
+        case RejectionReason::Void:
+            return "Void";
+        case RejectionReason::Contains_Invalid_Request:
+            return "Contains Invalid Request";
+        case RejectionReason::Clock_Drift:
+            return "Clock Drift";
+        case RejectionReason::Bad_Signature:
+            return "Bad Signature";
+        case RejectionReason::Invalid_Epoch:
+            return "Invalid Epoch";
+        case RejectionReason::New_Epoch:
+            return "New Epoch";
+    }
 }

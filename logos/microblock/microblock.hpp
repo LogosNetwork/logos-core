@@ -16,7 +16,7 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
         //, _merkle_root(0)
         , account(0)
         , epoch_number(0)
-        , micro_block_number(0)
+        , sequence(0)
         , last_micro_block(0)
         , tips{0}
         , number_batch_blocks(0)
@@ -34,9 +34,9 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
     //BlockHash           _merkle_root; 		///< Merkle root of the batch blocks included in this microblock
     logos::account      account; 	            ///< Delegate who proposed this microblock
     uint                epoch_number; 			///< Current epoch
-    uint16_t            micro_block_number;	///< Microblock number within this epoch
-    uint8_t             last_micro_block;      ///< The last microblock in the epoch
-    BlockHash           tips[NUM_DELEGATES];   ///< Delegate's batch block tips
-    uint                number_batch_blocks;   ///< Number of batch blocks in the microblock
+    uint16_t            sequence;	            ///< Microblock number within this epoch
+    uint8_t             last_micro_block;       ///< The last microblock in the epoch
+    BlockHash           tips[NUM_DELEGATES];    ///< Delegate's batch block tips
+    uint                number_batch_blocks;    ///< Number of batch blocks in the microblock
     Signature           signature; 		        ///< Multisignature
 };

@@ -94,7 +94,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
     BOOST_LOG(_log) << "ConsensusConnection<"
                     << ConsensusToName(CT) << ">- Received "
                     << MessageToName(type)
-                    << " message.";
+                    << " message, from delegate " << (int)_delegate_ids.remote;
 
     switch (type)
     {
@@ -189,7 +189,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
         ApplyUpdates(*_pre_prepare, _delegate_ids.remote);
         _state = ConsensusState::VOID;
 
-        _events_notifier.OnNewEpochPostCommit(_cur_pre_prepare->epoch_number);
+        _events_notifier.OnNewEpochPostCommit(_pre_prepare->epoch_number);
     }
 }
 

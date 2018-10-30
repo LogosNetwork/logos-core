@@ -9,7 +9,7 @@ const  boost::posix_time::seconds SecondaryRequestHandler<CT>::MIN_TIMEOUT{2};
 
 template<ConsensusType CT>
 SecondaryRequestHandler<CT>::SecondaryRequestHandler(Service & service,
-                                                     RequestPromoter<CT>* promoter)
+                                                     Promoter* promoter)
     : _service(service)
     , _promoter(promoter)
     , _timer(service)

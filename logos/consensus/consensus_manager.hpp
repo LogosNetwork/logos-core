@@ -123,6 +123,7 @@ protected:
     virtual PrePrepare & PrePrepareGetNext() = 0;
     virtual bool PrePrepareQueueEmpty() = 0;
     virtual bool PrePrepareQueueFull() = 0;
+    virtual size_t QueueSize() { return 1; }
     virtual bool PrimaryContains(const logos::block_hash&) = 0;
     virtual bool SecondaryContains(const logos::block_hash&);
 

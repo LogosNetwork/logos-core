@@ -32,6 +32,8 @@ public:
     virtual void OnNewEpochReject() = 0;
     virtual EpochConnection GetConnection() = 0;
     virtual uint GetEpochNumber() = 0;
+    virtual EpochTransitionState GetState() = 0;
+    virtual EpochTransitionDelegate GetDelegate() = 0;
 };
 
 class EpochManager : public EpochInfo,
@@ -73,6 +75,10 @@ public:
     std::string GetStateName() override { return TransitionStateToName(_state); }
 
     bool IsWaitingDisconnect() override { return _connection_state == EpochConnection::WaitingDisconnect; }
+
+    EpochTransitionState GetState() override { return _state; }
+
+    EpochTransitionDelegate GetDelegate() override { return _delegate; }
 
     void OnNewEpochPostCommit(uint epoch_number) override;
 

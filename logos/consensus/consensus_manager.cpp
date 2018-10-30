@@ -131,7 +131,8 @@ void ConsensusManager<CT>::InitiateConsensus()
 {
     BOOST_LOG(_log) << "Initiating "
                     << ConsensusToName(CT)
-                    << " consensus.";
+                    << " consensus. Requests queue size: "
+                    << QueueSize();
 
     auto & pre_prepare = PrePrepareGetNext();
 

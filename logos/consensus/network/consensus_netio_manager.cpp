@@ -86,7 +86,7 @@ void
 ConsensusNetIOManager::OnConnectionAccepted(
     const Endpoint endpoint,
     std::shared_ptr<Socket> socket,
-    std::shared_ptr<KeyAdvertisement> advert)
+    const ConnectedClientIds &ids)
 {
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
 
@@ -98,7 +98,7 @@ ConsensusNetIOManager::OnConnectionAccepted(
 
     _connections.push_back(
             std::make_shared<ConsensusNetIO>(
-                socket, endpoint, _alarm, advert->remote_delegate_id,
+                socket, endpoint, _alarm, ids.delegate_id,
                 _delegate_id, _key_store, _validator,
                 bc, _connection_mutex, _epoch_info));
 }

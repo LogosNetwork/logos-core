@@ -3,6 +3,7 @@
 /// handle the specifics of BatchBlock consensus.
 #include <logos/consensus/batchblock/bb_consensus_connection.hpp>
 #include <logos/consensus/consensus_manager.hpp>
+#include <logos/consensus/epoch_manager.hpp>
 
 #include <random>
 
@@ -13,8 +14,8 @@ BBConsensusConnection::BBConsensusConnection(
         PersistenceManager & persistence_manager,
         MessageValidator & validator,
         const DelegateIdentities & ids,
-        EpochEventsNotifier & events_notifier,
-        Service & service)
+		Service & service,
+        EpochEventsNotifier & events_notifier)
     : Connection(iochannel, primary, promoter,
                  validator, ids, events_notifier)
     , _timer(service)
@@ -67,6 +68,18 @@ BBConsensusConnection::DoValidate(
         }
     }
 
+    if (_events_notifier.GetDelegate() == EpochTransitionDelegate::PersistentReject &&
+        message.epoch_number == (_events_notifier.GetEpochNumber() - 1))
+    {
+        _reason = RejectionReason::New_Epoch;
+        valid = false;
+    }
+    else if (message.epoch_number != _events_notifier.GetEpochNumber())
+    {
+        _reason = RejectionReason::Invalid_Epoch; // TODO handle in the primary delegate
+        valid = false;
+    }
+
     return valid;
 }
 
@@ -92,6 +105,8 @@ BBConsensusConnection::Reject()
     case RejectionReason::Clock_Drift:
     case RejectionReason::Contains_Invalid_Request:
     case RejectionReason::Bad_Signature:
+    case RejectionReason::Invalid_Epoch:
+    case RejectionReason::New_Epoch:
         SendMessage<Rejection>();
         break;
     }

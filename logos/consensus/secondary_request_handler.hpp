@@ -27,15 +27,16 @@ class SecondaryRequestHandler
 {
     class Request;
 
-    using Timer      = boost::asio::deadline_timer;
-    using Service    = boost::asio::io_service;
-    using Error      = boost::system::error_code;
-    using Log        = boost::log::sources::logger_mt;
-    using BlockPtr   = std::shared_ptr<RequestMessage<CT>>;
-    using Seconds    = boost::posix_time::seconds;
-    using Clock      = boost::posix_time::second_clock;
-    using TimePoint  = boost::posix_time::ptime;
-    using PrePrepare = PrePrepareMessage<CT>;
+    using Timer     = boost::asio::deadline_timer;
+    using Service   = boost::asio::io_service;
+    using Error     = boost::system::error_code;
+    using Log       = boost::log::sources::logger_mt;
+    using BlockPtr  = std::shared_ptr<RequestMessage<CT>>;
+    using Seconds   = boost::posix_time::seconds;
+    using Clock     = boost::posix_time::second_clock;
+    using TimePoint = boost::posix_time::ptime;
+    using PrePrepare= PrePrepareMessage<CT>;
+	using Promoter	= RequestPromoter<CT>;
 
     struct Request
     {
@@ -55,8 +56,7 @@ class SecondaryRequestHandler
 
 public:
 
-    SecondaryRequestHandler(Service & service,
-                            RequestPromoter<CT> *promoter);
+    SecondaryRequestHandler(Service & service, Promoter *promoter);
 
     bool Contains(const logos::block_hash & hash);
 
@@ -81,7 +81,7 @@ private:
 
     Requests                _requests;
     Service &               _service;
-    RequestPromoter<CT>*    _promoter;
+    Promoter *    			_promoter;
     Log                     _log;
     std::mutex              _mutex;
     Timer                   _timer;

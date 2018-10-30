@@ -78,11 +78,11 @@ class ConsensusContainer : public InternalConsensus
     using Endpoint   = boost::asio::ip::tcp::endpoint;
     using Socket     = boost::asio::ip::tcp::socket;
     using Accounts   = logos::account[NUM_DELEGATES];
-    using BindingMap = std::map<EpochConnection, std::shared_ptr<EpochManager>>;
+    using BindingMap = std::map<uint, std::shared_ptr<EpochManager>>;
 
     struct ConnectionCache {
         std::shared_ptr<Socket> socket;
-        std::shared_ptr<KeyAdvertisement> advert;
+        ConnectedClientIds ids;
         Endpoint endpoint;
     };
 
@@ -130,8 +130,8 @@ public:
     /// Binds connected socket to the correct delegates set, mostly applicable during epoch transition
     /// @param endpoint connected endpoing
     /// @param socket connected socket
-    /// @param advert key advertisement received from the client
-    void PeerBinder(const Endpoint, std::shared_ptr<Socket>, std::shared_ptr<KeyAdvertisement>);
+    /// @param connection type of peer's connection
+    void PeerBinder(const Endpoint, std::shared_ptr<Socket>, ConnectedClientIds ids);
 
     /// Start Epoch Transition
     void EpochTransitionEventsStart() override;
@@ -208,4 +208,5 @@ private:
     EpochTransitionDelegate             _transition_delegate;       ///< type of delegate during transition
     std::queue<ConnectionCache>         _connections_queue;         ///< queue for delegates set connections
     BindingMap                          _binding_map;               ///< map for binding connection to epoch manager
+    bool                                _epoch_transition_enabled;  ///< true if the node supports transition
 };

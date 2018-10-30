@@ -41,7 +41,6 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
 
 ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket, 
                                const Endpoint endpoint,
-                               std::shared_ptr<KeyAdvertisement> advert,
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
                                const uint8_t local_delegate_id, 
@@ -64,7 +63,7 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
     , _connection_mutex(connection_mutex)
     , _epoch_info(epoch_info)
 {
-    OnConnect(advert);
+    OnConnect();
 }
 
 void
@@ -110,7 +109,7 @@ ConsensusNetIO::Send(
 void 
 ConsensusNetIO::OnConnect()
 {
-    BOOST_LOG(_log) << "ConsensusNetIO - Client Connected to "
+    BOOST_LOG(_log) << "ConsensusNetIO - Connected to "
                     << _endpoint << ". Remote delegate id: "
                     << uint64_t(_remote_delegate_id);
 
@@ -121,21 +120,6 @@ ConsensusNetIO::OnConnect()
 }
 
 void
-ConsensusNetIO::OnConnect(std::shared_ptr<KeyAdvertisement> advert)
-{
-    BOOST_LOG(_log) << "ConsensusNetIO - Server Connected to "
-                    << _endpoint << ". Remote delegate id: "
-                    << uint64_t(_remote_delegate_id);
-
-    _connected = true;
-
-    SendKeyAdvertisement();
-    _alarm.add(std::chrono::steady_clock::now(), [this, advert](){
-        OnPublicKeyMsg(*advert);
-    });
-}
-
-void 
 ConsensusNetIO::OnConnect(
     ErrorCode const & ec)
 {
@@ -154,7 +138,18 @@ ConsensusNetIO::OnConnect(
         return;
     }
 
-    OnConnect();
+    auto ids = std::make_shared<ConnectedClientIds>();
+    *ids = {_epoch_info.GetEpochNumber(), _local_delegate_id, _epoch_info.GetConnection()};
+    boost::asio::async_write(*_socket, boost::asio::buffer(ids.get(), sizeof(ConnectedClientIds)),
+                             [this, ids](const ErrorCode &ec, size_t){
+        if(ec)
+        {
+            BOOST_LOG(_log) << "ConsensusNetIO - Error writing connected client info " << ec.message();
+            return;
+        }
+
+        OnConnect();
+    });
 }
 
 void
@@ -162,8 +157,6 @@ ConsensusNetIO::SendKeyAdvertisement()
 {
     KeyAdvertisement advert;
     advert.public_key = _validator.GetPublicKey();
-    advert.connection = _epoch_info.GetConnection();
-    advert.remote_delegate_id = _local_delegate_id;
     Send(advert);
 }
 
@@ -227,15 +220,6 @@ ConsensusNetIO::OnPublicKey(const uint8_t * data)
 
     auto msg (*reinterpret_cast<KeyAdvertisement*>(_receive_buffer.data()));
 
-    OnPublicKeyMsg(msg);
-}
-
-void
-ConsensusNetIO::OnPublicKeyMsg(const KeyAdvertisement &msg)
-{
-    // update remote delegate id
-    _remote_delegate_id = msg.remote_delegate_id;
-
     _key_store.OnPublicKey(_remote_delegate_id, msg.public_key);
 
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
@@ -244,7 +228,7 @@ ConsensusNetIO::OnPublicKeyMsg(const KeyAdvertisement &msg)
     ReadPrequel();
 }
 
-void 
+void
 ConsensusNetIO::AddConsensusConnection(
     ConsensusType t, 
     std::shared_ptr<PrequelParser> connection)
@@ -271,7 +255,10 @@ ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
                             << error.message() << ". Remote endpoint: "
                             << _endpoint;
         }
-        return;
+        else
+        {
+            return;
+        }
     }
 
     std::lock_guard<std::mutex> lock(_send_mutex);

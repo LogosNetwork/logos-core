@@ -1,9 +1,9 @@
+#include <logos/microblock/microblock_handler.hpp>
 #include <logos/microblock/microblock_tester.hpp>
-#include <logos/blockstore.hpp>
-#include <logos/lib/blocks.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/epoch_time_util.hpp>
-#include <logos/microblock/microblock_handler.hpp>
+#include <logos/blockstore.hpp>
+#include <logos/lib/blocks.hpp>
 
 boost::property_tree::ptree MicroBlockTester::_request;
 
@@ -113,8 +113,8 @@ MicroBlockTester::precreate_account(
   boost::property_tree::ptree response_l;
   logos::keypair pair;
 
-  logos::amount amount(100000);
-  logos::amount fee(1000);
+  logos::amount amount(std::numeric_limits<logos::uint128_t>::max());
+  logos::amount fee(0);
   uint64_t work = 0;
 
   logos::state_block state(pair.pub,  // account

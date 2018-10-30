@@ -35,7 +35,7 @@ NodeIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         micro_block.account = logos::genesis_account;
         micro_block.timestamp = 0;
         micro_block.epoch_number = e;
-        micro_block.micro_block_number = 0;
+        micro_block.sequence = 0;
         micro_block.last_micro_block = 0;
         micro_block.previous = microblock_hash;
 
@@ -53,7 +53,7 @@ NodeIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
             {
                 uint8_t del = i + (e - 1) * 8;
                 char buff[5];
-                sprintf(buff, "%02x", del);
+                sprintf(buff, "%02x", del + 1);
                 logos::keypair pair(buff);
                 delegate = {pair.pub, 0, 100000 + (uint64_t)del * 100};
             }
@@ -114,19 +114,22 @@ NodeIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
     // create genesis accounts
     for (int del = 0; del < NUM_DELEGATES*2; ++del) {
         char buff[5];
-        sprintf(buff, "%02x", del);
+        sprintf(buff, "%02x", del + 1);
         logos::genesis_delegate delegate{logos::keypair(buff), 0, 100000 + (uint64_t) del * 100};
         logos::keypair &pair = delegate.key;
 
         logos::genesis_delegates.push_back(delegate);
 
-        logos::amount amount(100000 + del * 100);
+        uint128_t min_fee = 0x21e19e0c9bab2400000_cppui128;
+        logos::amount amount(min_fee + (del + 1) * 1000000);
+        logos::amount fee(min_fee);
         uint64_t work = 0;
 
         logos::state_block state(pair.pub,  // account
                                  0,         // previous
                                  pair.pub,  // representative
                                  amount,
+                                 fee,       // transaction fee
                                  pair.pub,  // link
                                  pair.prv,
                                  pair.pub,
@@ -155,7 +158,7 @@ NodeIdentityManager::LoadGenesisAccounts()
 {
     for (int del = 0; del < NUM_DELEGATES*2; ++del) {
         char buff[5];
-        sprintf(buff, "%02x", del);
+        sprintf(buff, "%02x", del + 1);
         logos::genesis_delegate delegate{logos::keypair(buff), 0, 100000 + (uint64_t) del * 100};
         logos::keypair &pair = delegate.key;
 
