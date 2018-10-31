@@ -130,6 +130,8 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
             PrePrepare&>(_handler.GetNextBatch());
 
     batch.sequence = _sequence;
+    batch.timestamp = GetStamp();
+
     return batch;
 }
 
