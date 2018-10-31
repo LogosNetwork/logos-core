@@ -64,6 +64,11 @@ bool RequestHandler::BatchFull()
 
 bool RequestHandler::Empty()
 {
+    if(_batches.size() == 1)
+    {
+        return !_batches.front().block_count;
+    }
+
     return _batches.empty();
 }
 
