@@ -4,6 +4,8 @@
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/batchblock/bb_consensus_connection.hpp>
 
+const boost::posix_time::seconds BatchBlockConsensusManager::ON_CONNECTED_TIMEOUT{10};
+
 BatchBlockConsensusManager::BatchBlockConsensusManager(
         Service & service,
         Store & store,
@@ -58,8 +60,6 @@ BatchBlockConsensusManager::BindIOChannel(
 	
     if(++_channels_bound == QUORUM_SIZE)
     {
-        BOOST_LOG(_log) << "CALLING ONDELEGATESCONNECTED()";
-
         OnDelegatesConnected();
     }
 
@@ -401,6 +401,6 @@ BatchBlockConsensusManager::OnDelegatesConnected()
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    _init_timer.expires_from_now(Seconds{10});
+    _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
     _init_timer.async_wait([this](const Error & error){InitiateConsensus();});
 }

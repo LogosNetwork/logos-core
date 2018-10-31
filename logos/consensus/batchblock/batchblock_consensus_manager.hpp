@@ -145,6 +145,8 @@ protected:
 
 private:
 
+    static const Seconds ON_CONNECTED_TIMEOUT;
+
     void AcquirePrePrepare(const PrePrepare & message) override;
 
     void OnRejection(const Rejection & message) override;
