@@ -51,6 +51,15 @@ public:
 
 };
 
+class NewEpochEventHandler
+{
+public:
+    NewEpochEventHandler() = default;
+    ~NewEpochEventHandler() = default;
+    virtual bool OnNewEpochPostCommit() = 0;
+    virtual bool OnNewEpochRejected() = 0;
+};
+
 class InternalConsensus
 {
 public:
@@ -66,7 +75,8 @@ public:
 /// This class serves as a container for ConsensusManagers
 /// and other consensus-related types and provides an interface
 /// to the node object.
-class ConsensusContainer : public InternalConsensus
+class ConsensusContainer : public InternalConsensus,
+                           public NewEpochEventHandler
 {
     friend class NodeIdentityManager;
 
@@ -177,11 +187,11 @@ private:
     /// Happens either at Epoch Start time or after Epoch Transtion Start time
     /// if received PostCommit with E#_i
     /// @return true if no error
-    bool OnNewEpochPostCommit();
+    bool OnNewEpochPostCommit() override;
 
     /// Transition Retiring delegate to ForwardOnly
     /// @return true if no error
-    bool OnNewEpochReject();
+    bool OnNewEpochRejected() override;
 
     /// Create EpochManager instance
     /// @param epoch_number manager's epoch number

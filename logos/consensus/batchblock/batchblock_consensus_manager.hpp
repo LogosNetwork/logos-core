@@ -167,4 +167,5 @@ private:
 	Service &               _service;
     uint64_t                _sequence = 0;
 	uint64_t				_channels_bound = 0;
+	uint                    _new_epoch_rejection_cnt = 0;   ///< New Epoch rejection message count
 };

@@ -10,6 +10,7 @@
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 
 class Archiver;
+class NewEpochEventHandler;
 namespace logos { class alarm; };
 
 class EpochInfo {
@@ -28,8 +29,8 @@ class EpochEventsNotifier {
 public:
     EpochEventsNotifier() = default;
     virtual ~EpochEventsNotifier() = default;
-    virtual void OnNewEpochPostCommit(uint epoch_number) = 0;
-    virtual void OnNewEpochReject() = 0;
+    virtual bool OnNewEpochPostCommit(uint epoch_number) = 0;
+    virtual bool OnNewEpochRejected() = 0;
     virtual EpochConnection GetConnection() = 0;
     virtual uint GetEpochNumber() = 0;
     virtual EpochTransitionState GetState() = 0;
@@ -60,8 +61,7 @@ public:
                      EpochTransitionDelegate delegate,
                      EpochConnection connection,
                      const uint epoch_number,
-                     std::function<void()> persistent_to_reject,
-                     std::function<void()> retiring_to_forward_only);
+                     NewEpochEventHandler & event_handler);
     ~EpochManager() {}
 
     uint GetEpochNumber() override { return _epoch_number; }
@@ -80,17 +80,16 @@ public:
 
     EpochTransitionDelegate GetDelegate() override { return _delegate; }
 
-    void OnNewEpochPostCommit(uint epoch_number) override;
+    bool OnNewEpochPostCommit(uint epoch_number) override;
 
-    void OnNewEpochReject() override;
+    bool OnNewEpochRejected() override;
 
 private:
     std::atomic<EpochTransitionState> &     _state;             ///< State of transition
     std::atomic<EpochTransitionDelegate>    _delegate;          ///< Type of transition delegate
     std::atomic<EpochConnection>            _connection_state;  ///< Delegate's connection set
     const uint                              _epoch_number;      ///< Epoch's number
-    std::function<void()>                   _on_new_epoch_postcommit; ///< Call back on new epoch PostCommit
-    std::function<void()>                   _on_new_epoch_reject;     ///< Call back on new epoch PrePrepare reject
+    NewEpochEventHandler &                  _new_epoch_handler; ///< Call back on new epoch events
     DelegateKeyStore                        _key_store; 		///< Store delegates public keys
     MessageValidator                        _validator; 		///< Validator/Signer of consensus messages
     BatchBlockConsensusManager              _batch_manager; 	///< Handles batch block consensus

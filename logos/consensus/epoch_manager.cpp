@@ -17,14 +17,12 @@ EpochManager::EpochManager(Service & service,
                            EpochTransitionDelegate delegate,
                            EpochConnection connection,
                            const uint epoch_number,
-                           std::function<void()> on_new_epoch_postcommit,
-                           std::function<void()> on_new_epoch_reject)
+                           NewEpochEventHandler & handler)
     : _state(state)
     , _delegate(delegate)
     , _connection_state(connection)
     , _epoch_number(epoch_number)
-    , _on_new_epoch_postcommit(on_new_epoch_postcommit)
-    , _on_new_epoch_reject(on_new_epoch_reject)
+    , _new_epoch_handler(handler)
     , _validator(_key_store)
     , _batch_manager(service, store, log,
                  config, _key_store, _validator, *this)
@@ -42,17 +40,24 @@ EpochManager::EpochManager(Service & service,
         _key_store, _validator, starter, *this)
 {}
 
-void
+bool
 EpochManager::OnNewEpochPostCommit(
     uint epoch_number)
 {
     if (_delegate == EpochTransitionDelegate::Persistent &&
             (_epoch_number + 1) == epoch_number)
     {
-        _on_new_epoch_postcommit();
+        return _new_epoch_handler.OnNewEpochPostCommit();
     }
+    return false;
 }
 
-void
-EpochManager::OnNewEpochReject()
-{}
+bool
+EpochManager::OnNewEpochRejected()
+{
+    if (_delegate == EpochTransitionDelegate::Retiring)
+    {
+        return _new_epoch_handler.OnNewEpochRejected();
+    }
+    return false;
+}

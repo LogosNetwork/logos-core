@@ -77,9 +77,7 @@ ConsensusContainer::CreateEpochManager(
 {
     return std::make_shared<EpochManager>(_service, _store, _alarm, _log, config,
                                           _archiver, _peer_manager, _transition_state,
-                                          delegate, connection, epoch_number,
-                                          std::bind(&ConsensusContainer::OnNewEpochPostCommit, this),
-                                          std::bind(&ConsensusContainer::OnNewEpochReject, this));
+                                          delegate, connection, epoch_number, *this);
 }
 
 logos::process_return
@@ -389,7 +387,7 @@ ConsensusContainer::OnNewEpochPostCommit()
 }
 
 bool
-ConsensusContainer::OnNewEpochReject()
+ConsensusContainer::OnNewEpochRejected()
 {
     std::lock_guard<std::mutex>   lock(_mutex);
 
@@ -400,6 +398,10 @@ ConsensusContainer::OnNewEpochReject()
     }
     _cur_epoch->_delegate = EpochTransitionDelegate::RetiringForwardOnly;
     _cur_epoch->_connection_state = EpochConnection::WaitingDisconnect;
+
+    // stop receiving requests
+    _trans_epoch.swap(_cur_epoch);
+    _cur_epoch = nullptr;
 
     return true;
 }
@@ -414,7 +416,7 @@ ConsensusContainer::EpochStart(uint8_t delegate_idx)
     _transition_state = EpochTransitionState::EpochStart;
 
     if (_transition_delegate == EpochTransitionDelegate::Persistent && !OnNewEpochPostCommit() ||
-            _transition_delegate == EpochTransitionDelegate::Retiring && !OnNewEpochReject())
+            _transition_delegate == EpochTransitionDelegate::Retiring && !OnNewEpochRejected())
     {
         return;
     }
@@ -444,7 +446,7 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
     if (_transition_delegate == EpochTransitionDelegate::Retiring)
     {
         _binding_map.clear();
-        _cur_epoch = nullptr;
+        _trans_epoch = nullptr;
     }
     else
     {

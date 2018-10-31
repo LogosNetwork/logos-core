@@ -254,6 +254,7 @@ BatchBlockConsensusManager::OnRejection(
     case RejectionReason::Invalid_Epoch:
         break;
     case RejectionReason::New_Epoch:
+        _new_epoch_rejection_cnt++;
         break;
     case RejectionReason::Void:
         break;
@@ -269,6 +270,17 @@ BatchBlockConsensusManager::OnStateAdvanced()
 void
 BatchBlockConsensusManager::OnPrePrepareRejected()
 {
+    if (_new_epoch_rejection_cnt >= QUORUM_SIZE / 3)
+    {
+        _new_epoch_rejection_cnt = 0;
+        // TODO retiring delegate in ForwardOnly state has to forward to new primary - deferred
+        if (_events_notifier.OnNewEpochRejected())
+        {
+            // forward
+            return;
+        }
+    }
+
     // Pairs a set of Delegate ID's with indexes,
     // where the indexes represent the requests
     // supported by those delegates.
