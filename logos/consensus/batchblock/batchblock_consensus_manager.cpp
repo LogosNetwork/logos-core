@@ -14,6 +14,7 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
     : Manager(service, store, log,
               config, key_store, validator)
     , _persistence_manager(store)
+    , _init_timer(service)
     , _service(service)
 {
     _state = ConsensusState::INITIALIZING;
@@ -400,5 +401,6 @@ BatchBlockConsensusManager::OnDelegatesConnected()
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    InitiateConsensus();
+    _init_timer.expires_from_now(Seconds{10});
+    _init_timer.async_wait([this](const Error & error){InitiateConsensus();});
 }

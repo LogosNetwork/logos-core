@@ -13,6 +13,9 @@ class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchSt
 
     using BlockBuffer = std::list<std::shared_ptr<Request>>;
     using Rejection   = RejectionMessage<ConsensusType::BatchStateBlock>;
+    using Seconds     = boost::posix_time::seconds;
+    using Timer       = boost::asio::deadline_timer;
+    using Error       = boost::system::error_code;
 
     struct Weights
     {
@@ -155,6 +158,7 @@ private:
     BlockBuffer        _buffer;                        ///< Buffered state blocks.
     RequestHandler     _handler;                       ///< Primary queue of batch state blocks.
     PersistenceManager _persistence_manager;		   ///< Database interface and request validation
+    Timer              _init_timer;
     Service &          _service;
     uint64_t           _sequence       = 0;
     uint64_t           _channels_bound = 0;

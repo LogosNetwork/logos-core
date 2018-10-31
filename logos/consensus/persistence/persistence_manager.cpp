@@ -31,8 +31,8 @@ bool PersistenceManager::Validate(const logos::state_block & block,
 
     if(block.hashables.transaction_fee.number() < MIN_TRANSACTION_FEE)
     {
-        result.code = logos::process_result::insufficient_fee;
-        return false;
+        //result.code = logos::process_result::insufficient_fee;
+        //return false;
     }
 
     std::lock_guard<std::mutex> lock(_reservation_mutex);
