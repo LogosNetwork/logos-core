@@ -11,11 +11,10 @@ MicroBlock::Hash() const {
     return merkle::Hash([&](std::function<void(const void *data, size_t)> cb)mutable -> void {
         //cb(&timestamp, sizeof(timestamp));
         cb(previous.bytes.data(), sizeof(previous));
-        //cb(_merkle_root.bytes.data(), sizeof(_merkle_root));
         //cb(&_delegate, sizeof(_delegate));
         cb(&epoch_number, sizeof(epoch_number));
         cb(&sequence, sizeof(sequence));
-        cb(tips, NUM_DELEGATES * sizeof(BlockHash));
         cb(&number_batch_blocks, sizeof(number_batch_blocks));
+        cb(tips, NUM_DELEGATES * sizeof(BlockHash));
     });
 }

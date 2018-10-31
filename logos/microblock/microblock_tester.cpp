@@ -232,20 +232,43 @@ MicroBlockTester::informational(
 {
     boost::property_tree::ptree response_l;
 
-    Epoch epoch;
-    size_t s = sizeof(epoch);
-    std::stringstream str;
-    uint64_t start = (uint64_t)&epoch;
-    uint64_t account = (uint64_t)&(epoch.account);
-    uint64_t enumber = (uint64_t)&(epoch.epoch_number);
-    uint64_t tip = (uint64_t)&(epoch.micro_block_tip);
-    uint64_t del = (uint64_t)&(epoch.delegates);
-    uint64_t fee = (uint64_t)&(epoch.transaction_fee_pool);
-    uint64_t sig = (uint64_t)&(epoch.signature);
-    str <<  "epoch offsets: account " << (account - start) << " enumber " << (enumber-start)
-        << " tip " << (tip-start) << " delegates " << (del-start) << " fee " << (fee-start)
-        << " sig " << (sig-start) << " size " << sizeof(epoch);
-    response_l.put ("result", str.str());
+    std::string type = _request.get<std::string>("type", "");
+
+    if (type == "epoch") {
+        Epoch epoch;
+        size_t s = sizeof(epoch);
+        std::stringstream str;
+        uint64_t start = (uint64_t) &epoch;
+        uint64_t account = (uint64_t) &(epoch.account);
+        uint64_t enumber = (uint64_t) &(epoch.epoch_number);
+        uint64_t tip = (uint64_t) &(epoch.micro_block_tip);
+        uint64_t fee = (uint64_t) &(epoch.transaction_fee_pool);
+        uint64_t del = (uint64_t) &(epoch.delegates);
+        uint64_t sig = (uint64_t) &(epoch.signature);
+        str << "epoch offsets: account " << (account - start) << " enumber " << (enumber - start)
+            << " tip " << (tip - start) << " fee " << (fee - start) << " delegates " << (del - start)
+            << " sig " << (sig - start) << " size " << sizeof(epoch);
+        response_l.put("result", str.str());
+    }
+    else if (type == "microblock")
+    {
+        MicroBlock block;
+        size_t s = sizeof(block);
+        std::stringstream str;
+        uint64_t start = (uint64_t) &block;
+        uint64_t account = (uint64_t) &(block.account);
+        uint64_t enumber = (uint64_t) &(block.epoch_number);
+        uint64_t seq = (uint64_t) &(block.sequence);
+        uint64_t last = (uint64_t) &(block.last_micro_block);
+        uint64_t num = (uint64_t) &(block.number_batch_blocks);
+        uint64_t tips = (uint64_t) &(block.tips);
+        uint64_t sig = (uint64_t) &(block.signature);
+        str << "epoch offsets: account " << (account - start) << " enumber " << (enumber - start)
+            << " sequence " << (seq - start) << " last " << (last - start)
+            << "num blocks " << (num - start) << " tips " << (tips - start)
+            << " sig " << (sig - start) << " size " << sizeof(block);
+        response_l.put("result", str.str());
+    }
 
     response (response_l);
 }

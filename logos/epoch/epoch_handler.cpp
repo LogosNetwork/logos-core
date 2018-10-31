@@ -114,6 +114,7 @@ EpochHandler::Build(Epoch &epoch)
         return false;
     }
 
+    epoch.timestamp = GetStamp();
     epoch.previous = previous_epoch_hash;
     epoch.account = NodeIdentityManager::_delegate_account;
     epoch.epoch_number = previous_epoch.epoch_number + 1;

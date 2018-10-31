@@ -32,8 +32,8 @@ public:
         , account(0)
         , epoch_number(0)
         , micro_block_tip(0)
-        , delegates{0}
         , transaction_fee_pool(0)
+        , delegates{0}
     {
         previous = 0;
         signature = {0};
@@ -44,13 +44,13 @@ public:
     /// @param cb call back to add data to the hash
     void ProposerHash(HashCb cb) const
     {
+        cb(previous.bytes.data(), sizeof(previous));
         //cb(&timestamp, sizeof(timestamp));
         cb(&epoch_number, sizeof(epoch_number));
         //cb(_account.bytes.data(), sizeof(_account));
-        cb(previous.bytes.data(), sizeof(previous));
         cb(micro_block_tip.bytes.data(), sizeof(micro_block_tip));
-        cb(delegates, NUM_DELEGATES * sizeof(Delegate));
         cb(&transaction_fee_pool, sizeof(transaction_fee_pool));
+        cb(delegates, NUM_DELEGATES * sizeof(Delegate));
     }
 
     /// Calculate epoch's block hash
@@ -69,8 +69,9 @@ public:
     static const size_t     HASHABLE_BYTES;              ///< hashable bytes of the epoch - used in signing
     logos::account          account;                     ///< account address of the epoch's proposer
     uint                    epoch_number;                ///< epoch number
+    uint                    padding;                     ///< padding
     BlockHash               micro_block_tip;             ///< microblock tip of this epoch
-    Delegate                delegates[NUM_DELEGATES];    ///< delegate'ls list
     uint64_t                transaction_fee_pool;        ///< this epoch's transaction fee pool
+    Delegate                delegates[NUM_DELEGATES];    ///< delegate'ls list
     Signature               signature;                   ///< signature of hashable bytes
 };
