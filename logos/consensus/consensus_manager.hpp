@@ -81,6 +81,8 @@ public:
 
     void Send(const void * data, size_t size, bool propagate = false) override;
 
+    bool OnP2pReceive(const void * data, size_t size);
+
     virtual ~ConsensusManager() {}
 
     void OnRequestReady(std::shared_ptr<Request> block) override;

@@ -78,6 +78,8 @@ public:
     ///     @param[out] result result of the operation
     void BufferComplete(logos::process_return & result);
 
+    bool OnP2pReceive(const void *message, size_t size);
+
 protected:
 
 	/// Initiate MicroBlock consensus

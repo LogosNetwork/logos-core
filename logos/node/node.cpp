@@ -1771,6 +1771,7 @@ void logos::node::start ()
     p2p_conf.lmdb_dbi = store.p2p_db;
     p2p_conf.boost_logger_mt = &log;
     p2p_conf.boost_io_service = &service;
+    p2p._node = this;
     p2p.Init(p2p_conf);
 }
 
@@ -1789,6 +1790,10 @@ void logos::node::stop ()
     port_mapping.stop ();
     wallets.stop ();
     p2p.Shutdown ();
+}
+
+bool logos::Logos_p2p_interface::ReceiveMessageCallback(const void *message, unsigned size) {
+    return _node ? _node->_consensus_container.OnP2pReceive(message, size) : false;
 }
 
 void logos::node::keepalive_preconfigured (std::vector<std::string> const & peers_a)

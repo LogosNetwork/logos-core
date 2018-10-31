@@ -94,12 +94,20 @@ void ConsensusManager<CT>::Send(const void * data, size_t size, bool propagate)
     if (propagate) {
 	if (_p2p.PropagateMessage(data, size)) {
 	    BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
-		"> - message propagated.";
+		"> - message of size " << size << " propagated.";
 	} else {
 	    BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
 		"> - message not propagated.";
 	}
     }
+}
+
+template<ConsensusType CT>
+bool ConsensusManager<CT>::OnP2pReceive(const void * data, size_t size) {
+    // TODO: add more logic
+    BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
+		"> - message of size " << size << " received from p2p.";
+    return true;
 }
 
 template<ConsensusType CT>

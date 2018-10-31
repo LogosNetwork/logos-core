@@ -431,6 +431,15 @@ private:
     logos::node & node;
     std::mutex mutex;
 };
+
+class Logos_p2p_interface : public p2p_interface {
+private:
+    logos::node *_node;
+public:
+    virtual bool ReceiveMessageCallback(const void *message, unsigned size);
+    friend class logos::node;
+};
+
 class node : public std::enable_shared_from_this<logos::node>
 {
 public:
@@ -508,7 +517,7 @@ public:
     RecallHandler _recall_handler;
     Archiver _archiver;
     ConsensusContainer _consensus_container;
-    p2p_interface p2p;
+    Logos_p2p_interface p2p;
     p2p_config p2p_conf;
     static double constexpr price_max = 16.0;
     static double constexpr free_cutoff = 1024.0;
