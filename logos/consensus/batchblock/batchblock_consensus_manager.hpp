@@ -60,9 +60,18 @@ public:
     ///     @param[out] result result of the operation
     void BufferComplete(logos::process_return & result);
 
+    /// Called to bind a ConsensusConnection to a
+    /// ConsensusNetIO.
+    ///
+    /// This is an overridden method that is specialized
+    /// for BatchBlock Consensus.
+    ///     @param[in] iochannel pointer to ConsensusNetIO
+    ///                interface.
+    ///     @param[in] ids Delegate IDs for the local and
+    ///                remote delegates.
     std::shared_ptr<PrequelParser>
-    BindIOChannel(std::shared_ptr<IOChannel>,
-                  const DelegateIdentities &) override;
+    BindIOChannel(std::shared_ptr<IOChannel> iochannel,
+                  const DelegateIdentities & ids) override;
 
 protected:
 
