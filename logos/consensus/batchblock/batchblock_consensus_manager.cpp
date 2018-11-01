@@ -5,9 +5,8 @@
 #include <logos/consensus/batchblock/bb_consensus_connection.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 
-RequestHandler BatchBlockConsensusManager::_handler;
-
 const boost::posix_time::seconds BatchBlockConsensusManager::ON_CONNECTED_TIMEOUT{10};
+RequestHandler BatchBlockConsensusManager::_handler;
 
 BatchBlockConsensusManager::BatchBlockConsensusManager(
         Service & service,
@@ -133,9 +132,9 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
     auto & batch = reinterpret_cast<
             PrePrepare&>(_handler.GetNextBatch());
 
-    batch.epoch_number = _events_notifier.GetEpochNumber();
-    batch.sequence = _sequence;
     batch.timestamp = GetStamp();
+    batch.sequence = _sequence;
+    batch.epoch_number = _events_notifier.GetEpochNumber();
 
     return batch;
 }
@@ -422,8 +421,12 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 void
 BatchBlockConsensusManager::OnDelegatesConnected()
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    if (_events_notifier.GetState() == EpochTransitionState::None) {
 
-    _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
-    _init_timer.async_wait([this](const Error & error){InitiateConsensus();});
+        _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
+        _init_timer.async_wait([this](const Error &error) {
+            std::lock_guard<std::recursive_mutex> lock(_mutex);
+            InitiateConsensus();
+        });
+    }
 }
