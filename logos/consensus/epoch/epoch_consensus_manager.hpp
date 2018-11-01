@@ -27,10 +27,9 @@ public:
 					      const Config & config,
                           DelegateKeyStore & key_store,
                           MessageValidator & validator,
-                          ArchiverEpochHandler & handler,
-						  BlocksCallback & blocks_callback)
+                          ArchiverEpochHandler & handler)
 		: Manager(service, store, log,
-				  config, key_store, validator, blocks_callback)
+				  config, key_store, validator)
 		, _epoch_handler(handler)
 		, _enqueued(false)
 	{

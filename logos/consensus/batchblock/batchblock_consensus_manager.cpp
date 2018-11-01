@@ -10,10 +10,9 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
         Log & log,
         const Config & config,
         DelegateKeyStore & key_store,
-        MessageValidator & validator,
-        BlocksCallback & blocks_callback)
+        MessageValidator & validator)
     : Manager(service, store, log,
-              config, key_store, validator, blocks_callback)
+              config, key_store, validator)
     , _persistence_manager(store, log)
 {}
 
@@ -51,7 +50,7 @@ BatchBlockConsensusManager::BindIOChannel(
     auto connection =
             std::make_shared<BBConsensusConnection>(
                     iochannel, *this, *this, _persistence_manager,
-                    _validator, ids, _blocks_callback);
+                    _validator, ids);
 
     _connections.push_back(connection);
     return connection;
@@ -193,5 +192,5 @@ BatchBlockConsensusManager::MakeConsensusConnection(
 {
     return std::make_shared<BBConsensusConnection>(iochannel,
                                                  *this, *this, _persistence_manager,
-                                                 _validator, ids, _blocks_callback);
+                                                 _validator, ids);
 }

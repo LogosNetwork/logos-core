@@ -12,16 +12,14 @@ ConsensusContainer::ConsensusContainer(Service & service,
                                        logos::alarm & alarm,
                                        Log & log,
                                        const Config & config,
-                                       Archiver & archiver,
-                                       BlocksCallback & blocks_callback)
+                                       Archiver & archiver)
     : _validator(_key_store)
-    , _blocks_callback(blocks_callback)
     , _batch_manager(service, store, log,
-            config.consensus_manager_config, _key_store, _validator, blocks_callback) // DO NOT pass _block_callback
+            config.consensus_manager_config, _key_store, _validator)
     , _micro_manager(service, store, log,
-            config.consensus_manager_config, _key_store, _validator, archiver, blocks_callback)
+            config.consensus_manager_config, _key_store, _validator, archiver)
     , _epoch_manager(service, store, log,
-            config.consensus_manager_config, _key_store, _validator, archiver, blocks_callback)
+            config.consensus_manager_config, _key_store, _validator, archiver)
     , _netio_manager(
         {
             {ConsensusType::BatchStateBlock, _batch_manager},

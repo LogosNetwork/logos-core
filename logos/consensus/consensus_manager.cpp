@@ -12,14 +12,12 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
                                        Log & log,
                                        const Config & config,
                                        DelegateKeyStore & key_store,
-                                       MessageValidator & validator,
-                                       BlocksCallback & blocks_callback)
+                                       MessageValidator & validator)
     : PrimaryDelegate(validator)
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
     , _secondary_handler(service, *this)
-    , _blocks_callback(blocks_callback)
 {}
 
 template<ConsensusType CT>
@@ -97,7 +95,7 @@ void ConsensusManager<CT>::OnConsensusReached()
 {
     auto pre_prepare (PrePrepareGetNext());
     ApplyUpdates(pre_prepare, _delegate_id);
-    _blocks_callback.NotifyClient<CT>(pre_prepare);  // TODO: would rather use a shared pointer to avoid copying the whole BlockList for BSB
+    BlocksCallback::Callback<CT>(pre_prepare);  // TODO: would rather use a shared pointer to avoid copying the whole BlockList for BSB
 
     // Helpful for benchmarking
     //

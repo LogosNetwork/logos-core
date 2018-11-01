@@ -55,8 +55,7 @@ public:
                         PrimaryDelegate & primary,
                         RequestPromoter<CT> & promoter,
                         MessageValidator & validator,
-                        const DelegateIdentities & ids,
-                        BlocksCallback & blocks_callback);
+                        const DelegateIdentities & ids);
 
     void Send(const void * data, size_t size);
 
@@ -123,5 +122,4 @@ protected:
     PrimaryDelegate &           _primary;
     ConsensusState              _state     = ConsensusState::VOID;
     RequestPromoter<CT> &       _promoter; ///< secondary list request promoter
-    BlocksCallback &            _blocks_callback;
 };

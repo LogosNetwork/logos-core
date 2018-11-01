@@ -29,8 +29,7 @@ public:
                                Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
-                               MessageValidator & validator,
-                               BlocksCallback & blocks_callback);
+                               MessageValidator & validator);
 
     virtual ~BatchBlockConsensusManager() {};
 

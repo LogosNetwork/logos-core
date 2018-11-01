@@ -508,7 +508,6 @@ public:
     RecallHandler _recall_handler;
     Archiver _archiver;
     ConsensusContainer _consensus_container;
-    BlocksCallback _blocks_callback;
     static double constexpr price_max = 16.0;
     static double constexpr free_cutoff = 1024.0;
     static std::chrono::seconds constexpr period = std::chrono::seconds (60);

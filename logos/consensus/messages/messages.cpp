@@ -44,7 +44,10 @@ void BatchStateBlock::SerializeJson(boost::property_tree::ptree & batch_state_bl
 
     for(uint64_t i = 0; i < block_count; ++i)
     {
-        blocks_tree.push_back(std::make_pair("", blocks[i].serialize_json()));
+        boost::property_tree::ptree txn_content;
+        txn_content = blocks[i].serialize_json();
+        txn_content.put("hash", blocks[i].hash().to_string());
+        blocks_tree.push_back(std::make_pair("", txn_content));
     }
 
     batch_state_block.add_child("blocks", blocks_tree);

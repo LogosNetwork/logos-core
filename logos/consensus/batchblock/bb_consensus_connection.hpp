@@ -26,8 +26,7 @@ public:
                                   RequestPromoter<ConsensusType::BatchStateBlock> & promoter,
                                   PersistenceManager & persistence_manager,
                                   MessageValidator & validator,
-                                  const DelegateIdentities & ids,
-                                  BlocksCallback & blocks_callback);
+                                  const DelegateIdentities & ids);
     ~BBConsensusConnection() {}
 
     /// Validate PrePrepare message

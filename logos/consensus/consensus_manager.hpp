@@ -68,8 +68,7 @@ public:
                      Log & log,
                      const Config & config,
                      DelegateKeyStore & key_store,
-                     MessageValidator & validator,
-                     BlocksCallback & blocks_callback);
+                     MessageValidator & validator);
 
     void OnSendRequest(std::shared_ptr<Request> block,
                        logos::process_return & result);
@@ -143,8 +142,5 @@ protected:
     Log                         _log;
     uint8_t                     _delegate_id;
     SecondaryRequestHandler<CT> _secondary_handler;             ///< Secondary queue of blocks.
-
-    /// For sending callbacks to observing clients.
-    BlocksCallback &            _blocks_callback;
 };
 

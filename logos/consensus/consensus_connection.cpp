@@ -9,14 +9,12 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
                                              PrimaryDelegate & primary,
                                              RequestPromoter<CT> & promoter,
                                              MessageValidator & validator,
-                                             const DelegateIdentities & ids,
-                                             BlocksCallback & blocks_callback)
+                                             const DelegateIdentities & ids)
     : _iochannel(iochannel)
     , _delegate_ids(ids)
     , _validator(validator)
     , _primary(primary)
     , _promoter(promoter)
-    , _blocks_callback(blocks_callback)
 {}
 
 template<ConsensusType CT>
@@ -162,7 +160,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
         assert(_cur_pre_prepare);
 
         ApplyUpdates(*_cur_pre_prepare, _delegate_ids.remote);
-        _blocks_callback.NotifyClient<CT>(*_cur_pre_prepare);
+        BlocksCallback::Callback<CT>(*_cur_pre_prepare);
         _state = ConsensusState::VOID;
     }
 }

@@ -44,14 +44,28 @@ protected:
 
 class BlocksCallback : public ClientCallback
 {
-
-public:
+private:
     BlocksCallback(Service & service,
                    Log & log,
                    const std::string & callback_address,
                    const uint16_t & callback_port,
                    const std::string & callback_target,
                    const bool & callback_logging);
+
+public:
+    static std::shared_ptr<BlocksCallback> _instance;
+
+public:
+
+    ~BlocksCallback() {}
+
+    static std::shared_ptr<BlocksCallback>
+    Instance(Service & service,
+            Log & log,
+            const std::string & callback_address,
+            const uint16_t & callback_port,
+            const std::string & callback_target,
+            const bool & callback_logging);
 
     void SendMessage (std::shared_ptr<std::string> body);
 
@@ -61,6 +75,12 @@ public:
         _service.post([this, block] () {
             SendMessage(std::make_shared<std::string> (block.SerializeJson ()));
         });
+    }
+
+    template <ConsensusType CT>
+    static void Callback(PrePrepareMessage<CT> block)
+    {
+        _instance->NotifyClient(block);
     }
 
 };

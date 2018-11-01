@@ -23,6 +23,22 @@ BlocksCallback::BlocksCallback(Service & service,
         : ClientCallback (service, log, callback_address, callback_port, callback_target, callback_logging)
 {}
 
+std::shared_ptr<BlocksCallback> BlocksCallback::Instance(Service & service,
+        Log & log,
+        const std::string & callback_address,
+        const uint16_t & callback_port,
+        const std::string & callback_target,
+        const bool & callback_logging)
+{
+    static std::shared_ptr<BlocksCallback> inst(new BlocksCallback(
+            service, log, callback_address, callback_port, callback_target, callback_logging));
+    if (BlocksCallback::_instance == nullptr)
+    {
+        BlocksCallback::_instance = inst;
+    }
+    return inst;
+};
+
 void BlocksCallback::SendMessage (std::shared_ptr<std::string> body)
 {
     if (!_callback_address.empty ())

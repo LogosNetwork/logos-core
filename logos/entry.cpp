@@ -9,6 +9,7 @@
 
 #include <bls/bls.hpp>
 
+std::shared_ptr<BlocksCallback> BlocksCallback::_instance = nullptr;
 int main (int argc, char * const * argv)
 {
     //TODO find a better place to call, as long as before the 1st BLS operation, e.g. key generation
