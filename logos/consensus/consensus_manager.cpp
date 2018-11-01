@@ -91,22 +91,58 @@ void ConsensusManager<CT>::Send(const void * data, size_t size, bool propagate)
         conn->Send(data, size);
     }
 
+    size_t oldsize = _p2p_batch.size();
+    _p2p_batch.resize(oldsize + size + 4);
+    memcpy(&_p2p_batch[oldsize], &size, 4);
+    memcpy(&_p2p_batch[oldsize + 4], data, size);
+
+    BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
+	"> - message of size " << size << " and type " <<
+	(unsigned)_p2p_batch[oldsize + 5] << " added to p2p batch.";
+
     if (propagate) {
-	if (_p2p.PropagateMessage(data, size)) {
+	if (_p2p.PropagateMessage(&_p2p_batch[0], _p2p_batch.size())) {
 	    BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
-		"> - message of size " << size << " propagated.";
+		"> - p2p batch of size " << _p2p_batch.size() << " propagated.";
 	} else {
 	    BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
-		"> - message not propagated.";
+		"> - p2p batch not propagated.";
 	}
+	_p2p_batch.clear();
     }
 }
 
 template<ConsensusType CT>
 bool ConsensusManager<CT>::OnP2pReceive(const void * data, size_t size) {
-    // TODO: add more logic
+
     BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
-		"> - message of size " << size << " received from p2p.";
+		"> - batch of size " << size << " received from p2p.";
+
+    while (size >= 4) {
+	size_t msize = *(uint32_t *)data;
+	data = (uint8_t *)data + 4;
+	size -= 4;
+	if (msize > size) {
+	    BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
+		"> - error parsing p2p batch";
+	    return false;
+	}
+	BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
+		"> - message of size " << msize << " and type " <<
+		(unsigned)((uint8_t *)data)[1] << " extracted from p2p batch.";
+
+	// TODO: process message
+
+	data = (uint8_t *)data + msize;
+	size -= msize;
+    }
+
+    if (size) {
+	BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
+		"> - error parsing p2p batch";
+	return false;
+    }
+
     return true;
 }
 

@@ -146,5 +146,6 @@ protected:
     uint8_t                     _delegate_id;
     SecondaryRequestHandler<CT> _secondary_handler;             ///< Secondary queue of blocks.
     p2p_interface &		_p2p;
+    std::vector<uint8_t>	_p2p_batch;			// PrePrepare + PostPrepare + PostCommit
 };
 
