@@ -84,9 +84,7 @@ void PrimaryDelegate::CheckRejection()
 {
     if(AllDelegatesResponded())
     {
-        Error aborted = boost::asio::error::operation_aborted;
-
-        if(!_primary_timer.cancel(aborted))
+        if(!_primary_timer.cancel())
         {
             _timer_cancelled = true;
         }
@@ -159,9 +157,7 @@ void PrimaryDelegate::OnTimeout(const Error & error,
 template<ConsensusType C>
 void PrimaryDelegate::CycleTimers()
 {
-    Error aborted = boost::asio::error::operation_aborted;
-
-    if(!_primary_timer.cancel(aborted))
+    if(!_primary_timer.cancel())
     {
         _timer_cancelled = true;
     }

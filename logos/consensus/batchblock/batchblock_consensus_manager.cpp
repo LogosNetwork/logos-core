@@ -7,6 +7,8 @@
 
 RequestHandler BatchBlockConsensusManager::_handler;
 
+const boost::posix_time::seconds BatchBlockConsensusManager::ON_CONNECTED_TIMEOUT{10};
+
 BatchBlockConsensusManager::BatchBlockConsensusManager(
         Service & service,
         Store & store,
@@ -18,11 +20,10 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
     : Manager(service, store, log,
               config, key_store, validator, events_notifier)
     , _persistence_manager(store)
+    , _init_timer(service)
     , _service(service)
 {
-    /* TODO remove once full integration with fallback/rejection is complete
     _state = ConsensusState::INITIALIZING;
-     */
 }
 
 void
@@ -49,8 +50,6 @@ BatchBlockConsensusManager::BufferComplete(
     SendBufferedBlocks();
 }
 
-
-
 std::shared_ptr<PrequelParser>
 BatchBlockConsensusManager::BindIOChannel(
         std::shared_ptr<IOChannel> iochannel,
@@ -65,8 +64,6 @@ BatchBlockConsensusManager::BindIOChannel(
 
     if(++_channels_bound == QUORUM_SIZE)
     {
-        BOOST_LOG(_log) << "CALLING ONDELEGATESCONNECTED()";
-
         OnDelegatesConnected();
     }
 
@@ -136,9 +133,9 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
     auto & batch = reinterpret_cast<
             PrePrepare&>(_handler.GetNextBatch());
 
-    batch.timestamp = GetStamp();
-    batch.sequence = _sequence;
     batch.epoch_number = _events_notifier.GetEpochNumber();
+    batch.sequence = _sequence;
+    batch.timestamp = GetStamp();
 
     return batch;
 }
@@ -425,11 +422,8 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 void
 BatchBlockConsensusManager::OnDelegatesConnected()
 {
-    // if not in Epoch's transition
-    if (_events_notifier.GetState() == EpochTransitionState::None) {
-        /* TODO temp to get arround of empty BSB sent on start, while not every delegate is interconnected
-        std::lock_guard<std::recursive_mutex> lock(_mutex);
-        InitiateConsensus();
-        */
-    }
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+
+    _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
+    _init_timer.async_wait([this](const Error & error){InitiateConsensus();});
 }

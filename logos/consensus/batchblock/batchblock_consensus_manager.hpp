@@ -13,7 +13,9 @@ class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchSt
 
     using BlockBuffer = std::list<std::shared_ptr<Request>>;
     using Rejection   = RejectionMessage<ConsensusType::BatchStateBlock>;
+    using Seconds     = boost::posix_time::seconds;
     using Timer       = boost::asio::deadline_timer;
+    using Error       = boost::system::error_code;
 
     struct Weights
     {
@@ -151,6 +153,8 @@ protected:
 
 private:
 
+    static const Seconds ON_CONNECTED_TIMEOUT;
+
     void AcquirePrePrepare(const PrePrepare & message) override;
 
     void OnRejection(const Rejection & message) override;
@@ -159,13 +163,14 @@ private:
 
     void OnDelegatesConnected();
 
-    WeightList              _weights;
-    bool                    _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
-    BlockBuffer             _buffer;                        ///< Buffered state blocks.
-    static RequestHandler   _handler;                       ///< Primary queue of batch state blocks.
-    PersistenceManager		_persistence_manager;			///< Database interface and request validation
-	Service &               _service;
-    uint64_t                _sequence = 0;
-	uint64_t				_channels_bound = 0;
-	uint                    _new_epoch_rejection_cnt = 0;   ///< New Epoch rejection message count
+    WeightList         _weights;
+    bool               _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
+    BlockBuffer        _buffer;                        ///< Buffered state blocks.
+    RequestHandler     _handler;                       ///< Primary queue of batch state blocks.
+    PersistenceManager _persistence_manager;		   ///< Database interface and request validation
+    Timer              _init_timer;
+    Service &          _service;
+    uint64_t           _sequence       = 0;
+    uint64_t           _channels_bound = 0;
+    uint               _new_epoch_rejection_cnt = 0;   ///< New Epoch rejection message count
 };

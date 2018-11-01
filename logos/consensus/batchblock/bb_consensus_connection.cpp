@@ -143,9 +143,7 @@ BBConsensusConnection::HandlePostPrepare(const PostPrepare & message)
 {
     std::lock_guard<std::mutex> lock(_timer_mutex);
 
-    Error aborted = boost::asio::error::operation_aborted;
-
-    if(!_timer.cancel(aborted) && _callback_scheduled)
+    if(!_timer.cancel() && _callback_scheduled)
     {
         _cancel_timer = true;
         return;
