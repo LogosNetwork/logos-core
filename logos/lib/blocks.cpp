@@ -126,7 +126,7 @@ logos::state_hashables::state_hashables (bool & error_a, boost::property_tree::p
         auto previous_l (tree_a.get<std::string> ("previous"));
         auto representative_l (tree_a.get<std::string> ("representative"));
         auto amount_l (tree_a.get<std::string> ("amount"));
-        auto fee_l (tree_a.get<std::string> ("transaction_fee"));
+        auto fee_l (tree_a.get<std::string> ("transaction_fee", "0"));
         auto link_l (tree_a.get<std::string> ("link"));
         error_a = account.decode_account (account_l);
         if (!error_a)
