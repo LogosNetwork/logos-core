@@ -110,7 +110,6 @@ void
 BatchBlockConsensusManager::QueueRequestPrimary(
   std::shared_ptr<Request> request)
 {
-    BOOST_LOG(_log) << "BatchBlockConsensusManager::QueueRequestPrimary";
     _handler.OnRequest(request);
 }
 

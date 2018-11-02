@@ -14,6 +14,10 @@
 #include <boost/log/sources/logger.hpp>
 #include <boost/log/sources/record_ostream.hpp>
 
+namespace // unnamed namespace to prevent visibility in other files
+{
+    namespace HTTP  = boost::beast::http;
+}
 
 class ClientCallback
 {
@@ -21,6 +25,7 @@ protected:
 
     using Service     = boost::asio::io_service;
     using Log         = boost::log::sources::logger_mt;
+    using TCP         = boost::asio::ip::tcp;
 
 public:
     ClientCallback(Service & service,
@@ -52,7 +57,6 @@ private:
                    const std::string & callback_target,
                    const bool & callback_logging);
 
-public:
     static std::shared_ptr<BlocksCallback> _instance;
 
 public:

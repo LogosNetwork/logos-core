@@ -356,8 +356,8 @@ void logos::rpc_handler::account_info ()
             response_l.put ("balance", balance);
             response_l.put ("modified_timestamp", std::to_string (info.modified));
             response_l.put ("block_count", std::to_string (info.block_count + info.receive_count));
-            if (representative) {}
-            if (weight) {}
+            // if (representative) {}
+            // if (weight) {}
             response (response_l);
         }
         else
@@ -998,78 +998,6 @@ void logos::rpc_handler::blocks ()
     response (response_l);
 }
 
-//void logos::rpc_handler::blocks_info ()
-//{
-//    const bool pending = request.get<bool> ("pending", false);
-//    const bool source = request.get<bool> ("source", false);
-//    const bool balance = request.get<bool> ("balance", false);
-//    std::vector<std::string> hashes;
-//    boost::property_tree::ptree response_l;
-//    boost::property_tree::ptree blocks;
-//    logos::transaction transaction (node.store.environment, nullptr, false);
-//    for (boost::property_tree::ptree::value_type & hashes : request.get_child ("hashes"))
-//    {
-//        std::string hash_text = hashes.second.data ();
-//        logos::uint256_union hash;
-//        auto error (hash.decode_hex (hash_text));
-//        if (!error)
-//        {
-//            auto block (node.store.block_get (transaction, hash));
-//            if (block != nullptr)
-//            {
-//                boost::property_tree::ptree entry;
-//                auto account (node.ledger.account (transaction, hash));
-//                entry.put ("block_account", account.to_account ());
-//                auto amount (node.ledger.amount (transaction, hash));
-//                entry.put ("amount", amount.convert_to<std::string> ());
-//                std::string contents;
-//                block->serialize_json (contents);
-//                entry.put ("contents", contents);
-//                if (pending)
-//                {
-//                    bool exists (false);
-//                    auto destination (node.ledger.block_destination (transaction, *block));
-//                    if (!destination.is_zero ())
-//                    {
-//                        exists = node.store.pending_exists (transaction, logos::pending_key (destination, hash));
-//                    }
-//                    entry.put ("pending", exists ? "1" : "0");
-//                }
-//                if (source)
-//                {
-//                    logos::block_hash source_hash (node.ledger.block_source (transaction, *block));
-//                    std::unique_ptr<logos::block> block_a (node.store.block_get (transaction, source_hash));
-//                    if (block_a != nullptr)
-//                    {
-//                        auto source_account (node.ledger.account (transaction, source_hash));
-//                        entry.put ("source_account", source_account.to_account ());
-//                    }
-//                    else
-//                    {
-//                        entry.put ("source_account", "0");
-//                    }
-//                }
-//                if (balance)
-//                {
-//                    auto balance (node.ledger.balance (transaction, hash));
-//                    entry.put ("balance", balance.convert_to<std::string> ());
-//                }
-//                blocks.push_back (std::make_pair (hash_text, entry));
-//            }
-//            else
-//            {
-//                error_response (response, "Block not found");
-//            }
-//        }
-//        else
-//        {
-//            error_response (response, "Bad hash number");
-//        }
-//    }
-//    response_l.add_child ("blocks", blocks);
-//    response (response_l);
-//}
-
 void logos::rpc_handler::block_account ()
 {
     std::string hash_text (request.get<std::string> ("hash"));
@@ -1647,7 +1575,7 @@ void logos::rpc_handler::epochs_latest ()
     {
         if (node.store.epoch_get(hash, epoch))
         {
-            error_response (response, "Internal data corruption")
+            error_response (response, "Internal data corruption");
         }
         boost::property_tree::ptree response_epoch;
         epoch.SerializeJson (response_epoch);
