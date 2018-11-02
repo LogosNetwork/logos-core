@@ -96,6 +96,11 @@ BBConsensusConnection::Reject()
     }
 }
 
+// XXX - If a Primary delegate re-proposes a subset of transactions
+//       and then fails to post commit the re-proposed batch, when
+//       a backup initiates fallback consensus, it is possible that
+//       a transaction omitted from the re-proposed batch is forgotten,
+//       since individual requests are not stored for fallback consensus.
 void
 BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
 {
@@ -108,6 +113,12 @@ BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
 
     std::lock_guard<std::mutex> lock(_timer_mutex);
 
+    // The below condition is true when the timeout callback
+    // has been scheduled and is about to be invoked. In this
+    // case, the callback cannot be cancelled, and we have to
+    // 'manually' cancel the callback by setting _cancel_timer.
+    // When the callback is invoked, it will check this value
+    // and return early.
     if(!_timer.expires_from_now(timeout) && _callback_scheduled)
     {
         _cancel_timer = true;
