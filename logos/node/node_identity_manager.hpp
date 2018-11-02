@@ -63,6 +63,13 @@ public:
     /// Convenience function overload
     void IdentifyDelegates(EpochDelegates epoch, uint8_t & idx);
 
+    /// Identify this delegate and group of delegates in this epoch
+    /// @param epoch number [in]
+    /// @param idx this delegates index, NON_DELEGATE if not in the delegates list [out]
+    /// @param delegates list of delegates in the requested epoch [out]
+    /// @return true if the epoch is found, false otherwise
+    bool IdentifyDelegates(uint epoch, uint8_t & idx, Accounts & delegates);
+
     Store &                 _store;                ///< logos block store reference
     static logos::account   _delegate_account;     ///< this delegate's account or 0 if non-delegate
     static IPs              _delegates_ip;         ///< all delegates ip

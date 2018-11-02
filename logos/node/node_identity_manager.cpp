@@ -215,3 +215,51 @@ NodeIdentityManager::IdentifyDelegates(
         }
     }
 }
+
+bool
+NodeIdentityManager::IdentifyDelegates(
+    uint epoch_number,
+    uint8_t &delegate_idx,
+    Accounts & delegates)
+{
+    logos::block_hash hash;
+    if (_store.epoch_tip_get(hash))
+    {
+        BOOST_LOG(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch tip";
+        return false;
+    }
+
+    auto get = [this](logos::block_hash &hash, Epoch &epoch) {
+        if (_store.epoch_get(hash, epoch))
+        {
+            BOOST_LOG(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch: " <<
+                            hash.to_string();
+            return false;
+        }
+        return true;
+    };
+
+    Epoch epoch;
+    bool found = false;
+    for (bool res = get(hash, epoch);
+              res && !(found = epoch.epoch_number == epoch_number);
+              res = get(hash, epoch))
+    {
+        hash = epoch.previous;
+    }
+
+    if (found)
+    {
+        // Is this delegate included in the current/next epoch consensus?
+        delegate_idx = NON_DELEGATE;
+        for (uint8_t del = 0; del < NUM_DELEGATES; ++del) {
+            // update delegates for the requested epoch
+            delegates[del] = epoch.delegates[del].account;
+            if (epoch.delegates[del].account == _delegate_account) {
+                delegate_idx = del;
+            }
+        }
+    }
+
+    return found;
+}

@@ -437,16 +437,16 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
 
     _trans_epoch = nullptr;
 
-    if (_cur_epoch == nullptr)
-    {
-        BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionEnd cur epoch is null";
-        return;
-    }
 
     if (_transition_delegate == EpochTransitionDelegate::Retiring)
     {
         _binding_map.clear();
         _trans_epoch = nullptr;
+    }
+    else if (_cur_epoch == nullptr)
+    {
+        BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionEnd cur epoch is null";
+        return;
     }
     else
     {
@@ -456,7 +456,7 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
 
     BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionEnd : delegate "
                     << TransitionDelegateToName(_transition_delegate)
-                    << (int)delegate_idx << " " << " " << (int)NodeIdentityManager::_global_delegate_idx;
+                    << " " << (int)delegate_idx << " " << " " << (int)NodeIdentityManager::_global_delegate_idx;
 
     _transition_delegate = EpochTransitionDelegate::None;
 }

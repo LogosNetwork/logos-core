@@ -269,6 +269,23 @@ MicroBlockTester::informational(
             << " sig " << (sig - start) << " size " << sizeof(block);
         response_l.put("result", str.str());
     }
+    else if (type == "batch")
+    {
+        BatchStateBlock block;
+        size_t s = sizeof(block);
+        std::stringstream str;
+        uint64_t start = (uint64_t) &block;
+        uint64_t seq = (uint64_t) &(block.sequence);
+        uint64_t block_count = (uint64_t) &(block.block_count);
+        uint64_t enumber = (uint64_t) &(block.epoch_number);
+        uint64_t blocks = (uint64_t) &(block.blocks);
+        uint64_t next = (uint64_t) &(block.next);
+        uint64_t sig = (uint64_t) &(block.signature);
+        str << "batch offsets: sequence " << (seq - start) << " block_count " << (block_count - start)
+            << " epoch " << (enumber - start) << " blocks " << (blocks - start)
+            << " next " << (next - start) << " sig " << (sig - start) << " size " << sizeof(block);
+        response_l.put("result", str.str());
+    }
 
     response (response_l);
 }
