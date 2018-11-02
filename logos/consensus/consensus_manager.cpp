@@ -114,6 +114,7 @@ void ConsensusManager<CT>::Send(const void * data, size_t size, bool propagate)
 
 template<ConsensusType CT>
 bool ConsensusManager<CT>::OnP2pReceive(const void * data, size_t size) {
+    MessageType mtype = MessageType::Pre_Prepare;
 
     BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
 		"> - batch of size " << size << " received from p2p.";
@@ -123,18 +124,61 @@ bool ConsensusManager<CT>::OnP2pReceive(const void * data, size_t size) {
 	data = (uint8_t *)data + 4;
 	size -= 4;
 	if (msize > size) {
-	    BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
-		"> - error parsing p2p batch";
-	    return false;
+	    size = 1;
+	    break;
 	}
+
 	BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
 		"> - message of size " << msize << " and type " <<
 		(unsigned)((uint8_t *)data)[1] << " extracted from p2p batch.";
 
-	// TODO: process message
+	switch (mtype) {
+	    case MessageType::Pre_Prepare:
+		{
+		    MessageHeader<MessageType::Pre_Prepare,CT> *head
+				= (MessageHeader<MessageType::Pre_Prepare,CT>*)data;
+		    if (head->type != mtype || head->consensus_type != CT) {
+			BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
+			    "> - error parsing p2p batch Pre_Prepare message";
+			return false;
+		    }
+		    mtype = MessageType::Post_Prepare;
+		}
+		break;
+	    case MessageType::Post_Prepare:
+		{
+		    MessageHeader<MessageType::Post_Prepare,CT> *head
+				= (MessageHeader<MessageType::Post_Prepare,CT>*)data;
+		    if (head->type != mtype || head->consensus_type != CT) {
+			BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
+			    "> - error parsing p2p batch Post_Prepare message";
+			return false;
+		    }
+		    mtype = MessageType::Post_Commit;
+		}
+		break;
+	    case MessageType::Post_Commit:
+		{
+		    MessageHeader<MessageType::Post_Commit,CT> *head
+				= (MessageHeader<MessageType::Post_Commit,CT>*)data;
+		    if (head->type != mtype || head->consensus_type != CT) {
+			BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT) <<
+			    "> - error parsing p2p batch Post_Commit message";
+			return false;
+		    }
+		    mtype = MessageType::Pre_Prepare;
+		}
+		break;
+	    default:
+		break;
+	}
 
 	data = (uint8_t *)data + msize;
 	size -= msize;
+
+	if (mtype == MessageType::Pre_Prepare) {
+	    break;
+	}
     }
 
     if (size) {

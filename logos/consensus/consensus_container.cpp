@@ -96,6 +96,7 @@ ConsensusContainer::OnSendRequest(
 }
 
 bool ConsensusContainer::OnP2pReceive(const void *message, size_t size) {
-    // TODO: add more logic
-    return _batch_manager.ConsensusManager<ConsensusType::BatchStateBlock>::OnP2pReceive(message, size);
+    return _batch_manager.ConsensusManager<ConsensusType::BatchStateBlock>::OnP2pReceive(message, size)
+	|| _micro_manager.ConsensusManager<ConsensusType::MicroBlock>::OnP2pReceive(message, size)
+	|| _epoch_manager.ConsensusManager<ConsensusType::Epoch>::OnP2pReceive(message, size);
 }
