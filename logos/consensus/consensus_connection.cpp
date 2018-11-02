@@ -69,12 +69,12 @@ void ConsensusConnection<CT>::OnData()
             break;
         case MessageType::Key_Advert:
         case MessageType::Unknown:
-            BOOST_LOG(_log) << "ConsensusConnection - Error - Received "
+            LOG_ERROR(_log) << "ConsensusConnection - Received "
                             << MessageToName(type)
                             << " message type";
             break;
         default:
-            BOOST_LOG(_log) << "ConsensusConnection - Error - Received invalid message type "
+            LOG_ERROR(_log) << "ConsensusConnection - Received invalid message type "
                             << (int)(_receive_buffer.data()[1]);
             break;
     }
@@ -88,7 +88,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
     memcpy(_receive_buffer.data() + sizeof(Prequel), data,
            MessageTypeToSize<CT>(type) - sizeof(Prequel));
 
-    BOOST_LOG(_log) << "ConsensusConnection<"
+    LOG_DEBUG(_log) << "ConsensusConnection<"
                     << ConsensusToName(CT) << ">- Received "
                     << MessageToName(type)
                     << " message.";
@@ -232,9 +232,9 @@ bool ConsensusConnection<CT>::Validate(const M & message)
         return ValidateSignature(message, *_commit);
     }
 
-    BOOST_LOG(_log) << "ConsensusConnection - Attempting to validate "
-                    << MessageToName(message) << " while in "
-                    << StateToString(_state);
+    LOG_WARN(_log) << "ConsensusConnection - Attempting to validate "
+                   << MessageToName(message) << " while in "
+                   << StateToString(_state);
 
     return false;
 }
@@ -275,8 +275,8 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const M & message,
 {
     if(_state != expected_state)
     {
-        BOOST_LOG(_log) << "ConsensusConnection - Received " << MessageToName(message)
-                        << " message while in " << StateToString(_state);
+        LOG_INFO(_log) << "ConsensusConnection - Received " << MessageToName(message)
+                       << " message while in " << StateToString(_state);
     }
 
     if(!Validate(message))
@@ -292,8 +292,8 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const PostCommit & message)
 {
     if(_state != ConsensusState::COMMIT)
     {
-        BOOST_LOG(_log) << "ConsensusConnection - Proceeding with Post_Commit"
-                        << " message received while in " << StateToString(_state);
+        LOG_INFO(_log) << "ConsensusConnection - Proceeding with Post_Commit"
+                       << " message received while in " << StateToString(_state);
     }
 
     if(Validate(message))

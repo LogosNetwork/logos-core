@@ -37,7 +37,6 @@ class ConsensusContainer : public InternalConsensus
 
     using Service = boost::asio::io_service;
     using Config  = logos::node_config;
-    using Log     = boost::log::sources::logger_mt;
     using Store   = logos::block_store;
 
 public:
@@ -54,7 +53,6 @@ public:
     ConsensusContainer(Service & service,
                        Store & store,
                        logos::alarm & alarm,
-                       Log & log,
                        const Config & config,
                        Archiver & archiver);
 
@@ -87,10 +85,11 @@ protected:
     logos::process_return OnSendRequest(std::shared_ptr<Epoch>) override;
 
 private:
-    DelegateKeyStore            _key_store; 	///< Store delegates public keys
-    MessageValidator            _validator; 	///< Validator/Signer of consensus messages
-    BatchBlockConsensusManager  _batch_manager; ///< Handles batch block consensus
-	MicroBlockConsensusManager	_micro_manager; ///< Handles micro block consensus
-	EpochConsensusManager	    _epoch_manager; ///< Handles epoch consensus
-    ConsensusNetIOManager       _netio_manager; ///< Establishes connections to other delegates
+
+    DelegateKeyStore           _key_store; 	   ///< Store delegates public keys
+    MessageValidator           _validator; 	   ///< Validator/Signer of consensus messages
+    BatchBlockConsensusManager _batch_manager; ///< Handles batch block consensus
+	MicroBlockConsensusManager _micro_manager; ///< Handles micro block consensus
+	EpochConsensusManager	   _epoch_manager; ///< Handles epoch consensus
+    ConsensusNetIOManager      _netio_manager; ///< Establishes connections to other delegates
 };

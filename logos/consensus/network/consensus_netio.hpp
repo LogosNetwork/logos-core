@@ -6,8 +6,8 @@
 #include <logos/consensus/network/net_io_assembler.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/lib/log.hpp>
 
-#include <boost/log/sources/record_ostream.hpp>
 #include <boost/asio/io_service.hpp>
 
 #include <functional>
@@ -69,7 +69,6 @@ class ConsensusNetIO: public IOChannel,
     using Service       = boost::asio::io_service;
     using Endpoint      = boost::asio::ip::tcp::endpoint;
     using Socket        = boost::asio::ip::tcp::socket;
-    using Log           = boost::log::sources::logger_mt;
     using Address       = boost::asio::ip::address;
     using ErrorCode     = boost::system::error_code;
     using IOBinder      = function<void(std::shared_ptr<ConsensusNetIO>, uint8_t)>;

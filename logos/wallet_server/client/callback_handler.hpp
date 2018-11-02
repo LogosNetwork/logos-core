@@ -2,6 +2,7 @@
 
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/wallet_server/client/common.hpp>
+#include <logos/lib/log.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 #include <boost/beast/core/flat_buffer.hpp>
@@ -18,7 +19,6 @@ class CallbackHandler
     using Service  = boost::asio::io_service;
     using Endpoint = boost::asio::ip::tcp::endpoint;
     using Socket   = boost::asio::ip::tcp::socket;
-    using Log      = boost::log::sources::logger_mt;
     using Request  = boost::beast::http::request<boost::beast::http::string_body>;
     using Response = boost::beast::http::response<boost::beast::http::string_body>;
     using Buffer   = boost::beast::flat_buffer;

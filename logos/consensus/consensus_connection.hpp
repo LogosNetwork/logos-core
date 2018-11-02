@@ -7,8 +7,6 @@
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/consensus_state.hpp>
 
-#include <boost/log/sources/record_ostream.hpp>
-#include <boost/log/sources/logger.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/write.hpp>
@@ -39,7 +37,6 @@ class ConsensusConnection : public PrequelParser
 {
 protected:
 
-    using Log         = boost::log::sources::logger_mt;
     using PrePrepare  = PrePrepareMessage<CT>;
     using Prepare     = PrepareMessage<CT>;
     using Commit      = CommitMessage<CT>;

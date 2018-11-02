@@ -40,7 +40,6 @@ public:
     ///     @param[in] validator validator/signer of consensus messages.
     BatchBlockConsensusManager(Service & service, 
                                Store & store,
-                               Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator);

@@ -23,17 +23,15 @@ public:
 	///     @param[in] validator validator/signer of consensus messages
 	EpochConsensusManager(Service & service,
 	                      Store & store,
-	                      Log & log,
 					      const Config & config,
                           DelegateKeyStore & key_store,
                           MessageValidator & validator,
                           ArchiverEpochHandler & handler)
-		: Manager(service, store, log,
-				  config, key_store, validator)
+		: Manager(service, store, config,
+		          key_store, validator)
 		, _epoch_handler(handler)
 		, _enqueued(false)
-	{
-	}
+	{}
 
     ~EpochConsensusManager() = default;
 
@@ -106,7 +104,8 @@ protected:
 			std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
 
 private:
-    std::shared_ptr<PrePrepare>  _cur_epoch; 	///< Currently handled epoch
-    ArchiverEpochHandler &       _epoch_handler;///< Epoch handler
-	bool 						 _enqueued;   	///< Request is enqueued
+
+    std::shared_ptr<PrePrepare> _cur_epoch; 	///< Currently handled epoch
+    ArchiverEpochHandler &      _epoch_handler; ///< Epoch handler
+	bool 						_enqueued;   	///< Request is enqueued
 };

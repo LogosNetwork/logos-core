@@ -158,7 +158,7 @@ void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message,
         //
         if(!message.previous.is_zero())
         {
-            BOOST_LOG(_log) << "PersistenceManager::StoreBatchMessage - "
+            LOG_ERROR(_log) << "PersistenceManager::StoreBatchMessage - "
                             << "Failed to find previous: "
                             << message.previous.to_string();
         }
@@ -215,7 +215,7 @@ bool PersistenceManager::UpdateSourceState(const logos::state_block & block, MDB
 
     if(account_error)
     {
-        BOOST_LOG (_log) << "PersistenceManager::ApplyStateMessage - Unable to find account.";
+        LOG_ERROR (_log) << "PersistenceManager::ApplyStateMessage - Unable to find account.";
         return true;
     }
 

@@ -25,7 +25,7 @@ void CallbackHandler::OnConnect(const boost::system::error_code & ec)
 {
     if(ec)
     {
-        BOOST_LOG(_log) << boost::str(boost::format("Unable to connect to callback address: %1%: %2%") % _callback_endpoint % ec.message());
+        LOG_ERROR(_log) << boost::str(boost::format("Unable to connect to callback address: %1%: %2%") % _callback_endpoint % ec.message());
         Done();
 
         return;
@@ -49,11 +49,9 @@ void CallbackHandler::OnConnect(const boost::system::error_code & ec)
 
 void CallbackHandler::OnWrite(const boost::system::error_code & ec, size_t bytes)
 {
-    BOOST_LOG(_log) << "ConsensusManager::BatchBlockCallback - on write";
-
     if(ec)
     {
-        BOOST_LOG(_log) << boost::str(boost::format("Unable to send callback: %1%: %2%") % _callback_endpoint % ec.message());
+        LOG_ERROR(_log) << boost::str(boost::format("Unable to send callback: %1%: %2%") % _callback_endpoint % ec.message());
         Done();
 
         return;
@@ -73,13 +71,13 @@ void CallbackHandler::OnRead(boost::system::error_code const & ec, size_t bytes)
 {
     if(ec)
     {
-        BOOST_LOG(_log) << boost::str(boost::format("Unable complete callback: %1%: %2%") % _callback_endpoint % ec.message());
+        LOG_ERROR(_log) << boost::str(boost::format("Unable complete callback: %1%: %2%") % _callback_endpoint % ec.message());
         return;
     }
 
     if(_response->result() != boost::beast::http::status::ok)
     {
-        BOOST_LOG(_log) << boost::str(boost::format("Callback to %1% failed with status: %2%") % _callback_endpoint % _response->result());
+        LOG_ERROR(_log) << boost::str(boost::format("Callback to %1% failed with status: %2%") % _callback_endpoint % _response->result());
     }
 
     Done();

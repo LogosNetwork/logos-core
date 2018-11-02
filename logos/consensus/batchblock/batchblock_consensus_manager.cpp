@@ -9,12 +9,11 @@ const boost::posix_time::seconds BatchBlockConsensusManager::ON_CONNECTED_TIMEOU
 BatchBlockConsensusManager::BatchBlockConsensusManager(
         Service & service,
         Store & store,
-        Log & log,
         const Config & config,
         DelegateKeyStore & key_store,
         MessageValidator & validator)
-    : Manager(service, store, log,
-              config, key_store, validator)
+    : Manager(service, store, config,
+              key_store, validator)
     , _persistence_manager(store)
     , _init_timer(service)
     , _service(service)
@@ -29,7 +28,7 @@ BatchBlockConsensusManager::OnBenchmarkSendRequest(
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    BOOST_LOG (_log) << "BatchBlockConsensusManager::OnBenchmarkSendRequest() - hash: "
+    LOG_DEBUG (_log) << "BatchBlockConsensusManager::OnBenchmarkSendRequest() - hash: "
                      << block->hash().to_string();
 
     _using_buffered_blocks = true;
@@ -40,7 +39,7 @@ void
 BatchBlockConsensusManager::BufferComplete(
   logos::process_return & result)
 {
-    BOOST_LOG(_log) << "Buffered " << _buffer.size() << " blocks.";
+    LOG_DEBUG (_log) << "Buffered " << _buffer.size() << " blocks.";
 
     result.code = logos::process_result::buffering_done;
     SendBufferedBlocks();
@@ -81,7 +80,7 @@ BatchBlockConsensusManager::SendBufferedBlocks()
 
     if(!_buffer.size())
     {
-        BOOST_LOG (_log) << "BatchBlockConsensusManager - No more buffered blocks for consensus"
+        LOG_DEBUG (_log) << "BatchBlockConsensusManager - No more buffered blocks for consensus"
                          << std::endl;
     }
 }
@@ -93,9 +92,9 @@ BatchBlockConsensusManager::Validate(
 {
     if(logos::validate_message(block->hashables.account, block->hash(), block->signature))
     {
-        BOOST_LOG(_log) << "BatchBlockConsensusManager - Validate, bad signature: " 
-                        << block->signature.to_string()
-                        << " account: " << block->hashables.account.to_string();
+        LOG_INFO(_log) << "BatchBlockConsensusManager - Validate, bad signature: "
+                       << block->signature.to_string()
+                       << " account: " << block->hashables.account.to_string();
 
         result.code = logos::process_result::bad_signature;
         return false;

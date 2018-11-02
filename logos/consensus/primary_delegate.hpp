@@ -5,17 +5,15 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/consensus_state.hpp>
 #include <logos/consensus/messages/util.hpp>
+#include <logos/lib/log.hpp>
 
-#include <boost/log/sources/record_ostream.hpp>
 #include <boost/asio/deadline_timer.hpp>
-#include <boost/log/sources/logger.hpp>
 #include <boost/asio/io_service.hpp>
 
 class PrimaryDelegate
 {
     friend class Archiver;
 
-    using Log        = boost::log::sources::logger_mt;
     using Signatures = std::vector<MessageValidator::DelegateSignature>;
     using Timer      = boost::asio::deadline_timer;
     using Error      = boost::system::error_code;

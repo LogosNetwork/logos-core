@@ -2,16 +2,15 @@
 
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/blocks.hpp>
+#include <logos/lib/log.hpp>
 #include <logos/common.hpp>
 
 #include <unordered_map>
 
-#include <boost/log/sources/record_ostream.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index_container.hpp>
 #include <boost/asio/deadline_timer.hpp>
-#include <boost/log/sources/logger.hpp>
 #include <boost/asio/io_service.hpp>
 
 template<ConsensusType CT>
@@ -30,7 +29,6 @@ class SecondaryRequestHandler
     using Timer      = boost::asio::deadline_timer;
     using Service    = boost::asio::io_service;
     using Error      = boost::system::error_code;
-    using Log        = boost::log::sources::logger_mt;
     using BlockPtr   = std::shared_ptr<RequestMessage<CT>>;
     using Seconds    = boost::posix_time::seconds;
     using Clock      = boost::posix_time::second_clock;

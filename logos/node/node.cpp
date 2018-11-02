@@ -375,15 +375,55 @@ flush (true)
 {
 }
 
+boost::log::trivial::severity_level get_severity(const std::string& level)
+{
+    boost::log::trivial::severity_level ret = boost::log::trivial::warning;
+
+    if(level == "trace")
+    {
+        ret = boost::log::trivial::trace;
+    }
+    else if(level == "debug")
+    {
+        ret = boost::log::trivial::debug;
+    }
+    else if(level == "info")
+    {
+        ret = boost::log::trivial::info;
+    }
+    else if(level == "warning")
+    {
+        ret = boost::log::trivial::warning;
+    }
+    else if(level == "error")
+    {
+        ret = boost::log::trivial::error;
+    }
+    else if(level == "fatal")
+    {
+        ret = boost::log::trivial::fatal;
+    }
+
+    return ret;
+}
+
 void logos::logging::init (boost::filesystem::path const & application_path_a)
 {
     static std::atomic_flag logging_already_added = ATOMIC_FLAG_INIT;
     if (!logging_already_added.test_and_set ())
     {
         boost::log::add_common_attributes ();
+        boost::log::register_simple_formatter_factory< boost::log::trivial::severity_level, char > ("Severity");
+
+        auto level = get_severity(log_level);
+
+        boost::log::core::get()->set_filter (
+            boost::log::trivial::severity >= level
+            );
+
         if (log_to_cerr ())
         {
-            boost::log::add_console_log (std::cerr, boost::log::keywords::format = "[%TimeStamp%]: %Message%");
+            boost::log::add_console_log (std::cerr, boost::log::keywords::format = "[%TimeStamp% %Severity%]: %Message%");
         }
 
         boost::log::add_file_log (boost::log::keywords::target = application_path_a / "log",
@@ -392,13 +432,14 @@ void logos::logging::init (boost::filesystem::path const & application_path_a)
                                   boost::log::keywords::auto_flush = flush,
                                   boost::log::keywords::scan_method = boost::log::sinks::file::scan_method::scan_matching,
                                   boost::log::keywords::max_size = max_size,
-                                  boost::log::keywords::format = "[%TimeStamp%]: %Message%");
+                                  boost::log::keywords::format = "[%TimeStamp% %Severity%]: %Message%");
     }
 }
 
 void logos::logging::serialize_json (boost::property_tree::ptree & tree_a) const
 {
     tree_a.put ("version", "3");
+    tree_a.put ("log_level", log_level);
     tree_a.put ("ledger", ledger_logging_value);
     tree_a.put ("ledger_duplicate", ledger_duplicate_logging_value);
     tree_a.put ("vote", vote_logging_value);
@@ -459,6 +500,7 @@ bool logos::logging::deserialize_json (bool & upgraded_a, boost::property_tree::
             upgraded_a = true;
         }
         upgraded_a |= upgrade_json (std::stoull (version_l.get ()), tree_a);
+        log_level = tree_a.get<std::string> ("log_level", "warning");
         ledger_logging_value = tree_a.get<bool> ("ledger");
         ledger_duplicate_logging_value = tree_a.get<bool> ("ledger_duplicate");
         vote_logging_value = tree_a.get<bool> ("vote");
@@ -1229,7 +1271,7 @@ block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
 stats (config.stat_config),
 _recall_handler(),
 _archiver(alarm_a, store, _recall_handler, config.consensus_manager_config.delegate_id),
-_consensus_container(service_a, store, alarm_a, log, config, _archiver)
+_consensus_container(service_a, store, alarm_a, config, _archiver)
 {
 
 // Used to modify the database file with the new account_info field.

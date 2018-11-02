@@ -11,8 +11,6 @@
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
 
-#include <boost/log/sources/record_ostream.hpp>
-
 class ChannelBinder
 {
 
@@ -55,7 +53,6 @@ protected:
 
     using Service     = boost::asio::io_service;
     using Config      = ConsensusManagerConfig;
-    using Log         = boost::log::sources::logger_mt;
     using Connections = std::vector<std::shared_ptr<ConsensusConnection<CT>>>;
     using Store       = logos::block_store;
     using Manager     = ConsensusManager<CT>;
@@ -66,7 +63,6 @@ public:
 
     ConsensusManager(Service & service,
                      Store & store,
-                     Log & log,
                      const Config & config,
                      DelegateKeyStore & key_store,
                      MessageValidator & validator);

@@ -1,5 +1,8 @@
 #include <logos/consensus/consensus_manager.hpp>
 
+#include <boost/log/core.hpp>
+#include <boost/log/sources/severity_feature.hpp>
+
 template<ConsensusType CT>
 constexpr uint8_t ConsensusManager<CT>::BATCH_TIMEOUT_DELAY;
 
@@ -9,7 +12,6 @@ constexpr uint8_t ConsensusManager<CT>::DELIGATE_ID_MASK;
 template<ConsensusType CT>
 ConsensusManager<CT>::ConsensusManager(Service & service,
                                        Store & store,
-                                       Log & log,
                                        const Config & config,
                                        DelegateKeyStore & key_store,
                                        MessageValidator & validator)

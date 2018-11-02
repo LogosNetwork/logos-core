@@ -15,7 +15,7 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
     : _delegates(config.delegates)
     , _consensus_managers(consensus_managers)
     , _alarm(alarm)
-    , _peer_acceptor(service, _log,
+    , _peer_acceptor(service,
                      Endpoint(make_address_v4(config.local_address),
                               config.peer_port), this)
     , _key_store(key_store)

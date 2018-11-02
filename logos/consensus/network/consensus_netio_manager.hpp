@@ -21,7 +21,6 @@ class ConsensusNetIOManager : public PeerManager
     using Service   = boost::asio::io_service;
     using Endpoint  = boost::asio::ip::tcp::endpoint;
     using Socket    = boost::asio::ip::tcp::socket;
-    using Log       = boost::log::sources::logger_mt;
     using Config    = ConsensusManagerConfig;
     using Address   = boost::asio::ip::address;
     using Delegates = std::vector<Config::Delegate>;
