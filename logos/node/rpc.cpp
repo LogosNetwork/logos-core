@@ -887,29 +887,48 @@ void logos::rpc_handler::batch_blocks_latest ()
         error_response (response, "Invalid count limit");
     }
 
+    // Use provided head hash string, or get delegate batch tip
+    auto head_str (request.get_optional<std::string> ("head"));
+    logos::block_hash hash;
+    BatchStateBlock batch;
+    if (head_str)
+    {
+        if (hash.decode_hex (*head_str))
+        {
+            error_response (response, "Invalid block hash.");
+        }
+        if (node.store.batch_block_get(hash, batch))
+        {
+            error_response (response, "Block not found.");
+        }
+    }
+    else
+    {
+        auto tip_exists = !node.store.batch_tip_get(static_cast<uint8_t>(delegate_id), hash);
+        assert (tip_exists);
+    }
+
     boost::property_tree::ptree response_l;
     boost::property_tree::ptree response_batch_blocks;
-
-    BatchStateBlock batch;
-    logos::block_hash hash;
-    bool batch_exists (!node.store.batch_tip_get(delegate_id, hash));
-    if (batch_exists)
+    while (!hash.is_zero() && count > 0)
     {
-        batch_exists = !node.store.batch_block_get(hash, batch);
-        assert (batch_exists);
-    }
-    while (batch_exists && count > 0)
-    {
+        if (node.store.batch_block_get(hash, batch))
+        {
+            error_response (response, "Internal data corruption");
+        }
         boost::property_tree::ptree response_batch;
         batch.SerializeJson (response_batch);
         response_batch_blocks.push_back(std::make_pair("", response_batch));
         hash = batch.previous;
-        batch_exists = !node.store.batch_block_get(hash, batch);
         count--;
     }
 
     response_l.add_child ("batch_blocks", response_batch_blocks);
     response_l.put ("delegate_id", delegate_id);
+    if (!hash.is_zero())
+    {
+        response_l.put ("previous", hash.to_string());
+    }
     response (response_l);
 }
 
@@ -1599,27 +1618,49 @@ void logos::rpc_handler::epochs_latest ()
     {
         error_response (response, "Invalid count limit");
     }
+
+    // Use provided head hash string, or get delegate batch tip
+    auto head_str (request.get_optional<std::string> ("head"));
+    logos::block_hash hash;
+    Epoch epoch;
+    if (head_str)
+    {
+        if (hash.decode_hex (*head_str))
+        {
+            error_response (response, "Invalid block hash.");
+        }
+        if (node.store.epoch_get(hash, epoch))
+        {
+            error_response (response, "Epoch not found.");
+        }
+    }
+    else
+    {
+        auto tip_exists (!node.store.epoch_tip_get(hash));
+        assert (tip_exists);
+    }
+
     boost::property_tree::ptree response_l;
     boost::property_tree::ptree response_epochs;
 
-    Epoch epoch;
-    logos::block_hash hash;
-    bool epoch_exists (!node.store.epoch_tip_get(hash));
-    if (epoch_exists)
+    while (!hash.is_zero() && count > 0)
     {
-        epoch_exists = !node.store.epoch_get(hash, epoch);
-        assert (epoch_exists);
-    }
-    while (epoch_exists && count > 0)
-    {
+        if (node.store.epoch_get(hash, epoch))
+        {
+            error_response (response, "Internal data corruption")
+        }
         boost::property_tree::ptree response_epoch;
         epoch.SerializeJson (response_epoch);
         response_epochs.push_back(std::make_pair("", response_epoch));
         hash = epoch.previous;
-        epoch_exists = !node.store.epoch_get(hash, epoch);
         count--;
     }
     response_l.add_child("epochs", response_epochs);
+    if (!hash.is_zero())
+    {
+        response_l.put("previous", hash.to_string());
+    }
+
     response (response_l);
 }
 
@@ -1757,7 +1798,7 @@ void logos::rpc_handler::account_history ()
 
     send_hash = info.head;
     receive_hash = info.receive_head;
-    // get optional head block // TODO: support receive block as well
+    // get optional send head block
     if (head_str)
     {
         if (send_hash.decode_hex (*head_str))
@@ -2054,27 +2095,49 @@ void logos::rpc_handler::micro_blocks_latest ()
     {
         error_response (response, "Invalid count limit");
     }
+
+    // Use provided head hash string, or get delegate batch tip
+    auto head_str (request.get_optional<std::string> ("head"));
+    MicroBlock micro_block;
+    logos::block_hash hash;
+    if (head_str)
+    {
+        if (hash.decode_hex (*head_str))
+        {
+            error_response (response, "Invalid block hash.");
+        }
+        if (node.store.micro_block_get(hash, micro_block))
+        {
+            error_response (response, "Micro block not found.");
+        }
+    }
+    else
+    {
+        auto tip_exists (!node.store.micro_block_tip_get(hash));
+        assert (tip_exists);
+    }
+
     boost::property_tree::ptree response_l;
     boost::property_tree::ptree response_micro_blocks;
 
-    MicroBlock micro_block;
-    logos::block_hash hash;
-    bool micro_block_exists (!node.store.micro_block_tip_get(hash));
-    if (micro_block_exists)
+    while (!hash.is_zero() && count > 0)
     {
-        micro_block_exists = !node.store.micro_block_get(hash, micro_block);
-        assert (micro_block_exists);
-    }
-    while (micro_block_exists && count > 0)
-    {
+        if (node.store.micro_block_get(hash, micro_block))
+        {
+            error_response (response, "Internal data corruption");
+        }
         boost::property_tree::ptree response_micro_block;
         micro_block.SerializeJson (response_micro_block);
         response_micro_blocks.push_back(std::make_pair("", response_micro_block));
         hash = micro_block.previous;
-        micro_block_exists = !node.store.micro_block_get(hash, micro_block);
         count--;
     }
     response_l.add_child("micro_blocks", response_micro_blocks);
+
+    if (!hash.is_zero ())
+    {
+        response_l.put("previous", hash.to_string());
+    }
     response (response_l);
 }
 
