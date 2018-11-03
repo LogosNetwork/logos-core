@@ -9,12 +9,14 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
                                              PrimaryDelegate & primary,
                                              RequestPromoter<CT> & promoter,
                                              MessageValidator & validator,
-                                             const DelegateIdentities & ids)
+					     const DelegateIdentities & ids,
+					     p2p_interface & p2p)
     : _iochannel(iochannel)
     , _delegate_ids(ids)
     , _validator(validator)
     , _primary(primary)
     , _promoter(promoter)
+    , _consensus_p2p(_log, p2p)
 {}
 
 template<ConsensusType CT>
@@ -90,7 +92,9 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
     {
         case MessageType::Pre_Prepare: {
             auto msg (*reinterpret_cast<const PrePrepare*>(_receive_buffer.data()));
-            OnConsensusMessage(msg);
+	    OnConsensusMessage(msg);
+	    _consensus_p2p.CleanBatch();
+	    _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(type), false);
             break;
         }
         case MessageType::Prepare: {
@@ -100,7 +104,8 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
         }
         case MessageType::Post_Prepare: {
             auto msg (*reinterpret_cast<const PostPrepare*>(_receive_buffer.data()));
-            OnConsensusMessage(msg);
+	    OnConsensusMessage(msg);
+	    _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(type), false);
             break;
         }
         case MessageType::Commit: {
@@ -110,7 +115,8 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
         }
         case MessageType::Post_Commit: {
             auto msg (*reinterpret_cast<const PostCommit*>(_receive_buffer.data()));
-            OnConsensusMessage(msg);
+	    OnConsensusMessage(msg);
+	    _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(type), true);
             break;
         }
         case MessageType::Key_Advert:

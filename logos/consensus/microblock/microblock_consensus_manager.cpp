@@ -87,5 +87,5 @@ MicroBlockConsensusManager::MakeConsensusConnection(
         const DelegateIdentities& ids)
 {
     return std::make_shared<MicroBlockConsensusConnection>(iochannel, *this, *this,
-            _validator, ids, _microblock_handler);
+	    _validator, ids, _microblock_handler, Manager::_consensus_p2p._p2p);
 }

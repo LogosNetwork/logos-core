@@ -91,5 +91,5 @@ EpochConsensusManager::MakeConsensusConnection(
         const DelegateIdentities& ids)
 {
     return std::make_shared<EpochConsensusConnection>(iochannel, *this, *this,
-            _validator, ids, _epoch_handler);
+	    _validator, ids, _epoch_handler, Manager::_consensus_p2p._p2p);
 }

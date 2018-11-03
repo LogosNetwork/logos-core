@@ -5,6 +5,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/consensus_state.hpp>
+#include <logos/consensus/consensus_p2p.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 #include <boost/log/sources/logger.hpp>
@@ -54,7 +55,8 @@ public:
                         PrimaryDelegate & primary,
                         RequestPromoter<CT> & promoter,
                         MessageValidator & validator,
-                        const DelegateIdentities & ids);
+			const DelegateIdentities & ids,
+			p2p_interface & p2p);
 
     void Send(const void * data, size_t size);
 
@@ -121,4 +123,5 @@ protected:
     PrimaryDelegate &           _primary;
     ConsensusState              _state     = ConsensusState::VOID;
     RequestPromoter<CT> &       _promoter; ///< secondary list request promoter
+    ConsensusP2p                _consensus_p2p;
 };

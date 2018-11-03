@@ -51,7 +51,7 @@ BatchBlockConsensusManager::BindIOChannel(
     auto connection =
             std::make_shared<BBConsensusConnection>(
                     iochannel, *this, *this, _persistence_manager,
-                    _validator, ids);
+		    _validator, ids, Manager::_consensus_p2p._p2p);
 
     _connections.push_back(connection);
     return connection;
@@ -192,5 +192,5 @@ BatchBlockConsensusManager::MakeConsensusConnection(
 {
     return std::make_shared<BBConsensusConnection>(iochannel,
                                                  *this, *this, _persistence_manager,
-                                                 _validator, ids);
+						 _validator, ids, Manager::_consensus_p2p._p2p);
 }

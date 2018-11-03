@@ -9,9 +9,10 @@ BBConsensusConnection::BBConsensusConnection(
         RequestPromoter<ConsensusType::BatchStateBlock> & promoter,
         PersistenceManager & persistence_manager,
         MessageValidator & validator,
-        const DelegateIdentities & ids)
+	const DelegateIdentities & ids,
+	p2p_interface & p2p)
     : Connection(iochannel, primary, promoter,
-                 validator, ids)
+		 validator, ids, p2p)
     , _persistence_manager(persistence_manager)
 {}
 

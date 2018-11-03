@@ -24,8 +24,9 @@ public:
                                   RequestPromoter<ConsensusType::MicroBlock> & promoter,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
-                                  ArchiverMicroBlockHandler & handler)
-        : ConsensusConnection<ConsensusType::MicroBlock>(iochannel, primary, promoter, validator, ids)
+				  ArchiverMicroBlockHandler & handler,
+				  p2p_interface & p2p)
+	: ConsensusConnection<ConsensusType::MicroBlock>(iochannel, primary, promoter, validator, ids, p2p)
         , _microblock_handler(handler)
     {}
     ~MicroBlockConsensusConnection() {}

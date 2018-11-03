@@ -25,8 +25,9 @@ public:
                              RequestPromoter<ConsensusType::Epoch> & promoter,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
-                             ArchiverEpochHandler & handler)
-        : ConsensusConnection<ConsensusType::Epoch>(iochannel, primary, promoter, validator, ids)
+			     ArchiverEpochHandler & handler,
+			     p2p_interface & p2p)
+	: ConsensusConnection<ConsensusType::Epoch>(iochannel, primary, promoter, validator, ids, p2p)
         , _epoch_handler(handler)
     {}
     ~EpochConsensusConnection() {}
