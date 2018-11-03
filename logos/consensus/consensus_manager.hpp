@@ -10,7 +10,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
-#include <logos/p2p/p2p.h>
+#include <logos/consensus/consensus_p2p.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 
@@ -145,7 +145,6 @@ protected:
     Log                         _log;
     uint8_t                     _delegate_id;
     SecondaryRequestHandler<CT> _secondary_handler;             ///< Secondary queue of blocks.
-    p2p_interface &		_p2p;
-    std::vector<uint8_t>	_p2p_batch;			// PrePrepare + PostPrepare + PostCommit
+    ConsensusP2p		_consensus_p2p;
 };
 
