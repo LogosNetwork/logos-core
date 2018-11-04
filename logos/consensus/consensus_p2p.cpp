@@ -1,13 +1,15 @@
 #include <logos/consensus/consensus_p2p.hpp>
 #include <logos/consensus/messages/util.hpp>
 
-ConsensusP2p::ConsensusP2p(Log & log,
+template<ConsensusType CT>
+ConsensusP2p<CT>::ConsensusP2p(Log & log,
 			   p2p_interface & p2p)
     : _log(log)
     , _p2p(p2p)
 {}
 
-bool ConsensusP2p::AddMessageToBatch(const uint8_t *data, size_t size)
+template<ConsensusType CT>
+bool ConsensusP2p<CT>::AddMessageToBatch(const uint8_t *data, size_t size)
 {
     size_t oldsize = _p2p_batch.size();
     _p2p_batch.resize(oldsize + size + 4);
@@ -20,12 +22,14 @@ bool ConsensusP2p::AddMessageToBatch(const uint8_t *data, size_t size)
     return true;
 }
 
-void ConsensusP2p::CleanBatch()
+template<ConsensusType CT>
+void ConsensusP2p<CT>::CleanBatch()
 {
     _p2p_batch.clear();
 }
 
-bool ConsensusP2p::PropagateBatch()
+template<ConsensusType CT>
+bool ConsensusP2p<CT>::PropagateBatch()
 {
     bool res = _p2p.PropagateMessage(&_p2p_batch[0], _p2p_batch.size());
 
@@ -41,7 +45,8 @@ bool ConsensusP2p::PropagateBatch()
     return res;
 }
 
-bool ConsensusP2p::ProcessOutputMessage(const uint8_t *data, size_t size, bool propagate)
+template<ConsensusType CT>
+bool ConsensusP2p<CT>::ProcessOutputMessage(const uint8_t *data, size_t size, bool propagate)
 {
     bool res = AddMessageToBatch(data, size);
 
@@ -61,7 +66,7 @@ bool ConsensusP2p::ProcessOutputMessage(const uint8_t *data, size_t size, bool p
 }
 
 template<ConsensusType CT>
-bool ConsensusP2p::ValidateBatch(const uint8_t * data, size_t size) {
+bool ConsensusP2p<CT>::ValidateBatch(const uint8_t * data, size_t size) {
     MessageType mtype = MessageType::Pre_Prepare;
 
     BOOST_LOG(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
@@ -138,6 +143,6 @@ bool ConsensusP2p::ValidateBatch(const uint8_t * data, size_t size) {
     return true;
 }
 
-template bool ConsensusP2p::ValidateBatch<ConsensusType::BatchStateBlock>(const uint8_t *data, size_t size);
-template bool ConsensusP2p::ValidateBatch<ConsensusType::MicroBlock>(const uint8_t *data, size_t size);
-template bool ConsensusP2p::ValidateBatch<ConsensusType::Epoch>(const uint8_t *data, size_t size);
+template class ConsensusP2p<ConsensusType::BatchStateBlock>;
+template class ConsensusP2p<ConsensusType::MicroBlock>;
+template class ConsensusP2p<ConsensusType::Epoch>;

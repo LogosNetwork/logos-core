@@ -6,6 +6,7 @@
 #include <boost/log/sources/record_ostream.hpp>
 #include <boost/log/sources/logger.hpp>
 
+template<ConsensusType CT>
 class ConsensusP2p
 {
     using Log        = boost::log::sources::logger_mt;
@@ -20,7 +21,6 @@ public:
     bool PropagateBatch();
     bool ProcessOutputMessage(const uint8_t *data, size_t size, bool propagate);
 
-    template<ConsensusType CT>
     bool ValidateBatch(const uint8_t *data, size_t size);
 
     Log                         _log;

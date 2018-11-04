@@ -123,5 +123,5 @@ protected:
     PrimaryDelegate &           _primary;
     ConsensusState              _state     = ConsensusState::VOID;
     RequestPromoter<CT> &       _promoter; ///< secondary list request promoter
-    ConsensusP2p                _consensus_p2p;
+    ConsensusP2p<CT>            _consensus_p2p;
 };

@@ -96,7 +96,7 @@ void ConsensusManager<CT>::Send(const void * data, size_t size, bool propagate)
 
 template<ConsensusType CT>
 bool ConsensusManager<CT>::OnP2pReceive(const void * data, size_t size) {
-    return _consensus_p2p.ValidateBatch<CT>((const uint8_t *)data, size);
+    return _consensus_p2p.ValidateBatch((const uint8_t *)data, size);
 }
 
 template<ConsensusType CT>

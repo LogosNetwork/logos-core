@@ -145,6 +145,6 @@ protected:
     Log                         _log;
     uint8_t                     _delegate_id;
     SecondaryRequestHandler<CT> _secondary_handler;             ///< Secondary queue of blocks.
-    ConsensusP2p		_consensus_p2p;
+    ConsensusP2p<CT>		_consensus_p2p;
 };
 
