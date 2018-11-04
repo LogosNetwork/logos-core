@@ -1,23 +1,40 @@
 #include <logos/consensus/consensus_p2p.hpp>
 #include <logos/consensus/messages/util.hpp>
 
+#define P2P_BATCH_VERSION	1
+
+struct P2pBatchHeader {
+    uint8_t version;
+    MessageType type;
+    ConsensusType consensus_type;
+    uint8_t delegate_id;
+    uint8_t padding;
+};
+
 template<ConsensusType CT>
 ConsensusP2p<CT>::ConsensusP2p(Log & log,
-			   p2p_interface & p2p)
+			   p2p_interface & p2p,
+			   uint8_t delegate_id,
+			   boost::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates)
     : _log(log)
     , _p2p(p2p)
+    , _delegate_id(delegate_id)
+    , _ApplyUpdates(ApplyUpdates)
 {}
 
 template<ConsensusType CT>
 bool ConsensusP2p<CT>::AddMessageToBatch(const uint8_t *data, size_t size)
 {
     size_t oldsize = _p2p_batch.size();
+
     _p2p_batch.resize(oldsize + size + 4);
     memcpy(&_p2p_batch[oldsize], &size, 4);
     memcpy(&_p2p_batch[oldsize + 4], data, size);
 
-    BOOST_LOG(_log) << "Consensus2P2p - message of size " << size << " and type " <<
-	(unsigned)_p2p_batch[oldsize + 5] << " added to p2p batch.";
+    BOOST_LOG(_log) << "Consensus2P2p<" << ConsensusToName(CT) <<
+	"> - message of size " << size <<
+	" and type " << (unsigned)_p2p_batch[oldsize + 5] <<
+	" added to p2p batch.";
 
     return true;
 }
@@ -34,10 +51,12 @@ bool ConsensusP2p<CT>::PropagateBatch()
     bool res = _p2p.PropagateMessage(&_p2p_batch[0], _p2p_batch.size());
 
     if (res) {
-	BOOST_LOG(_log) << "ConsensusP2p - p2p batch of size " <<
-	    _p2p_batch.size() << " propagated.";
+	BOOST_LOG(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
+	    "> - p2p batch of size " << _p2p_batch.size() <<
+	    " propagated.";
     } else {
-	BOOST_LOG(_log) << "ConsensusP2p - p2p batch not propagated.";
+	BOOST_LOG(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
+	    "> - p2p batch not propagated.";
     }
 
     CleanBatch();
@@ -48,7 +67,19 @@ bool ConsensusP2p<CT>::PropagateBatch()
 template<ConsensusType CT>
 bool ConsensusP2p<CT>::ProcessOutputMessage(const uint8_t *data, size_t size, bool propagate)
 {
-    bool res = AddMessageToBatch(data, size);
+    bool res = true;
+
+    if (!_p2p_batch.size()) {
+	const struct P2pBatchHeader head = {
+	    .version = P2P_BATCH_VERSION,
+	    .type = MessageType::Unknown,
+	    .consensus_type = CT,
+	    .delegate_id = _delegate_id,
+	};
+	res &= AddMessageToBatch((uint8_t *)&head, sizeof(head));
+    }
+
+    res &= AddMessageToBatch(data, size);
 
     if (propagate)
     {
@@ -67,7 +98,10 @@ bool ConsensusP2p<CT>::ProcessOutputMessage(const uint8_t *data, size_t size, bo
 
 template<ConsensusType CT>
 bool ConsensusP2p<CT>::ValidateBatch(const uint8_t * data, size_t size) {
-    MessageType mtype = MessageType::Pre_Prepare;
+    MessageType mtype = MessageType::Unknown;
+    PrePrepareMessage<CT> *pre_mess = 0;
+    uint8_t delegate_id;
+    int mess_counter = 0;
 
     BOOST_LOG(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
 		"> - batch of size " << size << " received from p2p.";
@@ -86,6 +120,19 @@ bool ConsensusP2p<CT>::ValidateBatch(const uint8_t * data, size_t size) {
 		(unsigned)data[1] << " extracted from p2p batch.";
 
 	switch (mtype) {
+	    case MessageType::Unknown:
+		{
+		    P2pBatchHeader *head = (P2pBatchHeader *)data;
+		    if (msize != sizeof(P2pBatchHeader) || head->version != P2P_BATCH_VERSION
+			    || head->type != mtype || head->consensus_type != CT) {
+			BOOST_LOG(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
+			    "> - error parsing p2p batch header";
+			return false;
+		    }
+		    delegate_id = head->delegate_id;
+		    mtype = MessageType::Pre_Prepare;
+		}
+		break;
 	    case MessageType::Pre_Prepare:
 		{
 		    MessageHeader<MessageType::Pre_Prepare,CT> *head
@@ -95,6 +142,7 @@ bool ConsensusP2p<CT>::ValidateBatch(const uint8_t * data, size_t size) {
 			    "> - error parsing p2p batch Pre_Prepare message";
 			return false;
 		    }
+		    pre_mess = (PrePrepareMessage<CT> *)head;
 		    mtype = MessageType::Post_Prepare;
 		}
 		break;
@@ -119,7 +167,6 @@ bool ConsensusP2p<CT>::ValidateBatch(const uint8_t * data, size_t size) {
 			    "> - error parsing p2p batch Post_Commit message";
 			return false;
 		    }
-		    mtype = MessageType::Pre_Prepare;
 		}
 		break;
 	    default:
@@ -129,18 +176,22 @@ bool ConsensusP2p<CT>::ValidateBatch(const uint8_t * data, size_t size) {
 	data += msize;
 	size -= msize;
 
-	if (mtype == MessageType::Pre_Prepare) {
+	if (++mess_counter == 4) {
 	    break;
 	}
     }
 
-    if (size) {
+    if (size || mess_counter != 4) {
 	BOOST_LOG(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
 		"> - error parsing p2p batch";
 	return false;
+    } else {
+	_ApplyUpdates(*pre_mess, delegate_id);
+	BOOST_LOG(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
+		"> - PrePrepare message from delegate " << (unsigned)delegate_id <<
+		" saved to storage.";
+	return true;
     }
-
-    return true;
 }
 
 template class ConsensusP2p<ConsensusType::BatchStateBlock>;

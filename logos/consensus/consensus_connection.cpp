@@ -16,7 +16,8 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
     , _validator(validator)
     , _primary(primary)
     , _promoter(promoter)
-    , _consensus_p2p(_log, p2p)
+    , _consensus_p2p(_log, p2p, ids.remote,
+	boost::bind(&ConsensusConnection<CT>::ApplyUpdates, this, _1, _2))
 {}
 
 template<ConsensusType CT>

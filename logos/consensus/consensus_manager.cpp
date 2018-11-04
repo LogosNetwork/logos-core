@@ -19,7 +19,8 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _validator(validator)
     , _delegate_id(config.delegate_id)
     , _secondary_handler(service, *this)
-    , _consensus_p2p(log, p2p)
+    , _consensus_p2p(log, p2p, _delegate_id,
+	boost::bind(&ConsensusManager<CT>::ApplyUpdates, this, _1, _2))
 {}
 
 template<ConsensusType CT>
