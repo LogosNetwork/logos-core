@@ -2550,14 +2550,6 @@ void logos::rpc_handler::process ()
                     response (response_l);
                     break;
                 }
-                case logos::process_result::balance_mismatch:
-                {
-                    boost::property_tree::ptree response_l;
-                    response_l.put ("result",
-                                    ProcessResultToString(result.code));
-                    response (response_l);
-                    break;
-                }
                 case logos::process_result::already_reserved:
                 {
                     error_response (response,
@@ -2565,6 +2557,12 @@ void logos::rpc_handler::process ()
                     break;
                 }
                 case logos::process_result::initializing:
+                {
+                    error_response (response,
+                                    ProcessResultToString(result.code));
+                    break;
+                }
+                case logos::process_result::insufficient_balance:
                 {
                     error_response (response,
                                     ProcessResultToString(result.code));

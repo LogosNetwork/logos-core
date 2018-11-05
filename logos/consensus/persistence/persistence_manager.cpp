@@ -115,7 +115,7 @@ bool PersistenceManager::Validate(const logos::state_block & block,
         if(block.hashables.amount.number() + block.hashables.transaction_fee.number()
                 > info.balance.number())
         {
-            result.code = logos::process_result::balance_mismatch;
+            result.code = logos::process_result::insufficient_balance;
             return false;
         }
     }

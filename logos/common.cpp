@@ -792,6 +792,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
     case process_result::insufficient_fee:
         ret = "Transaction fee is insufficient";
         break;
+    case process_result::insufficient_balance:
+        ret = "Account balance is insufficient";
+        break;
     }
 
     return ret;

@@ -231,11 +231,10 @@ enum class process_result
     buffered,              // Logos - The block has been buffered for benchmarking
     buffering_done,        // Logos - The last block has been buffered and consensus will begin
     pending,               // Logos - The block has already been received and is pending consensus
-    already_reserved,      // Logos - The account has already been reserved by a different
-                           //         block within the reservation period.
-    initializing,          // Logos - The delegate is currently initializing and is
-                           //         not accepting transactions.
-    insufficient_fee       // Logos - Transaction fee is insufficient.
+    already_reserved,      // Logos - The account is already reserved with different request.
+    initializing,          // Logos - The delegate is initializing and not accepting transactions.
+    insufficient_fee,      // Logos - Transaction fee is insufficient.
+    insufficient_balance   // Logos - Balance is insufficient.
 };
 
 std::string ProcessResultToString(process_result result);
