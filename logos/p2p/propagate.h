@@ -14,17 +14,20 @@
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/key_extractors.hpp>
 #include <boost/multi_index/ordered_index.hpp>
+#include "hash.h"
 
 #define DEFAULT_PROPAGATE_STORE_SIZE	0x10000
 
 struct PropagateMessage {
 	std::vector<uint8_t> message;
 	uint64_t label;
-	struct ByMessage {};
+	uint512 hash;
+	struct ByHash {};
 	struct ByLabel {};
 	PropagateMessage(const void *mess, unsigned size) {
 		message.resize(size);
 		memcpy(&message[0], mess, size);
+		hash = Hash(message.begin(), message.end());
 	}
 };
 
@@ -36,8 +39,8 @@ private:
 	boost::multi_index_container<PropagateMessage,
 		boost::multi_index::indexed_by<
 			boost::multi_index::ordered_unique<
-				boost::multi_index::tag<PropagateMessage::ByMessage>,
-				boost::multi_index::member<PropagateMessage,std::vector<uint8_t>,&PropagateMessage::message>
+				boost::multi_index::tag<PropagateMessage::ByHash>,
+				boost::multi_index::member<PropagateMessage,uint512,&PropagateMessage::hash>
 			>,
 			boost::multi_index::ordered_unique<
 				boost::multi_index::tag<PropagateMessage::ByLabel>,
@@ -49,7 +52,7 @@ public:
 	PropagateStore(uint64_t size = DEFAULT_PROPAGATE_STORE_SIZE) : max_size(size), first_label(0), next_label(0) {}
 	~PropagateStore() {}
 	bool Insert(PropagateMessage &mess) {
-		if (store.get<PropagateMessage::ByMessage>().find(mess.message) == store.get<PropagateMessage::ByMessage>().end()) {
+		if (store.get<PropagateMessage::ByHash>().find(mess.hash) == store.get<PropagateMessage::ByHash>().end()) {
 			while (store.size() >= max_size && first_label < next_label) {
 				auto iter = store.get<PropagateMessage::ByLabel>().find(first_label);
 				if (iter != store.get<PropagateMessage::ByLabel>().end()) {
