@@ -103,7 +103,6 @@ protected:
     void InitiateConsensus();
 
     virtual bool ReadyForConsensus();
-    bool StateReadyForConsensus();
 
     void QueueRequest(std::shared_ptr<Request>);
 

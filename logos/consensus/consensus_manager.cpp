@@ -149,12 +149,6 @@ bool ConsensusManager<CT>::ReadyForConsensus()
 }
 
 template<ConsensusType CT>
-bool ConsensusManager<CT>::StateReadyForConsensus()
-{
-    return _state == ConsensusState::VOID || _state == ConsensusState::POST_COMMIT;
-}
-
-template<ConsensusType CT>
 bool
 ConsensusManager<CT>::IsPrePrepared(const logos::block_hash & hash)
 {
