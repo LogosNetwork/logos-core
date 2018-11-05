@@ -55,6 +55,7 @@ private:
 
     static constexpr uint8_t TIMEOUT_MIN = 10;
     static constexpr uint8_t TIMEOUT_MAX = 30;
+    static constexpr uint8_t TIMEOUT_MAX_NEW_EPOCH = 20;
 
     void HandlePrePrepare(const PrePrepare & message) override;
     void HandlePostPrepare(const PostPrepare & message) override;
@@ -63,6 +64,10 @@ private:
 
     void Reject() override;
     void ResetRejectionStatus() override;
+    void HandleReject(const PrePrepare&);
+
+    void ScheduleTimer(Seconds timeout);
+    Seconds GetTimeout(uint8_t min, uint8_t max);
 
     Timer                _timer;
     RejectionMap         _rejection_map;       ///< Sets a bit for each rejected request from the PrePrepare.

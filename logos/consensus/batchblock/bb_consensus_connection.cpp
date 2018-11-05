@@ -68,18 +68,6 @@ BBConsensusConnection::DoValidate(
         }
     }
 
-    if (_events_notifier.GetDelegate() == EpochTransitionDelegate::PersistentReject &&
-        message.epoch_number == (_events_notifier.GetEpochNumber() - 1))
-    {
-        _reason = RejectionReason::New_Epoch;
-        valid = false;
-    }
-    else if (message.epoch_number != _events_notifier.GetEpochNumber())
-    {
-        _reason = RejectionReason::Invalid_Epoch; // TODO handle in the primary delegate
-        valid = false;
-    }
-
     return valid;
 }
 
@@ -113,15 +101,36 @@ BBConsensusConnection::Reject()
 }
 
 void
-BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
+BBConsensusConnection::HandleReject(const PrePrepare & message)
+{
+    switch(_reason)
+    {
+        case RejectionReason::Void:
+        case RejectionReason::Clock_Drift:
+        case RejectionReason::Contains_Invalid_Request:
+        case RejectionReason::Bad_Signature:
+        case RejectionReason::Invalid_Epoch:
+            break;
+        case RejectionReason::New_Epoch:
+            SetPrePrepare(message);
+            ScheduleTimer(GetTimeout(TIMEOUT_MIN, TIMEOUT_MAX_NEW_EPOCH));
+            break;
+    }
+}
+
+BBConsensusConnection::Seconds
+BBConsensusConnection::GetTimeout(uint8_t min, uint8_t max)
 {
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(TIMEOUT_MIN,
-                                        TIMEOUT_MAX);
-
+    std::uniform_int_distribution<> dis;
     Seconds timeout(dis(gen));
+    return timeout;
+}
 
+void
+BBConsensusConnection::ScheduleTimer(Seconds timeout)
+{
     std::lock_guard<std::mutex> lock(_timer_mutex);
 
     if(!_timer.expires_from_now(timeout) && _callback_scheduled)
@@ -130,12 +139,18 @@ BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
     }
 
     _timer.async_wait(
-            [this](const Error & error)
-            {
-                OnPrePrepareTimeout(error);
-            });
+        [this](const Error & error)
+        {
+            OnPrePrepareTimeout(error);
+        });
 
     _callback_scheduled = true;
+}
+
+void
+BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
+{
+    ScheduleTimer(GetTimeout(TIMEOUT_MIN, TIMEOUT_MAX));
 }
 
 void

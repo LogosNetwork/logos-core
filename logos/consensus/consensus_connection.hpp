@@ -104,6 +104,11 @@ protected:
     bool ValidateTimestamp(const PrePrepare & message);
 
     virtual bool DoValidate(const PrePrepare & message) = 0;
+    template<typename M>
+    bool ValidateEpoch(const M & m)
+    {
+        return true;
+    }
 
     template<typename M>
     bool ProceedWithMessage(const M & message, ConsensusState expected_state);
@@ -130,6 +135,7 @@ protected:
     void StoreResponse(const Rejection & message);
 
     void OnPrePrepare(const PrePrepare & message);
+    void SetPrePrepare(const PrePrepare & message);
     virtual void HandlePrePrepare(const PrePrepare & message);
     virtual void HandlePostPrepare(const PostPrepare & message);
 
@@ -138,6 +144,7 @@ protected:
 
     virtual void Reject();
     virtual void ResetRejectionStatus();
+    virtual void HandleReject(const PrePrepare & message) {}
 
 
     std::shared_ptr<IOChannel>  _iochannel;

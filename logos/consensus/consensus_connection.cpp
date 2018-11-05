@@ -143,6 +143,13 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
 }
 
 template<ConsensusType CT>
+void ConsensusConnection<CT>::SetPrePrepare(const PrePrepare & message)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    _pre_prepare.reset(new PrePrepare(message));
+}
+
+template<ConsensusType CT>
 void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
 {
     _pre_prepare_timestamp = message.timestamp;
@@ -152,16 +159,14 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
     {
         _state = ConsensusState::PREPARE;
 
-        {
-            std::lock_guard<std::mutex> lock(_mutex);
-            _pre_prepare.reset(new PrePrepare(message));
-        }
+        SetPrePrepare(message);
 
         OnPrePrepare(*_pre_prepare);
         SendMessage<PrepareMessage<CT>>();
     }
     else
     {
+        HandleReject(message);
         Reject();
         ResetRejectionStatus();
     }
@@ -273,6 +278,28 @@ bool ConsensusConnection<CT>::ValidateTimestamp(const PrePrepare & message)
     return true;
 }
 
+template<>
+template<>
+bool ConsensusConnection<ConsensusType::BatchStateBlock>::ValidateEpoch(
+    const PrePrepareMessage<ConsensusType::BatchStateBlock> &message)
+{
+    bool valid = true;
+
+    if (_events_notifier.GetDelegate() == EpochTransitionDelegate::PersistentReject &&
+        message.epoch_number == (_events_notifier.GetEpochNumber() - 1))
+    {
+        _reason = RejectionReason::New_Epoch;
+        valid = false;
+    }
+    else if (message.epoch_number != _events_notifier.GetEpochNumber())
+    {
+        _reason = RejectionReason::Invalid_Epoch; // TODO handle in the primary delegate
+        valid = false;
+    }
+
+    return valid;
+}
+
 template<ConsensusType CT>
 template<typename M>
 bool ConsensusConnection<CT>::ProceedWithMessage(const M & message,
@@ -285,6 +312,14 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const M & message,
     }
 
     if(!Validate(message))
+    {
+        return false;
+    }
+
+    // Epoch's validation must be the last, if it fails the request (currently BSB PrePrepare only)
+    // is added with 1(10,20) timer to the secondary list, therefore PrePrepare must be valid
+    // TODO epoch # must be changed, hash recalculated, and signed
+    if (!ValidateEpoch(message))
     {
         return false;
     }
