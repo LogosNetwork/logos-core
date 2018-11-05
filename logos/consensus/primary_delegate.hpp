@@ -60,6 +60,8 @@ protected:
     //       benchmark.
     //
     std::recursive_mutex _mutex;
+    BlockHash            _prev_batch_hash = 0;
+    BlockHash            _cur_batch_hash  = 0;
     ConsensusState       _state           = ConsensusState::VOID;
     uint64_t             _prepare_weight  = 0;
     uint8_t              _cur_delegate_id = 0;
@@ -114,7 +116,6 @@ private:
     MessageValidator & _validator;
     Timer              _recall_timer;
     Timer              _primary_timer;
-    BlockHash          _cur_batch_hash;
     uint64_t           _cur_batch_timestamp = 0;
     uint8_t            _delegates_responded = 0;
     bool               _timer_cancelled     = false;

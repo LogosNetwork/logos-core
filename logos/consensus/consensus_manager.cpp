@@ -20,7 +20,9 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
-{}
+{
+    store.batch_tip_get(_delegate_id, _prev_batch_hash);
+}
 
 template<ConsensusType CT>
 void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
@@ -117,6 +119,8 @@ void ConsensusManager<CT>::OnConsensusReached()
                         << " blocks.";
     }
 
+    _prev_batch_hash = _cur_batch_hash;
+
     PrePreparePopFront();
 
     if(!PrePrepareQueueEmpty())
@@ -133,6 +137,7 @@ void ConsensusManager<CT>::InitiateConsensus()
                     << " consensus.";
 
     auto & pre_prepare = PrePrepareGetNext();
+    pre_prepare.previous = _prev_batch_hash;
 
     OnConsensusInitiated(pre_prepare);
 
