@@ -25,6 +25,7 @@ BatchBlock::validator::validator(logos::node *n)
 #ifdef _DEBUG
     std::cout << " done BatchBlock::validator " << std::endl;
 #endif
+    nr_blocks = NR_BLOCKS;
     reset(); // Start our counters at 0.
 }
 
@@ -48,13 +49,22 @@ bool BatchBlock::validator::reset()
     epoch_validation_error_counter  = 0;
     micro_not_ready_counter         = 0;
     epoch_not_ready_counter         = 0;
+
+    if(bsb.size() >= nr_blocks) {
+        nr_blocks += NR_BLOCKS; // Request more capacity if we did no work.
+#ifdef _DEBUG
+        std::cout << "nr_blocks: " << nr_blocks << std::endl;
+#endif
+    }
 }
 
 bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_response> block)
 {
     std::lock_guard<std::mutex> lock(mutex);
-
-    if(block && (bsb.size() < NR_BLOCKS)) {
+#ifdef _DEBUG
+    std::cout << "validate: bsb.size(): " << bsb.size() << " micro.size(): " << micro.size() << " epoch.size(): " << epoch.size() << std::endl;
+#endif
+    if(block && (bsb.size() < nr_blocks)) {
         bsb.push_back(block);
         return false;
     } else if(block) {
@@ -178,6 +188,7 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
     if(ready) {
         if(epoch_handler->Validate(epoch[j]->epoch)) {
             epoch_handler->ApplyUpdates(epoch[j]->epoch); // Validation succeeded, add to database.
+            nextEpoch++;
         }
     } else {
         // TODO: Try several times, count number of failures, if reached a max, assume failure.

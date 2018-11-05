@@ -36,6 +36,7 @@ class tips_req_server : public std::enable_shared_from_this<logos::tips_req_serv
 {
 public:
 	tips_req_server (std::shared_ptr<logos::bootstrap_server> const &, std::unique_ptr<logos::frontier_req>);
+    ~tips_req_server();
 	void skip_old ();
 	void send_next ();
 	void sent_action (boost::system::error_code const &, size_t);

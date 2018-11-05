@@ -1666,7 +1666,6 @@ logos::endpoint logos::peer_container::bootstrap_peer ()
 {
     logos::endpoint result (boost::asio::ip::address_v6::any (), 0);
     std::lock_guard<std::mutex> lock (mutex);
-    ;
     for (auto i (peers.get<4> ().begin ()), n (peers.get<4> ().end ()); i != n;)
     {
         if (i->network_version >= 0x5)
@@ -1877,7 +1876,7 @@ void logos::node::ongoing_keepalive ()
 
 void logos::node::ongoing_bootstrap ()
 {
-    auto next_wakeup (300);
+    auto next_wakeup (10); // FIXME!!! Was 300 seconds. // Tested with 20
     if (warmed_up < 3)
     {
         // Re-attempt bootstrapping more aggressively on startup

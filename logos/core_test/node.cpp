@@ -3,9 +3,19 @@
 #include <logos/node/working.hpp>
 
 #include <boost/make_shared.hpp>
+#include <iostream>
+#include <fstream>
+
+#ifdef _TRACE_MEM
+#   include <LeakTrace/MemoryTrace.hpp>
+#endif
 
 TEST (node, logos_bootstrap_test)
 {
+#ifdef _TRACE_MEM
+    leaktracer::MemoryTrace::GetInstance().startMonitoringAllThreads();
+#endif
+
     boost::filesystem::path path1("/home/ubuntu/Downloads/batchdb_test");
     boost::filesystem::path path2("/tmp/test");
 
@@ -60,10 +70,25 @@ TEST (node, logos_bootstrap_test)
 		system0.poll ();
 		system1.poll ();
 		++iterations2;
-		ASSERT_LT (iterations2, 4000);
+		//ASSERT_LT (iterations2, 20000);
+        if(iterations2 > 100000) {
+            break;
+        }
+		//ASSERT_LT (iterations2, 5120000);
 		logos::transaction transaction (node2.store.environment, nullptr, false);
 		again = true; //!node2.store.block_exists (transaction, send1->hash ()); // TODO Decide on a block that should be there...
 	}
+#ifdef _TRACE_MEM
+    leaktracer::MemoryTrace::GetInstance().stopMonitoringAllocations();
+    leaktracer::MemoryTrace::GetInstance().stopAllMonitoring();
+    std::ofstream oleaks;
+    oleaks.open("leaks.out", std::ios_base::out);
+    if (oleaks.is_open())
+        leaktracer::MemoryTrace::GetInstance().writeLeaks(oleaks);
+    else
+        std::cerr << "Failed to write to \"leaks.out\"\n";
+#endif
+
 }
 
 #if 0

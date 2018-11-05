@@ -7,6 +7,8 @@
 
 #include <boost/log/trivial.hpp>
 
+extern std::atomic<int> total_pulls;
+
 logos::pull_info::pull_info () :
 account (0),
 end (0),
@@ -69,13 +71,21 @@ pull (pull_a)
 	std::lock_guard<std::mutex> mutex (connection->attempt->mutex);
 	++connection->attempt->pulling;
 	connection->attempt->condition.notify_all ();
+#ifdef _DEBUG
+    std::cout << "logos::bulk_pull_client::bulk_pull_client:: total_pulls: " << total_pulls << std::endl;
+#endif
+    total_pulls++;
 }
 
 logos::bulk_pull_client::~bulk_pull_client ()
 {
+#ifdef _DEBUG
+    std::cout << "logos::bulk_pull_client::~bulk_pull_client" << std::endl;
+#endif
 	std::lock_guard<std::mutex> mutex (connection->attempt->mutex);
 	--connection->attempt->pulling;
 	connection->attempt->condition.notify_all ();
+    if(total_pulls > 0) total_pulls--;
 }
 
 void logos::bulk_pull_client::request ()
@@ -117,8 +127,14 @@ void logos::bulk_pull_client::request ()
 		{
 			if (this_l->connection->node->config.logging.bulk_pull_logging ())
 			{
+#ifdef _DEBUG
+                std::cout << "logos::bulk_pull_client::request : client network error : " << ec.message() << std::endl;
+#endif
 				BOOST_LOG (this_l->connection->node->log) << boost::str (boost::format ("Error sending bulk pull request to %1%: to %2%") % ec.message () % this_l->connection->endpoint);
 			}
+            this_l->connection->socket.close();
+            if(total_pulls > 0) total_pulls--;
+            //this_l->connection->attempt->pool_connection (this_l->connection); // FIXME
 		}
 	});
 }
@@ -193,6 +209,9 @@ void logos::bulk_pull_client::request_batch_block()
 			{
 				BOOST_LOG (this_l->connection->node->log) << boost::str (boost::format ("Error sending bulk pull request to %1%: to %2%") % ec.message () % this_l->connection->endpoint);
 			}
+            this_l->connection->socket.close();
+            if(total_pulls > 0) total_pulls--;
+            //this_l->connection->attempt->pool_connection (this_l->connection); // FIXME
 		}
 	});
 }
@@ -220,6 +239,9 @@ void logos::bulk_pull_client::receive_block ()
 #ifdef _DEBUG
             std::cout << "logos::bulk_pull_client::receive_block: bulk_pull_client: delegate_id: " << this_l->pull.delegate_id << " line: " << __LINE__ << " ec.message: " << ec.message() << std::endl;
 #endif
+            this_l->connection->socket.close();
+            if(total_pulls > 0) total_pulls--;
+            //this_l->connection->attempt->pool_connection (this_l->connection); // FIXME
 		}
 	});
 }
@@ -286,6 +308,7 @@ void logos::bulk_pull_client::received_type ()
 #ifdef _DEBUG
             std::cout << "logos::bulk_pull_client::received_type: logos::block_type::state" << std::endl;
 #endif
+            //std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Half second throttle.
 			connection->start_timeout ();
 			boost::asio::async_read (connection->socket, boost::asio::buffer (connection->receive_buffer.data () + 1, logos::state_block::size), [this_l](boost::system::error_code const & ec, size_t size_a) {
 				this_l->connection->stop_timeout ();
@@ -299,10 +322,14 @@ void logos::bulk_pull_client::received_type ()
             std::cout << "logos::bulk_pull_client::received_type: logos::block_type::not_a_block" << std::endl;
 #endif
 			// Avoid re-using slow peers, or peers that sent the wrong blocks.
+#ifndef _DEBUG
 			if (!connection->pending_stop && expected == end_transmission) // RESEARCH
 			{
 				connection->attempt->pool_connection (connection);
 			}
+#else
+            connection->attempt->pool_connection (connection); // FIXME
+#endif
 
             if(connection->node->_validator->validate(nullptr)) {
 			    if (connection->node->config.logging.bulk_pull_logging ())
@@ -310,7 +337,7 @@ void logos::bulk_pull_client::received_type ()
 			        BOOST_LOG (connection->node->log) << " bulk_pull_client::received_block got invalid batch block ";
 			    }
 #ifndef _DEBUG
-                connection->stop(true);
+                connection->stop(true); // FIXME
 #endif
             }
 			break;
@@ -363,7 +390,7 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
 					    BOOST_LOG (connection->node->log) << " bulk_pull_client::received_block got invalid batch block " << hash.to_string();
 				    }
 #ifndef _DEBUG
-                    connection->stop(true);
+                    connection->stop(true); // FIXME
 #endif
                 }
 				if (!connection->hard_stop.load ()) {
@@ -372,7 +399,11 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
 #endif
                     expected = hash;
 					receive_block (); // RGD: Read more blocks. This implements a loop.
-				}
+				} else {
+                    connection->socket.close();
+                    connection->stop(true); // FIXME
+                    // RESEARCH Do we need to pool connection here ?
+                }
             }
         } else if(type == logos::block_type::micro_block) {
 			uint8_t *data = connection->receive_buffer.data(); // Get it from wire.
@@ -398,7 +429,10 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
 #endif
                     expected = hash;
 					receive_block (); // RGD: Read more blocks. This implements a loop.
-				}
+				} else {
+                    connection->socket.close();
+                    connection->stop(true); // FIXME
+                }
             }
         } else if(type == logos::block_type::epoch_block) {
 			uint8_t *data = connection->receive_buffer.data(); // Get it from wire.
@@ -424,7 +458,10 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
 #endif
                     expected = hash;
 					receive_block (); // RGD: Read more blocks. This implements a loop.
-				}
+				} else {
+                    connection->socket.close();
+                    connection->stop(true); // FIXME
+                }
             }
         } else {
 #ifdef _DEBUG
@@ -445,6 +482,9 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
 #ifdef _DEBUG
         std::cout << "logos::bulk_pull_client::received_block: receive error: bulk_pull_client: delegate_id: " << pull.delegate_id << " line: " << __LINE__ << " ec.message: " << ec.message() << std::endl;
 #endif
+        connection->socket.close();
+        if(total_pulls > 0) total_pulls--;
+        //connection->attempt->pool_connection (connection); // FIXME
 	}
 }
 
@@ -525,12 +565,15 @@ void logos::bulk_pull_server::send_next ()
            // Get BSB blocks. 
            BlockHash bsb = BatchBlock::getNextBatchStateBlock(connection->node->store, request->delegate_id, current_bsb);
 #ifdef _DEBUG
-           if(iter_count++ < 9)
+           static int total_count = 0;
+           total_count++;
+           if(iter_count++ < 4)
 #else
            if(!bsb.is_zero() && bsb != request->b_end)
 #endif
            {
 #ifdef _DEBUG
+                std::cout << "logos::bulk_pull_server:: total_count: " << total_count << " delegate_id: " << request->delegate_id << std::endl; 
                 std::cout << "logos::bulk_pull_server:: count: " << iter_count << " delegate_id: " << request->delegate_id << std::endl; 
 #endif
                 std::shared_ptr<BatchStateBlock> b = BatchBlock::readBatchStateBlock(connection->node->store, bsb);
@@ -550,6 +593,7 @@ void logos::bulk_pull_server::send_next ()
 				    BOOST_LOG (connection->node->log) << boost::str (boost::format ("Sending block: %1%") % b->Hash ().to_string ());
 			    }
                 int size = (sizeof(BatchBlock::bulk_pull_response));
+                //std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Half second throttle.
 			    async_write (*connection->socket, boost::asio::buffer (send_buffer1->data (), size), [this_l,send_buffer1](boost::system::error_code const & ec, size_t size_a) {
 				    this_l->sent_action (ec, size_a);
 			    });
@@ -611,6 +655,8 @@ void logos::bulk_pull_server::sent_action (boost::system::error_code const & ec,
 		{
 			BOOST_LOG (connection->node->log) << boost::str (boost::format ("Unable to bulk send block: %1%") % ec.message ());
 		}
+        connection->socket->close();
+		connection->finish_request ();
 	}
 }
 
@@ -649,11 +695,13 @@ void logos::bulk_pull_server::no_block_sent (boost::system::error_code const & e
 #ifdef _DEBUG
         std::cout << "logos::bulk_pull_server::no_block_sent: finish_request: error: delegate_id:" << request->delegate_id << " ec.message: " << ec.message() << std::endl;
 #endif
-		connection->finish_request ();
+		//connection->finish_request (); // MINE
 		if (connection->node->config.logging.bulk_pull_logging ())
 		{
 			BOOST_LOG (connection->node->log) << "Unable to send not-a-block";
 		}
+        connection->socket->close();
+		connection->finish_request ();
 	}
 }
 
@@ -815,6 +863,8 @@ void logos::bulk_pull_blocks_server::sent_action (boost::system::error_code cons
 		{
 			BOOST_LOG (connection->node->log) << boost::str (boost::format ("Unable to bulk send block: %1%") % ec.message ());
 		}
+        connection->socket->close();
+		connection->finish_request ();
 	}
 }
 
@@ -845,6 +895,8 @@ void logos::bulk_pull_blocks_server::no_block_sent (boost::system::error_code co
 		{
 			BOOST_LOG (connection->node->log) << "Unable to send not-a-block";
 		}
+        connection->socket->close();
+		connection->finish_request ();
 	}
 }
 

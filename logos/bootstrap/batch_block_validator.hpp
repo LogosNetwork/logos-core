@@ -42,6 +42,7 @@ class validator {
 
     logos::node *node;
 
+    uint64_t nr_blocks;
     uint64_t nextMicro;
     uint64_t nextEpoch;
 

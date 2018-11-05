@@ -12,6 +12,16 @@
 
 static std::vector<logos::request_info> req_s;
 static std::shared_ptr<logos::bootstrap_client> default_client;
+std::atomic<int> total_pulls;
+
+#define RECV_BUFFER_SIZE (1<<20)
+#define _ERROR 1
+
+#ifdef _DEBUG
+static std::atomic<int> open_count;
+static std::atomic<int> server_open_count;
+static std::atomic<int> close_count;
+#endif
 
 logos::socket_timeout::socket_timeout (logos::bootstrap_client & client_a) :
 ticket (0),
@@ -30,6 +40,7 @@ void logos::socket_timeout::start (std::chrono::steady_clock::time_point timeout
 			{
 #ifdef _DEBUG
                 std::cout << "logos::socket_timeout::start: socket->close" << std::endl;
+                close_count++;
 #endif
 				client_l->socket.close ();
 				if (client_l->node->config.logging.bulk_pull_logging ())
@@ -68,6 +79,10 @@ logos::bootstrap_client::~bootstrap_client ()
 {
     if(attempt)
 	    --attempt->connections;
+#ifdef _DEBUG
+    std::cout << "logos::bootstrap_client::~bootstrap_client" << std::endl;
+#endif
+    socket.close();
 }
 
 double logos::bootstrap_client::block_rate () const
@@ -111,10 +126,18 @@ void logos::bootstrap_client::run ()
 		this_l->stop_timeout ();
 		if (!ec)
 		{
+            try {
+                boost::asio::socket_base::send_buffer_size option1(RECV_BUFFER_SIZE); // FIXME
+                this_l->socket.set_option(option1);
+                boost::asio::socket_base::receive_buffer_size option2(RECV_BUFFER_SIZE);
+                this_l->socket.set_option(option2);
+            } catch(...) {}
+
 			if (this_l->node->config.logging.bulk_pull_logging ())
 			{
 				BOOST_LOG (this_l->node->log) << boost::str (boost::format ("Connection established to %1%") % this_l->endpoint);
 			}
+            
             default_client = this_l->shared_from_this(); // FIXME
 #ifdef _DEBUG
             do_backtrace();
@@ -164,6 +187,7 @@ stopped (false)
 logos::bootstrap_attempt::~bootstrap_attempt ()
 {
 	BOOST_LOG (node->log) << "Exiting bootstrap attempt";
+    stop();
 	node->bootstrap_initiator.notify_listeners (false);
 }
 
@@ -203,7 +227,7 @@ bool logos::bootstrap_attempt::request_tips(std::unique_lock<std::mutex> & lock_
 		if (result)
 		{
 #ifdef _DEBUG
-            std::cout << "logos::bootstrap_attempt::request_tips : clearing pulls" << std::endl;
+            std::cout << "logos::bootstrap_attempt::request_tips : clearing pulls: " << pulls.size() << std::endl;
 #endif
 			pulls.clear ();
 		}
@@ -308,6 +332,7 @@ void logos::bootstrap_attempt::request_push (std::unique_lock<std::mutex> & lock
 		lock_a.unlock ();
 		error = consume_future (future);
         if(!error) {
+            connection_shared->attempt->req.clear();
             req_s.clear();
         } else {
 #ifdef _DEBUG
@@ -372,12 +397,16 @@ void logos::bootstrap_attempt::run ()
 	{
 		while (still_pulling ())
 		{
-			if (!pulls.empty ())
+#ifdef _DEBUG
+            std::cout << "logos::pulling:: total_pulls: " << total_pulls << std::endl;
+#endif
+			if (!pulls.empty () && total_pulls <= 32)
 			{
 				request_pull (lock); // RGD: Start of bulk_pull_client.
 			}
 			else
 			{
+                std::cout << "wait..." << std::endl;
 				condition.wait (lock);
 			}
 		}
@@ -392,9 +421,12 @@ void logos::bootstrap_attempt::run ()
 	{
 		BOOST_LOG (node->log) << "Completed pulls";
 	}
-    request_push(lock);
+    //request_push(lock); // FIXME!!!
 	stopped = true;
 	condition.notify_all ();
+    for(int i = 0; i < idle.size(); ++i) {
+        idle[i]->socket.close();
+    }
 	idle.clear (); // FIXME!!! Must wait till threads using this have stopped, else mem fault...
 #ifdef _DEBUG
     std::cout << "bootstrap_attempt::run end }" << std::endl;
@@ -432,7 +464,17 @@ bool logos::bootstrap_attempt::consume_future (std::future<bool> & future_a)
 	bool result;
 	try
 	{
-		result = future_a.get ();
+        std::chrono::system_clock::time_point minute_passed
+            = std::chrono::system_clock::now() + std::chrono::seconds(60);
+        if(std::future_status::ready == future_a.wait_until(minute_passed)) {
+		    result = future_a.get ();
+        } else {
+            // FIXME future timed out, return error.
+#ifdef _DEBUG
+            std::cout << "logos::bootstrap_attempt::consume_future: timeout" << std::endl;
+#endif
+            result = true;
+        }
 	}
 	catch (std::future_error &)
 	{
@@ -517,6 +559,7 @@ void logos::bootstrap_attempt::populate_connections ()
 				double elapsed_sec = client->elapsed_seconds ();
 				auto blocks_per_sec = client->block_rate ();
 				rate_sum += blocks_per_sec;
+#if 0
 				if (client->elapsed_seconds () > bootstrap_connection_warmup_time_sec && client->block_count > 0)
 				{
 					sorted_connections.push (client);
@@ -531,10 +574,12 @@ void logos::bootstrap_attempt::populate_connections ()
 					}
 
 #ifdef _DEBUG
-                    std::cout << "bootstrap_attempt: client->stop" << std::endl;
+                    std::cout << "bootstrap_attempt: client->stop <1>" << std::endl;
 #endif
 					client->stop (true);
 				}
+#endif
+                client->stop(true); // Close everything for now.
 			}
 		}
 	}
@@ -543,6 +588,7 @@ void logos::bootstrap_attempt::populate_connections ()
 
 	// We only want to drop slow peers when more than 2/3 are active. 2/3 because 1/2 is too aggressive, and 100% rarely happens.
 	// Probably needs more tuning.
+    // FIXME!!! Should we drop all peers ?
 	if (sorted_connections.size () >= (target * 2) / 3 && target >= 4)
 	{
 		// 4 -> 1, 8 -> 2, 16 -> 4, arbitrary, but seems to work well.
@@ -562,6 +608,9 @@ void logos::bootstrap_attempt::populate_connections ()
 				BOOST_LOG (node->log) << boost::str (boost::format ("Dropping peer with block rate %1%, block count %2% (%3%) ") % client->block_rate () % client->block_count % client->endpoint.address ().to_string ());
 			}
 
+#ifdef _DEBUG
+            std::cout << "bootstrap_attempt: client->stop <2>" << std::endl;
+#endif
 			client->stop (false);
 			sorted_connections.pop ();
 		}
@@ -576,18 +625,29 @@ void logos::bootstrap_attempt::populate_connections ()
 	if (connections < target)
 	{
 		auto delta = std::min ((target - connections) * 2, bootstrap_max_new_connections);
-#ifdef _DEBUG
-        std::cout << "bootstrap_attempt:: delta: " << delta << " target: " << target << " connections: " << connections << " max: " << bootstrap_max_new_connections << std::endl;
-#endif
-
 		// TODO - tune this better
 		// Not many peers respond, need to try to make more connections than we need.
-        delta = NUMBER_DELEGATES;
+        // delta = NUMBER_DELEGATES; // Maybe set to 0 of clients is too big ?
+        delta = 1;
+#if 0
+        if(clients.size() > 100 || idle.size() > 100) { // FIXME
+            delta = 0;
+        }
+#endif
+
+#ifdef _DEBUG
+        std::cout << "bootstrap_attempt:: delta: " << delta << " target: " << target << " connections: " << connections << " max: " << bootstrap_max_new_connections << " clients.size: " << clients.size() << std::endl;
+#endif
+
 		for (int i = 0; i < delta; i++)
 		{
 			auto peer (node->peers.bootstrap_peer ());
 			if (peer != logos::endpoint (boost::asio::ip::address_v6::any (), 0))
 			{
+#ifdef _DEBUG
+                open_count++;
+                std::cout << "populate_connections::allocate" << std::endl;
+#endif
 				auto client (std::make_shared<logos::bootstrap_client> (node, shared_from_this (), logos::tcp_endpoint (peer.address (), peer.port ())));
 				client->run ();
 				std::lock_guard<std::mutex> lock (mutex);
@@ -618,6 +678,9 @@ void logos::bootstrap_attempt::populate_connections ()
 
 void logos::bootstrap_attempt::add_connection (logos::endpoint const & endpoint_a)
 {
+#ifdef _DEBUG
+    open_count++;
+#endif
 	auto client (std::make_shared<logos::bootstrap_client> (node, shared_from_this (), logos::tcp_endpoint (endpoint_a.address (), endpoint_a.port ())));
 	client->run ();
 }
@@ -625,6 +688,13 @@ void logos::bootstrap_attempt::add_connection (logos::endpoint const & endpoint_
 void logos::bootstrap_attempt::pool_connection (std::shared_ptr<logos::bootstrap_client> client_a)
 {
 	std::lock_guard<std::mutex> lock (mutex);
+#if 0 // FIXME
+#ifdef _ERROR
+    if(idle.size() > 32) {
+        return;
+    }
+#endif
+#endif
 	idle.push_front (client_a);
 #ifdef _DEBUG
     std::cout << "logos::bootstrap_attempt::pool_connection !idle.empty(): " << !idle.empty() << std::endl;
@@ -646,6 +716,7 @@ void logos::bootstrap_attempt::stop ()
 		{
 #ifdef _DEBUG
             std::cout << "logos::bootstrap_attempt::stop: socket->close" << std::endl;
+            close_count++;
 #endif
 		    client->socket.close ();
 		}
@@ -677,10 +748,12 @@ void logos::bootstrap_attempt::add_pull (logos::pull_info const & pull)
     std::unique_lock<std::mutex> lock (mutex);
 
 	pulls.push_back (pull);
+#ifdef _PROMISE
     if(idle.empty()) {
         idle.push_front(default_client); // RGD: FIXME There is a race condition regarding idle...
     }
     request_pull(lock); // RGD: FIXME Force this to start processing...
+#endif
 	condition.notify_all ();
 }
 
@@ -743,6 +816,7 @@ void logos::bootstrap_attempt::add_bulk_push_target (logos::block_hash const & h
 
 void logos::bootstrap_attempt::add_bulk_push_target(logos::request_info r)
 {
+#if 0 // FIXME!!!
 	std::lock_guard<std::mutex> lock (mutex);
 
 #ifdef _DEBUG
@@ -750,6 +824,7 @@ void logos::bootstrap_attempt::add_bulk_push_target(logos::request_info r)
 #endif
     req.push_back(r);
     req_s.push_back(r);
+#endif
 }
 
 logos::bootstrap_initiator::bootstrap_initiator (logos::node & node_a) :
@@ -807,6 +882,7 @@ void logos::bootstrap_initiator::run_bootstrap ()
 			lock.unlock ();
 			attempt->run (); // RGD Call bootstrap_attempt::run
 			lock.lock ();
+            // attempt->stop (); // FIXME Should this be here ?
 			attempt = nullptr;
 			condition.notify_all ();
 		}
@@ -896,7 +972,8 @@ void logos::bootstrap_listener::stop ()
 		connections_l.swap (connections);
 	}
 #ifdef _DEBUG
-   std::cout << "logos::bootstrap_listener::stop: acceptor->close" << std::endl;
+    std::cout << "logos::bootstrap_listener::stop: acceptor->close" << std::endl;
+    close_count++;
 #endif
 	acceptor.close ();
 	for (auto & i : connections_l)
@@ -906,6 +983,7 @@ void logos::bootstrap_listener::stop ()
 		{
 #ifdef _DEBUG
             std::cout << "logos::bootstrap_listener::stop: socket->close" << std::endl;
+            close_count++;
 #endif
 			connection->socket->close ();
 		}
@@ -915,7 +993,17 @@ void logos::bootstrap_listener::stop ()
 void logos::bootstrap_listener::accept_connection ()
 {
 	auto socket (std::make_shared<boost::asio::ip::tcp::socket> (service));
+    try {
+        boost::asio::socket_base::send_buffer_size option1(RECV_BUFFER_SIZE); // FIXME
+        socket->set_option(option1);
+        boost::asio::socket_base::receive_buffer_size option2(RECV_BUFFER_SIZE);
+        socket->set_option(option2);
+    } catch(...) {}
 	acceptor.async_accept (*socket, [this, socket](boost::system::error_code const & ec) {
+#ifdef _DEBUG
+        server_open_count++;
+        open_count++;
+#endif
 		accept_action (ec, socket);
 	});
 }
@@ -927,17 +1015,40 @@ void logos::bootstrap_listener::accept_action (boost::system::error_code const &
 		accept_connection ();
 		auto connection (std::make_shared<logos::bootstrap_server> (socket_a, node.shared ()));
 		{
-			std::lock_guard<std::mutex> lock (mutex);
+#ifdef _ERROR
+			std::unique_lock<std::mutex> lock (mutex);
 			if (connections.size () < node.config.bootstrap_connections_max && acceptor.is_open ())
+#else
+			std::lock_guard<std::mutex> lock (mutex);
+			if (connections.size () < 8192 && acceptor.is_open ())
+#endif
 			{
+#ifdef _DEBUG
+                std::cout << "logos::bootstrap_listener::accept_action: " << connections.size() << " acceptor.is_open(): " << acceptor.is_open() << std::endl;
+#endif
 				connections[connection.get ()] = connection;
 				connection->receive ();
-			}
+			} else {
+#ifdef _DEBUG
+                std::cout << "logos::bootstrap_listener::accept_action: error " << connections.size() << " acceptor.is_open(): " << acceptor.is_open() << std::endl;
+#endif
+                // TODO FIXME Maybe we can call stop() then start() here?
+                //            We would need a stop/start that doesn't require the mutex or use
+                //            a recursive mutex or comment out the mutex lock in stop
+                //            assumming no one is calling stop.
+                lock.unlock();
+                stop();
+                lock.lock();
+                start();
+            }
 		}
 	}
 	else
 	{
 		BOOST_LOG (node.log) << boost::str (boost::format ("Error while accepting bootstrap connections: %1%") % ec.message ());
+#ifdef _DEBUG
+        std::cout << "logos::bootstrap_listener::accept_action: networking error open: " << open_count << " closed: " << close_count << " server_open_count: " << server_open_count << " client open count: " << (open_count-server_open_count) << std::endl;
+#endif
 	}
 }
 
@@ -953,6 +1064,11 @@ logos::bootstrap_server::~bootstrap_server ()
 		BOOST_LOG (node->log) << "Exiting bootstrap server";
 	}
 	std::lock_guard<std::mutex> lock (node->bootstrap.mutex);
+#ifdef _DEBUG
+    std::cout << "logos::bootstrap_server::~bootstrap_server" << std::endl;
+    do_backtrace();
+#endif
+    socket->close();
 	node->bootstrap.connections.erase (this);
 }
 
@@ -1079,6 +1195,7 @@ public:
 #ifdef _DEBUG
         std::cout << "request_response_visitor::bulk_pull" << std::endl;
 #endif
+#ifdef _MINE
         for(int i = 0; i < connection->requests.size(); ++i) {
             std::unique_ptr<logos::bulk_pull> pull (static_cast<logos::bulk_pull *> (connection->requests.front ().release ()));
             if(pull != nullptr) {
@@ -1094,7 +1211,7 @@ public:
             }
             connection->requests.pop();
         }
-#if 0
+#else
 		auto response (std::make_shared<logos::bulk_pull_server> (connection, std::unique_ptr<logos::bulk_pull> (static_cast<logos::bulk_pull *> (connection->requests.front ().release ()))));
 		response->send_next ();
 #endif
@@ -1111,6 +1228,9 @@ public:
 	}
 	void bulk_push (logos::bulk_push const &) override
 	{
+#ifdef _DEBUG
+        std::cout << "request_response_visitor::bulk_push_server" << std::endl;
+#endif
 		auto response (std::make_shared<logos::bulk_push_server> (connection));
 		response->receive ();
 	}
@@ -1143,12 +1263,13 @@ void logos::bootstrap_server::receive_bulk_pull_action (boost::system::error_cod
 			{
 				BOOST_LOG (node->log) << boost::str (boost::format ("Received bulk pull for %1% down to %2%") % request->start.to_string () % request->end.to_string ());
 			}
+#ifdef _MINE
 	        std::lock_guard<std::mutex> lock (mutex);
             requests.push(std::move(std::unique_ptr<logos::message>(request.release())));
             request_response_visitor visitor(shared_from_this());
             request1->visit(visitor); // FIXME
 			receive ();
-#if 0
+#else
 			add_request (std::unique_ptr<logos::message> (request.release ()));
 			receive ();
 #endif
@@ -1237,10 +1358,11 @@ void logos::bootstrap_server::add_request (std::unique_ptr<logos::message> messa
 
 void logos::bootstrap_server::finish_request ()
 {
-#if 0 // FIXME
 #ifdef _DEBUG
     std::cout << "logos::bootstrap_server::finish_request" << std::endl;
 #endif
+
+#ifndef _MINE
 	std::lock_guard<std::mutex> lock (mutex);
 	requests.pop ();
 	if(!requests.empty ())
@@ -1258,8 +1380,6 @@ void logos::bootstrap_server::finish_request ()
     }
 #endif
 }
-
-
 
 void logos::bootstrap_server::run_next ()
 {

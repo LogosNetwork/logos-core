@@ -156,6 +156,7 @@ set_target_properties( MCLbn256 PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}
 # With Efence
 #set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp efence)
 
+#set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp leaktrace)
 set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp)
 
 ##########################################################################

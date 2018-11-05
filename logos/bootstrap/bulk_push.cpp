@@ -24,6 +24,15 @@ void logos::bulk_push_client::start ()
 	logos::bulk_push message;
     request_id = 0;
     iter_count = 0;
+
+#ifdef _DEBUG
+    std::cout << "logos::bulk_push_client::start: size: " << connection->attempt->req.size() << " {" << std::endl;
+    for(int i = 0; i < connection->attempt->req.size(); ++i) {
+        std::cout << "logos::bulk_push_client::start: delegate_id: " << connection->attempt->req[i].delegate_id << std::endl;
+    }
+    std::cout << "logos::bulk_push_client::start: }" << std::endl;
+#endif
+
     request = &connection->attempt->req[request_id];
 
     if(request) {
@@ -94,6 +103,7 @@ void logos::bulk_push_client::push (MDB_txn * transaction_a)
 			            } else
                         {
 #ifdef _DEBUG
+                            std::cout << "logos::bulk_push_client::push: network error size: " << this_l->connection->attempt->req.size() << std::endl;
                             std::cout << "logos::bulk_push_client::push: network error: " << ec.message() << " delegate_id: " << this_l->request->delegate_id << std::endl;
 #endif
                             this_l->promise.set_value (true);
@@ -129,6 +139,7 @@ void logos::bulk_push_client::push (MDB_txn * transaction_a)
 			            } else
                         {
 #ifdef _DEBUG
+                            std::cout << "logos::bulk_push_client::push: network error size: " << this_l->connection->attempt->req.size() << std::endl;
                             std::cout << "logos::bulk_push_client::push: network error: " << ec.message() << " delegate_id: " << this_l->request->delegate_id << std::endl;
 #endif
                             this_l->promise.set_value (true);
@@ -175,7 +186,8 @@ void logos::bulk_push_client::push (MDB_txn * transaction_a)
                             this_l->send_next();
 			            } else {
 #ifdef _DEBUG
-                            std::cout << "logos::bulk_push_client::push: network error: " << ec.message() << " delegate_id: " << this_l->request->delegate_id << std::endl;
+                            std::cout << "logos::bulk_push_client::push: network error size: " << this_l->connection->attempt->req.size() << std::endl;
+                            //std::cout << "logos::bulk_push_client::push: network error: " << ec.message() << " delegate_id: " << this_l->request->delegate_id << std::endl;
 #endif
                             this_l->promise.set_value (true);
                         }
@@ -196,11 +208,19 @@ void logos::bulk_push_client::send_next ()
     {
         // Do we have more to send...
         request_id++;
+#ifdef _DEBUG
+        std::cout << "logos::bulk_push_client::send_next::request_id: " << request_id << " req_s.size: " << connection->attempt->req.size() << std::endl;
+#endif
         iter_count = 0;
         if(request_id > connection->attempt->req.size()) {
             send_finished();
         } else {
             request = &connection->attempt->req[request_id]; // Process all requests in the vector...
+            if(request) {
+                current_epoch = request->e_start;
+                current_micro = request->m_start;
+                current_bsb   = request->b_start;
+            }
 		    logos::transaction transaction (connection->node->store.environment, nullptr, false);
             push(transaction);
         }
@@ -317,11 +337,8 @@ case logos::block_type::state:
 #ifndef _DEBUG
                 connection->stop(true);
 #endif
-            } else {
-#ifndef _DEBUG
-			connection->finish_request();
-#endif
             }
+			connection->finish_request();
 			break;
 		}
 		default:
@@ -363,10 +380,6 @@ void logos::bulk_push_server::received_block (boost::system::error_code const & 
 				    }
 #ifndef _DEBUG
                     connection->stop(true);
-#endif
-                } else {
-#ifndef _DEBUG
-			        connection->finish_request();
 #endif
                 }
 				receive(); // RGD: Read more blocks if available...

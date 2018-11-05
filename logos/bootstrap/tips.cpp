@@ -10,6 +10,8 @@
 
 #include <boost/log/trivial.hpp>
 
+extern std::atomic<int> total_pulls;
+
 void logos::tips_req_client::run ()
 { // RGD: Called from 'logos::bootstrap_attempt::request_tips'
   // tips This is the start of it. We write the request as a request->serialize
@@ -18,6 +20,33 @@ void logos::tips_req_client::run ()
     std::cout << "tips_req_client::run" << std::endl;
 #endif
 
+    // TODO We may want more fine grain flag that we are not
+    //      done with prior requests, but this is the method
+    //      already supported.
+    //if(connection->attempt->still_pulling()) {
+    {
+    //std::lock_guard<std::mutex> mutex (connection->attempt->mutex);
+#if 0
+    while(total_pulls > 1) {
+        std::cout << "logos::tips_req_client:: total_pulls: " << total_pulls << std::endl;
+        sleep(1);
+    }
+#endif
+    if(connection->attempt->pulling > 0 || total_pulls > 0) {
+        try {
+            promise.set_value(false);
+        } catch(...) {}
+#ifdef _DEBUG
+        std::cout << "logos::tips_req_client:: total_pulls: " << total_pulls << std::endl;
+        std::cout << "logos::tips_req_client::run: still pending" << std::endl;
+#endif
+        //connection->attempt->pool_connection(connection);
+        return;
+    }
+    }
+#ifdef _DEBUG
+    std::cout << "logos::tips_req_client:: total_pulls: " << total_pulls << std::endl;
+#endif
 	std::unique_ptr<logos::frontier_req> request (new logos::frontier_req);
 	request->start.clear ();
 	request->age = std::numeric_limits<decltype (request->age)>::max ();
@@ -39,6 +68,9 @@ void logos::tips_req_client::run ()
 		this_l->connection->stop_timeout ();
 		if (!ec)
 		{
+#ifdef _DEBUG
+            std::cout << "this_l->receive_tips_header:" << std::endl;
+#endif
 			this_l->receive_tips_header ();
 		}
 		else
@@ -47,9 +79,15 @@ void logos::tips_req_client::run ()
 			{
 				BOOST_LOG (this_l->connection->node->log) << boost::str (boost::format ("Error while sending bootstrap request %1%") % ec.message ());
 			}
+            try {
+                std::cout << "tips:: line: " << __LINE__ << " ec.message: " << ec.message() << std::endl;
+                this_l->promise.set_value(true);
+            } catch(...) {}
 		}
 	});
+#ifdef _PROMISE
     promise.set_value(false);
+#endif
 }
 
 logos::tips_req_client::tips_req_client (std::shared_ptr<logos::bootstrap_client> connection_a) :
@@ -64,6 +102,9 @@ bulk_push_cost (0)
 
 logos::tips_req_client::~tips_req_client ()
 {
+#ifdef _DEBUG
+    std::cout << "logos::tips_req_client::~tips_req_client" << std::endl;
+#endif
 }
 
 void logos::tips_req_client::receive_tips_header ()
@@ -95,6 +136,10 @@ void logos::tips_req_client::receive_tips_header ()
 			{
 				BOOST_LOG (this_l->connection->node->log) << boost::str (boost::format ("Error receiving block type: %1%") % ec.message ());
 			}
+            try {
+                std::cout << "tips:: line: " << __LINE__ << " ec.message: " << ec.message() << std::endl;
+                this_l->promise.set_value(true);
+            } catch(...) {}
 		}
 	});
 }
@@ -119,6 +164,10 @@ void logos::tips_req_client::receive_tips ()
 			{
 				BOOST_LOG (this_l->connection->node->log) << boost::str (boost::format ("Invalid size: expected %1%, got %2%") % size_l % size_a);
 			}
+            try {
+                std::cout << "tips:: line: " << __LINE__ << std::endl;
+                this_l->promise.set_value(true);
+            } catch(...) {}
 		}
 	});
 }
@@ -135,9 +184,15 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
 {
 #ifdef _DEBUG
     static int count = 0;
-    if(count++ > 32) {
+    if(count++ > 1000) {
+        try {
+            std::cout << "logos::tips_req_client::received_batch_block_tips exceeded limit" << std::endl;
+            promise.set_value(false);
+        } catch(...) {}
+        connection->attempt->pool_connection(connection);
         return;
     }
+    std::cout << "logos::tips_req_client::received_batch_block_tips::count: " << count << std::endl;
 #endif
 
 #ifdef _DEBUG
@@ -223,7 +278,7 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
 	#ifdef _DEBUG
 	            std::cout << "logos::tips_req_client::received_batch_block_tips:: bulk_pull: delegate_id: " << tips->delegate_id << std::endl;
 	#endif
-	        } else if(epoch_seq > tips->epoch_block_seq_number) {
+	        } else if(micro_seq > tips->micro_block_seq_number) {
 	            // I have higher sequence number than my peer, I am ahead...
 	            // Construct a request to push TODO
 	            connection->attempt->add_bulk_push_target(logos::request_info(0,0,
@@ -294,6 +349,12 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
 			    BOOST_LOG (connection->node->log) << "invalid tips state";
 		    }
         }
+        if(tips->delegate_id == (NUMBER_DELEGATES-1)) {
+            try {
+                promise.set_value(false);
+            } catch(...) {}
+            connection->attempt->pool_connection (connection);
+        }
 		receive_tips_header ();
     } else {
 #ifdef _DEBUG
@@ -317,6 +378,13 @@ request (std::move (request_a))
     nr_delegate = request->nr_delegate;
 #ifdef _DEBUG
     std::cout << "logos::tips_req_server::tips_req_server request->nr_delegate: " << request->nr_delegate << " nr_delegate:: " << nr_delegate << " NUMBER_DELEGATES " << NUMBER_DELEGATES << std::endl;
+#endif
+}
+
+logos::tips_req_server::~tips_req_server()
+{
+#ifdef _DEBUG
+    std::cout << "logos::~tips_req_server:: called" << std::endl;
 #endif
 }
 
