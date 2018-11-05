@@ -54,7 +54,7 @@ void logos::uint256_union::encode_account (std::string & destination_a) const
         number_l >>= 5;
         destination_a.push_back (account_encode (r));
     }
-    destination_a.append ("_brx"); // xrb_
+    destination_a.append ("_sgl"); // lgs_
     std::reverse (destination_a.begin (), destination_a.end ());
 }
 
@@ -78,47 +78,39 @@ bool logos::uint256_union::decode_account (std::string const & source_a)
     auto error (source_a.size () < 5);
     if (!error)
     {
-        auto xrb_prefix (source_a[0] == 'x' && source_a[1] == 'r' && source_a[2] == 'b' && (source_a[3] == '_' || source_a[3] == '-'));
-        auto nano_prefix (source_a[0] == 'n' && source_a[1] == 'a' && source_a[2] == 'n' && source_a[3] == 'o' && (source_a[4] == '_' || source_a[4] == '-'));
-        error = (xrb_prefix && source_a.size () != 64) || (nano_prefix && source_a.size () != 65);
+        auto lgs_prefix (source_a[0] == 'l' && source_a[1] == 'g' && source_a[2] == 's' && (source_a[3] == '_' || source_a[3] == '-'));
+        error = !lgs_prefix || source_a.size () != 64;
         if (!error)
         {
-            if (xrb_prefix || nano_prefix)
+            auto i (source_a.begin () + 4);
+            if (*i == '1' || *i == '3')
             {
-                auto i (source_a.begin () + (xrb_prefix ? 4 : 5));
-                if (*i == '1' || *i == '3')
+                logos::uint512_t number_l;
+                for (auto j (source_a.end ()); !error && i != j; ++i)
                 {
-                    logos::uint512_t number_l;
-                    for (auto j (source_a.end ()); !error && i != j; ++i)
-                    {
-                        uint8_t character (*i);
-                        error = character < 0x30 || character >= 0x80;
-                        if (!error)
-                        {
-                            uint8_t byte (account_decode (character));
-                            error = byte == '~';
-                            if (!error)
-                            {
-                                number_l <<= 5;
-                                number_l += byte;
-                            }
-                        }
-                    }
+                    uint8_t character (*i);
+                    error = character < 0x30 || character >= 0x80;
                     if (!error)
                     {
-                        *this = (number_l >> 40).convert_to<logos::uint256_t> ();
-                        uint64_t check (number_l & static_cast<uint64_t> (0xffffffffff));
-                        uint64_t validation (0);
-                        blake2b_state hash;
-                        blake2b_init (&hash, 5);
-                        blake2b_update (&hash, bytes.data (), bytes.size ());
-                        blake2b_final (&hash, reinterpret_cast<uint8_t *> (&validation), 5);
-                        error = check != validation;
+                        uint8_t byte (account_decode (character));
+                        error = byte == '~';
+                        if (!error)
+                        {
+                            number_l <<= 5;
+                            number_l += byte;
+                        }
                     }
                 }
-                else
+                if (!error)
                 {
-                    error = true;
+                    *this = (number_l >> 40).convert_to<logos::uint256_t> ();
+                    uint64_t check (number_l & static_cast<uint64_t> (0xffffffffff));
+                    uint64_t validation (0);
+                    blake2b_state hash;
+                    blake2b_init (&hash, 5);
+                    blake2b_update (&hash, bytes.data (), bytes.size ());
+                    blake2b_final (&hash, reinterpret_cast<uint8_t *> (&validation), 5);
+                    error = check != validation;
                 }
             }
             else

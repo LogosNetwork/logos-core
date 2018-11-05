@@ -905,7 +905,6 @@ void logos::rpc_handler::batch_blocks_latest ()
     else
     {
         auto tip_exists = !node.store.batch_tip_get(static_cast<uint8_t>(delegate_id), hash);
-        assert (tip_exists);
     }
 
     boost::property_tree::ptree response_l;
@@ -2075,7 +2074,7 @@ void logos::rpc_handler::mrai_from_raw ()
     logos::uint128_union amount;
     if (!amount.decode_dec (amount_text))
     {
-        auto result (amount.number () / logos::Mxrb_ratio);
+        auto result (amount.number () / logos::Mlgs_ratio);
         boost::property_tree::ptree response_l;
         response_l.put ("amount", result.convert_to<std::string> ());
         response (response_l);
@@ -2092,7 +2091,7 @@ void logos::rpc_handler::mrai_to_raw ()
     logos::uint128_union amount;
     if (!amount.decode_dec (amount_text))
     {
-        auto result (amount.number () * logos::Mxrb_ratio);
+        auto result (amount.number () * logos::Mlgs_ratio);
         if (result > amount.number ())
         {
             boost::property_tree::ptree response_l;
@@ -2116,7 +2115,7 @@ void logos::rpc_handler::krai_from_raw ()
     logos::uint128_union amount;
     if (!amount.decode_dec (amount_text))
     {
-        auto result (amount.number () / logos::kxrb_ratio);
+        auto result (amount.number () / logos::klgs_ratio);
         boost::property_tree::ptree response_l;
         response_l.put ("amount", result.convert_to<std::string> ());
         response (response_l);
@@ -2133,7 +2132,7 @@ void logos::rpc_handler::krai_to_raw ()
     logos::uint128_union amount;
     if (!amount.decode_dec (amount_text))
     {
-        auto result (amount.number () * logos::kxrb_ratio);
+        auto result (amount.number () * logos::klgs_ratio);
         if (result > amount.number ())
         {
             boost::property_tree::ptree response_l;
@@ -2708,7 +2707,7 @@ void logos::rpc_handler::rai_from_raw ()
     logos::uint128_union amount;
     if (!amount.decode_dec (amount_text))
     {
-        auto result (amount.number () / logos::xrb_ratio);
+        auto result (amount.number () / logos::lgs_ratio);
         boost::property_tree::ptree response_l;
         response_l.put ("amount", result.convert_to<std::string> ());
         response (response_l);
@@ -2725,7 +2724,7 @@ void logos::rpc_handler::rai_to_raw ()
     logos::uint128_union amount;
     if (!amount.decode_dec (amount_text))
     {
-        auto result (amount.number () * logos::xrb_ratio);
+        auto result (amount.number () * logos::lgs_ratio);
         if (result > amount.number ())
         {
             boost::property_tree::ptree response_l;
