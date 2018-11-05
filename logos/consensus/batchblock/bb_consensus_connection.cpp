@@ -20,28 +20,6 @@ BBConsensusConnection::BBConsensusConnection(
     , _persistence_manager(persistence_manager)
 {}
 
-bool
-BBConsensusConnection::IsPrePrepared(
-    const logos::block_hash & hash)
-{
-    std::lock_guard<std::mutex> lock(_mutex);
-
-    if(!_pre_prepare)
-    {
-        return false;
-    }
-
-    for(uint64_t i = 0; i < _pre_prepare->block_count; ++i)
-    {
-        if(hash == _pre_prepare->blocks[i].hash())
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 /// Validate BatchStateBlock message.
 ///
 ///     @param message message to validate
@@ -81,6 +59,28 @@ BBConsensusConnection::ApplyUpdates(
     _persistence_manager.ApplyUpdates(block, delegate_id);
 }
 
+bool
+BBConsensusConnection::IsPrePrepared(
+    const logos::block_hash & hash)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    if(!_pre_prepare)
+    {
+        return false;
+    }
+
+    return _pre_prepare_hashes.find(hash) !=
+            _pre_prepare_hashes.end();
+}
+
+void
+BBConsensusConnection::DoUpdateMessage(Rejection & message)
+{
+    message.reason = _reason;
+    message.rejection_map = _rejection_map;
+}
+
 void
 BBConsensusConnection::Reject()
 {
@@ -110,6 +110,13 @@ BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
                                         TIMEOUT_MAX);
 
     Seconds timeout(dis(gen));
+
+    _pre_prepare_hashes.clear();
+
+    for(uint64_t i = 0; i < message.block_count; ++i)
+    {
+        _pre_prepare_hashes.insert(message.blocks[i].hash());
+    }
 
     std::lock_guard<std::mutex> lock(_timer_mutex);
 
@@ -175,11 +182,25 @@ BBConsensusConnection::ResetRejectionStatus()
     _rejection_map.reset();
 }
 
-void
-BBConsensusConnection::DoUpdateMessage(Rejection & message)
+bool
+BBConsensusConnection::IsSubset(const PrePrepare & message)
 {
-    message.reason = _reason;
-    message.rejection_map = _rejection_map;
+    for(uint64_t i = 0; i < message.block_count; ++i)
+    {
+        if(_pre_prepare_hashes.find(message.blocks[i].hash()) ==
+                _pre_prepare_hashes.end())
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool
+BBConsensusConnection::ValidateReProposal(const PrePrepare & message)
+{
+    return IsSubset(message);
 }
 
 template<>

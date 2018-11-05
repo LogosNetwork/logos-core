@@ -1,6 +1,7 @@
-#include <logos/consensus/consensus_manager.hpp>
-#include <logos/consensus/network/consensus_netio.hpp>
 #include <logos/consensus/consensus_connection.hpp>
+
+#include <logos/consensus/network/consensus_netio.hpp>
+#include <logos/consensus/consensus_manager.hpp>
 
 #include <boost/asio/read.hpp>
 
@@ -210,6 +211,11 @@ bool ConsensusConnection<CT>::Validate(const PrePrepare & message)
         return false;
     }
 
+    if(_state == ConsensusState::PREPARE && !ValidateReProposal(message))
+    {
+        return false;
+    }
+
     if(!DoValidate(message))
     {
         return false;
@@ -364,6 +370,10 @@ void ConsensusConnection<CT>::Reject()
 
 template<ConsensusType CT>
 void ConsensusConnection<CT>::ResetRejectionStatus()
+{}
+
+template<ConsensusType CT>
+bool ConsensusConnection<CT>::ValidateReProposal(const PrePrepare & message)
 {}
 
 template class ConsensusConnection<ConsensusType::BatchStateBlock>;

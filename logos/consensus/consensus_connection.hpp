@@ -134,6 +134,8 @@ protected:
     virtual void Reject();
     virtual void ResetRejectionStatus();
 
+    virtual bool ValidateReProposal(const PrePrepare & message);
+
 
     std::shared_ptr<IOChannel>  _iochannel;
     ReceiveBuffer               _receive_buffer;

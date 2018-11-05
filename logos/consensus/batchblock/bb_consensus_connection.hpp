@@ -15,6 +15,7 @@ class BBConsensusConnection : public ConsensusConnection<ConsensusType::BatchSta
     using Timer      = boost::asio::deadline_timer;
     using Seconds    = boost::posix_time::seconds;
     using Error      = boost::system::error_code;
+    using Hashes     = std::unordered_set<BlockHash>;
 
 public:
 
@@ -63,6 +64,12 @@ private:
     void Reject() override;
     void ResetRejectionStatus() override;
 
+    bool IsSubset(const PrePrepare & message);
+
+    bool ValidateReProposal(const PrePrepare & message) override;
+
+
+    Hashes               _pre_prepare_hashes;
     Timer                _timer;
     RejectionMap         _rejection_map;       ///< Sets a bit for each rejected request from the PrePrepare.
     PersistenceManager & _persistence_manager; ///< PersistenceManager reference.

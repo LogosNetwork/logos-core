@@ -215,7 +215,7 @@ bool PersistenceManager::UpdateSourceState(const logos::state_block & block, MDB
 
     if(account_error)
     {
-        LOG_ERROR (_log) << "PersistenceManager::ApplyStateMessage - Unable to find account.";
+        LOG_ERROR (_log) << "PersistenceManager::UpdateSourceState - Unable to find account.";
         return true;
     }
 
