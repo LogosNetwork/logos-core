@@ -273,8 +273,15 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
     // it.
     for(uint64_t i = 0; i < block_count; ++i)
     {
+
+        // The below condition is true if the set of
+        // delegates that approve of the request at
+        // index i collectively have enough weight to
+        // get this request post-committed.
         if(_prepare_weight + _weights[i].reject_weight >= QUORUM_SIZE)
         {
+            // Was any other request approved by
+            // exactly the same set of delegates?
             auto entry = std::find_if(
                     subsets.begin(), subsets.end(),
                     [this, i](const SupportMap & map)
@@ -282,6 +289,8 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
                         return map.first == _weights[i].supporting_delegates;
                     });
 
+            // This specific set of supporting delegates
+            // doesn't exist yet. Create a new entry.
             if(entry == subsets.end())
             {
                 std::unordered_set<uint64_t> indexes;
@@ -292,6 +301,9 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
                                 _weights[i].supporting_delegates,
                                 indexes));
             }
+
+            // At least one other request was accepted
+            // the same set of delegates.
             else
             {
                 entry->second.insert(i);
@@ -328,6 +340,8 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
         auto b = a;
         b++;
 
+        // Compare set A to every set following it
+        // in the list.
         for(; b != subsets.end(); ++b)
         {
             auto & a_set = a->first;
@@ -337,8 +351,10 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 
             if(a_set.size() > b_set.size())
             {
+                // Does set A contain set B?
                 if(contains(a_set, b_set))
                 {
+                    // Merge sets
                     a->first = b->first;
                     a->second.insert(b->second.begin(),
                                      b->second.end());
@@ -348,8 +364,10 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
             }
             else
             {
+                // Does set B contain set A?
                 if(contains(b_set, a_set))
                 {
+                    // Merge sets
                     a->second.insert(b->second.begin(),
                                      b->second.end());
 
@@ -358,6 +376,8 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 
             }
 
+            // Modifying list while
+            // iterating it.
             if(advance)
             {
                 auto tmp = b;
