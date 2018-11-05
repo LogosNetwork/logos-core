@@ -242,6 +242,8 @@ BatchBlockConsensusManager::OnRejection(
     }
     case RejectionReason::Bad_Signature:
         break;
+    case RejectionReason::Invalid_Previous_Hash:
+        break;
     case RejectionReason::Void:
         break;
     }

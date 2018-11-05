@@ -91,6 +91,7 @@ BBConsensusConnection::Reject()
     case RejectionReason::Clock_Drift:
     case RejectionReason::Contains_Invalid_Request:
     case RejectionReason::Bad_Signature:
+    case RejectionReason::Invalid_Previous_Hash:
         SendMessage<Rejection>();
         break;
     }

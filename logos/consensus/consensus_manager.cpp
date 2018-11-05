@@ -17,6 +17,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
                                        MessageValidator & validator)
     : PrimaryDelegate(service, validator)
     , _secondary_handler(service, *this)
+    , _store(store)
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
@@ -88,6 +89,13 @@ void ConsensusManager<CT>::OnPrePrepare(
     const PrePrepare & block)
 {
     _secondary_handler.OnPrePrepare(block);
+}
+
+template<ConsensusType CT>
+logos::block_store &
+ConsensusManager<CT>::GetStore()
+{
+    return _store;
 }
 
 template<ConsensusType CT>

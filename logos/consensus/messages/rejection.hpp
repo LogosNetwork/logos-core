@@ -7,6 +7,7 @@ enum class RejectionReason : uint8_t
     Clock_Drift,
     Contains_Invalid_Request,
     Bad_Signature,
+    Invalid_Previous_Hash,
 
     Void
 };

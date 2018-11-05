@@ -17,7 +17,10 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
     , _validator(validator)
     , _primary(primary)
     , _promoter(promoter)
-{}
+{
+    promoter.GetStore().batch_tip_get(_delegate_ids.remote,
+                                      _prev_pre_prepare_hash);
+}
 
 template<ConsensusType CT>
 void ConsensusConnection<CT>::Send(const void * data, size_t size)
@@ -185,7 +188,9 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
         assert(_pre_prepare);
 
         ApplyUpdates(*_pre_prepare, _delegate_ids.remote);
+
         _state = ConsensusState::VOID;
+        _prev_pre_prepare_hash = _pre_prepare_hash;
     }
 }
 
@@ -202,6 +207,12 @@ bool ConsensusConnection<CT>::Validate(const PrePrepare & message)
     if(!_validator.Validate(message, _delegate_ids.remote))
     {
         _reason = RejectionReason::Bad_Signature;
+        return false;
+    }
+
+    if(message.previous != _prev_pre_prepare_hash)
+    {
+        _reason = RejectionReason::Invalid_Previous_Hash;
         return false;
     }
 
@@ -305,7 +316,6 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const PostCommit & message)
     if(Validate(message))
     {
         _sequence_number++;
-        _previous_hash = message.previous;
 
         return true;
     }

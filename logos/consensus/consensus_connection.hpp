@@ -145,6 +145,7 @@ protected:
     std::shared_ptr<Commit>     _commit;
     uint64_t                    _pre_prepare_timestamp = 0;
     BlockHash                   _pre_prepare_hash;
+    BlockHash                   _prev_pre_prepare_hash = 0;
     DelegateIdentities          _delegate_ids;
     RejectionReason             _reason;
     MessageValidator &          _validator;
@@ -153,5 +154,4 @@ protected:
     ConsensusState              _state = ConsensusState::VOID;
     RequestPromoter<CT> &       _promoter; ///< secondary list request promoter
     uint64_t                    _sequence_number = 0;
-    BlockHash                   _previous_hash   = 0;
 };

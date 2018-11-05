@@ -30,6 +30,8 @@ template<ConsensusType CT>
 class RequestPromoter
 {
 
+    using Store      = logos::block_store;
+
 protected:
     using Request    = RequestMessage<CT>;
     using PrePrepare = PrePrepareMessage<CT>;
@@ -38,6 +40,8 @@ public:
 
     virtual void OnRequestReady(std::shared_ptr<Request> block) = 0;
     virtual void OnPrePrepare(const PrePrepare & block) = 0;
+    virtual Store & GetStore() = 0;
+
     virtual void AcquirePrePrepare(const PrePrepare & message) {}
 
     virtual ~RequestPromoter() {}
@@ -53,8 +57,8 @@ protected:
 
     using Service     = boost::asio::io_service;
     using Config      = ConsensusManagerConfig;
-    using Connections = std::vector<std::shared_ptr<ConsensusConnection<CT>>>;
     using Store       = logos::block_store;
+    using Connections = std::vector<std::shared_ptr<ConsensusConnection<CT>>>;
     using Manager     = ConsensusManager<CT>;
     using Request     = RequestMessage<CT>;
     using PrePrepare  = PrePrepareMessage<CT>;
@@ -82,6 +86,8 @@ public:
     void OnRequestReady(std::shared_ptr<Request> block) override;
 
     void OnPrePrepare(const PrePrepare & block) override;
+
+    Store & GetStore() override;
 
     std::shared_ptr<PrequelParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
@@ -132,6 +138,7 @@ protected:
 
     Connections                 _connections;
     SecondaryRequestHandler<CT> _secondary_handler;
+    Store &                     _store;
     DelegateKeyStore &          _key_store;
     MessageValidator &          _validator;
     std::mutex                  _connection_mutex;
