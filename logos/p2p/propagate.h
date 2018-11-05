@@ -51,8 +51,11 @@ private:
 public:
 	PropagateStore(uint64_t size = DEFAULT_PROPAGATE_STORE_SIZE) : max_size(size), first_label(0), next_label(0) {}
 	~PropagateStore() {}
+	bool Find(PropagateMessage &mess) {
+	    return store.get<PropagateMessage::ByHash>().find(mess.hash) != store.get<PropagateMessage::ByHash>().end();
+	}
 	bool Insert(PropagateMessage &mess) {
-		if (store.get<PropagateMessage::ByHash>().find(mess.hash) == store.get<PropagateMessage::ByHash>().end()) {
+		if (!Find(mess)) {
 			while (store.size() >= max_size && first_label < next_label) {
 				auto iter = store.get<PropagateMessage::ByLabel>().find(first_label);
 				if (iter != store.get<PropagateMessage::ByLabel>().end()) {

@@ -25,6 +25,7 @@ class p2p_standalone : public p2p_interface {
 	virtual bool ReceiveMessageCallback(const void *message, unsigned size) {
 		printf("\nReceived %3d: %.*s\nType message: ", size, size, (const char *)message);
 		fflush(stdout);
+		return true;
 	}
 };
 

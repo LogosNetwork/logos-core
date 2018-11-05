@@ -756,9 +756,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 	LOCK(cs_main);
 	std::vector<uint8_t> mess;
 	vRecv >> mess;
-	if (connman->p2p->ReceiveMessageCallback(&mess[0], mess.size())) {
-	    connman->p2p->PropagateMessage(&mess[0], mess.size());
-	}
+	connman->p2p->PropagateMessage(&mess[0], mess.size());
 	return true;
     }
 

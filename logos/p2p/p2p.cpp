@@ -835,6 +835,10 @@ bool AppInitMain()
     return true;
 }
 
+bool Find(PropagateMessage &mess) {
+	return store.Find(mess);
+}
+
 bool Propagate(PropagateMessage &mess) {
 	return store.Insert(mess);
 }
@@ -935,9 +939,8 @@ void p2p_interface::Shutdown() {
 
 bool p2p_interface::PropagateMessage(const void *message, unsigned size) {
 	if (!p2p) return false;
-	struct PropagateMessage *mess = new struct PropagateMessage(message, size);
-	if (!p2p->Propagate(*mess)) {
-		delete mess;
+	struct PropagateMessage mess(message, size);
+	if (p2p->Find(mess) || !ReceiveMessageCallback(message, size) || !p2p->Propagate(mess)) {
 		return false;
 	}
 	return true;
