@@ -158,7 +158,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
             _pre_prepare.reset(new PrePrepare(message));
         }
 
-        OnPrePrepare(*_pre_prepare);
+        HandlePrePrepare(message);
         SendMessage<PrepareMessage<CT>>();
     }
     else
@@ -355,19 +355,14 @@ void ConsensusConnection<CT>::OnPrequel(const uint8_t *data)
 }
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::OnPrePrepare(const PrePrepare & message)
-{
-    _promoter.OnPrePrepare(message);
-    HandlePrePrepare(message);
-}
-
-template<ConsensusType CT>
 void ConsensusConnection<CT>::HandlePrePrepare(const PrePrepare & message)
 {}
 
 template<ConsensusType CT>
 void ConsensusConnection<CT>::HandlePostPrepare(const PostPrepare & message)
-{}
+{
+    _promoter.OnPostCommit(*_pre_prepare);
+}
 
 template<ConsensusType CT>
 template<typename M>

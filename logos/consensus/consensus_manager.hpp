@@ -39,7 +39,7 @@ protected:
 public:
 
     virtual void OnRequestReady(std::shared_ptr<Request> block) = 0;
-    virtual void OnPrePrepare(const PrePrepare & block) = 0;
+    virtual void OnPostCommit(const PrePrepare & block) = 0;
     virtual Store & GetStore() = 0;
 
     virtual void AcquirePrePrepare(const PrePrepare & message) {}
@@ -85,7 +85,7 @@ public:
 
     void OnRequestReady(std::shared_ptr<Request> block) override;
 
-    void OnPrePrepare(const PrePrepare & block) override;
+    void OnPostCommit(const PrePrepare & block) override;
 
     Store & GetStore() override;
 

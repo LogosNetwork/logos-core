@@ -85,10 +85,10 @@ void ConsensusManager<CT>::OnRequestReady(
 }
 
 template<ConsensusType CT>
-void ConsensusManager<CT>::OnPrePrepare(
+void ConsensusManager<CT>::OnPostCommit(
     const PrePrepare & block)
 {
-    _secondary_handler.OnPrePrepare(block);
+    _secondary_handler.OnPostCommit(block);
 }
 
 template<ConsensusType CT>

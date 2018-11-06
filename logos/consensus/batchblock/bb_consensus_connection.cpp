@@ -144,15 +144,19 @@ BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
 void
 BBConsensusConnection::HandlePostPrepare(const PostPrepare & message)
 {
-    std::lock_guard<std::mutex> lock(_timer_mutex);
-
-    if(!_timer.cancel() && _callback_scheduled)
     {
-        _cancel_timer = true;
-        return;
+        std::lock_guard<std::mutex> lock(_timer_mutex);
+
+        if(!_timer.cancel() && _callback_scheduled)
+        {
+            _cancel_timer = true;
+            return;
+        }
+
+        _callback_scheduled = false;
     }
 
-    _callback_scheduled = false;
+    Connection::HandlePostPrepare(message);
 }
 
 void

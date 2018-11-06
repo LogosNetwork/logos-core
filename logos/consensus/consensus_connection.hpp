@@ -124,7 +124,6 @@ protected:
     void StoreResponse(const Commit & message);
     void StoreResponse(const Rejection & message);
 
-    void OnPrePrepare(const PrePrepare & message);
     virtual void HandlePrePrepare(const PrePrepare & message);
     virtual void HandlePostPrepare(const PostPrepare & message);
 

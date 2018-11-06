@@ -63,7 +63,7 @@ public:
 
     void OnTimeout(const Error & error);
 
-    void OnPrePrepare(const PrePrepare & block);
+    void OnPostCommit(const PrePrepare & message);
 
 private:
 

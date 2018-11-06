@@ -86,9 +86,9 @@ void SecondaryRequestHandler<CT>::OnTimeout(const Error & error)
 }
 
 template<ConsensusType CT>
-void SecondaryRequestHandler<CT>::OnPrePrepare(const PrePrepare & block)
+void SecondaryRequestHandler<CT>::OnPostCommit(const PrePrepare & message)
 {
-    PruneRequests(block);
+    PruneRequests(message);
 }
 
 template<ConsensusType CT>
