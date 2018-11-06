@@ -223,6 +223,12 @@ bool PersistenceManager::UpdateSourceState(const logos::state_block & block, MDB
     // is accepted. We can ignore this transaction.
     if(block.hashables.previous != info.head)
     {
+        LOG_INFO(_log) << "Block previous ("
+                       << block.hashables.previous.to_string()
+                       << ") does not match account head ("
+                       << info.head.to_string()
+                       << "). Suspected duplicate request - "
+                       << "ignoring.";
         return true;
     }
 
