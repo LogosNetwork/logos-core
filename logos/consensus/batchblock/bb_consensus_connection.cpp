@@ -216,7 +216,7 @@ BBConsensusConnection::GetTimeout()
         offset = TIMEOUT_RANGE;
     }
 
-    return TIMEOUT_MIN + offset;
+    return Seconds(TIMEOUT_MIN + offset);
 }
 
 template<>

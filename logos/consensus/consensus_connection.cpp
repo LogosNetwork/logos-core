@@ -239,19 +239,28 @@ template<ConsensusType CT>
 template<typename M>
 bool ConsensusConnection<CT>::Validate(const M & message)
 {
-    if(_state == ConsensusState::PREPARE)
+    if(message.type == MessageType::Post_Prepare)
     {
         return ValidateSignature(message, *_prepare);
     }
 
-    if(_state == ConsensusState::COMMIT)
+    if(message.type == MessageType::Post_Commit)
     {
-        return ValidateSignature(message, *_commit);
+        if(_state == ConsensusState::COMMIT)
+        {
+            return ValidateSignature(message, *_commit);
+        }
+
+        // We received the PostCommit without
+        // having sent a commit message. We're
+        // out of synch, but we can still validate
+        // the message.
+        return ValidateSignature(message);
     }
 
-    LOG_WARN(_log) << "ConsensusConnection - Attempting to validate "
-                   << MessageToName(message) << " while in "
-                   << StateToString(_state);
+    LOG_ERROR(_log) << "ConsensusConnection - Attempting to validate "
+                    << MessageToName(message) << " while in "
+                    << StateToString(_state);
 
     return false;
 }
@@ -261,6 +270,19 @@ template<typename M, typename S>
 bool ConsensusConnection<CT>::ValidateSignature(const M & m, const S & s)
 {
     if(!_validator.Validate(m, s))
+    {
+        _reason = RejectionReason::Bad_Signature;
+        return false;
+    }
+
+    return true;
+}
+
+template<ConsensusType CT>
+template<typename M>
+bool ConsensusConnection<CT>::ValidateSignature(const M & m)
+{
+    if(!_validator.Validate(m))
     {
         _reason = RejectionReason::Bad_Signature;
         return false;

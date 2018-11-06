@@ -96,6 +96,9 @@ protected:
 
     template<typename M, typename S>
     bool ValidateSignature(const M & m, const S & s);
+    template<typename M>
+    bool ValidateSignature(const M & m);
+
     bool ValidateTimestamp(const PrePrepare & message);
 
     virtual bool DoValidate(const PrePrepare & message) = 0;
