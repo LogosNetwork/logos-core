@@ -95,6 +95,26 @@ BatchBlockConsensusManager::Validate(
     return _persistence_manager.Validate(*block, result, _delegate_id);
 }
 
+/// Validate BatchStateBlock message.
+///
+///     @param message message to validate
+///     @return true if validated false otherwise
+bool
+BatchBlockConsensusManager::Validate(
+    const PrePrepare & message,
+    uint8_t delegate_id)
+{
+     for(uint64_t i = 0; i < message.block_count; ++i)
+    {
+	if(!_persistence_manager.Validate(message.blocks[i], delegate_id))
+	{
+	    return false;
+	}
+    }
+
+    return true;
+}
+
 bool
 BatchBlockConsensusManager::ReadyForConsensus()
 {

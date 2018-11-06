@@ -20,6 +20,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _delegate_id(config.delegate_id)
     , _secondary_handler(service, *this)
     , _consensus_p2p(log, p2p, _delegate_id,
+	[this](const PrePrepare & message, uint8_t delegate_id) { return this->Validate(message, delegate_id); },
 	boost::bind(&ConsensusManager<CT>::ApplyUpdates, this, _1, _2))
 {}
 
@@ -97,7 +98,7 @@ void ConsensusManager<CT>::Send(const void * data, size_t size, bool propagate)
 
 template<ConsensusType CT>
 bool ConsensusManager<CT>::OnP2pReceive(const void * data, size_t size) {
-    return _consensus_p2p.ValidateBatch((const uint8_t *)data, size);
+    return _consensus_p2p.ProcessInputMessage((const uint8_t *)data, size);
 }
 
 template<ConsensusType CT>

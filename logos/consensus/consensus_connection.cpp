@@ -17,6 +17,8 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
     , _primary(primary)
     , _promoter(promoter)
     , _consensus_p2p(_log, p2p, ids.remote,
+	[this](const PrePrepare &message, uint8_t delegate_id) { return this->Validate(message); },
+//	boost::bind(&ConsensusConnection<CT>::Validate, this, _1),
 	boost::bind(&ConsensusConnection<CT>::ApplyUpdates, this, _1, _2))
 {}
 

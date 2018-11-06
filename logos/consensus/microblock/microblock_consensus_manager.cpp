@@ -22,6 +22,14 @@ MicroBlockConsensusManager::Validate(
     return true;
 }
 
+bool
+MicroBlockConsensusManager::Validate(
+    const PrePrepare & message,
+    uint8_t delegate_id)
+{
+    return _microblock_handler.Validate(message);
+}
+
 void
 MicroBlockConsensusManager::QueueRequestPrimary(
     std::shared_ptr<Request> request)

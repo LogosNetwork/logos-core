@@ -84,6 +84,11 @@ protected:
         std::shared_ptr<Request> block,
         logos::process_return & result) override;
 
+    /// Validates PrePrepare message.
+    ///     @return true if validated false otherwise
+    bool Validate(const PrePrepare & message,
+	uint8_t delegate_id) override;
+
     /// Sends buffered blocks.
     ///
     /// Benchmark related.

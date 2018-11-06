@@ -26,6 +26,14 @@ EpochConsensusManager::Validate(
     return true;
 }
 
+bool
+EpochConsensusManager::Validate(
+    const PrePrepare & message,
+    uint8_t delegate_id)
+{
+    return _epoch_handler.Validate(message);
+}
+
 void 
 EpochConsensusManager::QueueRequestPrimary(
     std::shared_ptr<Request> request)
