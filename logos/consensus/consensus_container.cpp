@@ -63,9 +63,9 @@ ConsensusContainer::ConsensusContainer(Service & service,
         create(epoch_config);
     }
 
-    BOOST_LOG(_log) << "ConsensusContainer::ConsensusContainer initiated delegate "
-                    << " is in epoch " << in_epoch << " epoch transition enabled " << _epoch_transition_enabled
-                    << (int)delegate_idx << " " << (int)NodeIdentityManager::_global_delegate_idx
+    BOOST_LOG(_log) << "ConsensusContainer::ConsensusContainer initialized delegate is in epoch "
+                    << in_epoch << " epoch transition enabled " << _epoch_transition_enabled
+                    << " " << (int)delegate_idx << " " << (int)NodeIdentityManager::_global_delegate_idx
                     << " " << _cur_epoch_number;
 }
 
@@ -244,7 +244,7 @@ ConsensusContainer::EpochTransitionEventsStart()
 
     if (!_epoch_transition_enabled)
     {
-        BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionEventsStart: "
+        BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionEventsStart "
                            "epoch transition is not supported by this delegate "
                         << (int)NodeIdentityManager::_global_delegate_idx;
         return;
@@ -275,8 +275,8 @@ ConsensusContainer::EpochTransitionEventsStart()
     _transition_state = EpochTransitionState::Connecting;
 
     BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionEventsStart : delegate "
-                    << TransitionDelegateToName(_transition_delegate) <<  ' '
                     << TransitionStateToName(_transition_state) << " "
+                    << TransitionDelegateToName(_transition_delegate) <<  " "
                     << (int)delegate_idx << " " << (int)NodeIdentityManager::_global_delegate_idx
                     << " " << _cur_epoch_number;
 
@@ -339,7 +339,8 @@ void
 ConsensusContainer::EpochTransitionStart(uint8_t delegate_idx)
 {
     std::lock_guard<std::mutex>   lock(_mutex);
-    BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionStart: "
+    BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionStart "
+                    << TransitionDelegateToName(_transition_delegate) <<  " "
                     << (int)delegate_idx
                     << " " << (int)NodeIdentityManager::_global_delegate_idx
                     << " " << _cur_epoch_number;
@@ -412,7 +413,9 @@ void
 ConsensusContainer::EpochStart(uint8_t delegate_idx)
 {
 
-    BOOST_LOG(_log) << "ConsensusContainer::EpochStart: " << (int)delegate_idx << " "
+    BOOST_LOG(_log) << "ConsensusContainer::EpochStart "
+                    << TransitionDelegateToName(_transition_delegate) <<  " "
+                    << (int)delegate_idx << " "
                     << (int)NodeIdentityManager::_global_delegate_idx << " " << (_cur_epoch_number + 1);
 
     _transition_state = EpochTransitionState::EpochStart;
@@ -456,7 +459,7 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
         _cur_epoch->_connection_state = EpochConnection::Current;
     }
 
-    BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionEnd : delegate "
+    BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionEnd "
                     << TransitionDelegateToName(_transition_delegate)
                     << " " << (int)delegate_idx << " " << (int)NodeIdentityManager::_global_delegate_idx
                     << " " << _cur_epoch_number;
