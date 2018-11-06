@@ -128,7 +128,7 @@ protected:
     void StoreResponse(const Rejection & message);
 
     virtual void HandlePrePrepare(const PrePrepare & message);
-    virtual void HandlePostPrepare(const PostPrepare & message);
+    virtual void OnPostCommit();
 
     template<typename M>
     void UpdateMessage(M & message);

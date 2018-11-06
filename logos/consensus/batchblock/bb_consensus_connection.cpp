@@ -135,7 +135,7 @@ BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
 }
 
 void
-BBConsensusConnection::HandlePostPrepare(const PostPrepare & message)
+BBConsensusConnection::OnPostCommit()
 {
     {
         std::lock_guard<std::mutex> lock(_timer_mutex);
@@ -149,7 +149,7 @@ BBConsensusConnection::HandlePostPrepare(const PostPrepare & message)
         _callback_scheduled = false;
     }
 
-    Connection::HandlePostPrepare(message);
+    Connection::OnPostCommit();
 }
 
 void

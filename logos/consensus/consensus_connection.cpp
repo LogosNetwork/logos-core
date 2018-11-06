@@ -176,7 +176,6 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostPrepare & message)
         _state = ConsensusState::COMMIT;
 
         SendMessage<CommitMessage<CT>>();
-        HandlePostPrepare(message);
     }
 }
 
@@ -187,6 +186,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
     {
         assert(_pre_prepare);
 
+        OnPostCommit();
         ApplyUpdates(*_pre_prepare, _delegate_ids.remote);
 
         _state = ConsensusState::VOID;
@@ -381,7 +381,7 @@ void ConsensusConnection<CT>::HandlePrePrepare(const PrePrepare & message)
 {}
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::HandlePostPrepare(const PostPrepare & message)
+void ConsensusConnection<CT>::OnPostCommit()
 {
     _promoter.OnPostCommit(*_pre_prepare);
 }

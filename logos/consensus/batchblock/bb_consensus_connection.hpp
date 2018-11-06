@@ -57,7 +57,7 @@ private:
     static constexpr uint8_t TIMEOUT_RANGE = 40;
 
     void HandlePrePrepare(const PrePrepare & message) override;
-    void HandlePostPrepare(const PostPrepare & message) override;
+    void OnPostCommit() override;
 
     void OnPrePrepareTimeout(const Error & error);
 
