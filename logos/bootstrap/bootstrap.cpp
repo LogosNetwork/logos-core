@@ -14,7 +14,8 @@ static std::vector<logos::request_info> req_s;
 static std::shared_ptr<logos::bootstrap_client> default_client;
 std::atomic<int> total_pulls;
 
-#define RECV_BUFFER_SIZE (1<<20)
+#define _MODIFY_BUFFER 1
+#define RECV_BUFFER_SIZE (1 << 20)
 #define _ERROR 1
 
 #ifdef _DEBUG
@@ -126,13 +127,14 @@ void logos::bootstrap_client::run ()
 		this_l->stop_timeout ();
 		if (!ec)
 		{
+#ifdef _MODIFY_BUFFER
             try {
                 boost::asio::socket_base::send_buffer_size option1(RECV_BUFFER_SIZE); // FIXME
                 this_l->socket.set_option(option1);
                 boost::asio::socket_base::receive_buffer_size option2(RECV_BUFFER_SIZE);
                 this_l->socket.set_option(option2);
             } catch(...) {}
-
+#endif
 			if (this_l->node->config.logging.bulk_pull_logging ())
 			{
 				BOOST_LOG (this_l->node->log) << boost::str (boost::format ("Connection established to %1%") % this_l->endpoint);
@@ -993,12 +995,14 @@ void logos::bootstrap_listener::stop ()
 void logos::bootstrap_listener::accept_connection ()
 {
 	auto socket (std::make_shared<boost::asio::ip::tcp::socket> (service));
+#ifdef _MODIFY_BUFFER
     try {
         boost::asio::socket_base::send_buffer_size option1(RECV_BUFFER_SIZE); // FIXME
         socket->set_option(option1);
         boost::asio::socket_base::receive_buffer_size option2(RECV_BUFFER_SIZE);
         socket->set_option(option2);
     } catch(...) {}
+#endif
 	acceptor.async_accept (*socket, [this, socket](boost::system::error_code const & ec) {
 #ifdef _DEBUG
         server_open_count++;

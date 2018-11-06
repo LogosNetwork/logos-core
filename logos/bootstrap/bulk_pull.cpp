@@ -266,6 +266,7 @@ void logos::bulk_pull_client::received_type ()
 #ifdef _DEBUG
             std::cout << "logos::bulk_pull_client::received_type: logos::block_type::batch_block" << std::endl;
 #endif
+            //std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Half second throttle.
 			connection->start_timeout ();
 			boost::asio::async_read (connection->socket, boost::asio::buffer
                 (connection->receive_buffer.data () + 1, sizeof(BatchBlock::bulk_pull_response) - 1),
@@ -308,7 +309,6 @@ void logos::bulk_pull_client::received_type ()
 #ifdef _DEBUG
             std::cout << "logos::bulk_pull_client::received_type: logos::block_type::state" << std::endl;
 #endif
-            //std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Half second throttle.
 			connection->start_timeout ();
 			boost::asio::async_read (connection->socket, boost::asio::buffer (connection->receive_buffer.data () + 1, logos::state_block::size), [this_l](boost::system::error_code const & ec, size_t size_a) {
 				this_l->connection->stop_timeout ();
@@ -531,7 +531,8 @@ void logos::bulk_pull_server::send_next ()
 		    {
 			    BOOST_LOG (connection->node->log) << boost::str (boost::format ("Sending block: %1%") % m->Hash ().to_string ());
 		    }
-		    async_write (*connection->socket, boost::asio::buffer (send_buffer1->data (), send_buffer1->size ()), [this_l,send_buffer1](boost::system::error_code const & ec, size_t size_a) {
+            int size = (sizeof(BatchBlock::bulk_pull_response_epoch));
+		    async_write (*connection->socket, boost::asio::buffer (send_buffer1->data (), size), [this_l,send_buffer1](boost::system::error_code const & ec, size_t size_a) {
 			    this_l->sent_action (ec, size_a);
 		    });
         } else if(!micro_block.is_zero() && micro_block != request->m_end) {
@@ -554,7 +555,8 @@ void logos::bulk_pull_server::send_next ()
 		    {
 			    BOOST_LOG (connection->node->log) << boost::str (boost::format ("Sending block: %1%") % m->Hash ().to_string ());
 		    }
-		    async_write (*connection->socket, boost::asio::buffer (send_buffer1->data (), send_buffer1->size ()), [this_l,send_buffer1](boost::system::error_code const & ec, size_t size_a) {
+            int size = (sizeof(BatchBlock::bulk_pull_response_micro));
+		    async_write (*connection->socket, boost::asio::buffer (send_buffer1->data (), size), [this_l,send_buffer1](boost::system::error_code const & ec, size_t size_a) {
 			    this_l->sent_action (ec, size_a);
 		    });
         } else 
@@ -582,11 +584,12 @@ void logos::bulk_pull_server::send_next ()
                 memcpy(&resp.block,&(*b),sizeof(BatchStateBlock));
                 current_bsb = bsb;
 
-                auto send_buffer1(std::make_shared<std::vector<uint8_t>>(sizeof(resp), uint8_t(0)));
+                //auto send_buffer1(std::make_shared<std::vector<uint8_t>>(sizeof(resp), uint8_t(0)));
+                auto send_buffer1(std::make_shared<std::vector<uint8_t>>(BatchBlock::bulk_pull_response_mesg_len, uint8_t(0)));
 	            {
                     memcpy(send_buffer1->data(),(void *)&resp, sizeof(resp));
 	            }
-	
+
 			    auto this_l (shared_from_this ());
 			    if (connection->node->config.logging.bulk_pull_logging ())
 			    {

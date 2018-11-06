@@ -184,7 +184,7 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
 {
 #ifdef _DEBUG
     static int count = 0;
-    if(count++ > 1000) {
+    if(count++ > 100000) {
         try {
             std::cout << "logos::tips_req_client::received_batch_block_tips exceeded limit" << std::endl;
             promise.set_value(false);

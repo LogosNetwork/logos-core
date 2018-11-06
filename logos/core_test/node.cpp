@@ -71,7 +71,7 @@ TEST (node, logos_bootstrap_test)
 		system1.poll ();
 		++iterations2;
 		//ASSERT_LT (iterations2, 20000);
-        if(iterations2 > 100000) {
+        if(iterations2 > 2000000) {
             break;
         }
 		//ASSERT_LT (iterations2, 5120000);
