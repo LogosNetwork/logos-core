@@ -53,8 +53,8 @@ public:
 
 private:
 
-    static constexpr uint8_t TIMEOUT_MIN = 10;
-    static constexpr uint8_t TIMEOUT_MAX = 30;
+    static constexpr uint8_t TIMEOUT_MIN   = 20;
+    static constexpr uint8_t TIMEOUT_RANGE = 40;
 
     void HandlePrePrepare(const PrePrepare & message) override;
     void HandlePostPrepare(const PostPrepare & message) override;
@@ -67,6 +67,8 @@ private:
     bool IsSubset(const PrePrepare & message);
 
     bool ValidateReProposal(const PrePrepare & message) override;
+
+    Seconds GetTimeout();
 
 
     Hashes               _pre_prepare_hashes;

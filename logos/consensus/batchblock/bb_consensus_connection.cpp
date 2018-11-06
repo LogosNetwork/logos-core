@@ -105,13 +105,6 @@ BBConsensusConnection::Reject()
 void
 BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
 {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(TIMEOUT_MIN,
-                                        TIMEOUT_MAX);
-
-    Seconds timeout(dis(gen));
-
     _pre_prepare_hashes.clear();
 
     for(uint64_t i = 0; i < message.block_count; ++i)
@@ -127,7 +120,7 @@ BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
     // 'manually' cancel the callback by setting _cancel_timer.
     // When the callback is invoked, it will check this value
     // and return early.
-    if(!_timer.expires_from_now(timeout) && _callback_scheduled)
+    if(!_timer.expires_from_now(GetTimeout()) && _callback_scheduled)
     {
         _cancel_timer = true;
     }
@@ -206,6 +199,24 @@ bool
 BBConsensusConnection::ValidateReProposal(const PrePrepare & message)
 {
     return IsSubset(message);
+}
+
+BBConsensusConnection::Seconds
+BBConsensusConnection::GetTimeout()
+{
+    uint64_t offset = 0;
+    uint64_t x = std::rand() % NUM_DELEGATES;
+
+    if (x >= 2 && x < 4)
+    {
+        offset = TIMEOUT_RANGE/2;
+    }
+    else
+    {
+        offset = TIMEOUT_RANGE;
+    }
+
+    return TIMEOUT_MIN + offset;
 }
 
 template<>
