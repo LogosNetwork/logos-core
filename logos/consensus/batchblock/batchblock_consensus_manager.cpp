@@ -131,6 +131,11 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
     batch.sequence = _sequence;
     batch.timestamp = GetStamp();
 
+    for(uint64_t i = 0; i < batch.block_count; ++i)
+    {
+        _hashes.insert(batch.blocks[i].hash());
+    }
+
     return batch;
 }
 
@@ -227,15 +232,43 @@ BatchBlockConsensusManager::OnRejection(
         break;
     case RejectionReason::Contains_Invalid_Request:
     {
-        auto block_count = _handler.GetNextBatch().block_count;
+        auto batch = _handler.GetNextBatch();
+        auto block_count = batch.block_count;
 
         for(uint64_t i = 0; i < block_count; ++i)
         {
             if(!message.rejection_map[i])
             {
-                _weights[i].reject_weight++;
+                _weights[i].indirect_support_weight++;
                 _weights[i].supporting_delegates.insert(_cur_delegate_id);
+
+                if(_weights[i].indirect_support_weight + _prepare_weight >= QUORUM_SIZE)
+                {
+                    _hashes.erase(batch.blocks[i].hash());
+                }
             }
+            else
+            {
+                // TODO: Replace with total pool of delegate
+                //       weights defined by epoch block.
+                //
+                uint64_t total_weight = 32;
+
+                _weights[i].reject_weight++;
+
+                if(_weights[i].reject_weight > total_weight/3.0)
+                {
+                    _hashes.erase(batch.blocks[i].hash());
+                }
+            }
+        }
+
+        // All requests have been explicitly
+        // rejected or accepted.
+        if(_hashes.empty())
+        {
+            CancelTimer();
+            OnPrePrepareRejected();
         }
 
         break;
@@ -280,7 +313,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
         // delegates that approve of the request at
         // index i collectively have enough weight to
         // get this request post-committed.
-        if(_prepare_weight + _weights[i].reject_weight >= QUORUM_SIZE)
+        if(_prepare_weight + _weights[i].indirect_support_weight >= QUORUM_SIZE)
         {
             // Was any other request approved by
             // exactly the same set of delegates?

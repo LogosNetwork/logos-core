@@ -89,14 +89,6 @@ void PrimaryDelegate::CheckRejection()
     }
 }
 
-void PrimaryDelegate::CancelTimer()
-{
-    if(!_primary_timer.cancel())
-    {
-        _timer_cancelled = true;
-    }
-}
-
 template<ConsensusType C>
 void PrimaryDelegate::OnPrePrepareTimeout(const Error & error)
 {
@@ -213,6 +205,14 @@ void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
 bool PrimaryDelegate::StateReadyForConsensus()
 {
     return _state == ConsensusState::VOID || _state == ConsensusState::POST_COMMIT;
+}
+
+void PrimaryDelegate::CancelTimer()
+{
+    if(!_primary_timer.cancel())
+    {
+        _timer_cancelled = true;
+    }
 }
 
 bool PrimaryDelegate::ReachedQuorum()

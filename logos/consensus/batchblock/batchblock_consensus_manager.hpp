@@ -16,12 +16,14 @@ class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchSt
     using Seconds     = boost::posix_time::seconds;
     using Timer       = boost::asio::deadline_timer;
     using Error       = boost::system::error_code;
+    using Hashes      = std::unordered_set<BlockHash>;
 
     struct Weights
     {
         using Delegates = std::unordered_set<uint8_t>;
 
-        uint64_t  reject_weight = 0;
+        uint64_t  reject_weight           = 0;
+        uint64_t  indirect_support_weight = 0;
         Delegates supporting_delegates;
     };
 
@@ -164,6 +166,7 @@ private:
     void OnDelegatesConnected();
 
     WeightList         _weights;
+    Hashes             _hashes;
     bool               _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
     BlockBuffer        _buffer;                        ///< Buffered state blocks.
     RequestHandler     _handler;                       ///< Primary queue of batch state blocks.

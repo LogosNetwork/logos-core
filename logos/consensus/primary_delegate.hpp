@@ -55,6 +55,7 @@ protected:
     void OnConsensusInitiated(const PrePrepareMessage<C> & block);
 
     bool StateReadyForConsensus();
+    void CancelTimer();
 
     // TODO: Revert to std::mutex after
     //       benchmark.
@@ -83,7 +84,6 @@ private:
     virtual void OnRejection(const RejectionMessage<ConsensusType::Epoch> & message);
 
     void CheckRejection();
-    void CancelTimer();
 
     template<ConsensusType C>
     void OnPrePrepareTimeout(const Error & error);
