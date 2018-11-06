@@ -865,6 +865,27 @@ bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchSt
     return get<BatchStateBlock>(batch_db, hash, block);
 }
 
+bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchStateBlock & block, MDB_txn * transaction)
+{
+    mdb_val value;
+    mdb_val key(hash);
+
+    auto status (mdb_get (transaction, batch_db, key, value));
+    assert (status == 0 || status == MDB_NOTFOUND);
+
+    bool result = false;
+    if (status == MDB_NOTFOUND)
+    {
+        result = true;
+    }
+    else
+    {
+        memcpy(&block, value.data(), value.size());
+    }
+
+    return result;
+}
+
 bool logos::block_store::state_block_get(const logos::block_hash & hash, logos::state_block & block, MDB_txn * transaction)
 {
     mdb_val val;

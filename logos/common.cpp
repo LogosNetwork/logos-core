@@ -191,7 +191,9 @@ std::unique_ptr<logos::block> logos::deserialize_block (MDB_val const & val_a)
 }
 
 logos::account_info::account_info ()
-    : head (0)
+    : reservation(0)
+    , reservation_epoch(0)
+    , head (0)
     , receive_head (0)
     , rep_block (0)
     , open_block (0)
@@ -205,7 +207,9 @@ logos::account_info::account_info (MDB_val const & val_a)
     std::cout << "val_a.mv_size: " << val_a.mv_size << " sizeof account_info: " << sizeof(*this) << std::endl;
     assert (val_a.mv_size == sizeof (*this));
 
-    static_assert (sizeof (head) +
+    static_assert (sizeof (reservation) +
+                   sizeof (reservation_epoch) +
+                   sizeof (head) +
                    sizeof (receive_head) +
                    sizeof (rep_block) +
                    sizeof (open_block) +
@@ -227,7 +231,9 @@ logos::account_info::account_info (
         logos::amount const & balance_a,
         uint64_t modified_a,
         uint64_t block_count_a)
-    : head (head_a)
+    : reservation(0)
+    , reservation_epoch(0)
+    , head (head_a)
     , receive_head (receive_head_a)
     , rep_block (rep_block_a)
     , open_block (open_block_a)
@@ -238,6 +244,8 @@ logos::account_info::account_info (
 
 void logos::account_info::serialize (logos::stream & stream_a) const
 {
+    write (stream_a, reservation.bytes);
+    write (stream_a, reservation_epoch);
     write (stream_a, head.bytes);
     write (stream_a, receive_head.bytes);
     write (stream_a, rep_block.bytes);
@@ -249,25 +257,33 @@ void logos::account_info::serialize (logos::stream & stream_a) const
 
 bool logos::account_info::deserialize (logos::stream & stream_a)
 {
-    auto error (read (stream_a, head.bytes));
+    auto error (read (stream_a, reservation.bytes));
     if (!error)
     {
-        error = read (stream_a, receive_head.bytes);
+        error = read (stream_a, reservation_epoch);
         if (!error)
         {
-            error = read (stream_a, rep_block.bytes);
+            auto error (read (stream_a, head.bytes));
             if (!error)
             {
-                error = read (stream_a, open_block.bytes);
+                error = read (stream_a, receive_head.bytes);
                 if (!error)
                 {
-                    error = read (stream_a, balance.bytes);
+                    error = read (stream_a, rep_block.bytes);
                     if (!error)
                     {
-                        error = read (stream_a, modified);
+                        error = read (stream_a, open_block.bytes);
                         if (!error)
                         {
-                            error = read (stream_a, block_count);
+                            error = read (stream_a, balance.bytes);
+                            if (!error)
+                            {
+                                error = read (stream_a, modified);
+                                if (!error)
+                                {
+                                    error = read (stream_a, block_count);
+                                }
+                            }
                         }
                     }
                 }
@@ -279,7 +295,9 @@ bool logos::account_info::deserialize (logos::stream & stream_a)
 
 bool logos::account_info::operator== (logos::account_info const & other_a) const
 {
-    return head == other_a.head &&
+    return reservation == other_a.reservation &&
+           reservation_epoch == other_a.reservation_epoch &&
+           head == other_a.head &&
            rep_block == other_a.rep_block &&
            receive_head == other_a.receive_head &&
            open_block == other_a.open_block &&
@@ -716,7 +734,7 @@ std::string logos::ProcessResultToString(logos::process_result result)
         ret = "Bad Signature";
         break;
     case process_result::old:
-        ret = "Old";
+        ret = "Old Block";
         break;
     case process_result::negative_spend:
         ret = "Negative Spend";
@@ -728,13 +746,13 @@ std::string logos::ProcessResultToString(logos::process_result result)
         ret = "Unreceivable";
         break;
     case process_result::gap_previous:
-        ret = "Gap Previous";
+        ret = "Gap Previous Block";
         break;
     case process_result::gap_source:
-        ret = "Gap Source";
+        ret = "Gap Source Block";
         break;
     case process_result::state_block_disabled:
-        ret = "State Block Disabled";
+        ret = "State Blocks Are Disabled";
         break;
     case process_result::not_receive_from_send:
         ret = "Not Receive From Send";
@@ -743,7 +761,7 @@ std::string logos::ProcessResultToString(logos::process_result result)
         ret = "Account Mismatch";
         break;
     case process_result::opened_burn_account:
-        ret = "Opened Burn Account";
+        ret = "Invalid account (burn account)";
         break;
     case process_result::balance_mismatch:
         ret = "Balance Mismatch";
@@ -765,6 +783,18 @@ std::string logos::ProcessResultToString(logos::process_result result)
         break;
     case process_result::pending:
         ret = "Already Pending";
+        break;
+    case process_result::already_reserved:
+        ret = "Account already Reserved";
+        break;
+    case process_result::initializing:
+        ret = "Delegate is initializing";
+        break;
+    case process_result::insufficient_fee:
+        ret = "Transaction fee is insufficient";
+        break;
+    case process_result::insufficient_balance:
+        ret = "Account balance is insufficient";
         break;
     }
 

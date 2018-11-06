@@ -79,7 +79,14 @@ class state_hashables
 {
 public:
     state_hashables();
-    state_hashables (logos::account const &, logos::block_hash const &, logos::account const &, logos::amount const &, logos::uint256_union const &);
+
+    state_hashables (logos::account const & account,
+                     logos::block_hash const & previous,
+                     logos::account const & representative,
+                     logos::amount const & amount,
+                     logos::amount const & transaction_fee,
+                     logos::uint256_union const & link);
+
     state_hashables (bool &, logos::stream &);
     state_hashables (bool &, boost::property_tree::ptree const &);
     void hash (blake2b_state &) const;
@@ -95,6 +102,7 @@ public:
     // Current balance of this account
     // Allows lookup of account balance simply by looking at the head block
     logos::amount amount;
+    logos::amount transaction_fee;
     // Link field contains source block_hash if receiving, destination account if sending
     logos::uint256_union link;
 };
@@ -107,6 +115,7 @@ public:
                  logos::block_hash const & previous,
                  logos::account const & representative,
                  logos::amount const & amount,
+                 logos::amount const & transaction_fee,
                  logos::uint256_union const & link,
                  logos::raw_key const & prv,
                  logos::public_key const & pub,
@@ -136,7 +145,17 @@ public:
     bool operator== (logos::block const &) const override;
     bool operator== (logos::state_block const &) const;
     bool valid_predecessor (logos::block const &) const override;
-    static size_t constexpr size = sizeof (logos::account) + sizeof (logos::block_hash) + sizeof (logos::account) + sizeof (logos::amount) + sizeof (logos::uint256_union) + sizeof (logos::signature) + sizeof (uint64_t);
+
+    static size_t constexpr size = sizeof (logos::account) +
+                                   sizeof (logos::block_hash) +
+                                   sizeof (logos::account) +
+                                   sizeof (logos::amount) +
+                                   sizeof (logos::amount) +
+                                   sizeof (logos::uint256_union) +
+                                   sizeof (logos::signature) +
+                                   sizeof (uint64_t) +
+                                   sizeof (uint64_t);
+
     logos::state_hashables hashables;
     logos::signature signature;
     uint64_t work;

@@ -3,21 +3,22 @@
 #include <logos/bootstrap/microblock.hpp>
 #include <logos/bootstrap/epoch.hpp>
 
-BlockHash BatchBlock::getBatchBlockTip(Store& s, int delegate)
+BlockHash BatchBlock::getBatchBlockTip(Store& store, int delegate)
 {
     BlockHash hash;
-    if(!s.batch_tip_get(delegate,hash)) {
+    if(!store.batch_tip_get(delegate,hash)) {
         return hash;
     }
     return BlockHash();
 }
 
-uint32_t  BatchBlock::getBatchBlockSeqNr(Store& s, int delegate) // TODOFUNC
+uint64_t  BatchBlock::getBatchBlockSeqNr(Store& store, int delegate) // TODOFUNC
 {
-#ifdef _DEBUG
-    // TESTING
-    return rand() % 31;
-#else
-    return 0;
-#endif
+    BatchStateBlock batch;
+    BlockHash hash = BatchBlock::getBatchBlockTip(store,delegate);
+    if(hash.is_zero()) {
+        return 0; // FIXME is this the correct return value on error ?
+    }
+    store.batch_block_get(hash, batch);
+    return batch.sequence;
 }

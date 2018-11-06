@@ -11,7 +11,7 @@ BlockHash Micro::getMicroBlockTip(Store& s, int delegate)
     return BlockHash();
 }
 
-uint32_t  Micro::getMicroBlockSeqNr(Store& s, int delegate) // TODOFUNC
+uint64_t  Micro::getMicroBlockSeqNr(Store& s, int delegate) // TODOFUNC
 {
 #ifdef _DEBUG
     return 0;

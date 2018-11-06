@@ -52,6 +52,6 @@ struct tips_response {
 constexpr int tips_response_mesg_len = (sizeof(tips_response));
 
 BlockHash getBatchBlockTip(Store &s, int delegate);
-uint32_t  getBatchBlockSeqNr(Store &s, int delegate);
+uint64_t  getBatchBlockSeqNr(Store &s, int delegate);
 
 } // namespace BatchBlock

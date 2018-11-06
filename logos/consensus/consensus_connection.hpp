@@ -1,13 +1,12 @@
 #pragma once
 
 #include <logos/consensus/persistence/persistence_manager.hpp>
+#include <logos/consensus/messages/rejection.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/consensus_state.hpp>
 
-#include <boost/log/sources/record_ostream.hpp>
-#include <boost/log/sources/logger.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/write.hpp>
@@ -38,15 +37,15 @@ class ConsensusConnection : public PrequelParser
 {
 protected:
 
-    using Log         = boost::log::sources::logger_mt;
     using PrePrepare  = PrePrepareMessage<CT>;
     using Prepare     = PrepareMessage<CT>;
     using Commit      = CommitMessage<CT>;
     using PostPrepare = PostPrepareMessage<CT>;
     using PostCommit  = PostCommitMessage<CT>;
+    using Rejection   = RejectionMessage<CT>;
 
-    template<MessageType TYPE>
-    using SPMessage   = StandardPhaseMessage<TYPE, CT>;
+    template<MessageType T>
+    using SPMessage   = StandardPhaseMessage<T, CT>;
 
 public:
 
@@ -58,8 +57,8 @@ public:
 
     void Send(const void * data, size_t size);
 
-    template<typename TYPE>
-    void Send(const TYPE & data)
+    template<typename T>
+    void Send(const T & data)
     {
         Send(reinterpret_cast<const void *>(&data), sizeof(data));
     }
@@ -72,7 +71,8 @@ public:
 
 protected:
 
-    static constexpr uint64_t BUFFER_SIZE = sizeof(PrePrepare);
+    static constexpr uint64_t BUFFER_SIZE        = sizeof(PrePrepare);
+    static constexpr uint16_t MAX_CLOCK_DRIFT_MS = 20000;
 
     using ReceiveBuffer = std::array<uint8_t, BUFFER_SIZE>;
 
@@ -87,38 +87,70 @@ protected:
     void OnConsensusMessage(const PostCommit & message);
 
     // Messages received by primary delegates
-    template<MessageType MT>
-    void OnConsensusMessage(const SPMessage<MT> & message);
+    template<typename M>
+    void OnConsensusMessage(const M & message);
 
-    template<typename MSG>
-    bool Validate(const MSG & message);
-    virtual bool Validate(const PrePrepare & message) = 0;
+    template<typename M>
+    bool Validate(const M & message);
+    bool Validate(const PrePrepare & message);
 
-    template<typename MSG>
-    bool ProceedWithMessage(const MSG & message, ConsensusState expected_state);
+    template<typename M, typename S>
+    bool ValidateSignature(const M & m, const S & s);
+    bool ValidateTimestamp(const PrePrepare & message);
+
+    virtual bool DoValidate(const PrePrepare & message) = 0;
+
+    template<typename M>
+    bool ProceedWithMessage(const M & message, ConsensusState expected_state);
     bool ProceedWithMessage(const PostCommit & message);
 
-    template<typename MSG>
-    void SendMessage();
+    template<typename M>
+    void SendMessage()
+    {
+        M response(_pre_prepare_timestamp);
+
+        response.previous = _pre_prepare_hash;
+        _validator.Sign(response);
+
+        StoreResponse(response);
+        UpdateMessage(response);
+
+        Send(response);
+    }
 
     void SendKeyAdvertisement();
 
     void StoreResponse(const Prepare & message);
     void StoreResponse(const Commit & message);
+    void StoreResponse(const Rejection & message);
 
-    void OnPrePrepare(const PrePrepare & message);
+    virtual void HandlePrePrepare(const PrePrepare & message);
+    virtual void HandlePostPrepare(const PostPrepare & message);
+
+    template<typename M>
+    void UpdateMessage(M & message);
+
+    virtual void Reject();
+    virtual void ResetRejectionStatus();
+
+    virtual bool ValidateReProposal(const PrePrepare & message);
+
 
     std::shared_ptr<IOChannel>  _iochannel;
     ReceiveBuffer               _receive_buffer;
     std::mutex                  _mutex;
-    std::shared_ptr<PrePrepare> _cur_pre_prepare;
-    std::shared_ptr<Prepare>    _cur_prepare;
-    std::shared_ptr<Commit>     _cur_commit;
-    BlockHash                   _cur_pre_prepare_hash;
+    std::shared_ptr<PrePrepare> _pre_prepare;
+    std::shared_ptr<Prepare>    _prepare;
+    std::shared_ptr<Commit>     _commit;
+    uint64_t                    _pre_prepare_timestamp = 0;
+    BlockHash                   _pre_prepare_hash;
+    BlockHash                   _prev_pre_prepare_hash = 0;
     DelegateIdentities          _delegate_ids;
+    RejectionReason             _reason;
     MessageValidator &          _validator;
     Log                         _log;
     PrimaryDelegate &           _primary;
-    ConsensusState              _state     = ConsensusState::VOID;
+    ConsensusState              _state = ConsensusState::VOID;
     RequestPromoter<CT> &       _promoter; ///< secondary list request promoter
+    uint64_t                    _sequence_number = 0;
 };

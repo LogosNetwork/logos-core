@@ -50,6 +50,9 @@ struct bulk_pull_response_epoch {
 
 constexpr int bulk_pull_response_mesg_len = (sizeof(bulk_pull_response) + sizeof(bulk_pull_response_micro) + sizeof(bulk_pull_response_epoch));
 
+bool Validate(Store & store, BatchStateBlock &message, int delegate_id);
+void ApplyUpdates(Store & store, const BatchStateBlock & message, uint8_t delegate_id);
+
 bool Validate(ConsensusContainer &manager, BatchStateBlock &block, int delegate_id);
 void ApplyUpdates(ConsensusContainer &manager, const BatchStateBlock & message, uint8_t delegate_id);
 

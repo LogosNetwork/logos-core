@@ -1,8 +1,6 @@
 #include <logos/consensus/network/net_io_assembler.hpp>
 #include <logos/consensus/messages/messages.hpp>
 
-#include <boost/log/sources/record_ostream.hpp>
-
 NetIOAssembler::NetIOAssembler(std::shared_ptr<Socket> socket)
     : _socket(socket)
 {}
@@ -53,7 +51,7 @@ void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size
 {
     if(error)
     {
-        BOOST_LOG(_log) << "NetIOAssembler - Error receiving message: "
+        LOG_ERROR(_log) << "NetIOAssembler - receiving message: "
                         << error.message();
         return;
     }
@@ -62,7 +60,7 @@ void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size
 
     if(_buffer_size == BUFFER_CAPACITY)
     {
-        BOOST_LOG(_log) << "NetIOAssembler - Error: Buffer"
+        LOG_ERROR(_log) << "NetIOAssembler: Buffer"
                         << " size has reached capacity.";
     }
 

@@ -1,8 +1,10 @@
 #include <logos/bootstrap/backtrace.hpp>
 #include <logos/bootstrap/batch_block_validator.hpp>
+#include <logos/consensus/persistence/persistence_manager.hpp>
 #include <set>
 
 //#define _VALIDATE 1 // FIXME
+#define _DEBUG_VALIDATE 1
 
 // CTOR
 BatchBlock::validator::validator(logos::node *n)
@@ -93,6 +95,14 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
                 block->block,block->delegate_id)) {
                 // Block is valid, add to database.
                 BatchBlock::ApplyUpdates(node->_consensus_container,
+                                 block->block,block->delegate_id);
+                finished.insert(i);
+        }
+#elif _DEBUG_VALIDATE
+        if (BatchBlock::Validate(node->store,
+                block->block,block->delegate_id)) {
+                // Block is valid, add to database.
+                BatchBlock::ApplyUpdates(node->store,
                                  block->block,block->delegate_id);
                 finished.insert(i);
         }

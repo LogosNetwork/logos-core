@@ -12,6 +12,20 @@ class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchSt
 {
 
     using BlockBuffer = std::list<std::shared_ptr<Request>>;
+    using Rejection   = RejectionMessage<ConsensusType::BatchStateBlock>;
+    using Seconds     = boost::posix_time::seconds;
+    using Timer       = boost::asio::deadline_timer;
+    using Error       = boost::system::error_code;
+
+    struct Weights
+    {
+        using Delegates = std::unordered_set<uint8_t>;
+
+        uint64_t  reject_weight = 0;
+        Delegates supporting_delegates;
+    };
+
+    using WeightList = std::array<Weights, CONSENSUS_BATCH_SIZE>;
 
 public:
 
@@ -26,7 +40,6 @@ public:
     ///     @param[in] validator validator/signer of consensus messages.
     BatchBlockConsensusManager(Service & service, 
                                Store & store,
-                               Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator);
@@ -46,9 +59,18 @@ public:
     ///     @param[out] result result of the operation
     void BufferComplete(logos::process_return & result);
 
+    /// Called to bind a ConsensusConnection to a
+    /// ConsensusNetIO.
+    ///
+    /// This is an overridden method that is specialized
+    /// for BatchBlock Consensus.
+    ///     @param[in] iochannel pointer to ConsensusNetIO
+    ///                interface.
+    ///     @param[in] ids Delegate IDs for the local and
+    ///                remote delegates.
     std::shared_ptr<PrequelParser>
-    BindIOChannel(std::shared_ptr<IOChannel>,
-                  const DelegateIdentities &) override;
+    BindIOChannel(std::shared_ptr<IOChannel> iochannel,
+                  const DelegateIdentities & ids) override;
 
 protected:
 
@@ -61,7 +83,8 @@ protected:
 
     /// Checks if the system is ready to initiate consensus.
     ///
-    ///  The extended override does additional processing if _using_buffered_blocks is true
+    ///  The extended override does additional processing if
+    ///  _using_buffered_blocks is true.
     ///      @return true if ready false otherwise.
     bool ReadyForConsensus() override;
 
@@ -130,8 +153,23 @@ protected:
 
 private:
 
-    bool                    _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
-    BlockBuffer             _buffer;                        ///< Buffered state blocks.
-    RequestHandler          _handler;                       ///< Primary queue of batch state blocks.
-    PersistenceManager		_persistence_manager;			///< Database interface and request validation
+    static const Seconds ON_CONNECTED_TIMEOUT;
+
+    void AcquirePrePrepare(const PrePrepare & message) override;
+
+    void OnRejection(const Rejection & message) override;
+    void OnStateAdvanced() override;
+    void OnPrePrepareRejected() override;
+
+    void OnDelegatesConnected();
+
+    WeightList         _weights;
+    bool               _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
+    BlockBuffer        _buffer;                        ///< Buffered state blocks.
+    RequestHandler     _handler;                       ///< Primary queue of batch state blocks.
+    PersistenceManager _persistence_manager;		   ///< Database interface and request validation
+    Timer              _init_timer;
+    Service &          _service;
+    uint64_t           _sequence       = 0;
+    uint64_t           _channels_bound = 0;
 };

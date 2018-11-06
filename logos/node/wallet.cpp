@@ -871,7 +871,7 @@ std::shared_ptr<logos::block> logos::wallet::receive_action (logos::block const 
                         assert (rep_block != nullptr);
                         if (should_generate_state_block (transaction, info.head))
                         {
-                            block.reset (new logos::state_block (account, info.head, rep_block->representative (), info.balance.number () + pending_info.amount.number (), hash, prv, account, cached_work));
+                            block.reset (new logos::state_block (account, info.head, rep_block->representative (), info.balance.number () + pending_info.amount.number (), 0, hash, prv, account, cached_work));
                         }
 
                     }
@@ -879,7 +879,7 @@ std::shared_ptr<logos::block> logos::wallet::receive_action (logos::block const 
                     {
                         if (node.ledger.state_block_generation_enabled (transaction))
                         {
-                            block.reset (new logos::state_block (account, 0, representative_a, pending_info.amount, hash, prv, account, cached_work));
+                            block.reset (new logos::state_block (account, 0, representative_a, pending_info.amount, 0, hash, prv, account, cached_work));
                         }
 
                     }
@@ -940,7 +940,7 @@ std::shared_ptr<logos::block> logos::wallet::change_action (logos::account const
                 store.work_get (transaction, source_a, cached_work);
                 if (should_generate_state_block (transaction, info.head))
                 {
-                    block.reset (new logos::state_block (source_a, info.head, representative_a, info.balance, 0, prv, source_a, cached_work));
+                    block.reset (new logos::state_block (source_a, info.head, representative_a, info.balance, 0, 0, prv, source_a, cached_work));
                 }
 
             }
@@ -1016,7 +1016,7 @@ std::shared_ptr<logos::block> logos::wallet::send_action (logos::account const &
                         store.work_get (transaction, source_a, cached_work);
                         if (should_generate_state_block (transaction, info.head))
                         {
-                            block.reset (new logos::state_block (source_a, info.head, rep_block->representative (), balance - amount_a, account_a, prv, source_a, cached_work));
+                            block.reset (new logos::state_block (source_a, info.head, rep_block->representative (), balance - amount_a, 0, account_a, prv, source_a, cached_work));
                         }
                         else
                         {

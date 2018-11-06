@@ -2,16 +2,15 @@
 
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/blocks.hpp>
+#include <logos/lib/log.hpp>
 #include <logos/common.hpp>
 
 #include <unordered_map>
 
-#include <boost/log/sources/record_ostream.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index_container.hpp>
 #include <boost/asio/deadline_timer.hpp>
-#include <boost/log/sources/logger.hpp>
 #include <boost/asio/io_service.hpp>
 
 template<ConsensusType CT>
@@ -27,15 +26,14 @@ class SecondaryRequestHandler
 {
     class Request;
 
-    using Timer     = boost::asio::deadline_timer;
-    using Service   = boost::asio::io_service;
-    using Error     = boost::system::error_code;
-    using Log       = boost::log::sources::logger_mt;
-    using BlockPtr  = std::shared_ptr<RequestMessage<CT>>;
-    using Seconds   = boost::posix_time::seconds;
-    using Clock     = boost::posix_time::second_clock;
-    using TimePoint = boost::posix_time::ptime;
-    using PrePrepare= PrePrepareMessage<CT>;
+    using Timer      = boost::asio::deadline_timer;
+    using Service    = boost::asio::io_service;
+    using Error      = boost::system::error_code;
+    using BlockPtr   = std::shared_ptr<RequestMessage<CT>>;
+    using Seconds    = boost::posix_time::seconds;
+    using Clock      = boost::posix_time::second_clock;
+    using TimePoint  = boost::posix_time::ptime;
+    using PrePrepare = PrePrepareMessage<CT>;
 
     struct Request
     {
@@ -55,14 +53,17 @@ class SecondaryRequestHandler
 
 public:
 
-    SecondaryRequestHandler(Service & service, RequestPromoter<CT> & promoter);
+    SecondaryRequestHandler(Service & service,
+                            RequestPromoter<CT> & promoter);
 
     bool Contains(const logos::block_hash & hash);
 
-    void OnRequest(std::shared_ptr<RequestMessage<CT>> block, Seconds seconds = REQUEST_TIMEOUT);
+    void OnRequest(std::shared_ptr<RequestMessage<CT>> block,
+                   Seconds seconds = REQUEST_TIMEOUT);
+
     void OnTimeout(const Error & error);
 
-    void OnPrePrepare(const PrePrepare & block);
+    void OnPostCommit(const PrePrepare & message);
 
 private:
 
@@ -74,10 +75,10 @@ private:
     static const Seconds REQUEST_TIMEOUT;
     static const Seconds MIN_TIMEOUT;
 
-    Requests                _requests;
-    Service &               _service;
-    RequestPromoter<CT> &   _promoter;
-    Log                     _log;
-    std::mutex              _mutex;
-    Timer                   _timer;
+    Requests              _requests;
+    Service &             _service;
+    RequestPromoter<CT> & _promoter;
+    Log                   _log;
+    std::mutex            _mutex;
+    Timer                 _timer;
 };

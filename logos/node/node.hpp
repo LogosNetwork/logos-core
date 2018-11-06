@@ -1,5 +1,7 @@
 #pragma once
 
+//#define _PRODUCTION 1 // FIXME
+
 #include <logos/ledger.hpp>
 #include <logos/lib/work.hpp>
 #include <logos/node/stats.hpp>
@@ -330,6 +332,7 @@ public:
     bool log_to_cerr () const;
     void init (boost::filesystem::path const &);
 
+    std::string log_level;
     bool ledger_logging_value;
     bool ledger_duplicate_logging_value;
     bool vote_logging_value;

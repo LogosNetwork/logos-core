@@ -3,16 +3,13 @@
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/messages/common.hpp>
+#include <logos/lib/log.hpp>
 #include <logos/common.hpp>
-
-#include <boost/log/sources/record_ostream.hpp>
-#include <boost/log/sources/logger.hpp>
 
 #include <bls/bls.hpp>
 
 class MessageValidator
 {
-    using Log           = boost::log::sources::logger_mt;
     using KeyPair       = bls::KeyPair;
     using PublicKeyReal = bls::PublicKey;
     using PublicKeyVec  = bls::PublicKeyVec;
@@ -48,7 +45,7 @@ public:
             }
             catch(bls::Exception &e)
             {
-                BOOST_LOG (_log) << "MessageValidator - Aggregate sign, failed to deserialize a signature";
+                LOG_ERROR (_log) << "MessageValidator - Aggregate sign, failed to deserialize a signature";
                 return false;
             }
             sigvec.push_back(sigReal);
@@ -86,7 +83,7 @@ public:
     {
         if (message.participation_map.none())
         {
-            BOOST_LOG (_log) << "MessageValidator - Aggregate validate, empty participation_map";
+            LOG_ERROR (_log) << "MessageValidator - Aggregate validate, empty participation_map";
             return false;
         }
 
@@ -106,7 +103,7 @@ public:
         }
         catch (const bls::Exception &)
         {
-            BOOST_LOG (_log) << "MessageValidator - Aggregate validate, failed to deserialize the signature";
+            LOG_ERROR (_log) << "MessageValidator - Aggregate validate, failed to deserialize the signature";
             return false;
         }
 
@@ -121,7 +118,6 @@ public:
     template<typename MSG>
     bool Validate(const MSG & message, uint8_t delegate_id)
     {
-
         //message
         string msg(reinterpret_cast<const char*>(&message), MSG::HASHABLE_BYTES);
 
