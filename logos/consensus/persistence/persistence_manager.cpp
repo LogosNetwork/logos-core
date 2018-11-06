@@ -148,8 +148,6 @@ void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message,
                                            MDB_txn * transaction,
                                            uint8_t delegate_id)
 {
-    auto hash(_store.batch_block_put(message, transaction));
-
     BatchStateBlock prev;
 
     if(_store.batch_block_get(message.previous, prev, transaction))
@@ -158,16 +156,18 @@ void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message,
         //
         if(!message.previous.is_zero())
         {
-            LOG_ERROR(_log) << "PersistenceManager::StoreBatchMessage - "
+            LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
                             << "Failed to find previous: "
                             << message.previous.to_string();
+
+            std::exit(EXIT_FAILURE);
         }
     }
-    else
-    {
-        prev.next = hash;
-        _store.batch_block_put(prev, transaction);
-    }
+
+    auto hash(_store.batch_block_put(message, transaction));
+
+    prev.next = hash;
+    _store.batch_block_put(prev, transaction);
 
     StateBlockLocator locator_template {hash, 0};
 
