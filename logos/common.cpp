@@ -771,8 +771,8 @@ std::string logos::ProcessResultToString(logos::process_result result)
     case process_result::invalid_block_type:
         ret = "Invalid Block Type";
         break;
-    case process_result::not_implemented:
-        ret = "Not Implemented";
+    case process_result::unknown_source_account:
+        ret = "Unknown Source Account";
         break;
     case process_result::buffered:
         ret = "Buffered";

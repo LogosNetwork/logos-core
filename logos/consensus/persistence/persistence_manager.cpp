@@ -129,7 +129,7 @@ bool PersistenceManager::Validate(const logos::state_block & block,
     {
         // Currently do not accept state blocks
         // with non-existent accounts.
-        result.code = logos::process_result::not_implemented;
+        result.code = logos::process_result::unknown_source_account;
         return false;
 
         if(!block.hashables.previous.is_zero())

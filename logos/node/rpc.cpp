@@ -2514,7 +2514,7 @@ void logos::rpc_handler::process ()
                                     ProcessResultToString(result.code));
                     break;
                 }
-                case logos::process_result::not_implemented:
+                case logos::process_result::unknown_source_account:
                 {
                     error_response (response,
                                     ProcessResultToString(result.code));
