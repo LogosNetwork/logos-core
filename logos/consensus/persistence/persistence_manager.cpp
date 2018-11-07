@@ -98,11 +98,16 @@ bool PersistenceManager::Validate(const logos::state_block & block,
         // TODO
         uint64_t current_epoch = 0;
 
+        auto update_reservation = [&info, &hash, current_epoch]()
+                                  {
+                                       info.reservation = hash;
+                                       info.reservation_epoch = current_epoch;
+                                  };
+
         // Account is not reserved.
         if(info.reservation.is_zero())
         {
-            info.reservation = hash;
-            info.reservation_epoch = current_epoch;
+            update_reservation();
         }
 
         // Account is already reserved.
@@ -114,6 +119,9 @@ bool PersistenceManager::Validate(const logos::state_block & block,
                 result.code = logos::process_result::already_reserved;
                 return false;
             }
+
+            // Reservation has expired.
+            update_reservation();
         }
 
         if(block.hashables.amount.number() + block.hashables.transaction_fee.number()
