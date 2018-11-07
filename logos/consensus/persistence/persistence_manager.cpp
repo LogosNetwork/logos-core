@@ -11,6 +11,10 @@ PersistenceManager::PersistenceManager(Store & store)
 
 void PersistenceManager::ApplyUpdates(const BatchStateBlock & message, uint8_t delegate_id)
 {
+    // XXX - Failure during any of the database operations
+    //       performed in the following two methods will cause
+    //       the application to exit without committing the
+    //       intermediate transactions to the database.
     logos::transaction transaction(_store.environment, nullptr, true);
 
     StoreBatchMessage(message, transaction, delegate_id);
