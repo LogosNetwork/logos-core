@@ -228,8 +228,6 @@ BatchBlockConsensusManager::OnRejection(
 {
     switch(message.reason)
     {
-    case RejectionReason::Clock_Drift:
-        break;
     case RejectionReason::Contains_Invalid_Request:
     {
         auto batch = _handler.GetNextBatch();
@@ -273,10 +271,10 @@ BatchBlockConsensusManager::OnRejection(
 
         break;
     }
+    case RejectionReason::Clock_Drift:
     case RejectionReason::Bad_Signature:
-        break;
     case RejectionReason::Invalid_Previous_Hash:
-        break;
+    case RejectionReason::Wrong_Sequence_Number:
     case RejectionReason::Void:
         break;
     }

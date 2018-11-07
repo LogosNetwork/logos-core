@@ -28,6 +28,36 @@ bool
 BBConsensusConnection::DoValidate(
     const PrePrepare & message)
 {
+    if(!ValidateSequence(message))
+    {
+        return false;
+    }
+
+    if(!ValidateRequests(message))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+bool
+BBConsensusConnection::ValidateSequence(
+    const PrePrepare & message)
+{
+    if(_sequence_number != message.sequence)
+    {
+        _reason = RejectionReason::Wrong_Sequence_Number;
+        return false;
+    }
+
+    return true;
+}
+
+bool
+BBConsensusConnection::ValidateRequests(
+    const PrePrepare & message)
+{
     bool valid = true;
 
     for(uint64_t i = 0; i < message.block_count; ++i)
@@ -92,6 +122,7 @@ BBConsensusConnection::Reject()
     case RejectionReason::Contains_Invalid_Request:
     case RejectionReason::Bad_Signature:
     case RejectionReason::Invalid_Previous_Hash:
+    case RejectionReason::Wrong_Sequence_Number:
         SendMessage<Rejection>();
         break;
     }

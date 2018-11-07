@@ -56,6 +56,9 @@ private:
     static constexpr uint8_t TIMEOUT_MIN   = 20;
     static constexpr uint8_t TIMEOUT_RANGE = 40;
 
+    bool ValidateSequence(const PrePrepare & message);
+    bool ValidateRequests(const PrePrepare & message);
+
     void HandlePrePrepare(const PrePrepare & message) override;
     void OnPostCommit() override;
 
