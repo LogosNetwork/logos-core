@@ -442,6 +442,13 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
         }
     }
 
+    // If no request can be proposed, send
+    // an empty BatchStateBlock to proceed.
+    if(batches.empty())
+    {
+        batches.push_back(BatchStateBlock());
+    }
+
     _handler.PopFront();
     _handler.InsertFront(batches);
 
