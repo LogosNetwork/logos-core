@@ -833,7 +833,7 @@ bool logos::block_store::batch_block_put (BatchStateBlock const & block, const l
                         mdb_val(sizeof(BatchStateBlock),
                                 const_cast<BatchStateBlock *>(&block)), 0));
 
-    assert(status != 0);
+    assert(status == 0);
     return status != 0;
 }
 
