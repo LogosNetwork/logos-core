@@ -1057,16 +1057,20 @@ bool CConnman::SocketSendFinish(CNode *pnode, int nBytes) {
 // requires LOCK(cs_vSend)
 void CConnman::SocketSendData(CNode *pnode)
 {
+    if (!pnode->sendCompleted.exchange(false)) return;
+
     auto it = pnode->vSendMsg.begin();
 
-    if (pnode->sendCompleted && it != pnode->vSendMsg.end()) {
-        const auto &data = *it;
-        assert(data.size() > pnode->nSendOffset);
-        {
-            LOCK(pnode->cs_hSocket);
-	    pnode->sendCompleted = false;
-	    pnode->session->async_write(reinterpret_cast<const char*>(data.data()), data.size());
-        }
+    if (it == pnode->vSendMsg.end()) {
+	pnode->sendCompleted = true;
+	return;
+    }
+
+    const auto &data = *it;
+    assert(data.size() > pnode->nSendOffset);
+    {
+	LOCK(pnode->cs_hSocket);
+	pnode->session->async_write(reinterpret_cast<const char*>(data.data()), data.size());
     }
 }
 

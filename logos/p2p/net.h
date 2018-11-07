@@ -748,7 +748,7 @@ public:
     std::atomic_bool fPauseRecv;
     std::atomic_bool fPauseSend;
     uint64_t next_propagate_index;
-    bool sendCompleted;
+    std::atomic_bool sendCompleted;
 protected:
 
     mapMsgCmdSize mapSendBytesPerMsgCmd;
