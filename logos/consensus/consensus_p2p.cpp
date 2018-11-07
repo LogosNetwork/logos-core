@@ -15,7 +15,7 @@ template<ConsensusType CT>
 ConsensusP2p<CT>::ConsensusP2p(Log & log,
 			   p2p_interface & p2p,
 			   uint8_t delegate_id,
-			   std::function<bool (const PrePrepareMessage<CT> &, uint8_t)> Validate,
+			   std::function<bool (const Prequel &, MessageType, uint8_t)> Validate,
 			   boost::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates)
     : _log(log)
     , _p2p(p2p)
@@ -145,10 +145,10 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, size_t size) {
 			return false;
 		    }
 		    pre_mess = (PrePrepareMessage<CT> *)head;
-		    if (!_Validate(*pre_mess, delegate_id)) {
+		    if (!_Validate((const Prequel &)*head, MessageType::Pre_Prepare, delegate_id)) {
 			BOOST_LOG(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
 			    "> - error validation p2p batch Pre_Prepare message";
-			return false;
+//			return false;
 		    }
 		    mtype = MessageType::Post_Prepare;
 		}
@@ -162,6 +162,11 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, size_t size) {
 			    "> - error parsing p2p batch Post_Prepare message";
 			return false;
 		    }
+		    if (!_Validate((const Prequel &)*head, MessageType::Post_Prepare, delegate_id)) {
+			BOOST_LOG(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
+			    "> - error validation p2p batch Post_Prepare message";
+//			return false;
+		    }
 		    mtype = MessageType::Post_Commit;
 		}
 		break;
@@ -173,6 +178,11 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, size_t size) {
 			BOOST_LOG(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
 			    "> - error parsing p2p batch Post_Commit message";
 			return false;
+		    }
+		    if (!_Validate((const Prequel &)*head, MessageType::Post_Commit, delegate_id)) {
+			BOOST_LOG(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
+			    "> - error validation p2p batch Post_Commit message";
+//			return false;
 		    }
 		}
 		break;

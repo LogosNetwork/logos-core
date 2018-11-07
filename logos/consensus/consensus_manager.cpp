@@ -20,7 +20,12 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _delegate_id(config.delegate_id)
     , _secondary_handler(service, *this)
     , _consensus_p2p(log, p2p, _delegate_id,
-	[this](const PrePrepare & message, uint8_t delegate_id) { return this->Validate(message, delegate_id); },
+	[this](const Prequel & message, MessageType mtype, uint8_t delegate_id) {
+		return mtype == MessageType::Pre_Prepare  ? this->Validate((PrePrepare  &)message, delegate_id)
+		     : mtype == MessageType::Post_Prepare ? this->_validator.Validate((PostPrepareMessage<CT> &)message, delegate_id)
+		     : mtype == MessageType::Post_Commit  ? this->_validator.Validate((PostCommitMessage<CT>  &)message, delegate_id)
+		     : false;
+	},
 	boost::bind(&ConsensusManager<CT>::ApplyUpdates, this, _1, _2))
 {}
 
