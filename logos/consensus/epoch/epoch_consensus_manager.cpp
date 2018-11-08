@@ -12,7 +12,7 @@ EpochConsensusManager::OnBenchmarkSendRequest(
     logos::process_return & result)
 {
     _cur_epoch = static_pointer_cast<PrePrepare>(block);
-    BOOST_LOG (_log) << "EpochConsensusManager::OnBenchmarkSendRequest() - hash: " 
+    LOG_DEBUG (_log) << "EpochConsensusManager::OnBenchmarkSendRequest() - hash: "
                      << block->hash().to_string();
 }
 

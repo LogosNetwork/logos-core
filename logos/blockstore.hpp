@@ -125,26 +125,28 @@ public:
     }
 
     // consensus-prototype additions
-    block_hash batch_block_put(BatchStateBlock const &, MDB_txn *);
+    bool batch_block_put(BatchStateBlock const &, MDB_txn *);
+    bool batch_block_put(BatchStateBlock const &, const logos::block_hash &, MDB_txn *);
     bool batch_block_get(const logos::block_hash & hash, BatchStateBlock & block);
+    bool batch_block_get(const logos::block_hash & hash, BatchStateBlock & block, MDB_txn *);
     bool state_block_get(const logos::block_hash & hash, logos::state_block & block, MDB_txn *);
-    void state_block_put(state_block const &, StateBlockLocator const &, MDB_txn *);
+    bool state_block_put(state_block const &, StateBlockLocator const &, MDB_txn *);
     bool state_block_exists(const state_block & block);
     bool state_block_exists(const block_hash & hash);
     bool account_get(logos::account const & account_a, account_info & info_a);
     bool account_db_empty();
-    void account_put (logos::account const &, logos::account_info const &, MDB_txn *);
-    void receive_put(const block_hash & hash, const state_block & block, MDB_txn * transaction);
+    bool account_put (logos::account const &, logos::account_info const &, MDB_txn *);
+    bool receive_put(const block_hash & hash, const state_block & block, MDB_txn * transaction);
     bool receive_exists(const block_hash & hash);
-    void batch_tip_put(uint8_t delegate_id, const block_hash & hash, MDB_txn *);
+    bool batch_tip_put(uint8_t delegate_id, const block_hash & hash, MDB_txn *);
     bool batch_tip_get(uint8_t delegate_id, block_hash & hash);
 
     // micro-block
-      logos::block_hash micro_block_put(MicroBlock const &, MDB_txn*);
-      bool micro_block_get(const block_hash &, MicroBlock &);
-      void micro_block_tip_put(const block_hash&, MDB_txn*);
-      bool micro_block_tip_get(const block_hash &);
-      bool micro_block_exists(const block_hash &);
+    logos::block_hash micro_block_put(MicroBlock const &, MDB_txn*);
+    bool micro_block_get(const block_hash &, MicroBlock &);
+    void micro_block_tip_put(const block_hash&, MDB_txn*);
+    bool micro_block_tip_get(const block_hash &);
+    bool micro_block_exists(const block_hash &);
 
     // epoch
     logos::block_hash epoch_put(Epoch const &, MDB_txn*);

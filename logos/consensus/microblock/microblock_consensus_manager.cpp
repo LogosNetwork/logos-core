@@ -8,7 +8,7 @@ MicroBlockConsensusManager::OnBenchmarkSendRequest(
     logos::process_return & result)
 {
     _cur_microblock = static_pointer_cast<PrePrepare>(block);
-    BOOST_LOG (_log) << "MicroBlockConsensusManager::OnBenchmarkSendRequest() - hash: " 
+    LOG_DEBUG (_log) << "MicroBlockConsensusManager::OnBenchmarkSendRequest() - hash: "
                      << block->hash().to_string();
 }
 

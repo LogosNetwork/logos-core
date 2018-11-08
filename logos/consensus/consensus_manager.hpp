@@ -12,8 +12,6 @@
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/consensus_p2p.hpp>
 
-#include <boost/log/sources/record_ostream.hpp>
-
 class ChannelBinder
 {
 
@@ -32,14 +30,20 @@ public:
 template<ConsensusType CT>
 class RequestPromoter
 {
+
+    using Store      = logos::block_store;
+
 protected:
-    using Request     = RequestMessage<CT>;
-    using PrePrepare  = PrePrepareMessage<CT>;
+    using Request    = RequestMessage<CT>;
+    using PrePrepare = PrePrepareMessage<CT>;
+
 public:
 
     virtual void OnRequestReady(std::shared_ptr<Request> block) = 0;
+    virtual void OnPostCommit(const PrePrepare & block) = 0;
+    virtual Store & GetStore() = 0;
 
-    virtual void OnPrePrepare(const PrePrepare & block) = 0;
+    virtual void AcquirePrePrepare(const PrePrepare & message) {}
 
     virtual ~RequestPromoter() {}
 };
@@ -54,9 +58,8 @@ protected:
 
     using Service     = boost::asio::io_service;
     using Config      = ConsensusManagerConfig;
-    using Log         = boost::log::sources::logger_mt;
-    using Connections = std::vector<std::shared_ptr<ConsensusConnection<CT>>>;
     using Store       = logos::block_store;
+    using Connections = std::vector<std::shared_ptr<ConsensusConnection<CT>>>;
     using Manager     = ConsensusManager<CT>;
     using Request     = RequestMessage<CT>;
     using PrePrepare  = PrePrepareMessage<CT>;
@@ -65,7 +68,6 @@ public:
 
     ConsensusManager(Service & service,
                      Store & store,
-                     Log & log,
                      const Config & config,
                      DelegateKeyStore & key_store,
 		     MessageValidator & validator,
@@ -87,7 +89,9 @@ public:
 
     void OnRequestReady(std::shared_ptr<Request> block) override;
 
-    void OnPrePrepare(const PrePrepare & block) override;
+    void OnPostCommit(const PrePrepare & block) override;
+
+    Store & GetStore() override;
 
     std::shared_ptr<PrequelParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
@@ -96,8 +100,7 @@ public:
 protected:
 
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;
-
-    static constexpr uint8_t DELIGATE_ID_MASK = 5;
+    static constexpr uint8_t DELIGATE_ID_MASK    = 5;
 
     virtual void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) = 0;
 
@@ -113,7 +116,6 @@ protected:
     void InitiateConsensus();
 
     virtual bool ReadyForConsensus();
-    bool StateReadyForConsensus();
 
     void QueueRequest(std::shared_ptr<Request>);
 
@@ -142,12 +144,13 @@ protected:
             std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
 
     Connections                 _connections;
+    SecondaryRequestHandler<CT> _secondary_handler;
+    Store &                     _store;
     DelegateKeyStore &          _key_store;
     MessageValidator &          _validator;
     std::mutex                  _connection_mutex;
     Log                         _log;
     uint8_t                     _delegate_id;
-    SecondaryRequestHandler<CT> _secondary_handler;             ///< Secondary queue of blocks.
     ConsensusP2p<CT>		_consensus_p2p;
 };
 

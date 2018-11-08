@@ -7,7 +7,7 @@
 #include <logos/epoch/archiver.hpp>
 
 bool
-EpochConsensusConnection::Validate(
+EpochConsensusConnection::DoValidate(
     const PrePrepare & message)
 {
     return _epoch_handler.Validate(message);
@@ -27,5 +27,5 @@ EpochConsensusConnection::IsPrePrepared(
 {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    return (_cur_pre_prepare && hash == _cur_pre_prepare->hash());
+    return (_pre_prepare && hash == _pre_prepare->hash());
 }

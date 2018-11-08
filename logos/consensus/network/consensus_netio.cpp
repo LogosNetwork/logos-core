@@ -27,9 +27,9 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
     , _assembler(_socket)
     , _connection_mutex(connection_mutex)
 {
-    BOOST_LOG(_log) << "ConsensusNetIO - Trying to connect to: "
-                    <<  _endpoint << " remote delegate id "
-                    << (int)remote_delegate_id;
+    LOG_INFO(_log) << "ConsensusNetIO - Trying to connect to: "
+                   <<  _endpoint << " remote delegate id "
+                   << (int)remote_delegate_id;
 
     Connect();
 }
@@ -73,7 +73,7 @@ ConsensusNetIO::Send(
 {
     if (!_connected)
     {
-        BOOST_LOG(_log) << "ConsensusNetIO - socket not connected yet";
+        LOG_WARN(_log) << "ConsensusNetIO - socket not connected yet";
         return;
     }
 
@@ -101,9 +101,9 @@ ConsensusNetIO::Send(
 void 
 ConsensusNetIO::OnConnect()
 {
-    BOOST_LOG(_log) << "ConsensusNetIO - Connected to "
-                    << _endpoint << ". Remote delegate id: "
-                    << uint64_t(_remote_delegate_id);
+    LOG_INFO(_log) << "ConsensusNetIO - Connected to "
+                   << _endpoint << ". Remote delegate id: "
+                   << uint64_t(_remote_delegate_id);
 
     _connected = true;
 
@@ -117,10 +117,10 @@ ConsensusNetIO::OnConnect(
 {
     if(ec)
     {
-        BOOST_LOG(_log) << "ConsensusNetIO - Error connecting to "
-                        << _endpoint << " : " << ec.message()
-                        << " Retrying in " << int(CONNECT_RETRY_DELAY)
-                        << " seconds.";
+        LOG_WARN(_log) << "ConsensusNetIO - Error connecting to "
+                       << _endpoint << " : " << ec.message()
+                       << " Retrying in " << int(CONNECT_RETRY_DELAY)
+                       << " seconds.";
 
         _socket->close();
 
@@ -166,7 +166,7 @@ ConsensusNetIO::OnData(const uint8_t * data)
     {
         if (message_type != MessageType::Key_Advert)
         {
-            BOOST_LOG(_log) << "ConsensusNetIO - unexpected message type for consensus Any "
+            LOG_ERROR(_log) << "ConsensusNetIO - unexpected message type for consensus Any "
                             << data[2];
             return;
         }
@@ -185,7 +185,7 @@ ConsensusNetIO::OnData(const uint8_t * data)
 
         if (!(idx >= 0 && idx < CONSENSUS_TYPE_COUNT) || _connections[idx] == 0)
         {
-            BOOST_LOG(_log) << "ConsensusNetIO - _consensus_connections is NULL: "
+            LOG_ERROR(_log) << "ConsensusNetIO - _consensus_connections is NULL: "
                             << idx;
             return;
         }
@@ -218,10 +218,10 @@ ConsensusNetIO::AddConsensusConnection(
     ConsensusType t, 
     std::shared_ptr<PrequelParser> connection)
 {
-    BOOST_LOG(_log) << "ConsensusNetIO - Added consensus connection "
-                    << ConsensusToName(t)
-                    << ' ' << ConsensusTypeToIndex(t)
-                    << ' ' << uint64_t(_remote_delegate_id);
+    LOG_INFO(_log) << "ConsensusNetIO - Added consensus connection "
+                   << ConsensusToName(t)
+                   << ' ' << ConsensusTypeToIndex(t)
+                   << ' ' << uint64_t(_remote_delegate_id);
 
     _connections[ConsensusTypeToIndex(t)] = connection;
 }
@@ -231,7 +231,7 @@ ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
 {
     if(error)
     {
-        BOOST_LOG(_log) << "ConsensusConnection - Error on write to socket: "
+        LOG_ERROR(_log) << "ConsensusConnection - Error on write to socket: "
                         << error.message() << ". Remote endpoint: "
                         << _endpoint;
     }

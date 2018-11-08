@@ -823,26 +823,29 @@ void logos::block_store::checksum_del (MDB_txn * transaction_a, uint64_t prefix,
     assert (status == 0);
 }
 
-logos::block_hash logos::block_store::batch_block_put (BatchStateBlock const & block, MDB_txn * transaction)
+bool logos::block_store::batch_block_put (BatchStateBlock const & block, MDB_txn * transaction)
 {
-    auto result = block.Hash();
+    return batch_block_put(block, block.Hash(), transaction);
+}
 
-    auto status(mdb_put(transaction, batch_db, logos::mdb_val(result),
+bool logos::block_store::batch_block_put (BatchStateBlock const & block, const logos::block_hash & hash, MDB_txn * transaction)
+{
+    auto status(mdb_put(transaction, batch_db, logos::mdb_val(hash),
                         mdb_val(sizeof(BatchStateBlock),
                                 const_cast<BatchStateBlock *>(&block)), 0));
 
     assert(status == 0);
-
-    return result;
+    return status != 0;
 }
 
-void logos::block_store::state_block_put(state_block const & block, StateBlockLocator const & locator, MDB_txn * transaction)
+bool logos::block_store::state_block_put(state_block const & block, StateBlockLocator const & locator, MDB_txn * transaction)
 {
     auto status(mdb_put(transaction, state_db, logos::mdb_val(block.hash()),
                         mdb_val(sizeof(StateBlockLocator),
                                 const_cast<StateBlockLocator *>(&locator)), 0));
 
     assert(status == 0);
+    return status != 0;
 }
 
 bool logos::block_store::state_block_exists(const state_block & block)
@@ -864,6 +867,27 @@ bool logos::block_store::state_block_exists(const block_hash & hash)
 bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchStateBlock & block)
 {
     return get<BatchStateBlock>(batch_db, hash, block);
+}
+
+bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchStateBlock & block, MDB_txn * transaction)
+{
+    mdb_val value;
+    mdb_val key(hash);
+
+    auto status (mdb_get (transaction, batch_db, key, value));
+    assert (status == 0 || status == MDB_NOTFOUND);
+
+    bool result = false;
+    if (status == MDB_NOTFOUND)
+    {
+        result = true;
+    }
+    else
+    {
+        memcpy(&block, value.data(), value.size());
+    }
+
+    return result;
 }
 
 bool logos::block_store::state_block_get(const logos::block_hash & hash, logos::state_block & block, MDB_txn * transaction)
@@ -972,20 +996,22 @@ bool logos::block_store::account_db_empty()
     return begin == end;
 }
 
-void logos::block_store::account_put(const logos::account & account, const logos::account_info & info, MDB_txn * transaction)
+bool logos::block_store::account_put(const logos::account & account, const logos::account_info & info, MDB_txn * transaction)
 {
     auto status(mdb_put(transaction, account_db, logos::mdb_val(account), info.val(), 0));
 
     assert(status == 0);
+    return status != 0;
 }
 
-void logos::block_store::receive_put(const block_hash & hash, const state_block & block, MDB_txn * transaction)
+bool logos::block_store::receive_put(const block_hash & hash, const state_block & block, MDB_txn * transaction)
 {
     auto status(mdb_put(transaction, receive_db, logos::mdb_val(hash),
                         mdb_val(sizeof(state_block),
                                 const_cast<state_block *>(&block)), 0));
 
     assert(status == 0);
+    return status != 0;
 }
 
 bool logos::block_store::receive_exists(const block_hash & hash)
@@ -999,7 +1025,7 @@ bool logos::block_store::receive_exists(const block_hash & hash)
     return status == 0;
 }
 
-void logos::block_store::batch_tip_put(uint8_t delegate_id, const block_hash & hash, MDB_txn * transaction)
+bool logos::block_store::batch_tip_put(uint8_t delegate_id, const block_hash & hash, MDB_txn * transaction)
 {
     auto status(mdb_put(transaction, batch_tips_db, logos::mdb_val(sizeof(delegate_id),
                                                                  &delegate_id),
@@ -1007,6 +1033,7 @@ void logos::block_store::batch_tip_put(uint8_t delegate_id, const block_hash & h
                                 const_cast<block_hash *>(&hash)), 0));
 
     assert(status == 0);
+    return status != 0;
 }
 
 bool logos::block_store::batch_tip_get(uint8_t delegate_id, block_hash & hash)

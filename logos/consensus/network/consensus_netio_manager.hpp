@@ -18,13 +18,12 @@ class ChannelBinder;
 class ConsensusNetIOManager : public PeerManager
 {
 
-    using Service     = boost::asio::io_service;
-    using Endpoint    = boost::asio::ip::tcp::endpoint;
-    using Socket      = boost::asio::ip::tcp::socket;
-    using Log         = boost::log::sources::logger_mt;
-    using Config      = ConsensusManagerConfig;
-    using Address     = boost::asio::ip::address;
-    using Delegates   = std::vector<Config::Delegate>;
+    using Service   = boost::asio::io_service;
+    using Endpoint  = boost::asio::ip::tcp::endpoint;
+    using Socket    = boost::asio::ip::tcp::socket;
+    using Config    = ConsensusManagerConfig;
+    using Address   = boost::asio::ip::address;
+    using Delegates = std::vector<Config::Delegate>;
 
     //TODO: Should be unordered_map
     using Managers    = std::map<ConsensusType, ChannelBinder&>;
@@ -70,15 +69,15 @@ public:
 
 private:
 
-    Delegates            _delegates;          ///< List of all delegates
-    Managers             _consensus_managers; ///< Dictionary of registered consensus managers
-    Connections          _connections;        ///< NetIO connections
-    Log                  _log;                ///< boost asio log
-    logos::alarm &       _alarm;              ///< alarm
-    PeerAcceptor         _peer_acceptor;      ///< PeerAcceptor instance
-    DelegateKeyStore &   _key_store;          ///< Delegates' public key store
-    MessageValidator &   _validator;          ///< Validator/Signer of consensus messages
-    std::recursive_mutex _connection_mutex;   ///< NetIO connections access mutex
-    std::recursive_mutex _bind_mutex;         ///< NetIO consensus connections mutex
-    uint8_t              _delegate_id;        ///< The local delegate id
+    Delegates            _delegates;             ///< List of all delegates
+    Managers             _consensus_managers;    ///< Dictionary of registered consensus managers
+    Connections          _connections;           ///< NetIO connections
+    Log                  _log;                   ///< boost asio log
+    logos::alarm &       _alarm;                 ///< alarm
+    PeerAcceptor         _peer_acceptor;         ///< PeerAcceptor instance
+    DelegateKeyStore &   _key_store;             ///< Delegates' public key store
+    MessageValidator &   _validator;             ///< Validator/Signer of consensus messages
+    std::recursive_mutex _connection_mutex;      ///< NetIO connections access mutex
+    std::recursive_mutex _bind_mutex;            ///< NetIO consensus connections mutex
+    uint8_t              _delegate_id;           ///< The local delegate id
 };

@@ -24,18 +24,16 @@ public:
     ///     @param[in] validator validator/signer of consensus messages
     MicroBlockConsensusManager(Service & service,
                                Store & store,
-                               Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
 			       ArchiverMicroBlockHandler & handler,
 			       p2p_interface & p2p)
-       : Manager(service, store, log,
-		  config, key_store, validator, p2p)
+        : Manager(service, store, config,
+		  key_store, validator, p2p)
         , _microblock_handler(handler)
         , _enqueued(false)
-    {
-	}
+    {}
 
     ~MicroBlockConsensusManager() = default;
 
@@ -116,7 +114,7 @@ protected:
             std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
 private:
 
-    std::shared_ptr<PrePrepare>  _cur_microblock;     ///< Currently handled microblock
-    ArchiverMicroBlockHandler &  _microblock_handler; ///< Is used for validation and database commit
-	int                          _enqueued;           ///< Request is enqueued
+    std::shared_ptr<PrePrepare> _cur_microblock;     ///< Currently handled microblock
+    ArchiverMicroBlockHandler & _microblock_handler; ///< Is used for validation and database commit
+	int                         _enqueued;           ///< Request is enqueued
 };

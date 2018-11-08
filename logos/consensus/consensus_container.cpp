@@ -10,16 +10,15 @@
 ConsensusContainer::ConsensusContainer(Service & service,
                                        Store & store,
                                        logos::alarm & alarm,
-                                       Log & log,
                                        const Config & config,
 				       Archiver & archiver,
 				       p2p_interface & p2p)
     : _validator(_key_store)
-    , _batch_manager(service, store, log,
+    , _batch_manager(service, store,
 	    config.consensus_manager_config, _key_store, _validator, p2p)
-    , _micro_manager(service, store, log,
+    , _micro_manager(service, store,
 	    config.consensus_manager_config, _key_store, _validator, archiver, p2p)
-    , _epoch_manager(service, store, log,
+    , _epoch_manager(service, store,
 	    config.consensus_manager_config, _key_store, _validator, archiver, p2p)
     , _netio_manager(
         {
@@ -31,7 +30,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
 		_key_store, _validator)
 {}
 
-logos::process_return 
+logos::process_return
 ConsensusContainer::OnSendRequest(
     std::shared_ptr<logos::state_block> block, 
     bool should_buffer)
@@ -43,7 +42,6 @@ ConsensusContainer::OnSendRequest(
 	    result.code = logos::process_result::invalid_block_type;
 	    return result;
 	}
-
 
     using Request = RequestMessage<ConsensusType::BatchStateBlock>;
 
@@ -62,7 +60,7 @@ ConsensusContainer::OnSendRequest(
     return result;
 }
 
-void 
+void
 ConsensusContainer::BufferComplete(
     logos::process_return & result)
 {

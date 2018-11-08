@@ -1,12 +1,10 @@
 #include <logos/consensus/network/peer_acceptor.hpp>
 
 PeerAcceptor::PeerAcceptor(Service & service,
-                           Log & log,
                            const Endpoint & local_endpoint,
                            PeerManager * manager)
     : _acceptor(service)
     , _service(service)
-    , _log(log)
     , _local_endpoint(local_endpoint)
     , _manager(manager)
 {}
@@ -28,7 +26,7 @@ void PeerAcceptor::Start(const std::set<Address> & server_endpoints)
 
     if (ec)
     {
-        BOOST_LOG (_log) << "PeerAcceptor - Error while binding for Consensus on "
+        LOG_ERROR (_log) << "PeerAcceptor - Error while binding for Consensus on "
                          << _local_endpoint << " - "
                          << ec.message();
 
@@ -52,20 +50,20 @@ void PeerAcceptor::OnAccept(boost::system::error_code const & ec, std::shared_pt
 {
     if (ec)
     {
-       BOOST_LOG (_log) << "PeerAcceptor - Error while accepting peer connections: "
+       LOG_ERROR (_log) << "PeerAcceptor - Error while accepting peer connections: "
                         << ec.message();
        return;
     }
 
-    BOOST_LOG (_log) << "PeerAcceptor - Connection accepted from "
-                     << _accepted_endpoint;
+    LOG_INFO (_log) << "PeerAcceptor - Connection accepted from "
+                    << _accepted_endpoint;
 
     auto peer = _server_endpoints.find(_accepted_endpoint.address());
 
     if(peer == _server_endpoints.end())
     {
-        BOOST_LOG (_log) << "PeerAcceptor - Unrecognized peer: "
-                         << _accepted_endpoint.address();
+        LOG_WARN (_log) << "PeerAcceptor - Unrecognized peer: "
+                        << _accepted_endpoint.address();
     }
     else
     {
