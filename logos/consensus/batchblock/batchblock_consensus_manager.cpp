@@ -209,6 +209,13 @@ BatchBlockConsensusManager::PrimaryContains(const logos::block_hash &hash)
     return _handler.Contains(hash);
 }
 
+void
+BatchBlockConsensusManager::OnPostCommit(const PrePrepare & block)
+{
+    _handler.OnPostCommit(block);
+    Manager::OnPostCommit(block);
+}
+
 std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>>
 BatchBlockConsensusManager::MakeConsensusConnection(
     std::shared_ptr<IOChannel> iochannel,

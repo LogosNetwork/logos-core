@@ -15,6 +15,21 @@ void RequestHandler::OnRequest(std::shared_ptr<logos::state_block> block)
     _requests.get<0>().push_back(*block);
 }
 
+void RequestHandler::OnPostCommit(const BatchStateBlock & batch)
+{
+    auto & hashed = _requests.get<1>();
+
+    for(uint64_t pos = 0; pos < batch.block_count; ++pos)
+    {
+        auto hash = batch.blocks[pos].hash();
+
+        if(hashed.find(hash) != hashed.end())
+        {
+            hashed.erase(hash);
+        }
+    }
+}
+
 BatchStateBlock & RequestHandler::GetCurrentBatch()
 {
     return _current_batch;

@@ -36,6 +36,7 @@ public:
     RequestHandler();
 
     void OnRequest(std::shared_ptr<logos::state_block> block);
+    void OnPostCommit(const BatchStateBlock & batch);
 
     BatchStateBlock & PrepareNextBatch();
     BatchStateBlock & GetCurrentBatch();

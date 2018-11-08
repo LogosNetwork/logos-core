@@ -138,6 +138,8 @@ protected:
     /// @returns true if the request is in the list
     bool PrimaryContains(const logos::block_hash&) override;
 
+    void OnPostCommit(const PrePrepare & block) override;
+
     /// Create specialized instance of ConsensusConnection
     ///     @param iochannel NetIOChannel pointer
     ///     @param primary PrimaryDelegate pointer
