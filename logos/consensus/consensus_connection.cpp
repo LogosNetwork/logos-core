@@ -91,9 +91,19 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
     memcpy(_receive_buffer.data() + sizeof(Prequel), data,
            MessageTypeToSize<CT>(type) - sizeof(Prequel));
 
+    auto getmsg = [](MessageType type, uint8_t *data) {
+        std::string out = MessageToName(type);
+        if (type == MessageType::Rejection)
+        {
+            auto msg (*reinterpret_cast<const Rejection*>(data));
+            out += ":" + RejectionReasonToName(msg.reason);
+        }
+        return out;
+    };
+
     BOOST_LOG(_log) << "ConsensusConnection<"
                     << ConsensusToName(CT) << ">- Received "
-                    << MessageToName(type)
+                    << getmsg(type, _receive_buffer.data())
                     << " message, from delegate " << (int)_delegate_ids.remote;
 
     switch (type)
@@ -285,15 +295,16 @@ bool ConsensusConnection<ConsensusType::BatchStateBlock>::ValidateEpoch(
 {
     bool valid = true;
 
+    // received E#_i while already switched to new delegate's set, which is in E#_{i+1}
     if (_events_notifier.GetDelegate() == EpochTransitionDelegate::PersistentReject &&
-        message.epoch_number == (_events_notifier.GetEpochNumber() - 1))
+        message.epoch_number == _events_notifier.GetEpochNumber())
     {
         _reason = RejectionReason::New_Epoch;
         valid = false;
     }
     else if (message.epoch_number != _events_notifier.GetEpochNumber())
     {
-        _reason = RejectionReason::Invalid_Epoch; // TODO handle in the primary delegate
+        _reason = RejectionReason::Invalid_Epoch;
         valid = false;
     }
 

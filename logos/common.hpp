@@ -236,7 +236,7 @@ enum class process_result
     initializing,          // Logos - The delegate is currently initializing and is
                            //         not accepting transactions.
     insufficient_fee,      // Logos - Transaction fee is insufficient.
-    new_epoch              // LOGOS - Persistent delegates rejects PrePrepare once start proposing for new epoch
+    not_delegate           // Logos - A non-delegate node rejects transaction request
 };
 
 std::string ProcessResultToString(process_result result);

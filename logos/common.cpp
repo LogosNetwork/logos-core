@@ -792,8 +792,8 @@ std::string logos::ProcessResultToString(logos::process_result result)
     case process_result::insufficient_fee:
         ret = "Transaction fee is insufficient";
         break;
-    case process_result::new_epoch:
-         ret = "New Epoch";
+    case process_result::not_delegate:
+         ret = "Not a delegate";
         break;
     }
 

@@ -91,7 +91,7 @@ ConsensusContainer::OnSendRequest(
 
     if (_cur_epoch == nullptr)
     {
-        result.code = logos::process_result::not_implemented;
+        result.code = logos::process_result::not_delegate;
         BOOST_LOG(_log) << "ConsensusContainer::OnSendRequest transaction, the node is not a delegate, "
                         << (int)NodeIdentityManager::_global_delegate_idx;
         return result;
@@ -128,7 +128,7 @@ ConsensusContainer::BufferComplete(
 
     if (_cur_epoch == nullptr)
     {
-        result.code = logos::process_result::not_implemented;
+        result.code = logos::process_result::not_delegate;
         BOOST_LOG(_log) << "ConsensusContainer::OnSendRequest transaction, the node is not a delegate, "
                         << (int)NodeIdentityManager::_global_delegate_idx;
         return;
@@ -147,7 +147,7 @@ ConsensusContainer::OnSendRequest(
 
     if (_cur_epoch == nullptr)
     {
-        result.code = logos::process_result::not_implemented;
+        result.code = logos::process_result::not_delegate;
         BOOST_LOG(_log) << "ConsensusContainer::OnSendRequest microblock, the node is not a delegate, "
                         << (int)NodeIdentityManager::_global_delegate_idx;
         return result;
@@ -169,7 +169,7 @@ ConsensusContainer::OnSendRequest(
 
     if (_cur_epoch == nullptr)
     {
-        result.code = logos::process_result::not_implemented;
+        result.code = logos::process_result::not_delegate;
         BOOST_LOG(_log) << "ConsensusContainer::OnSendRequest epoch, the node is not a delegate, "
                         << (int)NodeIdentityManager::_global_delegate_idx;
         return result;
