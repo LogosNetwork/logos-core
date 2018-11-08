@@ -102,5 +102,7 @@ bool RequestHandler::Empty()
 
 bool RequestHandler::Contains(const BlockHash & hash)
 {
-    return _requests.get<1>().find(hash) != _requests.get<1>().end();
+    auto & hashed = _requests.get<1>();
+
+    return hashed.find(hash) != hashed.end();
 }
