@@ -24,18 +24,16 @@ public:
 	///     @param[in] events_notifier epoch transition helper
 	EpochConsensusManager(Service & service,
 	                      Store & store,
-	                      Log & log,
 					      const Config & config,
                           DelegateKeyStore & key_store,
                           MessageValidator & validator,
                           ArchiverEpochHandler & handler,
                           EpochEventsNotifier & events_notifier)
-		: Manager(service, store, log,
-				  config, key_store, validator, events_notifier)
+		: Manager(service, store, config,
+		          key_store, validator, events_notifier)
 		, _epoch_handler(handler)
 		, _enqueued(false)
-	{
-	}
+	{}
 
     ~EpochConsensusManager() = default;
 

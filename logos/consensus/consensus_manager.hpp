@@ -34,6 +34,8 @@ template<ConsensusType CT>
 class RequestPromoter
 {
 
+    using Store      = logos::block_store;
+
 protected:
     using Request    = RequestMessage<CT>;
     using PrePrepare = PrePrepareMessage<CT>;
@@ -41,7 +43,9 @@ protected:
 public:
 
     virtual void OnRequestReady(std::shared_ptr<Request> block) = 0;
-    virtual void OnPrePrepare(const PrePrepare & block) = 0;
+    virtual void OnPostCommit(const PrePrepare & block) = 0;
+    virtual Store & GetStore() = 0;
+
     virtual void AcquirePrePrepare(const PrePrepare & message) {}
 
     virtual ~RequestPromoter() {}
@@ -57,9 +61,8 @@ protected:
 
     using Service     = boost::asio::io_service;
     using Config      = ConsensusManagerConfig;
-    using Log         = boost::log::sources::logger_mt;
-    using Connections = std::vector<std::shared_ptr<ConsensusConnection<CT>>>;
     using Store       = logos::block_store;
+    using Connections = std::vector<std::shared_ptr<ConsensusConnection<CT>>>;
     using Manager     = ConsensusManager<CT>;
     using Request     = RequestMessage<CT>;
     using PrePrepare  = PrePrepareMessage<CT>;
@@ -68,7 +71,6 @@ public:
 
     ConsensusManager(Service & service,
                      Store & store,
-                     Log & log,
                      const Config & config,
                      DelegateKeyStore & key_store,
                      MessageValidator & validator,
@@ -88,7 +90,9 @@ public:
 
     void OnRequestReady(std::shared_ptr<Request> block) override;
 
-    void OnPrePrepare(const PrePrepare & block) override;
+    void OnPostCommit(const PrePrepare & block) override;
+
+    Store & GetStore() override;
 
     std::shared_ptr<PrequelParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
@@ -113,7 +117,6 @@ protected:
     void InitiateConsensus();
 
     virtual bool ReadyForConsensus();
-    bool StateReadyForConsensus();
 
     void QueueRequest(std::shared_ptr<Request>);
 
@@ -154,6 +157,7 @@ protected:
     }
 
     Connections                     _connections;
+    Store &                         _store;
     DelegateKeyStore &              _key_store;
     MessageValidator &              _validator;
     std::mutex                      _connection_mutex;

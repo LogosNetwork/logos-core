@@ -31,9 +31,9 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
     , _connection_mutex(connection_mutex)
     , _epoch_info(epoch_info)
 {
-    BOOST_LOG(_log) << "ConsensusNetIO - Trying to connect to: "
-                    <<  _endpoint << " remote delegate id "
-                    << (int)remote_delegate_id
+    LOG_INFO(_log) << "ConsensusNetIO - Trying to connect to: "
+                   <<  _endpoint << " remote delegate id "
+                   << (int)remote_delegate_id
                     << " connection " << _epoch_info.GetConnectionName();
 
     Connect();
@@ -81,7 +81,7 @@ ConsensusNetIO::Send(
 {
     if (!_connected)
     {
-        BOOST_LOG(_log) << "ConsensusNetIO - socket not connected yet";
+        LOG_WARN(_log) << "ConsensusNetIO - socket not connected yet";
         return;
     }
 
@@ -109,9 +109,9 @@ ConsensusNetIO::Send(
 void 
 ConsensusNetIO::OnConnect()
 {
-    BOOST_LOG(_log) << "ConsensusNetIO - Connected to "
-                    << _endpoint << ". Remote delegate id: "
-                    << uint64_t(_remote_delegate_id);
+    LOG_INFO(_log) << "ConsensusNetIO - Connected to "
+                   << _endpoint << ". Remote delegate id: "
+                   << uint64_t(_remote_delegate_id);
 
     _connected = true;
 
@@ -119,16 +119,16 @@ ConsensusNetIO::OnConnect()
     ReadPrequel();
 }
 
-void
+void 
 ConsensusNetIO::OnConnect(
     ErrorCode const & ec)
 {
     if(ec)
     {
-        BOOST_LOG(_log) << "ConsensusNetIO - Error connecting to "
-                        << _endpoint << " : " << ec.message()
-                        << " Retrying in " << int(CONNECT_RETRY_DELAY)
-                        << " seconds.";
+        LOG_WARN(_log) << "ConsensusNetIO - Error connecting to "
+                       << _endpoint << " : " << ec.message()
+                       << " Retrying in " << int(CONNECT_RETRY_DELAY)
+                       << " seconds.";
 
         _socket->close();
 
@@ -144,7 +144,7 @@ ConsensusNetIO::OnConnect(
                              [this, ids](const ErrorCode &ec, size_t){
         if(ec)
         {
-            BOOST_LOG(_log) << "ConsensusNetIO - Error writing connected client info " << ec.message();
+            LOG_ERROR(_log) << "ConsensusNetIO - Error writing connected client info " << ec.message();
             return;
         }
 
@@ -157,6 +157,7 @@ ConsensusNetIO::SendKeyAdvertisement()
 {
     KeyAdvertisement advert;
     advert.public_key = _validator.GetPublicKey();
+    advert.remote_delegate_id = _local_delegate_id;
     Send(advert);
 }
 
@@ -184,7 +185,7 @@ ConsensusNetIO::OnData(const uint8_t * data)
     {
         if (message_type != MessageType::Key_Advert)
         {
-            BOOST_LOG(_log) << "ConsensusNetIO - unexpected message type for consensus Any "
+            LOG_ERROR(_log) << "ConsensusNetIO - unexpected message type for consensus Any "
                             << data[2];
             return;
         }
@@ -203,7 +204,7 @@ ConsensusNetIO::OnData(const uint8_t * data)
 
         if (!(idx >= 0 && idx < CONSENSUS_TYPE_COUNT) || _connections[idx] == 0)
         {
-            BOOST_LOG(_log) << "ConsensusNetIO - _consensus_connections is NULL: "
+            LOG_ERROR(_log) << "ConsensusNetIO - _consensus_connections is NULL: "
                             << idx;
             return;
         }
@@ -233,10 +234,10 @@ ConsensusNetIO::AddConsensusConnection(
     ConsensusType t, 
     std::shared_ptr<PrequelParser> connection)
 {
-    BOOST_LOG(_log) << "ConsensusNetIO - Added consensus connection "
-                    << ConsensusToName(t)
-                    << ' ' << ConsensusTypeToIndex(t)
-                    << " local delegate " << uint64_t(_local_delegate_id)
+    LOG_INFO(_log) << "ConsensusNetIO - Added consensus connection "
+                   << ConsensusToName(t)
+                   << ' ' << ConsensusTypeToIndex(t)
+                   << " local delegate " << uint64_t(_local_delegate_id)
                     << " remote delegate " << uint64_t(_remote_delegate_id)
                     << " global " << (int)NodeIdentityManager::_global_delegate_idx
                     << " Connection " << _epoch_info.GetConnectionName();
@@ -251,7 +252,7 @@ ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
     {
         if (_connected)
         {
-            BOOST_LOG(_log) << "ConsensusConnection - Error on write to socket: "
+            LOG_ERROR(_log) << "ConsensusConnection - Error on write to socket: "
                             << error.message() << ". Remote endpoint: "
                             << _endpoint;
         }

@@ -6,8 +6,8 @@
 #include <logos/consensus/network/net_io_assembler.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/lib/log.hpp>
 
-#include <boost/log/sources/record_ostream.hpp>
 #include <boost/asio/io_service.hpp>
 
 #include <functional>
@@ -70,7 +70,6 @@ class ConsensusNetIO: public IOChannel,
     using Service       = boost::asio::io_service;
     using Endpoint      = boost::asio::ip::tcp::endpoint;
     using Socket        = boost::asio::ip::tcp::socket;
-    using Log           = boost::log::sources::logger_mt;
     using Address       = boost::asio::ip::address;
     using ErrorCode     = boost::system::error_code;
     using IOBinder      = function<void(std::shared_ptr<ConsensusNetIO>, uint8_t)>;
@@ -111,7 +110,6 @@ public:
     /// peer being connected acts as the server.
     ///     @param socket connected peer's socket
     ///     @param endpoint reference to peer's address/port
-    ///     @param keyadvert received key advertisement
     ///     @param alarm reference to alarm
     ///     @param remote_delegate_id id of connected delegate
     ///     @param key_store delegates' public key store
@@ -165,7 +163,7 @@ public:
     ///     @param bytes number of bytes to read
     ///     @param callback called upon reading data
     void AsyncRead(size_t bytes,
-                           ReadCallback callback) override;
+                   ReadCallback callback) override;
 
 
     void Close();

@@ -14,7 +14,7 @@ BBConsensusConnection::BBConsensusConnection(
         PersistenceManager & persistence_manager,
         MessageValidator & validator,
         const DelegateIdentities & ids,
-		Service & service,
+        Service & service,
         EpochEventsNotifier & events_notifier)
     : Connection(iochannel, primary, promoter,
                  validator, ids, events_notifier)
@@ -22,34 +22,42 @@ BBConsensusConnection::BBConsensusConnection(
     , _persistence_manager(persistence_manager)
 {}
 
-bool
-BBConsensusConnection::IsPrePrepared(
-    const logos::block_hash & hash)
-{
-    std::lock_guard<std::mutex> lock(_mutex);
-
-    if(!_pre_prepare)
-    {
-        return false;
-    }
-
-    for(uint64_t i = 0; i < _pre_prepare->block_count; ++i)
-    {
-        if(hash == _pre_prepare->blocks[i].hash())
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 /// Validate BatchStateBlock message.
 ///
 ///     @param message message to validate
 ///     @return true if validated false otherwise
 bool
 BBConsensusConnection::DoValidate(
+    const PrePrepare & message)
+{
+    if(!ValidateSequence(message))
+    {
+        return false;
+    }
+
+    if(!ValidateRequests(message))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+bool
+BBConsensusConnection::ValidateSequence(
+    const PrePrepare & message)
+{
+    if(_sequence_number != message.sequence)
+    {
+        _reason = RejectionReason::Wrong_Sequence_Number;
+        return false;
+    }
+
+    return true;
+}
+
+bool
+BBConsensusConnection::ValidateRequests(
     const PrePrepare & message)
 {
     bool valid = true;
@@ -83,6 +91,28 @@ BBConsensusConnection::ApplyUpdates(
     _persistence_manager.ApplyUpdates(block, delegate_id);
 }
 
+bool
+BBConsensusConnection::IsPrePrepared(
+    const logos::block_hash & hash)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    if(!_pre_prepare)
+    {
+        return false;
+    }
+
+    return _pre_prepare_hashes.find(hash) !=
+            _pre_prepare_hashes.end();
+}
+
+void
+BBConsensusConnection::DoUpdateMessage(Rejection & message)
+{
+    message.reason = _reason;
+    message.rejection_map = _rejection_map;
+}
+
 void
 BBConsensusConnection::Reject()
 {
@@ -93,6 +123,8 @@ BBConsensusConnection::Reject()
     case RejectionReason::Clock_Drift:
     case RejectionReason::Contains_Invalid_Request:
     case RejectionReason::Bad_Signature:
+    case RejectionReason::Invalid_Previous_Hash:
+    case RejectionReason::Wrong_Sequence_Number:
     case RejectionReason::Invalid_Epoch:
     case RejectionReason::New_Epoch:
         SendMessage<Rejection>();
@@ -109,6 +141,8 @@ BBConsensusConnection::HandleReject(const PrePrepare & message)
         case RejectionReason::Clock_Drift:
         case RejectionReason::Contains_Invalid_Request:
         case RejectionReason::Bad_Signature:
+        case RejectionReason::Invalid_Previous_Hash:
+        case RejectionReason::Wrong_Sequence_Number:
         case RejectionReason::Invalid_Epoch:
             break;
         case RejectionReason::New_Epoch:
@@ -118,21 +152,17 @@ BBConsensusConnection::HandleReject(const PrePrepare & message)
     }
 }
 
-BBConsensusConnection::Seconds
-BBConsensusConnection::GetTimeout(uint8_t min, uint8_t max)
-{
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis;
-    Seconds timeout(dis(gen));
-    return timeout;
-}
-
 void
 BBConsensusConnection::ScheduleTimer(Seconds timeout)
 {
     std::lock_guard<std::mutex> lock(_timer_mutex);
 
+    // The below condition is true when the timeout callback
+    // has been scheduled and is about to be invoked. In this
+    // case, the callback cannot be cancelled, and we have to
+    // 'manually' cancel the callback by setting _cancel_timer.
+    // When the callback is invoked, it will check this value
+    // and return early.
     if(!_timer.expires_from_now(timeout) && _callback_scheduled)
     {
         _cancel_timer = true;
@@ -147,24 +177,40 @@ BBConsensusConnection::ScheduleTimer(Seconds timeout)
     _callback_scheduled = true;
 }
 
+// XXX - If a Primary delegate re-proposes a subset of transactions
+//       and then fails to post commit the re-proposed batch, when
+//       a backup initiates fallback consensus, it is possible that
+//       a transaction omitted from the re-proposed batch is forgotten,
+//       since individual requests are not stored for fallback consensus.
 void
 BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
 {
-    ScheduleTimer(GetTimeout(TIMEOUT_MIN, TIMEOUT_MAX));
+    _pre_prepare_hashes.clear();
+
+    for(uint64_t i = 0; i < message.block_count; ++i)
+    {
+        _pre_prepare_hashes.insert(message.blocks[i].hash());
+    }
+
+    ScheduleTimer(GetTimeout());
 }
 
 void
-BBConsensusConnection::HandlePostPrepare(const PostPrepare & message)
+BBConsensusConnection::OnPostCommit()
 {
-    std::lock_guard<std::mutex> lock(_timer_mutex);
-
-    if(!_timer.cancel() && _callback_scheduled)
     {
-        _cancel_timer = true;
-        return;
+        std::lock_guard<std::mutex> lock(_timer_mutex);
+
+        if(!_timer.cancel() && _callback_scheduled)
+        {
+            _cancel_timer = true;
+            return;
+        }
+
+        _callback_scheduled = false;
     }
 
-    _callback_scheduled = false;
+    Connection::OnPostCommit();
 }
 
 void
@@ -195,11 +241,43 @@ BBConsensusConnection::ResetRejectionStatus()
     _rejection_map.reset();
 }
 
-void
-BBConsensusConnection::DoUpdateMessage(Rejection & message)
+bool
+BBConsensusConnection::IsSubset(const PrePrepare & message)
 {
-    message.reason = _reason;
-    message.rejection_map = _rejection_map;
+    for(uint64_t i = 0; i < message.block_count; ++i)
+    {
+        if(_pre_prepare_hashes.find(message.blocks[i].hash()) ==
+                _pre_prepare_hashes.end())
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool
+BBConsensusConnection::ValidateReProposal(const PrePrepare & message)
+{
+    return IsSubset(message);
+}
+
+BBConsensusConnection::Seconds
+BBConsensusConnection::GetTimeout()
+{
+    uint64_t offset = 0;
+    uint64_t x = std::rand() % NUM_DELEGATES;
+
+    if (x >= 2 && x < 4)
+    {
+        offset = TIMEOUT_RANGE/2;
+    }
+    else
+    {
+        offset = TIMEOUT_RANGE;
+    }
+
+    return Seconds(TIMEOUT_MIN + offset);
 }
 
 template<>

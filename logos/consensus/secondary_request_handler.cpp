@@ -31,8 +31,8 @@ void SecondaryRequestHandler<CT>::OnRequest(std::shared_ptr<RequestMessage<CT>> 
     std::lock_guard<std::mutex> lock(_mutex);
     if(_requests.get<1>().find(hash) != _requests.get<1>().end())
     {
-        BOOST_LOG(_log) << "Ignoring duplicate secondary request with hash: "
-                        << hash.to_string();
+        LOG_WARN(_log) << "Ignoring duplicate secondary request with hash: "
+                       << hash.to_string();
         return;
     }
 
@@ -54,9 +54,9 @@ void SecondaryRequestHandler<CT>::OnTimeout(const Error & error)
 
         if(error)
         {
-            BOOST_LOG(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT)
-                            << ">::OnTimeout - Error: "
-                            << error.message();
+            LOG_INFO(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT)
+                           << ">::OnTimeout - Error: "
+                           << error.message();
         }
 
         auto now = Clock::universal_time();
@@ -94,9 +94,9 @@ void SecondaryRequestHandler<CT>::OnTimeout(const Error & error)
 }
 
 template<ConsensusType CT>
-void SecondaryRequestHandler<CT>::OnPrePrepare(const PrePrepare & block)
+void SecondaryRequestHandler<CT>::OnPostCommit(const PrePrepare & message)
 {
-    PruneRequests(block);
+    PruneRequests(message);
 }
 
 template<ConsensusType CT>
@@ -114,10 +114,10 @@ void SecondaryRequestHandler<CT>::PruneRequest(const logos::block_hash & hash)
 
     if(_requests.get<1>().find(hash) != _requests.get<1>().end())
     {
-        BOOST_LOG(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT)
-                        << ">::PruneRequests - "
-                        << "Removing request with hash: "
-                        << hash.to_string();
+        LOG_INFO(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT)
+                       << ">::PruneRequests - "
+                       << "Removing request with hash: "
+                       << hash.to_string();
 
         _requests.get<1>().erase(hash);
     }

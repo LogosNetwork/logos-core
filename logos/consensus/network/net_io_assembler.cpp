@@ -3,8 +3,6 @@
 #include <logos/node/node_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 
-#include <boost/log/sources/record_ostream.hpp>
-
 NetIOAssembler::NetIOAssembler(std::shared_ptr<Socket> socket,
                                const std::atomic_bool & connected,
                                EpochInfo & epoch_info)
@@ -62,7 +60,7 @@ void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size
         // cancelled at the end of epoch transition
         if (_connected && !_epoch_info.IsWaitingDisconnect())
         {
-            BOOST_LOG(_log) << "NetIOAssembler - Error receiving message: "
+            LOG_ERROR(_log) << "NetIOAssembler - Error receiving message: "
                             << error.message() << " global " << (int)NodeIdentityManager::_global_delegate_idx
                             << " connection " << _epoch_info.GetConnectionName()
                             << " delegate " << _epoch_info.GetDelegateName()
@@ -75,7 +73,7 @@ void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size
 
     if(_buffer_size == BUFFER_CAPACITY)
     {
-        BOOST_LOG(_log) << "NetIOAssembler - Error: Buffer"
+        LOG_ERROR(_log) << "NetIOAssembler: Buffer"
                         << " size has reached capacity.";
     }
 

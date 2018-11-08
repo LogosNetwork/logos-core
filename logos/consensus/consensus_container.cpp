@@ -63,7 +63,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
         create(epoch_config);
     }
 
-    BOOST_LOG(_log) << "ConsensusContainer::ConsensusContainer initialized delegate is in epoch "
+    LOG_INFO(_log) << "ConsensusContainer::ConsensusContainer initialized delegate is in epoch "
                     << in_epoch << " epoch transition enabled " << _epoch_transition_enabled
                     << " " << (int)delegate_idx << " " << (int)NodeIdentityManager::_global_delegate_idx
                     << " " << _cur_epoch_number;
@@ -92,7 +92,7 @@ ConsensusContainer::OnSendRequest(
     if (_cur_epoch == nullptr)
     {
         result.code = logos::process_result::not_delegate;
-        BOOST_LOG(_log) << "ConsensusContainer::OnSendRequest transaction, the node is not a delegate, "
+        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest transaction, the node is not a delegate, "
                         << (int)NodeIdentityManager::_global_delegate_idx;
         return result;
     }
@@ -129,7 +129,7 @@ ConsensusContainer::BufferComplete(
     if (_cur_epoch == nullptr)
     {
         result.code = logos::process_result::not_delegate;
-        BOOST_LOG(_log) << "ConsensusContainer::OnSendRequest transaction, the node is not a delegate, "
+        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest transaction, the node is not a delegate, "
                         << (int)NodeIdentityManager::_global_delegate_idx;
         return;
     }
@@ -148,7 +148,7 @@ ConsensusContainer::OnSendRequest(
     if (_cur_epoch == nullptr)
     {
         result.code = logos::process_result::not_delegate;
-        BOOST_LOG(_log) << "ConsensusContainer::OnSendRequest microblock, the node is not a delegate, "
+        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest microblock, the node is not a delegate, "
                         << (int)NodeIdentityManager::_global_delegate_idx;
         return result;
     }
@@ -170,7 +170,7 @@ ConsensusContainer::OnSendRequest(
     if (_cur_epoch == nullptr)
     {
         result.code = logos::process_result::not_delegate;
-        BOOST_LOG(_log) << "ConsensusContainer::OnSendRequest epoch, the node is not a delegate, "
+        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest epoch, the node is not a delegate, "
                         << (int)NodeIdentityManager::_global_delegate_idx;
         return result;
     }
@@ -192,7 +192,7 @@ ConsensusContainer::PeerBinder(
     if (_cur_epoch == nullptr && _trans_epoch == nullptr)
     {
         socket->close();
-        BOOST_LOG(_log) << "ConsensusContainer::PeerBinder: the node is not accepting connections, "
+        LOG_WARN(_log) << "ConsensusContainer::PeerBinder: the node is not accepting connections, "
                         << (int)NodeIdentityManager::_global_delegate_idx;
         return;
     }
@@ -203,20 +203,20 @@ ConsensusContainer::PeerBinder(
     if (ids.connection == EpochConnection::Transitioning && _transition_state == EpochTransitionState::None)
     {
         _connections_queue.push(ConnectionCache{socket, ids, endpoint});
-        BOOST_LOG(_log) << "ConsensusContainer::PeerBinder: epoch transition has not started yet, "
+        LOG_WARN(_log) << "ConsensusContainer::PeerBinder: epoch transition has not started yet, "
                         << (int)NodeIdentityManager::_global_delegate_idx;
         return;
     }
 
     if (ids.connection == EpochConnection::WaitingDisconnect)
     {
-        BOOST_LOG(_log) << "ConsensusContainer::PeerBinder will not connect retiring delegate";
+        LOG_WARN(_log) << "ConsensusContainer::PeerBinder will not connect retiring delegate";
         return;
     }
 
     if (_binding_map.find(ids.epoch_number) == _binding_map.end())
     {
-        BOOST_LOG(_log) << "ConsensusContainer::PeerBinder epoch manager is not available for "
+        LOG_WARN(_log) << "ConsensusContainer::PeerBinder epoch manager is not available for "
                         << " delegate " << (int)ids.delegate_id << " connection "
                         << TransitionConnectionToName(ids.connection)
                         << " epoch " << ids.epoch_number;
@@ -225,7 +225,7 @@ ConsensusContainer::PeerBinder(
 
     auto epoch = _binding_map[ids.epoch_number];
 
-    BOOST_LOG(_log) << "ConsensusContainer::PeerBinder, binding connection "
+    LOG_INFO(_log) << "ConsensusContainer::PeerBinder, binding connection "
                     << TransitionConnectionToName(ids.connection) << " to "
                     << epoch->GetConnectionName()
                     << " delegate " << epoch->GetDelegateName()
@@ -244,7 +244,7 @@ ConsensusContainer::EpochTransitionEventsStart()
 
     if (!_epoch_transition_enabled)
     {
-        BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionEventsStart "
+        LOG_WARN(_log) << "ConsensusContainer::EpochTransitionEventsStart "
                            "epoch transition is not supported by this delegate "
                         << (int)NodeIdentityManager::_global_delegate_idx;
         return;
@@ -254,7 +254,7 @@ ConsensusContainer::EpochTransitionEventsStart()
 
     if (delegate_idx == NON_DELEGATE && _cur_epoch == nullptr)
     {
-        BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionEventsStart not a delegate in current or next epoch, "
+        LOG_WARN(_log) << "ConsensusContainer::EpochTransitionEventsStart not a delegate in current or next epoch, "
                         << (int)NodeIdentityManager::_global_delegate_idx;
         return;
     }
@@ -274,7 +274,7 @@ ConsensusContainer::EpochTransitionEventsStart()
 
     _transition_state = EpochTransitionState::Connecting;
 
-    BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionEventsStart : delegate "
+    LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEventsStart : delegate "
                     << TransitionStateToName(_transition_state) << " "
                     << TransitionDelegateToName(_transition_delegate) <<  " "
                     << (int)delegate_idx << " " << (int)NodeIdentityManager::_global_delegate_idx
@@ -290,7 +290,7 @@ ConsensusContainer::EpochTransitionEventsStart()
         {
             if (_cur_epoch == nullptr)
             {
-                BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionEventsStart current epoch is null";
+                LOG_ERROR(_log) << "ConsensusContainer::EpochTransitionEventsStart current epoch is null";
                 return;
             }
             _cur_epoch->_delegate = EpochTransitionDelegate::Persistent;
@@ -339,7 +339,7 @@ void
 ConsensusContainer::EpochTransitionStart(uint8_t delegate_idx)
 {
     std::lock_guard<std::mutex>   lock(_mutex);
-    BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionStart "
+    LOG_INFO(_log) << "ConsensusContainer::EpochTransitionStart "
                     << TransitionDelegateToName(_transition_delegate) <<  " "
                     << (int)delegate_idx
                     << " " << (int)NodeIdentityManager::_global_delegate_idx
@@ -351,7 +351,7 @@ ConsensusContainer::EpochTransitionStart(uint8_t delegate_idx)
     {
         if (_trans_epoch == nullptr || _cur_epoch != nullptr)
         {
-            BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionStart trans epoch is null "
+           LOG_WARN(_log) << "ConsensusContainer::EpochTransitionStart trans epoch is null "
                             << (_trans_epoch == nullptr) << " cur epoch is not null "
                             << (_cur_epoch != nullptr);
         }
@@ -373,7 +373,7 @@ ConsensusContainer::OnNewEpochPostCommit()
 
     if (_cur_epoch == nullptr || _trans_epoch == nullptr)
     {
-        BOOST_LOG(_log) << "ConsensusContainer::PersistentToReject trans epoch is null "
+        LOG_ERROR(_log) << "ConsensusContainer::PersistentToReject trans epoch is null "
                         << (_trans_epoch == nullptr) << " cur epoch is null " << (_cur_epoch == nullptr);
         return false;
     }
@@ -396,7 +396,7 @@ ConsensusContainer::OnNewEpochRejected()
 
     if (_cur_epoch == nullptr)
     {
-        BOOST_LOG(_log) << "ConsensusContainer::RetiringToForwardOnly cur epoch is null";
+        LOG_ERROR(_log) << "ConsensusContainer::RetiringToForwardOnly cur epoch is null";
         return false;
     }
     _cur_epoch->_delegate = EpochTransitionDelegate::RetiringForwardOnly;
@@ -413,7 +413,7 @@ void
 ConsensusContainer::EpochStart(uint8_t delegate_idx)
 {
 
-    BOOST_LOG(_log) << "ConsensusContainer::EpochStart "
+    LOG_INFO(_log) << "ConsensusContainer::EpochStart "
                     << TransitionDelegateToName(_transition_delegate) <<  " "
                     << (int)delegate_idx << " "
                     << (int)NodeIdentityManager::_global_delegate_idx << " " << (_cur_epoch_number + 1);
@@ -450,7 +450,7 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
     }
     else if (_cur_epoch == nullptr)
     {
-        BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionEnd cur epoch is null";
+        LOG_ERROR(_log) << "ConsensusContainer::EpochTransitionEnd cur epoch is null";
         return;
     }
     else
@@ -459,7 +459,7 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
         _cur_epoch->_connection_state = EpochConnection::Current;
     }
 
-    BOOST_LOG(_log) << "ConsensusContainer::EpochTransitionEnd "
+    LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEnd "
                     << TransitionDelegateToName(_transition_delegate)
                     << " " << (int)delegate_idx << " " << (int)NodeIdentityManager::_global_delegate_idx
                     << " " << _cur_epoch_number;

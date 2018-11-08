@@ -11,13 +11,12 @@ RequestHandler BatchBlockConsensusManager::_handler;
 BatchBlockConsensusManager::BatchBlockConsensusManager(
         Service & service,
         Store & store,
-        Log & log,
         const Config & config,
         DelegateKeyStore & key_store,
         MessageValidator & validator,
         EpochEventsNotifier & events_notifier)
-    : Manager(service, store, log,
-              config, key_store, validator, events_notifier)
+    : Manager(service, store, config,
+              key_store, validator, events_notifier)
     , _persistence_manager(store)
     , _init_timer(service)
     , _service(service)
@@ -32,7 +31,7 @@ BatchBlockConsensusManager::OnBenchmarkSendRequest(
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    BOOST_LOG (_log) << "BatchBlockConsensusManager::OnBenchmarkSendRequest() - hash: "
+    LOG_DEBUG (_log) << "BatchBlockConsensusManager::OnBenchmarkSendRequest() - hash: "
                      << block->hash().to_string();
 
     _using_buffered_blocks = true;
@@ -43,7 +42,7 @@ void
 BatchBlockConsensusManager::BufferComplete(
   logos::process_return & result)
 {
-    BOOST_LOG(_log) << "Buffered " << _buffer.size() << " blocks.";
+    LOG_DEBUG (_log) << "Buffered " << _buffer.size() << " blocks.";
 
     result.code = logos::process_result::buffering_done;
     SendBufferedBlocks();
@@ -60,7 +59,7 @@ BatchBlockConsensusManager::BindIOChannel(
                     _validator, ids, _service, _events_notifier);
 
     _connections.push_back(connection);
-
+	
     if(++_channels_bound == QUORUM_SIZE)
     {
         OnDelegatesConnected();
@@ -84,7 +83,7 @@ BatchBlockConsensusManager::SendBufferedBlocks()
 
     if(!_buffer.size())
     {
-        BOOST_LOG (_log) << "BatchBlockConsensusManager - No more buffered blocks for consensus"
+        LOG_DEBUG (_log) << "BatchBlockConsensusManager - No more buffered blocks for consensus"
                          << std::endl;
     }
 }
@@ -96,9 +95,9 @@ BatchBlockConsensusManager::Validate(
 {
     if(logos::validate_message(block->hashables.account, block->hash(), block->signature))
     {
-        BOOST_LOG(_log) << "BatchBlockConsensusManager - Validate, bad signature: " 
-                        << block->signature.to_string()
-                        << " account: " << block->hashables.account.to_string();
+        LOG_INFO(_log) << "BatchBlockConsensusManager - Validate, bad signature: "
+                       << block->signature.to_string()
+                       << " account: " << block->hashables.account.to_string();
 
         result.code = logos::process_result::bad_signature;
         return false;
@@ -132,9 +131,14 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
     auto & batch = reinterpret_cast<
             PrePrepare&>(_handler.GetNextBatch());
 
-    batch.timestamp = GetStamp();
     batch.sequence = _sequence;
+    batch.timestamp = GetStamp();
     batch.epoch_number = _events_notifier.GetEpochNumber();
+
+    for(uint64_t i = 0; i < batch.block_count; ++i)
+    {
+        _hashes.insert(batch.blocks[i].hash());
+    }
 
     return batch;
 }
@@ -228,30 +232,56 @@ BatchBlockConsensusManager::OnRejection(
 {
     switch(message.reason)
     {
-    case RejectionReason::Clock_Drift:
-        break;
     case RejectionReason::Contains_Invalid_Request:
     {
-        auto block_count = _handler.GetNextBatch().block_count;
+        auto batch = _handler.GetNextBatch();
+        auto block_count = batch.block_count;
 
         for(uint64_t i = 0; i < block_count; ++i)
         {
             if(!message.rejection_map[i])
             {
-                _weights[i].reject_weight++;
+                _weights[i].indirect_support_weight++;
                 _weights[i].supporting_delegates.insert(_cur_delegate_id);
+
+                if(_weights[i].indirect_support_weight + _prepare_weight >= QUORUM_SIZE)
+                {
+                    _hashes.erase(batch.blocks[i].hash());
+                }
             }
+            else
+            {
+                // TODO: Replace with total pool of delegate
+                //       weights defined by epoch block.
+                //
+                uint64_t total_weight = 32;
+
+                _weights[i].reject_weight++;
+
+                if(_weights[i].reject_weight > total_weight/3.0)
+                {
+                    _hashes.erase(batch.blocks[i].hash());
+                }
+            }
+        }
+
+        // All requests have been explicitly
+        // rejected or accepted.
+        if(_hashes.empty())
+        {
+            CancelTimer();
+            OnPrePrepareRejected();
         }
 
         break;
     }
-    case RejectionReason::Bad_Signature:
-        break;
-    case RejectionReason::Invalid_Epoch:
-        break;
     case RejectionReason::New_Epoch:
-        _new_epoch_rejection_cnt++;
-        break;
+       ++_new_epoch_rejection_cnt;
+    case RejectionReason::Clock_Drift:
+    case RejectionReason::Bad_Signature:
+    case RejectionReason::Invalid_Previous_Hash:
+    case RejectionReason::Wrong_Sequence_Number:
+    case RejectionReason::Invalid_Epoch:
     case RejectionReason::Void:
         break;
     }
@@ -294,8 +324,15 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
     // it.
     for(uint64_t i = 0; i < block_count; ++i)
     {
-        if(_prepare_weight + _weights[i].reject_weight >= QUORUM_SIZE)
+
+        // The below condition is true if the set of
+        // delegates that approve of the request at
+        // index i collectively have enough weight to
+        // get this request post-committed.
+        if(_prepare_weight + _weights[i].indirect_support_weight >= QUORUM_SIZE)
         {
+            // Was any other request approved by
+            // exactly the same set of delegates?
             auto entry = std::find_if(
                     subsets.begin(), subsets.end(),
                     [this, i](const SupportMap & map)
@@ -303,6 +340,8 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
                         return map.first == _weights[i].supporting_delegates;
                     });
 
+            // This specific set of supporting delegates
+            // doesn't exist yet. Create a new entry.
             if(entry == subsets.end())
             {
                 std::unordered_set<uint64_t> indexes;
@@ -313,6 +352,9 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
                                 _weights[i].supporting_delegates,
                                 indexes));
             }
+
+            // At least one other request was accepted
+            // the same set of delegates.
             else
             {
                 entry->second.insert(i);
@@ -349,6 +391,8 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
         auto b = a;
         b++;
 
+        // Compare set A to every set following it
+        // in the list.
         for(; b != subsets.end(); ++b)
         {
             auto & a_set = a->first;
@@ -358,8 +402,10 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 
             if(a_set.size() > b_set.size())
             {
+                // Does set A contain set B?
                 if(contains(a_set, b_set))
                 {
+                    // Merge sets
                     a->first = b->first;
                     a->second.insert(b->second.begin(),
                                      b->second.end());
@@ -369,8 +415,10 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
             }
             else
             {
+                // Does set B contain set A?
                 if(contains(b_set, a_set))
                 {
+                    // Merge sets
                     a->second.insert(b->second.begin(),
                                      b->second.end());
 
@@ -379,6 +427,8 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 
             }
 
+            // Modifying list while
+            // iterating it.
             if(advance)
             {
                 auto tmp = b;
@@ -408,6 +458,13 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
         {
             batches.back().blocks[i] = batch.blocks[*itr];
         }
+    }
+
+    // If no request can be proposed, send
+    // an empty BatchStateBlock to proceed.
+    if(batches.empty())
+    {
+        batches.push_back(BatchStateBlock());
     }
 
     _handler.PopFront();

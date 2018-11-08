@@ -7,8 +7,6 @@
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/consensus_state.hpp>
 
-#include <boost/log/sources/record_ostream.hpp>
-#include <boost/log/sources/logger.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/write.hpp>
@@ -40,7 +38,6 @@ class ConsensusConnection : public PrequelParser
 {
 protected:
 
-    using Log         = boost::log::sources::logger_mt;
     using PrePrepare  = PrePrepareMessage<CT>;
     using Prepare     = PrepareMessage<CT>;
     using Commit      = CommitMessage<CT>;
@@ -101,6 +98,9 @@ protected:
 
     template<typename M, typename S>
     bool ValidateSignature(const M & m, const S & s);
+    template<typename M>
+    bool ValidateSignature(const M & m);
+
     bool ValidateTimestamp(const PrePrepare & message);
 
     virtual bool DoValidate(const PrePrepare & message) = 0;
@@ -134,10 +134,9 @@ protected:
     void StoreResponse(const Commit & message);
     void StoreResponse(const Rejection & message);
 
-    void OnPrePrepare(const PrePrepare & message);
     void SetPrePrepare(const PrePrepare & message);
     virtual void HandlePrePrepare(const PrePrepare & message);
-    virtual void HandlePostPrepare(const PostPrepare & message);
+    virtual void OnPostCommit();
 
     template<typename M>
     void UpdateMessage(M & message);
@@ -145,6 +144,8 @@ protected:
     virtual void Reject();
     virtual void ResetRejectionStatus();
     virtual void HandleReject(const PrePrepare & message) {}
+
+    virtual bool ValidateReProposal(const PrePrepare & message);
 
 
     std::shared_ptr<IOChannel>  _iochannel;
@@ -155,6 +156,7 @@ protected:
     std::shared_ptr<Commit>     _commit;
     uint64_t                    _pre_prepare_timestamp = 0;
     BlockHash                   _pre_prepare_hash;
+    BlockHash                   _prev_pre_prepare_hash = 0;
     DelegateIdentities          _delegate_ids;
     RejectionReason             _reason;
     MessageValidator &          _validator;
@@ -163,6 +165,5 @@ protected:
     ConsensusState              _state = ConsensusState::VOID;
     RequestPromoter<CT> &       _promoter; ///< secondary list request promoter
     uint64_t                    _sequence_number = 0;
-    BlockHash                   _previous_hash   = 0;
     EpochEventsNotifier &       _events_notifier;
 };

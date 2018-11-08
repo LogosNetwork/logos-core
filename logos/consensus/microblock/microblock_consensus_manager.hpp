@@ -25,18 +25,16 @@ public:
     ///     @param[in] events_notifier epoch transition helper
     MicroBlockConsensusManager(Service & service,
                                Store & store,
-                               Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
                                ArchiverMicroBlockHandler & handler,
                                EpochEventsNotifier & events_notifier)
-        : Manager(service, store, log,
-                  config, key_store, validator, events_notifier)
+        : Manager(service, store, config,
+                  key_store, validator, events_notifier)
         , _microblock_handler(handler)
         , _enqueued(false)
-    {
-	}
+    {}
 
     ~MicroBlockConsensusManager() = default;
 

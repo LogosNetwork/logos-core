@@ -3,9 +3,7 @@
 #include <logos/node/common.hpp>
 #include <logos/lib/blocks.hpp>
 #include <logos/blockstore.hpp>
-
-#include <boost/log/sources/record_ostream.hpp>
-#include <boost/log/sources/logger.hpp>
+#include <logos/lib/log.hpp>
 
 #include <unordered_set>
 
@@ -18,7 +16,6 @@ class PersistenceManager
     class Reservations;
 
     using Store        = logos::block_store;
-    using Log          = boost::log::sources::logger_mt;
     using Hash         = logos::block_hash;
     using BlockCache   = std::unordered_set<Hash>;
 

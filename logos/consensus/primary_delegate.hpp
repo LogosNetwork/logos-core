@@ -5,17 +5,15 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/consensus_state.hpp>
 #include <logos/consensus/messages/util.hpp>
+#include <logos/lib/log.hpp>
 
-#include <boost/log/sources/record_ostream.hpp>
 #include <boost/asio/deadline_timer.hpp>
-#include <boost/log/sources/logger.hpp>
 #include <boost/asio/io_service.hpp>
 
 class PrimaryDelegate
 {
     friend class Archiver;
 
-    using Log        = boost::log::sources::logger_mt;
     using Signatures = std::vector<MessageValidator::DelegateSignature>;
     using Timer      = boost::asio::deadline_timer;
     using Error      = boost::system::error_code;
@@ -56,10 +54,15 @@ protected:
     template<ConsensusType C>
     void OnConsensusInitiated(const PrePrepareMessage<C> & block);
 
+    bool StateReadyForConsensus();
+    void CancelTimer();
+
     // TODO: Revert to std::mutex after
     //       benchmark.
     //
     std::recursive_mutex _mutex;
+    BlockHash            _prev_batch_hash = 0;
+    BlockHash            _cur_batch_hash  = 0;
     ConsensusState       _state           = ConsensusState::VOID;
     uint64_t             _prepare_weight  = 0;
     uint8_t              _cur_delegate_id = 0;
@@ -93,7 +96,7 @@ private:
                    ConsensusState expected_state);
 
     template<ConsensusType C>
-    void CycleTimers();
+    void CycleTimers(bool cancel = false);
 
     bool ReachedQuorum();
     bool AllDelegatesResponded();
@@ -113,7 +116,6 @@ private:
     MessageValidator & _validator;
     Timer              _recall_timer;
     Timer              _primary_timer;
-    BlockHash          _cur_batch_hash;
     uint64_t           _cur_batch_timestamp = 0;
     uint8_t            _delegates_responded = 0;
     bool               _timer_cancelled     = false;

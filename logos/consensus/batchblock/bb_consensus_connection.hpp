@@ -15,6 +15,7 @@ class BBConsensusConnection : public ConsensusConnection<ConsensusType::BatchSta
     using Timer      = boost::asio::deadline_timer;
     using Seconds    = boost::posix_time::seconds;
     using Error      = boost::system::error_code;
+    using Hashes     = std::unordered_set<BlockHash>;
 
 public:
 
@@ -28,13 +29,13 @@ public:
     /// @param ids remote/local delegate id [in]
     /// @param events_notifier epoch transition helper [in]
     BBConsensusConnection(std::shared_ptr<IOChannel> iochannel,
-                                  PrimaryDelegate & primary,
-                                  Promoter & promoter,
-                                  PersistenceManager & persistence_manager,
-                                  MessageValidator & validator,
-                                  const DelegateIdentities & ids,
-								  Service & service,
-                                  EpochEventsNotifier & events_notifier);
+                          PrimaryDelegate & primary,
+                          Promoter & promoter,
+                          PersistenceManager & persistence_manager,
+                          MessageValidator & validator,
+                          const DelegateIdentities & ids,
+						  Service & service,
+                          EpochEventsNotifier & events_notifier);
     ~BBConsensusConnection() {}
 
     /// Validate PrePrepare message
@@ -53,12 +54,15 @@ public:
 
 private:
 
-    static constexpr uint8_t TIMEOUT_MIN = 10;
-    static constexpr uint8_t TIMEOUT_MAX = 30;
+    static constexpr uint8_t TIMEOUT_MIN   = 20;
+    static constexpr uint8_t TIMEOUT_RANGE = 40;
     static constexpr uint8_t TIMEOUT_MAX_NEW_EPOCH = 20;
 
+    bool ValidateSequence(const PrePrepare & message);
+    bool ValidateRequests(const PrePrepare & message);
+
     void HandlePrePrepare(const PrePrepare & message) override;
-    void HandlePostPrepare(const PostPrepare & message) override;
+    void OnPostCommit() override;
 
     void OnPrePrepareTimeout(const Error & error);
 
@@ -67,8 +71,15 @@ private:
     void HandleReject(const PrePrepare&);
 
     void ScheduleTimer(Seconds timeout);
-    Seconds GetTimeout(uint8_t min, uint8_t max);
 
+    bool IsSubset(const PrePrepare & message);
+
+    bool ValidateReProposal(const PrePrepare & message) override;
+
+    Seconds GetTimeout();
+
+
+    Hashes               _pre_prepare_hashes;
     Timer                _timer;
     RejectionMap         _rejection_map;       ///< Sets a bit for each rejected request from the PrePrepare.
     PersistenceManager & _persistence_manager; ///< PersistenceManager reference.

@@ -16,12 +16,14 @@ class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchSt
     using Seconds     = boost::posix_time::seconds;
     using Timer       = boost::asio::deadline_timer;
     using Error       = boost::system::error_code;
+    using Hashes      = std::unordered_set<BlockHash>;
 
     struct Weights
     {
         using Delegates = std::unordered_set<uint8_t>;
 
-        uint64_t  reject_weight = 0;
+        uint64_t  reject_weight           = 0;
+        uint64_t  indirect_support_weight = 0;
         Delegates supporting_delegates;
     };
 
@@ -41,7 +43,6 @@ public:
     ///     @param[in] events_notifier transition helper
     BatchBlockConsensusManager(Service & service,
                                Store & store,
-                               Log & log,
                                const Config & config,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
@@ -62,9 +63,18 @@ public:
     ///     @param[out] result result of the operation
     void BufferComplete(logos::process_return & result);
 
+    /// Called to bind a ConsensusConnection to a
+    /// ConsensusNetIO.
+    ///
+    /// This is an overridden method that is specialized
+    /// for BatchBlock Consensus.
+    ///     @param[in] iochannel pointer to ConsensusNetIO
+    ///                interface.
+    ///     @param[in] ids Delegate IDs for the local and
+    ///                remote delegates.
     std::shared_ptr<PrequelParser>
-    BindIOChannel(std::shared_ptr<IOChannel>,
-                  const DelegateIdentities &) override;
+    BindIOChannel(std::shared_ptr<IOChannel> iochannel,
+                  const DelegateIdentities & ids) override;
 
 protected:
 
@@ -164,6 +174,7 @@ private:
     void OnDelegatesConnected();
 
     WeightList         _weights;
+    Hashes             _hashes;
     bool               _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
     BlockBuffer        _buffer;                        ///< Buffered state blocks.
     static RequestHandler   _handler;                  ///< Primary queue of batch state blocks.

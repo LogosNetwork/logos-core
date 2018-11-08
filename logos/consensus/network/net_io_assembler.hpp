@@ -1,7 +1,7 @@
 #pragma once
 
 #include <logos/consensus/messages/messages.hpp>
-#include <boost/log/sources/logger.hpp>
+#include <logos/lib/log.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/read.hpp>
 
@@ -13,7 +13,6 @@ class NetIOAssembler
 {
 
     using Socket = boost::asio::ip::tcp::socket;
-    using Log    = boost::log::sources::logger_mt;
 
     using ReadCallback =
             std::function<void(const uint8_t * data)>;

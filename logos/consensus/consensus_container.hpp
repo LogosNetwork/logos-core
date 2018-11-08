@@ -110,7 +110,6 @@ public:
     ConsensusContainer(Service & service,
                        Store & store,
                        logos::alarm & alarm,
-                       Log & log,
                        const Config & config,
                        Archiver & archiver,
                        NodeIdentityManager & identity_manager);
@@ -211,7 +210,7 @@ private:
     Store &                             _store;                     ///< block store reference
     Alarm &                             _alarm;                     ///< alarm reference
     const Config &                      _config;                    ///< consensus configuration reference
-    Log &                               _log;                       ///< boost log
+    Log                                 _log;                       ///< boost log
     Archiver &                          _archiver;                  ///< archiver (epoch/microblock) handler
     NodeIdentityManager &               _identity_manager;          ///< identity manager reference
     std::atomic<EpochTransitionState>   _transition_state;          ///< transition state
