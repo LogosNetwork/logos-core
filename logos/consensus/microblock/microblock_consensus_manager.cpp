@@ -23,9 +23,8 @@ MicroBlockConsensusManager::Validate(
 }
 
 bool
-MicroBlockConsensusManager::Validate(
-    const PrePrepare & message,
-    uint8_t delegate_id)
+MicroBlockConsensusManager::DoValidate(
+    const PrePrepare & message)
 {
     return _microblock_handler.Validate(message);
 }

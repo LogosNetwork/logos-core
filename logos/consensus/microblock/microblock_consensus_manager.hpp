@@ -73,8 +73,7 @@ protected:
 
     /// Validates PrePrepare message.
     ///     @return true if validated false otherwise
-    bool Validate(const PrePrepare & message,
-	uint8_t delegate_id) override;
+    bool DoValidate(const PrePrepare & message) override;
 
     /// Queues micro block.
     void QueueRequestPrimary(std::shared_ptr<Request>) override;

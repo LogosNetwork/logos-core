@@ -1,10 +1,9 @@
 #pragma once
 
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/lib/log.hpp>
 #include <logos/p2p/p2p.h>
 
-#include <boost/log/sources/record_ostream.hpp>
-#include <boost/log/sources/logger.hpp>
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
 #include <functional>
@@ -12,12 +11,10 @@
 template<ConsensusType CT>
 class ConsensusP2p
 {
-    using Log        = boost::log::sources::logger_mt;
 
 public:
 
-    ConsensusP2p(Log & log,
-		 p2p_interface & p2p,
+    ConsensusP2p(p2p_interface & p2p,
 		 uint8_t delegate_id,
 		 std::function<bool (const Prequel &, MessageType, uint8_t)> Validate,
 		 boost::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates);

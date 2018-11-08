@@ -18,11 +18,11 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
     , _validator(validator)
     , _primary(primary)
     , _promoter(promoter)
-    , _consensus_p2p(_log, p2p, ids.remote,
+    , _consensus_p2p(p2p, ids.remote,
 	[this](const Prequel &message, MessageType mtype, uint8_t delegate_id) {
 		return mtype == MessageType::Pre_Prepare  ? this->Validate((PrePrepare  &)message)
-		     : mtype == MessageType::Post_Prepare ? this->Validate((PostPrepare &)message)
-		     : mtype == MessageType::Post_Commit  ? this->Validate((PostCommit  &)message)
+		     : mtype == MessageType::Post_Prepare ? this->ValidateSignature((PostPrepare &)message)
+		     : mtype == MessageType::Post_Commit  ? this->ValidateSignature((PostCommit  &)message)
 		     : false;
 	},
 	boost::bind(&ConsensusConnection<CT>::ApplyUpdates, this, _1, _2))

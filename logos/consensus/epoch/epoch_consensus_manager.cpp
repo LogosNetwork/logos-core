@@ -27,9 +27,8 @@ EpochConsensusManager::Validate(
 }
 
 bool
-EpochConsensusManager::Validate(
-    const PrePrepare & message,
-    uint8_t delegate_id)
+EpochConsensusManager::DoValidate(
+    const PrePrepare & message)
 {
     return _epoch_handler.Validate(message);
 }
