@@ -33,9 +33,9 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
 
     auto hash = block->hash();
 
-    BOOST_LOG (_log) << "ConsensusManager<" << ConsensusToName(CT)
-                     << ">::OnSendRequest() - hash: "
-                     << hash.to_string();
+    LOG_INFO (_log) << "ConsensusManager<" << ConsensusToName(CT)
+                    << ">::OnSendRequest() - hash: "
+                    << hash.to_string();
 
     if(_state == ConsensusState::INITIALIZING)
     {
@@ -46,18 +46,18 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
     if(IsPendingRequest(block))
     {
         result.code = logos::process_result::pending;
-        BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT)
-                        << "> - pending request "
-                        << hash.to_string();
+        LOG_INFO(_log) << "ConsensusManager<" << ConsensusToName(CT)
+                       << "> - pending request "
+                       << hash.to_string();
         return;
     }
 
     if(!Validate(block, result))
     {
-        BOOST_LOG(_log) << "ConsensusManager - block validation for send request failed."
-                        << " Result code: "
-                        << logos::ProcessResultToString(result.code)
-                        << " hash: " << hash.to_string();
+        LOG_INFO(_log) << "ConsensusManager - block validation for send request failed."
+                       << " Result code: "
+                       << logos::ProcessResultToString(result.code)
+                       << " hash: " << hash.to_string();
         return;
     }
 
@@ -120,7 +120,7 @@ void ConsensusManager<CT>::OnConsensusReached()
         static uint64_t messages_stored = 0;
         messages_stored += GetStoredCount();
 
-        BOOST_LOG(_log) << "ConsensusManager<"
+        LOG_DEBUG(_log) << "ConsensusManager<"
                         << ConsensusToName(CT)
                         << "> - Stored "
                         << messages_stored
@@ -140,19 +140,19 @@ void ConsensusManager<CT>::OnConsensusReached()
 template<ConsensusType CT>
 void ConsensusManager<CT>::InitiateConsensus()
 {
-    BOOST_LOG(_log) << "Initiating "
-                    << ConsensusToName(CT)
-                    << " consensus.";
+    LOG_INFO(_log) << "Initiating "
+                   << ConsensusToName(CT)
+                   << " consensus.";
 
     auto & pre_prepare = PrePrepareGetNext();
     pre_prepare.previous = _prev_batch_hash;
 
     OnConsensusInitiated(pre_prepare);
 
+    _state = ConsensusState::PRE_PREPARE;
+
     _validator.Sign(pre_prepare);
     Send(&pre_prepare, sizeof(PrePrepare));
-
-    _state = ConsensusState::PRE_PREPARE;
 }
 
 template<ConsensusType CT>

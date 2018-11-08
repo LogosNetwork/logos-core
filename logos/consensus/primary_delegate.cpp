@@ -114,7 +114,7 @@ void PrimaryDelegate::OnTimeout(const Error & error,
 
     auto timeout_str = timeout + " (" + ConsensusToName(C) + ")";
 
-    BOOST_LOG(_log) << timeout_str
+    LOG_DEBUG(_log) << timeout_str
                     << " timeout expired."
                     << "Error code: "
                     << error.message();
@@ -132,16 +132,16 @@ void PrimaryDelegate::OnTimeout(const Error & error,
             return;
         }
 
-        BOOST_LOG(_log) << timeout_str
+        LOG_ERROR(_log) << timeout_str
                         << " timeout - Error: "
                         << error.message();
     }
 
     if(_state != expected_state)
     {
-        BOOST_LOG(_log) << timeout_str
-                        << " timeout expired during unexpected state."
-                        << " Aborting timeout.";
+        LOG_WARN(_log) << timeout_str
+                       << " timeout expired during unexpected state."
+                       << " Aborting timeout.";
         return;
     }
 
@@ -193,8 +193,8 @@ void PrimaryDelegate::UpdateVotes()
 template<ConsensusType C>
 void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
 {
-    BOOST_LOG(_log) << "PrimaryDelegate - Initiating Consensus with PrePrepare hash: "
-                    << block.Hash().to_string();
+    LOG_INFO(_log) << "PrimaryDelegate - Initiating Consensus with PrePrepare hash: "
+                   << block.Hash().to_string();
 
     _cur_batch_hash = block.Hash();
     _cur_batch_timestamp = block.timestamp;
@@ -230,10 +230,10 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
 {
     if(_state != expected_state)
     {
-        BOOST_LOG(_log) << "PrimaryDelegate - Disregarding message: Received "
-                        << MessageToName(message)
-                        << " message while in "
-                        << StateToString(_state);
+        LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received "
+                       << MessageToName(message)
+                       << " message while in "
+                       << StateToString(_state);
 
         return false;
     }
@@ -253,6 +253,11 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
     }
     else
     {
+        LOG_WARN(_log) << "PrimaryDelegate - Failed to validate signature for "
+                       << MessageToName(message)
+                       << " while in state: "
+                       << StateToString(_state)
+                       << std::endl;
         return false;
     }
 
