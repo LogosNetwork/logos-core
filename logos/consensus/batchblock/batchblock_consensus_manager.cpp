@@ -224,10 +224,8 @@ BatchBlockConsensusManager::AcquirePrePrepare(const PrePrepare & message)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    // TODO: Initiate consensus now if not already
-    //       in progress.
-    //
     _handler.Acquire(message);
+    OnRequestQueued();
 }
 
 void
