@@ -84,10 +84,6 @@ protected:
 	///		@return true if empty false otherwise
     bool PrePrepareQueueEmpty() override;
 
-    /// Checks if the MicroBlock queue is full.
-    ///     @return true if full false otherwise
-    bool PrePrepareQueueFull() override;
-
     /// Primary list contains request with the hash
     /// @param request's hash
     /// @returns true if the request is in the list

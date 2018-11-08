@@ -106,18 +106,18 @@ protected:
     virtual uint64_t GetStoredCount() = 0;
 
     void OnConsensusReached() override;
-    void InitiateConsensus();
+    virtual void InitiateConsensus();
 
     virtual bool ReadyForConsensus();
 
     void QueueRequest(std::shared_ptr<Request>);
 
+    virtual PrePrepare & PrePrepareGetNext() = 0;
+
     virtual void PrePreparePopFront() {};
     virtual void QueueRequestPrimary(std::shared_ptr<Request>) = 0;
     virtual void QueueRequestSecondary(std::shared_ptr<Request>);
-    virtual PrePrepare & PrePrepareGetNext() = 0;
     virtual bool PrePrepareQueueEmpty() = 0;
-    virtual bool PrePrepareQueueFull() = 0;
     virtual bool PrimaryContains(const logos::block_hash&) = 0;
     virtual bool SecondaryContains(const logos::block_hash&);
 

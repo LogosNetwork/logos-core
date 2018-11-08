@@ -49,12 +49,6 @@ MicroBlockConsensusManager::PrePrepareQueueEmpty()
     return !_enqueued;
 }
 
-bool
-MicroBlockConsensusManager::PrePrepareQueueFull()
-{
-    return _enqueued;
-}
-
 void
 MicroBlockConsensusManager::ApplyUpdates(
     const PrePrepare & pre_prepare,

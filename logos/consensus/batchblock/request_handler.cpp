@@ -1,5 +1,5 @@
 #include <logos/consensus/batchblock/request_handler.hpp>
-
+#include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/blocks.hpp>
 
 RequestHandler::RequestHandler()
@@ -7,107 +7,85 @@ RequestHandler::RequestHandler()
     // After startup consensus is performed
     // with an empty batch block.
     //
-    _batches.push_back(BatchStateBlock());
-    _batches.push_back(BatchStateBlock());
-
-    _handle = _batches.end();
-    _handle--;
+    _requests.get<0>().push_back(logos::state_block());
 }
 
 void RequestHandler::OnRequest(std::shared_ptr<logos::state_block> block)
 {
-    if(_batches.empty())
+    _requests.get<0>().push_back(*block);
+}
+
+BatchStateBlock & RequestHandler::GetCurrentBatch()
+{
+    return _current_batch;
+}
+
+BatchStateBlock & RequestHandler::PrepareNextBatch()
+{
+    _current_batch = BatchStateBlock();
+
+    auto & sequence = _requests.get<0>();
+
+    for(auto pos = sequence.begin(); pos != sequence.end(); ++pos)
     {
-        _batches.push_back(BatchStateBlock());
-        _handle = _batches.begin();
+        if(pos->hashables.account.is_zero() && pos->hashables.link.is_zero())
+        {
+            sequence.erase(pos);
+            break;
+        }
+
+        _current_batch.blocks[_current_batch.block_count++] = *pos;
     }
 
-    InsertBlock(block);
+    return _current_batch;
 }
 
-BatchStateBlock & RequestHandler::GetNextBatch()
+void RequestHandler::InsertFront(const std::list<logos::state_block> & blocks)
 {
-    return _batches.front();
+    auto & sequenced = _requests.get<0>();
+
+    sequenced.insert(sequenced.begin(), blocks.begin(), blocks.end());
 }
 
-void RequestHandler::InsertFront(const BatchList & batches)
+void RequestHandler::Acquire(const BatchStateBlock & batch)
 {
-    _batches.insert(_batches.begin(), batches.begin(), batches.end());
+    auto & sequenced = _requests.get<0>();
+    auto & hashed = _requests.get<1>();
 
-    if(_batches.size() == batches.size())
+    for(uint64_t pos = 0; pos < batch.block_count; ++pos)
     {
-        PushBackEmptyBatch();
+        auto & block = batch.blocks[pos];
+
+        if(hashed.find(block.hash()) == hashed.end())
+        {
+            sequenced.push_back(block);
+        }
     }
-}
-
-void RequestHandler::PushBack(const BatchStateBlock & batch)
-{
-    _batches.insert(_batches.end(), batch);
-
-    PushBackEmptyBatch();
 }
 
 void RequestHandler::PopFront()
 {
-    if(_batches.size() == 1)
+    auto & hashed = _requests.get<1>();
+
+    for(uint64_t pos = 0; pos < _current_batch.block_count; ++pos)
     {
-        _batch_index = 0;
+        hashed.erase(_current_batch.blocks[pos].hash());
     }
 
-    _batches.pop_front();
+    _current_batch = BatchStateBlock();
 }
 
 bool RequestHandler::BatchFull()
 {
-    return _batches.size() && _batches.front().block_count == CONSENSUS_BATCH_SIZE;
+    return _current_batch.block_count == CONSENSUS_BATCH_SIZE;
 }
 
 bool RequestHandler::Empty()
 {
-    if(_batches.size() == 1)
-    {
-        return !_batches.front().block_count;
-    }
-
-    return _batches.empty();
+    return _requests.empty();
 }
 
-bool RequestHandler::Contains(const logos::block_hash & hash)
+bool RequestHandler::Contains(const BlockHash & hash)
 {
-    for(auto & batch : _batches)
-    {
-        for(uint64_t i = 0; i < batch.block_count; ++i)
-        {
-            if(hash == batch.blocks[i].hash())
-            {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-
-void RequestHandler::InsertBlock(std::shared_ptr<logos::state_block> block)
-{
-    if(_batch_index == CONSENSUS_BATCH_SIZE)
-    {
-        _batches.push_back(BatchStateBlock());
-
-        _batch_index = 0;
-        _handle++;
-    }
-
-    _handle->blocks[_batch_index++] = *block;
-    _handle->block_count++;
-}
-
-void RequestHandler::PushBackEmptyBatch()
-{
-    _batches.push_back(BatchStateBlock());
-
-    _handle = _batches.end();
-    _handle--;
-
-    _batch_index = 0;
+    return _requests.get<1>().find(hash) != _requests.get<1>().end();
 }

@@ -108,6 +108,9 @@ BatchBlockConsensusManager::ReadyForConsensus()
 {
     if(_using_buffered_blocks)
     {
+        // TODO: Make sure that RequestHandler::_current_batch has
+        //       been prepared before calling _handler.BatchFull.
+        //
         return StateReadyForConsensus() && (_handler.BatchFull() ||
                             (_buffer.empty() && !_handler.Empty()));
     }
@@ -126,7 +129,7 @@ auto
 BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
     auto & batch = reinterpret_cast<
-            PrePrepare&>(_handler.GetNextBatch());
+            PrePrepare&>(_handler.GetCurrentBatch());
 
     batch.sequence = _sequence;
     batch.timestamp = GetStamp();
@@ -151,12 +154,6 @@ BatchBlockConsensusManager::PrePrepareQueueEmpty()
     return _handler.Empty();
 }
 
-bool
-BatchBlockConsensusManager::PrePrepareQueueFull()
-{
-    return _handler.BatchFull();
-}
-
 void
 BatchBlockConsensusManager::ApplyUpdates(
   const PrePrepare & pre_prepare,
@@ -168,7 +165,15 @@ BatchBlockConsensusManager::ApplyUpdates(
 uint64_t
 BatchBlockConsensusManager::GetStoredCount()
 {
-    return _handler.GetNextBatch().block_count;
+    return _handler.GetCurrentBatch().block_count;
+}
+
+void
+BatchBlockConsensusManager::InitiateConsensus()
+{
+    _handler.PrepareNextBatch();
+
+    Manager::InitiateConsensus();
 }
 
 void
@@ -219,7 +224,10 @@ BatchBlockConsensusManager::AcquirePrePrepare(const PrePrepare & message)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    _handler.PushBack(message);
+    // TODO: Initiate consensus now if not already
+    //       in progress.
+    //
+    _handler.Acquire(message);
 }
 
 void
@@ -230,7 +238,7 @@ BatchBlockConsensusManager::OnRejection(
     {
     case RejectionReason::Contains_Invalid_Request:
     {
-        auto batch = _handler.GetNextBatch();
+        auto batch = _handler.GetCurrentBatch();
         auto block_count = batch.block_count;
 
         for(uint64_t i = 0; i < block_count; ++i)
@@ -299,7 +307,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
     //       lookup constant rather than O(n).
     std::list<SupportMap> subsets;
 
-    auto block_count = _handler.GetNextBatch().block_count;
+    auto block_count = _handler.GetCurrentBatch().block_count;
 
     // For each request, collect the delegate
     // ID's of those delegates that voted for
@@ -421,16 +429,13 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
         }
     }
 
-    std::list<BatchStateBlock> batches;
+    std::list<logos::state_block> requests;
 
     // Create new pre-prepare messages
     // based on the subsets.
     for(auto & subset : subsets)
     {
-        batches.push_back(BatchStateBlock());
-        batches.back().block_count = subset.second.size();
-
-        auto & batch = _handler.GetNextBatch();
+        auto & batch = _handler.GetCurrentBatch();
         auto & indexes = subset.second;
 
         uint64_t i = 0;
@@ -438,21 +443,25 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 
         for(; itr != indexes.end(); ++itr, ++i)
         {
-            batches.back().blocks[i] = batch.blocks[*itr];
+            requests.push_back(batch.blocks[*itr]);
         }
+
+        requests.push_back(logos::state_block());
     }
 
-    // If no request can be proposed, send
-    // an empty BatchStateBlock to proceed.
-    if(batches.empty())
+    // Pushing a null state_block to the front
+    // of the queue will trigger consensus
+    // with an empty batch block, which is how
+    // we proceed if no requests can be re-proposed.
+    if(requests.empty())
     {
-        batches.push_back(BatchStateBlock());
+        requests.push_back(logos::state_block());
     }
 
     _handler.PopFront();
-    _handler.InsertFront(batches);
+    _handler.InsertFront(requests);
 
-    _state = ConsensusState::PRE_PREPARE;
+    _state = ConsensusState::VOID;
 
     OnRequestQueued();
 }

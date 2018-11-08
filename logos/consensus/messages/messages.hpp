@@ -9,6 +9,25 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
 {
     static const size_t HASHABLE_BYTES;
 
+    BatchStateBlock & operator= (const BatchStateBlock & other)
+    {
+        // BatchStateBlock members
+        sequence = other.sequence;
+        block_count = other.block_count;
+        memcpy(blocks, other.blocks, other.block_count);
+        next = other.next;
+        memcpy(signature.data(), other.signature.data(), sizeof(signature));
+
+        // MessageHeader members
+        timestamp = other.timestamp;
+        previous = other.previous;
+
+        // MessagePrequel members are
+        // unchanged.
+
+        return *this;
+    }
+
     BlockHash Hash() const;
     std::string SerializeJson() const;
 
