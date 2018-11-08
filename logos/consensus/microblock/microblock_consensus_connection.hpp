@@ -26,11 +26,7 @@ public:
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler,
-                                  EpochEventsNotifier & events_notifier)
-        : ConsensusConnection<ConsensusType::MicroBlock>(iochannel, primary, promoter, validator, ids,
-                                                         events_notifier)
-        , _microblock_handler(handler)
-    {}
+                                  EpochEventsNotifier & events_notifier);
     ~MicroBlockConsensusConnection() = default;
 
     /// Validate PrePrepare message

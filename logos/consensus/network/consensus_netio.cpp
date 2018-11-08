@@ -157,7 +157,6 @@ ConsensusNetIO::SendKeyAdvertisement()
 {
     KeyAdvertisement advert;
     advert.public_key = _validator.GetPublicKey();
-    advert.remote_delegate_id = _local_delegate_id;
     Send(advert);
 }
 
@@ -296,7 +295,7 @@ ConsensusNetIO::Close()
 {
     if (_socket != nullptr)
     {
-        BOOST_LOG(_log) << "ConsensusNetIO::Close closing socket, connection "
+        LOG_DEBUG(_log) << "ConsensusNetIO::Close closing socket, connection "
                         << _epoch_info.GetConnectionName() << ", delegate "
                         << (int)_local_delegate_id << ", remote delegate " << (int)_remote_delegate_id
                         << ", global " << (int)NodeIdentityManager::_global_delegate_idx;

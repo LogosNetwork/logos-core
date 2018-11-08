@@ -159,6 +159,9 @@ protected:
     std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>> MakeConsensusConnection(
             std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
 
+    /// Find Primary delegate index for this request
+    /// @param request request
+    /// @returns delegate's index
     uint8_t DesignatedDelegate(std::shared_ptr<Request> request) override;
 
 private:

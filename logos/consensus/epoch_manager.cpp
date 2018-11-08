@@ -9,7 +9,6 @@
 EpochManager::EpochManager(Service & service,
                            Store & store,
                            Alarm & alarm,
-                           Log & log,
                            const Config & config,
                            Archiver & archiver,
                            PeerAcceptorStarter & starter,
@@ -24,11 +23,11 @@ EpochManager::EpochManager(Service & service,
     , _epoch_number(epoch_number)
     , _new_epoch_handler(handler)
     , _validator(_key_store)
-    , _batch_manager(service, store, log,
+    , _batch_manager(service, store,
                  config, _key_store, _validator, *this)
-    , _micro_manager(service, store, log,
+    , _micro_manager(service, store,
                  config, _key_store, _validator, archiver, *this)
-    , _epoch_manager(service, store, log,
+    , _epoch_manager(service, store,
                  config, _key_store, _validator, archiver, *this)
     , _netio_manager(
         {

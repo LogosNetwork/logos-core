@@ -21,7 +21,7 @@ EpochVotingManager::GetNextEpochDelegates(
     // get all delegate in the previous 3 epochs
     if (_store.epoch_tip_get(hash))
     {
-        BOOST_LOG(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch tip";
+        LOG_ERROR(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch tip";
         return;
     }
 
@@ -29,7 +29,7 @@ EpochVotingManager::GetNextEpochDelegates(
     {
         if (_store.epoch_get(hash, previous_epoch))
         {
-            BOOST_LOG(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch: "
+            LOG_ERROR(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch: "
                             << hash.to_string();
             return;
         }
@@ -81,7 +81,7 @@ EpochVotingManager::ValidateEpochDelegates(
    {
        if (verify.find(delegates[i].account) == verify.end())
        {
-           BOOST_LOG(_log) << "EpochVotingManager::ValidateEpochDelegates invalild account "
+           LOG_ERROR(_log) << "EpochVotingManager::ValidateEpochDelegates invalild account "
                            << delegates[i].account.to_account();
            return false;
        }

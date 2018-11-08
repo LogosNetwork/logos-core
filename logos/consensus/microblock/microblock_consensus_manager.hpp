@@ -34,7 +34,12 @@ public:
                   key_store, validator, events_notifier)
         , _microblock_handler(handler)
         , _enqueued(false)
-    {}
+    {
+        if (_store.micro_block_tip_get(_prev_hash))
+        {
+            LOG_ERROR(_log) << "Failed to get microblock's previous hash";
+        }
+    }
 
     ~MicroBlockConsensusManager() = default;
 
@@ -108,6 +113,7 @@ protected:
     ///     @return ConsensusConnection
     std::shared_ptr<ConsensusConnection<ConsensusType::MicroBlock>> MakeConsensusConnection(
             std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
+
 private:
 
     std::shared_ptr<PrePrepare>  _cur_microblock;     ///< Currently handled microblock

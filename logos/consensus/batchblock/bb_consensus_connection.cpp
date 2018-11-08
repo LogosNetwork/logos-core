@@ -20,7 +20,12 @@ BBConsensusConnection::BBConsensusConnection(
                  validator, ids, events_notifier)
     , _timer(service)
     , _persistence_manager(persistence_manager)
-{}
+{
+    if (promoter.GetStore().batch_tip_get(_delegate_ids.remote, _prev_pre_prepare_hash))
+    {
+        LOG_ERROR(_log) << "Failed to get batch's previous hash";
+    }
+}
 
 /// Validate BatchStateBlock message.
 ///
@@ -147,7 +152,7 @@ BBConsensusConnection::HandleReject(const PrePrepare & message)
             break;
         case RejectionReason::New_Epoch:
             SetPrePrepare(message);
-            ScheduleTimer(GetTimeout(TIMEOUT_MIN, TIMEOUT_MAX_NEW_EPOCH));
+            ScheduleTimer(GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE_NEW_EPOCH));
             break;
     }
 }
@@ -192,7 +197,7 @@ BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
         _pre_prepare_hashes.insert(message.blocks[i].hash());
     }
 
-    ScheduleTimer(GetTimeout());
+    ScheduleTimer(GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE));
 }
 
 void
@@ -263,21 +268,21 @@ BBConsensusConnection::ValidateReProposal(const PrePrepare & message)
 }
 
 BBConsensusConnection::Seconds
-BBConsensusConnection::GetTimeout()
+BBConsensusConnection::GetTimeout(uint8_t min, uint8_t range)
 {
     uint64_t offset = 0;
     uint64_t x = std::rand() % NUM_DELEGATES;
 
     if (x >= 2 && x < 4)
     {
-        offset = TIMEOUT_RANGE/2;
+        offset = range/2;
     }
     else
     {
-        offset = TIMEOUT_RANGE;
+        offset = range;
     }
 
-    return Seconds(TIMEOUT_MIN + offset);
+    return Seconds(min + offset);
 }
 
 template<>

@@ -82,7 +82,7 @@ NodeIdentityManager::Init(const Config &config)
         Epoch previous_epoch;
         if (_store.epoch_get(epoch_tip, previous_epoch))
         {
-            BOOST_LOG(_log) << "NodeIdentityManager::Init Failed to get epoch: " << epoch_tip.to_string();
+            LOG_ERROR(_log) << "NodeIdentityManager::Init Failed to get epoch: " << epoch_tip.to_string();
             return;
         }
 
@@ -184,22 +184,22 @@ NodeIdentityManager::IdentifyDelegates(
     logos::block_hash epoch_tip;
     if (_store.epoch_tip_get(epoch_tip))
     {
-        BOOST_LOG(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch tip";
+        LOG_ERROR(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch tip";
         return;
     }
 
     Epoch epoch;
     if (_store.epoch_get(epoch_tip, epoch))
     {
-        BOOST_LOG(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch: " <<
-            epoch_tip.to_string();
+        LOG_ERROR(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch: "
+                        << epoch_tip.to_string();
         return;
     }
 
     if (epoch_delegates == EpochDelegates::Current && _store.epoch_get(epoch.previous, epoch))
     {
-        BOOST_LOG(_log) << "NodeIdentityManager::IdentifyDelegates failed to get current delegate's epoch: " <<
-            epoch.previous.to_string();
+        LOG_ERROR(_log) << "NodeIdentityManager::IdentifyDelegates failed to get current delegate's epoch: "
+                        << epoch.previous.to_string();
         return;
     }
 
@@ -225,15 +225,15 @@ NodeIdentityManager::IdentifyDelegates(
     logos::block_hash hash;
     if (_store.epoch_tip_get(hash))
     {
-        BOOST_LOG(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch tip";
+        LOG_ERROR(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch tip";
         return false;
     }
 
     auto get = [this](logos::block_hash &hash, Epoch &epoch) {
         if (_store.epoch_get(hash, epoch))
         {
-            BOOST_LOG(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch: " <<
-                            hash.to_string();
+            LOG_ERROR(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch: "
+                            << hash.to_string();
             return false;
         }
         return true;

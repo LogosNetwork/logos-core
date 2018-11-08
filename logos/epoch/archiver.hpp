@@ -57,7 +57,6 @@ class Archiver : public ArchiverEpochHandler,
 {
     friend MicroBlockTester;
 
-    using Log                   = boost::log::sources::logger_mt;
     using MicroBlockConsensusCb = std::function<logos::process_return(std::shared_ptr<MicroBlock>)>;
 public:
     /// Class constructor

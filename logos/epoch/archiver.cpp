@@ -26,7 +26,7 @@ Archiver::Start(InternalConsensus &consensus)
         auto micro_block = std::make_shared<MicroBlock>();
        if (false == _micro_block_handler.Build(*micro_block, util.IsEpochTime()))
        {
-           BOOST_LOG(_log) << "Archiver::Start failed to build micro block";
+           LOG_ERROR(_log) << "Archiver::Start failed to build micro block";
            return;
        }
 
@@ -38,7 +38,7 @@ Archiver::Start(InternalConsensus &consensus)
         auto epoch = std::make_shared<Epoch>();
         if (false == _epoch_handler.Build(*epoch))
         {
-            BOOST_LOG(_log) << "Archiver::Start failed to build epoch block";
+            LOG_ERROR(_log) << "Archiver::Start failed to build epoch block";
             return;
         }
 
@@ -59,7 +59,7 @@ Archiver::Test_ProposeMicroBlock(InternalConsensus &consensus, bool last_microbl
         auto micro_block = std::make_shared<MicroBlock>();
         if (false == _micro_block_handler.Build(*micro_block, last_microblock))
         {
-            BOOST_LOG(_log) << "Archiver::Test_ProposeMicroBlock faile to build micro block";
+            LOG_ERROR(_log) << "Archiver::Test_ProposeMicroBlock failed to build micro block";
             return;
         }
         consensus.OnSendRequest(micro_block);
@@ -77,15 +77,14 @@ Archiver::IsFirstEpoch(BlockStore &store)
     if (store.epoch_tip_get(hash))
     {
         Log log;
-        BOOST_LOG(log) <<
-            "Archiver::IsFirstEpoch failed to get epoch tip. Genesis blocks are being generated.";
+        LOG_ERROR(log) << "Archiver::IsFirstEpoch failed to get epoch tip. Genesis blocks are being generated.";
         return true;
     }
 
     if (store.epoch_get(hash, epoch))
     {
-        BOOST_LOG(_log) << "Archiver::IsFirstEpoch failed to get epoch: " <<
-            hash.to_string();
+        LOG_ERROR(_log) << "Archiver::IsFirstEpoch failed to get epoch: "
+                        << hash.to_string();
         return false;
     }
 

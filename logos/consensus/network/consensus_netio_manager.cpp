@@ -72,7 +72,7 @@ ConsensusNetIOManager::~ConsensusNetIOManager()
 {
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
 
-    BOOST_LOG(_log) << "~ConsensusNetIOManager, connections " << _connections.size()
+    LOG_DEBUG(_log) << "~ConsensusNetIOManager, connections " << _connections.size()
                     << " connection " << TransitionConnectionToName(_epoch_info.GetConnection())
                     << " " << (int)NodeIdentityManager::_global_delegate_idx;
 

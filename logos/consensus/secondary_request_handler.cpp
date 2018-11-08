@@ -83,7 +83,7 @@ void SecondaryRequestHandler<CT>::OnTimeout(const Error & error)
     std::lock_guard<std::mutex> lock(_promoter_mutex);
     if (_promoter == nullptr)
     {
-        BOOST_LOG(_log) << "SecondaryRequestHandler::OnTimeout promoter is nullptr";
+        LOG_ERROR(_log) << "SecondaryRequestHandler::OnTimeout promoter is nullptr";
         return;
     }
 

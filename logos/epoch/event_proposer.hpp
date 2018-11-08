@@ -7,9 +7,8 @@
 
 
 #include <logos/lib/epoch_time_util.hpp>
+#include <logos/lib/log.hpp>
 
-#include <boost/log/sources/record_ostream.hpp>
-#include <boost/log/sources/logger.hpp>
 #include <functional>
 
 namespace logos
@@ -22,7 +21,6 @@ class MicroBlock;
 /// Defines functions that propose microblock and transition events
 class EventProposer
 {
-    using Log           = boost::log::sources::logger_mt;
     using MicroCb       = std::function<void()>;
     using TransitionCb  = std::function<void()>;
     using EpochCb       = std::function<void()>;

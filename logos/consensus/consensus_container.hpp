@@ -82,7 +82,6 @@ class ConsensusContainer : public InternalConsensus,
 
     using Service    = boost::asio::io_service;
     using Config     = ConsensusManagerConfig;
-    using Log        = boost::log::sources::logger_mt;
     using Store      = logos::block_store;
     using Alarm      = logos::alarm;
     using Endpoint   = boost::asio::ip::tcp::endpoint;

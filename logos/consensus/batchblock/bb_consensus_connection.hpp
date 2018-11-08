@@ -56,7 +56,7 @@ private:
 
     static constexpr uint8_t TIMEOUT_MIN   = 20;
     static constexpr uint8_t TIMEOUT_RANGE = 40;
-    static constexpr uint8_t TIMEOUT_MAX_NEW_EPOCH = 20;
+    static constexpr uint8_t TIMEOUT_RANGE_NEW_EPOCH = 20;
 
     bool ValidateSequence(const PrePrepare & message);
     bool ValidateRequests(const PrePrepare & message);
@@ -76,7 +76,7 @@ private:
 
     bool ValidateReProposal(const PrePrepare & message) override;
 
-    Seconds GetTimeout();
+    Seconds GetTimeout(uint8_t min, uint8_t range);
 
 
     Hashes               _pre_prepare_hashes;

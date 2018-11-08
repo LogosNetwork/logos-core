@@ -30,7 +30,7 @@ MicroBlockHandler::BatchBlocksIterator(
         }
         if (not_found && hash != 0)
         {
-            BOOST_LOG(_log) << "MicroBlockHander::BatchBlocksIterator failed to get batch state block: "
+            LOG_ERROR(_log) << "MicroBlockHander::BatchBlocksIterator failed to get batch state block: "
                             << hash.to_string();
             return;
         }
@@ -180,12 +180,12 @@ MicroBlockHandler::Build(
 
     if (_store.micro_block_tip_get(previous_micro_block_hash))
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::Build failed to get micro block tip";
+        LOG_ERROR(_log) << "MicroBlockHandler::Build failed to get micro block tip";
         return false;
     }
     if (_store.micro_block_get(previous_micro_block_hash, previous_micro_block))
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::Build failed to get micro block: "
+        LOG_ERROR(_log) << "MicroBlockHandler::Build failed to get micro block: "
                         << previous_micro_block_hash.to_string();
         return false;
     }
@@ -223,13 +223,13 @@ MicroBlockHandler::Build(
     BlockHash hash;
     if (_store.epoch_tip_get(hash))
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::Build failed to get epoch tip";
+        LOG_ERROR(_log) << "MicroBlockHandler::Build failed to get epoch tip";
         return false;
     }
 
     if (_store.epoch_get(hash, epoch))
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::Build failed to get epoch: "
+        LOG_ERROR(_log) << "MicroBlockHandler::Build failed to get epoch: "
                         << hash.to_string();
         return false;
     }
@@ -240,7 +240,6 @@ MicroBlockHandler::Build(
     block.epoch_number = first_micro_block
             ? previous_micro_block.epoch_number + 1
             : previous_micro_block.epoch_number;
-    block.previous = previous_micro_block_hash;
     block.timestamp = GetStamp();
     block.account = NodeIdentityManager::_delegate_account;
     block.sequence = first_micro_block
@@ -260,7 +259,7 @@ MicroBlockHandler::Validate(
     // block exists
     if (_store.micro_block_exists(hash))
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock micro block exists";
+        LOG_WARN(_log) << "MicroBlockHandler::VerifyMicroBlock micro block exists";
         return true;
     }
 
@@ -268,7 +267,7 @@ MicroBlockHandler::Validate(
     logos::account_info info;
     if (_store.account_get(block.account, info))
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock account doesn't exist "
+        LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock account doesn't exist "
                         << block.account.to_account();
         return false;
     }
@@ -279,20 +278,20 @@ MicroBlockHandler::Validate(
     // previous microblock doesn't exist
     if (_store.micro_block_get(block.previous, previous_microblock))
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock previous doesn't exist "
+        LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock previous doesn't exist "
                         << block.previous.to_string();
         return false;
     }
 
     if (_store.epoch_tip_get(hash))
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get epoch tip";
+        LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get epoch tip";
         return false;
     }
 
     if (_store.epoch_get(hash, previous_epoch))
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get epoch: "
+        LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get epoch: "
                         << hash.to_string();
         return false;
     }
@@ -302,7 +301,7 @@ MicroBlockHandler::Validate(
     {
         if (block.sequence != (previous_microblock.sequence + 1))
         {
-            BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock epoch number failed epoch #:"
+            LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock epoch number failed epoch #:"
                             << block.epoch_number << " block #:" << block.sequence
                             << " previous block #:" << previous_microblock.sequence;
             return false;
@@ -312,7 +311,7 @@ MicroBlockHandler::Validate(
     else if (block.epoch_number != (previous_microblock.epoch_number + 1) ||
             block.sequence != 0)
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock epoch number failed epoch #:"
+        LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock epoch number failed epoch #:"
                         << block.epoch_number << " previous block epoch #:"
                         << previous_microblock.epoch_number << " block #:" << block.sequence;
         return false;
@@ -328,14 +327,14 @@ MicroBlockHandler::Validate(
             (!_recall_handler.IsRecall() && abs(tdiff) > CLOCK_DRIFT.count() ||
              _recall_handler.IsRecall() && block.timestamp <= previous_microblock.timestamp))
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock bad timestamp block ts:" << block.timestamp
+        LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock bad timestamp block ts:" << block.timestamp
                         << " previous block ts:" << previous_microblock.timestamp << " tdiff: " << tdiff
                         << " epoch # : " << block.epoch_number << " microblock #: " << block.sequence;
         return false;
     }
     if (is_test_network)
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock WARNING: RUNNING WITH THE TEST FLAG ENABLED, "
+        LOG_WARN(_log) << "MicroBlockHandler::VerifyMicroBlock WARNING: RUNNING WITH THE TEST FLAG ENABLED, "
                            "SOME VALIDATION IS DISABLED";
     }
 
@@ -346,7 +345,7 @@ MicroBlockHandler::Validate(
     });
     if (number_batch_blocks != block.number_batch_blocks)
     {
-        BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock number of batch blocks doesn't match in block: "
+        LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock number of batch blocks doesn't match in block: "
                         << block.number_batch_blocks << " to database: " << number_batch_blocks;
         return false;
     }
@@ -357,7 +356,7 @@ MicroBlockHandler::Validate(
     {
         if (block.tips[del] != 0 && _store.batch_block_get(block.tips[del], bsb))
         {
-            BOOST_LOG(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get batch tip: "
+            LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get batch tip: "
                             << block.tips[del].to_string();
             return false;
         }
@@ -379,6 +378,6 @@ MicroBlockHandler::ApplyUpdates(const MicroBlock &block, const logos::transactio
 
     BlockHash hash = _store.micro_block_put(block, transaction);
     _store.micro_block_tip_put(hash, transaction);
-    BOOST_LOG(_log) << "MicroBlockHandler::ApplyUpdates hash: " << hash.to_string();
+    LOG_INFO(_log) << "MicroBlockHandler::ApplyUpdates hash: " << hash.to_string();
     return hash;
 }

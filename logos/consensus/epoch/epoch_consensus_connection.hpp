@@ -27,11 +27,7 @@ public:
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
                              ArchiverEpochHandler & handler,
-                             EpochEventsNotifier & events_notifier)
-        : ConsensusConnection<ConsensusType::Epoch>(iochannel, primary, promoter, validator,
-                                                    ids, events_notifier)
-        , _epoch_handler(handler)
-    {}
+                             EpochEventsNotifier & events_notifier);
     ~EpochConsensusConnection() = default;
 
     /// Validate PrePrepare message

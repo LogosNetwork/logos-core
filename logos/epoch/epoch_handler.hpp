@@ -18,7 +18,6 @@ using BlockStore = logos::block_store;
 /// EpochHandler builds, validates, persists, triggers the Epoch
 class EpochHandler
 {
-    using Log           = boost::log::sources::logger_mt;
 public:
     /// Class constructor
     /// @param s logos::block_store reference [in]

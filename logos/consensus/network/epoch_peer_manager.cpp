@@ -11,7 +11,7 @@
 EpochPeerManager::EpochPeerManager(Service& service,
                                    const Config &config,
                                    PeerBinder binder)
-    : _peer_acceptor(service, _log,
+    : _peer_acceptor(service,
                      Endpoint(boost::asio::ip::make_address_v4(config.local_address),
                               config.peer_port), *this)
     , _peer_binder(binder)
@@ -28,7 +28,7 @@ EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint endpoint
                            [this, endpoint, socket, ids](const ErrorCode &error, size_t size) {
         if (error)
         {
-            BOOST_LOG(_log) << "EpochPeerManager::OnConnectionAccepted error: " << error.message();
+            LOG_ERROR(_log) << "EpochPeerManager::OnConnectionAccepted error: " << error.message();
             return;
         }
 

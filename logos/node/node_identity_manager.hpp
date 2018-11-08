@@ -8,6 +8,7 @@
 #include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
 #include <logos/lib/numbers.hpp>
+#include <logos/lib/log.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 #include <boost/log/sources/logger.hpp>
@@ -29,7 +30,6 @@ class NodeIdentityManager
 {
     using Store     = logos::block_store;
     using Config    = ConsensusManagerConfig;
-    using Log       = boost::log::sources::logger_mt;
     using IPs       = std::map<logos::account, std::string>;
     using Accounts  = logos::account[NUM_DELEGATES];
 

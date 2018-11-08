@@ -14,7 +14,6 @@ std::atomic_uint ConsensusContainer::_cur_epoch_number(0);
 ConsensusContainer::ConsensusContainer(Service & service,
                                        Store & store,
                                        logos::alarm & alarm,
-                                       Log & log,
                                        const Config & config,
                                        Archiver & archiver,
                                        NodeIdentityManager & identity_manager)
@@ -26,7 +25,6 @@ ConsensusContainer::ConsensusContainer(Service & service,
     , _store(store)
     , _alarm(alarm)
     , _config(config)
-    , _log(log)
     , _archiver(archiver)
     , _identity_manager(identity_manager)
     , _transition_state(EpochTransitionState::None)
@@ -76,7 +74,7 @@ ConsensusContainer::CreateEpochManager(
     EpochTransitionDelegate delegate,
     EpochConnection connection )
 {
-    return std::make_shared<EpochManager>(_service, _store, _alarm, _log, config,
+    return std::make_shared<EpochManager>(_service, _store, _alarm, config,
                                           _archiver, _peer_manager, _transition_state,
                                           delegate, connection, epoch_number, *this);
 }

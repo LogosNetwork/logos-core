@@ -24,9 +24,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _delegate_id(config.delegate_id)
     , _secondary_handler(SecondaryRequestHandlerInstance(service, this))
     , _events_notifier(events_notifier)
-{
-    store.batch_tip_get(_delegate_id, _prev_batch_hash);
-}
+{}
 
 template<ConsensusType CT>
 void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
@@ -130,7 +128,7 @@ void ConsensusManager<CT>::OnConsensusReached()
                         << " blocks.";
     }
 
-    _prev_batch_hash = _cur_batch_hash;
+    _prev_hash = _cur_hash;
 
     PrePreparePopFront();
 
@@ -149,7 +147,7 @@ void ConsensusManager<CT>::InitiateConsensus()
                    << QueueSize();
 
     auto & pre_prepare = PrePrepareGetNext();
-    pre_prepare.previous = _prev_batch_hash;
+    pre_prepare.previous = _prev_hash;
 
     OnConsensusInitiated(pre_prepare);
 

@@ -18,7 +18,6 @@ using BatchBlockReceiverCb          = std::function<void(const BatchStateBlock&)
 /// Handle MicroBlock processing
 class MicroBlockHandler {
 
-    using Log       = boost::log::sources::logger_mt;
     using BatchTips = BlockHash[NUM_DELEGATES];
 
 public:

@@ -183,7 +183,7 @@ void PrimaryDelegate::Send()
 {
     M response(_cur_batch_timestamp);
 
-    response.previous = _cur_batch_hash;
+    response.previous = _cur_hash;
     _validator.Sign(response, _signatures);
 
     Send(&response, sizeof(response));
@@ -198,7 +198,7 @@ void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
     LOG_INFO(_log) << "PrimaryDelegate - Initiating Consensus with PrePrepare hash: "
                    << block.Hash().to_string();
 
-    _cur_batch_hash = block.Hash();
+    _cur_hash = block.Hash();
     _cur_batch_timestamp = block.timestamp;
 
     CycleTimers<C>();

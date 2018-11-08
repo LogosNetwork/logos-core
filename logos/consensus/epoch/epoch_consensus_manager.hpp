@@ -33,7 +33,12 @@ public:
 		          key_store, validator, events_notifier)
 		, _epoch_handler(handler)
 		, _enqueued(false)
-	{}
+	{
+		if (_store.epoch_tip_get(_prev_hash))
+		{
+			LOG_ERROR(_log) << "Failed to get epoch's previous hash";
+		}
+	}
 
     ~EpochConsensusManager() = default;
 

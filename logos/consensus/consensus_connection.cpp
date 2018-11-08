@@ -21,8 +21,6 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
     , _promoter(promoter)
     , _events_notifier(events_notifer)
 {
-    promoter.GetStore().batch_tip_get(_delegate_ids.remote,
-                                      _prev_pre_prepare_hash);
 }
 
 template<ConsensusType CT>

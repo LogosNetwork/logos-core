@@ -53,7 +53,6 @@ public:
     EpochManager(Service & service,
                      Store & store,
                      Alarm & alarm,
-                     Log & log,
                      const Config & config,
                      Archiver & archiver,
                      PeerAcceptorStarter & starter,

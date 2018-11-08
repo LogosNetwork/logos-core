@@ -129,7 +129,7 @@ MicroBlockTester::precreate_account(
     std::string contents;
     state.serialize_json(contents);
     boost::log::sources::logger_mt log;
-    BOOST_LOG(log) << "initializing delegate " <<
+    LOG_DEBUG(log) << "initializing delegate " <<
                                     pair.prv.data.to_string() << " " <<
                                     pair.pub.to_string() << " " <<
                                     pair.pub.to_account() << " " <<

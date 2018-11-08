@@ -19,7 +19,7 @@ void PeerAcceptor::Start(const std::set<Address> & server_endpoints)
 
     if (_acceptor.is_open())
     {
-        BOOST_LOG(_log) << "PeerAcceptor::Start, acceptor is already active "
+        LOG_WARN(_log) << "PeerAcceptor::Start, acceptor is already active "
                         << (int)NodeIdentityManager::_global_delegate_idx << " "
                         << NodeIdentityManager::_delegates_ip[NodeIdentityManager::_delegate_account];
         return;
