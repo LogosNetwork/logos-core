@@ -1814,7 +1814,6 @@ void logos::node::start ()
     _archiver.Start(_consensus_container);
     p2p_conf.lmdb_env = store.environment.environment;
     p2p_conf.lmdb_dbi = store.p2p_db;
-    p2p_conf.boost_logger_mt = &log;
     p2p_conf.boost_io_service = &service;
     p2p._node = this;
     p2p.Init(p2p_conf);

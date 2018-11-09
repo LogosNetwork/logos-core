@@ -15,7 +15,7 @@
 #include <mutex>
 #include <string>
 #include <vector>
-#include <boost/log/sources/logger.hpp>
+#include "../lib/log.hpp"
 
 static const bool DEFAULT_LOGIPS        = false;
 extern bool fLogIPs;
@@ -70,7 +70,7 @@ namespace BCLog {
         std::atomic<uint32_t> m_categories{0};
 
     public:
-	boost::log::sources::logger_mt *log;
+	Log log;
 
         /** Send a string to the log output */
         void LogPrintStr(const std::string &str);

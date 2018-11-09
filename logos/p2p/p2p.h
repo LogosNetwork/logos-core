@@ -19,7 +19,6 @@ struct p2p_config {
 	char **argv;
 	struct MDB_env *lmdb_env;
 	MDB_dbi lmdb_dbi;
-	void *boost_logger_mt;
 	void *boost_io_service;
 };
 

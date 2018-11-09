@@ -19,8 +19,6 @@
 #include "../../../lmdb/libraries/liblmdb/lmdb.h"
 #include "../p2p.h"
 
-BOOST_LOG_INLINE_GLOBAL_LOGGER_DEFAULT(my_logger, boost::log::sources::logger_mt)
-
 class p2p_standalone : public p2p_interface {
 	virtual bool ReceiveMessageCallback(const void *message, unsigned size) {
 		printf("\nReceived %3d: %.*s\nType message: ", size, size, (const char *)message);
@@ -31,11 +29,8 @@ class p2p_standalone : public p2p_interface {
 
 static void *io_service_run(void *arg) {
 	p2p_config *config = (p2p_config *)arg;
-	boost::log::sources::logger_mt *log = (boost::log::sources::logger_mt *)config->boost_logger_mt;
 	boost::system::error_code ec;
-	BOOST_LOG(*log) << "Boost io_service start";
 	((boost::asio::io_service *)config->boost_io_service)->run(ec);
-	BOOST_LOG(*log) << "Boost io_service finish: " << ec.message();
 	return 0;
 }
 
@@ -62,8 +57,6 @@ int main(int argc, char **argv) {
 				  boost::log::keywords::scan_method = boost::log::sinks::file::scan_method::scan_matching,
 				  boost::log::keywords::max_size = 0x200000,
 				  boost::log::keywords::format = "[%TimeStamp%]: %Message%");
-	boost::log::sources::logger_mt& lg = my_logger::get();
-	config.boost_logger_mt = &lg;
 
 	boost::asio::io_service io_service;
 	config.boost_io_service = &io_service;

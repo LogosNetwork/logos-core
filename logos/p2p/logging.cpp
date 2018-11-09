@@ -6,7 +6,6 @@
 #include <logging.h>
 #include <utiltime.h>
 #include <ctype.h>
-#include <boost/log/sources/record_ostream.hpp>
 
 /**
  * NOTE: the logger instances is leaked on exit. This is ugly, but will be
@@ -145,5 +144,5 @@ void BCLog::Logger::LogPrintStr(const std::string &str)
 {
     std::string s = str;
     while (isspace(s[s.length() - 1])) s.pop_back();
-    if(s.length()) BOOST_LOG(*log) << "[p2p] " << s;
+    if(s.length()) LOG_INFO(log) << "[p2p] " << s;
 }

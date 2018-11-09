@@ -848,7 +848,6 @@ bool Propagate(PropagateMessage &mess) {
 
 bool p2p_interface::Init(p2p_config &config) {
 	if (p2p) return false;
-	g_logger->log = (boost::log::sources::logger_mt *)config.boost_logger_mt;
 	SetupEnvironment();
 	p2p = new p2p_internal(this, config);
 	if (!p2p) return false;
