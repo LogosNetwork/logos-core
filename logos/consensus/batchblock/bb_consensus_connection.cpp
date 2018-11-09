@@ -133,6 +133,13 @@ BBConsensusConnection::Reject()
 //       a backup initiates fallback consensus, it is possible that
 //       a transaction omitted from the re-proposed batch is forgotten,
 //       since individual requests are not stored for fallback consensus.
+//
+// XXX - Also note: PrePrepare messages stored by backups are not
+//       actually added to the secondary waiting list. Instead, they
+//       stay with the backup (ConsensusConnection) and are only
+//       transferred when fallback consensus is to take place, in
+//       which case they are transferred to the primary list
+//       (RequestHandler).
 void
 BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
 {

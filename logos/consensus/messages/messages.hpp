@@ -11,10 +11,12 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
 
     BatchStateBlock & operator= (const BatchStateBlock & other)
     {
+        auto b_size = other.block_count * sizeof(logos::state_block);
+
         // BatchStateBlock members
         sequence = other.sequence;
         block_count = other.block_count;
-        memcpy(blocks, other.blocks, other.block_count);
+        memcpy(blocks, other.blocks, b_size);
         next = other.next;
         memcpy(signature.data(), other.signature.data(), sizeof(signature));
 
