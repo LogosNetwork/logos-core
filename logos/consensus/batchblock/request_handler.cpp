@@ -40,16 +40,23 @@ BatchStateBlock & RequestHandler::PrepareNextBatch()
     _current_batch = BatchStateBlock();
 
     auto & sequence = _requests.get<0>();
+    auto & count = _current_batch.block_count;
 
     for(auto pos = sequence.begin(); pos != sequence.end(); ++pos)
     {
+
         if(pos->hashables.account.is_zero() && pos->hashables.link.is_zero())
         {
             sequence.erase(pos);
             break;
         }
 
-        _current_batch.blocks[_current_batch.block_count++] = *pos;
+        _current_batch.blocks[count++] = *pos;
+
+        if(count == CONSENSUS_BATCH_SIZE)
+        {
+            break;
+        }
     }
 
     return _current_batch;
