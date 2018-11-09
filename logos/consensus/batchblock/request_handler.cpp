@@ -45,6 +45,9 @@ BatchStateBlock & RequestHandler::PrepareNextBatch()
     for(auto pos = sequence.begin(); pos != sequence.end(); ++pos)
     {
 
+        // Null state blocks are used as batch delimiters. When
+        // one is encountered, remove it from the requests
+        // container and close the batch.
         if(pos->hashables.account.is_zero() && pos->hashables.link.is_zero())
         {
             sequence.erase(pos);
