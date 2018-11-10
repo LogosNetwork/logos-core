@@ -10,11 +10,14 @@
 #include <pthread.h>
 #include <signal.h>
 #include <boost/move/utility_core.hpp>
+#include <boost/log/expressions.hpp>
 #include <boost/log/sources/logger.hpp>
 #include <boost/log/sources/record_ostream.hpp>
 #include <boost/log/sources/global_logger_storage.hpp>
 #include <boost/log/utility/setup/file.hpp>
+#include <boost/log/utility/setup/console.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
+#include <boost/log/trivial.hpp>
 #include <boost/asio.hpp>
 #include "../../../lmdb/libraries/liblmdb/lmdb.h"
 #include "../p2p.h"
@@ -49,14 +52,17 @@ int main(int argc, char **argv) {
 
 	config.argc = argc;
 	config.argv = argv;
-	boost::log::add_common_attributes();
+
+	boost::log::add_common_attributes ();
+	boost::log::register_simple_formatter_factory< boost::log::trivial::severity_level, char > ("Severity");
+	boost::log::core::get()->set_filter (boost::log::trivial::severity >= boost::log::trivial::info);
 	boost::log::add_file_log (boost::log::keywords::target = "log",
 				  boost::log::keywords::file_name = "log/log_%Y-%m-%d_%H-%M-%S.%N.log",
 				  boost::log::keywords::rotation_size = 0x100000,
 				  boost::log::keywords::auto_flush = true,
 				  boost::log::keywords::scan_method = boost::log::sinks::file::scan_method::scan_matching,
 				  boost::log::keywords::max_size = 0x200000,
-				  boost::log::keywords::format = "[%TimeStamp%]: %Message%");
+				  boost::log::keywords::format = "[%TimeStamp% %Severity%]: %Message%");
 
 	boost::asio::io_service io_service;
 	config.boost_io_service = &io_service;

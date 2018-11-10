@@ -31,10 +31,10 @@ bool ConsensusP2p<CT>::AddMessageToBatch(const uint8_t *data, size_t size)
     memcpy(&_p2p_batch[oldsize], &size, 4);
     memcpy(&_p2p_batch[oldsize + 4], data, size);
 
-    LOG_INFO(_log) << "Consensus2P2p<" << ConsensusToName(CT) <<
+    LOG_DEBUG(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
 	"> - message of size " << size <<
 	" and type " << (unsigned)_p2p_batch[oldsize + 5] <<
-	" added to p2p batch.";
+	" added to p2p batch to delegate " << (unsigned)_delegate_id;
 
     return true;
 }
@@ -53,10 +53,10 @@ bool ConsensusP2p<CT>::PropagateBatch()
     if (res) {
 	LOG_INFO(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
 	    "> - p2p batch of size " << _p2p_batch.size() <<
-	    " propagated.";
+	    " propagated to delegate " << (unsigned)_delegate_id << ".";
     } else {
 	LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
-	    "> - p2p batch not propagated.";
+	    "> - p2p batch not propagated to delegate " << (unsigned)_delegate_id << ".";
     }
 
     CleanBatch();
@@ -104,7 +104,8 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, size_t size) {
     int mess_counter = 0;
 
     LOG_INFO(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
-		"> - batch of size " << size << " received from p2p.";
+		"> - batch of size " << size <<
+		" received from delegate " << (unsigned)_delegate_id;
 
     while (size >= 4) {
 	size_t msize = *(uint32_t *)data;
@@ -115,9 +116,10 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, size_t size) {
 	    break;
 	}
 
-	LOG_INFO(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
-		"> - message of size " << msize << " and type " <<
-		(unsigned)data[1] << " extracted from p2p batch.";
+	LOG_DEBUG(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
+		"> - message of size " << msize <<
+		" and type " << (unsigned)data[1] <<
+		" extracted from p2p batch received from delegate " << (unsigned)_delegate_id;
 
 	switch (mtype) {
 	    case MessageType::Unknown:
@@ -130,6 +132,9 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, size_t size) {
 			return false;
 		    }
 		    delegate_id = head->delegate_id;
+		    LOG_DEBUG(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
+			"> - primary delegate id " << (unsigned)delegate_id <<
+			" extracted from p2p batch received from delegate " << (unsigned)_delegate_id;
 		    mtype = MessageType::Pre_Prepare;
 		}
 		break;
@@ -203,7 +208,8 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, size_t size) {
     } else {
 	_ApplyUpdates(*pre_mess, delegate_id);
 	LOG_INFO(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
-		"> - PrePrepare message from delegate " << (unsigned)delegate_id <<
+		"> - PrePrepare message from delegate " << (unsigned)_delegate_id <<
+		" with primary delegate " << (unsigned)delegate_id <<
 		" saved to storage.";
 	return true;
     }

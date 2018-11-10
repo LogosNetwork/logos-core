@@ -118,7 +118,7 @@ public:
     template<typename MSG>
     bool Validate(const MSG & message, uint8_t delegate_id)
     {
-        //message
+	//message
         string msg(reinterpret_cast<const char*>(&message), MSG::HASHABLE_BYTES);
 
         //deserialize sig
@@ -143,7 +143,7 @@ public:
     template<typename MSG>
     bool Validate(const MSG & message)
     {
-        return true;
+	return true;
     }
 
     PublicKey GetPublicKey();

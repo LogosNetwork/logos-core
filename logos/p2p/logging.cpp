@@ -140,9 +140,9 @@ std::vector<CLogCategoryActive> ListActiveLogCategories()
     return ret;
 }
 
-void BCLog::Logger::LogPrintStr(const std::string &str)
+void BCLog::Logger::LogPrintStr(boost::log::trivial::severity_level level, const std::string &str)
 {
     std::string s = str;
     while (isspace(s[s.length() - 1])) s.pop_back();
-    if(s.length()) LOG_INFO(log) << "[p2p] " << s;
+    if(s.length()) BOOST_LOG_SEV(log, level) << "[p2p] " << s;
 }

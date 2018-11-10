@@ -365,17 +365,17 @@ static CAddress GetBindAddress(SOCKET sock)
 AsioSession::AsioSession(boost::asio::io_service& ios, CConnman *connman_)
 		: socket(ios), connman(connman_), pnode(0), id(-1ll)
 {
-    LogPrint(BCLog::NET, "Session created, this=%p", this);
+    LogDebug(BCLog::NET, "Session created, this=%p", this);
 }
 
 AsioSession::~AsioSession()
 {
-    LogPrint(BCLog::NET, "Session removed, this=%p, peer=%lld", this, id);
+    LogDebug(BCLog::NET, "Session removed, this=%p, peer=%lld", this, id);
 }
 
 void AsioSession::setNode(CNode *pnode_) {
     if (pnode) {
-	LogPrint(BCLog::NET, "Double node set, peer=%ld\n", id);
+	LogDebug(BCLog::NET, "Double node set, peer=%ld\n", id);
 	return;
     }
     pnode = pnode_;
@@ -385,7 +385,7 @@ void AsioSession::setNode(CNode *pnode_) {
 void AsioSession::start()
 {
     // debug socket number to track file descriptor leaks
-    LogPrint(BCLog::NET, "Session started, this=%p, socket=%d, peer=%lld", this, socket.native_handle(), id);
+    LogDebug(BCLog::NET, "Session started, this=%p, socket=%d, peer=%lld", this, socket.native_handle(), id);
     socket.async_read_some(boost::asio::buffer(data, max_length),
 		boost::bind(&AsioSession::handle_read, this, shared_from_this(),
 		boost::asio::placeholders::error,
@@ -395,30 +395,30 @@ void AsioSession::start()
 void AsioSession::shutdown()
 {
     if (!pnode) {
-	LogPrint(BCLog::NET, "Double session shutdown ignored, peer=%ld\n", id);
+	LogDebug(BCLog::NET, "Double session shutdown ignored, peer=%ld\n", id);
 	return;
     }
     pnode = 0;
     boost::system::error_code error;
     socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, error);
     if (error) {
-	LogPrint(BCLog::NET, "Error in session shutdown, peer=%ld: %s\n", id, error.message());
+	LogError(BCLog::NET, "Error in session shutdown, peer=%ld: %s\n", id, error.message());
     } else {
-	LogPrint(BCLog::NET, "Session shutdown, peer=%ld\n", id);
+	LogDebug(BCLog::NET, "Session shutdown, peer=%ld\n", id);
     }
 }
 
 void AsioSession::handle_read(std::shared_ptr<AsioSession> s,
 		const boost::system::error_code& err, size_t bytes_transferred)
 {
-    //LogPrint(BCLog::NET, "Session handle_read called, %ld shared_ptr refs, peer=%lld", s.use_count(), id);
+    LogDebug(BCLog::NET, "Session handle_read called, peer=%lld", id);
     if (err) {
-	LogPrint(BCLog::NET, "Error in receive, peer=%lld: %s", id, err.message());
+	LogError(BCLog::NET, "Error in receive, peer=%lld: %s", id, err.message());
 	if (pnode) connman->AcceptReceivedBytes(pnode, data, -1);
     } else if (!connman->AcceptReceivedBytes(pnode, data, bytes_transferred)) {
-	LogPrint(BCLog::NET, "Error in accept %d received bytes, peer=%lld", bytes_transferred, id);
+	LogError(BCLog::NET, "Error in accept %d received bytes, peer=%lld", bytes_transferred, id);
     } else {
-	//LogPrint(BCLog::NET, "Received %ld bytes, peer=%lld", bytes_transferred, id);
+	LogDebug(BCLog::NET, "Received %ld bytes, peer=%lld", bytes_transferred, id);
 	socket.async_read_some(boost::asio::buffer(data, max_length),
 		boost::bind(&AsioSession::handle_read, this, shared_from_this(),
 		boost::asio::placeholders::error,
@@ -429,14 +429,14 @@ void AsioSession::handle_read(std::shared_ptr<AsioSession> s,
 void AsioSession::handle_write(std::shared_ptr<AsioSession> s,
 		const boost::system::error_code& err, size_t bytes_transferred)
 {
-    //LogPrint(BCLog::NET, "Session handle_write called, %ld shared_ptr refs, peer=%lld", s.use_count(), id);
+    LogDebug(BCLog::NET, "Session handle_write called after transmission of %lld bytes, peer=%lld", bytes_transferred, id);
     if (err) {
-	LogPrint(BCLog::NET, "Error in transmit, peer=%lld: %s", id, err.message());
+	LogError(BCLog::NET, "Error in transmit, peer=%lld: %s", id, err.message());
 	if (pnode) connman->SocketSendFinish(pnode, -1);
     } else if (!connman->SocketSendFinish(pnode, bytes_transferred)) {
-	LogPrint(BCLog::NET, "Error in accept %d transmitted bytes, peer=%lld", bytes_transferred, id);
+	LogError(BCLog::NET, "Error in accept %d transmitted bytes, peer=%lld", bytes_transferred, id);
     } else {
-	//LogPrint(BCLog::NET, "Transmitted %d bytes, peer=%lld", bytes_transferred, id);
+	LogDebug(BCLog::NET, "Transmitted %d bytes, peer=%lld", bytes_transferred, id);
 	sem_post(&connman->dataWritten);
     }
 }
@@ -460,7 +460,7 @@ void AsioClient::connect(const std::string &host, const std::string &port) {
 void AsioClient::resolve_handler(const boost::system::error_code& ec, boost::asio::ip::tcp::resolver::results_type results)
 {
     if (ec) {
-	LogPrintf("Resolve error: %s", ec.message());
+	LogWarning(BCLog::NET, "Resolve error: %s", ec.message());
     } else {
 	std::shared_ptr<AsioSession> session = std::make_shared<AsioSession>(*connman->io_service, connman);
 	boost::asio::async_connect(session->get_socket(), results,
@@ -483,7 +483,7 @@ CNode *CConnman::ConnectNodeFinish(AsioClient *client, std::shared_ptr<AsioSessi
 	if (pnode)
 	{
 	    pnode->MaybeSetAddrName(std::string(client->name));
-	    LogPrintf("Failed to open new connection, already connected\n");
+	    LogInfo(BCLog::NET, "Failed to open new connection, already connected\n");
 	    return nullptr;
 	}
     }
@@ -508,7 +508,7 @@ CNode *CConnman::ConnectNodeFinish(AsioClient *client, std::shared_ptr<AsioSessi
     if (client->flags & CONN_MANUAL)
 	pnode->m_manual_connection = true;
 
-    LogPrint(BCLog::NET, "connection to %s (%s) established\n", (client->name ? client->name : ""),
+    LogInfo(BCLog::NET, "connection to %s (%s) established\n", (client->name ? client->name : ""),
 		saddr.ToString().c_str());
 
     m_msgproc->InitializeNode(pnode);
@@ -523,9 +523,9 @@ void AsioClient::connect_handler(std::shared_ptr<AsioSession> session, const boo
 		const boost::asio::ip::tcp::endpoint& endpoint)
 {
     if (ec) {
-	LogPrintf("Connect error: %s", ec.message());
+	LogWarning(BCLog::NET, "Connect error: %s", ec.message());
     } else if (!connman->ConnectNodeFinish(this, session)){
-	LogPrintf("Connected node already exists");
+	LogInfo(BCLog::NET, "Connected node already exists");
     } else {
 	session->start();
     }

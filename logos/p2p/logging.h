@@ -73,7 +73,7 @@ namespace BCLog {
 	Log log;
 
         /** Send a string to the log output */
-        void LogPrintStr(const std::string &str);
+	void LogPrintStr(boost::log::trivial::severity_level level, const std::string &str);
 
         /** Returns whether logs will be written to any output */
 	bool Enabled() const { return true; }
@@ -127,7 +127,7 @@ template<typename T, typename... Args> static inline void MarkUsed(const T& t, c
 #define LogPrintf(...) do { MarkUsed(__VA_ARGS__); } while(0)
 #define LogPrint(category, ...) do { MarkUsed(__VA_ARGS__); } while(0)
 #else
-#define LogPrintf(...) do { \
+#define LogPrintfSeverity(severity, ...) do { \
     if (g_logger->Enabled()) { \
         std::string _log_msg_; /* Unlikely name to avoid shadowing variables */ \
         try { \
@@ -136,15 +136,23 @@ template<typename T, typename... Args> static inline void MarkUsed(const T& t, c
             /* Original format string will have newline so don't add one here */ \
             _log_msg_ = "Error \"" + std::string(fmterr.what()) + "\" while formatting log message: " + FormatStringFromLogArgs(__VA_ARGS__); \
         } \
-        g_logger->LogPrintStr(_log_msg_); \
+	g_logger->LogPrintStr(severity, _log_msg_); \
     } \
 } while(0)
 
-#define LogPrint(category, ...) do { \
+#define LogPrintSeverity(severity, category, ...) do { \
     if (LogAcceptCategory((category))) { \
-        LogPrintf(__VA_ARGS__); \
+	LogPrintfSeverity(severity, __VA_ARGS__); \
     } \
 } while(0)
+
+#define LogDebug(category, ...)   LogPrintSeverity(boost::log::trivial::debug,   category, __VA_ARGS__)
+#define LogInfo(category, ...)    LogPrintSeverity(boost::log::trivial::info,    category, __VA_ARGS__)
+#define LogWarning(category, ...) LogPrintSeverity(boost::log::trivial::warning, category, __VA_ARGS__)
+#define LogError(category, ...)   LogPrintSeverity(boost::log::trivial::error,   category, __VA_ARGS__)
+
+#define LogPrintf(...) LogPrintfSeverity(boost::log::trivial::info, __VA_ARGS__)
+#define LogPrint LogInfo
 #endif
 
 #endif // BITCOIN_LOGGING_H
