@@ -411,11 +411,14 @@ void AsioSession::shutdown()
 void AsioSession::handle_read(std::shared_ptr<AsioSession> s,
 		const boost::system::error_code& err, size_t bytes_transferred)
 {
+    CNode *node = pnode;
     LogDebug(BCLog::NET, "Session handle_read called, peer=%lld", id);
     if (err) {
 	LogError(BCLog::NET, "Error in receive, peer=%lld: %s", id, err.message());
-	if (pnode) connman->AcceptReceivedBytes(pnode, data, -1);
-    } else if (!connman->AcceptReceivedBytes(pnode, data, bytes_transferred)) {
+	if (node) connman->AcceptReceivedBytes(node, data, -1);
+    } else if (!node) {
+	LogWarning(BCLog::NET, "Received %d bytes before shutdown, peer=%lld", bytes_transferred, id);
+    } else if (!connman->AcceptReceivedBytes(node, data, bytes_transferred)) {
 	LogError(BCLog::NET, "Error in accept %d received bytes, peer=%lld", bytes_transferred, id);
     } else {
 	LogDebug(BCLog::NET, "Received %ld bytes, peer=%lld", bytes_transferred, id);
@@ -429,11 +432,14 @@ void AsioSession::handle_read(std::shared_ptr<AsioSession> s,
 void AsioSession::handle_write(std::shared_ptr<AsioSession> s,
 		const boost::system::error_code& err, size_t bytes_transferred)
 {
+    CNode *node = pnode;
     LogDebug(BCLog::NET, "Session handle_write called after transmission of %lld bytes, peer=%lld", bytes_transferred, id);
     if (err) {
 	LogError(BCLog::NET, "Error in transmit, peer=%lld: %s", id, err.message());
-	if (pnode) connman->SocketSendFinish(pnode, -1);
-    } else if (!connman->SocketSendFinish(pnode, bytes_transferred)) {
+	if (node) connman->SocketSendFinish(node, -1);
+    } else if (!node) {
+	LogWarning(BCLog::NET, "Transmitted %d bytes before shutdown, peer=%lld", bytes_transferred, id);
+    } else if (!connman->SocketSendFinish(node, bytes_transferred)) {
 	LogError(BCLog::NET, "Error in accept %d transmitted bytes, peer=%lld", bytes_transferred, id);
     } else {
 	LogDebug(BCLog::NET, "Transmitted %d bytes, peer=%lld", bytes_transferred, id);
