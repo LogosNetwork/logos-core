@@ -218,7 +218,8 @@ MicroBlockTester::start_epoch_transition(
 {
     boost::property_tree::ptree response_l;
     int delay = _request.get<int>("delay", 0);
-    EventProposer proposer(node.alarm, false);
+    RecallHandler handler;
+    EventProposer proposer(node.alarm, handler, false);
     proposer.ProposeTransitionOnce([&node]()->void{
         node._consensus_container.EpochTransitionEventsStart();
     }, Seconds(delay));

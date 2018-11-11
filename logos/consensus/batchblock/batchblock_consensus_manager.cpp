@@ -22,10 +22,7 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
     , _service(service)
 {
     _state = ConsensusState::INITIALIZING;
-    if (_store.batch_tip_get(_delegate_id, _prev_hash))
-    {
-        LOG_ERROR(_log) << "Failed to get batch's previous hash";
-    }
+    _store.batch_tip_get(_delegate_id, _prev_hash);
 }
 
 void

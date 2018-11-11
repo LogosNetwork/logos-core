@@ -116,11 +116,19 @@ EpochHandler::Build(Epoch &epoch)
     }
 
     epoch.timestamp = GetStamp();
+    epoch.previous = previous_epoch_hash;
     epoch.account = NodeIdentityManager::_delegate_account;
     epoch.epoch_number = previous_epoch.epoch_number + 1;
     epoch.micro_block_tip = previous_micro_block_hash;
     _voting_manager.GetNextEpochDelegates(epoch.delegates);
     epoch.transaction_fee_pool = 0; // TODO
+
+    LOG_INFO(_log) << "EpochHandler::Build, built epoch block:"
+                   << " hash " << epoch.Hash().to_string()
+                   << " timestamp " << epoch.timestamp
+                   << " previous " << epoch.previous.to_string()
+                   << " epoch_number " << epoch.epoch_number
+                   << " micro_block_tip " << epoch.micro_block_tip.to_string();
 
     return true;
 }

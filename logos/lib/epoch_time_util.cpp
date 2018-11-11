@@ -45,8 +45,16 @@ EpochTimeUtil::GetNextEpochTime(
     static int sec = TConvert<Seconds>(EPOCH_PROPOSAL_TIME).count();
 
     return GetNextTime(skip, sec, [](struct tm &gmt)mutable->void{
-        gmt.tm_hour = gmt.tm_hour - (gmt.tm_hour % EPOCH_PROPOSAL_TIME.count());
-        gmt.tm_min = 0;
+        if (Seconds(sec) >= Hours(1)) // epoch proposal is either hours or minutes (for testing)
+        {
+            gmt.tm_hour = gmt.tm_hour - (gmt.tm_hour % EPOCH_PROPOSAL_TIME.count());
+            gmt.tm_min = 0;
+        }
+        else
+        {
+            gmt.tm_min = gmt.tm_min - (gmt.tm_min % EPOCH_PROPOSAL_TIME.count());
+            gmt.tm_sec = 0;
+        }
         gmt.tm_sec = 0;
     });
 }
@@ -78,6 +86,14 @@ EpochTimeUtil::IsEpochTime()
 
     // Epoch is proposed after the last Microblock
     // which is proposed retroactively at 00h:10m(GMT) +- 40sec or 12h:10m(GMT) +- 40sec
-    int ms = gmt.tm_min * 60 + gmt.tm_sec;
-    return (gmt.tm_hour == 0 || gmt.tm_hour == 12) && (ms > min && ms < max);
+    if (TConvert<Hours>(EPOCH_PROPOSAL_TIME) >= Hours(1)) // hours
+    {
+        int ms = gmt.tm_min * 60 + gmt.tm_sec;
+        return (gmt.tm_hour == 0 || gmt.tm_hour == 12) && (ms > min && ms < max);
+    }
+    else // minutes, test
+    {
+        int ms = (gmt.tm_min % EPOCH_PROPOSAL_TIME.count()) * 60 + gmt.tm_sec;
+        return (ms > min && ms < max);
+    }
 }

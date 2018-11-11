@@ -28,17 +28,7 @@ public:
                           DelegateKeyStore & key_store,
                           MessageValidator & validator,
                           ArchiverEpochHandler & handler,
-                          EpochEventsNotifier & events_notifier)
-		: Manager(service, store, config,
-		          key_store, validator, events_notifier)
-		, _epoch_handler(handler)
-		, _enqueued(false)
-	{
-		if (_store.epoch_tip_get(_prev_hash))
-		{
-			LOG_ERROR(_log) << "Failed to get epoch's previous hash";
-		}
-	}
+                          EpochEventsNotifier & events_notifier);
 
     ~EpochConsensusManager() = default;
 
@@ -109,6 +99,11 @@ protected:
 	///     @return ConsensusConnection
 	std::shared_ptr<ConsensusConnection<ConsensusType::Epoch>> MakeConsensusConnection(
 			std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
+
+	/// Request's primary delegate, 0 (delegate with most voting power) for Micro/Epoch Block
+    /// @param request request
+    /// @returns designated delegate
+    uint8_t DesignatedDelegate(std::shared_ptr<Request> request) override;
 
 private:
     std::shared_ptr<PrePrepare>  _cur_epoch; 	///< Currently handled epoch

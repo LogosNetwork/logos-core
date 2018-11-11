@@ -3,14 +3,15 @@
 /// This file contains definition of the Archiver class - container for epoch/microblock handling related classes
 ///
 
-#include <logos/epoch/archiver.hpp>
 #include <logos/consensus/consensus_container.hpp>
+#include <logos/epoch/recall_handler.hpp>
 #include <logos/lib/epoch_time_util.hpp>
+#include <logos/epoch/archiver.hpp>
 
 Archiver::Archiver(logos::alarm & alarm,
                    BlockStore & store,
                    IRecallHandler & recall_handler)
-    : _event_proposer(alarm, IsFirstEpoch(store))
+    : _event_proposer(alarm, recall_handler, IsFirstEpoch(store))
     , _micro_block_handler(store, recall_handler)
     , _voting_manager(store)
     , _epoch_handler(store, _voting_manager)
@@ -24,7 +25,7 @@ Archiver::Start(InternalConsensus &consensus)
     auto micro_cb = [this, &consensus](){
         EpochTimeUtil util;
         auto micro_block = std::make_shared<MicroBlock>();
-       if (false == _micro_block_handler.Build(*micro_block, util.IsEpochTime()))
+       if (false == _micro_block_handler.Build(*micro_block, !_recall_handler.IsRecall() && util.IsEpochTime()))
        {
            LOG_ERROR(_log) << "Archiver::Start failed to build micro block";
            return;

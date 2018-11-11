@@ -21,10 +21,7 @@ BBConsensusConnection::BBConsensusConnection(
     , _timer(service)
     , _persistence_manager(persistence_manager)
 {
-    if (promoter.GetStore().batch_tip_get(_delegate_ids.remote, _prev_pre_prepare_hash))
-    {
-        LOG_ERROR(_log) << "Failed to get batch's previous hash";
-    }
+    promoter.GetStore().batch_tip_get(_delegate_ids.remote, _prev_pre_prepare_hash);
 }
 
 /// Validate BatchStateBlock message.

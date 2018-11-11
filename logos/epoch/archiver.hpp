@@ -4,10 +4,10 @@
 ///
 #pragma once
 #include <logos/microblock/microblock_handler.hpp>
+#include <logos/consensus/primary_delegate.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/epoch/event_proposer.hpp>
 #include <logos/epoch/epoch_handler.hpp>
-#include <logos/consensus/primary_delegate.hpp>
 
 class InternalConsensus;
 class IRecallHandler;

@@ -237,15 +237,25 @@ MicroBlockHandler::Build(
     // first micro block in this epoch
     bool first_micro_block = epoch.micro_block_tip == previous_micro_block_hash;
 
+    block.timestamp = GetStamp();
+    block.previous = previous_micro_block_hash;
     block.epoch_number = first_micro_block
             ? previous_micro_block.epoch_number + 1
             : previous_micro_block.epoch_number;
-    block.timestamp = GetStamp();
     block.account = NodeIdentityManager::_delegate_account;
     block.sequence = first_micro_block
             ? 0
             : previous_micro_block.sequence + 1;
     block.last_micro_block = last_micro_block;
+
+    LOG_INFO(_log) << "MicroBlockHandler::Build, built microblock:"
+                   << " hash " << block.Hash().to_string()
+                   << " timestamp " << block.timestamp
+                   << " previous " << block.previous.to_string()
+                   << " epoch_number " << block.epoch_number
+                   << " account " << block.account.to_account()
+                   << " sequence " << block.sequence
+                   << " last_micro_block " << (int)block.last_micro_block;
 
     return true;
 }

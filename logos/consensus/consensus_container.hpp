@@ -146,11 +146,11 @@ public:
 
 protected:
 
-	/// Initiate MicroBlock consensus
+	/// Initiate MicroBlock consensus, internal request
 	///		@param[in] MicroBlock containing the batch blocks
     logos::process_return OnSendRequest(std::shared_ptr<MicroBlock>) override;
 
-    /// Initiate MicroBlock consensus
+    /// Initiate Epoch consensus, internal request
     ///		@param[in] Epoch containing the microblocks
     logos::process_return OnSendRequest(std::shared_ptr<Epoch>) override;
 

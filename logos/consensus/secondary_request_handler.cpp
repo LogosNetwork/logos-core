@@ -2,6 +2,9 @@
 #include <logos/consensus/consensus_manager.hpp>
 #include <functional>
 
+//#include <boost/date_time/posix_time/posix_time.hpp>
+//#include <boost/date_time/posix_time/posix_time_io.hpp>
+
 template<ConsensusType CT>
 const boost::posix_time::seconds SecondaryRequestHandler<CT>::REQUEST_TIMEOUT{5};
 template<ConsensusType CT>
@@ -36,6 +39,30 @@ void SecondaryRequestHandler<CT>::OnRequest(std::shared_ptr<RequestMessage<CT>> 
         return;
     }
 
+    _timer.cancel();
+
+    _requests.insert(Request{hash, block, Clock::universal_time() + seconds});
+
+    auto timeout = std::max(MIN_TIMEOUT.total_seconds(),
+                            (_requests.get<0>().begin()->expiration
+                             - Clock::universal_time()).total_seconds());
+
+    ScheduleTimer(Seconds(timeout));
+}
+
+template<>
+void SecondaryRequestHandler<ConsensusType::BatchStateBlock>::OnRequest(BlockPtr block, Seconds seconds)
+{
+    auto hash = block->hash();
+
+    std::lock_guard<std::mutex> lock(_mutex);
+    if(_requests.get<1>().find(hash) != _requests.get<1>().end())
+    {
+        LOG_WARN(_log) << "Ignoring duplicate secondary request with hash: "
+                       << hash.to_string();
+        return;
+    }
+
     _requests.insert(Request{hash, block, Clock::universal_time() + seconds});
 
     if(_requests.size() == 1)
@@ -54,6 +81,10 @@ void SecondaryRequestHandler<CT>::OnTimeout(const Error & error)
 
         if(error)
         {
+            if (error == boost::asio::error::operation_aborted)
+            {
+                return;
+            }
             LOG_INFO(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT)
                            << ">::OnTimeout - Error: "
                            << error.message();

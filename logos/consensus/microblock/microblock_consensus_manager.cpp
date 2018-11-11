@@ -2,6 +2,25 @@
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
 #include <logos/epoch/archiver.hpp>
 
+MicroBlockConsensusManager::MicroBlockConsensusManager(
+                               Service & service,
+                               Store & store,
+                               const Config & config,
+                               DelegateKeyStore & key_store,
+                               MessageValidator & validator,
+                               ArchiverMicroBlockHandler & handler,
+                               EpochEventsNotifier & events_notifier)
+    : Manager(service, store, config,
+              key_store, validator, events_notifier)
+    , _microblock_handler(handler)
+    , _enqueued(false)
+{
+    if (_store.micro_block_tip_get(_prev_hash))
+    {
+        LOG_ERROR(_log) << "Failed to get microblock's previous hash";
+    }
+}
+
 void
 MicroBlockConsensusManager::OnBenchmarkSendRequest(
     std::shared_ptr<Request> block,

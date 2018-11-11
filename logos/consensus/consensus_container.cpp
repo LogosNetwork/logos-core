@@ -302,8 +302,6 @@ ConsensusContainer::EpochTransitionEventsStart()
         _cur_epoch->_delegate = EpochTransitionDelegate::Retiring;
     }
 
-    _alarm.add(Seconds(5), std::bind(&ConsensusContainer::BindConnectionsQueue, this));
-
     // TODO recall may have different timers
     auto lapse = EPOCH_DELEGATES_CONNECT - EPOCH_TRANSITION_START;
     EpochTimeUtil util;
@@ -318,6 +316,8 @@ ConsensusContainer::EpochTransitionEventsStart()
     }
 
     _alarm.add(lapse, std::bind(&ConsensusContainer::EpochTransitionStart, this, delegate_idx));
+
+    BindConnectionsQueue();
 }
 
 void
@@ -476,12 +476,16 @@ ConsensusContainer::BuildConsensusConfig(
    config.local_address = NodeIdentityManager::_delegates_ip[NodeIdentityManager::_delegate_account];
    config.delegates.clear();
 
+   stringstream str;
+    str << "ConsensusContainer::BuildConsensusConfig: ";
    for (uint8_t del = 0; del < NUM_DELEGATES; ++del)
    {
         auto account = delegates[del];
         auto ip = NodeIdentityManager::_delegates_ip[account];
         config.delegates.push_back(ConsensusManagerConfig::Delegate{ip, del});
+        str << (int)del << " " << ip << " ";
    }
+   LOG_DEBUG(_log) << str.str();
 
    return config;
 }

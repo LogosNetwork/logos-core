@@ -29,17 +29,7 @@ public:
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
                                ArchiverMicroBlockHandler & handler,
-                               EpochEventsNotifier & events_notifier)
-        : Manager(service, store, config,
-                  key_store, validator, events_notifier)
-        , _microblock_handler(handler)
-        , _enqueued(false)
-    {
-        if (_store.micro_block_tip_get(_prev_hash))
-        {
-            LOG_ERROR(_log) << "Failed to get microblock's previous hash";
-        }
-    }
+                               EpochEventsNotifier & events_notifier);
 
     ~MicroBlockConsensusManager() = default;
 
