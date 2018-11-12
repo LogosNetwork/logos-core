@@ -148,6 +148,7 @@ enum ConnFlags {
 class AsioClient {
 public:
     AsioClient(CConnman *conn, const char *nam, CSemaphoreGrant *grant, int fl);
+    ~AsioClient();
     void connect(const std::string &host, const std::string &port);
     void resolve_handler(const boost::system::error_code& ec,
 		boost::asio::ip::tcp::resolver::results_type results);
@@ -155,7 +156,7 @@ public:
 		const boost::asio::ip::tcp::endpoint& endpoint);
 private:
     CConnman *connman;
-    const char *name;
+    char *name;
     CSemaphoreGrant *grantOutbound;
     int flags;
     boost::asio::ip::tcp::resolver resolver;

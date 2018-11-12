@@ -455,8 +455,13 @@ void AsioSession::async_write(const char *buf, size_t bytes) {
 }
 
 AsioClient::AsioClient(CConnman *conn, const char *nam, CSemaphoreGrant *grant, int fl)
-	: connman(conn), name(nam), grantOutbound(grant), flags(fl), resolver(*conn->io_service)
+	: connman(conn), name(nam ? strdup(nam) : nullptr), grantOutbound(grant), flags(fl), resolver(*conn->io_service)
 {
+}
+
+AsioClient::~AsioClient()
+{
+	if (name) free(name);
 }
 
 void AsioClient::connect(const std::string &host, const std::string &port) {

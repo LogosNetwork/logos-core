@@ -281,7 +281,8 @@ bool logos::operation::operator> (logos::operation const & other_a) const
 
 logos::alarm::alarm (boost::asio::io_service & service_a) :
 service (service_a),
-thread ([this]() { run (); })
+thread ([this]() { run (); }),
+operation_handle(0)
 {
 }
 
