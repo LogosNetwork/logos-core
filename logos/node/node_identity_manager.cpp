@@ -181,6 +181,8 @@ NodeIdentityManager::IdentifyDelegates(
     uint8_t &delegate_idx,
     Accounts & delegates)
 {
+    delegate_idx = NON_DELEGATE;
+
     logos::block_hash epoch_tip;
     if (_store.epoch_tip_get(epoch_tip))
     {
@@ -196,15 +198,17 @@ NodeIdentityManager::IdentifyDelegates(
         return;
     }
 
-    if (epoch_delegates == EpochDelegates::Current && _store.epoch_get(epoch.previous, epoch))
+    if (epoch_delegates == EpochDelegates::Current)
     {
-        LOG_ERROR(_log) << "NodeIdentityManager::IdentifyDelegates failed to get current delegate's epoch: "
-                        << epoch.previous.to_string();
-        return;
+        if (_store.epoch_get(epoch.previous, epoch))
+        {
+            LOG_ERROR(_log) << "NodeIdentityManager::IdentifyDelegates failed to get current delegate's epoch: "
+                            << epoch.previous.to_string();
+            return;
+        }
     }
 
     // Is this delegate included in the current/next epoch consensus?
-    delegate_idx = NON_DELEGATE;
     for (uint8_t del = 0; del < NUM_DELEGATES; ++del)
     {
         // update delegates for the requested epoch

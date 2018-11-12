@@ -11,7 +11,8 @@
 Archiver::Archiver(logos::alarm & alarm,
                    BlockStore & store,
                    IRecallHandler & recall_handler)
-    : _event_proposer(alarm, recall_handler, IsFirstEpoch(store))
+    : _first_epoch(IsFirstEpoch(store))
+    , _event_proposer(alarm, recall_handler, _first_epoch)
     , _micro_block_handler(store, recall_handler)
     , _voting_manager(store)
     , _epoch_handler(store, _voting_manager)
@@ -25,11 +26,18 @@ Archiver::Start(InternalConsensus &consensus)
     auto micro_cb = [this, &consensus](){
         EpochTimeUtil util;
         auto micro_block = std::make_shared<MicroBlock>();
-       if (false == _micro_block_handler.Build(*micro_block, !_recall_handler.IsRecall() && util.IsEpochTime()))
-       {
-           LOG_ERROR(_log) << "Archiver::Start failed to build micro block";
-           return;
-       }
+        bool is_epoch_time = util.IsEpochTime();
+        bool last_microblock = !_recall_handler.IsRecall() && is_epoch_time && !_first_epoch;
+        if (false == _micro_block_handler.Build(*micro_block, last_microblock))
+        {
+            LOG_ERROR(_log) << "Archiver::Start failed to build micro block";
+            return;
+        }
+
+        if (is_epoch_time)
+        {
+            _first_epoch = false;
+        }
 
        consensus.OnSendRequest(micro_block);
     };

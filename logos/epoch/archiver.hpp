@@ -115,11 +115,12 @@ private:
     /// @param store reference to block store
     bool IsFirstEpoch(BlockStore &store);
 
+    bool                _first_epoch;
     EpochVotingManager  _voting_manager;
     EventProposer       _event_proposer;
     MicroBlockHandler   _micro_block_handler;
     EpochHandler        _epoch_handler;
-    IRecallHandler &     _recall_handler;
+    IRecallHandler &    _recall_handler;
     logos::block_store &_store;
     Log                 _log;
 };
