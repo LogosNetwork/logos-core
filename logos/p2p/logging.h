@@ -146,6 +146,7 @@ template<typename T, typename... Args> static inline void MarkUsed(const T& t, c
     } \
 } while(0)
 
+#define LogTrace(category, ...)   LogPrintSeverity(boost::log::trivial::trace,   category, __VA_ARGS__)
 #define LogDebug(category, ...)   LogPrintSeverity(boost::log::trivial::debug,   category, __VA_ARGS__)
 #define LogInfo(category, ...)    LogPrintSeverity(boost::log::trivial::info,    category, __VA_ARGS__)
 #define LogWarning(category, ...) LogPrintSeverity(boost::log::trivial::warning, category, __VA_ARGS__)

@@ -412,7 +412,7 @@ void AsioSession::handle_read(std::shared_ptr<AsioSession> s,
 		const boost::system::error_code& err, size_t bytes_transferred)
 {
     CNode *node = pnode;
-    LogDebug(BCLog::NET, "Session handle_read called, peer=%lld", id);
+    LogTrace(BCLog::NET, "Session handle_read called after transmission of %lld bytes, peer=%lld", bytes_transferred, id);
     if (err) {
 	LogError(BCLog::NET, "Error in receive, peer=%lld: %s", id, err.message());
 	if (node) connman->AcceptReceivedBytes(node, data, -1);
@@ -421,7 +421,7 @@ void AsioSession::handle_read(std::shared_ptr<AsioSession> s,
     } else if (!connman->AcceptReceivedBytes(node, data, bytes_transferred)) {
 	LogError(BCLog::NET, "Error in accept %d received bytes, peer=%lld", bytes_transferred, id);
     } else {
-	LogDebug(BCLog::NET, "Received %ld bytes, peer=%lld", bytes_transferred, id);
+	LogTrace(BCLog::NET, "Received %ld bytes, peer=%lld", bytes_transferred, id);
 	socket.async_read_some(boost::asio::buffer(data, max_length),
 		boost::bind(&AsioSession::handle_read, this, shared_from_this(),
 		boost::asio::placeholders::error,
@@ -433,7 +433,7 @@ void AsioSession::handle_write(std::shared_ptr<AsioSession> s,
 		const boost::system::error_code& err, size_t bytes_transferred)
 {
     CNode *node = pnode;
-    LogDebug(BCLog::NET, "Session handle_write called after transmission of %lld bytes, peer=%lld", bytes_transferred, id);
+    LogTrace(BCLog::NET, "Session handle_write called after transmission of %lld bytes, peer=%lld", bytes_transferred, id);
     if (err) {
 	LogError(BCLog::NET, "Error in transmit, peer=%lld: %s", id, err.message());
 	if (node) connman->SocketSendFinish(node, -1);
@@ -442,7 +442,7 @@ void AsioSession::handle_write(std::shared_ptr<AsioSession> s,
     } else if (!connman->SocketSendFinish(node, bytes_transferred)) {
 	LogError(BCLog::NET, "Error in accept %d transmitted bytes, peer=%lld", bytes_transferred, id);
     } else {
-	LogDebug(BCLog::NET, "Transmitted %d bytes, peer=%lld", bytes_transferred, id);
+	LogTrace(BCLog::NET, "Transmitted %d bytes, peer=%lld", bytes_transferred, id);
 	sem_post(&connman->dataWritten);
     }
 }
