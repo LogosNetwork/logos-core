@@ -9,7 +9,7 @@
 #include <logos/epoch/archiver.hpp>
 #include <logos/node/node.hpp>
 
-std::atomic_uint ConsensusContainer::_cur_epoch_number(0);
+std::atomic<uint32_t> ConsensusContainer::_cur_epoch_number(0);
 
 ConsensusContainer::ConsensusContainer(Service & service,
                                        Store & store,

@@ -31,12 +31,12 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
     BlockHash hash() const { return Hash(); }
     static const size_t HASHABLE_BYTES;         ///< hashable bytes of the micrblock - used in signing
     logos::account      account; 	            ///< Delegate who proposed this microblock
-    uint                epoch_number; 			///< Current epoch
+    uint32_t            epoch_number; 			///< Current epoch
     uint16_t            sequence;	            ///< Microblock number within this epoch
     uint8_t             last_micro_block;       ///< The last microblock in the epoch
     uint8_t             padding1 = 0;           ///< padding
-    uint                number_batch_blocks;    ///< Number of batch blocks in the microblock
-    uint                padding2 = 0;           ///< padding
+    uint32_t            number_batch_blocks;    ///< Number of batch blocks in the microblock
+    uint32_t            padding2 = 0;           ///< padding
     BlockHash           tips[NUM_DELEGATES];    ///< Delegate's batch block tips
     Signature           signature; 		        ///< Multisignature
 };

@@ -133,7 +133,7 @@ public:
 
     /// Get current epoch id
     /// @returns current epoch id
-    static uint GetCurEpochNumber() { return _cur_epoch_number; }
+    static uint32_t GetCurEpochNumber() { return _cur_epoch_number; }
 
     /// Binds connected socket to the correct delegates set, mostly applicable during epoch transition
     /// @param endpoint connected endpoing
@@ -158,7 +158,7 @@ private:
     /// Set current epoch id, this is done by the NodeIdentityManager on startup
     /// And by epoch transition logic
     /// @param id epoch id
-    static void SetCurEpochNumber(uint n) { _cur_epoch_number = n; }
+    static void SetCurEpochNumber(uint32_t n) { _cur_epoch_number = n; }
 
     /// Epoch transition start event at T-20sec
     /// @param delegate_idx delegate's index [in]
@@ -200,7 +200,7 @@ private:
     CreateEpochManager(uint epoch_number, const ConsensusManagerConfig &config,
         EpochTransitionDelegate delegate, EpochConnection connnection);
 
-    static std::atomic_uint             _cur_epoch_number;          ///< current epoch number
+    static std::atomic<uint32_t>        _cur_epoch_number;          ///< current epoch number
     EpochPeerManager                    _peer_manager;              ///< processes accept callback
     std::mutex                          _mutex;                     ///< protects access to _cur_epoch
     std::shared_ptr<EpochManager>       _cur_epoch;                 ///< consensus objects

@@ -114,7 +114,7 @@ protected:
     virtual uint64_t GetStoredCount() = 0;
 
     void OnConsensusReached() override;
-    void InitiateConsensus();
+    virtual void InitiateConsensus();
 
     virtual bool ReadyForConsensus();
 

@@ -68,8 +68,8 @@ public:
     }
     static const size_t     HASHABLE_BYTES;              ///< hashable bytes of the epoch - used in signing
     logos::account          account;                     ///< account address of the epoch's proposer
-    uint                    epoch_number;                ///< epoch number
-    uint                    padding;                     ///< padding
+    uint32_t                epoch_number;                ///< epoch number
+    uint32_t                padding;                     ///< padding
     BlockHash               micro_block_tip;             ///< microblock tip of this epoch
     uint64_t                transaction_fee_pool;        ///< this epoch's transaction fee pool
     Delegate                delegates[NUM_DELEGATES];    ///< delegate'ls list

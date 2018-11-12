@@ -15,7 +15,7 @@ EpochManager::EpochManager(Service & service,
                            std::atomic<EpochTransitionState> & state,
                            EpochTransitionDelegate delegate,
                            EpochConnection connection,
-                           const uint epoch_number,
+                           const uint32_t epoch_number,
                            NewEpochEventHandler & handler)
     : _state(state)
     , _delegate(delegate)
@@ -41,7 +41,7 @@ EpochManager::EpochManager(Service & service,
 
 bool
 EpochManager::OnNewEpochPostCommit(
-    uint epoch_number)
+    uint32_t epoch_number)
 {
     if (_delegate == EpochTransitionDelegate::Persistent &&
             (_epoch_number + 1) == epoch_number)

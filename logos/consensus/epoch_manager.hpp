@@ -17,7 +17,7 @@ class EpochInfo {
 public:
     EpochInfo() = default;
     virtual ~EpochInfo() = default;
-    virtual uint GetEpochNumber() = 0;
+    virtual uint32_t GetEpochNumber() = 0;
     virtual EpochConnection GetConnection() = 0;
     virtual std::string GetConnectionName() = 0;
     virtual std::string GetDelegateName() = 0;
@@ -29,10 +29,10 @@ class EpochEventsNotifier {
 public:
     EpochEventsNotifier() = default;
     virtual ~EpochEventsNotifier() = default;
-    virtual bool OnNewEpochPostCommit(uint epoch_number) = 0;
+    virtual bool OnNewEpochPostCommit(uint32_t epoch_number) = 0;
     virtual bool OnNewEpochRejected() = 0;
     virtual EpochConnection GetConnection() = 0;
-    virtual uint GetEpochNumber() = 0;
+    virtual uint32_t GetEpochNumber() = 0;
     virtual EpochTransitionState GetState() = 0;
     virtual EpochTransitionDelegate GetDelegate() = 0;
 };
@@ -59,11 +59,11 @@ public:
                      std::atomic<EpochTransitionState> & state,
                      EpochTransitionDelegate delegate,
                      EpochConnection connection,
-                     const uint epoch_number,
+                     const uint32_t epoch_number,
                      NewEpochEventHandler & event_handler);
     ~EpochManager() {}
 
-    uint GetEpochNumber() override { return _epoch_number; }
+    uint32_t GetEpochNumber() override { return _epoch_number; }
 
     EpochConnection GetConnection() override { return _connection_state; }
 
@@ -79,7 +79,7 @@ public:
 
     EpochTransitionDelegate GetDelegate() override { return _delegate; }
 
-    bool OnNewEpochPostCommit(uint epoch_number) override;
+    bool OnNewEpochPostCommit(uint32_t epoch_number) override;
 
     bool OnNewEpochRejected() override;
 

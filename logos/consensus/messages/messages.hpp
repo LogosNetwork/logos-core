@@ -15,8 +15,8 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
 
     uint64_t  sequence;
     uint64_t  block_count = 0;
-    uint      epoch_number = 0;
-    uint      padding = 0;
+    uint32_t  epoch_number = 0;
+    uint32_t  padding = 0;
     BlockList blocks;
     BlockHash next;
     Signature signature;
