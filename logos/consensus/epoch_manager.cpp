@@ -39,24 +39,27 @@ EpochManager::EpochManager(Service & service,
         _key_store, _validator, starter, *this)
 {}
 
-bool
-EpochManager::OnNewEpochPostCommit(
+void
+EpochManager::OnPostCommit(
     uint32_t epoch_number)
 {
-    if (_delegate == EpochTransitionDelegate::Persistent &&
-            (_epoch_number + 1) == epoch_number)
+    if (_delegate == EpochTransitionDelegate::Persistent)
     {
-        return _new_epoch_handler.OnNewEpochPostCommit();
+        _new_epoch_handler.OnPostCommit(epoch_number);
     }
-    return false;
 }
 
-bool
-EpochManager::OnNewEpochRejected()
+void
+EpochManager::OnPrePrepareRejected()
 {
     if (_delegate == EpochTransitionDelegate::Retiring)
     {
-        return _new_epoch_handler.OnNewEpochRejected();
+        _new_epoch_handler.OnPrePrepareRejected();
     }
-    return false;
+}
+
+bool
+EpochManager::IsRecall()
+{
+    return _new_epoch_handler.IsRecall();
 }

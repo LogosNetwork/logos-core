@@ -75,8 +75,6 @@ Archiver::Test_ProposeMicroBlock(InternalConsensus &consensus, bool last_microbl
     });
 }
 
-
-
 bool
 Archiver::IsFirstEpoch(BlockStore &store)
 {
@@ -98,4 +96,10 @@ Archiver::IsFirstEpoch(BlockStore &store)
     }
 
     return epoch.epoch_number == GENESIS_EPOCH;
+}
+
+bool
+Archiver::IsRecall()
+{
+    return _recall_handler.IsRecall();
 }

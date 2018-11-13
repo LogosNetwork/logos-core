@@ -301,11 +301,9 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
     {
         _new_epoch_rejection_cnt = 0;
         // TODO retiring delegate in ForwardOnly state has to forward to new primary - deferred
-        if (_events_notifier.OnNewEpochRejected())
-        {
-            // forward
-            return;
-        }
+        _events_notifier.OnPrePrepareRejected();
+        // forward
+        return;
     }
 
     // Pairs a set of Delegate ID's with indexes,

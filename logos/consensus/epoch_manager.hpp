@@ -29,12 +29,13 @@ class EpochEventsNotifier {
 public:
     EpochEventsNotifier() = default;
     virtual ~EpochEventsNotifier() = default;
-    virtual bool OnNewEpochPostCommit(uint32_t epoch_number) = 0;
-    virtual bool OnNewEpochRejected() = 0;
+    virtual void OnPostCommit(uint32_t epoch_number) = 0;
+    virtual void OnPrePrepareRejected() = 0;
     virtual EpochConnection GetConnection() = 0;
     virtual uint32_t GetEpochNumber() = 0;
     virtual EpochTransitionState GetState() = 0;
     virtual EpochTransitionDelegate GetDelegate() = 0;
+    virtual bool IsRecall() = 0;
 };
 
 class EpochManager : public EpochInfo,
@@ -79,9 +80,11 @@ public:
 
     EpochTransitionDelegate GetDelegate() override { return _delegate; }
 
-    bool OnNewEpochPostCommit(uint32_t epoch_number) override;
+    void OnPostCommit(uint32_t epoch_number) override;
 
-    bool OnNewEpochRejected() override;
+    void OnPrePrepareRejected() override;
+
+    bool IsRecall() override;
 
 private:
     std::atomic<EpochTransitionState> &     _state;             ///< State of transition

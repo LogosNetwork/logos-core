@@ -180,14 +180,14 @@ MicroBlockHandler::Build(
 
     if (_store.micro_block_tip_get(previous_micro_block_hash))
     {
-        LOG_ERROR(_log) << "MicroBlockHandler::Build failed to get micro block tip";
-        return false;
+        LOG_FATAL(_log) << "MicroBlockHandler::Build failed to get micro block tip";
+        std::exit(EXIT_FAILURE);
     }
     if (_store.micro_block_get(previous_micro_block_hash, previous_micro_block))
     {
-        LOG_ERROR(_log) << "MicroBlockHandler::Build failed to get micro block: "
+        LOG_FATAL(_log) << "MicroBlockHandler::Build failed to get micro block: "
                         << previous_micro_block_hash.to_string();
-        return false;
+        std::exit(EXIT_FAILURE);
     }
 
     // collect current batch block tips
@@ -223,15 +223,15 @@ MicroBlockHandler::Build(
     BlockHash hash;
     if (_store.epoch_tip_get(hash))
     {
-        LOG_ERROR(_log) << "MicroBlockHandler::Build failed to get epoch tip";
-        return false;
+        LOG_FATAL(_log) << "MicroBlockHandler::Build failed to get epoch tip";
+        std::exit(EXIT_FAILURE);
     }
 
     if (_store.epoch_get(hash, epoch))
     {
-        LOG_ERROR(_log) << "MicroBlockHandler::Build failed to get epoch: "
+        LOG_FATAL(_log) << "MicroBlockHandler::Build failed to get epoch: "
                         << hash.to_string();
-        return false;
+        std::exit(EXIT_FAILURE);
     }
 
     // first micro block in this epoch
@@ -295,15 +295,15 @@ MicroBlockHandler::Validate(
 
     if (_store.epoch_tip_get(hash))
     {
-        LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get epoch tip";
-        return false;
+        LOG_FATAL(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get epoch tip";
+        std::exit(EXIT_FAILURE);
     }
 
     if (_store.epoch_get(hash, previous_epoch))
     {
-        LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get epoch: "
+        LOG_FATAL(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get epoch: "
                         << hash.to_string();
-        return false;
+        std::exit(EXIT_FAILURE);
     }
 
     // previous and proposed microblock are in the same epoch

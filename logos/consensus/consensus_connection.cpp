@@ -204,7 +204,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
         _state = ConsensusState::VOID;
         _prev_pre_prepare_hash = _pre_prepare_hash;
 
-        _events_notifier.OnNewEpochPostCommit(_pre_prepare->epoch_number);
+        _events_notifier.OnPostCommit(_pre_prepare->epoch_number);
     }
 }
 

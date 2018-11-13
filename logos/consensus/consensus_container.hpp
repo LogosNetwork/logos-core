@@ -56,8 +56,9 @@ class NewEpochEventHandler
 public:
     NewEpochEventHandler() = default;
     ~NewEpochEventHandler() = default;
-    virtual bool OnNewEpochPostCommit() = 0;
-    virtual bool OnNewEpochRejected() = 0;
+    virtual void OnPostCommit(uint32_t epoch_number) = 0;
+    virtual void OnPrePrepareRejected() = 0;
+    virtual bool IsRecall() = 0;
 };
 
 class InternalConsensus
@@ -181,15 +182,26 @@ private:
     /// Submit connections queue for binding to the correct epoch
     void BindConnectionsQueue();
 
-    /// Swap Persistent delegate's EpochManager (current with transition)
-    /// Happens either at Epoch Start time or after Epoch Transtion Start time
-    /// if received PostCommit with E#_i
+    /// Transition if received PostCommit with E#_i
+    /// @param epoch_number PrePrepare epoch number
     /// @return true if no error
-    bool OnNewEpochPostCommit() override;
+    void OnPostCommit(uint32_t epoch_number) override;
 
     /// Transition Retiring delegate to ForwardOnly
     /// @return true if no error
-    bool OnNewEpochRejected() override;
+    void OnPrePrepareRejected() override;
+
+    /// Is Recall
+    /// @returns true if recall
+    bool IsRecall() override;
+
+    /// Swap Persistent delegate's EpochManager (current with transition)
+    /// Happens either at Epoch Start time or after Epoch Transtion Start time
+    /// if received PostCommit with E#_i
+    void TransitionPersistent();
+
+    /// Transition Retiring delegate to ForwardOnly
+    void TransitionRetiring();
 
     /// Create EpochManager instance
     /// @param epoch_number manager's epoch number

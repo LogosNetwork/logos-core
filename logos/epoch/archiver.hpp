@@ -103,6 +103,10 @@ public:
         _epoch_handler.ApplyUpdates(block);
     }
 
+    /// Is Recall
+    /// @returns true if recall
+    bool IsRecall();
+
 private:
     static constexpr uint8_t SELECT_PRIMARY_DELEGATE = 0x1F;
 

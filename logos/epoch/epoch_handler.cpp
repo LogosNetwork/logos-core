@@ -24,15 +24,15 @@ EpochHandler::Validate(
 
     if (_store.epoch_tip_get(previous_epoch_hash))
     {
-        LOG_ERROR(_log) << "EpochHandler::Validate failed to get epoch tip";
-        return false;
+        LOG_FATAL(_log) << "EpochHandler::Validate failed to get epoch tip";
+        std::exit(EXIT_FAILURE);
     }
 
     if (_store.epoch_get(previous_epoch_hash, previous_epoch))
     {
-        LOG_ERROR(_log) << "EpochHandler::Validate failed to get epoch: " <<
+        LOG_FATAL(_log) << "EpochHandler::Validate failed to get epoch: " <<
             previous_epoch_hash.to_string();
-        return false;
+        std::exit(EXIT_FAILURE);
     }
 
     // verify epoch number = previous + 1
@@ -45,6 +45,12 @@ EpochHandler::Validate(
 
     // verify microblock tip exists
     BlockHash micro_block_tip;
+    if (_store.micro_block_tip_get(micro_block_tip))
+    {
+        LOG_FATAL(_log) << "EpochHandler::Validate failed to get microblock tip";
+        std::exit(EXIT_FAILURE);
+    }
+
     if (_store.micro_block_tip_get(micro_block_tip) || epoch.micro_block_tip != micro_block_tip)
     {
         LOG_ERROR(_log) << "EpochHandler::Validate previous micro block doesn't exist " <<
@@ -91,28 +97,28 @@ EpochHandler::Build(Epoch &epoch)
 
     if (_store.epoch_tip_get(previous_epoch_hash))
     {
-        LOG_ERROR(_log) << "EpochHandler::Build failed to get epoch tip";
-        return false;
+        LOG_FATAL(_log) << "EpochHandler::Build failed to get epoch tip";
+        std::exit(EXIT_FAILURE);
     }
 
     if (_store.epoch_get(previous_epoch_hash, previous_epoch))
     {
-        LOG_ERROR(_log) << "EpochHandler::Build failed to get epoch: " <<
+        LOG_FATAL(_log) << "EpochHandler::Build failed to get epoch: " <<
             previous_epoch_hash.to_string();
-        return false;
+        std::exit(EXIT_FAILURE);
     }
 
     if (_store.micro_block_tip_get(previous_micro_block_hash))
     {
-        LOG_ERROR(_log) << "EpochHandler::Build failed to get micro block tip";
-        return false;
+        LOG_FATAL(_log) << "EpochHandler::Build failed to get micro block tip";
+        std::exit(EXIT_FAILURE);
     }
 
     if (_store.micro_block_get(previous_micro_block_hash, last_micro_block))
     {
-        LOG_ERROR(_log) << "EpochHandler::Build failed to get micro block: " <<
+        LOG_FATAL(_log) << "EpochHandler::Build failed to get micro block: " <<
             previous_micro_block_hash.to_string();
-        return false;
+        std::exit(EXIT_FAILURE);
     }
 
     epoch.timestamp = GetStamp();

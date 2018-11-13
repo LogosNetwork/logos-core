@@ -82,8 +82,8 @@ NodeIdentityManager::Init(const Config &config)
         Epoch previous_epoch;
         if (_store.epoch_get(epoch_tip, previous_epoch))
         {
-            LOG_ERROR(_log) << "NodeIdentityManager::Init Failed to get epoch: " << epoch_tip.to_string();
-            return;
+            LOG_FATAL(_log) << "NodeIdentityManager::Init Failed to get epoch: " << epoch_tip.to_string();
+            std::exit(EXIT_FAILURE);
         }
 
         epoch_number = previous_epoch.epoch_number + 1;
@@ -186,25 +186,25 @@ NodeIdentityManager::IdentifyDelegates(
     logos::block_hash epoch_tip;
     if (_store.epoch_tip_get(epoch_tip))
     {
-        LOG_ERROR(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch tip";
-        return;
+        LOG_FATAL(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch tip";
+        std::exit(EXIT_FAILURE);
     }
 
     Epoch epoch;
     if (_store.epoch_get(epoch_tip, epoch))
     {
-        LOG_ERROR(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch: "
+        LOG_FATAL(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch: "
                         << epoch_tip.to_string();
-        return;
+        std::exit(EXIT_FAILURE);
     }
 
     if (epoch_delegates == EpochDelegates::Current)
     {
         if (_store.epoch_get(epoch.previous, epoch))
         {
-            LOG_ERROR(_log) << "NodeIdentityManager::IdentifyDelegates failed to get current delegate's epoch: "
+            LOG_FATAL(_log) << "NodeIdentityManager::IdentifyDelegates failed to get current delegate's epoch: "
                             << epoch.previous.to_string();
-            return;
+            std::exit(EXIT_FAILURE);
         }
     }
 
@@ -229,16 +229,16 @@ NodeIdentityManager::IdentifyDelegates(
     logos::block_hash hash;
     if (_store.epoch_tip_get(hash))
     {
-        LOG_ERROR(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch tip";
-        return false;
+        LOG_FATAL(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch tip";
+        std::exit(EXIT_FAILURE);
     }
 
     auto get = [this](logos::block_hash &hash, Epoch &epoch) {
         if (_store.epoch_get(hash, epoch))
         {
-            LOG_ERROR(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch: "
+            LOG_FATAL(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch: "
                             << hash.to_string();
-            return false;
+            std::exit(EXIT_FAILURE);
         }
         return true;
     };

@@ -288,8 +288,8 @@ ConsensusContainer::EpochTransitionEventsStart()
         {
             if (_cur_epoch == nullptr)
             {
-                LOG_ERROR(_log) << "ConsensusContainer::EpochTransitionEventsStart current epoch is null";
-                return;
+                LOG_FATAL(_log) << "ConsensusContainer::EpochTransitionEventsStart current epoch is null";
+                std::exit(EXIT_FAILURE);
             }
             _cur_epoch->_delegate = EpochTransitionDelegate::Persistent;
         }
@@ -312,7 +312,7 @@ ConsensusContainer::EpochTransitionEventsStart()
     }
     else if (epoch_start < EPOCH_TRANSITION_START)
     {
-        lapse = epoch_start;
+        lapse = Seconds(0);
     }
 
     _alarm.add(lapse, std::bind(&ConsensusContainer::EpochTransitionStart, this, delegate_idx));
@@ -347,11 +347,10 @@ ConsensusContainer::EpochTransitionStart(uint8_t delegate_idx)
 
     if (_transition_delegate == EpochTransitionDelegate::New)
     {
-        if (_trans_epoch == nullptr || _cur_epoch != nullptr)
+        if (_trans_epoch == nullptr)
         {
-           LOG_WARN(_log) << "ConsensusContainer::EpochTransitionStart trans epoch is null "
-                            << (_trans_epoch == nullptr) << " cur epoch is not null "
-                            << (_cur_epoch != nullptr);
+           LOG_FATAL(_log) << "ConsensusContainer::EpochTransitionStart trans epoch is null";
+           std::exit(EXIT_FAILURE);
         }
         _cur_epoch = _trans_epoch;
         _trans_epoch = nullptr;
@@ -364,47 +363,57 @@ ConsensusContainer::EpochTransitionStart(uint8_t delegate_idx)
     _alarm.add(lapse, std::bind(&ConsensusContainer::EpochStart, this, delegate_idx));
 }
 
-bool
-ConsensusContainer::OnNewEpochPostCommit()
+void
+ConsensusContainer::OnPostCommit(uint32_t epoch_number)
 {
     std::lock_guard<std::mutex>   lock(_mutex);
 
     if (_cur_epoch == nullptr || _trans_epoch == nullptr)
     {
-        LOG_ERROR(_log) << "ConsensusContainer::PersistentToReject trans epoch is null "
+        LOG_FATAL(_log) << "ConsensusContainer::OnPostCommit trans epoch is null "
                         << (_trans_epoch == nullptr) << " cur epoch is null " << (_cur_epoch == nullptr);
-        return false;
+        std::exit(EXIT_FAILURE);
     }
 
-    if (_trans_epoch->_delegate != EpochTransitionDelegate::PersistentReject)
+    if (_trans_epoch->_delegate != EpochTransitionDelegate::PersistentReject &&
+            _trans_epoch->_epoch_number == epoch_number)
     {
-        _cur_epoch.swap(_trans_epoch);
-        _cur_epoch->UpdateRequestPromoter();
-        _trans_epoch->_delegate = EpochTransitionDelegate::PersistentReject;
+        TransitionPersistent();
     }
-    _trans_epoch->_connection_state = EpochConnection::WaitingDisconnect;
-
-    return true;
 }
 
-bool
-ConsensusContainer::OnNewEpochRejected()
+void
+ConsensusContainer::TransitionPersistent()
+{
+    _cur_epoch.swap(_trans_epoch);
+    _cur_epoch->UpdateRequestPromoter();
+    _trans_epoch->_delegate = EpochTransitionDelegate::PersistentReject;
+    _trans_epoch->_connection_state = EpochConnection::WaitingDisconnect;
+}
+
+void
+ConsensusContainer::OnPrePrepareRejected()
 {
     std::lock_guard<std::mutex>   lock(_mutex);
 
     if (_cur_epoch == nullptr)
     {
-        LOG_ERROR(_log) << "ConsensusContainer::RetiringToForwardOnly cur epoch is null";
-        return false;
+        LOG_ERROR(_log) << "ConsensusContainer::OnPrePrepareRejected cur epoch is null";
+        std::exit(EXIT_FAILURE);
     }
+
+    TransitionRetiring();
+}
+
+void
+ConsensusContainer::TransitionRetiring()
+{
     _cur_epoch->_delegate = EpochTransitionDelegate::RetiringForwardOnly;
     _cur_epoch->_connection_state = EpochConnection::WaitingDisconnect;
 
     // stop receiving requests
     _trans_epoch.swap(_cur_epoch);
     _cur_epoch = nullptr;
-
-    return true;
 }
 
 void
@@ -418,10 +427,25 @@ ConsensusContainer::EpochStart(uint8_t delegate_idx)
 
     _transition_state = EpochTransitionState::EpochStart;
 
-    if (_transition_delegate == EpochTransitionDelegate::Persistent && !OnNewEpochPostCommit() ||
-            _transition_delegate == EpochTransitionDelegate::Retiring && !OnNewEpochRejected())
+    if (_transition_delegate == EpochTransitionDelegate::Persistent)
     {
-        return;
+        if (_cur_epoch == nullptr || _trans_epoch == nullptr)
+        {
+            LOG_FATAL(_log) << "ConsensusContainer::EpochStart trans epoch is null "
+                            << (_trans_epoch == nullptr) << " cur epoch is null " << (_cur_epoch == nullptr);
+            std::exit(EXIT_FAILURE);
+        }
+        TransitionPersistent();
+    }
+
+    if (_transition_delegate == EpochTransitionDelegate::Retiring)
+    {
+        if (_cur_epoch == nullptr)
+        {
+            LOG_FATAL(_log) << "ConsensusContainer::EpochStart cur epoch is null";
+            std::exit(EXIT_FAILURE);
+        }
+        TransitionRetiring();
     }
 
     _binding_map.erase(_cur_epoch_number);
@@ -440,16 +464,14 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
 
     _trans_epoch = nullptr;
 
-
     if (_transition_delegate == EpochTransitionDelegate::Retiring)
     {
         _binding_map.clear();
-        _trans_epoch = nullptr;
     }
     else if (_cur_epoch == nullptr)
     {
-        LOG_ERROR(_log) << "ConsensusContainer::EpochTransitionEnd cur epoch is null";
-        return;
+        LOG_FATAL(_log) << "ConsensusContainer::EpochTransitionEnd cur epoch is null";
+        std::exit(EXIT_FAILURE);
     }
     else
     {
@@ -488,4 +510,10 @@ ConsensusContainer::BuildConsensusConfig(
    LOG_DEBUG(_log) << str.str();
 
    return config;
+}
+
+bool
+ConsensusContainer::IsRecall()
+{
+    return _archiver.IsRecall();
 }

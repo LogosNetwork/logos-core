@@ -4,6 +4,7 @@
 #include <logos/consensus/batchblock/bb_consensus_connection.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
+#include <logos/lib/epoch_time_util.hpp>
 
 #include <random>
 
@@ -148,8 +149,18 @@ BBConsensusConnection::HandleReject(const PrePrepare & message)
         case RejectionReason::Invalid_Epoch:
             break;
         case RejectionReason::New_Epoch:
+            EpochTimeUtil util;
+            auto timeout = util.GetNextEpochTime();
+            if (timeout > 2 * CLOCK_DRIFT ||
+                    _events_notifier.GetDelegate() != EpochTransitionDelegate::PersistentReject)
+            {
+                LOG_ERROR(_log) << "BBConsensusConnection::HandleReject epoch transition exceeds double clock drift "
+                                << timeout.count() << " or not persistent delegate "
+                                << TransitionDelegateToName(_events_notifier.GetDelegate());
+                return;
+            }
             SetPrePrepare(message);
-            ScheduleTimer(GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE_NEW_EPOCH));
+            ScheduleTimer(boost::posix_time::seconds(timeout.count() + 5));
             break;
     }
 }
