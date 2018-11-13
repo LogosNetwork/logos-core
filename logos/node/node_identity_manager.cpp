@@ -8,6 +8,7 @@
 #include <logos/node/node_identity_manager.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/node/node.hpp>
+#include <logos/lib/trace.hpp>
 
 bool NodeIdentityManager::_run_local = false;
 uint8_t NodeIdentityManager::_global_delegate_idx = 0;
@@ -83,7 +84,7 @@ NodeIdentityManager::Init(const Config &config)
         if (_store.epoch_get(epoch_tip, previous_epoch))
         {
             LOG_FATAL(_log) << "NodeIdentityManager::Init Failed to get epoch: " << epoch_tip.to_string();
-            std::exit(EXIT_FAILURE);
+            trace_and_halt();
         }
 
         epoch_number = previous_epoch.epoch_number + 1;
@@ -187,7 +188,7 @@ NodeIdentityManager::IdentifyDelegates(
     if (_store.epoch_tip_get(epoch_tip))
     {
         LOG_FATAL(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch tip";
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
     Epoch epoch;
@@ -195,7 +196,7 @@ NodeIdentityManager::IdentifyDelegates(
     {
         LOG_FATAL(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch: "
                         << epoch_tip.to_string();
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
     if (epoch_delegates == EpochDelegates::Current)
@@ -204,7 +205,7 @@ NodeIdentityManager::IdentifyDelegates(
         {
             LOG_FATAL(_log) << "NodeIdentityManager::IdentifyDelegates failed to get current delegate's epoch: "
                             << epoch.previous.to_string();
-            std::exit(EXIT_FAILURE);
+            trace_and_halt();
         }
     }
 
@@ -230,7 +231,7 @@ NodeIdentityManager::IdentifyDelegates(
     if (_store.epoch_tip_get(hash))
     {
         LOG_FATAL(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch tip";
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
     auto get = [this](logos::block_hash &hash, Epoch &epoch) {
@@ -238,7 +239,7 @@ NodeIdentityManager::IdentifyDelegates(
         {
             LOG_FATAL(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch: "
                             << hash.to_string();
-            std::exit(EXIT_FAILURE);
+            trace_and_halt();
         }
         return true;
     };

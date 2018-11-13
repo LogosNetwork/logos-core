@@ -5,6 +5,7 @@
 #include <logos/microblock/microblock_tester.hpp>
 #include <logos/blockstore.hpp>
 #include <logos/node/node.hpp>
+#include <logos/lib/trace.hpp>
 #include <time.h>
 
 #include <boost/log/sources/record_ostream.hpp>
@@ -181,13 +182,13 @@ MicroBlockHandler::Build(
     if (_store.micro_block_tip_get(previous_micro_block_hash))
     {
         LOG_FATAL(_log) << "MicroBlockHandler::Build failed to get micro block tip";
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
     if (_store.micro_block_get(previous_micro_block_hash, previous_micro_block))
     {
         LOG_FATAL(_log) << "MicroBlockHandler::Build failed to get micro block: "
                         << previous_micro_block_hash.to_string();
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
     // collect current batch block tips
@@ -224,14 +225,14 @@ MicroBlockHandler::Build(
     if (_store.epoch_tip_get(hash))
     {
         LOG_FATAL(_log) << "MicroBlockHandler::Build failed to get epoch tip";
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
     if (_store.epoch_get(hash, epoch))
     {
         LOG_FATAL(_log) << "MicroBlockHandler::Build failed to get epoch: "
                         << hash.to_string();
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
     // first micro block in this epoch
@@ -296,14 +297,14 @@ MicroBlockHandler::Validate(
     if (_store.epoch_tip_get(hash))
     {
         LOG_FATAL(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get epoch tip";
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
     if (_store.epoch_get(hash, previous_epoch))
     {
         LOG_FATAL(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get epoch: "
                         << hash.to_string();
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
     // previous and proposed microblock are in the same epoch

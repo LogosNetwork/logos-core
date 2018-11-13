@@ -4,6 +4,7 @@
 #include <logos/node/node_identity_manager.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/blockstore.hpp>
+#include <logos/lib/trace.hpp>
 #include <logos/lib/log.hpp>
 
 bool
@@ -25,14 +26,14 @@ EpochHandler::Validate(
     if (_store.epoch_tip_get(previous_epoch_hash))
     {
         LOG_FATAL(_log) << "EpochHandler::Validate failed to get epoch tip";
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
     if (_store.epoch_get(previous_epoch_hash, previous_epoch))
     {
         LOG_FATAL(_log) << "EpochHandler::Validate failed to get epoch: " <<
             previous_epoch_hash.to_string();
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
     // verify epoch number = previous + 1
@@ -48,7 +49,7 @@ EpochHandler::Validate(
     if (_store.micro_block_tip_get(micro_block_tip))
     {
         LOG_FATAL(_log) << "EpochHandler::Validate failed to get microblock tip";
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
     if (_store.micro_block_tip_get(micro_block_tip) || epoch.micro_block_tip != micro_block_tip)
@@ -98,27 +99,27 @@ EpochHandler::Build(Epoch &epoch)
     if (_store.epoch_tip_get(previous_epoch_hash))
     {
         LOG_FATAL(_log) << "EpochHandler::Build failed to get epoch tip";
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
     if (_store.epoch_get(previous_epoch_hash, previous_epoch))
     {
         LOG_FATAL(_log) << "EpochHandler::Build failed to get epoch: " <<
             previous_epoch_hash.to_string();
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
     if (_store.micro_block_tip_get(previous_micro_block_hash))
     {
         LOG_FATAL(_log) << "EpochHandler::Build failed to get micro block tip";
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
     if (_store.micro_block_get(previous_micro_block_hash, last_micro_block))
     {
         LOG_FATAL(_log) << "EpochHandler::Build failed to get micro block: " <<
             previous_micro_block_hash.to_string();
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
     epoch.timestamp = GetStamp();

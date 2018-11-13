@@ -8,7 +8,7 @@
 
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/consensus/network/peer_acceptor.hpp>
-#include <logos/consensus/network/peer_manager.hpp>
+#include <logos/consensus/network/delegate_peer_manager.hpp>
 
 struct KeyAdvertisement;
 
@@ -24,7 +24,7 @@ public:
 /// The callback reads peer's public key/epoch/delegate id and
 /// calls respective epoch manager to bind the channel to the
 /// backup delegate
-class EpochPeerManager : public PeerManager,
+class EpochPeerManager : public DelegatePeerManager,
                          public PeerAcceptorStarter
 {
     using Service     = boost::asio::io_service;

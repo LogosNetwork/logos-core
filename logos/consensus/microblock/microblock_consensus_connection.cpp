@@ -6,6 +6,7 @@
 #include <logos/consensus/microblock/microblock_consensus_connection.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 #include <logos/epoch/archiver.hpp>
+#include <logos/lib/trace.hpp>
 
 MicroBlockConsensusConnection::MicroBlockConsensusConnection(
                                   std::shared_ptr<IOChannel> iochannel,
@@ -21,7 +22,8 @@ MicroBlockConsensusConnection::MicroBlockConsensusConnection(
 {
     if (promoter.GetStore().micro_block_tip_get(_prev_pre_prepare_hash))
     {
-        LOG_ERROR(_log) << "Failed to get microblock's previous hash";
+        LOG_FATAL(_log) << "Failed to get microblock's previous hash";
+        trace_and_halt();
     }
 }
 

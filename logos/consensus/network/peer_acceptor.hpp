@@ -1,6 +1,6 @@
 #pragma once
 
-#include <logos/consensus/network/peer_manager.hpp>
+#include <logos/consensus/network/delegate_peer_manager.hpp>
 #include <logos/lib/log.hpp>
 
 #include <boost/asio.hpp>
@@ -20,7 +20,7 @@ public:
 
     PeerAcceptor(Service & service,
                  const Endpoint & local_endpoint,
-                 PeerManager & manager);
+                 DelegatePeerManager & manager);
     ~PeerAcceptor() = default;
 
     void Start(const std::set<Address> & server_endpoints);
@@ -37,6 +37,6 @@ private:
     Service &         _service;
     Endpoint          _local_endpoint;
     Endpoint          _accepted_endpoint;
-    PeerManager &     _manager;
+    DelegatePeerManager &     _manager;
 };
 

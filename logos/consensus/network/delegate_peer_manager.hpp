@@ -2,7 +2,7 @@
 
 #include <boost/asio/ip/tcp.hpp>
 
-class PeerManager
+class DelegatePeerManager
 {
 protected:
 
@@ -11,7 +11,7 @@ protected:
 
 public:
 
-    virtual ~PeerManager() = default;
+    virtual ~DelegatePeerManager() = default;
 
     virtual void OnConnectionAccepted(const Endpoint endpoint, std::shared_ptr<Socket>) = 0;
 };

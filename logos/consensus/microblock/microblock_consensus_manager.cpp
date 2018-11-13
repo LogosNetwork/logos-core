@@ -1,6 +1,7 @@
 #include <logos/consensus/microblock/microblock_consensus_connection.hpp>
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
 #include <logos/epoch/archiver.hpp>
+#include <logos/lib/trace.hpp>
 
 MicroBlockConsensusManager::MicroBlockConsensusManager(
                                Service & service,
@@ -17,7 +18,8 @@ MicroBlockConsensusManager::MicroBlockConsensusManager(
 {
     if (_store.micro_block_tip_get(_prev_hash))
     {
-        LOG_ERROR(_log) << "Failed to get microblock's previous hash";
+        LOG_FATAL(_log) << "Failed to get microblock's previous hash";
+        trace_and_halt();
     }
 }
 

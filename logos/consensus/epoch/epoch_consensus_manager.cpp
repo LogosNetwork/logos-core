@@ -7,6 +7,7 @@
 #include <logos/node/node_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/epoch/archiver.hpp>
+#include <logos/lib/trace.hpp>
 
 EpochConsensusManager::EpochConsensusManager(
                           Service & service,
@@ -23,7 +24,8 @@ EpochConsensusManager::EpochConsensusManager(
 {
 	if (_store.epoch_tip_get(_prev_hash))
 	{
-		LOG_ERROR(_log) << "Failed to get epoch's previous hash";
+		LOG_FATAL(_log) << "Failed to get epoch's previous hash";
+		trace_and_halt();
 	}
 }
 

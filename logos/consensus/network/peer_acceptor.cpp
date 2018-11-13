@@ -3,7 +3,7 @@
 
 PeerAcceptor::PeerAcceptor(Service & service,
                            const Endpoint & local_endpoint,
-                           PeerManager & manager)
+                           DelegatePeerManager & manager)
     : _acceptor(service)
     , _service(service)
     , _local_endpoint(local_endpoint)
