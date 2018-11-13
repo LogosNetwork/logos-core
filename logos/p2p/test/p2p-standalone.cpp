@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
 
 	boost::log::add_common_attributes ();
 	boost::log::register_simple_formatter_factory< boost::log::trivial::severity_level, char > ("Severity");
-	boost::log::core::get()->set_filter (boost::log::trivial::severity >= boost::log::trivial::info);
+	boost::log::core::get()->set_filter (boost::log::trivial::severity >= boost::log::trivial::debug);
 	boost::log::add_file_log (boost::log::keywords::target = "log",
 				  boost::log::keywords::file_name = "log/log_%Y-%m-%d_%H-%M-%S.%N.log",
 				  boost::log::keywords::rotation_size = 0x100000,

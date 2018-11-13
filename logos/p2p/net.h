@@ -130,6 +130,7 @@ private:
     CConnman *connman;
     CNode* pnode;
     NodeId id;
+    bool in_shutdown;
     void handle_read(std::shared_ptr<AsioSession> s, const boost::system::error_code& err,
 		size_t bytes_transferred);
     void handle_write(std::shared_ptr<AsioSession> s, const boost::system::error_code& err,
