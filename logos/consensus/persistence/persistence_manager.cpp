@@ -83,6 +83,7 @@ bool PersistenceManager::Validate(const logos::state_block & block,
             else
             {
                 result.code = logos::process_result::fork;
+                std::cout << "block.hashables.previous: " << block.hashables.previous.to_string() << " info.head: " << info.head.to_string() << " hash: " << hash.to_string() << std::endl;
                 return false;
             }
         }
@@ -159,6 +160,7 @@ void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message,
         //
         if(!message.previous.is_zero())
         {
+            std::cout << "message.hash: " << message.Hash().to_string() << " previous: " << message.previous.to_string() << std::endl;
             LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
                             << "Failed to find previous: "
                             << message.previous.to_string();

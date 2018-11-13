@@ -60,6 +60,62 @@ bool BatchBlock::validator::reset()
     }
 }
 
+std::map<int, std::pair<int64_t, BlockHash> > BatchBlock::validator::in_memory_bsb_tips()
+{
+    std::map<int, std::pair<int64_t, BlockHash> > tips;
+    std::sort(bsb.begin(), bsb.end(),
+        [](const std::shared_ptr<BatchBlock::bulk_pull_response> &lhs,
+           const std::shared_ptr<BatchBlock::bulk_pull_response> &rhs)
+        {
+            return lhs->block.timestamp < rhs->block.timestamp;
+        }
+    );
+
+    for(int i = 0; i < NUMBER_DELEGATES; ++i) {
+       for(int j = bsb.size()-1; j >= 0; --j) {
+            if(bsb[j]->delegate_id == i) {
+                tips[i] = std::make_pair(bsb[j]->block.sequence,bsb[j]->block.Hash());
+            }
+       }
+    }
+
+    return tips;
+}
+
+std::pair<int64_t, BlockHash> BatchBlock::validator::in_memory_micro_tips()
+{
+    BlockHash zero;
+    if(micro.size() <= 0) {
+        return std::make_pair(-1,zero);
+    }
+    std::sort(micro.begin(), micro.end(),
+        [](const std::shared_ptr<BatchBlock::bulk_pull_response_micro> &lhs,
+           const std::shared_ptr<BatchBlock::bulk_pull_response_micro> &rhs)
+        {
+            return lhs->micro._micro_block_number < rhs->micro._micro_block_number;
+        }
+    );
+
+    return std::make_pair(micro[micro.size()-1]->micro._micro_block_number, micro[micro.size()-1]->micro.Hash());
+}
+
+std::pair<int64_t, BlockHash> BatchBlock::validator::in_memory_epoch_tips()
+{
+    BlockHash zero;
+    if(epoch.size() <= 0) {
+        return std::make_pair(-1,zero);
+    }
+    std::sort(epoch.begin(), epoch.end(),
+        [](const std::shared_ptr<BatchBlock::bulk_pull_response_epoch> &lhs,
+           const std::shared_ptr<BatchBlock::bulk_pull_response_epoch> &rhs)
+        {
+            return lhs->epoch._epoch_number < rhs->epoch._epoch_number;
+        }
+    );
+
+    return std::make_pair(epoch[epoch.size()-1]->epoch._epoch_number, epoch[epoch.size()-1]->epoch.Hash());
+}
+
 bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_response> block)
 {
     std::lock_guard<std::mutex> lock(mutex);
@@ -77,6 +133,9 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
 #endif
     }
 
+#ifdef _DEBUG
+    std::cout << "sorting: " << std::endl;
+#endif
     // Sort all based on timestamp.
     std::sort(bsb.begin(), bsb.end(),
         [](const std::shared_ptr<BatchBlock::bulk_pull_response> &lhs,
@@ -99,16 +158,19 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
                 finished.insert(i);
         }
 #elif _DEBUG_VALIDATE
+        std::cout << "trying to validate: " << std::endl;
         if (BatchBlock::Validate(node->store,
                 block->block,block->delegate_id)) {
                 // Block is valid, add to database.
                 BatchBlock::ApplyUpdates(node->store,
                                  block->block,block->delegate_id);
+                std::cout << "validate successful: hash: " << block->block.Hash().to_string() << std::endl;
                 finished.insert(i);
+        } else {
+                std::cout << "validate failed: hash: " << block->block.Hash().to_string() << std::endl;
         }
 #else
-        finished.insert(i); // TODO: See if we need the container, and maybe we can
-                            //       allocate persistence manager locally.
+        finished.insert(i);
 #endif
    }
 

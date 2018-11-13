@@ -104,15 +104,15 @@ class validator {
         epoch.clear();
     }
 
-    // TODO: When we get NR_BLOCKS we:
-    //       sort
-    //       validate
-    //       apply update
-    //       if ok, we create merkle tree
-    //       if at end of tree, produce micro block
-    //       store micro blocks on a queue
-    //       if at end of a epoch block, produce epoch block
-    //       store epoch block on a queue
+    // Report what we have in our queues so we don't re-request the same blocks...
+    std::map<int, std::pair<int64_t, BlockHash> >  in_memory_bsb_tips();
+    std::pair<int64_t, BlockHash> in_memory_micro_tips();
+    std::pair<int64_t, BlockHash> in_memory_epoch_tips();
+
+    // When we get NR_BLOCKS we:
+    //   sort
+    //   validate
+    //   apply update
     bool validate(std::shared_ptr<bulk_pull_response> block);
 };
 

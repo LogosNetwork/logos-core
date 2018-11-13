@@ -373,6 +373,7 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
                 BlockHash hash = block->block.Hash();
 #ifdef _DEBUG
                 std::cout << "logos::bulk_pull_client::received_block batch block received: delegate_id: " << block->delegate_id << std::endl;
+                std::cout << "r->Hash(): " << hash.to_string() << std::endl;
 #endif
 				if (connection->node->config.logging.bulk_pull_logging ())
 				{
@@ -494,13 +495,34 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
 void logos::bulk_pull_server::set_current_end ()
 { // RGD: Called from logos::bulk_pull_server::bulk_pull_server
 #ifdef _DEBUG
-    std::cout << "logos::bulk_pull_server::set_current_end" << std::endl;
+    std::cout << "logos::bulk_pull_server::set_current_end: delegate_id: " << request->delegate_id << " start current_bsb: " << request->b_start.to_string() << std::endl;
 #endif
 
     // Setup current_micro and current_bsb for iterating micro and bsb blocks.
     current_epoch   = request->e_start;
     current_micro   = request->m_start;
     current_bsb     = request->b_start;
+    if(current_bsb == request->b_end && !current_bsb.is_zero())
+    {
+#ifdef _DEBUG
+        std::cout << "logos::bulk_pull_server::set_current_end: walking back chain for delegate: " << request->delegate_id << std::endl;
+#endif
+        while(true) {
+           std::shared_ptr<BatchStateBlock> b = BatchBlock::readBatchStateBlock(connection->node->store, current_bsb); 
+           //BatchStateBlock *b = BatchBlock::readBatchStateBlock(connection->node->store, current_bsb).get();
+           if(b->previous.is_zero()) {
+#ifdef _DEBUG
+                std::cout << "logos::bulk_pull_server::set_current_end: found root of chain for delegate: " << request->delegate_id << " current_bsb: " << current_bsb.to_string() << " next: " << b->next.to_string() << std::endl;
+#endif
+                //current_bsb = b->Hash(); // Found starting hash.
+                break;
+           }
+           current_bsb = b->previous; // Walk backwards till the beginning...
+        }
+    }
+#ifdef _DEBUG
+        std::cout << "logos::bulk_pull_server::set_current_end: current_bsb: " << current_bsb.to_string() << std::endl;
+#endif
 }
 
 void logos::bulk_pull_server::send_next ()
@@ -511,11 +533,12 @@ void logos::bulk_pull_server::send_next ()
 	{
         BlockHash epoch_block = EpochBlock::getNextEpochBlock(connection->node->store, request->delegate_id, current_epoch);
         BlockHash micro_block = Micro::getNextMicroBlock(connection->node->store, request->delegate_id, current_micro);
-        if(!epoch_block.is_zero() && epoch_block != request->e_end) {
+        //if(!current_epoch.is_zero()) { // && current_epoch != request->e_end) {
+        if(!current_epoch.is_zero() && current_epoch != request->e_end) {
 #ifdef _DEBUG
     std::cout << "logos::bulk_pull_server::send_next: epoch_block" << std::endl;
 #endif
-            std::shared_ptr<Epoch> m = EpochBlock::readEpochBlock(connection->node->store, epoch_block);
+            std::shared_ptr<Epoch> m = EpochBlock::readEpochBlock(connection->node->store, current_epoch);
             BatchBlock::bulk_pull_response_epoch resp;
             resp.delegate_id = request->delegate_id; // m->delegateNumber;
             memcpy(&resp.epoch,&(*m),sizeof(Epoch));
@@ -529,17 +552,18 @@ void logos::bulk_pull_server::send_next ()
 		    auto this_l (shared_from_this ());
 		    if (connection->node->config.logging.bulk_pull_logging ())
 		    {
-			    BOOST_LOG (connection->node->log) << boost::str (boost::format ("Sending block: %1%") % m->Hash ().to_string ());
+			    //BOOST_LOG (connection->node->log) << boost::str (boost::format ("Sending block: %1%") % m->Hash ().to_string ());
 		    }
             int size = (sizeof(BatchBlock::bulk_pull_response_epoch));
 		    async_write (*connection->socket, boost::asio::buffer (send_buffer1->data (), size), [this_l,send_buffer1](boost::system::error_code const & ec, size_t size_a) {
 			    this_l->sent_action (ec, size_a);
 		    });
-        } else if(!micro_block.is_zero() && micro_block != request->m_end) {
+        //} else if(!current_micro.is_zero()) { // && current_micro != request->m_end) {
+        } else if(!current_micro.is_zero() && current_micro != request->m_end) {
 #ifdef _DEBUG
     std::cout << "logos::bulk_pull_server::send_next: micro_block" << std::endl;
 #endif
-            std::shared_ptr<MicroBlock> m = Micro::readMicroBlock(connection->node->store, micro_block);
+            std::shared_ptr<MicroBlock> m = Micro::readMicroBlock(connection->node->store, current_micro);
             BatchBlock::bulk_pull_response_micro resp;
             resp.delegate_id = request->delegate_id; // m->delegateNumber;
             memcpy(&resp.micro,&(*m),sizeof(MicroBlock));
@@ -559,29 +583,44 @@ void logos::bulk_pull_server::send_next ()
 		    async_write (*connection->socket, boost::asio::buffer (send_buffer1->data (), size), [this_l,send_buffer1](boost::system::error_code const & ec, size_t size_a) {
 			    this_l->sent_action (ec, size_a);
 		    });
-        } else 
-        {
+        } else {
 #ifdef _DEBUG
             std::cout << "logos::bulk_pull_server::send_next: bsb_block" << std::endl;
 #endif
            // Get BSB blocks. 
            BlockHash bsb = BatchBlock::getNextBatchStateBlock(connection->node->store, request->delegate_id, current_bsb);
-#ifdef _DEBUG
            static int total_count = 0;
            total_count++;
+#if 0
+#ifdef _DEBUG
            if(iter_count++ < 4)
 #else
            if(!bsb.is_zero() && bsb != request->b_end)
 #endif
+#endif
+
+           if(bsb.is_zero())
+           {
+                std::cout << "bsb is_zero" << std::endl;
+           }
+           else
+           {
+                std::cout << "bsb is_non_zero: current_bsb: " << current_bsb.to_string() << std::endl;
+           }
+
+           if(!current_bsb.is_zero()) // && current_bsb != request->b_end)
            {
 #ifdef _DEBUG
                 std::cout << "logos::bulk_pull_server:: total_count: " << total_count << " delegate_id: " << request->delegate_id << std::endl; 
                 std::cout << "logos::bulk_pull_server:: count: " << iter_count << " delegate_id: " << request->delegate_id << std::endl; 
 #endif
-                std::shared_ptr<BatchStateBlock> b = BatchBlock::readBatchStateBlock(connection->node->store, bsb);
+                std::shared_ptr<BatchStateBlock> b = BatchBlock::readBatchStateBlock(connection->node->store, current_bsb);
                 BatchBlock::bulk_pull_response resp;
                 resp.delegate_id = request->delegate_id;
                 memcpy(&resp.block,&(*b),sizeof(BatchStateBlock));
+#ifdef _DEBUG
+                std::cout << " current_bsb: " << current_bsb.to_string() << " << b->Hash().to_string() " << b->Hash().to_string()  << " message_count: " << b->block_count << std::endl;
+#endif
                 current_bsb = bsb;
 
                 //auto send_buffer1(std::make_shared<std::vector<uint8_t>>(sizeof(resp), uint8_t(0)));
@@ -600,8 +639,10 @@ void logos::bulk_pull_server::send_next ()
 			    async_write (*connection->socket, boost::asio::buffer (send_buffer1->data (), size), [this_l,send_buffer1](boost::system::error_code const & ec, size_t size_a) {
 				    this_l->sent_action (ec, size_a);
 			    });
-           } else
-           {
+           } else {
+#ifdef _DEBUG
+                std::cout << "send_finished: current_bsb: " << current_bsb.to_string() << " request_end: " << request->b_end.to_string() << " delegate_id: " << request->delegate_id << std::endl;
+#endif
 		        send_finished ();
            }
         }

@@ -749,6 +749,10 @@ void logos::bootstrap_attempt::add_pull (logos::pull_info const & pull)
 {
     std::unique_lock<std::mutex> lock (mutex);
 
+#ifdef _DEBUG
+    std::cout << "logos::bootstrap_attempt::add_pull: " << pull.delegate_id << std::endl;
+#endif
+
 	pulls.push_back (pull);
 #ifdef _PROMISE
     if(idle.empty()) {

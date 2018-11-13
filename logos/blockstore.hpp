@@ -127,6 +127,7 @@ public:
     // consensus-prototype additions
     block_hash batch_block_put(BatchStateBlock const &, MDB_txn *);
     bool batch_block_get(const logos::block_hash & hash, BatchStateBlock & block);
+    bool batch_block_get(const logos::block_hash & hash, std::shared_ptr<BatchStateBlock> block, MDB_txn *); // FIXME
     bool batch_block_get(const logos::block_hash & hash, BatchStateBlock & block, MDB_txn *);
     bool state_block_get(const logos::block_hash & hash, logos::state_block & block, MDB_txn *);
     void state_block_put(state_block const &, StateBlockLocator const &, MDB_txn *);
