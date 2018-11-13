@@ -74,7 +74,7 @@ ConsensusNetIOManager::~ConsensusNetIOManager()
 
     LOG_DEBUG(_log) << "~ConsensusNetIOManager, connections " << _connections.size()
                     << " connection " << TransitionConnectionToName(_epoch_info.GetConnection())
-                    << " " << (int)NodeIdentityManager::_global_delegate_idx;
+                    << " " << (int)DelegateIdentityManager::_global_delegate_idx;
 
     for (auto conn : _connections)
     {

@@ -5,17 +5,17 @@
 ///
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/microblock/microblock_handler.hpp>
-#include <logos/node/node_identity_manager.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
 
-bool NodeIdentityManager::_run_local = false;
-uint8_t NodeIdentityManager::_global_delegate_idx = 0;
-logos::account NodeIdentityManager::_delegate_account = 0;
-NodeIdentityManager::IPs NodeIdentityManager::_delegates_ip;
+bool DelegateIdentityManager::_run_local = false;
+uint8_t DelegateIdentityManager::_global_delegate_idx = 0;
+logos::account DelegateIdentityManager::_delegate_account = 0;
+DelegateIdentityManager::IPs DelegateIdentityManager::_delegates_ip;
 
-NodeIdentityManager::NodeIdentityManager(Store &store,
+DelegateIdentityManager::DelegateIdentityManager(Store &store,
                                          const Config &config)
     : _store(store)
 {
@@ -24,7 +24,7 @@ NodeIdentityManager::NodeIdentityManager(Store &store,
 
 /// THIS IS TEMP FOR EPOCH TESTING - NOTE HARD-CODED PUB KEYS!!! TODO
 void
-NodeIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
+DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
 {
     logos::block_hash epoch_hash(0);
     logos::block_hash microblock_hash(0);
@@ -67,7 +67,7 @@ NodeIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
 }
 
 void
-NodeIdentityManager::Init(const Config &config)
+DelegateIdentityManager::Init(const Config &config)
 {
     logos::transaction transaction (_store.environment, nullptr, true);
 
@@ -87,7 +87,11 @@ NodeIdentityManager::Init(const Config &config)
             trace_and_halt();
         }
 
+        // if a node starts after epoch transition start but before the last microblock
+        // is proposed then the latest epoch block is not created yet and the epoch number
+        // has to be increamented by 1
         epoch_number = previous_epoch.epoch_number + 1;
+        epoch_number = (StaleEpoch()) ? epoch_number + 1 : epoch_number;
     }
 
     // TBD: this is done out of order, genesis accounts are created in node::node(), needs to be reconciled
@@ -110,7 +114,7 @@ NodeIdentityManager::Init(const Config &config)
 
 /// THIS IS TEMP FOR EPOCH TESTING - NOTE PRIVATE KEYS ARE 0-63!!! TBD
 void
-NodeIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
+DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 {
     // create genesis accounts
     for (int del = 0; del < NUM_DELEGATES*2; ++del) {
@@ -155,7 +159,7 @@ NodeIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 }
 
 void
-NodeIdentityManager::LoadGenesisAccounts()
+DelegateIdentityManager::LoadGenesisAccounts()
 {
     for (int del = 0; del < NUM_DELEGATES*2; ++del) {
         char buff[5];
@@ -168,7 +172,7 @@ NodeIdentityManager::LoadGenesisAccounts()
 }
 
 void
-NodeIdentityManager::IdentifyDelegates(
+DelegateIdentityManager::IdentifyDelegates(
     EpochDelegates epoch_delegates,
     uint8_t &delegate_idx)
 {
@@ -177,12 +181,20 @@ NodeIdentityManager::IdentifyDelegates(
 }
 
 void
-NodeIdentityManager::IdentifyDelegates(
+DelegateIdentityManager::IdentifyDelegates(
     EpochDelegates epoch_delegates,
     uint8_t &delegate_idx,
     Accounts & delegates)
 {
     delegate_idx = NON_DELEGATE;
+
+    bool stale_epoch = StaleEpoch();
+    // requested epoch block is not created yet
+    if (stale_epoch && epoch_delegates == EpochDelegates::Next)
+    {
+        LOG_ERROR(_log) << "NodeIdentityManager::IdentifyDelegates delegates set is requested for next epoch";
+        return;
+    }
 
     logos::block_hash epoch_tip;
     if (_store.epoch_tip_get(epoch_tip))
@@ -199,7 +211,7 @@ NodeIdentityManager::IdentifyDelegates(
         trace_and_halt();
     }
 
-    if (epoch_delegates == EpochDelegates::Current)
+    if (!stale_epoch && epoch_delegates == EpochDelegates::Current)
     {
         if (_store.epoch_get(epoch.previous, epoch))
         {
@@ -222,7 +234,7 @@ NodeIdentityManager::IdentifyDelegates(
 }
 
 bool
-NodeIdentityManager::IdentifyDelegates(
+DelegateIdentityManager::IdentifyDelegates(
     uint epoch_number,
     uint8_t &delegate_idx,
     Accounts & delegates)
@@ -267,4 +279,12 @@ NodeIdentityManager::IdentifyDelegates(
     }
 
     return found;
+}
+
+bool
+DelegateIdentityManager::StaleEpoch()
+{
+    auto now_msec = GetStamp();
+    auto rem = Seconds(now_msec % TConvert<Milliseconds>(EPOCH_PROPOSAL_TIME).count());
+    return (rem < MICROBLOCK_PROPOSAL_TIME);
 }

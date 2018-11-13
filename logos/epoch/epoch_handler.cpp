@@ -1,7 +1,7 @@
 /// @file
 /// This file contains implementation of the EpochHandler class, which is used
 /// in the Epoch processing
-#include <logos/node/node_identity_manager.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/blockstore.hpp>
 #include <logos/lib/trace.hpp>
@@ -124,7 +124,7 @@ EpochHandler::Build(Epoch &epoch)
 
     epoch.timestamp = GetStamp();
     epoch.previous = previous_epoch_hash;
-    epoch.account = NodeIdentityManager::_delegate_account;
+    epoch.account = DelegateIdentityManager::_delegate_account;
     epoch.epoch_number = previous_epoch.epoch_number + 1;
     epoch.micro_block_tip = previous_micro_block_hash;
     _voting_manager.GetNextEpochDelegates(epoch.delegates);

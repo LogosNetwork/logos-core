@@ -4,7 +4,7 @@
 ///
 #include <logos/consensus/epoch/epoch_consensus_connection.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
-#include <logos/node/node_identity_manager.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/lib/trace.hpp>
@@ -142,10 +142,10 @@ EpochConsensusManager::DesignatedDelegate(
     }
 
     // delegate who proposed last microblock also proposes epoch block
-    if (block.last_micro_block && block.account == NodeIdentityManager::_delegate_account)
+    if (block.last_micro_block && block.account == DelegateIdentityManager::_delegate_account)
     {
         LOG_DEBUG(_log) << "EpochConsensusManager::DesignatedDelegate epoch proposed by delegate "
-                        << (int)_delegate_id << " " << (int)NodeIdentityManager::_global_delegate_idx
+                        << (int)_delegate_id << " " << (int)DelegateIdentityManager::_global_delegate_idx
                         << " " << _events_notifier.GetEpochNumber()
                         << " " << block.account.to_string();
         return _delegate_id;

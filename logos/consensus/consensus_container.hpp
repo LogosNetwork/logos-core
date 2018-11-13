@@ -10,7 +10,7 @@
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
-#include <logos/node/node_identity_manager.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/epoch/epoch_transition.hpp>
 
 #include <queue>
@@ -79,7 +79,7 @@ public:
 class ConsensusContainer : public InternalConsensus,
                            public NewEpochEventHandler
 {
-    friend class NodeIdentityManager;
+    friend class DelegateIdentityManager;
 
     using Service    = boost::asio::io_service;
     using Config     = ConsensusManagerConfig;
@@ -112,7 +112,7 @@ public:
                        logos::alarm & alarm,
                        const Config & config,
                        Archiver & archiver,
-                       NodeIdentityManager & identity_manager);
+                       DelegateIdentityManager & identity_manager);
 
     ~ConsensusContainer() = default;
 
@@ -223,7 +223,7 @@ private:
     const Config &                      _config;                    ///< consensus configuration reference
     Log                                 _log;                       ///< boost log
     Archiver &                          _archiver;                  ///< archiver (epoch/microblock) handler
-    NodeIdentityManager &               _identity_manager;          ///< identity manager reference
+    DelegateIdentityManager &           _identity_manager;          ///< identity manager reference
     std::atomic<EpochTransitionState>   _transition_state;          ///< transition state
     EpochTransitionDelegate             _transition_delegate;       ///< type of delegate during transition
     std::queue<ConnectionCache>         _connections_queue;         ///< queue for delegates set connections

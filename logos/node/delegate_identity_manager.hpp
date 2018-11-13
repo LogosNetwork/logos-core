@@ -26,7 +26,7 @@ enum class EpochDelegates {
     Next
 };
 
-class NodeIdentityManager
+class DelegateIdentityManager
 {
     using Store     = logos::block_store;
     using Config    = ConsensusManagerConfig;
@@ -37,9 +37,9 @@ public:
     /// Class constructor
     /// @param store logos block store reference
     /// @param config node configuration reference
-    NodeIdentityManager(Store&, const Config&);
+    DelegateIdentityManager(Store&, const Config&);
 
-    ~NodeIdentityManager() = default;
+    ~DelegateIdentityManager() = default;
 
     /// Create genesis Epoch's and MicroBlock's
     void CreateGenesisBlocks(logos::transaction &transaction);
@@ -69,6 +69,9 @@ public:
     /// @param delegates list of delegates in the requested epoch [out]
     /// @return true if the epoch is found, false otherwise
     bool IdentifyDelegates(uint epoch, uint8_t & idx, Accounts & delegates);
+
+    /// @returns true if current time is between transition start and last microblock proposal time
+    bool StaleEpoch();
 
     Store &                 _store;                ///< logos block store reference
     static logos::account   _delegate_account;     ///< this delegate's account or 0 if non-delegate

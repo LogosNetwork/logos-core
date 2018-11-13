@@ -1,6 +1,6 @@
 #include <logos/consensus/network/net_io_assembler.hpp>
 #include <logos/consensus/messages/messages.hpp>
-#include <logos/node/node_identity_manager.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 
 NetIOAssembler::NetIOAssembler(std::shared_ptr<Socket> socket,
@@ -61,7 +61,7 @@ void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size
         if (_connected && !_epoch_info.IsWaitingDisconnect())
         {
             LOG_ERROR(_log) << "NetIOAssembler - Error receiving message: "
-                            << error.message() << " global " << (int)NodeIdentityManager::_global_delegate_idx
+                            << error.message() << " global " << (int)DelegateIdentityManager::_global_delegate_idx
                             << " connection " << _epoch_info.GetConnectionName()
                             << " delegate " << _epoch_info.GetDelegateName()
                             << " state " << _epoch_info.GetStateName();

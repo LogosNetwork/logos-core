@@ -4,7 +4,7 @@
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
-#include <logos/node/node_identity_manager.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/node/node.hpp>
@@ -17,7 +17,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
                                        logos::alarm & alarm,
                                        const Config & config,
                                        Archiver & archiver,
-                                       NodeIdentityManager & identity_manager)
+                                       DelegateIdentityManager & identity_manager)
     : _peer_manager(service, config, std::bind(&ConsensusContainer::PeerBinder, this,
             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3))
     , _cur_epoch(nullptr)
@@ -65,7 +65,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
 
     LOG_INFO(_log) << "ConsensusContainer::ConsensusContainer initialized delegate is in epoch "
                     << in_epoch << " epoch transition enabled " << _epoch_transition_enabled
-                    << " " << (int)delegate_idx << " " << (int)NodeIdentityManager::_global_delegate_idx
+                    << " " << (int)delegate_idx << " " << (int)DelegateIdentityManager::_global_delegate_idx
                     << " " << _cur_epoch_number;
 }
 
@@ -93,7 +93,7 @@ ConsensusContainer::OnSendRequest(
     {
         result.code = logos::process_result::not_delegate;
         LOG_WARN(_log) << "ConsensusContainer::OnSendRequest transaction, the node is not a delegate, "
-                        << (int)NodeIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::_global_delegate_idx;
         return result;
     }
 
@@ -130,7 +130,7 @@ ConsensusContainer::BufferComplete(
     {
         result.code = logos::process_result::not_delegate;
         LOG_WARN(_log) << "ConsensusContainer::OnSendRequest transaction, the node is not a delegate, "
-                        << (int)NodeIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::_global_delegate_idx;
         return;
     }
 
@@ -149,7 +149,7 @@ ConsensusContainer::OnSendRequest(
     {
         result.code = logos::process_result::not_delegate;
         LOG_WARN(_log) << "ConsensusContainer::OnSendRequest microblock, the node is not a delegate, "
-                        << (int)NodeIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::_global_delegate_idx;
         return result;
     }
 
@@ -171,7 +171,7 @@ ConsensusContainer::OnSendRequest(
     {
         result.code = logos::process_result::not_delegate;
         LOG_WARN(_log) << "ConsensusContainer::OnSendRequest epoch, the node is not a delegate, "
-                        << (int)NodeIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::_global_delegate_idx;
         return result;
     }
 
@@ -193,7 +193,7 @@ ConsensusContainer::PeerBinder(
     {
         socket->close();
         LOG_WARN(_log) << "ConsensusContainer::PeerBinder: the node is not accepting connections, "
-                        << (int)NodeIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::_global_delegate_idx;
         return;
     }
 
@@ -204,7 +204,7 @@ ConsensusContainer::PeerBinder(
     {
         _connections_queue.push(ConnectionCache{socket, ids, endpoint});
         LOG_WARN(_log) << "ConsensusContainer::PeerBinder: epoch transition has not started yet, "
-                        << (int)NodeIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::_global_delegate_idx;
         return;
     }
 
@@ -230,7 +230,7 @@ ConsensusContainer::PeerBinder(
                     << epoch->GetConnectionName()
                     << " delegate " << epoch->GetDelegateName()
                     << " state " << epoch->GetStateName()
-                    << " " << (int)NodeIdentityManager::_global_delegate_idx;
+                    << " " << (int)DelegateIdentityManager::_global_delegate_idx;
 
     epoch->_netio_manager.OnConnectionAccepted(endpoint, socket, ids);
 }
@@ -246,7 +246,7 @@ ConsensusContainer::EpochTransitionEventsStart()
     {
         LOG_WARN(_log) << "ConsensusContainer::EpochTransitionEventsStart "
                            "epoch transition is not supported by this delegate "
-                        << (int)NodeIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::_global_delegate_idx;
         return;
     }
 
@@ -255,7 +255,7 @@ ConsensusContainer::EpochTransitionEventsStart()
     if (delegate_idx == NON_DELEGATE && _cur_epoch == nullptr)
     {
         LOG_WARN(_log) << "ConsensusContainer::EpochTransitionEventsStart not a delegate in current or next epoch, "
-                        << (int)NodeIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::_global_delegate_idx;
         return;
     }
 
@@ -277,7 +277,7 @@ ConsensusContainer::EpochTransitionEventsStart()
     LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEventsStart : delegate "
                     << TransitionStateToName(_transition_state) << " "
                     << TransitionDelegateToName(_transition_delegate) <<  " "
-                    << (int)delegate_idx << " " << (int)NodeIdentityManager::_global_delegate_idx
+                    << (int)delegate_idx << " " << (int)DelegateIdentityManager::_global_delegate_idx
                     << " " << _cur_epoch_number;
 
     if (_transition_delegate != EpochTransitionDelegate::Retiring)
@@ -342,7 +342,7 @@ ConsensusContainer::EpochTransitionStart(uint8_t delegate_idx)
     LOG_INFO(_log) << "ConsensusContainer::EpochTransitionStart "
                     << TransitionDelegateToName(_transition_delegate) <<  " "
                     << (int)delegate_idx
-                    << " " << (int)NodeIdentityManager::_global_delegate_idx
+                    << " " << (int)DelegateIdentityManager::_global_delegate_idx
                     << " " << _cur_epoch_number;
 
     _transition_state = EpochTransitionState::EpochTransitionStart;
@@ -426,7 +426,7 @@ ConsensusContainer::EpochStart(uint8_t delegate_idx)
     LOG_INFO(_log) << "ConsensusContainer::EpochStart "
                     << TransitionDelegateToName(_transition_delegate) <<  " "
                     << (int)delegate_idx << " "
-                    << (int)NodeIdentityManager::_global_delegate_idx << " " << (_cur_epoch_number + 1);
+                    << (int)DelegateIdentityManager::_global_delegate_idx << " " << (_cur_epoch_number + 1);
 
     _transition_state = EpochTransitionState::EpochStart;
 
@@ -484,7 +484,7 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
 
     LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEnd "
                     << TransitionDelegateToName(_transition_delegate)
-                    << " " << (int)delegate_idx << " " << (int)NodeIdentityManager::_global_delegate_idx
+                    << " " << (int)delegate_idx << " " << (int)DelegateIdentityManager::_global_delegate_idx
                     << " " << _cur_epoch_number;
 
     _transition_delegate = EpochTransitionDelegate::None;
@@ -498,7 +498,7 @@ ConsensusContainer::BuildConsensusConfig(
    ConsensusManagerConfig config = _config;
 
    config.delegate_id = delegate_idx;
-   config.local_address = NodeIdentityManager::_delegates_ip[NodeIdentityManager::_delegate_account];
+   config.local_address = DelegateIdentityManager::_delegates_ip[DelegateIdentityManager::_delegate_account];
    config.delegates.clear();
 
    stringstream str;
@@ -506,7 +506,7 @@ ConsensusContainer::BuildConsensusConfig(
    for (uint8_t del = 0; del < NUM_DELEGATES; ++del)
    {
         auto account = delegates[del];
-        auto ip = NodeIdentityManager::_delegates_ip[account];
+        auto ip = DelegateIdentityManager::_delegates_ip[account];
         config.delegates.push_back(ConsensusManagerConfig::Delegate{ip, del});
         str << (int)del << " " << ip << " ";
    }

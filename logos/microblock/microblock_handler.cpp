@@ -243,7 +243,7 @@ MicroBlockHandler::Build(
     block.epoch_number = first_micro_block
             ? previous_micro_block.epoch_number + 1
             : previous_micro_block.epoch_number;
-    block.account = NodeIdentityManager::_delegate_account;
+    block.account = DelegateIdentityManager::_delegate_account;
     block.sequence = first_micro_block
             ? 0
             : previous_micro_block.sequence + 1;

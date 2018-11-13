@@ -238,7 +238,7 @@ ConsensusNetIO::AddConsensusConnection(
                    << ' ' << ConsensusTypeToIndex(t)
                    << " local delegate " << uint64_t(_local_delegate_id)
                     << " remote delegate " << uint64_t(_remote_delegate_id)
-                    << " global " << (int)NodeIdentityManager::_global_delegate_idx
+                    << " global " << (int)DelegateIdentityManager::_global_delegate_idx
                     << " Connection " << _epoch_info.GetConnectionName();
 
     _connections[ConsensusTypeToIndex(t)] = connection;
@@ -298,7 +298,7 @@ ConsensusNetIO::Close()
         LOG_DEBUG(_log) << "ConsensusNetIO::Close closing socket, connection "
                         << _epoch_info.GetConnectionName() << ", delegate "
                         << (int)_local_delegate_id << ", remote delegate " << (int)_remote_delegate_id
-                        << ", global " << (int)NodeIdentityManager::_global_delegate_idx;
+                        << ", global " << (int)DelegateIdentityManager::_global_delegate_idx;
         _connected = false;
         _socket->cancel();
         _socket->close();

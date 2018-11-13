@@ -318,7 +318,7 @@ MicroBlockTester::epoch_delegates(
         boost::property_tree::ptree response;
         char buff[5];
         sprintf(buff, "%d", del);
-        response.put("ip", NodeIdentityManager::_delegates_ip[acct]);
+        response.put("ip", DelegateIdentityManager::_delegates_ip[acct]);
         response_l.push_back(std::make_pair(buff, response));
         del++;
     }
