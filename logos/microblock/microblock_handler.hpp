@@ -18,7 +18,6 @@ using BatchBlockReceiverCb          = std::function<void(const BatchStateBlock&)
 /// Handle MicroBlock processing
 class MicroBlockHandler {
 
-    using Log       = boost::log::sources::logger_mt;
     using BatchTips = BlockHash[NUM_DELEGATES];
 
 public:
@@ -28,10 +27,8 @@ public:
     /// @param n number of delegates
     /// @param i microblock process period interval
     MicroBlockHandler(BlockStore &s,
-                      uint8_t delegate_id,
                       IRecallHandler & recall_handler)
         : _store(s)
-        , _delegate_id(delegate_id)
         , _recall_handler(recall_handler)
         {}
 
@@ -116,11 +113,10 @@ private:
     /// @returns cut-off time
     uint64_t GetCutOffTimeMsec(const uint64_t timestamp)
     {
-        return (timestamp + MICROBLOCK_CUTOFF_TIME * 60 *1000);
+        return (timestamp + TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count());
     }
 
     BlockStore &            _store; 		    ///< reference to the block store
-    uint8_t                 _delegate_id;       ///< local delegate id
     IRecallHandler &        _recall_handler;    ///< recall handler reference
     Log                     _log;               ///< boost asio log
 };

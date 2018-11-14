@@ -7,6 +7,7 @@
 #include <logos/node/bootstrap.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/epoch/recall_handler.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/consensus_container.hpp>
 
 #include <condition_variable>
@@ -506,6 +507,7 @@ public:
     //CH logos::online_reps online_reps;
     logos::stat stats;
     RecallHandler _recall_handler;
+    DelegateIdentityManager _identity_manager;
     Archiver _archiver;
     ConsensusContainer _consensus_container;
     static double constexpr price_max = 16.0;

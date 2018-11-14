@@ -1,4 +1,5 @@
 #include <logos/consensus/consensus_manager.hpp>
+#include <logos/consensus/epoch_manager.hpp>
 
 #include <boost/log/core.hpp>
 #include <boost/log/sources/severity_feature.hpp>
@@ -14,16 +15,16 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
                                        Store & store,
                                        const Config & config,
                                        DelegateKeyStore & key_store,
-                                       MessageValidator & validator)
+                                       MessageValidator & validator,
+                                       EpochEventsNotifier & events_notifier)
     : PrimaryDelegate(service, validator)
-    , _secondary_handler(service, *this)
     , _store(store)
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
-{
-    store.batch_tip_get(_delegate_id, _prev_batch_hash);
-}
+    , _secondary_handler(SecondaryRequestHandlerInstance(service, this))
+    , _events_notifier(events_notifier)
+{}
 
 template<ConsensusType CT>
 void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
@@ -127,7 +128,7 @@ void ConsensusManager<CT>::OnConsensusReached()
                         << " blocks.";
     }
 
-    _prev_batch_hash = _cur_batch_hash;
+    _prev_hash = _cur_hash;
 
     PrePreparePopFront();
 
@@ -141,11 +142,10 @@ template<ConsensusType CT>
 void ConsensusManager<CT>::InitiateConsensus()
 {
     LOG_INFO(_log) << "Initiating "
-                   << ConsensusToName(CT)
-                   << " consensus.";
+                   << ConsensusToName(CT);
 
     auto & pre_prepare = PrePrepareGetNext();
-    pre_prepare.previous = _prev_batch_hash;
+    pre_prepare.previous = _prev_hash;
 
     OnConsensusInitiated(pre_prepare);
 
@@ -232,6 +232,13 @@ ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
     _connections.push_back(connection);
 
     return connection;
+}
+
+template<ConsensusType CT>
+void
+ConsensusManager<CT>::UpdateRequestPromoter()
+{
+    _secondary_handler.UpdateRequestPromoter(this);
 }
 
 template class ConsensusManager<ConsensusType::BatchStateBlock>;

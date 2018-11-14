@@ -795,6 +795,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
     case process_result::insufficient_balance:
         ret = "Account balance is insufficient";
         break;
+    case process_result::not_delegate:
+         ret = "Not a delegate";
+        break;
     }
 
     return ret;

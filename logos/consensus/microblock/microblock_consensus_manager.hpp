@@ -22,17 +22,14 @@ public:
     ///     @param[in] config reference to ConsensusManagerConfig configuration
     ///     @param[in] key_store delegates public key store
     ///     @param[in] validator validator/signer of consensus messages
+    ///     @param[in] events_notifier epoch transition helper
     MicroBlockConsensusManager(Service & service,
                                Store & store,
                                const Config & config,
                                DelegateKeyStore & key_store,
                                MessageValidator & validator,
-                               ArchiverMicroBlockHandler & handler)
-        : Manager(service, store, config,
-                  key_store, validator)
-        , _microblock_handler(handler)
-        , _enqueued(false)
-    {}
+                               ArchiverMicroBlockHandler & handler,
+                               EpochEventsNotifier & events_notifier);
 
     ~MicroBlockConsensusManager() = default;
 
@@ -102,9 +99,10 @@ protected:
     ///     @return ConsensusConnection
     std::shared_ptr<ConsensusConnection<ConsensusType::MicroBlock>> MakeConsensusConnection(
             std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
+
 private:
 
-    std::shared_ptr<PrePrepare> _cur_microblock;     ///< Currently handled microblock
-    ArchiverMicroBlockHandler & _microblock_handler; ///< Is used for validation and database commit
-	int                         _enqueued;           ///< Request is enqueued
+    std::shared_ptr<PrePrepare>  _cur_microblock;     ///< Currently handled microblock
+    ArchiverMicroBlockHandler &  _microblock_handler; ///< Is used for validation and database commit
+	int                          _enqueued;           ///< Request is enqueued
 };

@@ -322,6 +322,7 @@ add_library (node
 	logos/consensus/consensus_connection.cpp
 	logos/consensus/consensus_container.cpp
 	logos/consensus/consensus_manager.cpp
+	logos/consensus/epoch_manager.cpp
 	logos/consensus/epoch/epoch_consensus_connection.cpp
 	logos/consensus/epoch/epoch_consensus_manager.cpp
 	logos/consensus/message_validator.cpp
@@ -332,6 +333,7 @@ add_library (node
 	logos/consensus/network/consensus_netio_manager.cpp
 	logos/consensus/network/net_io_assembler.cpp
 	logos/consensus/network/peer_acceptor.cpp
+	logos/consensus/network/epoch_peer_manager.cpp
 	logos/consensus/persistence/persistence_manager.cpp
 	logos/consensus/primary_delegate.cpp
 	logos/consensus/delegate_key_store.cpp
@@ -350,6 +352,8 @@ add_library (node
 	logos/node/common.hpp
 	logos/node/node.hpp
 	logos/node/node.cpp
+		logos/node/delegate_identity_manager.hpp
+		logos/node/delegate_identity_manager.cpp
 	logos/node/openclwork.cpp
 	logos/node/openclwork.hpp
 	logos/node/rpc.hpp
