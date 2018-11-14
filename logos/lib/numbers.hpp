@@ -145,3 +145,14 @@ struct hash<logos::uint256_t>
     }
 };
 }
+
+namespace logos
+{
+
+inline
+size_t hash_value(const logos::block_hash & hash)
+{
+    return std::hash<logos::block_hash>()(hash);
+}
+
+}

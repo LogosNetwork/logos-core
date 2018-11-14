@@ -40,11 +40,13 @@ public:
     ///     @param[in] config reference to ConsensusManagerConfig.
     ///     @param[in] key_store stores delegates' public keys.
     ///     @param[in] validator validator/signer of consensus messages.
-    BatchBlockConsensusManager(Service & service, 
+    ///     @param[in] events_notifier transition helper
+    BatchBlockConsensusManager(Service & service,
                                Store & store,
                                const Config & config,
                                DelegateKeyStore & key_store,
-			       MessageValidator & validator,
+                               MessageValidator & validator,
+			       EpochEventsNotifier & events_notifier,
 			       p2p_interface & p2p);
 
     virtual ~BatchBlockConsensusManager() {};
@@ -97,6 +99,8 @@ protected:
     ///     @return number of stored blocks
     uint64_t GetStoredCount() override;
 
+    void InitiateConsensus() override;
+
     /// Sends buffered blocks.
     ///
     /// Benchmark related.
@@ -140,15 +144,12 @@ protected:
     ///     @return true if empty false otherwise
     bool PrePrepareQueueEmpty() override;
 
-    /// Checks if the BatchStateBlock queue is full.
-    ///
-    ///     @return true if full false otherwise
-    bool PrePrepareQueueFull() override;
-
     /// Primary list contains request with the hash
     /// @param request's hash
     /// @returns true if the request is in the list
     bool PrimaryContains(const logos::block_hash&) override;
+
+    void OnPostCommit(const PrePrepare & block) override;
 
     /// Create specialized instance of ConsensusConnection
     ///     @param iochannel NetIOChannel pointer
@@ -160,6 +161,9 @@ protected:
     std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>> MakeConsensusConnection(
             std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
 
+    /// Find Primary delegate index for this request
+    /// @param request request
+    /// @returns delegate's index
     uint8_t DesignatedDelegate(std::shared_ptr<Request> request) override;
 
 private:
@@ -174,14 +178,15 @@ private:
 
     void OnDelegatesConnected();
 
-    WeightList         _weights;
-    Hashes             _hashes;
-    bool               _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
-    BlockBuffer        _buffer;                        ///< Buffered state blocks.
-    RequestHandler     _handler;                       ///< Primary queue of batch state blocks.
-    PersistenceManager _persistence_manager;		   ///< Database interface and request validation
-    Timer              _init_timer;
-    Service &          _service;
-    uint64_t           _sequence       = 0;
-    uint64_t           _channels_bound = 0;
+    WeightList              _weights;
+    Hashes                  _hashes;
+    bool                    _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
+    BlockBuffer             _buffer;                        ///< Buffered state blocks.
+    static RequestHandler   _handler;                       ///< Primary queue of batch state blocks.
+    PersistenceManager      _persistence_manager;		    ///< Database interface and request validation
+    Timer                   _init_timer;
+    Service &               _service;
+    uint64_t                _sequence       = 0;
+    uint64_t                _channels_bound = 0;
+    uint32_t                _new_epoch_rejection_cnt = 0;   ///< New Epoch rejection message count
 };

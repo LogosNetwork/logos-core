@@ -12,6 +12,10 @@
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/consensus_p2p.hpp>
 
+#include <boost/log/sources/record_ostream.hpp>
+
+class EpochEventsNotifier;
+
 class ChannelBinder
 {
 
@@ -70,7 +74,8 @@ public:
                      Store & store,
                      const Config & config,
                      DelegateKeyStore & key_store,
-		     MessageValidator & validator,
+                     MessageValidator & validator,
+		     EpochEventsNotifier & events_notifier,
 		     p2p_interface & p2p);
 
     void OnSendRequest(std::shared_ptr<Request> block,
@@ -97,6 +102,9 @@ public:
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) override;
 
+    /// Update secondary request handler promoter
+    void UpdateRequestPromoter();
+
 protected:
 
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;
@@ -112,18 +120,18 @@ protected:
     virtual uint64_t GetStoredCount() = 0;
 
     void OnConsensusReached() override;
-    void InitiateConsensus();
+    virtual void InitiateConsensus();
 
     virtual bool ReadyForConsensus();
 
     void QueueRequest(std::shared_ptr<Request>);
 
+    virtual PrePrepare & PrePrepareGetNext() = 0;
+
     virtual void PrePreparePopFront() {};
     virtual void QueueRequestPrimary(std::shared_ptr<Request>) = 0;
     virtual void QueueRequestSecondary(std::shared_ptr<Request>);
-    virtual PrePrepare & PrePrepareGetNext() = 0;
     virtual bool PrePrepareQueueEmpty() = 0;
-    virtual bool PrePrepareQueueFull() = 0;
     virtual bool PrimaryContains(const logos::block_hash&) = 0;
     virtual bool SecondaryContains(const logos::block_hash&);
 
@@ -142,14 +150,26 @@ protected:
     virtual std::shared_ptr<ConsensusConnection<CT>> MakeConsensusConnection(
             std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
 
-    Connections                 _connections;
-    SecondaryRequestHandler<CT> _secondary_handler;
-    Store &                     _store;
-    DelegateKeyStore &          _key_store;
-    MessageValidator &          _validator;
-    std::mutex                  _connection_mutex;
-    Log                         _log;
-    uint8_t                     _delegate_id;
-    ConsensusP2p<CT>		_consensus_p2p;
+    /// singleton secondary handler
+    static SecondaryRequestHandler<CT> & SecondaryRequestHandlerInstance(
+        Service & service,
+        RequestPromoter<CT>* promoter)
+    {
+        // Promoter is assigned once when the object is constructed
+        // Promoter is updated during transition
+        static SecondaryRequestHandler<CT> handler(service, promoter);
+        return handler;
+    }
+
+    Connections                     _connections;
+    Store &                         _store;
+    DelegateKeyStore &              _key_store;
+    MessageValidator &              _validator;
+    std::mutex                      _connection_mutex;
+    Log                             _log;
+    uint8_t                         _delegate_id;
+    SecondaryRequestHandler<CT> &   _secondary_handler;    ///< Secondary queue of blocks.
+    EpochEventsNotifier &           _events_notifier;      ///< Notifies epoch manager of transition related events
+    ConsensusP2p<CT>		    _consensus_p2p;
 };
 

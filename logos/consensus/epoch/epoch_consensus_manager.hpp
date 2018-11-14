@@ -21,18 +21,15 @@ public:
 	///     @param[in] config reference to ConsensusManagerConfig configuration
 	///     @param[in] key_store delegates public key store
 	///     @param[in] validator validator/signer of consensus messages
+	///     @param[in] events_notifier epoch transition helper
 	EpochConsensusManager(Service & service,
 	                      Store & store,
 					      const Config & config,
                           DelegateKeyStore & key_store,
                           MessageValidator & validator,
-			  ArchiverEpochHandler & handler,
-			  p2p_interface & p2p)
-		: Manager(service, store, config,
-			  key_store, validator, p2p)
-		, _epoch_handler(handler)
-		, _enqueued(false)
-	{}
+                          ArchiverEpochHandler & handler,
+			  EpochEventsNotifier & events_notifier,
+			  p2p_interface & p2p);
 
     ~EpochConsensusManager() = default;
 
@@ -87,10 +84,6 @@ protected:
 	///		@return true if empty false otherwise
     bool PrePrepareQueueEmpty() override;
 
-    /// Checks if the Epoch queue is full
-	///		@return true if full false otherwise
-    bool PrePrepareQueueFull() override;
-
     /// Primary list contains request with the hash
     /// @param request's hash
     /// @returns true if the request is in the list
@@ -108,9 +101,13 @@ protected:
 	std::shared_ptr<ConsensusConnection<ConsensusType::Epoch>> MakeConsensusConnection(
 			std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
 
-private:
+	/// Request's primary delegate, 0 (delegate with most voting power) for Micro/Epoch Block
+    /// @param request request
+    /// @returns designated delegate
+    uint8_t DesignatedDelegate(std::shared_ptr<Request> request) override;
 
-    std::shared_ptr<PrePrepare> _cur_epoch; 	///< Currently handled epoch
-    ArchiverEpochHandler &      _epoch_handler; ///< Epoch handler
-	bool 						_enqueued;   	///< Request is enqueued
+private:
+    std::shared_ptr<PrePrepare>  _cur_epoch; 	///< Currently handled epoch
+    ArchiverEpochHandler &       _epoch_handler;///< Epoch handler
+	bool 						 _enqueued;   	///< Request is enqueued
 };

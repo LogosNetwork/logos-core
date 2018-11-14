@@ -13,6 +13,7 @@
 #include <boost/asio/write.hpp>
 
 class IOChannel;
+class EpochEventsNotifier;
 
 struct DelegateIdentities
 {
@@ -54,7 +55,8 @@ public:
                         PrimaryDelegate & primary,
                         RequestPromoter<CT> & promoter,
                         MessageValidator & validator,
-			const DelegateIdentities & ids,
+                        const DelegateIdentities & ids,
+			EpochEventsNotifier & events_notifier,
 			p2p_interface & p2p);
 
     void Send(const void * data, size_t size);
@@ -104,6 +106,11 @@ protected:
     bool ValidateTimestamp(const PrePrepare & message);
 
     virtual bool DoValidate(const PrePrepare & message) = 0;
+    template<typename M>
+    bool ValidateEpoch(const M & m)
+    {
+        return true;
+    }
 
     template<typename M>
     bool ProceedWithMessage(const M & message, ConsensusState expected_state);
@@ -129,6 +136,7 @@ protected:
     void StoreResponse(const Commit & message);
     void StoreResponse(const Rejection & message);
 
+    void SetPrePrepare(const PrePrepare & message);
     virtual void HandlePrePrepare(const PrePrepare & message);
     virtual void OnPostCommit();
 
@@ -137,6 +145,7 @@ protected:
 
     virtual void Reject();
     virtual void ResetRejectionStatus();
+    virtual void HandleReject(const PrePrepare & message) {}
 
     virtual bool ValidateReProposal(const PrePrepare & message);
 
@@ -158,5 +167,6 @@ protected:
     ConsensusState              _state = ConsensusState::VOID;
     RequestPromoter<CT> &       _promoter; ///< secondary list request promoter
     uint64_t                    _sequence_number = 0;
+    EpochEventsNotifier &       _events_notifier;
     ConsensusP2p<CT>            _consensus_p2p;
 };

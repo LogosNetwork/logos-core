@@ -141,7 +141,9 @@ void PrimaryDelegate::OnTimeout(const Error & error,
     {
         LOG_WARN(_log) << timeout_str
                        << " timeout expired during unexpected state."
-                       << " Aborting timeout.";
+                       << " state " << StateToString(_state)
+                        << " expected state " << StateToString(expected_state)
+                        << " Aborting timeout.";
         return;
     }
 
@@ -181,7 +183,7 @@ void PrimaryDelegate::Send(bool propagate)
 {
     M response(_cur_batch_timestamp);
 
-    response.previous = _cur_batch_hash;
+    response.previous = _cur_hash;
     _validator.Sign(response, _signatures);
 
     Send(&response, sizeof(response), propagate);
@@ -196,7 +198,7 @@ void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
     LOG_INFO(_log) << "PrimaryDelegate - Initiating Consensus with PrePrepare hash: "
                    << block.Hash().to_string();
 
-    _cur_batch_hash = block.Hash();
+    _cur_hash = block.Hash();
     _cur_batch_timestamp = block.timestamp;
 
     CycleTimers<C>();

@@ -234,7 +234,8 @@ enum class process_result
     already_reserved,       // Logos - The account is already reserved with different request.
     initializing,           // Logos - The delegate is initializing and not accepting transactions.
     insufficient_fee,       // Logos - Transaction fee is insufficient.
-    insufficient_balance    // Logos - Balance is insufficient.
+    insufficient_balance,   // Logos - Balance is insufficient.
+    not_delegate           // Logos - A non-delegate node rejects transaction request
 };
 
 std::string ProcessResultToString(process_result result);

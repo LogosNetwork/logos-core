@@ -3,23 +3,27 @@
 /// handles specifics of BatchBlock consensus
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/batchblock/bb_consensus_connection.hpp>
+#include <logos/consensus/epoch_manager.hpp>
 
 const boost::posix_time::seconds BatchBlockConsensusManager::ON_CONNECTED_TIMEOUT{10};
+RequestHandler BatchBlockConsensusManager::_handler;
 
 BatchBlockConsensusManager::BatchBlockConsensusManager(
         Service & service,
         Store & store,
         const Config & config,
         DelegateKeyStore & key_store,
-	MessageValidator & validator,
+        MessageValidator & validator,
+	EpochEventsNotifier & events_notifier,
 	p2p_interface & p2p)
     : Manager(service, store, config,
-	      key_store, validator, p2p)
+	      key_store, validator, events_notifier, p2p)
     , _persistence_manager(store)
     , _init_timer(service)
     , _service(service)
 {
     _state = ConsensusState::INITIALIZING;
+    _store.batch_tip_get(_delegate_id, _prev_hash);
 }
 
 void
@@ -54,7 +58,7 @@ BatchBlockConsensusManager::BindIOChannel(
     auto connection =
             std::make_shared<BBConsensusConnection>(
                     iochannel, *this, *this, _persistence_manager,
-		    _validator, ids, _service, Manager::_consensus_p2p._p2p);
+		    _validator, ids, _service, _events_notifier, Manager::_consensus_p2p._p2p);
 
     _connections.push_back(connection);
 	
@@ -167,6 +171,9 @@ BatchBlockConsensusManager::ReadyForConsensus()
 {
     if(_using_buffered_blocks)
     {
+        // TODO: Make sure that RequestHandler::_current_batch has
+        //       been prepared before calling _handler.BatchFull.
+        //
         return StateReadyForConsensus() && (_handler.BatchFull() ||
                             (_buffer.empty() && !_handler.Empty()));
     }
@@ -185,10 +192,11 @@ auto
 BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
     auto & batch = reinterpret_cast<
-            PrePrepare&>(_handler.GetNextBatch());
+            PrePrepare&>(_handler.GetCurrentBatch());
 
     batch.sequence = _sequence;
     batch.timestamp = GetStamp();
+    batch.epoch_number = _events_notifier.GetEpochNumber();
 
     for(uint64_t i = 0; i < batch.block_count; ++i)
     {
@@ -210,12 +218,6 @@ BatchBlockConsensusManager::PrePrepareQueueEmpty()
     return _handler.Empty();
 }
 
-bool
-BatchBlockConsensusManager::PrePrepareQueueFull()
-{
-    return _handler.BatchFull();
-}
-
 void
 BatchBlockConsensusManager::ApplyUpdates(
   const PrePrepare & pre_prepare,
@@ -227,7 +229,17 @@ BatchBlockConsensusManager::ApplyUpdates(
 uint64_t
 BatchBlockConsensusManager::GetStoredCount()
 {
-    return _handler.GetNextBatch().block_count;
+    return _handler.GetCurrentBatch().block_count;
+}
+
+void
+BatchBlockConsensusManager::InitiateConsensus()
+{
+    _new_epoch_rejection_cnt = 0;
+
+    _handler.PrepareNextBatch();
+
+    Manager::InitiateConsensus();
 }
 
 void
@@ -263,6 +275,13 @@ BatchBlockConsensusManager::PrimaryContains(const logos::block_hash &hash)
     return _handler.Contains(hash);
 }
 
+void
+BatchBlockConsensusManager::OnPostCommit(const PrePrepare & block)
+{
+    _handler.OnPostCommit(block);
+    Manager::OnPostCommit(block);
+}
+
 std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>>
 BatchBlockConsensusManager::MakeConsensusConnection(
     std::shared_ptr<IOChannel> iochannel,
@@ -270,7 +289,7 @@ BatchBlockConsensusManager::MakeConsensusConnection(
 {
     return std::make_shared<BBConsensusConnection>(
             iochannel, *this, *this, _persistence_manager,
-	    _validator, ids, _service, Manager::_consensus_p2p._p2p);
+	    _validator, ids, _service, _events_notifier, Manager::_consensus_p2p._p2p);
 }
 
 void
@@ -278,7 +297,8 @@ BatchBlockConsensusManager::AcquirePrePrepare(const PrePrepare & message)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    _handler.PushBack(message);
+    _handler.Acquire(message);
+    OnRequestQueued();
 }
 
 void
@@ -289,7 +309,7 @@ BatchBlockConsensusManager::OnRejection(
     {
     case RejectionReason::Contains_Invalid_Request:
     {
-        auto batch = _handler.GetNextBatch();
+        auto batch = _handler.GetCurrentBatch();
         auto block_count = batch.block_count;
 
         for(uint64_t i = 0; i < block_count; ++i)
@@ -330,10 +350,13 @@ BatchBlockConsensusManager::OnRejection(
 
         break;
     }
+    case RejectionReason::New_Epoch:
+       ++_new_epoch_rejection_cnt;
     case RejectionReason::Clock_Drift:
     case RejectionReason::Bad_Signature:
     case RejectionReason::Invalid_Previous_Hash:
     case RejectionReason::Wrong_Sequence_Number:
+    case RejectionReason::Invalid_Epoch:
     case RejectionReason::Void:
         break;
     }
@@ -348,6 +371,15 @@ BatchBlockConsensusManager::OnStateAdvanced()
 void
 BatchBlockConsensusManager::OnPrePrepareRejected()
 {
+    if (_new_epoch_rejection_cnt >= QUORUM_SIZE / 3)
+    {
+        _new_epoch_rejection_cnt = 0;
+        // TODO retiring delegate in ForwardOnly state has to forward to new primary - deferred
+        _events_notifier.OnPrePrepareRejected();
+        // forward
+        return;
+    }
+
     // Pairs a set of Delegate ID's with indexes,
     // where the indexes represent the requests
     // supported by those delegates.
@@ -358,7 +390,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
     //       lookup constant rather than O(n).
     std::list<SupportMap> subsets;
 
-    auto block_count = _handler.GetNextBatch().block_count;
+    auto block_count = _handler.GetCurrentBatch().block_count;
 
     // For each request, collect the delegate
     // ID's of those delegates that voted for
@@ -480,16 +512,13 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
         }
     }
 
-    std::list<BatchStateBlock> batches;
+    std::list<logos::state_block> requests;
 
     // Create new pre-prepare messages
     // based on the subsets.
     for(auto & subset : subsets)
     {
-        batches.push_back(BatchStateBlock());
-        batches.back().block_count = subset.second.size();
-
-        auto & batch = _handler.GetNextBatch();
+        auto & batch = _handler.GetCurrentBatch();
         auto & indexes = subset.second;
 
         uint64_t i = 0;
@@ -497,21 +526,25 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 
         for(; itr != indexes.end(); ++itr, ++i)
         {
-            batches.back().blocks[i] = batch.blocks[*itr];
+            requests.push_back(batch.blocks[*itr]);
         }
+
+        requests.push_back(logos::state_block());
     }
 
-    // If no request can be proposed, send
-    // an empty BatchStateBlock to proceed.
-    if(batches.empty())
+    // Pushing a null state_block to the front
+    // of the queue will trigger consensus
+    // with an empty batch block, which is how
+    // we proceed if no requests can be re-proposed.
+    if(requests.empty())
     {
-        batches.push_back(BatchStateBlock());
+        requests.push_back(logos::state_block());
     }
 
     _handler.PopFront();
-    _handler.InsertFront(batches);
+    _handler.InsertFront(requests);
 
-    _state = ConsensusState::PRE_PREPARE;
+    _state = ConsensusState::VOID;
 
     OnRequestQueued();
 }
@@ -519,8 +552,16 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 void
 BatchBlockConsensusManager::OnDelegatesConnected()
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-
-    _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
-    _init_timer.async_wait([this](const Error & error){InitiateConsensus();});
+    if (_events_notifier.GetState() == EpochTransitionState::None)
+    {
+        _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
+        _init_timer.async_wait([this](const Error &error) {
+            std::lock_guard<std::recursive_mutex> lock(_mutex);
+            InitiateConsensus();
+        });
+    }
+    else
+    {
+        _state = ConsensusState::VOID;
+    }
 }

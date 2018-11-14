@@ -60,7 +60,7 @@ private:
 
             if(accounts.find(account) != accounts.end())
             {
-                BOOST_LOG(log) << "Reservations::Acquire - Warning - attempt to "
+                LOG_WARN(log) << "Reservations::Acquire - Warning - attempt to "
                                << "acquire account "
                                << account.to_string()
                                << " which is already in the Reservations cache.";
