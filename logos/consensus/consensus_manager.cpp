@@ -142,9 +142,7 @@ template<ConsensusType CT>
 void ConsensusManager<CT>::InitiateConsensus()
 {
     LOG_INFO(_log) << "Initiating "
-                   << ConsensusToName(CT)
-                   << " consensus. Requests queue size: "
-                   << QueueSize();
+                   << ConsensusToName(CT);
 
     auto & pre_prepare = PrePrepareGetNext();
     pre_prepare.previous = _prev_hash;

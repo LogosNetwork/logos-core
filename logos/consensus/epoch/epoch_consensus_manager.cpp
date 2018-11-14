@@ -76,12 +76,6 @@ EpochConsensusManager::PrePrepareQueueEmpty()
     return !_enqueued;
 }
 
-bool 
-EpochConsensusManager::PrePrepareQueueFull()
-{
-    return _enqueued;
-}
-
 void 
 EpochConsensusManager::ApplyUpdates(
     const PrePrepare & pre_prepare,

@@ -90,5 +90,4 @@ struct ConsensusManagerConfig
     uint16_t              callback_port;
     uint16_t              peer_port;
     uint8_t               delegate_id;
-    bool                  run_local;    /// run nodes locally with multiple ip (for testing)
 };

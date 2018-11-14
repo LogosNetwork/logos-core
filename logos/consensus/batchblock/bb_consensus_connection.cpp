@@ -158,6 +158,33 @@ BBConsensusConnection::HandleReject(const PrePrepare & message)
     }
 }
 
+// XXX - If a Primary delegate re-proposes a subset of transactions
+//       and then fails to post commit the re-proposed batch, when
+//       a backup initiates fallback consensus, it is possible that
+//       a transaction omitted from the re-proposed batch is forgotten,
+//       since individual requests are not stored for fallback consensus.
+//
+// XXX - Also note: PrePrepare messages stored by backups are not
+//       actually added to the secondary waiting list. Instead, they
+//       stay with the backup (ConsensusConnection) and are only
+//       transferred when fallback consensus is to take place, in
+//       which case they are transferred to the primary list
+//       (RequestHandler).
+void
+BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
+{
+    _pre_prepare_hashes.clear();
+
+    for(uint64_t i = 0; i < message.block_count; ++i)
+    {
+        _pre_prepare_hashes.insert(message.blocks[i].hash());
+    }
+
+    // to make sure during epoch transition, a fallback session of the new epoch
+    // is not rerun by the old epoch, the min timeout should be > clock_drift (i.e. 20seconds)
+    ScheduleTimer(GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE));
+}
+
 void
 BBConsensusConnection::ScheduleTimer(Seconds timeout)
 {
@@ -181,26 +208,6 @@ BBConsensusConnection::ScheduleTimer(Seconds timeout)
         });
 
     _callback_scheduled = true;
-}
-
-// XXX - If a Primary delegate re-proposes a subset of transactions
-//       and then fails to post commit the re-proposed batch, when
-//       a backup initiates fallback consensus, it is possible that
-//       a transaction omitted from the re-proposed batch is forgotten,
-//       since individual requests are not stored for fallback consensus.
-void
-BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
-{
-    _pre_prepare_hashes.clear();
-
-    for(uint64_t i = 0; i < message.block_count; ++i)
-    {
-        _pre_prepare_hashes.insert(message.blocks[i].hash());
-    }
-
-    // to make sure during epoch transition, a fallback session of the new epoch
-    // is not rerun by the old epoch, the min timeout should be > clock_drift (i.e. 20seconds)
-    ScheduleTimer(GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE));
 }
 
 void
