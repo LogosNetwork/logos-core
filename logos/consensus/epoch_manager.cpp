@@ -52,9 +52,10 @@ EpochManager::OnPostCommit(
 void
 EpochManager::OnPrePrepareRejected()
 {
-    if (_delegate == EpochTransitionDelegate::Retiring)
+    if (_delegate == EpochTransitionDelegate::Retiring ||
+        _delegate == EpochTransitionDelegate::Persistent)
     {
-        _new_epoch_handler.OnPrePrepareRejected();
+        _new_epoch_handler.OnPrePrepareRejected(_delegate);
     }
 }
 

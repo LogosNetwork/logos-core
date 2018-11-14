@@ -41,7 +41,6 @@ struct ConsensusManagerConfig
 
         local_address = tree.get<std::string>("local_address");
         callback_address = tree.get<std::string>("callback_address");
-        run_local = tree.get<bool>("run_local", false);
 
         try
         {

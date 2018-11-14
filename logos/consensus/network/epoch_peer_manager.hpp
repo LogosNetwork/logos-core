@@ -17,7 +17,7 @@ class PeerAcceptorStarter
 public:
     using Address     = boost::asio::ip::address;
     ~PeerAcceptorStarter() = default;
-    virtual void Start(const std::set<Address>&) = 0;
+    virtual void Start() = 0;
 };
 
 /// Handles call back on peer's accepted socket connection
@@ -49,9 +49,9 @@ public:
 
     /// Get PeerAcceptor
     /// @param end_points peers endpoints
-    void Start(const std::set<Address>& end_points) override
+    void Start() override
     {
-        _peer_acceptor.Start(end_points);
+        _peer_acceptor.Start();
     }
 
 private:

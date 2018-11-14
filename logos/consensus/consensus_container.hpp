@@ -57,7 +57,7 @@ public:
     NewEpochEventHandler() = default;
     ~NewEpochEventHandler() = default;
     virtual void OnPostCommit(uint32_t epoch_number) = 0;
-    virtual void OnPrePrepareRejected() = 0;
+    virtual void OnPrePrepareRejected(EpochTransitionDelegate delegate) = 0;
     virtual bool IsRecall() = 0;
 };
 
@@ -188,8 +188,9 @@ private:
     void OnPostCommit(uint32_t epoch_number) override;
 
     /// Transition Retiring delegate to ForwardOnly
+    /// @param delegate that received preprepare reject
     /// @return true if no error
-    void OnPrePrepareRejected() override;
+    void OnPrePrepareRejected(EpochTransitionDelegate delegate) override;
 
     /// Is Recall
     /// @returns true if recall
@@ -202,6 +203,15 @@ private:
 
     /// Transition Retiring delegate to ForwardOnly
     void TransitionRetiring();
+
+    /// Halt if epoch is null
+    /// @param is_null result of passed in epoch(s) evaluation expression
+    /// @param where function name
+    void CheckEpochNull(bool is_null, const char *where);
+
+    /// Transition Persistent or Retiring delegate
+    /// @param delegeate type
+    void TransitionDelegate(EpochTransitionDelegate delegate);
 
     /// Create EpochManager instance
     /// @param epoch_number manager's epoch number

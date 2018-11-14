@@ -23,7 +23,7 @@ public:
                  DelegatePeerManager & manager);
     ~PeerAcceptor() = default;
 
-    void Start(const std::set<Address> & server_endpoints);
+    void Start();
 
     void Accept();
 
@@ -31,12 +31,11 @@ public:
 
 private:
 
-    std::set<Address> _server_endpoints;
-    Acceptor          _acceptor;
-    Log               _log;
-    Service &         _service;
-    Endpoint          _local_endpoint;
-    Endpoint          _accepted_endpoint;
-    DelegatePeerManager &     _manager;
+    Acceptor                _acceptor;
+    Log                     _log;
+    Service &               _service;
+    Endpoint                _local_endpoint;
+    Endpoint                _accepted_endpoint;
+    DelegatePeerManager &   _manager;
 };
 

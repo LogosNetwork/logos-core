@@ -328,14 +328,17 @@ bool ConsensusConnection<ConsensusType::BatchStateBlock>::ValidateEpoch(
 {
     bool valid = true;
 
-    // received E#_i while already switched to new delegate's set, which is in E#_{i+1}
-    if (_events_notifier.GetDelegate() == EpochTransitionDelegate::PersistentReject &&
-        message.epoch_number == _events_notifier.GetEpochNumber())
+    auto delegate = _events_notifier.GetDelegate();
+    auto state = _events_notifier.GetState();
+    if (delegate == EpochTransitionDelegate::PersistentReject ||
+        delegate == EpochTransitionDelegate::RetiringForwardOnly)
     {
         _reason = RejectionReason::New_Epoch;
         valid = false;
     }
-    else if (message.epoch_number != _events_notifier.GetEpochNumber())
+    else if (state == EpochTransitionState::Connecting &&
+         (delegate == EpochTransitionDelegate::Persistent ||
+          delegate == EpochTransitionDelegate::New))
     {
         _reason = RejectionReason::Invalid_Epoch;
         valid = false;

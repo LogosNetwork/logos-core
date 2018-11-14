@@ -23,7 +23,7 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
     , _delegate_id(config.delegate_id)
     , _epoch_info(epoch_info)
 {
-    std::set<Address> server_endpoints;
+    uint server_endpoints;
 
     auto local_endpoint(Endpoint(make_address_v4(config.local_address),
                         config.peer_port));
@@ -58,13 +58,13 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
         }
         else
         {
-            server_endpoints.insert(endpoint.address());
+            ++server_endpoints;
         }
     }
 
-    if(server_endpoints.size())
+    if(server_endpoints > 0)
     {
-        starter.Start(server_endpoints);
+        starter.Start();
     }
 }
 

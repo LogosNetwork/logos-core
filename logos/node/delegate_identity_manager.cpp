@@ -10,7 +10,6 @@
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
 
-bool DelegateIdentityManager::_run_local = false;
 uint8_t DelegateIdentityManager::_global_delegate_idx = 0;
 logos::account DelegateIdentityManager::_delegate_account = 0;
 DelegateIdentityManager::IPs DelegateIdentityManager::_delegates_ip;
@@ -99,7 +98,6 @@ DelegateIdentityManager::Init(const Config &config)
 
     _delegate_account = logos::genesis_delegates[config.delegate_id].key.pub;
     _global_delegate_idx = config.delegate_id;
-    _run_local = config.run_local;
 
     ConsensusContainer::SetCurEpochNumber(epoch_number);
 

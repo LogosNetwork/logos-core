@@ -149,18 +149,11 @@ BBConsensusConnection::HandleReject(const PrePrepare & message)
         case RejectionReason::Invalid_Epoch:
             break;
         case RejectionReason::New_Epoch:
-            EpochTimeUtil util;
-            auto timeout = util.GetNextEpochTime();
-            if (timeout > 2 * CLOCK_DRIFT ||
-                    _events_notifier.GetDelegate() != EpochTransitionDelegate::PersistentReject)
+            if (_events_notifier.GetDelegate() == EpochTransitionDelegate::PersistentReject)
             {
-                LOG_ERROR(_log) << "BBConsensusConnection::HandleReject epoch transition exceeds double clock drift "
-                                << timeout.count() << " or not persistent delegate "
-                                << TransitionDelegateToName(_events_notifier.GetDelegate());
-                return;
+                SetPrePrepare(message);
+                ScheduleTimer(GetTimeout(TIMEOUT_MIN_EPOCH, TIMEOUT_RANGE_EPOCH));
             }
-            SetPrePrepare(message);
-            ScheduleTimer(boost::posix_time::seconds(timeout.count() + 5));
             break;
     }
 }
@@ -205,6 +198,8 @@ BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
         _pre_prepare_hashes.insert(message.blocks[i].hash());
     }
 
+    // to make sure during epoch transition, a fallback session of the new epoch
+    // is not rerun by the old epoch, the min timeout should be > clock_drift (i.e. 20seconds)
     ScheduleTimer(GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE));
 }
 

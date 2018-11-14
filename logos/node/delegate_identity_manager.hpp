@@ -77,6 +77,5 @@ public:
     static logos::account   _delegate_account;     ///< this delegate's account or 0 if non-delegate
     static IPs              _delegates_ip;         ///< all delegates ip
     static uint8_t          _global_delegate_idx;  ///< global delegate index in all delegate's list
-    static bool             _run_local;            ///< run nodes locally
     Log                     _log;                  ///< boost log instances
 };

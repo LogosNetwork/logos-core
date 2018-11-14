@@ -56,7 +56,8 @@ private:
 
     static constexpr uint8_t TIMEOUT_MIN   = 20;
     static constexpr uint8_t TIMEOUT_RANGE = 40;
-    static constexpr uint8_t TIMEOUT_RANGE_NEW_EPOCH = 20;
+    static constexpr uint8_t TIMEOUT_MIN_EPOCH   = 10;
+    static constexpr uint8_t TIMEOUT_RANGE_EPOCH = 20;
 
     bool ValidateSequence(const PrePrepare & message);
     bool ValidateRequests(const PrePrepare & message);
