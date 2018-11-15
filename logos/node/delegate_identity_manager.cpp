@@ -27,6 +27,22 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
 {
     logos::block_hash epoch_hash(0);
     logos::block_hash microblock_hash(0);
+    MDB_txn *tx = transaction;
+    // passed in block is overwritten
+    auto update = [this, tx](auto msg, auto &block, const BlockHash &next, auto get, auto put) mutable->void{
+        if (block.previous != 0)
+        {
+            if ((_store.*get)(block.previous, block, tx))
+            {
+                LOG_FATAL(_log) << "update failed to get previous " << msg << " "
+                                << block.previous.to_string();
+                trace_and_halt();
+                return;
+            }
+            block.next = next;
+            (_store.*put)(block, tx);
+        }
+    };
     for (int e = 0; e <= GENESIS_EPOCH; e++)
     {
         Epoch epoch;
@@ -41,6 +57,8 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
 
         microblock_hash = _store.micro_block_put(micro_block, transaction);
         _store.micro_block_tip_put(microblock_hash, transaction);
+        update("micro block", micro_block, microblock_hash,
+               &BlockStore::micro_block_get, &BlockStore::micro_block_put);
 
         epoch.epoch_number = e;
         epoch.timestamp = 0;
@@ -62,6 +80,8 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
 
         epoch_hash = _store.epoch_put(epoch, transaction);
         _store.epoch_tip_put(epoch_hash, transaction);
+        update("epoch", epoch, epoch_hash,
+               &BlockStore::epoch_get, &BlockStore::epoch_put);
     }
 }
 

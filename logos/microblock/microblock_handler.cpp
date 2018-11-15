@@ -389,6 +389,15 @@ MicroBlockHandler::ApplyUpdates(const MicroBlock &block, const logos::transactio
 
     BlockHash hash = _store.micro_block_put(block, transaction);
     _store.micro_block_tip_put(hash, transaction);
+    MicroBlock previous;
+    if (_store.micro_block_get(block.previous, previous))
+    {
+        LOG_FATAL(_log) << "MicroBlockHandler::ApplyUpdates failed to get previous block "
+                        << block.previous.to_string();
+        trace_and_halt();
+    }
+    previous.next = hash;
+    _store.micro_block_put(previous, transaction);
     LOG_INFO(_log) << "MicroBlockHandler::ApplyUpdates hash: " << hash.to_string();
     return hash;
 }

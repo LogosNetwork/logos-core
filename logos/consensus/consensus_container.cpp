@@ -476,7 +476,7 @@ ConsensusContainer::BuildConsensusConfig(
    config.delegates.clear();
 
    stringstream str;
-    str << "ConsensusContainer::BuildConsensusConfig: ";
+   str << "ConsensusContainer::BuildConsensusConfig: ";
    for (uint8_t del = 0; del < NUM_DELEGATES; ++del)
    {
         auto account = delegates[del];
