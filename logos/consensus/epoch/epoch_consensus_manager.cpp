@@ -19,7 +19,7 @@ EpochConsensusManager::EpochConsensusManager(
 			  EpochEventsNotifier & events_notifier,
 			  p2p_interface & p2p)
 	: Manager(service, store, config,
-		      key_store, validator, events_notifier)
+		      key_store, validator, events_notifier, p2p)
 	, _epoch_handler(handler)
 	, _enqueued(false)
 {

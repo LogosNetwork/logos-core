@@ -32,6 +32,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
     , _transition_state(EpochTransitionState::None)
     , _transition_delegate(EpochTransitionDelegate::None)
     , _epoch_transition_enabled(true)
+    , _p2p(p2p)
 {
     // Currently require that all_delegates is twice the size of delegates
     if (config.all_delegates.size() != 2 * config.delegates.size())
@@ -79,7 +80,7 @@ ConsensusContainer::CreateEpochManager(
 {
     return std::make_shared<EpochManager>(_service, _store, _alarm, config,
                                           _archiver, _peer_manager, _transition_state,
-                                          delegate, connection, epoch_number, *this);
+					  delegate, connection, epoch_number, *this, _p2p);
 }
 
 logos::process_return
@@ -507,8 +508,12 @@ ConsensusContainer::CheckEpochNull(bool is_null, const char* where)
     }
 }
 
-bool ConsensusContainer::OnP2pReceive(const void *message, size_t size) {
-    return _batch_manager.ConsensusManager<ConsensusType::BatchStateBlock>::OnP2pReceive(message, size)
-	|| _micro_manager.ConsensusManager<ConsensusType::MicroBlock>::OnP2pReceive(message, size)
-	|| _epoch_manager.ConsensusManager<ConsensusType::Epoch>::OnP2pReceive(message, size);
+bool
+ConsensusContainer::OnP2pReceive(const void *message, size_t size) {
+    std::shared_ptr<EpochManager> epoch = _cur_epoch;
+    if (epoch) {
+	return epoch->OnP2pReceive(message, size);
+    } else {
+	return false;
+    }
 }

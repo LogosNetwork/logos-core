@@ -61,7 +61,8 @@ public:
                      EpochTransitionDelegate delegate,
                      EpochConnection connection,
                      const uint32_t epoch_number,
-                     NewEpochEventHandler & event_handler);
+		     NewEpochEventHandler & event_handler,
+		     p2p_interface & p2p);
     ~EpochManager() {}
 
     uint32_t GetEpochNumber() override { return _epoch_number; }
@@ -85,6 +86,8 @@ public:
     void OnPrePrepareRejected() override;
 
     bool IsRecall() override;
+
+    bool OnP2pReceive(const void *message, size_t size);
 
 private:
     std::atomic<EpochTransitionState> &     _state;             ///< State of transition

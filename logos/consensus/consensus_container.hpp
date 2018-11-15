@@ -147,6 +147,7 @@ public:
     /// Start Epoch Transition
     void EpochTransitionEventsStart() override;
 
+    /// Receive message from p2p network
     bool OnP2pReceive(const void *message, size_t size);
 
 protected:
@@ -243,4 +244,5 @@ private:
     std::queue<ConnectionCache>         _connections_queue;         ///< queue for delegates set connections
     BindingMap                          _binding_map;               ///< map for binding connection to epoch manager
     bool                                _epoch_transition_enabled;  ///< true if the node supports transition
+    p2p_interface &			_p2p;			    ///< link to p2p-related data
 };

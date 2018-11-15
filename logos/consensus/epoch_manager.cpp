@@ -16,7 +16,8 @@ EpochManager::EpochManager(Service & service,
                            EpochTransitionDelegate delegate,
                            EpochConnection connection,
                            const uint32_t epoch_number,
-                           NewEpochEventHandler & handler)
+			   NewEpochEventHandler & handler,
+			   p2p_interface & p2p)
     : _state(state)
     , _delegate(delegate)
     , _connection_state(connection)
@@ -24,11 +25,11 @@ EpochManager::EpochManager(Service & service,
     , _new_epoch_handler(handler)
     , _validator(_key_store)
     , _batch_manager(service, store,
-                 config, _key_store, _validator, *this)
+		 config, _key_store, _validator, *this, p2p)
     , _micro_manager(service, store,
-                 config, _key_store, _validator, archiver, *this)
+		 config, _key_store, _validator, archiver, *this, p2p)
     , _epoch_manager(service, store,
-                 config, _key_store, _validator, archiver, *this)
+		 config, _key_store, _validator, archiver, *this, p2p)
     , _netio_manager(
         {
                 {ConsensusType::BatchStateBlock, _batch_manager},
@@ -63,4 +64,11 @@ bool
 EpochManager::IsRecall()
 {
     return _new_epoch_handler.IsRecall();
+}
+
+bool
+EpochManager::OnP2pReceive(const void *message, size_t size) {
+    return _batch_manager.ConsensusManager<ConsensusType::BatchStateBlock>::OnP2pReceive(message, size)
+	|| _micro_manager.ConsensusManager<ConsensusType::MicroBlock>::OnP2pReceive(message, size)
+	|| _epoch_manager.ConsensusManager<ConsensusType::Epoch>::OnP2pReceive(message, size);
 }
