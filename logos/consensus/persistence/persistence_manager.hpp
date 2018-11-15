@@ -1,96 +1,124 @@
 #pragma once
 
-#include <logos/blockstore.hpp>
 #include <logos/node/common.hpp>
-
-#include <boost/log/sources/record_ostream.hpp>
-#include <boost/log/sources/logger.hpp>
+#include <logos/lib/blocks.hpp>
+#include <logos/blockstore.hpp>
+#include <logos/lib/log.hpp>
 
 #include <unordered_set>
+
+using boost::multiprecision::uint128_t;
+using namespace boost::multiprecision::literals;
 
 class PersistenceManager
 {
 
-    class DynamicStorage;
+    class Reservations;
 
     using Store        = logos::block_store;
-    using Log          = boost::log::sources::logger_mt;
     using Hash         = logos::block_hash;
-    using AccountCache = std::unordered_map<logos::account, logos::account_info>;
     using BlockCache   = std::unordered_set<Hash>;
-    using StorageMap   = std::unordered_map<uint8_t, DynamicStorage>;
 
 public:
 
-    PersistenceManager(Store & store,
-                       Log & log);
+    PersistenceManager(Store & store);
 
     void ApplyUpdates(const BatchStateBlock & message, uint8_t delegate_id);
 
-    bool Validate(const logos::state_block & block, logos::process_return & result, uint8_t delegate_id);
-    bool Validate(const logos::state_block & block, uint8_t delegate_id);
-
-    void ClearCache(uint8_t delegate_id);
+    bool Validate(const logos::state_block & block,
+                  logos::process_return & result,
+                  bool allow_duplicates = true);
+    bool Validate(const logos::state_block & block);
 
 private:
 
-    struct DynamicStorage
+    struct Reservations
     {
-        DynamicStorage(Store & store)
+        using AccountCache = std::unordered_map<logos::account, logos::account_info>;
+
+        Reservations(Store & store)
             : store(store)
         {}
 
-        bool StateBlockExists(const Hash & hash)
+        //-------------------------------------------------------------------------
+        // XXX - It is possible for a delegate D1 that has validated/Post-Comitted
+        //       (but hasn't yet updated its database and cleared the reservation)
+        //       a send request from account A1 to receive the subsequent request
+        //       from account A1 as a backup delegate for a PrePrepare from another
+        //       delegate D2. In this case D1 would reject a valid send transaction
+        //       from A1 since A1 would appear to still be reserved. However, this
+        //       is unlikely, as for this to occur, the Post-Commit would have to
+        //       propagate to both D2 and to the client before D1 clears the
+        //       reservation. When this occurs, D1 will attempt to Acquire an
+        //       account that is already stored in the Reservations cache. However,
+        //       this is not the only case in which a cached account will be
+        //       acquired.
+        //-------------------------------------------------------------------------
+        bool Acquire(const logos::account & account, logos::account_info & info)
         {
-            return pending_blocks.find(hash) != pending_blocks.end()
-                    || store.state_block_exists(hash);
-        }
+            std::lock_guard<std::mutex> lock(mutex);
 
-        bool GetAccount(const logos::account & account, logos::account_info & info)
-        {
-            if(pending_account_changes.find(account) != pending_account_changes.end())
+            if(accounts.find(account) != accounts.end())
             {
-                info = pending_account_changes[account];
+                LOG_WARN(log) << "Reservations::Acquire - Warning - attempt to "
+                               << "acquire account "
+                               << account.to_string()
+                               << " which is already in the Reservations cache.";
+
+                info = accounts[account];
                 return false;
             }
 
-            return store.account_get(account, info);
+            auto ret = store.account_get(account, info);
+
+            if(!ret)
+            {
+                accounts[account] = info;
+            }
+
+            return ret;
         }
 
-        void ClearCache()
+        void Release(const logos::account & account)
         {
-            pending_blocks.clear();
-            pending_account_changes.clear();
+            std::lock_guard<std::mutex> lock(mutex);
+            accounts.erase(account);
         }
 
-        // Contains blocks validated by this delegate
-        // but not yet confirmed via consensus.
-        BlockCache   pending_blocks;
-        AccountCache pending_account_changes;
+        AccountCache accounts;
         Store &      store;
+        Log          log;
+        std::mutex   mutex;
     };
 
-    void StoreBatchMessage(const BatchStateBlock & message, MDB_txn * transaction);
-    void ApplyBatchMessage(const BatchStateBlock & message, uint8_t delegate_id,
+    void StoreBatchMessage(const BatchStateBlock & message,
+                           MDB_txn * transaction,
+                           uint8_t delegate_id);
+
+    void ApplyBatchMessage(const BatchStateBlock & message,
+                           MDB_txn * transaction);
+    void ApplyStateMessage(const logos::state_block & block,
+                           uint64_t timestamp,
                            MDB_txn * transaction);
 
-    void ApplyStateMessage(const logos::state_block & block, uint64_t timestamp,
+    bool UpdateSourceState(const logos::state_block & block,
                            MDB_txn * transaction);
-
-    bool UpdateSourceState(const logos::state_block & block, MDB_txn * transaction);
-    void UpdateDestinationState(const logos::state_block & block, uint64_t timestamp,
+    void UpdateDestinationState(const logos::state_block & block,
+                                uint64_t timestamp,
                                 MDB_txn * transaction);
-
-    DynamicStorage & GetStore(uint8_t delegate_id);
 
     void PlaceReceive(logos::state_block & receive,
                       MDB_txn * transaction);
 
+    static constexpr uint64_t  RESERVATION_PERIOD  = 2;
+    static constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
 
-    StorageMap _dynamic_storage;
-    std::mutex _dynamic_storage_mutex;
-    Store &    _store;
-    Log &      _log;
+
+    Reservations _reservations;
+    std::mutex   _reservation_mutex;
+    std::mutex   _destination_mutex;
+    Store &      _store;
+    Log          _log;
 };
 
 

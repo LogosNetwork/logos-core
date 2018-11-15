@@ -1,6 +1,6 @@
 #pragma once
 
-#include <logos/consensus/messages/common.hpp>
+#include <logos/consensus/messages/rejection.hpp>
 
 #include <string>
 
@@ -27,6 +27,9 @@ inline std::string MessageToName(const MessageType & type)
             break;
         case MessageType::Key_Advert:
             ret = "Key Advertisement";
+            break;
+        case MessageType::Rejection:
+            ret = "Rejection";
             break;
         case MessageType::Unknown:
             ret = "Unknown";
@@ -71,7 +74,7 @@ std::string MessageToName(const MSG & message)
 template<typename MSG>
 std::string ConsensusToName(const MSG & message)
 {
-    return ConsensusToName(message.type);
+    return ConsensusToName(message.consensus_type);
 }
 
 inline size_t ConsensusTypeToIndex(ConsensusType type)
@@ -88,33 +91,53 @@ inline size_t MessageTypeToSize(MessageType type)
 
     switch (type)
     {
-        case MessageType::Pre_Prepare: {
+        case MessageType::Pre_Prepare:
             ret =  sizeof(PrePrepareMessage<CT>);
             break;
-        }
-        case MessageType::Prepare: {
+        case MessageType::Prepare:
             ret = sizeof(PrepareMessage<CT>);
             break;
-        }
-        case MessageType::Post_Prepare: {
+        case MessageType::Post_Prepare:
             ret = sizeof(PostPrepareMessage<CT>);
             break;
-        }
-        case MessageType::Commit: {
+        case MessageType::Commit:
             ret = sizeof(CommitMessage<CT>);
             break;
-        }
-        case MessageType::Post_Commit: {
+        case MessageType::Post_Commit:
             ret = sizeof(PostCommitMessage<CT>);
             break;
-        }
-        case MessageType::Key_Advert: {
+        case MessageType::Key_Advert:
             ret = sizeof(KeyAdvertisement);
             break;
-        }
+        case MessageType::Rejection:
+            ret = sizeof(RejectionMessage<CT>);
+            break;
         case MessageType::Unknown:
             break;
     }
 
     return ret;
+}
+
+inline std::string RejectionReasonToName(RejectionReason reason)
+{
+    switch (reason)
+    {
+        case RejectionReason::Void:
+            return "Void";
+        case RejectionReason::Contains_Invalid_Request:
+            return "Contains Invalid Request";
+        case RejectionReason::Clock_Drift:
+            return "Clock Drift";
+        case RejectionReason::Bad_Signature:
+            return "Bad Signature";
+        case RejectionReason::Invalid_Epoch:
+            return "Invalid Epoch";
+        case RejectionReason::New_Epoch:
+            return "New Epoch";
+        case RejectionReason::Wrong_Sequence_Number:
+            return "Contains Invalid Request";
+        case RejectionReason::Invalid_Previous_Hash:
+            return "Invalid Previous Hash";
+    }
 }

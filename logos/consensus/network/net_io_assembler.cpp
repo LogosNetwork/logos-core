@@ -1,10 +1,14 @@
 #include <logos/consensus/network/net_io_assembler.hpp>
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/consensus/epoch_manager.hpp>
 
-#include <boost/log/sources/record_ostream.hpp>
-
-NetIOAssembler::NetIOAssembler(std::shared_ptr<Socket> socket)
+NetIOAssembler::NetIOAssembler(std::shared_ptr<Socket> socket,
+                               const std::atomic_bool & connected,
+                               EpochInfo & epoch_info)
     : _socket(socket)
+    , _connected(connected)
+    , _epoch_info(epoch_info)
 {}
 
 void NetIOAssembler::ReadPrequel(ReadCallback callback)
@@ -53,8 +57,15 @@ void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size
 {
     if(error)
     {
-        BOOST_LOG(_log) << "NetIOAssembler - Error receiving message: "
-                        << error.message();
+        // cancelled at the end of epoch transition
+        if (_connected && !_epoch_info.IsWaitingDisconnect())
+        {
+            LOG_ERROR(_log) << "NetIOAssembler - Error receiving message: "
+                            << error.message() << " global " << (int)DelegateIdentityManager::_global_delegate_idx
+                            << " connection " << _epoch_info.GetConnectionName()
+                            << " delegate " << _epoch_info.GetDelegateName()
+                            << " state " << _epoch_info.GetStateName();
+        }
         return;
     }
 
@@ -62,7 +73,7 @@ void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size
 
     if(_buffer_size == BUFFER_CAPACITY)
     {
-        BOOST_LOG(_log) << "NetIOAssembler - Error: Buffer"
+        LOG_ERROR(_log) << "NetIOAssembler: Buffer"
                         << " size has reached capacity.";
     }
 

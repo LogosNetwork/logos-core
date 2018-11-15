@@ -2,16 +2,20 @@
 #include <logos/consensus/consensus_manager.hpp>
 #include <functional>
 
+//#include <boost/date_time/posix_time/posix_time.hpp>
+//#include <boost/date_time/posix_time/posix_time_io.hpp>
+
 template<ConsensusType CT>
 const boost::posix_time::seconds SecondaryRequestHandler<CT>::REQUEST_TIMEOUT{5};
 template<ConsensusType CT>
 const  boost::posix_time::seconds SecondaryRequestHandler<CT>::MIN_TIMEOUT{2};
 
 template<ConsensusType CT>
-SecondaryRequestHandler<CT>::SecondaryRequestHandler(Service & service, RequestPromoter<CT> & promoter)
+SecondaryRequestHandler<CT>::SecondaryRequestHandler(Service & service,
+                                                     Promoter* promoter)
     : _service(service)
     , _promoter(promoter)
-    , _timer(service, REQUEST_TIMEOUT)
+    , _timer(service)
 {}
 
 template<ConsensusType CT>
@@ -30,8 +34,8 @@ void SecondaryRequestHandler<CT>::OnRequest(std::shared_ptr<RequestMessage<CT>> 
     std::lock_guard<std::mutex> lock(_mutex);
     if(_requests.get<1>().find(hash) != _requests.get<1>().end())
     {
-        BOOST_LOG(_log) << "Ignoring duplicate secondary request with hash: "
-                        << hash.to_string();
+        LOG_WARN(_log) << "Ignoring duplicate secondary request with hash: "
+                       << hash.to_string();
         return;
     }
 
@@ -39,7 +43,7 @@ void SecondaryRequestHandler<CT>::OnRequest(std::shared_ptr<RequestMessage<CT>> 
 
     if(_requests.size() == 1)
     {
-        ScheduleTimer(REQUEST_TIMEOUT);
+        ScheduleTimer(seconds);
     }
 }
 
@@ -53,8 +57,13 @@ void SecondaryRequestHandler<CT>::OnTimeout(const Error & error)
 
         if(error)
         {
-            BOOST_LOG(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT) << ">::OnTimeout - Error: "
-                            << error.message();
+            if (error == boost::asio::error::operation_aborted)
+            {
+                return;
+            }
+            LOG_INFO(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT)
+                           << ">::OnTimeout - Error: "
+                           << error.message();
         }
 
         auto now = Clock::universal_time();
@@ -78,16 +87,30 @@ void SecondaryRequestHandler<CT>::OnTimeout(const Error & error)
         }
     }
 
+    std::lock_guard<std::mutex> lock(_promoter_mutex);
+    if (_promoter == nullptr)
+    {
+        LOG_ERROR(_log) << "SecondaryRequestHandler::OnTimeout promoter is nullptr";
+        return;
+    }
+
     for(auto & request : ready_requests)
     {
-        _promoter.OnRequestReady(request.block);
+        _promoter->OnRequestReady(request.block);
     }
 }
 
 template<ConsensusType CT>
-void SecondaryRequestHandler<CT>::OnPrePrepare(const PrePrepare & block)
+void SecondaryRequestHandler<CT>::OnPostCommit(const PrePrepare & message)
 {
-    PruneRequests(block);
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    PruneRequests(message);
+
+    if (_requests.empty())
+    {
+        _timer.cancel();
+    }
 }
 
 template<ConsensusType CT>
@@ -101,15 +124,22 @@ void SecondaryRequestHandler<CT>::ScheduleTimer(const Seconds & timeout)
 template <ConsensusType CT>
 void SecondaryRequestHandler<CT>::PruneRequest(const logos::block_hash & hash)
 {
-    std::lock_guard<std::mutex> lock(_mutex);
-
-    if(_requests.get<1>().find(hash) != _requests.get<1>().end()) {
-        BOOST_LOG(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT) << ">::PruneRequests - "
-                        << "Removing request with hash: "
-                        << hash.to_string();
+    if(_requests.get<1>().find(hash) != _requests.get<1>().end())
+    {
+        LOG_INFO(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT)
+                       << ">::PruneRequests - "
+                       << "Removing request with hash: "
+                       << hash.to_string();
 
         _requests.get<1>().erase(hash);
     }
+}
+
+template <ConsensusType CT>
+void SecondaryRequestHandler<CT>::UpdateRequestPromoter(RequestPromoter<CT>* promoter)
+{
+    std::lock_guard<std::mutex> lock(_promoter_mutex);
+    _promoter = promoter;
 }
 
 template<>

@@ -2,7 +2,8 @@
 #include <logos/common.hpp>
 
 const size_t BatchStateBlock::HASHABLE_BYTES = sizeof(BatchStateBlock)
-                                               - sizeof(Signature);
+                                               - sizeof(Signature)
+                                               - sizeof(BlockHash);
 
 BlockHash BatchStateBlock::Hash() const
 {
@@ -12,7 +13,9 @@ BlockHash BatchStateBlock::Hash() const
     auto status(blake2b_init(&hash, sizeof(result.bytes)));
     assert(status == 0);
 
+    blake2b_update(&hash, &sequence, sizeof(sequence));
     blake2b_update(&hash, &block_count, sizeof(block_count));
+    blake2b_update(&hash, &epoch_number, sizeof(epoch_number));
     blake2b_update(&hash, blocks, sizeof(BlockList));
 
     status = blake2b_final(&hash, result.bytes.data(), sizeof(result.bytes));

@@ -1,9 +1,9 @@
+#include <logos/microblock/microblock_handler.hpp>
 #include <logos/microblock/microblock_tester.hpp>
-#include <logos/blockstore.hpp>
-#include <logos/lib/blocks.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/epoch_time_util.hpp>
-#include <logos/microblock/microblock_handler.hpp>
+#include <logos/blockstore.hpp>
+#include <logos/lib/blocks.hpp>
 
 boost::property_tree::ptree MicroBlockTester::_request;
 
@@ -41,6 +41,18 @@ MicroBlockTester::microblock_tester(
         boost::property_tree::ptree response_l;
         response_l.put ("result", "disabled");
         response (response_l);
+    }
+    else if (action == "start_epoch_transition")
+    {
+        start_epoch_transition(response, node);
+    }
+    else if (action == "informational")
+    {
+        informational(response, node);
+    }
+    else if (action == "epoch_delegates")
+    {
+        epoch_delegates(response, node);
     }
     else
     {
@@ -101,13 +113,15 @@ MicroBlockTester::precreate_account(
   boost::property_tree::ptree response_l;
   logos::keypair pair;
 
-  logos::amount amount(100000);
+  logos::amount amount(std::numeric_limits<logos::uint128_t>::max());
+  logos::amount fee(0);
   uint64_t work = 0;
 
   logos::state_block state(pair.pub,  // account
                            0,         // previous
                            pair.pub,  // representative
                            amount,
+                           fee,
                            pair.pub,  // link
                            pair.prv,
                            pair.pub,
@@ -115,7 +129,7 @@ MicroBlockTester::precreate_account(
     std::string contents;
     state.serialize_json(contents);
     boost::log::sources::logger_mt log;
-    BOOST_LOG(log) << "initializing delegate " <<
+    LOG_DEBUG(log) << "initializing delegate " <<
                                     pair.prv.data.to_string() << " " <<
                                     pair.pub.to_string() << " " <<
                                     pair.pub.to_account() << " " <<
@@ -195,5 +209,120 @@ MicroBlockTester::generate_epoch(
         node._consensus_container.OnSendRequest(epoch);
     }, std::chrono::seconds(1)); */
     response_l.put ("result", "not-implemented");
+    response (response_l);
+}
+
+void
+MicroBlockTester::start_epoch_transition(
+    std::function<void(boost::property_tree::ptree const &)> response,
+    logos::node &node)
+{
+    boost::property_tree::ptree response_l;
+    int delay = _request.get<int>("delay", 0);
+    RecallHandler handler;
+    EventProposer proposer(node.alarm, handler, false);
+    proposer.ProposeTransitionOnce([&node]()->void{
+        node._consensus_container.EpochTransitionEventsStart();
+    }, Seconds(delay));
+    response_l.put ("result", "in-progress");
+    response (response_l);
+}
+
+void
+MicroBlockTester::informational(
+    std::function<void(boost::property_tree::ptree const &)> response,
+    logos::node &node)
+{
+    boost::property_tree::ptree response_l;
+
+    std::string type = _request.get<std::string>("type", "");
+
+    if (type == "epoch") {
+        Epoch epoch;
+        size_t s = sizeof(epoch);
+        std::stringstream str;
+        uint64_t start = (uint64_t) &epoch;
+        uint64_t account = (uint64_t) &(epoch.account);
+        uint64_t enumber = (uint64_t) &(epoch.epoch_number);
+        uint64_t tip = (uint64_t) &(epoch.micro_block_tip);
+        uint64_t fee = (uint64_t) &(epoch.transaction_fee_pool);
+        uint64_t del = (uint64_t) &(epoch.delegates);
+        uint64_t sig = (uint64_t) &(epoch.signature);
+        str << "epoch offsets: account " << (account - start) << " enumber " << (enumber - start)
+            << " tip " << (tip - start) << " fee " << (fee - start) << " delegates " << (del - start)
+            << " sig " << (sig - start) << " size " << sizeof(epoch);
+        response_l.put("result", str.str());
+    }
+    else if (type == "microblock")
+    {
+        MicroBlock block;
+        size_t s = sizeof(block);
+        std::stringstream str;
+        uint64_t start = (uint64_t) &block;
+        uint64_t account = (uint64_t) &(block.account);
+        uint64_t enumber = (uint64_t) &(block.epoch_number);
+        uint64_t seq = (uint64_t) &(block.sequence);
+        uint64_t last = (uint64_t) &(block.last_micro_block);
+        uint64_t num = (uint64_t) &(block.number_batch_blocks);
+        uint64_t tips = (uint64_t) &(block.tips);
+        uint64_t sig = (uint64_t) &(block.signature);
+        str << "epoch offsets: account " << (account - start) << " enumber " << (enumber - start)
+            << " sequence " << (seq - start) << " last " << (last - start)
+            << "num blocks " << (num - start) << " tips " << (tips - start)
+            << " sig " << (sig - start) << " size " << sizeof(block);
+        response_l.put("result", str.str());
+    }
+    else if (type == "batch")
+    {
+        BatchStateBlock block;
+        size_t s = sizeof(block);
+        std::stringstream str;
+        uint64_t start = (uint64_t) &block;
+        uint64_t seq = (uint64_t) &(block.sequence);
+        uint64_t block_count = (uint64_t) &(block.block_count);
+        uint64_t enumber = (uint64_t) &(block.epoch_number);
+        uint64_t blocks = (uint64_t) &(block.blocks);
+        uint64_t next = (uint64_t) &(block.next);
+        uint64_t sig = (uint64_t) &(block.signature);
+        str << "batch offsets: sequence " << (seq - start) << " block_count " << (block_count - start)
+            << " epoch " << (enumber - start) << " blocks " << (blocks - start)
+            << " next " << (next - start) << " sig " << (sig - start) << " size " << sizeof(block);
+        response_l.put("result", str.str());
+    }
+
+    response (response_l);
+}
+
+void
+MicroBlockTester::epoch_delegates(
+    std::function<void(boost::property_tree::ptree const &)> response,
+    logos::node &node)
+{
+    using Accounts = logos::account[NUM_DELEGATES];
+    boost::property_tree::ptree response_l;
+    uint8_t delegate_idx;
+    Accounts delegates;
+
+    std::string epoch (_request.get<std::string> ("epoch", "current"));
+
+    if (epoch == "current")
+    {
+        node._identity_manager.IdentifyDelegates(EpochDelegates::Current, delegate_idx, delegates);
+    }
+    else
+    {
+        node._identity_manager.IdentifyDelegates(EpochDelegates::Next, delegate_idx, delegates);
+    }
+
+    int del = 0;
+    for (auto acct : delegates) {
+        boost::property_tree::ptree response;
+        char buff[5];
+        sprintf(buff, "%d", del);
+        response.put("ip", DelegateIdentityManager::_delegates_ip[acct]);
+        response_l.push_back(std::make_pair(buff, response));
+        del++;
+    }
+
     response (response_l);
 }

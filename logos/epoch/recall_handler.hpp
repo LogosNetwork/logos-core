@@ -12,6 +12,7 @@ public:
     IRecallHandler() = default;
     virtual ~IRecallHandler() = default;
     virtual bool IsRecall() = 0;
+    virtual void Reset() = 0;
 };
 
 class RecallHandler : public IRecallHandler
@@ -25,6 +26,11 @@ public:
     bool IsRecall() override
     {
         return _is_recall.load();
+    }
+
+    void Reset() override
+    {
+        _is_recall = false;
     }
 
 private:

@@ -1,23 +1,26 @@
 #pragma once
 
-#include <boost/log/sources/logger.hpp>
+#include <logos/consensus/messages/messages.hpp>
+#include <logos/lib/log.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/read.hpp>
 
 #include <mutex>
 
+class EpochInfo;
+
 class NetIOAssembler
 {
 
     using Socket = boost::asio::ip::tcp::socket;
-    using Log    = boost::log::sources::logger_mt;
 
     using ReadCallback =
             std::function<void(const uint8_t * data)>;
 
 public:
 
-    NetIOAssembler(std::shared_ptr<Socket> socket);
+    NetIOAssembler(std::shared_ptr<Socket> socket, const std::atomic_bool & connected, EpochInfo&);
+    ~NetIOAssembler() = default;
 
     void ReadPrequel(ReadCallback callback);
     void ReadBytes(ReadCallback callback, size_t bytes);
@@ -45,13 +48,15 @@ private:
 
     bool Proceed(ReadCallback callback, size_t bytes);
 
-    Buffer                  _buffer;
-    ReadCallback            _callback;
-    QueuedRequest           _queued_request;
-    std::shared_ptr<Socket> _socket;
-    Log                     _log;
-    size_t                  _buffer_size         = 0;
-    size_t                  _bytes_to_read       = 0;
-    bool                    _processing_callback = false;
+    Buffer                         _buffer;
+    ReadCallback                   _callback;
+    QueuedRequest                  _queued_request;
+    std::shared_ptr<Socket>        _socket;
+    Log                            _log;
+    size_t                         _buffer_size         = 0;
+    size_t                         _bytes_to_read       = 0;
+    bool                           _processing_callback = false;
+    const std::atomic_bool&        _connected;
+    EpochInfo &                    _epoch_info;
 };
 

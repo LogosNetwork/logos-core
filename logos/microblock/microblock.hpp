@@ -13,13 +13,12 @@ using BlockHash = logos::block_hash;
 struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::MicroBlock> {
     MicroBlock()
         : MessageHeader(0)
-        //, _merkle_root(0)
-        , _delegate(0)
-        , _epoch_number(0)
-        , _micro_block_number(0)
-        , _last_micro_block(0)
-        , _tips{0}
-        , _number_batch_blocks(0)
+        , account(0)
+        , epoch_number(0)
+        , sequence(0)
+        , last_micro_block(0)
+        , number_batch_blocks(0)
+        , tips{0}
         {
             signature={0};
             previous = 0;
@@ -36,12 +35,13 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
     void SerializeJson(boost::property_tree::ptree &) const;
 
     static const size_t HASHABLE_BYTES;         ///< hashable bytes of the micrblock - used in signing
-    //BlockHash           _merkle_root; 		    ///< Merkle root of the batch blocks included in this microblock
-    logos::account      _delegate; 	            ///< Delegate who proposed this microblock
-    uint                _epoch_number; 			///< Current epoch
-    uint16_t            _micro_block_number;	///< Microblock number within this epoch
-    uint8_t             _last_micro_block;      ///< The last microblock in the epoch
-    BlockHash           _tips[NUM_DELEGATES];   ///< Delegate's batch block tips
-    uint                _number_batch_blocks;   ///< Number of batch blocks in the microblock
+    logos::account      account; 	            ///< Delegate who proposed this microblock
+    uint32_t            epoch_number; 			///< Current epoch
+    uint16_t            sequence;	            ///< Microblock number within this epoch
+    uint8_t             last_micro_block;       ///< The last microblock in the epoch
+    uint8_t             padding1 = 0;           ///< padding
+    uint32_t            number_batch_blocks;    ///< Number of batch blocks in the microblock
+    uint32_t            padding2 = 0;           ///< padding
+    BlockHash           tips[NUM_DELEGATES];    ///< Delegate's batch block tips
     Signature           signature; 		        ///< Multisignature
 };

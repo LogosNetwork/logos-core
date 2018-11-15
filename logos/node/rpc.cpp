@@ -1110,6 +1110,16 @@ void logos::rpc_handler::block_create ()
                 error_response (response, "Bad amount number");
             }
         }
+        logos::uint128_union transaction_fee (0);
+        boost::optional<std::string> transaction_fee_text (request.get_optional<std::string> ("transaction_fee"));
+        if (transaction_fee_text.is_initialized ())
+        {
+            auto error_transaction_fee (transaction_fee.decode_dec (transaction_fee_text.get ()));
+            if (error_transaction_fee)
+            {
+                error_response (response, "Bad transaction fee number");
+            }
+        }
         uint64_t work (0);
         boost::optional<std::string> work_text (request.get_optional<std::string> ("work"));
         if (work_text.is_initialized ())
@@ -1237,7 +1247,7 @@ void logos::rpc_handler::block_create ()
                     {
                         work = node.work_generate_blocking (previous.is_zero () ? pub : previous);
                     }
-                    logos::state_block state (pub, previous, representative, amount, link, prv, pub, work);
+                    logos::state_block state (pub, previous, representative, amount, transaction_fee, link, prv, pub, work);
                     boost::property_tree::ptree response_l;
                     response_l.put ("hash", state.hash ().to_string ());
                     std::string contents;
@@ -2597,89 +2607,34 @@ void logos::rpc_handler::process ()
                     break;
                 }
                 case logos::process_result::gap_previous:
-                {
-                    error_response (response, "Gap previous block");
-                    break;
-                }
                 case logos::process_result::gap_source:
-                {
-                    error_response (response, "Gap source block");
-                    break;
-                }
                 case logos::process_result::state_block_disabled:
-                {
-                    error_response (response, "State blocks are disabled");
-                    break;
-                }
                 case logos::process_result::old:
-                {
-                    error_response (response, "Old block");
-                    break;
-                }
                 case logos::process_result::bad_signature:
-                {
-                    error_response (response, "Bad signature");
-                    break;
-                }
                 case logos::process_result::negative_spend:
-                {
-                    // TODO once we get RPC versioning, this should be changed to "negative spend"
-                    error_response (response, "Overspend");
-                    break;
-                }
                 case logos::process_result::unreceivable:
-                {
-                    error_response (response, "Unreceivable");
-                    break;
-                }
                 case logos::process_result::not_receive_from_send:
-                {
-                    error_response (response, "Not receive from send");
-                    break;
-                }
                 case logos::process_result::fork:
-                {
-                    error_response (response, "Fork");
-                    break;
-                }
                 case logos::process_result::account_mismatch:
-                {
-                    error_response (response, "Account mismatch");
-                    break;
-                }
                 case logos::process_result::invalid_block_type:
-                {
-                    error_response (response, "Invalid block type");
-                    break;
-                }
-                case logos::process_result::not_implemented:
-                {
-                    error_response (response, "Not implemented");
-                    break;
-                }
+                case logos::process_result::unknown_source_account:
                 case logos::process_result::opened_burn_account:
+                case logos::process_result::already_reserved:
+                case logos::process_result::initializing:
+                case logos::process_result::insufficient_balance:
+                case logos::process_result::not_delegate:
                 {
-                    error_response (response, "Invalid account (burn account)");
+                    error_response (response,
+                                    ProcessResultToString(result.code));
                     break;
                 }
                 case logos::process_result::buffered:
-                {
-                    boost::property_tree::ptree response_l;
-                    response_l.put ("result", "Buffered");
-                    response (response_l);
-                    break;
-                }
                 case logos::process_result::buffering_done:
-                {
-                    boost::property_tree::ptree response_l;
-                    response_l.put ("result", "Buffering Done");
-                    response (response_l);
-                    break;
-                }
                 case logos::process_result::pending:
                 {
                     boost::property_tree::ptree response_l;
-                    response_l.put ("result", "Already Pending");
+                    response_l.put ("result",
+                                    ProcessResultToString(result.code));
                     response (response_l);
                     break;
                 }

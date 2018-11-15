@@ -1,9 +1,8 @@
 #pragma once
 
-#include <logos/consensus/peer_manager.hpp>
+#include <logos/consensus/network/delegate_peer_manager.hpp>
+#include <logos/lib/log.hpp>
 
-#include <boost/log/sources/record_ostream.hpp>
-#include <boost/log/sources/logger.hpp>
 #include <boost/asio.hpp>
 
 #include <memory>
@@ -16,16 +15,15 @@ class PeerAcceptor
     using Acceptor = boost::asio::ip::tcp::acceptor;
     using Endpoint = boost::asio::ip::tcp::endpoint;
     using Address  = boost::asio::ip::address;
-    using Log      = boost::log::sources::logger_mt;
 
 public:
 
     PeerAcceptor(Service & service,
-                 Log & log,
                  const Endpoint & local_endpoint,
-                 PeerManager * manager);
+                 DelegatePeerManager & manager);
+    ~PeerAcceptor() = default;
 
-    void Start(const std::set<Address> & server_endpoints);
+    void Start();
 
     void Accept();
 
@@ -33,12 +31,11 @@ public:
 
 private:
 
-    std::set<Address> _server_endpoints;
-    Acceptor          _acceptor;
-    Service &         _service;
-    Log &             _log;
-    Endpoint          _local_endpoint;
-    Endpoint          _accepted_endpoint;
-    PeerManager *     _manager;
+    Acceptor                _acceptor;
+    Log                     _log;
+    Service &               _service;
+    Endpoint                _local_endpoint;
+    Endpoint                _accepted_endpoint;
+    DelegatePeerManager &   _manager;
 };
 

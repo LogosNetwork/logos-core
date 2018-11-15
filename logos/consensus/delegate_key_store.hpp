@@ -3,15 +3,13 @@
 #include <unordered_map>
 #include <mutex>
 
-#include <boost/log/sources/record_ostream.hpp>
-#include <boost/log/sources/logger.hpp>
-
 #include <logos/consensus/messages/common.hpp>
+#include <logos/lib/log.hpp>
+
 #include <bls/bls.hpp>
 
 class DelegateKeyStore
 {
-    using Log           = boost::log::sources::logger_mt;
     using PublicKeyReal = bls::PublicKey;
     using Keys          = std::unordered_map<uint8_t, PublicKeyReal>;
 

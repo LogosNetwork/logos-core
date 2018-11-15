@@ -1,6 +1,7 @@
 #pragma once
 
 #include <logos/consensus/messages/common.hpp>
+#include <logos/epoch/epoch_transition.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
 
@@ -9,12 +10,37 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
 {
     static const size_t HASHABLE_BYTES;
 
+    BatchStateBlock & operator= (const BatchStateBlock & other)
+    {
+        auto b_size = other.block_count * sizeof(logos::state_block);
+
+        // BatchStateBlock members
+        sequence = other.sequence;
+        block_count = other.block_count;
+        memcpy(blocks, other.blocks, b_size);
+        next = other.next;
+        memcpy(signature.data(), other.signature.data(), sizeof(signature));
+
+        // MessageHeader members
+        timestamp = other.timestamp;
+        previous = other.previous;
+
+        // MessagePrequel members are
+        // unchanged.
+
+        return *this;
+    }
+
     BlockHash Hash() const;
     std::string SerializeJson() const;
     void SerializeJson(boost::property_tree::ptree &) const;
 
+    uint64_t  sequence;
     uint64_t  block_count = 0;
+    uint32_t  epoch_number = 0;
+    uint32_t  padding = 0;
     BlockList blocks;
+    BlockHash next;
     Signature signature;
 };
 
@@ -67,7 +93,13 @@ struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert,
                                          ConsensusType::Any>
 {
     PublicKey public_key;
-    uint8_t   remote_delegate_id;
+};
+
+struct ConnectedClientIds
+{
+    uint epoch_number;
+    uint8_t delegate_id;
+    EpochConnection connection;
 };
 
 // Convenience aliases for message names.
@@ -76,13 +108,13 @@ template<ConsensusType CT>
 using PrepareMessage = StandardPhaseMessage<MessageType::Prepare, CT>;
 
 template<ConsensusType CT>
-using CommitMessage  = StandardPhaseMessage<MessageType::Commit, CT>;
+using CommitMessage = StandardPhaseMessage<MessageType::Commit, CT>;
 
 template<ConsensusType CT>
 using PostPrepareMessage = PostPhaseMessage<MessageType::Post_Prepare, CT>;
 
 template<ConsensusType CT>
-using PostCommitMessage  = PostPhaseMessage<MessageType::Post_Commit, CT>;
+using PostCommitMessage = PostPhaseMessage<MessageType::Post_Commit, CT>;
 
 // Number of bytes from the beginning of the
 // message that should be included in hashes
@@ -147,13 +179,3 @@ struct RequestMessage<CT,
 	typename std::enable_if< 
 		CT == ConsensusType::Epoch>::type> : PrePrepareMessage<ConsensusType::Epoch>
 {};
-
-enum class RejectionReason : uint8_t
-{
-    Old_Timestamp = 0
-};
-
-struct RejectionMessage
-{
-    RejectionReason reason;
-};

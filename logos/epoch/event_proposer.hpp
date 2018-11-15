@@ -7,9 +7,8 @@
 
 
 #include <logos/lib/epoch_time_util.hpp>
+#include <logos/lib/log.hpp>
 
-#include <boost/log/sources/record_ostream.hpp>
-#include <boost/log/sources/logger.hpp>
 #include <functional>
 
 namespace logos
@@ -18,18 +17,20 @@ namespace logos
 }
 
 class MicroBlock;
+class IRecallHandler;
 
 /// Defines functions that propose microblock and transition events
 class EventProposer
 {
-    using Log           = boost::log::sources::logger_mt;
     using MicroCb       = std::function<void()>;
     using TransitionCb  = std::function<void()>;
     using EpochCb       = std::function<void()>;
 public:
     /// Class constructor
     /// @param alarm logos::alarm reference [in]
-    EventProposer(logos::alarm &, bool first_epoch);
+    /// @param recall_handler recall handler reference [in]
+    /// @param first_epoch is it first epoch [in]
+    EventProposer(logos::alarm &, IRecallHandler &recall_handler, bool first_epoch);
     ~EventProposer() = default;
 
     /// Generates periodic event to propose microblock
@@ -43,7 +44,8 @@ public:
 
     /// Generates periodic event to propose epoch transition
     /// @param tcb callback to call when the event occurs [in]
-    void ProposeTransition(TransitionCb tcb);
+    /// @param next skip to next epoch transition
+    void ProposeTransition(TransitionCb tcb, bool next = false);
 
     /// Generates one off event to propose epoch transition
     /// @param tcb callback to call when the event occurs [in]
@@ -65,4 +67,5 @@ private:
     Log                 _log;              ///< boost asio log
     bool                _skip_transition;  ///< skip first Epoch transition due time
     bool                _skip_micro_block; ///< skip first MicroBlock transition due time
+    IRecallHandler &    _recall_handler;   ///< recall handler reference
 };
