@@ -200,7 +200,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
 
         OnPostCommit();
         ApplyUpdates(*_pre_prepare, _delegate_ids.remote);
-        BlocksCallback::Callback<CT>(*_cur_pre_prepare);
+        BlocksCallback::Callback<CT>(*_pre_prepare);
 
         _state = ConsensusState::VOID;
         _prev_pre_prepare_hash = _pre_prepare_hash;
