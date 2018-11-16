@@ -30,14 +30,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
     , _identity_manager(identity_manager)
     , _transition_state(EpochTransitionState::None)
     , _transition_delegate(EpochTransitionDelegate::None)
-    , _epoch_transition_enabled(true)
 {
-    // Currently require that all_delegates is twice the size of delegates
-    if (config.all_delegates.size() != 2 * config.delegates.size())
-    {
-        _epoch_transition_enabled = false;
-    }
-
     uint8_t delegate_idx;
     Accounts delegates;
     _identity_manager.IdentifyDelegates(EpochDelegates::Current, delegate_idx, delegates);
@@ -52,8 +45,8 @@ ConsensusContainer::ConsensusContainer(Service & service,
         _binding_map[_cur_epoch->_epoch_number] = _cur_epoch;
     };
 
-    /// TODO _epoch_transition_enabled is temp to facilitate testing without transition
-    if (!_epoch_transition_enabled)
+    /// TODO epoch_transition_enabled is temp to facilitate testing without transition
+    if (!DelegateIdentityManager::IsEpochTransitionEnabled())
     {
         create(config);
     }
@@ -64,7 +57,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
     }
 
     LOG_INFO(_log) << "ConsensusContainer::ConsensusContainer initialized delegate is in epoch "
-                    << in_epoch << " epoch transition enabled " << _epoch_transition_enabled
+                    << in_epoch << " epoch transition enabled " << DelegateIdentityManager::IsEpochTransitionEnabled()
                     << " " << (int)delegate_idx << " " << (int)DelegateIdentityManager::_global_delegate_idx
                     << " " << _cur_epoch_number;
 }
@@ -242,7 +235,7 @@ ConsensusContainer::EpochTransitionEventsStart()
     uint8_t delegate_idx;
     Accounts delegates;
 
-    if (!_epoch_transition_enabled)
+    if (!DelegateIdentityManager::IsEpochTransitionEnabled())
     {
         LOG_WARN(_log) << "ConsensusContainer::EpochTransitionEventsStart "
                            "epoch transition is not supported by this delegate "
