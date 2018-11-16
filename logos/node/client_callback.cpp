@@ -3,13 +3,11 @@
 std::shared_ptr<BlocksCallback> BlocksCallback::_instance = nullptr;
 
 ClientCallback::ClientCallback(Service & service,
-                               Log & log,
                                const std::string & callback_address,
                                const uint16_t & callback_port,
                                const std::string & callback_target,
                                const bool & callback_logging)
     : _service (service)
-    , _log (log)
     , _callback_address (callback_address)
     , _callback_port (callback_port)
     , _callback_target (callback_target)
@@ -17,23 +15,21 @@ ClientCallback::ClientCallback(Service & service,
 {}
 
 BlocksCallback::BlocksCallback(Service & service,
-                               Log & log,
                                const std::string & callback_address,
                                const uint16_t & callback_port,
                                const std::string & callback_target,
                                const bool & callback_logging)
-        : ClientCallback (service, log, callback_address, callback_port, callback_target, callback_logging)
+        : ClientCallback (service, callback_address, callback_port, callback_target, callback_logging)
 {}
 
 std::shared_ptr<BlocksCallback> BlocksCallback::Instance(Service & service,
-        Log & log,
         const std::string & callback_address,
         const uint16_t & callback_port,
         const std::string & callback_target,
         const bool & callback_logging)
 {
     static std::shared_ptr<BlocksCallback> inst(new BlocksCallback(
-            service, log, callback_address, callback_port, callback_target, callback_logging));
+            service, callback_address, callback_port, callback_target, callback_logging));
     if (BlocksCallback::_instance == nullptr)
     {
         BlocksCallback::_instance = inst;
@@ -79,7 +75,7 @@ void BlocksCallback::SendMessage (std::shared_ptr<std::string> body)
                                             {
                                                 if (_callback_logging)
                                                 {
-                                                    BOOST_LOG (_log) << boost::str (boost::format ("Callback to %1%:%2% failed with status: %3%") % _callback_address % _callback_port % resp->result ());
+                                                    LOG_WARN (_log) << boost::str (boost::format ("Callback to %1%:%2% failed with status: %3%") % _callback_address % _callback_port % resp->result ());
                                                 }
                                             }
                                         }
@@ -87,7 +83,7 @@ void BlocksCallback::SendMessage (std::shared_ptr<std::string> body)
                                         {
                                             if (_callback_logging)
                                             {
-                                                BOOST_LOG (_log) << boost::str (boost::format ("Unable complete callback: %1%:%2%: %3%") % _callback_address % _callback_port % ec.message ());
+                                                LOG_WARN (_log) << boost::str (boost::format ("Unable complete callback: %1%:%2%: %3%") % _callback_address % _callback_port % ec.message ());
                                             }
                                         };
                                     });
@@ -96,7 +92,7 @@ void BlocksCallback::SendMessage (std::shared_ptr<std::string> body)
                                 {
                                     if (_callback_logging)
                                     {
-                                        BOOST_LOG (_log) << boost::str (boost::format ("Unable to send callback: %1%:%2%: %3%") % _callback_address % _callback_port % ec.message ());
+                                        LOG_WARN (_log) << boost::str (boost::format ("Unable to send callback: %1%:%2%: %3%") % _callback_address % _callback_port % ec.message ());
                                     }
                                 }
                             });
@@ -105,7 +101,7 @@ void BlocksCallback::SendMessage (std::shared_ptr<std::string> body)
                         {
                             if (_callback_logging)
                             {
-                                BOOST_LOG (_log) << boost::str (boost::format ("Unable to connect to callback address: %1%:%2%: %3%") % _callback_address % _callback_port % ec.message ());
+                                LOG_WARN (_log) << boost::str (boost::format ("Unable to connect to callback address: %1%:%2%: %3%") % _callback_address % _callback_port % ec.message ());
                             }
                         }
                     });
@@ -115,7 +111,7 @@ void BlocksCallback::SendMessage (std::shared_ptr<std::string> body)
             {
                 if (_callback_logging)
                 {
-                    BOOST_LOG (_log) << boost::str (boost::format ("Error resolving callback: %1%:%2%: %3%") % _callback_address % _callback_port % ec.message ());
+                    LOG_WARN (_log) << boost::str (boost::format ("Error resolving callback: %1%:%2%: %3%") % _callback_address % _callback_port % ec.message ());
                 }
             }
         });

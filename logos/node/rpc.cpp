@@ -2640,7 +2640,7 @@ void logos::rpc_handler::process ()
                 }
                 default:
                 {
-                    error_response (response, "Error processing block");
+                    error_response (response, ProcessResultToString(result.code));
                     break;
                 }
             }

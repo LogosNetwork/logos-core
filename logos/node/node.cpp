@@ -1274,7 +1274,7 @@ _identity_manager(store, config.consensus_manager_config),
 _archiver(alarm_a, store, _recall_handler),
 _consensus_container(service_a, store, alarm_a, config.consensus_manager_config, _archiver, _identity_manager)
 {
-    BlocksCallback::Instance(service_a, log, config.callback_address, config.callback_port, config.callback_target, config.logging.callback_logging ());
+    BlocksCallback::Instance(service_a, config.callback_address, config.callback_port, config.callback_target, config.logging.callback_logging ());
 // Used to modify the database file with the new account_info field.
 // TODO: remove eventually - can be reused for now
 //    std::ifstream infile("/home/ubuntu/Downloads/blocks3200_accounts");

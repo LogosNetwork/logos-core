@@ -6,13 +6,12 @@
 
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/utility.hpp>
+#include <logos/lib/log.hpp>
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/beast/core/flat_buffer.hpp>
 #include <boost/beast/http.hpp>
-#include <boost/log/sources/logger.hpp>
-#include <boost/log/sources/record_ostream.hpp>
 
 namespace // unnamed namespace to prevent visibility in other files
 {
@@ -24,12 +23,10 @@ class ClientCallback
 protected:
 
     using Service     = boost::asio::io_service;
-    using Log         = boost::log::sources::logger_mt;
     using TCP         = boost::asio::ip::tcp;
 
 public:
     ClientCallback(Service & service,
-                   Log & log,
                    const std::string & callback_address,
                    const uint16_t & callback_port,
                    const std::string & callback_target,
@@ -39,7 +36,7 @@ public:
 
 protected:
     Service &   _service;
-    Log &       _log;
+    Log         _log;
     std::string _callback_address;
     uint16_t    _callback_port;
     std::string _callback_target;
@@ -51,7 +48,6 @@ class BlocksCallback : public ClientCallback
 {
 private:
     BlocksCallback(Service & service,
-                   Log & log,
                    const std::string & callback_address,
                    const uint16_t & callback_port,
                    const std::string & callback_target,
@@ -65,7 +61,6 @@ public:
 
     static std::shared_ptr<BlocksCallback>
     Instance(Service & service,
-            Log & log,
             const std::string & callback_address,
             const uint16_t & callback_port,
             const std::string & callback_target,
