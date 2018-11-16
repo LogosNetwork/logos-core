@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <boost/bind.hpp>
 #include <utility>
+#include <logging.h>
 
 CScheduler::CScheduler() : nThreadsServicingQueue(0), stopRequested(false), stopWhenEmpty(false)
 {
@@ -64,8 +65,14 @@ void CScheduler::serviceQueue()
             // Explicitly use a template here to avoid hitting that overload.
             while (!shouldStop() && !taskQueue.empty()) {
                 boost::chrono::system_clock::time_point timeToWaitFor = taskQueue.begin()->first;
-                if (newTaskScheduled.wait_until<>(lock, timeToWaitFor) == boost::cv_status::timeout)
-                    break; // Exit loop after timeout, it means we reached the time of the event
+		if (boost::chrono::system_clock::now() >= timeToWaitFor)
+		    break;
+		try {
+		    if (newTaskScheduled.wait_until<>(lock, timeToWaitFor) == boost::cv_status::timeout)
+			break; // Exit loop after timeout, it means we reached the time of the event
+		} catch(...) {
+		    LogWarning(BCLog::ALL, "Exception in boost::condition_variable::do_wait_until ignored.");
+		}
             }
 #endif
             // If there are multiple threads, the queue can empty while we're waiting (another
