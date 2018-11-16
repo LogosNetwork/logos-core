@@ -117,11 +117,11 @@ public:
 
     template<typename T> void put(MDB_dbi&, const mdb_val &, const T &, MDB_txn *);
     template<typename T> logos::block_hash put(MDB_dbi&, const T &, MDB_txn *);
-    template<typename T> bool get(MDB_dbi&, const mdb_val &key, const T &);
-    template<typename T> bool get(MDB_dbi& db, const logos::block_hash &hash, const T &t)
+    template<typename T> bool get(MDB_dbi&, const mdb_val &key, const T &, MDB_txn *tx = 0);
+    template<typename T> bool get(MDB_dbi& db, const logos::block_hash &hash, const T &t, MDB_txn *tx = 0)
     {
         mdb_val key(hash);
-        return get<T>(db,key,t);
+        return get<T>(db,key,t,tx);
     }
 
     // abstract away consensus types
@@ -149,16 +149,16 @@ public:
 
     // micro-block
     logos::block_hash micro_block_put(MicroBlock const &, MDB_txn*);
-    bool micro_block_get(const block_hash &, MicroBlock &);
+    bool micro_block_get(const block_hash &, MicroBlock &, MDB_txn* t=0);
     void micro_block_tip_put(const block_hash&, MDB_txn*);
-    bool micro_block_tip_get(const block_hash &);
-    bool micro_block_exists(const block_hash &);
+    bool micro_block_tip_get(const block_hash &, MDB_txn* t=0);
+    bool micro_block_exists(const block_hash &, MDB_txn* t=0);
 
     // epoch
     logos::block_hash epoch_put(Epoch const &, MDB_txn*);
-    bool epoch_get(const block_hash &, Epoch &);
+    bool epoch_get(const block_hash &, Epoch &, MDB_txn *t=0);
     void epoch_tip_put(const block_hash&, MDB_txn*);
-    bool epoch_tip_get(block_hash &);
+    bool epoch_tip_get(block_hash &, MDB_txn *t=0);
 
     void checksum_put (MDB_txn *, uint64_t, uint8_t, logos::checksum const &);
     bool checksum_get (MDB_txn *, uint64_t, uint8_t, logos::checksum &);
