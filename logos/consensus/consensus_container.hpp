@@ -238,5 +238,4 @@ private:
     EpochTransitionDelegate             _transition_delegate;       ///< type of delegate during transition
     std::queue<ConnectionCache>         _connections_queue;         ///< queue for delegates set connections
     BindingMap                          _binding_map;               ///< map for binding connection to epoch manager
-    bool                                _epoch_transition_enabled;  ///< true if the node supports transition
 };
