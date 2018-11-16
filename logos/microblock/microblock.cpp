@@ -4,6 +4,7 @@
 #include <logos/microblock/microblock.hpp>
 
 const size_t MicroBlock::HASHABLE_BYTES = sizeof(MicroBlock)
+                                            - sizeof(BlockHash)
                                             - sizeof(Signature);
 
 BlockHash

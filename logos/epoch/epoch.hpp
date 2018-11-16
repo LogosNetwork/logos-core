@@ -34,9 +34,10 @@ public:
         , micro_block_tip(0)
         , transaction_fee_pool(0)
         , delegates{0}
+        , next(0)
+        , signature{0}
     {
         previous = 0;
-        signature = {0};
     }
     ~Epoch() {}
 
@@ -73,5 +74,6 @@ public:
     BlockHash               micro_block_tip;             ///< microblock tip of this epoch
     uint64_t                transaction_fee_pool;        ///< this epoch's transaction fee pool
     Delegate                delegates[NUM_DELEGATES];    ///< delegate'ls list
+    BlockHash               next;                        ///< next block's reference
     Signature               signature;                   ///< signature of hashable bytes
 };
