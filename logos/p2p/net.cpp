@@ -1047,31 +1047,24 @@ const uint512& CNetMessage::GetMessageHash() const
 bool CConnman::SocketSendFinish(CNode *pnode, int nBytes) {
     auto it = pnode->vSendMsg.begin();
     const auto &data = *it;
-    if (nBytes > 0) {
+    if (nBytes >= 0) {
 	pnode->nLastSend = GetSystemTimeInSeconds();
 	pnode->nSendBytes += nBytes;
-	pnode->nSendOffset += nBytes;
 	RecordBytesSent(nBytes);
-	if (pnode->nSendOffset == data.size()) {
-	    pnode->nSendOffset = 0;
-	    pnode->nSendSize -= data.size();
+	if (nBytes == data.size()) {
+	    pnode->nSendSize -= nBytes;
 	    pnode->fPauseSend = pnode->nSendSize > nSendBufferMaxSize;
 	    ++it;
 	} else {
+	    LogError(BCLog::NET, "async write error, written %ld bytes of %ld\n", nBytes, data.size());
 	    pnode->CloseSocketDisconnect();
 	    return false;
 	}
     } else {
-	if (nBytes < 0) {
-	    // error
-	    int nErr = WSAGetLastError();
-	    //if (nErr != WSAEWOULDBLOCK && nErr != WSAEMSGSIZE && nErr != WSAEINTR && nErr != WSAEINPROGRESS)
-	    {
-		LogPrintf("socket send error %s\n", NetworkErrorString(nErr));
-		pnode->CloseSocketDisconnect();
-		return false;
-	    }
-	}
+	int nErr = WSAGetLastError();
+	LogError(BCLog::NET, "socket send error %s\n", NetworkErrorString(nErr));
+	pnode->CloseSocketDisconnect();
+	return false;
     }
     pnode->vSendMsg.erase(pnode->vSendMsg.begin(), it);
     pnode->sendCompleted = true;
@@ -1091,7 +1084,6 @@ void CConnman::SocketSendData(CNode *pnode)
     }
 
     const auto &data = *it;
-    assert(data.size() > pnode->nSendOffset);
     {
 	LOCK(pnode->cs_hSocket);
 	pnode->session->async_write(reinterpret_cast<const char*>(data.data()), data.size());
@@ -2757,7 +2749,6 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     fDisconnect = false;
     nRefCount = 0;
     nSendSize = 0;
-    nSendOffset = 0;
     hashContinue = uint512();
     nStartingHeight = -1;
     filterInventoryKnown.reset();
