@@ -309,3 +309,29 @@ DelegateIdentityManager::StaleEpoch()
     auto rem = Seconds(now_msec % TConvert<Milliseconds>(EPOCH_PROPOSAL_TIME).count());
     return (rem < MICROBLOCK_PROPOSAL_TIME);
 }
+
+void
+DelegateIdentityManager::GetCurrentEpoch(BlockStore &store, Epoch &epoch)
+{
+    BlockHash hash;
+
+    if (store.epoch_tip_get(hash))
+    {
+        trace_and_halt();
+    }
+
+    if (store.epoch_get(hash, epoch))
+    {
+        trace_and_halt();
+    }
+
+    if (StaleEpoch())
+    {
+        return;
+    }
+
+    if (store.epoch_get(hash, epoch))
+    {
+        trace_and_halt();
+    }
+}

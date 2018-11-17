@@ -294,16 +294,16 @@ ConsensusContainer::EpochTransitionEventsStart()
     }
 
     // TODO recall may have different timers
-    auto lapse = EPOCH_DELEGATES_CONNECT - EPOCH_TRANSITION_START;
+    Milliseconds lapse = EPOCH_DELEGATES_CONNECT - EPOCH_TRANSITION_START;
     EpochTimeUtil util;
-    auto epoch_start = util.GetNextEpochTime();
+    Milliseconds epoch_start = util.GetNextEpochTime();
     if (epoch_start > EPOCH_TRANSITION_START && epoch_start < EPOCH_DELEGATES_CONNECT)
     {
         lapse = epoch_start - EPOCH_TRANSITION_START;
     }
     else if (epoch_start < EPOCH_TRANSITION_START)
     {
-        lapse = Seconds(0);
+        lapse = Milliseconds(0);
     }
 
     _alarm.add(lapse, std::bind(&ConsensusContainer::EpochTransitionStart, this, delegate_idx));

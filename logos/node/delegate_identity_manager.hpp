@@ -71,7 +71,12 @@ public:
     bool IdentifyDelegates(uint epoch, uint8_t & idx, Accounts & delegates);
 
     /// @returns true if current time is between transition start and last microblock proposal time
-    bool StaleEpoch();
+    static bool StaleEpoch();
+
+    /// Get current epoch (i - 2)
+    /// @param store block store reference
+    /// @param epoch returned epoch
+    static void GetCurrentEpoch(logos::block_store &store, Epoch & epoch);
 
     /// @returns true if epoch transition is enabled
     static bool IsEpochTransitionEnabled()
