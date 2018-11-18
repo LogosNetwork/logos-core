@@ -71,7 +71,11 @@ void CScheduler::serviceQueue()
 		    if (newTaskScheduled.wait_until<>(lock, timeToWaitFor) == boost::cv_status::timeout)
 			break; // Exit loop after timeout, it means we reached the time of the event
 		} catch(...) {
-		    LogWarning(BCLog::ALL, "Exception in boost::condition_variable::do_wait_until ignored.");
+		    if (boost::chrono::system_clock::now() >= timeToWaitFor) {
+			LogWarning(BCLog::ALL, "Exception in boost::condition_variable::do_wait_until ignored.");
+		    } else {
+			throw;
+		    }
 		}
             }
 #endif

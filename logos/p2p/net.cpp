@@ -1045,6 +1045,7 @@ const uint512& CNetMessage::GetMessageHash() const
 }
 
 bool CConnman::SocketSendFinish(CNode *pnode, int nBytes) {
+    LOCK(pnode->cs_vSend);
     auto it = pnode->vSendMsg.begin();
     const auto &data = *it;
     if (nBytes >= 0) {
