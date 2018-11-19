@@ -55,13 +55,14 @@ protected:
     void OnConsensusInitiated(const PrePrepareMessage<C> & block);
 
     bool StateReadyForConsensus();
+    void CancelTimer();
 
     // TODO: Revert to std::mutex after
     //       benchmark.
     //
     std::recursive_mutex _mutex;
-    BlockHash            _prev_batch_hash = 0;
-    BlockHash            _cur_batch_hash  = 0;
+    BlockHash            _prev_hash = 0;
+    BlockHash            _cur_hash  = 0;
     ConsensusState       _state           = ConsensusState::VOID;
     uint64_t             _prepare_weight  = 0;
     uint8_t              _cur_delegate_id = 0;
@@ -83,7 +84,6 @@ private:
     virtual void OnRejection(const RejectionMessage<ConsensusType::Epoch> & message);
 
     void CheckRejection();
-    void CancelTimer();
 
     template<ConsensusType C>
     void OnPrePrepareTimeout(const Error & error);
@@ -109,7 +109,6 @@ private:
     virtual void OnPrePrepareRejected();
 
     virtual void OnConsensusReached() = 0;
-
 
     Signatures         _signatures;
     Log                _log;

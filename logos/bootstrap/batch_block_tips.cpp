@@ -5,11 +5,12 @@
 
 BlockHash BatchBlock::getBatchBlockTip(Store& store, int delegate)
 {
-    BlockHash hash;
+    BlockHash hash = 0;
     if(!store.batch_tip_get(delegate,hash)) {
+        cout << "BatchBlock::getBatchBlockTip: " << hash.to_string() << " delegate: " << delegate << std::endl;
         return hash;
     }
-    return BlockHash();
+    return hash;
 }
 
 uint64_t  BatchBlock::getBatchBlockSeqNr(Store& store, int delegate) // TODOFUNC

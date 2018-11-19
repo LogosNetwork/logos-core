@@ -1,4 +1,5 @@
 #include <logos/consensus/consensus_manager.hpp>
+#include <logos/consensus/epoch_manager.hpp>
 
 #include <boost/log/core.hpp>
 #include <boost/log/sources/severity_feature.hpp>
@@ -14,17 +15,17 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
                                        Store & store,
                                        const Config & config,
                                        DelegateKeyStore & key_store,
-                                       MessageValidator & validator)
+                                       MessageValidator & validator,
+                                       EpochEventsNotifier & events_notifier)
     : PrimaryDelegate(service, validator)
-    , _secondary_handler(service, *this)
     , _store(store)
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
-    , _persistence_manager(store)
-{
-    store.batch_tip_get(_delegate_id, _prev_batch_hash);
-}
+    //, _persistence_manager(store)
+    , _secondary_handler(SecondaryRequestHandlerInstance(service, this))
+    , _events_notifier(events_notifier)
+{}
 
 template<ConsensusType CT>
 void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
@@ -34,9 +35,9 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
 
     auto hash = block->hash();
 
-    BOOST_LOG (_log) << "ConsensusManager<" << ConsensusToName(CT)
-                     << ">::OnSendRequest() - hash: "
-                     << hash.to_string();
+    LOG_INFO (_log) << "ConsensusManager<" << ConsensusToName(CT)
+                    << ">::OnSendRequest() - hash: "
+                    << hash.to_string();
 
     if(_state == ConsensusState::INITIALIZING)
     {
@@ -47,18 +48,18 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
     if(IsPendingRequest(block))
     {
         result.code = logos::process_result::pending;
-        BOOST_LOG(_log) << "ConsensusManager<" << ConsensusToName(CT)
-                        << "> - pending request "
-                        << hash.to_string();
+        LOG_INFO(_log) << "ConsensusManager<" << ConsensusToName(CT)
+                       << "> - pending request "
+                       << hash.to_string();
         return;
     }
 
     if(!Validate(block, result))
     {
-        BOOST_LOG(_log) << "ConsensusManager - block validation for send request failed."
-                        << " Result code: "
-                        << logos::ProcessResultToString(result.code)
-                        << " hash: " << hash.to_string();
+        LOG_INFO(_log) << "ConsensusManager - block validation for send request failed."
+                       << " Result code: "
+                       << logos::ProcessResultToString(result.code)
+                       << " hash: " << hash.to_string();
         return;
     }
 
@@ -121,14 +122,14 @@ void ConsensusManager<CT>::OnConsensusReached()
         static uint64_t messages_stored = 0;
         messages_stored += GetStoredCount();
 
-        BOOST_LOG(_log) << "ConsensusManager<"
+        LOG_DEBUG(_log) << "ConsensusManager<"
                         << ConsensusToName(CT)
                         << "> - Stored "
                         << messages_stored
                         << " blocks.";
     }
 
-    _prev_batch_hash = _cur_batch_hash;
+    _prev_hash = _cur_hash;
 
     PrePreparePopFront();
 
@@ -141,19 +142,18 @@ void ConsensusManager<CT>::OnConsensusReached()
 template<ConsensusType CT>
 void ConsensusManager<CT>::InitiateConsensus()
 {
-    BOOST_LOG(_log) << "Initiating "
-                    << ConsensusToName(CT)
-                    << " consensus.";
+    LOG_INFO(_log) << "Initiating "
+                   << ConsensusToName(CT);
 
     auto & pre_prepare = PrePrepareGetNext();
-    pre_prepare.previous = _prev_batch_hash;
+    pre_prepare.previous = _prev_hash;
 
     OnConsensusInitiated(pre_prepare);
 
+    _state = ConsensusState::PRE_PREPARE;
+
     _validator.Sign(pre_prepare);
     Send(&pre_prepare, sizeof(PrePrepare));
-
-    _state = ConsensusState::PRE_PREPARE;
 }
 
 template<ConsensusType CT>
@@ -233,6 +233,13 @@ ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
     _connections.push_back(connection);
 
     return connection;
+}
+
+template<ConsensusType CT>
+void
+ConsensusManager<CT>::UpdateRequestPromoter()
+{
+    _secondary_handler.UpdateRequestPromoter(this);
 }
 
 template class ConsensusManager<ConsensusType::BatchStateBlock>;

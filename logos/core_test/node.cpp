@@ -17,7 +17,7 @@ TEST (node, logos_bootstrap_test)
 #endif
 
     boost::filesystem::path path1("/home/ubuntu/Downloads/batchdb_test");
-    boost::filesystem::path path2("/tmp/test");
+    boost::filesystem::path path2("/home/ubuntu/Downloads/target");
 
     std::cout << "initializing system..." << std::endl;
 	logos::system system0 (24000, path1);

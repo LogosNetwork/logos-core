@@ -20,16 +20,15 @@ public:
     /// @param key_store Delegates' public key store [in]
     /// @param validator Validator/Signer of consensus message [in]
     /// @param ids remote/local delegate id [in]
+    /// @param events_notifier epoch transition helper [in]
     EpochConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                              PrimaryDelegate & primary,
                              RequestPromoter<ConsensusType::Epoch> & promoter,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
-                             ArchiverEpochHandler & handler)
-        : ConsensusConnection<ConsensusType::Epoch>(iochannel, primary, promoter, validator, ids)
-        , _epoch_handler(handler)
-    {}
-    ~EpochConsensusConnection() {}
+                             ArchiverEpochHandler & handler,
+                             EpochEventsNotifier & events_notifier);
+    ~EpochConsensusConnection() = default;
 
     /// Validate PrePrepare message
     /// @param messasge PrePrepare message [in]

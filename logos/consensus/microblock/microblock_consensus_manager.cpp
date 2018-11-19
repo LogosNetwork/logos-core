@@ -1,6 +1,27 @@
 #include <logos/consensus/microblock/microblock_consensus_connection.hpp>
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
 #include <logos/epoch/archiver.hpp>
+#include <logos/lib/trace.hpp>
+
+MicroBlockConsensusManager::MicroBlockConsensusManager(
+                               Service & service,
+                               Store & store,
+                               const Config & config,
+                               DelegateKeyStore & key_store,
+                               MessageValidator & validator,
+                               ArchiverMicroBlockHandler & handler,
+                               EpochEventsNotifier & events_notifier)
+    : Manager(service, store, config,
+              key_store, validator, events_notifier)
+    , _microblock_handler(handler)
+    , _enqueued(false)
+{
+    if (_store.micro_block_tip_get(_prev_hash))
+    {
+        LOG_FATAL(_log) << "Failed to get microblock's previous hash";
+        trace_and_halt();
+    }
+}
 
 void
 MicroBlockConsensusManager::OnBenchmarkSendRequest(
@@ -49,12 +70,6 @@ MicroBlockConsensusManager::PrePrepareQueueEmpty()
     return !_enqueued;
 }
 
-bool
-MicroBlockConsensusManager::PrePrepareQueueFull()
-{
-    return _enqueued;
-}
-
 void
 MicroBlockConsensusManager::ApplyUpdates(
     const PrePrepare & pre_prepare,
@@ -78,7 +93,8 @@ MicroBlockConsensusManager::PrimaryContains(const logos::block_hash &hash)
 void
 MicroBlockConsensusManager::QueueRequestSecondary(std::shared_ptr<Request> request)
 {
-    _secondary_handler.OnRequest(request, boost::posix_time::seconds(_delegate_id * SECONDARY_LIST_TIMEOUT));
+    _secondary_handler.OnRequest(request,
+        boost::posix_time::seconds(_delegate_id * SECONDARY_LIST_TIMEOUT.count()));
 }
 
 std::shared_ptr<ConsensusConnection<ConsensusType::MicroBlock>>
@@ -87,5 +103,5 @@ MicroBlockConsensusManager::MakeConsensusConnection(
         const DelegateIdentities& ids)
 {
     return std::make_shared<MicroBlockConsensusConnection>(iochannel, *this, *this,
-            _validator, ids, _microblock_handler);
+            _validator, ids, _microblock_handler, _events_notifier);
 }

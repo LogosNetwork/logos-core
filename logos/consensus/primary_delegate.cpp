@@ -89,14 +89,6 @@ void PrimaryDelegate::CheckRejection()
     }
 }
 
-void PrimaryDelegate::CancelTimer()
-{
-    if(!_primary_timer.cancel())
-    {
-        _timer_cancelled = true;
-    }
-}
-
 template<ConsensusType C>
 void PrimaryDelegate::OnPrePrepareTimeout(const Error & error)
 {
@@ -122,7 +114,7 @@ void PrimaryDelegate::OnTimeout(const Error & error,
 
     auto timeout_str = timeout + " (" + ConsensusToName(C) + ")";
 
-    BOOST_LOG(_log) << timeout_str
+    LOG_DEBUG(_log) << timeout_str
                     << " timeout expired."
                     << "Error code: "
                     << error.message();
@@ -140,15 +132,17 @@ void PrimaryDelegate::OnTimeout(const Error & error,
             return;
         }
 
-        BOOST_LOG(_log) << timeout_str
+        LOG_ERROR(_log) << timeout_str
                         << " timeout - Error: "
                         << error.message();
     }
 
     if(_state != expected_state)
     {
-        BOOST_LOG(_log) << timeout_str
-                        << " timeout expired during unexpected state."
+        LOG_WARN(_log) << timeout_str
+                       << " timeout expired during unexpected state."
+                       << " state " << StateToString(_state)
+                        << " expected state " << StateToString(expected_state)
                         << " Aborting timeout.";
         return;
     }
@@ -189,7 +183,7 @@ void PrimaryDelegate::Send()
 {
     M response(_cur_batch_timestamp);
 
-    response.previous = _cur_batch_hash;
+    response.previous = _cur_hash;
     _validator.Sign(response, _signatures);
 
     Send(&response, sizeof(response));
@@ -201,10 +195,10 @@ void PrimaryDelegate::UpdateVotes()
 template<ConsensusType C>
 void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
 {
-    BOOST_LOG(_log) << "PrimaryDelegate - Initiating Consensus with PrePrepare hash: "
-                    << block.Hash().to_string();
+    LOG_INFO(_log) << "PrimaryDelegate - Initiating Consensus with PrePrepare hash: "
+                   << block.Hash().to_string();
 
-    _cur_batch_hash = block.Hash();
+    _cur_hash = block.Hash();
     _cur_batch_timestamp = block.timestamp;
 
     CycleTimers<C>();
@@ -213,6 +207,14 @@ void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
 bool PrimaryDelegate::StateReadyForConsensus()
 {
     return _state == ConsensusState::VOID || _state == ConsensusState::POST_COMMIT;
+}
+
+void PrimaryDelegate::CancelTimer()
+{
+    if(!_primary_timer.cancel())
+    {
+        _timer_cancelled = true;
+    }
 }
 
 bool PrimaryDelegate::ReachedQuorum()
@@ -230,10 +232,10 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
 {
     if(_state != expected_state)
     {
-        BOOST_LOG(_log) << "PrimaryDelegate - Disregarding message: Received "
-                        << MessageToName(message)
-                        << " message while in "
-                        << StateToString(_state);
+        LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received "
+                       << MessageToName(message)
+                       << " message while in "
+                       << StateToString(_state);
 
         return false;
     }
@@ -253,6 +255,11 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
     }
     else
     {
+        LOG_WARN(_log) << "PrimaryDelegate - Failed to validate signature for "
+                       << MessageToName(message)
+                       << " while in state: "
+                       << StateToString(_state)
+                       << std::endl;
         return false;
     }
 

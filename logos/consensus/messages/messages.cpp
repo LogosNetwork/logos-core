@@ -15,14 +15,10 @@ BlockHash BatchStateBlock::Hash() const
 
     blake2b_update(&hash, &sequence, sizeof(sequence));
     blake2b_update(&hash, &block_count, sizeof(block_count));
-    //blake2b_update(&hash, blocks, sizeof(BlockList));
-    //blake2b_update(&hash, blocks, sizeof(logos::state_block) * block_count);
-#if 0
+    blake2b_update(&hash, &epoch_number, sizeof(epoch_number));
     for(int i = 0; i < block_count; ++i) {
-        blake2b_update(&hash, &blocks[i], sizeof(logos::state_block));
+        blocks[i].hash(hash);
     }
-#endif
-
     status = blake2b_final(&hash, result.bytes.data(), sizeof(result.bytes));
     assert(status == 0);
 

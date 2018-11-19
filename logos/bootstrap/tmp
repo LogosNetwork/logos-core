@@ -1,0 +1,24 @@
+tips_req_client : connection
+tips_req_client : count
+tips_req_client : start_time
+tips_req_client : promise
+tips_req_client : bulk_push_cost
+
+tips_req_client : run ()
+tips_req_client : receive_tips ()
+tips_req_client : receive_tips_header ()
+tips_req_client : received_batch_block_tips ()
+tips_req_client : received_tips ()
+tips_req_client : next ()
+
+tips_req_server : connection;
+tips_req_server : request;
+tips_req_server : send_buffer;
+tips_req_server : count;
+
+tips_req_server : send_next ()
+tips_req_server : sent_action ()
+tips_req_server : send_finished ()
+tips_req_server : no_block_sent ()
+tips_req_server : next ()
+tips_req_server : send_batch_blocks_tips()

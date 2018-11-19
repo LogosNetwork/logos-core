@@ -8,6 +8,9 @@ enum class RejectionReason : uint8_t
     Contains_Invalid_Request,
     Bad_Signature,
     Invalid_Previous_Hash,
+    Wrong_Sequence_Number,
+    Invalid_Epoch,
+    New_Epoch,
 
     Void
 };

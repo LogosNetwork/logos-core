@@ -27,14 +27,15 @@ public:
     /// @param key_store Delegates' public key store [in]
     /// @param validator Validator/Signer of consensus message [in]
     /// @param ids remote/local delegate id [in]
+    /// @param events_notifier epoch transition helper [in]
     BBConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                           PrimaryDelegate & primary,
                           Promoter & promoter,
                           PersistenceManager & persistence_manager,
                           MessageValidator & validator,
                           const DelegateIdentities & ids,
-                          Service & service);
-
+						  Service & service,
+                          EpochEventsNotifier & events_notifier);
     ~BBConsensusConnection() {}
 
     /// Validate PrePrepare message
@@ -53,20 +54,30 @@ public:
 
 private:
 
-    static constexpr uint8_t TIMEOUT_MIN = 10;
-    static constexpr uint8_t TIMEOUT_MAX = 30;
+    static constexpr uint8_t TIMEOUT_MIN   = 20;
+    static constexpr uint8_t TIMEOUT_RANGE = 40;
+    static constexpr uint8_t TIMEOUT_MIN_EPOCH   = 10;
+    static constexpr uint8_t TIMEOUT_RANGE_EPOCH = 20;
+
+    bool ValidateSequence(const PrePrepare & message);
+    bool ValidateRequests(const PrePrepare & message);
 
     void HandlePrePrepare(const PrePrepare & message) override;
-    void HandlePostPrepare(const PostPrepare & message) override;
+    void OnPostCommit() override;
 
     void OnPrePrepareTimeout(const Error & error);
 
     void Reject() override;
     void ResetRejectionStatus() override;
+    void HandleReject(const PrePrepare&);
+
+    void ScheduleTimer(Seconds timeout);
 
     bool IsSubset(const PrePrepare & message);
 
     bool ValidateReProposal(const PrePrepare & message) override;
+
+    Seconds GetTimeout(uint8_t min, uint8_t range);
 
 
     Hashes               _pre_prepare_hashes;

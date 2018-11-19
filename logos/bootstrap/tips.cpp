@@ -215,12 +215,14 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
         BlockHash epoch_tip = EpochBlock::getEpochBlockTip(connection->node->store, tips->delegate_id);
         BlockHash micro_tip = Micro::getMicroBlockTip(connection->node->store, tips->delegate_id);
         BlockHash bsb_tip   = BatchBlock::getBatchBlockTip(connection->node->store, tips->delegate_id);
+        std::cout << "BatchBlock::getBatchBlockTip:<0> " << bsb_tip.to_string() << " delegate_id: " << tips->delegate_id << std::endl;
+
         // Get my seq numbers...
         uint32_t  epoch_seq = EpochBlock::getEpochBlockSeqNr(connection->node->store, tips->delegate_id);
         uint32_t  micro_seq = Micro::getMicroBlockSeqNr(connection->node->store, tips->delegate_id);
         uint32_t  bsb_seq   = BatchBlock::getBatchBlockSeqNr(connection->node->store, tips->delegate_id);
 
-        std::cout << "FIXME: bsb_seq:<1> " << bsb_seq << std::endl;
+        std::cout << "FIXME: bsb_seq:<1> " << bsb_seq << " delegate_id: " << tips->delegate_id << " FIXME:: bsb_tip: " << bsb_tip.to_string() << " tips.bsb_tip: " << tips->batch_block_tip.to_string() << std::endl;
         //  Calculate in-memory tips, and use them if they are non-zero...
         auto in_memory_epoch_tip = connection->node->_validator->in_memory_epoch_tips();
         auto in_memory_micro_tip = connection->node->_validator->in_memory_micro_tips();
@@ -236,11 +238,14 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
             micro_tip = in_memory_micro_tip.second;
         }
 
+#if 0
         auto iter = in_memory_bsb_tips.find(tips->delegate_id);
         if(iter != in_memory_bsb_tips.end()) {
             bsb_seq = iter->second.first;
             bsb_tip = iter->second.second;
+            std::cout << "FIXME: bsb_seq:<2> " << bsb_seq << " delegate_id: " << tips->delegate_id << "FIXME::: bsb_tip: " << bsb_tip.to_string() << std::endl;
         }
+#endif
         std::cout << "FIXME: bsb_seq:<2> " << bsb_seq << std::endl;
 
         std::cout << "logos::tips_req_client::received_batch_block_tips:: tips<1>... delegate: "  << tips->delegate_id << " "
@@ -253,7 +258,7 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
         std::cout << "receiving tips..." << std::endl;
 #endif
 
-        BlockHash empty;
+        BlockHash zero = 0;
 
         // Send out our request for epoch and micro blocks.
         // We do this only once per request for tips.
@@ -261,14 +266,24 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
         // block types (epoch/micro/bsb) and sends them to validator
         // when blocks arrive.
         if(tips->delegate_id == 0) {
+            bool pull_epoch_block = ((epoch_seq == 0 and tips->epoch_block_seq_number == 0) ? true : false);
+            bool pull_micro_block = ((micro_seq == 0 and tips->micro_block_seq_number == 0) ? true : false);
             // Get Epoch blocks...
-	        if(epoch_seq < tips->epoch_block_seq_number) {
+	        if(epoch_seq < tips->epoch_block_seq_number || pull_epoch_block) {
 	            // I have less sequence number than my peer, I am behind...
-	            connection->attempt->add_pull(logos::pull_info(0,0,
+                if(epoch_seq == 0) {
+	                connection->attempt->add_pull(logos::pull_info(0,0,
+	                         0,0,
+	                         tips->delegate_id,tips->epoch_block_tip,tips->epoch_block_tip,
+	                         zero,zero,
+	                         zero,zero));
+                } else {
+	                connection->attempt->add_pull(logos::pull_info(0,0,
 	                         0,0,
 	                         tips->delegate_id,epoch_tip,tips->epoch_block_tip,
-	                         empty,empty,
-	                         empty,empty));
+	                         zero,zero,
+	                         zero,zero));
+                }
 	#ifdef _DEBUG
 	            std::cout << "logos::tips_req_client::received_batch_block_tips:: bulk_pull: delegate_id: epoch: " << tips->delegate_id << std::endl;
 	#endif
@@ -278,10 +293,10 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
 	            connection->attempt->add_bulk_push_target(logos::request_info(0,0,
 	                         0,0,
 	                         tips->delegate_id,tips->epoch_block_tip,epoch_tip,
-	                         empty,empty,
-	                         empty,empty));
+	                         zero,zero,
+	                         zero,zero));
 	#ifdef _DEBUG
-	            std::cout << "logos::tips_req_client::received_batch_block_tips:: bulk_push: delegate_id: " << tips->delegate_id << std::endl; 
+	            std::cout << "logos::tips_req_client::received_batch_block_tips:: bulk_push: delegate_id: epoch:" << tips->delegate_id << std::endl; 
 	#endif
 	        } else if(epoch_seq == tips->epoch_block_seq_number) {
 	                // We are in sync, continue processing...
@@ -299,14 +314,23 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
 	        }
 
             // Get micro blocks...
-	        if(micro_seq < tips->micro_block_seq_number) {
+	        if(micro_seq < tips->micro_block_seq_number || pull_micro_block) {
 	            // I have less sequence number than my peer, I am behind...
-	            connection->attempt->add_pull(logos::pull_info(0,0,
+                if(micro_seq == 0) {
+	                connection->attempt->add_pull(logos::pull_info(0,0,
 	                         0,0,
 	                         tips->delegate_id,
-                             empty,empty,
+                             zero,zero,
+                             tips->micro_block_tip,tips->micro_block_tip,
+	                         zero,zero));
+                } else {
+	                connection->attempt->add_pull(logos::pull_info(0,0,
+	                         0,0,
+	                         tips->delegate_id,
+                             zero,zero,
                              micro_tip,tips->micro_block_tip,
-	                         empty,empty));
+	                         zero,zero));
+                }
 	#ifdef _DEBUG
 	            std::cout << "logos::tips_req_client::received_batch_block_tips:: bulk_pull: delegate_id: micro: " << tips->delegate_id << std::endl;
 	#endif
@@ -316,9 +340,9 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
 	            connection->attempt->add_bulk_push_target(logos::request_info(0,0,
 	                         0,0,
 	                         tips->delegate_id,
-	                         empty,empty,
+	                         zero,zero,
                              tips->micro_block_tip,micro_tip,
-	                         empty,empty));
+	                         zero,zero));
 	#ifdef _DEBUG
 	            std::cout << "logos::tips_req_client::received_batch_block_tips:: bulk_push: delegate_id: micro: " << tips->delegate_id << std::endl; 
 	#endif
@@ -340,53 +364,53 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
         }
 
         // bsb...
-        if(epoch_seq >= tips->epoch_block_seq_number &&
-                  micro_seq >= tips->micro_block_seq_number &&
+        if(/*epoch_seq >= tips->epoch_block_seq_number &&
+                  micro_seq >= tips->micro_block_seq_number &&*/
                   bsb_seq == -1) {
                 // Init, we have nothing for this delegate...
             connection->attempt->add_pull(logos::pull_info(0,0,
                          bsb_seq,tips->batch_block_seq_number,
                          tips->delegate_id,
-                         empty,empty,
-                         empty,empty,
+                         zero,zero,
+                         zero,zero,
                          tips->batch_block_tip,tips->batch_block_tip));
 #ifdef _DEBUG
             std::cout << "logos::tips_req_client::received_batch_block_tips:: init bulk_pull: delegate_id: " << tips->delegate_id << " tips.batch_block_tip: " << tips->batch_block_tip.to_string() << std::endl; 
 #endif
-        } else if(epoch_seq <= tips->epoch_block_seq_number &&
-           micro_seq <= tips->micro_block_seq_number &&
+        } else if(/*epoch_seq <= tips->epoch_block_seq_number &&
+           micro_seq <= tips->micro_block_seq_number &&*/
             bsb_seq < tips->batch_block_seq_number) {
             // I have less sequence number than my peer, I am behind...
             connection->attempt->add_pull(logos::pull_info(0,0,
                          bsb_seq,tips->batch_block_seq_number,
                          tips->delegate_id,
-                         empty,empty,
-                         empty,empty,
+                         zero,zero,
+                         zero,zero,
                          bsb_tip,tips->batch_block_tip));
 #ifdef _DEBUG
             std::cout << "logos::tips_req_client::received_batch_block_tips:: bulk_pull: delegate_id: " << tips->delegate_id << std::endl;
 #endif
-        } else if(epoch_seq >= tips->epoch_block_seq_number &&
-                  micro_seq >= tips->micro_block_seq_number &&
+        } else if(/*epoch_seq >= tips->epoch_block_seq_number &&
+                  micro_seq >= tips->micro_block_seq_number &&*/
                   bsb_seq > tips->batch_block_seq_number) {
             // I have higher sequence number than my peer, I am ahead...
             connection->attempt->add_bulk_push_target(logos::request_info(0,0,
                          tips->batch_block_seq_number,bsb_seq,
                          tips->delegate_id,
-                         empty,empty,
-                         empty,empty,
+                         zero,zero,
+                         zero,zero,
                          tips->batch_block_tip,bsb_tip));
 #ifdef _DEBUG
             std::cout << "logos::tips_req_client::received_batch_block_tips:: bulk_push: delegate_id: " << tips->delegate_id << " bsb_seq: " << bsb_seq << " tips.bsb_seq: " << tips->batch_block_seq_number << std::endl; 
 #endif
 
-        } else if(epoch_seq == tips->epoch_block_seq_number &&
-                  micro_seq == tips->micro_block_seq_number &&
+        } else if(/*epoch_seq == tips->epoch_block_seq_number &&
+                  micro_seq == tips->micro_block_seq_number &&*/
                   bsb_seq == tips->batch_block_seq_number) {
                 // We are in sync, continue processing...
 #ifdef _DEBUG
-                std::cout << "in sync: delegate_id: " << tips->delegate_id << " epoch: " << epoch_seq << " theirs: " << tips->epoch_block_seq_number << std::endl
-                          << " micro: " << micro_seq << " theirs: " << tips->micro_block_seq_number << std::endl
+                std::cout << "in sync: delegate_id: " << tips->delegate_id << " epoch: " << epoch_seq << " theirs: " << tips->epoch_block_seq_number << " "
+                          << " micro: " << micro_seq << " theirs: " << tips->micro_block_seq_number <<  " "
                           << " bsb: " << bsb_seq << " theirs: " << tips->batch_block_seq_number << std::endl;
 #endif
         } else {
@@ -573,6 +597,8 @@ void logos::tips_req_server::send_batch_blocks_tips()
             resp.epoch_block_seq_number = epoch_seq;
             resp.micro_block_seq_number = micro_seq;
             resp.batch_block_seq_number = bsb_seq;
+
+            Micro::dumpMicroBlockTips(connection->node->store,micro_tip);
 
             std::cout << "logos::tips_req_client::received_batch_block_tips:: tips<2>... delegate: "  << i << " "
                       << " epoch_tip: " << epoch_tip.to_string() << " "

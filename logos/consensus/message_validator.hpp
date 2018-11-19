@@ -138,6 +138,14 @@ public:
         return sig.verify(_keys.GetPublicKey(delegate_id), msg);
     }
 
+    // TODO: Stub for validating PostCommits received
+    //       out of synch.
+    template<typename MSG>
+    bool Validate(const MSG & message)
+    {
+        return true;
+    }
+
     PublicKey GetPublicKey();
 
 private:

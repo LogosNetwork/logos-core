@@ -12,5 +12,6 @@ namespace Micro
     BlockHash getNextMicroBlock (Store &s, int delegate, MicroBlock &b);
     BlockHash getNextMicroBlock (Store &s, int delegate, BlockHash &h );
     std::shared_ptr<MicroBlock> readMicroBlock(Store &s, BlockHash &h );
+    void dumpMicroBlockTips(Store &store, BlockHash &hash);
 
 }/* namespace Micro */

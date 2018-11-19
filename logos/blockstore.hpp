@@ -117,42 +117,43 @@ public:
 
     template<typename T> void put(MDB_dbi&, const mdb_val &, const T &, MDB_txn *);
     template<typename T> logos::block_hash put(MDB_dbi&, const T &, MDB_txn *);
-    template<typename T> bool get(MDB_dbi&, const mdb_val &key, const T &);
-    template<typename T> bool get(MDB_dbi& db, const logos::block_hash &hash, const T &t)
+    template<typename T> bool get(MDB_dbi&, const mdb_val &key, const T &, MDB_txn *tx = 0);
+    template<typename T> bool get(MDB_dbi& db, const logos::block_hash &hash, const T &t, MDB_txn *tx = 0)
     {
         mdb_val key(hash);
-        return get<T>(db,key,t);
+        return get<T>(db,key,t,tx);
     }
 
     // consensus-prototype additions
-    block_hash batch_block_put(BatchStateBlock const &, MDB_txn *);
+    bool batch_block_put(BatchStateBlock const &, MDB_txn *);
+    bool batch_block_put(BatchStateBlock const &, const logos::block_hash &, MDB_txn *);
     bool batch_block_get(const logos::block_hash & hash, BatchStateBlock & block);
     bool batch_block_get(const logos::block_hash & hash, std::shared_ptr<BatchStateBlock> block, MDB_txn *); // FIXME
     bool batch_block_get(const logos::block_hash & hash, BatchStateBlock & block, MDB_txn *);
     bool state_block_get(const logos::block_hash & hash, logos::state_block & block, MDB_txn *);
-    void state_block_put(state_block const &, StateBlockLocator const &, MDB_txn *);
+    bool state_block_put(state_block const &, StateBlockLocator const &, MDB_txn *);
     bool state_block_exists(const state_block & block);
     bool state_block_exists(const block_hash & hash);
     bool account_get(logos::account const & account_a, account_info & info_a);
     bool account_db_empty();
-    void account_put (logos::account const &, logos::account_info const &, MDB_txn *);
-    void receive_put(const block_hash & hash, const state_block & block, MDB_txn * transaction);
+    bool account_put (logos::account const &, logos::account_info const &, MDB_txn *);
+    bool receive_put(const block_hash & hash, const state_block & block, MDB_txn * transaction);
     bool receive_exists(const block_hash & hash);
-    void batch_tip_put(uint8_t delegate_id, const block_hash & hash, MDB_txn *);
+    bool batch_tip_put(uint8_t delegate_id, const block_hash & hash, MDB_txn *);
     bool batch_tip_get(uint8_t delegate_id, block_hash & hash);
 
     // micro-block
     logos::block_hash micro_block_put(MicroBlock const &, MDB_txn*);
-    bool micro_block_get(const block_hash &, MicroBlock &);
+    bool micro_block_get(const block_hash &, MicroBlock &, MDB_txn* t=0);
     void micro_block_tip_put(const block_hash&, MDB_txn*);
-    bool micro_block_tip_get(const block_hash &);
-    bool micro_block_exists(const block_hash &);
+    bool micro_block_tip_get(const block_hash &, MDB_txn* t=0);
+    bool micro_block_exists(const block_hash &, MDB_txn* t=0);
 
     // epoch
     logos::block_hash epoch_put(Epoch const &, MDB_txn*);
-    bool epoch_get(block_hash &, Epoch &);
+    bool epoch_get(const block_hash &, Epoch &, MDB_txn *t=0);
     void epoch_tip_put(const block_hash&, MDB_txn*);
-    bool epoch_tip_get(block_hash &);
+    bool epoch_tip_get(block_hash &, MDB_txn *t=0);
 
     void checksum_put (MDB_txn *, uint64_t, uint8_t, logos::checksum const &);
     bool checksum_get (MDB_txn *, uint64_t, uint8_t, logos::checksum &);

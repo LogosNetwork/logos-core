@@ -3,6 +3,8 @@
 /// handle the specifics of BatchBlock consensus.
 #include <logos/consensus/batchblock/bb_consensus_connection.hpp>
 #include <logos/consensus/consensus_manager.hpp>
+#include <logos/consensus/epoch_manager.hpp>
+#include <logos/lib/epoch_time_util.hpp>
 
 #include <random>
 
@@ -13,12 +15,15 @@ BBConsensusConnection::BBConsensusConnection(
         PersistenceManager & persistence_manager,
         MessageValidator & validator,
         const DelegateIdentities & ids,
-        Service & service)
+        Service & service,
+        EpochEventsNotifier & events_notifier)
     : Connection(iochannel, primary, promoter,
-                 validator, ids)
+                 validator, ids, events_notifier)
     , _timer(service)
     , _persistence_manager(persistence_manager)
-{}
+{
+    promoter.GetStore().batch_tip_get(_delegate_ids.remote, _prev_pre_prepare_hash);
+}
 
 /// Validate BatchStateBlock message.
 ///
@@ -26,6 +31,36 @@ BBConsensusConnection::BBConsensusConnection(
 ///     @return true if validated false otherwise
 bool
 BBConsensusConnection::DoValidate(
+    const PrePrepare & message)
+{
+    if(!ValidateSequence(message))
+    {
+        return false;
+    }
+
+    if(!ValidateRequests(message))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+bool
+BBConsensusConnection::ValidateSequence(
+    const PrePrepare & message)
+{
+    if(_sequence_number != message.sequence)
+    {
+        _reason = RejectionReason::Wrong_Sequence_Number;
+        return false;
+    }
+
+    return true;
+}
+
+bool
+BBConsensusConnection::ValidateRequests(
     const PrePrepare & message)
 {
     bool valid = true;
@@ -92,8 +127,34 @@ BBConsensusConnection::Reject()
     case RejectionReason::Contains_Invalid_Request:
     case RejectionReason::Bad_Signature:
     case RejectionReason::Invalid_Previous_Hash:
+    case RejectionReason::Wrong_Sequence_Number:
+    case RejectionReason::Invalid_Epoch:
+    case RejectionReason::New_Epoch:
         SendMessage<Rejection>();
         break;
+    }
+}
+
+void
+BBConsensusConnection::HandleReject(const PrePrepare & message)
+{
+    switch(_reason)
+    {
+        case RejectionReason::Void:
+        case RejectionReason::Clock_Drift:
+        case RejectionReason::Contains_Invalid_Request:
+        case RejectionReason::Bad_Signature:
+        case RejectionReason::Invalid_Previous_Hash:
+        case RejectionReason::Wrong_Sequence_Number:
+        case RejectionReason::Invalid_Epoch:
+            break;
+        case RejectionReason::New_Epoch:
+            if (_events_notifier.GetDelegate() == EpochTransitionDelegate::PersistentReject)
+            {
+                SetPrePrepare(message);
+                ScheduleTimer(GetTimeout(TIMEOUT_MIN_EPOCH, TIMEOUT_RANGE_EPOCH));
+            }
+            break;
     }
 }
 
@@ -102,16 +163,16 @@ BBConsensusConnection::Reject()
 //       a backup initiates fallback consensus, it is possible that
 //       a transaction omitted from the re-proposed batch is forgotten,
 //       since individual requests are not stored for fallback consensus.
+//
+// XXX - Also note: PrePrepare messages stored by backups are not
+//       actually added to the secondary waiting list. Instead, they
+//       stay with the backup (ConsensusConnection) and are only
+//       transferred when fallback consensus is to take place, in
+//       which case they are transferred to the primary list
+//       (RequestHandler).
 void
 BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
 {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(TIMEOUT_MIN,
-                                        TIMEOUT_MAX);
-
-    Seconds timeout(dis(gen));
-
     _pre_prepare_hashes.clear();
 
     for(uint64_t i = 0; i < message.block_count; ++i)
@@ -119,6 +180,14 @@ BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
         _pre_prepare_hashes.insert(message.blocks[i].hash());
     }
 
+    // to make sure during epoch transition, a fallback session of the new epoch
+    // is not rerun by the old epoch, the min timeout should be > clock_drift (i.e. 20seconds)
+    ScheduleTimer(GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE));
+}
+
+void
+BBConsensusConnection::ScheduleTimer(Seconds timeout)
+{
     std::lock_guard<std::mutex> lock(_timer_mutex);
 
     // The below condition is true when the timeout callback
@@ -133,16 +202,16 @@ BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
     }
 
     _timer.async_wait(
-            [this](const Error & error)
-            {
-                OnPrePrepareTimeout(error);
-            });
+        [this](const Error & error)
+        {
+            OnPrePrepareTimeout(error);
+        });
 
     _callback_scheduled = true;
 }
 
 void
-BBConsensusConnection::HandlePostPrepare(const PostPrepare & message)
+BBConsensusConnection::OnPostCommit()
 {
     {
         std::lock_guard<std::mutex> lock(_timer_mutex);
@@ -156,7 +225,7 @@ BBConsensusConnection::HandlePostPrepare(const PostPrepare & message)
         _callback_scheduled = false;
     }
 
-    Connection::HandlePostPrepare(message);
+    Connection::OnPostCommit();
 }
 
 void
@@ -206,6 +275,24 @@ bool
 BBConsensusConnection::ValidateReProposal(const PrePrepare & message)
 {
     return IsSubset(message);
+}
+
+BBConsensusConnection::Seconds
+BBConsensusConnection::GetTimeout(uint8_t min, uint8_t range)
+{
+    uint64_t offset = 0;
+    uint64_t x = std::rand() % NUM_DELEGATES;
+
+    if (x >= 2 && x < 4)
+    {
+        offset = range/2;
+    }
+    else
+    {
+        offset = range;
+    }
+
+    return Seconds(min + offset);
 }
 
 template<>

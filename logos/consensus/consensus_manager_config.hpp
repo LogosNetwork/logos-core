@@ -1,6 +1,7 @@
 #pragma once
 
 #include <boost/property_tree/ptree.hpp>
+#include <logos/consensus/messages/messages.hpp>
 
 struct ConsensusManagerConfig
 {
@@ -17,6 +18,8 @@ struct ConsensusManagerConfig
 
         auto delegates_tree(tree.get_child("delegate_peers"));
 
+        uint8_t num_consensus_delegates = tree.get<uint8_t>("num_consensus_delegates", NUM_DELEGATES);
+
         for(auto & delegate : delegates_tree)
         {
             try
@@ -24,7 +27,11 @@ struct ConsensusManagerConfig
                 auto ip = delegate.second.get<std::string>("ip_address");
                 auto id = std::stoul(delegate.second.get<std::string>("delegate_id"));
 
-                delegates.push_back(Delegate{ip, uint8_t(id)});
+                if (delegates.size() < num_consensus_delegates)
+                {
+                    delegates.push_back(Delegate{ip, uint8_t(id)});
+                }
+                all_delegates.push_back(Delegate{ip, uint8_t(id)});
             }
             catch(std::logic_error const &)
             {
@@ -77,6 +84,7 @@ struct ConsensusManagerConfig
     }
 
     std::vector<Delegate> delegates;
+    std::vector<Delegate> all_delegates; /// ip's/id's of all delegates
     std::string           local_address;
     std::string           callback_address;
     uint16_t              callback_port;

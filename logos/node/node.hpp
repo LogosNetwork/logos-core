@@ -9,6 +9,7 @@
 #include <logos/bootstrap/bootstrap_interface.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/epoch/recall_handler.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/bootstrap/bootstrap_interface.hpp>
 #include <logos/bootstrap/batch_block_validator.hpp>
@@ -511,6 +512,7 @@ public:
     logos::stat stats;
     BatchBlock::validator *_validator; 
     RecallHandler _recall_handler;
+    DelegateIdentityManager _identity_manager;
     Archiver _archiver;
 #ifdef _PRODUCTION
     ConsensusContainer _consensus_container;

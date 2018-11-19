@@ -2449,123 +2449,35 @@ void logos::rpc_handler::process ()
                     break;
                 }
                 case logos::process_result::gap_previous:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
-                    break;
-                }
                 case logos::process_result::gap_source:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
-                    break;
-                }
                 case logos::process_result::state_block_disabled:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
-                    break;
-                }
                 case logos::process_result::old:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
-                    break;
-                }
                 case logos::process_result::bad_signature:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
-                    break;
-                }
                 case logos::process_result::negative_spend:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
-                    break;
-                }
                 case logos::process_result::unreceivable:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
-                    break;
-                }
                 case logos::process_result::not_receive_from_send:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
-                    break;
-                }
                 case logos::process_result::fork:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
-                    break;
-                }
                 case logos::process_result::account_mismatch:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
-                    break;
-                }
                 case logos::process_result::invalid_block_type:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
-                    break;
-                }
-                case logos::process_result::not_implemented:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
-                    break;
-                }
+                case logos::process_result::unknown_source_account:
                 case logos::process_result::opened_burn_account:
+                case logos::process_result::already_reserved:
+                case logos::process_result::initializing:
+                case logos::process_result::insufficient_balance:
+                case logos::process_result::not_delegate:
                 {
                     error_response (response,
                                     ProcessResultToString(result.code));
                     break;
                 }
                 case logos::process_result::buffered:
-                {
-                    boost::property_tree::ptree response_l;
-                    response_l.put ("result",
-                                    ProcessResultToString(result.code));
-                    response (response_l);
-                    break;
-                }
                 case logos::process_result::buffering_done:
-                {
-                    boost::property_tree::ptree response_l;
-                    response_l.put ("result",
-                                    ProcessResultToString(result.code));
-                    response (response_l);
-                    break;
-                }
                 case logos::process_result::pending:
                 {
                     boost::property_tree::ptree response_l;
                     response_l.put ("result",
                                     ProcessResultToString(result.code));
                     response (response_l);
-                    break;
-                }
-                case logos::process_result::already_reserved:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
-                    break;
-                }
-                case logos::process_result::initializing:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
-                    break;
-                }
-                case logos::process_result::insufficient_balance:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
                     break;
                 }
                 default:

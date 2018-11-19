@@ -14,6 +14,10 @@ PersistenceManager::PersistenceManager(Store & store)
 // And then, bootstrap from another peer ?
 void PersistenceManager::ApplyUpdates(const BatchStateBlock & message, uint8_t delegate_id)
 {
+    // XXX - Failure during any of the database operations
+    //       performed in the following two methods will cause
+    //       the application to exit without committing the
+    //       intermediate transactions to the database.
     logos::transaction transaction(_store.environment, nullptr, true);
 
     StoreBatchMessage(message, transaction, delegate_id);
@@ -50,6 +54,7 @@ bool PersistenceManager::Validate(const logos::state_block & block,
         if(block.hashables.previous.is_zero() && info.block_count)
         {
             result.code = logos::process_result::fork;
+            std::cout << "PersistenceManager:: previous is zero: block count: " << info.block_count << std::endl;
             return false;
         }
 
@@ -98,11 +103,16 @@ bool PersistenceManager::Validate(const logos::state_block & block,
         // TODO
         uint64_t current_epoch = 0;
 
+        auto update_reservation = [&info, &hash, current_epoch]()
+                                  {
+                                       info.reservation = hash;
+                                       info.reservation_epoch = current_epoch;
+                                  };
+
         // Account is not reserved.
         if(info.reservation.is_zero())
         {
-            info.reservation = hash;
-            info.reservation_epoch = current_epoch;
+            update_reservation();
         }
 
         // Account is already reserved.
@@ -114,6 +124,9 @@ bool PersistenceManager::Validate(const logos::state_block & block,
                 result.code = logos::process_result::already_reserved;
                 return false;
             }
+
+            // Reservation has expired.
+            update_reservation();
         }
 
         if(block.hashables.amount.number() + block.hashables.transaction_fee.number()
@@ -129,7 +142,7 @@ bool PersistenceManager::Validate(const logos::state_block & block,
     {
         // Currently do not accept state blocks
         // with non-existent accounts.
-        result.code = logos::process_result::not_implemented;
+        result.code = logos::process_result::unknown_source_account;
         return false;
 
         if(!block.hashables.previous.is_zero())
@@ -153,6 +166,7 @@ void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message,
                                            uint8_t delegate_id)
 {
     BatchStateBlock prev;
+    bool has_prev = true;
 
     if(_store.batch_block_get(message.previous, prev, transaction))
     {
@@ -160,31 +174,72 @@ void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message,
         //
         if(!message.previous.is_zero())
         {
-            std::cout << "message.hash: " << message.Hash().to_string() << " previous: " << message.previous.to_string() << std::endl;
             LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
                             << "Failed to find previous: "
                             << message.previous.to_string();
 
             std::exit(EXIT_FAILURE);
         }
+        else
+        {
+            has_prev = false;
+        }
     }
 
-    auto hash(_store.batch_block_put(message, transaction));
+    auto hash(message.Hash());
+
+    if(_store.batch_block_put(message, hash, transaction))
+    {
+        LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
+                        << "Failed to store batch message with hash: "
+                        << hash.to_string();
+
+        std::exit(EXIT_FAILURE);
+    }
 
     prev.next = hash;
-    _store.batch_block_put(prev, transaction);
+
+    // TODO: Add previous hash for batch blocks with
+    //       a previous set to zero because it was
+    //       the first batch of the epoch.
+    if(has_prev)
+    {
+        if(_store.batch_block_put(prev, message.previous, transaction))
+        {
+            LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
+                            << "Failed to store batch message with hash: "
+                            << message.previous.to_string();
+
+            std::exit(EXIT_FAILURE);
+        }
+
+    }
 
     StateBlockLocator locator_template {hash, 0};
 
     for(uint64_t i = 0; i < CONSENSUS_BATCH_SIZE; ++i)
     {
         locator_template.index = i;
-        _store.state_block_put(message.blocks[i],
-                               locator_template,
-                               transaction);
+        if(_store.state_block_put(message.blocks[i],
+                                  locator_template,
+                                  transaction))
+        {
+            LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
+                            << "Failed to store state block with hash: "
+                            << message.blocks[i].hash().to_string();
+
+            std::exit(EXIT_FAILURE);
+        }
     }
 
-    _store.batch_tip_put(delegate_id, message.Hash(), transaction);
+    if(_store.batch_tip_put(delegate_id, hash, transaction))
+    {
+        LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
+                        << "Failed to store batch block tip with hash: "
+                        << hash.to_string();
+
+        std::exit(EXIT_FAILURE);
+    }
 }
 
 void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, MDB_txn * transaction)
@@ -244,7 +299,14 @@ bool PersistenceManager::UpdateSourceState(const logos::state_block & block, MDB
     info.head = block.hash();
     info.modified = logos::seconds_since_epoch();
 
-    _store.account_put(block.hashables.account, info, transaction);
+    if(_store.account_put(block.hashables.account, info, transaction))
+    {
+        LOG_FATAL(_log) << "PersistenceManager::UpdateSourceState - "
+                        << "Failed to store account: "
+                        << block.hashables.account.to_account();
+
+        std::exit(EXIT_FAILURE);
+    }
 
     return false;
 }
@@ -287,8 +349,15 @@ void PersistenceManager::UpdateDestinationState(
     info.balance = info.balance.number() + block.hashables.amount.number();
     info.modified = logos::seconds_since_epoch();
 
-    _store.account_put(logos::account(block.hashables.link),
-                       info, transaction);
+    if(_store.account_put(logos::account(block.hashables.link),
+                          info, transaction))
+    {
+        LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
+                        << "Failed to store account: "
+                        << block.hashables.link.to_account();
+
+        std::exit(EXIT_FAILURE);
+    }
 
     PlaceReceive(receive, transaction);
 }
@@ -338,5 +407,12 @@ void PersistenceManager::PlaceReceive(
         }
     }
 
-    _store.receive_put(hash, receive, transaction);
+    if(_store.receive_put(hash, receive, transaction))
+    {
+        LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
+                        << "Failed to store receive block with hash: "
+                        << hash.to_string();
+
+        std::exit(EXIT_FAILURE);
+    }
 }

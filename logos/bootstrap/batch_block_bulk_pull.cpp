@@ -52,6 +52,7 @@ void BatchBlock::ApplyUpdates(Store & store, const BatchStateBlock & message, ui
 // in consensus_connection.cpp
 bool BatchBlock::Validate(ConsensusContainer &manager, BatchStateBlock &message, int delegate_id)
 {
+#if 0
     PersistenceManager &persistence_manager = manager.get_batch_manager().get_persistence_manager();
     for(uint64_t i = 0; i < message.block_count; ++i)
     {   
@@ -61,6 +62,7 @@ bool BatchBlock::Validate(ConsensusContainer &manager, BatchStateBlock &message,
             return false;
         }
     }
+#endif
     return true;
 }
 
@@ -70,8 +72,10 @@ bool BatchBlock::Validate(ConsensusContainer &manager, BatchStateBlock &message,
 // in persistence_manager.cpp
 void BatchBlock::ApplyUpdates(ConsensusContainer &manager, const BatchStateBlock & message, uint8_t delegate_id)
 {
+#if 0
     PersistenceManager &persistence_manager = manager.get_batch_manager().get_persistence_manager();
     persistence_manager.ApplyUpdates(message,delegate_id);
+#endif
 }
 
 BlockHash BatchBlock::getNextBatchStateBlock(Store &store, int delegate, BlockHash &hash) // TODOFUNC
@@ -84,6 +88,18 @@ BlockHash BatchBlock::getNextBatchStateBlock(Store &store, int delegate, BlockHa
     std::cout << "BatchBlock::getNextBatchStateBlock: " << batch.next.to_string() << std::endl;
     return batch.next; // FIXME Correct to use next pointer...
 }
+
+BlockHash BatchBlock::getPrevBatchStateBlock(Store &store, int delegate, BlockHash &hash) // TODOFUNC
+{
+    BatchStateBlock batch;
+    if(hash.is_zero()) {
+        return hash;
+    }
+    store.batch_block_get(hash, batch);
+    std::cout << "BatchBlock::getPrevBatchStateBlock: prev: " << batch.previous.to_string() << " delegate: " << delegate << " next: " << batch.next.to_string() << std::endl;
+    return batch.previous;
+}
+
 
 std::shared_ptr<BatchStateBlock> BatchBlock::readBatchStateBlock(Store &store, BlockHash &hash)
 {

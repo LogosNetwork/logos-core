@@ -212,29 +212,30 @@ enum class vote_code
 };
 enum class process_result
 {
-    progress,              // Hasn't been seen before, signed correctly
-    bad_signature,         // Signature was bad, forged or transmission error
-    old,                   // Already seen and was valid
-    negative_spend,        // Malicious attempt to spend a negative amount
-    fork,                  // Malicious fork based on previous
-    unreceivable,          // Source block doesn't exist or has already been received
-    gap_previous,          // Block marked as previous is unknown
-    gap_source,            // Block marked as source is unknown
-    state_block_disabled,  // Awaiting state block canary block
-    not_receive_from_send, // Receive does not have a send source
-    account_mismatch,      // Account number in open block doesn't match send destination
-    opened_burn_account,   // The impossible happened, someone found the private key associated with the public key '0'.
-    balance_mismatch,      // Balance and amount delta don't match
-    block_position,        // This block cannot follow the previous block
-    invalid_block_type,    // Logos - Only allow state blocks
-    not_implemented,       // Logos - The block cannot be processed
-    buffered,              // Logos - The block has been buffered for benchmarking
-    buffering_done,        // Logos - The last block has been buffered and consensus will begin
-    pending,               // Logos - The block has already been received and is pending consensus
-    already_reserved,      // Logos - The account is already reserved with different request.
-    initializing,          // Logos - The delegate is initializing and not accepting transactions.
-    insufficient_fee,      // Logos - Transaction fee is insufficient.
-    insufficient_balance   // Logos - Balance is insufficient.
+    progress,               // Hasn't been seen before, signed correctly
+    bad_signature,          // Signature was bad, forged or transmission error
+    old,                    // Already seen and was valid
+    negative_spend,         // Malicious attempt to spend a negative amount
+    fork,                   // Malicious fork based on previous
+    unreceivable,           // Source block doesn't exist or has already been received
+    gap_previous,           // Block marked as previous is unknown
+    gap_source,             // Block marked as source is unknown
+    state_block_disabled,   // Awaiting state block canary block
+    not_receive_from_send,  // Receive does not have a send source
+    account_mismatch,       // Account number in open block doesn't match send destination
+    opened_burn_account,    // The impossible happened, someone found the private key associated with the public key '0'.
+    balance_mismatch,       // Balance and amount delta don't match
+    block_position,         // This block cannot follow the previous block
+    invalid_block_type,     // Logos - Only allow state blocks
+    unknown_source_account, // Logos - The source account is unknown.
+    buffered,               // Logos - The block has been buffered for benchmarking.
+    buffering_done,         // Logos - The last block has been buffered and consensus will begin.
+    pending,                // Logos - The block has already been received and is pending consensus.
+    already_reserved,       // Logos - The account is already reserved with different request.
+    initializing,           // Logos - The delegate is initializing and not accepting transactions.
+    insufficient_fee,       // Logos - Transaction fee is insufficient.
+    insufficient_balance,   // Logos - Balance is insufficient.
+    not_delegate           // Logos - A non-delegate node rejects transaction request
 };
 
 std::string ProcessResultToString(process_result result);

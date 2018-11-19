@@ -15,8 +15,8 @@ BatchBlock::validator::validator(logos::node *n)
     // Allocate our epoch/micro validators...
     recall          = std::shared_ptr<RecallHandler>      (new RecallHandler());
     voting_manager  = std::shared_ptr<EpochVotingManager> (new EpochVotingManager(node->store));
-    epoch_handler   = std::shared_ptr<EpochHandler>       (new EpochHandler(node->store, 0, *voting_manager));
-    micro_handler   = std::shared_ptr<MicroBlockHandler>  (new MicroBlockHandler(node->store, 0, *recall));
+    epoch_handler   = std::shared_ptr<EpochHandler>       (new EpochHandler(node->store, *voting_manager));
+    micro_handler   = std::shared_ptr<MicroBlockHandler>  (new MicroBlockHandler(node->store, *recall));
 
 #ifdef _TIMEOUT_BOOTSTRAP
     std::thread timeout_thr(BatchBlock::validator::timeout_s, this);
@@ -74,7 +74,9 @@ std::map<int, std::pair<int64_t, BlockHash> > BatchBlock::validator::in_memory_b
     for(int i = 0; i < NUMBER_DELEGATES; ++i) {
        for(int j = bsb.size()-1; j >= 0; --j) {
             if(bsb[j]->delegate_id == i) {
+                std::cout << " FIXME:::: delegate_id: " << bsb[j]->delegate_id << " i: " << i << " j: " << j << " hash: " << bsb[j]->block.Hash().to_string() << std::endl;
                 tips[i] = std::make_pair(bsb[j]->block.sequence,bsb[j]->block.Hash());
+                break;
             }
        }
     }
@@ -92,11 +94,11 @@ std::pair<int64_t, BlockHash> BatchBlock::validator::in_memory_micro_tips()
         [](const std::shared_ptr<BatchBlock::bulk_pull_response_micro> &lhs,
            const std::shared_ptr<BatchBlock::bulk_pull_response_micro> &rhs)
         {
-            return lhs->micro._micro_block_number < rhs->micro._micro_block_number;
+            return lhs->micro.sequence < rhs->micro.sequence;
         }
     );
 
-    return std::make_pair(micro[micro.size()-1]->micro._micro_block_number, micro[micro.size()-1]->micro.Hash());
+    return std::make_pair(micro[micro.size()-1]->micro.sequence, micro[micro.size()-1]->micro.Hash());
 }
 
 std::pair<int64_t, BlockHash> BatchBlock::validator::in_memory_epoch_tips()
@@ -109,11 +111,11 @@ std::pair<int64_t, BlockHash> BatchBlock::validator::in_memory_epoch_tips()
         [](const std::shared_ptr<BatchBlock::bulk_pull_response_epoch> &lhs,
            const std::shared_ptr<BatchBlock::bulk_pull_response_epoch> &rhs)
         {
-            return lhs->epoch._epoch_number < rhs->epoch._epoch_number;
+            return lhs->epoch.epoch_number < rhs->epoch.epoch_number;
         }
     );
 
-    return std::make_pair(epoch[epoch.size()-1]->epoch._epoch_number, epoch[epoch.size()-1]->epoch.Hash());
+    return std::make_pair(epoch[epoch.size()-1]->epoch.epoch_number, epoch[epoch.size()-1]->epoch.Hash());
 }
 
 bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_response> block)
@@ -122,6 +124,9 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
 #ifdef _DEBUG
     std::cout << "validate: bsb.size(): " << bsb.size() << " micro.size(): " << micro.size() << " epoch.size(): " << epoch.size() << std::endl;
 #endif
+    if(block) {
+        std::cout << " RGDRGD hash: " << block->block.Hash().to_string() << " delegate_id: " << block->delegate_id << std::endl;
+    }
     if(block && (bsb.size() < nr_blocks)) {
         bsb.push_back(block);
         return false;
@@ -145,10 +150,17 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
         }
     );
 
+   //std::cout << "validate: bsb.size()<0>: " << bsb.size() << " micro.size(): " << micro.size() << " epoch.size(): " << epoch.size() << std::endl    ;
    // Otherwise, we reached our limit, process each block we received.
    std::set<int> finished;
+   BatchStateBlock isPresent;
    for(int i = 0; i < bsb.size(); ++i) {
         std::shared_ptr<BatchBlock::bulk_pull_response> block = bsb[i];
+#if 0
+        if(!node->store.batch_block_get(block->block.Hash(),isPresent)) { // This guy is already in the db...
+            continue;
+        }
+#endif
 #ifdef _VALIDATE
         if (BatchBlock::Validate(node->_consensus_container,
                 block->block,block->delegate_id)) {
@@ -164,15 +176,17 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
                 // Block is valid, add to database.
                 BatchBlock::ApplyUpdates(node->store,
                                  block->block,block->delegate_id);
-                std::cout << "validate successful: hash: " << block->block.Hash().to_string() << std::endl;
+                std::cout << "validate successful: hash: " << block->block.Hash().to_string() << " delegate_id: " << block->delegate_id << std::endl;
                 finished.insert(i);
         } else {
-                std::cout << "validate failed: hash: " << block->block.Hash().to_string() << std::endl;
+                std::cout << "validate failed: hash: " << block->block.Hash().to_string() << " delegate_id: " << block->delegate_id << std::endl;
         }
 #else
         finished.insert(i);
 #endif
    }
+
+   //std::cout << "validate: bsb.size()<1>: " << bsb.size() << " micro.size(): " << micro.size() << " epoch.size(): " << epoch.size() << std::endl    ;
 
    // Clean-up the vector removing blocks we processed.
    std::vector<std::shared_ptr<bulk_pull_response> > tmp;
@@ -184,10 +198,11 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
 
    // Update the vector with the bsb blocks we processed.
    bsb = tmp;
+   //std::cout << "validate: bsb.size()<2>: " << bsb.size() << " micro.size(): " << micro.size() << " epoch.size(): " << epoch.size() << std::endl    ;
 
    if(nextMicro >= micro.size()) {
 #ifdef _DEBUG
-        std::cout << "nextMicro >= micro.size()" << std::endl;
+        std::cout << "nextMicro >= micro.size(): size: " << micro.size() << " nextMicro: " << nextMicro << std::endl;
 #endif
         // Count number of times this happens, and fail it if exceeds.
         if(nextMicro_counter++ > NEXT_MICRO_COUNTER_MAX) {
@@ -202,8 +217,31 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
     ::MicroBlock *peerMicro = &micro[nextMicro]->micro;
     // Check we have all of our tips, if so create and validate MicroBlock.
     for(int i = 0; i < NUMBER_DELEGATES; ++i) {
-        if(!node->store.state_block_exists(peerMicro->_tips[i])) {
+        if(node->store.batch_block_get(peerMicro->tips[i],isPresent)) {
+#ifdef _DEBUG
+            std::cout << "delegate: " << i << " missing a tip: " << peerMicro->tips[i].to_string() << std::endl;
+#endif
             ready = false; // Not ready, missing a tip.
+            nextMicro++;
+            break;
+        }
+    }
+
+    if(ready) {
+#ifdef _DEBUG
+        std::cout << "validating micro block: " << peerMicro->hash().to_string() << std::endl;
+#endif
+        BlockHash current_micro_hash = Micro::getMicroBlockTip(node->store,0);
+        std::shared_ptr<MicroBlock> current = Micro::readMicroBlock(node->store,current_micro_hash);
+        for(int i = 0; i < NUMBER_DELEGATES; ++i) {
+            if(peerMicro->tips[i] == current->tips[i]) {
+                ready = false;
+            } else {
+                ready = true; // FIXME One of our tips differs... Does the code update it ?
+            }
+        }
+        if(!ready) {
+            nextMicro++; // We already have this guy...
         }
     }
 
@@ -247,17 +285,28 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
     int i = nextMicro - 1, j;
     if(i < 0) {
         reset();
-        return true; // Invalid state, shouldn't really happen.
+        return false; // Nothing else to be done.
     }
 
     for(j = 0; j < nextEpoch; ++j) {
-        if(epoch[j]->epoch._micro_block_tip == micro[i]->micro.hash()) {
+        if(epoch[j]->epoch.micro_block_tip == micro[i]->micro.hash()) {
             ready = true;
             break;
         }
     }
 
     if(ready) {
+        BlockHash current_epoch_hash = EpochBlock::getEpochBlockTip(node->store,0);
+        std::shared_ptr<Epoch> current = EpochBlock::readEpochBlock(node->store,current_epoch_hash);
+        if(epoch[j]->epoch.micro_block_tip == current->micro_block_tip) {
+            nextEpoch++; // We already have this guy...
+            ready = false;
+        }
+    }
+    if(ready) {
+#ifdef _DEBUG
+        std::cout << "validating epoch block: " << epoch[j]->epoch.hash().to_string() << std::endl;
+#endif
         if(epoch_handler->Validate(epoch[j]->epoch)) {
             epoch_handler->ApplyUpdates(epoch[j]->epoch); // Validation succeeded, add to database.
             nextEpoch++;

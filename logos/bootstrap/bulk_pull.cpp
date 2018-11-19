@@ -162,6 +162,10 @@ void logos::bulk_pull_client::request_batch_block()
     req.b_start         = pull.b_start;
     req.b_end           = pull.b_end;
 
+#ifdef _DEBUG
+    std::cout << " logos::bulk_pull_client::request_batch_block::pull: " << req << std::endl;
+#endif
+
     if(!req.e_end.is_zero()) {
         end_transmission = req.e_end;
     }
@@ -372,8 +376,8 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
                 memcpy(&(*block),data,sizeof(BatchBlock::bulk_pull_response));
                 BlockHash hash = block->block.Hash();
 #ifdef _DEBUG
-                std::cout << "logos::bulk_pull_client::received_block batch block received: delegate_id: " << block->delegate_id << std::endl;
-                std::cout << "r->Hash(): " << hash.to_string() << std::endl;
+                std::cout << "logos::bulk_pull_client::received_block batch block received: delegate_id: " << block->delegate_id << " "
+                          << "r->Hash(): " << hash.to_string() << std::endl;
 #endif
 				if (connection->node->config.logging.bulk_pull_logging ())
 				{
@@ -451,6 +455,10 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
 				}
 				connection->attempt->total_blocks++;
 
+                // FIXME LOGICAL bootstrap... 
+                //       Pass in connection to validator, we need the attempt class to schedule a pull.
+                //       The question is will we deadlock ?
+                //       I don't think we will deadlock, but we need to test it out.
                 connection->node->_validator->add_epoch_block(block);
 
 				if (!connection->hard_stop.load ()) {
@@ -499,7 +507,7 @@ void logos::bulk_pull_server::set_current_end ()
 #endif
 
     // Setup current_micro and current_bsb for iterating micro and bsb blocks.
-    current_epoch   = request->e_start;
+    current_epoch   = request->e_start; // FIXME We walk these backwards so we should be ok, otherwise we have to walk back as in getPrevBatchStateBlock
     current_micro   = request->m_start;
     current_bsb     = request->b_start;
     if(current_bsb == request->b_end && !current_bsb.is_zero())
@@ -508,41 +516,55 @@ void logos::bulk_pull_server::set_current_end ()
         std::cout << "logos::bulk_pull_server::set_current_end: walking back chain for delegate: " << request->delegate_id << std::endl;
 #endif
         while(true) {
-           std::shared_ptr<BatchStateBlock> b = BatchBlock::readBatchStateBlock(connection->node->store, current_bsb); 
+           //std::shared_ptr<BatchStateBlock> b = BatchBlock::readBatchStateBlock(connection->node->store, current_bsb); 
            //BatchStateBlock *b = BatchBlock::readBatchStateBlock(connection->node->store, current_bsb).get();
-           if(b->previous.is_zero()) {
+           BlockHash previous = BatchBlock::getPrevBatchStateBlock(connection->node->store, request->delegate_id, current_bsb);
+           if(previous.is_zero()) {
 #ifdef _DEBUG
-                std::cout << "logos::bulk_pull_server::set_current_end: found root of chain for delegate: " << request->delegate_id << " current_bsb: " << current_bsb.to_string() << " next: " << b->next.to_string() << std::endl;
+                //std::cout << "logos::bulk_pull_server::set_current_end: found root of chain for delegate: " << request->delegate_id << " current_bsb: " << current_bsb.to_string() << " next: " << b->next.to_string() << std::endl;
 #endif
                 //current_bsb = b->Hash(); // Found starting hash.
                 break;
            }
-           current_bsb = b->previous; // Walk backwards till the beginning...
+           current_bsb = previous; // Walk backwards till the beginning...
         }
     }
 #ifdef _DEBUG
-        std::cout << "logos::bulk_pull_server::set_current_end: current_bsb: " << current_bsb.to_string() << std::endl;
+        std::cout << "logos::bulk_pull_server::set_current_end: current_bsb: " << current_bsb.to_string() << " delegate_id: " << request->delegate_id << std::endl;
 #endif
 }
 
 void logos::bulk_pull_server::send_next ()
 {
+    BlockHash zero = 0;
 #ifdef _DEBUG
     std::cout << "logos::bulk_pull_server::send_next: " << std::endl;
 #endif
 	{
         BlockHash epoch_block = EpochBlock::getNextEpochBlock(connection->node->store, request->delegate_id, current_epoch);
         BlockHash micro_block = Micro::getNextMicroBlock(connection->node->store, request->delegate_id, current_micro);
-        //if(!current_epoch.is_zero()) { // && current_epoch != request->e_end) {
-        if(!current_epoch.is_zero() && current_epoch != request->e_end) {
+        if(!current_epoch.is_zero()) { // && current_epoch != request->e_end) {
+        //if(!current_epoch.is_zero() && current_epoch != request->e_end) {
 #ifdef _DEBUG
     std::cout << "logos::bulk_pull_server::send_next: epoch_block" << std::endl;
 #endif
-            std::shared_ptr<Epoch> m = EpochBlock::readEpochBlock(connection->node->store, current_epoch);
+            std::shared_ptr<Epoch> e = EpochBlock::readEpochBlock(connection->node->store, current_epoch);
             BatchBlock::bulk_pull_response_epoch resp;
             resp.delegate_id = request->delegate_id; // m->delegateNumber;
-            memcpy(&resp.epoch,&(*m),sizeof(Epoch));
-            current_epoch = epoch_block;
+#ifdef _DEBUG
+            std::cout << "addr: " << (uint64_t)&resp.epoch << " src: " << (uint64_t)e.get() << " size: " << sizeof(Epoch) << std::endl;
+#endif
+            if(e == nullptr) {
+                current_epoch = zero;
+                send_next();
+            }
+            memcpy(&resp.epoch,e.get(),sizeof(Epoch));
+            if(current_epoch == request->e_end) {
+                BlockHash zero = 0;
+                current_epoch = zero; // We are at the end...
+            } else {
+                current_epoch = epoch_block;
+            }
 
             auto send_buffer1(std::make_shared<std::vector<uint8_t>>(BatchBlock::bulk_pull_response_mesg_len, uint8_t(0)));
             {
@@ -558,16 +580,25 @@ void logos::bulk_pull_server::send_next ()
 		    async_write (*connection->socket, boost::asio::buffer (send_buffer1->data (), size), [this_l,send_buffer1](boost::system::error_code const & ec, size_t size_a) {
 			    this_l->sent_action (ec, size_a);
 		    });
-        //} else if(!current_micro.is_zero()) { // && current_micro != request->m_end) {
-        } else if(!current_micro.is_zero() && current_micro != request->m_end) {
+        } else if(!current_micro.is_zero()) { // && current_micro != request->m_end) {
+        //} else if(!current_micro.is_zero() && current_micro != request->m_end) {
 #ifdef _DEBUG
     std::cout << "logos::bulk_pull_server::send_next: micro_block" << std::endl;
 #endif
             std::shared_ptr<MicroBlock> m = Micro::readMicroBlock(connection->node->store, current_micro);
             BatchBlock::bulk_pull_response_micro resp;
             resp.delegate_id = request->delegate_id; // m->delegateNumber;
-            memcpy(&resp.micro,&(*m),sizeof(MicroBlock));
-            current_micro = micro_block;
+            if(m == nullptr) {
+                current_micro = zero;
+                send_next();
+            }
+            memcpy(&resp.micro,m.get(),sizeof(MicroBlock));
+            if(current_micro == request->m_end) {
+                BlockHash zero = 0;
+                current_micro = micro_block;
+            } else {
+                current_micro = micro_block;
+            }
 
             auto send_buffer1(std::make_shared<std::vector<uint8_t>>(BatchBlock::bulk_pull_response_mesg_len, uint8_t(0)));
             {
@@ -605,7 +636,7 @@ void logos::bulk_pull_server::send_next ()
            }
            else
            {
-                std::cout << "bsb is_non_zero: current_bsb: " << current_bsb.to_string() << std::endl;
+                std::cout << "bsb is_non_zero: current_bsb: " << current_bsb.to_string() <<  " delegate_id: " << request->delegate_id << std::endl;
            }
 
            if(!current_bsb.is_zero()) // && current_bsb != request->b_end)
@@ -617,11 +648,21 @@ void logos::bulk_pull_server::send_next ()
                 std::shared_ptr<BatchStateBlock> b = BatchBlock::readBatchStateBlock(connection->node->store, current_bsb);
                 BatchBlock::bulk_pull_response resp;
                 resp.delegate_id = request->delegate_id;
-                memcpy(&resp.block,&(*b),sizeof(BatchStateBlock));
+                if(b == nullptr) {
+                    current_bsb = zero;
+                    send_next();
+                }
+                memcpy(&resp.block,b.get(),sizeof(BatchStateBlock));
 #ifdef _DEBUG
                 std::cout << " current_bsb: " << current_bsb.to_string() << " << b->Hash().to_string() " << b->Hash().to_string()  << " message_count: " << b->block_count << std::endl;
 #endif
-                current_bsb = bsb;
+                std::cout << " RGDRGD is_non_zero: current_bsb: " << current_bsb.to_string() <<  " delegate_id: " << request->delegate_id << " request.b_end: " << request->b_end.to_string() << std::endl;
+                if(current_bsb == request->b_end) {
+                    BlockHash zero = 0;
+                    current_bsb = zero; // We are at the end...
+                } else {
+                    current_bsb = bsb;
+                }
 
                 //auto send_buffer1(std::make_shared<std::vector<uint8_t>>(sizeof(resp), uint8_t(0)));
                 auto send_buffer1(std::make_shared<std::vector<uint8_t>>(BatchBlock::bulk_pull_response_mesg_len, uint8_t(0)));
@@ -730,14 +771,14 @@ void logos::bulk_pull_server::no_block_sent (boost::system::error_code const & e
 	{
 		assert (size_a == 1);
 #ifdef _DEBUG
-        std::cout << "logos::bulk_pull_server::no_block_sent: finish_request: delegate_id:" << request->delegate_id << std::endl;
+        std::cout << "logos::bulk_pull_server::no_block_sent: finish_request: delegate_id: " << request->delegate_id << std::endl;
 #endif
 		connection->finish_request ();
 	}
 	else
 	{
 #ifdef _DEBUG
-        std::cout << "logos::bulk_pull_server::no_block_sent: finish_request: error: delegate_id:" << request->delegate_id << " ec.message: " << ec.message() << std::endl;
+        std::cout << "logos::bulk_pull_server::no_block_sent: finish_request: error: delegate_id: " << request->delegate_id << " ec.message: " << ec.message() << std::endl;
 #endif
 		//connection->finish_request (); // MINE
 		if (connection->node->config.logging.bulk_pull_logging ())

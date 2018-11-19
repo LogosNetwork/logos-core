@@ -58,5 +58,6 @@ void ApplyUpdates(ConsensusContainer &manager, const BatchStateBlock & message, 
 
 BlockHash getNextBatchStateBlock(Store &store, int delegate, BlockHash &h);
 std::shared_ptr<BatchStateBlock> readBatchStateBlock(Store &store, BlockHash &h);
+BlockHash getPrevBatchStateBlock(Store &store, int delegate, BlockHash &h);
 
 } // BatchBlock

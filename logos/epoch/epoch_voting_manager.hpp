@@ -7,6 +7,7 @@
 #include <boost/log/sources/record_ostream.hpp>
 #include <boost/log/sources/logger.hpp>
 #include <logos/epoch/epoch.hpp>
+#include <logos/lib/log.hpp>
 
 namespace logos
 {
@@ -18,7 +19,6 @@ namespace logos
 class EpochVotingManager {
     using BlockStore = logos::block_store;
     using Delegates  = Delegate[NUM_DELEGATES];
-    using Log        = boost::log::sources::logger_mt;
 public:
     /// Class constructor
     /// @param store logos block store reference [in]

@@ -2,6 +2,7 @@
 
 #include <logos/consensus/network/consensus_netio.hpp>
 #include <logos/consensus/consensus_manager.hpp>
+#include <logos/consensus/epoch_manager.hpp>
 
 #include <boost/asio/read.hpp>
 
@@ -10,16 +11,16 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
                                              PrimaryDelegate & primary,
                                              RequestPromoter<CT> & promoter,
                                              MessageValidator & validator,
-                                             const DelegateIdentities & ids)
+                                             const DelegateIdentities & ids,
+                                             EpochEventsNotifier & events_notifer)
     : _iochannel(iochannel)
     , _delegate_ids(ids)
     , _reason(RejectionReason::Void)
     , _validator(validator)
     , _primary(primary)
     , _promoter(promoter)
+    , _events_notifier(events_notifer)
 {
-    promoter.GetStore().batch_tip_get(_delegate_ids.remote,
-                                      _prev_pre_prepare_hash);
 }
 
 template<ConsensusType CT>
@@ -92,10 +93,16 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
     memcpy(_receive_buffer.data() + sizeof(Prequel), data,
            MessageTypeToSize<CT>(type) - sizeof(Prequel));
 
+    std::string message = MessageToName(type);
+    if (type == MessageType::Rejection)
+    {
+        auto msg (*reinterpret_cast<const Rejection*>(_receive_buffer.data()));
+        message += ":" + RejectionReasonToName(msg.reason);
+    }
     LOG_DEBUG(_log) << "ConsensusConnection<"
                     << ConsensusToName(CT) << ">- Received "
-                    << MessageToName(type)
-                    << " message.";
+                    << message
+                    << " message from delegate: " << (int)_delegate_ids.remote;
 
     switch (type)
     {
@@ -144,6 +151,13 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
 }
 
 template<ConsensusType CT>
+void ConsensusConnection<CT>::SetPrePrepare(const PrePrepare & message)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+    _pre_prepare.reset(new PrePrepare(message));
+}
+
+template<ConsensusType CT>
 void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
 {
     _pre_prepare_timestamp = message.timestamp;
@@ -153,16 +167,14 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
     {
         _state = ConsensusState::PREPARE;
 
-        {
-            std::lock_guard<std::mutex> lock(_mutex);
-            _pre_prepare.reset(new PrePrepare(message));
-        }
+        SetPrePrepare(message);
 
         HandlePrePrepare(message);
         SendMessage<PrepareMessage<CT>>();
     }
     else
     {
+        HandleReject(message);
         Reject();
         ResetRejectionStatus();
     }
@@ -176,7 +188,6 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostPrepare & message)
         _state = ConsensusState::COMMIT;
 
         SendMessage<CommitMessage<CT>>();
-        HandlePostPrepare(message);
     }
 }
 
@@ -187,10 +198,13 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
     {
         assert(_pre_prepare);
 
+        OnPostCommit();
         ApplyUpdates(*_pre_prepare, _delegate_ids.remote);
 
         _state = ConsensusState::VOID;
         _prev_pre_prepare_hash = _pre_prepare_hash;
+
+        _events_notifier.OnPostCommit(_pre_prepare->epoch_number);
     }
 }
 
@@ -239,19 +253,28 @@ template<ConsensusType CT>
 template<typename M>
 bool ConsensusConnection<CT>::Validate(const M & message)
 {
-    if(_state == ConsensusState::PREPARE)
+    if(message.type == MessageType::Post_Prepare)
     {
         return ValidateSignature(message, *_prepare);
     }
 
-    if(_state == ConsensusState::COMMIT)
+    if(message.type == MessageType::Post_Commit)
     {
-        return ValidateSignature(message, *_commit);
+        if(_state == ConsensusState::COMMIT)
+        {
+            return ValidateSignature(message, *_commit);
+        }
+
+        // We received the PostCommit without
+        // having sent a commit message. We're
+        // out of synch, but we can still validate
+        // the message.
+        return ValidateSignature(message);
     }
 
-    LOG_WARN(_log) << "ConsensusConnection - Attempting to validate "
-                   << MessageToName(message) << " while in "
-                   << StateToString(_state);
+    LOG_ERROR(_log) << "ConsensusConnection - Attempting to validate "
+                    << MessageToName(message) << " while in "
+                    << StateToString(_state);
 
     return false;
 }
@@ -261,6 +284,19 @@ template<typename M, typename S>
 bool ConsensusConnection<CT>::ValidateSignature(const M & m, const S & s)
 {
     if(!_validator.Validate(m, s))
+    {
+        _reason = RejectionReason::Bad_Signature;
+        return false;
+    }
+
+    return true;
+}
+
+template<ConsensusType CT>
+template<typename M>
+bool ConsensusConnection<CT>::ValidateSignature(const M & m)
+{
+    if(!_validator.Validate(m))
     {
         _reason = RejectionReason::Bad_Signature;
         return false;
@@ -285,6 +321,34 @@ bool ConsensusConnection<CT>::ValidateTimestamp(const PrePrepare & message)
     return true;
 }
 
+template<>
+template<>
+bool ConsensusConnection<ConsensusType::BatchStateBlock>::ValidateEpoch(
+    const PrePrepareMessage<ConsensusType::BatchStateBlock> &message)
+{
+    bool valid = true;
+
+    auto delegate = _events_notifier.GetDelegate();
+    auto state = _events_notifier.GetState();
+    auto connect = _events_notifier.GetConnection();
+    if (delegate == EpochTransitionDelegate::PersistentReject ||
+        delegate == EpochTransitionDelegate::RetiringForwardOnly)
+    {
+        _reason = RejectionReason::New_Epoch;
+        valid = false;
+    }
+    else if (state == EpochTransitionState::Connecting &&
+         (delegate == EpochTransitionDelegate::Persistent && // Persistent from new Delegate's set
+            connect == EpochConnection::Transitioning ||
+          delegate == EpochTransitionDelegate::New))
+    {
+        _reason = RejectionReason::Invalid_Epoch;
+        valid = false;
+    }
+
+    return valid;
+}
+
 template<ConsensusType CT>
 template<typename M>
 bool ConsensusConnection<CT>::ProceedWithMessage(const M & message,
@@ -297,6 +361,14 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const M & message,
     }
 
     if(!Validate(message))
+    {
+        return false;
+    }
+
+    // Epoch's validation must be the last, if it fails the request (currently BSB PrePrepare only)
+    // is added with T(10,20) timer to the secondary list, therefore PrePrepare must be valid
+    // TODO epoch # must be changed, hash recalculated, and signed
+    if (!ValidateEpoch(message))
     {
         return false;
     }
@@ -359,7 +431,7 @@ void ConsensusConnection<CT>::HandlePrePrepare(const PrePrepare & message)
 {}
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::HandlePostPrepare(const PostPrepare & message)
+void ConsensusConnection<CT>::OnPostCommit()
 {
     _promoter.OnPostCommit(*_pre_prepare);
 }

@@ -46,3 +46,11 @@ std::shared_ptr<MicroBlock> Micro::readMicroBlock(Store &store, BlockHash &hash)
     }
     return nullptr;
 }
+
+void Micro::dumpMicroBlockTips(Store &store, BlockHash &hash)
+{
+    std::shared_ptr<MicroBlock> micro = Micro::readMicroBlock(store,hash);
+    for(int i = 0; i < NUMBER_DELEGATES; ++i) {
+        std::cout << "Micro::dumpMicroBlockTips: " << micro->tips[i].to_string() << std::endl;
+    }
+}
