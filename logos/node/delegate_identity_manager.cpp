@@ -422,3 +422,4 @@ DelegateIdentityManager::GetCurrentEpoch(BlockStore &store, Epoch &epoch)
         trace_and_halt();
     }
 }
+
