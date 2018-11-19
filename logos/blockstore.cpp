@@ -207,7 +207,7 @@ bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, const T &t, MDB_tx
         memcpy((void*)&t, (void*)reinterpret_cast<T*> (value.data ()),
                value.size());
     }
-  return result;
+    return result;
 }
 
 logos::store_iterator logos::block_store::block_info_begin (MDB_txn * transaction_a, logos::block_hash const & hash_a)
@@ -506,7 +506,7 @@ bool logos::block_store::account_exists (MDB_txn * transaction_a, logos::account
 
 bool logos::block_store::account_get (MDB_txn * transaction_a, logos::account const & account_a, logos::account_info & info_a)
 {
-    return account_get(transaction_a, account_a, info_a, accounts);
+    return account_get(transaction_a, account_a, info_a, account_db);  // remove legacy "accounts" dbi
 }
 
 bool logos::block_store::account_get (MDB_txn * transaction_a, logos::account const & account_a, logos::account_info & info_a, MDB_dbi db)
@@ -827,6 +827,19 @@ void logos::block_store::checksum_del (MDB_txn * transaction_a, uint64_t prefix,
     assert (status == 0);
 }
 
+bool logos::block_store::consensus_block_get (const logos::block_hash & hash, BatchStateBlock & block)
+{
+    return batch_block_get (hash, block);
+}
+bool logos::block_store::consensus_block_get (const logos::block_hash & hash, MicroBlock & block)
+{
+    return micro_block_get (hash, block);
+}
+bool logos::block_store::consensus_block_get (const logos::block_hash & hash, Epoch & block)
+{
+    return epoch_get (hash, block);
+}
+
 bool logos::block_store::batch_block_put (BatchStateBlock const & block, MDB_txn * transaction)
 {
     return batch_block_put(block, block.Hash(), transaction);
@@ -1016,6 +1029,11 @@ bool logos::block_store::receive_put(const block_hash & hash, const state_block 
 
     assert(status == 0);
     return status != 0;
+}
+
+bool logos::block_store::receive_get (const block_hash &hash, state_block & block)
+{
+    return get<state_block>(receive_db, hash, block);
 }
 
 bool logos::block_store::receive_exists(const block_hash & hash)

@@ -67,6 +67,11 @@ public:
             ProposerHash(cb);
         });
     }
+
+    /// JSON representation of Epoch (primarily for RPC messages)
+    std::string SerializeJson() const;
+    void SerializeJson(boost::property_tree::ptree &) const;
+
     static const size_t     HASHABLE_BYTES;              ///< hashable bytes of the epoch - used in signing
     logos::account          account;                     ///< account address of the epoch's proposer
     uint32_t                epoch_number;                ///< epoch number

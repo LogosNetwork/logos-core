@@ -173,7 +173,8 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
                                /* Open    */ state.hash(),
                                /* Amount  */ amount,
                                /* Time    */ logos::seconds_since_epoch(),
-                               /* Count   */ 0
+                               /* Count   */ 0,
+                               /* Receive */ 0
                            },
                            transaction);
     }

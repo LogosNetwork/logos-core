@@ -10,6 +10,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
+#include <logos/node/client_callback.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 

@@ -5,6 +5,7 @@
 #include <logos/lib/interface.h>
 #include <logos/node/common.hpp>
 #include <logos/node/rpc.hpp>
+#include <logos/node/client_callback.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/microblock/microblock.hpp>
 
@@ -621,8 +622,8 @@ logos::node_config::node_config (uint16_t peering_port_a, logos::logging const &
 peering_port (peering_port_a),
 logging (logging_a),
 bootstrap_fraction_numerator (1),
-receive_minimum (logos::xrb_ratio),
-online_weight_minimum (60000 * logos::Gxrb_ratio),
+receive_minimum (logos::lgs_ratio),
+online_weight_minimum (60000 * logos::Glgs_ratio),
 online_weight_quorum (50),
 password_fanout (1024),
 io_threads (std::max<unsigned> (4, std::thread::hardware_concurrency ())),
@@ -755,13 +756,13 @@ bool logos::node_config::upgrade_json (unsigned version, boost::property_tree::p
         }
         case 3:
             tree_a.erase ("receive_minimum");
-            tree_a.put ("receive_minimum", logos::xrb_ratio.convert_to<std::string> ());
+            tree_a.put ("receive_minimum", logos::lgs_ratio.convert_to<std::string> ());
             tree_a.erase ("version");
             tree_a.put ("version", "4");
             result = true;
         case 4:
             tree_a.erase ("receive_minimum");
-            tree_a.put ("receive_minimum", logos::xrb_ratio.convert_to<std::string> ());
+            tree_a.put ("receive_minimum", logos::lgs_ratio.convert_to<std::string> ());
             tree_a.erase ("version");
             tree_a.put ("version", "5");
             result = true;
@@ -1274,7 +1275,7 @@ _identity_manager(store, config.consensus_manager_config),
 _archiver(alarm_a, store, _recall_handler),
 _consensus_container(service_a, store, alarm_a, config.consensus_manager_config, _archiver, _identity_manager)
 {
-
+    BlocksCallback::Instance(service_a, config.callback_address, config.callback_port, config.callback_target, config.logging.callback_logging ());
 // Used to modify the database file with the new account_info field.
 // TODO: remove eventually - can be reused for now
 //    std::ifstream infile("/home/ubuntu/Downloads/blocks3200_accounts");
@@ -1461,7 +1462,8 @@ _consensus_container(service_a, store, alarm_a, config.consensus_manager_config,
                                   /* Open         */ logos_genesis_block.hash(),
                                   /* Amount       */ std::numeric_limits<logos::uint128_t>::max(),
                                   /* Time         */ logos::seconds_since_epoch(),
-                                  /* Count        */ 0
+                                  /* Count        */ 0,
+                                  /* Receive      */ 0
                               },
                               transaction);
             _identity_manager.CreateGenesisAccounts(transaction);
@@ -1493,7 +1495,7 @@ _consensus_container(service_a, store, alarm_a, config.consensus_manager_config,
                     {
                         break;
                     }
-                    BOOST_LOG (log) << "Using bootstrap rep weight: " << account.to_account () << " -> " << weight.format_balance (Mxrb_ratio, 0, true) << " XRB";
+                    BOOST_LOG (log) << "Using bootstrap rep weight: " << account.to_account () << " -> " << weight.format_balance (Mlgs_ratio, 0, true) << " LGS";
                     ledger.bootstrap_weights[account] = weight.number ();
                 }
             }
@@ -1888,13 +1890,13 @@ void logos::node::backup_wallet ()
 
 int logos::node::price (logos::uint128_t const & balance_a, int amount_a)
 {
-    assert (balance_a >= amount_a * logos::Gxrb_ratio);
+    assert (balance_a >= amount_a * logos::Glgs_ratio);
     auto balance_l (balance_a);
     double result (0.0);
     for (auto i (0); i < amount_a; ++i)
     {
-        balance_l -= logos::Gxrb_ratio;
-        auto balance_scaled ((balance_l / logos::Mxrb_ratio).convert_to<double> ());
+        balance_l -= logos::Glgs_ratio;
+        auto balance_scaled ((balance_l / logos::Mlgs_ratio).convert_to<double> ());
         auto units (balance_scaled / 1000.0);
         auto unit_price (((free_cutoff - units) / free_cutoff) * price_max);
         result += std::min (std::max (0.0, unit_price), price_max);

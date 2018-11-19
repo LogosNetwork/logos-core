@@ -30,6 +30,11 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
 
     /// Overide to mirror state_block
     BlockHash hash() const { return Hash(); }
+
+    /// JSON representation of MicroBlock (primarily for RPC messages)
+    std::string SerializeJson() const;
+    void SerializeJson(boost::property_tree::ptree &) const;
+
     static const size_t HASHABLE_BYTES;         ///< hashable bytes of the micrblock - used in signing
     logos::account      account; 	            ///< Delegate who proposed this microblock
     uint32_t            epoch_number; 			///< Current epoch
