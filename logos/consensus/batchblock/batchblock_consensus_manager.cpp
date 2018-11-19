@@ -14,7 +14,8 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
         const Config & config,
         DelegateKeyStore & key_store,
         MessageValidator & validator,
-        EpochEventsNotifier & events_notifier)
+        EpochEventsNotifier & events_notifier,
+        DelegateIdentityManager & id_manager)
     : Manager(service, store, config,
               key_store, validator, events_notifier)
     , _persistence_manager(store)
@@ -176,7 +177,7 @@ BatchBlockConsensusManager::GetStoredCount()
 void
 BatchBlockConsensusManager::InitiateConsensus()
 {
-    _new_epoch_rejection_cnt = 0;
+    _new_epoch_rejections = 0;
 
     _handler.PrepareNextBatch();
 
@@ -292,7 +293,7 @@ BatchBlockConsensusManager::OnRejection(
         break;
     }
     case RejectionReason::New_Epoch:
-       ++_new_epoch_rejection_cnt;
+       ++_new_epoch_rejections;
     case RejectionReason::Clock_Drift:
     case RejectionReason::Bad_Signature:
     case RejectionReason::Invalid_Previous_Hash:
@@ -312,11 +313,14 @@ BatchBlockConsensusManager::OnStateAdvanced()
 void
 BatchBlockConsensusManager::OnPrePrepareRejected()
 {
-    if (_new_epoch_rejection_cnt >= QUORUM_SIZE / 3)
+    if (_new_epoch_rejections >= QUORUM_SIZE / 3)
     {
-        _new_epoch_rejection_cnt = 0;
-        // TODO retiring delegate in ForwardOnly state has to forward to new primary - deferred
+        _new_epoch_rejections = 0;
+
+        // TODO: Retiring delegate in ForwardOnly state
+        //       has to forward to new primary - deferred.
         _events_notifier.OnPrePrepareRejected();
+
         // forward
         return;
     }
