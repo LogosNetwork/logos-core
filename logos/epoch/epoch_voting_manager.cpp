@@ -3,8 +3,10 @@
 /// This file contains definition of the EpochVotingManager class which handles epoch voting
 ///
 
-#include "epoch_voting_manager.hpp"
+#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/node/node.hpp>
+#include <logos/lib/trace.hpp>
 
 #include <unordered_map>
 
@@ -21,7 +23,23 @@ EpochVotingManager::GetNextEpochDelegates(
     // get all delegate in the previous 3 epochs
     if (_store.epoch_tip_get(hash))
     {
-        LOG_ERROR(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch tip";
+        LOG_FATAL(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch tip";
+        trace_and_halt();
+    }
+
+    if (!DelegateIdentityManager::IsEpochTransitionEnabled())
+    {
+        Epoch epoch;
+        if (_store.epoch_get(hash, epoch))
+        {
+            LOG_FATAL(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch: "
+                            << hash.to_string();
+            trace_and_halt();
+        }
+        for (int del = 0; del < NUM_DELEGATES; ++del)
+        {
+            delegates[del] = epoch.delegates[del];
+        }
         return;
     }
 
@@ -29,9 +47,9 @@ EpochVotingManager::GetNextEpochDelegates(
     {
         if (_store.epoch_get(hash, previous_epoch))
         {
-            LOG_ERROR(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch: "
+            LOG_FATAL(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch: "
                             << hash.to_string();
-            return;
+            trace_and_halt();
         }
         hash = previous_epoch.previous;
         for (int del = 0; del < NUM_DELEGATES; ++del)

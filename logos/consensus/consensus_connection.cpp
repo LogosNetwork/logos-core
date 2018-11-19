@@ -102,7 +102,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
     LOG_DEBUG(_log) << "ConsensusConnection<"
                     << ConsensusToName(CT) << ">- Received "
                     << message
-                    << " message.";
+                    << " message from delegate: " << (int)_delegate_ids.remote;
 
     switch (type)
     {
