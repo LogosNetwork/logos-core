@@ -142,8 +142,8 @@ void PrimaryDelegate::OnTimeout(const Error & error,
         LOG_WARN(_log) << timeout_str
                        << " timeout expired during unexpected state."
                        << " state " << StateToString(_state)
-                        << " expected state " << StateToString(expected_state)
-                        << " Aborting timeout.";
+                       << " expected state " << StateToString(expected_state)
+                       << " Aborting timeout.";
         return;
     }
 

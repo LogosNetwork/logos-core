@@ -62,6 +62,7 @@ public:
                  EpochConnection connection,
                  const uint32_t epoch_number,
                  NewEpochEventHandler & event_handler);
+
     ~EpochManager();
 
     uint32_t GetEpochNumber() override { return _epoch_number; }

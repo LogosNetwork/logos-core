@@ -44,7 +44,8 @@ public:
                                Store & store,
                                const Config & config,
                                MessageValidator & validator,
-                               EpochEventsNotifier & events_notifier);
+                               EpochEventsNotifier & events_notifier,
+                               DelegateIdentityManager & id_manager);
 
     virtual ~BatchBlockConsensusManager() {};
 
@@ -171,7 +172,7 @@ private:
     static RequestHandler   _handler;                       ///< Primary queue of batch state blocks.
     Timer                   _init_timer;
     Service &               _service;
-    uint64_t                _sequence       = 0;
-    uint64_t                _channels_bound = 0;
-    uint32_t                _new_epoch_rejection_cnt = 0;   ///< New Epoch rejection message count
+    uint64_t                _sequence             = 0;
+    uint64_t                _channels_bound       = 0;
+    uint32_t                _new_epoch_rejections = 0;      ///< New Epoch rejection message count.
 };
