@@ -156,6 +156,7 @@ protected:
     logos::process_return OnSendRequest(std::shared_ptr<Epoch>) override;
 
 private:
+
     /// Set current epoch id, this is done by the NodeIdentityManager on startup
     /// And by epoch transition logic
     /// @param id epoch id

@@ -52,16 +52,17 @@ class EpochManager : public EpochInfo,
 
 public:
     EpochManager(Service & service,
-                     Store & store,
-                     Alarm & alarm,
-                     const Config & config,
-                     Archiver & archiver,
-                     PeerAcceptorStarter & starter,
-                     std::atomic<EpochTransitionState> & state,
-                     EpochTransitionDelegate delegate,
-                     EpochConnection connection,
-                     const uint32_t epoch_number,
-                     NewEpochEventHandler & event_handler);
+                 Store & store,
+                 Alarm & alarm,
+                 const Config & config,
+                 Archiver & archiver,
+                 PeerAcceptorStarter & starter,
+                 std::atomic<EpochTransitionState> & state,
+                 EpochTransitionDelegate delegate,
+                 EpochConnection connection,
+                 const uint32_t epoch_number,
+                 NewEpochEventHandler & event_handler);
+
     ~EpochManager() {}
 
     uint32_t GetEpochNumber() override { return _epoch_number; }
