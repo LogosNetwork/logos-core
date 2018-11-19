@@ -13,12 +13,12 @@ using uint128_t = boost::multiprecision::uint128_t;
 using uint256_t = boost::multiprecision::uint256_t;
 using uint512_t = boost::multiprecision::uint512_t;
 // SI dividers
-logos::uint128_t const Gxrb_ratio = logos::uint128_t ("1000000000000000000000000000000000"); // 10^33
-logos::uint128_t const Mxrb_ratio = logos::uint128_t ("1000000000000000000000000000000"); // 10^30
-logos::uint128_t const kxrb_ratio = logos::uint128_t ("1000000000000000000000000000"); // 10^27
-logos::uint128_t const xrb_ratio = logos::uint128_t ("1000000000000000000000000"); // 10^24
-logos::uint128_t const mxrb_ratio = logos::uint128_t ("1000000000000000000000"); // 10^21
-logos::uint128_t const uxrb_ratio = logos::uint128_t ("1000000000000000000"); // 10^18
+logos::uint128_t const Glgs_ratio = logos::uint128_t ("1000000000000000000000000000000000"); // 10^33
+logos::uint128_t const Mlgs_ratio = logos::uint128_t ("1000000000000000000000000000000"); // 10^30
+logos::uint128_t const klgs_ratio = logos::uint128_t ("1000000000000000000000000000"); // 10^27
+logos::uint128_t const lgs_ratio = logos::uint128_t ("1000000000000000000000000"); // 10^24
+logos::uint128_t const mlgs_ratio = logos::uint128_t ("1000000000000000000000"); // 10^21
+logos::uint128_t const ulgs_ratio = logos::uint128_t ("1000000000000000000"); // 10^18
 
 union uint128_union
 {

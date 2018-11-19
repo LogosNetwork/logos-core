@@ -60,6 +60,8 @@ bool PersistenceManager::Validate(const logos::state_block & block,
             if(!_store.state_block_exists(block.hashables.previous))
             {
                 result.code = logos::process_result::gap_previous;
+                BOOST_LOG (_log) << "GAP_PREVIOUS: cannot find previous hash " << block.hashables.previous.to_string()
+                                 << "; current account info head is: " << info.head.to_string();
                 return false;
             }
         }
@@ -340,6 +342,7 @@ void PersistenceManager::UpdateDestinationState(
         info.open_block = hash;
     }
 
+    info.receive_count++;
     info.receive_head = hash;
     info.balance = info.balance.number() + block.hashables.amount.number();
     info.modified = logos::seconds_since_epoch();

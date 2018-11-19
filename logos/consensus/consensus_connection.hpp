@@ -7,6 +7,7 @@
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/consensus_state.hpp>
 #include <logos/consensus/consensus_p2p.hpp>
+#include <logos/node/client_callback.hpp>
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/tcp.hpp>

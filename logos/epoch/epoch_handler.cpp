@@ -85,6 +85,15 @@ EpochHandler::ApplyUpdates(
 {
     logos::block_hash  epoch_hash = _store.epoch_put(epoch, transaction);
     _store.epoch_tip_put(epoch_hash, transaction);
+    Epoch previous;
+    if (_store.epoch_get(epoch.previous, previous, transaction))
+    {
+        LOG_FATAL(_log) << "EpochHandler::ApplyUpdate failed to get previous block "
+                        << epoch.previous.to_string();
+        trace_and_halt();
+    }
+    previous.next = epoch_hash;
+    _store.epoch_put(previous, transaction);
     return epoch_hash;
 }
 

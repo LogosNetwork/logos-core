@@ -33,6 +33,7 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
 
     BlockHash Hash() const;
     std::string SerializeJson() const;
+    void SerializeJson(boost::property_tree::ptree &) const;
 
     uint64_t  sequence;
     uint64_t  block_count = 0;

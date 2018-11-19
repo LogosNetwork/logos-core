@@ -25,16 +25,16 @@ EpochManager::EpochManager(Service & service,
     , _new_epoch_handler(handler)
     , _validator(_key_store)
     , _batch_manager(service, store,
-		 config, _key_store, _validator, *this, p2p)
+		     config, _key_store, _validator, *this, p2p)
     , _micro_manager(service, store,
-		 config, _key_store, _validator, archiver, *this, p2p)
+		     config, _key_store, _validator, archiver, *this, p2p)
     , _epoch_manager(service, store,
-		 config, _key_store, _validator, archiver, *this, p2p)
+		     config, _key_store, _validator, archiver, *this, p2p)
     , _netio_manager(
         {
-                {ConsensusType::BatchStateBlock, _batch_manager},
-                {ConsensusType::MicroBlock, _micro_manager},
-                {ConsensusType::Epoch, _epoch_manager}
+            {ConsensusType::BatchStateBlock, _batch_manager},
+            {ConsensusType::MicroBlock, _micro_manager},
+            {ConsensusType::Epoch, _epoch_manager}
         },
         service, alarm, config,
         _key_store, _validator, starter, *this)
@@ -44,7 +44,9 @@ void
 EpochManager::OnPostCommit(
     uint32_t epoch_number)
 {
-    if (_delegate == EpochTransitionDelegate::Persistent)
+    // Persistent in the new Delegate's set
+    if (_delegate == EpochTransitionDelegate::Persistent &&
+            _connection_state == EpochConnection::Transitioning)
     {
         _new_epoch_handler.OnPostCommit(epoch_number);
     }
@@ -53,8 +55,11 @@ EpochManager::OnPostCommit(
 void
 EpochManager::OnPrePrepareRejected()
 {
+    // Retiring or Persistent in the old Delegate's set
+    // received 1/3 PostCommit reject with New_Epoch error
     if (_delegate == EpochTransitionDelegate::Retiring ||
-        _delegate == EpochTransitionDelegate::Persistent)
+        _delegate == EpochTransitionDelegate::Persistent &&
+            _connection_state == EpochConnection::Current)
     {
         _new_epoch_handler.OnPrePrepareRejected(_delegate);
     }

@@ -15,77 +15,77 @@
 #include <cstring>
 
 extern "C" {
-void xrb_uint128_to_dec (xrb_uint128 source, char * destination)
+void lgs_uint128_to_dec(lgs_uint128 source, char *destination)
 {
     auto const & number (*reinterpret_cast<logos::uint128_union *> (source));
     strncpy (destination, number.to_string_dec ().c_str (), 32);
 }
 
-void xrb_uint256_to_string (xrb_uint256 source, char * destination)
+void lgs_uint256_to_string(lgs_uint256 source, char *destination)
 {
     auto const & number (*reinterpret_cast<logos::uint256_union *> (source));
     strncpy (destination, number.to_string ().c_str (), 64);
 }
 
-void xrb_uint256_to_address (xrb_uint256 source, char * destination)
+void lgs_uint256_to_address(lgs_uint256 source, char *destination)
 {
     auto const & number (*reinterpret_cast<logos::uint256_union *> (source));
     strncpy (destination, number.to_account ().c_str (), 65);
 }
 
-void xrb_uint512_to_string (xrb_uint512 source, char * destination)
+void lgs_uint512_to_string(lgs_uint512 source, char *destination)
 {
     auto const & number (*reinterpret_cast<logos::uint512_union *> (source));
     strncpy (destination, number.to_string ().c_str (), 128);
 }
 
-int xrb_uint128_from_dec (const char * source, xrb_uint128 destination)
+int lgs_uint128_from_dec(const char *source, lgs_uint128 destination)
 {
     auto & number (*reinterpret_cast<logos::uint128_union *> (destination));
     auto error (number.decode_dec (source));
     return error ? 1 : 0;
 }
 
-int xrb_uint256_from_string (const char * source, xrb_uint256 destination)
+int lgs_uint256_from_string(const char *source, lgs_uint256 destination)
 {
     auto & number (*reinterpret_cast<logos::uint256_union *> (destination));
     auto error (number.decode_hex (source));
     return error ? 1 : 0;
 }
 
-int xrb_uint512_from_string (const char * source, xrb_uint512 destination)
+int lgs_uint512_from_string(const char *source, lgs_uint512 destination)
 {
     auto & number (*reinterpret_cast<logos::uint512_union *> (destination));
     auto error (number.decode_hex (source));
     return error ? 1 : 0;
 }
 
-int xrb_valid_address (const char * account_a)
+int lgs_valid_address(const char *account_a)
 {
     logos::uint256_union account;
     auto error (account.decode_account (account_a));
     return error ? 1 : 0;
 }
 
-void xrb_generate_random (xrb_uint256 seed)
+void lgs_generate_random(lgs_uint256 seed)
 {
     auto & number (*reinterpret_cast<logos::uint256_union *> (seed));
     logos::random_pool.GenerateBlock (number.bytes.data (), number.bytes.size ());
 }
 
-void xrb_seed_key (xrb_uint256 seed, int index, xrb_uint256 destination)
+void lgs_seed_key(lgs_uint256 seed, int index, lgs_uint256 destination)
 {
     auto & seed_l (*reinterpret_cast<logos::uint256_union *> (seed));
     auto & destination_l (*reinterpret_cast<logos::uint256_union *> (destination));
     logos::deterministic_key (seed_l, index, destination_l);
 }
 
-void xrb_key_account (const xrb_uint256 key, xrb_uint256 pub)
+void lgs_key_account(const lgs_uint256 key, lgs_uint256 pub)
 {
     ed25519_publickey (key, pub);
 }
 
-char * xrb_sign_transaction (const char * transaction, const xrb_uint256 private_key)
+char * lgs_sign_transaction(const char *transaction, const lgs_uint256 private_key)
 {
     char * result (nullptr);
     try
@@ -113,7 +113,7 @@ char * xrb_sign_transaction (const char * transaction, const xrb_uint256 private
     return result;
 }
 
-char * xrb_work_transaction (const char * transaction)
+char * lgs_work_transaction(const char *transaction)
 {
     char * result (nullptr);
     try

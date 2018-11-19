@@ -185,12 +185,17 @@ logos::block_hash logos::block_store::put(MDB_dbi &db, const T &t, MDB_txn *tran
 }
 
 template<typename T>
-bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, const T &t)
+bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, const T &t, MDB_txn *tx)
 {
     logos::mdb_val value;
-    logos::transaction transaction(environment, nullptr, false);
 
-    auto status (mdb_get (transaction, db, key, value));
+    int status = 0;
+    if (tx == 0) {
+        logos::transaction transaction(environment, nullptr, false);
+        status = mdb_get(transaction, db, key, value);
+    } else {
+        status = mdb_get(tx, db, key, value);
+    }
     assert (status == 0 || status == MDB_NOTFOUND);
     bool result = false;
     if (status == MDB_NOTFOUND)
@@ -202,7 +207,7 @@ bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, const T &t)
         memcpy((void*)&t, (void*)reinterpret_cast<T*> (value.data ()),
                value.size());
     }
-  return result;
+    return result;
 }
 
 logos::store_iterator logos::block_store::block_info_begin (MDB_txn * transaction_a, logos::block_hash const & hash_a)
@@ -502,7 +507,7 @@ bool logos::block_store::account_exists (MDB_txn * transaction_a, logos::account
 
 bool logos::block_store::account_get (MDB_txn * transaction_a, logos::account const & account_a, logos::account_info & info_a)
 {
-    return account_get(transaction_a, account_a, info_a, accounts);
+    return account_get(transaction_a, account_a, info_a, account_db);  // remove legacy "accounts" dbi
 }
 
 bool logos::block_store::account_get (MDB_txn * transaction_a, logos::account const & account_a, logos::account_info & info_a, MDB_dbi db)
@@ -823,6 +828,19 @@ void logos::block_store::checksum_del (MDB_txn * transaction_a, uint64_t prefix,
     assert (status == 0);
 }
 
+bool logos::block_store::consensus_block_get (const logos::block_hash & hash, BatchStateBlock & block)
+{
+    return batch_block_get (hash, block);
+}
+bool logos::block_store::consensus_block_get (const logos::block_hash & hash, MicroBlock & block)
+{
+    return micro_block_get (hash, block);
+}
+bool logos::block_store::consensus_block_get (const logos::block_hash & hash, Epoch & block)
+{
+    return epoch_get (hash, block);
+}
+
 bool logos::block_store::batch_block_put (BatchStateBlock const & block, MDB_txn * transaction)
 {
     return batch_block_put(block, block.Hash(), transaction);
@@ -918,9 +936,9 @@ logos::block_hash logos::block_store::micro_block_put(MicroBlock const &block, M
     return put<MicroBlock>(micro_block_db, block, transaction);
 }
 
-bool logos::block_store::micro_block_get(const logos::block_hash &hash, MicroBlock &block)
+bool logos::block_store::micro_block_get(const logos::block_hash &hash, MicroBlock &block, MDB_txn *transaction)
 {
-  return get<MicroBlock>(micro_block_db, mdb_val(hash), block);
+  return get<MicroBlock>(micro_block_db, mdb_val(hash), block, transaction);
 }
 
 void logos::block_store::micro_block_tip_put(const block_hash& hash, MDB_txn *transaction)
@@ -929,17 +947,17 @@ void logos::block_store::micro_block_tip_put(const block_hash& hash, MDB_txn *tr
     put<block_hash>(micro_block_tip_db, logos::mdb_val(sizeof(key),const_cast<uint8_t*>(&key)), hash, transaction);
 }
 
-bool logos::block_store::micro_block_tip_get(const block_hash &hash)
+bool logos::block_store::micro_block_tip_get(const block_hash &hash, MDB_txn *transaction)
 {
   const uint8_t i = 0; // only one tip
   mdb_val key(sizeof(i), const_cast<uint8_t*>(&i));
-  return get<block_hash>(micro_block_tip_db, key, hash);
+  return get<block_hash>(micro_block_tip_db, key, hash, transaction);
 }
 
-bool logos::block_store::micro_block_exists(const logos::block_hash &hash)
+bool logos::block_store::micro_block_exists(const logos::block_hash &hash, MDB_txn *transaction)
 {
     MicroBlock mb;
-    return (false == micro_block_get(hash, mb));
+    return (false == micro_block_get(hash, mb, transaction));
 }
 
 logos::block_hash logos::block_store::epoch_put(Epoch const &block, MDB_txn *transaction)
@@ -947,9 +965,9 @@ logos::block_hash logos::block_store::epoch_put(Epoch const &block, MDB_txn *tra
     return put<Epoch>(epoch_db, block, transaction);
 }
 
-bool logos::block_store::epoch_get(logos::block_hash &hash, Epoch &block)
+bool logos::block_store::epoch_get(const logos::block_hash &hash, Epoch &block, MDB_txn *transaction)
 {
-  return get<Epoch>(epoch_db, mdb_val(hash), block);
+  return get<Epoch>(epoch_db, mdb_val(hash), block, transaction);
 }
 
 void logos::block_store::epoch_tip_put(const block_hash& hash, MDB_txn *transaction)
@@ -958,11 +976,11 @@ void logos::block_store::epoch_tip_put(const block_hash& hash, MDB_txn *transact
     put<block_hash>(epoch_tip_db, logos::mdb_val(sizeof(key),const_cast<uint8_t*>(&key)), hash, transaction);
 }
 
-bool logos::block_store::epoch_tip_get(block_hash &hash)
+bool logos::block_store::epoch_tip_get(block_hash &hash, MDB_txn *transaction)
 {
   const uint8_t i = 0; // only one tip
   mdb_val key(sizeof(i), const_cast<uint8_t*>(&i));
-  return get<block_hash>(epoch_tip_db, key, hash);
+  return get<block_hash>(epoch_tip_db, key, hash, transaction);
 }
 
 bool logos::block_store::account_get(logos::account const & account_a, account_info & info_a)
@@ -1012,6 +1030,11 @@ bool logos::block_store::receive_put(const block_hash & hash, const state_block 
 
     assert(status == 0);
     return status != 0;
+}
+
+bool logos::block_store::receive_get (const block_hash &hash, state_block & block)
+{
+    return get<state_block>(receive_db, hash, block);
 }
 
 bool logos::block_store::receive_exists(const block_hash & hash)

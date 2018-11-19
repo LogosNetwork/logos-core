@@ -13,6 +13,7 @@
 uint8_t DelegateIdentityManager::_global_delegate_idx = 0;
 logos::account DelegateIdentityManager::_delegate_account = 0;
 DelegateIdentityManager::IPs DelegateIdentityManager::_delegates_ip;
+bool DelegateIdentityManager::_epoch_transition_enabled = true;
 
 DelegateIdentityManager::DelegateIdentityManager(Store &store,
                                          const Config &config)
@@ -27,6 +28,22 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
 {
     logos::block_hash epoch_hash(0);
     logos::block_hash microblock_hash(0);
+    MDB_txn *tx = transaction;
+    // passed in block is overwritten
+    auto update = [this, tx](auto msg, auto &block, const BlockHash &next, auto get, auto put) mutable->void{
+        if (block.previous != 0)
+        {
+            if ((_store.*get)(block.previous, block, tx))
+            {
+                LOG_FATAL(_log) << "update failed to get previous " << msg << " "
+                                << block.previous.to_string();
+                trace_and_halt();
+                return;
+            }
+            block.next = next;
+            (_store.*put)(block, tx);
+        }
+    };
     for (int e = 0; e <= GENESIS_EPOCH; e++)
     {
         Epoch epoch;
@@ -41,6 +58,8 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
 
         microblock_hash = _store.micro_block_put(micro_block, transaction);
         _store.micro_block_tip_put(microblock_hash, transaction);
+        update("micro block", micro_block, microblock_hash,
+               &BlockStore::micro_block_get, &BlockStore::micro_block_put);
 
         epoch.epoch_number = e;
         epoch.timestamp = 0;
@@ -49,9 +68,9 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         epoch.previous = epoch_hash;
         for (uint8_t i = 0; i < NUM_DELEGATES; ++i) {
             Delegate delegate = {0, 0, 0};
-            if (e != 0)
+            if (e != 0 || !_epoch_transition_enabled)
             {
-                uint8_t del = i + (e - 1) * 8;
+                uint8_t del = i + (e - 1) * 8 * _epoch_transition_enabled;
                 char buff[5];
                 sprintf(buff, "%02x", del + 1);
                 logos::keypair pair(buff);
@@ -62,6 +81,8 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
 
         epoch_hash = _store.epoch_put(epoch, transaction);
         _store.epoch_tip_put(epoch_hash, transaction);
+        update("epoch", epoch, epoch_hash,
+               &BlockStore::epoch_get, &BlockStore::epoch_put);
     }
 }
 
@@ -69,6 +90,8 @@ void
 DelegateIdentityManager::Init(const Config &config)
 {
     logos::transaction transaction (_store.environment, nullptr, true);
+
+    _epoch_transition_enabled = config.all_delegates.size() == 2 * config.delegates.size();
 
     logos::block_hash epoch_tip;
     uint16_t epoch_number = 0;
@@ -150,7 +173,8 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
                                /* Open    */ state.hash(),
                                /* Amount  */ amount,
                                /* Time    */ logos::seconds_since_epoch(),
-                               /* Count   */ 0
+                               /* Count   */ 0,
+                               /* Receive */ 0
                            },
                            transaction);
     }
@@ -285,4 +309,30 @@ DelegateIdentityManager::StaleEpoch()
     auto now_msec = GetStamp();
     auto rem = Seconds(now_msec % TConvert<Milliseconds>(EPOCH_PROPOSAL_TIME).count());
     return (rem < MICROBLOCK_PROPOSAL_TIME);
+}
+
+void
+DelegateIdentityManager::GetCurrentEpoch(BlockStore &store, Epoch &epoch)
+{
+    BlockHash hash;
+
+    if (store.epoch_tip_get(hash))
+    {
+        trace_and_halt();
+    }
+
+    if (store.epoch_get(hash, epoch))
+    {
+        trace_and_halt();
+    }
+
+    if (StaleEpoch())
+    {
+        return;
+    }
+
+    if (store.epoch_get(hash, epoch))
+    {
+        trace_and_halt();
+    }
 }

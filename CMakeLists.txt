@@ -349,6 +349,8 @@ add_library (node
 	logos/microblock/microblock_tester.cpp
 	logos/node/bootstrap.cpp
 	logos/node/bootstrap.hpp
+	logos/node/client_callback.cpp
+	logos/node/client_callback.hpp
 	logos/node/common.cpp
 	logos/node/common.hpp
 	logos/node/node.hpp

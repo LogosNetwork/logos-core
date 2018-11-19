@@ -270,7 +270,8 @@ MicroBlockHandler::Validate(
     // block exists
     if (_store.micro_block_exists(hash))
     {
-        LOG_WARN(_log) << "MicroBlockHandler::VerifyMicroBlock micro block exists";
+        LOG_WARN(_log) << "MicroBlockHandler::VerifyMicroBlock micro block exists "
+                       << hash.to_string();
         return true;
     }
 
@@ -279,7 +280,8 @@ MicroBlockHandler::Validate(
     if (_store.account_get(block.account, info))
     {
         LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock account doesn't exist "
-                        << block.account.to_account();
+                        << " hash " << hash.to_string()
+                        << " account " << block.account.to_account();
         return false;
     }
 
@@ -290,13 +292,15 @@ MicroBlockHandler::Validate(
     if (_store.micro_block_get(block.previous, previous_microblock))
     {
         LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock previous doesn't exist "
-                        << block.previous.to_string();
+                        << " hash " << hash.to_string()
+                        << " previous " << block.previous.to_string();
         return false;
     }
 
     if (_store.epoch_tip_get(hash))
     {
-        LOG_FATAL(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get epoch tip";
+        LOG_FATAL(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get epoch tip "
+                        << " hash " << hash.to_string();
         trace_and_halt();
     }
 
@@ -312,9 +316,11 @@ MicroBlockHandler::Validate(
     {
         if (block.sequence != (previous_microblock.sequence + 1))
         {
-            LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock epoch number failed epoch #:"
-                            << block.epoch_number << " block #:" << block.sequence
-                            << " previous block #:" << previous_microblock.sequence;
+            LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock failed, invalid sequence # "
+                            << " hash " << block.hash().to_string()
+                            << " epoch #: " << block.epoch_number << " block seq #:" << block.sequence
+                            << " previous block seq #:" << previous_microblock.sequence
+                            << " previous hash " << block.previous.to_string();
             return false;
         }
     }
@@ -322,9 +328,11 @@ MicroBlockHandler::Validate(
     else if (block.epoch_number != (previous_microblock.epoch_number + 1) ||
             block.sequence != 0)
     {
-        LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock epoch number failed epoch #:"
-                        << block.epoch_number << " previous block epoch #:"
-                        << previous_microblock.epoch_number << " block #:" << block.sequence;
+        LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock failed, bad epoch number or sequence not 0 "
+                        << " hash " << block.hash().to_string()
+                        << " epoch #: " << block.epoch_number << " previous block epoch #:"
+                        << previous_microblock.epoch_number << " block seq #:" << block.sequence
+                        << " previous hash " << block.previous.to_string();
         return false;
     }
 
@@ -338,7 +346,9 @@ MicroBlockHandler::Validate(
             (!_recall_handler.IsRecall() && abs(tdiff) > CLOCK_DRIFT.count() ||
              _recall_handler.IsRecall() && block.timestamp <= previous_microblock.timestamp))
     {
-        LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock bad timestamp block ts:" << block.timestamp
+        LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock failed, bad timestamp block ts:"
+                        << " hash " << block.hash().to_string()
+                        << " timstamp " << block.timestamp
                         << " previous block ts:" << previous_microblock.timestamp << " tdiff: " << tdiff
                         << " epoch # : " << block.epoch_number << " microblock #: " << block.sequence;
         return false;
@@ -357,7 +367,8 @@ MicroBlockHandler::Validate(
     if (number_batch_blocks != block.number_batch_blocks)
     {
         LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock number of batch blocks doesn't match in block: "
-                        << block.number_batch_blocks << " to database: " << number_batch_blocks;
+                        << " hash " << block.hash().to_string()
+                        << " block " << block.number_batch_blocks << " to database: " << number_batch_blocks;
         return false;
     }
 
@@ -367,9 +378,10 @@ MicroBlockHandler::Validate(
     {
         if (block.tips[del] != 0 && _store.batch_block_get(block.tips[del], bsb))
         {
-            LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get batch tip: "
+            LOG_FATAL(_log) << "MicroBlockHandler::VerifyMicroBlock failed to get batch tip: "
+                            << block.hash().to_string() << " "
                             << block.tips[del].to_string();
-            return false;
+            trace_and_halt();
         }
     }
 
@@ -389,6 +401,16 @@ MicroBlockHandler::ApplyUpdates(const MicroBlock &block, const logos::transactio
 
     BlockHash hash = _store.micro_block_put(block, transaction);
     _store.micro_block_tip_put(hash, transaction);
-    LOG_INFO(_log) << "MicroBlockHandler::ApplyUpdates hash: " << hash.to_string();
+    MicroBlock previous;
+    if (_store.micro_block_get(block.previous, previous, transaction))
+    {
+        LOG_FATAL(_log) << "MicroBlockHandler::ApplyUpdates failed to get previous block "
+                        << block.previous.to_string();
+        trace_and_halt();
+    }
+    previous.next = hash;
+    hash = _store.micro_block_put(previous, transaction);
+    LOG_INFO(_log) << "MicroBlockHandler::ApplyUpdates hash: " << hash.to_string()
+                   << " previous " << hash.to_string();
     return hash;
 }

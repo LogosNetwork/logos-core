@@ -19,8 +19,9 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
         , last_micro_block(0)
         , number_batch_blocks(0)
         , tips{0}
+        , next(0)
+        , signature{0}
         {
-            signature={0};
             previous = 0;
         }
 
@@ -29,6 +30,11 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
 
     /// Overide to mirror state_block
     BlockHash hash() const { return Hash(); }
+
+    /// JSON representation of MicroBlock (primarily for RPC messages)
+    std::string SerializeJson() const;
+    void SerializeJson(boost::property_tree::ptree &) const;
+
     static const size_t HASHABLE_BYTES;         ///< hashable bytes of the micrblock - used in signing
     logos::account      account; 	            ///< Delegate who proposed this microblock
     uint32_t            epoch_number; 			///< Current epoch
@@ -38,5 +44,6 @@ struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Micro
     uint32_t            number_batch_blocks;    ///< Number of batch blocks in the microblock
     uint32_t            padding2 = 0;           ///< padding
     BlockHash           tips[NUM_DELEGATES];    ///< Delegate's batch block tips
+    BlockHash           next;                   ///< Next block reference
     Signature           signature; 		        ///< Multisignature
 };

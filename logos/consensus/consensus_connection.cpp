@@ -111,7 +111,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
     LOG_DEBUG(_log) << "ConsensusConnection<"
                     << ConsensusToName(CT) << ">- Received "
                     << message
-                    << " message.";
+                    << " message from delegate: " << (int)_delegate_ids.remote;
 
     switch (type)
     {
@@ -213,6 +213,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
 
         OnPostCommit();
         ApplyUpdates(*_pre_prepare, _delegate_ids.remote);
+        BlocksCallback::Callback<CT>(*_pre_prepare);
 
         _state = ConsensusState::VOID;
         _prev_pre_prepare_hash = _pre_prepare_hash;
@@ -343,6 +344,7 @@ bool ConsensusConnection<ConsensusType::BatchStateBlock>::ValidateEpoch(
 
     auto delegate = _events_notifier.GetDelegate();
     auto state = _events_notifier.GetState();
+    auto connect = _events_notifier.GetConnection();
     if (delegate == EpochTransitionDelegate::PersistentReject ||
         delegate == EpochTransitionDelegate::RetiringForwardOnly)
     {
@@ -350,7 +352,8 @@ bool ConsensusConnection<ConsensusType::BatchStateBlock>::ValidateEpoch(
         valid = false;
     }
     else if (state == EpochTransitionState::Connecting &&
-         (delegate == EpochTransitionDelegate::Persistent ||
+         (delegate == EpochTransitionDelegate::Persistent && // Persistent from new Delegate's set
+            connect == EpochConnection::Transitioning ||
           delegate == EpochTransitionDelegate::New))
     {
         _reason = RejectionReason::Invalid_Epoch;

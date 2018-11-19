@@ -47,7 +47,7 @@ public:
 
 protected:
 
-    static constexpr uint8_t QUORUM_SIZE = 31;
+    static constexpr uint8_t QUORUM_SIZE = NUM_DELEGATES - 1;
 
     virtual void UpdateVotes();
 

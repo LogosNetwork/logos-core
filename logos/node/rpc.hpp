@@ -5,6 +5,7 @@
 #include <boost/beast.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
+#include <logos/node/node.hpp>
 #include <logos/node/utility.hpp>
 #include <unordered_map>
 
@@ -118,10 +119,10 @@ public:
     void account_block_count ();
     void account_count ();
     void account_create ();
-    void account_get ();
+    void account_from_key ();
     void account_history ();
     void account_info ();
-    void account_key ();
+    void account_to_key ();
     void account_list ();
     void account_move ();
     void account_remove ();
@@ -133,10 +134,11 @@ public:
     void accounts_frontiers ();
     void accounts_pending ();
     void available_supply ();
+    void batch_blocks ();
+    void batch_blocks_latest ();
     void block ();
     //CH void block_confirm ();
     void blocks ();
-    void blocks_info ();
     void block_account ();
     void block_count ();
     void block_count_type ();
@@ -146,9 +148,13 @@ public:
     void bootstrap_any ();
     void chain ();
     //CH void confirmation_history ();
+    template <typename  CT>
+    void consensus_blocks ();
     void delegators ();
     void delegators_count ();
     void deterministic_key ();
+    void epochs ();
+    void epochs_latest ();
     void frontiers ();
     void history ();
     void keepalive ();
@@ -157,6 +163,8 @@ public:
     void krai_to_raw ();
     void krai_from_raw ();
     void ledger ();
+    void micro_blocks ();
+    void micro_blocks_latest ();
     void mrai_to_raw ();
     void mrai_from_raw ();
     void password_change ();
