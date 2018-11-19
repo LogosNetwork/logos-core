@@ -5,7 +5,6 @@
 #include <logos/node/stats.hpp>
 #include <logos/node/wallet.hpp>
 #include <logos/node/bootstrap.hpp>
-#include <logos/node/client_callback.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/epoch/recall_handler.hpp>
 #include <logos/node/delegate_identity_manager.hpp>

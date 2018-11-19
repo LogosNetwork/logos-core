@@ -5,6 +5,7 @@
 #include <logos/lib/interface.h>
 #include <logos/node/common.hpp>
 #include <logos/node/rpc.hpp>
+#include <logos/node/client_callback.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/microblock/microblock.hpp>
 
