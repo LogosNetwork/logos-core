@@ -246,10 +246,11 @@ MicroBlockTester::informational(
         uint64_t tip = (uint64_t) &(epoch.micro_block_tip);
         uint64_t fee = (uint64_t) &(epoch.transaction_fee_pool);
         uint64_t del = (uint64_t) &(epoch.delegates);
+        uint64_t next = (uint64_t) &(epoch.next);
         uint64_t sig = (uint64_t) &(epoch.signature);
         str << "epoch offsets: account " << (account - start) << " enumber " << (enumber - start)
             << " tip " << (tip - start) << " fee " << (fee - start) << " delegates " << (del - start)
-            << " sig " << (sig - start) << " size " << sizeof(epoch);
+            << " next " << (next - start) << " sig " << (sig - start) << " size " << sizeof(epoch);
         response_l.put("result", str.str());
     }
     else if (type == "microblock")

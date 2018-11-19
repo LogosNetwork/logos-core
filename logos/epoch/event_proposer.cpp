@@ -46,7 +46,7 @@ EventProposer::ProposeMicroBlock(MicroCb cb)
 {
     EpochTimeUtil util;
 
-    std::chrono::seconds lapse = util.GetNextMicroBlockTime(_skip_micro_block);
+    auto lapse = util.GetNextMicroBlockTime(_skip_micro_block);
     _skip_micro_block = false;
     _alarm.add(std::chrono::steady_clock::now() + lapse, [this, cb]()mutable->void{
         cb();
@@ -59,7 +59,7 @@ EventProposer::ProposeTransition(TransitionCb cb, bool next)
 {
     EpochTimeUtil util;
 
-    Seconds lapse = util.GetNextEpochTime(_skip_transition || _recall_handler.IsRecall());
+    auto lapse = util.GetNextEpochTime(_skip_transition || _recall_handler.IsRecall());
     if (next && lapse <= EPOCH_DELEGATES_CONNECT)
     {
         lapse += EPOCH_PROPOSAL_TIME;
