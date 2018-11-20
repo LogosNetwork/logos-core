@@ -38,6 +38,7 @@ class RequestPromoter
     using Store      = logos::block_store;
 
 protected:
+
     using Request    = RequestMessage<CT>;
     using PrePrepare = PrePrepareMessage<CT>;
 
@@ -162,7 +163,6 @@ protected:
     MessageValidator &              _validator;
     std::mutex                      _connection_mutex;
     Log                             _log;
-    uint8_t                         _delegate_id;
     SecondaryRequestHandler<CT> &   _secondary_handler;    ///< Secondary queue of blocks.
     EpochEventsNotifier &           _events_notifier;      ///< Notifies epoch manager of transition related events
 };

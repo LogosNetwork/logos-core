@@ -15,8 +15,6 @@ template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusTy
 template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Epoch>&);
 template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Epoch>&);
 
-constexpr uint8_t PrimaryDelegate::QUORUM_SIZE;
-
 const PrimaryDelegate::Seconds PrimaryDelegate::PRIMARY_TIMEOUT{60};
 const PrimaryDelegate::Seconds PrimaryDelegate::RECALL_TIMEOUT{300};
 
@@ -189,6 +187,20 @@ void PrimaryDelegate::Send()
     Send(&response, sizeof(response));
 }
 
+void PrimaryDelegate::OnCurrentEpochSet()
+{
+    for(uint64_t pos = 0; pos < NUM_DELEGATES; ++pos)
+    {
+        auto & delegate = _current_epoch.delegates[pos];
+        auto sum = delegate.stake + delegate.vote;
+
+        _total_weight += sum;
+        _weights[pos] = sum;
+    }
+
+    _my_weight = _weights[_delegate_id];
+}
+
 void PrimaryDelegate::UpdateVotes()
 {}
 
@@ -219,7 +231,7 @@ void PrimaryDelegate::CancelTimer()
 
 bool PrimaryDelegate::ReachedQuorum()
 {
-    return _prepare_weight >= QUORUM_SIZE;
+    return _prepare_weight >= 2 * (_total_weight/3);
 }
 
 bool PrimaryDelegate::AllDelegatesResponded()
@@ -248,7 +260,7 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
         // aggregated.
         if(message.type != MessageType::Rejection)
         {
-            _prepare_weight++;
+            _prepare_weight += _weights[_cur_delegate_id];
             _signatures.push_back({_cur_delegate_id,
                                    message.signature});
         }
@@ -274,7 +286,7 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
 void PrimaryDelegate::AdvanceState(ConsensusState new_state)
 {
     _state = new_state;
-    _prepare_weight = 0;
+    _prepare_weight = _my_weight;
     _delegates_responded = 0;
     _signatures.clear();
 

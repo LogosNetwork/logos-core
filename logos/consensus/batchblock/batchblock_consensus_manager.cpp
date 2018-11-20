@@ -14,8 +14,7 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
         const Config & config,
         DelegateKeyStore & key_store,
         MessageValidator & validator,
-        EpochEventsNotifier & events_notifier,
-        DelegateIdentityManager & id_manager)
+        EpochEventsNotifier & events_notifier)
     : Manager(service, store, config,
               key_store, validator, events_notifier)
     , _persistence_manager(store)
@@ -61,8 +60,9 @@ BatchBlockConsensusManager::BindIOChannel(
                     _validator, ids, _service, _events_notifier);
 
     _connections.push_back(connection);
-	
-    if(++_channels_bound == QUORUM_SIZE)
+    _connected_weight += PrimaryDelegate::_weights[ids.remote];
+
+    if(_connected_weight >= 2 * (_total_weight/3))
     {
         OnDelegatesConnected();
     }
@@ -261,21 +261,16 @@ BatchBlockConsensusManager::OnRejection(
                 _weights[i].indirect_support_weight++;
                 _weights[i].supporting_delegates.insert(_cur_delegate_id);
 
-                if(_weights[i].indirect_support_weight + _prepare_weight >= QUORUM_SIZE)
+                if(_weights[i].indirect_support_weight + _prepare_weight >= 2 * (_total_weight/3))
                 {
                     _hashes.erase(batch.blocks[i].hash());
                 }
             }
             else
             {
-                // TODO: Replace with total pool of delegate
-                //       weights defined by epoch block.
-                //
-                uint64_t total_weight = 32;
-
                 _weights[i].reject_weight++;
 
-                if(_weights[i].reject_weight > total_weight/3.0)
+                if(_weights[i].reject_weight > _total_weight/3)
                 {
                     _hashes.erase(batch.blocks[i].hash());
                 }
@@ -313,7 +308,7 @@ BatchBlockConsensusManager::OnStateAdvanced()
 void
 BatchBlockConsensusManager::OnPrePrepareRejected()
 {
-    if (_new_epoch_rejections >= QUORUM_SIZE / 3)
+    if (_new_epoch_rejections >= _total_weight / 3)
     {
         _new_epoch_rejections = 0;
 
@@ -347,7 +342,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
         // delegates that approve of the request at
         // index i collectively have enough weight to
         // get this request post-committed.
-        if(_prepare_weight + _weights[i].indirect_support_weight >= QUORUM_SIZE)
+        if(_prepare_weight + _weights[i].indirect_support_weight >= 2 * (_total_weight/3))
         {
             // Was any other request approved by
             // exactly the same set of delegates?

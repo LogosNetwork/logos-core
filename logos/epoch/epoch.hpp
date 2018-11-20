@@ -35,8 +35,8 @@ public:
         , transaction_fee_pool(0)
         , delegates{0}
         , next(0)
-        , signature{0}
     {
+        signature.fill(0);
         previous = 0;
     }
     ~Epoch() {}
