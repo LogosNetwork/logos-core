@@ -1641,6 +1641,9 @@ std::map<logos::endpoint, unsigned> logos::peer_container::list_version ()
     return result;
 }
 
+// ConsensusManagerConfig
+// FIXME TODO use config.consensus_manager_config, take a delegate from the vector at random
+//            create an endpoint and return
 logos::endpoint logos::peer_container::bootstrap_peer ()
 {
     logos::endpoint result (boost::asio::ip::address_v6::any (), 0);

@@ -271,7 +271,7 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
             // Get Epoch blocks...
 	        if(epoch_seq < tips->epoch_block_seq_number || pull_epoch_block) {
 	            // I have less sequence number than my peer, I am behind...
-                if(epoch_seq == 0) {
+                if((epoch_seq == 0) && (epoch_tip == tips->epoch_block_tip)) {
 	                connection->attempt->add_pull(logos::pull_info(0,0,
 	                         0,0,
 	                         tips->delegate_id,tips->epoch_block_tip,tips->epoch_block_tip,
@@ -316,7 +316,7 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
             // Get micro blocks...
 	        if(micro_seq < tips->micro_block_seq_number || pull_micro_block) {
 	            // I have less sequence number than my peer, I am behind...
-                if(micro_seq == 0) {
+                if((micro_seq == 0) && (micro_tip == tips->micro_block_tip)) {
 	                connection->attempt->add_pull(logos::pull_info(0,0,
 	                         0,0,
 	                         tips->delegate_id,

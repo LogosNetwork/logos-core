@@ -907,6 +907,7 @@ bool logos::block_store::batch_block_get(const logos::block_hash & hash, std::sh
         block->block_count = ptr->block_count;
         block->next = ptr->next;
         block->signature = ptr->signature;
+        block->epoch_number = ptr->epoch_number;
         for(int i = 0; i < ptr->block_count; ++i) {
             block->blocks[i] = ptr->blocks[i];
         }
@@ -964,6 +965,7 @@ bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchSt
         BatchStateBlock *ptr = reinterpret_cast<BatchStateBlock *>(value.data());
         block.sequence = ptr->sequence;
         block.block_count = ptr->block_count;
+        block.epoch_number = ptr->epoch_number;
         block.next = ptr->next;
         block.signature = ptr->signature;
         //memcpy(&block.blocks,&ptr->blocks,sizeof(ptr->blocks[0]) * 1500);

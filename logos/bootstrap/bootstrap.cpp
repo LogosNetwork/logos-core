@@ -102,6 +102,7 @@ void logos::bootstrap_client::stop (bool force)
 #ifdef _DEBUG
     std::cout << "logos::bootstrap_client::stop:" << std::endl;
 #endif
+    do_backtrace();
 	pending_stop = true;
 	if (force)
 	{
@@ -561,7 +562,6 @@ void logos::bootstrap_attempt::populate_connections ()
 				double elapsed_sec = client->elapsed_seconds ();
 				auto blocks_per_sec = client->block_rate ();
 				rate_sum += blocks_per_sec;
-#if 0
 				if (client->elapsed_seconds () > bootstrap_connection_warmup_time_sec && client->block_count > 0)
 				{
 					sorted_connections.push (client);
@@ -580,8 +580,9 @@ void logos::bootstrap_attempt::populate_connections ()
 #endif
 					client->stop (true);
 				}
-#endif
+#if 0
                 client->stop(true); // Close everything for now.
+#endif
 			}
 		}
 	}

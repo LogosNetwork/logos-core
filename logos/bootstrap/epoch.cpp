@@ -27,7 +27,17 @@ BlockHash EpochBlock::getNextEpochBlock(Store &store, int delegate, BlockHash &h
     if(hash.is_zero()) {
         return hash;
     }
-    store.epoch_get(hash, epoch); // TESTING previous
+    store.epoch_get(hash, epoch);
+    return epoch.next;
+}
+
+BlockHash EpochBlock::getPrevEpochBlock(Store &store, int delegate, BlockHash &hash) // TODOFUNC
+{
+    Epoch epoch;
+    if(hash.is_zero()) {
+        return hash;
+    }
+    store.epoch_get(hash, epoch);
     return epoch.previous;
 }
 

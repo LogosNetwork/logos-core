@@ -200,44 +200,8 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
    bsb = tmp;
    //std::cout << "validate: bsb.size()<2>: " << bsb.size() << " micro.size(): " << micro.size() << " epoch.size(): " << epoch.size() << std::endl    ;
 
-    in_memory_micro_tips(); // Sort is a side-effect...
-    bool ready = true;
+RETRY_MICRO:
 
-    std::cout << "remaining: {" << std::endl;
-    for(int i = 0; i < micro.size(); ++i) {
-        std::cout << "remaining: " << micro[i]->micro.hash().to_string() << " prev: " << micro[i]->micro.previous.to_string() << " next: " << micro[i]->micro.next.to_string() << std::endl;
-    }
-    std::cout << "remaining: }" << std::endl;
-
-for(int j = 0; j < micro.size(); ++j) {
-    ::MicroBlock *peerMicro = &micro[j]->micro;
-
-    BlockHash peerHash = peerMicro->hash();
-    std::shared_ptr<MicroBlock> isMicroPresent =  Micro::readMicroBlock(node->store, peerHash);
-    std::cout << " peerHash: " << peerHash.to_string() << " isMicroPresent: " << (isMicroPresent != nullptr) << std::endl;
-    if(ready && isMicroPresent == nullptr) {
-        if((!peerMicro->previous.is_zero() || !peerMicro->next.is_zero()) && micro_handler->Validate(*peerMicro)) {
-#ifdef _DEBUG
-            std::cout << "micro_handler->Validate: " << peerMicro->hash().to_string() << " prev: " << peerMicro->previous.to_string()
-                      << " next: " << peerMicro->next.to_string() << std::endl;
-#endif
-             micro_handler->ApplyUpdates(*peerMicro); // Validation succeeded, add to database.
-        } else {
-             // Try several times, if fail, we assume there is a problem.
-#ifdef _DEBUG
-            std::cout << "remaining error validating: " << peerMicro->hash().to_string() << " prev: " << peerMicro->previous.to_string()
-                      << " next: " << peerMicro->next.to_string() << std::endl;
-#endif
-             if(micro_validation_error_counter++ > MICRO_VALIDATION_ERROR_COUNTER_MAX) {
-                reset();
-                return true;
-             } else {
-                return false;
-             }
-        }
-    }
-}
-#if 0
    if(nextMicro >= micro.size()) {
 #ifdef _DEBUG
         std::cout << "nextMicro >= micro.size(): size: " << micro.size() << " nextMicro: " << nextMicro << std::endl;
@@ -251,6 +215,7 @@ for(int j = 0; j < micro.size(); ++j) {
         }
     }
 
+    in_memory_micro_tips(); // Sort is a side-effect...
     bool ready = true;
     ::MicroBlock *peerMicro = &micro[nextMicro]->micro;
     // Check we have all of our tips, if so create and validate MicroBlock.
@@ -289,10 +254,10 @@ for(int j = 0; j < micro.size(); ++j) {
             nextMicro++; // We already have this guy...
         }
 #endif
+    }
 
     BlockHash peerHash = peerMicro->hash();
     std::shared_ptr<MicroBlock> isMicroPresent =  Micro::readMicroBlock(node->store, peerHash);
-    std::cout << " peerHash: " << peerHash.to_string() << " isMicroPresent: " << (isMicroPresent != nullptr) << std::endl;
     if(ready && isMicroPresent == nullptr) {
         if((!peerMicro->previous.is_zero() || !peerMicro->next.is_zero()) && micro_handler->Validate(*peerMicro)) {
 #ifdef _DEBUG
@@ -301,6 +266,7 @@ for(int j = 0; j < micro.size(); ++j) {
 #endif
              micro_handler->ApplyUpdates(*peerMicro); // Validation succeeded, add to database.
              nextMicro++; // Go to next micro block.
+             goto RETRY_MICRO;
         } else {
              // Try several times, if fail, we assume there is a problem.
 #ifdef _DEBUG
@@ -323,10 +289,7 @@ for(int j = 0; j < micro.size(); ++j) {
             return false;
         }
     }
-    }
-#endif
 
-#if 0
     if(nextEpoch >= epoch.size()) {
 #ifdef _DEBUG
         std::cout << "nextEpoch >= epoch.size()" << std::endl;
@@ -377,24 +340,6 @@ for(int j = 0; j < micro.size(); ++j) {
             return true;
         } else {
             return false; 
-        }
-    }
-#endif
-    std::cout << "remaining epoch: {" << std::endl;
-    for(int i = 0; i < epoch.size(); ++i) {
-        std::cout << "remaining epoch: " << epoch[i]->epoch.hash().to_string() << " prev: " << epoch[i]->epoch.previous.to_string() << " next: " << epoch[i]->epoch.next.to_string() << std::endl;
-    }
-    std::cout << "remaining epoch: }" << std::endl;
-    BlockHash current_micro_hash = Micro::getMicroBlockTip(node->store,0);
-    bool isValid = false;
-    for(int j = 0; j < epoch.size(); ++j) {
-        if(epoch[j]->epoch.micro_block_tip == current_micro_hash && (isValid=epoch_handler->Validate(epoch[j]->epoch))) {
-#ifdef _DEBUG
-            std::cout << "epoch_handler->ApplyUpdates: " << epoch[j]->epoch.hash().to_string() << std::endl;
-#endif
-            epoch_handler->ApplyUpdates(epoch[j]->epoch); // Validation succeeded, add to database.
-        } else {
-            std::cout << "epoch_handler->Failed Validation: " << epoch[j]->epoch.micro_block_tip.to_string() << " current: " << current_micro_hash.to_string() << " isValid: " << isValid << std::endl;
         }
     }
 

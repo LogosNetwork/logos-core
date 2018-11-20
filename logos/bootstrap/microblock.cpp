@@ -35,7 +35,17 @@ BlockHash Micro::getNextMicroBlock(Store &store, int delegate, BlockHash &hash) 
         return hash;
     }
     store.micro_block_get(hash, micro);
-    return micro.previous; // TESTING Previous... may need to pass in the end not the start for testing
+    return micro.next;
+}
+
+BlockHash Micro::getPrevMicroBlock(Store &store, int delegate, BlockHash &hash) // TODOFUNC
+{
+    MicroBlock micro;
+    if(hash.is_zero()) {
+        return hash;
+    }
+    store.micro_block_get(hash, micro);
+    return micro.previous;
 }
 
 std::shared_ptr<MicroBlock> Micro::readMicroBlock(Store &store, BlockHash &hash) // TODO
