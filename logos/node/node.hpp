@@ -357,6 +357,7 @@ public:
     bool error ();
     bool block_store_init;
     bool wallet_init;
+    bool p2p_init;
 };
 class node_config
 {
