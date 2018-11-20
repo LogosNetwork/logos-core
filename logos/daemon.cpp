@@ -113,10 +113,10 @@ void logos_daemon::daemon::run (boost::filesystem::path const & data_path, logos
         logos::node_init init;
         try
         {
+	    config.node.p2p_conf = config.p2p_conf;
             auto node (std::make_shared<logos::node> (init, service, data_path, alarm, config.node, opencl_work));
             if (!init.error ())
             {
-		node->p2p_conf = config.p2p_conf;
 		node->start ();
                 std::unique_ptr<logos::rpc> rpc = get_rpc (service, *node, config.rpc);
                 if (rpc && config.rpc_enable)

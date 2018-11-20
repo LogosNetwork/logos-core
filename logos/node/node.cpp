@@ -1420,11 +1420,12 @@ _consensus_container(service_a, store, alarm_a, config.consensus_manager_config,
     BOOST_LOG (log) << "Node starting, version: " << LOGOS_VERSION_MAJOR << "." << LOGOS_VERSION_MINOR;
     BOOST_LOG (log) << boost::str (boost::format ("Work pool running %1% threads") % work.threads.size ());
 
+    p2p_conf = config.p2p_conf;
     p2p_conf.lmdb_env = store.environment.environment;
     p2p_conf.lmdb_dbi = store.p2p_db;
     p2p_conf.boost_io_service = &service;
     p2p._node = this;
-    init_a.p2p_init = p2p.Init(p2p_conf);
+    init_a.p2p_init = !p2p.Init(p2p_conf);
 
     if (!init_a.error ())
     {

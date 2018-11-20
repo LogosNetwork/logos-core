@@ -391,6 +391,7 @@ public:
     logos::block_hash state_block_parse_canary;
     logos::block_hash state_block_generate_canary;
     ConsensusManagerConfig consensus_manager_config;
+    p2p_config p2p_conf;
     static std::chrono::seconds constexpr keepalive_period = std::chrono::seconds (60);
     static std::chrono::seconds constexpr keepalive_cutoff = keepalive_period * 5;
     static std::chrono::minutes constexpr wallet_backup_interval = std::chrono::minutes (5);
