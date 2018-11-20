@@ -1,8 +1,9 @@
 #include <logos/consensus/consensus_manager.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 
-#include <boost/log/core.hpp>
 #include <boost/log/sources/severity_feature.hpp>
+#include <boost/log/core.hpp>
 
 template<ConsensusType CT>
 constexpr uint8_t ConsensusManager<CT>::BATCH_TIMEOUT_DELAY;
@@ -19,12 +20,35 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     : PrimaryDelegate(service, validator)
     , _store(store)
     , _validator(validator)
-    , _delegate_id(config.delegate_id)
     , _secondary_handler(SecondaryRequestHandlerInstance(service, this))
     , _events_notifier(events_notifier)
     , _reservations(std::make_shared<Reservations>(store))
     , _persistence_manager(store, _reservations)
-{}
+{
+    _delegate_id = config.delegate_id;
+
+    DelegateIdentityManager::GetCurrentEpoch(_store, _current_epoch);
+
+    auto initialized =  [](const Signature & sig)
+                        {
+                            auto non_zero = [](uint8_t cur)
+                                            {
+                                                return cur != 0;
+                                            };
+
+                            return std::find_if(sig.begin(),
+                                                sig.end(),
+                                                non_zero) != sig.end();
+                        };
+
+    if(!initialized(_current_epoch.signature))
+    {
+        LOG_FATAL(_log) << "ConsensusManager::ConsensusManager - Failed to load a valid epoch block.";
+        exit(EXIT_FAILURE);
+    }
+
+    OnCurrentEpochSet();
+}
 
 template<ConsensusType CT>
 void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,

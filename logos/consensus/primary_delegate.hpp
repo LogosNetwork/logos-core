@@ -10,6 +10,8 @@
 #include <boost/asio/deadline_timer.hpp>
 #include <boost/asio/io_service.hpp>
 
+#include <unordered_map>
+
 class PrimaryDelegate
 {
     friend class Archiver;
@@ -19,6 +21,8 @@ class PrimaryDelegate
     using Error      = boost::system::error_code;
     using Service    = boost::asio::io_service;
     using Seconds    = boost::posix_time::seconds;
+    using Store      = logos::block_store;
+    using Weights    = std::unordered_map<uint8_t, logos::uint128_t>;
 
 public:
 
@@ -43,11 +47,11 @@ public:
     template<typename M>
     void Send();
 
+    void OnCurrentEpochSet();
+
     virtual void Send(const void * data, size_t size) = 0;
 
 protected:
-
-    static constexpr uint8_t QUORUM_SIZE = NUM_DELEGATES - 1;
 
     virtual void UpdateVotes();
 
@@ -61,12 +65,16 @@ protected:
     //       benchmark.
     //
     std::recursive_mutex _mutex;
-    BlockHash            _prev_hash             = 0;
-    BlockHash            _cur_hash              = 0;
-    ConsensusState       _state                 = ConsensusState::VOID;
-    logos::uint128_t     _total_delegate_weight = 0;
-    uint64_t             _prepare_weight        = 0;
-    uint8_t              _cur_delegate_id       = 0;
+    BlockHash            _prev_hash       = 0;
+    BlockHash            _cur_hash        = 0;
+    Weights              _weights;
+    Epoch                _current_epoch;
+    ConsensusState       _state           = ConsensusState::VOID;
+    logos::uint128_t     _total_weight    = 0;
+    logos::uint128_t     _prepare_weight  = 0;
+    logos::uint128_t     _my_weight       = 0;
+    uint8_t              _cur_delegate_id = 0;
+    uint8_t              _delegate_id     = 0;
 
 private:
 

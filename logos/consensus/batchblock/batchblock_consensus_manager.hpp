@@ -22,9 +22,9 @@ class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchSt
     {
         using Delegates = std::unordered_set<uint8_t>;
 
-        uint64_t  reject_weight           = 0;
-        uint64_t  indirect_support_weight = 0;
-        Delegates supporting_delegates;
+        logos::uint128_t reject_weight           = 0;
+        logos::uint128_t indirect_support_weight = 0;
+        Delegates        supporting_delegates;
     };
 
     using WeightList = std::array<Weights, CONSENSUS_BATCH_SIZE>;
@@ -44,8 +44,7 @@ public:
                                Store & store,
                                const Config & config,
                                MessageValidator & validator,
-                               EpochEventsNotifier & events_notifier,
-                               DelegateIdentityManager & id_manager);
+                               EpochEventsNotifier & events_notifier);
 
     virtual ~BatchBlockConsensusManager() {};
 
@@ -173,6 +172,6 @@ private:
     Timer                   _init_timer;
     Service &               _service;
     uint64_t                _sequence             = 0;
-    uint64_t                _channels_bound       = 0;
+    logos::uint128_t        _connected_weight     = 0;
     uint32_t                _new_epoch_rejections = 0;      ///< New Epoch rejection message count.
 };
