@@ -75,7 +75,6 @@ const CLogCategoryDesc LogCategories[] =
     {BCLog::MEMPOOL, "mempool"},
     {BCLog::HTTP, "http"},
     {BCLog::BENCH, "bench"},
-    {BCLog::ZMQ, "zmq"},
     {BCLog::DB, "db"},
     {BCLog::RPC, "rpc"},
     {BCLog::ESTIMATEFEE, "estimatefee"},

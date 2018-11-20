@@ -47,11 +47,6 @@
 #include <boost/log/sources/logger.hpp>
 #include <boost/shared_ptr.hpp>
 
-#if ENABLE_ZMQ
-#include <zmq/zmqnotificationinterface.h>
-#include <zmq/zmqrpc.h>
-#endif
-
 extern CCriticalSection cs_main;
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
@@ -272,18 +267,6 @@ void SetupServerArgs()
     gArgs.AddArg("-whitebind=<addr>", "Bind to given address and whitelist peers connecting to it. Use [host]:port notation for IPv6", false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-whitelist=<IP address or network>", "Whitelist peers connecting from the given IP address (e.g. 1.2.3.4) or CIDR notated network (e.g. 1.2.3.0/24). Can be specified multiple times."
         " Whitelisted peers cannot be DoS banned and their transactions are always relayed, even if they are already in the mempool, useful e.g. for a gateway", false, OptionsCategory::CONNECTION);
-
-#if ENABLE_ZMQ
-    gArgs.AddArg("-zmqpubhashblock=<address>", "Enable publish hash block in <address>", false, OptionsCategory::ZMQ);
-    gArgs.AddArg("-zmqpubhashtx=<address>", "Enable publish hash transaction in <address>", false, OptionsCategory::ZMQ);
-    gArgs.AddArg("-zmqpubrawblock=<address>", "Enable publish raw block in <address>", false, OptionsCategory::ZMQ);
-    gArgs.AddArg("-zmqpubrawtx=<address>", "Enable publish raw transaction in <address>", false, OptionsCategory::ZMQ);
-#else
-    hidden_args.emplace_back("-zmqpubhashblock=<address>");
-    hidden_args.emplace_back("-zmqpubhashtx=<address>");
-    hidden_args.emplace_back("-zmqpubrawblock=<address>");
-    hidden_args.emplace_back("-zmqpubrawtx=<address>");
-#endif
 
     gArgs.AddArg("-dropmessagestest=<n>", "Randomly drop 1 of every <n> network messages", true, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-vbparams=deployment:start:end", "Use given start/end times for specified version bits deployment (regtest-only)", true, OptionsCategory::DEBUG_TEST);
@@ -642,13 +625,6 @@ bool AppInitMain()
     CScheduler::Function serviceLoop = boost::bind(&CScheduler::serviceQueue, &scheduler);
     threadGroup.create_thread(boost::bind(&TraceThread<CScheduler::Function>, "scheduler", serviceLoop));
 
-    /* Register RPC commands regardless of -server setting so they will be
-     * available in the GUI RPC console even if external calls are disabled.
-     */
-#if ENABLE_ZMQ
-    RegisterZMQRPCCommands(tableRPC);
-#endif
-
     // ********************************************************* Step 6: network initialization
     // Note that we absolutely cannot open any actual connections
     // until the very end ("start node") as the UTXO/block state
@@ -749,13 +725,6 @@ bool AppInitMain()
             return InitError(ResolveErrMsg("externalip", strAddr));
     }
 
-#if ENABLE_ZMQ
-    g_zmq_notification_interface = CZMQNotificationInterface::Create();
-
-    if (g_zmq_notification_interface) {
-        RegisterValidationInterface(g_zmq_notification_interface);
-    }
-#endif
     uint64_t nMaxOutboundLimit = 0; //unlimited unless -maxuploadtarget is set
     uint64_t nMaxOutboundTimeframe = MAX_UPLOAD_TIMEFRAME;
 
