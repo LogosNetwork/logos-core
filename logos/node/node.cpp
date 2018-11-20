@@ -2217,6 +2217,17 @@ uint64_t logos::node::work_generate_blocking (logos::uint256_union const & hash_
 
 void logos::node::add_initial_peers ()
 {
+#ifdef _PRODUCTION
+    LOG_DEBUG(log) << "logos::node::add_initial_peers: ";
+    // Add our peers from the configuation...
+    uint32_t port = 70003; // What port for bootstrapping ???
+    for(int i = 0; i < config.consensus_manager_config.delegates.size(); ++i) {
+        logos::endpoint peer = logos::endpoint(
+            boost::asio::ip::address::from_string(
+                config.consensus_manager_config.delegates[i].ip) , port );
+        peers.insert( peer, logos::protocol_version );
+    }
+#endif
 }
 
 

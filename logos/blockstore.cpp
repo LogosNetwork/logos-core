@@ -835,9 +835,6 @@ bool logos::block_store::batch_block_put (BatchStateBlock const & block, MDB_txn
 }
 bool logos::block_store::batch_block_put (BatchStateBlock const & block, const logos::block_hash & hash, MDB_txn * transaction)
 {
-    std::cout << "{ block.hash: " << block.Hash().to_string() << std::endl;
-    do_backtrace();
-    std::cout << "}" << std::endl;
     auto status(mdb_put(transaction, batch_db, logos::mdb_val(hash),
                         mdb_val(sizeof(BatchStateBlock),
                                 const_cast<BatchStateBlock *>(&block)), 0));
@@ -874,10 +871,8 @@ bool logos::block_store::state_block_exists(const block_hash & hash)
 
 bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchStateBlock & block)
 {
-    std::cout << "logos::block_store::batch_block_get: <1>" << std::endl;
-    logos::transaction transaction(environment, nullptr, false); // FIXME 
+    logos::transaction transaction(environment, nullptr, false);
     return batch_block_get(hash,block,transaction);
-    return get<BatchStateBlock>(batch_db, hash, block);
 }
 
 bool logos::block_store::batch_block_get(const logos::block_hash & hash, std::shared_ptr<BatchStateBlock> block, MDB_txn * transaction)
@@ -885,7 +880,6 @@ bool logos::block_store::batch_block_get(const logos::block_hash & hash, std::sh
     mdb_val value;
     mdb_val key(hash);
 
-    std::cout << "logos::block_store::batch_block_get: <3>" << std::endl;
     auto status (mdb_get (transaction, batch_db, key, value));
     assert (status == 0 || status == MDB_NOTFOUND);
 
@@ -896,43 +890,8 @@ bool logos::block_store::batch_block_get(const logos::block_hash & hash, std::sh
     }
     else
     {
-        //std::cout << "BatchBlock::readBatchStateBlock: value size: " << value.size() << " bsb size: " << sizeof(block) << " pointer: " << (uint64_t)&block << std::endl; // FIXME
-        //memcpy(&block, value.data(), 64);
-        //BatchStateBlock *tmp = new BatchStateBlock();
-#ifdef _MEMCPY_ERROR
-        memcpy(block.get(), value.data(), value.size());
-#else
         BatchStateBlock *ptr = reinterpret_cast<BatchStateBlock *>(value.data());
-        block->sequence = ptr->sequence;
-        block->block_count = ptr->block_count;
-        block->next = ptr->next;
-        block->signature = ptr->signature;
-        block->epoch_number = ptr->epoch_number;
-        for(int i = 0; i < ptr->block_count; ++i) {
-            block->blocks[i] = ptr->blocks[i];
-        }
-        block->timestamp = ptr->timestamp;
-        block->previous  = ptr->previous;
-        std::cout << " hash: " << hash.to_string() << " block_count: " << ptr->block_count << std::endl;
-        std::cout << " previous is zero: " << (block->previous.is_zero()) << std::endl;
-#endif
-
-#if 0
-        // mem diff
-        if(block->sequence == tmp->sequence and
-           block->block_count == tmp->block_count and
-           block->next == tmp->next and
-           block->signature == tmp->signature) {
-           for(int i = 0; i < block->block_count; ++i) {
-                if(memcmp(&block->blocks[i],&tmp->blocks[i],sizeof(tmp->blocks[i]))) {
-                    std::cout << "memory differs<1>:" << std::endl;
-                }
-           }
-        } else {
-            std::cout << "memory differs<2>:" << std::endl;
-        }
-        //delete tmp;
-#endif
+        *block = *ptr; // Call assignment operator.
     }
 
     return result;
@@ -943,11 +902,8 @@ bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchSt
     mdb_val value;
     mdb_val key(hash);
 
-    std::cout << "logos::block_store::batch_block_get: <2>" << std::endl;
     auto status (mdb_get (transaction, batch_db, key, value));
-    std::cout << "logos::block_store::batch_block_get: <2> pre assert" << std::endl;
     assert (status == 0 || status == MDB_NOTFOUND);
-    std::cout << "logos::block_store::batch_block_get: <2> post assert: status: " << status << std::endl;
 
     bool result = false;
     if (status == MDB_NOTFOUND)
@@ -956,29 +912,8 @@ bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchSt
     }
     else
     {
-        std::cout << "BatchBlock::readBatchStateBlock: value size: " << value.size() << " bsb size: " << sizeof(block) << " pointer: " << (uint64_t)&block << std::endl; // FIXME
-        //memcpy(&block, value.data(), 64);
-#ifdef _MEMCPY_ERROR
-        memcpy(&block, value.data(), value.size());
-#else
-        //std::cout << " block.Hash: " << block.Hash().to_string() << " hash: " << hash.to_string() << std::endl;
         BatchStateBlock *ptr = reinterpret_cast<BatchStateBlock *>(value.data());
-        block.sequence = ptr->sequence;
-        block.block_count = ptr->block_count;
-        block.epoch_number = ptr->epoch_number;
-        block.next = ptr->next;
-        block.signature = ptr->signature;
-        //memcpy(&block.blocks,&ptr->blocks,sizeof(ptr->blocks[0]) * 1500);
-        //memcpy(&block.blocks,&ptr->blocks,sizeof(BlockList));
-        //std::cout << " hash: " << hash.to_string() << " block_count: " << ptr->block_count << std::endl;
-        //std::cout << "state_block size: " << sizeof(ptr->blocks[0]) << std::endl;
-        for(int i = 0; i < ptr->block_count; ++i) {
-            block.blocks[i] = ptr->blocks[i];
-        }
-        block.timestamp = ptr->timestamp;
-        block.previous  = ptr->previous;
-#endif
-        //std::cout << " previous is zero: " << (block.previous.is_zero()) << std::endl;
+        block = *ptr; // Call assignment operator.
     }
 
     return result;
