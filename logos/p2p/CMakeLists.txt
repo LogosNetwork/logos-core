@@ -20,10 +20,6 @@ add_library (p2p
 	crypto/chacha20.cpp
 	crypto/chacha20.h
 	crypto/common.h
-	crypto/hmac_sha256.cpp
-	crypto/hmac_sha256.h
-	crypto/sha256.cpp
-	crypto/sha256.h
 	fs.cpp
 	fs.h
 	hash.cpp
@@ -65,8 +61,6 @@ add_library (p2p
 	timedata.cpp
 	timedata.h
 	tinyformat.h
-	torcontrol.cpp
-	torcontrol.h
 	ui_interface.cpp
 	ui_interface.h
 	uint512.cpp

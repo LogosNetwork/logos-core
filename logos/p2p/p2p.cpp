@@ -22,7 +22,6 @@
 #include <scheduler.h>
 #include <shutdown.h>
 #include <timedata.h>
-#include <torcontrol.h>
 #include <ui_interface.h>
 #include <util.h>
 #include <utilstrencodings.h>
@@ -56,7 +55,6 @@ private:
 
 	p2p_interface *interface;
 	bool fFeeEstimatesInitialized;
-	const bool DEFAULT_PROXYRANDOMIZE;
 	const bool DEFAULT_REST_ENABLE;
 	const bool DEFAULT_STOPAFTERBLOCKIMPORT;
 	const char* FEE_ESTIMATES_FILENAME;
@@ -75,7 +73,6 @@ public:
 	p2p_internal(p2p_interface *p2p, p2p_config &config) :
 		interface(p2p),
 		fFeeEstimatesInitialized(false),
-		DEFAULT_PROXYRANDOMIZE(true),
 		DEFAULT_REST_ENABLE(false),
 		DEFAULT_STOPAFTERBLOCKIMPORT(false),
 		FEE_ESTIMATES_FILENAME("fee_estimates.dat"),
@@ -121,7 +118,6 @@ public:
 
 void Interrupt()
 {
-    InterruptTorControl();
     InterruptMapPort();
     if (g_connman)
         g_connman->Interrupt();
@@ -145,8 +141,6 @@ void Shutdown()
     // Because these depend on each-other, we make sure that neither can be
     // using the other before destroying them.
     if (g_connman) g_connman->Stop();
-
-    StopTorControl();
 
     // After everything has been shut down, but before things get flushed, stop the
     // CScheduler/checkqueue threadGroup
@@ -205,7 +199,7 @@ void SetupServerArgs()
     const auto regtestChainParams = CreateChainParams(CBaseChainParams::REGTEST);
 
     // Hidden Options
-    std::vector<std::string> hidden_args = {"-rpcssl", "-benchmark", "-h", "-help", "-socks", "-tor", "-debugnet", "-whitelistalwaysrelay",
+    std::vector<std::string> hidden_args = {"-rpcssl", "-benchmark", "-h", "-help", "-socks", "-debugnet", "-whitelistalwaysrelay",
         "-prematurewitness", "-walletprematurewitness", "-promiscuousmempoolflags", "-blockminsize", "-dbcrashratio", "-forcecompactdb", "-usehd",
         // GUI args. These will be overwritten by SetupUIArgs for the GUI
         "-allowselfsignedrootcertificates", "-choosedatadir", "-lang=<lang>", "-min", "-resetguisettings", "-rootcertificates=<file>", "-splash", "-uiplatform"};
@@ -240,21 +234,15 @@ void SetupServerArgs()
     gArgs.AddArg("-externalip=<ip>", "Specify your own public address", false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-forcednsseed", strprintf("Always query for peer addresses via DNS lookup (default: %u)", DEFAULT_FORCEDNSSEED), false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-listen", "Accept connections from outside (default: 1 if no -proxy or -connect)", false, OptionsCategory::CONNECTION);
-    gArgs.AddArg("-listenonion", strprintf("Automatically create Tor hidden service (default: %d)", DEFAULT_LISTEN_ONION), false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-maxconnections=<n>", strprintf("Maintain at most <n> connections to peers (default: %u)", DEFAULT_MAX_PEER_CONNECTIONS), false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-maxreceivebuffer=<n>", strprintf("Maximum per-connection receive buffer, <n>*1000 bytes (default: %u)", DEFAULT_MAXRECEIVEBUFFER), false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-maxsendbuffer=<n>", strprintf("Maximum per-connection send buffer, <n>*1000 bytes (default: %u)", DEFAULT_MAXSENDBUFFER), false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-maxtimeadjustment", strprintf("Maximum allowed median peer time offset adjustment. Local perspective of time may be influenced by peers forward or backward by this amount. (default: %u seconds)", DEFAULT_MAX_TIME_ADJUSTMENT), false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-maxuploadtarget=<n>", strprintf("Tries to keep outbound traffic under the given target (in MiB per 24h), 0 = no limit (default: %d)", DEFAULT_MAX_UPLOAD_TARGET), false, OptionsCategory::CONNECTION);
-    gArgs.AddArg("-onion=<ip:port>", "Use separate SOCKS5 proxy to reach peers via Tor hidden services, set -noonion to disable (default: -proxy)", false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-onlynet=<net>", "Make outgoing connections only through network <net> (ipv4, ipv6 or onion). Incoming connections are not affected by this option. This option can be specified multiple times to allow multiple networks.", false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-port=<port>", strprintf("Listen for connections on <port> (default: %u, testnet: %u, regtest: %u)", defaultChainParams->GetDefaultPort(), testnetChainParams->GetDefaultPort(), regtestChainParams->GetDefaultPort()), false, OptionsCategory::CONNECTION);
-    gArgs.AddArg("-proxy=<ip:port>", "Connect through SOCKS5 proxy, set -noproxy to disable (default: disabled)", false, OptionsCategory::CONNECTION);
-    gArgs.AddArg("-proxyrandomize", strprintf("Randomize credentials for every proxy connection. This enables Tor stream isolation (default: %u)", DEFAULT_PROXYRANDOMIZE), false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-seednode=<ip>", "Connect to a node to retrieve peer addresses, and disconnect. This option can be specified multiple times to connect to multiple nodes.", false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-timeout=<n>", strprintf("Specify connection timeout in milliseconds (minimum: 1, default: %d)", DEFAULT_CONNECT_TIMEOUT), false, OptionsCategory::CONNECTION);
-    gArgs.AddArg("-torcontrol=<ip>:<port>", strprintf("Tor control port to use if onion listening enabled (default: %s)", DEFAULT_TOR_CONTROL), false, OptionsCategory::CONNECTION);
-    gArgs.AddArg("-torpassword=<pass>", "Tor control port password (default: empty)", false, OptionsCategory::CONNECTION);
 #ifdef USE_UPNP
 #if USE_UPNP
     gArgs.AddArg("-upnp", "Use UPnP to map the listening port (default: 1 when listening and no -proxy)", false, OptionsCategory::CONNECTION);
@@ -349,19 +337,6 @@ void InitParameterInteraction()
             LogPrintf("%s: parameter interaction: -connect set -> setting -dnsseed=0\n", __func__);
         if (gArgs.SoftSetBoolArg("-listen", false))
             LogPrintf("%s: parameter interaction: -connect set -> setting -listen=0\n", __func__);
-    }
-
-    if (gArgs.IsArgSet("-proxy")) {
-        // to protect privacy, do not listen by default if a default proxy server is specified
-        if (gArgs.SoftSetBoolArg("-listen", false))
-            LogPrintf("%s: parameter interaction: -proxy set -> setting -listen=0\n", __func__);
-        // to protect privacy, do not use UPNP when a proxy is set. The user may still specify -listen=1
-        // to listen locally, so don't rely on this happening through -listen below.
-        if (gArgs.SoftSetBoolArg("-upnp", false))
-            LogPrintf("%s: parameter interaction: -proxy set -> setting -upnp=0\n", __func__);
-        // to protect privacy, do not discover addresses by default
-        if (gArgs.SoftSetBoolArg("-discover", false))
-            LogPrintf("%s: parameter interaction: -proxy set -> setting -discover=0\n", __func__);
     }
 
     if (!gArgs.GetBoolArg("-listen", DEFAULT_LISTEN)) {
@@ -671,48 +646,6 @@ bool AppInitMain()
     // Check for host lookup allowed before parsing any network related parameters
     fNameLookup = gArgs.GetBoolArg("-dns", DEFAULT_NAME_LOOKUP);
 
-    bool proxyRandomize = gArgs.GetBoolArg("-proxyrandomize", DEFAULT_PROXYRANDOMIZE);
-    // -proxy sets a proxy for all outgoing network traffic
-    // -noproxy (or -proxy=0) as well as the empty string can be used to not set a proxy, this is the default
-    std::string proxyArg = gArgs.GetArg("-proxy", "");
-    SetLimited(NET_ONION);
-    if (proxyArg != "" && proxyArg != "0") {
-        CService proxyAddr;
-        if (!Lookup(proxyArg.c_str(), proxyAddr, 9050, fNameLookup)) {
-            return InitError(strprintf(_("Invalid -proxy address or hostname: '%s'"), proxyArg));
-        }
-
-        proxyType addrProxy = proxyType(proxyAddr, proxyRandomize);
-        if (!addrProxy.IsValid())
-            return InitError(strprintf(_("Invalid -proxy address or hostname: '%s'"), proxyArg));
-
-        SetProxy(NET_IPV4, addrProxy);
-        SetProxy(NET_IPV6, addrProxy);
-        SetProxy(NET_ONION, addrProxy);
-        SetNameProxy(addrProxy);
-        SetLimited(NET_ONION, false); // by default, -proxy sets onion as reachable, unless -noonion later
-    }
-
-    // -onion can be used to set only a proxy for .onion, or override normal proxy for .onion addresses
-    // -noonion (or -onion=0) disables connecting to .onion entirely
-    // An empty string is used to not override the onion proxy (in which case it defaults to -proxy set above, or none)
-    std::string onionArg = gArgs.GetArg("-onion", "");
-    if (onionArg != "") {
-        if (onionArg == "0") { // Handle -noonion/-onion=0
-            SetLimited(NET_ONION); // set onions as unreachable
-        } else {
-            CService onionProxy;
-            if (!Lookup(onionArg.c_str(), onionProxy, 9050, fNameLookup)) {
-                return InitError(strprintf(_("Invalid -onion address or hostname: '%s'"), onionArg));
-            }
-            proxyType addrOnion = proxyType(onionProxy, proxyRandomize);
-            if (!addrOnion.IsValid())
-                return InitError(strprintf(_("Invalid -onion address or hostname: '%s'"), onionArg));
-            SetProxy(NET_ONION, addrOnion);
-            SetLimited(NET_ONION, false);
-        }
-    }
-
     // see Step 2: parameter interactions for more information about these
     fListen = gArgs.GetBoolArg("-listen", DEFAULT_LISTEN);
     fDiscover = gArgs.GetBoolArg("-discover", true);
@@ -731,9 +664,6 @@ bool AppInitMain()
     if (gArgs.IsArgSet("-maxuploadtarget")) {
         nMaxOutboundLimit = gArgs.GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024;
     }
-
-    if (gArgs.GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION))
-        StartTorControl();
 
     Discover();
 
