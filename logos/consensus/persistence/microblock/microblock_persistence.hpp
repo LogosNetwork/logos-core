@@ -4,12 +4,14 @@
 
 #pragma once
 
+#include <logos/consensus/persistence/persistence_manager_decl.hpp>
+
 static constexpr ConsensusType MBCT = ConsensusType::MicroBlock;
 
 class ReservationsProvider;
 
 template<>
-class PersistenceManager<ConsensusType::MicroBlock> {
+class PersistenceManager<MBCT> {
 
 protected:
 

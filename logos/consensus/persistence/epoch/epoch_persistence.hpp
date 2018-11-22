@@ -3,12 +3,14 @@
 
 #pragma once
 
+#include <logos/consensus/persistence/persistence_manager_decl.hpp>
+
 static constexpr ConsensusType ECT = ConsensusType::Epoch;
 
 class ReservationsProvider;
 
 template<>
-class PersistenceManager<ConsensusType::Epoch> {
+class PersistenceManager<ECT> {
 
 protected:
 

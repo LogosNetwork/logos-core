@@ -337,7 +337,6 @@ add_library (node
 	logos/consensus/persistence/batchblock/batchblock_persistence.cpp
 	logos/consensus/persistence/epoch/epoch_persistence.cpp
 	logos/consensus/persistence/microblock/microblock_persistence.cpp
-	logos/consensus/persistence/persistence_manager.cpp
 	logos/consensus/primary_delegate.cpp
 	logos/consensus/delegate_key_store.cpp
 	logos/epoch/archiver.cpp
@@ -357,8 +356,8 @@ add_library (node
 	logos/node/common.hpp
 	logos/node/node.hpp
 	logos/node/node.cpp
-		logos/node/delegate_identity_manager.hpp
-		logos/node/delegate_identity_manager.cpp
+	logos/node/delegate_identity_manager.hpp
+	logos/node/delegate_identity_manager.cpp
 	logos/node/openclwork.cpp
 	logos/node/openclwork.hpp
 	logos/node/rpc.hpp

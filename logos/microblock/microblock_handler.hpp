@@ -2,7 +2,7 @@
 /// This file contains the declaration of the MicroBlockHandler classe, which is used
 /// in the Microblock processing
 #pragma once
-#include <logos/consensus/persistence/persistence_manager.hpp>
+#include <logos/consensus/persistence/microblock/microblock_persistence.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/lib/epoch_time_util.hpp>
@@ -17,7 +17,7 @@ using IteratorBatchBlockReceiverCb  = std::function<void(uint8_t, const BatchSta
 using BatchBlockReceiverCb          = std::function<void(const BatchStateBlock&)>;
 
 /// Handle MicroBlock processing
-class MicroBlockHandler : public PersistenceManager<ConsensusType::MicroBlock> {
+class MicroBlockHandler : public PersistenceManager<MBCT> {
 
     using BatchTips = BlockHash[NUM_DELEGATES];
 
@@ -29,7 +29,7 @@ public:
     /// @param i microblock process period interval
     MicroBlockHandler(BlockStore &s,
                       IRecallHandler & recall_handler)
-        : PersistenceManager<ConsensusType::MicroBlock>(s)
+        : PersistenceManager<MBCT>(s)
         , _recall_handler(recall_handler)
         {}
 

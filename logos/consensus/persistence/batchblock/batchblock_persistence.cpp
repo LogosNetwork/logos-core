@@ -1,7 +1,7 @@
 /// @file
 /// This file contains declaration of BatchStateBlock related validation/persistence
 
-#include <logos/consensus/persistence/persistence_manager.hpp>
+#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
 #include <logos/consensus/persistence/state_block_locator.hpp>
 #include <logos/consensus/persistence/reservations.hpp>
 #include <logos/common.hpp>

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <logos/consensus/persistence/persistence_manager_decl.hpp>
+
 const ConsensusType BSBCT = ConsensusType::BatchStateBlock;
 
 using boost::multiprecision::uint128_t;

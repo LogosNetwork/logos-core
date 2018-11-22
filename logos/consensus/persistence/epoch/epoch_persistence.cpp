@@ -1,7 +1,7 @@
 /// @file
 /// This file contains declaration of Epoch related validation and persistence
 
-#include <logos/consensus/persistence/persistence_manager.hpp>
+#include <logos/consensus/persistence/epoch/epoch_persistence.hpp>
 #include <logos/lib/trace.hpp>
 
 PersistenceManager<ECT>::PersistenceManager(Store & store,

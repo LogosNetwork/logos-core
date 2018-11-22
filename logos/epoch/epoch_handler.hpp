@@ -3,7 +3,7 @@
 /// in the Epoch processing
 #pragma once
 
-#include <logos/consensus/persistence/persistence_manager.hpp>
+#include <logos/consensus/persistence/epoch/epoch_persistence.hpp>
 #include <logos/consensus/persistence/reservations.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <boost/log/sources/record_ostream.hpp>
@@ -18,7 +18,7 @@ namespace logos {
 using BlockStore = logos::block_store;
 
 /// EpochHandler builds, validates, persists, triggers the Epoch
-class EpochHandler : public PersistenceManager<ConsensusType::Epoch>
+class EpochHandler : public PersistenceManager<ECT>
 {
 public:
     /// Class constructor
@@ -26,7 +26,7 @@ public:
     /// @param voting_manager delegate's voting manager [in]
     EpochHandler(BlockStore &store,
                  EpochVotingManager & voting_manager)
-        : PersistenceManager<ConsensusType::Epoch>(store, _reservations)//_store(s)
+        : PersistenceManager<ECT>(store, _reservations)//_store(s)
         , _voting_manager(voting_manager)
         , _reservations(store)
         {}
