@@ -5,6 +5,7 @@
 #include <logos/consensus/batchblock/request_handler.hpp>
 #include <logos/consensus/secondary_request_handler.hpp>
 #include <logos/consensus/consensus_manager_config.hpp>
+#include <logos/consensus/persistence/reservations.hpp>
 #include <logos/consensus/consensus_connection.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
@@ -165,5 +166,7 @@ protected:
     uint8_t                         _delegate_id;
     SecondaryRequestHandler<CT> &   _secondary_handler;    ///< Secondary queue of blocks.
     EpochEventsNotifier &           _events_notifier;      ///< Notifies epoch manager of transition related events
+    Reservations                    _reservations;
+    PersistenceManager<CT>         _persistence_manager;
 };
 

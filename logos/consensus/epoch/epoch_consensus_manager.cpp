@@ -113,7 +113,7 @@ EpochConsensusManager::MakeConsensusConnection(
         const DelegateIdentities& ids)
 {
     return std::make_shared<EpochConsensusConnection>(iochannel, *this, *this,
-            _validator, ids, _epoch_handler, _events_notifier);
+            _validator, ids, _epoch_handler, _events_notifier, _persistence_manager);
 }
 
 uint8_t

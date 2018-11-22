@@ -166,16 +166,19 @@ template<ConsensusType CT>
 struct RequestMessage<CT,
     typename std::enable_if<
         CT == ConsensusType::BatchStateBlock>::type> : logos::state_block
-{};
+{
+};
 
 template<ConsensusType CT>
 struct RequestMessage<CT, 
 	typename std::enable_if< 
 		CT == ConsensusType::MicroBlock>::type> : PrePrepareMessage<ConsensusType::MicroBlock>
-{};
+{
+};
 
 template<ConsensusType CT>
 struct RequestMessage<CT, 
 	typename std::enable_if< 
 		CT == ConsensusType::Epoch>::type> : PrePrepareMessage<ConsensusType::Epoch>
-{};
+{
+};

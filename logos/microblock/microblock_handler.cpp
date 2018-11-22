@@ -13,7 +13,7 @@
 
 using namespace logos;
 
-void
+/*void
 MicroBlockHandler::BatchBlocksIterator(
     const BatchTips &start,
     const BatchTips &end,
@@ -36,7 +36,7 @@ MicroBlockHandler::BatchBlocksIterator(
             return;
         }
     }
-}
+}*/
 
 BlockHash
 MicroBlockHandler::FastMerkleTree(
@@ -261,6 +261,7 @@ MicroBlockHandler::Build(
     return true;
 }
 
+/*
 bool
 MicroBlockHandler::Validate(
         const MicroBlock &block)
@@ -336,29 +337,6 @@ MicroBlockHandler::Validate(
         return false;
     }
 
-    // timestamp should be equal to the cutoff interval plus allowed clock drift
-    // unless it's the first microblock after genesis
-    // Except if it is a recall
-    int tdiff = ((int64_t)block.timestamp - (int64_t)previous_microblock.timestamp)/1000 -
-            TConvert<Seconds>(MICROBLOCK_CUTOFF_TIME).count(); //sec
-    bool is_test_network = (logos::logos_network == logos::logos_networks::logos_test_network);
-    if (!is_test_network && (previous_epoch.epoch_number != GENESIS_EPOCH || block.sequence > 0) &&
-            (!_recall_handler.IsRecall() && abs(tdiff) > CLOCK_DRIFT.count() ||
-             _recall_handler.IsRecall() && block.timestamp <= previous_microblock.timestamp))
-    {
-        LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock failed, bad timestamp block ts:"
-                        << " hash " << block.hash().to_string()
-                        << " timstamp " << block.timestamp
-                        << " previous block ts:" << previous_microblock.timestamp << " tdiff: " << tdiff
-                        << " epoch # : " << block.epoch_number << " microblock #: " << block.sequence;
-        return false;
-    }
-    if (is_test_network)
-    {
-        LOG_WARN(_log) << "MicroBlockHandler::VerifyMicroBlock WARNING: RUNNING WITH THE TEST FLAG ENABLED, "
-                           "SOME VALIDATION IS DISABLED";
-    }
-
     /// verify can iterate the chain and the number of blocks checks out
     int number_batch_blocks = 0;
     BatchBlocksIterator(block.tips, previous_microblock.tips, [&number_batch_blocks](uint8_t, const BatchStateBlock &) mutable -> void {
@@ -395,7 +373,7 @@ MicroBlockHandler::ApplyUpdates(const MicroBlock &block)
     ApplyUpdates(block, transaction);
 }
 
-BlockHash
+void
 MicroBlockHandler::ApplyUpdates(const MicroBlock &block, const logos::transaction &transaction)
 {
 
@@ -412,5 +390,5 @@ MicroBlockHandler::ApplyUpdates(const MicroBlock &block, const logos::transactio
     hash = _store.micro_block_put(previous, transaction);
     LOG_INFO(_log) << "MicroBlockHandler::ApplyUpdates hash: " << hash.to_string()
                    << " previous " << hash.to_string();
-    return hash;
 }
+*/

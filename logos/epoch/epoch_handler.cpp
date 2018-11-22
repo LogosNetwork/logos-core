@@ -7,6 +7,7 @@
 #include <logos/lib/trace.hpp>
 #include <logos/lib/log.hpp>
 
+/*
 bool
 EpochHandler::Validate(
     const Epoch &epoch)
@@ -78,7 +79,7 @@ EpochHandler::ApplyUpdates(const Epoch &epoch)
     ApplyUpdates(epoch, transaction);
 }
 
-logos::block_hash
+void
 EpochHandler::ApplyUpdates(
     const Epoch &epoch,
     const logos::transaction &transaction)
@@ -94,8 +95,8 @@ EpochHandler::ApplyUpdates(
     }
     previous.next = epoch_hash;
     _store.epoch_put(previous, transaction);
-    return epoch_hash;
 }
+*/
 
 bool
 EpochHandler::Build(Epoch &epoch)

@@ -12,7 +12,8 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
                                              RequestPromoter<CT> & promoter,
                                              MessageValidator & validator,
                                              const DelegateIdentities & ids,
-                                             EpochEventsNotifier & events_notifer)
+                                             EpochEventsNotifier & events_notifer,
+                                             PersistenceManager<CT> & persistence_manager)
     : _iochannel(iochannel)
     , _delegate_ids(ids)
     , _reason(RejectionReason::Void)
@@ -20,6 +21,7 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
     , _primary(primary)
     , _promoter(promoter)
     , _events_notifier(events_notifer)
+    , _persistence_manager(persistence_manager)
 {
 }
 

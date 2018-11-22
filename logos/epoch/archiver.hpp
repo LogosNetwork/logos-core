@@ -58,6 +58,8 @@ class Archiver : public ArchiverEpochHandler,
     friend MicroBlockTester;
 
     using MicroBlockConsensusCb = std::function<logos::process_return(std::shared_ptr<MicroBlock>)>;
+    using MicroBlockPrePrepare  = const PrePrepareMessage<ConsensusType::MicroBlock>;
+    using EpochPrePrepare       = const PrePrepareMessage<ConsensusType::Epoch>;
 public:
     /// Class constructor
     /// @param alarm logos alarm reference [in]
@@ -75,14 +77,14 @@ public:
     /// @returns true if validated
     bool Validate(const MicroBlock& block) override
     {
-        return _micro_block_handler.Validate(block);
+        return _micro_block_handler.Validate(static_cast<const RequestMessage<ConsensusType::MicroBlock>&>(block));
     }
 
     /// Commit micro block to the database, propose epoch
     /// @param block to commit
     void CommitToDatabase(const MicroBlock& block) override
     {
-        _micro_block_handler.ApplyUpdates(block);
+        _micro_block_handler.ApplyUpdates(static_cast<const PrePrepareMessage<ConsensusType::MicroBlock>&>(block), 0);
         if (block.last_micro_block) {
             _event_proposer.ProposeEpoch();
         }
@@ -93,14 +95,14 @@ public:
     /// @returns true if validated
     bool Validate(const Epoch& block) override
     {
-        return _epoch_handler.Validate(block);
+        return _epoch_handler.Validate(static_cast<const RequestMessage<ConsensusType::Epoch>&>(block));
     }
 
     /// Commit epoch block to the database
     /// @param block to commit
     void CommitToDatabase(const Epoch& block) override
     {
-        _epoch_handler.ApplyUpdates(block);
+        _epoch_handler.ApplyUpdates(static_cast<const PrePrepareMessage<ConsensusType::Epoch>&>(block), 0);
     }
 
     /// Is Recall

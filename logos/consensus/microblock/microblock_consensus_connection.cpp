@@ -11,13 +11,14 @@
 MicroBlockConsensusConnection::MicroBlockConsensusConnection(
                                   std::shared_ptr<IOChannel> iochannel,
                                   PrimaryDelegate & primary,
-                                  RequestPromoter<ConsensusType::MicroBlock> & promoter,
+                                  RequestPromoter<MBCT> & promoter,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler,
-                                  EpochEventsNotifier & events_notifier)
-    : ConsensusConnection<ConsensusType::MicroBlock>(iochannel, primary, promoter, validator, ids,
-                                                     events_notifier)
+                                  EpochEventsNotifier & events_notifier,
+                                  PersistenceManager<MBCT> & persistence_manager)
+    : ConsensusConnection<MBCT>(iochannel, primary, promoter, validator, ids,
+                                                     events_notifier, persistence_manager)
     , _microblock_handler(handler)
 {
     if (promoter.GetStore().micro_block_tip_get(_prev_pre_prepare_hash))

@@ -2,6 +2,7 @@
 /// This file contains the declaration of the MicroBlockHandler classe, which is used
 /// in the Microblock processing
 #pragma once
+#include <logos/consensus/persistence/persistence_manager.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/lib/epoch_time_util.hpp>
@@ -16,7 +17,7 @@ using IteratorBatchBlockReceiverCb  = std::function<void(uint8_t, const BatchSta
 using BatchBlockReceiverCb          = std::function<void(const BatchStateBlock&)>;
 
 /// Handle MicroBlock processing
-class MicroBlockHandler {
+class MicroBlockHandler : public PersistenceManager<ConsensusType::MicroBlock> {
 
     using BatchTips = BlockHash[NUM_DELEGATES];
 
@@ -28,7 +29,7 @@ public:
     /// @param i microblock process period interval
     MicroBlockHandler(BlockStore &s,
                       IRecallHandler & recall_handler)
-        : _store(s)
+        : PersistenceManager<ConsensusType::MicroBlock>(s)
         , _recall_handler(recall_handler)
         {}
 
@@ -45,17 +46,16 @@ public:
     /// Verify this microblock either exists or can be built and matches this block
     /// @param block to validate [in]
     /// @return true if validated
-    bool Validate(const MicroBlock &block);
+    //bool Validate(const MicroBlock &block);
 
     /// Verify this microblock either exists or can be built and matches this block
     /// @param block to save to the database [in]
-    void ApplyUpdates(const MicroBlock &block);
+    //void ApplyUpdates(const MicroBlock &block);
 
     /// Verify this microblock either exists or can be built and matches this block
     /// @param block to save to the database [in]
     /// @param transaction transaction [in]
-    /// @returns microblock hash
-    BlockHash ApplyUpdates(const MicroBlock &block, const logos::transaction &);
+    //void ApplyUpdates(const MicroBlock &block, const logos::transaction &);
 
 private:
 
@@ -64,7 +64,7 @@ private:
     /// @param end tips to end iteration [in]
     /// @param cb function to call for each delegate's batch state block, the function's argument are
     ///   delegate id and BatchStateBlock
-    void BatchBlocksIterator(const BatchTips &start, const BatchTips &end, IteratorBatchBlockReceiverCb cb);
+    //void BatchBlocksIterator(const BatchTips &start, const BatchTips &end, IteratorBatchBlockReceiverCb cb);
 
     /// Calculate Merkle root and get batch block tips.
     /// If the previous micro block' time stamp (PMBTS) is not 0 (genesis block time stamp is 0)
@@ -116,7 +116,7 @@ private:
         return (timestamp + TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count());
     }
 
-    BlockStore &            _store; 		    ///< reference to the block store
+    //BlockStore &            _store; 		    ///< reference to the block store
     IRecallHandler &        _recall_handler;    ///< recall handler reference
-    Log                     _log;               ///< boost asio log
+    //Log                     _log;               ///< boost asio log
 };
