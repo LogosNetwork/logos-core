@@ -199,29 +199,11 @@ void SetupServerArgs()
     const auto regtestChainParams = CreateChainParams(CBaseChainParams::REGTEST);
 
     // Hidden Options
-    std::vector<std::string> hidden_args = {"-rpcssl", "-benchmark", "-h", "-help", "-socks", "-debugnet", "-whitelistalwaysrelay",
-        "-prematurewitness", "-walletprematurewitness", "-promiscuousmempoolflags", "-blockminsize", "-dbcrashratio", "-forcecompactdb", "-usehd",
-        // GUI args. These will be overwritten by SetupUIArgs for the GUI
-        "-allowselfsignedrootcertificates", "-choosedatadir", "-lang=<lang>", "-min", "-resetguisettings", "-rootcertificates=<file>", "-splash", "-uiplatform"};
+    std::vector<std::string> hidden_args = {"-benchmark", "-h", "-help", "-debugnet", "-whitelistalwaysrelay"};
 
     // Set all of the args and their help
     // When adding new options to the categories, please keep and ensure alphabetical ordering.
     gArgs.AddArg("-?", "Print this help message and exit", false, OptionsCategory::OPTIONS);
-    gArgs.AddArg("-version", "Print version and exit", false, OptionsCategory::OPTIONS);
-    gArgs.AddArg("-alertnotify=<cmd>", "Execute command when a relevant alert is received or we see a really long fork (%s in cmd is replaced by message)", false, OptionsCategory::OPTIONS);
-    gArgs.AddArg("-conf=<file>", strprintf("Specify configuration file. Relative paths will be prefixed by datadir location. (default: %s)", BITCOIN_CONF_FILENAME), false, OptionsCategory::OPTIONS);
-    gArgs.AddArg("-datadir=<dir>", "Specify data directory", false, OptionsCategory::OPTIONS);
-    gArgs.AddArg("-includeconf=<file>", "Specify additional configuration file, relative to the -datadir path (only useable from configuration file, not command line)", false, OptionsCategory::OPTIONS);
-#ifndef WIN32
-    gArgs.AddArg("-pid=<file>", strprintf("Specify pid file. Relative paths will be prefixed by a net-specific datadir location. (default: %s)", BITCOIN_PID_FILENAME), false, OptionsCategory::OPTIONS);
-#else
-    hidden_args.emplace_back("-pid");
-#endif
-#ifndef WIN32
-    gArgs.AddArg("-sysperms", "Create new files with system default permissions, instead of umask 077 (only effective with disabled wallet functionality)", false, OptionsCategory::OPTIONS);
-#else
-    hidden_args.emplace_back("-sysperms");
-#endif
 
     gArgs.AddArg("-addnode=<ip>", "Add a node to connect to and attempt to keep the connection open (see the `addnode` RPC command help for more info). This option can be specified multiple times to add multiple nodes.", false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-banscore=<n>", strprintf("Threshold for disconnecting misbehaving peers (default: %u)", DEFAULT_BANSCORE_THRESHOLD), false, OptionsCategory::CONNECTION);
@@ -233,7 +215,7 @@ void SetupServerArgs()
     gArgs.AddArg("-dnsseed", "Query for peer addresses via DNS lookup, if low on addresses (default: 1 unless -connect used)", false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-externalip=<ip>", "Specify your own public address", false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-forcednsseed", strprintf("Always query for peer addresses via DNS lookup (default: %u)", DEFAULT_FORCEDNSSEED), false, OptionsCategory::CONNECTION);
-    gArgs.AddArg("-listen", "Accept connections from outside (default: 1 if no -proxy or -connect)", false, OptionsCategory::CONNECTION);
+    gArgs.AddArg("-listen", "Accept connections from outside (default: 1 if no -connect)", false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-maxconnections=<n>", strprintf("Maintain at most <n> connections to peers (default: %u)", DEFAULT_MAX_PEER_CONNECTIONS), false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-maxreceivebuffer=<n>", strprintf("Maximum per-connection receive buffer, <n>*1000 bytes (default: %u)", DEFAULT_MAXRECEIVEBUFFER), false, OptionsCategory::CONNECTION);
     gArgs.AddArg("-maxsendbuffer=<n>", strprintf("Maximum per-connection send buffer, <n>*1000 bytes (default: %u)", DEFAULT_MAXSENDBUFFER), false, OptionsCategory::CONNECTION);
@@ -257,7 +239,6 @@ void SetupServerArgs()
         " Whitelisted peers cannot be DoS banned and their transactions are always relayed, even if they are already in the mempool, useful e.g. for a gateway", false, OptionsCategory::CONNECTION);
 
     gArgs.AddArg("-dropmessagestest=<n>", "Randomly drop 1 of every <n> network messages", true, OptionsCategory::DEBUG_TEST);
-    gArgs.AddArg("-vbparams=deployment:start:end", "Use given start/end times for specified version bits deployment (regtest-only)", true, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-addrmantest", "Allows to test address relay on localhost", true, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-debug=<category>", "Output debugging information (default: -nodebug, supplying <category> is optional). "
         "If <category> is not supplied or if <category> = 1, output all debugging information. <category> can be: " + ListLogCategories() + ".", false, OptionsCategory::DEBUG_TEST);
@@ -265,16 +246,6 @@ void SetupServerArgs()
     gArgs.AddArg("-help-debug", "Show all debugging options (usage: --help -help-debug)", false, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-logips", strprintf("Include IP addresses in debug output (default: %u)", DEFAULT_LOGIPS), false, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-mocktime=<n>", "Replace actual time with <n> seconds since epoch (default: 0)", true, OptionsCategory::DEBUG_TEST);
-    gArgs.AddArg("-shrinkdebugfile", "Shrink debug.log file on client startup (default: 1 when no -debug)", false, OptionsCategory::DEBUG_TEST);
-    gArgs.AddArg("-uacomment=<cmt>", "Append comment to the user agent string", false, OptionsCategory::DEBUG_TEST);
-
-    SetupChainParamsBaseOptions();
-
-#if HAVE_DECL_DAEMON
-    gArgs.AddArg("-daemon", "Run in the background as a daemon and accept commands", false, OptionsCategory::OPTIONS);
-#else
-    hidden_args.emplace_back("-daemon");
-#endif
 
     // Add the hidden options
     gArgs.AddHiddenArgs(hidden_args);
@@ -321,7 +292,6 @@ bool InitSanityCheck(void)
 void InitParameterInteraction()
 {
     // when specifying an explicit binding address, you want to listen on it
-    // even when -connect or -proxy is specified
     if (gArgs.IsArgSet("-bind")) {
         if (gArgs.SoftSetBoolArg("-listen", true))
             LogPrintf("%s: parameter interaction: -bind set -> setting -listen=1\n", __func__);
@@ -430,9 +400,6 @@ bool AppInitBasicSetup()
         return InitError("Initializing networking failed");
 
 #ifndef WIN32
-    if (!gArgs.GetBoolArg("-sysperms", false)) {
-        umask(077);
-    }
 
     // Clean shutdown on SIGTERM
     registerSignalHandler(SIGTERM, HandleSIGTERM);
@@ -458,10 +425,6 @@ bool AppInitParameterInteraction()
     // ********************************************************* Step 2: parameter interactions
 
     // also see: InitParameterInteraction()
-
-    if (!fs::is_directory(GetBlocksDir(false))) {
-        return InitError(strprintf(_("Specified blocks directory \"%s\" does not exist."), gArgs.GetArg("-blocksdir", "").c_str()));
-    }
 
     // -bind and -whitebind can't be set when not listening
     size_t nUserBind = gArgs.GetArgs("-bind").size() + gArgs.GetArgs("-whitebind").size();
@@ -510,12 +473,6 @@ bool AppInitParameterInteraction()
     // Check for -debugnet
     if (gArgs.GetBoolArg("-debugnet", false))
         InitWarning(_("Unsupported argument -debugnet ignored, use -debug=net."));
-    // Check for -socks - as this is a privacy risk to continue, exit here
-    if (gArgs.IsArgSet("-socks"))
-        return InitError(_("Unsupported argument -socks found. Setting SOCKS version isn't possible anymore, only SOCKS5 proxies are supported."));
-    // Check for -tor - as this is a privacy risk to continue, exit here
-    if (gArgs.GetBoolArg("-tor", false))
-        return InitError(_("Unsupported argument -tor found, use -onion."));
 
     if (gArgs.GetBoolArg("-benchmark", false))
         InitWarning(_("Unsupported argument -benchmark ignored, use -debug=bench."));
@@ -586,15 +543,6 @@ bool AppInitMain()
     LogPrintf("Using data directory %s\n", GetDataDir().string());
     LogPrintf("Using config file %s\n", GetConfigFile(gArgs.GetArg("-conf", BITCOIN_CONF_FILENAME)).string());
     LogPrintf("Using at most %i automatic connections (%i file descriptors available)\n", nMaxConnections, nFD);
-
-    // Warn about relative -datadir path.
-    if (gArgs.IsArgSet("-datadir") && !fs::path(gArgs.GetArg("-datadir", "")).is_absolute()) {
-        LogPrintf("Warning: relative datadir option '%s' specified, which will be interpreted relative to the " /* Continued */
-                  "current working directory '%s'. This is fragile, because if bitcoin is started in the future "
-                  "from a different location, it will be unable to locate the current data files. There could "
-                  "also be data loss if bitcoin is started while in a temporary directory.\n",
-            gArgs.GetArg("-datadir", ""), fs::current_path().string());
-    }
 
     // Start the lightweight task scheduler thread
     CScheduler::Function serviceLoop = boost::bind(&CScheduler::serviceQueue, &scheduler);
@@ -760,20 +708,13 @@ bool p2p_interface::Init(p2p_config &config) {
 	g_p2p_lmdb_dbi = config.lmdb_dbi;
 
 	// Process help and version before taking care about datadir
-	if (HelpRequested(gArgs) || gArgs.IsArgSet("-version")) {
+	if (HelpRequested(gArgs)) {
 		std::string strUsage = PACKAGE_NAME " daemon version " + FormatFullVersion() + "\n";
 
-		if (gArgs.IsArgSet("-version"))
-		{
-		    strUsage += FormatParagraph(p2p->LicenseInfo());
-		}
-		else
-		{
-		    strUsage += "\nUsage:  ";
-		    strUsage += config.argv[0];
-		    strUsage += " [options]                     Start " PACKAGE_NAME " daemon\n";
-		    strUsage += "\n" + gArgs.GetHelpMessage();
-		}
+		strUsage += "\nUsage:  ";
+		strUsage += config.argv[0];
+		strUsage += " [options]                     Start " PACKAGE_NAME " daemon\n";
+		strUsage += "\n" + gArgs.GetHelpMessage();
 
 		fprintf(stdout, "%s", strUsage.c_str());
 		return false;
@@ -781,7 +722,7 @@ bool p2p_interface::Init(p2p_config &config) {
 
 	if (!fs::is_directory(GetDataDir(false)))
 	{
-		fprintf(stderr, "Error: Specified data directory \"%s\" does not exist.\n", gArgs.GetArg("-datadir", "").c_str());
+		fprintf(stderr, "Error: Specified data directory \"%s\" does not exist.\n", GetDataDir().string());
 		return false;
 	}
 	if (!gArgs.ReadConfigFiles(error, true)) {
