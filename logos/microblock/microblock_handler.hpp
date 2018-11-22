@@ -43,28 +43,7 @@ public:
     /// @returns true on success
     bool Build(MicroBlock &block, bool last_micro_block);
 
-    /// Verify this microblock either exists or can be built and matches this block
-    /// @param block to validate [in]
-    /// @return true if validated
-    //bool Validate(const MicroBlock &block);
-
-    /// Verify this microblock either exists or can be built and matches this block
-    /// @param block to save to the database [in]
-    //void ApplyUpdates(const MicroBlock &block);
-
-    /// Verify this microblock either exists or can be built and matches this block
-    /// @param block to save to the database [in]
-    /// @param transaction transaction [in]
-    //void ApplyUpdates(const MicroBlock &block, const logos::transaction &);
-
 private:
-
-    /// Iterates each delegates' batch state block chain.
-    /// @param start tips to start iteration [in]
-    /// @param end tips to end iteration [in]
-    /// @param cb function to call for each delegate's batch state block, the function's argument are
-    ///   delegate id and BatchStateBlock
-    //void BatchBlocksIterator(const BatchTips &start, const BatchTips &end, IteratorBatchBlockReceiverCb cb);
 
     /// Calculate Merkle root and get batch block tips.
     /// If the previous micro block' time stamp (PMBTS) is not 0 (genesis block time stamp is 0)
@@ -116,7 +95,5 @@ private:
         return (timestamp + TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count());
     }
 
-    //BlockStore &            _store; 		    ///< reference to the block store
     IRecallHandler &        _recall_handler;    ///< recall handler reference
-    //Log                     _log;               ///< boost asio log
 };

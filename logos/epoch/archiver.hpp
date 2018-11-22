@@ -25,26 +25,14 @@ public:
     using EpochConsensusCb = std::function<logos::process_return(std::shared_ptr<Epoch>)>;
     ArchiverMicroBlockHandler() = default;
     virtual ~ArchiverMicroBlockHandler() = default;
-    virtual bool Validate(const MicroBlock&) = 0;
-    virtual void CommitToDatabase(const MicroBlock&) = 0;
-};
-
-class ArchiverEpochHandler
-{
-public:
-    ArchiverEpochHandler() = default;
-    virtual ~ArchiverEpochHandler() = default;
-    virtual bool Validate(const Epoch&) = 0;
-    virtual void CommitToDatabase(const Epoch&) = 0;
+    virtual void OnApplyUpdates(const MicroBlock &) = 0;
 };
 
 /// Container for Epoch/MicroBlock handling, Event proposing, Voting manager, and
 /// Recall handler
 /// Archiver
 /// - starts MicroBlock and Epoch Transition timers
-/// - provides bridge between consensus and handlers via IArchiverMicroBlockHandler
-///     and IArchiverEpochHandler, where each handler implements validation
-///     and database update
+/// - provides database update handler via IArchiverMicroBlockHandler
 /// - ties handlers to EventProposer; i.e. when the last MicroBlock is committed to
 ///   the database, the archiver calls EventProposer::ProposeEpoch to start
 ///   creation of the Epoch block
@@ -52,14 +40,10 @@ public:
 ///   and fetch delegates for the proposed Epoch block
 /// - interfaces to recall handler to check whether a recall happened in the
 ///   current epoch
-class Archiver : public ArchiverEpochHandler,
-                 public ArchiverMicroBlockHandler
+class Archiver : public ArchiverMicroBlockHandler
 {
     friend MicroBlockTester;
 
-    using MicroBlockConsensusCb = std::function<logos::process_return(std::shared_ptr<MicroBlock>)>;
-    using MicroBlockPrePrepare  = const PrePrepareMessage<ConsensusType::MicroBlock>;
-    using EpochPrePrepare       = const PrePrepareMessage<ConsensusType::Epoch>;
 public:
     /// Class constructor
     /// @param alarm logos alarm reference [in]
@@ -72,37 +56,13 @@ public:
     /// @param internal consensus interface reference
     void Start(InternalConsensus&);
 
-    /// Validate Micro block
-    /// @param block micro block to validate
-    /// @returns true if validated
-    bool Validate(const MicroBlock& block) override
-    {
-        return _micro_block_handler.Validate(static_cast<const RequestMessage<ConsensusType::MicroBlock>&>(block));
-    }
-
     /// Commit micro block to the database, propose epoch
     /// @param block to commit
-    void CommitToDatabase(const MicroBlock& block) override
+    void OnApplyUpdates(const MicroBlock &block) override
     {
-        _micro_block_handler.ApplyUpdates(static_cast<const PrePrepareMessage<ConsensusType::MicroBlock>&>(block), 0);
         if (block.last_micro_block) {
             _event_proposer.ProposeEpoch();
         }
-    }
-
-    /// Validate Epoch block
-    /// @param block to validate
-    /// @returns true if validated
-    bool Validate(const Epoch& block) override
-    {
-        return _epoch_handler.Validate(static_cast<const RequestMessage<ConsensusType::Epoch>&>(block));
-    }
-
-    /// Commit epoch block to the database
-    /// @param block to commit
-    void CommitToDatabase(const Epoch& block) override
-    {
-        _epoch_handler.ApplyUpdates(static_cast<const PrePrepareMessage<ConsensusType::Epoch>&>(block), 0);
     }
 
     /// Is Recall

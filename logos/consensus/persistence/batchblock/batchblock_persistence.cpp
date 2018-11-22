@@ -46,7 +46,7 @@ bool PersistenceManager<BSBCT>::Validate(const Request & block,
     std::lock_guard<std::mutex> lock(_reservation_mutex);
 
     logos::account_info info;
-    auto account_error(_reservations.Acquire(block.hashables.account, &info));
+    auto account_error(_reservations.Acquire(block.hashables.account, info));
 
     // Account exists.
     if(!account_error)

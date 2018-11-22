@@ -2,6 +2,7 @@
 /// This file contains declaration of Epoch related validation and persistence
 
 #include <logos/consensus/persistence/epoch/epoch_persistence.hpp>
+#include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/lib/trace.hpp>
 
 PersistenceManager<ECT>::PersistenceManager(Store & store,
@@ -61,11 +62,11 @@ PersistenceManager<ECT>::Validate(
         return false;
     }
 
-    /*if (!_voting_manager.ValidateEpochDelegates(epoch.delegates))
+    if (!EpochVotingManager::ValidateEpochDelegates(epoch.delegates))
     {
         LOG_ERROR(_log) << "PersistenceManager::Validate invalid deligates ";
         return false;
-    }*/
+    }
 
     // verify transaction fee pool? TBD
     LOG_WARN(_log) << "PersistenceManager::Validate  WARNING TRANSACTION POOL IS NOT VALIDATED";

@@ -16,7 +16,7 @@ public:
         : _store(store)
     {}
     virtual ~ReservationsProvider() = default;
-    virtual bool Acquire(const logos::account & account, logos::account_info * info) {return true;}
+    virtual bool Acquire(const logos::account & account, logos::account_info &info) {return true;}
     virtual void Release(const logos::account & account) {}
 protected:
     Store &      _store;
@@ -49,11 +49,9 @@ public:
     //       this is not the only case in which a cached account will be
     //       acquired.
     //-------------------------------------------------------------------------
-    bool Acquire(const logos::account & account, logos::account_info * info) override
+    bool Acquire(const logos::account & account, logos::account_info &info) override
     {
         std::lock_guard<std::mutex> lock(_mutex);
-
-        assert(info != nullptr);
 
         if(_accounts.find(account) != _accounts.end())
         {
@@ -62,15 +60,15 @@ public:
                            << account.to_string()
                            << " which is already in the Reservations cache.";
 
-            *info = _accounts[account];
+            info = _accounts[account];
             return false;
         }
 
-        auto ret = _store.account_get(account, *info);
+        auto ret = _store.account_get(account, info);
 
         if(!ret)
         {
-            _accounts[account] = *info;
+            _accounts[account] = info;
         }
 
         return ret;
@@ -94,8 +92,8 @@ public:
     {}
     ~DefaultReservations() = default;
 
-    bool Acquire(const logos::account & account, logos::account_info * info) override
+    bool Acquire(const logos::account & account, logos::account_info &info) override
     {
-        return _store.account_get(account, *info);
+        return _store.account_get(account, info);
     }
 };

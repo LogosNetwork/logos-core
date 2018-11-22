@@ -41,6 +41,10 @@ public:
     /// @param message to commit [in]
     /// @param delegate_id delegate id [in]
     void ApplyUpdates(const PrePrepare & message, uint8_t delegate_id);
+    void ApplyUpdates(const PrePrepare & message)
+    {
+        ApplyUpdates(message, 0);
+    }
 
 protected:
 

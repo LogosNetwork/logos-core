@@ -89,6 +89,7 @@ EpochVotingManager::ValidateEpochDelegates(
    const Delegates &delegates)
 {
    std::unordered_map<logos::public_key,bool> verify;
+   Log log;
 
    for (auto delegate : logos::genesis_delegates)
    {
@@ -99,7 +100,7 @@ EpochVotingManager::ValidateEpochDelegates(
    {
        if (verify.find(delegates[i].account) == verify.end())
        {
-           LOG_ERROR(_log) << "EpochVotingManager::ValidateEpochDelegates invalild account "
+           LOG_ERROR(log) << "EpochVotingManager::ValidateEpochDelegates invalild account "
                            << delegates[i].account.to_account();
            return false;
        }

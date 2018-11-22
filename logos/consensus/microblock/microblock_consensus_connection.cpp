@@ -32,15 +32,17 @@ bool
 MicroBlockConsensusConnection::DoValidate(
     const PrePrepare & message)
 {
-    return _microblock_handler.Validate(message);
+    return _persistence_manager.Validate(message);
 }
 
 void
 MicroBlockConsensusConnection::ApplyUpdates(
     const PrePrepare & block,
-    uint8_t delegate_id)
+    uint8_t)
 {
-    _microblock_handler.CommitToDatabase(block);
+    _persistence_manager.ApplyUpdates(block);
+
+    _microblock_handler.OnApplyUpdates(block);
 }
 
 bool

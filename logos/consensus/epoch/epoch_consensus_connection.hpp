@@ -8,8 +8,6 @@
 
 #include <logos/consensus/consensus_connection.hpp>
 
-class ArchiverEpochHandler;
-
 class EpochConsensusConnection :
         public ConsensusConnection<ConsensusType::Epoch>
 {
@@ -27,7 +25,6 @@ public:
                              RequestPromoter<ECT> & promoter,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
-                             ArchiverEpochHandler & handler,
                              EpochEventsNotifier & events_notifier,
                              PersistenceManager<ECT> & persistence_manager);
     ~EpochConsensusConnection() = default;
@@ -45,5 +42,4 @@ public:
     bool IsPrePrepared(const logos::block_hash & hash) override;
 
 private:
-    ArchiverEpochHandler & _epoch_handler; ///< Epoch handler
 };

@@ -28,7 +28,7 @@ EpochManager::EpochManager(Service & service,
     , _micro_manager(service, store,
                      config, _key_store, _validator, archiver, *this)
     , _epoch_manager(service, store,
-                     config, _key_store, _validator, archiver, *this)
+                     config, _key_store, _validator, *this)
     , _netio_manager(
         {
             {ConsensusType::BatchStateBlock, _batch_manager},

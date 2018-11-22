@@ -27,7 +27,6 @@ public:
 					      const Config & config,
                           DelegateKeyStore & key_store,
                           MessageValidator & validator,
-                          ArchiverEpochHandler & handler,
                           EpochEventsNotifier & events_notifier);
 
     ~EpochConsensusManager() = default;
@@ -103,6 +102,5 @@ protected:
 
 private:
     std::shared_ptr<PrePrepare>  _cur_epoch; 	///< Currently handled epoch
-    ArchiverEpochHandler &       _epoch_handler;///< Epoch handler
 	bool 						 _enqueued;   	///< Request is enqueued
 };
