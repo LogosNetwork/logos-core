@@ -1,6 +1,6 @@
 #pragma once
 
-#include <logos/consensus/persistence/persistence_manager_decl.hpp>
+#include <logos/consensus/persistence/persistence_manager.hpp>
 #include <logos/consensus/messages/rejection.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/messages/messages.hpp>

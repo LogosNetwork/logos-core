@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <logos/consensus/persistence/persistence_manager_decl.hpp>
+#include <logos/consensus/persistence/persistence_manager.hpp>
 
 static constexpr ConsensusType MBCT = ConsensusType::MicroBlock;
 

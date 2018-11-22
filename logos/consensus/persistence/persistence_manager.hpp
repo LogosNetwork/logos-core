@@ -41,8 +41,3 @@ public:
     /// @param delegate_id delegate id [in]
     void ApplyUpdates(const PrePrepare & message, uint8_t delegate_id);
 };
-
-/// full specialization
-#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
-#include <logos/consensus/persistence/microblock/microblock_persistence.hpp>
-#include <logos/consensus/persistence/epoch/epoch_persistence.hpp>

@@ -5,7 +5,7 @@
 #pragma once
 
 // must be first
-#include <logos/consensus/persistence/persistence_manager_decl.hpp>
+#include <logos/consensus/persistence/persistence_manager.hpp>
 // specializations to follow
 #include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
 #include <logos/consensus/persistence/microblock/microblock_persistence.hpp>

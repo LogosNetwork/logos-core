@@ -1,6 +1,6 @@
 #pragma once
 
-#include <logos/consensus/persistence/persistence_manager_spec.hpp>
+#include <logos/consensus/persistence/persistence_manager_incl.hpp>
 #include <logos/wallet_server/client/wallet_server_client.hpp>
 #include <logos/consensus/batchblock/request_handler.hpp>
 #include <logos/consensus/secondary_request_handler.hpp>

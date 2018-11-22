@@ -1,7 +1,7 @@
 /// @file
 /// This file contains declaration of MicroBlock related validation and persistence
 
-#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
+#include <logos/consensus/persistence/microblock/microblock_persistence.hpp>
 #include <logos/lib/trace.hpp>
 
 PersistenceManager<MBCT>::PersistenceManager(Store & store,
