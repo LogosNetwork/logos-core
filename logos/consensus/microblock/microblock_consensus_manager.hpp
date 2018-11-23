@@ -68,10 +68,6 @@ protected:
         std::shared_ptr<Request> block,
         logos::process_return & result) override;
 
-    /// Validates PrePrepare message.
-    ///     @return true if validated false otherwise
-    bool DoValidate(const PrePrepare & message) override;
-
     /// Queues micro block.
     void QueueRequestPrimary(std::shared_ptr<Request>) override;
 

@@ -44,13 +44,6 @@ MicroBlockConsensusManager::Validate(
     return true;
 }
 
-bool
-MicroBlockConsensusManager::DoValidate(
-    const PrePrepare & message)
-{
-    return _microblock_handler.Validate(message);
-}
-
 void
 MicroBlockConsensusManager::QueueRequestPrimary(
     std::shared_ptr<Request> request)

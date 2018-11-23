@@ -118,8 +118,6 @@ protected:
     virtual bool Validate(std::shared_ptr<Request> block,
                           logos::process_return & result) = 0;
 
-    virtual bool DoValidate(const PrePrepare & message) = 0;
-
     virtual uint64_t GetStoredCount() = 0;
 
     void OnConsensusReached() override;

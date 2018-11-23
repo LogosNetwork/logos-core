@@ -29,7 +29,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _persistence_manager(store, _reservations)
     , _consensus_p2p(p2p, _delegate_id,
 	[this](const Prequel & message, MessageType mtype, uint8_t delegate_id) {
-		return mtype == MessageType::Pre_Prepare  ? this->DoValidate((PrePrepare  &)message)
+		return mtype == MessageType::Pre_Prepare  ? this->_persistence_manager.Validate((PrePrepare  &)message)
 		     : mtype == MessageType::Post_Prepare ? this->_validator.Validate((PostPrepareMessage<CT> &)message, delegate_id)
 		     : mtype == MessageType::Post_Commit  ? this->_validator.Validate((PostCommitMessage<CT>  &)message, delegate_id)
 		     : false;

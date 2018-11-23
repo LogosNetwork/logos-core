@@ -107,64 +107,6 @@ BatchBlockConsensusManager::Validate(
     return _persistence_manager.Validate(*block, result, false);
 }
 
-/// Validate BatchStateBlock message.
-///
-///     @param message message to validate
-///     @return true if validated false otherwise
-bool
-BatchBlockConsensusManager::DoValidate(
-    const PrePrepare & message)
-{
-    if(!ValidateSequence(message))
-    {
-	return false;
-    }
-
-    if(!ValidateRequests(message))
-    {
-	return false;
-    }
-
-    return true;
-}
-
-bool
-BatchBlockConsensusManager::ValidateSequence(
-    const PrePrepare & message)
-{
-/*
-    if(_sequence_number != message.sequence)
-    {
-	_reason = RejectionReason::Wrong_Sequence_Number;
-	return false;
-    }
-*/
-    return true;
-}
-
-bool
-BatchBlockConsensusManager::ValidateRequests(
-    const PrePrepare & message)
-{
-    bool valid = true;
-
-    for(uint64_t i = 0; i < message.block_count; ++i)
-    {
-	if(!_persistence_manager.Validate(message.blocks[i]))
-	{
-	    //_rejection_map[i] = 1;
-
-	    if(valid)
-	    {
-		//_reason = RejectionReason::Contains_Invalid_Request;
-		valid = false;
-	    }
-	}
-    }
-
-    return valid;
-}
-
 bool
 BatchBlockConsensusManager::ReadyForConsensus()
 {

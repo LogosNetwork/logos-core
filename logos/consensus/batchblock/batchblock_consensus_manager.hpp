@@ -113,14 +113,6 @@ protected:
         std::shared_ptr<Request> block,
         logos::process_return & result) override;
 
-    /// Validate PrePrepare message
-    /// @param messasge PrePrepare message [in]
-    /// @returns true on success
-    bool DoValidate(const PrePrepare & message) override;
-
-    bool ValidateSequence(const PrePrepare & message);
-    bool ValidateRequests(const PrePrepare & message);
-
     /// Sends buffered blocks.
     ///
     /// Benchmark related.

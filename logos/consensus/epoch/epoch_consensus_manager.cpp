@@ -48,13 +48,6 @@ EpochConsensusManager::Validate(
     return true;
 }
 
-bool
-EpochConsensusManager::DoValidate(
-    const PrePrepare & message)
-{
-    return _epoch_handler.Validate(message);
-}
-
 void 
 EpochConsensusManager::QueueRequestPrimary(
     std::shared_ptr<Request> request)
