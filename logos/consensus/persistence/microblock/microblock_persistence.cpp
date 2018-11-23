@@ -5,7 +5,7 @@
 #include <logos/lib/trace.hpp>
 
 PersistenceManager<MBCT>::PersistenceManager(Store & store,
-                                              ReservationsProvider &)
+                                             ReservationsPtr)
     : _store(store)
 {}
 

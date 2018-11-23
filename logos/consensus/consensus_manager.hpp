@@ -68,6 +68,7 @@ protected:
     using Manager     = ConsensusManager<CT>;
     using Request     = RequestMessage<CT>;
     using PrePrepare  = PrePrepareMessage<CT>;
+    using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
 
 public:
 
@@ -166,7 +167,7 @@ protected:
     uint8_t                         _delegate_id;
     SecondaryRequestHandler<CT> &   _secondary_handler;    ///< Secondary queue of blocks.
     EpochEventsNotifier &           _events_notifier;      ///< Notifies epoch manager of transition related events
-    Reservations                    _reservations;
-    PersistenceManager<CT>         _persistence_manager;
+    ReservationsPtr                 _reservations;
+    PersistenceManager<CT>          _persistence_manager;
 };
 

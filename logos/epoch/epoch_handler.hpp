@@ -26,9 +26,8 @@ public:
     /// @param voting_manager delegate's voting manager [in]
     EpochHandler(BlockStore &store,
                  EpochVotingManager & voting_manager)
-        : PersistenceManager<ECT>(store, _reservations)//_store(s)
+        : PersistenceManager<ECT>(store)
         , _voting_manager(voting_manager)
-        , _reservations(store)
         {}
     virtual ~EpochHandler() {}
 
@@ -38,5 +37,4 @@ public:
 
 private:
     EpochVotingManager &    _voting_manager;  ///< voting manager
-    ReservationsProvider    _reservations;
 };

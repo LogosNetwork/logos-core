@@ -20,7 +20,7 @@ protected:
     using PrePrepare    = PrePrepareMessage<CT>;
 
 public:
-    PersistenceManager(Store & store, ReservationsProvider & reservations);
+    PersistenceManager(Store & store, std::shared_ptr<ReservationsProvider> reservations);
     virtual ~PersistenceManager() = default;
 
     /// Request validation, EDDSA signature and block validation

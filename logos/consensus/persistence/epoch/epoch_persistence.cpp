@@ -6,7 +6,11 @@
 #include <logos/lib/trace.hpp>
 
 PersistenceManager<ECT>::PersistenceManager(Store & store,
-                                              ReservationsProvider &)
+                                            ReservationsPtr)
+    : _store(store)
+{}
+
+PersistenceManager<ECT>::PersistenceManager(Store & store)
     : _store(store)
 {}
 

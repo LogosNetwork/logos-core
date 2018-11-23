@@ -24,7 +24,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _delegate_id(config.delegate_id)
     , _secondary_handler(SecondaryRequestHandlerInstance(service, this))
     , _events_notifier(events_notifier)
-    , _reservations(store)
+    , _reservations(std::make_shared<Reservations>(store))
     , _persistence_manager(store, _reservations)
 {}
 

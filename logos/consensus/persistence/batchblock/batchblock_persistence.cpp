@@ -8,10 +8,16 @@
 
 constexpr uint128_t PersistenceManager<BSBCT>::MIN_TRANSACTION_FEE;
 
-PersistenceManager<BSBCT>::PersistenceManager(Store & store, ReservationsProvider & reservations)
+PersistenceManager<BSBCT>::PersistenceManager(Store & store, ReservationsPtr reservations)
     : _store(store)
     , _reservations(reservations)
-{}
+{
+    if (reservations == nullptr)
+    {
+        LOG_WARN(_log) << "PersistenceManager creating default reservations";
+    }
+    _reservations = std::make_shared<DefaultReservations>(store);
+}
 
 void PersistenceManager<BSBCT>::ApplyUpdates(const PrePrepare & message, uint8_t delegate_id)
 {
@@ -46,7 +52,7 @@ bool PersistenceManager<BSBCT>::Validate(const Request & block,
     std::lock_guard<std::mutex> lock(_reservation_mutex);
 
     logos::account_info info;
-    auto account_error(_reservations.Acquire(block.hashables.account, info));
+    auto account_error(_reservations->Acquire(block.hashables.account, info));
 
     // Account exists.
     if(!account_error)
@@ -162,6 +168,20 @@ bool PersistenceManager<BSBCT>::Validate(const Request & block)
     return Validate(block, ignored_result);
 }
 
+/// TODO sequence/previous/timestamp/signature
+bool PersistenceManager<BSBCT>::Validate(const PrePrepare & message)
+{
+    for(uint64_t i = 0; i < message.block_count; ++i)
+    {
+        if(!Validate(static_cast<const Request&>(message.blocks[i])))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void PersistenceManager<BSBCT>::StoreBatchMessage(const BatchStateBlock & message,
                                            MDB_txn * transaction,
                                            uint8_t delegate_id)
@@ -252,7 +272,7 @@ void PersistenceManager<BSBCT>::ApplyBatchMessage(const BatchStateBlock & messag
                           transaction);
 
         std::lock_guard<std::mutex> lock(_reservation_mutex);
-        _reservations.Release(message.blocks[i].hashables.account);
+        _reservations->Release(message.blocks[i].hashables.account);
     }
 }
 

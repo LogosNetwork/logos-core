@@ -12,21 +12,25 @@ using namespace boost::multiprecision::literals;
 
 template<>
 class PersistenceManager<BSBCT> {
-    using Store        = logos::block_store;
-    using Hash         = logos::block_hash;
-    using Request      = RequestMessage<BSBCT>;
-    using PrePrepare   = PrePrepareMessage<BSBCT>;
+    using Store             = logos::block_store;
+    using Hash              = logos::block_hash;
+    using Request           = RequestMessage<BSBCT>;
+    using PrePrepare        = PrePrepareMessage<BSBCT>;
+    using ReservationsPtr   = std::shared_ptr<ReservationsProvider>;
 
 public:
 
-    PersistenceManager(Store & store, ReservationsProvider & reservations);
+    PersistenceManager(Store & store, ReservationsPtr reservations);
+    virtual ~PersistenceManager() = default;
 
-    void ApplyUpdates(const PrePrepare & message, uint8_t delegate_id);
+    virtual void ApplyUpdates(const PrePrepare & message, uint8_t delegate_id);
 
-    bool Validate(const Request & block,
+    virtual bool Validate(const Request & block,
                   logos::process_return & result,
                   bool allow_duplicates = true);
-    bool Validate(const Request & block);
+    virtual bool Validate(const Request & block);
+
+    virtual bool Validate(const PrePrepare & message);
 
 private:
 
@@ -53,9 +57,9 @@ private:
     static constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
 
 
-    Store &                 _store;
-    Log                     _log;
-    ReservationsProvider &  _reservations;
-    std::mutex              _reservation_mutex;
-    std::mutex              _destination_mutex;
+    Store &             _store;
+    Log                 _log;
+    ReservationsPtr     _reservations;
+    std::mutex          _reservation_mutex;
+    std::mutex          _destination_mutex;
 };

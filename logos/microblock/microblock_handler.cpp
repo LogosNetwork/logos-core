@@ -13,31 +13,6 @@
 
 using namespace logos;
 
-/*void
-MicroBlockHandler::BatchBlocksIterator(
-    const BatchTips &start,
-    const BatchTips &end,
-    IteratorBatchBlockReceiverCb batchblock_receiver)
-{
-    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
-    {
-        BlockHash hash = start[delegate];
-        BatchStateBlock batch;
-        bool not_found = false;
-        for (not_found = _store.batch_block_get(hash, batch);
-             !not_found && hash != end[delegate];
-             hash = batch.previous, not_found = _store.batch_block_get(hash, batch)) {
-            batchblock_receiver(delegate, batch);
-        }
-        if (not_found && hash != 0)
-        {
-            LOG_ERROR(_log) << "MicroBlockHander::BatchBlocksIterator failed to get batch state block: "
-                            << hash.to_string();
-            return;
-        }
-    }
-}*/
-
 BlockHash
 MicroBlockHandler::FastMerkleTree(
     const BatchTips &start,
