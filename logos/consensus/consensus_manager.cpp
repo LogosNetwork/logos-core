@@ -25,6 +25,8 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _delegate_id(config.delegate_id)
     , _secondary_handler(SecondaryRequestHandlerInstance(service, this))
     , _events_notifier(events_notifier)
+    , _reservations(std::make_shared<Reservations>(store))
+    , _persistence_manager(store, _reservations)
     , _consensus_p2p(p2p, _delegate_id,
 	[this](const Prequel & message, MessageType mtype, uint8_t delegate_id) {
 		return mtype == MessageType::Pre_Prepare  ? this->DoValidate((PrePrepare  &)message)

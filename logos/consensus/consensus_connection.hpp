@@ -57,7 +57,8 @@ public:
                         RequestPromoter<CT> & promoter,
                         MessageValidator & validator,
                         const DelegateIdentities & ids,
-			EpochEventsNotifier & events_notifier,
+                        EpochEventsNotifier & events_notifier,
+			PersistenceManager<CT> & persistence_manager,
 			p2p_interface & p2p);
 
     void Send(const void * data, size_t size);
@@ -169,5 +170,6 @@ protected:
     RequestPromoter<CT> &       _promoter; ///< secondary list request promoter
     uint64_t                    _sequence_number = 0;
     EpochEventsNotifier &       _events_notifier;
+    PersistenceManager<CT> &   _persistence_manager;
     ConsensusP2p<CT>            _consensus_p2p;
 };

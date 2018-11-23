@@ -18,7 +18,6 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
 	p2p_interface & p2p)
     : Manager(service, store, config,
 	      key_store, validator, events_notifier, p2p)
-    , _persistence_manager(store)
     , _init_timer(service)
     , _service(service)
 {
@@ -57,8 +56,8 @@ BatchBlockConsensusManager::BindIOChannel(
 {
     auto connection =
             std::make_shared<BBConsensusConnection>(
-                    iochannel, *this, *this, _persistence_manager,
-		    _validator, ids, _service, _events_notifier, Manager::_consensus_p2p._p2p);
+                    iochannel, *this, *this, _validator,
+		    ids, _service, _events_notifier, _persistence_manager, Manager::_consensus_p2p._p2p);
 
     _connections.push_back(connection);
 	
@@ -288,8 +287,8 @@ BatchBlockConsensusManager::MakeConsensusConnection(
     const DelegateIdentities& ids)
 {
     return std::make_shared<BBConsensusConnection>(
-            iochannel, *this, *this, _persistence_manager,
-	    _validator, ids, _service, _events_notifier, Manager::_consensus_p2p._p2p);
+            iochannel, *this, *this, _validator,
+	    ids, _service, _events_notifier, _persistence_manager, Manager::_consensus_p2p._p2p);
 }
 
 void

@@ -183,7 +183,6 @@ private:
     bool                    _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
     BlockBuffer             _buffer;                        ///< Buffered state blocks.
     static RequestHandler   _handler;                       ///< Primary queue of batch state blocks.
-    PersistenceManager      _persistence_manager;		    ///< Database interface and request validation
     Timer                   _init_timer;
     Service &               _service;
     uint64_t                _sequence       = 0;

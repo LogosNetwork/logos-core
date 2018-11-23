@@ -12,16 +12,15 @@ BBConsensusConnection::BBConsensusConnection(
         std::shared_ptr<IOChannel> iochannel,
         PrimaryDelegate & primary,
         Promoter & promoter,
-        PersistenceManager & persistence_manager,
         MessageValidator & validator,
         const DelegateIdentities & ids,
         Service & service,
-	EpochEventsNotifier & events_notifier,
+        EpochEventsNotifier & events_notifier,
+	PersistenceManager<BSBCT> & persistence_manager,
 	p2p_interface & p2p)
     : Connection(iochannel, primary, promoter,
-		 validator, ids, events_notifier, p2p)
+		 validator, ids, events_notifier, persistence_manager, p2p)
     , _timer(service)
-    , _persistence_manager(persistence_manager)
 {
     promoter.GetStore().batch_tip_get(_delegate_ids.remote, _prev_pre_prepare_hash);
 }
@@ -68,7 +67,7 @@ BBConsensusConnection::ValidateRequests(
 
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
-        if(!_persistence_manager.Validate(message.blocks[i]))
+        if(!_persistence_manager.Validate(static_cast<const Request&>(message.blocks[i])))
         {
             _rejection_map[i] = 1;
 

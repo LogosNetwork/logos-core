@@ -1,10 +1,11 @@
 #pragma once
 
+#include <logos/consensus/persistence/persistence_manager_incl.hpp>
 #include <logos/wallet_server/client/wallet_server_client.hpp>
-#include <logos/consensus/persistence/persistence_manager.hpp>
 #include <logos/consensus/batchblock/request_handler.hpp>
 #include <logos/consensus/secondary_request_handler.hpp>
 #include <logos/consensus/consensus_manager_config.hpp>
+#include <logos/consensus/persistence/reservations.hpp>
 #include <logos/consensus/consensus_connection.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
@@ -68,6 +69,7 @@ protected:
     using Manager     = ConsensusManager<CT>;
     using Request     = RequestMessage<CT>;
     using PrePrepare  = PrePrepareMessage<CT>;
+    using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
 
 public:
 
@@ -171,6 +173,8 @@ protected:
     uint8_t                         _delegate_id;
     SecondaryRequestHandler<CT> &   _secondary_handler;    ///< Secondary queue of blocks.
     EpochEventsNotifier &           _events_notifier;      ///< Notifies epoch manager of transition related events
+    ReservationsPtr                 _reservations;
+    PersistenceManager<CT>          _persistence_manager;
     ConsensusP2p<CT>		    _consensus_p2p;
 };
 

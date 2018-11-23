@@ -10,6 +10,9 @@
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
 
+using boost::multiprecision::uint128_t;
+using namespace boost::multiprecision::literals;
+
 uint8_t DelegateIdentityManager::_global_delegate_idx = 0;
 logos::account DelegateIdentityManager::_delegate_account = 0;
 DelegateIdentityManager::IPs DelegateIdentityManager::_delegates_ip;

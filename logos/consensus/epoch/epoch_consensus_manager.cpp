@@ -15,12 +15,10 @@ EpochConsensusManager::EpochConsensusManager(
 					      const Config & config,
                           DelegateKeyStore & key_store,
                           MessageValidator & validator,
-                          ArchiverEpochHandler & handler,
 			  EpochEventsNotifier & events_notifier,
 			  p2p_interface & p2p)
 	: Manager(service, store, config,
 		      key_store, validator, events_notifier, p2p)
-	, _epoch_handler(handler)
 	, _enqueued(false)
 {
 	if (_store.epoch_tip_get(_prev_hash))
@@ -89,7 +87,7 @@ EpochConsensusManager::ApplyUpdates(
     const PrePrepare & pre_prepare,
     uint8_t delegate_id)
 {
-    _epoch_handler.CommitToDatabase(pre_prepare);
+    _persistence_manager.ApplyUpdates(pre_prepare);
 }
 
 uint64_t 
@@ -121,7 +119,7 @@ EpochConsensusManager::MakeConsensusConnection(
         const DelegateIdentities& ids)
 {
     return std::make_shared<EpochConsensusConnection>(iochannel, *this, *this,
-	    _validator, ids, _epoch_handler, _events_notifier, Manager::_consensus_p2p._p2p);
+	    _validator, ids, _events_notifier, _persistence_manager, Manager::_consensus_p2p._p2p);
 }
 
 uint8_t

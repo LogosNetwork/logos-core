@@ -12,7 +12,8 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
                                              RequestPromoter<CT> & promoter,
                                              MessageValidator & validator,
                                              const DelegateIdentities & ids,
-					     EpochEventsNotifier & events_notifer,
+                                             EpochEventsNotifier & events_notifer,
+					     PersistenceManager<CT> & persistence_manager,
 					     p2p_interface & p2p)
     : _iochannel(iochannel)
     , _delegate_ids(ids)
@@ -21,6 +22,7 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
     , _primary(primary)
     , _promoter(promoter)
     , _events_notifier(events_notifer)
+    , _persistence_manager(persistence_manager)
     , _consensus_p2p(p2p, ids.remote,
 	[this](const Prequel &message, MessageType mtype, uint8_t delegate_id) {
 		return mtype == MessageType::Pre_Prepare  ? this->Validate((PrePrepare  &)message)

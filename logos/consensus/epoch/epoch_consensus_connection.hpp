@@ -8,11 +8,10 @@
 
 #include <logos/consensus/consensus_connection.hpp>
 
-class ArchiverEpochHandler;
-
 class EpochConsensusConnection :
         public ConsensusConnection<ConsensusType::Epoch>
 {
+    static constexpr ConsensusType ECT = ConsensusType::Epoch;
 public:
     /// Class constructor
     /// @param iochannel NetIO channel [in]
@@ -23,11 +22,11 @@ public:
     /// @param events_notifier epoch transition helper [in]
     EpochConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                              PrimaryDelegate & primary,
-                             RequestPromoter<ConsensusType::Epoch> & promoter,
+                             RequestPromoter<ECT> & promoter,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
-                             ArchiverEpochHandler & handler,
-			     EpochEventsNotifier & events_notifier,
+                             EpochEventsNotifier & events_notifier,
+			     PersistenceManager<ECT> & persistence_manager,
 			     p2p_interface & p2p);
     ~EpochConsensusConnection() = default;
 
@@ -44,5 +43,4 @@ public:
     bool IsPrePrepared(const logos::block_hash & hash) override;
 
 private:
-    ArchiverEpochHandler & _epoch_handler; ///< Epoch handler
 };
