@@ -1793,7 +1793,7 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
     {
         ProcessOneShot();
 
-        if (!interruptNet.sleep_for(std::chrono::milliseconds(500)))
+        if (!interruptNet.sleep_for(std::chrono::milliseconds(5000)))
             return;
 
         CSemaphoreGrant grant(*semOutbound);
@@ -1873,8 +1873,11 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
             }
 
             // if we selected an invalid address, restart
-            if (!addr.IsValid() || setConnected.count(addr.GetGroup()) || IsLocal(addr))
+            if (!addr.IsValid() || setConnected.count(addr.GetGroup()) || IsLocal(addr)) {
+		LogTrace(BCLog::NET, "Rejected connection to %s: valid=%d, local=%d, group_count=%d, feeler=%d\n",
+			addr.ToString(), addr.IsValid(), IsLocal(addr), setConnected.count(addr.GetGroup()), fFeeler);
                 break;
+	    }
 
             // If we didn't find an appropriate destination after trying 100 addresses fetched from addrman,
             // stop this loop, and let the outer loop run again (which sleeps, adds seed nodes, recalculates

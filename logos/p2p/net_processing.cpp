@@ -154,21 +154,6 @@ struct CNodeState {
     bool fPreferHeaders;
     //! Whether this peer wants invs or cmpctblocks (when possible) for block announcements.
     bool fPreferHeaderAndIDs;
-    /**
-      * Whether this peer will send us cmpctblocks if we request them.
-      * This is not used to gate request logic, as we really only care about fSupportsDesiredCmpctVersion,
-      * but is used as a flag to "lock in" the version of compact blocks (fWantsCmpctWitness) we send.
-      */
-    bool fProvidesHeaderAndIDs;
-    //! Whether this peer can give us witnesses
-    bool fHaveWitness;
-    //! Whether this peer wants witnesses in cmpctblocks/blocktxns
-    bool fWantsCmpctWitness;
-    /**
-     * If we've announced NODE_WITNESS to this peer: whether the peer sends witnesses in cmpctblocks/blocktxns,
-     * otherwise: whether this peer sends non-witnesses in cmpctblocks/blocktxns.
-     */
-    bool fSupportsDesiredCmpctVersion;
 
     /** State used to enforce CHAIN_SYNC_TIMEOUT
       * Only in effect for outbound, non-manual connections, with
@@ -217,10 +202,6 @@ struct CNodeState {
         fPreferredDownload = false;
         fPreferHeaders = false;
         fPreferHeaderAndIDs = false;
-        fProvidesHeaderAndIDs = false;
-        fHaveWitness = false;
-        fWantsCmpctWitness = false;
-        fSupportsDesiredCmpctVersion = false;
         m_chain_sync = { 0, nullptr, false, false };
         m_last_block_announcement = 0;
     }
@@ -443,14 +424,6 @@ static void RelayAddress(const CAddress& addr, bool fReachable, CConnman* connma
     connman->ForEachNodeThen(std::move(sortfunc), std::move(pushfunc));
 }
 
-static uint32_t GetFetchFlags(CNode* pfrom) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
-    uint32_t nFetchFlags = 0;
-    if ((pfrom->GetLocalServices() & NODE_WITNESS) && State(pfrom->GetId())->fHaveWitness) {
-        nFetchFlags |= MSG_WITNESS_FLAG;
-    }
-    return nFetchFlags;
-}
-
 bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, int64_t nTimeReceived, const CChainParams& chainparams, CConnman* connman, const std::atomic<bool>& interruptMsgProc, bool enable_bip61)
 {
     LogPrint(BCLog::NET, "received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->GetId());
@@ -586,12 +559,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         // Change version
         pfrom->SetSendVersion(nSendVersion);
         pfrom->nVersion = nVersion;
-
-        if((nServices & NODE_WITNESS))
-        {
-            LOCK(cs_main);
-            State(pfrom->GetId())->fHaveWitness = true;
-        }
 
         // Potentially mark this peer as a preferred download peer.
         {

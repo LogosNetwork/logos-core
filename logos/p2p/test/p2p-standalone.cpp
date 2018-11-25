@@ -30,7 +30,10 @@ class p2p_standalone : public p2p_interface {
 	}
 };
 
+extern void RenameThread(const char* name);
+
 static void *io_service_run(void *arg) {
+	RenameThread("p2p-io-service");
 	p2p_config *config = (p2p_config *)arg;
 	boost::system::error_code ec;
 	((boost::asio::io_service *)config->boost_io_service)->run(ec);
@@ -55,7 +58,7 @@ int main(int argc, char **argv) {
 
 	boost::log::add_common_attributes ();
 	boost::log::register_simple_formatter_factory< boost::log::trivial::severity_level, char > ("Severity");
-	boost::log::core::get()->set_filter (boost::log::trivial::severity >= boost::log::trivial::debug);
+	boost::log::core::get()->set_filter (boost::log::trivial::severity >= boost::log::trivial::trace);
 	boost::log::add_file_log (boost::log::keywords::target = "log",
 				  boost::log::keywords::file_name = "log/log_%Y-%m-%d_%H-%M-%S.%N.log",
 				  boost::log::keywords::rotation_size = 0x100000,
