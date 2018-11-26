@@ -7,6 +7,8 @@
 #ifndef _P2P_H_INCLUDED
 #define _P2P_H_INCLUDED
 
+#include <functional>
+
 class p2p_internal;
 
 #ifndef MDB_VERSION_FULL
@@ -20,6 +22,7 @@ struct p2p_config {
 	struct MDB_env *lmdb_env;
 	MDB_dbi lmdb_dbi;
 	void *boost_io_service;
+	std::function<void(unsigned, void (*)())> schedule_after_milliseconds;
 };
 
 class p2p_interface {

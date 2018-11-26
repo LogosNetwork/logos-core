@@ -113,6 +113,7 @@ void logos_daemon::daemon::run (boost::filesystem::path const & data_path, logos
         logos::node_init init;
         try
         {
+	    config.p2p_conf.schedule_after_milliseconds = std::bind(&logos::alarm::add_after, &alarm, std::placeholders::_1, std::placeholders::_2);
 	    config.node.p2p_conf = config.p2p_conf;
             auto node (std::make_shared<logos::node> (init, service, data_path, alarm, config.node, opencl_work));
             if (!init.error ())

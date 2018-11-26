@@ -77,6 +77,10 @@ public:
     ~alarm ();
     void add (std::chrono::steady_clock::time_point const &, std::function<void()> const &);
 
+    void add_after(unsigned milliseconds, void (*handler)()) {
+	add(std::chrono::steady_clock::now() + std::chrono::milliseconds(milliseconds), static_cast<void (*)()>(handler));
+    }
+
     template<typename REP, typename PERIOD>
     Handle add(std::chrono::duration<REP, PERIOD> const & duration, std::function<void()> const & handler)
     {
