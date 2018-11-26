@@ -2,16 +2,40 @@
 /// This file contains the definition of the MicroBlockHandler class, which is used
 /// in the Microblock processing
 #include <logos/microblock/microblock_handler.hpp>
-#include <logos/microblock/microblock_tester.hpp>
+//#include <logos/microblock/microblock_tester.hpp>
 #include <logos/blockstore.hpp>
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
 #include <time.h>
 
-#include <boost/log/sources/record_ostream.hpp>
-#include <boost/log/sources/logger.hpp>
-
 using namespace logos;
+
+void
+MicroBlockHandler::BatchBlocksIterator(
+    BlockStore & store,
+    const BatchTips &start,
+    const BatchTips &end,
+    IteratorBatchBlockReceiverCb batchblock_receiver)
+{
+    Log log;
+    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
+    {
+        BlockHash hash = start[delegate];
+        BatchStateBlock batch;
+        bool not_found = false;
+        for (not_found = store.batch_block_get(hash, batch);
+             !not_found && hash != end[delegate];
+             hash = batch.previous, not_found = store.batch_block_get(hash, batch)) {
+            batchblock_receiver(delegate, batch);
+        }
+        if (not_found && hash != 0)
+        {
+            LOG_ERROR(log) << "MicroBlockHander::BatchBlocksIterator failed to get batch state block: "
+                            << hash.to_string();
+            return;
+        }
+    }
+}
 
 BlockHash
 MicroBlockHandler::FastMerkleTree(
@@ -23,7 +47,7 @@ MicroBlockHandler::FastMerkleTree(
 {
    uint64_t cutoff_msec = GetCutOffTimeMsec(timestamp);
    return merkle::MerkleHelper([&](merkle::HashReceiverCb element_receiver)->void {
-       BatchBlocksIterator(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable -> void {
+       BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable -> void {
           if (batch.timestamp < cutoff_msec)
           {
               BlockHash hash = batch.Hash();
@@ -53,7 +77,7 @@ MicroBlockHandler::SlowMerkleTree(
     uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
 
     // frist get hashes and timestamps of all blocks; and min timestamp to use as the base
-    BatchBlocksIterator(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable->void{
+    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable->void{
        entries[delegate].push_back({batch.timestamp, batch.Hash()});
        if (batch.timestamp < min_timestamp)
        {
@@ -91,7 +115,7 @@ MicroBlockHandler::GetTipsFast(
     uint64_t timestamp)
 {
     uint64_t cutoff_msec = GetCutOffTimeMsec(timestamp);
-    BatchBlocksIterator(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable -> void {
+    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable -> void {
         if (batch.timestamp < cutoff_msec)
         {
             BlockHash hash = batch.Hash();
@@ -119,7 +143,7 @@ MicroBlockHandler::GetTipsSlow(
     uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
 
     // frist get hashes and timestamps of all blocks; and min timestamp to use as the base
-    BatchBlocksIterator(start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable->void{
+    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable->void{
         entries[delegate].push_back({batch.timestamp, batch.Hash()});
         if (batch.timestamp < min_timestamp)
         {

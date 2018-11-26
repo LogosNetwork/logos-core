@@ -25,7 +25,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _secondary_handler(SecondaryRequestHandlerInstance(service, this))
     , _events_notifier(events_notifier)
     , _reservations(std::make_shared<Reservations>(store))
-    , _persistence_manager(store, _reservations)
+    , _persistence_manager(validator, store, _reservations)
 {}
 
 template<ConsensusType CT>

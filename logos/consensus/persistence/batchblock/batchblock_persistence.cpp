@@ -4,12 +4,17 @@
 #include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
 #include <logos/consensus/persistence/state_block_locator.hpp>
 #include <logos/consensus/persistence/reservations.hpp>
+#include <logos/consensus/message_validator.hpp>
+#include <logos/lib/trace.hpp>
 #include <logos/common.hpp>
 
 constexpr uint128_t PersistenceManager<BSBCT>::MIN_TRANSACTION_FEE;
 
-PersistenceManager<BSBCT>::PersistenceManager(Store & store, ReservationsPtr reservations)
-    : _store(store)
+PersistenceManager<BSBCT>::PersistenceManager(MessageValidator & validator,
+                                              Store & store,
+                                              ReservationsPtr reservations,
+                                              Milliseconds clock_drift)
+    : Persistence(validator, store, clock_drift)
     , _reservations(reservations)
 {
     if (reservations == nullptr)
@@ -168,18 +173,48 @@ bool PersistenceManager<BSBCT>::Validate(const Request & block)
     return Validate(block, ignored_result);
 }
 
-/// TODO sequence/previous/timestamp/signature
-bool PersistenceManager<BSBCT>::Validate(const PrePrepare & message)
+bool PersistenceManager<BSBCT>::Validate(const PrePrepare & message,
+                                         uint8_t remote_delegate_id, ValidationStatus * status)
 {
+    if (!_validator.Validate(message, remote_delegate_id))
+    {
+        UpdateStatusReason(status, RejectionReason::Bad_Signature);
+        return false;
+    }
+
+    /// TODO maintain previous/sequence for efficiency
+    BatchStateBlock previous;
+    if (message.previous != 0 && _store.batch_block_get(message.previous, previous))
+    {
+        UpdateStatusReason(status, RejectionReason::Invalid_Previous_Hash);
+        return false;
+    }
+
+    if (!ValidateTimestamp(message.timestamp))
+    {
+        UpdateStatusReason(status, RejectionReason::Clock_Drift);
+        return false;
+    }
+
+    if (message.previous != 0 && message.sequence != (previous.sequence + 1))
+    {
+        UpdateStatusReason(status, RejectionReason::Wrong_Sequence_Number);
+        return false;
+    }
+
+    bool valid = true;
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
-        if(!Validate(static_cast<const Request&>(message.blocks[i])))
+        logos::process_return   result;
+        if(!Validate(static_cast<const Request&>(message.blocks[i]), result))
         {
-            return false;
+            UpdateStatusRequests(status, i, result.code);
+            UpdateStatusReason(status, RejectionReason::Contains_Invalid_Request);
+            valid = false;
         }
     }
 
-    return true;
+    return valid;
 }
 
 void PersistenceManager<BSBCT>::StoreBatchMessage(const BatchStateBlock & message,

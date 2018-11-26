@@ -30,7 +30,7 @@ bool
 EpochConsensusConnection::DoValidate(
     const PrePrepare & message)
 {
-    return _persistence_manager.Validate(message);
+    return _persistence_manager.Validate(message, _delegate_ids.remote);
 }
 
 void

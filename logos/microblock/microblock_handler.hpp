@@ -2,7 +2,6 @@
 /// This file contains the declaration of the MicroBlockHandler classe, which is used
 /// in the Microblock processing
 #pragma once
-#include <logos/consensus/persistence/microblock/microblock_persistence.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/lib/epoch_time_util.hpp>
@@ -16,8 +15,9 @@ using BlockStore                    = logos::block_store;
 using IteratorBatchBlockReceiverCb  = std::function<void(uint8_t, const BatchStateBlock&)>;
 using BatchBlockReceiverCb          = std::function<void(const BatchStateBlock&)>;
 
-/// Handle MicroBlock processing
-class MicroBlockHandler : public PersistenceManager<MBCT> {
+/// MicroBlockHandler builds MicroBlock
+class MicroBlockHandler
+{
 
     using BatchTips = BlockHash[NUM_DELEGATES];
 
@@ -27,9 +27,9 @@ public:
     /// @param s logos::block_store reference
     /// @param n number of delegates
     /// @param i microblock process period interval
-    MicroBlockHandler(BlockStore &s,
+    MicroBlockHandler(BlockStore &store,
                       IRecallHandler & recall_handler)
-        : PersistenceManager<MBCT>(s)
+        : _store(store)
         , _recall_handler(recall_handler)
         {}
 
@@ -42,6 +42,15 @@ public:
     /// @param last_micro_block last microblock in the poch [in]
     /// @returns true on success
     bool Build(MicroBlock &block, bool last_micro_block);
+
+    /// Iterates each delegates' batch state block chain.
+    /// @param store block store reference [in]
+    /// @param start tips to start iteration [in]
+    /// @param end tips to end iteration [in]
+    /// @param cb function to call for each delegate's batch state block, the function's argument are
+    ///   delegate id and BatchStateBlock
+    static void BatchBlocksIterator(BlockStore & store, const BatchTips &start, const BatchTips &end,
+                                    IteratorBatchBlockReceiverCb cb);
 
 private:
 
@@ -95,5 +104,7 @@ private:
         return (timestamp + TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count());
     }
 
+    BlockStore &            _store;
     IRecallHandler &        _recall_handler;    ///< recall handler reference
+    Log                     _log;
 };

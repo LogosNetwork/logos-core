@@ -2,47 +2,30 @@
 /// This file contains declaration of MicroBlock related validation and persistence
 
 #include <logos/consensus/persistence/microblock/microblock_persistence.hpp>
+#include <logos/microblock/microblock_handler.hpp>
+#include <logos/consensus/message_validator.hpp>
 #include <logos/lib/trace.hpp>
 
-PersistenceManager<MBCT>::PersistenceManager(Store & store,
-                                             ReservationsPtr)
-    : _store(store)
+PersistenceManager<MBCT>::PersistenceManager(MessageValidator & validator,
+                                             Store & store,
+                                             ReservationsPtr,
+                                             Milliseconds clock_drift)
+    : Persistence(validator, store, clock_drift)
 {}
-
-PersistenceManager<MBCT>::PersistenceManager(Store & store)
-    : _store(store)
-{}
-
-void
-PersistenceManager<MBCT>::BatchBlocksIterator(
-    const BatchTips &start,
-    const BatchTips &end,
-    IteratorBatchBlockReceiverCb batchblock_receiver)
-{
-    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
-    {
-        BlockHash hash = start[delegate];
-        BatchStateBlock batch;
-        bool not_found = false;
-        for (not_found = _store.batch_block_get(hash, batch);
-             !not_found && hash != end[delegate];
-             hash = batch.previous, not_found = _store.batch_block_get(hash, batch)) {
-            batchblock_receiver(delegate, batch);
-        }
-        if (not_found && hash != 0)
-        {
-            LOG_ERROR(_log) << "MicroBlockHander::BatchBlocksIterator failed to get batch state block: "
-                            << hash.to_string();
-            return;
-        }
-    }
-}
 
 bool
 PersistenceManager<MBCT>::Validate(
-    const PrePrepare & block)
+    const PrePrepare & block,
+    uint8_t remote_delegate_id,
+    ValidationStatus * status)
 {
     BlockHash hash = block.Hash();
+
+    if (!_validator.Validate(block, remote_delegate_id))
+    {
+        UpdateStatusReason(status, RejectionReason::Bad_Signature);
+        return false;
+    }
 
     // block exists
     if (_store.micro_block_exists(hash))
@@ -59,6 +42,7 @@ PersistenceManager<MBCT>::Validate(
         LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock account doesn't exist "
                         << " hash " << hash.to_string()
                         << " account " << block.account.to_account();
+        UpdateStatusReason(status, RejectionReason::Invalid_Account);
         return false;
     }
 
@@ -71,6 +55,7 @@ PersistenceManager<MBCT>::Validate(
         LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock previous doesn't exist "
                         << " hash " << hash.to_string()
                         << " previous " << block.previous.to_string();
+        UpdateStatusReason(status, RejectionReason::Invalid_Previous_Hash);
         return false;
     }
 
@@ -98,6 +83,7 @@ PersistenceManager<MBCT>::Validate(
                             << " epoch #: " << block.epoch_number << " block seq #:" << block.sequence
                             << " previous block seq #:" << previous_microblock.sequence
                             << " previous hash " << block.previous.to_string();
+            UpdateStatusReason(status, RejectionReason::Wrong_Sequence_Number);
             return false;
         }
     }
@@ -110,12 +96,14 @@ PersistenceManager<MBCT>::Validate(
                         << " epoch #: " << block.epoch_number << " previous block epoch #:"
                         << previous_microblock.epoch_number << " block seq #:" << block.sequence
                         << " previous hash " << block.previous.to_string();
+        UpdateStatusReason(status, RejectionReason::Wrong_Sequence_Number);
         return false;
     }
 
     /// verify can iterate the chain and the number of blocks checks out
     int number_batch_blocks = 0;
-    BatchBlocksIterator(block.tips, previous_microblock.tips, [&number_batch_blocks](uint8_t, const BatchStateBlock &) mutable -> void {
+    MicroBlockHandler::BatchBlocksIterator(_store, block.tips, previous_microblock.tips,
+                                           [&number_batch_blocks](uint8_t, const BatchStateBlock &) mutable -> void {
        ++number_batch_blocks;
     });
     if (number_batch_blocks != block.number_batch_blocks)
@@ -123,23 +111,34 @@ PersistenceManager<MBCT>::Validate(
         LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock number of batch blocks doesn't match in block: "
                         << " hash " << block.hash().to_string()
                         << " block " << block.number_batch_blocks << " to database: " << number_batch_blocks;
+        UpdateStatusReason(status, RejectionReason::Invalid_Number_Blocks);
+        return false;
+    }
+
+    if (!ValidateTimestamp(block.timestamp))
+    {
+        LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock invalid timestamp " << block.timestamp;
+        UpdateStatusReason(status, RejectionReason::Clock_Drift);
         return false;
     }
 
     // verify can get the batch block tips
+    bool valid = true;
     BatchStateBlock bsb;
     for (int del = 0; del < NUM_DELEGATES; ++del)
     {
         if (block.tips[del] != 0 && _store.batch_block_get(block.tips[del], bsb))
         {
-            LOG_FATAL(_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
+            LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
                             << block.hash().to_string() << " "
                             << block.tips[del].to_string();
-            trace_and_halt();
+            UpdateStatusReason(status, RejectionReason::Invalid_Previous_Hash);
+            UpdateStatusRequests(status, del, logos::process_result::gap_previous);
+            valid = false;
         }
     }
 
-    return true;
+    return valid;
 }
 
 void

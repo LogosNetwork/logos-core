@@ -10,18 +10,19 @@ static constexpr ConsensusType ECT = ConsensusType::Epoch;
 class ReservationsProvider;
 
 template<>
-class PersistenceManager<ECT> {
+class PersistenceManager<ECT> : public Persistence {
 
 protected:
 
-    using Store             = logos::block_store;
     using Request           = RequestMessage<ECT>;
     using PrePrepare        = PrePrepareMessage<ECT>;
     using ReservationsPtr   = std::shared_ptr<ReservationsProvider>;
 
 public:
-    PersistenceManager(Store & store, ReservationsPtr);
-    PersistenceManager(Store & store);
+    PersistenceManager(MessageValidator & validator,
+                       Store & store,
+                       ReservationsPtr,
+                       Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT);
     virtual ~PersistenceManager() = default;
 
     /// Request validation, EDDSA signature and block validation
@@ -36,8 +37,10 @@ public:
 
     /// Backup delegate validation
     /// @param message to validate [in]
+    /// @param remote_delegate_id remote delegate id [in]
+    /// @param status result of the validation, optional [in|out]
     /// @returns true if validated
-    virtual bool Validate(const PrePrepare & message);
+    virtual bool Validate(const PrePrepare & message, uint8_t remote_delegate_id, ValidationStatus * status = nullptr);
 
     /// Commit PrePrepare to the database
     /// @param message to commit [in]
@@ -49,7 +52,4 @@ public:
     }
 
 protected:
-
-    Store &     _store;
-    Log         _log;
 };
