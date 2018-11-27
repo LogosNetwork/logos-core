@@ -22,7 +22,7 @@ struct p2p_config {
 	struct MDB_env *lmdb_env;
 	MDB_dbi lmdb_dbi;
 	void *boost_io_service;
-	std::function<void(unsigned, void (*)())> schedule_after_milliseconds;
+	std::function<void(std::function<void()> const &, unsigned)> scheduleAfterMs;
 };
 
 class p2p_interface {

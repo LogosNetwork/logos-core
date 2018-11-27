@@ -36,7 +36,6 @@
 #endif
 
 
-class CScheduler;
 class CNode;
 
 /** Time between pings automatically sent out for latency probing and keepalive (in seconds). */
@@ -238,7 +237,7 @@ public:
 
     CConnman(uint64_t seed0, uint64_t seed1);
     ~CConnman();
-    bool Start(CScheduler& scheduler, const Options& options);
+    bool Start(const Options& options);
     void Stop();
     void Interrupt();
     bool GetNetworkActive() const { return fNetworkActive; };
@@ -387,10 +386,20 @@ public:
     */
     int64_t PoissonNextSendInbound(int64_t now, int average_interval_seconds);
 
+    void scheduleEveryRecurse(std::function<void()> const &handler, unsigned ms) {
+	handler();
+	scheduleAfter(std::bind(&CConnman::scheduleEveryRecurse, this, handler, ms), ms);
+    }
+
+    void scheduleEvery(std::function<void()> const &handler, unsigned ms) {
+	scheduleAfter(std::bind(&CConnman::scheduleEveryRecurse, this, handler, ms), ms);
+    }
+
     p2p_interface *p2p;
     PropagateStore *p2p_store;
     boost::asio::io_service *io_service;
     sem_t dataWritten;
+    std::function<void(std::function<void()> const &, unsigned)> scheduleAfter;
 
 private:
     using ListenSocket = std::shared_ptr<AsioServer>;

@@ -43,8 +43,6 @@ add_library (p2p
 	random.cpp
 	random.h
 	reverselock.h
-	scheduler.cpp
-	scheduler.h
 	serialize.h
 	shutdown.cpp
 	shutdown.h

@@ -12,7 +12,6 @@
 #include <netbase.h>
 #include <random.h>
 #include <reverse_iterator.h>
-#include <scheduler.h>
 #include <tinyformat.h>
 #include <ui_interface.h>
 #include <util.h>
@@ -370,7 +369,7 @@ void Misbehaving(NodeId pnode, int howmuch, const std::string& message) EXCLUSIV
 // blockchain -> download logic notification
 //
 
-PeerLogicValidation::PeerLogicValidation(CConnman* connmanIn, CScheduler &scheduler, bool enable_bip61)
+PeerLogicValidation::PeerLogicValidation(CConnman* connmanIn, bool enable_bip61)
     : connman(connmanIn), m_stale_tip_check_time(0), m_enable_bip61(enable_bip61) {
 
     // Stale tip checking and peer eviction are on two different timers, but we
@@ -378,7 +377,7 @@ PeerLogicValidation::PeerLogicValidation(CConnman* connmanIn, CScheduler &schedu
     // combine them in one function and schedule at the quicker (peer-eviction)
     // timer.
     static_assert(EXTRA_PEER_CHECK_INTERVAL < STALE_CHECK_INTERVAL, "peer eviction timer should be less than stale tip check timer");
-    scheduler.scheduleEvery(std::bind(&PeerLogicValidation::CheckForStaleTipAndEvictPeers, this, N_POW_TARGET_SPACING), EXTRA_PEER_CHECK_INTERVAL * 1000);
+    connmanIn->scheduleEvery(std::bind(&PeerLogicValidation::CheckForStaleTipAndEvictPeers, this, N_POW_TARGET_SPACING), EXTRA_PEER_CHECK_INTERVAL * 1000);
 }
 
 // All of the following cache a recent block, and are protected by cs_most_recent_block
@@ -1042,6 +1041,7 @@ void PeerLogicValidation::EvictExtraOutboundPeers(int64_t time_in_seconds)
 
 void PeerLogicValidation::CheckForStaleTipAndEvictPeers(int nPowTargetSpacing)
 {
+    LogTrace(BCLog::NET, "Called CheckForStaleTipAndEvictPeers(%d)\n", nPowTargetSpacing);
     if (connman == nullptr) return;
 
     int64_t time_in_seconds = GetTime();

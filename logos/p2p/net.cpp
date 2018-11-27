@@ -13,7 +13,6 @@
 #include <clientversion.h>
 #include <crypto/common.h>
 #include <netbase.h>
-#include <scheduler.h>
 #include <ui_interface.h>
 #include <utilstrencodings.h>
 
@@ -1709,6 +1708,7 @@ void CConnman::DumpAddresses()
 
 void CConnman::DumpData()
 {
+    LogTrace(BCLog::NET, "Called DumpData()\n");
     DumpAddresses();
     DumpBanlist();
 }
@@ -2232,7 +2232,7 @@ bool CConnman::InitBinds(const std::vector<CService>& binds, const std::vector<C
     return fBound;
 }
 
-bool CConnman::Start(CScheduler& scheduler, const Options& connOptions)
+bool CConnman::Start(const Options& connOptions)
 {
     Init(connOptions);
 
@@ -2345,7 +2345,7 @@ bool CConnman::Start(CScheduler& scheduler, const Options& connOptions)
     threadMessageHandler = std::thread(&TraceThread<std::function<void()> >, "msghand", std::function<void()>(std::bind(&CConnman::ThreadMessageHandler, this)));
 
     // Dump network addresses
-    scheduler.scheduleEvery(std::bind(&CConnman::DumpData, this), DUMP_ADDRESSES_INTERVAL * 1000);
+    scheduleEvery(std::bind(&CConnman::DumpData, this), DUMP_ADDRESSES_INTERVAL * 1000);
 
     return true;
 }

@@ -19,7 +19,6 @@
 #include <net.h>
 #include <net_processing.h>
 #include <propagate.h>
-#include <scheduler.h>
 #include <shutdown.h>
 #include <timedata.h>
 #include <ui_interface.h>
@@ -64,7 +63,6 @@ private:
 	int nUserMaxConnections;
 	int nFD;
 	boost::thread_group threadGroup;
-	CScheduler scheduler;
 	std::unique_ptr<CConnman> g_connman;
 	std::unique_ptr<PeerLogicValidation> peerLogic;
 	PropagateStore store;
@@ -531,7 +529,7 @@ bool AppInitLockDataDirectory()
     return true;
 }
 
-bool AppInitMain()
+bool AppInitMain(p2p_config &config)
 {
     const CChainParams& chainparams = Params();
     // ********************************************************* Step 4a: application initialization
@@ -543,10 +541,6 @@ bool AppInitMain()
     LogPrintf("Using data directory %s\n", GetDataDir().string());
     LogPrintf("Using config file %s\n", GetConfigFile(gArgs.GetArg("-conf", BITCOIN_CONF_FILENAME)).string());
     LogPrintf("Using at most %i automatic connections (%i file descriptors available)\n", nMaxConnections, nFD);
-
-    // Start the lightweight task scheduler thread
-    CScheduler::Function serviceLoop = boost::bind(&CScheduler::serviceQueue, &scheduler);
-    threadGroup.create_thread(boost::bind(&TraceThread<CScheduler::Function>, "scheduler", serviceLoop));
 
     // ********************************************************* Step 6: network initialization
     // Note that we absolutely cannot open any actual connections
@@ -560,8 +554,9 @@ bool AppInitMain()
     connman.p2p = interface;
     connman.p2p_store = &store;
     connman.io_service = io_service;
+    connman.scheduleAfter = config.scheduleAfterMs;
 
-    peerLogic.reset(new PeerLogicValidation(&connman, scheduler, gArgs.GetBoolArg("-enablebip61", DEFAULT_ENABLE_BIP61)));
+    peerLogic.reset(new PeerLogicValidation(&connman, gArgs.GetBoolArg("-enablebip61", DEFAULT_ENABLE_BIP61)));
 
     // sanitize comments per BIP-0014, format user agent and check total size
     std::vector<std::string> uacomments;
@@ -671,7 +666,7 @@ bool AppInitMain()
             connOptions.m_specified_outgoing = connect;
         }
     }
-    if (!connman.Start(scheduler, connOptions)) {
+    if (!connman.Start(connOptions)) {
         return false;
     }
 
@@ -765,7 +760,7 @@ bool p2p_interface::Init(p2p_config &config) {
 		// InitError will have been called with detailed error, which ends up on console
 		return false;
 	}
-	return p2p->AppInitMain();
+	return p2p->AppInitMain(config);
 }
 
 void p2p_interface::Shutdown() {

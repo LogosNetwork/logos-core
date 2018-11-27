@@ -40,6 +40,28 @@ static void *io_service_run(void *arg) {
 	return 0;
 }
 
+struct scheduleData {
+	std::function<void()> handler;
+	unsigned ms;
+};
+
+static void *schedule_run(void *arg) {
+	struct scheduleData *data = (struct scheduleData *)arg;
+	usleep((unsigned long)data->ms * 1000);
+	data->handler();
+	delete data;
+	return 0;
+}
+
+void scheduleAfterMs(std::function<void()> const &handler, unsigned ms) {
+	struct scheduleData *data = new scheduleData;
+	data->handler = handler;
+	data->ms = ms;
+	pthread_t t;
+	pthread_create(&t, 0, schedule_run, data);
+	pthread_detach(t);
+}
+
 int main(int argc, char **argv) {
 	p2p_standalone p2p;
 	p2p_config config;
@@ -69,6 +91,7 @@ int main(int argc, char **argv) {
 
 	boost::asio::io_service io_service;
 	config.boost_io_service = &io_service;
+	config.scheduleAfterMs = std::bind(&::scheduleAfterMs, std::placeholders::_1, std::placeholders::_2);
 
 	err = mdb_env_create(&config.lmdb_env);
 	if (err) { mess = "env create"; goto fail; }
