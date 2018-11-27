@@ -9,13 +9,8 @@ enum class RejectionReason : uint8_t
     Bad_Signature,
     Invalid_Previous_Hash,
     Wrong_Sequence_Number,
-    // epoch/microblock
     Invalid_Epoch,
     New_Epoch,
-    Invalid_Account,
-    Invalid_Tip,
-    Invalid_Delegates,
-    Invalid_Number_Blocks,
 
     Void
 };

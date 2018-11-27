@@ -21,18 +21,13 @@ PersistenceManager<ECT>::Validate(
 {
     BlockHash previous_epoch_hash;
     Epoch previous_epoch;
-
-    if (!_validator.Validate(epoch, remote_delegate_id))
-    {
-        UpdateStatusReason(status, RejectionReason::Bad_Signature);
-        return false;
-    }
+    using namespace logos;
 
     // Account must exist
     logos::account_info info;
     if (_store.account_get(epoch.account, info))
     {
-        UpdateStatusReason(status, RejectionReason::Invalid_Account);
+        UpdateStatusReason(status, process_result::unknown_source_account);
         LOG_ERROR(_log) << "PersistenceManager::Validate account doesn't exist " <<
                         epoch.account.to_account();
         return false;
@@ -48,7 +43,7 @@ PersistenceManager<ECT>::Validate(
     {
         LOG_ERROR(_log) << "PersistenceManager::Validate failed to get epoch: " <<
                         previous_epoch_hash.to_string();
-        UpdateStatusReason(status, RejectionReason::Invalid_Previous_Hash);
+        UpdateStatusReason(status, process_result::gap_previous);
         return false;
     }
 
@@ -57,7 +52,7 @@ PersistenceManager<ECT>::Validate(
     {
         LOG_ERROR(_log) << "PersistenceManager::Validate account invalid epoch number " <<
                         epoch.epoch_number << " " << previous_epoch.epoch_number;
-        UpdateStatusReason(status, RejectionReason::Wrong_Sequence_Number);
+        UpdateStatusReason(status, process_result::block_position);
         return false;
     }
 
@@ -73,21 +68,14 @@ PersistenceManager<ECT>::Validate(
     {
         LOG_ERROR(_log) << "PersistenceManager::Validate previous micro block doesn't exist " <<
                         epoch.micro_block_tip.to_string() << " " << micro_block_tip.to_string();
-        UpdateStatusReason(status, RejectionReason::Invalid_Tip);
+        UpdateStatusReason(status, process_result::invalid_tip);
         return false;
     }
 
     if (!EpochVotingManager::ValidateEpochDelegates(epoch.delegates))
     {
         LOG_ERROR(_log) << "PersistenceManager::Validate invalid deligates ";
-        UpdateStatusReason(status, RejectionReason::Invalid_Delegates);
-        return false;
-    }
-
-    if (!ValidateTimestamp(epoch.timestamp))
-    {
-        LOG_ERROR(_log) << "PersistenceManager::VerifyEpoch invalid timestamp " << epoch.timestamp;
-        UpdateStatusReason(status, RejectionReason::Clock_Drift);
+        UpdateStatusReason(status, process_result::not_delegate);
         return false;
     }
 

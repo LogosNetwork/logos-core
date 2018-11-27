@@ -24,7 +24,9 @@ PersistenceManager<BSBCT>::PersistenceManager(MessageValidator & validator,
     _reservations = std::make_shared<DefaultReservations>(store);
 }
 
-void PersistenceManager<BSBCT>::ApplyUpdates(const PrePrepare & message, uint8_t delegate_id)
+void PersistenceManager<BSBCT>::ApplyUpdates(
+    const PrePrepare & message,
+    uint8_t delegate_id)
 {
     // XXX - Failure during any of the database operations
     //       performed in the following two methods will cause
@@ -36,9 +38,10 @@ void PersistenceManager<BSBCT>::ApplyUpdates(const PrePrepare & message, uint8_t
     ApplyBatchMessage(message, transaction);
 }
 
-bool PersistenceManager<BSBCT>::Validate(const Request & block,
-                                         logos::process_return & result,
-                                         bool allow_duplicates)
+bool PersistenceManager<BSBCT>::Validate(
+    const Request & block,
+    logos::process_return & result,
+    bool allow_duplicates)
 {
     auto hash = block.hash();
 
@@ -167,40 +170,19 @@ bool PersistenceManager<BSBCT>::Validate(const Request & block,
     return true;
 }
 
-bool PersistenceManager<BSBCT>::Validate(const Request & block)
+bool PersistenceManager<BSBCT>::Validate(
+    const Request & block)
 {
     logos::process_return ignored_result;
     return Validate(block, ignored_result);
 }
 
-bool PersistenceManager<BSBCT>::Validate(const PrePrepare & message,
-                                         uint8_t remote_delegate_id, ValidationStatus * status)
+bool PersistenceManager<BSBCT>::Validate(
+    const PrePrepare & message,
+    uint8_t remote_delegate_id,
+    ValidationStatus * status)
 {
-    if (!_validator.Validate(message, remote_delegate_id))
-    {
-        UpdateStatusReason(status, RejectionReason::Bad_Signature);
-        return false;
-    }
-
-    /// TODO maintain previous/sequence for efficiency
-    BatchStateBlock previous;
-    if (message.previous != 0 && _store.batch_block_get(message.previous, previous))
-    {
-        UpdateStatusReason(status, RejectionReason::Invalid_Previous_Hash);
-        return false;
-    }
-
-    if (!ValidateTimestamp(message.timestamp))
-    {
-        UpdateStatusReason(status, RejectionReason::Clock_Drift);
-        return false;
-    }
-
-    if (message.previous != 0 && message.sequence != (previous.sequence + 1))
-    {
-        UpdateStatusReason(status, RejectionReason::Wrong_Sequence_Number);
-        return false;
-    }
+    using namespace logos;
 
     bool valid = true;
     for(uint64_t i = 0; i < message.block_count; ++i)
@@ -209,7 +191,7 @@ bool PersistenceManager<BSBCT>::Validate(const PrePrepare & message,
         if(!Validate(static_cast<const Request&>(message.blocks[i]), result))
         {
             UpdateStatusRequests(status, i, result.code);
-            UpdateStatusReason(status, RejectionReason::Contains_Invalid_Request);
+            UpdateStatusReason(status, process_result::invalid_request);
             valid = false;
         }
     }
@@ -217,9 +199,10 @@ bool PersistenceManager<BSBCT>::Validate(const PrePrepare & message,
     return valid;
 }
 
-void PersistenceManager<BSBCT>::StoreBatchMessage(const BatchStateBlock & message,
-                                           MDB_txn * transaction,
-                                           uint8_t delegate_id)
+void PersistenceManager<BSBCT>::StoreBatchMessage(
+    const BatchStateBlock & message,
+    MDB_txn * transaction,
+    uint8_t delegate_id)
 {
     BatchStateBlock prev;
     bool has_prev = true;
@@ -298,7 +281,9 @@ void PersistenceManager<BSBCT>::StoreBatchMessage(const BatchStateBlock & messag
     }
 }
 
-void PersistenceManager<BSBCT>::ApplyBatchMessage(const BatchStateBlock & message, MDB_txn * transaction)
+void PersistenceManager<BSBCT>::ApplyBatchMessage(
+    const BatchStateBlock & message,
+    MDB_txn * transaction)
 {
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
@@ -314,9 +299,9 @@ void PersistenceManager<BSBCT>::ApplyBatchMessage(const BatchStateBlock & messag
 // Currently designed only to handle
 // send transactions.
 void PersistenceManager<BSBCT>::ApplyStateMessage(
-        const logos::state_block & block,
-        uint64_t timestamp,
-        MDB_txn * transaction)
+    const logos::state_block & block,
+    uint64_t timestamp,
+    MDB_txn * transaction)
 {
     if(!UpdateSourceState(block, transaction))
     {
@@ -324,7 +309,9 @@ void PersistenceManager<BSBCT>::ApplyStateMessage(
     }
 }
 
-bool PersistenceManager<BSBCT>::UpdateSourceState(const logos::state_block & block, MDB_txn * transaction)
+bool PersistenceManager<BSBCT>::UpdateSourceState(
+    const logos::state_block & block,
+    MDB_txn * transaction)
 {
     logos::account_info info;
     auto account_error(_store.account_get(block.hashables.account, info));
@@ -368,9 +355,9 @@ bool PersistenceManager<BSBCT>::UpdateSourceState(const logos::state_block & blo
 }
 
 void PersistenceManager<BSBCT>::UpdateDestinationState(
-        const logos::state_block & block,
-        uint64_t timestamp,
-        MDB_txn * transaction)
+    const logos::state_block & block,
+    uint64_t timestamp,
+    MDB_txn * transaction)
 {
     // Protects against a race condition concerning
     // simultaneous receives for the same account.
@@ -420,8 +407,8 @@ void PersistenceManager<BSBCT>::UpdateDestinationState(
 }
 
 void PersistenceManager<BSBCT>::PlaceReceive(
-        logos::state_block & receive,
-        MDB_txn * transaction)
+    logos::state_block & receive,
+    MDB_txn * transaction)
 {
     logos::state_block prev;
     logos::state_block cur;

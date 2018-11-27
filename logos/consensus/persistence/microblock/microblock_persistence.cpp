@@ -20,12 +20,7 @@ PersistenceManager<MBCT>::Validate(
     ValidationStatus * status)
 {
     BlockHash hash = block.Hash();
-
-    if (!_validator.Validate(block, remote_delegate_id))
-    {
-        UpdateStatusReason(status, RejectionReason::Bad_Signature);
-        return false;
-    }
+    using namespace logos;
 
     // block exists
     if (_store.micro_block_exists(hash))
@@ -42,7 +37,7 @@ PersistenceManager<MBCT>::Validate(
         LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock account doesn't exist "
                         << " hash " << hash.to_string()
                         << " account " << block.account.to_account();
-        UpdateStatusReason(status, RejectionReason::Invalid_Account);
+        UpdateStatusReason(status, process_result::unknown_source_account);
         return false;
     }
 
@@ -55,7 +50,7 @@ PersistenceManager<MBCT>::Validate(
         LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock previous doesn't exist "
                         << " hash " << hash.to_string()
                         << " previous " << block.previous.to_string();
-        UpdateStatusReason(status, RejectionReason::Invalid_Previous_Hash);
+        UpdateStatusReason(status, process_result::gap_previous);
         return false;
     }
 
@@ -83,7 +78,7 @@ PersistenceManager<MBCT>::Validate(
                             << " epoch #: " << block.epoch_number << " block seq #:" << block.sequence
                             << " previous block seq #:" << previous_microblock.sequence
                             << " previous hash " << block.previous.to_string();
-            UpdateStatusReason(status, RejectionReason::Wrong_Sequence_Number);
+            UpdateStatusReason(status, process_result::wrong_sequence_number);
             return false;
         }
     }
@@ -96,7 +91,7 @@ PersistenceManager<MBCT>::Validate(
                         << " epoch #: " << block.epoch_number << " previous block epoch #:"
                         << previous_microblock.epoch_number << " block seq #:" << block.sequence
                         << " previous hash " << block.previous.to_string();
-        UpdateStatusReason(status, RejectionReason::Wrong_Sequence_Number);
+        UpdateStatusReason(status, process_result::wrong_sequence_number);
         return false;
     }
 
@@ -111,14 +106,7 @@ PersistenceManager<MBCT>::Validate(
         LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock number of batch blocks doesn't match in block: "
                         << " hash " << block.hash().to_string()
                         << " block " << block.number_batch_blocks << " to database: " << number_batch_blocks;
-        UpdateStatusReason(status, RejectionReason::Invalid_Number_Blocks);
-        return false;
-    }
-
-    if (!ValidateTimestamp(block.timestamp))
-    {
-        LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock invalid timestamp " << block.timestamp;
-        UpdateStatusReason(status, RejectionReason::Clock_Drift);
+        UpdateStatusReason(status, process_result::invalid_number_blocks);
         return false;
     }
 
@@ -132,8 +120,8 @@ PersistenceManager<MBCT>::Validate(
             LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
                             << block.hash().to_string() << " "
                             << block.tips[del].to_string();
-            UpdateStatusReason(status, RejectionReason::Invalid_Previous_Hash);
-            UpdateStatusRequests(status, del, logos::process_result::gap_previous);
+            UpdateStatusReason(status, process_result::gap_previous);
+            UpdateStatusRequests(status, del, process_result::gap_previous);
             valid = false;
         }
     }

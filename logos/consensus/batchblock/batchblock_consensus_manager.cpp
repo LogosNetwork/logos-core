@@ -297,10 +297,6 @@ BatchBlockConsensusManager::OnRejection(
     case RejectionReason::Invalid_Previous_Hash:
     case RejectionReason::Wrong_Sequence_Number:
     case RejectionReason::Invalid_Epoch:
-    case RejectionReason::Invalid_Account:
-    case RejectionReason::Invalid_Tip:
-    case RejectionReason::Invalid_Delegates:
-    case RejectionReason::Invalid_Number_Blocks:
     case RejectionReason::Void:
         break;
     }

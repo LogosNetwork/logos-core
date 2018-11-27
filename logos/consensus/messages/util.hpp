@@ -139,13 +139,5 @@ inline std::string RejectionReasonToName(RejectionReason reason)
             return "Contains Invalid Request";
         case RejectionReason::Invalid_Previous_Hash:
             return "Invalid Previous Hash";
-        case RejectionReason::Invalid_Account:
-            return "Invalid Account";
-        case RejectionReason::Invalid_Tip:
-            return "Invalid Tip";
-        case RejectionReason::Invalid_Delegates:
-            return "Invalid Delegates";
-        case RejectionReason::Invalid_Number_Blocks:
-            return "Invalid Number Blocks";
     }
 }

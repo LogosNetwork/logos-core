@@ -129,10 +129,6 @@ BBConsensusConnection::Reject()
     case RejectionReason::Wrong_Sequence_Number:
     case RejectionReason::Invalid_Epoch:
     case RejectionReason::New_Epoch:
-    case RejectionReason::Invalid_Account:
-    case RejectionReason::Invalid_Tip:
-    case RejectionReason::Invalid_Delegates:
-    case RejectionReason::Invalid_Number_Blocks:
         SendMessage<Rejection>();
         break;
     }
@@ -150,10 +146,6 @@ BBConsensusConnection::HandleReject(const PrePrepare & message)
         case RejectionReason::Invalid_Previous_Hash:
         case RejectionReason::Wrong_Sequence_Number:
         case RejectionReason::Invalid_Epoch:
-        case RejectionReason::Invalid_Account:
-        case RejectionReason::Invalid_Tip:
-        case RejectionReason::Invalid_Delegates:
-        case RejectionReason::Invalid_Number_Blocks:
             break;
         case RejectionReason::New_Epoch:
             if (_events_notifier.GetDelegate() == EpochTransitionDelegate::PersistentReject)

@@ -239,7 +239,12 @@ enum class process_result
     initializing,           // Logos - The delegate is initializing and not accepting transactions.
     insufficient_fee,       // Logos - Transaction fee is insufficient.
     insufficient_balance,   // Logos - Balance is insufficient.
-    not_delegate           // Logos - A non-delegate node rejects transaction request
+    not_delegate,           // Logos - A non-delegate node rejects transaction request, or invalid delegate in epoch block
+    clock_drift,            // Logos - timestamp exceeds allowed clock drift
+    wrong_sequence_number,  // Logos - invalid block sequence number
+    invalid_request,        // Logos - batch block contains invalid request
+    invalid_tip,            // Logos - invalid microblock tip
+    invalid_number_blocks   // Logos - invalid number of blocks in microblock
 };
 
 std::string ProcessResultToString(process_result result);

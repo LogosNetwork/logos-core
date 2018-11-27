@@ -12,7 +12,7 @@ class MessageValidator;
 
 struct ValidationStatus {
     std::unordered_map<uint8_t, logos::process_result>  requests;
-    RejectionReason                                     reason = RejectionReason::Void;
+    logos::process_result                               reason;
 };
 
 class Persistence {
@@ -43,7 +43,7 @@ protected:
         }
     }
 
-    void UpdateStatusReason(ValidationStatus *status, RejectionReason r)
+    void UpdateStatusReason(ValidationStatus *status, logos::process_result r)
     {
         if (status != nullptr)
         {
