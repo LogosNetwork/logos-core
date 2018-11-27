@@ -130,8 +130,6 @@ protected:
         Send(response);
     }
 
-    void SendKeyAdvertisement();
-
     void StoreResponse(const Prepare & message);
     void StoreResponse(const Commit & message);
     void StoreResponse(const Rejection & message);

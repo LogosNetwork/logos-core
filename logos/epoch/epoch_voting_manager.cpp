@@ -70,9 +70,10 @@ EpochVotingManager::GetNextEpochDelegates(
     {
        if (delegates3epochs.find(delegate.key.pub) == delegates3epochs.end())
        {
-          delegates[new_delegate].account = delegate.key.pub;
-           delegates[new_delegate].stake = delegate._stake;
-           delegates[new_delegate].vote = delegate._vote;
+           delegates[new_delegate].account = delegate.key.pub;
+           delegates[new_delegate].bls_pub = delegate.bls_key.pub;
+           delegates[new_delegate].stake = delegate.stake;
+           delegates[new_delegate].vote = delegate.vote;
           ++new_delegate;
           if (NUM_DELEGATES == new_delegate)
           {

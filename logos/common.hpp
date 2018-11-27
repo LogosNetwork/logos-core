@@ -10,6 +10,8 @@
 
 #include <blake2/blake2.h>
 
+#include <bls/bls.hpp>
+
 namespace boost
 {
 template <>
@@ -270,9 +272,10 @@ public:
 };
 struct genesis_delegate
 {
-   logos::keypair   key; ///< EDDSA key for signing Micro/Epoch blocks (TBD, should come from wallet)
-   uint64_t        _vote;
-   uint64_t        _stake;
+   logos::keypair  key; ///< EDDSA key for signing Micro/Epoch blocks (TBD, should come from wallet)
+   bls::KeyPair    bls_key;
+   uint64_t        vote;
+   uint64_t        stake;
 };
 extern logos::keypair const & zero_key;
 extern logos::keypair const & test_genesis_key;

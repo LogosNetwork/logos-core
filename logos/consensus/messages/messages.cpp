@@ -16,6 +16,7 @@ BlockHash BatchStateBlock::Hash() const
     blake2b_update(&hash, &sequence, sizeof(sequence));
     blake2b_update(&hash, &block_count, sizeof(block_count));
     blake2b_update(&hash, &epoch_number, sizeof(epoch_number));
+    blake2b_update(&hash, &delegate_id, sizeof(delegate_id));
     blake2b_update(&hash, blocks, sizeof(BlockList));
 
     status = blake2b_final(&hash, result.bytes.data(), sizeof(result.bytes));
@@ -39,6 +40,8 @@ void BatchStateBlock::SerializeJson(boost::property_tree::ptree & batch_state_bl
     batch_state_block.put("previous", previous.to_string());
     batch_state_block.put("hash", Hash().to_string());
     batch_state_block.put("block_count", std::to_string(block_count));
+    batch_state_block.put("epoch_number", std::to_string(epoch_number));
+    batch_state_block.put("delegate_id", std::to_string(delegate_id));
     logos::uint256_union signature_tmp; // hacky fix, need to replicate uint256_union functionalities
     signature_tmp.bytes = signature;
     batch_state_block.put("signature", signature_tmp.to_string ());

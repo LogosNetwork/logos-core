@@ -37,8 +37,8 @@ void PersistenceManager<BSBCT>::ApplyUpdates(const PrePrepare & message, uint8_t
 }
 
 bool PersistenceManager<BSBCT>::Validate(const Request & block,
-                                  logos::process_return & result,
-                                  bool allow_duplicates)
+                                         logos::process_return & result,
+                                         bool allow_duplicates)
 {
     auto hash = block.hash();
 
