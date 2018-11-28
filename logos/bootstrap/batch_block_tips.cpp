@@ -7,7 +7,6 @@ BlockHash BatchBlock::getBatchBlockTip(Store& store, int delegate)
 {
     BlockHash hash = 0;
     if(!store.batch_tip_get(delegate,hash)) {
-        cout << "BatchBlock::getBatchBlockTip: " << hash.to_string() << " delegate: " << delegate << std::endl;
         return hash;
     }
     return hash;
@@ -17,21 +16,13 @@ uint64_t  BatchBlock::getBatchBlockSeqNr(Store& store, int delegate) // TODOFUNC
 {
     // The below code will dump core in bsb dtor.
     // Also, the sequence number is not correct. Need real world database to test.
-    BatchStateBlock *batch = new BatchStateBlock();
+    BatchStateBlock batch;
     BlockHash hash = BatchBlock::getBatchBlockTip(store,delegate);
     if(hash.is_zero()) {
-        std::cout << "BatchBlock::getBatchBlockSeqNr: " << __LINE__ << std::endl;
-        return -1; // FIXME is this the correct return value on error ?
+        return BatchBlock::NOT_FOUND;
     }
-    std::cout << "BatchBlock::getBatchBlockSeqNr: " << __LINE__ << std::endl;
-    if(store.batch_block_get(hash, *batch)) {
-        std::cout << "BatchBlock::getBatchBlockSeqNr: " << __LINE__ << std::endl;
-        return -1; // FIXME is this the correct return value on error ?
+    if(store.batch_block_get(hash, batch)) {
+        return BatchBlock::NOT_FOUND;
     }
-    std::cout << "BatchBlock::getBatchBlockSeqNr: " << __LINE__ << " sequence: " << batch->sequence << std::endl;
-    uint64_t rtvl = batch->sequence;
-    //delete batch;
-    return rtvl;
-    return batch->sequence;
-    return rand() % 31;
+    return batch.sequence;
 }

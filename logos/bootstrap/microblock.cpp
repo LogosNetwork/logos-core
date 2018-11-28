@@ -13,13 +13,9 @@ BlockHash Micro::getMicroBlockTip(Store& s, int delegate)
 
 uint64_t  Micro::getMicroBlockSeqNr(Store& s, int delegate) // TODOFUNC
 {
-#ifdef _DEBUG
-    return 0;
-#else
-    BlockHash hash = BatchBlock::getMicroBlockTip(s,delegate);
+    BlockHash hash = Micro::getMicroBlockTip(s,delegate);
     std::shared_ptr<MicroBlock> tip = Micro::readMicroBlock(s,hash);
-    return tip->_micro_block_number;
-#endif
+    return tip->sequence;
 }
 
 BlockHash Micro::getNextMicroBlock(Store &store, int delegate, MicroBlock &b) // TODOFUNC
@@ -48,7 +44,7 @@ BlockHash Micro::getPrevMicroBlock(Store &store, int delegate, BlockHash &hash) 
     return micro.previous;
 }
 
-std::shared_ptr<MicroBlock> Micro::readMicroBlock(Store &store, BlockHash &hash) // TODO
+std::shared_ptr<MicroBlock> Micro::readMicroBlock(Store &store, BlockHash &hash) // TODOFUNC
 {
     std::shared_ptr<MicroBlock> micro(new MicroBlock);
     if(!store.micro_block_get(hash,*micro)) {

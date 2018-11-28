@@ -31,11 +31,6 @@ TEST (node, logos_bootstrap_test)
 	logos::keypair key1;
     std::cout << "done initializing system..." << std::endl;
 
-    // TODO: There is a couple ways to proceed
-    //       [0] create our datastructures with a dummy bsb block and add it using our validator
-    //       [1] -- or -- make sure we load a test db when logos::system is running (see if we can point
-    //           it to two different data.ldb files) then verify the keys in this database file
-
 #if 0
 	auto send1 (std::make_shared<logos::send_block> (latest, key1.pub, logos::genesis_amount - logos::Gxrb_ratio, logos::test_genesis_key.prv, logos::test_genesis_key.pub, system0.work.generate (latest)));
 	logos::keypair key2;

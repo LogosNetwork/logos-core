@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <iostream>
+#include <string>
+#include <time.h>
+
 #define BT_BUF_SIZE 100
 
 #define _DEBUG 1
@@ -32,4 +36,18 @@ void do_backtrace()
         printf("%s\n", strings[j]);
 
     free(strings);
+}
+
+inline
+const std::string currentDateTime() 
+{
+    time_t     now = time(0);
+    struct tm  tstruct;
+    char       buf[80];
+    tstruct = *localtime(&now);
+    // Visit http://en.cppreference.com/w/cpp/chrono/c/strftime
+    // for more information about date/time format
+    strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
+
+    return buf;
 }

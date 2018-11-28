@@ -305,7 +305,9 @@ void logos::bootstrap_attempt::request_push (std::unique_lock<std::mutex> & lock
 	    connection_tips_request = connection_l;
         connection_shared = connection_tips_request.lock();
         if(!connection_shared) {
+#ifdef _DEBUG
             std::cout << "logos::bootstrap_attempt::request_push setting default client: " << (default_client==nullptr) << std::endl;
+#endif
             connection_shared = default_client; // FIXME -- Their code seems to lose a connection toward the end...
             if(!connection_shared) {
 #ifdef _DEBUG
@@ -328,7 +330,9 @@ void logos::bootstrap_attempt::request_push (std::unique_lock<std::mutex> & lock
         std::cout << "logos::bootstrap_attempt::request_push: dump request: } " << std::endl;
 #endif
 		auto client (std::make_shared<logos::bulk_push_client> (connection_shared));
+#ifdef _DEBUG
         std::cout << "logos::bootstrap_attempt::request_push: running client->start: req_s.size: " << req_s.size() << std::endl;
+#endif
 		client->start ();
 		push = client;
 		auto future (client->promise.get_future ());
@@ -409,7 +413,9 @@ void logos::bootstrap_attempt::run ()
 			}
 			else
 			{
+#ifdef _DEBUG
                 std::cout << "wait..." << std::endl;
+#endif
 				condition.wait (lock);
 			}
 		}
@@ -631,7 +637,7 @@ void logos::bootstrap_attempt::populate_connections ()
 		// TODO - tune this better
 		// Not many peers respond, need to try to make more connections than we need.
         // delta = NUMBER_DELEGATES; // Maybe set to 0 of clients is too big ?
-        delta = 1;
+        delta = 1; // FIXME!!! Do they have the correct delta ?
 #if 0
         if(clients.size() > 100 || idle.size() > 100) { // FIXME
             delta = 0;
@@ -691,13 +697,6 @@ void logos::bootstrap_attempt::add_connection (logos::endpoint const & endpoint_
 void logos::bootstrap_attempt::pool_connection (std::shared_ptr<logos::bootstrap_client> client_a)
 {
 	std::lock_guard<std::mutex> lock (mutex);
-#if 0 // FIXME
-#ifdef _ERROR
-    if(idle.size() > 32) {
-        return;
-    }
-#endif
-#endif
 	idle.push_front (client_a);
 #ifdef _DEBUG
     std::cout << "logos::bootstrap_attempt::pool_connection !idle.empty(): " << !idle.empty() << std::endl;
@@ -1041,10 +1040,6 @@ void logos::bootstrap_listener::accept_action (boost::system::error_code const &
 #ifdef _DEBUG
                 std::cout << "logos::bootstrap_listener::accept_action: error " << connections.size() << " acceptor.is_open(): " << acceptor.is_open() << std::endl;
 #endif
-                // TODO FIXME Maybe we can call stop() then start() here?
-                //            We would need a stop/start that doesn't require the mutex or use
-                //            a recursive mutex or comment out the mutex lock in stop
-                //            assumming no one is calling stop.
                 lock.unlock();
                 stop();
                 lock.lock();
@@ -1262,7 +1257,6 @@ void logos::bootstrap_server::receive_bulk_pull_action (boost::system::error_cod
 		std::unique_ptr<logos::bulk_pull> request (new logos::bulk_pull);
 		logos::bufferstream stream (receive_buffer.data (), 8 + logos::bulk_pull::SIZE);
 		auto error (request->deserialize (stream));
-        // RGD Hack
 		std::unique_ptr<logos::bulk_pull> request1 (new logos::bulk_pull);
 		logos::bufferstream stream1 (receive_buffer.data (), 8 + logos::bulk_pull::SIZE);
 		auto error1 (request->deserialize (stream1));

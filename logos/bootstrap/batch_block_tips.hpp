@@ -13,6 +13,7 @@
 namespace BatchBlock {
 
     using Store = ConsensusContainer::Store;
+    const int NOT_FOUND = -1;
 
 enum tips_protocol {
     tips_RESPONSE  = 66,

@@ -891,7 +891,16 @@ bool logos::block_store::batch_block_get(const logos::block_hash & hash, std::sh
     else
     {
         BatchStateBlock *ptr = reinterpret_cast<BatchStateBlock *>(value.data());
-        *block = *ptr; // Call assignment operator.
+        block->sequence = ptr->sequence;
+        block->block_count = ptr->block_count;
+        block->next = ptr->next;
+        block->signature = ptr->signature;
+        block->epoch_number = ptr->epoch_number;
+        for(int i = 0; i < ptr->block_count; ++i) {
+            block->blocks[i] = ptr->blocks[i];
+        }
+        block->timestamp = ptr->timestamp;
+        block->previous  = ptr->previous;
     }
 
     return result;
@@ -913,7 +922,16 @@ bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchSt
     else
     {
         BatchStateBlock *ptr = reinterpret_cast<BatchStateBlock *>(value.data());
-        block = *ptr; // Call assignment operator.
+        block.sequence = ptr->sequence;
+        block.block_count = ptr->block_count;
+        block.epoch_number = ptr->epoch_number;
+        block.next = ptr->next;
+        block.signature = ptr->signature;
+        for(int i = 0; i < ptr->block_count; ++i) {
+            block.blocks[i] = ptr->blocks[i];
+        }
+        block.timestamp = ptr->timestamp;
+        block.previous  = ptr->previous;
     }
 
     return result;

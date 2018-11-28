@@ -17,46 +17,25 @@ void logos::tips_req_client::run ()
 { // RGD: Called from 'logos::bootstrap_attempt::request_tips'
   // tips This is the start of it. We write the request as a request->serialize
   // and kick off the process...
-#ifdef _DEBUG
-    std::cout << "tips_req_client::run" << std::endl;
-#endif
+    LOG_DEBUG(connection->node->log) << "tips_req_client::run" << std::endl;
 
-    // TODO We may want more fine grain flag that we are not
-    //      done with prior requests, but this is the method
-    //      already supported.
-    //if(connection->attempt->still_pulling()) {
-    {
-    //std::lock_guard<std::mutex> mutex (connection->attempt->mutex);
-#if 0
-    while(total_pulls > 1) {
-        std::cout << "logos::tips_req_client:: total_pulls: " << total_pulls << std::endl;
-        sleep(1);
-    }
-#endif
     if(connection->attempt->pulling > 0 || total_pulls > 0) {
         try {
             promise.set_value(false);
         } catch(...) {}
-#ifdef _DEBUG
-        std::cout << "logos::tips_req_client:: total_pulls: " << total_pulls << std::endl;
-        std::cout << "logos::tips_req_client::run: still pending" << std::endl;
-#endif
-        //connection->attempt->pool_connection(connection);
+        LOG_DEBUG(connection->node->log) << "logos::tips_req_client:: total_pulls: " << total_pulls << std::endl;
+        LOG_DEBUG(connection->node->log) << "logos::tips_req_client::run: still pending" << std::endl;
+        //connection->attempt->pool_connection(connection); // Don't pool_connection or we will deadlock...
         return;
     }
-    }
-#ifdef _DEBUG
-    std::cout << "logos::tips_req_client:: total_pulls: " << total_pulls << std::endl;
-#endif
+    LOG_DEBUG(connection->node->log) << "logos::tips_req_client:: total_pulls: " << total_pulls << std::endl;
 	std::unique_ptr<logos::frontier_req> request (new logos::frontier_req);
 	request->start.clear ();
 	request->age = std::numeric_limits<decltype (request->age)>::max ();
 	request->count = std::numeric_limits<decltype (request->age)>::max ();
     request->nr_delegate = NUMBER_DELEGATES; // TODO: Use same constant instead of hard-code.
 
-#ifdef _DEBUG
-    std::cout << "::run count: " << request->count << " age: " << request->age << " nr_delegate: " << request->nr_delegate << " NUMBER_DELEGATES " << NUMBER_DELEGATES << std::endl;
-#endif
+    LOG_DEBUG(connection->node->log) << "::run count: " << request->count << " age: " << request->age << " nr_delegate: " << request->nr_delegate << " NUMBER_DELEGATES " << NUMBER_DELEGATES << std::endl;
 
 	auto send_buffer (std::make_shared<std::vector<uint8_t>> ());
 	{
@@ -69,9 +48,7 @@ void logos::tips_req_client::run ()
 		this_l->connection->stop_timeout ();
 		if (!ec)
 		{
-#ifdef _DEBUG
-            std::cout << "this_l->receive_tips_header:" << std::endl;
-#endif
+            LOG_DEBUG(this_l->connection->node->log) << "this_l->receive_tips_header:" << std::endl;
 			this_l->receive_tips_header ();
 		}
 		else
@@ -81,14 +58,11 @@ void logos::tips_req_client::run ()
 				BOOST_LOG (this_l->connection->node->log) << boost::str (boost::format ("Error while sending bootstrap request %1%") % ec.message ());
 			}
             try {
-                std::cout << "tips:: line: " << __LINE__ << " ec.message: " << ec.message() << std::endl;
-                this_l->promise.set_value(true);
+                LOG_DEBUG(this_l->connection->node->log) << "tips:: line: " << __LINE__ << " ec.message: " << ec.message() << std::endl;
+                this_l->promise.set_value(true); // Report the error to caller in bootstrap.cpp.
             } catch(...) {}
 		}
 	});
-#ifdef _PROMISE
-    promise.set_value(false);
-#endif
 }
 
 logos::tips_req_client::tips_req_client (std::shared_ptr<logos::bootstrap_client> connection_a) :
@@ -103,9 +77,7 @@ bulk_push_cost (0)
 
 logos::tips_req_client::~tips_req_client ()
 {
-#ifdef _DEBUG
-    std::cout << "logos::tips_req_client::~tips_req_client" << std::endl;
-#endif
+    LOG_DEBUG(connection->node->log) << "logos::tips_req_client::~tips_req_client" << std::endl;
 }
 
 void logos::tips_req_client::receive_tips_header ()
@@ -116,18 +88,14 @@ void logos::tips_req_client::receive_tips_header ()
 		{
             logos::block_type type (static_cast<logos::block_type> (this_l->connection->receive_buffer[0]));
             if(type == logos::block_type::frontier_block) {
-#ifdef _DEBUG
-                std::cout << "received_batch_block_tips" << std::endl;
-#endif
+                LOG_DEBUG(this_l->connection->node->log) << "received_batch_block_tips" << std::endl;
 			    boost::asio::async_read (this_l->connection->socket, boost::asio::buffer 
                     (this_l->connection->receive_buffer.data() + 1, sizeof(BatchBlock::tips_response) - 1),
                     [this_l](boost::system::error_code const & ec, size_t size_a) {
                         this_l->received_batch_block_tips(ec, size_a);
 			    });
             } else {
-#ifdef _DEBUG
-                std::cout << "received_tips" << std::endl;
-#endif
+                LOG_DEBUG(this_l->connection->node->log) << "received_tips" << std::endl;
 			    this_l->receive_tips();
             }
 		}
@@ -138,7 +106,7 @@ void logos::tips_req_client::receive_tips_header ()
 				BOOST_LOG (this_l->connection->node->log) << boost::str (boost::format ("Error receiving block type: %1%") % ec.message ());
 			}
             try {
-                std::cout << "tips:: line: " << __LINE__ << " ec.message: " << ec.message() << std::endl;
+                LOG_DEBUG(this_l->connection->node->log) << "tips:: line: " << __LINE__ << " ec.message: " << ec.message() << std::endl;
                 this_l->promise.set_value(true);
             } catch(...) {}
 		}
@@ -166,7 +134,7 @@ void logos::tips_req_client::receive_tips ()
 				BOOST_LOG (this_l->connection->node->log) << boost::str (boost::format ("Invalid size: expected %1%, got %2%") % size_l % size_a);
 			}
             try {
-                std::cout << "tips:: line: " << __LINE__ << std::endl;
+                LOG_DEBUG(this_l->connection->node->log) << "tips:: line: " << __LINE__ << std::endl;
                 this_l->promise.set_value(true);
             } catch(...) {}
 		}
@@ -183,22 +151,7 @@ void logos::tips_req_client::received_tips (boost::system::error_code const & ec
 
 void logos::tips_req_client::received_batch_block_tips(boost::system::error_code const &ec, size_t size_a)
 {
-#ifdef _DEBUG
-    static int count = 0;
-    if(count++ > 100000) {
-        try {
-            std::cout << "logos::tips_req_client::received_batch_block_tips exceeded limit" << std::endl;
-            promise.set_value(false);
-        } catch(...) {}
-        connection->attempt->pool_connection(connection);
-        return;
-    }
-    std::cout << "logos::tips_req_client::received_batch_block_tips::count: " << count << std::endl;
-#endif
-
-#ifdef _DEBUG
-    std::cout << "logos::tips_req_client::received_batch_block_tips: ec: " << ec << std::endl;
-#endif
+    LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips: ec: " << ec << std::endl;
 
     // TODO Get the tips from in-memory cache if there are any, and use that on next iteration
     //      See: connection->node->_validator->
@@ -207,22 +160,19 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
         std::shared_ptr<BatchBlock::tips_response> tips(new BatchBlock::tips_response);
         memcpy(&(*tips),data,sizeof(BatchBlock::tips_response));
 
-#ifdef _DEBUG
-        std::cout << "logos::tips_req_client::received_batch_block_tips : " << *tips << std::endl;
-#endif
+        LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips : " << *tips << std::endl;
+
         // This is our tips algorithm...
         // Get my tips...
         BlockHash epoch_tip = EpochBlock::getEpochBlockTip(connection->node->store, tips->delegate_id);
         BlockHash micro_tip = Micro::getMicroBlockTip(connection->node->store, tips->delegate_id);
         BlockHash bsb_tip   = BatchBlock::getBatchBlockTip(connection->node->store, tips->delegate_id);
-        std::cout << "BatchBlock::getBatchBlockTip:<0> " << bsb_tip.to_string() << " delegate_id: " << tips->delegate_id << std::endl;
 
         // Get my seq numbers...
         uint32_t  epoch_seq = EpochBlock::getEpochBlockSeqNr(connection->node->store, tips->delegate_id);
         uint32_t  micro_seq = Micro::getMicroBlockSeqNr(connection->node->store, tips->delegate_id);
         uint32_t  bsb_seq   = BatchBlock::getBatchBlockSeqNr(connection->node->store, tips->delegate_id);
 
-        std::cout << "FIXME: bsb_seq:<1> " << bsb_seq << " delegate_id: " << tips->delegate_id << " FIXME:: bsb_tip: " << bsb_tip.to_string() << " tips.bsb_tip: " << tips->batch_block_tip.to_string() << std::endl;
         //  Calculate in-memory tips, and use them if they are non-zero...
         auto in_memory_epoch_tip = connection->node->_validator->in_memory_epoch_tips();
         auto in_memory_micro_tip = connection->node->_validator->in_memory_micro_tips();
@@ -238,30 +188,23 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
             micro_tip = in_memory_micro_tip.second;
         }
 
-#if 0
         auto iter = in_memory_bsb_tips.find(tips->delegate_id);
         if(iter != in_memory_bsb_tips.end()) {
             bsb_seq = iter->second.first;
             bsb_tip = iter->second.second;
-            std::cout << "FIXME: bsb_seq:<2> " << bsb_seq << " delegate_id: " << tips->delegate_id << "FIXME::: bsb_tip: " << bsb_tip.to_string() << std::endl;
         }
-#endif
-        std::cout << "FIXME: bsb_seq:<2> " << bsb_seq << std::endl;
 
-        std::cout << "logos::tips_req_client::received_batch_block_tips:: tips<1>... delegate: "  << tips->delegate_id << " "
+        //LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: tips<1>... delegate: "  
+        std::cout << "logos::tips_req_client::received_batch_block_tips:: tips<1>... delegate: "  
+                  << tips->delegate_id << " "
                   << " epoch_tip: " << epoch_tip.to_string() << " tips.epoch_seq: " << tips->epoch_block_tip.to_string() << " "
                   << " micro_tip: " << micro_tip.to_string() << " tips.micro_seq: " << tips->micro_block_tip.to_string() << " "
-                  << " bsb_tip: "   << bsb_tip.to_string()   << " tips.bsb_seq: "   << tips->batch_block_tip.to_string() << " ";
+                  << " bsb_tip: "   << bsb_tip.to_string()   << " tips.bsb_seq: "   << tips->batch_block_tip.to_string() << std::endl;
 
         //  Am I behind or ahead for this delegate...
-#ifdef _DEBUG
-        std::cout << "receiving tips..." << std::endl;
-#endif
-
         BlockHash zero = 0;
 
         // Send out our request for epoch and micro blocks.
-        // We do this only once per request for tips.
         // The underlying pull/push code handles one of three different
         // block types (epoch/micro/bsb) and sends them to validator
         // when blocks arrive.
@@ -284,9 +227,7 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
 	                         zero,zero,
 	                         zero,zero));
                 }
-	#ifdef _DEBUG
-	            std::cout << "logos::tips_req_client::received_batch_block_tips:: bulk_pull: delegate_id: epoch: " << tips->delegate_id << std::endl;
-	#endif
+	            LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: bulk_pull: delegate_id: epoch: " << tips->delegate_id << std::endl;
 	        } else if(epoch_seq > tips->epoch_block_seq_number) {
 	            // I have higher sequence number than my peer, I am ahead...
 	            // Construct a request to push TODO
@@ -295,18 +236,12 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
 	                         tips->delegate_id,tips->epoch_block_tip,epoch_tip,
 	                         zero,zero,
 	                         zero,zero));
-	#ifdef _DEBUG
-	            std::cout << "logos::tips_req_client::received_batch_block_tips:: bulk_push: delegate_id: epoch:" << tips->delegate_id << std::endl; 
-	#endif
+	            LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: bulk_push: delegate_id: epoch:" << tips->delegate_id << std::endl; 
 	        } else if(epoch_seq == tips->epoch_block_seq_number) {
 	                // We are in sync, continue processing...
-	#ifdef _DEBUG
-	                std::cout << "epoch in sync" << std::endl;
-	#endif
+	                LOG_DEBUG(connection->node->log) << "epoch in sync" << std::endl;
 	        } else {
-	#ifdef _DEBUG
-	            std::cout << "logos::tips_req_client::received_batch_block_tips:: epoch error... epoch_seq: " << epoch_seq << " tips.epoch_seq: " << tips->epoch_block_seq_number << std::endl;
-	#endif
+	            LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: epoch error... epoch_seq: " << epoch_seq << " tips.epoch_seq: " << tips->epoch_block_seq_number << std::endl;
 			    if (connection->node->config.logging.bulk_pull_logging ())
 			    {
 				    BOOST_LOG (connection->node->log) << "invalid tips state";
@@ -331,9 +266,7 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
                              micro_tip,tips->micro_block_tip,
 	                         zero,zero));
                 }
-	#ifdef _DEBUG
-	            std::cout << "logos::tips_req_client::received_batch_block_tips:: bulk_pull: delegate_id: micro: " << tips->delegate_id << std::endl;
-	#endif
+	            LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: bulk_pull: delegate_id: micro: " << tips->delegate_id << std::endl;
 	        } else if(micro_seq > tips->micro_block_seq_number) {
 	            // I have higher sequence number than my peer, I am ahead...
 	            // Construct a request to push TODO
@@ -343,18 +276,12 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
 	                         zero,zero,
                              tips->micro_block_tip,micro_tip,
 	                         zero,zero));
-	#ifdef _DEBUG
-	            std::cout << "logos::tips_req_client::received_batch_block_tips:: bulk_push: delegate_id: micro: " << tips->delegate_id << std::endl; 
-	#endif
+	            LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: bulk_push: delegate_id: micro: " << tips->delegate_id << std::endl; 
 	        } else if(micro_seq == tips->micro_block_seq_number) {
 	                // We are in sync, continue processing...
-	#ifdef _DEBUG
-	                std::cout << "micro in sync" << std::endl;
-	#endif
+	                LOG_DEBUG(connection->node->log) << "micro in sync" << std::endl;
 	        } else {
-	#ifdef _DEBUG
-	            std::cout << "logos::tips_req_client::received_batch_block_tips:: micro error... micro_seq: " << micro_seq << " tips.micro_seq: " << tips->micro_block_seq_number << std::endl;
-	#endif
+	            LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: micro error... micro_seq: " << micro_seq << " tips.micro_seq: " << tips->micro_block_seq_number << std::endl;
 			    if (connection->node->config.logging.bulk_pull_logging ())
 			    {
 				    BOOST_LOG (connection->node->log) << "invalid tips state";
@@ -364,9 +291,7 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
         }
 
         // bsb...
-        if(/*epoch_seq >= tips->epoch_block_seq_number &&
-                  micro_seq >= tips->micro_block_seq_number &&*/
-                  bsb_seq == -1) {
+        if(bsb_seq == BatchBlock::NOT_FOUND) {
                 // Init, we have nothing for this delegate...
             connection->attempt->add_pull(logos::pull_info(0,0,
                          bsb_seq,tips->batch_block_seq_number,
@@ -374,12 +299,8 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
                          zero,zero,
                          zero,zero,
                          tips->batch_block_tip,tips->batch_block_tip));
-#ifdef _DEBUG
-            std::cout << "logos::tips_req_client::received_batch_block_tips:: init bulk_pull: delegate_id: " << tips->delegate_id << " tips.batch_block_tip: " << tips->batch_block_tip.to_string() << std::endl; 
-#endif
-        } else if(/*epoch_seq <= tips->epoch_block_seq_number &&
-           micro_seq <= tips->micro_block_seq_number &&*/
-            bsb_seq < tips->batch_block_seq_number) {
+            LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: init bulk_pull: delegate_id: " << tips->delegate_id << " tips.batch_block_tip: " << tips->batch_block_tip.to_string() << std::endl; 
+        } else if(bsb_seq < tips->batch_block_seq_number) {
             // I have less sequence number than my peer, I am behind...
             connection->attempt->add_pull(logos::pull_info(0,0,
                          bsb_seq,tips->batch_block_seq_number,
@@ -387,12 +308,8 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
                          zero,zero,
                          zero,zero,
                          bsb_tip,tips->batch_block_tip));
-#ifdef _DEBUG
-            std::cout << "logos::tips_req_client::received_batch_block_tips:: bulk_pull: delegate_id: " << tips->delegate_id << std::endl;
-#endif
-        } else if(/*epoch_seq >= tips->epoch_block_seq_number &&
-                  micro_seq >= tips->micro_block_seq_number &&*/
-                  bsb_seq > tips->batch_block_seq_number) {
+            LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: bulk_pull: delegate_id: " << tips->delegate_id << std::endl;
+         } else if(bsb_seq > tips->batch_block_seq_number) {
             // I have higher sequence number than my peer, I am ahead...
             connection->attempt->add_bulk_push_target(logos::request_info(0,0,
                          tips->batch_block_seq_number,bsb_seq,
@@ -400,26 +317,23 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
                          zero,zero,
                          zero,zero,
                          tips->batch_block_tip,bsb_tip));
-#ifdef _DEBUG
-            std::cout << "logos::tips_req_client::received_batch_block_tips:: bulk_push: delegate_id: " << tips->delegate_id << " bsb_seq: " << bsb_seq << " tips.bsb_seq: " << tips->batch_block_seq_number << std::endl; 
-#endif
+            LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: bulk_push: delegate_id: " << tips->delegate_id << " bsb_seq: " << bsb_seq << " tips.bsb_seq: " << tips->batch_block_seq_number << std::endl; 
 
-        } else if(/*epoch_seq == tips->epoch_block_seq_number &&
-                  micro_seq == tips->micro_block_seq_number &&*/
-                  bsb_seq == tips->batch_block_seq_number) {
+        } else if(bsb_seq == tips->batch_block_seq_number) {
                 // We are in sync, continue processing...
-#ifdef _DEBUG
+                connection->node->_validator->validate(nullptr);
                 std::cout << "in sync: delegate_id: " << tips->delegate_id << " epoch: " << epoch_seq << " theirs: " << tips->epoch_block_seq_number << " "
                           << " micro: " << micro_seq << " theirs: " << tips->micro_block_seq_number <<  " "
                           << " bsb: " << bsb_seq << " theirs: " << tips->batch_block_seq_number << std::endl;
-#endif
+
+                LOG_DEBUG(connection->node->log) << "in sync: delegate_id: " << tips->delegate_id << " epoch: " << epoch_seq << " theirs: " << tips->epoch_block_seq_number << " "
+                          << " micro: " << micro_seq << " theirs: " << tips->micro_block_seq_number <<  " "
+                          << " bsb: " << bsb_seq << " theirs: " << tips->batch_block_seq_number << std::endl;
         } else {
-#ifdef _DEBUG
-            std::cout << "logos::tips_req_client::received_batch_block_tips:: bsb error..." << std::endl
+            LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: bsb error..." << std::endl
                       << " epoch_seq: " << epoch_seq << " tips.epoch_seq: " << tips->epoch_block_seq_number << std::endl
                       << " micro_seq: " << micro_seq << " tips.micro_seq: " << tips->micro_block_seq_number << std::endl
                       << " bsb_seq: "   << bsb_seq   << " tips.bsb_seq: "   << tips->batch_block_seq_number << std::endl;
-#endif
 		    if (connection->node->config.logging.bulk_pull_logging ())
 		    {
 			    BOOST_LOG (connection->node->log) << "invalid tips state";
@@ -427,15 +341,13 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
         }
         if(tips->delegate_id == (NUMBER_DELEGATES-1)) {
             try {
-                promise.set_value(false);
+                promise.set_value(false); // We got everything, indicate we are ok to bootstrap.cpp...
             } catch(...) {}
             connection->attempt->pool_connection (connection);
         }
 		receive_tips_header ();
     } else {
-#ifdef _DEBUG
-        std::cout << "logos::tips_req_client::received_batch_block_tips error..." << std::endl;
-#endif
+        LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips error..." << std::endl;
     }
 }
 
@@ -452,16 +364,12 @@ next_delegate(0),
 request (std::move (request_a))
 {
     nr_delegate = request->nr_delegate;
-#ifdef _DEBUG
-    std::cout << "logos::tips_req_server::tips_req_server request->nr_delegate: " << request->nr_delegate << " nr_delegate:: " << nr_delegate << " NUMBER_DELEGATES " << NUMBER_DELEGATES << std::endl;
-#endif
+    LOG_DEBUG(connection->node->log) << "logos::tips_req_server::tips_req_server request->nr_delegate: " << request->nr_delegate << " nr_delegate:: " << nr_delegate << " NUMBER_DELEGATES " << NUMBER_DELEGATES << std::endl;
 }
 
 logos::tips_req_server::~tips_req_server()
 {
-#ifdef _DEBUG
-    std::cout << "logos::~tips_req_server:: called" << std::endl;
-#endif
+    LOG_DEBUG(connection->node->log) << "logos::~tips_req_server:: called" << std::endl;
 }
 
 void logos::tips_req_server::skip_old ()
@@ -470,40 +378,32 @@ void logos::tips_req_server::skip_old ()
 
 void logos::tips_req_server::send_next ()
 {
-    std::cout << "logos::tips_req_server::send_next: " << std::endl;
+    LOG_DEBUG(connection->node->log) << "logos::tips_req_server::send_next: " << std::endl;
 
     if(nr_delegate > next_delegate)
     {
-#ifdef _DEBUG
-       std::cout << "logos::tips_req_server::send_next:: next_delegate: " << next_delegate << " nr_delegate: " << nr_delegate << std::endl;
-#endif
-       send_batch_blocks_tips(); // RGD Hack
+       LOG_DEBUG(connection->node->log) << "logos::tips_req_server::send_next:: next_delegate: " << next_delegate << " nr_delegate: " << nr_delegate << std::endl;
+       send_batch_blocks_tips();
        next_delegate++; 
 	}
 	else
 	{
-#ifdef _DEBUG
-        std::cout << "logos::tips_req_server::send_next:: send_finished" << std::endl;
-#endif
-		send_finished ();
+        LOG_DEBUG(connection->node->log) << "logos::tips_req_server::send_next:: send_finished" << std::endl;
+		send_finished();
 	}
 }
 
 void logos::tips_req_server::send_finished ()
 {
-#ifdef _DEBUG
-    std::cout << "logos::tips_req_server::send_finished" << std::endl;
-#endif
+    LOG_DEBUG(connection->node->log) << "logos::tips_req_server::send_finished" << std::endl;
 
     auto send_buffer (std::make_shared<std::vector<uint8_t>>(sizeof(BatchBlock::tips_response), uint8_t(0)));
 	//auto send_buffer (std::make_shared<std::vector<uint8_t>> ());
 	{
-		//logos::vectorstream stream (*send_buffer);
         BatchBlock::tips_response resp;
         memset(&resp,0x0,sizeof(resp));
         resp.delegate_id            = -1;
         memcpy(send_buffer->data(),(void *)&resp, sizeof(resp));
-        //write(stream,(void *)&resp, sizeof(resp)); // See ../lib/blocks.hpp for write implementation.
 	}
 
     auto this_l = this;
@@ -521,9 +421,7 @@ void logos::tips_req_server::no_block_sent (boost::system::error_code const & ec
 {
 	if (!ec)
 	{
-#ifdef _DEBUG
-        std::cout << " logos::tips_req_server::no_block_sent connection: " << connection << std::endl;
-#endif
+        LOG_DEBUG(connection->node->log) << " logos::tips_req_server::no_block_sent connection: " << connection << std::endl;
 		connection->finish_request ();
 	}
 	else
@@ -556,9 +454,7 @@ void logos::tips_req_server::next ()
 
 void logos::tips_req_server::send_batch_blocks_tips()
 {
-#ifdef _DEBUG
-    std::cout << "logos::tips_req_server::send_batch_blocks_tips: " << std::endl;
-#endif
+    LOG_DEBUG(connection->node->log) << "logos::tips_req_server::send_batch_blocks_tips: " << std::endl;
 
 	auto this_l = this;
 
@@ -571,22 +467,10 @@ void logos::tips_req_server::send_batch_blocks_tips()
             BlockHash epoch_tip = EpochBlock::getEpochBlockTip(connection->node->store, i);
             BlockHash micro_tip = Micro::getMicroBlockTip(connection->node->store, i);
             BlockHash bsb_tip   = BatchBlock::getBatchBlockTip(connection->node->store, i);
-            std::cout << "FIXME epoch_tip: " << epoch_tip.to_string()
-                      << " micro_tip: " << micro_tip.to_string()
-                      << " bsb_tip:   " << bsb_tip.to_string()
-                      << " delegate:  " << i << std::endl;
-            if(bsb_tip.is_zero()) {
-                std::cout << "bsb_tip: is_zero" << std::endl;
-            } else {
-                std::cout << "bsb_tip: non_zero" << std::endl;
-            }
             // Get my seq numbers...
             uint32_t  epoch_seq = EpochBlock::getEpochBlockSeqNr(connection->node->store, i);
             uint32_t  micro_seq = Micro::getMicroBlockSeqNr(connection->node->store, i);
             uint32_t  bsb_seq   = BatchBlock::getBatchBlockSeqNr(connection->node->store, i);
-            if(bsb_seq == 0) {
-                std::cout << "bsb_seq: is_zero" << std::endl;
-            }
             // Fill in the response...
             resp.timestamp_start        = 0;
             resp.timestamp_end          = 0;
@@ -600,32 +484,27 @@ void logos::tips_req_server::send_batch_blocks_tips()
 
             Micro::dumpMicroBlockTips(connection->node->store,micro_tip);
 
-            std::cout << "logos::tips_req_client::received_batch_block_tips:: tips<2>... delegate: "  << i << " "
+            LOG_DEBUG(connection->node->log)
+                      << "logos::tips_req_client::received_batch_block_tips:: tips<2>... delegate: "  << i << " "
                       << " epoch_tip: " << epoch_tip.to_string() << " "
                       << " micro_tip: " << micro_tip.to_string() << " "
                       << " bsb_tip: "   << bsb_tip.to_string()   << " ";
 
             // All done, write it out to the client...
             auto send_buffer1 (std::make_shared<std::vector<uint8_t>>(sizeof(BatchBlock::tips_response), uint8_t(0)));
-	        //auto send_buffer1 (std::make_shared<std::vector<uint8_t>> ());
             {
-                //logos::vectorstream stream(*send_buffer1);
-                //write(stream, (void *)&resp, sizeof(resp)); // See ../lib/blocks.hpp for write implementation.
                 memcpy(send_buffer1->data(),(void *)&resp, sizeof(resp));
             }
 
-#ifdef _DEBUG
-            std::cout << "send_batch_blocks_tips this: " << this << " connection: " << connection << " this_l->connection: " << this_l->connection << std::endl;
-#endif
+            LOG_DEBUG(connection->node->log) << "send_batch_blocks_tips this: " << this << " connection: " << connection << " this_l->connection: " << this_l->connection << std::endl;
             boost::asio::write(*connection->socket, boost::asio::buffer (send_buffer1->data (), send_buffer1->size ()),
                     boost::asio::transfer_all());
 
         }
     } else {
-#ifdef _DEBUG
-        std::cout << "logos::tips_req_server::send_batch_blocks_tips error: " << std::endl
+        LOG_DEBUG(connection->node->log) 
+                  << "logos::tips_req_server::send_batch_blocks_tips error: " << std::endl
                   << " nr_delegate: " << nr_delegate << " NUMBER_DELEGATES " << NUMBER_DELEGATES << std::endl;
-#endif
         // Log an error.
 		if (this_l->connection->node->config.logging.bulk_pull_logging ())
 		{

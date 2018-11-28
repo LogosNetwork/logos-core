@@ -12,13 +12,9 @@ BlockHash EpochBlock::getEpochBlockTip(Store& s, int delegate) // TODOFUNC
 
 uint64_t  EpochBlock::getEpochBlockSeqNr(Store& s, int delegate) // TODOFUNC
 {
-#ifdef _DEBUG
-    return 0;
-#else
-    BlockHash hash = BatchBlock::getMicroBlockTip(s,delegate);
+    BlockHash hash = EpochBlock::getEpochBlockTip(s,delegate);
     std::shared_ptr<Epoch> tip = EpochBlock::readEpochBlock(s,hash);
-    return tip->_epoch_number;
-#endif
+    return tip->epoch_number;
 }
 
 BlockHash EpochBlock::getNextEpochBlock(Store &store, int delegate, BlockHash &hash) // TODOFUNC
