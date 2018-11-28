@@ -28,25 +28,6 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     _delegate_id = config.delegate_id;
 
     DelegateIdentityManager::GetCurrentEpoch(_store, _current_epoch);
-
-    auto initialized =  [](const Signature & sig)
-                        {
-                            auto non_zero = [](uint8_t cur)
-                                            {
-                                                return cur != 0;
-                                            };
-
-                            return std::find_if(sig.begin(),
-                                                sig.end(),
-                                                non_zero) != sig.end();
-                        };
-
-    if(!initialized(_current_epoch.signature))
-    {
-        LOG_FATAL(_log) << "ConsensusManager::ConsensusManager - Failed to load a valid epoch block.";
-        exit(EXIT_FAILURE);
-    }
-
     OnCurrentEpochSet();
 }
 
