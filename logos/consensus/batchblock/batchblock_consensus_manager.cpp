@@ -12,12 +12,11 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
         Service & service,
         Store & store,
         const Config & config,
-        DelegateKeyStore & key_store,
         MessageValidator & validator,
 	EpochEventsNotifier & events_notifier,
 	p2p_interface & p2p)
     : Manager(service, store, config,
-	      key_store, validator, events_notifier, p2p)
+	      validator, events_notifier, p2p)
     , _init_timer(service)
     , _service(service)
 {

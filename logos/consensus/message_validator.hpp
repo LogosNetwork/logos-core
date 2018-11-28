@@ -24,7 +24,7 @@ public:
         Signature signature;
     };
 
-    MessageValidator(DelegateKeyStore & key_store);
+    MessageValidator(DelegateKeyStore & key_store, KeyPair &key_pair);
 
     // Aggregate sign
     template<typename MSG>

@@ -412,14 +412,6 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const PostCommit & message)
 }
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::SendKeyAdvertisement()
-{
-    KeyAdvertisement advert;
-    advert.public_key = _validator.GetPublicKey();
-    Send(advert);
-}
-
-template<ConsensusType CT>
 void ConsensusConnection<CT>::StoreResponse(const Prepare & message)
 {
     _prepare.reset(new Prepare(message));

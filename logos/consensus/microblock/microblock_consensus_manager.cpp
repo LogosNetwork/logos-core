@@ -7,13 +7,12 @@ MicroBlockConsensusManager::MicroBlockConsensusManager(
                                Service & service,
                                Store & store,
                                const Config & config,
-                               DelegateKeyStore & key_store,
                                MessageValidator & validator,
                                ArchiverMicroBlockHandler & handler,
 			       EpochEventsNotifier & events_notifier,
 			       p2p_interface & p2p)
     : Manager(service, store, config,
-	      key_store, validator, events_notifier, p2p)
+	      validator, events_notifier, p2p)
     , _microblock_handler(handler)
     , _enqueued(false)
 {

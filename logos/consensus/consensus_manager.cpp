@@ -14,19 +14,17 @@ template<ConsensusType CT>
 ConsensusManager<CT>::ConsensusManager(Service & service,
                                        Store & store,
                                        const Config & config,
-                                       DelegateKeyStore & key_store,
                                        MessageValidator & validator,
 				       EpochEventsNotifier & events_notifier,
 				       p2p_interface & p2p)
     : PrimaryDelegate(service, validator)
     , _store(store)
-    , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
     , _secondary_handler(SecondaryRequestHandlerInstance(service, this))
     , _events_notifier(events_notifier)
     , _reservations(std::make_shared<Reservations>(store))
-    , _persistence_manager(store, _reservations)
+    , _persistence_manager(validator, store, _reservations)
     , _consensus_p2p(p2p, _delegate_id,
 	[this](const Prequel & message, MessageType mtype, uint8_t delegate_id) {
 		return mtype == MessageType::Pre_Prepare  ? this->_persistence_manager.Validate((PrePrepare  &)message)

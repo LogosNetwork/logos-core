@@ -11,21 +11,22 @@ static constexpr ConsensusType MBCT = ConsensusType::MicroBlock;
 class ReservationsProvider;
 
 template<>
-class PersistenceManager<MBCT> {
+class PersistenceManager<MBCT> : public Persistence {
 
 protected:
 
     using BatchTips                     = BlockHash[NUM_DELEGATES];
     using IteratorBatchBlockReceiverCb  = std::function<void(uint8_t, const BatchStateBlock&)>;
     using BatchBlockReceiverCb          = std::function<void(const BatchStateBlock&)>;
-    using Store                         = logos::block_store;
     using Request                       = RequestMessage<MBCT>;
     using PrePrepare                    = PrePrepareMessage<MBCT>;
     using ReservationsPtr               = std::shared_ptr<ReservationsProvider>;
 
 public:
-    PersistenceManager(Store & store, ReservationsPtr);
-    PersistenceManager(Store & store);
+    PersistenceManager(MessageValidator & validator,
+                       Store & store,
+                       ReservationsPtr,
+                       Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT);
     virtual ~PersistenceManager() = default;
 
     /// Request validation, EDDSA signature and block validation
@@ -40,8 +41,10 @@ public:
 
     /// Backup delegate validation
     /// @param message to validate [in]
+    /// @param remote_delegate_id remote delegate id [in]
+    /// @param status result of the validation, optional [in|out]
     /// @returns true if validated
-    virtual bool Validate(const PrePrepare & message);
+    virtual bool Validate(const PrePrepare & message, uint8_t remote_delegate_id, ValidationStatus * status = nullptr);
 
     /// Commit PrePrepare to the database
     /// @param message to commit [in]
@@ -53,13 +56,5 @@ public:
     }
 
 protected:
-    /// Iterates each delegates' batch state block chain.
-    /// @param start tips to start iteration [in]
-    /// @param end tips to end iteration [in]
-    /// @param cb function to call for each delegate's batch state block, the function's argument are
-    ///   delegate id and BatchStateBlock
-    void BatchBlocksIterator(const BatchTips &start, const BatchTips &end, IteratorBatchBlockReceiverCb cb);
 
-    Store &     _store;
-    Log         _log;
 };
