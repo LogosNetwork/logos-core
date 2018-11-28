@@ -5,17 +5,21 @@
 
 #include <logos/consensus/persistence/microblock/microblock_persistence.hpp>
 #include <logos/consensus/persistence/nondel_persistence_manager.hpp>
+#include <logos/consensus/message_validator.hpp>
 
 template<>
 class NonDelPersistenceManager<MBCT> : public PersistenceManager<MBCT>
 {
+public:
+    using PersistenceManager<MBCT>::Validate;
+
     NonDelPersistenceManager(MessageValidator &validator,
                              Store &store,
-                             Milliseconds clock_drift)
+                             Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT)
         : PersistenceManager<MBCT>(validator, store, nullptr, clock_drift)
     {}
 
-    bool Validate(conse PrePrepare & message, uint8_t remote_delegate_id, ValidationStatus * status)
+    bool Validate(const PrePrepare & message, uint8_t remote_delegate_id, ValidationStatus * status)
     {
         using namespace logos;
 
@@ -32,15 +36,5 @@ class NonDelPersistenceManager<MBCT> : public PersistenceManager<MBCT>
         }
 
         return PersistenceManager<MBCT>::Validate(message, remote_delegate_id, status);
-    }
-
-    bool Validate(const PostCommit & message, uint8_t remote_delegate_id)
-    {
-        return _validator.Validate(message, remote_delegate_id);
-    }
-
-    void ApplyUpdates(const PrePrepare & message, uint8_t delegate_id)
-    {
-        PersistenceManager<MBCT>::ApplyUpdates(message, delegate_id);
     }
 };

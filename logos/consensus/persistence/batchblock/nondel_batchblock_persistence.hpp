@@ -5,17 +5,21 @@
 
 #include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
 #include <logos/consensus/persistence/nondel_persistence_manager.hpp>
+#include <logos/consensus/message_validator.hpp>
 
 template<>
 class NonDelPersistenceManager<BSBCT> : public PersistenceManager<BSBCT>
 {
+public:
+    using PersistenceManager<BSBCT>::Validate;
+
     NonDelPersistenceManager(MessageValidator &validator,
                              Store &store,
-                             Milliseconds clock_drift)
+                             Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT)
         : PersistenceManager<BSBCT>(validator, store, nullptr, clock_drift)
     {}
 
-    bool Validate(conse PrePrepare & message, uint8_t remote_delegate_id, ValidationStatus * status)
+    bool Validate(const PrePrepare & message, uint8_t remote_delegate_id, ValidationStatus * status)
     {
         using namespace logos;
 
@@ -25,7 +29,6 @@ class NonDelPersistenceManager<BSBCT> : public PersistenceManager<BSBCT>
             return false;
         }
 
-        /// TODO maintain previous/sequence for efficiency
         BatchStateBlock previous;
         if (message.previous != 0 && _store.batch_block_get(message.previous, previous))
         {
@@ -46,15 +49,5 @@ class NonDelPersistenceManager<BSBCT> : public PersistenceManager<BSBCT>
         }
 
         return PersistenceManager<BSBCT>::Validate(message, remote_delegate_id, status);
-    }
-
-    bool Validate(const PostCommit & message, uint8_t remote_delegate_id)
-    {
-        return _validator.Validate(message, remote_delegate_id);
-    }
-
-    void ApplyUpdates(const PrePrepare & message, uint8_t delegate_id)
-    {
-        PersistenceManager<BSBCT>::ApplyUpdates(message, delegate_id);
     }
 };

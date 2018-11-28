@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <logos/consensus/messages/rejection.hpp>
-
 #include <logos/blockstore.hpp>
 #include <logos/lib/log.hpp>
 

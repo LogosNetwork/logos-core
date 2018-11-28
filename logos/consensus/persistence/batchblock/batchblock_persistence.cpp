@@ -17,11 +17,11 @@ PersistenceManager<BSBCT>::PersistenceManager(MessageValidator & validator,
     : Persistence(validator, store, clock_drift)
     , _reservations(reservations)
 {
-    if (reservations == nullptr)
+    if (_reservations == nullptr)
     {
         LOG_WARN(_log) << "PersistenceManager creating default reservations";
+        _reservations = std::make_shared<DefaultReservations>(store);
     }
-    _reservations = std::make_shared<DefaultReservations>(store);
 }
 
 void PersistenceManager<BSBCT>::ApplyUpdates(

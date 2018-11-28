@@ -5,17 +5,21 @@
 
 #include <logos/consensus/persistence/epoch/epoch_persistence.hpp>
 #include <logos/consensus/persistence/nondel_persistence_manager.hpp>
+#include <logos/consensus/message_validator.hpp>
 
 template<>
 class NonDelPersistenceManager<ECT> : public PersistenceManager<ECT>
 {
+public:
+    using PersistenceManager<ECT>::Validate;
+
     NonDelPersistenceManager(MessageValidator &validator,
                              Store &store,
-                             Milliseconds clock_drift)
+                             Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT)
         : PersistenceManager<ECT>(validator, store, nullptr, clock_drift)
     {}
 
-    bool Validate(conse PrePrepare & message, uint8_t remote_delegate_id, ValidationStatus * status)
+    bool Validate(const PrePrepare & message, uint8_t remote_delegate_id, ValidationStatus * status)
     {
         using namespace logos;
 
@@ -32,15 +36,5 @@ class NonDelPersistenceManager<ECT> : public PersistenceManager<ECT>
         }
 
         return PersistenceManager<ECT>::Validate(message, remote_delegate_id, status);
-    }
-
-    bool Validate(const PostCommit & message, uint8_t remote_delegate_id)
-    {
-        return _validator.Validate(message, remote_delegate_id);
-    }
-
-    void ApplyUpdates(const PrePrepare & message, uint8_t delegate_id)
-    {
-        PersistenceManager<ECT>::ApplyUpdates(message, delegate_id);
     }
 };
