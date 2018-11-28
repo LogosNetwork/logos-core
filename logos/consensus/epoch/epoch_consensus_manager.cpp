@@ -13,11 +13,10 @@ EpochConsensusManager::EpochConsensusManager(
                           Service & service,
 	                      Store & store,
 					      const Config & config,
-                          DelegateKeyStore & key_store,
                           MessageValidator & validator,
                           EpochEventsNotifier & events_notifier)
 	: Manager(service, store, config,
-		      key_store, validator, events_notifier)
+		      validator, events_notifier)
 	, _enqueued(false)
 {
 	if (_store.epoch_tip_get(_prev_hash))

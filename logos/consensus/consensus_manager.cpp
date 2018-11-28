@@ -14,12 +14,10 @@ template<ConsensusType CT>
 ConsensusManager<CT>::ConsensusManager(Service & service,
                                        Store & store,
                                        const Config & config,
-                                       DelegateKeyStore & key_store,
                                        MessageValidator & validator,
                                        EpochEventsNotifier & events_notifier)
     : PrimaryDelegate(service, validator)
     , _store(store)
-    , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
     , _secondary_handler(SecondaryRequestHandlerInstance(service, this))

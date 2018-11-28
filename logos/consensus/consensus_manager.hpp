@@ -75,7 +75,6 @@ public:
     ConsensusManager(Service & service,
                      Store & store,
                      const Config & config,
-                     DelegateKeyStore & key_store,
                      MessageValidator & validator,
                      EpochEventsNotifier & events_notifier);
 
@@ -160,7 +159,6 @@ protected:
 
     Connections                     _connections;
     Store &                         _store;
-    DelegateKeyStore &              _key_store;
     MessageValidator &              _validator;
     std::mutex                      _connection_mutex;
     Log                             _log;

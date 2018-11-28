@@ -38,13 +38,11 @@ public:
     ///     @param[in] store reference to blockstore.
     ///     @param[in] log reference to boost asio log.
     ///     @param[in] config reference to ConsensusManagerConfig.
-    ///     @param[in] key_store stores delegates' public keys.
     ///     @param[in] validator validator/signer of consensus messages.
     ///     @param[in] events_notifier transition helper
     BatchBlockConsensusManager(Service & service,
                                Store & store,
                                const Config & config,
-                               DelegateKeyStore & key_store,
                                MessageValidator & validator,
                                EpochEventsNotifier & events_notifier);
 
@@ -144,9 +142,6 @@ protected:
 
     /// Create specialized instance of ConsensusConnection
     ///     @param iochannel NetIOChannel pointer
-    ///     @param primary PrimaryDelegate pointer
-    ///     @param key_store Delegates' public key store
-    ///     @param validator Validator/Signer of consensus messages
     ///     @param ids Delegate's id
     ///     @return ConsensusConnection
     std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>> MakeConsensusConnection(
