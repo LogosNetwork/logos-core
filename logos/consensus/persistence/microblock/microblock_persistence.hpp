@@ -23,8 +23,7 @@ protected:
     using ReservationsPtr               = std::shared_ptr<ReservationsProvider>;
 
 public:
-    PersistenceManager(MessageValidator & validator,
-                       Store & store,
+    PersistenceManager(Store & store,
                        ReservationsPtr,
                        Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT);
     virtual ~PersistenceManager() = default;
@@ -54,7 +53,4 @@ public:
     {
         ApplyUpdates(message, 0);
     }
-
-protected:
-
 };

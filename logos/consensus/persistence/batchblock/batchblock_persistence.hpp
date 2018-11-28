@@ -22,8 +22,7 @@ protected:
 
 public:
 
-    PersistenceManager(MessageValidator & validator,
-                       Store & store,
+    PersistenceManager(Store & store,
                        ReservationsPtr reservations,
                        Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT);
     virtual ~PersistenceManager() = default;

@@ -6,8 +6,6 @@
 #include <logos/blockstore.hpp>
 #include <logos/lib/log.hpp>
 
-class MessageValidator;
-
 struct ValidationStatus {
     std::unordered_map<uint8_t, logos::process_result>  requests;
     logos::process_result                               reason;
@@ -23,12 +21,10 @@ public:
 
     static constexpr Milliseconds DEFAULT_CLOCK_DRIFT = Milliseconds(20000);
 
-    Persistence(MessageValidator & validator,
-                Store & store,
+    Persistence(Store & store,
                 Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT)
         : _store(store)
         , _clock_drift(clock_drift)
-        , _validator(validator)
     {}
     virtual ~Persistence() = default;
 
@@ -67,5 +63,4 @@ protected:
     Store &             _store;
     Log                 _log;
     Milliseconds        _clock_drift;
-    MessageValidator &  _validator;
 };

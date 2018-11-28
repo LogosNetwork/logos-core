@@ -10,11 +10,10 @@
 
 constexpr uint128_t PersistenceManager<BSBCT>::MIN_TRANSACTION_FEE;
 
-PersistenceManager<BSBCT>::PersistenceManager(MessageValidator & validator,
-                                              Store & store,
+PersistenceManager<BSBCT>::PersistenceManager(Store & store,
                                               ReservationsPtr reservations,
                                               Milliseconds clock_drift)
-    : Persistence(validator, store, clock_drift)
+    : Persistence(store, clock_drift)
     , _reservations(reservations)
 {
     if (_reservations == nullptr)
