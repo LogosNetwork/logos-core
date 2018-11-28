@@ -17,6 +17,8 @@
 /// Handles DelegateKeyStore and MessageValidator instantiation for the given epoch.
 class ValidatorBuilder {
 
+private:
+
     using Store     = logos::block_store;
     using BlockHash = logos::block_hash;
 
@@ -40,10 +42,10 @@ private:
         std::shared_ptr<MessageValidator> validator;
     };
 
-    Store &                             _store;
-    std::unordered_map<uint16_t, pki>   _epoch_pki;
-    Log                                 _log;
-    std::shared_ptr<MessageValidator>   _cached_validator = nullptr;
-    uint16_t                            _cached_epoch = 0;
+    Store &                                     _store;
+    static std::unordered_map<uint16_t, pki>    _epoch_pki;
+    Log                                         _log;
+    static std::shared_ptr<MessageValidator>    _cached_validator;
+    static uint16_t                             _cached_epoch;
 };
 

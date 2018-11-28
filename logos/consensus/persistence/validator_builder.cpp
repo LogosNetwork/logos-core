@@ -5,6 +5,10 @@
 #include <logos/consensus/persistence/validator_builder.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 
+std::unordered_map<uint16_t, ValidatorBuilder::pki> ValidatorBuilder::_epoch_pki;
+uint16_t ValidatorBuilder::_cached_epoch = 0;
+std::shared_ptr<MessageValidator> ValidatorBuilder::_cached_validator = nullptr;
+
 ValidatorBuilder::ValidatorBuilder(ValidatorBuilder::Store &store)
     : _store(store)
 {}
@@ -16,8 +20,12 @@ ValidatorBuilder::GetValidator(uint16_t epoch_number)
     BlockHash   hash;
     Epoch   epoch;
 
+    // delegate's epoch block for requested epoch
+    epoch_number -= 2;
+
     if (_cached_validator != nullptr && _cached_epoch == epoch_number)
     {
+        LOG_DEBUG(_log) << "ValidatorBuilder::GetValidator using cached validator for epoch block " << epoch_number;
         return _cached_validator;
     }
 
@@ -74,7 +82,7 @@ ValidatorBuilder::GetValidator(uint16_t epoch_number)
         }
         else if (epoch_number > epoch.epoch_number)
         {
-            LOG_FATAL(_log) << "Validator::Builder::GetValidator invalid requested epoch " << epoch_number
+            LOG_FATAL(_log) << "ValidatorBuilder::GetValidator invalid requested epoch " << epoch_number
                             << " tip's epoch " << epoch.epoch_number;
             trace_and_halt();
         }
@@ -83,6 +91,8 @@ ValidatorBuilder::GetValidator(uint16_t epoch_number)
     {
         validator = k->second.validator;
     }
+
+    LOG_DEBUG(_log) << "ValidatorBuilder::GetValidator cached validator for epoch block " << epoch_number;
 
     _cached_epoch = epoch_number;
     _cached_validator = validator;
