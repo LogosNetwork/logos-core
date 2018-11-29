@@ -194,8 +194,7 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
             bsb_tip = iter->second.second;
         }
 
-        //LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: tips<1>... delegate: "  
-        std::cout << "logos::tips_req_client::received_batch_block_tips:: tips<1>... delegate: "  
+        LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: tips<1>... delegate: "  
                   << tips->delegate_id << " "
                   << " epoch_tip: " << epoch_tip.to_string() << " tips.epoch_seq: " << tips->epoch_block_tip.to_string() << " "
                   << " micro_tip: " << micro_tip.to_string() << " tips.micro_seq: " << tips->micro_block_tip.to_string() << " "
@@ -322,10 +321,6 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
         } else if(bsb_seq == tips->batch_block_seq_number) {
                 // We are in sync, continue processing...
                 connection->node->_validator->validate(nullptr);
-                std::cout << "in sync: delegate_id: " << tips->delegate_id << " epoch: " << epoch_seq << " theirs: " << tips->epoch_block_seq_number << " "
-                          << " micro: " << micro_seq << " theirs: " << tips->micro_block_seq_number <<  " "
-                          << " bsb: " << bsb_seq << " theirs: " << tips->batch_block_seq_number << std::endl;
-
                 LOG_DEBUG(connection->node->log) << "in sync: delegate_id: " << tips->delegate_id << " epoch: " << epoch_seq << " theirs: " << tips->epoch_block_seq_number << " "
                           << " micro: " << micro_seq << " theirs: " << tips->micro_block_seq_number <<  " "
                           << " bsb: " << bsb_seq << " theirs: " << tips->batch_block_seq_number << std::endl;

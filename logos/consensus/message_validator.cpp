@@ -4,7 +4,6 @@
 MessageValidator::MessageValidator(DelegateKeyStore & key_store)
     : _keys(key_store)
 {
-    std::cout << "MessageValidator::MessageValidator done..." << std::endl;
 }
 
 PublicKey MessageValidator::GetPublicKey()

@@ -119,7 +119,7 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
     LOG_DEBUG(node->log) << "validate: bsb.size(): " << bsb.size() << " micro.size(): " << micro.size() << " epoch.size(): " << epoch.size() << std::endl;
 
     if(block != nullptr) {
-        //std::cout << "FIXME received bsb: " << block->block.Hash().to_string() <<  " time: " << currentDateTime() << std::endl;
+        LOG_DEBUG(node->log) << "received bsb: " << block->block.Hash().to_string() <<  " time: " << currentDateTime() << std::endl;
         bsb.push_back(block);
     }
 
@@ -179,6 +179,9 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
       std::shared_ptr<MicroBlock> isMicroPresent =  Micro::readMicroBlock(node->store, peerHash);
       if(ready && isMicroPresent == nullptr) {
         if((!peerMicro->previous.is_zero() || !peerMicro->next.is_zero()) && micro_handler->Validate(*peerMicro)) {
+             std::cout<< "micro_handler->Validate: " 
+                      << peerMicro->hash().to_string() << " prev: " << peerMicro->previous.to_string()
+                      << " next: " << peerMicro->next.to_string() << " time: " << currentDateTime() << std::endl;
              LOG_DEBUG(node->log) << "micro_handler->Validate: " 
                       << peerMicro->hash().to_string() << " prev: " << peerMicro->previous.to_string()
                       << " next: " << peerMicro->next.to_string() << std::endl;

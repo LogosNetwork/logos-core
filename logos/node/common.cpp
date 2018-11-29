@@ -214,10 +214,12 @@ bool logos::frontier_req::deserialize (logos::stream & stream_a)
             }
         }
     }
+#ifdef _DEBUG
     std::cout << "logos::frontier_req::deserialize: result " << result 
               << " age: " << age << std::endl
               <<  " count: " << count << std::endl
               << " nr_delegate: " << nr_delegate << std::endl;
+#endif
     return result;
 }
 
@@ -225,11 +227,8 @@ void logos::frontier_req::serialize (logos::stream & stream_a)
 {
     write_header (stream_a);
     write (stream_a, start.bytes);
-    std::cout << "logos::frontier_req::serialize: nr_delegate: " << nr_delegate << std::endl;
     write (stream_a, nr_delegate);
-    std::cout << "logos::frontier_req::serialize: age: " << age << std::endl;
     write (stream_a, age);
-    std::cout << "logos::frontier_req::serialize: count: " << count << std::endl;
     write (stream_a, count);
 }
 
@@ -301,7 +300,9 @@ bool logos::bulk_pull::deserialize (logos::stream & stream_a) // RGDSERVER Imple
             }
         }
     }
+#ifdef _DEBUG
     std::cout << "logos::bulk_pull:: result: " << result << std::endl;
+#endif
     return result;
 }
 

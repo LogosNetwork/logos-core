@@ -291,10 +291,6 @@ MicroBlockHandler::Validate(
     // previous microblock doesn't exist
     if (_store.micro_block_get(block.previous, previous_microblock))
     {
-        std::cout << "remaining MicroBlockHandler::VerifyMicroBlock previous doesn't exist "
-                        << " hash " << hash.to_string()
-                        << " previous " << block.previous.to_string() << std::endl;
-
         LOG_ERROR(_log) << "MicroBlockHandler::VerifyMicroBlock previous doesn't exist "
                         << " hash " << hash.to_string()
                         << " previous " << block.previous.to_string();

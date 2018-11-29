@@ -54,7 +54,7 @@ bool PersistenceManager::Validate(const logos::state_block & block,
         if(block.hashables.previous.is_zero() && info.block_count)
         {
             result.code = logos::process_result::fork;
-            std::cout << "PersistenceManager:: previous is zero: block count: " << info.block_count << std::endl;
+            LOG_DEBUG(_log) << "PersistenceManager:: previous is zero: block count: " << info.block_count << std::endl;
             return false;
         }
 
@@ -88,7 +88,7 @@ bool PersistenceManager::Validate(const logos::state_block & block,
             else
             {
                 result.code = logos::process_result::fork;
-                std::cout << "block.hashables.previous: " << block.hashables.previous.to_string() << " info.head: " << info.head.to_string() << " hash: " << hash.to_string() << std::endl;
+                LOG_DEBUG(_log) << "block.hashables.previous: " << block.hashables.previous.to_string() << " info.head: " << info.head.to_string() << " hash: " << hash.to_string() << std::endl;
                 return false;
             }
         }

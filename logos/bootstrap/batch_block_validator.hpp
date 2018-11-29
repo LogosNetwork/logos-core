@@ -83,14 +83,12 @@ class validator {
     void add_micro_block(std::shared_ptr<BatchBlock::bulk_pull_response_micro> &m)
     {
         std::lock_guard<std::mutex> lock(mutex); // DEBUG Might need additional locking in this class...
-        std::cout << "add_micro_block: " << std::endl;
         micro.push_back(m);
     }
 
     void add_epoch_block(std::shared_ptr<BatchBlock::bulk_pull_response_epoch> &e)
     {
         std::lock_guard<std::mutex> lock(mutex); // DEBUG Might need additional locking in this class...
-        std::cout << "add_epoch_block: " << std::endl;
         epoch.push_back(e);
     }
 

@@ -7,6 +7,8 @@
 
 #include <boost/log/trivial.hpp>
 
+#define _DEBUG 1
+
 extern std::atomic<int> total_pulls;
 
 logos::pull_info::pull_info () :
@@ -59,7 +61,7 @@ b_start(_b_start),
 b_end(_b_end),
 type(pull_type::batch_block_pull)
 {
-#ifdef _DEBUG // We don't have access to the log at this point.
+#ifdef _VERBOSE_DEBUG // We don't have access to the log at this point.
     std::cout << "logos::pull_info::pull_info: delegate_id: " << delegate_id << std::endl;
 #endif
 }

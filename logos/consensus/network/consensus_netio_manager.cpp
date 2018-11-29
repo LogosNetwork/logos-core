@@ -66,7 +66,6 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
     {
         starter.Start();
     }
-    std::cout << "ConsensusNetIOManager::ConsensusNetIOManager done..." << std::endl;
 }
 
 ConsensusNetIOManager::~ConsensusNetIOManager()

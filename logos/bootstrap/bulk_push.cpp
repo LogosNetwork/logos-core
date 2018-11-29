@@ -1,3 +1,4 @@
+// NOTE This code is disabled...
 #include <logos/bootstrap/backtrace.hpp>
 #include <logos/bootstrap/bootstrap.hpp>
 #include <logos/bootstrap/bulk_push.hpp>
@@ -8,6 +9,8 @@
 #include <boost/log/trivial.hpp>
 
 #define MAX_ITER 4
+
+#define _DEBUG 1
 
 logos::bulk_push_client::bulk_push_client (std::shared_ptr<logos::bootstrap_client> const & connection_a) :
 connection (connection_a)

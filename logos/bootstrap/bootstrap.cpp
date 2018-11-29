@@ -14,6 +14,8 @@ static std::vector<logos::request_info> req_s;
 static std::shared_ptr<logos::bootstrap_client> default_client;
 std::atomic<int> total_pulls;
 
+#undef _DEBUG
+
 #define _MODIFY_BUFFER 1
 #define RECV_BUFFER_SIZE (1 << 20)
 #define _ERROR 1
@@ -101,8 +103,9 @@ void logos::bootstrap_client::stop (bool force)
 {
 #ifdef _DEBUG
     std::cout << "logos::bootstrap_client::stop:" << std::endl;
-#endif
     do_backtrace();
+#endif
+
 	pending_stop = true;
 	if (force)
 	{
@@ -285,6 +288,7 @@ void logos::bootstrap_attempt::request_pull (std::unique_lock<std::mutex> & lock
 	}
 }
 
+// NOTE This code is disabled...
 void logos::bootstrap_attempt::request_push (std::unique_lock<std::mutex> & lock_a)
 { // RGD: Called from 'logos::bootstrap_attempt::run'
 	bool error (false);
@@ -586,9 +590,6 @@ void logos::bootstrap_attempt::populate_connections ()
 #endif
 					client->stop (true);
 				}
-#if 0
-                client->stop(true); // Close everything for now.
-#endif
 			}
 		}
 	}
@@ -597,7 +598,7 @@ void logos::bootstrap_attempt::populate_connections ()
 
 	// We only want to drop slow peers when more than 2/3 are active. 2/3 because 1/2 is too aggressive, and 100% rarely happens.
 	// Probably needs more tuning.
-    // FIXME!!! Should we drop all peers ?
+    // FIXME!!!
 	if (sorted_connections.size () >= (target * 2) / 3 && target >= 4)
 	{
 		// 4 -> 1, 8 -> 2, 16 -> 4, arbitrary, but seems to work well.
@@ -637,12 +638,7 @@ void logos::bootstrap_attempt::populate_connections ()
 		// TODO - tune this better
 		// Not many peers respond, need to try to make more connections than we need.
         // delta = NUMBER_DELEGATES; // Maybe set to 0 of clients is too big ?
-        delta = 1; // FIXME!!! Do they have the correct delta ?
-#if 0
-        if(clients.size() > 100 || idle.size() > 100) { // FIXME
-            delta = 0;
-        }
-#endif
+        delta = 1; // FIXME!!! Do they have the correct delta ? delta of 1 seems to work the best in testing...
 
 #ifdef _DEBUG
         std::cout << "bootstrap_attempt:: delta: " << delta << " target: " << target << " connections: " << connections << " max: " << bootstrap_max_new_connections << " clients.size: " << clients.size() << std::endl;
@@ -822,7 +818,7 @@ void logos::bootstrap_attempt::add_bulk_push_target (logos::block_hash const & h
 
 void logos::bootstrap_attempt::add_bulk_push_target(logos::request_info r)
 {
-#if 0 // FIXME!!!
+#if 0 // FIXME!!! Disables push...
 	std::lock_guard<std::mutex> lock (mutex);
 
 #ifdef _DEBUG
