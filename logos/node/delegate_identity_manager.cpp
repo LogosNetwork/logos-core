@@ -1,5 +1,5 @@
 /// @file
-/// This file contains the declaration of the NodeIdentityManager class, which encapsulates
+/// This file contains the declaration of the DelegateIdentityManager class, which encapsulates
 /// node identity management logic. Currently it holds all delegates ip, accounts, and delegate's index (formerly id)
 /// into epoch's voted delegates. It also creates genesis microblocks, epochs, and delegates genesis accounts
 ///
@@ -182,7 +182,7 @@ DelegateIdentityManager::Init(const Config &config)
         Epoch previous_epoch;
         if (_store.epoch_get(epoch_tip, previous_epoch))
         {
-            LOG_FATAL(_log) << "NodeIdentityManager::Init Failed to get epoch: " << epoch_tip.to_string();
+            LOG_FATAL(_log) << "DelegateIdentityManager::Init Failed to get epoch: " << epoch_tip.to_string();
             trace_and_halt();
         }
 
@@ -298,21 +298,21 @@ DelegateIdentityManager::IdentifyDelegates(
     // requested epoch block is not created yet
     if (stale_epoch && epoch_delegates == EpochDelegates::Next)
     {
-        LOG_ERROR(_log) << "NodeIdentityManager::IdentifyDelegates delegates set is requested for next epoch";
+        LOG_ERROR(_log) << "DelegateIdentityManager::IdentifyDelegates delegates set is requested for next epoch";
         return;
     }
 
     logos::block_hash epoch_tip;
     if (_store.epoch_tip_get(epoch_tip))
     {
-        LOG_FATAL(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch tip";
+        LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get epoch tip";
         trace_and_halt();
     }
 
     Epoch epoch;
     if (_store.epoch_get(epoch_tip, epoch))
     {
-        LOG_FATAL(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch: "
+        LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get epoch: "
                         << epoch_tip.to_string();
         trace_and_halt();
     }
@@ -321,12 +321,14 @@ DelegateIdentityManager::IdentifyDelegates(
     {
         if (_store.epoch_get(epoch.previous, epoch))
         {
-            LOG_FATAL(_log) << "NodeIdentityManager::IdentifyDelegates failed to get current delegate's epoch: "
+            LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get current delegate's epoch: "
                             << epoch.previous.to_string();
             trace_and_halt();
         }
     }
 
+    LOG_DEBUG(_log) << "DelegateIdentityManager::IdentifyDelegates retrieving delegates from epoch "
+                    << epoch.epoch_number;
     // Is this delegate included in the current/next epoch consensus?
     for (uint8_t del = 0; del < NUM_DELEGATES; ++del)
     {
@@ -348,14 +350,14 @@ DelegateIdentityManager::IdentifyDelegates(
     logos::block_hash hash;
     if (_store.epoch_tip_get(hash))
     {
-        LOG_FATAL(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch tip";
+        LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get epoch tip";
         trace_and_halt();
     }
 
     auto get = [this](logos::block_hash &hash, Epoch &epoch) {
         if (_store.epoch_get(hash, epoch))
         {
-            LOG_FATAL(_log) << "NodeIdentityManager::IdentifyDelegates failed to get epoch: "
+            LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get epoch: "
                             << hash.to_string();
             trace_and_halt();
         }

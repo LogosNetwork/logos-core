@@ -6,11 +6,10 @@
 #include <logos/consensus/message_validator.hpp>
 #include <logos/lib/trace.hpp>
 
-PersistenceManager<MBCT>::PersistenceManager(MessageValidator & validator,
-                                             Store & store,
+PersistenceManager<MBCT>::PersistenceManager(Store & store,
                                              ReservationsPtr,
                                              Milliseconds clock_drift)
-    : Persistence(validator, store, clock_drift)
+    : Persistence(store, clock_drift)
 {}
 
 bool

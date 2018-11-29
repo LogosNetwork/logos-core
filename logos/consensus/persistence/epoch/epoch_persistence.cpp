@@ -6,11 +6,10 @@
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/lib/trace.hpp>
 
-PersistenceManager<ECT>::PersistenceManager(MessageValidator & validator,
-                                            Store & store,
+PersistenceManager<ECT>::PersistenceManager(Store & store,
                                             ReservationsPtr,
                                             Milliseconds clock_drift)
-    : Persistence(validator, store, clock_drift)
+    : Persistence(store, clock_drift)
 {}
 
 bool
