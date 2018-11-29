@@ -31,11 +31,12 @@ ConsensusContainer::ConsensusContainer(Service & service,
     , _identity_manager(identity_manager)
     , _transition_state(EpochTransitionState::None)
     , _transition_delegate(EpochTransitionDelegate::None)
-    , _p2p(p2p)
 {
     uint8_t delegate_idx;
     Accounts delegates;
     _identity_manager.IdentifyDelegates(EpochDelegates::Current, delegate_idx, delegates);
+
+    _p2p = new ContainerP2p(p2p, delegate_idx, store);
 
     // is the node a delegate in this epoch
     bool in_epoch = delegate_idx != NON_DELEGATE;
@@ -73,7 +74,7 @@ ConsensusContainer::CreateEpochManager(
 {
     return std::make_shared<EpochManager>(_service, _store, _alarm, config,
                                           _archiver, _peer_manager, _transition_state,
-					  delegate, connection, epoch_number, *this, _p2p);
+					  delegate, connection, epoch_number, *this, _p2p->_p2p);
 }
 
 logos::process_return
@@ -503,6 +504,10 @@ ConsensusContainer::CheckEpochNull(bool is_null, const char* where)
 
 bool
 ConsensusContainer::OnP2pReceive(const void *message, size_t size) {
+    if (_p2p->ProcessInputMessage(message, size)) {
+	return true;
+    }
+    LOG_WARN(_log) << "ConsensusContainer::OnP2pReceive: message not handled by ContainerP2p";
     std::shared_ptr<EpochManager> epoch = _cur_epoch;
     if (epoch) {
 	return epoch->OnP2pReceive(message, size);

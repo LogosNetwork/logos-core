@@ -10,9 +10,9 @@
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
+#include <logos/consensus/consensus_p2p.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/epoch/epoch_transition.hpp>
-#include <logos/p2p/p2p.h>
 
 #include <queue>
 
@@ -243,5 +243,5 @@ private:
     EpochTransitionDelegate             _transition_delegate;       ///< type of delegate during transition
     std::queue<ConnectionCache>         _connections_queue;         ///< queue for delegates set connections
     BindingMap                          _binding_map;               ///< map for binding connection to epoch manager
-    p2p_interface &			_p2p;			    ///< link to p2p-related data
+    ContainerP2p *			_p2p;			    ///< link to p2p-related data
 };
