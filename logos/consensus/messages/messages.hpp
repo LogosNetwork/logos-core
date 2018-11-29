@@ -13,6 +13,7 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
     BatchStateBlock & operator= (const BatchStateBlock & other)
     {
         auto b_size = other.block_count * sizeof(logos::state_block);
+        memset(blocks, 0, sizeof(blocks));
 
         // BatchStateBlock members
         sequence = other.sequence;
@@ -36,9 +37,9 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
     void SerializeJson(boost::property_tree::ptree &) const;
 
     uint64_t  sequence;
-    uint64_t  block_count = 0;
+    uint64_t  block_count  = 0;
     uint32_t  epoch_number = 0;
-    uint32_t  padding = 0;
+    uint32_t  padding      = 0;
     BlockList blocks;
     BlockHash next;
     Signature signature;

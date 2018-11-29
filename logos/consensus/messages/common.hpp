@@ -79,7 +79,6 @@ struct MessagePrequel
 {
     static const size_t PADDING_SIZE = 5;
 
-
     const uint8_t       version           = 0;
     const MessageType   type              = MT;
     const ConsensusType consensus_type    = CT;

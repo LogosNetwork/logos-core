@@ -131,6 +131,7 @@ public:
         }
         catch (const bls::Exception &)
         {
+            LOG_ERROR(_log) << "MessageValidator - Failed to deserialize signature.";
             return false;
         }
 
