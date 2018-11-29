@@ -98,13 +98,6 @@ public:
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) override;
 
-#if 0
-    PersistenceManager& get_persistence_manager() // ASK DEVON
-    {
-        return _persistence_manager;
-    }
-#endif
-
     /// Update secondary request handler promoter
     void UpdateRequestPromoter();
 

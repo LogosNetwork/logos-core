@@ -132,14 +132,6 @@ public: // ASK DEVON
     ///     @param[out] result result of the operation
     void BufferComplete(logos::process_return & result);
 
-#if 0
-    BatchBlockConsensusManager& get_batch_manager() // ASK DEVON
-    {
-        return _batch_manager;
-    }
-#endif
-
-private:
 	/// Initiate MicroBlock consensus
     /// Get current epoch id
     /// @returns current epoch id

@@ -5,6 +5,8 @@
 #include <logos/blockstore.hpp>
 #include <logos/lib/blocks.hpp>
 
+#define _PRODUCTION 1
+
 boost::property_tree::ptree MicroBlockTester::_request;
 
 bool

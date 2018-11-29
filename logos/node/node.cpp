@@ -27,6 +27,8 @@
 
 #include <ed25519-donna/ed25519.h>
 
+#define _PRODUCTION 1
+
 double constexpr logos::node::price_max;
 double constexpr logos::node::free_cutoff;
 std::chrono::seconds constexpr logos::node::period;
@@ -1288,7 +1290,6 @@ _archiver(alarm_a, store, _recall_handler)
 	logos::logging logging1;
     std::cout << "application path: " << application_path_a << std::endl;
 	logging1.init (application_path_a);
-    std::cout << "line: " << __LINE__ << " file: " << __FILE__ << std::endl;
 
 // Used to modify the database file with the new account_info field.
 // TODO: remove eventually - can be reused for now
@@ -1516,7 +1517,6 @@ _archiver(alarm_a, store, _recall_handler)
         }*/
     }
 
-    std::cout << "line: " << __LINE__ << " file: " << __FILE__ << std::endl;
 }
 
 logos::node::~node ()
@@ -2224,8 +2224,15 @@ void logos::node::add_initial_peers ()
     for(int i = 0; i < config.consensus_manager_config.delegates.size(); ++i) {
         logos::endpoint peer = logos::endpoint(
             boost::asio::ip::address::from_string(
-                config.consensus_manager_config.delegates[i].ip) , port );
-        peers.insert( peer, logos::protocol_version );
+                (std::string("::") + config.consensus_manager_config.delegates[i].ip)) , port );
+        LOG_DEBUG(log) << "adding peer: " << config.consensus_manager_config.delegates[i].ip << std::endl;
+        try {
+            peers.insert( peer, logos::protocol_version );
+        } catch(boost::asio::ip::bad_address_cast &e) {
+            LOG_DEBUG(log) << " failed to add peer: " << config.consensus_manager_config.delegates[i].ip << " reason: " << e.what() << std::endl;
+        } catch(...) {
+            LOG_DEBUG(log) << " failed to add peer: " << config.consensus_manager_config.delegates[i].ip << std::endl;
+        }
     }
 #endif
 }

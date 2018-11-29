@@ -3,9 +3,6 @@
 #include <logos/consensus/persistence/persistence_manager.hpp>
 #include <set>
 
-//#define _VALIDATE 1 // FIXME
-#define _DEBUG_VALIDATE 1
-
 // CTOR
 BatchBlock::validator::validator(logos::node *n)
     : node(n),
@@ -146,7 +143,7 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
                 BOOST_LOG(node->log) << "validate successful: hash: " << block->block.Hash().to_string() << " prev: " << block->block.previous.to_string() << " next: " << block->block.next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
                 finished.insert(i);
         } else {
-                //std::cout << "FIXME validate failed: hash: " << block->block.Hash().to_string() << " prev: " << block->block.previous.to_string() << " next: " << block->block.next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
+                //std::cout << "validate failed: hash: " << block->block.Hash().to_string() << " prev: " << block->block.previous.to_string() << " next: " << block->block.next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
                 LOG_DEBUG(node->log) << "validate failed: hash: " << block->block.Hash().to_string() << " prev: " << block->block.previous.to_string() << " next: " << block->block.next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
         }
    }

@@ -1,6 +1,6 @@
 #pragma once
 
-//#define _PRODUCTION 1 // FIXME
+#define _PRODUCTION 1
 
 #include <logos/ledger.hpp>
 #include <logos/lib/work.hpp>
