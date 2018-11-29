@@ -3,8 +3,7 @@
 
 MessageValidator::MessageValidator(DelegateKeyStore & key_store)
     : _keys(key_store)
-{
-}
+{}
 
 PublicKey MessageValidator::GetPublicKey()
 {

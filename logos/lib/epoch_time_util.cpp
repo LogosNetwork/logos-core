@@ -7,7 +7,7 @@
 #include <logos/consensus/messages/common.hpp>
 
 template<typename T>
-std::chrono::seconds
+Milliseconds
 EpochTimeUtil::GetNextTime(T timeout, bool skip)
 {
     auto now = GetStamp();
@@ -15,10 +15,10 @@ EpochTimeUtil::GetNextTime(T timeout, bool skip)
     auto timeout_msec = TConvert<Milliseconds>(timeout).count();
     auto rem = now % timeout_msec;
 
-    return (rem != 0) ? TConvert<Seconds>(Milliseconds(timeout_msec * mult - rem)) : Seconds(0);
+    return (rem != 0) ? Milliseconds(timeout_msec * mult - rem) : Milliseconds(0);
 }
 
-std::chrono::seconds
+Milliseconds
 EpochTimeUtil::GetNextEpochTime(
     bool skip )
 {
@@ -26,7 +26,7 @@ EpochTimeUtil::GetNextEpochTime(
 }
 
 /// Microblock proposal happens on 10 min boundary
-std::chrono::seconds
+Milliseconds
 EpochTimeUtil::GetNextMicroBlockTime(
     bool skip)
 {

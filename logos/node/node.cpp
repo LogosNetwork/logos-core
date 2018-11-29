@@ -5,6 +5,7 @@
 #include <logos/lib/interface.h>
 #include <logos/node/common.hpp>
 #include <logos/node/rpc.hpp>
+#include <logos/node/client_callback.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/microblock/microblock.hpp>
 
@@ -619,13 +620,13 @@ node_config (logos::network::node_port, logos::logging ())
 {
 }
 
-#define _DEBUG 1 // RGD Hack
+//#define _DEBUG 1 // Enable to get unit test going...
 logos::node_config::node_config (uint16_t peering_port_a, logos::logging const & logging_a) :
 peering_port (peering_port_a),
 logging (logging_a),
 bootstrap_fraction_numerator (1),
-receive_minimum (logos::xrb_ratio),
-online_weight_minimum (60000 * logos::Gxrb_ratio),
+receive_minimum (logos::lgs_ratio),
+online_weight_minimum (60000 * logos::Glgs_ratio),
 online_weight_quorum (50),
 password_fanout (1024),
 io_threads (std::max<unsigned> (4, std::thread::hardware_concurrency ())),
@@ -643,7 +644,7 @@ state_block_generate_canary (0)
         case logos::logos_networks::logos_test_network:
 //          LOGOS: ARCHIVE NANO
 //          -------------------
-#ifdef _DEBUG // RGD Hack
+#ifdef _DEBUG // Needed to get unit test going...
             preconfigured_representatives.push_back (logos::genesis_account);
 #endif
             break;
@@ -762,13 +763,13 @@ bool logos::node_config::upgrade_json (unsigned version, boost::property_tree::p
         }
         case 3:
             tree_a.erase ("receive_minimum");
-            tree_a.put ("receive_minimum", logos::xrb_ratio.convert_to<std::string> ());
+            tree_a.put ("receive_minimum", logos::lgs_ratio.convert_to<std::string> ());
             tree_a.erase ("version");
             tree_a.put ("version", "4");
             result = true;
         case 4:
             tree_a.erase ("receive_minimum");
-            tree_a.put ("receive_minimum", logos::xrb_ratio.convert_to<std::string> ());
+            tree_a.put ("receive_minimum", logos::lgs_ratio.convert_to<std::string> ());
             tree_a.erase ("version");
             tree_a.put ("version", "5");
             result = true;
@@ -1284,13 +1285,7 @@ _archiver(alarm_a, store, _recall_handler)
 ,_consensus_container(service_a, store, alarm_a, config.consensus_manager_config, _archiver, _identity_manager)
 #endif
 {
-    if(!boost::filesystem::exists(application_path_a)) {
-        std::cout << "error opening path: " << std::endl;
-    }
-	logos::logging logging1;
-    std::cout << "application path: " << application_path_a << std::endl;
-	logging1.init (application_path_a);
-
+    BlocksCallback::Instance(service_a, config.callback_address, config.callback_port, config.callback_target, config.logging.callback_logging ());
 // Used to modify the database file with the new account_info field.
 // TODO: remove eventually - can be reused for now
 //    std::ifstream infile("/home/ubuntu/Downloads/blocks3200_accounts");
@@ -1432,7 +1427,6 @@ _archiver(alarm_a, store, _recall_handler)
 
     BOOST_LOG (log) << "Node starting, version: " << LOGOS_VERSION_MAJOR << "." << LOGOS_VERSION_MINOR;
     BOOST_LOG (log) << boost::str (boost::format ("Work pool running %1% threads") % work.threads.size ());
-    std::cout << "init_a.error(): " << init_a.error() << std::endl;
     if (!init_a.error ())
     {
         if (config.logging.node_lifetime_tracing ())
@@ -1478,7 +1472,8 @@ _archiver(alarm_a, store, _recall_handler)
                                   /* Open         */ logos_genesis_block.hash(),
                                   /* Amount       */ std::numeric_limits<logos::uint128_t>::max(),
                                   /* Time         */ logos::seconds_since_epoch(),
-                                  /* Count        */ 0
+                                  /* Count        */ 0,
+                                  /* Receive      */ 0
                               },
                               transaction);
             _identity_manager.CreateGenesisAccounts(transaction);
@@ -1510,7 +1505,7 @@ _archiver(alarm_a, store, _recall_handler)
                     {
                         break;
                     }
-                    BOOST_LOG (log) << "Using bootstrap rep weight: " << account.to_account () << " -> " << weight.format_balance (Mxrb_ratio, 0, true) << " XRB";
+                    BOOST_LOG (log) << "Using bootstrap rep weight: " << account.to_account () << " -> " << weight.format_balance (Mlgs_ratio, 0, true) << " LGS";
                     ledger.bootstrap_weights[account] = weight.number ();
                 }
             }
@@ -1526,6 +1521,7 @@ logos::node::~node ()
         BOOST_LOG (log) << "Destructing node";
     }
     stop ();
+    delete _validator;
 }
 
 bool logos::node::copy_with_compaction (boost::filesystem::path const & destination_file)
@@ -1641,9 +1637,6 @@ std::map<logos::endpoint, unsigned> logos::peer_container::list_version ()
     return result;
 }
 
-// ConsensusManagerConfig
-// FIXME TODO use config.consensus_manager_config, take a delegate from the vector at random
-//            create an endpoint and return
 logos::endpoint logos::peer_container::bootstrap_peer ()
 {
     logos::endpoint result (boost::asio::ip::address_v6::any (), 0);
@@ -1752,7 +1745,8 @@ void logos::node::start ()
 {
 //  LOGOS: ARCHIVE
 //  -------------------
-    network.receive (); // RGD Hack
+#ifdef _DEBUG
+    network.receive (); // Needed to get unit test going...
     ongoing_keepalive ();
     ongoing_bootstrap ();
     ongoing_store_flush ();
@@ -1764,6 +1758,8 @@ void logos::node::start ()
     port_mapping.start ();
     add_initial_peers ();
     observers.started ();
+#endif
+
 // CH added starting logic here instead of inside constructors
 #ifdef _PRODUCTION
     _archiver.Start(_consensus_container);
@@ -1858,7 +1854,7 @@ void logos::node::ongoing_keepalive ()
 
 void logos::node::ongoing_bootstrap ()
 {
-    auto next_wakeup (10); // FIXME!!! Was 300 seconds. // Tested with 20
+    auto next_wakeup (300);
     if (warmed_up < 3)
     {
         // Re-attempt bootstrapping more aggressively on startup
@@ -1910,13 +1906,13 @@ void logos::node::backup_wallet ()
 
 int logos::node::price (logos::uint128_t const & balance_a, int amount_a)
 {
-    assert (balance_a >= amount_a * logos::Gxrb_ratio);
+    assert (balance_a >= amount_a * logos::Glgs_ratio);
     auto balance_l (balance_a);
     double result (0.0);
     for (auto i (0); i < amount_a; ++i)
     {
-        balance_l -= logos::Gxrb_ratio;
-        auto balance_scaled ((balance_l / logos::Mxrb_ratio).convert_to<double> ());
+        balance_l -= logos::Glgs_ratio;
+        auto balance_scaled ((balance_l / logos::Mlgs_ratio).convert_to<double> ());
         auto units (balance_scaled / 1000.0);
         auto unit_price (((free_cutoff - units) / free_cutoff) * price_max);
         result += std::min (std::max (0.0, unit_price), price_max);

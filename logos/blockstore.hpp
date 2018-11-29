@@ -124,6 +124,11 @@ public:
         return get<T>(db,key,t,tx);
     }
 
+    // abstract away consensus types
+    bool consensus_block_get (const logos::block_hash & hash, BatchStateBlock & block);
+    bool consensus_block_get (const logos::block_hash & hash, MicroBlock & block);
+    bool consensus_block_get (const logos::block_hash & hash, Epoch & block);
+
     // consensus-prototype additions
     bool batch_block_put(BatchStateBlock const &, MDB_txn *);
     bool batch_block_put(BatchStateBlock const &, const logos::block_hash &, MDB_txn *);
@@ -138,6 +143,7 @@ public:
     bool account_db_empty();
     bool account_put (logos::account const &, logos::account_info const &, MDB_txn *);
     bool receive_put(const block_hash & hash, const state_block & block, MDB_txn * transaction);
+    bool receive_get(const block_hash & hash, state_block & block);
     bool receive_exists(const block_hash & hash);
     bool batch_tip_put(uint8_t delegate_id, const block_hash & hash, MDB_txn *);
     bool batch_tip_get(uint8_t delegate_id, block_hash & hash);

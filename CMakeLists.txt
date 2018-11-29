@@ -113,7 +113,6 @@ if (BOOST_CUSTOM)
 endif (BOOST_CUSTOM)
 
 find_package (Boost 1.67.0 REQUIRED COMPONENTS date_time filesystem system log log_setup thread program_options regex chrono atomic)
-#find_package (Boost 1.66.0 REQUIRED COMPONENTS date_time filesystem system log log_setup thread program_options regex chrono atomic)
 include_directories (${Boost_INCLUDE_DIR})
 
 add_library (ed25519
@@ -358,8 +357,10 @@ add_library (node
 	logos/epoch/epoch_voting_manager.cpp
 	logos/epoch/event_proposer.cpp
 	logos/microblock/microblock.cpp
-    logos/microblock/microblock_handler.cpp
-    logos/microblock/microblock_tester.cpp
+	logos/microblock/microblock_handler.cpp
+	logos/microblock/microblock_tester.cpp
+	logos/node/client_callback.cpp
+	logos/node/client_callback.hpp
 	logos/node/common.cpp
 	logos/node/common.hpp
 	logos/node/node.hpp

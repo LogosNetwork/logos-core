@@ -175,25 +175,25 @@ public:
     logos::account start;
     uint32_t age;
     uint32_t count;
-    uint64_t nr_delegate; // RGD total number of delegates we are requesting frontier for.
+    uint64_t nr_delegate; // total number of delegates we are requesting frontier for.
 };
 class bulk_pull : public message
 {
 public:
     bulk_pull ();
-    bool deserialize (logos::stream &) override; // RGDSERVER Need to implement these for us.
+    bool deserialize (logos::stream &) override; // Need to implement these for us.
     void serialize (logos::stream &) override;
     void visit (logos::message_visitor &) const override;
     logos::uint256_union start;
     logos::block_hash end;
-    uint64_t timestamp_start; // RGD
+    uint64_t timestamp_start;
     uint64_t timestamp_end;
     uint64_t seq_start;
     uint64_t seq_end;
     int      delegate_id; // Call for each delegate.
     BlockHash e_start;
     BlockHash e_end;
-    BlockHash m_start; // RGDSERVER I think this has to point to micro/epoch blocks.
+    BlockHash m_start; // I think this has to point to micro/epoch blocks.
     BlockHash m_end;
     BlockHash b_start;
     BlockHash b_end;

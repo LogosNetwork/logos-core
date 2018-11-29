@@ -79,13 +79,10 @@ public:
 class ConsensusContainer : public InternalConsensus,
                            public NewEpochEventHandler
 {
-public: // ASK DEVON
-
     friend class DelegateIdentityManager;
 
     using Service    = boost::asio::io_service;
     using Config     = ConsensusManagerConfig;
-    using Store      = logos::block_store;
     using Alarm      = logos::alarm;
     using Endpoint   = boost::asio::ip::tcp::endpoint;
     using Socket     = boost::asio::ip::tcp::socket;
@@ -97,6 +94,10 @@ public: // ASK DEVON
         ConnectedClientIds ids;
         Endpoint endpoint;
     };
+
+public:
+
+    using Store      = logos::block_store;
 
     /// Class constructor.
     ///
@@ -132,7 +133,6 @@ public: // ASK DEVON
     ///     @param[out] result result of the operation
     void BufferComplete(logos::process_return & result);
 
-	/// Initiate MicroBlock consensus
     /// Get current epoch id
     /// @returns current epoch id
     static uint32_t GetCurEpochNumber() { return _cur_epoch_number; }
@@ -239,8 +239,4 @@ private:
     EpochTransitionDelegate             _transition_delegate;       ///< type of delegate during transition
     std::queue<ConnectionCache>         _connections_queue;         ///< queue for delegates set connections
     BindingMap                          _binding_map;               ///< map for binding connection to epoch manager
-    //MessageValidator                     _validator; 	   ///< Validator/Signer of consensus messages
-    //DelegateKeyStore                     _key_store; 	   ///< Store delegates public keys
-    //BatchBlockConsensusManager           _batch_manager; ///< Handles batch block consensus
-    bool                                 _epoch_transition_enabled;  ///< true if the node supports transition
 };

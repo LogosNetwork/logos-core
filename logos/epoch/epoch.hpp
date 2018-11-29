@@ -13,9 +13,9 @@ static const uint GENESIS_EPOCH = 2;
 /// it received
 struct Delegate 
 {
-    logos::account  account;
-    uint64_t        vote;
-    uint64_t        stake;
+    logos::account      account;
+    uint64_t            vote;
+    uint64_t            stake;
 };
 
 /// A epoch block is proposed after the last micro block.
@@ -67,6 +67,11 @@ public:
             ProposerHash(cb);
         });
     }
+
+    /// JSON representation of Epoch (primarily for RPC messages)
+    std::string SerializeJson() const;
+    void SerializeJson(boost::property_tree::ptree &) const;
+
     static const size_t     HASHABLE_BYTES;              ///< hashable bytes of the epoch - used in signing
     logos::account          account;                     ///< account address of the epoch's proposer
     uint32_t                epoch_number;                ///< epoch number

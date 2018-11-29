@@ -22,7 +22,6 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
-    //, _persistence_manager(store)
     , _secondary_handler(SecondaryRequestHandlerInstance(service, this))
     , _events_notifier(events_notifier)
 {}
@@ -114,7 +113,9 @@ void ConsensusManager<CT>::Send(const void * data, size_t size)
 template<ConsensusType CT>
 void ConsensusManager<CT>::OnConsensusReached()
 {
-    ApplyUpdates(PrePrepareGetNext(), _delegate_id);
+    auto pre_prepare (PrePrepareGetNext());
+    ApplyUpdates(pre_prepare, _delegate_id);
+    BlocksCallback::Callback<CT>(pre_prepare);  // TODO: would rather use a shared pointer to avoid copying the whole BlockList for BSB
 
     // Helpful for benchmarking
     //

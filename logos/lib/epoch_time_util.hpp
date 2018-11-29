@@ -48,12 +48,12 @@ public:
     /// Get time for the next microblock construction
     /// @param skip if true then skip the closest time, needed in case of a recall or first block [in]
     /// @returns time lapse in seconds for the next microblock event
-    std::chrono::seconds GetNextMicroBlockTime(bool skip=false);
+    Milliseconds GetNextMicroBlockTime(bool skip=false);
 
     /// Get time for the next epoch construction/transition
     /// @param skip if true then skip the closest time, needed in case of a recall or first block [in]
     /// @returns time lapse in seconds for the next epoch event
-    std::chrono::seconds GetNextEpochTime(bool skip=false);
+    Milliseconds GetNextEpochTime(bool skip=false);
 
     /// Is this epoch time (12h boundary +- clock drift)
     /// @returns true if it is epoch construction/transition time
@@ -64,6 +64,6 @@ private:
     /// @param skip if true then skip the closest time, needed in case of a recall or first block [in]
     /// @returns time lapse in seconds for the next epoch event
     template<typename T>
-    std::chrono::seconds GetNextTime(T timeout, bool skip);
+    Milliseconds GetNextTime(T timeout, bool skip);
 };
 

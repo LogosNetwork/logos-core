@@ -109,7 +109,8 @@ public:
                   logos::block_hash const & open_block,
                   logos::amount const & balance,
                   uint64_t modified,
-                  uint64_t block_count);
+                  uint64_t block_count,
+                  uint64_t receive_count);
 
     void serialize (logos::stream &) const;
     bool deserialize (logos::stream &);
@@ -126,6 +127,7 @@ public:
     /** Seconds since posix epoch */
     uint64_t modified;
     uint64_t block_count;
+    uint64_t receive_count;
 };
 
 /**

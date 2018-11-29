@@ -10,6 +10,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
+#include <logos/node/client_callback.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 
@@ -164,6 +165,5 @@ protected:
     uint8_t                         _delegate_id;
     SecondaryRequestHandler<CT> &   _secondary_handler;    ///< Secondary queue of blocks.
     EpochEventsNotifier &           _events_notifier;      ///< Notifies epoch manager of transition related events
-    //PersistenceManager              _persistence_manager;
 };
 

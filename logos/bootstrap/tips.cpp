@@ -354,7 +354,7 @@ void logos::tips_req_client::next (MDB_txn * transaction_a)
 logos::tips_req_server::tips_req_server (std::shared_ptr<logos::bootstrap_server> const & connection_a, std::unique_ptr<logos::frontier_req> request_a) :
 connection (connection_a),
 current (request_a->start.number () - 1),
-info (0, 0, 0, 0, 0, 0, 0),
+info (0, 0, 0, 0, 0, 0, 0, 0),
 next_delegate(0),
 request (std::move (request_a))
 {

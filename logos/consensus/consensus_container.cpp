@@ -20,7 +20,6 @@ ConsensusContainer::ConsensusContainer(Service & service,
                                        DelegateIdentityManager & identity_manager)
     : _peer_manager(service, config, std::bind(&ConsensusContainer::PeerBinder, this,
             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3))
-    //, _validator(_key_store)
     , _cur_epoch(nullptr)
     , _trans_epoch(nullptr)
     , _service(service)
@@ -31,16 +30,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
     , _identity_manager(identity_manager)
     , _transition_state(EpochTransitionState::None)
     , _transition_delegate(EpochTransitionDelegate::None)
-    , _epoch_transition_enabled(true)
-    //, _batch_manager(service, store,
-    //        config, _key_store, _validator)
 {
-    // Currently require that all_delegates is twice the size of delegates
-    if (config.all_delegates.size() != 2 * config.delegates.size())
-    {
-        _epoch_transition_enabled = false;
-    }
-
     uint8_t delegate_idx;
     Accounts delegates;
     _identity_manager.IdentifyDelegates(EpochDelegates::Current, delegate_idx, delegates);
@@ -55,8 +45,8 @@ ConsensusContainer::ConsensusContainer(Service & service,
         _binding_map[_cur_epoch->_epoch_number] = _cur_epoch;
     };
 
-    /// TODO _epoch_transition_enabled is temp to facilitate testing without transition
-    if (!_epoch_transition_enabled)
+    /// TODO epoch_transition_enabled is temp to facilitate testing without transition
+    if (!DelegateIdentityManager::IsEpochTransitionEnabled())
     {
         create(config);
     }
@@ -67,7 +57,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
     }
 
     LOG_INFO(_log) << "ConsensusContainer::ConsensusContainer initialized delegate is in epoch "
-                    << in_epoch << " epoch transition enabled " << _epoch_transition_enabled
+                    << in_epoch << " epoch transition enabled " << DelegateIdentityManager::IsEpochTransitionEnabled()
                     << " " << (int)delegate_idx << " " << (int)DelegateIdentityManager::_global_delegate_idx
                     << " " << _cur_epoch_number;
 }
@@ -245,7 +235,7 @@ ConsensusContainer::EpochTransitionEventsStart()
     uint8_t delegate_idx;
     Accounts delegates;
 
-    if (!_epoch_transition_enabled)
+    if (!DelegateIdentityManager::IsEpochTransitionEnabled())
     {
         LOG_WARN(_log) << "ConsensusContainer::EpochTransitionEventsStart "
                            "epoch transition is not supported by this delegate "
@@ -304,16 +294,16 @@ ConsensusContainer::EpochTransitionEventsStart()
     }
 
     // TODO recall may have different timers
-    auto lapse = EPOCH_DELEGATES_CONNECT - EPOCH_TRANSITION_START;
+    Milliseconds lapse = EPOCH_DELEGATES_CONNECT - EPOCH_TRANSITION_START;
     EpochTimeUtil util;
-    auto epoch_start = util.GetNextEpochTime();
+    Milliseconds epoch_start = util.GetNextEpochTime();
     if (epoch_start > EPOCH_TRANSITION_START && epoch_start < EPOCH_DELEGATES_CONNECT)
     {
         lapse = epoch_start - EPOCH_TRANSITION_START;
     }
     else if (epoch_start < EPOCH_TRANSITION_START)
     {
-        lapse = Seconds(0);
+        lapse = Milliseconds(0);
     }
 
     _alarm.add(lapse, std::bind(&ConsensusContainer::EpochTransitionStart, this, delegate_idx));
