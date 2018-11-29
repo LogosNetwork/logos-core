@@ -139,11 +139,9 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
                 // Block is valid, add to database.
                 BatchBlock::ApplyUpdates(node->store,
                                  block->block,block->delegate_id);
-                //std::cout << "validate successful: hash: " << block->block.Hash().to_string() << " prev: " << block->block.previous.to_string() << " next: " << block->block.next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
                 BOOST_LOG(node->log) << "validate successful: hash: " << block->block.Hash().to_string() << " prev: " << block->block.previous.to_string() << " next: " << block->block.next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
                 finished.insert(i);
         } else {
-                //std::cout << "validate failed: hash: " << block->block.Hash().to_string() << " prev: " << block->block.previous.to_string() << " next: " << block->block.next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
                 LOG_DEBUG(node->log) << "validate failed: hash: " << block->block.Hash().to_string() << " prev: " << block->block.previous.to_string() << " next: " << block->block.next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
         }
    }
@@ -176,9 +174,6 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
       std::shared_ptr<MicroBlock> isMicroPresent =  Micro::readMicroBlock(node->store, peerHash);
       if(ready && isMicroPresent == nullptr) {
         if((!peerMicro->previous.is_zero() || !peerMicro->next.is_zero()) && micro_handler->Validate(*peerMicro)) {
-             std::cout<< "micro_handler->Validate: " 
-                      << peerMicro->hash().to_string() << " prev: " << peerMicro->previous.to_string()
-                      << " next: " << peerMicro->next.to_string() << " time: " << currentDateTime() << std::endl;
              LOG_DEBUG(node->log) << "micro_handler->Validate: " 
                       << peerMicro->hash().to_string() << " prev: " << peerMicro->previous.to_string()
                       << " next: " << peerMicro->next.to_string() << std::endl;
@@ -204,7 +199,6 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
    bool isValid = false;
    for(int j = 0; j < epoch.size(); ++j) {
         if(epoch[j]->epoch.micro_block_tip == current_micro_hash && (isValid=epoch_handler->Validate(epoch[j]->epoch))) {
-            std::cout << "epoch_handler->ApplyUpdates: " << epoch[j]->epoch.hash().to_string() << " time: " << currentDateTime() << std::endl;
             BOOST_LOG(node->log) << "epoch_handler->ApplyUpdates: " << epoch[j]->epoch.hash().to_string() << std::endl;
             epoch_handler->ApplyUpdates(epoch[j]->epoch); // Validation succeeded, add to database.
        } else {
