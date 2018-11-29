@@ -22,8 +22,7 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
     , _promoter(promoter)
     , _events_notifier(events_notifer)
     , _persistence_manager(persistence_manager)
-{
-}
+{}
 
 template<ConsensusType CT>
 void ConsensusConnection<CT>::Send(const void * data, size_t size)
