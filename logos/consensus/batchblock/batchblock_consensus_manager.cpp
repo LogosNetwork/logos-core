@@ -241,6 +241,7 @@ BatchBlockConsensusManager::AcquirePrePrepare(const PrePrepare & message)
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
     _handler.Acquire(message);
+    LOG_DEBUG(_log) << "BatchBlockConsensusManager::AcquirePrePrepare - About to proceed to OnRequestQueued. ";
     OnRequestQueued();
 }
 
@@ -287,7 +288,7 @@ BatchBlockConsensusManager::OnRejection(
         // rejected or accepted.
         if(_hashes.empty() && _state == ConsensusState::PRE_PREPARE)
         {
-            LOG_DEBUG(_log) << "BatchBlockConsensusManager::OnRejection - all requests in current batch"
+            LOG_DEBUG(_log) << "BatchBlockConsensusManager::OnRejection - all requests in current batch "
                             << "have been explicityly rejected or accepted";
             CancelTimer();
             OnPrePrepareRejected();
@@ -489,8 +490,9 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
     _handler.PopFront();
     _handler.InsertFront(requests);
 
-    _state = ConsensusState::VOID;
+    AdvanceState(ConsensusState::VOID);
 
+    LOG_DEBUG(_log) << "BatchBlockConsensusManager::OnPrePrepareRejected - About to proceed to OnRequestQueued. ";
     OnRequestQueued();
 }
 

@@ -212,9 +212,9 @@ void PrimaryDelegate::CancelTimer()
 {
     if(!_primary_timer.cancel())
     {
-        LOG_DEBUG(_log) << "PrimaryDelegate::CancelTimer - Primary timer canceled. ";
         _timer_cancelled = true;
     }
+    LOG_DEBUG(_log) << "PrimaryDelegate::CancelTimer - Primary timer canceled. ";
 }
 
 bool PrimaryDelegate::ReachedQuorum()

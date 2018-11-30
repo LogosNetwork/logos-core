@@ -45,6 +45,8 @@ public:
 
     virtual void Send(const void * data, size_t size) = 0;
 
+    void AdvanceState(ConsensusState new_state);
+
 protected:
 
     static constexpr uint8_t QUORUM_SIZE = NUM_DELEGATES - 1;
@@ -104,7 +106,6 @@ private:
     template<typename M>
     bool ProceedWithMessage(const M & message, ConsensusState expected_state);
 
-    void AdvanceState(ConsensusState new_state);
     virtual void OnStateAdvanced();
     virtual void OnPrePrepareRejected();
 

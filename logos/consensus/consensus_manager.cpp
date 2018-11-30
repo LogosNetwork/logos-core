@@ -63,6 +63,8 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
     }
 
     QueueRequest(block);
+    LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT)
+                    << ">::OnSendRequest - About to proceed to OnRequestQueued. ";
     OnRequestQueued();
 }
 
