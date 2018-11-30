@@ -7,6 +7,7 @@
 #include <logos/lib/log.hpp>
 #include <logos/p2p/p2p.h>
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/consensus/persistence/persistence.hpp>
 #include <logos/consensus/persistence/nondel_persistence_manager_incl.hpp>
 
 template<ConsensusType CT>
@@ -17,8 +18,8 @@ public:
 
     ConsensusP2p(p2p_interface & p2p,
 		 uint8_t delegate_id,
-		 std::function<bool (const Prequel &, MessageType, uint8_t)> Validate,
-		 boost::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates);
+		 std::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)> Validate = {},
+		 boost::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates = {});
 
     bool AddMessageToBatch(const uint8_t *data, size_t size);
     void CleanBatch();
@@ -29,7 +30,7 @@ public:
     Log                         _log;
     p2p_interface &		_p2p;
     uint8_t			_delegate_id;
-    boost::function<bool (const Prequel &, MessageType, uint8_t)> _Validate;
+    boost::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)> _Validate;
     boost::function<void (const PrePrepareMessage<CT> &, uint8_t)> _ApplyUpdates;
     std::vector<uint8_t>	_p2p_batch;	// PrePrepare + PostPrepare + PostCommit
 };
@@ -43,8 +44,8 @@ public:
 		   logos::block_store &store)
 	: _persistence(store)
 	, _p2p(p2p, delegate_id,
-	    [this](const Prequel &message, MessageType mtype, uint8_t delegate_id) {
-		return mtype == MessageType::Pre_Prepare  ? this->_persistence.Validate((PrePrepareMessage<CT> &)message, delegate_id, nullptr)
+	    [this](const Prequel &message, MessageType mtype, uint8_t delegate_id, ValidationStatus * status) {
+		return mtype == MessageType::Pre_Prepare  ? this->_persistence.Validate((PrePrepareMessage<CT> &)message, delegate_id, status)
 		     : mtype == MessageType::Post_Prepare ? false /* todo */
 		     : mtype == MessageType::Post_Commit  ? false /* todo */
 		     : false;

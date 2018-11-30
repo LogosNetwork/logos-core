@@ -504,14 +504,5 @@ ConsensusContainer::CheckEpochNull(bool is_null, const char* where)
 
 bool
 ConsensusContainer::OnP2pReceive(const void *message, size_t size) {
-    if (_p2p->ProcessInputMessage(message, size)) {
-	return true;
-    }
-    LOG_WARN(_log) << "ConsensusContainer::OnP2pReceive: message not handled by ContainerP2p";
-    std::shared_ptr<EpochManager> epoch = _cur_epoch;
-    if (epoch) {
-	return epoch->OnP2pReceive(message, size);
-    } else {
-	return false;
-    }
+    return _p2p->ProcessInputMessage(message, size);
 }

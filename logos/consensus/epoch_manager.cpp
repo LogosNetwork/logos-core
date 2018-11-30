@@ -68,9 +68,3 @@ EpochManager::IsRecall()
     return _new_epoch_handler.IsRecall();
 }
 
-bool
-EpochManager::OnP2pReceive(const void *message, size_t size) {
-    return _batch_manager.ConsensusManager<ConsensusType::BatchStateBlock>::OnP2pReceive(message, size)
-	|| _micro_manager.ConsensusManager<ConsensusType::MicroBlock>::OnP2pReceive(message, size)
-	|| _epoch_manager.ConsensusManager<ConsensusType::Epoch>::OnP2pReceive(message, size);
-}

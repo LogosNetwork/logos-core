@@ -23,14 +23,7 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
     , _promoter(promoter)
     , _events_notifier(events_notifer)
     , _persistence_manager(persistence_manager)
-    , _consensus_p2p(p2p, ids.remote,
-	[this](const Prequel &message, MessageType mtype, uint8_t delegate_id) {
-		return mtype == MessageType::Pre_Prepare  ? this->_persistence_manager.Validate((PrePrepare  &)message, delegate_id)
-		     : mtype == MessageType::Post_Prepare ? this->_validator.Validate((PostPrepare &)message, delegate_id)
-		     : mtype == MessageType::Post_Commit  ? this->_validator.Validate((PostCommit  &)message, delegate_id)
-		     : false;
-	},
-	boost::bind(&ConsensusConnection<CT>::ApplyUpdates, this, _1, _2))
+    , _consensus_p2p(p2p, ids.remote)
 {
 }
 

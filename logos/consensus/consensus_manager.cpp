@@ -25,14 +25,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _events_notifier(events_notifier)
     , _reservations(std::make_shared<Reservations>(store))
     , _persistence_manager(store, _reservations)
-    , _consensus_p2p(p2p, _delegate_id,
-	[this](const Prequel & message, MessageType mtype, uint8_t delegate_id) {
-		return mtype == MessageType::Pre_Prepare  ? this->_persistence_manager.Validate((PrePrepare  &)message, delegate_id)
-		     : mtype == MessageType::Post_Prepare ? this->_validator.Validate((PostPrepareMessage<CT> &)message, delegate_id)
-		     : mtype == MessageType::Post_Commit  ? this->_validator.Validate((PostCommitMessage<CT>  &)message, delegate_id)
-		     : false;
-	},
-	boost::bind(&ConsensusManager<CT>::ApplyUpdates, this, _1, _2))
+    , _consensus_p2p(p2p, _delegate_id)
 {}
 
 template<ConsensusType CT>

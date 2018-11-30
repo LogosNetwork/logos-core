@@ -87,8 +87,6 @@ public:
 
     bool IsRecall() override;
 
-    bool OnP2pReceive(const void *message, size_t size);
-
 private:
     std::atomic<EpochTransitionState> &     _state;             ///< State of transition
     std::atomic<EpochTransitionDelegate>    _delegate;          ///< Type of transition delegate
