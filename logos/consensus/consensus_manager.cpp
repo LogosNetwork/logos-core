@@ -144,7 +144,7 @@ template<ConsensusType CT>
 void ConsensusManager<CT>::InitiateConsensus()
 {
     LOG_INFO(_log) << "Initiating "
-                   << ConsensusToName(CT);
+                   << ConsensusToName(CT) << " consensus.";
 
     auto & pre_prepare = PrePrepareGetNext();
     pre_prepare.previous = _prev_hash;
@@ -154,6 +154,7 @@ void ConsensusManager<CT>::InitiateConsensus()
     _state = ConsensusState::PRE_PREPARE;
 
     _validator.Sign(pre_prepare);
+    LOG_DEBUG(_log) << "JSON representation: " << pre_prepare.SerializeJson();
     Send(&pre_prepare, sizeof(PrePrepare));
 }
 

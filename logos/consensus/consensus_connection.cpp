@@ -100,7 +100,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
         message += ":" + RejectionReasonToName(msg.reason);
     }
     LOG_DEBUG(_log) << "ConsensusConnection<"
-                    << ConsensusToName(CT) << ">- Received "
+                    << ConsensusToName(CT) << "> - Received "
                     << message
                     << " message from delegate: " << (int)_delegate_ids.remote;
 

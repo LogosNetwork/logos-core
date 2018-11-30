@@ -177,6 +177,8 @@ void
 BatchBlockConsensusManager::InitiateConsensus()
 {
     _new_epoch_rejection_cnt = 0;
+    // make sure we start with a fresh set of hashes so as to not interfere with rejection logic
+    _hashes.clear();
 
     _handler.PrepareNextBatch();
 
@@ -283,8 +285,10 @@ BatchBlockConsensusManager::OnRejection(
 
         // All requests have been explicitly
         // rejected or accepted.
-        if(_hashes.empty())
+        if(_hashes.empty() && _state == ConsensusState::PRE_PREPARE)
         {
+            LOG_DEBUG(_log) << "BatchBlockConsensusManager::OnRejection - all requests in current batch"
+                            << "have been explicityly rejected or accepted";
             CancelTimer();
             OnPrePrepareRejected();
         }
@@ -496,7 +500,6 @@ BatchBlockConsensusManager::OnDelegatesConnected()
     LOG_INFO(_log) << "BatchBlockConsensusManager::OnDelegatesConnected";
     if (_events_notifier.GetState() == EpochTransitionState::None)
     {
-        LOG_INFO(_log) << "BatchBlockConsensusManager::OnDelegatesConnected 1";
         _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
         _init_timer.async_wait([this](const Error &error) {
             std::lock_guard<std::recursive_mutex> lock(_mutex);
@@ -505,7 +508,6 @@ BatchBlockConsensusManager::OnDelegatesConnected()
     }
     else
     {
-        LOG_INFO(_log) << "BatchBlockConsensusManager::OnDelegatesConnected 2";
         _state = ConsensusState::VOID;
     }
 }

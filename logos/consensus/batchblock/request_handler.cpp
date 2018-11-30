@@ -12,6 +12,8 @@ RequestHandler::RequestHandler()
 
 void RequestHandler::OnRequest(std::shared_ptr<logos::state_block> block)
 {
+    LOG_DEBUG(_log) << "RequestHandler - queued request with hash "
+                    << block->hash().to_string();
     _requests.get<0>().push_back(*block);
 }
 

@@ -35,9 +35,8 @@ void PrimaryDelegate::ProcessMessage(const RejectionMessage<C> & message)
 {
     if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE))
     {
+        LOG_DEBUG(_log) << "PrimaryDelegate::ProcessMessage - Proceeding to OnRejection";
         OnRejection(message);
-
-        CheckRejection();
     }
 }
 
@@ -115,7 +114,7 @@ void PrimaryDelegate::OnTimeout(const Error & error,
     auto timeout_str = timeout + " (" + ConsensusToName(C) + ")";
 
     LOG_DEBUG(_log) << timeout_str
-                    << " timeout expired."
+                    << " timeout either expired or canceled. "
                     << "Error code: "
                     << error.message();
 
@@ -213,6 +212,7 @@ void PrimaryDelegate::CancelTimer()
 {
     if(!_primary_timer.cancel())
     {
+        LOG_DEBUG(_log) << "PrimaryDelegate::CancelTimer - Primary timer canceled. ";
         _timer_cancelled = true;
     }
 }
@@ -240,6 +240,17 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
         return false;
     }
 
+    // for any message type other than PrePrepare, `previous` field is the current consensus block's hash
+    if(_cur_hash != message.previous)
+    {
+        LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received message with hash "
+                       << message.previous.to_string()
+                       << " while current hash is "
+                       << _cur_hash.to_string();
+
+        return false;
+    }
+
     if(Validate(message))
     {
         _delegates_responded++;
@@ -252,14 +263,18 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
             _signatures.push_back({_cur_delegate_id,
                                    message.signature});
         }
+        // Immediately proceed to OnRejection
+        else
+        {
+            return true;
+        }
     }
     else
     {
         LOG_WARN(_log) << "PrimaryDelegate - Failed to validate signature for "
                        << MessageToName(message)
                        << " while in state: "
-                       << StateToString(_state)
-                       << std::endl;
+                       << StateToString(_state);
         return false;
     }
 

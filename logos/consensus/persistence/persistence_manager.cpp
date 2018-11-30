@@ -60,7 +60,7 @@ bool PersistenceManager::Validate(const logos::state_block & block,
             if(!_store.state_block_exists(block.hashables.previous))
             {
                 result.code = logos::process_result::gap_previous;
-                BOOST_LOG (_log) << "GAP_PREVIOUS: cannot find previous hash " << block.hashables.previous.to_string()
+                LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << block.hashables.previous.to_string()
                                  << "; current account info head is: " << info.head.to_string();
                 return false;
             }
@@ -68,6 +68,9 @@ bool PersistenceManager::Validate(const logos::state_block & block,
 
         if(block.hashables.previous != info.head)
         {
+            LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash (" << block.hashables.previous.to_string()
+                            << ") and current account info head (" << info.head.to_string() << ")";
+
             // Allow duplicate requests (hash == info.head)
             // received from batch blocks.
             if(hash == info.head)
@@ -280,7 +283,7 @@ bool PersistenceManager::UpdateSourceState(const logos::state_block & block, MDB
     // is accepted. We can ignore this transaction.
     if(block.hashables.previous != info.head)
     {
-        LOG_INFO(_log) << "Block previous ("
+        LOG_INFO(_log) << "PersistenceManager::UpdateSourceState - Block previous ("
                        << block.hashables.previous.to_string()
                        << ") does not match account head ("
                        << info.head.to_string()

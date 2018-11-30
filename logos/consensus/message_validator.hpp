@@ -129,8 +129,9 @@ public:
         {
             sig.deserialize(sig_str);
         }
-        catch (const bls::Exception &)
+        catch (const bls::Exception & e)
         {
+            LOG_ERROR(_log) << "MessageValidator - Error deserializing signature string: " << e.toString();
             return false;
         }
 

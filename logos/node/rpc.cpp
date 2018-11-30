@@ -137,7 +137,7 @@ void logos::rpc::start ()
     acceptor.bind (endpoint, ec);
     if (ec)
     {
-        BOOST_LOG (node.log) << boost::str (boost::format ("Error while binding for RPC on port %1%: %2%") % endpoint.port () % ec.message ());
+        LOG_ERROR (node.log) << boost::str (boost::format ("Error while binding for RPC on port %1%: %2%") % endpoint.port () % ec.message ());
         throw std::runtime_error (ec.message ());
     }
 
@@ -160,7 +160,7 @@ void logos::rpc::accept ()
         }
         else
         {
-            BOOST_LOG (this->node.log) << boost::str (boost::format ("Error accepting RPC connections: %1%") % ec);
+            LOG_ERROR (this->node.log) << boost::str (boost::format ("Error accepting RPC connections: %1%") % ec);
         }
     });
 }
@@ -4390,7 +4390,7 @@ void logos::rpc_handler::process_request ()
         }
         if (node.config.logging.log_rpc ())
         {
-            BOOST_LOG (node.log) << body;
+            LOG_INFO (node.log) << body;
         }
         if (action == "account_balance")
         {

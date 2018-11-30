@@ -136,7 +136,7 @@ inline std::string RejectionReasonToName(RejectionReason reason)
         case RejectionReason::New_Epoch:
             return "New Epoch";
         case RejectionReason::Wrong_Sequence_Number:
-            return "Contains Invalid Request";
+            return "Wrong Sequence Number";
         case RejectionReason::Invalid_Previous_Hash:
             return "Invalid Previous Hash";
     }

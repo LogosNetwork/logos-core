@@ -121,10 +121,11 @@ protected:
         M response(_pre_prepare_timestamp);
 
         response.previous = _pre_prepare_hash;
-        _validator.Sign(response);
 
         StoreResponse(response);
         UpdateMessage(response);
+
+        _validator.Sign(response);
 
         Send(response);
     }

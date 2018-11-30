@@ -485,7 +485,7 @@ public:
     logos::node_config config;
     logos::alarm & alarm;
     logos::work_pool & work;
-    boost::log::sources::logger_mt log;
+    Log log;
     logos::block_store store;
     logos::gap_cache gap_cache;
     logos::ledger ledger;
