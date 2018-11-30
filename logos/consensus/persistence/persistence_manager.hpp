@@ -66,7 +66,7 @@ private:
                                << " which is already in the Reservations cache.";
 
                 info = accounts[account];
-                return false;
+                return true; // Do not tolerate double-acquire for now. To be discussed further!
             }
 
             auto ret = store.account_get(account, info);
@@ -74,6 +74,7 @@ private:
             if(!ret)
             {
                 accounts[account] = info;
+                LOG_INFO(log) << "Reservations::Acquire - Successfully acquired reservation on account " << account.to_account();
             }
 
             return ret;

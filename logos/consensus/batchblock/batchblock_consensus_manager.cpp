@@ -241,7 +241,6 @@ BatchBlockConsensusManager::AcquirePrePrepare(const PrePrepare & message)
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
     _handler.Acquire(message);
-    LOG_DEBUG(_log) << "BatchBlockConsensusManager::AcquirePrePrepare - About to proceed to OnRequestQueued. ";
     OnRequestQueued();
 }
 
@@ -492,7 +491,6 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 
     AdvanceState(ConsensusState::VOID);
 
-    LOG_DEBUG(_log) << "BatchBlockConsensusManager::OnPrePrepareRejected - About to proceed to OnRequestQueued. ";
     OnRequestQueued();
 }
 

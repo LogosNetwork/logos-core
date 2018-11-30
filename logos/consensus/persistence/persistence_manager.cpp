@@ -42,9 +42,18 @@ bool PersistenceManager::Validate(const logos::state_block & block,
     std::lock_guard<std::mutex> lock(_reservation_mutex);
 
     logos::account_info info;
+    // account doesn't exist
+    if (_store.account_get(block.hashables.account, info))
+    {
+        // Currently do not accept state blocks
+        // with non-existent accounts.
+        result.code = logos::process_result::unknown_source_account;
+        return false;
+    }
+
     auto account_error(_reservations.Acquire(block.hashables.account, info));
 
-    // Account exists.
+    // Account hasn't been acquired.
     if(!account_error)
     {
         // No previous block set.
@@ -136,19 +145,11 @@ bool PersistenceManager::Validate(const logos::state_block & block,
             return false;
         }
     }
-
-    // account doesn't exist
     else
     {
-        // Currently do not accept state blocks
-        // with non-existent accounts.
-        result.code = logos::process_result::unknown_source_account;
+        LOG_ERROR(_log) << "PersistenceManager::Validate - Account already reserved! ";
+        result.code = logos::process_result::already_reserved;
         return false;
-
-        if(!block.hashables.previous.is_zero())
-        {
-            return false;
-        }
     }
 
     result.code = logos::process_result::progress;
