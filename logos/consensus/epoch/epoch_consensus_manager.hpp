@@ -19,15 +19,12 @@ public:
 	///     @param[in] store reference to blockstore
 	///     @param[in] log reference to boost asio log
 	///     @param[in] config reference to ConsensusManagerConfig configuration
-	///     @param[in] key_store delegates public key store
 	///     @param[in] validator validator/signer of consensus messages
 	///     @param[in] events_notifier epoch transition helper
 	EpochConsensusManager(Service & service,
 	                      Store & store,
 					      const Config & config,
-                          DelegateKeyStore & key_store,
                           MessageValidator & validator,
-                          ArchiverEpochHandler & handler,
                           EpochEventsNotifier & events_notifier);
 
     ~EpochConsensusManager() = default;
@@ -88,9 +85,6 @@ protected:
 
 	/// Create specialized instance of ConsensusConnection
 	///     @param iochannel NetIOChannel pointer
-	///     @param primary PrimaryDelegate pointer
-	///     @param key_store Delegates' public key store
-	///     @param validator Validator/Signer of consensus messages
 	///     @param ids Delegate's id
 	///     @return ConsensusConnection
 	std::shared_ptr<ConsensusConnection<ConsensusType::Epoch>> MakeConsensusConnection(
@@ -103,6 +97,5 @@ protected:
 
 private:
     std::shared_ptr<PrePrepare>  _cur_epoch; 	///< Currently handled epoch
-    ArchiverEpochHandler &       _epoch_handler;///< Epoch handler
 	bool 						 _enqueued;   	///< Request is enqueued
 };

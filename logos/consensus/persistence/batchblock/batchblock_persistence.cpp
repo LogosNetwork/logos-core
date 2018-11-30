@@ -1,15 +1,31 @@
-#include <logos/consensus/persistence/persistence_manager.hpp>
+/// @file
+/// This file contains declaration of BatchStateBlock related validation/persistence
+
+#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
 #include <logos/consensus/persistence/state_block_locator.hpp>
+#include <logos/consensus/persistence/reservations.hpp>
+#include <logos/consensus/message_validator.hpp>
+#include <logos/lib/trace.hpp>
 #include <logos/common.hpp>
 
-constexpr uint128_t PersistenceManager::MIN_TRANSACTION_FEE;
+constexpr uint128_t PersistenceManager<BSBCT>::MIN_TRANSACTION_FEE;
 
-PersistenceManager::PersistenceManager(Store & store)
-    : _reservations(store)
-    , _store(store)
-{}
+PersistenceManager<BSBCT>::PersistenceManager(Store & store,
+                                              ReservationsPtr reservations,
+                                              Milliseconds clock_drift)
+    : Persistence(store, clock_drift)
+    , _reservations(reservations)
+{
+    if (_reservations == nullptr)
+    {
+        LOG_WARN(_log) << "PersistenceManager creating default reservations";
+        _reservations = std::make_shared<DefaultReservations>(store);
+    }
+}
 
-void PersistenceManager::ApplyUpdates(const BatchStateBlock & message, uint8_t delegate_id)
+void PersistenceManager<BSBCT>::ApplyUpdates(
+    const PrePrepare & message,
+    uint8_t delegate_id)
 {
     // XXX - Failure during any of the database operations
     //       performed in the following two methods will cause
@@ -21,9 +37,10 @@ void PersistenceManager::ApplyUpdates(const BatchStateBlock & message, uint8_t d
     ApplyBatchMessage(message, transaction);
 }
 
-bool PersistenceManager::Validate(const logos::state_block & block,
-                                  logos::process_return & result,
-                                  bool allow_duplicates)
+bool PersistenceManager<BSBCT>::Validate(
+    const Request & block,
+    logos::process_return & result,
+    bool allow_duplicates)
 {
     auto hash = block.hash();
 
@@ -42,7 +59,7 @@ bool PersistenceManager::Validate(const logos::state_block & block,
     std::lock_guard<std::mutex> lock(_reservation_mutex);
 
     logos::account_info info;
-    auto account_error(_reservations.Acquire(block.hashables.account, info));
+    auto account_error(_reservations->Acquire(block.hashables.account, info));
 
     // Account exists.
     if(!account_error)
@@ -152,15 +169,39 @@ bool PersistenceManager::Validate(const logos::state_block & block,
     return true;
 }
 
-bool PersistenceManager::Validate(const logos::state_block & block)
+bool PersistenceManager<BSBCT>::Validate(
+    const Request & block)
 {
     logos::process_return ignored_result;
     return Validate(block, ignored_result);
 }
 
-void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message,
-                                           MDB_txn * transaction,
-                                           uint8_t delegate_id)
+bool PersistenceManager<BSBCT>::Validate(
+    const PrePrepare & message,
+    uint8_t remote_delegate_id,
+    ValidationStatus * status)
+{
+    using namespace logos;
+
+    bool valid = true;
+    for(uint64_t i = 0; i < message.block_count; ++i)
+    {
+        logos::process_return   result;
+        if(!Validate(static_cast<const Request&>(message.blocks[i]), result))
+        {
+            UpdateStatusRequests(status, i, result.code);
+            UpdateStatusReason(status, process_result::invalid_request);
+            valid = false;
+        }
+    }
+
+    return valid;
+}
+
+void PersistenceManager<BSBCT>::StoreBatchMessage(
+    const BatchStateBlock & message,
+    MDB_txn * transaction,
+    uint8_t delegate_id)
 {
     BatchStateBlock prev;
     bool has_prev = true;
@@ -239,7 +280,9 @@ void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message,
     }
 }
 
-void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, MDB_txn * transaction)
+void PersistenceManager<BSBCT>::ApplyBatchMessage(
+    const BatchStateBlock & message,
+    MDB_txn * transaction)
 {
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
@@ -248,16 +291,16 @@ void PersistenceManager::ApplyBatchMessage(const BatchStateBlock & message, MDB_
                           transaction);
 
         std::lock_guard<std::mutex> lock(_reservation_mutex);
-        _reservations.Release(message.blocks[i].hashables.account);
+        _reservations->Release(message.blocks[i].hashables.account);
     }
 }
 
 // Currently designed only to handle
 // send transactions.
-void PersistenceManager::ApplyStateMessage(
-        const logos::state_block & block,
-        uint64_t timestamp,
-        MDB_txn * transaction)
+void PersistenceManager<BSBCT>::ApplyStateMessage(
+    const logos::state_block & block,
+    uint64_t timestamp,
+    MDB_txn * transaction)
 {
     if(!UpdateSourceState(block, transaction))
     {
@@ -265,7 +308,9 @@ void PersistenceManager::ApplyStateMessage(
     }
 }
 
-bool PersistenceManager::UpdateSourceState(const logos::state_block & block, MDB_txn * transaction)
+bool PersistenceManager<BSBCT>::UpdateSourceState(
+    const logos::state_block & block,
+    MDB_txn * transaction)
 {
     logos::account_info info;
     auto account_error(_store.account_get(block.hashables.account, info));
@@ -308,10 +353,10 @@ bool PersistenceManager::UpdateSourceState(const logos::state_block & block, MDB
     return false;
 }
 
-void PersistenceManager::UpdateDestinationState(
-        const logos::state_block & block,
-        uint64_t timestamp,
-        MDB_txn * transaction)
+void PersistenceManager<BSBCT>::UpdateDestinationState(
+    const logos::state_block & block,
+    uint64_t timestamp,
+    MDB_txn * transaction)
 {
     // Protects against a race condition concerning
     // simultaneous receives for the same account.
@@ -360,9 +405,9 @@ void PersistenceManager::UpdateDestinationState(
     PlaceReceive(receive, transaction);
 }
 
-void PersistenceManager::PlaceReceive(
-        logos::state_block & receive,
-        MDB_txn * transaction)
+void PersistenceManager<BSBCT>::PlaceReceive(
+    logos::state_block & receive,
+    MDB_txn * transaction)
 {
     logos::state_block prev;
     logos::state_block cur;

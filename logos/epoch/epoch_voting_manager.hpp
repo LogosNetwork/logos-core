@@ -35,7 +35,7 @@ public:
     /// Verify epoch delegates
     /// @param delegates list of epoch delegates [in,out]
     /// @returns true if valid
-    bool ValidateEpochDelegates(const Delegates &delegates);
+    static bool ValidateEpochDelegates(const Delegates &delegates);
 
 private:
 

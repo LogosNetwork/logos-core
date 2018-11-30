@@ -12,12 +12,10 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
         Service & service,
         Store & store,
         const Config & config,
-        DelegateKeyStore & key_store,
         MessageValidator & validator,
         EpochEventsNotifier & events_notifier)
     : Manager(service, store, config,
-              key_store, validator, events_notifier)
-    , _persistence_manager(store)
+              validator, events_notifier)
     , _init_timer(service)
     , _service(service)
 {
@@ -56,8 +54,8 @@ BatchBlockConsensusManager::BindIOChannel(
 {
     auto connection =
             std::make_shared<BBConsensusConnection>(
-                    iochannel, *this, *this, _persistence_manager,
-                    _validator, ids, _service, _events_notifier);
+                    iochannel, *this, *this, _validator,
+                    ids, _service, _events_notifier, _persistence_manager);
 
     _connections.push_back(connection);
 	
@@ -229,8 +227,8 @@ BatchBlockConsensusManager::MakeConsensusConnection(
     const DelegateIdentities& ids)
 {
     return std::make_shared<BBConsensusConnection>(
-            iochannel, *this, *this, _persistence_manager,
-            _validator, ids, _service, _events_notifier);
+            iochannel, *this, *this, _validator,
+            ids, _service, _events_notifier, _persistence_manager);
 }
 
 void

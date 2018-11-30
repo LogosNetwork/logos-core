@@ -10,6 +10,8 @@
 
 #include <blake2/blake2.h>
 
+#include <bls/bls.hpp>
+
 namespace boost
 {
 template <>
@@ -237,7 +239,12 @@ enum class process_result
     initializing,           // Logos - The delegate is initializing and not accepting transactions.
     insufficient_fee,       // Logos - Transaction fee is insufficient.
     insufficient_balance,   // Logos - Balance is insufficient.
-    not_delegate           // Logos - A non-delegate node rejects transaction request
+    not_delegate,           // Logos - A non-delegate node rejects transaction request, or invalid delegate in epoch block
+    clock_drift,            // Logos - timestamp exceeds allowed clock drift
+    wrong_sequence_number,  // Logos - invalid block sequence number
+    invalid_request,        // Logos - batch block contains invalid request
+    invalid_tip,            // Logos - invalid microblock tip
+    invalid_number_blocks   // Logos - invalid number of blocks in microblock
 };
 
 std::string ProcessResultToString(process_result result);
@@ -270,9 +277,10 @@ public:
 };
 struct genesis_delegate
 {
-   logos::keypair   key; ///< EDDSA key for signing Micro/Epoch blocks (TBD, should come from wallet)
-   uint64_t        _vote;
-   uint64_t        _stake;
+   logos::keypair  key; ///< EDDSA key for signing Micro/Epoch blocks (TBD, should come from wallet)
+   bls::KeyPair    bls_key;
+   uint64_t        vote;
+   uint64_t        stake;
 };
 extern logos::keypair const & zero_key;
 extern logos::keypair const & test_genesis_key;

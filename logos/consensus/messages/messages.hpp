@@ -38,7 +38,8 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
     uint64_t  sequence;
     uint64_t  block_count = 0;
     uint32_t  epoch_number = 0;
-    uint32_t  padding = 0;
+    uint8_t   delegate_id = 0;
+    uint8_t   padding[3] = {0,0,0};
     BlockList blocks;
     BlockHash next;
     Signature signature;
@@ -166,16 +167,19 @@ template<ConsensusType CT>
 struct RequestMessage<CT,
     typename std::enable_if<
         CT == ConsensusType::BatchStateBlock>::type> : logos::state_block
-{};
+{
+};
 
 template<ConsensusType CT>
 struct RequestMessage<CT, 
 	typename std::enable_if< 
 		CT == ConsensusType::MicroBlock>::type> : PrePrepareMessage<ConsensusType::MicroBlock>
-{};
+{
+};
 
 template<ConsensusType CT>
 struct RequestMessage<CT, 
 	typename std::enable_if< 
 		CT == ConsensusType::Epoch>::type> : PrePrepareMessage<ConsensusType::Epoch>
-{};
+{
+};

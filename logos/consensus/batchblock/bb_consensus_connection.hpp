@@ -7,15 +7,23 @@
 
 #include <logos/consensus/consensus_connection.hpp>
 
+#include <unordered_set>
+
+
+template<ConsensusType CT> class PersistenceManager;
+
 class BBConsensusConnection : public ConsensusConnection<ConsensusType::BatchStateBlock>
 {
+    static constexpr ConsensusType BSBCT = ConsensusType::BatchStateBlock;
+
     using Service    = boost::asio::io_service;
-    using Connection = ConsensusConnection<ConsensusType::BatchStateBlock>;
-    using Promoter   = RequestPromoter<ConsensusType::BatchStateBlock>;
+    using Connection = ConsensusConnection<BSBCT>;
+    using Promoter   = RequestPromoter<BSBCT>;
     using Timer      = boost::asio::deadline_timer;
     using Seconds    = boost::posix_time::seconds;
     using Error      = boost::system::error_code;
     using Hashes     = std::unordered_set<BlockHash>;
+    using Request    = RequestMessage<BSBCT>;
 
 public:
 
@@ -31,11 +39,11 @@ public:
     BBConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                           PrimaryDelegate & primary,
                           Promoter & promoter,
-                          PersistenceManager & persistence_manager,
                           MessageValidator & validator,
                           const DelegateIdentities & ids,
 						  Service & service,
-                          EpochEventsNotifier & events_notifier);
+                          EpochEventsNotifier & events_notifier,
+                          PersistenceManager<BSBCT> & persistence_manager);
     ~BBConsensusConnection() {}
 
     /// Validate PrePrepare message
@@ -83,7 +91,6 @@ private:
     Hashes               _pre_prepare_hashes;
     Timer                _timer;
     RejectionMap         _rejection_map;       ///< Sets a bit for each rejected request from the PrePrepare.
-    PersistenceManager & _persistence_manager; ///< PersistenceManager reference.
     std::mutex           _timer_mutex;
     bool                 _cancel_timer       = false;
     bool                 _callback_scheduled = false;
