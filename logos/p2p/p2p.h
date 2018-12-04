@@ -25,6 +25,11 @@ struct p2p_config {
 	std::function<void(std::function<void()> const &, unsigned)> scheduleAfterMs;
 };
 
+enum p2p_option_flags {
+	P2P_OPTION_ARGUMENT	= 1,
+	P2P_OPTION_MULTI	= 2,
+};
+
 class p2p_interface {
 private:
 	p2p_internal *p2p;
@@ -35,6 +40,7 @@ public:
 	void Shutdown();
 	bool PropagateMessage(const void *message, unsigned size);
 	virtual bool ReceiveMessageCallback(const void *message, unsigned size) { return false; }
+	static void TraverseCommandLineOptions(std::function<void(const char *option, const char *description, int flags)> callback);
 };
 
 #endif

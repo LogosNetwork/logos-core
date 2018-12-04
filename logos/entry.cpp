@@ -39,6 +39,15 @@ int main (int argc, char * const * argv)
 	("p2p", boost::program_options::value<std::vector<std::string> >(), "Pass <arg> to p2p layer, try --p2p --help for options list");
     // clang-format on
 
+    p2p_interface::TraverseCommandLineOptions([&description](const char *option, const char *help, int flags) {
+	if (flags & P2P_OPTION_MULTI)
+		description.add_options()(option, boost::program_options::value<std::vector<std::string> >(), help);
+	else if (flags & P2P_OPTION_ARGUMENT)
+		description.add_options()(option, boost::program_options::value<std::string> (), help);
+	else
+		description.add_options()(option, help);
+    });
+
     boost::program_options::variables_map vm;
     boost::program_options::store (boost::program_options::parse_command_line (argc, argv, description), vm);
     boost::program_options::notify (vm);
