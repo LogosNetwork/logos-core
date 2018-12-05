@@ -17,19 +17,20 @@
 
 class EpochEventsNotifier;
 
-class ChannelBinder
+class NetIOHandler
 {
 
 public:
 
-  ChannelBinder() {}
+  NetIOHandler() = default;
 
-  virtual ~ChannelBinder() {}
+  virtual ~NetIOHandler() = default;
 
   virtual
   std::shared_ptr<PrequelParser>
   BindIOChannel(std::shared_ptr<IOChannel>,
                 const DelegateIdentities &) = 0;
+  virtual void OnNetIOError(uint8_t delegate_id) = 0;
 };
 
 template<ConsensusType CT>
@@ -55,7 +56,7 @@ public:
 
 template<ConsensusType CT>
 class ConsensusManager : public PrimaryDelegate,
-                         public ChannelBinder,
+                         public NetIOHandler,
                          public RequestPromoter<CT>
 {
 
@@ -102,6 +103,8 @@ public:
 
     /// Update secondary request handler promoter
     void UpdateRequestPromoter();
+
+    void OnNetIOError(uint8_t delegate_id) override;
 
 protected:
 

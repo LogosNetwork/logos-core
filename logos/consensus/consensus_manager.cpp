@@ -230,6 +230,8 @@ std::shared_ptr<PrequelParser>
 ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                                     const DelegateIdentities & ids)
 {
+    std::lock_guard<std::mutex> lock(_connection_mutex);
+
     auto connection = MakeConsensusConnection(iochannel, ids);
     _connections.push_back(connection);
 
@@ -241,6 +243,22 @@ void
 ConsensusManager<CT>::UpdateRequestPromoter()
 {
     _secondary_handler.UpdateRequestPromoter(this);
+}
+
+template<ConsensusType CT>
+void
+ConsensusManager<CT>::OnNetIOError(uint8_t delegate_id)
+{
+    std::lock_guard<std::mutex> lock(_connection_mutex);
+
+    for (auto it = _connections.begin(); it != _connections.end(); ++it)
+    {
+        if ((*it)->IsRemoteDelegate(delegate_id))
+        {
+            _connections.erase(it);
+            break;
+        }
+    }
 }
 
 template class ConsensusManager<ConsensusType::BatchStateBlock>;

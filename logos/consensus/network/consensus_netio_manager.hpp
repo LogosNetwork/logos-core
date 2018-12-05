@@ -8,15 +8,25 @@
 #include <logos/consensus/network/peer_acceptor.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 
-class ChannelBinder;
+class NetIOHandler;
 class PeerAcceptorStarter;
 class EpochInfo;
+
+class NetIOErrorHandler
+{
+protected:
+    using Error = boost::system::error_code;
+public:
+    NetIOErrorHandler() = default;
+    ~NetIOErrorHandler() = default;
+    virtual void OnNetIOError(const Error &error, uint8_t delegate_id) = 0;
+};
 
 /// ConsensusNetIOManager manages connections to peers.
 ///
 /// Creates ConsensusNetIO instances either as the client to connect
 /// to remote peers or as an accepted connection.
-class ConsensusNetIOManager
+class ConsensusNetIOManager : public NetIOErrorHandler
 {
 
     using Service     = boost::asio::io_service;
@@ -25,8 +35,9 @@ class ConsensusNetIOManager
     using Config      = ConsensusManagerConfig;
     using Address     = boost::asio::ip::address;
     using Delegates   = std::vector<Config::Delegate>;
-    using Managers    = std::map<ConsensusType, ChannelBinder&>;
+    using Managers    = std::map<ConsensusType, NetIOHandler&>;
     using Connections = std::vector<std::shared_ptr<ConsensusNetIO>>;
+    using Timer       = boost::asio::deadline_timer;
 
 public:
 
@@ -71,8 +82,40 @@ public:
     void BindIOChannel(std::shared_ptr<ConsensusNetIO> netio,
                        uint8_t delegate_id);
 
-private:
+protected:
 
+    /// Handle netio error
+    /// @param ec error code
+    /// @param delegate_id remote delegate id
+    void OnNetIOError(const Error &ec, uint8_t delegate_id);
+
+    /// Create netio instance and add to connecitons
+    /// @param t either service or shared_ptr<Socket>
+    /// @param remote_delegate_id remote delegate id
+    /// @param endpoint remote peer's endpoint
+    template<typename T>
+    void AddNetIOConnection(T &t, uint8_t remote_delegate_id, const Endpoint &endpoint);
+
+    /// Schedule heartbeat/garbage colleciton timer
+    /// @param seconds timer's timeout value
+    void ScheduleTimer(boost::posix_time::seconds);
+
+    /// Timer's timeout callback
+    /// @param error error code
+    void OnTimeout(const Error &error);
+
+private:
+    static const boost::posix_time::seconds HEARTBEAT;
+    static const uint64_t GB_AGE;
+    static const uint64_t MESSAGE_AGE;
+    static const uint64_t MESSAGE_AGE_LIMIT;
+
+    struct garbage {
+        uint64_t    timestamp;
+        std::shared_ptr<ConsensusNetIO> netio;
+    };
+
+    Service &                      _service;            ///< Boost asio service reference
     Delegates                      _delegates;          ///< List of all delegates
     Managers                       _consensus_managers; ///< Dictionary of registered consensus managers
     Connections                    _connections;        ///< NetIO connections
@@ -83,5 +126,8 @@ private:
     std::recursive_mutex           _connection_mutex;   ///< NetIO connections access mutex
     std::recursive_mutex           _bind_mutex;         ///< NetIO consensus connections mutex
     uint8_t                        _delegate_id;        ///< The local delegate id
-    EpochInfo &                    _epoch_info;      ///< Epoch transition info
+    EpochInfo &                    _epoch_info;         ///< Epoch transition info
+    Timer                          _heartbeat_timer;    ///< Heartbeat/gb timer to handle heartbeat and gb
+    std::vector<garbage>           _gb_collection;      ///< Garbage collection of ConsensusNetIO to be distracted
+    std::mutex                     _gb_mutex;           ///< Garbage mutex
 };

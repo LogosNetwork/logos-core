@@ -4,6 +4,7 @@
 #include <logos/consensus/network/consensus_netio.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/node/node.hpp>
+#include <logos/lib/trace.hpp>
 
 const uint8_t ConsensusNetIO::CONNECT_RETRY_DELAY;
 
@@ -16,7 +17,8 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
                                MessageValidator & validator,
                                IOBinder iobinder,
                                std::recursive_mutex & connection_mutex,
-                               EpochInfo & epoch_info)
+                               EpochInfo & epoch_info,
+                               NetIOErrorHandler & error_handler)
     : _socket(new Socket(service))
     , _connected(false)
     , _endpoint(endpoint)
@@ -27,9 +29,11 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
     , _key_store(key_store)
     , _validator(validator)
     , _io_channel_binder(iobinder)
-    , _assembler(_socket, _connected, epoch_info)
+    , _assembler(_socket, epoch_info, *this)
     , _connection_mutex(connection_mutex)
     , _epoch_info(epoch_info)
+    , _error_handler(error_handler)
+    , _last_timestamp(GetStamp())
 {
     LOG_INFO(_log) << "ConsensusNetIO - Trying to connect to: "
                    <<  _endpoint << " remote delegate id "
@@ -48,7 +52,8 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
                                MessageValidator & validator,
                                IOBinder iobinder,
                                std::recursive_mutex & connection_mutex,
-                               EpochInfo & epoch_info)
+                               EpochInfo & epoch_info,
+                               NetIOErrorHandler & error_handler)
     : _socket(socket)
     , _connected(false)
     , _endpoint(endpoint)
@@ -59,9 +64,11 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
     , _key_store(key_store)
     , _validator(validator)
     , _io_channel_binder(iobinder)
-    , _assembler(_socket, _connected, epoch_info)
+    , _assembler(_socket, epoch_info, *this)
     , _connection_mutex(connection_mutex)
     , _epoch_info(epoch_info)
+    , _error_handler(error_handler)
+    , _last_timestamp(GetStamp())
 {
     OnConnect();
 }
@@ -132,19 +139,25 @@ ConsensusNetIO::OnConnect(
 
         _socket->close();
 
-        _alarm.add(std::chrono::seconds(CONNECT_RETRY_DELAY),
-                   std::bind(&ConsensusNetIO::Connect, this));
+        std::lock_guard<std::mutex> lock(_error_mutex);
+        if (!_error_handled)
+        {
+            _alarm.add(std::chrono::seconds(CONNECT_RETRY_DELAY),
+                       std::bind(&ConsensusNetIO::Connect, this));
+        }
 
         return;
     }
 
     auto ids = std::make_shared<ConnectedClientIds>();
-    *ids = {_epoch_info.GetEpochNumber(), _local_delegate_id, _epoch_info.GetConnection()};
+    *ids = {_epoch_info.GetEpochNumber(), _local_delegate_id, _epoch_info.GetConnection(), {0}};
+    strncpy(ids->ip, _endpoint.address().to_string().c_str(), INET6_ADDRSTRLEN);
     boost::asio::async_write(*_socket, boost::asio::buffer(ids.get(), sizeof(ConnectedClientIds)),
                              [this, ids](const ErrorCode &ec, size_t){
         if(ec)
         {
             LOG_ERROR(_log) << "ConsensusNetIO - Error writing connected client info " << ec.message();
+            OnNetIOError(ec);
             return;
         }
 
@@ -182,19 +195,23 @@ ConsensusNetIO::OnData(const uint8_t * data)
 
     if (consensus_type == ConsensusType::Any)
     {
-        if (message_type != MessageType::Key_Advert)
+        if (message_type == MessageType::Heart_Beat)
         {
-            LOG_ERROR(_log) << "ConsensusNetIO - unexpected message type for consensus Any "
-                            << data[2];
-            return;
+            OnHeartBeat(data);
         }
-        else
+        else if (message_type == MessageType::Key_Advert)
         {
             memcpy(_receive_buffer.data(), data, sizeof(Prequel));
             _assembler.ReadBytes(std::bind(&ConsensusNetIO::OnPublicKey, this,
                                            std::placeholders::_1),
                                  sizeof(KeyAdvertisement) -
                                  sizeof(Prequel));
+        }
+        else
+        {
+            LOG_FATAL(_log) << "ConsensusNetIO - unexpected message type for consensus Any "
+                            << (int)data[2];
+            trace_and_halt();
         }
     }
     else
@@ -203,9 +220,9 @@ ConsensusNetIO::OnData(const uint8_t * data)
 
         if (!(idx >= 0 && idx < CONSENSUS_TYPE_COUNT) || _connections[idx] == 0)
         {
-            LOG_ERROR(_log) << "ConsensusNetIO - _consensus_connections is NULL: "
+            LOG_FATAL(_log) << "ConsensusNetIO - _consensus_connections is NULL: "
                             << idx;
-            return;
+            trace_and_halt();
         }
 
         _connections[idx]->OnPrequel(data);
@@ -247,18 +264,16 @@ ConsensusNetIO::AddConsensusConnection(
 void
 ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
 {
-    if(error)
+    if (error)
     {
         if (_connected)
         {
             LOG_ERROR(_log) << "ConsensusConnection - Error on write to socket: "
-                            << error.message() << ". Remote endpoint: "
+                                   << error.message() << ". Remote endpoint: "
                             << _endpoint;
         }
-        else
-        {
-            return;
-        }
+        OnNetIOError(error);
+        return;
     }
 
     std::lock_guard<std::mutex> lock(_send_mutex);
@@ -303,4 +318,44 @@ ConsensusNetIO::Close()
         _socket->cancel();
         _socket->close();
     }
+}
+
+void
+ConsensusNetIO::OnNetIOError(const ErrorCode &ec)
+{
+    std::lock_guard<std::mutex>    lock(_error_mutex);
+
+    if (!_error_handled)
+    {
+        _queued_writes.clear();
+        _queue_reservation = 0;
+        Close();
+        _error_handled = true;
+
+        _error_handler.OnNetIOError(ec, _remote_delegate_id);
+    }
+}
+
+void
+ConsensusNetIO::OnHeartBeat(const uint8_t *data)
+{
+    HeartBeat heartbeat;
+    memcpy(&heartbeat, data, sizeof(Prequel));
+    size_t bytes = sizeof(HeartBeat) - sizeof(Prequel);
+
+    AsyncRead(bytes, [this, heartbeat, bytes](const uint8_t* data) mutable -> void {
+
+        memcpy(((uint8_t*)&heartbeat) + sizeof(Prequel), data, bytes);
+
+        LOG_DEBUG(_log) << "ConsensusNetIO::OnHeartBeat, received heartbeat from "
+                        << (int)_remote_delegate_id << " is request " << heartbeat.is_request;
+
+        if (heartbeat.is_request)
+        {
+            heartbeat.is_request = false;
+            Send(&heartbeat, sizeof(HeartBeat));
+        }
+
+        ReadPrequel();
+    });
 }

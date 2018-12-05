@@ -21,9 +21,10 @@ enum class MessageType : uint8_t
     // Other
     Key_Advert   = 5,
     Rejection    = 6,
+    Heart_Beat   = 7,
 
     // Invalid
-    Unknown
+    Unknown      = 0xff
 };
 
 /// To implement a new type of consensus :

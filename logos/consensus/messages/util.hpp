@@ -34,6 +34,9 @@ inline std::string MessageToName(const MessageType & type)
         case MessageType::Unknown:
             ret = "Unknown";
             break;
+        case MessageType::Heart_Beat:
+            ret = "Heart Beat";
+            break;
         default:
             ret = "Undefined";
     }
@@ -111,6 +114,9 @@ inline size_t MessageTypeToSize(MessageType type)
             break;
         case MessageType::Rejection:
             ret = sizeof(RejectionMessage<CT>);
+            break;
+        case MessageType::Heart_Beat:
+            ret = sizeof(HeartBeat);
             break;
         case MessageType::Unknown:
             break;

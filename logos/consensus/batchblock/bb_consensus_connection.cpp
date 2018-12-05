@@ -21,7 +21,12 @@ BBConsensusConnection::BBConsensusConnection(
                  validator, ids, events_notifier, persistence_manager)
     , _timer(service)
 {
+    BatchStateBlock block;
     promoter.GetStore().batch_tip_get(_delegate_ids.remote, _prev_pre_prepare_hash);
+    if (_prev_pre_prepare_hash != 0 && !promoter.GetStore().batch_block_get(_prev_pre_prepare_hash, block))
+    {
+        _sequence_number = block.sequence + 1;
+    }
 }
 
 /// Validate BatchStateBlock message.

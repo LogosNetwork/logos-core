@@ -73,6 +73,11 @@ public:
 
     virtual bool IsPrePrepared(const logos::block_hash & hash) = 0;
 
+    bool IsRemoteDelegate(uint8_t delegate_id)
+    {
+        return _delegate_ids.remote == delegate_id;
+    }
+
 protected:
 
     static constexpr uint64_t BUFFER_SIZE        = sizeof(PrePrepare);

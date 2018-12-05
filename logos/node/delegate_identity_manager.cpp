@@ -417,7 +417,7 @@ DelegateIdentityManager::GetCurrentEpoch(BlockStore &store, Epoch &epoch)
         return;
     }
 
-    if (store.epoch_get(hash, epoch))
+    if (store.epoch_get(epoch.previous, epoch))
     {
         trace_and_halt();
     }
