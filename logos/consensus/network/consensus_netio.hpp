@@ -292,7 +292,7 @@ private:
     bool                           _sending = false;      ///< is an async write in progress?
     EpochInfo &                    _epoch_info;           ///< Epoch transition info
     NetIOErrorHandler &            _error_handler;        ///< Pass socket error to ConsensusNetIOManager
-    std::mutex                     _error_mutex;          ///< Error handling mutex
+    std::recursive_mutex           _error_mutex;          ///< Error handling mutex
     bool                           _error_handled;        ///< Socket error handled, prevent continous error loop
     std::atomic<uint64_t>          _last_timestamp;       ///< Last message timestamp
 };
