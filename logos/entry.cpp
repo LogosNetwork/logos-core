@@ -35,8 +35,7 @@ int main (int argc, char * const * argv)
         ("debug_profile_sign", "Profile signature generation")
         ("platform", boost::program_options::value<std::string> (), "Defines the <platform> for OpenCL commands")
         ("device", boost::program_options::value<std::string> (), "Defines <device> for OpenCL command")
-	("threads", boost::program_options::value<std::string> (), "Defines <threads> count for OpenCL command")
-	("p2p", boost::program_options::value<std::vector<std::string> >(), "Pass <arg> to p2p layer, try --p2p --help for options list");
+	("threads", boost::program_options::value<std::string> (), "Defines <threads> count for OpenCL command");
     // clang-format on
 
     p2p_interface::TraverseCommandLineOptions([&description](const char *option, const char *help, int flags) {
@@ -61,18 +60,31 @@ int main (int argc, char * const * argv)
 	logos_daemon::daemon daemon;
 	boost::filesystem::create_directories (data_path);
 	logos_daemon::daemon_config config (data_path);
+
 	int nopts = 1;
 	vector<char *> opts;
 	opts.push_back(strdup(argv[0]));
-	if (vm.count ("p2p") > 0) {
-	    auto v = vm["p2p"].as<std::vector<std::string> > ();
-	    for (auto it : v) {
-		opts.push_back(strdup(it.c_str()));
-		nopts++;
+	p2p_interface::TraverseCommandLineOptions([&vm, &opts, &nopts](const char *option, const char *help, int flags) {
+	    if (vm.count(option) > 0) {
+		std::string opt = std::string("-") + option;
+		if (flags & P2P_OPTION_MULTI) {
+		    auto v = vm[option].as<std::vector<std::string> >();
+		    for (auto it : v) {
+			opts.push_back(strdup((opt + "=" + it).c_str()));
+			nopts++;
+		    }
+		} else if (flags & P2P_OPTION_ARGUMENT) {
+		    opts.push_back(strdup((opt + "=" + vm[option].as<std::string>()).c_str()));
+		    nopts++;
+		} else {
+		    opts.push_back(strdup(opt.c_str()));
+		    nopts++;
+		}
 	    }
-	}
+	});
 	config.p2p_conf.argc = nopts;
 	config.p2p_conf.argv = &opts[0];
+
 	daemon.run (data_path, config);
     }
     else if (vm.count ("debug_block_count"))

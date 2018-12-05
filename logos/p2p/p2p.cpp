@@ -57,7 +57,7 @@ void p2p_interface::TraverseCommandLineOptions(std::function<void(const char *op
     const auto testnetChainParams = CreateChainParams(CBaseChainParams::TESTNET);
     const auto regtestChainParams = CreateChainParams(CBaseChainParams::REGTEST);
 
-#define Arg(a, b, c, d, e, f) callback("p2p-" a, ((std::string)d).c_str(), (*b ? P2P_OPTION_ARGUMENT : 0) | (c ? P2P_OPTION_MULTI : 0))
+#define Arg(a, b, c, d, e) callback(a, ((std::string)b).c_str(), e)
 #include "options.h"
 #undef Arg
 }
@@ -210,9 +210,9 @@ void SetupServerArgs()
     const auto regtestChainParams = CreateChainParams(CBaseChainParams::REGTEST);
 
     // Hidden Options
-    std::vector<std::string> hidden_args = {"-benchmark", "-debugnet", "-whitelistalwaysrelay"};
+    std::vector<std::string> hidden_args = {"-benchmark", "-debugnet", "-help", "-whitelistalwaysrelay"};
 
-#define Arg(a, b, c, d, e, f) gArgs.AddArg("-" a b, d, e, f);
+#define Arg(a, b, c, d, e) gArgs.AddArg(std::string("-") + a + (e ? "=<arg>" : ""), b, c, d);
 #include "options.h"
 #undef Arg
 
