@@ -434,6 +434,11 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
 {
     std::lock_guard<std::mutex>   lock(_mutex);
 
+    LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEnd "
+                   << TransitionDelegateToName(_transition_delegate)
+                   << " " << (int)delegate_idx << " " << (int)DelegateIdentityManager::_global_delegate_idx
+                   << " " << _cur_epoch_number;
+
     _transition_state = EpochTransitionState::None;
 
     _trans_epoch = nullptr;
@@ -448,11 +453,6 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
         _cur_epoch->_delegate = EpochTransitionDelegate::None;
         _cur_epoch->_connection_state = EpochConnection::Current;
     }
-
-    LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEnd "
-                    << TransitionDelegateToName(_transition_delegate)
-                    << " " << (int)delegate_idx << " " << (int)DelegateIdentityManager::_global_delegate_idx
-                    << " " << _cur_epoch_number;
 
     _transition_delegate = EpochTransitionDelegate::None;
 }

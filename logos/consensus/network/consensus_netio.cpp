@@ -139,7 +139,7 @@ ConsensusNetIO::OnConnect(
 
         _socket->close();
 
-        std::lock_guard<std::mutex> lock(_error_mutex);
+        std::lock_guard<std::recursive_mutex> lock(_error_mutex);
         if (!_error_handled)
         {
             _alarm.add(std::chrono::seconds(CONNECT_RETRY_DELAY),
@@ -271,8 +271,8 @@ ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
             LOG_ERROR(_log) << "ConsensusConnection - Error on write to socket: "
                                    << error.message() << ". Remote endpoint: "
                             << _endpoint;
+            OnNetIOError(error);
         }
-        OnNetIOError(error);
         return;
     }
 
@@ -308,12 +308,15 @@ ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
 void
 ConsensusNetIO::Close()
 {
-    if (_socket != nullptr)
+    std::lock_guard<std::recursive_mutex>    lock(_error_mutex);
+
+    if (_socket != nullptr && _connected)
     {
         LOG_DEBUG(_log) << "ConsensusNetIO::Close closing socket, connection "
                         << _epoch_info.GetConnectionName() << ", delegate "
                         << (int)_local_delegate_id << ", remote delegate " << (int)_remote_delegate_id
                         << ", global " << (int)DelegateIdentityManager::_global_delegate_idx;
+        _error_handled = true;
         _connected = false;
         _socket->cancel();
         _socket->close();
@@ -323,14 +326,13 @@ ConsensusNetIO::Close()
 void
 ConsensusNetIO::OnNetIOError(const ErrorCode &ec)
 {
-    std::lock_guard<std::mutex>    lock(_error_mutex);
+    std::lock_guard<std::recursive_mutex>    lock(_error_mutex);
 
     if (!_error_handled)
     {
         _queued_writes.clear();
         _queue_reservation = 0;
         Close();
-        _error_handled = true;
 
         _error_handler.OnNetIOError(ec, _remote_delegate_id);
     }

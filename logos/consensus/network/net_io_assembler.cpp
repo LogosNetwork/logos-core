@@ -66,8 +66,8 @@ void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size
                             << " connection " << _epoch_info.GetConnectionName()
                             << " delegate " << _epoch_info.GetDelegateName()
                             << " state " << _epoch_info.GetStateName();
+            _netio.OnNetIOError(error);
         }
-        _netio.OnNetIOError(error);
         return;
     }
 
