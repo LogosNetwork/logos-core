@@ -48,6 +48,8 @@ public:
 
     virtual ~BatchBlockConsensusManager() {};
 
+    void Send(const PrePrepare & pre_prepare) override;
+
     /// Handles benchmark requests.
     ///     @param[in]  block state block.
     ///     @param[out] result result of the operation.
@@ -174,4 +176,5 @@ private:
     uint64_t                _sequence             = 0;
     logos::uint128_t        _connected_weight     = 0;
     uint32_t                _new_epoch_rejections = 0;      ///< New Epoch rejection message count.
+    bool                    _delegates_connected  = false;
 };

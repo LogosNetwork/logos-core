@@ -141,3 +141,30 @@ inline std::string RejectionReasonToName(RejectionReason reason)
             return "Invalid Previous Hash";
     }
 }
+
+template<MessageType MT, ConsensusType CT>
+std::ostream& operator<<(std::ostream& os, const MessagePrequel<MT, CT>& m)
+{
+    os << "version: " << int(m.version)
+       << " type: " << MessageToName(m.type)
+       << " consensus_type: " << ConsensusToName(m.consensus_type);
+
+    return os;
+}
+
+template<MessageType MT, ConsensusType CT>
+std::ostream& operator<<(std::ostream& os, const MessageHeader<MT, CT>& m)
+{
+    os << static_cast<const MessagePrequel<MT, CT> &>(m)
+       << " timestamp: " << m.timestamp
+       << " previous: " << m.previous.to_string();
+
+    return os;
+}
+
+template<ConsensusType CT>
+std::ostream& operator<<(std::ostream& os, const RejectionMessage<CT>& m)
+{
+    os << static_cast<MessageHeader<MessageType::Rejection, CT> &>(m);
+    return os;
+}

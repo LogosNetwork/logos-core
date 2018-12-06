@@ -4,21 +4,39 @@
 #include <logos/epoch/epoch_transition.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
+#include <logos/lib/blocks.hpp>
+
+#include <logos/lib/log.hpp>
 
 struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
                                        ConsensusType::BatchStateBlock>
 {
-    static const size_t HASHABLE_BYTES;
+    using Header = MessageHeader<MessageType::Pre_Prepare,
+                                 ConsensusType::BatchStateBlock>;
+    using Prequel = MessagePrequel<MessageType::Pre_Prepare,
+                                   ConsensusType::BatchStateBlock>;
+
+    static const size_t STREAM_SIZE = sizeof(uint64_t) +
+                                      sizeof(uint64_t) +
+                                      sizeof(uint32_t) +
+                                      sizeof(BlockHash) +
+                                      sizeof(Signature);
+
+    BatchStateBlock() = default;
+    BatchStateBlock(bool & error, logos::stream & stream);
 
     BatchStateBlock & operator= (const BatchStateBlock & other)
     {
         auto b_size = other.block_count * sizeof(logos::state_block);
-        memset(blocks, 0, sizeof(blocks));
 
         // BatchStateBlock members
         sequence = other.sequence;
         block_count = other.block_count;
-        memcpy(blocks, other.blocks, b_size);
+        epoch_number = other.epoch_number;
+        for(uint64_t i = 0; i < block_count; ++i)
+        {
+            new(&blocks[i]) logos::state_block(other.blocks[i]);
+        }
         next = other.next;
         memcpy(signature.data(), other.signature.data(), sizeof(signature));
 
@@ -35,16 +53,19 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
     BlockHash Hash() const;
     std::string SerializeJson() const;
     void SerializeJson(boost::property_tree::ptree &) const;
+    void Serialize(logos::stream & stream) const;
 
-    uint64_t  sequence;
+    uint64_t  sequence     = 0;
     uint64_t  block_count  = 0;
     uint32_t  epoch_number = 0;
     uint8_t   delegate_id  = 0;
-    uint32_t  padding      = 0;
     BlockList blocks;
     BlockHash next;
     Signature signature;
 };
+
+std::ostream& operator<<(std::ostream& os, const BatchStateBlock& b);
+
 
 // Prepare and Commit messages
 //
@@ -58,14 +79,32 @@ struct StandardPhaseMessage<MT, CT, typename std::enable_if<
     MT == MessageType::Prepare ||
     MT == MessageType::Commit>::type> : MessageHeader<MT, CT>
 {
-    static const size_t HASHABLE_BYTES;
-
     StandardPhaseMessage(uint64_t timestamp)
         : MessageHeader<MT, CT>(timestamp)
     {}
 
+    BlockHash Hash() const
+    {
+        logos::uint256_union result;
+        blake2b_state hash;
+
+        auto status(blake2b_init(&hash, sizeof(result.bytes)));
+        assert(status == 0);
+
+        MessageHeader<MT, CT>::Hash(hash);
+
+        status = blake2b_final(&hash, result.bytes.data(), sizeof(result.bytes));
+        assert(status == 0);
+
+        return result;
+    }
+
     Signature signature;
 };
+
+template<MessageType MT, ConsensusType CT>
+std::ostream& operator<<(std::ostream& os, const StandardPhaseMessage<MT, CT>& m);
+
 
 // Post Prepare and Post Commit messages
 //
@@ -79,8 +118,6 @@ struct PostPhaseMessage<MT, CT, typename std::enable_if<
     MT == MessageType::Post_Prepare ||
     MT == MessageType::Post_Commit>::type> : MessageHeader<MT, CT>
 {
-    static const size_t HASHABLE_BYTES;
-
     PostPhaseMessage(uint64_t timestamp)
         : MessageHeader<MT, CT>(timestamp)
     {}
@@ -118,23 +155,6 @@ using PostPrepareMessage = PostPhaseMessage<MessageType::Post_Prepare, CT>;
 template<ConsensusType CT>
 using PostCommitMessage = PostPhaseMessage<MessageType::Post_Commit, CT>;
 
-// Number of bytes from the beginning of the
-// message that should be included in hashes
-// of the message.
-//
-template<MessageType MT, ConsensusType CT>
-const size_t PostPhaseMessage<MT, CT, typename std::enable_if<
-    MT == MessageType::Post_Prepare ||
-    MT == MessageType::Post_Commit>::type>::HASHABLE_BYTES = sizeof(PostPhaseMessage<MessageType::Post_Prepare, CT>)
-                                                             - sizeof(uint64_t)
-                                                             - sizeof(AggSignature);
-
-template<MessageType MT, ConsensusType CT>
-const size_t StandardPhaseMessage<MT, CT, typename std::enable_if<
-    MT == MessageType::Prepare ||
-    MT == MessageType::Commit>::type>::HASHABLE_BYTES = sizeof(StandardPhaseMessage<MessageType::Prepare, CT>)
-                                                        - sizeof(Signature);
-
 // Pre-Prepare Message definitions.
 //
 template<ConsensusType CT, typename E = void>
@@ -168,19 +188,16 @@ template<ConsensusType CT>
 struct RequestMessage<CT,
     typename std::enable_if<
         CT == ConsensusType::BatchStateBlock>::type> : logos::state_block
-{
-};
+{};
 
 template<ConsensusType CT>
 struct RequestMessage<CT, 
 	typename std::enable_if< 
 		CT == ConsensusType::MicroBlock>::type> : PrePrepareMessage<ConsensusType::MicroBlock>
-{
-};
+{};
 
 template<ConsensusType CT>
 struct RequestMessage<CT, 
 	typename std::enable_if< 
 		CT == ConsensusType::Epoch>::type> : PrePrepareMessage<ConsensusType::Epoch>
-{
-};
+{};

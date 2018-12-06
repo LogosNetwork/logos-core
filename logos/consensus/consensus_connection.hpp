@@ -82,6 +82,9 @@ protected:
 
     virtual void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) = 0;
 
+    virtual size_t GetPayloadSize();
+    virtual void DeliverPrePrepare();
+
     void OnData();
     void OnMessage(const uint8_t * data);
 
@@ -122,11 +125,11 @@ protected:
         M response(_pre_prepare_timestamp);
 
         response.previous = _pre_prepare_hash;
-        _validator.Sign(response);
 
         StoreResponse(response);
         UpdateMessage(response);
 
+        _validator.Sign(response);
         Send(response);
     }
 

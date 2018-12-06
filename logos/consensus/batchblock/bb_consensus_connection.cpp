@@ -115,6 +115,29 @@ BBConsensusConnection::DoUpdateMessage(Rejection & message)
     message.rejection_map = _rejection_map;
 }
 
+size_t
+BBConsensusConnection::GetPayloadSize()
+{
+    return *reinterpret_cast<size_t *>(_receive_buffer.data() + 3);
+}
+
+void
+BBConsensusConnection::DeliverPrePrepare()
+{
+    bool error = false;
+
+    logos::bufferstream stream(_receive_buffer.data(), GetPayloadSize());
+    BatchStateBlock msg(error, stream);
+
+    if(error)
+    {
+        LOG_ERROR(_log) << "BBConsensusConnection::DeliverPrePrepare - Failed to deserialize BatchStateBlock.";
+        return;
+    }
+
+    OnConsensusMessage(static_cast<PrePrepare &>(msg));
+}
+
 void
 BBConsensusConnection::Reject()
 {

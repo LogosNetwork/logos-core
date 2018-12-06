@@ -77,17 +77,67 @@ inline uint64_t GetStamp()
 template<MessageType MT, ConsensusType CT>
 struct MessagePrequel
 {
-    static const size_t PADDING_SIZE = 5;
+    static const size_t STREAM_SIZE = sizeof(uint8_t) +
+                                      sizeof(MessageType) +
+                                      sizeof(ConsensusType) +
+                                      sizeof(size_t);
 
-    const uint8_t       version           = 0;
-    const MessageType   type              = MT;
-    const ConsensusType consensus_type    = CT;
-    const uint8_t       pad[PADDING_SIZE] = {0,0,0,0,0}; // FIXME Do not use manual padding
+    MessagePrequel() = default;
+
+    MessagePrequel(bool & error, logos::stream & stream)
+    {
+        error = logos::read(stream, const_cast<uint8_t &>(version));
+        if(error)
+        {
+            return;
+        }
+
+        error = logos::read(stream, const_cast<MessageType &>(type));
+        if(error)
+        {
+            return;
+        }
+
+        error = logos::read(stream, const_cast<ConsensusType &>(consensus_type));
+        if(error)
+        {
+            return;
+        }
+
+        error = logos::read(stream, payload_stream_size);
+        if(error)
+        {
+            return;
+        }
+    }
+
+    void Hash(blake2b_state & hash) const
+    {
+        blake2b_update(&hash, &version, sizeof(version));
+        blake2b_update(&hash, &type, sizeof(type));
+        blake2b_update(&hash, &consensus_type, sizeof(consensus_type));
+    }
+
+    void Serialize(logos::stream & stream) const
+    {
+        logos::write(stream, version);
+        logos::write(stream, type);
+        logos::write(stream, consensus_type);
+        logos::write(stream, payload_stream_size);
+    }
+
+    const uint8_t       version        = 0;
+    const MessageType   type           = MT;
+    const ConsensusType consensus_type = CT;
+    size_t payload_stream_size         = 0;
 };
 
 template<MessageType MT, ConsensusType CT>
 struct MessageHeader : MessagePrequel<MT, CT>
 {
+    static const size_t STREAM_SIZE = sizeof(uint64_t) +
+                                      sizeof(BlockHash);
+
     MessageHeader(uint64_t timestamp)
         : timestamp(timestamp)
     {}
@@ -95,6 +145,43 @@ struct MessageHeader : MessagePrequel<MT, CT>
     MessageHeader()
         : timestamp(GetStamp())
     {}
+
+    MessageHeader(bool & error, logos::stream & stream)
+        : MessagePrequel<MT, CT>(error, stream)
+    {
+        if(error)
+        {
+            return;
+        }
+
+        error = logos::read(stream, timestamp);
+        if(error)
+        {
+            return;
+        }
+
+        error = logos::read(stream, previous);
+        if(error)
+        {
+            return;
+        }
+    }
+
+    void Hash(blake2b_state & hash) const
+    {
+        MessagePrequel<MT, CT>::Hash(hash);
+
+        blake2b_update(&hash, &timestamp, sizeof(timestamp));
+        blake2b_update(&hash, &previous, sizeof(previous));
+    }
+
+    void Serialize(logos::stream & stream) const
+    {
+        MessagePrequel<MT, CT>::Serialize(stream);
+
+        logos::write(stream, timestamp);
+        logos::write(stream, previous);
+    }
 
     uint64_t  timestamp;
     BlockHash previous;

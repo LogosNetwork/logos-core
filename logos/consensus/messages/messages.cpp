@@ -1,9 +1,54 @@
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/consensus/messages/util.hpp>
 #include <logos/common.hpp>
 
-const size_t BatchStateBlock::HASHABLE_BYTES = sizeof(BatchStateBlock)
-                                               - sizeof(Signature)
-                                               - sizeof(BlockHash);
+BatchStateBlock::BatchStateBlock(bool & error, logos::stream & stream)
+    : Header(error, stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, sequence);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, block_count);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, epoch_number);
+    if(error)
+    {
+        return;
+    }
+
+    for(uint64_t i = 0; i < block_count; ++i)
+    {
+        new(blocks + i) logos::state_block(error, stream);
+        if(error)
+        {
+            return;
+        }
+    }
+
+    error = logos::read(stream, next);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+}
 
 BlockHash BatchStateBlock::Hash() const
 {
@@ -17,12 +62,33 @@ BlockHash BatchStateBlock::Hash() const
     blake2b_update(&hash, &block_count, sizeof(block_count));
     blake2b_update(&hash, &epoch_number, sizeof(epoch_number));
     blake2b_update(&hash, &delegate_id, sizeof(delegate_id));
-    blake2b_update(&hash, blocks, sizeof(BlockList));
+
+    for(uint64_t i = 0; i < block_count; ++i)
+    {
+        auto h = blocks[i].hash();
+        blake2b_update(&hash, &h, sizeof(BlockHash));
+    }
 
     status = blake2b_final(&hash, result.bytes.data(), sizeof(result.bytes));
     assert(status == 0);
 
     return result;
+}
+
+std::ostream& operator<<(std::ostream& os, const BatchStateBlock& b)
+{
+    os << static_cast<const MessageHeader<MessageType::Pre_Prepare,
+                                          ConsensusType::BatchStateBlock>
+                      &>(b)
+
+       << " sequence: " << b.sequence
+       << " block_count: " << b.block_count
+       << " epoch_number: " << b.epoch_number
+       << " blocks: --"
+       << " next: " << b.next.to_string()
+       << " signature: --";
+
+    return os;
 }
 
 std::string BatchStateBlock::SerializeJson() const
@@ -57,4 +123,35 @@ void BatchStateBlock::SerializeJson(boost::property_tree::ptree & batch_state_bl
     }
 
     batch_state_block.add_child("blocks", blocks_tree);
+}
+
+void BatchStateBlock::Serialize(logos::stream & stream) const
+{
+    auto & pss = const_cast<BatchStateBlock *>(this)->payload_stream_size;
+
+    pss = BatchStateBlock::STREAM_SIZE +
+          Header::STREAM_SIZE +
+          Prequel::STREAM_SIZE +
+          (logos::state_block::size * block_count);
+
+    Header::Serialize(stream);
+
+    logos::write(stream, sequence);
+    logos::write(stream, block_count);
+    logos::write(stream, epoch_number);
+
+    for(uint64_t i = 0; i < block_count; ++i)
+    {
+        blocks[i].serialize(stream);
+    }
+
+    logos::write(stream, next);
+    logos::write(stream, signature);
+}
+
+template<MessageType MT, ConsensusType CT>
+std::ostream& operator<<(std::ostream& os, const StandardPhaseMessage<MT, CT>& m)
+{
+    os << static_cast<const MessageHeader<MT, CT> &>(m);
+    return os;
 }
