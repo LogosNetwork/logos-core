@@ -66,7 +66,7 @@ private:
                                << " which is already in the Reservations cache.";
 
                 info = accounts[account];
-                return true; // Do not tolerate double-acquire for now. To be discussed further!
+                return false;
             }
 
             auto ret = store.account_get(account, info);

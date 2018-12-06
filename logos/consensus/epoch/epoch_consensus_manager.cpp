@@ -78,7 +78,7 @@ EpochConsensusManager::PrePrepareQueueEmpty()
 
 void 
 EpochConsensusManager::ApplyUpdates(
-    const PrePrepare & pre_prepare,
+    PrePrepare & pre_prepare,
     uint8_t delegate_id)
 {
     _epoch_handler.CommitToDatabase(pre_prepare);

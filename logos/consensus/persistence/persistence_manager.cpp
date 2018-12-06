@@ -1,6 +1,8 @@
 #include <logos/consensus/persistence/persistence_manager.hpp>
 #include <logos/consensus/persistence/state_block_locator.hpp>
 #include <logos/common.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
+//#include <logos/consensus/consensus_container.hpp>
 
 constexpr uint128_t PersistenceManager::MIN_TRANSACTION_FEE;
 
@@ -53,8 +55,8 @@ bool PersistenceManager::Validate(const logos::state_block & block,
 
     auto account_error(_reservations.Acquire(block.hashables.account, info));
 
-    // Account hasn't been acquired.
     if(!account_error)
+    // Account exists.
     {
         // No previous block set.
         if(block.hashables.previous.is_zero() && info.block_count)
@@ -109,10 +111,20 @@ bool PersistenceManager::Validate(const logos::state_block & block,
             return false;
         }
 
-        // TODO
-        uint64_t current_epoch = 0;
+        if(block.hashables.amount.number() + block.hashables.transaction_fee.number()
+                > info.balance.number())
+        {
+            result.code = logos::process_result::insufficient_balance;
+            return false;
+        }
 
-        auto update_reservation = [&info, &hash, current_epoch]()
+        Epoch epoch;
+        DelegateIdentityManager::GetCurrentEpoch(_store, epoch);
+        uint64_t current_epoch = epoch.epoch_number;
+//        uint64_t current_epoch = ConsensusContainer::GetCurEpochNumber();
+        LOG_DEBUG(_log) << "PersistenceManager::Validate - Current Epoch number is " << current_epoch;
+
+        auto update_reservation = [&hash, current_epoch](logos::account_info & info)
                                   {
                                        info.reservation = hash;
                                        info.reservation_epoch = current_epoch;
@@ -121,7 +133,7 @@ bool PersistenceManager::Validate(const logos::state_block & block,
         // Account is not reserved.
         if(info.reservation.is_zero())
         {
-            update_reservation();
+            update_reservation(_reservations.accounts[block.hashables.account]);
         }
 
         // Account is already reserved.
@@ -130,25 +142,21 @@ bool PersistenceManager::Validate(const logos::state_block & block,
             // This block conflicts with existing reservation.
             if(current_epoch < info.reservation_epoch + RESERVATION_PERIOD)
             {
+                LOG_ERROR(_log) << "PersistenceManager::Validate - Account already reserved! ";
                 result.code = logos::process_result::already_reserved;
                 return false;
             }
 
             // Reservation has expired.
-            update_reservation();
-        }
-
-        if(block.hashables.amount.number() + block.hashables.transaction_fee.number()
-                > info.balance.number())
-        {
-            result.code = logos::process_result::insufficient_balance;
-            return false;
+            update_reservation(_reservations.accounts[block.hashables.account]);
         }
     }
+    // account doesn't exist
     else
     {
-        LOG_ERROR(_log) << "PersistenceManager::Validate - Account already reserved! ";
-        result.code = logos::process_result::already_reserved;
+        // Currently do not accept state blocks
+        // with non-existent accounts.
+        result.code = logos::process_result::unknown_source_account;
         return false;
     }
 

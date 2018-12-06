@@ -72,7 +72,7 @@ MicroBlockConsensusManager::PrePrepareQueueEmpty()
 
 void
 MicroBlockConsensusManager::ApplyUpdates(
-    const PrePrepare & pre_prepare,
+    PrePrepare & pre_prepare,
     uint8_t delegate_id)
 {
 	_microblock_handler.CommitToDatabase(pre_prepare);

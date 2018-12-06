@@ -80,6 +80,7 @@ class ConsensusContainer : public InternalConsensus,
                            public NewEpochEventHandler
 {
     friend class DelegateIdentityManager;
+    friend class Archiver;
 
     using Service    = boost::asio::io_service;
     using Config     = ConsensusManagerConfig;

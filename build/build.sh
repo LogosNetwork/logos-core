@@ -37,8 +37,13 @@ fi
 
 # read getopt’s output this way to handle the quoting right:
 eval set -- "${PARSED}"
-
-cmakeBuildType="Debug" activeNetwork="logos_test_network" numCPUs=$(($(nproc) + 1)) rebuild=false
+if ! [[ -x "$(command -v nproc)" ]]; then
+    # Mac
+    numCPUs=$(($(sysctl -n hw.ncpu) + 1))
+else
+    numCPUs=$(($(nproc) + 1))
+fi
+cmakeBuildType="Debug" activeNetwork="logos_test_network" rebuild=false
 # now enjoy the options in order and nicely split until we see --
 while true; do
     case "$1" in
@@ -187,14 +192,14 @@ cd ${BUILD_DIR}/../..
 
 # Install Boost if not present
 
-BOOST_BASENAME=boost_1_66_0
+BOOST_BASENAME=boost_1_67_0
 BOOST_ROOT=${BOOST_ROOT-/usr/local/boost}
 if [ -d "$BOOST_ROOT" ]; then
     echo "Boost directory already exists, please remove if you want Boost rebuilt"
 else
-    BOOST_URL=https://downloads.sourceforge.net/project/boost/boost/1.66.0/${BOOST_BASENAME}.tar.bz2
+    BOOST_URL=https://downloads.sourceforge.net/project/boost/boost/1.67.0/${BOOST_BASENAME}.tar.bz2
     BOOST_ARCHIVE="${BOOST_BASENAME}.tar.bz2"
-    BOOST_ARCHIVE_SHA256='5721818253e6a0989583192f96782c4a98eb6204965316df9f5ad75819225ca9'
+    BOOST_ARCHIVE_SHA256='2684c972994ee57fc5632e03bf044746f6eb45d4920c343937a465fd67a5adba'
     if [ -f "$BOOST_ARCHIVE" ]; then
         echo "boost.tar.gz is already in the local directory, skipping the long download"
     else
@@ -239,7 +244,7 @@ echo "Building Logos..."
 cd ${BUILD_DIR}
 
 git submodule update --init --recursive
-cmake -DBOOST_ROOT="$BOOST_ROOT" -DACTIVE_NETWORK="$activeNetwork" -DCMAKE_BUILD_TYPE="$cmakeBuildType" \
+cmake -DBOOST_ROOT="$BOOST_ROOT" -DACTIVE_NETWORK="$activeNetwork" -DCMAKE_BUILD_TYPE="$cmakeBuildType" -std=c++11 \
     -G "Unix Makefiles" ..\
     && make logos_core -j"$numCPUs"
 

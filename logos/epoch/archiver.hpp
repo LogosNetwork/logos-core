@@ -8,6 +8,8 @@
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/epoch/event_proposer.hpp>
 #include <logos/epoch/epoch_handler.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/consensus/consensus_container.hpp>
 
 class InternalConsensus;
 class IRecallHandler;
@@ -100,6 +102,10 @@ public:
     /// @param block to commit
     void CommitToDatabase(const Epoch& block) override
     {
+        if (!DelegateIdentityManager::IsEpochTransitionEnabled()) // Manually record epoch number in testnet
+        {
+            ConsensusContainer::SetCurEpochNumber(block.epoch_number);
+        }
         _epoch_handler.ApplyUpdates(block);
     }
 

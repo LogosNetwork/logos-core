@@ -48,7 +48,7 @@ protected:
 	///     @param[in] block the epoch block to commit to the database
 	///     @param[in] delegate_id delegate id
 	void ApplyUpdates(
-		const PrePrepare &,
+		PrePrepare &,
 		uint8_t delegate_id) override;
 
 	/// Returns number of stored blocks.

@@ -161,9 +161,11 @@ BatchBlockConsensusManager::PrePrepareQueueEmpty()
 
 void
 BatchBlockConsensusManager::ApplyUpdates(
-  const PrePrepare & pre_prepare,
+  PrePrepare & pre_prepare,
   uint8_t delegate_id)
 {
+    // Hacky fix: decrement message's sequence number here to match actual block that went to consensus, compensating early increment of BatchBlockConsensusManager's _sequence
+    pre_prepare.sequence--;
     _persistence_manager.ApplyUpdates(pre_prepare, _delegate_id);
 }
 
@@ -188,8 +190,8 @@ BatchBlockConsensusManager::InitiateConsensus()
 void
 BatchBlockConsensusManager::OnConsensusReached()
 {
-    Manager::OnConsensusReached();
     _sequence++;
+    Manager::OnConsensusReached();
 
     if(_using_buffered_blocks)
     {
@@ -272,11 +274,12 @@ BatchBlockConsensusManager::OnRejection(
                 // TODO: Replace with total pool of delegate
                 //       weights defined by epoch block.
                 //
-                uint64_t total_weight = 32;
+//                auto reject_threshold = 32 / 3.0;
+                auto reject_threshold = 0;
 
                 _weights[i].reject_weight++;
 
-                if(_weights[i].reject_weight > total_weight/3.0)
+                if(_weights[i].reject_weight > reject_threshold)
                 {
                     _hashes.erase(batch.blocks[i].hash());
                 }
