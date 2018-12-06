@@ -54,7 +54,7 @@ BatchStateBlock & RequestHandler::PrepareNextBatch()
             break;
         }
 
-        _current_batch.blocks[count++] = *pos;
+        new(&_current_batch.blocks[count++]) logos::state_block(*pos);
 
         if(count == CONSENSUS_BATCH_SIZE)
         {

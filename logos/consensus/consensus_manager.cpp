@@ -105,6 +105,12 @@ ConsensusManager<CT>::GetStore()
 }
 
 template<ConsensusType CT>
+void ConsensusManager<CT>::Send(const PrePrepare & pre_prepare)
+{
+    Send(&pre_prepare, sizeof(PrePrepare));
+}
+
+template<ConsensusType CT>
 void ConsensusManager<CT>::Send(const void * data, size_t size)
 {
     std::lock_guard<std::mutex> lock(_connection_mutex);
@@ -149,7 +155,8 @@ template<ConsensusType CT>
 void ConsensusManager<CT>::InitiateConsensus()
 {
     LOG_INFO(_log) << "Initiating "
-                   << ConsensusToName(CT);
+                   << ConsensusToName(CT)
+                   << " consensus.";
 
     auto & pre_prepare = PrePrepareGetNext();
     pre_prepare.previous = _prev_hash;
@@ -159,7 +166,7 @@ void ConsensusManager<CT>::InitiateConsensus()
     _state = ConsensusState::PRE_PREPARE;
 
     _validator.Sign(pre_prepare);
-    Send(&pre_prepare, sizeof(PrePrepare));
+    Send(pre_prepare);
 }
 
 template<ConsensusType CT>

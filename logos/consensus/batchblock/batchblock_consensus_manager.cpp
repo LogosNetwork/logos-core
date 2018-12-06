@@ -25,6 +25,17 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
     _store.batch_tip_get(_delegate_id, _prev_hash);
 }
 
+void BatchBlockConsensusManager::Send(const PrePrepare & pre_prepare)
+{
+    std::vector<uint8_t> v;
+    {
+        logos::vectorstream stream(v);
+        pre_prepare.Serialize(stream);
+    }
+
+    Manager::Send(v.data(), v.size());
+}
+
 void
 BatchBlockConsensusManager::OnBenchmarkSendRequest(
   std::shared_ptr<Request> block,
@@ -492,7 +503,13 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 void
 BatchBlockConsensusManager::OnDelegatesConnected()
 {
-    LOG_INFO(_log) << "BatchBlockConsensusManager::OnDelegatesConnected";
+    if(_delegates_connected)
+    {
+        return;
+    }
+
+    _delegates_connected = true;
+
     if (_events_notifier.GetState() == EpochTransitionState::None)
     {
         LOG_INFO(_log) << "BatchBlockConsensusManager::OnDelegatesConnected 1";

@@ -52,6 +52,9 @@ public:
 
     void DoUpdateMessage(Rejection & message);
 
+    size_t GetPayloadSize() override;
+    void DeliverPrePrepare() override;
+
 private:
 
     static constexpr uint8_t TIMEOUT_MIN   = 20;
