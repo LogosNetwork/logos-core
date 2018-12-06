@@ -31,6 +31,19 @@ void ConsensusConnection<CT>::Send(const void * data, size_t size)
 }
 
 template<ConsensusType CT>
+size_t ConsensusConnection<CT>::GetPayloadSize()
+{
+    return sizeof(PrePrepare);
+}
+
+template<ConsensusType CT>
+void ConsensusConnection<CT>::DeliverPrePrepare()
+{
+    auto msg (*reinterpret_cast<const PrePrepare*>(_receive_buffer.data()));
+    OnConsensusMessage(msg);
+}
+
+template<ConsensusType CT>
 void ConsensusConnection<CT>::OnData()
 {
     MessageType type (static_cast<MessageType> (_receive_buffer.data()[1]));
@@ -38,7 +51,7 @@ void ConsensusConnection<CT>::OnData()
     switch (type)
     {
         case MessageType::Pre_Prepare:
-            _iochannel->AsyncRead(sizeof(PrePrepare) -
+            _iochannel->AsyncRead(GetPayloadSize() -
                                   sizeof(Prequel),
                                   std::bind(&ConsensusConnection<CT>::OnMessage, this,
                                             std::placeholders::_1));
@@ -110,8 +123,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
     {
         case MessageType::Pre_Prepare:
         {
-            auto msg (*reinterpret_cast<const PrePrepare*>(_receive_buffer.data()));
-            OnConsensusMessage(msg);
+            DeliverPrePrepare();
             break;
         }
         case MessageType::Prepare:

@@ -210,6 +210,8 @@ void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
     LOG_INFO(_log) << "PrimaryDelegate - Initiating Consensus with PrePrepare hash: "
                    << block.Hash().to_string();
 
+    _prepare_weight = _my_weight;
+
     _cur_hash = block.Hash();
     _cur_batch_timestamp = block.timestamp;
 

@@ -255,7 +255,7 @@ void PersistenceManager<BSBCT>::StoreBatchMessage(
 
     StateBlockLocator locator_template {hash, 0};
 
-    for(uint64_t i = 0; i < CONSENSUS_BATCH_SIZE; ++i)
+    for(uint64_t i = 0; i < message.block_count; ++i)
     {
         locator_template.index = i;
         if(_store.state_block_put(message.blocks[i],
