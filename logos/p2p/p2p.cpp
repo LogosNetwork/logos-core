@@ -661,13 +661,14 @@ bool Propagate(PropagateMessage &mess) {
 
 bool p2p_interface::Init(p2p_config &config) {
 	if (p2p) return false;
+	g_p2p_config = &config;
 	SetupEnvironment();
 	p2p = new p2p_internal(this, config);
 	if (!p2p) return false;
 	p2p->SetupServerArgs();
 	std::string error;
 	if (!gArgs.ParseParameters(config.argc, config.argv, error)) {
-		fprintf(stderr, "Error parsing command line arguments: %s\n", error.c_str());
+		config.init_print((std::string("Error parsing command line arguments: ") + error).c_str());
 		return false;
 	}
 	g_p2p_lmdb_env = config.lmdb_env;
@@ -682,31 +683,32 @@ bool p2p_interface::Init(p2p_config &config) {
 		strUsage += " [options]                     Start " PACKAGE_NAME " daemon\n";
 		strUsage += "\n" + gArgs.GetHelpMessage();
 
-		fprintf(stdout, "%s", strUsage.c_str());
+		config.init_print(strUsage.c_str());
 		return false;
 	}
 
 	if (!fs::is_directory(GetDataDir(false)))
 	{
-		fprintf(stderr, "Error: Specified data directory \"%s\" does not exist.\n", GetDataDir().string());
+		config.init_print((std::string("Error: Specified data directory \"") + GetDataDir().string() + "\" does not exist.").c_str());
 		return false;
 	}
 	if (!gArgs.ReadConfigFiles(error, true)) {
-		fprintf(stderr, "Error reading configuration file: %s\n", error.c_str());
+		config.init_print((std::string("Error reading configuration file: ") + error).c_str());
 		return false;
 	}
 	// Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
 	try {
 		SelectParams(gArgs.GetChainName());
 	} catch (const std::exception& e) {
-		fprintf(stderr, "Error: %s\n", e.what());
+		config.init_print((std::string("Error: ") + e.what()).c_str());
 		return false;
 	}
 
 	// Error out when loose non-argument tokens are encountered on command line
 	for (int i = 1; i < config.argc; i++) {
 		if (!IsSwitchChar(config.argv[i][0])) {
-			fprintf(stderr, "Error: Command line contains unexpected token '%s', see %s -h for a list of options.\n", config.argv[i], config.argv[0]);
+			config.init_print((std::string("Error: Command line contains unexpected token '") + config.argv[i]
+				+ "', see " + config.argv[0] + " --help for a list of options.").c_str());
 			return false;
 		}
 	}

@@ -5,6 +5,7 @@
 #include <ui_interface.h>
 #include <util.h>
 #include <logging.h>
+#include "p2p.h"
 
 #include <boost/signals2/last_value.hpp>
 #include <boost/signals2/signal.hpp>
@@ -59,17 +60,18 @@ void CClientUIInterface::NotifyBlockTip(bool b, const CBlockIndex* i) { return g
 void CClientUIInterface::NotifyHeaderTip(bool b, const CBlockIndex* i) { return g_ui_signals.NotifyHeaderTip(b, i); }
 void CClientUIInterface::BannedListChanged() { return g_ui_signals.BannedListChanged(); }
 
+struct p2p_config *g_p2p_config;
 
 bool InitError(const std::string& str)
 {
-    LogError(BCLog::ALL, "Alert: %s", str.c_str());
+    g_p2p_config->init_print((std::string("Error: ") + str).c_str());
     //uiInterface.ThreadSafeMessageBox(str, "", CClientUIInterface::MSG_ERROR);
     return false;
 }
 
 void InitWarning(const std::string& str)
 {
-    LogWarning(BCLog::ALL, "Alert: %s", str.c_str());
+    g_p2p_config->init_print((std::string("Warning: ") + str).c_str());
     //uiInterface.ThreadSafeMessageBox(str, "", CClientUIInterface::MSG_WARNING);
 }
 

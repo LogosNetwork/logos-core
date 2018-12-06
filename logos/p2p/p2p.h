@@ -23,6 +23,7 @@ struct p2p_config {
 	MDB_dbi lmdb_dbi;
 	void *boost_io_service;
 	std::function<void(std::function<void()> const &, unsigned)> scheduleAfterMs;
+	std::function<void(const char *)> init_print;
 };
 
 enum p2p_option_flags {
