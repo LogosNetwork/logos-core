@@ -60,6 +60,9 @@ public:
 
     void DoUpdateMessage(Rejection & message);
 
+    /// Cleanup before destruction
+    void CleanUp() override;
+
 private:
 
     static constexpr uint8_t TIMEOUT_MIN   = 20;

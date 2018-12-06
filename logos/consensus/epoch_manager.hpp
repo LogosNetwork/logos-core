@@ -62,7 +62,7 @@ public:
                      EpochConnection connection,
                      const uint32_t epoch_number,
                      NewEpochEventHandler & event_handler);
-    ~EpochManager() {}
+    ~EpochManager();
 
     uint32_t GetEpochNumber() override { return _epoch_number; }
 
@@ -85,6 +85,8 @@ public:
     void OnPrePrepareRejected() override;
 
     bool IsRecall() override;
+
+    void CleanUp();
 
 private:
     std::atomic<EpochTransitionState> &     _state;             ///< State of transition

@@ -67,8 +67,6 @@ ConsensusNetIOManager::~ConsensusNetIOManager()
                     << " connection " << TransitionConnectionToName(_epoch_info.GetConnection())
                     << " " << (int)DelegateIdentityManager::_global_delegate_idx;
 
-    _heartbeat_timer.cancel();
-
     for (auto conn : _connections)
     {
         conn->Close();
@@ -241,4 +239,10 @@ ConsensusNetIOManager::OnTimeout(
     }
 
     ScheduleTimer(HEARTBEAT);
+}
+
+void
+ConsensusNetIOManager::CleanUp()
+{
+    _heartbeat_timer.cancel();
 }

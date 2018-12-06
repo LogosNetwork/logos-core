@@ -11,6 +11,7 @@
 #include <logos/lib/trace.hpp>
 
 std::atomic<uint32_t> ConsensusContainer::_cur_epoch_number(0);
+const Seconds ConsensusContainer::GARBAGE_COLLECT = Seconds(60);
 
 ConsensusContainer::ConsensusContainer(Service & service,
                                        Store & store,
@@ -441,6 +442,16 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
 
     _transition_state = EpochTransitionState::None;
 
+    if (_transition_delegate != EpochTransitionDelegate::New)
+    {
+        _trans_epoch->CleanUp();
+    }
+
+    // schedule for destruction
+    auto gb = _trans_epoch;
+    _alarm.add(GARBAGE_COLLECT, [gb]() mutable -> void {
+        gb = nullptr;
+    });
     _trans_epoch = nullptr;
 
     if (_transition_delegate == EpochTransitionDelegate::Retiring)

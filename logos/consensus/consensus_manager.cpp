@@ -255,6 +255,7 @@ ConsensusManager<CT>::OnNetIOError(uint8_t delegate_id)
     {
         if ((*it)->IsRemoteDelegate(delegate_id))
         {
+            (*it)->CleanUp();
             _connections.erase(it);
             break;
         }

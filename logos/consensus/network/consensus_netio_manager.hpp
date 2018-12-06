@@ -82,6 +82,9 @@ public:
     void BindIOChannel(std::shared_ptr<ConsensusNetIO> netio,
                        uint8_t delegate_id);
 
+    /// Cleaup up before destruction
+    void CleanUp();
+
 protected:
 
     /// Handle netio error

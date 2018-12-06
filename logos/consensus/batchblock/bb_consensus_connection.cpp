@@ -299,6 +299,15 @@ BBConsensusConnection::GetTimeout(uint8_t min, uint8_t range)
     return Seconds(min + offset);
 }
 
+void
+BBConsensusConnection::CleanUp()
+{
+    std::lock_guard<std::mutex> lock(_timer_mutex);
+
+    _timer.cancel();
+    _cancel_timer = true;
+}
+
 template<>
 template<>
 void
@@ -307,3 +316,4 @@ ConsensusConnection<ConsensusType::BatchStateBlock>::UpdateMessage(Rejection & m
     static_cast<BBConsensusConnection *>(this)
             ->DoUpdateMessage(message);
 }
+
