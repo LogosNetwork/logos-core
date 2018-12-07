@@ -2207,7 +2207,7 @@ bool CConnman::Bind(const CService &addr, unsigned int flags) {
     std::string strError;
     if (!BindListenPort(addr, strError, (flags & BF_WHITELIST) != 0)) {
         if ((flags & BF_REPORT_ERROR) && clientInterface) {
-            clientInterface->ThreadSafeMessageBox(strError, "", CClientUIInterface::MSG_ERROR);
+	    InitError(strError);
         }
         return false;
     }
@@ -2249,9 +2249,7 @@ bool CConnman::Start(const Options& connOptions)
 
     if (fListen && !InitBinds(connOptions.vBinds, connOptions.vWhiteBinds)) {
         if (clientInterface) {
-            clientInterface->ThreadSafeMessageBox(
-                _("Failed to listen on any port. Use -listen=0 if you want this."),
-                "", CClientUIInterface::MSG_ERROR);
+	    InitError(_("Failed to listen on any port. Use -listen=0 if you want this."));
         }
         return false;
     }
@@ -2332,9 +2330,7 @@ bool CConnman::Start(const Options& connOptions)
 
     if (connOptions.m_use_addrman_outgoing && !connOptions.m_specified_outgoing.empty()) {
         if (clientInterface) {
-            clientInterface->ThreadSafeMessageBox(
-                _("Cannot provide specific connections and have addrman find outgoing connections at the same."),
-                "", CClientUIInterface::MSG_ERROR);
+	    InitError(_("Cannot provide specific connections and have addrman find outgoing connections at the same."));
         }
         return false;
     }

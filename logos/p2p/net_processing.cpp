@@ -129,12 +129,6 @@ struct CNodeState {
     bool fShouldBan;
     //! String name of this peer (debugging/logging purposes).
     const std::string name;
-    //! The best known block we know this peer has announced.
-    const CBlockIndex *pindexBestKnownBlock;
-    //! The last full block we both have.
-    const CBlockIndex *pindexLastCommonBlock;
-    //! The best header we have sent our peer.
-    const CBlockIndex *pindexBestHeaderSent;
     //! Length of current-streak of unconnecting headers announcements
     int nUnconnectingHeaders;
     //! Whether we've started headers synchronization with this peer.
@@ -171,8 +165,6 @@ struct CNodeState {
     struct ChainSyncTimeoutState {
         //! A timeout used for checking whether our peer has sufficiently synced
         int64_t m_timeout;
-        //! A header with the work we require on our peer's chain
-        const CBlockIndex * m_work_header;
         //! After timeout is reached, set to true after sending getheaders
         bool m_sent_getheaders;
         //! Whether this peer is protected from disconnection due to a bad/slow chain
@@ -188,9 +180,6 @@ struct CNodeState {
         fCurrentlyConnected = false;
         nMisbehavior = 0;
         fShouldBan = false;
-        pindexBestKnownBlock = nullptr;
-        pindexLastCommonBlock = nullptr;
-        pindexBestHeaderSent = nullptr;
         nUnconnectingHeaders = 0;
         fSyncStarted = false;
         nHeadersSyncTimeout = 0;
@@ -201,7 +190,7 @@ struct CNodeState {
         fPreferredDownload = false;
         fPreferHeaders = false;
         fPreferHeaderAndIDs = false;
-        m_chain_sync = { 0, nullptr, false, false };
+	m_chain_sync = { 0, false, false };
         m_last_block_announcement = 0;
     }
 };
