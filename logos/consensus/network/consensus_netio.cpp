@@ -38,7 +38,7 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
     LOG_INFO(_log) << "ConsensusNetIO - Trying to connect to: "
                    <<  _endpoint << " remote delegate id "
                    << (int)remote_delegate_id
-                    << " connection " << _epoch_info.GetConnectionName();
+                   << " connection " << _epoch_info.GetConnectionName();
 
     Connect();
 }
@@ -70,6 +70,9 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
     , _error_handler(error_handler)
     , _last_timestamp(GetStamp())
 {
+    LOG_INFO(_log) << "ConsensusNetIO client connected from: " << endpoint
+                   << " remote delegate id " << (int)_remote_delegate_id
+                   << " connection " << _epoch_info.GetConnectionName();
     OnConnect();
 }
 
@@ -315,7 +318,8 @@ ConsensusNetIO::Close()
         LOG_DEBUG(_log) << "ConsensusNetIO::Close closing socket, connection "
                         << _epoch_info.GetConnectionName() << ", delegate "
                         << (int)_local_delegate_id << ", remote delegate " << (int)_remote_delegate_id
-                        << ", global " << (int)DelegateIdentityManager::_global_delegate_idx;
+                        << ", global " << (int)DelegateIdentityManager::_global_delegate_idx
+                        << " ptr " << (uint64_t)this;
         _error_handled = true;
         _connected = false;
         _socket->cancel();

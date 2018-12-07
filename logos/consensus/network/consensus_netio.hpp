@@ -147,7 +147,12 @@ public:
                    EpochInfo & epoch_info,
                    NetIOErrorHandler & error_handler);
 
-    virtual ~ConsensusNetIO() = default;
+    virtual ~ConsensusNetIO()
+    {
+        LOG_DEBUG(_log) << "~ConsensusNetIO local delegate " << (int)_local_delegate_id
+                        << " remote delegate " << (int)_remote_delegate_id
+                        << " ptr " << (uint64_t)this;
+    }
 
     /// Send data
     ///
@@ -230,6 +235,18 @@ public:
         return _last_timestamp;
     }
 
+    /// Must be called right before destruction but
+    /// not in the destructor
+    void UnbindIOChannel()
+    {
+        for (uint8_t i = 0; i < CONSENSUS_TYPE_COUNT; ++i)
+        {
+            _connections[i].reset();
+        }
+    }
+
+    static constexpr uint8_t CONNECT_RETRY_DELAY = 5;     ///< Reconnect delay in seconds.
+
 private:
 
     /// Async connect to the peer.
@@ -269,8 +286,6 @@ private:
     /// Handle heartbeat message
     /// @param prequel data
     void OnHeartBeat(const uint8_t *data);
-
-    static constexpr uint8_t CONNECT_RETRY_DELAY = 5;     ///< Reconnect delay in seconds.
 
     std::shared_ptr<Socket>        _socket;               ///< Connected socket
     std::atomic_bool               _connected;            ///< is the socket is connected?

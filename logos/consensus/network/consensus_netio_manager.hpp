@@ -133,4 +133,5 @@ private:
     Timer                          _heartbeat_timer;    ///< Heartbeat/gb timer to handle heartbeat and gb
     std::vector<garbage>           _gb_collection;      ///< Garbage collection of ConsensusNetIO to be distracted
     std::mutex                     _gb_mutex;           ///< Garbage mutex
+    Config                         _config;
 };

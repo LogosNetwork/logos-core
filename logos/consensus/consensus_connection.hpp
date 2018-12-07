@@ -67,7 +67,10 @@ public:
         Send(reinterpret_cast<const void *>(&data), sizeof(data));
     }
 
-    virtual ~ConsensusConnection() {}
+    virtual ~ConsensusConnection()
+    {
+        LOG_DEBUG(_log) << "~ConsensusConnection<" << ConsensusToName(CT) << ">";
+    }
 
     void OnPrequel(const uint8_t * data) override;
 

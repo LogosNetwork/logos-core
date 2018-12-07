@@ -29,6 +29,7 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
     , _delegate_id(config.delegate_id)
     , _epoch_info(epoch_info)
     , _heartbeat_timer(service)
+    , _config(config)
 {
     uint server_endpoints;
 
@@ -113,7 +114,7 @@ ConsensusNetIOManager::OnNetIOError(
         }
     }
 
-    // destruct delegate's netio instance
+    // destruct/create delegate's netio instance
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
     bool found = false;
 
@@ -132,7 +133,10 @@ ConsensusNetIOManager::OnNetIOError(
             // otherwise TCP/IP server is already accepting connections
             if (_delegate_id < delegate_id)
             {
-                AddNetIOConnection(_service, delegate_id, netio->GetEndpoint());
+                auto endpoint = netio->GetEndpoint();
+                _alarm.add(Seconds(ConsensusNetIO::CONNECT_RETRY_DELAY), [this, delegate_id, endpoint]() {
+                    AddNetIOConnection(_service, delegate_id, endpoint);
+                });
             }
 
             std::lock_guard<std::mutex> gblock(_gb_mutex);
@@ -194,22 +198,25 @@ ConsensusNetIOManager::OnTimeout(
     using namespace boost::system::errc;
     HeartBeat heartbeat;
     vector<std::shared_ptr<ConsensusNetIO>> garbage;
-    for (auto it : _connections)
+    if (_config.heartbeat)
     {
-        auto stamp = it->GetTimestamp();
-        auto now = GetStamp();
-        auto diff = now - stamp;
-        if (diff > MESSAGE_AGE_LIMIT)
-        {
-            LOG_DEBUG(_log) << "ConsensusNetIOManager::OnTimeout, scheduled for destruction "
-                            << (int)it->GetRemoteDelegateId() << " time diff " << diff;
-            garbage.push_back(it);
-        }
-        else if (diff > MESSAGE_AGE)
-        {
-            LOG_DEBUG(_log) << "ConsensusNetIOManager::OnTimeout, sending heartbeat to "
-                            << (int)it->GetRemoteDelegateId();
-            it->Send(&heartbeat, sizeof(heartbeat));
+        std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
+        for (auto it : _connections) {
+            if (it->Connected())
+            {
+                auto stamp = it->GetTimestamp();
+                auto now = GetStamp();
+                auto diff = now - stamp;
+                if (diff > MESSAGE_AGE_LIMIT) {
+                    LOG_DEBUG(_log) << "ConsensusNetIOManager::OnTimeout, scheduled for destruction "
+                                    << (int) it->GetRemoteDelegateId() << " time diff " << diff;
+                    garbage.push_back(it);
+                } else if (diff > MESSAGE_AGE) {
+                    LOG_DEBUG(_log) << "ConsensusNetIOManager::OnTimeout, sending heartbeat to "
+                                    << (int) it->GetRemoteDelegateId();
+                    it->Send(&heartbeat, sizeof(heartbeat));
+                }
+            }
         }
     }
 
@@ -230,6 +237,7 @@ ConsensusNetIOManager::OnTimeout(
             LOG_DEBUG(_log) << "ConsensusNetIOManager::OnTimeout, gb collecting "
                             << (int)netio->GetRemoteDelegateId();
             it = _gb_collection.erase(it);
+            netio->UnbindIOChannel();
             netio.reset();
         }
         else

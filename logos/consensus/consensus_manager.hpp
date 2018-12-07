@@ -89,7 +89,10 @@ public:
 
     void Send(const void * data, size_t size) override;
 
-    virtual ~ConsensusManager() {}
+    virtual ~ConsensusManager()
+    {
+        LOG_DEBUG(_log) << "~ConsensusManager<" << ConsensusToName(CT) << ">";
+    }
 
     void OnRequestReady(std::shared_ptr<Request> block) override;
 
