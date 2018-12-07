@@ -28,6 +28,12 @@ BatchStateBlock::BatchStateBlock(bool & error, logos::stream & stream)
         return;
     }
 
+    error = logos::read(stream, delegate_id);
+    if(error)
+    {
+        return;
+    }
+
     for(uint64_t i = 0; i < block_count; ++i)
     {
         new(blocks + i) logos::state_block(error, stream);
@@ -84,6 +90,7 @@ std::ostream& operator<<(std::ostream& os, const BatchStateBlock& b)
        << " sequence: " << b.sequence
        << " block_count: " << b.block_count
        << " epoch_number: " << b.epoch_number
+       << " delegate_id: " << b.delegate_id
        << " blocks: --"
        << " next: " << b.next.to_string()
        << " signature: --";
@@ -108,6 +115,7 @@ void BatchStateBlock::SerializeJson(boost::property_tree::ptree & batch_state_bl
     batch_state_block.put("block_count", std::to_string(block_count));
     batch_state_block.put("epoch_number", std::to_string(epoch_number));
     batch_state_block.put("delegate_id", std::to_string(delegate_id));
+
     logos::uint256_union signature_tmp; // hacky fix, need to replicate uint256_union functionalities
     signature_tmp.bytes = signature;
     batch_state_block.put("signature", signature_tmp.to_string ());
@@ -139,6 +147,7 @@ void BatchStateBlock::Serialize(logos::stream & stream) const
     logos::write(stream, sequence);
     logos::write(stream, block_count);
     logos::write(stream, epoch_number);
+    logos::write(stream, delegate_id);
 
     for(uint64_t i = 0; i < block_count; ++i)
     {
