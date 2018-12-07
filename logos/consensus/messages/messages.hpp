@@ -21,6 +21,7 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
     static const size_t STREAM_SIZE = sizeof(uint64_t) +
                                       sizeof(uint64_t) +
                                       sizeof(uint32_t) +
+                                      sizeof(uint8_t) +
                                       sizeof(BlockHash) +
                                       sizeof(Signature);
 
@@ -53,8 +54,10 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
     }
 
     BlockHash Hash() const;
+
     std::string SerializeJson() const;
     void SerializeJson(boost::property_tree::ptree &) const;
+
     void Serialize(logos::stream & stream) const;
 
     uint64_t  sequence     = 0;
