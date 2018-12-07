@@ -62,16 +62,18 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
 
 ConsensusNetIOManager::~ConsensusNetIOManager()
 {
-    std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
-
     LOG_DEBUG(_log) << "~ConsensusNetIOManager, connections " << _connections.size()
                     << " connection " << TransitionConnectionToName(_epoch_info.GetConnection())
                     << " " << (int)DelegateIdentityManager::_global_delegate_idx;
 
-    for (auto conn : _connections)
+    std::lock_guard<std::mutex> lock(_gb_mutex);
+
+    for (auto it : _gb_collection)
     {
-        conn->Close();
+        it.netio->UnbindIOChannel();
+        it.netio.reset();
     }
+    _gb_collection.clear();
 }
 
 void
@@ -102,7 +104,8 @@ ConsensusNetIOManager::BindIOChannel(
 void
 ConsensusNetIOManager::OnNetIOError(
     const Error &ec,
-    uint8_t delegate_id)
+    uint8_t delegate_id,
+    bool reconnect)
 {
     // destruct delegate's ConsensusConnection for each consensus type
     {
@@ -131,7 +134,7 @@ ConsensusNetIOManager::OnNetIOError(
 
             // if delegate is TCP/IP client then instantiate netio,
             // otherwise TCP/IP server is already accepting connections
-            if (_delegate_id < delegate_id)
+            if (reconnect && _delegate_id < delegate_id)
             {
                 auto endpoint = netio->GetEndpoint();
                 _alarm.add(Seconds(ConsensusNetIO::CONNECT_RETRY_DELAY), [this, delegate_id, endpoint]() {
@@ -223,7 +226,7 @@ ConsensusNetIOManager::OnTimeout(
     Error error(make_error_code(errc_t::io_error));
     for (auto it : garbage)
     {
-        OnNetIOError(error, it->GetRemoteDelegateId());
+        it->OnNetIOError(error, true);
     }
 
     auto now = GetStamp();
@@ -252,5 +255,14 @@ ConsensusNetIOManager::OnTimeout(
 void
 ConsensusNetIOManager::CleanUp()
 {
+    using namespace boost::system::errc;
     _heartbeat_timer.cancel();
+
+    std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
+
+    Error error(make_error_code(errc_t::io_error));
+    while (_connections.size() != 0)
+    {
+        _connections[0]->OnNetIOError(error, false);
+    }
 }

@@ -328,7 +328,7 @@ ConsensusNetIO::Close()
 }
 
 void
-ConsensusNetIO::OnNetIOError(const ErrorCode &ec)
+ConsensusNetIO::OnNetIOError(const ErrorCode &ec, bool reconnect)
 {
     std::lock_guard<std::recursive_mutex>    lock(_error_mutex);
 
@@ -338,7 +338,7 @@ ConsensusNetIO::OnNetIOError(const ErrorCode &ec)
         _queue_reservation = 0;
         Close();
 
-        _error_handler.OnNetIOError(ec, _remote_delegate_id);
+        _error_handler.OnNetIOError(ec, _remote_delegate_id, reconnect);
     }
 }
 

@@ -19,7 +19,7 @@ protected:
 public:
     NetIOErrorHandler() = default;
     ~NetIOErrorHandler() = default;
-    virtual void OnNetIOError(const Error &error, uint8_t delegate_id) = 0;
+    virtual void OnNetIOError(const Error &error, uint8_t delegate_id, bool reconnect = true) = 0;
 };
 
 /// ConsensusNetIOManager manages connections to peers.
@@ -90,7 +90,7 @@ protected:
     /// Handle netio error
     /// @param ec error code
     /// @param delegate_id remote delegate id
-    void OnNetIOError(const Error &ec, uint8_t delegate_id);
+    void OnNetIOError(const Error &ec, uint8_t delegate_id, bool reconnect = true) override;
 
     /// Create netio instance and add to connecitons
     /// @param t either service or shared_ptr<Socket>

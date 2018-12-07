@@ -22,14 +22,14 @@ class NetIOHandler
 
 public:
 
-  NetIOHandler() = default;
+    NetIOHandler() = default;
 
-  virtual ~NetIOHandler() = default;
+    virtual ~NetIOHandler() = default;
 
-  virtual
-  std::shared_ptr<PrequelParser>
-  BindIOChannel(std::shared_ptr<IOChannel>,
-                const DelegateIdentities &) = 0;
+    virtual
+    std::shared_ptr<PrequelParser>
+    BindIOChannel(std::shared_ptr<IOChannel>,
+                  const DelegateIdentities &) = 0;
   virtual void OnNetIOError(uint8_t delegate_id) = 0;
 };
 

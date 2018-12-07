@@ -65,7 +65,7 @@ protected:
 public:
     IOChannelReconnect() = default;
     ~IOChannelReconnect() = default;
-    virtual void OnNetIOError(const ErrorCode &ec) = 0;
+    virtual void OnNetIOError(const ErrorCode &ec, bool reconnect = true) = 0;
     virtual void UpdateTimestamp() = 0;
     virtual bool Connected() = 0;
 
@@ -220,7 +220,7 @@ public:
 
     /// @param ec error code
     /// @return true if error was already handled
-    void OnNetIOError(const ErrorCode &ec) override;
+    void OnNetIOError(const ErrorCode &ec, bool reconnect = true) override;
 
     /// Update timestamp of the last received message
     void UpdateTimestamp() override
