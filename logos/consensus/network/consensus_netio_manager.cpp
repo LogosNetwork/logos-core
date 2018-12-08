@@ -261,8 +261,10 @@ ConsensusNetIOManager::CleanUp()
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
 
     Error error(make_error_code(errc_t::io_error));
-    while (_connections.size() != 0)
+    Connections connections = _connections;
+    for (auto it : connections)
     {
-        _connections[0]->OnNetIOError(error, false);
+        it->OnNetIOError(error, false);
     }
+    connections.clear();
 }

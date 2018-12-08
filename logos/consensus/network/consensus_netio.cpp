@@ -320,7 +320,6 @@ ConsensusNetIO::Close()
                         << (int)_local_delegate_id << ", remote delegate " << (int)_remote_delegate_id
                         << ", global " << (int)DelegateIdentityManager::_global_delegate_idx
                         << " ptr " << (uint64_t)this;
-        _error_handled = true;
         _connected = false;
         _socket->cancel();
         _socket->close();
@@ -334,8 +333,10 @@ ConsensusNetIO::OnNetIOError(const ErrorCode &ec, bool reconnect)
 
     if (!_error_handled)
     {
+        _error_handled = true;
         _queued_writes.clear();
         _queue_reservation = 0;
+
         Close();
 
         _error_handler.OnNetIOError(ec, _remote_delegate_id, reconnect);
