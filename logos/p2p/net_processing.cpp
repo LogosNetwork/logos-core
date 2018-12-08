@@ -54,10 +54,6 @@ static constexpr int HISTORICAL_BLOCK_AGE = 7 * 24 * 60 * 60;
 
 CCriticalSection cs_main;
 
-CCriticalSection g_cs_orphans;
-
-void EraseOrphansFor(NodeId peer);
-
 /** Increase a node's misbehavior score. */
 void Misbehaving(NodeId nodeid, int howmuch, const std::string& message="") EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
@@ -283,7 +279,6 @@ void PeerLogicValidation::FinalizeNode(NodeId nodeid, bool& fUpdateConnectionTim
         fUpdateConnectionTime = true;
     }
 
-    EraseOrphansFor(nodeid);
     nPreferredDownload -= state->fPreferredDownload;
     nPeersWithValidatedDownloads -= (state->nBlocksInFlightValidHeaders != 0);
     assert(nPeersWithValidatedDownloads >= 0);
@@ -309,18 +304,6 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats) {
         return false;
     stats.nMisbehavior = state->nMisbehavior;
     return true;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-// mapOrphanTransactions
-//
-
-void EraseOrphansFor(NodeId peer)
-{
-    LOCK(g_cs_orphans);
-    int nErased = 0;
-    if (nErased > 0) LogPrint(BCLog::MEMPOOL, "Erased %d orphan tx from peer=%d\n", nErased, peer);
 }
 
 /**

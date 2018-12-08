@@ -613,7 +613,6 @@ void CConnman::DumpBanlist()
 void CNode::CloseSocketDisconnect()
 {
     fDisconnect = true;
-    LOCK(cs_hSocket);
     if (session) {
 	session->shutdown();
     }
@@ -1041,7 +1040,6 @@ void CConnman::SocketSendData(CNode *pnode)
 
     const auto &data = *it;
     {
-	LOCK(pnode->cs_hSocket);
 	pnode->session->async_write(reinterpret_cast<const char*>(data.data()), data.size());
     }
 }
@@ -1407,13 +1405,10 @@ void CConnman::ThreadSocketHandler()
                 if (pnode->GetRefCount() <= 0) {
                     bool fDelete = false;
                     {
-                        TRY_LOCK(pnode->cs_inventory, lockInv);
-                        if (lockInv) {
-                            TRY_LOCK(pnode->cs_vSend, lockSend);
-                            if (lockSend) {
-                                fDelete = true;
-                            }
-                        }
+			TRY_LOCK(pnode->cs_vSend, lockSend);
+			if (lockSend) {
+			    fDelete = true;
+			}
                     }
                     if (fDelete) {
                         vNodesDisconnected.remove(pnode);
@@ -2058,7 +2053,6 @@ void CConnman::ThreadMessageHandler()
                 return;
             // Send messages
             {
-                LOCK(pnode->cs_sendProcessing);
                 m_msgproc->SendMessages(pnode);
             }
 
@@ -2671,7 +2665,6 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     fInbound(fInboundIn),
     nKeyedNetGroup(nKeyedNetGroupIn),
     addrKnown(5000, 0.001),
-    filterInventoryKnown(50000, 0.000001),
     id(idIn),
     nLocalHostNonce(nLocalHostNonceIn),
     nLocalServices(nLocalServicesIn),
@@ -2701,16 +2694,12 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     nSendSize = 0;
     hashContinue = uint512();
     nStartingHeight = -1;
-    filterInventoryKnown.reset();
-    fSendMempool = false;
     fGetAddr = false;
     nNextLocalAddrSend = 0;
     nNextAddrSend = 0;
-    nNextInvSend = 0;
     fRelayTxes = false;
     fSentAddr = false;
     pfilter = MakeUnique<CBloomFilter>();
-    timeLastMempoolReq = 0;
     nLastBlockTime = 0;
     nLastTXTime = 0;
     nPingNonceSent = 0;

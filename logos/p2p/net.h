@@ -706,15 +706,12 @@ public:
     size_t nSendSize; // total size of all vSendMsg entries
     uint64_t nSendBytes;
     std::deque<std::vector<unsigned char>> vSendMsg;
-    CCriticalSection cs_vSend;
-    CCriticalSection cs_hSocket;
-    CCriticalSection cs_vRecv;
+    Mutex cs_vSend;
+    Mutex cs_vRecv;
 
-    CCriticalSection cs_vProcessMsg;
+    Mutex cs_vProcessMsg;
     std::list<CNetMessage> vProcessMsg;
     size_t nProcessQueueSize;
-
-    CCriticalSection cs_sendProcessing;
 
     uint64_t nRecvBytes;
     std::atomic<int> nRecvVersion;
@@ -733,7 +730,7 @@ public:
     // store the sanitized version in cleanSubVer. The original should be used when dealing with
     // the network or wire types and the cleaned string used when displayed or logged.
     std::string strSubVer, cleanSubVer;
-    CCriticalSection cs_SubVer; // used for both cleanSubVer and strSubVer
+    Mutex cs_SubVer; // used for both cleanSubVer and strSubVer
     bool fWhitelisted; // This peer can bypass DoS banning.
     bool fFeeler; // If true this node is being used as a short lived feeler.
     bool fOneShot;
@@ -750,7 +747,7 @@ public:
     bool fRelayTxes; //protected by cs_filter
     bool fSentAddr;
     CSemaphoreGrant grantOutbound;
-    CCriticalSection cs_filter;
+    Mutex cs_filter;
     std::unique_ptr<CBloomFilter> pfilter;
     std::atomic<int> nRefCount;
 
@@ -776,16 +773,6 @@ public:
     int64_t nNextAddrSend;
     int64_t nNextLocalAddrSend;
 
-    // inventory based relay
-    CRollingBloomFilter filterInventoryKnown;
-    CCriticalSection cs_inventory;
-    int64_t nNextInvSend;
-    // Used for BIP35 mempool sending, also protected by cs_inventory
-    bool fSendMempool;
-
-    // Last time a "MEMPOOL" request was serviced.
-    std::atomic<int64_t> timeLastMempoolReq;
-
     // Block and TXN accept times
     std::atomic<int64_t> nLastBlockTime;
     std::atomic<int64_t> nLastTXTime;
@@ -803,7 +790,6 @@ public:
     std::atomic<bool> fPingQueued;
     // Minimum fee rate with which to filter inv's to this node
     CAmount minFeeFilter;
-    CCriticalSection cs_feeFilter;
     CAmount lastSentFeeFilter;
     int64_t nextSendTimeFeeFilter;
 
@@ -826,7 +812,7 @@ private:
 
     // Our address, as reported by the peer
     CService addrLocal;
-    mutable CCriticalSection cs_addrLocal;
+    mutable Mutex cs_addrLocal;
 public:
 
     NodeId GetId() const {

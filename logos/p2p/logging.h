@@ -55,7 +55,6 @@ namespace BCLog {
     class Logger
     {
     private:
-        std::mutex m_file_mutex;
         std::list<std::string> m_msgs_before_open;
 
         /**
