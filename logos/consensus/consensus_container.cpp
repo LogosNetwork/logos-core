@@ -449,10 +449,8 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
 
     // schedule for destruction
     auto gb = _trans_epoch;
-    _alarm.add(GARBAGE_COLLECT, [this, gb]() mutable -> void {
+    _alarm.add(GARBAGE_COLLECT, [gb]() mutable -> void {
         gb = nullptr;
-        LOG_DEBUG(_log) << "ConsensusContainer::EpochTransitionEnd epoch manager reference "
-                       << gb.use_count();
     });
     _trans_epoch = nullptr;
 

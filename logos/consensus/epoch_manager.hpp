@@ -52,16 +52,16 @@ class EpochManager : public EpochInfo,
 
 public:
     EpochManager(Service & service,
-                     Store & store,
-                     Alarm & alarm,
-                     const Config & config,
-                     Archiver & archiver,
-                     PeerAcceptorStarter & starter,
-                     std::atomic<EpochTransitionState> & state,
-                     EpochTransitionDelegate delegate,
-                     EpochConnection connection,
-                     const uint32_t epoch_number,
-                     NewEpochEventHandler & event_handler);
+                 Store & store,
+                 Alarm & alarm,
+                 const Config & config,
+                 Archiver & archiver,
+                 PeerAcceptorStarter & starter,
+                 std::atomic<EpochTransitionState> & state,
+                 EpochTransitionDelegate delegate,
+                 EpochConnection connection,
+                 const uint32_t epoch_number,
+                 NewEpochEventHandler & event_handler);
     ~EpochManager();
 
     uint32_t GetEpochNumber() override { return _epoch_number; }
@@ -89,6 +89,15 @@ public:
     void CleanUp();
 
 private:
+
+    /// Update secondary request handler promoter during epoch transition
+    void UpdateRequestPromoter()
+    {
+        _batch_manager.UpdateRequestPromoter();
+        _micro_manager.UpdateRequestPromoter();
+        _epoch_manager.UpdateRequestPromoter();
+    }
+
     std::atomic<EpochTransitionState> &     _state;             ///< State of transition
     std::atomic<EpochTransitionDelegate>    _delegate;          ///< Type of transition delegate
     std::atomic<EpochConnection>            _connection_state;  ///< Delegate's connection set
@@ -101,12 +110,4 @@ private:
     EpochConsensusManager	                _epoch_manager; 	///< Handles epoch consensus
     ConsensusNetIOManager                   _netio_manager; 	///< Establishes connections to other delegates
     Log                                     _log;               ///< Boost log reference
-
-    /// Update secondary request handler promoter during epoch transition
-    void UpdateRequestPromoter()
-    {
-        _batch_manager.UpdateRequestPromoter();
-        _micro_manager.UpdateRequestPromoter();
-        _epoch_manager.UpdateRequestPromoter();
-    }
 };
