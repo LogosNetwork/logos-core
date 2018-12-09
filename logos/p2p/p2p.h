@@ -16,6 +16,13 @@ struct MDB_env;
 typedef unsigned int MDB_dbi;
 #endif
 
+enum userInterfaceMessageTypes {
+	P2P_UI_INFO	= 1,
+	P2P_UI_WARNING	= 2,
+	P2P_UI_ERROR	= 4,
+	P2P_UI_INIT	= 8,
+};
+
 struct p2p_config {
 	int argc;
 	char **argv;
@@ -23,7 +30,7 @@ struct p2p_config {
 	MDB_dbi lmdb_dbi;
 	void *boost_io_service;
 	std::function<void(std::function<void()> const &, unsigned)> scheduleAfterMs;
-	std::function<void(const char *)> init_print;
+	std::function<void(int,const char *)> userInterfaceMessage;
 };
 
 enum p2p_option_flags {

@@ -92,7 +92,10 @@ int main(int argc, char **argv) {
 	boost::asio::io_service io_service;
 	config.boost_io_service = &io_service;
 	config.scheduleAfterMs = std::bind(&::scheduleAfterMs, std::placeholders::_1, std::placeholders::_2);
-	config.init_print = [](const char *mess){ printf("Init message: %s\n", mess); };
+	config.userInterfaceMessage = [](int type, const char *mess){
+		std::cout << (type & P2P_UI_INIT ? "init " : "")
+			<< (type & P2P_UI_ERROR ? "error" : type & P2P_UI_WARNING ? "warning" : "message") << ": " << mess << std::endl;
+	};
 
 	err = mdb_env_create(&config.lmdb_env);
 	if (err) { mess = "env create"; goto fail; }

@@ -12,36 +12,41 @@ CClientUIInterface uiInterface;
 /** Progress message during initialization. */
 void CClientUIInterface::InitMessage(const std::string& message)
 {
-    config->init_print((std::string("Info: ") + message).c_str());
+    config->userInterfaceMessage(P2P_UI_INFO|P2P_UI_INIT, message.c_str());
 }
 
 /** Number of network connections changed. */
 void CClientUIInterface::NotifyNumConnectionsChanged(int newNumConnections)
 {
-    config->init_print((std::string("Message: number of connections changed to ") + std::to_string(newNumConnections) + ".").c_str());
+    std::string message = "number of connections changed to ";
+    message += std::to_string(newNumConnections);
+    config->userInterfaceMessage(P2P_UI_INFO, message.c_str());
 }
 
 /** Network activity state changed. */
 void CClientUIInterface::NotifyNetworkActiveChanged(bool networkActive)
 {
-    config->init_print((std::string("Message: network is now ") + (networkActive ? "active" : "inactive") + ".").c_str());
+    std::string message = "network is now ";
+    message += (networkActive ? "active" : "inactive");
+    config->userInterfaceMessage(P2P_UI_INFO, message.c_str());
 }
 
 /** Banlist did change. */
 void CClientUIInterface::BannedListChanged()
 {
-    config->init_print((std::string("Message: banned list changed.")).c_str());
+    std::string message = "banned list changed ";
+    config->userInterfaceMessage(P2P_UI_INFO, message.c_str());
 }
 
 bool InitError(const std::string& str)
 {
-    uiInterface.config->init_print((std::string("Error: ") + str).c_str());
+    uiInterface.config->userInterfaceMessage(P2P_UI_ERROR|P2P_UI_INIT, str.c_str());
     return false;
 }
 
 void InitWarning(const std::string& str)
 {
-    uiInterface.config->init_print((std::string("Warning: ") + str).c_str());
+    uiInterface.config->userInterfaceMessage(P2P_UI_WARNING|P2P_UI_INIT, str.c_str());
 }
 
 std::string AmountHighWarn(const std::string& optname)
