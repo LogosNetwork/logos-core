@@ -28,25 +28,22 @@ struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
 
     BatchStateBlock & operator= (const BatchStateBlock & other)
     {
+        Header::operator=(other);
+
         auto b_size = other.block_count * sizeof(logos::state_block);
 
         // BatchStateBlock members
         sequence = other.sequence;
         block_count = other.block_count;
         epoch_number = other.epoch_number;
+
         for(uint64_t i = 0; i < block_count; ++i)
         {
             new(&blocks[i]) logos::state_block(other.blocks[i]);
         }
+
         next = other.next;
         memcpy(signature.data(), other.signature.data(), sizeof(signature));
-
-        // MessageHeader members
-        timestamp = other.timestamp;
-        previous = other.previous;
-
-        // MessagePrequel members are
-        // unchanged.
 
         return *this;
     }
