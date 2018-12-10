@@ -112,6 +112,14 @@ struct MessagePrequel
         }
     }
 
+    MessagePrequel<MT, CT> & operator= (const MessagePrequel<MT, CT> & other)
+    {
+        const_cast<uint8_t &>(version) = other.version;
+        const_cast<size_t &>(payload_stream_size) = other.payload_stream_size;
+
+        return *this;
+    }
+
     void Hash(blake2b_state & hash) const
     {
         blake2b_update(&hash, &version, sizeof(version));
@@ -166,6 +174,16 @@ struct MessageHeader : MessagePrequel<MT, CT>
         {
             return;
         }
+    }
+
+    MessageHeader<MT, CT> & operator= (const MessageHeader<MT, CT> & other)
+    {
+        MessagePrequel<MT, CT>::operator=(other);
+
+        timestamp = other.timestamp;
+        previous = other.previous;
+
+        return *this;
     }
 
     void Hash(blake2b_state & hash) const
