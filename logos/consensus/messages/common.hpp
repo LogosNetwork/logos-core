@@ -138,7 +138,7 @@ struct MessagePrequel
     const uint8_t       version        = 0;
     const MessageType   type           = MT;
     const ConsensusType consensus_type = CT;
-    size_t payload_stream_size         = 0;
+    mutable size_t payload_stream_size = 0;
 };
 
 template<MessageType MT, ConsensusType CT>

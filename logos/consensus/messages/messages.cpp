@@ -135,12 +135,10 @@ void BatchStateBlock::SerializeJson(boost::property_tree::ptree & batch_state_bl
 
 void BatchStateBlock::Serialize(logos::stream & stream) const
 {
-    auto & pss = const_cast<BatchStateBlock *>(this)->payload_stream_size;
-
-    pss = BatchStateBlock::STREAM_SIZE +
-          Header::STREAM_SIZE +
-          Prequel::STREAM_SIZE +
-          (logos::state_block::size * block_count);
+    payload_stream_size = BatchStateBlock::STREAM_SIZE +
+                          Header::STREAM_SIZE +
+                          Prequel::STREAM_SIZE +
+                          (logos::state_block::size * block_count);
 
     Header::Serialize(stream);
 
