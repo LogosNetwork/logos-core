@@ -222,6 +222,8 @@ private:
     CreateEpochManager(uint epoch_number, const ConsensusManagerConfig &config,
         EpochTransitionDelegate delegate, EpochConnection connnection);
 
+    static const std::chrono::seconds GARBAGE_COLLECT;
+
     static std::atomic<uint32_t>        _cur_epoch_number;          ///< current epoch number
     EpochPeerManager                    _peer_manager;              ///< processes accept callback
     std::mutex                          _mutex;                     ///< protects access to _cur_epoch

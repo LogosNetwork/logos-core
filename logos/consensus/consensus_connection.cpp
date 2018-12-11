@@ -76,6 +76,7 @@ void ConsensusConnection<CT>::OnData()
             break;
         case MessageType::Key_Advert:
         case MessageType::Unknown:
+        case MessageType::Heart_Beat:
             LOG_ERROR(_log) << "ConsensusConnection - Received "
                             << MessageToName(type)
                             << " message type";
@@ -144,6 +145,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
             OnConsensusMessage(msg);
             break;
         }
+        case MessageType::Heart_Beat:
         case MessageType::Key_Advert:
         case MessageType::Unknown:
             break;

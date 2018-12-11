@@ -67,11 +67,21 @@ public:
         Send(reinterpret_cast<const void *>(&data), sizeof(data));
     }
 
-    virtual ~ConsensusConnection() {}
+    virtual ~ConsensusConnection()
+    {
+        LOG_DEBUG(_log) << "~ConsensusConnection<" << ConsensusToName(CT) << ">";
+    }
 
     void OnPrequel(const uint8_t * data) override;
 
     virtual bool IsPrePrepared(const logos::block_hash & hash) = 0;
+
+    bool IsRemoteDelegate(uint8_t delegate_id)
+    {
+        return _delegate_ids.remote == delegate_id;
+    }
+
+    virtual void CleanUp() {}
 
 protected:
 
@@ -166,5 +176,5 @@ protected:
     RequestPromoter<CT> &       _promoter; ///< secondary list request promoter
     uint64_t                    _sequence_number = 0;
     EpochEventsNotifier &       _events_notifier;
-    PersistenceManager<CT> &   _persistence_manager;
+    PersistenceManager<CT> &    _persistence_manager;
 };

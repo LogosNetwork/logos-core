@@ -21,6 +21,11 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
 {
     _state = ConsensusState::INITIALIZING;
     _store.batch_tip_get(_delegate_id, _prev_hash);
+    BatchStateBlock block;
+    if (_prev_hash != 0 && !_store.batch_block_get(_prev_hash, block))
+    {
+        _sequence = block.sequence + 1;
+    }
 }
 
 void
@@ -52,13 +57,8 @@ BatchBlockConsensusManager::BindIOChannel(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities & ids)
 {
-    auto connection =
-            std::make_shared<BBConsensusConnection>(
-                    iochannel, *this, *this, _validator,
-                    ids, _service, _events_notifier, _persistence_manager);
+    auto connection = Manager::BindIOChannel(iochannel, ids);
 
-    _connections.push_back(connection);
-	
     if(++_channels_bound == QUORUM_SIZE)
     {
         OnDelegatesConnected();

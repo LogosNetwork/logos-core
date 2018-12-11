@@ -5,6 +5,8 @@
 #include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
 
+#include <arpa/inet.h>
+
 struct BatchStateBlock : MessageHeader<MessageType::Pre_Prepare,
                                        ConsensusType::BatchStateBlock>
 {
@@ -101,6 +103,13 @@ struct ConnectedClientIds
     uint epoch_number;
     uint8_t delegate_id;
     EpochConnection connection;
+    char ip[INET6_ADDRSTRLEN];
+};
+
+struct HeartBeat : MessagePrequel<MessageType::Heart_Beat,
+                                  ConsensusType::Any>
+{
+    bool is_request = true;
 };
 
 // Convenience aliases for message names.
