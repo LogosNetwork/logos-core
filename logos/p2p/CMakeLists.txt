@@ -84,10 +84,7 @@ target_link_libraries (p2p
 	${Boost_PROGRAM_OPTIONS_LIBRARY}
 	${Boost_SYSTEM_LIBRARY}
 	${Boost_THREAD_LIBRARY}
-	Boost::boost
 	crypto
-	event
-	event_pthreads
 	pthread
 	ssl
 	${CMAKE_DL_LIBS}
@@ -98,5 +95,10 @@ target_compile_definitions(p2p
 		-DRAIBLOCKS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR}
 		-DRAIBLOCKS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR}
 		-DHAVE_CONFIG_H)
+
+set_target_properties(p2p 
+	PROPERTIES
+            CXX_STANDARD 14
+        )
 
 add_subdirectory(test)

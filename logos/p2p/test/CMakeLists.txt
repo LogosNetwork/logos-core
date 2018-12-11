@@ -18,3 +18,8 @@ target_compile_definitions(p2p
 target_compile_options(p2p
 	PRIVATE
 		-g)
+
+set_target_properties(p2p-standalone PROPERTIES
+            CXX_STANDARD 14
+        )
+
