@@ -1,5 +1,6 @@
 #include <logos/consensus/primary_delegate.hpp>
 
+#include <boost/multiprecision/cpp_dec_float.hpp>
 #include <boost/asio/error.hpp>
 
 template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::BatchStateBlock>&);
@@ -192,13 +193,25 @@ void PrimaryDelegate::OnCurrentEpochSet()
     for(uint64_t pos = 0; pos < NUM_DELEGATES; ++pos)
     {
         auto & delegate = _current_epoch.delegates[pos];
-        auto sum = delegate.stake + delegate.vote;
 
-        _total_weight += sum;
-        _weights[pos] = sum;
+        _vote_total += delegate.vote;
+        _stake_total += delegate.stake;
+
+        _weights[pos] = {delegate.vote, delegate.stake};
+
+        if(pos == _delegate_id)
+        {
+            _my_vote = delegate.vote;
+            _my_stake = delegate.stake;
+        }
     }
 
-    _my_weight = _weights[_delegate_id];
+    namespace mp = boost::multiprecision;
+
+    typedef mp::number<mp::cpp_dec_float<5>> mp_float;
+
+    _vote_quorum = 2 * mp::ceil(static_cast<mp_float>(_vote_total)/3).convert_to<uint128_t>();
+    _stake_quorum = 2 * mp::ceil(static_cast<mp_float>(_stake_total)/3).convert_to<uint128_t>();
 }
 
 void PrimaryDelegate::UpdateVotes()
@@ -210,7 +223,8 @@ void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
     LOG_INFO(_log) << "PrimaryDelegate - Initiating Consensus with PrePrepare hash: "
                    << block.Hash().to_string();
 
-    _prepare_weight = _my_weight;
+    _prepare_vote = _my_vote;
+    _prepare_stake = _my_stake;
 
     _cur_hash = block.Hash();
     _cur_batch_timestamp = block.timestamp;
@@ -231,9 +245,15 @@ void PrimaryDelegate::CancelTimer()
     }
 }
 
+bool PrimaryDelegate::ReachedQuorum(uint128_t vote, uint128_t stake)
+{
+    return vote > _vote_quorum && stake > _stake_quorum;
+}
+
 bool PrimaryDelegate::ReachedQuorum()
 {
-    return _prepare_weight >= 2 * (_total_weight/3);
+    return ReachedQuorum(_prepare_vote,
+                         _prepare_stake);
 }
 
 bool PrimaryDelegate::AllDelegatesResponded()
@@ -262,7 +282,9 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
         // aggregated.
         if(message.type != MessageType::Rejection)
         {
-            _prepare_weight += _weights[_cur_delegate_id];
+            _prepare_vote += _weights[_cur_delegate_id].vote_weight;
+            _prepare_stake += _weights[_cur_delegate_id].stake_weight;
+
             _signatures.push_back({_cur_delegate_id,
                                    message.signature});
         }
@@ -288,7 +310,8 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
 void PrimaryDelegate::AdvanceState(ConsensusState new_state)
 {
     _state = new_state;
-    _prepare_weight = _my_weight;
+    _prepare_vote = _my_vote;
+    _prepare_stake = _my_stake;
     _delegates_responded = 0;
     _signatures.clear();
 

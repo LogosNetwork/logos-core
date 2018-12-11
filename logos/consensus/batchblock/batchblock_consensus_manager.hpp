@@ -17,14 +17,17 @@ class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchSt
     using Timer       = boost::asio::deadline_timer;
     using Error       = boost::system::error_code;
     using Hashes      = std::unordered_set<BlockHash>;
+    using uint128_t   = logos::uint128_t;
 
     struct Weights
     {
         using Delegates = std::unordered_set<uint8_t>;
 
-        logos::uint128_t reject_weight           = 0;
-        logos::uint128_t indirect_support_weight = 0;
-        Delegates        supporting_delegates;
+        uint128_t reject_vote            = 0;
+        uint128_t reject_stake           = 0;
+        uint128_t indirect_vote_support  = 0;
+        uint128_t indirect_stake_support = 0;
+        Delegates supporting_delegates;
     };
 
     using WeightList = std::array<Weights, CONSENSUS_BATCH_SIZE>;
@@ -166,15 +169,23 @@ private:
 
     void OnDelegatesConnected();
 
-    WeightList              _weights;
-    Hashes                  _hashes;
-    bool                    _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
-    BlockBuffer             _buffer;                        ///< Buffered state blocks.
-    static RequestHandler   _handler;                       ///< Primary queue of batch state blocks.
-    Timer                   _init_timer;
-    Service &               _service;
-    uint64_t                _sequence             = 0;
-    logos::uint128_t        _connected_weight     = 0;
-    uint32_t                _new_epoch_rejections = 0;      ///< New Epoch rejection message count.
-    bool                    _delegates_connected  = false;
+    void OnCurrentEpochSet() override;
+
+    bool Rejected(uint128_t reject_vote, uint128_t reject_stake);
+
+    WeightList            _response_weights;
+    Hashes                _hashes;
+    BlockBuffer           _buffer;                        ///< Buffered state blocks.
+    static RequestHandler _handler;                       ///< Primary queue of batch state blocks.
+    Timer                 _init_timer;
+    Service &             _service;
+    uint64_t              _sequence              = 0;
+    uint128_t             _connected_vote        = 0;
+    uint128_t             _connected_stake       = 0;
+    uint128_t             _ne_reject_vote        = 0;     ///< New Epoch rejection vote weight.
+    uint128_t             _ne_reject_stake       = 0;     ///< New Epoch rejection stake weight.
+    uint128_t             _vote_reject_quorum    = 0;
+    uint128_t             _stake_reject_quorum   = 0;
+    bool                  _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
+    bool                  _delegates_connected   = false;
 };
