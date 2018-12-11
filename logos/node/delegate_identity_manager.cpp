@@ -151,7 +151,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 char buff[5];
                 sprintf(buff, "%02x", del + 1);
                 logos::keypair pair(buff);
-                delegate = {pair.pub, bls_key.pub, 0, 100000 + (uint64_t)del * 100};
+                delegate = {pair.pub, bls_key.pub, 100000 + (uint64_t)del * 100, 100000 + (uint64_t)del * 100};
             }
             epoch.delegates[i] = delegate;
         }
