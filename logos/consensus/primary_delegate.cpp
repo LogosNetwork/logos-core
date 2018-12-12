@@ -206,12 +206,20 @@ void PrimaryDelegate::OnCurrentEpochSet()
         }
     }
 
-    namespace mp = boost::multiprecision;
+    auto ceil = [](uint128_t n, uint128_t d, bool & r)
+                {
+                    uint128_t t = n/d;
 
-    typedef mp::number<mp::cpp_dec_float<5>> mp_float;
+                    r = (((n < 0) ^ (d > 0)) &&
+                         (n - t*d));
 
-    _vote_quorum = 2 * mp::ceil(static_cast<mp_float>(_vote_total)/3).convert_to<uint128_t>();
-    _stake_quorum = 2 * mp::ceil(static_cast<mp_float>(_stake_total)/3).convert_to<uint128_t>();
+                    t += r;
+
+                    return t;
+                };
+
+    _vote_quorum = ceil(2 * _vote_total, 3, _vq_rounded);
+    _stake_quorum = ceil(2 * _stake_total, 3, _sq_rounded);
 }
 
 void PrimaryDelegate::UpdateVotes()
@@ -247,7 +255,14 @@ void PrimaryDelegate::CancelTimer()
 
 bool PrimaryDelegate::ReachedQuorum(uint128_t vote, uint128_t stake)
 {
-    return vote > _vote_quorum && stake > _stake_quorum;
+    auto op = [](bool & r, uint128_t t, uint128_t q)
+              {
+                  return r ? t >= q
+                           : t > q;
+              };
+
+    return op(_vq_rounded, vote, _vote_quorum) &&
+           op(_sq_rounded, stake, _stake_quorum);
 }
 
 bool PrimaryDelegate::ReachedQuorum()
