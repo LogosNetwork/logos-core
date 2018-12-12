@@ -84,6 +84,8 @@ protected:
     uint128_t            _stake_total     = 0;
     uint128_t            _vote_quorum     = 0;
     uint128_t            _stake_quorum    = 0;
+    bool                 _vq_rounded      = false;
+    bool                 _sq_rounded      = false;
     uint128_t            _prepare_vote    = 0;
     uint128_t            _prepare_stake   = 0;
     uint128_t            _my_vote         = 0;

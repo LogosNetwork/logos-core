@@ -554,5 +554,12 @@ BatchBlockConsensusManager::OnCurrentEpochSet()
 bool
 BatchBlockConsensusManager::Rejected(uint128_t reject_vote, uint128_t reject_stake)
 {
-    return reject_vote >= _vote_reject_quorum || reject_stake >_stake_reject_quorum;
+    auto op = [](bool & r, uint128_t t, uint128_t q)
+              {
+                  return r ? t > q
+                           : t >= q;
+              };
+
+    return op(_vq_rounded, reject_vote, _vote_reject_quorum) &&
+           op(_sq_rounded, reject_stake, _stake_reject_quorum);
 }
