@@ -70,8 +70,6 @@ BatchBlockConsensusManager::BindIOChannel(
 {
     auto connection = Manager::BindIOChannel(iochannel, ids);
 
-    _connections.push_back(connection);
-
     _connected_vote += _weights[ids.remote].vote_weight;
     _connected_stake += _weights[ids.remote].stake_weight;
 

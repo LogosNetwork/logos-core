@@ -66,7 +66,8 @@ protected:
     using Service     = boost::asio::io_service;
     using Config      = ConsensusManagerConfig;
     using Store       = logos::block_store;
-    using Connections = std::vector<std::shared_ptr<ConsensusConnection<CT>>>;
+    using Connection  = ConsensusConnection<CT>;
+    using Connections = std::vector<std::shared_ptr<Connection>>;
     using Manager     = ConsensusManager<CT>;
     using Request     = RequestMessage<CT>;
     using PrePrepare  = PrePrepareMessage<CT>;
