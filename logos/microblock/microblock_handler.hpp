@@ -33,7 +33,7 @@ public:
         , _recall_handler(recall_handler)
         {}
 
-    /// Class distructor
+    /// Class destructor
     virtual ~MicroBlockHandler() {}
 
     /// Build the block, called periodically by node

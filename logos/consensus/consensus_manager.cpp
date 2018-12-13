@@ -1,8 +1,9 @@
 #include <logos/consensus/consensus_manager.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 
-#include <boost/log/core.hpp>
 #include <boost/log/sources/severity_feature.hpp>
+#include <boost/log/core.hpp>
 
 template<ConsensusType CT>
 constexpr uint8_t ConsensusManager<CT>::BATCH_TIMEOUT_DELAY;
@@ -20,13 +21,17 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     : PrimaryDelegate(service, validator)
     , _store(store)
     , _validator(validator)
-    , _delegate_id(config.delegate_id)
     , _secondary_handler(SecondaryRequestHandlerInstance(service, this))
     , _events_notifier(events_notifier)
     , _reservations(std::make_shared<Reservations>(store))
     , _persistence_manager(store, _reservations)
     , _consensus_p2p(p2p, _delegate_id)
-{}
+{
+    _delegate_id = config.delegate_id;
+
+    DelegateIdentityManager::GetCurrentEpoch(_store, _current_epoch);
+    OnCurrentEpochSet();
+}
 
 template<ConsensusType CT>
 void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
@@ -102,6 +107,12 @@ ConsensusManager<CT>::GetStore()
 }
 
 template<ConsensusType CT>
+void ConsensusManager<CT>::Send(const PrePrepare & pre_prepare)
+{
+    Send(&pre_prepare, sizeof(PrePrepare));
+}
+
+template<ConsensusType CT>
 void ConsensusManager<CT>::Send(const void * data, size_t size, bool propagate)
 {
     std::lock_guard<std::mutex> lock(_connection_mutex);
@@ -153,7 +164,8 @@ template<ConsensusType CT>
 void ConsensusManager<CT>::InitiateConsensus()
 {
     LOG_INFO(_log) << "Initiating "
-                   << ConsensusToName(CT);
+                   << ConsensusToName(CT)
+                   << " consensus.";
 
     auto & pre_prepare = PrePrepareGetNext();
     pre_prepare.previous = _prev_hash;
@@ -163,7 +175,7 @@ void ConsensusManager<CT>::InitiateConsensus()
     _state = ConsensusState::PRE_PREPARE;
 
     _validator.Sign(pre_prepare);
-    Send(&pre_prepare, sizeof(PrePrepare));
+    Send(pre_prepare);
 }
 
 template<ConsensusType CT>
@@ -239,6 +251,8 @@ std::shared_ptr<PrequelParser>
 ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                                     const DelegateIdentities & ids)
 {
+    std::lock_guard<std::mutex> lock(_connection_mutex);
+
     auto connection = MakeConsensusConnection(iochannel, ids);
     _connections.push_back(connection);
 
@@ -250,6 +264,23 @@ void
 ConsensusManager<CT>::UpdateRequestPromoter()
 {
     _secondary_handler.UpdateRequestPromoter(this);
+}
+
+template<ConsensusType CT>
+void
+ConsensusManager<CT>::OnNetIOError(uint8_t delegate_id)
+{
+    std::lock_guard<std::mutex> lock(_connection_mutex);
+
+    for (auto it = _connections.begin(); it != _connections.end(); ++it)
+    {
+        if ((*it)->IsRemoteDelegate(delegate_id))
+        {
+            (*it)->CleanUp();
+            _connections.erase(it);
+            break;
+        }
+    }
 }
 
 template class ConsensusManager<ConsensusType::BatchStateBlock>;

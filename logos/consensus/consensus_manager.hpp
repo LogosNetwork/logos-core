@@ -18,19 +18,20 @@
 
 class EpochEventsNotifier;
 
-class ChannelBinder
+class NetIOHandler
 {
 
 public:
 
-  ChannelBinder() {}
+    NetIOHandler() = default;
 
-  virtual ~ChannelBinder() {}
+    virtual ~NetIOHandler() = default;
 
-  virtual
-  std::shared_ptr<PrequelParser>
-  BindIOChannel(std::shared_ptr<IOChannel>,
-                const DelegateIdentities &) = 0;
+    virtual
+    std::shared_ptr<PrequelParser>
+    BindIOChannel(std::shared_ptr<IOChannel>,
+                  const DelegateIdentities &) = 0;
+  virtual void OnNetIOError(uint8_t delegate_id) = 0;
 };
 
 template<ConsensusType CT>
@@ -40,6 +41,7 @@ class RequestPromoter
     using Store      = logos::block_store;
 
 protected:
+
     using Request    = RequestMessage<CT>;
     using PrePrepare = PrePrepareMessage<CT>;
 
@@ -56,7 +58,7 @@ public:
 
 template<ConsensusType CT>
 class ConsensusManager : public PrimaryDelegate,
-                         public ChannelBinder,
+                         public NetIOHandler,
                          public RequestPromoter<CT>
 {
 
@@ -65,7 +67,8 @@ protected:
     using Service     = boost::asio::io_service;
     using Config      = ConsensusManagerConfig;
     using Store       = logos::block_store;
-    using Connections = std::vector<std::shared_ptr<ConsensusConnection<CT>>>;
+    using Connection  = ConsensusConnection<CT>;
+    using Connections = std::vector<std::shared_ptr<Connection>>;
     using Manager     = ConsensusManager<CT>;
     using Request     = RequestMessage<CT>;
     using PrePrepare  = PrePrepareMessage<CT>;
@@ -88,11 +91,15 @@ public:
     virtual void OnBenchmarkSendRequest(std::shared_ptr<Request> block,
                                         logos::process_return & result) = 0;
 
+    virtual void Send(const PrePrepare & pre_prepare);
     void Send(const void * data, size_t size, bool propagate = false) override;
 
     bool OnP2pReceive(const void * data, size_t size);
 
-    virtual ~ConsensusManager() {}
+    virtual ~ConsensusManager()
+    {
+        LOG_DEBUG(_log) << "~ConsensusManager<" << ConsensusToName(CT) << ">";
+    }
 
     void OnRequestReady(std::shared_ptr<Request> block) override;
 
@@ -106,6 +113,8 @@ public:
 
     /// Update secondary request handler promoter
     void UpdateRequestPromoter();
+
+    void OnNetIOError(uint8_t delegate_id) override;
 
 protected:
 
@@ -166,7 +175,6 @@ protected:
     MessageValidator &              _validator;
     std::mutex                      _connection_mutex;
     Log                             _log;
-    uint8_t                         _delegate_id;
     SecondaryRequestHandler<CT> &   _secondary_handler;    ///< Secondary queue of blocks.
     EpochEventsNotifier &           _events_notifier;      ///< Notifies epoch manager of transition related events
     ReservationsPtr                 _reservations;

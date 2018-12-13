@@ -69,11 +69,21 @@ public:
         Send(reinterpret_cast<const void *>(&data), sizeof(data));
     }
 
-    virtual ~ConsensusConnection() {}
+    virtual ~ConsensusConnection()
+    {
+        LOG_DEBUG(_log) << "~ConsensusConnection<" << ConsensusToName(CT) << ">";
+    }
 
     void OnPrequel(const uint8_t * data) override;
 
     virtual bool IsPrePrepared(const logos::block_hash & hash) = 0;
+
+    bool IsRemoteDelegate(uint8_t delegate_id)
+    {
+        return _delegate_ids.remote == delegate_id;
+    }
+
+    virtual void CleanUp() {}
 
 protected:
 
@@ -83,6 +93,9 @@ protected:
     using ReceiveBuffer = std::array<uint8_t, BUFFER_SIZE>;
 
     virtual void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) = 0;
+
+    virtual size_t GetPayloadSize();
+    virtual void DeliverPrePrepare();
 
     void OnData();
     void OnMessage(const uint8_t * data);
@@ -124,11 +137,11 @@ protected:
         M response(_pre_prepare_timestamp);
 
         response.previous = _pre_prepare_hash;
-        _validator.Sign(response);
 
         StoreResponse(response);
         UpdateMessage(response);
 
+        _validator.Sign(response);
         Send(response);
     }
 
@@ -168,6 +181,6 @@ protected:
     RequestPromoter<CT> &       _promoter; ///< secondary list request promoter
     uint64_t                    _sequence_number = 0;
     EpochEventsNotifier &       _events_notifier;
-    PersistenceManager<CT> &   _persistence_manager;
+    PersistenceManager<CT> &    _persistence_manager;
     ConsensusP2p<CT>            _consensus_p2p;
 };

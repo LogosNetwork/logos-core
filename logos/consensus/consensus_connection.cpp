@@ -24,13 +24,28 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
     , _events_notifier(events_notifer)
     , _persistence_manager(persistence_manager)
     , _consensus_p2p(p2p, ids.remote)
-{
-}
+{}
 
 template<ConsensusType CT>
 void ConsensusConnection<CT>::Send(const void * data, size_t size)
 {
     _iochannel->Send(data, size);
+}
+
+template<ConsensusType CT>
+size_t ConsensusConnection<CT>::GetPayloadSize()
+{
+    return sizeof(PrePrepare);
+}
+
+template<ConsensusType CT>
+void ConsensusConnection<CT>::DeliverPrePrepare()
+{
+    auto msg (*reinterpret_cast<const PrePrepare*>(_receive_buffer.data()));
+    OnConsensusMessage(msg);
+    _consensus_p2p.CleanBatch();
+    MessageType type (static_cast<MessageType> (_receive_buffer.data()[1]));
+    _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(type), false);
 }
 
 template<ConsensusType CT>
@@ -41,7 +56,7 @@ void ConsensusConnection<CT>::OnData()
     switch (type)
     {
         case MessageType::Pre_Prepare:
-            _iochannel->AsyncRead(sizeof(PrePrepare) -
+            _iochannel->AsyncRead(GetPayloadSize() -
                                   sizeof(Prequel),
                                   std::bind(&ConsensusConnection<CT>::OnMessage, this,
                                             std::placeholders::_1));
@@ -78,6 +93,7 @@ void ConsensusConnection<CT>::OnData()
             break;
         case MessageType::Key_Advert:
         case MessageType::Unknown:
+        case MessageType::Heart_Beat:
             LOG_ERROR(_log) << "ConsensusConnection - Received "
                             << MessageToName(type)
                             << " message type";
@@ -112,10 +128,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
     {
         case MessageType::Pre_Prepare:
         {
-            auto msg (*reinterpret_cast<const PrePrepare*>(_receive_buffer.data()));
-	    OnConsensusMessage(msg);
-	    _consensus_p2p.CleanBatch();
-	    _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(type), false);
+            DeliverPrePrepare();
             break;
         }
         case MessageType::Prepare:
@@ -150,6 +163,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
             OnConsensusMessage(msg);
             break;
         }
+        case MessageType::Heart_Beat:
         case MessageType::Key_Advert:
         case MessageType::Unknown:
             break;

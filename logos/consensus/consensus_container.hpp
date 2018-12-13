@@ -161,6 +161,7 @@ protected:
     logos::process_return OnSendRequest(std::shared_ptr<Epoch>) override;
 
 private:
+
     /// Set current epoch id, this is done by the NodeIdentityManager on startup
     /// And by epoch transition logic
     /// @param id epoch id
@@ -226,6 +227,8 @@ private:
     std::shared_ptr<EpochManager>
     CreateEpochManager(uint epoch_number, const ConsensusManagerConfig &config,
         EpochTransitionDelegate delegate, EpochConnection connnection);
+
+    static const std::chrono::seconds GARBAGE_COLLECT;
 
     static std::atomic<uint32_t>        _cur_epoch_number;          ///< current epoch number
     EpochPeerManager                    _peer_manager;              ///< processes accept callback

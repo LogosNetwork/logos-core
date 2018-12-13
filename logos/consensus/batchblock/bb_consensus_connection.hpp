@@ -61,6 +61,12 @@ public:
 
     void DoUpdateMessage(Rejection & message);
 
+    /// Cleanup before destruction
+    void CleanUp() override;
+
+    size_t GetPayloadSize() override;
+    void DeliverPrePrepare() override;
+
 private:
 
     static constexpr uint8_t TIMEOUT_MIN   = 20;

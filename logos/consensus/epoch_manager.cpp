@@ -37,6 +37,11 @@ EpochManager::EpochManager(Service & service,
         _key_store, _validator, starter, *this)
 {}
 
+EpochManager::~EpochManager()
+{
+    LOG_DEBUG(_log) << "EpochManager::~EpochManager";
+}
+
 void
 EpochManager::OnPostCommit(
     uint32_t epoch_number)
@@ -68,3 +73,8 @@ EpochManager::IsRecall()
     return _new_epoch_handler.IsRecall();
 }
 
+void
+EpochManager::CleanUp()
+{
+    _netio_manager.CleanUp();
+}

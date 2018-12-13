@@ -19,7 +19,6 @@ template<ConsensusType CT>
 struct RejectionMessage
     : MessageHeader<MessageType::Rejection, CT>
 {
-    static const size_t HASHABLE_BYTES;
 
     RejectionMessage(uint64_t timestamp)
         : MessageHeader<MessageType::Rejection,
@@ -27,11 +26,26 @@ struct RejectionMessage
         , reason(RejectionReason::Void)
     {}
 
+    BlockHash Hash() const
+    {
+        logos::uint256_union result;
+        blake2b_state hash;
+
+        auto status(blake2b_init(&hash, sizeof(result.bytes)));
+        assert(status == 0);
+
+        MessageHeader<MessageType::Rejection, CT>::Hash(hash);
+
+        blake2b_update(&hash, &reason, sizeof(reason));
+        blake2b_update(&hash, &rejection_map, sizeof(rejection_map));
+
+        status = blake2b_final(&hash, result.bytes.data(), sizeof(result.bytes));
+        assert(status == 0);
+
+        return result;
+    }
+
     RejectionReason reason;
     RejectionMap    rejection_map;
     Signature       signature;
 };
-
-template<ConsensusType CT>
-const size_t RejectionMessage<CT>::HASHABLE_BYTES = sizeof(RejectionMessage<CT>)
-                                                    - sizeof(Signature);
