@@ -97,8 +97,25 @@ bool ConsensusP2p<CT>::ProcessOutputMessage(const uint8_t *data, size_t size, bo
 }
 
 template<ConsensusType CT>
+MessageHeader<MessageType::Pre_Prepare, CT>*
+deserialize(const uint8_t * data, size_t size, PrePrepareMessage<CT> & block)
+{
+	return (PrePrepareMessage<CT>*)data;
+}
+
+template<>
+MessageHeader<MessageType::Pre_Prepare, ConsensusType::BatchStateBlock>*
+deserialize(const uint8_t * data, size_t size, PrePrepareMessage<ConsensusType::BatchStateBlock> & block)
+{
+	logos::bufferstream stream(data, size);
+	bool error;
+	return new(&block) BatchStateBlock(error, stream);
+}
+
+template<ConsensusType CT>
 bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, size_t size) {
     MessageType mtype = MessageType::Unknown;
+	PrePrepareMessage<CT> block;
     PrePrepareMessage<CT> *pre_mess = 0;
     uint8_t delegate_id;
     int mess_counter = 0;
@@ -140,8 +157,7 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, size_t size) {
 		break;
 	    case MessageType::Pre_Prepare:
 		{
-		    MessageHeader<MessageType::Pre_Prepare,CT> *head
-				= (MessageHeader<MessageType::Pre_Prepare,CT>*)data;
+		    MessageHeader<MessageType::Pre_Prepare,CT> *head = deserialize<CT>(data, size, block);
 		    if (head->type != mtype || head->consensus_type != CT) {
 			LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
 			    "> - error parsing p2p batch Pre_Prepare message";
