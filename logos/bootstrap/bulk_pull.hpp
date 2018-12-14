@@ -43,24 +43,4 @@ public:
     int iter_count;
 };
 
-class bulk_pull_blocks;
-class bulk_pull_blocks_server : public std::enable_shared_from_this<logos::bulk_pull_blocks_server>
-{
-public:
-    bulk_pull_blocks_server (std::shared_ptr<logos::bootstrap_server> const &, std::unique_ptr<logos::bulk_pull_blocks>);
-    void set_params ();
-    std::unique_ptr<logos::block> get_next ();
-    void send_next ();
-    void sent_action (boost::system::error_code const &, size_t);
-    void send_finished ();
-    void no_block_sent (boost::system::error_code const &, size_t);
-    std::shared_ptr<logos::bootstrap_server> connection;
-    std::unique_ptr<logos::bulk_pull_blocks> request;
-    std::vector<uint8_t> send_buffer;
-    logos::store_iterator stream;
-    logos::transaction stream_transaction;
-    uint32_t sent_count;
-    logos::block_hash checksum;
-};
-
 }
