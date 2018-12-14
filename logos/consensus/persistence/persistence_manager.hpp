@@ -74,7 +74,6 @@ private:
             if(!ret)
             {
                 accounts[account] = info;
-                LOG_INFO(log) << "Reservations::Acquire - Successfully acquired reservation on account " << account.to_account();
             }
 
             return ret;

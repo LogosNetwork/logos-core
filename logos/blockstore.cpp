@@ -556,7 +556,7 @@ void logos::block_store::frontier_del (MDB_txn * transaction_a, logos::block_has
 size_t logos::block_store::account_count (MDB_txn * transaction_a)
 {
     MDB_stat frontier_stats;
-    auto status (mdb_stat (transaction_a, accounts, &frontier_stats));
+    auto status (mdb_stat (transaction_a, account_db, &frontier_stats));
     assert (status == 0);
     auto result (frontier_stats.ms_entries);
     return result;

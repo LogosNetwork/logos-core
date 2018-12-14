@@ -99,51 +99,58 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
         auto msg (*reinterpret_cast<const Rejection*>(_receive_buffer.data()));
         message += ":" + RejectionReasonToName(msg.reason);
     }
-    LOG_DEBUG(_log) << "ConsensusConnection<"
-                    << ConsensusToName(CT) << "> - Received "
-                    << message
-                    << " message from delegate: " << (int)_delegate_ids.remote;
+    message = "ConsensusConnection<"
+            + ConsensusToName(CT)
+            + "> - Received " + message
+            + " message from delegate: " + std::to_string(_delegate_ids.remote);
 
     switch (type)
     {
         case MessageType::Pre_Prepare:
         {
             auto msg (*reinterpret_cast<const PrePrepare*>(_receive_buffer.data()));
+            LOG_DEBUG(_log) << message << " with block hash " << msg.Hash().to_string();
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Prepare:
         {
             auto msg (*reinterpret_cast<const Prepare*>(_receive_buffer.data()));
+            LOG_DEBUG(_log) << message << " with block hash " << msg.previous.to_string();
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Post_Prepare:
         {
             auto msg (*reinterpret_cast<const PostPrepare*>(_receive_buffer.data()));
+            LOG_DEBUG(_log) << message << " with block hash " << msg.previous.to_string();
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Commit:
         {
             auto msg (*reinterpret_cast<const Commit*>(_receive_buffer.data()));
+            LOG_DEBUG(_log) << message << " with block hash " << msg.previous.to_string();
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Post_Commit:
         {
             auto msg (*reinterpret_cast<const PostCommit*>(_receive_buffer.data()));
+            LOG_DEBUG(_log) << message << " with block hash " << msg.previous.to_string();
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Rejection:
         {
             auto msg (*reinterpret_cast<const Rejection*>(_receive_buffer.data()));
+            LOG_DEBUG(_log) << message << " with block hash " << msg.previous.to_string();
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Key_Advert:
         case MessageType::Unknown:
+            LOG_DEBUG(_log) << message;
             break;
     }
 

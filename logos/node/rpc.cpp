@@ -1786,8 +1786,6 @@ void logos::rpc_handler::account_history ()
             auto error (node.store.state_block_get (receive_block.hashables.link, receive_link_block, transaction));
             assert (!error);
         }
-        const logos::state_block & display_block = put_send ? send_block : receive_link_block;
-        const logos::block_hash & hash = put_send ? send_hash : receive_hash;
 
         if (offset > 0)
         {
@@ -1796,6 +1794,9 @@ void logos::rpc_handler::account_history ()
         else
         {
             boost::property_tree::ptree entry;
+            const logos::state_block & display_block = put_send ? send_block : receive_link_block;
+            const logos::block_hash & hash = put_send ? send_hash : receive_hash;
+
             entry.put ("type", put_send ? "send" : "receive");
             entry.put ("hash", hash.to_string ());
             // always show the account id of the other party in transaction
@@ -1804,12 +1805,14 @@ void logos::rpc_handler::account_history ()
             entry.put ("timestamp", std::to_string (display_block.timestamp));
             if (output_raw)
             {
-                entry.put ("representative", display_block.hashables.representative.to_account ());
-                entry.put ("link", display_block.hashables.link.to_string ());
-                entry.put ("previous", display_block.previous().to_string ());
-
-                entry.put ("work", logos::to_string_hex (display_block.block_work ()));
-                entry.put ("signature", display_block.block_signature ().to_string ());
+                if (put_send)
+                {
+                    entry.put ("representative", send_block.hashables.representative.to_account ());
+                    entry.put ("work", logos::to_string_hex (send_block.block_work ()));
+                    entry.put ("signature", send_block.block_signature ().to_string ());
+                }
+                entry.put ("link", put_send ? send_block.hashables.link.to_string () : receive_block.hashables.link.to_string());
+                entry.put ("previous", put_send ? send_block.previous().to_string () : receive_block.previous().to_string());
             }
 
             history.push_back (std::make_pair ("", entry));

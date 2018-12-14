@@ -127,6 +127,14 @@ MicroBlockHandler::GetTipsFast(
             num_blocks++;
         }
     });
+    // verify tips
+    for (uint8_t del = 0; del < NUM_DELEGATES; ++del)
+    {
+        if (tips[del] == 0)
+        {
+            tips[del] = end[del];
+        }
+    }
 }
 
 void
@@ -249,14 +257,14 @@ MicroBlockHandler::Build(
             : previous_micro_block.sequence + 1;
     block.last_micro_block = last_micro_block;
 
-    LOG_INFO(_log) << "MicroBlockHandler::Build, built microblock:"
-                   << " hash " << block.Hash().to_string()
-                   << " timestamp " << block.timestamp
-                   << " previous " << block.previous.to_string()
-                   << " epoch_number " << block.epoch_number
-                   << " account " << block.account.to_account()
-                   << " sequence " << block.sequence
-                   << " last_micro_block " << (int)block.last_micro_block;
+//    LOG_INFO(_log) << "MicroBlockHandler::Build, built microblock:"
+//                   << " hash " << block.Hash().to_string()
+//                   << " timestamp " << block.timestamp
+//                   << " previous " << block.previous.to_string()
+//                   << " epoch_number " << block.epoch_number
+//                   << " account " << block.account.to_account()
+//                   << " sequence " << block.sequence
+//                   << " last_micro_block " << (int)block.last_micro_block;
 
     return true;
 }

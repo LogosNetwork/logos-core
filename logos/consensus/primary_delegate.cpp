@@ -145,7 +145,7 @@ void PrimaryDelegate::OnTimeout(const Error & error,
                         << " Aborting timeout.";
         return;
     }
-
+    LOG_ERROR(_log) << "PrimaryDelegate::Ontimeout<" << ConsensusToName(C) << "> - Delegate going into recall! ";
     _state = ConsensusState::RECALL;
 }
 

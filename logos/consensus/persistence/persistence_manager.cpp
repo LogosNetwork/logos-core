@@ -122,7 +122,6 @@ bool PersistenceManager::Validate(const logos::state_block & block,
         DelegateIdentityManager::GetCurrentEpoch(_store, epoch);
         uint64_t current_epoch = epoch.epoch_number;
 //        uint64_t current_epoch = ConsensusContainer::GetCurEpochNumber();
-        LOG_DEBUG(_log) << "PersistenceManager::Validate - Current Epoch number is " << current_epoch;
 
         auto update_reservation = [&hash, current_epoch](logos::account_info & info)
                                   {
@@ -226,7 +225,7 @@ void PersistenceManager::StoreBatchMessage(const BatchStateBlock & message,
 
     StateBlockLocator locator_template {hash, 0};
 
-    for(uint64_t i = 0; i < CONSENSUS_BATCH_SIZE; ++i)
+    for(uint64_t i = 0; i < message.block_count; ++i)
     {
         locator_template.index = i;
         if(_store.state_block_put(message.blocks[i],
@@ -280,7 +279,7 @@ void PersistenceManager::ApplyStateMessage(
 bool PersistenceManager::UpdateSourceState(const logos::state_block & block, MDB_txn * transaction)
 {
     logos::account_info info;
-    auto account_error(_store.account_get(block.hashables.account, info));
+    auto account_error(_store.account_get(transaction, block.hashables.account, info));
 
     if(account_error)
     {
@@ -331,7 +330,7 @@ void PersistenceManager::UpdateDestinationState(
     std::lock_guard<std::mutex> lock(_destination_mutex);
 
     logos::account_info info;
-    auto account_error(_store.account_get(block.hashables.link, info));
+    auto account_error(_store.account_get(transaction, block.hashables.link, info));
 
     logos::state_block receive(
             /* Account   */ logos::account(block.hashables.link),
