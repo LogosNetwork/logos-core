@@ -31,8 +31,8 @@ void write (logos::stream & stream_a, T const & value)
 template <typename T>
 void write (logos::stream & stream_a, T * value, size_t size) // RGDSERVER
 {
-	auto amount_written (stream_a.sputn (reinterpret_cast<uint8_t const *> (value), size)); // Raw binary write.
-	assert (amount_written == size);
+    auto amount_written (stream_a.sputn (reinterpret_cast<uint8_t const *> (value), size)); // Raw binary write.
+    assert (amount_written == size);
 }
 class block_visitor;
 enum class block_type : uint8_t

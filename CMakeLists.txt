@@ -321,7 +321,6 @@ add_library (node
 	${SECURE_RPC_SOURCE}
     logos/bootstrap/bootstrap.cpp
     logos/bootstrap/bulk_pull.cpp
-    logos/bootstrap/bulk_push.cpp
     logos/bootstrap/tips.cpp
     logos/bootstrap/batch_block_bulk_pull.cpp
     logos/bootstrap/batch_block_validator.cpp

@@ -1,4 +1,3 @@
-#include <logos/bootstrap/backtrace.hpp>
 #include <logos/bootstrap/batch_block_validator.hpp>
 #include <logos/consensus/persistence/persistence_manager.hpp>
 #include <set>
@@ -139,7 +138,7 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
                 // Block is valid, add to database.
                 BatchBlock::ApplyUpdates(node->store,
                                  block->block,block->delegate_id);
-                BOOST_LOG(node->log) << "validate successful: hash: " << block->block.Hash().to_string() << " prev: " << block->block.previous.to_string() << " next: " << block->block.next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
+                LOG_INFO(node->log) << "validate successful: hash: " << block->block.Hash().to_string() << " prev: " << block->block.previous.to_string() << " next: " << block->block.next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
                 finished.insert(i);
         } else {
                 LOG_DEBUG(node->log) << "validate failed: hash: " << block->block.Hash().to_string() << " prev: " << block->block.previous.to_string() << " next: " << block->block.next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
@@ -195,11 +194,11 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
     }
    LOG_DEBUG(node->log) << "remaining epoch: }" << std::endl;
 
-   BlockHash current_micro_hash = Micro::getMicroBlockTip(node->store,0);
+   BlockHash current_micro_hash = Micro::getMicroBlockTip(node->store);
    bool isValid = false;
    for(int j = 0; j < epoch.size(); ++j) {
         if(epoch[j]->epoch.micro_block_tip == current_micro_hash && (isValid=epoch_handler->Validate(epoch[j]->epoch))) {
-            BOOST_LOG(node->log) << "epoch_handler->ApplyUpdates: " << epoch[j]->epoch.hash().to_string() << std::endl;
+            LOG_INFO(node->log) << "epoch_handler->ApplyUpdates: " << epoch[j]->epoch.hash().to_string() << std::endl;
             epoch_handler->ApplyUpdates(epoch[j]->epoch); // Validation succeeded, add to database.
        } else {
             LOG_DEBUG(node->log) << "epoch_handler->Failed Validation: " << epoch[j]->epoch.micro_block_tip.to_string() << " current: " << current_micro_hash.to_string() << " isValid: " << isValid << std::endl;

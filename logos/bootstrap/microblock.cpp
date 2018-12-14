@@ -1,8 +1,7 @@
-#include <logos/bootstrap/backtrace.hpp>
 #include <logos/bootstrap/batch_block_bulk_pull.hpp>
 #include <logos/bootstrap/microblock.hpp>
 
-BlockHash Micro::getMicroBlockTip(Store& s, int delegate)
+BlockHash Micro::getMicroBlockTip(Store& s)
 {
     BlockHash hash;
     if(!s.micro_block_tip_get(hash)) {
@@ -11,20 +10,20 @@ BlockHash Micro::getMicroBlockTip(Store& s, int delegate)
     return BlockHash();
 }
 
-uint64_t  Micro::getMicroBlockSeqNr(Store& s, int delegate) // TODOFUNC
+uint64_t  Micro::getMicroBlockSeqNr(Store& s) // TODOFUNC
 {
-    BlockHash hash = Micro::getMicroBlockTip(s,delegate);
+    BlockHash hash = Micro::getMicroBlockTip(s);
     std::shared_ptr<MicroBlock> tip = Micro::readMicroBlock(s,hash);
     return tip->sequence;
 }
 
-BlockHash Micro::getNextMicroBlock(Store &store, int delegate, MicroBlock &b) // TODOFUNC
+BlockHash Micro::getNextMicroBlock(Store &store, MicroBlock &b) // TODOFUNC
 {
     BlockHash h;
     return h;
 }
 
-BlockHash Micro::getNextMicroBlock(Store &store, int delegate, BlockHash &hash) // TODOFUNC
+BlockHash Micro::getNextMicroBlock(Store &store, BlockHash &hash) // TODOFUNC
 {
     MicroBlock micro;
     if(hash.is_zero()) {
@@ -34,7 +33,7 @@ BlockHash Micro::getNextMicroBlock(Store &store, int delegate, BlockHash &hash) 
     return micro.next;
 }
 
-BlockHash Micro::getPrevMicroBlock(Store &store, int delegate, BlockHash &hash) // TODOFUNC
+BlockHash Micro::getPrevMicroBlock(Store &store, BlockHash &hash) // TODOFUNC
 {
     MicroBlock micro;
     if(hash.is_zero()) {

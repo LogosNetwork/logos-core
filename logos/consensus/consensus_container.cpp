@@ -90,11 +90,11 @@ ConsensusContainer::OnSendRequest(
         return result;
     }
 
-	if(!block)
-	{
-	    result.code = logos::process_result::invalid_block_type;
-	    return result;
-	}
+    if(!block)
+    {
+        result.code = logos::process_result::invalid_block_type;
+        return result;
+    }
 
     using Request = RequestMessage<ConsensusType::BatchStateBlock>;
 
@@ -136,7 +136,7 @@ ConsensusContainer::OnSendRequest(
 {
     OptLock lock(_transition_state, _mutex);
     logos::process_return result;
-	using Request = RequestMessage<ConsensusType::MicroBlock>;
+    using Request = RequestMessage<ConsensusType::MicroBlock>;
 
     if (_cur_epoch == nullptr)
     {

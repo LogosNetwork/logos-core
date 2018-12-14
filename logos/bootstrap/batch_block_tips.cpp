@@ -1,4 +1,3 @@
-#include <logos/bootstrap/backtrace.hpp>
 #include <logos/bootstrap/batch_block_tips.hpp>
 #include <logos/bootstrap/microblock.hpp>
 #include <logos/bootstrap/epoch.hpp>

@@ -12,21 +12,11 @@
 
 namespace BatchBlock {
 
-enum bulk_pull_protocol {
-    BULK_PULL_REQUEST  = 64,
-    BULK_PULL_RESPONSE = 65,
-};
-
-struct bulk_pull_request { // RGD TODO Remove if not used.
-    const int process_code = BULK_PULL_REQUEST;
-    int delegate_id;
-    uint64_t timestamp;
-    logos::block_hash hash;
-};
+const int BULK_PULL_RESPONSE = 65;
 
 struct bulk_pull_response {
     const logos::block_type block_type = logos::block_type::batch_block;
-    char pad[3]={0}; // RGD
+    char pad[3]={0}; // NOTE
     const int process_code = BULK_PULL_RESPONSE;
     int delegate_id;
     BatchStateBlock block;
@@ -34,7 +24,7 @@ struct bulk_pull_response {
 
 struct bulk_pull_response_micro {
     const logos::block_type block_type = logos::block_type::micro_block;
-    char pad[3]={0}; // RGD
+    char pad[3]={0}; // NOTE 
     const int process_code = BULK_PULL_RESPONSE;
     int delegate_id;
     MicroBlock micro;
@@ -42,7 +32,7 @@ struct bulk_pull_response_micro {
 
 struct bulk_pull_response_epoch {
     const logos::block_type block_type = logos::block_type::epoch_block;
-    char pad[3]={0}; // RGD
+    char pad[3]={0}; // NOTE 
     const int process_code = BULK_PULL_RESPONSE;
     int delegate_id;
     Epoch epoch;
@@ -50,11 +40,8 @@ struct bulk_pull_response_epoch {
 
 constexpr int bulk_pull_response_mesg_len = (sizeof(bulk_pull_response) + sizeof(bulk_pull_response_micro) + sizeof(bulk_pull_response_epoch));
 
-bool Validate(Store & store, BatchStateBlock &message, int delegate_id);
+bool Validate(Store & store, const BatchStateBlock & message, int delegate_id);
 void ApplyUpdates(Store & store, const BatchStateBlock & message, uint8_t delegate_id);
-
-bool Validate(ConsensusContainer &manager, BatchStateBlock &block, int delegate_id);
-void ApplyUpdates(ConsensusContainer &manager, const BatchStateBlock & message, uint8_t delegate_id);
 
 BlockHash getNextBatchStateBlock(Store &store, int delegate, BlockHash &h);
 std::shared_ptr<BatchStateBlock> readBatchStateBlock(Store &store, BlockHash &h);

@@ -886,37 +886,6 @@ bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchSt
     return batch_block_get(hash,block,transaction);
 }
 
-bool logos::block_store::batch_block_get(const logos::block_hash & hash, std::shared_ptr<BatchStateBlock> block, MDB_txn * transaction)
-{
-    mdb_val value;
-    mdb_val key(hash);
-
-    auto status (mdb_get (transaction, batch_db, key, value));
-    assert (status == 0 || status == MDB_NOTFOUND);
-
-    bool result = false;
-    if (status == MDB_NOTFOUND)
-    {
-        result = true;
-    }
-    else
-    {
-        BatchStateBlock *ptr = reinterpret_cast<BatchStateBlock *>(value.data());
-        block->sequence = ptr->sequence;
-        block->block_count = ptr->block_count;
-        block->next = ptr->next;
-        block->signature = ptr->signature;
-        block->epoch_number = ptr->epoch_number;
-        for(int i = 0; i < ptr->block_count; ++i) {
-            block->blocks[i] = ptr->blocks[i];
-        }
-        block->timestamp = ptr->timestamp;
-        block->previous  = ptr->previous;
-    }
-
-    return result;
-}
-
 bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchStateBlock & block, MDB_txn * transaction)
 {
     mdb_val value;

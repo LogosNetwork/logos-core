@@ -6,7 +6,6 @@
 #include <logos/lib/work.hpp>
 #include <logos/node/stats.hpp>
 #include <logos/node/wallet.hpp>
-#include <logos/bootstrap/bootstrap_interface.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/epoch/recall_handler.hpp>
 #include <logos/node/delegate_identity_manager.hpp>

@@ -1,7 +1,6 @@
-#include <logos/bootstrap/backtrace.hpp>
 #include <logos/bootstrap/epoch.hpp>
 
-BlockHash EpochBlock::getEpochBlockTip(Store& s, int delegate) // TODOFUNC
+BlockHash EpochBlock::getEpochBlockTip(Store& s) // TODOFUNC
 {
     BlockHash hash;
     if(!s.epoch_tip_get(hash)) {
@@ -10,14 +9,14 @@ BlockHash EpochBlock::getEpochBlockTip(Store& s, int delegate) // TODOFUNC
     return BlockHash();
 }
 
-uint64_t  EpochBlock::getEpochBlockSeqNr(Store& s, int delegate) // TODOFUNC
+uint64_t  EpochBlock::getEpochBlockSeqNr(Store& s) // TODOFUNC
 {
-    BlockHash hash = EpochBlock::getEpochBlockTip(s,delegate);
+    BlockHash hash = EpochBlock::getEpochBlockTip(s);
     std::shared_ptr<Epoch> tip = EpochBlock::readEpochBlock(s,hash);
     return tip->epoch_number;
 }
 
-BlockHash EpochBlock::getNextEpochBlock(Store &store, int delegate, BlockHash &hash) // TODOFUNC
+BlockHash EpochBlock::getNextEpochBlock(Store &store, BlockHash &hash) // TODOFUNC
 {
     Epoch epoch;
     if(hash.is_zero()) {
@@ -27,7 +26,7 @@ BlockHash EpochBlock::getNextEpochBlock(Store &store, int delegate, BlockHash &h
     return epoch.next;
 }
 
-BlockHash EpochBlock::getPrevEpochBlock(Store &store, int delegate, BlockHash &hash) // TODOFUNC
+BlockHash EpochBlock::getPrevEpochBlock(Store &store, BlockHash &hash) // TODOFUNC
 {
     Epoch epoch;
     if(hash.is_zero()) {

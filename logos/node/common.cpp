@@ -311,8 +311,8 @@ void logos::bulk_pull::serialize (logos::stream & stream_a)
     write_header (stream_a);
     write (stream_a, start);
     write (stream_a, end);
-	write (stream_a, timestamp_start);
-	write (stream_a, timestamp_end);
+    write (stream_a, timestamp_start);
+    write (stream_a, timestamp_end);
     write (stream_a, delegate_id);
     write (stream_a, seq_start);
     write (stream_a, seq_end);

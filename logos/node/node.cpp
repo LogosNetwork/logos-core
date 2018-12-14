@@ -9,6 +9,8 @@
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/microblock/microblock.hpp>
 
+#include <logos/lib/trace.hpp>
+
 #include <algorithm>
 #include <future>
 #include <memory>
@@ -1745,7 +1747,8 @@ void logos::node::start ()
 {
 //  LOGOS: ARCHIVE
 //  -------------------
-#ifdef _DEBUG
+
+//#ifdef _DEBUG
     network.receive (); // Needed to get unit test going...
     ongoing_keepalive ();
     ongoing_bootstrap ();
@@ -1757,8 +1760,8 @@ void logos::node::start ()
     //online_reps.recalculate_stake ();
     port_mapping.start ();
     add_initial_peers ();
-    observers.started ();
-#endif
+    observers.started (); // Seems to cause consensus to fail...
+//#endif
 
 // CH added starting logic here instead of inside constructors
 #ifdef _PRODUCTION
@@ -2216,14 +2219,26 @@ void logos::node::add_initial_peers ()
 #ifdef _PRODUCTION
     LOG_DEBUG(log) << "logos::node::add_initial_peers: ";
     // Add our peers from the configuation...
-    uint32_t port = 70003; // What port for bootstrapping ???
+    //uint32_t port = 70003; // What port for bootstrapping ???
+    uint32_t port = config.peering_port; // What port for bootstrapping ???
     for(int i = 0; i < config.consensus_manager_config.delegates.size(); ++i) {
+#if 0
         logos::endpoint peer = logos::endpoint(
             boost::asio::ip::address::from_string(
                 (std::string("::") + config.consensus_manager_config.delegates[i].ip)) , port );
+#endif
+        boost::asio::ip::address_v4 v4 = boost::asio::ip::make_address_v4(config.consensus_manager_config.delegates[i].ip);
+        boost::asio::ip::address_v6 v6 = boost::asio::ip::make_address_v6(boost::asio::ip::v4_mapped,v4);
+        std::cout << " v6: " << v6.to_string() << std::endl;
+        logos::endpoint peer = logos::endpoint(
+            boost::asio::ip::address::from_string(
+                v6.to_string()), port );
+
         LOG_DEBUG(log) << "adding peer: " << config.consensus_manager_config.delegates[i].ip << std::endl;
         try {
-            peers.insert( peer, logos::protocol_version );
+            if(peers.insert( peer, logos::protocol_version )) {
+                LOG_DEBUG(log) << "error adding peer: " << config.consensus_manager_config.delegates[i].ip << std::endl;
+            }
         } catch(boost::asio::ip::bad_address_cast &e) {
             LOG_DEBUG(log) << " failed to add peer: " << config.consensus_manager_config.delegates[i].ip << " reason: " << e.what() << std::endl;
         } catch(...) {
@@ -2356,6 +2371,7 @@ std::vector<logos::peer_information> logos::peer_container::purge_list (std::chr
     std::vector<logos::peer_information> result;
     {
         std::lock_guard<std::mutex> lock (mutex);
+        //auto pivot (peers.get<1> ().lower_bound (cutoff - std::chrono::hours(24))); // Disable cut-off for testing...
         auto pivot (peers.get<1> ().lower_bound (cutoff));
         result.assign (pivot, peers.get<1> ().end ());
         // Remove peers that haven't been heard from past the cutoff
@@ -2684,6 +2700,7 @@ int logos::node::store_version ()
     return store.version_get (transaction);
 }
 
+
 logos::thread_runner::thread_runner (boost::asio::io_service & service_a, unsigned service_threads_a)
 {
     for (auto i (0); i < service_threads_a; ++i)
@@ -2692,6 +2709,11 @@ logos::thread_runner::thread_runner (boost::asio::io_service & service_a, unsign
             try
             {
                 service_a.run ();
+            }
+            catch (const std::runtime_error & e)
+            {
+                trace();
+                std::cerr << "Error while running thread_runner (" << e.what () << ")\n";
             }
             catch (...)
             {
