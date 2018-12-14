@@ -5,7 +5,7 @@
 
 #include <logos/lib/numbers.hpp>
 #include <logos/lib/blocks.hpp>
-#include <logos/bootstrap/batch_block_bulk_pull.hpp>
+#include <logos/bootstrap/bulk_pull_response.hpp>
 #include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/consensus_manager.hpp>

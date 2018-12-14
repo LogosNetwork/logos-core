@@ -1,7 +1,7 @@
 #pragma once
 
 #include <logos/bootstrap/bootstrap.hpp>
-#include <logos/bootstrap/batch_block_bulk_pull.hpp>
+#include <logos/bootstrap/bulk_pull_response.hpp>
 #include <logos/bootstrap/microblock.hpp>
 
 namespace logos {

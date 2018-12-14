@@ -12,7 +12,7 @@
 
 #include <boost/log/sources/logger.hpp>
 
-#include <logos/bootstrap/batch_block_bulk_pull.hpp>
+#include <logos/bootstrap/bulk_pull_response.hpp>
 
 constexpr double bootstrap_connection_scale_target_blocks = 50000.0;
 constexpr double bootstrap_connection_warmup_time_sec = 5.0;

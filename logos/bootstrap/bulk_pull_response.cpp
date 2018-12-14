@@ -1,4 +1,4 @@
-#include <logos/bootstrap/batch_block_bulk_pull.hpp>
+#include <logos/bootstrap/bulk_pull_response.hpp>
 #include <mutex>
 
 #define _DEBUG 1

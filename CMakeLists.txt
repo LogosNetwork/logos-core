@@ -322,7 +322,7 @@ add_library (node
     logos/bootstrap/bootstrap.cpp
     logos/bootstrap/bulk_pull.cpp
     logos/bootstrap/tips.cpp
-    logos/bootstrap/batch_block_bulk_pull.cpp
+    logos/bootstrap/bulk_pull_response.cpp
     logos/bootstrap/batch_block_validator.cpp
     logos/bootstrap/epoch.cpp
     logos/bootstrap/microblock.cpp
