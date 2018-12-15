@@ -97,6 +97,44 @@ bool ConsensusP2p<CT>::ProcessOutputMessage(const uint8_t *data, size_t size, bo
 }
 
 template<ConsensusType CT>
+void ConsensusP2p<CT>::RetryValidate(const logos::block_hash &hash)
+{
+}
+
+template<>
+void ConsensusP2p<ConsensusType::BatchStateBlock>::RetryValidate(const logos::block_hash &hash)
+{
+    auto range = _cache.equal_range(hash);
+    ValidationStatus status;
+    for (auto it = range.first; it != range.second; it++)
+    {
+	auto value = *it;
+	_Validate((const Prequel &)value.second, MessageType::Pre_Prepare, value.second.delegate_id, &status);
+	ApplyCacheUpdates(value.second, value.second.delegate_id, status);
+    }
+    _cache.erase(range.first, range.second);
+}
+
+template<ConsensusType CT>
+bool ConsensusP2p<CT>::ApplyCacheUpdates(const PrePrepareMessage<CT> &block, uint8_t delegate_id, ValidationStatus &status)
+{
+   logos::block_hash hash;
+   switch(status.reason)
+   {
+	case logos::process_result::progress:
+	    _ApplyUpdates(block, delegate_id);
+	    if (_cache.count(hash = block.Hash()))
+		RetryValidate(hash);
+	    return true;
+	case logos::process_result::gap_previous:
+	    _cache.insert(std::make_pair(block.previous, block));
+	    return false;
+	default:
+	    return false;
+    }
+}
+
+template<ConsensusType CT>
 MessageHeader<MessageType::Pre_Prepare, CT>*
 deserialize(const uint8_t * data, size_t size, PrePrepareMessage<CT> & block)
 {
@@ -115,8 +153,8 @@ deserialize(const uint8_t * data, size_t size, PrePrepareMessage<ConsensusType::
 template<ConsensusType CT>
 bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, size_t size) {
     MessageType mtype = MessageType::Unknown;
-	PrePrepareMessage<CT> block;
-    PrePrepareMessage<CT> *pre_mess = 0;
+    PrePrepareMessage<CT> block;
+    ValidationStatus pre_status;
     uint8_t delegate_id;
     int mess_counter = 0;
 
@@ -163,12 +201,10 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, size_t size) {
 			    "> - error parsing p2p batch Pre_Prepare message";
 			return false;
 		    }
-		    ValidationStatus status;
-		    pre_mess = (PrePrepareMessage<CT> *)head;
-		    if (!_Validate((const Prequel &)*head, MessageType::Pre_Prepare, delegate_id, &status)) {
+		    if (!_Validate((const Prequel &)*head, MessageType::Pre_Prepare, delegate_id, &pre_status)) {
 			LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
 			    "> - error validation p2p batch Pre_Prepare message: " <<
-			    ProcessResultToString(status.reason);
+			    ProcessResultToString(pre_status.reason);
 //			return false;
 		    }
 		    mtype = MessageType::Post_Prepare;
@@ -227,12 +263,17 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, size_t size) {
 	LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
 		"> - error parsing p2p batch";
 	return false;
-    } else {
-	_ApplyUpdates(*pre_mess, delegate_id);
+    } else if (ApplyCacheUpdates(block, delegate_id, pre_status)) {
 	LOG_INFO(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
 		"> - PrePrepare message from delegate " << (unsigned)_delegate_id <<
 		" with primary delegate " << (unsigned)delegate_id <<
 		" saved to storage.";
+	return true;
+    } else {
+	LOG_WARN(_log) << "ConsensusP2p<" << ConsensusToName(CT) <<
+		"> - PrePrepare message from delegate " << (unsigned)_delegate_id <<
+		" with primary delegate " << (unsigned)delegate_id <<
+		" added to cache.";
 	return true;
     }
 }

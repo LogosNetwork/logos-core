@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <map>
 #include <boost/function.hpp>
 #include <boost/bind.hpp>
 
@@ -21,18 +22,24 @@ public:
 		 std::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)> Validate = {},
 		 boost::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates = {});
 
-    bool AddMessageToBatch(const uint8_t *data, size_t size);
-    void CleanBatch();
-    bool PropagateBatch();
     bool ProcessOutputMessage(const uint8_t *data, size_t size, bool propagate);
     bool ProcessInputMessage(const uint8_t *data, size_t size);
+    void CleanBatch();
+
+    p2p_interface &		_p2p;
+
+private:
+    bool AddMessageToBatch(const uint8_t *data, size_t size);
+    bool PropagateBatch();
+    void RetryValidate(const logos::block_hash &hash);
+    bool ApplyCacheUpdates(const PrePrepareMessage<CT> &block, uint8_t delegate_id, ValidationStatus &status);
 
     Log                         _log;
-    p2p_interface &		_p2p;
     uint8_t			_delegate_id;
     boost::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)> _Validate;
     boost::function<void (const PrePrepareMessage<CT> &, uint8_t)> _ApplyUpdates;
     std::vector<uint8_t>	_p2p_batch;	// PrePrepare + PostPrepare + PostCommit
+    std::multimap<logos::block_hash,PrePrepareMessage<CT>> _cache;
 };
 
 template<ConsensusType CT>
