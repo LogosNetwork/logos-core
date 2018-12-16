@@ -32,7 +32,7 @@ private:
     bool AddMessageToBatch(const uint8_t *data, size_t size);
     bool PropagateBatch();
     void RetryValidate(const logos::block_hash &hash);
-    bool ApplyCacheUpdates(const PrePrepareMessage<CT> &block, uint8_t delegate_id, ValidationStatus &status);
+    bool ApplyCacheUpdates(const PrePrepareMessage<CT> &message, uint8_t delegate_id, ValidationStatus &status);
 
     Log                         _log;
     uint8_t			_delegate_id;
@@ -40,6 +40,7 @@ private:
     boost::function<void (const PrePrepareMessage<CT> &, uint8_t)> _ApplyUpdates;
     std::vector<uint8_t>	_p2p_batch;	// PrePrepare + PostPrepare + PostCommit
     std::multimap<logos::block_hash,PrePrepareMessage<CT>> _cache;
+    std::mutex                  _cache_mutex;
 };
 
 template<ConsensusType CT>
