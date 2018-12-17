@@ -1,22 +1,28 @@
 #include <logos/bootstrap/bulk_pull_response.hpp>
+#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
+#include <logos/consensus/messages/messages.hpp>
+#include <logos/consensus/messages/common.hpp>
+
 #include <mutex>
 
 #define _DEBUG 1
 
 static std::mutex mutex_s;
-static PersistenceManager * persistence_manager = nullptr;
+static PersistenceManager<BSBCT> * persistence_manager = nullptr;
+
+using Request = RequestMessage<ConsensusType::BatchStateBlock>;
+using PrePrepare = PrePrepareMessage<BSBCT>;
 
 bool BatchBlock::Validate(Store & store, const BatchStateBlock & message, int delegate_id)
 {
     std::lock_guard<std::mutex> lock(mutex_s);
     if(!persistence_manager) {
-        persistence_manager = new PersistenceManager(store);
+        persistence_manager = new PersistenceManager<BSBCT>(store,nullptr);
     }
 
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
-        logos::process_return rtvl;   
-        if(!persistence_manager->Validate(message.blocks[i],rtvl))
+        if(!persistence_manager->Validate(static_cast<const Request&>(message.blocks[i])))
         {
             return false;
         }
@@ -28,9 +34,9 @@ void BatchBlock::ApplyUpdates(Store & store, const BatchStateBlock & message, ui
 {
     std::lock_guard<std::mutex> lock(mutex_s);
     if(!persistence_manager) {
-        persistence_manager = new PersistenceManager(store);
+        persistence_manager = new PersistenceManager<BSBCT>(store,nullptr);
     }
-    persistence_manager->ApplyUpdates(message,delegate_id);
+    persistence_manager->ApplyUpdates(static_cast<const PrePrepare&>(message),delegate_id);
 }
 
 BlockHash BatchBlock::getNextBatchStateBlock(Store &store, int delegate, BlockHash &hash)

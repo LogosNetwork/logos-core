@@ -846,9 +846,15 @@ bool logos::block_store::batch_block_put (BatchStateBlock const & block, MDB_txn
 }
 bool logos::block_store::batch_block_put (BatchStateBlock const & block, const logos::block_hash & hash, MDB_txn * transaction)
 {
+    std::vector<uint8_t> vector;
+    {
+        vectorstream stream(vector);
+        block.Serialize(stream);
+    }
+
     auto status(mdb_put(transaction, batch_db, logos::mdb_val(hash),
-                        mdb_val(sizeof(BatchStateBlock),
-                                const_cast<BatchStateBlock *>(&block)), 0));
+                        mdb_val(vector.size(),
+                                vector.data()), 0));
 
     assert(status == 0);
     return status != 0;
@@ -882,8 +888,8 @@ bool logos::block_store::state_block_exists(const block_hash & hash)
 
 bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchStateBlock & block)
 {
-    logos::transaction transaction(environment, nullptr, false);
-    return batch_block_get(hash,block,transaction);
+    transaction transaction(environment, nullptr, false);
+    return batch_block_get(hash, block, transaction);
 }
 
 bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchStateBlock & block, MDB_txn * transaction)
@@ -901,17 +907,9 @@ bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchSt
     }
     else
     {
-        BatchStateBlock *ptr = reinterpret_cast<BatchStateBlock *>(value.data());
-        block.sequence = ptr->sequence;
-        block.block_count = ptr->block_count;
-        block.epoch_number = ptr->epoch_number;
-        block.next = ptr->next;
-        block.signature = ptr->signature;
-        for(int i = 0; i < ptr->block_count; ++i) {
-            block.blocks[i] = ptr->blocks[i];
-        }
-        block.timestamp = ptr->timestamp;
-        block.previous  = ptr->previous;
+        bufferstream stream(reinterpret_cast<uint8_t const *> (value.data()), value.size());
+        new(&block) BatchStateBlock(result, stream);
+        assert(!result);
     }
 
     return result;
@@ -929,15 +927,19 @@ bool logos::block_store::state_block_get(const logos::block_hash & hash, logos::
     auto locator(*reinterpret_cast<StateBlockLocator *>(val.data()));
 
     if(mdb_get(transaction, batch_db,
-                mdb_val(locator.hash),
-                val))
+               mdb_val(locator.hash),
+               val))
     {
         return true;
     }
 
-    block = reinterpret_cast<BatchStateBlock *>(val.data())->blocks[locator.index];
+    bool result = false;
 
-    return false;
+    bufferstream stream (reinterpret_cast<uint8_t const *> (val.data()), val.size());
+    new(&block) state_block(result, stream);
+    assert(!result);
+
+    return result;
 }
 
 logos::block_hash logos::block_store::micro_block_put(MicroBlock const &block, MDB_txn *transaction)

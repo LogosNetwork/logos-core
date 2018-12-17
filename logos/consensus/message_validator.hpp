@@ -24,7 +24,7 @@ public:
         Signature signature;
     };
 
-    MessageValidator(DelegateKeyStore & key_store);
+    MessageValidator(DelegateKeyStore & key_store, KeyPair &key_pair);
 
     // Aggregate sign
     template<typename MSG>
@@ -67,10 +67,10 @@ public:
     template<typename MSG>
     void Sign(MSG & message)
     {
-        string msg(reinterpret_cast<const char*>(&message), MSG::HASHABLE_BYTES);
+        string hash(reinterpret_cast<const char*>(message.Hash().bytes.data()), sizeof(BlockHash::bytes));
 
         SignatureReal sig;
-        _keypair.prv.sign(sig, msg);
+        _keypair.prv.sign(sig, hash);
 
         string sig_str;
         sig.serialize(sig_str);
@@ -90,8 +90,8 @@ public:
         //public key agg
         auto apk = _keys.GetAggregatedPublicKey(message.participation_map);
 
-        //message
-        string msg(reinterpret_cast<const char*>(&reference), StandardPhaseMessage<type2, consensus_type>::HASHABLE_BYTES);
+        //hash
+        string hash(reinterpret_cast<const char*>(reference.Hash().bytes.data()), sizeof(BlockHash::bytes));
 
         //deserialize sig
         SignatureReal sig;
@@ -108,7 +108,7 @@ public:
         }
 
         //verify
-        return sig.verify(apk, msg);
+        return sig.verify(apk, hash);
     }
 
     // Single validation.
@@ -118,8 +118,8 @@ public:
     template<typename MSG>
     bool Validate(const MSG & message, uint8_t delegate_id)
     {
-        //message
-        string msg(reinterpret_cast<const char*>(&message), MSG::HASHABLE_BYTES);
+        //hash
+        string hash(reinterpret_cast<const char*>(message.Hash().bytes.data()), sizeof(BlockHash::bytes));
 
         //deserialize sig
         SignatureReal sig;
@@ -131,11 +131,12 @@ public:
         }
         catch (const bls::Exception &)
         {
+            LOG_ERROR(_log) << "MessageValidator - Failed to deserialize signature.";
             return false;
         }
 
         //verify
-        return sig.verify(_keys.GetPublicKey(delegate_id), msg);
+        return sig.verify(_keys.GetPublicKey(delegate_id), hash);
     }
 
     // TODO: Stub for validating PostCommits received

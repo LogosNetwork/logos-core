@@ -26,15 +26,15 @@ class SecondaryRequestHandler
 {
     class Request;
 
-    using Timer     = boost::asio::deadline_timer;
-    using Service   = boost::asio::io_service;
-    using Error     = boost::system::error_code;
-    using BlockPtr  = std::shared_ptr<RequestMessage<CT>>;
-    using Seconds   = boost::posix_time::seconds;
-    using Clock     = boost::posix_time::second_clock;
-    using TimePoint = boost::posix_time::ptime;
-    using PrePrepare= PrePrepareMessage<CT>;
-	using Promoter	= RequestPromoter<CT>;
+    using Timer      = boost::asio::deadline_timer;
+    using Service    = boost::asio::io_service;
+    using Error      = boost::system::error_code;
+    using BlockPtr   = std::shared_ptr<RequestMessage<CT>>;
+    using Seconds    = boost::posix_time::seconds;
+    using Clock      = boost::posix_time::second_clock;
+    using TimePoint  = boost::posix_time::ptime;
+    using PrePrepare = PrePrepareMessage<CT>;
+    using Promoter   = RequestPromoter<CT>;
 
     struct Request
     {

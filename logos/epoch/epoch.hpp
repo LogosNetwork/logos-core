@@ -7,6 +7,8 @@
 #include <logos/lib/merkle.hpp>
 #include <logos/lib/numbers.hpp>
 
+#include <bls/bls.hpp>
+
 static const uint GENESIS_EPOCH = 2;
 
 /// An election result entry, i.e. a delegate with it stake, and the votes
@@ -14,6 +16,7 @@ static const uint GENESIS_EPOCH = 2;
 struct Delegate 
 {
     logos::account      account;
+    bls::PublicKey      bls_pub;
     uint64_t            vote;
     uint64_t            stake;
 };
@@ -35,8 +38,8 @@ public:
         , transaction_fee_pool(0)
         , delegates{0}
         , next(0)
-        , signature{0}
     {
+        signature.fill(0);
         previous = 0;
     }
     ~Epoch() {}

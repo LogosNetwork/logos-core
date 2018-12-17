@@ -9,10 +9,8 @@ BatchBlock::validator::validator(logos::node *n)
       nextEpoch(0)
 {
     // Allocate our epoch/micro validators...
-    recall          = std::shared_ptr<RecallHandler>      (new RecallHandler());
-    voting_manager  = std::shared_ptr<EpochVotingManager> (new EpochVotingManager(node->store));
-    epoch_handler   = std::shared_ptr<EpochHandler>       (new EpochHandler(node->store, *voting_manager));
-    micro_handler   = std::shared_ptr<MicroBlockHandler>  (new MicroBlockHandler(node->store, *recall));
+    epoch_handler = make_shared<PersistenceManager<ECT> >(PersistenceManager<ECT>(node->store,nullptr));
+    micro_handler = make_shared<PersistenceManager<MBCT> >(PersistenceManager<MBCT>(node->store,nullptr));
 
 #ifdef _TIMEOUT_BOOTSTRAP
     std::thread timeout_thr(BatchBlock::validator::timeout_s, this);
@@ -172,11 +170,12 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
       BlockHash peerHash = peerMicro->hash();
       std::shared_ptr<MicroBlock> isMicroPresent =  Micro::readMicroBlock(node->store, peerHash);
       if(ready && isMicroPresent == nullptr) {
-        if((!peerMicro->previous.is_zero() || !peerMicro->next.is_zero()) && micro_handler->Validate(*peerMicro)) {
+        using Request = RequestMessage<MBCT>;
+        if((!peerMicro->previous.is_zero() || !peerMicro->next.is_zero()) && micro_handler->Validate(static_cast<const Request&>(*peerMicro))) {
              LOG_DEBUG(node->log) << "micro_handler->Validate: " 
                       << peerMicro->hash().to_string() << " prev: " << peerMicro->previous.to_string()
                       << " next: " << peerMicro->next.to_string() << std::endl;
-             micro_handler->ApplyUpdates(*peerMicro); // Validation succeeded, add to database.
+             micro_handler->ApplyUpdates(static_cast<const Request&>(*peerMicro)); // Validation succeeded, add to database.
         } else {
              // Try several times, if fail, we assume there is a problem.
              LOG_DEBUG(node->log) 
@@ -197,9 +196,12 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
    BlockHash current_micro_hash = Micro::getMicroBlockTip(node->store);
    bool isValid = false;
    for(int j = 0; j < epoch.size(); ++j) {
-        if(epoch[j]->epoch.micro_block_tip == current_micro_hash && (isValid=epoch_handler->Validate(epoch[j]->epoch))) {
+        using Request = RequestMessage<ECT>;
+        logos::process_return rtvl;
+        if(epoch[j]->epoch.micro_block_tip == current_micro_hash && 
+           (isValid=epoch_handler->Validate(static_cast<const Request&>(epoch[j]->epoch),rtvl))) {
             LOG_INFO(node->log) << "epoch_handler->ApplyUpdates: " << epoch[j]->epoch.hash().to_string() << std::endl;
-            epoch_handler->ApplyUpdates(epoch[j]->epoch); // Validation succeeded, add to database.
+            epoch_handler->ApplyUpdates(static_cast<const Request&>(epoch[j]->epoch)); // Validation succeeded, add to database.
        } else {
             LOG_DEBUG(node->log) << "epoch_handler->Failed Validation: " << epoch[j]->epoch.micro_block_tip.to_string() << " current: " << current_micro_hash.to_string() << " isValid: " << isValid << std::endl;
        }

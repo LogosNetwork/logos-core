@@ -15,6 +15,8 @@
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/epoch/recall_handler.hpp>
+#include <logos/consensus/persistence/microblock/microblock_persistence.hpp>
+#include <logos/consensus/persistence/epoch/epoch_persistence.hpp>
 
 #include <logos/microblock/microblock.hpp>
 #include <logos/microblock/microblock_handler.hpp>
@@ -61,10 +63,8 @@ class validator {
     std::mutex mutex;
 
     // For validation of epoch/micro blocks.
-    shared_ptr<RecallHandler>       recall;
-    shared_ptr<EpochVotingManager>  voting_manager;
-    shared_ptr<EpochHandler>        epoch_handler;
-    shared_ptr<MicroBlockHandler>   micro_handler;
+    shared_ptr<PersistenceManager<ECT> >  epoch_handler;
+    shared_ptr<PersistenceManager<MBCT> > micro_handler;
  
     uint64_t nextMicro_counter;
     uint64_t nextEpoch_counter;

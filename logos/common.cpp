@@ -808,6 +808,21 @@ std::string logos::ProcessResultToString(logos::process_result result)
     case process_result::not_delegate:
          ret = "Not a delegate";
         break;
+    case process_result::clock_drift:
+        ret = "Clock drift";
+        break;
+    case process_result::wrong_sequence_number:
+        ret = "Wrong sequence number";
+        break;
+    case process_result::invalid_request:
+        ret = "Invalid request";
+        break;
+    case process_result::invalid_tip:
+        ret = "Invalid tip";
+        break;
+    case process_result::invalid_number_blocks:
+        ret = "Invalid number blocks";
+        break;
     }
 
     return ret;

@@ -36,6 +36,7 @@ template<typename C, typename T>
 C TConvert(T t)
 {
     return std::chrono::duration_cast<C>(t);
+
 }
 
 /// Defines times for epoch and microblock events

@@ -11,14 +11,13 @@
 EpochConsensusConnection::EpochConsensusConnection(
                              std::shared_ptr<IOChannel> iochannel,
                              PrimaryDelegate & primary,
-                             RequestPromoter<ConsensusType::Epoch> & promoter,
+                             RequestPromoter<ECT> & promoter,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
-                             ArchiverEpochHandler & handler,
-                             EpochEventsNotifier & events_notifier)
-    : ConsensusConnection<ConsensusType::Epoch>(iochannel, primary, promoter, validator,
-                                                ids, events_notifier)
-    , _epoch_handler(handler)
+                             EpochEventsNotifier & events_notifier,
+                             PersistenceManager<ECT> & persistence_manager)
+    : ConsensusConnection<ECT>(iochannel, primary, promoter, validator,
+                                                ids, events_notifier, persistence_manager)
 {
     if (promoter.GetStore().epoch_tip_get(_prev_pre_prepare_hash))
     {
@@ -31,15 +30,15 @@ bool
 EpochConsensusConnection::DoValidate(
     const PrePrepare & message)
 {
-    return _epoch_handler.Validate(message);
+    return _persistence_manager.Validate(message, _delegate_ids.remote);
 }
 
 void
 EpochConsensusConnection::ApplyUpdates(
     const PrePrepare & block,
-    uint8_t delegate_id)
+    uint8_t)
 {
-    _epoch_handler.CommitToDatabase(block);
+    _persistence_manager.ApplyUpdates(block);
 }
 
 bool
