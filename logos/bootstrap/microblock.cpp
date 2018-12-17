@@ -10,20 +10,20 @@ BlockHash Micro::getMicroBlockTip(Store& s)
     return BlockHash();
 }
 
-uint64_t  Micro::getMicroBlockSeqNr(Store& s) // TODOFUNC
+uint64_t  Micro::getMicroBlockSeqNr(Store& s)
 {
     BlockHash hash = Micro::getMicroBlockTip(s);
     std::shared_ptr<MicroBlock> tip = Micro::readMicroBlock(s,hash);
     return tip->sequence;
 }
 
-BlockHash Micro::getNextMicroBlock(Store &store, MicroBlock &b) // TODOFUNC
+BlockHash Micro::getNextMicroBlock(Store &store, MicroBlock &b)
 {
     BlockHash h;
     return h;
 }
 
-BlockHash Micro::getNextMicroBlock(Store &store, BlockHash &hash) // TODOFUNC
+BlockHash Micro::getNextMicroBlock(Store &store, BlockHash &hash)
 {
     MicroBlock micro;
     if(hash.is_zero()) {
@@ -33,7 +33,7 @@ BlockHash Micro::getNextMicroBlock(Store &store, BlockHash &hash) // TODOFUNC
     return micro.next;
 }
 
-BlockHash Micro::getPrevMicroBlock(Store &store, BlockHash &hash) // TODOFUNC
+BlockHash Micro::getPrevMicroBlock(Store &store, BlockHash &hash)
 {
     MicroBlock micro;
     if(hash.is_zero()) {
@@ -43,7 +43,7 @@ BlockHash Micro::getPrevMicroBlock(Store &store, BlockHash &hash) // TODOFUNC
     return micro.previous;
 }
 
-std::shared_ptr<MicroBlock> Micro::readMicroBlock(Store &store, BlockHash &hash) // TODOFUNC
+std::shared_ptr<MicroBlock> Micro::readMicroBlock(Store &store, BlockHash &hash)
 {
     std::shared_ptr<MicroBlock> micro(new MicroBlock);
     if(!store.micro_block_get(hash,*micro)) {

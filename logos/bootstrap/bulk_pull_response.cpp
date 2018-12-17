@@ -33,7 +33,7 @@ void BatchBlock::ApplyUpdates(Store & store, const BatchStateBlock & message, ui
     persistence_manager->ApplyUpdates(message,delegate_id);
 }
 
-BlockHash BatchBlock::getNextBatchStateBlock(Store &store, int delegate, BlockHash &hash) // TODOFUNC
+BlockHash BatchBlock::getNextBatchStateBlock(Store &store, int delegate, BlockHash &hash)
 {
     BatchStateBlock batch;
     if(hash.is_zero()) {
@@ -43,7 +43,7 @@ BlockHash BatchBlock::getNextBatchStateBlock(Store &store, int delegate, BlockHa
     return batch.next;
 }
 
-BlockHash BatchBlock::getPrevBatchStateBlock(Store &store, int delegate, BlockHash &hash) // TODOFUNC
+BlockHash BatchBlock::getPrevBatchStateBlock(Store &store, int delegate, BlockHash &hash)
 {
     BatchStateBlock batch;
     if(hash.is_zero()) {

@@ -73,7 +73,6 @@ class validator {
     uint64_t micro_not_ready_counter;
     uint64_t epoch_not_ready_counter;
 
-    // TODO: Ask for valid values.
     static int constexpr NEXT_MICRO_COUNTER_MAX             = 100;
     static int constexpr NEXT_EPOCH_COUNTER_MAX             = 100;
     static int constexpr MICRO_VALIDATION_ERROR_COUNTER_MAX = 100;

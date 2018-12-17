@@ -1,6 +1,6 @@
 #include <logos/bootstrap/epoch.hpp>
 
-BlockHash EpochBlock::getEpochBlockTip(Store& s) // TODOFUNC
+BlockHash EpochBlock::getEpochBlockTip(Store& s)
 {
     BlockHash hash;
     if(!s.epoch_tip_get(hash)) {
@@ -9,14 +9,14 @@ BlockHash EpochBlock::getEpochBlockTip(Store& s) // TODOFUNC
     return BlockHash();
 }
 
-uint64_t  EpochBlock::getEpochBlockSeqNr(Store& s) // TODOFUNC
+uint64_t  EpochBlock::getEpochBlockSeqNr(Store& s)
 {
     BlockHash hash = EpochBlock::getEpochBlockTip(s);
     std::shared_ptr<Epoch> tip = EpochBlock::readEpochBlock(s,hash);
     return tip->epoch_number;
 }
 
-BlockHash EpochBlock::getNextEpochBlock(Store &store, BlockHash &hash) // TODOFUNC
+BlockHash EpochBlock::getNextEpochBlock(Store &store, BlockHash &hash)
 {
     Epoch epoch;
     if(hash.is_zero()) {
@@ -26,7 +26,7 @@ BlockHash EpochBlock::getNextEpochBlock(Store &store, BlockHash &hash) // TODOFU
     return epoch.next;
 }
 
-BlockHash EpochBlock::getPrevEpochBlock(Store &store, BlockHash &hash) // TODOFUNC
+BlockHash EpochBlock::getPrevEpochBlock(Store &store, BlockHash &hash)
 {
     Epoch epoch;
     if(hash.is_zero()) {

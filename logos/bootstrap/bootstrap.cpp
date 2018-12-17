@@ -143,7 +143,7 @@ void logos::bootstrap_client::run ()
         {
 #ifdef _MODIFY_BUFFER
             try {
-                boost::asio::socket_base::send_buffer_size option1(RECV_BUFFER_SIZE); // FIXME
+                boost::asio::socket_base::send_buffer_size option1(RECV_BUFFER_SIZE);
                 this_l->socket.set_option(option1);
                 boost::asio::socket_base::receive_buffer_size option2(RECV_BUFFER_SIZE);
                 this_l->socket.set_option(option2);
@@ -344,7 +344,7 @@ void logos::bootstrap_attempt::run ()
     for(int i = 0; i < idle.size(); ++i) {
         idle[i]->socket.close();
     }
-    idle.clear (); // FIXME!!! Must wait till threads using this have stopped, else mem fault...
+    idle.clear (); // Must wait till threads using this have stopped, else mem fault...
     LOG_DEBUG(node->log) << "bootstrap_attempt::run end }" << std::endl;
 }
 
@@ -380,7 +380,7 @@ bool logos::bootstrap_attempt::consume_future (std::future<bool> & future_a)
         if(std::future_status::ready == future_a.wait_until(minute_passed)) {
             result = future_a.get ();
         } else {
-            // FIXME future timed out, return error.
+            // future timed out, return error.
             LOG_DEBUG(node->log) << "logos::bootstrap_attempt::consume_future: timeout" << std::endl;
             result = true;
         }
@@ -488,7 +488,6 @@ void logos::bootstrap_attempt::populate_connections ()
 
     // We only want to drop slow peers when more than 2/3 are active. 2/3 because 1/2 is too aggressive, and 100% rarely happens.
     // Probably needs more tuning.
-    // FIXME!!!
     if (sorted_connections.size () >= (target * 2) / 3 && target >= 4)
     {
         // 4 -> 1, 8 -> 2, 16 -> 4, arbitrary, but seems to work well.
@@ -523,10 +522,9 @@ void logos::bootstrap_attempt::populate_connections ()
     if (connections < target)
     {
         auto delta = std::min ((target - connections) * 2, bootstrap_max_new_connections);
-        // TODO - tune this better
         // Not many peers respond, need to try to make more connections than we need.
         // delta = NUMBER_DELEGATES; // Maybe set to 0 of clients is too big ?
-        delta = 1; // FIXME!!! Do they have the correct delta ? delta of 1 seems to work the best in testing...
+        delta = 1; // delta of 1 seems to work the best in testing...
 
         LOG_DEBUG(node->log) << "bootstrap_attempt:: delta: " << delta << " target: " << target << " connections: " << connections << " max: " << bootstrap_max_new_connections << " clients.size: " << clients.size() << std::endl;
 
@@ -790,7 +788,7 @@ void logos::bootstrap_listener::accept_connection ()
     auto socket (std::make_shared<boost::asio::ip::tcp::socket> (service));
 #ifdef _MODIFY_BUFFER
     try {
-        boost::asio::socket_base::send_buffer_size option1(RECV_BUFFER_SIZE); // FIXME
+        boost::asio::socket_base::send_buffer_size option1(RECV_BUFFER_SIZE);
         socket->set_option(option1);
         boost::asio::socket_base::receive_buffer_size option2(RECV_BUFFER_SIZE);
         socket->set_option(option2);

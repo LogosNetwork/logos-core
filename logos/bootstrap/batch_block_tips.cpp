@@ -11,7 +11,7 @@ BlockHash BatchBlock::getBatchBlockTip(Store& store, int delegate)
     return hash;
 }
 
-uint64_t  BatchBlock::getBatchBlockSeqNr(Store& store, int delegate) // TODOFUNC
+uint64_t  BatchBlock::getBatchBlockSeqNr(Store& store, int delegate)
 {
     // The below code will dump core in bsb dtor.
     // Also, the sequence number is not correct. Need real world database to test.

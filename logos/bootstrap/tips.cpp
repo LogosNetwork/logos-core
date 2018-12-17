@@ -35,7 +35,7 @@ void logos::tips_req_client::run ()
     request->start.clear ();
     request->age = std::numeric_limits<decltype (request->age)>::max ();
     request->count = std::numeric_limits<decltype (request->age)>::max ();
-    request->nr_delegate = NUMBER_DELEGATES; // TODO: Use same constant instead of hard-code.
+    request->nr_delegate = NUMBER_DELEGATES;
 
     LOG_DEBUG(connection->node->log) << "::run count: " << request->count << " age: " << request->age << " nr_delegate: " << request->nr_delegate << " NUMBER_DELEGATES " << NUMBER_DELEGATES << std::endl;
 
