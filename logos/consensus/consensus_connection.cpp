@@ -43,9 +43,6 @@ void ConsensusConnection<CT>::DeliverPrePrepare()
 {
     auto msg (*reinterpret_cast<const PrePrepare*>(_receive_buffer.data()));
     OnConsensusMessage(msg);
-    _consensus_p2p.CleanBatch();
-    MessageType type (static_cast<MessageType> (_receive_buffer.data()[1]));
-    _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(type), false);
 }
 
 template<ConsensusType CT>
@@ -129,7 +126,9 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
         case MessageType::Pre_Prepare:
         {
             DeliverPrePrepare();
-            break;
+	    _consensus_p2p.CleanBatch();
+	    _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(type), false);
+	    break;
         }
         case MessageType::Prepare:
         {

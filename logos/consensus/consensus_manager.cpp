@@ -25,7 +25,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _events_notifier(events_notifier)
     , _reservations(std::make_shared<Reservations>(store))
     , _persistence_manager(store, _reservations)
-    , _consensus_p2p(p2p, _delegate_id)
+    , _consensus_p2p(p2p, config.delegate_id)
 {
     _delegate_id = config.delegate_id;
 
