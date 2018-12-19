@@ -252,7 +252,7 @@ void logos::bulk_pull::visit (logos::message_visitor & visitor_a) const
     visitor_a.bulk_pull (*this);
 }
 
-bool logos::bulk_pull::deserialize (logos::stream & stream_a) // RGDSERVER Implement these.
+bool logos::bulk_pull::deserialize (logos::stream & stream_a) // Implemented these for bootstrapping.
 {
     auto result (read_header (stream_a, version_max, version_using, version_min, type, extensions));
     assert (!result);

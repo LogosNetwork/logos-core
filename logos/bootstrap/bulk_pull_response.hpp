@@ -20,6 +20,56 @@ struct bulk_pull_response {
     const int process_code = BULK_PULL_RESPONSE;
     int delegate_id;
     BatchStateBlock block;
+
+    void Serialize(logos::stream & stream)
+    {
+        logos::write(stream, block_type);
+        logos::write(stream, pad[0]);
+        logos::write(stream, pad[1]);
+        logos::write(stream, pad[2]);
+        logos::write(stream, process_code);
+        logos::write(stream, delegate_id);
+        block.Serialize(stream);
+    }
+
+    static bool DeSerialize(logos::stream & stream, bulk_pull_response & resp)
+    {
+        bool error = false;
+        char block_type = 0;
+        error = logos::read(stream, block_type);
+        if(error) {
+            return error;
+        }
+        if((logos::block_type)block_type != resp.block_type) {
+            return true; // error
+        }
+        error = logos::read(stream, resp.pad[0]);
+        if(error) {
+            return error;
+        }
+        error = logos::read(stream, resp.pad[1]);
+        if(error) {
+            return error;
+        }
+        error = logos::read(stream, resp.pad[2]);
+        if(error) {
+            return error;
+        }
+        int process_code = 0;
+        error = logos::read(stream, process_code);
+        if(error) {
+            return error;
+        }
+        if(process_code != resp.process_code) {
+            return true; // error
+        }
+        error = logos::read(stream, resp.delegate_id);
+        if(error) {
+            return error;
+        }
+        resp.block = BatchStateBlock(error, stream);
+        return error; // false == success
+    }
 };
 
 struct bulk_pull_response_micro {

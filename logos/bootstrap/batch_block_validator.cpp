@@ -127,7 +127,6 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
     );
 
    std::set<int> finished;
-   BatchStateBlock isPresent;
    for(int i = 0; i < bsb.size(); ++i) {
         std::shared_ptr<BatchBlock::bulk_pull_response> block = bsb[i];
         LOG_DEBUG(node->log) << "trying to validate: " << std::endl;

@@ -280,7 +280,11 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
             uint8_t *data = connection->receive_buffer.data(); // Get it from wire.
             std::shared_ptr<BatchBlock::bulk_pull_response> block(new BatchBlock::bulk_pull_response);
             if(block) {
-                memcpy(block.get(),data,sizeof(BatchBlock::bulk_pull_response));
+                std::vector<uint8_t> vector; // Serialize bsb
+                vector.resize(sizeof(BatchBlock::bulk_pull_response));
+                vector.assign(data,data+sizeof(BatchBlock::bulk_pull_response));
+                logos::vectorstream stream (vector);
+                BatchBlock::bulk_pull_response::DeSerialize(stream, *block.get());
                 BlockHash hash = block->block.Hash();
                 LOG_DEBUG(connection->node->log) << "logos::bulk_pull_client::received_block batch block received: delegate_id: " << block->delegate_id << " "
                           << "r->Hash(): " << hash.to_string() << std::endl;
@@ -555,7 +559,6 @@ void logos::bulk_pull_server::send_next ()
                     send_next();
                     return;
                 }
-                memcpy(&resp.block,b.get(),sizeof(BatchStateBlock));
                 LOG_DEBUG(connection->node->log) << " current_bsb: " << current_bsb.to_string() << " << b->Hash().to_string() " << b->Hash().to_string()  << " message_count: " << b->block_count << " delegate_id: " << request->delegate_id << std::endl;
                 LOG_DEBUG(connection->node->log) << " is_non_zero: current_bsb: " << current_bsb.to_string() <<  " delegate_id: " << request->delegate_id << " request.b_end: " << request->b_end.to_string() << std::endl;
                 if(current_bsb == request->b_end) {
@@ -567,7 +570,8 @@ void logos::bulk_pull_server::send_next ()
 
                 auto send_buffer1(std::make_shared<std::vector<uint8_t>>(BatchBlock::bulk_pull_response_mesg_len, uint8_t(0)));
                 {
-                    memcpy(send_buffer1->data(),(void *)&resp, sizeof(resp));
+                    logos::vectorstream stream (*send_buffer1.get());
+                    resp.Serialize(stream); // Serialize bsb
                 }
 
                 auto this_l (shared_from_this ());
