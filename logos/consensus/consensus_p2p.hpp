@@ -119,6 +119,8 @@ private:
     PersistenceP2p<ConsensusType::MicroBlock>		_micro;
     PersistenceP2p<ConsensusType::Epoch>		_epoch;
 
-    friend class ConsensusP2p<CT>;
-    friend class PersistenceP2p<CT>;
+    template<ConsensusType CT>
+    friend class ConsensusP2p;
+    template<ConsensusType CT>
+    friend class PersistenceP2p;
 };

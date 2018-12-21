@@ -103,8 +103,8 @@ bool ConsensusP2p<ConsensusType::BatchStateBlock>::ApplyCacheUpdates(
 	ValidationStatus &status);
 
 template<>
-bool ConsensusP2p<ConsensusType::Microblock>::ApplyCacheUpdates(
-	const PrePrepareMessage<ConsensusType::Microblock> &message,
+bool ConsensusP2p<ConsensusType::MicroBlock>::ApplyCacheUpdates(
+	const PrePrepareMessage<ConsensusType::MicroBlock> &message,
 	uint8_t delegate_id,
 	ValidationStatus &status);
 
@@ -114,7 +114,7 @@ bool ConsensusP2p<ConsensusType::Epoch>::ApplyCacheUpdates(
 	uint8_t delegate_id,
 	ValidationStatus &status);
 
-template<>
+template<ConsensusType CT>
 void ConsensusP2p<CT>::RetryValidate(const logos::block_hash &hash)
 {
     _cache_mutex.lock();
@@ -178,8 +178,8 @@ bool ConsensusP2p<ConsensusType::BatchStateBlock>::ApplyCacheUpdates(
 }
 
 template<>
-bool ConsensusP2p<ConsensusType::Microblock>::ApplyCacheUpdates(
-	const PrePrepareMessage<ConsensusType::Microblock> &message,
+bool ConsensusP2p<ConsensusType::MicroBlock>::ApplyCacheUpdates(
+	const PrePrepareMessage<ConsensusType::MicroBlock> &message,
 	uint8_t delegate_id,
 	ValidationStatus &status)
 {
