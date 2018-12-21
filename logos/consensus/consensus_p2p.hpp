@@ -11,6 +11,11 @@
 #include <logos/consensus/persistence/persistence.hpp>
 #include <logos/consensus/persistence/nondel_persistence_manager_incl.hpp>
 
+class ContainerP2p;
+
+template<ConsensusType CT>
+class PersistenceP2p;
+
 template<ConsensusType CT>
 class ConsensusP2p
 {
@@ -39,8 +44,12 @@ private:
     boost::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)> _Validate;
     boost::function<void (const PrePrepareMessage<CT> &, uint8_t)> _ApplyUpdates;
     std::vector<uint8_t>	_p2p_batch;	// PrePrepare + PostPrepare + PostCommit
-    std::multimap<logos::block_hash,PrePrepareMessage<CT>> _cache;
+    std::multimap<logos::block_hash,std::pair<uint8_t,PrePrepareMessage<CT>>> _cache;
     std::mutex                  _cache_mutex;
+    ContainerP2p		*_container;
+
+    friend class ContainerP2p;
+    friend class PersistenceP2p<CT>;
 };
 
 template<ConsensusType CT>
@@ -70,6 +79,9 @@ public:
 private:
     NonDelPersistenceManager<CT> _persistence;
     ConsensusP2p<CT>		 _p2p;
+
+    friend class ContainerP2p;
+    friend class ConsensusP2p<CT>;
 };
 
 class ContainerP2p
@@ -82,7 +94,11 @@ public:
 	, _batch(p2p, delegate_id, store)
 	, _micro(p2p, delegate_id, store)
 	, _epoch(p2p, delegate_id, store)
-    {}
+    {
+	_batch._p2p._container = this;
+	_micro._p2p._container = this;
+	_epoch._p2p._container = this;
+    }
 
     bool ProcessInputMessage(const void *data, size_t size)
     {
@@ -93,7 +109,16 @@ public:
 
     p2p_interface &					_p2p;
 private:
+    void RetryValidate(const logos::block_hash &hash) {
+	_batch._p2p.RetryValidate(hash);
+	_micro._p2p.RetryValidate(hash);
+	_epoch._p2p.RetryValidate(hash);
+    }
+
     PersistenceP2p<ConsensusType::BatchStateBlock>	_batch;
     PersistenceP2p<ConsensusType::MicroBlock>		_micro;
     PersistenceP2p<ConsensusType::Epoch>		_epoch;
+
+    friend class ConsensusP2p<CT>;
+    friend class PersistenceP2p<CT>;
 };

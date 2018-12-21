@@ -94,6 +94,22 @@ PersistenceManager<MBCT>::Validate(
         return false;
     }
 
+    // verify can get the batch block tips
+    bool valid = true;
+    BatchStateBlock bsb;
+    for (int del = 0; del < NUM_DELEGATES; ++del)
+    {
+	if (block.tips[del] != 0 && _store.batch_block_get(block.tips[del], bsb))
+	{
+	    LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
+			    << block.hash().to_string() << " "
+			    << block.tips[del].to_string();
+	    UpdateStatusReason(status, process_result::gap_previous);
+	    UpdateStatusRequests(status, del, process_result::invalid_request);
+	    valid = false;
+	}
+    }
+
     /// verify can iterate the chain and the number of blocks checks out
     int number_batch_blocks = 0;
     MicroBlockHandler::BatchBlocksIterator(_store, block.tips, previous_microblock.tips,
@@ -107,22 +123,6 @@ PersistenceManager<MBCT>::Validate(
                         << " block " << block.number_batch_blocks << " to database: " << number_batch_blocks;
         UpdateStatusReason(status, process_result::invalid_number_blocks);
         return false;
-    }
-
-    // verify can get the batch block tips
-    bool valid = true;
-    BatchStateBlock bsb;
-    for (int del = 0; del < NUM_DELEGATES; ++del)
-    {
-        if (block.tips[del] != 0 && _store.batch_block_get(block.tips[del], bsb))
-        {
-            LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
-                            << block.hash().to_string() << " "
-                            << block.tips[del].to_string();
-            UpdateStatusReason(status, process_result::gap_previous);
-            UpdateStatusRequests(status, del, process_result::gap_previous);
-            valid = false;
-        }
     }
 
     return valid;
