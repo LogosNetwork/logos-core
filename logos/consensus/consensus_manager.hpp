@@ -27,10 +27,10 @@ public:
     virtual ~NetIOHandler() = default;
 
     virtual
-    std::shared_ptr<PrequelParser>
+    std::shared_ptr<MessageParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) = 0;
-  virtual void OnNetIOError(uint8_t delegate_id) = 0;
+    virtual void OnNetIOError(uint8_t delegate_id) = 0;
 };
 
 template<ConsensusType CT>
@@ -72,6 +72,7 @@ protected:
     using Request     = RequestMessage<CT>;
     using PrePrepare  = PrePrepareMessage<CT>;
     using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
+    using ApprovedBlock   = PostCommittedBlock<CT>;
 
 public:
 
@@ -103,7 +104,7 @@ public:
 
     Store & GetStore() override;
 
-    std::shared_ptr<PrequelParser>
+    std::shared_ptr<MessageParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) override;
 
@@ -117,7 +118,7 @@ protected:
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;
     static constexpr uint8_t DELIGATE_ID_MASK    = 5;
 
-    virtual void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) = 0;
+    virtual void ApplyUpdates(const ApprovedBlock &, uint8_t delegate_id) = 0;
 
     virtual bool Validate(std::shared_ptr<Request> block,
                           logos::process_return & result) = 0;
@@ -137,12 +138,12 @@ protected:
     virtual void QueueRequestPrimary(std::shared_ptr<Request>) = 0;
     virtual void QueueRequestSecondary(std::shared_ptr<Request>);
     virtual bool PrePrepareQueueEmpty() = 0;
-    virtual bool PrimaryContains(const logos::block_hash&) = 0;
-    virtual bool SecondaryContains(const logos::block_hash&);
+    virtual bool PrimaryContains(const BlockHash&) = 0;
+    virtual bool SecondaryContains(const BlockHash&);
 
     bool IsPendingRequest(std::shared_ptr<Request>);
 
-    bool IsPrePrepared(const logos::block_hash & hash);
+    bool IsPrePrepared(const BlockHash & hash);
 
     /// Request's primary delegate, 0 (delegate with most voting power) for Micro/Epoch Block
     /// @param request request

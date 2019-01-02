@@ -16,7 +16,7 @@ SecondaryRequestHandler<CT>::SecondaryRequestHandler(Service & service,
 {}
 
 template<ConsensusType CT>
-bool SecondaryRequestHandler<CT>::Contains(const logos::block_hash & hash)
+bool SecondaryRequestHandler<CT>::Contains(const BlockHash & hash)
 {
     std::lock_guard<std::mutex> lock(_mutex);
 
@@ -26,7 +26,7 @@ bool SecondaryRequestHandler<CT>::Contains(const logos::block_hash & hash)
 template<ConsensusType CT>
 void SecondaryRequestHandler<CT>::OnRequest(std::shared_ptr<RequestMessage<CT>> block, Seconds seconds)
 {
-    auto hash = block->hash();
+    auto hash = block->Hash();
 
     std::lock_guard<std::mutex> lock(_mutex);
     if(_requests. template get<1>().find(hash) != _requests. template get<1>().end())
@@ -119,7 +119,7 @@ void SecondaryRequestHandler<CT>::ScheduleTimer(const Seconds & timeout)
 }
 
 template <ConsensusType CT>
-void SecondaryRequestHandler<CT>::PruneRequest(const logos::block_hash & hash)
+void SecondaryRequestHandler<CT>::PruneRequest(const BlockHash & hash)
 {
     if(_requests. template get<1>().find(hash) != _requests. template get<1>().end())
     {
@@ -142,13 +142,13 @@ void SecondaryRequestHandler<CT>::UpdateRequestPromoter(RequestPromoter<CT>* pro
 template<>
 void SecondaryRequestHandler<ConsensusType::MicroBlock>::PruneRequests(const PrePrepare & block)
 {
-    PruneRequest(block.hash());
+    PruneRequest(block.Hash());
 }
 
 template<>
 void SecondaryRequestHandler<ConsensusType::Epoch>::PruneRequests(const PrePrepare & block)
 {
-    PruneRequest(block.hash());
+    PruneRequest(block.Hash());
 }
 
 template<>
@@ -156,7 +156,7 @@ void SecondaryRequestHandler<ConsensusType::BatchStateBlock>::PruneRequests(cons
 {
     for (uint64_t i = 0; i < block.block_count; ++i)
     {
-        auto hash = block.blocks[i].hash();
+        BlockHash hash = block.blocks[i].GetHash();
 
         PruneRequest(hash);
     }

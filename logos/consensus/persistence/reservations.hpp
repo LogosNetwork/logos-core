@@ -16,8 +16,8 @@ public:
         : _store(store)
     {}
     virtual ~ReservationsProvider() = default;
-    virtual bool Acquire(const logos::account & account, logos::account_info &info) {return true;}
-    virtual void Release(const logos::account & account) {}
+    virtual bool Acquire(const AccountAddress & account, logos::account_info &info) {return true;}
+    virtual void Release(const AccountAddress & account) {}
 protected:
     Store &      _store;
     Log          _log;
@@ -27,7 +27,7 @@ class Reservations : public ReservationsProvider
 {
 protected:
 
-    using AccountCache = std::unordered_map<logos::account, logos::account_info>;
+    using AccountCache = std::unordered_map<AccountAddress, logos::account_info>;
 
 public:
     Reservations(Store & store)
@@ -49,7 +49,7 @@ public:
     //       this is not the only case in which a cached account will be
     //       acquired.
     //-------------------------------------------------------------------------
-    bool Acquire(const logos::account & account, logos::account_info &info) override
+    bool Acquire(const AccountAddress & account, logos::account_info &info) override
     {
         std::lock_guard<std::mutex> lock(_mutex);
 
@@ -74,7 +74,7 @@ public:
         return ret;
     }
 
-    void Release(const logos::account & account) override
+    void Release(const AccountAddress & account) override
     {
         std::lock_guard<std::mutex> lock(_mutex);
         _accounts.erase(account);
@@ -92,7 +92,7 @@ public:
     {}
     ~DefaultReservations() = default;
 
-    bool Acquire(const logos::account & account, logos::account_info &info) override
+    bool Acquire(const AccountAddress & account, logos::account_info &info) override
     {
         return _store.account_get(account, info);
     }

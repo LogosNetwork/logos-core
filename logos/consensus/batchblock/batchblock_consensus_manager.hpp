@@ -75,7 +75,7 @@ public:
     ///                interface.
     ///     @param[in] ids Delegate IDs for the local and
     ///                remote delegates.
-    std::shared_ptr<PrequelParser>
+    std::shared_ptr<MessageParser>
     BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                   const DelegateIdentities & ids) override;
 
@@ -86,7 +86,7 @@ protected:
     /// Commits the block to the database.
     ///     @param block the batch block to commit to the database
     ///     @param delegate_id delegate id
-    void ApplyUpdates(const PrePrepare & message, uint8_t delegate_id) override;
+    void ApplyUpdates(const ApprovedBSB & block, uint8_t delegate_id) override;
 
     /// Checks if the system is ready to initiate consensus.
     ///
@@ -141,7 +141,7 @@ protected:
     /// Primary list contains request with the hash
     /// @param request's hash
     /// @returns true if the request is in the list
-    bool PrimaryContains(const logos::block_hash&) override;
+    bool PrimaryContains(const BlockHash &) override;
 
     void OnPostCommit(const PrePrepare & block) override;
 

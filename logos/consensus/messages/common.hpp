@@ -1,13 +1,14 @@
 #pragma once
 
-#include <logos/lib/blocks.hpp>
-
 #include <type_traits>
 #include <cstdint>
 #include <bitset>
 #include <array>
+#include <chrono>
 
 #include <blake2/blake2.h>
+
+#include <logos/consensus/messages/byte_arrays.hpp>
 
 enum class MessageType : uint8_t
 {
@@ -23,9 +24,13 @@ enum class MessageType : uint8_t
     Rejection    = 6,
     Heart_Beat   = 7,
 
+    Post_Committed_Block, //to be stored locally and distributed to fall nodes
+
     // Invalid
     Unknown      = 0xff
 };
+
+static constexpr uint8_t logos_version = 0;
 
 /// To implement a new type of consensus :
 /// - define consensus type in consensus/messages/common.hpp - add new consensus type before Any
@@ -51,21 +56,11 @@ CONSENSUS_TYPE
     Epoch
 );
 
-static const size_t NUM_DELEGATES          = 32;
-static const size_t CONSENSUS_HASH_SIZE    = 32;
-static const size_t CONSENSUS_SIG_SIZE     = 32;
-static const size_t CONSENSUS_AGG_SIG_SIZE = 32;
-static const size_t CONSENSUS_PUB_KEY_SIZE = 64;
-static const size_t CONSENSUS_BATCH_SIZE   = 1500;
+static const size_t NUM_DELEGATES               = 32;
+static const size_t CONSENSUS_BATCH_SIZE        = 1500;
 
-using Signature    = std::array<uint8_t, CONSENSUS_SIG_SIZE>;
-using AggSignature = std::array<uint8_t, CONSENSUS_AGG_SIG_SIZE>;
-using PublicKey    = std::array<uint8_t, CONSENSUS_PUB_KEY_SIZE>;
-
-using BlockList       = logos::state_block [CONSENSUS_BATCH_SIZE];
-using BlockHash       = logos::block_hash;
-using ParicipationMap = std::bitset<NUM_DELEGATES>;
-using RejectionMap    = std::bitset<CONSENSUS_BATCH_SIZE>;
+using ParicipationMap       = std::bitset<NUM_DELEGATES>;
+using RejectionMap          = std::bitset<CONSENSUS_BATCH_SIZE>; //TODO veriable size //TODO serialized size
 
 inline uint64_t GetStamp()
 {
@@ -75,18 +70,93 @@ inline uint64_t GetStamp()
                 system_clock::now().time_since_epoch()).count();
 }
 
+template<typename T>
+BlockHash Blake2bHash(const T & t)
+{
+    BlockHash degest;
+    blake2b_state hash;
+
+    auto status(blake2b_init(&hash, HASH_SIZE));
+    assert(status == 0);
+
+    t.Hash(hash);
+
+    status = blake2b_final(&hash, degest.data(), HASH_SIZE);
+    assert(status == 0);
+
+    return degest;
+}
+
+struct AggSignature
+{
+    ParicipationMap     map;
+    DelegateSig         sig;
+    static_assert (sizeof(unsigned long)*8==64, "sizeof(unsigned long)*8!=64");
+
+    AggSignature() = default;
+
+    AggSignature(bool & error, logos::stream & stream)
+    {
+        if(error)
+        {
+            return;
+        }
+
+        unsigned long m;
+        error = logos::read(stream, m);
+        if(error)
+        {
+            return;
+        }
+        new (&map) ParicipationMap(le64toh(m));
+
+        error = logos::read(stream, sig);
+        if(error)
+        {
+            return;
+        }
+    }
+
+    void Hash(blake2b_state & hash) const
+    {
+        unsigned long m = htole64(map.to_ulong());
+        blake2b_update(&hash, &m, sizeof(m));
+        sig.Hash(hash);
+    }
+
+    uint32_t Serialize(logos::stream & stream) const
+    {
+        unsigned long m = htole64(map.to_ulong());
+        uint32_t s = logos::write(stream, m);
+        s += logos::write(stream, sig);
+        return s;
+    }
+
+    void SerializeJson(boost::property_tree::ptree & tree) const
+    {
+        tree.put("paricipation_map", map.to_string());
+        tree.put("signature", sig.to_string());
+    }
+};
+
+static constexpr uint32_t MessagePrequelSize = 8;
+
 template<MessageType MT, ConsensusType CT>
 struct MessagePrequel
 {
-    static const size_t STREAM_SIZE = sizeof(uint8_t) +
-                                      sizeof(MessageType) +
-                                      sizeof(ConsensusType) +
-                                      sizeof(size_t);
+    //    static const uint32_t STREAM_SIZE = 8;
 
-    MessagePrequel() = default;
+    MessagePrequel(uint8_t version = logos_version)
+    : version(version)
+    {}
 
     MessagePrequel(bool & error, logos::stream & stream)
     {
+        if(error)
+        {
+            return;
+        }
+
         error = logos::read(stream, const_cast<uint8_t &>(version));
         if(error)
         {
@@ -105,105 +175,177 @@ struct MessagePrequel
             return;
         }
 
-        error = logos::read(stream, payload_stream_size);
+        char pad;
+        error = logos::read(stream, const_cast<char &>(pad));
         if(error)
         {
             return;
         }
+
+        error = logos::read(stream, payload_size);
+        if(error)
+        {
+            return;
+        }
+        payload_size = le32toh(payload_size);
     }
 
     MessagePrequel<MT, CT> & operator= (const MessagePrequel<MT, CT> & other)
     {
         const_cast<uint8_t &>(version) = other.version;
-        const_cast<size_t &>(payload_stream_size) = other.payload_stream_size;
+        payload_size = other.payload_size;
 
         return *this;
     }
 
     void Hash(blake2b_state & hash) const
     {
-        blake2b_update(&hash, &version, sizeof(version));
-        blake2b_update(&hash, &type, sizeof(type));
-        blake2b_update(&hash, &consensus_type, sizeof(consensus_type));
+        blake2b_update(&hash, &version, sizeof(uint8_t));
+        blake2b_update(&hash, &consensus_type, sizeof(uint8_t));
     }
 
-    void Serialize(logos::stream & stream) const
+    uint32_t Serialize(logos::stream & stream) const
     {
-        logos::write(stream, version);
-        logos::write(stream, type);
-        logos::write(stream, consensus_type);
-        logos::write(stream, payload_stream_size);
+        auto s = logos::write(stream, version);
+        s += logos::write(stream, type);
+        s += logos::write(stream, consensus_type);
+        char pad = 0;
+        s += logos::write(stream, pad);
+        s += logos::write(stream, htole32(payload_size));
+
+        assert(s == MessagePrequelSize);
+        return MessagePrequelSize;
     }
 
-    const uint8_t       version        = 0;
-    const MessageType   type           = MT;
-    const ConsensusType consensus_type = CT;
-    mutable size_t payload_stream_size = 0;
+    const uint8_t       version         = logos_version;
+    const MessageType   type            = MT;
+    const ConsensusType consensus_type  = CT;
+    mutable uint32_t    payload_size    = 0;
 };
 
-template<MessageType MT, ConsensusType CT>
-struct MessageHeader : MessagePrequel<MT, CT>
+using Prequel = MessagePrequel<MessageType::Unknown, ConsensusType::Any>;
+
+struct PrePrepareCommon
 {
-    static const size_t STREAM_SIZE = sizeof(uint64_t) +
-                                      sizeof(BlockHash);
+    static const uint32_t STREAM_SIZE =
+            sizeof(AccountAddress) +
+            sizeof(uint32_t) +
+            sizeof(uint32_t) +
+            sizeof(uint64_t) +
+            sizeof(BlockHash) +
+            sizeof(DelegateSig);
 
-    MessageHeader(uint64_t timestamp)
-        : timestamp(timestamp)
-    {}
+    PrePrepareCommon()
+    : delegate()
+    , epoch_number(0)
+    , sequence(0)
+    , timestamp(GetStamp())
+    , previous()
+    , preprepare_sig()
+    { }
 
-    MessageHeader()
-        : timestamp(GetStamp())
-    {}
-
-    MessageHeader(bool & error, logos::stream & stream)
-        : MessagePrequel<MT, CT>(error, stream)
+    PrePrepareCommon(bool & error, logos::stream & stream)
     {
         if(error)
         {
             return;
         }
+
+        error = logos::read(stream, delegate);
+        if(error)
+        {
+            return;
+        }
+
+        error = logos::read(stream, epoch_number);
+        if(error)
+        {
+            return;
+        }
+        epoch_number = le32toh(epoch_number);
+
+        error = logos::read(stream, sequence);
+        if(error)
+        {
+            return;
+        }
+        sequence = le32toh(sequence);
 
         error = logos::read(stream, timestamp);
         if(error)
         {
             return;
         }
+        timestamp = le64toh(timestamp);
 
         error = logos::read(stream, previous);
         if(error)
         {
             return;
         }
+
+        error = logos::read(stream, preprepare_sig);
+        if(error)
+        {
+            return;
+        }
     }
 
-    MessageHeader<MT, CT> & operator= (const MessageHeader<MT, CT> & other)
+    PrePrepareCommon & operator= (const PrePrepareCommon & other)
     {
-        MessagePrequel<MT, CT>::operator=(other);
-
-        timestamp = other.timestamp;
-        previous = other.previous;
-
+        delegate        = other.delegate;
+        epoch_number    = other.epoch_number;
+        sequence        = other.sequence;
+        timestamp       = other.timestamp;
+        previous        = other.previous;
+        preprepare_sig  = other.preprepare_sig;
         return *this;
     }
 
     void Hash(blake2b_state & hash) const
     {
-        MessagePrequel<MT, CT>::Hash(hash);
+        uint32_t en = htole32(epoch_number);
+        uint32_t sqn = htole32(sequence);
+        uint64_t tsp = htole64(timestamp);
 
-        blake2b_update(&hash, &timestamp, sizeof(timestamp));
-        blake2b_update(&hash, &previous, sizeof(previous));
+        delegate.Hash(hash);
+        blake2b_update(&hash, &en, sizeof(uint32_t));
+        blake2b_update(&hash, &sqn, sizeof(uint32_t));
+        blake2b_update(&hash, &tsp, sizeof(uint64_t));
+        previous.Hash(hash);
     }
 
-    void Serialize(logos::stream & stream) const
+    uint32_t Serialize(logos::stream & stream) const
     {
-        MessagePrequel<MT, CT>::Serialize(stream);
+        uint32_t en = htole32(epoch_number);
+        uint32_t sqn = htole32(sequence);
+        uint64_t tsp = htole64(timestamp);
 
-        logos::write(stream, timestamp);
-        logos::write(stream, previous);
+        auto s = logos::write(stream, delegate);
+        s += logos::write(stream, en);
+        s += logos::write(stream, sqn);
+        s += logos::write(stream, tsp);
+        s += logos::write(stream, previous);
+        s += logos::write(stream, preprepare_sig);
+        assert(s == STREAM_SIZE);
+
+        return STREAM_SIZE;
     }
 
-    uint64_t  timestamp;
-    BlockHash previous;
-};
+    void SerializeJson(boost::property_tree::ptree & tree) const
+    {
+        tree.put("delegate", delegate.to_string());
+        tree.put("epoch_number", std::to_string(epoch_number));
+        tree.put("sequence", std::to_string(sequence));
+        tree.put("timestamp", std::to_string(timestamp));
+        tree.put("previous", previous.to_string());
+        tree.put("signature", preprepare_sig.to_string());
+    }
 
-using Prequel = MessagePrequel<MessageType::Unknown, ConsensusType::Any>;
+    AccountAddress          delegate; //TODO rename to primary
+    uint32_t                epoch_number;
+    uint32_t                sequence;
+    uint64_t                timestamp;
+    BlockHash               previous;
+    DelegateSig             preprepare_sig;
+};

@@ -20,9 +20,9 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
     , _service(service)
 {
     _state = ConsensusState::INITIALIZING;
-    _store.batch_tip_get(_delegate_id, _prev_hash);
-    BatchStateBlock block;
-    if (_prev_hash != 0 && !_store.batch_block_get(_prev_hash, block))
+    _store.batch_tip_get(_delegate_id, _prev_pre_prepare_hash);
+    ApprovedBSB block;
+    if ( !_prev_pre_prepare_hash.is_zero() && !_store.batch_block_get(_prev_pre_prepare_hash, block))
     {
         _sequence = block.sequence + 1;
     }
@@ -31,11 +31,7 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
 void BatchBlockConsensusManager::Send(const PrePrepare & pre_prepare)
 {
     std::vector<uint8_t> v;
-    {
-        logos::vectorstream stream(v);
-        pre_prepare.Serialize(stream);
-    }
-
+    pre_prepare.Serialize(v);
     Manager::Send(v.data(), v.size());
 }
 
@@ -47,7 +43,7 @@ BatchBlockConsensusManager::OnBenchmarkSendRequest(
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
     LOG_DEBUG (_log) << "BatchBlockConsensusManager::OnBenchmarkSendRequest() - hash: "
-                     << block->hash().to_string();
+                     << block->GetHash().to_string();
 
     _using_buffered_blocks = true;
     _buffer.push_back(block);
@@ -63,7 +59,7 @@ BatchBlockConsensusManager::BufferComplete(
     SendBufferedBlocks();
 }
 
-std::shared_ptr<PrequelParser>
+std::shared_ptr<MessageParser>
 BatchBlockConsensusManager::BindIOChannel(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities & ids)
@@ -107,11 +103,11 @@ BatchBlockConsensusManager::Validate(
   std::shared_ptr<Request> block,
   logos::process_return & result)
 {
-    if(logos::validate_message(block->hashables.account, block->hash(), block->signature))
+    if(! block->VerifySignature(block->account))
     {
         LOG_INFO(_log) << "BatchBlockConsensusManager - Validate, bad signature: "
                        << block->signature.to_string()
-                       << " account: " << block->hashables.account.to_string();
+                       << " account: " << block->account.to_string();
 
         result.code = logos::process_result::bad_signature;
         return false;
@@ -145,8 +141,7 @@ BatchBlockConsensusManager::QueueRequestPrimary(
 auto
 BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
-    auto & batch = reinterpret_cast<
-            PrePrepare&>(_handler.GetCurrentBatch());
+    auto & batch = _handler.GetCurrentBatch();
 
     batch.sequence = _sequence;
     batch.timestamp = GetStamp();
@@ -154,7 +149,7 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
 
     for(uint64_t i = 0; i < batch.block_count; ++i)
     {
-        _hashes.insert(batch.blocks[i].hash());
+        _hashes.insert(batch.blocks[i].GetHash());
     }
 
     return batch;
@@ -174,10 +169,10 @@ BatchBlockConsensusManager::PrePrepareQueueEmpty()
 
 void
 BatchBlockConsensusManager::ApplyUpdates(
-  const PrePrepare & pre_prepare,
+  const ApprovedBSB & block,
   uint8_t delegate_id)
 {
-    _persistence_manager.ApplyUpdates(pre_prepare, _delegate_id);
+    _persistence_manager.ApplyUpdates(block, _delegate_id);
 }
 
 uint64_t
@@ -217,15 +212,14 @@ BatchBlockConsensusManager::DesignatedDelegate(std::shared_ptr<Request> request)
     // determine the ID of the designated primary
     // for that account.
     //
-    logos::uint256_t indicator = request->hashables.previous.is_zero() ?
-           request->hashables.account.number() :
-           request->hashables.previous.number();
+    uint8_t indicator = request->previous.is_zero() ?
+           request->account.data()[0] : request->previous.data()[0];
 
     return uint8_t(indicator & ((1<<DELIGATE_ID_MASK)-1));
 }
 
 bool
-BatchBlockConsensusManager::PrimaryContains(const logos::block_hash &hash)
+BatchBlockConsensusManager::PrimaryContains(const BlockHash &hash)
 {
     return _handler.Contains(hash);
 }
@@ -284,7 +278,7 @@ BatchBlockConsensusManager::OnRejection(
                 if(ReachedQuorum(weights.indirect_vote_support + _prepare_vote,
                                  weights.indirect_stake_support + _prepare_stake))
                 {
-                    _hashes.erase(batch.blocks[i].hash());
+                    _hashes.erase(batch.blocks[i].GetHash());
                 }
             }
             else
@@ -295,7 +289,7 @@ BatchBlockConsensusManager::OnRejection(
                 if(Rejected(weights.reject_vote,
                             weights.reject_stake))
                 {
-                    _hashes.erase(batch.blocks[i].hash());
+                    _hashes.erase(batch.blocks[i].GetHash());
                 }
             }
         }
@@ -479,7 +473,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
         }
     }
 
-    std::list<logos::state_block> requests;
+    std::list<StateBlock> requests;
 
     // Create new pre-prepare messages
     // based on the subsets.
@@ -496,7 +490,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
             requests.push_back(batch.blocks[*itr]);
         }
 
-        requests.push_back(logos::state_block());
+        requests.push_back(StateBlock());
     }
 
     // Pushing a null state_block to the front
@@ -505,7 +499,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
     // we proceed if no requests can be re-proposed.
     if(requests.empty())
     {
-        requests.push_back(logos::state_block());
+        requests.push_back(StateBlock());
     }
 
     _handler.PopFront();

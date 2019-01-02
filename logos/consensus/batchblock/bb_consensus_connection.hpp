@@ -54,17 +54,14 @@ public:
     /// Commit PrePrepare message to the database
     /// @param message PrePrepare message [in]
     /// @param delegate_id delegate id [in]
-    void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) override;
+    void ApplyUpdates(const ApprovedBSB &, uint8_t delegate_id) override;
 
-    bool IsPrePrepared(const logos::block_hash & hash) override;
+    bool IsPrePrepared(const BlockHash & hash) override;
 
     void DoUpdateMessage(Rejection & message);
 
     /// Cleanup before destruction
     void CleanUp() override;
-
-    size_t GetPayloadSize() override;
-    void DeliverPrePrepare() override;
 
 private:
 

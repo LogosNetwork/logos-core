@@ -21,9 +21,9 @@ BBConsensusConnection::BBConsensusConnection(
                  validator, ids, events_notifier, persistence_manager)
     , _timer(service)
 {
-    BatchStateBlock block;
+    ApprovedBSB block;
     promoter.GetStore().batch_tip_get(_delegate_ids.remote, _prev_pre_prepare_hash);
-    if (_prev_pre_prepare_hash != 0 && !promoter.GetStore().batch_block_get(_prev_pre_prepare_hash, block))
+    if ( ! _prev_pre_prepare_hash.is_zero() && !promoter.GetStore().batch_block_get(_prev_pre_prepare_hash, block))
     {
         _sequence_number = block.sequence + 1;
     }
@@ -92,7 +92,7 @@ BBConsensusConnection::ValidateRequests(
 ///     @param remote delegate id
 void
 BBConsensusConnection::ApplyUpdates(
-    const PrePrepare & block,
+    const ApprovedBSB & block,
     uint8_t delegate_id)
 {
     _persistence_manager.ApplyUpdates(block, delegate_id);
@@ -100,7 +100,7 @@ BBConsensusConnection::ApplyUpdates(
 
 bool
 BBConsensusConnection::IsPrePrepared(
-    const logos::block_hash & hash)
+    const BlockHash & hash)
 {
     std::lock_guard<std::mutex> lock(_mutex);
 
@@ -120,29 +120,6 @@ BBConsensusConnection::DoUpdateMessage(Rejection & message)
     message.rejection_map = _rejection_map;
 }
 
-size_t
-BBConsensusConnection::GetPayloadSize()
-{
-    return *reinterpret_cast<size_t *>(_receive_buffer.data() + 3);
-}
-
-void
-BBConsensusConnection::DeliverPrePrepare()
-{
-    bool error = false;
-
-    logos::bufferstream stream(_receive_buffer.data(), GetPayloadSize());
-    BatchStateBlock msg(error, stream);
-
-    if(error)
-    {
-        LOG_ERROR(_log) << "BBConsensusConnection::DeliverPrePrepare - Failed to deserialize BatchStateBlock.";
-        return;
-    }
-
-    OnConsensusMessage(static_cast<PrePrepare &>(msg));
-}
-
 void
 BBConsensusConnection::Reject()
 {
@@ -157,7 +134,10 @@ BBConsensusConnection::Reject()
     case RejectionReason::Wrong_Sequence_Number:
     case RejectionReason::Invalid_Epoch:
     case RejectionReason::New_Epoch:
-        SendMessage<Rejection>();
+        Rejection msg(_pre_prepare_hash);
+        DoUpdateMessage(msg);
+        _validator.Sign(msg.Hash(), msg.signature);
+        SendMessage<Rejection>(msg);
         break;
     }
 }
@@ -204,7 +184,7 @@ BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
 
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
-        _pre_prepare_hashes.insert(message.blocks[i].hash());
+        _pre_prepare_hashes.insert(message.blocks[i].GetHash());
     }
 
     // to make sure during epoch transition, a fallback session of the new epoch
@@ -288,7 +268,7 @@ BBConsensusConnection::IsSubset(const PrePrepare & message)
 {
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
-        if(_pre_prepare_hashes.find(message.blocks[i].hash()) ==
+        if(_pre_prepare_hashes.find(message.blocks[i].GetHash()) ==
                 _pre_prepare_hashes.end())
         {
             return false;
@@ -331,12 +311,12 @@ BBConsensusConnection::CleanUp()
     _cancel_timer = true;
 }
 
-template<>
-template<>
-void
-ConsensusConnection<ConsensusType::BatchStateBlock>::UpdateMessage(Rejection & message)
-{
-    static_cast<BBConsensusConnection *>(this)
-            ->DoUpdateMessage(message);
-}
-
+//template<>
+//template<>
+//void
+//ConsensusConnection<ConsensusType::BatchStateBlock>::UpdateMessage(Rejection & message)
+//{
+//    static_cast<BBConsensusConnection *>(this)
+//            ->DoUpdateMessage(message);
+//}
+//

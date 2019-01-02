@@ -38,11 +38,11 @@ public:
     bool DoValidate(const PrePrepare & message) override;
 
     /// Commit PrePrepare message to the database
-    /// @param message PrePrepare message [in]
+    /// @param message ApprovedMB [in]
     /// @param delegate_id delegate id [in]
-    void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) override;
+    void ApplyUpdates(const ApprovedMB &, uint8_t delegate_id) override;
 
-    bool IsPrePrepared(const logos::block_hash & hash) override;
+    bool IsPrePrepared(const BlockHash & hash) override;
 
 private:
     ArchiverMicroBlockHandler &  _microblock_handler;

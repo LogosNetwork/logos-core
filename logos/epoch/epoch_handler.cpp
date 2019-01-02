@@ -8,12 +8,12 @@
 #include <logos/lib/log.hpp>
 
 bool
-EpochHandler::Build(Epoch &epoch)
+EpochHandler::Build(RequestMessage<ConsensusType::Epoch> &epoch)
 {
     BlockHash previous_epoch_hash;
     BlockHash previous_micro_block_hash;
-    Epoch previous_epoch;
-    MicroBlock last_micro_block;
+    ApprovedEB previous_epoch;
+    ApprovedMB last_micro_block;
 
     if (_store.epoch_tip_get(previous_epoch_hash))
     {
@@ -43,7 +43,7 @@ EpochHandler::Build(Epoch &epoch)
 
     epoch.timestamp = GetStamp();
     epoch.previous = previous_epoch_hash;
-    epoch.account = DelegateIdentityManager::_delegate_account;
+    epoch.delegate = DelegateIdentityManager::_delegate_account;
     epoch.epoch_number = previous_epoch.epoch_number + 1;
     epoch.micro_block_tip = previous_micro_block_hash;
     _voting_manager.GetNextEpochDelegates(epoch.delegates);

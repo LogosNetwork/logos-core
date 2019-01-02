@@ -15,7 +15,6 @@ class PersistenceManager<BSBCT> : public Persistence {
 
 protected:
 
-    using Hash              = logos::block_hash;
     using Request           = RequestMessage<BSBCT>;
     using PrePrepare        = PrePrepareMessage<BSBCT>;
     using ReservationsPtr   = std::shared_ptr<ReservationsProvider>;
@@ -27,7 +26,7 @@ public:
                        Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT);
     virtual ~PersistenceManager() = default;
 
-    virtual void ApplyUpdates(const PrePrepare & message, uint8_t delegate_id);
+    virtual void ApplyUpdates(const ApprovedBSB & message, uint8_t delegate_id);
 
     virtual bool Validate(const Request & block, logos::process_return & result, bool allow_duplicates = true);
     virtual bool Validate(const Request & block);
@@ -36,23 +35,23 @@ public:
 
 private:
 
-    void StoreBatchMessage(const BatchStateBlock & message,
+    void StoreBatchMessage(const ApprovedBSB & message,
                            MDB_txn * transaction,
                            uint8_t delegate_id);
 
-    void ApplyBatchMessage(const BatchStateBlock & message,
+    void ApplyBatchMessage(const ApprovedBSB & message,
                            MDB_txn * transaction);
-    void ApplyStateMessage(const logos::state_block & block,
+    void ApplyStateMessage(const StateBlock & block,
                            uint64_t timestamp,
                            MDB_txn * transaction);
 
-    bool UpdateSourceState(const logos::state_block & block,
+    bool UpdateSourceState(const StateBlock & block,
                            MDB_txn * transaction);
-    void UpdateDestinationState(const logos::state_block & block,
+    void UpdateDestinationState(const StateBlock & block,
                                 uint64_t timestamp,
                                 MDB_txn * transaction);
 
-    void PlaceReceive(logos::state_block & receive,
+    void PlaceReceive(ReceiveBlock & receive,
                       MDB_txn * transaction);
 
     static constexpr uint64_t  RESERVATION_PERIOD  = 2;

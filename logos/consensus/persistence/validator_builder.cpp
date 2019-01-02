@@ -18,7 +18,7 @@ ValidatorBuilder::GetValidator(uint16_t epoch_number)
 {
     std::shared_ptr<MessageValidator> validator = nullptr;
     BlockHash   hash;
-    Epoch   epoch;
+    ApprovedEB  epoch;
 
     // delegate's epoch block for requested epoch
     epoch_number -= 2;
@@ -60,11 +60,12 @@ ValidatorBuilder::GetValidator(uint16_t epoch_number)
             uint8_t id = 0;
             for (auto delegate : epoch.delegates)
             {
-                std::string str;
-                delegate.bls_pub.serialize(str);
-                PublicKey pk;
-                memcpy(&pk[0], str.data(), CONSENSUS_PUB_KEY_SIZE);
-                key_store->OnPublicKey(id++, pk);
+                //                std::string str;
+                //                delegate.bls_pub.serialize(str);
+                //                DelegatePubKey pk;
+                //                memcpy(&pk[0], str.data(), CONSENSUS_PUB_KEY_SIZE);
+                //                key_store->OnPublicKey(id++, pk);
+                key_store->OnPublicKey(id++, delegate.bls_pub);
             }
             _epoch_pki[epoch_number] = {key_store, validator};
             if (_epoch_pki.size() > MAX_CACHED)

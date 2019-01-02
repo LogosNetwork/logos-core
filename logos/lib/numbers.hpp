@@ -3,6 +3,7 @@
 #include <boost/multiprecision/cpp_int.hpp>
 
 #include <cryptopp/osrng.h>
+#include <blake2/blake2.h>
 
 namespace logos
 {
@@ -23,7 +24,12 @@ logos::uint128_t const ulgs_ratio = logos::uint128_t ("1000000000000000000"); //
 union uint128_union
 {
 public:
-    uint128_union () = default;
+    static_assert (sizeof(uint128_t)==16, "sizeof(uint128_t) != 16");
+
+    uint128_union ()
+    {
+        memset(bytes.data(), 0, 16);
+    }
     uint128_union (std::string const &);
     uint128_union (uint64_t);
     uint128_union (logos::uint128_union const &) = default;
@@ -47,16 +53,25 @@ public:
     std::array<char, 16> chars;
     std::array<uint32_t, 4> dwords;
     std::array<uint64_t, 2> qwords;
+
+    const uint8_t * data() const
+    {
+        return bytes.data();
+    }
 };
 // Balances are 128 bit.
 using amount = uint128_union;
 class raw_key;
 union uint256_union
 {
-    uint256_union () = default;
+    uint256_union ()
+    {
+        memset(bytes.data(), 0, 32);
+    }
     uint256_union (std::string const &);
     uint256_union (uint64_t);
     uint256_union (logos::uint256_t const &);
+    uint256_union (std::array<uint8_t, 32> const &);
     void encrypt (logos::raw_key const &, logos::raw_key const &, uint128_union const &);
     uint256_union & operator^= (logos::uint256_union const &);
     uint256_union operator^ (logos::uint256_union const &) const;
@@ -80,6 +95,26 @@ union uint256_union
     bool is_zero () const;
     std::string to_string () const;
     logos::uint256_t number () const;
+
+    uint8_t * data()
+    {
+        return bytes.data();
+    }
+
+    const uint8_t * data() const
+    {
+        return bytes.data();
+    }
+
+    void Hash(blake2b_state & hash) const
+    {
+        blake2b_update(&hash, bytes.data(), 32);
+    }
+    uint256_union(void * buf, size_t buf_len)
+    {
+        assert(buf_len == 32);
+        memcpy(data(), buf, 32);
+    }
 };
 // All keys and hashes are 256 bit.
 using block_hash = uint256_union;
@@ -103,7 +138,11 @@ public:
 };
 union uint512_union
 {
-    uint512_union () = default;
+    uint512_union (uint8_t t = 0)
+    {
+        memset(bytes.data(), t, 64);
+    }
+
     uint512_union (logos::uint512_t const &);
     bool operator== (logos::uint512_union const &) const;
     bool operator!= (logos::uint512_union const &) const;
@@ -117,6 +156,21 @@ union uint512_union
     void clear ();
     logos::uint512_t number () const;
     std::string to_string () const;
+
+    uint8_t * data()
+    {
+        return bytes.data();
+    }
+
+    const uint8_t * data() const
+    {
+        return bytes.data();
+    }
+
+    void Hash(blake2b_state & hash) const
+    {
+        blake2b_update(&hash, bytes.data(), 64);
+    }
 };
 // Only signatures are 512 bit.
 using signature = uint512_union;

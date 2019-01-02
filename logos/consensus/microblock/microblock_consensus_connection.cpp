@@ -37,7 +37,7 @@ MicroBlockConsensusConnection::DoValidate(
 
 void
 MicroBlockConsensusConnection::ApplyUpdates(
-    const PrePrepare & block,
+    const ApprovedMB & block,
     uint8_t)
 {
     _persistence_manager.ApplyUpdates(block);
@@ -47,9 +47,9 @@ MicroBlockConsensusConnection::ApplyUpdates(
 
 bool
 MicroBlockConsensusConnection::IsPrePrepared(
-    const logos::block_hash & hash)
+    const BlockHash & hash)
 {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    return (_pre_prepare && hash == _pre_prepare->hash());
+    return (_pre_prepare && hash == _pre_prepare->Hash());
 }

@@ -19,8 +19,7 @@ class ValidatorBuilder {
 
 private:
 
-    using Store     = logos::block_store;
-    using BlockHash = logos::block_hash;
+    using Store         = logos::block_store;
 
 public:
 

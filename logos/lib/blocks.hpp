@@ -22,12 +22,54 @@ bool read (logos::stream & stream_a, T & value)
     return amount_read != sizeof (value);
 }
 template <typename T>
-void write (logos::stream & stream_a, T const & value)
+uint32_t write (logos::stream & stream_a, T const & value)
 {
     static_assert (std::is_pod<T>::value, "Can't stream write non-standard layout types");
     auto amount_written (stream_a.sputn (reinterpret_cast<uint8_t const *> (&value), sizeof (value)));
     assert (amount_written == sizeof (value));
+    return amount_written;
 }
+
+bool read (logos::stream & stream_a, uint128_union & value);
+//{
+//    auto amount_read (stream_a.sgetn (value.bytes.data(), value.bytes.size()));
+//    return amount_read != value.bytes.size();
+//}
+
+uint32_t write (logos::stream & stream_a, uint128_union const & value);
+//{
+//    auto amount_written (stream_a.sputn (value.bytes.data(), value.bytes.size()));
+//    assert (amount_written == value.bytes.size());
+//    return amount_written;
+//}
+
+bool read (logos::stream & stream_a, uint256_union & value);
+//{
+//    auto amount_read (stream_a.sgetn (value.bytes.data(), value.bytes.size()));
+//    return amount_read != value.bytes.size();
+//}
+
+uint32_t write (logos::stream & stream_a, uint256_union const & value);
+//{
+//    auto amount_written (stream_a.sputn (value.bytes.data(), value.bytes.size()));
+//    assert (amount_written == value.bytes.size());
+//    return amount_written;
+//}
+
+bool read (logos::stream & stream_a, uint512_union & value);
+//{
+//    auto amount_read (stream_a.sgetn (value.bytes.data(), value.bytes.size()));
+//    return amount_read != value.bytes.size();
+//}
+
+uint32_t write (logos::stream & stream_a, uint512_union const & value);
+//{
+//    auto amount_written (stream_a.sputn (value.bytes.data(), value.bytes.size()));
+//    assert (amount_written == value.bytes.size());
+//    return amount_written;
+//}
+
+
 class block_visitor;
 enum class block_type : uint8_t
 {

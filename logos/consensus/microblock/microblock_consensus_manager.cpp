@@ -15,7 +15,7 @@ MicroBlockConsensusManager::MicroBlockConsensusManager(
     , _microblock_handler(handler)
     , _enqueued(false)
 {
-    if (_store.micro_block_tip_get(_prev_hash))
+    if (_store.micro_block_tip_get(_prev_pre_prepare_hash))
     {
         LOG_FATAL(_log) << "Failed to get microblock's previous hash";
         trace_and_halt();
@@ -29,7 +29,7 @@ MicroBlockConsensusManager::OnBenchmarkSendRequest(
 {
     _cur_microblock = static_pointer_cast<PrePrepare>(block);
     LOG_DEBUG (_log) << "MicroBlockConsensusManager::OnBenchmarkSendRequest() - hash: "
-                     << block->hash().to_string();
+                     << block->Hash().to_string();
 }
 
 bool
@@ -71,12 +71,12 @@ MicroBlockConsensusManager::PrePrepareQueueEmpty()
 
 void
 MicroBlockConsensusManager::ApplyUpdates(
-    const PrePrepare & pre_prepare,
+    const ApprovedMB & block,
     uint8_t delegate_id)
 {
-    _persistence_manager.ApplyUpdates(pre_prepare);
+    _persistence_manager.ApplyUpdates(block);
 
-    _microblock_handler.OnApplyUpdates(pre_prepare);
+    _microblock_handler.OnApplyUpdates(block);
 }
 
 uint64_t 
@@ -86,9 +86,9 @@ MicroBlockConsensusManager::GetStoredCount()
 }
 
 bool
-MicroBlockConsensusManager::PrimaryContains(const logos::block_hash &hash)
+MicroBlockConsensusManager::PrimaryContains(const BlockHash &hash)
 {
-    return (_cur_microblock && _cur_microblock->hash() == hash);
+    return (_cur_microblock && _cur_microblock->Hash() == hash);
 }
 
 void

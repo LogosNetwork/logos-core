@@ -13,6 +13,47 @@ bool blocks_equal (T const & first, logos::block const & second)
 }
 }
 
+
+bool logos::read (logos::stream & stream_a, uint128_union & value)
+{
+    auto amount_read (stream_a.sgetn (value.bytes.data(), value.bytes.size()));
+    return amount_read != value.bytes.size();
+}
+
+uint32_t logos::write (logos::stream & stream_a, uint128_union const & value)
+{
+    auto amount_written (stream_a.sputn (value.bytes.data(), value.bytes.size()));
+    assert (amount_written == value.bytes.size());
+    return amount_written;
+}
+
+bool logos::read (logos::stream & stream_a, uint256_union & value)
+{
+    auto amount_read (stream_a.sgetn (value.bytes.data(), value.bytes.size()));
+    return amount_read != value.bytes.size();
+}
+
+uint32_t logos::write (logos::stream & stream_a, uint256_union const & value)
+{
+    auto amount_written (stream_a.sputn (value.bytes.data(), value.bytes.size()));
+    assert (amount_written == value.bytes.size());
+    return amount_written;
+}
+
+bool logos::read (logos::stream & stream_a, uint512_union & value)
+{
+    auto amount_read (stream_a.sgetn (value.bytes.data(), value.bytes.size()));
+    return amount_read != value.bytes.size();
+}
+
+uint32_t logos::write (logos::stream & stream_a, uint512_union const & value)
+{
+    auto amount_written (stream_a.sputn (value.bytes.data(), value.bytes.size()));
+    assert (amount_written == value.bytes.size());
+    return amount_written;
+}
+
+
 std::string logos::to_string_hex (uint64_t value_a)
 {
     std::stringstream stream;

@@ -7,6 +7,7 @@
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/log.hpp>
+#include <logos/lib/trace.hpp>
 
 #include <boost/asio/io_service.hpp>
 
@@ -14,7 +15,7 @@
 #include <atomic>
 #include <map>
 
-class PrequelParser;
+class MessageParser;
 class MessageValidator;
 class EpochInfo;
 class NetIOErrorHandler;
@@ -71,6 +72,8 @@ public:
 
 };
 
+//static constexpr uint32_t NETIO_BUFFER_SIZE        = 1024*1024*2;
+
 /// ConsensusNetIO represent connection to a peer.
 ///
 /// Network connection to a peer. There is one connection per peer.
@@ -88,8 +91,8 @@ class ConsensusNetIO: public IOChannel,
     using Socket        = boost::asio::ip::tcp::socket;
     using Address       = boost::asio::ip::address;
     using IOBinder      = function<void(std::shared_ptr<ConsensusNetIO>, uint8_t)>;
-    using ReceiveBuffer = std::array<uint8_t, sizeof(KeyAdvertisement)>;
-    using Connections   = std::shared_ptr<PrequelParser> [CONSENSUS_TYPE_COUNT];
+    //using ReceiveBuffer = std::array<uint8_t, NETIO_BUFFER_SIZE>;
+    using Connections   = std::shared_ptr<MessageParser> [CONSENSUS_TYPE_COUNT];
     using QueuedWrites  = std::list<std::shared_ptr<std::vector<uint8_t>>>;
 
 public:
@@ -175,7 +178,7 @@ public:
     ///     @param t consensus type
     ///     @param consensus_connection specific consensus connection
     void AddConsensusConnection(ConsensusType t,
-                                std::shared_ptr<PrequelParser> connection);
+                                std::shared_ptr<MessageParser> connection);
 
     /// Read prequel header, dispatch the message
     /// to respective consensus type.
@@ -268,7 +271,13 @@ private:
     /// Call back for async read
     ///
     ///     @param data data received
-    void OnData(const uint8_t * data);
+    void OnData(const uint8_t * data,
+            uint8_t version,
+            MessageType message_type,
+            ConsensusType consensus_type,
+            uint32_t payload_size);
+
+    void OnPrequal(const uint8_t * data);
 
     /// Send public key to the connected peer.
     void SendKeyAdvertisement();
@@ -276,7 +285,7 @@ private:
     /// Public key callback.
     ///
     ///     @param data received data
-    void OnPublicKey(const uint8_t * data);
+    void OnPublicKey(KeyAdvertisement & key_adv);
 
     /// async_write callback
     /// @param error error code
@@ -285,11 +294,17 @@ private:
 
     /// Handle heartbeat message
     /// @param prequel data
-    void OnHeartBeat(const uint8_t *data);
+    void OnHeartBeat(HeartBeat &hb);
+
+    void HandleMessageError(const char * operation)
+    {
+        LOG_ERROR(_log) << "ConsensusNetIO Failed to " << operation;
+        //TODO discuss with team if need to disconnect
+    }
 
     std::shared_ptr<Socket>        _socket;               ///< Connected socket
     std::atomic_bool               _connected;            ///< is the socket is connected?
-    ReceiveBuffer                  _receive_buffer;       ///< receive buffer
+    //ReceiveBuffer                  _receive_buffer;       ///< receive buffer
 	QueuedWrites                   _queued_writes;        ///< data waiting to get sent on the network
     Log                            _log;                  ///< boost asio log
     Endpoint                       _endpoint;             ///< remote peer endpoint

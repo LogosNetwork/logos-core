@@ -11,7 +11,6 @@ class ArchiverEpochHandler;
 class EpochConsensusManager: public ConsensusManager<ConsensusType::Epoch>
 {
 public:
-
 	/// Class constructor
 	///
 	/// Called by ConsensusContainer.
@@ -45,7 +44,7 @@ protected:
 	///     @param[in] block the epoch block to commit to the database
 	///     @param[in] delegate_id delegate id
 	void ApplyUpdates(
-		const PrePrepare &,
+		const ApprovedEB &,
 		uint8_t delegate_id) override;
 
 	/// Returns number of stored blocks.
@@ -79,7 +78,7 @@ protected:
     /// Primary list contains request with the hash
     /// @param request's hash
     /// @returns true if the request is in the list
-    bool PrimaryContains(const logos::block_hash&) override;
+    bool PrimaryContains(const BlockHash&) override;
 
 	void QueueRequestSecondary(std::shared_ptr<Request> request) override;
 

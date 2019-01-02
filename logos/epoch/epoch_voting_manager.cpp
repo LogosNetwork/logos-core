@@ -16,9 +16,9 @@ EpochVotingManager::GetNextEpochDelegates(
 {
     int constexpr num_epochs = 3;
     int constexpr num_new_delegates = 8;
-    Epoch previous_epoch;
+    ApprovedEB previous_epoch;
     BlockHash hash;
-    std::unordered_map<logos::public_key,bool> delegates3epochs;
+    std::unordered_map<AccountPubKey,bool> delegates3epochs;
 
     // get all delegate in the previous 3 epochs
     if (_store.epoch_tip_get(hash))
@@ -29,7 +29,7 @@ EpochVotingManager::GetNextEpochDelegates(
 
     if (!DelegateIdentityManager::IsEpochTransitionEnabled())
     {
-        Epoch epoch;
+        ApprovedEB epoch;
         if (_store.epoch_get(hash, epoch))
         {
             LOG_FATAL(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch: "
@@ -71,7 +71,13 @@ EpochVotingManager::GetNextEpochDelegates(
        if (delegates3epochs.find(delegate.key.pub) == delegates3epochs.end())
        {
            delegates[new_delegate].account = delegate.key.pub;
-           delegates[new_delegate].bls_pub = delegate.bls_key.pub;
+           {
+               //delegates[new_delegate].bls_pub = delegate.bls_key.pub;
+               //TODO simplify bls serialize functions
+               std::string s;
+               delegate.bls_key.pub.serialize(s);
+               memcpy(delegates[new_delegate].bls_pub.data(), s.data(), CONSENSUS_PRIV_KEY_SIZE);
+           }
            delegates[new_delegate].stake = delegate.stake;
            delegates[new_delegate].vote = delegate.vote;
           ++new_delegate;
@@ -89,7 +95,7 @@ bool
 EpochVotingManager::ValidateEpochDelegates(
    const Delegates &delegates)
 {
-   std::unordered_map<logos::public_key,bool> verify;
+   std::unordered_map<AccountPubKey, bool> verify;
    Log log;
 
    for (auto delegate : logos::genesis_delegates)

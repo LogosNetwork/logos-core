@@ -16,16 +16,19 @@ class PersistenceManager<MBCT> : public Persistence {
 protected:
 
     using BatchTips                     = BlockHash[NUM_DELEGATES];
-    using IteratorBatchBlockReceiverCb  = std::function<void(uint8_t, const BatchStateBlock&)>;
-    using BatchBlockReceiverCb          = std::function<void(const BatchStateBlock&)>;
     using Request                       = RequestMessage<MBCT>;
     using PrePrepare                    = PrePrepareMessage<MBCT>;
     using ReservationsPtr               = std::shared_ptr<ReservationsProvider>;
+    using IteratorBatchBlockReceiverCb  = std::function<void(uint8_t, const ApprovedBSB &)>;
+    using BatchBlockReceiverCb          = std::function<void(const ApprovedBSB &)>;
 
 public:
     PersistenceManager(Store & store,
                        ReservationsPtr,
-                       Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT);
+                       Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT)
+    : Persistence(store, clock_drift)
+    {}
+
     virtual ~PersistenceManager() = default;
 
     /// Request validation, EDDSA signature and block validation
@@ -48,9 +51,9 @@ public:
     /// Commit PrePrepare to the database
     /// @param message to commit [in]
     /// @param delegate_id delegate id [in]
-    virtual void ApplyUpdates(const PrePrepare & message, uint8_t delegate_id);
-    virtual void ApplyUpdates(const PrePrepare & message)
+    virtual void ApplyUpdates(const ApprovedMB & block, uint8_t delegate_id);
+    virtual void ApplyUpdates(const ApprovedMB & block)
     {
-        ApplyUpdates(message, 0);
+        ApplyUpdates(block, 0);
     }
 };

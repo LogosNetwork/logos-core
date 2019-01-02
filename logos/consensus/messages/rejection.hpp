@@ -1,6 +1,7 @@
 #pragma once
 
 #include <logos/consensus/messages/common.hpp>
+#include <logos/node/utility.hpp>
 
 enum class RejectionReason : uint8_t
 {
@@ -17,35 +18,98 @@ enum class RejectionReason : uint8_t
 
 template<ConsensusType CT>
 struct RejectionMessage
-    : MessageHeader<MessageType::Rejection, CT>
+    : MessagePrequel<MessageType::Rejection, CT>
 {
 
-    RejectionMessage(uint64_t timestamp)
-        : MessageHeader<MessageType::Rejection,
-              CT>(timestamp)
+    RejectionMessage(const BlockHash & pre_prepare_hash)
+        : MessagePrequel<MessageType::Rejection, CT>()
+        , pre_prepare_hash(pre_prepare_hash)
         , reason(RejectionReason::Void)
     {}
 
-    BlockHash Hash() const
+    RejectionMessage(bool & error, logos::stream & stream, uint8_t version)
+    : MessagePrequel<MessageType::Rejection, CT>(version)
     {
-        logos::uint256_union result;
-        blake2b_state hash;
+        if(error)
+        {
+            return;
+        }
 
-        auto status(blake2b_init(&hash, sizeof(result.bytes)));
-        assert(status == 0);
+        error = logos::read(stream, pre_prepare_hash);
+        if(error)
+        {
+            return;
+        }
 
-        MessageHeader<MessageType::Rejection, CT>::Hash(hash);
+        error = logos::read(stream, reason);
+        if(error)
+        {
+            return;
+        }
 
-        blake2b_update(&hash, &reason, sizeof(reason));
-        blake2b_update(&hash, &rejection_map, sizeof(rejection_map));
 
-        status = blake2b_final(&hash, result.bytes.data(), sizeof(result.bytes));
-        assert(status == 0);
+        char buf[CONSENSUS_BATCH_SIZE];
+        error = logos::read(stream, buf);
+        if(error)
+        {
+            return;
+        }
+        std::string s(buf, CONSENSUS_BATCH_SIZE);
+        new (&rejection_map) RejectionMap(s);
 
-        return result;
+        error = logos::read(stream, signature);
+        if(error)
+        {
+            return;
+        }
     }
 
-    RejectionReason reason;
-    RejectionMap    rejection_map;
-    Signature       signature;
+    BlockHash Hash() const
+    {
+        return Blake2bHash<RejectionMessage<CT>>(*this);
+    }
+
+    void Hash(blake2b_state & hash) const
+    {
+        MessagePrequel<MessageType::Rejection, CT>::Hash(hash);
+        pre_prepare_hash.Hash(hash);
+        blake2b_update(&hash, &reason, sizeof(uint8_t));
+        auto s = rejection_map.to_string();
+        blake2b_update(&hash, s.data(), s.length());
+    }
+
+
+    uint32_t Serialize(logos::stream & stream) const
+    {
+        auto s = logos::write(stream, pre_prepare_hash);
+        s += logos::write(stream, reason);
+
+        //TODO serialized space
+        char buf[CONSENSUS_BATCH_SIZE];
+        std::string str = rejection_map.to_string();
+        assert(str.size()==CONSENSUS_BATCH_SIZE);
+        memcpy(buf, str.data(), str.size());
+
+        s += logos::write(stream, buf);
+        s += logos::write(stream, signature);
+        return s;
+    }
+
+    void Serialize(std::vector<uint8_t> & t) const
+    {
+        {
+            logos::vectorstream stream(t);
+            MessagePrequel<MessageType::Rejection, CT>::Serialize(stream);
+            MessagePrequel<MessageType::Rejection, CT>::payload_size = htole32(Serialize(stream));
+        }
+        {
+            logos::vectorstream header_stream(t);
+            MessagePrequel<MessageType::Rejection, CT>::Serialize(header_stream);
+        }
+    }
+
+    BlockHash           pre_prepare_hash;
+    RejectionReason     reason;
+    RejectionMap        rejection_map;
+    DelegateSig         signature;
 };

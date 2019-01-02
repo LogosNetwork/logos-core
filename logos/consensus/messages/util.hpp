@@ -68,6 +68,31 @@ inline std::string ConsensusToName(const ConsensusType & type)
     return ret;
 }
 
+template<ConsensusType type>
+inline std::string ConsensusToName()
+{
+    std::string ret;
+    switch (type)
+    {
+        case ConsensusType::BatchStateBlock:
+            ret = "BatchStateBlock";
+            break;
+        case ConsensusType::MicroBlock:
+            ret = "MicroBlock";
+            break;
+        case ConsensusType::Epoch:
+            ret = "Epoch";
+            break;
+        case ConsensusType::Any:
+            ret = "Any";
+            break;
+        default:
+            ret = "Undefined";
+    }
+
+    return ret;
+}
+
 template<typename MSG>
 std::string MessageToName(const MSG & message)
 {
@@ -85,44 +110,6 @@ inline size_t ConsensusTypeToIndex(ConsensusType type)
     size_t index = uint64_t(static_cast<uint8_t>(type));
     assert(index < CONSENSUS_TYPE_COUNT);
     return index;
-}
-
-template<ConsensusType CT>
-inline size_t MessageTypeToSize(MessageType type)
-{
-    size_t ret = 0;
-
-    switch (type)
-    {
-        case MessageType::Pre_Prepare:
-            ret =  sizeof(PrePrepareMessage<CT>);
-            break;
-        case MessageType::Prepare:
-            ret = sizeof(PrepareMessage<CT>);
-            break;
-        case MessageType::Post_Prepare:
-            ret = sizeof(PostPrepareMessage<CT>);
-            break;
-        case MessageType::Commit:
-            ret = sizeof(CommitMessage<CT>);
-            break;
-        case MessageType::Post_Commit:
-            ret = sizeof(PostCommitMessage<CT>);
-            break;
-        case MessageType::Key_Advert:
-            ret = sizeof(KeyAdvertisement);
-            break;
-        case MessageType::Rejection:
-            ret = sizeof(RejectionMessage<CT>);
-            break;
-        case MessageType::Heart_Beat:
-            ret = sizeof(HeartBeat);
-            break;
-        case MessageType::Unknown:
-            break;
-    }
-
-    return ret;
 }
 
 inline std::string RejectionReasonToName(RejectionReason reason)
@@ -158,19 +145,9 @@ std::ostream& operator<<(std::ostream& os, const MessagePrequel<MT, CT>& m)
     return os;
 }
 
-template<MessageType MT, ConsensusType CT>
-std::ostream& operator<<(std::ostream& os, const MessageHeader<MT, CT>& m)
-{
-    os << static_cast<const MessagePrequel<MT, CT> &>(m)
-       << " timestamp: " << m.timestamp
-       << " previous: " << m.previous.to_string();
-
-    return os;
-}
-
 template<ConsensusType CT>
 std::ostream& operator<<(std::ostream& os, const RejectionMessage<CT>& m)
 {
-    os << static_cast<MessageHeader<MessageType::Rejection, CT> &>(m);
+    os << static_cast<MessagePrequel<MessageType::Rejection, CT> &>(m);
     return os;
 }

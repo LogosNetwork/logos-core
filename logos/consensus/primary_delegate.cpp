@@ -1,5 +1,5 @@
 #include <logos/consensus/primary_delegate.hpp>
-
+#include <logos/lib/trace.hpp>
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <boost/asio/error.hpp>
 
@@ -46,8 +46,12 @@ void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message)
     if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE))
     {
         CycleTimers<C>(true);
+        PostPrepareMessage<C> response(_pre_prepare_hash, _post_prepare_sig);
+        _post_prepare_hash = response.ComputeHash();
 
-        Send<PostPrepareMessage<C>>();
+        std::vector<uint8_t> buf;
+        response.Serialize(buf);
+        Send(buf.data(), buf.size());
         AdvanceState(ConsensusState::POST_PREPARE);
     }
     else
@@ -62,8 +66,11 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage<C> & message)
     if(ProceedWithMessage(message, ConsensusState::POST_PREPARE))
     {
         CancelTimer();
+        PostCommitMessage<C> response(_pre_prepare_hash, _post_commit_sig);
 
-        Send<PostCommitMessage<C>>();
+        std::vector<uint8_t> buf;
+        response.Serialize(buf);
+        Send(buf.data(), buf.size());
         AdvanceState(ConsensusState::POST_COMMIT);
 
         OnConsensusReached();
@@ -174,18 +181,7 @@ void PrimaryDelegate::CycleTimers(bool cancel)
 template<typename M>
 bool PrimaryDelegate::Validate(const M & message)
 {
-    return _validator.Validate(message, _cur_delegate_id);
-}
-
-template<typename M>
-void PrimaryDelegate::Send()
-{
-    M response(_cur_batch_timestamp);
-
-    response.previous = _cur_hash;
-    _validator.Sign(response, _signatures);
-
-    Send(&response, sizeof(response));
+    return _validator.Validate(GetHashSigned(message), message.signature, _cur_delegate_id);
 }
 
 void PrimaryDelegate::OnCurrentEpochSet()
@@ -194,15 +190,15 @@ void PrimaryDelegate::OnCurrentEpochSet()
     {
         auto & delegate = _current_epoch.delegates[pos];
 
-        _vote_total += delegate.vote;
-        _stake_total += delegate.stake;
+        _vote_total += delegate.vote.number();
+        _stake_total += delegate.stake.number();
 
-        _weights[pos] = {delegate.vote, delegate.stake};
+        _weights[pos] = {delegate.vote.number(), delegate.stake.number()};
 
         if(pos == _delegate_id)
         {
-            _my_vote = delegate.vote;
-            _my_stake = delegate.stake;
+            _my_vote = delegate.vote.number();
+            _my_stake = delegate.stake.number();
         }
     }
 
@@ -234,7 +230,9 @@ void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
     _prepare_vote = _my_vote;
     _prepare_stake = _my_stake;
 
-    _cur_hash = block.Hash();
+    _pre_prepare_hash = block.Hash();
+    _validator.Sign(_pre_prepare_hash, _pre_prepare_sig);
+
     _cur_batch_timestamp = block.timestamp;
 
     CycleTimers<C>();
@@ -316,6 +314,28 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
 
     if(ReachedQuorum())
     {
+        bool good = true;
+        if(expected_state == ConsensusState::PRE_PREPARE )
+        {
+            _signatures.push_back({_delegate_id, _pre_prepare_sig});
+            good = _validator.AggregateSignature(_signatures, _post_prepare_sig);
+        }
+        else if (expected_state == ConsensusState::POST_PREPARE )
+        {
+            DelegateSig my_commit_sig;
+            _validator.Sign(_post_prepare_hash, my_commit_sig);
+            _signatures.push_back({_delegate_id, my_commit_sig});
+            good = _validator.AggregateSignature(_signatures, _post_commit_sig);
+        }
+        else
+            good = false;
+
+        if( ! good )
+        {
+            LOG_FATAL(_log) << "PrimaryDelegate - Failed to after ReachedQuorum() "
+                    << " expected_state=" << StateToString(expected_state);
+            trace_and_halt();
+        }
         return true;
     }
 

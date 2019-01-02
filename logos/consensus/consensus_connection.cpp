@@ -31,138 +31,75 @@ void ConsensusConnection<CT>::Send(const void * data, size_t size)
 }
 
 template<ConsensusType CT>
-size_t ConsensusConnection<CT>::GetPayloadSize()
+bool ConsensusConnection<CT>::OnMessageData(const uint8_t * data,
+        uint8_t version,
+        MessageType message_type,
+        ConsensusType consensus_type,
+        uint32_t payload_size)
 {
-    return sizeof(PrePrepare);
-}
-
-template<ConsensusType CT>
-void ConsensusConnection<CT>::DeliverPrePrepare()
-{
-    auto msg (*reinterpret_cast<const PrePrepare*>(_receive_buffer.data()));
-    OnConsensusMessage(msg);
-}
-
-template<ConsensusType CT>
-void ConsensusConnection<CT>::OnData()
-{
-    MessageType type (static_cast<MessageType> (_receive_buffer.data()[1]));
-
-    switch (type)
-    {
-        case MessageType::Pre_Prepare:
-            _iochannel->AsyncRead(GetPayloadSize() -
-                                  sizeof(Prequel),
-                                  std::bind(&ConsensusConnection<CT>::OnMessage, this,
-                                            std::placeholders::_1));
-            break;
-        case MessageType::Prepare:
-            _iochannel->AsyncRead(sizeof(Prepare) -
-                                  sizeof(Prequel),
-                                  std::bind(&ConsensusConnection<CT>::OnMessage, this,
-                                            std::placeholders::_1));
-            break;
-        case MessageType::Post_Prepare:
-            _iochannel->AsyncRead(sizeof(PostPrepare) -
-                                  sizeof(Prequel),
-                                  std::bind(&ConsensusConnection<CT>::OnMessage, this,
-                                            std::placeholders::_1));
-            break;
-        case MessageType::Commit:
-            _iochannel->AsyncRead(sizeof(Commit) -
-                                  sizeof(Prequel),
-                                  std::bind(&ConsensusConnection<CT>::OnMessage, this,
-                                            std::placeholders::_1));
-            break;
-        case MessageType::Post_Commit:
-            _iochannel->AsyncRead(sizeof(PostCommit) -
-                                  sizeof(Prequel),
-                                   std::bind(&ConsensusConnection<CT>::OnMessage, this,
-                                             std::placeholders::_1));
-            break;
-        case MessageType::Rejection:
-            _iochannel->AsyncRead(sizeof(Rejection) -
-                                  sizeof(Prequel),
-                                   std::bind(&ConsensusConnection<CT>::OnMessage, this,
-                                             std::placeholders::_1));
-            break;
-        case MessageType::Key_Advert:
-        case MessageType::Unknown:
-        case MessageType::Heart_Beat:
-            LOG_ERROR(_log) << "ConsensusConnection - Received "
-                            << MessageToName(type)
-                            << " message type";
-            break;
-        default:
-            LOG_ERROR(_log) << "ConsensusConnection - Received invalid message type "
-                            << (int)(_receive_buffer.data()[1]);
-            break;
-    }
-}
-
-template<ConsensusType CT>
-void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
-{
-    MessageType type (static_cast<MessageType> (_receive_buffer.data()[1]));
-
-    memcpy(_receive_buffer.data() + sizeof(Prequel), data,
-           MessageTypeToSize<CT>(type) - sizeof(Prequel));
-
-    std::string message = MessageToName(type);
-    if (type == MessageType::Rejection)
+    std::string message = MessageToName(message_type);
+#ifdef DEBUG
+    if (message_type == MessageType::Rejection)
     {
         auto msg (*reinterpret_cast<const Rejection*>(_receive_buffer.data()));
         message += ":" + RejectionReasonToName(msg.reason);
     }
+#endif
     LOG_DEBUG(_log) << "ConsensusConnection<"
                     << ConsensusToName(CT) << ">- Received "
                     << message
                     << " message from delegate: " << (int)_delegate_ids.remote;
 
-    switch (type)
+    bool error = false;
+    logos::bufferstream stream(data, payload_size);
+    switch (message_type)
     {
         case MessageType::Pre_Prepare:
         {
-            DeliverPrePrepare();
+            PrePrepare msg(error, stream, version);
+            OnConsensusMessage(msg);
             break;
         }
         case MessageType::Prepare:
         {
-            auto msg (*reinterpret_cast<const Prepare*>(_receive_buffer.data()));
+            Prepare msg(error, stream, version);
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Post_Prepare:
         {
-            auto msg (*reinterpret_cast<const PostPrepare*>(_receive_buffer.data()));
+            PostPrepare msg(error, stream, version);
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Commit:
         {
-            auto msg (*reinterpret_cast<const Commit*>(_receive_buffer.data()));
+            Commit msg(error, stream, version);
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Post_Commit:
         {
-            auto msg (*reinterpret_cast<const PostCommit*>(_receive_buffer.data()));
+            PostCommit msg(error, stream, version);
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Rejection:
         {
-            auto msg (*reinterpret_cast<const Rejection*>(_receive_buffer.data()));
+            Rejection msg (error, stream, version);
             OnConsensusMessage(msg);
             break;
         }
+        case MessageType::Post_Committed_Block:
+            //consensus_connection will not receive Post_Committed_Block
         case MessageType::Heart_Beat:
         case MessageType::Key_Advert:
         case MessageType::Unknown:
+            error = true;
             break;
     }
 
-    _iochannel->ReadPrequel();
+    return error;
 }
 
 template<ConsensusType CT>
@@ -175,17 +112,19 @@ void ConsensusConnection<CT>::SetPrePrepare(const PrePrepare & message)
 template<ConsensusType CT>
 void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
 {
-    _pre_prepare_timestamp = message.timestamp;
-    _pre_prepare_hash = message.Hash();
-
     if(ProceedWithMessage(message, ConsensusState::VOID))
     {
+        _pre_prepare_timestamp = message.timestamp;
+        _pre_prepare_hash = message.Hash();
         _state = ConsensusState::PREPARE;
 
         SetPrePrepare(message);
 
         HandlePrePrepare(message);
-        SendMessage<PrepareMessage<CT>>();
+
+        PrepareMessage<CT> msg(_pre_prepare_hash);
+        _validator.Sign(_pre_prepare_hash, msg.signature);
+        SendMessage<PrepareMessage<CT>>(msg);
     }
     else
     {
@@ -198,11 +137,16 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
 template<ConsensusType CT>
 void ConsensusConnection<CT>::OnConsensusMessage(const PostPrepare & message)
 {
+
     if(ProceedWithMessage(message, ConsensusState::PREPARE))
     {
+        _post_prepare_hash = message.ComputeHash();
+        _post_prepare_sig = message.signature;
         _state = ConsensusState::COMMIT;
 
-        SendMessage<CommitMessage<CT>>();
+        CommitMessage<CT> msg(_pre_prepare_hash);
+        _validator.Sign(_post_prepare_hash, msg.signature);
+        SendMessage<CommitMessage<CT>>(msg);
     }
 }
 
@@ -212,9 +156,10 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
     if(ProceedWithMessage(message))
     {
         assert(_pre_prepare);
-
+        _post_commit_sig = message.signature;
+        ApprovedBlock block(*_pre_prepare, _post_prepare_sig, _post_commit_sig);
         OnPostCommit();
-        ApplyUpdates(*_pre_prepare, _delegate_ids.remote);
+        ApplyUpdates(block, _delegate_ids.remote);
         BlocksCallback::Callback<CT>(*_pre_prepare);
 
         _state = ConsensusState::VOID;
@@ -234,7 +179,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const M & message)
 template<ConsensusType CT>
 bool ConsensusConnection<CT>::Validate(const PrePrepare & message)
 {
-    if(!_validator.Validate(message, _delegate_ids.remote))
+    if(!_validator.Validate(message.Hash(), message.preprepare_sig, _delegate_ids.remote))
     {
         _reason = RejectionReason::Bad_Signature;
         return false;
@@ -271,21 +216,24 @@ bool ConsensusConnection<CT>::Validate(const M & message)
 {
     if(message.type == MessageType::Post_Prepare)
     {
-        return ValidateSignature(message, *_prepare);
+        return _validator.Validate(_pre_prepare_hash, message.signature);
     }
 
     if(message.type == MessageType::Post_Commit)
     {
         if(_state == ConsensusState::COMMIT)
         {
-            return ValidateSignature(message, *_commit);
+            return _validator.Validate(_post_prepare_hash, message.signature);
         }
 
         // We received the PostCommit without
         // having sent a commit message. We're
         // out of synch, but we can still validate
         // the message.
-        return ValidateSignature(message);
+        // return ValidateSignature(message);
+        //Peng: discussed with Devon. At this point, we are missing information
+        // to create a post-committed block. So we should drop the message and
+        // hope to get the post-committed block via bootstrap or p2p.
     }
 
     LOG_ERROR(_log) << "ConsensusConnection - Attempting to validate "
@@ -293,32 +241,6 @@ bool ConsensusConnection<CT>::Validate(const M & message)
                     << StateToString(_state);
 
     return false;
-}
-
-template<ConsensusType CT>
-template<typename M, typename S>
-bool ConsensusConnection<CT>::ValidateSignature(const M & m, const S & s)
-{
-    if(!_validator.Validate(m, s))
-    {
-        _reason = RejectionReason::Bad_Signature;
-        return false;
-    }
-
-    return true;
-}
-
-template<ConsensusType CT>
-template<typename M>
-bool ConsensusConnection<CT>::ValidateSignature(const M & m)
-{
-    if(!_validator.Validate(m))
-    {
-        _reason = RejectionReason::Bad_Signature;
-        return false;
-    }
-
-    return true;
 }
 
 template<ConsensusType CT>
@@ -411,28 +333,21 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const PostCommit & message)
     return false;
 }
 
-template<ConsensusType CT>
-void ConsensusConnection<CT>::StoreResponse(const Prepare & message)
-{
-    _prepare.reset(new Prepare(message));
-}
-
-template<ConsensusType CT>
-void ConsensusConnection<CT>::StoreResponse(const Rejection & message)
-{}
-
-template<ConsensusType CT>
-void ConsensusConnection<CT>::StoreResponse(const Commit & message)
-{
-    _commit.reset(new Commit(message));
-}
-
-template<ConsensusType CT>
-void ConsensusConnection<CT>::OnPrequel(const uint8_t *data)
-{
-    std::memcpy(_receive_buffer.data(), data, sizeof(Prequel));
-    OnData();
-}
+//template<ConsensusType CT>
+//void ConsensusConnection<CT>::StoreResponse(const Prepare & message)
+//{
+//    _prepare.reset(new Prepare(message));
+//}
+//
+//template<ConsensusType CT>
+//void ConsensusConnection<CT>::StoreResponse(const Rejection & message)
+//{}
+//
+//template<ConsensusType CT>
+//void ConsensusConnection<CT>::StoreResponse(const Commit & message)
+//{
+//    _commit.reset(new Commit(message));
+//}
 
 template<ConsensusType CT>
 void ConsensusConnection<CT>::HandlePrePrepare(const PrePrepare & message)
@@ -444,10 +359,10 @@ void ConsensusConnection<CT>::OnPostCommit()
     _promoter.OnPostCommit(*_pre_prepare);
 }
 
-template<ConsensusType CT>
-template<typename M>
-void ConsensusConnection<CT>::UpdateMessage(M & message)
-{}
+//template<ConsensusType CT>
+//template<typename M>
+//void ConsensusConnection<CT>::UpdateMessage(M & message)
+//{}
 
 template<ConsensusType CT>
 void ConsensusConnection<CT>::Reject()

@@ -44,9 +44,9 @@ public:
     /// Commit PrePrepare to the database
     /// @param message to commit [in]
     /// @param delegate_id delegate id [in]
-    virtual void ApplyUpdates(const PrePrepare & message, uint8_t delegate_id);
-    virtual void ApplyUpdates(const PrePrepare & message)
+    virtual void ApplyUpdates(const ApprovedEB & block, uint8_t delegate_id);
+    virtual void ApplyUpdates(const ApprovedEB & block)
     {
-        ApplyUpdates(message, 0);
+        ApplyUpdates(block, 0);
     }
 };

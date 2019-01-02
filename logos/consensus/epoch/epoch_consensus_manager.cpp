@@ -19,7 +19,7 @@ EpochConsensusManager::EpochConsensusManager(
 		      validator, events_notifier)
 	, _enqueued(false)
 {
-	if (_store.epoch_tip_get(_prev_hash))
+	if (_store.epoch_tip_get(_prev_pre_prepare_hash))
 	{
 		LOG_FATAL(_log) << "Failed to get epoch's previous hash";
 		trace_and_halt();
@@ -33,7 +33,7 @@ EpochConsensusManager::OnBenchmarkSendRequest(
 {
     _cur_epoch = static_pointer_cast<PrePrepare>(block);
     LOG_DEBUG (_log) << "EpochConsensusManager::OnBenchmarkSendRequest() - hash: "
-                     << block->hash().to_string();
+                     << block->Hash().to_string();
 }
 
 bool 
@@ -75,10 +75,10 @@ EpochConsensusManager::PrePrepareQueueEmpty()
 
 void 
 EpochConsensusManager::ApplyUpdates(
-    const PrePrepare & pre_prepare,
+    const ApprovedEB & block,
     uint8_t delegate_id)
 {
-    _persistence_manager.ApplyUpdates(pre_prepare);
+    _persistence_manager.ApplyUpdates(block);
 }
 
 uint64_t 
@@ -88,9 +88,9 @@ EpochConsensusManager::GetStoredCount()
 }
 
 bool
-EpochConsensusManager::PrimaryContains(const logos::block_hash &hash)
+EpochConsensusManager::PrimaryContains(const BlockHash &hash)
 {
-    return (_cur_epoch && _cur_epoch->hash() == hash);
+    return (_cur_epoch && _cur_epoch->Hash() == hash);
 }
 
 void
@@ -118,7 +118,7 @@ EpochConsensusManager::DesignatedDelegate(
     std::shared_ptr<Request> request)
 {
     BlockHash hash;
-    MicroBlock block;
+    ApprovedMB block;
 
     if (_store.micro_block_tip_get(hash))
     {
@@ -133,12 +133,12 @@ EpochConsensusManager::DesignatedDelegate(
     }
 
     // delegate who proposed last microblock also proposes epoch block
-    if (block.last_micro_block && block.account == DelegateIdentityManager::_delegate_account)
+    if (block.last_micro_block && block.delegate == DelegateIdentityManager::_delegate_account)
     {
         LOG_DEBUG(_log) << "EpochConsensusManager::DesignatedDelegate epoch proposed by delegate "
                         << (int)_delegate_id << " " << (int)DelegateIdentityManager::_global_delegate_idx
                         << " " << _events_notifier.GetEpochNumber()
-                        << " " << block.account.to_string();
+                        << " " << block.delegate.to_string();
         return _delegate_id;
     }
 
