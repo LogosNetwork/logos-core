@@ -236,61 +236,88 @@ MicroBlockTester::informational(
     boost::property_tree::ptree response_l;
 
     std::string type = _request.get<std::string>("type", "");
+    std::stringstream str;
+    uint64_t start;
+    auto addr = [](auto t){return (uint64_t)t;};
+    auto out = [&str,&start,addr]( const char* m, auto o){str << " " << m << " " << (addr(o)-start);};
+    auto title = [&str](const char* m){str << m << ":";};
+    auto size = [&str](auto b){str << " size " << sizeof(b);};
 
-    if (type == "epoch") {
+    if (type == "header") {
+        MessageHeader<MessageType::Pre_Prepare, ConsensusType::BatchStateBlock> header;
+        start = addr(&header);
+        title("header");
+        out("version", &header.version);
+        out("type", &header.type);
+        out("consensus_type", &header.consensus_type);
+        out("payload", &header.payload_stream_size);
+        out("timestamp", &header.timestamp);
+        out("previous", &header.previous);
+        size(header);
+    } else if (type == "epoch") {
         Epoch epoch;
-        size_t s = sizeof(epoch);
-        std::stringstream str;
-        uint64_t start = (uint64_t) &epoch;
-        uint64_t account = (uint64_t) &(epoch.account);
-        uint64_t enumber = (uint64_t) &(epoch.epoch_number);
-        uint64_t tip = (uint64_t) &(epoch.micro_block_tip);
-        uint64_t fee = (uint64_t) &(epoch.transaction_fee_pool);
-        uint64_t del = (uint64_t) &(epoch.delegates);
-        uint64_t next = (uint64_t) &(epoch.next);
-        uint64_t sig = (uint64_t) &(epoch.signature);
-        str << "epoch offsets: account " << (account - start) << " enumber " << (enumber - start)
-            << " tip " << (tip - start) << " fee " << (fee - start) << " delegates " << (del - start)
-            << " next " << (next - start) << " sig " << (sig - start) << " size " << sizeof(epoch);
-        response_l.put("result", str.str());
+        start = addr(&epoch);
+        title("epoch");
+        out("account", &epoch.account);
+        out("epoch number", &epoch.epoch_number);
+        out("tip", &epoch.micro_block_tip);
+        out("fee", &epoch.transaction_fee_pool);
+        out("delegates", &epoch.delegates);
+        out("next", &epoch.next);
+        out("signature", &epoch.signature);
+        size(epoch);
+        Delegate delegate;
+        start = addr(&delegate);
+        str << " Delegate: ";
+        out("account", &delegate.account);
+        out("vote", &delegate.vote);
+        out("stake", &delegate.stake);
+        size(delegate);
     }
     else if (type == "microblock")
     {
         MicroBlock block;
         size_t s = sizeof(block);
-        std::stringstream str;
-        uint64_t start = (uint64_t) &block;
-        uint64_t account = (uint64_t) &(block.account);
-        uint64_t enumber = (uint64_t) &(block.epoch_number);
-        uint64_t seq = (uint64_t) &(block.sequence);
-        uint64_t last = (uint64_t) &(block.last_micro_block);
-        uint64_t num = (uint64_t) &(block.number_batch_blocks);
-        uint64_t tips = (uint64_t) &(block.tips);
-        uint64_t sig = (uint64_t) &(block.signature);
-        str << "epoch offsets: account " << (account - start) << " enumber " << (enumber - start)
-            << " sequence " << (seq - start) << " last " << (last - start)
-            << "num blocks " << (num - start) << " tips " << (tips - start)
-            << " sig " << (sig - start) << " size " << sizeof(block);
-        response_l.put("result", str.str());
+        start = addr(&block);
+        title("microblock");
+        out("account", &block.account);
+        out("epoch number", &block.epoch_number);
+        out("sequence", &block.sequence);
+        out("last", &block.last_micro_block);
+        out("num bsb", &block.number_batch_blocks);
+        out("tips", &block.tips);
+        out("next", &block.next);
+        out("signature", &block.signature);
+        size(block);
     }
     else if (type == "batch")
     {
         BatchStateBlock block;
-        size_t s = sizeof(block);
-        std::stringstream str;
-        uint64_t start = (uint64_t) &block;
-        uint64_t seq = (uint64_t) &(block.sequence);
-        uint64_t block_count = (uint64_t) &(block.block_count);
-        uint64_t enumber = (uint64_t) &(block.epoch_number);
-        uint64_t delid = (uint64_t) &(block.delegate_id);
-        uint64_t blocks = (uint64_t) &(block.blocks);
-        uint64_t next = (uint64_t) &(block.next);
-        uint64_t sig = (uint64_t) &(block.signature);
-        str << "batch offsets: sequence " << (seq - start) << " block_count " << (block_count - start)
-            << " epoch " << (enumber - start) << " del id " << (delid - start) << " blocks " << (blocks - start)
-            << " next " << (next - start) << " sig " << (sig - start) << " size " << sizeof(block);
-        response_l.put("result", str.str());
+        start = addr(&block);
+        title(" batch state blocks");
+        out("sequence", &block.sequence);
+        out("block count", &block.block_count);
+        out("epoch number", &block.epoch_number);
+        out("delegate id", &block.delegate_id);
+        out("blocks", &block.blocks);
+        out("next", &block.next);
+        out("signature", &block.signature);
+        size(block);
+        logos::state_block state;
+        start = addr(&state.hashables);
+        title("state");
+        out("account", &state.hashables.account);
+        out("previous", &state.hashables.previous);
+        out("representative", &state.hashables.representative);
+        out("amount", &state.hashables.amount);
+        out("fee", &state.hashables.transaction_fee);
+        out("link", &state.hashables.link);
+        out("signature", &state.signature);
+        out("work", &state.work);
+        out("timestamp", &state.timestamp);
+        size(state);
     }
+    response_l.put("result", str.str());
 
     response (response_l);
 }
