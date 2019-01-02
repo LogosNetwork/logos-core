@@ -242,6 +242,7 @@ template<ConsensusType CT>
 MessageHeader<MessageType::Pre_Prepare, CT>*
 deserialize(const uint8_t * data, size_t size, PrePrepareMessage<CT> & block)
 {
+	block = *(PrePrepareMessage<CT>*)data;
 	return (PrePrepareMessage<CT>*)data;
 }
 
