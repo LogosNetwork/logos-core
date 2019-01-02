@@ -456,19 +456,6 @@ bool AppInitParameterInteraction()
     return true;
 }
 
-bool LockDataDirectory(bool probeOnly)
-{
-    // Make sure only a single Bitcoin process is using the data directory.
-    fs::path datadir = GetDataDir();
-    if (!DirIsWritable(datadir)) {
-        return InitError(strprintf(_("Cannot write to data directory '%s'; check permissions."), datadir.string()));
-    }
-    if (!LockDirectory(datadir, ".lock", probeOnly)) {
-        return InitError(strprintf(_("Cannot obtain a lock on data directory %s. %s is probably already running."), datadir.string(), _(PACKAGE_NAME)));
-    }
-    return true;
-}
-
 bool AppInitSanityChecks()
 {
     // ********************************************************* Step 4: sanity checks
@@ -482,21 +469,11 @@ bool AppInitSanityChecks()
     if (!InitSanityCheck())
         return InitError(strprintf(_("Initialization sanity check failed. %s is shutting down."), _(PACKAGE_NAME)));
 
-    // Probe the data directory lock to give an early error message, if possible
-    // We cannot hold the data directory lock here, as the forking for daemon() hasn't yet happened,
-    // and a fork will cause weird behavior to it.
-    return LockDataDirectory(true);
+    return true;
 }
 
 bool AppInitLockDataDirectory()
 {
-    // After daemonization get the data directory lock again and hold on to it until exit
-    // This creates a slight window for a race condition to happen, however this condition is harmless: it
-    // will at most make us exit without printing a message to console.
-    if (!LockDataDirectory(false)) {
-        // Detailed error printed inside LockDataDirectory
-        return false;
-    }
     return true;
 }
 
@@ -504,13 +481,7 @@ bool AppInitMain(p2p_config &config)
 {
     const CChainParams& chainparams = Params();
     // ********************************************************* Step 4a: application initialization
-#ifndef WIN32
-    CreatePidFile(GetPidFile(), getpid());
-#endif
     LogPrintf("Startup time: %s\n", FormatISO8601DateTime(GetTime()));
-    LogPrintf("Default data directory %s\n", GetDefaultDataDir().string());
-    LogPrintf("Using data directory %s\n", GetDataDir().string());
-    LogPrintf("Using config file %s\n", GetConfigFile(gArgs.GetArg("-conf", BITCOIN_CONF_FILENAME)).string());
     LogPrintf("Using at most %i automatic connections (%i file descriptors available)\n", nMaxConnections, nFD);
 
     // ********************************************************* Step 6: network initialization
@@ -687,15 +658,6 @@ bool p2p_interface::Init(p2p_config &config) {
 		return false;
 	}
 
-	if (!fs::is_directory(GetDataDir(false)))
-	{
-		InitError(std::string("Specified data directory \"") + GetDataDir().string() + "\" does not exist.");
-		return false;
-	}
-	if (!gArgs.ReadConfigFiles(error, true)) {
-		InitError(std::string("reading configuration file failed: ") + error);
-		return false;
-	}
 	// Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
 	try {
 		SelectParams(gArgs.GetChainName());

@@ -144,36 +144,6 @@ static std::map<std::string, std::unique_ptr<fsbridge::FileLock>> dir_locks;
 /** Mutex to protect dir_locks. */
 static std::mutex cs_dir_locks;
 
-bool LockDirectory(const fs::path& directory, const std::string lockfile_name, bool probe_only)
-{
-    std::lock_guard<std::mutex> ulock(cs_dir_locks);
-    fs::path pathLockFile = directory / lockfile_name;
-
-    // If a lock for this directory already exists in the map, don't try to re-lock it
-    if (dir_locks.count(pathLockFile.string())) {
-        return true;
-    }
-
-    // Create empty lock file if it doesn't exist.
-    FILE* file = fsbridge::fopen(pathLockFile, "a");
-    if (file) fclose(file);
-    auto lock = MakeUnique<fsbridge::FileLock>(pathLockFile);
-    if (!lock->TryLock()) {
-        return error("Error while attempting to lock directory %s: %s", directory.string(), lock->GetReason());
-    }
-    if (!probe_only) {
-        // Lock successful and we're not just probing, put it into the map
-        dir_locks.emplace(pathLockFile.string(), std::move(lock));
-    }
-    return true;
-}
-
-void ReleaseDirectoryLocks()
-{
-    std::lock_guard<std::mutex> ulock(cs_dir_locks);
-    dir_locks.clear();
-}
-
 bool DirIsWritable(const fs::path& directory)
 {
     fs::path tmpFile = directory / fs::unique_path();
@@ -699,118 +669,6 @@ void PrintExceptionContinue(const std::exception* pex, const char* pszThread)
     fprintf(stderr, "\n\n************************\n%s\n", message.c_str());
 }
 
-fs::path GetDefaultDataDir()
-{
-    // Windows < Vista: C:\Documents and Settings\Username\Application Data\Bitcoin
-    // Windows >= Vista: C:\Users\Username\AppData\Roaming\Bitcoin
-    // Mac: ~/Library/Application Support/Bitcoin
-    // Unix: ~/.bitcoin
-#ifdef WIN32
-    // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / PACKAGE_NAME;
-#else
-    fs::path pathRet;
-#ifdef MAC_OSX
-    char* pszHome = getenv("HOME");
-#else
-    char* pszHome = getenv("PWD");
-#endif
-    if (pszHome == nullptr || strlen(pszHome) == 0)
-        pathRet = fs::path("/");
-    else
-        pathRet = fs::path(pszHome);
-#ifdef MAC_OSX
-    // Mac
-    return pathRet / "Library/Application Support/" PACKAGE_NAME;
-#else
-    // Unix
-    return pathRet / "." PACKAGE_NAME;
-#endif
-#endif
-}
-
-static fs::path g_blocks_path_cached;
-static fs::path g_blocks_path_cache_net_specific;
-static fs::path pathCached;
-static fs::path pathCachedNetSpecific;
-static CCriticalSection csPathCached;
-
-const fs::path &GetBlocksDir(bool fNetSpecific)
-{
-
-    LOCK(csPathCached);
-
-    fs::path &path = fNetSpecific ? g_blocks_path_cache_net_specific : g_blocks_path_cached;
-
-    // This can be called during exceptions by LogPrintf(), so we cache the
-    // value so we don't have to do memory allocations after that.
-    if (!path.empty())
-        return path;
-
-    if (gArgs.IsArgSet("-blocksdir")) {
-        path = fs::system_complete(gArgs.GetArg("-blocksdir", ""));
-        if (!fs::is_directory(path)) {
-            path = "";
-            return path;
-        }
-    } else {
-        path = GetDataDir(false);
-    }
-    if (fNetSpecific)
-        path /= BaseParams().DataDir();
-
-    path /= "blocks";
-    fs::create_directories(path);
-    return path;
-}
-
-const fs::path &GetDataDir(bool fNetSpecific)
-{
-
-    LOCK(csPathCached);
-
-    fs::path &path = fNetSpecific ? pathCachedNetSpecific : pathCached;
-
-    // This can be called during exceptions by LogPrintf(), so we cache the
-    // value so we don't have to do memory allocations after that.
-    if (!path.empty())
-        return path;
-
-    if (gArgs.IsArgSet("-datadir")) {
-        path = fs::system_complete(gArgs.GetArg("-datadir", ""));
-        if (!fs::is_directory(path)) {
-            path = "";
-            return path;
-        }
-    } else {
-        path = GetDefaultDataDir();
-    }
-    if (fNetSpecific)
-        path /= BaseParams().DataDir();
-
-    if (fs::create_directories(path)) {
-        // This is the first run, create wallets subdirectory too
-        fs::create_directories(path / "wallets");
-    }
-
-    return path;
-}
-
-void ClearDatadirCache()
-{
-    LOCK(csPathCached);
-
-    pathCached = fs::path();
-    pathCachedNetSpecific = fs::path();
-    g_blocks_path_cached = fs::path();
-    g_blocks_path_cache_net_specific = fs::path();
-}
-
-fs::path GetConfigFile(const std::string& confPath)
-{
-    return AbsPathForConfigVal(fs::path(confPath), false);
-}
-
 static std::string TrimString(const std::string& str, const std::string& pattern)
 {
     std::string::size_type front = str.find_first_not_of(pattern);
@@ -819,150 +677,6 @@ static std::string TrimString(const std::string& str, const std::string& pattern
     }
     std::string::size_type end = str.find_last_not_of(pattern);
     return str.substr(front, end - front + 1);
-}
-
-static bool GetConfigOptions(std::istream& stream, std::string& error, std::vector<std::pair<std::string, std::string>> &options)
-{
-    std::string str, prefix;
-    std::string::size_type pos;
-    int linenr = 1;
-    while (std::getline(stream, str)) {
-        if ((pos = str.find('#')) != std::string::npos) {
-            str = str.substr(0, pos);
-        }
-        const static std::string pattern = " \t\r\n";
-        str = TrimString(str, pattern);
-        if (!str.empty()) {
-            if (*str.begin() == '[' && *str.rbegin() == ']') {
-                prefix = str.substr(1, str.size() - 2) + '.';
-            } else if (*str.begin() == '-') {
-                error = strprintf("parse error on line %i: %s, options in configuration file must be specified without leading -", linenr, str);
-                return false;
-            } else if ((pos = str.find('=')) != std::string::npos) {
-                std::string name = prefix + TrimString(str.substr(0, pos), pattern);
-                std::string value = TrimString(str.substr(pos + 1), pattern);
-                options.emplace_back(name, value);
-            } else {
-                error = strprintf("parse error on line %i: %s", linenr, str);
-                if (str.size() >= 2 && str.substr(0, 2) == "no") {
-                    error += strprintf(", if you intended to specify a negated option, use %s=1 instead", str);
-                }
-                return false;
-            }
-        }
-        ++linenr;
-    }
-    return true;
-}
-
-bool ArgsManager::ReadConfigStream(std::istream& stream, std::string& error, bool ignore_invalid_keys)
-{
-    LOCK(cs_args);
-    std::vector<std::pair<std::string, std::string>> options;
-    if (!GetConfigOptions(stream, error, options)) {
-        return false;
-    }
-    for (const std::pair<std::string, std::string>& option : options) {
-        std::string strKey = std::string("-") + option.first;
-        std::string strValue = option.second;
-
-        if (InterpretNegatedOption(strKey, strValue)) {
-            m_config_args[strKey].clear();
-        } else {
-            m_config_args[strKey].push_back(strValue);
-        }
-
-        // Check that the arg is known
-        if (!IsArgKnown(strKey)) {
-            if (!ignore_invalid_keys) {
-                error = strprintf("Invalid configuration value %s", option.first.c_str());
-                return false;
-            } else {
-                LogPrintf("Ignoring unknown configuration value %s\n", option.first);
-            }
-        }
-    }
-    return true;
-}
-
-bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
-{
-    {
-        LOCK(cs_args);
-        m_config_args.clear();
-    }
-
-    const std::string confPath = GetArg("-conf", BITCOIN_CONF_FILENAME);
-    fs::ifstream stream(GetConfigFile(confPath));
-
-    // ok to not have a config file
-    if (stream.good()) {
-        if (!ReadConfigStream(stream, error, ignore_invalid_keys)) {
-            return false;
-        }
-        // if there is an -includeconf in the override args, but it is empty, that means the user
-        // passed '-noincludeconf' on the command line, in which case we should not include anything
-        bool emptyIncludeConf;
-        {
-            LOCK(cs_args);
-            emptyIncludeConf = m_override_args.count("-includeconf") == 0;
-        }
-        if (emptyIncludeConf) {
-            std::string chain_id = GetChainName();
-            std::vector<std::string> includeconf(GetArgs("-includeconf"));
-            {
-                // We haven't set m_network yet (that happens in SelectParams()), so manually check
-                // for network.includeconf args.
-                std::vector<std::string> includeconf_net(GetArgs(std::string("-") + chain_id + ".includeconf"));
-                includeconf.insert(includeconf.end(), includeconf_net.begin(), includeconf_net.end());
-            }
-
-            // Remove -includeconf from configuration, so we can warn about recursion
-            // later
-            {
-                LOCK(cs_args);
-                m_config_args.erase("-includeconf");
-                m_config_args.erase(std::string("-") + chain_id + ".includeconf");
-            }
-
-            for (const std::string& to_include : includeconf) {
-                fs::ifstream include_config(GetConfigFile(to_include));
-                if (include_config.good()) {
-                    if (!ReadConfigStream(include_config, error, ignore_invalid_keys)) {
-                        return false;
-                    }
-                    LogPrintf("Included configuration file %s\n", to_include.c_str());
-                } else {
-                    error = "Failed to include configuration file " + to_include;
-                    return false;
-                }
-            }
-
-            // Warn about recursive -includeconf
-            includeconf = GetArgs("-includeconf");
-            {
-                std::vector<std::string> includeconf_net(GetArgs(std::string("-") + chain_id + ".includeconf"));
-                includeconf.insert(includeconf.end(), includeconf_net.begin(), includeconf_net.end());
-                std::string chain_id_final = GetChainName();
-                if (chain_id_final != chain_id) {
-                    // Also warn about recursive includeconf for the chain that was specified in one of the includeconfs
-                    includeconf_net = GetArgs(std::string("-") + chain_id_final + ".includeconf");
-                    includeconf.insert(includeconf.end(), includeconf_net.begin(), includeconf_net.end());
-                }
-            }
-            for (const std::string& to_include : includeconf) {
-                fprintf(stderr, "warning: -includeconf cannot be used from included files; ignoring -includeconf=%s\n", to_include.c_str());
-            }
-        }
-    }
-
-    // If datadir is changed in .conf file:
-    ClearDatadirCache();
-    if (!fs::is_directory(GetDataDir(false))) {
-        error = strprintf("specified data directory \"%s\" does not exist.", gArgs.GetArg("-datadir", "").c_str());
-        return false;
-    }
-    return true;
 }
 
 std::string ArgsManager::GetChainName() const
@@ -979,23 +693,6 @@ std::string ArgsManager::GetChainName() const
         return CBaseChainParams::TESTNET;
     return CBaseChainParams::MAIN;
 }
-
-#ifndef WIN32
-fs::path GetPidFile()
-{
-    return AbsPathForConfigVal(fs::path(gArgs.GetArg("-pid", BITCOIN_PID_FILENAME)));
-}
-
-void CreatePidFile(const fs::path &path, pid_t pid)
-{
-    FILE* file = fsbridge::fopen(path, "w");
-    if (file)
-    {
-        fprintf(file, "%d\n", pid);
-        fclose(file);
-    }
-}
-#endif
 
 bool RenameOver(fs::path src, fs::path dest)
 {
@@ -1243,11 +940,6 @@ std::string CopyrightHolders(const std::string& strPrefix)
 int64_t GetStartupTime()
 {
     return nStartupTime;
-}
-
-fs::path AbsPathForConfigVal(const fs::path& path, bool net_specific)
-{
-    return fs::absolute(path, GetDataDir(net_specific));
 }
 
 int ScheduleBatchPriority(void)

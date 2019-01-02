@@ -67,38 +67,10 @@ bool TruncateFile(FILE *file, unsigned int length);
 int RaiseFileDescriptorLimit(int nMinFD);
 void AllocateFileRange(FILE *file, unsigned int offset, unsigned int length);
 bool RenameOver(fs::path src, fs::path dest);
-bool LockDirectory(const fs::path& directory, const std::string lockfile_name, bool probe_only=false);
 bool DirIsWritable(const fs::path& directory);
 
-/** Release all directory locks. This is used for unit testing only, at runtime
- * the global destructor will take care of the locks.
- */
-void ReleaseDirectoryLocks();
-
 bool TryCreateDirectories(const fs::path& p);
-fs::path GetDefaultDataDir();
-const fs::path &GetBlocksDir(bool fNetSpecific = true);
-const fs::path &GetDataDir(bool fNetSpecific = true);
-void ClearDatadirCache();
-fs::path GetConfigFile(const std::string& confPath);
-#ifndef WIN32
-fs::path GetPidFile();
-void CreatePidFile(const fs::path &path, pid_t pid);
-#endif
-#ifdef WIN32
-fs::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
-#endif
 void runCommand(const std::string& strCommand);
-
-/**
- * Most paths passed as configuration arguments are treated as relative to
- * the datadir if they are not absolute.
- *
- * @param path The path to be conditionally prefixed with datadir.
- * @param net_specific Forwarded to GetDataDir().
- * @return The normalized path.
- */
-fs::path AbsPathForConfigVal(const fs::path& path, bool net_specific = true);
 
 inline bool IsSwitchChar(char c)
 {
@@ -147,8 +119,6 @@ protected:
     std::set<std::string> m_network_only_args GUARDED_BY(cs_args);
     std::map<OptionsCategory, std::map<std::string, Arg>> m_available_args GUARDED_BY(cs_args);
 
-    bool ReadConfigStream(std::istream& stream, std::string& error, bool ignore_invalid_keys = false);
-
 public:
     ArgsManager();
 
@@ -158,7 +128,6 @@ public:
     void SelectConfigNetwork(const std::string& network);
 
     bool ParseParameters(int argc, const char* const argv[], std::string& error);
-    bool ReadConfigFiles(std::string& error, bool ignore_invalid_keys = false);
 
     /**
      * Log warnings for options in m_section_only_args when
