@@ -180,6 +180,9 @@ ConsensusNetIO::OnData(const uint8_t * data)
     ConsensusType consensus_type (static_cast<ConsensusType> (data[2]));
     MessageType message_type (static_cast<MessageType> (data[1]));
 
+    LOG_DEBUG(_log) << "ConsensusNetIO - received message type " << MessageToName(message_type)
+                    << " for consensus type " << ConsensusToName(consensus_type) ;
+
     if (consensus_type == ConsensusType::Any)
     {
         if (message_type != MessageType::Key_Advert)
@@ -279,6 +282,7 @@ ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
                                                         (*entry)->size()));
         }
 
+        LOG_DEBUG(_log) << "ConsensusConnection - calling async write to " << _endpoint;
         boost::asio::async_write(*_socket, buffers,
                                  std::bind(&ConsensusNetIO::OnWrite, this,
                                            std::placeholders::_1,

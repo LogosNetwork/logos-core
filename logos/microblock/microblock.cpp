@@ -47,6 +47,7 @@ void MicroBlock::SerializeJson(boost::property_tree::ptree & micro_block) const
     }
     micro_block.add_child("tips", ptree_tips);
     micro_block.put("number_batch_blocks", std::to_string(number_batch_blocks));
+    micro_block.put("next", next.to_string());
     logos::uint256_union signature_tmp; // hacky fix, need to replicate uint256_union functionalities
     signature_tmp.bytes = signature;
     micro_block.put("signature", signature_tmp.to_string ());

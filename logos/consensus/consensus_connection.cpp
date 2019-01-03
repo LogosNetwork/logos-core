@@ -144,7 +144,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
         case MessageType::Rejection:
         {
             auto msg (*reinterpret_cast<const Rejection*>(_receive_buffer.data()));
-            LOG_DEBUG(_log) << message << " with block hash " << msg.previous.to_string();
+            LOG_WARN(_log) << message << " with block hash " << msg.previous.to_string();
             OnConsensusMessage(msg);
             break;
         }

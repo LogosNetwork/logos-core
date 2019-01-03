@@ -34,6 +34,7 @@ void Epoch::SerializeJson(boost::property_tree::ptree & epoch_block) const
     }
     epoch_block.add_child("delegates", ptree_delegates);
     epoch_block.put("transaction_fee_pool", std::to_string(transaction_fee_pool));
+    epoch_block.put("next", next.to_string());
     logos::uint256_union signature_tmp; // hacky fix, need to replicate uint256_union functionalities
     signature_tmp.bytes = signature;
     epoch_block.put("signature", signature_tmp.to_string ());
