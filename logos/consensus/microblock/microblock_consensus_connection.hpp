@@ -29,8 +29,8 @@ public:
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler,
                                   EpochEventsNotifier & events_notifier,
-				  PersistenceManager<MBCT> & persistence_manager,
-				  p2p_interface & p2p);
+                                  PersistenceManager<MBCT> & persistence_manager,
+                                  p2p_interface & p2p);
     ~MicroBlockConsensusConnection() = default;
 
     /// Validate PrePrepare message

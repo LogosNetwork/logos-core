@@ -26,8 +26,8 @@ public:
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
                              EpochEventsNotifier & events_notifier,
-			     PersistenceManager<ECT> & persistence_manager,
-			     p2p_interface & p2p);
+                             PersistenceManager<ECT> & persistence_manager,
+                             p2p_interface & p2p);
     ~EpochConsensusConnection() = default;
 
     /// Validate PrePrepare message

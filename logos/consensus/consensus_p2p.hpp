@@ -2,8 +2,6 @@
 
 #include <functional>
 #include <map>
-#include <boost/function.hpp>
-#include <boost/bind.hpp>
 
 #include <logos/lib/log.hpp>
 #include <logos/p2p/p2p.h>
@@ -25,28 +23,29 @@ public:
     ConsensusP2p(p2p_interface & p2p,
                  uint8_t delegate_id,
                  std::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)> Validate = {},
-                 boost::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates = {});
+                 std::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates = {});
 
-    bool ProcessOutputMessage(const uint8_t *data, size_t size, bool propagate);
-    bool ProcessInputMessage(const uint8_t *data, size_t size);
+    bool ProcessOutputMessage(const uint8_t *data, uint32_t size, bool propagate);
+    bool ProcessInputMessage(const uint8_t *data, uint32_t size);
     void CleanBatch();
 
-    p2p_interface &                                                                     _p2p;
+    p2p_interface &                                                                 _p2p;
 
 private:
-    bool AddMessageToBatch(const uint8_t *data, size_t size);
+    void AddMessageToBatch(const uint8_t *data, uint32_t size);
     bool PropagateBatch();
     void RetryValidate(const logos::block_hash &hash);
     bool ApplyCacheUpdates(const PrePrepareMessage<CT> &message, uint8_t delegate_id, ValidationStatus &status);
+    MessageHeader<MessageType::Pre_Prepare, CT>* deserialize(const uint8_t *data, uint32_t size, PrePrepareMessage<CT> &block);
 
-    Log                                                                                 _log;
-    uint8_t                                                                             _delegate_id;
-    boost::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)>   _Validate;
-    boost::function<void (const PrePrepareMessage<CT> &, uint8_t)>                      _ApplyUpdates;
-    std::vector<uint8_t>                                                                _p2p_batch;	// PrePrepare + PostPrepare + PostCommit
-    std::multimap<logos::block_hash,std::pair<uint8_t,PrePrepareMessage<CT>>>           _cache;
-    std::mutex                                                                          _cache_mutex;
-    ContainerP2p *                                                                      _container;
+    Log                                                                             _log;
+    uint8_t                                                                         _delegate_id;
+    std::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)> _Validate;
+    std::function<void (const PrePrepareMessage<CT> &, uint8_t)>                    _ApplyUpdates;
+    std::vector<uint8_t>                                                            _p2p_batch;	// PrePrepare + PostPrepare + PostCommit
+    std::multimap<logos::block_hash,std::pair<uint8_t,PrePrepareMessage<CT>>>       _cache;
+    std::mutex                                                                      _cache_mutex;
+    ContainerP2p *                                                                  _container;
 
     friend class ContainerP2p;
     friend class PersistenceP2p<CT>;
@@ -57,22 +56,25 @@ class PersistenceP2p
 {
 public:
     PersistenceP2p(p2p_interface & p2p,
-		   uint8_t delegate_id,
-		   logos::block_store &store)
-	: _persistence(store)
-	, _p2p(p2p, delegate_id,
-        [this](const Prequel &message, MessageType mtype, uint8_t delegate_id, ValidationStatus * status)
-        {
-            return mtype == MessageType::Pre_Prepare  ? this->_persistence.Validate((PrePrepareMessage<CT> &)message, delegate_id, status)
-                 : mtype == MessageType::Post_Prepare ? false /* todo */
-                 : mtype == MessageType::Post_Commit  ? false /* todo */
-                 : false;
-	    },
-	    boost::bind(&PersistenceManager<CT>::ApplyUpdates, &_persistence, _1, _2)
-	)
+                   uint8_t delegate_id,
+                   logos::block_store &store)
+        : _persistence(store)
+        , _p2p(p2p, delegate_id,
+            [this](const Prequel &message, MessageType mtype, uint8_t delegate_id, ValidationStatus * status)
+            {
+                return mtype == MessageType::Pre_Prepare  ? this->_persistence.Validate((PrePrepareMessage<CT> &)message, delegate_id, status)
+                     : mtype == MessageType::Post_Prepare ? false /* todo */
+                     : mtype == MessageType::Post_Commit  ? false /* todo */
+                     : false;
+            },
+            [this](const PrePrepareMessage<CT> &message, uint8_t delegate_id)
+            {
+                this->_persistence.ApplyUpdates(message, delegate_id);
+            }
+        )
     {}
 
-    bool ProcessInputMessage(const void *data, size_t size)
+    bool ProcessInputMessage(const void *data, uint32_t size)
     {
         return _p2p.ProcessInputMessage((const uint8_t *)data, size);
     }
@@ -101,7 +103,7 @@ public:
         _epoch._p2p._container = this;
     }
 
-    bool ProcessInputMessage(const void *data, size_t size)
+    bool ProcessInputMessage(const void *data, uint32_t size)
     {
         return _batch.ProcessInputMessage(data, size)
             || _micro.ProcessInputMessage(data, size)

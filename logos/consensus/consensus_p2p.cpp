@@ -15,7 +15,7 @@ template<ConsensusType CT>
 ConsensusP2p<CT>::ConsensusP2p(p2p_interface & p2p,
                                uint8_t delegate_id,
                                std::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)> Validate,
-                               boost::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates)
+                               std::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates)
     : _p2p(p2p)
     , _delegate_id(delegate_id)
     , _Validate(Validate)
@@ -23,7 +23,7 @@ ConsensusP2p<CT>::ConsensusP2p(p2p_interface & p2p,
 {}
 
 template<ConsensusType CT>
-bool ConsensusP2p<CT>::AddMessageToBatch(const uint8_t *data, size_t size)
+void ConsensusP2p<CT>::AddMessageToBatch(const uint8_t *data, uint32_t size)
 {
     size_t oldsize = _p2p_batch.size();
 
@@ -35,8 +35,6 @@ bool ConsensusP2p<CT>::AddMessageToBatch(const uint8_t *data, size_t size)
                     << "> - message of size " << size
                     << " and type " << (unsigned)_p2p_batch[oldsize + 5]
                     << " added to p2p batch to delegate " << (unsigned)_delegate_id;
-
-    return true;
 }
 
 template<ConsensusType CT>
@@ -68,7 +66,7 @@ bool ConsensusP2p<CT>::PropagateBatch()
 }
 
 template<ConsensusType CT>
-bool ConsensusP2p<CT>::ProcessOutputMessage(const uint8_t *data, size_t size, bool propagate)
+bool ConsensusP2p<CT>::ProcessOutputMessage(const uint8_t *data, uint32_t size, bool propagate)
 {
     bool res = true;
 
@@ -82,21 +80,14 @@ bool ConsensusP2p<CT>::ProcessOutputMessage(const uint8_t *data, size_t size, bo
             .delegate_id = _delegate_id,
         };
 
-        res &= AddMessageToBatch((uint8_t *)&head, sizeof(head));
+        AddMessageToBatch((uint8_t *)&head, sizeof(head));
     }
 
-    res &= AddMessageToBatch(data, size);
+    AddMessageToBatch(data, size);
 
     if (propagate)
     {
-        if (res)
-        {
-            res = PropagateBatch();
-        }
-        else
-        {
-            CleanBatch();
-        }
+        res = PropagateBatch();
     }
 
     return res;
@@ -262,7 +253,7 @@ bool ConsensusP2p<ConsensusType::Epoch>::ApplyCacheUpdates(
 
 template<ConsensusType CT>
 MessageHeader<MessageType::Pre_Prepare, CT>*
-deserialize(const uint8_t * data, size_t size, PrePrepareMessage<CT> & block)
+ConsensusP2p<CT>::deserialize(const uint8_t *data, uint32_t size, PrePrepareMessage<CT> &block)
 {
     block = *(PrePrepareMessage<CT>*)data;
     return (PrePrepareMessage<CT>*)data;
@@ -270,7 +261,7 @@ deserialize(const uint8_t * data, size_t size, PrePrepareMessage<CT> & block)
 
 template<>
 MessageHeader<MessageType::Pre_Prepare, ConsensusType::BatchStateBlock>*
-deserialize(const uint8_t * data, size_t size, PrePrepareMessage<ConsensusType::BatchStateBlock> & block)
+ConsensusP2p<ConsensusType::BatchStateBlock>::deserialize(const uint8_t *data, uint32_t size, PrePrepareMessage<ConsensusType::BatchStateBlock> &block)
 {
 	logos::bufferstream stream(data, size);
 	bool error;
@@ -278,7 +269,7 @@ deserialize(const uint8_t * data, size_t size, PrePrepareMessage<ConsensusType::
 }
 
 template<ConsensusType CT>
-bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, size_t size)
+bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
 {
     MessageType mtype = MessageType::Unknown;
     PrePrepareMessage<CT> block;
@@ -292,7 +283,7 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, size_t size)
 
     while (size >= 4)
     {
-        size_t msize = *(uint32_t *)data;
+        uint32_t msize = *(uint32_t *)data;
         data += 4;
         size -= 4;
         if (msize > size)
@@ -331,7 +322,7 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, size_t size)
 
         case MessageType::Pre_Prepare:
             {
-                MessageHeader<MessageType::Pre_Prepare,CT> *head = deserialize<CT>(data, size, block);
+                MessageHeader<MessageType::Pre_Prepare,CT> *head = deserialize(data, size, block);
                 if (head->type != mtype || head->consensus_type != CT)
                 {
                     LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)

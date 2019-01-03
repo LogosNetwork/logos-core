@@ -15,8 +15,8 @@ EpochConsensusConnection::EpochConsensusConnection(
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
                              EpochEventsNotifier & events_notifier,
-			     PersistenceManager<ECT> & persistence_manager,
-			     p2p_interface & p2p)
+                             PersistenceManager<ECT> & persistence_manager,
+                             p2p_interface & p2p)
     : ConsensusConnection<ECT>(iochannel, primary, promoter, validator,
 						ids, events_notifier, persistence_manager, p2p)
 {

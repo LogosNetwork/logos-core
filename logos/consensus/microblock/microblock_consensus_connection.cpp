@@ -16,8 +16,8 @@ MicroBlockConsensusConnection::MicroBlockConsensusConnection(
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler,
                                   EpochEventsNotifier & events_notifier,
-				  PersistenceManager<MBCT> & persistence_manager,
-				  p2p_interface & p2p)
+                                  PersistenceManager<MBCT> & persistence_manager,
+                                  p2p_interface & p2p)
     : ConsensusConnection<MBCT>(iochannel, primary, promoter, validator, ids,
 						     events_notifier, persistence_manager, p2p)
     , _microblock_handler(handler)

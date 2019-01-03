@@ -58,8 +58,8 @@ public:
                         MessageValidator & validator,
                         const DelegateIdentities & ids,
                         EpochEventsNotifier & events_notifier,
-			PersistenceManager<CT> & persistence_manager,
-			p2p_interface & p2p);
+                        PersistenceManager<CT> & persistence_manager,
+                        p2p_interface & p2p);
 
     void Send(const void * data, size_t size);
 

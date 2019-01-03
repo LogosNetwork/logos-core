@@ -43,8 +43,8 @@ public:
                           const DelegateIdentities & ids,
 						  Service & service,
                           EpochEventsNotifier & events_notifier,
-			  PersistenceManager<BSBCT> & persistence_manager,
-			  p2p_interface & p2p);
+                          PersistenceManager<BSBCT> & persistence_manager,
+                          p2p_interface & p2p);
     ~BBConsensusConnection() {}
 
     /// Validate PrePrepare message

@@ -13,8 +13,8 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
                                              MessageValidator & validator,
                                              const DelegateIdentities & ids,
                                              EpochEventsNotifier & events_notifer,
-					     PersistenceManager<CT> & persistence_manager,
-					     p2p_interface & p2p)
+                                             PersistenceManager<CT> & persistence_manager,
+                                             p2p_interface & p2p)
     : _iochannel(iochannel)
     , _delegate_ids(ids)
     , _reason(RejectionReason::Void)
