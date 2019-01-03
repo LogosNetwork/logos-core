@@ -70,9 +70,10 @@ EpochVotingManager::GetNextEpochDelegates(
     {
        if (delegates3epochs.find(delegate.key.pub) == delegates3epochs.end())
        {
-          delegates[new_delegate].account = delegate.key.pub;
-           delegates[new_delegate].stake = delegate._stake;
-           delegates[new_delegate].vote = delegate._vote;
+           delegates[new_delegate].account = delegate.key.pub;
+           delegates[new_delegate].bls_pub = delegate.bls_key.pub;
+           delegates[new_delegate].stake = delegate.stake;
+           delegates[new_delegate].vote = delegate.vote;
           ++new_delegate;
           if (NUM_DELEGATES == new_delegate)
           {
@@ -89,6 +90,7 @@ EpochVotingManager::ValidateEpochDelegates(
    const Delegates &delegates)
 {
    std::unordered_map<logos::public_key,bool> verify;
+   Log log;
 
    for (auto delegate : logos::genesis_delegates)
    {
@@ -99,7 +101,7 @@ EpochVotingManager::ValidateEpochDelegates(
    {
        if (verify.find(delegates[i].account) == verify.end())
        {
-           LOG_ERROR(_log) << "EpochVotingManager::ValidateEpochDelegates invalild account "
+           LOG_ERROR(log) << "EpochVotingManager::ValidateEpochDelegates invalild account "
                            << delegates[i].account.to_account();
            return false;
        }

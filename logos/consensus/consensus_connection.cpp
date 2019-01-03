@@ -12,7 +12,8 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
                                              RequestPromoter<CT> & promoter,
                                              MessageValidator & validator,
                                              const DelegateIdentities & ids,
-                                             EpochEventsNotifier & events_notifer)
+                                             EpochEventsNotifier & events_notifer,
+                                             PersistenceManager<CT> & persistence_manager)
     : _iochannel(iochannel)
     , _delegate_ids(ids)
     , _reason(RejectionReason::Void)
@@ -20,13 +21,26 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
     , _primary(primary)
     , _promoter(promoter)
     , _events_notifier(events_notifer)
-{
-}
+    , _persistence_manager(persistence_manager)
+{}
 
 template<ConsensusType CT>
 void ConsensusConnection<CT>::Send(const void * data, size_t size)
 {
     _iochannel->Send(data, size);
+}
+
+template<ConsensusType CT>
+size_t ConsensusConnection<CT>::GetPayloadSize()
+{
+    return sizeof(PrePrepare);
+}
+
+template<ConsensusType CT>
+void ConsensusConnection<CT>::DeliverPrePrepare()
+{
+    auto msg (*reinterpret_cast<const PrePrepare*>(_receive_buffer.data()));
+    OnConsensusMessage(msg);
 }
 
 template<ConsensusType CT>
@@ -37,7 +51,7 @@ void ConsensusConnection<CT>::OnData()
     switch (type)
     {
         case MessageType::Pre_Prepare:
-            _iochannel->AsyncRead(sizeof(PrePrepare) -
+            _iochannel->AsyncRead(GetPayloadSize() -
                                   sizeof(Prequel),
                                   std::bind(&ConsensusConnection<CT>::OnMessage, this,
                                             std::placeholders::_1));
@@ -74,6 +88,7 @@ void ConsensusConnection<CT>::OnData()
             break;
         case MessageType::Key_Advert:
         case MessageType::Unknown:
+        case MessageType::Heart_Beat:
             LOG_ERROR(_log) << "ConsensusConnection - Received "
                             << MessageToName(type)
                             << " message type";
@@ -148,6 +163,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
             OnConsensusMessage(msg);
             break;
         }
+        case MessageType::Heart_Beat:
         case MessageType::Key_Advert:
         case MessageType::Unknown:
             LOG_DEBUG(_log) << message;
@@ -401,14 +417,6 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const PostCommit & message)
     }
 
     return false;
-}
-
-template<ConsensusType CT>
-void ConsensusConnection<CT>::SendKeyAdvertisement()
-{
-    KeyAdvertisement advert;
-    advert.public_key = _validator.GetPublicKey();
-    Send(advert);
 }
 
 template<ConsensusType CT>

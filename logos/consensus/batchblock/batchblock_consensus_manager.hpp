@@ -17,13 +17,16 @@ class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchSt
     using Timer       = boost::asio::deadline_timer;
     using Error       = boost::system::error_code;
     using Hashes      = std::unordered_set<BlockHash>;
+    using uint128_t   = logos::uint128_t;
 
     struct Weights
     {
         using Delegates = std::unordered_set<uint8_t>;
 
-        uint64_t  reject_weight           = 0;
-        uint64_t  indirect_support_weight = 0;
+        uint128_t reject_vote            = 0;
+        uint128_t reject_stake           = 0;
+        uint128_t indirect_vote_support  = 0;
+        uint128_t indirect_stake_support = 0;
         Delegates supporting_delegates;
     };
 
@@ -38,17 +41,17 @@ public:
     ///     @param[in] store reference to blockstore.
     ///     @param[in] log reference to boost asio log.
     ///     @param[in] config reference to ConsensusManagerConfig.
-    ///     @param[in] key_store stores delegates' public keys.
     ///     @param[in] validator validator/signer of consensus messages.
     ///     @param[in] events_notifier transition helper
     BatchBlockConsensusManager(Service & service,
                                Store & store,
                                const Config & config,
-                               DelegateKeyStore & key_store,
                                MessageValidator & validator,
                                EpochEventsNotifier & events_notifier);
 
     virtual ~BatchBlockConsensusManager() {};
+
+    void Send(const PrePrepare & pre_prepare) override;
 
     /// Handles benchmark requests.
     ///     @param[in]  block state block.
@@ -144,9 +147,6 @@ protected:
 
     /// Create specialized instance of ConsensusConnection
     ///     @param iochannel NetIOChannel pointer
-    ///     @param primary PrimaryDelegate pointer
-    ///     @param key_store Delegates' public key store
-    ///     @param validator Validator/Signer of consensus messages
     ///     @param ids Delegate's id
     ///     @return ConsensusConnection
     std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>> MakeConsensusConnection(
@@ -169,15 +169,23 @@ private:
 
     void OnDelegatesConnected();
 
-    WeightList              _weights;
-    Hashes                  _hashes;
-    bool                    _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
-    BlockBuffer             _buffer;                        ///< Buffered state blocks.
-    static RequestHandler   _handler;                       ///< Primary queue of batch state blocks.
-    PersistenceManager      _persistence_manager;		    ///< Database interface and request validation
-    Timer                   _init_timer;
-    Service &               _service;
-    uint64_t                _sequence       = 0;
-    uint64_t                _channels_bound = 0;
-    uint32_t                _new_epoch_rejection_cnt = 0;   ///< New Epoch rejection message count
+    void OnCurrentEpochSet() override;
+
+    bool Rejected(uint128_t reject_vote, uint128_t reject_stake);
+
+    WeightList            _response_weights;
+    Hashes                _hashes;
+    BlockBuffer           _buffer;                        ///< Buffered state blocks.
+    static RequestHandler _handler;                       ///< Primary queue of batch state blocks.
+    Timer                 _init_timer;
+    Service &             _service;
+    uint64_t              _sequence              = 0;
+    uint128_t             _connected_vote        = 0;
+    uint128_t             _connected_stake       = 0;
+    uint128_t             _ne_reject_vote        = 0;     ///< New Epoch rejection vote weight.
+    uint128_t             _ne_reject_stake       = 0;     ///< New Epoch rejection stake weight.
+    uint128_t             _vote_reject_quorum    = 0;
+    uint128_t             _stake_reject_quorum   = 0;
+    bool                  _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
+    bool                  _delegates_connected   = false;
 };

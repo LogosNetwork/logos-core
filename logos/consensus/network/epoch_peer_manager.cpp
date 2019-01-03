@@ -41,7 +41,7 @@ EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint endpoint
         }
         else
         {
-            _peer_binder(endpoint, socket, *ids);
+            _peer_binder(Endpoint(boost::asio::ip::make_address_v4(ids->ip), endpoint.port()), socket, *ids);
         }
     });
 }

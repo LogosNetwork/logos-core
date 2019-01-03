@@ -11,13 +11,14 @@
 MicroBlockConsensusConnection::MicroBlockConsensusConnection(
                                   std::shared_ptr<IOChannel> iochannel,
                                   PrimaryDelegate & primary,
-                                  RequestPromoter<ConsensusType::MicroBlock> & promoter,
+                                  RequestPromoter<MBCT> & promoter,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler,
-                                  EpochEventsNotifier & events_notifier)
-    : ConsensusConnection<ConsensusType::MicroBlock>(iochannel, primary, promoter, validator, ids,
-                                                     events_notifier)
+                                  EpochEventsNotifier & events_notifier,
+                                  PersistenceManager<MBCT> & persistence_manager)
+    : ConsensusConnection<MBCT>(iochannel, primary, promoter, validator, ids,
+                                                     events_notifier, persistence_manager)
     , _microblock_handler(handler)
 {
     if (promoter.GetStore().micro_block_tip_get(_prev_pre_prepare_hash))
@@ -31,15 +32,17 @@ bool
 MicroBlockConsensusConnection::DoValidate(
     const PrePrepare & message)
 {
-    return _microblock_handler.Validate(message);
+    return _persistence_manager.Validate(message, _delegate_ids.remote);
 }
 
 void
 MicroBlockConsensusConnection::ApplyUpdates(
     const PrePrepare & block,
-    uint8_t delegate_id)
+    uint8_t)
 {
-    _microblock_handler.CommitToDatabase(block);
+    _persistence_manager.ApplyUpdates(block);
+
+    _microblock_handler.OnApplyUpdates(block);
 }
 
 bool

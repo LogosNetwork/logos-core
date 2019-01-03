@@ -8,18 +8,21 @@
 #include <mutex>
 
 class EpochInfo;
+class IOChannelReconnect;
+class NetIOErrorHandler;
 
 class NetIOAssembler
 {
 
-    using Socket = boost::asio::ip::tcp::socket;
+    using Socket    = boost::asio::ip::tcp::socket;
+    using ErrorCode = boost::system::error_code;
 
     using ReadCallback =
             std::function<void(const uint8_t * data)>;
 
 public:
 
-    NetIOAssembler(std::shared_ptr<Socket> socket, const std::atomic_bool & connected, EpochInfo&);
+    NetIOAssembler(std::shared_ptr<Socket> socket, EpochInfo&, IOChannelReconnect &netio);
     ~NetIOAssembler() = default;
 
     void ReadPrequel(ReadCallback callback);
@@ -56,7 +59,7 @@ private:
     size_t                         _buffer_size         = 0;
     size_t                         _bytes_to_read       = 0;
     bool                           _processing_callback = false;
-    const std::atomic_bool&        _connected;
     EpochInfo &                    _epoch_info;
+    IOChannelReconnect &           _netio;
 };
 

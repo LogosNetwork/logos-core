@@ -12,17 +12,21 @@ BBConsensusConnection::BBConsensusConnection(
         std::shared_ptr<IOChannel> iochannel,
         PrimaryDelegate & primary,
         Promoter & promoter,
-        PersistenceManager & persistence_manager,
         MessageValidator & validator,
         const DelegateIdentities & ids,
         Service & service,
-        EpochEventsNotifier & events_notifier)
+        EpochEventsNotifier & events_notifier,
+        PersistenceManager<BSBCT> & persistence_manager)
     : Connection(iochannel, primary, promoter,
-                 validator, ids, events_notifier)
+                 validator, ids, events_notifier, persistence_manager)
     , _timer(service)
-    , _persistence_manager(persistence_manager)
 {
+    BatchStateBlock block;
     promoter.GetStore().batch_tip_get(_delegate_ids.remote, _prev_pre_prepare_hash);
+    if (_prev_pre_prepare_hash != 0 && !promoter.GetStore().batch_block_get(_prev_pre_prepare_hash, block))
+    {
+        _sequence_number = block.sequence + 1;
+    }
 }
 
 /// Validate BatchStateBlock message.
@@ -67,7 +71,7 @@ BBConsensusConnection::ValidateRequests(
 
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
-        if(!_persistence_manager.Validate(message.blocks[i]))
+        if(!_persistence_manager.Validate(static_cast<const Request&>(message.blocks[i])))
         {
             _rejection_map[i] = 1;
 
@@ -114,6 +118,29 @@ BBConsensusConnection::DoUpdateMessage(Rejection & message)
 {
     message.reason = _reason;
     message.rejection_map = _rejection_map;
+}
+
+size_t
+BBConsensusConnection::GetPayloadSize()
+{
+    return *reinterpret_cast<size_t *>(_receive_buffer.data() + 3);
+}
+
+void
+BBConsensusConnection::DeliverPrePrepare()
+{
+    bool error = false;
+
+    logos::bufferstream stream(_receive_buffer.data(), GetPayloadSize());
+    BatchStateBlock msg(error, stream);
+
+    if(error)
+    {
+        LOG_ERROR(_log) << "BBConsensusConnection::DeliverPrePrepare - Failed to deserialize BatchStateBlock.";
+        return;
+    }
+
+    OnConsensusMessage(static_cast<PrePrepare &>(msg));
 }
 
 void
@@ -295,6 +322,15 @@ BBConsensusConnection::GetTimeout(uint8_t min, uint8_t range)
     return Seconds(min + offset);
 }
 
+void
+BBConsensusConnection::CleanUp()
+{
+    std::lock_guard<std::mutex> lock(_timer_mutex);
+
+    _timer.cancel();
+    _cancel_timer = true;
+}
+
 template<>
 template<>
 void
@@ -303,3 +339,4 @@ ConsensusConnection<ConsensusType::BatchStateBlock>::UpdateMessage(Rejection & m
     static_cast<BBConsensusConnection *>(this)
             ->DoUpdateMessage(message);
 }
+

@@ -7,12 +7,11 @@ MicroBlockConsensusManager::MicroBlockConsensusManager(
                                Service & service,
                                Store & store,
                                const Config & config,
-                               DelegateKeyStore & key_store,
                                MessageValidator & validator,
                                ArchiverMicroBlockHandler & handler,
                                EpochEventsNotifier & events_notifier)
     : Manager(service, store, config,
-              key_store, validator, events_notifier)
+              validator, events_notifier)
     , _microblock_handler(handler)
     , _enqueued(false)
 {
@@ -75,7 +74,9 @@ MicroBlockConsensusManager::ApplyUpdates(
     PrePrepare & pre_prepare,
     uint8_t delegate_id)
 {
-	_microblock_handler.CommitToDatabase(pre_prepare);
+    _persistence_manager.ApplyUpdates(pre_prepare);
+
+    _microblock_handler.OnApplyUpdates(pre_prepare);
 }
 
 uint64_t 
@@ -103,5 +104,5 @@ MicroBlockConsensusManager::MakeConsensusConnection(
         const DelegateIdentities& ids)
 {
     return std::make_shared<MicroBlockConsensusConnection>(iochannel, *this, *this,
-            _validator, ids, _microblock_handler, _events_notifier);
+            _validator, ids, _microblock_handler, _events_notifier, _persistence_manager);
 }

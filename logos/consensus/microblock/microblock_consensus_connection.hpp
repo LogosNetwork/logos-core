@@ -7,11 +7,13 @@
 
 #include <logos/consensus/consensus_connection.hpp>
 
+
 class ArchiverMicroBlockHandler;
 
 class MicroBlockConsensusConnection :
         public ConsensusConnection<ConsensusType::MicroBlock>
 {
+    static constexpr ConsensusType MBCT = ConsensusType::MicroBlock;
 public:
     /// Class constructor
     /// @param iochannel NetIO channel [in]
@@ -22,11 +24,12 @@ public:
     /// @param events_notifier epoch transition helper [in]
     MicroBlockConsensusConnection(std::shared_ptr<IOChannel> iochannel,
                                   PrimaryDelegate & primary,
-                                  RequestPromoter<ConsensusType::MicroBlock> & promoter,
+                                  RequestPromoter<MBCT> & promoter,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler,
-                                  EpochEventsNotifier & events_notifier);
+                                  EpochEventsNotifier & events_notifier,
+                                  PersistenceManager<MBCT> & persistence_manager);
     ~MicroBlockConsensusConnection() = default;
 
     /// Validate PrePrepare message

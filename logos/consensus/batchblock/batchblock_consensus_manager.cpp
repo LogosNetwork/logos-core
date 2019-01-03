@@ -12,17 +12,31 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
         Service & service,
         Store & store,
         const Config & config,
-        DelegateKeyStore & key_store,
         MessageValidator & validator,
         EpochEventsNotifier & events_notifier)
     : Manager(service, store, config,
-              key_store, validator, events_notifier)
-    , _persistence_manager(store)
+              validator, events_notifier)
     , _init_timer(service)
     , _service(service)
 {
     _state = ConsensusState::INITIALIZING;
     _store.batch_tip_get(_delegate_id, _prev_hash);
+    BatchStateBlock block;
+    if (_prev_hash != 0 && !_store.batch_block_get(_prev_hash, block))
+    {
+        _sequence = block.sequence + 1;
+    }
+}
+
+void BatchBlockConsensusManager::Send(const PrePrepare & pre_prepare)
+{
+    std::vector<uint8_t> v;
+    {
+        logos::vectorstream stream(v);
+        pre_prepare.Serialize(stream);
+    }
+
+    Manager::Send(v.data(), v.size());
 }
 
 void
@@ -54,14 +68,13 @@ BatchBlockConsensusManager::BindIOChannel(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities & ids)
 {
-    auto connection =
-            std::make_shared<BBConsensusConnection>(
-                    iochannel, *this, *this, _persistence_manager,
-                    _validator, ids, _service, _events_notifier);
+    auto connection = Manager::BindIOChannel(iochannel, ids);
 
-    _connections.push_back(connection);
-	
-    if(++_channels_bound == QUORUM_SIZE)
+    _connected_vote += _weights[ids.remote].vote_weight;
+    _connected_stake += _weights[ids.remote].stake_weight;
+
+    if(ReachedQuorum(_connected_vote,
+                     _connected_stake))
     {
         OnDelegatesConnected();
     }
@@ -178,7 +191,8 @@ BatchBlockConsensusManager::GetStoredCount()
 void
 BatchBlockConsensusManager::InitiateConsensus()
 {
-    _new_epoch_rejection_cnt = 0;
+    _ne_reject_vote = 0;
+    _ne_reject_stake = 0;
     // make sure we start with a fresh set of hashes so as to not interfere with rejection logic
     _hashes.clear();
 
@@ -233,8 +247,8 @@ BatchBlockConsensusManager::MakeConsensusConnection(
     const DelegateIdentities& ids)
 {
     return std::make_shared<BBConsensusConnection>(
-            iochannel, *this, *this, _persistence_manager,
-            _validator, ids, _service, _events_notifier);
+            iochannel, *this, *this, _validator,
+            ids, _service, _events_notifier, _persistence_manager);
 }
 
 void
@@ -250,6 +264,9 @@ void
 BatchBlockConsensusManager::OnRejection(
         const Rejection & message)
 {
+    auto & vote = _weights[_cur_delegate_id].vote_weight;
+    auto & stake = _weights[_cur_delegate_id].stake_weight;
+
     switch(message.reason)
     {
     case RejectionReason::Contains_Invalid_Request:
@@ -259,27 +276,28 @@ BatchBlockConsensusManager::OnRejection(
 
         for(uint64_t i = 0; i < block_count; ++i)
         {
+            auto & weights = _response_weights[i];
+
             if(!message.rejection_map[i])
             {
-                _weights[i].indirect_support_weight++;
-                _weights[i].supporting_delegates.insert(_cur_delegate_id);
+                weights.indirect_vote_support += vote;
+                weights.indirect_stake_support += stake;
 
-                if(_weights[i].indirect_support_weight + _prepare_weight >= QUORUM_SIZE)
+                weights.supporting_delegates.insert(_cur_delegate_id);
+
+                if(ReachedQuorum(weights.indirect_vote_support + _prepare_vote,
+                                 weights.indirect_stake_support + _prepare_stake))
                 {
                     _hashes.erase(batch.blocks[i].hash());
                 }
             }
             else
             {
-                // TODO: Replace with total pool of delegate
-                //       weights defined by epoch block.
-                //
-//                auto reject_threshold = 32 / 3.0;
-                auto reject_threshold = 0;
+                weights.reject_vote += vote;
+                weights.reject_stake += stake;
 
-                _weights[i].reject_weight++;
-
-                if(_weights[i].reject_weight > reject_threshold)
+                if(Rejected(weights.reject_vote,
+                            weights.reject_stake))
                 {
                     _hashes.erase(batch.blocks[i].hash());
                 }
@@ -288,6 +306,8 @@ BatchBlockConsensusManager::OnRejection(
 
         // All requests have been explicitly
         // rejected or accepted.
+        // Check ConsensusState here because we only want to invoke OnPrePrepareRejected once
+        // (i.e., the first time we advance state to VOID)
         if(_hashes.empty() && _state == ConsensusState::PRE_PREPARE)
         {
             LOG_DEBUG(_log) << "BatchBlockConsensusManager::OnRejection - all requests in current batch "
@@ -299,7 +319,9 @@ BatchBlockConsensusManager::OnRejection(
         break;
     }
     case RejectionReason::New_Epoch:
-       ++_new_epoch_rejection_cnt;
+       _ne_reject_vote += vote;
+       _ne_reject_stake += stake;
+       break;
     case RejectionReason::Clock_Drift:
     case RejectionReason::Bad_Signature:
     case RejectionReason::Invalid_Previous_Hash:
@@ -313,17 +335,21 @@ BatchBlockConsensusManager::OnRejection(
 void
 BatchBlockConsensusManager::OnStateAdvanced()
 {
-    _weights.fill(Weights());
+    _response_weights.fill(Weights());
 }
 
 void
 BatchBlockConsensusManager::OnPrePrepareRejected()
 {
-    if (_new_epoch_rejection_cnt >= QUORUM_SIZE / 3)
+    if (Rejected(_ne_reject_vote, _ne_reject_stake))
     {
-        _new_epoch_rejection_cnt = 0;
-        // TODO retiring delegate in ForwardOnly state has to forward to new primary - deferred
+        _ne_reject_vote = 0;
+        _ne_reject_stake = 0;
+
+        // TODO: Retiring delegate in ForwardOnly state
+        //       has to forward to new primary - deferred.
         _events_notifier.OnPrePrepareRejected();
+
         // forward
         return;
     }
@@ -350,7 +376,8 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
         // delegates that approve of the request at
         // index i collectively have enough weight to
         // get this request post-committed.
-        if(_prepare_weight + _weights[i].indirect_support_weight >= QUORUM_SIZE)
+        if(ReachedQuorum(_prepare_vote + _response_weights[i].indirect_vote_support,
+                         _prepare_stake + _response_weights[i].indirect_stake_support))
         {
             // Was any other request approved by
             // exactly the same set of delegates?
@@ -358,7 +385,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
                     subsets.begin(), subsets.end(),
                     [this, i](const SupportMap & map)
                     {
-                        return map.first == _weights[i].supporting_delegates;
+                        return map.first == _response_weights[i].supporting_delegates;
                     });
 
             // This specific set of supporting delegates
@@ -370,7 +397,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 
                 subsets.push_back(
                         std::make_pair(
-                                _weights[i].supporting_delegates,
+                                _response_weights[i].supporting_delegates,
                                 indexes));
             }
 
@@ -500,7 +527,13 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 void
 BatchBlockConsensusManager::OnDelegatesConnected()
 {
-    LOG_INFO(_log) << "BatchBlockConsensusManager::OnDelegatesConnected";
+    if(_delegates_connected)
+    {
+        return;
+    }
+
+    _delegates_connected = true;
+
     if (_events_notifier.GetState() == EpochTransitionState::None)
     {
         _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
@@ -513,4 +546,26 @@ BatchBlockConsensusManager::OnDelegatesConnected()
     {
         _state = ConsensusState::VOID;
     }
+}
+
+void
+BatchBlockConsensusManager::OnCurrentEpochSet()
+{
+    PrimaryDelegate::OnCurrentEpochSet();
+
+    _vote_reject_quorum = _vote_total - _vote_quorum;
+    _stake_reject_quorum = _stake_total - _stake_quorum;
+}
+
+bool
+BatchBlockConsensusManager::Rejected(uint128_t reject_vote, uint128_t reject_stake)
+{
+    auto op = [](bool & r, uint128_t t, uint128_t q)
+              {
+                  return r ? t > q
+                           : t >= q;
+              };
+
+    return op(_vq_rounded, reject_vote, _vote_reject_quorum) &&
+           op(_sq_rounded, reject_stake, _stake_reject_quorum);
 }
