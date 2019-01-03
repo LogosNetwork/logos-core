@@ -80,8 +80,8 @@ public:
                      Store & store,
                      const Config & config,
                      MessageValidator & validator,
-		     EpochEventsNotifier & events_notifier,
-		     p2p_interface & p2p);
+                     EpochEventsNotifier & events_notifier,
+                     p2p_interface & p2p);
 
     void OnSendRequest(std::shared_ptr<Request> block,
                        logos::process_return & result);
@@ -179,6 +179,6 @@ protected:
     EpochEventsNotifier &           _events_notifier;      ///< Notifies epoch manager of transition related events
     ReservationsPtr                 _reservations;
     PersistenceManager<CT>          _persistence_manager;
-    ConsensusP2p<CT>		    _consensus_p2p;
+    ConsensusP2p<CT>                _consensus_p2p;
 };
 

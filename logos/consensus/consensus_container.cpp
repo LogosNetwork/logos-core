@@ -18,8 +18,8 @@ ConsensusContainer::ConsensusContainer(Service & service,
                                        logos::alarm & alarm,
                                        const Config & config,
                                        Archiver & archiver,
-				       DelegateIdentityManager & identity_manager,
-				       p2p_interface & p2p)
+                                       DelegateIdentityManager & identity_manager,
+                                       p2p_interface & p2p)
     : _peer_manager(service, config, std::bind(&ConsensusContainer::PeerBinder, this,
             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3))
     , _cur_epoch(nullptr)
@@ -75,7 +75,7 @@ ConsensusContainer::CreateEpochManager(
 {
     return std::make_shared<EpochManager>(_service, _store, _alarm, config,
                                           _archiver, _peer_manager, _transition_state,
-					  delegate, connection, epoch_number, *this, _p2p->_p2p);
+                                          delegate, connection, epoch_number, *this, _p2p->_p2p);
 }
 
 logos::process_return

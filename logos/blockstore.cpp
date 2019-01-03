@@ -307,8 +307,8 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "checksum", MDB_CREATE, &checksum) != 0;
         error_a |= mdb_dbi_open (transaction, "vote", MDB_CREATE, &vote) != 0;
         error_a |= mdb_dbi_open (transaction, "meta", MDB_CREATE, &meta) != 0;
-	error_a |= mdb_dbi_open (transaction, "p2p_db", MDB_CREATE, &p2p_db) != 0;
-	if (!error_a)
+        error_a |= mdb_dbi_open (transaction, "p2p_db", MDB_CREATE, &p2p_db) != 0;
+        if (!error_a)
         {
             //CH do_upgrades (transaction);
             checksum_put (transaction, 0, 0, 0);

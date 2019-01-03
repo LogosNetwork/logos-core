@@ -49,7 +49,8 @@ extern CCriticalSection cs_main;
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
 
-void p2p_interface::TraverseCommandLineOptions(std::function<void(const char *option, const char *description, int flags)> callback) {
+void p2p_interface::TraverseCommandLineOptions(std::function<void(const char *option, const char *description, int flags)> callback)
+{
     const auto defaultBaseParams = CreateBaseChainParams(CBaseChainParams::MAIN);
     const auto testnetBaseParams = CreateBaseChainParams(CBaseChainParams::TESTNET);
     const auto regtestBaseParams = CreateBaseChainParams(CBaseChainParams::REGTEST);
@@ -62,36 +63,38 @@ void p2p_interface::TraverseCommandLineOptions(std::function<void(const char *op
 #undef Arg
 }
 
-class p2p_internal {
+class p2p_internal
+{
 private:
-
-	p2p_interface *interface;
-	bool fFeeEstimatesInitialized;
-	const bool DEFAULT_REST_ENABLE;
-	const bool DEFAULT_STOPAFTERBLOCKIMPORT;
-	const char* FEE_ESTIMATES_FILENAME;
-	ServiceFlags nLocalServices;
-	boost::asio::io_service *io_service;
-	int nMaxConnections;
-	int nUserMaxConnections;
-	int nFD;
-	boost::thread_group threadGroup;
-	std::unique_ptr<CConnman> g_connman;
-	std::unique_ptr<PeerLogicValidation> peerLogic;
-	PropagateStore store;
+    p2p_interface *                         interface;
+    bool                                    fFeeEstimatesInitialized;
+    const bool                              DEFAULT_REST_ENABLE;
+    const bool                              DEFAULT_STOPAFTERBLOCKIMPORT;
+    const char*                             FEE_ESTIMATES_FILENAME;
+    ServiceFlags                            nLocalServices;
+    boost::asio::io_service *               io_service;
+    int                                     nMaxConnections;
+    int                                     nUserMaxConnections;
+    int                                     nFD;
+    boost::thread_group                     threadGroup;
+    std::unique_ptr<CConnman>               g_connman;
+    std::unique_ptr<PeerLogicValidation>    peerLogic;
+    PropagateStore                          store;
 
 public:
-	p2p_internal(p2p_interface *p2p, p2p_config &config) :
-		interface(p2p),
-		fFeeEstimatesInitialized(false),
-		DEFAULT_REST_ENABLE(false),
-		DEFAULT_STOPAFTERBLOCKIMPORT(false),
-		FEE_ESTIMATES_FILENAME("fee_estimates.dat"),
-		nLocalServices(ServiceFlags(NODE_NETWORK | NODE_NETWORK_LIMITED)),
-		io_service((boost::asio::io_service *)config.boost_io_service)
-		{}
+    p2p_internal(p2p_interface *p2p,
+                 p2p_config &config)
+        : interface(p2p)
+        , fFeeEstimatesInitialized(false)
+        , DEFAULT_REST_ENABLE(false)
+        , DEFAULT_STOPAFTERBLOCKIMPORT(false)
+        , FEE_ESTIMATES_FILENAME("fee_estimates.dat")
+        , nLocalServices(ServiceFlags(NODE_NETWORK | NODE_NETWORK_LIMITED))
+        , io_service((boost::asio::io_service *)config.boost_io_service)
+    {}
 
-	~p2p_internal(){}
+    ~p2p_internal()
+    {}
 
 #ifdef WIN32
 // Win32 LevelDB doesn't use filedescriptors, and the ones used for
@@ -619,98 +622,135 @@ bool AppInitMain(p2p_config &config)
     return true;
 }
 
-bool Find(PropagateMessage &mess) {
-	return store.Find(mess);
+bool Find(PropagateMessage &mess)
+{
+    return store.Find(mess);
 }
 
-bool Propagate(PropagateMessage &mess) {
-	return store.Insert(mess);
+bool Propagate(PropagateMessage &mess)
+{
+    return store.Insert(mess);
 }
 
 }; // end of the class p2p_internal
 
 
-bool p2p_interface::Init(p2p_config &config) {
-	if (p2p) return false;
-	uiInterface.config = &config;
-	SetupEnvironment();
-	p2p = new p2p_internal(this, config);
-	if (!p2p) return false;
-	p2p->SetupServerArgs();
-	std::string error;
-	if (!gArgs.ParseParameters(config.argc, config.argv, error)) {
-		InitError(std::string("illegal command line arguments: ") + error);
-		return false;
-	}
-	g_p2p_lmdb_env = config.lmdb_env;
-	g_p2p_lmdb_dbi = config.lmdb_dbi;
+bool p2p_interface::Init(p2p_config &config)
+{
+    if (p2p)
+    {
+        return false;
+    }
 
-	// Process help and version before taking care about datadir
-	if (HelpRequested(gArgs)) {
-		std::string strUsage = PACKAGE_NAME " daemon version " + FormatFullVersion() + "\n";
+    uiInterface.config = &config;
+    SetupEnvironment();
 
-		strUsage += "\nUsage:  ";
-		strUsage += config.argv[0];
-		strUsage += " [options]                     Start " PACKAGE_NAME " daemon\n";
-		strUsage += "\n" + gArgs.GetHelpMessage();
+    p2p = new p2p_internal(this, config);
+    if (!p2p)
+    {
+        return false;
+    }
 
-		uiInterface.InitMessage(strUsage);
-		return false;
-	}
+    p2p->SetupServerArgs();
+    std::string error;
 
-	// Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
-	try {
-		SelectParams(gArgs.GetChainName());
-	} catch (const std::exception& e) {
-		InitError(e.what());
-		return false;
-	}
+    if (!gArgs.ParseParameters(config.argc, config.argv, error))
+    {
+        InitError(std::string("illegal command line arguments: ") + error);
+        return false;
+    }
 
-	// Error out when loose non-argument tokens are encountered on command line
-	for (int i = 1; i < config.argc; i++) {
-		if (!IsSwitchChar(config.argv[i][0])) {
-			InitError(std::string("Command line contains unexpected token '") + config.argv[i]
-				+ "', see " + config.argv[0] + " --help for a list of options.");
-			return false;
-		}
-	}
+    g_p2p_lmdb_env = config.lmdb_env;
+    g_p2p_lmdb_dbi = config.lmdb_dbi;
 
-	// -server defaults to true for bitcoind but not for the GUI so do this here
-	gArgs.SoftSetBoolArg("-server", true);
+    // Process help and version before taking care about datadir
+    if (HelpRequested(gArgs))
+    {
+        std::string strUsage = PACKAGE_NAME " daemon version " + FormatFullVersion() + "\n";
 
-	p2p->InitLogging();
-	p2p->InitParameterInteraction();
-	if (!p2p->AppInitBasicSetup())
-	{
-		// InitError will have been called with detailed error, which ends up on console
-		return false;
-	}
-	if (!p2p->AppInitParameterInteraction())
-	{
-		// InitError will have been called with detailed error, which ends up on console
-		return false;
-	}
-	if (!p2p->AppInitSanityChecks())
-	{
-		// InitError will have been called with detailed error, which ends up on console
-		return false;
-	}
+        strUsage += "\nUsage:  ";
+        strUsage += config.argv[0];
+        strUsage += " [options]                     Start " PACKAGE_NAME " daemon\n";
+        strUsage += "\n" + gArgs.GetHelpMessage();
+
+        uiInterface.InitMessage(strUsage);
+        return false;
+    }
+
+    // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
+    try
+    {
+        SelectParams(gArgs.GetChainName());
+    }
+    catch (const std::exception& e)
+    {
+        InitError(e.what());
+        return false;
+    }
+
+    // Error out when loose non-argument tokens are encountered on command line
+    for (int i = 1; i < config.argc; i++)
+    {
+        if (!IsSwitchChar(config.argv[i][0]))
+        {
+            InitError(std::string("Command line contains unexpected token '") + config.argv[i]
+                                  + "', see " + config.argv[0] + " --help for a list of options.");
+            return false;
+        }
+    }
+
+    // -server defaults to true for bitcoind but not for the GUI so do this here
+    gArgs.SoftSetBoolArg("-server", true);
+
+    p2p->InitLogging();
+    p2p->InitParameterInteraction();
+
+    if (!p2p->AppInitBasicSetup())
+    {
+        // InitError will have been called with detailed error, which ends up on console
+        return false;
+    }
+
+    if (!p2p->AppInitParameterInteraction())
+    {
+        // InitError will have been called with detailed error, which ends up on console
+        return false;
+    }
+
+    if (!p2p->AppInitSanityChecks())
+    {
+        // InitError will have been called with detailed error, which ends up on console
+        return false;
+    }
+
 	return p2p->AppInitMain(config);
 }
 
-void p2p_interface::Shutdown() {
-	if (p2p) {
-		p2p->Interrupt();
-		p2p->Shutdown();
-		p2p = 0;
-	}
+void p2p_interface::Shutdown()
+{
+    if (p2p)
+    {
+        p2p->Interrupt();
+        p2p->Shutdown();
+        p2p = 0;
+    }
 }
 
-bool p2p_interface::PropagateMessage(const void *message, unsigned size) {
-	if (!p2p) return false;
-	struct PropagateMessage mess(message, size);
-	if (p2p->Find(mess) || !ReceiveMessageCallback(message, size) || !p2p->Propagate(mess)) {
-		return false;
-	}
+bool p2p_interface::PropagateMessage(const void *message,
+                                     unsigned size)
+{
+    if (!p2p)
+    {
+        return false;
+    }
+
+    struct PropagateMessage mess(message, size);
+    if (p2p->Find(mess)
+            || !ReceiveMessageCallback(message, size)
+            || !p2p->Propagate(mess))
+    {
+        return false;
+    }
+
 	return true;
 }

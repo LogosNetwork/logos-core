@@ -23,15 +23,15 @@ class ConsensusP2p
 public:
 
     ConsensusP2p(p2p_interface & p2p,
-		 uint8_t delegate_id,
-		 std::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)> Validate = {},
-		 boost::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates = {});
+                 uint8_t delegate_id,
+                 std::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)> Validate = {},
+                 boost::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates = {});
 
     bool ProcessOutputMessage(const uint8_t *data, size_t size, bool propagate);
     bool ProcessInputMessage(const uint8_t *data, size_t size);
     void CleanBatch();
 
-    p2p_interface &		_p2p;
+    p2p_interface &                                                                     _p2p;
 
 private:
     bool AddMessageToBatch(const uint8_t *data, size_t size);
@@ -39,14 +39,14 @@ private:
     void RetryValidate(const logos::block_hash &hash);
     bool ApplyCacheUpdates(const PrePrepareMessage<CT> &message, uint8_t delegate_id, ValidationStatus &status);
 
-    Log                         _log;
-    uint8_t			_delegate_id;
-    boost::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)> _Validate;
-    boost::function<void (const PrePrepareMessage<CT> &, uint8_t)> _ApplyUpdates;
-    std::vector<uint8_t>	_p2p_batch;	// PrePrepare + PostPrepare + PostCommit
-    std::multimap<logos::block_hash,std::pair<uint8_t,PrePrepareMessage<CT>>> _cache;
-    std::mutex                  _cache_mutex;
-    ContainerP2p		*_container;
+    Log                                                                                 _log;
+    uint8_t                                                                             _delegate_id;
+    boost::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)>   _Validate;
+    boost::function<void (const PrePrepareMessage<CT> &, uint8_t)>                      _ApplyUpdates;
+    std::vector<uint8_t>                                                                _p2p_batch;	// PrePrepare + PostPrepare + PostCommit
+    std::multimap<logos::block_hash,std::pair<uint8_t,PrePrepareMessage<CT>>>           _cache;
+    std::mutex                                                                          _cache_mutex;
+    ContainerP2p *                                                                      _container;
 
     friend class ContainerP2p;
     friend class PersistenceP2p<CT>;
@@ -61,11 +61,12 @@ public:
 		   logos::block_store &store)
 	: _persistence(store)
 	, _p2p(p2p, delegate_id,
-	    [this](const Prequel &message, MessageType mtype, uint8_t delegate_id, ValidationStatus * status) {
-		return mtype == MessageType::Pre_Prepare  ? this->_persistence.Validate((PrePrepareMessage<CT> &)message, delegate_id, status)
-		     : mtype == MessageType::Post_Prepare ? false /* todo */
-		     : mtype == MessageType::Post_Commit  ? false /* todo */
-		     : false;
+        [this](const Prequel &message, MessageType mtype, uint8_t delegate_id, ValidationStatus * status)
+        {
+            return mtype == MessageType::Pre_Prepare  ? this->_persistence.Validate((PrePrepareMessage<CT> &)message, delegate_id, status)
+                 : mtype == MessageType::Post_Prepare ? false /* todo */
+                 : mtype == MessageType::Post_Commit  ? false /* todo */
+                 : false;
 	    },
 	    boost::bind(&PersistenceManager<CT>::ApplyUpdates, &_persistence, _1, _2)
 	)
@@ -73,12 +74,12 @@ public:
 
     bool ProcessInputMessage(const void *data, size_t size)
     {
-	return _p2p.ProcessInputMessage((const uint8_t *)data, size);
+        return _p2p.ProcessInputMessage((const uint8_t *)data, size);
     }
 
 private:
-    NonDelPersistenceManager<CT> _persistence;
-    ConsensusP2p<CT>		 _p2p;
+    NonDelPersistenceManager<CT>    _persistence;
+    ConsensusP2p<CT>                _p2p;
 
     friend class ContainerP2p;
     friend class ConsensusP2p<CT>;
@@ -88,36 +89,37 @@ class ContainerP2p
 {
 public:
     ContainerP2p(p2p_interface & p2p,
-		 uint8_t delegate_id,
-		 logos::block_store &store)
-	: _p2p(p2p)
-	, _batch(p2p, delegate_id, store)
-	, _micro(p2p, delegate_id, store)
-	, _epoch(p2p, delegate_id, store)
+                 uint8_t delegate_id,
+                 logos::block_store &store)
+        : _p2p(p2p)
+        , _batch(p2p, delegate_id, store)
+        , _micro(p2p, delegate_id, store)
+        , _epoch(p2p, delegate_id, store)
     {
-	_batch._p2p._container = this;
-	_micro._p2p._container = this;
-	_epoch._p2p._container = this;
+        _batch._p2p._container = this;
+        _micro._p2p._container = this;
+        _epoch._p2p._container = this;
     }
 
     bool ProcessInputMessage(const void *data, size_t size)
     {
-	return _batch.ProcessInputMessage(data, size)
-	    || _micro.ProcessInputMessage(data, size)
-	    || _epoch.ProcessInputMessage(data, size);
+        return _batch.ProcessInputMessage(data, size)
+            || _micro.ProcessInputMessage(data, size)
+            || _epoch.ProcessInputMessage(data, size);
     }
 
-    p2p_interface &					_p2p;
+    p2p_interface &                                 _p2p;
 private:
-    void RetryValidate(const logos::block_hash &hash) {
-	_batch._p2p.RetryValidate(hash);
-	_micro._p2p.RetryValidate(hash);
-	_epoch._p2p.RetryValidate(hash);
+    void RetryValidate(const logos::block_hash &hash)
+    {
+        _batch._p2p.RetryValidate(hash);
+        _micro._p2p.RetryValidate(hash);
+        _epoch._p2p.RetryValidate(hash);
     }
 
-    PersistenceP2p<ConsensusType::BatchStateBlock>	_batch;
-    PersistenceP2p<ConsensusType::MicroBlock>		_micro;
-    PersistenceP2p<ConsensusType::Epoch>		_epoch;
+    PersistenceP2p<ConsensusType::BatchStateBlock>  _batch;
+    PersistenceP2p<ConsensusType::MicroBlock>       _micro;
+    PersistenceP2p<ConsensusType::Epoch>            _epoch;
 
     template<ConsensusType CT>
     friend class ConsensusP2p;

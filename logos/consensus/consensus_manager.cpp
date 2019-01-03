@@ -16,8 +16,8 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
                                        Store & store,
                                        const Config & config,
                                        MessageValidator & validator,
-				       EpochEventsNotifier & events_notifier,
-				       p2p_interface & p2p)
+                                       EpochEventsNotifier & events_notifier,
+                                       p2p_interface & p2p)
     : PrimaryDelegate(service, validator)
     , _store(store)
     , _validator(validator)

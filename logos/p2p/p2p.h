@@ -16,39 +16,56 @@ struct MDB_env;
 typedef unsigned int MDB_dbi;
 #endif
 
-enum userInterfaceMessageTypes {
-	P2P_UI_INFO	= 1,
-	P2P_UI_WARNING	= 2,
-	P2P_UI_ERROR	= 4,
-	P2P_UI_INIT	= 8,
+enum userInterfaceMessageTypes
+{
+    P2P_UI_INFO     = 1,
+    P2P_UI_WARNING  = 2,
+    P2P_UI_ERROR    = 4,
+    P2P_UI_INIT     = 8,
 };
 
-struct p2p_config {
-	int argc;
-	char **argv;
-	struct MDB_env *lmdb_env;
-	MDB_dbi lmdb_dbi;
-	void *boost_io_service;
-	std::function<void(std::function<void()> const &, unsigned)> scheduleAfterMs;
-	std::function<void(int,const char *)> userInterfaceMessage;
+struct p2p_config
+{
+    int                                                             argc;
+    char **                                                         argv;
+    struct MDB_env *                                                lmdb_env;
+    MDB_dbi                                                         lmdb_dbi;
+    void *                                                          boost_io_service;
+    std::function<void(std::function<void()> const &, unsigned)>    scheduleAfterMs;
+    std::function<void(int,const char *)>                           userInterfaceMessage;
 };
 
-enum p2p_option_flags {
-	P2P_OPTION_ARGUMENT	= 1,
-	P2P_OPTION_MULTI	= 2,
+enum p2p_option_flags
+{
+    P2P_OPTION_ARGUMENT = 1,
+    P2P_OPTION_MULTI    = 2,
 };
 
-class p2p_interface {
+class p2p_interface
+{
 private:
-	p2p_internal *p2p;
+    p2p_internal *      p2p;
+
 public:
-	p2p_interface() : p2p(0) {}
-	~p2p_interface(){ Shutdown(); }
-	bool Init(p2p_config &config);
-	void Shutdown();
-	bool PropagateMessage(const void *message, unsigned size);
-	virtual bool ReceiveMessageCallback(const void *message, unsigned size) { return false; }
-	static void TraverseCommandLineOptions(std::function<void(const char *option, const char *description, int flags)> callback);
+    p2p_interface()
+        : p2p(0)
+    {}
+
+    ~p2p_interface()
+    {
+        Shutdown();
+    }
+
+    bool Init(p2p_config &config);
+    void Shutdown();
+    bool PropagateMessage(const void *message, unsigned size);
+
+    virtual bool ReceiveMessageCallback(const void *message, unsigned size)
+    {
+        return false;
+    }
+
+    static void TraverseCommandLineOptions(std::function<void(const char *option, const char *description, int flags)> callback);
 };
 
 #endif
