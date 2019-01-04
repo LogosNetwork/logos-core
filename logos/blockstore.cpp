@@ -937,8 +937,9 @@ bool logos::block_store::state_block_get(const logos::block_hash & hash, logos::
     bool result = false;
 
     bufferstream stream (reinterpret_cast<uint8_t const *> (val.data()), val.size());
-    new(&block) state_block(result, stream);
+    BatchStateBlock batch_block (BatchStateBlock(result, stream));
     assert(!result);
+    block = batch_block.blocks[locator.index];
 
     return result;
 }
