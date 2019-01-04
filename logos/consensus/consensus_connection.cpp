@@ -189,8 +189,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
         HandlePrePrepare(message);
         SendMessage<PrepareMessage<CT>>();
 
-        _consensus_p2p.CleanBatch();
-        _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(MessageType::Pre_Prepare), false);
+        _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(MessageType::Pre_Prepare), MessageType::Pre_Prepare);
     }
     else
     {
@@ -209,7 +208,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostPrepare & message)
 
         SendMessage<CommitMessage<CT>>();
 
-        _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(MessageType::Post_Prepare), false);
+        _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(MessageType::Post_Prepare), MessageType::Post_Prepare);
     }
 }
 
@@ -229,7 +228,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
 
         _events_notifier.OnPostCommit(_pre_prepare->epoch_number);
 
-        _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(MessageType::Post_Commit), true);
+        _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(MessageType::Post_Commit), MessageType::Post_Commit);
     }
 }
 

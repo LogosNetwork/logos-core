@@ -92,7 +92,7 @@ public:
                                         logos::process_return & result) = 0;
 
     virtual void Send(const PrePrepare & pre_prepare);
-    void Send(const void * data, size_t size, bool propagate = false) override;
+    void Send(const void * data, size_t size, MessageType mtype = MessageType::Pre_Prepare) override;
 
     virtual ~ConsensusManager()
     {

@@ -113,7 +113,7 @@ void ConsensusManager<CT>::Send(const PrePrepare & pre_prepare)
 }
 
 template<ConsensusType CT>
-void ConsensusManager<CT>::Send(const void * data, size_t size, bool propagate)
+void ConsensusManager<CT>::Send(const void * data, size_t size, MessageType mtype)
 {
     std::lock_guard<std::mutex> lock(_connection_mutex);
 
@@ -122,7 +122,7 @@ void ConsensusManager<CT>::Send(const void * data, size_t size, bool propagate)
         conn->Send(data, size);
     }
 
-    _consensus_p2p.ProcessOutputMessage((const uint8_t *)data, size, propagate);
+    _consensus_p2p.ProcessOutputMessage((const uint8_t *)data, size, mtype);
 }
 
 template<ConsensusType CT>

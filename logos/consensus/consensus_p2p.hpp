@@ -16,12 +16,12 @@ public:
     ConsensusP2pOutput(p2p_interface & p2p,
                        uint8_t delegate_id);
 
-    bool ProcessOutputMessage(const uint8_t *data, uint32_t size, bool propagate);
-    void CleanBatch();
+    bool ProcessOutputMessage(const uint8_t *data, uint32_t size, MessageType mtype);
 
     p2p_interface &         _p2p;
 
 private:
+    void CleanBatch();
     void AddMessageToBatch(const uint8_t *data, uint32_t size);
     bool PropagateBatch();
 

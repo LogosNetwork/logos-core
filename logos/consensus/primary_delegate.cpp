@@ -47,7 +47,7 @@ void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message)
     {
         CycleTimers<C>(true);
 
-        Send<PostPrepareMessage<C>>();
+        Send<PostPrepareMessage<C>>(MessageType::Post_Prepare);
         AdvanceState(ConsensusState::POST_PREPARE);
     }
     else
@@ -63,7 +63,7 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage<C> & message)
     {
         CancelTimer();
 
-	Send<PostCommitMessage<C>>(true);
+        Send<PostCommitMessage<C>>(MessageType::Post_Commit);
         AdvanceState(ConsensusState::POST_COMMIT);
 
         OnConsensusReached();
@@ -178,14 +178,14 @@ bool PrimaryDelegate::Validate(const M & message)
 }
 
 template<typename M>
-void PrimaryDelegate::Send(bool propagate)
+void PrimaryDelegate::Send(MessageType mtype)
 {
     M response(_cur_batch_timestamp);
 
     response.previous = _cur_hash;
     _validator.Sign(response, _signatures);
 
-    Send(&response, sizeof(response), propagate);
+    Send(&response, sizeof(response), mtype);
 }
 
 void PrimaryDelegate::OnCurrentEpochSet()

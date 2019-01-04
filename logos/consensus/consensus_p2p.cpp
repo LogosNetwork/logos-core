@@ -62,12 +62,14 @@ bool ConsensusP2pOutput<CT>::PropagateBatch()
 }
 
 template<ConsensusType CT>
-bool ConsensusP2pOutput<CT>::ProcessOutputMessage(const uint8_t *data, uint32_t size, bool propagate)
+bool ConsensusP2pOutput<CT>::ProcessOutputMessage(const uint8_t *data, uint32_t size, MessageType mtype)
 {
     bool res = true;
 
-    if (!_p2p_batch.size())
+    if (mtype == MessageType::Pre_Prepare)
     {
+        CleanBatch();
+
         const struct P2pBatchHeader head =
         {
             .version = P2P_BATCH_VERSION,
@@ -81,7 +83,7 @@ bool ConsensusP2pOutput<CT>::ProcessOutputMessage(const uint8_t *data, uint32_t 
 
     AddMessageToBatch(data, size);
 
-    if (propagate)
+    if (mtype == MessageType::Post_Commit)
     {
         res = PropagateBatch();
     }

@@ -53,11 +53,11 @@ public:
     {}
 
     template<typename M>
-    void Send(bool propagate = false);
+    void Send(MessageType mtype = MessageType::Pre_Prepare);
 
     virtual void OnCurrentEpochSet();
 
-    virtual void Send(const void * data, size_t size, bool propagate = false) = 0;
+    virtual void Send(const void * data, size_t size, MessageType mtype = MessageType::Pre_Prepare) = 0;
 
 protected:
 
