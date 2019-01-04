@@ -475,8 +475,8 @@ public:
     logos::uint128_t delta ();
 
     // consensus-related functionality.
-    // TODO: refactor
-    process_return OnSendRequest(std::shared_ptr<state_block> block,
+
+    process_return OnSendRequest(std::shared_ptr<StateBlock> block,
                                  bool should_buffer);
     process_return BufferComplete();
 

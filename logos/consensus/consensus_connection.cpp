@@ -99,7 +99,10 @@ bool ConsensusConnection<CT>::OnMessageData(const uint8_t * data,
             break;
     }
 
-    return error;
+    if(error)
+        LOG_DEBUG(_log) << __func__ << " message error";//log level?
+
+    return ! error;
 }
 
 template<ConsensusType CT>
@@ -147,6 +150,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostPrepare & message)
         CommitMessage<CT> msg(_pre_prepare_hash);
         _validator.Sign(_post_prepare_hash, msg.signature);
         SendMessage<CommitMessage<CT>>(msg);
+        LOG_DEBUG(_log) << __func__ << "<" << ConsensusToName(CT) << "> sent commit";
     }
 }
 
@@ -216,13 +220,24 @@ bool ConsensusConnection<CT>::Validate(const M & message)
 {
     if(message.type == MessageType::Post_Prepare)
     {
-        return _validator.Validate(_pre_prepare_hash, message.signature);
+        assert(_pre_prepare_hash==message.preprepare_hash);
+        auto good = _validator.Validate(_pre_prepare_hash, message.signature);
+        if(!good)
+        {
+            LOG_DEBUG(_log) << "_validator.Validate(_pre_prepare_hash, message.signature) failed. "
+                    << _pre_prepare_hash.to_string() << " "
+                    << message.preprepare_hash.to_string() << " "
+                    << message.signature.sig.to_string() << " "
+                    << message.signature.map.to_string();
+        }
+        return good;
     }
 
     if(message.type == MessageType::Post_Commit)
     {
         if(_state == ConsensusState::COMMIT)
         {
+            assert(_pre_prepare_hash==message.preprepare_hash);
             return _validator.Validate(_post_prepare_hash, message.signature);
         }
 
@@ -300,6 +315,8 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const M & message,
 
     if(!Validate(message))
     {
+        LOG_INFO(_log) << "ConsensusConnection - Received " << MessageToName(message)
+                       << ", Validate failed";
         return false;
     }
 
@@ -308,6 +325,8 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const M & message,
     // TODO epoch # must be changed, hash recalculated, and signed
     if (!ValidateEpoch(message))
     {
+        LOG_INFO(_log) << "ConsensusConnection - Received " << MessageToName(message)
+                       << ", ValidateEpoch failed";
         return false;
     }
 

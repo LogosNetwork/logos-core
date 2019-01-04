@@ -1,6 +1,7 @@
 #include <queue>
 #include <logos/blockstore.hpp>
 #include <logos/versioning.hpp>
+#include <logos/lib/trace.hpp>
 
 namespace
 {
@@ -947,6 +948,24 @@ bool logos::block_store::state_block_get(const BlockHash & hash, StateBlock & bl
     return error;
 }
 
+bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, mdb_val &value, MDB_txn *tx)
+{
+    int status = 0;
+    if (tx == 0) {
+        logos::transaction transaction(environment, nullptr, false);
+        status = mdb_get(transaction, db, key, value);
+    } else {
+        status = mdb_get(tx, db, key, value);
+    }
+    if( ! (status == 0 || status == MDB_NOTFOUND))
+    {
+        trace_and_halt();
+    }
+
+    bool error = (status == MDB_NOTFOUND);
+    return error;
+}
+
 bool logos::block_store::micro_block_put(ApprovedMB const &block, MDB_txn *transaction)
 {
     std::vector<uint8_t> buf;
@@ -958,7 +977,7 @@ bool logos::block_store::micro_block_put(ApprovedMB const &block, MDB_txn *trans
 bool logos::block_store::micro_block_get(const BlockHash &hash, ApprovedMB &block, MDB_txn *transaction)
 {
     mdb_val val;
-    if(mdb_get(transaction, micro_block_db, mdb_val(hash), val))
+    if(get(micro_block_db, mdb_val(hash), val, transaction))
     {
         return true;
     }
@@ -982,13 +1001,12 @@ bool logos::block_store::micro_block_tip_put(const BlockHash & hash, MDB_txn *tr
 bool logos::block_store::micro_block_tip_get(BlockHash & hash, MDB_txn *transaction)
 {
     const uint8_t key = 0; // only one tip
-    //mdb_val key(i);
-    //  return get<BlockHash>(micro_block_tip_db, key, hash, transaction);
     mdb_val val;
-    if(mdb_get(transaction, micro_block_tip_db, mdb_val(key), val))
+    if(get(micro_block_tip_db, mdb_val(key), val, transaction))
     {
         return true;
     }
+    assert(val.size() == HASH_SIZE);
     new (&hash) BlockHash(val.data(), val.size());
     return false;
 }
@@ -1012,9 +1030,8 @@ bool logos::block_store::epoch_put(ApprovedEB const &block, MDB_txn *transaction
 //TODO make a template function for standard put and get
 bool logos::block_store::epoch_get(const BlockHash &hash, ApprovedEB &block, MDB_txn *transaction)
 {
-    //return get<ApprovedEB>(epoch_db, mdb_val(hash), block, transaction);
     mdb_val val;
-    if(mdb_get(transaction, epoch_db, mdb_val(hash), val))
+    if(get(epoch_db, mdb_val(hash), val, transaction))
     {
         return true;
     }
@@ -1036,13 +1053,9 @@ bool logos::block_store::epoch_tip_put(const BlockHash & hash, MDB_txn *transact
 
 bool logos::block_store::epoch_tip_get(BlockHash & hash, MDB_txn *transaction)
 {
-    //    const uint8_t i = 0; // only one tip
-    //    mdb_val key(sizeof(i), const_cast<uint8_t*>(&i));
-    //    return get<BlockHash>(epoch_tip_db, key, hash, transaction);
-
     const uint8_t key = 0; // only one tip
     mdb_val val;
-    if(mdb_get(transaction, epoch_tip_db, mdb_val(key), val))
+    if(get(epoch_tip_db, mdb_val(key), val, transaction))
     {
         return true;
     }

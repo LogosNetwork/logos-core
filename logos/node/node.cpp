@@ -8,6 +8,7 @@
 #include <logos/node/client_callback.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/microblock/microblock.hpp>
+#include <logos/consensus/messages/state_block.hpp>
 
 #include <algorithm>
 #include <future>
@@ -1443,32 +1444,33 @@ _consensus_container(service_a, store, alarm_a, config.consensus_manager_config,
             boost::property_tree::ptree tree;
             std::stringstream istream(logos::logos_test_genesis);
             boost::property_tree::read_json(istream, tree);
-            state_block logos_genesis_block(error, tree);
+            StateBlock logos_genesis_block(error, tree, true, true);
 
             if(error)
             {
                 throw std::runtime_error("Failed to initialize Logos genesis block.");
             }
+            //TODO check with Greg
 
-            //TODO
-            //don't delete
-            //            store.receive_put(logos_genesis_block.hash(),
-            //                              logos_genesis_block,
-            //                              transaction);
-            //TODO
-            //don't delete
-            //            store.account_put(genesis_account,
-            //                              {
-            //                                  /* Head         */ 0,
-            //                                  /* Receive Head */ 0,
-            //                                  /* Rep          */ 0,
-            //                                  /* Open         */ logos_genesis_block.hash(),
-            //                                  /* Amount       */ std::numeric_limits<logos::uint128_t>::max(),
-            //                                  /* Time         */ logos::seconds_since_epoch(),
-            //                                  /* Count        */ 0,
-            //                                  /* Receive      */ 0
-            //                              },
-            //                              transaction);
+            ReceiveBlock logos_genesis_receive(0, logos_genesis_block.GetHash(), 0);
+            store.state_block_put(logos_genesis_block,
+                    logos_genesis_block.GetHash(),
+                    transaction);
+            store.receive_put(logos_genesis_receive.Hash(),
+                    logos_genesis_receive,
+                    transaction);
+            store.account_put(genesis_account,
+                              {
+                                  /* Head         */ 0,
+                                  /* Receive Head */ 0,
+                                  /* Rep          */ 0,
+                                  /* Open         */ logos_genesis_block.GetHash(),
+                                  /* Amount       */ logos_genesis_block.trans[0].amount,
+                                  /* Time         */ logos::seconds_since_epoch(),
+                                  /* Count        */ 0,
+                                  /* Receive      */ 0
+                              },
+                              transaction);
             _identity_manager.CreateGenesisAccounts(transaction);
         }
     }
@@ -2203,20 +2205,20 @@ void logos::node::add_initial_peers ()
 }
 
 
-logos::process_return logos::node::OnSendRequest(std::shared_ptr<logos::state_block> block, bool should_buffer)
+logos::process_return logos::node::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_buffer)
 {
-    //TODO discuss how to refactor rpc code.
-    auto new_block = std::make_shared<StateBlock> (
-            block->hashables.account,//.bytes,
-            block->hashables.previous,//.bytes,
-            0, //TODO
-            StateBlock::Type::send,
-            block->hashables.link,//.bytes,
-            block->hashables.amount,
-            block->hashables.transaction_fee,
-            block->signature//.bytes
-            );
-    return _consensus_container.OnSendRequest(new_block, should_buffer);
+    //    //TODO discuss how to refactor rpc code.
+    //    auto new_block = std::make_shared<StateBlock> (
+    //            block->hashables.account,//.bytes,
+    //            block->hashables.previous,//.bytes,
+    //            0, //TODO
+    //            StateBlock::Type::send,
+    //            block->hashables.link,//.bytes,
+    //            block->hashables.amount,
+    //            block->hashables.transaction_fee,
+    //            block->signature//.bytes
+    //            );
+    return _consensus_container.OnSendRequest(block, should_buffer);
 }
 
 logos::process_return logos::node::BufferComplete()

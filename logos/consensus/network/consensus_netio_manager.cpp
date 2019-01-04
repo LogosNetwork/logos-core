@@ -44,6 +44,7 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
         {
             auto endpoint = Endpoint(make_address_v4(delegate.ip),
                                      local_endpoint.port());
+
             AddNetIOConnection(service, delegate.id, endpoint);
         }
         else if (delegate.id != _delegate_id)
@@ -189,6 +190,7 @@ void
 ConsensusNetIOManager::OnTimeout(
     const Error &ec)
 {
+    /*
     if (ec)
     {
         LOG_ERROR(_log) << "ConsensusNetIOManager::OnTimeout, error: " << ec.message();
@@ -217,7 +219,35 @@ ConsensusNetIOManager::OnTimeout(
                 } else if (diff > MESSAGE_AGE) {
                     LOG_DEBUG(_log) << "ConsensusNetIOManager::OnTimeout, sending heartbeat to "
                                     << (int) it->GetRemoteDelegateId();
-                    it->Send(&heartbeat, sizeof(heartbeat));
+                    //(char) heartbeat.type = 0xDE;
+                    //const_cast<MessageType &>(heartbeat.type) = 0xDE;
+
+//                    std::vector<uint8_t> buf;
+//                    heartbeat.Serialize(buf);
+//
+//                    {//Peng debug
+//
+//                        LOG_DEBUG(_log) << __func__ << " Peng "
+//                                                        << " version=" << (uint)heartbeat.version
+//                                                        << " type=" << (uint)heartbeat.type
+//                                                        << " consensus=" << (uint)heartbeat.consensus_type
+//                                                        << " payload=" << heartbeat.payload_size;
+//
+//                        std::vector<uint8_t> temp(buf);
+//                        logos::bufferstream stream(temp.data(), MessagePrequelSize);
+//                        bool error;
+//                        Prequel msg_prequel(error, stream);
+//                        if(error)
+//                            LOG_DEBUG(_log) << __func__ << " Peng error ";
+//                        LOG_DEBUG(_log) << __func__ << " Peng "
+//                                << " version=" << (uint)msg_prequel.version
+//                                << " type=" << (uint)msg_prequel.type
+//                                << " consensus=" << (uint)msg_prequel.consensus_type
+//                                << " payload=" << msg_prequel.payload_size;
+//                    }
+//
+//                    it->Send(buf.data(), buf.size());
+
                 }
             }
         }
@@ -250,6 +280,7 @@ ConsensusNetIOManager::OnTimeout(
     }
 
     ScheduleTimer(HEARTBEAT);
+    */
 }
 
 void

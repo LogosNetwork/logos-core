@@ -2,6 +2,7 @@
 #include <logos/lib/trace.hpp>
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <boost/asio/error.hpp>
+#include <logos/lib/utility.hpp>
 
 template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::BatchStateBlock>&);
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::BatchStateBlock>&);
@@ -48,9 +49,21 @@ void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message)
         CycleTimers<C>(true);
         PostPrepareMessage<C> response(_pre_prepare_hash, _post_prepare_sig);
         _post_prepare_hash = response.ComputeHash();
-
+        //        {
+        //            if(!_validator.Validate(_pre_prepare_hash, _post_prepare_sig))
+        //            {
+        //                LOG_ERROR(_log) << "before send post-prepare. cannot verify own sig";
+        //            }
+        //        }
         std::vector<uint8_t> buf;
         response.Serialize(buf);
+        {
+            LOG_DEBUG(_log) << "before send post-prepare. "
+                    << _pre_prepare_hash.to_string() << " "
+                    << response.preprepare_hash.to_string() << " "
+                    << response.signature.sig.to_string() << " "
+                    << response.signature.map.to_string();
+        }
         Send(buf.data(), buf.size());
         AdvanceState(ConsensusState::POST_PREPARE);
     }
@@ -317,15 +330,32 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
         bool good = true;
         if(expected_state == ConsensusState::PRE_PREPARE )
         {
-            _signatures.push_back({_delegate_id, _pre_prepare_sig});
+            //need my own sig
+            //_signatures.push_back({_delegate_id, _pre_prepare_sig});
             good = _validator.AggregateSignature(_signatures, _post_prepare_sig);
+
+            {//Peng debug
+                if(!_validator.Validate(_pre_prepare_hash, _post_prepare_sig))
+                {
+                    LOG_ERROR(_log) << __func__ << " cannot verify own _post_prepare_sig";
+                }
+            }
+
         }
         else if (expected_state == ConsensusState::POST_PREPARE )
         {
+            //need my own sig
             DelegateSig my_commit_sig;
             _validator.Sign(_post_prepare_hash, my_commit_sig);
             _signatures.push_back({_delegate_id, my_commit_sig});
             good = _validator.AggregateSignature(_signatures, _post_commit_sig);
+
+            {//Peng debug
+                if(!_validator.Validate(_post_prepare_hash, _post_commit_sig))
+                {
+                    LOG_ERROR(_log) << __func__ << " cannot verify own _post_commit_sig";
+                }
+            }
         }
         else
             good = false;

@@ -9,6 +9,8 @@ static const size_t ACCOUNT_ADDRESS_SIZE        = 32;
 static const size_t ACCOUNT_PUB_KEY_SIZE        = 32;
 static const size_t ACCOUNT_PRIV_KEY_SIZE       = 32;
 static const size_t ACCOUNT_SIG_SIZE            = 64;
+static const size_t ACCOUNT_AMOUNT_SIZE         = 16;
+
 static const size_t CONSENSUS_SIG_SIZE          = 32;
 static const size_t CONSENSUS_PUB_KEY_SIZE      = 64;
 static const size_t CONSENSUS_PRIV_KEY_SIZE     = 32;

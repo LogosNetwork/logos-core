@@ -151,15 +151,11 @@ ConsensusNetIO::OnConnect(
         return;
     }
 
-    //    auto ids = std::make_shared<ConnectedClientIds>();
-    //    *ids = {_epoch_info.GetEpochNumber(), _local_delegate_id, _epoch_info.GetConnection(), {0}};
-    //    strncpy(ids->ip, _endpoint.address().to_string().c_str(), INET6_ADDRSTRLEN);
-
     auto ids = std::make_shared<ConnectedClientIds>(_epoch_info.GetEpochNumber(),
             _local_delegate_id,
             _epoch_info.GetConnection(),
             _endpoint.address().to_string().c_str());
-    assert(_endpoint.address().to_string().size() == INET6_ADDRSTRLEN);
+    //assert(_endpoint.address().to_string().size() == INET6_ADDRSTRLEN);
     std::vector<uint8_t> buf;
     ids->Serialize(buf);
     boost::asio::async_write(*_socket, boost::asio::buffer(buf.data(), buf.size()),
@@ -180,7 +176,10 @@ ConsensusNetIO::SendKeyAdvertisement()
 {
     KeyAdvertisement advert;
     advert.public_key = _validator.GetPublicKey();
-    Send(advert);
+
+    std::vector<uint8_t> buf;
+    advert.Serialize(buf);
+    Send(buf.data(), buf.size());
 }
 
 void
@@ -213,6 +212,11 @@ ConsensusNetIO::OnPrequal(const uint8_t * data)
     {
         HandleMessageError("Wrong message size");
     }
+    LOG_DEBUG(_log) << __func__ << " Peng "
+            << " version=" << (uint)msg_prequel.version
+            << " type=" << (uint)msg_prequel.type
+            << " consensus=" << (uint)msg_prequel.consensus_type
+            << " payload=" << msg_prequel.payload_size;
 
     _assembler.ReadBytes(std::bind(&ConsensusNetIO::OnData, this,
                                                std::placeholders::_1,
@@ -230,6 +234,11 @@ ConsensusNetIO::OnData(const uint8_t * data,
         ConsensusType consensus_type,
         uint32_t payload_size)
 {
+    LOG_DEBUG(_log) << __func__ << " version=" << (int)version
+            << " type=" << (int)message_type
+            << " consensus=" << (int)consensus_type
+            << " payload=" << payload_size;
+
     bool error = false;
     logos::bufferstream stream(data, payload_size);
 
@@ -406,7 +415,7 @@ void
 ConsensusNetIO::OnHeartBeat(HeartBeat &heartbeat)
 {
     LOG_DEBUG(_log) << "ConsensusNetIO::OnHeartBeat, received heartbeat from "
-                    << (int)_remote_delegate_id << " is request " << heartbeat.is_request;
+                    << (int)_remote_delegate_id << " is request " << (uint)heartbeat.is_request;
 
     if (heartbeat.is_request)
     {

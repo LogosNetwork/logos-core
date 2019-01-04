@@ -118,24 +118,32 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
     {
         ApprovedEB epoch;
         ApprovedMB micro_block;
-
         micro_block.delegate = logos::genesis_account;
-        micro_block.timestamp = 0;
         micro_block.epoch_number = e;
         micro_block.sequence = 0;
-        micro_block.last_micro_block = 0;
+        micro_block.timestamp = 0;
         micro_block.previous = microblock_hash;
+        micro_block.last_micro_block = 0;
+        microblock_hash = micro_block.Hash();
+        if (_store.micro_block_put(micro_block, transaction) ||
+                _store.micro_block_tip_put(microblock_hash, transaction) )
+        {
+            LOG_FATAL(_log) << "update failed to insert micro_block or micro_block tip"
+                            << microblock_hash.to_string();
+            trace_and_halt();
+            return;
+        }
 
-        microblock_hash = _store.micro_block_put(micro_block, transaction);
-        _store.micro_block_tip_put(microblock_hash, transaction);
         update("micro block", micro_block, microblock_hash,
                &BlockStore::micro_block_get, &BlockStore::micro_block_put);
 
-        epoch.epoch_number = e;
-        epoch.timestamp = 0;
         epoch.delegate = logos::genesis_account;
-        epoch.micro_block_tip = microblock_hash;
+        epoch.epoch_number = e;
+        epoch.sequence = 0;
+        epoch.timestamp = 0;
         epoch.previous = epoch_hash;
+        epoch.micro_block_tip = microblock_hash;
+
         bls::KeyPair bls_key;
         auto get_bls = [&bls_key](const char *b)mutable->void {
             stringstream str(b);
@@ -147,6 +155,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
             std::string s;
             bls_key.pub.serialize(s);
             DelegatePubKey dpk;
+            assert(s.size() == CONSENSUS_PUB_KEY_SIZE);
             memcpy(dpk.data(), s.data(), CONSENSUS_PUB_KEY_SIZE);
             Delegate delegate = {0, dpk, 0, 0};
             //            memcpy(delegate.bls_pub.data(), s.data(), CONSENSUS_PUB_KEY_SIZE);
@@ -163,8 +172,15 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
             epoch.delegates[i] = delegate;
         }
 
-        epoch_hash = _store.epoch_put(epoch, transaction);
-        _store.epoch_tip_put(epoch_hash, transaction);
+        epoch_hash = epoch.Hash();
+        if(_store.epoch_put(epoch, transaction) ||
+                _store.epoch_tip_put(epoch_hash, transaction))
+        {
+            LOG_FATAL(_log) << "update failed to insert epoch or epoch tip"
+                            << epoch_hash.to_string();
+            trace_and_halt();
+            return;
+        }
         update("epoch", epoch, epoch_hash,
                &BlockStore::epoch_get, &BlockStore::epoch_put);
     }
@@ -251,6 +267,8 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
                          work);
 
         ReceiveBlock receive(0, state.GetHash(), 0);
+
+        _store.state_block_put(state, state.GetHash(), transaction);
 
         _store.receive_put(receive.Hash(),
                 receive,

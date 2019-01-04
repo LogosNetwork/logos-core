@@ -3,9 +3,9 @@
 #include <functional>
 
 template<ConsensusType CT>
-const boost::posix_time::seconds SecondaryRequestHandler<CT>::REQUEST_TIMEOUT{5};
+const boost::posix_time::seconds SecondaryRequestHandler<CT>::REQUEST_TIMEOUT{5000000};
 template<ConsensusType CT>
-const  boost::posix_time::seconds SecondaryRequestHandler<CT>::MIN_TIMEOUT{2};
+const  boost::posix_time::seconds SecondaryRequestHandler<CT>::MIN_TIMEOUT{2000000};
 
 template<ConsensusType CT>
 SecondaryRequestHandler<CT>::SecondaryRequestHandler(Service & service,
@@ -47,54 +47,54 @@ void SecondaryRequestHandler<CT>::OnRequest(std::shared_ptr<RequestMessage<CT>> 
 template<ConsensusType CT>
 void SecondaryRequestHandler<CT>::OnTimeout(const Error & error)
 {
-    std::vector<Request> ready_requests;
-
-    {
-        std::lock_guard<std::mutex> lock(_mutex);
-
-        if(error)
-        {
-            if (error == boost::asio::error::operation_aborted)
-            {
-                return;
-            }
-            LOG_INFO(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT)
-                           << ">::OnTimeout - Error: "
-                           << error.message();
-        }
-
-        auto now = Clock::universal_time();
-        auto entry = _requests. template get<0>().begin();
-
-        for(; entry != _requests. template get<0>().end() && entry->expiration <= now;
-            ++entry)
-        {
-            ready_requests.push_back(*entry);
-        }
-
-        _requests. template get<0>().erase(_requests. template get<0>().begin(), entry);
-
-        if(!_requests.empty())
-        {
-            auto timeout = std::max(MIN_TIMEOUT.total_seconds(),
-                                    (_requests. template get<0>().begin()->expiration
-                                     - now).total_seconds());
-
-            ScheduleTimer(Seconds(timeout));
-        }
-    }
-
-    std::lock_guard<std::mutex> lock(_promoter_mutex);
-    if (_promoter == nullptr)
-    {
-        LOG_ERROR(_log) << "SecondaryRequestHandler::OnTimeout promoter is nullptr";
-        return;
-    }
-
-    for(auto & request : ready_requests)
-    {
-        _promoter->OnRequestReady(request.block);
-    }
+//    std::vector<Request> ready_requests;
+//
+//    {
+//        std::lock_guard<std::mutex> lock(_mutex);
+//
+//        if(error)
+//        {
+//            if (error == boost::asio::error::operation_aborted)
+//            {
+//                return;
+//            }
+//            LOG_INFO(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT)
+//                           << ">::OnTimeout - Error: "
+//                           << error.message();
+//        }
+//
+//        auto now = Clock::universal_time();
+//        auto entry = _requests. template get<0>().begin();
+//
+//        for(; entry != _requests. template get<0>().end() && entry->expiration <= now;
+//            ++entry)
+//        {
+//            ready_requests.push_back(*entry);
+//        }
+//
+//        _requests. template get<0>().erase(_requests. template get<0>().begin(), entry);
+//
+//        if(!_requests.empty())
+//        {
+//            auto timeout = std::max(MIN_TIMEOUT.total_seconds(),
+//                                    (_requests. template get<0>().begin()->expiration
+//                                     - now).total_seconds());
+//
+//            ScheduleTimer(Seconds(timeout));
+//        }
+//    }
+//
+//    std::lock_guard<std::mutex> lock(_promoter_mutex);
+//    if (_promoter == nullptr)
+//    {
+//        LOG_ERROR(_log) << "SecondaryRequestHandler::OnTimeout promoter is nullptr";
+//        return;
+//    }
+//
+//    for(auto & request : ready_requests)
+//    {
+//        _promoter->OnRequestReady(request.block);
+//    }
 }
 
 template<ConsensusType CT>

@@ -106,10 +106,11 @@ struct StateBlock
     enum class Type : uint8_t
     {
         send,
-        change
+        change,
+        unknown
     };
 
-    static std::string Type2Str(Type t)
+    static std::string TypeToStr(Type t)
     {
         switch (t) {
             case Type::send:
@@ -119,6 +120,16 @@ struct StateBlock
             default:
                 return std::string("unknown");
         }
+    }
+
+    static Type StrToType(std::string &s)
+    {
+        if(s == std::string("send"))
+            return Type::send;
+        else if (s == std::string("change"))
+            return Type::change;
+        else
+            return Type::unknown;
     }
 
     struct Transaction{
@@ -180,8 +191,8 @@ struct StateBlock
         Hash();
     }
 
-    //    StateBlock (AccountAddress const & from, BlockHash const & previous, uint32_t sqn);
-    //    StateBlock (bool &, boost::property_tree::ptree const &);
+    StateBlock(bool & error_a, boost::property_tree::ptree const & tree_a,
+            bool with_batch_hash = false, bool with_work = false);
 
     StateBlock(const StateBlock & other)
     : account(other.account)
@@ -301,8 +312,7 @@ struct StateBlock
         uint32_t s = htole32(sequence);
         blake2b_update(&hash, &s, sizeof(uint32_t));
         blake2b_update(&hash, &type, sizeof(uint8_t));
-        blake2b_update(&hash, transaction_fee.bytes.data(), transaction_fee.bytes.size());
-        signature.Hash(hash);
+        blake2b_update(&hash, transaction_fee.data(), ACCOUNT_AMOUNT_SIZE);
         uint16_t tran_count = trans.size();
         tran_count = htole16(tran_count);
         blake2b_update(&hash, &tran_count, sizeof(uint16_t));
@@ -310,7 +320,7 @@ struct StateBlock
         for (const auto & t : trans)
         {
             t.target.Hash(hash);
-            blake2b_update(&hash, t.amount.bytes.data(), t.amount.bytes.size());
+            blake2b_update(&hash, t.amount.data(), ACCOUNT_AMOUNT_SIZE);
         }
     }
 
@@ -345,32 +355,7 @@ struct StateBlock
         return ostream.str();
     }
 
-    void SerializeJson(boost::property_tree::ptree & tree, bool with_batch_hash = false, bool with_work = false) const
-    {
-        tree.put("account", account.to_string());
-        tree.put("previous", previous.to_string());
-        tree.put("sequence", std::to_string(sequence));
-        tree.put("transaction_type", Type2Str(type));
-        tree.put("transaction_fee", transaction_fee.to_string());
-        tree.put("signature", signature.to_string());
-        if(with_work)
-            tree.put("work", std::to_string(work));
-        tree.put("number_transactions", std::to_string(trans.size()));
-
-        boost::property_tree::ptree ptree_tran_list;
-        for (const auto & t : trans) {
-            boost::property_tree::ptree ptree_tran;
-            ptree_tran.put("target", t.target.to_string());
-            ptree_tran.put("amount", t.amount.to_string());
-            ptree_tran_list.push_back(std::make_pair("", ptree_tran));
-        }
-        tree.add_child("transactions", ptree_tran_list);
-
-        tree.put("hash", degest.to_string());
-
-        if(with_batch_hash)
-            tree.put("batch_hash", batch_hash.to_string());
-    }
+    void SerializeJson(boost::property_tree::ptree & tree, bool with_batch_hash = false, bool with_work = false) const;
 
     uint32_t Serialize (logos::stream & stream, bool with_batch_hash = false) const
     {

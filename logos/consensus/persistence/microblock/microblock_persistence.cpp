@@ -129,14 +129,14 @@ PersistenceManager<MBCT>::ApplyUpdates(
 {
     logos::transaction transaction(_store.environment, nullptr, true);
     BlockHash hash = block.Hash();
-    if( _store.micro_block_put(block, transaction) )
+    if( _store.micro_block_put(block, transaction) ||
+            _store.micro_block_tip_put(hash, transaction))
     {
-        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdates failed to put block "
+        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdates failed to put block or tip"
                                 << hash.to_string();
         trace_and_halt();
     }
 
-    _store.micro_block_tip_put(hash, transaction);
     ApprovedMB previous;
     if (_store.micro_block_get(block.previous, previous, transaction))
     {

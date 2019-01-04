@@ -150,6 +150,7 @@ public:
     bool batch_tip_get(uint8_t delegate_id, BlockHash & hash);
 
     // micro-block
+    bool get(MDB_dbi &db, const mdb_val &key, mdb_val &value, MDB_txn *tx);
     bool micro_block_put(ApprovedMB const &, MDB_txn*);
     bool micro_block_get(const BlockHash &, ApprovedMB &, MDB_txn* t=0);
     bool micro_block_tip_put(const BlockHash &, MDB_txn*);

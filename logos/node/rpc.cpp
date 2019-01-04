@@ -1072,7 +1072,7 @@ void logos::rpc_handler::block_create ()
                 error_response (response, "Bad wallet number");
             }
         }
-        logos::uint256_union account (0);
+        AccountAddress account (0);
         boost::optional<std::string> account_text (request.get_optional<std::string> ("account"));
         if (account_text.is_initialized ())
         {
@@ -1082,17 +1082,8 @@ void logos::rpc_handler::block_create ()
                 error_response (response, "Bad account number");
             }
         }
-        logos::uint256_union representative (0);
-        boost::optional<std::string> representative_text (request.get_optional<std::string> ("representative"));
-        if (!is_logos_request && representative_text.is_initialized ())
-        {
-            auto error_representative (representative.decode_account (representative_text.get ()));
-            if (error_representative)
-            {
-                error_response (response, "Bad representative account");
-            }
-        }
-        logos::uint256_union destination (0);
+
+        AccountAddress destination (0);
         boost::optional<std::string> destination_text (request.get_optional<std::string> ("destination"));
         if (destination_text.is_initialized ())
         {
@@ -1102,7 +1093,7 @@ void logos::rpc_handler::block_create ()
                 error_response (response, "Bad destination account");
             }
         }
-        logos::block_hash source (0);
+        AccountAddress source (0);
         boost::optional<std::string> source_text (request.get_optional<std::string> ("source"));
         if (source_text.is_initialized ())
         {
@@ -1112,7 +1103,7 @@ void logos::rpc_handler::block_create ()
                 error_response (response, "Invalid source hash");
             }
         }
-        logos::uint128_union amount (0);
+        Amount amount (0);
         boost::optional<std::string> amount_text (request.get_optional<std::string> ("amount"));
         if (amount_text.is_initialized ())
         {
@@ -1122,7 +1113,7 @@ void logos::rpc_handler::block_create ()
                 error_response (response, "Bad amount number");
             }
         }
-        logos::uint128_union transaction_fee (0);
+        Amount transaction_fee (0);
         boost::optional<std::string> transaction_fee_text (request.get_optional<std::string> ("transaction_fee"));
         if (transaction_fee_text.is_initialized ())
         {
@@ -1144,8 +1135,8 @@ void logos::rpc_handler::block_create ()
         }
         logos::raw_key prv;
         prv.data.clear ();
-        logos::uint256_union previous (0);
-        logos::uint128_union balance (0);
+        BlockHash previous (0);
+        Amount balance (0);
         if (wallet != 0 && account != 0)
         {
             auto existing (node.wallets.items.find (wallet));
@@ -1204,7 +1195,7 @@ void logos::rpc_handler::block_create ()
                 error_response (response, "Bad balance number");
             }
         }
-        logos::uint256_union link (0);
+        AccountAddress link (0);
         boost::optional<std::string> link_text (request.get_optional<std::string> ("link"));
         if (link_text.is_initialized ())
         {
@@ -1225,8 +1216,8 @@ void logos::rpc_handler::block_create ()
         }
         if (prv.data != 0)
         {
-            logos::uint256_union pub;
-            ed25519_publickey (prv.data.bytes.data (), pub.bytes.data ());
+            AccountPubKey pub;
+            ed25519_publickey (prv.data.data (), pub.data ());
             // Fetching account balance & previous for send blocks (if aren't given directly)
             if (!previous_text.is_initialized () && !balance_text.is_initialized ())
             {
@@ -1253,17 +1244,19 @@ void logos::rpc_handler::block_create ()
             }
             if (type == "state")
             {
-                if (previous_text.is_initialized () && (!representative.is_zero () || is_logos_request) && (!link.is_zero () || link_text.is_initialized ()))
+                if (previous_text.is_initialized () && (is_logos_request) && (!link.is_zero () || link_text.is_initialized ()))
                 {
                     if (work == 0)
                     {
                         work = node.work_generate_blocking (previous.is_zero () ? pub : previous);
                     }
-                    logos::state_block state (pub, previous, representative, amount, transaction_fee, link, prv, pub, work);
+
+                    uint32_t sequence = 0;//TODO
+                    account = pub;
+                    StateBlock state (account, previous, sequence, StateBlock::Type::send, link, amount, transaction_fee, prv.data, pub, work);
                     boost::property_tree::ptree response_l;
-                    response_l.put ("hash", state.hash ().to_string ());
-                    std::string contents;
-                    state.serialize_json (contents);
+                    response_l.put ("hash", state.GetHash ().to_string ());
+                    std::string contents(state.SerializeJson(false, true));
                     response_l.put ("block", contents);
                     response (response_l);
                 }
@@ -1815,6 +1808,7 @@ void logos::rpc_handler::account_history ()
             entry.put ("type", put_send ? "send" : "receive");
             entry.put ("hash", hash.to_string ());
             // always show the account id of the other party in transaction
+	//TODO loop transactions	
             entry.put ("account", put_send ? display_block.trans[0].target.to_account() : display_block.account.to_account ());
             entry.put ("amount", display_block.trans[0].amount.to_string_dec ());
             //entry.put ("timestamp", std::to_string (display_block.timestamp));
@@ -2584,87 +2578,118 @@ void logos::rpc_handler::payment_wait ()
     }
 }
 
+std::unique_ptr<StateBlock> deserialize_StateBlock_json (boost::property_tree::ptree const & tree_a)
+{
+    std::unique_ptr<StateBlock> result;
+    try
+    {
+        auto type (tree_a.get<std::string> ("type"));
+        if (type == "state")
+        {
+            bool error;
+            std::unique_ptr<StateBlock> obj (new StateBlock (error, tree_a, false, true));
+            if (!error)
+            {
+                result = std::move (obj);
+            }
+        }
+    }
+    catch (std::runtime_error const &)
+    {
+    }
+    return result;
+}
+
 void logos::rpc_handler::process ()
 {
     std::string block_text (request.get<std::string> ("block"));
     boost::property_tree::ptree block_l;
     std::stringstream block_stream (block_text);
     boost::property_tree::read_json (block_stream, block_l);
-    std::shared_ptr<logos::block> block (logos::deserialize_block_json (block_l));
-    if (block != nullptr)
+    bool error = false;
+    auto block = std::make_shared<StateBlock> (error, block_l, false, true);
+    if( ! error )
     {
-        bool logos (true);  // TODO: clean up legacy code below
-        if (logos || !logos::work_validate (*block))
+        auto result = node.OnSendRequest(block, should_buffer_request());
+        auto hash = block->GetHash();
+
+        //    //std::shared_ptr<logos::block> block (logos::deserialize_block_json (block_l));
+        //    std::shared_ptr<StateBlock> block (logos::deserialize_block_json (block_l));
+        //    if (block != nullptr)
+        //    {
+        //        bool logos (true);  // TODO: clean up legacy code below
+        //        if (logos)// || !logos::work_validate (*block))
+        //        {
+        //            auto hash (block->hash ());
+        //            if(!logos)
+        //            {
+        //                node.block_arrival.add (hash);
+        //            }
+        //            logos::process_return result;
+        //            if(logos)
+        //            {
+        //                auto timestamped_block (std::dynamic_pointer_cast<logos::state_block>(block));
+        //                timestamped_block->timestamp = GetStamp();
+        //                result = node.OnSendRequest(timestamped_block, should_buffer_request());
+        //            }
+        //            else
+        //            {
+        //                logos::transaction transaction (node.store.environment, nullptr, true);
+        //                result = node.block_processor.process_receive_one (transaction, block);
+        //            }
+
+        switch (result.code)
         {
-            auto hash (block->hash ());
-            if(!logos)
+            case logos::process_result::progress:
             {
-                node.block_arrival.add (hash);
+                boost::property_tree::ptree response_l;
+                response_l.put ("hash", hash.to_string ());
+                response (response_l);
+                break;
             }
-            logos::process_return result;
-            if(logos)
+            case logos::process_result::gap_previous:
+            case logos::process_result::gap_source:
+            case logos::process_result::state_block_disabled:
+            case logos::process_result::old:
+            case logos::process_result::bad_signature:
+            case logos::process_result::negative_spend:
+            case logos::process_result::unreceivable:
+            case logos::process_result::not_receive_from_send:
+            case logos::process_result::fork:
+            case logos::process_result::account_mismatch:
+            case logos::process_result::invalid_block_type:
+            case logos::process_result::unknown_source_account:
+            case logos::process_result::opened_burn_account:
+            case logos::process_result::already_reserved:
+            case logos::process_result::initializing:
+            case logos::process_result::insufficient_balance:
+            case logos::process_result::not_delegate:
             {
-                auto timestamped_block (std::dynamic_pointer_cast<logos::state_block>(block));
-                timestamped_block->timestamp = GetStamp();
-                result = node.OnSendRequest(timestamped_block, should_buffer_request());
+                error_response (response,
+                                ProcessResultToString(result.code));
+                break;
             }
-            else
+            case logos::process_result::buffered:
+            case logos::process_result::buffering_done:
+            case logos::process_result::pending:
             {
-                logos::transaction transaction (node.store.environment, nullptr, true);
-                result = node.block_processor.process_receive_one (transaction, block);
+                boost::property_tree::ptree response_l;
+                response_l.put ("result",
+                                ProcessResultToString(result.code));
+                response (response_l);
+                break;
             }
-            switch (result.code)
+            default:
             {
-                case logos::process_result::progress:
-                {
-                    boost::property_tree::ptree response_l;
-                    response_l.put ("hash", hash.to_string ());
-                    response (response_l);
-                    break;
-                }
-                case logos::process_result::gap_previous:
-                case logos::process_result::gap_source:
-                case logos::process_result::state_block_disabled:
-                case logos::process_result::old:
-                case logos::process_result::bad_signature:
-                case logos::process_result::negative_spend:
-                case logos::process_result::unreceivable:
-                case logos::process_result::not_receive_from_send:
-                case logos::process_result::fork:
-                case logos::process_result::account_mismatch:
-                case logos::process_result::invalid_block_type:
-                case logos::process_result::unknown_source_account:
-                case logos::process_result::opened_burn_account:
-                case logos::process_result::already_reserved:
-                case logos::process_result::initializing:
-                case logos::process_result::insufficient_balance:
-                case logos::process_result::not_delegate:
-                {
-                    error_response (response,
-                                    ProcessResultToString(result.code));
-                    break;
-                }
-                case logos::process_result::buffered:
-                case logos::process_result::buffering_done:
-                case logos::process_result::pending:
-                {
-                    boost::property_tree::ptree response_l;
-                    response_l.put ("result",
-                                    ProcessResultToString(result.code));
-                    response (response_l);
-                    break;
-                }
-                default:
-                {
-                    error_response (response, ProcessResultToString(result.code));
-                    break;
-                }
+                error_response (response, ProcessResultToString(result.code));
+                break;
             }
         }
-        else
-        {
-            error_response (response, "Block work is invalid");
-        }
+    //        }
+    //        else
+    //        {
+    //            error_response (response, "Block work is invalid");
+    //        }
     }
     else
     {

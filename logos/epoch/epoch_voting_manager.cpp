@@ -76,7 +76,8 @@ EpochVotingManager::GetNextEpochDelegates(
                //TODO simplify bls serialize functions
                std::string s;
                delegate.bls_key.pub.serialize(s);
-               memcpy(delegates[new_delegate].bls_pub.data(), s.data(), CONSENSUS_PRIV_KEY_SIZE);
+               assert(s.size() == CONSENSUS_PUB_KEY_SIZE);
+               memcpy(delegates[new_delegate].bls_pub.data(), s.data(), CONSENSUS_PUB_KEY_SIZE);
            }
            delegates[new_delegate].stake = delegate.stake;
            delegates[new_delegate].vote = delegate.vote;

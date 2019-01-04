@@ -90,14 +90,12 @@ PersistenceManager<ECT>::ApplyUpdates(
     uint8_t)
 {
     logos::transaction transaction(_store.environment, nullptr, true);
-    if(_store.epoch_put(block, transaction))
-    {
-        trace_and_halt();
-    }
-
     BlockHash epoch_hash = block.Hash();
-    if(_store.epoch_tip_put(epoch_hash, transaction))
+
+    if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(epoch_hash, transaction))
     {
+        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdate failed to store epoch or epoch tip "
+                                << epoch_hash.to_string();
         trace_and_halt();
     }
 
@@ -109,5 +107,10 @@ PersistenceManager<ECT>::ApplyUpdates(
         trace_and_halt();
     }
     previous.next = epoch_hash;
-    _store.epoch_put(previous, transaction);
+    if(_store.epoch_put(previous, transaction))
+    {
+        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdate failed to store prev epoch "
+                                        << block.previous.to_string();
+        trace_and_halt();
+    }
 }

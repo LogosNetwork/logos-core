@@ -188,7 +188,6 @@ BatchBlockConsensusManager::InitiateConsensus()
     _ne_reject_stake = 0;
 
     _handler.PrepareNextBatch();
-
     Manager::InitiateConsensus();
 }
 
@@ -525,6 +524,7 @@ BatchBlockConsensusManager::OnDelegatesConnected()
         _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
         _init_timer.async_wait([this](const Error &error) {
             std::lock_guard<std::recursive_mutex> lock(_mutex);
+
             InitiateConsensus();
         });
     }

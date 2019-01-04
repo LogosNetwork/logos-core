@@ -81,7 +81,8 @@ struct RejectionMessage
 
     uint32_t Serialize(logos::stream & stream) const
     {
-        auto s = logos::write(stream, pre_prepare_hash);
+        auto s = MessagePrequel<MessageType::Rejection, CT>::Serialize(stream);
+        s += logos::write(stream, pre_prepare_hash);
         s += logos::write(stream, reason);
 
         //TODO serialized space
@@ -99,11 +100,11 @@ struct RejectionMessage
     {
         {
             logos::vectorstream stream(t);
-            MessagePrequel<MessageType::Rejection, CT>::Serialize(stream);
-            MessagePrequel<MessageType::Rejection, CT>::payload_size = htole32(Serialize(stream));
+            MessagePrequel<MessageType::Rejection, CT>::payload_size = Serialize(stream)
+                    - MessagePrequelSize;
         }
         {
-            logos::vectorstream header_stream(t);
+            HeaderStream header_stream(t.data(), MessagePrequelSize);
             MessagePrequel<MessageType::Rejection, CT>::Serialize(header_stream);
         }
     }

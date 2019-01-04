@@ -45,6 +45,7 @@ char const * live_genesis_data = R"%%%({
     "signature": "9F0C933C8ADE004D808EA1985FA746A7E95BA2A38F867640F53EC8F180BDFE9E2C1268DEAD7C2664F356E37ABA362BC58E46DBA03E523A7B5A19E4B6EB12BB02"
 })%%%";
 
+/*
 char const * logos_genesis_data = R"%%%({
     "type": "state",
     "account": "lgs_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
@@ -54,6 +55,26 @@ char const * logos_genesis_data = R"%%%({
     "link": "B0311EA55708D6A53C75CDBF88300259C6D018522FE3D4D0A242E431F9E8B6D0",
     "work": "0",
     "signature": "ECDA914373A2F0CA1296475BAEE40500A7F0A7AD72A5A80C81D7FAB7F6C802B2CC7DB50F5DD0FB25B2EF11761FA7344A158DD5A700B21BD47DE5BD0F63153A02"
+})%%%";
+*/
+
+char const * logos_genesis_data = R"%%%({
+    "account": "lgs_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
+    "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sequence": "0",
+    "transaction_type": "send",
+    "transaction_fee": "0",
+    "signature": "B9102BBECB89D3E3B2EDCB7D09D76C07B51DB99760464CBB8F60829B907FF1504567F33414FC37270E9EB04F06BD7A41ADE2661B8C9AABAFEF3C90F78829A401",
+    "work": "0",
+    "number_transactions": "1",
+    "transactions": [
+        {
+            "target": "lgs_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
+            "amount": "340282366920938463463374607431768211455"
+        }
+    ],
+    "hash": "B2BC10F486B514C797DE1AE90A4774F1677FEE4A0261D1E3F36EA2AB9E50D56B",
+    "batch_hash": "0000000000000000000000000000000000000000000000000000000000000000"
 })%%%";
 
 class ledger_constants

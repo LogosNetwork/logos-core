@@ -15,6 +15,7 @@ static constexpr size_t MAX_MSG_SIZE = 1024*1024;
 //The current largest message is a post-committed BSB with 1500 StateBlock,
 //each has 8 transactions. Its size is 850702;
 
+
 //ConsensusBlock definitions
 template<ConsensusType CT, typename E = void>
 struct ConsensusBlock;
@@ -93,10 +94,11 @@ struct PrePrepareMessage : public MessagePrequel<MessageType::Pre_Prepare, CT>, 
     {
         {
             logos::vectorstream stream(t);
-            MessagePrequel<MessageType::Pre_Prepare, CT>::payload_size = htole32(Serialize(stream, with_appendix));
+            MessagePrequel<MessageType::Pre_Prepare, CT>::payload_size = Serialize(stream, with_appendix)
+                    - MessagePrequelSize;
         }
         {
-            logos::vectorstream header_stream(t);
+            HeaderStream header_stream(t.data(), MessagePrequelSize);
             MessagePrequel<MessageType::Pre_Prepare, CT>::Serialize(header_stream);
         }
     }
@@ -193,7 +195,8 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
     {
         MessagePrequel<MessageType::Post_Committed_Block, CT>::Hash(hash);
         ConsensusBlock<CT>::Hash(hash);
-        //TODO pre_prepare_hash == post_commit_hash
+        //TODO
+        //        pre_prepare_hash == post_commit_hash
         //        post_prepare_sig.Hash(hash);
         //        post_commit_sig.Hash(hash);
     }
@@ -231,10 +234,11 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
     {
         {
             logos::vectorstream stream(t);
-            MessagePrequel<MessageType::Post_Committed_Block, CT>::payload_size = htole32(Serialize(stream, with_appendix, with_next));
+            MessagePrequel<MessageType::Post_Committed_Block, CT>::payload_size = Serialize(stream, with_appendix, with_next)
+                            - MessagePrequelSize;
         }
         {
-            logos::vectorstream header_stream(t);
+            HeaderStream header_stream(t.data(), MessagePrequelSize);
             MessagePrequel<MessageType::Post_Committed_Block, CT>::Serialize(header_stream);
         }
     }
@@ -284,11 +288,11 @@ struct StandardPhaseMessage<MT, CT, typename std::enable_if<
             auto s = MessagePrequel<MT, CT>::Serialize(stream);
             s += logos::write(stream, preprepare_hash);
             s += logos::write(stream, signature);
-            s = htole32(s);
-            MessagePrequel<MT, CT>::payload_size = s;
+            MessagePrequel<MT, CT>::payload_size = s
+                    - MessagePrequelSize;
         }
         {
-            logos::vectorstream header_stream(t);
+            HeaderStream header_stream(t.data(), MessagePrequelSize);
             MessagePrequel<MT, CT>::Serialize(header_stream);
         }
     }
@@ -352,11 +356,11 @@ struct PostPhaseMessage<MT, CT, typename std::enable_if<
             auto p_size = MessagePrequel<MT, CT>::Serialize(stream);
             p_size += logos::write(stream, preprepare_hash);
             p_size += signature.Serialize(stream);
-            p_size = htole32(p_size);
-            MessagePrequel<MT, CT>::payload_size = p_size;
+            MessagePrequel<MT, CT>::payload_size = p_size
+                    - MessagePrequelSize;
         }
         {
-            logos::vectorstream header_stream(t);
+            HeaderStream header_stream(t.data(), MessagePrequelSize);
             MessagePrequel<MT, CT>::Serialize(header_stream);
         }
     }
@@ -393,10 +397,10 @@ struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert,
         {
             logos::vectorstream stream(t);
             MessagePrequel<MessageType::Key_Advert, ConsensusType::Any>::Serialize(stream);
-            payload_size = htole32(logos::write(stream, public_key));
+            MessagePrequel<MessageType::Key_Advert, ConsensusType::Any>::payload_size = logos::write(stream, public_key);;
         }
         {
-            logos::vectorstream header_stream(t);
+            HeaderStream header_stream(t.data(), MessagePrequelSize);
             MessagePrequel<MessageType::Key_Advert, ConsensusType::Any>::Serialize(header_stream);
         }
     }
@@ -423,7 +427,7 @@ struct ConnectedClientIds
     , delegate_id(delegate_id)
     , connection(connection)
     {
-        memcpy(this->ip, ip, INET6_ADDRSTRLEN);
+        strncpy(this->ip, ip, INET6_ADDRSTRLEN);
     }
 
     ConnectedClientIds(bool & error, logos::stream & stream)
@@ -501,10 +505,10 @@ struct HeartBeat : MessagePrequel<MessageType::Heart_Beat,
         {
             logos::vectorstream stream(t);
             MessagePrequel<MessageType::Heart_Beat, ConsensusType::Any>::Serialize(stream);
-            payload_size = htole32(logos::write(stream, is_request));
+            MessagePrequel<MessageType::Heart_Beat, ConsensusType::Any>::payload_size = logos::write(stream, is_request);
         }
         {
-            logos::vectorstream header_stream(t);
+            HeaderStream header_stream(t.data(), MessagePrequelSize);
             MessagePrequel<MessageType::Heart_Beat, ConsensusType::Any>::Serialize(header_stream);
         }
     }
@@ -523,29 +527,6 @@ using PostPrepareMessage = PostPhaseMessage<MessageType::Post_Prepare, CT>;
 
 template<ConsensusType CT>
 using PostCommitMessage = PostPhaseMessage<MessageType::Post_Commit, CT>;
-
-//// Pre-Prepare Message definitions.
-////
-//template<ConsensusType CT, typename E = void>
-//struct PrePrepareMessage;
-//
-//template<ConsensusType CT>
-//struct PrePrepareMessage<CT,
-//    typename std::enable_if<
-//        CT == ConsensusType::BatchStateBlock>::type> : MessagePrequel<MessageType::Pre_Prepare, CT>, BatchStateBlock
-//{};
-//
-//template<ConsensusType CT>
-//struct PrePrepareMessage<CT,
-//    typename std::enable_if<
-//        CT == ConsensusType::MicroBlock>::type> : MessagePrequel<MessageType::Pre_Prepare, CT>, MicroBlock
-//{};
-//
-//template<ConsensusType CT>
-//struct PrePrepareMessage<CT,
-//    typename std::enable_if<
-//        CT == ConsensusType::Epoch>::type> : MessagePrequel<MessageType::Pre_Prepare, CT>, Epoch
-//{};
 
 // Request Message specializations. The underlying type can
 // vary based on the consensus type.

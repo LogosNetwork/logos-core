@@ -9,6 +9,8 @@
 #include <blake2/blake2.h>
 
 #include <logos/consensus/messages/byte_arrays.hpp>
+//#include <iostream>
+#include <boost/iostreams/stream_buffer.hpp>
 
 enum class MessageType : uint8_t
 {
@@ -22,7 +24,7 @@ enum class MessageType : uint8_t
     // Other
     Key_Advert   = 5,
     Rejection    = 6,
-    Heart_Beat   = 7,
+    Heart_Beat   = 0xDE,
 
     Post_Committed_Block, //to be stored locally and distributed to fall nodes
 
@@ -45,7 +47,7 @@ static constexpr uint8_t logos_version = 0;
 /// - add new files to CMakeLists.txt
 #define CONSENSUS_TYPE(...) \
   struct ConsensusType_Size { int __VA_ARGS__; }; \
-  enum class ConsensusType:uint8_t { __VA_ARGS__,Any=0xff}; \
+  enum class ConsensusType:uint8_t { __VA_ARGS__,Any=0xad}; \
   static constexpr size_t CONSENSUS_TYPE_COUNT = (sizeof(ConsensusType_Size)/sizeof(int));
 
 // Add new consensus types at the end
@@ -148,6 +150,8 @@ struct MessagePrequel
 
     MessagePrequel(uint8_t version = logos_version)
     : version(version)
+    //    , type(MT)
+    //    , consensus_type(CT)
     {}
 
     MessagePrequel(bool & error, logos::stream & stream)
@@ -176,7 +180,7 @@ struct MessagePrequel
         }
 
         char pad;
-        error = logos::read(stream, const_cast<char &>(pad));
+        error = logos::read(stream, pad);
         if(error)
         {
             return;
@@ -213,6 +217,8 @@ struct MessagePrequel
         s += logos::write(stream, pad);
         s += logos::write(stream, htole32(payload_size));
 
+        //        std::cout << __func__ << " payload_size=" << payload_size << " "
+        //                << htole32(payload_size) << std::endl;
         assert(s == MessagePrequelSize);
         return MessagePrequelSize;
     }
@@ -349,3 +355,5 @@ struct PrePrepareCommon
     BlockHash               previous;
     DelegateSig             preprepare_sig;
 };
+
+using HeaderStream = boost::iostreams::stream_buffer<boost::iostreams::basic_array_sink<uint8_t>>;

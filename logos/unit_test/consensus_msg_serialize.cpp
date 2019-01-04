@@ -11,6 +11,7 @@
 #include <vector>
 using namespace std;
 
+
 TEST (crypto, ed25519)
 {
 	AccountPrivKey prv (0);
@@ -45,6 +46,7 @@ TEST (crypto, blake2b)
     ASSERT_EQ(a, b);
     ASSERT_NE(b, c);
 }
+
 
 TEST (crypto, bls)
 {
@@ -192,16 +194,22 @@ TEST (write_read, all)
     ASSERT_EQ(ui64, ui642);
 }
 
+
 TEST (messages, KeyAdvertisement)
 {
     KeyAdvertisement block;
     block.public_key = 123;
     vector<uint8_t> buf;
     block.Serialize(buf);
+    //cout << "block.payload_size=" << block.payload_size << endl;
 
     bool error = false;
     logos::bufferstream stream(buf.data(), buf.size());
+
     Prequel prequel(error, stream);
+    ASSERT_EQ(block.payload_size, prequel.payload_size);
+    //cout << "prequel.payload_size=" << prequel.payload_size << endl;
+
     KeyAdvertisement block2(error, stream, prequel.version);
 
     ASSERT_FALSE(error);
@@ -213,20 +221,31 @@ TEST (messages, KeyAdvertisement)
 
 TEST (messages, HeartBeat)
 {
-    HeartBeat block;
-    vector<uint8_t> buf;
-    block.Serialize(buf);
+    for(int i = 0; i < 10000; ++i)
+    {
+        HeartBeat block;
+        vector<uint8_t> buf;
+        block.Serialize(buf);
+        //cout << "block.payload_size=" << block.payload_size << endl;
 
-    bool error = false;
-    logos::bufferstream stream(buf.data(), buf.size());
-    Prequel prequel(error, stream);
-    HeartBeat block2(error, stream, prequel.version);
+        bool error = false;
+        logos::bufferstream stream(buf.data(), buf.size());
+        Prequel prequel(error, stream);
+        HeartBeat block2(error, stream, prequel.version);
+        //cout << "prequel.payload_size=" << prequel.payload_size << endl;
+        ASSERT_EQ(block.payload_size, prequel.payload_size);
 
-    ASSERT_FALSE(error);
-    ASSERT_EQ(block.is_request, block2.is_request);
-    ASSERT_EQ(block.version, block2.version);
-    ASSERT_EQ(block.type, block2.type);
-    ASSERT_EQ(block.consensus_type, block2.consensus_type);
+        ASSERT_EQ(prequel.payload_size, 1);
+        ASSERT_EQ(prequel.type, MessageType::Heart_Beat);
+        ASSERT_EQ(prequel.consensus_type, ConsensusType::Any);
+        ASSERT_EQ(prequel.version, logos_version);
+
+        ASSERT_FALSE(error);
+        ASSERT_EQ(block.is_request, block2.is_request);
+        ASSERT_EQ(block.version, block2.version);
+        ASSERT_EQ(block.type, block2.type);
+        ASSERT_EQ(block.consensus_type, block2.consensus_type);
+    }
 }
 
 TEST (messages, ConnectedClientIds)
@@ -341,6 +360,54 @@ TEST (blocks, state_block)
 
     bool error = false;
     StateBlock block2(error, db_val);
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(block.GetHash(), block2.GetHash());
+    ASSERT_EQ(block.Hash(), block2.Hash());
+    ASSERT_EQ(block.Hash(), block.GetHash());
+    ASSERT_EQ(block2.Hash(), block2.GetHash());
+}
+
+
+void create_StateBlock(StateBlock & block)
+{
+    logos::keypair pair(std::string("34F0A37AAD20F4A260F0A5B3CB3D7FB50673212263E58A380BC10474BB039CE4"));
+    Amount amount(std::numeric_limits<logos::uint128_t>::max());
+    Amount fee(0);
+    uint64_t work = 0;
+
+    AccountAddress account = pair.pub;
+    AccountPubKey pub_key = pair.pub;
+    AccountPrivKey priv_key = pair.prv.data;
+
+    new (&block) StateBlock(account,  // account
+            BlockHash(), // previous
+            0, // sqn
+            StateBlock::Type::send, //Type
+            account,  // target
+            amount,
+            fee,
+            priv_key,
+            pub_key,
+            work);
+}
+
+TEST (blocks, state_block_json)
+{
+    StateBlock block;
+    create_StateBlock(block);
+    auto s(block.SerializeJson(true, true));
+
+    // std::cout << "StateBlock1 json: " << s << std::endl;
+
+    bool error = false;
+    boost::property_tree::ptree tree;
+    std::stringstream istream(s);
+    boost::property_tree::read_json(istream, tree);
+    StateBlock block2(error, tree, true, true);
+    auto s2(block2.SerializeJson(true, true));
+
+    //    std::cout << "StateBlock2 json: " << s2 << std::endl;
 
     ASSERT_FALSE(error);
     ASSERT_EQ(block.GetHash(), block2.GetHash());
