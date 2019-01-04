@@ -113,12 +113,7 @@ public:
         _epoch._p2p._container = this;
     }
 
-    bool ProcessInputMessage(const void *data, uint32_t size)
-    {
-        return _batch.ProcessInputMessage(data, size)
-            || _micro.ProcessInputMessage(data, size)
-            || _epoch.ProcessInputMessage(data, size);
-    }
+    bool ProcessInputMessage(const void *data, uint32_t size);
 
     p2p_interface &                                 _p2p;
 private:

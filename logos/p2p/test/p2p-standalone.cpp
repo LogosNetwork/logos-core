@@ -121,7 +121,7 @@ int main(int argc, char **argv) {
 		while (*str && isspace(*str)) str++;
 		while (*str && isspace(str[strlen(str) - 1])) str[strlen(str) - 1] = 0;
 		if (!strcmp(str, "exit")) break;
-		if (*str) p2p.PropagateMessage(str, strlen(str));
+        if (*str) p2p.PropagateMessage(str, strlen(str), true);
 	}
 
 	printf("Shutdown...\n");

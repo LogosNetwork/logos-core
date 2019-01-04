@@ -58,7 +58,7 @@ public:
 
     bool Init(p2p_config &config);
     void Shutdown();
-    bool PropagateMessage(const void *message, unsigned size);
+    bool PropagateMessage(const void *message, unsigned size, bool output);
 
     virtual bool ReceiveMessageCallback(const void *message, unsigned size)
     {

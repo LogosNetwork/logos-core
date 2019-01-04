@@ -736,8 +736,7 @@ void p2p_interface::Shutdown()
     }
 }
 
-bool p2p_interface::PropagateMessage(const void *message,
-                                     unsigned size)
+bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool output)
 {
     if (!p2p)
     {
@@ -746,7 +745,7 @@ bool p2p_interface::PropagateMessage(const void *message,
 
     struct PropagateMessage mess(message, size);
     if (p2p->Find(mess)
-            || !ReceiveMessageCallback(message, size)
+            || !(output || ReceiveMessageCallback(message, size))
             || !p2p->Propagate(mess))
     {
         return false;

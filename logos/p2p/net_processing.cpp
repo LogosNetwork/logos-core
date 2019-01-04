@@ -679,7 +679,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 	LOCK(cs_main);
 	std::vector<uint8_t> mess;
 	vRecv >> mess;
-	if (connman->p2p->PropagateMessage(&mess[0], mess.size())) {
+    if (connman->p2p->PropagateMessage(&mess[0], mess.size(), false)) {
 	    CNodeState *nodestate = State(pfrom->GetId());
 	    nodestate->m_last_block_announcement = GetTime();
 	}

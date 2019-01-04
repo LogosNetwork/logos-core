@@ -42,7 +42,7 @@ void ConsensusP2pOutput<CT>::CleanBatch()
 template<ConsensusType CT>
 bool ConsensusP2pOutput<CT>::PropagateBatch()
 {
-    bool res = _p2p.PropagateMessage(&_p2p_batch[0], _p2p_batch.size());
+    bool res = _p2p.PropagateMessage(&_p2p_batch[0], _p2p_batch.size(), true);
 
     if (res)
     {
@@ -417,6 +417,26 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
                        << " added to cache.";
         return true;
     }
+}
+
+bool ContainerP2p::ProcessInputMessage(const void *data, uint32_t size)
+{
+    if (size < sizeof(uint32_t) + sizeof(P2pBatchHeader))
+        return false;
+
+    switch (((P2pBatchHeader *)((uint32_t *)data + 1))->consensus_type)
+    {
+        case ConsensusType::BatchStateBlock:
+            return _batch.ProcessInputMessage(data, size);
+        case ConsensusType::MicroBlock:
+            return _micro.ProcessInputMessage(data, size);
+        case ConsensusType::Epoch:
+            return _epoch.ProcessInputMessage(data, size);
+        default:
+            break;
+    }
+
+    return false;
 }
 
 template class ConsensusP2pOutput<ConsensusType::BatchStateBlock>;
