@@ -94,8 +94,6 @@ public:
     virtual void Send(const PrePrepare & pre_prepare);
     void Send(const void * data, size_t size, bool propagate = false) override;
 
-    bool OnP2pReceive(const void * data, size_t size);
-
     virtual ~ConsensusManager()
     {
         LOG_DEBUG(_log) << "~ConsensusManager<" << ConsensusToName(CT) << ">";
@@ -179,6 +177,6 @@ protected:
     EpochEventsNotifier &           _events_notifier;      ///< Notifies epoch manager of transition related events
     ReservationsPtr                 _reservations;
     PersistenceManager<CT>          _persistence_manager;
-    ConsensusP2p<CT>                _consensus_p2p;
+    ConsensusP2pOutput<CT>          _consensus_p2p;
 };
 

@@ -182,5 +182,5 @@ protected:
     uint64_t                    _sequence_number = 0;
     EpochEventsNotifier &       _events_notifier;
     PersistenceManager<CT> &    _persistence_manager;
-    ConsensusP2p<CT>            _consensus_p2p;
+    ConsensusP2pOutput<CT>      _consensus_p2p;
 };

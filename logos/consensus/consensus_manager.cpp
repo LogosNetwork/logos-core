@@ -126,11 +126,6 @@ void ConsensusManager<CT>::Send(const void * data, size_t size, bool propagate)
 }
 
 template<ConsensusType CT>
-bool ConsensusManager<CT>::OnP2pReceive(const void * data, size_t size) {
-    return _consensus_p2p.ProcessInputMessage((const uint8_t *)data, size);
-}
-
-template<ConsensusType CT>
 void ConsensusManager<CT>::OnConsensusReached()
 {
     auto pre_prepare (PrePrepareGetNext());
