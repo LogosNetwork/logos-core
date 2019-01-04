@@ -150,37 +150,37 @@ bool ConsensusP2p<ConsensusType::BatchStateBlock>::ApplyCacheUpdates(
 {
     switch(status.reason)
     {
-    case logos::process_result::progress:
-        _ApplyUpdates(message, delegate_id);
-        _container->RetryValidate(message.Hash());
+        case logos::process_result::progress:
+            _ApplyUpdates(message, delegate_id);
+            _container->RetryValidate(message.Hash());
 
-        for(uint32_t i = 0; i < message.block_count; ++i)
-        {
-            _container->RetryValidate(message.blocks[i].hash());
-        }
-        return true;
-
-    case logos::process_result::gap_previous:
-        _cache_mutex.lock();
-        _cache.insert(std::make_pair(message.previous, std::make_pair(delegate_id, message)));
-        _cache_mutex.unlock();
-        return false;
-
-    case logos::process_result::invalid_request:
-        for(uint32_t i = 0; i < message.block_count; ++i)
-        {
-            if (status.requests[i] == logos::process_result::gap_previous)
+            for(uint32_t i = 0; i < message.block_count; ++i)
             {
-                _cache_mutex.lock();
-                _cache.insert(std::make_pair(message.blocks[i].hashables.previous,
-                        std::make_pair(delegate_id, message)));
-                _cache_mutex.unlock();
+                _container->RetryValidate(message.blocks[i].hash());
             }
-        }
-        return false;
+            return true;
 
-    default:
-        return false;
+        case logos::process_result::gap_previous:
+            _cache_mutex.lock();
+            _cache.insert(std::make_pair(message.previous, std::make_pair(delegate_id, message)));
+            _cache_mutex.unlock();
+            return false;
+
+        case logos::process_result::invalid_request:
+            for(uint32_t i = 0; i < message.block_count; ++i)
+            {
+                if (status.requests[i] == logos::process_result::gap_previous)
+                {
+                    _cache_mutex.lock();
+                    _cache.insert(std::make_pair(message.blocks[i].hashables.previous,
+                            std::make_pair(delegate_id, message)));
+                    _cache_mutex.unlock();
+                }
+            }
+            return false;
+
+        default:
+            return false;
     }
 }
 
@@ -192,32 +192,32 @@ bool ConsensusP2p<ConsensusType::MicroBlock>::ApplyCacheUpdates(
 {
     switch(status.reason)
     {
-    case logos::process_result::progress:
-        _ApplyUpdates(message, delegate_id);
-        _container->RetryValidate(message.Hash());
-        return true;
+        case logos::process_result::progress:
+            _ApplyUpdates(message, delegate_id);
+            _container->RetryValidate(message.Hash());
+            return true;
 
-    case logos::process_result::gap_previous:
-        _cache_mutex.lock();
-        _cache.insert(std::make_pair(message.previous, std::make_pair(delegate_id, message)));
-        _cache_mutex.unlock();
-        return false;
+        case logos::process_result::gap_previous:
+            _cache_mutex.lock();
+            _cache.insert(std::make_pair(message.previous, std::make_pair(delegate_id, message)));
+            _cache_mutex.unlock();
+            return false;
 
-    case logos::process_result::invalid_request:
-        for(uint32_t i = 0; i < NUM_DELEGATES; ++i)
-        {
-            if (status.requests[i] == logos::process_result::gap_previous)
+        case logos::process_result::invalid_request:
+            for(uint32_t i = 0; i < NUM_DELEGATES; ++i)
             {
-                _cache_mutex.lock();
-                _cache.insert(std::make_pair(message.tips[i],
-                        std::make_pair(delegate_id, message)));
-                _cache_mutex.unlock();
+                if (status.requests[i] == logos::process_result::gap_previous)
+                {
+                    _cache_mutex.lock();
+                    _cache.insert(std::make_pair(message.tips[i],
+                            std::make_pair(delegate_id, message)));
+                    _cache_mutex.unlock();
+                }
             }
-        }
-        return false;
+            return false;
 
-    default:
-        return false;
+        default:
+            return false;
     }
 }
 
@@ -229,25 +229,25 @@ bool ConsensusP2p<ConsensusType::Epoch>::ApplyCacheUpdates(
 {
     switch(status.reason)
     {
-    case logos::process_result::progress:
-        _ApplyUpdates(message, delegate_id);
-        _container->RetryValidate(message.Hash());
-        return true;
+        case logos::process_result::progress:
+            _ApplyUpdates(message, delegate_id);
+            _container->RetryValidate(message.Hash());
+            return true;
 
-    case logos::process_result::gap_previous:
-        _cache_mutex.lock();
-        _cache.insert(std::make_pair(message.previous, std::make_pair(delegate_id, message)));
-        _cache_mutex.unlock();
-        return false;
+        case logos::process_result::gap_previous:
+            _cache_mutex.lock();
+            _cache.insert(std::make_pair(message.previous, std::make_pair(delegate_id, message)));
+            _cache_mutex.unlock();
+            return false;
 
-    case logos::process_result::invalid_tip:
-        _cache_mutex.lock();
-        _cache.insert(std::make_pair(message.micro_block_tip, std::make_pair(delegate_id, message)));
-        _cache_mutex.unlock();
-        return false;
+        case logos::process_result::invalid_tip:
+            _cache_mutex.lock();
+            _cache.insert(std::make_pair(message.micro_block_tip, std::make_pair(delegate_id, message)));
+            _cache_mutex.unlock();
+            return false;
 
-    default:
-        return false;
+        default:
+            return false;
     }
 }
 
@@ -299,7 +299,7 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
 
         switch (mtype)
         {
-        case MessageType::Unknown:
+            case MessageType::Unknown:
             {
                 P2pBatchHeader *head = (P2pBatchHeader *)data;
                 if (msize != sizeof(P2pBatchHeader)
@@ -317,10 +317,9 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
                                 << "> - primary delegate id " << (unsigned)delegate_id
                                 << " extracted from p2p batch received from delegate " << (unsigned)_delegate_id;
                 mtype = MessageType::Pre_Prepare;
+                break;
             }
-            break;
-
-        case MessageType::Pre_Prepare:
+            case MessageType::Pre_Prepare:
             {
                 MessageHeader<MessageType::Pre_Prepare,CT> *head = deserialize(data, size, block);
                 if (head->type != mtype || head->consensus_type != CT)
@@ -337,10 +336,9 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
                     // return false;
                 }
                 mtype = MessageType::Post_Prepare;
+                break;
             }
-            break;
-
-        case MessageType::Post_Prepare:
+            case MessageType::Post_Prepare:
             {
                 MessageHeader<MessageType::Post_Prepare,CT> *head
                         = (MessageHeader<MessageType::Post_Prepare,CT>*)data;
@@ -360,10 +358,9 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
                     // return false;
                 }
                 mtype = MessageType::Post_Commit;
+                break;
             }
-            break;
-
-        case MessageType::Post_Commit:
+            case MessageType::Post_Commit:
             {
                 MessageHeader<MessageType::Post_Commit,CT> *head
                         = (MessageHeader<MessageType::Post_Commit,CT>*)data;
@@ -381,11 +378,10 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
                     ProcessResultToString(status.reason);
                     // return false;
                 }
+                break;
             }
-            break;
-
-        default:
-            break;
+            default:
+                break;
         }
 
         data += msize;

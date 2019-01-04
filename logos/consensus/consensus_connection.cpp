@@ -126,9 +126,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
         case MessageType::Pre_Prepare:
         {
             DeliverPrePrepare();
-	    _consensus_p2p.CleanBatch();
-	    _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(type), false);
-	    break;
+            break;
         }
         case MessageType::Prepare:
         {
@@ -139,8 +137,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
         case MessageType::Post_Prepare:
         {
             auto msg (*reinterpret_cast<const PostPrepare*>(_receive_buffer.data()));
-	    OnConsensusMessage(msg);
-	    _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(type), false);
+            OnConsensusMessage(msg);
             break;
         }
         case MessageType::Commit:
@@ -152,8 +149,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
         case MessageType::Post_Commit:
         {
             auto msg (*reinterpret_cast<const PostCommit*>(_receive_buffer.data()));
-	    OnConsensusMessage(msg);
-	    _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(type), true);
+            OnConsensusMessage(msg);
             break;
         }
         case MessageType::Rejection:
@@ -192,6 +188,9 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
 
         HandlePrePrepare(message);
         SendMessage<PrepareMessage<CT>>();
+
+        _consensus_p2p.CleanBatch();
+        _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(MessageType::Pre_Prepare), false);
     }
     else
     {
@@ -209,6 +208,8 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostPrepare & message)
         _state = ConsensusState::COMMIT;
 
         SendMessage<CommitMessage<CT>>();
+
+        _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(MessageType::Post_Prepare), false);
     }
 }
 
@@ -227,6 +228,8 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
         _prev_pre_prepare_hash = _pre_prepare_hash;
 
         _events_notifier.OnPostCommit(_pre_prepare->epoch_number);
+
+        _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(MessageType::Post_Commit), true);
     }
 }
 
