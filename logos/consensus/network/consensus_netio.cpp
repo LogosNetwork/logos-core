@@ -104,6 +104,7 @@ ConsensusNetIO::Send(
     {
         _sending = true;
 
+        LOG_DEBUG(_log) << "ConsensusNetIO::Send - calling async write to " << _endpoint;
         boost::asio::async_write(*_socket,
                                  boost::asio::buffer(send_buffer->data(),
                                                      size),
@@ -300,7 +301,7 @@ ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
                                                         (*entry)->size()));
         }
 
-        LOG_DEBUG(_log) << "ConsensusConnection - calling async write to " << _endpoint;
+        LOG_DEBUG(_log) << "ConsensusNetIO::OnWrite - calling async write to " << _endpoint;
         boost::asio::async_write(*_socket, buffers,
                                  std::bind(&ConsensusNetIO::OnWrite, this,
                                            std::placeholders::_1,

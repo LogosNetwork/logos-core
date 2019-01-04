@@ -140,6 +140,7 @@ BBConsensusConnection::DeliverPrePrepare()
         return;
     }
 
+    LogMessageReceived(MessageToName(MessageType::Pre_Prepare), msg.Hash().to_string());
     OnConsensusMessage(static_cast<PrePrepare &>(msg));
 }
 

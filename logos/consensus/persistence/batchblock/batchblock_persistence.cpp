@@ -149,7 +149,7 @@ bool PersistenceManager<BSBCT>::Validate(
         // Account is not reserved.
         if(info.reservation.is_zero())
         {
-            update_reservation(_reservations.accounts[block.hashables.account]);
+            _reservations->UpdateReservation(hash, current_epoch, block.hashables.account);
         }
 
         // Account is already reserved.
@@ -164,7 +164,7 @@ bool PersistenceManager<BSBCT>::Validate(
             }
 
             // Reservation has expired.
-            update_reservation(_reservations.accounts[block.hashables.account]);
+            _reservations->UpdateReservation(hash, current_epoch, block.hashables.account);
         }
     }
     // account doesn't exist

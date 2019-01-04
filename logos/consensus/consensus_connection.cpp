@@ -40,6 +40,7 @@ template<ConsensusType CT>
 void ConsensusConnection<CT>::DeliverPrePrepare()
 {
     auto msg (*reinterpret_cast<const PrePrepare*>(_receive_buffer.data()));
+    LogMessageReceived(MessageToName(MessageType::Pre_Prepare), msg.Hash().to_string());
     OnConsensusMessage(msg);
 }
 
@@ -103,70 +104,58 @@ void ConsensusConnection<CT>::OnData()
 template<ConsensusType CT>
 void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
 {
-    MessageType type (static_cast<MessageType> (_receive_buffer.data()[1]));
+    auto type (static_cast<MessageType> (_receive_buffer.data()[1]));
 
     memcpy(_receive_buffer.data() + sizeof(Prequel), data,
            MessageTypeToSize<CT>(type) - sizeof(Prequel));
-
-    std::string message = MessageToName(type);
-    if (type == MessageType::Rejection)
-    {
-        auto msg (*reinterpret_cast<const Rejection*>(_receive_buffer.data()));
-        message += ":" + RejectionReasonToName(msg.reason);
-    }
-    message = "ConsensusConnection<"
-            + ConsensusToName(CT)
-            + "> - Received " + message
-            + " message from delegate: " + std::to_string(_delegate_ids.remote);
 
     switch (type)
     {
         case MessageType::Pre_Prepare:
         {
-            auto msg (*reinterpret_cast<const PrePrepare*>(_receive_buffer.data()));
-            LOG_DEBUG(_log) << message << " with block hash " << msg.Hash().to_string();
-            OnConsensusMessage(msg);
+            DeliverPrePrepare();
             break;
         }
         case MessageType::Prepare:
         {
             auto msg (*reinterpret_cast<const Prepare*>(_receive_buffer.data()));
-            LOG_DEBUG(_log) << message << " with block hash " << msg.previous.to_string();
+            LogMessageReceived(MessageToName(type), msg.previous.to_string());
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Post_Prepare:
         {
             auto msg (*reinterpret_cast<const PostPrepare*>(_receive_buffer.data()));
-            LOG_DEBUG(_log) << message << " with block hash " << msg.previous.to_string();
+            LogMessageReceived(MessageToName(type), msg.previous.to_string());
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Commit:
         {
             auto msg (*reinterpret_cast<const Commit*>(_receive_buffer.data()));
-            LOG_DEBUG(_log) << message << " with block hash " << msg.previous.to_string();
+            LogMessageReceived(MessageToName(type), msg.previous.to_string());
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Post_Commit:
         {
             auto msg (*reinterpret_cast<const PostCommit*>(_receive_buffer.data()));
-            LOG_DEBUG(_log) << message << " with block hash " << msg.previous.to_string();
+            LogMessageReceived(MessageToName(type), msg.previous.to_string());
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Rejection:
         {
             auto msg (*reinterpret_cast<const Rejection*>(_receive_buffer.data()));
-            LOG_WARN(_log) << message << " with block hash " << msg.previous.to_string();
+            auto msg_str (MessageToName(type) + ":" + RejectionReasonToName(msg.reason));
+            LogMessageReceived(msg_str, msg.previous.to_string());
             OnConsensusMessage(msg);
             break;
         }
         case MessageType::Heart_Beat:
         case MessageType::Key_Advert:
         case MessageType::Unknown:
-            LOG_DEBUG(_log) << message;
+            LogMessageReceived(MessageToName(type));
             break;
     }
 

@@ -18,6 +18,7 @@ public:
     virtual ~ReservationsProvider() = default;
     virtual bool Acquire(const logos::account & account, logos::account_info &info) {return true;}
     virtual void Release(const logos::account & account) {}
+    virtual bool UpdateReservation(const logos::block_hash & hash, const uint64_t current_epoch, const logos::account account) {return false;}
 protected:
     Store &      _store;
     Log          _log;
@@ -78,6 +79,18 @@ public:
     {
         std::lock_guard<std::mutex> lock(_mutex);
         _accounts.erase(account);
+    }
+
+    bool UpdateReservation(const logos::block_hash & hash, const uint64_t current_epoch, const logos::account account) override
+    {
+        if(_accounts.find(account) == _accounts.end())
+        {
+            LOG_ERROR(_log) << "Reservations::UpdateReservation - unable to find account to update. ";
+            return true;
+        }
+        _accounts[account].reservation = hash;
+        _accounts[account].reservation_epoch = current_epoch;
+        return false;
     }
 
 private:

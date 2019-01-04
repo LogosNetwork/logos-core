@@ -160,6 +160,19 @@ protected:
 
     virtual bool ValidateReProposal(const PrePrepare & message);
 
+    virtual void LogMessageReceived(const std::string & msg_str, const std::string & hash_str)
+    {
+        LOG_DEBUG(_log) << "ConsensusConnection<" << ConsensusToName(CT) << "> - Received "
+                        << msg_str << " message from delegate: " << std::to_string(_delegate_ids.remote)
+                        << " with block hash " << hash_str;
+    }
+
+    virtual void LogMessageReceived(const std::string & msg_str)
+    {
+        LOG_DEBUG(_log) << "ConsensusConnection<" << ConsensusToName(CT) << "> - Received "
+                        << msg_str << " message from delegate: " << std::to_string(_delegate_ids.remote);
+    }
+
 
     std::shared_ptr<IOChannel>  _iochannel;
     ReceiveBuffer               _receive_buffer;
