@@ -30,7 +30,7 @@ struct PropagateMessage
                      unsigned size)
     {
         message.resize(size);
-        memcpy(&message[0], mess, size);
+        memcpy(message.data(), mess, size);
         hash = Hash(message.begin(), message.end());
     }
 };

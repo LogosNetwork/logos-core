@@ -66,7 +66,7 @@ void p2p_interface::TraverseCommandLineOptions(std::function<void(const char *op
 class p2p_internal
 {
 private:
-    p2p_interface *                         interface;
+    p2p_interface &                         interface;
     bool                                    fFeeEstimatesInitialized;
     const bool                              DEFAULT_REST_ENABLE;
     const bool                              DEFAULT_STOPAFTERBLOCKIMPORT;
@@ -82,8 +82,8 @@ private:
     PropagateStore                          store;
 
 public:
-    p2p_internal(p2p_interface *p2p,
-                 p2p_config &config)
+    p2p_internal(p2p_interface & p2p,
+                 p2p_config & config)
         : interface(p2p)
         , fFeeEstimatesInitialized(false)
         , DEFAULT_REST_ENABLE(false)
@@ -496,7 +496,7 @@ bool AppInitMain(p2p_config &config)
     assert(!g_connman);
     g_connman = std::unique_ptr<CConnman>(new CConnman(GetRand(std::numeric_limits<uint64_t>::max()), GetRand(std::numeric_limits<uint64_t>::max())));
     CConnman& connman = *g_connman;
-    connman.p2p = interface;
+    connman.p2p = &interface;
     connman.p2p_store = &store;
     connman.io_service = io_service;
     connman.scheduleAfter = config.scheduleAfterMs;
@@ -645,7 +645,7 @@ bool p2p_interface::Init(p2p_config &config)
     uiInterface.config = &config;
     SetupEnvironment();
 
-    p2p = new p2p_internal(this, config);
+    p2p = new p2p_internal(*this, config);
     if (!p2p)
     {
         return false;

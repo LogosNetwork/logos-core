@@ -442,8 +442,11 @@ private:
 
 class Logos_p2p_interface : public p2p_interface {
 private:
-    logos::node *_node;
+    logos::node &_node;
 public:
+    Logos_p2p_interface(logos::node &node)
+        : _node(node)
+    {}
     virtual bool ReceiveMessageCallback(const void *message, unsigned size);
     friend class logos::node;
 };
@@ -525,8 +528,8 @@ public:
     RecallHandler _recall_handler;
     DelegateIdentityManager _identity_manager;
     Archiver _archiver;
-    ConsensusContainer _consensus_container;
     Logos_p2p_interface p2p;
+    ConsensusContainer _consensus_container;
     p2p_config p2p_conf;
     static double constexpr price_max = 16.0;
     static double constexpr free_cutoff = 1024.0;

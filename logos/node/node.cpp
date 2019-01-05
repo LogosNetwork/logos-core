@@ -1275,6 +1275,7 @@ stats (config.stat_config),
 _recall_handler(),
 _identity_manager(store, config.consensus_manager_config),
 _archiver(alarm_a, store, _recall_handler),
+p2p(*this),
 _consensus_container(service_a, store, alarm_a, config.consensus_manager_config, _archiver, _identity_manager, p2p)
 {
     BlocksCallback::Instance(service_a, config.callback_address, config.callback_port, config.callback_target, config.logging.callback_logging ());
@@ -1424,7 +1425,6 @@ _consensus_container(service_a, store, alarm_a, config.consensus_manager_config,
     p2p_conf.lmdb_env = store.environment.environment;
     p2p_conf.lmdb_dbi = store.p2p_db;
     p2p_conf.boost_io_service = &service;
-    p2p._node = this;
     init_a.p2p_init = !p2p.Init(p2p_conf);
 
     if (!init_a.error ())
@@ -1778,7 +1778,7 @@ void logos::node::stop ()
 }
 
 bool logos::Logos_p2p_interface::ReceiveMessageCallback(const void *message, unsigned size) {
-    return _node ? _node->_consensus_container.OnP2pReceive(message, size) : false;
+    return _node._consensus_container.OnP2pReceive(message, size);
 }
 
 void logos::node::keepalive_preconfigured (std::vector<std::string> const & peers_a)
