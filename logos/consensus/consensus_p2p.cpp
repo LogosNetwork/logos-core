@@ -3,6 +3,9 @@
 
 #define P2P_BATCH_VERSION	1
 
+constexpr unsigned P2P_MSG_SIZE_SIZE = sizeof(uint32_t);
+constexpr unsigned P2P_BATCH_N_MSG = 4;
+
 struct P2pBatchHeader {
     uint8_t version;
     MessageType type;
@@ -23,13 +26,13 @@ void ConsensusP2pOutput<CT>::AddMessageToBatch(const uint8_t *data, uint32_t siz
 {
     size_t oldsize = _p2p_batch.size();
 
-    _p2p_batch.resize(oldsize + size + 4);
-    memcpy(&_p2p_batch[oldsize], &size, 4);
-    memcpy(&_p2p_batch[oldsize + 4], data, size);
+    _p2p_batch.resize(oldsize + size + P2P_MSG_SIZE_SIZE);
+    memcpy(&_p2p_batch[oldsize], &size, P2P_MSG_SIZE_SIZE);
+    memcpy(&_p2p_batch[oldsize + P2P_MSG_SIZE_SIZE], data, size);
 
     LOG_DEBUG(_log) << "ConsensusP2pOutput<" << ConsensusToName(CT)
                     << "> - message of size " << size
-                    << " and type " << (unsigned)_p2p_batch[oldsize + 5]
+                    << " and type " << (unsigned)_p2p_batch[oldsize + P2P_MSG_SIZE_SIZE + 1]
                     << " added to p2p batch to delegate " << (unsigned)_delegate_id;
 }
 
@@ -283,11 +286,11 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
     LOG_INFO(_log) << "ConsensusP2p<" << ConsensusToName(CT)
                    << "> - received batch of size " << size;
 
-    while (size >= 4)
+    while (size >= P2P_MSG_SIZE_SIZE)
     {
         uint32_t msize = *(uint32_t *)data;
-        data += 4;
-        size -= 4;
+        data += P2P_MSG_SIZE_SIZE;
+        size -= P2P_MSG_SIZE_SIZE;
         if (msize > size)
         {
             size = 1;
@@ -389,13 +392,13 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
         data += msize;
         size -= msize;
 
-        if (++mess_counter == 4)
+        if (++mess_counter == P2P_BATCH_N_MSG)
         {
             break;
         }
     }
 
-    if (size || mess_counter != 4)
+    if (size || mess_counter != P2P_BATCH_N_MSG)
     {
         LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)
                         << "> - error parsing p2p batch";
@@ -419,7 +422,7 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
 
 bool ContainerP2p::ProcessInputMessage(const void *data, uint32_t size)
 {
-    if (size < sizeof(uint32_t) + sizeof(P2pBatchHeader))
+    if (size < P2P_MSG_SIZE_SIZE + sizeof(P2pBatchHeader))
         return false;
 
     switch (((P2pBatchHeader *)((uint32_t *)data + 1))->consensus_type)
