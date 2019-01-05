@@ -2,6 +2,122 @@
 #include <logos/consensus/messages/util.hpp>
 #include <logos/common.hpp>
 
+AggSignature::AggSignature(bool & error, logos::stream & stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    unsigned long m;
+    error = logos::read(stream, m);
+    if(error)
+    {
+        return;
+    }
+    new (&map) ParicipationMap(le64toh(m));
+
+    error = logos::read(stream, sig);
+    if(error)
+    {
+        return;
+    }
+}
+
+//template<MessageType MT, ConsensusType CT>
+//MessagePrequel<MT, CT>::MessagePrequel(bool & error, logos::stream & stream)
+//{
+//    if(error)
+//    {
+//        std::cout << __func__ << " begin";
+//        return;
+//    }
+//
+//    error = logos::read(stream, const_cast<uint8_t &>(version));
+//    if(error)
+//    {
+//        std::cout << __func__ << " version";
+//        return;
+//    }
+//
+//    error = logos::read(stream, const_cast<MessageType &>(type));
+//    if(error)
+//    {
+//        std::cout << __func__ << " type";
+//        return;
+//    }
+//
+//    error = logos::read(stream, const_cast<ConsensusType &>(consensus_type));
+//    if(error)
+//    {
+//        std::cout << __func__ << " consensus_type";
+//        return;
+//    }
+//
+//    char pad;
+//    error = logos::read(stream, pad);
+//    if(error)
+//    {
+//        std::cout << __func__ << " pad";
+//        return;
+//    }
+//
+//    error = logos::read(stream, payload_size);
+//    if(error)
+//    {
+//        std::cout << __func__ << " payload_size";
+//        return;
+//    }
+//    payload_size = le32toh(payload_size);
+//}
+
+PrePrepareCommon::PrePrepareCommon(bool & error, logos::stream & stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, delegate);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, epoch_number);
+    if(error)
+    {
+        return;
+    }
+    epoch_number = le32toh(epoch_number);
+
+    error = logos::read(stream, sequence);
+    if(error)
+    {
+        return;
+    }
+    sequence = le32toh(sequence);
+
+    error = logos::read(stream, timestamp);
+    if(error)
+    {
+        return;
+    }
+    timestamp = le64toh(timestamp);
+
+    error = logos::read(stream, previous);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, preprepare_sig);
+    if(error)
+    {
+        return;
+    }
+}
+
 BatchStateBlock::BatchStateBlock(bool & error, logos::stream & stream, bool with_state_block)
     : PrePrepareCommon(error, stream)
 {
@@ -218,4 +334,14 @@ void StateBlock::SerializeJson(boost::property_tree::ptree & tree,
 
     if(with_batch_hash)
         tree.put("batch_hash", batch_hash.to_string());
+}
+
+std::string to_string (const std::vector<uint8_t> & buf)
+{
+    std::stringstream stream;
+    for(size_t i = 0; i < buf.size(); ++i)
+    {
+        stream << std::hex << std::noshowbase << std::setw (2) << std::setfill ('0') << (uint)(buf[i]);
+    }
+    return stream.str ();
 }

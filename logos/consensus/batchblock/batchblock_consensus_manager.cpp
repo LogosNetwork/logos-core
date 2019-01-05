@@ -155,6 +155,12 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
     return batch;
 }
 
+auto
+BatchBlockConsensusManager::PrePrepareGetCurr() -> PrePrepare &
+{
+    return _handler.GetCurrentBatch();
+}
+
 void
 BatchBlockConsensusManager::PrePreparePopFront()
 {

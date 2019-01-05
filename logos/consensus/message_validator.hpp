@@ -58,6 +58,16 @@ public:
             return false;
         }
 
+        //        {//Peng debug
+        //            std::string keystring;
+        //            _keys.GetPublicKey(delegate_id).serialize(keystring);
+        //            DelegatePubKey pk;
+        //            memcpy(pk.data(), keystring.data(), CONSENSUS_PUB_KEY_SIZE);
+        //
+        //            LOG_INFO(_log) << "MessageValidator pub_key " << pk.to_string()
+        //                        << " id " << (uint)delegate_id;
+        //        }
+
         //verify
         return sig_real.verify(_keys.GetPublicKey(delegate_id), hash_str);
     }
@@ -67,9 +77,18 @@ public:
         PublicKeyVec keyvec;
         SignatureVec sigvec;
 
+        std::set<uint8_t> participants;
+
         for(auto & sig : signatures)
         {
-            agg_sig.map[sig.delegate_id] = true;
+            auto did = sig.delegate_id;
+            if(participants.find(did) != participants.end())
+            {
+                LOG_WARN(_log) << "MessageValidator - duplicate single sig from "<<(uint)did;
+                continue;
+            }
+            participants.insert(did);
+            agg_sig.map[did] = true;
 
             SignatureReal sigReal;
             string sig_str(reinterpret_cast<const char*>(&sig.signature), CONSENSUS_SIG_SIZE);

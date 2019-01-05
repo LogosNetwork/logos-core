@@ -235,7 +235,7 @@ TEST (messages, HeartBeat)
         //cout << "prequel.payload_size=" << prequel.payload_size << endl;
         ASSERT_EQ(block.payload_size, prequel.payload_size);
 
-        ASSERT_EQ(prequel.payload_size, 1);
+        ASSERT_EQ(prequel.payload_size, sizeof(block.is_request));
         ASSERT_EQ(prequel.type, MessageType::Heart_Beat);
         ASSERT_EQ(prequel.consensus_type, ConsensusType::Any);
         ASSERT_EQ(prequel.version, logos_version);
@@ -782,6 +782,9 @@ TEST (message_validator, consensus_session)
     postcommit.Serialize(postcommit_buf);
     PostCommittedBlock<ConsensusType::Epoch> primary_block(preprepare, postprepare_agg_sig, postcommit_agg_sig);
 
+    //make sure hash matches
+    ASSERT_EQ(preprepare_hash, primary_block.Hash());
+
     //step 6, backup post-commit
     //delegates verify the signature of postcommit
     for(int i = 0; i < NUM_DELEGATES; ++i)
@@ -849,6 +852,7 @@ TEST (message_validator, signature_order_twoThirds)
             for(auto &xx : signatures)
             {
                 signatures_copy.push_back(xx);
+                signatures_copy.push_back(xx);
             }
 
             ASSERT_TRUE(primary.AggregateSignature(signatures_copy, postprepare_agg_sig));
@@ -864,3 +868,4 @@ TEST (message_validator, signature_order_twoThirds)
         }
     }
 }
+

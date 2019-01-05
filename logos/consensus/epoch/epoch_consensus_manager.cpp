@@ -59,6 +59,11 @@ EpochConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
   return *_cur_epoch;
 }
+auto
+EpochConsensusManager::PrePrepareGetCurr() -> PrePrepare &
+{
+  return *_cur_epoch;
+}
 
 void 
 EpochConsensusManager::PrePreparePopFront()

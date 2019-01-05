@@ -6,6 +6,7 @@
 #include <logos/consensus/persistence/state_block_locator.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
+#include <logos/lib/log.hpp>
 
 namespace logos
 {
@@ -308,5 +309,7 @@ public:
      * logos::uint256_union (arbitrary key) -> blob
      */
     MDB_dbi meta;
+
+    Log log;
 };
 }

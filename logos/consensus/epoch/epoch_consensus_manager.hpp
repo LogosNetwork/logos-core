@@ -68,6 +68,8 @@ protected:
 	///		@return reference to epoch block
     PrePrepare & PrePrepareGetNext() override;
 
+    PrePrepare & PrePrepareGetCurr() override;
+
     /// Pops the Epoch from the queue
     void PrePreparePopFront() override;
 

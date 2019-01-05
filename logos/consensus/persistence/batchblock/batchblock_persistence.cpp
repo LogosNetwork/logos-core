@@ -217,6 +217,9 @@ void PersistenceManager<BSBCT>::StoreBatchMessage(
     ApprovedBSB prev;
     bool has_prev = true;
 
+    LOG_DEBUG(_log) << "PersistenceManager::StoreBatchMessage - "
+                                << message.Hash().to_string();
+
     if(_store.batch_block_get(message.previous, prev, transaction))
     {
         // TODO: bootstrap here.

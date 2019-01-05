@@ -23,7 +23,7 @@ struct RejectionMessage
 
     RejectionMessage(const BlockHash & pre_prepare_hash)
         : MessagePrequel<MessageType::Rejection, CT>()
-        , pre_prepare_hash(pre_prepare_hash)
+        , preprepare_hash(pre_prepare_hash)
         , reason(RejectionReason::Void)
     {}
 
@@ -35,7 +35,7 @@ struct RejectionMessage
             return;
         }
 
-        error = logos::read(stream, pre_prepare_hash);
+        error = logos::read(stream, preprepare_hash);
         if(error)
         {
             return;
@@ -72,7 +72,7 @@ struct RejectionMessage
     void Hash(blake2b_state & hash) const
     {
         MessagePrequel<MessageType::Rejection, CT>::Hash(hash);
-        pre_prepare_hash.Hash(hash);
+        preprepare_hash.Hash(hash);
         blake2b_update(&hash, &reason, sizeof(uint8_t));
         auto s = rejection_map.to_string();
         blake2b_update(&hash, s.data(), s.length());
@@ -82,7 +82,7 @@ struct RejectionMessage
     uint32_t Serialize(logos::stream & stream) const
     {
         auto s = MessagePrequel<MessageType::Rejection, CT>::Serialize(stream);
-        s += logos::write(stream, pre_prepare_hash);
+        s += logos::write(stream, preprepare_hash);
         s += logos::write(stream, reason);
 
         //TODO serialized space
@@ -109,7 +109,7 @@ struct RejectionMessage
         }
     }
 
-    BlockHash           pre_prepare_hash;
+    BlockHash           preprepare_hash;
     RejectionReason     reason;
     RejectionMap        rejection_map;
     DelegateSig         signature;

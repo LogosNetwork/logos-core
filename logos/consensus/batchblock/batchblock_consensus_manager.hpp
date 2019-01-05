@@ -130,6 +130,8 @@ protected:
     ///     @return reference to BatchStateBlock
     PrePrepare & PrePrepareGetNext() override;
 
+    PrePrepare & PrePrepareGetCurr() override;
+
     /// Pops the BatchStateBlock from the queue.
     void PrePreparePopFront() override;
 

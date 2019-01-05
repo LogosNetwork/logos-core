@@ -56,6 +56,12 @@ MicroBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
     return *_cur_microblock;
 }
 
+auto
+MicroBlockConsensusManager::PrePrepareGetCurr() -> PrePrepare &
+{
+    return *_cur_microblock;
+}
+
 void
 MicroBlockConsensusManager::PrePreparePopFront()
 {

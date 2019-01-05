@@ -127,8 +127,16 @@ void ConsensusManager<CT>::Send(const void * data, size_t size)
 template<ConsensusType CT>
 void ConsensusManager<CT>::OnConsensusReached()
 {
-    auto pre_prepare (PrePrepareGetNext());
+    auto & pre_prepare (PrePrepareGetCurr());
     ApprovedBlock block(pre_prepare, _post_prepare_sig, _post_commit_sig);
+
+    //    {//Peng debug
+    //        LOG_DEBUG(_log) << __func__
+    //                << " _pre_prepare_hash " << _pre_prepare_hash.to_string()
+    //                << " pre_prepare hash recompute " << pre_prepare.Hash().to_string()
+    //                << " ApprovedBlock " << block.Hash().to_string();
+    //    }
+
     ApplyUpdates(block, _delegate_id);
     BlocksCallback::Callback<CT>(pre_prepare);  // TODO: would rather use a shared pointer to avoid copying the whole BlockList for BSB
 

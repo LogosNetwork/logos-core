@@ -24,7 +24,7 @@ enum class MessageType : uint8_t
     // Other
     Key_Advert   = 5,
     Rejection    = 6,
-    Heart_Beat   = 0xDE,
+    Heart_Beat   = 7,
 
     Post_Committed_Block, //to be stored locally and distributed to fall nodes
 
@@ -47,7 +47,7 @@ static constexpr uint8_t logos_version = 0;
 /// - add new files to CMakeLists.txt
 #define CONSENSUS_TYPE(...) \
   struct ConsensusType_Size { int __VA_ARGS__; }; \
-  enum class ConsensusType:uint8_t { __VA_ARGS__,Any=0xad}; \
+  enum class ConsensusType:uint8_t { __VA_ARGS__,Any=0xff}; \
   static constexpr size_t CONSENSUS_TYPE_COUNT = (sizeof(ConsensusType_Size)/sizeof(int));
 
 // Add new consensus types at the end
@@ -97,27 +97,7 @@ struct AggSignature
 
     AggSignature() = default;
 
-    AggSignature(bool & error, logos::stream & stream)
-    {
-        if(error)
-        {
-            return;
-        }
-
-        unsigned long m;
-        error = logos::read(stream, m);
-        if(error)
-        {
-            return;
-        }
-        new (&map) ParicipationMap(le64toh(m));
-
-        error = logos::read(stream, sig);
-        if(error)
-        {
-            return;
-        }
-    }
+    AggSignature(bool & error, logos::stream & stream);
 
     void Hash(blake2b_state & hash) const
     {
@@ -146,36 +126,36 @@ static constexpr uint32_t MessagePrequelSize = 8;
 template<MessageType MT, ConsensusType CT>
 struct MessagePrequel
 {
-    //    static const uint32_t STREAM_SIZE = 8;
-
     MessagePrequel(uint8_t version = logos_version)
     : version(version)
-    //    , type(MT)
-    //    , consensus_type(CT)
     {}
 
     MessagePrequel(bool & error, logos::stream & stream)
     {
         if(error)
         {
+            std::cout << __func__ << " begin";
             return;
         }
 
         error = logos::read(stream, const_cast<uint8_t &>(version));
         if(error)
         {
+            std::cout << __func__ << " version";
             return;
         }
 
         error = logos::read(stream, const_cast<MessageType &>(type));
         if(error)
         {
+            std::cout << __func__ << " type";
             return;
         }
 
         error = logos::read(stream, const_cast<ConsensusType &>(consensus_type));
         if(error)
         {
+            std::cout << __func__ << " consensus_type";
             return;
         }
 
@@ -183,12 +163,14 @@ struct MessagePrequel
         error = logos::read(stream, pad);
         if(error)
         {
+            std::cout << __func__ << " pad";
             return;
         }
 
         error = logos::read(stream, payload_size);
         if(error)
         {
+            std::cout << __func__ << " payload_size";
             return;
         }
         payload_size = le32toh(payload_size);
@@ -217,8 +199,6 @@ struct MessagePrequel
         s += logos::write(stream, pad);
         s += logos::write(stream, htole32(payload_size));
 
-        //        std::cout << __func__ << " payload_size=" << payload_size << " "
-        //                << htole32(payload_size) << std::endl;
         assert(s == MessagePrequelSize);
         return MessagePrequelSize;
     }
@@ -250,52 +230,7 @@ struct PrePrepareCommon
     , preprepare_sig()
     { }
 
-    PrePrepareCommon(bool & error, logos::stream & stream)
-    {
-        if(error)
-        {
-            return;
-        }
-
-        error = logos::read(stream, delegate);
-        if(error)
-        {
-            return;
-        }
-
-        error = logos::read(stream, epoch_number);
-        if(error)
-        {
-            return;
-        }
-        epoch_number = le32toh(epoch_number);
-
-        error = logos::read(stream, sequence);
-        if(error)
-        {
-            return;
-        }
-        sequence = le32toh(sequence);
-
-        error = logos::read(stream, timestamp);
-        if(error)
-        {
-            return;
-        }
-        timestamp = le64toh(timestamp);
-
-        error = logos::read(stream, previous);
-        if(error)
-        {
-            return;
-        }
-
-        error = logos::read(stream, preprepare_sig);
-        if(error)
-        {
-            return;
-        }
-    }
+    PrePrepareCommon(bool & error, logos::stream & stream);
 
     PrePrepareCommon & operator= (const PrePrepareCommon & other)
     {

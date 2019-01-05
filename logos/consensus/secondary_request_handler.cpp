@@ -113,9 +113,9 @@ void SecondaryRequestHandler<CT>::OnPostCommit(const PrePrepare & message)
 template<ConsensusType CT>
 void SecondaryRequestHandler<CT>::ScheduleTimer(const Seconds & timeout)
 {
-    _timer.expires_from_now(timeout);
-    _timer.async_wait(std::bind(&SecondaryRequestHandler::OnTimeout, this,
-                                std::placeholders::_1));
+//    _timer.expires_from_now(timeout);
+//    _timer.async_wait(std::bind(&SecondaryRequestHandler::OnTimeout, this,
+//                                std::placeholders::_1));
 }
 
 template <ConsensusType CT>

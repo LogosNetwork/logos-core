@@ -133,6 +133,7 @@ protected:
     void QueueRequest(std::shared_ptr<Request>);
 
     virtual PrePrepare & PrePrepareGetNext() = 0;
+    virtual PrePrepare & PrePrepareGetCurr() = 0;
 
     virtual void PrePreparePopFront() {};
     virtual void QueueRequestPrimary(std::shared_ptr<Request>) = 0;

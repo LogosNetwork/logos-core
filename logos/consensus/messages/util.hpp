@@ -151,3 +151,6 @@ std::ostream& operator<<(std::ostream& os, const RejectionMessage<CT>& m)
     os << static_cast<MessagePrequel<MessageType::Rejection, CT> &>(m);
     return os;
 }
+
+//Peng debug
+std::string to_string (const std::vector<uint8_t> & buf);

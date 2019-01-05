@@ -71,6 +71,8 @@ protected:
     ///     @return reference to MicroBlock
     PrePrepare & PrePrepareGetNext() override;
 
+    PrePrepare & PrePrepareGetCurr() override;
+
     ///< Pops the MicroBlock from the queue
     void PrePreparePopFront() override;
 

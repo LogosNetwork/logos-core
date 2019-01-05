@@ -13,7 +13,7 @@ NetIOAssembler::NetIOAssembler(std::shared_ptr<Socket> socket,
 
 void NetIOAssembler::ReadPrequel(ReadCallback callback)
 {
-    ReadBytes(callback, sizeof(Prequel));
+    ReadBytes(callback, MessagePrequelSize);
 }
 
 void NetIOAssembler::ReadBytes(ReadCallback callback, size_t bytes)
@@ -56,6 +56,8 @@ void NetIOAssembler::AsyncRead()
 
 void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size)
 {
+    LOG_DEBUG(_log) << "#grep# NetIOAssembler::OnData tid=" << std::this_thread::get_id() << " size=" << size;
+
     if(error)
     {
         // cancelled at the end of epoch transition
