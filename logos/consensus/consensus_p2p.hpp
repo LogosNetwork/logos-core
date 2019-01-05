@@ -50,6 +50,7 @@ public:
 private:
     void RetryValidate(const logos::block_hash &hash);
     bool ApplyCacheUpdates(const PrePrepareMessage<CT> &message, uint8_t delegate_id, ValidationStatus &status);
+    void CacheInsert(const logos::block_hash & hash, uint8_t delegate_id, const PrePrepareMessage<CT> & message);
     MessageHeader<MessageType::Pre_Prepare, CT>* deserialize(const uint8_t *data, uint32_t size, PrePrepareMessage<CT> &block);
 
     Log                                                                             _log;

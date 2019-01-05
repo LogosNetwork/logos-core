@@ -149,6 +149,16 @@ void ConsensusP2p<CT>::RetryValidate(const logos::block_hash &hash)
     }
 }		
 
+template<ConsensusType CT>
+void ConsensusP2p<CT>::CacheInsert(
+        const logos::block_hash & hash,
+        uint8_t delegate_id,
+        const PrePrepareMessage<CT> & message)
+{
+    std::lock_guard<std::mutex> lock(_cache_mutex);
+    _cache.insert(std::make_pair(hash, std::make_pair(delegate_id, message)));
+}
+
 template<>
 bool ConsensusP2p<ConsensusType::BatchStateBlock>::ApplyCacheUpdates(
         const PrePrepareMessage<ConsensusType::BatchStateBlock> &message,
@@ -168,9 +178,7 @@ bool ConsensusP2p<ConsensusType::BatchStateBlock>::ApplyCacheUpdates(
             return true;
 
         case logos::process_result::gap_previous:
-            _cache_mutex.lock();
-            _cache.insert(std::make_pair(message.previous, std::make_pair(delegate_id, message)));
-            _cache_mutex.unlock();
+            CacheInsert(message.previous, delegate_id, message);
             return false;
 
         case logos::process_result::invalid_request:
@@ -178,10 +186,7 @@ bool ConsensusP2p<ConsensusType::BatchStateBlock>::ApplyCacheUpdates(
             {
                 if (status.requests[i] == logos::process_result::gap_previous)
                 {
-                    _cache_mutex.lock();
-                    _cache.insert(std::make_pair(message.blocks[i].hashables.previous,
-                            std::make_pair(delegate_id, message)));
-                    _cache_mutex.unlock();
+                    CacheInsert(message.blocks[i].hashables.previous, delegate_id, message);
                 }
             }
             return false;
@@ -205,9 +210,7 @@ bool ConsensusP2p<ConsensusType::MicroBlock>::ApplyCacheUpdates(
             return true;
 
         case logos::process_result::gap_previous:
-            _cache_mutex.lock();
-            _cache.insert(std::make_pair(message.previous, std::make_pair(delegate_id, message)));
-            _cache_mutex.unlock();
+            CacheInsert(message.previous, delegate_id, message);
             return false;
 
         case logos::process_result::invalid_request:
@@ -215,10 +218,7 @@ bool ConsensusP2p<ConsensusType::MicroBlock>::ApplyCacheUpdates(
             {
                 if (status.requests[i] == logos::process_result::gap_previous)
                 {
-                    _cache_mutex.lock();
-                    _cache.insert(std::make_pair(message.tips[i],
-                            std::make_pair(delegate_id, message)));
-                    _cache_mutex.unlock();
+                    CacheInsert(message.tips[i], delegate_id, message);
                 }
             }
             return false;
@@ -242,15 +242,11 @@ bool ConsensusP2p<ConsensusType::Epoch>::ApplyCacheUpdates(
             return true;
 
         case logos::process_result::gap_previous:
-            _cache_mutex.lock();
-            _cache.insert(std::make_pair(message.previous, std::make_pair(delegate_id, message)));
-            _cache_mutex.unlock();
+            CacheInsert(message.previous, delegate_id, message);
             return false;
 
         case logos::process_result::invalid_tip:
-            _cache_mutex.lock();
-            _cache.insert(std::make_pair(message.micro_block_tip, std::make_pair(delegate_id, message)));
-            _cache_mutex.unlock();
+            CacheInsert(message.micro_block_tip, delegate_id, message);
             return false;
 
         default:
