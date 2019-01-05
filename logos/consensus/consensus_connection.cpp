@@ -189,7 +189,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
         HandlePrePrepare(message);
         SendMessage<PrepareMessage<CT>>();
 
-        _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(MessageType::Pre_Prepare), MessageType::Pre_Prepare);
+        _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), GetPayloadSize(), MessageType::Pre_Prepare);
     }
     else
     {

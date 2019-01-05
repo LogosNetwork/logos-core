@@ -24,7 +24,12 @@
 
 class p2p_standalone : public p2p_interface {
 	virtual bool ReceiveMessageCallback(const void *message, unsigned size) {
-		printf("\nReceived %3d: %.*s\nType message: ", size, size, (const char *)message);
+        printf("\nReceived %4d:", size);
+        if (size && *(const uint8_t *)message >= ' ')
+            printf(" %.*s", size, (const char *)message);
+        else for (int i = 0; i < 32 && i < size; ++i)
+            printf(" %02x", ((const uint8_t *)message)[i]);
+        printf("\nType message: ");
 		fflush(stdout);
 		return true;
 	}
@@ -93,8 +98,9 @@ int main(int argc, char **argv) {
 	config.boost_io_service = &io_service;
 	config.scheduleAfterMs = std::bind(&::scheduleAfterMs, std::placeholders::_1, std::placeholders::_2);
 	config.userInterfaceMessage = [](int type, const char *mess){
-		std::cout << (type & P2P_UI_INIT ? "init " : "")
-			<< (type & P2P_UI_ERROR ? "error" : type & P2P_UI_WARNING ? "warning" : "message") << ": " << mess << std::endl;
+        printf("\n%s%s: %s\nType message: ", (type & P2P_UI_INIT ? "init " : ""),
+            (type & P2P_UI_ERROR ? "error" : type & P2P_UI_WARNING ? "warning" : "message"), mess);
+        fflush(stdout);
 	};
 
 	err = mdb_env_create(&config.lmdb_env);
