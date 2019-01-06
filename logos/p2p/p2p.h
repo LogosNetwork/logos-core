@@ -8,6 +8,7 @@
 #define _P2P_H_INCLUDED
 
 #include <functional>
+#include <memory>
 
 class p2p_internal;
 
@@ -44,13 +45,9 @@ enum p2p_option_flags
 class p2p_interface
 {
 private:
-    p2p_internal *      p2p;
+    std::shared_ptr<p2p_internal>   p2p;
 
 public:
-    p2p_interface()
-        : p2p(0)
-    {}
-
     ~p2p_interface()
     {
         Shutdown();

@@ -645,7 +645,7 @@ bool p2p_interface::Init(p2p_config &config)
     uiInterface.config = &config;
     SetupEnvironment();
 
-    p2p = new p2p_internal(*this, config);
+    p2p = std::make_shared<p2p_internal>(*this, config);
     if (!p2p)
     {
         return false;
