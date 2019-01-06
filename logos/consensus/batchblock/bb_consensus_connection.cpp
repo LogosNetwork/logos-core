@@ -311,12 +311,4 @@ BBConsensusConnection::CleanUp()
     _cancel_timer = true;
 }
 
-//template<>
-//template<>
-//void
-//ConsensusConnection<ConsensusType::BatchStateBlock>::UpdateMessage(Rejection & message)
-//{
-//    static_cast<BBConsensusConnection *>(this)
-//            ->DoUpdateMessage(message);
-//}
-//
+

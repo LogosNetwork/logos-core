@@ -155,7 +155,6 @@ ConsensusNetIO::OnConnect(
             _local_delegate_id,
             _epoch_info.GetConnection(),
             _endpoint.address().to_string().c_str());
-    //assert(_endpoint.address().to_string().size() == INET6_ADDRSTRLEN);
     std::vector<uint8_t> buf;
     ids->Serialize(buf);
     boost::asio::async_write(*_socket, boost::asio::buffer(buf.data(), buf.size()),
@@ -199,10 +198,10 @@ ConsensusNetIO::AsyncRead(size_t bytes,
 void
 ConsensusNetIO::OnPrequal(const uint8_t * data)
 {
-    LOG_DEBUG(_log) << "#grep# ConsensusNetIO::OnPrequal"
-            << " tid=" << std::this_thread::get_id()
-            << " this " << (uint64_t)this
-            << " data=" << (uint64_t)data;
+    //    LOG_DEBUG(_log) << "ConsensusNetIO::OnPrequal"
+    //            << " tid=" << std::this_thread::get_id()
+    //            << " this " << (uint64_t)this
+    //            << " data=" << (uint64_t)data;
 
     bool error = false;
     logos::bufferstream stream(data, MessagePrequelSize);
@@ -217,28 +216,19 @@ ConsensusNetIO::OnPrequal(const uint8_t * data)
     {
         HandleMessageError("Wrong message size");
     }
-    LOG_DEBUG(_log) << __func__ << " Peng"
-            << " tid=" << std::this_thread::get_id()
-            << " version=" << (uint)msg_prequel.version
-            << " type=" << (uint)msg_prequel.type
-            << " consensus=" << (uint)msg_prequel.consensus_type
-            << " payload=" << msg_prequel.payload_size;
 
-//    if(msg_prequel.payload_size == 0)
-//    {
-        std::vector<uint8_t> temp(data, data+MessagePrequelSize);
-        LOG_DEBUG(_log) << __func__ << " Peng"
-                << " tid=" << std::this_thread::get_id()
-                << " print buf " << to_string(temp);
-    //}
-
-    _assembler.ReadBytes(std::bind(&ConsensusNetIO::OnData, this,
-                                               std::placeholders::_1,
-                                               msg_prequel.version,
-                                               msg_prequel.type,
-                                               msg_prequel.consensus_type,
-                                               msg_prequel.payload_size),
-            msg_prequel.payload_size);
+    if(msg_prequel.payload_size == 0)
+    {
+        _assembler.ReadBytes(std::bind(&ConsensusNetIO::OnData, this,
+                                                   std::placeholders::_1,
+                                                   msg_prequel.version,
+                                                   msg_prequel.type,
+                                                   msg_prequel.consensus_type,
+                                                   msg_prequel.payload_size),
+                msg_prequel.payload_size);
+    }else{
+        ReadPrequel();
+    }
 }
 
 void
@@ -248,17 +238,17 @@ ConsensusNetIO::OnData(const uint8_t * data,
         ConsensusType consensus_type,
         uint32_t payload_size)
 {
-    LOG_DEBUG(_log) << "#grep# ConsensusNetIO::OnData"
-            << " tid=" << std::this_thread::get_id()
-            << " this " << (uint64_t)this
-            << " data=" << (uint64_t)data;
-
-    LOG_DEBUG(_log) << __func__ << " Peng"
-            << " tid=" << std::this_thread::get_id()
-            << " version=" << (int)version
-            << " type=" << (int)message_type
-            << " consensus=" << (int)consensus_type
-            << " payload=" << payload_size;
+    //    LOG_DEBUG(_log) << "#grep# ConsensusNetIO::OnData"
+    //            << " tid=" << std::this_thread::get_id()
+    //            << " this " << (uint64_t)this
+    //            << " data=" << (uint64_t)data;
+    //
+    //    LOG_DEBUG(_log) << __func__ << " Peng"
+    //            << " tid=" << std::this_thread::get_id()
+    //            << " version=" << (int)version
+    //            << " type=" << (int)message_type
+    //            << " consensus=" << (int)consensus_type
+    //            << " payload=" << payload_size;
 
     bool error = false;
     logos::bufferstream stream(data, payload_size);
@@ -443,12 +433,6 @@ ConsensusNetIO::OnHeartBeat(HeartBeat &heartbeat)
         heartbeat.is_request = false;
         std::vector<uint8_t> buf;
         heartbeat.Serialize(buf);
-        LOG_DEBUG(_log) << __func__ << " Peng print buf " << to_string(buf);
-
-//        {//Peng debug
-//            usleep(rand() % 1000000);
-//        }
-
         Send(buf.data(), buf.size());
     }
 }

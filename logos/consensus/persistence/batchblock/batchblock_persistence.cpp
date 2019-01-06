@@ -33,9 +33,11 @@ void PersistenceManager<BSBCT>::ApplyUpdates(
     //       intermediate transactions to the database.
 
     auto batch_hash = message.Hash();
+    uint16_t count = 0;
     for(auto & i : message.blocks)
     {
         i.batch_hash = batch_hash;
+        i.index_in_batch = count++;
     }
 
     logos::transaction transaction(_store.environment, nullptr, true);
@@ -71,6 +73,14 @@ bool PersistenceManager<BSBCT>::Validate(
     // Account exists.
     if(!account_error)
     {
+        //sequence number
+        if(info.block_count != block.sequence)
+        {
+            result.code = logos::process_result::wrong_sequence_number;
+            LOG_INFO(_log) << "wrong_sequence_number, request sqn="<<block.sequence
+                    << " expecting=" << info.block_count;
+            return false;
+        }
         // No previous block set.
         if(block.previous.is_zero() && info.block_count)
         {
@@ -122,7 +132,7 @@ bool PersistenceManager<BSBCT>::Validate(
         }
 
         // TODO
-        uint64_t current_epoch = 0;
+        uint32_t current_epoch = 0;
 
         auto update_reservation = [&info, &hash, current_epoch]()
                                   {
@@ -398,7 +408,7 @@ void PersistenceManager<BSBCT>::UpdateDestinationState(
             std::exit(EXIT_FAILURE);
         }
 
-        PlaceReceive(receive, transaction);
+        PlaceReceive(receive, timestamp, transaction);
     }
 }
 
@@ -406,46 +416,81 @@ void PersistenceManager<BSBCT>::UpdateDestinationState(
 //TODO discuss, total order of receives in receive_db of all nodes
 void PersistenceManager<BSBCT>::PlaceReceive(
         ReceiveBlock & receive,
+        uint64_t timestamp,
         MDB_txn * transaction)
 {
-    auto hash = receive.Hash();
+    ReceiveBlock prev;
+    ReceiveBlock cur;
 
-    //    ReceiveBlock prev;
-    //ReceiveBlock cur;
-    //    if(!receive.previous.is_zero())
-    //    {
-    //        if(!_store.receive_get(receive.previous, prev, transaction))
-    //        {
-    //
-    //            //            // Returns true if 'a' should precede 'b'
-    //            //            // in the receive chain.
-    //            //            auto receive_cmp = [](const ReceiveBlock & a,
-    //            //                                  const ReceiveBlock & b)
-    //            //                                  {
-    //            //                                      return a.Hash() < b.Hash();
-    //            //                                  };
-    //            //
-    //            //            while(receive_cmp(receive, cur))
-    //            //            {
-    //            //                prev = cur;
-    //            //                if(!_store.receive_get(cur.previous,
-    //            //                                           cur,
-    //            //                                           transaction))
-    //            //                {
-    //            //                    break;
-    //            //                }
-    //            //            }
-    //            //
-    //            //            if(!prev.account.is_zero())
-    //            //            {
-    //            //                std::memcpy(receive.hashables.previous.bytes.data(),
-    //            //                            prev.hashables.previous.bytes.data(),
-    //            //                            sizeof(receive.hashables.previous.bytes));
-    //            //
-    //            //                prev.hashables.previous = hash;
-    //            //            }
-    //        }
-    //    }
+    auto hash = receive.Hash();
+    uint64_t timestamp_a = timestamp;
+
+    if(!_store.receive_get(receive.previous, cur, transaction))
+    {
+        // Returns true if 'a' should precede 'b'
+        // in the receive chain.
+        auto receive_cmp = [&](const ReceiveBlock & a,
+                              const ReceiveBlock & b)
+                              {
+            //need b's timestamp
+            StateBlock sb;
+            if(! _store.state_block_get(b.send_hash, sb, transaction))
+            {
+                LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
+                                        << "Failed to get a previous state block with hash: "
+                                        << b.send_hash.to_string();
+                trace_and_halt();
+            }
+
+            ApprovedBSB absb;
+            if(! _store.batch_block_get(sb.batch_hash, absb, transaction))
+            {
+                LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
+                                        << "Failed to get a previous batch state block with hash: "
+                                        << sb.batch_hash.to_string();
+                trace_and_halt();
+            }
+
+            auto timestamp_b = absb.timestamp;
+            bool a_is_less;
+            if(timestamp_a != timestamp_b)
+            {
+                a_is_less = timestamp_a < timestamp_b;
+            }else
+            {
+                a_is_less = a.Hash() < b.Hash();
+            }
+
+            timestamp_a = timestamp_b;//update for next compare if needed
+            return a_is_less;
+                              };
+
+        while(receive_cmp(receive, cur))
+        {
+            prev = cur;
+            if(!_store.receive_get(cur.previous,
+                                       cur,
+                                       transaction))
+            {
+                break;
+            }
+        }
+
+
+        StateBlock sb_prev;
+        if(! _store.state_block_get(prev.send_hash, sb_prev, transaction))
+        {
+            LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
+                                    << "Failed to get a previous state block with hash: "
+                                    << prev.send_hash.to_string();
+            trace_and_halt();
+        }
+        if(!sb_prev.account.is_zero())
+        {
+            receive.previous = prev.previous;
+            prev.previous = hash;
+        }
+    }
 
     if(_store.receive_put(hash, receive, transaction))
     {

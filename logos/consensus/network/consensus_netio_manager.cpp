@@ -59,7 +59,6 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
     }
 
     ScheduleTimer(HEARTBEAT);
-    srand (_delegate_id);//Peng debug
 }
 
 ConsensusNetIOManager::~ConsensusNetIOManager()
@@ -222,57 +221,8 @@ ConsensusNetIOManager::OnTimeout(
                                     << (int) it->GetRemoteDelegateId();
 
                     std::vector<uint8_t> buf;
-//                    LOG_DEBUG(_log) << __func__ << " print buf "
-//                                                << "1 " << to_string(buf);
-
                     heartbeat.Serialize(buf);
-                    LOG_DEBUG(_log) << __func__ << " Peng print buf " << to_string(buf);
-
-//                    {//Peng debug
-//
-//                        LOG_DEBUG(_log) << __func__ << " Peng "
-//                                                        << " version=" << (uint)heartbeat.version
-//                                                        << " type=" << (uint)heartbeat.type
-//                                                        << " consensus=" << (uint)heartbeat.consensus_type
-//                                                        << " payload=" << heartbeat.payload_size;
-//
-//                        std::vector<uint8_t> temp(buf);
-//
-//                        LOG_DEBUG(_log) << __func__ << " print buf temp "
-//                                << "3 " << to_string(temp);
-//
-//                        logos::bufferstream stream(temp.data(), MessagePrequelSize);
-//
-//                        LOG_DEBUG(_log) << __func__ << " print buf temp "
-//                                << "4 " << to_string(temp);
-//
-//                        bool error = false;
-//                        Prequel msg_prequel(error, stream);
-//                        LOG_DEBUG(_log) << __func__ << " print buf temp "
-//                                << "5 " << to_string(temp);
-//
-//                        if(error)
-//                            LOG_DEBUG(_log) << __func__ << " Peng deserialize prequel error ";
-//
-//                        LOG_DEBUG(_log) << __func__ << " Peng "
-//                                << " version=" << (uint)msg_prequel.version
-//                                << " type=" << (uint)msg_prequel.type
-//                                << " consensus=" << (uint)msg_prequel.consensus_type
-//                                << " payload=" << msg_prequel.payload_size;
-//
-//                        LOG_DEBUG(_log) << __func__ << " print buf temp "
-//                                << "6 " << to_string(temp);
-//                        assert(msg_prequel.version==0);
-//                        assert(msg_prequel.type==MessageType::Heart_Beat);
-//                        assert(msg_prequel.consensus_type==ConsensusType::Any);
-//                        assert(msg_prequel.payload_size==1u);
-//                    }
-
-            //                    {//Peng debug
-            //                        usleep(rand() % 1000000);
-            //                    }
                     it->Send(buf.data(), buf.size());
-
                 }
             }
         }

@@ -56,8 +56,6 @@ void NetIOAssembler::AsyncRead()
 
 void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size)
 {
-    LOG_DEBUG(_log) << "#grep# NetIOAssembler::OnData tid=" << std::this_thread::get_id() << " size=" << size;
-
     if(error)
     {
         // cancelled at the end of epoch transition

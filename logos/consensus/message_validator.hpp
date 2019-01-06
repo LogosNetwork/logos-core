@@ -58,16 +58,6 @@ public:
             return false;
         }
 
-        //        {//Peng debug
-        //            std::string keystring;
-        //            _keys.GetPublicKey(delegate_id).serialize(keystring);
-        //            DelegatePubKey pk;
-        //            memcpy(pk.data(), keystring.data(), CONSENSUS_PUB_KEY_SIZE);
-        //
-        //            LOG_INFO(_log) << "MessageValidator pub_key " << pk.to_string()
-        //                        << " id " << (uint)delegate_id;
-        //        }
-
         //verify
         return sig_real.verify(_keys.GetPublicKey(delegate_id), hash_str);
     }

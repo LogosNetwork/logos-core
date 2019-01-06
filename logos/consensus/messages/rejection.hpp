@@ -96,15 +96,16 @@ struct RejectionMessage
         return s;
     }
 
-    void Serialize(std::vector<uint8_t> & t) const
+    void Serialize(std::vector<uint8_t> & buf) const
     {
+        assert(buf.empty());
         {
-            logos::vectorstream stream(t);
+            logos::vectorstream stream(buf);
             MessagePrequel<MessageType::Rejection, CT>::payload_size = Serialize(stream)
                     - MessagePrequelSize;
         }
         {
-            HeaderStream header_stream(t.data(), MessagePrequelSize);
+            HeaderStream header_stream(buf.data(), MessagePrequelSize);
             MessagePrequel<MessageType::Rejection, CT>::Serialize(header_stream);
         }
     }

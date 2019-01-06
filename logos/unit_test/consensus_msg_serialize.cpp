@@ -2,13 +2,13 @@
 #include <fstream>
 #include <gtest/gtest.h>
 #include <ed25519-donna/ed25519.h>
+#include <vector>
 
 #include <logos/node/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/messages/rejection.hpp>
 #include <logos/unit_test/msg_validator_setup.hpp>
 
-#include <vector>
 using namespace std;
 
 
@@ -47,7 +47,7 @@ TEST (crypto, blake2b)
     ASSERT_NE(b, c);
 }
 
-
+#if 0
 TEST (crypto, bls)
 {
     auto nodes = setup_nodes();
@@ -193,7 +193,7 @@ TEST (write_read, all)
     ASSERT_EQ(amount, amount2);
     ASSERT_EQ(ui64, ui642);
 }
-
+#endif
 
 TEST (messages, KeyAdvertisement)
 {
@@ -356,7 +356,6 @@ TEST (blocks, state_block)
 
     std::vector<uint8_t> buf;
     auto db_val = block.to_mdb_val(buf);
-    //std::cout << "buf.size=" << buf.size() << std::endl;
 
     bool error = false;
     StateBlock block2(error, db_val);
@@ -369,7 +368,7 @@ TEST (blocks, state_block)
 }
 
 
-void create_StateBlock(StateBlock & block)
+void create_real_StateBlock(StateBlock & block)
 {
     logos::keypair pair(std::string("34F0A37AAD20F4A260F0A5B3CB3D7FB50673212263E58A380BC10474BB039CE4"));
     Amount amount(std::numeric_limits<logos::uint128_t>::max());
@@ -395,7 +394,7 @@ void create_StateBlock(StateBlock & block)
 TEST (blocks, state_block_json)
 {
     StateBlock block;
-    create_StateBlock(block);
+    create_real_StateBlock(block);
     auto s(block.SerializeJson(true, true));
 
     // std::cout << "StateBlock1 json: " << s << std::endl;
@@ -416,9 +415,21 @@ TEST (blocks, state_block_json)
     ASSERT_EQ(block2.Hash(), block2.GetHash());
 }
 
-TEST (blocks, batch_state_block_PrePrepare_empty)
+PrePrepareMessage<ConsensusType::BatchStateBlock>
+create_bsb_preprepare(uint16_t num_sb)
 {
     PrePrepareMessage<ConsensusType::BatchStateBlock> block;
+    for(uint32_t i = 0; i < num_sb; ++i)
+    {
+        block.AddStateBlock(StateBlock(1,2,i,StateBlock::Type::send,5,6,7,8,9));
+    }
+
+    return block;
+}
+
+TEST (blocks, batch_state_block_PrePrepare_empty)
+{
+    auto block = create_bsb_preprepare(0);
     vector<uint8_t> buf;
     block.Serialize(buf);
 
@@ -430,15 +441,9 @@ TEST (blocks, batch_state_block_PrePrepare_empty)
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
 
-//TODO template the block filler functions
-
-TEST (blocks, batch_state_block_PrePrepare)
+TEST (blocks, batch_state_block_PrePrepare_full)
 {
-    PrePrepareMessage<ConsensusType::BatchStateBlock> block;
-    for(uint32_t i = 0; i < CONSENSUS_BATCH_SIZE; ++i)
-    {
-        ASSERT_TRUE(block.AddStateBlock(StateBlock(1,2,i,StateBlock::Type::send,5,6,7,8,9)));
-    }
+    auto block = create_bsb_preprepare(CONSENSUS_BATCH_SIZE);
     ASSERT_FALSE(block.AddStateBlock(StateBlock(1,2,CONSENSUS_BATCH_SIZE+1,StateBlock::Type::send,5,6,7,8,9)));
     ASSERT_EQ(block.block_count, CONSENSUS_BATCH_SIZE);
     vector<uint8_t> buf;
@@ -452,18 +457,24 @@ TEST (blocks, batch_state_block_PrePrepare)
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
 
+template<ConsensusType CT>
+PostCommittedBlock<CT> create_approved_block(PrePrepareMessage<CT> & preperpare)
+{
+    AggSignature    post_prepare_sig;
+    AggSignature    post_commit_sig;
+
+    post_prepare_sig.map = 12;
+    post_prepare_sig.sig = 34;
+    post_commit_sig.map = 56;
+    post_commit_sig.sig = 78;
+
+    return PostCommittedBlock<CT>(preperpare, post_prepare_sig, post_commit_sig);
+}
+
 TEST (blocks, batch_state_block_PostCommit_net)
 {
-    PostCommittedBlock<ConsensusType::BatchStateBlock> block;
-    for(uint32_t i = 0; i < CONSENSUS_BATCH_SIZE/3/* /3 so not a full block*/; ++i)
-    {
-        ASSERT_TRUE(block.AddStateBlock(StateBlock(1,2,i,StateBlock::Type::send,5,6,7,8,9)));
-    }
-    block.post_prepare_sig.map = 12;
-    block.post_prepare_sig.sig = 34;
-    block.post_commit_sig.map = 56;
-    block.post_commit_sig.sig = 78;
-    block.next = 90;
+    auto block_pp = create_bsb_preprepare(CONSENSUS_BATCH_SIZE/3);/* /3 so not a full block*/
+    auto block = create_approved_block<ConsensusType::BatchStateBlock>(block_pp);
 
     vector<uint8_t> buf;
     block.Serialize(buf, true, false);
@@ -478,15 +489,8 @@ TEST (blocks, batch_state_block_PostCommit_net)
 
 TEST (blocks, batch_state_block_PostCommit_DB)
 {
-    PostCommittedBlock<ConsensusType::BatchStateBlock> block;
-    for(uint16_t i = 0; i < CONSENSUS_BATCH_SIZE; ++i)
-    {
-        ASSERT_TRUE(block.AddStateBlock(StateBlock(1,2,i,StateBlock::Type::send,5,6,7,8,9)));
-    }
-    block.post_prepare_sig.map = 12;
-    block.post_prepare_sig.sig = 34;
-    block.post_commit_sig.map = 56;
-    block.post_commit_sig.sig = 78;
+    auto block_pp = create_bsb_preprepare(CONSENSUS_BATCH_SIZE/2);/* /2 so not a full block*/
+    auto block = create_approved_block<ConsensusType::BatchStateBlock>(block_pp);
     block.next = 90;
 
     vector<uint8_t> buf;
@@ -513,7 +517,8 @@ TEST (blocks, batch_state_block_PostCommit_DB)
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
 
-TEST (blocks, micro_block_PrePrepare)
+/////////////////////////////
+PrePrepareMessage<ConsensusType::MicroBlock> create_mb_preprepare()
 {
     PrePrepareMessage<ConsensusType::MicroBlock> block;
     block.last_micro_block = 1;
@@ -522,6 +527,12 @@ TEST (blocks, micro_block_PrePrepare)
     {
         block.tips[i] = i;
     }
+    return block;
+}
+
+TEST (blocks, micro_block_PrePrepare)
+{
+    auto block = create_mb_preprepare();
     vector<uint8_t> buf;
     block.Serialize(buf);
 
@@ -535,18 +546,8 @@ TEST (blocks, micro_block_PrePrepare)
 
 TEST (blocks, micro_block_PostCommit_net)
 {
-    PostCommittedBlock<ConsensusType::MicroBlock> block;
-    block.last_micro_block = 1;
-    block.number_batch_blocks = 2;
-    for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
-    {
-        block.tips[i] = i;
-    }
-    block.post_prepare_sig.map = 12;
-    block.post_prepare_sig.sig = 34;
-    block.post_commit_sig.map = 56;
-    block.post_commit_sig.sig = 78;
-    block.next = 90;
+    auto block_pp = create_mb_preprepare();
+    auto block = create_approved_block<ConsensusType::MicroBlock>(block_pp);
 
     vector<uint8_t> buf;
     block.Serialize(buf, true, false);
@@ -561,17 +562,8 @@ TEST (blocks, micro_block_PostCommit_net)
 
 TEST (blocks, micro_block_PostCommit_DB)
 {
-    PostCommittedBlock<ConsensusType::MicroBlock> block;
-    block.last_micro_block = 1;
-    block.number_batch_blocks = 2;
-    for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
-    {
-        block.tips[i] = i;
-    }
-    block.post_prepare_sig.map = 12;
-    block.post_prepare_sig.sig = 34;
-    block.post_commit_sig.map = 56;
-    block.post_commit_sig.sig = 78;
+    auto block_pp = create_mb_preprepare();
+    auto block = create_approved_block<ConsensusType::MicroBlock>(block_pp);
     block.next = 90;
 
     vector<uint8_t> buf;
@@ -583,8 +575,8 @@ TEST (blocks, micro_block_PostCommit_DB)
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
 
-
-TEST (blocks, epoch_block_PrePrepare)
+////////////////////////////////
+PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare()
 {
     PrePrepareMessage<ConsensusType::Epoch> block;
     block.micro_block_tip = 1234;
@@ -593,6 +585,12 @@ TEST (blocks, epoch_block_PrePrepare)
     {
         block.delegates[i] = {i, i, i, i};
     }
+    return block;
+}
+
+TEST (blocks, epoch_block_PrePrepare)
+{
+    auto block = create_eb_preprepare();
 
     vector<uint8_t> buf;
     block.Serialize(buf);
@@ -607,18 +605,8 @@ TEST (blocks, epoch_block_PrePrepare)
 
 TEST (blocks, epoch_block_PostCommit_net)
 {
-    PostCommittedBlock<ConsensusType::Epoch> block;
-    block.micro_block_tip = 1234;
-    block.transaction_fee_pool = 2345;
-    for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
-    {
-        block.delegates[i] = {i, i, i, i};
-    }
-    block.post_prepare_sig.map = 12;
-    block.post_prepare_sig.sig = 34;
-    block.post_commit_sig.map = 56;
-    block.post_commit_sig.sig = 78;
-    block.next = 90;
+    auto block_pp = create_eb_preprepare();
+    auto block = create_approved_block<ConsensusType::Epoch>(block_pp);
 
     vector<uint8_t> buf;
     block.Serialize(buf, true, false);
@@ -633,17 +621,8 @@ TEST (blocks, epoch_block_PostCommit_net)
 
 TEST (blocks, epoch_block_PostCommit_DB)
 {
-    PostCommittedBlock<ConsensusType::Epoch> block;
-    block.micro_block_tip = 1234;
-    block.transaction_fee_pool = 2345;
-    for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
-    {
-        block.delegates[i] = {i, i, i, i};
-    }
-    block.post_prepare_sig.map = 12;
-    block.post_prepare_sig.sig = 34;
-    block.post_commit_sig.map = 56;
-    block.post_commit_sig.sig = 78;
+    auto block_pp = create_eb_preprepare();
+    auto block = create_approved_block<ConsensusType::Epoch>(block_pp);
     block.next = 90;
 
     vector<uint8_t> buf;
@@ -655,7 +634,7 @@ TEST (blocks, epoch_block_PostCommit_DB)
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
 
-
+#if 0
 TEST (message_validator, consensus_session)
 {
     auto nodes = setup_nodes();
@@ -867,5 +846,66 @@ TEST (message_validator, signature_order_twoThirds)
             ASSERT_TRUE(validator.Validate(preprepare_hash, postprepare.signature));
         }
     }
+}
+#endif
+
+TEST (DB, bsb)
+{
+    auto store = get_db();
+    ASSERT_TRUE(store != NULL);
+    if(store == NULL)
+        return;
+    logos::transaction txn(store->environment, nullptr, true);
+
+    auto block_pp = create_bsb_preprepare(CONSENSUS_BATCH_SIZE/2);
+    auto block = create_approved_block<ConsensusType::BatchStateBlock>(block_pp);
+    block.next = 90;
+
+    auto block_hash(block.Hash());
+    ASSERT_FALSE(store->batch_block_put(block, block_hash, txn));
+
+    ApprovedBSB block2;
+    ASSERT_FALSE(store->batch_block_get(block_hash, block2, txn));
+    ASSERT_EQ(block_hash, block2.Hash());
+}
+
+TEST (DB, mb)
+{
+    auto store = get_db();
+    ASSERT_TRUE(store != NULL);
+    if(store == NULL)
+        return;
+
+    logos::transaction txn(store->environment, nullptr, true);
+    auto block_pp = create_mb_preprepare();
+    auto block = create_approved_block<ConsensusType::MicroBlock>(block_pp);
+    block.next = 90;
+
+    ASSERT_FALSE(store->micro_block_put(block, txn));
+    auto block_hash(block.Hash());
+
+    ApprovedMB block2;
+    ASSERT_FALSE(store->micro_block_get(block_hash, block2, txn));
+    ASSERT_EQ(block_hash, block2.Hash());
+}
+
+TEST (DB, eb)
+{
+    auto store = get_db();
+    ASSERT_TRUE(store != NULL);
+    if(store == NULL)
+        return;
+
+    logos::transaction txn(store->environment, nullptr, true);
+    auto block_pp = create_eb_preprepare();
+    auto block = create_approved_block<ConsensusType::Epoch>(block_pp);
+    block.next = 90;
+
+    ASSERT_FALSE(store->epoch_put(block, txn));
+    auto block_hash(block.Hash());
+
+    ApprovedEB block2;
+    ASSERT_FALSE(store->epoch_get(block_hash, block2, txn));
+    ASSERT_EQ(block_hash, block2.Hash());
 }
 

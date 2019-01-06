@@ -52,6 +52,7 @@ private:
                                 MDB_txn * transaction);
 
     void PlaceReceive(ReceiveBlock & receive,
+                      uint64_t timestamp,
                       MDB_txn * transaction);
 
     static constexpr uint64_t  RESERVATION_PERIOD  = 2;

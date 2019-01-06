@@ -299,7 +299,7 @@ private:
     void HandleMessageError(const char * operation)
     {
         LOG_ERROR(_log) << "ConsensusNetIO Failed to " << operation;
-        //TODO discuss with team if need to disconnect
+        //TODO discuss if need to disconnect
     }
 
     std::shared_ptr<Socket>        _socket;               ///< Connected socket

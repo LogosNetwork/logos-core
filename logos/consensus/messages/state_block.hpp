@@ -90,6 +90,7 @@ struct ReceiveBlock
 
     logos::mdb_val to_mdb_val(std::vector<uint8_t> &buf) const
     {
+        assert(buf.empty());
         {
             logos::vectorstream stream(buf);
             Serialize(stream);
@@ -194,17 +195,6 @@ struct StateBlock
     StateBlock(bool & error_a, boost::property_tree::ptree const & tree_a,
             bool with_batch_hash = false, bool with_work = false);
 
-    StateBlock(const StateBlock & other)
-    : account(other.account)
-    , previous(other.previous)
-    , sequence(other.sequence)
-    , type(other.type)
-    , trans(other.trans)
-    , transaction_fee(other.transaction_fee)
-    , signature(other.signature)
-    , work(other.work)
-    , degest(other.degest)
-    {}
 
     StateBlock (bool & error, logos::stream & stream, bool with_batch_hash = false)
     {
@@ -283,6 +273,13 @@ struct StateBlock
             {
                 return;
             }
+            uint16_t idx;
+            error = logos::read(stream, idx);
+            if(error)
+            {
+                return;
+            }
+            index_in_batch = le16toh(idx);
         }
 
         Hash ();
@@ -376,13 +373,18 @@ struct StateBlock
         s += logos::write(stream, transaction_fee);
         s += logos::write(stream, signature);
         if(with_batch_hash)
+        {
             s += logos::write(stream, batch_hash);
+            uint16_t idx_le = htole16(index_in_batch);
+            s += logos::write(stream, idx_le);
+        }
 
         return s;
     }
 
     logos::mdb_val to_mdb_val(std::vector<uint8_t> & buf) const
     {
+        assert(buf.empty());
         {
             logos::vectorstream stream(buf);
             Serialize(stream, true);
@@ -406,6 +408,7 @@ struct StateBlock
 
     uint64_t work = 0;
     mutable BlockHash degest;
-    mutable BlockHash batch_hash;
+    mutable BlockHash batch_hash = 0;
+    mutable uint16_t index_in_batch = 0;
 };
 

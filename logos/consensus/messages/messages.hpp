@@ -11,10 +11,10 @@
 
 #include <arpa/inet.h>
 
+
 static constexpr size_t MAX_MSG_SIZE = 1024*1024;
 //The current largest message is a post-committed BSB with 1500 StateBlock,
 //each has 8 transactions. Its size is 850702;
-
 
 //ConsensusBlock definitions
 template<ConsensusType CT, typename E = void>
@@ -70,11 +70,15 @@ struct ConsensusBlock<CT,
 
 
 template<ConsensusType CT>
-struct PrePrepareMessage : public MessagePrequel<MessageType::Pre_Prepare, CT>, public ConsensusBlock<CT>
+struct PrePrepareMessage : public MessagePrequel<MessageType::Pre_Prepare, CT>,
+                           public ConsensusBlock<CT>
 {
     PrePrepareMessage() = default;
 
-    PrePrepareMessage(bool & error, logos::stream & stream, uint8_t version, bool with_appendix = true)
+    PrePrepareMessage(bool & error,
+            logos::stream & stream,
+            uint8_t version,
+            bool with_appendix = true)
     : MessagePrequel<MessageType::Pre_Prepare, CT>(version)
     , ConsensusBlock<CT>(error, stream, with_appendix)
     {}
@@ -90,15 +94,16 @@ struct PrePrepareMessage : public MessagePrequel<MessageType::Pre_Prepare, CT>, 
         ConsensusBlock<CT>::Hash(hash);
     }
 
-    void Serialize(std::vector<uint8_t> & t, bool with_appendix = true) const
+    void Serialize(std::vector<uint8_t> & buf, bool with_appendix = true) const
     {
+        assert(buf.empty());
         {
-            logos::vectorstream stream(t);
-            MessagePrequel<MessageType::Pre_Prepare, CT>::payload_size = Serialize(stream, with_appendix)
-                    - MessagePrequelSize;
+            logos::vectorstream stream(buf);
+            MessagePrequel<MessageType::Pre_Prepare, CT>::payload_size =
+                    Serialize(stream, with_appendix) - MessagePrequelSize;
         }
         {
-            HeaderStream header_stream(t.data(), MessagePrequelSize);
+            HeaderStream header_stream(buf.data(), MessagePrequelSize);
             MessagePrequel<MessageType::Pre_Prepare, CT>::Serialize(header_stream);
         }
     }
@@ -109,7 +114,6 @@ struct PrePrepareMessage : public MessagePrequel<MessageType::Pre_Prepare, CT>, 
                 ConsensusBlock<CT>::Serialize(stream, with_appendix);
     }
 
-    //TODO do we need this?
     void SerializeJson(boost::property_tree::ptree & tree) const
     {
         ConsensusBlock<CT>::SerializeJson(tree);
@@ -127,7 +131,8 @@ struct PrePrepareMessage : public MessagePrequel<MessageType::Pre_Prepare, CT>, 
 };
 
 template<ConsensusType CT>
-struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Block, CT>, public ConsensusBlock<CT>
+struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Block, CT>,
+                            public ConsensusBlock<CT>
 {
     AggSignature    post_prepare_sig;
     AggSignature    post_commit_sig;
@@ -179,6 +184,7 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
 
     logos::mdb_val to_mdb_val(std::vector<uint8_t> &buf) const
     {
+        assert(buf.empty());
         {
             logos::vectorstream stream(buf);
             Serialize(stream, false, true);
@@ -195,8 +201,7 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
     {
         MessagePrequel<MessageType::Post_Committed_Block, CT>::Hash(hash);
         ConsensusBlock<CT>::Hash(hash);
-        //TODO
-        //        pre_prepare_hash == post_commit_hash
+        //TODO discuss
         //        post_prepare_sig.Hash(hash);
         //        post_commit_sig.Hash(hash);
     }
@@ -230,15 +235,16 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
         return s;
     }
 
-    void Serialize(std::vector<uint8_t> & t, bool with_appendix, bool with_next) const
+    void Serialize(std::vector<uint8_t> & buf, bool with_appendix, bool with_next) const
     {
+        assert(buf.empty());
         {
-            logos::vectorstream stream(t);
-            MessagePrequel<MessageType::Post_Committed_Block, CT>::payload_size = Serialize(stream, with_appendix, with_next)
-                            - MessagePrequelSize;
+            logos::vectorstream stream(buf);
+            MessagePrequel<MessageType::Post_Committed_Block, CT>::payload_size =
+                    Serialize(stream, with_appendix, with_next) - MessagePrequelSize;
         }
         {
-            HeaderStream header_stream(t.data(), MessagePrequelSize);
+            HeaderStream header_stream(buf.data(), MessagePrequelSize);
             MessagePrequel<MessageType::Post_Committed_Block, CT>::Serialize(header_stream);
         }
     }
@@ -281,10 +287,11 @@ struct StandardPhaseMessage<MT, CT, typename std::enable_if<
         }
     }
 
-    void Serialize(std::vector<uint8_t> & t) const
+    void Serialize(std::vector<uint8_t> & buf) const
     {
+        assert(buf.empty());
         {
-            logos::vectorstream stream(t);
+            logos::vectorstream stream(buf);
             auto s = MessagePrequel<MT, CT>::Serialize(stream);
             s += logos::write(stream, preprepare_hash);
             s += logos::write(stream, signature);
@@ -292,7 +299,7 @@ struct StandardPhaseMessage<MT, CT, typename std::enable_if<
                     - MessagePrequelSize;
         }
         {
-            HeaderStream header_stream(t.data(), MessagePrequelSize);
+            HeaderStream header_stream(buf.data(), MessagePrequelSize);
             MessagePrequel<MT, CT>::Serialize(header_stream);
         }
     }
@@ -349,10 +356,11 @@ struct PostPhaseMessage<MT, CT, typename std::enable_if<
         signature.Hash(hash);
     }
 
-    void Serialize(std::vector<uint8_t> & t) const
+    void Serialize(std::vector<uint8_t> & buf) const
     {
+        assert(buf.empty());
         {
-            logos::vectorstream stream(t);
+            logos::vectorstream stream(buf);
             auto p_size = MessagePrequel<MT, CT>::Serialize(stream);
             p_size += logos::write(stream, preprepare_hash);
             p_size += signature.Serialize(stream);
@@ -360,7 +368,7 @@ struct PostPhaseMessage<MT, CT, typename std::enable_if<
                     - MessagePrequelSize;
         }
         {
-            HeaderStream header_stream(t.data(), MessagePrequelSize);
+            HeaderStream header_stream(buf.data(), MessagePrequelSize);
             MessagePrequel<MT, CT>::Serialize(header_stream);
         }
     }
@@ -392,15 +400,17 @@ struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert,
         }
     }
 
-    void Serialize(std::vector<uint8_t> & t) const
+    void Serialize(std::vector<uint8_t> & buf) const
     {
+        assert(buf.empty());
         {
-            logos::vectorstream stream(t);
+            logos::vectorstream stream(buf);
             MessagePrequel<MessageType::Key_Advert, ConsensusType::Any>::Serialize(stream);
-            MessagePrequel<MessageType::Key_Advert, ConsensusType::Any>::payload_size = logos::write(stream, public_key);;
+            MessagePrequel<MessageType::Key_Advert, ConsensusType::Any>::payload_size =
+                    logos::write(stream, public_key);;
         }
         {
-            HeaderStream header_stream(t.data(), MessagePrequelSize);
+            HeaderStream header_stream(buf.data(), MessagePrequelSize);
             MessagePrequel<MessageType::Key_Advert, ConsensusType::Any>::Serialize(header_stream);
         }
     }
@@ -463,9 +473,10 @@ struct ConnectedClientIds
         }
     }
 
-    uint32_t Serialize(std::vector<uint8_t> & t) const
+    uint32_t Serialize(std::vector<uint8_t> & buf) const
     {
-        logos::vectorstream stream(t);
+        assert(buf.empty());
+        logos::vectorstream stream(buf);
 
         auto s = logos::write(stream, htole32(epoch_number));
         s += logos::write(stream, delegate_id);
@@ -500,15 +511,17 @@ struct HeartBeat : MessagePrequel<MessageType::Heart_Beat,
         }
     }
 
-    void Serialize(std::vector<uint8_t> & t) const
+    void Serialize(std::vector<uint8_t> & buf) const
     {
+        assert(buf.empty());
         {
-            logos::vectorstream stream(t);
+            logos::vectorstream stream(buf);
             MessagePrequel<MessageType::Heart_Beat, ConsensusType::Any>::Serialize(stream);
-            MessagePrequel<MessageType::Heart_Beat, ConsensusType::Any>::payload_size = logos::write(stream, is_request);
+            MessagePrequel<MessageType::Heart_Beat, ConsensusType::Any>::payload_size =
+                    logos::write(stream, is_request);
         }
         {
-            HeaderStream header_stream(t.data(), MessagePrequelSize);
+            HeaderStream header_stream(buf.data(), MessagePrequelSize);
             MessagePrequel<MessageType::Heart_Beat, ConsensusType::Any>::Serialize(header_stream);
         }
     }

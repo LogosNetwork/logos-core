@@ -3,6 +3,7 @@
 
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
+#include <logos/blockstore.hpp>
 
 #include <vector>
 using namespace std;
@@ -53,6 +54,26 @@ BLS_Nodes & setup_nodes()
         inited = true;
     }
     return bls_nodes;
+}
+
+logos::block_store * get_db()
+{
+    static std::mutex setup_nodes_mutex;
+    static bool inited = false;
+    static logos::block_store *store = NULL;
+
+    std::lock_guard<std::mutex> lock(setup_nodes_mutex);
+    if(! inited )
+    {
+        bool error = false;
+        boost::filesystem::path db_file("./test_db/unit_test_db.lmdb");
+        store = new logos::block_store (error, db_file);
+        if(error)
+            store = NULL;
+        inited = true;
+    }
+
+    return store;
 }
 
 #endif /* LOGOS_UNIT_TEST_MSG_VALIDATOR_SETUP_HPP_ */

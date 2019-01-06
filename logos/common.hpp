@@ -129,8 +129,8 @@ public:
     logos::amount balance;
     /** Seconds since posix epoch */
     uint64_t modified;
-    uint64_t block_count;
-    uint64_t receive_count;
+    uint32_t block_count; //sequence number
+    uint32_t receive_count;
 };
 
 /**

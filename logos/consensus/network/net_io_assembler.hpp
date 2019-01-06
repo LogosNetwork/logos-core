@@ -61,7 +61,5 @@ private:
     bool                           _processing_callback = false;
     EpochInfo &                    _epoch_info;
     IOChannelReconnect &           _netio;
-
-    std::mutex                     _data_mutex;
 };
 

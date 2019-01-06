@@ -368,12 +368,12 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
             _post_commit_sig.map.reset();
             good = _validator.AggregateSignature(_signatures, _post_commit_sig);
 
-            {//Peng debug
-                if(!_validator.Validate(_post_prepare_hash, _post_commit_sig))
-                {
-                    LOG_ERROR(_log) << __func__ << " cannot verify own _post_commit_sig";
-                }
-            }
+            //            {//Peng debug
+            //                if(!_validator.Validate(_post_prepare_hash, _post_commit_sig))
+            //                {
+            //                    LOG_ERROR(_log) << __func__ << " cannot verify own _post_commit_sig";
+            //                }
+            //            }
         }
         else
             good = false;

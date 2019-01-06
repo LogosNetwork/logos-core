@@ -9,7 +9,6 @@
 #include <blake2/blake2.h>
 
 #include <logos/consensus/messages/byte_arrays.hpp>
-//#include <iostream>
 #include <boost/iostreams/stream_buffer.hpp>
 
 enum class MessageType : uint8_t
@@ -134,28 +133,24 @@ struct MessagePrequel
     {
         if(error)
         {
-            std::cout << __func__ << " begin";
             return;
         }
 
         error = logos::read(stream, const_cast<uint8_t &>(version));
         if(error)
         {
-            std::cout << __func__ << " version";
             return;
         }
 
         error = logos::read(stream, const_cast<MessageType &>(type));
         if(error)
         {
-            std::cout << __func__ << " type";
             return;
         }
 
         error = logos::read(stream, const_cast<ConsensusType &>(consensus_type));
         if(error)
         {
-            std::cout << __func__ << " consensus_type";
             return;
         }
 
@@ -163,14 +158,12 @@ struct MessagePrequel
         error = logos::read(stream, pad);
         if(error)
         {
-            std::cout << __func__ << " pad";
             return;
         }
 
         error = logos::read(stream, payload_size);
         if(error)
         {
-            std::cout << __func__ << " payload_size";
             return;
         }
         payload_size = le32toh(payload_size);

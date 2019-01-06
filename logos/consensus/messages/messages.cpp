@@ -24,52 +24,6 @@ AggSignature::AggSignature(bool & error, logos::stream & stream)
     }
 }
 
-//template<MessageType MT, ConsensusType CT>
-//MessagePrequel<MT, CT>::MessagePrequel(bool & error, logos::stream & stream)
-//{
-//    if(error)
-//    {
-//        std::cout << __func__ << " begin";
-//        return;
-//    }
-//
-//    error = logos::read(stream, const_cast<uint8_t &>(version));
-//    if(error)
-//    {
-//        std::cout << __func__ << " version";
-//        return;
-//    }
-//
-//    error = logos::read(stream, const_cast<MessageType &>(type));
-//    if(error)
-//    {
-//        std::cout << __func__ << " type";
-//        return;
-//    }
-//
-//    error = logos::read(stream, const_cast<ConsensusType &>(consensus_type));
-//    if(error)
-//    {
-//        std::cout << __func__ << " consensus_type";
-//        return;
-//    }
-//
-//    char pad;
-//    error = logos::read(stream, pad);
-//    if(error)
-//    {
-//        std::cout << __func__ << " pad";
-//        return;
-//    }
-//
-//    error = logos::read(stream, payload_size);
-//    if(error)
-//    {
-//        std::cout << __func__ << " payload_size";
-//        return;
-//    }
-//    payload_size = le32toh(payload_size);
-//}
 
 PrePrepareCommon::PrePrepareCommon(bool & error, logos::stream & stream)
 {
@@ -155,27 +109,6 @@ BatchStateBlock::BatchStateBlock(bool & error, logos::stream & stream, bool with
     }
 }
 
-//TODO
-//std::ostream& operator<<(std::ostream& os, const BatchStateBlock& b)
-//{
-//    os << static_cast<const PrePrepareCommon &>(b)
-//
-//       << " sequence: " << b.sequence
-//       << " block_count: " << b.block_count
-//       << " epoch_number: " << b.epoch_number
-//       << " delegate: " << b.delegate
-//       << " blocks: --"
-//       << " signature: --";
-//
-//    return os;
-//}
-//template<MessageType MT, ConsensusType CT>
-//std::ostream& operator<<(std::ostream& os, const StandardPhaseMessage<MT, CT>& m)
-//{
-//    os << static_cast<const MessagePrequel<MT, CT> &>(m);
-//    return os;
-//}
-
 void BatchStateBlock::SerializeJson(boost::property_tree::ptree & batch_state_block) const
 {
     PrePrepareCommon::SerializeJson(batch_state_block);
@@ -256,6 +189,14 @@ StateBlock::StateBlock (bool & error_a, boost::property_tree::ptree const & tree
                                 {
                                     auto batch_hash_l (tree_a.get<std::string> ("batch_hash"));
                                     error_a = batch_hash.decode_hex (batch_hash_l);
+                                    if (!error_a)
+                                    {
+                                        auto index_in_batch_hash_l (tree_a.get<std::string> ("index_in_batch"));
+                                        auto index_in_batch_ul = std::stoul(index_in_batch_hash_l);
+                                        error_a = index_in_batch_ul > CONSENSUS_BATCH_SIZE;
+                                        if( ! error_a)
+                                            index_in_batch = index_in_batch_ul;
+                                    }
                                 }
                                 if (!error_a)
                                 {
@@ -333,7 +274,10 @@ void StateBlock::SerializeJson(boost::property_tree::ptree & tree,
     tree.put("hash", degest.to_string());
 
     if(with_batch_hash)
+    {
         tree.put("batch_hash", batch_hash.to_string());
+        tree.put("index_in_batch", std::to_string(index_in_batch));
+    }
 }
 
 std::string to_string (const std::vector<uint8_t> & buf)

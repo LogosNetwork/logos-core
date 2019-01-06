@@ -152,5 +152,5 @@ std::ostream& operator<<(std::ostream& os, const RejectionMessage<CT>& m)
     return os;
 }
 
-//Peng debug
+//for debug
 std::string to_string (const std::vector<uint8_t> & buf);

@@ -100,7 +100,7 @@ bool ConsensusConnection<CT>::OnMessageData(const uint8_t * data,
     }
 
     if(error)
-        LOG_DEBUG(_log) << __func__ << " message error";//log level?
+        LOG_WARN(_log) << __func__ << " message error";
 
     return ! error;
 }
@@ -352,22 +352,6 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const PostCommit & message)
     return false;
 }
 
-//template<ConsensusType CT>
-//void ConsensusConnection<CT>::StoreResponse(const Prepare & message)
-//{
-//    _prepare.reset(new Prepare(message));
-//}
-//
-//template<ConsensusType CT>
-//void ConsensusConnection<CT>::StoreResponse(const Rejection & message)
-//{}
-//
-//template<ConsensusType CT>
-//void ConsensusConnection<CT>::StoreResponse(const Commit & message)
-//{
-//    _commit.reset(new Commit(message));
-//}
-
 template<ConsensusType CT>
 void ConsensusConnection<CT>::HandlePrePrepare(const PrePrepare & message)
 {}
@@ -377,11 +361,6 @@ void ConsensusConnection<CT>::OnPostCommit()
 {
     _promoter.OnPostCommit(*_pre_prepare);
 }
-
-//template<ConsensusType CT>
-//template<typename M>
-//void ConsensusConnection<CT>::UpdateMessage(M & message)
-//{}
 
 template<ConsensusType CT>
 void ConsensusConnection<CT>::Reject()

@@ -33,9 +33,7 @@ void RequestHandler::OnPostCommit(const BatchStateBlock & batch)
 RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch()
 {
     _current_batch = BSBPrePrepare();
-
     auto & sequence = _requests.get<0>();
-    //auto & count = _current_batch.block_count;
 
     for(auto pos = sequence.begin(); pos != sequence.end(); ++pos)
     {
@@ -49,12 +47,7 @@ RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch()
             break;
         }
 
-        //new(&_current_batch.blocks[count++]) StateBlock(*pos);
-        //        if(count == CONSENSUS_BATCH_SIZE)
-        //        {
-        //            break;
-        //        }
-        if(_current_batch.AddStateBlock(*pos))
+        if(! _current_batch.AddStateBlock(*pos))
             break;
     }
 

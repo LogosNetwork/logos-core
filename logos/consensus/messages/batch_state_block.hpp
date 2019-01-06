@@ -47,7 +47,6 @@ struct BatchStateBlock : PrePrepareCommon
         blake2b_update(&hash, &bc, sizeof(uint16_t));
         for(uint16_t i = 0; i < block_count; ++i)
         {
-            //blocks[i].GetHash().Hash(hash);
             hashs[i].Hash(hash);
         }
     }
@@ -57,12 +56,7 @@ struct BatchStateBlock : PrePrepareCommon
 
     uint16_t        block_count  = 0;
     BlockList       blocks;
-    BlockHashList   hashs;//TODO consider remove
+    BlockHashList   hashs;
 };
-
-//std::ostream& operator<<(std::ostream& os, const BatchStateBlock& b);
-
-
-
 
 #endif /* LOGOS_CONSENSUS_MESSAGES_BATCH_STATE_BLOCK_HPP_ */
