@@ -11,7 +11,6 @@ struct P2pBatchHeader {
     MessageType type;
     ConsensusType consensus_type;
     uint8_t delegate_id;
-    uint8_t padding;
 };
 
 template<ConsensusType CT>
@@ -24,11 +23,16 @@ ConsensusP2pOutput<CT>::ConsensusP2pOutput(p2p_interface & p2p,
 template<ConsensusType CT>
 void ConsensusP2pOutput<CT>::AddMessageToBatch(const uint8_t *data, uint32_t size)
 {
-    size_t oldsize = _p2p_batch.size();
+    uint32_t oldsize = _p2p_batch.size();
+    uint32_t aligned_size = (size + P2P_MSG_SIZE_SIZE - 1) & ~(P2P_MSG_SIZE_SIZE - 1);
 
-    _p2p_batch.resize(oldsize + size + P2P_MSG_SIZE_SIZE);
+    _p2p_batch.resize(oldsize + aligned_size + P2P_MSG_SIZE_SIZE);
     memcpy(&_p2p_batch[oldsize], &size, P2P_MSG_SIZE_SIZE);
     memcpy(&_p2p_batch[oldsize + P2P_MSG_SIZE_SIZE], data, size);
+    if (aligned_size > size)
+    {
+        memset(&_p2p_batch[oldsize + size + P2P_MSG_SIZE_SIZE], 0, aligned_size - size);
+    }
 
     LOG_DEBUG(_log) << "ConsensusP2pOutput<" << ConsensusToName(CT)
                     << "> - message of size " << size
@@ -389,6 +393,7 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
                 break;
         }
 
+        msize = (msize + P2P_MSG_SIZE_SIZE - 1) & ~(P2P_MSG_SIZE_SIZE - 1);
         data += msize;
         size -= msize;
 
