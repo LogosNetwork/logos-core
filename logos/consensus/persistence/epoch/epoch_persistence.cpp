@@ -24,11 +24,11 @@ PersistenceManager<ECT>::Validate(
 
     // Account must exist
     logos::account_info info;
-    if (_store.account_get(epoch.delegate, info))
+    if (_store.account_get(epoch.primary_delegate, info))
     {
         UpdateStatusReason(status, process_result::unknown_source_account);
         LOG_ERROR(_log) << "PersistenceManager::Validate account doesn't exist " <<
-                        epoch.delegate.to_account();
+                        epoch.primary_delegate.to_account();
         return false;
     }
 

@@ -118,7 +118,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
     {
         ApprovedEB epoch;
         ApprovedMB micro_block;
-        micro_block.delegate = logos::genesis_account;
+        micro_block.primary_delegate = logos::genesis_account;
         micro_block.epoch_number = e;
         micro_block.sequence = 0;
         micro_block.timestamp = 0;
@@ -137,7 +137,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         update("micro block", micro_block, microblock_hash,
                &BlockStore::micro_block_get, &BlockStore::micro_block_put);
 
-        epoch.delegate = logos::genesis_account;
+        epoch.primary_delegate = logos::genesis_account;
         epoch.epoch_number = e;
         epoch.sequence = 0;
         epoch.timestamp = 0;

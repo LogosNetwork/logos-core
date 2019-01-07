@@ -138,12 +138,12 @@ EpochConsensusManager::DesignatedDelegate(
     }
 
     // delegate who proposed last microblock also proposes epoch block
-    if (block.last_micro_block && block.delegate == DelegateIdentityManager::_delegate_account)
+    if (block.last_micro_block && block.primary_delegate == DelegateIdentityManager::_delegate_account)
     {
         LOG_DEBUG(_log) << "EpochConsensusManager::DesignatedDelegate epoch proposed by delegate "
                         << (int)_delegate_id << " " << (int)DelegateIdentityManager::_global_delegate_idx
                         << " " << _events_notifier.GetEpochNumber()
-                        << " " << block.delegate.to_string();
+                        << " " << block.primary_delegate.to_string();
         return _delegate_id;
     }
 

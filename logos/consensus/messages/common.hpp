@@ -215,7 +215,7 @@ struct PrePrepareCommon
             sizeof(DelegateSig);
 
     PrePrepareCommon()
-    : delegate()
+    : primary_delegate()
     , epoch_number(0)
     , sequence(0)
     , timestamp(GetStamp())
@@ -227,7 +227,7 @@ struct PrePrepareCommon
 
     PrePrepareCommon & operator= (const PrePrepareCommon & other)
     {
-        delegate        = other.delegate;
+        primary_delegate        = other.primary_delegate;
         epoch_number    = other.epoch_number;
         sequence        = other.sequence;
         timestamp       = other.timestamp;
@@ -242,7 +242,7 @@ struct PrePrepareCommon
         uint32_t sqn = htole32(sequence);
         uint64_t tsp = htole64(timestamp);
 
-        delegate.Hash(hash);
+        primary_delegate.Hash(hash);
         blake2b_update(&hash, &en, sizeof(uint32_t));
         blake2b_update(&hash, &sqn, sizeof(uint32_t));
         blake2b_update(&hash, &tsp, sizeof(uint64_t));
@@ -255,7 +255,7 @@ struct PrePrepareCommon
         uint32_t sqn = htole32(sequence);
         uint64_t tsp = htole64(timestamp);
 
-        auto s = logos::write(stream, delegate);
+        auto s = logos::write(stream, primary_delegate);
         s += logos::write(stream, en);
         s += logos::write(stream, sqn);
         s += logos::write(stream, tsp);
@@ -268,7 +268,7 @@ struct PrePrepareCommon
 
     void SerializeJson(boost::property_tree::ptree & tree) const
     {
-        tree.put("delegate", delegate.to_string());
+        tree.put("delegate", primary_delegate.to_string());
         tree.put("epoch_number", std::to_string(epoch_number));
         tree.put("sequence", std::to_string(sequence));
         tree.put("timestamp", std::to_string(timestamp));
@@ -276,7 +276,7 @@ struct PrePrepareCommon
         tree.put("signature", preprepare_sig.to_string());
     }
 
-    AccountAddress          delegate; //TODO rename to primary
+    AccountAddress          primary_delegate;
     uint32_t                epoch_number;
     uint32_t                sequence;
     uint64_t                timestamp;

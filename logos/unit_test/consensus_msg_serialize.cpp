@@ -193,7 +193,6 @@ TEST (write_read, all)
     ASSERT_EQ(amount, amount2);
     ASSERT_EQ(ui64, ui642);
 }
-#endif
 
 TEST (messages, KeyAdvertisement)
 {
@@ -367,6 +366,7 @@ TEST (blocks, state_block)
     ASSERT_EQ(block2.Hash(), block2.GetHash());
 }
 
+#endif
 
 void create_real_StateBlock(StateBlock & block)
 {
@@ -847,7 +847,6 @@ TEST (message_validator, signature_order_twoThirds)
         }
     }
 }
-#endif
 
 TEST (DB, bsb)
 {
@@ -909,3 +908,54 @@ TEST (DB, eb)
     ASSERT_EQ(block_hash, block2.Hash());
 }
 
+#endif
+
+TEST (write_read, bool_vec)
+{
+    vector<string> ss;
+    ss.push_back(string("1"));
+    ss.push_back(string("0"));
+
+    ss.push_back(string("00"));
+    ss.push_back(string("10"));
+    ss.push_back(string("01"));
+    ss.push_back(string("11"));
+
+    ss.push_back(string("10010110"));
+    ss.push_back(string("100000001"));
+    ss.push_back(string("10000000100000001"));
+    ss.push_back(string("100000001000000010000000"));
+    ss.push_back(string("1000000010000000100000001010"));
+
+    for(auto &s : ss)
+    {
+        std::cout << s << std::endl;
+        vector<bool> block;
+        for(auto c : s)
+        {
+            block.push_back(c=='1'? true:false);
+        }
+
+        std::vector<uint8_t> buf;
+        uint written = 0;
+        {
+            logos::vectorstream write_stream(buf);
+            written = logos::write(write_stream, block);
+        }
+        std::cout << "buf.size=" << buf.size() << std::endl;
+
+        vector<bool> block2;
+        logos::bufferstream read_stream(buf.data(), buf.size());
+        logos::read(read_stream, block2);
+
+        string output;
+        ASSERT_EQ(block.size(), block2.size());
+        for(int i = 0; i < block.size(); ++i)
+        {
+            ASSERT_EQ(block[i], block2[i]);
+            output.push_back(block[i]? '1':'0');
+        }
+
+        std::cout << output << std::endl << std::endl;
+    }
+}

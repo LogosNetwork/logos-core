@@ -31,44 +31,13 @@ uint32_t write (logos::stream & stream_a, T const & value)
 }
 
 bool read (logos::stream & stream_a, uint128_union & value);
-//{
-//    auto amount_read (stream_a.sgetn (value.bytes.data(), value.bytes.size()));
-//    return amount_read != value.bytes.size();
-//}
-
 uint32_t write (logos::stream & stream_a, uint128_union const & value);
-//{
-//    auto amount_written (stream_a.sputn (value.bytes.data(), value.bytes.size()));
-//    assert (amount_written == value.bytes.size());
-//    return amount_written;
-//}
-
 bool read (logos::stream & stream_a, uint256_union & value);
-//{
-//    auto amount_read (stream_a.sgetn (value.bytes.data(), value.bytes.size()));
-//    return amount_read != value.bytes.size();
-//}
-
 uint32_t write (logos::stream & stream_a, uint256_union const & value);
-//{
-//    auto amount_written (stream_a.sputn (value.bytes.data(), value.bytes.size()));
-//    assert (amount_written == value.bytes.size());
-//    return amount_written;
-//}
-
 bool read (logos::stream & stream_a, uint512_union & value);
-//{
-//    auto amount_read (stream_a.sgetn (value.bytes.data(), value.bytes.size()));
-//    return amount_read != value.bytes.size();
-//}
-
 uint32_t write (logos::stream & stream_a, uint512_union const & value);
-//{
-//    auto amount_written (stream_a.sputn (value.bytes.data(), value.bytes.size()));
-//    assert (amount_written == value.bytes.size());
-//    return amount_written;
-//}
-
+bool read (logos::stream & stream_a, std::vector<bool> & value);
+uint32_t write (logos::stream & stream_a, const std::vector<bool> & value);
 
 class block_visitor;
 enum class block_type : uint8_t

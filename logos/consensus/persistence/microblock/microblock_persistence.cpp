@@ -25,11 +25,11 @@ PersistenceManager<MBCT>::Validate(
 
     // Account exists
     logos::account_info info;
-    if (_store.account_get(block.delegate, info))
+    if (_store.account_get(block.primary_delegate, info))
     {
         LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock account doesn't exist "
                         << " hash " << hash.to_string()
-                        << " account " << block.delegate.to_string();
+                        << " account " << block.primary_delegate.to_string();
         UpdateStatusReason(status, process_result::unknown_source_account);
         return false;
     }

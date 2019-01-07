@@ -243,7 +243,7 @@ MicroBlockHandler::Build(
     block.epoch_number = first_micro_block
             ? previous_micro_block.epoch_number + 1
             : previous_micro_block.epoch_number;
-    block.delegate = DelegateIdentityManager::_delegate_account;
+    block.primary_delegate = DelegateIdentityManager::_delegate_account;
     block.sequence = first_micro_block
             ? 0
             : previous_micro_block.sequence + 1;
@@ -254,7 +254,7 @@ MicroBlockHandler::Build(
                    << " timestamp " << block.timestamp
                    << " previous " << block.previous.to_string()
                    << " epoch_number " << block.epoch_number
-                   << " account " << block.delegate.to_account()
+                   << " account " << block.primary_delegate.to_account()
                    << " sequence " << block.sequence
                    << " last_micro_block " << (int)block.last_micro_block;
 

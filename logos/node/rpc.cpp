@@ -1808,7 +1808,7 @@ void logos::rpc_handler::account_history ()
             entry.put ("type", put_send ? "send" : "receive");
             entry.put ("hash", hash.to_string ());
             // always show the account id of the other party in transaction
-	//TODO loop transactions	
+            //TODO loop transactions
             entry.put ("account", put_send ? display_block.trans[0].target.to_account() : display_block.account.to_account ());
             entry.put ("amount", display_block.trans[0].amount.to_string_dec ());
             //entry.put ("timestamp", std::to_string (display_block.timestamp));

@@ -43,7 +43,7 @@ EpochHandler::Build(RequestMessage<ConsensusType::Epoch> &epoch)
 
     epoch.timestamp = GetStamp();
     epoch.previous = previous_epoch_hash;
-    epoch.delegate = DelegateIdentityManager::_delegate_account;
+    epoch.primary_delegate = DelegateIdentityManager::_delegate_account;
     epoch.epoch_number = previous_epoch.epoch_number + 1;
     epoch.micro_block_tip = previous_micro_block_hash;
     _voting_manager.GetNextEpochDelegates(epoch.delegates);

@@ -246,7 +246,7 @@ MicroBlockTester::informational(
         //size_t s = sizeof(epoch);
         std::stringstream str;
         uint64_t start = (uint64_t) &epoch;
-        uint64_t account = (uint64_t) &(epoch.delegate);
+        uint64_t account = (uint64_t) &(epoch.primary_delegate);
         uint64_t enumber = (uint64_t) &(epoch.epoch_number);
         uint64_t tip = (uint64_t) &(epoch.micro_block_tip);
         uint64_t fee = (uint64_t) &(epoch.transaction_fee_pool);
@@ -264,7 +264,7 @@ MicroBlockTester::informational(
         //size_t s = sizeof(block);
         std::stringstream str;
         uint64_t start = (uint64_t) &block;
-        uint64_t account = (uint64_t) &(block.delegate);
+        uint64_t account = (uint64_t) &(block.primary_delegate);
         uint64_t enumber = (uint64_t) &(block.epoch_number);
         uint64_t seq = (uint64_t) &(block.sequence);
         uint64_t last = (uint64_t) &(block.last_micro_block);
@@ -283,7 +283,7 @@ MicroBlockTester::informational(
         //size_t s = sizeof(block);
         std::stringstream str;
         uint64_t start = (uint64_t) &block;
-        uint64_t account = (uint64_t) &(block.delegate);
+        uint64_t account = (uint64_t) &(block.primary_delegate);
         uint64_t seq = (uint64_t) &(block.sequence);
         uint64_t block_count = (uint64_t) &(block.block_count);
         uint64_t enumber = (uint64_t) &(block.epoch_number);

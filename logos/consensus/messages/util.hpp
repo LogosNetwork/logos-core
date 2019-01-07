@@ -154,3 +154,71 @@ std::ostream& operator<<(std::ostream& os, const RejectionMessage<CT>& m)
 
 //for debug
 std::string to_string (const std::vector<uint8_t> & buf);
+
+//namespace logos
+//{
+//
+//
+//bool read (logos::stream & stream_a, std::vector<bool> & value);
+////{
+////    uint16_t n_bits_le = 0;
+////    bool error = logos::read(stream_a, n_bits_le);
+////    if(error)
+////    {
+////        return error;
+////    }
+////    auto n_bits = le16toh(n_bits_le);
+////    auto to_read = int_ceiling(n_bits);
+////
+////    std::vector<uint8_t> bytes(to_read);
+////    auto amount_read (stream_a.sgetn (bytes.data(), bytes.size()));
+////    if(amount_read != to_read)
+////    {
+////        return false;
+////    }
+////
+////    for( auto b : bytes)
+////    {
+////        for(int i = 0; i < 8; ++i)
+////        {
+////            uint8_t mask = !(1<<i);
+////            if(mask & b)
+////                value.push_back(true);
+////            else
+////                value.push_back(false);
+////        }
+////    }
+////
+////    return true;
+////}
+//
+//uint32_t write (logos::stream & stream_a, const std::vector<bool> & value);
+////{
+////    assert(value.size() <= int_ceiling(CONSENSUS_BATCH_SIZE));
+////    uint16_t n_bits = value.size();
+////    auto n_bits_le = htole16(n_bits);
+////
+////    auto amount_written (stream_a.sputn ((uint8_t *)&n_bits_le, sizeof(uint16_t)));
+////    std::vector<uint8_t> buf;
+////    uint8_t one_byte = 0;
+////    int cmp = 0;
+////    for ( auto b : value)
+////    {
+////        one_byte = one_byte | ((b ? 1 : 0) << cmp++);
+////        if(cmp == 8)
+////        {
+////            buf.push_back(one_byte);
+////            cmp = 0;
+////            one_byte = 0;
+////        }
+////    }
+////    if(cmp != 0)
+////    {
+////        buf.push_back(one_byte);
+////    }
+////    amount_written += stream_a.sputn (buf.data(), buf.size());
+////    return amount_written;
+////}
+//
+//}
+//
