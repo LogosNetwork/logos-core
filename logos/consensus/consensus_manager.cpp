@@ -204,14 +204,16 @@ ConsensusManager<CT>::QueueRequest(
 {
     uint8_t designated_delegate_id = DesignatedDelegate(request);
 
-    if(designated_delegate_id == _delegate_id)
-    {
+//    if(designated_delegate_id == _delegate_id)
+//    {
+//        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueRequest primary";
         QueueRequestPrimary(request);
-    }
-    else
-    {
-        QueueRequestSecondary(request);
-    }
+//    }
+//    else
+//    {
+//        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueRequest secondary";
+//        QueueRequestSecondary(request);
+//    }
 }
 
 template<ConsensusType CT>

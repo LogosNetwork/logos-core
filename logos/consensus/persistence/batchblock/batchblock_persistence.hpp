@@ -58,6 +58,7 @@ private:
     static constexpr uint64_t  RESERVATION_PERIOD  = 2;
     static constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
 
+    Log                 _log;
     ReservationsPtr     _reservations;
     std::mutex          _reservation_mutex;
     std::mutex          _destination_mutex;

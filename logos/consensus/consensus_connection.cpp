@@ -185,29 +185,38 @@ bool ConsensusConnection<CT>::Validate(const PrePrepare & message)
 {
     if(!_validator.Validate(message.Hash(), message.preprepare_sig, _delegate_ids.remote))
     {
+        LOG_DEBUG(_log) << " ConsensusConnection<CT>::Validate Bad_Signature "
+                << " msg " << message.Hash().to_string()
+                << " sig " << message.preprepare_sig.to_string()
+                << " id " << (uint)_delegate_ids.remote;
+
         _reason = RejectionReason::Bad_Signature;
         return false;
     }
 
     if(message.previous != _prev_pre_prepare_hash)
     {
+        LOG_DEBUG(_log) << " ConsensusConnection<CT>::Validate Invalid_Previous_Hash";
         _reason = RejectionReason::Invalid_Previous_Hash;
         return false;
     }
 
     if(!ValidateTimestamp(message))
     {
+        LOG_DEBUG(_log) << " ConsensusConnection<CT>::Validate Clock_Drift";
         _reason = RejectionReason::Clock_Drift;
         return false;
     }
 
     if(_state == ConsensusState::PREPARE && !ValidateReProposal(message))
     {
+        LOG_DEBUG(_log) << " ConsensusConnection<CT>::Validate _state == ConsensusState::PREPARE && !ValidateReProposal(message)";
         return false;
     }
 
     if(!DoValidate(message))
     {
+        LOG_DEBUG(_log) << " ConsensusConnection<CT>::Validate DoValidate failed";
         return false;
     }
 

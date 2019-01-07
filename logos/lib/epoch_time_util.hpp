@@ -19,7 +19,7 @@ using Hours = std::chrono::hours;
 static const Hours EPOCH_PROPOSAL_TIME(12); // 12 hours
 //static const Minutes EPOCH_PROPOSAL_TIME(5);
 /// 2. New delegates set connection time 12h - 5m
-static const Minutes EPOCH_DELEGATES_CONNECT(5); // 5 minunes
+static const Minutes EPOCH_DELEGATES_CONNECT(1); // 5 minunes
 /// 3. Epoch transition start time: 12h - 20s
 static const Seconds EPOCH_TRANSITION_START(20); // 20 seconds
 /// 4. Epoch start time: 12h

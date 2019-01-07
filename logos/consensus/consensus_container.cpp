@@ -108,6 +108,8 @@ ConsensusContainer::OnSendRequest(
     }
     else
     {
+        LOG_DEBUG(_log) << "ConsensusContainer::OnSendRequest: "
+                << "number_transaction=" << block->trans.size();
         _cur_epoch->_batch_manager.OnSendRequest(
             static_pointer_cast<Request>(block), result);
     }

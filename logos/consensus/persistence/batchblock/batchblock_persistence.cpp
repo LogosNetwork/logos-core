@@ -34,14 +34,16 @@ void PersistenceManager<BSBCT>::ApplyUpdates(
 
     auto batch_hash = message.Hash();
     uint16_t count = 0;
-    for(auto & i : message.blocks)
+    for(uint16_t i = 0; i < message.block_count; ++i)
     {
-        i.batch_hash = batch_hash;
-        i.index_in_batch = count++;
+        message.blocks[i].batch_hash = batch_hash;
+        message.blocks[i].index_in_batch = count++;
     }
 
-    logos::transaction transaction(_store.environment, nullptr, true);
+    LOG_DEBUG(_log) << "PersistenceManager<BSBCT>::ApplyUpdates - BSB with "
+            << message.block_count << " StateBlocks";
 
+    logos::transaction transaction(_store.environment, nullptr, true);
     StoreBatchMessage(message, transaction, delegate_id);
     ApplyBatchMessage(message, transaction);
 }
@@ -194,7 +196,9 @@ bool PersistenceManager<BSBCT>::Validate(
     const Request & block)
 {
     logos::process_return ignored_result;
-    return Validate(block, ignored_result);
+    auto re = Validate(block, ignored_result);
+    LOG_DEBUG(_log) << "PersistenceManager<BSBCT>::Validate code " << (uint)ignored_result.code;
+    return re;
 }
 
 bool PersistenceManager<BSBCT>::Validate(
@@ -291,7 +295,7 @@ void PersistenceManager<BSBCT>::ApplyBatchMessage(
     const ApprovedBSB & message,
     MDB_txn * transaction)
 {
-    for(uint64_t i = 0; i < message.block_count; ++i)
+    for(uint16_t i = 0; i < message.block_count; ++i)
     {
         ApplyStateMessage(message.blocks[i],
                           message.timestamp,
@@ -392,6 +396,9 @@ void PersistenceManager<BSBCT>::UpdateDestinationState(
         if(account_error)
         {
             info.open_block = hash;
+            LOG_DEBUG(_log) << "PersistenceManager::UpdateDestinationState - "
+                            << "new account: "
+                            << t.target.to_string();
         }
 
         info.receive_count++;

@@ -197,6 +197,8 @@ TEST (write_read, all)
 TEST (write_read, bool_vec)
 {
     vector<string> ss;
+    ss.push_back(string(""));
+
     ss.push_back(string("1"));
     ss.push_back(string("0"));
 
@@ -450,7 +452,7 @@ TEST (blocks, state_block_json)
     create_real_StateBlock(block);
     auto s(block.SerializeJson(true, true));
 
-    // std::cout << "StateBlock1 json: " << s << std::endl;
+    std::cout << "StateBlock1 json: " << s << std::endl;
 
     bool error = false;
     boost::property_tree::ptree tree;

@@ -43,6 +43,8 @@ public:
     BSBPrePrepare & PrepareNextBatch();
     BSBPrePrepare & GetCurrentBatch()
     {
+        LOG_DEBUG (_log) << "RequestHandler::GetCurrentBatch - "
+                << "batch_size=" << _current_batch.block_count;
         return _current_batch;
     }
     void InsertFront(const std::list<StateBlock> & blocks);

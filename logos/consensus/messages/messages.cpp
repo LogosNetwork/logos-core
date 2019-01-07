@@ -202,6 +202,7 @@ StateBlock::StateBlock (bool & error_a, boost::property_tree::ptree const & tree
                                 {
                                     auto trans_count_l (tree_a.get<std::string> ("number_transactions"));
                                     num_trans = std::stoul(trans_count_l);
+
                                     auto trans_tree = tree_a.get_child("transactions");
                                     for (const std::pair<std::string, boost::property_tree::ptree> &p : trans_tree)
                                     {
@@ -229,7 +230,6 @@ StateBlock::StateBlock (bool & error_a, boost::property_tree::ptree const & tree
                                             }
                                         }
                                     }
-
                                 }
                             }
                         }

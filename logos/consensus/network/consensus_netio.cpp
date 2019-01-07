@@ -212,12 +212,19 @@ ConsensusNetIO::OnPrequal(const uint8_t * data)
         return;
     }
 
+    //    LOG_DEBUG(_log) << __func__
+    //            << " tid=" << std::this_thread::get_id()
+    //            << " version=" << (int)msg_prequel.version
+    //            << " type=" << (int)msg_prequel.type
+    //            << " consensus=" << (int)msg_prequel.consensus_type
+    //            << " payload=" << msg_prequel.payload_size;
+
     if(msg_prequel.payload_size > MAX_MSG_SIZE)
     {
         HandleMessageError("Wrong message size");
     }
 
-    if(msg_prequel.payload_size == 0)
+    if(msg_prequel.payload_size != 0)
     {
         _assembler.ReadBytes(std::bind(&ConsensusNetIO::OnData, this,
                                                    std::placeholders::_1,

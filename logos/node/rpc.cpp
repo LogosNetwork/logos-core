@@ -1251,8 +1251,15 @@ void logos::rpc_handler::block_create ()
                         work = node.work_generate_blocking (previous.is_zero () ? pub : previous);
                     }
 
-                    uint32_t sequence = 0;//TODO
                     account = pub;
+                    logos::account_info info;
+                    auto account_error(node.store.account_get(account, info));
+                    if(account_error)
+                    {
+                        error_response (response, "logos::rpc_handler::block_create - Unable to find account.");
+                    }
+                    uint32_t sequence = info.block_count;
+
                     StateBlock state (account, previous, sequence, StateBlock::Type::send, link, amount, transaction_fee, prv.data, pub, work);
                     boost::property_tree::ptree response_l;
                     response_l.put ("hash", state.GetHash ().to_string ());
@@ -2603,6 +2610,10 @@ std::unique_ptr<StateBlock> deserialize_StateBlock_json (boost::property_tree::p
 void logos::rpc_handler::process ()
 {
     std::string block_text (request.get<std::string> ("block"));
+
+    std::cout << "logos::rpc_handler::process " << block_text << endl;
+
+
     boost::property_tree::ptree block_l;
     std::stringstream block_stream (block_text);
     boost::property_tree::read_json (block_stream, block_l);

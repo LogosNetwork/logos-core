@@ -39,11 +39,13 @@ BBConsensusConnection::DoValidate(
 {
     if(!ValidateSequence(message))
     {
+        LOG_DEBUG(_log) << "BBConsensusConnection::DoValidate ValidateSequence failed";
         return false;
     }
 
     if(!ValidateRequests(message))
     {
+        LOG_DEBUG(_log) << "BBConsensusConnection::DoValidate ValidateRequests failed";
         return false;
     }
 
@@ -54,6 +56,9 @@ bool
 BBConsensusConnection::ValidateSequence(
     const PrePrepare & message)
 {
+    LOG_DEBUG(_log) << "BBConsensusConnection::ValidateSequence "
+            << " _sequence_number =" <<  _sequence_number << " message.sequence =" << message.sequence;
+
     if(_sequence_number != message.sequence)
     {
         _reason = RejectionReason::Wrong_Sequence_Number;

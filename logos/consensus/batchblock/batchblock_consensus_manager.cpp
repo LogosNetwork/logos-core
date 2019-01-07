@@ -152,6 +152,10 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
         _hashes.insert(batch.blocks[i].GetHash());
     }
 
+    LOG_DEBUG (_log) << "BatchBlockConsensusManager::PrePrepareGetNext -"
+            << " batch_size=" << batch.block_count
+            << " batch.sequence=" << batch.sequence;
+
     return batch;
 }
 
@@ -200,9 +204,11 @@ BatchBlockConsensusManager::InitiateConsensus()
 void
 BatchBlockConsensusManager::OnConsensusReached()
 {
-    Manager::OnConsensusReached();
     _sequence++;
+    Manager::OnConsensusReached();
 
+    LOG_DEBUG (_log) << "BatchBlockConsensusManager::OnConsensusReached _sequence="
+            << _sequence;
     if(_using_buffered_blocks)
     {
         SendBufferedBlocks();
@@ -219,8 +225,11 @@ BatchBlockConsensusManager::DesignatedDelegate(std::shared_ptr<Request> request)
     //
     uint8_t indicator = request->previous.is_zero() ?
            request->account.data()[0] : request->previous.data()[0];
-
-    return uint8_t(indicator & ((1<<DELIGATE_ID_MASK)-1));
+    auto did = uint8_t(indicator & ((1<<DELIGATE_ID_MASK)-1));
+    LOG_DEBUG (_log) << "BatchBlockConsensusManager::DesignatedDelegate "
+            << " id=" << (uint)did
+            << " indicator=" << (uint)indicator;
+    return did;
 }
 
 bool

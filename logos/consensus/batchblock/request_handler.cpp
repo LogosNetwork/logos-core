@@ -12,6 +12,8 @@ RequestHandler::RequestHandler()
 
 void RequestHandler::OnRequest(std::shared_ptr<StateBlock> block)
 {
+    LOG_DEBUG (_log) << "RequestHandler::OnRequest"
+            << block->SerializeJson(false, false);
     _requests.get<0>().push_back(*block);
 }
 
@@ -37,18 +39,29 @@ RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch()
 
     for(auto pos = sequence.begin(); pos != sequence.end(); ++pos)
     {
-
         // Null state blocks are used as batch delimiters. When
         // one is encountered, remove it from the requests
         // container and close the batch.
+
+        LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch requests_size="
+                << sequence.size();
+
         if(pos->account.is_zero() && pos->GetNumTransactions() == 0)
         {
+            LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch null state block"
+                    << pos->SerializeJson(false, false);
             sequence.erase(pos);
+            LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch null state block erased, requests_size="
+                    << sequence.size();
+
             break;
         }
 
         if(! _current_batch.AddStateBlock(*pos))
+        {
+            LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch cannot add";
             break;
+        }
     }
 
     return _current_batch;
