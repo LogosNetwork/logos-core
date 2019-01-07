@@ -68,12 +68,12 @@ BBConsensusConnection::ValidateRequests(
     const PrePrepare & message)
 {
     bool valid = true;
-
+    _rejection_map.resize(message.block_count, false);
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
         if(!_persistence_manager.Validate(static_cast<const Request&>(message.blocks[i])))
         {
-            _rejection_map[i] = 1;
+            _rejection_map[i] = true;
 
             if(valid)
             {
@@ -260,7 +260,7 @@ void
 BBConsensusConnection::ResetRejectionStatus()
 {
     _reason = RejectionReason::Void;
-    _rejection_map.reset();
+    _rejection_map.clear();
 }
 
 bool

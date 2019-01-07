@@ -61,7 +61,7 @@ static const size_t NUM_DELEGATES               = 32;
 static const size_t CONSENSUS_BATCH_SIZE        = 1500;
 
 using ParicipationMap       = std::bitset<NUM_DELEGATES>;
-using RejectionMap          = std::bitset<CONSENSUS_BATCH_SIZE>; //TODO veriable size //TODO serialized size
+using RejectionMap          = std::vector<bool>;
 
 inline uint64_t GetStamp()
 {

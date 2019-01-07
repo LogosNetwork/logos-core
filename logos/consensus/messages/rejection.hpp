@@ -47,15 +47,11 @@ struct RejectionMessage
             return;
         }
 
-
-        char buf[CONSENSUS_BATCH_SIZE];
-        error = logos::read(stream, buf);
+        error = logos::read(stream, rejection_map);
         if(error)
         {
             return;
         }
-        std::string s(buf, CONSENSUS_BATCH_SIZE);
-        new (&rejection_map) RejectionMap(s);
 
         error = logos::read(stream, signature);
         if(error)
@@ -74,8 +70,13 @@ struct RejectionMessage
         MessagePrequel<MessageType::Rejection, CT>::Hash(hash);
         preprepare_hash.Hash(hash);
         blake2b_update(&hash, &reason, sizeof(uint8_t));
-        auto s = rejection_map.to_string();
-        blake2b_update(&hash, s.data(), s.length());
+
+        std::vector<uint8_t> buf;
+        {
+            logos::vectorstream stream(buf);
+            logos::write(stream, rejection_map);
+        }
+        blake2b_update(&hash, buf.data(), buf.size());
     }
 
 
@@ -84,14 +85,7 @@ struct RejectionMessage
         auto s = MessagePrequel<MessageType::Rejection, CT>::Serialize(stream);
         s += logos::write(stream, preprepare_hash);
         s += logos::write(stream, reason);
-
-        //TODO serialized space
-        char buf[CONSENSUS_BATCH_SIZE];
-        std::string str = rejection_map.to_string();
-        assert(str.size()==CONSENSUS_BATCH_SIZE);
-        memcpy(buf, str.data(), str.size());
-
-        s += logos::write(stream, buf);
+        s += logos::write(stream, rejection_map);
         s += logos::write(stream, signature);
         return s;
     }
