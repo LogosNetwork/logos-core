@@ -1469,7 +1469,9 @@ void logos::rpc_handler::delegators ()
         logos::transaction transaction (node.store.environment, nullptr, false);
         for (auto i (node.store.latest_begin (transaction)), n (node.store.latest_end ()); i != n; ++i)
         {
-            logos::account_info info (i->second);
+            //TODO do we use this function?
+            bool error = false;
+            logos::account_info info (error, i->second);
             auto block (node.store.block_get (transaction, info.rep_block));
             assert (block != nullptr);
             if (block->representative () == account)
@@ -1499,7 +1501,9 @@ void logos::rpc_handler::delegators_count ()
         logos::transaction transaction (node.store.environment, nullptr, false);
         for (auto i (node.store.latest_begin (transaction)), n (node.store.latest_end ()); i != n; ++i)
         {
-            logos::account_info info (i->second);
+            //TODO do we use this function?
+            bool error = false;
+            logos::account_info info (error, i->second);
             auto block (node.store.block_get (transaction, info.rep_block));
             assert (block != nullptr);
             if (block->representative () == account)
@@ -1628,7 +1632,9 @@ void logos::rpc_handler::frontiers ()
             logos::transaction transaction (node.store.environment, nullptr, false);
             for (auto i (node.store.latest_begin (transaction, start)), n (node.store.latest_end ()); i != n && frontiers.size () < count; ++i)
             {
-                frontiers.put (logos::account (i->first.uint256 ()).to_account (), logos::account_info (i->second).head.to_string ());
+                //TODO do we use this function?
+                bool error = false;
+                frontiers.put (logos::account (i->first.uint256 ()).to_account (), logos::account_info (error, i->second).head.to_string ());
             }
             response_l.add_child ("frontiers", frontiers);
             response (response_l);
@@ -1948,7 +1954,8 @@ void logos::rpc_handler::ledger ()
         {
             for (auto i (node.store.latest_begin (transaction, start)), n (node.store.latest_end ()); i != n && accounts.size () < count; ++i)
             {
-                logos::account_info info (i->second);
+                bool error = false;
+                logos::account_info info (error, i->second);
                 if (info.modified >= modified_since)
                 {
                     logos::account account (i->first.uint256 ());
@@ -1986,7 +1993,8 @@ void logos::rpc_handler::ledger ()
             std::vector<std::pair<logos::uint128_union, logos::account>> ledger_l;
             for (auto i (node.store.latest_begin (transaction, start)), n (node.store.latest_end ()); i != n; ++i)
             {
-                logos::account_info info (i->second);
+                bool error = false;
+                logos::account_info info (error, i->second);
                 logos::uint128_union balance (info.balance);
                 if (info.modified >= modified_since)
                 {

@@ -929,8 +929,8 @@ TEST (DB, mb)
     ASSERT_TRUE(store != NULL);
     if(store == NULL)
         return;
-
     logos::transaction txn(store->environment, nullptr, true);
+
     auto block_pp = create_mb_preprepare();
     auto block = create_approved_block<ConsensusType::MicroBlock>(block_pp);
     block.next = 90;
@@ -949,8 +949,8 @@ TEST (DB, eb)
     ASSERT_TRUE(store != NULL);
     if(store == NULL)
         return;
-
     logos::transaction txn(store->environment, nullptr, true);
+
     auto block_pp = create_eb_preprepare();
     auto block = create_approved_block<ConsensusType::Epoch>(block_pp);
     block.next = 90;
@@ -963,5 +963,23 @@ TEST (DB, eb)
     ASSERT_EQ(block_hash, block2.Hash());
 }
 
+TEST (DB, account)
+{
+    auto store = get_db();
+    ASSERT_TRUE(store != NULL);
+    if(store == NULL)
+        return;
+    logos::transaction txn(store->environment, nullptr, true);
+
+    logos::account_info block(1, 2, 3, 4, 5, 6, 7, 8);
+    block.reservation = 9;
+    block.reservation_epoch = 10;
+    AccountAddress address(11);
+    ASSERT_FALSE(store->account_put(address, block, txn));
+
+    logos::account_info block2;
+    ASSERT_FALSE(store->account_get(address, block2, txn));
+    ASSERT_EQ(block, block2);
+}
 //#endif
 

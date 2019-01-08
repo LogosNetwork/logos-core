@@ -171,7 +171,8 @@ MicroBlockTester::read_accounts(
   int i = 0;
   for (auto it = logos::store_iterator(transaction, node.store.account_db); it != logos::store_iterator(nullptr); ++it) {
     logos::account account(it->first.uint256());
-    logos::account_info info(it->second);
+    bool error = false;
+    logos::account_info info(error, it->second);
     boost::property_tree::ptree response;
     response.put ("frontier", info.head.to_string ());
     response.put ("open_block", info.open_block.to_string ());

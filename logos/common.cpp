@@ -226,25 +226,16 @@ logos::account_info::account_info ()
     , receive_count (0)
 {}
 
-logos::account_info::account_info (MDB_val const & val_a)
+logos::account_info::account_info (bool & error, const logos::mdb_val & mdbval)
 {
-    assert (val_a.mv_size == sizeof (*this));
+    if(error)
+    {
+        return;
+    }
 
-    static_assert (sizeof (reservation) +
-                   sizeof (reservation_epoch) +
-                   sizeof (head) +
-                   sizeof (receive_head) +
-                   sizeof (rep_block) +
-                   sizeof (open_block) +
-                   sizeof (balance) +
-                   sizeof (modified) +
-                   sizeof (block_count) +
-                   sizeof (receive_count) == sizeof (*this),
-                   "Class not packed");
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
 
-    std::copy (reinterpret_cast<uint8_t const *> (val_a.mv_data),
-               reinterpret_cast<uint8_t const *> (val_a.mv_data) + sizeof (*this),
-               reinterpret_cast<uint8_t *> (this));
+    error = deserialize (stream);
 }
 
 logos::account_info::account_info (
@@ -254,8 +245,8 @@ logos::account_info::account_info (
         logos::block_hash const & open_block_a,
         logos::amount const & balance_a,
         uint64_t modified_a,
-        uint64_t block_count_a,
-        uint64_t receive_count_a)
+        uint32_t block_count_a,
+        uint32_t receive_count_a)
     : reservation(0)
     , reservation_epoch(0)
     , head (head_a)
@@ -268,50 +259,52 @@ logos::account_info::account_info (
     , receive_count (receive_count_a)
 {}
 
-void logos::account_info::serialize (logos::stream & stream_a) const
+uint32_t logos::account_info::serialize (logos::stream & stream_a) const
 {
-    write (stream_a, reservation.bytes);
-    write (stream_a, reservation_epoch);
-    write (stream_a, head.bytes);
-    write (stream_a, receive_head.bytes);
-    write (stream_a, rep_block.bytes);
-    write (stream_a, open_block.bytes);
-    write (stream_a, balance.bytes);
-    write (stream_a, modified);
-    write (stream_a, block_count);
-    write (stream_a, receive_count);
+    auto s = write (stream_a, head.bytes);
+    s += write (stream_a, receive_head.bytes);
+    s += write (stream_a, rep_block.bytes);
+    s += write (stream_a, open_block.bytes);
+    s += write (stream_a, balance.bytes);
+    s += write (stream_a, modified);
+    s += write (stream_a, block_count);
+    s += write (stream_a, receive_count);
+    s += write (stream_a, reservation.bytes);
+    s += write (stream_a, reservation_epoch);
+    return s;
 }
 
 bool logos::account_info::deserialize (logos::stream & stream_a)
 {
-    auto error (read (stream_a, reservation.bytes));
+    auto error (read (stream_a, head.bytes));
     if (!error)
     {
-        error = read (stream_a, reservation_epoch);
+        error = read (stream_a, receive_head.bytes);
         if (!error)
         {
-            auto error (read (stream_a, head.bytes));
+            error = read (stream_a, rep_block.bytes);
             if (!error)
             {
-                error = read (stream_a, receive_head.bytes);
+                error = read (stream_a, open_block.bytes);
                 if (!error)
                 {
-                    error = read (stream_a, rep_block.bytes);
+                    error = read (stream_a, balance.bytes);
                     if (!error)
                     {
-                        error = read (stream_a, open_block.bytes);
+                        error = read (stream_a, modified);
                         if (!error)
                         {
-                            error = read (stream_a, balance.bytes);
+                            error = read (stream_a, block_count);
                             if (!error)
                             {
-                                error = read (stream_a, modified);
+                                error = read (stream_a, receive_count);
                                 if (!error)
                                 {
-                                    error = read (stream_a, block_count);
+                                    auto error (read (stream_a, reservation.bytes));
                                     if (!error)
                                     {
-                                        error = read (stream_a, receive_count);
+                                        error = read (stream_a, reservation_epoch);
+
                                     }
                                 }
                             }
@@ -343,10 +336,21 @@ bool logos::account_info::operator!= (logos::account_info const & other_a) const
     return !(*this == other_a);
 }
 
-logos::mdb_val logos::account_info::val () const
+//logos::mdb_val logos::account_info::val () const
+//{
+//    return logos::mdb_val (sizeof (*this), const_cast<logos::account_info *> (this));
+//}
+
+logos::mdb_val logos::account_info::to_mdb_val(std::vector<uint8_t> &buf) const
 {
-    return logos::mdb_val (sizeof (*this), const_cast<logos::account_info *> (this));
+    assert(buf.empty());
+    {
+        logos::vectorstream stream(buf);
+        serialize(stream);
+    }
+    return logos::mdb_val(buf.size(), buf.data());
 }
+
 
 logos::block_counts::block_counts () :
 send (0),

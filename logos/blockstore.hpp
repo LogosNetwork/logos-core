@@ -141,7 +141,7 @@ public:
     bool state_block_put(StateBlock const &, const BlockHash & hash, MDB_txn *);
     bool state_block_exists(const StateBlock & block);
     bool state_block_exists(const BlockHash & hash);
-    bool account_get(AccountAddress const & account_a, account_info & info_a);
+    bool account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* t=0);
     bool account_db_empty();
     bool account_put (AccountAddress const &, logos::account_info const &, MDB_txn *);
     bool receive_put(const BlockHash & hash, const ReceiveBlock & block, MDB_txn *);

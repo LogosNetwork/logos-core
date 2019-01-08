@@ -336,7 +336,7 @@ void logos::frontier_req_client::next (MDB_txn * transaction_a)
     if (iterator != connection->node->store.latest_end ())
     {
         current = logos::account (iterator->first.uint256 ());
-        info = logos::account_info (iterator->second);
+        //info = logos::account_info (iterator->second);
     }
     else
     {
@@ -2030,7 +2030,7 @@ void logos::frontier_req_server::next ()
     if (iterator != connection->node->store.latest_end ())
     {
         current = logos::uint256_union (iterator->first.uint256 ());
-        info = logos::account_info (iterator->second);
+        //info = logos::account_info (iterator->second);
     }
     else
     {

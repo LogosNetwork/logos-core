@@ -565,7 +565,8 @@ size_t logos::block_store::account_count (MDB_txn * transaction_a)
 
 void logos::block_store::account_put (MDB_txn * transaction_a, logos::account const & account_a, logos::account_info const & info_a)
 {
-    auto status (mdb_put (transaction_a, accounts, logos::mdb_val (account_a), info_a.val (), 0));
+    std::vector<uint8_t> buf;
+    auto status (mdb_put (transaction_a, accounts, logos::mdb_val (account_a), info_a.to_mdb_val(buf), 0));
     assert (status == 0);
 }
 
@@ -1094,25 +1095,38 @@ bool logos::block_store::epoch_tip_get(BlockHash & hash, MDB_txn *transaction)
     return false;
 }
 
-bool logos::block_store::account_get(AccountAddress const & account_a, account_info & info_a)
+bool logos::block_store::account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* transaction)
 {
-    mdb_val value;
-    transaction transaction(environment, nullptr, false);
+    LOG_DEBUG(log) << __func__ << " key " << account_a.to_string();
+    mdb_val val;
+    if(get(account_db, mdb_val(account_a), val, transaction))
+    {
+        return true;
+    }
 
-    auto status (mdb_get (transaction, account_db, mdb_val (account_a), value));
-    assert (status == 0 || status == MDB_NOTFOUND);
-    bool result;
-    if (status == MDB_NOTFOUND)
-    {
-        result = true;
-    }
-    else
-    {
-        bufferstream stream (reinterpret_cast<uint8_t const *> (value.data ()), value.size ());
-        result = info_a.deserialize (stream);
-        assert (!result);
-    }
-    return result;
+    bool error = false;
+    new (&info_a) account_info(error, val);
+    assert (!error);
+    return error;
+
+    //
+    //    mdb_val value;
+    //    transaction transaction(environment, nullptr, false);
+    //
+    //    auto status (mdb_get (transaction, account_db, mdb_val (account_a), value));
+    //    assert (status == 0 || status == MDB_NOTFOUND);
+    //    bool result;
+    //    if (status == MDB_NOTFOUND)
+    //    {
+    //        result = true;
+    //    }
+    //    else
+    //    {
+    //        bufferstream stream (reinterpret_cast<uint8_t const *> (value.data ()), value.size ());
+    //        result = info_a.deserialize (stream);
+    //        assert (!result);
+    //    }
+    //    return result;
 }
 
 bool logos::block_store::account_db_empty()
@@ -1127,7 +1141,8 @@ bool logos::block_store::account_db_empty()
 
 bool logos::block_store::account_put(const AccountAddress & account, const logos::account_info & info, MDB_txn * transaction)
 {
-    auto status(mdb_put(transaction, account_db, logos::mdb_val(account), info.val(), 0));
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(transaction, account_db, logos::mdb_val(account), info.to_mdb_val(buf), 0));
 
     assert(status == 0);
     return status != 0;

@@ -103,7 +103,7 @@ class account_info
 {
 public:
     account_info ();
-    account_info (MDB_val const &);
+    account_info (bool & error, const logos::mdb_val & mdbval);
     account_info (logos::account_info const &) = default;
 
     account_info (logos::block_hash const & head,
@@ -112,16 +112,17 @@ public:
                   logos::block_hash const & open_block,
                   logos::amount const & balance,
                   uint64_t modified,
-                  uint64_t block_count,
-                  uint64_t receive_count);
+                  uint32_t block_count,
+                  uint32_t receive_count);
 
-    void serialize (logos::stream &) const;
+    uint32_t serialize (logos::stream &) const;
     bool deserialize (logos::stream &);
     bool operator== (logos::account_info const &) const;
     bool operator!= (logos::account_info const &) const;
-    logos::mdb_val val () const;
+    //logos::mdb_val val () const;
+    logos::mdb_val to_mdb_val(std::vector<uint8_t> &buf) const;
     logos::block_hash reservation;
-    uint64_t reservation_epoch;
+    uint32_t reservation_epoch;
     logos::block_hash head;
     logos::block_hash receive_head;
     logos::block_hash rep_block;

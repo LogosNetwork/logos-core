@@ -127,7 +127,8 @@ int main (int argc, char * const * argv)
         std::map<logos::account, logos::uint128_t> calculated;
         for (auto i (node.node->store.latest_begin (transaction)), n (node.node->store.latest_end ()); i != n; ++i)
         {
-            logos::account_info info (i->second);
+            bool error = false;
+            logos::account_info info (error, i->second);
             logos::block_hash rep_block (node.node->ledger.representative_calculated (transaction, info.head));
             std::unique_ptr<logos::block> block (node.node->store.block_get (transaction, rep_block));
             calculated[block->representative ()] += info.balance.number ();
