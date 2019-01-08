@@ -215,6 +215,10 @@ enum class vote_code
     replay, // Vote does not have the highest sequence number, it's a replay
     vote // Vote has the highest sequence number
 };
+
+// TODO: Remove unused enums and perhaps separate
+//       these enums based on the validation class.
+//
 enum class process_result
 {
     progress,               // Hasn't been seen before, signed correctly
@@ -245,7 +249,10 @@ enum class process_result
     wrong_sequence_number,  // Logos - invalid block sequence number
     invalid_request,        // Logos - batch block contains invalid request
     invalid_tip,            // Logos - invalid microblock tip
-    invalid_number_blocks   // Logos - invalid number of blocks in microblock
+    invalid_number_blocks,  // Logos - invalid number of blocks in microblock
+    revert_immutability,    // Logos - Attempting to change a token account mutability setting from false to true
+    immutable,              // Logos - Attempting to update an immutable token account setting
+    redundant               // Logos - The token account setting change was idempotent
 };
 
 std::string ProcessResultToString(process_result result);

@@ -851,6 +851,15 @@ std::string logos::ProcessResultToString(logos::process_result result)
     case process_result::invalid_number_blocks:
         ret = "Invalid number blocks";
         break;
+    case process_result::revert_immutability:
+        ret = "Unable to revert immutability for token settings";
+        break;
+    case process_result::immutable:
+        ret = "Setting is not mutable";
+        break;
+    case process_result::redundant:
+        ret = "Setting change is redundant";
+        break;
     }
 
     return ret;
