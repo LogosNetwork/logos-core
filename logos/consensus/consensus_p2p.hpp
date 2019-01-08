@@ -45,20 +45,31 @@ public:
 
     bool ProcessInputMessage(const uint8_t *data, uint32_t size);
 
-    p2p_interface &                                                                 _p2p;
+    p2p_interface &                                                                             _p2p;
 
 private:
     void RetryValidate(const logos::block_hash &hash);
-    bool ApplyCacheUpdates(const PrePrepareMessage<CT> &message, uint8_t delegate_id, ValidationStatus &status);
-    void CacheInsert(const logos::block_hash & hash, uint8_t delegate_id, const PrePrepareMessage<CT> & message);
-    MessageHeader<MessageType::Pre_Prepare, CT>* deserialize(const uint8_t *data, uint32_t size, PrePrepareMessage<CT> &block);
 
-    Log                                                                             _log;
-    std::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)> _Validate;
-    std::function<void (const PrePrepareMessage<CT> &, uint8_t)>                    _ApplyUpdates;
-    std::multimap<logos::block_hash,std::pair<uint8_t,PrePrepareMessage<CT>>>       _cache;
-    std::mutex                                                                      _cache_mutex;
-    ContainerP2p *                                                                  _container;
+    bool ApplyCacheUpdates(const PrePrepareMessage<CT> & block,
+                           std::shared_ptr<PrePrepareMessage<CT>> pblock,
+                           uint8_t delegate_id,
+                           ValidationStatus &status);
+
+    void CacheInsert(const logos::block_hash & hash,
+                     uint8_t delegate_id,
+                     const PrePrepareMessage<CT> & block,
+                     std::shared_ptr<PrePrepareMessage<CT>> & pblock);
+
+    MessageHeader<MessageType::Pre_Prepare, CT>* deserialize(const uint8_t *data,
+                                                             uint32_t size,
+                                                             PrePrepareMessage<CT> &block);
+
+    Log                                                                                         _log;
+    std::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)>             _Validate;
+    std::function<void (const PrePrepareMessage<CT> &, uint8_t)>                                _ApplyUpdates;
+    std::multimap<logos::block_hash,std::pair<uint8_t,std::shared_ptr<PrePrepareMessage<CT>>>>  _cache;
+    std::mutex                                                                                  _cache_mutex;
+    ContainerP2p *                                                                              _container;
 
     friend class ContainerP2p;
     friend class PersistenceP2p<CT>;
