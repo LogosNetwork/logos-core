@@ -48,12 +48,7 @@ RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch()
 
         if(pos->account.is_zero() && pos->GetNumTransactions() == 0)
         {
-            LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch null state block"
-                    << pos->SerializeJson(false, false);
             sequence.erase(pos);
-            LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch null state block erased, requests_size="
-                    << sequence.size();
-
             break;
         }
 

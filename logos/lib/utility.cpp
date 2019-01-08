@@ -15,4 +15,3 @@ std::string string_to_hex_str(const std::string& input)
     }
     return output;
 }
-

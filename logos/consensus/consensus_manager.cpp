@@ -204,16 +204,16 @@ ConsensusManager<CT>::QueueRequest(
 {
     uint8_t designated_delegate_id = DesignatedDelegate(request);
 
-//    if(designated_delegate_id == _delegate_id)
-//    {
-//        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueRequest primary";
+    if(designated_delegate_id == _delegate_id)
+    {
+        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueRequest primary";
         QueueRequestPrimary(request);
-//    }
-//    else
-//    {
-//        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueRequest secondary";
-//        QueueRequestSecondary(request);
-//    }
+    }
+    else
+    {
+        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueRequest secondary";
+        QueueRequestSecondary(request);
+    }
 }
 
 template<ConsensusType CT>
@@ -237,7 +237,7 @@ bool
 ConsensusManager<CT>::IsPendingRequest(
     std::shared_ptr<Request> block)
 {
-    auto hash = block->Hash();//TODO gethash()
+    auto hash = block->Hash();
 
     return (PrimaryContains(hash) ||
             SecondaryContains(hash) ||

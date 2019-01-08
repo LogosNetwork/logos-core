@@ -941,7 +941,7 @@ void logos::rpc_handler::block ()
     }
     logos::transaction transaction (node.store.environment, nullptr, false);
     boost::property_tree::ptree response_l;
-    //logos::state_block block;
+
     StateBlock sb;
     ReceiveBlock rb;
     std::string block_type;
@@ -1469,7 +1469,6 @@ void logos::rpc_handler::delegators ()
         logos::transaction transaction (node.store.environment, nullptr, false);
         for (auto i (node.store.latest_begin (transaction)), n (node.store.latest_end ()); i != n; ++i)
         {
-            //TODO do we use this function?
             bool error = false;
             logos::account_info info (error, i->second);
             auto block (node.store.block_get (transaction, info.rep_block));
@@ -1501,7 +1500,6 @@ void logos::rpc_handler::delegators_count ()
         logos::transaction transaction (node.store.environment, nullptr, false);
         for (auto i (node.store.latest_begin (transaction)), n (node.store.latest_end ()); i != n; ++i)
         {
-            //TODO do we use this function?
             bool error = false;
             logos::account_info info (error, i->second);
             auto block (node.store.block_get (transaction, info.rep_block));
@@ -1632,7 +1630,6 @@ void logos::rpc_handler::frontiers ()
             logos::transaction transaction (node.store.environment, nullptr, false);
             for (auto i (node.store.latest_begin (transaction, start)), n (node.store.latest_end ()); i != n && frontiers.size () < count; ++i)
             {
-                //TODO do we use this function?
                 bool error = false;
                 frontiers.put (logos::account (i->first.uint256 ()).to_account (), logos::account_info (error, i->second).head.to_string ());
             }
@@ -1796,11 +1793,11 @@ void logos::rpc_handler::account_history ()
         }
         else
         {
-            //TODO no timestamp in state block
+            //no timestamp in state block
             //put_send = send_block.timestamp > receive_block.timestamp;
         }
 
-        //TODO ask what is this for
+        //what is this for
         StateBlock receive_link_block;  // i.e. source send block
         if (!put_send)
         {
@@ -1816,7 +1813,6 @@ void logos::rpc_handler::account_history ()
         }
         else
         {
-            //TODO mismatch between old IDD state block and new state block
             boost::property_tree::ptree entry;
             entry.put ("type", put_send ? "send" : "receive");
             entry.put ("hash", hash.to_string ());
@@ -1824,10 +1820,8 @@ void logos::rpc_handler::account_history ()
             //TODO loop transactions
             entry.put ("account", put_send ? display_block.trans[0].target.to_account() : display_block.account.to_account ());
             entry.put ("amount", display_block.trans[0].amount.to_string_dec ());
-            //entry.put ("timestamp", std::to_string (display_block.timestamp));
             if (output_raw)
             {
-                //entry.put ("representative", display_block.hashables.representative.to_account ());
                 entry.put ("link", display_block.trans[0].target.to_string ());
                 entry.put ("previous", display_block.previous.to_string ());
 
@@ -2632,31 +2626,6 @@ void logos::rpc_handler::process ()
         auto result = node.OnSendRequest(block, should_buffer_request());
         auto hash = block->GetHash();
 
-        //    //std::shared_ptr<logos::block> block (logos::deserialize_block_json (block_l));
-        //    std::shared_ptr<StateBlock> block (logos::deserialize_block_json (block_l));
-        //    if (block != nullptr)
-        //    {
-        //        bool logos (true);  // TODO: clean up legacy code below
-        //        if (logos)// || !logos::work_validate (*block))
-        //        {
-        //            auto hash (block->hash ());
-        //            if(!logos)
-        //            {
-        //                node.block_arrival.add (hash);
-        //            }
-        //            logos::process_return result;
-        //            if(logos)
-        //            {
-        //                auto timestamped_block (std::dynamic_pointer_cast<logos::state_block>(block));
-        //                timestamped_block->timestamp = GetStamp();
-        //                result = node.OnSendRequest(timestamped_block, should_buffer_request());
-        //            }
-        //            else
-        //            {
-        //                logos::transaction transaction (node.store.environment, nullptr, true);
-        //                result = node.block_processor.process_receive_one (transaction, block);
-        //            }
-
         switch (result.code)
         {
             case logos::process_result::progress:
@@ -2704,11 +2673,6 @@ void logos::rpc_handler::process ()
                 break;
             }
         }
-    //        }
-    //        else
-    //        {
-    //            error_response (response, "Block work is invalid");
-    //        }
     }
     else
     {

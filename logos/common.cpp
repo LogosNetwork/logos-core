@@ -266,11 +266,11 @@ uint32_t logos::account_info::serialize (logos::stream & stream_a) const
     s += write (stream_a, rep_block.bytes);
     s += write (stream_a, open_block.bytes);
     s += write (stream_a, balance.bytes);
-    s += write (stream_a, modified);
-    s += write (stream_a, block_count);
-    s += write (stream_a, receive_count);
+    s += write (stream_a, htole64(modified));
+    s += write (stream_a, htole32(block_count));
+    s += write (stream_a, htole32(receive_count));
     s += write (stream_a, reservation.bytes);
-    s += write (stream_a, reservation_epoch);
+    s += write (stream_a, htole32(reservation_epoch));
     return s;
 }
 
@@ -291,20 +291,27 @@ bool logos::account_info::deserialize (logos::stream & stream_a)
                     error = read (stream_a, balance.bytes);
                     if (!error)
                     {
-                        error = read (stream_a, modified);
+                        uint64_t modified_le = 0;
+                        error = read (stream_a, modified_le);
                         if (!error)
                         {
-                            error = read (stream_a, block_count);
+                            modified = le64toh(modified_le);
+                            uint32_t block_count_le = 0;
+                            error = read (stream_a, block_count_le);
                             if (!error)
                             {
-                                error = read (stream_a, receive_count);
+                                block_count = le32toh(block_count_le);
+                                uint32_t receive_count_le = 0;
+                                error = read (stream_a, receive_count_le);
                                 if (!error)
                                 {
+                                    receive_count = le32toh(receive_count_le);
                                     auto error (read (stream_a, reservation.bytes));
                                     if (!error)
                                     {
-                                        error = read (stream_a, reservation_epoch);
-
+                                        uint32_t reservation_epoch_le = 0;
+                                        error = read (stream_a, reservation_epoch_le);
+                                        reservation_epoch = le32toh(reservation_epoch_le);
                                     }
                                 }
                             }
@@ -336,11 +343,6 @@ bool logos::account_info::operator!= (logos::account_info const & other_a) const
     return !(*this == other_a);
 }
 
-//logos::mdb_val logos::account_info::val () const
-//{
-//    return logos::mdb_val (sizeof (*this), const_cast<logos::account_info *> (this));
-//}
-
 logos::mdb_val logos::account_info::to_mdb_val(std::vector<uint8_t> &buf) const
 {
     assert(buf.empty());
@@ -350,7 +352,6 @@ logos::mdb_val logos::account_info::to_mdb_val(std::vector<uint8_t> &buf) const
     }
     return logos::mdb_val(buf.size(), buf.data());
 }
-
 
 logos::block_counts::block_counts () :
 send (0),

@@ -44,7 +44,6 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
         {
             auto endpoint = Endpoint(make_address_v4(delegate.ip),
                                      local_endpoint.port());
-
             AddNetIOConnection(service, delegate.id, endpoint);
         }
         else if (delegate.id != _delegate_id)
@@ -185,7 +184,6 @@ ConsensusNetIOManager::ScheduleTimer(
     _heartbeat_timer.async_wait(std::bind(&ConsensusNetIOManager::OnTimeout, this,
                                 std::placeholders::_1));
 }
-
 
 void
 ConsensusNetIOManager::OnTimeout(

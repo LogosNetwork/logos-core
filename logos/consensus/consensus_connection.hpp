@@ -123,27 +123,14 @@ protected:
     template<typename M>
     void SendMessage(M & msg)
     {
-        //        M response(_pre_prepare_hash);
-        //        _validator.Sign(response.Hash(), response.signature);
-
-        //        StoreResponse(response);
-        //        UpdateMessage(response);
-
         std::vector<uint8_t> buf;
         msg.Serialize(buf);
         Send(buf.data(), buf.size());
     }
 
-    //    void StoreResponse(const Prepare & message);
-    //    void StoreResponse(const Commit & message);
-    //    void StoreResponse(const Rejection & message);
-
     void SetPrePrepare(const PrePrepare & message);
     virtual void HandlePrePrepare(const PrePrepare & message);
     virtual void OnPostCommit();
-
-    //    template<typename M>
-    //    void UpdateMessage(M & message);
 
     virtual void Reject();
     virtual void ResetRejectionStatus();
@@ -155,9 +142,6 @@ protected:
     std::shared_ptr<IOChannel>  _iochannel;
     std::mutex                  _mutex;
     std::shared_ptr<PrePrepare> _pre_prepare;
-    //    std::shared_ptr<Prepare>    _prepare; //TODO
-    //    std::shared_ptr<Commit>     _commit; //TODO
-
     uint64_t                    _pre_prepare_timestamp = 0;
     BlockHash                   _prev_pre_prepare_hash;
     AggSignature                _post_prepare_sig;

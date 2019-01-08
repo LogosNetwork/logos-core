@@ -2207,17 +2207,6 @@ void logos::node::add_initial_peers ()
 
 logos::process_return logos::node::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_buffer)
 {
-    //    //TODO discuss how to refactor rpc code.
-    //    auto new_block = std::make_shared<StateBlock> (
-    //            block->hashables.account,//.bytes,
-    //            block->hashables.previous,//.bytes,
-    //            0, //TODO
-    //            StateBlock::Type::send,
-    //            block->hashables.link,//.bytes,
-    //            block->hashables.amount,
-    //            block->hashables.transaction_fee,
-    //            block->signature//.bytes
-    //            );
     return _consensus_container.OnSendRequest(block, should_buffer);
 }
 

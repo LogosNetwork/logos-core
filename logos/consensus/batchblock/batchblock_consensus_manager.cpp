@@ -152,9 +152,9 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
         _hashes.insert(batch.blocks[i].GetHash());
     }
 
-    LOG_DEBUG (_log) << "BatchBlockConsensusManager::PrePrepareGetNext -"
-            << " batch_size=" << batch.block_count
-            << " batch.sequence=" << batch.sequence;
+    //LOG_DEBUG (_log) << "BatchBlockConsensusManager::PrePrepareGetNext -"
+    //	    << " batch_size=" << batch.block_count
+    //	    << " batch.sequence=" << batch.sequence;
 
     return batch;
 }

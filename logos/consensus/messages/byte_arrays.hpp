@@ -64,35 +64,6 @@ struct ByteArray : public std::array<byte, len>
         return stream.str ();
     }
 
-    //    bool decode_hex (std::string const & text)//TO double check
-    //    {
-    //        auto error (false);
-    //        if (text.size () == len*2)
-    //        {
-    //            std::stringstream stream (text);
-    //            stream << std::hex << std::noshowbase;
-    //            logos::uint256_t number_l;
-    //            try
-    //            {
-    //                stream >> number_l;
-    //                *this = number_l;
-    //                if (!stream.eof ())
-    //                {
-    //                    error = true;
-    //                }
-    //            }
-    //            catch (std::runtime_error &)
-    //            {
-    //                error = true;
-    //            }
-    //        }
-    //        else
-    //        {
-    //            error = true;
-    //        }
-    //        return error;
-    //    }
-
     void Hash(blake2b_state & hash) const
     {
         blake2b_update(&hash, this->data(), len);

@@ -198,11 +198,6 @@ ConsensusNetIO::AsyncRead(size_t bytes,
 void
 ConsensusNetIO::OnPrequal(const uint8_t * data)
 {
-    //    LOG_DEBUG(_log) << "ConsensusNetIO::OnPrequal"
-    //            << " tid=" << std::this_thread::get_id()
-    //            << " this " << (uint64_t)this
-    //            << " data=" << (uint64_t)data;
-
     bool error = false;
     logos::bufferstream stream(data, MessagePrequelSize);
     Prequel msg_prequel(error, stream);
@@ -245,11 +240,6 @@ ConsensusNetIO::OnData(const uint8_t * data,
         ConsensusType consensus_type,
         uint32_t payload_size)
 {
-    //    LOG_DEBUG(_log) << "#grep# ConsensusNetIO::OnData"
-    //            << " tid=" << std::this_thread::get_id()
-    //            << " this " << (uint64_t)this
-    //            << " data=" << (uint64_t)data;
-    //
     //    LOG_DEBUG(_log) << __func__ << " Peng"
     //            << " tid=" << std::this_thread::get_id()
     //            << " version=" << (int)version

@@ -31,17 +31,12 @@ void PeerAcceptor::Start()
         LOG_ERROR (_log) << "PeerAcceptor - Error while binding for Consensus on "
                          << _local_endpoint << " - "
                          << ec.message();
-        std::cerr << "PeerAcceptor - Error while binding for Consensus on "
-                << _local_endpoint << " - "
-                << ec.message() << std::endl;
 
         throw std::runtime_error(ec.message());
     }
-    LOG_INFO(_log) << "PeerAcceptor - before listen";
+
     _acceptor.listen();
-    LOG_INFO(_log) << "PeerAcceptor - after listen";
     Accept();
-    LOG_INFO(_log) << "PeerAcceptor - after accept";
 }
 
 void PeerAcceptor::Accept()

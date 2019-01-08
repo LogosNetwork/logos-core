@@ -158,7 +158,6 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
             assert(s.size() == CONSENSUS_PUB_KEY_SIZE);
             memcpy(dpk.data(), s.data(), CONSENSUS_PUB_KEY_SIZE);
             Delegate delegate = {0, dpk, 0, 0};
-            //            memcpy(delegate.bls_pub.data(), s.data(), CONSENSUS_PUB_KEY_SIZE);
 
             if (e != 0 || !_epoch_transition_enabled)
             {

@@ -11,7 +11,7 @@
 
 using namespace std;
 
-
+///////////////////////////////// utils tests
 TEST (crypto, ed25519)
 {
 	AccountPrivKey prv (0);
@@ -246,6 +246,7 @@ TEST (write_read, bool_vec)
     }
 }
 
+///////////////////////////// message serialization tests
 
 TEST (messages, KeyAdvertisement)
 {
@@ -572,7 +573,6 @@ TEST (blocks, batch_state_block_PostCommit_DB)
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
 
-/////////////////////////////
 PrePrepareMessage<ConsensusType::MicroBlock> create_mb_preprepare()
 {
     PrePrepareMessage<ConsensusType::MicroBlock> block;
@@ -689,7 +689,8 @@ TEST (blocks, epoch_block_PostCommit_DB)
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
 
-//#if 0
+///////////////////////////////////////message_validator tests
+
 TEST (message_validator, consensus_session)
 {
     auto nodes = setup_nodes();
@@ -903,6 +904,69 @@ TEST (message_validator, signature_order_twoThirds)
     }
 }
 
+
+///////////////// DB tests
+
+TEST (DB, receive_block)
+{
+    auto store = get_db();
+    ASSERT_TRUE(store != NULL);
+    if(store == NULL)
+        return;
+    logos::transaction txn(store->environment, nullptr, true);
+
+    ReceiveBlock block(1,2,3);
+    auto hash = block.Hash();
+    std::vector<uint8_t> buf;
+    ASSERT_FALSE(store->receive_put(hash, block, txn));
+
+    ReceiveBlock block2;
+    ASSERT_FALSE(store->receive_get(hash, block2, txn));
+
+    auto hash2 = block2.Hash();
+    ASSERT_EQ(hash, hash2);
+}
+
+TEST (DB, state_block)
+{
+    auto store = get_db();
+    ASSERT_TRUE(store != NULL);
+    if(store == NULL)
+        return;
+    logos::transaction txn(store->environment, nullptr, true);
+
+    StateBlock block(1,2,3,StateBlock::Type::send,5,6,7,8,9);
+    std::vector<uint8_t> buf;
+    ASSERT_FALSE(store->state_block_put(block, block.GetHash(), txn));
+
+    StateBlock block2;
+    ASSERT_FALSE(store->state_block_get(block.GetHash(), block2, txn));
+
+    ASSERT_EQ(block.GetHash(), block2.GetHash());
+    ASSERT_EQ(block.Hash(), block2.Hash());
+    ASSERT_EQ(block.Hash(), block.GetHash());
+    ASSERT_EQ(block2.Hash(), block2.GetHash());
+}
+
+TEST (DB, account)
+{
+    auto store = get_db();
+    ASSERT_TRUE(store != NULL);
+    if(store == NULL)
+        return;
+    logos::transaction txn(store->environment, nullptr, true);
+
+    logos::account_info block(1, 2, 3, 4, 5, 6, 7, 8);
+    block.reservation = 9;
+    block.reservation_epoch = 10;
+    AccountAddress address(11);
+    ASSERT_FALSE(store->account_put(address, block, txn));
+
+    logos::account_info block2;
+    ASSERT_FALSE(store->account_get(address, block2, txn));
+    ASSERT_EQ(block, block2);
+}
+
 TEST (DB, bsb)
 {
     auto store = get_db();
@@ -963,23 +1027,6 @@ TEST (DB, eb)
     ASSERT_EQ(block_hash, block2.Hash());
 }
 
-TEST (DB, account)
-{
-    auto store = get_db();
-    ASSERT_TRUE(store != NULL);
-    if(store == NULL)
-        return;
-    logos::transaction txn(store->environment, nullptr, true);
 
-    logos::account_info block(1, 2, 3, 4, 5, 6, 7, 8);
-    block.reservation = 9;
-    block.reservation_epoch = 10;
-    AccountAddress address(11);
-    ASSERT_FALSE(store->account_put(address, block, txn));
-
-    logos::account_info block2;
-    ASSERT_FALSE(store->account_get(address, block2, txn));
-    ASSERT_EQ(block, block2);
-}
 //#endif
 

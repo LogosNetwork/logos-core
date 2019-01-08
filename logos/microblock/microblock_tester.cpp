@@ -244,7 +244,7 @@ MicroBlockTester::informational(
 
     if (type == "epoch") {
         ApprovedEB epoch;
-        //size_t s = sizeof(epoch);
+        
         std::stringstream str;
         uint64_t start = (uint64_t) &epoch;
         uint64_t account = (uint64_t) &(epoch.primary_delegate);
@@ -262,7 +262,7 @@ MicroBlockTester::informational(
     else if (type == "microblock")
     {
         ApprovedMB block;
-        //size_t s = sizeof(block);
+        
         std::stringstream str;
         uint64_t start = (uint64_t) &block;
         uint64_t account = (uint64_t) &(block.primary_delegate);
@@ -281,7 +281,7 @@ MicroBlockTester::informational(
     else if (type == "batch")
     {
         ApprovedBSB block;
-        //size_t s = sizeof(block);
+        
         std::stringstream str;
         uint64_t start = (uint64_t) &block;
         uint64_t account = (uint64_t) &(block.primary_delegate);

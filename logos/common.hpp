@@ -2,7 +2,6 @@
 
 #include <logos/lib/blocks.hpp>
 #include <logos/node/utility.hpp>
-//#include <logos/account_info.h>
 
 #include <boost/property_tree/ptree.hpp>
 

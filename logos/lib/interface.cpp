@@ -11,7 +11,6 @@
 #include <logos/lib/blocks.hpp>
 #include <logos/lib/numbers.hpp>
 #include <logos/lib/work.hpp>
-//#include <logos/account_info.h>
 #include <logos/consensus/messages/byte_arrays.hpp>
 
 #include <cstring>

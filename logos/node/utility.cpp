@@ -121,12 +121,7 @@ mdb_val (sizeof (val_a), const_cast<logos::uint128_union *> (&val_a))
 {
 }
 
-//logos::mdb_val::mdb_val (logos::uint256_union const & val_a) :
-//mdb_val (sizeof (val_a), const_cast<logos::uint256_union *> (&val_a))
-//{
-//}
 logos::mdb_val::mdb_val (const BlockHash & val_a) :
-//        mdb_val (HASH_SIZE, const_cast<BlockHash *>(&val_a)->data())
         mdb_val (HASH_SIZE, const_cast<BlockHash *>(&val_a)->data())
 {}
 

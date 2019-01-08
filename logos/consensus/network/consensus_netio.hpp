@@ -72,8 +72,6 @@ public:
 
 };
 
-//static constexpr uint32_t NETIO_BUFFER_SIZE        = 1024*1024*2;
-
 /// ConsensusNetIO represent connection to a peer.
 ///
 /// Network connection to a peer. There is one connection per peer.
@@ -91,7 +89,6 @@ class ConsensusNetIO: public IOChannel,
     using Socket        = boost::asio::ip::tcp::socket;
     using Address       = boost::asio::ip::address;
     using IOBinder      = function<void(std::shared_ptr<ConsensusNetIO>, uint8_t)>;
-    //using ReceiveBuffer = std::array<uint8_t, NETIO_BUFFER_SIZE>;
     using Connections   = std::shared_ptr<MessageParser> [CONSENSUS_TYPE_COUNT];
     using QueuedWrites  = std::list<std::shared_ptr<std::vector<uint8_t>>>;
 
@@ -304,8 +301,7 @@ private:
 
     std::shared_ptr<Socket>        _socket;               ///< Connected socket
     std::atomic_bool               _connected;            ///< is the socket is connected?
-    //ReceiveBuffer                  _receive_buffer;       ///< receive buffer
-	QueuedWrites                   _queued_writes;        ///< data waiting to get sent on the network
+    QueuedWrites                   _queued_writes;        ///< data waiting to get sent on the network
     Log                            _log;                  ///< boost asio log
     Endpoint                       _endpoint;             ///< remote peer endpoint
     logos::alarm &                 _alarm;                ///< alarm reference

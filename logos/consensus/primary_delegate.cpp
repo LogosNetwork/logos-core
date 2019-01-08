@@ -51,13 +51,6 @@ void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message)
         _post_prepare_hash = response.ComputeHash();
         std::vector<uint8_t> buf;
         response.Serialize(buf);
-        //        {
-        //            LOG_DEBUG(_log) << "before send post-prepare. "
-        //                    << _pre_prepare_hash.to_string() << " "
-        //                    << response.preprepare_hash.to_string() << " "
-        //                    << response.signature.sig.to_string() << " "
-        //                    << response.signature.map.to_string();
-        //        }
         Send(buf.data(), buf.size());
         AdvanceState(ConsensusState::POST_PREPARE);
     }
@@ -188,12 +181,6 @@ void PrimaryDelegate::CycleTimers(bool cancel)
 template<typename M>
 bool PrimaryDelegate::Validate(const M & message)
 {
-    //    LOG_DEBUG(_log) << "PrimaryDelegate - Validating " << MessageToName(message)
-    //                   << " from " << (uint)_cur_delegate_id
-    //                   << " hash_local " << GetHashSigned(message).to_string()
-    //                   << " hash_net " <<  message.preprepare_hash.to_string()
-    //                   << " sig " << message.signature.to_string();
-
     return _validator.Validate(GetHashSigned(message), message.signature, _cur_delegate_id);
 }
 
@@ -334,30 +321,6 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
             _signatures.push_back({_delegate_id, _pre_prepare_sig});
             _post_prepare_sig.map.reset();
             good = _validator.AggregateSignature(_signatures, _post_prepare_sig);
-
-            //            {//Peng debug
-            //                for(auto &sig : _signatures)
-            //                {
-            //                    auto pass = _validator.Validate(_pre_prepare_hash, sig.signature, sig.delegate_id);
-            //                    LOG_DEBUG(_log) << __func__
-            //                                   << "PrimaryDelegate - Validating " << MessageToName(message)
-            //                                   << " from " << (uint)sig.delegate_id
-            //                                   << " hash " << _pre_prepare_hash.to_string()
-            //                                   << " sig " << sig.signature.to_string()
-            //                                   << " pass " << pass;
-            //                }
-            //
-            //
-            //                if(!_validator.Validate(_pre_prepare_hash, _post_prepare_sig))
-            //                {
-            //                    LOG_ERROR(_log) << __func__ << " cannot verify own _post_prepare_sig "
-            //                            << " hash " << _pre_prepare_hash.to_string()
-            //                            << " sig " << _post_prepare_sig.sig.to_string()
-            //                            << " map " << _post_prepare_sig.map.to_string()
-            //                            ;
-            //                }
-            //            }
-
         }
         else if (expected_state == ConsensusState::POST_PREPARE )
         {
@@ -367,13 +330,6 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
             _signatures.push_back({_delegate_id, my_commit_sig});
             _post_commit_sig.map.reset();
             good = _validator.AggregateSignature(_signatures, _post_commit_sig);
-
-            //            {//Peng debug
-            //                if(!_validator.Validate(_post_prepare_hash, _post_commit_sig))
-            //                {
-            //                    LOG_ERROR(_log) << __func__ << " cannot verify own _post_commit_sig";
-            //                }
-            //            }
         }
         else
             good = false;
