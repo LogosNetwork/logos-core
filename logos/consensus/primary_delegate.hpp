@@ -71,6 +71,7 @@ protected:
     bool StateReadyForConsensus();
     void CancelTimer();
 
+    void SetQuorum(uint128_t & max_fault, uint128_t & quorum, const uint128_t & total);
     bool ReachedQuorum(uint128_t vote, uint128_t stake);
 
     // TODO: Revert to std::mutex after
@@ -84,10 +85,10 @@ protected:
     ConsensusState       _state           = ConsensusState::VOID;
     uint128_t            _vote_total      = 0;
     uint128_t            _stake_total     = 0;
+    uint128_t            _vote_max_fault  = 0;
+    uint128_t            _stake_max_fault = 0;
     uint128_t            _vote_quorum     = 0;
     uint128_t            _stake_quorum    = 0;
-    bool                 _vq_rounded      = false;
-    bool                 _sq_rounded      = false;
     uint128_t            _prepare_vote    = 0;
     uint128_t            _prepare_stake   = 0;
     uint128_t            _my_vote         = 0;

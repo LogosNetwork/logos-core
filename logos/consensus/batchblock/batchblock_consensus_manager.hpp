@@ -169,8 +169,6 @@ private:
 
     void OnDelegatesConnected();
 
-    void OnCurrentEpochSet() override;
-
     bool Rejected(uint128_t reject_vote, uint128_t reject_stake);
 
     WeightList            _response_weights;
@@ -184,8 +182,6 @@ private:
     uint128_t             _connected_stake       = 0;
     uint128_t             _ne_reject_vote        = 0;     ///< New Epoch rejection vote weight.
     uint128_t             _ne_reject_stake       = 0;     ///< New Epoch rejection stake weight.
-    uint128_t             _vote_reject_quorum    = 0;
-    uint128_t             _stake_reject_quorum   = 0;
     bool                  _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
     bool                  _delegates_connected   = false;
 };

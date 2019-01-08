@@ -205,20 +205,8 @@ void PrimaryDelegate::OnCurrentEpochSet()
         }
     }
 
-    auto ceil = [](uint128_t n, uint128_t d, bool & r)
-                {
-                    uint128_t t = n/d;
-
-                    r = (((n < 0) ^ (d > 0)) &&
-                         (n - t*d));
-
-                    t += r;
-
-                    return t;
-                };
-
-    _vote_quorum = ceil(2 * _vote_total, 3, _vq_rounded);
-    _stake_quorum = ceil(2 * _stake_total, 3, _sq_rounded);
+    SetQuorum(_vote_max_fault, _vote_quorum, _vote_total);
+    SetQuorum(_stake_max_fault, _stake_quorum, _stake_total);
 }
 
 void PrimaryDelegate::UpdateVotes()
@@ -253,16 +241,29 @@ void PrimaryDelegate::CancelTimer()
     LOG_DEBUG(_log) << "PrimaryDelegate::CancelTimer - Primary timer canceled. ";
 }
 
+void PrimaryDelegate::SetQuorum(uint128_t & max_fault, uint128_t & quorum, const uint128_t & total)
+{
+#ifdef STRICT_CONSENSUS_THRESHOLD
+    quorum = total;
+    max_fault = 0;
+    LOG_INFO(_log) << "Using strict consensus threshold, total is " << total
+                   << " quorum is " << quorum
+                   << " max tolerated fault is " << max_fault;
+#else
+    // SYL integration fix:
+    // Per PBFT, we tolerate maximum f = floored((total - 1) / 3) faulty replicas,
+    // so quorum size is 2f + 1
+    max_fault = static_cast<uint128_t>((total - 1) / 3);
+    quorum = max_fault * 2 + 1;
+    LOG_INFO(_log) << "Using default consensus threshold, total is " << total
+                   << " quorum is " << quorum
+                   << " max tolerated fault is " << max_fault;
+#endif
+}
+
 bool PrimaryDelegate::ReachedQuorum(uint128_t vote, uint128_t stake)
 {
-    auto op = [](bool & r, uint128_t t, uint128_t q)
-              {
-                  return r ? t >= q
-                           : t > q;
-              };
-
-    return op(_vq_rounded, vote, _vote_quorum) &&
-           op(_sq_rounded, stake, _stake_quorum);
+    return (vote >= _vote_quorum) && (stake >= _stake_quorum);
 }
 
 bool PrimaryDelegate::ReachedQuorum()

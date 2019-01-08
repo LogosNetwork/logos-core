@@ -73,8 +73,9 @@ BatchBlockConsensusManager::BindIOChannel(
     _connected_vote += _weights[ids.remote].vote_weight;
     _connected_stake += _weights[ids.remote].stake_weight;
 
-    if(ReachedQuorum(_connected_vote,
-                     _connected_stake))
+    // SYL Integration fix: need to add in our own vote and stake as well
+    if(ReachedQuorum(_connected_vote + _my_vote,
+                     _connected_stake + _my_stake))
     {
         OnDelegatesConnected();
     }
@@ -237,6 +238,8 @@ BatchBlockConsensusManager::PrimaryContains(const logos::block_hash &hash)
 void
 BatchBlockConsensusManager::OnPostCommit(const PrePrepare & block)
 {
+    std::lock_guard<std::recursive_mutex> lock(_mutex);  // SYL Integration fix: boost::multi_index is not thread safe
+
     _handler.OnPostCommit(block);
     Manager::OnPostCommit(block);
 }
@@ -548,24 +551,8 @@ BatchBlockConsensusManager::OnDelegatesConnected()
     }
 }
 
-void
-BatchBlockConsensusManager::OnCurrentEpochSet()
-{
-    PrimaryDelegate::OnCurrentEpochSet();
-
-    _vote_reject_quorum = _vote_total - _vote_quorum;
-    _stake_reject_quorum = _stake_total - _stake_quorum;
-}
-
 bool
 BatchBlockConsensusManager::Rejected(uint128_t reject_vote, uint128_t reject_stake)
 {
-    auto op = [](bool & r, uint128_t t, uint128_t q)
-              {
-                  return r ? t > q
-                           : t >= q;
-              };
-
-    return op(_vq_rounded, reject_vote, _vote_reject_quorum) &&
-           op(_sq_rounded, reject_stake, _stake_reject_quorum);
+    return (reject_vote > _vote_max_fault) && (reject_stake > _stake_max_fault);
 }

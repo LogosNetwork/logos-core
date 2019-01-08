@@ -369,8 +369,9 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const M & message,
 {
     if(_state != expected_state)
     {
-        LOG_INFO(_log) << "ConsensusConnection - Received " << MessageToName(message)
-                       << " message while in " << StateToString(_state);
+        LOG_WARN(_log) << "ConsensusConnection - Received " << MessageToName(message)
+                       << " message from delegate " << std::to_string(_delegate_ids.remote)
+                       << " while in " << StateToString(_state);
     }
 
     if(!Validate(message))
@@ -395,7 +396,8 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const PostCommit & message)
     if(_state != ConsensusState::COMMIT)
     {
         LOG_INFO(_log) << "ConsensusConnection - Proceeding with Post_Commit"
-                       << " message received while in " << StateToString(_state);
+                       << " message from delegate " << std::to_string(_delegate_ids.remote)
+                       << " received while in " << StateToString(_state);
     }
 
     if(Validate(message))
