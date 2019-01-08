@@ -376,6 +376,8 @@ add_library (node
 	logos/node/stats.cpp
 	logos/node/working.hpp
 	logos/node/xorshift.hpp
+	logos/tokens/account.cpp
+	logos/tokens/util.cpp
 	logos/tx_acceptor/tx_acceptor.cpp
 	logos/tx_acceptor/tx_acceptor_channel.cpp
 	logos/tx_acceptor/tx_message_header.cpp
