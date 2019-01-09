@@ -218,7 +218,7 @@ public:
         if (s.GetType() & SER_DISK)
             READWRITE(nVersion);
         if ((s.GetType() & SER_DISK) ||
-            (nVersion >= CADDR_TIME_VERSION && !(s.GetType() & SER_GETHASH)))
+            (nVersion != 0 && !(s.GetType() & SER_GETHASH)))
             READWRITE(nTime);
         uint64_t nServicesInt = nServices;
         READWRITE(nServicesInt);
