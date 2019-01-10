@@ -74,7 +74,7 @@ inline uint64_t GetStamp()
 template<typename T>
 BlockHash Blake2bHash(const T & t)
 {
-    BlockHash degest;
+    BlockHash digest;
     blake2b_state hash;
 
     auto status(blake2b_init(&hash, HASH_SIZE));
@@ -82,10 +82,10 @@ BlockHash Blake2bHash(const T & t)
 
     t.Hash(hash);
 
-    status = blake2b_final(&hash, degest.data(), HASH_SIZE);
+    status = blake2b_final(&hash, digest.data(), HASH_SIZE);
     assert(status == 0);
 
-    return degest;
+    return digest;
 }
 
 struct AggSignature
@@ -131,11 +131,6 @@ struct MessagePrequel
 
     MessagePrequel(bool & error, logos::stream & stream)
     {
-        if(error)
-        {
-            return;
-        }
-
         error = logos::read(stream, const_cast<uint8_t &>(version));
         if(error)
         {
@@ -154,8 +149,7 @@ struct MessagePrequel
             return;
         }
 
-        char pad;
-        error = logos::read(stream, pad);
+        error = logos::read(stream, mpf);
         if(error)
         {
             return;
@@ -180,7 +174,6 @@ struct MessagePrequel
     void Hash(blake2b_state & hash) const
     {
         blake2b_update(&hash, &version, sizeof(uint8_t));
-        blake2b_update(&hash, &consensus_type, sizeof(uint8_t));
     }
 
     uint32_t Serialize(logos::stream & stream) const
@@ -188,17 +181,17 @@ struct MessagePrequel
         auto s = logos::write(stream, version);
         s += logos::write(stream, type);
         s += logos::write(stream, consensus_type);
-        char pad = 0;
-        s += logos::write(stream, pad);
+        s += logos::write(stream, mpf);
         s += logos::write(stream, htole32(payload_size));
 
         assert(s == MessagePrequelSize);
-        return MessagePrequelSize;
+        return s;
     }
 
     const uint8_t       version         = logos_version;
     const MessageType   type            = MT;
     const ConsensusType consensus_type  = CT;
+    uint8_t             mpf             = 0;
     mutable uint32_t    payload_size    = 0;
 };
 
@@ -206,14 +199,6 @@ using Prequel = MessagePrequel<MessageType::Unknown, ConsensusType::Any>;
 
 struct PrePrepareCommon
 {
-    static const uint32_t STREAM_SIZE =
-            sizeof(AccountAddress) +
-            sizeof(uint32_t) +
-            sizeof(uint32_t) +
-            sizeof(uint64_t) +
-            sizeof(BlockHash) +
-            sizeof(DelegateSig);
-
     PrePrepareCommon()
     : primary_delegate()
     , epoch_number(0)
@@ -261,9 +246,8 @@ struct PrePrepareCommon
         s += logos::write(stream, tsp);
         s += logos::write(stream, previous);
         s += logos::write(stream, preprepare_sig);
-        assert(s == STREAM_SIZE);
 
-        return STREAM_SIZE;
+        return s;
     }
 
     void SerializeJson(boost::property_tree::ptree & tree) const

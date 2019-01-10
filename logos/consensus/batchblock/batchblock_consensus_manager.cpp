@@ -28,13 +28,6 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
     }
 }
 
-void BatchBlockConsensusManager::Send(const PrePrepare & pre_prepare)
-{
-    std::vector<uint8_t> v;
-    pre_prepare.Serialize(v);
-    Manager::Send(v.data(), v.size());
-}
-
 void
 BatchBlockConsensusManager::OnBenchmarkSendRequest(
   std::shared_ptr<Request> block,
@@ -152,9 +145,9 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
         _hashes.insert(batch.blocks[i].GetHash());
     }
 
-    //LOG_DEBUG (_log) << "BatchBlockConsensusManager::PrePrepareGetNext -"
-    //	    << " batch_size=" << batch.block_count
-    //	    << " batch.sequence=" << batch.sequence;
+    LOG_TRACE (_log) << "BatchBlockConsensusManager::PrePrepareGetNext -"
+    	    << " batch_size=" << batch.block_count
+    	    << " batch.sequence=" << batch.sequence;
 
     return batch;
 }

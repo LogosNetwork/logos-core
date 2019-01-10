@@ -49,9 +49,7 @@ void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message)
         CycleTimers<C>(true);
         PostPrepareMessage<C> response(_pre_prepare_hash, _post_prepare_sig);
         _post_prepare_hash = response.ComputeHash();
-        std::vector<uint8_t> buf;
-        response.Serialize(buf);
-        Send(buf.data(), buf.size());
+        Send<PostPrepareMessage<C>>(response);
         AdvanceState(ConsensusState::POST_PREPARE);
     }
     else
@@ -67,12 +65,8 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage<C> & message)
     {
         CancelTimer();
         PostCommitMessage<C> response(_pre_prepare_hash, _post_commit_sig);
-
-        std::vector<uint8_t> buf;
-        response.Serialize(buf);
-        Send(buf.data(), buf.size());
+        Send<PostCommitMessage<C>>(response);
         AdvanceState(ConsensusState::POST_COMMIT);
-
         OnConsensusReached();
     }
 }
@@ -314,13 +308,13 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
 
     if(ReachedQuorum())
     {
-        bool good = true;
+        bool sig_aggregated = false;
         if(expected_state == ConsensusState::PRE_PREPARE )
         {
             //need my own sig
             _signatures.push_back({_delegate_id, _pre_prepare_sig});
             _post_prepare_sig.map.reset();
-            good = _validator.AggregateSignature(_signatures, _post_prepare_sig);
+            sig_aggregated = _validator.AggregateSignature(_signatures, _post_prepare_sig);
         }
         else if (expected_state == ConsensusState::POST_PREPARE )
         {
@@ -329,15 +323,16 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
             _validator.Sign(_post_prepare_hash, my_commit_sig);
             _signatures.push_back({_delegate_id, my_commit_sig});
             _post_commit_sig.map.reset();
-            good = _validator.AggregateSignature(_signatures, _post_commit_sig);
+            sig_aggregated = _validator.AggregateSignature(_signatures, _post_commit_sig);
         }
-        else
-            good = false;
 
-        if( ! good )
+        if( ! sig_aggregated )
         {
-            LOG_FATAL(_log) << "PrimaryDelegate - Failed to after ReachedQuorum() "
+            LOG_FATAL(_log) << "PrimaryDelegate - Failed to aggregate signatures"
                     << " expected_state=" << StateToString(expected_state);
+            //The BLS key storage or the aggregation code has a fatal error, cannot be
+            //used to generate nor verify aggregated signatures. So the local node cannot
+            //be a delegate anymore.
             trace_and_halt();
         }
         return true;

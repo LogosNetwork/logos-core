@@ -462,9 +462,7 @@ public:
     logos::uint128_t weight (logos::account const &);
     logos::account representative (logos::account const &);
     void ongoing_keepalive ();
-    //CH void ongoing_rep_crawl ();
     void ongoing_bootstrap ();
-//    void ongoing_store_flush ();
     void backup_wallet ();
     int price (logos::uint128_t const &, int);
     void work_generate_blocking (logos::block &);

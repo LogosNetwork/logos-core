@@ -22,11 +22,6 @@ struct ReceiveBlock
 
     ReceiveBlock(bool & error, const logos::mdb_val & mdbval)
     {
-        if(error)
-        {
-            return;
-        }
-
         logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
 
         error = logos::read(stream, previous);
@@ -108,7 +103,7 @@ struct StateBlock
     {
         send,
         change,
-        unknown
+        unknown = 0xff
     };
 
     static std::string TypeToStr(Type t)
@@ -198,11 +193,6 @@ struct StateBlock
 
     StateBlock (bool & error, logos::stream & stream, bool with_batch_hash = false)
     {
-        if(error)
-        {
-            return;
-        }
-
         error = logos::read(stream, account);
         if(error)
         {
@@ -298,8 +288,8 @@ struct StateBlock
 
     BlockHash Hash() const
     {
-        degest = Blake2bHash<StateBlock>(*this);
-        return degest;
+        digest = Blake2bHash<StateBlock>(*this);
+        return digest;
     }
 
     void Hash(blake2b_state & hash) const
@@ -325,17 +315,17 @@ struct StateBlock
     void Sign(AccountPrivKey const & priv, AccountPubKey const & pub)
     {
         Hash();
-        ed25519_sign (const_cast<BlockHash &>(degest).data(), HASH_SIZE, const_cast<AccountPrivKey&>(priv).data (), const_cast<AccountPubKey&>(pub).data (), signature.data ());
+        ed25519_sign (const_cast<BlockHash &>(digest).data(), HASH_SIZE, const_cast<AccountPrivKey&>(priv).data (), const_cast<AccountPubKey&>(pub).data (), signature.data ());
     }
 
     bool VerifySignature(AccountPubKey const & pub) const
     {
-        return 0 == ed25519_sign_open (const_cast<BlockHash &>(degest).data(), HASH_SIZE, const_cast<AccountPubKey&>(pub).data (), const_cast<AccountSig&>(signature).data ());
+        return 0 == ed25519_sign_open (const_cast<BlockHash &>(digest).data(), HASH_SIZE, const_cast<AccountPubKey&>(pub).data (), const_cast<AccountSig&>(signature).data ());
     }
 
     BlockHash GetHash () const
     {
-        return degest;
+        return digest;
     }
 
     uint16_t GetNumTransactions() const
@@ -407,7 +397,7 @@ struct StateBlock
     AccountSig signature;
 
     uint64_t work = 0;
-    mutable BlockHash degest;
+    mutable BlockHash digest;
     mutable BlockHash batch_hash = 0;
     mutable uint16_t index_in_batch = 0;
 };

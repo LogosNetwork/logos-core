@@ -54,7 +54,7 @@ RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch()
 
         if(! _current_batch.AddStateBlock(*pos))
         {
-            LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch cannot add";
+            LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch batch full";
             break;
         }
     }

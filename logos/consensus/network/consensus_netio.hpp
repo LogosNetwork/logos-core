@@ -7,7 +7,6 @@
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/log.hpp>
-#include <logos/lib/trace.hpp>
 
 #include <boost/asio/io_service.hpp>
 
@@ -166,7 +165,10 @@ public:
     template<typename TYPE>
     void Send(const TYPE & data)
     {
-        Send(reinterpret_cast<const void *>(&data), sizeof(data));
+        std::vector<uint8_t> buf;
+        data.Serialize(buf);
+        Send(buf.data(), buf.size());
+        //Send(reinterpret_cast<const void *>(&data), sizeof(data));
     }
     
     /// Adds ConsensusConnection of ConsensusType to netio callbacks.
@@ -274,7 +276,7 @@ private:
             ConsensusType consensus_type,
             uint32_t payload_size);
 
-    void OnPrequal(const uint8_t * data);
+    void OnPrequel(const uint8_t * data);
 
     /// Send public key to the connected peer.
     void SendKeyAdvertisement();
@@ -293,11 +295,7 @@ private:
     /// @param prequel data
     void OnHeartBeat(HeartBeat &hb);
 
-    void HandleMessageError(const char * operation)
-    {
-        LOG_ERROR(_log) << "ConsensusNetIO Failed to " << operation;
-        //TODO discuss if need to disconnect
-    }
+    void HandleMessageError(const char * operation);
 
     std::shared_ptr<Socket>        _socket;               ///< Connected socket
     std::atomic_bool               _connected;            ///< is the socket is connected?

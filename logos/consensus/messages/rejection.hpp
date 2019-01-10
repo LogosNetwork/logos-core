@@ -30,11 +30,6 @@ struct RejectionMessage
     RejectionMessage(bool & error, logos::stream & stream, uint8_t version)
     : MessagePrequel<MessageType::Rejection, CT>(version)
     {
-        if(error)
-        {
-            return;
-        }
-
         error = logos::read(stream, preprepare_hash);
         if(error)
         {
@@ -54,10 +49,6 @@ struct RejectionMessage
         }
 
         error = logos::read(stream, signature);
-        if(error)
-        {
-            return;
-        }
     }
 
     BlockHash Hash() const

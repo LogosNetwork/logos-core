@@ -26,8 +26,8 @@ struct ConsensusBlock<CT,
         CT == ConsensusType::BatchStateBlock>::type> : public BatchStateBlock
 {
     ConsensusBlock() = default;
-    ConsensusBlock(bool & error, logos::stream & stream, bool with_state_block)
-    : BatchStateBlock(error, stream, with_state_block)
+    ConsensusBlock(bool & error, logos::stream & stream, bool with_appendix)
+    : BatchStateBlock(error, stream, with_appendix)
       {}
 
     auto GetRef()
@@ -42,8 +42,8 @@ struct ConsensusBlock<CT,
         CT == ConsensusType::MicroBlock>::type> : public MicroBlock
 {
     ConsensusBlock() = default;
-    ConsensusBlock(bool & error, logos::stream & stream, bool with_state_block)
-    : MicroBlock(error, stream, with_state_block)
+    ConsensusBlock(bool & error, logos::stream & stream, bool with_appendix)
+    : MicroBlock(error, stream, with_appendix)
       {}
 
     auto GetRef()
@@ -58,8 +58,8 @@ struct ConsensusBlock<CT,
         CT == ConsensusType::Epoch>::type> : public Epoch
 {
     ConsensusBlock() = default;
-    ConsensusBlock(bool & error, logos::stream & stream, bool with_state_block)
-    : Epoch(error, stream, with_state_block)
+    ConsensusBlock(bool & error, logos::stream & stream, bool with_appendix)
+    : Epoch(error, stream, with_appendix)
       {}
 
     auto GetRef()
@@ -157,9 +157,19 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
             bool with_next)
     : MessagePrequel<MessageType::Post_Committed_Block, CT>(version)
     , ConsensusBlock<CT>(error, stream, with_appendix)
-    , post_prepare_sig(error, stream)
-    , post_commit_sig(error, stream)
     {
+        if(error)
+        {
+            return;
+        }
+
+        post_prepare_sig = AggSignature(error, stream);
+        if(error)
+        {
+            return;
+        }
+
+        post_commit_sig = AggSignature(error, stream);
         if(error)
         {
             return;
@@ -168,10 +178,6 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
         if(with_next)
         {
             error = logos::read(stream, next);
-            if(error)
-            {
-                return;
-            }
         }
     }
 
@@ -179,6 +185,8 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
     {
         logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
         MessagePrequel<MessageType::Post_Committed_Block, CT> prequel(error, stream);
+        if(error)
+            return;
         new (this) PostCommittedBlock(error, stream, prequel.version, false, true);
     }
 
@@ -201,9 +209,6 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
     {
         MessagePrequel<MessageType::Post_Committed_Block, CT>::Hash(hash);
         ConsensusBlock<CT>::Hash(hash);
-        //TODO discuss
-        //        post_prepare_sig.Hash(hash);
-        //        post_commit_sig.Hash(hash);
     }
 
     void SerializeJson(boost::property_tree::ptree & tree) const
@@ -269,11 +274,6 @@ struct StandardPhaseMessage<MT, CT, typename std::enable_if<
     StandardPhaseMessage(bool & error, logos::stream & stream, uint8_t version)
     : MessagePrequel<MT, CT>(version)
     {
-        if(error)
-        {
-            return;
-        }
-
         error = logos::read(stream, preprepare_hash);
         if(error)
         {
@@ -281,10 +281,6 @@ struct StandardPhaseMessage<MT, CT, typename std::enable_if<
         }
 
         error = logos::read(stream, signature);
-        if(error)
-        {
-            return;
-        }
     }
 
     void Serialize(std::vector<uint8_t> & buf) const
@@ -331,11 +327,6 @@ struct PostPhaseMessage<MT, CT, typename std::enable_if<
     PostPhaseMessage(bool & error, logos::stream & stream, uint8_t version)
     : MessagePrequel<MT, CT>(version)
     {
-        if(error)
-        {
-            return;
-        }
-
         error = logos::read(stream, preprepare_hash);
         if(error)
         {
@@ -388,16 +379,7 @@ struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert,
     KeyAdvertisement(bool & error, logos::stream & stream, uint8_t version)
     : MessagePrequel<MessageType::Key_Advert, ConsensusType::Any>(version)
     {
-        if(error)
-        {
-            return;
-        }
-
         error = logos::read(stream, public_key);
-        if(error)
-        {
-            return;
-        }
     }
 
     void Serialize(std::vector<uint8_t> & buf) const
@@ -424,8 +406,8 @@ struct ConnectedClientIds
     char ip[INET6_ADDRSTRLEN];
 
     static constexpr size_t STREAM_SIZE  =
-            sizeof(uint32_t) +
-            sizeof(uint8_t) +
+            sizeof(epoch_number) +
+            sizeof(delegate_id) +
             sizeof(EpochConnection) +
             INET6_ADDRSTRLEN;
 
@@ -442,11 +424,6 @@ struct ConnectedClientIds
 
     ConnectedClientIds(bool & error, logos::stream & stream)
     {
-        if(error)
-        {
-            return;
-        }
-
         error = logos::read(stream, epoch_number);
         if(error)
         {
@@ -467,11 +444,7 @@ struct ConnectedClientIds
         }
 
         error = logos::read(stream, ip);
-        if(error)
-        {
-            return;
-        }
-    }
+   }
 
     uint32_t Serialize(std::vector<uint8_t> & buf) const
     {
@@ -499,16 +472,7 @@ struct HeartBeat : MessagePrequel<MessageType::Heart_Beat,
     HeartBeat(bool & error, logos::stream & stream, uint8_t version)
     : MessagePrequel<MessageType::Heart_Beat, ConsensusType::Any>(version)
     {
-        if(error)
-        {
-            return;
-        }
-
         error = logos::read(stream, is_request);
-        if(error)
-        {
-            return;
-        }
     }
 
     void Serialize(std::vector<uint8_t> & buf) const

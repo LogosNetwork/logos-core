@@ -1450,8 +1450,8 @@ _consensus_container(service_a, store, alarm_a, config.consensus_manager_config,
             {
                 throw std::runtime_error("Failed to initialize Logos genesis block.");
             }
-            //TODO check with Greg
 
+            //TODO check with Greg
             ReceiveBlock logos_genesis_receive(0, logos_genesis_block.GetHash(), 0);
             store.state_block_put(logos_genesis_block,
                     logos_genesis_block.GetHash(),
@@ -1862,21 +1862,6 @@ void logos::node::ongoing_bootstrap ()
         }
     });
 }
-
-//void logos::node::ongoing_store_flush ()
-//{
-//    {
-//        logos::transaction transaction (store.environment, nullptr, true);
-//        store.flush (transaction);
-//    }
-//    std::weak_ptr<logos::node> node_w (shared_from_this ());
-//    alarm.add (std::chrono::steady_clock::now () + std::chrono::seconds (5), [node_w]() {
-//        if (auto node_l = node_w.lock ())
-//        {
-//            node_l->ongoing_store_flush ();
-//        }
-//    });
-//}
 
 void logos::node::backup_wallet ()
 {

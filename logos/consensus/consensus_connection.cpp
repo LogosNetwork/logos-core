@@ -38,13 +38,15 @@ bool ConsensusConnection<CT>::OnMessageData(const uint8_t * data,
         uint32_t payload_size)
 {
     std::string message = MessageToName(message_type);
-#ifdef DEBUG
     if (message_type == MessageType::Rejection)
     {
-        auto msg (*reinterpret_cast<const Rejection*>(_receive_buffer.data()));
+        bool error = false;
+        logos::bufferstream stream(data, payload_size);
+        Rejection msg (error, stream, version);
+        if(error)
+            return false;
         message += ":" + RejectionReasonToName(msg.reason);
     }
-#endif
     LOG_DEBUG(_log) << "ConsensusConnection<"
                     << ConsensusToName(CT) << ">- Received "
                     << message
@@ -57,37 +59,43 @@ bool ConsensusConnection<CT>::OnMessageData(const uint8_t * data,
         case MessageType::Pre_Prepare:
         {
             PrePrepare msg(error, stream, version);
-            OnConsensusMessage(msg);
+            if(!error)
+                OnConsensusMessage(msg);
             break;
         }
         case MessageType::Prepare:
         {
             Prepare msg(error, stream, version);
-            OnConsensusMessage(msg);
+            if(!error)
+                OnConsensusMessage(msg);
             break;
         }
         case MessageType::Post_Prepare:
         {
             PostPrepare msg(error, stream, version);
-            OnConsensusMessage(msg);
+            if(!error)
+                OnConsensusMessage(msg);
             break;
         }
         case MessageType::Commit:
         {
             Commit msg(error, stream, version);
-            OnConsensusMessage(msg);
+            if(!error)
+                OnConsensusMessage(msg);
             break;
         }
         case MessageType::Post_Commit:
         {
             PostCommit msg(error, stream, version);
-            OnConsensusMessage(msg);
+            if(!error)
+                OnConsensusMessage(msg);
             break;
         }
         case MessageType::Rejection:
         {
             Rejection msg (error, stream, version);
-            OnConsensusMessage(msg);
+            if(!error)
+                OnConsensusMessage(msg);
             break;
         }
         case MessageType::Post_Committed_Block:
@@ -100,7 +108,7 @@ bool ConsensusConnection<CT>::OnMessageData(const uint8_t * data,
     }
 
     if(error)
-        LOG_WARN(_log) << __func__ << " message error";
+        LOG_ERROR(_log) << __func__ << " message error";
 
     return ! error;
 }
@@ -115,10 +123,11 @@ void ConsensusConnection<CT>::SetPrePrepare(const PrePrepare & message)
 template<ConsensusType CT>
 void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
 {
+    _pre_prepare_timestamp = message.timestamp;
+    _pre_prepare_hash = message.Hash();
+
     if(ProceedWithMessage(message, ConsensusState::VOID))
     {
-        _pre_prepare_timestamp = message.timestamp;
-        _pre_prepare_hash = message.Hash();
         _state = ConsensusState::PREPARE;
 
         SetPrePrepare(message);

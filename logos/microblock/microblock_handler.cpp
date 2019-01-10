@@ -127,6 +127,14 @@ MicroBlockHandler::GetTipsFast(
             num_blocks++;
         }
     });
+    // verify tips
+    for (uint8_t del = 0; del < NUM_DELEGATES; ++del)
+    {
+        if (tips[del] == 0)
+        {
+            tips[del] = end[del];
+        }
+    }
 }
 
 void

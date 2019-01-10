@@ -56,11 +56,6 @@ struct Delegate
 
     Delegate(bool & error, logos::stream & stream)
     {
-        if(error)
-        {
-            return;
-        }
-
         error = logos::read(stream, account);
         if(error)
         {
@@ -80,10 +75,6 @@ struct Delegate
         }
 
         error = logos::read(stream, stake);
-        if(error)
-        {
-            return;
-        }
     }
 
     void SerializeJson(boost::property_tree::ptree & epoch_block) const

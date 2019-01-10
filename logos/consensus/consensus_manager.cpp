@@ -105,15 +105,6 @@ ConsensusManager<CT>::GetStore()
 }
 
 template<ConsensusType CT>
-void ConsensusManager<CT>::Send(const PrePrepare & pre_prepare)
-{
-    std::vector<uint8_t> buf;
-    pre_prepare.Serialize(buf);
-
-    Send(buf.data(), buf.size());
-}
-
-template<ConsensusType CT>
 void ConsensusManager<CT>::Send(const void * data, size_t size)
 {
     std::lock_guard<std::mutex> lock(_connection_mutex);
@@ -171,7 +162,7 @@ void ConsensusManager<CT>::InitiateConsensus()
     _state = ConsensusState::PRE_PREPARE;
 
     pre_prepare.preprepare_sig = _pre_prepare_sig;
-    Send(pre_prepare);
+    PrimaryDelegate::Send<PrePrepare>(pre_prepare);
 }
 
 template<ConsensusType CT>

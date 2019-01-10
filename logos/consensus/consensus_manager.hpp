@@ -71,6 +71,8 @@ protected:
     using Manager     = ConsensusManager<CT>;
     using Request     = RequestMessage<CT>;
     using PrePrepare  = PrePrepareMessage<CT>;
+    using PostPrepare = PostPrepareMessage<CT>;
+    using PostCommit  = PostCommitMessage<CT>;
     using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
     using ApprovedBlock   = PostCommittedBlock<CT>;
 
@@ -90,7 +92,6 @@ public:
     virtual void OnBenchmarkSendRequest(std::shared_ptr<Request> block,
                                         logos::process_return & result) = 0;
 
-    virtual void Send(const PrePrepare & pre_prepare);
     void Send(const void * data, size_t size) override;
 
     virtual ~ConsensusManager()

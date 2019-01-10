@@ -3,7 +3,6 @@
 #include <logos/common.hpp>
 #include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
-#include <logos/consensus/persistence/state_block_locator.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
 #include <logos/lib/log.hpp>
@@ -178,7 +177,6 @@ public:
     std::shared_ptr<logos::vote> vote_max (MDB_txn *, std::shared_ptr<logos::vote>);
     // Return latest vote for an account considering the vote cache
     std::shared_ptr<logos::vote> vote_current (MDB_txn *, logos::account const &);
-//    void flush (MDB_txn *);
     logos::store_iterator vote_begin (MDB_txn *);
     logos::store_iterator vote_end ();
     std::mutex cache_mutex;

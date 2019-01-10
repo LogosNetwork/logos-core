@@ -56,6 +56,13 @@ public:
 
     virtual void Send(const void * data, size_t size) = 0;
 
+    template<typename TYPE>
+    void Send(const TYPE & data)
+    {
+        std::vector<uint8_t> buf;
+        data.Serialize(buf);
+        Send(buf.data(), buf.size());
+    }
 protected:
 
     virtual void UpdateVotes();

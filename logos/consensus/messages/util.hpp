@@ -68,31 +68,6 @@ inline std::string ConsensusToName(const ConsensusType & type)
     return ret;
 }
 
-template<ConsensusType type>
-inline std::string ConsensusToName()
-{
-    std::string ret;
-    switch (type)
-    {
-        case ConsensusType::BatchStateBlock:
-            ret = "BatchStateBlock";
-            break;
-        case ConsensusType::MicroBlock:
-            ret = "MicroBlock";
-            break;
-        case ConsensusType::Epoch:
-            ret = "Epoch";
-            break;
-        case ConsensusType::Any:
-            ret = "Any";
-            break;
-        default:
-            ret = "Undefined";
-    }
-
-    return ret;
-}
-
 template<typename MSG>
 std::string MessageToName(const MSG & message)
 {
@@ -152,6 +127,5 @@ std::ostream& operator<<(std::ostream& os, const RejectionMessage<CT>& m)
     return os;
 }
 
-//for debug
-std::string to_string (const std::vector<uint8_t> & buf);
+
 

@@ -33,8 +33,13 @@ EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint endpoint
         }
         bool stream_error = false;
         logos::bufferstream stream(buf->data(), ConnectedClientIds::STREAM_SIZE);
-
         auto ids = std::make_shared<ConnectedClientIds>(stream_error, stream);
+        if (stream_error)
+        {
+            LOG_ERROR(_log) << "EpochPeerManager::OnConnectionAccepted deserialization error";
+            return;
+        }
+
         _peer_binder(Endpoint(boost::asio::ip::make_address_v4(ids->ip), endpoint.port()), socket, *ids);
     });
 }

@@ -1471,6 +1471,10 @@ void logos::rpc_handler::delegators ()
         {
             bool error = false;
             logos::account_info info (error, i->second);
+            if(error)
+            {
+                error_response (response, "account_info deserialize");
+            }
             auto block (node.store.block_get (transaction, info.rep_block));
             assert (block != nullptr);
             if (block->representative () == account)
@@ -1502,6 +1506,10 @@ void logos::rpc_handler::delegators_count ()
         {
             bool error = false;
             logos::account_info info (error, i->second);
+            if(error)
+            {
+                error_response (response, "account_info deserialize");
+            }
             auto block (node.store.block_get (transaction, info.rep_block));
             assert (block != nullptr);
             if (block->representative () == account)
@@ -1632,6 +1640,10 @@ void logos::rpc_handler::frontiers ()
             {
                 bool error = false;
                 frontiers.put (logos::account (i->first.uint256 ()).to_account (), logos::account_info (error, i->second).head.to_string ());
+                if(error)
+                {
+                    error_response (response, "account_info deserialize");
+                }
             }
             response_l.add_child ("frontiers", frontiers);
             response (response_l);
@@ -1791,11 +1803,6 @@ void logos::rpc_handler::account_history ()
         {
             put_send = true;
         }
-        else
-        {
-            //no timestamp in state block
-            //put_send = send_block.timestamp > receive_block.timestamp;
-        }
 
         //what is this for
         StateBlock receive_link_block;  // i.e. source send block
@@ -1950,6 +1957,10 @@ void logos::rpc_handler::ledger ()
             {
                 bool error = false;
                 logos::account_info info (error, i->second);
+                if(error)
+                {
+                    error_response (response, "account_info deserialize");
+                }
                 if (info.modified >= modified_since)
                 {
                     logos::account account (i->first.uint256 ());
@@ -1989,6 +2000,10 @@ void logos::rpc_handler::ledger ()
             {
                 bool error = false;
                 logos::account_info info (error, i->second);
+                if(error)
+                {
+                    error_response (response, "account_info deserialize");
+                }
                 logos::uint128_union balance (info.balance);
                 if (info.modified >= modified_since)
                 {

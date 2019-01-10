@@ -129,6 +129,11 @@ int main (int argc, char * const * argv)
         {
             bool error = false;
             logos::account_info info (error, i->second);
+            if(error)
+            {
+                std::cerr << "account_info deserialize error" << std::endl;
+                exit(-1);
+            }
             logos::block_hash rep_block (node.node->ledger.representative_calculated (transaction, info.head));
             std::unique_ptr<logos::block> block (node.node->store.block_get (transaction, rep_block));
             calculated[block->representative ()] += info.balance.number ();
