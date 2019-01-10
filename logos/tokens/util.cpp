@@ -1,39 +1,39 @@
 #include <logos/tokens/util.hpp>
 
-std::string TokenSettingName(TokenSettings setting)
+std::string TokenSettingName(TokenSetting setting)
 {
     std::string name;
 
     switch(setting)
     {
-    case TokenSettings::AddTokens:
+    case TokenSetting::AddTokens:
         name = "Add Tokens";
         break;
-    case TokenSettings::ModifyAddTokens:
+    case TokenSetting::ModifyAddTokens:
         name = "Modify Add Tokens";
         break;
-    case TokenSettings::Revoke:
+    case TokenSetting::Revoke:
         name = "Revoke";
         break;
-    case TokenSettings::ModifyRevoke:
+    case TokenSetting::ModifyRevoke:
         name = "Modify Revoke";
         break;
-    case TokenSettings::Freeze:
+    case TokenSetting::Freeze:
         name = "Freeze";
         break;
-    case TokenSettings::ModifyFreeze:
+    case TokenSetting::ModifyFreeze:
         name = "Modify Freeze";
         break;
-    case TokenSettings::AdjustFee:
+    case TokenSetting::AdjustFee:
         name = "Adjust Fee";
         break;
-    case TokenSettings::ModifyAdjustFee:
+    case TokenSetting::ModifyAdjustFee:
         name = "Modify Adjust Fee";
         break;
-    case TokenSettings::Whitelisting:
+    case TokenSetting::Whitelisting:
         name = "Whitelisting";
         break;
-    case TokenSettings::ModifyWhitelisting:
+    case TokenSetting::ModifyWhitelisting:
         name = "Modify Whitelisting";
         break;
     }
