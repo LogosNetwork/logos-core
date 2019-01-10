@@ -94,6 +94,7 @@ ConsensusNetIO::Send(
     {
         _sending = true;
 
+        LOG_DEBUG(_log) << "ConsensusNetIO::Send - calling async write to " << _endpoint;
         boost::asio::async_write(*_socket,
                                  boost::asio::buffer(send_buffer->data(),
                                                      size),
@@ -181,7 +182,8 @@ ConsensusNetIO::OnData(const uint8_t * data)
     MessageType message_type (static_cast<MessageType> (data[1]));
 
     LOG_DEBUG(_log) << "ConsensusNetIO - received message type " << MessageToName(message_type)
-                    << " for consensus type " << ConsensusToName(consensus_type) ;
+                    << " for consensus type " << ConsensusToName(consensus_type)
+                    << " from " << _endpoint;
 
     if (consensus_type == ConsensusType::Any)
     {
@@ -211,6 +213,7 @@ ConsensusNetIO::OnData(const uint8_t * data)
             return;
         }
 
+        LOG_DEBUG(_log) << "ConsensusNetIO - calling OnPrequel for " << ConsensusToName(consensus_type);
         _connections[idx]->OnPrequel(data);
     }
 }

@@ -26,18 +26,24 @@ void NetIOAssembler::ReadBytes(ReadCallback callback, size_t bytes)
 
 void NetIOAssembler::ReadBytes(ReadCallback callback, size_t bytes, bool read_in_progress)
 {
+    LOG_DEBUG(_log) << "NetIOAssembler::ReadBytes - _buffer_size (" << _buffer_size
+                    << ") 'bytes' size (" << bytes << "), processing callback" ;
     if(_buffer_size >= bytes)
     {
+        LOG_DEBUG(_log) << "NetIOAssembler::ReadBytes - processing callback" ;
         ProcessCallback();
     }
     else
     {
+        auto msg ("");
         if(!read_in_progress)
         {
             _bytes_to_read = bytes;
             _callback = callback;
+            msg = "more ";
         }
 
+        LOG_DEBUG(_log) << "NetIOAssembler::ReadBytes - async-reading " << msg << "data";
         AsyncRead();
     }
 }
@@ -77,6 +83,8 @@ void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size
                         << " size has reached capacity.";
     }
 
+    LOG_DEBUG(_log) << "NetIOAssembler::OnData - calling ReadBytes, read_in_progress true, "
+                       "_buffer_size " << _buffer_size;
     ReadBytes(_callback, _bytes_to_read, true);
 }
 
@@ -87,6 +95,7 @@ void NetIOAssembler::ProcessCallback()
 
     if((_bytes_to_read = _queued_request.bytes))
     {
+        LOG_DEBUG(_log) << "NetIOAssembler::ProcessCallback - promoting queued request";
         _queued_request.bytes = 0;
         _callback = _queued_request.callback;
 
@@ -96,8 +105,10 @@ void NetIOAssembler::ProcessCallback()
 
 void NetIOAssembler::DoProcessCallback()
 {
+    LOG_DEBUG(_log) << "NetIOAssembler::DoProcessCallback - flipping _processing_callback to true";
     _processing_callback = true;
     _callback(_buffer.data());
+    LOG_DEBUG(_log) << "NetIOAssembler::DoProcessCallback - flipping _processing_callback to false";
     _processing_callback = false;
 }
 
@@ -106,6 +117,8 @@ void NetIOAssembler::AdjustBuffer()
     memmove(_buffer.data(), _buffer.data() + _bytes_to_read,
             _buffer_size - _bytes_to_read);
 
+    LOG_DEBUG(_log) << "NetIOAssembler::AdjustBuffer - _buffer_size (" << _buffer_size
+                    << ") bytes to read (" << _bytes_to_read << ")";
     _buffer_size -= _bytes_to_read;
     _bytes_to_read = 0;
 }
@@ -116,9 +129,11 @@ bool NetIOAssembler::Proceed(ReadCallback callback, size_t bytes)
     {
         _queued_request.callback = callback;
         _queued_request.bytes = bytes;
+        LOG_DEBUG(_log) << "NetIOAssembler::Proceed - _processing_callback true, queuing request";
 
         return false;
     }
 
+    LOG_DEBUG(_log) << "NetIOAssembler::Proceed - _processing_callback false, proceeding";
     return true;
 }

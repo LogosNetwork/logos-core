@@ -33,7 +33,8 @@ template<ConsensusType CT>
 void ConsensusConnection<CT>::OnData()
 {
     MessageType type (static_cast<MessageType> (_receive_buffer.data()[1]));
-
+    LOG_DEBUG(_log) << "ConsensusConnection<" << ConsensusToName(CT) << ">OnData - Received " << MessageToName(type)
+                    << " message from delegate: " << std::to_string(_delegate_ids.remote);
     switch (type)
     {
         case MessageType::Pre_Prepare:
@@ -101,7 +102,7 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
     }
     message = "ConsensusConnection<"
             + ConsensusToName(CT)
-            + "> - Received " + message
+            + ">::OnMessage - Received " + message
             + " message from delegate: " + std::to_string(_delegate_ids.remote);
 
     switch (type)
@@ -149,8 +150,9 @@ void ConsensusConnection<CT>::OnMessage(const uint8_t * data)
             break;
         }
         case MessageType::Key_Advert:
-        case MessageType::Unknown:
             LOG_DEBUG(_log) << message;
+        case MessageType::Unknown:
+            LOG_ERROR(_log) << message;
             break;
     }
 
@@ -430,6 +432,7 @@ void ConsensusConnection<CT>::StoreResponse(const Commit & message)
 template<ConsensusType CT>
 void ConsensusConnection<CT>::OnPrequel(const uint8_t *data)
 {
+    LOG_DEBUG(_log) << "ConsensusConnection<" << ConsensusToName(CT) << ">::OnPrequel - calling memcpy on data";
     std::memcpy(_receive_buffer.data(), data, sizeof(Prequel));
     OnData();
 }
