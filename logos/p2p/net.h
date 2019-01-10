@@ -147,7 +147,7 @@ enum ConnFlags {
 
 class AsioClient {
 public:
-    AsioClient(CConnman *conn, const char *nam, CSemaphoreGrant *grant, int fl);
+    AsioClient(CConnman *conn, const char *nam, std::shared_ptr<CSemaphoreGrant> grant, int fl);
     ~AsioClient();
     void connect(const std::string &host, const std::string &port);
     void resolve_handler(const boost::system::error_code& ec,
@@ -157,7 +157,7 @@ public:
 private:
     CConnman *connman;
     char *name;
-    CSemaphoreGrant *grantOutbound;
+    std::shared_ptr<CSemaphoreGrant> grantOutbound;
     int flags;
     boost::asio::ip::tcp::resolver resolver;
     friend class CConnman;
@@ -242,7 +242,7 @@ public:
     void Interrupt();
     bool GetNetworkActive() const { return fNetworkActive; };
     void SetNetworkActive(bool active);
-    void OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, CSemaphoreGrant *grantOutbound = nullptr, const char *strDest = nullptr, bool fOneShot = false, bool fFeeler = false, bool manual_connection = false);
+    void OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, std::shared_ptr<CSemaphoreGrant> grantOutbound, const char *strDest = nullptr, bool fOneShot = false, bool fFeeler = false, bool manual_connection = false);
     bool CheckIncomingNonce(uint64_t nonce);
 
     bool ForNode(NodeId id, std::function<bool(CNode* pnode)> func);
@@ -425,7 +425,7 @@ private:
     CNode* FindNode(const CService& addr);
 
     bool AttemptToEvictConnection();
-    void ConnectNode(CAddress addrConnect, const char *pszDest, CSemaphoreGrant *grantOutbound, int flags);
+    void ConnectNode(CAddress addrConnect, const char *pszDest, std::shared_ptr<CSemaphoreGrant> grantOutbound, int flags);
     CNode *ConnectNodeFinish(AsioClient *client, std::shared_ptr<AsioSession> session);
     bool IsWhitelistedRange(const CNetAddr &addr);
 
