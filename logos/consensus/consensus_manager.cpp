@@ -145,7 +145,7 @@ void ConsensusManager<CT>::OnConsensusReached()
 
     PrePreparePopFront();
 
-    if(!PrePrepareQueueEmpty())
+    if(ReadyForConsensus())
     {
         InitiateConsensus();
     }

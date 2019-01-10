@@ -201,6 +201,7 @@ BBConsensusConnection::HandleReject(const PrePrepare & message)
 void
 BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
 {
+    std::lock_guard<std::mutex> lock(_mutex);  // SYL Integration fix
     _pre_prepare_hashes.clear();
 
     for(uint64_t i = 0; i < message.block_count; ++i)

@@ -198,7 +198,8 @@ ConsensusNetIO::OnData(const uint8_t * data)
     MessageType message_type (static_cast<MessageType> (data[1]));
 
     LOG_DEBUG(_log) << "ConsensusNetIO - received message type " << MessageToName(message_type)
-                    << " for consensus type " << ConsensusToName(consensus_type) ;
+                    << " for consensus type " << ConsensusToName(consensus_type)
+                    << " from " << _endpoint;
 
     if (consensus_type == ConsensusType::Any)
     {
