@@ -67,13 +67,15 @@ const size_t TOKEN_SETTINGS_COUNT = 10;
 
 struct TokenAdminRequest : logos::Request
 {
+    void Hash(blake2b_state & hash) const override;
+
     AccountAddress admin_address;
 };
 
 struct ControllerInfo
 {
-    AccountAddress addres;
-    uint32_t privileges; // TODO: privileges
+    AccountAddress        addres;
+    ControllerPrivilegaes privileges;
 };
 
 struct TokenTransaction

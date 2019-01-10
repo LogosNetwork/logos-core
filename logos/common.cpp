@@ -864,3 +864,23 @@ std::string logos::ProcessResultToString(logos::process_result result)
 
     return ret;
 }
+
+logos::block_hash logos::Request::Hash() const
+{
+    logos::uint256_union result;
+    blake2b_state hash;
+
+    auto status (blake2b_init (&hash, sizeof (result.bytes)));
+    assert (status == 0);
+
+    blake2b_update(&hash, &type,     sizeof(type));
+    blake2b_update(&hash, &token_id, sizeof(token_id));
+    blake2b_update(&hash, &previous, sizeof(previous));
+
+    Hash (hash);
+
+    status = blake2b_final (&hash, result.bytes.data (), sizeof (result.bytes));
+    assert (status == 0);
+
+    return result;
+}

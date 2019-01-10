@@ -257,12 +257,46 @@ enum class process_result
 
 std::string ProcessResultToString(process_result result);
 
+enum class RequestType : uint8_t
+{
+    // Native Requests
+    //
+    Send                = 0,
+    ChangeRep           = 1,
+
+    // Token Administrative
+    // Requests
+    //
+    IssueTokens        = 2,
+    IssueAddTokens     = 3,
+    ImmuteTokenSetting = 4,
+    RevokeTokens       = 5,
+    FreezeTokens       = 6,
+    SetTokenFee        = 7,
+    UpdateWhitelist    = 8,
+    UpdateIssuerInfo   = 9,
+    UpdateController   = 10,
+    BurnTokens         = 11,
+    DistributeTokens   = 12,
+    WithdrawTokens     = 13,
+
+    // Token User Requests
+    //
+    JoinWhitelist      = 14,
+    SendTokens         = 15
+};
+
 struct Request
 {
     virtual ~Request() {}
 
-    block_hash previous;
-    block_hash next;
+    virtual block_hash Hash() const;
+    virtual void Hash(blake2b_state & hash) const = 0;
+
+    RequestType type;
+    std::string token_id;
+    block_hash  previous;
+    block_hash  next;
 };
 
 class process_return
