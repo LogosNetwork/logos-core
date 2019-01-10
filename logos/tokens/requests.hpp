@@ -12,36 +12,42 @@ struct TokenIssuance : TokenAdminRequest
     using Settings    = std::bitset<TOKEN_SETTINGS_COUNT>;
     using Controllers = std::vector<ControllerInfo>;
 
-    std::string    symbol;
-    std::string    name;
-    uint16_t       total_supply;
-    Settings       settings;
-    Controllers    controllers;
-    std::string    issuer_info;
+    void Hash(blake2b_state & hash) const override;
+
+    std::string symbol;
+    std::string name;
+    uint16_t    total_supply;
+    Settings    settings;
+    Controllers controllers;
+    std::string issuer_info;
 };
 
-struct TokenIssuanceAdd : TokenAdminRequest
+struct TokenIssueAdd : TokenAdminRequest
 {
-    std::string token_id;
-    uint16_t    amount;
+    void Hash(blake2b_state & hash) const override;
+
+    uint16_t amount;
 };
 
 struct TokenChangeSetting : TokenAdminRequest
 {
-    std::string  token_id;
+    void Hash(blake2b_state & hash) const override;
+
     TokenSetting setting;
     uint8_t      value;
 };
 
 struct TokenImmuteSetting : TokenAdminRequest
 {
-    std::string  token_id;
+    void Hash(blake2b_state & hash) const override;
+
     TokenSetting setting;
 };
 
 struct TokenRevoke : TokenAdminRequest
 {
-    std::string    token_id;
+    void Hash(blake2b_state & hash) const override;
+
     AccountAddress source;
     AccountAddress dest;
     uint16_t       amount;
@@ -49,53 +55,61 @@ struct TokenRevoke : TokenAdminRequest
 
 struct TokenFreeze : TokenAdminRequest
 {
-    std::string    token_id;
+    void Hash(blake2b_state & hash) const override;
+
     AccountAddress account;
     uint8_t        action;
 };
 
 struct TokenSetFee : TokenAdminRequest
 {
-    std::string  token_id;
+    void Hash(blake2b_state & hash) const override;
+
     TokenFeeType fee_type;
     uint16_t     fee_rate;
 };
 
 struct TokenWhitelistAdmin : TokenAdminRequest
 {
-    std::string    token_id;
+    void Hash(blake2b_state & hash) const override;
+
     AccountAddress account;
 };
 
 struct TokenIssuerInfo : TokenAdminRequest
 {
-    std::string token_id;
+    void Hash(blake2b_state & hash) const override;
+
     std::string new_info;
 };
 
 struct TokenController : TokenAdminRequest
 {
-    std::string      token_id;
+    void Hash(blake2b_state & hash) const override;
+
     ControllerAction action;
     ControllerInfo   controller;
 };
 
 struct TokenBurn : TokenAdminRequest
 {
-    std::string token_id;
-    uint16_t    amount;
+    void Hash(blake2b_state & hash) const override;
+
+    uint16_t amount;
 };
 
 struct TokenAccountSend : TokenAdminRequest
 {
-    std::string    token_id;
+    void Hash(blake2b_state & hash) const override;
+
     AccountAddress dest;
     uint16_t       amount;
 };
 
 struct TokenAccountWithdrawFee : TokenAdminRequest
 {
-    std::string    token_id;
+    void Hash(blake2b_state & hash) const override;
+
     AccountAddress dest;
     uint16_t       amount;
 };
@@ -104,14 +118,15 @@ struct TokenAccountWithdrawFee : TokenAdminRequest
 //
 struct TokenWhitelistUser : logos::Request
 {
-    std::string  token_id;
+    void Hash(blake2b_state & hash) const override;
 };
 
 struct TokenSend : logos::Request
 {
     using Transactions = std::vector<TokenTransaction>;
 
-    std::string  token_id;
+    void Hash(blake2b_state & hash) const override;
+
     Transactions transactions;
     uint16_t     fee;
 };
