@@ -277,6 +277,14 @@ enum class process_result
 
 std::string ProcessResultToString(process_result result);
 
+struct Request
+{
+    virtual ~Request() {}
+
+    block_hash previous;
+    block_hash next;
+};
+
 class process_return
 {
 public:

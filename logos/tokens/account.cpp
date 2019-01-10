@@ -2,7 +2,7 @@
 
 #include <ios>
 
-bool TokenAccount::Validate(TokenSettings setting, bool value, logos::process_return & result) const
+bool TokenAccount::Validate(TokenSetting setting, bool value, logos::process_return & result) const
 {
     auto pos = static_cast<EnumType>(setting);
     bool cur_val = _settings.test(pos);
@@ -49,18 +49,18 @@ bool TokenAccount::Validate(TokenSettings setting, bool value, logos::process_re
     return true;
 }
 
-void TokenAccount::Set(TokenSettings setting, bool value)
+void TokenAccount::Set(TokenSetting setting, bool value)
 {
     auto pos = static_cast<EnumType>(setting);
     _settings.set(pos, value);
 }
 
-bool TokenAccount::Allowed(TokenSettings setting) const
+bool TokenAccount::Allowed(TokenSetting setting) const
 {
     return _settings.test(static_cast<EnumType>(setting));
 }
 
-bool TokenAccount::IsMutabilitySetting(TokenSettings setting) const
+bool TokenAccount::IsMutabilitySetting(TokenSetting setting) const
 {
     // Enum values for mutability settings
     // are odd numbers.
@@ -68,12 +68,12 @@ bool TokenAccount::IsMutabilitySetting(TokenSettings setting) const
     return static_cast<EnumType>(setting) % 2;
 }
 
-TokenSettings TokenAccount::GetMutabilitySetting(TokenSettings setting) const
+TokenSetting TokenAccount::GetMutabilitySetting(TokenSetting setting) const
 {
     // For a given enum value representing
     // a basic setting, the corresponding
     // mutability setting will have a value
     // that is greater by 1.
     //
-    return static_cast<TokenSettings>(static_cast<EnumType>(setting) + 1);
+    return static_cast<TokenSetting>(static_cast<EnumType>(setting) + 1);
 }
