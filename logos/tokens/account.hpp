@@ -1,5 +1,6 @@
 #pragma once
 
+#include <logos/lib/numbers.hpp>
 #include <logos/tokens/util.hpp>
 #include <logos/lib/log.hpp>
 #include <logos/common.hpp>
@@ -8,23 +9,24 @@
 
 class TokenAccount
 {
-    using Settings = std::bitset<TOKEN_ACCOUNT_SETTINGS_COUNT>;
-    using EnumType = std::underlying_type<TokenSettings>::type;
+    using Settings = std::bitset<TOKEN_SETTINGS_COUNT>;
+    using EnumType = std::underlying_type<TokenSetting>::type;
 
 public:
 
-    bool Validate(TokenSettings setting,
+    bool Validate(TokenSetting setting,
                   bool value,
                   logos::process_return & result) const;
 
-    void Set(TokenSettings setting, bool value);
-    bool Allowed(TokenSettings setting) const;
+    void Set(TokenSetting setting, bool value);
+    bool Allowed(TokenSetting setting) const;
 
 private:
 
-    bool IsMutabilitySetting(TokenSettings setting) const;
-    TokenSettings GetMutabilitySetting(TokenSettings setting) const;
+    bool IsMutabilitySetting(TokenSetting setting) const;
+    TokenSetting GetMutabilitySetting(TokenSetting setting) const;
 
-    mutable Log _log;
-    Settings    _settings;
+    mutable Log       _log;
+    logos::block_hash _head;
+    Settings          _settings;
 };
