@@ -23,7 +23,7 @@ public:
     explicit PeerLogicValidation(CConnman* connman, bool enable_bip61);
 
     /** Initialize a peer by adding it to mapNodeState and pushing a message requesting its version */
-    void InitializeNode(CNode* pnode) override;
+    void InitializeNode(std::shared_ptr<CNode> pnode) override;
     /** Handle removal of a peer by updating various state and removing it from mapNodeState */
     void FinalizeNode(NodeId nodeid, bool& fUpdateConnectionTime) override;
     /**
@@ -32,17 +32,17 @@ public:
     * @param[in]   pfrom           The node which we have received messages from.
     * @param[in]   interrupt       Interrupt condition for processing threads
     */
-    bool ProcessMessages(CNode* pfrom, std::atomic<bool>& interrupt) override;
+    bool ProcessMessages(std::shared_ptr<CNode> pfrom, std::atomic<bool>& interrupt) override;
     /**
     * Send queued protocol messages to be sent to a give node.
     *
     * @param[in]   pto             The node which we are sending messages to.
     * @return                      True if there is more work to be done
     */
-    bool SendMessages(CNode* pto) override;
+    bool SendMessages(std::shared_ptr<CNode> pto) override;
 
     /** Consider evicting an outbound peer based on the amount of time they've been behind our tip */
-    void ConsiderEviction(CNode *pto, int64_t time_in_seconds) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    void ConsiderEviction(std::shared_ptr<CNode> pto, int64_t time_in_seconds) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     /** Evict extra outbound peers. If we think our tip may be stale, connect to an extra outbound */
     void CheckForStaleTipAndEvictPeers(int nPowTargetSpacing);
     /** If we have extra outbound peers, try to disconnect the one with the oldest block announcement */

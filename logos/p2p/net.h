@@ -120,14 +120,15 @@ public:
     AsioSession(boost::asio::io_service& ios, CConnman *connman_);
     ~AsioSession();
     boost::asio::ip::tcp::socket& get_socket() { return socket; }
-    void setNode(CNode *pnode_);
+    void setNode(std::shared_ptr<CNode> pnode_);
     void start();
     void shutdown();
     void async_write(const char *buf, size_t bytes);
+    void node_finish();
 private:
     boost::asio::ip::tcp::socket socket;
     CConnman *connman;
-    CNode* pnode;
+    std::shared_ptr<CNode> pnode;
     NodeId id;
     bool in_shutdown;
     void handle_read(std::shared_ptr<AsioSession> s, const boost::system::error_code& err,
@@ -245,9 +246,9 @@ public:
     void OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, std::shared_ptr<CSemaphoreGrant> grantOutbound, const char *strDest = nullptr, bool fOneShot = false, bool fFeeler = false, bool manual_connection = false);
     bool CheckIncomingNonce(uint64_t nonce);
 
-    bool ForNode(NodeId id, std::function<bool(CNode* pnode)> func);
+    bool ForNode(NodeId id, std::function<bool(std::shared_ptr<CNode> pnode)> func);
 
-    void PushMessage(CNode* pnode, CSerializedNetMsg&& msg);
+    void PushMessage(std::shared_ptr<CNode> pnode, CSerializedNetMsg&& msg);
 
     template<typename Callable>
     void ForEachNode(Callable&& func)
@@ -412,29 +413,29 @@ private:
     void ProcessOneShot();
     void ThreadOpenConnections(std::vector<std::string> connect);
     void ThreadMessageHandler();
-    CNode *AcceptConnection(std::shared_ptr<AsioSession> session, bool sock_whitelisted);
-    bool AcceptReceivedBytes(CNode* pnode, const char *pchBuf, int nBytes);
+    std::shared_ptr<CNode> AcceptConnection(std::shared_ptr<AsioSession> session, bool sock_whitelisted);
+    bool AcceptReceivedBytes(std::shared_ptr<CNode> pnode, const char *pchBuf, int nBytes);
     void ThreadSocketHandler();
     void ThreadDNSAddressSeed();
 
     uint64_t CalculateKeyedNetGroup(const CAddress& ad) const;
 
-    CNode* FindNode(const CNetAddr& ip);
-    CNode* FindNode(const CSubNet& subNet);
-    CNode* FindNode(const std::string& addrName);
-    CNode* FindNode(const CService& addr);
+    std::shared_ptr<CNode> FindNode(const CNetAddr& ip);
+    std::shared_ptr<CNode> FindNode(const CSubNet& subNet);
+    std::shared_ptr<CNode> FindNode(const std::string& addrName);
+    std::shared_ptr<CNode> FindNode(const CService& addr);
 
     bool AttemptToEvictConnection();
     void ConnectNode(CAddress addrConnect, const char *pszDest, std::shared_ptr<CSemaphoreGrant> grantOutbound, int flags);
-    CNode *ConnectNodeFinish(AsioClient *client, std::shared_ptr<AsioSession> session);
+    std::shared_ptr<CNode> ConnectNodeFinish(AsioClient *client, std::shared_ptr<AsioSession> session);
     bool IsWhitelistedRange(const CNetAddr &addr);
 
-    void DeleteNode(CNode* pnode);
+    void DeleteNode(std::shared_ptr<CNode> pnode);
 
     NodeId GetNewNodeId();
 
-    void SocketSendData(CNode *pnode);
-    bool SocketSendFinish(CNode *pnode, int nBytes);
+    void SocketSendData(std::shared_ptr<CNode> pnode);
+    bool SocketSendFinish(std::shared_ptr<CNode> pnode, int nBytes);
     //!check is the banlist has unwritten changes
     bool BannedSetIsDirty();
     //!set the "dirty" flag for the banlist
@@ -450,7 +451,7 @@ private:
     void RecordBytesSent(uint64_t bytes);
 
     // Whether the node should be passed out in ForEach* callbacks
-    static bool NodeFullyConnected(const CNode* pnode);
+    static bool NodeFullyConnected(std::shared_ptr<CNode> pnode);
 
     // Network usage totals
     CCriticalSection cs_totalBytesRecv;
@@ -482,8 +483,7 @@ private:
     CCriticalSection cs_vOneShots;
     std::vector<std::string> vAddedNodes GUARDED_BY(cs_vAddedNodes);
     CCriticalSection cs_vAddedNodes;
-    std::vector<CNode*> vNodes;
-    std::list<CNode*> vNodesDisconnected;
+    std::vector<std::shared_ptr<CNode>> vNodes;
     mutable CCriticalSection cs_vNodes;
     std::atomic<NodeId> nLastNodeId;
 
@@ -559,9 +559,9 @@ struct CombinerAll
 class NetEventsInterface
 {
 public:
-    virtual bool ProcessMessages(CNode* pnode, std::atomic<bool>& interrupt) = 0;
-    virtual bool SendMessages(CNode* pnode) = 0;
-    virtual void InitializeNode(CNode* pnode) = 0;
+    virtual bool ProcessMessages(std::shared_ptr<CNode> pnode, std::atomic<bool>& interrupt) = 0;
+    virtual bool SendMessages(std::shared_ptr<CNode> pnode) = 0;
+    virtual void InitializeNode(std::shared_ptr<CNode> pnode) = 0;
     virtual void FinalizeNode(NodeId id, bool& update_connection_time) = 0;
 
 protected:
@@ -583,8 +583,8 @@ enum
     LOCAL_MAX
 };
 
-bool IsPeerAddrLocalGood(CNode *pnode);
-void AdvertiseLocal(CNode *pnode);
+bool IsPeerAddrLocalGood(std::shared_ptr<CNode> pnode);
+void AdvertiseLocal(std::shared_ptr<CNode> pnode);
 void SetLimited(enum Network net, bool fLimited = true);
 bool IsLimited(enum Network net);
 bool IsLimited(const CNetAddr& addr);
@@ -749,7 +749,6 @@ public:
     CSemaphoreGrant grantOutbound;
     Mutex cs_filter;
     std::unique_ptr<CBloomFilter> pfilter;
-    std::atomic<int> nRefCount;
 
     const uint64_t nKeyedNetGroup;
     std::atomic_bool fPauseRecv;
@@ -827,12 +826,6 @@ public:
         return nMyStartingHeight;
     }
 
-    int GetRefCount() const
-    {
-        assert(nRefCount >= 0);
-        return nRefCount;
-    }
-
     bool ReceiveMsgBytes(const char *pch, unsigned int nBytes, bool& complete);
 
     void SetRecvVersion(int nVersionIn)
@@ -849,18 +842,6 @@ public:
     CService GetAddrLocal() const;
     //! May not be called more than once
     void SetAddrLocal(const CService& addrLocalIn);
-
-    CNode* AddRef()
-    {
-        nRefCount++;
-        return this;
-    }
-
-    void Release()
-    {
-        nRefCount--;
-    }
-
 
 
     void AddAddressKnown(const CAddress& _addr)

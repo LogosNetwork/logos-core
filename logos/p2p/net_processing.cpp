@@ -205,7 +205,7 @@ static CNodeState *State(NodeId pnode) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
     return &it->second;
 }
 
-static void UpdatePreferredDownload(CNode* node, CNodeState* state) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+static void UpdatePreferredDownload(std::shared_ptr<CNode> node, CNodeState* state) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     nPreferredDownload -= state->fPreferredDownload;
 
@@ -215,7 +215,7 @@ static void UpdatePreferredDownload(CNode* node, CNodeState* state) EXCLUSIVE_LO
     nPreferredDownload += state->fPreferredDownload;
 }
 
-static void PushNodeVersion(CNode *pnode, CConnman* connman, int64_t nTime)
+static void PushNodeVersion(std::shared_ptr<CNode> pnode, CConnman* connman, int64_t nTime)
 {
     ServiceFlags nLocalNodeServices = pnode->GetLocalServices();
     uint64_t nonce = pnode->GetLocalNonce();
@@ -249,12 +249,12 @@ static bool TipMayBeStale(int nPowTargetSpacing) EXCLUSIVE_LOCKS_REQUIRED(cs_mai
 
 // Returns true for outbound peers, excluding manual connections, feelers, and
 // one-shots
-static bool IsOutboundDisconnectionCandidate(const CNode *node)
+static bool IsOutboundDisconnectionCandidate(std::shared_ptr<CNode> node)
 {
     return !(node->fInbound || node->m_manual_connection || node->fFeeler || node->fOneShot);
 }
 
-void PeerLogicValidation::InitializeNode(CNode *pnode) {
+void PeerLogicValidation::InitializeNode(std::shared_ptr<CNode> pnode) {
     CAddress addr = pnode->addr;
     std::string addrName = pnode->GetAddrName();
     NodeId nodeid = pnode->GetId();
@@ -329,13 +329,6 @@ void Misbehaving(NodeId pnode, int howmuch, const std::string& message) EXCLUSIV
         LogPrint(BCLog::NET, "%s: %s peer=%d (%d -> %d)%s\n", __func__, state->name, pnode, state->nMisbehavior-howmuch, state->nMisbehavior, message_prefixed);
 }
 
-
-
-
-
-
-
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // blockchain -> download logic notification
@@ -370,10 +363,10 @@ static void RelayAddress(const CAddress& addr, bool fReachable, CConnman* connma
     const CSipHasher hasher = connman->GetDeterministicRandomizer(RANDOMIZER_ID_ADDRESS_RELAY).Write(hashAddr << 32).Write((GetTime() + hashAddr) / (24*60*60));
     FastRandomContext insecure_rand;
 
-    std::array<std::pair<uint64_t, CNode*>,2> best{{{0, nullptr}, {0, nullptr}}};
+    std::array<std::pair<uint64_t, std::shared_ptr<CNode>>,2> best{{{0, nullptr}, {0, nullptr}}};
     assert(nRelayNodes <= best.size());
 
-    auto sortfunc = [&best, &hasher, nRelayNodes](CNode* pnode) {
+    auto sortfunc = [&best, &hasher, nRelayNodes](std::shared_ptr<CNode> pnode) {
         if (pnode->nVersion != 0) {
             uint64_t hashKey = CSipHasher(hasher).Write(pnode->GetId()).Finalize();
             for (unsigned int i = 0; i < nRelayNodes; i++) {
@@ -395,7 +388,7 @@ static void RelayAddress(const CAddress& addr, bool fReachable, CConnman* connma
     connman->ForEachNodeThen(std::move(sortfunc), std::move(pushfunc));
 }
 
-bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, int64_t nTimeReceived, const CChainParams& chainparams, CConnman* connman, const std::atomic<bool>& interruptMsgProc, bool enable_bip61)
+bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strCommand, CDataStream& vRecv, int64_t nTimeReceived, const CChainParams& chainparams, CConnman* connman, const std::atomic<bool>& interruptMsgProc, bool enable_bip61)
 {
     LogPrint(BCLog::NET, "received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->GetId());
     if (gArgs.IsArgSet("-dropmessagestest") && GetRand(gArgs.GetArg("-dropmessagestest", 0)) == 0)
@@ -769,7 +762,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     return true;
 }
 
-static bool SendRejectsAndCheckIfBanned(CNode* pnode, CConnman* connman, bool enable_bip61) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+static bool SendRejectsAndCheckIfBanned(std::shared_ptr<CNode> pnode, CConnman* connman, bool enable_bip61) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     AssertLockHeld(cs_main);
     CNodeState &state = *State(pnode->GetId());
@@ -794,7 +787,7 @@ static bool SendRejectsAndCheckIfBanned(CNode* pnode, CConnman* connman, bool en
     return false;
 }
 
-bool PeerLogicValidation::ProcessMessages(CNode* pfrom, std::atomic<bool>& interruptMsgProc)
+bool PeerLogicValidation::ProcessMessages(std::shared_ptr<CNode> pfrom, std::atomic<bool>& interruptMsgProc)
 {
     const CChainParams& chainparams = Params();
     //
@@ -908,7 +901,7 @@ bool PeerLogicValidation::ProcessMessages(CNode* pfrom, std::atomic<bool>& inter
     return fMoreWork;
 }
 
-void PeerLogicValidation::ConsiderEviction(CNode *pto, int64_t time_in_seconds)
+void PeerLogicValidation::ConsiderEviction(std::shared_ptr<CNode> pto, int64_t time_in_seconds)
 {
     AssertLockHeld(cs_main);
 
@@ -940,7 +933,7 @@ void PeerLogicValidation::EvictExtraOutboundPeers(int64_t time_in_seconds)
 
         LOCK(cs_main);
 
-        connman->ForEachNode([&](CNode* pnode) {
+        connman->ForEachNode([&](std::shared_ptr<CNode> pnode) {
             AssertLockHeld(cs_main);
 
             // Ignore non-outbound peers, or nodes marked for disconnect already
@@ -955,7 +948,7 @@ void PeerLogicValidation::EvictExtraOutboundPeers(int64_t time_in_seconds)
             }
         });
         if (worst_peer != -1) {
-            bool disconnected = connman->ForNode(worst_peer, [&](CNode *pnode) {
+            bool disconnected = connman->ForNode(worst_peer, [&](std::shared_ptr<CNode> pnode) {
                 AssertLockHeld(cs_main);
 
                 // Only disconnect a peer that has been connected to us for
@@ -1008,7 +1001,7 @@ void PeerLogicValidation::CheckForStaleTipAndEvictPeers(int nPowTargetSpacing)
     }
 }
 
-bool PeerLogicValidation::SendMessages(CNode* pto)
+bool PeerLogicValidation::SendMessages(std::shared_ptr<CNode> pto)
 {
 //    const Consensus::Params& consensusParams = Params().GetConsensus();
     {
