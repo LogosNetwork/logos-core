@@ -102,3 +102,10 @@ PersistenceManager<ECT>::ApplyUpdates(
     previous.next = epoch_hash;
     _store.epoch_put(previous, transaction);
 }
+
+bool PersistenceManager<ECT>::BlockExists(
+    const PrePrepare & message)
+{
+    Epoch block;
+    return _store.consensus_block_get(message.Hash(), block);
+}

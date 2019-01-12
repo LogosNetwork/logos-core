@@ -148,3 +148,10 @@ PersistenceManager<MBCT>::ApplyUpdates(
     LOG_INFO(_log) << "PersistenceManager::ApplyUpdates hash: " << hash.to_string()
                    << " previous " << hash.to_string();
 }
+
+bool PersistenceManager<MBCT>::BlockExists(
+    const PrePrepare & message)
+{
+    MicroBlock block;
+    return _store.consensus_block_get(message.Hash(), block);
+}

@@ -37,6 +37,13 @@ void PersistenceManager<BSBCT>::ApplyUpdates(
     ApplyBatchMessage(message, transaction);
 }
 
+bool PersistenceManager<BSBCT>::BlockExists(
+    const PrePrepare & message)
+{
+    BatchStateBlock block;
+    return _store.consensus_block_get(message.Hash(), block);
+}
+
 bool PersistenceManager<BSBCT>::Validate(
     const Request & block,
     logos::process_return & result,

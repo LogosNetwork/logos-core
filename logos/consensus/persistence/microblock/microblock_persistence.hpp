@@ -53,4 +53,6 @@ public:
     {
         ApplyUpdates(message, 0);
     }
+
+    virtual bool BlockExists(const PrePrepare & message);
 };

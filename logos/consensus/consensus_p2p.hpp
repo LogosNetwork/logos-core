@@ -41,7 +41,8 @@ class ConsensusP2p
 public:
     ConsensusP2p(p2p_interface & p2p,
                  std::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)> Validate,
-                 std::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates);
+                 std::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates,
+                 std::function<bool (const PrePrepareMessage<CT> &)> BlockExists);
 
     bool ProcessInputMessage(const uint8_t *data, uint32_t size);
 
@@ -67,6 +68,7 @@ private:
     Log                                                                                         _log;
     std::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)>             _Validate;
     std::function<void (const PrePrepareMessage<CT> &, uint8_t)>                                _ApplyUpdates;
+    std::function<bool (const PrePrepareMessage<CT> &)>                                         _BlockExists;
     std::multimap<logos::block_hash,std::pair<uint8_t,std::shared_ptr<PrePrepareMessage<CT>>>>  _cache;
     std::mutex                                                                                  _cache_mutex;
     ContainerP2p *                                                                              _container;
@@ -93,6 +95,10 @@ public:
             [this](const PrePrepareMessage<CT> &message, uint8_t delegate_id)
             {
                 this->_persistence.ApplyUpdates(message, delegate_id);
+            },
+            [this](const PrePrepareMessage<CT> &message)
+            {
+                return this->_persistence.BlockExists(message);
             }
         )
     {}

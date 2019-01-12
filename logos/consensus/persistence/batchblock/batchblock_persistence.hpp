@@ -29,6 +29,8 @@ public:
 
     virtual void ApplyUpdates(const PrePrepare & message, uint8_t delegate_id);
 
+    virtual bool BlockExists(const PrePrepare & message);
+
     virtual bool Validate(const Request & block, logos::process_return & result, bool allow_duplicates = true);
     virtual bool Validate(const Request & block);
 

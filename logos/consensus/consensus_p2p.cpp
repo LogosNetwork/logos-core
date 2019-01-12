@@ -101,10 +101,12 @@ bool ConsensusP2pOutput<CT>::ProcessOutputMessage(const uint8_t *data, uint32_t 
 template<ConsensusType CT>
 ConsensusP2p<CT>::ConsensusP2p(p2p_interface & p2p,
                                std::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)> Validate,
-                               std::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates)
+                               std::function<void (const PrePrepareMessage<CT> &, uint8_t)> ApplyUpdates,
+                               std::function<bool (const PrePrepareMessage<CT> &)> BlockExists)
     : _p2p(p2p)
     , _Validate(Validate)
     , _ApplyUpdates(ApplyUpdates)
+    , _BlockExists(BlockExists)
 {}
 
 template<>
@@ -350,11 +352,19 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
                                     << "> - error parsing p2p batch Pre_Prepare message";
                     return false;
                 }
+
+                if (_BlockExists(block))
+                {
+                    LOG_WARN(_log) << "ConsensusP2p<" << ConsensusToName(CT)
+                                    << "> - stop validate block, it already exists in the storage";
+                    return false;
+                }
+
                 if (!_Validate((const Prequel &)*head, MessageType::Pre_Prepare, delegate_id, &pre_status))
                 {
                     LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                                    << "> - error validation p2p batch Pre_Prepare message: " <<
-                    ProcessResultToString(pre_status.reason);
+                                    << "> - error validation p2p batch Pre_Prepare message: "
+                                    << ProcessResultToString(pre_status.reason);
                     // return false;
                 }
                 mtype = MessageType::Post_Prepare;
@@ -375,8 +385,8 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
                 if (!_Validate((const Prequel &)*head, MessageType::Post_Prepare, delegate_id, &status))
                 {
                     LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                                    << "> - error validation p2p batch Post_Prepare message: " <<
-                    ProcessResultToString(status.reason);
+                                    << "> - error validation p2p batch Post_Prepare message: "
+                                    << ProcessResultToString(status.reason);
                     // return false;
                 }
                 mtype = MessageType::Post_Commit;
@@ -396,8 +406,8 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
                 if (!_Validate((const Prequel &)*head, MessageType::Post_Commit, delegate_id, &status))
                 {
                     LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                                    << "> - error validation p2p batch Post_Commit message: " <<
-                    ProcessResultToString(status.reason);
+                                    << "> - error validation p2p batch Post_Commit message: "
+                                    << ProcessResultToString(status.reason);
                     // return false;
                 }
                 break;
