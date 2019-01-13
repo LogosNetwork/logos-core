@@ -413,18 +413,16 @@ void AsioSession::shutdown()
     }
     else
     {
+        std::shared_ptr<CNode> pnode_ = pnode;
+        pnode = std::shared_ptr<CNode>();
+        LOCK(pnode_->cs_vSend);
+        bool fUpdateConnectionTime = false;
+        connman->m_msgproc->FinalizeNode(id, fUpdateConnectionTime);
+        if (fUpdateConnectionTime)
+        {
+            connman->addrman.Connected(pnode_->addr);
+        }
         LogDebug(BCLog::NET, "Session shutdown, peer=%ld\n", id);
-    }
-}
-
-void AsioSession::node_finish()
-{
-    shutdown();
-    bool fUpdateConnectionTime = false;
-    connman->m_msgproc->FinalizeNode(id, fUpdateConnectionTime);
-    if (fUpdateConnectionTime)
-    {
-        connman->addrman.Connected(pnode->addr);
     }
 }
 
@@ -1051,6 +1049,8 @@ const uint512& CNetMessage::GetMessageHash() const
 
 bool CConnman::SocketSendFinish(std::shared_ptr<CNode> pnode, int nBytes)
 {
+    if (!pnode)
+        return false;
     LOCK(pnode->cs_vSend);
     auto it = pnode->vSendMsg.begin();
     const auto &data = *it;
@@ -2745,7 +2745,7 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
 
 CNode::~CNode()
 {
-    session->node_finish();
+    session->shutdown();
     LogDebug(BCLog::NET, "Node destroyed, peer=%d\n", id);
 }
 

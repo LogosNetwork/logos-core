@@ -124,7 +124,6 @@ public:
     void start();
     void shutdown();
     void async_write(const char *buf, size_t bytes);
-    void node_finish();
 private:
     boost::asio::ip::tcp::socket socket;
     CConnman *connman;
