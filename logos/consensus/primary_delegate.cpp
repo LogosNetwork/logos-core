@@ -33,6 +33,11 @@ PrimaryDelegate::PrimaryDelegate(Service & service,
 template<ConsensusType C>
 void PrimaryDelegate::ProcessMessage(const RejectionMessage<C> & message)
 {
+    LOG_DEBUG(_log) << "PrimaryDelegate::ProcessMessage<"
+                    << ConsensusToName(C) << ">- Received rejection("
+                    << RejectionReasonToName(message.reason)
+                    << ")";
+
     if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE))
     {
         OnRejection(message);

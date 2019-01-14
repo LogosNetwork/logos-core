@@ -59,7 +59,7 @@ public:
         return bytes.data();
     }
 
-    explicit operator std::array<uint8_t, 16>() { return bytes; }
+    operator std::array<uint8_t, 16>() { return bytes; }
 };
 // Balances are 128 bit.
 using amount = uint128_union;
@@ -118,7 +118,7 @@ union uint256_union
         memcpy(data(), buf, 32);
     }
 
-    explicit operator std::array<uint8_t, 32>() { return bytes; }
+    operator std::array<uint8_t, 32>() { return bytes; }
 };
 // All keys and hashes are 256 bit.
 using block_hash = uint256_union;
@@ -176,7 +176,7 @@ union uint512_union
         blake2b_update(&hash, bytes.data(), 64);
     }
 
-    explicit operator std::array<uint8_t, 64>() { return bytes; }
+    operator std::array<uint8_t, 64>() { return bytes; }
 };
 // Only signatures are 512 bit.
 using signature = uint512_union;

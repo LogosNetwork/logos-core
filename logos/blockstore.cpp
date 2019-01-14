@@ -2,6 +2,7 @@
 #include <logos/blockstore.hpp>
 #include <logos/versioning.hpp>
 #include <logos/lib/trace.hpp>
+#include <logos/consensus/messages/util.hpp>
 
 namespace
 {
@@ -856,8 +857,9 @@ bool logos::block_store::batch_block_put (ApprovedBSB const & block, const Block
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();
 
     std::vector<uint8_t> buf;
+    auto value(block.to_mdb_val(buf));
     auto status(mdb_put(transaction, batch_db, logos::mdb_val(hash),
-                        block.to_mdb_val(buf), 0));
+                        value, 0));
     assert(status == 0);
 
     for(uint16_t i = 0; i < block.block_count; ++i)
@@ -928,8 +930,14 @@ bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & b
         new(&block) ApprovedBSB(error, value);
         assert(!error);
 
-        if(! error)
+        if(!error)
         {
+            if(block.block_count > CONSENSUS_BATCH_SIZE)
+            {
+                LOG_FATAL(log) << __func__ << " state_block_get failed, block.block_count > CONSENSUS_BATCH_SIZE";
+                trace_and_halt();
+            }
+
             for(uint16_t i = 0; i < block.block_count; ++i)
             {
                 if(state_block_get(block.hashs[i], block.blocks[i], transaction))
@@ -942,6 +950,63 @@ bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & b
     }
 
     return error;
+}
+
+bool logos::block_store::consensus_block_update_next(const BlockHash & hash, const BlockHash & next, ConsensusType type, MDB_txn * transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    mdb_val value;
+    mdb_val key(hash);
+    MDB_dbi db = 0; //typedef unsigned int    MDB_dbi, maybe use a naked pointer?
+
+    switch(type){
+    case ConsensusType::BatchStateBlock:
+        db = batch_db;
+        break;
+    case ConsensusType::MicroBlock:
+        db = micro_block_db;
+        break;
+    case ConsensusType::Epoch:
+        db = epoch_db;
+        break;
+    default:
+        LOG_FATAL(log) << __func__ << " wrong consensus type " << (uint)type;
+        trace_and_halt();
+    }
+
+    auto status(mdb_get (transaction, db, key, value));
+    if (status == MDB_NOTFOUND)
+    {
+        LOG_TRACE(log) << __func__ << " MDB_NOTFOUND";
+        return true;
+    }
+    else if(status != 0)
+    {
+        LOG_FATAL(log) << __func__ << " failed to get consensus block "
+                << ConsensusToName(type);
+        trace_and_halt();
+    }
+
+    // From LMDB:
+    //    The memory pointed to by the returned values is owned by the database.
+    //    The caller need not dispose of the memory, and may not modify it in any
+    //    way. For values returned in a read-only transaction any modification
+    //    attempts will cause a SIGSEGV.
+    //    Values returned from the database are valid only until a subsequent
+    //    update operation, or the end of the transaction.
+    auto data_size(value.size());
+    std::vector<uint8_t> buf(data_size);
+    mdb_val value_buf(data_size, buf.data());
+    update_PostCommittedBlock_next_field(value, value_buf, next);
+    status = mdb_put(transaction, db, key, value_buf, 0);
+    if(status != 0)
+    {
+        LOG_FATAL(log) << __func__ << " failed to put consensus block "
+                << ConsensusToName(type);
+        trace_and_halt();
+    }
+    return false;
 }
 
 bool logos::block_store::state_block_get(const BlockHash & hash, StateBlock & block, MDB_txn * transaction)

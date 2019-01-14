@@ -228,9 +228,7 @@ logos::account_info::account_info (
         uint64_t modified_a,
         uint32_t block_count_a,
         uint32_t receive_count_a)
-    : reservation(0)
-    , reservation_epoch(0)
-    , head (head_a)
+    : head (head_a)
     , receive_head (receive_head_a)
     , rep_block (rep_block_a)
     , open_block (open_block_a)
@@ -238,6 +236,8 @@ logos::account_info::account_info (
     , modified (modified_a)
     , block_count (block_count_a)
     , receive_count (receive_count_a)
+    , reservation(0)
+    , reservation_epoch(0)
 {}
 
 uint32_t logos::account_info::serialize (logos::stream & stream_a) const

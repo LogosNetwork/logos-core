@@ -276,13 +276,13 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
         _store.account_put(pair.pub,
                            {
                                /* Head    */ 0,
-                               /* Previous*/ 0,
+                               /* Receive */ receive.Hash(),
                                /* Rep     */ 0,
-                               /* Open    */ state.Hash(),
+                               /* Open    */ state.GetHash(),
                                /* Amount  */ amount,
                                /* Time    */ logos::seconds_since_epoch(),
                                /* Count   */ 0,
-                               /* Receive */ 0
+                               /* Receive Count */ 1
                            },
                            transaction);
     }

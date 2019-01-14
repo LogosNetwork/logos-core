@@ -227,31 +227,9 @@ void PersistenceManager<BSBCT>::StoreBatchMessage(
     MDB_txn * transaction,
     uint8_t delegate_id)
 {
-    ApprovedBSB prev;
-    bool has_prev = true;
-
+    auto hash(message.Hash());
     LOG_DEBUG(_log) << "PersistenceManager::StoreBatchMessage - "
                                 << message.Hash().to_string();
-
-    if(_store.batch_block_get(message.previous, prev, transaction))
-    {
-        // TODO: bootstrap here.
-        //
-        if(!message.previous.is_zero())
-        {
-            LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
-                            << "Failed to find previous: "
-                            << message.previous.to_string();
-
-            std::exit(EXIT_FAILURE);
-        }
-        else
-        {
-            has_prev = false;
-        }
-    }
-
-    auto hash(message.Hash());
 
     if(_store.batch_block_put(message, hash, transaction))
     {
@@ -259,25 +237,7 @@ void PersistenceManager<BSBCT>::StoreBatchMessage(
                         << "Failed to store batch message with hash: "
                         << hash.to_string();
 
-        std::exit(EXIT_FAILURE);
-    }
-
-    prev.next = hash;
-
-    // TODO: Add previous hash for batch blocks with
-    //       a previous set to zero because it was
-    //       the first batch of the epoch.
-    if(has_prev)
-    {
-        if(_store.batch_block_put(prev, message.previous, transaction))
-        {
-            LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
-                            << "Failed to store batch message with hash: "
-                            << message.previous.to_string();
-
-            std::exit(EXIT_FAILURE);
-        }
-
+        trace_and_halt();
     }
 
     if(_store.batch_tip_put(delegate_id, hash, transaction))
@@ -286,8 +246,20 @@ void PersistenceManager<BSBCT>::StoreBatchMessage(
                         << "Failed to store batch block tip with hash: "
                         << hash.to_string();
 
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
+
+    if(! message.previous.is_zero())
+    {
+        if(_store.consensus_block_update_next(message.previous, hash, ConsensusType::BatchStateBlock, transaction))
+        {
+            // TODO: bootstrap here.
+        }
+    }
+
+    // TODO: Add previous hash for batch blocks with
+    //       a previous set to zero because it was
+    //       the first batch of the epoch.
 }
 
 void PersistenceManager<BSBCT>::ApplyBatchMessage(

@@ -319,6 +319,7 @@ add_library (node
 	logos/consensus/batchblock/bb_consensus_connection.cpp
 	logos/consensus/batchblock/request_handler.cpp
 	logos/consensus/secondary_request_handler.cpp
+	logos/consensus/delegate_bridge.cpp
 	logos/consensus/consensus_connection.cpp
 	logos/consensus/consensus_container.cpp
 	logos/consensus/consensus_manager.cpp

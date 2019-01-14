@@ -274,20 +274,25 @@ ConsensusNetIO::OnData(const uint8_t * data,
         }
         else
         {
-            LOG_FATAL(_log) << "ConsensusNetIO - unexpected message type "
-                        << (int)message_type << " for consensus Any";
-            trace_and_halt(); //TODO Carl and Greg: halt or disconnect?
+            HandleMessageError("Wrong message type for consensus Any");
         }
     }
     else
     {
         auto idx = ConsensusTypeToIndex(consensus_type);
 
-        if (!(idx >= 0 && idx < CONSENSUS_TYPE_COUNT) || _connections[idx] == 0)
+        //three valid consensus types, BatchStateBlock, MicroBlock, Epoch
+        //the largest valid idx to _connections[idx] is 2.
+        if (idx >= (CONSENSUS_TYPE_COUNT))
+        {
+            HandleMessageError("Consensus type out of range");
+        }
+
+        if(_connections[idx] == 0)
         {
             LOG_FATAL(_log) << "ConsensusNetIO - _consensus_connections is NULL: "
                             << idx;
-            trace_and_halt(); //TODO Carl and Greg: halt or disconnect?
+            trace_and_halt();
         }
 
         switch (message_type) {
@@ -426,16 +431,13 @@ ConsensusNetIO::OnHeartBeat(HeartBeat &heartbeat)
     {
         heartbeat.is_request = false;
         Send(heartbeat);
-//        std::vector<uint8_t> buf;
-//        heartbeat.Serialize(buf);
-//        Send(buf.data(), buf.size());
     }
 }
 
 void ConsensusNetIO::HandleMessageError(const char * operation)
 {
-    LOG_ERROR(_log) << "ConsensusNetIO Failed to " << operation;
+    LOG_ERROR(_log) << "ConsensusNetIO HandleMessageError: " << operation;
     auto error(boost::system::errc::make_error_code(boost::system::errc::errc_t::io_error));
-    OnNetIOError(error, false);
+    OnNetIOError(error, true);
 }
 

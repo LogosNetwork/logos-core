@@ -14,7 +14,7 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
                                              const DelegateIdentities & ids,
                                              EpochEventsNotifier & events_notifer,
                                              PersistenceManager<CT> & persistence_manager)
-    : _iochannel(iochannel)
+    : DelegateBridge<CT>(iochannel)
     , _delegate_ids(ids)
     , _reason(RejectionReason::Void)
     , _validator(validator)
@@ -23,95 +23,6 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
     , _events_notifier(events_notifer)
     , _persistence_manager(persistence_manager)
 {}
-
-template<ConsensusType CT>
-void ConsensusConnection<CT>::Send(const void * data, size_t size)
-{
-    _iochannel->Send(data, size);
-}
-
-template<ConsensusType CT>
-bool ConsensusConnection<CT>::OnMessageData(const uint8_t * data,
-        uint8_t version,
-        MessageType message_type,
-        ConsensusType consensus_type,
-        uint32_t payload_size)
-{
-    std::string message = MessageToName(message_type);
-    if (message_type == MessageType::Rejection)
-    {
-        bool error = false;
-        logos::bufferstream stream(data, payload_size);
-        Rejection msg (error, stream, version);
-        if(error)
-            return false;
-        message += ":" + RejectionReasonToName(msg.reason);
-    }
-    LOG_DEBUG(_log) << "ConsensusConnection<"
-                    << ConsensusToName(CT) << ">- Received "
-                    << message
-                    << " message from delegate: " << (int)_delegate_ids.remote;
-
-    bool error = false;
-    logos::bufferstream stream(data, payload_size);
-    switch (message_type)
-    {
-        case MessageType::Pre_Prepare:
-        {
-            PrePrepare msg(error, stream, version);
-            if(!error)
-                OnConsensusMessage(msg);
-            break;
-        }
-        case MessageType::Prepare:
-        {
-            Prepare msg(error, stream, version);
-            if(!error)
-                OnConsensusMessage(msg);
-            break;
-        }
-        case MessageType::Post_Prepare:
-        {
-            PostPrepare msg(error, stream, version);
-            if(!error)
-                OnConsensusMessage(msg);
-            break;
-        }
-        case MessageType::Commit:
-        {
-            Commit msg(error, stream, version);
-            if(!error)
-                OnConsensusMessage(msg);
-            break;
-        }
-        case MessageType::Post_Commit:
-        {
-            PostCommit msg(error, stream, version);
-            if(!error)
-                OnConsensusMessage(msg);
-            break;
-        }
-        case MessageType::Rejection:
-        {
-            Rejection msg (error, stream, version);
-            if(!error)
-                OnConsensusMessage(msg);
-            break;
-        }
-        case MessageType::Post_Committed_Block:
-            //consensus_connection will not receive Post_Committed_Block
-        case MessageType::Heart_Beat:
-        case MessageType::Key_Advert:
-        case MessageType::Unknown:
-            error = true;
-            break;
-    }
-
-    if(error)
-        LOG_ERROR(_log) << __func__ << " message error";
-
-    return ! error;
-}
 
 template<ConsensusType CT>
 void ConsensusConnection<CT>::SetPrePrepare(const PrePrepare & message)
@@ -183,8 +94,19 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
 }
 
 template<ConsensusType CT>
-template<typename M>
-void ConsensusConnection<CT>::OnConsensusMessage(const M & message)
+void ConsensusConnection<CT>::OnConsensusMessage(const Prepare & message)
+{
+    _primary.OnConsensusMessage(message, _delegate_ids.remote);
+}
+
+template<ConsensusType CT>
+void ConsensusConnection<CT>::OnConsensusMessage(const Commit & message)
+{
+    _primary.OnConsensusMessage(message, _delegate_ids.remote);
+}
+
+template<ConsensusType CT>
+void ConsensusConnection<CT>::OnConsensusMessage(const Rejection & message)
 {
     _primary.OnConsensusMessage(message, _delegate_ids.remote);
 }

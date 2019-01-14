@@ -74,7 +74,6 @@ public:
         _service.post([this, block] () {
             SendMessage(std::make_shared<std::string> (block.SerializeJson ()));
             //TODO question: should it be post-committed block?
-            // what if consensus session failed?
         });
     }
 

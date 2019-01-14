@@ -4,12 +4,83 @@
 #include <ed25519-donna/ed25519.h>
 #include <vector>
 
+#include <logos/lib/utility.hpp>
 #include <logos/node/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/messages/rejection.hpp>
 #include <logos/unit_test/msg_validator_setup.hpp>
 
 using namespace std;
+
+//#define Unit_Test_Crypto_BLS
+//#define Unit_Test_Read_Write
+//#define Unit_Test_Msg
+//#define Unit_Test_Single_Block
+//#define Unit_Test_Consensus_Block
+//#define Unit_Test_Msg_Validator
+#define Unit_Test_DB
+
+
+std::string byte_vector_to_string (const std::vector<uint8_t> & buf)
+{
+    std::stringstream stream;
+    for(size_t i = 0; i < buf.size(); ++i)
+    {
+        stream << std::hex << std::noshowbase << std::setw (2) << std::setfill ('0') << (unsigned int)(buf[i]);
+    }
+    return stream.str ();
+}
+
+PrePrepareMessage<ConsensusType::BatchStateBlock>
+create_bsb_preprepare(uint16_t num_sb)
+{
+    PrePrepareMessage<ConsensusType::BatchStateBlock> block;
+    for(uint32_t i = 0; i < num_sb; ++i)
+    {
+        block.AddStateBlock(StateBlock(1,2,i,StateBlock::Type::send,5,6,7,8,9));
+    }
+
+    return block;
+}
+
+template<ConsensusType CT>
+PostCommittedBlock<CT> create_approved_block(PrePrepareMessage<CT> & preperpare)
+{
+    AggSignature    post_prepare_sig;
+    AggSignature    post_commit_sig;
+
+    post_prepare_sig.map = 12;
+    post_prepare_sig.sig = 34;
+    post_commit_sig.map = 56;
+    post_commit_sig.sig = 78;
+
+    return PostCommittedBlock<CT>(preperpare, post_prepare_sig, post_commit_sig);
+}
+
+PrePrepareMessage<ConsensusType::MicroBlock> create_mb_preprepare()
+{
+    PrePrepareMessage<ConsensusType::MicroBlock> block;
+    block.last_micro_block = 1;
+    block.number_batch_blocks = 2;
+    for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
+    {
+        block.tips[i] = i;
+    }
+    return block;
+}
+
+PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare()
+{
+    PrePrepareMessage<ConsensusType::Epoch> block;
+    block.micro_block_tip = 1234;
+    block.transaction_fee_pool = 2345;
+    for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
+    {
+        block.delegates[i] = {i, i, i, i};
+    }
+    return block;
+}
+
 
 ///////////////////////////////// utils tests
 TEST (crypto, ed25519)
@@ -47,7 +118,7 @@ TEST (crypto, blake2b)
     ASSERT_NE(b, c);
 }
 
-//#if 0
+#ifdef Unit_Test_Crypto_BLS
 TEST (crypto, bls)
 {
     auto nodes = setup_nodes();
@@ -128,7 +199,9 @@ TEST (crypto, bls)
         ASSERT_FALSE(validator.Validate(msg, wrong_agg_sig));
     }
 }
+#endif
 
+#ifdef Unit_Test_Read_Write
 TEST (write_read, all)
 {
     BlockHash hash = 1;
@@ -246,8 +319,30 @@ TEST (write_read, bool_vec)
     }
 }
 
-///////////////////////////// message serialization tests
+TEST (write_read, short_msg)
+{
+    BlockHash hash = 1;
+    BlockHash hash2;
+    std::vector<uint8_t> buf;
+    {
+        logos::vectorstream write_stream(buf);
+        logos::write(write_stream, hash);
+    }
+    std::cout << "buf.size=" << buf.size() << std::endl;
+    {
+        logos::bufferstream read_stream(buf.data(), buf.size());
+        ASSERT_FALSE(logos::read(read_stream, hash2));
+    }
+    {
+        logos::bufferstream read_stream(buf.data(), buf.size()-1);
+        ASSERT_TRUE(logos::read(read_stream, hash2));
+    }
+}
 
+#endif
+
+///////////////////////////// message serialization tests
+#ifdef Unit_Test_Msg
 TEST (messages, KeyAdvertisement)
 {
     KeyAdvertisement block;
@@ -339,6 +434,7 @@ TEST (messages, StandardPhaseMessage)
     ASSERT_EQ(block.type, block2.type);
     ASSERT_EQ(block.consensus_type, block2.consensus_type);
 }
+#endif
 
 TEST (messages, PostPhaseMessage)
 {
@@ -364,8 +460,7 @@ TEST (messages, PostPhaseMessage)
     ASSERT_EQ(block.signature.sig, block2.signature.sig);
 }
 
-//#endif
-
+#ifdef Unit_Test_Msg
 TEST (messages, RejectionMessage)
 {
     BlockHash pp_hash = 11;
@@ -389,6 +484,10 @@ TEST (messages, RejectionMessage)
     RejectionMessage<ConsensusType::BatchStateBlock> block2(error, stream, prequel.version);
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
+
+#endif
+
+#ifdef Unit_Test_Single_Block
 
 TEST (blocks, receive_block)
 {
@@ -421,8 +520,6 @@ TEST (blocks, state_block)
     ASSERT_EQ(block.Hash(), block.GetHash());
     ASSERT_EQ(block2.Hash(), block2.GetHash());
 }
-
-
 
 void create_real_StateBlock(StateBlock & block)
 {
@@ -471,18 +568,9 @@ TEST (blocks, state_block_json)
     ASSERT_EQ(block2.Hash(), block2.GetHash());
 }
 
-PrePrepareMessage<ConsensusType::BatchStateBlock>
-create_bsb_preprepare(uint16_t num_sb)
-{
-    PrePrepareMessage<ConsensusType::BatchStateBlock> block;
-    for(uint32_t i = 0; i < num_sb; ++i)
-    {
-        block.AddStateBlock(StateBlock(1,2,i,StateBlock::Type::send,5,6,7,8,9));
-    }
+#endif
 
-    return block;
-}
-
+#ifdef Unit_Test_Consensus_Block
 TEST (blocks, batch_state_block_PrePrepare_empty)
 {
     auto block = create_bsb_preprepare(0);
@@ -496,6 +584,7 @@ TEST (blocks, batch_state_block_PrePrepare_empty)
     ASSERT_FALSE(error);
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
+
 
 TEST (blocks, batch_state_block_PrePrepare_full)
 {
@@ -511,20 +600,6 @@ TEST (blocks, batch_state_block_PrePrepare_full)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(block.Hash(), block2.Hash());
-}
-
-template<ConsensusType CT>
-PostCommittedBlock<CT> create_approved_block(PrePrepareMessage<CT> & preperpare)
-{
-    AggSignature    post_prepare_sig;
-    AggSignature    post_commit_sig;
-
-    post_prepare_sig.map = 12;
-    post_prepare_sig.sig = 34;
-    post_commit_sig.map = 56;
-    post_commit_sig.sig = 78;
-
-    return PostCommittedBlock<CT>(preperpare, post_prepare_sig, post_commit_sig);
 }
 
 TEST (blocks, batch_state_block_PostCommit_net)
@@ -573,17 +648,7 @@ TEST (blocks, batch_state_block_PostCommit_DB)
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
 
-PrePrepareMessage<ConsensusType::MicroBlock> create_mb_preprepare()
-{
-    PrePrepareMessage<ConsensusType::MicroBlock> block;
-    block.last_micro_block = 1;
-    block.number_batch_blocks = 2;
-    for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
-    {
-        block.tips[i] = i;
-    }
-    return block;
-}
+#endif
 
 TEST (blocks, micro_block_PrePrepare)
 {
@@ -598,6 +663,8 @@ TEST (blocks, micro_block_PrePrepare)
     ASSERT_FALSE(error);
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
+
+#ifdef Unit_Test_Consensus_Block
 
 TEST (blocks, micro_block_PostCommit_net)
 {
@@ -630,18 +697,7 @@ TEST (blocks, micro_block_PostCommit_DB)
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
 
-////////////////////////////////
-PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare()
-{
-    PrePrepareMessage<ConsensusType::Epoch> block;
-    block.micro_block_tip = 1234;
-    block.transaction_fee_pool = 2345;
-    for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
-    {
-        block.delegates[i] = {i, i, i, i};
-    }
-    return block;
-}
+#endif
 
 TEST (blocks, epoch_block_PrePrepare)
 {
@@ -657,6 +713,8 @@ TEST (blocks, epoch_block_PrePrepare)
     ASSERT_FALSE(error);
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
+
+#ifdef Unit_Test_Consensus_Block
 
 TEST (blocks, epoch_block_PostCommit_net)
 {
@@ -689,7 +747,11 @@ TEST (blocks, epoch_block_PostCommit_DB)
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
 
+#endif
+
 ///////////////////////////////////////message_validator tests
+
+#ifdef Unit_Test_Msg_Validator
 
 TEST (message_validator, consensus_session)
 {
@@ -904,9 +966,11 @@ TEST (message_validator, signature_order_twoThirds)
     }
 }
 
+#endif
 
 ///////////////// DB tests
 
+#ifdef Unit_Test_DB
 TEST (DB, receive_block)
 {
     auto store = get_db();
@@ -960,6 +1024,15 @@ TEST (DB, account)
     block.reservation = 9;
     block.reservation_epoch = 10;
     AccountAddress address(11);
+
+    vector<uint8_t> buf;
+    {
+        logos::vectorstream stream(buf);
+        block.serialize(stream);
+    }
+    std::cout << byte_vector_to_string(buf) << std::endl;
+
+
     ASSERT_FALSE(store->account_put(address, block, txn));
 
     logos::account_info block2;
@@ -1027,6 +1100,32 @@ TEST (DB, eb)
     ASSERT_EQ(block_hash, block2.Hash());
 }
 
+TEST (DB, bsb_next)
+{
+    auto store = get_db();
+    ASSERT_TRUE(store != NULL);
+    if(store == NULL)
+        return;
+//    logos::transaction txn(store->environment, nullptr, true);
 
-//#endif
+    auto block_pp = create_bsb_preprepare(CONSENSUS_BATCH_SIZE/4);
+    auto block = create_approved_block<ConsensusType::BatchStateBlock>(block_pp);
+    auto block_hash(block.Hash());
+    {
+        logos::transaction txn(store->environment, nullptr, true);
+        ASSERT_FALSE(store->batch_block_put(block, block_hash, txn));
+    }
 
+    BlockHash next(90);
+    {
+        logos::transaction txn(store->environment, nullptr, true);
+        store->consensus_block_update_next(block_hash, next, ConsensusType::BatchStateBlock, txn);
+    }
+
+    logos::transaction txn(store->environment, nullptr, false);
+    ApprovedBSB block2;
+    ASSERT_FALSE(store->batch_block_get(block_hash, block2, txn));
+    ASSERT_EQ(block_hash, block2.Hash());
+    ASSERT_EQ(block2.next, next);
+}
+#endif

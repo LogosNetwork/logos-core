@@ -13,24 +13,9 @@ struct BatchStateBlock : PrePrepareCommon
     BatchStateBlock() = default;
     BatchStateBlock(bool & error, logos::stream & stream, bool with_state_block);
 
-    BatchStateBlock & operator= (const BatchStateBlock & other)
-    {
-        PrePrepareCommon::operator=(other);
-
-        // BatchStateBlock members
-        block_count = other.block_count;
-        for(uint64_t i = 0; i < block_count; ++i)
-        {
-            new(& blocks[i]) StateBlock(other.blocks[i]);
-            hashs[i] = blocks[i].GetHash();
-        }
-
-        return *this;
-    }
-
     bool AddStateBlock(const StateBlock & to_add)
     {
-        if(block_count == CONSENSUS_BATCH_SIZE)
+        if(block_count >= CONSENSUS_BATCH_SIZE)
             return false;
 
         new(&blocks[block_count]) StateBlock(to_add);

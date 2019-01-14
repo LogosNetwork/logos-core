@@ -99,18 +99,10 @@ PersistenceManager<ECT>::ApplyUpdates(
         trace_and_halt();
     }
 
-    ApprovedEB previous;
-    if (_store.epoch_get(block.previous, previous, transaction))
+    if(_store.consensus_block_update_next(block.previous, epoch_hash, ConsensusType::Epoch, transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager::ApplyUpdate failed to get previous block "
                         << block.previous.to_string();
-        trace_and_halt();
-    }
-    previous.next = epoch_hash;
-    if(_store.epoch_put(previous, transaction))
-    {
-        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdate failed to store prev epoch "
-                                        << block.previous.to_string();
         trace_and_halt();
     }
 }

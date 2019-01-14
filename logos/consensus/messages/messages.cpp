@@ -2,6 +2,11 @@
 #include <logos/consensus/messages/util.hpp>
 #include <logos/common.hpp>
 
+
+#ifndef BOOST_LITTLE_ENDIAN
+    static_assert(false, "Only LITTLE_ENDIAN machines are not supported!");
+#endif
+
 AggSignature::AggSignature(bool & error, logos::stream & stream)
 {
     unsigned long m;
@@ -264,3 +269,25 @@ void StateBlock::SerializeJson(boost::property_tree::ptree & tree,
     }
 }
 
+void update_PostCommittedBlock_next_field(const logos::mdb_val & mdbval, logos::mdb_val & mdbval_buf, const BlockHash & next)
+{
+    if(mdbval.size() <= HASH_SIZE)
+    {
+        Log log;
+        LOG_FATAL(log) << __func__ << " DB value too small";
+        trace_and_halt();
+    }
+
+    // From LMDB:
+    //    The memory pointed to by the returned values is owned by the database.
+    //    The caller need not dispose of the memory, and may not modify it in any
+    //    way. For values returned in a read-only transaction any modification
+    //    attempts will cause a SIGSEGV.
+    //    Values returned from the database are valid only until a subsequent
+    //    update operation, or the end of the transaction.
+
+    memcpy(mdbval_buf.data(), mdbval.data(), mdbval_buf.size() - HASH_SIZE);
+    uint8_t * start_of_next = reinterpret_cast<uint8_t *>(mdbval_buf.data()) + mdbval_buf.size() - HASH_SIZE;
+    const uint8_t * next_data = next.data();
+    memcpy(start_of_next, next_data, HASH_SIZE);
+}

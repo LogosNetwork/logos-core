@@ -130,6 +130,8 @@ public:
     bool consensus_block_get (const BlockHash & hash, ApprovedBSB & block);
     bool consensus_block_get (const BlockHash & hash, ApprovedMB & block);
     bool consensus_block_get (const BlockHash & hash, ApprovedEB & block);
+    // return true if cannot found hash
+    bool consensus_block_update_next(const BlockHash & hash, const BlockHash & next, ConsensusType type, MDB_txn * transaction);
 
     // consensus-prototype additions
     bool batch_block_put(ApprovedBSB const &, MDB_txn *);

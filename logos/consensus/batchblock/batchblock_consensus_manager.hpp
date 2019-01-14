@@ -51,8 +51,6 @@ public:
 
     virtual ~BatchBlockConsensusManager() {};
 
-    //void Send(const PrePrepare & pre_prepare) override;
-
     /// Handles benchmark requests.
     ///     @param[in]  block state block.
     ///     @param[out] result result of the operation.

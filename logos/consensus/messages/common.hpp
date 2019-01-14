@@ -52,9 +52,9 @@ static constexpr uint8_t logos_version = 0;
 // Add new consensus types at the end
 CONSENSUS_TYPE
 (
-    BatchStateBlock,
-    MicroBlock,
-    Epoch
+    BatchStateBlock = 0,
+    MicroBlock = 1,
+    Epoch = 2
 );
 
 static const size_t NUM_DELEGATES               = 32;
@@ -269,3 +269,4 @@ struct PrePrepareCommon
 };
 
 using HeaderStream = boost::iostreams::stream_buffer<boost::iostreams::basic_array_sink<uint8_t>>;
+

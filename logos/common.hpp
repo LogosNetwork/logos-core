@@ -120,8 +120,7 @@ public:
     bool operator!= (logos::account_info const &) const;
     //logos::mdb_val val () const;
     logos::mdb_val to_mdb_val(std::vector<uint8_t> &buf) const;
-    logos::block_hash reservation;
-    uint32_t reservation_epoch;
+
     logos::block_hash head;
     logos::block_hash receive_head;
     logos::block_hash rep_block;
@@ -131,6 +130,8 @@ public:
     uint64_t modified;
     uint32_t block_count; //sequence number
     uint32_t receive_count;
+    logos::block_hash reservation;
+    uint32_t reservation_epoch;
 };
 
 /**

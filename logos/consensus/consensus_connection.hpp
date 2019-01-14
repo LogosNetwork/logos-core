@@ -6,6 +6,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/consensus_state.hpp>
+#include <logos/consensus/delegate_bridge.hpp>
 #include <logos/node/client_callback.hpp>
 
 #include <boost/asio/io_service.hpp>
@@ -24,23 +25,9 @@ struct DelegateIdentities
 template<ConsensusType CT>
 class RequestPromoter;
 
-/// ConsensusConnection's Interface to ConsensusNetIO.
-class MessageParser
-{
-public:
-
-  virtual ~MessageParser() {}
-
-  // return true iff data is good
-  virtual bool OnMessageData(const uint8_t * data,
-          uint8_t version,
-          MessageType message_type,
-          ConsensusType consensus_type,
-          uint32_t payload_size) = 0;
-};
 
 template<ConsensusType CT>
-class ConsensusConnection : public MessageParser
+class ConsensusConnection : public DelegateBridge<CT>
 {
 protected:
 
@@ -65,18 +52,10 @@ public:
                         EpochEventsNotifier & events_notifier,
                         PersistenceManager<CT> & persistence_manager);
 
-    void Send(const void * data, size_t size);
-
     virtual ~ConsensusConnection()
     {
         LOG_DEBUG(_log) << "~ConsensusConnection<" << ConsensusToName(CT) << ">";
     }
-
-    bool OnMessageData(const uint8_t * data,
-            uint8_t version,
-            MessageType message_type,
-            ConsensusType consensus_type,
-            uint32_t payload_size) override;
 
     virtual bool IsPrePrepared(const BlockHash & hash) = 0;
 
@@ -94,13 +73,14 @@ protected:
     virtual void ApplyUpdates(const ApprovedBlock &, uint8_t delegate_id) = 0;
 
     // Messages received by backup delegates
-    void OnConsensusMessage(const PrePrepare & message);
-    void OnConsensusMessage(const PostPrepare & message);
-    void OnConsensusMessage(const PostCommit & message);
+    void OnConsensusMessage(const PrePrepare & message) override;
+    void OnConsensusMessage(const PostPrepare & message) override;
+    void OnConsensusMessage(const PostCommit & message) override;
 
     // Messages received by primary delegates
-    template<typename M>
-    void OnConsensusMessage(const M & message);
+    void OnConsensusMessage(const Prepare & message) override;
+    void OnConsensusMessage(const Commit & message) override;
+    void OnConsensusMessage(const Rejection & message) override;
 
     template<typename M>
     bool Validate(const M & message);
@@ -125,7 +105,7 @@ protected:
     {
         std::vector<uint8_t> buf;
         msg.Serialize(buf);
-        Send(buf.data(), buf.size());
+        this->Send(buf.data(), buf.size());
     }
 
     void SetPrePrepare(const PrePrepare & message);
@@ -138,8 +118,11 @@ protected:
 
     virtual bool ValidateReProposal(const PrePrepare & message);
 
+    uint8_t RemoteDelegateId()
+    {
+        return _delegate_ids.remote;
+    }
 
-    std::shared_ptr<IOChannel>  _iochannel;
     std::mutex                  _mutex;
     std::shared_ptr<PrePrepare> _pre_prepare;
     uint64_t                    _pre_prepare_timestamp = 0;

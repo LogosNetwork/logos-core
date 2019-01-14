@@ -89,10 +89,9 @@ struct RejectionMessage
             MessagePrequel<MessageType::Rejection, CT>::payload_size = Serialize(stream)
                     - MessagePrequelSize;
         }
-        {
-            HeaderStream header_stream(buf.data(), MessagePrequelSize);
-            MessagePrequel<MessageType::Rejection, CT>::Serialize(header_stream);
-        }
+
+        HeaderStream header_stream(buf.data(), MessagePrequelSize);
+        MessagePrequel<MessageType::Rejection, CT>::Serialize(header_stream);
     }
 
     BlockHash           preprepare_hash;

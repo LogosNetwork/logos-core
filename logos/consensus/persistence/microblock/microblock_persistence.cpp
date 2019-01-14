@@ -137,21 +137,12 @@ PersistenceManager<MBCT>::ApplyUpdates(
         trace_and_halt();
     }
 
-    ApprovedMB previous;
-    if (_store.micro_block_get(block.previous, previous, transaction))
+    if(_store.consensus_block_update_next(block.previous, hash, ConsensusType::MicroBlock, transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager::ApplyUpdates failed to get previous block "
                         << block.previous.to_string();
         trace_and_halt();
     }
-    previous.next = hash;
-    hash = previous.Hash();
-    if(_store.micro_block_put(previous, transaction))
-    {
-        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdates failed to put prev block "
-                                << hash.to_string();
-        trace_and_halt();
-    }
     LOG_INFO(_log) << "PersistenceManager::ApplyUpdates hash: " << hash.to_string()
-                   << " previous " << hash.to_string();
+                   << " previous " << block.previous.to_string();
 }
