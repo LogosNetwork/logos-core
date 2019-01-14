@@ -1,3 +1,7 @@
+///
+/// @file
+/// This file contains declaration and implementation of ReceiveBlock and StateBlock
+///
 #pragma once
 
 #include <vector>
@@ -8,6 +12,7 @@
 #include <blake2/blake2.h>
 #include <ed25519-donna/ed25519.h>
 
+/// An item on the receive chain of an account. A ReceiveBlock is created for each transaction is a StateBlock
 struct ReceiveBlock
 {
     BlockHash previous;
@@ -16,10 +21,17 @@ struct ReceiveBlock
 
     ReceiveBlock() = default;
 
+    /// Class constructor
+    /// @param previous the hash of the previous ReceiveBlock on the account chain
+    /// @param send_hash the hash of the StateBlock
+    /// @param index2send the index to the array of transactions in the StateBlock
     ReceiveBlock(const BlockHash & previous, const BlockHash & send_hash, uint16_t index2send = 0)
     : previous(previous), send_hash(send_hash), index2send(index2send)
     {}
 
+    /// Constructor from deserializing a buffer read from the database
+    /// @param error it will be set to true if deserialization fail [out]
+    /// @param mdbval the buffer read from the database
     ReceiveBlock(bool & error, const logos::mdb_val & mdbval)
     {
         logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
@@ -44,6 +56,8 @@ struct ReceiveBlock
         index2send= le16toh(index2send);
     }
 
+    /// Serialize the data members to a Json string
+    /// @returns the Json string
     std::string SerializeJson() const
     {
         boost::property_tree::ptree tree;
@@ -53,6 +67,8 @@ struct ReceiveBlock
         return ostream.str();
     }
 
+    /// Add the data members to the property_tree which will be encoded to Json
+    /// @param batch_state_block the property_tree to add data members to
     void SerializeJson(boost::property_tree::ptree & tree) const
     {
         tree.put("previous", previous.to_string());
@@ -60,6 +76,8 @@ struct ReceiveBlock
         tree.put("index_to_send_block", std::to_string(index2send));
     }
 
+    /// Serialize the data members to a stream
+    /// @param stream the stream to serialize to
     void Serialize (logos::stream & stream) const
     {
         uint16_t idx = htole16(index2send);
@@ -69,11 +87,15 @@ struct ReceiveBlock
         logos::write(stream, idx);
     }
 
+    /// Compute the hash of the ReceiveBlock
+    /// @returns the hash value computed
     BlockHash Hash() const
     {
         return Blake2bHash<ReceiveBlock>(*this);
     }
 
+    /// Add the data members to a hash context
+    /// @param hash the hash context
     void Hash(blake2b_state & hash) const
     {
         uint16_t s = htole16(index2send);
@@ -82,7 +104,9 @@ struct ReceiveBlock
         blake2b_update(&hash, &s, sizeof(uint16_t));
     }
 
-
+    /// Serialize the data members to a database buffer
+    /// @param buf the memory buffer to serialize to
+    /// @return the database buffer
     logos::mdb_val to_mdb_val(std::vector<uint8_t> &buf) const
     {
         assert(buf.empty());
@@ -128,6 +152,7 @@ struct StateBlock
             return Type::unknown;
     }
 
+    /// A transaction in a StateBlock
     struct Transaction{
         AccountAddress  target;
         Amount          amount;
@@ -142,6 +167,18 @@ struct StateBlock
 
     StateBlock () = default;
 
+    /// Class constructor
+    /// Note that if additional transaction is added after construction, the StateBlock must be re-signed
+    /// @param account the account creating the StateBlock
+    /// @param previous the hash of the previous StateBlock on the account's send chain
+    /// @param sequence the sequence number
+    /// @param type the type of the StateBlock
+    /// @param to the target account, additional targets can be added with AddTransaction()
+    /// @param amount the transaction amount, additional amounts can be added with AddTransaction()
+    /// @param transaction_fee the transaction fee
+    /// @param priv the private EdDSA key of the account
+    /// @param pub the public EdDSA key of the account
+    /// @param work the prove of work
     StateBlock ( AccountAddress const & account,
                  BlockHash const & previous,
                  uint32_t sequence,
@@ -165,6 +202,17 @@ struct StateBlock
         Sign(priv, pub);
     }
 
+    /// Class constructor
+    /// Note that if additional transaction is added after construction, the StateBlock must be re-signed
+    /// @param account the account creating the StateBlock
+    /// @param previous the hash of the previous StateBlock on the account's send chain
+    /// @param sequence the sequence number
+    /// @param type the type of the StateBlock
+    /// @param to the target account, additional targets can be added with AddTransaction()
+    /// @param amount the transaction amount, additional amounts can be added with AddTransaction()
+    /// @param transaction_fee the transaction fee
+    /// @param sig the EdDSA signature of the StateBlock
+    /// @param work the prove of work
     StateBlock ( AccountAddress const & account,
                  BlockHash const & previous,
                  uint32_t sequence,
@@ -187,10 +235,20 @@ struct StateBlock
         Hash();
     }
 
-    StateBlock(bool & error_a, boost::property_tree::ptree const & tree_a,
+    /// Class constructor
+    /// construct from deserializing a property_tree which was decoded from a Json string
+    /// @param error it will be set to true if deserialization fail [out]
+    /// @param tree the property_tree to deserialize from
+    /// @param with_batch_hash if the property_tree should contain the batch_hash
+    /// @param with_work if the property_tree should contain the prove of work
+    StateBlock(bool & error, boost::property_tree::ptree const & tree,
             bool with_batch_hash = false, bool with_work = false);
 
-
+    /// Class constructor
+    /// construct from deserializing a stream which was decoded from a Json string
+    /// @param error it will be set to true if deserialization fail [out]
+    /// @param stream the stream containing serialized data [in]
+    /// @param with_batch_hash if the serialized data should have the batch_hash [in]
     StateBlock (bool & error, logos::stream & stream, bool with_batch_hash = false)
     {
         error = logos::read(stream, account);
@@ -275,6 +333,10 @@ struct StateBlock
         Hash ();
     }
 
+    /// Add a new transaction
+    /// @param to the target account
+    /// @param amount the transaction amount
+    /// @returns if the new transaction is added.
     bool AddTransaction(AccountAddress const & to, Amount const & amount)
     {
         if(trans.size() < MAX_TRANSACTION)
@@ -285,13 +347,16 @@ struct StateBlock
         return false;
     }
 
-
+    /// Compute the hash of the StateBlock
+    /// @returns the hash value computed
     BlockHash Hash() const
     {
         digest = Blake2bHash<StateBlock>(*this);
         return digest;
     }
 
+    /// Add the data members to a hash context
+    /// @param hash the hash context
     void Hash(blake2b_state & hash) const
     {
         account.Hash(hash);
@@ -311,28 +376,49 @@ struct StateBlock
         }
     }
 
-
+    /**
+     * Signs the StateBlock
+     * @param priv the private EdDSA key of the account
+     * @param pub the public EdDSA key of the account
+     */
     void Sign(AccountPrivKey const & priv, AccountPubKey const & pub)
     {
         Hash();
         ed25519_sign (const_cast<BlockHash &>(digest).data(), HASH_SIZE, const_cast<AccountPrivKey&>(priv).data (), const_cast<AccountPubKey&>(pub).data (), signature.data ());
     }
 
+    /**
+     * Verify the signature of the StateBlock
+     * @param pub the public EdDSA key of the account
+     * @return true if the signature is valid
+     */
     bool VerifySignature(AccountPubKey const & pub) const
     {
         return 0 == ed25519_sign_open (const_cast<BlockHash &>(digest).data(), HASH_SIZE, const_cast<AccountPubKey&>(pub).data (), const_cast<AccountSig&>(signature).data ());
     }
 
+    /**Get the hash of the StateBlock without re-compute
+     * @returns the hash value
+     */
     BlockHash GetHash () const
     {
         return digest;
     }
 
+    /*
+     * Get the number of transactions in the StateBlock
+     * @return the number of transactions in the StateBlock
+     */
     uint16_t GetNumTransactions() const
     {
         return trans.size();
     }
 
+    /** Serialize the data members to a Json string
+     * @param with_batch_hash if batch_hash should be serialized
+     * @param with_work if prove of work should be serialized
+     * @returns the Json string
+     */
     std::string SerializeJson(bool with_batch_hash = false, bool with_work = false) const
     {
         boost::property_tree::ptree tree;
@@ -342,8 +428,18 @@ struct StateBlock
         return ostream.str();
     }
 
+    /** Serialize the data members to a property_tree which will be encoded to Json
+     * @param tree the property_tree to add data members to
+     * @param with_batch_hash if batch_hash should be serialized
+     * @param with_work if prove of work should be serialized
+     */
     void SerializeJson(boost::property_tree::ptree & tree, bool with_batch_hash = false, bool with_work = false) const;
 
+    /** Serialize the data members to a stream
+     * @param stream the stream to serialize to
+     * @param with_batch_hash if batch_hash should be serialized
+     * @returns the number of bytes serialized
+     */
     uint32_t Serialize (logos::stream & stream, bool with_batch_hash = false) const
     {
         uint32_t sqn = htole32(sequence);
@@ -372,6 +468,9 @@ struct StateBlock
         return s;
     }
 
+    /// Serialize the data members to a database buffer
+    /// @param buf the memory buffer to serialize to
+    /// @return the database buffer
     logos::mdb_val to_mdb_val(std::vector<uint8_t> & buf) const
     {
         assert(buf.empty());
@@ -382,6 +481,9 @@ struct StateBlock
         return logos::mdb_val(buf.size(), buf.data());
     }
 
+    /// Constructor from deserializing a buffer read from the database
+    /// @param error it will be set to true if deserialization fail [out]
+    /// @param mdbval the buffer read from the database
     StateBlock(bool & error, const logos::mdb_val & mdbval)
     {
         logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());

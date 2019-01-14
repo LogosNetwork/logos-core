@@ -1,3 +1,7 @@
+///
+/// @file
+/// This file contains declaration and implementation of the ByteArray template class
+///
 #ifndef LOGOS_CONSENSUS_MESSAGES_BYTE_ARRAYS_HPP_
 #define LOGOS_CONSENSUS_MESSAGES_BYTE_ARRAYS_HPP_
 
@@ -41,18 +45,6 @@ struct ByteArray : public std::array<byte, len>
         memset(this->data(), v, len);
     }
 
-    // return error
-    bool SetValue(const void * buf, size_t buf_len)
-    {
-        assert(buf_len == len);
-        if(buf_len == len)
-        {
-            memcpy(this->data(), buf, buf_len);
-            return false;
-        }
-        return true;
-    }
-
     std::string to_string () const
     {
         std::stringstream stream;
@@ -92,15 +84,23 @@ struct ByteArray : public std::array<byte, len>
 
 };
 
-
 namespace logos
 {
+/// read a ByteArray from a stream
+/// @param stream_a the stream to read from
+/// @param value the empty ByteArray to read to
+/// @returns false on success
 template <size_t len>
 bool read (logos::stream & stream_a, ByteArray<len> & value)
 {
     auto amount_read (stream_a.sgetn (value.data(), len));
     return amount_read != len;
 }
+
+/// write a ByteArray to a stream
+/// @param stream_a the stream to write to
+/// @param value the ByteArray to write from
+/// @returns the number of bytes written
 template <size_t len>
 uint32_t write (logos::stream & stream_a, const ByteArray<len> & value)
 {
@@ -112,6 +112,7 @@ uint32_t write (logos::stream & stream_a, const ByteArray<len> & value)
 
 namespace std
 {
+/// define a std::hash for ByteArrays so that they can be used in unordered_map etc
 template <size_t len>
 struct hash<ByteArray<len>>
 {
