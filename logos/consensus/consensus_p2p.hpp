@@ -116,6 +116,8 @@ private:
     friend class ConsensusP2p<CT>;
 };
 
+constexpr int P2P_GET_PEER_NEW_SESSION = -1;
+
 class ContainerP2p
 {
 public:
@@ -125,6 +127,7 @@ public:
         , _batch(p2p, store)
         , _micro(p2p, store)
         , _epoch(p2p, store)
+        , _session_id(0)
     {
         _batch._p2p._container = this;
         _micro._p2p._container = this;
@@ -132,6 +135,31 @@ public:
     }
 
     bool ProcessInputMessage(const void *data, uint32_t size);
+
+    /* Where session_id is initialized with an invalid value (-1) and a new session_id
+     * is returned by the function, along with a list of peers. count indicates how
+     * many peers we are asking for.
+     * to be called on init call of bootstrap_peer() and to which we will subsequently
+     * get peers at random from the vector.
+     * The reason of adding the session when get_peers() is so that the caller doesn't
+     * get repeated endpoints. To create a new session, the function is called with
+     * an invalid session_id (e.g., #define GET_PEER_NEW_SESSION -1), and the function
+     * should create a new session and return a valid session_id.
+     */
+    int get_peers(int session_id, vector<logos::endpoint> & nodes, uint8_t count);
+
+    /* Close session (to be managed in bootstrap_attempt) */
+    void close_session(int session_id);
+
+    /* Add a peer to a blacklist
+     * to be called when validation fails
+     */
+    void add_to_blacklist(const logos::endpoint & e);
+
+    /* true if peer is in the blacklist
+     * to be checked when we select a new peer to bootstrap from
+     */
+    bool is_blacklisted(const logos::endpoint & e);
 
     p2p_interface &                                 _p2p;
 private:
@@ -145,6 +173,7 @@ private:
     PersistenceP2p<ConsensusType::BatchStateBlock>  _batch;
     PersistenceP2p<ConsensusType::MicroBlock>       _micro;
     PersistenceP2p<ConsensusType::Epoch>            _epoch;
+    std::atomic<int>                                _session_id;
 
     template<ConsensusType CT>
     friend class ConsensusP2p;

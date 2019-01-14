@@ -468,6 +468,31 @@ bool ContainerP2p::ProcessInputMessage(const void *data, uint32_t size)
     return false;
 }
 
+int ContainerP2p::get_peers(int session_id, vector<logos::endpoint> & nodes, uint8_t count)
+{
+    if (session_id == P2P_GET_PEER_NEW_SESSION)
+    {
+        return _session_id++;
+    }
+    else
+    {
+        return session_id;
+    }
+}
+
+void ContainerP2p::close_session(int session_id)
+{
+}
+
+void ContainerP2p::add_to_blacklist(const logos::endpoint & e)
+{
+}
+
+bool ContainerP2p::is_blacklisted(const logos::endpoint & e)
+{
+    return false;
+}
+
 template class ConsensusP2pOutput<ConsensusType::BatchStateBlock>;
 template class ConsensusP2pOutput<ConsensusType::MicroBlock>;
 template class ConsensusP2pOutput<ConsensusType::Epoch>;
