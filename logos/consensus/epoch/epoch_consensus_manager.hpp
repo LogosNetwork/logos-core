@@ -84,11 +84,11 @@ protected:
 
 	void QueueRequestSecondary(std::shared_ptr<Request> request) override;
 
-	/// Create specialized instance of ConsensusConnection
+	/// Create specialized instance of BackupDelegate
 	///     @param iochannel NetIOChannel pointer
 	///     @param ids Delegate's id
-	///     @return ConsensusConnection
-	std::shared_ptr<ConsensusConnection<ConsensusType::Epoch>> MakeConsensusConnection(
+	///     @return BackupDelegate
+	std::shared_ptr<BackupDelegate<ConsensusType::Epoch>> MakeBackupDelegate(
 			std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
 
 	/// Request's primary delegate, 0 (delegate with most voting power) for Micro/Epoch Block

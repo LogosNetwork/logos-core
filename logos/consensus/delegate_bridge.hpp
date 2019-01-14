@@ -10,7 +10,7 @@
 
 class IOChannel;
 
-/// ConsensusConnection's Interface to ConsensusNetIO.
+/// BackupDelegate's Interface to ConsensusNetIO.
 class MessageParser
 {
 public:

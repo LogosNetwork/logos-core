@@ -242,7 +242,7 @@ ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
 {
     std::lock_guard<std::mutex> lock(_connection_mutex);
 
-    auto connection = MakeConsensusConnection(iochannel, ids);
+    auto connection = MakeBackupDelegate(iochannel, ids);
     _connections.push_back(connection);
 
     return connection;

@@ -86,7 +86,7 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
             break;
         }
         case MessageType::Post_Committed_Block:
-            //consensus_connection will not receive Post_Committed_Block
+            // will not receive Post_Committed_Block
         case MessageType::Heart_Beat:
         case MessageType::Key_Advert:
         case MessageType::Unknown:

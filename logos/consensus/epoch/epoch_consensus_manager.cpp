@@ -2,7 +2,7 @@
 /// This file contains specialization of the ConsensusManager class, which
 /// handles specifics of Epoch consensus
 ///
-#include <logos/consensus/epoch/epoch_consensus_connection.hpp>
+#include <logos/consensus/epoch/epoch_backup_delegate.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
@@ -109,12 +109,12 @@ EpochConsensusManager::QueueRequestSecondary(std::shared_ptr<Request> request)
     _secondary_handler.OnRequest(request, boost::posix_time::seconds(timeout_sec));
 }
 
-std::shared_ptr<ConsensusConnection<ConsensusType::Epoch>>
-EpochConsensusManager::MakeConsensusConnection(
+std::shared_ptr<BackupDelegate<ConsensusType::Epoch>>
+EpochConsensusManager::MakeBackupDelegate(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities& ids)
 {
-    return std::make_shared<EpochConsensusConnection>(iochannel, *this, *this,
+    return std::make_shared<EpochBackupDelegate>(iochannel, *this, *this,
             _validator, ids, _events_notifier, _persistence_manager);
 }
 

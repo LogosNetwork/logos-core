@@ -6,7 +6,7 @@
 #include <logos/consensus/secondary_request_handler.hpp>
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/consensus/persistence/reservations.hpp>
-#include <logos/consensus/consensus_connection.hpp>
+#include <logos/consensus/backup_delegate.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/message_validator.hpp>
@@ -66,7 +66,7 @@ protected:
     using Service     = boost::asio::io_service;
     using Config      = ConsensusManagerConfig;
     using Store       = logos::block_store;
-    using Connection  = ConsensusConnection<CT>;
+    using Connection  = BackupDelegate<CT>;
     using Connections = std::vector<std::shared_ptr<Connection>>;
     using Manager     = ConsensusManager<CT>;
     using Request     = RequestMessage<CT>;
@@ -155,7 +155,7 @@ protected:
         return 0;
     }
 
-    virtual std::shared_ptr<ConsensusConnection<CT>> MakeConsensusConnection(
+    virtual std::shared_ptr<BackupDelegate<CT>> MakeBackupDelegate(
             std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
 
     /// singleton secondary handler

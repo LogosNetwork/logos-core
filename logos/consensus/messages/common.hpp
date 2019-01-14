@@ -38,8 +38,8 @@ static constexpr uint8_t logos_version = 0;
 ///   and update NumberOfConsensus
 /// - add PrePrepareMessage and Request message for specific consensus in messages/messages.hpp (enf of file)
 /// - add newconsensus type folder in consensus
-/// - implement newconsensus_consensus_connection.cpp, and newconsensus_consensus_manager.[ch]pp
-/// - explicitly instanciate newconsensus consensus connection in consensus_connection.cpp (end of file)
+/// - implement newconsensus_backup_delegate.cpp, and newconsensus_consensus_manager.[ch]pp
+/// - explicitly instanciate newconsensus consensus connection in backup_delegate.cpp (end of file)
 /// - explicitly instanciate newconsensus consensus manager in consensus_manager.cpp (end of file)
 /// - explicitly instanciate newconsensus function in primary_delegate.cpp (top of file)
 /// - update ConsensusToName in messages/util.hpp

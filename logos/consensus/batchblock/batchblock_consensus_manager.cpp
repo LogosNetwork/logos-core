@@ -2,7 +2,7 @@
 /// This file contains implementation of the BatchBlockConsensusManager class, which
 /// handles specifics of BatchBlock consensus
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
-#include <logos/consensus/batchblock/bb_consensus_connection.hpp>
+#include <logos/consensus/batchblock/bb_backup_delegate.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 
 const boost::posix_time::seconds BatchBlockConsensusManager::ON_CONNECTED_TIMEOUT{10};
@@ -238,12 +238,12 @@ BatchBlockConsensusManager::OnPostCommit(const PrePrepare & block)
     Manager::OnPostCommit(block);
 }
 
-std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>>
-BatchBlockConsensusManager::MakeConsensusConnection(
+std::shared_ptr<BackupDelegate<ConsensusType::BatchStateBlock>>
+BatchBlockConsensusManager::MakeBackupDelegate(
     std::shared_ptr<IOChannel> iochannel,
     const DelegateIdentities& ids)
 {
-    return std::make_shared<BBConsensusConnection>(
+    return std::make_shared<BBBackupDelegate>(
             iochannel, *this, *this, _validator,
             ids, _service, _events_notifier, _persistence_manager);
 }

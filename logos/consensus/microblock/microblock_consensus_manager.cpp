@@ -1,4 +1,4 @@
-#include <logos/consensus/microblock/microblock_consensus_connection.hpp>
+#include <logos/consensus/microblock/microblock_backup_delegate.hpp>
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/lib/trace.hpp>
@@ -104,11 +104,11 @@ MicroBlockConsensusManager::QueueRequestSecondary(std::shared_ptr<Request> reque
         boost::posix_time::seconds(_delegate_id * SECONDARY_LIST_TIMEOUT.count()));
 }
 
-std::shared_ptr<ConsensusConnection<ConsensusType::MicroBlock>>
-MicroBlockConsensusManager::MakeConsensusConnection(
+std::shared_ptr<BackupDelegate<ConsensusType::MicroBlock>>
+MicroBlockConsensusManager::MakeBackupDelegate(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities& ids)
 {
-    return std::make_shared<MicroBlockConsensusConnection>(iochannel, *this, *this,
+    return std::make_shared<MicroBlockBackupDelegate>(iochannel, *this, *this,
             _validator, ids, _microblock_handler, _events_notifier, _persistence_manager);
 }

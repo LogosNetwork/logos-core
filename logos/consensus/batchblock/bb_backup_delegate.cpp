@@ -1,14 +1,14 @@
 /// @file
-/// This file contains specializations of the ConsensusConnection class, which
+/// This file contains specializations of the BackupDelegate class, which
 /// handle the specifics of BatchBlock consensus.
-#include <logos/consensus/batchblock/bb_consensus_connection.hpp>
+#include <logos/consensus/batchblock/bb_backup_delegate.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/lib/epoch_time_util.hpp>
 
 #include <random>
 
-BBConsensusConnection::BBConsensusConnection(
+BBBackupDelegate::BBBackupDelegate(
         std::shared_ptr<IOChannel> iochannel,
         PrimaryDelegate & primary,
         Promoter & promoter,
@@ -34,18 +34,18 @@ BBConsensusConnection::BBConsensusConnection(
 ///     @param message message to validate
 ///     @return true if validated false otherwise
 bool
-BBConsensusConnection::DoValidate(
+BBBackupDelegate::DoValidate(
     const PrePrepare & message)
 {
     if(!ValidateSequence(message))
     {
-        LOG_DEBUG(_log) << "BBConsensusConnection::DoValidate ValidateSequence failed";
+        LOG_DEBUG(_log) << "BBBackupDelegate::DoValidate ValidateSequence failed";
         return false;
     }
 
     if(!ValidateRequests(message))
     {
-        LOG_DEBUG(_log) << "BBConsensusConnection::DoValidate ValidateRequests failed";
+        LOG_DEBUG(_log) << "BBBackupDelegate::DoValidate ValidateRequests failed";
         return false;
     }
 
@@ -53,7 +53,7 @@ BBConsensusConnection::DoValidate(
 }
 
 bool
-BBConsensusConnection::ValidateSequence(
+BBBackupDelegate::ValidateSequence(
     const PrePrepare & message)
 {
     if(_sequence_number != message.sequence)
@@ -66,7 +66,7 @@ BBConsensusConnection::ValidateSequence(
 }
 
 bool
-BBConsensusConnection::ValidateRequests(
+BBBackupDelegate::ValidateRequests(
     const PrePrepare & message)
 {
     bool valid = true;
@@ -93,7 +93,7 @@ BBConsensusConnection::ValidateRequests(
 ///     @param block to commit to the database
 ///     @param remote delegate id
 void
-BBConsensusConnection::ApplyUpdates(
+BBBackupDelegate::ApplyUpdates(
     const ApprovedBSB & block,
     uint8_t delegate_id)
 {
@@ -101,7 +101,7 @@ BBConsensusConnection::ApplyUpdates(
 }
 
 bool
-BBConsensusConnection::IsPrePrepared(
+BBBackupDelegate::IsPrePrepared(
     const BlockHash & hash)
 {
     std::lock_guard<std::mutex> lock(_mutex);
@@ -116,14 +116,14 @@ BBConsensusConnection::IsPrePrepared(
 }
 
 void
-BBConsensusConnection::DoUpdateMessage(Rejection & message)
+BBBackupDelegate::DoUpdateMessage(Rejection & message)
 {
     message.reason = _reason;
     message.rejection_map = _rejection_map;
 }
 
 void
-BBConsensusConnection::Reject()
+BBBackupDelegate::Reject()
 {
     switch(_reason)
     {
@@ -145,7 +145,7 @@ BBConsensusConnection::Reject()
 }
 
 void
-BBConsensusConnection::HandleReject(const PrePrepare & message)
+BBBackupDelegate::HandleReject(const PrePrepare & message)
 {
     switch(_reason)
     {
@@ -175,12 +175,12 @@ BBConsensusConnection::HandleReject(const PrePrepare & message)
 //
 // XXX - Also note: PrePrepare messages stored by backups are not
 //       actually added to the secondary waiting list. Instead, they
-//       stay with the backup (ConsensusConnection) and are only
+//       stay with the backup (BackupDelegate) and are only
 //       transferred when fallback consensus is to take place, in
 //       which case they are transferred to the primary list
 //       (RequestHandler).
 void
-BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
+BBBackupDelegate::HandlePrePrepare(const PrePrepare & message)
 {
     _pre_prepare_hashes.clear();
 
@@ -195,7 +195,7 @@ BBConsensusConnection::HandlePrePrepare(const PrePrepare & message)
 }
 
 void
-BBConsensusConnection::ScheduleTimer(Seconds timeout)
+BBBackupDelegate::ScheduleTimer(Seconds timeout)
 {
     std::lock_guard<std::mutex> lock(_timer_mutex);
 
@@ -220,7 +220,7 @@ BBConsensusConnection::ScheduleTimer(Seconds timeout)
 }
 
 void
-BBConsensusConnection::OnPostCommit()
+BBBackupDelegate::OnPostCommit()
 {
     {
         std::lock_guard<std::mutex> lock(_timer_mutex);
@@ -238,7 +238,7 @@ BBConsensusConnection::OnPostCommit()
 }
 
 void
-BBConsensusConnection::OnPrePrepareTimeout(const Error & error)
+BBBackupDelegate::OnPrePrepareTimeout(const Error & error)
 {
     std::lock_guard<std::mutex> lock(_timer_mutex);
 
@@ -259,14 +259,14 @@ BBConsensusConnection::OnPrePrepareTimeout(const Error & error)
 }
 
 void
-BBConsensusConnection::ResetRejectionStatus()
+BBBackupDelegate::ResetRejectionStatus()
 {
     _reason = RejectionReason::Void;
     _rejection_map.clear();
 }
 
 bool
-BBConsensusConnection::IsSubset(const PrePrepare & message)
+BBBackupDelegate::IsSubset(const PrePrepare & message)
 {
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
@@ -281,13 +281,13 @@ BBConsensusConnection::IsSubset(const PrePrepare & message)
 }
 
 bool
-BBConsensusConnection::ValidateReProposal(const PrePrepare & message)
+BBBackupDelegate::ValidateReProposal(const PrePrepare & message)
 {
     return IsSubset(message);
 }
 
-BBConsensusConnection::Seconds
-BBConsensusConnection::GetTimeout(uint8_t min, uint8_t range)
+BBBackupDelegate::Seconds
+BBBackupDelegate::GetTimeout(uint8_t min, uint8_t range)
 {
     uint64_t offset = 0;
     uint64_t x = std::rand() % NUM_DELEGATES;
@@ -305,7 +305,7 @@ BBConsensusConnection::GetTimeout(uint8_t min, uint8_t range)
 }
 
 void
-BBConsensusConnection::CleanUp()
+BBBackupDelegate::CleanUp()
 {
     std::lock_guard<std::mutex> lock(_timer_mutex);
 

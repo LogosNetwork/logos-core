@@ -175,7 +175,7 @@ public:
     ///
     /// Adds specific consensus type to be serviced by this netio channel.
     ///     @param t consensus type
-    ///     @param consensus_connection specific consensus connection
+    ///     @param connection specific DelegateBridge
     void AddConsensusConnection(ConsensusType t,
                                 std::shared_ptr<MessageParser> connection);
 

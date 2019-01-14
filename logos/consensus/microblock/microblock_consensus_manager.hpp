@@ -89,11 +89,11 @@ protected:
     /// @param request
     void QueueRequestSecondary(std::shared_ptr<Request>) override;
 
-    /// Create specialized instance of ConsensusConnection
+    /// Create specialized instance of BackupDelegate
     ///     @param iochannel NetIOChannel pointer
     ///     @param ids Delegate's id
-    ///     @return ConsensusConnection
-    std::shared_ptr<ConsensusConnection<ConsensusType::MicroBlock>> MakeConsensusConnection(
+    ///     @return BackupDelegate
+    std::shared_ptr<BackupDelegate<ConsensusType::MicroBlock>> MakeBackupDelegate(
             std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
 
 private:

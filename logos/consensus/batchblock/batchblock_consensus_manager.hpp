@@ -3,7 +3,7 @@
 /// handles specifics of BatchBlock consensus.
 #pragma once
 
-#include <logos/consensus/batchblock/bb_consensus_connection.hpp>
+#include <logos/consensus/batchblock/bb_backup_delegate.hpp>
 #include <logos/consensus/batchblock/request_handler.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 
@@ -64,7 +64,7 @@ public:
     ///     @param[out] result result of the operation
     void BufferComplete(logos::process_return & result);
 
-    /// Called to bind a ConsensusConnection to a
+    /// Called to bind a BackupDelegate to a
     /// ConsensusNetIO.
     ///
     /// This is an overridden method that is specialized
@@ -145,11 +145,11 @@ protected:
 
     void OnPostCommit(const PrePrepare & block) override;
 
-    /// Create specialized instance of ConsensusConnection
+    /// Create specialized instance of BackupDelegate
     ///     @param iochannel NetIOChannel pointer
     ///     @param ids Delegate's id
-    ///     @return ConsensusConnection
-    std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>> MakeConsensusConnection(
+    ///     @return BackupDelegate
+    std::shared_ptr<BackupDelegate<ConsensusType::BatchStateBlock>> MakeBackupDelegate(
             std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
 
     /// Find Primary delegate index for this request

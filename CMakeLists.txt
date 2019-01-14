@@ -316,19 +316,19 @@ add_library (node
 	${PLATFORM_NODE_SOURCE}
 	${SECURE_RPC_SOURCE}
 	logos/consensus/batchblock/batchblock_consensus_manager.cpp
-	logos/consensus/batchblock/bb_consensus_connection.cpp
+	logos/consensus/batchblock/bb_backup_delegate.cpp
 	logos/consensus/batchblock/request_handler.cpp
 	logos/consensus/secondary_request_handler.cpp
 	logos/consensus/delegate_bridge.cpp
-	logos/consensus/consensus_connection.cpp
+	logos/consensus/backup_delegate.cpp
 	logos/consensus/consensus_container.cpp
 	logos/consensus/consensus_manager.cpp
 	logos/consensus/epoch_manager.cpp
-	logos/consensus/epoch/epoch_consensus_connection.cpp
+	logos/consensus/epoch/epoch_backup_delegate.cpp
 	logos/consensus/epoch/epoch_consensus_manager.cpp
 	logos/consensus/message_validator.cpp
 	logos/consensus/messages/messages.cpp
-	logos/consensus/microblock/microblock_consensus_connection.cpp
+	logos/consensus/microblock/microblock_backup_delegate.cpp
 	logos/consensus/microblock/microblock_consensus_manager.cpp
 	logos/consensus/network/consensus_netio.cpp
 	logos/consensus/network/consensus_netio_manager.cpp

@@ -1,14 +1,14 @@
 ///
 /// @file
-/// This file contains definition of the MicroBlockConsensusConnection class
+/// This file contains definition of the MicroBlockBackupDelegate class
 /// which handles specifics of MicroBlock consensus
 ///
-#include <logos/consensus/microblock/microblock_consensus_connection.hpp>
+#include <logos/consensus/microblock/microblock_backup_delegate.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/lib/trace.hpp>
 
-MicroBlockConsensusConnection::MicroBlockConsensusConnection(
+MicroBlockBackupDelegate::MicroBlockBackupDelegate(
                                   std::shared_ptr<IOChannel> iochannel,
                                   PrimaryDelegate & primary,
                                   RequestPromoter<MBCT> & promoter,
@@ -17,7 +17,7 @@ MicroBlockConsensusConnection::MicroBlockConsensusConnection(
                                   ArchiverMicroBlockHandler & handler,
                                   EpochEventsNotifier & events_notifier,
                                   PersistenceManager<MBCT> & persistence_manager)
-    : ConsensusConnection<MBCT>(iochannel, primary, promoter, validator, ids,
+    : BackupDelegate<MBCT>(iochannel, primary, promoter, validator, ids,
                                                      events_notifier, persistence_manager)
     , _microblock_handler(handler)
 {
@@ -29,14 +29,14 @@ MicroBlockConsensusConnection::MicroBlockConsensusConnection(
 }
 
 bool
-MicroBlockConsensusConnection::DoValidate(
+MicroBlockBackupDelegate::DoValidate(
     const PrePrepare & message)
 {
     return _persistence_manager.Validate(message, _delegate_ids.remote);
 }
 
 void
-MicroBlockConsensusConnection::ApplyUpdates(
+MicroBlockBackupDelegate::ApplyUpdates(
     const ApprovedMB & block,
     uint8_t)
 {
@@ -46,7 +46,7 @@ MicroBlockConsensusConnection::ApplyUpdates(
 }
 
 bool
-MicroBlockConsensusConnection::IsPrePrepared(
+MicroBlockBackupDelegate::IsPrePrepared(
     const BlockHash & hash)
 {
     std::lock_guard<std::mutex> lock(_mutex);

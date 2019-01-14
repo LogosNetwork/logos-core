@@ -27,7 +27,7 @@ class RequestPromoter;
 
 
 template<ConsensusType CT>
-class ConsensusConnection : public DelegateBridge<CT>
+class BackupDelegate : public DelegateBridge<CT>
 {
 protected:
 
@@ -44,7 +44,7 @@ protected:
 
 public:
 
-    ConsensusConnection(std::shared_ptr<IOChannel> iochannel,
+    BackupDelegate(std::shared_ptr<IOChannel> iochannel,
                         PrimaryDelegate & primary,
                         RequestPromoter<CT> & promoter,
                         MessageValidator & validator,
@@ -52,9 +52,9 @@ public:
                         EpochEventsNotifier & events_notifier,
                         PersistenceManager<CT> & persistence_manager);
 
-    virtual ~ConsensusConnection()
+    virtual ~BackupDelegate()
     {
-        LOG_DEBUG(_log) << "~ConsensusConnection<" << ConsensusToName(CT) << ">";
+        LOG_DEBUG(_log) << "~BackupDelegate<" << ConsensusToName(CT) << ">";
     }
 
     virtual bool IsPrePrepared(const BlockHash & hash) = 0;

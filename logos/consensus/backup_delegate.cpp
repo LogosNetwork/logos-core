@@ -1,5 +1,4 @@
-#include <logos/consensus/consensus_connection.hpp>
-
+#include <logos/consensus/backup_delegate.hpp>
 #include <logos/consensus/network/consensus_netio.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
@@ -7,7 +6,7 @@
 #include <boost/asio/read.hpp>
 
 template<ConsensusType CT>
-ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochannel,
+BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
                                              PrimaryDelegate & primary,
                                              RequestPromoter<CT> & promoter,
                                              MessageValidator & validator,
@@ -25,14 +24,14 @@ ConsensusConnection<CT>::ConsensusConnection(std::shared_ptr<IOChannel> iochanne
 {}
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::SetPrePrepare(const PrePrepare & message)
+void BackupDelegate<CT>::SetPrePrepare(const PrePrepare & message)
 {
     std::lock_guard<std::mutex> lock(_mutex);
     _pre_prepare.reset(new PrePrepare(message));
 }
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
+void BackupDelegate<CT>::OnConsensusMessage(const PrePrepare & message)
 {
     _pre_prepare_timestamp = message.timestamp;
     _pre_prepare_hash = message.Hash();
@@ -58,7 +57,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PrePrepare & message)
 }
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::OnConsensusMessage(const PostPrepare & message)
+void BackupDelegate<CT>::OnConsensusMessage(const PostPrepare & message)
 {
 
     if(ProceedWithMessage(message, ConsensusState::PREPARE))
@@ -75,7 +74,7 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostPrepare & message)
 }
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
+void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 {
     if(ProceedWithMessage(message))
     {
@@ -94,29 +93,29 @@ void ConsensusConnection<CT>::OnConsensusMessage(const PostCommit & message)
 }
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::OnConsensusMessage(const Prepare & message)
+void BackupDelegate<CT>::OnConsensusMessage(const Prepare & message)
 {
     _primary.OnConsensusMessage(message, _delegate_ids.remote);
 }
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::OnConsensusMessage(const Commit & message)
+void BackupDelegate<CT>::OnConsensusMessage(const Commit & message)
 {
     _primary.OnConsensusMessage(message, _delegate_ids.remote);
 }
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::OnConsensusMessage(const Rejection & message)
+void BackupDelegate<CT>::OnConsensusMessage(const Rejection & message)
 {
     _primary.OnConsensusMessage(message, _delegate_ids.remote);
 }
 
 template<ConsensusType CT>
-bool ConsensusConnection<CT>::Validate(const PrePrepare & message)
+bool BackupDelegate<CT>::Validate(const PrePrepare & message)
 {
     if(!_validator.Validate(message.Hash(), message.preprepare_sig, _delegate_ids.remote))
     {
-        LOG_DEBUG(_log) << " ConsensusConnection<CT>::Validate Bad_Signature "
+        LOG_DEBUG(_log) << " BackupDelegate<CT>::Validate Bad_Signature "
                 << " msg " << message.Hash().to_string()
                 << " sig " << message.preprepare_sig.to_string()
                 << " id " << (uint)_delegate_ids.remote;
@@ -127,27 +126,27 @@ bool ConsensusConnection<CT>::Validate(const PrePrepare & message)
 
     if(message.previous != _prev_pre_prepare_hash)
     {
-        LOG_DEBUG(_log) << " ConsensusConnection<CT>::Validate Invalid_Previous_Hash";
+        LOG_DEBUG(_log) << " BackupDelegate<CT>::Validate Invalid_Previous_Hash";
         _reason = RejectionReason::Invalid_Previous_Hash;
         return false;
     }
 
     if(!ValidateTimestamp(message))
     {
-        LOG_DEBUG(_log) << " ConsensusConnection<CT>::Validate Clock_Drift";
+        LOG_DEBUG(_log) << " BackupDelegate<CT>::Validate Clock_Drift";
         _reason = RejectionReason::Clock_Drift;
         return false;
     }
 
     if(_state == ConsensusState::PREPARE && !ValidateReProposal(message))
     {
-        LOG_DEBUG(_log) << " ConsensusConnection<CT>::Validate _state == ConsensusState::PREPARE && !ValidateReProposal(message)";
+        LOG_DEBUG(_log) << " BackupDelegate<CT>::Validate _state == ConsensusState::PREPARE && !ValidateReProposal(message)";
         return false;
     }
 
     if(!DoValidate(message))
     {
-        LOG_DEBUG(_log) << " ConsensusConnection<CT>::Validate DoValidate failed";
+        LOG_DEBUG(_log) << " BackupDelegate<CT>::Validate DoValidate failed";
         return false;
     }
 
@@ -156,7 +155,7 @@ bool ConsensusConnection<CT>::Validate(const PrePrepare & message)
 
 template<ConsensusType CT>
 template<typename M>
-bool ConsensusConnection<CT>::Validate(const M & message)
+bool BackupDelegate<CT>::Validate(const M & message)
 {
     if(message.type == MessageType::Post_Prepare)
     {
@@ -191,7 +190,7 @@ bool ConsensusConnection<CT>::Validate(const M & message)
         // hope to get the post-committed block via bootstrap or p2p.
     }
 
-    LOG_ERROR(_log) << "ConsensusConnection - Attempting to validate "
+    LOG_ERROR(_log) << "BackupDelegate - Attempting to validate "
                     << MessageToName(message) << " while in "
                     << StateToString(_state);
 
@@ -199,7 +198,7 @@ bool ConsensusConnection<CT>::Validate(const M & message)
 }
 
 template<ConsensusType CT>
-bool ConsensusConnection<CT>::ValidateTimestamp(const PrePrepare & message)
+bool BackupDelegate<CT>::ValidateTimestamp(const PrePrepare & message)
 {
     auto now = GetStamp();
     auto ts = message.timestamp;
@@ -216,7 +215,7 @@ bool ConsensusConnection<CT>::ValidateTimestamp(const PrePrepare & message)
 
 template<>
 template<>
-bool ConsensusConnection<ConsensusType::BatchStateBlock>::ValidateEpoch(
+bool BackupDelegate<ConsensusType::BatchStateBlock>::ValidateEpoch(
     const PrePrepareMessage<ConsensusType::BatchStateBlock> &message)
 {
     bool valid = true;
@@ -244,18 +243,18 @@ bool ConsensusConnection<ConsensusType::BatchStateBlock>::ValidateEpoch(
 
 template<ConsensusType CT>
 template<typename M>
-bool ConsensusConnection<CT>::ProceedWithMessage(const M & message,
+bool BackupDelegate<CT>::ProceedWithMessage(const M & message,
                                                  ConsensusState expected_state)
 {
     if(_state != expected_state)
     {
-        LOG_INFO(_log) << "ConsensusConnection - Received " << MessageToName(message)
+        LOG_INFO(_log) << "BackupDelegate - Received " << MessageToName(message)
                        << " message while in " << StateToString(_state);
     }
 
     if(!Validate(message))
     {
-        LOG_INFO(_log) << "ConsensusConnection - Received " << MessageToName(message)
+        LOG_INFO(_log) << "BackupDelegate - Received " << MessageToName(message)
                        << ", Validate failed";
         return false;
     }
@@ -265,7 +264,7 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const M & message,
     // TODO epoch # must be changed, hash recalculated, and signed
     if (!ValidateEpoch(message))
     {
-        LOG_INFO(_log) << "ConsensusConnection - Received " << MessageToName(message)
+        LOG_INFO(_log) << "BackupDelegate - Received " << MessageToName(message)
                        << ", ValidateEpoch failed";
         return false;
     }
@@ -274,11 +273,11 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const M & message,
 }
 
 template<ConsensusType CT>
-bool ConsensusConnection<CT>::ProceedWithMessage(const PostCommit & message)
+bool BackupDelegate<CT>::ProceedWithMessage(const PostCommit & message)
 {
     if(_state != ConsensusState::COMMIT)
     {
-        LOG_INFO(_log) << "ConsensusConnection - Proceeding with Post_Commit"
+        LOG_INFO(_log) << "BackupDelegate - Proceeding with Post_Commit"
                        << " message received while in " << StateToString(_state);
     }
 
@@ -293,27 +292,27 @@ bool ConsensusConnection<CT>::ProceedWithMessage(const PostCommit & message)
 }
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::HandlePrePrepare(const PrePrepare & message)
+void BackupDelegate<CT>::HandlePrePrepare(const PrePrepare & message)
 {}
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::OnPostCommit()
+void BackupDelegate<CT>::OnPostCommit()
 {
     _promoter.OnPostCommit(*_pre_prepare);
 }
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::Reject()
+void BackupDelegate<CT>::Reject()
 {}
 
 template<ConsensusType CT>
-void ConsensusConnection<CT>::ResetRejectionStatus()
+void BackupDelegate<CT>::ResetRejectionStatus()
 {}
 
 template<ConsensusType CT>
-bool ConsensusConnection<CT>::ValidateReProposal(const PrePrepare & message)
+bool BackupDelegate<CT>::ValidateReProposal(const PrePrepare & message)
 {}
 
-template class ConsensusConnection<ConsensusType::BatchStateBlock>;
-template class ConsensusConnection<ConsensusType::MicroBlock>;
-template class ConsensusConnection<ConsensusType::Epoch>;
+template class BackupDelegate<ConsensusType::BatchStateBlock>;
+template class BackupDelegate<ConsensusType::MicroBlock>;
+template class BackupDelegate<ConsensusType::Epoch>;

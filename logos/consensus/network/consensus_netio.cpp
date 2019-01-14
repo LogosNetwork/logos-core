@@ -290,7 +290,7 @@ ConsensusNetIO::OnData(const uint8_t * data,
 
         if(_connections[idx] == 0)
         {
-            LOG_FATAL(_log) << "ConsensusNetIO - _consensus_connections is NULL: "
+            LOG_FATAL(_log) << "ConsensusNetIO - a backup delegate is NULL: "
                             << idx;
             trace_and_halt();
         }

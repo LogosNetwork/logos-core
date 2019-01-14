@@ -1,17 +1,17 @@
 ///
 /// @file
-/// This file contains declaration of the MicroBlockConsensusConnection class
+/// This file contains declaration of the MicroBlockBackupDelegate class
 /// which handles specifics of MicroBlock consensus
 ///
 #pragma once
 
-#include <logos/consensus/consensus_connection.hpp>
+#include <logos/consensus/backup_delegate.hpp>
 
 
 class ArchiverMicroBlockHandler;
 
-class MicroBlockConsensusConnection :
-        public ConsensusConnection<ConsensusType::MicroBlock>
+class MicroBlockBackupDelegate :
+        public BackupDelegate<ConsensusType::MicroBlock>
 {
     static constexpr ConsensusType MBCT = ConsensusType::MicroBlock;
 public:
@@ -22,7 +22,7 @@ public:
     /// @param validator Validator/Signer of consensus message [in]
     /// @param ids remote/local delegate id [in]
     /// @param events_notifier epoch transition helper [in]
-    MicroBlockConsensusConnection(std::shared_ptr<IOChannel> iochannel,
+    MicroBlockBackupDelegate(std::shared_ptr<IOChannel> iochannel,
                                   PrimaryDelegate & primary,
                                   RequestPromoter<MBCT> & promoter,
                                   MessageValidator & validator,
@@ -30,7 +30,7 @@ public:
                                   ArchiverMicroBlockHandler & handler,
                                   EpochEventsNotifier & events_notifier,
                                   PersistenceManager<MBCT> & persistence_manager);
-    ~MicroBlockConsensusConnection() = default;
+    ~MicroBlockBackupDelegate() = default;
 
     /// Validate PrePrepare message
     /// @param messasge PrePrepare message [in]
