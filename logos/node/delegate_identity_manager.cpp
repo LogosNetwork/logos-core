@@ -81,7 +81,7 @@ using boost::multiprecision::uint128_t;
 using namespace boost::multiprecision::literals;
 
 uint8_t DelegateIdentityManager::_global_delegate_idx = 0;
-logos::account DelegateIdentityManager::_delegate_account = 0;
+AccountAddress DelegateIdentityManager::_delegate_account = 0;
 DelegateIdentityManager::IPs DelegateIdentityManager::_delegates_ip;
 bool DelegateIdentityManager::_epoch_transition_enabled = true;
 
@@ -96,8 +96,8 @@ DelegateIdentityManager::DelegateIdentityManager(Store &store,
 void
 DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
 {
-    logos::block_hash epoch_hash(0);
-    logos::block_hash microblock_hash(0);
+    BlockHash epoch_hash(0);
+    BlockHash microblock_hash(0);
     MDB_txn *tx = transaction;
     // passed in block is overwritten
     auto update = [this, tx](auto msg, auto &block, const BlockHash &next, auto get, auto put) mutable->void{
@@ -116,26 +116,34 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
     };
     for (int e = 0; e <= GENESIS_EPOCH; e++)
     {
-        Epoch epoch;
-        MicroBlock micro_block;
-
-        micro_block.account = logos::genesis_account;
-        micro_block.timestamp = 0;
+        ApprovedEB epoch;
+        ApprovedMB micro_block;
+        micro_block.primary_delegate = logos::genesis_account;
         micro_block.epoch_number = e;
         micro_block.sequence = 0;
-        micro_block.last_micro_block = 0;
+        micro_block.timestamp = 0;
         micro_block.previous = microblock_hash;
+        micro_block.last_micro_block = 0;
+        microblock_hash = micro_block.Hash();
+        if (_store.micro_block_put(micro_block, transaction) ||
+                _store.micro_block_tip_put(microblock_hash, transaction) )
+        {
+            LOG_FATAL(_log) << "update failed to insert micro_block or micro_block tip"
+                            << microblock_hash.to_string();
+            trace_and_halt();
+            return;
+        }
 
-        microblock_hash = _store.micro_block_put(micro_block, transaction);
-        _store.micro_block_tip_put(microblock_hash, transaction);
         update("micro block", micro_block, microblock_hash,
                &BlockStore::micro_block_get, &BlockStore::micro_block_put);
 
+        epoch.primary_delegate = logos::genesis_account;
         epoch.epoch_number = e;
+        epoch.sequence = 0;
         epoch.timestamp = 0;
-        epoch.account = logos::genesis_account;
-        epoch.micro_block_tip = microblock_hash;
         epoch.previous = epoch_hash;
+        epoch.micro_block_tip = microblock_hash;
+
         bls::KeyPair bls_key;
         auto get_bls = [&bls_key](const char *b)mutable->void {
             stringstream str(b);
@@ -143,7 +151,14 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         };
         for (uint8_t i = 0; i < NUM_DELEGATES; ++i) {
             get_bls(bls_keys[0]); // same in epoch 0, doesn't matter
-            Delegate delegate = {0, bls_key.pub, 0, 0};
+
+            std::string s;
+            bls_key.pub.serialize(s);
+            DelegatePubKey dpk;
+            assert(s.size() == CONSENSUS_PUB_KEY_SIZE);
+            memcpy(dpk.data(), s.data(), CONSENSUS_PUB_KEY_SIZE);
+            Delegate delegate = {0, dpk, 0, 0};
+
             if (e != 0 || !_epoch_transition_enabled)
             {
                 uint8_t del = i + (e - 1) * 8 * _epoch_transition_enabled;
@@ -151,13 +166,20 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 char buff[5];
                 sprintf(buff, "%02x", del + 1);
                 logos::keypair pair(buff);
-                delegate = {pair.pub, bls_key.pub, 100000 + (uint64_t)del * 100, 100000 + (uint64_t)del * 100};
+                delegate = {pair.pub, dpk, 100000 + (uint64_t)del * 100, 100000 + (uint64_t)del * 100};
             }
             epoch.delegates[i] = delegate;
         }
 
-        epoch_hash = _store.epoch_put(epoch, transaction);
-        _store.epoch_tip_put(epoch_hash, transaction);
+        epoch_hash = epoch.Hash();
+        if(_store.epoch_put(epoch, transaction) ||
+                _store.epoch_tip_put(epoch_hash, transaction))
+        {
+            LOG_FATAL(_log) << "update failed to insert epoch or epoch tip"
+                            << epoch_hash.to_string();
+            trace_and_halt();
+            return;
+        }
         update("epoch", epoch, epoch_hash,
                &BlockStore::epoch_get, &BlockStore::epoch_put);
     }
@@ -170,7 +192,7 @@ DelegateIdentityManager::Init(const Config &config)
 
     _epoch_transition_enabled = config.all_delegates.size() == 2 * config.delegates.size();
 
-    logos::block_hash epoch_tip;
+    BlockHash epoch_tip;
     uint16_t epoch_number = 0;
     if (_store.epoch_tip_get(epoch_tip))
     {
@@ -179,7 +201,7 @@ DelegateIdentityManager::Init(const Config &config)
     }
     else
     {
-        Epoch previous_epoch;
+        ApprovedEB previous_epoch;
         if (_store.epoch_get(epoch_tip, previous_epoch))
         {
             LOG_FATAL(_log) << "DelegateIdentityManager::Init Failed to get epoch: " << epoch_tip.to_string();
@@ -215,7 +237,10 @@ DelegateIdentityManager::Init(const Config &config)
 void
 DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 {
-    // create genesis accounts
+    logos::account_info genesis_account;
+    _store.account_get(logos::logos_test_account, genesis_account, transaction);
+
+    // create genesis delegate accounts
     for (int del = 0; del < NUM_DELEGATES*2; ++del) {
         char buff[5];
         sprintf(buff, "%02x", del + 1);
@@ -228,37 +253,51 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
         logos::genesis_delegates.push_back(delegate);
 
         uint128_t min_fee = 0x21e19e0c9bab2400000_cppui128;
-        logos::amount amount(min_fee + (del + 1) * 1000000);
+        logos::amount amount((min_fee + (del + 1) * 1000000)*1000000);
         logos::amount fee(min_fee);
         uint64_t work = 0;
 
-        logos::state_block state(pair.pub,  // account
-                                 0,         // previous
-                                 pair.pub,  // representative
-                                 amount,
-                                 fee,       // transaction fee
-                                 pair.pub,  // link
-                                 pair.prv,
-                                 pair.pub,
-                                 work);
 
-        _store.receive_put(state.hash(),
-                           state,
-                           transaction);
+
+        StateBlock state(logos::logos_test_account,   // account
+                         genesis_account.head,         // previous
+                         genesis_account.block_count,  // sequence
+                         StateBlock::Type::send,
+                         pair.pub,  // link/to
+                         amount,
+                         fee,       // transaction fee
+                         pair.prv.data,
+                         pair.pub,
+                         work);
+
+        genesis_account.balance = genesis_account.balance.number() - amount.number();
+        genesis_account.head = state.GetHash();
+        genesis_account.block_count++;
+        genesis_account.modified = logos::seconds_since_epoch();
+
+        ReceiveBlock receive(0, state.GetHash(), 0);
+
+        _store.state_block_put(state, state.GetHash(), transaction);
+
+        _store.receive_put(receive.Hash(),
+                receive,
+                transaction);
 
         _store.account_put(pair.pub,
                            {
-                               /* Head    */ 0,
-                               /* Previous*/ 0,
+                               /* Head    */ state.GetHash(),
+                               /* Receive */ receive.Hash(),
                                /* Rep     */ 0,
-                               /* Open    */ state.hash(),
+                               /* Open    */ state.GetHash(),
                                /* Amount  */ amount,
                                /* Time    */ logos::seconds_since_epoch(),
-                               /* Count   */ 0,
-                               /* Receive */ 0
+                               /* Count   */ 1,
+                               /* Receive Count */ 1
                            },
                            transaction);
     }
+
+    _store.account_put(logos::logos_test_account, genesis_account, transaction);
 }
 
 void
@@ -302,14 +341,14 @@ DelegateIdentityManager::IdentifyDelegates(
         return;
     }
 
-    logos::block_hash epoch_tip;
+    BlockHash epoch_tip;
     if (_store.epoch_tip_get(epoch_tip))
     {
         LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get epoch tip";
         trace_and_halt();
     }
 
-    Epoch epoch;
+    ApprovedEB epoch;
     if (_store.epoch_get(epoch_tip, epoch))
     {
         LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get epoch: "
@@ -347,14 +386,14 @@ DelegateIdentityManager::IdentifyDelegates(
     uint8_t &delegate_idx,
     Accounts & delegates)
 {
-    logos::block_hash hash;
+    BlockHash hash;
     if (_store.epoch_tip_get(hash))
     {
         LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get epoch tip";
         trace_and_halt();
     }
 
-    auto get = [this](logos::block_hash &hash, Epoch &epoch) {
+    auto get = [this](BlockHash &hash, ApprovedEB &epoch) {
         if (_store.epoch_get(hash, epoch))
         {
             LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get epoch: "
@@ -364,7 +403,7 @@ DelegateIdentityManager::IdentifyDelegates(
         return true;
     };
 
-    Epoch epoch;
+    ApprovedEB epoch;
     bool found = false;
     for (bool res = get(hash, epoch);
               res && !(found = epoch.epoch_number == epoch_number);
@@ -398,7 +437,7 @@ DelegateIdentityManager::StaleEpoch()
 }
 
 void
-DelegateIdentityManager::GetCurrentEpoch(BlockStore &store, Epoch &epoch)
+DelegateIdentityManager::GetCurrentEpoch(BlockStore &store, ApprovedEB &epoch)
 {
     BlockHash hash;
 

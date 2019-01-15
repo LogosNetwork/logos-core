@@ -1,17 +1,17 @@
 ///
 /// @file
-/// This file contains declaration of the MicroBlockConsensusConnection class
+/// This file contains declaration of the MicroBlockBackupDelegate class
 /// which handles specifics of MicroBlock consensus
 ///
 #pragma once
 
-#include <logos/consensus/consensus_connection.hpp>
+#include <logos/consensus/backup_delegate.hpp>
 
 
 class ArchiverMicroBlockHandler;
 
-class MicroBlockConsensusConnection :
-        public ConsensusConnection<ConsensusType::MicroBlock>
+class MicroBlockBackupDelegate :
+        public BackupDelegate<ConsensusType::MicroBlock>
 {
     static constexpr ConsensusType MBCT = ConsensusType::MicroBlock;
 public:
@@ -22,7 +22,7 @@ public:
     /// @param validator Validator/Signer of consensus message [in]
     /// @param ids remote/local delegate id [in]
     /// @param events_notifier epoch transition helper [in]
-    MicroBlockConsensusConnection(std::shared_ptr<IOChannel> iochannel,
+    MicroBlockBackupDelegate(std::shared_ptr<IOChannel> iochannel,
                                   PrimaryDelegate & primary,
                                   RequestPromoter<MBCT> & promoter,
                                   MessageValidator & validator,
@@ -30,7 +30,7 @@ public:
                                   ArchiverMicroBlockHandler & handler,
                                   EpochEventsNotifier & events_notifier,
                                   PersistenceManager<MBCT> & persistence_manager);
-    ~MicroBlockConsensusConnection() = default;
+    ~MicroBlockBackupDelegate() = default;
 
     /// Validate PrePrepare message
     /// @param messasge PrePrepare message [in]
@@ -38,11 +38,11 @@ public:
     bool DoValidate(const PrePrepare & message) override;
 
     /// Commit PrePrepare message to the database
-    /// @param message PrePrepare message [in]
+    /// @param message ApprovedMB [in]
     /// @param delegate_id delegate id [in]
-    void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) override;
+    void ApplyUpdates(const ApprovedMB &, uint8_t delegate_id) override;
 
-    bool IsPrePrepared(const logos::block_hash & hash) override;
+    bool IsPrePrepared(const BlockHash & hash) override;
 
 private:
     ArchiverMicroBlockHandler &  _microblock_handler;

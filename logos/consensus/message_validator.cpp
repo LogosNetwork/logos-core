@@ -7,13 +7,13 @@ MessageValidator::MessageValidator(DelegateKeyStore & key_store, KeyPair & key_p
 {
 }
 
-PublicKey MessageValidator::GetPublicKey()
+DelegatePubKey MessageValidator::GetPublicKey()
 {
     std::string keystring;
     _keypair.pub.serialize(keystring);
 
-    PublicKey pk;
-    memcpy(&pk[0], keystring.data(), CONSENSUS_PUB_KEY_SIZE);
+    DelegatePubKey pk;
+    memcpy(pk.data(), keystring.data(), CONSENSUS_PUB_KEY_SIZE);
 
     return pk;
 }

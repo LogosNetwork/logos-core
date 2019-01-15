@@ -3,9 +3,9 @@
 using PublicKeyReal  = bls::PublicKey;
 using PublicKeyVec   = bls::PublicKeyVec;
 
-bool DelegateKeyStore::OnPublicKey(uint8_t delegate_id, const PublicKey & key)
+bool DelegateKeyStore::OnPublicKey(uint8_t delegate_id, const DelegatePubKey & key)
 {
-    std::string keystring(reinterpret_cast<const char*>(&key), CONSENSUS_PUB_KEY_SIZE);
+    std::string keystring(reinterpret_cast<const char*>(key.data()), CONSENSUS_PUB_KEY_SIZE);
     PublicKeyReal k;
 
     try

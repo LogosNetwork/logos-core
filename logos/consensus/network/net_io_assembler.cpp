@@ -13,7 +13,7 @@ NetIOAssembler::NetIOAssembler(std::shared_ptr<Socket> socket,
 
 void NetIOAssembler::ReadPrequel(ReadCallback callback)
 {
-    ReadBytes(callback, sizeof(Prequel));
+    ReadBytes(callback, MessagePrequelSize);
 }
 
 void NetIOAssembler::ReadBytes(ReadCallback callback, size_t bytes)

@@ -3,7 +3,7 @@
 /// handles specifics of BatchBlock consensus.
 #pragma once
 
-#include <logos/consensus/batchblock/bb_consensus_connection.hpp>
+#include <logos/consensus/batchblock/bb_backup_delegate.hpp>
 #include <logos/consensus/batchblock/request_handler.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 
@@ -51,8 +51,6 @@ public:
 
     virtual ~BatchBlockConsensusManager() {};
 
-    void Send(const PrePrepare & pre_prepare) override;
-
     /// Handles benchmark requests.
     ///     @param[in]  block state block.
     ///     @param[out] result result of the operation.
@@ -66,7 +64,7 @@ public:
     ///     @param[out] result result of the operation
     void BufferComplete(logos::process_return & result);
 
-    /// Called to bind a ConsensusConnection to a
+    /// Called to bind a BackupDelegate to a
     /// ConsensusNetIO.
     ///
     /// This is an overridden method that is specialized
@@ -75,7 +73,7 @@ public:
     ///                interface.
     ///     @param[in] ids Delegate IDs for the local and
     ///                remote delegates.
-    std::shared_ptr<PrequelParser>
+    std::shared_ptr<MessageParser>
     BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                   const DelegateIdentities & ids) override;
 
@@ -86,7 +84,7 @@ protected:
     /// Commits the block to the database.
     ///     @param block the batch block to commit to the database
     ///     @param delegate_id delegate id
-    void ApplyUpdates(const PrePrepare & message, uint8_t delegate_id) override;
+    void ApplyUpdates(const ApprovedBSB & block, uint8_t delegate_id) override;
 
     /// Checks if the system is ready to initiate consensus.
     ///
@@ -130,6 +128,8 @@ protected:
     ///     @return reference to BatchStateBlock
     PrePrepare & PrePrepareGetNext() override;
 
+    PrePrepare & PrePrepareGetCurr() override;
+
     /// Pops the BatchStateBlock from the queue.
     void PrePreparePopFront() override;
 
@@ -141,15 +141,15 @@ protected:
     /// Primary list contains request with the hash
     /// @param request's hash
     /// @returns true if the request is in the list
-    bool PrimaryContains(const logos::block_hash&) override;
+    bool PrimaryContains(const BlockHash &) override;
 
     void OnPostCommit(const PrePrepare & block) override;
 
-    /// Create specialized instance of ConsensusConnection
+    /// Create specialized instance of BackupDelegate
     ///     @param iochannel NetIOChannel pointer
     ///     @param ids Delegate's id
-    ///     @return ConsensusConnection
-    std::shared_ptr<ConsensusConnection<ConsensusType::BatchStateBlock>> MakeConsensusConnection(
+    ///     @return BackupDelegate
+    std::shared_ptr<BackupDelegate<ConsensusType::BatchStateBlock>> MakeBackupDelegate(
             std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
 
     /// Find Primary delegate index for this request

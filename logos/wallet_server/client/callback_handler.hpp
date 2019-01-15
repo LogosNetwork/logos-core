@@ -26,7 +26,7 @@ class CallbackHandler
 
 public:
 
-    CallbackHandler(const BatchStateBlock & block,
+    CallbackHandler(const ApprovedBSB & block,
                     const Endpoint callback_endpoint,
                     Service & service,
                     CallbackManager * manager,
@@ -44,7 +44,7 @@ private:
 
     Socket                    _socket;
     Endpoint                  _callback_endpoint;
-    BatchStateBlock           _block;
+    ApprovedBSB               _block;
     std::shared_ptr<Request>  _request;
     std::shared_ptr<Buffer>   _buffer;
     std::shared_ptr<Response> _response;

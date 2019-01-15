@@ -21,14 +21,22 @@ void
 EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint endpoint,
                                        std::shared_ptr<EpochPeerManager::Socket> socket)
 {
-    auto ids = std::make_shared<ConnectedClientIds>();
+    auto buf = std::make_shared<std::array<uint8_t, ConnectedClientIds::STREAM_SIZE>>();
 
     boost::asio::async_read(*socket,
-                           boost::asio::buffer(ids.get(), sizeof(ConnectedClientIds)),
-                           [this, endpoint, socket, ids](const ErrorCode &error, size_t size) {
+                           boost::asio::buffer(buf->data(), ConnectedClientIds::STREAM_SIZE),
+                           [this, endpoint, socket, buf](const ErrorCode &error, size_t size) {
         if (error)
         {
             LOG_ERROR(_log) << "EpochPeerManager::OnConnectionAccepted error: " << error.message();
+            return;
+        }
+        bool stream_error = false;
+        logos::bufferstream stream(buf->data(), ConnectedClientIds::STREAM_SIZE);
+        auto ids = std::make_shared<ConnectedClientIds>(stream_error, stream);
+        if (stream_error)
+        {
+            LOG_ERROR(_log) << "EpochPeerManager::OnConnectionAccepted deserialization error";
             return;
         }
 

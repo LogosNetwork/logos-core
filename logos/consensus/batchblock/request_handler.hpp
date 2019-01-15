@@ -20,12 +20,12 @@ class RequestHandler
 {
     using Requests =
             boost::multi_index_container<
-                logos::state_block,
+                StateBlock,
                 indexed_by<
                     sequenced<>,
                     hashed_non_unique<
                         const_mem_fun<
-                            logos::block, BlockHash, &logos::block::hash
+                            StateBlock, BlockHash, &StateBlock::GetHash
                         >
                     >
                 >
@@ -33,16 +33,22 @@ class RequestHandler
 
 public:
 
+    using BSBPrePrepare = PrePrepareMessage<ConsensusType::BatchStateBlock>;
+
     RequestHandler();
 
-    void OnRequest(std::shared_ptr<logos::state_block> block);
+    void OnRequest(std::shared_ptr<StateBlock> block);
     void OnPostCommit(const BatchStateBlock & batch);
 
-    BatchStateBlock & PrepareNextBatch();
-    BatchStateBlock & GetCurrentBatch();
-
-    void InsertFront(const std::list<logos::state_block> & blocks);
-    void Acquire(const BatchStateBlock & batch);
+    BSBPrePrepare & PrepareNextBatch();
+    BSBPrePrepare & GetCurrentBatch()
+    {
+        LOG_DEBUG (_log) << "RequestHandler::GetCurrentBatch - "
+                << "batch_size=" << _current_batch.block_count;
+        return _current_batch;
+    }
+    void InsertFront(const std::list<StateBlock> & blocks);
+    void Acquire(const BSBPrePrepare & batch);
 
     void PopFront();
     bool BatchFull();
@@ -53,6 +59,6 @@ public:
 private:
 
     Log             _log;
-    BatchStateBlock _current_batch;
+    BSBPrePrepare   _current_batch;
     Requests        _requests;
 };

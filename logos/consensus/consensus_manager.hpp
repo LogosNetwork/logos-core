@@ -6,7 +6,7 @@
 #include <logos/consensus/secondary_request_handler.hpp>
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/consensus/persistence/reservations.hpp>
-#include <logos/consensus/consensus_connection.hpp>
+#include <logos/consensus/backup_delegate.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/message_validator.hpp>
@@ -27,10 +27,10 @@ public:
     virtual ~NetIOHandler() = default;
 
     virtual
-    std::shared_ptr<PrequelParser>
+    std::shared_ptr<MessageParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) = 0;
-  virtual void OnNetIOError(uint8_t delegate_id) = 0;
+    virtual void OnNetIOError(uint8_t delegate_id) = 0;
 };
 
 template<ConsensusType CT>
@@ -66,12 +66,15 @@ protected:
     using Service     = boost::asio::io_service;
     using Config      = ConsensusManagerConfig;
     using Store       = logos::block_store;
-    using Connection  = ConsensusConnection<CT>;
+    using Connection  = BackupDelegate<CT>;
     using Connections = std::vector<std::shared_ptr<Connection>>;
     using Manager     = ConsensusManager<CT>;
     using Request     = RequestMessage<CT>;
     using PrePrepare  = PrePrepareMessage<CT>;
+    using PostPrepare = PostPrepareMessage<CT>;
+    using PostCommit  = PostCommitMessage<CT>;
     using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
+    using ApprovedBlock   = PostCommittedBlock<CT>;
 
 public:
 
@@ -89,7 +92,6 @@ public:
     virtual void OnBenchmarkSendRequest(std::shared_ptr<Request> block,
                                         logos::process_return & result) = 0;
 
-    virtual void Send(const PrePrepare & pre_prepare);
     void Send(const void * data, size_t size) override;
 
     virtual ~ConsensusManager()
@@ -103,7 +105,7 @@ public:
 
     Store & GetStore() override;
 
-    std::shared_ptr<PrequelParser>
+    std::shared_ptr<MessageParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) override;
 
@@ -117,7 +119,7 @@ protected:
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;
     static constexpr uint8_t DELIGATE_ID_MASK    = 5;
 
-    virtual void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) = 0;
+    virtual void ApplyUpdates(const ApprovedBlock &, uint8_t delegate_id) = 0;
 
     virtual bool Validate(std::shared_ptr<Request> block,
                           logos::process_return & result) = 0;
@@ -132,17 +134,18 @@ protected:
     void QueueRequest(std::shared_ptr<Request>);
 
     virtual PrePrepare & PrePrepareGetNext() = 0;
+    virtual PrePrepare & PrePrepareGetCurr() = 0;
 
     virtual void PrePreparePopFront() {};
     virtual void QueueRequestPrimary(std::shared_ptr<Request>) = 0;
     virtual void QueueRequestSecondary(std::shared_ptr<Request>);
     virtual bool PrePrepareQueueEmpty() = 0;
-    virtual bool PrimaryContains(const logos::block_hash&) = 0;
-    virtual bool SecondaryContains(const logos::block_hash&);
+    virtual bool PrimaryContains(const BlockHash&) = 0;
+    virtual bool SecondaryContains(const BlockHash&);
 
     bool IsPendingRequest(std::shared_ptr<Request>);
 
-    bool IsPrePrepared(const logos::block_hash & hash);
+    bool IsPrePrepared(const BlockHash & hash);
 
     /// Request's primary delegate, 0 (delegate with most voting power) for Micro/Epoch Block
     /// @param request request
@@ -152,7 +155,7 @@ protected:
         return 0;
     }
 
-    virtual std::shared_ptr<ConsensusConnection<CT>> MakeConsensusConnection(
+    virtual std::shared_ptr<BackupDelegate<CT>> MakeBackupDelegate(
             std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
 
     /// singleton secondary handler

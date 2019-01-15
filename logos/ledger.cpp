@@ -57,7 +57,8 @@ void ledger_processor::state_block_impl (logos::state_block const & block_a)
                         {
                             is_send = block_a.hashables.amount < info.balance;
                             result.amount = is_send ? (info.balance.number () - result.amount.number ()) : (result.amount.number () - info.balance.number ());
-                            result.code = block_a.hashables.previous == info.head ? logos::process_result::progress : logos::process_result::fork; // Is the previous block the account's head block? (Ambigious)
+                            //TODO Peng: will figure out how to compile if we need ledger
+                            //result.code = block_a.hashables.previous == info.head ? logos::process_result::progress : logos::process_result::fork; // Is the previous block the account's head block? (Ambigious)
                         }
                     }
                 }
@@ -105,7 +106,8 @@ void ledger_processor::state_block_impl (logos::state_block const & block_a)
                     if (!info.rep_block.is_zero ())
                     {
                         // Move existing representation
-                        ledger.store.representation_add (transaction, info.rep_block, 0 - info.balance.number ());
+                        //TODO Peng: will figure out how to compile if we need ledger
+                        //ledger.store.representation_add (transaction, info.rep_block, 0 - info.balance.number ());
                     }
                     // Add in amount delta
                     ledger.store.representation_add (transaction, hash, block_a.hashables.amount.number ());
@@ -124,10 +126,11 @@ void ledger_processor::state_block_impl (logos::state_block const & block_a)
                     }
 
                     ledger.change_latest (transaction, block_a.hashables.account, hash, hash, block_a.hashables.amount, info.block_count + 1, true);
-                    if (!ledger.store.frontier_get (transaction, info.head).is_zero ())
-                    {
-                        ledger.store.frontier_del (transaction, info.head);
-                    }
+                    //TODO Peng: will figure out how to compile if we need ledger
+                    //                    if (!ledger.store.frontier_get (transaction, info.head).is_zero ())
+                    //                    {
+                    //                        ledger.store.frontier_del (transaction, info.head);
+                    //                    }
                     // Frontier table is unnecessary for state blocks and this also prevents old blocks from being inserted on top of state blocks
                     result.account = block_a.hashables.account;
                 }
@@ -349,7 +352,9 @@ logos::block_hash logos::ledger::latest (MDB_txn * transaction_a, logos::account
 {
     logos::account_info info;
     auto latest_error (store.account_get (transaction_a, account_a, info));
-    return latest_error ? 0 : info.head;
+    //TODO Peng: will figure out how to compile if we need ledger
+    //return latest_error ? 0 : info.head;
+    return 0;
 }
 
 // Return latest root for account, account number of there are no blocks for this account.
@@ -364,7 +369,8 @@ logos::block_hash logos::ledger::latest_root (MDB_txn * transaction_a, logos::ac
     }
     else
     {
-        result = info.head;
+        //TODO Peng: will figure out how to compile if we need ledger
+        //result = info.head;
     }
     return result;
 }
@@ -415,17 +421,20 @@ void logos::ledger::change_latest (MDB_txn * transaction_a, logos::account const
     auto exists (!store.account_get (transaction_a, account_a, info));
     if (exists)
     {
-        checksum_update (transaction_a, info.head);
+        //TODO Peng: will figure out how to compile if we need ledger
+        //checksum_update (transaction_a, info.head);
     }
     else
     {
         assert (store.block_get (transaction_a, hash_a)->previous ().is_zero ());
-        info.open_block = hash_a;
+        //TODO Peng: will figure out how to compile if we need ledger
+        //info.open_block = hash_a;
     }
     if (!hash_a.is_zero ())
     {
-        info.head = hash_a;
-        info.rep_block = rep_block_a;
+        //TODO Peng: will figure out how to compile if we need ledger
+        //        info.head = hash_a;
+        //        info.rep_block = rep_block_a;
         info.balance = balance_a;
         info.modified = logos::seconds_since_epoch ();
         info.block_count = block_count_a;
@@ -453,7 +462,8 @@ std::unique_ptr<logos::block> logos::ledger::successor (MDB_txn * transaction_a,
         logos::account_info info;
         auto error (store.account_get (transaction_a, root_a, info));
         assert (!error);
-        successor = info.open_block;
+        //TODO Peng: will figure out how to compile if we need ledger
+        //successor = info.open_block;
     }
     else
     {

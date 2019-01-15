@@ -6,40 +6,38 @@
 #include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
 #include <logos/consensus/persistence/nondel_persistence_manager.hpp>
 #include <logos/consensus/persistence/validator_builder.hpp>
+#include <logos/consensus/persistence/nondel_persistence.hpp>
 
 template<>
-class NonDelPersistenceManager<BSBCT> : public PersistenceManager<BSBCT>
+class NonDelPersistenceManager<BSBCT> : public PersistenceManager<BSBCT>, public NoneDelegatePersistence<BSBCT>
 {
 public:
     using PersistenceManager<BSBCT>::Validate;
 
     NonDelPersistenceManager(Store &store,
-                             Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT)
+                             Milliseconds clock_drift = 0)
         : PersistenceManager<BSBCT>(store, nullptr, clock_drift)
-        , _builder(store)
+        , NoneDelegatePersistence<BSBCT>(store)
     {}
 
-    bool Validate(const PrePrepare & message, uint8_t remote_delegate_id, ValidationStatus * status)
+    bool ValidatePreprepare(const PrePrepare & message, ValidationStatus * status)
     {
         using namespace logos;
 
-        if (!_builder.GetValidator(message.epoch_number)->Validate(message, remote_delegate_id))
-        {
-            UpdateStatusReason(status, process_result::bad_signature);
-            return false;
-        }
-
-        BatchStateBlock previous;
+        ApprovedBSB previous;
         if (message.previous != 0 && _store.batch_block_get(message.previous, previous))
         {
             UpdateStatusReason(status, process_result::gap_previous);
             return false;
         }
 
-        if (!ValidateTimestamp(message.timestamp))
+        if(_clock_drift > 0)
         {
-            UpdateStatusReason(status, process_result::clock_drift);
-            return false;
+            if (!ValidateTimestamp(message.timestamp))
+            {
+                UpdateStatusReason(status, process_result::clock_drift);
+                return false;
+            }
         }
 
         if (message.previous != 0 && message.sequence != (previous.sequence + 1))
@@ -48,8 +46,6 @@ public:
             return false;
         }
 
-        return PersistenceManager<BSBCT>::Validate(message, remote_delegate_id, status);
+        return PersistenceManager<BSBCT>::Validate(message, status);
     }
-private:
-    ValidatorBuilder    _builder;
 };

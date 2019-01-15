@@ -5,7 +5,7 @@
 #include <logos/consensus/persistence/validator_builder.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 
-std::unordered_map<uint16_t, ValidatorBuilder::pki> ValidatorBuilder::_epoch_pki;
+std::unordered_map<uint32_t, ValidatorBuilder::pki> ValidatorBuilder::_epoch_pki;
 uint16_t ValidatorBuilder::_cached_epoch = 0;
 std::shared_ptr<MessageValidator> ValidatorBuilder::_cached_validator = nullptr;
 
@@ -14,11 +14,11 @@ ValidatorBuilder::ValidatorBuilder(ValidatorBuilder::Store &store)
 {}
 
 std::shared_ptr<MessageValidator>
-ValidatorBuilder::GetValidator(uint16_t epoch_number)
+ValidatorBuilder::GetValidator(uint32_t epoch_number)
 {
     std::shared_ptr<MessageValidator> validator = nullptr;
     BlockHash   hash;
-    Epoch   epoch;
+    ApprovedEB  epoch;
 
     // delegate's epoch block for requested epoch
     epoch_number -= 2;
@@ -60,11 +60,7 @@ ValidatorBuilder::GetValidator(uint16_t epoch_number)
             uint8_t id = 0;
             for (auto delegate : epoch.delegates)
             {
-                std::string str;
-                delegate.bls_pub.serialize(str);
-                PublicKey pk;
-                memcpy(&pk[0], str.data(), CONSENSUS_PUB_KEY_SIZE);
-                key_store->OnPublicKey(id++, pk);
+                key_store->OnPublicKey(id++, delegate.bls_pub);
             }
             _epoch_pki[epoch_number] = {key_store, validator};
             if (_epoch_pki.size() > MAX_CACHED)
