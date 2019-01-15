@@ -45,6 +45,8 @@ struct ConsensusBlock<ConsensusType::Epoch> : public Epoch
       {}
 };
 
+template<ConsensusType CT> struct PostCommittedBlock;
+
 template<ConsensusType CT>
 struct PrePrepareMessage : public MessagePrequel<MessageType::Pre_Prepare, CT>,
                            public ConsensusBlock<CT>
@@ -57,6 +59,11 @@ struct PrePrepareMessage : public MessagePrequel<MessageType::Pre_Prepare, CT>,
             bool with_appendix = true)
     : MessagePrequel<MessageType::Pre_Prepare, CT>(version)
     , ConsensusBlock<CT>(error, stream, with_appendix)
+    {}
+
+    PrePrepareMessage(PostCommittedBlock<CT> & block)
+    : MessagePrequel<MessageType::Pre_Prepare, CT>(block.version)
+    , ConsensusBlock<CT>(block)
     {}
 
     BlockHash Hash() const

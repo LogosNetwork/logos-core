@@ -202,7 +202,6 @@ bool PersistenceManager<BSBCT>::Validate(
 
 bool PersistenceManager<BSBCT>::Validate(
     const PrePrepare & message,
-    uint8_t remote_delegate_id,
     ValidationStatus * status)
 {
     using namespace logos;

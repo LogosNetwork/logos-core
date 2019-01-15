@@ -9,7 +9,6 @@
 bool
 PersistenceManager<MBCT>::Validate(
     const PrePrepare & block,
-    uint8_t remote_delegate_id,
     ValidationStatus * status)
 {
     BlockHash hash = block.Hash();

@@ -31,7 +31,7 @@ public:
     virtual bool Validate(const Request & block, logos::process_return & result, bool allow_duplicates = true);
     virtual bool Validate(const Request & block);
 
-    virtual bool Validate(const PrePrepare & message, uint8_t remote_delegate_id, ValidationStatus * status = nullptr);
+    virtual bool Validate(const PrePrepare & message, ValidationStatus * status = nullptr);
 
 private:
 

@@ -32,7 +32,7 @@ bool
 MicroBlockBackupDelegate::DoValidate(
     const PrePrepare & message)
 {
-    return _persistence_manager.Validate(message, _delegate_ids.remote);
+    return _persistence_manager.Validate(message);
 }
 
 void

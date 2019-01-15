@@ -5,7 +5,7 @@
 #include <logos/consensus/persistence/validator_builder.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 
-std::unordered_map<uint16_t, ValidatorBuilder::pki> ValidatorBuilder::_epoch_pki;
+std::unordered_map<uint32_t, ValidatorBuilder::pki> ValidatorBuilder::_epoch_pki;
 uint16_t ValidatorBuilder::_cached_epoch = 0;
 std::shared_ptr<MessageValidator> ValidatorBuilder::_cached_validator = nullptr;
 
@@ -14,7 +14,7 @@ ValidatorBuilder::ValidatorBuilder(ValidatorBuilder::Store &store)
 {}
 
 std::shared_ptr<MessageValidator>
-ValidatorBuilder::GetValidator(uint16_t epoch_number)
+ValidatorBuilder::GetValidator(uint32_t epoch_number)
 {
     std::shared_ptr<MessageValidator> validator = nullptr;
     BlockHash   hash;

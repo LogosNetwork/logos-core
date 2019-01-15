@@ -15,7 +15,6 @@ PersistenceManager<ECT>::PersistenceManager(Store & store,
 bool
 PersistenceManager<ECT>::Validate(
     const PrePrepare & epoch,
-    uint8_t remote_delegate_id,
     ValidationStatus * status)
 {
     BlockHash previous_epoch_hash;

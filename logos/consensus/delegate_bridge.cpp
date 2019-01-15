@@ -24,19 +24,9 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
         ConsensusType consensus_type,
         uint32_t payload_size)
 {
-    std::string message = MessageToName(message_type);
-    if (message_type == MessageType::Rejection)
-    {
-        bool error = false;
-        logos::bufferstream stream(data, payload_size);
-        Rejection msg (error, stream, version);
-        if(error)
-            return false;
-        message += ":" + RejectionReasonToName(msg.reason);
-    }
     LOG_DEBUG(_log) << "DelegateBridge<"
                     << ConsensusToName(CT) << ">- Received "
-                    << message
+                    << MessageToName(message_type)
                     << " message from delegate: " << (int)RemoteDelegateId();
 
     bool error = false;

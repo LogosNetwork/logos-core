@@ -12,12 +12,12 @@
 
 using namespace std;
 
-//#define Unit_Test_Crypto_BLS
-//#define Unit_Test_Read_Write
-//#define Unit_Test_Msg
-//#define Unit_Test_Single_Block
-//#define Unit_Test_Consensus_Block
-//#define Unit_Test_Msg_Validator
+#define Unit_Test_Crypto_BLS
+#define Unit_Test_Read_Write
+#define Unit_Test_Msg
+#define Unit_Test_Single_Block
+#define Unit_Test_Consensus_Block
+#define Unit_Test_Msg_Validator
 #define Unit_Test_DB
 
 
