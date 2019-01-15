@@ -1461,14 +1461,14 @@ _consensus_container(service_a, store, alarm_a, config.consensus_manager_config,
                     transaction);
             store.account_put(genesis_account,
                               {
-                                  /* Head         */ 0,
-                                  /* Receive Head */ 0,
+                                  /* Head         */ logos_genesis_block.GetHash(),
+                                  /* Receive Head */ logos_genesis_receive.Hash(),
                                   /* Rep          */ 0,
                                   /* Open         */ logos_genesis_block.GetHash(),
                                   /* Amount       */ logos_genesis_block.trans[0].amount,
                                   /* Time         */ logos::seconds_since_epoch(),
-                                  /* Count        */ 0,
-                                  /* Receive      */ 0
+                                  /* Count        */ 1,
+                                  /* Receive      */ 1
                               },
                               transaction);
             _identity_manager.CreateGenesisAccounts(transaction);

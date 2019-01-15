@@ -122,7 +122,7 @@ void ConsensusManager<CT>::OnConsensusReached()
     ApprovedBlock block(pre_prepare, _post_prepare_sig, _post_commit_sig);
 
     ApplyUpdates(block, _delegate_id);
-    BlocksCallback::Callback<CT>(pre_prepare);  // TODO: would rather use a shared pointer to avoid copying the whole BlockList for BSB
+    BlocksCallback::Callback<CT>(block);  // TODO: would rather use a shared pointer to avoid copying the whole BlockList for BSB
 
     // Helpful for benchmarking
     //

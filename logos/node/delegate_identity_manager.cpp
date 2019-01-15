@@ -237,7 +237,10 @@ DelegateIdentityManager::Init(const Config &config)
 void
 DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 {
-    // create genesis accounts
+    logos::account_info genesis_account;
+    _store.account_get(logos::logos_test_account, genesis_account, transaction);
+
+    // create genesis delegate accounts
     for (int del = 0; del < NUM_DELEGATES*2; ++del) {
         char buff[5];
         sprintf(buff, "%02x", del + 1);
@@ -250,13 +253,15 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
         logos::genesis_delegates.push_back(delegate);
 
         uint128_t min_fee = 0x21e19e0c9bab2400000_cppui128;
-        logos::amount amount(min_fee + (del + 1) * 1000000);
+        logos::amount amount((min_fee + (del + 1) * 1000000)*1000000);
         logos::amount fee(min_fee);
         uint64_t work = 0;
 
-        StateBlock state(pair.pub,  // account
-                         0,         // previous
-                         0,         // sequence
+
+
+        StateBlock state(logos::logos_test_account,   // account
+                         genesis_account.head,         // previous
+                         genesis_account.block_count,  // sequence
                          StateBlock::Type::send,
                          pair.pub,  // link/to
                          amount,
@@ -264,6 +269,11 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
                          pair.prv.data,
                          pair.pub,
                          work);
+
+        genesis_account.balance = genesis_account.balance.number() - amount.number();
+        genesis_account.head = state.GetHash();
+        genesis_account.block_count++;
+        genesis_account.modified = logos::seconds_since_epoch();
 
         ReceiveBlock receive(0, state.GetHash(), 0);
 
@@ -275,17 +285,19 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
         _store.account_put(pair.pub,
                            {
-                               /* Head    */ 0,
+                               /* Head    */ state.GetHash(),
                                /* Receive */ receive.Hash(),
                                /* Rep     */ 0,
                                /* Open    */ state.GetHash(),
                                /* Amount  */ amount,
                                /* Time    */ logos::seconds_since_epoch(),
-                               /* Count   */ 0,
+                               /* Count   */ 1,
                                /* Receive Count */ 1
                            },
                            transaction);
     }
+
+    _store.account_put(logos::logos_test_account, genesis_account, transaction);
 }
 
 void

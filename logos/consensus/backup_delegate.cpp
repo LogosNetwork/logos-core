@@ -83,7 +83,7 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
         ApprovedBlock block(*_pre_prepare, _post_prepare_sig, _post_commit_sig);
         OnPostCommit();
         ApplyUpdates(block, _delegate_ids.remote);
-        BlocksCallback::Callback<CT>(*_pre_prepare);
+        BlocksCallback::Callback<CT>(block);
 
         _state = ConsensusState::VOID;
         _prev_pre_prepare_hash = _pre_prepare_hash;
