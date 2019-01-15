@@ -2,8 +2,7 @@
 /// @file
 /// This file contains declaration and implementation of the ByteArray template class
 ///
-#ifndef LOGOS_CONSENSUS_MESSAGES_BYTE_ARRAYS_HPP_
-#define LOGOS_CONSENSUS_MESSAGES_BYTE_ARRAYS_HPP_
+#pragma once
 
 #include <endian.h>
 #include <logos/lib/blocks.hpp>
@@ -149,5 +148,3 @@ using AccountSig            = logos::uint512_union;
 using Amount                = logos::amount;
 #endif
 
-
-#endif /* LOGOS_CONSENSUS_MESSAGES_BYTE_ARRAYS_HPP_ */

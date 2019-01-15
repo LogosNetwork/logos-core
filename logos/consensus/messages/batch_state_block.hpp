@@ -2,8 +2,7 @@
 /// @file
 /// This file contains declaration of the BatchStateBlock
 ///
-#ifndef LOGOS_CONSENSUS_MESSAGES_BATCH_STATE_BLOCK_HPP_
-#define LOGOS_CONSENSUS_MESSAGES_BATCH_STATE_BLOCK_HPP_
+#pragma once
 
 #include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/state_block.hpp>
@@ -66,4 +65,3 @@ struct BatchStateBlock : PrePrepareCommon
     BlockHashList   hashs;
 };
 
-#endif /* LOGOS_CONSENSUS_MESSAGES_BATCH_STATE_BLOCK_HPP_ */

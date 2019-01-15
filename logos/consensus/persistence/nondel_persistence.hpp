@@ -1,5 +1,4 @@
-#ifndef LOGOS_CONSENSUS_PERSISTENCE_NONDEL_PERSISTENCE_HPP_
-#define LOGOS_CONSENSUS_PERSISTENCE_NONDEL_PERSISTENCE_HPP_
+#pragma once
 
 #include <logos/consensus/persistence/persistence.hpp>
 #include <logos/consensus/persistence/validator_builder.hpp>
@@ -22,7 +21,9 @@ public:
     {
         PrePerpare pre_prepare(block);
         BlockHash pre_prepare_hash(pre_prepare.Hash());
-        if(!_builder.GetValidator(block.epoch_number)->Validate(pre_prepare_hash, block.post_prepare_sig))
+        auto validator(_builder.GetValidator(block.epoch_number));
+
+        if(!validator->Validate(pre_prepare_hash, block.post_prepare_sig))
         {
             LOG_ERROR (_log) << __func__ << " bad post_prepare signature";
             UpdateStatusReason(status, process_result::bad_signature);
@@ -31,7 +32,7 @@ public:
 
         PostPrepare post_prepare(pre_prepare_hash, block.post_prepare_sig);
         BlockHash post_prepare_hash(post_prepare.ComputeHash());
-        if(!_builder.GetValidator(block.epoch_number)->Validate(post_prepare_hash, block.post_commit_sig))
+        if(!validator->Validate(post_prepare_hash, block.post_commit_sig))
         {
             LOG_ERROR (_log) << __func__ << " bad post_commit signature";
             UpdateStatusReason(status, process_result::bad_signature);
@@ -50,5 +51,3 @@ protected:
 private:
     ValidatorBuilder    _builder;
 };
-
-#endif /* LOGOS_CONSENSUS_PERSISTENCE_NONDEL_PERSISTENCE_HPP_ */
