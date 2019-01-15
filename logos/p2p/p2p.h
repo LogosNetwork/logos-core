@@ -57,6 +57,16 @@ public:
     void Shutdown();
     bool PropagateMessage(const void *message, unsigned size, bool output);
 
+    /* Add a peer to a blacklist
+     * to be called when validation fails
+     */
+    void add_to_blacklist(const char *addr);
+
+    /* true if peer is in the blacklist
+     * to be checked when we select a new peer to bootstrap from
+     */
+    bool is_blacklisted(const char *addr);
+
     virtual bool ReceiveMessageCallback(const void *message, unsigned size)
     {
         return false;

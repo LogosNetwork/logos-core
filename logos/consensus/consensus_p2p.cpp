@@ -486,11 +486,12 @@ void ContainerP2p::close_session(int session_id)
 
 void ContainerP2p::add_to_blacklist(const logos::endpoint & e)
 {
+    _p2p.add_to_blacklist(e.address().to_string().c_str());
 }
 
 bool ContainerP2p::is_blacklisted(const logos::endpoint & e)
 {
-    return false;
+    return _p2p.is_blacklisted(e.address().to_string().c_str());
 }
 
 template class ConsensusP2pOutput<ConsensusType::BatchStateBlock>;

@@ -632,6 +632,38 @@ bool Propagate(PropagateMessage &mess)
     return store.Insert(mess);
 }
 
+void add_to_blacklist(const char *addr)
+{
+    if (!g_connman)
+    {
+        return;
+    }
+
+    CService host;
+    if (!Lookup(addr, host, 0, false))
+    {
+        return;
+    }
+
+    g_connman->Ban(host, BanReasonManuallyAdded, 0, false);
+}
+
+bool is_blacklisted(const char *addr)
+{
+    if (!g_connman)
+    {
+        return false;
+    }
+
+    CService host;
+    if (!Lookup(addr, host, 0, false))
+    {
+        return false;
+    }
+
+    return g_connman->IsBanned(host);
+}
+
 }; // end of the class p2p_internal
 
 
@@ -752,4 +784,24 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
     }
 
 	return true;
+}
+
+void p2p_interface::add_to_blacklist(const char *addr)
+{
+    if (!p2p)
+    {
+        return;
+    }
+
+    p2p->add_to_blacklist(addr);
+}
+
+bool p2p_interface::is_blacklisted(const char *addr)
+{
+    if (!p2p)
+    {
+        return false;
+    }
+
+    return p2p->is_blacklisted(addr);
 }
