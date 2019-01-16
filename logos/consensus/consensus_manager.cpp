@@ -35,7 +35,7 @@ template<ConsensusType CT>
 void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
                                          logos::process_return & result)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    // SYL Integration fix: got rid of unnecessary lock here in favor of more granular locking
 
     auto hash = block->hash();
 
@@ -76,6 +76,18 @@ void ConsensusManager<CT>::OnRequestQueued()
 {
     if(ReadyForConsensus())
     {
+        // SYL integration fix: InitiateConsensus should only be called
+        // when no consensus session is currently going on
+        {
+            std::lock_guard<std::mutex> lock(_ongoing_mutex);
+            if(_ongoing)
+            {
+                LOG_ERROR(_log) << "ConsensusManager<" << ConsensusToName(CT)
+                                << ">::OnRequestQueued() - Ongoing request exists. Returning";
+                return;
+            }
+            _ongoing = true;
+        }
         InitiateConsensus();
     }
 }
@@ -84,8 +96,6 @@ template<ConsensusType CT>
 void ConsensusManager<CT>::OnRequestReady(
     std::shared_ptr<Request> block)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-
     QueueRequestPrimary(block);
     OnRequestQueued();
 }
@@ -145,10 +155,15 @@ void ConsensusManager<CT>::OnConsensusReached()
 
     PrePreparePopFront();
 
-    if(ReadyForConsensus())
+    // SYL Integration: finally set ongoing consensus indicator to false to allow next round of consensus to being
     {
-        InitiateConsensus();
+        std::lock_guard<std::mutex> lock(_ongoing_mutex);
+        _ongoing = false;
     }
+
+    // Don't need to lock _state_mutex here because there should only be
+    // one call to OnConsensusReached per consensus round
+    OnRequestQueued();
 }
 
 template<ConsensusType CT>
@@ -163,7 +178,7 @@ void ConsensusManager<CT>::InitiateConsensus()
 
     OnConsensusInitiated(pre_prepare);
 
-    _state = ConsensusState::PRE_PREPARE;
+    AdvanceState(ConsensusState::PRE_PREPARE);
 
     _validator.Sign(pre_prepare);
     LOG_DEBUG(_log) << "JSON representation: " << pre_prepare.SerializeJson();
@@ -173,6 +188,13 @@ void ConsensusManager<CT>::InitiateConsensus()
 template<ConsensusType CT>
 bool ConsensusManager<CT>::ReadyForConsensus()
 {
+    {
+        std::lock_guard<std::mutex> lock(_ongoing_mutex);
+        if(_ongoing)
+        {
+            return false;
+        }
+    }
     return StateReadyForConsensus() && !PrePrepareQueueEmpty();
 }
 

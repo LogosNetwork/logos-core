@@ -3,17 +3,17 @@
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <boost/asio/error.hpp>
 
-template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::BatchStateBlock>&);
-template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::BatchStateBlock>&);
-template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::BatchStateBlock>&);
+template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::BatchStateBlock>&);
-template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::MicroBlock>&);
-template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::MicroBlock>&);
-template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::MicroBlock>&);
+template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::MicroBlock>&);
-template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::Epoch>&);
-template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Epoch>&);
-template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Epoch>&);
+template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Epoch>&);
 
 const PrimaryDelegate::Seconds PrimaryDelegate::PRIMARY_TIMEOUT{60};
@@ -30,62 +30,58 @@ PrimaryDelegate::PrimaryDelegate(Service & service,
 {}
 
 template<ConsensusType C>
-void PrimaryDelegate::ProcessMessage(const RejectionMessage<C> & message)
+void PrimaryDelegate::ProcessMessage(const RejectionMessage<C> & message, uint8_t remote_delegate_id)
 {
-    if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE))
+    if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE, remote_delegate_id))
     {
         LOG_DEBUG(_log) << "PrimaryDelegate::ProcessMessage - Proceeding to OnRejection";
-        OnRejection(message);
+        OnRejection(message, remote_delegate_id);
     }
 }
 
 template<ConsensusType C>
-void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message)
+void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message, uint8_t remote_delegate_id)
 {
-    if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE))
+    if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE, remote_delegate_id))
     {
+        // We make sure in ProceedWithMessage that only one message can reach here. No need to lock yet
         CycleTimers<C>(true);
 
+        // lock here because if new commit messages come in we don't want to discard them
+        // Or maybe use a different lock for this specific purpose?
+        std::lock_guard<std::mutex> lock(_state_mutex);
         Send<PostPrepareMessage<C>>();
         AdvanceState(ConsensusState::POST_PREPARE);
     }
-    else
-    {
-        CheckRejection();
-    }
+    // SYL Integration fix: we won't have to check rejection since if all
+    // backup delegates responded and we have not reached quorum, some
+    // previous rejection message must have already triggered PrePrepare rejection
 }
 
 template<ConsensusType C>
-void PrimaryDelegate::ProcessMessage(const CommitMessage<C> & message)
+void PrimaryDelegate::ProcessMessage(const CommitMessage<C> & message, uint8_t remote_delegate_id)
 {
-    if(ProceedWithMessage(message, ConsensusState::POST_PREPARE))
+    if(ProceedWithMessage(message, ConsensusState::POST_PREPARE, remote_delegate_id))
     {
         CancelTimer();
 
         Send<PostCommitMessage<C>>();
+        // Can lock after Send because we won't get response back
+        std::lock_guard<std::mutex> lock(_state_mutex);
         AdvanceState(ConsensusState::POST_COMMIT);
-
+        // At this point, new messages will be ignored for not being in correct state
         OnConsensusReached();
     }
 }
 
-void PrimaryDelegate::OnRejection(const RejectionMessage<ConsensusType::BatchStateBlock> & message)
+void PrimaryDelegate::OnRejection(const RejectionMessage<ConsensusType::BatchStateBlock> & message, uint8_t remote_delegate_id)
 {}
 
-void PrimaryDelegate::OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message)
+void PrimaryDelegate::OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message, uint8_t remote_delegate_id)
 {}
 
-void PrimaryDelegate::OnRejection(const RejectionMessage<ConsensusType::Epoch> & message)
+void PrimaryDelegate::OnRejection(const RejectionMessage<ConsensusType::Epoch> & message, uint8_t remote_delegate_id)
 {}
-
-void PrimaryDelegate::CheckRejection()
-{
-    if(AllDelegatesResponded())
-    {
-        CancelTimer();
-        OnPrePrepareRejected();
-    }
-}
 
 template<ConsensusType C>
 void PrimaryDelegate::OnPrePrepareTimeout(const Error & error)
@@ -108,8 +104,6 @@ void PrimaryDelegate::OnTimeout(const Error & error,
         const std::string & timeout,
         ConsensusState expected_state)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-
     auto timeout_str = timeout + " (" + ConsensusToName(C) + ")";
 
     LOG_DEBUG(_log) << timeout_str
@@ -145,11 +139,11 @@ void PrimaryDelegate::OnTimeout(const Error & error,
         return;
     }
     LOG_ERROR(_log) << "PrimaryDelegate::Ontimeout<" << ConsensusToName(C) << "> - Delegate going into recall! ";
-    _state = ConsensusState::RECALL;
+    AdvanceState(ConsensusState::RECALL);
 }
 
 template<ConsensusType C>
-void PrimaryDelegate::CycleTimers(bool cancel)
+void PrimaryDelegate::CycleTimers(bool cancel) // This should be called while _state_mutex is still locked.
 {
     if(cancel)
     {
@@ -171,9 +165,9 @@ void PrimaryDelegate::CycleTimers(bool cancel)
 }
 
 template<typename M>
-bool PrimaryDelegate::Validate(const M & message)
+bool PrimaryDelegate::Validate(const M & message, uint8_t remote_delegate_id)
 {
-    return _validator.Validate(message, _cur_delegate_id);
+    return _validator.Validate(message, remote_delegate_id);
 }
 
 template<typename M>
@@ -232,7 +226,7 @@ bool PrimaryDelegate::StateReadyForConsensus()
     return _state == ConsensusState::VOID || _state == ConsensusState::POST_COMMIT;
 }
 
-void PrimaryDelegate::CancelTimer()
+void PrimaryDelegate::CancelTimer() // This should be called while _state_mutex is still locked.
 {
     if(!_primary_timer.cancel())
     {
@@ -278,48 +272,65 @@ bool PrimaryDelegate::AllDelegatesResponded()
 }
 
 template<typename M>
-bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expected_state)
+bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expected_state, uint8_t remote_delegate_id)
 {
-    if(_state != expected_state)
+    if(Validate(message, remote_delegate_id)) // SYL Integration fix: do the validation first which requires no locking
     {
-        LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received "
-                       << MessageToName(message)
-                       << " message while in "
-                       << StateToString(_state);
+        // SYL Integration fix: place lock on shared resource,
+        std::lock_guard<std::mutex> lock(_state_mutex);
 
-        return false;
-    }
-
-    // for any message type other than PrePrepare, `previous` field is the current consensus block's hash
-    if(_cur_hash != message.previous)
-    {
-        LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received message with hash "
-                       << message.previous.to_string()
-                       << " while current hash is "
-                       << _cur_hash.to_string();
-
-        return false;
-    }
-
-    if(Validate(message))
-    {
-        _delegates_responded++;
-
-        // Rejection message signatures are not
-        // aggregated.
-        if(message.type != MessageType::Rejection)
+        if(_state != expected_state)
         {
-            _prepare_vote += _weights[_cur_delegate_id].vote_weight;
-            _prepare_stake += _weights[_cur_delegate_id].stake_weight;
+            LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received "
+                           << MessageToName(message)
+                           << " message while in "
+                           << StateToString(_state);
 
-            _signatures.push_back({_cur_delegate_id,
-                                   message.signature});
+            return false;
         }
-        // Immediately proceed to OnRejection
-        else
+
+        // for any message type other than PrePrepare, `previous` field is the current consensus block's hash
+        if(_cur_hash != message.previous)
         {
-            return true;
+            LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received message with hash "
+                           << message.previous.to_string()
+                           << " while current hash is "
+                           << _cur_hash.to_string();
+
+            return false;
         }
+
+        if (!_state_changing)
+        {
+            _delegates_responded++;
+
+            // Rejection message signatures are not
+            // aggregated.
+            if(message.type != MessageType::Rejection)
+            {
+                _prepare_vote += _weights[remote_delegate_id].vote_weight;
+                _prepare_stake += _weights[remote_delegate_id].stake_weight;
+
+                _signatures.push_back({remote_delegate_id,
+                                       message.signature});
+            }
+            // Immediately proceed to OnRejection
+            else
+            {
+                return true;
+            }
+
+            // set transition flag so only one remote message can trigger state change
+            if(ReachedQuorum())
+            {
+                _state_changing = true;
+                return true;
+            }
+
+            return false;
+        }
+        // state is already changing, this message came in too late to matter
+        return false;
     }
     else
     {
@@ -329,15 +340,10 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
                        << StateToString(_state);
         return false;
     }
-
-    if(ReachedQuorum())
-    {
-        return true;
-    }
-
-    return false;
 }
 
+// SYL integration: If it is called for transitioning into states *after* Consensus has been started,
+// i.e. advancing into states other than PRE_PREPARE, then _state_mutex needs to be locked
 void PrimaryDelegate::AdvanceState(ConsensusState new_state)
 {
     _state = new_state;
@@ -347,6 +353,7 @@ void PrimaryDelegate::AdvanceState(ConsensusState new_state)
     _signatures.clear();
 
     OnStateAdvanced();
+    _state_changing = false;
 }
 
 void PrimaryDelegate::OnStateAdvanced()

@@ -38,16 +38,15 @@ public:
                     MessageValidator & validator);
 
     template<typename M>
-    void OnConsensusMessage(const M & message, uint8_t delegate_id)
+    void OnConsensusMessage(const M & message, uint8_t remote_delegate_id)
     {
-        std::lock_guard<std::recursive_mutex> lock(_mutex);
-
-        _cur_delegate_id = delegate_id;
-        ProcessMessage(message);
+        // SYL Integration: got rid of coarse locking and implemented granular locking inside ProceedWithMessage
+        // Changed method signatures to avoid having to keep track of remote delegate id
+        ProcessMessage(message, remote_delegate_id);
     }
 
     template<typename M>
-    bool Validate(const M & message);
+    bool Validate(const M & message, uint8_t remote_delegate_id);
 
     virtual ~PrimaryDelegate()
     {}
@@ -78,6 +77,10 @@ protected:
     //       benchmark.
     //
     std::recursive_mutex _mutex;
+    bool                 _ongoing         = false;
+    std::mutex           _ongoing_mutex;
+    bool                 _state_changing  = false;
+    std::mutex           _state_mutex;
     BlockHash            _prev_hash       = 0;
     BlockHash            _cur_hash        = 0;
     Weights              _weights;
@@ -93,7 +96,6 @@ protected:
     uint128_t            _prepare_stake   = 0;
     uint128_t            _my_vote         = 0;
     uint128_t            _my_stake        = 0;
-    uint8_t              _cur_delegate_id = 0;
     uint8_t              _delegate_id     = 0;
 
 private:
@@ -102,17 +104,15 @@ private:
     static const Seconds RECALL_TIMEOUT;
 
     template<ConsensusType C>
-    void ProcessMessage(const RejectionMessage<C> & message);
+    void ProcessMessage(const RejectionMessage<C> & message, uint8_t remote_delegate_id);
     template<ConsensusType C>
-    void ProcessMessage(const PrepareMessage<C> & message);
+    void ProcessMessage(const PrepareMessage<C> & message, uint8_t remote_delegate_id);
     template<ConsensusType C>
-    void ProcessMessage(const CommitMessage<C> & message);
+    void ProcessMessage(const CommitMessage<C> & message, uint8_t remote_delegate_id);
 
-    virtual void OnRejection(const RejectionMessage<ConsensusType::BatchStateBlock> & message);
-    virtual void OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message);
-    virtual void OnRejection(const RejectionMessage<ConsensusType::Epoch> & message);
-
-    void CheckRejection();
+    virtual void OnRejection(const RejectionMessage<ConsensusType::BatchStateBlock> & message, uint8_t remote_delegate_id);
+    virtual void OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message, uint8_t remote_delegate_id);
+    virtual void OnRejection(const RejectionMessage<ConsensusType::Epoch> & message, uint8_t remote_delegate_id);
 
     template<ConsensusType C>
     void OnPrePrepareTimeout(const Error & error);
@@ -131,7 +131,7 @@ private:
     bool AllDelegatesResponded();
 
     template<typename M>
-    bool ProceedWithMessage(const M & message, ConsensusState expected_state);
+    bool ProceedWithMessage(const M & message, ConsensusState expected_state, uint8_t remote_delegate_id);
 
     virtual void OnStateAdvanced();
     virtual void OnPrePrepareRejected();

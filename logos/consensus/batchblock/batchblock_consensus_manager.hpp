@@ -163,7 +163,7 @@ private:
 
     void AcquirePrePrepare(const PrePrepare & message) override;
 
-    void OnRejection(const Rejection & message) override;
+    void OnRejection(const Rejection & message, uint8_t remote_delegate_id) override;
     void OnStateAdvanced() override;
     void OnPrePrepareRejected() override;
 
@@ -174,6 +174,7 @@ private:
     WeightList            _response_weights;
     Hashes                _hashes;
     BlockBuffer           _buffer;                        ///< Buffered state blocks.
+    std::mutex            _buffer_mutex;                  ///< SYL Integration fix: separate lock for benchmarking buffer
     static RequestHandler _handler;                       ///< Primary queue of batch state blocks.
     Timer                 _init_timer;
     Service &             _service;

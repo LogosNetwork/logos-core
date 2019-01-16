@@ -140,12 +140,6 @@ bool PersistenceManager<BSBCT>::Validate(
         uint64_t current_epoch = epoch.epoch_number;
 //        uint64_t current_epoch = ConsensusContainer::GetCurEpochNumber();
 
-        auto update_reservation = [&hash, current_epoch](logos::account_info & info)
-                                  {
-                                       info.reservation = hash;
-                                       info.reservation_epoch = current_epoch;
-                                  };
-
         // Account is not reserved.
         if(info.reservation.is_zero())
         {

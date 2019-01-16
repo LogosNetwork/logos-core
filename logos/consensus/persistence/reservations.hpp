@@ -83,6 +83,7 @@ public:
 
     bool UpdateReservation(const logos::block_hash & hash, const uint64_t current_epoch, const logos::account account) override
     {
+        std::lock_guard<std::mutex> lock(_mutex);  // SYL Integration fix - resource protection
         if(_accounts.find(account) == _accounts.end())
         {
             LOG_ERROR(_log) << "Reservations::UpdateReservation - unable to find account to update. ";

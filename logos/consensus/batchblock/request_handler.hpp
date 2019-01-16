@@ -52,6 +52,7 @@ public:
 
 private:
 
+    std::mutex      _mutex;
     Log             _log;
     BatchStateBlock _current_batch;
     Requests        _requests;

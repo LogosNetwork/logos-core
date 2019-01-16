@@ -6,7 +6,7 @@ RequestHandler::RequestHandler()
 {
     // After startup consensus is performed
     // with an empty batch block.
-    //
+
     _requests.get<0>().push_back(logos::state_block());
 }
 
@@ -14,11 +14,13 @@ void RequestHandler::OnRequest(std::shared_ptr<logos::state_block> block)
 {
     LOG_DEBUG(_log) << "RequestHandler - queued request with hash "
                     << block->hash().to_string();
+    std::lock_guard<std::mutex> lock(_mutex);
     _requests.get<0>().push_back(*block);
 }
 
 void RequestHandler::OnPostCommit(const BatchStateBlock & batch)
 {
+    std::lock_guard<std::mutex> lock(_mutex);
     auto & hashed = _requests.get<1>();
 
     for(uint64_t pos = 0; pos < batch.block_count; ++pos)
@@ -34,11 +36,13 @@ void RequestHandler::OnPostCommit(const BatchStateBlock & batch)
 
 BatchStateBlock & RequestHandler::GetCurrentBatch()
 {
+    std::lock_guard<std::mutex> lock(_mutex);
     return _current_batch;
 }
 
 BatchStateBlock & RequestHandler::PrepareNextBatch()
 {
+    std::lock_guard<std::mutex> lock(_mutex);
     _current_batch = BatchStateBlock();
 
     auto & sequence = _requests.get<0>();
@@ -69,6 +73,7 @@ BatchStateBlock & RequestHandler::PrepareNextBatch()
 
 void RequestHandler::InsertFront(const std::list<logos::state_block> & blocks)
 {
+    std::lock_guard<std::mutex> lock(_mutex);
     auto & sequenced = _requests.get<0>();
 
     sequenced.insert(sequenced.begin(), blocks.begin(), blocks.end());
@@ -76,6 +81,7 @@ void RequestHandler::InsertFront(const std::list<logos::state_block> & blocks)
 
 void RequestHandler::Acquire(const BatchStateBlock & batch)
 {
+    std::lock_guard<std::mutex> lock(_mutex);
     auto & sequenced = _requests.get<0>();
     auto & hashed = _requests.get<1>();
 
@@ -92,6 +98,7 @@ void RequestHandler::Acquire(const BatchStateBlock & batch)
 
 void RequestHandler::PopFront()
 {
+    std::lock_guard<std::mutex> lock(_mutex);
     auto & hashed = _requests.get<1>();
 
     for(uint64_t pos = 0; pos < _current_batch.block_count; ++pos)
@@ -104,16 +111,19 @@ void RequestHandler::PopFront()
 
 bool RequestHandler::BatchFull()
 {
+    std::lock_guard<std::mutex> lock(_mutex);
     return _current_batch.block_count == CONSENSUS_BATCH_SIZE;
 }
 
 bool RequestHandler::Empty()
 {
+    std::lock_guard<std::mutex> lock(_mutex);
     return _requests.empty();
 }
 
 bool RequestHandler::Contains(const BlockHash & hash)
 {
+    std::lock_guard<std::mutex> lock(_mutex);
     auto & hashed = _requests.get<1>();
 
     return hashed.find(hash) != hashed.end();
