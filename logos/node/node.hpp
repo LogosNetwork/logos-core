@@ -481,9 +481,7 @@ public:
     logos::uint128_t weight (logos::account const &);
     logos::account representative (logos::account const &);
     void ongoing_keepalive ();
-    //CH void ongoing_rep_crawl ();
     void ongoing_bootstrap ();
-    void ongoing_store_flush ();
     void backup_wallet ();
     int price (logos::uint128_t const &, int);
     void work_generate_blocking (logos::block &);
@@ -494,8 +492,8 @@ public:
     logos::uint128_t delta ();
 
     // consensus-related functionality.
-    // TODO: refactor
-    process_return OnSendRequest(std::shared_ptr<state_block> block,
+
+    process_return OnSendRequest(std::shared_ptr<StateBlock> block,
                                  bool should_buffer);
     process_return BufferComplete();
 

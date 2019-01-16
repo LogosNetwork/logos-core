@@ -7,6 +7,7 @@
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/consensus_state.hpp>
 #include <logos/consensus/consensus_p2p.hpp>
+#include <logos/consensus/delegate_bridge.hpp>
 #include <logos/node/client_callback.hpp>
 
 #include <boost/asio/io_service.hpp>
@@ -25,18 +26,9 @@ struct DelegateIdentities
 template<ConsensusType CT>
 class RequestPromoter;
 
-/// ConsensusConnection's Interface to ConsensusNetIO.
-class PrequelParser
-{
-public:
-
-  virtual ~PrequelParser() {}
-
-  virtual void OnPrequel(const uint8_t * data) = 0;
-};
 
 template<ConsensusType CT>
-class ConsensusConnection : public PrequelParser
+class BackupDelegate : public DelegateBridge<CT>
 {
 protected:
 
@@ -49,10 +41,11 @@ protected:
 
     template<MessageType T>
     using SPMessage   = StandardPhaseMessage<T, CT>;
+    using ApprovedBlock   = PostCommittedBlock<CT>;
 
 public:
 
-    ConsensusConnection(std::shared_ptr<IOChannel> iochannel,
+    BackupDelegate(std::shared_ptr<IOChannel> iochannel,
                         PrimaryDelegate & primary,
                         RequestPromoter<CT> & promoter,
                         MessageValidator & validator,
@@ -61,22 +54,12 @@ public:
                         PersistenceManager<CT> & persistence_manager,
                         p2p_interface & p2p);
 
-    void Send(const void * data, size_t size);
-
-    template<typename T>
-    void Send(const T & data)
+    virtual ~BackupDelegate()
     {
-        Send(reinterpret_cast<const void *>(&data), sizeof(data));
+        LOG_DEBUG(_log) << "~BackupDelegate<" << ConsensusToName(CT) << ">";
     }
 
-    virtual ~ConsensusConnection()
-    {
-        LOG_DEBUG(_log) << "~ConsensusConnection<" << ConsensusToName(CT) << ">";
-    }
-
-    void OnPrequel(const uint8_t * data) override;
-
-    virtual bool IsPrePrepared(const logos::block_hash & hash) = 0;
+    virtual bool IsPrePrepared(const BlockHash & hash) = 0;
 
     bool IsRemoteDelegate(uint8_t delegate_id)
     {
@@ -87,36 +70,23 @@ public:
 
 protected:
 
-    static constexpr uint64_t BUFFER_SIZE        = sizeof(PrePrepare);
     static constexpr uint16_t MAX_CLOCK_DRIFT_MS = 20000;
 
-    using ReceiveBuffer = std::array<uint8_t, BUFFER_SIZE>;
-
-    virtual void ApplyUpdates(const PrePrepare &, uint8_t delegate_id) = 0;
-
-    virtual size_t GetPayloadSize();
-    virtual void DeliverPrePrepare();
-
-    void OnData();
-    void OnMessage(const uint8_t * data);
+    virtual void ApplyUpdates(const ApprovedBlock &, uint8_t delegate_id) = 0;
 
     // Messages received by backup delegates
-    void OnConsensusMessage(const PrePrepare & message);
-    void OnConsensusMessage(const PostPrepare & message);
-    void OnConsensusMessage(const PostCommit & message);
+    void OnConsensusMessage(const PrePrepare & message) override;
+    void OnConsensusMessage(const PostPrepare & message) override;
+    void OnConsensusMessage(const PostCommit & message) override;
 
     // Messages received by primary delegates
-    template<typename M>
-    void OnConsensusMessage(const M & message);
+    void OnConsensusMessage(const Prepare & message) override;
+    void OnConsensusMessage(const Commit & message) override;
+    void OnConsensusMessage(const Rejection & message) override;
 
     template<typename M>
     bool Validate(const M & message);
     bool Validate(const PrePrepare & message);
-
-    template<typename M, typename S>
-    bool ValidateSignature(const M & m, const S & s);
-    template<typename M>
-    bool ValidateSignature(const M & m);
 
     bool ValidateTimestamp(const PrePrepare & message);
 
@@ -131,30 +101,18 @@ protected:
     bool ProceedWithMessage(const M & message, ConsensusState expected_state);
     bool ProceedWithMessage(const PostCommit & message);
 
+    //Prepare, Commit, Rejection
     template<typename M>
-    void SendMessage()
+    void SendMessage(M & msg)
     {
-        M response(_pre_prepare_timestamp);
-
-        response.previous = _pre_prepare_hash;
-
-        StoreResponse(response);
-        UpdateMessage(response);
-
-        _validator.Sign(response);
-        Send(response);
+        std::vector<uint8_t> buf;
+        msg.Serialize(buf);
+        this->Send(buf.data(), buf.size());
     }
-
-    void StoreResponse(const Prepare & message);
-    void StoreResponse(const Commit & message);
-    void StoreResponse(const Rejection & message);
 
     void SetPrePrepare(const PrePrepare & message);
     virtual void HandlePrePrepare(const PrePrepare & message);
     virtual void OnPostCommit();
-
-    template<typename M>
-    void UpdateMessage(M & message);
 
     virtual void Reject();
     virtual void ResetRejectionStatus();
@@ -162,16 +120,19 @@ protected:
 
     virtual bool ValidateReProposal(const PrePrepare & message);
 
+    uint8_t RemoteDelegateId()
+    {
+        return _delegate_ids.remote;
+    }
 
-    std::shared_ptr<IOChannel>  _iochannel;
-    ReceiveBuffer               _receive_buffer;
     std::mutex                  _mutex;
     std::shared_ptr<PrePrepare> _pre_prepare;
-    std::shared_ptr<Prepare>    _prepare;
-    std::shared_ptr<Commit>     _commit;
     uint64_t                    _pre_prepare_timestamp = 0;
+    BlockHash                   _prev_pre_prepare_hash;
+    AggSignature                _post_prepare_sig;
+    AggSignature                _post_commit_sig;
     BlockHash                   _pre_prepare_hash;
-    BlockHash                   _prev_pre_prepare_hash = 0;
+    BlockHash                   _post_prepare_hash;
     DelegateIdentities          _delegate_ids;
     RejectionReason             _reason;
     MessageValidator &          _validator;

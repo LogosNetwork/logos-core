@@ -39,7 +39,7 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    auto hash = block->hash();
+    auto hash = block->Hash();
 
     LOG_INFO (_log) << "ConsensusManager<" << ConsensusToName(CT)
                     << ">::OnSendRequest() - hash: "
@@ -107,12 +107,6 @@ ConsensusManager<CT>::GetStore()
 }
 
 template<ConsensusType CT>
-void ConsensusManager<CT>::Send(const PrePrepare & pre_prepare)
-{
-    Send(&pre_prepare, sizeof(PrePrepare));
-}
-
-template<ConsensusType CT>
 void ConsensusManager<CT>::Send(const void * data, size_t size, MessageType mtype)
 {
     std::lock_guard<std::mutex> lock(_connection_mutex);
@@ -128,9 +122,11 @@ void ConsensusManager<CT>::Send(const void * data, size_t size, MessageType mtyp
 template<ConsensusType CT>
 void ConsensusManager<CT>::OnConsensusReached()
 {
-    auto pre_prepare (PrePrepareGetNext());
-    ApplyUpdates(pre_prepare, _delegate_id);
-    BlocksCallback::Callback<CT>(pre_prepare);  // TODO: would rather use a shared pointer to avoid copying the whole BlockList for BSB
+    auto & pre_prepare (PrePrepareGetCurr());
+    ApprovedBlock block(pre_prepare, _post_prepare_sig, _post_commit_sig);
+
+    ApplyUpdates(block, _delegate_id);
+    BlocksCallback::Callback<CT>(block);  // TODO: would rather use a shared pointer to avoid copying the whole BlockList for BSB
 
     // Helpful for benchmarking
     //
@@ -145,7 +141,7 @@ void ConsensusManager<CT>::OnConsensusReached()
                         << " blocks.";
     }
 
-    _prev_hash = _cur_hash;
+    _prev_pre_prepare_hash = _pre_prepare_hash;
 
     PrePreparePopFront();
 
@@ -163,14 +159,14 @@ void ConsensusManager<CT>::InitiateConsensus()
                    << " consensus.";
 
     auto & pre_prepare = PrePrepareGetNext();
-    pre_prepare.previous = _prev_hash;
+    pre_prepare.previous = _prev_pre_prepare_hash;
 
     OnConsensusInitiated(pre_prepare);
 
     _state = ConsensusState::PRE_PREPARE;
 
-    _validator.Sign(pre_prepare);
-    Send(pre_prepare);
+    pre_prepare.preprepare_sig = _pre_prepare_sig;
+    PrimaryDelegate::Send<PrePrepare>(pre_prepare);
 }
 
 template<ConsensusType CT>
@@ -181,7 +177,7 @@ bool ConsensusManager<CT>::ReadyForConsensus()
 
 template<ConsensusType CT>
 bool
-ConsensusManager<CT>::IsPrePrepared(const logos::block_hash & hash)
+ConsensusManager<CT>::IsPrePrepared(const BlockHash & hash)
 {
     std::lock_guard<std::mutex> lock(_connection_mutex);
 
@@ -205,10 +201,12 @@ ConsensusManager<CT>::QueueRequest(
 
     if(designated_delegate_id == _delegate_id)
     {
+        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueRequest primary";
         QueueRequestPrimary(request);
     }
     else
     {
+        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueRequest secondary";
         QueueRequestSecondary(request);
     }
 }
@@ -224,7 +222,7 @@ ConsensusManager<CT>::QueueRequestSecondary(
 template<ConsensusType CT>
 bool
 ConsensusManager<CT>::SecondaryContains(
-    const logos::block_hash &hash)
+    const BlockHash &hash)
 {
     return _secondary_handler.Contains(hash);
 }
@@ -234,7 +232,7 @@ bool
 ConsensusManager<CT>::IsPendingRequest(
     std::shared_ptr<Request> block)
 {
-    auto hash = block->hash();
+    auto hash = block->Hash();
 
     return (PrimaryContains(hash) ||
             SecondaryContains(hash) ||
@@ -242,13 +240,13 @@ ConsensusManager<CT>::IsPendingRequest(
 }
 
 template<ConsensusType CT>
-std::shared_ptr<PrequelParser>
+std::shared_ptr<MessageParser>
 ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                                     const DelegateIdentities & ids)
 {
     std::lock_guard<std::mutex> lock(_connection_mutex);
 
-    auto connection = MakeConsensusConnection(iochannel, ids);
+    auto connection = MakeBackupDelegate(iochannel, ids);
     _connections.push_back(connection);
 
     return connection;

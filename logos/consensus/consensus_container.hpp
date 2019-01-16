@@ -56,7 +56,7 @@ class NewEpochEventHandler
 {
 public:
     NewEpochEventHandler() = default;
-    ~NewEpochEventHandler() = default;
+    virtual ~NewEpochEventHandler() = default;
     virtual void OnPostCommit(uint32_t epoch_number) = 0;
     virtual void OnPrePrepareRejected(EpochTransitionDelegate delegate) = 0;
     virtual bool IsRecall() = 0;
@@ -67,8 +67,8 @@ class InternalConsensus
 public:
     InternalConsensus() = default;
     virtual ~InternalConsensus() = default;
-    virtual logos::process_return OnSendRequest(std::shared_ptr<MicroBlock>) = 0;
-    virtual logos::process_return OnSendRequest(std::shared_ptr<Epoch>) = 0;
+    virtual logos::process_return OnSendRequest(std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>>) = 0;
+    virtual logos::process_return OnSendRequest(std::shared_ptr<RequestMessage<ConsensusType::Epoch>>) = 0;
     virtual void EpochTransitionEventsStart() = 0;
 };
 
@@ -88,7 +88,7 @@ class ConsensusContainer : public InternalConsensus,
     using Alarm      = logos::alarm;
     using Endpoint   = boost::asio::ip::tcp::endpoint;
     using Socket     = boost::asio::ip::tcp::socket;
-    using Accounts   = logos::account[NUM_DELEGATES];
+    using Accounts   = AccountAddress[NUM_DELEGATES];
     using BindingMap = std::map<uint, std::shared_ptr<EpochManager>>;
 
     struct ConnectionCache {
@@ -125,7 +125,7 @@ public:
     ///     @param[in] should_buffer bool flag that, when set, will
     ///                              cause the block to be buffered
     ///     @return process_return result of the operation
-    logos::process_return OnSendRequest(std::shared_ptr<logos::state_block> block,
+    logos::process_return OnSendRequest(std::shared_ptr<StateBlock> block,
                                         bool should_buffer);
 
     /// Called when buffering is done for batch block consensus.
@@ -154,11 +154,11 @@ protected:
 
 	/// Initiate MicroBlock consensus, internal request
 	///		@param[in] MicroBlock containing the batch blocks
-    logos::process_return OnSendRequest(std::shared_ptr<MicroBlock>) override;
+    logos::process_return OnSendRequest(std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>>) override;
 
     /// Initiate Epoch consensus, internal request
     ///		@param[in] Epoch containing the microblocks
-    logos::process_return OnSendRequest(std::shared_ptr<Epoch>) override;
+    logos::process_return OnSendRequest(std::shared_ptr<RequestMessage<ConsensusType::Epoch>>) override;
 
 private:
 

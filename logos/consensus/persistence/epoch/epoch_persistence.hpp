@@ -36,18 +36,17 @@ public:
 
     /// Backup delegate validation
     /// @param message to validate [in]
-    /// @param remote_delegate_id remote delegate id [in]
     /// @param status result of the validation, optional [in|out]
     /// @returns true if validated
-    virtual bool Validate(const PrePrepare & message, uint8_t remote_delegate_id, ValidationStatus * status = nullptr);
+    virtual bool Validate(const PrePrepare & message, ValidationStatus * status = nullptr);
 
     /// Commit PrePrepare to the database
     /// @param message to commit [in]
     /// @param delegate_id delegate id [in]
-    virtual void ApplyUpdates(const PrePrepare & message, uint8_t delegate_id);
-    virtual void ApplyUpdates(const PrePrepare & message)
+    virtual void ApplyUpdates(const ApprovedEB & block, uint8_t delegate_id);
+    virtual void ApplyUpdates(const ApprovedEB & block)
     {
-        ApplyUpdates(message, 0);
+        ApplyUpdates(block, 0);
     }
 
     virtual bool BlockExists(const PrePrepare & message);

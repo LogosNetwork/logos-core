@@ -31,7 +31,7 @@ public:
 
     /// Build Epoch block
     /// @param block build the block [in|out]
-    bool Build(Epoch&);
+    bool Build(RequestMessage<ConsensusType::Epoch> &);
 
 private:
     EpochVotingManager &    _voting_manager;  ///< voting manager

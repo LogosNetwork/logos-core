@@ -52,13 +52,33 @@ public:
     virtual ~PrimaryDelegate()
     {}
 
-    template<typename M>
-    void Send(MessageType mtype = MessageType::Pre_Prepare);
-
     virtual void OnCurrentEpochSet();
 
     virtual void Send(const void * data, size_t size, MessageType mtype = MessageType::Pre_Prepare) = 0;
 
+    template<ConsensusType C>
+    void Send(const PostPrepareMessage<C> & data)
+    {
+        std::vector<uint8_t> buf;
+        data.Serialize(buf);
+        Send(buf.data(), buf.size(), MessageType::Post_Prepare);
+    }
+
+    template<ConsensusType C>
+    void Send(const PostCommitMessage<C> & data)
+    {
+        std::vector<uint8_t> buf;
+        data.Serialize(buf);
+        Send(buf.data(), buf.size(), MessageType::Post_Commit);
+    }
+
+    template<typename TYPE>
+    void Send(const TYPE & data)
+    {
+        std::vector<uint8_t> buf;
+        data.Serialize(buf);
+        Send(buf.data(), buf.size());
+    }
 protected:
 
     virtual void UpdateVotes();
@@ -75,10 +95,14 @@ protected:
     //       benchmark.
     //
     std::recursive_mutex _mutex;
-    BlockHash            _prev_hash       = 0;
-    BlockHash            _cur_hash        = 0;
+    BlockHash            _prev_pre_prepare_hash;
+    BlockHash            _pre_prepare_hash;
+    BlockHash            _post_prepare_hash;
+    DelegateSig          _pre_prepare_sig;
+    AggSignature         _post_prepare_sig;
+    AggSignature         _post_commit_sig;
     Weights              _weights;
-    Epoch                _current_epoch;
+    ApprovedEB           _current_epoch;
     ConsensusState       _state           = ConsensusState::VOID;
     uint128_t            _vote_total      = 0;
     uint128_t            _stake_total     = 0;
@@ -104,6 +128,22 @@ private:
     void ProcessMessage(const PrepareMessage<C> & message);
     template<ConsensusType C>
     void ProcessMessage(const CommitMessage<C> & message);
+
+    template<ConsensusType C>
+    BlockHash GetHashSigned(const RejectionMessage<C> & message)
+    {
+        return message.Hash();
+    }
+    template<ConsensusType C>
+    BlockHash GetHashSigned(const PrepareMessage<C> & message)
+    {
+        return _pre_prepare_hash;
+    }
+    template<ConsensusType C>
+    BlockHash GetHashSigned(const CommitMessage<C> & message)
+    {
+        return _post_prepare_hash;
+    }
 
     virtual void OnRejection(const RejectionMessage<ConsensusType::BatchStateBlock> & message);
     virtual void OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message);

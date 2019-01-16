@@ -15,20 +15,19 @@ PersistenceManager<ECT>::PersistenceManager(Store & store,
 bool
 PersistenceManager<ECT>::Validate(
     const PrePrepare & epoch,
-    uint8_t remote_delegate_id,
     ValidationStatus * status)
 {
     BlockHash previous_epoch_hash;
-    Epoch previous_epoch;
+    ApprovedEB previous_epoch;
     using namespace logos;
 
     // Account must exist
     logos::account_info info;
-    if (_store.account_get(epoch.account, info))
+    if (_store.account_get(epoch.primary_delegate, info))
     {
         UpdateStatusReason(status, process_result::unknown_source_account);
         LOG_ERROR(_log) << "PersistenceManager::Validate account doesn't exist " <<
-                        epoch.account.to_account();
+                        epoch.primary_delegate.to_account();
         return false;
     }
 
@@ -86,21 +85,25 @@ PersistenceManager<ECT>::Validate(
 
 void
 PersistenceManager<ECT>::ApplyUpdates(
-    const PrePrepare & block,
+    const ApprovedEB & block,
     uint8_t)
 {
     logos::transaction transaction(_store.environment, nullptr, true);
-    logos::block_hash  epoch_hash = _store.epoch_put(block, transaction);
-    _store.epoch_tip_put(epoch_hash, transaction);
-    Epoch previous;
-    if (_store.epoch_get(block.previous, previous, transaction))
+    BlockHash epoch_hash = block.Hash();
+
+    if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(epoch_hash, transaction))
+    {
+        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdate failed to store epoch or epoch tip "
+                                << epoch_hash.to_string();
+        trace_and_halt();
+    }
+
+    if(_store.consensus_block_update_next(block.previous, epoch_hash, ConsensusType::Epoch, transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager::ApplyUpdate failed to get previous block "
                         << block.previous.to_string();
         trace_and_halt();
     }
-    previous.next = epoch_hash;
-    _store.epoch_put(previous, transaction);
 }
 
 bool PersistenceManager<ECT>::BlockExists(

@@ -5,6 +5,7 @@
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
+#include <boost/system/error_code.hpp>
 
 const uint8_t ConsensusNetIO::CONNECT_RETRY_DELAY;
 
@@ -152,10 +153,13 @@ ConsensusNetIO::OnConnect(
         return;
     }
 
-    auto ids = std::make_shared<ConnectedClientIds>();
-    *ids = {_epoch_info.GetEpochNumber(), _local_delegate_id, _epoch_info.GetConnection(), {0}};
-    strncpy(ids->ip, _endpoint.address().to_string().c_str(), INET6_ADDRSTRLEN);
-    boost::asio::async_write(*_socket, boost::asio::buffer(ids.get(), sizeof(ConnectedClientIds)),
+    ConnectedClientIds ids(_epoch_info.GetEpochNumber(),
+            _local_delegate_id,
+            _epoch_info.GetConnection(),
+            _endpoint.address().to_string().c_str());
+    auto buf = std::make_shared<std::vector<uint8_t>>();
+    ids.Serialize(*buf);
+    boost::asio::async_write(*_socket, boost::asio::buffer(buf->data(), buf->size()),
                              [this, ids](const ErrorCode &ec, size_t){
         if(ec)
         {
@@ -179,7 +183,7 @@ ConsensusNetIO::SendKeyAdvertisement()
 void
 ConsensusNetIO::ReadPrequel()
 {
-    _assembler.ReadPrequel(std::bind(&ConsensusNetIO::OnData, this,
+    _assembler.ReadPrequel(std::bind(&ConsensusNetIO::OnPrequel, this,
                                      std::placeholders::_1));
 }
 
@@ -191,67 +195,141 @@ ConsensusNetIO::AsyncRead(size_t bytes,
 }
 
 void
-ConsensusNetIO::OnData(const uint8_t * data)
+ConsensusNetIO::OnPrequel(const uint8_t * data)
 {
-    ConsensusType consensus_type (static_cast<ConsensusType> (data[2]));
-    MessageType message_type (static_cast<MessageType> (data[1]));
+    bool error = false;
+    logos::bufferstream stream(data, MessagePrequelSize);
+    Prequel msg_prequel(error, stream);
+    if(error)
+    {
+        LOG_ERROR(_log) << "ConsensusNetIO::OnPrequal - Failed to deserialize.";
+        return;
+    }
+
+    LOG_TRACE(_log) << __func__
+            << " tid=" << std::this_thread::get_id()
+            << " version=" << (int)msg_prequel.version
+            << " type=" << (int)msg_prequel.type
+            << " consensus=" << (int)msg_prequel.consensus_type
+            << " payload=" << msg_prequel.payload_size;
+
+    if(msg_prequel.payload_size > MAX_MSG_SIZE)
+    {
+        HandleMessageError("Wrong message size");
+    }
+
+    if(msg_prequel.payload_size != 0)
+    {
+        //TODO performance, Peng and Greg
+        _assembler.ReadBytes(std::bind(&ConsensusNetIO::OnData, this,
+                                                   std::placeholders::_1,
+                                                   msg_prequel.version,
+                                                   msg_prequel.type,
+                                                   msg_prequel.consensus_type,
+                                                   msg_prequel.payload_size),
+                msg_prequel.payload_size);
+    }else{
+        ReadPrequel();
+    }
+}
+
+void
+ConsensusNetIO::OnData(const uint8_t * data,
+        uint8_t version,
+        MessageType message_type,
+        ConsensusType consensus_type,
+        uint32_t payload_size)
+{
+    LOG_TRACE(_log) << __func__
+            << " tid=" << std::this_thread::get_id()
+            << " version=" << (int)version
+            << " type=" << (int)message_type
+            << " consensus=" << (int)consensus_type
+            << " payload=" << payload_size;
+
+    bool error = false;
+    logos::bufferstream stream(data, payload_size);
 
     if (consensus_type == ConsensusType::Any)
     {
         if (message_type == MessageType::Heart_Beat)
         {
-            OnHeartBeat(data);
+            HeartBeat hb(error, stream, version);
+            if(error)
+            {
+                HandleMessageError("deserialize HeartBeat");
+                return;
+            }
+            OnHeartBeat(hb);
         }
         else if (message_type == MessageType::Key_Advert)
         {
-            memcpy(_receive_buffer.data(), data, sizeof(Prequel));
-            _assembler.ReadBytes(std::bind(&ConsensusNetIO::OnPublicKey, this,
-                                           std::placeholders::_1),
-                                 sizeof(KeyAdvertisement) -
-                                 sizeof(Prequel));
+            KeyAdvertisement key_adv(error, stream, version);
+            if(error)
+            {
+                HandleMessageError("deserialize KeyAdvertisement");
+                return;
+            }
+            OnPublicKey(key_adv);
         }
         else
         {
-            LOG_FATAL(_log) << "ConsensusNetIO - unexpected message type for consensus Any "
-                            << (int)data[2];
-            trace_and_halt();
+            HandleMessageError("Wrong message type for consensus Any");
         }
     }
     else
     {
         auto idx = ConsensusTypeToIndex(consensus_type);
 
-        if (!(idx >= 0 && idx < CONSENSUS_TYPE_COUNT) || _connections[idx] == 0)
+        //three valid consensus types, BatchStateBlock, MicroBlock, Epoch
+        //the largest valid idx to _connections[idx] is 2.
+        if (idx >= (CONSENSUS_TYPE_COUNT))
         {
-            LOG_FATAL(_log) << "ConsensusNetIO - _consensus_connections is NULL: "
+            HandleMessageError("Consensus type out of range");
+        }
+
+        if(_connections[idx] == 0)
+        {
+            LOG_FATAL(_log) << "ConsensusNetIO - a backup delegate is NULL: "
                             << idx;
             trace_and_halt();
         }
 
-        _connections[idx]->OnPrequel(data);
+        switch (message_type) {
+        case MessageType::Pre_Prepare:
+        case MessageType::Prepare:
+        case MessageType::Rejection:
+        case MessageType::Post_Prepare:
+        case MessageType::Commit:
+        case MessageType::Post_Commit:
+            if( ! _connections[idx]->OnMessageData(data,
+                    version,
+                    message_type,
+                    consensus_type,
+                    payload_size))
+                HandleMessageError("Wrong consensus message");
+            break;
+        default:
+            HandleMessageError("Wrong message type");
+            break;
+        }
     }
+    ReadPrequel();
 }
 
 void 
-ConsensusNetIO::OnPublicKey(const uint8_t * data)
+ConsensusNetIO::OnPublicKey(KeyAdvertisement & key_adv)
 {
-    memcpy(_receive_buffer.data() + sizeof(Prequel), data,
-           sizeof(KeyAdvertisement) - sizeof(Prequel));
-
-    auto msg (*reinterpret_cast<KeyAdvertisement*>(_receive_buffer.data()));
-
-    _key_store.OnPublicKey(_remote_delegate_id, msg.public_key);
+    _key_store.OnPublicKey(_remote_delegate_id, key_adv.public_key);
 
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
     _io_channel_binder(shared_from_this(), _remote_delegate_id);
-
-    ReadPrequel();
 }
 
 void
 ConsensusNetIO::AddConsensusConnection(
     ConsensusType t, 
-    std::shared_ptr<PrequelParser> connection)
+    std::shared_ptr<MessageParser> connection)
 {
     LOG_INFO(_log) << "ConsensusNetIO - Added consensus connection "
                    << ConsensusToName(t)
@@ -344,25 +422,22 @@ ConsensusNetIO::OnNetIOError(const ErrorCode &ec, bool reconnect)
 }
 
 void
-ConsensusNetIO::OnHeartBeat(const uint8_t *data)
+ConsensusNetIO::OnHeartBeat(HeartBeat &heartbeat)
 {
-    HeartBeat heartbeat;
-    memcpy(&heartbeat, data, sizeof(Prequel));
-    size_t bytes = sizeof(HeartBeat) - sizeof(Prequel);
+    LOG_DEBUG(_log) << "ConsensusNetIO::OnHeartBeat, received heartbeat from "
+                    << (int)_remote_delegate_id << " is request " << (uint)heartbeat.is_request;
 
-    AsyncRead(bytes, [this, heartbeat, bytes](const uint8_t* data) mutable -> void {
-
-        memcpy(((uint8_t*)&heartbeat) + sizeof(Prequel), data, bytes);
-
-        LOG_DEBUG(_log) << "ConsensusNetIO::OnHeartBeat, received heartbeat from "
-                        << (int)_remote_delegate_id << " is request " << heartbeat.is_request;
-
-        if (heartbeat.is_request)
-        {
-            heartbeat.is_request = false;
-            Send(&heartbeat, sizeof(HeartBeat));
-        }
-
-        ReadPrequel();
-    });
+    if (heartbeat.is_request)
+    {
+        heartbeat.is_request = false;
+        Send(heartbeat);
+    }
 }
+
+void ConsensusNetIO::HandleMessageError(const char * operation)
+{
+    LOG_ERROR(_log) << "ConsensusNetIO HandleMessageError: " << operation;
+    auto error(boost::system::errc::make_error_code(boost::system::errc::errc_t::io_error));
+    OnNetIOError(error, true);
+}
+
