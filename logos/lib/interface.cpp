@@ -11,6 +11,7 @@
 #include <logos/lib/blocks.hpp>
 #include <logos/lib/numbers.hpp>
 #include <logos/lib/work.hpp>
+#include <logos/consensus/messages/byte_arrays.hpp>
 
 #include <cstring>
 
@@ -100,7 +101,7 @@ char * lgs_sign_transaction(const char *transaction, const lgs_uint256 private_k
             logos::uint256_union pub;
             ed25519_publickey (private_key, pub.bytes.data ());
             logos::raw_key prv;
-            prv.data = *reinterpret_cast<logos::uint256_union *> (private_key);
+            prv.data = *reinterpret_cast<AccountPrivKey *> (private_key);
             block->signature_set (logos::sign_message (prv, pub, block->hash ()));
             auto json (block->to_json ());
             result = reinterpret_cast<char *> (malloc (json.size () + 1));

@@ -6,16 +6,9 @@
 #include <logos/consensus/message_validator.hpp>
 #include <logos/lib/trace.hpp>
 
-PersistenceManager<MBCT>::PersistenceManager(Store & store,
-                                             ReservationsPtr,
-                                             Milliseconds clock_drift)
-    : Persistence(store, clock_drift)
-{}
-
 bool
 PersistenceManager<MBCT>::Validate(
     const PrePrepare & block,
-    uint8_t remote_delegate_id,
     ValidationStatus * status)
 {
     BlockHash hash = block.Hash();
@@ -31,17 +24,17 @@ PersistenceManager<MBCT>::Validate(
 
     // Account exists
     logos::account_info info;
-    if (_store.account_get(block.account, info))
+    if (_store.account_get(block.primary_delegate, info))
     {
         LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock account doesn't exist "
                         << " hash " << hash.to_string()
-                        << " account " << block.account.to_account();
+                        << " account " << block.primary_delegate.to_string();
         UpdateStatusReason(status, process_result::unknown_source_account);
         return false;
     }
 
-    Epoch previous_epoch;
-    MicroBlock previous_microblock;
+    ApprovedEB previous_epoch;
+    ApprovedMB previous_microblock;
 
     // previous microblock doesn't exist
     if (_store.micro_block_get(block.previous, previous_microblock))
@@ -73,7 +66,7 @@ PersistenceManager<MBCT>::Validate(
         if (block.sequence != (previous_microblock.sequence + 1))
         {
             LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock failed, invalid sequence # "
-                            << " hash " << block.hash().to_string()
+                            << " hash " << block.Hash().to_string()
                             << " epoch #: " << block.epoch_number << " block seq #:" << block.sequence
                             << " previous block seq #:" << previous_microblock.sequence
                             << " previous hash " << block.previous.to_string();
@@ -86,7 +79,7 @@ PersistenceManager<MBCT>::Validate(
             block.sequence != 0)
     {
         LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock failed, bad epoch number or sequence not 0 "
-                        << " hash " << block.hash().to_string()
+                        << " hash " << block.Hash().to_string()
                         << " epoch #: " << block.epoch_number << " previous block epoch #:"
                         << previous_microblock.epoch_number << " block seq #:" << block.sequence
                         << " previous hash " << block.previous.to_string();
@@ -103,7 +96,7 @@ PersistenceManager<MBCT>::Validate(
     if (number_batch_blocks != block.number_batch_blocks)
     {
         LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock number of batch blocks doesn't match in block: "
-                        << " hash " << block.hash().to_string()
+                        << " hash " << block.Hash().to_string()
                         << " block " << block.number_batch_blocks << " to database: " << number_batch_blocks;
         UpdateStatusReason(status, process_result::invalid_number_blocks);
         return false;
@@ -111,13 +104,13 @@ PersistenceManager<MBCT>::Validate(
 
     // verify can get the batch block tips
     bool valid = true;
-    BatchStateBlock bsb;
+    ApprovedBSB bsb;
     for (int del = 0; del < NUM_DELEGATES; ++del)
     {
-        if (block.tips[del] != 0 && _store.batch_block_get(block.tips[del], bsb))
+        if (! block.tips[del].is_zero() && _store.batch_block_get(block.tips[del], bsb))
         {
             LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
-                            << block.hash().to_string() << " "
+                            << block.Hash().to_string() << " "
                             << block.tips[del].to_string();
             UpdateStatusReason(status, process_result::gap_previous);
             UpdateStatusRequests(status, del, process_result::gap_previous);
@@ -130,21 +123,25 @@ PersistenceManager<MBCT>::Validate(
 
 void
 PersistenceManager<MBCT>::ApplyUpdates(
-    const PrePrepare & block,
+    const ApprovedMB & block,
     uint8_t)
 {
     logos::transaction transaction(_store.environment, nullptr, true);
-    BlockHash hash = _store.micro_block_put(block, transaction);
-    _store.micro_block_tip_put(hash, transaction);
-    MicroBlock previous;
-    if (_store.micro_block_get(block.previous, previous, transaction))
+    BlockHash hash = block.Hash();
+    if( _store.micro_block_put(block, transaction) ||
+            _store.micro_block_tip_put(hash, transaction))
+    {
+        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdates failed to put block or tip"
+                                << hash.to_string();
+        trace_and_halt();
+    }
+
+    if(_store.consensus_block_update_next(block.previous, hash, ConsensusType::MicroBlock, transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager::ApplyUpdates failed to get previous block "
                         << block.previous.to_string();
         trace_and_halt();
     }
-    previous.next = hash;
-    hash = _store.micro_block_put(previous, transaction);
     LOG_INFO(_log) << "PersistenceManager::ApplyUpdates hash: " << hash.to_string()
-                   << " previous " << hash.to_string();
+                   << " previous " << block.previous.to_string();
 }

@@ -7,43 +7,65 @@
 #include <logos/lib/merkle.hpp>
 #include <functional>
 
-using BlockHash = logos::block_hash;
-
 /// Microblocks are used for checkpointing and bootstrapping.
-struct MicroBlock : MessageHeader<MessageType::Pre_Prepare, ConsensusType::MicroBlock> {
+struct MicroBlock : PrePrepareCommon
+{
     MicroBlock()
-        : MessageHeader(0)
-        , account(0)
-        , epoch_number(0)
-        , sequence(0)
+        : PrePrepareCommon()
         , last_micro_block(0)
         , number_batch_blocks(0)
-        , tips{0}
-        , next(0)
-        , signature{0}
+        , tips()
+    {}
+
+    MicroBlock(bool & error, logos::stream & stream, bool with_appendix)
+    : PrePrepareCommon(error, stream)
+    {
+        if(error)
         {
-            previous = 0;
+            return;
         }
 
-    /// Calculate block's hash
-    BlockHash Hash() const;
+        error = logos::read(stream, last_micro_block);
+        if(error)
+        {
+            return;
+        }
 
-    /// Overide to mirror state_block
-    BlockHash hash() const { return Hash(); }
+        error = logos::read(stream, number_batch_blocks);
+        if(error)
+        {
+            return;
+        }
+        number_batch_blocks = le32toh(number_batch_blocks);
+
+        for(int i = 0; i < NUM_DELEGATES; ++i)
+        {
+            error = logos::read(stream, tips[i]);
+            if(error)
+            {
+                return;
+            }
+        }
+    }
+
+    void Hash(blake2b_state & hash) const
+    {
+        uint32_t nbb = htole32(number_batch_blocks);
+        PrePrepareCommon::Hash(hash);
+        blake2b_update(&hash, &last_micro_block, sizeof(uint8_t));
+        blake2b_update(&hash, &nbb, sizeof(uint32_t));
+        for(int i = 0; i < NUM_DELEGATES; ++i)
+        {
+            blake2b_update(&hash, tips[i].data(), HASH_SIZE);
+        }
+    }
 
     /// JSON representation of MicroBlock (primarily for RPC messages)
     std::string SerializeJson() const;
     void SerializeJson(boost::property_tree::ptree &) const;
+    uint32_t Serialize(logos::stream & stream, bool with_appendix) const;
 
-    static const size_t HASHABLE_BYTES;         ///< hashable bytes of the micrblock - used in signing
-    logos::account      account; 	            ///< Delegate who proposed this microblock
-    uint32_t            epoch_number; 			///< Current epoch
-    uint16_t            sequence;	            ///< Microblock number within this epoch
     uint8_t             last_micro_block;       ///< The last microblock in the epoch
-    uint8_t             padding1 = 0;           ///< padding
     uint32_t            number_batch_blocks;    ///< Number of batch blocks in the microblock
-    uint32_t            padding2 = 0;           ///< padding
     BlockHash           tips[NUM_DELEGATES];    ///< Delegate's batch block tips
-    BlockHash           next;                   ///< Next block reference
-    Signature           signature; 		        ///< Multisignature
 };

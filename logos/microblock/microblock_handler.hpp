@@ -12,8 +12,8 @@ namespace logos {
 class IRecallHandler;
 
 using BlockStore                    = logos::block_store;
-using IteratorBatchBlockReceiverCb  = std::function<void(uint8_t, const BatchStateBlock&)>;
-using BatchBlockReceiverCb          = std::function<void(const BatchStateBlock&)>;
+using IteratorBatchBlockReceiverCb  = std::function<void(uint8_t, const ApprovedBSB &)>;
+using BatchBlockReceiverCb          = std::function<void(const ApprovedBSB &)>;
 
 /// MicroBlockHandler builds MicroBlock
 class MicroBlockHandler

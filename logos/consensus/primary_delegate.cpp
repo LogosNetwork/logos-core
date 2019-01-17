@@ -1,7 +1,8 @@
 #include <logos/consensus/primary_delegate.hpp>
-
+#include <logos/lib/trace.hpp>
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <boost/asio/error.hpp>
+#include <logos/lib/utility.hpp>
 
 template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::BatchStateBlock>&);
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::BatchStateBlock>&);
@@ -32,6 +33,11 @@ PrimaryDelegate::PrimaryDelegate(Service & service,
 template<ConsensusType C>
 void PrimaryDelegate::ProcessMessage(const RejectionMessage<C> & message)
 {
+    LOG_DEBUG(_log) << "PrimaryDelegate::ProcessMessage<"
+                    << ConsensusToName(C) << ">- Received rejection("
+                    << RejectionReasonToName(message.reason)
+                    << ")";
+
     if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE))
     {
         OnRejection(message);
@@ -46,8 +52,9 @@ void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message)
     if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE))
     {
         CycleTimers<C>(true);
-
-        Send<PostPrepareMessage<C>>();
+        PostPrepareMessage<C> response(_pre_prepare_hash, _post_prepare_sig);
+        _post_prepare_hash = response.ComputeHash();
+        Send<PostPrepareMessage<C>>(response);
         AdvanceState(ConsensusState::POST_PREPARE);
     }
     else
@@ -62,10 +69,9 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage<C> & message)
     if(ProceedWithMessage(message, ConsensusState::POST_PREPARE))
     {
         CancelTimer();
-
-        Send<PostCommitMessage<C>>();
+        PostCommitMessage<C> response(_pre_prepare_hash, _post_commit_sig);
+        Send<PostCommitMessage<C>>(response);
         AdvanceState(ConsensusState::POST_COMMIT);
-
         OnConsensusReached();
     }
 }
@@ -174,18 +180,7 @@ void PrimaryDelegate::CycleTimers(bool cancel)
 template<typename M>
 bool PrimaryDelegate::Validate(const M & message)
 {
-    return _validator.Validate(message, _cur_delegate_id);
-}
-
-template<typename M>
-void PrimaryDelegate::Send()
-{
-    M response(_cur_batch_timestamp);
-
-    response.previous = _cur_hash;
-    _validator.Sign(response, _signatures);
-
-    Send(&response, sizeof(response));
+    return _validator.Validate(GetHashSigned(message), message.signature, _cur_delegate_id);
 }
 
 void PrimaryDelegate::OnCurrentEpochSet()
@@ -194,15 +189,15 @@ void PrimaryDelegate::OnCurrentEpochSet()
     {
         auto & delegate = _current_epoch.delegates[pos];
 
-        _vote_total += delegate.vote;
-        _stake_total += delegate.stake;
+        _vote_total += delegate.vote.number();
+        _stake_total += delegate.stake.number();
 
-        _weights[pos] = {delegate.vote, delegate.stake};
+        _weights[pos] = {delegate.vote.number(), delegate.stake.number()};
 
         if(pos == _delegate_id)
         {
-            _my_vote = delegate.vote;
-            _my_stake = delegate.stake;
+            _my_vote = delegate.vote.number();
+            _my_stake = delegate.stake.number();
         }
     }
 
@@ -234,7 +229,9 @@ void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
     _prepare_vote = _my_vote;
     _prepare_stake = _my_stake;
 
-    _cur_hash = block.Hash();
+    _pre_prepare_hash = block.Hash();
+    _validator.Sign(_pre_prepare_hash, _pre_prepare_sig);
+
     _cur_batch_timestamp = block.timestamp;
 
     CycleTimers<C>();
@@ -316,6 +313,33 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
 
     if(ReachedQuorum())
     {
+        bool sig_aggregated = false;
+        if(expected_state == ConsensusState::PRE_PREPARE )
+        {
+            //need my own sig
+            _signatures.push_back({_delegate_id, _pre_prepare_sig});
+            _post_prepare_sig.map.reset();
+            sig_aggregated = _validator.AggregateSignature(_signatures, _post_prepare_sig);
+        }
+        else if (expected_state == ConsensusState::POST_PREPARE )
+        {
+            //need my own sig
+            DelegateSig my_commit_sig;
+            _validator.Sign(_post_prepare_hash, my_commit_sig);
+            _signatures.push_back({_delegate_id, my_commit_sig});
+            _post_commit_sig.map.reset();
+            sig_aggregated = _validator.AggregateSignature(_signatures, _post_commit_sig);
+        }
+
+        if( ! sig_aggregated )
+        {
+            LOG_FATAL(_log) << "PrimaryDelegate - Failed to aggregate signatures"
+                    << " expected_state=" << StateToString(expected_state);
+            //The BLS key storage or the aggregation code has a fatal error, cannot be
+            //used to generate nor verify aggregated signatures. So the local node cannot
+            //be a delegate anymore.
+            trace_and_halt();
+        }
         return true;
     }
 

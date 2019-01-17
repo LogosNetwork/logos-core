@@ -25,7 +25,7 @@ Archiver::Start(InternalConsensus &consensus)
 {
     auto micro_cb = [this, &consensus](){
         EpochTimeUtil util;
-        auto micro_block = std::make_shared<MicroBlock>();
+        auto micro_block = std::make_shared<RequestMessage<ConsensusType::MicroBlock>>();
         bool is_epoch_time = util.IsEpochTime();
         bool last_microblock = !_recall_handler.IsRecall() && is_epoch_time && !_first_epoch;
         if (false == _micro_block_handler.Build(*micro_block, last_microblock))
@@ -44,7 +44,7 @@ Archiver::Start(InternalConsensus &consensus)
 
     auto epoch_cb = [this, &consensus]()->void
     {
-        auto epoch = std::make_shared<Epoch>();
+        auto epoch = std::make_shared<RequestMessage<ConsensusType::Epoch>>();
         if (false == _epoch_handler.Build(*epoch))
         {
             LOG_ERROR(_log) << "Archiver::Start failed to build epoch block";
@@ -65,7 +65,7 @@ void
 Archiver::Test_ProposeMicroBlock(InternalConsensus &consensus, bool last_microblock)
 {
     _event_proposer.ProposeMicroBlockOnce([this, &consensus, last_microblock]()->void {
-        auto micro_block = std::make_shared<MicroBlock>();
+        auto micro_block = std::make_shared<RequestMessage<ConsensusType::MicroBlock>>();
         if (false == _micro_block_handler.Build(*micro_block, last_microblock))
         {
             LOG_ERROR(_log) << "Archiver::Test_ProposeMicroBlock failed to build micro block";
@@ -79,7 +79,7 @@ bool
 Archiver::IsFirstEpoch(BlockStore &store)
 {
     BlockHash hash;
-    Epoch epoch;
+    ApprovedEB epoch;
 
     if (store.epoch_tip_get(hash))
     {

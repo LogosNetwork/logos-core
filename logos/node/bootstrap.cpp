@@ -253,7 +253,7 @@ void logos::frontier_req_client::received_frontier (boost::system::error_code co
             {
                 // We know about an account they don't.
                 logos::transaction transaction (connection->node->store.environment, nullptr, true);
-                unsynced (transaction, info.head, 0);
+//                unsynced (transaction, info.head, 0);
                 next (transaction);
             }
             if (!current.is_zero ())
@@ -261,7 +261,7 @@ void logos::frontier_req_client::received_frontier (boost::system::error_code co
                 if (account == current)
                 {
                     logos::transaction transaction (connection->node->store.environment, nullptr, true);
-                    if (latest == info.head)
+                    if (1)//latest == info.head)
                     {
                         // In sync
                     }
@@ -270,11 +270,11 @@ void logos::frontier_req_client::received_frontier (boost::system::error_code co
                         if (connection->node->store.block_exists (transaction, latest))
                         {
                             // We know about a block they don't.
-                            unsynced (transaction, info.head, latest);
+                            //unsynced (transaction, info.head, latest);
                         }
                         else
                         {
-                            connection->attempt->add_pull (logos::pull_info (account, latest, info.head));
+                            //connection->attempt->add_pull (logos::pull_info (account, latest, info.head));
                             // Either we're behind or there's a fork we differ on
                             // Either way, bulk pushing will probably not be effective
                             bulk_push_cost += 5;
@@ -301,7 +301,7 @@ void logos::frontier_req_client::received_frontier (boost::system::error_code co
                 while (!current.is_zero ())
                 {
                     // We know about an account they don't.
-                    unsynced (transaction, info.head, 0);
+                    //unsynced (transaction, info.head, 0);
                     next (transaction);
                 }
             }
@@ -336,7 +336,7 @@ void logos::frontier_req_client::next (MDB_txn * transaction_a)
     if (iterator != connection->node->store.latest_end ())
     {
         current = logos::account (iterator->first.uint256 ());
-        info = logos::account_info (iterator->second);
+        //info = logos::account_info (iterator->second);
     }
     else
     {
@@ -1541,7 +1541,7 @@ void logos::bulk_pull_server::set_current_end ()
             auto account (connection->node->ledger.account (transaction, request->end));
             if (account == request->start)
             {
-                current = info.head;
+                //current = info.head;
             }
             else
             {
@@ -1550,7 +1550,7 @@ void logos::bulk_pull_server::set_current_end ()
         }
         else
         {
-            current = info.head;
+           // current = info.head;
         }
     }
 }
@@ -1926,9 +1926,11 @@ void logos::bulk_push_server::received_block (boost::system::error_code const & 
 
 logos::frontier_req_server::frontier_req_server (std::shared_ptr<logos::bootstrap_server> const & connection_a, std::unique_ptr<logos::frontier_req> request_a) :
 connection (connection_a),
-current (request_a->start.number () - 1),
-info (0, 0, 0, 0, 0, 0, 0, 0),
-request (std::move (request_a))
+current (request_a->start.number () - 1)
+//,
+//info (0, 0, 0, 0, 0, 0, 0, 0)
+//,
+//request (std::move (request_a))
 {
     next ();
     skip_old ();
@@ -1954,7 +1956,7 @@ void logos::frontier_req_server::send_next ()
             send_buffer.clear ();
             logos::vectorstream stream (send_buffer);
             write (stream, current.bytes);
-            write (stream, info.head.bytes);
+            //write (stream, info.head.bytes);
         }
         auto this_l (shared_from_this ());
         if (connection->node->config.logging.bulk_pull_logging ())
@@ -2028,7 +2030,7 @@ void logos::frontier_req_server::next ()
     if (iterator != connection->node->store.latest_end ())
     {
         current = logos::uint256_union (iterator->first.uint256 ());
-        info = logos::account_info (iterator->second);
+        //info = logos::account_info (iterator->second);
     }
     else
     {

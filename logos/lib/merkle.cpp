@@ -6,9 +6,9 @@
 #include <blake2/blake2.h>
 
 namespace merkle {
-    logos::block_hash
+    BlockHash
     Hash(HashDataProviderCb data_provider) {
-      logos::block_hash result;
+      BlockHash result;
       blake2b_state hash_l;
 
       // initialize blake2b
@@ -26,25 +26,25 @@ namespace merkle {
       data_provider(hash_updater);
 
       // finalize the hash
-      status = blake2b_final(&hash_l, result.bytes.data(), sizeof result);
+      status = blake2b_final(&hash_l, result.data(), sizeof result);
       assert (status == 0);
 
       return result;
     }
 
-    logos::block_hash
-    Hash(const logos::block_hash &h1, const logos::block_hash &h2) {
+    BlockHash
+    Hash(const BlockHash &h1, const BlockHash &h2) {
       return Hash([&](HashUpdaterCb hash_updater)mutable -> void {
-          hash_updater(h1.bytes.data(), sizeof(h1));
-          hash_updater(h2.bytes.data(), sizeof(h2));
+          hash_updater(h1.data(), sizeof(h1));
+          hash_updater(h2.data(), sizeof(h2));
       });
     }
 
-    logos::block_hash
+    BlockHash
     MerkleRoot(
-        vector<logos::block_hash> &merkle) {
+        vector<BlockHash> &merkle) {
       if (merkle.size() == 0) {
-        return 0;
+        return BlockHash();
       }
       while (merkle.size() > 1) {
         if (merkle.size() % 2) // make the number of nodes even
@@ -56,14 +56,14 @@ namespace merkle {
       return merkle[0];
     }
 
-    logos::block_hash
+    BlockHash
     MerkleHelper(
         HashIteratorProviderCb iterator_provider) {
-      vector<logos::block_hash> merkle;
-      logos::block_hash previous_hash(0);
+      vector<BlockHash> merkle;
+      BlockHash previous_hash;
       int cnt = 0;
 
-      iterator_provider([&](const logos::block_hash &hash)mutable -> void {
+      iterator_provider([&](const BlockHash &hash)mutable -> void {
           ++cnt;
           if (cnt % 2 == 0) {
             merkle.push_back(Hash(previous_hash, hash));

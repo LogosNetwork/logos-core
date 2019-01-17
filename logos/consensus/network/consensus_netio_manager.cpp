@@ -217,7 +217,10 @@ ConsensusNetIOManager::OnTimeout(
                 } else if (diff > MESSAGE_AGE) {
                     LOG_DEBUG(_log) << "ConsensusNetIOManager::OnTimeout, sending heartbeat to "
                                     << (int) it->GetRemoteDelegateId();
-                    it->Send(&heartbeat, sizeof(heartbeat));
+
+                    std::vector<uint8_t> buf;
+                    heartbeat.Serialize(buf);
+                    it->Send(buf.data(), buf.size());
                 }
             }
         }

@@ -5,7 +5,8 @@
 #pragma once
 
 #include <blake2/blake2.h>
-#include <logos/lib/numbers.hpp>
+//#include <logos/lib/numbers.hpp>
+#include <logos/consensus/messages/common.hpp>
 #include <functional>
 #include <vector>
 using namespace std;
@@ -14,7 +15,7 @@ namespace merkle {
 
     using HashUpdaterCb             = function<void(const void *, size_t)>;
     using HashDataProviderCb        = function<void(HashUpdaterCb)>;
-    using HashReceiverCb            = function<void(const logos::block_hash&)>;
+    using HashReceiverCb            = function<void(const BlockHash&)>;
     using HashIteratorProviderCb    = function<void(HashReceiverCb)>;
 
     /// Calculate blake2 hash.
@@ -24,19 +25,19 @@ namespace merkle {
     /// returns, Hash function finalizes calculation of the hash.
     /// @param data_provider is a function that takes HashUpdaterCb
     /// @returns the hash
-    logos::block_hash Hash(HashDataProviderCb data_provider);
+    BlockHash Hash(HashDataProviderCb data_provider);
 
     /// Blake2 hash, calculates the hash of two hashes
     /// @param h1 hash
     /// @param h2 hash
     /// @returns the hash
-    logos::block_hash Hash(const logos::block_hash &h1, const logos::block_hash &h2);
+    BlockHash Hash(const BlockHash &h1, const BlockHash &h2);
 
     /// MerkleRoot calculation
     /// @param merkle [in,out] is the vector of leaf nodes or any level of parent nodes,
     ///    overwritten on return
     /// @returns Merkle tree root
-    logos::block_hash MerkleRoot(vector<logos::block_hash> &merkle);
+    BlockHash MerkleRoot(vector<BlockHash> &merkle);
 
     /// Merkle Root calculation helper function. The caller has to pass in HashIteratorProviderCb.
     /// The helper passes ElementReceiverCb to the HashIteratorProviderCb.
@@ -45,6 +46,6 @@ namespace merkle {
     /// merkle tree nodes. Once iteration completes, the helper calculates the rest of the tree and the tree's root.
     /// @param iterator_provider is a function that takes ElementReceiverCb as an argument
     /// @returns Merkle tree root
-    logos::block_hash
+    BlockHash
     MerkleHelper(HashIteratorProviderCb iterator_provider);
 }

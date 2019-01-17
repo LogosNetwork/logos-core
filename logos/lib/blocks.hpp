@@ -22,18 +22,23 @@ bool read (logos::stream & stream_a, T & value)
     return amount_read != sizeof (value);
 }
 template <typename T>
-void write (logos::stream & stream_a, T const & value)
+uint32_t write (logos::stream & stream_a, T const & value)
 {
     static_assert (std::is_pod<T>::value, "Can't stream write non-standard layout types");
     auto amount_written (stream_a.sputn (reinterpret_cast<uint8_t const *> (&value), sizeof (value)));
     assert (amount_written == sizeof (value));
+    return amount_written;
 }
-template <typename T>
-void write (logos::stream & stream_a, T * value, size_t size) // RGDSERVER
-{
-    auto amount_written (stream_a.sputn (reinterpret_cast<uint8_t const *> (value), size)); // Raw binary write.
-    assert (amount_written == size);
-}
+
+bool read (logos::stream & stream_a, uint128_union & value);
+uint32_t write (logos::stream & stream_a, uint128_union const & value);
+bool read (logos::stream & stream_a, uint256_union & value);
+uint32_t write (logos::stream & stream_a, uint256_union const & value);
+bool read (logos::stream & stream_a, uint512_union & value);
+uint32_t write (logos::stream & stream_a, uint512_union const & value);
+bool read (logos::stream & stream_a, std::vector<bool> & value);
+uint32_t write (logos::stream & stream_a, const std::vector<bool> & value);
+
 class block_visitor;
 enum class block_type : uint8_t
 {
