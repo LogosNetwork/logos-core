@@ -30,6 +30,90 @@ uint32_t write (logos::stream & stream_a, T const & value)
     return amount_written;
 }
 
+template<typename T = uint8_t>
+bool read (logos::stream & stream_a, std::string & value)
+{
+    static_assert(std::is_integral<T>::value,
+                  "Integral type required.");
+
+    T len;
+    if(read(stream_a, len))
+    {
+        return true;
+    }
+
+    value.reserve(len);
+    size_t pos = 0;
+
+    while(pos++ != len)
+    {
+        if((value[pos] = stream_a.sbumpc()) == stream::traits_type::eof())
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+template<typename T = uint8_t>
+uint32_t write (logos::stream & stream_a, const std::string & value)
+{
+    static_assert(std::is_integral<T>::value,
+                  "Integral type required.");
+
+    T len = value.size();
+
+    uint32_t written;
+    if((written = write(stream_a, len)) != sizeof(T))
+    {
+        return written;
+    }
+
+    size_t pos = 0;
+
+    while(pos++ < value.size())
+    {
+        if(stream_a.sputc(value[pos]) == stream::traits_type::eof())
+        {
+            return pos - 1 + sizeof(T);
+        }
+    }
+
+    return value.size();
+}
+
+template<size_t N>
+bool read (logos::stream & stream_a, std::bitset<N> & value)
+{
+    uint64_t val;
+    if(read(stream_a, val))
+    {
+        return true;
+    }
+
+    value = std::bitset<N>(val);
+
+    return false;
+}
+
+template<size_t N>
+uint32_t write (logos::stream & stream_a, const std::bitset<N> & value)
+{
+    uint64_t val;
+
+    try
+    {
+        val = value.to_ullong();
+    }
+    catch(...)
+    {
+        return 0;
+    }
+
+    return write(stream_a, val);
+}
+
 bool read (logos::stream & stream_a, uint128_union & value);
 uint32_t write (logos::stream & stream_a, uint128_union const & value);
 bool read (logos::stream & stream_a, uint256_union & value);
@@ -38,6 +122,18 @@ bool read (logos::stream & stream_a, uint512_union & value);
 uint32_t write (logos::stream & stream_a, uint512_union const & value);
 bool read (logos::stream & stream_a, std::vector<bool> & value);
 uint32_t write (logos::stream & stream_a, const std::vector<bool> & value);
+
+inline bool read (logos::stream & stream_a, void * data, size_t size)
+{
+    auto amount_read (stream_a.sgetn (reinterpret_cast<uint8_t *>(data), size));
+    return amount_read != size;
+}
+inline uint32_t write (logos::stream & stream_a, void * data, size_t size)
+{
+    auto amount_written (stream_a.sputn (reinterpret_cast<uint8_t const *> (data), size));
+    assert (amount_written == size);
+    return amount_written;
+}
 
 class block_visitor;
 enum class block_type : uint8_t

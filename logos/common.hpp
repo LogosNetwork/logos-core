@@ -308,13 +308,30 @@ enum class RequestType : uint8_t
 
 struct Request
 {
+    Request(bool & error,
+            std::basic_streambuf<uint8_t> & stream);
+
     virtual ~Request() {}
 
     virtual block_hash Hash() const;
     virtual void Hash(blake2b_state & hash) const = 0;
 
+    virtual uint16_t WireSize() const;
+
+    template<typename T>
+    uint16_t VectorWireSize(const std::vector<T> & v) const
+    {
+        // The size of the vector's
+        // elements plus the size
+        // of the field denoting
+        // the number of elements.
+        //
+        return (sizeof(T) * v.size()) + sizeof(uint8_t);
+    }
+
+    uint8_t StringWireSize(const std::string & s) const;
+
     RequestType type;
-    std::string token_id;
     block_hash  previous;
     block_hash  next;
 };
