@@ -15,7 +15,7 @@ public:
     using PersistenceManager<BSBCT>::Validate;
 
     NonDelPersistenceManager(Store &store,
-                             Milliseconds clock_drift = 0)
+                             Milliseconds clock_drift = ZERO_CLOCK_DRIFT)
         : PersistenceManager<BSBCT>(store, nullptr, clock_drift)
         , NoneDelegatePersistence<BSBCT>(store)
     {}
@@ -27,22 +27,22 @@ public:
         ApprovedBSB previous;
         if (message.previous != 0 && _store.batch_block_get(message.previous, previous))
         {
-            UpdateStatusReason(status, process_result::gap_previous);
+            UpdateStatusReason(status, logos::process_result::gap_previous);
             return false;
         }
 
-        if(_clock_drift > 0)
+        if(_clock_drift > ZERO_CLOCK_DRIFT)
         {
             if (!ValidateTimestamp(message.timestamp))
             {
-                UpdateStatusReason(status, process_result::clock_drift);
+                UpdateStatusReason(status, logos::process_result::clock_drift);
                 return false;
             }
         }
 
         if (message.previous != 0 && message.sequence != (previous.sequence + 1))
         {
-            UpdateStatusReason(status, process_result::wrong_sequence_number);
+            UpdateStatusReason(status, logos::process_result::wrong_sequence_number);
             return false;
         }
 
