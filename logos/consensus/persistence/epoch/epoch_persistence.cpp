@@ -107,8 +107,8 @@ PersistenceManager<ECT>::ApplyUpdates(
 }
 
 bool PersistenceManager<ECT>::BlockExists(
-    const PrePrepare & message)
+    const ApprovedEB & message)
 {
-    Epoch block;
+    ApprovedEB block;
     return _store.consensus_block_get(message.Hash(), block);
 }

@@ -22,7 +22,7 @@ public:
 
     bool ValidatePreprepare(const PrePrepare & pre_prepare, ValidationStatus * status)
     {
-        if(_clock_drift > ZERO_CLOCK_DRIFT)
+        if(_clock_drift > Milliseconds(0))
         {
             if (!ValidateTimestamp(pre_prepare.timestamp))
             {

@@ -49,8 +49,6 @@ void BackupDelegate<CT>::OnConsensusMessage(const PrePrepare & message)
         PrepareMessage<CT> msg(_pre_prepare_hash);
         _validator.Sign(_pre_prepare_hash, msg.signature);
         SendMessage<PrepareMessage<CT>>(msg);
-
-       _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), GetPayloadSize(), MessageType::Pre_Prepare);
     }
     else
     {
@@ -74,8 +72,6 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostPrepare & message)
         _validator.Sign(_post_prepare_hash, msg.signature);
         SendMessage<CommitMessage<CT>>(msg);
         LOG_DEBUG(_log) << __func__ << "<" << ConsensusToName(CT) << "> sent commit";
-
-        _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(MessageType::Post_Prepare), MessageType::Post_Prepare);
     }
 }
 
@@ -96,7 +92,9 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 
         _events_notifier.OnPostCommit(_pre_prepare->epoch_number);
 
-        _consensus_p2p.ProcessOutputMessage(_receive_buffer.data(), MessageTypeToSize<CT>(MessageType::Post_Commit), MessageType::Post_Commit);
+        std::vector<uint8_t> buf;
+        block.Serialize(buf, true, true);
+        _consensus_p2p.ProcessOutputMessage(buf.data(), buf.size(), MessageType::Post_Committed_Block);
     }
 }
 

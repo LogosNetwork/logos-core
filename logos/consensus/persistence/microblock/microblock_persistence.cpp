@@ -89,18 +89,18 @@ PersistenceManager<MBCT>::Validate(
 
     // verify can get the batch block tips
     bool valid = true;
-    BatchStateBlock bsb;
+    ApprovedBSB bsb;
     for (int del = 0; del < NUM_DELEGATES; ++del)
     {
-	if (block.tips[del] != 0 && _store.batch_block_get(block.tips[del], bsb))
-	{
-	    LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
-			    << block.hash().to_string() << " "
-			    << block.tips[del].to_string();
-	    UpdateStatusReason(status, process_result::gap_previous);
-	    UpdateStatusRequests(status, del, process_result::invalid_request);
-	    valid = false;
-	}
+        if (! block.tips[del].is_zero() && _store.batch_block_get(block.tips[del], bsb))
+        {
+            LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
+                            << block.Hash().to_string() << " "
+                            << block.tips[del].to_string();
+            UpdateStatusReason(status, process_result::invalid_request);
+            UpdateStatusRequests(status, del, process_result::gap_previous);
+            valid = false;
+        }
     }
 
     /// verify can iterate the chain and the number of blocks checks out
@@ -116,22 +116,6 @@ PersistenceManager<MBCT>::Validate(
                         << " block " << block.number_batch_blocks << " to database: " << number_batch_blocks;
         UpdateStatusReason(status, process_result::invalid_number_blocks);
         return false;
-    }
-
-    // verify can get the batch block tips
-    bool valid = true;
-    ApprovedBSB bsb;
-    for (int del = 0; del < NUM_DELEGATES; ++del)
-    {
-        if (! block.tips[del].is_zero() && _store.batch_block_get(block.tips[del], bsb))
-        {
-            LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
-                            << block.Hash().to_string() << " "
-                            << block.tips[del].to_string();
-            UpdateStatusReason(status, process_result::gap_previous);
-            UpdateStatusRequests(status, del, process_result::gap_previous);
-            valid = false;
-        }
     }
 
     return valid;
@@ -163,8 +147,8 @@ PersistenceManager<MBCT>::ApplyUpdates(
 }
 
 bool PersistenceManager<MBCT>::BlockExists(
-    const PrePrepare & message)
+    const ApprovedMB & message)
 {
-    MicroBlock block;
+    ApprovedMB block;
     return _store.consensus_block_get(message.Hash(), block);
 }
