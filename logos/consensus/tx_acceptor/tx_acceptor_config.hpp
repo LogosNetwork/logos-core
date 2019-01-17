@@ -29,13 +29,13 @@ struct TxAcceptorConfig
                 });
             }
 
-            json_port = tree.get<uint16_t>("json_port");
-            bin_port = tree.get<uint16_t>("bin_port");
-
         } catch (std::logic_error const &)
-        { return false; }
+        {}
 
-        return true;
+        json_port = tree.get<uint16_t>("json_port");
+        bin_port = tree.get<uint16_t>("bin_port");
+
+        return false;
     }
 
     bool SerializeJson(boost::property_tree::ptree & tree) const
@@ -56,6 +56,8 @@ struct TxAcceptorConfig
         tree.add_child("tx_acceptors", tx_acceptors_tree);
         tree.put("json_port", std::to_string(json_port));
         tree.put("bin_port", std::to_string(bin_port));
+
+        return false;
     }
 
     std::vector<Acceptor> tx_acceptors;
