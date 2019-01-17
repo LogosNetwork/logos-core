@@ -8,7 +8,7 @@
 #include <logos/epoch/archiver.hpp>
 #include <logos/epoch/recall_handler.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
-#include <logos/consensus/consensus_container.hpp>
+#include <logos/consensus/tx_acceptor/tx_acceptor_config.hpp>
 
 #include <condition_variable>
 #include <memory>
@@ -36,6 +36,10 @@ namespace program_options
     class variables_map;
 }
 }
+
+class ConsensusContainer;
+class TxAcceptor;
+class TxReceiver;
 
 namespace logos
 {
@@ -389,6 +393,7 @@ public:
     logos::block_hash state_block_parse_canary;
     logos::block_hash state_block_generate_canary;
     ConsensusManagerConfig consensus_manager_config;
+    TxAcceptorConfig tx_acceptor_config;
     static std::chrono::seconds constexpr keepalive_period = std::chrono::seconds (60);
     static std::chrono::seconds constexpr keepalive_cutoff = keepalive_period * 5;
     static std::chrono::minutes constexpr wallet_backup_interval = std::chrono::minutes (5);
@@ -507,7 +512,9 @@ public:
     RecallHandler _recall_handler;
     DelegateIdentityManager _identity_manager;
     Archiver _archiver;
-    ConsensusContainer _consensus_container;
+    std::shared_ptr<ConsensusContainer> _consensus_container;
+    std::shared_ptr<TxAcceptor> _tx_acceptor;
+    std::shared_ptr<TxReceiver> _tx_receiver;
     static double constexpr price_max = 16.0;
     static double constexpr free_cutoff = 1024.0;
     static std::chrono::seconds constexpr period = std::chrono::seconds (60);

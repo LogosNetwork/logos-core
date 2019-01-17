@@ -8,9 +8,10 @@
 #include <logos/consensus/network/consensus_netio_manager.hpp>
 #include <logos/consensus/network/epoch_peer_manager.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
+#include <logos/consensus/tx_acceptor/tx_channel.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/epoch/epoch_transition.hpp>
 
 #include <queue>
@@ -77,7 +78,8 @@ public:
 /// and other consensus-related types and provides an interface
 /// to the node object.
 class ConsensusContainer : public InternalConsensus,
-                           public NewEpochEventHandler
+                           public NewEpochEventHandler,
+                           public TxChannel
 {
     friend class DelegateIdentityManager;
 
@@ -124,7 +126,7 @@ public:
     ///                              cause the block to be buffered
     ///     @return process_return result of the operation
     logos::process_return OnSendRequest(std::shared_ptr<StateBlock> block,
-                                        bool should_buffer);
+                                        bool should_buffer) override;
 
     /// Called when buffering is done for batch block consensus.
     ///

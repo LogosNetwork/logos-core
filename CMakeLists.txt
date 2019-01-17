@@ -323,6 +323,7 @@ add_library (node
 	logos/consensus/backup_delegate.cpp
 	logos/consensus/consensus_container.cpp
 	logos/consensus/consensus_manager.cpp
+	logos/consensus/delegate_key_store.cpp
 	logos/consensus/epoch_manager.cpp
 	logos/consensus/epoch/epoch_backup_delegate.cpp
 	logos/consensus/epoch/epoch_consensus_manager.cpp
@@ -341,7 +342,8 @@ add_library (node
 	logos/consensus/persistence/epoch/epoch_persistence.cpp
 	logos/consensus/persistence/microblock/microblock_persistence.cpp
 	logos/consensus/primary_delegate.cpp
-	logos/consensus/delegate_key_store.cpp
+	logos/consensus/tx_acceptor/tx_acceptor.cpp
+	logos/consensus/tx_acceptor/tx_receiver.cpp
 	logos/epoch/archiver.cpp
 	logos/epoch/epoch.cpp
 	logos/epoch/epoch_handler.cpp
