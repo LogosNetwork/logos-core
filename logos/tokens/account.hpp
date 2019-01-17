@@ -26,7 +26,7 @@ private:
     bool IsMutabilitySetting(TokenSetting setting) const;
     TokenSetting GetMutabilitySetting(TokenSetting setting) const;
 
-    mutable Log       _log;
-    logos::block_hash _head;
-    Settings          _settings;
+    mutable Log _log;
+    BlockHash   _head;
+    Settings    _settings;
 };
