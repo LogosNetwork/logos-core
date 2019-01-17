@@ -13,19 +13,20 @@ BlockHash Micro::getMicroBlockTip(Store& s)
 uint64_t  Micro::getMicroBlockSeqNr(Store& s)
 {
     BlockHash hash = Micro::getMicroBlockTip(s);
-    std::shared_ptr<MicroBlock> tip = Micro::readMicroBlock(s,hash);
+    std::shared_ptr<ApprovedMB> tip = Micro::readMicroBlock(s,hash);
     return tip->sequence;
 }
 
-BlockHash Micro::getNextMicroBlock(Store &store, MicroBlock &b)
+BlockHash Micro::getNextMicroBlock(Store &store, ApprovedMB &b)
 {
     BlockHash h;
+    //TODO fix this
     return h;
 }
 
 BlockHash Micro::getNextMicroBlock(Store &store, BlockHash &hash)
 {
-    MicroBlock micro;
+	ApprovedMB micro;
     if(hash.is_zero()) {
         return hash;
     }
@@ -35,7 +36,7 @@ BlockHash Micro::getNextMicroBlock(Store &store, BlockHash &hash)
 
 BlockHash Micro::getPrevMicroBlock(Store &store, BlockHash &hash)
 {
-    MicroBlock micro;
+	ApprovedMB micro;
     if(hash.is_zero()) {
         return hash;
     }
@@ -43,9 +44,9 @@ BlockHash Micro::getPrevMicroBlock(Store &store, BlockHash &hash)
     return micro.previous;
 }
 
-std::shared_ptr<MicroBlock> Micro::readMicroBlock(Store &store, BlockHash &hash)
+std::shared_ptr<ApprovedMB> Micro::readMicroBlock(Store &store, BlockHash &hash)
 {
-    std::shared_ptr<MicroBlock> micro(new MicroBlock);
+    std::shared_ptr<ApprovedMB> micro(new ApprovedMB);
     if(!store.micro_block_get(hash,*micro)) {
         return micro;
     }
@@ -55,7 +56,7 @@ std::shared_ptr<MicroBlock> Micro::readMicroBlock(Store &store, BlockHash &hash)
 void Micro::dumpMicroBlockTips(Store &store, BlockHash &hash)
 {
 #ifdef _DEBUG
-    std::shared_ptr<MicroBlock> micro = Micro::readMicroBlock(store,hash);
+    std::shared_ptr<ApprovedMB> micro = Micro::readMicroBlock(store,hash);
     for(int i = 0; i < NUMBER_DELEGATES; ++i) {
         std::cout << "Micro::dumpMicroBlockTips: " << micro->tips[i].to_string() << std::endl;
     }

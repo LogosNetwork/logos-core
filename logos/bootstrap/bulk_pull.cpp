@@ -508,7 +508,7 @@ void logos::bulk_pull_server::send_next ()
     {
         if(!current_epoch.is_zero()) { 
             LOG_DEBUG(connection->node->log) << "logos::bulk_pull_server::send_next: epoch_block" << std::endl;
-            std::shared_ptr<Epoch> e = EpochBlock::readEpochBlock(connection->node->store, current_epoch);
+            std::shared_ptr<ApprovedEB> e = EpochBlock::readEpochBlock(connection->node->store, current_epoch);
             BatchBlock::bulk_pull_response_epoch resp;
             resp.delegate_id = request->delegate_id; // m->delegateNumber;
             LOG_DEBUG(connection->node->log) << "addr: " << (uint64_t)&resp.epoch << " src: " << (uint64_t)e.get() << " size: " << sizeof(Epoch) << std::endl;
@@ -544,7 +544,7 @@ void logos::bulk_pull_server::send_next ()
             });
         } else if(!current_micro.is_zero()) {
             LOG_DEBUG(connection->node->log) << "logos::bulk_pull_server::send_next: micro_block" << std::endl;
-            std::shared_ptr<MicroBlock> m = Micro::readMicroBlock(connection->node->store, current_micro);
+            std::shared_ptr<ApprovedMB> m = Micro::readMicroBlock(connection->node->store, current_micro);
             BatchBlock::bulk_pull_response_micro resp;
             resp.delegate_id = request->delegate_id; // m->delegateNumber;
             if(m == nullptr) {
@@ -552,7 +552,7 @@ void logos::bulk_pull_server::send_next ()
                 send_next();
                 return;
             }
-            memcpy(&resp.micro,m.get(),sizeof(MicroBlock));
+            memcpy(&resp.micro,m.get(),sizeof(ApprovedMB));
             if(current_micro == request->m_end) {
                 current_micro = zero;
             } else {
@@ -594,7 +594,7 @@ void logos::bulk_pull_server::send_next ()
            {
                 LOG_DEBUG(connection->node->log) << "logos::bulk_pull_server:: total_count: " << total_count << " delegate_id: " << request->delegate_id << std::endl; 
                 LOG_DEBUG(connection->node->log) << "logos::bulk_pull_server:: count: " << iter_count << " delegate_id: " << request->delegate_id << std::endl; 
-                std::shared_ptr<BatchStateBlock> b = BatchBlock::readBatchStateBlock(connection->node->store, current_bsb);
+                std::shared_ptr<ApprovedBSB> b = BatchBlock::readBatchStateBlock(connection->node->store, current_bsb);
                 BatchBlock::bulk_pull_response resp;
                 resp.delegate_id = request->delegate_id;
                 if(b == nullptr) {
@@ -602,7 +602,7 @@ void logos::bulk_pull_server::send_next ()
                     send_next();
                     return;
                 }
-                memcpy(&resp.block,b.get(),sizeof(BatchStateBlock));
+                memcpy(&resp.block,b.get(),sizeof(ApprovedBSB));
                 std::cout << " current_bsb: " << current_bsb.to_string() << " << b->Hash().to_string() " << b->Hash().to_string()  << " message_count: " << b->block_count << " delegate_id: " << request->delegate_id << std::endl;
                 LOG_DEBUG(connection->node->log) << " current_bsb: " << current_bsb.to_string() << " << b->Hash().to_string() " << b->Hash().to_string()  << " message_count: " << b->block_count << " delegate_id: " << request->delegate_id << std::endl;
                 LOG_DEBUG(connection->node->log) << " is_non_zero: current_bsb: " << current_bsb.to_string() <<  " delegate_id: " << request->delegate_id << " request.b_end: " << request->b_end.to_string() << std::endl;

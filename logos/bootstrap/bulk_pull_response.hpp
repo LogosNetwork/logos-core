@@ -21,7 +21,7 @@ struct bulk_pull_response {
     int  delegate_id;
     int  retry_count; // Number of times we tried to validate this block.
     int  peer;        // ID of peer who sent us this block.
-    BatchStateBlock block;
+    ApprovedBSB block;
 
     /// Serialize write out the bulk_pull_response into a vector<uint8_t>
     /// @param stream
@@ -35,7 +35,7 @@ struct bulk_pull_response {
         logos::write(stream, delegate_id);
         logos::write(stream, retry_count);
         logos::write(stream, peer);
-        block.Serialize(stream);
+        block.Serialize(stream, true, true);
     }
 
     /// DeSerialize write out a stream into a bulk_pull_response object
@@ -80,7 +80,13 @@ struct bulk_pull_response {
         if(error) {
             return error;
         }
-        resp.block = BatchStateBlock(error, stream);
+
+        MessagePrequel<MessageType::Post_Committed_Block, ConsensusType::BatchStateBlock> prequel(error, stream);
+        if(error)
+            return error;
+        new (&resp.block) ApprovedBSB(error, stream, prequel.version, true, true);
+
+        //resp.block = ApprovedBSB(error, stream, );
         return error; // false == success
     }
 };
@@ -90,7 +96,7 @@ struct bulk_pull_response_micro {
     char pad[3]={0}; // NOTE 
     const int process_code = BULK_PULL_RESPONSE;
     int delegate_id;
-    MicroBlock micro;
+    ApprovedMB micro;
 };
 
 struct bulk_pull_response_epoch {
@@ -98,23 +104,23 @@ struct bulk_pull_response_epoch {
     char pad[3]={0}; // NOTE 
     const int process_code = BULK_PULL_RESPONSE;
     int delegate_id;
-    Epoch epoch;
+    ApprovedEB epoch;
 };
 
 constexpr int bulk_pull_response_mesg_len = (sizeof(bulk_pull_response) + sizeof(bulk_pull_response_micro) + sizeof(bulk_pull_response_epoch));
 
 /// Validate wrapper to call BSB Validation methods for a BSB block
 /// @param store BlockStore
-/// @param message BatchStateBlock
+/// @param message ApprovedBSB
 /// @param delegate_id
 /// @returns boolean (true if validation succeeded)
-bool Validate(Store & store, const BatchStateBlock & message, int delegate_id);
+bool Validate(Store & store, const ApprovedBSB & message, int delegate_id);
 
 /// ApplyUpdates wrapper to write into the database after successful validation
 /// @param store BlockStore
-/// @param message BatchStateBlock
+/// @param message ApprovedBSB
 /// @param delegate_id
-void ApplyUpdates(Store & store, const BatchStateBlock & message, uint8_t delegate_id);
+void ApplyUpdates(Store & store, const ApprovedBSB & message, uint8_t delegate_id);
 
 /// getNextBatchStateBlock return the next BSB block in the chain given current block
 /// @param store BlockStore
@@ -126,8 +132,8 @@ BlockHash getNextBatchStateBlock(Store &store, int delegate, BlockHash &h);
 /// readBatchStateBlock get the data associated with the BlockHash
 /// @param store BlockStore
 /// @param h hash of the block we are to read
-/// @returns shared pointer of BatchStateBlock
-std::shared_ptr<BatchStateBlock> readBatchStateBlock(Store &store, BlockHash &h);
+/// @returns shared pointer of ApprovedBSB
+std::shared_ptr<ApprovedBSB> readBatchStateBlock(Store &store, BlockHash &h);
 
 /// getPrevBatchStateBlock return the previous BSB block in the chain given current block
 /// @param store BlockStore

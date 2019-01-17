@@ -1768,7 +1768,7 @@ void logos::node::start ()
     network.receive (); // Needed to get unit test going...
     ongoing_keepalive ();
     ongoing_bootstrap ();
-    ongoing_store_flush ();
+    //ongoing_store_flush ();
     //ongoing_rep_crawl ();
     bootstrap.start ();
     backup_wallet ();

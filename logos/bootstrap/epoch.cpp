@@ -12,13 +12,13 @@ BlockHash EpochBlock::getEpochBlockTip(Store& s)
 uint64_t  EpochBlock::getEpochBlockSeqNr(Store& s)
 {
     BlockHash hash = EpochBlock::getEpochBlockTip(s);
-    std::shared_ptr<Epoch> tip = EpochBlock::readEpochBlock(s,hash);
+    std::shared_ptr<ApprovedEB> tip = EpochBlock::readEpochBlock(s,hash);
     return tip->epoch_number;
 }
 
 BlockHash EpochBlock::getNextEpochBlock(Store &store, BlockHash &hash)
 {
-    Epoch epoch;
+	ApprovedEB epoch;
     if(hash.is_zero()) {
         return hash;
     }
@@ -28,7 +28,7 @@ BlockHash EpochBlock::getNextEpochBlock(Store &store, BlockHash &hash)
 
 BlockHash EpochBlock::getPrevEpochBlock(Store &store, BlockHash &hash)
 {
-    Epoch epoch;
+	ApprovedEB epoch;
     if(hash.is_zero()) {
         return hash;
     }
@@ -36,9 +36,9 @@ BlockHash EpochBlock::getPrevEpochBlock(Store &store, BlockHash &hash)
     return epoch.previous;
 }
 
-std::shared_ptr<Epoch> EpochBlock::readEpochBlock(Store &store, BlockHash &hash)
+std::shared_ptr<ApprovedEB> EpochBlock::readEpochBlock(Store &store, BlockHash &hash)
 {
-    std::shared_ptr<Epoch> epoch(new Epoch);
+    std::shared_ptr<ApprovedEB> epoch(new ApprovedEB);
     if(!store.epoch_get(hash,*epoch)) {
         return epoch;
     }

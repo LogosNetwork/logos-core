@@ -122,7 +122,7 @@ bool PersistenceManager<BSBCT>::Validate(
             else
             {
                 result.code = logos::process_result::fork;
-                LOG_DEBUG(_log) << "block.hashables.previous: " << block.hashables.previous.to_string() 
+                LOG_DEBUG(_log) << "block.hashables.previous: " << block.previous.to_string()
                                 << " info.head: " << info.head.to_string() 
                                 << " hash: " << hash.to_string() << std::endl;
                 return false;

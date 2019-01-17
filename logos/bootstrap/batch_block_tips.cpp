@@ -18,7 +18,7 @@ uint64_t  BatchBlock::getBatchBlockSeqNr(Store& store, int delegate)
 {
     // The below code will dump core in bsb dtor.
     // Also, the sequence number is not correct. Need real world database to test.
-    BatchStateBlock batch;
+    ApprovedBSB batch;
     BlockHash hash = BatchBlock::getBatchBlockTip(store,delegate);
     if(hash.is_zero()) {
         return BatchBlock::NOT_FOUND;

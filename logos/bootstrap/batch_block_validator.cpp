@@ -1,6 +1,7 @@
 #include <logos/bootstrap/batch_block_validator.hpp>
 #include <logos/bootstrap/p2p.hpp>
-#include <logos/consensus/persistence/persistence_manager.hpp>
+#include <logos/consensus/persistence/epoch/nondel_epoch_persistence.hpp>
+#include <logos/consensus/persistence/microblock/nondel_microblock_persistence.hpp>
 #include <set>
 
 // CTOR
@@ -10,8 +11,8 @@ BatchBlock::validator::validator(logos::node *n)
       nextEpoch(0)
 {
     // Allocate our epoch/micro validators...
-    epoch_handler = make_shared<PersistenceManager<ECT> >(PersistenceManager<ECT>(node->store,nullptr));
-    micro_handler = make_shared<PersistenceManager<MBCT> >(PersistenceManager<MBCT>(node->store,nullptr));
+    epoch_handler = make_shared<NonDelPersistenceManager<ECT> >(NonDelPersistenceManager<ECT>(node->store));
+    micro_handler = make_shared<NonDelPersistenceManager<MBCT> >(NonDelPersistenceManager<MBCT>(node->store));
 
 #ifdef _TIMEOUT_BOOTSTRAP
     std::thread timeout_thr(BatchBlock::validator::timeout_s, this);
@@ -126,7 +127,7 @@ void BatchBlock::validator::add_micro_block(std::shared_ptr<logos::bootstrap_att
     }
 
 //#if 0
-    if(prior_micro && (m->micro.hash() == prior_micro->micro.hash())) {
+    if(prior_micro && (m->micro.Hash() == prior_micro->micro.Hash())) {
         std::cout << "already seen this micro" << std::endl;
         return;
     }
@@ -179,7 +180,7 @@ void BatchBlock::validator::add_micro_block(std::shared_ptr<logos::bootstrap_att
 
     // Check if we are at the last micro block, and get remaining bsb...
     if(tips.size() >= 1) {
-        if(m->micro.hash() == tips[0]->micro_block_tip) {
+        if(m->micro.Hash() == tips[0]->micro_block_tip) {
             for(int i = 0; i < NUMBER_DELEGATES; ++i) {
                 BlockHash bsb_tip   = BatchBlock::getBatchBlockTip(node->store, i);
                 uint32_t  bsb_seq   = BatchBlock::getBatchBlockSeqNr(node->store, i);
@@ -220,14 +221,14 @@ void BatchBlock::validator::add_epoch_block(std::shared_ptr<logos::bootstrap_att
         }
     }
 
-    if(prior_epoch && (e->epoch.hash() == prior_epoch->epoch.hash())) {
+    if(prior_epoch && (e->epoch.Hash() == prior_epoch->epoch.Hash())) {
         std::cout << "already seen this epoch" << std::endl;
         return;
     }
 
     epoch.push_back(e);
 
-    if(prior_epoch && prior_epoch->epoch.hash() == e->epoch.hash()) {
+    if(prior_epoch && prior_epoch->epoch.Hash() == e->epoch.Hash()) {
         prior_epoch = nullptr; // Avoid self reference.
     }
 
@@ -241,7 +242,7 @@ void BatchBlock::validator::add_epoch_block(std::shared_ptr<logos::bootstrap_att
     }
 
     // Check if we are in-sync
-    std::shared_ptr<MicroBlock> isMicroPresent =  Micro::readMicroBlock(node->store, e->epoch.micro_block_tip);
+    std::shared_ptr<ApprovedMB> isMicroPresent =  Micro::readMicroBlock(node->store, e->epoch.micro_block_tip);
     if(isMicroPresent == nullptr && micro_tip != e->epoch.micro_block_tip) {
         // Not in sync, get this micro block...
         if(prior_epoch != nullptr) {
@@ -257,7 +258,7 @@ void BatchBlock::validator::add_epoch_block(std::shared_ptr<logos::bootstrap_att
 
     // Check if we are at the last epoch block, and get remaining micros...
     if(tips.size() >= 1) {
-        if(e->epoch.hash() == tips[0]->epoch_block_tip) {
+        if(e->epoch.Hash() == tips[0]->epoch_block_tip) {
             if(prior_epoch != nullptr) {
                 std::cout << "add_pull_micro: " << __LINE__ << " file: " << __FILE__ << std::endl;
                 attempt->add_pull_micro(0,0,0,0,prior_epoch->epoch.micro_block_tip,tips[0]->micro_block_tip);
@@ -328,29 +329,31 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
 
    LOG_DEBUG(node->log) << "remaining: {" << std::endl;
    for(int i = 0; i < micro.size(); ++i) {
-        LOG_DEBUG(node->log) << "remaining: " << micro[i]->micro.hash().to_string() << " prev: " << micro[i]->micro.previous.to_string() << " next: " << micro[i]->micro.next.to_string() << std::endl;
+        LOG_DEBUG(node->log) << "remaining: " << micro[i]->micro.Hash().to_string() << " prev: " << micro[i]->micro.previous.to_string() << " next: " << micro[i]->micro.next.to_string() << std::endl;
    }
    LOG_DEBUG(node->log) << "remaining: }" << std::endl;
 
    for(int j = 0; j < micro.size(); ++j) {
-      ::MicroBlock *peerMicro = &micro[j]->micro;
+      ::ApprovedMB *peerMicro = &micro[j]->micro;
 
-      BlockHash peerHash = peerMicro->hash();
-      std::shared_ptr<MicroBlock> isMicroPresent =  Micro::readMicroBlock(node->store, peerHash);
+      BlockHash peerHash = peerMicro->Hash();
+      std::shared_ptr<ApprovedMB> isMicroPresent =  Micro::readMicroBlock(node->store, peerHash);
       if(ready && isMicroPresent == nullptr) {
-        using Request = RequestMessage<MBCT>;
-        if((!peerMicro->previous.is_zero() || !peerMicro->next.is_zero()) && micro_handler->Validate(static_cast<const Request&>(*peerMicro))) {
+        //using Request = RequestMessage<MBCT>;
+		ValidationStatus rtvl;
+		//TODO
+        if((!peerMicro->previous.is_zero() || !peerMicro->next.is_zero()) && micro_handler->Validate(*peerMicro, &rtvl)) {
              std::cout << "micro_handler->Validate: " 
-                      << peerMicro->hash().to_string() << " prev: " << peerMicro->previous.to_string()
+                      << peerMicro->Hash().to_string() << " prev: " << peerMicro->previous.to_string()
                       << " next: " << peerMicro->next.to_string() << std::endl;
              LOG_DEBUG(node->log) << "micro_handler->Validate: " 
-                      << peerMicro->hash().to_string() << " prev: " << peerMicro->previous.to_string()
+                      << peerMicro->Hash().to_string() << " prev: " << peerMicro->previous.to_string()
                       << " next: " << peerMicro->next.to_string() << std::endl;
-             micro_handler->ApplyUpdates(static_cast<const Request&>(*peerMicro)); // Validation succeeded, add to database.
+             micro_handler->ApplyUpdates(*peerMicro); // Validation succeeded, add to database.
         } else {
              // Try several times, if fail, we assume there is a problem.
              LOG_DEBUG(node->log) 
-                      << "error validating: " << peerMicro->hash().to_string() << " prev: " << peerMicro->previous.to_string()
+                      << "error validating: " << peerMicro->Hash().to_string() << " prev: " << peerMicro->previous.to_string()
                       << " next: " << peerMicro->next.to_string() << std::endl;
         }
       }
@@ -360,20 +363,23 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
 
    LOG_DEBUG(node->log) << "remaining epoch: {" << std::endl;
    for(int i = 0; i < epoch.size(); ++i) {
-        LOG_DEBUG(node->log) << "remaining epoch: " << epoch[i]->epoch.hash().to_string() << " prev: " << epoch[i]->epoch.previous.to_string() << " next: " << epoch[i]->epoch.next.to_string() << std::endl;
+        LOG_DEBUG(node->log) << "remaining epoch: " << epoch[i]->epoch.Hash().to_string() << " prev: " << epoch[i]->epoch.previous.to_string() << " next: " << epoch[i]->epoch.next.to_string() << std::endl;
     }
    LOG_DEBUG(node->log) << "remaining epoch: }" << std::endl;
 
    BlockHash current_micro_hash = Micro::getMicroBlockTip(node->store);
    bool isValid = false;
    for(int j = 0; j < epoch.size(); ++j) {
-        using Request = RequestMessage<ECT>;
-        logos::process_return rtvl;
+        //using Request = RequestMessage<ECT>;
+        //logos::process_return rtvl;
+
+        ValidationStatus rtvl;
+        //TODO
         if(epoch[j]->epoch.micro_block_tip == current_micro_hash && 
-           (isValid=epoch_handler->Validate(static_cast<const Request&>(epoch[j]->epoch),rtvl))) {
-            std::cout << "epoch_handler->ApplyUpdates: " << epoch[j]->epoch.hash().to_string() << std::endl;
-            LOG_INFO(node->log) << "epoch_handler->ApplyUpdates: " << epoch[j]->epoch.hash().to_string() << std::endl;
-            epoch_handler->ApplyUpdates(static_cast<const Request&>(epoch[j]->epoch)); // Validation succeeded, add to database.
+           (isValid=epoch_handler->Validate(epoch[j]->epoch, &rtvl))) {
+            std::cout << "epoch_handler->ApplyUpdates: " << epoch[j]->epoch.Hash().to_string() << std::endl;
+            LOG_INFO(node->log) << "epoch_handler->ApplyUpdates: " << epoch[j]->epoch.Hash().to_string() << std::endl;
+            epoch_handler->ApplyUpdates(epoch[j]->epoch); // Validation succeeded, add to database.
        } else {
             LOG_DEBUG(node->log) << "epoch_handler->Failed Validation: " << epoch[j]->epoch.micro_block_tip.to_string() << " current: " << current_micro_hash.to_string() << " isValid: " << isValid << std::endl;
        }

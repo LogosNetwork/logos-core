@@ -33,6 +33,6 @@ BlockHash getPrevEpochBlock(Store &store, BlockHash &h);
 /// @param store BlockStore
 /// @param h BlockHash
 /// @returns shared pointer of Epoch block.
-std::shared_ptr<Epoch> readEpochBlock(Store &store, BlockHash &h);
+std::shared_ptr<ApprovedEB> readEpochBlock(Store &store, BlockHash &h);
 
 }

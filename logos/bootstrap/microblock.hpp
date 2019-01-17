@@ -21,7 +21,7 @@ namespace Micro
     /// @param s BlockStore
     /// @param m MicroBlock reference
     /// @returns BlockHash of next micro block given m
-    BlockHash getNextMicroBlock (Store &s, MicroBlock &m);
+    BlockHash getNextMicroBlock (Store &s, ApprovedMB &m);
 
     /// getNextMicroBlock
     /// @param s BlockStore
@@ -39,7 +39,7 @@ namespace Micro
     /// @param s BlockStore
     /// @param h BlockHash
     /// @returns shared pointer of micro block
-    std::shared_ptr<MicroBlock> readMicroBlock(Store &s, BlockHash &h );
+    std::shared_ptr<ApprovedMB> readMicroBlock(Store &s, BlockHash &h );
 
     /// dumpMicroBlockTips print bsb block tips to std::cout for debug
     /// @param store
