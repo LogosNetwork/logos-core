@@ -15,19 +15,19 @@ public:
     using PersistenceManager<ECT>::Validate;
 
     NonDelPersistenceManager(Store &store,
-                             Milliseconds clock_drift = 0)
+                             Milliseconds clock_drift = ZERO_CLOCK_DRIFT)
         : PersistenceManager<ECT>(store, nullptr, clock_drift)
         ,  NoneDelegatePersistence<ECT>(store)
     {}
 
     bool ValidatePreprepare(const PrePrepare & pre_prepare, ValidationStatus * status)
     {
-        if(_clock_drift > 0)
+        if(_clock_drift > ZERO_CLOCK_DRIFT)
         {
             if (!ValidateTimestamp(pre_prepare.timestamp))
             {
-                LOG_WARN(_log) << "NonDelPersistenceManager::Validate failed to validate microblock timestamp";
-                UpdateStatusReason(status, process_result::clock_drift);
+                LOG_WARN(_logger) << "NonDelPersistenceManager::Validate failed to validate microblock timestamp";
+                UpdateStatusReason(status, logos::process_result::clock_drift);
                 return false;
             }
         }

@@ -2628,9 +2628,6 @@ void logos::rpc_handler::process ()
 {
     std::string block_text (request.get<std::string> ("block"));
 
-    std::cout << "logos::rpc_handler::process " << block_text << endl;
-
-
     boost::property_tree::ptree block_l;
     std::stringstream block_stream (block_text);
     boost::property_tree::read_json (block_stream, block_l);
