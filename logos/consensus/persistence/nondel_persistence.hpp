@@ -8,12 +8,11 @@ template<ConsensusType CT>
 class NoneDelegatePersistence
 {
 public:
-    using Store         = logos::block_store;
     using PrePerpare    = PrePrepareMessage<CT>;
     using ApprovedBlock = PostCommittedBlock<CT>;
     using PostPrepare   = PostPrepareMessage<CT>;
 
-    NoneDelegatePersistence(Store &store)
+    NoneDelegatePersistence(logos::block_store &store)
     : _builder(store)
     {}
 
@@ -25,8 +24,8 @@ public:
 
         if(!validator->Validate(pre_prepare_hash, block.post_prepare_sig))
         {
-            LOG_ERROR (_log) << __func__ << " bad post_prepare signature";
-            UpdateStatusReason(status, process_result::bad_signature);
+            LOG_ERROR (_logger) << __func__ << " bad post_prepare signature";
+            Persistence::UpdateStatusReason(status, logos::process_result::bad_signature);
             return false;
         }
 
@@ -34,8 +33,8 @@ public:
         BlockHash post_prepare_hash(post_prepare.ComputeHash());
         if(!validator->Validate(post_prepare_hash, block.post_commit_sig))
         {
-            LOG_ERROR (_log) << __func__ << " bad post_commit signature";
-            UpdateStatusReason(status, process_result::bad_signature);
+            LOG_ERROR (_logger) << __func__ << " bad post_commit signature";
+            Persistence::UpdateStatusReason(status, logos::process_result::bad_signature);
             return false;
         }
 
@@ -46,7 +45,7 @@ public:
 
 protected:
     virtual bool ValidatePreprepare(const PrePerpare & block, ValidationStatus * status) = 0;
-    Log _log;
+    Log _logger;
 
 private:
     ValidatorBuilder    _builder;

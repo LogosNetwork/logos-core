@@ -8,6 +8,11 @@
 #include <logos/node/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/messages/rejection.hpp>
+#include <logos/consensus/persistence/nondel_persistence.hpp>
+#include <logos/consensus/persistence/batchblock/nondel_batchblock_persistence.hpp>
+#include <logos/consensus/persistence/epoch/nondel_epoch_persistence.hpp>
+#include <logos/consensus/persistence/microblock/nondel_microblock_persistence.hpp>
+
 #include <logos/unit_test/msg_validator_setup.hpp>
 
 using namespace std;
