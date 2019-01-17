@@ -20,6 +20,9 @@ bool parse_endpoint (std::string const &, logos::endpoint &);
 bool parse_tcp_endpoint (std::string const &, logos::tcp_endpoint &);
 bool reserved_address (logos::endpoint const &);
 }
+
+#include <logos/bootstrap/batch_block_tips.hpp>
+
 static uint64_t endpoint_hash_raw (logos::endpoint const & endpoint_a)
 {
     assert (endpoint_a.address ().is_v6 ());
@@ -176,6 +179,7 @@ public:
     uint32_t age;
     uint32_t count;
     uint64_t nr_delegate; // total number of delegates we are requesting frontier for.
+    BatchBlock::tips_response tips; // our tips.
 };
 class bulk_pull : public message
 {

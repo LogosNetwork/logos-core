@@ -1,3 +1,4 @@
+#include <logos/blockstore.hpp>
 #include <logos/bootstrap/bulk_pull_response.hpp>
 #include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
 #include <logos/consensus/messages/messages.hpp>

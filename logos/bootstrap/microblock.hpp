@@ -7,12 +7,43 @@ namespace Micro
 {
     using Store   = ConsensusContainer::Store;
 
+    /// getMicroBlockTip
+    /// @param s BlockStore
+    /// @returns BlockHash representing the Micro block tip
     BlockHash getMicroBlockTip(Store& s);
+
+    /// getMicroBlockSeqNr
+    /// @param s BlockStore
+    /// @returns uint64_t representing the sequence number
     uint64_t  getMicroBlockSeqNr(Store& s);
-    BlockHash getNextMicroBlock (Store &s, MicroBlock &b);
+
+    /// getNextMicroBlock
+    /// @param s BlockStore
+    /// @param m MicroBlock reference
+    /// @returns BlockHash of next micro block given m
+    BlockHash getNextMicroBlock (Store &s, MicroBlock &m);
+
+    /// getNextMicroBlock
+    /// @param s BlockStore
+    /// @param h BlockHash
+    /// @returns BlockHash of the next micro block given hash of the current
     BlockHash getNextMicroBlock (Store &s, BlockHash &h );
+
+    /// getPrevMicroBlock
+    /// @param s BlockStore
+    /// @param h BlockHash
+    /// @returns BlockHash of the previous micro block given hash of the current
     BlockHash getPrevMicroBlock (Store &s, BlockHash &h );
+
+    /// readMicroBlock read micro block from database
+    /// @param s BlockStore
+    /// @param h BlockHash
+    /// @returns shared pointer of micro block
     std::shared_ptr<MicroBlock> readMicroBlock(Store &s, BlockHash &h );
+
+    /// dumpMicroBlockTips print bsb block tips to std::cout for debug
+    /// @param store
+    /// @param hash representing micro block
     void dumpMicroBlockTips(Store &store, BlockHash &hash);
 
 }/* namespace Micro */

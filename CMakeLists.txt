@@ -327,6 +327,7 @@ add_library (node
     logos/bootstrap/epoch.cpp
     logos/bootstrap/microblock.cpp
     logos/bootstrap/batch_block_tips.cpp
+    logos/bootstrap/p2p.cpp
 	logos/consensus/batchblock/batchblock_consensus_manager.cpp
 	logos/consensus/batchblock/bb_consensus_connection.cpp
 	logos/consensus/batchblock/request_handler.cpp

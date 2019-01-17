@@ -30,6 +30,8 @@
 
 #include <ed25519-donna/ed25519.h>
 
+#include <logos/bootstrap/p2p.hpp>
+
 #define _PRODUCTION 1
 
 double constexpr logos::node::price_max;
@@ -1271,7 +1273,7 @@ ledger (store, stats, config.state_block_parse_canary, config.state_block_genera
 network (*this, config.peering_port),
 _validator(new BatchBlock::validator(this)),
 bootstrap_initiator (*this),
-bootstrap (service_a, config.peering_port, *this),
+bootstrap (service_a, BOOTSTRAP_PORT, *this),
 peers (network.endpoint ()),
 application_path (application_path_a),
 wallets (init_a.block_store_init, *this),
@@ -1641,10 +1643,17 @@ std::map<logos::endpoint, unsigned> logos::peer_container::list_version ()
 
 logos::endpoint logos::peer_container::bootstrap_peer ()
 {
+    logos::endpoint p2p_result = p2p::get_random_peer(); // Get a peer from p2p system...
+    if(p2p_result != logos::endpoint (boost::asio::ip::address_v6::any (), 0)) {
+        return p2p_result;
+    }
+    // Otherwise, use our values from config.consensus_manager_config.delegates
     logos::endpoint result (boost::asio::ip::address_v6::any (), 0);
     std::lock_guard<std::mutex> lock (mutex);
+    int count = 0;
     for (auto i (peers.get<4> ().begin ()), n (peers.get<4> ().end ()); i != n;)
     {
+        count++;
         if (i->network_version >= 0x5)
         {
             result = i->endpoint;
@@ -1658,6 +1667,8 @@ logos::endpoint logos::peer_container::bootstrap_peer ()
             ++i;
         }
     }
+    auto address = result.address(); // RGD
+    std::cout << " peer: " << address.to_v6() << " count: " << count << std::endl;
     return result;
 }
 
@@ -1857,7 +1868,7 @@ void logos::node::ongoing_keepalive ()
 
 void logos::node::ongoing_bootstrap ()
 {
-    auto next_wakeup (300);
+    auto next_wakeup (10); // Was 300
     if (warmed_up < 3)
     {
         // Re-attempt bootstrapping more aggressively on startup
@@ -1867,6 +1878,7 @@ void logos::node::ongoing_bootstrap ()
             ++warmed_up;
         }
     }
+    std::cout << "ongoing_bootstrap:" << std::endl;
     bootstrap_initiator.bootstrap ();
     std::weak_ptr<logos::node> node_w (shared_from_this ());
     alarm.add (std::chrono::steady_clock::now () + std::chrono::seconds (next_wakeup), [node_w]() {
@@ -2216,11 +2228,11 @@ uint64_t logos::node::work_generate_blocking (logos::uint256_union const & hash_
 
 void logos::node::add_initial_peers ()
 {
+    std::cout << "logos::node::add_initial_peers: " << std::endl;
 #ifdef _PRODUCTION
     LOG_DEBUG(log) << "logos::node::add_initial_peers: ";
     // Add our peers from the configuation...
-    //uint32_t port = 70003; // What port for bootstrapping ???
-    uint32_t port = config.peering_port; // What port for bootstrapping ???
+    uint32_t port = BOOTSTRAP_PORT;
     for(int i = 0; i < config.consensus_manager_config.delegates.size(); ++i) {
 #if 0
         logos::endpoint peer = logos::endpoint(
@@ -2371,9 +2383,10 @@ std::vector<logos::peer_information> logos::peer_container::purge_list (std::chr
     std::vector<logos::peer_information> result;
     {
         std::lock_guard<std::mutex> lock (mutex);
-        //auto pivot (peers.get<1> ().lower_bound (cutoff - std::chrono::hours(24))); // Disable cut-off for testing...
-        auto pivot (peers.get<1> ().lower_bound (cutoff));
+        auto pivot (peers.get<1> ().lower_bound (cutoff - std::chrono::hours(24*365))); // Disable cut-off for testing... RGD
+        //auto pivot (peers.get<1> ().lower_bound (cutoff));
         result.assign (pivot, peers.get<1> ().end ());
+        std::cout << " result.assign:= " << result.size() << std::endl;
         // Remove peers that haven't been heard from past the cutoff
         peers.get<1> ().erase (peers.get<1> ().begin (), pivot);
         for (auto i (peers.begin ()), n (peers.end ()); i != n; ++i)

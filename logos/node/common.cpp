@@ -214,11 +214,15 @@ bool logos::frontier_req::deserialize (logos::stream & stream_a)
             }
         }
     }
+
+    BatchBlock::tips_response::DeSerialize(stream_a, tips);
+
 #ifdef _DEBUG
     std::cout << "logos::frontier_req::deserialize: result " << result 
               << " age: " << age << std::endl
               <<  " count: " << count << std::endl
-              << " nr_delegate: " << nr_delegate << std::endl;
+              << " nr_delegate: " << nr_delegate << std::endl
+              << " tips: " << tips << std::endl;
 #endif
     return result;
 }
@@ -230,6 +234,7 @@ void logos::frontier_req::serialize (logos::stream & stream_a)
     write (stream_a, nr_delegate);
     write (stream_a, age);
     write (stream_a, count);
+    tips.Serialize(stream_a);
 }
 
 void logos::frontier_req::visit (logos::message_visitor & visitor_a) const

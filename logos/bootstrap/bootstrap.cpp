@@ -2,6 +2,7 @@
 #include <logos/bootstrap/bulk_pull.hpp>
 #include <logos/bootstrap/tips.hpp>
 #include <logos/bootstrap/batch_block_tips.hpp>
+#include <logos/bootstrap/p2p.hpp>
 
 #include <logos/node/common.hpp>
 #include <logos/node/node.hpp>
@@ -24,6 +25,8 @@ static std::atomic<int> close_count;
 #endif
 
 static boost::log::sources::logger_mt *log_g = nullptr;
+std::deque<logos::pull_info> logos::bootstrap_attempt::dpulls;
+
 boost::log::sources::logger_mt &logos::bootstrap_get_logger()
 {
     if(log_g) {
@@ -113,6 +116,7 @@ void logos::bootstrap_client::stop (bool force)
 {
     LOG_DEBUG(node->log) << "logos::bootstrap_client::stop:" << std::endl;
 #ifdef _DEBUG
+    std::cout << "trace: " << __FILE__ << " line: " << __LINE__ << std::endl;
     trace();
 #endif
 
@@ -137,6 +141,7 @@ void logos::bootstrap_client::run ()
 {
     auto this_l (shared_from_this ());
     start_timeout ();
+    std::cout << "endpoint address: " << endpoint.address().to_string() << " port: " << endpoint.port() << std::endl;
     socket.async_connect (endpoint, [this_l](boost::system::error_code const & ec) { // NOTE: endpoint is passed into the constructor of bootstrap_client, attempt to connect.
         this_l->stop_timeout ();
         if (!ec)
@@ -164,6 +169,7 @@ void logos::bootstrap_client::run ()
             }
             
 #ifdef _DEBUG
+            std::cout << "trace: " << __FILE__ << " line: " << __LINE__ << std::endl;
             trace();
 #endif
             LOG_DEBUG(this_l->node->log) << "logos::bootstrap_client::run: pool_connection called" << std::endl;
@@ -171,7 +177,7 @@ void logos::bootstrap_client::run ()
         }
         else
         {
-            LOG_DEBUG(this_l->node->log) << "logos::bootstrap_client::run: network error: ec.message: " << ec.message() << std::endl;
+            std::cout << /* LOG_DEBUG(this_l->node->log) */ "logos::bootstrap_client::run: network error: ec.message: " << ec.message() << std::endl;
             if (this_l->node->config.logging.network_logging ())
             {
                 switch (ec.value ())
@@ -208,6 +214,7 @@ stopped (false)
     logos::bootstrap_init_logger(&node->log); // Store our logger for later use.
     LOG_INFO (node->log) << "Starting bootstrap attempt";
     node->bootstrap_initiator.notify_listeners (true);
+    session_id = p2p::get_peers();
 }
 
 logos::bootstrap_attempt::~bootstrap_attempt ()
@@ -215,6 +222,7 @@ logos::bootstrap_attempt::~bootstrap_attempt ()
     LOG_INFO (node->log) << "Exiting bootstrap attempt";
     stop();
     node->bootstrap_initiator.notify_listeners (false);
+    p2p::close_session(session_id);
 }
 
 bool logos::bootstrap_attempt::should_log ()
@@ -309,8 +317,15 @@ void logos::bootstrap_attempt::run ()
     populate_connections ();
     std::unique_lock<std::mutex> lock (mutex);
     auto tips_failure (true);
+    uint32_t retry = 0;
     while (!stopped && tips_failure)
     {
+        retry++;
+        if(retry > bootstrap_max_retry) {
+            LOG_FATAL(node->log) << "logos::bootstrap_attempt::run error too many retries for request_tips" << std::endl;
+            std::cout << "trace: " << __FILE__ << " line: " << __LINE__ << std::endl;
+            trace_and_halt(); // Or should we just return ?
+        }
         tips_failure = request_tips(lock);
     }
     // Shuffle pulls.
@@ -531,12 +546,34 @@ void logos::bootstrap_attempt::populate_connections ()
         for (int i = 0; i < delta; i++)
         {
             auto peer (node->peers.bootstrap_peer ());
+            auto address = peer.address();
+            // Check if we are in the blacklist and retry if it is until we get one that isn't
+            // If we run out of peers, we shut this bootstrap_attempt down and retry later...
+            int retry = 0;
+            while(p2p::is_blacklisted(peer)) {
+                ++retry;
+                if(retry >= p2p::MAX_BLACKLIST_RETRY) {
+                    // Shutdown this attempt, we failed too many times...
+                    stopped = true;
+                    condition.notify_all ();
+                    return;
+                }
+                peer = node->peers.bootstrap_peer (); // Get another peer.
+                address = peer.address(); 
+            }
+            // ok to proceed, not blacklisted...
+            p2p::add_peer(peer);
+            if(address.to_v6().to_string() == std::string("::ffff:172.1.1.100")) {
+                continue; // RGD Hack TODO remove this...
+            }
+
             if (peer != logos::endpoint (boost::asio::ip::address_v6::any (), 0))
             {
 #ifdef _DEBUG
                 open_count++;
 #endif
-                auto client (std::make_shared<logos::bootstrap_client> (node, shared_from_this (), logos::tcp_endpoint (peer.address (), peer.port ())));
+                std::cout <<"peer address: "<< peer.address().to_string() << std::endl;
+                auto client (std::make_shared<logos::bootstrap_client> (node, shared_from_this (), logos::tcp_endpoint (peer.address (), BOOTSTRAP_PORT )));
                 client->run ();
                 std::lock_guard<std::mutex> lock (mutex);
                 clients.push_back (client);
@@ -613,10 +650,52 @@ void logos::bootstrap_attempt::add_pull (logos::pull_info const & pull)
 {
     std::unique_lock<std::mutex> lock (mutex);
 
+    std::cout << "logos::bootstrap_attempt::add_pull: " << pull.delegate_id << std::endl;
     LOG_DEBUG(node->log) << "logos::bootstrap_attempt::add_pull: " << pull.delegate_id << std::endl;
 
     pulls.push_back (pull);
     condition.notify_all ();
+}
+
+void logos::bootstrap_attempt::add_defered_pull(logos::pull_info const &pull)
+{
+    std::unique_lock<std::mutex> lock (mutex);
+    std::cout << "logos::bootstrap_attempt::add_defered_pull: " << pull.delegate_id << std::endl;
+    LOG_DEBUG(node->log) << "logos::bootstrap_attempt::add_defered_pull: " << pull.delegate_id << std::endl;
+    dpulls.push_back(pull);
+}
+
+void logos::bootstrap_attempt::run_defered_pull()
+{
+    std::unique_lock<std::mutex> lock (mutex);
+    std::cout << "logos::bootstrap_attempt::run_defered_pull: " << std::endl;
+    LOG_DEBUG(node->log) << "logos::bootstrap_attempt::run_defered_pull: " << std::endl;
+    auto iter = dpulls.begin();
+    while(iter != dpulls.end()) {
+        std::cout << "logos::bootstrap_attempt::adding pull: b_start: " << iter->b_start.to_string() << " b_end: " << iter->b_end.to_string() << std::endl;
+        pulls.push_back(*iter);
+        condition.notify_all ();
+        iter++;
+    }
+    dpulls.clear();
+}
+
+void logos::bootstrap_attempt::add_pull_bsb  (uint64_t start, uint64_t end, uint64_t seq_start, uint64_t seq_end, int delegate_id, BlockHash b_start, BlockHash b_end)
+{
+    BlockHash zero = 0;
+    add_defered_pull(logos::pull_info(start,end,seq_start,seq_end,delegate_id,zero,zero,zero,zero,b_start,b_end));
+}
+
+void logos::bootstrap_attempt::add_pull_micro(uint64_t start, uint64_t end, uint64_t seq_start, uint64_t seq_end, BlockHash m_start, BlockHash m_end)
+{
+    BlockHash zero = 0;
+    add_defered_pull(logos::pull_info(start,end,seq_start,seq_end,0,zero,zero,m_start,m_end,zero,zero));
+}
+
+void logos::bootstrap_attempt::add_pull_epoch(uint64_t start, uint64_t end, uint64_t seq_start, uint64_t seq_end, BlockHash e_start, BlockHash e_end)
+{
+    BlockHash zero = 0;
+    add_defered_pull(logos::pull_info(start,end,seq_start,seq_end,0,e_start,e_end,zero,zero,zero,zero));
 }
 
 logos::bootstrap_initiator::bootstrap_initiator (logos::node & node_a) :
@@ -741,13 +820,16 @@ node (node_a)
 
 void logos::bootstrap_listener::start ()
 {
-    acceptor.open (local.protocol ());
+    //acceptor.open (local.protocol ());
+    acceptor.open (endpoint().protocol ());
     acceptor.set_option (boost::asio::ip::tcp::acceptor::reuse_address (true));
 
     boost::system::error_code ec;
-    acceptor.bind (local, ec);
+    //acceptor.bind (local, ec); // RGD
+    acceptor.bind(endpoint(), ec);
     if (ec)
     {
+        std::cout << "error while binding" << std::endl;
         LOG_INFO (node.log) << boost::str (boost::format ("Error while binding for bootstrap on port %1%: %2%") % local.port () % ec.message ());
         throw std::runtime_error (ec.message ());
     }
@@ -786,6 +868,11 @@ void logos::bootstrap_listener::stop ()
 void logos::bootstrap_listener::accept_connection ()
 {
     auto socket (std::make_shared<boost::asio::ip::tcp::socket> (service));
+    //std::shared_ptr<boost::asio::ip::tcp::socket> socket (new boost::asio::ip::tcp::socket(service,endpoint()));
+    //auto end = boost::asio::ip::tcp::endpoint 
+    //    (boost::asio::ip::address_v6::from_string(std::string("::ffff:") + (node.config.consensus_manager_config.local_address)));
+    //std::shared_ptr<boost::asio::ip::tcp::socket> socket (new boost::asio::ip::tcp::socket(service,end));
+
 #ifdef _MODIFY_BUFFER
     try {
         boost::asio::socket_base::send_buffer_size option1(RECV_BUFFER_SIZE);
@@ -853,7 +940,11 @@ void logos::bootstrap_listener::accept_action (boost::system::error_code const &
 
 boost::asio::ip::tcp::endpoint logos::bootstrap_listener::endpoint ()
 {
-    return boost::asio::ip::tcp::endpoint (boost::asio::ip::address_v6::loopback (), local.port ());
+    std::cout << "node.local_address: " << node.config.consensus_manager_config.local_address << " local_port: " << local.port() << " peering port: " << node.config.peering_port << std::endl;
+    return boost::asio::ip::tcp::endpoint 
+        (boost::asio::ip::address_v6::from_string(std::string("::ffff:") + (node.config.consensus_manager_config.local_address)), 
+        BOOTSTRAP_PORT);
+        
 }
 
 logos::bootstrap_server::~bootstrap_server ()
@@ -865,6 +956,7 @@ logos::bootstrap_server::~bootstrap_server ()
     std::lock_guard<std::mutex> lock (node->bootstrap.mutex);
     LOG_DEBUG(node->log) << "logos::bootstrap_server::~bootstrap_server" << std::endl;
 #ifdef _DEBUG
+    std::cout << "trace: " << __FILE__ << " line: " << __LINE__ << std::endl;
     trace();
 #endif
     socket->close();
@@ -892,7 +984,11 @@ void logos::bootstrap_server::receive_header_action (boost::system::error_code c
     LOG_DEBUG(node->log) << "logos::bootstrap_server::receive_header_action" << std::endl;
     if (!ec)
     {
-        assert (size_a == bootstrap_header_size);
+        std::cout << " size_a: " << size_a << " bootstrap_header_size: " << (int)bootstrap_header_size << std::endl;
+        //assert (size_a == bootstrap_header_size);
+        if(size_a != bootstrap_header_size) {
+            return;
+        }
         logos::bufferstream type_stream (receive_buffer.data (), size_a);
         uint8_t version_max;
         uint8_t version_using;
@@ -928,7 +1024,7 @@ void logos::bootstrap_server::receive_header_action (boost::system::error_code c
                 {
                     node->stats.inc (logos::stat::type::bootstrap, logos::stat::detail::frontier_req, logos::stat::dir::in);
                     auto this_l (shared_from_this ()); // NOTE Read all the bytes for logos::frontier_req
-                    boost::asio::async_read (*socket, boost::asio::buffer (receive_buffer.data () + bootstrap_header_size, sizeof (logos::uint256_union) + sizeof (uint32_t) + sizeof (uint32_t) + sizeof(uint64_t)), [this_l](boost::system::error_code const & ec, size_t size_a) {
+                    boost::asio::async_read (*socket, boost::asio::buffer (receive_buffer.data () + bootstrap_header_size, sizeof (logos::uint256_union) + sizeof (uint32_t) + sizeof (uint32_t) + sizeof(uint64_t) + BatchBlock::tips_response_mesg_len), [this_l](boost::system::error_code const & ec, size_t size_a) {
                         this_l->receive_tips_req_action (ec, size_a);
                     });
                     break;
@@ -1040,7 +1136,7 @@ void logos::bootstrap_server::receive_tips_req_action (boost::system::error_code
     {
         std::unique_ptr<logos::frontier_req> request (new logos::frontier_req);
         // NOTE Should it be sizeof(logos::frontier_req) ?
-        logos::bufferstream stream (receive_buffer.data (), bootstrap_header_size + sizeof (logos::uint256_union) + sizeof (uint32_t) + sizeof (uint32_t) + sizeof(uint64_t));
+        logos::bufferstream stream (receive_buffer.data (), bootstrap_header_size + sizeof (logos::uint256_union) + sizeof (uint32_t) + sizeof (uint32_t) + sizeof(uint64_t) + BatchBlock::tips_response_mesg_len);
         auto error (request->deserialize (stream));
         if (!error)
         {
