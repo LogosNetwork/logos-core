@@ -4,6 +4,7 @@
 #include <logos/common.hpp>
 
 #include <stdint.h>
+#include <bitset>
 
 // XXX - Ensure that settings with odd values
 //       represent the mutability of the previous
@@ -22,6 +23,12 @@ enum class TokenSetting : uint8_t
     ModifyWhitelisting = 9
 };
 
+enum class SettingValue : uint8_t
+{
+    Enabled  = 0,
+    Disabled = 1
+};
+
 enum class TokenFeeType : uint8_t
 {
     Percentage = 0,
@@ -34,7 +41,13 @@ enum class ControllerAction : uint8_t
     Remove = 1
 };
 
-enum class ControllerPrivilegaes : uint8_t
+enum class FreezeAction : uint8_t
+{
+    Freeze   = 0,
+    Unfreeze = 1
+};
+
+enum class ControllerPrivilege : uint8_t
 {
     // Privileges for modifying
     // token account settings.
@@ -63,23 +76,49 @@ enum class ControllerPrivilegaes : uint8_t
     WithdrawFee              = 18
 };
 
-const size_t TOKEN_SETTINGS_COUNT = 10;
+const size_t TOKEN_SETTINGS_COUNT       = 10;
+const size_t CONTROLLER_PRIVILEGE_COUNT = 19;
 
-struct TokenAdminRequest : logos::Request
+struct TokenRequest : logos::Request
 {
+    TokenRequest(bool & error,
+                 std::basic_streambuf<uint8_t> & stream);
+
+   void Hash(blake2b_state & hash) const override;
+
+   uint16_t WireSize() const override;
+
+   logos::block_hash token_id;
+};
+
+struct TokenAdminRequest : TokenRequest
+{
+    TokenAdminRequest(bool & error,
+                      std::basic_streambuf<uint8_t> & stream);
+
     void Hash(blake2b_state & hash) const override;
+
+    uint16_t WireSize() const override;
 
     AccountAddress admin_address;
 };
 
 struct ControllerInfo
 {
-    AccountAddress        addres;
-    ControllerPrivilegaes privileges;
+    using Privelages = std::bitset<CONTROLLER_PRIVILEGE_COUNT>;
+
+    ControllerInfo(bool & error,
+                   std::basic_streambuf<uint8_t> & stream);
+
+    AccountAddress address;
+    Privelages     privileges;
 };
 
 struct TokenTransaction
 {
+    TokenTransaction(bool & error,
+                     std::basic_streambuf<uint8_t> & stream);
+
     AccountAddress dest;
     uint16_t       amount;
 };
