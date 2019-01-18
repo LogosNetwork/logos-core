@@ -4,8 +4,10 @@
 // A delegate can have multiple TxAcceptors.
 //
 
+#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
 #include <logos/consensus/tx_acceptor/tx_acceptor_config.hpp>
 #include <logos/consensus/tx_acceptor/tx_acceptor.hpp>
+#include <logos/consensus/messages/state_block.hpp>
 #include <logos/node/node.hpp>
 
 TxPeerManager::TxPeerManager(
@@ -78,7 +80,7 @@ TxAcceptor::RespondJson(std::shared_ptr<json_request> jrequest, const Ptree & tr
 }
 
 void
-TxAcceptor::RespondJson(std::shared_ptr<json_request> jrequest, std::string key, std::string value)
+TxAcceptor::RespondJson(std::shared_ptr<json_request> jrequest, const std::string & key, const std::string & value)
 {
     Ptree tree;
     tree.put(key, value);
@@ -86,7 +88,8 @@ TxAcceptor::RespondJson(std::shared_ptr<json_request> jrequest, std::string key,
 }
 
 std::shared_ptr<StateBlock>
-TxAcceptor::ToStateBlock(const std::string&& block_text) {
+TxAcceptor::ToStateBlock(const std::string&& block_text)
+{
     Ptree pblock;
     std::stringstream block_stream(block_text);
     boost::property_tree::read_json(block_stream, pblock);
@@ -123,10 +126,19 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
             return;
         }
 
-        auto result = _acceptor_channel->OnSendRequest(block,
-                request_tree.get_optional<std::string>("buffer").is_initialized());
+        // TODO the code below should be generalized to support json and binary
+        // TODO : remove validation from the delegate
+        auto result = Validate(block);
+        if (result !=logos::process_result::progress)
+        {
+            RespondJson(request, "error", ProcessResultToString(result));
+            return;
+        }
 
-        switch (result.code)
+        result = _acceptor_channel->OnSendRequest(block,
+                request_tree.get_optional<std::string>("buffer").is_initialized()).code;
+
+        switch (result)
         {
             case logos::process_result::progress:
                 RespondJson(request, "hash", block->GetHash().to_string());
@@ -134,10 +146,10 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
             case logos::process_result::buffered:
             case logos::process_result::buffering_done:
             case logos::process_result::pending:
-                RespondJson(request, "result", ProcessResultToString(result.code));
+                RespondJson(request, "result", ProcessResultToString(result));
                 break;
             default:
-                RespondJson(request, "error", ProcessResultToString(result.code));
+                RespondJson(request, "error", ProcessResultToString(result));
         }
     });
 }
@@ -147,7 +159,23 @@ TxAcceptor::AsyncReadBin(std::shared_ptr<Socket> socket)
 {
 }
 
-void
-TxAcceptor::OnRead()
-{}
+logos::process_result
+TxAcceptor::Validate(const std::shared_ptr<StateBlock> & block)
+{
+    if (block->account.is_zero())
+    {
+        return logos::process_result::opened_burn_account;
+    }
 
+    if (block->transaction_fee.number() < PersistenceManager<BSBCT>::MIN_TRANSACTION_FEE)
+    {
+        return logos::process_result::insufficient_fee;
+    }
+
+    if (!block->VerifySignature(block->account))
+    {
+        return logos::process_result::bad_signature;
+    }
+
+    return logos::process_result::progress;
+}

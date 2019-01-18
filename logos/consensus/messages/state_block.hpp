@@ -468,6 +468,16 @@ struct StateBlock
         return s;
     }
 
+    /// Serialize the data members to a buffer
+    /// @param buf the buffer to serialize to
+    /// @param with_batch_hash if batch_hash should be serialized
+    /// @returns the number of bytes serialized
+    uint32_t Serialize(std::vector<uint8_t> & buf, bool with_batch_hash = false)
+    {
+        logos::vectorstream stream(buf);
+        return Serialize(stream, with_batch_hash);
+    }
+
     /// Serialize the data members to a database buffer
     /// @param buf the memory buffer to serialize to
     /// @return the database buffer

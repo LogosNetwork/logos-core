@@ -20,6 +20,7 @@ protected:
     using ReservationsPtr   = std::shared_ptr<ReservationsProvider>;
 
 public:
+    static constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
 
     PersistenceManager(Store & store,
                        ReservationsPtr reservations,
@@ -56,7 +57,6 @@ private:
                       MDB_txn * transaction);
 
     static constexpr uint32_t  RESERVATION_PERIOD  = 2;
-    static constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
 
     Log                 _log;
     ReservationsPtr     _reservations;

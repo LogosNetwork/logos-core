@@ -15,11 +15,11 @@
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/beast.hpp>
-//#include <boost/asio/read.hpp>
 
 namespace logos { class node_config; }
 struct StateBlock;
 
+/// Json request container
 struct json_request
 {
     using Socket        = boost::asio::ip::tcp::socket;
@@ -27,14 +27,16 @@ struct json_request
     using Response      = boost::beast::http::response<boost::beast::http::string_body>;
     using Buffer        = boost::beast::flat_buffer;
     json_request(std::shared_ptr<Socket> s) : socket(s) {}
-    std::shared_ptr<Socket>     socket;
-    Buffer                      buffer;
-    Request                     request;
-    Response                    res;
+    std::shared_ptr<Socket>     socket; /// accepted socket
+    Buffer                      buffer; /// buffer to receive json request
+    Request                     request;/// request object
+    Response                    res;    /// response object
 };
 
 class TxAcceptor;
 
+/// Extends PeerManager with json/binary context to execute the right
+/// type of callback when connection is accepted
 class TxPeerManager : public PeerManager
 {
     using Service       = boost::asio::io_service;
@@ -42,20 +44,33 @@ class TxPeerManager : public PeerManager
     using Reader        = void (TxAcceptor::*)(std::shared_ptr<Socket>);
     using Endpoint      = boost::asio::ip::tcp::endpoint;
 public:
+    /// Class constructor
+    /// @param service boost asio service reference
+    /// @param ip to accept client connection
+    /// @param port to accept client connection
+    /// @param tx_acceptor reference for reader callback
+    /// @param reader reader callback for json/binary request
     TxPeerManager(Service & service, const std::string & ip, const uint16_t port,
                   TxAcceptor & tx_acceptor, Reader reader);
+    /// Class distructor
     ~TxPeerManager() = default;
 
-    void OnConnectionAccepted(const Endpoint endpoint, std::shared_ptr<Socket>) override;
+    /// Accepted connection callback
+    /// @param endpoint of accepted connection
+    /// @param socket  of accepted connection
+    void OnConnectionAccepted(const Endpoint endpoint, std::shared_ptr<Socket> socket) override;
 private:
-    Service &       _service;
-    Endpoint        _endpoint;
-    PeerAcceptor    _peer_acceptor;
-    Reader          _reader;
-    TxAcceptor &    _tx_acceptor;
-    Log             _log;
+    Service &       _service;       /// boost asio service reference
+    Endpoint        _endpoint;      /// local endpoint
+    PeerAcceptor    _peer_acceptor; /// acceptor's instance
+    Reader          _reader;        /// json/binary member function pointer
+    TxAcceptor &    _tx_acceptor;   /// tx acceptor reference to call reader with
+    Log             _log;           /// boost asio log
 };
 
+/// TxAcceptor accepts client connection, reads json/binary transaction
+/// validates transaction, and forwards it to TxChannel. Standalone TxAcceptor writes
+/// transasction to the delegate. Delegate TxAcceptor passes transaction to ConsensusContainer (TxChannel).
 class TxAcceptor
 {
     using Service       = boost::asio::io_service;
@@ -63,25 +78,45 @@ class TxAcceptor
     using Ptree         = boost::property_tree::ptree;
     using Error         = boost::system::error_code;
 public:
-    /// Class constructor
+    /// Delegate class constructor
     /// @param service boost asio service reference
+    /// @param acceptor_channel is ConsensusContainer in this case
+    /// @param config of the node
     TxAcceptor(Service & service, std::shared_ptr<TxChannel> acceptor_channel, logos::node_config & config);
+    /// Standalone class constructor
+    /// @param service boost asio service reference
+    /// @param config of the node
     TxAcceptor(Service & service, logos::node_config & config);
-    /// Class destructor
+    /// Class distructor
     ~TxAcceptor() = default;
 private:
+    /// Read json request
+    /// @param socket of the connected client
     void AsyncReadJson(std::shared_ptr<Socket> socket);
+    /// Read binary request
+    /// @param socket of the connected client
     void AsyncReadBin(std::shared_ptr<Socket> socket);
-    void CommonInit(logos::node_config &config);
-    void OnRead();
+    /// Respond to client with json message
+    /// @param jrequest json request container
+    /// @param tree json represented as ptree
     void RespondJson(std::shared_ptr<json_request> jrequest, const Ptree & tree);
-    void RespondJson(std::shared_ptr<json_request> jrequest, std::string key, std::string value);
+    /// Respond to client with json message
+    /// @param key of the response
+    /// @param value of the response
+    void RespondJson(std::shared_ptr<json_request> jrequest, const std::string & key, const std::string & value);
+    /// Deserialize string to state block
+    /// @param block_text serialized block
+    /// @return StateBlock structure
     std::shared_ptr<StateBlock> ToStateBlock(const std::string &&block_text);
+    /// Validate state block
+    /// @param block state block
+    /// @return result of the validation, 'progress' is success
+    logos::process_result Validate(const std::shared_ptr<StateBlock> & block);
 
-    Service &                       _service;
-    TxPeerManager                   _json_peer;
-    TxPeerManager                   _bin_peer;
-    TxAcceptorConfig                _config;
-    std::shared_ptr<TxChannel>      _acceptor_channel = nullptr;
-    Log                             _log;
+    Service &                       _service;           /// boost asio service reference
+    TxPeerManager                   _json_peer;         /// json request connection acceptor
+    TxPeerManager                   _bin_peer;          /// binary request connection acceptor
+    TxAcceptorConfig                _config;            /// tx acceptor configuration
+    std::shared_ptr<TxChannel>      _acceptor_channel;  /// transaction forwarding channel
+    Log                             _log;               /// boost log
 };

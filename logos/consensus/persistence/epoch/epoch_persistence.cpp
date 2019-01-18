@@ -62,7 +62,14 @@ PersistenceManager<ECT>::Validate(
         trace_and_halt();
     }
 
-    if (_store.micro_block_tip_get(micro_block_tip) || epoch.micro_block_tip != micro_block_tip)
+    if (_store.micro_block_tip_get(micro_block_tip))
+    {
+        LOG_FATAL(_log) << "PersistenceManager::Validate micro block tip doesn't exist";
+        trace_and_halt();
+        return false;
+    }
+
+    if (epoch.micro_block_tip != micro_block_tip)
     {
         LOG_ERROR(_log) << "PersistenceManager::Validate previous micro block doesn't exist " <<
                         epoch.micro_block_tip.to_string() << " " << micro_block_tip.to_string();

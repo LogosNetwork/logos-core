@@ -343,7 +343,9 @@ add_library (node
 	logos/consensus/persistence/microblock/microblock_persistence.cpp
 	logos/consensus/primary_delegate.cpp
 	logos/consensus/tx_acceptor/tx_acceptor.cpp
+	logos/consensus/tx_acceptor/tx_acceptor_channel.cpp
 	logos/consensus/tx_acceptor/tx_receiver.cpp
+	logos/consensus/tx_acceptor/tx_receiver_channel.cpp
 	logos/epoch/archiver.cpp
 	logos/epoch/epoch.cpp
 	logos/epoch/epoch_handler.cpp
