@@ -1283,10 +1283,12 @@ _identity_manager(store, config.consensus_manager_config),
 _archiver(alarm_a, store, _recall_handler),
 _consensus_container{std::make_shared<ConsensusContainer>(
         service_a, store, alarm_a, config.consensus_manager_config, _archiver, _identity_manager)},
-_tx_acceptor{config.tx_acceptor_config.tx_acceptors.size()
-    ?std::make_shared<TxAcceptor>(service_a, _consensus_container, config):nullptr},
-_tx_receiver{config.tx_acceptor_config.tx_acceptors.size()==0
-    ?std::make_shared<TxReceiver>(service_a, _consensus_container, config) :nullptr}
+_tx_acceptor{config.tx_acceptor_config.tx_acceptors.size() == 0
+    ? std::make_shared<TxAcceptor>(service_a, _consensus_container, config)
+    : nullptr},
+_tx_receiver{config.tx_acceptor_config.tx_acceptors.size() != 0
+    ? std::make_shared<TxReceiver>(service_a, _consensus_container, config)
+    : nullptr}
 {
     BlocksCallback::Instance(service_a, config.callback_address, config.callback_port, config.callback_target, config.logging.callback_logging ());
 // Used to modify the database file with the new account_info field.

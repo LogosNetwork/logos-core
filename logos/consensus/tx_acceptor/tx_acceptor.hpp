@@ -8,6 +8,8 @@
 
 #include <logos/consensus/tx_acceptor/tx_acceptor_config.hpp>
 #include <logos/consensus/tx_acceptor/tx_channel.hpp>
+#include <logos/consensus/network/peer_acceptor.hpp>
+#include <logos/consensus/network/peer_manager.hpp>
 #include <logos/lib/log.hpp>
 
 #include <boost/asio/io_service.hpp>
@@ -16,6 +18,7 @@
 //#include <boost/asio/read.hpp>
 
 namespace logos { class node_config; }
+struct StateBlock;
 
 struct json_request
 {
@@ -30,16 +33,35 @@ struct json_request
     Response                    res;
 };
 
+class TxAcceptor;
+
+class TxPeerManager : public PeerManager
+{
+    using Service       = boost::asio::io_service;
+    using Socket        = boost::asio::ip::tcp::socket;
+    using Reader        = void (TxAcceptor::*)(std::shared_ptr<Socket>);
+    using Endpoint      = boost::asio::ip::tcp::endpoint;
+public:
+    TxPeerManager(Service & service, const std::string & ip, const uint16_t port,
+                  TxAcceptor & tx_acceptor, Reader reader);
+    ~TxPeerManager() = default;
+
+    void OnConnectionAccepted(const Endpoint endpoint, std::shared_ptr<Socket>) override;
+private:
+    Service &       _service;
+    Endpoint        _endpoint;
+    PeerAcceptor    _peer_acceptor;
+    Reader          _reader;
+    TxAcceptor &    _tx_acceptor;
+    Log             _log;
+};
+
 class TxAcceptor
 {
     using Service       = boost::asio::io_service;
-    using Endpoint      = boost::asio::ip::tcp::endpoint;
     using Socket        = boost::asio::ip::tcp::socket;
-    using Address       = boost::asio::ip::address;
-    using Acceptor      = boost::asio::ip::tcp::acceptor;
+    using Ptree         = boost::property_tree::ptree;
     using Error         = boost::system::error_code;
-    using Reader        = void (TxAcceptor::*)(std::shared_ptr<Socket>);
-
 public:
     /// Class constructor
     /// @param service boost asio service reference
@@ -48,21 +70,18 @@ public:
     /// Class destructor
     ~TxAcceptor() = default;
 private:
-    void Start(uint16_t port, Reader r);
-    void Accept(Reader r);
-    void OnAccept(const Error &ec, std::shared_ptr<Socket> socket,
-                  std::shared_ptr<Endpoint> accepted_endpoint, Reader r);
     void AsyncReadJson(std::shared_ptr<Socket> socket);
     void AsyncReadBin(std::shared_ptr<Socket> socket);
+    void CommonInit(logos::node_config &config);
     void OnRead();
+    void RespondJson(std::shared_ptr<json_request> jrequest, const Ptree & tree);
+    void RespondJson(std::shared_ptr<json_request> jrequest, std::string key, std::string value);
+    std::shared_ptr<StateBlock> ToStateBlock(const std::string &&block_text);
 
-    Service &                   _service;
-    Acceptor                    _acceptor;
-    TxAcceptorConfig            _config;
-    std::string                 _ip;
-    uint16_t                    _bin_port = 0;
-    uint16_t                    _json_port = 0;
-    std::shared_ptr<Socket>     _socket;
-    std::shared_ptr<TxChannel>  _acceptor_channel;
-    Log                         _log;
+    Service &                       _service;
+    TxPeerManager                   _json_peer;
+    TxPeerManager                   _bin_peer;
+    TxAcceptorConfig                _config;
+    std::shared_ptr<TxChannel>      _acceptor_channel = nullptr;
+    Log                             _log;
 };
