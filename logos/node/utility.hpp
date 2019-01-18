@@ -18,6 +18,8 @@
 #include <logos/lib/interface.h>
 #include <logos/lib/numbers.hpp>
 
+#include <logos/consensus/messages/common.hpp>
+
 namespace logos
 {
 using bufferstream = boost::iostreams::stream_buffer<boost::iostreams::basic_array_source<uint8_t>>;
@@ -123,7 +125,8 @@ public:
     mdb_val (MDB_val const &);
     mdb_val (size_t, void *);
     mdb_val (logos::uint128_union const &);
-    mdb_val (logos::uint256_union const &);
+    mdb_val (uint8_t const & v);
+    mdb_val (const BlockHash & v);
     void * data () const;
     size_t size () const;
     logos::uint256_union uint256 () const;

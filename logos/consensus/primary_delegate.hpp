@@ -58,14 +58,19 @@ public:
     virtual ~PrimaryDelegate()
     {}
 
-    template<typename M>
-    void Send();
-
     virtual void OnCurrentEpochSet();
 
     virtual void Send(const void * data, size_t size) = 0;
 
     void AdvanceState(ConsensusState new_state);
+
+    template<typename TYPE>
+    void Send(const TYPE & data)
+    {
+        std::vector<uint8_t> buf;
+        data.Serialize(buf);
+        Send(buf.data(), buf.size());
+    }
 
 protected:
 
@@ -84,14 +89,18 @@ protected:
     //       benchmark.
     //
     std::recursive_mutex _mutex;
+    BlockHash            _prev_pre_prepare_hash;
+    BlockHash            _pre_prepare_hash;
+    BlockHash            _post_prepare_hash;
+    DelegateSig          _pre_prepare_sig;
+    AggSignature         _post_prepare_sig;
+    AggSignature         _post_commit_sig;
     bool                 _ongoing         = false;
     std::mutex           _ongoing_mutex;
     bool                 _state_changing  = false;
     std::mutex           _state_mutex;
-    BlockHash            _prev_hash       = 0;
-    BlockHash            _cur_hash        = 0;
     Weights              _weights;
-    Epoch                _current_epoch;
+    ApprovedEB           _current_epoch;
     ConsensusState       _state           = ConsensusState::VOID;
     uint128_t            _vote_total      = 0;
     uint128_t            _stake_total     = 0;
@@ -133,6 +142,22 @@ private:
     virtual void TallyPrepareMessage(const PrepareMessage<ConsensusType::BatchStateBlock> & message, uint8_t remote_delegate_id);
     virtual void TallyPrepareMessage(const PrepareMessage<ConsensusType::MicroBlock> & message, uint8_t remote_delegate_id);
     virtual void TallyPrepareMessage(const PrepareMessage<ConsensusType::Epoch> & message, uint8_t remote_delegate_id);
+
+    template<ConsensusType C>
+    BlockHash GetHashSigned(const RejectionMessage<C> & message)
+    {
+        return message.Hash();
+    }
+    template<ConsensusType C>
+    BlockHash GetHashSigned(const PrepareMessage<C> & message)
+    {
+        return _pre_prepare_hash;
+    }
+    template<ConsensusType C>
+    BlockHash GetHashSigned(const CommitMessage<C> & message)
+    {
+        return _post_prepare_hash;
+    }
 
     virtual void OnRejection(const RejectionMessage<ConsensusType::BatchStateBlock> & message, uint8_t remote_delegate_id);
     virtual void OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message, uint8_t remote_delegate_id);

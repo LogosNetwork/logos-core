@@ -1,7 +1,8 @@
 #include <logos/consensus/primary_delegate.hpp>
-
+#include <logos/lib/trace.hpp>
 #include <boost/multiprecision/cpp_dec_float.hpp>
 #include <boost/asio/error.hpp>
+#include <logos/lib/utility.hpp>
 
 template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
@@ -41,6 +42,11 @@ PrimaryDelegate::PrimaryDelegate(Service & service,
 template<ConsensusType C>
 void PrimaryDelegate::ProcessMessage(const RejectionMessage<C> & message, uint8_t remote_delegate_id)
 {
+    LOG_DEBUG(_log) << "PrimaryDelegate::ProcessMessage<"
+                    << ConsensusToName(C) << ">- Received rejection("
+                    << RejectionReasonToName(message.reason)
+                    << ")";
+
     if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE, remote_delegate_id) == ProceedAction::REJECTED)
     {
         LOG_DEBUG(_log) << "PrimaryDelegate::ProcessMessage - Proceeding to OnPrePrepareRejected";
@@ -56,20 +62,20 @@ void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message, uint8_t 
     {
         case ProceedAction::APPROVED :
         {
-            // We make sure in ProceedWithMessage that only one message can reach here. No need to lock yet
+            // We made sure in ProceedWithMessage that only one message can reach here. No need to lock yet
             CycleTimers<C>(true);
 
-            // Break up Send template function because we want to avoid locking but still atomically access _signatures
-            // No need to lock because no one else can change _cur_hash or _signatures at this point
-            PostPrepareMessage<C> response(_cur_batch_timestamp);
-            response.previous = _cur_hash;
-            _validator.Sign(response, _signatures);
+            // We want to avoid locking but still atomically access _signatures
+            // No need to lock because no one else can change _pre_prepare_hash, _post_prepare_hash,
+            // _post_commit_hash or _signatures at this point
+            PostPrepareMessage<C> response(_pre_prepare_hash, _post_prepare_sig);
             {
                 std::lock_guard<std::mutex> lock(_state_mutex);
+                _post_prepare_hash = response.ComputeHash();
                 AdvanceState(ConsensusState::POST_PREPARE);
             }
             // At this point any incoming Prepare messages will still get ignored because of state mismatch
-            Send(&response, sizeof(response));
+            Send<PostPrepareMessage<C>>(response);
 
             break;
         }
@@ -91,7 +97,8 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage<C> & message, uint8_t r
     {
         CancelTimer();
 
-        Send<PostCommitMessage<C>>();
+        PostCommitMessage<C> response(_pre_prepare_hash, _post_commit_sig);
+        Send<PostCommitMessage<C>>(response);
         // Can lock after Send because we won't get response back
         {
             std::lock_guard<std::mutex> lock(_state_mutex);
@@ -217,7 +224,7 @@ void PrimaryDelegate::OnTimeout(const Error & error,
                        << " Aborting timeout.";
         return;
     }
-    LOG_ERROR(_log) << "PrimaryDelegate::Ontimeout<" << ConsensusToName(C) << "> - Delegate going into recall! ";
+    LOG_ERROR(_log) << "PrimaryDelegate::OnTimeout<" << ConsensusToName(C) << "> - Delegate going into recall! ";
     AdvanceState(ConsensusState::RECALL);
 }
 
@@ -246,18 +253,7 @@ void PrimaryDelegate::CycleTimers(bool cancel) // This should be called while _s
 template<typename M>
 bool PrimaryDelegate::Validate(const M & message, uint8_t remote_delegate_id)
 {
-    return _validator.Validate(message, remote_delegate_id);
-}
-
-template<typename M>
-void PrimaryDelegate::Send()
-{
-    M response(_cur_batch_timestamp);
-
-    response.previous = _cur_hash;
-    _validator.Sign(response, _signatures);
-
-    Send(&response, sizeof(response));
+    return _validator.Validate(GetHashSigned(message), message.signature, remote_delegate_id);
 }
 
 void PrimaryDelegate::OnCurrentEpochSet()
@@ -266,15 +262,15 @@ void PrimaryDelegate::OnCurrentEpochSet()
     {
         auto & delegate = _current_epoch.delegates[pos];
 
-        _vote_total += delegate.vote;
-        _stake_total += delegate.stake;
+        _vote_total += delegate.vote.number();
+        _stake_total += delegate.stake.number();
 
-        _weights[pos] = {delegate.vote, delegate.stake};
+        _weights[pos] = {delegate.vote.number(), delegate.stake.number()};
 
         if(pos == _delegate_id)
         {
-            _my_vote = delegate.vote;
-            _my_stake = delegate.stake;
+            _my_vote = delegate.vote.number();
+            _my_stake = delegate.stake.number();
         }
     }
 
@@ -294,7 +290,9 @@ void PrimaryDelegate::OnConsensusInitiated(const PrePrepareMessage<C> & block)
     _prepare_vote = _my_vote;
     _prepare_stake = _my_stake;
 
-    _cur_hash = block.Hash();
+    _pre_prepare_hash = block.Hash();
+    _validator.Sign(_pre_prepare_hash, _pre_prepare_sig);
+
     _cur_batch_timestamp = block.timestamp;
 
     CycleTimers<C>();
@@ -353,10 +351,11 @@ bool PrimaryDelegate::AllDelegatesResponded()
 template<typename M>
 PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expected_state, uint8_t remote_delegate_id)
 {
+    // SYL Integration fix: place lock on shared resource,
+    // TODO: optimize locking based on read / write; add debugging to Validate
+    std::lock_guard<std::mutex> lock(_state_mutex);
     if(Validate(message, remote_delegate_id)) // SYL Integration fix: do the validation first which requires no locking
     {
-        // SYL Integration fix: place lock on shared resource,
-        std::lock_guard<std::mutex> lock(_state_mutex);
 
         if(_state != expected_state)
         {
@@ -368,16 +367,16 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
             return ProceedAction::DO_NOTHING;
         }
 
-        // for any message type other than PrePrepare, `previous` field is the current consensus block's hash
-        if(_cur_hash != message.previous)
-        {
-            LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received message with hash "
-                           << message.previous.to_string()
-                           << " while current hash is "
-                           << _cur_hash.to_string();
-
-            return ProceedAction::DO_NOTHING;
-        }
+//        // for any message type other than PrePrepare, `previous` field is the current consensus block's hash
+//        if(_cur_hash != message.previous)
+//        {
+//            LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received message with hash "
+//                           << message.previous.to_string()
+//                           << " while current hash is "
+//                           << _cur_hash.to_string();
+//
+//            return ProceedAction::DO_NOTHING;
+//        }
 
         if (!_state_changing)
         {
@@ -391,6 +390,33 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
             // ReachedQuorum returns true iff the whole Block gets enough vote + stake
             if(message.type != MessageType::Rejection && ReachedQuorum())
             {
+                bool sig_aggregated = false;
+                if(expected_state == ConsensusState::PRE_PREPARE )
+                {
+                    //need my own sig
+                    _signatures.push_back({_delegate_id, _pre_prepare_sig});
+                    _post_prepare_sig.map.reset();
+                    sig_aggregated = _validator.AggregateSignature(_signatures, _post_prepare_sig);
+                }
+                else if (expected_state == ConsensusState::POST_PREPARE )
+                {
+                    //need my own sig
+                    DelegateSig my_commit_sig;
+                    _validator.Sign(_post_prepare_hash, my_commit_sig);
+                    _signatures.push_back({_delegate_id, my_commit_sig});
+                    _post_commit_sig.map.reset();
+                    sig_aggregated = _validator.AggregateSignature(_signatures, _post_commit_sig);
+                }
+
+                if( ! sig_aggregated )
+                {
+                    LOG_FATAL(_log) << "PrimaryDelegate - Failed to aggregate signatures"
+                            << " expected_state=" << StateToString(expected_state);
+                    //The BLS key storage or the aggregation code has a fatal error, cannot be
+                    //used to generate nor verify aggregated signatures. So the local node cannot
+                    //be a delegate anymore.
+                    trace_and_halt();
+                }
                 // set transition flag so only one remote message can trigger state change
                 _state_changing = true;
                 return ProceedAction::APPROVED;

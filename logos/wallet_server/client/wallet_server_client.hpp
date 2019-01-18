@@ -17,7 +17,7 @@ public:
     WalletServerClient(const Endpoint & callback_endpoint,
                        Service & service);
 
-    void OnBatchBlock(const BatchStateBlock & block);
+    void OnBatchBlock(const ApprovedBSB & block);
 
 private:
 

@@ -12,7 +12,6 @@ class MicroBlockConsensusManager: public ConsensusManager<ConsensusType::MicroBl
 {
 
 public:
-
     /// Class constructor
     ///
     /// Called by ConsensusContainer.
@@ -48,7 +47,7 @@ protected:
     ///     @param[in] block the micro block to commit to the database
     ///     @param[in] delegate_id delegate id
     void ApplyUpdates(
-        PrePrepare &,
+        ApprovedMB &,
         uint8_t delegate_id) override;
 
     /// Returns number of stored blocks.
@@ -72,6 +71,8 @@ protected:
     ///     @return reference to MicroBlock
     PrePrepare & PrePrepareGetNext() override;
 
+    PrePrepare & PrePrepareGetCurr() override;
+
     ///< Pops the MicroBlock from the queue
     void PrePreparePopFront() override;
 
@@ -82,17 +83,17 @@ protected:
     /// Primary list contains request with the hash
     /// @param request's hash
     /// @returns true if the request is in the list
-    bool PrimaryContains(const logos::block_hash&) override;
+    bool PrimaryContains(const BlockHash&) override;
 
     /// Queue request in the secondary list
     /// @param request
     void QueueRequestSecondary(std::shared_ptr<Request>) override;
 
-    /// Create specialized instance of ConsensusConnection
+    /// Create specialized instance of BackupDelegate
     ///     @param iochannel NetIOChannel pointer
     ///     @param ids Delegate's id
-    ///     @return ConsensusConnection
-    std::shared_ptr<ConsensusConnection<ConsensusType::MicroBlock>> MakeConsensusConnection(
+    ///     @return BackupDelegate
+    std::shared_ptr<BackupDelegate<ConsensusType::MicroBlock>> MakeBackupDelegate(
             std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
 
 private:

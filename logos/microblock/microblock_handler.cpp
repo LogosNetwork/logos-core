@@ -21,14 +21,15 @@ MicroBlockHandler::BatchBlocksIterator(
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
     {
         BlockHash hash = start[delegate];
-        BatchStateBlock batch;
+        ApprovedBSB batch;
         bool not_found = false;
         for (not_found = store.batch_block_get(hash, batch);
              !not_found && hash != end[delegate];
-             hash = batch.previous, not_found = store.batch_block_get(hash, batch)) {
+             hash = batch.previous, not_found = store.batch_block_get(hash, batch))
+        {
             batchblock_receiver(delegate, batch);
         }
-        if (not_found && hash != 0)
+        if (not_found && !hash.is_zero())
         {
             LOG_ERROR(log) << "MicroBlockHander::BatchBlocksIterator failed to get batch state block: "
                             << hash.to_string();
@@ -47,11 +48,11 @@ MicroBlockHandler::FastMerkleTree(
 {
    uint64_t cutoff_msec = GetCutOffTimeMsec(timestamp);
    return merkle::MerkleHelper([&](merkle::HashReceiverCb element_receiver)->void {
-       BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable -> void {
+       BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedBSB &batch)mutable -> void {
           if (batch.timestamp < cutoff_msec)
           {
               BlockHash hash = batch.Hash();
-              if (tips[delegate] == 0)
+              if (tips[delegate].is_zero())
               {
                   tips[delegate] = hash;
               }
@@ -77,7 +78,7 @@ MicroBlockHandler::SlowMerkleTree(
     uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
 
     // frist get hashes and timestamps of all blocks; and min timestamp to use as the base
-    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable->void{
+    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedBSB &batch)mutable->void{
        entries[delegate].push_back({batch.timestamp, batch.Hash()});
        if (batch.timestamp < min_timestamp)
        {
@@ -95,7 +96,7 @@ MicroBlockHandler::SlowMerkleTree(
                 if (it.timestamp >= (min_timestamp + cutoff_msec)) {
                     continue;
                 }
-                if (tips[delegate] == 0)
+                if (tips[delegate].is_zero())
                 {
                     tips[delegate] = it.hash;
                 }
@@ -115,11 +116,11 @@ MicroBlockHandler::GetTipsFast(
     uint64_t timestamp)
 {
     uint64_t cutoff_msec = GetCutOffTimeMsec(timestamp);
-    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable -> void {
+    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedBSB &batch)mutable -> void {
         if (batch.timestamp < cutoff_msec)
         {
             BlockHash hash = batch.Hash();
-            if (tips[delegate] == 0)
+            if (tips[delegate].is_zero())
             {
                 tips[delegate] = hash;
             }
@@ -151,7 +152,7 @@ MicroBlockHandler::GetTipsSlow(
     uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
 
     // frist get hashes and timestamps of all blocks; and min timestamp to use as the base
-    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const BatchStateBlock &batch)mutable->void{
+    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedBSB &batch)mutable->void{
         entries[delegate].push_back({batch.timestamp, batch.Hash()});
         if (batch.timestamp < min_timestamp)
         {
@@ -167,7 +168,7 @@ MicroBlockHandler::GetTipsSlow(
             if (it.timestamp >= (min_timestamp + cutoff_msec)) {
                 continue;
             }
-            if (tips[delegate] == 0)
+            if (tips[delegate].is_zero())
             {
                 tips[delegate] = it.hash;
             }
@@ -184,7 +185,7 @@ MicroBlockHandler::Build(
     bool last_micro_block)
 {
     BlockHash previous_micro_block_hash;
-    MicroBlock previous_micro_block;
+    ApprovedMB previous_micro_block;
 
     if (_store.micro_block_tip_get(previous_micro_block_hash))
     {
@@ -199,12 +200,12 @@ MicroBlockHandler::Build(
     }
 
     // collect current batch block tips
-    BatchTips start = {0};
+    BatchTips start;
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
     {
         if (_store.batch_tip_get(delegate, start[delegate]))
         {
-            start[delegate] = 0;
+            start[delegate].clear();
         }
     }
 
@@ -227,7 +228,7 @@ MicroBlockHandler::Build(
     // should it be allowed to have no tips? same as above, i.e disconnected for a while
     // (std::count(block._tips.begin(), block._tips.end(), 0) == 0);
 
-    Epoch epoch;
+    ApprovedEB epoch;
     BlockHash hash;
     if (_store.epoch_tip_get(hash))
     {
@@ -250,20 +251,20 @@ MicroBlockHandler::Build(
     block.epoch_number = first_micro_block
             ? previous_micro_block.epoch_number + 1
             : previous_micro_block.epoch_number;
-    block.account = DelegateIdentityManager::_delegate_account;
+    block.primary_delegate = DelegateIdentityManager::_delegate_account;
     block.sequence = first_micro_block
             ? 0
             : previous_micro_block.sequence + 1;
     block.last_micro_block = last_micro_block;
 
-//    LOG_INFO(_log) << "MicroBlockHandler::Build, built microblock:"
-//                   << " hash " << block.Hash().to_string()
-//                   << " timestamp " << block.timestamp
-//                   << " previous " << block.previous.to_string()
-//                   << " epoch_number " << block.epoch_number
-//                   << " account " << block.account.to_account()
-//                   << " sequence " << block.sequence
-//                   << " last_micro_block " << (int)block.last_micro_block;
+    LOG_INFO(_log) << "MicroBlockHandler::Build, built microblock:"
+                   << " hash " << Blake2bHash<MicroBlock>(block).to_string()
+                   << " timestamp " << block.timestamp
+                   << " previous " << block.previous.to_string()
+                   << " epoch_number " << block.epoch_number
+                   << " account " << block.primary_delegate.to_account()
+                   << " sequence " << block.sequence
+                   << " last_micro_block " << (int)block.last_micro_block;
 
     return true;
 }

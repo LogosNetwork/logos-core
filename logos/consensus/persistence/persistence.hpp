@@ -20,6 +20,7 @@ protected:
 public:
 
     static constexpr Milliseconds DEFAULT_CLOCK_DRIFT = Milliseconds(20000);
+    static constexpr Milliseconds ZERO_CLOCK_DRIFT = Milliseconds(0);
 
     Persistence(Store & store,
                 Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT)
@@ -28,8 +29,7 @@ public:
     {}
     virtual ~Persistence() = default;
 
-protected:
-    void UpdateStatusRequests(ValidationStatus *status, uint8_t i, logos::process_result result)
+    static void UpdateStatusRequests(ValidationStatus *status, uint8_t i, logos::process_result result)
     {
         if (status != nullptr)
         {
@@ -37,7 +37,7 @@ protected:
         }
     }
 
-    void UpdateStatusReason(ValidationStatus *status, logos::process_result r)
+    static void UpdateStatusReason(ValidationStatus *status, logos::process_result r)
     {
         if (status != nullptr)
         {
@@ -45,6 +45,7 @@ protected:
         }
     }
 
+protected:
     bool ValidateTimestamp(uint64_t timestamp)
     {
         auto now = GetStamp();

@@ -4,6 +4,7 @@
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
+#include <logos/consensus/messages/state_block.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/epoch/archiver.hpp>
@@ -77,7 +78,7 @@ ConsensusContainer::CreateEpochManager(
 
 logos::process_return
 ConsensusContainer::OnSendRequest(
-    std::shared_ptr<logos::state_block> block, 
+    std::shared_ptr<StateBlock> block,
     bool should_buffer)
 {
     logos::process_return result;
@@ -107,6 +108,8 @@ ConsensusContainer::OnSendRequest(
     }
     else
     {
+        LOG_DEBUG(_log) << "ConsensusContainer::OnSendRequest: "
+                << "number_transaction=" << block->trans.size();
         _cur_epoch->_batch_manager.OnSendRequest(
             static_pointer_cast<Request>(block), result);
     }
@@ -133,7 +136,7 @@ ConsensusContainer::BufferComplete(
 
 logos::process_return
 ConsensusContainer::OnSendRequest(
-    std::shared_ptr<MicroBlock> block)
+    std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>> block)
 {
     OptLock lock(_transition_state, _mutex);
     logos::process_return result;
@@ -155,7 +158,7 @@ ConsensusContainer::OnSendRequest(
 
 logos::process_return
 ConsensusContainer::OnSendRequest(
-    std::shared_ptr<Epoch> block)
+    std::shared_ptr<RequestMessage<ConsensusType::Epoch>> block)
 {
     OptLock lock(_transition_state, _mutex);
     logos::process_return result;

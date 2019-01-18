@@ -19,8 +19,7 @@ class ValidatorBuilder {
 
 private:
 
-    using Store     = logos::block_store;
-    using BlockHash = logos::block_hash;
+    using Store         = logos::block_store;
 
 public:
 
@@ -31,7 +30,7 @@ public:
     /// public keys for the given epoch
     /// @param epoch_number epoch number [in]
     /// @returns MessageValidator shared pointer
-    std::shared_ptr<MessageValidator> GetValidator(uint16_t epoch_number);
+    std::shared_ptr<MessageValidator> GetValidator(uint32_t epoch_number);
 
 private:
 
@@ -43,7 +42,7 @@ private:
     };
 
     Store &                                     _store;
-    static std::unordered_map<uint16_t, pki>    _epoch_pki;
+    static std::unordered_map<uint32_t, pki>    _epoch_pki;
     Log                                         _log;
     static std::shared_ptr<MessageValidator>    _cached_validator;
     static uint16_t                             _cached_epoch;

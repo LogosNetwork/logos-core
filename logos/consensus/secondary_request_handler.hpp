@@ -38,7 +38,7 @@ class SecondaryRequestHandler
 
     struct Request
     {
-        logos::block_hash hash;
+        BlockHash         hash;
         BlockPtr          block;
         TimePoint         expiration;
     };
@@ -48,7 +48,7 @@ class SecondaryRequestHandler
                 Request,
                 indexed_by<
                     ordered_non_unique<member<Request, TimePoint, &Request::expiration>>,
-                    hashed_unique<member<Request, logos::block_hash, &Request::hash>>
+                    hashed_unique<member<Request, BlockHash, &Request::hash>>
                 >
             >;
 
@@ -56,7 +56,7 @@ public:
 
     SecondaryRequestHandler(Service & service, Promoter *promoter);
 
-    bool Contains(const logos::block_hash & hash);
+    bool Contains(const BlockHash & hash);
 
     void OnRequest(std::shared_ptr<RequestMessage<CT>> block,
                    Seconds seconds = REQUEST_TIMEOUT);
@@ -69,7 +69,7 @@ public:
 
 private:
 
-    void PruneRequest(const logos::block_hash & hash);
+    void PruneRequest(const BlockHash & hash);
 
     void ScheduleTimer(const Seconds & timeout);
     void PruneRequests(const PrePrepare & block);

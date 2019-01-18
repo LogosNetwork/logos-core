@@ -25,9 +25,10 @@ class ArchiverMicroBlockHandler
 {
 public:
     using EpochConsensusCb = std::function<logos::process_return(std::shared_ptr<Epoch>)>;
+
     ArchiverMicroBlockHandler() = default;
     virtual ~ArchiverMicroBlockHandler() = default;
-    virtual void OnApplyUpdates(const MicroBlock &) = 0;
+    virtual void OnApplyUpdates(const ApprovedMB &) = 0;
 };
 
 /// Container for Epoch/MicroBlock handling, Event proposing, Voting manager, and
@@ -60,7 +61,7 @@ public:
 
     /// Commit micro block to the database, propose epoch
     /// @param block to commit
-    void OnApplyUpdates(const MicroBlock &block) override
+    void OnApplyUpdates(const ApprovedMB &block) override
     {
         if (block.last_micro_block) {
             _event_proposer.ProposeEpoch();
