@@ -94,7 +94,7 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 
         std::vector<uint8_t> buf;
         block.Serialize(buf, true, true);
-        _consensus_p2p.ProcessOutputMessage(buf.data(), buf.size(), MessageType::Post_Committed_Block);
+        _consensus_p2p.ProcessOutputMessage(buf.data(), buf.size());
     }
 }
 

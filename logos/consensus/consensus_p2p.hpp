@@ -16,7 +16,7 @@ public:
     ConsensusP2pOutput(p2p_interface & p2p,
                        uint8_t delegate_id);
 
-    bool ProcessOutputMessage(const uint8_t *data, uint32_t size, MessageType mtype);
+    bool ProcessOutputMessage(const uint8_t *data, uint32_t size);
 
     p2p_interface &         _p2p;
 
@@ -40,7 +40,7 @@ class ConsensusP2p
 {
 public:
     ConsensusP2p(p2p_interface & p2p,
-                 std::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)> Validate,
+                 std::function<bool (const PostCommittedBlock<CT> &, uint8_t, ValidationStatus *)> Validate,
                  std::function<void (const PostCommittedBlock<CT> &, uint8_t)> ApplyUpdates,
                  std::function<bool (const PostCommittedBlock<CT> &)> BlockExists);
 
@@ -66,7 +66,7 @@ private:
                                                            PostCommittedBlock<CT> &block);
 
     Log                                                                                         _log;
-    std::function<bool (const Prequel &, MessageType, uint8_t, ValidationStatus *)>             _Validate;
+    std::function<bool (const PostCommittedBlock<CT> &, uint8_t, ValidationStatus *)>           _Validate;
     std::function<void (const PostCommittedBlock<CT> &, uint8_t)>                               _ApplyUpdates;
     std::function<bool (const PostCommittedBlock<CT> &)>                                        _BlockExists;
     std::multimap<logos::block_hash,std::pair<uint8_t,std::shared_ptr<PostCommittedBlock<CT>>>> _cache;
@@ -85,12 +85,10 @@ public:
                    logos::block_store &store)
         : _persistence(store, NonDelPersistenceManager<CT>::DEFAULT_CLOCK_DRIFT)
         , _p2p(p2p,
-            [this](const Prequel &message, MessageType mtype, uint8_t delegate_id, ValidationStatus * status)
+            [this](const PostCommittedBlock<CT> &message, uint8_t delegate_id, ValidationStatus * status)
             {
-                return mtype == MessageType::Pre_Prepare  ? this->_persistence.ValidatePreprepare((PrePrepareMessage<CT> &)message, status)
-                     : mtype == MessageType::Post_Prepare ? false /* todo */
-                     : mtype == MessageType::Post_Commit  ? false /* todo */
-                     : false;
+                const PrePrepareMessage<CT> block(message);
+                return this->_persistence.ValidatePreprepare(block, status);
             },
             [this](const PostCommittedBlock<CT> &message, uint8_t delegate_id)
             {

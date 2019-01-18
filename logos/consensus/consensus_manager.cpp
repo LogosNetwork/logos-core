@@ -107,7 +107,7 @@ ConsensusManager<CT>::GetStore()
 }
 
 template<ConsensusType CT>
-void ConsensusManager<CT>::Send(const void * data, size_t size, MessageType mtype)
+void ConsensusManager<CT>::Send(const void * data, size_t size)
 {
     std::lock_guard<std::mutex> lock(_connection_mutex);
 
@@ -115,8 +115,6 @@ void ConsensusManager<CT>::Send(const void * data, size_t size, MessageType mtyp
     {
         conn->Send(data, size);
     }
-
-    _consensus_p2p.ProcessOutputMessage((const uint8_t *)data, size, mtype);
 }
 
 template<ConsensusType CT>
@@ -140,6 +138,10 @@ void ConsensusManager<CT>::OnConsensusReached()
                         << messages_stored
                         << " blocks.";
     }
+
+    std::vector<uint8_t> buf;
+    block.Serialize(buf, true, true);
+    _consensus_p2p.ProcessOutputMessage(buf.data(), buf.size());
 
     _prev_pre_prepare_hash = _pre_prepare_hash;
 

@@ -61,7 +61,7 @@ struct PrePrepareMessage : public MessagePrequel<MessageType::Pre_Prepare, CT>,
     , ConsensusBlock<CT>(error, stream, with_appendix)
     {}
 
-    PrePrepareMessage(PostCommittedBlock<CT> & block)
+    PrePrepareMessage(const PostCommittedBlock<CT> & block)
     : MessagePrequel<MessageType::Pre_Prepare, CT>(block.version)
     , ConsensusBlock<CT>(block)
     {}
