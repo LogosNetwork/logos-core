@@ -383,6 +383,7 @@ SET (ACTIVE_NETWORK logos_live_network CACHE STRING "Selects which network param
 set_property (CACHE ACTIVE_NETWORK PROPERTY STRINGS logos_test_network logos_beta_network logos_live_network)
 
 option(STRICT_CONSENSUS_THRESHOLD "Require approval from all delegates for transaction validation" OFF)
+option(TEST_REJECT "Makes delegate reject random transactions inside PrePrepare messages" OFF)
 
 if (LOGOS_TEST)
 	add_executable (core_test
@@ -426,8 +427,11 @@ set_target_properties (blake2 PROPERTIES COMPILE_FLAGS "${PLATFORM_C_FLAGS} ${PL
 set_target_properties (ed25519 PROPERTIES COMPILE_FLAGS "${PLATFORM_C_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DED25519_CUSTOMHASH -DED25519_CUSTOMRNG")
 set_target_properties (secure node logos_core logos_lib logos_lib_static PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1 ")
 if (STRICT_CONSENSUS_THRESHOLD MATCHES ON)
-	set_property (TARGET secure node logos_core logos_lib logos_lib_static APPEND_STRING PROPERTY COMPILE_FLAGS "-DSTRICT_CONSENSUS_THRESHOLD")
+	set_property (TARGET secure node logos_core logos_lib logos_lib_static APPEND_STRING PROPERTY COMPILE_FLAGS "-DSTRICT_CONSENSUS_THRESHOLD ")
 endif (STRICT_CONSENSUS_THRESHOLD MATCHES ON)
+if (TEST_REJECT MATCHES ON)
+	set_property (TARGET secure node logos_core logos_lib logos_lib_static APPEND_STRING PROPERTY COMPILE_FLAGS "-DTEST_REJECT ")
+endif (TEST_REJECT MATCHES ON)
 set_target_properties (secure node logos_core PROPERTIES LINK_FLAGS "${PLATFORM_LINK_FLAGS}")
 
 if (WIN32)

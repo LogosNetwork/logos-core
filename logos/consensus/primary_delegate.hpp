@@ -34,6 +34,13 @@ class PrimaryDelegate
 
 public:
 
+    enum class ProceedAction : uint8_t
+    {
+        APPROVED = 0,
+        REJECTED,
+        DO_NOTHING
+    };
+
     PrimaryDelegate(Service & service,
                     MessageValidator & validator);
 
@@ -110,6 +117,23 @@ private:
     template<ConsensusType C>
     void ProcessMessage(const CommitMessage<C> & message, uint8_t remote_delegate_id);
 
+    // The Tally method needs to be called with _state_mutex locked to ensure atomicity
+    template<ConsensusType C>
+    void Tally(const RejectionMessage<C> & message, uint8_t remote_delegate_id);
+
+    template<ConsensusType C>
+    void Tally(const PrepareMessage<C> & message, uint8_t remote_delegate_id);
+
+    template<ConsensusType C>
+    void Tally(const CommitMessage<C> & message, uint8_t remote_delegate_id);
+
+    template<typename M>
+    void TallyStandardPhaseMessage(const M & message, uint8_t remote_delegate_id);
+
+    virtual void TallyPrepareMessage(const PrepareMessage<ConsensusType::BatchStateBlock> & message, uint8_t remote_delegate_id);
+    virtual void TallyPrepareMessage(const PrepareMessage<ConsensusType::MicroBlock> & message, uint8_t remote_delegate_id);
+    virtual void TallyPrepareMessage(const PrepareMessage<ConsensusType::Epoch> & message, uint8_t remote_delegate_id);
+
     virtual void OnRejection(const RejectionMessage<ConsensusType::BatchStateBlock> & message, uint8_t remote_delegate_id);
     virtual void OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message, uint8_t remote_delegate_id);
     virtual void OnRejection(const RejectionMessage<ConsensusType::Epoch> & message, uint8_t remote_delegate_id);
@@ -131,9 +155,10 @@ private:
     bool AllDelegatesResponded();
 
     template<typename M>
-    bool ProceedWithMessage(const M & message, ConsensusState expected_state, uint8_t remote_delegate_id);
+    ProceedAction ProceedWithMessage(const M & message, ConsensusState expected_state, uint8_t remote_delegate_id);
 
     virtual void OnStateAdvanced();
+    virtual bool IsPrePrepareRejected();
     virtual void OnPrePrepareRejected();
 
     virtual void OnConsensusReached() = 0;

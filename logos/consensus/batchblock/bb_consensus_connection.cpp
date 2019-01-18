@@ -71,8 +71,13 @@ BBConsensusConnection::ValidateRequests(
 
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
+#ifdef TEST_REJECT
+        if(!_persistence_manager.Validate(static_cast<const Request&>(message.blocks[i])) || bool(message.blocks[i].hash().number() & 1))
+#else
         if(!_persistence_manager.Validate(static_cast<const Request&>(message.blocks[i])))
+#endif
         {
+            LOG_WARN(_log) << "BBConsensusConnection::ValidateRequests - Rejecting " << message.blocks[i].hash().to_string();
             _rejection_map[i] = 1;
 
             if(valid)

@@ -176,8 +176,11 @@ void ConsensusManager<CT>::InitiateConsensus()
     auto & pre_prepare = PrePrepareGetNext();
     pre_prepare.previous = _prev_hash;
 
+    // SYL Integration: if we don't want to lock _state_mutex here it is important to
+    // call OnConsensusInitiated before AdvanceState (otherwise PrimaryDelegate might
+    // mistakenly process previous consensus messages from backups in this new round,
+    // since ProceedWithMessage checks _state first then _cur_hash).
     OnConsensusInitiated(pre_prepare);
-
     AdvanceState(ConsensusState::PRE_PREPARE);
 
     _validator.Sign(pre_prepare);

@@ -198,6 +198,7 @@ BatchBlockConsensusManager::InitiateConsensus()
     _ne_reject_stake = 0;
     // make sure we start with a fresh set of hashes so as to not interfere with rejection logic
     _hashes.clear();
+    _should_repropose = false;
 
     _handler.PrepareNextBatch();
 
@@ -265,77 +266,92 @@ BatchBlockConsensusManager::AcquirePrePrepare(const PrePrepare & message)
     OnRequestQueued();
 }
 
+void BatchBlockConsensusManager::TallyPrepareMessage(const Prepare & message, uint8_t remote_delegate_id)
+{
+    if(!_should_repropose)  // We only check individual transactions if we have already seen Rejection messages
+    {
+        return;
+    }
+
+    auto & vote = _weights[remote_delegate_id].vote_weight;
+    auto & stake = _weights[remote_delegate_id].stake_weight;
+
+    auto batch = _handler.GetCurrentBatch();
+    auto block_count = batch.block_count;
+
+    for(uint64_t i = 0; i < block_count; ++i)
+    {
+        auto & weights = _response_weights[i];
+
+        if(ReachedQuorum(weights.indirect_vote_support + _prepare_vote,
+                         weights.indirect_stake_support + _prepare_stake))
+        {
+            _hashes.erase(batch.blocks[i].hash());
+        }
+    }
+}
+
 void
 BatchBlockConsensusManager::OnRejection(
         const Rejection & message, uint8_t remote_delegate_id)
 {
-    std::lock_guard<std::mutex> lock(_state_mutex);
+    auto & vote = _weights[remote_delegate_id].vote_weight;
+    auto & stake = _weights[remote_delegate_id].stake_weight;
+
+    switch(message.reason)
     {
-        auto & vote = _weights[remote_delegate_id].vote_weight;
-        auto & stake = _weights[remote_delegate_id].stake_weight;
-
-        switch(message.reason)
+    case RejectionReason::Contains_Invalid_Request:
+    {
+        if(!_should_repropose)
         {
-        case RejectionReason::Contains_Invalid_Request:
-        {
-            auto batch = _handler.GetCurrentBatch();
-            auto block_count = batch.block_count;
+            _should_repropose = true;
+        }
+        auto batch = _handler.GetCurrentBatch();
+        auto block_count = batch.block_count;
 
-            for(uint64_t i = 0; i < block_count; ++i)
+        for(uint64_t i = 0; i < block_count; ++i)
+        {
+            auto & weights = _response_weights[i];
+
+            if(!message.rejection_map[i])
             {
-                auto & weights = _response_weights[i];
+                weights.indirect_vote_support += vote;
+                weights.indirect_stake_support += stake;
 
-                if(!message.rejection_map[i])
+                weights.supporting_delegates.insert(remote_delegate_id);
+
+                if(ReachedQuorum(weights.indirect_vote_support + _prepare_vote,
+                                 weights.indirect_stake_support + _prepare_stake))
                 {
-                    weights.indirect_vote_support += vote;
-                    weights.indirect_stake_support += stake;
-
-                    weights.supporting_delegates.insert(remote_delegate_id);
-
-                    if(ReachedQuorum(weights.indirect_vote_support + _prepare_vote,
-                                     weights.indirect_stake_support + _prepare_stake))
-                    {
-                        _hashes.erase(batch.blocks[i].hash());
-                    }
-                }
-                else
-                {
-                    weights.reject_vote += vote;
-                    weights.reject_stake += stake;
-
-                    if(Rejected(weights.reject_vote,
-                                weights.reject_stake))
-                    {
-                        _hashes.erase(batch.blocks[i].hash());
-                    }
+                    _hashes.erase(batch.blocks[i].hash());
                 }
             }
-            // All requests have been explicitly
-            // rejected or accepted.
-            // Check ConsensusState here because we only want to invoke OnPrePrepareRejected once
-            // (i.e., the first time we want to advance state from PRE_PREPARE to VOID)
-            assert (_state == ConsensusState::VOID || _state == ConsensusState::PRE_PREPARE);
-            if(_hashes.empty() && _state == ConsensusState::PRE_PREPARE)
+            else
             {
-                LOG_DEBUG(_log) << "BatchBlockConsensusManager::OnRejection - all requests in current batch "
-                                << "have been explicityly rejected or accepted";
-                CancelTimer();
-                OnPrePrepareRejected();
+                LOG_WARN(_log) << "BatchBlockConsensusManager::OnRejection - Received rejection for " << batch.blocks[i].hash().to_string();
+                weights.reject_vote += vote;
+                weights.reject_stake += stake;
+
+                if(Rejected(weights.reject_vote,
+                            weights.reject_stake))
+                {
+                    _hashes.erase(batch.blocks[i].hash());
+                }
             }
-            break;
         }
-        case RejectionReason::New_Epoch:
-           _ne_reject_vote += vote;
-           _ne_reject_stake += stake;
-           break;
-        case RejectionReason::Clock_Drift:
-        case RejectionReason::Bad_Signature:
-        case RejectionReason::Invalid_Previous_Hash:
-        case RejectionReason::Wrong_Sequence_Number:
-        case RejectionReason::Invalid_Epoch:
-        case RejectionReason::Void:
-            break;
-        }
+        break;
+    }
+    case RejectionReason::New_Epoch:
+       _ne_reject_vote += vote;
+       _ne_reject_stake += stake;
+       break;
+    case RejectionReason::Clock_Drift:
+    case RejectionReason::Bad_Signature:
+    case RejectionReason::Invalid_Previous_Hash:
+    case RejectionReason::Wrong_Sequence_Number:
+    case RejectionReason::Invalid_Epoch:
+    case RejectionReason::Void:
+        break;
     }
 }
 
@@ -345,10 +361,30 @@ BatchBlockConsensusManager::OnStateAdvanced()
     _response_weights.fill(Weights());
 }
 
+// All requests have been explicitly rejected or accepted.
+// Needs _state_mutex locked
+bool
+BatchBlockConsensusManager::IsPrePrepareRejected()
+{
+    if(_hashes.empty() && _should_repropose)  // SYL Integration: extra flag prevents mistakenly rejecting an empty BSB
+    {
+        LOG_DEBUG(_log) << "BatchBlockConsensusManager::OnRejection - all requests in current batch "
+                        << "have been explicitly rejected or accepted";
+        return true;
+    }
+    else if (Rejected(_ne_reject_vote, _ne_reject_stake))
+    {
+        LOG_DEBUG(_log) << "BatchBlockConsensusManager::OnRejection - Rejected because of new epoch";
+        return true;
+    }
+    return false;
+}
+
 // This should be called while _state_mutex is still locked.
 void
 BatchBlockConsensusManager::OnPrePrepareRejected()
 {
+    assert (_state == ConsensusState::PRE_PREPARE);
     if (Rejected(_ne_reject_vote, _ne_reject_stake))
     {
         _ne_reject_vote = 0;
@@ -527,7 +563,11 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
     _handler.PopFront();
     _handler.InsertFront(requests);
 
-    AdvanceState(ConsensusState::VOID);
+    {
+        // lock because AdvanceState needs to be atomic,
+        std::lock_guard<std::mutex> lock(_state_mutex);
+        AdvanceState(ConsensusState::VOID);
+    }
 
     // SYL integration fix: this is the only place other than
     // OnConsensusReached where we reset the ongoing status

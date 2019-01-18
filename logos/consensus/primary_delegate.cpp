@@ -6,14 +6,23 @@
 template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::BatchStateBlock>&);
 template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::MicroBlock>&);
 template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Epoch>&);
 
 const PrimaryDelegate::Seconds PrimaryDelegate::PRIMARY_TIMEOUT{60};
@@ -32,47 +41,117 @@ PrimaryDelegate::PrimaryDelegate(Service & service,
 template<ConsensusType C>
 void PrimaryDelegate::ProcessMessage(const RejectionMessage<C> & message, uint8_t remote_delegate_id)
 {
-    if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE, remote_delegate_id))
+    if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE, remote_delegate_id) == ProceedAction::REJECTED)
     {
-        LOG_DEBUG(_log) << "PrimaryDelegate::ProcessMessage - Proceeding to OnRejection";
-        OnRejection(message, remote_delegate_id);
+        LOG_DEBUG(_log) << "PrimaryDelegate::ProcessMessage - Proceeding to OnPrePrepareRejected";
+        CancelTimer();
+        OnPrePrepareRejected();
     }
 }
 
 template<ConsensusType C>
 void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message, uint8_t remote_delegate_id)
 {
-    if(ProceedWithMessage(message, ConsensusState::PRE_PREPARE, remote_delegate_id))
+    switch (ProceedWithMessage(message, ConsensusState::PRE_PREPARE, remote_delegate_id))
     {
-        // We make sure in ProceedWithMessage that only one message can reach here. No need to lock yet
-        CycleTimers<C>(true);
+        case ProceedAction::APPROVED :
+        {
+            // We make sure in ProceedWithMessage that only one message can reach here. No need to lock yet
+            CycleTimers<C>(true);
 
-        // lock here because if new commit messages come in we don't want to discard them
-        // Or maybe use a different lock for this specific purpose?
-        std::lock_guard<std::mutex> lock(_state_mutex);
-        Send<PostPrepareMessage<C>>();
-        AdvanceState(ConsensusState::POST_PREPARE);
+            // Break up Send template function because we want to avoid locking but still atomically access _signatures
+            // No need to lock because no one else can change _cur_hash or _signatures at this point
+            PostPrepareMessage<C> response(_cur_batch_timestamp);
+            response.previous = _cur_hash;
+            _validator.Sign(response, _signatures);
+            {
+                std::lock_guard<std::mutex> lock(_state_mutex);
+                AdvanceState(ConsensusState::POST_PREPARE);
+            }
+            // At this point any incoming Prepare messages will still get ignored because of state mismatch
+            Send(&response, sizeof(response));
+
+            break;
+        }
+        case ProceedAction::REJECTED :
+        {
+            CancelTimer();
+            OnPrePrepareRejected();
+            break;
+        }
+        case ProceedAction::DO_NOTHING :
+            break;
     }
-    // SYL Integration fix: we won't have to check rejection since if all
-    // backup delegates responded and we have not reached quorum, some
-    // previous rejection message must have already triggered PrePrepare rejection
 }
 
 template<ConsensusType C>
 void PrimaryDelegate::ProcessMessage(const CommitMessage<C> & message, uint8_t remote_delegate_id)
 {
-    if(ProceedWithMessage(message, ConsensusState::POST_PREPARE, remote_delegate_id))
+    if(ProceedWithMessage(message, ConsensusState::POST_PREPARE, remote_delegate_id) == ProceedAction::APPROVED)
     {
         CancelTimer();
 
         Send<PostCommitMessage<C>>();
         // Can lock after Send because we won't get response back
-        std::lock_guard<std::mutex> lock(_state_mutex);
-        AdvanceState(ConsensusState::POST_COMMIT);
-        // At this point, new messages will be ignored for not being in correct state
+        {
+            std::lock_guard<std::mutex> lock(_state_mutex);
+            AdvanceState(ConsensusState::POST_COMMIT);
+        }
+        // At this point, old messages will be ignored for not being in correct state
         OnConsensusReached();
     }
 }
+
+template<ConsensusType C>
+void PrimaryDelegate::Tally(const RejectionMessage<C> & message, uint8_t remote_delegate_id)
+{
+    LOG_DEBUG(_log) << "PrimaryDelegate::Tally - Tallying for message type" << MessageToName(message);
+    if (message.type != MessageType::Rejection)
+    {
+        LOG_ERROR(_log) << "PrimaryDelegate::Tally - Unexpected message type. Should be seeing Rejection";
+    }
+    OnRejection(message, remote_delegate_id);
+}
+
+template<ConsensusType C>
+void PrimaryDelegate::Tally(const PrepareMessage<C> & message, uint8_t remote_delegate_id)
+{
+    TallyStandardPhaseMessage(message, remote_delegate_id);
+
+    // For BatchBlock Prepare messages, we also want to check if each transaction has enough indirect support
+    // (in case we encounter any rejection response) to be marked as approved
+    TallyPrepareMessage(message, remote_delegate_id);
+}
+
+template<ConsensusType C>
+void PrimaryDelegate::Tally(const CommitMessage<C> & message, uint8_t remote_delegate_id)
+{
+    TallyStandardPhaseMessage(message, remote_delegate_id);
+}
+
+template<typename M>
+void PrimaryDelegate::TallyStandardPhaseMessage(const M & message, uint8_t remote_delegate_id)
+{
+    LOG_DEBUG(_log) << "PrimaryDelegate::Tally - Tallying for message type" << MessageToName(message);
+    if (message.type == MessageType::Rejection)
+    {
+        LOG_ERROR(_log) << "PrimaryDelegate::Tally - Unexpected message type. Should not be seeing Rejection";
+    }
+    _prepare_vote += _weights[remote_delegate_id].vote_weight;
+    _prepare_stake += _weights[remote_delegate_id].stake_weight;
+
+    _signatures.push_back({remote_delegate_id,
+                           message.signature});
+}
+
+void PrimaryDelegate::TallyPrepareMessage(const PrepareMessage<ConsensusType::BatchStateBlock> & message, uint8_t remote_delegate_id)
+{}
+
+void PrimaryDelegate::TallyPrepareMessage(const PrepareMessage<ConsensusType::MicroBlock> & message, uint8_t remote_delegate_id)
+{}
+
+void PrimaryDelegate::TallyPrepareMessage(const PrepareMessage<ConsensusType::Epoch> & message, uint8_t remote_delegate_id)
+{}
 
 void PrimaryDelegate::OnRejection(const RejectionMessage<ConsensusType::BatchStateBlock> & message, uint8_t remote_delegate_id)
 {}
@@ -272,7 +351,7 @@ bool PrimaryDelegate::AllDelegatesResponded()
 }
 
 template<typename M>
-bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expected_state, uint8_t remote_delegate_id)
+PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expected_state, uint8_t remote_delegate_id)
 {
     if(Validate(message, remote_delegate_id)) // SYL Integration fix: do the validation first which requires no locking
     {
@@ -286,7 +365,7 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
                            << " message while in "
                            << StateToString(_state);
 
-            return false;
+            return ProceedAction::DO_NOTHING;
         }
 
         // for any message type other than PrePrepare, `previous` field is the current consensus block's hash
@@ -297,40 +376,42 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
                            << " while current hash is "
                            << _cur_hash.to_string();
 
-            return false;
+            return ProceedAction::DO_NOTHING;
         }
 
         if (!_state_changing)
         {
             _delegates_responded++;
 
-            // Rejection message signatures are not
-            // aggregated.
-            if(message.type != MessageType::Rejection)
-            {
-                _prepare_vote += _weights[remote_delegate_id].vote_weight;
-                _prepare_stake += _weights[remote_delegate_id].stake_weight;
+            // SYL Integration fix: use overloaded Tally method to count votes for all standard phase message types
+            // (including rejection). For BatchBlocks Prepares, even if the whole doesn't reach quorum we still have to
+            // check if the potentially rejected PrePrepare is ready for re-proposal.
+            Tally(message, remote_delegate_id);
 
-                _signatures.push_back({remote_delegate_id,
-                                       message.signature});
-            }
-            // Immediately proceed to OnRejection
-            else
+            // ReachedQuorum returns true iff the whole Block gets enough vote + stake
+            if(message.type != MessageType::Rejection && ReachedQuorum())
             {
-                return true;
-            }
-
-            // set transition flag so only one remote message can trigger state change
-            if(ReachedQuorum())
-            {
+                // set transition flag so only one remote message can trigger state change
                 _state_changing = true;
-                return true;
+                return ProceedAction::APPROVED;
+            }
+            else if (message.type != MessageType::Commit && IsPrePrepareRejected())
+            {
+                // set transition flag so only one remote message can trigger state change
+                _state_changing = true;
+                return ProceedAction::REJECTED;
             }
 
-            return false;
+            return ProceedAction::DO_NOTHING;
         }
+
         // state is already changing, this message came in too late to matter
-        return false;
+        LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received "
+                       << MessageToName(message)
+                       << " message while in "
+                       << StateToString(_state) << " (state already changing)";
+
+        return ProceedAction::DO_NOTHING;
     }
     else
     {
@@ -338,7 +419,7 @@ bool PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expec
                        << MessageToName(message)
                        << " while in state: "
                        << StateToString(_state);
-        return false;
+        return ProceedAction::DO_NOTHING;
     }
 }
 
@@ -358,6 +439,12 @@ void PrimaryDelegate::AdvanceState(ConsensusState new_state)
 
 void PrimaryDelegate::OnStateAdvanced()
 {}
+
+bool PrimaryDelegate::IsPrePrepareRejected()
+{
+    LOG_WARN(_log) << "PrimaryDelegate::IsPrePrepareRejected - Base method called";
+    return false;
+}
 
 void PrimaryDelegate::OnPrePrepareRejected()
 {}

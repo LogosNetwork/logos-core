@@ -13,6 +13,7 @@ class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchSt
 
     using BlockBuffer = std::list<std::shared_ptr<Request>>;
     using Rejection   = RejectionMessage<ConsensusType::BatchStateBlock>;
+    using Prepare     = PrepareMessage<ConsensusType::BatchStateBlock>;
     using Seconds     = boost::posix_time::seconds;
     using Timer       = boost::asio::deadline_timer;
     using Error       = boost::system::error_code;
@@ -163,8 +164,10 @@ private:
 
     void AcquirePrePrepare(const PrePrepare & message) override;
 
+    void TallyPrepareMessage(const Prepare & message, uint8_t remote_delegate_id) override;
     void OnRejection(const Rejection & message, uint8_t remote_delegate_id) override;
     void OnStateAdvanced() override;
+    bool IsPrePrepareRejected() override;
     void OnPrePrepareRejected() override;
 
     void OnDelegatesConnected();
@@ -173,6 +176,7 @@ private:
 
     WeightList            _response_weights;
     Hashes                _hashes;
+    bool                  _should_repropose      = false; ///< indicator of whether a Contains_Invalid_Request Rejection has been received
     BlockBuffer           _buffer;                        ///< Buffered state blocks.
     std::mutex            _buffer_mutex;                  ///< SYL Integration fix: separate lock for benchmarking buffer
     static RequestHandler _handler;                       ///< Primary queue of batch state blocks.
