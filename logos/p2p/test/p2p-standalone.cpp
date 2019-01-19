@@ -27,7 +27,7 @@ class p2p_standalone : public p2p_interface {
         printf("\nReceived %4d:", size);
         if (size && *(const uint8_t *)message >= ' ')
             printf(" %.*s", size, (const char *)message);
-        else for (int i = 0; i < 32 && i < size; ++i)
+        else for (int i = 0; i < 256 && i < size; ++i)
             printf(" %02x", ((const uint8_t *)message)[i]);
         printf("\nType message: ");
 		fflush(stdout);
