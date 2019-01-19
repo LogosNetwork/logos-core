@@ -80,6 +80,7 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
         case MessageType::Heart_Beat:
         case MessageType::Key_Advert:
         case MessageType::Unknown:
+        case MessageType::TxAcceptor_Message:
             error = true;
             break;
     }

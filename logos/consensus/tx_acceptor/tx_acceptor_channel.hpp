@@ -23,29 +23,29 @@ class TxAcceptorChannel : public TxChannel,
 
 public:
     /// Class constructor
-    /// @param service boost asio service reference
-    /// @param ip to accept delegate connection
-    /// @param port to accept delegate connection
+    /// @param service boost asio service reference [in]
+    /// @param ip to accept delegate connection [in]
+    /// @param port to accept delegate connection [in]
     TxAcceptorChannel(Service & service, const std::string & ip, const uint16_t port);
     /// Class distruction
     ~TxAcceptorChannel() = default;
 
 private:
     /// Accepted connection callback
-    /// @param endpoint of accepted connection
-    /// @param socket  of accepted connection
+    /// @param endpoint of accepted connection [in]
+    /// @param socket  of accepted connection [in]
     void OnConnectionAccepted(const Endpoint endpoint, shared_ptr<Socket>) override;
     /// Validate connected delegate
-    /// @param endpoint of accepted delegate
-    /// @param socket of accepted
+    /// @param endpoint of accepted delegate [in]
+    /// @param socket of accepted [in]
     /// @return true if validated
     bool Validate(const Endpoint endpoint, std::shared_ptr<Socket> socket)
     {
         return true; // TODO
     }
     /// Forward transaction to the delegate
-    /// @param block transaction
-    /// @param should_buffer used in benchmarking TODO
+    /// @param block transaction [in]
+    /// @param should_buffer used in benchmarking [in] TODO
     logos::process_return OnSendRequest(std::shared_ptr<StateBlock> block, bool should_buffer);
     /// Send everything on the queue
     void SendQueue();

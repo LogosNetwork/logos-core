@@ -25,7 +25,9 @@ enum class MessageType : uint8_t
     Rejection    = 6,
     Heart_Beat   = 7,
 
-    Post_Committed_Block, //to be stored locally and distributed to fall nodes
+    Post_Committed_Block = 8, //to be stored locally and distributed to fall nodes
+
+    TxAcceptor_Message   = 9,
 
     // Invalid
     Unknown      = 0xff

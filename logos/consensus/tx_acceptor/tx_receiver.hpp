@@ -11,23 +11,29 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/beast.hpp>
 
-namespace logos { class node_config; }
+namespace logos { class node_config; class alarm; }
 
+/// Receive transaction from TxAcceptor
 class TxReceiver
 {
     using Service       = boost::asio::io_service;
-    using Endpoint      = boost::asio::ip::tcp::endpoint;
-    using Socket        = boost::asio::ip::tcp::socket;
-    using Address       = boost::asio::ip::address;
-    using Acceptor      = boost::asio::ip::tcp::acceptor;
-    using Error         = boost::system::error_code;
+    using TxChannelPtr  = std::shared_ptr<TxChannel>;
 
 public:
-    TxReceiver(Service & service, std::shared_ptr<TxChannel> receiver, logos::node_config &config);
+    /// Class constructor
+    /// @param service boost asio service reference [in]
+    /// @param alarm logos alarm reference [in]
+    /// @param receiver channel to pass transaction for consensus protocol [in]
+    /// @param config of the node [in]
+    TxReceiver(Service & service, logos::alarm &alarm,
+               TxChannelPtr receiver, logos::node_config &config);
+    /// Class destructor
     ~TxReceiver() = default;
 
 private:
-    Service &                   _service;
-    TxAcceptorConfig            _config;
-    std::shared_ptr<TxChannel>  _receiver;
+    Service &                   _service;   /// boost asio service reference
+    logos::alarm &              _alarm;     /// logos alarm reference
+    TxAcceptorConfig            _config;    /// TxAcceptor configuration
+    TxChannelPtr                _receiver;  /// channel receiving TxAcceptor transactions
+    std::vector<TxChannelPtr>   _channels;  /// channels to receive TxAcceptor transactions
 };

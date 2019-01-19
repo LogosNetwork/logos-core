@@ -45,19 +45,19 @@ class TxPeerManager : public PeerManager
     using Endpoint      = boost::asio::ip::tcp::endpoint;
 public:
     /// Class constructor
-    /// @param service boost asio service reference
-    /// @param ip to accept client connection
-    /// @param port to accept client connection
-    /// @param tx_acceptor reference for reader callback
-    /// @param reader reader callback for json/binary request
+    /// @param service boost asio service reference [in]
+    /// @param ip to accept client connection [in]
+    /// @param port to accept client connection [in]
+    /// @param tx_acceptor reference for reader callback [in]
+    /// @param reader reader callback for json/binary request [in]
     TxPeerManager(Service & service, const std::string & ip, const uint16_t port,
                   TxAcceptor & tx_acceptor, Reader reader);
-    /// Class distructor
+    /// Class destructor
     ~TxPeerManager() = default;
 
     /// Accepted connection callback
-    /// @param endpoint of accepted connection
-    /// @param socket  of accepted connection
+    /// @param endpoint of accepted connection [in]
+    /// @param socket  of accepted connection [in]
     void OnConnectionAccepted(const Endpoint endpoint, std::shared_ptr<Socket> socket) override;
 private:
     Service &       _service;       /// boost asio service reference
@@ -79,37 +79,37 @@ class TxAcceptor
     using Error         = boost::system::error_code;
 public:
     /// Delegate class constructor
-    /// @param service boost asio service reference
-    /// @param acceptor_channel is ConsensusContainer in this case
-    /// @param config of the node
+    /// @param service boost asio service reference [in]
+    /// @param acceptor_channel is ConsensusContainer in this case [in]
+    /// @param config of the node [in]
     TxAcceptor(Service & service, std::shared_ptr<TxChannel> acceptor_channel, logos::node_config & config);
     /// Standalone class constructor
-    /// @param service boost asio service reference
-    /// @param config of the node
+    /// @param service boost asio service reference [in]
+    /// @param config of the node [in]
     TxAcceptor(Service & service, logos::node_config & config);
-    /// Class distructor
+    /// Class destructor
     ~TxAcceptor() = default;
 private:
     /// Read json request
-    /// @param socket of the connected client
+    /// @param socket of the connected client [in]
     void AsyncReadJson(std::shared_ptr<Socket> socket);
     /// Read binary request
-    /// @param socket of the connected client
+    /// @param socket of the connected client [in]
     void AsyncReadBin(std::shared_ptr<Socket> socket);
     /// Respond to client with json message
-    /// @param jrequest json request container
-    /// @param tree json represented as ptree
+    /// @param jrequest json request container [in]
+    /// @param tree json represented as ptree [in]
     void RespondJson(std::shared_ptr<json_request> jrequest, const Ptree & tree);
     /// Respond to client with json message
-    /// @param key of the response
-    /// @param value of the response
+    /// @param key of the response [in]
+    /// @param value of the response [in]
     void RespondJson(std::shared_ptr<json_request> jrequest, const std::string & key, const std::string & value);
     /// Deserialize string to state block
-    /// @param block_text serialized block
+    /// @param block_text serialized block [in]
     /// @return StateBlock structure
     std::shared_ptr<StateBlock> ToStateBlock(const std::string &&block_text);
     /// Validate state block
-    /// @param block state block
+    /// @param block state block [in]
     /// @return result of the validation, 'progress' is success
     logos::process_result Validate(const std::shared_ptr<StateBlock> & block);
 

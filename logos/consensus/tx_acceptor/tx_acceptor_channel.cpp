@@ -3,6 +3,7 @@
 // and Delegate
 
 #include <logos/consensus/tx_acceptor/tx_acceptor_channel.hpp>
+#include <logos/consensus/tx_acceptor/tx_message.hpp>
 #include <logos/node/node.hpp>
 
 TxAcceptorChannel::TxAcceptorChannel(Service &service, const std::string & ip, const uint16_t port)
@@ -81,7 +82,11 @@ TxAcceptorChannel::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_
     }
 
     auto buf{std::make_shared<vector<uint8_t>>()};
-    block->Serialize(*buf);
+    auto buf_hdr{std::make_shared<vector<uint8_t>>()};
+    TxMessage header(block->Serialize(*buf));
+    header.Serialize(*buf_hdr);
+
+    _queued_writes.push_back(buf_hdr);
     _queued_writes.push_back(buf);
 
     if (!_sending)
@@ -89,7 +94,7 @@ TxAcceptorChannel::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_
         SendQueue();
     }
 
-    // always return 'progress' in this case, we are not expecting response from the delegate
+    // always return 'progress', we are not expecting response from the delegate
     result={logos::process_result::progress};
 
     return result;

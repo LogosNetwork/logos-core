@@ -36,9 +36,9 @@ TxAcceptor::TxAcceptor(Service &service,
                        std::shared_ptr<TxChannel> acceptor_channel,
                        logos::node_config & config)
     : _service(service)
-    , _json_peer(service, config.consensus_manager_config.local_address,
+    , _json_peer(service, config.tx_acceptor_config.acceptor_ip,
                  config.tx_acceptor_config.json_port, *this, &TxAcceptor::AsyncReadJson)
-    , _bin_peer(service, config.consensus_manager_config.local_address,
+    , _bin_peer(service, config.tx_acceptor_config.acceptor_ip,
                 config.tx_acceptor_config.bin_port, *this, &TxAcceptor::AsyncReadBin)
     , _acceptor_channel(acceptor_channel)
     , _config(config.tx_acceptor_config)
@@ -48,9 +48,9 @@ TxAcceptor::TxAcceptor(Service &service,
 TxAcceptor::TxAcceptor(Service &service,
                        logos::node_config & config)
         : _service(service)
-        , _json_peer(service, config.consensus_manager_config.local_address,
+        , _json_peer(service, config.tx_acceptor_config.acceptor_ip,
                      config.tx_acceptor_config.json_port, *this, &TxAcceptor::AsyncReadJson)
-        , _bin_peer(service, config.consensus_manager_config.local_address,
+        , _bin_peer(service, config.tx_acceptor_config.acceptor_ip,
                     config.tx_acceptor_config.bin_port, *this, &TxAcceptor::AsyncReadBin)
         , _config(config.tx_acceptor_config)
 {

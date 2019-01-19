@@ -249,7 +249,7 @@ struct StateBlock
     /// @param error it will be set to true if deserialization fail [out]
     /// @param stream the stream containing serialized data [in]
     /// @param with_batch_hash if the serialized data should have the batch_hash [in]
-    StateBlock (bool & error, logos::stream & stream, bool with_batch_hash = false)
+    void Deserialize (bool & error, logos::stream & stream, bool with_batch_hash = false)
     {
         error = logos::read(stream, account);
         if(error)
@@ -331,6 +331,27 @@ struct StateBlock
         }
 
         Hash ();
+    }
+
+    /// Class constructor
+    /// construct from deserializing a stream which was decoded from a Json string
+    /// @param error it will be set to true if deserialization fail [out]
+    /// @param stream the stream containing serialized data [in]
+    /// @param with_batch_hash if the serialized data should have the batch_hash [in]
+    StateBlock (bool & error, logos::stream & stream, bool with_batch_hash = false)
+    {
+        Deserialize(error, stream, with_batch_hash);
+    }
+
+    /// Class constructor
+    /// construct from deserializing a stream which was decoded from a Json string
+    /// @param error it will be set to true if deserialization fail [out]
+    /// @param buf the buffer containing serialized data [in]
+    /// @param size of the serialized data [in]
+    /// @param with_batch_hash if the serialized data should have the batch_hash [in]
+    StateBlock (bool & error, uint8_t *buf, size_t size, bool with_batch_hash = false) {
+        logos::bufferstream stream(buf, size);
+        Deserialize(error, stream, with_batch_hash);
     }
 
     /// Add a new transaction
