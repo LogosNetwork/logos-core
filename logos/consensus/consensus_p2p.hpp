@@ -61,9 +61,9 @@ private:
                      const PostCommittedBlock<CT> & block,
                      std::shared_ptr<PostCommittedBlock<CT>> & pblock);
 
-    MessagePrequel<MessageType::Post_Committed_Block, CT>* deserialize(const uint8_t *data,
-                                                           uint32_t size,
-                                                           PostCommittedBlock<CT> &block);
+    bool deserialize(const uint8_t *data,
+                     uint32_t size,
+                     PostCommittedBlock<CT> &block);
 
     Log                                                                                         _log;
     std::function<bool (const PostCommittedBlock<CT> &, uint8_t, ValidationStatus *)>           _Validate;
