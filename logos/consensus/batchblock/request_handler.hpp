@@ -41,12 +41,7 @@ public:
     void OnPostCommit(const BatchStateBlock & batch);
 
     BSBPrePrepare & PrepareNextBatch();
-    BSBPrePrepare & GetCurrentBatch()
-    {
-        LOG_DEBUG (_log) << "RequestHandler::GetCurrentBatch - "
-                << "batch_size=" << _current_batch.block_count;
-        return _current_batch;
-    }
+    BSBPrePrepare & GetCurrentBatch();
     void InsertFront(const std::list<StateBlock> & blocks);
     void Acquire(const BSBPrePrepare & batch);
 

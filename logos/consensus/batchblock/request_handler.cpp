@@ -34,7 +34,7 @@ void RequestHandler::OnPostCommit(const BatchStateBlock & batch)
     }
 }
 
-BatchStateBlock & RequestHandler::GetCurrentBatch()
+RequestHandler::BSBPrePrepare & RequestHandler::GetCurrentBatch()
 {
     std::lock_guard<std::mutex> lock(_mutex);
     LOG_DEBUG (_log) << "RequestHandler::GetCurrentBatch - "
@@ -42,7 +42,7 @@ BatchStateBlock & RequestHandler::GetCurrentBatch()
     return _current_batch;
 }
 
-BatchStateBlock & RequestHandler::PrepareNextBatch()
+RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch()
 {
     std::lock_guard<std::mutex> lock(_mutex);
     _current_batch = BSBPrePrepare();

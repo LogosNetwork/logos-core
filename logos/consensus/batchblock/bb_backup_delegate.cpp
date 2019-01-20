@@ -79,7 +79,7 @@ BBBackupDelegate::ValidateRequests(
         if(!_persistence_manager.Validate(static_cast<const Request&>(message.blocks[i])))
 #endif
         {
-            LOG_WARN(_log) << "BBConsensusConnection::ValidateRequests - Rejecting " << message.blocks[i].hash().to_string();
+            LOG_WARN(_log) << "BBConsensusConnection::ValidateRequests - Rejecting " << message.blocks[i].GetHash().to_string();
             _rejection_map[i] = true;
 
             if(valid)

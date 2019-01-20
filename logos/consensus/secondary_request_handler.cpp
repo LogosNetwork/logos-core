@@ -37,7 +37,7 @@ void SecondaryRequestHandler<CT>::OnRequest(std::shared_ptr<RequestMessage<CT>> 
     }
 
     LOG_DEBUG(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT) << "> - queued secondary request with hash "
-                    << block->hash().to_string();
+                    << hash.to_string();
     _requests.insert(Request{hash, block, Clock::universal_time() + seconds});
 
     if(_requests.size() == 1)

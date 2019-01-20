@@ -181,7 +181,6 @@ BatchBlockConsensusManager::ApplyUpdates(
     _persistence_manager.ApplyUpdates(block, _delegate_id);
     // Hacky fix: decrement message's sequence number here to match actual block that went to consensus, compensating early increment of BatchBlockConsensusManager's _sequence
     // TODO: verify if ^ sequence number doesn't need to be manually decremented again in new implementation
-    _persistence_manager.ApplyUpdates(pre_prepare, _delegate_id);
 }
 
 uint64_t
@@ -226,7 +225,7 @@ BatchBlockConsensusManager::DesignatedDelegate(std::shared_ptr<Request> request)
     // for that account.
     //
     uint8_t indicator = request->previous.is_zero() ?
-           request->account.data()[0] : request->previous.data()[0];
+           request->account.bytes.back() : request->previous.bytes.back();
     auto did = uint8_t(indicator & ((1<<DELIGATE_ID_MASK)-1));
     LOG_DEBUG (_log) << "BatchBlockConsensusManager::DesignatedDelegate "
             << " id=" << (uint)did
@@ -288,7 +287,7 @@ void BatchBlockConsensusManager::TallyPrepareMessage(const Prepare & message, ui
         if(ReachedQuorum(weights.indirect_vote_support + _prepare_vote,
                          weights.indirect_stake_support + _prepare_stake))
         {
-            _hashes.erase(batch.blocks[i].hash());
+            _hashes.erase(batch.blocks[i].GetHash());
         }
     }
 }
@@ -330,7 +329,7 @@ BatchBlockConsensusManager::OnRejection(
             }
             else
             {
-                LOG_WARN(_log) << "BatchBlockConsensusManager::OnRejection - Received rejection for " << batch.blocks[i].hash().to_string();
+                LOG_WARN(_log) << "BatchBlockConsensusManager::OnRejection - Received rejection for " << batch.blocks[i].GetHash().to_string();
                 weights.reject_vote += vote;
                 weights.reject_stake += stake;
 
@@ -560,7 +559,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 
     // SYL integration fix: should always add delimiter to
     // avoid spillover from new request queued to primary list
-    requests.emplace_back(logos::state_block());
+    requests.emplace_back(StateBlock());
 
     _handler.PopFront();
     _handler.InsertFront(requests);

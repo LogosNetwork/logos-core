@@ -1003,10 +1003,6 @@ void logos::rpc_handler::blocks ()
         {
             error_response (response, "Block not found");
         }
-        auto contents (block.serialize_json ());
-        contents.put ("type", block_type);
-        contents.put ("hash", hash_text);
-        blocks.push_back (std::make_pair("", contents));
     }
     response_l.add_child ("blocks", blocks);
     response (response_l);
@@ -1841,9 +1837,9 @@ void logos::rpc_handler::account_history ()
             {
                 if (put_send)
                 {
-                    entry.put ("representative", send_block.hashables.representative.to_account ());
-                    entry.put ("work", logos::to_string_hex (send_block.block_work ()));
-                    entry.put ("signature", send_block.block_signature ().to_string ());
+//                    entry.put ("representative", send_block.hashables.representative.to_account ());
+                    entry.put ("work", logos::to_string_hex (send_block.work));
+                    entry.put ("signature", send_block.signature.to_string ());
                 }
                 // TODO: handle link
 //                entry.put ("link", put_send ? send_block.hashables.link.to_string () : receive_block.hashables.link.to_string());

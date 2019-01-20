@@ -72,7 +72,7 @@ bool PersistenceManager<BSBCT>::Validate(
 
     logos::account_info info;
     // account doesn't exist
-    if (_store.account_get(block.hashables.account, info))
+    if (_store.account_get(block.account, info))
     {
         // Currently do not accept state blocks
         // with non-existent accounts.
@@ -114,7 +114,7 @@ bool PersistenceManager<BSBCT>::Validate(
 
         if(block.previous != info.head)
         {
-            LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash (" << block.hashables.previous.to_string()
+            LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash (" << block.previous.to_string()
                             << ") and current account info head (" << info.head.to_string() << ")";
 
             // Allow duplicate requests (hash == info.head)
@@ -157,7 +157,7 @@ bool PersistenceManager<BSBCT>::Validate(
             return false;
         }
 
-        Epoch epoch;
+        ApprovedEB epoch;
         DelegateIdentityManager::GetCurrentEpoch(_store, epoch);
         uint64_t current_epoch = epoch.epoch_number;
 //        uint64_t current_epoch = ConsensusContainer::GetCurEpochNumber();
@@ -165,7 +165,7 @@ bool PersistenceManager<BSBCT>::Validate(
         // Account is not reserved.
         if(info.reservation.is_zero())
         {
-            _reservations->UpdateReservation(hash, current_epoch, block.hashables.account);
+            _reservations->UpdateReservation(hash, current_epoch, block.account);
         }
 
         // Account is already reserved.
@@ -180,7 +180,7 @@ bool PersistenceManager<BSBCT>::Validate(
             }
 
             // Reservation has expired.
-            _reservations->UpdateReservation(hash, current_epoch, block.hashables.account);
+            _reservations->UpdateReservation(hash, current_epoch, block.account);
         }
     }
     // account doesn't exist
@@ -416,20 +416,20 @@ void PersistenceManager<BSBCT>::PlaceReceive(
                               {
             //need b's timestamp
             StateBlock sb;
-            if(! _store.state_block_get(b.send_hash, sb, transaction))
+            if(_store.state_block_get(b.send_hash, sb, transaction))
             {
-                LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
-                                        << "Failed to get a previous state block with hash: "
-                                        << b.send_hash.to_string();
+                LOG_FATAL(_log) << "PersistenceManager<BSBCT>::PlaceReceive - "
+                                << "Failed to get a previous state block with hash: "
+                                << b.send_hash.to_string();
                 trace_and_halt();
             }
 
             ApprovedBSB absb;
-            if(! _store.batch_block_get(sb.batch_hash, absb, transaction))
+            if(_store.batch_block_get(sb.batch_hash, absb, transaction))
             {
-                LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
-                                        << "Failed to get a previous batch state block with hash: "
-                                        << sb.batch_hash.to_string();
+                LOG_FATAL(_log) << "PersistenceManager<BSBCT>::PlaceReceive - "
+                                << "Failed to get a previous batch state block with hash: "
+                                << sb.batch_hash.to_string();
                 trace_and_halt();
             }
 
@@ -450,28 +450,60 @@ void PersistenceManager<BSBCT>::PlaceReceive(
         while(receive_cmp(receive, cur))
         {
             prev = cur;
-            if(!_store.receive_get(cur.previous,
-                                       cur,
-                                       transaction))
+            if(_store.receive_get(cur.previous, cur, transaction))
             {
+                if(!cur.previous.is_zero())
+                {
+                    LOG_FATAL(_log) << "PersistenceManager<BSBCT>::PlaceReceive - "
+                                    << "Failed to get a previous receive block with hash: "
+                                    << cur.previous.to_string();
+                    trace_and_halt();
+                }
                 break;
             }
         }
 
+        // SYL integration fix: we only want to modify prev in DB if we are inserting somewhere in the middle of the receive chain
+        if(!prev.send_hash.is_zero())
+        {
+            StateBlock sb_prev;
+            if(_store.state_block_get(prev.send_hash, sb_prev, transaction))
+            {
+                LOG_FATAL(_log) << "PersistenceManager<BSBCT>::PlaceReceive - "
+                                << "Failed to get a previous state block with hash: "
+                                << prev.send_hash.to_string();
+                trace_and_halt();
+            }
+            if(!sb_prev.account.is_zero())
+            {
+                // point following receive aka prev's 'previous' field to new receive
+                receive.previous = prev.previous;
+                prev.previous = hash;
+                auto prev_hash (prev.Hash());
+                if(_store.receive_put(prev_hash, prev, transaction))
+                {
+                    LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
+                                    << "Failed to store receive block with hash: "
+                                    << prev_hash.to_string();
 
-        StateBlock sb_prev;
-        if(! _store.state_block_get(prev.send_hash, sb_prev, transaction))
-        {
-            LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
-                                    << "Failed to get a previous state block with hash: "
-                                    << prev.send_hash.to_string();
-            trace_and_halt();
+                    trace_and_halt();
+                }
+            }
+            else  // sending to burn address is already prohibited
+            {
+                LOG_FATAL(_log) << "PersistenceManager<BSBCT>::PlaceReceive - "
+                                << "Encountered state block with empty account field, hash: "
+                                << prev.send_hash.to_string();
+                trace_and_halt();
+            }
         }
-        if(!sb_prev.account.is_zero())
-        {
-            receive.previous = prev.previous;
-            prev.previous = hash;
-        }
+    }
+    else if (!receive.previous.is_zero())
+    {
+        LOG_FATAL(_log) << "PersistenceManager<BSBCT>::PlaceReceive - "
+                        << "Failed to get a previous receive block with hash: "
+                        << receive.previous.to_string();
+        trace_and_halt();
     }
 
     if(_store.receive_put(hash, receive, transaction))
@@ -480,6 +512,6 @@ void PersistenceManager<BSBCT>::PlaceReceive(
                         << "Failed to store receive block with hash: "
                         << hash.to_string();
 
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 }

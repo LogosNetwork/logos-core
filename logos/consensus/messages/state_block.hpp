@@ -99,7 +99,7 @@ struct ReceiveBlock
     void Hash(blake2b_state & hash) const
     {
         uint16_t s = htole16(index2send);
-        previous.Hash(hash);
+        // SYL integration fix: receive block shouldn't be hashed with previous, since this field might change
         send_hash.Hash(hash);
         blake2b_update(&hash, &s, sizeof(uint16_t));
     }
