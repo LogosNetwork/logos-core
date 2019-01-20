@@ -149,6 +149,5 @@ PersistenceManager<MBCT>::ApplyUpdates(
 bool PersistenceManager<MBCT>::BlockExists(
     const ApprovedMB & message)
 {
-    ApprovedMB block;
-    return !_store.consensus_block_get(message.Hash(), block);
+    return _store.micro_block_exists(message);
 }

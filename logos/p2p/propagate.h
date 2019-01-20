@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <vector>
+#include <mutex>
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/key_extractors.hpp>
@@ -53,6 +54,7 @@ private:
             >
         >
     >           store;
+    std::mutex  mutex;
 
 public:
     PropagateStore(uint64_t size = DEFAULT_PROPAGATE_STORE_SIZE)
@@ -66,6 +68,7 @@ public:
 
     bool Find(PropagateMessage &mess)
     {
+        std::lock_guard<std::mutex> lock(mutex);
         return store.get<PropagateMessage::ByHash>().find(mess.hash) != store.get<PropagateMessage::ByHash>().end();
     }
 
@@ -73,6 +76,7 @@ public:
     {
         if (!Find(mess))
         {
+            std::lock_guard<std::mutex> lock(mutex);
             while (store.size() >= max_size && first_label < next_label)
             {
                 auto iter = store.get<PropagateMessage::ByLabel>().find(first_label);
@@ -91,6 +95,7 @@ public:
 
     const PropagateMessage *GetNext(uint64_t &current_label)
     {
+        std::lock_guard<std::mutex> lock(mutex);
         if (current_label < first_label)
         {
             current_label = first_label;

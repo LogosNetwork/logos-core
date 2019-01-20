@@ -50,8 +50,7 @@ void PersistenceManager<BSBCT>::ApplyUpdates(
 bool PersistenceManager<BSBCT>::BlockExists(
     const ApprovedBSB & message)
 {
-    ApprovedBSB block;
-    return !_store.consensus_block_get(message.Hash(), block);
+    return _store.batch_block_exists(message);
 }
 
 bool PersistenceManager<BSBCT>::Validate(

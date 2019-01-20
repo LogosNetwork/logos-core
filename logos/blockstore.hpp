@@ -138,6 +138,7 @@ public:
     bool batch_block_put(ApprovedBSB const &, const BlockHash &, MDB_txn *);
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block);
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block, MDB_txn *);
+    bool batch_block_exists(const ApprovedBSB &);
     bool state_block_get(const BlockHash & hash, StateBlock & block, MDB_txn *);
     bool state_block_put(StateBlock const &, const BlockHash & hash, MDB_txn *);
     bool state_block_exists(const StateBlock & block);
@@ -158,12 +159,14 @@ public:
     bool micro_block_tip_put(const BlockHash &, MDB_txn*);
     bool micro_block_tip_get(BlockHash &, MDB_txn* t=0);
     bool micro_block_exists(const BlockHash &, MDB_txn* t=0);
+    bool micro_block_exists(const ApprovedMB &);
 
     // epoch
     bool epoch_put(ApprovedEB const &, MDB_txn*);
     bool epoch_get(const BlockHash &, ApprovedEB &, MDB_txn *t=0);
     bool epoch_tip_put(const BlockHash &, MDB_txn*);
     bool epoch_tip_get(BlockHash &, MDB_txn *t=0);
+    bool epoch_exists(const ApprovedEB &);
 
     //////////////////
 

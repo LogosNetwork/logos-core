@@ -953,6 +953,19 @@ bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & b
     return error;
 }
 
+bool logos::block_store::batch_block_exists (const ApprovedBSB & block)
+{
+    auto exists (true);
+    logos::mdb_val junk;
+    transaction transaction_a(environment, nullptr, false);
+
+    auto status (mdb_get (transaction_a, batch_db, logos::mdb_val (block.Hash()), junk));
+    assert (status == 0 || status == MDB_NOTFOUND);
+    exists = status == 0;
+
+    return exists;
+}
+
 bool logos::block_store::consensus_block_update_next(const BlockHash & hash, const BlockHash & next, ConsensusType type, MDB_txn * transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();
@@ -1102,6 +1115,19 @@ bool logos::block_store::micro_block_exists(const BlockHash &hash, MDB_txn *tran
     return (false == micro_block_get(hash, mb, transaction));
 }
 
+bool logos::block_store::micro_block_exists (const ApprovedMB & block)
+{
+    auto exists (true);
+    logos::mdb_val junk;
+    transaction transaction_a(environment, nullptr, false);
+
+    auto status (mdb_get (transaction_a, micro_block_db, logos::mdb_val (block.Hash()), junk));
+    assert (status == 0 || status == MDB_NOTFOUND);
+    exists = status == 0;
+
+    return exists;
+}
+
 bool logos::block_store::epoch_put(ApprovedEB const &block, MDB_txn *transaction)
 {
     auto hash(block.Hash());
@@ -1151,6 +1177,19 @@ bool logos::block_store::epoch_tip_get(BlockHash & hash, MDB_txn *transaction)
     new (&hash) BlockHash(val.data(), val.size());
     LOG_TRACE(log) << __func__ << " value " << hash.to_string();
     return false;
+}
+
+bool logos::block_store::epoch_exists (const ApprovedEB & block)
+{
+    auto exists (true);
+    logos::mdb_val junk;
+    transaction transaction_a(environment, nullptr, false);
+
+    auto status (mdb_get (transaction_a, epoch_db, logos::mdb_val (block.Hash()), junk));
+    assert (status == 0 || status == MDB_NOTFOUND);
+    exists = status == 0;
+
+    return exists;
 }
 
 bool logos::block_store::account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* transaction)
