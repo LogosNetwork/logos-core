@@ -4,10 +4,13 @@
 #include <map>
 
 #include <logos/lib/log.hpp>
+#include <logos/lib/epoch_time_util.hpp>
 #include <logos/p2p/p2p.h>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/persistence/persistence.hpp>
 #include <logos/consensus/persistence/nondel_persistence_manager_incl.hpp>
+
+constexpr Milliseconds P2P_DEFAULT_CLOCK_DRIFT = Milliseconds(1000*60*60);
 
 template<ConsensusType CT>
 class ConsensusP2pOutput
@@ -83,7 +86,7 @@ class PersistenceP2p
 public:
     PersistenceP2p(p2p_interface & p2p,
                    logos::block_store &store)
-        : _persistence(store, NonDelPersistenceManager<CT>::DEFAULT_CLOCK_DRIFT)
+        : _persistence(store, P2P_DEFAULT_CLOCK_DRIFT)
         , _p2p(p2p,
             [this](const PostCommittedBlock<CT> &message, uint8_t delegate_id, ValidationStatus * status)
             {

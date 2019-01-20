@@ -354,7 +354,7 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
                 {
                     LOG_WARN(_log) << "ConsensusP2p<" << ConsensusToName(CT)
                                    << "> - stop validate block, it already exists in the storage";
-                    return false;
+                    return true;
                 }
 
                 LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
