@@ -56,6 +56,11 @@ private:
     >           store;
     std::mutex  mutex;
 
+    bool _Find(const PropagateMessage &mess)
+    {
+        return store.get<PropagateMessage::ByHash>().find(mess.hash) != store.get<PropagateMessage::ByHash>().end();
+    }
+
 public:
     PropagateStore(uint64_t size = DEFAULT_PROPAGATE_STORE_SIZE)
         : max_size(size)
@@ -66,17 +71,17 @@ public:
     ~PropagateStore()
     {}
 
-    bool Find(PropagateMessage &mess)
+    bool Find(const PropagateMessage &mess)
     {
         std::lock_guard<std::mutex> lock(mutex);
-        return store.get<PropagateMessage::ByHash>().find(mess.hash) != store.get<PropagateMessage::ByHash>().end();
+        return _Find(mess);
     }
 
     bool Insert(PropagateMessage &mess)
     {
-        if (!Find(mess))
+        std::lock_guard<std::mutex> lock(mutex);
+        if (!_Find(mess))
         {
-            std::lock_guard<std::mutex> lock(mutex);
             while (store.size() >= max_size && first_label < next_label)
             {
                 auto iter = store.get<PropagateMessage::ByLabel>().find(first_label);
