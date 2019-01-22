@@ -216,6 +216,10 @@ enum class vote_code
     replay, // Vote does not have the highest sequence number, it's a replay
     vote // Vote has the highest sequence number
 };
+
+// TODO: Remove unused enums and perhaps separate
+//       these enums based on the validation class.
+//
 enum class process_result
 {
     progress,               // Hasn't been seen before, signed correctly
@@ -246,10 +250,72 @@ enum class process_result
     wrong_sequence_number,  // Logos - invalid block sequence number
     invalid_request,        // Logos - batch block contains invalid request
     invalid_tip,            // Logos - invalid microblock tip
-    invalid_number_blocks   // Logos - invalid number of blocks in microblock
+    invalid_number_blocks,  // Logos - invalid number of blocks in microblock
+    revert_immutability,    // Logos - Attempting to change a token account mutability setting from false to true
+    immutable,              // Logos - Attempting to update an immutable token account setting
+    redundant               // Logos - The token account setting change was idempotent
 };
 
 std::string ProcessResultToString(process_result result);
+
+enum class RequestType : uint8_t
+{
+    // Native Requests
+    //
+    Send                = 0,
+    ChangeRep           = 1,
+
+    // Token Administrative
+    // Requests
+    //
+    IssueTokens        = 2,
+    IssueAddTokens     = 3,
+    ImmuteTokenSetting = 4,
+    RevokeTokens       = 5,
+    FreezeTokens       = 6,
+    SetTokenFee        = 7,
+    UpdateWhitelist    = 8,
+    UpdateIssuerInfo   = 9,
+    UpdateController   = 10,
+    BurnTokens         = 11,
+    DistributeTokens   = 12,
+    WithdrawTokens     = 13,
+
+    // Token User Requests
+    //
+    JoinWhitelist      = 14,
+    SendTokens         = 15
+};
+
+struct Request
+{
+    Request(bool & error,
+            std::basic_streambuf<uint8_t> & stream);
+
+    virtual ~Request() {}
+
+    virtual block_hash Hash() const;
+    virtual void Hash(blake2b_state & hash) const = 0;
+
+    virtual uint16_t WireSize() const;
+
+    template<typename T>
+    uint16_t VectorWireSize(const std::vector<T> & v) const
+    {
+        // The size of the vector's
+        // elements plus the size
+        // of the field denoting
+        // the number of elements.
+        //
+        return (sizeof(T) * v.size()) + sizeof(uint8_t);
+    }
+
+    uint8_t StringWireSize(const std::string & s) const;
+
+    RequestType type;
+    block_hash  previous;
+    block_hash  next;
+};
 
 class process_return
 {

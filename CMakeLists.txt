@@ -373,6 +373,10 @@ add_library (node
 	logos/node/stats.cpp
 	logos/node/working.hpp
 	logos/node/xorshift.hpp
+	logos/tokens/account.cpp
+	logos/tokens/common.cpp
+	logos/tokens/requests.cpp
+	logos/tokens/util.cpp
 	logos/wallet_server/client/callback_handler.cpp
 	logos/wallet_server/client/callback_manager.cpp
 	logos/wallet_server/client/common.hpp
