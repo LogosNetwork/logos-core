@@ -54,7 +54,6 @@ TxAcceptorChannel::SendQueue()
             bufs.push_back(boost::asio::buffer(b->data(), b->size()));
         }
 
-        _queued_writes.clear();
         boost::asio::async_write(*_socket,
                                  bufs,
                                  [this, bufs](const Error &ec, size_t size) {
