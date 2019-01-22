@@ -8,8 +8,8 @@
 #include <logos/consensus/messages/state_block.hpp>
 
 
-using BlockList             = StateBlock [CONSENSUS_BATCH_SIZE];
-using BlockHashList         = BlockHash [CONSENSUS_BATCH_SIZE];
+using BlockList             = std::vector<StateBlock>;
+using BlockHashList         = std::vector<BlockHash>;
 
 struct BatchStateBlock : PrePrepareCommon
 {
@@ -29,9 +29,9 @@ struct BatchStateBlock : PrePrepareCommon
     {
         if(block_count >= CONSENSUS_BATCH_SIZE)
             return false;
-
-        new(&blocks[block_count]) StateBlock(to_add);
-        hashs[block_count] = blocks[block_count].GetHash();
+        // ideally should reserve batch size before calling push_back to avoid unnecessary reallocation
+        blocks.push_back(StateBlock(to_add));
+        hashes.push_back(blocks[block_count].GetHash());
         ++block_count;
         return true;
     }
@@ -46,7 +46,7 @@ struct BatchStateBlock : PrePrepareCommon
         blake2b_update(&hash, &bc, sizeof(uint16_t));
         for(uint16_t i = 0; i < block_count; ++i)
         {
-            hashs[i].Hash(hash);
+            hashes[i].Hash(hash);
         }
     }
 
@@ -62,6 +62,6 @@ struct BatchStateBlock : PrePrepareCommon
 
     uint16_t        block_count  = 0;
     BlockList       blocks;
-    BlockHashList   hashs;
+    BlockHashList   hashes;
 };
 

@@ -940,7 +940,7 @@ bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & b
 
             for(uint16_t i = 0; i < block.block_count; ++i)
             {
-                if(state_block_get(block.hashs[i], block.blocks[i], transaction))
+                if(state_block_get(block.hashes[i], block.blocks[i], transaction))
                 {
                     LOG_ERROR(log) << __func__ << " state_block_get failed";
                     return true;
