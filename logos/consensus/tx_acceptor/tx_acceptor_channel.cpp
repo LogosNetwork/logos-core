@@ -83,11 +83,15 @@ TxAcceptorChannel::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_
     }
 
     auto buf{std::make_shared<vector<uint8_t>>()};
-    auto buf_hdr{std::make_shared<vector<uint8_t>>()};
-    TxMessageHeader header(block->Serialize(*buf), should_buffer);
-    header.Serialize(*buf_hdr);
+    TxMessageHeader header(0, should_buffer);
+    {
+        logos::vectorstream stream(*buf);
+        header.Serialize(stream);
+        header.payload_size = block->Serialize(stream);
+    }
+    HeaderStream header_stream(buf->data(), TxMessageHeader::MESSAGE_SIZE);
+    header.Serialize(header_stream);
 
-    _queued_writes.push_back(buf_hdr);
     _queued_writes.push_back(buf);
 
     if (!_sending)

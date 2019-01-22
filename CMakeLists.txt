@@ -344,6 +344,7 @@ add_library (node
 	logos/consensus/primary_delegate.cpp
 	logos/consensus/tx_acceptor/tx_acceptor.cpp
 	logos/consensus/tx_acceptor/tx_acceptor_channel.cpp
+	logos/consensus/tx_acceptor/tx_message_header.cpp
 	logos/consensus/tx_acceptor/tx_receiver.cpp
 	logos/consensus/tx_acceptor/tx_receiver_channel.cpp
 	logos/epoch/archiver.cpp
