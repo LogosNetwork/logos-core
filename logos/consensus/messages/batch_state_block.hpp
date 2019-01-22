@@ -30,8 +30,8 @@ struct BatchStateBlock : PrePrepareCommon
         if(block_count >= CONSENSUS_BATCH_SIZE)
             return false;
         // ideally should reserve batch size before calling push_back to avoid unnecessary reallocation
-        blocks.push_back(StateBlock(to_add));
-        hashes.push_back(blocks[block_count].GetHash());
+        blocks.emplace_back(StateBlock(to_add));
+        hashes.emplace_back(blocks[block_count].GetHash());
         ++block_count;
         return true;
     }

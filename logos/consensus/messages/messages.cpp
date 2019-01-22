@@ -88,7 +88,7 @@ BatchStateBlock::BatchStateBlock(bool & error, logos::stream & stream, bool with
         {
             return;
         }
-        hashes.push_back(new_hash);
+        hashes.emplace_back(new_hash);
      }
 
     if( with_state_block )
@@ -96,7 +96,7 @@ BatchStateBlock::BatchStateBlock(bool & error, logos::stream & stream, bool with
         blocks.reserve(block_count);
         for(uint64_t i = 0; i < block_count; ++i)
         {
-            blocks.push_back(StateBlock(error, stream));
+            blocks.emplace_back(StateBlock(error, stream));
             if(error)
             {
                 return;

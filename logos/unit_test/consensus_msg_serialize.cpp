@@ -648,7 +648,7 @@ TEST (blocks, batch_state_block_PostCommit_DB)
         block.blocks.reserve(block.block_count);
         for(uint16_t i = 0; i < block.block_count; ++i)
         {
-            block.blocks.push_back(StateBlock(error, sb_db_vals[i]));
+            block.blocks.emplace_back(StateBlock(error, sb_db_vals[i]));
             ASSERT_FALSE(error);
         }
     }
