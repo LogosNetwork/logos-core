@@ -163,4 +163,6 @@ public:
     BlockHash               micro_block_tip;             ///< microblock tip of this epoch
     Amount                  transaction_fee_pool;        ///< this epoch's transaction fee pool
     Delegate                delegates[NUM_DELEGATES];    ///< delegate'ls list
+    //also need to send out candidates
+    //also need to send out upcoming delegates
 };

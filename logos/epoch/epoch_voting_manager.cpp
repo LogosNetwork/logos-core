@@ -10,6 +10,8 @@
 
 #include <unordered_map>
 
+
+//TODO: does this really need to use an output variable? Just return the delegates
 void
 EpochVotingManager::GetNextEpochDelegates(
    Delegates &delegates)

@@ -140,15 +140,6 @@ if [[ ${rebuild} = true ]]; then
     exit 0
 fi
 
-version=$(lsb_release -sr)
-
-if [[ ${version} = '16.04' ]]; then
-    echo "Version of ubuntu is 16.04 running script"
-else
-    echo "This script requires Ubuntu 16.04"
-    exit 1
-fi
-
 if ! [[ -x "$(command -v gcc)" ]]; then
     echo "gcc not found. Installing dependencies..."
     sudo apt-get update \
