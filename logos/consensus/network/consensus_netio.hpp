@@ -4,6 +4,7 @@
 #pragma once
 
 #include <logos/consensus/network/net_io_assembler.hpp>
+#include <logos/consensus/network/net_io_send.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/log.hpp>
@@ -99,6 +100,7 @@ private:
 /// id ordering.
 class ConsensusNetIO: public IOChannel,
                       public IOChannelReconnect,
+                      public NetIOSend,
                       public std::enable_shared_from_this<ConsensusNetIO>
 {
 
@@ -268,6 +270,10 @@ public:
 
     static constexpr uint8_t CONNECT_RETRY_DELAY = 5;     ///< Reconnect delay in seconds.
 
+protected:
+
+    void OnError(const ErrorCode &ec) override;
+
 private:
 
     /// Async connect to the peer.
@@ -305,11 +311,6 @@ private:
     ///     @param data received data
     void OnPublicKey(KeyAdvertisement & key_adv);
 
-    /// async_write callback
-    /// @param error error code
-    /// @param size size of written data
-    void OnWrite(const ErrorCode & error, size_t size);
-
     /// Handle heartbeat message
     /// @param prequel data
     void OnHeartBeat(HeartBeat &hb);
@@ -318,7 +319,6 @@ private:
 
     std::shared_ptr<Socket>        _socket;               ///< Connected socket
     std::atomic_bool               _connected;            ///< is the socket is connected?
-    QueuedWrites                   _queued_writes;        ///< data waiting to get sent on the network
     Log                            _log;                  ///< boost asio log
     Endpoint                       _endpoint;             ///< remote peer endpoint
     logos::alarm &                 _alarm;                ///< alarm reference
@@ -330,9 +330,6 @@ private:
     IOBinder                       _io_channel_binder;    ///< Network i/o to consensus binder
     ConsensusNetIOAssembler        _assembler;            ///< Assembles messages from TCP buffer
     std::recursive_mutex &         _connection_mutex;     ///< _connections access mutex
-    std::mutex                     _send_mutex;           ///< Protect concurrent writes
-	uint64_t                       _queue_reservation = 0;///< How many queued entries are being sent?
-    bool                           _sending = false;      ///< is an async write in progress?
     EpochInfo &                    _epoch_info;           ///< Epoch transition info
     NetIOErrorHandler &            _error_handler;        ///< Pass socket error to ConsensusNetIOManager
     std::recursive_mutex           _error_mutex;          ///< Error handling mutex

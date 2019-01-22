@@ -28,11 +28,13 @@ public:
     /// Send the buffer. The buffer ownership is passed to the function.
     /// @param buf to write [in]
     /// @return false if the socket is null, true otherwise
-    bool Send(std::shared_ptr<std::vector<uint8_t>> buf);
+    bool AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf);
+
+    operator std::shared_ptr<Socket> () {return _socket;}
 
 protected:
     /// Send queued data
-    void Send();
+    void AsyncSendBuffered();
     /// Reset the socket
     /// @param socket to reset [in]
     void Reset(std::shared_ptr<Socket> socket);

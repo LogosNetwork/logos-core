@@ -42,7 +42,7 @@ TxAcceptorChannel::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_
     HeaderStream header_stream(buf->data(), TxMessageHeader::MESSAGE_SIZE);
     header.Serialize(header_stream);
 
-    if (!Send(buf))
+    if (!AsyncSend(buf))
     {
         result={logos::process_result::initializing};
     }

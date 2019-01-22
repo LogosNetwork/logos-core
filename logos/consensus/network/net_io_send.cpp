@@ -5,7 +5,7 @@
 #include <boost/asio/write.hpp>
 
 bool
-NetIOSend::Send(std::shared_ptr<std::vector<uint8_t>> buf)
+NetIOSend::AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf)
 {
     std::lock_guard<std::mutex> lock(_send_mutex);
 
@@ -18,7 +18,7 @@ NetIOSend::Send(std::shared_ptr<std::vector<uint8_t>> buf)
 
     if (!_sending)
     {
-        Send();
+        AsyncSendBuffered();
     }
 
     return true;
@@ -32,7 +32,7 @@ NetIOSend::Reset(std::shared_ptr<Socket> socket)
 }
 
 void
-NetIOSend::Send()
+NetIOSend::AsyncSendBuffered()
 {
     auto begin = _queued_writes.begin();
     auto end = _queued_writes.begin();
@@ -64,7 +64,7 @@ NetIOSend::Send()
             }
 
             std::lock_guard<std::mutex> lock(_send_mutex);
-            Send();
+                                     AsyncSendBuffered();
        });
     }
 }
