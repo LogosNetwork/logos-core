@@ -284,7 +284,11 @@ enum class RequestType : uint8_t
     // Token User Requests
     //
     JoinWhitelist      = 14,
-    SendTokens         = 15
+    SendTokens         = 15,
+
+    //Election Requests
+    Vote               = 19,
+    Candidacy          = 20
 };
 
 struct Request
