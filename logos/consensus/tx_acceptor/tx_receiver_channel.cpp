@@ -1,12 +1,19 @@
-//
-// Created by gregt on 1/18/19.
+// @file
+// TxReceiverChannel class implements TxChannel to receive transactions from standalone
+// TxAcceptor and forward them to ConsensusManager
 //
 
 #include <logos/consensus/tx_acceptor/tx_receiver_channel.hpp>
-#include <logos/consensus/tx_acceptor/tx_message.hpp>
+#include <logos/consensus/tx_acceptor/tx_message_header.hpp>
 #include <logos/node/node.hpp>
 
 constexpr std::chrono::seconds TxReceiverChannel::CONNECT_RETRY_DELAY;
+
+void
+TxReceiverNetIOAssembler::OnError(const Error &error)
+{
+    _error_handler.ReConnect();
+}
 
 TxReceiverChannel::TxReceiverChannel(TxReceiverChannel::Service &service,
                                      logos::alarm & alarm,
@@ -18,6 +25,7 @@ TxReceiverChannel::TxReceiverChannel(TxReceiverChannel::Service &service,
     , _socket(std::make_shared<Socket>(service))
     , _alarm(alarm)
     , _receiver(receiver)
+    , _assembler(_socket, *this)
 {
     Connect();
 }
@@ -53,70 +61,38 @@ TxReceiverChannel::OnConnect(const Error & ec)
 void
 TxReceiverChannel::AsyncReadHeader()
 {
-    AsyncRead(TxMessage::MESSAGE_SIZE, [this](uint8_t *data) {
+    _assembler.ReadBytes([this](const uint8_t *data) {
         bool error = false;
-        TxMessage header(error, data, TxMessage::MESSAGE_SIZE);
+        TxMessageHeader header(error, data, TxMessageHeader::MESSAGE_SIZE);
         if (error)
         {
-            LOG_ERROR(_log) << "TxReceiverChannel::OnConnect header deserialize error";
+            LOG_ERROR(_log) << "TxReceiverChannel::AsyncReadHeader header deserialize error";
             ReConnect();
             return;
         }
+        LOG_INFO(_log) << "TxReceiverChannel::AsyncReadHeader received header";
         AsyncReadMessage(header);
-    });
+    }, TxMessageHeader::MESSAGE_SIZE);
 }
 
 void
-TxReceiverChannel::AsyncReadMessage(const TxMessage & header)
+TxReceiverChannel::AsyncReadMessage(const TxMessageHeader & header)
 {
     auto payload_size = header.payload_size;
-    AsyncRead(payload_size, [this, payload_size](uint8_t *data) {
-        bool error;
+    bool should_buffer = header.mpf != 0;
+    _assembler.ReadBytes([this, payload_size, should_buffer](const uint8_t *data) {
+        bool error = false;
         auto block = std::make_shared<StateBlock>(error, data, payload_size);
-        OnSendRequest(block);
-        AsyncReadHeader();
-    });
-}
-
-template<typename F>
-void
-TxReceiverChannel::ProcessCallback(size_t size, F&& f)
-{
-    f(_buffer.data());
-    _buffer_size -= size;
-    memmove(_buffer.data(), _buffer.data() + size, _buffer_size);
-}
-
-template<typename F>
-void
-TxReceiverChannel::AsyncRead(size_t requested_size, F&& f)
-{
-    if (_buffer_size >= requested_size)
-    {
-        ProcessCallback(requested_size, f);
-    }
-    else
-    {
-        auto to_read = requested_size - _buffer_size;
-
-        if (to_read > BUFFER_CAPACITY - _buffer_size)
+        if (error)
         {
-            LOG_ERROR(_log) << "TxReceiver::AsyncRead requested data is too large " << requested_size;
+            LOG_ERROR(_log) << "TxReceiverChannel::AsyncReadMessage deserialize error, payload size "
+                            << payload_size;
             ReConnect();
             return;
         }
-        boost::asio::async_read(*_socket,
-                                boost::asio::buffer(_buffer.data() + _buffer_size, _buffer.size() - _buffer_size),
-                                boost::asio::transfer_at_least(to_read),
-                                [this, requested_size, f](const Error &ec, size_t size) {
-            if (ec)
-            {
-                LOG_ERROR(_log) << "TxReceiverChannel::AsyncRead error: " << ec.message();
-                ReConnect();
-                return;
-            }
-            _buffer_size += size;
-            ProcessCallback(requested_size, f);
-        });
-    }
+        LOG_INFO(_log) << "TxReceiverChannel::AsyncReadMessage received payload size " << payload_size;
+        _receiver.OnSendRequest(block, should_buffer);
+        AsyncReadHeader();
+    }, payload_size);
 }
+

@@ -31,11 +31,11 @@ public:
 
 private:
 
-    Acceptor                _acceptor;
-    Log                     _log;
-    Service &               _service;
-    Endpoint                _local_endpoint;
-    Endpoint                _accepted_endpoint;
+    Acceptor        _acceptor;
+    Log             _log;
+    Service &       _service;
+    Endpoint        _local_endpoint;
+    Endpoint        _accepted_endpoint;
     PeerManager &   _manager;
 };
 

@@ -22,7 +22,7 @@ int main (int argc, char * const * argv)
         ("help", "Print out options")
         ("version", "Prints out version")
         ("daemon", "Start node daemon")
-        ("tx-acceptor", "Start standalone TxAcceptor")
+        ("tx_acceptor", "Start standalone TxAcceptor")
         ("debug_block_count", "Display the number of block")
         ("debug_bootstrap_generate", "Generate bootstrap sequence of blocks")
         ("debug_dump_representatives", "List representatives and weights")
@@ -51,6 +51,11 @@ int main (int argc, char * const * argv)
     {
         logos_daemon::daemon daemon;
         daemon.run (data_path);
+    }
+    else if (vm.count ("tx_acceptor") > 0)
+    {
+        logos_daemon::daemon daemon;
+        daemon.run_tx_acceptor (data_path);
     }
     else if (vm.count ("debug_block_count"))
     {

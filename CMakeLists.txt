@@ -275,7 +275,7 @@ else ()
 endif ()
 	
 if (LOGOS_SECURE_RPC)
-	set (SECURE_RPC_SOURCE logos/node/rpc_secure.cpp logos/node/rpc_secure.hpp logos/consensus/tx_acceptor/tx_message.hpp)
+	set (SECURE_RPC_SOURCE logos/node/rpc_secure.cpp logos/node/rpc_secure.hpp)
 endif ()
 
 add_library (secure

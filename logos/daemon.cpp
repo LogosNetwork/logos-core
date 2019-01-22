@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <logos/node/working.hpp>
+#include <logos/consensus/tx_acceptor/tx_acceptor.hpp>
 
 logos_daemon::daemon_config::daemon_config (boost::filesystem::path const & application_path_a) :
 rpc_enable (false),
@@ -91,6 +92,36 @@ bool logos_daemon::daemon_config::upgrade_json (unsigned version_a, boost::prope
             throw std::runtime_error ("Unknown daemon_config version");
     }
     return result;
+}
+
+void logos_daemon::daemon::run_tx_acceptor (boost::filesystem::path const & data_path)
+{
+    boost::filesystem::create_directories (data_path);
+    logos_daemon::daemon_config config (data_path);
+    auto config_path ((data_path / "config.json"));
+    std::fstream config_file;
+    std::unique_ptr<logos::thread_runner> runner;
+    auto error (logos::fetch_object (config, config_path, config_file));
+    if (!error)
+    {
+        config.node.logging.init (data_path);
+        config_file.close ();
+        boost::asio::io_service service;
+        try
+        {
+            auto tx_acceptor (std::make_shared<TxAcceptor> (service, config.node));
+            runner = std::make_unique<logos::thread_runner> (service, config.node.io_threads);
+            runner->join ();
+        }
+        catch (const std::runtime_error & e)
+        {
+            std::cerr << "Error while running TxAcceptor (" << e.what () << ")\n";
+        }
+    }
+    else
+    {
+        std::cerr << "Error deserializing config\n";
+    }
 }
 
 void logos_daemon::daemon::run (boost::filesystem::path const & data_path)

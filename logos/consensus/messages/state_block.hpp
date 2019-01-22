@@ -349,7 +349,7 @@ struct StateBlock
     /// @param buf the buffer containing serialized data [in]
     /// @param size of the serialized data [in]
     /// @param with_batch_hash if the serialized data should have the batch_hash [in]
-    StateBlock (bool & error, uint8_t *buf, size_t size, bool with_batch_hash = false) {
+    StateBlock (bool & error, const uint8_t *buf, size_t size, bool with_batch_hash = false) {
         logos::bufferstream stream(buf, size);
         Deserialize(error, stream, with_batch_hash);
     }

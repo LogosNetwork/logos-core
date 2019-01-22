@@ -5,8 +5,9 @@
 
 #pragma once
 
+#include <logos/consensus/tx_acceptor/tx_message_header.hpp>
+#include <logos/consensus/network/net_io_assembler.hpp>
 #include <logos/consensus/tx_acceptor/tx_channel.hpp>
-#include <logos/consensus/tx_acceptor/tx_message.hpp>
 #include <logos/lib/log.hpp>
 
 #include <boost/asio/io_service.hpp>
@@ -14,7 +15,30 @@
 
 namespace logos { class node_config; class alarm; }
 
-class TxReceiverChannel : public TxChannel
+class TxReceiverErrorHandler
+{
+public:
+    TxReceiverErrorHandler() = default;
+    virtual ~TxReceiverErrorHandler() = default;
+    virtual void ReConnect() = 0;
+};
+
+class TxReceiverNetIOAssembler : public NetIOAssembler
+{
+    using Socket        = boost::asio::ip::tcp::socket;
+    using Error         = boost::system::error_code;
+public:
+    TxReceiverNetIOAssembler (std::shared_ptr<Socket> socket, TxReceiverErrorHandler &handler)
+        : NetIOAssembler(socket)
+        , _error_handler(handler)
+    {}
+protected:
+    void OnError(const Error&) override;
+private:
+    TxReceiverErrorHandler & _error_handler;
+};
+
+class TxReceiverChannel : public TxReceiverErrorHandler
 {
     using Service       = boost::asio::io_service;
     using Socket        = boost::asio::ip::tcp::socket;
@@ -29,31 +53,19 @@ public:
 
 private:
 
-    logos::process_return OnSendRequest(std::shared_ptr<StateBlock> block, bool should_buffer = false)
-    {
-        return _receiver.OnSendRequest(block, should_buffer);
-    }
     void Connect();
-    void ReConnect();
+    void ReConnect() override;
     void OnConnect(const Error &ec);
     void AsyncReadHeader();
-    void AsyncReadMessage(const TxMessage &header);
-    template<typename F>
-    void AsyncRead(size_t size, F&& f);
-    template<typename F>
-    void ProcessCallback(size_t size, F&& f);
+    void AsyncReadMessage(const TxMessageHeader &header);
 
     static constexpr std::chrono::seconds CONNECT_RETRY_DELAY{5};     ///< Reconnect delay in seconds.
-    static constexpr size_t BUFFER_CAPACITY = 1024000;
-    using Buffer  = std::array<uint8_t, BUFFER_CAPACITY>;
 
-    Service &               _service;
-    Endpoint                _endpoint;
-    std::shared_ptr<Socket> _socket;
-    logos::alarm &          _alarm;
-    TxChannel &             _receiver;
-    Log                     _log;
-    Buffer                  _buffer;
-    uint32_t                _buffer_size;
-
+    Service &                   _service;
+    Endpoint                    _endpoint;
+    std::shared_ptr<Socket>     _socket;
+    logos::alarm &              _alarm;
+    TxChannel &                 _receiver;
+    Log                         _log;
+    TxReceiverNetIOAssembler    _assembler;
 };

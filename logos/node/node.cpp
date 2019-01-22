@@ -937,7 +937,14 @@ bool logos::node_config::deserialize_json (bool & upgraded_a, boost::property_tr
         }
 
         result |= consensus_manager_config.DeserializeJson(tree_a.get_child("ConsensusManager"));
-        result |= tx_acceptor_config.DeserializeJson(tree_a.get_child("TxAcceptor"));
+        try { // temp for backward compatability
+            result |= tx_acceptor_config.DeserializeJson(tree_a.get_child("TxAcceptor"));
+        }
+        catch (std::logic_error const&)
+        {
+            result |= tx_acceptor_config.DeserializeJson(tree_a.get_child("ConsensusManager"));
+        }
+
     }
     catch (std::runtime_error const &)
     {

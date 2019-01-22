@@ -9,7 +9,7 @@
 
 TxReceiver::TxReceiver(Service &service,
                        logos::alarm &alarm,
-                       TxChannelPtr receiver,
+                       std::shared_ptr<TxChannel> receiver,
                        logos::node_config &config)
     : _service(service)
     , _alarm(alarm)
@@ -23,5 +23,8 @@ TxReceiver::TxReceiver(Service &service,
                                                                 acceptor.ip,
                                                                 acceptor.port,
                                                                 *_receiver));
+        LOG_INFO(_log) << "TxReceiver::TxReceiver created TxReceiverChannel "
+                       << " ip " << acceptor.ip
+                       << " port " << acceptor.port;
     }
 }

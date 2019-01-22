@@ -5,10 +5,12 @@
 //
 
 #include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
+#include <logos/consensus/tx_acceptor/tx_acceptor_channel.hpp>
 #include <logos/consensus/tx_acceptor/tx_acceptor_config.hpp>
 #include <logos/consensus/tx_acceptor/tx_acceptor.hpp>
 #include <logos/consensus/messages/state_block.hpp>
 #include <logos/node/node.hpp>
+#include "tx_message_header.hpp"
 
 TxPeerManager::TxPeerManager(
     Service & service,
@@ -22,6 +24,7 @@ TxPeerManager::TxPeerManager(
     , _tx_acceptor(tx_acceptor)
     , _reader(reader)
 {
+    LOG_INFO(_log) << "TxPeerManager::TxPeerManager creating acceptor on " << _endpoint;
     _peer_acceptor.Start();
 }
 
@@ -43,6 +46,7 @@ TxAcceptor::TxAcceptor(Service &service,
     , _acceptor_channel(acceptor_channel)
     , _config(config.tx_acceptor_config)
 {
+    LOG_INFO(_log) << "TxAcceptor::TxAcceptor creating delegate TxAcceptor";
 }
 
 TxAcceptor::TxAcceptor(Service &service,
@@ -54,6 +58,8 @@ TxAcceptor::TxAcceptor(Service &service,
                     config.tx_acceptor_config.bin_port, *this, &TxAcceptor::AsyncReadBin)
         , _config(config.tx_acceptor_config)
 {
+    LOG_INFO(_log) << "TxAcceptor::TxAcceptor creating standalone TxAcceptor";
+    _acceptor_channel = std::make_shared<TxAcceptorChannel>(_service, _config.acceptor_ip, _config.port);
 }
 
 void
@@ -115,6 +121,8 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
             return;
         }
 
+        LOG_INFO(_log) << "TxAcceptor::AsyncReadJson received transaction";
+
         std::stringstream istream(request->request.body());
         Ptree request_tree;
         boost::property_tree::read_json(istream, request_tree);
@@ -122,6 +130,7 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
         auto block = ToStateBlock(request_tree.get<std::string>("block"));
         if (block == nullptr)
         {
+            LOG_DEBUG(_log) << "TxAcceptor::AsyncReadJson failed to deserialize transaction";
             RespondJson(request, "error", "Block is invalid");
             return;
         }
@@ -131,12 +140,17 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
         auto result = Validate(block);
         if (result !=logos::process_result::progress)
         {
+            LOG_DEBUG(_log) << "TxAcceptor::AsyncReadJson failed to validate transaction "
+                            << ProcessResultToString(result);
             RespondJson(request, "error", ProcessResultToString(result));
             return;
         }
 
-        result = _acceptor_channel->OnSendRequest(block,
-                request_tree.get_optional<std::string>("buffer").is_initialized()).code;
+        bool should_buffer = request_tree.get_optional<std::string>("buffer").is_initialized();
+
+        result = _acceptor_channel->OnSendRequest(block, should_buffer).code;
+        LOG_DEBUG(_log) << "TxAcceptor::AsyncReadJson OnSendRequest result "
+                        << ProcessResultToString(result);
 
         switch (result)
         {

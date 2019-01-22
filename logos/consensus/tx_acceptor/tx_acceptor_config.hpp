@@ -30,11 +30,16 @@ struct TxAcceptorConfig
         } catch (std::logic_error const &)
         {}
 
-        json_port = tree.get<uint16_t>("json_port");
-        bin_port = tree.get<uint16_t>("bin_port");
-        delegate_ip = tree.get<std::string>("delegate_ip");
-        acceptor_ip = tree.get<std::string>("acceptor_ip");
-        port = tree.get<uint16_t>("port");
+        std::string ip = "";
+        try { // temp for backward compatability, parses ConsensusManager
+            ip = tree.get<std::string>("local_address");
+        } catch (...) {}
+
+        json_port = tree.get<uint16_t>("json_port", 56001);
+        bin_port = tree.get<uint16_t>("bin_port", 56002);
+        delegate_ip = tree.get<std::string>("delegate_ip", ip);
+        acceptor_ip = tree.get<std::string>("acceptor_ip", ip);
+        port = tree.get<uint16_t>("port", 56000);
 
         return false;
     }
@@ -66,7 +71,7 @@ struct TxAcceptorConfig
     std::vector<Acceptor> tx_acceptors;
     std::string           delegate_ip;
     std::string           acceptor_ip;
-    uint16_t              port;
-    uint16_t              json_port;
-    uint16_t              bin_port;
+    uint16_t              port=56000;
+    uint16_t              json_port=56001;
+    uint16_t              bin_port=56002;
 };

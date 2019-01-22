@@ -2,12 +2,34 @@
 /// This file contains implementation of the ConsensusNetIO and ConsensusNetIOManager classes, which handle
 /// network connections between the delegates.
 #include <logos/consensus/network/consensus_netio.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
 #include <boost/system/error_code.hpp>
 
 const uint8_t ConsensusNetIO::CONNECT_RETRY_DELAY;
+
+void
+ConsensusNetIOAssembler::OnError(const Error &error)
+{
+    // cancelled at the end of epoch transition
+    if (_netio.Connected() && !_epoch_info.IsWaitingDisconnect()) {
+        LOG_ERROR(_log) << "NetIOAssembler - Error receiving message: "
+                        << error.message() << " global " << (int) DelegateIdentityManager::_global_delegate_idx
+                        << " connection " << _epoch_info.GetConnectionName()
+                        << " delegate " << _epoch_info.GetDelegateName()
+                        << " state " << _epoch_info.GetStateName();
+        _netio.OnNetIOError(error);
+    }
+}
+
+inline
+void
+ConsensusNetIOAssembler::OnRead()
+{
+    _netio.UpdateTimestamp();
+}
 
 ConsensusNetIO::ConsensusNetIO(Service & service,
                                const Endpoint & endpoint,

@@ -71,6 +71,25 @@ public:
 
 };
 
+class ConsensusNetIOAssembler : public NetIOAssembler {
+    using Socket        = boost::asio::ip::tcp::socket;
+    using Error         = boost::system::error_code;
+public:
+    ConsensusNetIOAssembler (std::shared_ptr<Socket> socket, EpochInfo& epoch_info, IOChannelReconnect &netio)
+        : NetIOAssembler(socket)
+        , _epoch_info(epoch_info)
+        , _netio(netio)
+    {}
+    ~ConsensusNetIOAssembler () = default;
+protected:
+    void OnError(const Error &error) override;
+    void OnRead() override;
+
+private:
+    EpochInfo &             _epoch_info;
+    IOChannelReconnect &    _netio;
+};
+
 /// ConsensusNetIO represent connection to a peer.
 ///
 /// Network connection to a peer. There is one connection per peer.
@@ -309,7 +328,7 @@ private:
     DelegateKeyStore &             _key_store;            ///< Delegates' public key store
     MessageValidator &             _validator;            ///< Validator/Signer of consensus messages
     IOBinder                       _io_channel_binder;    ///< Network i/o to consensus binder
-    NetIOAssembler                 _assembler;            ///< Assembles messages from TCP buffer
+    ConsensusNetIOAssembler        _assembler;            ///< Assembles messages from TCP buffer
     std::recursive_mutex &         _connection_mutex;     ///< _connections access mutex
     std::mutex                     _send_mutex;           ///< Protect concurrent writes
 	uint64_t                       _queue_reservation = 0;///< How many queued entries are being sent?

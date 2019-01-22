@@ -3,7 +3,7 @@
 // and Delegate
 
 #include <logos/consensus/tx_acceptor/tx_acceptor_channel.hpp>
-#include <logos/consensus/tx_acceptor/tx_message.hpp>
+#include <logos/consensus/tx_acceptor/tx_message_header.hpp>
 #include <logos/node/node.hpp>
 
 TxAcceptorChannel::TxAcceptorChannel(Service &service, const std::string & ip, const uint16_t port)
@@ -12,6 +12,7 @@ TxAcceptorChannel::TxAcceptorChannel(Service &service, const std::string & ip, c
     , _delegate(service, _endpoint, *this)
     , _socket(nullptr)
 {
+    _delegate.Start();
 }
 
 void
@@ -63,6 +64,7 @@ TxAcceptorChannel::SendQueue()
                 _socket.reset();
                 return;
             }
+            LOG_INFO(_log) << "TxAcceptorChannel::OnSendRequest sent " << size << " bytes ";
 
             std::lock_guard<std::mutex> lock(_send_mutex);
             SendQueue();
@@ -83,7 +85,7 @@ TxAcceptorChannel::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_
 
     auto buf{std::make_shared<vector<uint8_t>>()};
     auto buf_hdr{std::make_shared<vector<uint8_t>>()};
-    TxMessage header(block->Serialize(*buf));
+    TxMessageHeader header(block->Serialize(*buf), should_buffer);
     header.Serialize(*buf_hdr);
 
     _queued_writes.push_back(buf_hdr);
