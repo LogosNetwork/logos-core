@@ -10,7 +10,6 @@ TxAcceptorChannel::TxAcceptorChannel(Service &service, const std::string & ip, c
     : _service(service)
     , _endpoint(Endpoint(boost::asio::ip::make_address_v4(ip), port))
     , _delegate(service, _endpoint, *this)
-    , _socket(nullptr)
 {
     _delegate.Start();
 }
@@ -25,62 +24,13 @@ TxAcceptorChannel::OnConnectionAccepted(const Endpoint endpoint, shared_ptr<Sock
         return;
     }
 
-    std::lock_guard<std::mutex> lock(_send_mutex);
-    // New connection from the delegate resets the socket
-    _socket = socket;
-}
-
-// TODO implement buffered async send as class to use in NetIO
-void
-TxAcceptorChannel::SendQueue()
-{
-    auto begin = _queued_writes.begin();
-    auto end = _queued_writes.begin();
-    std::advance(end, _queue_reservation);
-
-    _queued_writes.erase(begin, end);
-
-    _queue_reservation = _queued_writes.size();
-
-    _sending = false;
-
-    if (_queue_reservation)
-    {
-        _sending = true;
-        std::vector<boost::asio::const_buffer> bufs;
-
-        for (auto b: _queued_writes)
-        {
-            bufs.push_back(boost::asio::buffer(b->data(), b->size()));
-        }
-
-        boost::asio::async_write(*_socket,
-                                 bufs,
-                                 [this, bufs](const Error &ec, size_t size) {
-            if (ec)
-            {
-                LOG_ERROR(_log) << "TxAcceptorChannel::OnSendRequest error " << ec.message();
-                _socket.reset();
-                return;
-            }
-            LOG_INFO(_log) << "TxAcceptorChannel::OnSendRequest sent " << size << " bytes ";
-
-            std::lock_guard<std::mutex> lock(_send_mutex);
-            SendQueue();
-       });
-    }
+    Reset(socket);
 }
 
 logos::process_return
 TxAcceptorChannel::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_buffer)
 {
-    std::lock_guard<std::mutex> lock(_send_mutex);
-    logos::process_return result{logos::process_result::initializing};
-
-    if (nullptr == _socket)
-    {
-        return result;
-    }
+    logos::process_return result{logos::process_result::progress};
 
     auto buf{std::make_shared<vector<uint8_t>>()};
     TxMessageHeader header(0, should_buffer);
@@ -92,15 +42,19 @@ TxAcceptorChannel::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_
     HeaderStream header_stream(buf->data(), TxMessageHeader::MESSAGE_SIZE);
     header.Serialize(header_stream);
 
-    _queued_writes.push_back(buf);
-
-    if (!_sending)
+    if (!Send(buf))
     {
-        SendQueue();
+        result={logos::process_result::initializing};
     }
 
-    // always return 'progress', we are not expecting response from the delegate
-    result={logos::process_result::progress};
+    LOG_INFO(_log)<< "TxAcceptorChannel::OnSendRequest sent " << header.payload_size;
 
     return result;
+}
+
+void
+TxAcceptorChannel::OnError(const Error & error)
+{
+    LOG_ERROR(_log) << "TxAcceptorChannel::OnError " << error.message();
+    _socket->close();
 }

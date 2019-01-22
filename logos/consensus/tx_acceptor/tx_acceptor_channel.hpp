@@ -7,19 +7,20 @@
 #include <logos/consensus/tx_acceptor/tx_channel.hpp>
 #include <logos/consensus/network/peer_acceptor.hpp>
 #include <logos/consensus/network/peer_manager.hpp>
+#include <logos/consensus/network/net_io_send.hpp>
 #include <logos/lib/log.hpp>
 
 namespace logos { class node_config; }
 
 /// Implements forwarding to the Delegate
 class TxAcceptorChannel : public TxChannel,
-                          public PeerManager
+                          public PeerManager,
+                          public NetIOSend
 {
     using Service       = boost::asio::io_service;
     using Socket        = boost::asio::ip::tcp::socket;
     using Endpoint      = boost::asio::ip::tcp::endpoint;
     using Error         = boost::system::error_code;
-    using QueuedWrites  = std::list<std::shared_ptr<std::vector<uint8_t>>>;
 
 public:
     /// Class constructor
@@ -29,6 +30,12 @@ public:
     TxAcceptorChannel(Service & service, const std::string & ip, const uint16_t port);
     /// Class distruction
     ~TxAcceptorChannel() = default;
+
+protected:
+
+    /// Handle write error
+    /// @param error on write
+    void OnError(const Error &error) override;
 
 private:
     /// Accepted connection callback
@@ -47,16 +54,9 @@ private:
     /// @param block transaction [in]
     /// @param should_buffer used in benchmarking [in] TODO
     logos::process_return OnSendRequest(std::shared_ptr<StateBlock> block, bool should_buffer);
-    /// Send everything on the queue
-    void SendQueue();
 
     Service &               _service;               /// boost asio service reference
     Endpoint                _endpoint;              /// local endpoint
     PeerAcceptor            _delegate;              /// delegate's acceptor
     Log                     _log;                   /// boost log
-    std::shared_ptr<Socket> _socket = nullptr;      /// accepted socket
-    std::mutex              _send_mutex;            /// protect concurrent writes
-    QueuedWrites            _queued_writes;         /// data waiting to get sent on the network
-    uint32_t                _queue_reservation = 0; /// how many queued entries are being sent
-    bool                    _sending = false;       /// is an async write in progress
 };
