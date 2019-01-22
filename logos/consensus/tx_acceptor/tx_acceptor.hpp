@@ -104,6 +104,11 @@ private:
     /// @param key of the response [in]
     /// @param value of the response [in]
     void RespondJson(std::shared_ptr<json_request> jrequest, const std::string & key, const std::string & value);
+    /// Respond to client with binary message
+    /// @param socket to respond to [in]
+    /// @param result of the response [in]
+    /// @param hash of the accepted transaction [in]
+    void RespondBin(std::shared_ptr<Socket> socket, logos::process_result result, BlockHash hash = 0);
     /// Deserialize string to state block
     /// @param block_text serialized block [in]
     /// @return StateBlock structure
@@ -112,6 +117,11 @@ private:
     /// @param block state block [in]
     /// @return result of the validation, 'progress' is success
     logos::process_result Validate(const std::shared_ptr<StateBlock> & block);
+    /// Send received transaction for consensus protocol
+    /// @param block received transaction [in]
+    /// @param should_buffer benchmarking flag [in]
+    /// @return process_result
+    logos::process_result ProcessBlock(std::shared_ptr<StateBlock> block, bool should_buffer = false);
 
     Service &                       _service;           /// boost asio service reference
     TxPeerManager                   _json_peer;         /// json request connection acceptor

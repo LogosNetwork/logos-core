@@ -6,6 +6,7 @@
 
 #include <logos/consensus/messages/common.hpp>
 #include <logos/node/utility.hpp>
+#include <logos/common.hpp>
 
 #include <array>
 
@@ -14,7 +15,7 @@ struct TxMessageHeader {
     const uint8_t           version = logos_version;                /// current logos software version
     const MessageType       type = MessageType::TxAcceptor_Message; /// message type
     uint16_t                mpf = 0;                                /// multipurpose field
-    uint32_t                payload_size = 0;                       /// size of transactions
+    mutable uint32_t        payload_size = 0;                       /// size of transactions
 
     static constexpr uint16_t MESSAGE_SIZE = sizeof(version) + sizeof(type) + sizeof(payload_size) +
             sizeof(mpf);
@@ -83,5 +84,32 @@ struct TxMessageHeader {
     {
          logos::vectorstream stream(buf);
          return Serialize(stream);
+    }
+};
+
+struct TxResponse : TxMessageHeader
+{
+    logos::process_result   result;
+    BlockHash               hash = 0;
+
+    TxResponse(logos::process_result r, BlockHash h = 0, uint16_t m=0)
+        : TxMessageHeader(sizeof(result) + sizeof(hash), m)
+        , result(r)
+        , hash(h)
+    {}
+
+    uint32_t Serialize(logos::stream &stream) const
+    {
+        auto s = TxMessageHeader::Serialize(stream);
+        s += logos::write(stream, result) + logos::write(stream, hash);
+        return s;
+    }
+
+    /// Serialize method
+    /// @param buffer to serialize the data to [in]
+    uint32_t Serialize(std::vector<uint8_t> & buf) const
+    {
+        logos::vectorstream stream(buf);
+        return Serialize(stream);
     }
 };

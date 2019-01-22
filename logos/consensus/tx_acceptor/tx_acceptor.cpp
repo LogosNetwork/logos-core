@@ -108,6 +108,24 @@ TxAcceptor::ToStateBlock(const std::string&& block_text)
     return block;
 }
 
+logos::process_result
+TxAcceptor::ProcessBlock(std::shared_ptr<StateBlock> block, bool should_buffer)
+{
+    auto result = Validate(block);
+    if (result !=logos::process_result::progress)
+    {
+        LOG_ERROR(_log) << "TxAcceptor::AsyncReadJson failed to validate transaction "
+                        << ProcessResultToString(result);
+        return result;
+    }
+
+    result = _acceptor_channel->OnSendRequest(block, should_buffer).code;
+    LOG_DEBUG(_log) << "TxAcceptor::AsyncReadJson OnSendRequest result "
+                    << ProcessResultToString(result);
+
+    return result;
+}
+
 void
 TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
 {
@@ -135,22 +153,8 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
             return;
         }
 
-        // TODO the code below should be generalized to support json and binary
-        // TODO : remove validation from the delegate
-        auto result = Validate(block);
-        if (result !=logos::process_result::progress)
-        {
-            LOG_DEBUG(_log) << "TxAcceptor::AsyncReadJson failed to validate transaction "
-                            << ProcessResultToString(result);
-            RespondJson(request, "error", ProcessResultToString(result));
-            return;
-        }
-
-        bool should_buffer = request_tree.get_optional<std::string>("buffer").is_initialized();
-
-        result = _acceptor_channel->OnSendRequest(block, should_buffer).code;
-        LOG_DEBUG(_log) << "TxAcceptor::AsyncReadJson OnSendRequest result "
-                        << ProcessResultToString(result);
+        auto result = ProcessBlock(block,
+                request_tree.get_optional<std::string>("buffer").is_initialized());
 
         switch (result)
         {
@@ -169,8 +173,68 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
 }
 
 void
+TxAcceptor::RespondBin(std::shared_ptr<Socket> socket, logos::process_result result, BlockHash hash)
+{
+    TxResponse response(result, hash);
+    auto buf = std::make_shared<std::vector<uint8_t>>();
+    response.Serialize(*buf);
+    boost::asio::async_write(*socket, boost::asio::buffer(buf->data(), buf->size()),
+            [this](const Error &ec, size_t size) {
+        if (ec)
+        {
+            LOG_ERROR(_log) << "TxAcceptor::RespondBin error: " << ec.message();
+        }
+    });
+}
+
+void
 TxAcceptor::AsyncReadBin(std::shared_ptr<Socket> socket)
 {
+    auto hdr_buf = std::shared_ptr<std::array<uint8_t, TxMessageHeader::MESSAGE_SIZE>>();
+
+    boost::asio::async_read(*socket, boost::asio::buffer(hdr_buf->data(), hdr_buf->size()),
+            [this, socket, hdr_buf](const Error &ec, size_t size){
+        if (ec)
+        {
+            LOG_ERROR(_log) << "TxAcceptor::AsyncReadBin error: " << ec.message();
+            return;
+        }
+        bool error = false;
+        TxMessageHeader header(error, hdr_buf->data(), hdr_buf->size());
+        if (error)
+        {
+            LOG_ERROR(_log) << "TxAcceptor::AsyncReadBin header deserialize error";
+            RespondBin(socket, logos::process_result::invalid_request);
+            return;
+        }
+        LOG_INFO(_log) << "TxReceiverChannel::AsyncReadBin received header";
+        auto buf = std::make_shared<std::vector<uint8_t>>(header.payload_size);
+        boost::asio::async_read(*socket, boost::asio::buffer(buf->data(), buf->size()),
+                [this, socket, buf, header](const Error &ec, size_t size){
+             if (ec)
+             {
+                 LOG_ERROR(_log) << "TxAcceptor::AsyncReadBin transaction read error: " << ec.message();
+                 RespondBin(socket, logos::process_result::invalid_request);
+                 return;
+             }
+             bool error;
+             auto block = std::make_shared<StateBlock>(error, buf->data(), buf->size());
+             if (error)
+             {
+                 LOG_ERROR(_log) << "TxAcceptor::AsyncReadBin transaction deserialize error";
+                 RespondBin(socket, logos::process_result::invalid_request);
+                 return;
+             }
+
+             auto result = ProcessBlock(block, header.mpf);
+             BlockHash hash = 0;
+             if (result == logos::process_result::progress)
+             {
+                 hash = block->GetHash();
+             }
+             RespondBin(socket, result, hash);
+        });
+    });
 }
 
 logos::process_result
