@@ -15,44 +15,49 @@ bool blocks_equal (T const & first, logos::block const & second)
 }
 }
 
-
-bool logos::read (logos::stream & stream_a, uint128_union & value)
+template<typename U>
+static bool ReadUnion(logos::stream & stream_a, U & value)
 {
     auto amount_read (stream_a.sgetn (value.bytes.data(), value.bytes.size()));
     return amount_read != value.bytes.size();
 }
 
-uint32_t logos::write (logos::stream & stream_a, uint128_union const & value)
+template<typename U>
+static uint64_t WriteUnion (logos::stream & stream_a, U const & value)
 {
     auto amount_written (stream_a.sputn (value.bytes.data(), value.bytes.size()));
     assert (amount_written == value.bytes.size());
     return amount_written;
+}
+
+bool logos::read (logos::stream & stream_a, uint128_union & value)
+{
+    ReadUnion(stream_a, value);
+}
+
+uint64_t logos::write (logos::stream & stream_a, uint128_union const & value)
+{
+    WriteUnion(stream_a, value);
 }
 
 bool logos::read (logos::stream & stream_a, uint256_union & value)
 {
-    auto amount_read (stream_a.sgetn (value.bytes.data(), value.bytes.size()));
-    return amount_read != value.bytes.size();
+    ReadUnion(stream_a, value);
 }
 
-uint32_t logos::write (logos::stream & stream_a, uint256_union const & value)
+uint64_t logos::write (logos::stream & stream_a, uint256_union const & value)
 {
-    auto amount_written (stream_a.sputn (value.bytes.data(), value.bytes.size()));
-    assert (amount_written == value.bytes.size());
-    return amount_written;
+    WriteUnion(stream_a, value);
 }
 
 bool logos::read (logos::stream & stream_a, uint512_union & value)
 {
-    auto amount_read (stream_a.sgetn (value.bytes.data(), value.bytes.size()));
-    return amount_read != value.bytes.size();
+    ReadUnion(stream_a, value);
 }
 
-uint32_t logos::write (logos::stream & stream_a, uint512_union const & value)
+uint64_t logos::write (logos::stream & stream_a, uint512_union const & value)
 {
-    auto amount_written (stream_a.sputn (value.bytes.data(), value.bytes.size()));
-    assert (amount_written == value.bytes.size());
-    return amount_written;
+    WriteUnion(stream_a, value);
 }
 
 uint16_t bits_to_bytes_ceiling(uint16_t x)
@@ -97,7 +102,7 @@ bool logos::read (logos::stream & stream_a, std::vector<bool> & value)
     return false;
 }
 
-uint32_t logos::write (logos::stream & stream_a, const std::vector<bool> & value)
+uint64_t logos::write (logos::stream & stream_a, const std::vector<bool> & value)
 {
     assert(value.size() <= CONSENSUS_BATCH_SIZE);
     uint16_t n_bits = value.size();

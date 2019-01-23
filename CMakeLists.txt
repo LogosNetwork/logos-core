@@ -378,6 +378,7 @@ add_library (node
 	logos/node/stats.cpp
 	logos/node/working.hpp
 	logos/node/xorshift.hpp
+	logos/requests/request.cpp
 	logos/tokens/account.cpp
 	logos/tokens/common.cpp
 	logos/tokens/requests.cpp
