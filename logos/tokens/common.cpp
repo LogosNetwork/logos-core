@@ -47,6 +47,12 @@ boost::property_tree::ptree TokenRequest::SerializeJson() const
     return tree;
 }
 
+uint64_t TokenRequest::Serialize(logos::stream & stream) const
+{
+    return Request::Serialize(stream) +
+           logos::write(stream, token_id);
+}
+
 void TokenRequest::Hash(blake2b_state & hash) const
 {
     Request::Hash(hash);
@@ -100,6 +106,12 @@ boost::property_tree::ptree TokenAdminRequest::SerializeJson() const
     tree.put(ADMIN_ACCOUNT, admin_account.to_account());
 
     return tree;
+}
+
+uint64_t TokenAdminRequest::Serialize(logos::stream & stream) const
+{
+    return TokenRequest::Serialize(stream) +
+           logos::write(stream, admin_account);
 }
 
 void TokenAdminRequest::Hash(blake2b_state & hash) const
@@ -174,6 +186,12 @@ boost::property_tree::ptree ControllerInfo::SerializeJson() const
     return tree;
 }
 
+uint64_t ControllerInfo::Serialize(logos::stream & stream) const
+{
+    return logos::write(stream, account) +
+           privileges.Serialize(stream);
+}
+
 void ControllerInfo::Hash(blake2b_state & hash) const
 {
     account.Hash(hash);
@@ -228,6 +246,12 @@ boost::property_tree::ptree TokenTransaction::SerializeJson() const
     tree.put(AMOUNT, amount);
 
     return tree;
+}
+
+uint64_t TokenTransaction::Serialize(logos::stream & stream) const
+{
+    return logos::write(stream, destination) +
+           logos::write(stream, amount);
 }
 
 void TokenTransaction::Hash(blake2b_state & hash) const
