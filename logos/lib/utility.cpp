@@ -19,17 +19,6 @@ std::string string_to_hex_str(const std::string& input)
     return output;
 }
 
-
-std::string byte_vector_to_string (const std::vector<uint8_t> & buf)
-{
-    std::stringstream stream;
-    for (size_t i = 0; i < buf.size(); ++i)
-    {
-        stream << std::hex << std::noshowbase << std::setw(2) << std::setfill('0') << (unsigned int) (buf[i]);
-    }
-    return stream.str();
-}
-
 template<typename U>
 static bool ReadUnion(logos::stream & stream_a, U & value)
 {
