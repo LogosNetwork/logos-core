@@ -220,6 +220,11 @@ struct BitField
         return tree;
     }
 
+    uint64_t Serialize(logos::stream & stream) const
+    {
+        return logos::write(stream, field);
+    }
+
     void Hash(blake2b_state & hash) const
     {
         using H = std::hash<std::bitset<N>>;
@@ -228,7 +233,7 @@ struct BitField
         blake2b_update(&hash, &h, sizeof(h));
     }
 
-    static constexpr size_t WireSize()
+    static constexpr uint64_t WireSize()
     {
         using B = std::bitset<N>;
 
