@@ -2,7 +2,6 @@
 
 #include <logos/requests/fields.hpp>
 #include <logos/tokens/util.hpp>
-#include <logos/lib/blocks.hpp>
 
 TokenIssuance::TokenIssuance(bool & error,
                              std::basic_streambuf<uint8_t> & stream)

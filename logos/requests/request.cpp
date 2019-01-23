@@ -1,7 +1,9 @@
 #include <logos/requests/request.hpp>
 
 #include <logos/requests/fields.hpp>
-#include <logos/lib/blocks.hpp>
+#include <logos/lib/utility.hpp>
+
+#include <boost/property_tree/json_parser.hpp>
 
 #include <blake2/blake2.h>
 

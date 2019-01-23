@@ -5,9 +5,6 @@
 #include <logos/lib/utility.hpp>
 #include <logos/common.hpp>
 
-#include <stdint.h>
-#include <bitset>
-
 // XXX - Ensure that settings with odd values
 //       represent the mutability of the previous
 //       setting.
