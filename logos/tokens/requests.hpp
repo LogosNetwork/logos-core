@@ -3,8 +3,6 @@
 #include <logos/tokens/common.hpp>
 #include <logos/lib/numbers.hpp>
 
-#include <bitset>
-
 // Token Admin Requests
 //
 struct TokenIssuance : TokenAdminRequest
