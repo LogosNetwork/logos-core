@@ -207,6 +207,19 @@ boost::property_tree::ptree Request::SerializeJson() const
     return tree;
 }
 
+uint64_t Request::Serialize(logos::stream & stream) const
+{
+    return logos::write(stream, type) +
+
+           // An additional field is added
+           // to the stream to denote the
+           // total size of the request.
+           //
+           logos::write(stream, WireSize()) +
+           logos::write(stream, previous) +
+           logos::write(stream, next);
+}
+
 auto Request::Hash() const -> BlockHash
 {
     BlockHash result;
@@ -237,12 +250,4 @@ uint16_t Request::WireSize() const
            sizeof(uint16_t) +
            sizeof(previous.bytes) +
            sizeof(next.bytes);
-}
-
-uint8_t Request::StringWireSize(const std::string & s) const
-{
-    // Length of string plus one
-    // byte to denote the length.
-    //
-    return s.size() + sizeof(uint8_t);
 }

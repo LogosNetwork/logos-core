@@ -1,6 +1,7 @@
 #pragma once
 
 #include <logos/lib/numbers.hpp>
+#include <logos/lib/utility.hpp>
 
 #include <boost/property_tree/ptree.hpp>
 
@@ -53,6 +54,7 @@ struct Request
 
     std::string ToJson() const;
     virtual boost::property_tree::ptree SerializeJson() const;
+    virtual uint64_t Serialize(logos::stream & stream) const;
 
     BlockHash Hash() const;
     virtual void Hash(blake2b_state & hash) const = 0;
@@ -70,7 +72,37 @@ struct Request
         return (T::WireSize() * v.size()) + sizeof(uint8_t);
     }
 
-    uint8_t StringWireSize(const std::string & s) const;
+    template<typename T = uint8_t>
+    T StringWireSize(const std::string & s) const
+    {
+        static_assert(std::is_integral<T>::value,
+                      "Integral type required.");
+
+        assert(s.size() <= std::numeric_limits<T>::max());
+
+        // Length of string plus one
+        // byte to denote the length.
+        //
+        return s.size() + sizeof(T);
+    }
+
+    template<typename T, typename S = uint8_t>
+    uint64_t SerializeVector(logos::stream & stream, const std::vector<T> & v) const
+    {
+        static_assert(std::is_integral<S>::value,
+                      "Integral type required.");
+
+        assert(v.size() < std::numeric_limits<S>::max());
+
+        uint64_t written = logos::write(stream, S(v.size()));
+
+        for(size_t i = 0; i < v.size(); ++i)
+        {
+            written += v[i].Serialize(stream);
+        }
+
+        return written;
+    }
 
     RequestType type;
     BlockHash   previous;
