@@ -1,10 +1,13 @@
 #include <logos/tokens/requests.hpp>
 
+#include <logos/requests/fields.hpp>
+#include <logos/tokens/util.hpp>
 #include <logos/lib/blocks.hpp>
 
 TokenIssuance::TokenIssuance(bool & error,
                              std::basic_streambuf<uint8_t> & stream)
     : TokenAdminRequest(error, stream)
+    , settings(error, stream)
 {
     if(error)
     {
@@ -24,12 +27,6 @@ TokenIssuance::TokenIssuance(bool & error,
     }
 
     error = logos::read(stream, total_supply);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, settings);
     if(error)
     {
         return;
@@ -56,16 +53,102 @@ TokenIssuance::TokenIssuance(bool & error,
     error = logos::read<uint16_t>(stream, issuer_info);
 }
 
+TokenIssuance::TokenIssuance(bool & error,
+                             boost::property_tree::ptree const & tree)
+    : TokenAdminRequest(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        symbol = tree.get<std::string>(SYMBOL);
+        name = tree.get<std::string>(NAME);
+        total_supply = std::stoul(tree.get<std::string>(TOTAL_SUPPLY));
+
+        auto settings_tree = tree.get_child(SETTINGS);
+        settings.DeserializeJson(error, settings_tree,
+                                 [](bool & error, const std::string & data)
+                                 {
+                                     return size_t(GetTokenSetting(error, data));
+                                 });
+        if(error)
+        {
+            return;
+        }
+
+        auto controller_tree = tree.get_child(CONTROLLERS);
+        for(const auto & entry : controller_tree)
+        {
+            ControllerInfo c(error, entry.second);
+
+            if(error)
+            {
+                return;
+            }
+
+            controllers.push_back(c);
+        }
+
+        // TODO: info is optional
+        //
+        issuer_info = tree.get<std::string>(INFO);
+    }
+    catch (...)
+    {
+        error = true;
+    }
+}
+
+boost::property_tree::ptree TokenIssuance::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree = TokenAdminRequest::SerializeJson();
+
+    tree.put(SYMBOL, symbol);
+    tree.put(NAME, name);
+    tree.put(TOTAL_SUPPLY, total_supply);
+
+    boost::property_tree::ptree settings_tree(
+        settings.SerializeJson([](size_t pos)
+                               {
+                                   return GetTokenSettingField(pos);
+                               }));
+    tree.add_child(SETTINGS, settings_tree);
+
+    boost::property_tree::ptree controllers_tree;
+    for(size_t i = 0; i < controllers.size(); ++i)
+    {
+        controllers_tree.push_back(std::make_pair("",
+            controllers[i].SerializeJson()));
+    }
+    tree.add_child(CONTROLLERS, controllers_tree);
+
+    tree.put(INFO, issuer_info);
+
+    return tree;
+}
+
 void TokenIssuance::Hash(blake2b_state & hash) const
 {
     TokenAdminRequest::Hash(hash);
 
-    blake2b_update(&hash, &symbol,       sizeof(symbol));
-    blake2b_update(&hash, &name,         sizeof(name));
+    blake2b_update(&hash, symbol.data(), symbol.size());
+    blake2b_update(&hash, name.data(), name.size());
     blake2b_update(&hash, &total_supply, sizeof(total_supply));
-    blake2b_update(&hash, &settings,     sizeof(settings));
-    blake2b_update(&hash, &controllers,  sizeof(controllers));
-    blake2b_update(&hash, &issuer_info,  sizeof(issuer_info));
+    settings.Hash(hash);
+
+    for(size_t i = 0; i < controllers.size(); ++i)
+    {
+        controllers[i].Hash(hash);
+    }
+
+    blake2b_update(&hash, issuer_info.data(), issuer_info.size());
 }
 
 uint16_t TokenIssuance::WireSize() const
@@ -73,14 +156,14 @@ uint16_t TokenIssuance::WireSize() const
     return StringWireSize(symbol) +
            StringWireSize(name) +
            sizeof(total_supply) +
-           sizeof(settings) +
+           Settings::WireSize() +
            VectorWireSize(controllers) +
            StringWireSize(issuer_info) +
            TokenAdminRequest::WireSize();
 }
 
-TokenIssueAdd::TokenIssueAdd(bool & error,
-                             std::basic_streambuf<uint8_t> & stream)
+TokenIssueAdtl::TokenIssueAdtl(bool & error,
+                               std::basic_streambuf<uint8_t> & stream)
     : TokenAdminRequest(error, stream)
 {
     if(error)
@@ -91,14 +174,46 @@ TokenIssueAdd::TokenIssueAdd(bool & error,
     error = logos::read(stream, amount);
 }
 
-void TokenIssueAdd::Hash(blake2b_state & hash) const
+TokenIssueAdtl::TokenIssueAdtl(bool & error,
+                               boost::property_tree::ptree const & tree)
+    : TokenAdminRequest(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        amount = std::stoul(tree.get<std::string>(AMOUNT));
+    }
+    catch(...)
+    {
+        error = true;
+    }
+}
+
+boost::property_tree::ptree TokenIssueAdtl::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree = TokenAdminRequest::SerializeJson();
+
+    tree.put(AMOUNT, amount);
+
+    return tree;
+}
+
+void TokenIssueAdtl::Hash(blake2b_state & hash) const
 {
     TokenAdminRequest::Hash(hash);
 
     blake2b_update(&hash, &amount, sizeof(amount));
 }
 
-uint16_t TokenIssueAdd::WireSize() const
+uint16_t TokenIssueAdtl::WireSize() const
 {
     return sizeof(amount) +
            TokenAdminRequest::WireSize();
@@ -122,12 +237,53 @@ TokenChangeSetting::TokenChangeSetting(bool & error,
     error = logos::read(stream, value);
 }
 
+TokenChangeSetting::TokenChangeSetting(bool & error,
+                                       boost::property_tree::ptree const & tree)
+    : TokenAdminRequest(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        setting = GetTokenSetting(error, tree.get<std::string>(SETTING));
+        if(error)
+        {
+            return;
+        }
+
+        value = tree.get<bool>(VALUE) ?
+                SettingValue::Enabled :
+                SettingValue::Disabled;
+    }
+    catch(...)
+    {
+        error = true;
+    }
+}
+
+boost::property_tree::ptree TokenChangeSetting::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree = TokenAdminRequest::SerializeJson();
+
+    tree.put(SETTING, GetTokenSettingField(setting));
+    tree.put(VALUE, bool(value));
+
+    return tree;
+}
+
 void TokenChangeSetting::Hash(blake2b_state & hash) const
 {
     TokenAdminRequest::Hash(hash);
 
-    blake2b_update(&hash, &setting,  sizeof(setting));
-    blake2b_update(&hash, &value,    sizeof(value));
+    blake2b_update(&hash, &setting, sizeof(setting));
+    blake2b_update(&hash, &value, sizeof(value));
 }
 
 uint16_t TokenChangeSetting::WireSize() const
@@ -147,6 +303,38 @@ TokenImmuteSetting::TokenImmuteSetting(bool & error,
     }
 
     error = logos::read(stream, setting);
+}
+
+TokenImmuteSetting::TokenImmuteSetting(bool & error,
+                                       boost::property_tree::ptree const & tree)
+    : TokenAdminRequest(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        setting = GetTokenSetting(error, tree.get<std::string>(SETTING));
+    }
+    catch(...)
+    {
+        error = true;
+    }
+}
+
+boost::property_tree::ptree TokenImmuteSetting::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree;
+
+    tree.put(SETTING, GetTokenSettingField(setting));
+
+    return tree;
 }
 
 void TokenImmuteSetting::Hash(blake2b_state & hash) const
@@ -177,7 +365,7 @@ TokenRevoke::TokenRevoke(bool & error,
         return;
     }
 
-    error = logos::read(stream, dest);
+    error = logos::read(stream, destination);
     if(error)
     {
         return;
@@ -186,19 +374,65 @@ TokenRevoke::TokenRevoke(bool & error,
     error = logos::read(stream, amount);
 }
 
+TokenRevoke::TokenRevoke(bool & error,
+                         boost::property_tree::ptree const & tree)
+    : TokenAdminRequest(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        error = source.decode_account(tree.get<std::string>(SOURCE));
+        if(error)
+        {
+            return;
+        }
+
+        error = destination.decode_account(tree.get<std::string>(DESTINATION));
+        if(error)
+        {
+            return;
+        }
+
+        amount = std::stoul(tree.get<std::string>(AMOUNT));
+    }
+    catch(...)
+    {
+        error = true;
+    }
+}
+
+boost::property_tree::ptree TokenRevoke::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree;
+
+    tree.put(SOURCE, source.to_account());
+    tree.put(DESTINATION, destination.to_account());
+    tree.put(AMOUNT, amount);
+
+    return tree;
+}
+
 void TokenRevoke::Hash(blake2b_state & hash) const
 {
     TokenAdminRequest::Hash(hash);
 
-    blake2b_update(&hash, &source, sizeof(source));
-    blake2b_update(&hash, &dest, sizeof(dest));
+    source.Hash(hash);
+    destination.Hash(hash);
     blake2b_update(&hash, &amount, sizeof(amount));
 }
 
 uint16_t TokenRevoke::WireSize() const
 {
-    return sizeof(source) +
-           sizeof(dest) +
+    return sizeof(source.bytes) +
+           sizeof(destination.bytes) +
            sizeof(amount) +
            TokenAdminRequest::WireSize();
 }
@@ -221,17 +455,56 @@ TokenFreeze::TokenFreeze(bool & error,
     error = logos::read(stream, action);
 }
 
+TokenFreeze::TokenFreeze(bool & error,
+                         boost::property_tree::ptree const & tree)
+    : TokenAdminRequest(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        error = account.decode_account(tree.get<std::string>(ACCOUNT));
+        if(error)
+        {
+            return;
+        }
+
+        action = GetFreezeAction(error, tree.get<std::string>(ACTION));
+    }
+    catch(...)
+    {
+        error = true;
+    }
+}
+
+boost::property_tree::ptree TokenFreeze::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree;
+
+    tree.put(ACCOUNT, account.to_account());
+    tree.put(ACTION, GetFreezeActionField(action));
+
+    return tree;
+}
+
 void TokenFreeze::Hash(blake2b_state & hash) const
 {
     TokenAdminRequest::Hash(hash);
 
-    blake2b_update(&hash, &account, sizeof(account));
+    account.Hash(hash);
     blake2b_update(&hash, &action, sizeof(action));
 }
 
 uint16_t TokenFreeze::WireSize() const
 {
-    return sizeof(account) +
+    return sizeof(account.bytes) +
            sizeof(action) +
            TokenAdminRequest::WireSize();
 }
@@ -252,6 +525,45 @@ TokenSetFee::TokenSetFee(bool & error,
     }
 
     error = logos::read(stream, fee_rate);
+}
+
+TokenSetFee::TokenSetFee(bool & error,
+                         boost::property_tree::ptree const & tree)
+    : TokenAdminRequest(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        fee_type = GetTokenFeeType(error, tree.get<std::string>(FEE_TYPE));
+        if(error)
+        {
+            return;
+        }
+
+        fee_rate = std::stoul(tree.get<std::string>(FEE_RATE));
+    }
+    catch(...)
+    {
+        error = true;
+    }
+}
+
+boost::property_tree::ptree TokenSetFee::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree;
+
+    tree.put(FEE_TYPE, GetTokenFeeTypeField(fee_type));
+    tree.put(FEE_RATE, fee_rate);
+
+    return tree;
 }
 
 void TokenSetFee::Hash(blake2b_state & hash) const
@@ -281,16 +593,47 @@ TokenWhitelistAdmin::TokenWhitelistAdmin(bool & error,
     error = logos::read(stream, account);
 }
 
+TokenWhitelistAdmin::TokenWhitelistAdmin(bool & error,
+                                         boost::property_tree::ptree const & tree)
+    : TokenAdminRequest(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        error = account.decode_account(tree.get<std::string>(ACCOUNT));
+    }
+    catch(...)
+    {
+        error = true;
+    }
+}
+
+boost::property_tree::ptree TokenWhitelistAdmin::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree;
+
+    tree.put(ACCOUNT, account.to_account());
+
+    return tree;
+}
+
 void TokenWhitelistAdmin::Hash(blake2b_state & hash) const
 {
     TokenAdminRequest::Hash(hash);
-
-    blake2b_update(&hash, &account, sizeof(account));
+    account.Hash(hash);
 }
 
 uint16_t TokenWhitelistAdmin::WireSize() const
 {
-    return sizeof(account) +
+    return sizeof(account.bytes) +
            TokenAdminRequest::WireSize();
 }
 
@@ -306,11 +649,42 @@ TokenIssuerInfo::TokenIssuerInfo(bool & error,
     error = logos::read<uint16_t>(stream, new_info);
 }
 
+TokenIssuerInfo::TokenIssuerInfo(bool & error,
+                                 boost::property_tree::ptree const & tree)
+    : TokenAdminRequest(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        new_info = tree.get<std::string>(INFO);
+    }
+    catch(...)
+    {
+        error = true;
+    }
+}
+
+boost::property_tree::ptree TokenIssuerInfo::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree;
+
+    tree.put(INFO, new_info);
+
+    return tree;
+}
+
 void TokenIssuerInfo::Hash(blake2b_state & hash) const
 {
     TokenAdminRequest::Hash(hash);
-
-    blake2b_update(&hash, &new_info, sizeof(new_info));
+    blake2b_update(&hash, new_info.data(), new_info.size());
 }
 
 uint16_t TokenIssuerInfo::WireSize() const
@@ -332,18 +706,52 @@ TokenController::TokenController(bool & error,
     error = logos::read(stream, action);
 }
 
+TokenController::TokenController(bool & error,
+                                 boost::property_tree::ptree const & tree)
+    : TokenAdminRequest(error, tree)
+    , controller(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        action = GetControllerAction(error, tree.get<std::string>(ACTION));
+    }
+    catch(...)
+    {
+        error = true;
+    }
+}
+
+boost::property_tree::ptree TokenController::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree;
+
+    tree.put(ACTION, GetControllerActionField(action));
+    tree.add_child(CONTROLLER, controller.SerializeJson());
+
+    return tree;
+}
+
 void TokenController::Hash(blake2b_state & hash) const
 {
     TokenAdminRequest::Hash(hash);
 
-    blake2b_update(&hash, &action,     sizeof(action));
-    blake2b_update(&hash, &controller, sizeof(controller));
+    blake2b_update(&hash, &action, sizeof(action));
+    controller.Hash(hash);
 }
 
 uint16_t TokenController::WireSize() const
 {
     return sizeof(action) +
-           sizeof(controller) +
+           ControllerInfo::WireSize() +
            TokenAdminRequest::WireSize();
 }
 
@@ -357,6 +765,38 @@ TokenBurn::TokenBurn(bool & error,
     }
 
     error = logos::read(stream, amount);
+}
+
+TokenBurn::TokenBurn(bool & error,
+                     boost::property_tree::ptree const & tree)
+    : TokenAdminRequest(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        amount = std::stoul(tree.get<std::string>(AMOUNT));
+    }
+    catch(...)
+    {
+        error = true;
+    }
+}
+
+boost::property_tree::ptree TokenBurn::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree;
+
+    tree.put(AMOUNT, amount);
+
+    return tree;
 }
 
 void TokenBurn::Hash(blake2b_state & hash) const
@@ -381,25 +821,60 @@ TokenAccountSend::TokenAccountSend(bool & error,
         return;
     }
 
-    error = logos::read(stream, dest);
+    error = logos::read(stream, destination);
     if(error)
     {
         return;
     }
 
-    error = logos::read(stream, amount);}
+    error = logos::read(stream, amount);
+}
+
+TokenAccountSend::TokenAccountSend(bool & error,
+                                   boost::property_tree::ptree const & tree)
+    : TokenAdminRequest(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        destination.decode_account(tree.get<std::string>(SYMBOL));
+        amount = std::stoul(tree.get<std::string>(AMOUNT));
+    }
+    catch(...)
+    {
+        error = true;
+    }
+}
+
+boost::property_tree::ptree TokenAccountSend::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree;
+
+    tree.put(DESTINATION, destination.to_account());
+    tree.put(AMOUNT, amount);
+
+    return tree;
+}
 
 void TokenAccountSend::Hash(blake2b_state & hash) const
 {
     TokenAdminRequest::Hash(hash);
 
-    blake2b_update(&hash, &dest,   sizeof(dest));
+    destination.Hash(hash);
     blake2b_update(&hash, &amount, sizeof(amount));
 }
 
 uint16_t TokenAccountSend::WireSize() const
 {
-    return sizeof(dest) +
+    return sizeof(destination.bytes) +
            sizeof(amount) +
            TokenAdminRequest::WireSize();
 }
@@ -413,7 +888,7 @@ TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
         return;
     }
 
-    error = logos::read(stream, dest);
+    error = logos::read(stream, destination);
     if(error)
     {
         return;
@@ -423,17 +898,51 @@ TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
     error = logos::read(stream, amount);
 }
 
+TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
+                                                 boost::property_tree::ptree const & tree)
+    : TokenAdminRequest(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        destination.decode_account(tree.get<std::string>(SYMBOL));
+        amount = std::stoul(tree.get<std::string>(AMOUNT));
+    }
+    catch(...)
+    {
+        error = true;
+    }
+}
+
+boost::property_tree::ptree TokenAccountWithdrawFee::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree;
+
+    tree.put(DESTINATION, destination.to_account());
+    tree.put(AMOUNT, amount);
+
+    return tree;
+}
+
 void TokenAccountWithdrawFee::Hash(blake2b_state & hash) const
 {
     TokenAdminRequest::Hash(hash);
 
-    blake2b_update(&hash, &dest,   sizeof(dest));
+    destination.Hash(hash);
     blake2b_update(&hash, &amount, sizeof(amount));
 }
 
 uint16_t TokenAccountWithdrawFee::WireSize() const
 {
-    return sizeof(dest) +
+    return sizeof(destination.bytes) +
            sizeof(amount) +
            TokenAdminRequest::WireSize();
 }
@@ -468,12 +977,69 @@ TokenSend::TokenSend(bool & error,
     error = logos::read(stream, fee);
 }
 
+TokenSend::TokenSend(bool & error,
+                     boost::property_tree::ptree const & tree)
+    : TokenRequest(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        auto transactions_tree = tree.get_child(TRANSACTIONS);
+        for(auto & entry : transactions_tree)
+        {
+            TokenTransaction t(error, entry.second);
+            if(error)
+            {
+                return;
+            }
+
+            transactions.push_back(t);
+        }
+
+        fee = std::stoul(tree.get<std::string>(FEE));
+    }
+    catch(...)
+    {
+        error = true;
+    }
+}
+
+boost::property_tree::ptree TokenSend::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree;
+
+    boost::property_tree::ptree transactions_tree;
+    for(size_t i = 0; i < transactions.size(); ++i)
+    {
+        transactions_tree.push_back(
+            std::make_pair("",
+                           transactions[i].SerializeJson()));
+    }
+    tree.add_child(TRANSACTIONS, transactions_tree);
+
+    tree.put(FEE, fee);
+
+    return tree;
+}
+
 void TokenSend::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
 
-    blake2b_update(&hash, &transactions, sizeof(transactions));
-    blake2b_update(&hash, &fee,          sizeof(fee));
+    for(size_t i = 0; i < transactions.size(); ++i)
+    {
+        transactions[i].Hash(hash);
+    }
+
+    blake2b_update(&hash, &fee, sizeof(fee));
 }
 
 uint16_t TokenSend::WireSize() const

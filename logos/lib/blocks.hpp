@@ -22,7 +22,7 @@ bool read (logos::stream & stream_a, T & value)
     return amount_read != sizeof (value);
 }
 template <typename T>
-uint32_t write (logos::stream & stream_a, T const & value)
+uint64_t write (logos::stream & stream_a, T const & value)
 {
     static_assert (std::is_pod<T>::value, "Can't stream write non-standard layout types");
     auto amount_written (stream_a.sputn (reinterpret_cast<uint8_t const *> (&value), sizeof (value)));
@@ -43,44 +43,48 @@ bool read (logos::stream & stream_a, std::string & value)
     }
 
     value.reserve(len);
-    size_t pos = 0;
+    uint64_t pos = 0;
 
-    while(pos++ != len)
+    while(pos < len)
     {
-        if((value[pos] = stream_a.sbumpc()) == stream::traits_type::eof())
+        auto next = stream_a.sbumpc();
+        if(next == stream::traits_type::eof())
         {
             return true;
         }
+
+        value[pos++] = stream::traits_type::to_char_type(next);
     }
 
     return false;
 }
 
 template<typename T = uint8_t>
-uint32_t write (logos::stream & stream_a, const std::string & value)
+uint64_t write (logos::stream & stream_a, const std::string & value)
 {
     static_assert(std::is_integral<T>::value,
                   "Integral type required.");
 
     T len = value.size();
 
-    uint32_t written;
+    uint64_t written;
     if((written = write(stream_a, len)) != sizeof(T))
     {
         return written;
     }
 
-    size_t pos = 0;
+    uint64_t pos = 0;
 
-    while(pos++ < value.size())
+    while(pos < value.size())
     {
-        if(stream_a.sputc(value[pos]) == stream::traits_type::eof())
+        using C = stream::traits_type::char_type;
+        if(stream_a.sputc(C(value[pos++])) == stream::traits_type::eof())
         {
             return pos - 1 + sizeof(T);
         }
     }
 
-    return value.size();
+    return value.size() + sizeof(T);
 }
 
 template<size_t N>
@@ -98,7 +102,7 @@ bool read (logos::stream & stream_a, std::bitset<N> & value)
 }
 
 template<size_t N>
-uint32_t write (logos::stream & stream_a, const std::bitset<N> & value)
+uint64_t write (logos::stream & stream_a, const std::bitset<N> & value)
 {
     uint64_t val;
 
@@ -115,25 +119,14 @@ uint32_t write (logos::stream & stream_a, const std::bitset<N> & value)
 }
 
 bool read (logos::stream & stream_a, uint128_union & value);
-uint32_t write (logos::stream & stream_a, uint128_union const & value);
+uint64_t write (logos::stream & stream_a, uint128_union const & value);
 bool read (logos::stream & stream_a, uint256_union & value);
-uint32_t write (logos::stream & stream_a, uint256_union const & value);
+uint64_t write (logos::stream & stream_a, uint256_union const & value);
 bool read (logos::stream & stream_a, uint512_union & value);
-uint32_t write (logos::stream & stream_a, uint512_union const & value);
+uint64_t write (logos::stream & stream_a, uint512_union const & value);
 bool read (logos::stream & stream_a, std::vector<bool> & value);
-uint32_t write (logos::stream & stream_a, const std::vector<bool> & value);
+uint64_t write (logos::stream & stream_a, const std::vector<bool> & value);
 
-inline bool read (logos::stream & stream_a, void * data, size_t size)
-{
-    auto amount_read (stream_a.sgetn (reinterpret_cast<uint8_t *>(data), size));
-    return amount_read != size;
-}
-inline uint32_t write (logos::stream & stream_a, void * data, size_t size)
-{
-    auto amount_written (stream_a.sputn (reinterpret_cast<uint8_t const *> (data), size));
-    assert (amount_written == size);
-    return amount_written;
-}
 
 class block_visitor;
 enum class block_type : uint8_t
@@ -269,34 +262,3 @@ std::unique_ptr<logos::block> deserialize_block (logos::stream &, logos::block_t
 std::unique_ptr<logos::block> deserialize_block_json (boost::property_tree::ptree const &);
 void serialize_block (logos::stream &, logos::block const &);
 }
-
-struct CompressedStateBlock
-{
-    using Storage256 = std::array<uint8_t, 32>;
-    using Storage128 = std::array<uint8_t, 16>;
-
-    CompressedStateBlock(const logos::state_block & block)
-        : account       (block.hashables.account.bytes)
-        , previous      (block.hashables.previous.bytes)
-        , representative(block.hashables.representative.bytes)
-        , balance       (block.hashables.amount.bytes)
-        , link          (block.hashables.link.bytes)
-    {}
-
-    CompressedStateBlock() = default;
-
-    void Hash(blake2b_state & hash) const
-    {
-        blake2b_update(&hash, account.data(), sizeof(account));
-        blake2b_update(&hash, previous.data(), sizeof(previous));
-        blake2b_update(&hash, representative.data(), sizeof(representative));
-        blake2b_update(&hash, balance.data(), sizeof(balance));
-        blake2b_update(&hash, link.data(), sizeof(link));
-    }
-
-    Storage256 account;
-    Storage256 previous;
-    Storage256 representative;
-    Storage128 balance;
-    Storage256 link;
-} __attribute__((packed));
