@@ -17,6 +17,7 @@ struct TokenIssuance : TokenAdminRequest
                   boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
 
     void Hash(blake2b_state & hash) const override;
 
@@ -39,6 +40,7 @@ struct TokenIssueAdtl : TokenAdminRequest
                    boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
 
     void Hash(blake2b_state & hash) const override;
 
@@ -56,6 +58,7 @@ struct TokenChangeSetting : TokenAdminRequest
                        boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
 
     void Hash(blake2b_state & hash) const override;
 
@@ -74,6 +77,7 @@ struct TokenImmuteSetting : TokenAdminRequest
                        boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
 
     void Hash(blake2b_state & hash) const override;
 
@@ -91,6 +95,7 @@ struct TokenRevoke : TokenAdminRequest
                 boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
 
     void Hash(blake2b_state & hash) const override;
 
@@ -110,6 +115,7 @@ struct TokenFreeze : TokenAdminRequest
                 boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
 
     void Hash(blake2b_state & hash) const override;
 
@@ -128,6 +134,7 @@ struct TokenSetFee : TokenAdminRequest
                 boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
 
     void Hash(blake2b_state & hash) const override;
 
@@ -146,6 +153,7 @@ struct TokenWhitelistAdmin : TokenAdminRequest
                         boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
 
     void Hash(blake2b_state & hash) const override;
 
@@ -163,6 +171,7 @@ struct TokenIssuerInfo : TokenAdminRequest
                     boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
 
     void Hash(blake2b_state & hash) const override;
 
@@ -180,6 +189,7 @@ struct TokenController : TokenAdminRequest
                     boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
 
     void Hash(blake2b_state & hash) const override;
 
@@ -198,6 +208,7 @@ struct TokenBurn : TokenAdminRequest
               boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
 
     void Hash(blake2b_state & hash) const override;
 
@@ -215,6 +226,7 @@ struct TokenAccountSend : TokenAdminRequest
                      boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
 
     void Hash(blake2b_state & hash) const override;
 
@@ -233,6 +245,7 @@ struct TokenAccountWithdrawFee : TokenAdminRequest
                             boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
 
     void Hash(blake2b_state & hash) const override;
 
@@ -253,6 +266,7 @@ struct TokenSend : TokenRequest
               boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
 
     using Transactions = std::vector<TokenTransaction>;
 
