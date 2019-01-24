@@ -1,6 +1,6 @@
 #pragma once
 
-#include <logos/tokens/common.hpp>
+#include <logos/token/common.hpp>
 
 #include <string>
 

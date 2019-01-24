@@ -1,7 +1,7 @@
 #pragma once
 
 #include <logos/consensus/messages/byte_arrays.hpp>
-#include <logos/requests/request.hpp>
+#include <logos/request/request.hpp>
 #include <logos/lib/utility.hpp>
 #include <logos/common.hpp>
 
@@ -93,6 +93,8 @@ const size_t CONTROLLER_PRIVILEGE_COUNT = 19;
 
 struct TokenRequest : Request
 {
+    TokenRequest() = default;
+
     TokenRequest(bool & error,
                  std::basic_streambuf<uint8_t> & stream);
 
@@ -112,6 +114,8 @@ struct TokenRequest : Request
 struct TokenAdminRequest : TokenRequest
 {
     using InfoSizeT = uint16_t;
+
+    TokenAdminRequest() = default;
 
     TokenAdminRequest(bool & error,
                       std::basic_streambuf<uint8_t> & stream);
@@ -133,11 +137,16 @@ struct ControllerInfo
 {
     using Privileges = BitField<CONTROLLER_PRIVILEGE_COUNT>;
 
+    ControllerInfo() = default;
+
     ControllerInfo(bool & error,
                    std::basic_streambuf<uint8_t> & stream);
 
     ControllerInfo(bool & error,
                    boost::property_tree::ptree const & tree);
+
+    void DeserializeJson(bool & error,
+                         boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const;
     uint64_t Serialize(logos::stream & stream) const;
