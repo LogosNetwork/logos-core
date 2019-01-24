@@ -42,7 +42,8 @@ std::string GetRequestTypeField(RequestType type);
 
 struct Request
 {
-    using BlockHash = logos::block_hash;
+    using BlockHash      = logos::block_hash;
+    using AccountAddress = logos::uint256_union;
 
     Request() = default;
 

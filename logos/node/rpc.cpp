@@ -1202,7 +1202,7 @@ void logos::rpc_handler::block_create ()
                     }
                     uint32_t sequence = info.block_count;
 
-                    StateBlock state (account, previous, sequence, StateBlock::Type::send, link, amount, transaction_fee, prv.data, pub, work);
+                    StateBlock state (account, previous, sequence, link, amount, transaction_fee, prv.data, pub, work);
                     boost::property_tree::ptree response_l;
                     response_l.put ("hash", state.GetHash ().to_string ());
                     std::string contents(state.SerializeJson(false, true));
