@@ -84,7 +84,34 @@ struct Delegate
         epoch_block.put("vote", vote.to_string());
         epoch_block.put("stake", stake.to_string());
     }
+
+    //TODO: is this enough? do we need to use bls key too?
+    bool operator==(const Delegate& other) const
+    {
+        return account == other.account;
+    }
+
+    bool operator!=(const Delegate& other) const
+    {
+        return account != other.account;
+    }
 };
+
+
+namespace std
+{
+
+    template <>
+    struct hash<Delegate>
+    {
+        //TODO: is this enough? do we need to hash bls key as well?
+        size_t operator()(const Delegate& d) const
+        {
+            return hash<AccountAddress>()(d.account);
+        }
+    };
+
+}
 
 /// A epoch block is proposed after the last micro block.
 /// Like micro blocks, epoch block is used for checkpointing and boostrapping.

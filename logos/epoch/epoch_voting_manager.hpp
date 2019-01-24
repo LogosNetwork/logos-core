@@ -9,6 +9,8 @@
 #include <logos/epoch/epoch.hpp>
 #include <logos/lib/log.hpp>
 
+#include <unordered_set>
+
 namespace logos
 {
     class block_store;
@@ -36,6 +38,14 @@ public:
     /// @param delegates list of epoch delegates [in,out]
     /// @returns true if valid
     static bool ValidateEpochDelegates(const Delegates &delegates);
+
+    /// Get the set of delegates in their last epoch
+    /// @returns set of delegates in their last epoch
+    std::unordered_set<Delegate> GetRetiringDelegates();
+
+    /// Get the list of delegates that will take office next epoch
+    /// @returns vector of delegate-elects
+    std::vector<Delegate> GetDelegateElects();
 
 private:
 
