@@ -90,8 +90,7 @@ public:
         , _p2p(p2p,
             [this](const PostCommittedBlock<CT> &message, uint8_t delegate_id, ValidationStatus * status)
             {
-                const PrePrepareMessage<CT> block(message);
-                return this->_persistence.ValidatePreprepare(block, status);
+                return this->_persistence.Validate(message, status);
             },
             [this](const PostCommittedBlock<CT> &message, uint8_t delegate_id)
             {
