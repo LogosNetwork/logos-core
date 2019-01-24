@@ -1,7 +1,7 @@
-#include <logos/tokens/requests.hpp>
+#include <logos/token/requests.hpp>
 
-#include <logos/requests/fields.hpp>
-#include <logos/tokens/util.hpp>
+#include <logos/request/fields.hpp>
+#include <logos/token/util.hpp>
 
 TokenIssuance::TokenIssuance(bool & error,
                              std::basic_streambuf<uint8_t> & stream)
@@ -632,8 +632,8 @@ uint16_t TokenSetFee::WireSize() const
            TokenAdminRequest::WireSize();
 }
 
-TokenWhitelistAdmin::TokenWhitelistAdmin(bool & error,
-                                         std::basic_streambuf<uint8_t> & stream)
+TokenWhitelist::TokenWhitelist(bool & error,
+                               std::basic_streambuf<uint8_t> & stream)
     : TokenAdminRequest(error, stream)
 {
     if(error)
@@ -644,8 +644,8 @@ TokenWhitelistAdmin::TokenWhitelistAdmin(bool & error,
     error = logos::read(stream, account);
 }
 
-TokenWhitelistAdmin::TokenWhitelistAdmin(bool & error,
-                                         boost::property_tree::ptree const & tree)
+TokenWhitelist::TokenWhitelist(bool & error,
+                               boost::property_tree::ptree const & tree)
     : TokenAdminRequest(error, tree)
 {
     using namespace request::fields;
@@ -665,7 +665,7 @@ TokenWhitelistAdmin::TokenWhitelistAdmin(bool & error,
     }
 }
 
-boost::property_tree::ptree TokenWhitelistAdmin::SerializeJson() const
+boost::property_tree::ptree TokenWhitelist::SerializeJson() const
 {
     using namespace request::fields;
 
@@ -676,19 +676,19 @@ boost::property_tree::ptree TokenWhitelistAdmin::SerializeJson() const
     return tree;
 }
 
-uint64_t TokenWhitelistAdmin::Serialize(logos::stream & stream) const
+uint64_t TokenWhitelist::Serialize(logos::stream & stream) const
 {
     return TokenAdminRequest::Serialize(stream) +
            logos::write(stream, account);
 }
 
-void TokenWhitelistAdmin::Hash(blake2b_state & hash) const
+void TokenWhitelist::Hash(blake2b_state & hash) const
 {
     TokenAdminRequest::Hash(hash);
     account.Hash(hash);
 }
 
-uint16_t TokenWhitelistAdmin::WireSize() const
+uint16_t TokenWhitelist::WireSize() const
 {
     return sizeof(account.bytes) +
            TokenAdminRequest::WireSize();
@@ -719,7 +719,7 @@ TokenIssuerInfo::TokenIssuerInfo(bool & error,
 
     try
     {
-        new_info = tree.get<std::string>(INFO);
+        new_info = tree.get<std::string>(NEW_INFO);
     }
     catch(...)
     {
@@ -772,7 +772,6 @@ TokenController::TokenController(bool & error,
 TokenController::TokenController(bool & error,
                                  boost::property_tree::ptree const & tree)
     : TokenAdminRequest(error, tree)
-    , controller(error, tree)
 {
     using namespace request::fields;
 
@@ -784,6 +783,12 @@ TokenController::TokenController(bool & error,
     try
     {
         action = GetControllerAction(error, tree.get<std::string>(ACTION));
+        if(error)
+        {
+            return;
+        }
+
+        controller.DeserializeJson(error, tree.get_child(CONTROLLER));
     }
     catch(...)
     {
@@ -919,7 +924,12 @@ TokenAccountSend::TokenAccountSend(bool & error,
 
     try
     {
-        destination.decode_account(tree.get<std::string>(SYMBOL));
+        error = destination.decode_account(tree.get<std::string>(DESTINATION));
+        if(error)
+        {
+            return;
+        }
+
         amount = std::stoul(tree.get<std::string>(AMOUNT));
     }
     catch(...)
@@ -994,7 +1004,12 @@ TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
 
     try
     {
-        destination.decode_account(tree.get<std::string>(SYMBOL));
+        error = destination.decode_account(tree.get<std::string>(DESTINATION));
+        if(error)
+        {
+            error;
+        }
+
         amount = std::stoul(tree.get<std::string>(AMOUNT));
     }
     catch(...)

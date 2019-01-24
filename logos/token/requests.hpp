@@ -1,6 +1,6 @@
 #pragma once
 
-#include <logos/tokens/common.hpp>
+#include <logos/token/common.hpp>
 #include <logos/lib/numbers.hpp>
 
 // Token Admin Requests
@@ -9,6 +9,8 @@ struct TokenIssuance : TokenAdminRequest
 {
     using Settings    = BitField<TOKEN_SETTINGS_COUNT>;
     using Controllers = std::vector<ControllerInfo>;
+
+    TokenIssuance() = default;
 
     TokenIssuance(bool & error,
                   std::basic_streambuf<uint8_t> & stream);
@@ -144,13 +146,13 @@ struct TokenSetFee : TokenAdminRequest
     uint16_t     fee_rate;
 };
 
-struct TokenWhitelistAdmin : TokenAdminRequest
+struct TokenWhitelist : TokenAdminRequest
 {
-    TokenWhitelistAdmin(bool & error,
-                        std::basic_streambuf<uint8_t> & stream);
+    TokenWhitelist(bool & error,
+                   std::basic_streambuf<uint8_t> & stream);
 
-    TokenWhitelistAdmin(bool & error,
-                        boost::property_tree::ptree const & tree);
+    TokenWhitelist(bool & error,
+                   boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
@@ -195,6 +197,9 @@ struct TokenController : TokenAdminRequest
 
     uint16_t WireSize() const override;
 
+    // TODO: controller.privileges is
+    //       ignored when action == remove?
+    //
     ControllerAction action;
     ControllerInfo   controller;
 };
@@ -259,6 +264,8 @@ struct TokenAccountWithdrawFee : TokenAdminRequest
 //
 struct TokenSend : TokenRequest
 {
+    using Transactions = std::vector<TokenTransaction>;
+
     TokenSend(bool & error,
               std::basic_streambuf<uint8_t> & stream);
 
@@ -267,8 +274,6 @@ struct TokenSend : TokenRequest
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-
-    using Transactions = std::vector<TokenTransaction>;
 
     void Hash(blake2b_state & hash) const override;
 

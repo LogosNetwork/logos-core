@@ -1,4 +1,5 @@
 #include <boost/property_tree/json_parser.hpp>
+
 #include <fstream>
 #include <gtest/gtest.h>
 #include <ed25519-donna/ed25519.h>
@@ -24,7 +25,6 @@ using namespace std;
 #define Unit_Test_Consensus_Block
 #define Unit_Test_Msg_Validator
 #define Unit_Test_DB
-
 
 std::string byte_vector_to_string (const std::vector<uint8_t> & buf)
 {
