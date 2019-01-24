@@ -64,6 +64,8 @@ struct RejectionMessage
 
         std::vector<uint8_t> buf;
         {
+            assert(rejection_map.size() <= CONSENSUS_BATCH_SIZE);
+
             logos::vectorstream stream(buf);
             logos::write(stream, rejection_map);
         }
@@ -73,6 +75,8 @@ struct RejectionMessage
 
     uint32_t Serialize(logos::stream & stream) const
     {
+        assert(rejection_map.size() <= CONSENSUS_BATCH_SIZE);
+
         auto s = MessagePrequel<MessageType::Rejection, CT>::Serialize(stream);
         s += logos::write(stream, preprepare_hash);
         s += logos::write(stream, reason);

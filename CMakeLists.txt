@@ -373,10 +373,11 @@ add_library (node
 	logos/node/stats.cpp
 	logos/node/working.hpp
 	logos/node/xorshift.hpp
-	logos/tokens/account.cpp
-	logos/tokens/common.cpp
-	logos/tokens/requests.cpp
-	logos/tokens/util.cpp
+	logos/request/request.cpp
+	logos/token/account.cpp
+	logos/token/common.cpp
+	logos/token/requests.cpp
+	logos/token/util.cpp
 	logos/wallet_server/client/callback_handler.cpp
 	logos/wallet_server/client/callback_manager.cpp
 	logos/wallet_server/client/common.hpp
@@ -390,7 +391,7 @@ set_property (CACHE ACTIVE_NETWORK PROPERTY STRINGS logos_test_network logos_bet
 if (LOGOS_TEST)
 	add_executable (unit_test        	       
 		logos/unit_test/consensus_msg_serialize.cpp
-	)
+            	logos/unit_test/request_serialization.cpp)
 
 	set_target_properties (unit_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1")
 	set_target_properties (unit_test PROPERTIES LINK_FLAGS "${PLATFORM_LINK_FLAGS}")
