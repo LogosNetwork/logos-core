@@ -1465,7 +1465,7 @@ _consensus_container(service_a, store, alarm_a, config.consensus_manager_config,
                                   /* Receive Head */ logos_genesis_receive.Hash(),
                                   /* Rep          */ 0,
                                   /* Open         */ logos_genesis_block.GetHash(),
-                                  /* Amount       */ logos_genesis_block.trans[0].amount,
+                                  /* Amount       */ logos_genesis_block.transactions[0].amount,
                                   /* Time         */ logos::seconds_since_epoch(),
                                   /* Count        */ 1,
                                   /* Receive      */ 1

@@ -1260,7 +1260,7 @@ void logos::rpc_handler::block_create ()
                     }
                     uint32_t sequence = info.block_count;
 
-                    StateBlock state (account, previous, sequence, StateBlock::Type::send, link, amount, transaction_fee, prv.data, pub, work);
+                    StateBlock state (account, previous, sequence, link, amount, transaction_fee, prv.data, pub, work);
                     boost::property_tree::ptree response_l;
                     response_l.put ("hash", state.GetHash ().to_string ());
                     std::string contents(state.SerializeJson(false, true));
@@ -1825,11 +1825,11 @@ void logos::rpc_handler::account_history ()
             entry.put ("hash", hash.to_string ());
             // always show the account id of the other party in transaction
             //TODO loop transactions
-            entry.put ("account", put_send ? display_block.trans[0].target.to_account() : display_block.account.to_account ());
-            entry.put ("amount", display_block.trans[0].amount.to_string_dec ());
+            entry.put ("account", put_send ? display_block.transactions[0].target.to_account() : display_block.account.to_account ());
+            entry.put ("amount", display_block.transactions[0].amount.to_string_dec ());
             if (output_raw)
             {
-                entry.put ("link", display_block.trans[0].target.to_string ());
+                entry.put ("link", display_block.transactions[0].target.to_string ());
                 entry.put ("previous", display_block.previous.to_string ());
 
                 entry.put ("work", logos::to_string_hex (display_block.work));

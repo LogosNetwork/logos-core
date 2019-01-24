@@ -125,7 +125,6 @@ MicroBlockTester::precreate_account(
   StateBlock state(account,  // account
                            BlockHash(), // previous
                            0, // sqn
-                           StateBlock::Type::send, //Type
                            account,  // link
                            amount,
                            fee,

@@ -42,7 +42,7 @@ create_bsb_preprepare(uint16_t num_sb)
     PrePrepareMessage<ConsensusType::BatchStateBlock> block;
     for(uint32_t i = 0; i < num_sb; ++i)
     {
-        block.AddStateBlock(StateBlock(1,2,i,StateBlock::Type::send,5,6,7,8,9));
+        block.AddStateBlock(StateBlock(1,2,i,5,6,7,8,9));
     }
 
     return block;
@@ -511,7 +511,7 @@ TEST (blocks, receive_block)
 
 TEST (blocks, state_block)
 {
-    StateBlock block(1,2,3,StateBlock::Type::send,5,6,7,8,9);
+    StateBlock block(1,2,3,5,6,7,8,9);
 
     std::vector<uint8_t> buf;
     auto db_val = block.to_mdb_val(buf);
@@ -540,7 +540,6 @@ void create_real_StateBlock(StateBlock & block)
     new (&block) StateBlock(account,  // account
             BlockHash(), // previous
             0, // sqn
-            StateBlock::Type::send, //Type
             account,  // target
             amount,
             fee,
@@ -594,7 +593,7 @@ TEST (blocks, batch_state_block_PrePrepare_empty)
 TEST (blocks, batch_state_block_PrePrepare_full)
 {
     auto block = create_bsb_preprepare(CONSENSUS_BATCH_SIZE);
-    ASSERT_FALSE(block.AddStateBlock(StateBlock(1,2,CONSENSUS_BATCH_SIZE+1,StateBlock::Type::send,5,6,7,8,9)));
+    ASSERT_FALSE(block.AddStateBlock(StateBlock(1,2,CONSENSUS_BATCH_SIZE+1,5,6,7,8,9)));
     ASSERT_EQ(block.block_count, CONSENSUS_BATCH_SIZE);
     vector<uint8_t> buf;
     block.Serialize(buf);
@@ -1004,7 +1003,7 @@ TEST (DB, state_block)
         return;
     logos::transaction txn(store->environment, nullptr, true);
 
-    StateBlock block(1,2,3,StateBlock::Type::send,5,6,7,8,9);
+    StateBlock block(1,2,3,5,6,7,8,9);
     std::vector<uint8_t> buf;
     ASSERT_FALSE(store->state_block_put(block, block.GetHash(), txn));
 

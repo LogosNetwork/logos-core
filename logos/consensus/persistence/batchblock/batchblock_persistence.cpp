@@ -162,7 +162,7 @@ bool PersistenceManager<BSBCT>::Validate(
         }
 
         auto total = block.transaction_fee.number();
-        for(auto & i : block.trans)
+        for(auto & i : block.transactions)
         {
             total += i.amount.number();
         }
@@ -319,7 +319,7 @@ bool PersistenceManager<BSBCT>::UpdateSourceState(
     info.balance = info.balance.number() -
                    block.transaction_fee.number();
 
-    for(auto & t : block.trans)
+    for(auto & t : block.transactions)
     {
         info.balance = info.balance.number() - t.amount.number();
     }
@@ -349,7 +349,7 @@ void PersistenceManager<BSBCT>::UpdateDestinationState(
     //
     std::lock_guard<std::mutex> lock(_destination_mutex);
     uint16_t index2send = 0;
-    for(auto & t : block.trans)
+    for(auto & t : block.transactions)
     {
         logos::account_info info;
         auto account_error(_store.account_get(t.target, info));
