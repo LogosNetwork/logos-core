@@ -58,6 +58,9 @@ protected:
     virtual void OnConsensusMessage(const Commit & message) = 0;
     virtual void OnConsensusMessage(const Rejection & message) = 0;
 
+    void LogMessageReceived(const std::string & msg_str, const std::string & hash_str);
+    void LogMessageReceived(const std::string & msg_str);
+
     virtual uint8_t RemoteDelegateId() = 0;
 
 private:

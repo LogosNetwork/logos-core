@@ -183,14 +183,6 @@ bool PersistenceManager<BSBCT>::Validate(
             _reservations->UpdateReservation(hash, current_epoch, block.account);
         }
     }
-    // account doesn't exist
-    else
-    {
-        // Currently do not accept state blocks
-        // with non-existent accounts.
-        result.code = logos::process_result::unknown_source_account;
-        return false;
-    }
 
     result.code = logos::process_result::progress;
     return true;
