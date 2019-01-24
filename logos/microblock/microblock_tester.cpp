@@ -123,16 +123,16 @@ MicroBlockTester::precreate_account(
     AccountPubKey pub_key = pair.pub;
     AccountPrivKey priv_key = pair.prv.data;
 
-    StateBlock state(account,  // account
+    StateBlock state(account,     // account
                      BlockHash(), // previous
-                     0, // sqn
-                     StateBlock::Type::send, //Type
-                     account,  // link
+                     0,           // sqn
+                     account,     // link
                      amount,
                      fee,
                      priv_key,
                      pub_key,
                      work);
+
     std::string contents = state.SerializeJson(false, true);
     boost::log::sources::logger_mt log;
     LOG_DEBUG(log) << "initializing delegate " <<

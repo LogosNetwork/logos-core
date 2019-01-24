@@ -9,7 +9,7 @@ namespace fields
 // Request types
 //
 const char SEND[]              = "send";
-const char CHANGE_REP[]        = "change_rep";
+const char CHANGE[]            = "change";
 const char ISSUE_TOKENS[]      = "issue";
 const char ISSUE_ADTL[]        = "issue_additional";
 const char IMMUTE[]            = "immute";
@@ -27,31 +27,33 @@ const char UNKNOWN[]           = "unknown";
 
 // Request fields
 //
-const char TYPE[]          = "type";
-const char PREVIOUS[]      = "previous";
-const char NEXT[]          = "next";
-const char TOKEN_ID[]      = "token_id";
-const char ADMIN_ACCOUNT[] = "admin_account";
-const char ACCOUNT[]       = "account";
-const char PRIVILEGES[]    = "privileges";
-const char SOURCE[]        = "source";
-const char DESTINATION[]   = "destination";
-const char AMOUNT[]        = "amount";
-const char SYMBOL[]        = "symbol";
-const char NAME[]          = "name";
-const char TOTAL_SUPPLY[]  = "total_supply";
-const char SETTINGS[]      = "settings";
-const char CONTROLLERS[]   = "controllers";
-const char INFO[]          = "issuer_info";
-const char NEW_INFO[]      = "new_info";
-const char SETTING[]       = "setting";
-const char VALUE[]         = "value";
-const char ACTION[]        = "action";
-const char FEE_TYPE[]      = "fee_type";
-const char FEE_RATE[]      = "fee_rate";
-const char CONTROLLER[]    = "controller";
-const char TRANSACTIONS[]  = "transactions";
-const char FEE[]           = "fee";
+const char TYPE[]           = "type";
+const char PREVIOUS[]       = "previous";
+const char NEXT[]           = "next";
+const char TOKEN_ID[]       = "token_id";
+const char ADMIN_ACCOUNT[]  = "admin_account";
+const char ACCOUNT[]        = "account";
+const char PRIVILEGES[]     = "privileges";
+const char SOURCE[]         = "source";
+const char DESTINATION[]    = "destination";
+const char AMOUNT[]         = "amount";
+const char SYMBOL[]         = "symbol";
+const char NAME[]           = "name";
+const char TOTAL_SUPPLY[]   = "total_supply";
+const char SETTINGS[]       = "settings";
+const char CONTROLLERS[]    = "controllers";
+const char INFO[]           = "issuer_info";
+const char NEW_INFO[]       = "new_info";
+const char SETTING[]        = "setting";
+const char VALUE[]          = "value";
+const char ACTION[]         = "action";
+const char FEE_TYPE[]       = "fee_type";
+const char FEE_RATE[]       = "fee_rate";
+const char CONTROLLER[]     = "controller";
+const char TRANSACTIONS[]   = "transactions";
+const char FEE[]            = "fee";
+const char CLIENT[]         = "client";
+const char REPRESENTATIVE[] = "representative";
 
 // Token setting fields
 //
