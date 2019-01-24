@@ -226,7 +226,7 @@ DelegateIdentityManager::Init(const Config &config)
         boost::property_tree::ptree tree;
         std::stringstream istream(logos::logos_test_genesis);
         boost::property_tree::read_json(istream, tree);
-        StateBlock logos_genesis_block(error, tree, true, true);
+        StateBlock logos_genesis_block(error, tree);
 
         if(error)
         {
@@ -242,15 +242,15 @@ DelegateIdentityManager::Init(const Config &config)
                 logos_genesis_receive,
                 transaction);
         _store.account_put(logos::genesis_account,
-                {
-            /* Head         */ logos_genesis_block.GetHash(),
-            /* Receive Head */ logos_genesis_receive.Hash(),
-            /* Rep          */ 0,
-            /* Open         */ logos_genesis_block.GetHash(),
-            /* Amount       */ logos_genesis_block.trans[0].amount,
-            /* Time         */ logos::seconds_since_epoch(),
-            /* Count        */ 1,
-            /* Receive      */ 1
+            {
+                /* Head         */ logos_genesis_block.GetHash(),
+                /* Receive Head */ logos_genesis_receive.Hash(),
+                /* Rep          */ 0,
+                /* Open         */ logos_genesis_block.GetHash(),
+                /* Amount       */ logos_genesis_block.trans[0].amount,
+                /* Time         */ logos::seconds_since_epoch(),
+                /* Count        */ 1,
+                /* Receive      */ 1
             },
             transaction);
         CreateGenesisAccounts(transaction);
@@ -297,7 +297,6 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
         StateBlock state(logos::logos_test_account,    // account
                          genesis_account.head,         // previous
                          genesis_account.block_count,  // sequence
-                         StateBlock::Type::send,
                          pair.pub,  // link/to
                          amount,
                          0,       // transaction fee

@@ -162,8 +162,6 @@ StateBlock::StateBlock (bool & error_a, boost::property_tree::ptree const & tree
             {
                 auto sequence_l (tree_a.get<std::string> ("sequence"));
                 sequence = std::stoul(sequence_l);
-                auto type_l (tree_a.get<std::string> ("transaction_type"));
-                type = StrToType(type_l);
                 auto fee_l (tree_a.get<std::string> ("transaction_fee", "0"));
                 error_a = transaction_fee.decode_dec (fee_l);
                 if (!error_a)
@@ -248,15 +246,14 @@ void StateBlock::SerializeJson(boost::property_tree::ptree & tree,
     tree.put("account", account.to_account());
     tree.put("previous", previous.to_string());
     tree.put("sequence", std::to_string(sequence));
-    tree.put("transaction_type", TypeToStr(type));
     tree.put("transaction_fee", transaction_fee.to_string_dec());
     tree.put("signature", signature.to_string());
     if(with_work)
         tree.put("work", std::to_string(work));
-    tree.put("number_transactions", std::to_string(trans.size()));
+    tree.put("number_transactions", std::to_string(transactions.size()));
 
     boost::property_tree::ptree ptree_tran_list;
-    for (const auto & t : trans) {
+    for (const auto & t : transactions) {
         boost::property_tree::ptree ptree_tran;
         ptree_tran.put("target", t.target.to_account());
         ptree_tran.put("amount", t.amount.to_string_dec());

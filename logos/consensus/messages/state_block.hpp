@@ -4,11 +4,13 @@
 ///
 #pragma once
 
+#include <logos/consensus/messages/common.hpp>
+#include <logos/request/request.hpp>
+#include <logos/node/utility.hpp>
+#include <logos/lib/log.hpp>
+
 #include <vector>
 
-#include <logos/consensus/messages/common.hpp>
-#include <logos/lib/log.hpp>
-#include <logos/node/utility.hpp>
 #include <blake2/blake2.h>
 #include <ed25519-donna/ed25519.h>
 
@@ -120,49 +122,24 @@ struct ReceiveBlock
     }
 };
 
-struct StateBlock
+struct StateBlock //: Request
 {
-    static const uint16_t MAX_TRANSACTION   = 8; //at most 2^16-1
+    static const uint8_t MAX_TRANSACTION = 8; //at most 2^16-1
     //Note: if increase MAX_TRANSACTION, may also need to increase network layer buffer size
 
-    enum class Type : uint8_t
-    {
-        send,
-        change,
-        unknown = 0xff
-    };
-
-    static std::string TypeToStr(Type t)
-    {
-        switch (t) {
-            case Type::send:
-                return std::string("send");
-            case Type::change:
-                return std::string("change");
-            default:
-                return std::string("unknown");
-        }
-    }
-
-    static Type StrToType(std::string &s)
-    {
-        if(s == std::string("send"))
-            return Type::send;
-        else if (s == std::string("change"))
-            return Type::change;
-        else
-            return Type::unknown;
-    }
-
     /// A transaction in a StateBlock
-    struct Transaction{
-        AccountAddress  target;
-        Amount          amount;
-        Transaction(AccountAddress const & to, Amount const & amount)
+    struct Transaction
+    {
+        Transaction(AccountAddress const & to,
+                    Amount const & amount)
         : target(to)
         , amount(amount)
         {}
-        Transaction()=default;
+
+        Transaction() = default;
+
+        AccountAddress target;
+        Amount         amount;
     };
 
     using Transactions = std::vector<Transaction>;
@@ -174,7 +151,6 @@ struct StateBlock
     /// @param account the account creating the StateBlock
     /// @param previous the hash of the previous StateBlock on the account's send chain
     /// @param sequence the sequence number
-    /// @param type the type of the StateBlock
     /// @param to the target account, additional targets can be added with AddTransaction()
     /// @param amount the transaction amount, additional amounts can be added with AddTransaction()
     /// @param transaction_fee the transaction fee
@@ -184,7 +160,6 @@ struct StateBlock
     StateBlock ( AccountAddress const & account,
                  BlockHash const & previous,
                  uint32_t sequence,
-                 Type type,
                  AccountAddress const & to,
                  Amount const & amount,
                  Amount const & transaction_fee,
@@ -194,13 +169,12 @@ struct StateBlock
     : account(account)
     , previous(previous)
     , sequence(sequence)
-    , type(type)
-    , trans()
+    , transactions()
     , transaction_fee(transaction_fee)
     , signature()
     , work(work)
     {
-        trans.push_back(Transaction(to, amount));
+        transactions.push_back(Transaction(to, amount));
         Sign(priv, pub);
     }
 
@@ -209,7 +183,6 @@ struct StateBlock
     /// @param account the account creating the StateBlock
     /// @param previous the hash of the previous StateBlock on the account's send chain
     /// @param sequence the sequence number
-    /// @param type the type of the StateBlock
     /// @param to the target account, additional targets can be added with AddTransaction()
     /// @param amount the transaction amount, additional amounts can be added with AddTransaction()
     /// @param transaction_fee the transaction fee
@@ -218,7 +191,6 @@ struct StateBlock
     StateBlock ( AccountAddress const & account,
                  BlockHash const & previous,
                  uint32_t sequence,
-                 Type type,
                  AccountAddress const & to,
                  Amount const & amount,
                  Amount const & transaction_fee,
@@ -227,13 +199,12 @@ struct StateBlock
     : account(account)
     , previous(previous)
     , sequence(sequence)
-    , type(type)
-    , trans()
+    , transactions()
     , transaction_fee(transaction_fee)
     , signature(sig)
     , work(work)
     {
-        trans.push_back(Transaction(to, amount));
+        transactions.push_back(Transaction(to, amount));
         Hash();
     }
 
@@ -272,12 +243,6 @@ struct StateBlock
         }
         sequence = le32toh(sequence);
 
-        error = logos::read(stream, type);
-        if(error)
-        {
-            return;
-        }
-
         uint16_t countle;
         error = logos::read(stream, countle);
         if(error)
@@ -301,7 +266,7 @@ struct StateBlock
             {
                 return;
             }
-            trans.push_back(Transaction(target, amount));
+            transactions.push_back(Transaction(target, amount));
         }
 
         error = logos::read(stream, transaction_fee);
@@ -362,9 +327,9 @@ struct StateBlock
     /// @returns if the new transaction is added.
     bool AddTransaction(AccountAddress const & to, Amount const & amount)
     {
-        if(trans.size() < MAX_TRANSACTION)
+        if(transactions.size() < MAX_TRANSACTION)
         {
-            trans.push_back(Transaction(to, amount));
+            transactions.push_back(Transaction(to, amount));
             return true;
         }
         return false;
@@ -385,12 +350,13 @@ struct StateBlock
         account.Hash(hash);
         previous.Hash(hash);
         uint32_t s = htole32(sequence);
-        blake2b_update(&hash, &s, sizeof(s));
-        blake2b_update(&hash, &type, sizeof(type));
-        uint16_t tran_count = trans.size();
+        blake2b_update(&hash, &s, sizeof(uint32_t));
+        blake2b_update(&hash, transaction_fee.data(), ACCOUNT_AMOUNT_SIZE);
+        uint16_t tran_count = transactions.size();
         tran_count = htole16(tran_count);
-        blake2b_update(&hash, &tran_count, sizeof(tran_count));
-        for (const auto & t : trans)
+        blake2b_update(&hash, &tran_count, sizeof(uint16_t));
+
+        for (const auto & t : transactions)
         {
             t.target.Hash(hash);
             blake2b_update(&hash, t.amount.data(), ACCOUNT_AMOUNT_SIZE);
@@ -434,7 +400,7 @@ struct StateBlock
      */
     uint16_t GetNumTransactions() const
     {
-        return trans.size();
+        return transactions.size();
     }
 
     /** Serialize the data members to a Json string
@@ -466,15 +432,14 @@ struct StateBlock
     uint32_t Serialize (logos::stream & stream, bool with_batch_hash = false) const
     {
         uint32_t sqn = htole32(sequence);
-        uint16_t count = trans.size();
+        uint16_t count = transactions.size();
         uint16_t count_le = htole16(count);
 
         uint32_t s = logos::write(stream, account);
         s += logos::write(stream, previous);
         s += logos::write(stream, sqn);
-        s += logos::write(stream, type);
         s += logos::write(stream, count_le);
-        for(const auto &t : trans)
+        for(const auto &t : transactions)
         {
             s += logos::write(stream, t.target);
             s += logos::write(stream, t.amount);
@@ -524,16 +489,15 @@ struct StateBlock
     }
 
     AccountAddress account;
-    BlockHash previous;
-    uint32_t sequence;
-    Type type;
-    Transactions trans;
-    Amount transaction_fee;
-    AccountSig signature;
+    BlockHash      previous;
+    uint32_t       sequence;
+    Transactions   transactions;
+    Amount         transaction_fee;
+    AccountSig     signature;
 
-    uint64_t work = 0;
+    uint64_t          work = 0;
     mutable BlockHash digest;
     mutable BlockHash batch_hash = 0;
-    mutable uint16_t index_in_batch = 0;
+    mutable uint16_t  index_in_batch = 0;
 };
 

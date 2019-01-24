@@ -165,6 +165,46 @@ bool PersistenceManager<BSBCT>::ValidateRequest(
             result.code = logos::process_result::fork;
             return false;
         }
+
+        // TODO
+        uint32_t current_epoch = 0;
+
+        auto update_reservation = [&info, &hash, current_epoch]()
+                                  {
+                                       info.reservation = hash;
+                                       info.reservation_epoch = current_epoch;
+                                  };
+
+        // Account is not reserved.
+        if(info.reservation.is_zero())
+        {
+            update_reservation();
+        }
+
+        // Account is already reserved.
+        else if(info.reservation != hash)
+        {
+            // This block conflicts with existing reservation.
+            if(current_epoch < info.reservation_epoch + RESERVATION_PERIOD)
+            {
+                result.code = logos::process_result::already_reserved;
+                return false;
+            }
+
+            // Reservation has expired.
+            update_reservation();
+        }
+
+        auto total = block.transaction_fee.number();
+        for(auto & i : block.transactions)
+        {
+            total += i.amount.number();
+        }
+        if(total > info.balance.number())
+        {
+            result.code = logos::process_result::insufficient_balance;
+            return false;
+        }
     }
 
     auto total = block.transaction_fee.number();
@@ -358,7 +398,7 @@ bool PersistenceManager<BSBCT>::UpdateSourceState(
     info.balance = info.balance.number() -
                    block.transaction_fee.number();
 
-    for(auto & t : block.trans)
+    for(auto & t : block.transactions)
     {
         info.balance = info.balance.number() - t.amount.number();
     }
@@ -388,7 +428,7 @@ void PersistenceManager<BSBCT>::UpdateDestinationState(
     // prevent race condition across transactions, since flushing to DB is delayed
     // (only when transaction destructor is called)
     uint16_t index2send = 0;
-    for(auto & t : block.trans)
+    for(auto & t : block.transactions)
     {
         logos::account_info info;
         auto account_error(_store.account_get(transaction, t.target, info));

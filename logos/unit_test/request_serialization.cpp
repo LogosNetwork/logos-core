@@ -1,17 +1,13 @@
 #include <gtest/gtest.h>
 
 #include <logos/token/requests.hpp>
+#include <logos/request/change.hpp>
 
 #include <boost/property_tree/ptree.hpp>
 
 #define Unit_Test_Request_Serialization
 
 #ifdef Unit_Test_Request_Serialization
-
-TEST (Request_Serialization, test1)
-{
-    ASSERT_TRUE(true);
-}
 
 TEST (Request_Serialization, json_deserialization)
 {
@@ -360,6 +356,26 @@ TEST (Request_Serialization, json_deserialization)
               "lgs_1mkqajo9pedc1x764b5y5yzkykcm3h3hx1bumznzhgjqimjpajy9w5qfsis6");
     ASSERT_EQ(send.transactions[2].amount, 3);
     ASSERT_EQ(send.fee, 5);
+
+    // Change Representative
+    //
+    //
+    char const * native_change = R"%%%({
+        "type": "change",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "client": "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju",
+        "representative": "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz"
+     })%%%";
+
+    tree = get_tree(native_change);
+    Change change(error, tree);
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(change.client.to_account(),
+              "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
+    ASSERT_EQ(change.representative.to_account(),
+              "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
 }
 
 #endif // #ifdef Unit_Test_Request_Serialization

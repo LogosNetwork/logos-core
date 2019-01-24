@@ -59,11 +59,11 @@ CONSENSUS_TYPE
     Epoch = 2
 );
 
-static const size_t NUM_DELEGATES               = 32;
-static const size_t CONSENSUS_BATCH_SIZE        = 1500;
+static const size_t NUM_DELEGATES        = 32;
+static const size_t CONSENSUS_BATCH_SIZE = 1500;
 
-using ParicipationMap       = std::bitset<NUM_DELEGATES>;
-using RejectionMap          = std::vector<bool>;
+using ParicipationMap = std::bitset<NUM_DELEGATES>;
+using RejectionMap    = std::vector<bool>;
 
 inline uint64_t GetStamp()
 {

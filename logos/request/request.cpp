@@ -20,7 +20,7 @@ RequestType GetRequestType(bool &error, std::string data)
     {
         ret = RequestType::Send;
     }
-    else if(data == CHANGE_REP)
+    else if(data == CHANGE)
     {
         ret = RequestType::ChangeRep;
     }
@@ -95,7 +95,7 @@ std::string GetRequestTypeField(RequestType type)
             ret = SEND;
             break;
         case RequestType::ChangeRep:
-            ret = CHANGE_REP;
+            ret = CHANGE;
             break;
         case RequestType::IssueTokens:
             ret = ISSUE_TOKENS;
