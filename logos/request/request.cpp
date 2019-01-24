@@ -1,6 +1,6 @@
-#include <logos/requests/request.hpp>
+#include <logos/request/request.hpp>
 
-#include <logos/requests/fields.hpp>
+#include <logos/request/fields.hpp>
 #include <logos/lib/utility.hpp>
 
 #include <boost/property_tree/json_parser.hpp>

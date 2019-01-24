@@ -1,7 +1,7 @@
-#include <logos/tokens/common.hpp>
+#include <logos/token/common.hpp>
 
-#include <logos/requests/fields.hpp>
-#include <logos/tokens/util.hpp>
+#include <logos/request/fields.hpp>
+#include <logos/token/util.hpp>
 
 TokenRequest::TokenRequest(bool & error,
                            std::basic_streambuf<uint8_t> & stream)
@@ -28,7 +28,7 @@ TokenRequest::TokenRequest(bool & error,
 
     try
     {
-        token_id = tree.get<std::string>(TOKEN_ID);
+        error = token_id.decode_hex(tree.get<std::string>(TOKEN_ID));
     }
     catch(...)
     {
@@ -55,7 +55,6 @@ uint64_t TokenRequest::Serialize(logos::stream & stream) const
 
 void TokenRequest::Hash(blake2b_state & hash) const
 {
-    Request::Hash(hash);
     token_id.Hash(hash);
 }
 
@@ -144,6 +143,12 @@ ControllerInfo::ControllerInfo(bool & error,
 ControllerInfo::ControllerInfo(bool & error,
                                boost::property_tree::ptree const & tree)
 {
+    DeserializeJson(error, tree);
+}
+
+void ControllerInfo::DeserializeJson(bool & error,
+                                     boost::property_tree::ptree const & tree)
+{
     using namespace request::fields;
 
     try
@@ -166,7 +171,6 @@ ControllerInfo::ControllerInfo(bool & error,
         error = true;
     }
 }
-
 boost::property_tree::ptree ControllerInfo::SerializeJson() const
 {
     using namespace request::fields;

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <logos/lib/numbers.hpp>
-#include <logos/tokens/util.hpp>
+#include <logos/token/util.hpp>
 #include <logos/lib/log.hpp>
 #include <logos/common.hpp>
 

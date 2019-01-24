@@ -1,6 +1,6 @@
-#include <logos/tokens/util.hpp>
+#include <logos/token/util.hpp>
 
-#include <logos/requests/fields.hpp>
+#include <logos/request/fields.hpp>
 
 std::string TokenSettingName(TokenSetting setting)
 {

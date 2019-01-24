@@ -44,6 +44,8 @@ struct Request
 {
     using BlockHash = logos::block_hash;
 
+    Request() = default;
+
     Request(bool & error,
             std::basic_streambuf<uint8_t> & stream);
 

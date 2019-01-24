@@ -1,4 +1,4 @@
-#include <logos/tokens/account.hpp>
+#include <logos/token/account.hpp>
 
 #include <ios>
 
