@@ -5,6 +5,7 @@
 
 #include <logos/consensus/tx_acceptor/tx_receiver_channel.hpp>
 #include <logos/consensus/tx_acceptor/tx_message_header.hpp>
+#include <logos/consensus/messages/messages.hpp>
 #include <logos/node/node.hpp>
 
 constexpr std::chrono::seconds TxReceiverChannel::CONNECT_RETRY_DELAY;
@@ -78,6 +79,7 @@ TxReceiverChannel::AsyncReadHeader()
 void
 TxReceiverChannel::AsyncReadMessage(const TxMessageHeader & header)
 {
+    using Request = RequestMessage<ConsensusType::BatchStateBlock>;
     auto payload_size = header.payload_size;
     bool should_buffer = header.mpf != 0;
     _assembler.ReadBytes([this, payload_size, should_buffer](const uint8_t *data) {
@@ -91,7 +93,7 @@ TxReceiverChannel::AsyncReadMessage(const TxMessageHeader & header)
             return;
         }
         LOG_INFO(_log) << "TxReceiverChannel::AsyncReadMessage received payload size " << payload_size;
-        _receiver.OnSendRequest(block, should_buffer);
+        _receiver.OnSendRequest(static_pointer_cast<Request>(block), should_buffer);
         AsyncReadHeader();
     }, payload_size);
 }

@@ -28,7 +28,7 @@ TxAcceptorChannel::OnConnectionAccepted(const Endpoint endpoint, shared_ptr<Sock
 }
 
 logos::process_return
-TxAcceptorChannel::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_buffer)
+TxAcceptorChannel::OnSendRequest(std::shared_ptr<Request> block, bool should_buffer)
 {
     logos::process_return result{logos::process_result::progress};
 
@@ -47,9 +47,36 @@ TxAcceptorChannel::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_
         result={logos::process_result::initializing};
     }
 
-    LOG_INFO(_log)<< "TxAcceptorChannel::OnSendRequest sent " << header.payload_size;
+    LOG_INFO(_log) << "TxAcceptorChannel::OnSendRequest sent " << header.payload_size
+                   << ProcessResultToString(result.code);
 
     return result;
+}
+
+TxChannel::Responses
+TxAcceptorChannel::OnSendRequest(std::vector<std::shared_ptr<Request>> &blocks)
+{
+    logos::process_result result{logos::process_result::progress};
+
+    auto buf{std::make_shared<vector<uint8_t>>()};
+    TxMessageHeader header(0);
+    {
+        logos::vectorstream stream(*buf);
+        header.Serialize(stream);
+        for (auto block : blocks)
+        {
+            header.payload_size += block->Serialize(stream);
+        }
+    }
+    HeaderStream header_stream(buf->data(), TxMessageHeader::MESSAGE_SIZE);
+    header.Serialize(header_stream);
+
+    if (!AsyncSend(buf))
+    {
+        result={logos::process_result::initializing};
+    }
+
+    return {{result,0}};
 }
 
 void

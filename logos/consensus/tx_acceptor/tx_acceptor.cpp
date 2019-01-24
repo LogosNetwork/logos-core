@@ -7,10 +7,13 @@
 #include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
 #include <logos/consensus/tx_acceptor/tx_acceptor_channel.hpp>
 #include <logos/consensus/tx_acceptor/tx_acceptor_config.hpp>
+#include <logos/consensus/tx_acceptor/tx_message_header.hpp>
 #include <logos/consensus/tx_acceptor/tx_acceptor.hpp>
 #include <logos/consensus/messages/state_block.hpp>
 #include <logos/node/node.hpp>
-#include "tx_message_header.hpp"
+
+constexpr uint32_t  TxAcceptor::MAX_REQUEST_SIZE;
+constexpr uint32_t TxAcceptor::BLOCK_SIZE_SIZE;
 
 TxPeerManager::TxPeerManager(
     Service & service,
@@ -23,6 +26,7 @@ TxPeerManager::TxPeerManager(
     , _peer_acceptor(service, _endpoint, *this)
     , _tx_acceptor(tx_acceptor)
     , _reader(reader)
+
 {
     LOG_INFO(_log) << "TxPeerManager::TxPeerManager creating acceptor on " << _endpoint;
     _peer_acceptor.Start();
@@ -45,6 +49,7 @@ TxAcceptor::TxAcceptor(Service &service,
                 config.tx_acceptor_config.bin_port, *this, &TxAcceptor::AsyncReadBin)
     , _acceptor_channel(acceptor_channel)
     , _config(config.tx_acceptor_config)
+    , _standalone(false)
 {
     LOG_INFO(_log) << "TxAcceptor::TxAcceptor creating delegate TxAcceptor";
 }
@@ -57,6 +62,7 @@ TxAcceptor::TxAcceptor(Service &service,
         , _bin_peer(service, config.tx_acceptor_config.acceptor_ip,
                     config.tx_acceptor_config.bin_port, *this, &TxAcceptor::AsyncReadBin)
         , _config(config.tx_acceptor_config)
+        , _standalone(true)
 {
     LOG_INFO(_log) << "TxAcceptor::TxAcceptor creating standalone TxAcceptor";
     _acceptor_channel = std::make_shared<TxAcceptorChannel>(_service, _config.acceptor_ip, _config.port);
@@ -93,37 +99,69 @@ TxAcceptor::RespondJson(std::shared_ptr<json_request> jrequest, const std::strin
     RespondJson(jrequest, tree);
 }
 
-std::shared_ptr<StateBlock>
-TxAcceptor::ToStateBlock(const std::string&& block_text)
+void
+TxAcceptor::RespondJson(std::shared_ptr<json_request> jrequest, const Responses &response)
+{
+    Ptree tree;
+    Ptree responses;
+    for (auto r : response)
+    {
+        Ptree entry;
+        entry.put("result", ProcessResultToString(r.first));
+        entry.put("hash", r.second.to_string());
+        responses.push_back(std::make_pair("", entry));
+    }
+    tree.add_child("responses", responses);
+    RespondJson(jrequest, tree);
+}
+
+std::shared_ptr<TxAcceptor::Request>
+TxAcceptor::ToRequest(const std::string &block_text)
 {
     Ptree pblock;
     std::stringstream block_stream(block_text);
     boost::property_tree::read_json(block_stream, pblock);
     bool error = false;
     auto block = std::make_shared<StateBlock>(error, pblock, false, true);
+
     if (error)
     {
         block = nullptr;
     }
-    return block;
+
+    return static_pointer_cast<Request>(block);
 }
 
-logos::process_result
-TxAcceptor::ProcessBlock(std::shared_ptr<StateBlock> block, bool should_buffer)
+void
+TxAcceptor::ProcessBlock( std::shared_ptr<Request> block, Blocks &blocks, Responses &response, bool should_buffer)
 {
+    BlockHash hash = 0;
+
     auto result = Validate(block);
-    if (result !=logos::process_result::progress)
+
+    if (result == logos::process_result::progress)
     {
-        LOG_ERROR(_log) << "TxAcceptor::AsyncReadJson failed to validate transaction "
-                        << ProcessResultToString(result);
-        return result;
+        if (_standalone)
+        {
+            result = _acceptor_channel->OnSendRequest(block, should_buffer).code;
+        }
+        else
+        {
+            blocks.push_back(block);
+        }
+    }
+    else
+    {
+        LOG_INFO(_log) << "TxAcceptor::ProcessBlock failed validation "
+                       << ProcessResultToString(result);
     }
 
-    result = _acceptor_channel->OnSendRequest(block, should_buffer).code;
-    LOG_DEBUG(_log) << "TxAcceptor::AsyncReadJson OnSendRequest result "
-                    << ProcessResultToString(result);
+    if (result == logos::process_result::progress)
+    {
+        hash = block->Hash();
+    }
 
-    return result;
+    response.push_back(std::make_pair(result, hash));
 }
 
 void
@@ -133,6 +171,7 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
 
     boost::beast::http::async_read(*socket, request->buffer, request->request,
             [this, request](const Error &ec, size_t size){
+
         if (request->request.method() != boost::beast::http::verb::post)
         {
             RespondJson(request, "error", "can only POST requests");
@@ -145,39 +184,68 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
         Ptree request_tree;
         boost::property_tree::read_json(istream, request_tree);
 
-        auto block = ToStateBlock(request_tree.get<std::string>("block"));
-        if (block == nullptr)
+        Blocks blocks;
+        Responses response;
+
+        auto parse = [this, request, &blocks, &response](Ptree &request_tree) {
+
+            auto block = ToRequest(request_tree.get<std::string>("block"));
+
+            if (block == nullptr)
+            {
+                LOG_DEBUG(_log) << "TxAcceptor::AsyncReadJson failed to deserialize transaction";
+                RespondJson(request, "error", "Block is invalid");
+                return;
+            }
+
+            bool should_buffer = request_tree.get_optional<std::string>("buffer").is_initialized();
+
+            ProcessBlock(block, blocks, response, should_buffer);
+
+            LOG_INFO(_log) << "TxAcceptor::AsyncReadJson responses " << response.size();
+        };
+
+        // request could be malformed
+        try
         {
-            LOG_DEBUG(_log) << "TxAcceptor::AsyncReadJson failed to deserialize transaction";
-            RespondJson(request, "error", "Block is invalid");
-            return;
+            try
+            {
+                auto tree(request_tree.get_child("blocks"));
+                for (auto t : tree)
+                {
+                    parse(t.second);
+                }
+            }
+            catch (...)
+            {
+                LOG_INFO(_log) << "TxAcceptor::AsyncReadJson using backward compatible format of single request";
+                parse(request_tree);
+            }
+
+            if (false == _standalone)
+            {
+                response = _acceptor_channel->OnSendRequest(blocks);
+            }
+
+            LOG_DEBUG(_log) << "TxAcceptor::AsyncReadJson submitted requests "
+                            << response.size();
+
+            RespondJson(request, response);
         }
-
-        auto result = ProcessBlock(block,
-                request_tree.get_optional<std::string>("buffer").is_initialized());
-
-        switch (result)
+        catch (...)
         {
-            case logos::process_result::progress:
-                RespondJson(request, "hash", block->GetHash().to_string());
-                break;
-            case logos::process_result::buffered:
-            case logos::process_result::buffering_done:
-            case logos::process_result::pending:
-                RespondJson(request, "result", ProcessResultToString(result));
-                break;
-            default:
-                RespondJson(request, "error", ProcessResultToString(result));
+            RespondJson(request, "error", "malformed request");
         }
     });
 }
 
 void
-TxAcceptor::RespondBin(std::shared_ptr<Socket> socket, logos::process_result result, BlockHash hash)
+TxAcceptor::RespondBin(std::shared_ptr<Socket> socket, const Responses &&resp)
 {
-    TxResponse response(result, hash);
     auto buf = std::make_shared<std::vector<uint8_t>>();
+    TxResponse response(std::move(resp));
     response.Serialize(*buf);
+
     boost::asio::async_write(*socket, boost::asio::buffer(buf->data(), buf->size()),
             [this](const Error &ec, size_t size) {
         if (ec)
@@ -204,41 +272,76 @@ TxAcceptor::AsyncReadBin(std::shared_ptr<Socket> socket)
         if (error)
         {
             LOG_ERROR(_log) << "TxAcceptor::AsyncReadBin header deserialize error";
-            RespondBin(socket, logos::process_result::invalid_request);
+            RespondBin(socket, {{logos::process_result::invalid_request, 0}});
             return;
         }
-        LOG_INFO(_log) << "TxReceiverChannel::AsyncReadBin received header";
+
+        if (header.payload_size > MAX_REQUEST_SIZE)
+        {
+            LOG_ERROR(_log) << "TxAcceptor::AsyncReadBin request size exceeds the limit "
+                            << header.payload_size;
+            RespondBin(socket, {{logos::process_result::invalid_request,0}});
+            return;
+        }
+
+        LOG_DEBUG(_log) << "TxAcceptor::AsyncReadBin received header";
+
         auto buf = std::make_shared<std::vector<uint8_t>>(header.payload_size);
+
         boost::asio::async_read(*socket, boost::asio::buffer(buf->data(), buf->size()),
                 [this, socket, buf, header](const Error &ec, size_t size){
+             logos::process_result result;
+
              if (ec)
              {
                  LOG_ERROR(_log) << "TxAcceptor::AsyncReadBin transaction read error: " << ec.message();
-                 RespondBin(socket, logos::process_result::invalid_request);
-                 return;
-             }
-             bool error;
-             auto block = std::make_shared<StateBlock>(error, buf->data(), buf->size());
-             if (error)
-             {
-                 LOG_ERROR(_log) << "TxAcceptor::AsyncReadBin transaction deserialize error";
-                 RespondBin(socket, logos::process_result::invalid_request);
+                 RespondBin(socket, {{logos::process_result::invalid_request, 0}});
                  return;
              }
 
-             auto result = ProcessBlock(block, header.mpf);
-             BlockHash hash = 0;
-             if (result == logos::process_result::progress)
+             LOG_DEBUG(_log) << "TxAcceptor::AsyncReadBin received message " << size;
+
+             Responses response;
+             logos::bufferstream  stream(buf->data(), buf->size());
+             auto nblocks = header.mpf; // mpf has the number of blocks in the request
+             bool error = false;
+             std::shared_ptr<Request> block = nullptr;
+             Blocks blocks;
+
+             while (nblocks-- > 0)
              {
-                 hash = block->GetHash();
+                 error = false;
+                 block = static_pointer_cast<Request>(std::make_shared<StateBlock>(error, stream));
+
+                 if (error)
+                 {
+                     LOG_ERROR(_log) << "TxAcceptor::AsyncReadBin transaction deserialize error";
+                     response.push_back(std::make_pair(logos::process_result::invalid_request, 0));
+                     break;
+                 }
+
+                 ProcessBlock(block, blocks, response);
              }
-             RespondBin(socket, result, hash);
+
+             if (false == _standalone)
+             {
+                auto res = _acceptor_channel->OnSendRequest(blocks);
+                if (res[0].first == logos::process_result::initializing)
+                {
+                    response.clear();
+                    response.push_back({res[0].first, 0});
+                }
+             }
+
+             LOG_DEBUG(_log) << "TxAcceptor::AsyncReadJson submitted requests";
+
+             RespondBin(socket, std::move(response));
         });
     });
 }
 
 logos::process_result
-TxAcceptor::Validate(const std::shared_ptr<StateBlock> & block)
+TxAcceptor::Validate(const std::shared_ptr<Request> & block)
 {
     if (block->account.is_zero())
     {

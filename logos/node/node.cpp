@@ -2213,7 +2213,8 @@ void logos::node::add_initial_peers ()
 
 logos::process_return logos::node::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_buffer)
 {
-    return _consensus_container->OnSendRequest(block, should_buffer);
+    return _consensus_container->OnSendRequest(
+            static_pointer_cast<RequestMessage<ConsensusType::BatchStateBlock>>(block), should_buffer);
 }
 
 logos::process_return logos::node::BufferComplete()

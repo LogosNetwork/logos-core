@@ -32,13 +32,10 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
 }
 
 template<ConsensusType CT>
-void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
+void ConsensusManager<CT>::HandleRequest(std::shared_ptr<Request> block,
+                                         BlockHash &hash,
                                          logos::process_return & result)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-
-    auto hash = block->Hash();
-
     LOG_INFO (_log) << "ConsensusManager<" << ConsensusToName(CT)
                     << ">::OnSendRequest() - hash: "
                     << hash.to_string();
@@ -68,7 +65,43 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
     }
 
     QueueRequest(block);
+}
+
+template<ConsensusType CT>
+void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
+                                         logos::process_return & result)
+{
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+
+    auto hash = block->Hash();
+
+    HandleRequest(block, hash, result);
+
     OnRequestQueued();
+}
+
+template<>
+std::vector<std::pair<logos::process_result, BlockHash>>
+ConsensusManager<ConsensusType::BatchStateBlock>::OnSendRequest(
+    std::vector<std::shared_ptr<RequestMessage<ConsensusType::BatchStateBlock>>>& blocks)
+{
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+
+    Responses response;
+    logos::process_return result;
+
+    for (auto block : blocks)
+    {
+         auto hash = block->Hash();
+         HandleRequest(block, hash, result);
+         if (result.code != logos::process_result::progress)
+         {
+             hash = 0;
+         }
+         response.push_back({result.code, hash});
+    }
+
+    return response;
 }
 
 template<ConsensusType CT>

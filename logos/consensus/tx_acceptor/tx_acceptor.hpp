@@ -6,10 +6,12 @@
 
 #pragma once
 
+#include <logos/consensus/tx_acceptor/tx_acceptor_channel.hpp>
 #include <logos/consensus/tx_acceptor/tx_acceptor_config.hpp>
 #include <logos/consensus/tx_acceptor/tx_channel.hpp>
 #include <logos/consensus/network/peer_acceptor.hpp>
 #include <logos/consensus/network/peer_manager.hpp>
+#include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/log.hpp>
 
 #include <boost/asio/io_service.hpp>
@@ -17,7 +19,6 @@
 #include <boost/beast.hpp>
 
 namespace logos { class node_config; }
-struct StateBlock;
 
 /// Json request container
 struct json_request
@@ -73,10 +74,14 @@ private:
 /// transasction to the delegate. Delegate TxAcceptor passes transaction to ConsensusContainer (TxChannel).
 class TxAcceptor
 {
+protected:
     using Service       = boost::asio::io_service;
     using Socket        = boost::asio::ip::tcp::socket;
     using Ptree         = boost::property_tree::ptree;
     using Error         = boost::system::error_code;
+    using Responses     = std::vector<std::pair<logos::process_result, BlockHash>>;
+    using Request       = RequestMessage<ConsensusType::BatchStateBlock>;
+    using Blocks        = std::vector<std::shared_ptr<Request>>;
 public:
     /// Delegate class constructor
     /// @param service boost asio service reference [in]
@@ -88,8 +93,12 @@ public:
     /// @param config of the node [in]
     TxAcceptor(Service & service, logos::node_config & config);
     /// Class destructor
-    ~TxAcceptor() = default;
-private:
+    virtual ~TxAcceptor() = default;
+protected:
+    static constexpr uint32_t  MAX_REQUEST_SIZE = (sizeof(StateBlock) +
+            sizeof(StateBlock::Transaction) * StateBlock::MAX_TRANSACTION) * 1500;
+    static constexpr uint32_t BLOCK_SIZE_SIZE = sizeof(uint32_t);
+
     /// Read json request
     /// @param socket of the connected client [in]
     void AsyncReadJson(std::shared_ptr<Socket> socket);
@@ -104,24 +113,29 @@ private:
     /// @param key of the response [in]
     /// @param value of the response [in]
     void RespondJson(std::shared_ptr<json_request> jrequest, const std::string & key, const std::string & value);
+    /// Respond to client with json message
+    /// @param jrequest json request container [in]
+    /// @param tree json represented as ptree [in]
+    void RespondJson(std::shared_ptr<json_request> jrequest, const Responses &response);
     /// Respond to client with binary message
     /// @param socket to respond to [in]
-    /// @param result of the response [in]
-    /// @param hash of the accepted transaction [in]
-    void RespondBin(std::shared_ptr<Socket> socket, logos::process_result result, BlockHash hash = 0);
+    /// @param response to send [in]
+    void RespondBin(std::shared_ptr<Socket> socket, const Responses &&response);
     /// Deserialize string to state block
     /// @param block_text serialized block [in]
     /// @return StateBlock structure
-    std::shared_ptr<StateBlock> ToStateBlock(const std::string &&block_text);
+    std::shared_ptr<Request> ToRequest(const std::string &block_text);
     /// Validate state block
     /// @param block state block [in]
     /// @return result of the validation, 'progress' is success
-    logos::process_result Validate(const std::shared_ptr<StateBlock> & block);
+    logos::process_result Validate(const std::shared_ptr<Request> & block);
     /// Send received transaction for consensus protocol
     /// @param block received transaction [in]
+    /// @param blocks to aggregate in delegate mode [in|out]
+    /// @param response object [in|out]
     /// @param should_buffer benchmarking flag [in]
-    /// @return process_result
-    logos::process_result ProcessBlock(std::shared_ptr<StateBlock> block, bool should_buffer = false);
+    void ProcessBlock(std::shared_ptr<Request> block, Blocks &blocks,
+                      Responses &response, bool should_buffer = false);
 
     Service &                       _service;           /// boost asio service reference
     TxPeerManager                   _json_peer;         /// json request connection acceptor
@@ -129,4 +143,5 @@ private:
     TxAcceptorConfig                _config;            /// tx acceptor configuration
     std::shared_ptr<TxChannel>      _acceptor_channel;  /// transaction forwarding channel
     Log                             _log;               /// boost log
+    bool                            _standalone;        /// run in standalone mode
 };

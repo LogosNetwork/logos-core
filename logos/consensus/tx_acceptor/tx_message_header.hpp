@@ -89,19 +89,21 @@ struct TxMessageHeader {
 
 struct TxResponse : TxMessageHeader
 {
-    logos::process_result   result;
-    BlockHash               hash = 0;
+    std::vector<std::pair<logos::process_result, BlockHash>> response;
+    const uint32_t RESPONSE_SIZE = sizeof(logos::process_result) + sizeof(BlockHash);
 
-    TxResponse(logos::process_result r, BlockHash h = 0, uint16_t m=0)
-        : TxMessageHeader(sizeof(result) + sizeof(hash), m)
-        , result(r)
-        , hash(h)
+    TxResponse(const std::vector<std::pair<logos::process_result, BlockHash>> && r)
+        : TxMessageHeader(RESPONSE_SIZE * r.size(), (uint16_t)r.size())
+        , response(std::move(r))
     {}
 
     uint32_t Serialize(logos::stream &stream) const
     {
         auto s = TxMessageHeader::Serialize(stream);
-        s += logos::write(stream, result) + logos::write(stream, hash);
+        for (auto r : response)
+        {
+            s += logos::write(stream, r.first) + logos::write(stream, r.second);
+        }
         return s;
     }
 

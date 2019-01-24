@@ -78,7 +78,7 @@ ConsensusContainer::CreateEpochManager(
 
 logos::process_return
 ConsensusContainer::OnSendRequest(
-    std::shared_ptr<StateBlock> block,
+    std::shared_ptr<Request> block,
     bool should_buffer)
 {
     logos::process_return result;
@@ -98,23 +98,36 @@ ConsensusContainer::OnSendRequest(
 	    return result;
 	}
 
-    using Request = RequestMessage<ConsensusType::BatchStateBlock>;
-
     if(should_buffer)
     {
         result.code = logos::process_result::buffered;
-        _cur_epoch->_batch_manager.OnBenchmarkSendRequest(
-            static_pointer_cast<Request>(block), result);
+        _cur_epoch->_batch_manager.OnBenchmarkSendRequest(block, result);
     }
     else
     {
         LOG_DEBUG(_log) << "ConsensusContainer::OnSendRequest: "
                 << "number_transaction=" << block->trans.size();
-        _cur_epoch->_batch_manager.OnSendRequest(
-            static_pointer_cast<Request>(block), result);
+        _cur_epoch->_batch_manager.OnSendRequest(block, result);
     }
 
     return result;
+}
+
+TxChannel::Responses
+ConsensusContainer::OnSendRequest(vector<std::shared_ptr<Request>> &blocks)
+{
+    logos::process_return result;
+    OptLock lock(_transition_state, _mutex);
+
+    if (_cur_epoch == nullptr)
+    {
+        result.code = logos::process_result::not_delegate;
+        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest transaction, the node is not a delegate, "
+                        << (int)DelegateIdentityManager::_global_delegate_idx;
+        return {{result.code,0}};
+    }
+
+    return _cur_epoch->_batch_manager.OnSendRequest(blocks);
 }
 
 void
