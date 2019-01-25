@@ -13,7 +13,7 @@
 
 
 static constexpr size_t MAX_MSG_SIZE = 1024*1024;
-//The current largest message is a post-committed BSB with 1500 StateBlock,
+//The current largest message is a post-committed BSB with 1500 Send,
 //each has 8 transactions. Its size is 850702;
 
 //ConsensusBlock definitions
@@ -491,7 +491,7 @@ template<ConsensusType CT>
 struct RequestMessage;
 
 template<>
-struct RequestMessage<ConsensusType::BatchStateBlock> : StateBlock
+struct RequestMessage<ConsensusType::BatchStateBlock> : Send
 {};
 
 template<>

@@ -78,7 +78,7 @@ ConsensusContainer::CreateEpochManager(
 
 logos::process_return
 ConsensusContainer::OnSendRequest(
-    std::shared_ptr<StateBlock> block,
+    std::shared_ptr<Send> block,
     bool should_buffer)
 {
     logos::process_return result;

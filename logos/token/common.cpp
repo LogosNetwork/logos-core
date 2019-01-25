@@ -55,6 +55,7 @@ uint64_t TokenRequest::Serialize(logos::stream & stream) const
 
 void TokenRequest::Hash(blake2b_state & hash) const
 {
+    Request::Hash(hash);
     token_id.Hash(hash);
 }
 

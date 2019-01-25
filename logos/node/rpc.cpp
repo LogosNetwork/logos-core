@@ -942,7 +942,7 @@ void logos::rpc_handler::block ()
     logos::transaction transaction (node.store.environment, nullptr, false);
     boost::property_tree::ptree response_l;
 
-    StateBlock sb;
+    Send sb;
     ReceiveBlock rb;
     std::string block_type;
     if (!node.store.state_block_get(hash, sb, transaction))
@@ -979,7 +979,7 @@ void logos::rpc_handler::blocks ()
         {
             error_response (response, "Bad hash number");
         }
-        StateBlock block;
+        Send block;
         ReceiveBlock receive_block;
         std::string block_type;
 
@@ -1260,7 +1260,7 @@ void logos::rpc_handler::block_create ()
                     }
                     uint32_t sequence = info.block_count;
 
-                    StateBlock state (account, previous, sequence, link, amount, transaction_fee, prv.data, pub, work);
+                    Send state (account, previous, sequence, link, amount, transaction_fee, prv.data, pub, work);
                     boost::property_tree::ptree response_l;
                     response_l.put ("hash", state.GetHash ().to_string ());
                     std::string contents(state.SerializeJson(false, true));
@@ -1787,7 +1787,7 @@ void logos::rpc_handler::account_history ()
     boost::property_tree::ptree response_l;
     boost::property_tree::ptree history;
     response_l.put ("account", account_text);
-    StateBlock send_block;
+    Send send_block;
     ReceiveBlock receive_block;
     bool send_block_not_found (node.store.state_block_get (send_hash, send_block, transaction));
     bool receive_block_not_found (node.store.receive_get (receive_hash, receive_block, transaction));
@@ -1805,13 +1805,13 @@ void logos::rpc_handler::account_history ()
         }
 
         //what is this for
-        StateBlock receive_link_block;  // i.e. source send block
+        Send receive_link_block;  // i.e. source send block
         if (!put_send)
         {
             auto error (node.store.state_block_get (receive_block.send_hash, receive_link_block, transaction));
             assert (!error);
         }
-        const StateBlock & display_block = put_send ? send_block : receive_link_block;
+        const Send & display_block = put_send ? send_block : receive_link_block;
         const BlockHash & hash = put_send ? send_hash : receive_hash;
 
         if (offset > 0)
@@ -2602,16 +2602,16 @@ void logos::rpc_handler::payment_wait ()
     }
 }
 
-std::unique_ptr<StateBlock> deserialize_StateBlock_json (boost::property_tree::ptree const & tree_a)
+std::unique_ptr<Send> deserialize_StateBlock_json (boost::property_tree::ptree const & tree_a)
 {
-    std::unique_ptr<StateBlock> result;
+    std::unique_ptr<Send> result;
     try
     {
         auto type (tree_a.get<std::string> ("type"));
         if (type == "state")
         {
             bool error;
-            std::unique_ptr<StateBlock> obj (new StateBlock (error, tree_a, false, true));
+            std::unique_ptr<Send> obj (new Send (error, tree_a, false, true));
             if (!error)
             {
                 result = std::move (obj);
@@ -2632,7 +2632,7 @@ void logos::rpc_handler::process ()
     std::stringstream block_stream (block_text);
     boost::property_tree::read_json (block_stream, block_l);
     bool error = false;
-    auto block = std::make_shared<StateBlock> (error, block_l, false, true);
+    auto block = std::make_shared<Send> (error, block_l, false, true);
     if( ! error )
     {
         auto result = node.OnSendRequest(block, should_buffer_request());

@@ -123,7 +123,7 @@ public:
     ///     @param[in] should_buffer bool flag that, when set, will
     ///                              cause the block to be buffered
     ///     @return process_return result of the operation
-    logos::process_return OnSendRequest(std::shared_ptr<StateBlock> block,
+    logos::process_return OnSendRequest(std::shared_ptr<Send> block,
                                         bool should_buffer);
 
     /// Called when buffering is done for batch block consensus.

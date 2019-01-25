@@ -59,8 +59,8 @@ struct Request
     virtual boost::property_tree::ptree SerializeJson() const;
     virtual uint64_t Serialize(logos::stream & stream) const;
 
-    BlockHash Hash() const;
-    virtual void Hash(blake2b_state & hash) const = 0;
+    virtual BlockHash Hash() const;
+    virtual void Hash(blake2b_state & hash) const;
 
     virtual uint16_t WireSize() const;
 

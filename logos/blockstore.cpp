@@ -872,7 +872,7 @@ bool logos::block_store::batch_block_put (ApprovedBSB const & block, const Block
     return status != 0;
 }
 
-bool logos::block_store::state_block_put(StateBlock const & block, const BlockHash & batch_hash, MDB_txn * transaction)
+bool logos::block_store::state_block_put(Send const & block, const BlockHash & batch_hash, MDB_txn * transaction)
 {
     auto hash(block.GetHash());
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();
@@ -885,7 +885,7 @@ bool logos::block_store::state_block_put(StateBlock const & block, const BlockHa
     return status != 0;
 }
 
-bool logos::block_store::state_block_exists(const StateBlock & block)
+bool logos::block_store::state_block_exists(const Send & block)
 {
     return state_block_exists(block.GetHash());
 }
@@ -1009,7 +1009,7 @@ bool logos::block_store::consensus_block_update_next(const BlockHash & hash, con
     return false;
 }
 
-bool logos::block_store::state_block_get(const BlockHash & hash, StateBlock & block, MDB_txn * transaction)
+bool logos::block_store::state_block_get(const BlockHash & hash, Send & block, MDB_txn * transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();
 
@@ -1021,7 +1021,7 @@ bool logos::block_store::state_block_get(const BlockHash & hash, StateBlock & bl
     }
 
     bool error = false;
-    new(&block) StateBlock(error, val);
+    new(&block) Send(error, val);
     assert(!error);
 
     return error;

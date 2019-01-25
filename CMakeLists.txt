@@ -375,6 +375,7 @@ add_library (node
 	logos/node/xorshift.hpp
 	logos/request/change.cpp
 	logos/request/request.cpp
+	logos/request/send.cpp
 	logos/token/account.cpp
 	logos/token/common.cpp
 	logos/token/requests.cpp

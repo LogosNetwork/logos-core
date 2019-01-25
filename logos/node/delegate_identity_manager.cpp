@@ -259,7 +259,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
 
 
-        StateBlock state(logos::logos_test_account,   // account
+        Send state(logos::logos_test_account,   // account
                          genesis_account.head,         // previous
                          genesis_account.block_count,  // sequence
                          pair.pub,  // link/to

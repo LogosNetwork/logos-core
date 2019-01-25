@@ -1444,7 +1444,7 @@ _consensus_container(service_a, store, alarm_a, config.consensus_manager_config,
             boost::property_tree::ptree tree;
             std::stringstream istream(logos::logos_test_genesis);
             boost::property_tree::read_json(istream, tree);
-            StateBlock logos_genesis_block(error, tree, true, true);
+            Send logos_genesis_block(error, tree, true, true);
 
             if(error)
             {
@@ -2190,7 +2190,7 @@ void logos::node::add_initial_peers ()
 }
 
 
-logos::process_return logos::node::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_buffer)
+logos::process_return logos::node::OnSendRequest(std::shared_ptr<Send> block, bool should_buffer)
 {
     return _consensus_container.OnSendRequest(block, should_buffer);
 }

@@ -279,7 +279,7 @@ void PersistenceManager<BSBCT>::ApplyBatchMessage(
 // Currently designed only to handle
 // send transactions.
 void PersistenceManager<BSBCT>::ApplyStateMessage(
-    const StateBlock & block,
+    const Send & block,
     uint64_t timestamp,
     MDB_txn * transaction)
 {
@@ -290,7 +290,7 @@ void PersistenceManager<BSBCT>::ApplyStateMessage(
 }
 
 bool PersistenceManager<BSBCT>::UpdateSourceState(
-    const StateBlock & block,
+    const Send & block,
     MDB_txn * transaction)
 {
     logos::account_info info;
@@ -340,7 +340,7 @@ bool PersistenceManager<BSBCT>::UpdateSourceState(
 }
 
 void PersistenceManager<BSBCT>::UpdateDestinationState(
-    const StateBlock & block,
+    const Send & block,
     uint64_t timestamp,
     MDB_txn * transaction)
 {
@@ -410,7 +410,7 @@ void PersistenceManager<BSBCT>::PlaceReceive(
                               const ReceiveBlock & b)
                               {
             //need b's timestamp
-            StateBlock sb;
+            Send sb;
             if(! _store.state_block_get(b.send_hash, sb, transaction))
             {
                 LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
@@ -454,7 +454,7 @@ void PersistenceManager<BSBCT>::PlaceReceive(
         }
 
 
-        StateBlock sb_prev;
+        Send sb_prev;
         if(! _store.state_block_get(prev.send_hash, sb_prev, transaction))
         {
             LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
