@@ -328,8 +328,10 @@ add_library (node
 	logos/consensus/epoch/epoch_backup_delegate.cpp
 	logos/consensus/epoch/epoch_consensus_manager.cpp
 	logos/consensus/message_validator.cpp
+	logos/consensus/messages/common.cpp
 	logos/consensus/messages/messages.cpp
 	logos/consensus/consensus_msg_sink.cpp
+	logos/consensus/messages/receive_block.cpp
 	logos/consensus/microblock/microblock_backup_delegate.cpp
 	logos/consensus/microblock/microblock_consensus_manager.cpp
 	logos/consensus/p2p/consensus_p2p.cpp
@@ -379,7 +381,8 @@ add_library (node
 	logos/node/working.hpp
 	logos/node/xorshift.hpp
 	logos/request/change.cpp
-	logos/requests/request.cpp
+	logos/request/request.cpp
+	logos/request/send.cpp
 	logos/tokens/account.cpp
 	logos/tokens/common.cpp
 	logos/tokens/requests.cpp

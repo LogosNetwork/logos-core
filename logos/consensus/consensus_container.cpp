@@ -4,7 +4,7 @@
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
-#include <logos/consensus/messages/state_block.hpp>
+#include <logos/consensus/messages/receive_block.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/epoch/archiver.hpp>
@@ -85,7 +85,7 @@ ConsensusContainer::CreateEpochManager(
 
 logos::process_return
 ConsensusContainer::OnSendRequest(
-    std::shared_ptr<Request> block,
+    std::shared_ptr<Send> block,
     bool should_buffer)
 {
     logos::process_return result;
