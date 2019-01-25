@@ -233,12 +233,18 @@ TxAcceptor::RespondBin(std::shared_ptr<Socket> socket, const Responses &&resp)
     auto buf = std::make_shared<std::vector<uint8_t>>();
     TxResponse response(std::move(resp));
     response.Serialize(*buf);
+    auto payload = response.payload_size;
 
     boost::asio::async_write(*socket, boost::asio::buffer(buf->data(), buf->size()),
-            [this](const Error &ec, size_t size) {
+            [this, buf, payload](const Error &ec, size_t size) {
         if (ec)
         {
             LOG_ERROR(_log) << "TxAcceptor::RespondBin error: " << ec.message();
+        } 
+        else
+        {
+            LOG_DEBUG(_log) << "TxAcceptor::RespondBin sent " << size
+                            << " payload " << payload;
         }
     });
 }
@@ -246,7 +252,7 @@ TxAcceptor::RespondBin(std::shared_ptr<Socket> socket, const Responses &&resp)
 void
 TxAcceptor::AsyncReadBin(std::shared_ptr<Socket> socket)
 {
-    auto hdr_buf = std::shared_ptr<std::array<uint8_t, TxMessageHeader::MESSAGE_SIZE>>();
+    auto hdr_buf = std::make_shared<std::array<uint8_t, TxMessageHeader::MESSAGE_SIZE>>();
 
     boost::asio::async_read(*socket, boost::asio::buffer(hdr_buf->data(), hdr_buf->size()),
             [this, socket, hdr_buf](const Error &ec, size_t size){
