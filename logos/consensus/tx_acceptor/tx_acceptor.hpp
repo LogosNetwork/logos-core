@@ -74,7 +74,9 @@ private:
 /// transasction to the delegate. Delegate TxAcceptor passes transaction to ConsensusContainer (TxChannel).
 class TxAcceptor
 {
-protected:
+    friend class TxAcceptorStandalone;
+    friend class TxAcceptorDelegate;
+
     using Service       = boost::asio::io_service;
     using Socket        = boost::asio::ip::tcp::socket;
     using Ptree         = boost::property_tree::ptree;
@@ -82,7 +84,7 @@ protected:
     using Responses     = std::vector<std::pair<logos::process_result, BlockHash>>;
     using Request       = RequestMessage<ConsensusType::BatchStateBlock>;
     using Blocks        = std::vector<std::shared_ptr<Request>>;
-public:
+
     /// Delegate class constructor
     /// @param service boost asio service reference [in]
     /// @param acceptor_channel is ConsensusContainer in this case [in]
@@ -94,7 +96,7 @@ public:
     TxAcceptor(Service & service, logos::node_config & config);
     /// Class destructor
     virtual ~TxAcceptor() = default;
-protected:
+
     static constexpr uint32_t  MAX_REQUEST_SIZE = (sizeof(StateBlock) +
             sizeof(StateBlock::Transaction) * StateBlock::MAX_TRANSACTION) * 1500;
     static constexpr uint32_t BLOCK_SIZE_SIZE = sizeof(uint32_t);
@@ -129,13 +131,27 @@ protected:
     /// @param block state block [in]
     /// @return result of the validation, 'progress' is success
     logos::process_result Validate(const std::shared_ptr<Request> & block);
-    /// Send received transaction for consensus protocol
+    /// Validate/send received transaction for consensus protocol
     /// @param block received transaction [in]
     /// @param blocks to aggregate in delegate mode [in|out]
     /// @param response object [in|out]
     /// @param should_buffer benchmarking flag [in]
     void ProcessBlock(std::shared_ptr<Request> block, Blocks &blocks,
                       Responses &response, bool should_buffer = false);
+    /// Run post processing once all blocks are processed individually
+    /// @param blocks all valid blocks [in]
+    /// @param response object [in|out]
+    virtual void PostProcessBlocks(Blocks &blocks, Responses &response) {}
+    /// Send or aggregate validated requests, default is to send
+    /// @param block received transaction [in]
+    /// @param blocks to aggregate in delegate mode [in|out]
+    /// @param response object [in|out]
+    /// @param should_buffer benchmarking flag [in]
+    virtual logos::process_result OnSendRequest(std::shared_ptr<Request> block, Blocks &blocks,
+                                                Responses &response, bool should_buffer = false)
+    {
+        return _acceptor_channel->OnSendRequest(block, should_buffer).code;
+    }
 
     Service &                       _service;           /// boost asio service reference
     TxPeerManager                   _json_peer;         /// json request connection acceptor
@@ -143,5 +159,57 @@ protected:
     TxAcceptorConfig                _config;            /// tx acceptor configuration
     std::shared_ptr<TxChannel>      _acceptor_channel;  /// transaction forwarding channel
     Log                             _log;               /// boost log
-    bool                            _standalone;        /// run in standalone mode
+};
+
+/// Standalone parses batch request and sends transactions one at a time.
+/// The buffering is handled on the sending side by NetIOSend
+/// and on receiving side by NetIOAssembler.
+class TxAcceptorStandalone : public TxAcceptor
+{
+public:
+    /// Standalone class constructor
+    /// @param service boost asio service reference [in]
+    /// @param config of the node [in]
+    TxAcceptorStandalone(Service & service, logos::node_config & config)
+        : TxAcceptor(service, config)
+    {}
+    ~TxAcceptorStandalone() = default;
+};
+
+/// Delegate parses batch request and sends transactions as vector.
+class TxAcceptorDelegate : public TxAcceptor
+{
+public:
+    /// Delegate class constructor
+    /// @param service boost asio service reference [in]
+    /// @param acceptor_channel is ConsensusContainer in this case [in]
+    /// @param config of the node [in]
+    TxAcceptorDelegate(Service & service, std::shared_ptr<TxChannel> acceptor_channel, logos::node_config & config)
+        : TxAcceptor(service, acceptor_channel, config)
+    {}
+    ~TxAcceptorDelegate() = default;
+protected:
+    /// Send received transaction for consensus protocol
+    /// @param block received transaction [in]
+    /// @param blocks to aggregate in delegate mode [in|out]
+    /// @param response object [in|out]
+    /// @param should_buffer benchmarking flag [in]
+    logos::process_result OnSendRequest(std::shared_ptr<Request> block, Blocks &blocks,
+                      Responses &response, bool should_buffer = false) override
+    {
+        blocks.push_back(block);
+        return logos::process_result::progress;
+    }
+    /// Run post processing once all blocks are processed individually
+    /// @param blocks all valid blocks [in]
+    /// @param response object [in|out]
+    void PostProcessBlocks(Blocks &blocks, Responses &response) override
+    {
+        auto res = _acceptor_channel->OnSendRequest(blocks);
+        if (res[0].first == logos::process_result::initializing)
+        {
+            response.clear();
+            response.push_back({res[0].first, 0});
+        }
+    }
 };

@@ -109,7 +109,7 @@ void logos_daemon::daemon::run_tx_acceptor (boost::filesystem::path const & data
         boost::asio::io_service service;
         try
         {
-            auto tx_acceptor (std::make_shared<TxAcceptor> (service, config.node));
+            auto tx_acceptor (std::make_shared<TxAcceptorStandalone> (service, config.node));
             runner = std::make_unique<logos::thread_runner> (service, config.node.io_threads);
             runner->join ();
         }
@@ -138,10 +138,10 @@ void logos_daemon::daemon::run (boost::filesystem::path const & data_path)
         config_file.close ();
         boost::asio::io_service service;
         auto opencl (logos::opencl_work::create (config.opencl_enable, config.opencl, config.node.logging));
-        logos::work_pool opencl_work (config.node.work_threads, opencl ? [&opencl](logos::uint256_union const & root_a) {
-            return opencl->generate_work (root_a);
-        }
-                                                                     : std::function<boost::optional<uint64_t> (logos::uint256_union const &)> (nullptr));
+        logos::work_pool opencl_work (config.node.work_threads,
+                opencl
+                ? [&opencl](logos::uint256_union const & root_a) { return opencl->generate_work (root_a); }
+                : std::function<boost::optional<uint64_t> (logos::uint256_union const &)> (nullptr));
         logos::alarm alarm (service);
         logos::node_init init;
         try

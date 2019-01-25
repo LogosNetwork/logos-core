@@ -49,7 +49,6 @@ TxAcceptor::TxAcceptor(Service &service,
                 config.tx_acceptor_config.bin_port, *this, &TxAcceptor::AsyncReadBin)
     , _acceptor_channel(acceptor_channel)
     , _config(config.tx_acceptor_config)
-    , _standalone(false)
 {
     LOG_INFO(_log) << "TxAcceptor::TxAcceptor creating delegate TxAcceptor";
 }
@@ -62,7 +61,6 @@ TxAcceptor::TxAcceptor(Service &service,
         , _bin_peer(service, config.tx_acceptor_config.acceptor_ip,
                     config.tx_acceptor_config.bin_port, *this, &TxAcceptor::AsyncReadBin)
         , _config(config.tx_acceptor_config)
-        , _standalone(true)
 {
     LOG_INFO(_log) << "TxAcceptor::TxAcceptor creating standalone TxAcceptor";
     _acceptor_channel = std::make_shared<TxAcceptorChannel>(_service, _config.acceptor_ip, _config.port);
@@ -141,14 +139,7 @@ TxAcceptor::ProcessBlock( std::shared_ptr<Request> block, Blocks &blocks, Respon
 
     if (result == logos::process_result::progress)
     {
-        if (_standalone)
-        {
-            result = _acceptor_channel->OnSendRequest(block, should_buffer).code;
-        }
-        else
-        {
-            blocks.push_back(block);
-        }
+        result = OnSendRequest(block, blocks, response, should_buffer);
     }
     else
     {
@@ -222,10 +213,7 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
                 parse(request_tree);
             }
 
-            if (false == _standalone)
-            {
-                response = _acceptor_channel->OnSendRequest(blocks);
-            }
+            PostProcessBlocks(blocks, response);
 
             LOG_DEBUG(_log) << "TxAcceptor::AsyncReadJson submitted requests "
                             << response.size();
@@ -323,15 +311,7 @@ TxAcceptor::AsyncReadBin(std::shared_ptr<Socket> socket)
                  ProcessBlock(block, blocks, response);
              }
 
-             if (false == _standalone)
-             {
-                auto res = _acceptor_channel->OnSendRequest(blocks);
-                if (res[0].first == logos::process_result::initializing)
-                {
-                    response.clear();
-                    response.push_back({res[0].first, 0});
-                }
-             }
+             PostProcessBlocks(blocks, response);
 
              LOG_DEBUG(_log) << "TxAcceptor::AsyncReadJson submitted requests";
 

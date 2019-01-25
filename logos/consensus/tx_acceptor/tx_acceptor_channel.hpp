@@ -10,6 +10,8 @@
 #include <logos/consensus/network/net_io_send.hpp>
 #include <logos/lib/log.hpp>
 
+#include <boost/asio/deadline_timer.hpp>
+
 namespace logos { class node_config; }
 
 /// Implements forwarding to the Delegate
@@ -21,6 +23,8 @@ class TxAcceptorChannel : public TxChannel,
     using Socket        = boost::asio::ip::tcp::socket;
     using Endpoint      = boost::asio::ip::tcp::endpoint;
     using Error         = boost::system::error_code;
+    using Timer         = boost::asio::deadline_timer;
+    using Seconds       = boost::posix_time::seconds;
 
 public:
     /// Class constructor
@@ -38,6 +42,9 @@ protected:
     void OnError(const Error &error) override;
 
 private:
+    static const Seconds TIMEOUT;
+    static const uint16_t INACTIVITY; // milliseconds (40 seconds)
+
     /// Accepted connection callback
     /// @param endpoint of accepted connection [in]
     /// @param socket  of accepted connection [in]
@@ -50,6 +57,12 @@ private:
     {
         return true; // TODO
     }
+    /// Schedule timer
+    /// @param timeout value [in]
+    void ScheduleTimer(const Seconds & timeout);
+    /// Handle heartbeat timeout
+    /// @param error timer's error [in]
+    void OnTimeout(const Error &error);
     /// Forward transaction to the delegate
     /// @param block transaction [in]
     /// @param should_buffer used in benchmarking [in] TODO
@@ -64,4 +77,7 @@ private:
     Endpoint                _endpoint;              /// local endpoint
     PeerAcceptor            _delegate;              /// delegate's acceptor
     Log                     _log;                   /// boost log
+    uint64_t                _last_sent;             /// last sent message's time stamp
+    Timer                   _inactivity_timer;      /// inactivity timer
+    std::mutex              _mutex;                 /// timer's mutex
 };

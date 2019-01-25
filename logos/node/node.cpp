@@ -1291,7 +1291,7 @@ _archiver(alarm_a, store, _recall_handler),
 _consensus_container{std::make_shared<ConsensusContainer>(
         service_a, store, alarm_a, config.consensus_manager_config, _archiver, _identity_manager)},
 _tx_acceptor{config.tx_acceptor_config.tx_acceptors.size() == 0
-    ? std::make_shared<TxAcceptor>(service_a, _consensus_container, config)
+    ? std::make_shared<TxAcceptorDelegate>(service_a, _consensus_container, config)
     : nullptr},
 _tx_receiver{config.tx_acceptor_config.tx_acceptors.size() != 0
     ? std::make_shared<TxReceiver>(service_a, alarm_a, _consensus_container, config)
