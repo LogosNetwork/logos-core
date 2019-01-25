@@ -230,12 +230,16 @@ ConsensusManager<CT>::QueueRequest(
 
     if(designated_delegate_id == _delegate_id)
     {
-        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueRequest primary";
+        LOG_DEBUG(_log) << "ConsensusManager<"
+                        << ConsensusToName(CT)
+                        << ">::QueueRequest primary";
         QueueRequestPrimary(request);
     }
     else
     {
-        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueRequest secondary";
+        LOG_DEBUG(_log) << "ConsensusManager<"
+                        << ConsensusToName(CT)
+                        << ">::QueueRequest secondary";
         QueueRequestSecondary(request);
     }
 }
