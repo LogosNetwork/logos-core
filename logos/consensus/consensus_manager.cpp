@@ -101,6 +101,8 @@ ConsensusManager<ConsensusType::BatchStateBlock>::OnSendRequest(
          response.push_back({result.code, hash});
     }
 
+    OnRequestQueued();
+
     return response;
 }
 
