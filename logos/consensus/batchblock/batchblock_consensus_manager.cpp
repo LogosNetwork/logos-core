@@ -532,7 +532,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
         }
     }
 
-    std::list<std::shared_ptr<StateBlock>> requests;
+    std::list<struct Send> requests;
 
     // Create new pre-prepare messages
     // based on the subsets.
@@ -549,17 +549,14 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
             requests.push_back(batch.blocks[*itr]);
         }
 
-        requests.emplace_back(std::make_shared<StateBlock>());
+        requests.push_back(::Send());
     }
 
     // Pushing a null state_block to the front
     // of the queue will trigger consensus
     // with an empty batch block, which is how
     // we proceed if no requests can be re-proposed.
-
-    // SYL integration fix: should always add delimiter to
-    // avoid spillover from new request queued to primary list
-    requests.emplace_back(std::make_shared<StateBlock>());
+    requests.push_back(::Send());
 
     _handler.PopFront();
     _handler.InsertFront(requests);

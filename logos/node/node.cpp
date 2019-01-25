@@ -10,7 +10,7 @@
 #include <logos/node/client_callback.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/microblock/microblock.hpp>
-#include <logos/consensus/messages/state_block.hpp>
+#include <logos/consensus/messages/receive_block.hpp>
 
 #include <algorithm>
 #include <future>
@@ -2082,7 +2082,7 @@ void logos::node::add_initial_peers ()
 }
 
 
-logos::process_return logos::node::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_buffer)
+logos::process_return logos::node::OnSendRequest(std::shared_ptr<Send> block, bool should_buffer)
 {
     return _consensus_container->OnSendRequest(
             static_pointer_cast<RequestMessage<ConsensusType::BatchStateBlock>>(block), should_buffer);

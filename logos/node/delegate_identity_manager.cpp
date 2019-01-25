@@ -226,7 +226,7 @@ DelegateIdentityManager::Init(const Config &config)
         boost::property_tree::ptree tree;
         std::stringstream istream(logos::logos_test_genesis);
         boost::property_tree::read_json(istream, tree);
-        StateBlock logos_genesis_block(error, tree);
+        Send logos_genesis_block(error, tree);
 
         if(error)
         {
@@ -236,7 +236,7 @@ DelegateIdentityManager::Init(const Config &config)
 
         //TODO check with Greg
         ReceiveBlock logos_genesis_receive(0, logos_genesis_block.GetHash(), 0);
-        _store.state_block_put(logos_genesis_block,
+        _store.request_put(logos_genesis_block,
                 transaction);
         _store.receive_put(logos_genesis_receive.Hash(),
                 logos_genesis_receive,
@@ -294,15 +294,17 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
         logos::amount amount((del + 1) * 1000000 * 1000000);
         uint64_t work = 0;
 
-        StateBlock state(logos::logos_test_account,    // account
-                         genesis_account.head,         // previous
-                         genesis_account.block_count,  // sequence
-                         pair.pub,  // link/to
-                         amount,
-                         0,       // transaction fee
-                         pair.prv.data,
-                         pair.pub,
-                         work);
+
+
+        Send state(logos::logos_test_account,   // account
+                   genesis_account.head,         // previous
+                   genesis_account.block_count,  // sequence
+                   pair.pub,  // link/to
+                   amount,
+                   fee,       // transaction fee
+                   pair.prv.data,
+                   pair.pub,
+                   work);
 
         genesis_account.balance = genesis_account.balance.number() - amount.number();
         genesis_account.head = state.GetHash();

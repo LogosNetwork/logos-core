@@ -50,13 +50,13 @@ private:
 
     void ApplyBatchMessage(const ApprovedBSB & message,
                            MDB_txn * transaction);
-    void ApplyStateMessage(const StateBlock & block,
+    void ApplyStateMessage(const Send & block,
                            uint64_t timestamp,
                            MDB_txn * transaction);
 
-    bool UpdateSourceState(const StateBlock & block,
+    bool UpdateSourceState(const Send & block,
                            MDB_txn * transaction);
-    void UpdateDestinationState(const StateBlock & block,
+    void UpdateDestinationState(const Send & block,
                                 uint64_t timestamp,
                                 MDB_txn * transaction);
 

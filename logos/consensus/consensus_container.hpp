@@ -127,7 +127,7 @@ public:
     ///     @param[in] should_buffer bool flag that, when set, will
     ///                              cause the block to be buffered
     ///     @return process_return result of the operation
-    logos::process_return OnSendRequest(std::shared_ptr<Request> block,
+    logos::process_return OnSendRequest(std::shared_ptr<Send> block,
                                         bool should_buffer) override;
 
     /// Handles requests for batch block consensus.
@@ -135,7 +135,7 @@ public:
     /// Submits transactions to consensus logic.
     ///     @param[in] blocks state blocks containing the transaction
     ///     @return responses containinig process_result and hash
-    Responses OnSendRequest(std::vector<std::shared_ptr<Request>> &blocks) override;
+    Responses OnSendRequest(std::vector<std::shared_ptr<Send>> &blocks) override;
 
     /// Called when buffering is done for batch block consensus.
     ///

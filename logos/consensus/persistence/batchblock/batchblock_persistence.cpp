@@ -346,7 +346,7 @@ void PersistenceManager<BSBCT>::ApplyBatchMessage(
 // Currently designed only to handle
 // send transactions.
 void PersistenceManager<BSBCT>::ApplyStateMessage(
-    const StateBlock & block,
+    const Send & block,
     uint64_t timestamp,
     MDB_txn * transaction)
 {
@@ -357,7 +357,7 @@ void PersistenceManager<BSBCT>::ApplyStateMessage(
 }
 
 bool PersistenceManager<BSBCT>::UpdateSourceState(
-    const StateBlock & block,
+    const Send & block,
     MDB_txn * transaction)
 {
     logos::account_info info;
@@ -419,7 +419,7 @@ bool PersistenceManager<BSBCT>::UpdateSourceState(
 }
 
 void PersistenceManager<BSBCT>::UpdateDestinationState(
-    const StateBlock & block,
+    const Send & block,
     uint64_t timestamp,
     MDB_txn * transaction)
 {
@@ -485,11 +485,12 @@ void PersistenceManager<BSBCT>::PlaceReceive(
     {
         // Returns true if 'a' should precede 'b'
         // in the receive chain.
-        auto receive_cmp = [&](const ReceiveBlock & a, const ReceiveBlock & b)
+        auto receive_cmp = [&](const ReceiveBlock & a
+                               const ReceiveBlock & b)
                 {
-                    //need b's timestamp
-                    StateBlock sb;
-                    if(_store.state_block_get(b.send_hash, sb, transaction))
+                    // need b's timestamp
+                    Send sb;
+                    if(_store.request_get(b.send_hash, sb, transaction))
                     {
                         LOG_FATAL(_log) << "PersistenceManager<BSBCT>::PlaceReceive - "
                                         << "Failed to get a previous state block with hash: "
