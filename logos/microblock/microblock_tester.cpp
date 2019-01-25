@@ -79,10 +79,11 @@ MicroBlockTester::block_create_test(
     int ndelegates = 32;
     int n_batch_blocks = 100; // need to randomize to simulate different arrival
     int n_state_blocks = 100;
-    StateBlock state_block;
+    Send state_block;
     DelegateSig delegate_sig;
     AccountSig account_sig;
     static BlockHash previous[32]; // should be current epoch for 1st block
+
     for (uint8_t i_del = 0; i_del < ndelegates; ++i_del) {
         for (int i_batch = 0; i_batch < n_batch_blocks; ++i_batch) {
             ApprovedBSB batch_block;
@@ -90,12 +91,12 @@ MicroBlockTester::block_create_test(
             batch_block.preprepare_sig = delegate_sig;
             batch_block.timestamp = GetStamp(); // need to model block spread
             for (int i_state = 0; i_state < n_state_blocks; ++i_state) {
-                batch_block.blocks[i_state]->signature = account_sig;
+                batch_block.blocks[i_state].signature = account_sig;
                 logos::account account(rand());
                 BlockHash hash(rand());
-                batch_block.blocks[i_state]->account = account;
-                batch_block.blocks[i_state]->previous = hash;
-                batch_block.blocks[i_state]->AddTransaction(AccountAddress(), 1000);
+                batch_block.blocks[i_state].account = account;
+                batch_block.blocks[i_state].previous = hash;
+                batch_block.blocks[i_state].AddTransaction(AccountAddress(), 1000);
             }
             batch_block.previous = previous[i_del];
             previous[i_del] = batch_block.Hash();
@@ -123,39 +124,40 @@ MicroBlockTester::precreate_account(
     AccountPubKey pub_key = pair.pub;
     AccountPrivKey priv_key = pair.prv.data;
 
-    StateBlock state(account,     // account
-                     BlockHash(), // previous
-                     0,           // sqn
-                     account,     // link
-                     amount,
-                     fee,
-                     priv_key,
-                     pub_key,
-                     work);
+    Send state(account,  // account
+               BlockHash(), // previous
+               0, // sqn
+               account,  // link
+               amount,
+               fee,
+               priv_key,
+               pub_key,
+               work);
 
-    std::string contents = state.SerializeJson(false, true);
+    std::string contents = state.ToJson();
     boost::log::sources::logger_mt log;
-    LOG_DEBUG(log) << "initializing delegate " <<
-                   pair.prv.data.to_string() << " " <<
-                   pair.pub.to_string() << " " <<
-                   //pair.pub.to_account() << " " <<
-                   state.GetHash().to_string() << "\n" << contents;
+    LOG_DEBUG(log) << "initializing delegate "
+                   << pair.prv.data.to_string() << " "
+                   << pair.pub.to_string() << " "
+                   // <<  pair.pub.to_account() << " "
+                   << state.GetHash().to_string() << "\n"
+                   << contents;
 
     ReceiveBlock receive(0, state.GetHash(), 0);
     node.store.receive_put(state.GetHash(), receive, transaction);
 
     node.store.account_put(account,
-                           {
-                                   /* Head    */ 0,
-                                   /* Previous*/ 0,
-                                   /* Rep     */ 0,
-                                   /* Open    */ state.GetHash(),
-                                   /* Amount  */ amount,
-                                   /* Time    */ logos::seconds_since_epoch(),
-                                   /* Count   */ 0,
-                                   /* Receive */ 0
-                           },
-                           transaction);
+                      {
+                              /* Head    */ 0,
+                              /* Previous*/ 0,
+                              /* Rep     */ 0,
+                              /* Open    */ state.GetHash(),
+                              /* Amount  */ amount,
+                              /* Time    */ logos::seconds_since_epoch(),
+                              /* Count   */ 0,
+                              /* Receive */ 0
+                      },
+                      transaction);
     response_l.put("private", pair.prv.data.to_string());
     response_l.put("public", pair.pub.to_string());
     response_l.put("account", pair.pub.to_account());
@@ -170,7 +172,9 @@ MicroBlockTester::read_accounts(
     boost::property_tree::ptree response_l;
     logos::transaction transaction(node.store.environment, nullptr, false);
     int i = 0;
-    for (auto it = logos::store_iterator(transaction, node.store.account_db); it != logos::store_iterator(nullptr); ++it) {
+    for (auto it = logos::store_iterator(transaction, node.store.account_db);
+         it != logos::store_iterator(nullptr); ++it)
+    {
         logos::account account(it->first.uint256());
         bool error = false;
         logos::account_info info(error, it->second);
@@ -196,7 +200,7 @@ MicroBlockTester::generate_microblock(
     logos::transaction transaction(node.store.environment, nullptr, true);
     boost::property_tree::ptree response_l;
     bool last_block = _request.get<bool>("last", false);
-  node._archiver.Test_ProposeMicroBlock(*node._consensus_container, last_block);
+    node._archiver.Test_ProposeMicroBlock(*node._consensus_container, last_block);
     response_l.put ("result", "sent");
     response (response_l);
 }
@@ -243,7 +247,8 @@ MicroBlockTester::informational(
 
     std::string type = _request.get<std::string>("type", "");
 
-    if (type == "epoch") {
+    if (type == "epoch")
+    {
         ApprovedEB epoch;
 
         std::stringstream str;
@@ -323,7 +328,8 @@ MicroBlockTester::epoch_delegates(
     }
 
     int del = 0;
-    for (auto acct : delegates) {
+    for (auto acct : delegates)
+    {
         boost::property_tree::ptree response;
         char buff[5];
         sprintf(buff, "%d", del);

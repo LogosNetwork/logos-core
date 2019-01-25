@@ -4,12 +4,12 @@
 ///
 #pragma once
 
+#include <logos/consensus/messages/receive_block.hpp>
 #include <logos/consensus/messages/common.hpp>
-#include <logos/consensus/messages/state_block.hpp>
+#include <logos/request/send.hpp>
 
-
-using BlockList             = std::vector<std::shared_ptr<StateBlock>>;
-using BlockHashList         = std::vector<BlockHash>;
+using BlockList     = Send [CONSENSUS_BATCH_SIZE];
+using BlockHashList = BlockHash [CONSENSUS_BATCH_SIZE];
 
 struct BatchStateBlock : PrePrepareCommon
 {
@@ -25,13 +25,14 @@ struct BatchStateBlock : PrePrepareCommon
     /// Add a new state block
     /// @param to_add the new state block to be added
     /// @returns if the new state block is added.
-    bool AddStateBlock(std::shared_ptr<StateBlock> to_add)
+
+    bool AddStateBlock(const Send & to_add)
     {
         if(block_count >= CONSENSUS_BATCH_SIZE)
             return false;
-        // ideally should reserve batch size before calling push_back to avoid unnecessary reallocation
-        blocks.emplace_back(to_add);
-        hashes.emplace_back(blocks[block_count]->GetHash());
+
+        new(&blocks[block_count]) Send(to_add);
+        hashs[block_count] = blocks[block_count].GetHash();
         ++block_count;
         return true;
     }

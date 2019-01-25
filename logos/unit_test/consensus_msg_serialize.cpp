@@ -44,7 +44,7 @@ create_bsb_preprepare(uint16_t num_sb)
     block.hashes.reserve(num_sb);
     for(uint32_t i = 0; i < num_sb; ++i)
     {
-        block.AddStateBlock(std::make_shared<StateBlock>(1,2,i,5,6,7,8,9));
+        block.AddStateBlock(Send(1,2,i,5,6,7,8,9));
     }
 
     return block;
@@ -513,13 +513,13 @@ TEST (blocks, receive_block)
 
 TEST (blocks, state_block)
 {
-    StateBlock block(1,2,3,5,6,7,8,9);
+    Send block(1,2,3,5,6,7,8,9);
 
     std::vector<uint8_t> buf;
-    auto db_val = block.to_mdb_val(buf);
+    auto db_val = block.SerializeDB(buf);
 
     bool error = false;
-    StateBlock block2(error, db_val);
+    Send block2(error, db_val);
 
     ASSERT_FALSE(error);
     ASSERT_EQ(block.GetHash(), block2.GetHash());
@@ -528,7 +528,7 @@ TEST (blocks, state_block)
     ASSERT_EQ(block2.Hash(), block2.GetHash());
 }
 
-void create_real_StateBlock(StateBlock & block)
+void create_real_StateBlock(Send & block)
 {
     logos::keypair pair(std::string("34F0A37AAD20F4A260F0A5B3CB3D7FB50673212263E58A380BC10474BB039CE4"));
     Amount amount(std::numeric_limits<logos::uint128_t>::max());
@@ -539,22 +539,22 @@ void create_real_StateBlock(StateBlock & block)
     AccountPubKey pub_key = pair.pub;
     AccountPrivKey priv_key = pair.prv.data;
 
-    new (&block) StateBlock(account,  // account
-            BlockHash(), // previous
-            0, // sqn
-            account,  // target
-            amount,
-            fee,
-            priv_key,
-            pub_key,
-            work);
+    new (&block) Send(account,  // account
+                      BlockHash(), // previous
+                      0, // sqn
+                      account,  // target
+                      amount,
+                      fee,
+                      priv_key,
+                      pub_key,
+                      work);
 }
 
 TEST (blocks, state_block_json)
 {
-    StateBlock block;
+    Send block;
     create_real_StateBlock(block);
-    auto s(block.SerializeJson(true, true));
+    auto s(block.ToJson());
 
     std::cout << "StateBlock1 json: " << s << std::endl;
 
@@ -562,10 +562,10 @@ TEST (blocks, state_block_json)
     boost::property_tree::ptree tree;
     std::stringstream istream(s);
     boost::property_tree::read_json(istream, tree);
-    StateBlock block2(error, tree, true, true);
-    auto s2(block2.SerializeJson(true, true));
+    Send block2(error, tree, true, true);
+    auto s2(block2.ToJson());
 
-    //    std::cout << "StateBlock2 json: " << s2 << std::endl;
+    std::cout << "StateBlock2 json: " << s2 << std::endl;
 
     ASSERT_FALSE(error);
     ASSERT_EQ(block.GetHash(), block2.GetHash());
@@ -595,11 +595,7 @@ TEST (blocks, batch_state_block_PrePrepare_empty)
 TEST (blocks, batch_state_block_PrePrepare_full)
 {
     auto block = create_bsb_preprepare(CONSENSUS_BATCH_SIZE);
-<<<<<<< HEAD
-    ASSERT_FALSE(block.AddStateBlock(std::make_shared<StateBlock>(1,2,CONSENSUS_BATCH_SIZE+1,StateBlock::Type::send,5,6,7,8,9)));
-=======
-    ASSERT_FALSE(block.AddStateBlock(StateBlock(1,2,CONSENSUS_BATCH_SIZE+1,5,6,7,8,9)));
->>>>>>> Add change request
+    ASSERT_FALSE(block.AddStateBlock(Send(1,2,CONSENSUS_BATCH_SIZE+1,5,6,7,8,9)));
     ASSERT_EQ(block.block_count, CONSENSUS_BATCH_SIZE);
     vector<uint8_t> buf;
     block.Serialize(buf);
@@ -641,7 +637,7 @@ TEST (blocks, batch_state_block_PostCommit_DB)
     vector<logos::mdb_val> sb_db_vals;
     for(uint16_t i = 0; i < num_state_block; ++i)
     {
-        sb_db_vals.push_back(block.blocks[i]->to_mdb_val(buffers[i]));
+        sb_db_vals.push_back(block.blocks[i].SerializeDB(buffers[i]));
     }
 
     bool error = false;
@@ -652,7 +648,7 @@ TEST (blocks, batch_state_block_PostCommit_DB)
         block.blocks.reserve(block.block_count);
         for(uint16_t i = 0; i < block.block_count; ++i)
         {
-            block.blocks.emplace_back(std::make_shared<StateBlock>(error, sb_db_vals[i]));
+            new (&block.blocks[i]) Send(error, sb_db_vals[i]);
             ASSERT_FALSE(error);
         }
     }
@@ -1011,12 +1007,12 @@ TEST (DB, state_block)
         return;
     logos::transaction txn(store->environment, nullptr, true);
 
-    StateBlock block(1,2,3,5,6,7,8,9);
+    Send block(1,2,3,5,6,7,8,9);
     std::vector<uint8_t> buf;
-    ASSERT_FALSE(store->state_block_put(block, txn));
+    ASSERT_FALSE(store->request_put(block, block.GetHash(), txn));
 
-    StateBlock block2;
-    ASSERT_FALSE(store->state_block_get(block.GetHash(), block2, txn));
+    Send block2;
+    ASSERT_FALSE(store->request_get(block.GetHash(), block2, txn));
 
     ASSERT_EQ(block.GetHash(), block2.GetHash());
     ASSERT_EQ(block.Hash(), block2.Hash());
