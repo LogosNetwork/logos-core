@@ -71,53 +71,22 @@ inline uint64_t GetStamp()
                 system_clock::now().time_since_epoch()).count();
 }
 
-template<typename T>
-BlockHash Blake2bHash(const T & t)
-{
-    BlockHash digest;
-    blake2b_state hash;
-
-    auto status(blake2b_init(&hash, HASH_SIZE));
-    assert(status == 0);
-
-    t.Hash(hash);
-
-    status = blake2b_final(&hash, digest.data(), HASH_SIZE);
-    assert(status == 0);
-
-    return digest;
-}
-
 struct AggSignature
 {
-    ParicipationMap     map;
-    DelegateSig         sig;
-    static_assert (sizeof(unsigned long)*8==64, "sizeof(unsigned long)*8!=64");
+    static_assert (sizeof(unsigned long)*8==64,
+                   "sizeof(unsigned long)*8!=64");
 
     AggSignature() = default;
 
     AggSignature(bool & error, logos::stream & stream);
 
-    void Hash(blake2b_state & hash) const
-    {
-        unsigned long m = htole64(map.to_ulong());
-        blake2b_update(&hash, &m, sizeof(m));
-        sig.Hash(hash);
-    }
+    void Hash(blake2b_state & hash) const;
 
-    uint32_t Serialize(logos::stream & stream) const
-    {
-        unsigned long m = htole64(map.to_ulong());
-        uint32_t s = logos::write(stream, m);
-        s += logos::write(stream, sig);
-        return s;
-    }
+    uint32_t Serialize(logos::stream & stream) const;
+    void SerializeJson(boost::property_tree::ptree & tree) const;
 
-    void SerializeJson(boost::property_tree::ptree & tree) const
-    {
-        tree.put("paricipation_map", map.to_string());
-        tree.put("signature", sig.to_string());
-    }
+    ParicipationMap map;
+    DelegateSig     sig;
 };
 
 static constexpr uint32_t MessagePrequelSize = 8;
@@ -199,73 +168,23 @@ using Prequel = MessagePrequel<MessageType::Unknown, ConsensusType::Any>;
 
 struct PrePrepareCommon
 {
-    PrePrepareCommon()
-    : primary_delegate()
-    , epoch_number(0)
-    , sequence(0)
-    , timestamp(GetStamp())
-    , previous()
-    , preprepare_sig()
-    { }
+    PrePrepareCommon();
 
     PrePrepareCommon(bool & error, logos::stream & stream);
 
-    PrePrepareCommon & operator= (const PrePrepareCommon & other)
-    {
-        primary_delegate        = other.primary_delegate;
-        epoch_number    = other.epoch_number;
-        sequence        = other.sequence;
-        timestamp       = other.timestamp;
-        previous        = other.previous;
-        preprepare_sig  = other.preprepare_sig;
-        return *this;
-    }
+    PrePrepareCommon & operator= (const PrePrepareCommon & other);
 
-    void Hash(blake2b_state & hash) const
-    {
-        uint32_t en = htole32(epoch_number);
-        uint32_t sqn = htole32(sequence);
-        uint64_t tsp = htole64(timestamp);
+    void Hash(blake2b_state & hash) const;
 
-        primary_delegate.Hash(hash);
-        blake2b_update(&hash, &en, sizeof(uint32_t));
-        blake2b_update(&hash, &sqn, sizeof(uint32_t));
-        blake2b_update(&hash, &tsp, sizeof(uint64_t));
-        previous.Hash(hash);
-    }
+    uint32_t Serialize(logos::stream & stream) const;
+    void SerializeJson(boost::property_tree::ptree & tree) const;
 
-    uint32_t Serialize(logos::stream & stream) const
-    {
-        uint32_t en = htole32(epoch_number);
-        uint32_t sqn = htole32(sequence);
-        uint64_t tsp = htole64(timestamp);
-
-        auto s = logos::write(stream, primary_delegate);
-        s += logos::write(stream, en);
-        s += logos::write(stream, sqn);
-        s += logos::write(stream, tsp);
-        s += logos::write(stream, previous);
-        s += logos::write(stream, preprepare_sig);
-
-        return s;
-    }
-
-    void SerializeJson(boost::property_tree::ptree & tree) const
-    {
-        tree.put("delegate", primary_delegate.to_string());
-        tree.put("epoch_number", std::to_string(epoch_number));
-        tree.put("sequence", std::to_string(sequence));
-        tree.put("timestamp", std::to_string(timestamp));
-        tree.put("previous", previous.to_string());
-        tree.put("signature", preprepare_sig.to_string());
-    }
-
-    AccountAddress          primary_delegate;
-    uint32_t                epoch_number;
-    uint32_t                sequence;
-    uint64_t                timestamp;
-    BlockHash               previous;
-    DelegateSig             preprepare_sig;
+    AccountAddress primary_delegate;
+    uint32_t       epoch_number;
+    uint32_t       sequence;
+    uint64_t       timestamp;
+    BlockHash      previous;
+    DelegateSig    preprepare_sig;
 };
 
 using HeaderStream = boost::iostreams::stream_buffer<boost::iostreams::basic_array_sink<uint8_t>>;

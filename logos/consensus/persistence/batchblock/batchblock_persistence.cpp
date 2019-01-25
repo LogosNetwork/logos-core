@@ -92,7 +92,7 @@ bool PersistenceManager<BSBCT>::Validate(
         // This account has issued at least one send transaction.
         if(info.block_count)
         {
-            if(!_store.state_block_exists(block.previous))
+            if(!_store.request_exists(block.previous))
             {
                 result.code = logos::process_result::gap_previous;
                 BOOST_LOG (_log) << "GAP_PREVIOUS: cannot find previous hash " << block.previous.to_string()
@@ -126,7 +126,7 @@ bool PersistenceManager<BSBCT>::Validate(
         }
 
         // Have we seen this block before?
-        if(_store.state_block_exists(hash))
+        if(_store.request_exists(hash))
         {
             result.code = logos::process_result::old;
             return false;
@@ -279,7 +279,7 @@ void PersistenceManager<BSBCT>::ApplyBatchMessage(
 // Currently designed only to handle
 // send transactions.
 void PersistenceManager<BSBCT>::ApplyStateMessage(
-    const StateBlock & block,
+    const Send & block,
     uint64_t timestamp,
     MDB_txn * transaction)
 {
@@ -290,7 +290,7 @@ void PersistenceManager<BSBCT>::ApplyStateMessage(
 }
 
 bool PersistenceManager<BSBCT>::UpdateSourceState(
-    const StateBlock & block,
+    const Send & block,
     MDB_txn * transaction)
 {
     logos::account_info info;
@@ -340,7 +340,7 @@ bool PersistenceManager<BSBCT>::UpdateSourceState(
 }
 
 void PersistenceManager<BSBCT>::UpdateDestinationState(
-    const StateBlock & block,
+    const Send & block,
     uint64_t timestamp,
     MDB_txn * transaction)
 {
@@ -410,8 +410,8 @@ void PersistenceManager<BSBCT>::PlaceReceive(
                               const ReceiveBlock & b)
                               {
             //need b's timestamp
-            StateBlock sb;
-            if(! _store.state_block_get(b.send_hash, sb, transaction))
+            Send sb;
+            if(!_store.request_get(b.send_hash, sb, transaction))
             {
                 LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
                                         << "Failed to get a previous state block with hash: "
@@ -454,8 +454,8 @@ void PersistenceManager<BSBCT>::PlaceReceive(
         }
 
 
-        StateBlock sb_prev;
-        if(! _store.state_block_get(prev.send_hash, sb_prev, transaction))
+        Send sb_prev;
+        if(!_store.request_get(prev.send_hash, sb_prev, transaction))
         {
             LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
                                     << "Failed to get a previous state block with hash: "

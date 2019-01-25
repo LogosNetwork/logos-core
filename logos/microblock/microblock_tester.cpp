@@ -68,41 +68,42 @@ MicroBlockTester::block_create_test(
     std::function<void(boost::property_tree::ptree const &)> response,
     logos::node &node)
 {
-  logos::transaction transaction(node.store.environment, nullptr, true);
-  boost::property_tree::ptree response_l;
-  response_l.put ("result", "created blocks");
-  // each call create fake single state and batch blocks for testing
-  // 10 state blocks per batch block, 32 chains of batch blocks for each 
-  // delegate, 100 batch blocks
-  // create delegates if needed
-  int ndelegates = 32;
-  int n_batch_blocks = 100; // need to randomize to simulate different arrival
-  int n_state_blocks = 100;
-  StateBlock state_block;
-  DelegateSig delegate_sig;
-  AccountSig account_sig;
-  static BlockHash previous[32]; // should be current epoch for 1st block
-  for (uint8_t i_del = 0; i_del < ndelegates; ++i_del) {
-    for (int i_batch = 0; i_batch < n_batch_blocks; ++i_batch) {
-        ApprovedBSB batch_block;
-        batch_block.block_count = 100;
-        batch_block.preprepare_sig = delegate_sig;
-        batch_block.timestamp = GetStamp(); // need to model block spread
-        for (int i_state = 0; i_state < n_state_blocks; ++i_state) {
-            batch_block.blocks[i_state].signature = account_sig;
-            logos::account account(rand());
-            BlockHash hash(rand());
-            batch_block.blocks[i_state].account = account;
-            batch_block.blocks[i_state].previous = hash;
-            batch_block.blocks[i_state].AddTransaction(AccountAddress(), 1000);
+    logos::transaction transaction(node.store.environment, nullptr, true);
+    boost::property_tree::ptree response_l;
+    response_l.put ("result", "created blocks");
+    // each call create fake single state and batch blocks for testing
+    // 10 state blocks per batch block, 32 chains of batch blocks for each
+    // delegate, 100 batch blocks
+    // create delegates if needed
+    int ndelegates = 32;
+    int n_batch_blocks = 100; // need to randomize to simulate different arrival
+    int n_state_blocks = 100;
+    Send state_block;
+    DelegateSig delegate_sig;
+    AccountSig account_sig;
+    static BlockHash previous[32]; // should be current epoch for 1st block
+
+    for (uint8_t i_del = 0; i_del < ndelegates; ++i_del) {
+        for (int i_batch = 0; i_batch < n_batch_blocks; ++i_batch) {
+            ApprovedBSB batch_block;
+            batch_block.block_count = 100;
+            batch_block.preprepare_sig = delegate_sig;
+            batch_block.timestamp = GetStamp(); // need to model block spread
+            for (int i_state = 0; i_state < n_state_blocks; ++i_state) {
+                batch_block.blocks[i_state].signature = account_sig;
+                logos::account account(rand());
+                BlockHash hash(rand());
+                batch_block.blocks[i_state].account = account;
+                batch_block.blocks[i_state].previous = hash;
+                batch_block.blocks[i_state].AddTransaction(AccountAddress(), 1000);
+            }
+            batch_block.previous = previous[i_del];
+            previous[i_del] = batch_block.Hash();
+            node.store.batch_block_put(batch_block, transaction);
+            node.store.batch_tip_put(i_del, previous[i_del], transaction);
         }
-        batch_block.previous = previous[i_del];
-      previous[i_del] = batch_block.Hash();
-      node.store.batch_block_put(batch_block, transaction);
-      node.store.batch_tip_put(i_del, previous[i_del], transaction);
     }
-  }
-  response (response_l);
+    response (response_l);
 }
 
 void 
@@ -110,39 +111,41 @@ MicroBlockTester::precreate_account(
     std::function<void(boost::property_tree::ptree const &)> response,
     logos::node &node)
 {
-  logos::transaction transaction(node.store.environment, nullptr, true);
-  boost::property_tree::ptree response_l;
-  logos::keypair pair;
+    logos::transaction transaction(node.store.environment, nullptr, true);
+    boost::property_tree::ptree response_l;
+    logos::keypair pair;
 
-  logos::amount amount(std::numeric_limits<logos::uint128_t>::max());
-  logos::amount fee(0);
-  uint64_t work = 0;
+    logos::amount amount(std::numeric_limits<logos::uint128_t>::max());
+    logos::amount fee(0);
+    uint64_t work = 0;
 
-  AccountAddress account = pair.pub;
-  AccountPubKey pub_key = pair.pub;
-  AccountPrivKey priv_key = pair.prv.data;
+    AccountAddress account = pair.pub;
+    AccountPubKey pub_key = pair.pub;
+    AccountPrivKey priv_key = pair.prv.data;
 
-  StateBlock state(account,  // account
-                           BlockHash(), // previous
-                           0, // sqn
-                           account,  // link
-                           amount,
-                           fee,
-                           priv_key,
-                           pub_key,
-                           work);
-    std::string contents = state.SerializeJson(false, true);
+    Send state(account,  // account
+               BlockHash(), // previous
+               0, // sqn
+               account,  // link
+               amount,
+               fee,
+               priv_key,
+               pub_key,
+               work);
+
+    std::string contents = state.ToJson();
     boost::log::sources::logger_mt log;
-    LOG_DEBUG(log) << "initializing delegate " <<
-                                    pair.prv.data.to_string() << " " <<
-                                    pair.pub.to_string() << " " <<
-                                    //pair.pub.to_account() << " " <<
-                                    state.GetHash().to_string() << "\n" << contents;
+    LOG_DEBUG(log) << "initializing delegate "
+                   << pair.prv.data.to_string() << " "
+                   << pair.pub.to_string() << " "
+                   // <<  pair.pub.to_account() << " "
+                   << state.GetHash().to_string() << "\n"
+                   << contents;
 
     ReceiveBlock receive(0, state.GetHash(), 0);
     node.store.receive_put(state.GetHash(), receive, transaction);
 
-  node.store.account_put(account,
+    node.store.account_put(account,
                       {
                               /* Head    */ 0,
                               /* Previous*/ 0,
@@ -154,10 +157,10 @@ MicroBlockTester::precreate_account(
                               /* Receive */ 0
                       },
                       transaction);
-  response_l.put("private", pair.prv.data.to_string());
-  response_l.put("public", pair.pub.to_string());
-  response_l.put("account", pair.pub.to_account());
-  response (response_l);
+    response_l.put("private", pair.prv.data.to_string());
+    response_l.put("public", pair.pub.to_string());
+    response_l.put("account", pair.pub.to_account());
+    response (response_l);
 }
 
 void 
@@ -165,25 +168,27 @@ MicroBlockTester::read_accounts(
     std::function<void(boost::property_tree::ptree const &)> response,
     logos::node &node)
 {
-  boost::property_tree::ptree response_l;
-  logos::transaction transaction(node.store.environment, nullptr, false);
-  int i = 0;
-  for (auto it = logos::store_iterator(transaction, node.store.account_db); it != logos::store_iterator(nullptr); ++it) {
-    logos::account account(it->first.uint256());
-    bool error = false;
-    logos::account_info info(error, it->second);
-    boost::property_tree::ptree response;
-    response.put ("frontier", info.head.to_string ());
-    response.put ("open_block", info.open_block.to_string ());
-    response.put ("representative_block", info.rep_block.to_string ());
-    std::string balance;
-    logos::uint128_union (info.balance).encode_dec (balance);
-    response.put ("balance", balance);
-    response.put ("modified_timestamp", std::to_string (info.modified));
-    response.put ("block_count", std::to_string (info.block_count));
-    response_l.push_back (std::make_pair (account.to_account (), response));
-  }
-  response (response_l);
+    boost::property_tree::ptree response_l;
+    logos::transaction transaction(node.store.environment, nullptr, false);
+    int i = 0;
+    for (auto it = logos::store_iterator(transaction, node.store.account_db);
+         it != logos::store_iterator(nullptr); ++it)
+    {
+        logos::account account(it->first.uint256());
+        bool error = false;
+        logos::account_info info(error, it->second);
+        boost::property_tree::ptree response;
+        response.put ("frontier", info.head.to_string ());
+        response.put ("open_block", info.open_block.to_string ());
+        response.put ("representative_block", info.rep_block.to_string ());
+        std::string balance;
+        logos::uint128_union (info.balance).encode_dec (balance);
+        response.put ("balance", balance);
+        response.put ("modified_timestamp", std::to_string (info.modified));
+        response.put ("block_count", std::to_string (info.block_count));
+        response_l.push_back (std::make_pair (account.to_account (), response));
+    }
+    response (response_l);
 }
 
 void
@@ -191,12 +196,12 @@ MicroBlockTester::generate_microblock(
     std::function<void(boost::property_tree::ptree const &)> response,
     logos::node &node)
 {
-  logos::transaction transaction(node.store.environment, nullptr, true);
-  boost::property_tree::ptree response_l;
-  bool last_block = _request.get<bool>("last", false);
-  node._archiver.Test_ProposeMicroBlock(node._consensus_container, last_block);
-  response_l.put ("result", "sent");
-  response (response_l);
+    logos::transaction transaction(node.store.environment, nullptr, true);
+    boost::property_tree::ptree response_l;
+    bool last_block = _request.get<bool>("last", false);
+    node._archiver.Test_ProposeMicroBlock(node._consensus_container, last_block);
+    response_l.put ("result", "sent");
+    response (response_l);
 }
 
 void
@@ -225,9 +230,11 @@ MicroBlockTester::start_epoch_transition(
     int delay = _request.get<int>("delay", 0);
     RecallHandler handler;
     EventProposer proposer(node.alarm, handler, false);
-    proposer.ProposeTransitionOnce([&node]()->void{
-        node._consensus_container.EpochTransitionEventsStart();
-    }, Seconds(delay));
+    proposer.ProposeTransitionOnce(
+        [&node]()->void{
+            node._consensus_container.EpochTransitionEventsStart();
+        },
+        Seconds(delay));
     response_l.put ("result", "in-progress");
     response (response_l);
 }
@@ -241,7 +248,8 @@ MicroBlockTester::informational(
 
     std::string type = _request.get<std::string>("type", "");
 
-    if (type == "epoch") {
+    if (type == "epoch")
+    {
         ApprovedEB epoch;
         
         std::stringstream str;
@@ -321,7 +329,8 @@ MicroBlockTester::epoch_delegates(
     }
 
     int del = 0;
-    for (auto acct : delegates) {
+    for (auto acct : delegates)
+    {
         boost::property_tree::ptree response;
         char buff[5];
         sprintf(buff, "%d", del);

@@ -7,13 +7,14 @@ RequestHandler::RequestHandler()
     // After startup consensus is performed
     // with an empty batch block.
     //
-    _requests.get<0>().push_back(StateBlock());
+    _requests.get<0>().push_back(Send());
 }
 
-void RequestHandler::OnRequest(std::shared_ptr<StateBlock> block)
+void RequestHandler::OnRequest(std::shared_ptr<Send> block)
 {
     LOG_DEBUG (_log) << "RequestHandler::OnRequest"
-            << block->SerializeJson(false, false);
+                     << block->ToJson();
+
     _requests.get<0>().push_back(*block);
 }
 
@@ -44,7 +45,7 @@ RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch()
         // container and close the batch.
 
         LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch requests_size="
-                << sequence.size();
+                         << sequence.size();
 
         if(pos->account.is_zero() && pos->GetNumTransactions() == 0)
         {
@@ -62,7 +63,7 @@ RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch()
     return _current_batch;
 }
 
-void RequestHandler::InsertFront(const std::list<StateBlock> & blocks)
+void RequestHandler::InsertFront(const std::list<Send> & blocks)
 {
     auto & sequenced = _requests.get<0>();
 

@@ -480,7 +480,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
         }
     }
 
-    std::list<StateBlock> requests;
+    std::list<struct Send> requests;
 
     // Create new pre-prepare messages
     // based on the subsets.
@@ -497,7 +497,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
             requests.push_back(batch.blocks[*itr]);
         }
 
-        requests.push_back(StateBlock());
+        requests.push_back(::Send());
     }
 
     // Pushing a null state_block to the front
@@ -506,7 +506,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
     // we proceed if no requests can be re-proposed.
     if(requests.empty())
     {
-        requests.push_back(StateBlock());
+        requests.push_back(::Send());
     }
 
     _handler.PopFront();

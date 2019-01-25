@@ -20,12 +20,12 @@ class RequestHandler
 {
     using Requests =
             boost::multi_index_container<
-                StateBlock,
+                Send,
                 indexed_by<
                     sequenced<>,
                     hashed_non_unique<
                         const_mem_fun<
-                            StateBlock, BlockHash, &StateBlock::GetHash
+                            Send, BlockHash, &Send::GetHash
                         >
                     >
                 >
@@ -37,7 +37,7 @@ public:
 
     RequestHandler();
 
-    void OnRequest(std::shared_ptr<StateBlock> block);
+    void OnRequest(std::shared_ptr<Send> block);
     void OnPostCommit(const BatchStateBlock & batch);
 
     BSBPrePrepare & PrepareNextBatch();
@@ -47,7 +47,7 @@ public:
                 << "batch_size=" << _current_batch.block_count;
         return _current_batch;
     }
-    void InsertFront(const std::list<StateBlock> & blocks);
+    void InsertFront(const std::list<Send> & blocks);
     void Acquire(const BSBPrePrepare & batch);
 
     void PopFront();

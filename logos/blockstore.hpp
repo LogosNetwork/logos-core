@@ -133,21 +133,24 @@ public:
     // return true if cannot found hash
     bool consensus_block_update_next(const BlockHash & hash, const BlockHash & next, ConsensusType type, MDB_txn * transaction);
 
-    // consensus-prototype additions
     bool batch_block_put(ApprovedBSB const &, MDB_txn *);
     bool batch_block_put(ApprovedBSB const &, const BlockHash &, MDB_txn *);
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block);
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block, MDB_txn *);
-    bool state_block_get(const BlockHash & hash, StateBlock & block, MDB_txn *);
-    bool state_block_put(StateBlock const &, const BlockHash & hash, MDB_txn *);
-    bool state_block_exists(const StateBlock & block);
-    bool state_block_exists(const BlockHash & hash);
+
+    bool request_get(const BlockHash &hash, Request & request, MDB_txn *transaction);
+    bool request_put(const Request &, const BlockHash &, MDB_txn *);
+    bool request_exists(const Request & request);
+    bool request_exists(const BlockHash & hash);
+
     bool account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* t=0);
     bool account_db_empty();
     bool account_put (AccountAddress const &, logos::account_info const &, MDB_txn *);
+
     bool receive_put(const BlockHash & hash, const ReceiveBlock & block, MDB_txn *);
     bool receive_get(const BlockHash & hash, ReceiveBlock & block, MDB_txn *);
     bool receive_exists(const BlockHash & hash);
+
     bool batch_tip_put(uint8_t delegate_id, const BlockHash & hash, MDB_txn *);
     bool batch_tip_get(uint8_t delegate_id, BlockHash & hash);
 

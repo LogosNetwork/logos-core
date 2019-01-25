@@ -2,6 +2,7 @@
 
 #include <logos/consensus/messages/common.hpp>
 #include <logos/node/utility.hpp>
+#include <logos/lib/hash.hpp>
 
 enum class RejectionReason : uint8_t
 {

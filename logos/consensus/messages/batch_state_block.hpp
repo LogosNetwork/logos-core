@@ -4,12 +4,13 @@
 ///
 #pragma once
 
+#include <logos/consensus/messages/receive_block.hpp>
 #include <logos/consensus/messages/common.hpp>
-#include <logos/consensus/messages/state_block.hpp>
+#include <logos/request/send.hpp>
 
 
-using BlockList             = StateBlock [CONSENSUS_BATCH_SIZE];
-using BlockHashList         = BlockHash [CONSENSUS_BATCH_SIZE];
+using BlockList     = Send [CONSENSUS_BATCH_SIZE];
+using BlockHashList = BlockHash [CONSENSUS_BATCH_SIZE];
 
 struct BatchStateBlock : PrePrepareCommon
 {
@@ -25,12 +26,12 @@ struct BatchStateBlock : PrePrepareCommon
     /// Add a new state block
     /// @param to_add the new state block to be added
     /// @returns if the new state block is added.
-    bool AddStateBlock(const StateBlock & to_add)
+    bool AddStateBlock(const Send & to_add)
     {
         if(block_count >= CONSENSUS_BATCH_SIZE)
             return false;
 
-        new(&blocks[block_count]) StateBlock(to_add);
+        new(&blocks[block_count]) Send(to_add);
         hashs[block_count] = blocks[block_count].GetHash();
         ++block_count;
         return true;

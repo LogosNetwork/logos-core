@@ -2,6 +2,7 @@
 
 #include <logos/request/fields.hpp>
 #include <logos/lib/utility.hpp>
+#include <logos/lib/hash.hpp>
 
 #include <boost/property_tree/json_parser.hpp>
 
@@ -144,10 +145,23 @@ std::string GetRequestTypeField(RequestType type)
     return ret;
 }
 
+Request::Request(RequestType type,
+                 const BlockHash & previous)
+     : type(type)
+     , previous(previous)
+{}
+
 Request::Request(bool & error,
                  std::basic_streambuf<uint8_t> & stream)
 {
     error = logos::read(stream, type);
+    if(error)
+    {
+        return;
+    }
+
+    uint16_t size;
+    error = logos::read(stream, size);
     if(error)
     {
         return;
@@ -178,6 +192,12 @@ Request::Request(bool & error,
         {
             return;
         }
+
+        error = next.decode_hex(tree.get<std::string>("next"));
+        if(error)
+        {
+            return;
+        }
     }
     catch (...)
     {
@@ -188,11 +208,11 @@ Request::Request(bool & error,
 std::string Request::ToJson() const
 {
     boost::property_tree::ptree tree = SerializeJson();
+
     std::stringstream ostream;
     boost::property_tree::write_json(ostream, tree);
-    std::string result = ostream.str ();
 
-    return result;
+    return ostream.str();
 }
 
 boost::property_tree::ptree Request::SerializeJson() const
@@ -220,23 +240,34 @@ uint64_t Request::Serialize(logos::stream & stream) const
            logos::write(stream, next);
 }
 
+logos::mdb_val Request::SerializeDB(std::vector<uint8_t> & buf) const
+{
+    assert(buf.empty());
+
+    {
+        logos::vectorstream stream(buf);
+        Serialize(stream);
+    }
+
+    return {buf.size(), buf.data()};
+}
+
+BlockHash Request::GetHash() const
+{
+    // TODO: precompute?
+    //
+    return Hash();
+}
+
 auto Request::Hash() const -> BlockHash
 {
-    BlockHash result;
-    blake2b_state hash;
+    return Blake2bHash(*this);
+}
 
-    auto status (blake2b_init (&hash, sizeof (result.bytes)));
-    assert (status == 0);
-
+void Request::Hash(blake2b_state & hash) const
+{
     blake2b_update(&hash, &type, sizeof(type));
     previous.Hash(hash);
-
-    Hash (hash);
-
-    status = blake2b_final (&hash, result.bytes.data (), sizeof(result.bytes));
-    assert (status == 0);
-
-    return result;
 }
 
 uint16_t Request::WireSize() const

@@ -259,15 +259,15 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
 
 
-        StateBlock state(logos::logos_test_account,   // account
-                         genesis_account.head,         // previous
-                         genesis_account.block_count,  // sequence
-                         pair.pub,  // link/to
-                         amount,
-                         fee,       // transaction fee
-                         pair.prv.data,
-                         pair.pub,
-                         work);
+        Send state(logos::logos_test_account,   // account
+                   genesis_account.head,         // previous
+                   genesis_account.block_count,  // sequence
+                   pair.pub,  // link/to
+                   amount,
+                   fee,       // transaction fee
+                   pair.prv.data,
+                   pair.pub,
+                   work);
 
         genesis_account.balance = genesis_account.balance.number() - amount.number();
         genesis_account.head = state.GetHash();
@@ -276,7 +276,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
         ReceiveBlock receive(0, state.GetHash(), 0);
 
-        _store.state_block_put(state, state.GetHash(), transaction);
+        _store.request_put(state, state.GetHash(), transaction);
 
         _store.receive_put(receive.Hash(),
                 receive,
