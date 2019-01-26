@@ -2,6 +2,7 @@
 
 #include <logos/request/fields.hpp>
 #include <logos/lib/utility.hpp>
+#include <logos/lib/hash.hpp>
 
 #include <boost/property_tree/json_parser.hpp>
 
@@ -20,7 +21,7 @@ RequestType GetRequestType(bool &error, std::string data)
     {
         ret = RequestType::Send;
     }
-    else if(data == CHANGE_REP)
+    else if(data == CHANGE)
     {
         ret = RequestType::ChangeRep;
     }
@@ -95,7 +96,7 @@ std::string GetRequestTypeField(RequestType type)
             ret = SEND;
             break;
         case RequestType::ChangeRep:
-            ret = CHANGE_REP;
+            ret = CHANGE;
             break;
         case RequestType::IssueTokens:
             ret = ISSUE_TOKENS;
@@ -222,21 +223,13 @@ uint64_t Request::Serialize(logos::stream & stream) const
 
 auto Request::Hash() const -> BlockHash
 {
-    BlockHash result;
-    blake2b_state hash;
+    return Blake2bHash(*this);
+}
 
-    auto status (blake2b_init (&hash, sizeof (result.bytes)));
-    assert (status == 0);
-
+void Request::Hash(blake2b_state & hash) const
+{
     blake2b_update(&hash, &type, sizeof(type));
     previous.Hash(hash);
-
-    Hash (hash);
-
-    status = blake2b_final (&hash, result.bytes.data (), sizeof(result.bytes));
-    assert (status == 0);
-
-    return result;
 }
 
 uint16_t Request::WireSize() const

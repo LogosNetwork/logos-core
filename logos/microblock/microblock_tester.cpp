@@ -78,7 +78,7 @@ MicroBlockTester::block_create_test(
   int ndelegates = 32;
   int n_batch_blocks = 100; // need to randomize to simulate different arrival
   int n_state_blocks = 100;
-  StateBlock state_block;
+  Send state_block;
   DelegateSig delegate_sig;
   AccountSig account_sig;
   static BlockHash previous[32]; // should be current epoch for 1st block
@@ -122,10 +122,9 @@ MicroBlockTester::precreate_account(
   AccountPubKey pub_key = pair.pub;
   AccountPrivKey priv_key = pair.prv.data;
 
-  StateBlock state(account,  // account
+  Send state(account,  // account
                            BlockHash(), // previous
                            0, // sqn
-                           StateBlock::Type::send, //Type
                            account,  // link
                            amount,
                            fee,

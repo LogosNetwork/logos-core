@@ -78,7 +78,7 @@ ConsensusContainer::CreateEpochManager(
 
 logos::process_return
 ConsensusContainer::OnSendRequest(
-    std::shared_ptr<StateBlock> block,
+    std::shared_ptr<Send> block,
     bool should_buffer)
 {
     logos::process_return result;
@@ -109,7 +109,7 @@ ConsensusContainer::OnSendRequest(
     else
     {
         LOG_DEBUG(_log) << "ConsensusContainer::OnSendRequest: "
-                << "number_transaction=" << block->trans.size();
+                        << "number_transaction=" << block->transactions.size();
         _cur_epoch->_batch_manager.OnSendRequest(
             static_pointer_cast<Request>(block), result);
     }

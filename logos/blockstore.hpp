@@ -138,9 +138,9 @@ public:
     bool batch_block_put(ApprovedBSB const &, const BlockHash &, MDB_txn *);
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block);
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block, MDB_txn *);
-    bool state_block_get(const BlockHash & hash, StateBlock & block, MDB_txn *);
-    bool state_block_put(StateBlock const &, const BlockHash & hash, MDB_txn *);
-    bool state_block_exists(const StateBlock & block);
+    bool state_block_get(const BlockHash & hash, Send & block, MDB_txn *);
+    bool state_block_put(Send const &, const BlockHash & hash, MDB_txn *);
+    bool state_block_exists(const Send & block);
     bool state_block_exists(const BlockHash & hash);
     bool account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* t=0);
     bool account_db_empty();

@@ -57,11 +57,11 @@ CONSENSUS_TYPE
     Epoch = 2
 );
 
-static const size_t NUM_DELEGATES               = 32;
-static const size_t CONSENSUS_BATCH_SIZE        = 1500;
+static const size_t NUM_DELEGATES        = 32;
+static const size_t CONSENSUS_BATCH_SIZE = 1500;
 
-using ParicipationMap       = std::bitset<NUM_DELEGATES>;
-using RejectionMap          = std::vector<bool>;
+using ParicipationMap = std::bitset<NUM_DELEGATES>;
+using RejectionMap    = std::vector<bool>;
 
 inline uint64_t GetStamp()
 {
@@ -69,23 +69,6 @@ inline uint64_t GetStamp()
 
     return duration_cast< milliseconds >(
                 system_clock::now().time_since_epoch()).count();
-}
-
-template<typename T>
-BlockHash Blake2bHash(const T & t)
-{
-    BlockHash digest;
-    blake2b_state hash;
-
-    auto status(blake2b_init(&hash, HASH_SIZE));
-    assert(status == 0);
-
-    t.Hash(hash);
-
-    status = blake2b_final(&hash, digest.data(), HASH_SIZE);
-    assert(status == 0);
-
-    return digest;
 }
 
 struct AggSignature
