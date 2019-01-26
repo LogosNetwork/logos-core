@@ -334,6 +334,64 @@ logos::mdb_val logos::account_info::to_mdb_val(std::vector<uint8_t> &buf) const
     return logos::mdb_val(buf.size(), buf.data());
 }
 
+//*** begin RepInfo functions ***
+
+logos::RepInfo::RepInfo() : candidacy_head(0), election_vote_head(0) {}
+
+logos::RepInfo::RepInfo(bool & error, const logos::mdb_val & mdbval)
+{
+
+    logos::bufferstream stream(
+            reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
+    error = deserialize (stream);
+}
+
+logos::RepInfo::RepInfo (
+        logos::block_hash const & candidacy_head_a,
+        logos::block_hash const & election_vote_head_a)
+    : candidacy_head(candidacy_head_a)
+    , election_vote_head(election_vote_head_a)
+{}
+
+uint32_t logos::RepInfo::serialize (logos::stream & stream) const
+{
+    auto s = write (stream, candidacy_head.bytes);
+    s += write (stream, election_vote_head.bytes);
+    return s;
+}
+
+bool logos::RepInfo::deserialize (logos::stream & stream)
+{
+    auto error (read (stream, candidacy_head.bytes));
+    if(!error)
+    {
+        error = read (stream, election_vote_head.bytes);
+    }
+    return error;
+}
+
+bool logos::RepInfo::operator== (logos::RepInfo const & other) const
+{
+    return candidacy_head == other.candidacy_head
+        && election_vote_head == other.election_vote_head;
+}
+
+bool logos::RepInfo::operator!= (logos::RepInfo const & other) const
+{
+    return !(*this == other);
+}
+
+logos::mdb_val logos::RepInfo::to_mdb_val(std::vector<uint8_t> &buf) const
+{
+    assert(buf.empty());
+    {
+        logos::vectorstream stream(buf);
+        serialize(stream);
+    }
+    return logos::mdb_val(buf.size(), buf.data());
+}
+//*** end RepInfo functions ***
+
 logos::block_counts::block_counts () :
 send (0),
 receive (0),
