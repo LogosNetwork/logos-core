@@ -96,15 +96,7 @@ BatchBlockConsensusManager::Validate(
   std::shared_ptr<Request> block,
   logos::process_return & result)
 {
-    if(! block->VerifySignature(block->account))
-    {
-        LOG_INFO(_log) << "BatchBlockConsensusManager - Validate, bad signature: "
-                       << block->signature.to_string()
-                       << " account: " << block->account.to_string();
-
-        result.code = logos::process_result::bad_signature;
-        return false;
-    }
+    // Signature validation is handled in TxAcceptor
 
     return _persistence_manager.Validate(*block, result, false);
 }

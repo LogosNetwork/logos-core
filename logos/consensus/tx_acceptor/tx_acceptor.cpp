@@ -339,6 +339,14 @@ TxAcceptor::AsyncReadBin(std::shared_ptr<Socket> socket)
 logos::process_result
 TxAcceptor::Validate(const std::shared_ptr<Request> & block)
 {
+    if (!block->VerifySignature(block->account))
+    {
+        LOG_INFO(_log) << "TxAcceptor::Validate , bad signature: "
+                       << block->signature.to_string()
+                       << " account: " << block->account.to_string();
+        return logos::process_result::bad_signature;
+    }
+
     if (block->account.is_zero())
     {
         return logos::process_result::opened_burn_account;
@@ -350,14 +358,6 @@ TxAcceptor::Validate(const std::shared_ptr<Request> & block)
                        << block->transaction_fee.number()
                        << " account: " << block->account.to_string();
         return logos::process_result::insufficient_fee;
-    }
-
-    if (!block->VerifySignature(block->account))
-    {
-        LOG_INFO(_log) << "TxAcceptor::Validate , bad signature: "
-                       << block->signature.to_string()
-                       << " account: " << block->account.to_string();
-        return logos::process_result::bad_signature;
     }
 
     return logos::process_result::progress;

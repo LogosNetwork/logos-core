@@ -48,4 +48,27 @@ public:
 
         return PersistenceManager<BSBCT>::Validate(message, status);
     }
+
+    bool Validate(const request & block, logos::process_return &result, bool allow_duplicate=false) override
+    {
+        if(block.account.is_zero())
+        {
+            result.code = logos::process_result::opened_burn_account;
+            return false;
+        }
+
+        if(block.transaction_fee.number() < MIN_TRANSACTION_FEE)
+        {
+            result.code = logos::process_result::insufficient_fee;
+            return false;
+        }
+
+        return PersistenceManager<BSBCT>::Validate(block, result, allow_duplidate);
+    }
+
+    bool Validate(const request & block) override
+    {
+       logos::process_return res;
+       return Validate(block, res);
+    }
 };

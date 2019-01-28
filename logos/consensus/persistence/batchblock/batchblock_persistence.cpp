@@ -54,17 +54,7 @@ bool PersistenceManager<BSBCT>::Validate(
 {
     auto hash = block.GetHash();
 
-    if(block.account.is_zero())
-    {
-        result.code = logos::process_result::opened_burn_account;
-        return false;
-    }
-
-    if(block.transaction_fee.number() < MIN_TRANSACTION_FEE)
-    {
-        result.code = logos::process_result::insufficient_fee;
-        return false;
-    }
+    // burn account and transaction fee validation is done in TxAcceptor
 
     std::lock_guard<std::mutex> lock(_reservation_mutex);
 
