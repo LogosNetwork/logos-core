@@ -3,8 +3,8 @@
 /// handles specifics of BatchBlock consensus.
 #pragma once
 
-#include <logos/consensus/batchblock/bb_backup_delegate.hpp>
-#include <logos/consensus/batchblock/request_handler.hpp>
+#include <logos/consensus/request/request_backup_delegate.hpp>
+#include <logos/consensus/request/request_handler.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 
 /// ConsensusManager that handles BatchBlock consensus.

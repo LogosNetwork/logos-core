@@ -1,10 +1,10 @@
 /// @file
 /// This file contains implementation of the BatchBlockConsensusManager class, which
 /// handles specifics of BatchBlock consensus
-#include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
-#include <logos/consensus/batchblock/bb_backup_delegate.hpp>
-#include <logos/consensus/consensus_container.hpp>
+#include <logos/consensus/request/request_consensus_manager.hpp>
+#include <logos/consensus/request/request_backup_delegate.hpp>
 #include <logos/consensus/epoch_manager.hpp>
+#include <logos/consensus/consensus_container.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 
 const boost::posix_time::seconds BatchBlockConsensusManager::ON_CONNECTED_TIMEOUT{10};

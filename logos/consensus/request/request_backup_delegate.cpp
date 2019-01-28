@@ -1,7 +1,7 @@
 /// @file
 /// This file contains specializations of the BackupDelegate class, which
 /// handle the specifics of BatchBlock consensus.
-#include <logos/consensus/batchblock/bb_backup_delegate.hpp>
+#include <logos/consensus/request/request_backup_delegate.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/lib/epoch_time_util.hpp>
