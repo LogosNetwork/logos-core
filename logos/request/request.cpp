@@ -137,6 +137,15 @@ std::string GetRequestTypeField(RequestType type)
         case RequestType::SendTokens:
             ret = SEND_TOKENS;
             break;
+        case RequestType::AnnounceCandidacy:
+            ret = ANNOUNCE_CANDIDACY;
+            break;
+        case RequestType::RenounceCandidacy:
+            ret = RENOUNCE_CANDIDACY;
+            break;
+        case RequestType::ElectionVote:
+            ret = ELECTION_VOTE;
+            break;
         case RequestType::Unknown:
             ret = UNKNOWN;
             break;

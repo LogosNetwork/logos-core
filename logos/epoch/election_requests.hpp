@@ -2,6 +2,7 @@
 
 #include <logos/common.hpp>
 #include <logos/lib/numbers.hpp>
+#include <logos/request/request.hpp>
 
 
 using AccountAddress = logos::uint256_union;
@@ -9,38 +10,44 @@ using AccountAddress = logos::uint256_union;
 
 struct ElectionVote : Request
 {
-    Vote();
 
-    virtual ~Vote();
+    using Votes = std::vector<std::pair<AccountAddress,uint8_t>>;
+
+    ElectionVote();
 
     void Hash(blake2b_state& hash) const override;
 
     uint16_t WireSize() const override;
 
+    boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
+
     //the accounts im voting for
-    std::vector<std::pair<AccountAddress,uint8_t>> votes; 
+    Votes votes; 
 };
 
 struct AnnounceCandidacy : Request
 {
-    Candidacy();  
+    AnnounceCandidacy(const BlockHash & previous); 
 
-    virtual ~Candidacy();
+    AnnounceCandidacy(bool & error,
+            std::basic_streambuf<uint8_t> & stream);
 
-    void Hash(blake2b_state& hash) const override;
+    AnnounceCandidacy(bool & error,
+            boost::property_tree::ptree const & tree);
 
-    uint16_t WireSize() const override;
 };
 
 struct RenounceCandidacy : Request
 {
-    Candidacy();  
+    RenounceCandidacy(const BlockHash & previous);  
 
-    virtual ~Candidacy();
+    RenounceCandidacy(bool & error,
+            std::basic_streambuf<uint8_t> & stream);
 
-    void Hash(blake2b_state& hash) const override;
+    RenounceCandidacy(bool & error,
+            boost::property_tree::ptree const & tree);
 
-    uint16_t WireSize() const override;
 };
 
 

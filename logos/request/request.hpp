@@ -35,7 +35,11 @@ enum class RequestType : uint8_t
 
     // Unknown
     //
-    Unknown            = 15
+    Unknown            = 15,
+
+    AnnounceCandidacy  = 16,
+    RenounceCandidacy  = 17,
+    ElectionVote       = 18
 };
 
 RequestType GetRequestType(bool &error, std::string data);

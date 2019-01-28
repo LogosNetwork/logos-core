@@ -23,6 +23,9 @@ const char BURN[]              = "burn";
 const char DISTRIBUTE[]        = "distribute";
 const char WITHDRAW[]          = "withdraw";
 const char SEND_TOKENS[]       = "send_tokens";
+const char ANNOUNCE_CANDIDACY[]  = "announce_candidacy";
+const char RENOUNCE_CANDIDACY[]  = "renounce_candidacy";
+const char ELECTION_VOTE[]       = "election_vote";
 const char UNKNOWN[]           = "unknown";
 
 // Request fields
