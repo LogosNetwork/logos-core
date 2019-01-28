@@ -123,11 +123,11 @@ public:
     /// Handles requests for batch block consensus.
     ///
     /// Submits transactions to consensus logic.
-    ///     @param[in] block state_block containing the transaction
+    ///     @param[in] request state_block containing the transaction
     ///     @param[in] should_buffer bool flag that, when set, will
     ///                              cause the block to be buffered
     ///     @return process_return result of the operation
-    logos::process_return OnSendRequest(std::shared_ptr<Send> block,
+    logos::process_return OnSendRequest(std::shared_ptr<Send> request,
                                         bool should_buffer) override;
 
     /// Handles requests for batch block consensus.

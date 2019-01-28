@@ -12,12 +12,12 @@ RequestHandler::RequestHandler()
     _requests.get<0>().push_back(Send());
 }
 
-void RequestHandler::OnRequest(std::shared_ptr<Send> block)
+void RequestHandler::OnRequest(std::shared_ptr<Send> request)
 {
     LOG_DEBUG (_log) << "RequestHandler::OnRequest"
-                     << block->ToJson();
+                     << request->ToJson();
 
-    _requests.get<0>().push_back(*block);
+    _requests.get<0>().push_back(*request);
 }
 
 void RequestHandler::OnPostCommit(const BatchStateBlock & batch)
@@ -88,12 +88,12 @@ RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch(
     return _current_batch;
 }
 
-void RequestHandler::InsertFront(const std::list<Send> & blocks)
+void RequestHandler::InsertFront(const std::list<Send> & requests)
 {
     std::lock_guard<std::mutex> lock(_mutex);
     auto & sequenced = _requests.get<0>();
 
-    sequenced.insert(sequenced.begin(), blocks.begin(), blocks.end());
+    sequenced.insert(sequenced.begin(), requests.begin(), requests.end());
 }
 
 void RequestHandler::Acquire(const BSBPrePrepare & batch)
