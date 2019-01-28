@@ -315,9 +315,9 @@ add_library (logos_lib_static STATIC ${LOGOS_LIB_SOURCES})
 add_library (node
 	${PLATFORM_NODE_SOURCE}
 	${SECURE_RPC_SOURCE}
-	logos/consensus/batchblock/batchblock_consensus_manager.cpp
-	logos/consensus/batchblock/bb_backup_delegate.cpp
-	logos/consensus/batchblock/request_handler.cpp
+	logos/consensus/request/request_consensus_manager.cpp
+	logos/consensus/request/request_backup_delegate.cpp
+	logos/consensus/request/request_handler.cpp
 	logos/consensus/secondary_request_handler.cpp
 	logos/consensus/delegate_bridge.cpp
 	logos/consensus/backup_delegate.cpp
