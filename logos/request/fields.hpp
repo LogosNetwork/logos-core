@@ -8,25 +8,25 @@ namespace fields
 
 // Request types
 //
-const char SEND[]              = "send";
-const char CHANGE[]            = "change";
-const char ISSUE_TOKENS[]      = "issue";
-const char ISSUE_ADTL[]        = "issue_additional";
-const char IMMUTE[]            = "immute";
-const char REVOKE[]            = "revoke";
-const char FREEZE[]            = "freeze";
-const char SET_FEE[]           = "set_fee";
-const char UPDATE_WHITELIST[]  = "update_whitelist";
-const char UPDATE_INFO[]       = "update_issuer_info";
-const char UPDATE_CONTROLLER[] = "update_controller";
-const char BURN[]              = "burn";
-const char DISTRIBUTE[]        = "distribute";
-const char WITHDRAW[]          = "withdraw";
-const char SEND_TOKENS[]       = "send_tokens";
-const char ANNOUNCE_CANDIDACY[]  = "announce_candidacy";
-const char RENOUNCE_CANDIDACY[]  = "renounce_candidacy";
-const char ELECTION_VOTE[]       = "election_vote";
-const char UNKNOWN[]           = "unknown";
+const char SEND[]               = "send";
+const char CHANGE[]             = "change";
+const char ISSUE_TOKENS[]       = "issue";
+const char ISSUE_ADTL[]         = "issue_additional";
+const char IMMUTE[]             = "immute";
+const char REVOKE[]             = "revoke";
+const char FREEZE[]             = "freeze";
+const char SET_FEE[]            = "set_fee";
+const char UPDATE_WHITELIST[]   = "update_whitelist";
+const char UPDATE_INFO[]        = "update_issuer_info";
+const char UPDATE_CONTROLLER[]  = "update_controller";
+const char BURN[]               = "burn";
+const char DISTRIBUTE[]         = "distribute";
+const char WITHDRAW[]           = "withdraw";
+const char SEND_TOKENS[]        = "send_tokens";
+const char ANNOUNCE_CANDIDACY[] = "announce_candidacy";
+const char RENOUNCE_CANDIDACY[] = "renounce_candidacy";
+const char ELECTION_VOTE[]      = "election_vote";
+const char UNKNOWN[]            = "unknown";
 
 // Request fields
 //
@@ -57,6 +57,8 @@ const char TRANSACTIONS[]   = "transactions";
 const char FEE[]            = "fee";
 const char CLIENT[]         = "client";
 const char REPRESENTATIVE[] = "representative";
+const char VOTES[]          = "votes";
+const char REQUEST[]        = "request";
 
 // Token setting fields
 //
