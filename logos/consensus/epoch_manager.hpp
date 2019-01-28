@@ -4,8 +4,8 @@
 
 #pragma once
 #include <logos/epoch/epoch_transition.hpp>
-#include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
+#include <logos/consensus/request/request_consensus_manager.hpp>
 #include <logos/consensus/network/consensus_netio_manager.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 

@@ -1,4 +1,4 @@
-#include <logos/consensus/batchblock/request_handler.hpp>
+#include <logos/consensus/request/request_handler.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/blocks.hpp>
 

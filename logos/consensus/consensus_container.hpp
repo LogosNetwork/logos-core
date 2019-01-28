@@ -3,14 +3,14 @@
 /// consensus related types
 #pragma once
 
-#include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
+#include <logos/consensus/request/request_consensus_manager.hpp>
 #include <logos/consensus/network/consensus_netio_manager.hpp>
-#include <logos/consensus/network/epoch_peer_manager.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
+#include <logos/consensus/network/epoch_peer_manager.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/epoch/epoch_transition.hpp>
 
 #include <queue>
