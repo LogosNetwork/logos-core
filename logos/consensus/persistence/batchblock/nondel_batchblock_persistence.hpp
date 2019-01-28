@@ -9,15 +9,15 @@
 #include <logos/consensus/persistence/nondel_persistence.hpp>
 
 template<>
-class NonDelPersistenceManager<BSBCT> : public PersistenceManager<BSBCT>, public NoneDelegatePersistence<BSBCT>
+class NonDelPersistenceManager<B> : public PersistenceManager<B>, public NoneDelegatePersistence<B>
 {
 public:
-    using PersistenceManager<BSBCT>::Validate;
+    using PersistenceManager<B>::Validate;
 
     NonDelPersistenceManager(Store &store,
                              Milliseconds clock_drift = ZERO_CLOCK_DRIFT)
-        : PersistenceManager<BSBCT>(store, nullptr, clock_drift)
-        , NoneDelegatePersistence<BSBCT>(store)
+        : PersistenceManager<B>(store, nullptr, clock_drift)
+        , NoneDelegatePersistence<B>(store)
     {}
 
     bool ValidatePreprepare(const PrePrepare & message, ValidationStatus * status)
@@ -46,7 +46,7 @@ public:
             return false;
         }
 
-        return PersistenceManager<BSBCT>::Validate(message, status);
+        return PersistenceManager<B>::Validate(message, status);
     }
 
     bool ValidateSingleRequest(const Request & block, logos::process_return &result, bool allow_duplicate=false) override

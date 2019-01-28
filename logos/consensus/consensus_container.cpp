@@ -85,7 +85,7 @@ ConsensusContainer::CreateEpochManager(
 
 logos::process_return
 ConsensusContainer::OnSendRequest(
-    std::shared_ptr<Send> block,
+    std::shared_ptr<Send> request,
     bool should_buffer)
 {
     logos::process_return result;
@@ -99,7 +99,7 @@ ConsensusContainer::OnSendRequest(
         return result;
     }
 
-	if(!block)
+	if(!request)
 	{
 	    result.code = logos::process_result::invalid_block_type;
 	    return result;
@@ -108,14 +108,15 @@ ConsensusContainer::OnSendRequest(
     if(should_buffer)
     {
         result.code = logos::process_result::buffered;
-        _cur_epoch->_batch_manager.OnBenchmarkSendRequest(block, result);
+        _cur_epoch->_batch_manager.OnBenchmarkSendRequest(
+            static_pointer_cast<Request>(request), result);
     }
     else
     {
         LOG_DEBUG(_log) << "ConsensusContainer::OnSendRequest: "
-                        << "number_transaction=" << block->transactions.size();
+                        << "number_transaction=" << request->transactions.size();
         _cur_epoch->_batch_manager.OnSendRequest(
-            static_pointer_cast<Request>(block), result);
+            static_pointer_cast<Request>(request), result);
     }
 
     return result;

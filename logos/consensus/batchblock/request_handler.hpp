@@ -40,12 +40,12 @@ public:
 
     RequestHandler();
 
-    void OnRequest(std::shared_ptr<Send> block);
+    void OnRequest(std::shared_ptr<Send> request);
     void OnPostCommit(const BatchStateBlock & batch);
 
     BSBPrePrepare & PrepareNextBatch(Manager & manager, bool repropose = false);
     BSBPrePrepare & GetCurrentBatch();
-    void InsertFront(const std::list<std::shared_ptr<Send>> & blocks);
+    void InsertFront(const std::list<Send> & requests);
     void Acquire(const BSBPrePrepare & batch);
 
     void PopFront();

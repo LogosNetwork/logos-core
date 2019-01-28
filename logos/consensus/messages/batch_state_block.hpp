@@ -8,8 +8,8 @@
 #include <logos/consensus/messages/common.hpp>
 #include <logos/request/send.hpp>
 
-using BlockList     = Send [CONSENSUS_BATCH_SIZE];
-using BlockHashList = BlockHash [CONSENSUS_BATCH_SIZE];
+using RequestList     = Send [CONSENSUS_BATCH_SIZE];
+using RequestHashList = BlockHash [CONSENSUS_BATCH_SIZE];
 
 struct BatchStateBlock : PrePrepareCommon
 {
@@ -60,9 +60,9 @@ struct BatchStateBlock : PrePrepareCommon
     /// @param with_state_block if the state blocks should be serialize
     /// @returns the number of bytes serialized
     uint32_t Serialize(logos::stream & stream, bool with_state_block) const;
-
-    uint16_t        block_count  = 0;
-    BlockList       blocks;
-    BlockHashList   hashes;
+    
+    uint16_t        block_count = 0;
+    RequestList     blocks;
+    RequestHashList hashs;
 };
 
