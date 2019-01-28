@@ -107,7 +107,7 @@ private:
     /// Update secondary request handler promoter during epoch transition
     void UpdateRequestPromoter()
     {
-        _batch_manager.UpdateRequestPromoter();
+        _request_manager.UpdateRequestPromoter();
         _micro_manager.UpdateRequestPromoter();
         _epoch_manager.UpdateRequestPromoter();
     }
@@ -117,11 +117,11 @@ private:
     std::atomic<EpochConnection>            _connection_state;  ///< Delegate's connection set
     const uint                              _epoch_number;      ///< Epoch's number
     NewEpochEventHandler &                  _new_epoch_handler; ///< Call back on new epoch events
-    DelegateKeyStore                        _key_store; 		///< Store delegates public keys
-    MessageValidator                        _validator; 		///< Validator/Signer of consensus messages
-    BatchBlockConsensusManager              _batch_manager; 	///< Handles batch block consensus
+    DelegateKeyStore                        _key_store;         ///< Store delegates public keys
+    MessageValidator                        _validator;         ///< Validator/Signer of consensus messages
+    BatchBlockConsensusManager              _request_manager; 	///< Handles batch block consensus
     MicroBlockConsensusManager	            _micro_manager; 	///< Handles micro block consensus
-    EpochConsensusManager	                _epoch_manager; 	///< Handles epoch consensus
+    EpochConsensusManager                   _epoch_manager;     ///< Handles epoch consensus
     ConsensusNetIOManager                   _netio_manager; 	///< Establishes connections to other delegates
     Log                                     _log;               ///< Boost log
     uint8_t                                 _delegate_id;       ///< Delegate id

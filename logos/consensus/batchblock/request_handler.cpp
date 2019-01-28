@@ -20,14 +20,14 @@ void RequestHandler::OnRequest(std::shared_ptr<Send> request)
     _requests.get<0>().push_back(*request);
 }
 
-void RequestHandler::OnPostCommit(const BatchStateBlock & batch)
+void RequestHandler::OnPostCommit(const RequestBlock & block)
 {
     std::lock_guard<std::mutex> lock(_mutex);
     auto & hashed = _requests.get<1>();
 
-    for(uint64_t pos = 0; pos < batch.block_count; ++pos)
+    for(uint64_t pos = 0; pos < block.block_count; ++pos)
     {
-        auto hash = batch.blocks[pos]->GetHash();
+        auto hash = block.blocks[pos].GetHash();
 
         if(hashed.find(hash) != hashed.end())
         {
@@ -36,7 +36,7 @@ void RequestHandler::OnPostCommit(const BatchStateBlock & batch)
     }
 }
 
-RequestHandler::BSBPrePrepare & RequestHandler::GetCurrentBatch()
+RequestHandler::PrePrepare & RequestHandler::GetCurrentBatch()
 {
     std::lock_guard<std::mutex> lock(_mutex);
     LOG_DEBUG (_log) << "RequestHandler::GetCurrentBatch - "
@@ -44,12 +44,12 @@ RequestHandler::BSBPrePrepare & RequestHandler::GetCurrentBatch()
     return _current_batch;
 }
 
-RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch(
+RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(
     RequestHandler::Manager & manager,
     bool repropose)
 {
     std::lock_guard<std::mutex> lock(_mutex);
-    _current_batch = BSBPrePrepare();
+    _current_batch = PrePrepare();
     auto & sequence = _requests.get<0>();
 
     _current_batch.blocks.reserve(sequence.size());
@@ -99,7 +99,7 @@ void RequestHandler::InsertFront(const std::list<Send> & requests)
     sequenced.insert(sequenced.begin(), requests.begin(), requests.end());
 }
 
-void RequestHandler::Acquire(const BSBPrePrepare & batch)
+void RequestHandler::Acquire(const PrePrepare & batch)
 {
     std::lock_guard<std::mutex> lock(_mutex);
     auto & sequenced = _requests.get<0>();
@@ -126,7 +126,7 @@ void RequestHandler::PopFront()
         hashed.erase(_current_batch.blocks[pos]->GetHash());
     }
 
-    _current_batch = BSBPrePrepare();
+    _current_batch = PrePrepare();
 }
 
 bool RequestHandler::BatchFull()

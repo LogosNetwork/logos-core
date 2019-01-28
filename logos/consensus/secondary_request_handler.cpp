@@ -154,7 +154,7 @@ void SecondaryRequestHandler<ConsensusType::Epoch>::PruneRequests(const PrePrepa
 }
 
 template<>
-void SecondaryRequestHandler<ConsensusType::BatchStateBlock>::PruneRequests(const PrePrepare & block)
+void SecondaryRequestHandler<ConsensusType::Request>::PruneRequests(const PrePrepare & block)
 {
     for (uint64_t i = 0; i < block.block_count; ++i)
     {
@@ -164,6 +164,6 @@ void SecondaryRequestHandler<ConsensusType::BatchStateBlock>::PruneRequests(cons
     }
 }
 
-template class SecondaryRequestHandler<ConsensusType::BatchStateBlock>;
+template class SecondaryRequestHandler<ConsensusType::Request>;
 template class SecondaryRequestHandler<ConsensusType::MicroBlock>;
 template class SecondaryRequestHandler<ConsensusType::Epoch>;

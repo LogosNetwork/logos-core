@@ -1,7 +1,7 @@
 ///
 /// @file
-/// This file contains declaration of the BatchBlockBackupDelegate class
-/// which handles specifics of BatchStateBlock consensus
+/// This file contains declaration of the RequestBackupDelegate class
+/// which handles specifics of Request consensus
 ///
 #pragma once
 
@@ -9,21 +9,20 @@
 
 #include <unordered_set>
 
-
 template<ConsensusType CT> class PersistenceManager;
 
-class BBBackupDelegate : public BackupDelegate<ConsensusType::BatchStateBlock>
+class RequestBackupDelegate : public BackupDelegate<ConsensusType::Request>
 {
-    static constexpr ConsensusType BSBCT = ConsensusType::BatchStateBlock;
+    static constexpr ConsensusType R = ConsensusType::Request;
 
     using Service    = boost::asio::io_service;
-    using Connection = BackupDelegate<BSBCT>;
-    using Promoter   = RequestPromoter<BSBCT>;
+    using Connection = BackupDelegate<R>;
+    using Promoter   = RequestPromoter<R>;
     using Timer      = boost::asio::deadline_timer;
     using Seconds    = boost::posix_time::seconds;
     using Error      = boost::system::error_code;
     using Hashes     = std::unordered_set<BlockHash>;
-    using Request    = RequestMessage<BSBCT>;
+    using Request    = RequestMessage<R>;
 
 public:
 
@@ -36,16 +35,16 @@ public:
     /// @param validator Validator/Signer of consensus message [in]
     /// @param ids remote/local delegate id [in]
     /// @param events_notifier epoch transition helper [in]
-    BBBackupDelegate(std::shared_ptr<IOChannel> iochannel,
+    RequestBackupDelegate(std::shared_ptr<IOChannel> iochannel,
                           PrimaryDelegate & primary,
                           Promoter & promoter,
                           MessageValidator & validator,
                           const DelegateIdentities & ids,
 						  Service & service,
                           EpochEventsNotifier & events_notifier,
-                          PersistenceManager<BSBCT> & persistence_manager,
+                          PersistenceManager<R> & persistence_manager,
                           p2p_interface & p2p);
-    ~BBBackupDelegate() {}
+    ~RequestBackupDelegate() {}
 
     /// Validate PrePrepare message
     /// @param messasge PrePrepare message [in]
@@ -66,8 +65,8 @@ public:
 
 private:
 
-    static constexpr uint8_t TIMEOUT_MIN   = 20;
-    static constexpr uint8_t TIMEOUT_RANGE = 40;
+    static constexpr uint8_t TIMEOUT_MIN         = 20;
+    static constexpr uint8_t TIMEOUT_RANGE       = 40;
     static constexpr uint8_t TIMEOUT_MIN_EPOCH   = 10;
     static constexpr uint8_t TIMEOUT_RANGE_EPOCH = 20;
 
@@ -81,7 +80,7 @@ private:
 
     void Reject() override;
     void ResetRejectionStatus() override;
-    void HandleReject(const PrePrepare&);
+    void HandleReject(const PrePrepare&) override;
 
     void ScheduleTimer(Seconds timeout);
 
@@ -92,10 +91,10 @@ private:
     Seconds GetTimeout(uint8_t min, uint8_t range);
 
 
-    Hashes               _pre_prepare_hashes;
-    Timer                _timer;
-    RejectionMap         _rejection_map;       ///< Sets a bit for each rejected request from the PrePrepare.
-    std::mutex           _timer_mutex;
-    bool                 _cancel_timer       = false;
-    bool                 _callback_scheduled = false;
+    Hashes       _pre_prepare_hashes;
+    Timer        _timer;
+    RejectionMap _rejection_map;     ///< Sets a bit for each rejected request from the PrePrepare.
+    std::mutex   _timer_mutex;
+    bool         _cancel_timer       = false;
+    bool         _callback_scheduled = false;
 };

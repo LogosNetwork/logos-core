@@ -159,6 +159,6 @@ void DelegateBridge<CT>::OnMessage(std::shared_ptr<MessageBase> message, Message
     }
 }
 
-template class DelegateBridge<ConsensusType::BatchStateBlock>;
+template class DelegateBridge<ConsensusType::Request>;
 template class DelegateBridge<ConsensusType::MicroBlock>;
 template class DelegateBridge<ConsensusType::Epoch>;
