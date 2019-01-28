@@ -6,8 +6,8 @@
     static_assert(false, "Only LITTLE_ENDIAN machines are supported!");
 #endif
 
-BatchStateBlock::BatchStateBlock(bool & error, logos::stream & stream, bool with_state_block)
-: PrePrepareCommon(error, stream)
+RequestBlock::RequestBlock(bool & error, logos::stream & stream, bool with_state_block)
+    : PrePrepareCommon(error, stream)
 {
     if(error)
     {
@@ -52,11 +52,11 @@ BatchStateBlock::BatchStateBlock(bool & error, logos::stream & stream, bool with
     }
 }
 
-void BatchStateBlock::SerializeJson(boost::property_tree::ptree & batch_state_block) const
+void RequestBlock::SerializeJson(boost::property_tree::ptree & batch_state_block) const
 {
     PrePrepareCommon::SerializeJson(batch_state_block);
 
-    batch_state_block.put("type", "BatchStateBlock");
+    batch_state_block.put("type", "RequestBlock");
     batch_state_block.put("block_count", std::to_string(block_count));
 
     boost::property_tree::ptree blocks_tree;
@@ -68,7 +68,7 @@ void BatchStateBlock::SerializeJson(boost::property_tree::ptree & batch_state_bl
     batch_state_block.add_child("blocks", blocks_tree);
 }
 
-uint32_t BatchStateBlock::Serialize(logos::stream & stream, bool with_state_block) const
+uint32_t RequestBlock::Serialize(logos::stream & stream, bool with_state_block) const
 {
     uint16_t bc = htole16(block_count);
 
@@ -91,9 +91,56 @@ uint32_t BatchStateBlock::Serialize(logos::stream & stream, bool with_state_bloc
     return s;
 }
 
-const size_t ConnectedClientIds::STREAM_SIZE;
+ConnectedClientIds::ConnectedClientIds(uint32_t epoch_number,
+                                       uint8_t delegate_id,
+                                       EpochConnection connection,
+                                       const char *ip)
+    : epoch_number(epoch_number)
+    , delegate_id(delegate_id)
+    , connection(connection)
+{
+    strncpy(this->ip, ip, INET6_ADDRSTRLEN);
+}
 
-void update_PostCommittedBlock_next_field(const logos::mdb_val & mdbval, logos::mdb_val & mdbval_buf, const BlockHash & next)
+ConnectedClientIds::ConnectedClientIds(bool & error, logos::stream & stream)
+{
+    error = logos::read(stream, epoch_number);
+    if(error)
+    {
+        return;
+    }
+    epoch_number = le32toh(epoch_number);
+
+    error = logos::read(stream, delegate_id);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, connection);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, ip);
+}
+
+uint32_t ConnectedClientIds::Serialize(std::vector<uint8_t> & buf) const
+{
+    assert(buf.empty());
+    logos::vectorstream stream(buf);
+
+    auto s = logos::write(stream, htole32(epoch_number));
+    s += logos::write(stream, delegate_id);
+    s += logos::write(stream, connection);
+    s += logos::write(stream, ip);
+
+    assert(StreamSize() == s);
+    return s;
+}
+
+void UpdateNext(const logos::mdb_val &mdbval, logos::mdb_val &mdbval_buf, const BlockHash &next)
 {
     if(mdbval.size() <= HASH_SIZE)
     {

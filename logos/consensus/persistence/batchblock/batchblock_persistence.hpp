@@ -5,7 +5,7 @@
 
 #include <logos/consensus/persistence/persistence_manager.hpp>
 
-const ConsensusType B = ConsensusType::BatchStateBlock;
+const ConsensusType B = ConsensusType::Request;
 
 using boost::multiprecision::uint128_t;
 using namespace boost::multiprecision::literals;

@@ -112,6 +112,6 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
     return ! error;
 }
 
-template class DelegateBridge<ConsensusType::BatchStateBlock>;
+template class DelegateBridge<ConsensusType::Request>;
 template class DelegateBridge<ConsensusType::MicroBlock>;
 template class DelegateBridge<ConsensusType::Epoch>;

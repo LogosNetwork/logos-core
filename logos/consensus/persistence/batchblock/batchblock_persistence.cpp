@@ -320,7 +320,7 @@ void PersistenceManager<B>::StoreBatchMessage(
 
     if(! message.previous.is_zero())
     {
-        if(_store.consensus_block_update_next(message.previous, hash, ConsensusType::BatchStateBlock, transaction))
+        if(_store.consensus_block_update_next(message.previous, hash, ConsensusType::Request, transaction))
         {
             // TODO: bootstrap here.
         }

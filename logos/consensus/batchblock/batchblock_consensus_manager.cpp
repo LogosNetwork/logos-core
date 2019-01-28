@@ -246,12 +246,12 @@ BatchBlockConsensusManager::OnPostCommit(const PrePrepare & block)
     Manager::OnPostCommit(block);
 }
 
-std::shared_ptr<BackupDelegate<ConsensusType::BatchStateBlock>>
+std::shared_ptr<BackupDelegate<ConsensusType::Request>>
 BatchBlockConsensusManager::MakeBackupDelegate(
     std::shared_ptr<IOChannel> iochannel,
     const DelegateIdentities& ids)
 {
-    return std::make_shared<BBBackupDelegate>(
+    return std::make_shared<RequestBackupDelegate>(
             iochannel, *this, *this, _validator,
 	    ids, _service, _events_notifier, _persistence_manager, Manager::_consensus_p2p._p2p);
 }

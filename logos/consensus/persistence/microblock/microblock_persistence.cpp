@@ -82,7 +82,7 @@ PersistenceManager<MBCT>::Validate(
         UpdateStatusReason(status, process_result::wrong_sequence_number);
         return false;
     }
-
+    
     // verify can get the batch block tips
     bool valid = true;
     ApprovedBSB bsb;

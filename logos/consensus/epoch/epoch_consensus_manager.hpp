@@ -110,6 +110,7 @@ protected:
     uint8_t DesignatedDelegate(std::shared_ptr<Request> request) override;
 
 private:
-    std::shared_ptr<PrePrepare>  _cur_epoch; 	///< Currently handled epoch
-	bool 						 _enqueued;   	///< Request is enqueued
+
+    std::shared_ptr<PrePrepare> _cur_epoch; ///< Currently handled epoch
+	bool 						_enqueued;  ///< Request is enqueued
 };
