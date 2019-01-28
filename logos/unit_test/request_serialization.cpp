@@ -3,6 +3,8 @@
 #include <logos/token/requests.hpp>
 #include <logos/request/change.hpp>
 
+#include <logos/epoch/election_requests.hpp>
+
 #include <boost/property_tree/ptree.hpp>
 
 #define Unit_Test_Request_Serialization
@@ -378,4 +380,142 @@ TEST (Request_Serialization, json_deserialization)
               "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
 }
 
+
+TEST (Request_Serialization, election_requests_json)
+{
+    auto get_tree = [](char const * json)
+    {
+        boost::iostreams::array_source as(json, strlen(json));
+        boost::iostreams::stream<boost::iostreams::array_source> is(as);
+
+        boost::property_tree::ptree tree;
+        boost::property_tree::read_json(is, tree);
+
+        return tree;
+    };
+    
+    char const * announce_candidacy_json = R"%%%({
+        "type": "announce_candidacy",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000"
+     })%%%";
+
+    boost::property_tree::ptree tree(get_tree(announce_candidacy_json));
+    bool error = false;
+
+    AnnounceCandidacy announce_candidacy(error, tree);
+    ASSERT_FALSE(error);
+    ASSERT_EQ(announce_candidacy.type,RequestType::AnnounceCandidacy);
+    //try to make the wrong type of request
+    RenounceCandidacy renounce_candidacy(error, tree);
+    ASSERT_TRUE(error);
+
+    char const * renounce_candidacy_json = R"%%%({
+        "type": "renounce_candidacy",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000"
+     })%%%";
+
+    tree = get_tree(renounce_candidacy_json);
+    error = false;
+
+    renounce_candidacy = RenounceCandidacy(error, tree);
+    ASSERT_FALSE(error);
+    ASSERT_EQ(renounce_candidacy.type,RequestType::RenounceCandidacy);
+    //try to make the wrong type of request
+    announce_candidacy = AnnounceCandidacy(error, tree);
+    ASSERT_TRUE(error);
+
+    char const * election_vote_empty_json = R"%%%({
+        "type": "election_vote",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "request":
+        {
+            "votes":
+             {}
+        }
+     })%%%";
+
+    error = false;
+    tree = get_tree(election_vote_empty_json);
+    ElectionVote ev(error,tree);
+    ASSERT_FALSE(error);
+    ASSERT_EQ(ev.votes_.size(),0);
+    ASSERT_EQ(ev.type,RequestType::ElectionVote);
+
+
+    char const * election_vote_single_json = R"%%%({
+        "type": "election_vote",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "request":
+        {
+            "votes":
+             {
+                "lgs_39y3y5d1wd5hrgqohoxoi97t6rjeayp3kjb7du71wq3j6s8k7x66gcfo9dy1" : "8"
+             }
+        }
+     })%%%";
+
+    error = false;
+    tree = get_tree(election_vote_single_json);
+    ev = ElectionVote(error,tree);
+    ASSERT_FALSE(error);
+    ASSERT_EQ(ev.votes_.size(),1);
+    ASSERT_EQ(ev.type,RequestType::ElectionVote);
+    ASSERT_EQ(ev.votes_[0].account.to_account(),"lgs_39y3y5d1wd5hrgqohoxoi97t6rjeayp3kjb7du71wq3j6s8k7x66gcfo9dy1");
+    ASSERT_EQ(ev.votes_[0].num_votes,8);
+
+
+    char const * election_vote_multiple_votes_json = R"%%%({
+        "type": "election_vote",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "request":
+        {
+            "votes":
+             {
+                "lgs_39y3y5d1wd5hrgqohoxoi97t6rjeayp3kjb7du71wq3j6s8k7x66gcfo9dy1" : "1",
+                "lgs_1urumj6bwwrww3ozuf7u7mp4knebsjijnzimoiadnmde87sxqg5wtx5zjh4k" : "2",
+                "lgs_1qmunbhffeubzygbmf1w9hmb65jphjcig5xm6j754uhpoy1gfnt9or1s8y6r" : "3",
+                "lgs_3u6hrty88rsne614rx57mck9y84y5chcna77md6p7gkm5eqqm1awwya4nctm" : "4"
+             }
+        }
+     })%%%";
+
+    error = false;
+    tree = get_tree(election_vote_multiple_votes_json);
+    ev = ElectionVote(error,tree);
+    ASSERT_FALSE(error);
+    ASSERT_EQ(ev.votes_.size(),4);
+    ASSERT_EQ(ev.type,RequestType::ElectionVote);
+    uint8_t total_votes = 0;
+    for(auto const & v: ev.votes_)
+    {
+        if(v.account.to_account() == "lgs_39y3y5d1wd5hrgqohoxoi97t6rjeayp3kjb7du71wq3j6s8k7x66gcfo9dy1")
+        {
+            ASSERT_EQ(v.num_votes,1);
+            total_votes += v.num_votes;
+        }
+        if(v.account.to_account() == "lgs_1urumj6bwwrww3ozuf7u7mp4knebsjijnzimoiadnmde87sxqg5wtx5zjh4k")
+        {
+            ASSERT_EQ(v.num_votes,2);
+            total_votes += v.num_votes;
+        }
+        if(v.account.to_account() == "lgs_1qmunbhffeubzygbmf1w9hmb65jphjcig5xm6j754uhpoy1gfnt9or1s8y6r")
+        {
+            ASSERT_EQ(v.num_votes,3);
+            total_votes += v.num_votes;
+        }
+        if(v.account.to_account() == "lgs_3u6hrty88rsne614rx57mck9y84y5chcna77md6p7gkm5eqqm1awwya4nctm")
+        {
+            ASSERT_EQ(v.num_votes,4);
+            total_votes += v.num_votes;
+        }
+    } 
+    ASSERT_EQ(total_votes,10);
+
+
+}
 #endif // #ifdef Unit_Test_Request_Serialization

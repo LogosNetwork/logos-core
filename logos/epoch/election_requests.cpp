@@ -9,13 +9,13 @@ AnnounceCandidacy::AnnounceCandidacy(bool & error,
             std::basic_streambuf<uint8_t> & stream) : Request(error, stream)
 {
     //ensure type is correct
-    error = type == RequestType::AnnounceCandidacy;
+    error = error || type != RequestType::AnnounceCandidacy;
 }
 
 AnnounceCandidacy::AnnounceCandidacy(bool & error,
             boost::property_tree::ptree const & tree) : Request(error, tree)
 {
-    error = type == RequestType::AnnounceCandidacy;
+    error = error || type != RequestType::AnnounceCandidacy;
 }
 
 RenounceCandidacy::RenounceCandidacy(const BlockHash & previous) 
@@ -25,13 +25,13 @@ RenounceCandidacy::RenounceCandidacy(const BlockHash & previous)
 RenounceCandidacy::RenounceCandidacy(bool & error,
             std::basic_streambuf<uint8_t> & stream) : Request(error, stream)
 {
-    error = type == RequestType::RenounceCandidacy;
+    error = error || type != RequestType::RenounceCandidacy;
 }
 
 RenounceCandidacy::RenounceCandidacy(bool & error,
             boost::property_tree::ptree const & tree) : Request(error, tree)
 {
-    error = type == RequestType::RenounceCandidacy;
+    error = error || type != RequestType::RenounceCandidacy;
 }
 
 
@@ -74,7 +74,7 @@ ElectionVote::ElectionVote(bool & error,
         return;
     } 
     try {
-        auto votes = tree.get_child("votes");
+        auto votes = tree.get_child("request.votes");
         for(const std::pair<std::string,boost::property_tree::ptree> &v : votes)
         {
             auto account_s (v.first);
@@ -87,7 +87,7 @@ ElectionVote::ElectionVote(bool & error,
             uint8_t vote_val;
             try
             {
-                vote_val = boost::lexical_cast<uint8_t>(v.second.data());
+                vote_val = std::stoi(v.second.data());
             }
             catch(const boost::bad_lexical_cast &)
             {

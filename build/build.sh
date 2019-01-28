@@ -232,7 +232,7 @@ cd ${BUILD_DIR}
 git submodule update --init --recursive
 cmake -DBOOST_ROOT="$BOOST_ROOT" -DACTIVE_NETWORK="$activeNetwork" -DCMAKE_BUILD_TYPE="$cmakeBuildType" \
     -G "Unix Makefiles" ..\
-    && make logos_core -j"$numCPUs"
+    && make -j"$numCPUs"
 
 if [[ $? > 0 ]]
 then
