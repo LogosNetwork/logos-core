@@ -249,8 +249,8 @@ bool BackupDelegate<CT>::ValidateTimestamp(const PrePrepare & message)
 
 template<>
 template<>
-bool BackupDelegate<ConsensusType::BatchStateBlock>::ValidateEpoch(
-    const PrePrepareMessage<ConsensusType::BatchStateBlock> &message)
+bool BackupDelegate<ConsensusType::Request>::ValidateEpoch(
+    const PrePrepareMessage<ConsensusType::Request> &message)
 {
     bool valid = true;
 
@@ -349,6 +349,6 @@ bool BackupDelegate<CT>::ValidateReProposal(const PrePrepare & message)
     return false;
 }
 
-template class BackupDelegate<ConsensusType::BatchStateBlock>;
+template class BackupDelegate<ConsensusType::Request>;
 template class BackupDelegate<ConsensusType::MicroBlock>;
 template class BackupDelegate<ConsensusType::Epoch>;

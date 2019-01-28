@@ -8,7 +8,7 @@
 
 #include <random>
 
-BBBackupDelegate::BBBackupDelegate(
+RequestBackupDelegate::RequestBackupDelegate(
         std::shared_ptr<IOChannel> iochannel,
         PrimaryDelegate & primary,
         Promoter & promoter,
@@ -16,8 +16,8 @@ BBBackupDelegate::BBBackupDelegate(
         const DelegateIdentities & ids,
         Service & service,
         EpochEventsNotifier & events_notifier,
-	PersistenceManager<BSBCT> & persistence_manager,
-	p2p_interface & p2p)
+        PersistenceManager<R> & persistence_manager,
+        p2p_interface & p2p)
     : Connection(iochannel, primary, promoter,
 		 validator, ids, events_notifier, persistence_manager, p2p, service)
     , _timer(service)
@@ -35,12 +35,12 @@ BBBackupDelegate::BBBackupDelegate(
 ///     @param message message to validate
 ///     @return true if validated false otherwise
 bool
-BBBackupDelegate::DoValidate(
+RequestBackupDelegate::DoValidate(
     const PrePrepare & message)
 {
     if(!ValidateSequence(message))
     {
-        LOG_DEBUG(_log) << "BBBackupDelegate::DoValidate ValidateSequence failed";
+        LOG_DEBUG(_log) << "RequestBackupDelegate::DoValidate ValidateSequence failed";
         return false;
     }
 
@@ -48,7 +48,7 @@ BBBackupDelegate::DoValidate(
 
     if(!ValidateRequests(message))
     {
-        LOG_DEBUG(_log) << "BBBackupDelegate::DoValidate ValidateRequests failed";
+        LOG_DEBUG(_log) << "RequestBackupDelegate::DoValidate ValidateRequests failed";
         return false;
     }
 
@@ -56,7 +56,7 @@ BBBackupDelegate::DoValidate(
 }
 
 bool
-BBBackupDelegate::ValidateSequence(
+RequestBackupDelegate::ValidateSequence(
     const PrePrepare & message)
 {
     if(_sequence_number != message.sequence)
@@ -69,7 +69,7 @@ BBBackupDelegate::ValidateSequence(
 }
 
 bool
-BBBackupDelegate::ValidateRequests(
+RequestBackupDelegate::ValidateRequests(
     const PrePrepare & message)
 {
 
@@ -87,7 +87,7 @@ BBBackupDelegate::ValidateRequests(
 ///     @param block to commit to the database
 ///     @param remote delegate id
 void
-BBBackupDelegate::ApplyUpdates(
+RequestBackupDelegate::ApplyUpdates(
     const ApprovedBSB & block,
     uint8_t delegate_id)
 {
@@ -95,7 +95,7 @@ BBBackupDelegate::ApplyUpdates(
 }
 
 bool
-BBBackupDelegate::IsPrePrepared(
+RequestBackupDelegate::IsPrePrepared(
     const BlockHash & hash)
 {
     std::lock_guard<std::mutex> lock(_mutex);
@@ -110,14 +110,14 @@ BBBackupDelegate::IsPrePrepared(
 }
 
 void
-BBBackupDelegate::DoUpdateMessage(Rejection & message)
+RequestBackupDelegate::DoUpdateMessage(Rejection & message)
 {
     message.reason = _reason;
     message.rejection_map = _rejection_map;
 }
 
 void
-BBBackupDelegate::Reject()
+RequestBackupDelegate::Reject()
 {
     switch(_reason)
     {
@@ -140,7 +140,7 @@ BBBackupDelegate::Reject()
 }
 
 void
-BBBackupDelegate::HandleReject(const PrePrepare & message)
+RequestBackupDelegate::HandleReject(const PrePrepare & message)
 {
     switch(_reason)
     {
@@ -176,7 +176,7 @@ BBBackupDelegate::HandleReject(const PrePrepare & message)
 //       which case they are transferred to the primary list
 //       (RequestHandler).
 void
-BBBackupDelegate::HandlePrePrepare(const PrePrepare & message)
+RequestBackupDelegate::HandlePrePrepare(const PrePrepare & message)
 {
     std::lock_guard<std::mutex> lock(_mutex);  // SYL Integration fix
     _pre_prepare_hashes.clear();
@@ -192,7 +192,7 @@ BBBackupDelegate::HandlePrePrepare(const PrePrepare & message)
 }
 
 void
-BBBackupDelegate::ScheduleTimer(Seconds timeout)
+RequestBackupDelegate::ScheduleTimer(Seconds timeout)
 {
     std::lock_guard<std::mutex> lock(_timer_mutex);
 
@@ -217,7 +217,7 @@ BBBackupDelegate::ScheduleTimer(Seconds timeout)
 }
 
 void
-BBBackupDelegate::OnPostCommit()
+RequestBackupDelegate::OnPostCommit()
 {
     {
         std::lock_guard<std::mutex> lock(_timer_mutex);
@@ -235,7 +235,7 @@ BBBackupDelegate::OnPostCommit()
 }
 
 void
-BBBackupDelegate::OnPrePrepareTimeout(const Error & error)
+RequestBackupDelegate::OnPrePrepareTimeout(const Error & error)
 {
     std::lock_guard<std::mutex> lock(_timer_mutex);
 
@@ -256,14 +256,14 @@ BBBackupDelegate::OnPrePrepareTimeout(const Error & error)
 }
 
 void
-BBBackupDelegate::ResetRejectionStatus()
+RequestBackupDelegate::ResetRejectionStatus()
 {
     _reason = RejectionReason::Void;
     _rejection_map.clear();
 }
 
 bool
-BBBackupDelegate::IsSubset(const PrePrepare & message)
+RequestBackupDelegate::IsSubset(const PrePrepare & message)
 {
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
@@ -278,13 +278,13 @@ BBBackupDelegate::IsSubset(const PrePrepare & message)
 }
 
 bool
-BBBackupDelegate::ValidateReProposal(const PrePrepare & message)
+RequestBackupDelegate::ValidateReProposal(const PrePrepare & message)
 {
     return IsSubset(message);
 }
 
-BBBackupDelegate::Seconds
-BBBackupDelegate::GetTimeout(uint8_t min, uint8_t range)
+RequestBackupDelegate::Seconds
+RequestBackupDelegate::GetTimeout(uint8_t min, uint8_t range)
 {
     uint64_t offset = 0;
     uint64_t x = std::rand() % NUM_DELEGATES;
@@ -302,7 +302,7 @@ BBBackupDelegate::GetTimeout(uint8_t min, uint8_t range)
 }
 
 void
-BBBackupDelegate::CleanUp()
+RequestBackupDelegate::CleanUp()
 {
     std::lock_guard<std::mutex> lock(_timer_mutex);
 

@@ -8,12 +8,12 @@
 #include <logos/consensus/consensus_manager.hpp>
 
 /// ConsensusManager that handles BatchBlock consensus.
-class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchStateBlock>
+class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::Request>
 {
 
     using BlockBuffer = std::list<std::shared_ptr<Request>>;
-    using Rejection   = RejectionMessage<ConsensusType::BatchStateBlock>;
-    using Prepare     = PrepareMessage<ConsensusType::BatchStateBlock>;
+    using Rejection   = RejectionMessage<ConsensusType::Request>;
+    using Prepare     = PrepareMessage<ConsensusType::Request>;
     using Seconds     = boost::posix_time::seconds;
     using Timer       = boost::asio::deadline_timer;
     using Error       = boost::system::error_code;
@@ -151,7 +151,7 @@ protected:
     ///     @param iochannel NetIOChannel pointer
     ///     @param ids Delegate's id
     ///     @return BackupDelegate
-    std::shared_ptr<BackupDelegate<ConsensusType::BatchStateBlock>> MakeBackupDelegate(
+    std::shared_ptr<BackupDelegate<ConsensusType::Request>> MakeBackupDelegate(
             std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
 
     /// Find Primary delegate index for this request

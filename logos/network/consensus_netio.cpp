@@ -294,7 +294,7 @@ ConsensusNetIO::OnData(const uint8_t * data,
     {
         auto idx = ConsensusTypeToIndex(consensus_type);
 
-        //three valid consensus types, BatchStateBlock, MicroBlock, Epoch
+        //three valid consensus types, RequestBlock, MicroBlock, Epoch
         //the largest valid idx to _connections[idx] is 2.
         if (idx >= (CONSENSUS_TYPE_COUNT))
         {

@@ -1,6 +1,6 @@
 ///
 /// @file
-/// This file contains declaration of the BatchStateBlock
+/// This file contains declaration of the RequestBlock
 ///
 #pragma once
 
@@ -11,16 +11,16 @@
 using RequestList     = Send [CONSENSUS_BATCH_SIZE];
 using RequestHashList = BlockHash [CONSENSUS_BATCH_SIZE];
 
-struct BatchStateBlock : PrePrepareCommon
+struct RequestBlock : PrePrepareCommon
 {
-    BatchStateBlock() = default;
+    RequestBlock() = default;
 
     /// Class constructor
     /// construct from deserializing a stream of bytes
     /// @param error it will be set to true if deserialization fail [out]
     /// @param stream the stream containing serialized data [in]
     /// @param with_state_block if the serialized data have state blocks [in]
-    BatchStateBlock(bool & error, logos::stream & stream, bool with_state_block);
+    RequestBlock(bool & error, logos::stream & stream, bool with_state_block);
 
     /// Add a new state block
     /// @param to_add the new state block to be added
@@ -32,7 +32,7 @@ struct BatchStateBlock : PrePrepareCommon
             return false;
 
         new(&blocks[block_count]) Send(to_add);
-        hashs[block_count] = blocks[block_count].GetHash();
+        hashes[block_count] = blocks[block_count].GetHash();
         ++block_count;
         return true;
     }
@@ -60,9 +60,9 @@ struct BatchStateBlock : PrePrepareCommon
     /// @param with_state_block if the state blocks should be serialize
     /// @returns the number of bytes serialized
     uint32_t Serialize(logos::stream & stream, bool with_state_block) const;
-    
+
     uint16_t        block_count = 0;
     RequestList     blocks;
-    RequestHashList hashs;
+    RequestHashList hashes;
 };
 

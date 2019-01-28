@@ -445,6 +445,6 @@ ConsensusManager<CT>::OnQuorumFailed()
     }
 }
 
-template class ConsensusManager<ConsensusType::BatchStateBlock>;
+template class ConsensusManager<ConsensusType::Request>;
 template class ConsensusManager<ConsensusType::MicroBlock>;
 template class ConsensusManager<ConsensusType::Epoch>;

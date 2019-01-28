@@ -177,9 +177,17 @@ private:
         return _post_prepare_hash;
     }
 
+<<<<<<< HEAD
     virtual void OnRejection(const RejectionMessage<ConsensusType::BatchStateBlock> & message, uint8_t remote_delegate_id);
     virtual void OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message, uint8_t remote_delegate_id);
     virtual void OnRejection(const RejectionMessage<ConsensusType::Epoch> & message, uint8_t remote_delegate_id);
+=======
+    virtual void OnRejection(const RejectionMessage<ConsensusType::Request> & message);
+    virtual void OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message);
+    virtual void OnRejection(const RejectionMessage<ConsensusType::Epoch> & message);
+
+    void CheckRejection();
+>>>>>>> Rename ConsensusType::BatchStateBlock to ConsensusType::Request
 
     template<ConsensusType C>
     void OnPrePrepareTimeout(const Error & error);

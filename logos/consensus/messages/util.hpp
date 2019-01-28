@@ -55,8 +55,8 @@ inline std::string ConsensusToName(const ConsensusType & type)
     std::string ret;
     switch (type)
     {
-        case ConsensusType::BatchStateBlock:
-            ret = "BatchStateBlock";
+        case ConsensusType::Request:
+            ret = "RequestBlock";
             break;
         case ConsensusType::MicroBlock:
             ret = "MicroBlock";
