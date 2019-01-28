@@ -942,28 +942,18 @@ void logos::rpc_handler::block ()
     logos::transaction transaction (node.store.environment, nullptr, false);
     boost::property_tree::ptree response_l;
 
-    Send sb;
-    ReceiveBlock rb;
-<<<<<<< HEAD
-    if (!node.store.state_block_get(hash, sb, transaction))
-    {
-        sb.SerializeJson (response_l, true, true);
-    }
-    else if (!node.store.receive_get(hash, rb, transaction))
-    {
-        rb.SerializeJson (response_l);
-=======
+    Send send;
+    ReceiveBlock receive;
     std::string block_type;
-    if (!node.store.request_get(hash, sb, transaction))
+    if (!node.store.request_get(hash, send, transaction))
     {
         block_type = "send";
-        response_l = sb.SerializeJson ();
+        response_l = send.SerializeJson ();
     }
-    else if (!node.store.receive_get(hash, rb, transaction))
+    else if (!node.store.receive_get(hash, receive, transaction))
     {
         block_type = "receive";
-        rb.SerializeJson ();
->>>>>>> Move 'state_block' to Request hierarchy and rename to 'Send'
+        receive.SerializeJson ();
     }
     else
     {
@@ -987,22 +977,15 @@ void logos::rpc_handler::blocks ()
         {
             error_response (response, "Bad hash number");
         }
-        Send block;
+        Send send;
         ReceiveBlock receive_block;
 
-<<<<<<< HEAD
-        boost::property_tree::ptree contents;
-        if(!node.store.state_block_get(hash, block, transaction))
+        if(!node.store.request_get(hash, send, transaction))
         {
-            block.SerializeJson(contents, true, true);
-=======
-        if(!node.store.request_get(hash, block, transaction))
-        {
-            boost::property_tree::ptree contents = block.SerializeJson();
+            boost::property_tree::ptree contents = send.SerializeJson();
             contents.put ("type", "send");
             contents.put ("hash", hash_text);
             blocks.push_back (std::make_pair("", contents));
->>>>>>> Move 'state_block' to Request hierarchy and rename to 'Send'
         }
         else if (!node.store.receive_get(hash, receive_block, transaction))
         {
@@ -1206,7 +1189,7 @@ void logos::rpc_handler::block_create ()
                     error_response (response, "Incorrect key for given account");
                 }
             }
-            if (type == "state")
+            if (type == "send")
             {
                 if (previous_text.is_initialized ())
                 {
@@ -1224,10 +1207,10 @@ void logos::rpc_handler::block_create ()
                     }
                     uint32_t sequence = info.block_count;
 
-                    Send state (account, previous, sequence, link, amount, transaction_fee, prv.data, pub, work);
+                    Send send (account, previous, sequence, link, amount, transaction_fee, prv.data, pub, work);
                     boost::property_tree::ptree response_l;
-                    response_l.put ("hash", state.GetHash ().to_string ());
-                    std::string contents(state.ToJson());
+                    response_l.put ("hash", send.GetHash ().to_string ());
+                    std::string contents(send.ToJson());
                     response_l.put ("block", contents);
                     response (response_l);
                 }
@@ -1751,43 +1734,38 @@ void logos::rpc_handler::account_history ()
     boost::property_tree::ptree response_l;
     boost::property_tree::ptree history;
     response_l.put ("account", account_text);
-    Send send_block;
+    Send send_request;
     ReceiveBlock receive_block;
-<<<<<<< HEAD
-    StateBlock receive_link_block;  // i.e. source send block
-    bool send_block_not_found (node.store.state_block_get (send_hash, send_block, transaction));
-=======
-    bool send_block_not_found (node.store.request_get(send_hash, send_block, transaction));
->>>>>>> Move 'state_block' to Request hierarchy and rename to 'Send'
-    bool receive_block_not_found (node.store.receive_get (receive_hash, receive_block, transaction));
+    Send receive_link_block;  // i.e. source send block
+    bool send_not_found (node.store.request_get(send_hash, send_request, transaction));
+    bool receive_not_found (node.store.receive_get (receive_hash, receive_block, transaction));
     bool put_send (false);
     uint64_t timestamp;
     ApprovedBSB batch;
-    while (!(send_block_not_found && receive_block_not_found) && count > 0)
+    while (!(send_not_found && receive_not_found) && count > 0)
     {
         // compare timestamp of send and receive, serialize whichever is more recent
-        if (receive_block_not_found)  // at end of receive chain?
+        if (receive_not_found)  // at end of receive chain?
         {
             put_send = true;
-            if (node.store.batch_block_get(send_block.batch_hash, batch))
+            if (node.store.batch_block_get(send_request.batch_hash, batch))
             {
                 error_response (response, "Internal error: batch not found for send.");
             }
             timestamp = batch.timestamp;
         }
-<<<<<<< HEAD
         else
         {
             // get receive's source send
-            if (node.store.state_block_get(receive_block.send_hash, receive_link_block, transaction))
+            if (node.store.request_get(receive_block.send_hash, receive_link_block, transaction))
             {
                 error_response (response, "Internal error: send not found for receive.");
             }
             // at end of send chain?
-            if (send_block_not_found)
+            if (send_not_found)
             {
                 put_send = false;
-                if (node.store.batch_block_get(receive_link_block.batch_hash, batch))
+                if (node.store.request_get(receive_link_block.batch_hash, batch))
                 {
                     error_response (response, "Internal error: batch not found for send.");
                 }
@@ -1797,13 +1775,13 @@ void logos::rpc_handler::account_history ()
             else
             {
                 // send timestamp
-                if (node.store.batch_block_get(send_block.batch_hash, batch))
+                if (node.store.request_get(send_request.batch_hash, batch))
                 {
                     error_response (response, "Internal error: batch not found for send.");
                 }
                 auto send_ts (batch.timestamp);
                 // receive timestamp
-                if (node.store.batch_block_get(receive_link_block.batch_hash, batch))
+                if (node.store.request_get(receive_link_block.batch_hash, batch))
                 {
                     error_response (response, "Internal error: batch not found for send.");
                 }
@@ -1812,18 +1790,6 @@ void logos::rpc_handler::account_history ()
                 timestamp = send_ts > recv_ts ? send_ts : recv_ts;
             }
         }
-=======
-
-        //what is this for
-        Send receive_link_block;  // i.e. source send block
-        if (!put_send)
-        {
-            auto error (node.store.request_get(receive_block.send_hash, receive_link_block, transaction));
-            assert (!error);
-        }
-        const Send & display_block = put_send ? send_block : receive_link_block;
-        const BlockHash & hash = put_send ? send_hash : receive_hash;
->>>>>>> Move 'state_block' to Request hierarchy and rename to 'Send'
 
         if (offset > 0)
         {
@@ -1832,22 +1798,21 @@ void logos::rpc_handler::account_history ()
         else
         {
             boost::property_tree::ptree entry;
-            const StateBlock & display_block = put_send ? send_block : receive_link_block;
-            boost::property_tree::ptree contents;
-            display_block.SerializeJson(contents);
+            const Send & display_block = put_send ? send_request : receive_link_block;
+            boost::property_tree::ptree contents = display_block.SerializeJson();
             contents.put("timestamp", std::to_string(timestamp));
             history.push_back (std::make_pair("", contents));
             --count;
         }
         if (put_send)
         {
-            send_hash = send_block.previous;
-            send_block_not_found = node.store.request_get(send_hash, send_block, transaction);
+            send_hash = send_request.previous;
+            send_not_found = node.store.request_get(send_hash, send_request, transaction);
         }
         else
         {
             receive_hash = receive_block.previous;
-            receive_block_not_found = node.store.receive_get (receive_hash, receive_block, transaction);
+            receive_not_found = node.store.receive_get (receive_hash, receive_block, transaction);
         }
     }
     response_l.add_child ("history", history);
@@ -2626,13 +2591,13 @@ std::unique_ptr<Send> deserialize_StateBlock_json (boost::property_tree::ptree c
 
 void logos::rpc_handler::process ()
 {
-    std::string block_text (request.get<std::string> ("block"));
+    std::string request_text (request.get<std::string> ("request"));
 
-    boost::property_tree::ptree block_l;
-    std::stringstream block_stream (block_text);
-    boost::property_tree::read_json (block_stream, block_l);
+    boost::property_tree::ptree request;
+    std::stringstream block_stream (request_text);
+    boost::property_tree::read_json (block_stream, request);
     bool error = false;
-    auto block = std::make_shared<Send> (error, block_l, false, true);
+    auto block = std::make_shared<Send> (error, request, false, true);
     if( ! error )
     {
         // TODO: check work, !logos::work_validate (*block)
@@ -2689,7 +2654,7 @@ void logos::rpc_handler::process ()
     }
     else
     {
-        error_response (response, "Block is invalid");
+        error_response (response, "Request is invalid");
     }
 }
 

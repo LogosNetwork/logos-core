@@ -5,21 +5,21 @@
 
 #include <logos/consensus/persistence/persistence_manager.hpp>
 
-const ConsensusType BSBCT = ConsensusType::BatchStateBlock;
+const ConsensusType B = ConsensusType::BatchStateBlock;
 
 using boost::multiprecision::uint128_t;
 using namespace boost::multiprecision::literals;
 
 template<>
-class PersistenceManager<BSBCT> : public Persistence {
+class PersistenceManager<B> : public Persistence {
 
     friend class BatchBlockConsensusManager;
 
 protected:
 
-    using Request           = RequestMessage<BSBCT>;
-    using PrePrepare        = PrePrepareMessage<BSBCT>;
-    using ReservationsPtr   = std::shared_ptr<ReservationsProvider>;
+    using Request         = RequestMessage<B>;
+    using PrePrepare      = PrePrepareMessage<B>;
+    using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
 
 public:
 
@@ -50,13 +50,13 @@ private:
 
     void ApplyBatchMessage(const ApprovedBSB & message,
                            MDB_txn * transaction);
-    void ApplyStateMessage(const Send & block,
+    void ApplyStateMessage(const Send & request,
                            uint64_t timestamp,
                            MDB_txn * transaction);
 
-    bool UpdateSourceState(const Send & block,
+    bool UpdateSourceState(const Send & request,
                            MDB_txn * transaction);
-    void UpdateDestinationState(const Send & block,
+    void UpdateDestinationState(const Send & request,
                                 uint64_t timestamp,
                                 MDB_txn * transaction);
 

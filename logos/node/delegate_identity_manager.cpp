@@ -294,26 +294,24 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
         logos::amount amount((del + 1) * 1000000 * 1000000);
         uint64_t work = 0;
 
-
-
-        Send state(logos::logos_test_account,   // account
-                   genesis_account.head,         // previous
-                   genesis_account.block_count,  // sequence
-                   pair.pub,  // link/to
-                   amount,
-                   fee,       // transaction fee
-                   pair.prv.data,
-                   pair.pub,
-                   work);
+        Send request(logos::logos_test_account,   // account
+                     genesis_account.head,        // previous
+                     genesis_account.block_count, // sequence
+                     pair.pub,                    // link/to
+                     amount,
+                     fee,                         // transaction fee
+                     pair.prv.data,
+                     pair.pub,
+                     work);
 
         genesis_account.balance = genesis_account.balance.number() - amount.number();
-        genesis_account.head = state.GetHash();
+        genesis_account.head = request.GetHash();
         genesis_account.block_count++;
         genesis_account.modified = logos::seconds_since_epoch();
 
-        ReceiveBlock receive(0, state.GetHash(), 0);
+        ReceiveBlock receive(0, request.GetHash(), 0);
 
-        _store.state_block_put(state, transaction);
+        _store.request_put(request, request.GetHash(), transaction);
 
         _store.receive_put(receive.Hash(),
                 receive,
@@ -324,7 +322,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
                                /* Head    */ 0,
                                /* Receive */ receive.Hash(),
                                /* Rep     */ 0,
-                               /* Open    */ state.GetHash(),
+                               /* Open    */ request.GetHash(),
                                /* Amount  */ amount,
                                /* Time    */ logos::seconds_since_epoch(),
                                /* Count   */ 0,
