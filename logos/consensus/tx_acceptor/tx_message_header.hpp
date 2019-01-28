@@ -14,7 +14,7 @@
 struct TxMessageHeader {
     const uint8_t           version = logos_version;                /// current logos software version
     const MessageType       type = MessageType::TxAcceptor_Message; /// message type
-    uint16_t                mpf = 0;                                /// multipurpose field
+    mutable uint16_t        mpf = 0;                                /// multipurpose field
     mutable uint32_t        payload_size = 0;                       /// size of transactions
 
     static constexpr uint16_t MESSAGE_SIZE = sizeof(version) + sizeof(type) + sizeof(payload_size) +
@@ -93,12 +93,14 @@ struct TxResponse : TxMessageHeader
     const uint32_t RESPONSE_SIZE = sizeof(logos::process_result) + sizeof(BlockHash);
 
     TxResponse(const std::vector<std::pair<logos::process_result, BlockHash>> && r)
-        : TxMessageHeader(RESPONSE_SIZE * r.size(), (uint16_t)r.size())
+        : TxMessageHeader(0,0)
         , response(std::move(r))
     {}
 
     uint32_t Serialize(logos::stream &stream) const
     {
+        payload_size = RESPONSE_SIZE * response.size();
+        mpf = (uint16_t)response.size();
         auto s = TxMessageHeader::Serialize(stream);
         for (auto r : response)
         {

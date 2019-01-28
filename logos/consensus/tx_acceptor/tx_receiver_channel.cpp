@@ -81,15 +81,18 @@ TxReceiverChannel::AsyncReadHeader()
             ReConnect(true);
             return;
         }
-        LOG_INFO(_log) << "TxReceiverChannel::AsyncReadHeader received header, payload "
-                       << header.payload_size;
+
         if (header.payload_size == 0) // heartbeat
         {
+            LOG_INFO(_log) << "TxReceiverChannel::AsyncReadHeader received heartbeat";
             _last_received = GetStamp();
             AsyncReadHeader();
         }
         else
         {
+            LOG_INFO(_log) << "TxReceiverChannel::AsyncReadHeader received header, "
+                           << " number of blocks " << header.mpf
+                           << " payload " << header.payload_size;
             AsyncReadMessage(header);
         }
     }, TxMessageHeader::MESSAGE_SIZE);
@@ -106,10 +109,10 @@ TxReceiverChannel::AsyncReadMessage(const TxMessageHeader & header)
         auto block = std::make_shared<StateBlock>(error, data, payload_size);
         if (error)
         {
-            LOG_ERROR(_log) << "TxReceiverChannel::AsyncReadMessage deserialize error, payload size "
-                            << payload_size;
-            ReConnect(true);
-            return;
+                LOG_ERROR(_log) << "TxReceiverChannel::AsyncReadMessage deserialize error, payload size "
+                                << payload_size;
+                ReConnect(true);
+                return;
         }
         LOG_INFO(_log) << "TxReceiverChannel::AsyncReadMessage received payload size " << payload_size;
         _receiver.OnSendRequest(static_pointer_cast<Request>(block), should_buffer);

@@ -71,7 +71,7 @@ TxAcceptorChannel::OnSendRequest(std::vector<std::shared_ptr<Request>> &blocks)
     logos::process_result result{logos::process_result::progress};
 
     auto buf{std::make_shared<vector<uint8_t>>()};
-    TxMessageHeader header(0);
+    TxMessageHeader header(0, blocks.size());
     {
         logos::vectorstream stream(*buf);
         header.Serialize(stream);

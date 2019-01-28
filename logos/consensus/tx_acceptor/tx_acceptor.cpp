@@ -240,7 +240,7 @@ TxAcceptor::RespondBin(std::shared_ptr<Socket> socket, const Responses &&resp)
         if (ec)
         {
             LOG_ERROR(_log) << "TxAcceptor::RespondBin error: " << ec.message();
-        } 
+        }
         else
         {
             LOG_DEBUG(_log) << "TxAcceptor::RespondBin sent " << size
@@ -278,12 +278,14 @@ TxAcceptor::AsyncReadBin(std::shared_ptr<Socket> socket)
             return;
         }
 
-        LOG_DEBUG(_log) << "TxAcceptor::AsyncReadBin received header";
+        LOG_DEBUG(_log) << "TxAcceptor::AsyncReadBin received header "
+                        << " number of blocks " << header.mpf
+                        << " payload size " << header.payload_size;
 
         auto buf = std::make_shared<std::vector<uint8_t>>(header.payload_size);
 
         boost::asio::async_read(*socket, boost::asio::buffer(buf->data(), buf->size()),
-                [this, socket, buf, header](const Error &ec, size_t size){
+                [this, socket, buf, header](const Error &ec, size_t size) mutable -> void {
              logos::process_result result;
 
              if (ec)
@@ -297,12 +299,12 @@ TxAcceptor::AsyncReadBin(std::shared_ptr<Socket> socket)
 
              Responses response;
              logos::bufferstream  stream(buf->data(), buf->size());
-             auto nblocks = header.mpf; // mpf has the number of blocks in the request
              bool error = false;
+             auto nblocks = header.mpf;
              std::shared_ptr<Request> block = nullptr;
              Blocks blocks;
 
-             while (nblocks-- > 0)
+             while (nblocks > 0)
              {
                  error = false;
                  block = static_pointer_cast<Request>(std::make_shared<StateBlock>(error, stream));
@@ -315,11 +317,19 @@ TxAcceptor::AsyncReadBin(std::shared_ptr<Socket> socket)
                  }
 
                  ProcessBlock(block, blocks, response);
+
+                 nblocks--;
+             }
+
+             if (nblocks > 0)
+             {
+                 LOG_ERROR(_log) << "TxAcceptor::AsyncReadBin, invalid number of blocks: specified "
+                                 << header.mpf << ", received " << blocks.size();
              }
 
              PostProcessBlocks(blocks, response);
 
-             LOG_DEBUG(_log) << "TxAcceptor::AsyncReadJson submitted requests";
+             LOG_DEBUG(_log) << "TxAcceptor::AsyncReadBin submitted requests";
 
              RespondBin(socket, std::move(response));
         });
@@ -336,11 +346,17 @@ TxAcceptor::Validate(const std::shared_ptr<Request> & block)
 
     if (block->transaction_fee.number() < PersistenceManager<BSBCT>::MIN_TRANSACTION_FEE)
     {
+        LOG_INFO(_log) << "TxAcceptor::Validate , bad transaction fee: "
+                       << block->transaction_fee.number()
+                       << " account: " << block->account.to_string();
         return logos::process_result::insufficient_fee;
     }
 
     if (!block->VerifySignature(block->account))
     {
+        LOG_INFO(_log) << "TxAcceptor::Validate , bad signature: "
+                       << block->signature.to_string()
+                       << " account: " << block->account.to_string();
         return logos::process_result::bad_signature;
     }
 
