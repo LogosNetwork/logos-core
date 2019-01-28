@@ -474,11 +474,7 @@ public:
 
     // consensus-related functionality.
 
-<<<<<<< HEAD
-    process_return OnSendRequest(std::shared_ptr<Send> block,
-=======
     process_return OnSendRequest(std::shared_ptr<Send> request,
->>>>>>> a2e99111e978866ab15e000933a4d7dc73570b69
                                  bool should_buffer);
     process_return BufferComplete();
 

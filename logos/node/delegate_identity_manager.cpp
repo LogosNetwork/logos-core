@@ -457,4 +457,4 @@ DelegateIdentityManager::GetCurrentEpoch(BlockStore &store, ApprovedEB &epoch)
     {
         trace_and_halt();
     }
-i
+}

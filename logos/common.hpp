@@ -280,69 +280,6 @@ enum class process_result
 
 std::string ProcessResultToString(process_result result);
 
-enum class RequestType : uint8_t
-{
-    // Native Requests
-    //
-    Send                = 0,
-    ChangeRep           = 1,
-
-    // Token Administrative
-    // Requests
-    //
-    IssueTokens        = 2,
-    IssueAddTokens     = 3,
-    ImmuteTokenSetting = 4,
-    RevokeTokens       = 5,
-    FreezeTokens       = 6,
-    SetTokenFee        = 7,
-    UpdateWhitelist    = 8,
-    UpdateIssuerInfo   = 9,
-    UpdateController   = 10,
-    BurnTokens         = 11,
-    DistributeTokens   = 12,
-    WithdrawTokens     = 13,
-
-    // Token User Requests
-    //
-    JoinWhitelist      = 14,
-    SendTokens         = 15,
-
-    //Election Requests
-    Vote               = 19,
-    Candidacy          = 20
-};
-
-struct Request
-{
-    Request(bool & error,
-            std::basic_streambuf<uint8_t> & stream);
-
-    virtual ~Request() {}
-
-    virtual block_hash Hash() const;
-    virtual void Hash(blake2b_state & hash) const = 0;
-
-    virtual uint16_t WireSize() const;
-
-    template<typename T>
-    uint16_t VectorWireSize(const std::vector<T> & v) const
-    {
-        // The size of the vector's
-        // elements plus the size
-        // of the field denoting
-        // the number of elements.
-        //
-        return (sizeof(T) * v.size()) + sizeof(uint8_t);
-    }
-
-    uint8_t StringWireSize(const std::string & s) const;
-
-    RequestType type;
-    block_hash  previous;
-    block_hash  next;
-};
-
 class process_return
 {
 public:
