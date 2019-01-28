@@ -33,22 +33,24 @@ class RequestHandler
 
 public:
 
-    using BSBPrePrepare = PrePrepareMessage<ConsensusType::BatchStateBlock>;
+    using PrePrepare = PrePrepareMessage<ConsensusType::Request>;
 
     RequestHandler();
 
     void OnRequest(std::shared_ptr<Send> request);
-    void OnPostCommit(const BatchStateBlock & batch);
+    void OnPostCommit(const RequestBlock & block);
 
-    BSBPrePrepare & PrepareNextBatch();
-    BSBPrePrepare & GetCurrentBatch()
+    PrePrepare & PrepareNextBatch();
+    PrePrepare & GetCurrentBatch()
     {
         LOG_DEBUG (_log) << "RequestHandler::GetCurrentBatch - "
-                << "batch_size=" << _current_batch.block_count;
+                         << "batch_size = "
+                         << _current_batch.block_count;
+
         return _current_batch;
     }
     void InsertFront(const std::list<Send> & requests);
-    void Acquire(const BSBPrePrepare & batch);
+    void Acquire(const PrePrepare & batch);
 
     void PopFront();
     bool BatchFull();
@@ -58,7 +60,7 @@ public:
 
 private:
 
-    Log             _log;
-    BSBPrePrepare   _current_batch;
-    Requests        _requests;
+    Log        _log;
+    PrePrepare _current_batch;
+    Requests   _requests;
 };

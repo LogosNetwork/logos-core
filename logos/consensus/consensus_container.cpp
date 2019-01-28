@@ -98,19 +98,19 @@ ConsensusContainer::OnSendRequest(
 	    return result;
 	}
 
-    using Request = RequestMessage<ConsensusType::BatchStateBlock>;
+    using Request = RequestMessage<ConsensusType::Request>;
 
     if(should_buffer)
     {
         result.code = logos::process_result::buffered;
-        _cur_epoch->_batch_manager.OnBenchmarkSendRequest(
+        _cur_epoch->_request_manager.OnBenchmarkSendRequest(
             static_pointer_cast<Request>(request), result);
     }
     else
     {
         LOG_DEBUG(_log) << "ConsensusContainer::OnSendRequest: "
                         << "number_transaction=" << request->transactions.size();
-        _cur_epoch->_batch_manager.OnSendRequest(
+        _cur_epoch->_request_manager.OnSendRequest(
             static_pointer_cast<Request>(request), result);
     }
 
@@ -131,7 +131,7 @@ ConsensusContainer::BufferComplete(
         return;
     }
 
-    _cur_epoch->_batch_manager.BufferComplete(result);
+    _cur_epoch->_request_manager.BufferComplete(result);
 }
 
 logos::process_return

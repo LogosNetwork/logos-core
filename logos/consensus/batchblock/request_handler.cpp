@@ -18,13 +18,13 @@ void RequestHandler::OnRequest(std::shared_ptr<Send> request)
     _requests.get<0>().push_back(*request);
 }
 
-void RequestHandler::OnPostCommit(const BatchStateBlock & batch)
+void RequestHandler::OnPostCommit(const RequestBlock & block)
 {
     auto & hashed = _requests.get<1>();
 
-    for(uint64_t pos = 0; pos < batch.block_count; ++pos)
+    for(uint64_t pos = 0; pos < block.block_count; ++pos)
     {
-        auto hash = batch.blocks[pos].GetHash();
+        auto hash = block.blocks[pos].GetHash();
 
         if(hashed.find(hash) != hashed.end())
         {
@@ -33,9 +33,9 @@ void RequestHandler::OnPostCommit(const BatchStateBlock & batch)
     }
 }
 
-RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch()
+RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch()
 {
-    _current_batch = BSBPrePrepare();
+    _current_batch = PrePrepare();
     auto & sequence = _requests.get<0>();
 
     for(auto pos = sequence.begin(); pos != sequence.end(); ++pos)
@@ -70,7 +70,7 @@ void RequestHandler::InsertFront(const std::list<Send> & requests)
     sequenced.insert(sequenced.begin(), requests.begin(), requests.end());
 }
 
-void RequestHandler::Acquire(const BSBPrePrepare & batch)
+void RequestHandler::Acquire(const PrePrepare & batch)
 {
     auto & sequenced = _requests.get<0>();
     auto & hashed = _requests.get<1>();
@@ -95,7 +95,7 @@ void RequestHandler::PopFront()
         hashed.erase(_current_batch.blocks[pos].GetHash());
     }
 
-    _current_batch = BSBPrePrepare();
+    _current_batch = PrePrepare();
 }
 
 bool RequestHandler::BatchFull()

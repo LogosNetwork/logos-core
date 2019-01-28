@@ -276,6 +276,6 @@ ConsensusManager<CT>::OnNetIOError(uint8_t delegate_id)
     }
 }
 
-template class ConsensusManager<ConsensusType::BatchStateBlock>;
+template class ConsensusManager<ConsensusType::Request>;
 template class ConsensusManager<ConsensusType::MicroBlock>;
 template class ConsensusManager<ConsensusType::Epoch>;
