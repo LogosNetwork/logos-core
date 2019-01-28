@@ -78,7 +78,6 @@ MicroBlockTester::block_create_test(
     int ndelegates = 32;
     int n_batch_blocks = 100; // need to randomize to simulate different arrival
     int n_state_blocks = 100;
-    Send state_block;
     DelegateSig delegate_sig;
     AccountSig account_sig;
     static BlockHash previous[32]; // should be current epoch for 1st block
@@ -123,43 +122,45 @@ MicroBlockTester::precreate_account(
     AccountPubKey pub_key = pair.pub;
     AccountPrivKey priv_key = pair.prv.data;
 
-    Send state(account,  // account
-               BlockHash(), // previous
-               0, // sqn
-               account,  // link
-               amount,
-               fee,
-               priv_key,
-               pub_key,
-               work);
+    Send request(account,     // account
+                 BlockHash(), // previous
+                 0,           // sqn
+                 account,     // link
+                 amount,
+                 fee,
+                 priv_key,
+                 pub_key,
+                 work);
 
-    std::string contents = state.ToJson();
+    std::string contents = request.ToJson();
     boost::log::sources::logger_mt log;
     LOG_DEBUG(log) << "initializing delegate "
                    << pair.prv.data.to_string() << " "
                    << pair.pub.to_string() << " "
                    // <<  pair.pub.to_account() << " "
-                   << state.GetHash().to_string() << "\n"
+                   << request.GetHash().to_string() << "\n"
                    << contents;
 
-    ReceiveBlock receive(0, state.GetHash(), 0);
-    node.store.receive_put(state.GetHash(), receive, transaction);
+    ReceiveBlock receive(0, request.GetHash(), 0);
+    node.store.receive_put(request.GetHash(), receive, transaction);
 
     node.store.account_put(account,
                       {
                               /* Head    */ 0,
                               /* Previous*/ 0,
                               /* Rep     */ 0,
-                              /* Open    */ state.GetHash(),
+                              /* Open    */ request.GetHash(),
                               /* Amount  */ amount,
                               /* Time    */ logos::seconds_since_epoch(),
                               /* Count   */ 0,
                               /* Receive */ 0
                       },
                       transaction);
+
     response_l.put("private", pair.prv.data.to_string());
     response_l.put("public", pair.pub.to_string());
     response_l.put("account", pair.pub.to_account());
+
     response (response_l);
 }
 

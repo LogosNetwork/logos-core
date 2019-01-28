@@ -5,19 +5,19 @@
 
 #include <logos/consensus/persistence/persistence_manager.hpp>
 
-const ConsensusType BSBCT = ConsensusType::BatchStateBlock;
+const ConsensusType B = ConsensusType::BatchStateBlock;
 
 using boost::multiprecision::uint128_t;
 using namespace boost::multiprecision::literals;
 
 template<>
-class PersistenceManager<BSBCT> : public Persistence {
+class PersistenceManager<B> : public Persistence {
 
 protected:
 
-    using Request           = RequestMessage<BSBCT>;
-    using PrePrepare        = PrePrepareMessage<BSBCT>;
-    using ReservationsPtr   = std::shared_ptr<ReservationsProvider>;
+    using Request         = RequestMessage<B>;
+    using PrePrepare      = PrePrepareMessage<B>;
+    using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
 
 public:
 
@@ -41,13 +41,13 @@ private:
 
     void ApplyBatchMessage(const ApprovedBSB & message,
                            MDB_txn * transaction);
-    void ApplyStateMessage(const Send & block,
+    void ApplyStateMessage(const Send & request,
                            uint64_t timestamp,
                            MDB_txn * transaction);
 
-    bool UpdateSourceState(const Send & block,
+    bool UpdateSourceState(const Send & request,
                            MDB_txn * transaction);
-    void UpdateDestinationState(const Send & block,
+    void UpdateDestinationState(const Send & request,
                                 uint64_t timestamp,
                                 MDB_txn * transaction);
 
@@ -58,8 +58,8 @@ private:
     static constexpr uint32_t  RESERVATION_PERIOD  = 2;
     static constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
 
-    Log                 _log;
-    ReservationsPtr     _reservations;
-    std::mutex          _reservation_mutex;
-    std::mutex          _destination_mutex;
+    Log             _log;
+    ReservationsPtr _reservations;
+    std::mutex      _reservation_mutex;
+    std::mutex      _destination_mutex;
 };
