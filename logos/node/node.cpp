@@ -8,7 +8,7 @@
 #include <logos/node/client_callback.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/microblock/microblock.hpp>
-#include <logos/consensus/messages/state_block.hpp>
+#include <logos/consensus/messages/receive_block.hpp>
 
 #include <algorithm>
 #include <future>
@@ -1453,9 +1453,9 @@ _consensus_container(service_a, store, alarm_a, config.consensus_manager_config,
 
             //TODO check with Greg
             ReceiveBlock logos_genesis_receive(0, logos_genesis_block.GetHash(), 0);
-            store.state_block_put(logos_genesis_block,
-                    logos_genesis_block.GetHash(),
-                    transaction);
+            store.request_put(logos_genesis_block,
+                              logos_genesis_block.GetHash(),
+                              transaction);
             store.receive_put(logos_genesis_receive.Hash(),
                     logos_genesis_receive,
                     transaction);
@@ -2190,9 +2190,9 @@ void logos::node::add_initial_peers ()
 }
 
 
-logos::process_return logos::node::OnSendRequest(std::shared_ptr<Send> block, bool should_buffer)
+logos::process_return logos::node::OnSendRequest(std::shared_ptr<Send> request, bool should_buffer)
 {
-    return _consensus_container.OnSendRequest(block, should_buffer);
+    return _consensus_container.OnSendRequest(request, should_buffer);
 }
 
 logos::process_return logos::node::BufferComplete()

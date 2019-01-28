@@ -2,62 +2,9 @@
 #include <logos/consensus/messages/util.hpp>
 #include <logos/common.hpp>
 
-
 #ifndef BOOST_LITTLE_ENDIAN
-    static_assert(false, "Only LITTLE_ENDIAN machines are not supported!");
+    static_assert(false, "Only LITTLE_ENDIAN machines are supported!");
 #endif
-
-AggSignature::AggSignature(bool & error, logos::stream & stream)
-{
-    unsigned long m;
-    error = logos::read(stream, m);
-    if(error)
-    {
-        return;
-    }
-    new (&map) ParicipationMap(le64toh(m));
-
-    error = logos::read(stream, sig);
-}
-
-
-PrePrepareCommon::PrePrepareCommon(bool & error, logos::stream & stream)
-{
-    error = logos::read(stream, primary_delegate);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, epoch_number);
-    if(error)
-    {
-        return;
-    }
-    epoch_number = le32toh(epoch_number);
-
-    error = logos::read(stream, sequence);
-    if(error)
-    {
-        return;
-    }
-    sequence = le32toh(sequence);
-
-    error = logos::read(stream, timestamp);
-    if(error)
-    {
-        return;
-    }
-    timestamp = le64toh(timestamp);
-
-    error = logos::read(stream, previous);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, preprepare_sig);
-}
 
 BatchStateBlock::BatchStateBlock(bool & error, logos::stream & stream, bool with_state_block)
 : PrePrepareCommon(error, stream)
@@ -104,14 +51,14 @@ BatchStateBlock::BatchStateBlock(bool & error, logos::stream & stream, bool with
 void BatchStateBlock::SerializeJson(boost::property_tree::ptree & batch_state_block) const
 {
     PrePrepareCommon::SerializeJson(batch_state_block);
+
     batch_state_block.put("type", "BatchStateBlock");
     batch_state_block.put("block_count", std::to_string(block_count));
 
     boost::property_tree::ptree blocks_tree;
     for(uint64_t i = 0; i < block_count; ++i)
     {
-        boost::property_tree::ptree txn_content;
-        blocks[i].SerializeJson(txn_content, true, false);
+        boost::property_tree::ptree txn_content = blocks[i].SerializeJson();
         blocks_tree.push_back(std::make_pair("", txn_content));
     }
     batch_state_block.add_child("blocks", blocks_tree);
@@ -133,7 +80,7 @@ uint32_t BatchStateBlock::Serialize(logos::stream & stream, bool with_state_bloc
     {
         for(uint64_t i = 0; i < block_count; ++i)
         {
-            s += blocks[i].Serialize(stream, false);
+            s += blocks[i].Serialize(stream);
         }
     }
 

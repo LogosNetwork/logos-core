@@ -1,7 +1,7 @@
 #pragma once
 
 #include <logos/consensus/messages/common.hpp>
-#include <logos/consensus/messages/state_block.hpp>
+#include <logos/consensus/messages/receive_block.hpp>
 #include <logos/consensus/messages/batch_state_block.hpp>
 #include <logos/epoch/epoch_transition.hpp>
 #include <logos/microblock/microblock.hpp>

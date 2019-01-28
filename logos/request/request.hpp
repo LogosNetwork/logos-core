@@ -1,7 +1,8 @@
 #pragma once
 
-#include <logos/lib/numbers.hpp>
+#include <logos/node/utility.hpp>
 #include <logos/lib/utility.hpp>
+#include <logos/lib/numbers.hpp>
 
 #include <boost/property_tree/ptree.hpp>
 
@@ -47,6 +48,9 @@ struct Request
 
     Request() = default;
 
+    Request(RequestType type,
+            const BlockHash & previous);
+
     Request(bool & error,
             std::basic_streambuf<uint8_t> & stream);
 
@@ -56,8 +60,12 @@ struct Request
     virtual ~Request() {}
 
     std::string ToJson() const;
+
     virtual boost::property_tree::ptree SerializeJson() const;
     virtual uint64_t Serialize(logos::stream & stream) const;
+    logos::mdb_val SerializeDB(std::vector<uint8_t> & buf) const;
+
+    virtual BlockHash GetHash () const;
 
     virtual BlockHash Hash() const;
     virtual void Hash(blake2b_state & hash) const;

@@ -7,9 +7,9 @@
 #include <logos/lib/trace.hpp>
 #include <logos/common.hpp>
 
-constexpr uint128_t PersistenceManager<BSBCT>::MIN_TRANSACTION_FEE;
+constexpr uint128_t PersistenceManager<B>::MIN_TRANSACTION_FEE;
 
-PersistenceManager<BSBCT>::PersistenceManager(Store & store,
+PersistenceManager<B>::PersistenceManager(Store & store,
                                               ReservationsPtr reservations,
                                               Milliseconds clock_drift)
     : Persistence(store, clock_drift)
@@ -22,7 +22,7 @@ PersistenceManager<BSBCT>::PersistenceManager(Store & store,
     }
 }
 
-void PersistenceManager<BSBCT>::ApplyUpdates(
+void PersistenceManager<B>::ApplyUpdates(
     const ApprovedBSB & message,
     uint8_t delegate_id)
 {
@@ -39,7 +39,7 @@ void PersistenceManager<BSBCT>::ApplyUpdates(
         message.blocks[i].index_in_batch = count++;
     }
 
-    LOG_DEBUG(_log) << "PersistenceManager<BSBCT>::ApplyUpdates - BSB with "
+    LOG_DEBUG(_log) << "PersistenceManager<B>::ApplyUpdates - BSB with "
             << message.block_count << " StateBlocks";
 
     logos::transaction transaction(_store.environment, nullptr, true);
@@ -47,7 +47,7 @@ void PersistenceManager<BSBCT>::ApplyUpdates(
     ApplyBatchMessage(message, transaction);
 }
 
-bool PersistenceManager<BSBCT>::Validate(
+bool PersistenceManager<B>::Validate(
     const Request & block,
     logos::process_return & result,
     bool allow_duplicates)
@@ -92,7 +92,7 @@ bool PersistenceManager<BSBCT>::Validate(
         // This account has issued at least one send transaction.
         if(info.block_count)
         {
-            if(!_store.state_block_exists(block.previous))
+            if(!_store.request_exists(block.previous))
             {
                 result.code = logos::process_result::gap_previous;
                 BOOST_LOG (_log) << "GAP_PREVIOUS: cannot find previous hash " << block.previous.to_string()
@@ -126,7 +126,7 @@ bool PersistenceManager<BSBCT>::Validate(
         }
 
         // Have we seen this block before?
-        if(_store.state_block_exists(hash))
+        if(_store.request_exists(hash))
         {
             result.code = logos::process_result::old;
             return false;
@@ -191,16 +191,16 @@ bool PersistenceManager<BSBCT>::Validate(
     return true;
 }
 
-bool PersistenceManager<BSBCT>::Validate(
+bool PersistenceManager<B>::Validate(
     const Request & block)
 {
     logos::process_return ignored_result;
     auto re = Validate(block, ignored_result);
-    LOG_DEBUG(_log) << "PersistenceManager<BSBCT>::Validate code " << (uint)ignored_result.code;
+    LOG_DEBUG(_log) << "PersistenceManager<B>::Validate code " << (uint)ignored_result.code;
     return re;
 }
 
-bool PersistenceManager<BSBCT>::Validate(
+bool PersistenceManager<B>::Validate(
     const PrePrepare & message,
     ValidationStatus * status)
 {
@@ -221,7 +221,7 @@ bool PersistenceManager<BSBCT>::Validate(
     return valid;
 }
 
-void PersistenceManager<BSBCT>::StoreBatchMessage(
+void PersistenceManager<B>::StoreBatchMessage(
     const ApprovedBSB & message,
     MDB_txn * transaction,
     uint8_t delegate_id)
@@ -261,7 +261,7 @@ void PersistenceManager<BSBCT>::StoreBatchMessage(
     //       the first batch of the epoch.
 }
 
-void PersistenceManager<BSBCT>::ApplyBatchMessage(
+void PersistenceManager<B>::ApplyBatchMessage(
     const ApprovedBSB & message,
     MDB_txn * transaction)
 {
@@ -278,23 +278,23 @@ void PersistenceManager<BSBCT>::ApplyBatchMessage(
 
 // Currently designed only to handle
 // send transactions.
-void PersistenceManager<BSBCT>::ApplyStateMessage(
-    const Send & block,
+void PersistenceManager<B>::ApplyStateMessage(
+    const Send & request,
     uint64_t timestamp,
     MDB_txn * transaction)
 {
-    if(!UpdateSourceState(block, transaction))
+    if(!UpdateSourceState(request, transaction))
     {
-        UpdateDestinationState(block, timestamp, transaction);
+        UpdateDestinationState(request, timestamp, transaction);
     }
 }
 
-bool PersistenceManager<BSBCT>::UpdateSourceState(
-    const Send & block,
+bool PersistenceManager<B>::UpdateSourceState(
+    const Send & request,
     MDB_txn * transaction)
 {
     logos::account_info info;
-    auto account_error(_store.account_get(block.account, info));
+    auto account_error(_store.account_get(request.account, info));
 
     if(account_error)
     {
@@ -304,10 +304,10 @@ bool PersistenceManager<BSBCT>::UpdateSourceState(
 
     // This can happen when a duplicate request
     // is accepted. We can ignore this transaction.
-    if(block.previous != info.head)
+    if(request.previous != info.head)
     {
         LOG_INFO(_log) << "Block previous ("
-                       << block.previous.to_string()
+                       << request.previous.to_string()
                        << ") does not match account head ("
                        << info.head.to_string()
                        << "). Suspected duplicate request - "
@@ -317,21 +317,21 @@ bool PersistenceManager<BSBCT>::UpdateSourceState(
 
     info.block_count++;
     info.balance = info.balance.number() -
-                   block.transaction_fee.number();
+                   request.transaction_fee.number();
 
-    for(auto & t : block.transactions)
+    for(auto & t : request.transactions)
     {
         info.balance = info.balance.number() - t.amount.number();
     }
 
-    info.head = block.GetHash();
+    info.head = request.GetHash();
     info.modified = logos::seconds_since_epoch();
 
-    if(_store.account_put(block.account, info, transaction))
+    if(_store.account_put(request.account, info, transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager::UpdateSourceState - "
                         << "Failed to store account: "
-                        << block.account.to_string();
+                        << request.account.to_string();
 
         std::exit(EXIT_FAILURE);
     }
@@ -339,8 +339,8 @@ bool PersistenceManager<BSBCT>::UpdateSourceState(
     return false;
 }
 
-void PersistenceManager<BSBCT>::UpdateDestinationState(
-    const Send & block,
+void PersistenceManager<B>::UpdateDestinationState(
+    const Send & request,
     uint64_t timestamp,
     MDB_txn * transaction)
 {
@@ -349,15 +349,15 @@ void PersistenceManager<BSBCT>::UpdateDestinationState(
     //
     std::lock_guard<std::mutex> lock(_destination_mutex);
     uint16_t index2send = 0;
-    for(auto & t : block.transactions)
+    for(auto & t : request.transactions)
     {
         logos::account_info info;
         auto account_error(_store.account_get(t.target, info));
 
         ReceiveBlock receive(
-                /* Previous  */ info.receive_head,
-                /* send_hash */ block.GetHash(),
-                /* index2send*/ index2send++
+                /* Previous   */ info.receive_head,
+                /* send_hash  */ request.GetHash(),
+                /* index2send */ index2send++
         );
 
         auto hash(receive.Hash());
@@ -389,12 +389,12 @@ void PersistenceManager<BSBCT>::UpdateDestinationState(
     }
 }
 
-
-//TODO discuss, total order of receives in receive_db of all nodes
-void PersistenceManager<BSBCT>::PlaceReceive(
-        ReceiveBlock & receive,
-        uint64_t timestamp,
-        MDB_txn * transaction)
+// TODO: Discuss total order of receives in
+//       receive_db of all nodes.
+void PersistenceManager<B>::PlaceReceive(
+    ReceiveBlock & receive,
+    uint64_t timestamp,
+    MDB_txn * transaction)
 {
     ReceiveBlock prev;
     ReceiveBlock cur;
@@ -407,62 +407,64 @@ void PersistenceManager<BSBCT>::PlaceReceive(
         // Returns true if 'a' should precede 'b'
         // in the receive chain.
         auto receive_cmp = [&](const ReceiveBlock & a,
-                              const ReceiveBlock & b)
-                              {
-            //need b's timestamp
-            Send sb;
-            if(! _store.state_block_get(b.send_hash, sb, transaction))
+                               const ReceiveBlock & b)
+        {
+            // need b's timestamp
+            Send send;
+            if(!_store.request_get(b.send_hash, send, transaction))
             {
                 LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
-                                        << "Failed to get a previous state block with hash: "
-                                        << b.send_hash.to_string();
+                                << "Failed to get a previous state block with hash: "
+                                << b.send_hash.to_string();
                 trace_and_halt();
             }
 
-            ApprovedBSB absb;
-            if(! _store.batch_block_get(sb.batch_hash, absb, transaction))
+            ApprovedBSB approved;
+            if(! _store.batch_block_get(send.batch_hash, approved, transaction))
             {
                 LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
-                                        << "Failed to get a previous batch state block with hash: "
-                                        << sb.batch_hash.to_string();
+                                << "Failed to get a previous batch state block with hash: "
+                                << send.batch_hash.to_string();
                 trace_and_halt();
             }
 
-            auto timestamp_b = absb.timestamp;
+            auto timestamp_b = approved.timestamp;
             bool a_is_less;
             if(timestamp_a != timestamp_b)
             {
                 a_is_less = timestamp_a < timestamp_b;
-            }else
+            }
+            else
             {
                 a_is_less = a.Hash() < b.Hash();
             }
 
-            timestamp_a = timestamp_b;//update for next compare if needed
+            // update for next compare if needed
+            timestamp_a = timestamp_b;
+
             return a_is_less;
-                              };
+        };
 
         while(receive_cmp(receive, cur))
         {
             prev = cur;
             if(!_store.receive_get(cur.previous,
-                                       cur,
-                                       transaction))
+                                   cur,
+                                   transaction))
             {
                 break;
             }
         }
 
-
-        Send sb_prev;
-        if(! _store.state_block_get(prev.send_hash, sb_prev, transaction))
+        Send prev_send;
+        if(!_store.request_get(prev.send_hash, prev_send, transaction))
         {
             LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
-                                    << "Failed to get a previous state block with hash: "
-                                    << prev.send_hash.to_string();
+                            << "Failed to get a previous state block with hash: "
+                            << prev.send_hash.to_string();
             trace_and_halt();
         }
-        if(!sb_prev.account.is_zero())
+        if(!prev_send.account.is_zero())
         {
             receive.previous = prev.previous;
             prev.previous = hash;

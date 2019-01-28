@@ -10,11 +10,12 @@ RequestHandler::RequestHandler()
     _requests.get<0>().push_back(Send());
 }
 
-void RequestHandler::OnRequest(std::shared_ptr<Send> block)
+void RequestHandler::OnRequest(std::shared_ptr<Send> request)
 {
     LOG_DEBUG (_log) << "RequestHandler::OnRequest"
-            << block->SerializeJson(false, false);
-    _requests.get<0>().push_back(*block);
+                     << request->ToJson();
+
+    _requests.get<0>().push_back(*request);
 }
 
 void RequestHandler::OnPostCommit(const BatchStateBlock & batch)
@@ -44,7 +45,7 @@ RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch()
         // container and close the batch.
 
         LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch requests_size="
-                << sequence.size();
+                         << sequence.size();
 
         if(pos->account.is_zero() && pos->GetNumTransactions() == 0)
         {
@@ -62,11 +63,11 @@ RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch()
     return _current_batch;
 }
 
-void RequestHandler::InsertFront(const std::list<Send> & blocks)
+void RequestHandler::InsertFront(const std::list<Send> & requests)
 {
     auto & sequenced = _requests.get<0>();
 
-    sequenced.insert(sequenced.begin(), blocks.begin(), blocks.end());
+    sequenced.insert(sequenced.begin(), requests.begin(), requests.end());
 }
 
 void RequestHandler::Acquire(const BSBPrePrepare & batch)

@@ -864,7 +864,7 @@ bool logos::block_store::batch_block_put (ApprovedBSB const & block, const Block
 
     for(uint16_t i = 0; i < block.block_count; ++i)
     {
-        status = state_block_put(block.blocks[i], block.blocks[i].GetHash(), transaction);
+        status = request_put(block.blocks[i], block.blocks[i].GetHash(), transaction);
         assert(status == 0);
     }
 
@@ -872,25 +872,43 @@ bool logos::block_store::batch_block_put (ApprovedBSB const & block, const Block
     return status != 0;
 }
 
-bool logos::block_store::state_block_put(Send const & block, const BlockHash & batch_hash, MDB_txn * transaction)
+bool logos::block_store::request_get(const BlockHash & hash, Request & request, MDB_txn * transaction)
 {
-    auto hash(block.GetHash());
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    mdb_val val;
+    if(mdb_get(transaction, state_db, mdb_val(hash), val))
+    {
+        LOG_TRACE(log) << __func__ << " mdb_get failed";
+        return true;
+    }
+
+    bool error = false;
+    new(&request) Send(error, val);
+    assert(!error);
+
+    return error;
+}
+
+bool logos::block_store::request_put(const Request & request, const BlockHash & batch_hash, MDB_txn * transaction)
+{
+    auto hash(request.GetHash());
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();
 
     std::vector<uint8_t> buf;
-    auto status(mdb_put(transaction, state_db, logos::mdb_val(block.GetHash()),
-                        block.to_mdb_val(buf), 0));
+    auto status(mdb_put(transaction, state_db, logos::mdb_val(request.GetHash()),
+                        request.SerializeDB(buf), 0));
 
     assert(status == 0);
     return status != 0;
 }
 
-bool logos::block_store::state_block_exists(const Send & block)
+bool logos::block_store::request_exists(const Request & request)
 {
-    return state_block_exists(block.GetHash());
+    return request_exists(request.GetHash());
 }
 
-bool logos::block_store::state_block_exists(const BlockHash & hash)
+bool logos::block_store::request_exists(const BlockHash & hash)
 {
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();
 
@@ -934,15 +952,15 @@ bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & b
         {
             if(block.block_count > CONSENSUS_BATCH_SIZE)
             {
-                LOG_FATAL(log) << __func__ << " state_block_get failed, block.block_count > CONSENSUS_BATCH_SIZE";
+                LOG_FATAL(log) << __func__ << " batch_block_get failed, block.block_count > CONSENSUS_BATCH_SIZE";
                 trace_and_halt();
             }
 
             for(uint16_t i = 0; i < block.block_count; ++i)
             {
-                if(state_block_get(block.hashs[i], block.blocks[i], transaction))
+                if(request_get(block.hashs[i], block.blocks[i], transaction))
                 {
-                    LOG_ERROR(log) << __func__ << " state_block_get failed";
+                    LOG_ERROR(log) << __func__ << " request_get failed";
                     return true;
                 }
             }
@@ -1007,24 +1025,6 @@ bool logos::block_store::consensus_block_update_next(const BlockHash & hash, con
         trace_and_halt();
     }
     return false;
-}
-
-bool logos::block_store::state_block_get(const BlockHash & hash, Send & block, MDB_txn * transaction)
-{
-    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
-
-    mdb_val val;
-    if(mdb_get(transaction, state_db, mdb_val(hash), val))
-    {
-        LOG_TRACE(log) << __func__ << " mdb_get failed";
-        return true;
-    }
-
-    bool error = false;
-    new(&block) Send(error, val);
-    assert(!error);
-
-    return error;
 }
 
 bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, mdb_val &value, MDB_txn *tx)
