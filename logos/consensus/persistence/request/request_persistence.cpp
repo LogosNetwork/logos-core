@@ -1,15 +1,15 @@
 /// @file
 /// This file contains declaration of BatchStateBlock related validation/persistence
 
-#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
+#include <logos/consensus/persistence/request/request_persistence.hpp>
 #include <logos/consensus/persistence/reservations.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/lib/trace.hpp>
 #include <logos/common.hpp>
 
-constexpr uint128_t PersistenceManager<B>::MIN_TRANSACTION_FEE;
+constexpr uint128_t PersistenceManager<R>::MIN_TRANSACTION_FEE;
 
-PersistenceManager<B>::PersistenceManager(Store & store,
+PersistenceManager<R>::PersistenceManager(Store & store,
                                           ReservationsPtr reservations,
                                           Milliseconds clock_drift)
     : Persistence(store, clock_drift)
@@ -22,7 +22,7 @@ PersistenceManager<B>::PersistenceManager(Store & store,
     }
 }
 
-void PersistenceManager<B>::ApplyUpdates(
+void PersistenceManager<R>::ApplyUpdates(
     const ApprovedBSB & message,
     uint8_t delegate_id)
 {
@@ -40,7 +40,7 @@ void PersistenceManager<B>::ApplyUpdates(
         request->index_in_batch = count++;
     }
 
-    LOG_DEBUG(_log) << "PersistenceManager<B>::ApplyUpdates - BSB with "
+    LOG_DEBUG(_log) << "PersistenceManager<R>::ApplyUpdates - BSB with "
                     << message.requests.size()
                     << " StateBlocks";
 
@@ -49,7 +49,7 @@ void PersistenceManager<B>::ApplyUpdates(
     ApplyBatchMessage(message, transaction);
 }
 
-bool PersistenceManager<B>::Validate(
+bool PersistenceManager<R>::Validate(
     const Request & block,
     logos::process_return & result,
     bool allow_duplicates)
@@ -193,16 +193,16 @@ bool PersistenceManager<B>::Validate(
     return true;
 }
 
-bool PersistenceManager<B>::Validate(
+bool PersistenceManager<R>::Validate(
     const Request & block)
 {
     logos::process_return ignored_result;
     auto re = Validate(block, ignored_result);
-    LOG_DEBUG(_log) << "PersistenceManager<B>::Validate code " << (uint)ignored_result.code;
+    LOG_DEBUG(_log) << "PersistenceManager<R>::Validate code " << (uint)ignored_result.code;
     return re;
 }
 
-bool PersistenceManager<B>::Validate(
+bool PersistenceManager<R>::Validate(
     const PrePrepare & message,
     ValidationStatus * status)
 {
@@ -223,7 +223,7 @@ bool PersistenceManager<B>::Validate(
     return valid;
 }
 
-void PersistenceManager<B>::StoreBatchMessage(
+void PersistenceManager<R>::StoreBatchMessage(
     const ApprovedBSB & message,
     MDB_txn * transaction,
     uint8_t delegate_id)
@@ -263,7 +263,7 @@ void PersistenceManager<B>::StoreBatchMessage(
     //       the first batch of the epoch.
 }
 
-void PersistenceManager<B>::ApplyBatchMessage(
+void PersistenceManager<R>::ApplyBatchMessage(
     const ApprovedBSB & message,
     MDB_txn * transaction)
 {
@@ -283,7 +283,7 @@ void PersistenceManager<B>::ApplyBatchMessage(
 
 // Currently designed only to handle
 // send transactions.
-void PersistenceManager<B>::ApplyStateMessage(
+void PersistenceManager<R>::ApplyStateMessage(
     const Send & request,
     uint64_t timestamp,
     MDB_txn * transaction)
@@ -294,7 +294,7 @@ void PersistenceManager<B>::ApplyStateMessage(
     }
 }
 
-bool PersistenceManager<B>::UpdateSourceState(
+bool PersistenceManager<R>::UpdateSourceState(
     const Send & request,
     MDB_txn * transaction)
 {
@@ -344,7 +344,7 @@ bool PersistenceManager<B>::UpdateSourceState(
     return false;
 }
 
-void PersistenceManager<B>::UpdateDestinationState(
+void PersistenceManager<R>::UpdateDestinationState(
     const Send & request,
     uint64_t timestamp,
     MDB_txn * transaction)
@@ -396,7 +396,7 @@ void PersistenceManager<B>::UpdateDestinationState(
 
 // TODO: Discuss total order of receives in
 //       receive_db of all nodes.
-void PersistenceManager<B>::PlaceReceive(
+void PersistenceManager<R>::PlaceReceive(
     ReceiveBlock & receive,
     uint64_t timestamp,
     MDB_txn * transaction)

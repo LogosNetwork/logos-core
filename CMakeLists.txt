@@ -340,7 +340,7 @@ add_library (node
 	logos/consensus/network/epoch_peer_manager.cpp
 	logos/consensus/persistence/persistence.cpp
 	logos/consensus/persistence/validator_builder.cpp
-	logos/consensus/persistence/batchblock/batchblock_persistence.cpp
+        logos/consensus/persistence/request/request_persistence.cpp
 	logos/consensus/persistence/epoch/epoch_persistence.cpp
 	logos/consensus/persistence/microblock/microblock_persistence.cpp
 	logos/consensus/primary_delegate.cpp

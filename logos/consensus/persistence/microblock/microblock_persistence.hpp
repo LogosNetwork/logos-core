@@ -11,16 +11,17 @@ static constexpr ConsensusType MBCT = ConsensusType::MicroBlock;
 class ReservationsProvider;
 
 template<>
-class PersistenceManager<MBCT> : public Persistence {
+class PersistenceManager<MBCT> : public Persistence
+{
 
 protected:
 
-    using BatchTips                     = BlockHash[NUM_DELEGATES];
-    using Request                       = RequestMessage<MBCT>;
-    using PrePrepare                    = PrePrepareMessage<MBCT>;
-    using ReservationsPtr               = std::shared_ptr<ReservationsProvider>;
-    using IteratorBatchBlockReceiverCb  = std::function<void(uint8_t, const ApprovedBSB &)>;
-    using BatchBlockReceiverCb          = std::function<void(const ApprovedBSB &)>;
+    using BatchTips                    = BlockHash[NUM_DELEGATES];
+    using Request                      = RequestMessage<MBCT>;
+    using PrePrepare                   = PrePrepareMessage<MBCT>;
+    using ReservationsPtr              = std::shared_ptr<ReservationsProvider>;
+    using IteratorBatchBlockReceiverCb = std::function<void(uint8_t, const ApprovedBSB &)>;
+    using BatchBlockReceiverCb         = std::function<void(const ApprovedBSB &)>;
 
 public:
     PersistenceManager(Store & store,

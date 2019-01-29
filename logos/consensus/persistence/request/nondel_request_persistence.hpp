@@ -3,21 +3,21 @@
 
 #pragma once
 
-#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
+#include <logos/consensus/persistence/request/request_persistence.hpp>
 #include <logos/consensus/persistence/nondel_persistence_manager.hpp>
 #include <logos/consensus/persistence/validator_builder.hpp>
 #include <logos/consensus/persistence/nondel_persistence.hpp>
 
 template<>
-class NonDelPersistenceManager<B> : public PersistenceManager<B>, public NoneDelegatePersistence<B>
+class NonDelPersistenceManager<R> : public PersistenceManager<R>, public NonDelegatePersistence<R>
 {
 public:
-    using PersistenceManager<B>::Validate;
+    using PersistenceManager<R>::Validate;
 
     NonDelPersistenceManager(Store &store,
                              Milliseconds clock_drift = ZERO_CLOCK_DRIFT)
-        : PersistenceManager<B>(store, nullptr, clock_drift)
-        , NoneDelegatePersistence<B>(store)
+        : PersistenceManager<R>(store, nullptr, clock_drift)
+        , NonDelegatePersistence<R>(store)
     {}
 
     bool ValidatePreprepare(const PrePrepare & message, ValidationStatus * status)
@@ -46,6 +46,6 @@ public:
             return false;
         }
 
-        return PersistenceManager<B>::Validate(message, status);
+        return PersistenceManager<R>::Validate(message, status);
     }
 };

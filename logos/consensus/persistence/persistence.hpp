@@ -68,7 +68,7 @@ protected:
         return true;
     }
 
-    Store &             _store;
-    Log                 _log;
-    Milliseconds        _clock_drift;
+    Store &      _store;
+    Log          _log;
+    Milliseconds _clock_drift;
 };
