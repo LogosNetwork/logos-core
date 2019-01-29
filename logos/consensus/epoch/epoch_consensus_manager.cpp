@@ -107,7 +107,7 @@ EpochConsensusManager::QueueRequestSecondary(std::shared_ptr<Request> request)
     {
         timeout_sec = TConvert<::Seconds>(SECONDARY_LIST_TIMEOUT_CAP).count();
     }
-    _secondary_handler.OnRequest(request, boost::posix_time::seconds(timeout_sec));
+    _waiting_list.OnRequest(request, boost::posix_time::seconds(timeout_sec));
 }
 
 std::shared_ptr<BackupDelegate<ConsensusType::Epoch>>

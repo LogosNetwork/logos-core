@@ -2,7 +2,6 @@
 
 #include <logos/consensus/persistence/persistence_manager_incl.hpp>
 #include <logos/wallet_server/client/wallet_server_client.hpp>
-#include <logos/consensus/secondary_request_handler.hpp>
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/consensus/persistence/reservations.hpp>
 #include <logos/consensus/request/request_handler.hpp>
@@ -12,6 +11,7 @@
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/consensus_p2p.hpp>
+#include <logos/consensus/waiting_list.hpp>
 #include <logos/node/client_callback.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
@@ -168,25 +168,25 @@ protected:
             std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
 
     /// singleton secondary handler
-    static SecondaryRequestHandler<CT> & SecondaryRequestHandlerInstance(
+    static WaitingList<CT> & SecondaryRequestHandlerInstance(
         Service & service,
         RequestPromoter<CT>* promoter)
     {
         // Promoter is assigned once when the object is constructed
         // Promoter is updated during transition
-        static SecondaryRequestHandler<CT> handler(service, promoter);
+        static WaitingList<CT> handler(service, promoter);
         return handler;
     }
-
-    Connections                     _connections;
-    Store &                         _store;
-    MessageValidator &              _validator;
-    std::mutex                      _connection_mutex;
-    Log                             _log;
-    SecondaryRequestHandler<CT> &   _secondary_handler;    ///< Secondary queue of blocks.
-    EpochEventsNotifier &           _events_notifier;      ///< Notifies epoch manager of transition related events
-    ReservationsPtr                 _reservations;
-    PersistenceManager<CT>          _persistence_manager;
-    ConsensusP2pOutput<CT>          _consensus_p2p;
+    
+    Connections            _connections;
+    Store &                _store;
+    MessageValidator &     _validator;
+    std::mutex             _connection_mutex;
+    Log                    _log;
+    WaitingList<CT> &      _waiting_list;    ///< Secondary queue of requests/proposals.
+    EpochEventsNotifier &  _events_notifier; ///< Notifies epoch manager of transition related events
+    ReservationsPtr        _reservations;
+    PersistenceManager<CT> _persistence_manager;
+    ConsensusP2pOutput<CT> _consensus_p2p;
 };
 
