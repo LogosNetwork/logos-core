@@ -5,10 +5,10 @@
 #include <logos/consensus/request/request_backup_delegate.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 
-const boost::posix_time::seconds BatchBlockConsensusManager::ON_CONNECTED_TIMEOUT{10};
-RequestHandler BatchBlockConsensusManager::_handler;
+const boost::posix_time::seconds RequestConsensusManager::ON_CONNECTED_TIMEOUT{10};
+RequestHandler RequestConsensusManager::_handler;
 
-BatchBlockConsensusManager::BatchBlockConsensusManager(
+RequestConsensusManager::RequestConsensusManager(
         Service & service,
         Store & store,
         const Config & config,
@@ -21,6 +21,7 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
 {
     _state = ConsensusState::INITIALIZING;
     _store.batch_tip_get(_delegate_id, _prev_pre_prepare_hash);
+
     ApprovedBSB block;
     if ( !_prev_pre_prepare_hash.is_zero() && !_store.batch_block_get(_prev_pre_prepare_hash, block))
     {
@@ -29,13 +30,13 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
 }
 
 void
-BatchBlockConsensusManager::OnBenchmarkSendRequest(
+RequestConsensusManager::OnBenchmarkSendRequest(
   std::shared_ptr<Request> block,
   logos::process_return & result)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    LOG_DEBUG (_log) << "BatchBlockConsensusManager::OnBenchmarkSendRequest() - hash: "
+    LOG_DEBUG (_log) << "RequestConsensusManager::OnBenchmarkSendRequest() - hash: "
                      << block->GetHash().to_string();
 
     _using_buffered_blocks = true;
@@ -43,7 +44,7 @@ BatchBlockConsensusManager::OnBenchmarkSendRequest(
 }
 
 void
-BatchBlockConsensusManager::BufferComplete(
+RequestConsensusManager::BufferComplete(
   logos::process_return & result)
 {
     LOG_DEBUG (_log) << "Buffered " << _buffer.size() << " blocks.";
@@ -53,7 +54,7 @@ BatchBlockConsensusManager::BufferComplete(
 }
 
 std::shared_ptr<MessageParser>
-BatchBlockConsensusManager::BindIOChannel(
+RequestConsensusManager::BindIOChannel(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities & ids)
 {
@@ -72,33 +73,37 @@ BatchBlockConsensusManager::BindIOChannel(
 }
 
 void
-BatchBlockConsensusManager::SendBufferedBlocks()
+RequestConsensusManager::SendBufferedBlocks()
 {
     logos::process_return unused;
 
     for(uint64_t i = 0; _buffer.size() && i < CONSENSUS_BATCH_SIZE; ++i)
     {
         OnSendRequest(
-          static_pointer_cast<Request>(
-            _buffer.front()), unused);
+            static_pointer_cast<Request>(
+                _buffer.front()
+            ),
+            unused
+        );
+
         _buffer.pop_front();
     }
 
     if(!_buffer.size())
     {
-        LOG_DEBUG (_log) << "BatchBlockConsensusManager - No more buffered blocks for consensus"
+        LOG_DEBUG (_log) << "RequestConsensusManager - No more buffered blocks for consensus"
                          << std::endl;
     }
 }
 
 bool
-BatchBlockConsensusManager::Validate(
+RequestConsensusManager::Validate(
   std::shared_ptr<Request> block,
   logos::process_return & result)
 {
     if(! block->VerifySignature(block->account))
     {
-        LOG_INFO(_log) << "BatchBlockConsensusManager - Validate, bad signature: "
+        LOG_INFO(_log) << "RequestConsensusManager - Validate, bad signature: "
                        << block->signature.to_string()
                        << " account: " << block->account.to_string();
 
@@ -110,7 +115,7 @@ BatchBlockConsensusManager::Validate(
 }
 
 bool
-BatchBlockConsensusManager::ReadyForConsensus()
+RequestConsensusManager::ReadyForConsensus()
 {
     if(_using_buffered_blocks)
     {
@@ -125,14 +130,14 @@ BatchBlockConsensusManager::ReadyForConsensus()
 }
 
 void
-BatchBlockConsensusManager::QueueRequestPrimary(
+RequestConsensusManager::QueueRequestPrimary(
   std::shared_ptr<Request> request)
 {
     _handler.OnRequest(request);
 }
 
 auto
-BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
+RequestConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
     auto & batch = _handler.GetCurrentBatch();
 
@@ -145,7 +150,7 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
         _hashes.insert(batch.requests[i]->GetHash());
     }
 
-    LOG_TRACE (_log) << "BatchBlockConsensusManager::PrePrepareGetNext -"
+    LOG_TRACE (_log) << "RequestConsensusManager::PrePrepareGetNext -"
                      << " batch_size=" << batch.requests.size()
                      << " batch.sequence=" << batch.sequence;
 
@@ -153,25 +158,25 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
 }
 
 auto
-BatchBlockConsensusManager::PrePrepareGetCurr() -> PrePrepare &
+RequestConsensusManager::PrePrepareGetCurr() -> PrePrepare &
 {
     return _handler.GetCurrentBatch();
 }
 
 void
-BatchBlockConsensusManager::PrePreparePopFront()
+RequestConsensusManager::PrePreparePopFront()
 {
     _handler.PopFront();
 }
 
 bool
-BatchBlockConsensusManager::PrePrepareQueueEmpty()
+RequestConsensusManager::PrePrepareQueueEmpty()
 {
     return _handler.Empty();
 }
 
 void
-BatchBlockConsensusManager::ApplyUpdates(
+RequestConsensusManager::ApplyUpdates(
   const ApprovedBSB & block,
   uint8_t delegate_id)
 {
@@ -179,13 +184,13 @@ BatchBlockConsensusManager::ApplyUpdates(
 }
 
 uint64_t
-BatchBlockConsensusManager::GetStoredCount()
+RequestConsensusManager::GetStoredCount()
 {
     return _handler.GetCurrentBatch().requests.size();
 }
 
 void
-BatchBlockConsensusManager::InitiateConsensus()
+RequestConsensusManager::InitiateConsensus()
 {
     _ne_reject_vote = 0;
     _ne_reject_stake = 0;
@@ -195,12 +200,12 @@ BatchBlockConsensusManager::InitiateConsensus()
 }
 
 void
-BatchBlockConsensusManager::OnConsensusReached()
+RequestConsensusManager::OnConsensusReached()
 {
     _sequence++;
     Manager::OnConsensusReached();
 
-    LOG_DEBUG (_log) << "BatchBlockConsensusManager::OnConsensusReached _sequence="
+    LOG_DEBUG (_log) << "RequestConsensusManager::OnConsensusReached _sequence="
             << _sequence;
     if(_using_buffered_blocks)
     {
@@ -209,7 +214,7 @@ BatchBlockConsensusManager::OnConsensusReached()
 }
 
 uint8_t
-BatchBlockConsensusManager::DesignatedDelegate(std::shared_ptr<Request> request)
+RequestConsensusManager::DesignatedDelegate(std::shared_ptr<Request> request)
 {
     // The last five bits of the previous hash
     // (or the account for new accounts) will
@@ -218,28 +223,31 @@ BatchBlockConsensusManager::DesignatedDelegate(std::shared_ptr<Request> request)
     //
     uint8_t indicator = request->previous.is_zero() ?
            request->account.data()[0] : request->previous.data()[0];
-    auto did = uint8_t(indicator & ((1<<DELIGATE_ID_MASK)-1));
-    LOG_DEBUG (_log) << "BatchBlockConsensusManager::DesignatedDelegate "
-            << " id=" << (uint)did
-            << " indicator=" << (uint)indicator;
-    return did;
+
+    auto id = uint8_t(indicator & ((1<<DELIGATE_ID_MASK)-1));
+
+    LOG_DEBUG (_log) << "RequestConsensusManager::DesignatedDelegate "
+                     << " id=" << (uint)id
+                     << " indicator=" << (uint)indicator;
+
+    return id;
 }
 
 bool
-BatchBlockConsensusManager::PrimaryContains(const BlockHash &hash)
+RequestConsensusManager::PrimaryContains(const BlockHash &hash)
 {
     return _handler.Contains(hash);
 }
 
 void
-BatchBlockConsensusManager::OnPostCommit(const PrePrepare & block)
+RequestConsensusManager::OnPostCommit(const PrePrepare & block)
 {
     _handler.OnPostCommit(block);
     Manager::OnPostCommit(block);
 }
 
 std::shared_ptr<BackupDelegate<ConsensusType::Request>>
-BatchBlockConsensusManager::MakeBackupDelegate(
+RequestConsensusManager::MakeBackupDelegate(
     std::shared_ptr<IOChannel> iochannel,
     const DelegateIdentities& ids)
 {
@@ -249,7 +257,7 @@ BatchBlockConsensusManager::MakeBackupDelegate(
 }
 
 void
-BatchBlockConsensusManager::AcquirePrePrepare(const PrePrepare & message)
+RequestConsensusManager::AcquirePrePrepare(const PrePrepare & message)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
@@ -258,7 +266,7 @@ BatchBlockConsensusManager::AcquirePrePrepare(const PrePrepare & message)
 }
 
 void
-BatchBlockConsensusManager::OnRejection(
+RequestConsensusManager::OnRejection(
         const Rejection & message)
 {
     auto & vote = _weights[_cur_delegate_id].vote_weight;
@@ -326,13 +334,13 @@ BatchBlockConsensusManager::OnRejection(
 }
 
 void
-BatchBlockConsensusManager::OnStateAdvanced()
+RequestConsensusManager::OnStateAdvanced()
 {
     _response_weights.fill(Weights());
 }
 
 void
-BatchBlockConsensusManager::OnPrePrepareRejected()
+RequestConsensusManager::OnPrePrepareRejected()
 {
     if (Rejected(_ne_reject_vote, _ne_reject_stake))
     {
@@ -518,7 +526,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 }
 
 void
-BatchBlockConsensusManager::OnDelegatesConnected()
+RequestConsensusManager::OnDelegatesConnected()
 {
     if(_delegates_connected)
     {
@@ -543,7 +551,7 @@ BatchBlockConsensusManager::OnDelegatesConnected()
 }
 
 void
-BatchBlockConsensusManager::OnCurrentEpochSet()
+RequestConsensusManager::OnCurrentEpochSet()
 {
     PrimaryDelegate::OnCurrentEpochSet();
 
@@ -552,7 +560,7 @@ BatchBlockConsensusManager::OnCurrentEpochSet()
 }
 
 bool
-BatchBlockConsensusManager::Rejected(uint128_t reject_vote, uint128_t reject_stake)
+RequestConsensusManager::Rejected(uint128_t reject_vote, uint128_t reject_stake)
 {
     auto op = [](bool & r, uint128_t t, uint128_t q)
               {

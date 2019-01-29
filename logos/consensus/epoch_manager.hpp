@@ -111,7 +111,7 @@ private:
     NewEpochEventHandler &                  _new_epoch_handler; ///< Call back on new epoch events
     DelegateKeyStore                        _key_store;         ///< Store delegates public keys
     MessageValidator                        _validator;         ///< Validator/Signer of consensus messages
-    BatchBlockConsensusManager              _request_manager; 	///< Handles batch block consensus
+    RequestConsensusManager                 _request_manager; 	///< Handles batch block consensus
     MicroBlockConsensusManager	            _micro_manager; 	///< Handles micro block consensus
     EpochConsensusManager                   _epoch_manager;     ///< Handles epoch consensus
     ConsensusNetIOManager                   _netio_manager; 	///< Establishes connections to other delegates
