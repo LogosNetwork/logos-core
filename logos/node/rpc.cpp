@@ -258,7 +258,7 @@ void logos::rpc_handler::account_block_count ()
         if (!node.store.account_get (transaction, account, info))
         {
             boost::property_tree::ptree response_l;
-            response_l.put ("block_count", std::to_string (info.block_count + info.receive_count));
+            response_l.put ("request_count", std::to_string (info.block_count + info.receive_count));
             response (response_l);
         }
         else
@@ -355,7 +355,7 @@ void logos::rpc_handler::account_info ()
             logos::uint128_union (info.balance).encode_dec (balance);
             response_l.put ("balance", balance);
             response_l.put ("modified_timestamp", std::to_string (info.modified));
-            response_l.put ("block_count", std::to_string (info.block_count + info.receive_count));
+            response_l.put ("request_count", std::to_string (info.block_count + info.receive_count));
             // if (representative) {}
             // if (weight) {}
             response (response_l);
@@ -1217,7 +1217,7 @@ void logos::rpc_handler::block_create ()
         {
             AccountPubKey pub;
             ed25519_publickey (prv.data.data (), pub.data ());
-            // Fetching account balance & previous for send blocks (if aren't given directly)
+            // Fetching account balance & previous for send requests (if aren't given directly)
             if (!previous_text.is_initialized () && !balance_text.is_initialized ())
             {
                 logos::transaction transaction (node.store.environment, nullptr, false);
@@ -1971,7 +1971,7 @@ void logos::rpc_handler::ledger ()
                     logos::uint128_union (info.balance).encode_dec (balance);
                     response_l.put ("balance", balance);
                     response_l.put ("modified_timestamp", std::to_string (info.modified));
-                    response_l.put ("block_count", std::to_string (info.block_count));
+                    response_l.put ("request_count", std::to_string (info.block_count));
                     if (representative)
                     {
                         auto block (node.store.block_get (transaction, info.rep_block));
@@ -2023,7 +2023,7 @@ void logos::rpc_handler::ledger ()
                 (i->first).encode_dec (balance);
                 response_l.put ("balance", balance);
                 response_l.put ("modified_timestamp", std::to_string (info.modified));
-                response_l.put ("block_count", std::to_string (info.block_count));
+                response_l.put ("request_count", std::to_string (info.block_count));
                 if (representative)
                 {
                     auto block (node.store.block_get (transaction, info.rep_block));
@@ -3774,7 +3774,7 @@ void logos::rpc_handler::wallet_ledger ()
                         logos::uint128_union (info.balance).encode_dec (balance);
                         entry.put ("balance", balance);
                         entry.put ("modified_timestamp", std::to_string (info.modified));
-                        entry.put ("block_count", std::to_string (info.block_count));
+                        entry.put ("request_count", std::to_string (info.block_count));
                         if (representative)
                         {
                             auto block (node.store.block_get (transaction, info.rep_block));
@@ -4527,7 +4527,7 @@ void logos::rpc_handler::process_request ()
         {
             block_account ();
         }
-        else if (action == "block_count")
+        else if (action == "request_count")
         {
             block_count ();
         }

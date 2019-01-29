@@ -91,7 +91,7 @@ struct Delegate
 /// In addition, it enables delegates transition and facilitates governance.
 struct Epoch : PrePrepareCommon
 {
-    using Amount                = logos::amount;
+    using Amount = logos::amount;
 
 public:
     /// Class constructor
@@ -105,7 +105,7 @@ public:
     ~Epoch() {}
 
     Epoch(bool & error, logos::stream & stream, bool with_appendix)
-    : PrePrepareCommon(error, stream)
+        : PrePrepareCommon(error, stream)
     {
         if(error)
         {
@@ -134,7 +134,7 @@ public:
         }
     }
 
-    void Hash(blake2b_state & hash) const
+    void Hash(blake2b_state & hash) const override
     {
         PrePrepareCommon::Hash(hash);
         micro_block_tip.Hash(hash);
@@ -160,7 +160,7 @@ public:
     std::string SerializeJson() const;
     void SerializeJson(boost::property_tree::ptree &) const;
 
-    BlockHash               micro_block_tip;             ///< microblock tip of this epoch
-    Amount                  transaction_fee_pool;        ///< this epoch's transaction fee pool
-    Delegate                delegates[NUM_DELEGATES];    ///< delegate'ls list
+    BlockHash micro_block_tip;          ///< microblock tip of this epoch
+    Amount    transaction_fee_pool;     ///< this epoch's transaction fee pool
+    Delegate  delegates[NUM_DELEGATES]; ///< delegate'ls list
 };

@@ -41,14 +41,8 @@ public:
     void OnPostCommit(const RequestBlock & block);
 
     PrePrepare & PrepareNextBatch();
-    PrePrepare & GetCurrentBatch()
-    {
-        LOG_DEBUG (_log) << "RequestHandler::GetCurrentBatch - "
-                         << "batch_size = "
-                         << _current_batch.block_count;
+    PrePrepare & GetCurrentBatch();
 
-        return _current_batch;
-    }
     void InsertFront(const std::list<Send> & requests);
     void Acquire(const PrePrepare & batch);
 

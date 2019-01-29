@@ -70,10 +70,10 @@ RequestBackupDelegate::ValidateRequests(
     const PrePrepare & message)
 {
     bool valid = true;
-    _rejection_map.resize(message.block_count, false);
-    for(uint64_t i = 0; i < message.block_count; ++i)
+    _rejection_map.resize(message.requests.size(), false);
+    for(uint64_t i = 0; i < message.requests.size(); ++i)
     {
-        if(!_persistence_manager.Validate(static_cast<const Request&>(message.blocks[i])))
+        if(!_persistence_manager.Validate(static_cast<const Request&>(*message.requests[i])))
         {
             _rejection_map[i] = true;
 
@@ -184,9 +184,9 @@ RequestBackupDelegate::HandlePrePrepare(const PrePrepare & message)
 {
     _pre_prepare_hashes.clear();
 
-    for(uint64_t i = 0; i < message.block_count; ++i)
+    for(uint64_t i = 0; i < message.requests.size(); ++i)
     {
-        _pre_prepare_hashes.insert(message.blocks[i].GetHash());
+        _pre_prepare_hashes.insert(message.requests[i]->GetHash());
     }
 
     // to make sure during epoch transition, a fallback session of the new epoch
@@ -268,9 +268,9 @@ RequestBackupDelegate::ResetRejectionStatus()
 bool
 RequestBackupDelegate::IsSubset(const PrePrepare & message)
 {
-    for(uint64_t i = 0; i < message.block_count; ++i)
+    for(uint64_t i = 0; i < message.requests.size(); ++i)
     {
-        if(_pre_prepare_hashes.find(message.blocks[i].GetHash()) ==
+        if(_pre_prepare_hashes.find(message.requests[i]->GetHash()) ==
                 _pre_prepare_hashes.end())
         {
             return false;

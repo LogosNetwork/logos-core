@@ -10,8 +10,8 @@
 constexpr uint128_t PersistenceManager<B>::MIN_TRANSACTION_FEE;
 
 PersistenceManager<B>::PersistenceManager(Store & store,
-                                              ReservationsPtr reservations,
-                                              Milliseconds clock_drift)
+                                          ReservationsPtr reservations,
+                                          Milliseconds clock_drift)
     : Persistence(store, clock_drift)
     , _reservations(reservations)
 {
@@ -33,14 +33,16 @@ void PersistenceManager<B>::ApplyUpdates(
 
     auto batch_hash = message.Hash();
     uint16_t count = 0;
-    for(uint16_t i = 0; i < message.block_count; ++i)
+    for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
-        message.blocks[i].batch_hash = batch_hash;
-        message.blocks[i].index_in_batch = count++;
+        auto request = static_pointer_cast<const Send>(message.requests[i]);
+        request->batch_hash = batch_hash;
+        request->index_in_batch = count++;
     }
 
     LOG_DEBUG(_log) << "PersistenceManager<B>::ApplyUpdates - BSB with "
-            << message.block_count << " StateBlocks";
+                    << message.requests.size()
+                    << " StateBlocks";
 
     logos::transaction transaction(_store.environment, nullptr, true);
     StoreBatchMessage(message, transaction, delegate_id);
@@ -79,7 +81,7 @@ bool PersistenceManager<B>::Validate(
         {
             result.code = logos::process_result::wrong_sequence_number;
             LOG_INFO(_log) << "wrong_sequence_number, request sqn="<<block.sequence
-                    << " expecting=" << info.block_count;
+                           << " expecting=" << info.block_count;
             return false;
         }
         // No previous block set.
@@ -207,10 +209,10 @@ bool PersistenceManager<B>::Validate(
     using namespace logos;
 
     bool valid = true;
-    for(uint64_t i = 0; i < message.block_count; ++i)
+    for(uint64_t i = 0; i < message.requests.size(); ++i)
     {
         logos::process_return   result;
-        if(!Validate(static_cast<const Request&>(message.blocks[i]), result))
+        if(!Validate(static_cast<const Request&>(*message.requests[i]), result))
         {
             UpdateStatusRequests(status, i, result.code);
             UpdateStatusReason(status, process_result::invalid_request);
@@ -228,7 +230,7 @@ void PersistenceManager<B>::StoreBatchMessage(
 {
     auto hash(message.Hash());
     LOG_DEBUG(_log) << "PersistenceManager::StoreBatchMessage - "
-                                << message.Hash().to_string();
+                    << message.Hash().to_string();
 
     if(_store.batch_block_put(message, hash, transaction))
     {
@@ -256,7 +258,7 @@ void PersistenceManager<B>::StoreBatchMessage(
         }
     }
 
-    // TODO: Add previous hash for batch blocks with
+    // TODO: Add previous hash for request blocks with
     //       a previous set to zero because it was
     //       the first batch of the epoch.
 }
@@ -265,14 +267,17 @@ void PersistenceManager<B>::ApplyBatchMessage(
     const ApprovedBSB & message,
     MDB_txn * transaction)
 {
-    for(uint16_t i = 0; i < message.block_count; ++i)
+    for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
-        ApplyStateMessage(message.blocks[i],
+        auto request = static_pointer_cast<Send>(message.requests[i]);
+
+        ApplyStateMessage(*request,
                           message.timestamp,
                           transaction);
 
         std::lock_guard<std::mutex> lock(_reservation_mutex);
-        _reservations->Release(message.blocks[i].account);
+        _reservations->Release(
+            static_pointer_cast<const Send>(message.requests[i])->account);
     }
 }
 

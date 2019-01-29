@@ -22,9 +22,9 @@ void RequestHandler::OnPostCommit(const RequestBlock & block)
 {
     auto & hashed = _requests.get<1>();
 
-    for(uint64_t pos = 0; pos < block.block_count; ++pos)
+    for(uint64_t pos = 0; pos < block.requests.size(); ++pos)
     {
-        auto hash = block.blocks[pos].GetHash();
+        auto hash = block.requests[pos]->GetHash();
 
         if(hashed.find(hash) != hashed.end())
         {
@@ -53,12 +53,21 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch()
             break;
         }
 
-        if(! _current_batch.AddStateBlock(*pos))
+        if(!_current_batch.AddRequest(*pos))
         {
             LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch batch full";
             break;
         }
     }
+
+    return _current_batch;
+}
+
+auto RequestHandler::GetCurrentBatch() -> PrePrepare &
+{
+    LOG_DEBUG (_log) << "RequestHandler::GetCurrentBatch - "
+                     << "batch_size = "
+                     << _current_batch.requests.size();
 
     return _current_batch;
 }
@@ -75,13 +84,13 @@ void RequestHandler::Acquire(const PrePrepare & batch)
     auto & sequenced = _requests.get<0>();
     auto & hashed = _requests.get<1>();
 
-    for(uint64_t pos = 0; pos < batch.block_count; ++pos)
+    for(uint64_t pos = 0; pos < batch.requests.size(); ++pos)
     {
-        auto & block = batch.blocks[pos];
+        auto & request = *batch.requests[pos];
 
-        if(hashed.find(block.GetHash()) == hashed.end())
+        if(hashed.find(request.GetHash()) == hashed.end())
         {
-            sequenced.push_back(block);
+            sequenced.push_back(static_cast<Send&>(request));
         }
     }
 }
@@ -90,9 +99,9 @@ void RequestHandler::PopFront()
 {
     auto & hashed = _requests.get<1>();
 
-    for(uint64_t pos = 0; pos < _current_batch.block_count; ++pos)
+    for(uint64_t pos = 0; pos < _current_batch.requests.size(); ++pos)
     {
-        hashed.erase(_current_batch.blocks[pos].GetHash());
+        hashed.erase(_current_batch.requests[pos]->GetHash());
     }
 
     _current_batch = PrePrepare();
@@ -100,7 +109,7 @@ void RequestHandler::PopFront()
 
 bool RequestHandler::BatchFull()
 {
-    return _current_batch.block_count == CONSENSUS_BATCH_SIZE;
+    return _current_batch.requests.size() == CONSENSUS_BATCH_SIZE;
 }
 
 bool RequestHandler::Empty()
