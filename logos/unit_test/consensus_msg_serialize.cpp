@@ -44,7 +44,7 @@ create_bsb_preprepare(uint16_t num_sb)
     block.hashes.reserve(num_sb);
     for(uint32_t i = 0; i < num_sb; ++i)
     {
-        block.AddStateBlock(Send(1,2,i,5,6,7,8,9));
+        block.AddRequest(Send(1, 2, i, 5, 6, 7, 8, 9));
     }
 
     return block;
@@ -595,8 +595,8 @@ TEST (blocks, batch_state_block_PrePrepare_empty)
 TEST (blocks, batch_state_block_PrePrepare_full)
 {
     auto block = create_bsb_preprepare(CONSENSUS_BATCH_SIZE);
-    ASSERT_FALSE(block.AddStateBlock(Send(1,2,CONSENSUS_BATCH_SIZE+1,5,6,7,8,9)));
-    ASSERT_EQ(block.block_count, CONSENSUS_BATCH_SIZE);
+    ASSERT_FALSE(block.AddRequest(Send(1, 2, CONSENSUS_BATCH_SIZE + 1, 5, 6, 7, 8, 9)));
+    ASSERT_EQ(block.requests.size(), CONSENSUS_BATCH_SIZE);
     vector<uint8_t> buf;
     block.Serialize(buf);
 
@@ -635,9 +635,9 @@ TEST (blocks, batch_state_block_PostCommit_DB)
     auto block_db_val = block.to_mdb_val(buf);
     vector<vector<uint8_t> > buffers(num_state_block);
     vector<logos::mdb_val> sb_db_vals;
-    for(uint16_t i = 0; i < num_state_block; ++i)
+    for(uint16_t i = 0; i < block.requests.size(); ++i)
     {
-        sb_db_vals.push_back(block.blocks[i].SerializeDB(buffers[i]));
+        sb_db_vals.push_back(block.requests[i]->SerializeDB(buffers[i]));
     }
 
     bool error = false;
@@ -645,10 +645,15 @@ TEST (blocks, batch_state_block_PostCommit_DB)
     ASSERT_FALSE(error);
     if(! error)
     {
-        block.blocks.reserve(block.block_count);
-        for(uint16_t i = 0; i < block.block_count; ++i)
+        block.requests.reserve(block2.hashes.size());
+        for(uint16_t i = 0; i < block2.hashes.size(); ++i)
         {
-            new (&block.blocks[i]) Send(error, sb_db_vals[i]);
+            block2.requests.push_back(
+                std::shared_ptr<Request>(
+                    new Send(error, sb_db_vals[i])
+                )
+            );
+
             ASSERT_FALSE(error);
         }
     }

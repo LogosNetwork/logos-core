@@ -353,7 +353,7 @@ boost::property_tree::ptree TokenImmuteSetting::SerializeJson() const
 {
     using namespace request::fields;
 
-    boost::property_tree::ptree tree;
+    boost::property_tree::ptree tree = TokenAdminRequest::SerializeJson();
 
     tree.put(SETTING, GetTokenSettingField(setting));
 
@@ -440,7 +440,7 @@ boost::property_tree::ptree TokenRevoke::SerializeJson() const
 {
     using namespace request::fields;
 
-    boost::property_tree::ptree tree;
+    boost::property_tree::ptree tree = TokenAdminRequest::SerializeJson();
 
     tree.put(SOURCE, source.to_account());
     tree.put(DESTINATION, destination.to_account());
@@ -523,7 +523,7 @@ boost::property_tree::ptree TokenFreeze::SerializeJson() const
 {
     using namespace request::fields;
 
-    boost::property_tree::ptree tree;
+    boost::property_tree::ptree tree = TokenAdminRequest::SerializeJson();
 
     tree.put(ACCOUNT, account.to_account());
     tree.put(ACTION, GetFreezeActionField(action));
@@ -602,7 +602,7 @@ boost::property_tree::ptree TokenSetFee::SerializeJson() const
 {
     using namespace request::fields;
 
-    boost::property_tree::ptree tree;
+    boost::property_tree::ptree tree = TokenAdminRequest::SerializeJson();
 
     tree.put(FEE_TYPE, GetTokenFeeTypeField(fee_type));
     tree.put(FEE_RATE, fee_rate);
@@ -669,7 +669,7 @@ boost::property_tree::ptree TokenWhitelist::SerializeJson() const
 {
     using namespace request::fields;
 
-    boost::property_tree::ptree tree;
+    boost::property_tree::ptree tree = TokenAdminRequest::SerializeJson();
 
     tree.put(ACCOUNT, account.to_account());
 
@@ -731,7 +731,7 @@ boost::property_tree::ptree TokenIssuerInfo::SerializeJson() const
 {
     using namespace request::fields;
 
-    boost::property_tree::ptree tree;
+    boost::property_tree::ptree tree = TokenAdminRequest::SerializeJson();
 
     tree.put(INFO, new_info);
 
@@ -800,7 +800,7 @@ boost::property_tree::ptree TokenController::SerializeJson() const
 {
     using namespace request::fields;
 
-    boost::property_tree::ptree tree;
+    boost::property_tree::ptree tree = TokenAdminRequest::SerializeJson();
 
     tree.put(ACTION, GetControllerActionField(action));
     tree.add_child(CONTROLLER, controller.SerializeJson());
@@ -867,7 +867,7 @@ boost::property_tree::ptree TokenBurn::SerializeJson() const
 {
     using namespace request::fields;
 
-    boost::property_tree::ptree tree;
+    boost::property_tree::ptree tree = TokenAdminRequest::SerializeJson();
 
     tree.put(AMOUNT, amount);
 
@@ -942,7 +942,7 @@ boost::property_tree::ptree TokenAccountSend::SerializeJson() const
 {
     using namespace request::fields;
 
-    boost::property_tree::ptree tree;
+    boost::property_tree::ptree tree = TokenAdminRequest::SerializeJson();
 
     tree.put(DESTINATION, destination.to_account());
     tree.put(AMOUNT, amount);
@@ -1022,7 +1022,7 @@ boost::property_tree::ptree TokenAccountWithdrawFee::SerializeJson() const
 {
     using namespace request::fields;
 
-    boost::property_tree::ptree tree;
+    boost::property_tree::ptree tree = TokenAdminRequest::SerializeJson();
 
     tree.put(DESTINATION, destination.to_account());
     tree.put(AMOUNT, amount);
@@ -1119,7 +1119,7 @@ boost::property_tree::ptree TokenSend::SerializeJson() const
 {
     using namespace request::fields;
 
-    boost::property_tree::ptree tree;
+    boost::property_tree::ptree tree = TokenRequest::SerializeJson();
 
     boost::property_tree::ptree transactions_tree;
     for(size_t i = 0; i < transactions.size(); ++i)

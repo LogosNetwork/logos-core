@@ -45,6 +45,7 @@ public:
 
     PrePrepare & PrepareNextBatch(Manager & manager, bool repropose = false);
     PrePrepare & GetCurrentBatch();
+
     void InsertFront(const std::list<Send> & requests);
     void Acquire(const PrePrepare & batch);
 
