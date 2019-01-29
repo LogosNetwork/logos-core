@@ -16,35 +16,16 @@ struct Send : Request
     struct Transaction
     {
         Transaction(AccountAddress const & to,
-                    Amount const & amount)
-            : target(to)
-            , amount(amount)
-        {}
+                    Amount const & amount);
 
         Transaction(bool & error,
-                    logos::stream & stream)
-        {
-            Deserialize(error, stream);
-        }
+                    logos::stream & stream);
 
         Transaction() = default;
 
-        uint64_t Serialize(logos::stream & stream) const
-        {
-            return logos::write(stream, target) +
-                   logos::write(stream, amount);
-        }
+        uint64_t Serialize(logos::stream & stream) const;
 
-        void Deserialize(bool & error, logos::stream & stream)
-        {
-            error = logos::read(stream, target);
-            if(error)
-            {
-                return;
-            }
-
-            error = logos::read(stream, amount);
-        }
+        void Deserialize(bool & error, logos::stream & stream);
 
         AccountAddress target;
         Amount         amount;

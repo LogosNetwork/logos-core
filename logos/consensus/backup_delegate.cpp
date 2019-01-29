@@ -244,7 +244,7 @@ bool BackupDelegate<ConsensusType::Request>::ValidateEpoch(
 template<ConsensusType CT>
 template<typename M>
 bool BackupDelegate<CT>::ProceedWithMessage(const M & message,
-                                                 ConsensusState expected_state)
+                                            ConsensusState expected_state)
 {
     if(_state != expected_state)
     {

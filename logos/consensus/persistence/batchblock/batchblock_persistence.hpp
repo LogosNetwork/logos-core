@@ -1,5 +1,5 @@
 /// @file
-/// This file contains declaration of BatchStateBlock related validation/persistence
+/// This file contains declaration of Request related validation/persistence
 
 #pragma once
 
@@ -11,7 +11,8 @@ using boost::multiprecision::uint128_t;
 using namespace boost::multiprecision::literals;
 
 template<>
-class PersistenceManager<B> : public Persistence {
+class PersistenceManager<B> : public Persistence
+{
 
 protected:
 
