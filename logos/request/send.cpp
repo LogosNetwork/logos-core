@@ -1,5 +1,34 @@
 #include <logos/request/send.hpp>
 
+Send::Transaction::Transaction(AccountAddress const & to,
+                               Amount const & amount)
+    : target(to)
+    , amount(amount)
+{}
+
+Send::Transaction::Transaction(bool & error,
+                               logos::stream & stream)
+{
+    Deserialize(error, stream);
+}
+
+uint64_t Send::Transaction::Serialize(logos::stream & stream) const
+{
+    return logos::write(stream, target) +
+           logos::write(stream, amount);
+}
+
+void Send::Transaction::Deserialize(bool & error, logos::stream & stream)
+{
+    error = logos::read(stream, target);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, amount);
+}
+
 Send::Send(AccountAddress const & account,
            BlockHash const & previous,
            uint32_t sequence,
