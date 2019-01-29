@@ -11,7 +11,7 @@
 EpochBackupDelegate::EpochBackupDelegate(
                              std::shared_ptr<IOChannel> iochannel,
                              PrimaryDelegate & primary,
-                             RequestPromoter<ECT> & promoter,
+                             MessagePromoter<ECT> & promoter,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
                              EpochEventsNotifier & events_notifier,
