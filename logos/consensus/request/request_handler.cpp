@@ -24,9 +24,9 @@ void RequestHandler::OnPostCommit(const RequestBlock & block)
     std::lock_guard<std::mutex> lock(_mutex);
     auto & hashed = _requests.get<1>();
 
-    for(uint64_t pos = 0; pos < block.block_count; ++pos)
+    for(uint64_t pos = 0; pos < block.requests.size(); ++pos)
     {
-        auto hash = block.blocks[pos].GetHash();
+        auto hash = block.requests[pos]->GetHash();
 
         if(hashed.find(hash) != hashed.end())
         {
@@ -39,7 +39,7 @@ RequestHandler::PrePrepare & RequestHandler::GetCurrentBatch()
 {
     std::lock_guard<std::mutex> lock(_mutex);
     LOG_DEBUG (_log) << "RequestHandler::GetCurrentBatch - "
-                     << "batch_size=" << _current_batch.block_count;
+                     << "batch_size=" << _current_batch.requests.size();
     return _current_batch;
 }
 
@@ -50,7 +50,7 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(
     _current_batch = PrePrepare();
     auto & sequence = _requests.get<0>();
 
-    _current_batch.blocks.reserve(sequence.size());
+    _current_batch.requests.reserve(sequence.size());
     _current_batch.hashes.reserve(sequence.size());
     for(auto pos = sequence.begin(); pos != sequence.end();)
     {
@@ -61,7 +61,7 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(
         LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch requests_size="
                          << sequence.size();
 
-        if(pos->get()->account.is_zero() && pos->get()->GetNumTransactions() == 0)
+        if(pos->account.is_zero() && pos->GetNumTransactions() == 0)
         {
             sequence.erase(pos);
             break;
@@ -70,19 +70,28 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(
         // Ignore request and erase from primary queue if the request doesn't pass validation
         logos::process_return ignored_result;
         // Don't allow duplicates since we are the primary and should not include old requests
-        if(!manager.ValidateAndUpdate(static_cast<const Request&>(**pos), ignored_result, false))
+        if(!manager.ValidateAndUpdate(static_cast<const Request&>(*pos), ignored_result, false))
         {
             pos = sequence.erase(pos);
             continue;
         }
 
-        if(! _current_batch.AddStateBlock(*pos))
+        if(! _current_batch.AddRequest(*pos))
         {
             LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch batch full";
             break;
         }
         pos++;
     }
+
+    return _current_batch;
+}
+
+auto RequestHandler::GetCurrentBatch() -> PrePrepare &
+{
+    LOG_DEBUG (_log) << "RequestHandler::GetCurrentBatch - "
+                     << "batch_size = "
+                     << _current_batch.requests.size();
 
     return _current_batch;
 }
@@ -101,13 +110,13 @@ void RequestHandler::Acquire(const PrePrepare & batch)
     auto & sequenced = _requests.get<0>();
     auto & hashed = _requests.get<1>();
 
-    for(uint64_t pos = 0; pos < batch.block_count; ++pos)
+    for(uint64_t pos = 0; pos < batch.requests.size(); ++pos)
     {
-        auto block_ptr = batch.blocks[pos];
+        auto & request = *batch.requests[pos];
 
-        if(hashed.find(block_ptr->GetHash()) == hashed.end())
+        if(hashed.find(request.GetHash()) == hashed.end())
         {
-            sequenced.push_back(block_ptr);
+            sequenced.push_back(static_cast<Send&>(request));
         }
     }
 }
@@ -117,9 +126,9 @@ void RequestHandler::PopFront()
     std::lock_guard<std::mutex> lock(_mutex);
     auto & hashed = _requests.get<1>();
 
-    for(uint64_t pos = 0; pos < _current_batch.block_count; ++pos)
+    for(uint64_t pos = 0; pos < _current_batch.requests.size(); ++pos)
     {
-        hashed.erase(_current_batch.blocks[pos]->GetHash());
+        hashed.erase(_current_batch.requests[pos]->GetHash());
     }
 
     _current_batch = PrePrepare();
@@ -127,8 +136,7 @@ void RequestHandler::PopFront()
 
 bool RequestHandler::BatchFull()
 {
-    std::lock_guard<std::mutex> lock(_mutex);
-    return _current_batch.block_count == CONSENSUS_BATCH_SIZE;
+    return _current_batch.requests.size() == CONSENSUS_BATCH_SIZE;
 }
 
 bool RequestHandler::Empty()

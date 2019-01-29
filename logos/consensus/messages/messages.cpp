@@ -6,6 +6,7 @@
     static_assert(false, "Only LITTLE_ENDIAN machines are supported!");
 #endif
 
+<<<<<<< HEAD
 RequestBlock::RequestBlock(bool & error, logos::stream & stream, bool with_state_block)
     : PrePrepareCommon(error, stream)
 {
@@ -91,6 +92,8 @@ uint32_t RequestBlock::Serialize(logos::stream & stream, bool with_state_block) 
     return s;
 }
 
+=======
+>>>>>>> Implement a vector of Request pointers in the RequestBlock
 ConnectedClientIds::ConnectedClientIds(uint32_t epoch_number,
                                        uint8_t delegate_id,
                                        EpochConnection connection,

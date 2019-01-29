@@ -11,8 +11,8 @@
 constexpr uint128_t PersistenceManager<B>::MIN_TRANSACTION_FEE;
 
 PersistenceManager<B>::PersistenceManager(Store & store,
-                                              ReservationsPtr reservations,
-                                              Milliseconds clock_drift)
+                                          ReservationsPtr reservations,
+                                          Milliseconds clock_drift)
     : Persistence(store, clock_drift)
     , _reservations(reservations)
 {
@@ -34,14 +34,16 @@ void PersistenceManager<B>::ApplyUpdates(
 
     auto batch_hash = message.Hash();
     uint16_t count = 0;
-    for(uint16_t i = 0; i < message.block_count; ++i)
+    for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
-        message.blocks[i]->batch_hash = batch_hash;
-        message.blocks[i]->index_in_batch = count++;
+        auto request = static_pointer_cast<const Send>(message.requests[i]);
+        request->batch_hash = batch_hash;
+        request->index_in_batch = count++;
     }
 
     LOG_DEBUG(_log) << "PersistenceManager<B>::ApplyUpdates - BSB with "
-            << message.block_count << " StateBlocks";
+                    << message.requests.size()
+                    << " StateBlocks";
 
     // SYL integration: need to ensure the operations below execute atomically
     // Otherwise, multiple calls to batch persistence may overwrite balance for the same account
@@ -298,7 +300,7 @@ void PersistenceManager<B>::StoreBatchMessage(
 {
     auto hash(message.Hash());
     LOG_DEBUG(_log) << "PersistenceManager::StoreBatchMessage - "
-                                << message.Hash().to_string();
+                    << message.Hash().to_string();
 
     if(_store.batch_block_put(message, hash, transaction))
     {
@@ -326,7 +328,7 @@ void PersistenceManager<B>::StoreBatchMessage(
         }
     }
 
-    // TODO: Add previous hash for batch blocks with
+    // TODO: Add previous hash for request blocks with
     //       a previous set to zero because it was
     //       the first batch of the epoch.
 }
@@ -335,9 +337,10 @@ void PersistenceManager<B>::ApplyBatchMessage(
     const ApprovedBSB & message,
     MDB_txn * transaction)
 {
-    for(uint16_t i = 0; i < message.block_count; ++i)
+    for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
-        ApplyStateMessage(*message.blocks[i],
+        auto request = static_pointer_cast<Send>(message.requests[i]);
+        ApplyStateMessage(*request,
                           message.timestamp,
                           transaction);
     }

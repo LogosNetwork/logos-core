@@ -171,11 +171,11 @@ struct MessagePrequel
         return s;
     }
 
-    const uint8_t       version         = logos_version;
-    const MessageType   type            = MT;
-    const ConsensusType consensus_type  = CT;
-    uint8_t             mpf             = 0;
-    mutable uint32_t    payload_size    = 0;
+    const uint8_t       version        = logos_version;
+    const MessageType   type           = MT;
+    const ConsensusType consensus_type = CT;
+    uint8_t             mpf            = 0;
+    mutable uint32_t    payload_size   = 0;
 };
 
 using Prequel = MessagePrequel<MessageType::Unknown, ConsensusType::Any>;
@@ -188,7 +188,7 @@ struct PrePrepareCommon
 
     PrePrepareCommon & operator= (const PrePrepareCommon & other);
 
-    void Hash(blake2b_state & hash) const;
+    virtual void Hash(blake2b_state & hash) const;
 
     uint32_t Serialize(logos::stream & stream) const;
     void SerializeJson(boost::property_tree::ptree & tree) const;

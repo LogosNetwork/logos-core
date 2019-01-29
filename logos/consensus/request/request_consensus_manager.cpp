@@ -140,14 +140,14 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
     // SYL Integration fix: move previous assignment here to avoid overriding in archive blocks
     batch.previous = _prev_pre_prepare_hash;
 
-    for(uint64_t i = 0; i < batch.block_count; ++i)
+    for(uint64_t i = 0; i < batch.requests.size(); ++i)
     {
-        _hashes.insert(batch.blocks[i]->GetHash());
+        _hashes.insert(batch.requests[i]->GetHash());
     }
 
     LOG_TRACE (_log) << "BatchBlockConsensusManager::PrePrepareGetNext -"
-    	    << " batch_size=" << batch.block_count
-    	    << " batch.sequence=" << batch.sequence;
+                     << " batch_size=" << batch.requests.size()
+                     << " batch.sequence=" << batch.sequence;
 
     return batch;
 }
@@ -181,7 +181,7 @@ BatchBlockConsensusManager::ApplyUpdates(
 uint64_t
 BatchBlockConsensusManager::GetStoredCount()
 {
-    return _handler.GetCurrentBatch().block_count;
+    return _handler.GetCurrentBatch().requests.size();
 }
 
 void
@@ -303,7 +303,7 @@ BatchBlockConsensusManager::OnRejection(
     {
         _should_repropose = true;
         auto batch = _handler.GetCurrentBatch();
-        auto block_count = batch.block_count;
+        auto block_count = batch.requests.size();
 
         for(uint64_t i = 0; i < block_count; ++i)
         {
@@ -319,7 +319,7 @@ BatchBlockConsensusManager::OnRejection(
                 if(ReachedQuorum(weights.indirect_vote_support + _prepare_vote,
                                  weights.indirect_stake_support + _prepare_stake))
                 {
-                    _hashes.erase(batch.blocks[i]->GetHash());
+                    _hashes.erase(batch.requests[i]->GetHash());
                 }
             }
             else
@@ -331,7 +331,7 @@ BatchBlockConsensusManager::OnRejection(
                 if(Rejected(weights.reject_vote,
                             weights.reject_stake))
                 {
-                    _hashes.erase(batch.blocks[i]->GetHash());
+                    _hashes.erase(batch.requests[i]->GetHash());
                 }
             }
         }
@@ -409,7 +409,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
     //       lookup constant rather than O(n).
     std::list<SupportMap> subsets;
 
-    auto block_count = _handler.GetCurrentBatch().block_count;
+    auto block_count = _handler.GetCurrentBatch().requests.size();
 
     // For each request, collect the delegate
     // ID's of those delegates that voted for
@@ -546,7 +546,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 
         for(; itr != indexes.end(); ++itr, ++i)
         {
-            requests.push_back(batch.blocks[*itr]);
+            requests.push_back(static_cast<struct Send&>(*batch.requests[*itr]));
         }
 
         requests.push_back(::Send());

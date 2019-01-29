@@ -150,6 +150,7 @@ public:
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block, MDB_txn *);
 
     bool request_get(const BlockHash &hash, Request & request, MDB_txn *transaction);
+    bool request_get(const BlockHash &hash, std::shared_ptr<Request> & request, MDB_txn *transaction);
     bool request_put(const Request &, const BlockHash &, MDB_txn *);
     bool request_exists(const Request & request);
     bool request_exists(const BlockHash & hash);
