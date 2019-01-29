@@ -318,7 +318,7 @@ add_library (node
 	logos/consensus/request/request_consensus_manager.cpp
 	logos/consensus/request/request_backup_delegate.cpp
 	logos/consensus/request/request_handler.cpp
-	logos/consensus/secondary_request_handler.cpp
+        logos/consensus/waiting_list.cpp
 	logos/consensus/delegate_bridge.cpp
 	logos/consensus/backup_delegate.cpp
 	logos/consensus/consensus_container.cpp

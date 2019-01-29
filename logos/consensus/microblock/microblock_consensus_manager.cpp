@@ -100,7 +100,7 @@ MicroBlockConsensusManager::PrimaryContains(const BlockHash &hash)
 void
 MicroBlockConsensusManager::QueueRequestSecondary(std::shared_ptr<Request> request)
 {
-    _secondary_handler.OnRequest(request,
+    _waiting_list.OnRequest(request,
         boost::posix_time::seconds(_delegate_id * SECONDARY_LIST_TIMEOUT.count()));
 }
 
