@@ -93,7 +93,7 @@ void WaitingList<CT>::OnTimeout(const Error & error)
 
     for(auto & request : ready_requests)
     {
-        _promoter->OnRequestReady(request.block);
+        _promoter->OnMessageReady(request.block);
     }
 }
 
@@ -133,7 +133,7 @@ void WaitingList<CT>::PruneRequest(const BlockHash & hash)
 }
 
 template <ConsensusType CT>
-void WaitingList<CT>::UpdateRequestPromoter(RequestPromoter<CT>* promoter)
+void WaitingList<CT>::UpdateMessagePromoter(MessagePromoter<CT>* promoter)
 {
     std::lock_guard<std::mutex> lock(_promoter_mutex);
     _promoter = promoter;

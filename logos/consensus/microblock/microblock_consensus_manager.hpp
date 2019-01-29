@@ -12,6 +12,7 @@ class MicroBlockConsensusManager: public ConsensusManager<ConsensusType::MicroBl
 {
 
 public:
+
     /// Class constructor
     ///
     /// Called by ConsensusContainer.
@@ -31,14 +32,14 @@ public:
 
     ~MicroBlockConsensusManager() = default;
 
-    /// Handles benchmark request.
+    /// Handles benchmark messages.
     ///
-    /// Special benchmark request.
-    ///     @param[in]  block state block
+    /// Special benchmark message.
+    ///     @param[in]  message the message
     ///     @param[out] result result of the operation
-    void OnBenchmarkSendRequest(
-        std::shared_ptr<Request>,
-        logos::process_return & ) override;
+    void OnBenchmarkDelegateMessage(
+        std::shared_ptr<DelegateMessage> message,
+        logos::process_return & result) override;
 
     /// set previous hash, microblock and epoch block have only one chain
     /// consequently primary has to set all backup's hash to previous
@@ -75,15 +76,15 @@ protected:
     uint64_t GetStoredCount() override;
 
     /// Validates state blocks.
-    ///     @param[in]  block the block to be validated
+    ///     @param[in]  message the block to be validated
     ///     @param[out] result of the validation
     ///     @return true if validated false otherwise
     bool Validate(
-        std::shared_ptr<Request> block,
+        std::shared_ptr<DelegateMessage> message,
         logos::process_return & result) override;
 
     /// Queues micro block.
-    void QueueRequestPrimary(std::shared_ptr<Request>) override;
+    void QueueMessagePrimary(std::shared_ptr<DelegateMessage> message) override;
 
     /// Gets next available MicroBlock.
     ///     @return reference to MicroBlock
@@ -103,16 +104,17 @@ protected:
     /// @returns true if the request is in the list
     bool PrimaryContains(const BlockHash&) override;
 
-    /// Queue request in the secondary list
-    /// @param request
-    void QueueRequestSecondary(std::shared_ptr<Request>) override;
+    /// Queue message in the secondary list
+    /// @param message
+    void QueueMessageSecondary(std::shared_ptr<DelegateMessage> message) override;
 
     /// Create specialized instance of BackupDelegate
     ///     @param iochannel NetIOChannel pointer
     ///     @param ids Delegate's id
     ///     @return BackupDelegate
-    std::shared_ptr<BackupDelegate<ConsensusType::MicroBlock>> MakeBackupDelegate(
-            std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
+    std::shared_ptr<BackupDelegate<ConsensusType::MicroBlock>>
+    MakeBackupDelegate(std::shared_ptr<IOChannel> iochannel,
+                       const DelegateIdentities& ids) override;
 
     /// Check condition to proceed with re-proposal on quorum failure
     /// @returns true to proceed, false otherwise

@@ -24,7 +24,7 @@ struct DelegateIdentities
 };
 
 template<ConsensusType CT>
-class RequestPromoter;
+class MessagePromoter;
 
 
 template<ConsensusType CT>
@@ -32,23 +32,23 @@ class BackupDelegate : public DelegateBridge<CT>
 {
 protected:
 
-    using PrePrepare  = PrePrepareMessage<CT>;
-    using Prepare     = PrepareMessage<CT>;
-    using Commit      = CommitMessage<CT>;
-    using PostPrepare = PostPrepareMessage<CT>;
-    using PostCommit  = PostCommitMessage<CT>;
-    using Rejection   = RejectionMessage<CT>;
-    using Service     = boost::asio::io_service;
+    using PrePrepare    = PrePrepareMessage<CT>;
+    using Prepare       = PrepareMessage<CT>;
+    using Commit        = CommitMessage<CT>;
+    using PostPrepare   = PostPrepareMessage<CT>;
+    using PostCommit    = PostCommitMessage<CT>;
+    using Rejection     = RejectionMessage<CT>;
+    using ApprovedBlock = PostCommittedBlock<CT>;
+    using Service       = boost::asio::io_service;
 
     template<MessageType T>
-    using SPMessage   = StandardPhaseMessage<T, CT>;
-    using ApprovedBlock   = PostCommittedBlock<CT>;
+    using SPMessage = StandardPhaseMessage<T, CT>;
 
 public:
 
     BackupDelegate(std::shared_ptr<IOChannel> iochannel,
                    PrimaryDelegate & primary,
-                   RequestPromoter<CT> & promoter,
+                   MessagePromoter<CT> & promoter,
                    MessageValidator & validator,
                    const DelegateIdentities & ids,
                    EpochEventsNotifier & events_notifier,
@@ -77,7 +77,7 @@ public:
     {
         _prev_pre_prepare_hash = hash;
     }
-	
+
 	uint8_t GetDelegateId()
     {
         return _delegate_ids.local;
@@ -155,7 +155,7 @@ protected:
     Log                         _log;
     PrimaryDelegate &           _primary;
     ConsensusState              _state = ConsensusState::VOID;
-    RequestPromoter<CT> &       _promoter; ///< secondary list request promoter
+    MessagePromoter<CT> &       _promoter; ///< secondary list request promoter
     uint64_t                    _sequence_number = 0;
     EpochEventsNotifier &       _events_notifier;
     PersistenceManager<CT> &    _persistence_manager;

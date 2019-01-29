@@ -17,7 +17,7 @@ class RequestBackupDelegate : public BackupDelegate<ConsensusType::Request>
 
     using Service    = boost::asio::io_service;
     using Connection = BackupDelegate<R>;
-    using Promoter   = RequestPromoter<R>;
+    using Promoter   = MessagePromoter<R>;
     using Timer      = boost::asio::deadline_timer;
     using Seconds    = boost::posix_time::seconds;
     using Error      = boost::system::error_code;

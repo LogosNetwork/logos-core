@@ -107,9 +107,9 @@ private:
     /// Update secondary request handler promoter during epoch transition
     void UpdateRequestPromoter()
     {
-        _request_manager.UpdateRequestPromoter();
-        _micro_manager.UpdateRequestPromoter();
-        _epoch_manager.UpdateRequestPromoter();
+        _request_manager.UpdateMessagePromoter();
+        _micro_manager.UpdateMessagePromoter();
+        _epoch_manager.UpdateMessagePromoter();
     }
 
     std::atomic<EpochTransitionState> &     _state;             ///< State of transition

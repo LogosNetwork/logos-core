@@ -23,7 +23,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _service(service)
     , _store(store)
     , _validator(validator)
-    , _waiting_list(SecondaryRequestHandlerInstance(service, this))
+    , _waiting_list(GetWaitingList(service, this))
     , _events_notifier(events_notifier)
     , _reservations(std::make_shared<Reservations>(store))
     , _persistence_manager(store, _reservations)
@@ -35,15 +35,15 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
 }
 
 template<ConsensusType CT>
-void ConsensusManager<CT>::HandleRequest(std::shared_ptr<Request> block,
-                                         BlockHash &hash,
+void ConsensusManager<CT>::HandleRequest(std::shared_ptr<DelegateMessage> message,
+                                         BlockHash & hash,
                                          logos::process_return & result)
 {
     result.code = logos::process_result::progress;
     // SYL Integration fix: got rid of unnecessary lock here in favor of more granular locking
 
     LOG_INFO (_log) << "ConsensusManager<" << ConsensusToName(CT)
-                    << ">::OnSendRequest() - hash: "
+                    << ">::OnDelegateMessage() - hash: "
                     << hash.to_string();
 
     if(_state == ConsensusState::INITIALIZING)
@@ -52,18 +52,18 @@ void ConsensusManager<CT>::HandleRequest(std::shared_ptr<Request> block,
         return;
     }
 
-    if(IsPendingRequest(block))
+    if(IsPendingMessage(message))
     {
         result.code = logos::process_result::pending;
         LOG_INFO(_log) << "ConsensusManager<" << ConsensusToName(CT)
-                       << "> - pending request "
+                       << "> - pending message "
                        << hash.to_string();
         return;
     }
 
-    if(!Validate(block, result))
+    if(!Validate(message, result))
     {
-        LOG_INFO(_log) << "ConsensusManager - block validation for send request failed."
+        LOG_INFO(_log) << "ConsensusManager - message validation failed."
                        << " Result code: "
                        << logos::ProcessResultToString(result.code)
                        << " hash: " << hash.to_string();
@@ -120,7 +120,7 @@ ConsensusManager<ConsensusType::BatchStateBlock>::OnSendRequest(
 }
 
 template<ConsensusType CT>
-void ConsensusManager<CT>::OnRequestQueued()
+void ConsensusManager<CT>::OnMessageQueued()
 {
     if(ReadyForConsensus())
     {
@@ -132,8 +132,8 @@ void ConsensusManager<CT>::OnRequestQueued()
 }
 
 template<ConsensusType CT>
-void ConsensusManager<CT>::OnRequestReady(
-    std::shared_ptr<Request> block)
+void ConsensusManager<CT>::OnMessageReady(
+    std::shared_ptr<DelegateMessage> block)
 {
     QueueRequestPrimary(block);
     OnRequestQueued();
@@ -172,9 +172,6 @@ void ConsensusManager<CT>::OnConsensusReached()
 
     ApplyUpdates(block, _delegate_id);
 
-    // TODO: would rather use a shared pointer
-    //       to avoid copying the whole RequestList
-    //       for BSB.
     BlocksCallback::Callback<CT>(block);
 
     // Helpful for benchmarking
@@ -256,29 +253,29 @@ ConsensusManager<CT>::IsPrePrepared(const BlockHash & hash)
 
 template<ConsensusType CT>
 void
-ConsensusManager<CT>::QueueRequest(
-        std::shared_ptr<Request> request)
+ConsensusManager<CT>::QueueMessage(
+        std::shared_ptr<DelegateMessage> message)
 {
-    uint8_t designated_delegate_id = DesignatedDelegate(request);
+    uint8_t designated_delegate_id = DesignatedDelegate(message);
 
     if(designated_delegate_id == _delegate_id)
     {
-        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueRequest primary";
-        QueueRequestPrimary(request);
+        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueMessage primary";
+        QueueMessagePrimary(message);
     }
     else
     {
-        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueRequest secondary";
-        QueueRequestSecondary(request);
+        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueMessage secondary";
+        QueueMessageSecondary(message);
     }
 }
 
 template<ConsensusType CT>
 void
-ConsensusManager<CT>::QueueRequestSecondary(
-    std::shared_ptr<Request> request)
+ConsensusManager<CT>::QueueMessageSecondary(
+    std::shared_ptr<DelegateMessage> message)
 {
-    _waiting_list.OnRequest(request);
+    _waiting_list.OnRequest(message);
 }
 
 template<ConsensusType CT>
@@ -291,10 +288,10 @@ ConsensusManager<CT>::SecondaryContains(
 
 template<ConsensusType CT>
 bool
-ConsensusManager<CT>::IsPendingRequest(
-    std::shared_ptr<Request> block)
+ConsensusManager<CT>::IsPendingMessage(
+    std::shared_ptr<DelegateMessage> message)
 {
-    auto hash = block->Hash();
+    auto hash = message->Hash();
 
     return (PrimaryContains(hash) ||
             SecondaryContains(hash) ||
@@ -316,9 +313,9 @@ ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
 
 template<ConsensusType CT>
 void
-ConsensusManager<CT>::UpdateRequestPromoter()
+ConsensusManager<CT>::UpdateMessagePromoter()
 {
-    _waiting_list.UpdateRequestPromoter(this);
+    _waiting_list.UpdateMessagePromoter(this);
 }
 
 template<ConsensusType CT>
