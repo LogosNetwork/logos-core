@@ -23,7 +23,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _service(service)
     , _store(store)
     , _validator(validator)
-    , _secondary_handler(SecondaryRequestHandlerInstance(service, this))
+    , _waiting_list(SecondaryRequestHandlerInstance(service, this))
     , _events_notifier(events_notifier)
     , _reservations(std::make_shared<Reservations>(store))
     , _persistence_manager(store, _reservations)
@@ -143,7 +143,7 @@ template<ConsensusType CT>
 void ConsensusManager<CT>::OnPostCommit(
     const PrePrepare & block)
 {
-    _secondary_handler.OnPostCommit(block);
+    _waiting_list.OnPostCommit(block);
 }
 
 template<ConsensusType CT>
@@ -278,7 +278,7 @@ void
 ConsensusManager<CT>::QueueRequestSecondary(
     std::shared_ptr<Request> request)
 {
-    _secondary_handler.OnRequest(request);
+    _waiting_list.OnRequest(request);
 }
 
 template<ConsensusType CT>
@@ -286,7 +286,7 @@ bool
 ConsensusManager<CT>::SecondaryContains(
     const BlockHash &hash)
 {
-    return _secondary_handler.Contains(hash);
+    return _waiting_list.Contains(hash);
 }
 
 template<ConsensusType CT>
@@ -318,7 +318,7 @@ template<ConsensusType CT>
 void
 ConsensusManager<CT>::UpdateRequestPromoter()
 {
-    _secondary_handler.UpdateRequestPromoter(this);
+    _waiting_list.UpdateRequestPromoter(this);
 }
 
 template<ConsensusType CT>
