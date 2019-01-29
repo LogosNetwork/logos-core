@@ -1,14 +1,14 @@
 /// @file
-/// This file contains declaration of the BatchBlockConsensusManager class, which
-/// handles specifics of BatchBlock consensus.
+/// This file contains declaration of the RequestConsensusManager class, which
+/// handles specifics of Request consensus.
 #pragma once
 
 #include <logos/consensus/request/request_backup_delegate.hpp>
 #include <logos/consensus/request/request_handler.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 
-/// ConsensusManager that handles BatchBlock consensus.
-class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::Request>
+/// ConsensusManager that handles Request consensus.
+class RequestConsensusManager: public ConsensusManager<ConsensusType::Request>
 {
 
     using BlockBuffer = std::list<std::shared_ptr<Request>>;
@@ -44,14 +44,14 @@ public:
     ///     @param[in] config reference to ConsensusManagerConfig.
     ///     @param[in] validator validator/signer of consensus messages.
     ///     @param[in] events_notifier transition helper
-    BatchBlockConsensusManager(Service & service,
-                               Store & store,
-                               const Config & config,
-                               MessageValidator & validator,
-                               EpochEventsNotifier & events_notifier,
-                               p2p_interface & p2p);
+    RequestConsensusManager(Service & service,
+                            Store & store,
+                            const Config & config,
+                            MessageValidator & validator,
+                            EpochEventsNotifier & events_notifier,
+                            p2p_interface & p2p);
 
-    virtual ~BatchBlockConsensusManager() {};
+    virtual ~RequestConsensusManager() {};
 
     /// Handles benchmark requests.
     ///     @param[in]  block state block.
