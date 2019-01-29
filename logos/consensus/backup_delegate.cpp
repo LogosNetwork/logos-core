@@ -7,12 +7,12 @@
 
 template<ConsensusType CT>
 BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
-                                             PrimaryDelegate & primary,
-                                             RequestPromoter<CT> & promoter,
-                                             MessageValidator & validator,
-                                             const DelegateIdentities & ids,
-                                             EpochEventsNotifier & events_notifer,
-                                             PersistenceManager<CT> & persistence_manager)
+                                   PrimaryDelegate & primary,
+                                   MessagePromoter<CT> & promoter,
+                                   MessageValidator & validator,
+                                   const DelegateIdentities & ids,
+                                   EpochEventsNotifier & events_notifer,
+                                   PersistenceManager<CT> & persistence_manager)
     : DelegateBridge<CT>(iochannel)
     , _delegate_ids(ids)
     , _reason(RejectionReason::Void)

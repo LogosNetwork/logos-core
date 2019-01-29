@@ -8,12 +8,11 @@
 const boost::posix_time::seconds RequestConsensusManager::ON_CONNECTED_TIMEOUT{10};
 RequestHandler RequestConsensusManager::_handler;
 
-RequestConsensusManager::RequestConsensusManager(
-        Service & service,
-        Store & store,
-        const Config & config,
-        MessageValidator & validator,
-        EpochEventsNotifier & events_notifier)
+RequestConsensusManager::RequestConsensusManager(Service & service,
+                                                 Store & store,
+                                                 const Config & config,
+                                                 MessageValidator & validator,
+                                                 EpochEventsNotifier & events_notifier)
     : Manager(service, store, config,
               validator, events_notifier)
     , _init_timer(service)
@@ -30,17 +29,17 @@ RequestConsensusManager::RequestConsensusManager(
 }
 
 void
-RequestConsensusManager::OnBenchmarkSendRequest(
-  std::shared_ptr<Request> block,
-  logos::process_return & result)
+RequestConsensusManager::OnBenchmarkDelegateMessage(
+    std::shared_ptr<DelegateMessage> message,
+    logos::process_return & result)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    LOG_DEBUG (_log) << "RequestConsensusManager::OnBenchmarkSendRequest() - hash: "
-                     << block->GetHash().to_string();
+    LOG_DEBUG (_log) << "RequestConsensusManager::OnBenchmarkDelegateMessage() - hash: "
+                     << message->GetHash().to_string();
 
     _using_buffered_blocks = true;
-    _buffer.push_back(block);
+    _buffer.push_back(message);
 }
 
 void
@@ -79,8 +78,8 @@ RequestConsensusManager::SendBufferedBlocks()
 
     for(uint64_t i = 0; _buffer.size() && i < CONSENSUS_BATCH_SIZE; ++i)
     {
-        OnSendRequest(
-            static_pointer_cast<Request>(
+        OnDelegateMessage(
+            static_pointer_cast<DelegateMessage>(
                 _buffer.front()
             ),
             unused
@@ -98,20 +97,20 @@ RequestConsensusManager::SendBufferedBlocks()
 
 bool
 RequestConsensusManager::Validate(
-  std::shared_ptr<Request> block,
+  std::shared_ptr<DelegateMessage> message,
   logos::process_return & result)
 {
-    if(! block->VerifySignature(block->account))
+    if(! message->VerifySignature(message->account))
     {
         LOG_INFO(_log) << "RequestConsensusManager - Validate, bad signature: "
-                       << block->signature.to_string()
-                       << " account: " << block->account.to_string();
+                       << message->signature.to_string()
+                       << " account: " << message->account.to_string();
 
         result.code = logos::process_result::bad_signature;
         return false;
     }
 
-    return _persistence_manager.Validate(*block, result, false);
+    return _persistence_manager.Validate(*message, result, false);
 }
 
 bool
@@ -130,10 +129,10 @@ RequestConsensusManager::ReadyForConsensus()
 }
 
 void
-RequestConsensusManager::QueueRequestPrimary(
-  std::shared_ptr<Request> request)
+RequestConsensusManager::QueueMessagePrimary(
+    std::shared_ptr<DelegateMessage> message)
 {
-    _handler.OnRequest(request);
+    _handler.OnRequest(message);
 }
 
 auto
@@ -214,15 +213,15 @@ RequestConsensusManager::OnConsensusReached()
 }
 
 uint8_t
-RequestConsensusManager::DesignatedDelegate(std::shared_ptr<Request> request)
+RequestConsensusManager::DesignatedDelegate(std::shared_ptr<DelegateMessage> message)
 {
     // The last five bits of the previous hash
     // (or the account for new accounts) will
     // determine the ID of the designated primary
     // for that account.
     //
-    uint8_t indicator = request->previous.is_zero() ?
-           request->account.data()[0] : request->previous.data()[0];
+    uint8_t indicator = message->previous.is_zero() ?
+           message->account.data()[0] : message->previous.data()[0];
 
     auto id = uint8_t(indicator & ((1<<DELIGATE_ID_MASK)-1));
 
@@ -240,10 +239,10 @@ RequestConsensusManager::PrimaryContains(const BlockHash &hash)
 }
 
 void
-RequestConsensusManager::OnPostCommit(const PrePrepare & block)
+RequestConsensusManager::OnPostCommit(const PrePrepare & pre_prepare)
 {
-    _handler.OnPostCommit(block);
-    Manager::OnPostCommit(block);
+    _handler.OnPostCommit(pre_prepare);
+    Manager::OnPostCommit(pre_prepare);
 }
 
 std::shared_ptr<BackupDelegate<ConsensusType::Request>>
@@ -262,7 +261,7 @@ RequestConsensusManager::AcquirePrePrepare(const PrePrepare & message)
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
     _handler.Acquire(message);
-    OnRequestQueued();
+    OnMessageQueued();
 }
 
 void
@@ -522,7 +521,7 @@ RequestConsensusManager::OnPrePrepareRejected()
 
     _state = ConsensusState::VOID;
 
-    OnRequestQueued();
+    OnMessageQueued();
 }
 
 void

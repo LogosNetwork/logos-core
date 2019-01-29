@@ -14,7 +14,7 @@
 #include <boost/asio/io_service.hpp>
 
 template<ConsensusType CT>
-class RequestPromoter;
+class MessagePromoter;
 
 using boost::multi_index::ordered_non_unique;
 using boost::multi_index::hashed_unique;
@@ -32,7 +32,7 @@ class WaitingList
     using Clock      = boost::posix_time::second_clock;
     using TimePoint  = boost::posix_time::ptime;
     using PrePrepare = PrePrepareMessage<CT>;
-    using Promoter   = RequestPromoter<CT>;
+    using Promoter   = MessagePromoter<CT>;
 
     struct Entry
     {
@@ -63,7 +63,7 @@ public:
 
     void OnPostCommit(const PrePrepare & message);
 
-    void UpdateRequestPromoter(RequestPromoter<CT>* promoter);
+    void UpdateMessagePromoter(MessagePromoter<CT>* promoter);
 
 private:
 

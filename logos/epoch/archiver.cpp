@@ -39,7 +39,7 @@ Archiver::Start(InternalConsensus &consensus)
             _first_epoch = false;
         }
 
-       consensus.OnSendRequest(micro_block);
+        consensus.OnDelegateMessage(micro_block);
     };
 
     auto epoch_cb = [this, &consensus]()->void
@@ -51,7 +51,7 @@ Archiver::Start(InternalConsensus &consensus)
             return;
         }
 
-        consensus.OnSendRequest(epoch);
+        consensus.OnDelegateMessage(epoch);
     };
 
     auto transition_cb = [&consensus](){
@@ -71,7 +71,7 @@ Archiver::Test_ProposeMicroBlock(InternalConsensus &consensus, bool last_microbl
             LOG_ERROR(_log) << "Archiver::Test_ProposeMicroBlock failed to build micro block";
             return;
         }
-        consensus.OnSendRequest(micro_block);
+        consensus.OnDelegateMessage(micro_block);
     });
 }
 

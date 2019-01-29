@@ -220,7 +220,7 @@ MicroBlockTester::generate_epoch(
     proposer.ProposeTransitionOnce([&node]()->void{
         EpochHandler handler(node.store);
         auto epoch = std::make_shared<Epoch>();
-        node._consensus_container.OnSendRequest(epoch);
+        node._consensus_container.OnDelegateMessage(epoch);
     }, std::chrono::seconds(1)); */
     response_l.put ("result", "not-implemented");
     response (response_l);

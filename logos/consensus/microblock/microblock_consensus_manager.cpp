@@ -23,18 +23,18 @@ MicroBlockConsensusManager::MicroBlockConsensusManager(
 }
 
 void
-MicroBlockConsensusManager::OnBenchmarkSendRequest(
-    std::shared_ptr<Request> block,
+MicroBlockConsensusManager::OnBenchmarkDelegateMessage(
+    std::shared_ptr<DelegateMessage> message,
     logos::process_return & result)
 {
-    _cur_microblock = static_pointer_cast<PrePrepare>(block);
-    LOG_DEBUG (_log) << "MicroBlockConsensusManager::OnBenchmarkSendRequest() - hash: "
-                     << block->Hash().to_string();
+    _cur_microblock = static_pointer_cast<PrePrepare>(message);
+    LOG_DEBUG (_log) << "MicroBlockConsensusManager::OnBenchmarkDelegateMessage() - hash: "
+                     << message->Hash().to_string();
 }
 
 bool
 MicroBlockConsensusManager::Validate(
-    std::shared_ptr<Request> block,
+    std::shared_ptr<DelegateMessage> message,
     logos::process_return & result)
 {
     result.code = logos::process_result::progress;
@@ -43,10 +43,10 @@ MicroBlockConsensusManager::Validate(
 }
 
 void
-MicroBlockConsensusManager::QueueRequestPrimary(
-    std::shared_ptr<Request> request)
+MicroBlockConsensusManager::QueueMessagePrimary(
+    std::shared_ptr<DelegateMessage> message)
 {
-    _cur_microblock = static_pointer_cast<PrePrepare>(request);
+    _cur_microblock = static_pointer_cast<PrePrepare>(message);
     _enqueued = true;
 }
 
@@ -98,9 +98,9 @@ MicroBlockConsensusManager::PrimaryContains(const BlockHash &hash)
 }
 
 void
-MicroBlockConsensusManager::QueueRequestSecondary(std::shared_ptr<Request> request)
+MicroBlockConsensusManager::QueueMessageSecondary(std::shared_ptr<DelegateMessage> message)
 {
-    _waiting_list.OnRequest(request,
+    _waiting_list.OnRequest(message,
         boost::posix_time::seconds(_delegate_id * SECONDARY_LIST_TIMEOUT.count()));
 }
 
