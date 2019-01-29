@@ -7,6 +7,6 @@
 // must be first
 #include <logos/consensus/persistence/persistence_manager.hpp>
 // specializations to follow
-#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
+#include <logos/consensus/persistence/request/request_persistence.hpp>
 #include <logos/consensus/persistence/microblock/microblock_persistence.hpp>
 #include <logos/consensus/persistence/epoch/epoch_persistence.hpp>
