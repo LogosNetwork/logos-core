@@ -5,21 +5,21 @@
 
 #include <logos/consensus/persistence/persistence_manager.hpp>
 
-const ConsensusType B = ConsensusType::Request;
+const ConsensusType R = ConsensusType::Request;
 
 using boost::multiprecision::uint128_t;
 using namespace boost::multiprecision::literals;
 
 template<>
-class PersistenceManager<B> : public Persistence
+class PersistenceManager<R> : public Persistence
 {
 
     friend class BatchBlockConsensusManager;
 
 protected:
 
-    using Request         = RequestMessage<B>;
-    using PrePrepare      = PrePrepareMessage<B>;
+    using Request         = RequestMessage<R>;
+    using PrePrepare      = PrePrepareMessage<R>;
     using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
 
 public:
