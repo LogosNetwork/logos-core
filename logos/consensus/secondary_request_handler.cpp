@@ -156,9 +156,9 @@ void SecondaryRequestHandler<ConsensusType::Epoch>::PruneRequests(const PrePrepa
 template<>
 void SecondaryRequestHandler<ConsensusType::Request>::PruneRequests(const PrePrepare & block)
 {
-    for (uint64_t i = 0; i < block.block_count; ++i)
+    for (uint64_t i = 0; i < block.requests.size(); ++i)
     {
-        BlockHash hash = block.blocks[i]->GetHash();
+        BlockHash hash = block.requests[i]->GetHash();
 
         PruneRequest(hash);
     }

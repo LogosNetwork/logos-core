@@ -332,6 +332,7 @@ add_library (node
 	logos/consensus/messages/messages.cpp
 	logos/consensus/consensus_msg_sink.cpp
 	logos/consensus/messages/receive_block.cpp
+	logos/consensus/messages/request_block.cpp
 	logos/consensus/microblock/microblock_backup_delegate.cpp
 	logos/consensus/microblock/microblock_consensus_manager.cpp
 	logos/consensus/p2p/consensus_p2p.cpp
