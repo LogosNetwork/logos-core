@@ -11,7 +11,7 @@
 class RequestConsensusManager: public ConsensusManager<ConsensusType::Request>
 {
 
-    using BlockBuffer = std::list<std::shared_ptr<Request>>;
+    using BlockBuffer = std::list<std::shared_ptr<DelegateMessage>>;
     using Rejection   = RejectionMessage<ConsensusType::Request>;
     using Prepare     = PrepareMessage<ConsensusType::Request>;
     using Seconds     = boost::posix_time::seconds;
@@ -54,10 +54,10 @@ public:
     virtual ~RequestConsensusManager() {};
 
     /// Handles benchmark requests.
-    ///     @param[in]  block state block.
+    ///     @param[in]  message message.
     ///     @param[out] result result of the operation.
-    void OnBenchmarkSendRequest(std::shared_ptr<Request> block,
-                                logos::process_return & result) override;
+    void OnBenchmarkDelegateMessage(std::shared_ptr<DelegateMessage> message,
+                                    logos::process_return & result) override;
 
     /// Called to indicate that the buffering is complete.
     ///
@@ -112,7 +112,7 @@ protected:
     ///     @param result of the validation
     ///     @return true if validated false otherwise
     bool Validate(
-        std::shared_ptr<Request> block,
+        std::shared_ptr<DelegateMessage> message,
         logos::process_return & result) override;
 
     /// Sends buffered blocks.
@@ -123,8 +123,8 @@ protected:
     /// Queues request message.
     ///
     /// Queues state block.
-    void QueueRequestPrimary(
-        std::shared_ptr<Request>) override;
+    void QueueMessagePrimary(
+        std::shared_ptr<DelegateMessage> message) override;
 
     /// Gets next available BatchStateBlock.
     ///     @return reference to BatchStateBlock
@@ -145,19 +145,20 @@ protected:
     /// @returns true if the request is in the list
     bool PrimaryContains(const BlockHash &) override;
 
-    void OnPostCommit(const PrePrepare & block) override;
+    void OnPostCommit(const PrePrepare & pre_prepare) override;
 
     /// Create specialized instance of BackupDelegate
     ///     @param iochannel NetIOChannel pointer
     ///     @param ids Delegate's id
     ///     @return BackupDelegate
-    std::shared_ptr<BackupDelegate<ConsensusType::Request>> MakeBackupDelegate(
-            std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
+    std::shared_ptr<BackupDelegate<ConsensusType::Request>>
+    MakeBackupDelegate(std::shared_ptr<IOChannel> iochannel,
+                       const DelegateIdentities& ids) override;
 
     /// Find Primary delegate index for this request
-    /// @param request request
+    /// @param message message
     /// @returns delegate's index
-    uint8_t DesignatedDelegate(std::shared_ptr<Request> request) override;
+    uint8_t DesignatedDelegate(std::shared_ptr<DelegateMessage> message) override;
 
 private:
 

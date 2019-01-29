@@ -83,7 +83,7 @@ ConsensusContainer::CreateEpochManager(
 }
 
 logos::process_return
-ConsensusContainer::OnSendRequest(
+ConsensusContainer::OnDelegateMessage(
     std::shared_ptr<Send> request,
     bool should_buffer)
 {
@@ -93,8 +93,8 @@ ConsensusContainer::OnSendRequest(
     if (_cur_epoch == nullptr)
     {
         result.code = logos::process_result::not_delegate;
-        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest transaction, the node is not a delegate, "
-                        << (int)DelegateIdentityManager::_global_delegate_idx;
+        LOG_WARN(_log) << "ConsensusContainer::OnDelegateMessage transaction, the node is not a delegate, "
+                       << (int)DelegateIdentityManager::_global_delegate_idx;
         return result;
     }
 
@@ -110,14 +110,14 @@ ConsensusContainer::OnSendRequest(
     if(should_buffer)
     {
         result.code = logos::process_result::buffered;
-        _cur_epoch->_request_manager.OnBenchmarkSendRequest(
+        _cur_epoch->_request_manager.OnBenchmarkDelegateMessage(
             static_pointer_cast<Request>(request), result);
     }
     else
     {
-        LOG_DEBUG(_log) << "ConsensusContainer::OnSendRequest: "
+        LOG_DEBUG(_log) << "ConsensusContainer::OnDelegateMessage: "
                         << "number_transaction=" << request->transactions.size();
-        _cur_epoch->_request_manager.OnSendRequest(
+        _cur_epoch->_request_manager.OnDelegateMessage(
             static_pointer_cast<Request>(request), result);
     }
 
@@ -159,8 +159,8 @@ ConsensusContainer::BufferComplete(
 }
 
 logos::process_return
-ConsensusContainer::OnSendRequest(
-    std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>> block)
+ConsensusContainer::OnDelegateMessage(
+    std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>> message)
 {
     OptLock lock(_transition_state, _mutex);
     logos::process_return result;
@@ -169,21 +169,21 @@ ConsensusContainer::OnSendRequest(
     if (_cur_epoch == nullptr)
     {
         result.code = logos::process_result::not_delegate;
-        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest microblock, the node is not a delegate, "
+        LOG_WARN(_log) << "ConsensusContainer::OnDelegateMessage microblock, the node is not a delegate, "
                         << (int)DelegateIdentityManager::_global_delegate_idx;
         return result;
     }
 
-    block->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
-    _cur_epoch->_micro_manager.OnSendRequest(
-        std::static_pointer_cast<Request>(block), result);;
+    message->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
+    _cur_epoch->_micro_manager.OnDelegateMessage(
+        std::static_pointer_cast<Request>(message), result);
 
     return result;
 }
 
 logos::process_return
-ConsensusContainer::OnSendRequest(
-    std::shared_ptr<RequestMessage<ConsensusType::Epoch>> block)
+ConsensusContainer::OnDelegateMessage(
+    std::shared_ptr<RequestMessage<ConsensusType::Epoch>> message)
 {
     OptLock lock(_transition_state, _mutex);
     logos::process_return result;
@@ -192,14 +192,14 @@ ConsensusContainer::OnSendRequest(
     if (_cur_epoch == nullptr)
     {
         result.code = logos::process_result::not_delegate;
-        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest epoch, the node is not a delegate, "
+        LOG_WARN(_log) << "ConsensusContainer::OnDelegateMessage epoch, the node is not a delegate, "
                         << (int)DelegateIdentityManager::_global_delegate_idx;
         return result;
     }
 
-    block->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
-    _cur_epoch->_epoch_manager.OnSendRequest(
-            std::static_pointer_cast<Request>(block), result);;
+    message->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
+    _cur_epoch->_epoch_manager.OnDelegateMessage(
+        std::static_pointer_cast<Request>(message), result);
 
     return result;
 }

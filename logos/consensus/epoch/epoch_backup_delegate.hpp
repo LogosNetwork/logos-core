@@ -22,7 +22,7 @@ public:
     /// @param events_notifier epoch transition helper [in]
     EpochBackupDelegate(std::shared_ptr<IOChannel> iochannel,
                              PrimaryDelegate & primary,
-                             RequestPromoter<ECT> & promoter,
+                             MessagePromoter<ECT> & promoter,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
                              EpochEventsNotifier & events_notifier,

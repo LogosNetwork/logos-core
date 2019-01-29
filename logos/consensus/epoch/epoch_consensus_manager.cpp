@@ -28,18 +28,18 @@ EpochConsensusManager::EpochConsensusManager(
 }
 
 void 
-EpochConsensusManager::OnBenchmarkSendRequest(
-    std::shared_ptr<Request> block,
+EpochConsensusManager::OnBenchmarkDelegateMessage(
+    std::shared_ptr<DelegateMessage> message,
     logos::process_return & result)
 {
-    _cur_epoch = static_pointer_cast<PrePrepare>(block);
-    LOG_DEBUG (_log) << "EpochConsensusManager::OnBenchmarkSendRequest() - hash: "
-                     << block->Hash().to_string();
+    _cur_epoch = static_pointer_cast<PrePrepare>(message);
+    LOG_DEBUG (_log) << "EpochConsensusManager::OnBenchmarkDelegateMessage() - hash: "
+                     << message->Hash().to_string();
 }
 
 bool 
 EpochConsensusManager::Validate(
-    std::shared_ptr<Request> block,
+    std::shared_ptr<DelegateMessage> block,
     logos::process_return & result)
 {
     result.code = logos::process_result::progress;
@@ -48,10 +48,10 @@ EpochConsensusManager::Validate(
 }
 
 void 
-EpochConsensusManager::QueueRequestPrimary(
-    std::shared_ptr<Request> request)
+EpochConsensusManager::QueueMessagePrimary(
+    std::shared_ptr<DelegateMessage> message)
 {
-    _cur_epoch = static_pointer_cast<PrePrepare>(request);
+    _cur_epoch = static_pointer_cast<PrePrepare>(message);
     _enqueued = true;
 }
 
@@ -100,14 +100,14 @@ EpochConsensusManager::PrimaryContains(const BlockHash &hash)
 }
 
 void
-EpochConsensusManager::QueueRequestSecondary(std::shared_ptr<Request> request)
+EpochConsensusManager::QueueMessageSecondary(std::shared_ptr<DelegateMessage> message)
 {
     uint timeout_sec = (_delegate_id + 1) * SECONDARY_LIST_TIMEOUT.count();
     if (timeout_sec > TConvert<::Seconds>(SECONDARY_LIST_TIMEOUT_CAP).count())
     {
         timeout_sec = TConvert<::Seconds>(SECONDARY_LIST_TIMEOUT_CAP).count();
     }
-    _waiting_list.OnRequest(request, boost::posix_time::seconds(timeout_sec));
+    _waiting_list.OnRequest(message, boost::posix_time::seconds(timeout_sec));
 }
 
 std::shared_ptr<BackupDelegate<ConsensusType::Epoch>>
@@ -121,7 +121,7 @@ EpochConsensusManager::MakeBackupDelegate(
 
 uint8_t
 EpochConsensusManager::DesignatedDelegate(
-    std::shared_ptr<Request> request)
+    std::shared_ptr<DelegateMessage> message)
 {
     BlockHash hash;
     ApprovedMB block;
