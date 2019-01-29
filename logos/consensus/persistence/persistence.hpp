@@ -6,16 +6,21 @@
 #include <logos/blockstore.hpp>
 #include <logos/lib/log.hpp>
 
-struct ValidationStatus {
-    std::unordered_map<uint16_t, logos::process_result>  requests;
-    logos::process_result                               reason;
+struct ValidationStatus
+{
+    using Requests = std::unordered_map<uint16_t, logos::process_result>;
+
+    Requests              requests;
+    logos::process_result reason;
 };
 
-class Persistence {
+class Persistence
+{
+
 protected:
 
-    using Store         = logos::block_store;
-    using Milliseconds  = std::chrono::milliseconds;
+    using Store        = logos::block_store;
+    using Milliseconds = std::chrono::milliseconds;
 
 public:
 
@@ -27,6 +32,7 @@ public:
         : _store(store)
         , _clock_drift(clock_drift)
     {}
+
     virtual ~Persistence() = default;
 
     static void UpdateStatusRequests(ValidationStatus *status, uint16_t i, logos::process_result result)
@@ -46,6 +52,7 @@ public:
     }
 
 protected:
+
     bool ValidateTimestamp(uint64_t timestamp)
     {
         auto now = GetStamp();
