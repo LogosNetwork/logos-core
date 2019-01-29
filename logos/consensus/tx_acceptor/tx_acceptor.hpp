@@ -141,8 +141,16 @@ class TxAcceptor
     /// Run post processing once all blocks are processed individually
     /// @param blocks all valid blocks [in]
     /// @param response object [in|out]
-    virtual void PostProcessBlocks(Blocks &blocks, Responses &response) {}
-    /// Send or aggregate validated requests, default is to send
+    virtual void PostProcessBlocks(Blocks &blocks, Responses &response)
+    {
+        auto res = _acceptor_channel->OnSendRequest(blocks);
+        if (res[0].first == logos::process_result::initializing)
+        {
+            response.clear();
+            response.push_back({res[0].first, 0});
+        }
+    }
+    /// Send or aggregate validated requests, default is to aggregate
     /// @param block received transaction [in]
     /// @param blocks to aggregate in delegate mode [in|out]
     /// @param response object [in|out]
@@ -150,7 +158,8 @@ class TxAcceptor
     virtual logos::process_result OnSendRequest(std::shared_ptr<Request> block, Blocks &blocks,
                                                 Responses &response, bool should_buffer = false)
     {
-        return _acceptor_channel->OnSendRequest(block, should_buffer).code;
+        blocks.push_back(block);
+        return logos::process_result::progress;
     }
 
     Service &                       _service;           /// boost asio service reference
@@ -188,28 +197,4 @@ public:
         : TxAcceptor(service, acceptor_channel, config)
     {}
     ~TxAcceptorDelegate() = default;
-protected:
-    /// Send received transaction for consensus protocol
-    /// @param block received transaction [in]
-    /// @param blocks to aggregate in delegate mode [in|out]
-    /// @param response object [in|out]
-    /// @param should_buffer benchmarking flag [in]
-    logos::process_result OnSendRequest(std::shared_ptr<Request> block, Blocks &blocks,
-                      Responses &response, bool should_buffer = false) override
-    {
-        blocks.push_back(block);
-        return logos::process_result::progress;
-    }
-    /// Run post processing once all blocks are processed individually
-    /// @param blocks all valid blocks [in]
-    /// @param response object [in|out]
-    void PostProcessBlocks(Blocks &blocks, Responses &response) override
-    {
-        auto res = _acceptor_channel->OnSendRequest(blocks);
-        if (res[0].first == logos::process_result::initializing)
-        {
-            response.clear();
-            response.push_back({res[0].first, 0});
-        }
-    }
 };

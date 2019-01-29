@@ -103,20 +103,43 @@ TxReceiverChannel::AsyncReadMessage(const TxMessageHeader & header)
 {
     using Request = RequestMessage<ConsensusType::BatchStateBlock>;
     auto payload_size = header.payload_size;
-    bool should_buffer = header.mpf != 0;
-    _assembler.ReadBytes([this, payload_size, should_buffer](const uint8_t *data) {
+    _assembler.ReadBytes([this, payload_size, header](const uint8_t *data) mutable -> void {
+        logos::bufferstream stream(data, payload_size);
+        std::shared_ptr<Request> block = nullptr;
+        std::vector<std::shared_ptr<Request>> blocks;
+        auto nblocks = header.mpf;
         bool error = false;
-        auto block = std::make_shared<StateBlock>(error, data, payload_size);
-        if (error)
+
+        LOG_DEBUG(_log) << "TxReceiverChannel::AsyncReadMessage received payload size "
+                        << payload_size << " number blocks " << nblocks;
+
+        while (nblocks > 0)
         {
+            auto block = std::make_shared<StateBlock>(error, stream);
+            if (error) {
                 LOG_ERROR(_log) << "TxReceiverChannel::AsyncReadMessage deserialize error, payload size "
                                 << payload_size;
                 ReConnect(true);
                 return;
+            }
+            blocks.push_back(static_pointer_cast<Request>(block));
+            nblocks--;
         }
-        LOG_INFO(_log) << "TxReceiverChannel::AsyncReadMessage received payload size " << payload_size;
-        _receiver.OnSendRequest(static_pointer_cast<Request>(block), should_buffer);
+
         _last_received = GetStamp();
+
+        LOG_DEBUG(_log) << "TxReceiverChannel::AsyncReadMessage sending "
+                        << blocks.size() << " to consensus protocol";
+
+        auto response = _receiver.OnSendRequest(blocks);
+
+        for (auto r : response)
+        {
+            LOG_DEBUG(_log) << "TxRec)eiverChannel::AsyncReadMessage response "
+                            << ProcessResultToString(r.first)
+                            << " " << r.second.to_string();
+        }
+
         AsyncReadHeader();
     }, payload_size);
 }
