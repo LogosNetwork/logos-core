@@ -70,6 +70,8 @@ struct ElectionVote : Request
 
     uint64_t Serialize(logos::stream & stream) const override;
 
+    bool operator==(const ElectionVote & other) const;
+
     //the accounts im voting for
     std::vector<CandidateVotePair> votes_; 
 };

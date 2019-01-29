@@ -119,6 +119,13 @@ struct Request
         return written;
     }
 
+    bool operator==(const Request& other) const
+    {
+        return type == other.type
+            && (previous == other.previous)
+            && (next == other.next);
+    }
+
     RequestType type;
     BlockHash   previous;
     BlockHash   next;

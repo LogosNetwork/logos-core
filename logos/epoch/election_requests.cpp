@@ -150,3 +150,8 @@ uint64_t ElectionVote::Serialize(logos::stream & stream) const
    }
    return val;
 }
+
+bool ElectionVote::operator==(const ElectionVote& other) const
+{
+    return votes_ == other.votes_ && Request::operator==(other);
+}

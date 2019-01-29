@@ -516,7 +516,7 @@ TEST (Request_Serialization, election_requests_json)
     } 
     ASSERT_EQ(total_votes,10);
 
-
+    //back and forth
     std::string json_string = ev.ToJson();
     tree = get_tree(json_string.c_str());
     error = false;
@@ -526,6 +526,7 @@ TEST (Request_Serialization, election_requests_json)
 
 
     
+    //consistency with streams
     std::vector<uint8_t> buf;
     {
         logos::vectorstream write_stream(buf);
@@ -537,7 +538,113 @@ TEST (Request_Serialization, election_requests_json)
     error = false;
     ElectionVote ev3(error,read_stream);
     ASSERT_FALSE(error);
-    ASSERT_EQ(ev.votes_,ev3.votes_);
+    ASSERT_EQ(ev,ev3);
+
+
+
+}
+
+
+
+TEST (Request_Serialization, election_requests_stream)
+{
+
+
+    //CandidateVotePair
+    ElectionVote::CandidateVotePair p(123,1);
+    {
+        std::vector<uint8_t> buf;
+        {
+            logos::vectorstream write_stream(buf);
+            uint64_t size = p.Serialize(write_stream);
+            ASSERT_EQ(size,p.WireSize());
+        }
+
+        logos::bufferstream read_stream(buf.data(), buf.size());
+        bool error = false;
+        ElectionVote::CandidateVotePair p2(error,read_stream);
+        ASSERT_FALSE(error);
+        ASSERT_EQ(p,p2);
+    }
+
+    //no votes
+    BlockHash prev1 = 123;
+    ElectionVote ev(prev1);
+    {
+        std::vector<uint8_t> buf;
+        {
+            logos::vectorstream write_stream(buf);
+            uint64_t size = ev.Serialize(write_stream);
+            ASSERT_EQ(size,ev.WireSize());
+        }
+
+        logos::bufferstream read_stream(buf.data(), buf.size());
+        bool error = false;
+        ElectionVote ev2(error,read_stream);
+        ASSERT_FALSE(error);
+        ASSERT_EQ(ev,ev2);
+    }
+
+
+    //4 votes
+    ElectionVote::CandidateVotePair p1(123,1);
+    ElectionVote::CandidateVotePair p2(456,2);
+    ElectionVote::CandidateVotePair p3(789,3);
+    ElectionVote::CandidateVotePair p4(101112,4);
+    std::vector<ElectionVote::CandidateVotePair> votes = {p1,p2,p3,p4};
+
+    ev.votes_ = votes;
+    {
+        std::vector<uint8_t> buf;
+        {
+            logos::vectorstream write_stream(buf);
+            uint64_t size = ev.Serialize(write_stream);
+            ASSERT_EQ(size,ev.WireSize());
+        }
+
+        logos::bufferstream read_stream(buf.data(), buf.size());
+        bool error = false;
+        ElectionVote ev2(error,read_stream);
+        ASSERT_FALSE(error);
+        ASSERT_EQ(ev,ev2);
+    }
+
+
+    //manual stream
+    {
+        BlockHash prev = ev.previous;
+        BlockHash next = ev.next;
+        RequestType type = RequestType::ElectionVote;
+        std::vector<uint8_t> buf;
+        {
+            logos::vectorstream write_stream(buf);
+            uint64_t size = 0;
+            size += logos::write(write_stream, type);
+            size += logos::write(write_stream, ev.WireSize());
+            size += logos::write(write_stream, prev);
+            size += logos::write(write_stream, next);
+            uint8_t count = 4;
+            size += logos::write(write_stream, count);
+            for(auto const & v : votes)
+            {
+                size += logos::write(write_stream, v.account);
+                size += logos::write(write_stream, v.num_votes);
+            }
+
+            ASSERT_EQ(size,ev.WireSize());
+        }
+
+        logos::bufferstream read_stream(buf.data(), buf.size());
+        bool error = false;
+        ElectionVote ev2(error,read_stream);
+        ASSERT_FALSE(error);
+        ASSERT_EQ(ev.votes_,ev2.votes_);
+        ASSERT_EQ(ev.type,ev2.type);
+        ASSERT_EQ(ev.previous,ev2.previous);
+        ASSERT_EQ(ev.next,ev2.next);
+        ASSERT_EQ(ev,ev2);
+    }
+    
 
 
 
