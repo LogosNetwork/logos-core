@@ -517,5 +517,29 @@ TEST (Request_Serialization, election_requests_json)
     ASSERT_EQ(total_votes,10);
 
 
+    std::string json_string = ev.ToJson();
+    tree = get_tree(json_string.c_str());
+    error = false;
+    ElectionVote ev2(error, tree);
+    ASSERT_FALSE(error);
+    ASSERT_EQ(ev.votes_,ev2.votes_);
+
+
+    
+    std::vector<uint8_t> buf;
+    {
+        logos::vectorstream write_stream(buf);
+        uint64_t size = ev.Serialize(write_stream);
+        ASSERT_EQ(size,ev.WireSize());
+    }
+
+    logos::bufferstream read_stream(buf.data(), buf.size());
+    error = false;
+    ElectionVote ev3(error,read_stream);
+    ASSERT_FALSE(error);
+    ASSERT_EQ(ev.votes_,ev3.votes_);
+
+
+
 }
 #endif // #ifdef Unit_Test_Request_Serialization

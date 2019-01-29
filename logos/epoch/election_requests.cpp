@@ -85,15 +85,7 @@ ElectionVote::ElectionVote(bool & error,
                 break;
             }
             uint8_t vote_val;
-            try
-            {
-                vote_val = std::stoi(v.second.data());
-            }
-            catch(const boost::bad_lexical_cast &)
-            {
-                error = true;
-                break;
-            }
+            vote_val = std::stoi(v.second.data());
             CandidateVotePair vp(candidate, vote_val);
             votes_.push_back(vp);
         }
@@ -122,7 +114,7 @@ void ElectionVote::Hash(blake2b_state& hash) const
 
 uint16_t ElectionVote::WireSize() const
 {
-    return sizeof(uint8_t) + (votes_.size() * sizeof(CandidateVotePair))
+    return sizeof(uint8_t) + (votes_.size() * CandidateVotePair::WireSize())
         + Request::WireSize();
 }
 
@@ -135,7 +127,7 @@ boost::property_tree::ptree ElectionVote::SerializeJson() const
     for(const auto & v : votes_)
     {
         votes_tree.put(v.account.to_account()
-                ,boost::lexical_cast<std::string>(v.num_votes));
+                ,std::to_string(v.num_votes));
     }
     boost::property_tree::ptree tree;
     tree.add_child(VOTES,votes_tree);
@@ -150,7 +142,7 @@ uint64_t ElectionVote::Serialize(logos::stream & stream) const
 {
    
    uint64_t val = Request::Serialize(stream);
-   uint8_t count = votes_.size();
+   uint8_t count = votes_.size(); //TODO: this is not safe if size is too big
    val += logos::write(stream, count);
    for(auto const & v : votes_)
    {

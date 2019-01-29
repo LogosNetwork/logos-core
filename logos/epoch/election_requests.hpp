@@ -40,6 +40,16 @@ struct ElectionVote : Request
             error = logos::read(stream, num_votes);
         }
 
+        static uint64_t WireSize()
+        {
+            return sizeof(account) + sizeof(num_votes);
+        }
+
+        bool operator==(const CandidateVotePair& other) const
+        {
+            return account == other.account && num_votes == other.num_votes;
+        }
+
         AccountAddress account;
         uint8_t num_votes;
     };
