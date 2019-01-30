@@ -25,7 +25,7 @@ protected:
 public:
 
     static constexpr Milliseconds DEFAULT_CLOCK_DRIFT = Milliseconds(20000);
-    static constexpr Milliseconds ZERO_CLOCK_DRIFT = Milliseconds(0);
+    static constexpr Milliseconds ZERO_CLOCK_DRIFT    = Milliseconds(0);
 
     Persistence(Store & store,
                 Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT)

@@ -8,19 +8,31 @@
 
 #include <unordered_map>
 
-class ReservationsProvider {
+class ReservationsProvider
+{
 protected:
+
     using Store = logos::block_store;
+
 public:
+
     ReservationsProvider(Store & store)
         : _store(store)
     {}
+
     virtual ~ReservationsProvider() = default;
-    virtual bool Acquire(const AccountAddress & account, logos::account_info &info) {return true;}
-    virtual void Release(const AccountAddress & account) {}
+
+    virtual bool Acquire(const AccountAddress & account,
+                         logos::account_info &info)
+    { return true; }
+
+    virtual void Release(const AccountAddress & account)
+    {}
+
 protected:
-    Store &      _store;
-    Log          _log;
+
+    Store & _store;
+    Log     _log;
 };
 
 class Reservations : public ReservationsProvider
@@ -30,10 +42,12 @@ protected:
     using AccountCache = std::unordered_map<AccountAddress, logos::account_info>;
 
 public:
+
     Reservations(Store & store)
         : ReservationsProvider(store)
     {}
-    ~Reservations() = default;
+
+    virtual ~Reservations() = default;
 
     //-------------------------------------------------------------------------
     // XXX - It is possible for a delegate D1 that has validated/Post-Comitted
@@ -86,13 +100,18 @@ private:
     std::mutex   _mutex;
 };
 
-class DefaultReservations : public ReservationsProvider {
-public:
-    DefaultReservations(Store & store) : ReservationsProvider(store)
-    {}
-    ~DefaultReservations() = default;
+class DefaultReservations : public ReservationsProvider
+{
 
-    bool Acquire(const AccountAddress & account, logos::account_info &info) override
+public:
+
+    DefaultReservations(Store & store)
+        : ReservationsProvider(store)
+    {}
+
+    virtual ~DefaultReservations() = default;
+
+    bool Acquire(const AccountAddress & account, logos::account_info & info) override
     {
         return _store.account_get(account, info);
     }

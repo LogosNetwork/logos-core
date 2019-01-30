@@ -1,5 +1,6 @@
 #pragma once
 
+#include <logos/request/transaction.hpp>
 #include <logos/token/common.hpp>
 #include <logos/lib/numbers.hpp>
 
@@ -90,6 +91,8 @@ struct TokenImmuteSetting : TokenAdminRequest
 
 struct TokenRevoke : TokenAdminRequest
 {
+    using Transaction = ::Transaction<uint16_t>;
+
     TokenRevoke(bool & error,
                 std::basic_streambuf<uint8_t> & stream);
 
@@ -104,8 +107,7 @@ struct TokenRevoke : TokenAdminRequest
     uint16_t WireSize() const override;
 
     AccountAddress source;
-    AccountAddress destination;
-    uint16_t       amount;
+    Transaction    transaction;
 };
 
 struct TokenFreeze : TokenAdminRequest
@@ -224,6 +226,8 @@ struct TokenBurn : TokenAdminRequest
 
 struct TokenAccountSend : TokenAdminRequest
 {
+    using Transaction = ::Transaction<uint16_t>;
+
     TokenAccountSend(bool & error,
                      std::basic_streambuf<uint8_t> & stream);
 
@@ -237,12 +241,13 @@ struct TokenAccountSend : TokenAdminRequest
 
     uint16_t WireSize() const override;
 
-    AccountAddress destination;
-    uint16_t       amount;
+    Transaction transaction;
 };
 
 struct TokenAccountWithdrawFee : TokenAdminRequest
 {
+    using Transaction = ::Transaction<uint16_t>;
+
     TokenAccountWithdrawFee(bool & error,
                             std::basic_streambuf<uint8_t> & stream);
 
@@ -256,15 +261,15 @@ struct TokenAccountWithdrawFee : TokenAdminRequest
 
     uint16_t WireSize() const override;
 
-    AccountAddress destination;
-    uint16_t       amount;
+    Transaction transaction;
 };
 
 // Token User Requests
 //
 struct TokenSend : TokenRequest
 {
-    using Transactions = std::vector<TokenTransaction>;
+    using Transaction = ::Transaction<uint16_t>;
+    using Transactions = std::vector<Transaction>;
 
     TokenSend(bool & error,
               std::basic_streambuf<uint8_t> & stream);
