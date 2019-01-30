@@ -58,6 +58,10 @@ public:
     {
         return bytes.data();
     }
+    void Hash(blake2b_state & hash) const
+    {
+        blake2b_update(&hash, bytes.data(), 16);
+    }
 
     operator std::array<uint8_t, 16>() { return bytes; }
 };

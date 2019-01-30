@@ -49,7 +49,15 @@ struct Request
     Request() = default;
 
     Request(RequestType type,
-            const BlockHash & previous);
+            const AccountAddress & origin,
+            const BlockHash & previous,
+            const AccountPrivKey & priv,
+            const AccountPubKey & pub);
+
+    Request(RequestType type,
+            const AccountAddress & origin,
+            const BlockHash & previous,
+            const AccountSig & signature);
 
     Request(bool & error,
             std::basic_streambuf<uint8_t> & stream);
@@ -57,7 +65,10 @@ struct Request
     Request(bool & error,
             boost::property_tree::ptree const & tree);
 
-    virtual ~Request() {}
+    virtual ~Request() = default;
+
+    void Sign(AccountPrivKey const & priv, AccountPubKey const & pub);
+    bool VerifySignature(AccountPubKey const & pub) const;
 
     std::string ToJson() const;
 
@@ -115,7 +126,10 @@ struct Request
         return written;
     }
 
-    RequestType type;
-    BlockHash   previous;
-    BlockHash   next;
+    RequestType       type;
+    AccountAddress    origin;
+    AccountSig        signature;
+    BlockHash         previous;
+    BlockHash         next;
+    mutable BlockHash digest;
 };

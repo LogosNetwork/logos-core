@@ -542,7 +542,7 @@ void create_real_StateBlock(Send & request)
     new (&request) Send(account,     // account
                         BlockHash(), // previous
                         0,           // sqn
-                        account,     // target
+                        account,     // destination
                         amount,
                         fee,
                         priv_key,

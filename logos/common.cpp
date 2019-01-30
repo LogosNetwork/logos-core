@@ -56,7 +56,7 @@ char const * logos_genesis_data = R"%%%({
 "number_transactions": "1",
 "transactions": [
     {
-        "target": "lgs_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
+        "destination": "lgs_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
         "amount": "340282366920938463463374607431768211455"
     }
 ],
