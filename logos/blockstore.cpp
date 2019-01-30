@@ -170,11 +170,8 @@ bool logos::store_iterator::operator!= (logos::store_iterator const & other_a) c
 template<typename T>
 void logos::block_store::put(MDB_dbi &db, const mdb_val &key, const T &t, MDB_txn *transaction)
 {
-
-    auto status(mdb_put(transaction, db, key,
-                        mdb_val(sizeof(T),
-                                const_cast<T *>(&t)), 0));
-
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(transaction, db, key, t.to_mdb_val(buf), 0));
     assert(status == 0);
 }
 
@@ -206,10 +203,17 @@ bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, const T &t, MDB_tx
     }
     else
     {
-        memcpy((void*)&t, (void*)reinterpret_cast<T*> (value.data ()),
-               value.size());
+        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (value.data ()), value.size ());
+        result = t.deserialize (stream);
+        assert (!result);
     }
     return result;
+}
+
+void logos::block_store::del(MDB_dbi &db, const mdb_val &key, MDB_txn *tx)
+{
+    auto status (mdb_del (tx, db, key, nullptr));
+    assert (status == 0);
 }
 
 logos::store_iterator logos::block_store::block_info_begin (MDB_txn * transaction_a, logos::block_hash const & hash_a)
@@ -273,7 +277,6 @@ logos::store_iterator logos::block_store::vote_end ()
 logos::block_store::block_store (bool & error_a, boost::filesystem::path const & path_a, int lmdb_max_dbs) :
 environment (error_a, path_a, lmdb_max_dbs),
 frontiers (0),
-accounts (0),
 pending (0),
 blocks_info (0),
 representation (0),
@@ -288,6 +291,7 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "batch_db", MDB_CREATE, &batch_db) != 0;
         error_a |= mdb_dbi_open (transaction, "state_db", MDB_CREATE, &state_db) != 0;
         error_a |= mdb_dbi_open (transaction, "account_db", MDB_CREATE, &account_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "reservation_db", MDB_CREATE, &reservation_db) != 0;
         error_a |= mdb_dbi_open (transaction, "receive_db", MDB_CREATE, &receive_db) != 0;
         error_a |= mdb_dbi_open (transaction, "batch_tips_db", MDB_CREATE, &batch_tips_db) != 0;
 
@@ -300,7 +304,6 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "epoch_tip_db", MDB_CREATE, &epoch_tip_db) != 0;
 
         error_a |= mdb_dbi_open (transaction, "frontiers", MDB_CREATE, &frontiers) != 0;
-        error_a |= mdb_dbi_open (transaction, "accounts", MDB_CREATE, &accounts) != 0;
         error_a |= mdb_dbi_open (transaction, "state", MDB_CREATE, &state_blocks) != 0;
         error_a |= mdb_dbi_open (transaction, "pending", MDB_CREATE, &pending) != 0;
         error_a |= mdb_dbi_open (transaction, "blocks_info", MDB_CREATE, &blocks_info) != 0;
@@ -496,8 +499,7 @@ bool logos::block_store::root_exists (MDB_txn * transaction_a, logos::uint256_un
 
 void logos::block_store::account_del (MDB_txn * transaction_a, logos::account const & account_a)
 {
-    auto status (mdb_del (transaction_a, accounts, logos::mdb_val (account_a), nullptr));
-    assert (status == 0);
+    del(account_db, account_a, transaction_a);
 }
 
 bool logos::block_store::account_exists (MDB_txn * transaction_a, logos::account const & account_a)
@@ -513,21 +515,7 @@ bool logos::block_store::account_get (MDB_txn * transaction_a, logos::account co
 
 bool logos::block_store::account_get (MDB_txn * transaction_a, logos::account const & account_a, logos::account_info & info_a, MDB_dbi db)
 {
-    logos::mdb_val value;
-    auto status (mdb_get (transaction_a, db, logos::mdb_val (account_a), value));
-    assert (status == 0 || status == MDB_NOTFOUND);
-    bool result;
-    if (status == MDB_NOTFOUND)
-    {
-        result = true;
-    }
-    else
-    {
-        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (value.data ()), value.size ());
-        result = info_a.deserialize (stream);
-        assert (!result);
-    }
-    return result;
+    return get<logos::account_info>(account_db, account_a, info_a, transaction_a);
 }
 
 void logos::block_store::frontier_put (MDB_txn * transaction_a, logos::block_hash const & block_a, logos::account const & account_a)
@@ -566,10 +554,24 @@ size_t logos::block_store::account_count (MDB_txn * transaction_a)
 
 void logos::block_store::account_put (MDB_txn * transaction_a, logos::account const & account_a, logos::account_info const & info_a)
 {
-    std::vector<uint8_t> buf;
-    auto status (mdb_put (transaction_a, accounts, logos::mdb_val (account_a), info_a.to_mdb_val(buf), 0));
-    assert (status == 0);
+    put<logos::account_info>(account_db, account_a, info_a, transaction_a);
 }
+
+void logos::block_store::reservation_put (MDB_txn * transaction_a, logos::account const & account_a, logos::reservation_info const & info_a)
+{
+    put<logos::reservation_info>(reservation_db, account_a, info_a, transaction_a);
+}
+
+bool logos::block_store::reservation_get (MDB_txn * transaction_a, logos::account const & account_a, logos::reservation_info & info_a)
+{
+    return get<logos::reservation_info>(reservation_db, account_a, info_a, transaction_a);
+}
+
+void logos::block_store::reservation_del (MDB_txn * transaction_a, logos::account const & account_a)
+{
+    return del(reservation_db, account_a, transaction_a);
+}
+
 
 void logos::block_store::pending_put (MDB_txn * transaction_a, logos::pending_key const & key_a, logos::pending_info const & pending_a)
 {
@@ -864,7 +866,7 @@ bool logos::block_store::batch_block_put (ApprovedBSB const & block, const Block
 
     for(uint16_t i = 0; i < block.block_count; ++i)
     {
-        status = state_block_put(block.blocks[i], block.blocks[i].GetHash(), transaction);
+        status = state_block_put(block.blocks[i], transaction);
         assert(status == 0);
     }
 
@@ -872,13 +874,13 @@ bool logos::block_store::batch_block_put (ApprovedBSB const & block, const Block
     return status != 0;
 }
 
-bool logos::block_store::state_block_put(StateBlock const & block, const BlockHash & batch_hash, MDB_txn * transaction)
+bool logos::block_store::state_block_put(StateBlock const & block, MDB_txn * transaction)
 {
     auto hash(block.GetHash());
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();
 
     std::vector<uint8_t> buf;
-    auto status(mdb_put(transaction, state_db, logos::mdb_val(block.GetHash()),
+    auto status(mdb_put(transaction, state_db, logos::mdb_val(hash),
                         block.to_mdb_val(buf), 0));
 
     assert(status == 0);
@@ -1342,13 +1344,13 @@ std::shared_ptr<logos::vote> logos::block_store::vote_max (MDB_txn * transaction
 
 logos::store_iterator logos::block_store::latest_begin (MDB_txn * transaction_a, logos::account const & account_a)
 {
-    logos::store_iterator result (transaction_a, accounts, logos::mdb_val (account_a));
+    logos::store_iterator result (transaction_a, account_db, logos::mdb_val (account_a));
     return result;
 }
 
 logos::store_iterator logos::block_store::latest_begin (MDB_txn * transaction_a)
 {
-    logos::store_iterator result (transaction_a, accounts);
+    logos::store_iterator result (transaction_a, account_db);
     return result;
 }
 
