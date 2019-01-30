@@ -68,30 +68,30 @@ bool PersistenceManager<R>::BlockExists(
 
 
 bool PersistenceManager<R>::Validate(
-    const Request & block,
+    const Request & request,
     logos::process_return & result,
     bool allow_duplicates,
     bool prelim)
 {
     // SYL Integration: move signature validation here so we always check
-    if(ConsensusContainer::ValidateSigConfig() && ! block.VerifySignature(block.account))
+    if(ConsensusContainer::ValidateSigConfig() && ! request.VerifySignature(request.account))
     {
         LOG_WARN(_log) << "PersistenceManager<BSBCT> - Validate, bad signature: "
-                       << block.signature.to_string()
-                       << " account: " << block.account.to_string();
+                       << request.signature.to_string()
+                       << " account: " << request.account.to_string();
 
         result.code = logos::process_result::bad_signature;
         return false;
     }
 
-    auto hash = block.GetHash();
+    auto hash = request.GetHash();
 
     // burn account and transaction fee validation is done in TxAcceptor
 
     // SYL Integration: remove _reservation_mutex for now and rely on coarser _write_mutex. Potential fix later
     logos::account_info info;
     // account doesn't exist
-    if (_store.account_get(block.account, info))
+    if (_store.account_get(request.account, info))
     {
         // Currently do not accept state blocks
         // with non-existent accounts.
@@ -100,7 +100,7 @@ bool PersistenceManager<R>::Validate(
     }
 
     // a valid (non-expired) reservation exits
-    if (!_reservations->CanAcquire(block.account, hash, allow_duplicates))
+    if (!_reservations->CanAcquire(request.account, hash, allow_duplicates))
     {
         LOG_ERROR(_log) << "PersistenceManager::Validate - Account already reserved! ";
         result.code = logos::process_result::already_reserved;
@@ -116,16 +116,16 @@ bool PersistenceManager<R>::Validate(
 
     // Move on to check account info
     //sequence number
-    if(info.block_count != block.sequence)
+    if(info.block_count != request.sequence)
     {
         result.code = logos::process_result::wrong_sequence_number;
-        LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << block.sequence
+        LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request.sequence
                 << " expecting=" << info.block_count;
         return false;
     }
 
     // No previous block set.
-    if(block.previous.is_zero() && info.block_count)
+    if(request.previous.is_zero() && info.block_count)
     {
         result.code = logos::process_result::fork;
         return false;
@@ -134,7 +134,7 @@ bool PersistenceManager<R>::Validate(
     // This account has issued at least one send transaction.
     if(info.block_count)
     {
-        if(!_store.state_block_exists(block.previous))
+        if(!_store.state_block_exists(request.previous))
         {
             result.code = logos::process_result::gap_previous;
             LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << block.previous.to_string()
@@ -143,7 +143,7 @@ bool PersistenceManager<R>::Validate(
         }
     }
 
-    if(block.previous != info.head)
+    if(request.previous != info.head)
     {
         LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash (" << block.previous.to_string()
                         << ") and current account info head (" << info.head.to_string() << ")";
@@ -198,8 +198,8 @@ bool PersistenceManager<R>::Validate(
             update_reservation();
         }
 
-        auto total = block.transaction_fee.number();
-        for(auto & i : block.transactions)
+        auto total = request.transaction_fee.number();
+        for(auto & i : request.transactions)
         {
             total += i.amount.number();
         }
@@ -208,17 +208,6 @@ bool PersistenceManager<R>::Validate(
             result.code = logos::process_result::insufficient_balance;
             return false;
         }
-    }
-
-    auto total = block.transaction_fee.number();
-    for(auto & i : block.trans)
-    {
-        total += i.amount.number();
-    }
-    if(total > info.balance.number())
-    {
-        result.code = logos::process_result::insufficient_balance;
-        return false;
     }
 
     result.code = logos::process_result::progress;
@@ -234,7 +223,7 @@ bool PersistenceManager<R>::ValidateSingleRequest(
 }
 
 // Use this for batched transactions validation (either PrepareNextBatch or backup validation)
-bool PersistenceManager<BSBCT>::ValidateAndUpdate(
+bool PersistenceManager<R>::ValidateAndUpdate(
         const Request & block, logos::process_return & result, bool allow_duplicates)
 {
     auto success (ValidateRequest(block, result, allow_duplicates, false));
@@ -252,15 +241,15 @@ bool PersistenceManager<R>::ValidateBatch(
     bool valid = true;
     logos::process_return ignored_result;
     std::lock_guard<std::mutex> lock (_write_mutex);
-    for(uint64_t i = 0; i < message.block_count; ++i)
+    for(uint64_t i = 0; i < message.requests.size(); ++i)
     {
 #ifdef TEST_REJECT
         if(!ValidateAndUpdate(static_cast<const Request&>(*message.blocks[i]), ignored_result, true) || bool(message.blocks[i].hash().number() & 1))
 #else
-        if(!ValidateAndUpdate(static_cast<const Request&>(*message.blocks[i]), ignored_result, true))
+        if(!ValidateAndUpdate(static_cast<const Request&>(*message.requests[i]), ignored_result, true))
 #endif
         {
-            LOG_WARN(_log) << "PersistenceManager<R>::Validate - Rejecting " << message.blocks[i]->GetHash().to_string();
+            LOG_WARN(_log) << "PersistenceManager<R>::Validate - Rejecting " << message.requests[i]->GetHash().to_string();
             rejection_map[i] = true;
 
             if(valid)
@@ -280,13 +269,14 @@ bool PersistenceManager<R>::Validate(
 
     bool valid = true;
     std::lock_guard<std::mutex> lock (_write_mutex);
-    for(uint16_t i = 0; i < message.block_count; ++i)
+    for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
         logos::process_return   result;
-        if(!ValidateRequest(static_cast<const Request&>(*message.blocks[i]), result, true, false))
+        if(!ValidateRequest(static_cast<const Request&>(*message.requests[i]), result, true, false))
         {
             UpdateStatusRequests(status, i, result.code);
             UpdateStatusReason(status, process_result::invalid_request);
+
             valid = false;
         }
     }
@@ -435,7 +425,7 @@ void PersistenceManager<R>::UpdateDestinationState(
     for(auto & t : request.transactions)
     {
         logos::account_info info;
-        auto account_error(_store.account_get(transaction, t.target, info));
+        auto account_error(_store.account_get(transaction, t.destination, info));
 
         ReceiveBlock receive(
                 /* Previous   */ info.receive_head,
@@ -448,10 +438,10 @@ void PersistenceManager<R>::UpdateDestinationState(
         // Destination account doesn't exist yet
         if(account_error)
         {
-            info.open_block = block.GetHash();
+            info.open_block = request.GetHash();
             LOG_DEBUG(_log) << "PersistenceManager::UpdateDestinationState - "
                             << "new account: "
-                            << t.target.to_string();
+                            << t.destination.to_string();
         }
 
         info.receive_count++;
@@ -459,11 +449,11 @@ void PersistenceManager<R>::UpdateDestinationState(
         info.balance = info.balance.number() + t.amount.number();
         info.modified = logos::seconds_since_epoch();
 
-        if(_store.account_put(t.target, info, transaction))
+        if(_store.account_put(t.destination, info, transaction))
         {
             LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
                             << "Failed to store account: "
-                            << t.target.to_string();
+                            << t.destination.to_string();
 
             std::exit(EXIT_FAILURE);
         }
