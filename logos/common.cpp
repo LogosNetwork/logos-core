@@ -336,7 +336,11 @@ logos::mdb_val logos::account_info::to_mdb_val(std::vector<uint8_t> &buf) const
 
 //*** begin RepInfo functions ***
 
-logos::RepInfo::RepInfo() : candidacy_head(0), election_vote_head(0) {}
+logos::RepInfo::RepInfo() 
+    : candidacy_action_tip(0)
+    , election_vote_tip(0)
+    , rep_action_tip (0)
+{}
 
 logos::RepInfo::RepInfo(bool & error, const logos::mdb_val & mdbval)
 {
@@ -347,33 +351,46 @@ logos::RepInfo::RepInfo(bool & error, const logos::mdb_val & mdbval)
 }
 
 logos::RepInfo::RepInfo (
-        logos::block_hash const & candidacy_head_a,
-        logos::block_hash const & election_vote_head_a)
-    : candidacy_head(candidacy_head_a)
-    , election_vote_head(election_vote_head_a)
+        logos::block_hash const & candidacy_action_tip,
+        logos::block_hash const & election_vote_tip,
+        logos::block_hash const & rep_action_tip)
+    : candidacy_action_tip(candidacy_action_tip)
+    , election_vote_tip(election_vote_tip)
+    , rep_action_tip(rep_action_tip)
 {}
 
 uint32_t logos::RepInfo::serialize (logos::stream & stream) const
 {
-    auto s = write (stream, candidacy_head.bytes);
-    s += write (stream, election_vote_head.bytes);
+    //TODO remove auto
+    auto s = write(stream, candidacy_action_tip.bytes);
+    s += write(stream, election_vote_tip.bytes);
+    s += write(stream, rep_action_tip.bytes);
     return s;
 }
 
 bool logos::RepInfo::deserialize (logos::stream & stream)
 {
-    auto error (read (stream, candidacy_head.bytes));
-    if(!error)
+    //TODO remove auto
+    auto error (read (stream, candidacy_action_tip.bytes));
+    if(error)
     {
-        error = read (stream, election_vote_head.bytes);
+        return error;
     }
-    return error;
+
+    error = read (stream, election_vote_tip.bytes);
+    if(error)
+    {
+        return error;
+    }
+
+    return read(stream, rep_action_tip.bytes);
 }
 
 bool logos::RepInfo::operator== (logos::RepInfo const & other) const
 {
-    return candidacy_head == other.candidacy_head
-        && election_vote_head == other.election_vote_head;
+    return candidacy_action_tip == other.candidacy_action_tip
+        && election_vote_tip == other.election_vote_tip
+        && rep_action_tip == other.rep_action_tip;
 }
 
 bool logos::RepInfo::operator!= (logos::RepInfo const & other) const
@@ -392,6 +409,44 @@ logos::mdb_val logos::RepInfo::to_mdb_val(std::vector<uint8_t> &buf) const
 }
 //*** end RepInfo functions ***
 
+
+//*** begin CandidateInfo functions ***
+
+logos::CandidateInfo::CandidateInfo() : pending(false) {}
+logos::CandidateInfo::CandidateInfo(bool & error, const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(
+            reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
+    error = deserialize (stream);
+}
+logos::CandidateInfo::CandidateInfo(bool pending) : pending(pending) {}
+uint32_t logos::CandidateInfo::serialize(logos::stream & stream) const
+{
+    return write(stream, pending);
+}
+
+bool logos::CandidateInfo::deserialize(logos::stream & stream)
+{
+    return logos::read(stream, pending);
+}
+bool logos::CandidateInfo::operator==(const logos::CandidateInfo& other) const
+{
+    return pending == other.pending;
+}
+bool logos::CandidateInfo::operator!=(const logos::CandidateInfo& other) const
+{
+    return !(*this == other);
+}
+logos::mdb_val logos::CandidateInfo::to_mdb_val(std::vector<uint8_t> & buf) const
+{
+    assert(buf.empty());
+    {
+        logos::vectorstream stream(buf);
+        serialize(stream);
+    }
+    return logos::mdb_val(buf.size(), buf.data());
+}
+//*** end CandidateInfo functions
 logos::block_counts::block_counts () :
 send (0),
 receive (0),

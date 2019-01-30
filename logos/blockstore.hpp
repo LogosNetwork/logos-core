@@ -147,6 +147,12 @@ public:
     bool account_db_empty();
     bool account_put (AccountAddress const &, logos::account_info const &, MDB_txn *);
 
+    bool rep_get(AccountAddress const & account, logos::RepInfo & rep_info, MDB_txn* t=0);
+    bool rep_put(AccountAddress const & account, const logos::RepInfo & rep_info, MDB_txn *);
+
+    bool candidate_get(const AccountAddress & account, CandidateInfo & candidate_info, MDB_txn* t=0);
+    bool candidate_put(const AccountAddress & account, const CandidateInfo & candidate_info, MDB_txn *);
+
     bool receive_put(const BlockHash & hash, const ReceiveBlock & block, MDB_txn *);
     bool receive_get(const BlockHash & hash, ReceiveBlock & block, MDB_txn *);
     bool receive_exists(const BlockHash & hash);
@@ -288,6 +294,18 @@ public:
      * logos::account -> logos::uint128_t
      */
     MDB_dbi representation;
+
+    /**
+     * Representative info
+     * logos::account -> logos::RepInfo
+     */
+    MDB_dbi representative_db;
+
+    /**
+     * Candidacy info
+     * logos::account -> single bit. 0 is for pending, 1 is for active
+     */
+    MDB_dbi candidacy_db;
 
     /**
      * Unchecked bootstrap blocks.

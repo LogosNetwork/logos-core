@@ -305,6 +305,8 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "pending", MDB_CREATE, &pending) != 0;
         error_a |= mdb_dbi_open (transaction, "blocks_info", MDB_CREATE, &blocks_info) != 0;
         error_a |= mdb_dbi_open (transaction, "representation", MDB_CREATE, &representation) != 0;
+        error_a |= mdb_dbi_open (transaction, "representative_db", MDB_CREATE, &representative_db);
+        error_a |= mdb_dbi_open (transaction, "candidacy_db", MDB_CREATE, &candidacy_db);
         error_a |= mdb_dbi_open (transaction, "unchecked", MDB_CREATE | MDB_DUPSORT, &unchecked) != 0;
         error_a |= mdb_dbi_open (transaction, "checksum", MDB_CREATE, &checksum) != 0;
         error_a |= mdb_dbi_open (transaction, "vote", MDB_CREATE, &vote) != 0;
@@ -1181,6 +1183,60 @@ bool logos::block_store::account_put(const AccountAddress & account, const logos
 {
     std::vector<uint8_t> buf;
     auto status(mdb_put(transaction, account_db, logos::mdb_val(account), info.to_mdb_val(buf), 0));
+
+    assert(status == 0);
+    return status != 0;
+}
+
+bool logos::block_store::rep_get(AccountAddress const & account, RepInfo & rep_info, MDB_txn* transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << account.to_string();
+    mdb_val val;
+    if(get(representative_db, mdb_val(account), val, transaction))
+    {
+        return true;
+    }
+
+    bool error = false;
+    new (&rep_info) RepInfo(error, val);
+    assert (!error);
+    return error;
+}
+
+bool logos::block_store::rep_put(
+        const AccountAddress & account, 
+        const RepInfo & rep_info,
+        MDB_txn * transaction)
+{
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(transaction, representative_db, logos::mdb_val(account), rep_info.to_mdb_val(buf), 0));
+
+    assert(status == 0);
+    return status != 0;
+}
+
+bool logos::block_store::candidate_get(AccountAddress const & account, CandidateInfo & candidate_info, MDB_txn* transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << account.to_string();
+    mdb_val val;
+    if(get(candidacy_db, mdb_val(account), val, transaction))
+    {
+        return true;
+    }
+
+    bool error = false;
+    new (&candidate_info) CandidateInfo(error, val);
+    assert (!error);
+    return error;
+}
+
+bool logos::block_store::candidate_put(
+        const AccountAddress & account, 
+        const CandidateInfo & candidate_info,
+        MDB_txn * transaction)
+{
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(transaction, candidacy_db, logos::mdb_val(account), candidate_info.to_mdb_val(buf), 0));
 
     assert(status == 0);
     return status != 0;
