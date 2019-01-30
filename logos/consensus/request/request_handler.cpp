@@ -62,7 +62,7 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(
         LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch requests_size="
                          << sequence.size();
 
-        if(pos->account.is_zero() && pos->GetNumTransactions() == 0)
+        if(pos->account.is_zero() && pos->transactions.size() == 0)
         {
             sequence.erase(pos);
             break;

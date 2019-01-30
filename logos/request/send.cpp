@@ -1,32 +1,28 @@
 #include <logos/request/send.hpp>
 
-Send::Transaction::Transaction(AccountAddress const & to,
-                               Amount const & amount)
-    : target(to)
-    , amount(amount)
-{}
+#include <logos/request/fields.hpp>
 
-Send::Transaction::Transaction(bool & error,
-                               logos::stream & stream)
+Send::Send(const AccountAddress & account,
+           const BlockHash & previous,
+           uint32_t sequence,
+           const AccountAddress & to,
+           const Amount & amount,
+           const Amount & transaction_fee,
+           const AccountPrivKey & priv,
+           const AccountPubKey & pub,
+           uint64_t work)
+    : Request(RequestType::Send,
+              account,
+              previous,
+              priv,
+              pub)
+    , account(account)
+    , previous(previous)
+    , sequence(sequence)
+    , transaction_fee(transaction_fee)
+    , work(work)
 {
-    Deserialize(error, stream);
-}
-
-uint64_t Send::Transaction::Serialize(logos::stream & stream) const
-{
-    return logos::write(stream, target) +
-           logos::write(stream, amount);
-}
-
-void Send::Transaction::Deserialize(bool & error, logos::stream & stream)
-{
-    error = logos::read(stream, target);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, amount);
+    transactions.push_back(Transaction(to, amount));
 }
 
 Send::Send(AccountAddress const & account,
@@ -35,43 +31,19 @@ Send::Send(AccountAddress const & account,
            AccountAddress const & to,
            Amount const & amount,
            Amount const & transaction_fee,
-           AccountPrivKey const & priv,
-           AccountPubKey const & pub,
+           const AccountSig & sig,
            uint64_t work)
     : Request(RequestType::Send,
-              previous)
+              account,
+              previous,
+              sig)
     , account(account)
     , previous(previous)
     , sequence(sequence)
-    , transactions()
     , transaction_fee(transaction_fee)
-    , signature()
     , work(work)
 {
     transactions.push_back(Transaction(to, amount));
-    Sign(priv, pub);
-}
-
-Send::Send(AccountAddress const & account,
-           BlockHash const & previous,
-           uint32_t sequence,
-           AccountAddress const & to,
-           Amount const & amount,
-           Amount const & transaction_fee,
-           AccountSig const & sig,
-           uint64_t work)
-    : Request(RequestType::Send,
-              previous)
-    , account(account)
-    , previous(previous)
-    , sequence(sequence)
-    , transactions()
-    , transaction_fee(transaction_fee)
-    , signature(sig)
-    , work(work)
-{
-    transactions.push_back(Transaction(to, amount));
-    Hash();
 }
 
 Send::Send(bool & error,
@@ -80,6 +52,8 @@ Send::Send(bool & error,
            bool with_work)
    : Request(error, tree)
 {
+    using namespace request::fields;
+
     if(error)
     {
         return;
@@ -87,92 +61,79 @@ Send::Send(bool & error,
 
     try
     {
-        size_t num_trans = 0;
-        auto account_l (tree.get<std::string> ("account"));
-        error = account.decode_account (account_l);
-        if (!error)
+        error = account.decode_account(tree.get<std::string>(ACCOUNT));
+        if(error)
         {
-            auto previous_l (tree.get<std::string> ("previous"));
-            error = previous.decode_hex (previous_l);
-            if (!error)
-            {
-                auto sequence_l (tree.get<std::string> ("sequence"));
-                sequence = std::stoul(sequence_l);
-                auto fee_l (tree.get<std::string> ("transaction_fee", "0"));
-                error = transaction_fee.decode_dec (fee_l);
-                if (!error)
-                {
-                    auto signature_l (tree.get<std::string> ("signature", "0"));
-                    error = signature.decode_hex (signature_l);
-                    if (!error)
-                    {
-                        if(with_work)
-                        {
-                            auto work_l (tree.get<std::string> ("work"));
-                            error = logos::from_string_hex (work_l, work);
-                        }
-                        if (!error)
-                        {
-                            if(with_batch_hash)
-                            {
-                                auto batch_hash_l (tree.get<std::string> ("batch_hash"));
-                                error = batch_hash.decode_hex (batch_hash_l);
-                                if (!error)
-                                {
-                                    auto index_in_batch_hash_l (tree.get<std::string> ("index_in_batch"));
-                                    auto index_in_batch_ul = std::stoul(index_in_batch_hash_l);
-                                    error = index_in_batch_ul > CONSENSUS_BATCH_SIZE;
-                                    if( ! error)
-                                        index_in_batch = index_in_batch_ul;
-                                }
-                            }
-                            if (!error)
-                            {
-                                auto trans_count_l (tree.get<std::string> ("number_transactions"));
-                                num_trans = std::stoul(trans_count_l);
+            return;
+        }
 
-                                auto trans_tree = tree.get_child("transactions");
-                                for (const std::pair<std::string, boost::property_tree::ptree> &p : trans_tree)
-                                {
-                                    auto amount_l (p.second.get<std::string> ("amount"));
-                                    Amount tran_amount;
-                                    error = tran_amount.decode_dec (amount_l);
-                                    if (!error)
-                                    {
-                                        auto target_l (p.second.get<std::string> ("target"));
-                                        AccountAddress tran_target;
-                                        error = tran_target.decode_account (target_l);
-                                        if(error)
-                                        {
-                                            break;
-                                        }
-                                        error = ! AddTransaction(tran_target, tran_amount);
-                                        if(error)
-                                        {
-                                            break;
-                                        }
-                                        error = (GetNumTransactions() > num_trans);
-                                        if(error)
-                                        {
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+        error = previous.decode_hex(tree.get<std::string>(PREVIOUS));
+        if(error)
+        {
+            return;
+        }
+
+        sequence = std::stoul(tree.get<std::string>("sequence"));
+
+        error = transaction_fee.decode_dec(tree.get<std::string>("transaction_fee", "0"));
+        if(error)
+        {
+            return;
+        }
+
+        error = signature.decode_hex(tree.get<std::string>("signature", "0"));
+        if(error)
+        {
+            return;
+        }
+
+        if(with_work)
+        {
+            error = logos::from_string_hex(tree.get<std::string>("work"), work);
+            if(error)
+            {
+                return;
+            }
+        }
+
+        if(with_batch_hash)
+        {
+            error = batch_hash.decode_hex(tree.get<std::string>("batch_hash"));
+            if (error)
+            {
+                auto index_in_batch = std::stoul(tree.get<std::string>("index_in_batch"));
+
+                // TODO: Is a JSON deserialization method
+                //       the appropriate place for semantic
+                //       error checking?
+                error = index_in_batch > CONSENSUS_BATCH_SIZE;
+                if(error)
+                {
+                    return;
                 }
             }
         }
+
+        auto transactions_tree = tree.get_child("transactions");
+        for (auto & entry : transactions_tree)
+        {
+            Transaction t(error, entry.second);
+            if(error)
+            {
+                return;
+            }
+
+            error = !AddTransaction(t);
+            if(error)
+            {
+                return;
+            }
+        }
+
     }
-    catch (std::runtime_error const &)
+    catch (...)
     {
         error = true;
-    }
-
-    if (!error)
-    {
-        Hash();
     }
 }
 
@@ -249,8 +210,6 @@ Send::Send(bool & error,
         }
         index_in_batch = idx;
     }
-
-    Hash ();
 }
 
 Send::Send(bool & error, const logos::mdb_val & mdbval)
@@ -259,19 +218,19 @@ Send::Send(bool & error, const logos::mdb_val & mdbval)
     new (this) Send(error, stream, false);
 }
 
-bool Send::AddTransaction(AccountAddress const & to, Amount const & amount)
+bool Send::AddTransaction(const AccountAddress & to, const Amount & amount)
+{
+    return AddTransaction(Transaction(to, amount));
+}
+
+bool Send::AddTransaction(const Transaction & transaction)
 {
     if(transactions.size() < MAX_TRANSACTIONS)
     {
-        transactions.push_back(Transaction(to, amount));
+        transactions.push_back(transaction);
         return true;
     }
     return false;
-}
-
-BlockHash Send::Hash() const
-{
-    return (digest = Request::Hash());
 }
 
 void Send::Hash(blake2b_state & hash) const
@@ -279,36 +238,18 @@ void Send::Hash(blake2b_state & hash) const
     account.Hash(hash);
     previous.Hash(hash);
     blake2b_update(&hash, &sequence, sizeof(sequence));
-    blake2b_update(&hash, transaction_fee.data(), ACCOUNT_AMOUNT_SIZE);
-    uint8_t count = transactions.size();
-    blake2b_update(&hash, &count, sizeof(count));
+    transaction_fee.Hash(hash);
 
-    for (const auto & t : transactions)
+    for(const auto & t : transactions)
     {
-        t.target.Hash(hash);
-        blake2b_update(&hash, t.amount.data(), ACCOUNT_AMOUNT_SIZE);
+        t.destination.Hash(hash);
+        t.amount.Hash(hash);
     }
-}
-
-void Send::Sign(AccountPrivKey const & priv, AccountPubKey const & pub)
-{
-    digest = Hash();
-    ed25519_sign (const_cast<BlockHash &>(digest).data(), HASH_SIZE, const_cast<AccountPrivKey&>(priv).data (), const_cast<AccountPubKey&>(pub).data (), signature.data ());
-}
-
-bool Send::VerifySignature(AccountPubKey const & pub) const
-{
-    return 0 == ed25519_sign_open (const_cast<BlockHash &>(digest).data(), HASH_SIZE, const_cast<AccountPubKey&>(pub).data (), const_cast<AccountSig&>(signature).data ());
 }
 
 BlockHash Send::GetHash () const
 {
     return digest;
-}
-
-uint8_t Send::GetNumTransactions() const
-{
-    return transactions.size();
 }
 
 boost::property_tree::ptree Send::SerializeJson() const
@@ -328,7 +269,7 @@ boost::property_tree::ptree Send::SerializeJson() const
     {
         boost::property_tree::ptree cur_transaction;
 
-        cur_transaction.put("target", t.target.to_account());
+        cur_transaction.put("destination", t.destination.to_account());
         cur_transaction.put("amount", t.amount.to_string_dec());
 
         transactions_tree.push_back(std::make_pair("", cur_transaction));

@@ -11,20 +11,30 @@
 
 #include <unordered_map>
 
-class ReservationsProvider {
+class ReservationsProvider
+{
 protected:
+
     using Store = logos::block_store;
+
 public:
     explicit ReservationsProvider(Store & store)
         : _store(store)
     {}
+
     virtual ~ReservationsProvider() = default;
     virtual bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) {return false;}
     virtual void Release(const AccountAddress & account) {}
     virtual void UpdateReservation(const logos::block_hash & hash, const logos::account & account) {}
+
+    virtual bool Acquire(const AccountAddress & account,
+                         logos::account_info &info)
+    { return true; }
+
 protected:
-    Store &      _store;
-    Log          _log;
+
+    Store & _store;
+    Log     _log;
 };
 
 class Reservations : public ReservationsProvider
@@ -37,7 +47,8 @@ public:
     explicit Reservations(Store & store)
         : ReservationsProvider(store)
     {}
-    ~Reservations() = default;
+
+    virtual ~Reservations() = default;
 
     //-------------------------------------------------------------------------
     // XXX - It is possible for a delegate D1 that has validated/Post-Comitted
@@ -65,14 +76,20 @@ private:
     ReservationCache _reservations;
 };
 
-class DefaultReservations : public ReservationsProvider {
-public:
-    explicit DefaultReservations(Store & store) : ReservationsProvider(store)
-    {}
-    ~DefaultReservations() = default;
+class DefaultReservations : public ReservationsProvider
+{
 
-    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) override
+public:
+    explicit DefaultReservations(Store & store)
+        : ReservationsProvider(store)
+    {}
+
+    virtual ~DefaultReservations() = default;
+
+    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) override;
+
+    bool Acquire(const AccountAddress & account, logos::account_info & info) override
     {
-        return true;
+        return _store.account_get(account, info);
     }
 };
