@@ -20,10 +20,11 @@ void Epoch::SerializeJson(boost::property_tree::ptree & epoch_block) const
     epoch_block.put("micro_block_tip", micro_block_tip.to_string());
 
     boost::property_tree::ptree ptree_delegates;
-    for (const auto & delegate : delegates) {
+    for (size_t i = 0; i < NUM_DELEGATES; ++i) {
         boost::property_tree::ptree tip_member;
-        delegate.SerializeJson(tip_member);
-        ptree_delegates.push_back(std::make_pair("", tip_member));
+        delegates[i].SerializeJson(tip_member);
+        std::string is_de = delegate_elects[i] == 1 ? "elect" : "persistent";
+        ptree_delegates.push_back(std::make_pair(is_de, tip_member));
     }
     epoch_block.add_child("delegates", ptree_delegates);
     epoch_block.put("transaction_fee_pool", transaction_fee_pool.to_string());

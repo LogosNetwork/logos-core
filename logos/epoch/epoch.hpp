@@ -127,6 +127,7 @@ public:
         , micro_block_tip()
         , transaction_fee_pool(0ull)
         , delegates()
+        , delegate_elects()
     {}
 
     ~Epoch() {}
@@ -159,6 +160,13 @@ public:
                 return;
             }
         }
+        unsigned long de;
+        error = logos::read(stream, de);
+        if(error)
+        {
+            return;
+        }
+        new (&delegate_elects) std::bitset<NUM_DELEGATES>(le64toh(de));
     }
 
     void Hash(blake2b_state & hash) const
@@ -170,6 +178,9 @@ public:
         {
             delegates[i].Hash(hash);
         }
+
+        unsigned long de = htole64(delegate_elects.to_ulong());
+        blake2b_update(&hash, &de, sizeof(de));
     }
 
     uint32_t Serialize(logos::stream & stream, bool with_appendix) const
@@ -181,6 +192,9 @@ public:
         {
             s += delegates[i].Serialize(stream);
         }
+
+        unsigned long de = htole64(delegate_elects.to_ulong());
+        s += logos::write(stream, de);
         return s;
     }
     /// JSON representation of Epoch (primarily for RPC messages)
@@ -190,5 +204,5 @@ public:
     BlockHash               micro_block_tip;             ///< microblock tip of this epoch
     Amount                  transaction_fee_pool;        ///< this epoch's transaction fee pool
     Delegate                delegates[NUM_DELEGATES];    ///< delegate'ls list
-    //also need to send out delegate-elects
+    std::bitset<NUM_DELEGATES> delegate_elects;          ///< 1 if delegate at this index is starting their term
 };

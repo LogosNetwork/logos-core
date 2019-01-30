@@ -54,6 +54,8 @@ struct ElectionVote : Request
         uint8_t num_votes;
     };
 
+    ElectionVote() = default;
+
     ElectionVote(const BlockHash & previous);
 
     ElectionVote(bool & error,

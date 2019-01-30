@@ -44,8 +44,9 @@ public:
     std::unordered_set<Delegate> GetRetiringDelegates();
 
     /// Get the list of delegates that will take office next epoch
+    /// @param num_new number of new delegates to get
     /// @returns vector of delegate-elects
-    std::vector<Delegate> GetDelegateElects();
+    std::vector<Delegate> GetDelegateElects(size_t num_new);
 
 private:
 

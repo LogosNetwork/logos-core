@@ -5,6 +5,7 @@
 
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
+#include <logos/epoch/election_requests.hpp>
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
 
@@ -20,9 +21,42 @@ std::unordered_set<Delegate> EpochVotingManager::GetRetiringDelegates()
 }
 
 //these are the delegate-elects
-std::vector<Delegate> EpochVotingManager::GetDelegateElects()
+std::vector<Delegate> EpochVotingManager::GetDelegateElects(size_t num_new)
 {
-    std::vector<Delegate> delegate_elects;
+    std::unordered_map<AccountAddress,uint128_t> results;
+    logos::transaction txn(_store.environment, nullptr, false);
+    for(auto it = logos::store_iterator(txn, _store.representative_db);
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        logos::account account(it->first.uint256());
+        bool error = false;
+        logos::RepInfo rep_info(error, it->second);
+        ElectionVote ev;
+        if(!_store.request_get(rep_info.election_vote_tip,ev,txn))
+        {
+            //TODO: check if ev is for proper epoch by looking at batchhash
+            for(const auto & cp: ev.votes_)
+            {
+                //TODO: weight the vote by stake
+                results[cp.account] += cp.num_votes;
+            }
+        }
+    }
+
+    std::vector<std::pair<AccountAddress,uint128_t>> sorted(
+            results.begin(), results.end());
+    std::sort(sorted.begin(),sorted.end(),
+            [](auto p1, auto p2){
+                return p1.second > p2.second;
+            }); //TODO: tiebreaker rules
+    DelegatePubKey dummy_bls_pub;
+    Amount dummy_stake = 1;
+    std::vector<Delegate> all;
+    std::transform(sorted.begin(),sorted.end(),all.begin(),
+            [dummy_bls_pub,dummy_stake](auto p){
+                return Delegate(p.first,dummy_bls_pub,p.second,dummy_stake);
+            });
+    std::vector<Delegate> delegate_elects(all.begin(),all.end()+num_new);
     return delegate_elects;
 }
 
@@ -68,7 +102,7 @@ EpochVotingManager::GetNextEpochDelegates(
     }
 
     std::unordered_set<Delegate> retiring(GetRetiringDelegates());
-    std::vector<Delegate> delegate_elects(GetDelegateElects());
+    std::vector<Delegate> delegate_elects(GetDelegateElects(num_new_delegates));
     if(retiring.size() != delegate_elects.size())
     {
         LOG_FATAL(_log) << "EpochVotingManager::GetNextEpochDelegates mismatch"

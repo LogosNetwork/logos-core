@@ -55,11 +55,20 @@ public:
 
     MDB_dbi block_database (logos::block_type);
     void block_put_raw (MDB_txn *, MDB_dbi, logos::block_hash const &, MDB_val);
-    void block_put (MDB_txn *, logos::block_hash const &, logos::block const &, logos::block_hash const & = logos::block_hash (0));
-    MDB_val block_get_raw (MDB_txn *, logos::block_hash const &, logos::block_type &);
+    void block_put (
+            MDB_txn *,
+            logos::block_hash const &,
+            logos::block const &,
+            logos::block_hash const & = logos::block_hash (0));
+    MDB_val block_get_raw (
+            MDB_txn *,
+            logos::block_hash const &,
+            logos::block_type &);
     logos::block_hash block_successor (MDB_txn *, logos::block_hash const &);
     void block_successor_clear (MDB_txn *, logos::block_hash const &);
-    std::unique_ptr<logos::block> block_get (MDB_txn *, logos::block_hash const &);
+    std::unique_ptr<logos::block> block_get (
+            MDB_txn *,
+            logos::block_hash const &);
     //CH std::unique_ptr<logos::block> block_random (MDB_txn *);
     //CH std::unique_ptr<logos::block> block_random (MDB_txn *, MDB_dbi);
     void block_del (MDB_txn *, logos::block_hash const &);
@@ -67,13 +76,23 @@ public:
     logos::block_counts block_count (MDB_txn *);
     bool root_exists (MDB_txn *, logos::uint256_union const &);
 
-    void frontier_put (MDB_txn *, logos::block_hash const &, logos::account const &);
+    void frontier_put (
+            MDB_txn *,
+            logos::block_hash const &,
+            logos::account const &);
     logos::account frontier_get (MDB_txn *, logos::block_hash const &);
     void frontier_del (MDB_txn *, logos::block_hash const &);
 
-    void account_put (MDB_txn *, logos::account const &, logos::account_info const &);
+    void account_put (
+            MDB_txn *,
+            logos::account const &,
+            logos::account_info const &);
     bool account_get (MDB_txn *, logos::account const &, logos::account_info &);
-    bool account_get (MDB_txn *, logos::account const &, logos::account_info &, MDB_dbi);
+    bool account_get (
+            MDB_txn *,
+            logos::account const &,
+            logos::account_info &,
+            MDB_dbi);
     void account_del (MDB_txn *, logos::account const &);
     bool account_exists (MDB_txn *, logos::account const &);
     size_t account_count (MDB_txn *);
@@ -81,15 +100,25 @@ public:
     logos::store_iterator latest_begin (MDB_txn *);
     logos::store_iterator latest_end ();
 
-    void pending_put (MDB_txn *, logos::pending_key const &, logos::pending_info const &);
+    void pending_put (
+            MDB_txn *,
+            logos::pending_key const &,
+            logos::pending_info const &);
+
     void pending_del (MDB_txn *, logos::pending_key const &);
-    bool pending_get (MDB_txn *, logos::pending_key const &, logos::pending_info &);
+    bool pending_get (
+            MDB_txn *,
+            logos::pending_key const &,
+            logos::pending_info &);
     bool pending_exists (MDB_txn *, logos::pending_key const &);
     logos::store_iterator pending_begin (MDB_txn *, logos::pending_key const &);
     logos::store_iterator pending_begin (MDB_txn *);
     logos::store_iterator pending_end ();
 
-    void block_info_put (MDB_txn *, logos::block_hash const &, logos::block_info const &);
+    void block_info_put (
+            MDB_txn *,
+            logos::block_hash const &,
+            logos::block_info const &);
     void block_info_del (MDB_txn *, logos::block_hash const &);
     bool block_info_get (MDB_txn *, logos::block_hash const &, logos::block_info &);
     bool block_info_exists (MDB_txn *, logos::block_hash const &);
@@ -100,25 +129,46 @@ public:
     static size_t const block_info_max = 32;
 
     logos::uint128_t representation_get (MDB_txn *, logos::account const &);
-    void representation_put (MDB_txn *, logos::account const &, logos::uint128_t const &);
-    void representation_add (MDB_txn *, logos::account const &, logos::uint128_t const &);
+    void representation_put (
+            MDB_txn *,
+            logos::account const &,
+            logos::uint128_t const &);
+    void representation_add (
+            MDB_txn *,
+            logos::account const &,
+            logos::uint128_t const &);
     logos::store_iterator representation_begin (MDB_txn *);
     logos::store_iterator representation_end ();
 
     void unchecked_clear (MDB_txn *);
-    void unchecked_put (MDB_txn *, logos::block_hash const &, std::shared_ptr<logos::block> const &);
-    std::vector<std::shared_ptr<logos::block>> unchecked_get (MDB_txn *, logos::block_hash const &);
-    void unchecked_del (MDB_txn *, logos::block_hash const &, logos::block const &);
+    void unchecked_put (
+            MDB_txn *,
+            logos::block_hash const &,
+            std::shared_ptr<logos::block> const &);
+    std::vector<std::shared_ptr<logos::block>> unchecked_get (
+            MDB_txn *,
+            logos::block_hash const &);
+    void unchecked_del (
+            MDB_txn *,
+            logos::block_hash const &,
+            logos::block const &);
     logos::store_iterator unchecked_begin (MDB_txn *);
     logos::store_iterator unchecked_begin (MDB_txn *, logos::block_hash const &);
     logos::store_iterator unchecked_end ();
     size_t unchecked_count (MDB_txn *);
-    std::unordered_multimap<logos::block_hash, std::shared_ptr<logos::block>> unchecked_cache;
+    std::unordered_multimap<logos::block_hash,
+        std::shared_ptr<logos::block>> unchecked_cache;
 
     template<typename T> void put(MDB_dbi&, const mdb_val &, const T &, MDB_txn *);
     template<typename T> logos::block_hash put(MDB_dbi&, const T &, MDB_txn *);
-    template<typename T> bool get(MDB_dbi&, const mdb_val &key, const T &, MDB_txn *tx = 0);
-    template<typename T> bool get(MDB_dbi& db, const logos::block_hash &hash, const T &t, MDB_txn *tx = 0)
+    template<typename T> bool get(
+            MDB_dbi&,
+            const mdb_val &key,
+            const T &, MDB_txn *tx = 0);
+    template<typename T> bool get(
+            MDB_dbi& db,
+            const logos::block_hash &hash,
+            const T &t, MDB_txn *tx = 0)
     {
         mdb_val key(hash);
         return get<T>(db,key,t,tx);
@@ -131,27 +181,52 @@ public:
     bool consensus_block_get (const BlockHash & hash, ApprovedMB & block);
     bool consensus_block_get (const BlockHash & hash, ApprovedEB & block);
     // return true if cannot found hash
-    bool consensus_block_update_next(const BlockHash & hash, const BlockHash & next, ConsensusType type, MDB_txn * transaction);
+    bool consensus_block_update_next(
+            const BlockHash & hash,
+            const BlockHash & next,
+            ConsensusType type,
+            MDB_txn * transaction);
 
     bool batch_block_put(ApprovedBSB const &, MDB_txn *);
     bool batch_block_put(ApprovedBSB const &, const BlockHash &, MDB_txn *);
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block);
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block, MDB_txn *);
 
-    bool request_get(const BlockHash &hash, Request & request, MDB_txn *transaction);
+    bool request_get(
+            const BlockHash &hash,
+            Request & request,
+            MDB_txn *transaction);
     bool request_put(const Request &, const BlockHash &, MDB_txn *);
     bool request_exists(const Request & request);
     bool request_exists(const BlockHash & hash);
 
-    bool account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* t=0);
+    bool account_get(
+            AccountAddress const & account_a,
+            account_info & info_a,
+            MDB_txn* t=0);
     bool account_db_empty();
-    bool account_put (AccountAddress const &, logos::account_info const &, MDB_txn *);
+    bool account_put (
+            AccountAddress const &,
+            logos::account_info const &,
+            MDB_txn *);
 
-    bool rep_get(AccountAddress const & account, logos::RepInfo & rep_info, MDB_txn* t=0);
-    bool rep_put(AccountAddress const & account, const logos::RepInfo & rep_info, MDB_txn *);
+    bool rep_get(
+            AccountAddress const & account,
+            logos::RepInfo & rep_info,
+            MDB_txn* t=0);
+    bool rep_put(
+            AccountAddress const & account,
+            const logos::RepInfo & rep_info,
+            MDB_txn *);
 
-    bool candidate_get(const AccountAddress & account, CandidateInfo & candidate_info, MDB_txn* t=0);
-    bool candidate_put(const AccountAddress & account, const CandidateInfo & candidate_info, MDB_txn *);
+    bool candidate_get(
+            const AccountAddress & account,
+            CandidateInfo & candidate_info,
+            MDB_txn* t=0);
+    bool candidate_put(
+            const AccountAddress & account,
+            const CandidateInfo & candidate_info,
+            MDB_txn *);
 
     bool receive_put(const BlockHash & hash, const ReceiveBlock & block, MDB_txn *);
     bool receive_get(const BlockHash & hash, ReceiveBlock & block, MDB_txn *);
