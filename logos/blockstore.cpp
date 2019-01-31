@@ -874,23 +874,6 @@ bool logos::block_store::batch_block_put (ApprovedBSB const & block, const Block
     return status != 0;
 }
 
-bool logos::block_store::request_get(const BlockHash & hash, Request & request, MDB_txn * transaction)
-{
-    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
-
-    mdb_val val;
-    if(mdb_get(transaction, state_db, mdb_val(hash), val))
-    {
-        LOG_TRACE(log) << __func__ << " mdb_get failed";
-        return true;
-    }
-
-    bool error = false;
-    new(&request) Send(error, val);
-    assert(!error);
-
-    return error;
-}
 
 bool logos::block_store::request_put(const Request & request, const BlockHash & batch_hash, MDB_txn * transaction)
 {
@@ -898,7 +881,7 @@ bool logos::block_store::request_put(const Request & request, const BlockHash & 
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();
 
     std::vector<uint8_t> buf;
-    auto status(mdb_put(transaction, state_db, logos::mdb_val(request.GetHash()),
+    int status(mdb_put(transaction, state_db, logos::mdb_val(request.GetHash()),
                         request.SerializeDB(buf), 0));
 
     assert(status == 0);

@@ -61,6 +61,8 @@ struct Request
     Request(bool & error,
             boost::property_tree::ptree const & tree);
 
+    Request(bool & error, const logos::mdb_val & mdbval);
+
     virtual ~Request() {}
 
     std::string ToJson() const;
@@ -68,6 +70,7 @@ struct Request
     virtual boost::property_tree::ptree SerializeJson() const;
     virtual uint64_t Serialize(logos::stream & stream) const;
     logos::mdb_val SerializeDB(std::vector<uint8_t> & buf) const;
+
 
     virtual BlockHash GetHash () const;
 

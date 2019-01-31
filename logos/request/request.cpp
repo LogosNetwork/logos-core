@@ -226,6 +226,15 @@ Request::Request(bool & error,
     }
 }
 
+Request::Request(bool & error,
+                 const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()),
+            mdbval.size());
+
+    new (this) Request(error, stream);
+}
+
 std::string Request::ToJson() const
 {
     boost::property_tree::ptree tree = SerializeJson();

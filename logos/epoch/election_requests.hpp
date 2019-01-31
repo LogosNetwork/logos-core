@@ -64,7 +64,12 @@ struct ElectionVote : Request
     ElectionVote(bool & error,
             boost::property_tree::ptree const & tree);
 
+    ElectionVote(bool & error,
+                 const logos::mdb_val & mdbval);
+
     void Hash(blake2b_state& hash) const override;
+
+    using Request::Hash;
 
     uint16_t WireSize() const override;
 
@@ -73,6 +78,8 @@ struct ElectionVote : Request
     uint64_t Serialize(logos::stream & stream) const override;
 
     bool operator==(const ElectionVote & other) const;
+
+    bool operator!=(const ElectionVote & other) const;
 
     //the accounts im voting for
     std::vector<CandidateVotePair> votes_; 

@@ -191,11 +191,30 @@ public:
     bool batch_block_put(ApprovedBSB const &, const BlockHash &, MDB_txn *);
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block);
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block, MDB_txn *);
-
+    
+    template <typename T>
     bool request_get(
             const BlockHash &hash,
-            Request & request,
-            MDB_txn *transaction);
+            T & request,
+            MDB_txn *transaction)
+    {
+        LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+        mdb_val val;
+        if(mdb_get(transaction, state_db, mdb_val(hash), val))
+        {
+            LOG_TRACE(log) << __func__ << " mdb_get failed";
+            return true;
+        }
+
+        bool error = false;
+        new(&request) T(error, val);
+        assert(!error);
+
+        return error;
+
+    }
+
     bool request_put(const Request &, const BlockHash &, MDB_txn *);
     bool request_exists(const Request & request);
     bool request_exists(const BlockHash & hash);

@@ -96,6 +96,14 @@ ElectionVote::ElectionVote(bool & error,
     }
 }
 
+ElectionVote::ElectionVote(bool & error,
+                           const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()),
+            mdbval.size());
+
+    new (this) ElectionVote(error, stream);
+}
 
 
 void ElectionVote::Hash(blake2b_state& hash) const
@@ -154,4 +162,9 @@ uint64_t ElectionVote::Serialize(logos::stream & stream) const
 bool ElectionVote::operator==(const ElectionVote& other) const
 {
     return votes_ == other.votes_ && Request::operator==(other);
+}
+
+bool ElectionVote::operator!=(const ElectionVote& other) const
+{
+    return !(*this == other);
 }

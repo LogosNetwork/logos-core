@@ -52,11 +52,12 @@ std::vector<Delegate> EpochVotingManager::GetDelegateElects(size_t num_new)
     DelegatePubKey dummy_bls_pub;
     Amount dummy_stake = 1;
     std::vector<Delegate> all;
+    all.resize(sorted.size());
     std::transform(sorted.begin(),sorted.end(),all.begin(),
             [dummy_bls_pub,dummy_stake](auto p){
                 return Delegate(p.first,dummy_bls_pub,p.second,dummy_stake);
             });
-    std::vector<Delegate> delegate_elects(all.begin(),all.end()+num_new);
+    std::vector<Delegate> delegate_elects(all.begin(),all.begin()+num_new);
     return delegate_elects;
 }
 
