@@ -45,7 +45,7 @@ RequestBlock::RequestBlock(bool & error, logos::stream & stream, bool with_reque
     }
 }
 
-bool RequestBlock::AddRequest(const Send &request)
+bool RequestBlock::AddRequest(RequestPtr request)
 {
     // TODO: What if the requests.size() is greater
     //       than CONSENSUS_BATCH_SIZE?
@@ -55,7 +55,7 @@ bool RequestBlock::AddRequest(const Send &request)
         return false;
     }
 
-    requests.push_back(RequestPtr(new Send(request)));
+    requests.push_back(request);
     return true;
 }
 

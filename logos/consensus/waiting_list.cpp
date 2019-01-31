@@ -24,7 +24,7 @@ bool WaitingList<CT>::Contains(const BlockHash & hash)
 }
 
 template<ConsensusType CT>
-void WaitingList<CT>::OnRequest(std::shared_ptr<RequestMessage<CT>> block, Seconds seconds)
+void WaitingList<CT>::OnRequest(std::shared_ptr<DelegateMessage<CT>> block, Seconds seconds)
 {
     auto hash = block->Hash();
 

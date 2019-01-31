@@ -384,10 +384,12 @@ add_library (node
 	logos/request/change.cpp
 	logos/request/request.cpp
 	logos/request/send.cpp
-	logos/tokens/account.cpp
-	logos/tokens/common.cpp
-	logos/tokens/requests.cpp
-	logos/tokens/util.cpp
+	logos/request/utility.cpp
+	logos/request/utility.cpp
+	logos/token/account.cpp
+	logos/token/common.cpp
+	logos/token/requests.cpp
+	logos/token/util.cpp
 	logos/tx_acceptor/tx_acceptor.cpp
 	logos/tx_acceptor/tx_acceptor_channel.cpp
 	logos/tx_acceptor/tx_message_header.cpp

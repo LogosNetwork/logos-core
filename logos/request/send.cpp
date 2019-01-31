@@ -1,5 +1,6 @@
 #include <logos/request/send.hpp>
 
+#include <logos/request/utility.hpp>
 #include <logos/request/fields.hpp>
 
 Send::Send(const AccountAddress & account,

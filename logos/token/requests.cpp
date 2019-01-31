@@ -1,5 +1,6 @@
 #include <logos/token/requests.hpp>
 
+#include <logos/request/utility.hpp>
 #include <logos/request/fields.hpp>
 #include <logos/token/util.hpp>
 
