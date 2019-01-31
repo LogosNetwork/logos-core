@@ -129,7 +129,7 @@ private:
         return _post_prepare_hash;
     }
 
-    virtual void OnRejection(const RejectionMessage<ConsensusType::BatchStateBlock> & message);
+    virtual void OnRejection(const RejectionMessage<ConsensusType::Request> & message);
     virtual void OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message);
     virtual void OnRejection(const RejectionMessage<ConsensusType::Epoch> & message);
 

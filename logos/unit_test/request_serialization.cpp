@@ -33,6 +33,8 @@ TEST (Request_Serialization, json_deserialization)
     //
     char const * token_issuance = R"%%%({
         "type": "issue",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -67,6 +69,7 @@ TEST (Request_Serialization, json_deserialization)
     TokenIssuance issuance(error, tree);
 
     ASSERT_FALSE(error);
+    ASSERT_EQ(issuance.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
     ASSERT_EQ(issuance.symbol, "MYC");
     ASSERT_EQ(issuance.total_supply, 65000);
     ASSERT_EQ(issuance.controllers.size(), 2);
@@ -79,6 +82,8 @@ TEST (Request_Serialization, json_deserialization)
     //
     char const * token_issue_adtl = R"%%%({
         "type": "issue",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -90,6 +95,7 @@ TEST (Request_Serialization, json_deserialization)
     TokenIssueAdtl issue_adtl(error, tree);
 
     ASSERT_FALSE(error);
+    ASSERT_EQ(issue_adtl.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
     ASSERT_EQ(issue_adtl.amount, 50000);
 
     // Token Change Setting
@@ -97,6 +103,8 @@ TEST (Request_Serialization, json_deserialization)
     //
     char const * token_change_setting = R"%%%({
         "type": "issue",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -109,6 +117,7 @@ TEST (Request_Serialization, json_deserialization)
     TokenChangeSetting change_setting(error, tree);
 
     ASSERT_FALSE(error);
+    ASSERT_EQ(change_setting.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
     ASSERT_EQ(change_setting.setting, TokenSetting::Freeze);
     ASSERT_EQ(change_setting.value, SettingValue::Enabled);
 
@@ -117,6 +126,8 @@ TEST (Request_Serialization, json_deserialization)
     //
     char const * token_immute_setting = R"%%%({
         "type": "issue",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -128,6 +139,7 @@ TEST (Request_Serialization, json_deserialization)
     TokenImmuteSetting immute_setting(error, tree);
 
     ASSERT_FALSE(error);
+    ASSERT_EQ(immute_setting.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
     ASSERT_EQ(immute_setting.setting, TokenSetting::ModifyFreeze);
 
     // Token Revoke
@@ -135,28 +147,36 @@ TEST (Request_Serialization, json_deserialization)
     //
     char const * token_revoke = R"%%%({
         "type": "issue",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
         "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
         "source": "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju",
-        "destination": "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz",
-        "amount": "50"
+        "transaction" : {
+            "destination": "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz",
+            "amount": "50"
+        }
      })%%%";
 
     tree = get_tree(token_revoke);
     TokenRevoke revoke(error, tree);
 
     ASSERT_FALSE(error);
+    ASSERT_EQ(revoke.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
     ASSERT_EQ(revoke.source.to_account(), "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
-    ASSERT_EQ(revoke.destination.to_account(), "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
-    ASSERT_EQ(revoke.amount, 50);
+    ASSERT_EQ(revoke.transaction.destination.to_account(),
+              "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
+    ASSERT_EQ(revoke.transaction.amount, 50);
 
     // Token Freeze
     //
     //
     char const * token_freeze = R"%%%({
         "type": "issue",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -169,6 +189,7 @@ TEST (Request_Serialization, json_deserialization)
     TokenFreeze freeze(error, tree);
 
     ASSERT_FALSE(error);
+    ASSERT_EQ(freeze.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
     ASSERT_EQ(freeze.account.to_account(), "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
     ASSERT_EQ(freeze.action, FreezeAction::Unfreeze);
 
@@ -177,6 +198,8 @@ TEST (Request_Serialization, json_deserialization)
     //
     char const * token_set_fee = R"%%%({
         "type": "issue",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -189,6 +212,7 @@ TEST (Request_Serialization, json_deserialization)
     TokenSetFee set_fee(error, tree);
 
     ASSERT_FALSE(error);
+    ASSERT_EQ(set_fee.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
     ASSERT_EQ(set_fee.fee_type, TokenFeeType::Percentage);
     ASSERT_EQ(set_fee.fee_rate, 10);
 
@@ -197,6 +221,8 @@ TEST (Request_Serialization, json_deserialization)
     //
     char const * token_whitelist = R"%%%({
         "type": "issue",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -208,6 +234,7 @@ TEST (Request_Serialization, json_deserialization)
     TokenWhitelist whitelist(error, tree);
 
     ASSERT_FALSE(error);
+    ASSERT_EQ(whitelist.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
     ASSERT_EQ(whitelist.account.to_account(), "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
 
     // Token Issuer Info
@@ -215,6 +242,8 @@ TEST (Request_Serialization, json_deserialization)
     //
     char const * token_issuer_info = R"%%%({
         "type": "issue",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -226,6 +255,7 @@ TEST (Request_Serialization, json_deserialization)
     TokenIssuerInfo issuer_info(error, tree);
 
     ASSERT_FALSE(error);
+    ASSERT_EQ(issuer_info.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
     ASSERT_EQ(issuer_info.new_info, "This is new info");
 
     // Token Controller
@@ -233,6 +263,8 @@ TEST (Request_Serialization, json_deserialization)
     //
     char const * token_controller = R"%%%({
         "type": "issue",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -248,6 +280,7 @@ TEST (Request_Serialization, json_deserialization)
     TokenController controller(error, tree);
 
     ASSERT_FALSE(error);
+    ASSERT_EQ(controller.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
     ASSERT_EQ(controller.action, ControllerAction::Add);
     ASSERT_EQ(controller.controller.account.to_account(), "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
     ASSERT_TRUE(controller.controller.privileges[size_t(ControllerPrivilege::ChangeAddTokens)]);
@@ -261,6 +294,8 @@ TEST (Request_Serialization, json_deserialization)
     //
     char const * token_burn = R"%%%({
         "type": "issue",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -272,6 +307,7 @@ TEST (Request_Serialization, json_deserialization)
     TokenBurn burn(error, tree);
 
     ASSERT_FALSE(error);
+    ASSERT_EQ(burn.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
     ASSERT_EQ(burn.amount, 1000);
 
     // Token Account Send
@@ -279,49 +315,60 @@ TEST (Request_Serialization, json_deserialization)
     //
     char const * token_account_send = R"%%%({
         "type": "issue",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
         "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
-        "destination": "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz",
-        "amount": "100"
+        "transaction" : {
+            "destination": "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz",
+            "amount": "100"
+        }
      })%%%";
 
     tree = get_tree(token_account_send);
     TokenAccountSend account_send(error, tree);
 
     ASSERT_FALSE(error);
-    ASSERT_EQ(account_send.destination.to_account(),
+    ASSERT_EQ(account_send.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(account_send.transaction.destination.to_account(),
               "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
-    ASSERT_EQ(account_send.amount, 100);
+    ASSERT_EQ(account_send.transaction.amount, 100);
 
     // Token Account Withdraw Fee
     //
     //
     char const * token_account_withdraw_fee = R"%%%({
         "type": "issue",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
         "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
-        "source": "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju",
-        "destination": "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz",
-        "amount": "50"
+        "transaction" : {
+            "destination": "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz",
+            "amount": "50"
+        }
      })%%%";
 
     tree = get_tree(token_account_withdraw_fee);
     TokenAccountWithdrawFee withdraw_fee(error, tree);
 
     ASSERT_FALSE(error);
-    ASSERT_EQ(withdraw_fee.destination.to_account(),
+    ASSERT_EQ(withdraw_fee.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(withdraw_fee.transaction.destination.to_account(),
               "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
-    ASSERT_EQ(withdraw_fee.amount, 50);
+    ASSERT_EQ(withdraw_fee.transaction.amount, 50);
 
     // Token Send
     //
     //
     char const * token_send = R"%%%({
         "type": "issue",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -347,6 +394,7 @@ TEST (Request_Serialization, json_deserialization)
     TokenSend send(error, tree);
 
     ASSERT_FALSE(error);
+    ASSERT_EQ(send.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
     ASSERT_EQ(send.transactions.size(), 3);
     ASSERT_EQ(send.transactions[0].destination.to_account(),
               "lgs_1sibjaeaceh59dh7fefo49narpsoytqac5hafhujum3grnd7qrhbczfy9wx8");
@@ -364,6 +412,8 @@ TEST (Request_Serialization, json_deserialization)
     //
     char const * native_change = R"%%%({
         "type": "change",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "client": "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju",
@@ -374,6 +424,7 @@ TEST (Request_Serialization, json_deserialization)
     Change change(error, tree);
 
     ASSERT_FALSE(error);
+    ASSERT_EQ(change.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
     ASSERT_EQ(change.client.to_account(),
               "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
     ASSERT_EQ(change.representative.to_account(),
@@ -397,7 +448,10 @@ TEST (Request_Serialization, election_requests_json)
     char const * announce_candidacy_json = R"%%%({
         "type": "announce_candidacy",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
-        "next": "0000000000000000000000000000000000000000000000000000000000000000"
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000"
+
      })%%%";
 
     boost::property_tree::ptree tree(get_tree(announce_candidacy_json));
@@ -413,7 +467,10 @@ TEST (Request_Serialization, election_requests_json)
     char const * renounce_candidacy_json = R"%%%({
         "type": "renounce_candidacy",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
-        "next": "0000000000000000000000000000000000000000000000000000000000000000"
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000"
+
      })%%%";
 
     tree = get_tree(renounce_candidacy_json);
@@ -430,6 +487,9 @@ TEST (Request_Serialization, election_requests_json)
         "type": "election_vote",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+
         "request":
         {
             "votes":
@@ -449,6 +509,9 @@ TEST (Request_Serialization, election_requests_json)
         "type": "election_vote",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+
         "request":
         {
             "votes":
@@ -472,6 +535,9 @@ TEST (Request_Serialization, election_requests_json)
         "type": "election_vote",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+
         "request":
         {
             "votes":
@@ -569,7 +635,9 @@ TEST (Request_Serialization, election_requests_stream)
 
     //no votes
     BlockHash prev1 = 123;
-    ElectionVote ev(prev1);
+    AccountSig sig1 = 1;
+    AccountAddress address = 1;
+    ElectionVote ev(address,prev1,sig1);
     {
         std::vector<uint8_t> buf;
         {
@@ -614,6 +682,8 @@ TEST (Request_Serialization, election_requests_stream)
     {
         BlockHash prev = ev.previous;
         BlockHash next = ev.next;
+        AccountSig sig = ev.signature;
+        AccountAddress origin = ev.origin;
         RequestType type = RequestType::ElectionVote;
         std::vector<uint8_t> buf;
         {
@@ -621,6 +691,8 @@ TEST (Request_Serialization, election_requests_stream)
             uint64_t size = 0;
             size += logos::write(write_stream, type);
             size += logos::write(write_stream, ev.WireSize());
+            size += logos::write(write_stream, origin);
+            size += logos::write(write_stream, sig);
             size += logos::write(write_stream, prev);
             size += logos::write(write_stream, next);
             uint8_t count = 4;

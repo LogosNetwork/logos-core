@@ -6,90 +6,56 @@
     static_assert(false, "Only LITTLE_ENDIAN machines are supported!");
 #endif
 
-BatchStateBlock::BatchStateBlock(bool & error, logos::stream & stream, bool with_state_block)
-: PrePrepareCommon(error, stream)
+ConnectedClientIds::ConnectedClientIds(uint32_t epoch_number,
+                                       uint8_t delegate_id,
+                                       EpochConnection connection,
+                                       const char *ip)
+    : epoch_number(epoch_number)
+    , delegate_id(delegate_id)
+    , connection(connection)
 {
+    strncpy(this->ip, ip, INET6_ADDRSTRLEN);
+}
+
+ConnectedClientIds::ConnectedClientIds(bool & error, logos::stream & stream)
+{
+    error = logos::read(stream, epoch_number);
+    if(error)
+    {
+        return;
+    }
+    epoch_number = le32toh(epoch_number);
+
+    error = logos::read(stream, delegate_id);
     if(error)
     {
         return;
     }
 
-    error = logos::read(stream, block_count);
+    error = logos::read(stream, connection);
     if(error)
     {
         return;
     }
-    block_count = le16toh(block_count);
-    if(block_count > CONSENSUS_BATCH_SIZE)
-    {
-        error = true;
-        return;
-    }
 
-    for(uint64_t i = 0; i < block_count; ++i)
-    {
-        error = logos::read(stream, hashs[i]);
-        if(error)
-        {
-            return;
-        }
-     }
-
-    if( with_state_block )
-    {
-        for(uint64_t i = 0; i < block_count; ++i)
-        {
-            new(&blocks[i]) Send(error, stream);
-            if(error)
-            {
-                return;
-            }
-        }
-    }
+    error = logos::read(stream, ip);
 }
 
-void BatchStateBlock::SerializeJson(boost::property_tree::ptree & batch_state_block) const
+uint32_t ConnectedClientIds::Serialize(std::vector<uint8_t> & buf) const
 {
-    PrePrepareCommon::SerializeJson(batch_state_block);
+    assert(buf.empty());
+    logos::vectorstream stream(buf);
 
-    batch_state_block.put("type", "BatchStateBlock");
-    batch_state_block.put("block_count", std::to_string(block_count));
+    auto s = logos::write(stream, htole32(epoch_number));
+    s += logos::write(stream, delegate_id);
+    s += logos::write(stream, connection);
+    s += logos::write(stream, ip);
 
-    boost::property_tree::ptree blocks_tree;
-    for(uint64_t i = 0; i < block_count; ++i)
-    {
-        boost::property_tree::ptree txn_content = blocks[i].SerializeJson();
-        blocks_tree.push_back(std::make_pair("", txn_content));
-    }
-    batch_state_block.add_child("blocks", blocks_tree);
-}
-
-uint32_t BatchStateBlock::Serialize(logos::stream & stream, bool with_state_block) const
-{
-    uint16_t bc = htole16(block_count);
-
-    auto s = PrePrepareCommon::Serialize(stream);
-    s += logos::write(stream, bc);
-
-    for(uint64_t i = 0; i < block_count; ++i)
-    {
-        s += logos::write(stream, hashs[i]);
-    }
-
-    if(with_state_block)
-    {
-        for(uint64_t i = 0; i < block_count; ++i)
-        {
-            s += blocks[i].Serialize(stream);
-        }
-    }
-
+    assert(StreamSize() == s);
     return s;
 }
 
-const size_t ConnectedClientIds::STREAM_SIZE;
-
-void update_PostCommittedBlock_next_field(const logos::mdb_val & mdbval, logos::mdb_val & mdbval_buf, const BlockHash & next)
+void UpdateNext(const logos::mdb_val &mdbval, logos::mdb_val &mdbval_buf, const BlockHash &next)
 {
     if(mdbval.size() <= HASH_SIZE)
     {

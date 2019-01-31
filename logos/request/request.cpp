@@ -8,6 +8,8 @@
 
 #include <blake2/blake2.h>
 
+#include <ed25519-donna/ed25519.h>
+
 RequestType GetRequestType(bool &error, std::string data)
 {
     using namespace request::fields;
@@ -167,10 +169,28 @@ std::string GetRequestTypeField(RequestType type)
 }
 
 Request::Request(RequestType type,
-                 const BlockHash & previous)
-     : type(type)
-     , previous(previous)
-{}
+                 const AccountAddress & origin,
+                 const BlockHash & previous,
+                 const AccountPrivKey & priv,
+                 const AccountPubKey & pub)
+    : type(type)
+    , origin(origin)
+    , previous(previous)
+{
+    Sign(priv, pub);
+}
+
+Request::Request(RequestType type,
+                 const AccountAddress & origin,
+                 const BlockHash & previous,
+                 const AccountSig & signature)
+    : type(type)
+    , origin(origin)
+    , signature(signature)
+    , previous(previous)
+{
+    Hash();
+}
 
 Request::Request(bool & error,
                  std::basic_streambuf<uint8_t> & stream)
@@ -188,6 +208,18 @@ Request::Request(bool & error,
         return;
     }
 
+    error = logos::read(stream, origin);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
     error = logos::read(stream, previous);
     if(error)
     {
@@ -195,30 +227,52 @@ Request::Request(bool & error,
     }
 
     error = logos::read(stream, next);
+    if(error)
+    {
+        return;
+    }
+
+    Hash ();
 }
 
 Request::Request(bool & error,
                  const boost::property_tree::ptree & tree)
 {
+    using namespace request::fields;
+
     try
     {
-        type = GetRequestType(error, tree.get<std::string>("type"));
+        type = GetRequestType(error, tree.get<std::string>(TYPE));
         if(error)
         {
             return;
         }
 
-        error = previous.decode_hex(tree.get<std::string>("previous"));
+        error = origin.decode_account(tree.get<std::string>(ORIGIN));
         if(error)
         {
             return;
         }
 
-        error = next.decode_hex(tree.get<std::string>("next"));
+        error = signature.decode_hex(tree.get<std::string>(SIGNATURE));
         if(error)
         {
             return;
         }
+
+        error = previous.decode_hex(tree.get<std::string>(PREVIOUS));
+        if(error)
+        {
+            return;
+        }
+
+        error = next.decode_hex(tree.get<std::string>(NEXT));
+        if(error)
+        {
+            return;
+        }
+
+        Hash();
     }
     catch (...)
     {
@@ -233,6 +287,24 @@ Request::Request(bool & error,
             mdbval.size());
 
     new (this) Request(error, stream);
+}
+void Request::Sign(AccountPrivKey const & priv, AccountPubKey const & pub)
+{
+    digest = Hash();
+
+    ed25519_sign(const_cast<BlockHash&>(digest).data(),
+                 HASH_SIZE,
+                 const_cast<AccountPrivKey&>(priv).data(),
+                 const_cast<AccountPubKey&>(pub).data(),
+                 signature.data());
+}
+
+bool Request::VerifySignature(AccountPubKey const & pub) const
+{
+    return 0 == ed25519_sign_open(const_cast<BlockHash &>(digest).data(),
+                                  HASH_SIZE,
+                                  const_cast<AccountPubKey&>(pub).data(),
+                                  const_cast<AccountSig&>(signature).data());
 }
 
 std::string Request::ToJson() const
@@ -251,6 +323,8 @@ boost::property_tree::ptree Request::SerializeJson() const
     boost::property_tree::ptree tree;
 
     tree.put(TYPE, GetRequestTypeField(type));
+    tree.put(ORIGIN, origin.to_account());
+    tree.put(SIGNATURE, signature.to_string());
     tree.put(PREVIOUS, previous.to_string());
     tree.put(NEXT, next.to_string());
 
@@ -266,6 +340,8 @@ uint64_t Request::Serialize(logos::stream & stream) const
            // total size of the request.
            //
            logos::write(stream, WireSize()) +
+           logos::write(stream, origin) +
+           logos::write(stream, signature) +
            logos::write(stream, previous) +
            logos::write(stream, next);
 }
@@ -289,15 +365,17 @@ BlockHash Request::GetHash() const
     return Hash();
 }
 
-auto Request::Hash() const -> BlockHash
+BlockHash Request::Hash() const
 {
-    return Blake2bHash(*this);
+    return (digest = Blake2bHash(*this));
 }
 
 void Request::Hash(blake2b_state & hash) const
 {
     blake2b_update(&hash, &type, sizeof(type));
     previous.Hash(hash);
+    origin.Hash(hash);
+    signature.Hash(hash);
 }
 
 uint16_t Request::WireSize() const
@@ -309,6 +387,8 @@ uint16_t Request::WireSize() const
            // total size of the request.
            //
            sizeof(uint16_t) +
+           sizeof(origin.bytes) +
+           sizeof(signature.bytes) +
            sizeof(previous.bytes) +
            sizeof(next.bytes);
 }

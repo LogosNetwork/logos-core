@@ -18,7 +18,7 @@ struct MicroBlock : PrePrepareCommon
     {}
 
     MicroBlock(bool & error, logos::stream & stream, bool with_appendix)
-    : PrePrepareCommon(error, stream)
+        : PrePrepareCommon(error, stream)
     {
         if(error)
         {
@@ -48,7 +48,7 @@ struct MicroBlock : PrePrepareCommon
         }
     }
 
-    void Hash(blake2b_state & hash) const
+    void Hash(blake2b_state & hash) const override
     {
         uint32_t nbb = htole32(number_batch_blocks);
         PrePrepareCommon::Hash(hash);
@@ -65,7 +65,7 @@ struct MicroBlock : PrePrepareCommon
     void SerializeJson(boost::property_tree::ptree &) const;
     uint32_t Serialize(logos::stream & stream, bool with_appendix) const;
 
-    uint8_t             last_micro_block;       ///< The last microblock in the epoch
-    uint32_t            number_batch_blocks;    ///< Number of batch blocks in the microblock
-    BlockHash           tips[NUM_DELEGATES];    ///< Delegate's batch block tips
+    uint8_t   last_micro_block;    ///< The last microblock in the epoch
+    uint32_t  number_batch_blocks; ///< Number of batch blocks in the microblock
+    BlockHash tips[NUM_DELEGATES]; ///< Delegate's batch block tips
 };

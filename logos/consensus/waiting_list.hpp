@@ -14,7 +14,7 @@
 #include <boost/asio/io_service.hpp>
 
 template<ConsensusType CT>
-class RequestPromoter;
+class MessagePromoter;
 
 using boost::multi_index::ordered_non_unique;
 using boost::multi_index::hashed_unique;
@@ -22,39 +22,37 @@ using boost::multi_index::indexed_by;
 using boost::multi_index::member;
 
 template<ConsensusType CT>
-class SecondaryRequestHandler
+class WaitingList
 {
-    class Request;
-
     using Timer      = boost::asio::deadline_timer;
     using Service    = boost::asio::io_service;
     using Error      = boost::system::error_code;
-    using BlockPtr   = std::shared_ptr<RequestMessage<CT>>;
+    using MessagePtr = std::shared_ptr<RequestMessage<CT>>;
     using Seconds    = boost::posix_time::seconds;
     using Clock      = boost::posix_time::second_clock;
     using TimePoint  = boost::posix_time::ptime;
     using PrePrepare = PrePrepareMessage<CT>;
-    using Promoter   = RequestPromoter<CT>;
+    using Promoter   = MessagePromoter<CT>;
 
-    struct Request
+    struct Entry
     {
-        BlockHash         hash;
-        BlockPtr          block;
-        TimePoint         expiration;
+        BlockHash  hash;
+        MessagePtr block;
+        TimePoint  expiration;
     };
 
-    using Requests =
+    using Entries =
             boost::multi_index_container<
-                Request,
+                Entry,
                 indexed_by<
-                    ordered_non_unique<member<Request, TimePoint, &Request::expiration>>,
-                    hashed_unique<member<Request, BlockHash, &Request::hash>>
+                    ordered_non_unique<member<Entry, TimePoint, &Entry::expiration>>,
+                    hashed_unique<member<Entry, BlockHash, &Entry::hash>>
                 >
             >;
 
 public:
 
-    SecondaryRequestHandler(Service & service, Promoter *promoter);
+    WaitingList(Service & service, Promoter * promoter);
 
     bool Contains(const BlockHash & hash);
 
@@ -65,7 +63,7 @@ public:
 
     void OnPostCommit(const PrePrepare & message);
 
-    void UpdateRequestPromoter(RequestPromoter<CT>* promoter);
+    void UpdateMessagePromoter(MessagePromoter<CT>* promoter);
 
 private:
 
@@ -77,11 +75,11 @@ private:
     static const Seconds REQUEST_TIMEOUT;
     static const Seconds MIN_TIMEOUT;
 
-    Requests                _requests;
-    Service &               _service;
-    Promoter *    			_promoter;
-    Log                     _log;
-    std::mutex              _mutex;
-    Timer                   _timer;
-    std::mutex              _promoter_mutex;
+    Entries    _entries;
+    Service &  _service;
+    Promoter * _promoter;
+    Log        _log;
+    std::mutex _mutex;
+    Timer      _timer;
+    std::mutex _promoter_mutex;
 };

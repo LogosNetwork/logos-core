@@ -1,8 +1,19 @@
 #include <logos/epoch/election_requests.hpp>
 #include <logos/request/fields.hpp>
 
-AnnounceCandidacy::AnnounceCandidacy(const BlockHash & previous) 
-    : Request(RequestType::AnnounceCandidacy, previous)
+AnnounceCandidacy::AnnounceCandidacy(
+            const AccountAddress & origin,
+            const BlockHash & previous,
+            const AccountPrivKey & priv,
+            const AccountPubKey & pub)
+    : Request(RequestType::AnnounceCandidacy, origin, previous, priv, pub)
+{}  
+
+AnnounceCandidacy::AnnounceCandidacy(
+            const AccountAddress & origin,
+            const BlockHash & previous,
+            const AccountSig & sig)
+    : Request(RequestType::AnnounceCandidacy, origin, previous, sig)
 {}  
 
 AnnounceCandidacy::AnnounceCandidacy(bool & error,
@@ -18,9 +29,20 @@ AnnounceCandidacy::AnnounceCandidacy(bool & error,
     error = error || type != RequestType::AnnounceCandidacy;
 }
 
-RenounceCandidacy::RenounceCandidacy(const BlockHash & previous) 
-    : Request(RequestType::RenounceCandidacy, previous)
+RenounceCandidacy::RenounceCandidacy(
+            const AccountAddress & origin,
+            const BlockHash & previous,
+            const AccountPrivKey & priv,
+            const AccountPubKey & pub)
+    : Request(RequestType::RenounceCandidacy, origin, previous, priv, pub)
 {}  
+
+RenounceCandidacy::RenounceCandidacy(
+            const AccountAddress & origin,
+            const BlockHash & previous,
+            const AccountSig & sig)
+    : Request(RequestType::RenounceCandidacy, origin, previous, sig)
+{} 
 
 RenounceCandidacy::RenounceCandidacy(bool & error,
             std::basic_streambuf<uint8_t> & stream) : Request(error, stream)
@@ -35,7 +57,19 @@ RenounceCandidacy::RenounceCandidacy(bool & error,
 }
 
 
-ElectionVote::ElectionVote(const BlockHash & previous) : Request(RequestType::ElectionVote, previous)
+ElectionVote::ElectionVote(
+        const AccountAddress & origin,
+        const BlockHash & previous,
+        const AccountPrivKey & priv,
+        const AccountPubKey & pub)
+    : Request(RequestType::ElectionVote, origin, previous, priv, pub)
+{}
+
+ElectionVote::ElectionVote(
+        const AccountAddress & origin,
+        const BlockHash & previous,
+        const AccountSig & signature)
+    : Request(RequestType::ElectionVote, origin, previous, signature)
 {}
 
 ElectionVote::ElectionVote(bool & error,

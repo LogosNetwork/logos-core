@@ -1,4 +1,4 @@
-#include <logos/consensus/batchblock/request_handler.hpp>
+#include <logos/consensus/request/request_handler.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/blocks.hpp>
 
@@ -18,13 +18,13 @@ void RequestHandler::OnRequest(std::shared_ptr<Send> request)
     _requests.get<0>().push_back(*request);
 }
 
-void RequestHandler::OnPostCommit(const BatchStateBlock & batch)
+void RequestHandler::OnPostCommit(const RequestBlock & block)
 {
     auto & hashed = _requests.get<1>();
 
-    for(uint64_t pos = 0; pos < batch.block_count; ++pos)
+    for(uint64_t pos = 0; pos < block.requests.size(); ++pos)
     {
-        auto hash = batch.blocks[pos].GetHash();
+        auto hash = block.requests[pos]->GetHash();
 
         if(hashed.find(hash) != hashed.end())
         {
@@ -33,9 +33,9 @@ void RequestHandler::OnPostCommit(const BatchStateBlock & batch)
     }
 }
 
-RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch()
+RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch()
 {
-    _current_batch = BSBPrePrepare();
+    _current_batch = PrePrepare();
     auto & sequence = _requests.get<0>();
 
     for(auto pos = sequence.begin(); pos != sequence.end(); ++pos)
@@ -47,18 +47,27 @@ RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch()
         LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch requests_size="
                          << sequence.size();
 
-        if(pos->account.is_zero() && pos->GetNumTransactions() == 0)
+        if(pos->account.is_zero() && pos->transactions.size() == 0)
         {
             sequence.erase(pos);
             break;
         }
 
-        if(! _current_batch.AddStateBlock(*pos))
+        if(!_current_batch.AddRequest(*pos))
         {
             LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch batch full";
             break;
         }
     }
+
+    return _current_batch;
+}
+
+auto RequestHandler::GetCurrentBatch() -> PrePrepare &
+{
+    LOG_DEBUG (_log) << "RequestHandler::GetCurrentBatch - "
+                     << "batch_size = "
+                     << _current_batch.requests.size();
 
     return _current_batch;
 }
@@ -70,18 +79,18 @@ void RequestHandler::InsertFront(const std::list<Send> & requests)
     sequenced.insert(sequenced.begin(), requests.begin(), requests.end());
 }
 
-void RequestHandler::Acquire(const BSBPrePrepare & batch)
+void RequestHandler::Acquire(const PrePrepare & batch)
 {
     auto & sequenced = _requests.get<0>();
     auto & hashed = _requests.get<1>();
 
-    for(uint64_t pos = 0; pos < batch.block_count; ++pos)
+    for(uint64_t pos = 0; pos < batch.requests.size(); ++pos)
     {
-        auto & block = batch.blocks[pos];
+        auto & request = *batch.requests[pos];
 
-        if(hashed.find(block.GetHash()) == hashed.end())
+        if(hashed.find(request.GetHash()) == hashed.end())
         {
-            sequenced.push_back(block);
+            sequenced.push_back(static_cast<Send&>(request));
         }
     }
 }
@@ -90,17 +99,17 @@ void RequestHandler::PopFront()
 {
     auto & hashed = _requests.get<1>();
 
-    for(uint64_t pos = 0; pos < _current_batch.block_count; ++pos)
+    for(uint64_t pos = 0; pos < _current_batch.requests.size(); ++pos)
     {
-        hashed.erase(_current_batch.blocks[pos].GetHash());
+        hashed.erase(_current_batch.requests[pos]->GetHash());
     }
 
-    _current_batch = BSBPrePrepare();
+    _current_batch = PrePrepare();
 }
 
 bool RequestHandler::BatchFull()
 {
-    return _current_batch.block_count == CONSENSUS_BATCH_SIZE;
+    return _current_batch.requests.size() == CONSENSUS_BATCH_SIZE;
 }
 
 bool RequestHandler::Empty()

@@ -85,16 +85,20 @@ MicroBlockTester::block_create_test(
     for (uint8_t i_del = 0; i_del < ndelegates; ++i_del) {
         for (int i_batch = 0; i_batch < n_batch_blocks; ++i_batch) {
             ApprovedBSB batch_block;
-            batch_block.block_count = 100;
+            for(size_t i = 0; i < 100; ++i)
+            {
+                batch_block.requests.push_back(std::shared_ptr<Send>(new Send()));
+            }
             batch_block.preprepare_sig = delegate_sig;
             batch_block.timestamp = GetStamp(); // need to model block spread
             for (int i_state = 0; i_state < n_state_blocks; ++i_state) {
-                batch_block.blocks[i_state].signature = account_sig;
+                auto request = static_pointer_cast<Send>(batch_block.requests[i_state]);
+                request->signature = account_sig;
                 logos::account account(rand());
                 BlockHash hash(rand());
-                batch_block.blocks[i_state].account = account;
-                batch_block.blocks[i_state].previous = hash;
-                batch_block.blocks[i_state].AddTransaction(AccountAddress(), 1000);
+                request->account = account;
+                request->previous = hash;
+                request->AddTransaction(AccountAddress(), 1000);
             }
             batch_block.previous = previous[i_del];
             previous[i_del] = batch_block.Hash();
@@ -186,7 +190,7 @@ MicroBlockTester::read_accounts(
         logos::uint128_union (info.balance).encode_dec (balance);
         response.put ("balance", balance);
         response.put ("modified_timestamp", std::to_string (info.modified));
-        response.put ("block_count", std::to_string (info.block_count));
+        response.put ("request_count", std::to_string (info.block_count));
         response_l.push_back (std::make_pair (account.to_account (), response));
     }
     response (response_l);
@@ -216,7 +220,7 @@ MicroBlockTester::generate_epoch(
     proposer.ProposeTransitionOnce([&node]()->void{
         EpochHandler handler(node.store);
         auto epoch = std::make_shared<Epoch>();
-        node._consensus_container.OnSendRequest(epoch);
+        node._consensus_container.OnDelegateMessage(epoch);
     }, std::chrono::seconds(1)); */
     response_l.put ("result", "not-implemented");
     response (response_l);
@@ -294,13 +298,11 @@ MicroBlockTester::informational(
         uint64_t start = (uint64_t) &block;
         uint64_t account = (uint64_t) &(block.primary_delegate);
         uint64_t seq = (uint64_t) &(block.sequence);
-        uint64_t block_count = (uint64_t) &(block.block_count);
         uint64_t enumber = (uint64_t) &(block.epoch_number);
-        uint64_t blocks = (uint64_t) &(block.blocks);
+        uint64_t blocks = (uint64_t) &(block.requests);
         uint64_t next = (uint64_t) &(block.next);
         uint64_t sig = (uint64_t) &(block.preprepare_sig);
         str << "batch offsets: account " << (account - start) << " sequence " << (seq - start)
-            << " block_count " << (block_count - start)
             << " epoch " << (enumber - start) << " blocks " << (blocks - start)
             << " next " << (next - start) << " sig " << (sig - start) << " size " << sizeof(block);
         response_l.put("result", str.str());

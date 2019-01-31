@@ -10,8 +10,8 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/messages/rejection.hpp>
 #include <logos/consensus/persistence/nondel_persistence.hpp>
-#include <logos/consensus/persistence/batchblock/nondel_batchblock_persistence.hpp>
 #include <logos/consensus/persistence/epoch/nondel_epoch_persistence.hpp>
+#include <logos/consensus/persistence/request/nondel_request_persistence.hpp>
 #include <logos/consensus/persistence/microblock/nondel_microblock_persistence.hpp>
 
 #include <logos/unit_test/msg_validator_setup.hpp>
@@ -36,13 +36,13 @@ std::string byte_vector_to_string (const std::vector<uint8_t> & buf)
     return stream.str ();
 }
 
-PrePrepareMessage<ConsensusType::BatchStateBlock>
+PrePrepareMessage<ConsensusType::Request>
 create_bsb_preprepare(uint16_t num_sb)
 {
-    PrePrepareMessage<ConsensusType::BatchStateBlock> block;
+    PrePrepareMessage<ConsensusType::Request> block;
     for(uint32_t i = 0; i < num_sb; ++i)
     {
-        block.AddStateBlock(Send(1,2,i,5,6,7,8,9));
+        block.AddRequest(Send(1, 2, i, 5, 6, 7, 8, 9));
     }
 
     return block;
@@ -469,7 +469,7 @@ TEST (messages, PostPhaseMessage)
 TEST (messages, RejectionMessage)
 {
     BlockHash pp_hash = 11;
-    RejectionMessage<ConsensusType::BatchStateBlock> block(pp_hash);
+    RejectionMessage<ConsensusType::Request> block(pp_hash);
     block.reason = RejectionReason::Bad_Signature;
     for(uint16_t i = 0; i < CONSENSUS_BATCH_SIZE; i+=2)
     {
@@ -486,7 +486,7 @@ TEST (messages, RejectionMessage)
     ASSERT_EQ(prequel.type, block.type);
     ASSERT_EQ(prequel.consensus_type, block.consensus_type);
 
-    RejectionMessage<ConsensusType::BatchStateBlock> block2(error, stream, prequel.version);
+    RejectionMessage<ConsensusType::Request> block2(error, stream, prequel.version);
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
 
@@ -540,7 +540,7 @@ void create_real_StateBlock(Send & request)
     new (&request) Send(account,     // account
                         BlockHash(), // previous
                         0,           // sqn
-                        account,     // target
+                        account,     // destination
                         amount,
                         fee,
                         priv_key,
@@ -583,7 +583,7 @@ TEST (blocks, batch_state_block_PrePrepare_empty)
 
     bool error = false;
     logos::bufferstream stream(buf.data()+MessagePrequelSize, buf.size()-MessagePrequelSize);
-    PrePrepareMessage<ConsensusType::BatchStateBlock> block2(error, stream, logos_version);
+    PrePrepareMessage<ConsensusType::Request> block2(error, stream, logos_version);
 
     ASSERT_FALSE(error);
     ASSERT_EQ(block.Hash(), block2.Hash());
@@ -593,14 +593,14 @@ TEST (blocks, batch_state_block_PrePrepare_empty)
 TEST (blocks, batch_state_block_PrePrepare_full)
 {
     auto block = create_bsb_preprepare(CONSENSUS_BATCH_SIZE);
-    ASSERT_FALSE(block.AddStateBlock(Send(1,2,CONSENSUS_BATCH_SIZE+1,5,6,7,8,9)));
-    ASSERT_EQ(block.block_count, CONSENSUS_BATCH_SIZE);
+    ASSERT_FALSE(block.AddRequest(Send(1, 2, CONSENSUS_BATCH_SIZE + 1, 5, 6, 7, 8, 9)));
+    ASSERT_EQ(block.requests.size(), CONSENSUS_BATCH_SIZE);
     vector<uint8_t> buf;
     block.Serialize(buf);
 
     bool error = false;
     logos::bufferstream stream(buf.data()+MessagePrequelSize, buf.size()-MessagePrequelSize);
-    PrePrepareMessage<ConsensusType::BatchStateBlock> block2(error, stream, logos_version);
+    PrePrepareMessage<ConsensusType::Request> block2(error, stream, logos_version);
 
     ASSERT_FALSE(error);
     ASSERT_EQ(block.Hash(), block2.Hash());
@@ -609,14 +609,14 @@ TEST (blocks, batch_state_block_PrePrepare_full)
 TEST (blocks, batch_state_block_PostCommit_net)
 {
     auto block_pp = create_bsb_preprepare(CONSENSUS_BATCH_SIZE/3);/* /3 so not a full block*/
-    auto block = create_approved_block<ConsensusType::BatchStateBlock>(block_pp);
+    auto block = create_approved_block<ConsensusType::Request>(block_pp);
 
     vector<uint8_t> buf;
     block.Serialize(buf, true, false);
 
     bool error = false;
     logos::bufferstream stream(buf.data()+MessagePrequelSize, buf.size()-MessagePrequelSize);
-    PostCommittedBlock<ConsensusType::BatchStateBlock> block2(error, stream, logos_version, true, false);
+    PostCommittedBlock<ConsensusType::Request> block2(error, stream, logos_version, true, false);
 
     ASSERT_FALSE(error);
     ASSERT_EQ(block.Hash(), block2.Hash());
@@ -625,26 +625,31 @@ TEST (blocks, batch_state_block_PostCommit_net)
 TEST (blocks, batch_state_block_PostCommit_DB)
 {
     auto block_pp = create_bsb_preprepare(CONSENSUS_BATCH_SIZE/2);/* /2 so not a full block*/
-    auto block = create_approved_block<ConsensusType::BatchStateBlock>(block_pp);
+    auto block = create_approved_block<ConsensusType::Request>(block_pp);
     block.next = 90;
 
     vector<uint8_t> buf;
     auto block_db_val = block.to_mdb_val(buf);
     vector<vector<uint8_t> > buffers(CONSENSUS_BATCH_SIZE);
     vector<logos::mdb_val> sb_db_vals;
-    for(uint16_t i = 0; i < CONSENSUS_BATCH_SIZE; ++i)
+    for(uint16_t i = 0; i < block.requests.size(); ++i)
     {
-        sb_db_vals.push_back(block.blocks[i].SerializeDB(buffers[i]));
+        sb_db_vals.push_back(block.requests[i]->SerializeDB(buffers[i]));
     }
 
     bool error = false;
-    PostCommittedBlock<ConsensusType::BatchStateBlock> block2(error, block_db_val);
+    PostCommittedBlock<ConsensusType::Request> block2(error, block_db_val);
     ASSERT_FALSE(error);
     if(! error)
     {
-        for(uint16_t i = 0; i < block.block_count; ++i)
+        for(uint16_t i = 0; i < block2.hashes.size(); ++i)
         {
-            new (&block.blocks[i]) Send(error, sb_db_vals[i]);
+            block2.requests.push_back(
+                std::shared_ptr<Request>(
+                    new Send(error, sb_db_vals[i])
+                )
+            );
+
             ASSERT_FALSE(error);
         }
     }
@@ -1053,7 +1058,7 @@ TEST (DB, bsb)
     logos::transaction txn(store->environment, nullptr, true);
 
     auto block_pp = create_bsb_preprepare(CONSENSUS_BATCH_SIZE/2);
-    auto block = create_approved_block<ConsensusType::BatchStateBlock>(block_pp);
+    auto block = create_approved_block<ConsensusType::Request>(block_pp);
     block.next = 90;
 
     auto block_hash(block.Hash());
@@ -1113,7 +1118,7 @@ TEST (DB, bsb_next)
 //    logos::transaction txn(store->environment, nullptr, true);
 
     auto block_pp = create_bsb_preprepare(CONSENSUS_BATCH_SIZE/4);
-    auto block = create_approved_block<ConsensusType::BatchStateBlock>(block_pp);
+    auto block = create_approved_block<ConsensusType::Request>(block_pp);
     auto block_hash(block.Hash());
     {
         logos::transaction txn(store->environment, nullptr, true);
@@ -1123,7 +1128,7 @@ TEST (DB, bsb_next)
     BlockHash next(90);
     {
         logos::transaction txn(store->environment, nullptr, true);
-        store->consensus_block_update_next(block_hash, next, ConsensusType::BatchStateBlock, txn);
+        store->consensus_block_update_next(block_hash, next, ConsensusType::Request, txn);
     }
 
     logos::transaction txn(store->environment, nullptr, false);

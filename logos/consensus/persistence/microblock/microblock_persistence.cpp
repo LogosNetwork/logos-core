@@ -88,16 +88,16 @@ PersistenceManager<MBCT>::Validate(
     }
 
     /// verify can iterate the chain and the number of blocks checks out
-    int number_batch_blocks = 0;
+    int number_request_blocks = 0;
     MicroBlockHandler::BatchBlocksIterator(_store, block.tips, previous_microblock.tips,
-                                           [&number_batch_blocks](uint8_t, const BatchStateBlock &) mutable -> void {
-       ++number_batch_blocks;
+                                           [&number_request_blocks](uint8_t, const RequestBlock &) mutable -> void {
+       ++number_request_blocks;
     });
-    if (number_batch_blocks != block.number_batch_blocks)
+    if (number_request_blocks != block.number_batch_blocks)
     {
         LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock number of batch blocks doesn't match in block: "
                         << " hash " << block.Hash().to_string()
-                        << " block " << block.number_batch_blocks << " to database: " << number_batch_blocks;
+                        << " block " << block.number_batch_blocks << " to database: " << number_request_blocks;
         UpdateStatusReason(status, process_result::invalid_number_blocks);
         return false;
     }

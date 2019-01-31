@@ -31,6 +31,8 @@ const char UNKNOWN[]            = "unknown";
 // Request fields
 //
 const char TYPE[]           = "type";
+const char ORIGIN[]         = "origin";
+const char SIGNATURE[]      = "signature";
 const char PREVIOUS[]       = "previous";
 const char NEXT[]           = "next";
 const char TOKEN_ID[]       = "token_id";
@@ -38,6 +40,7 @@ const char ADMIN_ACCOUNT[]  = "admin_account";
 const char ACCOUNT[]        = "account";
 const char PRIVILEGES[]     = "privileges";
 const char SOURCE[]         = "source";
+const char TRANSACTION[]    = "transaction";
 const char DESTINATION[]    = "destination";
 const char AMOUNT[]         = "amount";
 const char SYMBOL[]         = "symbol";

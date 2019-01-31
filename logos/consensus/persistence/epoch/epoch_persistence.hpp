@@ -10,15 +10,17 @@ static constexpr ConsensusType ECT = ConsensusType::Epoch;
 class ReservationsProvider;
 
 template<>
-class PersistenceManager<ECT> : public Persistence {
+class PersistenceManager<ECT> : public Persistence
+{
 
 protected:
 
-    using Request           = RequestMessage<ECT>;
-    using PrePrepare        = PrePrepareMessage<ECT>;
-    using ReservationsPtr   = std::shared_ptr<ReservationsProvider>;
+    using Request         = RequestMessage<ECT>;
+    using PrePrepare      = PrePrepareMessage<ECT>;
+    using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
 
 public:
+
     PersistenceManager(Store & store,
                        ReservationsPtr,
                        Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT);

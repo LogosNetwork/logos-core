@@ -56,7 +56,14 @@ struct ElectionVote : Request
 
     ElectionVote() = default;
 
-    ElectionVote(const BlockHash & previous);
+    ElectionVote(const AccountAddress & origin,
+            const BlockHash & previous,
+            const AccountPrivKey & priv,
+            const AccountPubKey & pub);
+
+    ElectionVote(const AccountAddress & origin,
+            const BlockHash & previous,
+            const AccountSig & signature);
 
     ElectionVote(bool & error,
             std::basic_streambuf<uint8_t> & stream);
@@ -87,7 +94,14 @@ struct ElectionVote : Request
 
 struct AnnounceCandidacy : Request
 {
-    AnnounceCandidacy(const BlockHash & previous); 
+    AnnounceCandidacy(const AccountAddress & origin,
+            const BlockHash & previous,
+            const AccountPrivKey & priv,
+            const AccountPubKey & pub);
+
+    AnnounceCandidacy(const AccountAddress & origin,
+            const BlockHash & previous,
+            const AccountSig & signature);
 
     AnnounceCandidacy(bool & error,
             std::basic_streambuf<uint8_t> & stream);
@@ -99,7 +113,14 @@ struct AnnounceCandidacy : Request
 
 struct RenounceCandidacy : Request
 {
-    RenounceCandidacy(const BlockHash & previous);  
+    RenounceCandidacy(const AccountAddress & origin,
+            const BlockHash & previous,
+            const AccountPrivKey & priv,
+            const AccountPubKey & pub);
+
+    RenounceCandidacy(const AccountAddress & origin,
+            const BlockHash & previous,
+            const AccountSig & signature);
 
     RenounceCandidacy(bool & error,
             std::basic_streambuf<uint8_t> & stream);

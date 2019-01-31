@@ -315,10 +315,10 @@ add_library (logos_lib_static STATIC ${LOGOS_LIB_SOURCES})
 add_library (node
 	${PLATFORM_NODE_SOURCE}
 	${SECURE_RPC_SOURCE}
-	logos/consensus/batchblock/batchblock_consensus_manager.cpp
-	logos/consensus/batchblock/bb_backup_delegate.cpp
-	logos/consensus/batchblock/request_handler.cpp
-	logos/consensus/secondary_request_handler.cpp
+	logos/consensus/request/request_consensus_manager.cpp
+	logos/consensus/request/request_backup_delegate.cpp
+	logos/consensus/request/request_handler.cpp
+        logos/consensus/waiting_list.cpp
 	logos/consensus/delegate_bridge.cpp
 	logos/consensus/backup_delegate.cpp
 	logos/consensus/consensus_container.cpp
@@ -330,6 +330,7 @@ add_library (node
 	logos/consensus/messages/common.cpp
 	logos/consensus/messages/messages.cpp
 	logos/consensus/messages/receive_block.cpp
+	logos/consensus/messages/request_block.cpp
 	logos/consensus/microblock/microblock_backup_delegate.cpp
 	logos/consensus/microblock/microblock_consensus_manager.cpp
 	logos/consensus/network/consensus_netio.cpp
@@ -339,7 +340,7 @@ add_library (node
 	logos/consensus/network/epoch_peer_manager.cpp
 	logos/consensus/persistence/persistence.cpp
 	logos/consensus/persistence/validator_builder.cpp
-	logos/consensus/persistence/batchblock/batchblock_persistence.cpp
+        logos/consensus/persistence/request/request_persistence.cpp
 	logos/consensus/persistence/epoch/epoch_persistence.cpp
 	logos/consensus/persistence/microblock/microblock_persistence.cpp
 	logos/consensus/primary_delegate.cpp

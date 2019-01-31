@@ -1,17 +1,17 @@
 /// @file
 /// This file contains declaration of BatchStateBlock related validation/persistence
 
-#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
+#include <logos/consensus/persistence/request/request_persistence.hpp>
 #include <logos/consensus/persistence/reservations.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/lib/trace.hpp>
 #include <logos/common.hpp>
 
-constexpr uint128_t PersistenceManager<B>::MIN_TRANSACTION_FEE;
+constexpr uint128_t PersistenceManager<R>::MIN_TRANSACTION_FEE;
 
-PersistenceManager<B>::PersistenceManager(Store & store,
-                                              ReservationsPtr reservations,
-                                              Milliseconds clock_drift)
+PersistenceManager<R>::PersistenceManager(Store & store,
+                                          ReservationsPtr reservations,
+                                          Milliseconds clock_drift)
     : Persistence(store, clock_drift)
     , _reservations(reservations)
 {
@@ -22,7 +22,7 @@ PersistenceManager<B>::PersistenceManager(Store & store,
     }
 }
 
-void PersistenceManager<B>::ApplyUpdates(
+void PersistenceManager<R>::ApplyUpdates(
     const ApprovedBSB & message,
     uint8_t delegate_id)
 {
@@ -33,34 +33,36 @@ void PersistenceManager<B>::ApplyUpdates(
 
     auto batch_hash = message.Hash();
     uint16_t count = 0;
-    for(uint16_t i = 0; i < message.block_count; ++i)
+    for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
-        message.blocks[i].batch_hash = batch_hash;
-        message.blocks[i].index_in_batch = count++;
+        auto request = static_pointer_cast<const Send>(message.requests[i]);
+        request->batch_hash = batch_hash;
+        request->index_in_batch = count++;
     }
 
-    LOG_DEBUG(_log) << "PersistenceManager<B>::ApplyUpdates - BSB with "
-            << message.block_count << " StateBlocks";
+    LOG_DEBUG(_log) << "PersistenceManager<R>::ApplyUpdates - BSB with "
+                    << message.requests.size()
+                    << " StateBlocks";
 
     logos::transaction transaction(_store.environment, nullptr, true);
     StoreBatchMessage(message, transaction, delegate_id);
     ApplyBatchMessage(message, transaction);
 }
 
-bool PersistenceManager<B>::Validate(
-    const Request & block,
+bool PersistenceManager<R>::Validate(
+    const Request & request,
     logos::process_return & result,
     bool allow_duplicates)
 {
-    auto hash = block.GetHash();
+    auto hash = request.GetHash();
 
-    if(block.account.is_zero())
+    if(request.account.is_zero())
     {
         result.code = logos::process_result::opened_burn_account;
         return false;
     }
 
-    if(block.transaction_fee.number() < MIN_TRANSACTION_FEE)
+    if(request.transaction_fee.number() < MIN_TRANSACTION_FEE)
     {
         result.code = logos::process_result::insufficient_fee;
         return false;
@@ -69,21 +71,21 @@ bool PersistenceManager<B>::Validate(
     std::lock_guard<std::mutex> lock(_reservation_mutex);
 
     logos::account_info info;
-    auto account_error(_reservations->Acquire(block.account, info));
+    auto account_error(_reservations->Acquire(request.account, info));
 
     // Account exists.
     if(!account_error)
     {
-        //sequence number
-        if(info.block_count != block.sequence)
+        if(info.block_count != request.sequence)
         {
             result.code = logos::process_result::wrong_sequence_number;
-            LOG_INFO(_log) << "wrong_sequence_number, request sqn="<<block.sequence
-                    << " expecting=" << info.block_count;
+            LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request.sequence
+                           << " expecting=" << info.block_count;
             return false;
         }
+
         // No previous block set.
-        if(block.previous.is_zero() && info.block_count)
+        if(request.previous.is_zero() && info.block_count)
         {
             result.code = logos::process_result::fork;
             return false;
@@ -92,16 +94,19 @@ bool PersistenceManager<B>::Validate(
         // This account has issued at least one send transaction.
         if(info.block_count)
         {
-            if(!_store.request_exists(block.previous))
+            if(!_store.request_exists(request.previous))
             {
                 result.code = logos::process_result::gap_previous;
-                BOOST_LOG (_log) << "GAP_PREVIOUS: cannot find previous hash " << block.previous.to_string()
-                                 << "; current account info head is: " << info.head.to_string();
+                BOOST_LOG (_log) << "GAP_PREVIOUS: cannot find previous hash "
+                                 << request.previous.to_string()
+                                 << "; current account info head is: "
+                                 << info.head.to_string();
+
                 return false;
             }
         }
 
-        if(block.previous != info.head)
+        if(request.previous != info.head)
         {
             // Allow duplicate requests (hash == info.head)
             // received from batch blocks.
@@ -161,8 +166,8 @@ bool PersistenceManager<B>::Validate(
             update_reservation();
         }
 
-        auto total = block.transaction_fee.number();
-        for(auto & i : block.transactions)
+        auto total = request.transaction_fee.number();
+        for(auto & i : request.transactions)
         {
             total += i.amount.number();
         }
@@ -173,7 +178,7 @@ bool PersistenceManager<B>::Validate(
         }
     }
 
-    // account doesn't exist
+    // Account doesn't exist
     else
     {
         // Currently do not accept state blocks
@@ -181,7 +186,7 @@ bool PersistenceManager<B>::Validate(
         result.code = logos::process_result::unknown_source_account;
         return false;
 
-        if(!block.previous.is_zero())
+        if(!request.previous.is_zero())
         {
             return false;
         }
@@ -191,29 +196,33 @@ bool PersistenceManager<B>::Validate(
     return true;
 }
 
-bool PersistenceManager<B>::Validate(
+bool PersistenceManager<R>::Validate(
     const Request & block)
 {
     logos::process_return ignored_result;
-    auto re = Validate(block, ignored_result);
-    LOG_DEBUG(_log) << "PersistenceManager<B>::Validate code " << (uint)ignored_result.code;
-    return re;
+    auto val = Validate(block, ignored_result);
+
+    LOG_DEBUG(_log) << "PersistenceManager<R>::Validate code "
+                    << (uint)ignored_result.code;
+
+    return val;
 }
 
-bool PersistenceManager<B>::Validate(
+bool PersistenceManager<R>::Validate(
     const PrePrepare & message,
     ValidationStatus * status)
 {
     using namespace logos;
 
     bool valid = true;
-    for(uint64_t i = 0; i < message.block_count; ++i)
+    for(uint64_t i = 0; i < message.requests.size(); ++i)
     {
-        logos::process_return   result;
-        if(!Validate(static_cast<const Request&>(message.blocks[i]), result))
+        logos::process_return result;
+        if(!Validate(static_cast<const Request&>(*message.requests[i]), result))
         {
             UpdateStatusRequests(status, i, result.code);
             UpdateStatusReason(status, process_result::invalid_request);
+
             valid = false;
         }
     }
@@ -221,14 +230,14 @@ bool PersistenceManager<B>::Validate(
     return valid;
 }
 
-void PersistenceManager<B>::StoreBatchMessage(
+void PersistenceManager<R>::StoreBatchMessage(
     const ApprovedBSB & message,
     MDB_txn * transaction,
     uint8_t delegate_id)
 {
     auto hash(message.Hash());
     LOG_DEBUG(_log) << "PersistenceManager::StoreBatchMessage - "
-                                << message.Hash().to_string();
+                    << message.Hash().to_string();
 
     if(_store.batch_block_put(message, hash, transaction))
     {
@@ -250,35 +259,38 @@ void PersistenceManager<B>::StoreBatchMessage(
 
     if(! message.previous.is_zero())
     {
-        if(_store.consensus_block_update_next(message.previous, hash, ConsensusType::BatchStateBlock, transaction))
+        if(_store.consensus_block_update_next(message.previous, hash, ConsensusType::Request, transaction))
         {
             // TODO: bootstrap here.
         }
     }
 
-    // TODO: Add previous hash for batch blocks with
+    // TODO: Add previous hash for request blocks with
     //       a previous set to zero because it was
     //       the first batch of the epoch.
 }
 
-void PersistenceManager<B>::ApplyBatchMessage(
+void PersistenceManager<R>::ApplyBatchMessage(
     const ApprovedBSB & message,
     MDB_txn * transaction)
 {
-    for(uint16_t i = 0; i < message.block_count; ++i)
+    for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
-        ApplyStateMessage(message.blocks[i],
+        auto request = static_pointer_cast<Send>(message.requests[i]);
+
+        ApplyStateMessage(*request,
                           message.timestamp,
                           transaction);
 
         std::lock_guard<std::mutex> lock(_reservation_mutex);
-        _reservations->Release(message.blocks[i].account);
+        _reservations->Release(
+            static_pointer_cast<const Send>(message.requests[i])->account);
     }
 }
 
 // Currently designed only to handle
 // send transactions.
-void PersistenceManager<B>::ApplyStateMessage(
+void PersistenceManager<R>::ApplyStateMessage(
     const Send & request,
     uint64_t timestamp,
     MDB_txn * transaction)
@@ -289,7 +301,7 @@ void PersistenceManager<B>::ApplyStateMessage(
     }
 }
 
-bool PersistenceManager<B>::UpdateSourceState(
+bool PersistenceManager<R>::UpdateSourceState(
     const Send & request,
     MDB_txn * transaction)
 {
@@ -339,7 +351,7 @@ bool PersistenceManager<B>::UpdateSourceState(
     return false;
 }
 
-void PersistenceManager<B>::UpdateDestinationState(
+void PersistenceManager<R>::UpdateDestinationState(
     const Send & request,
     uint64_t timestamp,
     MDB_txn * transaction)
@@ -352,7 +364,7 @@ void PersistenceManager<B>::UpdateDestinationState(
     for(auto & t : request.transactions)
     {
         logos::account_info info;
-        auto account_error(_store.account_get(t.target, info));
+        auto account_error(_store.account_get(t.destination, info));
 
         ReceiveBlock receive(
                 /* Previous   */ info.receive_head,
@@ -368,7 +380,7 @@ void PersistenceManager<B>::UpdateDestinationState(
             info.open_block = hash;
             LOG_DEBUG(_log) << "PersistenceManager::UpdateDestinationState - "
                             << "new account: "
-                            << t.target.to_string();
+                            << t.destination.to_string();
         }
 
         info.receive_count++;
@@ -376,11 +388,11 @@ void PersistenceManager<B>::UpdateDestinationState(
         info.balance = info.balance.number() + t.amount.number();
         info.modified = logos::seconds_since_epoch();
 
-        if(_store.account_put(t.target, info, transaction))
+        if(_store.account_put(t.destination, info, transaction))
         {
             LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
                             << "Failed to store account: "
-                            << t.target.to_string();
+                            << t.destination.to_string();
 
             std::exit(EXIT_FAILURE);
         }
@@ -391,7 +403,7 @@ void PersistenceManager<B>::UpdateDestinationState(
 
 // TODO: Discuss total order of receives in
 //       receive_db of all nodes.
-void PersistenceManager<B>::PlaceReceive(
+void PersistenceManager<R>::PlaceReceive(
     ReceiveBlock & receive,
     uint64_t timestamp,
     MDB_txn * transaction)

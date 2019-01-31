@@ -1,22 +1,23 @@
 /// @file
-/// This file contains declaration of BatchStateBlock related validation/persistence
+/// This file contains declaration of Request related validation/persistence
 
 #pragma once
 
 #include <logos/consensus/persistence/persistence_manager.hpp>
 
-const ConsensusType B = ConsensusType::BatchStateBlock;
+const ConsensusType R = ConsensusType::Request;
 
 using boost::multiprecision::uint128_t;
 using namespace boost::multiprecision::literals;
 
 template<>
-class PersistenceManager<B> : public Persistence {
+class PersistenceManager<R> : public Persistence
+{
 
 protected:
 
-    using Request         = RequestMessage<B>;
-    using PrePrepare      = PrePrepareMessage<B>;
+    using Request         = RequestMessage<R>;
+    using PrePrepare      = PrePrepareMessage<R>;
     using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
 
 public:
@@ -28,8 +29,8 @@ public:
 
     virtual void ApplyUpdates(const ApprovedBSB & message, uint8_t delegate_id);
 
-    virtual bool Validate(const Request & block, logos::process_return & result, bool allow_duplicates = true);
-    virtual bool Validate(const Request & block);
+    virtual bool Validate(const Request & request, logos::process_return & result, bool allow_duplicates = true);
+    virtual bool Validate(const Request & request);
 
     virtual bool Validate(const PrePrepare & message, ValidationStatus * status = nullptr);
 

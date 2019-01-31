@@ -864,9 +864,9 @@ bool logos::block_store::batch_block_put (ApprovedBSB const & block, const Block
                         value, 0));
     assert(status == 0);
 
-    for(uint16_t i = 0; i < block.block_count; ++i)
+    for(uint16_t i = 0; i < block.requests.size(); ++i)
     {
-        status = request_put(block.blocks[i], block.blocks[i].GetHash(), transaction);
+        status = request_put(*block.requests[i], block.requests[i]->GetHash(), transaction);
         assert(status == 0);
     }
 
@@ -874,6 +874,24 @@ bool logos::block_store::batch_block_put (ApprovedBSB const & block, const Block
     return status != 0;
 }
 
+
+bool logos::block_store::request_get(const BlockHash & hash, std::shared_ptr<Request> & request, MDB_txn * transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    mdb_val val;
+    if(mdb_get(transaction, state_db, mdb_val(hash), val))
+    {
+        LOG_TRACE(log) << __func__ << " mdb_get failed";
+        return true;
+    }
+
+    bool error = false;
+    request.reset(new Send(error, val));
+    assert(!error);
+
+    return error;
+}
 
 bool logos::block_store::request_put(const Request & request, const BlockHash & batch_hash, MDB_txn * transaction)
 {
@@ -935,15 +953,17 @@ bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & b
 
         if(!error)
         {
-            if(block.block_count > CONSENSUS_BATCH_SIZE)
+            if(block.hashes.size() > CONSENSUS_BATCH_SIZE)
             {
-                LOG_FATAL(log) << __func__ << " batch_block_get failed, block.block_count > CONSENSUS_BATCH_SIZE";
+                LOG_FATAL(log) << __func__
+                               << " batch_block_get failed, block.request_count > CONSENSUS_BATCH_SIZE";
                 trace_and_halt();
             }
 
-            for(uint16_t i = 0; i < block.block_count; ++i)
+            for(uint16_t i = 0; i < block.hashes.size(); ++i)
             {
-                if(request_get(block.hashs[i], block.blocks[i], transaction))
+                block.requests.push_back(std::shared_ptr<Request>(nullptr));
+                if(request_get(block.hashes[i], block.requests[i], transaction))
                 {
                     LOG_ERROR(log) << __func__ << " request_get failed";
                     return true;
@@ -964,7 +984,7 @@ bool logos::block_store::consensus_block_update_next(const BlockHash & hash, con
     MDB_dbi db = 0; //typedef unsigned int    MDB_dbi, maybe use a naked pointer?
 
     switch(type){
-    case ConsensusType::BatchStateBlock:
+    case ConsensusType::Request:
         db = batch_db;
         break;
     case ConsensusType::MicroBlock:
@@ -1001,12 +1021,12 @@ bool logos::block_store::consensus_block_update_next(const BlockHash & hash, con
     auto data_size(value.size());
     std::vector<uint8_t> buf(data_size);
     mdb_val value_buf(data_size, buf.data());
-    update_PostCommittedBlock_next_field(value, value_buf, next);
+    UpdateNext(value, value_buf, next);
     status = mdb_put(transaction, db, key, value_buf, 0);
     if(status != 0)
     {
         LOG_FATAL(log) << __func__ << " failed to put consensus block "
-                << ConsensusToName(type);
+                       << ConsensusToName(type);
         trace_and_halt();
     }
     return false;

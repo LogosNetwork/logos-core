@@ -33,9 +33,9 @@ public:
 	/// Special benchmark request.
 	///     @param[in]  epoch block
 	///     @param[out] result result of the operation
-    void OnBenchmarkSendRequest(
-		std::shared_ptr<Request>,
-		logos::process_return & ) override;
+    void OnBenchmarkDelegateMessage(
+		std::shared_ptr<DelegateMessage> message,
+		logos::process_return & result) override;
 
 protected:
 	/// Commit to the store.
@@ -58,11 +58,11 @@ protected:
 	///     @param[out] result of the validation
 	///     @return true if validated false otherwise
 	bool Validate(
-		std::shared_ptr<Request> block,
+		std::shared_ptr<DelegateMessage> block,
 		logos::process_return & result) override;
 
     /// Queues epoch block
-	void QueueRequestPrimary(std::shared_ptr<Request>) override;
+	void QueueMessagePrimary(std::shared_ptr<DelegateMessage> message) override;
 
     /// Gets next available epoch block
 	///		@return reference to epoch block
@@ -82,21 +82,23 @@ protected:
     /// @returns true if the request is in the list
     bool PrimaryContains(const BlockHash&) override;
 
-	void QueueRequestSecondary(std::shared_ptr<Request> request) override;
+	void QueueMessageSecondary(std::shared_ptr<DelegateMessage> message) override;
 
 	/// Create specialized instance of BackupDelegate
 	///     @param iochannel NetIOChannel pointer
 	///     @param ids Delegate's id
 	///     @return BackupDelegate
-	std::shared_ptr<BackupDelegate<ConsensusType::Epoch>> MakeBackupDelegate(
-			std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
+	std::shared_ptr<BackupDelegate<ConsensusType::Epoch>>
+	MakeBackupDelegate(std::shared_ptr<IOChannel> iochannel,
+					   const DelegateIdentities& ids) override;
 
 	/// Request's primary delegate, 0 (delegate with most voting power) for Micro/Epoch Block
-    /// @param request request
+    /// @param message request
     /// @returns designated delegate
-    uint8_t DesignatedDelegate(std::shared_ptr<Request> request) override;
+    uint8_t DesignatedDelegate(std::shared_ptr<DelegateMessage> message) override;
 
 private:
-    std::shared_ptr<PrePrepare>  _cur_epoch; 	///< Currently handled epoch
-	bool 						 _enqueued;   	///< Request is enqueued
+
+    std::shared_ptr<PrePrepare> _cur_epoch; ///< Currently handled epoch
+	bool 						_enqueued;  ///< Request is enqueued
 };

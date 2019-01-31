@@ -7,12 +7,12 @@
 
 template<ConsensusType CT>
 BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
-                                             PrimaryDelegate & primary,
-                                             RequestPromoter<CT> & promoter,
-                                             MessageValidator & validator,
-                                             const DelegateIdentities & ids,
-                                             EpochEventsNotifier & events_notifer,
-                                             PersistenceManager<CT> & persistence_manager)
+                                   PrimaryDelegate & primary,
+                                   MessagePromoter<CT> & promoter,
+                                   MessageValidator & validator,
+                                   const DelegateIdentities & ids,
+                                   EpochEventsNotifier & events_notifer,
+                                   PersistenceManager<CT> & persistence_manager)
     : DelegateBridge<CT>(iochannel)
     , _delegate_ids(ids)
     , _reason(RejectionReason::Void)
@@ -215,8 +215,8 @@ bool BackupDelegate<CT>::ValidateTimestamp(const PrePrepare & message)
 
 template<>
 template<>
-bool BackupDelegate<ConsensusType::BatchStateBlock>::ValidateEpoch(
-    const PrePrepareMessage<ConsensusType::BatchStateBlock> &message)
+bool BackupDelegate<ConsensusType::Request>::ValidateEpoch(
+    const PrePrepareMessage<ConsensusType::Request> &message)
 {
     bool valid = true;
 
@@ -244,7 +244,7 @@ bool BackupDelegate<ConsensusType::BatchStateBlock>::ValidateEpoch(
 template<ConsensusType CT>
 template<typename M>
 bool BackupDelegate<CT>::ProceedWithMessage(const M & message,
-                                                 ConsensusState expected_state)
+                                            ConsensusState expected_state)
 {
     if(_state != expected_state)
     {
@@ -313,6 +313,6 @@ template<ConsensusType CT>
 bool BackupDelegate<CT>::ValidateReProposal(const PrePrepare & message)
 {}
 
-template class BackupDelegate<ConsensusType::BatchStateBlock>;
+template class BackupDelegate<ConsensusType::Request>;
 template class BackupDelegate<ConsensusType::MicroBlock>;
 template class BackupDelegate<ConsensusType::Epoch>;
