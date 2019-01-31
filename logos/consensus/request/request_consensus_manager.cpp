@@ -100,11 +100,11 @@ RequestConsensusManager::Validate(
   std::shared_ptr<DelegateMessage> message,
   logos::process_return & result)
 {
-    if(! message->VerifySignature(message->account))
+    if(! message->VerifySignature(message->origin))
     {
         LOG_INFO(_log) << "RequestConsensusManager - Validate, bad signature: "
                        << message->signature.to_string()
-                       << " account: " << message->account.to_string();
+                       << " account: " << message->origin.to_string();
 
         result.code = logos::process_result::bad_signature;
         return false;
@@ -132,7 +132,7 @@ void
 RequestConsensusManager::QueueMessagePrimary(
     std::shared_ptr<DelegateMessage> message)
 {
-    _handler.OnRequest(message);
+    _handler.OnRequest(static_pointer_cast<Request>(message));
 }
 
 auto
@@ -221,7 +221,7 @@ RequestConsensusManager::DesignatedDelegate(std::shared_ptr<DelegateMessage> mes
     // for that account.
     //
     uint8_t indicator = message->previous.is_zero() ?
-           message->account.data()[0] : message->previous.data()[0];
+           message->origin.data()[0] : message->previous.data()[0];
 
     auto id = uint8_t(indicator & ((1<<DELIGATE_ID_MASK)-1));
 
@@ -487,7 +487,7 @@ RequestConsensusManager::OnPrePrepareRejected()
         }
     }
 
-    std::list<struct Send> requests;
+    std::list<std::shared_ptr<Request>> requests;
 
     // Create new pre-prepare messages
     // based on the subsets.
@@ -501,10 +501,10 @@ RequestConsensusManager::OnPrePrepareRejected()
 
         for(; itr != indexes.end(); ++itr, ++i)
         {
-            requests.push_back(static_cast<struct Send&>(*batch.requests[*itr]));
+            requests.push_back(batch.requests[*itr]);
         }
 
-        requests.push_back(::Send());
+        requests.push_back(std::shared_ptr<Request>(new Request()));
     }
 
     // Pushing a null state_block to the front
@@ -513,7 +513,7 @@ RequestConsensusManager::OnPrePrepareRejected()
     // we proceed if no requests can be re-proposed.
     if(requests.empty())
     {
-        requests.push_back(::Send());
+        requests.push_back(std::shared_ptr<Request>(new Request()));
     }
 
     _handler.PopFront();

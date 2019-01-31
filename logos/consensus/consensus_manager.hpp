@@ -41,7 +41,7 @@ class MessagePromoter
 
 protected:
 
-    using Message    = RequestMessage<CT>;
+    using Message    = DelegateMessage<CT>;
     using PrePrepare = PrePrepareMessage<CT>;
 
 public:
@@ -69,7 +69,7 @@ protected:
     using Connection      = BackupDelegate<CT>;
     using Connections     = std::vector<std::shared_ptr<Connection>>;
     using Manager         = ConsensusManager<CT>;
-    using DelegateMessage = RequestMessage<CT>;
+    using DelegateMessage = ::DelegateMessage<CT>;
     using PrePrepare      = PrePrepareMessage<CT>;
     using PostPrepare     = PostPrepareMessage<CT>;
     using PostCommit      = PostCommitMessage<CT>;

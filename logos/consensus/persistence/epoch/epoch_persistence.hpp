@@ -15,7 +15,7 @@ class PersistenceManager<ECT> : public Persistence
 
 protected:
 
-    using Request         = RequestMessage<ECT>;
+    using Request         = DelegateMessage<ECT>;
     using PrePrepare      = PrePrepareMessage<ECT>;
     using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
 

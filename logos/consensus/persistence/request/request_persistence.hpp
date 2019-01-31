@@ -16,7 +16,7 @@ class PersistenceManager<R> : public Persistence
 
 protected:
 
-    using Request         = RequestMessage<R>;
+    using Request         = DelegateMessage<R>;
     using PrePrepare      = PrePrepareMessage<R>;
     using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
 

@@ -379,6 +379,7 @@ add_library (node
 	logos/request/change.cpp
 	logos/request/request.cpp
 	logos/request/send.cpp
+	logos/request/utility.cpp
 	logos/token/account.cpp
 	logos/token/common.cpp
 	logos/token/requests.cpp

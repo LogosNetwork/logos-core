@@ -42,7 +42,7 @@ create_bsb_preprepare(uint16_t num_sb)
     PrePrepareMessage<ConsensusType::Request> block;
     for(uint32_t i = 0; i < num_sb; ++i)
     {
-        block.AddRequest(Send(1, 2, i, 5, 6, 7, 8, 9));
+        block.AddRequest(std::make_shared<Send>(Send(1, 2, i, 5, 6, 7, 8, 9)));
     }
 
     return block;
@@ -593,7 +593,7 @@ TEST (blocks, batch_state_block_PrePrepare_empty)
 TEST (blocks, batch_state_block_PrePrepare_full)
 {
     auto block = create_bsb_preprepare(CONSENSUS_BATCH_SIZE);
-    ASSERT_FALSE(block.AddRequest(Send(1, 2, CONSENSUS_BATCH_SIZE + 1, 5, 6, 7, 8, 9)));
+    ASSERT_FALSE(block.AddRequest(std::make_shared<Send>(Send(1, 2, CONSENSUS_BATCH_SIZE + 1, 5, 6, 7, 8, 9))));
     ASSERT_EQ(block.requests.size(), CONSENSUS_BATCH_SIZE);
     vector<uint8_t> buf;
     block.Serialize(buf);
