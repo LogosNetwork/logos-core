@@ -7,6 +7,7 @@
 #include <logos/consensus/messages/receive_block.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
+#include <logos/request/utility.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
@@ -84,7 +85,7 @@ ConsensusContainer::CreateEpochManager(
 
 logos::process_return
 ConsensusContainer::OnDelegateMessage(
-    std::shared_ptr<Send> request,
+    std::shared_ptr<Request> request,
     bool should_buffer)
 {
     logos::process_return result;
@@ -104,21 +105,21 @@ ConsensusContainer::OnDelegateMessage(
 	    return result;
 	}
 
-
-    using Request = RequestMessage<ConsensusType::Request>;
+    using DM = DelegateMessage<ConsensusType::Request>;
 
     if(should_buffer)
     {
         result.code = logos::process_result::buffered;
         _cur_epoch->_request_manager.OnBenchmarkDelegateMessage(
-            static_pointer_cast<Request>(request), result);
+            static_pointer_cast<DM>(request), result);
     }
     else
     {
         LOG_DEBUG(_log) << "ConsensusContainer::OnDelegateMessage: "
-                        << "number_transaction=" << request->transactions.size();
+                        << "RequestType="
+                        << GetRequestTypeField(request->type);
         _cur_epoch->_request_manager.OnDelegateMessage(
-            static_pointer_cast<Request>(request), result);
+            static_pointer_cast<DM>(request), result);
     }
 
     return result;
@@ -160,11 +161,11 @@ ConsensusContainer::BufferComplete(
 
 logos::process_return
 ConsensusContainer::OnDelegateMessage(
-    std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>> message)
+    std::shared_ptr<DelegateMessage<ConsensusType::MicroBlock>> message)
 {
     OptLock lock(_transition_state, _mutex);
     logos::process_return result;
-	using Request = RequestMessage<ConsensusType::MicroBlock>;
+	using Request = DelegateMessage<ConsensusType::MicroBlock>;
 
     if (_cur_epoch == nullptr)
     {
@@ -183,11 +184,11 @@ ConsensusContainer::OnDelegateMessage(
 
 logos::process_return
 ConsensusContainer::OnDelegateMessage(
-    std::shared_ptr<RequestMessage<ConsensusType::Epoch>> message)
+    std::shared_ptr<DelegateMessage<ConsensusType::Epoch>> message)
 {
     OptLock lock(_transition_state, _mutex);
     logos::process_return result;
-    using Request = RequestMessage<ConsensusType::Epoch>;
+    using Request = DelegateMessage<ConsensusType::Epoch>;
 
     if (_cur_epoch == nullptr)
     {

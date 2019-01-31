@@ -458,18 +458,18 @@ using PostCommitMessage = PostPhaseMessage<MessageType::Post_Commit, CT>;
 // vary based on the consensus type.
 //
 template<ConsensusType CT>
-struct RequestMessage;
+struct DelegateMessage;
 
 template<>
-struct RequestMessage<ConsensusType::Request> : Send
+struct DelegateMessage<ConsensusType::Request> : Request
 {};
 
 template<>
-struct RequestMessage<ConsensusType::MicroBlock> : PrePrepareMessage<ConsensusType::MicroBlock>
+struct DelegateMessage<ConsensusType::MicroBlock> : PrePrepareMessage<ConsensusType::MicroBlock>
 {};
 
 template<>
-struct RequestMessage<ConsensusType::Epoch> : PrePrepareMessage<ConsensusType::Epoch>
+struct DelegateMessage<ConsensusType::Epoch> : PrePrepareMessage<ConsensusType::Epoch>
 {};
 
 using ApprovedBSB = PostCommittedBlock<ConsensusType::Request>;

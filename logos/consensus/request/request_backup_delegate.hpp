@@ -22,7 +22,7 @@ class RequestBackupDelegate : public BackupDelegate<ConsensusType::Request>
     using Seconds    = boost::posix_time::seconds;
     using Error      = boost::system::error_code;
     using Hashes     = std::unordered_set<BlockHash>;
-    using Request    = RequestMessage<R>;
+    using Request    = DelegateMessage<R>;
 
 public:
 
