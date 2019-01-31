@@ -27,7 +27,7 @@ class WaitingList
     using Timer      = boost::asio::deadline_timer;
     using Service    = boost::asio::io_service;
     using Error      = boost::system::error_code;
-    using MessagePtr = std::shared_ptr<RequestMessage<CT>>;
+    using MessagePtr = std::shared_ptr<DelegateMessage<CT>>;
     using Seconds    = boost::posix_time::seconds;
     using Clock      = boost::posix_time::second_clock;
     using TimePoint  = boost::posix_time::ptime;
@@ -56,7 +56,7 @@ public:
 
     bool Contains(const BlockHash & hash);
 
-    void OnRequest(std::shared_ptr<RequestMessage<CT>> block,
+    void OnRequest(std::shared_ptr<DelegateMessage<CT>> block,
                    Seconds seconds = REQUEST_TIMEOUT);
 
     void OnTimeout(const Error & error);

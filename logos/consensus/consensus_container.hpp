@@ -70,8 +70,8 @@ class InternalConsensus
 public:
     InternalConsensus() = default;
     virtual ~InternalConsensus() = default;
-    virtual logos::process_return OnDelegateMessage(std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>>) = 0;
-    virtual logos::process_return OnDelegateMessage(std::shared_ptr<RequestMessage<ConsensusType::Epoch>>) = 0;
+    virtual logos::process_return OnDelegateMessage(std::shared_ptr<DelegateMessage<ConsensusType::MicroBlock>>) = 0;
+    virtual logos::process_return OnDelegateMessage(std::shared_ptr<DelegateMessage<ConsensusType::Epoch>>) = 0;
     virtual void EpochTransitionEventsStart() = 0;
 };
 
@@ -123,14 +123,14 @@ public:
 
     ~ConsensusContainer() = default;
 
-    /// Handles requests for batch block consensus.
+    /// Handles requests for request consensus.
     ///
-    /// Submits transactions to consensus logic.
-    ///     @param[in] request state_block containing the transaction
+    /// Submits requests to consensus logic.
+    ///     @param[in] request Incoming request message
     ///     @param[in] should_buffer bool flag that, when set, will
     ///                              cause the block to be buffered
     ///     @return process_return result of the operation
-    logos::process_return OnDelegateMessage(std::shared_ptr<Send> request,
+    logos::process_return OnDelegateMessage(std::shared_ptr<Request> request,
                                             bool should_buffer) override;
 
     /// Handles requests for batch block consensus.
@@ -171,11 +171,11 @@ protected:
 
 	/// Initiate MicroBlock consensus, internal request
 	///		@param[in] MicroBlock containing the batch blocks
-    logos::process_return OnDelegateMessage(std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>> message) override;
+    logos::process_return OnDelegateMessage(std::shared_ptr<DelegateMessage<ConsensusType::MicroBlock>> message) override;
 
     /// Initiate Epoch consensus, internal request
     ///		@param[in] Epoch containing the microblocks
-    logos::process_return OnDelegateMessage(std::shared_ptr<RequestMessage<ConsensusType::Epoch>> message) override;
+    logos::process_return OnDelegateMessage(std::shared_ptr<DelegateMessage<ConsensusType::Epoch>> message) override;
 
 private:
 

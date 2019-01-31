@@ -127,7 +127,7 @@ void
 RequestConsensusManager::QueueMessagePrimary(
     std::shared_ptr<DelegateMessage> message)
 {
-    _handler.OnRequest(message);
+    _handler.OnRequest(static_pointer_cast<Request>(message));
 }
 
 // This should only be called once per consensus round
@@ -226,7 +226,7 @@ RequestConsensusManager::DesignatedDelegate(std::shared_ptr<DelegateMessage> mes
     // for that account.
     //
     uint8_t indicator = message->previous.is_zero() ?
-                        message->account.bytes.back() : message->previous.bytes.back();
+                        message->origin.bytes.back() : message->previous.bytes.back();
 
     auto did = uint8_t(indicator & ((1<<DELIGATE_ID_MASK)-1));
 
@@ -537,7 +537,7 @@ RequestConsensusManager::OnPrePrepareRejected()
         }
     }
 
-    std::list<struct Send> requests;
+    std::list<std::shared_ptr<Request>> requests;
 
     // Create new pre-prepare messages
     // based on the subsets.
@@ -551,17 +551,20 @@ RequestConsensusManager::OnPrePrepareRejected()
 
         for(; itr != indexes.end(); ++itr, ++i)
         {
-            requests.push_back(static_cast<struct Send&>(*batch.requests[*itr]));
+            requests.push_back(batch.requests[*itr]);
         }
 
-        requests.push_back(::Send());
+        requests.push_back(std::shared_ptr<Request>(new Request()));
     }
 
     // Pushing a null state_block to the front
     // of the queue will trigger consensus
     // with an empty batch block, which is how
     // we proceed if no requests can be re-proposed.
-    requests.push_back(::Send());
+    if(requests.empty())
+    {
+        requests.push_back(std::shared_ptr<Request>(new Request()));
+    }
 
     _handler.PopFront();
     _handler.InsertFront(requests);
