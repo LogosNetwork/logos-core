@@ -221,16 +221,25 @@ struct PrePrepareCommon
         return *this;
     }
 
-    void Hash(blake2b_state & hash) const
+    void Hash(blake2b_state & hash, bool is_archive_block = false) const
     {
         uint32_t en = htole32(epoch_number);
         uint32_t sqn = htole32(sequence);
-        uint64_t tsp = htole64(timestamp);
 
-        primary_delegate.Hash(hash);
+        // SYL Integration: for archive blocks, we want to ensure the hash of a block with
+        // a given epoch_number and sequence is the same across all delegates
+        if (!is_archive_block)
+        {
+            primary_delegate.Hash(hash);
+        }
         blake2b_update(&hash, &en, sizeof(uint32_t));
         blake2b_update(&hash, &sqn, sizeof(uint32_t));
-        blake2b_update(&hash, &tsp, sizeof(uint64_t));
+
+        if (!is_archive_block)
+        {
+            uint64_t tsp = htole64(timestamp);
+            blake2b_update(&hash, &tsp, sizeof(uint64_t));
+        }
         previous.Hash(hash);
     }
 

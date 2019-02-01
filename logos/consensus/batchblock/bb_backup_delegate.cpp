@@ -43,6 +43,8 @@ BBBackupDelegate::DoValidate(
         return false;
     }
 
+    // TODO: Validate if primary_delegate is correct
+
     if(!ValidateRequests(message))
     {
         LOG_DEBUG(_log) << "BBBackupDelegate::DoValidate ValidateRequests failed";

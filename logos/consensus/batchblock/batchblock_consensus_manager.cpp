@@ -99,16 +99,6 @@ BatchBlockConsensusManager::Validate(
   std::shared_ptr<Request> block,
   logos::process_return & result)
 {
-    if(! block->VerifySignature(block->account))
-    {
-        LOG_INFO(_log) << "BatchBlockConsensusManager - Validate, bad signature: "
-                       << block->signature.to_string()
-                       << " account: " << block->account.to_string();
-
-        result.code = logos::process_result::bad_signature;
-        return false;
-    }
-
     return _persistence_manager.Validate(*block, result, false);
 }
 
@@ -144,6 +134,9 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
     batch.sequence = _sequence;
     batch.timestamp = GetStamp();
     batch.epoch_number = _events_notifier.GetEpochNumber();
+    batch.primary_delegate = DelegateIdentityManager::_delegate_account;
+    // SYL Integration fix: move previous assignment here to avoid overriding in archive blocks
+    batch.previous = _prev_pre_prepare_hash;
 
     for(uint64_t i = 0; i < batch.block_count; ++i)
     {

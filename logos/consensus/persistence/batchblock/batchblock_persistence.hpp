@@ -62,5 +62,5 @@ private:
     Log                 _log;
     ReservationsPtr     _reservations;
     std::mutex          _reservation_mutex;
-    std::mutex          _destination_mutex;
+    std::mutex          _write_mutex;
 };

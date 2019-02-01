@@ -42,6 +42,9 @@ void PersistenceManager<BSBCT>::ApplyUpdates(
     LOG_DEBUG(_log) << "PersistenceManager<BSBCT>::ApplyUpdates - BSB with "
             << message.block_count << " StateBlocks";
 
+    // SYL integration: need to ensure the two operations below execute atomically
+    // Otherwise, multiple calls to batch persistence may overwrite balance for the same account
+    std::lock_guard<std::mutex> lock (_write_mutex);
     logos::transaction transaction(_store.environment, nullptr, true);
     StoreBatchMessage(message, transaction, delegate_id);
     ApplyBatchMessage(message, transaction);
@@ -52,6 +55,17 @@ bool PersistenceManager<BSBCT>::Validate(
     logos::process_return & result,
     bool allow_duplicates)
 {
+    // SYL Integration: move signature validation here so we always check
+    if(! block.VerifySignature(block.account))
+    {
+        LOG_WARN(_log) << "PersistenceManager<BSBCT> - Validate, bad signature: "
+                       << block.signature.to_string()
+                       << " account: " << block.account.to_string();
+
+        result.code = logos::process_result::bad_signature;
+        return false;
+    }
+
     auto hash = block.GetHash();
 
     if(block.account.is_zero())

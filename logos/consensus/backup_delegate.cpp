@@ -113,6 +113,7 @@ void BackupDelegate<CT>::OnConsensusMessage(const Rejection & message)
 template<ConsensusType CT>
 bool BackupDelegate<CT>::Validate(const PrePrepare & message)
 {
+    // TODO: Once ID management is ready, we have to check if signature and primary_delegate match
     if(!_validator.Validate(message.Hash(), message.preprepare_sig, _delegate_ids.remote))
     {
         LOG_DEBUG(_log) << " BackupDelegate<CT>::Validate Bad_Signature "

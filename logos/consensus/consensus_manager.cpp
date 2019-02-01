@@ -170,7 +170,6 @@ void ConsensusManager<CT>::InitiateConsensus()
                    << " consensus.";
 
     auto & pre_prepare = PrePrepareGetNext();
-    pre_prepare.previous = _prev_pre_prepare_hash;
 
     // SYL Integration: if we don't want to lock _state_mutex here it is important to
     // call OnConsensusInitiated before AdvanceState (otherwise PrimaryDelegate might
