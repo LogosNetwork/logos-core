@@ -84,6 +84,10 @@ private:
     /// @param store reference to block store
     bool IsFirstEpoch(BlockStore &store);
 
+    /// Is this the first MicroBlock
+    /// @param store reference to block store
+    bool IsFirstMicroBlock(BlockStore &store);
+
     bool                _first_epoch;
     EpochVotingManager  _voting_manager;
     EventProposer       _event_proposer;

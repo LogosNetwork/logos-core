@@ -29,9 +29,9 @@ public:
     /// @param i microblock process period interval
     MicroBlockHandler(BlockStore &store,
                       IRecallHandler & recall_handler)
-        : _store(store)
-        , _recall_handler(recall_handler)
-        {}
+            : _store(store)
+            , _recall_handler(recall_handler)
+    {}
 
     /// Class destructor
     virtual ~MicroBlockHandler() {}
@@ -43,7 +43,8 @@ public:
     /// @returns true on success
     bool Build(MicroBlock &block, bool last_micro_block);
 
-    /// Iterates each delegates' batch state block chain.
+    /// Iterates each delegates' batch state block chain. Traversing previous pointer.
+    /// Stop when reached the end tips.
     /// @param store block store reference [in]
     /// @param start tips to start iteration [in]
     /// @param end tips to end iteration [in]
@@ -51,6 +52,25 @@ public:
     ///   delegate id and BatchStateBlock
     static void BatchBlocksIterator(BlockStore & store, const BatchTips &start, const BatchTips &end,
                                     IteratorBatchBlockReceiverCb cb);
+
+    /// Iterates each delegates' batch state block chain. Traversing next pointer.
+    /// Stop when the timestamp is greater than the cutoff.
+    /// @param store block store reference [in]
+    /// @param start tips to start iteration [in]
+    /// @param cutoff timestamp to end iteration [in]
+    /// @param cb function to call for each delegate's batch state block, the function's argument are
+    ///   delegate id and BatchStateBlock
+    static void BatchBlocksIterator(BlockStore & store, const BatchTips &start, const uint64_t &cutoff,
+                                    IteratorBatchBlockReceiverCb cb);
+
+    /// Get microblock cut-off time in milliseconds
+    /// @param timestamp the base time stamp
+    /// @param add_cutoff if true then add cut off
+    /// @returns cut-off time
+    static uint64_t GetCutOffTimeMsec(const uint64_t timestamp, bool add_cutoff = false)
+    {
+        return (timestamp + ((add_cutoff)?TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count():0));
+    }
 
 private:
 
@@ -66,43 +86,38 @@ private:
     /// @param timestamp timestamp of the previous microblock [in]
     /// @returns Merkle root
     BlockHash FastMerkleTree(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks,
-            const uint64_t timestamp);
+                             const uint64_t timestamp);
 
     /// Calculate Merkle root and get batch block tips.
     /// Genesis micro block time stamp is 0. Therefore, the first micro block following the genesis
     /// micro block has to collect all batch state blocks from the current batch state block tips
     /// and find the oldest time stamp (OTS) of these blocks. Then the algorithm is as above
     /// with OTS replacing PMBTS.
-    /// @param start tips to start iteration [in]
-    /// @param end tips to end iteration [in]
+    /// @param start tips to start iteration, current BSB tips [in]
+    /// @param end previous microblock tips [in]
     /// @param tips new batch block tips [in|out]
     /// @param num_blocks number of selected batch blocks [out]
     /// @returns Merkle root
     BlockHash SlowMerkleTree(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks);
 
-    /// Get tips to include in the micro block
-    /// @param start tips to start iteration [in]
-    /// @param end tips to end iteration [in]
+    /// Get tips to include in the micro block.
+    /// Walk from the previous microblock tips to the cutoff time.
+    /// @param start previous microblock tips [in]
     /// @param tips new batch block tips [in|out]
     /// @param num_blocks number of selected batch blocks [out]
-    /// @param timestamp timestamp of the previous microblock [in]
-    void GetTipsFast(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks,
-            const uint64_t timestamp);
+    /// @param cutoff timestamp of the previous microblock, used as cutoff time [in]
+    void GetTipsFast(const BatchTips &start, const uint64_t cutoff, BatchTips &tips, uint &num_blocks);
 
-    /// Get tips to include in the micro block
-    /// @param start tips to start iteration [in]
-    /// @param end tips to end iteration [in]
+    /// Get tips to include in the first micro block after the genesis microblock.
+    /// The previous microblock doesn't have the timestamp, so have to find the very
+    /// first BSB for each delegate and then select the min timestamp. Then add 10 min and
+    /// remainder from min timestamp to the nearest 10 min. Then have to walk the BSB tips again to
+    /// select BSB with the timestamp less than the cut-off time.
+    /// @param start tips to start iteration, current BSB tips [in]
+    /// @param end previous microblock tips [in]
     /// @param tips new batch block tips [in|out]
     /// @param num_blocks number of selected batch blocks [out]
     void GetTipsSlow(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks);
-
-    /// Get microblock cut-off time in milliseconds
-    /// @param timestamp the base time stamp
-    /// @returns cut-off time
-    uint64_t GetCutOffTimeMsec(const uint64_t timestamp)
-    {
-        return (timestamp + TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count());
-    }
 
     BlockStore &            _store;
     IRecallHandler &        _recall_handler;    ///< recall handler reference
