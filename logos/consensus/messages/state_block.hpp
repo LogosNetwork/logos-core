@@ -74,6 +74,8 @@ struct ReceiveBlock
         tree.put("previous", previous.to_string());
         tree.put("send_hash", send_hash.to_string());
         tree.put("index_to_send_block", std::to_string(index2send));
+        tree.put("transaction_type", "receive");
+        tree.put("hash", Hash().to_string());
     }
 
     /// Serialize the data members to a stream
