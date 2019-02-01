@@ -16,6 +16,12 @@ uint64_t  EpochBlock::getEpochBlockSeqNr(Store& s)
     return tip->epoch_number;
 }
 
+uint64_t  EpochBlock::getEpochBlockSeqNr(Store& s, BlockHash& hash)
+{
+    std::shared_ptr<ApprovedEB> tip = EpochBlock::readEpochBlock(s,hash);
+    return tip->epoch_number;
+}
+
 BlockHash EpochBlock::getNextEpochBlock(Store &store, BlockHash &hash)
 {
 	ApprovedEB epoch;

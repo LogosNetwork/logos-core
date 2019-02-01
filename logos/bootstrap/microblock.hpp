@@ -17,11 +17,11 @@ namespace Micro
     /// @returns uint64_t representing the sequence number
     uint64_t  getMicroBlockSeqNr(Store& s);
 
-    /// getNextMicroBlock
+    /// getMicroBlockSeqNr
     /// @param s BlockStore
-    /// @param m MicroBlock reference
-    /// @returns BlockHash of next micro block given m
-    BlockHash getNextMicroBlock (Store &s, ApprovedMB &m);
+    //  @param hash the block to get sequence number from
+    /// @returns uint64_t representing the sequence number
+    uint64_t  getMicroBlockSeqNr(Store& s, BlockHash& hash);
 
     /// getNextMicroBlock
     /// @param s BlockStore

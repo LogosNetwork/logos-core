@@ -972,6 +972,7 @@ node (node_a)
 
 void logos::bootstrap_server::receive ()
 {
+    std::cout << "logos::bootstrap_server::receive" << std::endl;
     LOG_DEBUG(node->log) << "logos::bootstrap_server::receive" << std::endl;
     auto this_l (shared_from_this ());
     boost::asio::async_read (*socket, boost::asio::buffer (receive_buffer.data (), bootstrap_header_size), [this_l](boost::system::error_code const & ec, size_t size_a) {
@@ -981,6 +982,7 @@ void logos::bootstrap_server::receive ()
 
 void logos::bootstrap_server::receive_header_action (boost::system::error_code const & ec, size_t size_a)
 { // NOTE: Start of server request handling.
+    std::cout << "logos::bootstrap_server::receive_header_action" << std::endl;
     LOG_DEBUG(node->log) << "logos::bootstrap_server::receive_header_action" << std::endl;
     if (!ec)
     {
@@ -1089,6 +1091,7 @@ public:
 
 void logos::bootstrap_server::receive_bulk_pull_action (boost::system::error_code const & ec, size_t size_a)
 {
+    std::cout << "logos::bootstrap_server::receive_bulk_pull_action" << std::endl;
     LOG_DEBUG(node->log) << "logos::bootstrap_server::receive_bulk_pull_action" << std::endl;
     if (!ec)
     {
@@ -1131,6 +1134,7 @@ void logos::bootstrap_server::receive_bulk_pull_blocks_action (boost::system::er
 
 void logos::bootstrap_server::receive_tips_req_action (boost::system::error_code const & ec, size_t size_a)
 {
+    std::cout << "logos::bootstrap_server::receive_tips_req_action" << std::endl;
     LOG_DEBUG(node->log) << "logos::bootstrap_server::receive_tips_req_action" << std::endl;
     if (!ec)
     {

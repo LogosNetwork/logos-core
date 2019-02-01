@@ -132,7 +132,8 @@ int main (int argc, char * const * argv)
             if(error)
             {
                 std::cerr << "account_info deserialize error" << std::endl;
-                exit(-1);
+                std::cout << " EXIT_FAILURE<3> " << std::endl;
+                //exit(-1); // RGD
             }
             logos::block_hash rep_block (node.node->ledger.representative_calculated (transaction, info.head));
             std::unique_ptr<logos::block> block (node.node->store.block_get (transaction, rep_block));

@@ -37,6 +37,9 @@ RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch()
     _current_batch = BSBPrePrepare();
     auto & sequence = _requests.get<0>();
 
+    _current_batch.blocks.reserve(sequence.size());
+    _current_batch.hashes.reserve(sequence.size());
+
     for(auto pos = sequence.begin(); pos != sequence.end(); ++pos)
     {
         // Null state blocks are used as batch delimiters. When

@@ -10,7 +10,10 @@
 #include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/consensus_manager.hpp>
+#include <logos/consensus/persistence/persistence.hpp>
 #include <logos/consensus/persistence/persistence_manager.hpp>
+#include <logos/consensus/persistence/epoch/nondel_epoch_persistence.hpp>
+#include <logos/consensus/persistence/microblock/nondel_microblock_persistence.hpp>
 
 #include <logos/epoch/epoch.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
@@ -65,8 +68,8 @@ class validator {
     std::mutex mutex;
 
     // For validation of epoch/micro blocks.
-    shared_ptr<PersistenceManager<ECT> >  epoch_handler;
-    shared_ptr<PersistenceManager<MBCT> > micro_handler;
+    shared_ptr<NonDelPersistenceManager<ECT> >  epoch_handler;
+    shared_ptr<NonDelPersistenceManager<MBCT> > micro_handler;
  
     uint64_t nextMicro_counter;
     uint64_t nextEpoch_counter;
@@ -81,7 +84,7 @@ class validator {
     static int constexpr EPOCH_VALIDATION_ERROR_COUNTER_MAX = 100;
     static int constexpr MICRO_NOT_READY_COUNTER_MAX        = 100;
     static int constexpr EPOCH_NOT_READY_COUNTER_MAX        = 100;
-    static int constexpr MAX_BSB_RETRY                      = 1000;
+    static int constexpr MAX_RETRY                          = 1000;
 
     public:
 
@@ -98,6 +101,20 @@ class validator {
     /// reset clears state of class
     /// @param none
     bool reset();
+
+    bool can_proceed() // logical
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        if(micro.empty()) {
+            return true; // No pending micros need to be processed, ok to continue...
+        } else {
+            std::cout << "can_proceed:: micro.size(): " << micro.size() << std::endl;
+            for(int i = 0; i < micro.size(); ++i) {
+                std::cout << "can_proceed:: blocked on hash: " << micro[i]->micro->Hash().to_string() << std::endl;
+            }
+            return false;
+        }
+    }
 
     /// add_tips_response
     /// Store the tip response in a given request
@@ -143,10 +160,33 @@ class validator {
     /// in_memory_epoch_tips the current epoch block tips in memory (not in database yet)
     std::pair<int64_t, BlockHash> in_memory_epoch_tips();
 
+    /// is_black_list_error
+    /// @param result of validation of a block
+    /// @returns true if the result implies we blacklist the peer
+    bool is_black_list_error(ValidationStatus & result)
+    {
+#if 0
+        if(result.reason == logos::process_result::progress         ||
+           result.reason == logos::process_result::old              ||
+           result.reason == logos::process_result::gap_previous     ||
+           result.reason == logos::process_result::gap_source       ||
+           result.reason == logos::process_result::buffered         ||
+           result.reason == logos::process_result::buffering_done   ||
+           result.reason == logos::process_result::pending          ||
+           result.reason == logos::process_result::fork
+        ) {
+            return false; // Allow...
+        }
+        return true; // Fail others...
+#endif
+        return false; // TODO This can't be right, we have no way of knowing why...
+    }
+
     /// validate validation logic for bsb, micro and epoch
     /// @param block shared pointer of bulk_pull_response
     /// @returns boolean (true if failed, false if success)
     bool validate(std::shared_ptr<bulk_pull_response> block);
+
 };
 
 } // namespace BatchBlock

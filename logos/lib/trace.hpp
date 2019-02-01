@@ -4,6 +4,7 @@
 #pragma once
 #include <execinfo.h>
 #include <logos/lib/log.hpp>
+#include <iostream>
 
 inline void trace()
 {
@@ -21,7 +22,8 @@ inline void trace()
     strings = backtrace_symbols(buffer, nptrs);
     if (strings == NULL) {
         perror("backtrace_symbols");
-        exit(EXIT_FAILURE);
+        std::cout << " EXIT_FAILURE<4> " << std::endl;
+        //exit(EXIT_FAILURE); // RGD
     }
 
     for (j = 0; j < nptrs; j++)
@@ -47,6 +49,7 @@ inline void trace_and_halt()
             LOG_FATAL(log) << strings[i];
         }
         free(strings);
-        std::exit(EXIT_FAILURE);
+        std::cout << " EXIT_FAILURE<5> " << std::endl;
+        //std::exit(EXIT_FAILURE); // RGD
     }
 }

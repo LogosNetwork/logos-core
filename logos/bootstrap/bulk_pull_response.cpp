@@ -24,12 +24,10 @@ static NonDelPersistenceManager<BSBCT> * get_persistence_manager(logos::block_st
 //using Request = RequestMessage<ConsensusType::ApprovedBSB>;
 //using PrePrepare = PrePrepareMessage<BSBCT>;
 
-bool BatchBlock::Validate(Store & store, const ApprovedBSB & message, int delegate_id)
+bool BatchBlock::Validate(Store & store, const ApprovedBSB & message, int delegate_id, ValidationStatus * status)
 {
     std::lock_guard<std::mutex> lock(mutex_s);
-    ValidationStatus status;//TODO check return from validate
-    return get_persistence_manager(store)->Validate(message, &status);
-
+    return get_persistence_manager(store)->Validate(message, status);
 }
 
 void BatchBlock::ApplyUpdates(Store & store, const ApprovedBSB & message, uint8_t delegate_id)

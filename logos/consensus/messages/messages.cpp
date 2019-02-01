@@ -79,20 +79,24 @@ BatchStateBlock::BatchStateBlock(bool & error, logos::stream & stream, bool with
         return;
     }
 
+    hashes.reserve(block_count);
     for(uint64_t i = 0; i < block_count; ++i)
     {
-        error = logos::read(stream, hashs[i]);
+        BlockHash new_hash;
+        error = logos::read(stream, new_hash);
         if(error)
         {
             return;
         }
+        hashes.emplace_back(new_hash);
      }
 
+    blocks.reserve(block_count);
     if( with_state_block )
     {
         for(uint64_t i = 0; i < block_count; ++i)
         {
-            new(&blocks[i]) StateBlock(error, stream);
+            blocks.emplace_back(StateBlock(error, stream));
             if(error)
             {
                 return;
@@ -126,7 +130,7 @@ uint32_t BatchStateBlock::Serialize(logos::stream & stream, bool with_state_bloc
 
     for(uint64_t i = 0; i < block_count; ++i)
     {
-        s += logos::write(stream, hashs[i]);
+        s += logos::write(stream, hashes[i]);
     }
 
     if(with_state_block)

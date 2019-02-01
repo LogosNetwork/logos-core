@@ -217,7 +217,7 @@ BatchBlockConsensusManager::DesignatedDelegate(std::shared_ptr<Request> request)
     // for that account.
     //
     uint8_t indicator = request->previous.is_zero() ?
-           request->account.data()[0] : request->previous.data()[0];
+           request->account.bytes.back() : request->previous.bytes.back();
     auto did = uint8_t(indicator & ((1<<DELIGATE_ID_MASK)-1));
     LOG_DEBUG (_log) << "BatchBlockConsensusManager::DesignatedDelegate "
             << " id=" << (uint)did

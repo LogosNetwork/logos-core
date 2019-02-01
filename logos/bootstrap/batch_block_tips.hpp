@@ -57,6 +57,13 @@ struct tips_response {
     /// @param store BlockStore
     void Populate(Store & store);
 
+    /// Populate
+    /// Gets the data from our database and fills this structure with it
+    /// proceeds one by one, given the tips from the client, we get the next
+    /// micro, and if we are at the last_micro_block, we send a new epoch
+    /// @param store BlockStore
+    void PopulateLogical(Store & store, BatchBlock::tips_response & resp);
+
     /// Serialize
     /// write this object out as a stream.
     void Serialize(logos::stream & stream)

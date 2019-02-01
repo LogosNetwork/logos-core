@@ -40,6 +40,8 @@ PrePrepareMessage<ConsensusType::BatchStateBlock>
 create_bsb_preprepare(uint16_t num_sb)
 {
     PrePrepareMessage<ConsensusType::BatchStateBlock> block;
+    block.blocks.reserve(num_sb);
+    block.hashes.reserve(num_sb);
     for(uint32_t i = 0; i < num_sb; ++i)
     {
         block.AddStateBlock(StateBlock(1,2,i,StateBlock::Type::send,5,6,7,8,9));
@@ -643,9 +645,10 @@ TEST (blocks, batch_state_block_PostCommit_DB)
     ASSERT_FALSE(error);
     if(! error)
     {
+        block.blocks.reserve(block.block_count);
         for(uint16_t i = 0; i < block.block_count; ++i)
         {
-            new (&block.blocks[i]) StateBlock(error, sb_db_vals[i]);
+            block.blocks.emplace_back(StateBlock(error, sb_db_vals[i]));
             ASSERT_FALSE(error);
         }
     }

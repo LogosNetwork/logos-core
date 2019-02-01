@@ -981,7 +981,6 @@ void logos::rpc_handler::blocks ()
         }
         StateBlock block;
         ReceiveBlock receive_block;
-        std::string block_type;
 
         if(!node.store.state_block_get(hash, block, transaction))
         {
@@ -999,9 +998,9 @@ void logos::rpc_handler::blocks ()
             contents.put ("hash", hash_text);
             blocks.push_back (std::make_pair("", contents));
         }
-        if (block_type.empty())
+        else
         {
-            error_response (response, "Block not found");
+            error_response (response, "Block not found for hash " + hash_text);
         }
 
     }

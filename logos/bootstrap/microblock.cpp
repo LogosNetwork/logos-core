@@ -17,11 +17,10 @@ uint64_t  Micro::getMicroBlockSeqNr(Store& s)
     return tip->sequence;
 }
 
-BlockHash Micro::getNextMicroBlock(Store &store, ApprovedMB &b)
+uint64_t  Micro::getMicroBlockSeqNr(Store& s, BlockHash& hash)
 {
-    BlockHash h;
-    //TODO fix this
-    return h;
+    std::shared_ptr<ApprovedMB> tip = Micro::readMicroBlock(s,hash);
+    return tip->sequence;
 }
 
 BlockHash Micro::getNextMicroBlock(Store &store, BlockHash &hash)

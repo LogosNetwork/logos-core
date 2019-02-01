@@ -17,6 +17,11 @@ BlockHash getEpochBlockTip(Store& s);
 /// @returns uint64_t representing a sequence number
 uint64_t  getEpochBlockSeqNr(Store& s);
 
+/// getEpochBlockSeqNr
+/// @param store BlockStore
+/// @returns uint64_t representing a sequence number
+uint64_t  getEpochBlockSeqNr(Store& s, BlockHash& hash);
+
 /// getNextEpochBlock
 /// @param store BlockStore
 /// @param h BlockHash

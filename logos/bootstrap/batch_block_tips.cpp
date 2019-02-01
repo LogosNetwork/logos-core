@@ -47,6 +47,57 @@ bool BatchBlock::tips_response::CanProceed(BatchBlock::tips_response & resp)
     }
 }
 
+void BatchBlock::tips_response::PopulateLogical(Store & store, BatchBlock::tips_response & resp) // logical
+{
+    BlockHash epoch_tip = 0;
+    BlockHash micro_tip = 0;
+    uint32_t  epoch_seq = 0;
+    uint32_t  micro_seq = 0;
+
+    // Get next micro from client's
+    micro_tip = Micro::getNextMicroBlock(store, resp.micro_block_tip);
+    auto m = Micro::readMicroBlock(store, micro_tip);
+    if(m == nullptr) {
+        // Nothing to advance to...
+        micro_tip = resp.micro_block_tip;
+        micro_seq = resp.micro_block_seq_number;
+    } else {
+        micro_seq = m->sequence;
+    }
+    if (m != nullptr && /* assert we have a new micro to visit */
+        (m->last_micro_block > 0 /* at the end micro in an epoch */ || 
+        resp.epoch_block_seq_number <= 2 /* at the beginning of epochs */)) {
+        // Advance the epoch
+        epoch_tip = EpochBlock::getNextEpochBlock(store, resp.epoch_block_tip);
+        auto e = EpochBlock::readEpochBlock(store, epoch_tip);
+        epoch_seq = e->epoch_number;
+    } else {
+        // Stay in same epoch
+        epoch_tip = resp.epoch_block_tip;
+        epoch_seq = resp.epoch_block_seq_number;
+    }
+    epoch_block_tip        = epoch_tip;
+    micro_block_tip        = micro_tip;
+    epoch_block_seq_number = epoch_seq;
+    micro_block_seq_number = micro_seq;
+
+    Micro::dumpMicroBlockTips(store,micro_tip);
+
+    // NOTE Get the tips for all delegates and send them one by one for processing...
+    for(int i = 0; i < NUMBER_DELEGATES; i++)
+    {
+        BlockHash bsb_tip   = BatchBlock::getBatchBlockTip(store, i);
+        uint32_t  bsb_seq   = BatchBlock::getBatchBlockSeqNr(store, i);
+        // Fill in the response...
+        batch_block_tip[i]        = bsb_tip;
+        batch_block_seq_number[i] = bsb_seq;
+    }
+
+    delegate_id = 0;
+    timestamp_start = 0;
+    timestamp_end = 0;
+}
+
 void BatchBlock::tips_response::Populate(Store & store)
 {
     BlockHash epoch_tip = EpochBlock::getEpochBlockTip(store);
