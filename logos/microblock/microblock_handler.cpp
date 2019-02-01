@@ -38,6 +38,34 @@ MicroBlockHandler::BatchBlocksIterator(
     }
 }
 
+void
+MicroBlockHandler::BatchBlocksIterator(
+        BlockStore & store,
+        const BatchTips &start,
+        const uint64_t &cutoff,
+        IteratorBatchBlockReceiverCb batchblock_receiver)
+{
+    Log log;
+    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
+    {
+        BlockHash hash = start[delegate];
+        ApprovedBSB batch;
+        bool not_found = false;
+        for (not_found = store.batch_block_get(hash, batch);
+             !not_found && batch.timestamp < cutoff;
+             hash = batch.next, not_found = store.batch_block_get(hash, batch))
+        {
+            batchblock_receiver(delegate, batch);
+        }
+        if (not_found && !hash.is_zero())
+        {
+            LOG_ERROR(log) << "MicroBlockHander::BatchBlocksIterator failed to get batch state block: "
+                           << hash.to_string();
+            return;
+        }
+    }
+}
+
 BlockHash
 MicroBlockHandler::FastMerkleTree(
     const BatchTips &start,
@@ -88,7 +116,7 @@ MicroBlockHandler::SlowMerkleTree(
 
     // iterate over all blocks, selecting the ones that less then cutoff time
     // and calcuate the merkle root with the MerkleHelper
-    uint64_t cutoff_msec = GetCutOffTimeMsec(min_timestamp);
+    uint64_t cutoff_msec = GetCutOffTimeMsec(min_timestamp, true);
 
     return merkle::MerkleHelper([&](merkle::HashReceiverCb element_receiver)->void {
         for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate) {
@@ -110,29 +138,39 @@ MicroBlockHandler::SlowMerkleTree(
 void
 MicroBlockHandler::GetTipsFast(
     const BatchTips &start,
-    const BatchTips &end,
+    uint64_t cutoff,
     BatchTips &tips,
-    uint &num_blocks,
-    uint64_t timestamp)
+    uint &num_blocks)
 {
-    uint64_t cutoff_msec = GetCutOffTimeMsec(timestamp);
-    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedBSB &batch)mutable -> void {
-        if (batch.timestamp < cutoff_msec)
+    // get 'next' references
+    BatchTips next;
+    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
+    {
+        ApprovedBSB batch;
+        if (_store.batch_block_get(start[delegate], batch))
         {
-            BlockHash hash = batch.Hash();
-            if (tips[delegate].is_zero())
-            {
-                tips[delegate] = hash;
-            }
-            num_blocks++;
+            next[delegate].clear();
         }
+        else
+        {
+            next[delegate] = batch.next;
+        }
+    }
+
+    uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff);
+    BatchBlocksIterator(_store, next, cutoff_msec, [&](uint8_t delegate, const ApprovedBSB &batch)mutable -> void {
+        BlockHash hash = batch.Hash();
+        tips[delegate] = hash;
+        num_blocks++;
     });
-    // verify tips
+
+    // Verify tips. We might not have any BSB in this microblock.
+    // In this case keep previous microblock tips.
     for (uint8_t del = 0; del < NUM_DELEGATES; ++del)
     {
         if (tips[del] == 0)
         {
-            tips[del] = end[del];
+            tips[del] = start[del];
         }
     }
 }
@@ -160,12 +198,16 @@ MicroBlockHandler::GetTipsSlow(
         }
     });
 
-    // iterate over all blocks, selecting the ones that less then cutoff time
-    uint64_t cutoff_msec = GetCutOffTimeMsec(min_timestamp);
+    // remainder from min_timestamp to the nearest 10min
+    auto rem = min_timestamp % TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count();
+    auto cutoff = min_timestamp + (rem!=0)?TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count() - rem:0;
+
+    // iterate over all blocks, selecting the ones that are less than cutoff time
+    uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff, true);
 
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate) {
         for (auto it : entries[delegate]) {
-            if (it.timestamp >= (min_timestamp + cutoff_msec)) {
+            if (it.timestamp >= cutoff_msec) {
                 continue;
             }
             if (tips[delegate].is_zero())
@@ -177,8 +219,6 @@ MicroBlockHandler::GetTipsSlow(
     }
 }
 
-/// Microblock cut off time is calculated as Tc = TEi + Mi * 10 where TEi is the i-th epoch (previous epoch),
-/// Mi is current microblock sequence number
 bool
 MicroBlockHandler::Build(
     MicroBlock &block,
@@ -201,24 +241,26 @@ MicroBlockHandler::Build(
 
     // collect current batch block tips
     BatchTips start;
-    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
-    {
-        if (_store.batch_tip_get(delegate, start[delegate]))
-        {
-            start[delegate].clear();
-        }
-    }
 
-    // first microblock after genesis
+    // first microblock after genesis, the cut-off time is
+    // the Min timestamp of the very first BSB for all delegates + remainder from Min to nearest 10 min + 10 min;
+    // start is the current tips
     if (previous_micro_block.epoch_number == GENESIS_EPOCH)
     {
-        GetTipsSlow(start, previous_micro_block.tips, block.tips,
-                block.number_batch_blocks);
+        for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
+        {
+            if (_store.batch_tip_get(delegate, start[delegate]))
+            {
+                start[delegate].clear();
+            }
+        }
+        GetTipsSlow(start, previous_micro_block.tips, block.tips, block.number_batch_blocks);
     }
+    // Microblock cut off time is the previous microblock's proposed time;
+    // start points to the first block after the previous, i.e. previous.next
     else
     {
-        GetTipsFast(start, previous_micro_block.tips, block.tips,
-                block.number_batch_blocks, previous_micro_block.timestamp);
+        GetTipsFast(previous_micro_block.tips, previous_micro_block.timestamp, block.tips, block.number_batch_blocks);
     }
 
     // should be allowed to have no blocks so at least it doesn't crash

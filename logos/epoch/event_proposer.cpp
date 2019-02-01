@@ -7,10 +7,11 @@
 
 EventProposer::EventProposer(logos::alarm & alarm,
                              IRecallHandler & recall_handler,
-                             bool first_epoch)
+                             bool first_epoch,
+                             bool first_microblock)
     : _alarm(alarm)
     , _skip_transition(first_epoch)
-    , _skip_micro_block(first_epoch)
+    , _skip_micro_block(first_microblock)
     , _recall_handler(recall_handler)
     {}
 
@@ -46,7 +47,8 @@ EventProposer::ProposeMicroBlock(MicroCb cb)
 {
     EpochTimeUtil util;
 
-    auto lapse = util.GetNextMicroBlockTime(_skip_micro_block);
+    // on first microblock skip 2 full intervals
+    auto lapse = util.GetNextMicroBlockTime(_skip_micro_block?FIRST_MICROBLOCK_SKIP:0);
     _skip_micro_block = false;
     _alarm.add(std::chrono::steady_clock::now() + lapse, [this, cb]()mutable->void{
         cb();
