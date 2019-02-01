@@ -13,21 +13,22 @@
 
 std::atomic<uint32_t> ConsensusContainer::_cur_epoch_number(0);
 const Seconds ConsensusContainer::GARBAGE_COLLECT = Seconds(60);
+bool ConsensusContainer::_validate_sig_config = false;
 
 ConsensusContainer::ConsensusContainer(Service & service,
                                        Store & store,
                                        logos::alarm & alarm,
-                                       const Config & config,
+                                       const logos::node_config & config,
                                        Archiver & archiver,
                                        DelegateIdentityManager & identity_manager)
-    : _peer_manager(service, config, std::bind(&ConsensusContainer::PeerBinder, this,
+    : _peer_manager(service, config.consensus_manager_config, std::bind(&ConsensusContainer::PeerBinder, this,
             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3))
     , _cur_epoch(nullptr)
     , _trans_epoch(nullptr)
     , _service(service)
     , _store(store)
     , _alarm(alarm)
-    , _config(config)
+    , _config(config.consensus_manager_config)
     , _archiver(archiver)
     , _identity_manager(identity_manager)
     , _transition_state(EpochTransitionState::None)
@@ -36,6 +37,8 @@ ConsensusContainer::ConsensusContainer(Service & service,
     uint8_t delegate_idx;
     Accounts delegates;
     _identity_manager.IdentifyDelegates(EpochDelegates::Current, delegate_idx, delegates);
+
+    _validate_sig_config = config.tx_acceptor_config.validate_sig;
 
     // is the node a delegate in this epoch
     bool in_epoch = delegate_idx != NON_DELEGATE;
@@ -50,7 +53,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
     /// TODO epoch_transition_enabled is temp to facilitate testing without transition
     if (!DelegateIdentityManager::IsEpochTransitionEnabled())
     {
-        create(config);
+        create(_config);
     }
     else if (in_epoch)
     {

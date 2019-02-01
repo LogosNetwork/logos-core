@@ -40,6 +40,7 @@ struct TxAcceptorConfig
         delegate_ip = tree.get<std::string>("delegate_ip", ip);
         acceptor_ip = tree.get<std::string>("acceptor_ip", ip);
         port = tree.get<uint16_t>("port", 56000);
+        validate_sig = tree.get<bool>("validate_sig", false);
 
         return false;
     }
@@ -64,6 +65,7 @@ struct TxAcceptorConfig
         tree.put("delegate_ip", delegate_ip);
         tree.put("acceptor_ip", acceptor_ip);
         tree.put("port", port);
+        tree.put("validate_sig", validate_sig);
 
         return false;
     }
@@ -74,4 +76,5 @@ struct TxAcceptorConfig
     uint16_t              port=56000;
     uint16_t              json_port=56001;
     uint16_t              bin_port=56002;
+    bool                  validate_sig=false;
 };

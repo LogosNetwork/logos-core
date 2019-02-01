@@ -1289,7 +1289,7 @@ _recall_handler(),
 _identity_manager(store, config.consensus_manager_config),
 _archiver(alarm_a, store, _recall_handler),
 _consensus_container{std::make_shared<ConsensusContainer>(
-        service_a, store, alarm_a, config.consensus_manager_config, _archiver, _identity_manager)},
+        service_a, store, alarm_a, config, _archiver, _identity_manager)},
 _tx_acceptor{config.tx_acceptor_config.tx_acceptors.size() == 0
     ? std::make_shared<TxAcceptorDelegate>(service_a, _consensus_container, config)
     : nullptr},

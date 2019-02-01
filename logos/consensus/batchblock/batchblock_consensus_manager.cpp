@@ -3,6 +3,7 @@
 /// handles specifics of BatchBlock consensus
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/batchblock/bb_backup_delegate.hpp>
+#include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 
 const boost::posix_time::seconds BatchBlockConsensusManager::ON_CONNECTED_TIMEOUT{10};
@@ -96,7 +97,15 @@ BatchBlockConsensusManager::Validate(
   std::shared_ptr<Request> block,
   logos::process_return & result)
 {
-    // Signature validation is handled in TxAcceptor
+    if(ConsensusContainer::ValidateSigConfig() && ! block->VerifySignature(block->account))
+    {
+        LOG_INFO(_log) << "BatchBlockConsensusManager - Validate, bad signature: "
+                       << block->signature.to_string()
+                       << " account: " << block->account.to_string();
+
+        result.code = logos::process_result::bad_signature;
+        return false;
+    }
 
     return _persistence_manager.Validate(*block, result, false);
 }

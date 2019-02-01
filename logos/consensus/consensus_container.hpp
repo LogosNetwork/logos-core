@@ -112,7 +112,7 @@ public:
     ConsensusContainer(Service & service,
                        Store & store,
                        logos::alarm & alarm,
-                       const Config & config,
+                       const logos::node_config & config,
                        Archiver & archiver,
                        DelegateIdentityManager & identity_manager);
 
@@ -153,6 +153,11 @@ public:
 
     /// Start Epoch Transition
     void EpochTransitionEventsStart() override;
+
+    static bool ValidateSigConfig()
+    {
+        return _validate_sig_config;
+    }
 
 protected:
 
@@ -250,4 +255,5 @@ private:
     EpochTransitionDelegate             _transition_delegate;       ///< type of delegate during transition
     std::queue<ConnectionCache>         _connections_queue;         ///< queue for delegates set connections
     BindingMap                          _binding_map;               ///< map for binding connection to epoch manager
+    static bool                         _validate_sig_config;       ///< validate sig in BBS for added security
 };
