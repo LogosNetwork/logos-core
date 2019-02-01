@@ -168,10 +168,10 @@ bool logos::store_iterator::operator!= (logos::store_iterator const & other_a) c
 }
 
 template<typename T>
-void logos::block_store::put(MDB_dbi &db, const mdb_val &key, const T &t, MDB_txn *transaction)
+void logos::block_store::put(MDB_dbi &db, const mdb_val &key, const T &t, MDB_txn *tx)
 {
     std::vector<uint8_t> buf;
-    auto status(mdb_put(transaction, db, key, t.to_mdb_val(buf), 0));
+    auto status(mdb_put(tx, db, key, t.to_mdb_val(buf), 0));
     assert(status == 0);
 }
 
@@ -184,7 +184,7 @@ logos::block_hash logos::block_store::put(MDB_dbi &db, const T &t, MDB_txn *tran
 }
 
 template<typename T>
-bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, const T &t, MDB_txn *tx)
+bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, T &t, MDB_txn *tx)
 {
     logos::mdb_val value;
 
@@ -196,7 +196,7 @@ bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, const T &t, MDB_tx
         status = mdb_get(tx, db, key, value);
     }
     assert (status == 0 || status == MDB_NOTFOUND);
-    bool result = false;
+    bool result;
     if (status == MDB_NOTFOUND)
     {
         result = true;
@@ -557,17 +557,17 @@ void logos::block_store::account_put (MDB_txn * transaction_a, logos::account co
     put<logos::account_info>(account_db, account_a, info_a, transaction_a);
 }
 
-void logos::block_store::reservation_put (MDB_txn * transaction_a, logos::account const & account_a, logos::reservation_info const & info_a)
+void logos::block_store::reservation_put (AccountAddress const & account_a, logos::reservation_info const & info_a, MDB_txn * transaction_a)
 {
     put<logos::reservation_info>(reservation_db, account_a, info_a, transaction_a);
 }
 
-bool logos::block_store::reservation_get (MDB_txn * transaction_a, logos::account const & account_a, logos::reservation_info & info_a)
+bool logos::block_store::reservation_get (AccountAddress const & account_a, logos::reservation_info & info_a, MDB_txn * transaction_a)
 {
     return get<logos::reservation_info>(reservation_db, account_a, info_a, transaction_a);
 }
 
-void logos::block_store::reservation_del (MDB_txn * transaction_a, logos::account const & account_a)
+void logos::block_store::reservation_del (AccountAddress const & account_a, MDB_txn * transaction_a)
 {
     return del(reservation_db, account_a, transaction_a);
 }

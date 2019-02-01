@@ -1350,7 +1350,6 @@ _consensus_container(service_a, store, alarm_a, config.consensus_manager_config,
             //TODO check with Greg
             ReceiveBlock logos_genesis_receive(0, logos_genesis_block.GetHash(), 0);
             store.state_block_put(logos_genesis_block,
-                    logos_genesis_block.GetHash(),
                     transaction);
             store.receive_put(logos_genesis_receive.Hash(),
                     logos_genesis_receive,

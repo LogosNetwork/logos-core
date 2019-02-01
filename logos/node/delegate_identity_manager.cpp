@@ -252,20 +252,16 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
         logos::genesis_delegates.push_back(delegate);
 
-        uint128_t min_fee = 0x21e19e0c9bab2400000_cppui128;
-        logos::amount amount((min_fee + (del + 1) * 1000000)*1000000);
-        logos::amount fee(min_fee);
+        logos::amount amount((del + 1) * 1000000 * 1000000);
         uint64_t work = 0;
 
-
-
-        StateBlock state(logos::logos_test_account,   // account
+        StateBlock state(logos::logos_test_account,    // account
                          genesis_account.head,         // previous
                          genesis_account.block_count,  // sequence
                          StateBlock::Type::send,
                          pair.pub,  // link/to
                          amount,
-                         fee,       // transaction fee
+                         0,       // transaction fee
                          pair.prv.data,
                          pair.pub,
                          work);
@@ -277,7 +273,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
         ReceiveBlock receive(0, state.GetHash(), 0);
 
-        _store.state_block_put(state, state.GetHash(), transaction);
+        _store.state_block_put(state, transaction);
 
         _store.receive_put(receive.Hash(),
                 receive,
@@ -285,13 +281,13 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
         _store.account_put(pair.pub,
                            {
-                               /* Head    */ state.GetHash(),
+                               /* Head    */ 0,
                                /* Receive */ receive.Hash(),
                                /* Rep     */ 0,
                                /* Open    */ state.GetHash(),
                                /* Amount  */ amount,
                                /* Time    */ logos::seconds_since_epoch(),
-                               /* Count   */ 1,
+                               /* Count   */ 0,
                                /* Receive Count */ 1
                            },
                            transaction);

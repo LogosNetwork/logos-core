@@ -5,6 +5,9 @@
 #include <logos/blockstore.hpp>
 #include <logos/lib/log.hpp>
 #include <logos/common.hpp>
+#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
+//#include <logos/consensus/consensus_container.hpp>
 
 #include <unordered_map>
 
@@ -16,9 +19,10 @@ public:
         : _store(store)
     {}
     virtual ~ReservationsProvider() = default;
-    virtual bool Acquire(const AccountAddress & account, logos::account_info &info) {return true;}
-    virtual void Release(const AccountAddress & account) {}
-    virtual bool UpdateReservation(const logos::block_hash & hash, const uint64_t current_epoch, const logos::account account) {return false;}
+    virtual bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates, MDB_txn * transaction) {return false;}
+    virtual bool Acquire(const AccountAddress & account, logos::reservation_info &info) {return true;}
+    virtual void Release(const AccountAddress & account, MDB_txn * transaction) {}
+    virtual void UpdateReservation(const logos::block_hash & hash, const logos::account account, MDB_txn * transaction) {}
 protected:
     Store &      _store;
     Log          _log;
@@ -28,7 +32,7 @@ class Reservations : public ReservationsProvider
 {
 protected:
 
-    using AccountCache = std::unordered_map<AccountAddress, logos::account_info>;
+    using ReservationCache = std::unordered_map<AccountAddress, logos::reservation_info>;
 
 public:
     Reservations(Store & store)
@@ -50,54 +54,88 @@ public:
     //       this is not the only case in which a cached account will be
     //       acquired.
     //-------------------------------------------------------------------------
-    bool Acquire(const AccountAddress & account, logos::account_info &info) override
+    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates, MDB_txn * transaction) override
     {
-        std::lock_guard<std::mutex> lock(_mutex);
-
-        if(_accounts.find(account) != _accounts.end())
+        logos::reservation_info info;
+        // Check cache
+        if(_reservations.find(account) == _reservations.end())
         {
-            LOG_WARN(_log) << "Reservations::Acquire - Warning - attempt to "
+            // Not in LMDB either
+            if (_store.reservation_get(account, info))
+            {
+                return true;
+            }
+            else // populate cache with database reservation
+            {
+                // TODO: Check bootstrap since we might have died and now fallen behind
+                _reservations[account] = info;
+                return false;
+            }
+        }
+        else
+        {
+            // We should technically do a sanity check here:
+            // if LMDB doesn't contain the reservation then something is seriously wrong
+            LOG_WARN(_log) << "Reservations::CanAcquire - Warning - attempt to "
                            << "acquire account "
                            << account.to_string()
                            << " which is already in the Reservations cache.";
 
-            info = _accounts[account];
-            return false;
+            info = _reservations[account];
         }
 
-        auto ret = _store.account_get(account, info);
-
-        if(!ret)
+        // Reservation exists
+        if (info.reservation != hash)
         {
-            _accounts[account] = info;
+            ApprovedEB epoch;
+            DelegateIdentityManager::GetCurrentEpoch(_store, epoch);
+            uint32_t current_epoch = epoch.epoch_number;
+            // This block conflicts with existing reservation.
+            if (current_epoch < info.reservation_epoch + PersistenceManager<BSBCT>::RESERVATION_PERIOD)
+            {
+                return false;
+            }
+            // remove from cache and DB. If account info check succeeds, it will be reserved later in UpdateReservation.
+            else
+            {
+                Release(account, transaction);
+                return true;
+            }
         }
-
-        return ret;
+        else
+        {
+            return allow_duplicates;
+        }
     }
 
-    void Release(const AccountAddress & account) override
+    void Release(const AccountAddress & account, MDB_txn * transaction) override
     {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _accounts.erase(account);
+        _store.reservation_del(account, transaction);
+        LOG_DEBUG(_log) << "Reservations::Release - deleted from blockstore";
+        _reservations.erase(account);
+        LOG_DEBUG(_log) << "Reservations::Release - erased from cache";
     }
 
-    bool UpdateReservation(const logos::block_hash & hash, const uint64_t current_epoch, const logos::account account) override
+    // Can only be called after checking CanAcquire to ensure we don't corrupt reservation
+    // Also need to make sure *not* to call it when another write transaction is waiting in a higher scope, as this will cause hanging
+    void UpdateReservation(const logos::block_hash & hash, const logos::account account, MDB_txn * transaction) override
     {
-        std::lock_guard<std::mutex> lock(_mutex);  // SYL Integration fix - resource protection
-        if(_accounts.find(account) == _accounts.end())
+        ApprovedEB epoch;
+        DelegateIdentityManager::GetCurrentEpoch(_store, epoch);
+        uint32_t current_epoch = epoch.epoch_number;
+//        uint32_t current_epoch = ConsensusContainer::GetCurEpochNumber();
+        if(_reservations.find(account) != _reservations.end())
         {
-            LOG_ERROR(_log) << "Reservations::UpdateReservation - unable to find account to update. ";
-            return true;
+            assert (_reservations[account].reservation_epoch + PersistenceManager<BSBCT>::RESERVATION_PERIOD <= current_epoch);
         }
-        _accounts[account].reservation = hash;
-        _accounts[account].reservation_epoch = current_epoch;
-        return false;
+        logos::reservation_info updated_reservation {hash, current_epoch};
+        _reservations[account] = updated_reservation;
+        _store.reservation_put(account, updated_reservation, transaction);
     }
 
 private:
 
-    AccountCache _accounts;
-    std::mutex   _mutex;
+    ReservationCache _reservations;
 };
 
 class DefaultReservations : public ReservationsProvider {
@@ -106,8 +144,13 @@ public:
     {}
     ~DefaultReservations() = default;
 
-    bool Acquire(const AccountAddress & account, logos::account_info &info) override
+    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates, MDB_txn * transaction) override
     {
-        return _store.account_get(account, info);
+        logos::reservation_info info;
+        return !_store.reservation_get(account, info);
+    }
+    bool Acquire(const AccountAddress & account, logos::reservation_info &info) override
+    {
+        return _store.reservation_get(account, info);
     }
 };

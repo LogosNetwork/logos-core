@@ -6,8 +6,6 @@
 #include <logos/consensus/message_validator.hpp>
 #include <logos/lib/trace.hpp>
 #include <logos/common.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
-//#include <logos/consensus/consensus_container.hpp>
 
 constexpr uint128_t PersistenceManager<BSBCT>::MIN_TRANSACTION_FEE;
 
@@ -68,6 +66,10 @@ bool PersistenceManager<BSBCT>::Validate(
         return false;
     }
 
+    // We have to lock reservation mutex before checking *both* `account_db` (otherwise we may check balance,
+    // think it's okay to proceed, but another send transaction may decrement account balance, then clear
+    // reservation before we try to acquire, and we may let an overspend slip through ) and `reservation_db`
+    logos::transaction transaction(_store.environment, nullptr, true);
     std::lock_guard<std::mutex> lock(_reservation_mutex);
 
     logos::account_info info;
@@ -80,109 +82,90 @@ bool PersistenceManager<BSBCT>::Validate(
         return false;
     }
 
-    auto account_error(_reservations->Acquire(block.account, info));
-
-    // Account exists.
-    if(!account_error)
+    // a valid (non-expired) reservation exits
+    if (!_reservations->CanAcquire(block.account, hash, allow_duplicates, transaction))
     {
-        //sequence number
-        if(info.block_count != block.sequence)
+        LOG_ERROR(_log) << "PersistenceManager::Validate - Account already reserved! ";
+        result.code = logos::process_result::already_reserved;
+        return false;
+    }
+
+    // Move on to check account info
+    //sequence number
+    if(info.block_count != block.sequence)
+    {
+        result.code = logos::process_result::wrong_sequence_number;
+        LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << block.sequence
+                << " expecting=" << info.block_count;
+        return false;
+    }
+
+    // No previous block set.
+    if(block.previous.is_zero() && info.block_count)
+    {
+        result.code = logos::process_result::fork;
+        return false;
+    }
+
+    // This account has issued at least one send transaction.
+    if(info.block_count)
+    {
+        if(!_store.state_block_exists(block.previous))
         {
-            result.code = logos::process_result::wrong_sequence_number;
-            LOG_INFO(_log) << "wrong_sequence_number, request sqn="<<block.sequence
-                    << " expecting=" << info.block_count;
+            result.code = logos::process_result::gap_previous;
+            LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << block.previous.to_string()
+                            << "; current account info head is: " << info.head.to_string();
             return false;
         }
-        // No previous block set.
-        if(block.previous.is_zero() && info.block_count)
+    }
+
+    if(block.previous != info.head)
+    {
+        LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash (" << block.previous.to_string()
+                        << ") and current account info head (" << info.head.to_string() << ")";
+
+        // Allow duplicate requests (hash == info.head)
+        // received from batch blocks.
+        if(hash == info.head)
+        {
+            if(allow_duplicates)
+            {
+                result.code = logos::process_result::progress;
+                return true;
+            }
+            else
+            {
+                result.code = logos::process_result::old;
+                return false;
+            }
+        }
+        else
         {
             result.code = logos::process_result::fork;
             return false;
         }
-
-        // This account has issued at least one send transaction.
-        if(info.block_count)
-        {
-            if(!_store.state_block_exists(block.previous))
-            {
-                result.code = logos::process_result::gap_previous;
-                LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << block.previous.to_string()
-                                << "; current account info head is: " << info.head.to_string();
-                return false;
-            }
-        }
-
-        if(block.previous != info.head)
-        {
-            LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash (" << block.previous.to_string()
-                            << ") and current account info head (" << info.head.to_string() << ")";
-
-            // Allow duplicate requests (hash == info.head)
-            // received from batch blocks.
-            if(hash == info.head)
-            {
-                if(allow_duplicates)
-                {
-                    result.code = logos::process_result::progress;
-                    return true;
-                }
-                else
-                {
-                    result.code = logos::process_result::old;
-                    return false;
-                }
-            }
-            else
-            {
-                result.code = logos::process_result::fork;
-                return false;
-            }
-        }
-
-        // Have we seen this block before?
-        if(_store.state_block_exists(hash))
-        {
-            result.code = logos::process_result::old;
-            return false;
-        }
-
-        auto total = block.transaction_fee.number();
-        for(auto & i : block.trans)
-        {
-            total += i.amount.number();
-        }
-        if(total > info.balance.number())
-        {
-            result.code = logos::process_result::insufficient_balance;
-            return false;
-        }
-
-        ApprovedEB epoch;
-        DelegateIdentityManager::GetCurrentEpoch(_store, epoch);
-        uint64_t current_epoch = epoch.epoch_number;
-//        uint64_t current_epoch = ConsensusContainer::GetCurEpochNumber();
-
-        // Account is not reserved.
-        if(info.reservation.is_zero())
-        {
-            _reservations->UpdateReservation(hash, current_epoch, block.account);
-        }
-
-        // Account is already reserved.
-        else if(info.reservation != hash)
-        {
-            // This block conflicts with existing reservation.
-            if(current_epoch < info.reservation_epoch + RESERVATION_PERIOD)
-            {
-                LOG_ERROR(_log) << "PersistenceManager::Validate - Account already reserved! ";
-                result.code = logos::process_result::already_reserved;
-                return false;
-            }
-
-            // Reservation has expired.
-            _reservations->UpdateReservation(hash, current_epoch, block.account);
-        }
     }
+
+    // Have we seen this block before?
+    if(_store.state_block_exists(hash))
+    {
+        result.code = logos::process_result::old;
+        return false;
+    }
+
+    auto total = block.transaction_fee.number();
+    for(auto & i : block.trans)
+    {
+        total += i.amount.number();
+    }
+    if(total > info.balance.number())
+    {
+        result.code = logos::process_result::insufficient_balance;
+        return false;
+    }
+
+    // Update reservation here
+    _reservations->UpdateReservation(hash, block.account, transaction);
 
     result.code = logos::process_result::progress;
     return true;
@@ -204,7 +187,7 @@ bool PersistenceManager<BSBCT>::Validate(
     using namespace logos;
 
     bool valid = true;
-    for(uint64_t i = 0; i < message.block_count; ++i)
+    for(uint16_t i = 0; i < message.block_count; ++i)
     {
         logos::process_return   result;
         if(!Validate(static_cast<const Request&>(message.blocks[i]), result))
@@ -269,7 +252,7 @@ void PersistenceManager<BSBCT>::ApplyBatchMessage(
                           transaction);
 
         std::lock_guard<std::mutex> lock(_reservation_mutex);
-        _reservations->Release(message.blocks[i].account);
+        _reservations->Release(message.blocks[i].account, transaction);
     }
 }
 
@@ -341,10 +324,10 @@ void PersistenceManager<BSBCT>::UpdateDestinationState(
     uint64_t timestamp,
     MDB_txn * transaction)
 {
-    // Protects against a race condition concerning
-    // simultaneous receives for the same account.
-    //
-    std::lock_guard<std::mutex> lock(_destination_mutex);
+    // SYL: we don't need to lock destination mutex here because updates to same account within
+    // the same transaction handle will be serialized, and a lock here wouldn't do anything to
+    // prevent race condition across transactions, since flushing to DB is delayed
+    // (only when transaction destructor is called)
     uint16_t index2send = 0;
     for(auto & t : block.trans)
     {
@@ -362,7 +345,7 @@ void PersistenceManager<BSBCT>::UpdateDestinationState(
         // Destination account doesn't exist yet
         if(account_error)
         {
-            info.open_block = hash;
+            info.open_block = block.GetHash();
             LOG_DEBUG(_log) << "PersistenceManager::UpdateDestinationState - "
                             << "new account: "
                             << t.target.to_string();

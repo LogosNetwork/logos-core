@@ -81,10 +81,6 @@ public:
     logos::store_iterator latest_begin (MDB_txn *);
     logos::store_iterator latest_end ();
 
-    void reservation_put (MDB_txn *, logos::account const &, logos::reservation_info const &);
-    bool reservation_get (MDB_txn *, logos::account const &, logos::reservation_info &);
-    void reservation_del (MDB_txn *, logos::account const &);
-
     void pending_put (MDB_txn *, logos::pending_key const &, logos::pending_info const &);
     void pending_del (MDB_txn *, logos::pending_key const &);
     bool pending_get (MDB_txn *, logos::pending_key const &, logos::pending_info &);
@@ -126,17 +122,17 @@ public:
         put<T>(db, key, t, tx);
     }
     template<typename T> logos::block_hash put(MDB_dbi&, const T &, MDB_txn *);
-    template<typename T> bool get(MDB_dbi&, const mdb_val &key, const T &, MDB_txn *tx = 0);
-    template<typename T> bool get(MDB_dbi& db, const logos::uint256_union &key_256, const T &t, MDB_txn *tx = 0)
+    template<typename T> bool get(MDB_dbi&, const mdb_val &key, T &, MDB_txn *tx = nullptr);
+    template<typename T> bool get(MDB_dbi& db, const logos::uint256_union &key_256, T &t, MDB_txn *tx = nullptr)
     {
         mdb_val key(key_256);
         return get<T>(db,key,t,tx);
     }
-    void del(MDB_dbi&, const mdb_val &, MDB_txn *);
+    void del(MDB_dbi&, const mdb_val &, MDB_txn * tx);
     void del(MDB_dbi& db, const logos::uint256_union &key_256, MDB_txn *tx)
     {
         mdb_val key(key_256);
-        del<T>(db, key, tx);
+        del(db, key, tx);
     }
 
     //////////////////
@@ -157,9 +153,12 @@ public:
     bool state_block_put(StateBlock const &, MDB_txn *);
     bool state_block_exists(const StateBlock & block);
     bool state_block_exists(const BlockHash & hash);
-    bool account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* t=0);
+    bool account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* t = nullptr);
     bool account_db_empty();
     bool account_put (AccountAddress const &, logos::account_info const &, MDB_txn *);
+    bool reservation_get (AccountAddress const &, logos::reservation_info &, MDB_txn * t = nullptr);
+    void reservation_del (AccountAddress const &, MDB_txn *);
+    void reservation_put (AccountAddress const &, logos::reservation_info const &, MDB_txn *);
     bool receive_put(const BlockHash & hash, const ReceiveBlock & block, MDB_txn *);
     bool receive_get(const BlockHash & hash, ReceiveBlock & block, MDB_txn *);
     bool receive_exists(const BlockHash & hash);

@@ -387,6 +387,7 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
             // check if the potentially rejected PrePrepare is ready for re-proposal.
             Tally(message, remote_delegate_id);
 
+            // Check if a standard phase message reaches quorum
             // ReachedQuorum returns true iff the whole Block gets enough vote + stake
             if(message.type != MessageType::Rejection && ReachedQuorum())
             {
@@ -421,12 +422,18 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
                 _state_changing = true;
                 return ProceedAction::APPROVED;
             }
+            // Check if either 1) an incoming rejection can trigger OnPrePrepareRejected, or
+            // 2) an incoming pre_prepare for BSB gives indirect support to all transactions inside the batch
             else if (message.type != MessageType::Commit && IsPrePrepareRejected())
             {
                 // set transition flag so only one remote message can trigger state change
                 _state_changing = true;
                 return ProceedAction::REJECTED;
             }
+            // Then either
+            // 1) a standard phase message came in but we haven't reached quorum yet, or
+            // 2a) a rejection message came in but hasn't cleared all of the BSB's txns hashes or
+            // 2b) we don't have the logic for dealing certain rejection types
 
             return ProceedAction::DO_NOTHING;
         }

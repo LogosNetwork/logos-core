@@ -71,6 +71,8 @@ BBBackupDelegate::ValidateRequests(
 {
     bool valid = true;
     _rejection_map.resize(message.block_count, false);
+
+    // TO-DISCUSS: Do we need one single transaction here?
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
 #ifdef TEST_REJECT

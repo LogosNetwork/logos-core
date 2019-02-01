@@ -4,6 +4,7 @@
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/batchblock/bb_backup_delegate.hpp>
 #include <logos/consensus/epoch_manager.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 
 const boost::posix_time::seconds BatchBlockConsensusManager::ON_CONNECTED_TIMEOUT{10};
 RequestHandler BatchBlockConsensusManager::_handler;
@@ -134,6 +135,7 @@ BatchBlockConsensusManager::QueueRequestPrimary(
     _handler.OnRequest(request);
 }
 
+// This should only be called once per consensus round
 auto
 BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
