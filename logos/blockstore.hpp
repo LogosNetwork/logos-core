@@ -156,6 +156,7 @@ public:
     bool request_exists(const Request & request);
     bool request_exists(const BlockHash & hash);
 
+    bool token_account_exists(const BlockHash & token_id);
     bool token_account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, MDB_txn* t=0);
     bool token_account_get(AccountAddress const & account_a, TokenAccount & info_a, MDB_txn* t=0);
     bool token_account_db_empty();

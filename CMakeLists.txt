@@ -291,6 +291,8 @@ add_library (secure
 	logos/node/utility.hpp
 	logos/token/account.hpp
 	logos/token/account.cpp
+	logos/token/entry.hpp
+	logos/token/entry.cpp
 	logos/versioning.hpp
 	logos/versioning.cpp)
 
@@ -390,6 +392,7 @@ add_library (node
 	logos/request/utility.cpp
 	logos/token/account.cpp
 	logos/token/common.cpp
+	logos/token/entry.cpp
 	logos/token/requests.cpp
 	logos/token/util.cpp
 	logos/tx_acceptor/tx_acceptor.cpp
