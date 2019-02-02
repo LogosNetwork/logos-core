@@ -80,12 +80,6 @@ void ConsensusManager<CT>::OnRequestQueued()
         // when no consensus session is currently going on
         {
             std::lock_guard<std::mutex> lock(_ongoing_mutex);
-            if(_ongoing)
-            {
-                LOG_ERROR(_log) << "ConsensusManager<" << ConsensusToName(CT)
-                                << ">::OnRequestQueued() - Ongoing request exists. Returning";
-                return;
-            }
             _ongoing = true;
         }
         InitiateConsensus();

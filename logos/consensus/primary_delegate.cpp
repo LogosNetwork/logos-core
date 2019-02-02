@@ -112,11 +112,7 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage<C> & message, uint8_t r
 template<ConsensusType C>
 void PrimaryDelegate::Tally(const RejectionMessage<C> & message, uint8_t remote_delegate_id)
 {
-    LOG_DEBUG(_log) << "PrimaryDelegate::Tally - Tallying for message type" << MessageToName(message);
-    if (message.type != MessageType::Rejection)
-    {
-        LOG_ERROR(_log) << "PrimaryDelegate::Tally - Unexpected message type. Should be seeing Rejection";
-    }
+    LOG_DEBUG(_log) << "PrimaryDelegate::Tally - Tallying for message type " << MessageToName(message);
     OnRejection(message, remote_delegate_id);
 }
 
@@ -139,11 +135,7 @@ void PrimaryDelegate::Tally(const CommitMessage<C> & message, uint8_t remote_del
 template<typename M>
 void PrimaryDelegate::TallyStandardPhaseMessage(const M & message, uint8_t remote_delegate_id)
 {
-    LOG_DEBUG(_log) << "PrimaryDelegate::Tally - Tallying for message type" << MessageToName(message);
-    if (message.type == MessageType::Rejection)
-    {
-        LOG_ERROR(_log) << "PrimaryDelegate::Tally - Unexpected message type. Should not be seeing Rejection";
-    }
+    LOG_DEBUG(_log) << "PrimaryDelegate::Tally - Tallying for message type " << MessageToName(message);
     _prepare_vote += _weights[remote_delegate_id].vote_weight;
     _prepare_stake += _weights[remote_delegate_id].stake_weight;
 

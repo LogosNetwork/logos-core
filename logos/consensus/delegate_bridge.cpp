@@ -26,13 +26,18 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
 {
     bool error = false;
     logos::bufferstream stream(data, payload_size);
+    auto log_message_received ([&](const std::string & msg_str, const std::string & hash_str){
+        LOG_DEBUG(_log) << "ConsensusConnection<" << ConsensusToName(CT) << "> - Received "
+                        << msg_str << " message from delegate: " << (int)RemoteDelegateId()
+                        << " with block hash " << hash_str;
+    });
     switch (message_type)
     {
         case MessageType::Pre_Prepare:
         {
             PrePrepare msg(error, stream, version);
             if(!error){
-                LogMessageReceived(MessageToName(message_type), msg.Hash().to_string());
+                log_message_received(MessageToName(message_type), msg.Hash().to_string());
                 OnConsensusMessage(msg);
             }
             break;
@@ -42,7 +47,7 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
             Prepare msg(error, stream, version);
             if(!error)
             {
-                LogMessageReceived(MessageToName(message_type), msg.preprepare_hash.to_string());
+                log_message_received(MessageToName(message_type), msg.preprepare_hash.to_string());
                 OnConsensusMessage(msg);
             }
             break;
@@ -51,7 +56,7 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
         {
             PostPrepare msg(error, stream, version);
             if(!error){
-                LogMessageReceived(MessageToName(message_type), msg.preprepare_hash.to_string());
+                log_message_received(MessageToName(message_type), msg.preprepare_hash.to_string());
                 OnConsensusMessage(msg);
             }
             break;
@@ -60,7 +65,7 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
         {
             Commit msg(error, stream, version);
             if(!error){
-                LogMessageReceived(MessageToName(message_type), msg.preprepare_hash.to_string());
+                log_message_received(MessageToName(message_type), msg.preprepare_hash.to_string());
                 OnConsensusMessage(msg);
             }
             break;
@@ -70,7 +75,7 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
             PostCommit msg(error, stream, version);
             if(!error)
             {
-                LogMessageReceived(MessageToName(message_type), msg.preprepare_hash.to_string());
+                log_message_received(MessageToName(message_type), msg.preprepare_hash.to_string());
                 OnConsensusMessage(msg);
             }
             break;
@@ -81,7 +86,7 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
             if(!error)
             {
                 auto msg_str (MessageToName(message_type) + ":" + RejectionReasonToName(msg.reason));
-                LogMessageReceived(msg_str, msg.preprepare_hash.to_string());
+                log_message_received(msg_str, msg.preprepare_hash.to_string());
                 OnConsensusMessage(msg);
             }
             break;
@@ -92,7 +97,9 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
         case MessageType::Key_Advert:
         case MessageType::Unknown:
         {
-            LogMessageReceived(MessageToName(message_type));
+            LOG_DEBUG(_log) << "ConsensusConnection<" << ConsensusToName(CT) << "> - Received "
+                            << MessageToName(message_type) << " message from delegate: "
+                            << (int)RemoteDelegateId();
             error = true;
             break;
         }
@@ -103,22 +110,6 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
 
     return ! error;
 }
-
-template<ConsensusType CT>
-void DelegateBridge<CT>::LogMessageReceived(const std::string & msg_str, const std::string & hash_str)
-{
-    LOG_DEBUG(_log) << "ConsensusConnection<" << ConsensusToName(CT) << "> - Received "
-                    << msg_str << " message from delegate: " << (int)RemoteDelegateId()
-                    << " with block hash " << hash_str;
-}
-
-template<ConsensusType CT>
-void DelegateBridge<CT>::LogMessageReceived(const std::string & msg_str)
-{
-    LOG_DEBUG(_log) << "ConsensusConnection<" << ConsensusToName(CT) << "> - Received "
-                    << msg_str << " message from delegate: " << (int)RemoteDelegateId();
-}
-
 template class DelegateBridge<ConsensusType::BatchStateBlock>;
 template class DelegateBridge<ConsensusType::MicroBlock>;
 template class DelegateBridge<ConsensusType::Epoch>;

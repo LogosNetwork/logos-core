@@ -1329,45 +1329,6 @@ _consensus_container(service_a, store, alarm_a, config.consensus_manager_config,
             logos::genesis genesis;
             genesis.initialize (transaction, store);
         }
-
-        // check consensus-prototype account_db
-        if(store.account_db_empty())
-        {
-            auto error (false);
-
-            // Construct genesis open block
-            //
-            boost::property_tree::ptree tree;
-            std::stringstream istream(logos::logos_test_genesis);
-            boost::property_tree::read_json(istream, tree);
-            StateBlock logos_genesis_block(error, tree, true, true);
-
-            if(error)
-            {
-                throw std::runtime_error("Failed to initialize Logos genesis block.");
-            }
-
-            //TODO check with Greg
-            ReceiveBlock logos_genesis_receive(0, logos_genesis_block.GetHash(), 0);
-            store.state_block_put(logos_genesis_block,
-                    transaction);
-            store.receive_put(logos_genesis_receive.Hash(),
-                    logos_genesis_receive,
-                    transaction);
-            store.account_put(genesis_account,
-                              {
-                                  /* Head         */ logos_genesis_block.GetHash(),
-                                  /* Receive Head */ logos_genesis_receive.Hash(),
-                                  /* Rep          */ 0,
-                                  /* Open         */ logos_genesis_block.GetHash(),
-                                  /* Amount       */ logos_genesis_block.trans[0].amount,
-                                  /* Time         */ logos::seconds_since_epoch(),
-                                  /* Count        */ 1,
-                                  /* Receive      */ 1
-                              },
-                              transaction);
-            _identity_manager.CreateGenesisAccounts(transaction);
-        }
     }
     if (logos::logos_network ==logos::logos_networks::logos_live_network)
     {

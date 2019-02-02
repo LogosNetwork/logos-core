@@ -98,9 +98,8 @@ std::unique_ptr<logos::block> deserialize_block (MDB_val const &);
 /**
  * Latest information about an account
  */
-class account_info
+struct account_info
 {
-public:
     account_info ();
     account_info (bool & error, const logos::mdb_val & mdbval);
     account_info (logos::account_info const &) = default;
@@ -133,11 +132,10 @@ public:
 };
 
 /**
- * Latest information about an account
+ * Latest information about an account reservation, if any exists
  */
-class reservation_info
+struct reservation_info
 {
-public:
     reservation_info ();
     reservation_info (bool & error, const logos::mdb_val & mdbval);
     reservation_info (logos::reservation_info const &) = default;

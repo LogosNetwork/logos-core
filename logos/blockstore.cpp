@@ -515,7 +515,7 @@ bool logos::block_store::account_get (MDB_txn * transaction_a, logos::account co
 
 bool logos::block_store::account_get (MDB_txn * transaction_a, logos::account const & account_a, logos::account_info & info_a, MDB_dbi db)
 {
-    return get<logos::account_info>(account_db, account_a, info_a, transaction_a);
+    return get(account_db, account_a, info_a, transaction_a);
 }
 
 void logos::block_store::frontier_put (MDB_txn * transaction_a, logos::block_hash const & block_a, logos::account const & account_a)
@@ -554,17 +554,17 @@ size_t logos::block_store::account_count (MDB_txn * transaction_a)
 
 void logos::block_store::account_put (MDB_txn * transaction_a, logos::account const & account_a, logos::account_info const & info_a)
 {
-    put<logos::account_info>(account_db, account_a, info_a, transaction_a);
+    put(account_db, account_a, info_a, transaction_a);
 }
 
 void logos::block_store::reservation_put (AccountAddress const & account_a, logos::reservation_info const & info_a, MDB_txn * transaction_a)
 {
-    put<logos::reservation_info>(reservation_db, account_a, info_a, transaction_a);
+    put(reservation_db, account_a, info_a, transaction_a);
 }
 
 bool logos::block_store::reservation_get (AccountAddress const & account_a, logos::reservation_info & info_a, MDB_txn * transaction_a)
 {
-    return get<logos::reservation_info>(reservation_db, account_a, info_a, transaction_a);
+    return get(reservation_db, account_a, info_a, transaction_a);
 }
 
 void logos::block_store::reservation_del (AccountAddress const & account_a, MDB_txn * transaction_a)

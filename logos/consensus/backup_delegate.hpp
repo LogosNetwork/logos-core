@@ -123,20 +123,6 @@ protected:
         return _delegate_ids.remote;
     }
 
-    virtual void LogMessageReceived(const std::string & msg_str, const std::string & hash_str)
-    {
-        LOG_DEBUG(_log) << "ConsensusConnection<" << ConsensusToName(CT) << "> - Received "
-                        << msg_str << " message from delegate: " << std::to_string(_delegate_ids.remote)
-                        << " with block hash " << hash_str;
-    }
-
-    virtual void LogMessageReceived(const std::string & msg_str)
-    {
-        LOG_DEBUG(_log) << "ConsensusConnection<" << ConsensusToName(CT) << "> - Received "
-                        << msg_str << " message from delegate: " << std::to_string(_delegate_ids.remote);
-    }
-
-
     std::mutex                  _mutex;
     std::shared_ptr<PrePrepare> _pre_prepare;
     uint64_t                    _pre_prepare_timestamp = 0;

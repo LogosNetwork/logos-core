@@ -400,9 +400,8 @@ void PersistenceManager<BSBCT>::PlaceReceive(
     {
         // Returns true if 'a' should precede 'b'
         // in the receive chain.
-        auto receive_cmp = [&](const ReceiveBlock & a,
-                              const ReceiveBlock & b)
-                              {
+        auto receive_cmp = [&](const ReceiveBlock & a, const ReceiveBlock & b)
+                {
             //need b's timestamp
             StateBlock sb;
             if(_store.state_block_get(b.send_hash, sb, transaction))
@@ -434,7 +433,7 @@ void PersistenceManager<BSBCT>::PlaceReceive(
 
             timestamp_a = timestamp_b;//update for next compare if needed
             return a_is_less;
-                              };
+                };
 
         while(receive_cmp(receive, cur))
         {

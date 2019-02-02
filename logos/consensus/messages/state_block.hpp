@@ -364,18 +364,18 @@ struct StateBlock
         account.Hash(hash);
         previous.Hash(hash);
         uint32_t s = htole32(sequence);
-        blake2b_update(&hash, &s, sizeof(uint32_t));
-        blake2b_update(&hash, &type, sizeof(uint8_t));
-        blake2b_update(&hash, transaction_fee.data(), ACCOUNT_AMOUNT_SIZE);
+        blake2b_update(&hash, &s, sizeof(s));
+        blake2b_update(&hash, &type, sizeof(type));
         uint16_t tran_count = trans.size();
         tran_count = htole16(tran_count);
-        blake2b_update(&hash, &tran_count, sizeof(uint16_t));
-
+        blake2b_update(&hash, &tran_count, sizeof(tran_count));
         for (const auto & t : trans)
         {
             t.target.Hash(hash);
             blake2b_update(&hash, t.amount.data(), ACCOUNT_AMOUNT_SIZE);
         }
+
+        blake2b_update(&hash, transaction_fee.data(), ACCOUNT_AMOUNT_SIZE);
     }
 
     /**

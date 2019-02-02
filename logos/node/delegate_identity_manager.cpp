@@ -215,6 +215,44 @@ DelegateIdentityManager::Init(const Config &config)
         epoch_number = (StaleEpoch()) ? epoch_number + 1 : epoch_number;
     }
 
+    // check account_db
+    if(_store.account_db_empty())
+    {
+        auto error (false);
+
+        // Construct genesis open block
+        boost::property_tree::ptree tree;
+        std::stringstream istream(logos::logos_test_genesis);
+        boost::property_tree::read_json(istream, tree);
+        StateBlock logos_genesis_block(error, tree, true, true);
+
+        if(error)
+        {
+            throw std::runtime_error("Failed to initialize Logos genesis block.");
+        }
+
+        //TODO check with Greg
+        ReceiveBlock logos_genesis_receive(0, logos_genesis_block.GetHash(), 0);
+        _store.state_block_put(logos_genesis_block,
+                transaction);
+        _store.receive_put(logos_genesis_receive.Hash(),
+                logos_genesis_receive,
+                transaction);
+        _store.account_put(logos::genesis_account,
+                {
+            /* Head         */ logos_genesis_block.GetHash(),
+            /* Receive Head */ logos_genesis_receive.Hash(),
+            /* Rep          */ 0,
+            /* Open         */ logos_genesis_block.GetHash(),
+            /* Amount       */ logos_genesis_block.trans[0].amount,
+            /* Time         */ logos::seconds_since_epoch(),
+            /* Count        */ 1,
+            /* Receive      */ 1
+            },
+            transaction);
+        CreateGenesisAccounts(transaction);
+    }
+
     // TBD: this is done out of order, genesis accounts are created in node::node(), needs to be reconciled
     LoadGenesisAccounts();
 

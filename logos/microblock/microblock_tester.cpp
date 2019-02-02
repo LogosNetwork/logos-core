@@ -1,4 +1,3 @@
-#include <logos/consensus/consensus_container.hpp>
 #include <logos/microblock/microblock_handler.hpp>
 #include <logos/microblock/microblock_tester.hpp>
 #include <logos/consensus/messages/messages.hpp>

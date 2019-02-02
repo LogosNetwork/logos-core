@@ -232,13 +232,13 @@ struct PrePrepareCommon
         {
             primary_delegate.Hash(hash);
         }
-        blake2b_update(&hash, &en, sizeof(uint32_t));
-        blake2b_update(&hash, &sqn, sizeof(uint32_t));
+        blake2b_update(&hash, &en, sizeof(en));
+        blake2b_update(&hash, &sqn, sizeof(sqn));
 
         if (!is_archive_block)
         {
             uint64_t tsp = htole64(timestamp);
-            blake2b_update(&hash, &tsp, sizeof(uint64_t));
+            blake2b_update(&hash, &tsp, sizeof(tsp));
         }
         previous.Hash(hash);
     }
