@@ -4,6 +4,7 @@
 #include <logos/consensus/persistence/request/request_persistence.hpp>
 #include <logos/consensus/persistence/reservations.hpp>
 #include <logos/consensus/message_validator.hpp>
+#include <logos/token/requests.hpp>
 #include <logos/lib/trace.hpp>
 #include <logos/common.hpp>
 
@@ -197,6 +198,20 @@ bool PersistenceManager<R>::Validate(
             // is the account losing/sending tokens.
             else
             {
+               
+                if(request->type == RequestType::SendTokens)
+                {
+                    auto send_tokens = dynamic_pointer_cast<const TokenSend>(request);
+                    assert(send_tokens);
+
+                    // This token id doesn't exist.
+                    if(_store.token_account_exists(send_tokens->token_id))
+                    {
+                        result.code = logos::process_result::invalid_token_id;
+                        return false;
+                    }
+                }
+
                 if(!request->Validate(result, info))
                 {
                     return false;

@@ -1175,6 +1175,19 @@ bool logos::block_store::epoch_tip_get(BlockHash & hash, MDB_txn *transaction)
     return false;
 }
 
+bool logos::block_store::token_account_exists(const BlockHash & token_id)
+{
+    LOG_TRACE(log) << __func__ << " key " << token_id.to_string();
+
+    logos::mdb_val junk;
+    logos::transaction transaction(environment, nullptr, false);
+
+    auto status(mdb_get(transaction, token_account_db, logos::mdb_val(token_id), junk));
+    assert(status == 0 || status == MDB_NOTFOUND);
+
+    return status == 0;
+}
+
 bool logos::block_store::token_account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, MDB_txn* transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << account_a.to_string();
