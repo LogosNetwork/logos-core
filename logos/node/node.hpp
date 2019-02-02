@@ -8,7 +8,7 @@
 #include <logos/epoch/archiver.hpp>
 #include <logos/epoch/recall_handler.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
-#include <logos/consensus/tx_acceptor/tx_acceptor_config.hpp>
+#include <logos/tx_acceptor/tx_acceptor_config.hpp>
 
 #include <condition_variable>
 #include <memory>

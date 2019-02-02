@@ -4,7 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <logos/node/working.hpp>
-#include <logos/consensus/tx_acceptor/tx_acceptor.hpp>
+#include <logos/tx_acceptor/tx_acceptor.hpp>
 
 logos_daemon::daemon_config::daemon_config (boost::filesystem::path const & application_path_a) :
 rpc_enable (false),

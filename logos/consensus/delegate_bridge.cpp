@@ -2,7 +2,7 @@
 // Implementes DelegateBridge class
 //
 
-#include <logos/consensus/network/consensus_netio.hpp>
+#include <logos/network/consensus_netio.hpp>
 #include <logos/consensus/delegate_bridge.hpp>
 #include <logos/consensus/messages/util.hpp>
 

@@ -1,8 +1,8 @@
 #include <logos/node/node.hpp>
 
 #include <logos/consensus/consensus_container.hpp>
-#include <logos/consensus/tx_acceptor/tx_acceptor.hpp>
-#include <logos/consensus/tx_acceptor/tx_receiver.hpp>
+#include <logos/tx_acceptor/tx_acceptor.hpp>
+#include <logos/tx_acceptor/tx_receiver.hpp>
 
 #include <logos/lib/interface.h>
 #include <logos/node/common.hpp>
