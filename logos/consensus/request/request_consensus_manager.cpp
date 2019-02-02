@@ -110,7 +110,14 @@ RequestConsensusManager::Validate(
         return false;
     }
 
-    return _persistence_manager.Validate(*message, result, false);
+    auto request = static_pointer_cast<const Request>(message);
+
+    if(!request->Validate(result))
+    {
+        return false;
+    }
+
+    return _persistence_manager.Validate(request, result, false);
 }
 
 bool

@@ -8,11 +8,19 @@
 
 #include <unordered_map>
 
+namespace
+{
+
+using logos::AccountType;
+
+}
+
 class ReservationsProvider
 {
 protected:
 
-    using Store = logos::block_store;
+    using Store      = logos::block_store;
+    using AccountPtr = std::shared_ptr<logos::Account>;
 
 public:
 
@@ -23,10 +31,12 @@ public:
     virtual ~ReservationsProvider() = default;
 
     virtual bool Acquire(const AccountAddress & account,
-                         logos::account_info &info)
+                         AccountPtr & info,
+                         AccountType type = AccountType::LogosAccount)
     { return true; }
 
-    virtual void Release(const AccountAddress & account)
+    virtual void Release(const AccountAddress & account,
+                         AccountType type = AccountType::LogosAccount)
     {}
 
 protected:
@@ -39,7 +49,7 @@ class Reservations : public ReservationsProvider
 {
 protected:
 
-    using AccountCache = std::unordered_map<AccountAddress, logos::account_info>;
+    using AccountCache = std::unordered_map<AccountAddress, AccountPtr>;
 
 public:
 
@@ -63,40 +73,52 @@ public:
     //       this is not the only case in which a cached account will be
     //       acquired.
     //-------------------------------------------------------------------------
-    bool Acquire(const AccountAddress & account, logos::account_info &info) override
+    bool Acquire(const AccountAddress & account,
+                 AccountPtr & info,
+                 AccountType type = AccountType::LogosAccount) override
     {
         std::lock_guard<std::mutex> lock(_mutex);
 
-        if(_accounts.find(account) != _accounts.end())
+        auto & cache = GetCache(type);
+
+        if(cache.find(account) != cache.end())
         {
             LOG_WARN(_log) << "Reservations::Acquire - Warning - attempt to "
                            << "acquire account "
                            << account.to_string()
                            << " which is already in the Reservations cache.";
 
-            info = _accounts[account];
+            info = cache[account] ;
             return false;
         }
 
-        auto ret = _store.account_get(account, info);
+        auto ret = _store.account_get(account, info, type);
 
         if(!ret)
         {
-            _accounts[account] = info;
+            cache[account] = info;
         }
 
         return ret;
     }
 
-    void Release(const AccountAddress & account) override
+    void Release(const AccountAddress & account,
+                 AccountType type = AccountType::LogosAccount) override
     {
         std::lock_guard<std::mutex> lock(_mutex);
-        _accounts.erase(account);
+        GetCache(type).erase(account);
     }
 
 private:
 
+    AccountCache & GetCache(AccountType type)
+    {
+        return type == AccountType::LogosAccount ?
+               _accounts : _token_accounts;
+    }
+
     AccountCache _accounts;
+    AccountCache _token_accounts;
     std::mutex   _mutex;
 };
 
@@ -111,7 +133,9 @@ public:
 
     virtual ~DefaultReservations() = default;
 
-    bool Acquire(const AccountAddress & account, logos::account_info & info) override
+    bool Acquire(const AccountAddress & account,
+                 AccountPtr & info,
+                 AccountType type = AccountType::LogosAccount) override
     {
         return _store.account_get(account, info);
     }

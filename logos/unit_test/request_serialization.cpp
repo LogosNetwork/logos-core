@@ -34,9 +34,10 @@ TEST (Request_Serialization, json_deserialization)
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
-        "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
         "symbol": "MYC",
         "name": "MyCoin",
         "total_supply": "65000",
@@ -68,6 +69,8 @@ TEST (Request_Serialization, json_deserialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(issuance.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(issuance.fee.number(), 100);
+    ASSERT_EQ(issuance.sequence, 1);
     ASSERT_EQ(issuance.symbol, "MYC");
     ASSERT_EQ(issuance.total_supply, 65000);
     ASSERT_EQ(issuance.controllers.size(), 2);
@@ -83,9 +86,10 @@ TEST (Request_Serialization, json_deserialization)
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
-        "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
         "amount": "50000"
      })%%%";
 
@@ -94,6 +98,8 @@ TEST (Request_Serialization, json_deserialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(issue_adtl.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(issue_adtl.fee.number(), 100);
+    ASSERT_EQ(issue_adtl.sequence, 1);
     ASSERT_EQ(issue_adtl.amount, 50000);
 
     // Token Change Setting
@@ -104,9 +110,11 @@ TEST (Request_Serialization, json_deserialization)
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
+        "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
-        "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
         "setting": "FREEZE",
         "value": "true"
      })%%%";
@@ -116,6 +124,8 @@ TEST (Request_Serialization, json_deserialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(change_setting.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(change_setting.fee.number(), 100);
+    ASSERT_EQ(change_setting.sequence, 1);
     ASSERT_EQ(change_setting.setting, TokenSetting::Freeze);
     ASSERT_EQ(change_setting.value, SettingValue::Enabled);
 
@@ -127,9 +137,10 @@ TEST (Request_Serialization, json_deserialization)
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
-        "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
         "setting": "modify_freeze"
      })%%%";
 
@@ -138,6 +149,8 @@ TEST (Request_Serialization, json_deserialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(immute_setting.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(immute_setting.fee.number(), 100);
+    ASSERT_EQ(immute_setting.sequence, 1);
     ASSERT_EQ(immute_setting.setting, TokenSetting::ModifyFreeze);
 
     // Token Revoke
@@ -148,9 +161,10 @@ TEST (Request_Serialization, json_deserialization)
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
-        "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
         "source": "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju",
         "transaction" : {
             "destination": "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz",
@@ -163,6 +177,8 @@ TEST (Request_Serialization, json_deserialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(revoke.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(revoke.fee.number(), 100);
+    ASSERT_EQ(revoke.sequence, 1);
     ASSERT_EQ(revoke.source.to_account(), "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
     ASSERT_EQ(revoke.transaction.destination.to_account(),
               "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
@@ -176,9 +192,10 @@ TEST (Request_Serialization, json_deserialization)
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
-        "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
         "account": "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju",
         "action": "unfreeze"
      })%%%";
@@ -188,6 +205,8 @@ TEST (Request_Serialization, json_deserialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(freeze.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(freeze.fee.number(), 100);
+    ASSERT_EQ(freeze.sequence, 1);
     ASSERT_EQ(freeze.account.to_account(), "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
     ASSERT_EQ(freeze.action, FreezeAction::Unfreeze);
 
@@ -199,9 +218,10 @@ TEST (Request_Serialization, json_deserialization)
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
-        "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
         "fee_type": "percentage",
         "fee_rate": "10"
      })%%%";
@@ -211,6 +231,8 @@ TEST (Request_Serialization, json_deserialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(set_fee.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(set_fee.fee.number(), 100);
+    ASSERT_EQ(set_fee.sequence, 1);
     ASSERT_EQ(set_fee.fee_type, TokenFeeType::Percentage);
     ASSERT_EQ(set_fee.fee_rate, 10);
 
@@ -222,9 +244,10 @@ TEST (Request_Serialization, json_deserialization)
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
-        "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
         "account": "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju"
      })%%%";
 
@@ -233,6 +256,8 @@ TEST (Request_Serialization, json_deserialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(whitelist.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(whitelist.fee.number(), 100);
+    ASSERT_EQ(whitelist.sequence, 1);
     ASSERT_EQ(whitelist.account.to_account(), "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
 
     // Token Issuer Info
@@ -243,9 +268,10 @@ TEST (Request_Serialization, json_deserialization)
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
-        "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
         "new_info": "This is new info"
      })%%%";
 
@@ -254,6 +280,8 @@ TEST (Request_Serialization, json_deserialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(issuer_info.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(issuer_info.fee.number(), 100);
+    ASSERT_EQ(issuer_info.sequence, 1);
     ASSERT_EQ(issuer_info.new_info, "This is new info");
 
     // Token Controller
@@ -264,9 +292,10 @@ TEST (Request_Serialization, json_deserialization)
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
-        "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
         "action": "add",
         "controller": {
             "account": "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz",
@@ -279,6 +308,8 @@ TEST (Request_Serialization, json_deserialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(controller.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(controller.fee.number(), 100);
+    ASSERT_EQ(controller.sequence, 1);
     ASSERT_EQ(controller.action, ControllerAction::Add);
     ASSERT_EQ(controller.controller.account.to_account(), "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
     ASSERT_TRUE(controller.controller.privileges[size_t(ControllerPrivilege::ChangeAddTokens)]);
@@ -295,9 +326,10 @@ TEST (Request_Serialization, json_deserialization)
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
-        "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
         "amount": "1000"
      })%%%";
 
@@ -306,6 +338,8 @@ TEST (Request_Serialization, json_deserialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(burn.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(burn.fee.number(), 100);
+    ASSERT_EQ(burn.sequence, 1);
     ASSERT_EQ(burn.amount, 1000);
 
     // Token Account Send
@@ -316,9 +350,10 @@ TEST (Request_Serialization, json_deserialization)
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
-        "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
         "transaction" : {
             "destination": "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz",
             "amount": "100"
@@ -330,6 +365,8 @@ TEST (Request_Serialization, json_deserialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(account_send.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(account_send.fee.number(), 100);
+    ASSERT_EQ(account_send.sequence, 1);
     ASSERT_EQ(account_send.transaction.destination.to_account(),
               "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
     ASSERT_EQ(account_send.transaction.amount, 100);
@@ -342,9 +379,10 @@ TEST (Request_Serialization, json_deserialization)
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
-        "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
         "transaction" : {
             "destination": "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz",
             "amount": "50"
@@ -356,6 +394,8 @@ TEST (Request_Serialization, json_deserialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(withdraw_fee.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(withdraw_fee.fee.number(), 100);
+    ASSERT_EQ(withdraw_fee.sequence, 1);
     ASSERT_EQ(withdraw_fee.transaction.destination.to_account(),
               "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
     ASSERT_EQ(withdraw_fee.transaction.amount, 50);
@@ -368,9 +408,10 @@ TEST (Request_Serialization, json_deserialization)
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
-        "admin_account": "lgs_13c87hr61uu1icjinoxuhrphcj4pb3se8hpeggscqfzwk1de5pd8y6opd767",
         "transactions": [
             {
                  "destination": "lgs_1sibjaeaceh59dh7fefo49narpsoytqac5hafhujum3grnd7qrhbczfy9wx8",
@@ -385,7 +426,7 @@ TEST (Request_Serialization, json_deserialization)
                  "amount": "3"
             }
         ],
-        "fee": "5"
+        "token_fee": "5"
      })%%%";
 
     tree = get_tree(token_send);
@@ -393,6 +434,8 @@ TEST (Request_Serialization, json_deserialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(send.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(send.fee.number(), 100);
+    ASSERT_EQ(send.sequence, 1);
     ASSERT_EQ(send.transactions.size(), 3);
     ASSERT_EQ(send.transactions[0].destination.to_account(),
               "lgs_1sibjaeaceh59dh7fefo49narpsoytqac5hafhujum3grnd7qrhbczfy9wx8");
@@ -403,7 +446,7 @@ TEST (Request_Serialization, json_deserialization)
     ASSERT_EQ(send.transactions[2].destination.to_account(),
               "lgs_1mkqajo9pedc1x764b5y5yzkykcm3h3hx1bumznzhgjqimjpajy9w5qfsis6");
     ASSERT_EQ(send.transactions[2].amount, 3);
-    ASSERT_EQ(send.fee, 5);
+    ASSERT_EQ(send.token_fee, 5);
 
     // Change Representative
     //
@@ -413,6 +456,8 @@ TEST (Request_Serialization, json_deserialization)
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "client": "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju",
         "representative": "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz"
@@ -423,6 +468,8 @@ TEST (Request_Serialization, json_deserialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(change.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(change.fee.number(), 100);
+    ASSERT_EQ(change.sequence, 1);
     ASSERT_EQ(change.client.to_account(),
               "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
     ASSERT_EQ(change.representative.to_account(),

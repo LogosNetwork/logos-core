@@ -3,6 +3,8 @@
 #include <logos/request/utility.hpp>
 #include <logos/request/fields.hpp>
 
+#include <numeric>
+
 Send::Send(const AccountAddress & account,
            const BlockHash & previous,
            uint32_t sequence,
@@ -15,12 +17,12 @@ Send::Send(const AccountAddress & account,
     : Request(RequestType::Send,
               account,
               previous,
+              transaction_fee,
+              sequence,
               priv,
               pub)
     , account(account)
     , previous(previous)
-    , sequence(sequence)
-    , transaction_fee(transaction_fee)
     , work(work)
 {
     transactions.push_back(Transaction(to, amount));
@@ -37,11 +39,11 @@ Send::Send(AccountAddress const & account,
     : Request(RequestType::Send,
               account,
               previous,
+              transaction_fee,
+              sequence,
               sig)
     , account(account)
     , previous(previous)
-    , sequence(sequence)
-    , transaction_fee(transaction_fee)
     , work(work)
 {
     transactions.push_back(Transaction(to, amount));
@@ -69,14 +71,6 @@ Send::Send(bool & error,
         }
 
         error = previous.decode_hex(tree.get<std::string>(PREVIOUS));
-        if(error)
-        {
-            return;
-        }
-
-        sequence = std::stoul(tree.get<std::string>("sequence"));
-
-        error = transaction_fee.decode_dec(tree.get<std::string>("transaction_fee", "0"));
         if(error)
         {
             return;
@@ -160,12 +154,6 @@ Send::Send(bool & error,
         return;
     }
 
-    error = logos::read(stream, sequence);
-    if(error)
-    {
-        return;
-    }
-
     uint8_t count;
     error = logos::read(stream, count);
     if(error)
@@ -182,12 +170,6 @@ Send::Send(bool & error,
         }
 
         transactions.push_back(t);
-    }
-
-    error = logos::read(stream, transaction_fee);
-    if(error)
-    {
-        return;
     }
 
     error = logos::read(stream, signature);
@@ -219,6 +201,18 @@ Send::Send(bool & error, const logos::mdb_val & mdbval)
     new (this) Send(error, stream, false);
 }
 
+Amount Send::GetLogosTotal() const
+{
+    auto total = std::accumulate(transactions.begin(), transactions.end(),
+        Amount(0),
+        [](const Amount & a, const Transaction & t)
+        {
+            return a + t.amount;
+        });
+
+    return total + Request::GetLogosTotal();
+}
+
 bool Send::AddTransaction(const AccountAddress & to, const Amount & amount)
 {
     return AddTransaction(Transaction(to, amount));
@@ -238,8 +232,6 @@ void Send::Hash(blake2b_state & hash) const
 {
     account.Hash(hash);
     previous.Hash(hash);
-    blake2b_update(&hash, &sequence, sizeof(sequence));
-    transaction_fee.Hash(hash);
 
     for(const auto & t : transactions)
     {
@@ -259,8 +251,6 @@ boost::property_tree::ptree Send::SerializeJson() const
 
     tree.put("account", account.to_account());
     tree.put("previous", previous.to_string());
-    tree.put("sequence", std::to_string(sequence));
-    tree.put("transaction_fee", transaction_fee.to_string_dec());
     tree.put("signature", signature.to_string());
     tree.put("work", std::to_string(work));
     tree.put("number_transactions", std::to_string(transactions.size()));
@@ -289,8 +279,6 @@ uint64_t Send::Serialize (logos::stream & stream) const
     return  Request::Serialize(stream) +
             logos::write(stream, account) +
             logos::write(stream, previous) +
-            logos::write(stream, sequence) +
             SerializeVector(stream, transactions) +
-            logos::write(stream, transaction_fee) +
             logos::write(stream, signature);
 }

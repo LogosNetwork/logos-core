@@ -1037,7 +1037,7 @@ TEST (DB, account)
     vector<uint8_t> buf;
     {
         logos::vectorstream stream(buf);
-        block.serialize(stream);
+        block.Serialize(stream);
     }
     std::cout << byte_vector_to_string(buf) << std::endl;
 

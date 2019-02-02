@@ -40,13 +40,12 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch()
 
     for(auto pos = sequence.begin(); pos != sequence.end(); ++pos)
     {
-        // Null state blocks are used as batch delimiters. When
-        // one is encountered, remove it from the requests
-        // container and close the batch.
-
         LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch requests_size="
                          << sequence.size();
 
+        // 'Null' requests are used as batch delimiters. When
+        // one is encountered, remove it from the requests
+        // container and close the batch.
         if((*pos)->origin.is_zero() && (*pos)->type == RequestType::Unknown)
         {
             sequence.erase(pos);

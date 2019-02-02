@@ -2,10 +2,73 @@
 
 #include <ios>
 
+TokenAccount::TokenAccount (bool & error, const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
+    error = Deserialize (stream);
+}
+
+TokenAccount::TokenAccount(const logos::block_hash & head,
+                           logos::amount balance,
+                           uint16_t token_balance,
+                           uint16_t token_fee_balance,
+                           uint32_t block_count)
+    : logos::Account(head, balance, block_count)
+    , token_balance(token_balance)
+    , token_fee_balance(token_fee_balance)
+{}
+
+uint32_t TokenAccount::Serialize (logos::stream & stream_a) const
+{
+    auto s = Account::Serialize(stream_a);
+    s += logos::write (stream_a, token_balance);
+    s += logos::write (stream_a, token_fee_balance);
+    return s;
+}
+
+bool TokenAccount::Deserialize (logos::stream & stream)
+{
+    auto error = Account::Deserialize(stream);
+    if(error)
+    {
+        return error;
+    }
+
+    error = logos::read (stream, token_balance);
+    if(error)
+    {
+        return error;
+    }
+
+    return (error = logos::read(stream, token_fee_balance));
+}
+
+bool TokenAccount::operator== (TokenAccount const & other) const
+{
+    return token_balance == other.token_balance &&
+           token_fee_balance == other.token_fee_balance &&
+           Account::operator==(other);
+}
+
+bool TokenAccount::operator!= (TokenAccount const & other_a) const
+{
+    return !(*this == other_a);
+}
+
+logos::mdb_val TokenAccount::to_mdb_val(std::vector<uint8_t> &buf) const
+{
+    assert(buf.empty());
+    {
+        logos::vectorstream stream(buf);
+        Serialize(stream);
+    }
+    return logos::mdb_val(buf.size(), buf.data());
+}
+
 bool TokenAccount::Validate(TokenSetting setting, bool value, logos::process_return & result) const
 {
     auto pos = static_cast<EnumType>(setting);
-    bool cur_val = _settings.test(pos);
+    bool cur_val = settings.test(pos);
 
     // Settings with odd values represent the
     // mutability of the previous setting.
@@ -14,7 +77,7 @@ bool TokenAccount::Validate(TokenSetting setting, bool value, logos::process_ret
         // Mutability is false.
         if(!cur_val)
         {
-            LOG_ERROR(_log) << "Attempt to update a false mutability setting: "
+            LOG_ERROR(log) << "Attempt to update a false mutability setting: "
                             << TokenSettingName(setting);
 
             result.code = logos::process_result::revert_immutability;
@@ -25,9 +88,9 @@ bool TokenAccount::Validate(TokenSetting setting, bool value, logos::process_ret
     {
         auto ms = static_cast<EnumType>(GetMutabilitySetting(setting));
 
-        if(!_settings.test(ms))
+        if(!settings.test(ms))
         {
-            LOG_ERROR(_log) << "Attempt to update immutable setting: "
+            LOG_ERROR(log) << "Attempt to update immutable setting: "
                             << TokenSettingName(setting);
 
             result.code = logos::process_result::immutable;
@@ -37,7 +100,7 @@ bool TokenAccount::Validate(TokenSetting setting, bool value, logos::process_ret
 
     if(cur_val == value)
     {
-        LOG_WARN(_log) << "Redundantly setting ("
+        LOG_WARN(log) << "Redundantly setting ("
                        << TokenSettingName(setting)
                        << ") to "
                        << std::boolalpha << value;
@@ -52,12 +115,12 @@ bool TokenAccount::Validate(TokenSetting setting, bool value, logos::process_ret
 void TokenAccount::Set(TokenSetting setting, bool value)
 {
     auto pos = static_cast<EnumType>(setting);
-    _settings.set(pos, value);
+    settings.set(pos, value);
 }
 
 bool TokenAccount::Allowed(TokenSetting setting) const
 {
-    return _settings.test(static_cast<EnumType>(setting));
+    return settings.test(static_cast<EnumType>(setting));
 }
 
 bool TokenAccount::IsMutabilitySetting(TokenSetting setting) const

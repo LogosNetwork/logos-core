@@ -50,157 +50,179 @@ void PersistenceManager<R>::ApplyUpdates(
 }
 
 bool PersistenceManager<R>::Validate(
-    const Request & request,
+    std::shared_ptr<const Request> request,
     logos::process_return & result,
     bool allow_duplicates)
 {
-//    auto hash = request.GetHash();
-//
-//    if(request.account.is_zero())
-//    {
-//        result.code = logos::process_result::opened_burn_account;
-//        return false;
-//    }
-//
-//    if(request.transaction_fee.number() < MIN_TRANSACTION_FEE)
-//    {
-//        result.code = logos::process_result::insufficient_fee;
-//        return false;
-//    }
-//
-//    std::lock_guard<std::mutex> lock(_reservation_mutex);
-//
-//    logos::account_info info;
-//    auto account_error(_reservations->Acquire(request.account, info));
-//
-//    // Account exists.
-//    if(!account_error)
-//    {
-//        if(info.block_count != request.sequence)
-//        {
-//            result.code = logos::process_result::wrong_sequence_number;
-//            LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request.sequence
-//                           << " expecting=" << info.block_count;
-//            return false;
-//        }
-//
-//        // No previous block set.
-//        if(request.previous.is_zero() && info.block_count)
-//        {
-//            result.code = logos::process_result::fork;
-//            return false;
-//        }
-//
-//        // This account has issued at least one send transaction.
-//        if(info.block_count)
-//        {
-//            if(!_store.request_exists(request.previous))
-//            {
-//                result.code = logos::process_result::gap_previous;
-//                BOOST_LOG (_log) << "GAP_PREVIOUS: cannot find previous hash "
-//                                 << request.previous.to_string()
-//                                 << "; current account info head is: "
-//                                 << info.head.to_string();
-//
-//                return false;
-//            }
-//        }
-//
-//        if(request.previous != info.head)
-//        {
-//            // Allow duplicate requests (hash == info.head)
-//            // received from batch blocks.
-//            if(hash == info.head)
-//            {
-//                if(allow_duplicates)
-//                {
-//                    result.code = logos::process_result::progress;
-//                    return true;
-//                }
-//                else
-//                {
-//                    result.code = logos::process_result::old;
-//                    return false;
-//                }
-//            }
-//            else
-//            {
-//                result.code = logos::process_result::fork;
-//                return false;
-//            }
-//        }
-//
-//        // Have we seen this block before?
-//        if(_store.request_exists(hash))
-//        {
-//            result.code = logos::process_result::old;
-//            return false;
-//        }
-//
-//        // TODO
-//        uint32_t current_epoch = 0;
-//
-//        auto update_reservation = [&info, &hash, current_epoch]()
-//                                  {
-//                                       info.reservation = hash;
-//                                       info.reservation_epoch = current_epoch;
-//                                  };
-//
-//        // Account is not reserved.
-//        if(info.reservation.is_zero())
-//        {
-//            update_reservation();
-//        }
-//
-//        // Account is already reserved.
-//        else if(info.reservation != hash)
-//        {
-//            // This block conflicts with existing reservation.
-//            if(current_epoch < info.reservation_epoch + RESERVATION_PERIOD)
-//            {
-//                result.code = logos::process_result::already_reserved;
-//                return false;
-//            }
-//
-//            // Reservation has expired.
-//            update_reservation();
-//        }
-//
-//        auto total = request.transaction_fee.number();
-//        for(auto & i : request.transactions)
-//        {
-//            total += i.amount.number();
-//        }
-//        if(total > info.balance.number())
-//        {
-//            result.code = logos::process_result::insufficient_balance;
-//            return false;
-//        }
-//    }
-//
-//    // Account doesn't exist
-//    else
-//    {
-//        // Currently do not accept state blocks
-//        // with non-existent accounts.
-//        result.code = logos::process_result::unknown_source_account;
-//        return false;
-//
-//        if(!request.previous.is_zero())
-//        {
-//            return false;
-//        }
-//    }
-//
-//    result.code = logos::process_result::progress;
+    auto hash = request->GetHash();
+
+    std::lock_guard<std::mutex> lock(_reservation_mutex);
+
+    std::shared_ptr<logos::Account> info;
+    auto account_error(_reservations->Acquire(request->GetAccount(), info));
+
+    // Account exists.
+    if(!account_error)
+    {
+        if(info->block_count != request->sequence)
+        {
+            result.code = logos::process_result::wrong_sequence_number;
+            LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request->sequence
+                           << " expecting=" << info->block_count;
+            return false;
+        }
+
+        // No previous hash set.
+        if(request->previous.is_zero() && info->block_count)
+        {
+            result.code = logos::process_result::fork;
+            return false;
+        }
+
+        // This account has issued at
+        // least one request.
+        if(info->block_count)
+        {
+            if(!_store.request_exists(request->previous))
+            {
+                result.code = logos::process_result::gap_previous;
+                BOOST_LOG (_log) << "GAP_PREVIOUS: cannot find previous hash "
+                                 << request->previous.to_string()
+                                 << "; current account info head is: "
+                                 << info->head.to_string();
+
+                return false;
+            }
+        }
+
+        if(request->previous != info->head)
+        {
+            // Allow duplicate requests (hash == info->head)
+            // received from request blocks sent by other
+            // delegates in PrePrepares.
+            if(hash == info->head)
+            {
+                if(allow_duplicates)
+                {
+                    result.code = logos::process_result::progress;
+                    return true;
+                }
+                else
+                {
+                    result.code = logos::process_result::old;
+                    return false;
+                }
+            }
+            else
+            {
+                result.code = logos::process_result::fork;
+                return false;
+            }
+        }
+
+        // Have we seen this request before?
+        if(_store.request_exists(hash))
+        {
+            result.code = logos::process_result::old;
+            return false;
+        }
+
+        // TODO
+        uint32_t current_epoch = 0;
+
+        auto update_reservation = [&info, &hash, current_epoch]()
+                                  {
+                                       info->reservation = hash;
+                                       info->reservation_epoch = current_epoch;
+                                  };
+
+        // Account is not reserved.
+        if(info->reservation.is_zero())
+        {
+            update_reservation();
+        }
+
+        // Account is already reserved.
+        else if(info->reservation != hash)
+        {
+            // This request conflicts with an
+            // existing reservation.
+            if(current_epoch < info->reservation_epoch + RESERVATION_PERIOD)
+            {
+                result.code = logos::process_result::already_reserved;
+                return false;
+            }
+
+            // Reservation has expired.
+            update_reservation();
+        }
+
+        // Make sure there's enough Logos
+        // to cover the request.
+        if(request->GetLogosTotal() > info->balance)
+        {
+            result.code = logos::process_result::insufficient_balance;
+            return false;
+        }
+
+        // This request transfers tokens
+        if(request->GetTokenTotal() > 0)
+        {
+            // The account that will own the request
+            // is not the account losing/sending
+            // tokens.
+            if(request->GetAccount() != request->GetSource())
+            {
+                std::shared_ptr<logos::Account> source;
+                if(_store.account_get(request->GetSource(), source))
+                {
+                    // TODO: Bootstrapping
+                    result.code = logos::process_result::unknown_source_account;
+                    return false;
+                }
+
+                // The available tokens and the
+                // amount requested don't add up.
+                if(!request->Validate(result, source))
+                {
+                    return false;
+                }
+                else
+                {
+                    // TODO: Pending revoke cache
+                }
+            }
+
+            // The account that will own the request
+            // is the account losing/sending tokens.
+            else
+            {
+                if(!request->Validate(result, info))
+                {
+                    return false;
+                }
+            }
+        }
+    }
+
+    // Account doesn't exist
+    else
+    {
+        // Currently do not accept requests
+        // with non-existent accounts.
+        result.code = logos::process_result::unknown_source_account;
+        return false;
+    }
+
+    result.code = logos::process_result::progress;
     return true;
 }
 
 bool PersistenceManager<R>::Validate(
-    const Request & block)
+    std::shared_ptr<const Request> request)
 {
     logos::process_return ignored_result;
-    auto val = Validate(block, ignored_result);
+    auto val = Validate(request, ignored_result);
 
     LOG_DEBUG(_log) << "PersistenceManager<R>::Validate code "
                     << (uint)ignored_result.code;
@@ -218,7 +240,7 @@ bool PersistenceManager<R>::Validate(
     for(uint64_t i = 0; i < message.requests.size(); ++i)
     {
         logos::process_return result;
-        if(!Validate(static_cast<const Request&>(*message.requests[i]), result))
+        if(!Validate(message.requests[i], result))
         {
             UpdateStatusRequests(status, i, result.code);
             UpdateStatusReason(status, process_result::invalid_request);
@@ -329,7 +351,7 @@ bool PersistenceManager<R>::UpdateSourceState(
 
     info.block_count++;
     info.balance = info.balance.number() -
-                   request.transaction_fee.number();
+                   request.fee.number();
 
     for(auto & t : request.transactions)
     {

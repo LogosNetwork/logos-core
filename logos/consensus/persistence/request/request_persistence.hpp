@@ -16,7 +16,7 @@ class PersistenceManager<R> : public Persistence
 
 protected:
 
-    using Request         = DelegateMessage<R>;
+    using Message         = DelegateMessage<R>;
     using PrePrepare      = PrePrepareMessage<R>;
     using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
 
@@ -29,8 +29,10 @@ public:
 
     virtual void ApplyUpdates(const ApprovedBSB & message, uint8_t delegate_id);
 
-    virtual bool Validate(const Request & request, logos::process_return & result, bool allow_duplicates = true);
-    virtual bool Validate(const Request & request);
+    virtual bool Validate(std::shared_ptr<const Request> request,
+                          logos::process_return & result,
+                          bool allow_duplicates = true);
+    virtual bool Validate(std::shared_ptr<const Request> request);
 
     virtual bool Validate(const PrePrepare & message, ValidationStatus * status = nullptr);
 
