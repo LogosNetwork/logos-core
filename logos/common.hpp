@@ -1,6 +1,7 @@
 #pragma once
 
 #include <logos/lib/blocks.hpp>
+#include <logos/token/entry.hpp>
 #include <logos/node/utility.hpp>
 
 #include <boost/property_tree/ptree.hpp>
@@ -152,15 +153,13 @@ struct account_info : Account
     //mdb_val val () const;
     mdb_val to_mdb_val(std::vector<uint8_t> &buf) const override;
 
-    logos::block_hash head;
     logos::block_hash receive_head;
     logos::block_hash rep_block;
     logos::block_hash open_block;
-    logos::amount balance;
     /** Seconds since posix epoch */
     uint64_t modified;
-    uint32_t block_count; //sequence number
     uint32_t receive_count;
+    std::vector<Entry> entries;
 };
 
 /**
@@ -306,7 +305,8 @@ enum class process_result
     immutable,                  // Logos - Attempting to update an immutable token account setting
     redundant,                  // Logos - The token account setting change was idempotent
     insufficient_token_balance, // Logos - Token balance is insufficient.
-    invalid_token_id            // Logos - Token ID is invalid.
+    invalid_token_id,           // Logos - Token ID is invalid.
+    untethered_account          // Logos - User account has not been tethered to the specified token account.
 };
 
 std::string ProcessResultToString(process_result result);
