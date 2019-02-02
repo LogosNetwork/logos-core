@@ -36,6 +36,39 @@ TokenRequest::TokenRequest(bool & error,
     }
 }
 
+bool TokenRequest::Validate(logos::process_return & result) const
+{
+    if(!Request::Validate(result))
+    {
+        return false;
+    }
+
+    if(token_id.is_zero())
+    {
+        result.code = logos::process_result::invalid_token_id;
+        return false;
+    }
+
+    return true;
+}
+
+logos::AccountType TokenRequest::GetAccountType() const
+{
+    return logos::AccountType::TokenAccount;
+}
+
+AccountAddress TokenRequest::GetAccount() const
+{
+    return token_id;
+}
+
+AccountAddress TokenRequest::GetSource() const
+{
+    // Source and Account are the same
+    // for most TokenRequests.
+    return GetAccount();
+}
+
 boost::property_tree::ptree TokenRequest::SerializeJson() const
 {
     using namespace request::fields;
@@ -62,67 +95,6 @@ void TokenRequest::Hash(blake2b_state & hash) const
 uint16_t TokenRequest::WireSize() const
 {
     return sizeof(token_id.bytes) + Request::WireSize();
-}
-
-TokenAdminRequest::TokenAdminRequest(bool & error,
-                                     std::basic_streambuf<uint8_t> & stream)
-    : TokenRequest(error, stream)
-{
-    if(error)
-    {
-        return;
-    }
-
-    error = read(stream, admin_account);
-}
-
-TokenAdminRequest::TokenAdminRequest(bool & error,
-                                     boost::property_tree::ptree const & tree)
-    : TokenRequest(error, tree)
-{
-    using namespace request::fields;
-
-    if(error)
-    {
-        return;
-    }
-
-    try
-    {
-        error = admin_account.decode_account(tree.get<std::string>(ADMIN_ACCOUNT));
-    }
-    catch(...)
-    {
-        error = true;
-    }
-}
-
-boost::property_tree::ptree TokenAdminRequest::SerializeJson() const
-{
-    using namespace request::fields;
-
-    boost::property_tree::ptree tree = TokenRequest::SerializeJson();
-
-    tree.put(ADMIN_ACCOUNT, admin_account.to_account());
-
-    return tree;
-}
-
-uint64_t TokenAdminRequest::Serialize(logos::stream & stream) const
-{
-    return TokenRequest::Serialize(stream) +
-           logos::write(stream, admin_account);
-}
-
-void TokenAdminRequest::Hash(blake2b_state & hash) const
-{
-    TokenRequest::Hash(hash);
-    admin_account.Hash(hash);
-}
-
-uint16_t TokenAdminRequest::WireSize() const
-{
-    return sizeof(admin_account.bytes) + TokenRequest::WireSize();
 }
 
 ControllerInfo::ControllerInfo(bool & error,
@@ -172,6 +144,7 @@ void ControllerInfo::DeserializeJson(bool & error,
         error = true;
     }
 }
+
 boost::property_tree::ptree ControllerInfo::SerializeJson() const
 {
     using namespace request::fields;

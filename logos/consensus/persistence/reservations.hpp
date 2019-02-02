@@ -11,37 +11,30 @@
 
 #include <unordered_map>
 
+namespace
+{
+
+using logos::AccountType;
+
+}
+
 class ReservationsProvider
 {
 protected:
 
-    using Store = logos::block_store;
+    using Store      = logos::block_store;
+    using AccountPtr = std::shared_ptr<logos::Account>;
 
 public:
-<<<<<<< HEAD
-    explicit ReservationsProvider(Store & store)
-=======
 
-    ReservationsProvider(Store & store)
->>>>>>> Advance the new request framework; Make request transactions generic
+    explicit ReservationsProvider(Store & store)
         : _store(store)
     {}
 
     virtual ~ReservationsProvider() = default;
-<<<<<<< HEAD
     virtual bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) {return false;}
     virtual void Release(const AccountAddress & account) {}
     virtual void UpdateReservation(const logos::block_hash & hash, const logos::account & account) {}
-=======
-
-    virtual bool Acquire(const AccountAddress & account,
-                         logos::account_info &info)
-    { return true; }
-
-    virtual void Release(const AccountAddress & account)
-    {}
-
->>>>>>> Advance the new request framework; Make request transactions generic
 protected:
 
     Store & _store;
@@ -55,12 +48,7 @@ protected:
     using ReservationCache = std::unordered_map<AccountAddress, logos::reservation_info>;
 
 public:
-<<<<<<< HEAD
     explicit Reservations(Store & store)
-=======
-
-    Reservations(Store & store)
->>>>>>> Advance the new request framework; Make request transactions generic
         : ReservationsProvider(store)
     {}
 
@@ -96,23 +84,8 @@ class DefaultReservations : public ReservationsProvider
 {
 
 public:
-<<<<<<< HEAD
     explicit DefaultReservations(Store & store) : ReservationsProvider(store)
-=======
-
-    DefaultReservations(Store & store)
-        : ReservationsProvider(store)
->>>>>>> Advance the new request framework; Make request transactions generic
     {}
 
-<<<<<<< HEAD
     bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) override;
-=======
-    virtual ~DefaultReservations() = default;
-
-    bool Acquire(const AccountAddress & account, logos::account_info & info) override
-    {
-        return _store.account_get(account, info);
-    }
->>>>>>> Advance the new request framework; Make request transactions generic
 };

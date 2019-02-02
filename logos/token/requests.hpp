@@ -6,7 +6,7 @@
 
 // Token Admin Requests
 //
-struct TokenIssuance : TokenAdminRequest
+struct TokenIssuance : TokenRequest
 {
     using Settings    = BitField<TOKEN_SETTINGS_COUNT>;
     using Controllers = std::vector<ControllerInfo>;
@@ -18,6 +18,8 @@ struct TokenIssuance : TokenAdminRequest
 
     TokenIssuance(bool & error,
                   boost::property_tree::ptree const & tree);
+
+    AccountAddress GetSource() const override;
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
@@ -34,13 +36,15 @@ struct TokenIssuance : TokenAdminRequest
     std::string issuer_info;
 };
 
-struct TokenIssueAdtl : TokenAdminRequest
+struct TokenIssueAdtl : TokenRequest
 {
     TokenIssueAdtl(bool & error,
                   std::basic_streambuf<uint8_t> & stream);
 
     TokenIssueAdtl(bool & error,
                    boost::property_tree::ptree const & tree);
+
+    AccountAddress GetSource() const override;
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
@@ -52,7 +56,7 @@ struct TokenIssueAdtl : TokenAdminRequest
     uint16_t amount;
 };
 
-struct TokenChangeSetting : TokenAdminRequest
+struct TokenChangeSetting : TokenRequest
 {
     TokenChangeSetting(bool & error,
                        std::basic_streambuf<uint8_t> & stream);
@@ -71,7 +75,7 @@ struct TokenChangeSetting : TokenAdminRequest
     SettingValue value;
 };
 
-struct TokenImmuteSetting : TokenAdminRequest
+struct TokenImmuteSetting : TokenRequest
 {
     TokenImmuteSetting(bool & error,
                        std::basic_streambuf<uint8_t> & stream);
@@ -89,7 +93,7 @@ struct TokenImmuteSetting : TokenAdminRequest
     TokenSetting setting;
 };
 
-struct TokenRevoke : TokenAdminRequest
+struct TokenRevoke : TokenRequest
 {
     using Transaction = ::Transaction<uint16_t>;
 
@@ -98,6 +102,12 @@ struct TokenRevoke : TokenAdminRequest
 
     TokenRevoke(bool & error,
                 boost::property_tree::ptree const & tree);
+
+    AccountAddress GetSource() const override;
+    Amount GetTokenTotal() const override;
+
+    bool Validate(logos::process_return & result,
+                  std::shared_ptr<logos::Account> info) const override;
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
@@ -110,7 +120,7 @@ struct TokenRevoke : TokenAdminRequest
     Transaction    transaction;
 };
 
-struct TokenFreeze : TokenAdminRequest
+struct TokenFreeze : TokenRequest
 {
     TokenFreeze(bool & error,
                 std::basic_streambuf<uint8_t> & stream);
@@ -129,7 +139,7 @@ struct TokenFreeze : TokenAdminRequest
     FreezeAction   action;
 };
 
-struct TokenSetFee : TokenAdminRequest
+struct TokenSetFee : TokenRequest
 {
     TokenSetFee(bool & error,
                 std::basic_streambuf<uint8_t> & stream);
@@ -148,7 +158,7 @@ struct TokenSetFee : TokenAdminRequest
     uint16_t     fee_rate;
 };
 
-struct TokenWhitelist : TokenAdminRequest
+struct TokenWhitelist : TokenRequest
 {
     TokenWhitelist(bool & error,
                    std::basic_streambuf<uint8_t> & stream);
@@ -166,7 +176,7 @@ struct TokenWhitelist : TokenAdminRequest
     AccountAddress account;
 };
 
-struct TokenIssuerInfo : TokenAdminRequest
+struct TokenIssuerInfo : TokenRequest
 {
     TokenIssuerInfo(bool & error,
                     std::basic_streambuf<uint8_t> & stream);
@@ -184,7 +194,7 @@ struct TokenIssuerInfo : TokenAdminRequest
     std::string new_info;
 };
 
-struct TokenController : TokenAdminRequest
+struct TokenController : TokenRequest
 {
     TokenController(bool & error,
                     std::basic_streambuf<uint8_t> & stream);
@@ -206,13 +216,18 @@ struct TokenController : TokenAdminRequest
     ControllerInfo   controller;
 };
 
-struct TokenBurn : TokenAdminRequest
+struct TokenBurn : TokenRequest
 {
     TokenBurn(bool & error,
               std::basic_streambuf<uint8_t> & stream);
 
     TokenBurn(bool & error,
               boost::property_tree::ptree const & tree);
+
+    Amount GetTokenTotal() const override;
+
+    bool Validate(logos::process_return & result,
+                  std::shared_ptr<logos::Account> info) const override;
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
@@ -224,7 +239,7 @@ struct TokenBurn : TokenAdminRequest
     uint16_t amount;
 };
 
-struct TokenAccountSend : TokenAdminRequest
+struct TokenAccountSend : TokenRequest
 {
     using Transaction = ::Transaction<uint16_t>;
 
@@ -233,6 +248,11 @@ struct TokenAccountSend : TokenAdminRequest
 
     TokenAccountSend(bool & error,
                      boost::property_tree::ptree const & tree);
+
+    Amount GetTokenTotal() const override;
+
+    bool Validate(logos::process_return & result,
+                  std::shared_ptr<logos::Account> info) const override;
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
@@ -244,7 +264,7 @@ struct TokenAccountSend : TokenAdminRequest
     Transaction transaction;
 };
 
-struct TokenAccountWithdrawFee : TokenAdminRequest
+struct TokenAccountWithdrawFee : TokenRequest
 {
     using Transaction = ::Transaction<uint16_t>;
 
@@ -253,6 +273,11 @@ struct TokenAccountWithdrawFee : TokenAdminRequest
 
     TokenAccountWithdrawFee(bool & error,
                             boost::property_tree::ptree const & tree);
+
+    Amount GetTokenTotal() const override;
+
+    bool Validate(logos::process_return & result,
+                  std::shared_ptr<logos::Account> info) const override;
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
@@ -277,6 +302,14 @@ struct TokenSend : TokenRequest
     TokenSend(bool & error,
               boost::property_tree::ptree const & tree);
 
+    Amount GetTokenTotal() const override;
+
+    bool Validate(logos::process_return & result,
+                  std::shared_ptr<logos::Account> info) const override;
+
+    logos::AccountType GetAccountType() const override;
+    AccountAddress GetAccount() const override;
+
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
 
@@ -285,5 +318,5 @@ struct TokenSend : TokenRequest
     uint16_t WireSize() const override;
 
     Transactions transactions;
-    uint16_t     fee;
+    uint16_t     token_fee;
 };

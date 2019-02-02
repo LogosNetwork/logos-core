@@ -1,11 +1,12 @@
 #pragma once
 
-#include <logos/common.hpp>
-#include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/consensus/messages/common.hpp>
 #include <logos/microblock/microblock.hpp>
+#include <logos/token/account.hpp>
 #include <logos/epoch/epoch.hpp>
 #include <logos/lib/log.hpp>
+#include <logos/common.hpp>
 
 namespace logos
 {
@@ -155,6 +156,13 @@ public:
     bool request_exists(const Request & request);
     bool request_exists(const BlockHash & hash);
 
+    bool token_account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, MDB_txn* t=0);
+    bool token_account_get(AccountAddress const & account_a, TokenAccount & info_a, MDB_txn* t=0);
+    bool token_account_db_empty();
+    bool token_account_put (AccountAddress const &, TokenAccount const &, MDB_txn *);
+
+    bool account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, AccountType type, MDB_txn* t=0);
+    bool account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, MDB_txn* t=0);
     bool account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* t=0);
     bool account_db_empty();
     bool account_put (AccountAddress const &, logos::account_info const &, MDB_txn *);
@@ -272,6 +280,12 @@ public:
      * 'epochtip' -> logos::block_hash
      */
     MDB_dbi epoch_tip_db;
+
+    /**
+    * Token Accounts
+    * block_hash token_id -> TokenAccount
+    */
+    MDB_dbi token_account_db;
 
 	/**
 	 * Maps head block to owning account
