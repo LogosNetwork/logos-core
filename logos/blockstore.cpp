@@ -303,6 +303,9 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "epoch_db", MDB_CREATE, &epoch_db) != 0;
         error_a |= mdb_dbi_open (transaction, "epoch_tip_db", MDB_CREATE, &epoch_tip_db) != 0;
 
+        // token platform
+        error_a |= mdb_dbi_open (transaction, "token_account_db", MDB_CREATE, &token_account_db) != 0;
+
         error_a |= mdb_dbi_open (transaction, "frontiers", MDB_CREATE, &frontiers) != 0;
         error_a |= mdb_dbi_open (transaction, "state", MDB_CREATE, &state_blocks) != 0;
         error_a |= mdb_dbi_open (transaction, "pending", MDB_CREATE, &pending) != 0;
@@ -1218,6 +1221,81 @@ bool logos::block_store::epoch_exists (const BlockHash &hash, MDB_txn *transacti
 {
     ApprovedEB eb;
     return (false == epoch_get(hash, eb, transaction));
+}
+
+bool logos::block_store::token_account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, MDB_txn* transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << account_a.to_string();
+    mdb_val val;
+
+    if(get(token_account_db, mdb_val(account_a), val, transaction))
+    {
+        return true;
+    }
+
+    bool error = false;
+    info_a.reset(new TokenAccount(error, val));
+
+    assert (!error);
+    return error;
+}
+
+bool logos::block_store::token_account_get(AccountAddress const & account_a, TokenAccount & info_a, MDB_txn* transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << account_a.to_string();
+    mdb_val val;
+    if(get(token_account_db, mdb_val(account_a), val, transaction))
+    {
+        return true;
+    }
+
+    bool error = false;
+    new (&info_a) TokenAccount(error, val);
+    assert (!error);
+    return error;
+}
+
+bool logos::block_store::token_account_db_empty()
+{
+    logos::transaction transaction(environment, nullptr, false);
+
+    logos::store_iterator begin(transaction, token_account_db);
+    logos::store_iterator end(nullptr);
+
+    return begin == end;
+}
+
+bool logos::block_store::token_account_put(const AccountAddress & account, const TokenAccount & info, MDB_txn * transaction)
+{
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(transaction, account_db, logos::mdb_val(account), info.to_mdb_val(buf), 0));
+
+    assert(status == 0);
+    return status != 0;
+}
+
+bool logos::block_store::account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, AccountType type, MDB_txn* transaction)
+{
+    return type == AccountType::LogosAccount ?
+           account_get(account_a, info_a, transaction) :
+           token_account_get(account_a, info_a, transaction);
+}
+
+bool logos::block_store::account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, MDB_txn* transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << account_a.to_string();
+    mdb_val val;
+
+    if(get(account_db, mdb_val(account_a), val, transaction))
+    {
+        return true;
+    }
+
+    bool error = false;
+    info_a.reset(new account_info(error, val));
+
+    assert (!error);
+    return error;
 }
 
 bool logos::block_store::account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* transaction)

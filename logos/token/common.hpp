@@ -93,6 +93,8 @@ const size_t CONTROLLER_PRIVILEGE_COUNT = 19;
 
 struct TokenRequest : Request
 {
+    using InfoSizeT = uint16_t;
+
     TokenRequest() = default;
 
     TokenRequest(bool & error,
@@ -100,6 +102,13 @@ struct TokenRequest : Request
 
     TokenRequest(bool & error,
                  boost::property_tree::ptree const & tree);
+
+    bool Validate(logos::process_return & result) const override;
+
+    logos::AccountType GetAccountType() const override;
+
+    AccountAddress GetAccount() const override;
+    AccountAddress GetSource() const override;
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
@@ -109,28 +118,6 @@ struct TokenRequest : Request
     uint16_t WireSize() const override;
 
    logos::block_hash token_id;
-};
-
-struct TokenAdminRequest : TokenRequest
-{
-    using InfoSizeT = uint16_t;
-
-    TokenAdminRequest() = default;
-
-    TokenAdminRequest(bool & error,
-                      std::basic_streambuf<uint8_t> & stream);
-
-    TokenAdminRequest(bool & error,
-                      boost::property_tree::ptree const & tree);
-
-    boost::property_tree::ptree SerializeJson() const override;
-    uint64_t Serialize(logos::stream & stream) const override;
-
-    void Hash(blake2b_state & hash) const override;
-
-    uint16_t WireSize() const override;
-
-    AccountAddress admin_account;
 };
 
 struct ControllerInfo

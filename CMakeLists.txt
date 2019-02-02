@@ -289,6 +289,8 @@ add_library (secure
 	logos/ledger.hpp
 	logos/node/utility.cpp
 	logos/node/utility.hpp
+	logos/token/account.hpp
+	logos/token/account.cpp
 	logos/versioning.hpp
 	logos/versioning.cpp)
 

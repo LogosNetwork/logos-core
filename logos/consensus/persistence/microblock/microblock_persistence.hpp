@@ -17,7 +17,7 @@ class PersistenceManager<MBCT> : public Persistence
 protected:
 
     using BatchTips                    = BlockHash[NUM_DELEGATES];
-    using Request                      = DelegateMessage<MBCT>;
+    using Message                      = DelegateMessage<MBCT>;
     using PrePrepare                   = PrePrepareMessage<MBCT>;
     using ReservationsPtr              = std::shared_ptr<ReservationsProvider>;
     using IteratorBatchBlockReceiverCb = std::function<void(uint8_t, const ApprovedBSB &)>;
@@ -37,9 +37,9 @@ public:
     /// @param result of validation [in]
     /// @param allow_duplicate allow duplicate request [in]
     /// @returns true if validated
-    virtual bool Validate(const Request & block, logos::process_return & result, bool allow_duplicate = true)
+    virtual bool Validate(const Message & block, logos::process_return & result, bool allow_duplicate = true)
     { return true; }
-    virtual bool Validate(const Request & block)
+    virtual bool Validate(const Message & block)
     { return true; }
 
     /// Backup delegate validation

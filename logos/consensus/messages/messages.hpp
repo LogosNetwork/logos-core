@@ -497,7 +497,7 @@ using PostPrepareMessage = PostPhaseMessage<MessageType::Post_Prepare, CT>;
 template<ConsensusType CT>
 using PostCommitMessage = PostPhaseMessage<MessageType::Post_Commit, CT>;
 
-// Request Message specializations. The underlying type can
+// Delegate Message specializations. The underlying type can
 // vary based on the consensus type.
 //
 template<ConsensusType CT>

@@ -1,6 +1,5 @@
 #include <logos/request/request.hpp>
 
-
 #include <logos/consensus/persistence/reservations.hpp>
 #include <logos/request/utility.hpp>
 #include <logos/request/fields.hpp>
@@ -13,14 +12,24 @@
 
 #include <ed25519-donna/ed25519.h>
 
+using boost::multiprecision::uint128_t;
+using namespace boost::multiprecision::literals;
+
+constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
+
+
 Request::Request(RequestType type,
                  const AccountAddress & origin,
                  const BlockHash & previous,
+                 const Amount & fee,
+                 uint32_t sequence,
                  const AccountPrivKey & priv,
                  const AccountPubKey & pub)
     : type(type)
     , origin(origin)
     , previous(previous)
+    , fee(fee)
+    , sequence(sequence)
 {
     Sign(priv, pub);
 }
@@ -28,11 +37,15 @@ Request::Request(RequestType type,
 Request::Request(RequestType type,
                  const AccountAddress & origin,
                  const BlockHash & previous,
+                 const Amount & fee,
+                 uint32_t sequence,
                  const AccountSig & signature)
     : type(type)
     , origin(origin)
     , signature(signature)
     , previous(previous)
+    , fee(fee)
+    , sequence(sequence)
 {
     Hash();
 }
@@ -72,6 +85,18 @@ Request::Request(bool & error,
     }
 
     error = logos::read(stream, next);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, fee);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, sequence);
     if(error)
     {
         return;
@@ -117,12 +142,46 @@ Request::Request(bool & error,
             return;
         }
 
+        error = fee.decode_dec(tree.get<std::string>(FEE));
+        if(error)
+        {
+            return;
+        }
+
+        sequence = std::stoul(tree.get<std::string>(SEQUENCE));
+
         Hash();
     }
     catch (...)
     {
         error = true;
     }
+}
+
+logos::AccountType Request::GetAccountType() const
+{
+    return logos::AccountType::LogosAccount;
+}
+
+AccountAddress Request::GetAccount() const
+{
+    return origin;
+}
+
+
+AccountAddress Request::GetSource() const
+{
+    return origin;
+}
+
+Amount Request::GetLogosTotal() const
+{
+    return fee;
+}
+
+Amount Request::GetTokenTotal() const
+{
+    return {0};
 }
 
 void Request::Sign(AccountPrivKey const & priv, AccountPubKey const & pub)
@@ -154,16 +213,31 @@ std::string Request::ToJson() const
     return ostream.str();
 }
 
-bool Request::Validate(std::shared_ptr<ReservationsProvider>,
-                       logos::process_return & result,
-                       bool allow_duplicates) const
+bool Request::Validate(logos::process_return & result,
+                       std::shared_ptr<logos::Account> info) const
 {
+    return true;
+}
+
+bool Request::Validate(logos::process_return & result) const
+{
+    // Validate the sender account
+    //
     if(origin.is_zero())
     {
         result.code = logos::process_result::opened_burn_account;
         return false;
     }
 
+    // Validate the Logos transaction fee
+    //
+    if(fee.number() < MIN_TRANSACTION_FEE)
+    {
+        result.code = logos::process_result::insufficient_fee;
+        return false;
+    }
+
+    return true;
 }
 
 boost::property_tree::ptree Request::SerializeJson() const
@@ -176,6 +250,8 @@ boost::property_tree::ptree Request::SerializeJson() const
     tree.put(SIGNATURE, signature.to_string());
     tree.put(PREVIOUS, previous.to_string());
     tree.put(NEXT, next.to_string());
+    tree.put(FEE, fee.to_string_dec());
+    tree.put(SEQUENCE, std::to_string(sequence));
 
     return tree;
 }
@@ -192,7 +268,9 @@ uint64_t Request::Serialize(logos::stream & stream) const
            logos::write(stream, origin) +
            logos::write(stream, signature) +
            logos::write(stream, previous) +
-           logos::write(stream, next);
+           logos::write(stream, next) +
+           logos::write(stream, fee) +
+           logos::write(stream, sequence);
 }
 
 logos::mdb_val Request::SerializeDB(std::vector<uint8_t> & buf) const
@@ -209,9 +287,7 @@ logos::mdb_val Request::SerializeDB(std::vector<uint8_t> & buf) const
 
 BlockHash Request::GetHash() const
 {
-    // TODO: precompute?
-    //
-    return Hash();
+    return digest;
 }
 
 BlockHash Request::Hash() const
@@ -224,6 +300,8 @@ void Request::Hash(blake2b_state & hash) const
     blake2b_update(&hash, &type, sizeof(type));
     previous.Hash(hash);
     origin.Hash(hash);
+    fee.Hash(hash);
+    blake2b_update(&hash, &sequence, sizeof(sequence));
     signature.Hash(hash);
 }
 
@@ -239,5 +317,6 @@ uint16_t Request::WireSize() const
            sizeof(origin.bytes) +
            sizeof(signature.bytes) +
            sizeof(previous.bytes) +
-           sizeof(next.bytes);
+           sizeof(next.bytes) +
+           sizeof(fee.bytes);
 }
