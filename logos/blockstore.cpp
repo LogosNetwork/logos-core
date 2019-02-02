@@ -1217,6 +1217,19 @@ bool logos::block_store::epoch_exists (const ApprovedEB & block)
     return exists;
 }
 
+bool logos::block_store::token_account_exists(const BlockHash & token_id)
+{
+    LOG_TRACE(log) << __func__ << " key " << token_id.to_string();
+
+    logos::mdb_val junk;
+    logos::transaction transaction(environment, nullptr, false);
+
+    auto status(mdb_get(transaction, token_account_db, logos::mdb_val(token_id), junk));
+    assert(status == 0 || status == MDB_NOTFOUND);
+
+    return status == 0;
+}
+
 bool logos::block_store::epoch_exists (const BlockHash &hash, MDB_txn *transaction)
 {
     ApprovedEB eb;

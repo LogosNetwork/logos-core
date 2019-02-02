@@ -324,6 +324,11 @@ uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
     s += write (stream_a, open_block.bytes);
     s += write (stream_a, modified);
     s += write (stream_a, receive_count);
+    s += write (stream_a, entries.size());
+    for(auto & entry : entries)
+    {
+        s += entry.Serialize(stream_a);
+    }
     return s;
 }
 
@@ -348,6 +353,23 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
                         if (!error)
                         {
                             error = read (stream_a, receive_count);
+
+                            if (!error)
+                            {
+                                size_t count;
+                                error = read(stream_a, count);
+
+                                for(size_t i = 0; i < count; ++i)
+                                {
+                                    Entry entry(error, stream_a);
+                                    if(error)
+                                    {
+                                        break;
+                                    }
+
+                                    entries.push_back(entry);
+                                }
+                            }
                         }
                     }
                 }
@@ -955,6 +977,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
         break;
     case process_result::invalid_token_id:
         ret = "Token ID is invalid";
+        break;
+    case process_result::untethered_account:
+        ret = "User account doesn't have a token balance";
         break;
     }
 
