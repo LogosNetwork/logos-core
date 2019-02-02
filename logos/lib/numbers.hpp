@@ -34,10 +34,12 @@ public:
     uint128_union (uint64_t);
     uint128_union (logos::uint128_union const &) = default;
     uint128_union (logos::uint128_t const &);
+    uint128_union operator+ (logos::uint128_union const &) const;
     bool operator== (logos::uint128_union const &) const;
     bool operator!= (logos::uint128_union const &) const;
     bool operator< (logos::uint128_union const &) const;
     bool operator> (logos::uint128_union const &) const;
+    uint128_union & operator+=(const uint128_union & other);
     void encode_hex (std::string &) const;
     bool decode_hex (std::string const &);
     void encode_dec (std::string &) const;

@@ -51,12 +51,16 @@ struct Request
     Request(RequestType type,
             const AccountAddress & origin,
             const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
             const AccountPrivKey & priv,
             const AccountPubKey & pub);
 
     Request(RequestType type,
             const AccountAddress & origin,
             const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
             const AccountSig & signature);
 
     Request(bool & error,
@@ -67,14 +71,29 @@ struct Request
 
     virtual ~Request() = default;
 
+    virtual logos::AccountType GetAccountType() const;
+
+    // The account that will own the
+    // request.
+    //
+    virtual AccountAddress GetAccount() const;
+
+    // The account from which an amount
+    // is being deducted.
+    //
+    virtual AccountAddress GetSource() const;
+
+    virtual Amount GetLogosTotal() const;
+    virtual Amount GetTokenTotal() const;
+
     void Sign(AccountPrivKey const & priv, AccountPubKey const & pub);
     bool VerifySignature(AccountPubKey const & pub) const;
 
     std::string ToJson() const;
 
-    bool Validate(std::shared_ptr<ReservationsProvider>,
-                  logos::process_return & result,
-                  bool allow_duplicates) const;
+    virtual bool Validate(logos::process_return & result,
+                          std::shared_ptr<logos::Account> info) const;
+    virtual bool Validate(logos::process_return & result) const;
 
     virtual boost::property_tree::ptree SerializeJson() const;
     virtual uint64_t Serialize(logos::stream & stream) const;
@@ -92,5 +111,7 @@ struct Request
     AccountSig        signature;
     BlockHash         previous;
     BlockHash         next;
+    Amount            fee;
+    uint32_t          sequence = 0;
     mutable BlockHash digest;
 };

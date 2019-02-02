@@ -68,7 +68,7 @@ bool PersistenceManager<R>::BlockExists(
 
 
 bool PersistenceManager<R>::Validate(
-    const Request & request,
+    std::shared_ptr<const Request> request,
     logos::process_return & result,
     bool allow_duplicates,
     bool prelim)
@@ -76,7 +76,7 @@ bool PersistenceManager<R>::Validate(
     // SYL Integration: move signature validation here so we always check
     if(ConsensusContainer::ValidateSigConfig() && ! request.VerifySignature(request.account))
     {
-        LOG_WARN(_log) << "PersistenceManager<BSBCT> - Validate, bad signature: "
+        LOG_WARN(_log) << "PersistenceManager<R> - Validate, bad signature: "
                        << request.signature.to_string()
                        << " account: " << request.account.to_string();
 
@@ -174,21 +174,22 @@ bool PersistenceManager<R>::Validate(
 
         auto update_reservation = [&info, &hash, current_epoch]()
                                   {
-                                       info.reservation = hash;
-                                       info.reservation_epoch = current_epoch;
+                                       info->reservation = hash;
+                                       info->reservation_epoch = current_epoch;
                                   };
 
         // Account is not reserved.
-        if(info.reservation.is_zero())
+        if(info->reservation.is_zero())
         {
             update_reservation();
         }
 
         // Account is already reserved.
-        else if(info.reservation != hash)
+        else if(info->reservation != hash)
         {
-            // This block conflicts with existing reservation.
-            if(current_epoch < info.reservation_epoch + RESERVATION_PERIOD)
+            // This request conflicts with an
+            // existing reservation.
+            if(current_epoch < info->reservation_epoch + RESERVATION_PERIOD)
             {
                 result.code = logos::process_result::already_reserved;
                 return false;
@@ -198,15 +199,51 @@ bool PersistenceManager<R>::Validate(
             update_reservation();
         }
 
-        auto total = request.transaction_fee.number();
-        for(auto & i : request.transactions)
-        {
-            total += i.amount.number();
-        }
-        if(total > info.balance.number())
+        // Make sure there's enough Logos
+        // to cover the request.
+        if(request->GetLogosTotal() > info->balance)
         {
             result.code = logos::process_result::insufficient_balance;
             return false;
+        }
+
+        // This request transfers tokens
+        if(request->GetTokenTotal() > 0)
+        {
+            // The account that will own the request
+            // is not the account losing/sending
+            // tokens.
+            if(request->GetAccount() != request->GetSource())
+            {
+                std::shared_ptr<logos::Account> source;
+                if(_store.account_get(request->GetSource(), source))
+                {
+                    // TODO: Bootstrapping
+                    result.code = logos::process_result::unknown_source_account;
+                    return false;
+                }
+
+                // The available tokens and the
+                // amount requested don't add up.
+                if(!request->Validate(result, source))
+                {
+                    return false;
+                }
+                else
+                {
+                    // TODO: Pending revoke cache
+                }
+            }
+
+            // The account that will own the request
+            // is the account losing/sending tokens.
+            else
+            {
+                if(!request->Validate(result, info))
+                {
+                    return false;
+                }
+            }
         }
     }
 
@@ -229,7 +266,7 @@ bool PersistenceManager<R>::ValidateAndUpdate(
     auto success (ValidateRequest(block, result, allow_duplicates, false));
     if (success)
     {
-        _reservations->UpdateReservation(block.GetHash(), block.account);
+        _reservations->UpdateReservation(block.GetHash(), block.origin);
     }
     return success;
 }
@@ -390,7 +427,7 @@ bool PersistenceManager<R>::UpdateSourceState(
 
     info.block_count++;
     info.balance = info.balance.number() -
-                   request.transaction_fee.number();
+                   request.fee.number();
 
     for(auto & t : request.transactions)
     {

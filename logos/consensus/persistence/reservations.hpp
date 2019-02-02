@@ -11,11 +11,19 @@
 
 #include <unordered_map>
 
+namespace
+{
+
+using logos::AccountType;
+
+}
+
 class ReservationsProvider
 {
 protected:
 
-    using Store = logos::block_store;
+    using Store      = logos::block_store;
+    using AccountPtr = std::shared_ptr<logos::Account>;
 
 public:
     explicit ReservationsProvider(Store & store)

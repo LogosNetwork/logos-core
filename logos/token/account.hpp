@@ -7,12 +7,24 @@
 
 #include <bitset>
 
-class TokenAccount
+struct TokenAccount : logos::Account
 {
     using Settings = std::bitset<TOKEN_SETTINGS_COUNT>;
     using EnumType = std::underlying_type<TokenSetting>::type;
 
-public:
+    TokenAccount(bool & error, const logos::mdb_val & mdbval);
+
+    TokenAccount(const logos::block_hash & head,
+                 logos::amount balance,
+                 uint16_t token_balance,
+                 uint16_t token_fee_balance,
+                 uint32_t block_count);
+
+    uint32_t Serialize(logos::stream &) const override;
+    bool Deserialize(logos::stream &) override;
+    bool operator==(const TokenAccount &) const;
+    bool operator!=(const TokenAccount &) const;
+    logos::mdb_val to_mdb_val(std::vector<uint8_t> &) const override;
 
     bool Validate(TokenSetting setting,
                   bool value,
@@ -21,12 +33,11 @@ public:
     void Set(TokenSetting setting, bool value);
     bool Allowed(TokenSetting setting) const;
 
-private:
-
     bool IsMutabilitySetting(TokenSetting setting) const;
     TokenSetting GetMutabilitySetting(TokenSetting setting) const;
 
-    mutable Log _log;
-    BlockHash   _head;
-    Settings    _settings;
+    mutable Log log;
+    uint16_t    token_balance     = 0;
+    uint16_t    token_fee_balance = 0;
+    Settings    settings;
 };
