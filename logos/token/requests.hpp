@@ -202,6 +202,10 @@ struct TokenController : TokenRequest
     TokenController(bool & error,
                     boost::property_tree::ptree const & tree);
 
+    bool Validate(logos::process_return & result) const override;
+    bool Validate(logos::process_return & result,
+                  std::shared_ptr<logos::Account> info) const override;
+
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
 

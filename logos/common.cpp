@@ -981,6 +981,15 @@ std::string logos::ProcessResultToString(logos::process_result result)
     case process_result::untethered_account:
         ret = "User account doesn't have a token balance";
         break;
+    case process_result::invalid_controller:
+        ret = "Invalid controller specified";
+        break;
+    case process_result::controller_capacity:
+        ret = "Controllers list is full";
+        break;
+    case process_result::invalid_controller_action:
+        ret = "Invalid controller action";
+        break;
     }
 
     return ret;
