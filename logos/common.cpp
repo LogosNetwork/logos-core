@@ -929,6 +929,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
     case process_result::invalid_controller_action:
         ret = "Invalid controller action";
         break;
+    case process_result::unauthorized_request:
+        ret = "Not authorized to make request";
+        break;
     }
 
     return ret;
