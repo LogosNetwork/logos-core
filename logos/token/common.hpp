@@ -145,8 +145,8 @@ struct ControllerInfo
 
     static uint16_t WireSize();
 
-    bool IsAuthorized(std::shared_ptr<const Request> request);
-    bool IsAuthorized(std::shared_ptr<const TokenImmuteSetting> immute);
+    bool IsAuthorized(std::shared_ptr<const Request> request) const;
+    bool IsAuthorized(std::shared_ptr<const TokenImmuteSetting> immute) const;
 
     AccountAddress account;
     Privileges     privileges;
