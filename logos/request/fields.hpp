@@ -98,6 +98,7 @@ const char CHANGE_WHITELIST[]         = "change_whitelist";
 const char CHANGE_MODIFY_WHITELIST[]  = "change_modify_whitelisting";
 const char PROMOTE_CONTROLLER[]       = "promote_controller";
 const char WITHDRAW_FEE[]             = "withdraw_fee";
+const char UPDATE_ISSUER_INFO[]       = "update_issuer_info";
 
 } // namespace fields
 

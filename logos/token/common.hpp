@@ -81,15 +81,16 @@ enum class ControllerPrivilege : uint8_t
     Freeze                   = 13,
     AdjustFee                = 14,
     Whitelist                = 15,
-    Burn                     = 16,
-    Withdraw                 = 17,
-    WithdrawFee              = 18,
+    UpdateIssuerInfo         = 16,
+    Burn                     = 17,
+    Withdraw                 = 18,
+    WithdrawFee              = 19,
 
-    Unknown                  = 19
+    Unknown                  = 20
 };
 
 const size_t TOKEN_SETTINGS_COUNT       = 10;
-const size_t CONTROLLER_PRIVILEGE_COUNT = 19;
+const size_t CONTROLLER_PRIVILEGE_COUNT = 20;
 
 struct TokenRequest : Request
 {
@@ -120,6 +121,8 @@ struct TokenRequest : Request
    logos::block_hash token_id;
 };
 
+class TokenImmuteSetting;
+
 struct ControllerInfo
 {
     using Privileges = BitField<CONTROLLER_PRIVILEGE_COUNT>;
@@ -141,6 +144,9 @@ struct ControllerInfo
     void Hash(blake2b_state & hash) const;
 
     static uint16_t WireSize();
+
+    bool IsAuthorized(std::shared_ptr<const Request> request);
+    bool IsAuthorized(std::shared_ptr<const TokenImmuteSetting> immute);
 
     AccountAddress account;
     Privileges     privileges;
