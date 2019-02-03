@@ -306,7 +306,10 @@ enum class process_result
     redundant,                  // Logos - The token account setting change was idempotent
     insufficient_token_balance, // Logos - Token balance is insufficient.
     invalid_token_id,           // Logos - Token ID is invalid.
-    untethered_account          // Logos - User account has not been tethered to the specified token account.
+    untethered_account,         // Logos - User account has not been tethered to the specified token account.
+    invalid_controller,         // Logos - An invalid controller was specified.
+    controller_capacity,        // Logos - No more controllers can be added.
+    invalid_controller_action   // Logos - An invalid controller action was specified.
 };
 
 std::string ProcessResultToString(process_result result);
