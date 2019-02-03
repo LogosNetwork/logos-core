@@ -287,7 +287,8 @@ enum class process_result
     invalid_controller,         // Logos - An invalid controller was specified.
     controller_capacity,        // Logos - No more controllers can be added.
     invalid_controller_action,  // Logos - An invalid controller action was specified.
-    unauthorized_request        // Logos - Unauthorized to make request.
+    unauthorized_request,       // Logos - Unauthorized to make request.
+    prohibitted_request         // Logos - The request is not allowed.
 };
 
 std::string ProcessResultToString(process_result result);
