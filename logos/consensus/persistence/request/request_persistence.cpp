@@ -208,8 +208,7 @@ bool PersistenceManager<R>::Validate(
             return false;
         }
 
-        // You must be a controller to issue
-        // such requests.
+        // Only controllers can issue these
         if(IsTokenAdminRequest(request->type))
         {
             auto token_account = std::static_pointer_cast<TokenAccount>(info);
@@ -221,11 +220,25 @@ bool PersistenceManager<R>::Validate(
                                           return c.account == request->origin;
                                       });
 
+            // The sender isn't a controller
             if(entry == token_account->controllers.end())
             {
                 result.code = logos::process_result::unauthorized_request;
                 return false;
             }
+
+            // The controller isn't authorized
+            // to make this request.
+            if(!entry->IsAuthorized(request))
+            {
+                result.code = logos::process_result::unauthorized_request;
+                return false;
+            }
+
+//            if(!token_account->IsAllowed(request))
+//            {
+//                result.code = logos::process_result::prohibitted_request;
+//            }
         }
 
         // This request transfers tokens

@@ -308,6 +308,9 @@ std::string GetControllerPrivilegeField(ControllerPrivilege privilege)
         case ControllerPrivilege::Whitelist:
             ret = WHITELIST;
             break;
+        case ControllerPrivilege::UpdateIssuerInfo:
+            ret = UPDATE_ISSUER_INFO;
+            break;
         case ControllerPrivilege::Burn:
             ret = BURN;
             break;

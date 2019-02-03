@@ -993,6 +993,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
     case process_result::unauthorized_request:
         ret = "Not authorized to make request";
         break;
+    case process_result::prohibitted_request:
+        ret = "The request is not allowed";
+        break;
     }
 
     return ret;
