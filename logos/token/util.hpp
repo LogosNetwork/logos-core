@@ -22,3 +22,5 @@ std::string GetControllerActionField(ControllerAction action);
 
 FreezeAction GetFreezeAction(bool & error, std::string data);
 std::string GetFreezeActionField(FreezeAction action);
+
+bool IsTokenAdminRequest(RequestType type);

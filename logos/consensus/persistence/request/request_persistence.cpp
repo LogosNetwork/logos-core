@@ -208,6 +208,26 @@ bool PersistenceManager<R>::Validate(
             return false;
         }
 
+        // You must be a controller to issue
+        // such requests.
+        if(IsTokenAdminRequest(request->type))
+        {
+            auto token_account = std::static_pointer_cast<TokenAccount>(info);
+
+            auto entry = std::find_if(token_account->controllers.begin(),
+                                      token_account->controllers.end(),
+                                      [request](const ControllerInfo & c)
+                                      {
+                                          return c.account == request->origin;
+                                      });
+
+            if(entry == token_account->controllers.end())
+            {
+                result.code = logos::process_result::unauthorized_request;
+                return false;
+            }
+        }
+
         // This request transfers tokens
         if(request->GetTokenTotal() > 0)
         {
@@ -261,6 +281,7 @@ bool PersistenceManager<R>::Validate(
                 }
             }
         }
+
     }
 
     result.code = logos::process_result::progress;
