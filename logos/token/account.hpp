@@ -1,5 +1,6 @@
 #pragma once
 
+#include <logos/token/common.hpp>
 #include <logos/lib/numbers.hpp>
 #include <logos/token/util.hpp>
 #include <logos/lib/log.hpp>
@@ -9,8 +10,9 @@
 
 struct TokenAccount : logos::Account
 {
-    using Settings = std::bitset<TOKEN_SETTINGS_COUNT>;
-    using EnumType = std::underlying_type<TokenSetting>::type;
+    using Settings    = std::bitset<TOKEN_SETTINGS_COUNT>;
+    using EnumType    = std::underlying_type<TokenSetting>::type;
+    using Controllers = std::vector<ControllerInfo>;
 
     TokenAccount(bool & error, const logos::mdb_val & mdbval);
 
@@ -36,8 +38,11 @@ struct TokenAccount : logos::Account
     bool IsMutabilitySetting(TokenSetting setting) const;
     TokenSetting GetMutabilitySetting(TokenSetting setting) const;
 
+    static constexpr uint8_t MAX_CONTROLLERS = 10;
+
     mutable Log log;
     uint16_t    token_balance     = 0;
     uint16_t    token_fee_balance = 0;
+    Controllers controllers;
     Settings    settings;
 };
