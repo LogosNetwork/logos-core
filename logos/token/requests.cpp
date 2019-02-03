@@ -871,7 +871,7 @@ bool TokenController::Validate(logos::process_return & result,
         //       member function.
         auto entry = std::find_if(token_account->controllers.begin(),
                                   token_account->controllers.end(),
-                                  [this](const ControllerInfo &c)
+                                  [this](const ControllerInfo & c)
                                   {
                                       return c.account == controller.account;
                                   });
