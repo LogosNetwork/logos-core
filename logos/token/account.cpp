@@ -18,11 +18,22 @@ TokenAccount::TokenAccount(const logos::block_hash & head,
     , token_fee_balance(token_fee_balance)
 {}
 
-uint32_t TokenAccount::Serialize (logos::stream & stream_a) const
+uint32_t TokenAccount::Serialize (logos::stream & stream) const
 {
-    auto s = Account::Serialize(stream_a);
-    s += logos::write (stream_a, token_balance);
-    s += logos::write (stream_a, token_fee_balance);
+    assert(controllers.size() < MAX_CONTROLLERS);
+
+    auto s = Account::Serialize(stream);
+    s += logos::write(stream, token_balance);
+    s += logos::write(stream, token_fee_balance);
+
+    s += logos::write(stream, uint8_t(controllers.size()));
+    for(auto & c : controllers)
+    {
+        s += c.Serialize(stream);
+    }
+
+    s += logos::write(stream, settings);
+
     return s;
 }
 
@@ -40,7 +51,32 @@ bool TokenAccount::Deserialize (logos::stream & stream)
         return error;
     }
 
-    return (error = logos::read(stream, token_fee_balance));
+    error = logos::read(stream, token_fee_balance);
+    if(error)
+    {
+        return error;
+    }
+
+    uint8_t size;
+    error = logos::read (stream, size);
+    if(error)
+    {
+        return error;
+    }
+
+    assert(size < MAX_CONTROLLERS);
+    for(uint8_t i = 0; i < size; ++i)
+    {
+        ControllerInfo c(error, stream);
+        if(error)
+        {
+            return error;
+        }
+
+        controllers.push_back(c);
+    }
+
+    return (error = logos::read(stream, settings));
 }
 
 bool TokenAccount::operator== (TokenAccount const & other) const
