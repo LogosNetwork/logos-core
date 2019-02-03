@@ -309,7 +309,8 @@ enum class process_result
     untethered_account,         // Logos - User account has not been tethered to the specified token account.
     invalid_controller,         // Logos - An invalid controller was specified.
     controller_capacity,        // Logos - No more controllers can be added.
-    invalid_controller_action   // Logos - An invalid controller action was specified.
+    invalid_controller_action,  // Logos - An invalid controller action was specified.
+    unauthorized_request        // Logos - Unauthorized to make request.
 };
 
 std::string ProcessResultToString(process_result result);
