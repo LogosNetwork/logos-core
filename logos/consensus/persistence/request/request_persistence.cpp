@@ -198,7 +198,8 @@ bool PersistenceManager<R>::Validate(
             // is the account losing/sending tokens.
             else
             {
-               
+
+                // This is a Send Token Request.
                 if(request->type == RequestType::SendTokens)
                 {
                     auto send_tokens = dynamic_pointer_cast<const TokenSend>(request);

@@ -841,6 +841,51 @@ TokenController::TokenController(bool & error,
     }
 }
 
+bool TokenController::Validate(logos::process_return & result) const
+{
+    if(action == ControllerAction::Unknown)
+    {
+        result.code = logos::process_result::invalid_controller_action;
+        return false;
+    }
+
+    return true;
+};
+
+bool TokenController::Validate(logos::process_return & result,
+                               std::shared_ptr<logos::Account> info) const
+{
+    auto token_account = std::static_pointer_cast<TokenAccount>(info);
+
+    if(action == ControllerAction::Add)
+    {
+        if(token_account->controllers.size() == TokenAccount::MAX_CONTROLLERS)
+        {
+            result.code = logos::process_result::controller_capacity;
+            return false;
+        }
+    }
+    else if(action == ControllerAction::Remove)
+    {
+        // TODO: Find controllers via TokenAccount
+        //       member function.
+        auto entry = std::find_if(token_account->controllers.begin(),
+                                  token_account->controllers.end(),
+                                  [this](const ControllerInfo &c)
+                                  {
+                                      return c.account == controller.account;
+                                  });
+
+        if(entry == token_account->controllers.end())
+        {
+            result.code = logos::process_result::invalid_controller;
+            return false;
+        }
+    }
+
+    return true;
+}
+
 boost::property_tree::ptree TokenController::SerializeJson() const
 {
     using namespace request::fields;
