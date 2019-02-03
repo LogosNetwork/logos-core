@@ -193,10 +193,11 @@ bool PersistenceManager<R>::Validate(
                 return false;
             }
 
-//            if(!token_account->IsAllowed(request))
-//            {
-//                result.code = logos::process_result::prohibitted_request;
-//            }
+            if(!token_account->IsAllowed(request))
+            {
+                result.code = logos::process_result::prohibitted_request;
+                return false;
+            }
         }
 
         // This request transfers tokens

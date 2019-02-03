@@ -182,7 +182,7 @@ uint16_t ControllerInfo::WireSize()
     return sizeof(account.bytes) + Privileges::WireSize();
 }
 
-bool ControllerInfo::IsAuthorized(std::shared_ptr<const Request> request)
+bool ControllerInfo::IsAuthorized(std::shared_ptr<const Request> request) const
 {
     bool result = false;
 
@@ -237,7 +237,7 @@ bool ControllerInfo::IsAuthorized(std::shared_ptr<const Request> request)
     return result;
 }
 
-bool ControllerInfo::IsAuthorized(std::shared_ptr<const TokenImmuteSetting> immute)
+bool ControllerInfo::IsAuthorized(std::shared_ptr<const TokenImmuteSetting> immute) const
 {
     bool result;
 

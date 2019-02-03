@@ -8,6 +8,8 @@
 
 #include <bitset>
 
+class TokenImmuteSetting;
+
 struct TokenAccount : logos::Account
 {
     using Settings    = std::bitset<TOKEN_SETTINGS_COUNT>;
@@ -31,6 +33,8 @@ struct TokenAccount : logos::Account
     bool Validate(TokenSetting setting,
                   bool value,
                   logos::process_return & result) const;
+    bool IsAllowed(std::shared_ptr<const Request> request) const;
+    bool IsAllowed(std::shared_ptr<const TokenImmuteSetting> immute) const;
 
     void Set(TokenSetting setting, bool value);
     bool Allowed(TokenSetting setting) const;
