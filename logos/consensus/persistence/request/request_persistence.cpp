@@ -416,8 +416,7 @@ void PersistenceManager<R>::ApplyRequestBlock(
                      transaction);
 
         std::lock_guard<std::mutex> lock(_reservation_mutex);
-        _reservations->Release(
-            static_pointer_cast<const Send>(message.requests[i])->account);
+        _reservations->Release(message.requests[i]->origin);
     }
 }
 
@@ -439,7 +438,7 @@ bool PersistenceManager<R>::UpdateSourceState(
     MDB_txn * transaction)
 {
     logos::account_info info;
-    auto account_error(_store.account_get(request.account, info));
+    auto account_error(_store.account_get(request.origin, info));
 
     if(account_error)
     {
@@ -472,11 +471,11 @@ bool PersistenceManager<R>::UpdateSourceState(
     info.head = request.GetHash();
     info.modified = logos::seconds_since_epoch();
 
-    if(_store.account_put(request.account, info, transaction))
+    if(_store.account_put(request.origin, info, transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager::UpdateSourceState - "
                         << "Failed to store account: "
-                        << request.account.to_string();
+                        << request.origin.to_string();
 
         std::exit(EXIT_FAILURE);
     }
@@ -609,7 +608,7 @@ void PersistenceManager<R>::PlaceReceive(
                             << prev.send_hash.to_string();
             trace_and_halt();
         }
-        if(!prev_send.account.is_zero())
+        if(!prev_send.origin.is_zero())
         {
             receive.previous = prev.previous;
             prev.previous = hash;

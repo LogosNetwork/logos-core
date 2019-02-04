@@ -1824,7 +1824,7 @@ void logos::rpc_handler::account_history ()
             entry.put ("hash", hash.to_string ());
             // always show the account id of the other party in transaction
             //TODO loop transactions
-            entry.put ("account", put_send ? display_send.transactions[0].destination.to_account() : display_send.account.to_account ());
+            entry.put ("origin", put_send ? display_send.transactions[0].destination.to_account() : display_send.origin.to_account ());
             entry.put ("amount", display_send.transactions[0].amount.to_string_dec ());
             if (output_raw)
             {

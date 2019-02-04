@@ -96,7 +96,7 @@ MicroBlockTester::block_create_test(
                 request->signature = account_sig;
                 logos::account account(rand());
                 BlockHash hash(rand());
-                request->account = account;
+                request->origin = account;
                 request->previous = hash;
                 request->AddTransaction(AccountAddress(), 1000);
             }
