@@ -20,8 +20,8 @@ protected:
     using Message                      = DelegateMessage<MBCT>;
     using PrePrepare                   = PrePrepareMessage<MBCT>;
     using ReservationsPtr              = std::shared_ptr<ReservationsProvider>;
-    using IteratorBatchBlockReceiverCb = std::function<void(uint8_t, const ApprovedBSB &)>;
-    using BatchBlockReceiverCb         = std::function<void(const ApprovedBSB &)>;
+    using IteratorBatchBlockReceiverCb = std::function<void(uint8_t, const ApprovedRB &)>;
+    using BatchBlockReceiverCb         = std::function<void(const ApprovedRB &)>;
 
 public:
     PersistenceManager(Store & store,

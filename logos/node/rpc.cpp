@@ -864,7 +864,7 @@ void logos::rpc_handler::available_supply ()
 
 void logos::rpc_handler::batch_blocks ()
 {
-    consensus_blocks<ApprovedBSB>();
+    consensus_blocks<ApprovedRB>();
 }
 
 void logos::rpc_handler::batch_blocks_latest ()
@@ -890,14 +890,14 @@ void logos::rpc_handler::batch_blocks_latest ()
     // Use provided head hash string, or get delegate batch tip
     auto head_str (request.get_optional<std::string> ("head"));
     BlockHash hash;
-    ApprovedBSB batch;
+    ApprovedRB batch;
     if (head_str)
     {
         if (hash.decode_hex (*head_str))
         {
             error_response (response, "Invalid block hash.");
         }
-        if (node.store.batch_block_get(hash, batch))
+        if (node.store.request_block_get(hash, batch))
         {
             error_response (response, "Block not found.");
         }
@@ -911,7 +911,7 @@ void logos::rpc_handler::batch_blocks_latest ()
     boost::property_tree::ptree response_batch_blocks;
     while (!hash.is_zero() && count > 0)
     {
-        if (node.store.batch_block_get(hash, batch))
+        if (node.store.request_block_get(hash, batch))
         {
             error_response (response, "Internal data corruption");
         }
