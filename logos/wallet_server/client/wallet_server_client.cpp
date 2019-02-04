@@ -6,7 +6,7 @@ WalletServerClient::WalletServerClient(const Endpoint & callback_endpoint,
     , _service(service)
 {}
 
-void WalletServerClient::OnBatchBlock(const ApprovedBSB & block)
+void WalletServerClient::OnBatchBlock(const ApprovedRB & block)
 {
     std::lock_guard<std::mutex> lock(_mutex);
 

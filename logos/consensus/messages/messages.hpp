@@ -515,6 +515,6 @@ template<>
 struct DelegateMessage<ConsensusType::Epoch> : PrePrepareMessage<ConsensusType::Epoch>
 {};
 
-using ApprovedBSB = PostCommittedBlock<ConsensusType::Request>;
-using ApprovedMB  = PostCommittedBlock<ConsensusType::MicroBlock>;
-using ApprovedEB  = PostCommittedBlock<ConsensusType::Epoch>;
+using ApprovedRB = PostCommittedBlock<ConsensusType::Request>;
+using ApprovedMB = PostCommittedBlock<ConsensusType::MicroBlock>;
+using ApprovedEB = PostCommittedBlock<ConsensusType::Epoch>;

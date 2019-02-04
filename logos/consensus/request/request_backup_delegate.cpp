@@ -22,9 +22,9 @@ RequestBackupDelegate::RequestBackupDelegate(
 		 validator, ids, events_notifier, persistence_manager, p2p, service)
     , _timer(service)
 {
-    ApprovedBSB block;
+    ApprovedRB block;
     promoter.GetStore().batch_tip_get(_delegate_ids.remote, _prev_pre_prepare_hash);
-    if ( ! _prev_pre_prepare_hash.is_zero() && !promoter.GetStore().batch_block_get(_prev_pre_prepare_hash, block))
+    if ( ! _prev_pre_prepare_hash.is_zero() && !promoter.GetStore().request_block_get(_prev_pre_prepare_hash, block))
     {
         _sequence_number = block.sequence + 1;
     }
@@ -88,7 +88,7 @@ RequestBackupDelegate::ValidateRequests(
 ///     @param remote delegate id
 void
 RequestBackupDelegate::ApplyUpdates(
-    const ApprovedBSB & block,
+    const ApprovedRB & block,
     uint8_t delegate_id)
 {
     _persistence_manager.ApplyUpdates(block, delegate_id);

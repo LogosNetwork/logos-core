@@ -24,8 +24,8 @@ public:
     {
         using namespace logos;
 
-        ApprovedBSB previous;
-        if (message.previous != 0 && _store.batch_block_get(message.previous, previous))
+        ApprovedRB previous;
+        if (message.previous != 0 && _store.request_block_get(message.previous, previous))
         {
             UpdateStatusReason(status, logos::process_result::gap_previous);
             return false;
