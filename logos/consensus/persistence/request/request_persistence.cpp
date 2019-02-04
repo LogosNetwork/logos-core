@@ -548,11 +548,11 @@ bool PersistenceManager<R>::UpdateSourceState(
     info.head = hash;
     info.modified = logos::seconds_since_epoch();
 
-    if(_store.account_put(request.account, info, transaction))
+    if(_store.account_put(request.origin, info, transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager::UpdateSourceState - "
                         << "Failed to store account: "
-                        << request.account.to_string();
+                        << request.origin.to_string();
 
         std::exit(EXIT_FAILURE);
     }
