@@ -432,18 +432,18 @@ bool PersistenceManager<R>::Validate(
     return valid;
 }
 
-void PersistenceManager<R>::StoreBatchMessage(
+void PersistenceManager<R>::StoreRequestBlock(
     const ApprovedRB & message,
     MDB_txn * transaction,
     uint8_t delegate_id)
 {
     auto hash(message.Hash());
-    LOG_DEBUG(_log) << "PersistenceManager::StoreBatchMessage - "
+    LOG_DEBUG(_log) << "PersistenceManager::StoreRequestBlock - "
                     << message.Hash().to_string();
 
     if(_store.request_block_put(message, hash, transaction))
     {
-        LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
+        LOG_FATAL(_log) << "PersistenceManager::StoreRequestBlock - "
                         << "Failed to store batch message with hash: "
                         << hash.to_string();
 
@@ -452,7 +452,7 @@ void PersistenceManager<R>::StoreBatchMessage(
 
     if(_store.batch_tip_put(delegate_id, hash, transaction))
     {
-        LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
+        LOG_FATAL(_log) << "PersistenceManager::StoreRequestBlock - "
                         << "Failed to store batch block tip with hash: "
                         << hash.to_string();
 
@@ -472,7 +472,7 @@ void PersistenceManager<R>::StoreBatchMessage(
     //       the first batch of the epoch.
 }
 
-void PersistenceManager<R>::ApplyBatchMessage(
+void PersistenceManager<R>::ApplyRequestBlock(
     const ApprovedRB & message,
     MDB_txn * transaction)
 {
@@ -487,7 +487,7 @@ void PersistenceManager<R>::ApplyBatchMessage(
 
 // Currently designed only to handle
 // send transactions.
-void PersistenceManager<R>::ApplyStateMessage(
+void PersistenceManager<R>::ApplyRequest(
     const Send & request,
     uint64_t timestamp,
     MDB_txn * transaction)
