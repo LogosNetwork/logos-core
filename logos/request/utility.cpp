@@ -98,6 +98,9 @@ std::string GetRequestTypeField(RequestType type)
         case RequestType::IssueAdtlTokens:
             ret = ISSUE_ADTL;
             break;
+        case RequestType::ChangeTokenSetting:
+            ret = IMMUTE;
+            break;
         case RequestType::ImmuteTokenSetting:
             ret = IMMUTE;
             break;

@@ -196,9 +196,18 @@ bool ControllerInfo::IsAuthorized(std::shared_ptr<const Request> request) const
         case RequestType::IssueAdtlTokens:
             result = privileges[size_t(ControllerPrivilege::AddTokens)];
             break;
-        case RequestType::ImmuteTokenSetting:
-            result = IsAuthorized(static_pointer_cast<const TokenImmuteSetting>(request));
+        case RequestType::ChangeTokenSetting:
+        {
+            auto change = static_pointer_cast<const TokenChangeSetting>(request);
+            result = IsAuthorized(change->setting);
             break;
+        }
+        case RequestType::ImmuteTokenSetting:
+        {
+            auto immute = static_pointer_cast<const TokenImmuteSetting>(request);
+            result = IsAuthorized(immute->setting);
+            break;
+        }
         case RequestType::RevokeTokens:
             result = privileges[size_t(ControllerPrivilege::Revoke)];
             break;
@@ -237,11 +246,11 @@ bool ControllerInfo::IsAuthorized(std::shared_ptr<const Request> request) const
     return result;
 }
 
-bool ControllerInfo::IsAuthorized(std::shared_ptr<const TokenImmuteSetting> immute) const
+bool ControllerInfo::IsAuthorized(TokenSetting setting) const
 {
     bool result;
 
-    switch(immute->setting)
+    switch(setting)
     {
         case TokenSetting::AddTokens:
             result = privileges[size_t(ControllerPrivilege::ChangeAddTokens)];
