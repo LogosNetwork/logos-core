@@ -19,8 +19,10 @@ class ReservationsProvider
 {
 protected:
 
-    using Store      = logos::block_store;
-    using AccountPtr = std::shared_ptr<logos::Account>;
+    using Store           = logos::block_store;
+    using AccountPtr      = std::shared_ptr<logos::Account>;
+    using TokenAccountPtr = std::shared_ptr<TokenAccount>;
+    using LogosAccountPtr = std::shared_ptr<logos::account_info>;
 
 public:
 
@@ -33,6 +35,14 @@ public:
     virtual bool Acquire(const AccountAddress & account,
                          AccountPtr & info,
                          AccountType type = AccountType::LogosAccount)
+    { return true; }
+
+    virtual bool Acquire(const AccountAddress & account,
+                         TokenAccountPtr & info)
+    { return true; }
+
+    virtual bool Acquire(const AccountAddress & account,
+                         LogosAccountPtr & info)
     { return true; }
 
     virtual void Release(const AccountAddress & account,
@@ -100,6 +110,20 @@ public:
         }
 
         return ret;
+    }
+
+    bool Acquire(const AccountAddress & account,
+                 TokenAccountPtr & info) override
+    {
+        auto tmp = static_pointer_cast<logos::Account>(info);
+        return Acquire(account, tmp, logos::AccountType::TokenAccount);
+    }
+
+    bool Acquire(const AccountAddress & account,
+                 LogosAccountPtr & info) override
+    {
+        auto tmp = static_pointer_cast<logos::Account>(info);
+        return Acquire(account, tmp, logos::AccountType::LogosAccount);
     }
 
     void Release(const AccountAddress & account,

@@ -133,6 +133,8 @@ public:
  */
 struct account_info : Account
 {
+    using Entries = std::vector<TokenEntry>;
+
     account_info ();
     account_info (bool & error, const mdb_val & mdbval);
     account_info (account_info const &) = default;
@@ -153,12 +155,14 @@ struct account_info : Account
     //mdb_val val () const;
     mdb_val to_mdb_val(std::vector<uint8_t> &buf) const override;
 
-    block_hash         receive_head;
-    block_hash         rep_block;
-    block_hash         open_block;
-    uint64_t           modified;      ///< Seconds since posix epoch
-    uint32_t           receive_count;
-    std::vector<Entry> entries;
+    bool GetEntry(const BlockHash & token_id, TokenEntry & val) const;
+
+    block_hash receive_head;
+    block_hash rep_block;
+    block_hash open_block;
+    uint64_t   modified;      ///< Seconds since posix epoch
+    uint32_t   receive_count;
+    Entries    entries;
 };
 
 /**
@@ -288,7 +292,9 @@ enum class process_result
     controller_capacity,        // Logos - No more controllers can be added.
     invalid_controller_action,  // Logos - An invalid controller action was specified.
     unauthorized_request,       // Logos - Unauthorized to make request.
-    prohibitted_request         // Logos - The request is not allowed.
+    prohibitted_request,        // Logos - The request is not allowed.
+    not_whitelisted,            // Logos - Whitelisting is required.
+    frozen                      // Logos - Account is frozen.
 };
 
 std::string ProcessResultToString(process_result result);

@@ -150,6 +150,33 @@ bool TokenAccount::Validate(TokenSetting setting, bool value, logos::process_ret
     return true;
 }
 
+bool TokenAccount::SendAllowed(const TokenUserStatus & status,
+                               logos::process_return & result) const
+{
+    bool whitelisting = settings[size_t(TokenSetting::Whitelist)];
+    bool freezing = settings[size_t(TokenSetting::Freeze)];
+
+    if(whitelisting)
+    {
+        if(!status.whitelisted)
+        {
+            result.code = logos::process_result::not_whitelisted;
+            return false;
+        }
+    }
+
+    if(freezing)
+    {
+        if(status.frozen)
+        {
+            result.code = logos::process_result::frozen;
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
 {
     bool result = false;
@@ -184,11 +211,9 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
         case RequestType::BurnTokens:
         case RequestType::DistributeTokens:
         case RequestType::WithdrawTokens:
+        case RequestType::SendTokens:
             result = true;
             break;
-
-            // TODO: N/A
-        case RequestType::SendTokens:
         case RequestType::Unknown:
             result = false;
             break;

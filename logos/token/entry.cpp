@@ -1,5 +1,22 @@
 #include <logos/token/entry.hpp>
 
+BlockHash GetTokenUserId(const BlockHash & token_id, const AccountAddress & user)
+{
+    return Blake2bHash(TokenUserID(token_id, user));
+}
+
+TokenUserID::TokenUserID(const BlockHash & token_id,
+                         const AccountAddress & user)
+    : token_id(token_id)
+    , user(user)
+{}
+
+void TokenUserID::Hash(blake2b_state & hash) const
+{
+    token_id.Hash(hash);
+    user.Hash(hash);
+}
+
 TokenUserStatus::TokenUserStatus(bool & error,
                                  logos::stream & stream)
 {
@@ -31,13 +48,23 @@ bool TokenUserStatus::Deserialize(logos::stream & stream)
     return (error = logos::read(stream, frozen));
 }
 
-Entry::Entry(bool & error,
+logos::mdb_val TokenUserStatus::ToMdbVal(std::vector<uint8_t> & buf) const
+{
+    assert(buf.empty());
+    {
+        logos::vectorstream stream(buf);
+        Serialize(stream);
+    }
+    return logos::mdb_val(buf.size(), buf.data());
+}
+
+TokenEntry::TokenEntry(bool & error,
              logos::stream & stream)
 {
     error = Deserialize(stream);
 }
 
-uint32_t Entry::Serialize(logos::stream & stream) const
+uint32_t TokenEntry::Serialize(logos::stream & stream) const
 {
     auto s = logos::write(stream, token_id);
     s += status.Serialize(stream);
@@ -46,7 +73,7 @@ uint32_t Entry::Serialize(logos::stream & stream) const
     return s;
 }
 
-bool Entry::Deserialize(logos::stream & stream)
+bool TokenEntry::Deserialize(logos::stream & stream)
 {
     auto error = logos::read(stream, token_id);
     if(error)
