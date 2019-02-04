@@ -38,15 +38,15 @@ public:
 
 private:
 
-    void StoreBatchMessage(const ApprovedRB & message,
+    void StoreRequestBlock(const ApprovedRB & message,
                            MDB_txn * transaction,
                            uint8_t delegate_id);
 
-    void ApplyBatchMessage(const ApprovedRB & message,
+    void ApplyRequestBlock(const ApprovedRB & message,
                            MDB_txn * transaction);
-    void ApplyStateMessage(const Send & request,
-                           uint64_t timestamp,
-                           MDB_txn * transaction);
+    void ApplyRequest(const Send & request,
+                      uint64_t timestamp,
+                      MDB_txn * transaction);
 
     bool UpdateSourceState(const Send & request,
                            MDB_txn * transaction);

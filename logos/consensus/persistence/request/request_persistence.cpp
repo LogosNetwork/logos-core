@@ -46,8 +46,8 @@ void PersistenceManager<R>::ApplyUpdates(
                     << " Requests";
 
     logos::transaction transaction(_store.environment, nullptr, true);
-    StoreBatchMessage(message, transaction, delegate_id);
-    ApplyBatchMessage(message, transaction);
+    StoreRequestBlock(message, transaction, delegate_id);
+    ApplyRequestBlock(message, transaction);
 }
 
 bool PersistenceManager<R>::Validate(
@@ -363,18 +363,18 @@ bool PersistenceManager<R>::Validate(
     return valid;
 }
 
-void PersistenceManager<R>::StoreBatchMessage(
+void PersistenceManager<R>::StoreRequestBlock(
     const ApprovedRB & message,
     MDB_txn * transaction,
     uint8_t delegate_id)
 {
     auto hash(message.Hash());
-    LOG_DEBUG(_log) << "PersistenceManager::StoreBatchMessage - "
+    LOG_DEBUG(_log) << "PersistenceManager::StoreRequestBlock - "
                     << message.Hash().to_string();
 
     if(_store.request_block_put(message, hash, transaction))
     {
-        LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
+        LOG_FATAL(_log) << "PersistenceManager::StoreRequestBlock - "
                         << "Failed to store batch message with hash: "
                         << hash.to_string();
 
@@ -383,7 +383,7 @@ void PersistenceManager<R>::StoreBatchMessage(
 
     if(_store.batch_tip_put(delegate_id, hash, transaction))
     {
-        LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
+        LOG_FATAL(_log) << "PersistenceManager::StoreRequestBlock - "
                         << "Failed to store batch block tip with hash: "
                         << hash.to_string();
 
@@ -403,7 +403,7 @@ void PersistenceManager<R>::StoreBatchMessage(
     //       the first batch of the epoch.
 }
 
-void PersistenceManager<R>::ApplyBatchMessage(
+void PersistenceManager<R>::ApplyRequestBlock(
     const ApprovedRB & message,
     MDB_txn * transaction)
 {
@@ -411,9 +411,9 @@ void PersistenceManager<R>::ApplyBatchMessage(
     {
         auto request = static_pointer_cast<Send>(message.requests[i]);
 
-        ApplyStateMessage(*request,
-                          message.timestamp,
-                          transaction);
+        ApplyRequest(*request,
+                     message.timestamp,
+                     transaction);
 
         std::lock_guard<std::mutex> lock(_reservation_mutex);
         _reservations->Release(
@@ -423,7 +423,7 @@ void PersistenceManager<R>::ApplyBatchMessage(
 
 // Currently designed only to handle
 // send transactions.
-void PersistenceManager<R>::ApplyStateMessage(
+void PersistenceManager<R>::ApplyRequest(
     const Send & request,
     uint64_t timestamp,
     MDB_txn * transaction)
