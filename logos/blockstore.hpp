@@ -289,7 +289,14 @@ public:
     */
     MDB_dbi token_account_db;
 
-	/**
+    /**
+    * Token User Statuses
+    * (Untethered accounts only)
+    * block_hash token_user_id -> TokenUserStatus
+    */
+    MDB_dbi token_user_status_db;
+
+    /**
 	 * Maps head block to owning account
 	 * logos::block_hash -> logos::account
 	 */
