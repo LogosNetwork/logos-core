@@ -361,7 +361,7 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
 
                                 for(size_t i = 0; i < count; ++i)
                                 {
-                                    Entry entry(error, stream_a);
+                                    TokenEntry entry(error, stream_a);
                                     if(error)
                                     {
                                         break;
@@ -463,6 +463,24 @@ logos::mdb_val logos::reservation_info::to_mdb_val(std::vector<uint8_t> &buf) co
         serialize(stream);
     }
     return {buf.size(), buf.data()};
+}
+
+bool logos::account_info::GetEntry(const BlockHash & token_id, TokenEntry & val) const
+{
+    bool result;
+
+    std::find_if(entries.begin(), entries.end(),
+                 [&token_id, &val, &result](const TokenEntry & entry)
+                 {
+                     if((result = (entry.token_id == token_id)))
+                     {
+                         val = entry;
+                     }
+
+                     return result;
+                 });
+
+    return result; // True if the entry is found.
 }
 
 logos::block_counts::block_counts () :
@@ -995,6 +1013,12 @@ std::string logos::ProcessResultToString(logos::process_result result)
         break;
     case process_result::prohibitted_request:
         ret = "The request is not allowed";
+        break;
+    case process_result::not_whitelisted:
+        ret = "Whitelisting is required";
+        break;
+    case process_result::frozen:
+        ret = "Account is frozen";
         break;
     }
 

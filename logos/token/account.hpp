@@ -33,6 +33,9 @@ struct TokenAccount : logos::Account
     bool Validate(TokenSetting setting,
                   bool value,
                   logos::process_return & result) const;
+
+    bool SendAllowed(const TokenUserStatus & status,
+                     logos::process_return & result) const;
     bool IsAllowed(std::shared_ptr<const Request> request) const;
     bool IsAllowed(std::shared_ptr<const TokenImmuteSetting> immute) const;
 
