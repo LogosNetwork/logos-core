@@ -1071,10 +1071,13 @@ bool logos::block_store::consensus_block_update_next(const BlockHash & hash, con
 bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, mdb_val &value, MDB_txn *tx)
 {
     int status = 0;
-    if (tx == 0) {
+    if (tx == 0)
+    {
         logos::transaction transaction(environment, nullptr, false);
         status = mdb_get(transaction, db, key, value);
-    } else {
+    }
+    else
+    {
         status = mdb_get(tx, db, key, value);
     }
     if( ! (status == 0 || status == MDB_NOTFOUND))
@@ -1217,6 +1220,31 @@ bool logos::block_store::epoch_exists (const ApprovedEB & block)
     exists = status == 0;
 
     return exists;
+}
+
+bool logos::block_store::token_user_status_get(const BlockHash & token_user_id, TokenUserStatus & status, MDB_txn * transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << token_user_id.to_string();
+
+    mdb_val val;
+    if(get(token_user_status_db, mdb_val(token_user_id), val, transaction))
+    {
+        return true;
+    }
+
+    bool error = false;
+    new (&status) TokenUserStatus(error, val);
+    assert (!error);
+    return error;
+}
+
+bool logos::block_store::token_user_status_put(const BlockHash & token_user_id, const TokenUserStatus & status, MDB_txn * transaction)
+{
+    std::vector<uint8_t> buf;
+    auto result(mdb_put(transaction, token_user_status_db, logos::mdb_val(token_user_id), status.ToMdbVal(buf), 0));
+
+    assert(result == 0);
+    return result != 0;
 }
 
 bool logos::block_store::token_account_exists(const BlockHash & token_id)
