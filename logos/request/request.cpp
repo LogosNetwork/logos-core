@@ -302,7 +302,6 @@ void Request::Hash(blake2b_state & hash) const
     origin.Hash(hash);
     fee.Hash(hash);
     blake2b_update(&hash, &sequence, sizeof(sequence));
-    signature.Hash(hash);
 }
 
 uint16_t Request::WireSize() const
