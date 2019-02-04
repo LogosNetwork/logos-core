@@ -305,7 +305,9 @@ checksum (0)
 
         // token platform
         error_a |= mdb_dbi_open (transaction, "token_account_db", MDB_CREATE, &token_account_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "token_user_status_db", MDB_CREATE, &token_user_status_db) != 0;
 
+        // legacy
         error_a |= mdb_dbi_open (transaction, "frontiers", MDB_CREATE, &frontiers) != 0;
         error_a |= mdb_dbi_open (transaction, "state", MDB_CREATE, &state_blocks) != 0;
         error_a |= mdb_dbi_open (transaction, "pending", MDB_CREATE, &pending) != 0;

@@ -4,10 +4,10 @@
 
 #include <ios>
 
-TokenAccount::TokenAccount (bool & error, const logos::mdb_val & mdbval)
+TokenAccount::TokenAccount(bool & error, const logos::mdb_val & mdbval)
 {
-    logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
-    error = Deserialize (stream);
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()), mdbval.size());
+    error = Deserialize(stream);
 }
 
 TokenAccount::TokenAccount(const logos::block_hash & head,
@@ -20,7 +20,7 @@ TokenAccount::TokenAccount(const logos::block_hash & head,
     , token_fee_balance(token_fee_balance)
 {}
 
-uint32_t TokenAccount::Serialize (logos::stream & stream) const
+uint32_t TokenAccount::Serialize(logos::stream & stream) const
 {
     assert(controllers.size() < MAX_CONTROLLERS);
 
@@ -39,7 +39,7 @@ uint32_t TokenAccount::Serialize (logos::stream & stream) const
     return s;
 }
 
-bool TokenAccount::Deserialize (logos::stream & stream)
+bool TokenAccount::Deserialize(logos::stream & stream)
 {
     auto error = Account::Deserialize(stream);
     if(error)
@@ -47,7 +47,7 @@ bool TokenAccount::Deserialize (logos::stream & stream)
         return error;
     }
 
-    error = logos::read (stream, token_balance);
+    error = logos::read(stream, token_balance);
     if(error)
     {
         return error;
@@ -60,7 +60,7 @@ bool TokenAccount::Deserialize (logos::stream & stream)
     }
 
     uint8_t size;
-    error = logos::read (stream, size);
+    error = logos::read(stream, size);
     if(error)
     {
         return error;
