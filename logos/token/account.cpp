@@ -191,6 +191,9 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
         case RequestType::IssueAdtlTokens:
             result = settings[size_t(TokenSetting::AddTokens)];
             break;
+        case RequestType::ChangeTokenSetting:
+            result = IsAllowed(static_pointer_cast<const TokenImmuteSetting>(request));
+            break;
         case RequestType::ImmuteTokenSetting:
             result = IsAllowed(static_pointer_cast<const TokenImmuteSetting>(request));
             break;
@@ -255,6 +258,54 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const TokenImmuteSetting> immute) c
             result = settings[size_t(TokenSetting::ModifyWhitelist)];
             break;
         case TokenSetting::ModifyWhitelist:
+            break;
+        case TokenSetting::Unknown:
+            break;
+    }
+
+    return result;
+}
+
+bool TokenAccount::IsAllowed(std::shared_ptr<const TokenChangeSetting> change) const
+{
+    bool result = false;
+
+    switch(change->setting)
+    {
+        case TokenSetting::AddTokens:
+            result = settings[size_t(TokenSetting::ModifyAddTokens)];
+            break;
+        case TokenSetting::ModifyAddTokens:
+            result = settings[size_t(TokenSetting::ModifyAddTokens)] or
+                     change->value == SettingValue::Disabled;
+            break;
+        case TokenSetting::Revoke:
+            result = settings[size_t(TokenSetting::ModifyRevoke)];
+            break;
+        case TokenSetting::ModifyRevoke:
+            result = settings[size_t(TokenSetting::ModifyRevoke)] or
+                     change->value == SettingValue::Disabled;
+            break;
+        case TokenSetting::Freeze:
+            result = settings[size_t(TokenSetting::ModifyFreeze)];
+            break;
+        case TokenSetting::ModifyFreeze:
+            result = settings[size_t(TokenSetting::ModifyFreeze)] or
+                     change->value == SettingValue::Disabled;
+            break;
+        case TokenSetting::AdjustFee:
+            result = settings[size_t(TokenSetting::ModifyAdjustFee)];
+            break;
+        case TokenSetting::ModifyAdjustFee:
+            result = settings[size_t(TokenSetting::ModifyAdjustFee)] or
+                     change->value == SettingValue::Disabled;
+            break;
+        case TokenSetting::Whitelist:
+            result = settings[size_t(TokenSetting::ModifyWhitelist)];
+            break;
+        case TokenSetting::ModifyWhitelist:
+            result = settings[size_t(TokenSetting::ModifyWhitelist)] or
+                     change->value == SettingValue::Disabled;
             break;
         case TokenSetting::Unknown:
             break;
