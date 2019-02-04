@@ -21,8 +21,6 @@ Send::Send(const AccountAddress & account,
               sequence,
               priv,
               pub)
-    , account(account)
-    , previous(previous)
     , work(work)
 {
     transactions.push_back(Transaction(to, amount));
@@ -42,8 +40,6 @@ Send::Send(AccountAddress const & account,
               transaction_fee,
               sequence,
               sig)
-    , account(account)
-    , previous(previous)
     , work(work)
 {
     transactions.push_back(Transaction(to, amount));
@@ -64,18 +60,6 @@ Send::Send(bool & error,
 
     try
     {
-        error = account.decode_account(tree.get<std::string>(ACCOUNT));
-        if(error)
-        {
-            return;
-        }
-
-        error = previous.decode_hex(tree.get<std::string>(PREVIOUS));
-        if(error)
-        {
-            return;
-        }
-
         error = signature.decode_hex(tree.get<std::string>("signature", "0"));
         if(error)
         {
@@ -137,18 +121,6 @@ Send::Send(bool & error,
            bool with_batch_hash)
    : Request(error, stream)
 {
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, account);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, previous);
     if(error)
     {
         return;
@@ -230,8 +202,7 @@ bool Send::AddTransaction(const Transaction & transaction)
 
 void Send::Hash(blake2b_state & hash) const
 {
-    account.Hash(hash);
-    previous.Hash(hash);
+    Request::Hash(hash);
 
     for(const auto & t : transactions)
     {
@@ -240,7 +211,7 @@ void Send::Hash(blake2b_state & hash) const
     }
 }
 
-BlockHash Send::GetHash () const
+BlockHash Send::GetHash() const
 {
     return digest;
 }
@@ -249,8 +220,6 @@ boost::property_tree::ptree Send::SerializeJson() const
 {
     auto tree = Request::SerializeJson();
 
-    tree.put("account", account.to_account());
-    tree.put("previous", previous.to_string());
     tree.put("signature", signature.to_string());
     tree.put("work", std::to_string(work));
     tree.put("number_transactions", std::to_string(transactions.size()));
@@ -277,8 +246,6 @@ boost::property_tree::ptree Send::SerializeJson() const
 uint64_t Send::Serialize (logos::stream & stream) const
 {
     return  Request::Serialize(stream) +
-            logos::write(stream, account) +
-            logos::write(stream, previous) +
             SerializeVector(stream, transactions) +
             logos::write(stream, signature);
 }

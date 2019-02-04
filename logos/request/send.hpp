@@ -110,8 +110,6 @@ struct Send : Request
 
     static const uint8_t MAX_TRANSACTIONS = 8;
 
-    AccountAddress    account;
-    BlockHash         previous;
     Transactions      transactions;
     AccountSig        signature;
     uint64_t          work = 0;
