@@ -21,8 +21,8 @@ RequestConsensusManager::RequestConsensusManager(Service & service,
     _state = ConsensusState::INITIALIZING;
     _store.batch_tip_get(_delegate_id, _prev_pre_prepare_hash);
 
-    ApprovedBSB block;
-    if ( !_prev_pre_prepare_hash.is_zero() && !_store.batch_block_get(_prev_pre_prepare_hash, block))
+    ApprovedRB block;
+    if ( !_prev_pre_prepare_hash.is_zero() && !_store.request_block_get(_prev_pre_prepare_hash, block))
     {
         _sequence = block.sequence + 1;
     }
@@ -183,7 +183,7 @@ RequestConsensusManager::PrePrepareQueueEmpty()
 
 void
 RequestConsensusManager::ApplyUpdates(
-  const ApprovedBSB & block,
+  const ApprovedRB & block,
   uint8_t delegate_id)
 {
     _persistence_manager.ApplyUpdates(block, _delegate_id);

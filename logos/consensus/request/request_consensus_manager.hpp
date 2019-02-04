@@ -84,7 +84,7 @@ protected:
     /// Commits the block to the database.
     ///     @param block the batch block to commit to the database
     ///     @param delegate_id delegate id
-    void ApplyUpdates(const ApprovedBSB & block, uint8_t delegate_id) override;
+    void ApplyUpdates(const ApprovedRB & block, uint8_t delegate_id) override;
 
     /// Checks if the system is ready to initiate consensus.
     ///

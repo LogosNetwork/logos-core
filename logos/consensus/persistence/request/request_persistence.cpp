@@ -24,7 +24,7 @@ PersistenceManager<R>::PersistenceManager(Store & store,
 }
 
 void PersistenceManager<R>::ApplyUpdates(
-    const ApprovedBSB & message,
+    const ApprovedRB & message,
     uint8_t delegate_id)
 {
     // XXX - Failure during any of the database operations
@@ -41,9 +41,9 @@ void PersistenceManager<R>::ApplyUpdates(
         request->index_in_batch = count++;
     }
 
-    LOG_DEBUG(_log) << "PersistenceManager<R>::ApplyUpdates - BSB with "
+    LOG_DEBUG(_log) << "PersistenceManager<R>::ApplyUpdates - RequestBlock with "
                     << message.requests.size()
-                    << " StateBlocks";
+                    << " Requests";
 
     logos::transaction transaction(_store.environment, nullptr, true);
     StoreBatchMessage(message, transaction, delegate_id);
@@ -304,7 +304,7 @@ bool PersistenceManager<R>::Validate(
 }
 
 void PersistenceManager<R>::StoreBatchMessage(
-    const ApprovedBSB & message,
+    const ApprovedRB & message,
     MDB_txn * transaction,
     uint8_t delegate_id)
 {
@@ -312,7 +312,7 @@ void PersistenceManager<R>::StoreBatchMessage(
     LOG_DEBUG(_log) << "PersistenceManager::StoreBatchMessage - "
                     << message.Hash().to_string();
 
-    if(_store.batch_block_put(message, hash, transaction))
+    if(_store.request_block_put(message, hash, transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
                         << "Failed to store batch message with hash: "
@@ -344,7 +344,7 @@ void PersistenceManager<R>::StoreBatchMessage(
 }
 
 void PersistenceManager<R>::ApplyBatchMessage(
-    const ApprovedBSB & message,
+    const ApprovedRB & message,
     MDB_txn * transaction)
 {
     for(uint16_t i = 0; i < message.requests.size(); ++i)
@@ -504,8 +504,8 @@ void PersistenceManager<R>::PlaceReceive(
                 trace_and_halt();
             }
 
-            ApprovedBSB approved;
-            if(! _store.batch_block_get(send.batch_hash, approved, transaction))
+            ApprovedRB approved;
+            if(!_store.request_block_get(send.batch_hash, approved, transaction))
             {
                 LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
                                 << "Failed to get a previous batch state block with hash: "

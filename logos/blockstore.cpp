@@ -837,9 +837,9 @@ void logos::block_store::checksum_del (MDB_txn * transaction_a, uint64_t prefix,
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-bool logos::block_store::consensus_block_get (const BlockHash& hash, ApprovedBSB & block)
+bool logos::block_store::consensus_block_get (const BlockHash& hash, ApprovedRB & block)
 {
-    return batch_block_get (hash, block);
+    return request_block_get(hash, block);
 }
 bool logos::block_store::consensus_block_get (const BlockHash& hash, ApprovedMB & block)
 {
@@ -850,12 +850,12 @@ bool logos::block_store::consensus_block_get (const BlockHash& hash, ApprovedEB 
     return epoch_get (hash, block);
 }
 
-bool logos::block_store::batch_block_put (ApprovedBSB const & block, MDB_txn * transaction)
+bool logos::block_store::request_block_put(ApprovedRB const & block, MDB_txn * transaction)
 {
-    return batch_block_put(block, block.Hash(), transaction);
+    return request_block_put(block, block.Hash(), transaction);
 }
 
-bool logos::block_store::batch_block_put (ApprovedBSB const & block, const BlockHash & hash, MDB_txn * transaction)
+bool logos::block_store::request_block_put(ApprovedRB const &block, const BlockHash &hash, MDB_txn *transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();
 
@@ -942,13 +942,13 @@ bool logos::block_store::request_exists(const BlockHash & hash)
     return status == 0;
 }
 
-bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & block)
+bool logos::block_store::request_block_get(const BlockHash & hash, ApprovedRB & block)
 {
     transaction transaction(environment, nullptr, false);
-    return batch_block_get(hash, block, transaction);
+    return request_block_get(hash, block, transaction);
 }
 
-bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & block, MDB_txn * transaction)
+bool logos::block_store::request_block_get(const BlockHash &hash, ApprovedRB &block, MDB_txn *transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();
 
@@ -966,7 +966,7 @@ bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & b
     }
     else
     {
-        new(&block) ApprovedBSB(error, value);
+        new(&block) ApprovedRB(error, value);
         assert(!error);
 
         if(!error)
@@ -974,7 +974,7 @@ bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & b
             if(block.hashes.size() > CONSENSUS_BATCH_SIZE)
             {
                 LOG_FATAL(log) << __func__
-                               << " batch_block_get failed, block.request_count > CONSENSUS_BATCH_SIZE";
+                               << " request_block_get failed, block.request_count > CONSENSUS_BATCH_SIZE";
                 trace_and_halt();
             }
 

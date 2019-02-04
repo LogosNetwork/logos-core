@@ -27,7 +27,7 @@ public:
                        Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT);
     virtual ~PersistenceManager() = default;
 
-    virtual void ApplyUpdates(const ApprovedBSB & message, uint8_t delegate_id);
+    virtual void ApplyUpdates(const ApprovedRB & message, uint8_t delegate_id);
 
     virtual bool Validate(std::shared_ptr<const Request> request,
                           logos::process_return & result,
@@ -38,11 +38,11 @@ public:
 
 private:
 
-    void StoreBatchMessage(const ApprovedBSB & message,
+    void StoreBatchMessage(const ApprovedRB & message,
                            MDB_txn * transaction,
                            uint8_t delegate_id);
 
-    void ApplyBatchMessage(const ApprovedBSB & message,
+    void ApplyBatchMessage(const ApprovedRB & message,
                            MDB_txn * transaction);
     void ApplyStateMessage(const Send & request,
                            uint64_t timestamp,
