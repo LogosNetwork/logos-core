@@ -381,7 +381,7 @@ void PersistenceManager<R>::StoreRequestBlock(
         trace_and_halt();
     }
 
-    if(_store.batch_tip_put(delegate_id, hash, transaction))
+    if(_store.request_tip_put(delegate_id, hash, transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager::StoreRequestBlock - "
                         << "Failed to store batch block tip with hash: "

@@ -203,7 +203,7 @@ MicroBlockHandler::Build(
     BatchTips start;
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
     {
-        if (_store.batch_tip_get(delegate, start[delegate]))
+        if (_store.request_tip_get(delegate, start[delegate]))
         {
             start[delegate].clear();
         }

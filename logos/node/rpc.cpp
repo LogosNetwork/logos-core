@@ -904,7 +904,7 @@ void logos::rpc_handler::batch_blocks_latest ()
     }
     else
     {
-        auto tip_exists = !node.store.batch_tip_get(static_cast<uint8_t>(delegate_id), hash);
+        auto tip_exists = !node.store.request_tip_get(static_cast<uint8_t>(delegate_id), hash);
     }
 
     boost::property_tree::ptree response_l;

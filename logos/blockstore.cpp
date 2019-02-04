@@ -289,7 +289,7 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "state_db", MDB_CREATE, &state_db) != 0;
         error_a |= mdb_dbi_open (transaction, "account_db", MDB_CREATE, &account_db) != 0;
         error_a |= mdb_dbi_open (transaction, "receive_db", MDB_CREATE, &receive_db) != 0;
-        error_a |= mdb_dbi_open (transaction, "batch_tips_db", MDB_CREATE, &batch_tips_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "request_tips_db", MDB_CREATE, &request_tips_db) != 0;
 
         // microblock-prototype
         error_a |= mdb_dbi_open (transaction, "micro_block_db", MDB_CREATE, &micro_block_db) != 0;
@@ -1372,27 +1372,27 @@ bool logos::block_store::receive_exists(const BlockHash & hash)
     return status == 0;
 }
 
-bool logos::block_store::batch_tip_put(uint8_t delegate_id, const BlockHash & hash, MDB_txn * transaction)
+bool logos::block_store::request_tip_put(uint8_t delegate_id, const BlockHash &hash, MDB_txn *transaction)
 {
     LOG_TRACE(log) << __func__ << " value " << hash.to_string();
 
     auto status(mdb_put(transaction,
-            batch_tips_db,
-            mdb_val(sizeof(delegate_id), &delegate_id),
-            mdb_val(hash),
-            0));
+                        request_tips_db,
+                        mdb_val(sizeof(delegate_id), &delegate_id),
+                        mdb_val(hash),
+                        0));
 
     assert(status == 0);
     return status != 0;
 }
 
-bool logos::block_store::batch_tip_get(uint8_t delegate_id, BlockHash & hash)
+bool logos::block_store::request_tip_get(uint8_t delegate_id, BlockHash &hash)
 {
     logos::mdb_val value;
     logos::transaction transaction(environment, nullptr, false);
 
-    auto status (mdb_get (transaction, batch_tips_db, logos::mdb_val(sizeof(delegate_id),
-                                                                          &delegate_id), value));
+    auto status (mdb_get (transaction, request_tips_db, logos::mdb_val(sizeof(delegate_id),
+                                                                     &delegate_id), value));
     assert (status == 0 || status == MDB_NOTFOUND);
     bool error = false;
     if (status == MDB_NOTFOUND)

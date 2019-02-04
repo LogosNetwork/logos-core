@@ -164,8 +164,8 @@ public:
     bool receive_get(const BlockHash & hash, ReceiveBlock & block, MDB_txn *);
     bool receive_exists(const BlockHash & hash);
 
-    bool batch_tip_put(uint8_t delegate_id, const BlockHash & hash, MDB_txn *);
-    bool batch_tip_get(uint8_t delegate_id, BlockHash & hash);
+    bool request_tip_put(uint8_t delegate_id, const BlockHash &hash, MDB_txn *);
+    bool request_tip_get(uint8_t delegate_id, BlockHash &hash);
 
     // micro-block
     bool get(MDB_dbi &db, const mdb_val &key, mdb_val &value, MDB_txn *tx);
@@ -234,10 +234,10 @@ public:
 
     /**
      * Maps delegate id to hash of most
-     * recent batch block.
+     * recent request block.
      * uint8_t -> logos::block_hash
      */
-    MDB_dbi batch_tips_db;
+    MDB_dbi request_tips_db;
 
     /**
      * Maps block hash to micro block
