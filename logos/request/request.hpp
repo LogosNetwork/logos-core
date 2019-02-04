@@ -18,25 +18,26 @@ enum class RequestType : uint8_t
     // Requests
     //
     IssueTokens        = 2,
-    IssueAdtlTokens    = 3,
-    ImmuteTokenSetting = 4,
-    RevokeTokens       = 5,
-    FreezeTokens       = 6,
-    SetTokenFee        = 7,
-    UpdateWhitelist    = 8,
-    UpdateIssuerInfo   = 9,
-    UpdateController   = 10,
-    BurnTokens         = 11,
-    DistributeTokens   = 12,
-    WithdrawTokens     = 13,
+    ChangeTokenSetting = 3,
+    IssueAdtlTokens    = 4,
+    ImmuteTokenSetting = 5,
+    RevokeTokens       = 6,
+    FreezeTokens       = 7,
+    SetTokenFee        = 8,
+    UpdateWhitelist    = 9,
+    UpdateIssuerInfo   = 10,
+    UpdateController   = 11,
+    BurnTokens         = 12,
+    DistributeTokens   = 13,
+    WithdrawTokens     = 14,
 
     // Token User Requests
     //
-    SendTokens         = 14,
+    SendTokens         = 15,
 
     // Unknown
     //
-    Unknown            = 15
+    Unknown            = 16
 };
 
 class ReservationsProvider;

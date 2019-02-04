@@ -477,6 +477,7 @@ bool IsTokenAdminRequest(RequestType type)
     case RequestType::IssueTokens:
         break;
     case RequestType::IssueAdtlTokens:
+    case RequestType::ChangeTokenSetting:
     case RequestType::ImmuteTokenSetting:
     case RequestType::RevokeTokens:
     case RequestType::FreezeTokens:

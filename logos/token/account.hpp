@@ -9,6 +9,7 @@
 #include <bitset>
 
 class TokenImmuteSetting;
+class TokenChangeSetting;
 
 struct TokenAccount : logos::Account
 {
@@ -38,6 +39,7 @@ struct TokenAccount : logos::Account
                      logos::process_return & result) const;
     bool IsAllowed(std::shared_ptr<const Request> request) const;
     bool IsAllowed(std::shared_ptr<const TokenImmuteSetting> immute) const;
+    bool IsAllowed(std::shared_ptr<const TokenChangeSetting> change) const;
 
     void Set(TokenSetting setting, bool value);
     bool Allowed(TokenSetting setting) const;
