@@ -22,7 +22,7 @@ RequestConsensusManager::RequestConsensusManager(Service & service,
     , _service(service)
 {
     _state = ConsensusState::INITIALIZING;
-    _store.batch_tip_get(_delegate_id, _prev_pre_prepare_hash);
+    _store.request_tip_get(_delegate_id, _prev_pre_prepare_hash);
 
     ApprovedRB block;
     if ( !_prev_pre_prepare_hash.is_zero() && !_store.request_block_get(_prev_pre_prepare_hash, block))

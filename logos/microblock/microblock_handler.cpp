@@ -142,18 +142,12 @@ MicroBlockHandler::GetTipsFast(
         BatchTips &tips,
         uint &num_blocks)
 {
-<<<<<<< HEAD
     // get 'next' references
     BatchTips next;
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
     {
-        ApprovedBSB batch;
-        if (_store.batch_block_get(start[delegate], batch))
-=======
-    uint64_t cutoff_msec = GetCutOffTimeMsec(timestamp);
-    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
-        if (batch.timestamp < cutoff_msec)
->>>>>>> Renaming away batchblock
+        ApprovedRB batch;
+        if (_store.request_block_get(start[delegate], batch))
         {
             next[delegate].clear();
         }
@@ -164,7 +158,7 @@ MicroBlockHandler::GetTipsFast(
     }
 
     uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff);
-    BatchBlocksIterator(_store, next, cutoff_msec, [&](uint8_t delegate, const ApprovedBSB &batch)mutable -> void {
+    BatchBlocksIterator(_store, next, cutoff_msec, [&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
         BlockHash hash = batch.Hash();
         tips[delegate] = hash;
         num_blocks++;
@@ -253,6 +247,16 @@ MicroBlockHandler::Build(
 
     // collect current batch block tips
     BatchTips start;
+<<<<<<< HEAD
+=======
+    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
+    {
+        if (_store.request_tip_get(delegate, start[delegate]))
+        {
+            start[delegate].clear();
+        }
+    }
+>>>>>>> Renaming away batch block in blockstore
 
     // first microblock after genesis, the cut-off time is
     // the Min timestamp of the very first BSB for all delegates + remainder from Min to nearest 10 min + 10 min;
