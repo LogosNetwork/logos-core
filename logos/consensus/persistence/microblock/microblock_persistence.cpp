@@ -85,10 +85,10 @@ PersistenceManager<MBCT>::Validate(
     
     // verify can get the batch block tips
     bool valid = true;
-    ApprovedBSB bsb;
+    ApprovedRB bsb;
     for (int del = 0; del < NUM_DELEGATES; ++del)
     {
-        if (! block.tips[del].is_zero() && _store.batch_block_get(block.tips[del], bsb))
+        if (! block.tips[del].is_zero() && _store.request_block_get(block.tips[del], bsb))
         {
             LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
                             << block.Hash().to_string() << " "

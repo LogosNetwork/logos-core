@@ -1064,10 +1064,10 @@ TEST (DB, bsb)
     block.next = 90;
 
     auto block_hash(block.Hash());
-    ASSERT_FALSE(store->batch_block_put(block, block_hash, txn));
+    ASSERT_FALSE(store->request_block_put(block, block_hash, txn));
 
-    ApprovedBSB block2;
-    ASSERT_FALSE(store->batch_block_get(block_hash, block2, txn));
+    ApprovedRB block2;
+    ASSERT_FALSE(store->request_block_get(block_hash, block2, txn));
     ASSERT_EQ(block_hash, block2.Hash());
 }
 
@@ -1124,7 +1124,7 @@ TEST (DB, bsb_next)
     auto block_hash(block.Hash());
     {
         logos::transaction txn(store->environment, nullptr, true);
-        ASSERT_FALSE(store->batch_block_put(block, block_hash, txn));
+        ASSERT_FALSE(store->request_block_put(block, block_hash, txn));
     }
 
     BlockHash next(90);
@@ -1134,8 +1134,8 @@ TEST (DB, bsb_next)
     }
 
     logos::transaction txn(store->environment, nullptr, false);
-    ApprovedBSB block2;
-    ASSERT_FALSE(store->batch_block_get(block_hash, block2, txn));
+    ApprovedRB block2;
+    ASSERT_FALSE(store->request_block_get(block_hash, block2, txn));
     ASSERT_EQ(block_hash, block2.Hash());
     ASSERT_EQ(block2.next, next);
 }
