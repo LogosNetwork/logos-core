@@ -4,10 +4,7 @@
 
 #include <logos/blockstore.hpp>
 #include <logos/lib/log.hpp>
-#include <logos/common.hpp>
-#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
-//#include <logos/node/delegate_identity_manager.hpp>
-//#include <logos/consensus/consensus_container.hpp>
+#include <logos/common.hpp>u
 
 #include <unordered_map>
 
@@ -22,8 +19,10 @@ class ReservationsProvider
 {
 protected:
 
-    using Store      = logos::block_store;
-    using AccountPtr = std::shared_ptr<logos::Account>;
+    using Store           = logos::block_store;
+    using AccountPtr      = std::shared_ptr<logos::Account>;
+    using TokenAccountPtr = std::shared_ptr<TokenAccount>;
+    using LogosAccountPtr = std::shared_ptr<logos::account_info>;
 
 public:
     explicit ReservationsProvider(Store & store)

@@ -461,22 +461,14 @@ bool TokenRevoke::Validate(logos::process_return & result,
 {
     auto user_account = std::static_pointer_cast<logos::account_info>(info);
 
-    // TODO: Find token entries via Entry
-    //       member function.
-    auto entry = std::find_if(user_account->entries.begin(),
-                              user_account->entries.end(),
-                              [this](const Entry & entry)
-                              {
-                                  return entry.token_id == token_id;
-                              });
-
-    if(entry == user_account->entries.end())
+    TokenEntry entry;
+    if(!user_account->GetEntry(token_id, entry))
     {
         result.code = logos::process_result::untethered_account;
         return false;
     }
 
-    if(transaction.amount > entry->balance)
+    if(transaction.amount > entry.balance)
     {
         result.code = logos::process_result::insufficient_token_balance;
         return false;
@@ -1207,20 +1199,14 @@ bool TokenSend::Validate(logos::process_return & result,
 {
     auto user_account = std::static_pointer_cast<logos::account_info>(info);
 
-    auto entry = std::find_if(user_account->entries.begin(),
-                              user_account->entries.end(),
-                              [this](const Entry & entry)
-                              {
-                                  return entry.token_id == token_id;
-                              });
-
-    if(entry == user_account->entries.end())
+    TokenEntry entry;
+    if(!user_account->GetEntry(token_id, entry))
     {
         result.code = logos::process_result::untethered_account;
         return false;
     }
 
-    if(GetTokenTotal() > entry->balance)
+    if(GetTokenTotal() > entry.balance)
     {
         result.code = logos::process_result::insufficient_token_balance;
         return false;

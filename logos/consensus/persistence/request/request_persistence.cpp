@@ -281,11 +281,72 @@ bool PersistenceManager<R>::Validate(
                     auto send_tokens = dynamic_pointer_cast<const TokenSend>(request);
                     assert(send_tokens);
 
+                    std::shared_ptr<TokenAccount> token_account;
+
                     // This token id doesn't exist.
-                    if(_store.token_account_exists(send_tokens->token_id))
+                    if(_reservations->Acquire(send_tokens->token_id, token_account))
                     {
                         result.code = logos::process_result::invalid_token_id;
                         return false;
+                    }
+
+                    auto user_account = std::static_pointer_cast<logos::account_info>(info);
+
+                    // Get sender's token entry
+                    TokenEntry source_token_entry;
+                    if(!user_account->GetEntry(send_tokens->token_id, source_token_entry))
+                    {
+                        result.code = logos::process_result::untethered_account;
+                        return false;
+                    }
+
+                    // The sender's account is either frozen or
+                    // not yet whitelisted.
+                    if(!token_account->SendAllowed(source_token_entry.status, result))
+                    {
+                        return false;
+                    }
+
+                    // Check each transaction in the Send Token Request
+                    for(auto & t : send_tokens->transactions)
+                    {
+                        std::shared_ptr<logos::account_info> destination;
+                        TokenUserStatus destination_status;
+
+                        BlockHash token_user_id(GetTokenUserId(send_tokens->token_id,
+                                                               t.destination));
+
+                        // We have the destination account
+                        if(!_reservations->Acquire(t.destination, destination))
+                        {
+                            TokenEntry destination_token_entry;
+
+                            // This destinationaccount has been tethered to
+                            // the token
+                            if(destination->GetEntry(send_tokens->token_id, destination_token_entry))
+                            {
+                                destination_status = destination_token_entry.status;
+                            }
+
+                            // This destination account is untethered
+                            else
+                            {
+                                _store.token_user_status_get(token_user_id, destination_status);
+                            }
+                        }
+
+                        // We don't have the destination account
+                        else
+                        {
+                            _store.token_user_status_get(token_user_id, destination_status);
+                        }
+
+                        // The destination account is either frozen
+                        // or not yet whitelisted.
+                        if(!token_account->SendAllowed(destination_status, result))
+                        {
+                            return false;
+                        }
                     }
                 }
 
@@ -295,7 +356,6 @@ bool PersistenceManager<R>::Validate(
                 }
             }
         }
-
     }
 
     result.code = logos::process_result::progress;
