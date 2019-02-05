@@ -1360,6 +1360,13 @@ bool logos::block_store::account_db_empty()
     return begin == end;
 }
 
+bool logos::block_store::account_put(const AccountAddress & account, std::shared_ptr<Account> info, AccountType type, MDB_txn * transaction)
+{
+    return type == AccountType::LogosAccount ?
+           account_put(account, *static_pointer_cast<account_info>(info), transaction) :
+           token_account_put(account, *static_pointer_cast<TokenAccount>(info), transaction);
+}
+
 bool logos::block_store::account_put(const AccountAddress & account, const logos::account_info & info, MDB_txn * transaction)
 {
     std::vector<uint8_t> buf;
