@@ -451,7 +451,7 @@ AccountAddress TokenRevoke::GetSource() const
     return source;
 }
 
-Amount TokenRevoke::GetTokenTotal() const
+uint16_t TokenRevoke::GetTokenTotal() const
 {
     return transaction.amount;
 }
@@ -945,7 +945,7 @@ TokenBurn::TokenBurn(bool & error,
     }
 }
 
-Amount TokenBurn::GetTokenTotal() const
+uint16_t TokenBurn::GetTokenTotal() const
 {
     return amount;
 }
@@ -1009,7 +1009,7 @@ TokenAccountSend::TokenAccountSend(bool & error,
 {}
 
 
-Amount TokenAccountSend::GetTokenTotal() const
+uint16_t TokenAccountSend::GetTokenTotal() const
 {
     return transaction.amount;
 }
@@ -1071,7 +1071,7 @@ TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
                                  boost::property_tree::ptree()))
 {}
 
-Amount TokenAccountWithdrawFee::GetTokenTotal() const
+uint16_t TokenAccountWithdrawFee::GetTokenTotal() const
 {
     return transaction.amount;
 }
@@ -1182,7 +1182,7 @@ TokenSend::TokenSend(bool & error,
     }
 }
 
-Amount TokenSend::GetTokenTotal() const
+uint16_t TokenSend::GetTokenTotal() const
 {
     auto total = std::accumulate(transactions.begin(), transactions.end(),
                                  uint16_t(0),

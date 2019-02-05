@@ -104,7 +104,7 @@ struct TokenRevoke : TokenRequest
                 boost::property_tree::ptree const & tree);
 
     AccountAddress GetSource() const override;
-    Amount GetTokenTotal() const override;
+    uint16_t GetTokenTotal() const override;
 
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
@@ -228,7 +228,7 @@ struct TokenBurn : TokenRequest
     TokenBurn(bool & error,
               boost::property_tree::ptree const & tree);
 
-    Amount GetTokenTotal() const override;
+    uint16_t GetTokenTotal() const override;
 
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
@@ -253,7 +253,7 @@ struct TokenAccountSend : TokenRequest
     TokenAccountSend(bool & error,
                      boost::property_tree::ptree const & tree);
 
-    Amount GetTokenTotal() const override;
+    uint16_t GetTokenTotal() const override;
 
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
@@ -278,7 +278,7 @@ struct TokenAccountWithdrawFee : TokenRequest
     TokenAccountWithdrawFee(bool & error,
                             boost::property_tree::ptree const & tree);
 
-    Amount GetTokenTotal() const override;
+    uint16_t GetTokenTotal() const override;
 
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
@@ -297,7 +297,7 @@ struct TokenAccountWithdrawFee : TokenRequest
 //
 struct TokenSend : TokenRequest
 {
-    using Transaction = ::Transaction<uint16_t>;
+    using Transaction  = ::Transaction<uint16_t>;
     using Transactions = std::vector<Transaction>;
 
     TokenSend(bool & error,
@@ -306,7 +306,7 @@ struct TokenSend : TokenRequest
     TokenSend(bool & error,
               boost::property_tree::ptree const & tree);
 
-    Amount GetTokenTotal() const override;
+    uint16_t GetTokenTotal() const override;
 
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
