@@ -636,6 +636,9 @@ public:
         Check();
     }
 
+    //! push subsequenet nodes statring from *next to the nodes array of the count size
+    int get_peers(int *next, char **nodes, uint8_t count);
+
 };
 
 #endif // BITCOIN_ADDRMAN_H

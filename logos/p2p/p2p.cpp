@@ -632,6 +632,16 @@ bool Propagate(PropagateMessage &mess)
     return store.Insert(mess);
 }
 
+int get_peers(int *next, char **nodes, uint8_t count)
+{
+    if (!g_connman)
+    {
+        return 0;
+    }
+
+    return g_connman->addrman.get_peers(next, nodes, count);
+}
+
 void add_to_blacklist(const char *addr)
 {
     if (!g_connman)
@@ -784,6 +794,16 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
     }
 
 	return true;
+}
+
+int p2p_interface::get_peers(int *next, char **nodes, uint8_t count)
+{
+    if (!p2p)
+    {
+        return 0;
+    }
+
+    return p2p->get_peers(next, nodes, count);
 }
 
 void p2p_interface::add_to_blacklist(const char *addr)

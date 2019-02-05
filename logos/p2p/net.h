@@ -528,6 +528,7 @@ private:
     friend class AsioClient;
     friend class AsioServer;
     friend class AsioSession;
+    friend class p2p_internal;
 };
 extern std::unique_ptr<CConnman> g_connman;
 void Discover();

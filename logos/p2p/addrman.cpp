@@ -612,3 +612,21 @@ CAddrInfo CAddrMan::SelectTriedCollision_()
 
     return mapInfo[id_old];
 }
+
+int CAddrMan::get_peers(int *nextId, char **nodes, uint8_t count)
+{
+    LOCK(cs);
+
+    uint8_t i;
+
+    for (i = 0; i < count && *nextId < nIdCount; ++*nextId)
+    {
+        std::map<int, CAddrInfo>::iterator it = mapInfo.find(*nextId);
+        if (it == mapInfo.end())
+            continue;
+        nodes[i++] = strdup((*it).second.ToStringIPPort().c_str());
+    }
+
+    return i;
+}
+
