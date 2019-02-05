@@ -80,7 +80,7 @@ EpochConsensusManager::PrePrepareQueueEmpty()
 
 void 
 EpochConsensusManager::ApplyUpdates(
-    ApprovedEB & block,
+    const ApprovedEB & block,
     uint8_t delegate_id)
 {
     _persistence_manager.ApplyUpdates(block);

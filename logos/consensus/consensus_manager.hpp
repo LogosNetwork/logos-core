@@ -119,7 +119,7 @@ protected:
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;
     static constexpr uint8_t DELIGATE_ID_MASK    = 5;
 
-    virtual void ApplyUpdates(ApprovedBlock &, uint8_t delegate_id) = 0;
+    virtual void ApplyUpdates(const ApprovedBlock &, uint8_t delegate_id) = 0;
 
     virtual bool Validate(std::shared_ptr<Request> block,
                           logos::process_return & result) = 0;

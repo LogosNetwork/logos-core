@@ -47,7 +47,7 @@ protected:
     ///     @param[in] block the micro block to commit to the database
     ///     @param[in] delegate_id delegate id
     void ApplyUpdates(
-        ApprovedMB &,
+        const ApprovedMB &,
         uint8_t delegate_id) override;
 
     /// Returns number of stored blocks.

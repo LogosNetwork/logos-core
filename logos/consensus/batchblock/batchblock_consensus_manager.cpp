@@ -170,12 +170,10 @@ BatchBlockConsensusManager::PrePrepareQueueEmpty()
 
 void
 BatchBlockConsensusManager::ApplyUpdates(
-  ApprovedBSB & block,
+  const ApprovedBSB & block,
   uint8_t delegate_id)
 {
     _persistence_manager.ApplyUpdates(block, _delegate_id);
-    // Hacky fix: decrement message's sequence number here to match actual block that went to consensus, compensating early increment of BatchBlockConsensusManager's _sequence
-    // TODO: verify if ^ sequence number doesn't need to be manually decremented again in new implementation
 }
 
 uint64_t
@@ -298,10 +296,7 @@ BatchBlockConsensusManager::OnRejection(
     {
     case RejectionReason::Contains_Invalid_Request:
     {
-        if(!_should_repropose)
-        {
-            _should_repropose = true;
-        }
+        _should_repropose = true;
         auto batch = _handler.GetCurrentBatch();
         auto block_count = batch.block_count;
 
@@ -380,7 +375,11 @@ BatchBlockConsensusManager::IsPrePrepareRejected()
 void
 BatchBlockConsensusManager::OnPrePrepareRejected()
 {
-    assert (_state == ConsensusState::PRE_PREPARE);
+    if (_state != ConsensusState::PRE_PREPARE)
+    {
+        LOG_FATAL(_log) << "BatchBlockConsensusManager::OnPrePrepareRejected - unexpected state " << StateToString(_state);
+        trace_and_halt();
+    }
     if (Rejected(_ne_reject_vote, _ne_reject_stake))
     {
         _ne_reject_vote = 0;
@@ -567,12 +566,9 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 
     // SYL integration fix: this is the only place other than
     // OnConsensusReached where we reset the ongoing status
-    {
-        std::lock_guard<std::mutex> lock(_ongoing_mutex);
-        _ongoing = false;
-    }
 
-    OnRequestQueued();
+    // Don't have to change _ongoing because we have to immediately repropose
+    InitiateConsensus();
 }
 
 void
@@ -589,15 +585,7 @@ BatchBlockConsensusManager::OnDelegatesConnected()
     {
         _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
         _init_timer.async_wait([this](const Error &error) {
-            {
-                std::lock_guard<std::mutex> lock(_ongoing_mutex);
-                if(_ongoing)
-                {
-                    LOG_ERROR(_log) << "BatchBlockConsensusManager::OnDelegatesConnected() - Ongoing request exists. Returning";
-                    return;
-                }
-                _ongoing = true;
-            }
+            _ongoing = true;
             InitiateConsensus();
         });
     }
@@ -610,5 +598,5 @@ BatchBlockConsensusManager::OnDelegatesConnected()
 bool
 BatchBlockConsensusManager::Rejected(uint128_t reject_vote, uint128_t reject_stake)
 {
-    return (reject_vote > _vote_max_fault) && (reject_stake > _stake_max_fault);
+    return (reject_vote > _vote_max_fault) || (reject_stake > _stake_max_fault);
 }

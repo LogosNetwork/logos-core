@@ -78,10 +78,7 @@ void ConsensusManager<CT>::OnRequestQueued()
     {
         // SYL integration fix: InitiateConsensus should only be called
         // when no consensus session is currently going on
-        {
-            std::lock_guard<std::mutex> lock(_ongoing_mutex);
-            _ongoing = true;
-        }
+        _ongoing = true;
         InitiateConsensus();
     }
 }
@@ -146,10 +143,7 @@ void ConsensusManager<CT>::OnConsensusReached()
     PrePreparePopFront();
 
     // SYL Integration: finally set ongoing consensus indicator to false to allow next round of consensus to being
-    {
-        std::lock_guard<std::mutex> lock(_ongoing_mutex);
-        _ongoing = false;
-    }
+    _ongoing = false;
 
     // Don't need to lock _state_mutex here because there should only be
     // one call to OnConsensusReached per consensus round
@@ -180,12 +174,9 @@ void ConsensusManager<CT>::InitiateConsensus()
 template<ConsensusType CT>
 bool ConsensusManager<CT>::ReadyForConsensus()
 {
+    if(_ongoing.load())
     {
-        std::lock_guard<std::mutex> lock(_ongoing_mutex);
-        if(_ongoing)
-        {
-            return false;
-        }
+        return false;
     }
     return StateReadyForConsensus() && !PrePrepareQueueEmpty();
 }

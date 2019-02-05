@@ -340,6 +340,7 @@ add_library (node
 	logos/consensus/persistence/batchblock/batchblock_persistence.cpp
 	logos/consensus/persistence/epoch/epoch_persistence.cpp
 	logos/consensus/persistence/microblock/microblock_persistence.cpp
+	logos/consensus/persistence/reservations.cpp
 	logos/consensus/primary_delegate.cpp
 	logos/consensus/delegate_key_store.cpp
 	logos/epoch/archiver.cpp

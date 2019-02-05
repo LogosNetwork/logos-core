@@ -77,7 +77,7 @@ MicroBlockConsensusManager::PrePrepareQueueEmpty()
 
 void
 MicroBlockConsensusManager::ApplyUpdates(
-    ApprovedMB & block,
+    const ApprovedMB & block,
     uint8_t delegate_id)
 {
     _persistence_manager.ApplyUpdates(block);
