@@ -4,6 +4,16 @@
 
 #include <ios>
 
+TokenAccount::TokenAccount(const TokenIssuance & issuance)
+//    : token_fee_type(issuance.fee_type)
+//    , token_fee_rate(issuance.fee_rate)
+    : symbol(issuance.symbol)
+    , name(issuance.name)
+    , issuer_info(issuance.issuer_info)
+    , controllers(issuance.controllers)
+    , settings(issuance.settings)
+{}
+
 TokenAccount::TokenAccount(bool & error, const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()), mdbval.size());
@@ -12,10 +22,11 @@ TokenAccount::TokenAccount(bool & error, const logos::mdb_val & mdbval)
 
 TokenAccount::TokenAccount(const logos::block_hash & head,
                            logos::amount balance,
+                           uint64_t modified,
                            uint16_t token_balance,
                            uint16_t token_fee_balance,
                            uint32_t block_count)
-    : logos::Account(head, balance, block_count)
+    : logos::Account(head, balance, block_count, modified)
     , token_balance(token_balance)
     , token_fee_balance(token_fee_balance)
 {}
@@ -27,6 +38,8 @@ uint32_t TokenAccount::Serialize(logos::stream & stream) const
     auto s = Account::Serialize(stream);
     s += logos::write(stream, token_balance);
     s += logos::write(stream, token_fee_balance);
+    s += logos::write(stream, fee_type);
+    s += logos::write(stream, fee_rate);
 
     s += logos::write(stream, uint8_t(controllers.size()));
     for(auto & c : controllers)
@@ -34,7 +47,7 @@ uint32_t TokenAccount::Serialize(logos::stream & stream) const
         s += c.Serialize(stream);
     }
 
-    s += logos::write(stream, settings);
+    s += settings.Serialize(stream);
 
     return s;
 }
@@ -59,6 +72,19 @@ bool TokenAccount::Deserialize(logos::stream & stream)
         return error;
     }
 
+    // TODO: reading enum types from wire
+    error = logos::read(stream, fee_type);
+    if(error)
+    {
+        return error;
+    }
+
+    error = logos::read(stream, fee_rate);
+    if(error)
+    {
+        return error;
+    }
+
     uint8_t size;
     error = logos::read(stream, size);
     if(error)
@@ -78,12 +104,17 @@ bool TokenAccount::Deserialize(logos::stream & stream)
         controllers.push_back(c);
     }
 
-    return (error = logos::read(stream, settings));
+    settings = Settings(error, stream);
+
+    return error;
 }
 
 bool TokenAccount::operator== (TokenAccount const & other) const
 {
     return token_balance == other.token_balance &&
+           token_fee_balance == other.token_fee_balance &&
+           fee_type == other.fee_type &&
+           fee_rate == other.fee_rate &&
            token_fee_balance == other.token_fee_balance &&
            Account::operator==(other);
 }
@@ -106,7 +137,7 @@ logos::mdb_val TokenAccount::to_mdb_val(std::vector<uint8_t> &buf) const
 bool TokenAccount::Validate(TokenSetting setting, bool value, logos::process_return & result) const
 {
     auto pos = static_cast<EnumType>(setting);
-    bool cur_val = settings.test(pos);
+    bool cur_val = settings[pos];
 
     // Settings with odd values represent the
     // mutability of the previous setting.
@@ -126,7 +157,7 @@ bool TokenAccount::Validate(TokenSetting setting, bool value, logos::process_ret
     {
         auto ms = static_cast<EnumType>(GetMutabilitySetting(setting));
 
-        if(!settings.test(ms))
+        if(!settings[ms])
         {
             LOG_ERROR(log) << "Attempt to update immutable setting: "
                             << TokenSettingName(setting);
@@ -148,6 +179,31 @@ bool TokenAccount::Validate(TokenSetting setting, bool value, logos::process_ret
 
     result.code = logos::process_result::progress;
     return true;
+}
+
+bool TokenAccount::FeeSufficient(uint16_t token_total, uint16_t token_fee) const
+{
+    uint16_t min_fee;
+
+    switch(fee_type)
+    {
+        case TokenFeeType::Flat:
+            min_fee = fee_rate;
+            break;
+        case TokenFeeType::Percentage:
+        {
+            constexpr double DENOM = 100.0;
+            min_fee = uint16_t(std::ceil((fee_rate / DENOM) * token_total));
+            break;
+        }
+        case TokenFeeType::Unknown:
+            // TODO
+            min_fee = 0;
+            break;
+    }
+
+    // Token fee is insufficient
+    return token_fee >= min_fee;
 }
 
 bool TokenAccount::SendAllowed(const TokenUserStatus & status,
@@ -317,12 +373,20 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const TokenChangeSetting> change) c
 void TokenAccount::Set(TokenSetting setting, bool value)
 {
     auto pos = static_cast<EnumType>(setting);
-    settings.set(pos, value);
+    settings.Set(pos, value);
+}
+
+void TokenAccount::Set(TokenSetting setting, SettingValue value)
+{
+    auto pos = static_cast<EnumType>(setting);
+    bool val = value == SettingValue::Enabled ? true : false;
+
+    settings.Set(pos, val);
 }
 
 bool TokenAccount::Allowed(TokenSetting setting) const
 {
-    return settings.test(static_cast<EnumType>(setting));
+    return settings[static_cast<EnumType>(setting)];
 }
 
 bool TokenAccount::IsMutabilitySetting(TokenSetting setting) const

@@ -206,6 +206,7 @@ logos::Account::Account ()
     , head (0)
     , balance (0)
     , block_count (0)
+    , modified (0)
 {}
 
 logos::Account::Account (bool & error, const mdb_val & mdbval)
@@ -217,10 +218,12 @@ logos::Account::Account (bool & error, const mdb_val & mdbval)
 logos::Account::Account (
     block_hash const & head,
     amount const & balance,
-    uint32_t block_count)
+    uint32_t block_count,
+    uint64_t modified)
     : head (head)
     , balance (balance)
     , block_count (block_count)
+    , modified (modified)
     , reservation(0)
     , reservation_epoch(0)
 {}
@@ -230,6 +233,7 @@ uint32_t logos::Account::Serialize (stream & stream_a) const
     auto s = write (stream_a, head.bytes);
     s += write (stream_a, balance.bytes);
     s += write (stream_a, block_count);
+    s += write (stream_a, modified);
     s += write (stream_a, reservation.bytes);
     s += write (stream_a, reservation_epoch);
     return s;
@@ -246,10 +250,14 @@ bool logos::Account::Deserialize (stream & stream_a)
             error = read(stream_a, block_count);
             if (!error)
             {
-                auto error(read(stream_a, reservation.bytes));
+                error = read (stream_a, modified);
                 if (!error)
                 {
-                    error = read(stream_a, reservation_epoch);
+                    auto error(read(stream_a, reservation.bytes));
+                    if (!error)
+                    {
+                        error = read(stream_a, reservation_epoch);
+                    }
                 }
             }
         }
@@ -264,7 +272,8 @@ bool logos::Account::operator== (Account const & other_a) const
            reservation_epoch == other_a.reservation_epoch &&
            head == other_a.head &&
            balance == other_a.balance &&
-           block_count == other_a.block_count;
+           block_count == other_a.block_count &&
+           modified == other_a.modified;
 }
 
 bool logos::Account::operator!= (Account const & other_a) const
@@ -287,7 +296,6 @@ logos::account_info::account_info ()
     , receive_head (0)
     , rep_block (0)
     , open_block (0)
-    , modified (0)
     , receive_count (0)
 {}
 
@@ -308,11 +316,11 @@ logos::account_info::account_info (
         uint32_t receive_count_a)
     : Account(head_a,
               balance_a,
-              block_count_a)
+              block_count_a,
+              modified_a)
     , receive_head (receive_head_a)
     , rep_block (rep_block_a)
     , open_block (open_block_a)
-    , modified (modified_a)
     , receive_count (receive_count_a)
 {}
 
@@ -322,7 +330,6 @@ uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
     s += write (stream_a, receive_head.bytes);
     s += write (stream_a, rep_block.bytes);
     s += write (stream_a, open_block.bytes);
-    s += write (stream_a, modified);
     s += write (stream_a, receive_count);
     s += write (stream_a, entries.size());
     for(auto & entry : entries)
@@ -347,28 +354,23 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
                 error = read (stream_a, open_block.bytes);
                 if (!error)
                 {
-                    error = read (stream_a, modified);
                     if (!error)
                     {
+                        error = read (stream_a, receive_count);
                         if (!error)
                         {
-                            error = read (stream_a, receive_count);
+                            size_t count;
+                            error = read(stream_a, count);
 
-                            if (!error)
+                            for(size_t i = 0; i < count; ++i)
                             {
-                                size_t count;
-                                error = read(stream_a, count);
-
-                                for(size_t i = 0; i < count; ++i)
+                                TokenEntry entry(error, stream_a);
+                                if(error)
                                 {
-                                    TokenEntry entry(error, stream_a);
-                                    if(error)
-                                    {
-                                        break;
-                                    }
-
-                                    entries.push_back(entry);
+                                    break;
                                 }
+
+                                entries.push_back(entry);
                             }
                         }
                     }
@@ -384,7 +386,6 @@ bool logos::account_info::operator== (logos::account_info const & other_a) const
     return rep_block == other_a.rep_block &&
            receive_head == other_a.receive_head &&
            open_block == other_a.open_block &&
-           modified == other_a.modified &&
            receive_count == other_a.receive_count &&
            Account::operator==(other_a);
 }
@@ -481,6 +482,16 @@ bool logos::account_info::GetEntry(const BlockHash & token_id, TokenEntry & val)
                  });
 
     return result; // True if the entry is found.
+}
+
+logos::account_info::Entries::iterator
+logos::account_info::GetEntry(const BlockHash & token_id)
+{
+    return std::find_if(entries.begin(), entries.end(),
+                        [&token_id](const TokenEntry & entry)
+                        {
+                            return entry.token_id == token_id;
+                        });
 }
 
 logos::block_counts::block_counts () :
@@ -1019,6 +1030,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
         break;
     case process_result::frozen:
         ret = "Account is frozen";
+        break;
+    case process_result::insufficient_token_fee:
+        ret = "Token fee is insufficient";
         break;
     }
 

@@ -179,7 +179,7 @@ Amount Request::GetLogosTotal() const
     return fee;
 }
 
-Amount Request::GetTokenTotal() const
+uint16_t Request::GetTokenTotal() const
 {
     return {0};
 }
