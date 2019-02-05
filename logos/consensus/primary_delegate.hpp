@@ -72,6 +72,11 @@ public:
         Send(buf.data(), buf.size());
     }
 
+    uint8_t GetDelegateIndex()
+    {
+        return _delegate_id;
+    }
+
 protected:
 
     virtual void UpdateVotes();

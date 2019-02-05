@@ -21,13 +21,10 @@ PersistenceManager<ECT>::Validate(
     ApprovedEB previous_epoch;
     using namespace logos;
 
-    // Account must exist
-    logos::account_info info;
-    if (_store.account_get(epoch.primary_delegate, info))
+    if (epoch.primary_delegate >= NUM_DELEGATES)
     {
-        UpdateStatusReason(status, process_result::unknown_source_account);
-        LOG_ERROR(_log) << "PersistenceManager::Validate account doesn't exist " <<
-                        epoch.primary_delegate.to_account();
+        UpdateStatusReason(status, process_result::invalid_request);
+        LOG_ERROR(_log) << "PersistenceManager::Validate primary index out of range " << (int) epoch.primary_delegate;
         return false;
     }
 

@@ -12,6 +12,7 @@ enum class RejectionReason : uint8_t
     Wrong_Sequence_Number,
     Invalid_Epoch,
     New_Epoch,
+    Invalid_Primary_Index,
 
     Void
 };

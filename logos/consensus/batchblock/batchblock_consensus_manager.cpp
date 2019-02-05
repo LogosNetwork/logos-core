@@ -134,7 +134,7 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
     batch.sequence = _sequence;
     batch.timestamp = GetStamp();
     batch.epoch_number = _events_notifier.GetEpochNumber();
-    batch.primary_delegate = DelegateIdentityManager::_delegate_account;
+    batch.primary_delegate = _delegate_id;
     // SYL Integration fix: move previous assignment here to avoid overriding in archive blocks
     batch.previous = _prev_pre_prepare_hash;
 
@@ -341,6 +341,7 @@ BatchBlockConsensusManager::OnRejection(
     case RejectionReason::Invalid_Previous_Hash:
     case RejectionReason::Wrong_Sequence_Number:
     case RejectionReason::Invalid_Epoch:
+    case RejectionReason::Invalid_Primary_Index:
     case RejectionReason::Void:
         break;
     }
