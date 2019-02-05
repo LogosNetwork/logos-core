@@ -66,11 +66,13 @@ private:
     /// Forward transaction to the delegate
     /// @param block transaction [in]
     /// @param should_buffer used in benchmarking [in] TODO
+    /// @return result of the operation
     logos::process_return OnSendRequest(std::shared_ptr<Request> block, bool should_buffer);
     /// Forwards transactions  for batch block consensus.
     /// Submits transactions to consensus logic.
     ///     @param blocks of transactions [in]
-    ///     @return process_return result of the operation
+    ///     @return process_return result of the operation, if there is an error then returns a single
+    ///             result code of the error
     Responses OnSendRequest(std::vector<std::shared_ptr<Request>> &) override;
 
     Service &               _service;               /// boost asio service reference

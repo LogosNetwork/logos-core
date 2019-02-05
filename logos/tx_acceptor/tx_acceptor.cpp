@@ -149,7 +149,7 @@ TxAcceptor::ProcessBlock( std::shared_ptr<Request> block, Blocks &blocks, Respon
 
     if (result == logos::process_result::progress)
     {
-        hash = block->Hash();
+        hash = block->GetHash();
     }
 
     response.push_back(std::make_pair(result, hash));
@@ -359,6 +359,8 @@ TxAcceptor::Validate(const std::shared_ptr<Request> & block)
                        << " account: " << block->account.to_string();
         return logos::process_result::insufficient_fee;
     }
+
+    /// TODO , add proof of work
 
     return logos::process_result::progress;
 }
