@@ -402,37 +402,37 @@ void PersistenceManager<BSBCT>::PlaceReceive(
         // in the receive chain.
         auto receive_cmp = [&](const ReceiveBlock & a, const ReceiveBlock & b)
                 {
-            //need b's timestamp
-            StateBlock sb;
-            if(_store.state_block_get(b.send_hash, sb, transaction))
-            {
-                LOG_FATAL(_log) << "PersistenceManager<BSBCT>::PlaceReceive - "
-                                << "Failed to get a previous state block with hash: "
-                                << b.send_hash.to_string();
-                trace_and_halt();
-            }
+                    //need b's timestamp
+                    StateBlock sb;
+                    if(_store.state_block_get(b.send_hash, sb, transaction))
+                    {
+                        LOG_FATAL(_log) << "PersistenceManager<BSBCT>::PlaceReceive - "
+                                        << "Failed to get a previous state block with hash: "
+                                        << b.send_hash.to_string();
+                        trace_and_halt();
+                    }
 
-            ApprovedBSB absb;
-            if(_store.batch_block_get(sb.batch_hash, absb, transaction))
-            {
-                LOG_FATAL(_log) << "PersistenceManager<BSBCT>::PlaceReceive - "
-                                << "Failed to get a previous batch state block with hash: "
-                                << sb.batch_hash.to_string();
-                trace_and_halt();
-            }
+                    ApprovedBSB absb;
+                    if(_store.batch_block_get(sb.batch_hash, absb, transaction))
+                    {
+                        LOG_FATAL(_log) << "PersistenceManager<BSBCT>::PlaceReceive - "
+                                        << "Failed to get a previous batch state block with hash: "
+                                        << sb.batch_hash.to_string();
+                        trace_and_halt();
+                    }
 
-            auto timestamp_b = absb.timestamp;
-            bool a_is_less;
-            if(timestamp_a != timestamp_b)
-            {
-                a_is_less = timestamp_a < timestamp_b;
-            }else
-            {
-                a_is_less = a.Hash() < b.Hash();
-            }
+                    auto timestamp_b = absb.timestamp;
+                    bool a_is_less;
+                    if(timestamp_a != timestamp_b)
+                    {
+                        a_is_less = timestamp_a < timestamp_b;
+                    }else
+                    {
+                        a_is_less = a.Hash() < b.Hash();
+                    }
 
-            timestamp_a = timestamp_b;//update for next compare if needed
-            return a_is_less;
+                    timestamp_a = timestamp_b;//update for next compare if needed
+                    return a_is_less;
                 };
 
         while(receive_cmp(receive, cur))

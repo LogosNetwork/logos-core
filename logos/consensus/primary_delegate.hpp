@@ -101,7 +101,7 @@ protected:
     AggSignature         _post_prepare_sig;
     AggSignature         _post_commit_sig;
     std::atomic_bool     _ongoing;
-    bool                 _state_changing  = false;
+    std::atomic_bool     _state_changing;
     std::mutex           _state_mutex;
     Weights              _weights;
     ApprovedEB           _current_epoch;

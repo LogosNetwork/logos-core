@@ -65,15 +65,10 @@ void PrimaryDelegate::ProcessMessage(const PrepareMessage<C> & message, uint8_t 
             // We made sure in ProceedWithMessage that only one message can reach here. No need to lock yet
             CycleTimers<C>(true);
 
-            // We want to avoid locking but still atomically access _signatures
-            // No need to lock because no one else can change _pre_prepare_hash, _post_prepare_hash,
-            // _post_commit_hash or _signatures at this point
+            // No need to lock _state_mutex because AdvanceState changes _state then _state_changing, and ProceedWithMessage checks _state_changing first then _state match, so under no circumstance will a wrong message
             PostPrepareMessage<C> response(_pre_prepare_hash, _post_prepare_sig);
-            {
-                std::lock_guard<std::mutex> lock(_state_mutex);
-                _post_prepare_hash = response.ComputeHash();
-                AdvanceState(ConsensusState::POST_PREPARE);
-            }
+            _post_prepare_hash = response.ComputeHash();
+            AdvanceState(ConsensusState::POST_PREPARE);
             // At this point any incoming Prepare messages will still get ignored because of state mismatch
             Send<PostPrepareMessage<C>>(response);
 
@@ -99,11 +94,7 @@ void PrimaryDelegate::ProcessMessage(const CommitMessage<C> & message, uint8_t r
 
         PostCommitMessage<C> response(_pre_prepare_hash, _post_commit_sig);
         Send<PostCommitMessage<C>>(response);
-        // Can lock after Send because we won't get response back
-        {
-            std::lock_guard<std::mutex> lock(_state_mutex);
-            AdvanceState(ConsensusState::POST_COMMIT);
-        }
+        AdvanceState(ConsensusState::POST_COMMIT);
         // At this point, old messages will be ignored for not being in correct state
         OnConsensusReached();
     }
@@ -221,7 +212,7 @@ void PrimaryDelegate::OnTimeout(const Error & error,
 }
 
 template<ConsensusType C>
-void PrimaryDelegate::CycleTimers(bool cancel) // This should be called while _state_mutex is still locked.
+void PrimaryDelegate::CycleTimers(bool cancel)
 {
     if(cancel)
     {
@@ -343,93 +334,11 @@ bool PrimaryDelegate::AllDelegatesResponded()
 template<typename M>
 PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & message, ConsensusState expected_state, uint8_t remote_delegate_id)
 {
-    // SYL Integration fix: place lock on shared resource,
     // TODO: optimize locking based on read / write; add debugging to Validate
     std::lock_guard<std::mutex> lock(_state_mutex);
-    if(Validate(message, remote_delegate_id)) // SYL Integration fix: do the validation first which requires no locking
+    // It's critical to check _state_changing before _state match, since in AdvanceState we change _state before _state_changing
+    if (_state_changing)
     {
-
-        if(_state != expected_state)
-        {
-            LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received "
-                           << MessageToName(message)
-                           << " message while in "
-                           << StateToString(_state);
-
-            return ProceedAction::DO_NOTHING;
-        }
-
-//        // for any message type other than PrePrepare, `previous` field is the current consensus block's hash
-//        if(_cur_hash != message.previous)
-//        {
-//            LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received message with hash "
-//                           << message.previous.to_string()
-//                           << " while current hash is "
-//                           << _cur_hash.to_string();
-//
-//            return ProceedAction::DO_NOTHING;
-//        }
-
-        if (!_state_changing)
-        {
-            _delegates_responded++;
-
-            // SYL Integration fix: use overloaded Tally method to count votes for all standard phase message types
-            // (including rejection). For BatchBlocks Prepares, even if the whole doesn't reach quorum we still have to
-            // check if the potentially rejected PrePrepare is ready for re-proposal.
-            Tally(message, remote_delegate_id);
-
-            // Check if a standard phase message reaches quorum
-            // ReachedQuorum returns true iff the whole Block gets enough vote + stake
-            if(message.type != MessageType::Rejection && ReachedQuorum())
-            {
-                bool sig_aggregated = false;
-                if(expected_state == ConsensusState::PRE_PREPARE )
-                {
-                    //need my own sig
-                    _signatures.push_back({_delegate_id, _pre_prepare_sig});
-                    _post_prepare_sig.map.reset();
-                    sig_aggregated = _validator.AggregateSignature(_signatures, _post_prepare_sig);
-                }
-                else if (expected_state == ConsensusState::POST_PREPARE )
-                {
-                    //need my own sig
-                    DelegateSig my_commit_sig;
-                    _validator.Sign(_post_prepare_hash, my_commit_sig);
-                    _signatures.push_back({_delegate_id, my_commit_sig});
-                    _post_commit_sig.map.reset();
-                    sig_aggregated = _validator.AggregateSignature(_signatures, _post_commit_sig);
-                }
-
-                if( ! sig_aggregated )
-                {
-                    LOG_FATAL(_log) << "PrimaryDelegate - Failed to aggregate signatures"
-                            << " expected_state=" << StateToString(expected_state);
-                    //The BLS key storage or the aggregation code has a fatal error, cannot be
-                    //used to generate nor verify aggregated signatures. So the local node cannot
-                    //be a delegate anymore.
-                    trace_and_halt();
-                }
-                // set transition flag so only one remote message can trigger state change
-                _state_changing = true;
-                return ProceedAction::APPROVED;
-            }
-            // Check if either 1) an incoming rejection can trigger OnPrePrepareRejected, or
-            // 2) an incoming pre_prepare for BSB gives indirect support to all transactions inside the batch
-            else if (message.type != MessageType::Commit && IsPrePrepareRejected())
-            {
-                // set transition flag so only one remote message can trigger state change
-                _state_changing = true;
-                return ProceedAction::REJECTED;
-            }
-            // Then either
-            // 1) a standard phase message came in but we haven't reached quorum yet, or
-            // 2a) a rejection message came in but hasn't cleared all of the BSB's txns hashes or
-            // 2b) we don't have the logic for dealing certain rejection types
-
-            return ProceedAction::DO_NOTHING;
-        }
-
         // state is already changing, this message came in too late to matter
         LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received "
                        << MessageToName(message)
@@ -438,20 +347,84 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
 
         return ProceedAction::DO_NOTHING;
     }
-    else
+
+    if(_state != expected_state)
     {
-        LOG_WARN(_log) << "PrimaryDelegate - Failed to validate signature for "
+        LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received "
                        << MessageToName(message)
-                       << " while in state: "
+                       << " message while in "
                        << StateToString(_state);
+
         return ProceedAction::DO_NOTHING;
     }
+
+    if(!Validate(message, remote_delegate_id))
+    {
+        LOG_WARN(_log) << "PrimaryDelegate - Failed to validate signature for "
+                       << MessageToName(message) << " with hash " << message.Hash()
+                       << " while in state: " << StateToString(_state);
+        return ProceedAction::DO_NOTHING;
+    }
+    _delegates_responded++;
+
+    // SYL Integration fix: use overloaded Tally method to count votes for all standard phase message types
+    // (including rejection). For BatchBlocks Prepares, even if the whole doesn't reach quorum we still have to
+    // check if the potentially rejected PrePrepare is ready for re-proposal.
+    Tally(message, remote_delegate_id);
+
+    // Check if a standard phase message reaches quorum
+    // ReachedQuorum returns true iff the whole Block gets enough vote + stake
+    if(message.type != MessageType::Rejection && ReachedQuorum())
+    {
+        bool sig_aggregated = false;
+        if(expected_state == ConsensusState::PRE_PREPARE )
+        {
+            //need my own sig
+            _signatures.push_back({_delegate_id, _pre_prepare_sig});
+            _post_prepare_sig.map.reset();
+            sig_aggregated = _validator.AggregateSignature(_signatures, _post_prepare_sig);
+        }
+        else if (expected_state == ConsensusState::POST_PREPARE )
+        {
+            //need my own sig
+            DelegateSig my_commit_sig;
+            _validator.Sign(_post_prepare_hash, my_commit_sig);
+            _signatures.push_back({_delegate_id, my_commit_sig});
+            _post_commit_sig.map.reset();
+            sig_aggregated = _validator.AggregateSignature(_signatures, _post_commit_sig);
+        }
+
+        if( ! sig_aggregated )
+        {
+            LOG_FATAL(_log) << "PrimaryDelegate - Failed to aggregate signatures"
+                    << " expected_state=" << StateToString(expected_state);
+            //The BLS key storage or the aggregation code has a fatal error, cannot be
+            //used to generate nor verify aggregated signatures. So the local node cannot
+            //be a delegate anymore.
+            trace_and_halt();
+        }
+        // set transition flag so only one remote message can trigger state change
+        _state_changing = true;
+        return ProceedAction::APPROVED;
+    }
+    // Check if either 1) an incoming rejection can trigger OnPrePrepareRejected, or
+    // 2) an incoming pre_prepare for BSB gives indirect support to all transactions inside the batch
+    else if (message.type != MessageType::Commit && IsPrePrepareRejected())
+    {
+        // set transition flag so only one remote message can trigger state change
+        _state_changing = true;
+        return ProceedAction::REJECTED;
+    }
+    // Then either
+    // 1) a standard phase message came in but we haven't reached quorum yet, or
+    // 2a) a rejection message came in but hasn't cleared all of the BSB's txns hashes or
+    // 2b) we don't have the logic for dealing certain rejection types
+    return ProceedAction::DO_NOTHING;
 }
 
-// SYL integration: If it is called for transitioning into states *after* Consensus has been started,
-// i.e. advancing into states other than PRE_PREPARE, then _state_mutex needs to be locked
 void PrimaryDelegate::AdvanceState(ConsensusState new_state)
 {
+    // TODO: Investigate cache coherency of _state
     _state = new_state;
     _prepare_vote = _my_vote;
     _prepare_stake = _my_stake;

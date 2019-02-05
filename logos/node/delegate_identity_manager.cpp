@@ -145,18 +145,17 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         epoch.micro_block_tip = microblock_hash;
 
         bls::KeyPair bls_key;
-        auto get_bls = [&bls_key](const char *b)mutable->void {
+        DelegatePubKey dpk;
+        auto get_bls = [&bls_key, &dpk](const char *b)mutable->void {
             stringstream str(b);
             str >> bls_key.prv >> bls_key.pub;
+            std::string s;
+            bls_key.pub.serialize(s);
+            assert(s.size() == CONSENSUS_PUB_KEY_SIZE);
+            memcpy(dpk.data(), s.data(), CONSENSUS_PUB_KEY_SIZE);
         };
         for (uint8_t i = 0; i < NUM_DELEGATES; ++i) {
             get_bls(bls_keys[0]); // same in epoch 0, doesn't matter
-
-            std::string s;
-            bls_key.pub.serialize(s);
-            DelegatePubKey dpk;
-            assert(s.size() == CONSENSUS_PUB_KEY_SIZE);
-            memcpy(dpk.data(), s.data(), CONSENSUS_PUB_KEY_SIZE);
             Delegate delegate = {0, dpk, 0, 0};
 
             if (e != 0 || !_epoch_transition_enabled)
@@ -169,6 +168,9 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 delegate = {pair.pub, dpk, 100000 + (uint64_t)del * 100, 100000 + (uint64_t)del * 100};
             }
             epoch.delegates[i] = delegate;
+
+            LOG_TRACE(_log) << __func__ << " bls pubic key for delegate i=" << (int)i
+                            << " pub_key=" << delegate.bls_pub.to_string();
         }
 
         epoch_hash = epoch.Hash();
@@ -228,7 +230,8 @@ DelegateIdentityManager::Init(const Config &config)
 
         if(error)
         {
-            throw std::runtime_error("Failed to initialize Logos genesis block.");
+            LOG_FATAL(_log) << "DelegateIdentityManager::Init - Failed to initialize Logos genesis block.";
+            trace_and_halt();
         }
 
         //TODO check with Greg
@@ -252,9 +255,7 @@ DelegateIdentityManager::Init(const Config &config)
             transaction);
         CreateGenesisAccounts(transaction);
     }
-
-    // TBD: this is done out of order, genesis accounts are created in node::node(), needs to be reconciled
-    LoadGenesisAccounts();
+    else {LoadGenesisAccounts();}
 
     _delegate_account = logos::genesis_delegates[config.delegate_id].key.pub;
     _global_delegate_idx = config.delegate_id;
