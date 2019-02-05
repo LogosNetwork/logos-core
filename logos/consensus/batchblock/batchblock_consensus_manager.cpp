@@ -558,11 +558,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
     _handler.PopFront();
     _handler.InsertFront(requests);
 
-    {
-        // lock because AdvanceState needs to be atomic,
-        std::lock_guard<std::mutex> lock(_state_mutex);
-        AdvanceState(ConsensusState::VOID);
-    }
+    AdvanceState(ConsensusState::VOID);
 
     // SYL integration fix: this is the only place other than
     // OnConsensusReached where we reset the ongoing status

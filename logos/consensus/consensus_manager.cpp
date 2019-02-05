@@ -174,7 +174,7 @@ void ConsensusManager<CT>::InitiateConsensus()
 template<ConsensusType CT>
 bool ConsensusManager<CT>::ReadyForConsensus()
 {
-    if(_ongoing.load())
+    if(_ongoing)
     {
         return false;
     }
