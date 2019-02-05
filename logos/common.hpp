@@ -112,7 +112,8 @@ public:
 
     Account(block_hash const & head,
             amount const & balance,
-            uint32_t block_count);
+            uint32_t block_count,
+            uint64_t modified);
 
     virtual uint32_t Serialize(logos::stream &) const;
     virtual bool Deserialize(logos::stream &);
@@ -124,6 +125,7 @@ public:
     block_hash head;
     amount     balance;
     uint32_t   block_count;
+    uint64_t   modified;      ///< Seconds since posix epoch
     block_hash reservation;
     uint32_t   reservation_epoch;
 };
@@ -156,13 +158,13 @@ struct account_info : Account
     mdb_val to_mdb_val(std::vector<uint8_t> &buf) const override;
 
     bool GetEntry(const BlockHash & token_id, TokenEntry & val) const;
+    Entries::iterator GetEntry(const BlockHash & token_id);
 
-    block_hash receive_head;
     block_hash rep_block;
     block_hash open_block;
-    uint64_t   modified;      ///< Seconds since posix epoch
-    uint32_t   receive_count;
     Entries    entries;
+    block_hash receive_head;
+    uint32_t   receive_count;
 };
 
 /**
@@ -294,7 +296,8 @@ enum class process_result
     unauthorized_request,       // Logos - Unauthorized to make request.
     prohibitted_request,        // Logos - The request is not allowed.
     not_whitelisted,            // Logos - Whitelisting is required.
-    frozen                      // Logos - Account is frozen.
+    frozen,                     // Logos - Account is frozen.
+    insufficient_token_fee      // Logos - Token fee is insufficient.
 };
 
 std::string ProcessResultToString(process_result result);

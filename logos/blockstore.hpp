@@ -158,6 +158,7 @@ public:
     bool account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, MDB_txn* t=0);
     bool account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* t=0);
     bool account_db_empty();
+    bool account_put (AccountAddress const &, std::shared_ptr<Account> info, AccountType type, MDB_txn *);
     bool account_put (AccountAddress const &, logos::account_info const &, MDB_txn *);
 
     bool receive_put(const BlockHash & hash, const ReceiveBlock & block, MDB_txn *);

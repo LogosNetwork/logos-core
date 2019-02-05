@@ -8,19 +8,23 @@
 
 #include <bitset>
 
+class TokenIssuance;
 class TokenImmuteSetting;
 class TokenChangeSetting;
 
 struct TokenAccount : logos::Account
 {
-    using Settings    = std::bitset<TOKEN_SETTINGS_COUNT>;
+    using Settings    = BitField<TOKEN_SETTINGS_COUNT>;
     using EnumType    = std::underlying_type<TokenSetting>::type;
     using Controllers = std::vector<ControllerInfo>;
+
+    TokenAccount(const TokenIssuance & issuance);
 
     TokenAccount(bool & error, const logos::mdb_val & mdbval);
 
     TokenAccount(const logos::block_hash & head,
                  logos::amount balance,
+                 uint64_t modified,
                  uint16_t token_balance,
                  uint16_t token_fee_balance,
                  uint32_t block_count);
@@ -35,6 +39,7 @@ struct TokenAccount : logos::Account
                   bool value,
                   logos::process_return & result) const;
 
+    bool FeeSufficient(uint16_t token_total, uint16_t token_fee) const;
     bool SendAllowed(const TokenUserStatus & status,
                      logos::process_return & result) const;
     bool IsAllowed(std::shared_ptr<const Request> request) const;
@@ -42,6 +47,7 @@ struct TokenAccount : logos::Account
     bool IsAllowed(std::shared_ptr<const TokenChangeSetting> change) const;
 
     void Set(TokenSetting setting, bool value);
+    void Set(TokenSetting setting, SettingValue value);
     bool Allowed(TokenSetting setting) const;
 
     bool IsMutabilitySetting(TokenSetting setting) const;
@@ -49,9 +55,14 @@ struct TokenAccount : logos::Account
 
     static constexpr uint8_t MAX_CONTROLLERS = 10;
 
-    mutable Log log;
-    uint16_t    token_balance     = 0;
-    uint16_t    token_fee_balance = 0;
-    Controllers controllers;
-    Settings    settings;
+    mutable Log  log;
+    uint16_t     token_balance     = 0;
+    uint16_t     token_fee_balance = 0;
+    TokenFeeType fee_type;
+    uint16_t     fee_rate;
+    std::string  symbol;
+    std::string  name;
+    std::string  issuer_info;
+    Controllers  controllers;
+    Settings     settings;
 };

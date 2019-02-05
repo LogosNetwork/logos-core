@@ -85,7 +85,7 @@ struct Request
     virtual AccountAddress GetSource() const;
 
     virtual Amount GetLogosTotal() const;
-    virtual Amount GetTokenTotal() const;
+    virtual uint16_t GetTokenTotal() const;
 
     void Sign(AccountPrivKey const & priv, AccountPubKey const & pub);
     bool VerifySignature(AccountPubKey const & pub) const;

@@ -171,9 +171,9 @@ struct BitField
 
     BitField() = default;
 
-    void Set(size_t pos)
+    void Set(size_t pos, bool value)
     {
-        field.set(pos);
+        field.set(pos, value);
     }
 
     bool operator[] (size_t pos) const
