@@ -4,16 +4,24 @@
 AnnounceCandidacy::AnnounceCandidacy(
             const AccountAddress & origin,
             const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
             const AccountPrivKey & priv,
             const AccountPubKey & pub)
-    : Request(RequestType::AnnounceCandidacy, origin, previous, priv, pub)
+    : Request(
+            RequestType::AnnounceCandidacy,
+            origin, previous, fee, sequence, priv, pub)
 {}  
 
 AnnounceCandidacy::AnnounceCandidacy(
             const AccountAddress & origin,
             const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
             const AccountSig & sig)
-    : Request(RequestType::AnnounceCandidacy, origin, previous, sig)
+    : Request(
+            RequestType::AnnounceCandidacy,
+            origin, previous, fee, sequence, sig)
 {}  
 
 AnnounceCandidacy::AnnounceCandidacy(bool & error,
@@ -32,16 +40,24 @@ AnnounceCandidacy::AnnounceCandidacy(bool & error,
 RenounceCandidacy::RenounceCandidacy(
             const AccountAddress & origin,
             const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
             const AccountPrivKey & priv,
             const AccountPubKey & pub)
-    : Request(RequestType::RenounceCandidacy, origin, previous, priv, pub)
+    : Request(
+            RequestType::RenounceCandidacy,
+            origin, previous, fee, sequence, priv, pub)
 {}  
 
 RenounceCandidacy::RenounceCandidacy(
             const AccountAddress & origin,
             const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
             const AccountSig & sig)
-    : Request(RequestType::RenounceCandidacy, origin, previous, sig)
+    : Request(
+            RequestType::RenounceCandidacy,
+            origin, previous, fee, sequence, sig)
 {} 
 
 RenounceCandidacy::RenounceCandidacy(bool & error,
@@ -60,16 +76,24 @@ RenounceCandidacy::RenounceCandidacy(bool & error,
 ElectionVote::ElectionVote(
         const AccountAddress & origin,
         const BlockHash & previous,
+        const Amount & fee,
+        uint32_t sequence,
         const AccountPrivKey & priv,
         const AccountPubKey & pub)
-    : Request(RequestType::ElectionVote, origin, previous, priv, pub)
+    : Request(
+            RequestType::ElectionVote,
+            origin, previous, fee, sequence, priv, pub)
 {}
 
 ElectionVote::ElectionVote(
         const AccountAddress & origin,
         const BlockHash & previous,
+        const Amount & fee,
+        uint32_t sequence,
         const AccountSig & signature)
-    : Request(RequestType::ElectionVote, origin, previous, signature)
+    : Request(
+            RequestType::ElectionVote,
+            origin, previous, fee, sequence, signature)
 {}
 
 ElectionVote::ElectionVote(bool & error,

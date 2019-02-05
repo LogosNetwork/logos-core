@@ -308,6 +308,9 @@ std::string GetControllerPrivilegeField(ControllerPrivilege privilege)
         case ControllerPrivilege::Whitelist:
             ret = WHITELIST;
             break;
+        case ControllerPrivilege::UpdateIssuerInfo:
+            ret = UPDATE_ISSUER_INFO;
+            break;
         case ControllerPrivilege::Burn:
             ret = BURN;
             break;
@@ -461,4 +464,39 @@ std::string GetFreezeActionField(FreezeAction action)
     }
 
     return ret;
+}
+
+bool IsTokenAdminRequest(RequestType type)
+{
+    bool result = false;
+
+    switch(type)
+    {
+    case RequestType::Send:
+    case RequestType::ChangeRep:
+    case RequestType::IssueTokens:
+        break;
+    case RequestType::IssueAdtlTokens:
+    case RequestType::ChangeTokenSetting:
+    case RequestType::ImmuteTokenSetting:
+    case RequestType::RevokeTokens:
+    case RequestType::FreezeTokens:
+    case RequestType::SetTokenFee:
+    case RequestType::UpdateWhitelist:
+    case RequestType::UpdateIssuerInfo:
+    case RequestType::UpdateController:
+    case RequestType::BurnTokens:
+    case RequestType::DistributeTokens:
+    case RequestType::WithdrawTokens:
+        result = true;
+        break;
+    case RequestType::SendTokens:
+    case RequestType::AnnounceCandidacy:
+    case RequestType::RenounceCandidacy:
+    case RequestType::ElectionVote:
+    case RequestType::Unknown:
+        break;
+    }
+
+    return result;
 }

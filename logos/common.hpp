@@ -1,6 +1,7 @@
 #pragma once
 
 #include <logos/lib/blocks.hpp>
+#include <logos/token/entry.hpp>
 #include <logos/node/utility.hpp>
 
 #include <boost/property_tree/ptree.hpp>
@@ -95,43 +96,75 @@ public:
 
 std::unique_ptr<logos::block> deserialize_block (MDB_val const &);
 
+enum class AccountType : uint8_t
+{
+    LogosAccount = 0,
+    TokenAccount = 1
+};
+
+struct Account
+{
+public:
+
+    Account();
+    Account(bool & error, const mdb_val & mdbval);
+    //Account (logos::account_info const &) = default;
+
+    Account(block_hash const & head,
+            amount const & balance,
+            uint32_t block_count,
+            uint64_t modified);
+
+    virtual uint32_t Serialize(logos::stream &) const;
+    virtual bool Deserialize(logos::stream &);
+    bool operator== (Account const &) const;
+    bool operator!= (Account const &) const;
+
+    virtual mdb_val to_mdb_val(std::vector<uint8_t> &buf) const = 0;
+
+    block_hash head;
+    amount     balance;
+    uint32_t   block_count;
+    uint64_t   modified;      ///< Seconds since posix epoch
+    block_hash reservation;
+    uint32_t   reservation_epoch;
+};
+
 /**
  * Latest information about an account
  */
-class account_info
+struct account_info : Account
 {
-public:
-    account_info ();
-    account_info (bool & error, const logos::mdb_val & mdbval);
-    account_info (logos::account_info const &) = default;
+    using Entries = std::vector<TokenEntry>;
 
-    account_info (logos::block_hash const & head,
-                  logos::block_hash const & receive_head,
-                  logos::block_hash const & rep_block,
-                  logos::block_hash const & open_block,
-                  logos::amount const & balance,
+    account_info ();
+    account_info (bool & error, const mdb_val & mdbval);
+    account_info (account_info const &) = default;
+
+    account_info (block_hash const & head,
+                  block_hash const & receive_head,
+                  block_hash const & rep_block,
+                  block_hash const & open_block,
+                  amount const & balance,
                   uint64_t modified,
                   uint32_t block_count,
                   uint32_t receive_count);
 
-    uint32_t serialize (logos::stream &) const;
-    bool deserialize (logos::stream &);
-    bool operator== (logos::account_info const &) const;
-    bool operator!= (logos::account_info const &) const;
-    //logos::mdb_val val () const;
-    logos::mdb_val to_mdb_val(std::vector<uint8_t> &buf) const;
+    uint32_t Serialize(stream &stream_a) const override;
+    bool Deserialize(stream &stream_a) override;
+    bool operator== (account_info const &) const;
+    bool operator!= (account_info const &) const;
+    //mdb_val val () const;
+    mdb_val to_mdb_val(std::vector<uint8_t> &buf) const override;
 
-    logos::block_hash head;
-    logos::block_hash receive_head;
-    logos::block_hash rep_block;
-    logos::block_hash open_block;
-    logos::amount balance;
-    /** Seconds since posix epoch */
-    uint64_t modified;
-    uint32_t block_count; //sequence number
-    uint32_t receive_count;
-    logos::block_hash reservation;
-    uint32_t reservation_epoch;
+    bool GetEntry(const BlockHash & token_id, TokenEntry & val) const;
+    Entries::iterator GetEntry(const BlockHash & token_id);
+
+    block_hash rep_block;
+    block_hash open_block;
+    Entries    entries;
+    block_hash receive_head;
+    uint32_t   receive_count;
 };
 
 
@@ -262,38 +295,49 @@ enum class vote_code
 //
 enum class process_result
 {
-    progress,               // Hasn't been seen before, signed correctly
-    bad_signature,          // Signature was bad, forged or transmission error
-    old,                    // Already seen and was valid
-    negative_spend,         // Malicious attempt to spend a negative amount
-    fork,                   // Malicious fork based on previous
-    unreceivable,           // Source block doesn't exist or has already been received
-    gap_previous,           // Block marked as previous is unknown
-    gap_source,             // Block marked as source is unknown
-    state_block_disabled,   // Awaiting state block canary block
-    not_receive_from_send,  // Receive does not have a send source
-    account_mismatch,       // Account number in open block doesn't match send destination
-    opened_burn_account,    // The impossible happened, someone found the private key associated with the public key '0'.
-    balance_mismatch,       // Balance and amount delta don't match
-    block_position,         // This block cannot follow the previous block
-    invalid_block_type,     // Logos - Only allow state blocks
-    unknown_source_account, // Logos - The source account is unknown.
-    buffered,               // Logos - The block has been buffered for benchmarking.
-    buffering_done,         // Logos - The last block has been buffered and consensus will begin.
-    pending,                // Logos - The block has already been received and is pending consensus.
-    already_reserved,       // Logos - The account is already reserved with different request.
-    initializing,           // Logos - The delegate is initializing and not accepting transactions.
-    insufficient_fee,       // Logos - Transaction fee is insufficient.
-    insufficient_balance,   // Logos - Balance is insufficient.
-    not_delegate,           // Logos - A non-delegate node rejects transaction request, or invalid delegate in epoch block
-    clock_drift,            // Logos - timestamp exceeds allowed clock drift
-    wrong_sequence_number,  // Logos - invalid block sequence number
-    invalid_request,        // Logos - batch block contains invalid request
-    invalid_tip,            // Logos - invalid microblock tip
-    invalid_number_blocks,  // Logos - invalid number of blocks in microblock
-    revert_immutability,    // Logos - Attempting to change a token account mutability setting from false to true
-    immutable,              // Logos - Attempting to update an immutable token account setting
-    redundant               // Logos - The token account setting change was idempotent
+    progress,                   // Hasn't been seen before, signed correctly
+    bad_signature,              // Signature was bad, forged or transmission error
+    old,                        // Already seen and was valid
+    negative_spend,             // Malicious attempt to spend a negative amount
+    fork,                       // Malicious fork based on previous
+    unreceivable,               // Source block doesn't exist or has already been received
+    gap_previous,               // Block marked as previous is unknown
+    gap_source,                 // Block marked as source is unknown
+    state_block_disabled,       // Awaiting state block canary block
+    not_receive_from_send,      // Receive does not have a send source
+    account_mismatch,           // Account number in open block doesn't match send destination
+    opened_burn_account,        // The impossible happened, someone found the private key associated with the public key '0'.
+    balance_mismatch,           // Balance and amount delta don't match
+    block_position,             // This block cannot follow the previous block
+    invalid_block_type,         // Logos - Only allow state blocks
+    unknown_source_account,     // Logos - The source account is unknown.
+    buffered,                   // Logos - The block has been buffered for benchmarking.
+    buffering_done,             // Logos - The last block has been buffered and consensus will begin.
+    pending,                    // Logos - The block has already been received and is pending consensus.
+    already_reserved,           // Logos - The account is already reserved with different request.
+    initializing,               // Logos - The delegate is initializing and not accepting transactions.
+    insufficient_fee,           // Logos - Transaction fee is insufficient.
+    insufficient_balance,       // Logos - Balance is insufficient.
+    not_delegate,               // Logos - A non-delegate node rejects transaction request, or invalid delegate in epoch block
+    clock_drift,                // Logos - timestamp exceeds allowed clock drift
+    wrong_sequence_number,      // Logos - invalid block sequence number
+    invalid_request,            // Logos - batch block contains invalid request
+    invalid_tip,                // Logos - invalid microblock tip
+    invalid_number_blocks,      // Logos - invalid number of blocks in microblock
+    revert_immutability,        // Logos - Attempting to change a token account mutability setting from false to true
+    immutable,                  // Logos - Attempting to update an immutable token account setting
+    redundant,                  // Logos - The token account setting change was idempotent
+    insufficient_token_balance, // Logos - Token balance is insufficient.
+    invalid_token_id,           // Logos - Token ID is invalid.
+    untethered_account,         // Logos - User account has not been tethered to the specified token account.
+    invalid_controller,         // Logos - An invalid controller was specified.
+    controller_capacity,        // Logos - No more controllers can be added.
+    invalid_controller_action,  // Logos - An invalid controller action was specified.
+    unauthorized_request,       // Logos - Unauthorized to make request.
+    prohibitted_request,        // Logos - The request is not allowed.
+    not_whitelisted,            // Logos - Whitelisting is required.
+    frozen,                     // Logos - Account is frozen.
+    insufficient_token_fee      // Logos - Token fee is insufficient.
 };
 
 std::string ProcessResultToString(process_result result);

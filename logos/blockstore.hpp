@@ -1,11 +1,12 @@
 #pragma once
 
-#include <logos/common.hpp>
-#include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/consensus/messages/common.hpp>
 #include <logos/microblock/microblock.hpp>
+#include <logos/token/account.hpp>
 #include <logos/epoch/epoch.hpp>
 #include <logos/lib/log.hpp>
+#include <logos/common.hpp>
 
 namespace logos
 {
@@ -177,7 +178,7 @@ public:
     //////////////////
 
     // abstract away consensus types
-    bool consensus_block_get (const BlockHash & hash, ApprovedBSB & block);
+    bool consensus_block_get (const BlockHash & hash, ApprovedRB & block);
     bool consensus_block_get (const BlockHash & hash, ApprovedMB & block);
     bool consensus_block_get (const BlockHash & hash, ApprovedEB & block);
     // return true if cannot found hash
@@ -187,10 +188,6 @@ public:
             ConsensusType type,
             MDB_txn * transaction);
 
-    bool batch_block_put(ApprovedBSB const &, MDB_txn *);
-    bool batch_block_put(ApprovedBSB const &, const BlockHash &, MDB_txn *);
-    bool batch_block_get(const BlockHash & hash, ApprovedBSB & block);
-    bool batch_block_get(const BlockHash & hash, ApprovedBSB & block, MDB_txn *);
     
     template <typename T>
     bool request_get(
@@ -214,21 +211,15 @@ public:
         return error;
 
     }
+    bool request_block_put(ApprovedRB const & block, MDB_txn * transaction);
+    bool request_block_put(ApprovedRB const & block, const BlockHash & hash, MDB_txn *transaction);
+    bool request_block_get(const BlockHash & hash, ApprovedRB & block);
+    bool request_block_get(const BlockHash &hash, ApprovedRB &block, MDB_txn *);
 
     bool request_get(const BlockHash &hash, std::shared_ptr<Request> & request, MDB_txn *transaction);
     bool request_put(const Request &, const BlockHash &, MDB_txn *);
     bool request_exists(const Request & request);
     bool request_exists(const BlockHash & hash);
-
-    bool account_get(
-            AccountAddress const & account_a,
-            account_info & info_a,
-            MDB_txn* t=0);
-    bool account_db_empty();
-    bool account_put (
-            AccountAddress const &,
-            logos::account_info const &,
-            MDB_txn *);
 
     bool rep_get(
             AccountAddress const & account,
@@ -247,13 +238,28 @@ public:
             const AccountAddress & account,
             const CandidateInfo & candidate_info,
             MDB_txn *);
+    bool token_user_status_get(const BlockHash & token_user_id, TokenUserStatus & status, MDB_txn* t=0);
+    bool token_user_status_put(const BlockHash & token_user_id, const TokenUserStatus & status, MDB_txn *);
+
+    bool token_account_exists(const BlockHash & token_id);
+    bool token_account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, MDB_txn* t=0);
+    bool token_account_get(AccountAddress const & account_a, TokenAccount & info_a, MDB_txn* t=0);
+    bool token_account_db_empty();
+    bool token_account_put (AccountAddress const &, TokenAccount const &, MDB_txn *);
+
+    bool account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, AccountType type, MDB_txn* t=0);
+    bool account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, MDB_txn* t=0);
+    bool account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* t=0);
+    bool account_db_empty();
+    bool account_put (AccountAddress const &, std::shared_ptr<Account> info, AccountType type, MDB_txn *);
+    bool account_put (AccountAddress const &, logos::account_info const &, MDB_txn *);
 
     bool receive_put(const BlockHash & hash, const ReceiveBlock & block, MDB_txn *);
     bool receive_get(const BlockHash & hash, ReceiveBlock & block, MDB_txn *);
     bool receive_exists(const BlockHash & hash);
 
-    bool batch_tip_put(uint8_t delegate_id, const BlockHash & hash, MDB_txn *);
-    bool batch_tip_get(uint8_t delegate_id, BlockHash & hash);
+    bool request_tip_put(uint8_t delegate_id, const BlockHash &hash, MDB_txn *);
+    bool request_tip_get(uint8_t delegate_id, BlockHash &hash);
 
     // micro-block
     bool get(MDB_dbi &db, const mdb_val &key, mdb_val &value, MDB_txn *tx);
@@ -322,10 +328,10 @@ public:
 
     /**
      * Maps delegate id to hash of most
-     * recent batch block.
+     * recent request block.
      * uint8_t -> logos::block_hash
      */
-    MDB_dbi batch_tips_db;
+    MDB_dbi request_tips_db;
 
     /**
      * Maps block hash to micro block
@@ -354,7 +360,20 @@ public:
      */
     MDB_dbi epoch_tip_db;
 
-	/**
+    /**
+    * Token Accounts
+    * block_hash token_id -> TokenAccount
+    */
+    MDB_dbi token_account_db;
+
+    /**
+    * Token User Statuses
+    * (Untethered accounts only)
+    * block_hash token_user_id -> TokenUserStatus
+    */
+    MDB_dbi token_user_status_db;
+
+    /**
 	 * Maps head block to owning account
 	 * logos::block_hash -> logos::account
 	 */

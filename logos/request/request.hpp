@@ -3,47 +3,48 @@
 #include <logos/node/utility.hpp>
 #include <logos/lib/utility.hpp>
 #include <logos/lib/numbers.hpp>
+#include <logos/common.hpp>
 
 #include <boost/property_tree/ptree.hpp>
 
 enum class RequestType : uint8_t
 {
-    // Native Requests
+    // Native Logos Requests
     //
     Send                = 0,
     ChangeRep           = 1,
 
-    // Token Administrative
+    // Administrative Token
     // Requests
     //
     IssueTokens        = 2,
-    IssueAdtlTokens    = 3,
-    ImmuteTokenSetting = 4,
-    RevokeTokens       = 5,
-    FreezeTokens       = 6,
-    SetTokenFee        = 7,
-    UpdateWhitelist    = 8,
-    UpdateIssuerInfo   = 9,
-    UpdateController   = 10,
-    BurnTokens         = 11,
-    DistributeTokens   = 12,
-    WithdrawTokens     = 13,
+    ChangeTokenSetting = 3,
+    IssueAdtlTokens    = 4,
+    ImmuteTokenSetting = 5,
+    RevokeTokens       = 6,
+    FreezeTokens       = 7,
+    SetTokenFee        = 8,
+    UpdateWhitelist    = 9,
+    UpdateIssuerInfo   = 10,
+    UpdateController   = 11,
+    BurnTokens         = 12,
+    DistributeTokens   = 13,
+    WithdrawTokens     = 14,
 
     // Token User Requests
     //
-    SendTokens         = 14,
+    SendTokens         = 15,
 
-    // Unknown
-    //
-    Unknown            = 15,
 
     AnnounceCandidacy  = 16,
     RenounceCandidacy  = 17,
-    ElectionVote       = 18
+    ElectionVote       = 18,
+
+    // Unknown
+    Unknown            = 19
 };
 
-RequestType GetRequestType(bool &error, std::string data);
-std::string GetRequestTypeField(RequestType type);
+class ReservationsProvider;
 
 struct Request
 {
@@ -55,12 +56,16 @@ struct Request
     Request(RequestType type,
             const AccountAddress & origin,
             const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
             const AccountPrivKey & priv,
             const AccountPubKey & pub);
 
     Request(RequestType type,
             const AccountAddress & origin,
             const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
             const AccountSig & signature);
 
     Request(bool & error,
@@ -73,11 +78,29 @@ struct Request
 
     virtual ~Request() = default;
 
+    virtual logos::AccountType GetAccountType() const;
+
+    // The account that will own the
+    // request.
+    //
+    virtual AccountAddress GetAccount() const;
+
+    // The account from which an amount
+    // is being deducted.
+    //
+    virtual AccountAddress GetSource() const;
+
+    virtual Amount GetLogosTotal() const;
+    virtual uint16_t GetTokenTotal() const;
 
     void Sign(AccountPrivKey const & priv, AccountPubKey const & pub);
     bool VerifySignature(AccountPubKey const & pub) const;
 
     std::string ToJson() const;
+
+    virtual bool Validate(logos::process_return & result,
+                          std::shared_ptr<logos::Account> info) const;
+    virtual bool Validate(logos::process_return & result) const;
 
     virtual boost::property_tree::ptree SerializeJson() const;
     virtual uint64_t Serialize(logos::stream & stream) const;
@@ -86,65 +109,19 @@ struct Request
 
     virtual BlockHash GetHash () const;
 
-    virtual BlockHash Hash() const;
+    BlockHash Hash() const;
     virtual void Hash(blake2b_state & hash) const;
 
     virtual uint16_t WireSize() const;
 
-    template<typename T>
-    uint16_t VectorWireSize(const std::vector<T> & v) const
-    {
-        // The size of the vector's
-        // elements plus the size
-        // of the field denoting
-        // the number of elements.
-        //
-        return (T::WireSize() * v.size()) + sizeof(uint8_t);
-    }
+    bool operator==(const Request& other) const;
 
-    template<typename T = uint8_t>
-    T StringWireSize(const std::string & s) const
-    {
-        static_assert(std::is_integral<T>::value,
-                      "Integral type required.");
-
-        assert(s.size() <= std::numeric_limits<T>::max());
-
-        // Length of string plus one
-        // byte to denote the length.
-        //
-        return s.size() + sizeof(T);
-    }
-
-    template<typename T, typename S = uint8_t>
-    uint64_t SerializeVector(logos::stream & stream, const std::vector<T> & v) const
-    {
-        static_assert(std::is_integral<S>::value,
-                      "Integral type required.");
-
-        assert(v.size() < std::numeric_limits<S>::max());
-
-        uint64_t written = logos::write(stream, S(v.size()));
-
-        for(size_t i = 0; i < v.size(); ++i)
-        {
-            written += v[i].Serialize(stream);
-        }
-
-        return written;
-    }
-
-    bool operator==(const Request& other) const
-    {
-        return type == other.type
-            && (previous == other.previous)
-            && (next == other.next);
-    }
-
-    RequestType       type;
+    RequestType       type = RequestType::Unknown;
     AccountAddress    origin;
     AccountSig        signature;
     BlockHash         previous;
     BlockHash         next;
+    Amount            fee;
+    uint32_t          sequence = 0;
     mutable BlockHash digest;
 };

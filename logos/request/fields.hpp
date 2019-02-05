@@ -35,6 +35,7 @@ const char ORIGIN[]         = "origin";
 const char SIGNATURE[]      = "signature";
 const char PREVIOUS[]       = "previous";
 const char NEXT[]           = "next";
+const char FEE[]            = "fee";
 const char TOKEN_ID[]       = "token_id";
 const char ADMIN_ACCOUNT[]  = "admin_account";
 const char ACCOUNT[]        = "account";
@@ -57,11 +58,12 @@ const char FEE_TYPE[]       = "fee_type";
 const char FEE_RATE[]       = "fee_rate";
 const char CONTROLLER[]     = "controller";
 const char TRANSACTIONS[]   = "transactions";
-const char FEE[]            = "fee";
 const char CLIENT[]         = "client";
 const char REPRESENTATIVE[] = "representative";
 const char VOTES[]          = "votes";
 const char REQUEST[]        = "request";
+const char TOKEN_FEE[]      = "token_fee";
+const char SEQUENCE[]       = "sequence";
 
 // Token setting fields
 //
@@ -101,6 +103,7 @@ const char CHANGE_WHITELIST[]         = "change_whitelist";
 const char CHANGE_MODIFY_WHITELIST[]  = "change_modify_whitelisting";
 const char PROMOTE_CONTROLLER[]       = "promote_controller";
 const char WITHDRAW_FEE[]             = "withdraw_fee";
+const char UPDATE_ISSUER_INFO[]       = "update_issuer_info";
 
 } // namespace fields
 

@@ -289,6 +289,10 @@ add_library (secure
 	logos/ledger.hpp
 	logos/node/utility.cpp
 	logos/node/utility.hpp
+	logos/token/account.hpp
+	logos/token/account.cpp
+	logos/token/entry.hpp
+	logos/token/entry.cpp
 	logos/versioning.hpp
 	logos/versioning.cpp)
 
@@ -380,8 +384,10 @@ add_library (node
 	logos/request/change.cpp
 	logos/request/request.cpp
 	logos/request/send.cpp
+	logos/request/utility.cpp
 	logos/token/account.cpp
 	logos/token/common.cpp
+	logos/token/entry.cpp
 	logos/token/requests.cpp
 	logos/token/util.cpp
 	logos/wallet_server/client/callback_handler.cpp

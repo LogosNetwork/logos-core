@@ -79,6 +79,8 @@ struct Send : Request
           logos::stream & stream,
           bool with_batch_hash = false);
 
+    Amount GetLogosTotal() const override;
+
     /// Add a new transaction
     /// @param to the target account
     /// @param amount the transaction amount
@@ -108,11 +110,7 @@ struct Send : Request
 
     static const uint8_t MAX_TRANSACTIONS = 8;
 
-    AccountAddress    account;
-    BlockHash         previous;
-    uint32_t          sequence = 0;
     Transactions      transactions;
-    Amount            transaction_fee;
     AccountSig        signature;
     uint64_t          work = 0;
     mutable BlockHash batch_hash = 0;

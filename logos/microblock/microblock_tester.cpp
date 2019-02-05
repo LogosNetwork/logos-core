@@ -84,7 +84,7 @@ MicroBlockTester::block_create_test(
 
     for (uint8_t i_del = 0; i_del < ndelegates; ++i_del) {
         for (int i_batch = 0; i_batch < n_batch_blocks; ++i_batch) {
-            ApprovedBSB batch_block;
+            ApprovedRB batch_block;
             for(size_t i = 0; i < 100; ++i)
             {
                 batch_block.requests.push_back(std::shared_ptr<Send>(new Send()));
@@ -96,14 +96,14 @@ MicroBlockTester::block_create_test(
                 request->signature = account_sig;
                 logos::account account(rand());
                 BlockHash hash(rand());
-                request->account = account;
+                request->origin = account;
                 request->previous = hash;
                 request->AddTransaction(AccountAddress(), 1000);
             }
             batch_block.previous = previous[i_del];
             previous[i_del] = batch_block.Hash();
-            node.store.batch_block_put(batch_block, transaction);
-            node.store.batch_tip_put(i_del, previous[i_del], transaction);
+            node.store.request_block_put(batch_block, transaction);
+            node.store.request_tip_put(i_del, previous[i_del], transaction);
         }
     }
     response (response_l);
@@ -292,7 +292,7 @@ MicroBlockTester::informational(
     }
     else if (type == "batch")
     {
-        ApprovedBSB block;
+        ApprovedRB block;
         
         std::stringstream str;
         uint64_t start = (uint64_t) &block;

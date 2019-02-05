@@ -1,5 +1,6 @@
 #include <logos/token/common.hpp>
 
+#include <logos/token/requests.hpp>
 #include <logos/request/fields.hpp>
 #include <logos/token/util.hpp>
 
@@ -36,6 +37,39 @@ TokenRequest::TokenRequest(bool & error,
     }
 }
 
+bool TokenRequest::Validate(logos::process_return & result) const
+{
+    if(!Request::Validate(result))
+    {
+        return false;
+    }
+
+    if(token_id.is_zero())
+    {
+        result.code = logos::process_result::invalid_token_id;
+        return false;
+    }
+
+    return true;
+}
+
+logos::AccountType TokenRequest::GetAccountType() const
+{
+    return logos::AccountType::TokenAccount;
+}
+
+AccountAddress TokenRequest::GetAccount() const
+{
+    return token_id;
+}
+
+AccountAddress TokenRequest::GetSource() const
+{
+    // Source and Account are the same
+    // for most TokenRequests.
+    return GetAccount();
+}
+
 boost::property_tree::ptree TokenRequest::SerializeJson() const
 {
     using namespace request::fields;
@@ -62,67 +96,6 @@ void TokenRequest::Hash(blake2b_state & hash) const
 uint16_t TokenRequest::WireSize() const
 {
     return sizeof(token_id.bytes) + Request::WireSize();
-}
-
-TokenAdminRequest::TokenAdminRequest(bool & error,
-                                     std::basic_streambuf<uint8_t> & stream)
-    : TokenRequest(error, stream)
-{
-    if(error)
-    {
-        return;
-    }
-
-    error = read(stream, admin_account);
-}
-
-TokenAdminRequest::TokenAdminRequest(bool & error,
-                                     boost::property_tree::ptree const & tree)
-    : TokenRequest(error, tree)
-{
-    using namespace request::fields;
-
-    if(error)
-    {
-        return;
-    }
-
-    try
-    {
-        error = admin_account.decode_account(tree.get<std::string>(ADMIN_ACCOUNT));
-    }
-    catch(...)
-    {
-        error = true;
-    }
-}
-
-boost::property_tree::ptree TokenAdminRequest::SerializeJson() const
-{
-    using namespace request::fields;
-
-    boost::property_tree::ptree tree = TokenRequest::SerializeJson();
-
-    tree.put(ADMIN_ACCOUNT, admin_account.to_account());
-
-    return tree;
-}
-
-uint64_t TokenAdminRequest::Serialize(logos::stream & stream) const
-{
-    return TokenRequest::Serialize(stream) +
-           logos::write(stream, admin_account);
-}
-
-void TokenAdminRequest::Hash(blake2b_state & hash) const
-{
-    TokenRequest::Hash(hash);
-    admin_account.Hash(hash);
-}
-
-uint16_t TokenAdminRequest::WireSize() const
-{
-    return sizeof(admin_account.bytes) + TokenRequest::WireSize();
 }
 
 ControllerInfo::ControllerInfo(bool & error,
@@ -172,6 +145,7 @@ void ControllerInfo::DeserializeJson(bool & error,
         error = true;
     }
 }
+
 boost::property_tree::ptree ControllerInfo::SerializeJson() const
 {
     using namespace request::fields;
@@ -206,6 +180,117 @@ void ControllerInfo::Hash(blake2b_state & hash) const
 uint16_t ControllerInfo::WireSize()
 {
     return sizeof(account.bytes) + Privileges::WireSize();
+}
+
+bool ControllerInfo::IsAuthorized(std::shared_ptr<const Request> request) const
+{
+    bool result = false;
+
+    switch(request->type)
+    {
+        // TODO: N/A
+        case RequestType::Send:
+        case RequestType::ChangeRep:
+        case RequestType::IssueTokens:
+            break;
+        case RequestType::IssueAdtlTokens:
+            result = privileges[size_t(ControllerPrivilege::AddTokens)];
+            break;
+        case RequestType::ChangeTokenSetting:
+        {
+            auto change = static_pointer_cast<const TokenChangeSetting>(request);
+            result = IsAuthorized(change->setting);
+            break;
+        }
+        case RequestType::ImmuteTokenSetting:
+        {
+            auto immute = static_pointer_cast<const TokenImmuteSetting>(request);
+            result = IsAuthorized(immute->setting);
+            break;
+        }
+        case RequestType::RevokeTokens:
+            result = privileges[size_t(ControllerPrivilege::Revoke)];
+            break;
+        case RequestType::FreezeTokens:
+            result = privileges[size_t(ControllerPrivilege::Freeze)];
+            break;
+        case RequestType::SetTokenFee:
+            result = privileges[size_t(ControllerPrivilege::AdjustFee)];
+            break;
+        case RequestType::UpdateWhitelist:
+            result = privileges[size_t(ControllerPrivilege::Whitelist)];
+            break;
+        case RequestType::UpdateIssuerInfo:
+            result = privileges[size_t(ControllerPrivilege::UpdateIssuerInfo)];
+            break;
+        case RequestType::UpdateController:
+            result = privileges[size_t(ControllerPrivilege::PromoteController)];
+            break;
+        case RequestType::BurnTokens:
+            result = privileges[size_t(ControllerPrivilege::Burn)];
+            break;
+        case RequestType::DistributeTokens:
+            result = privileges[size_t(ControllerPrivilege::Withdraw)];
+            break;
+        case RequestType::WithdrawTokens:
+            result = privileges[size_t(ControllerPrivilege::WithdrawFee)];
+            break;
+
+        // TODO: N/A
+        case RequestType::SendTokens:
+        case RequestType::AnnounceCandidacy:
+        case RequestType::RenounceCandidacy:
+        case RequestType::ElectionVote:
+        case RequestType::Unknown:
+            result = false;
+            break;
+    }
+
+    return result;
+}
+
+bool ControllerInfo::IsAuthorized(TokenSetting setting) const
+{
+    bool result;
+
+    switch(setting)
+    {
+        case TokenSetting::AddTokens:
+            result = privileges[size_t(ControllerPrivilege::ChangeAddTokens)];
+            break;
+        case TokenSetting::ModifyAddTokens:
+            result = privileges[size_t(ControllerPrivilege::ChangeModifyAddTokens)];
+            break;
+        case TokenSetting::Revoke:
+            result = privileges[size_t(ControllerPrivilege::ChangeRevoke)];
+            break;
+        case TokenSetting::ModifyRevoke:
+            result = privileges[size_t(ControllerPrivilege::ChangeModifyRevoke)];
+            break;
+        case TokenSetting::Freeze:
+            result = privileges[size_t(ControllerPrivilege::ChangeFreeze)];
+            break;
+        case TokenSetting::ModifyFreeze:
+            result = privileges[size_t(ControllerPrivilege::ChangeModifyFreeze)];
+            break;
+        case TokenSetting::AdjustFee:
+            result = privileges[size_t(ControllerPrivilege::ChangeAdjustFee)];
+            break;
+        case TokenSetting::ModifyAdjustFee:
+            result = privileges[size_t(ControllerPrivilege::ChangeModifyAdjustFee)];
+            break;
+        case TokenSetting::Whitelist:
+            result = privileges[size_t(ControllerPrivilege::ChangeWhitelist)];
+            break;
+        case TokenSetting::ModifyWhitelist:
+            result = privileges[size_t(ControllerPrivilege::ChangeModifyWhitelist)];
+            break;
+        case TokenSetting::Unknown:
+            result = false;
+            break;
+    }
+
+    return result;
 }
 
 TokenTransaction::TokenTransaction(bool & error,

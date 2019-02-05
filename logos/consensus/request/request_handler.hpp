@@ -18,14 +18,15 @@ using boost::multi_index::sequenced;
 
 class RequestHandler
 {
-    using Requests =
+    using RequestPtr = std::shared_ptr<Request>;
+    using Requests   =
             boost::multi_index_container<
-                Send,
+                RequestPtr,
                 indexed_by<
                     sequenced<>,
                     hashed_non_unique<
                         const_mem_fun<
-                            Send, BlockHash, &Send::GetHash
+                            Request, BlockHash, &Request::GetHash
                         >
                     >
                 >
@@ -37,13 +38,13 @@ public:
 
     RequestHandler();
 
-    void OnRequest(std::shared_ptr<Send> request);
+    void OnRequest(RequestPtr request);
     void OnPostCommit(const RequestBlock & block);
 
     PrePrepare & PrepareNextBatch();
     PrePrepare & GetCurrentBatch();
 
-    void InsertFront(const std::list<Send> & requests);
+    void InsertFront(const std::list<RequestPtr> & requests);
     void Acquire(const PrePrepare & batch);
 
     void PopFront();

@@ -289,7 +289,7 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "state_db", MDB_CREATE, &state_db) != 0;
         error_a |= mdb_dbi_open (transaction, "account_db", MDB_CREATE, &account_db) != 0;
         error_a |= mdb_dbi_open (transaction, "receive_db", MDB_CREATE, &receive_db) != 0;
-        error_a |= mdb_dbi_open (transaction, "batch_tips_db", MDB_CREATE, &batch_tips_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "request_tips_db", MDB_CREATE, &request_tips_db) != 0;
 
         // microblock-prototype
         error_a |= mdb_dbi_open (transaction, "micro_block_db", MDB_CREATE, &micro_block_db) != 0;
@@ -299,6 +299,11 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "epoch_db", MDB_CREATE, &epoch_db) != 0;
         error_a |= mdb_dbi_open (transaction, "epoch_tip_db", MDB_CREATE, &epoch_tip_db) != 0;
 
+        // token platform
+        error_a |= mdb_dbi_open (transaction, "token_account_db", MDB_CREATE, &token_account_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "token_user_status_db", MDB_CREATE, &token_user_status_db) != 0;
+
+        // legacy
         error_a |= mdb_dbi_open (transaction, "frontiers", MDB_CREATE, &frontiers) != 0;
         error_a |= mdb_dbi_open (transaction, "accounts", MDB_CREATE, &accounts) != 0;
         error_a |= mdb_dbi_open (transaction, "state", MDB_CREATE, &state_blocks) != 0;
@@ -526,7 +531,7 @@ bool logos::block_store::account_get (MDB_txn * transaction_a, logos::account co
     else
     {
         logos::bufferstream stream (reinterpret_cast<uint8_t const *> (value.data ()), value.size ());
-        result = info_a.deserialize (stream);
+        result = info_a.Deserialize(stream);
         assert (!result);
     }
     return result;
@@ -836,9 +841,9 @@ void logos::block_store::checksum_del (MDB_txn * transaction_a, uint64_t prefix,
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-bool logos::block_store::consensus_block_get (const BlockHash& hash, ApprovedBSB & block)
+bool logos::block_store::consensus_block_get (const BlockHash& hash, ApprovedRB & block)
 {
-    return batch_block_get (hash, block);
+    return request_block_get(hash, block);
 }
 bool logos::block_store::consensus_block_get (const BlockHash& hash, ApprovedMB & block)
 {
@@ -849,12 +854,12 @@ bool logos::block_store::consensus_block_get (const BlockHash& hash, ApprovedEB 
     return epoch_get (hash, block);
 }
 
-bool logos::block_store::batch_block_put (ApprovedBSB const & block, MDB_txn * transaction)
+bool logos::block_store::request_block_put(ApprovedRB const & block, MDB_txn * transaction)
 {
-    return batch_block_put(block, block.Hash(), transaction);
+    return request_block_put(block, block.Hash(), transaction);
 }
 
-bool logos::block_store::batch_block_put (ApprovedBSB const & block, const BlockHash & hash, MDB_txn * transaction)
+bool logos::block_store::request_block_put(ApprovedRB const &block, const BlockHash &hash, MDB_txn *transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();
 
@@ -924,13 +929,13 @@ bool logos::block_store::request_exists(const BlockHash & hash)
     return status == 0;
 }
 
-bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & block)
+bool logos::block_store::request_block_get(const BlockHash & hash, ApprovedRB & block)
 {
     transaction transaction(environment, nullptr, false);
-    return batch_block_get(hash, block, transaction);
+    return request_block_get(hash, block, transaction);
 }
 
-bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & block, MDB_txn * transaction)
+bool logos::block_store::request_block_get(const BlockHash &hash, ApprovedRB &block, MDB_txn *transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();
 
@@ -948,7 +953,7 @@ bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & b
     }
     else
     {
-        new(&block) ApprovedBSB(error, value);
+        new(&block) ApprovedRB(error, value);
         assert(!error);
 
         if(!error)
@@ -956,7 +961,7 @@ bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & b
             if(block.hashes.size() > CONSENSUS_BATCH_SIZE)
             {
                 LOG_FATAL(log) << __func__
-                               << " batch_block_get failed, block.request_count > CONSENSUS_BATCH_SIZE";
+                               << " request_block_get failed, block.request_count > CONSENSUS_BATCH_SIZE";
                 trace_and_halt();
             }
 
@@ -1035,10 +1040,13 @@ bool logos::block_store::consensus_block_update_next(const BlockHash & hash, con
 bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, mdb_val &value, MDB_txn *tx)
 {
     int status = 0;
-    if (tx == 0) {
+    if (tx == 0)
+    {
         logos::transaction transaction(environment, nullptr, false);
         status = mdb_get(transaction, db, key, value);
-    } else {
+    }
+    else
+    {
         status = mdb_get(tx, db, key, value);
     }
     if( ! (status == 0 || status == MDB_NOTFOUND))
@@ -1157,6 +1165,119 @@ bool logos::block_store::epoch_tip_get(BlockHash & hash, MDB_txn *transaction)
     return false;
 }
 
+bool logos::block_store::token_user_status_get(const BlockHash & token_user_id, TokenUserStatus & status, MDB_txn * transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << token_user_id.to_string();
+
+    mdb_val val;
+    if(get(token_user_status_db, mdb_val(token_user_id), val, transaction))
+    {
+        return true;
+    }
+
+    bool error = false;
+    new (&status) TokenUserStatus(error, val);
+    assert (!error);
+    return error;
+}
+
+bool logos::block_store::token_user_status_put(const BlockHash & token_user_id, const TokenUserStatus & status, MDB_txn * transaction)
+{
+    std::vector<uint8_t> buf;
+    auto result(mdb_put(transaction, token_user_status_db, logos::mdb_val(token_user_id), status.ToMdbVal(buf), 0));
+
+    assert(result == 0);
+    return result != 0;
+}
+
+bool logos::block_store::token_account_exists(const BlockHash & token_id)
+{
+    LOG_TRACE(log) << __func__ << " key " << token_id.to_string();
+
+    logos::mdb_val junk;
+    logos::transaction transaction(environment, nullptr, false);
+
+    auto status(mdb_get(transaction, token_account_db, logos::mdb_val(token_id), junk));
+    assert(status == 0 || status == MDB_NOTFOUND);
+
+    return status == 0;
+}
+
+bool logos::block_store::token_account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, MDB_txn* transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << account_a.to_string();
+    mdb_val val;
+
+    if(get(token_account_db, mdb_val(account_a), val, transaction))
+    {
+        return true;
+    }
+
+    bool error = false;
+    info_a.reset(new TokenAccount(error, val));
+
+    assert (!error);
+    return error;
+}
+
+bool logos::block_store::token_account_get(AccountAddress const & account_a, TokenAccount & info_a, MDB_txn* transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << account_a.to_string();
+    mdb_val val;
+    if(get(token_account_db, mdb_val(account_a), val, transaction))
+    {
+        return true;
+    }
+
+    bool error = false;
+    new (&info_a) TokenAccount(error, val);
+    assert (!error);
+    return error;
+}
+
+bool logos::block_store::token_account_db_empty()
+{
+    logos::transaction transaction(environment, nullptr, false);
+
+    logos::store_iterator begin(transaction, token_account_db);
+    logos::store_iterator end(nullptr);
+
+    return begin == end;
+}
+
+bool logos::block_store::token_account_put(const AccountAddress & account, const TokenAccount & info, MDB_txn * transaction)
+{
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(transaction, account_db, logos::mdb_val(account), info.to_mdb_val(buf), 0));
+
+    assert(status == 0);
+    return status != 0;
+}
+
+bool logos::block_store::account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, AccountType type, MDB_txn* transaction)
+{
+    return type == AccountType::LogosAccount ?
+           account_get(account_a, info_a, transaction) :
+           token_account_get(account_a, info_a, transaction);
+}
+
+bool logos::block_store::account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, MDB_txn* transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << account_a.to_string();
+    mdb_val val;
+
+    if(get(account_db, mdb_val(account_a), val, transaction))
+    {
+        return true;
+    }
+
+    bool error = false;
+    info_a.reset(new account_info(error, val));
+
+    assert (!error);
+    return error;
+}
+
 bool logos::block_store::account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << account_a.to_string();
@@ -1180,6 +1301,13 @@ bool logos::block_store::account_db_empty()
     logos::store_iterator end(nullptr);
 
     return begin == end;
+}
+
+bool logos::block_store::account_put(const AccountAddress & account, std::shared_ptr<Account> info, AccountType type, MDB_txn * transaction)
+{
+    return type == AccountType::LogosAccount ?
+           account_put(account, *static_pointer_cast<account_info>(info), transaction) :
+           token_account_put(account, *static_pointer_cast<TokenAccount>(info), transaction);
 }
 
 bool logos::block_store::account_put(const AccountAddress & account, const logos::account_info & info, MDB_txn * transaction)
@@ -1290,27 +1418,27 @@ bool logos::block_store::receive_exists(const BlockHash & hash)
     return status == 0;
 }
 
-bool logos::block_store::batch_tip_put(uint8_t delegate_id, const BlockHash & hash, MDB_txn * transaction)
+bool logos::block_store::request_tip_put(uint8_t delegate_id, const BlockHash &hash, MDB_txn *transaction)
 {
     LOG_TRACE(log) << __func__ << " value " << hash.to_string();
 
     auto status(mdb_put(transaction,
-            batch_tips_db,
-            mdb_val(sizeof(delegate_id), &delegate_id),
-            mdb_val(hash),
-            0));
+                        request_tips_db,
+                        mdb_val(sizeof(delegate_id), &delegate_id),
+                        mdb_val(hash),
+                        0));
 
     assert(status == 0);
     return status != 0;
 }
 
-bool logos::block_store::batch_tip_get(uint8_t delegate_id, BlockHash & hash)
+bool logos::block_store::request_tip_get(uint8_t delegate_id, BlockHash &hash)
 {
     logos::mdb_val value;
     logos::transaction transaction(environment, nullptr, false);
 
-    auto status (mdb_get (transaction, batch_tips_db, logos::mdb_val(sizeof(delegate_id),
-                                                                          &delegate_id), value));
+    auto status (mdb_get (transaction, request_tips_db, logos::mdb_val(sizeof(delegate_id),
+                                                                     &delegate_id), value));
     assert (status == 0 || status == MDB_NOTFOUND);
     bool error = false;
     if (status == MDB_NOTFOUND)

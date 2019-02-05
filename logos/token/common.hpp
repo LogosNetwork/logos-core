@@ -81,18 +81,21 @@ enum class ControllerPrivilege : uint8_t
     Freeze                   = 13,
     AdjustFee                = 14,
     Whitelist                = 15,
-    Burn                     = 16,
-    Withdraw                 = 17,
-    WithdrawFee              = 18,
+    UpdateIssuerInfo         = 16,
+    Burn                     = 17,
+    Withdraw                 = 18,
+    WithdrawFee              = 19,
 
-    Unknown                  = 19
+    Unknown                  = 20
 };
 
 const size_t TOKEN_SETTINGS_COUNT       = 10;
-const size_t CONTROLLER_PRIVILEGE_COUNT = 19;
+const size_t CONTROLLER_PRIVILEGE_COUNT = 20;
 
 struct TokenRequest : Request
 {
+    using InfoSizeT = uint16_t;
+
     TokenRequest() = default;
 
     TokenRequest(bool & error,
@@ -100,6 +103,13 @@ struct TokenRequest : Request
 
     TokenRequest(bool & error,
                  boost::property_tree::ptree const & tree);
+
+    bool Validate(logos::process_return & result) const override;
+
+    logos::AccountType GetAccountType() const override;
+
+    AccountAddress GetAccount() const override;
+    AccountAddress GetSource() const override;
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
@@ -111,27 +121,7 @@ struct TokenRequest : Request
    logos::block_hash token_id;
 };
 
-struct TokenAdminRequest : TokenRequest
-{
-    using InfoSizeT = uint16_t;
-
-    TokenAdminRequest() = default;
-
-    TokenAdminRequest(bool & error,
-                      std::basic_streambuf<uint8_t> & stream);
-
-    TokenAdminRequest(bool & error,
-                      boost::property_tree::ptree const & tree);
-
-    boost::property_tree::ptree SerializeJson() const override;
-    uint64_t Serialize(logos::stream & stream) const override;
-
-    void Hash(blake2b_state & hash) const override;
-
-    uint16_t WireSize() const override;
-
-    AccountAddress admin_account;
-};
+class TokenImmuteSetting;
 
 struct ControllerInfo
 {
@@ -154,6 +144,9 @@ struct ControllerInfo
     void Hash(blake2b_state & hash) const;
 
     static uint16_t WireSize();
+
+    bool IsAuthorized(std::shared_ptr<const Request> request) const;
+    bool IsAuthorized(TokenSetting setting) const;
 
     AccountAddress account;
     Privileges     privileges;

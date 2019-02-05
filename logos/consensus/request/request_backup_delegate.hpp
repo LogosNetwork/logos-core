@@ -22,7 +22,7 @@ class RequestBackupDelegate : public BackupDelegate<ConsensusType::Request>
     using Seconds    = boost::posix_time::seconds;
     using Error      = boost::system::error_code;
     using Hashes     = std::unordered_set<BlockHash>;
-    using Request    = RequestMessage<R>;
+    using Request    = DelegateMessage<R>;
 
 public:
 
@@ -53,7 +53,7 @@ public:
     /// Commit PrePrepare message to the database
     /// @param message PrePrepare message [in]
     /// @param delegate_id delegate id [in]
-    void ApplyUpdates(const ApprovedBSB &, uint8_t delegate_id) override;
+    void ApplyUpdates(const ApprovedRB &, uint8_t delegate_id) override;
 
     bool IsPrePrepared(const BlockHash & hash) override;
 

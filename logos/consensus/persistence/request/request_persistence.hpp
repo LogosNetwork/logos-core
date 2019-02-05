@@ -16,7 +16,7 @@ class PersistenceManager<R> : public Persistence
 
 protected:
 
-    using Request         = RequestMessage<R>;
+    using Message         = DelegateMessage<R>;
     using PrePrepare      = PrePrepareMessage<R>;
     using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
 
@@ -27,30 +27,43 @@ public:
                        Milliseconds clock_drift = DEFAULT_CLOCK_DRIFT);
     virtual ~PersistenceManager() = default;
 
-    virtual void ApplyUpdates(const ApprovedBSB & message, uint8_t delegate_id);
+    virtual void ApplyUpdates(const ApprovedRB & message, uint8_t delegate_id);
 
-    virtual bool Validate(const Request & request, logos::process_return & result, bool allow_duplicates = true);
-    virtual bool Validate(const Request & request);
+    virtual bool Validate(std::shared_ptr<const Request> request,
+                          logos::process_return & result,
+                          bool allow_duplicates = true);
+    virtual bool Validate(std::shared_ptr<const Request> request);
 
     virtual bool Validate(const PrePrepare & message, ValidationStatus * status = nullptr);
 
 private:
 
-    void StoreBatchMessage(const ApprovedBSB & message,
+    void StoreRequestBlock(const ApprovedRB & message,
                            MDB_txn * transaction,
                            uint8_t delegate_id);
 
-    void ApplyBatchMessage(const ApprovedBSB & message,
+    void ApplyRequestBlock(const ApprovedRB & message,
                            MDB_txn * transaction);
-    void ApplyStateMessage(const Send & request,
-                           uint64_t timestamp,
+    void ApplyRequest(std::shared_ptr<const Request> request,
+                      uint64_t timestamp,
+                      MDB_txn * transaction);
+
+    bool UpdateSourceState(std::shared_ptr<const Request> request,
                            MDB_txn * transaction);
 
-    bool UpdateSourceState(const Send & request,
-                           MDB_txn * transaction);
-    void UpdateDestinationState(const Send & request,
+    template<typename SendType>
+    void UpdateDestinationState(std::shared_ptr<const SendType> request,
                                 uint64_t timestamp,
-                                MDB_txn * transaction);
+                                MDB_txn * transaction,
+                                BlockHash token_id = 0);
+
+    template<typename AmountType>
+    void UpdateDestinationState(const Transaction<AmountType> & send,
+                                uint64_t timestamp,
+                                MDB_txn * transaction,
+                                const BlockHash & request_hash,
+                                const BlockHash & token_id,
+                                uint16_t transaction_index = 0);
 
     void PlaceReceive(ReceiveBlock & receive,
                       uint64_t timestamp,

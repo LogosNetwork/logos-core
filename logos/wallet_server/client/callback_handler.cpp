@@ -5,7 +5,7 @@
 #include <boost/property_tree/ptree_fwd.hpp>
 #include <boost/format/free_funcs.hpp>
 
-CallbackHandler::CallbackHandler(const ApprovedBSB & block,
+CallbackHandler::CallbackHandler(const ApprovedRB & block,
                                  const Endpoint callback_endpoint,
                                  Service & service,
                                  CallbackManager * manager,

@@ -58,11 +58,15 @@ struct ElectionVote : Request
 
     ElectionVote(const AccountAddress & origin,
             const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
             const AccountPrivKey & priv,
             const AccountPubKey & pub);
 
     ElectionVote(const AccountAddress & origin,
             const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
             const AccountSig & signature);
 
     ElectionVote(bool & error,
@@ -96,11 +100,15 @@ struct AnnounceCandidacy : Request
 {
     AnnounceCandidacy(const AccountAddress & origin,
             const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
             const AccountPrivKey & priv,
             const AccountPubKey & pub);
 
     AnnounceCandidacy(const AccountAddress & origin,
             const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
             const AccountSig & signature);
 
     AnnounceCandidacy(bool & error,
@@ -115,11 +123,15 @@ struct RenounceCandidacy : Request
 {
     RenounceCandidacy(const AccountAddress & origin,
             const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
             const AccountPrivKey & priv,
             const AccountPubKey & pub);
 
     RenounceCandidacy(const AccountAddress & origin,
             const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
             const AccountSig & signature);
 
     RenounceCandidacy(bool & error,

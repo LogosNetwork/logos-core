@@ -60,7 +60,9 @@ TEST (Database, blockstore)
     BlockHash prev = 111;
     AccountAddress address = 1;
     AccountSig sig = 1;
-    ElectionVote ev(address, prev, sig);
+    Amount fee = 7;
+    uint32_t sequence = 2;
+    ElectionVote ev(address, prev, fee, sequence, sig);
 
     res = store->request_put(ev,ev.Hash(),txn);
     ASSERT_FALSE(res);

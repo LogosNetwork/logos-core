@@ -8,7 +8,7 @@
 #include <logos/lib/log.hpp>
 
 bool
-EpochHandler::Build(RequestMessage<ConsensusType::Epoch> &epoch)
+EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
 {
     BlockHash previous_epoch_hash;
     BlockHash previous_micro_block_hash;

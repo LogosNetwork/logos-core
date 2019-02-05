@@ -42,7 +42,7 @@ create_bsb_preprepare(uint16_t num_sb)
     PrePrepareMessage<ConsensusType::Request> block;
     for(uint32_t i = 0; i < num_sb; ++i)
     {
-        block.AddRequest(Send(1, 2, i, 5, 6, 7, 8, 9));
+        block.AddRequest(std::make_shared<Send>(Send(1, 2, i, 5, 6, 7, 8, 9)));
     }
 
     return block;
@@ -593,7 +593,7 @@ TEST (blocks, batch_state_block_PrePrepare_empty)
 TEST (blocks, batch_state_block_PrePrepare_full)
 {
     auto block = create_bsb_preprepare(CONSENSUS_BATCH_SIZE);
-    ASSERT_FALSE(block.AddRequest(Send(1, 2, CONSENSUS_BATCH_SIZE + 1, 5, 6, 7, 8, 9)));
+    ASSERT_FALSE(block.AddRequest(std::make_shared<Send>(Send(1, 2, CONSENSUS_BATCH_SIZE + 1, 5, 6, 7, 8, 9))));
     ASSERT_EQ(block.requests.size(), CONSENSUS_BATCH_SIZE);
     vector<uint8_t> buf;
     block.Serialize(buf);
@@ -1037,7 +1037,7 @@ TEST (DB, account)
     vector<uint8_t> buf;
     {
         logos::vectorstream stream(buf);
-        block.serialize(stream);
+        block.Serialize(stream);
     }
     std::cout << byte_vector_to_string(buf) << std::endl;
 
@@ -1062,10 +1062,10 @@ TEST (DB, bsb)
     block.next = 90;
 
     auto block_hash(block.Hash());
-    ASSERT_FALSE(store->batch_block_put(block, block_hash, txn));
+    ASSERT_FALSE(store->request_block_put(block, block_hash, txn));
 
-    ApprovedBSB block2;
-    ASSERT_FALSE(store->batch_block_get(block_hash, block2, txn));
+    ApprovedRB block2;
+    ASSERT_FALSE(store->request_block_get(block_hash, block2, txn));
     ASSERT_EQ(block_hash, block2.Hash());
 }
 
@@ -1122,7 +1122,7 @@ TEST (DB, bsb_next)
     auto block_hash(block.Hash());
     {
         logos::transaction txn(store->environment, nullptr, true);
-        ASSERT_FALSE(store->batch_block_put(block, block_hash, txn));
+        ASSERT_FALSE(store->request_block_put(block, block_hash, txn));
     }
 
     BlockHash next(90);
@@ -1132,8 +1132,8 @@ TEST (DB, bsb_next)
     }
 
     logos::transaction txn(store->environment, nullptr, false);
-    ApprovedBSB block2;
-    ASSERT_FALSE(store->batch_block_get(block_hash, block2, txn));
+    ApprovedRB block2;
+    ASSERT_FALSE(store->request_block_get(block_hash, block2, txn));
     ASSERT_EQ(block_hash, block2.Hash());
     ASSERT_EQ(block2.next, next);
 }

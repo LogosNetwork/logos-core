@@ -1,5 +1,7 @@
 #include <logos/request/request.hpp>
 
+#include <logos/consensus/persistence/reservations.hpp>
+#include <logos/request/utility.hpp>
 #include <logos/request/fields.hpp>
 #include <logos/lib/utility.hpp>
 #include <logos/lib/hash.hpp>
@@ -10,172 +12,24 @@
 
 #include <ed25519-donna/ed25519.h>
 
-RequestType GetRequestType(bool &error, std::string data)
-{
-    using namespace request::fields;
+using boost::multiprecision::uint128_t;
+using namespace boost::multiprecision::literals;
 
-    std::transform(data.begin(), data.end(),
-                   data.begin(), ::tolower);
+constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
 
-    RequestType ret = RequestType::Unknown;
-
-    if(data == SEND)
-    {
-        ret = RequestType::Send;
-    }
-    else if(data == CHANGE)
-    {
-        ret = RequestType::ChangeRep;
-    }
-    else if(data == ISSUE_TOKENS)
-    {
-        ret = RequestType::IssueTokens;
-    }
-    else if(data == ISSUE_ADTL)
-    {
-        ret = RequestType::IssueAdtlTokens;
-    }
-    else if(data == IMMUTE)
-    {
-        ret = RequestType::ImmuteTokenSetting;
-    }
-    else if(data == REVOKE)
-    {
-        ret = RequestType::RevokeTokens;
-    }
-    else if(data == FREEZE)
-    {
-        ret = RequestType::FreezeTokens;
-    }
-    else if(data == SET_FEE)
-    {
-        ret = RequestType::SetTokenFee;
-    }
-    else if(data == UPDATE_WHITELIST)
-    {
-        ret = RequestType::UpdateWhitelist;
-    }
-    else if(data == UPDATE_INFO)
-    {
-        ret = RequestType::UpdateIssuerInfo;
-    }
-    else if(data == UPDATE_CONTROLLER)
-    {
-        ret = RequestType::UpdateController;
-    }
-    else if(data == BURN)
-    {
-        ret = RequestType::BurnTokens;
-    }
-    else if(data == DISTRIBUTE)
-    {
-        ret = RequestType::DistributeTokens;
-    }
-    else if(data == WITHDRAW)
-    {
-        ret = RequestType::WithdrawTokens;
-    }
-    else if(data == SEND_TOKENS)
-    {
-        ret = RequestType::SendTokens;
-    }
-    else if(data == ANNOUNCE_CANDIDACY)
-    {
-        ret = RequestType::AnnounceCandidacy;    
-    }
-    else if(data == RENOUNCE_CANDIDACY)
-    {
-        ret = RequestType::RenounceCandidacy;
-    }
-    else if(data == ELECTION_VOTE)
-    {
-        ret = RequestType::ElectionVote;
-    }
-    else
-    {
-        error = true;
-    }
-
-    return ret;
-}
-
-std::string GetRequestTypeField(RequestType type)
-{
-    using namespace::request::fields;
-    std::string ret;
-
-    switch(type)
-    {
-        case RequestType::Send:
-            ret = SEND;
-            break;
-        case RequestType::ChangeRep:
-            ret = CHANGE;
-            break;
-        case RequestType::IssueTokens:
-            ret = ISSUE_TOKENS;
-            break;
-        case RequestType::IssueAdtlTokens:
-            ret = ISSUE_ADTL;
-            break;
-        case RequestType::ImmuteTokenSetting:
-            ret = IMMUTE;
-            break;
-        case RequestType::RevokeTokens:
-            ret = REVOKE;
-            break;
-        case RequestType::FreezeTokens:
-            ret = FREEZE;
-            break;
-        case RequestType::SetTokenFee:
-            ret = SET_FEE;
-            break;
-        case RequestType::UpdateWhitelist:
-            ret = UPDATE_WHITELIST;
-            break;
-        case RequestType::UpdateIssuerInfo:
-            ret = UPDATE_INFO;
-            break;
-        case RequestType::UpdateController:
-            ret = UPDATE_CONTROLLER;
-            break;
-        case RequestType::BurnTokens:
-            ret = BURN;
-            break;
-        case RequestType::DistributeTokens:
-            ret = DISTRIBUTE;
-            break;
-        case RequestType::WithdrawTokens:
-            ret = WITHDRAW;
-            break;
-        case RequestType::SendTokens:
-            ret = SEND_TOKENS;
-            break;
-        case RequestType::AnnounceCandidacy:
-            ret = ANNOUNCE_CANDIDACY;
-            break;
-        case RequestType::RenounceCandidacy:
-            ret = RENOUNCE_CANDIDACY;
-            break;
-        case RequestType::ElectionVote:
-            ret = ELECTION_VOTE;
-            break;
-        case RequestType::Unknown:
-            ret = UNKNOWN;
-            break;
-    }
-
-    return ret;
-}
 
 Request::Request(RequestType type,
                  const AccountAddress & origin,
                  const BlockHash & previous,
+                 const Amount & fee,
+                 uint32_t sequence,
                  const AccountPrivKey & priv,
                  const AccountPubKey & pub)
     : type(type)
     , origin(origin)
     , previous(previous)
+    , fee(fee)
+    , sequence(sequence)
 {
     Sign(priv, pub);
 }
@@ -183,11 +37,15 @@ Request::Request(RequestType type,
 Request::Request(RequestType type,
                  const AccountAddress & origin,
                  const BlockHash & previous,
+                 const Amount & fee,
+                 uint32_t sequence,
                  const AccountSig & signature)
     : type(type)
     , origin(origin)
     , signature(signature)
     , previous(previous)
+    , fee(fee)
+    , sequence(sequence)
 {
     Hash();
 }
@@ -227,6 +85,18 @@ Request::Request(bool & error,
     }
 
     error = logos::read(stream, next);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, fee);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, sequence);
     if(error)
     {
         return;
@@ -272,6 +142,14 @@ Request::Request(bool & error,
             return;
         }
 
+        error = fee.decode_dec(tree.get<std::string>(FEE));
+        if(error)
+        {
+            return;
+        }
+
+        sequence = std::stoul(tree.get<std::string>(SEQUENCE));
+
         Hash();
     }
     catch (...)
@@ -288,6 +166,32 @@ Request::Request(bool & error,
 
     new (this) Request(error, stream);
 }
+logos::AccountType Request::GetAccountType() const
+{
+    return logos::AccountType::LogosAccount;
+}
+
+AccountAddress Request::GetAccount() const
+{
+    return origin;
+}
+
+
+AccountAddress Request::GetSource() const
+{
+    return origin;
+}
+
+Amount Request::GetLogosTotal() const
+{
+    return fee;
+}
+
+uint16_t Request::GetTokenTotal() const
+{
+    return {0};
+}
+
 void Request::Sign(AccountPrivKey const & priv, AccountPubKey const & pub)
 {
     digest = Hash();
@@ -317,6 +221,33 @@ std::string Request::ToJson() const
     return ostream.str();
 }
 
+bool Request::Validate(logos::process_return & result,
+                       std::shared_ptr<logos::Account> info) const
+{
+    return true;
+}
+
+bool Request::Validate(logos::process_return & result) const
+{
+    // Validate the sender account
+    //
+    if(origin.is_zero())
+    {
+        result.code = logos::process_result::opened_burn_account;
+        return false;
+    }
+
+    // Validate the Logos transaction fee
+    //
+    if(fee.number() < MIN_TRANSACTION_FEE)
+    {
+        result.code = logos::process_result::insufficient_fee;
+        return false;
+    }
+
+    return true;
+}
+
 boost::property_tree::ptree Request::SerializeJson() const
 {
     using namespace request::fields;
@@ -327,6 +258,8 @@ boost::property_tree::ptree Request::SerializeJson() const
     tree.put(SIGNATURE, signature.to_string());
     tree.put(PREVIOUS, previous.to_string());
     tree.put(NEXT, next.to_string());
+    tree.put(FEE, fee.to_string_dec());
+    tree.put(SEQUENCE, std::to_string(sequence));
 
     return tree;
 }
@@ -343,7 +276,9 @@ uint64_t Request::Serialize(logos::stream & stream) const
            logos::write(stream, origin) +
            logos::write(stream, signature) +
            logos::write(stream, previous) +
-           logos::write(stream, next);
+           logos::write(stream, next) +
+           logos::write(stream, fee) +
+           logos::write(stream, sequence);
 }
 
 logos::mdb_val Request::SerializeDB(std::vector<uint8_t> & buf) const
@@ -360,9 +295,7 @@ logos::mdb_val Request::SerializeDB(std::vector<uint8_t> & buf) const
 
 BlockHash Request::GetHash() const
 {
-    // TODO: precompute?
-    //
-    return Hash();
+    return digest;
 }
 
 BlockHash Request::Hash() const
@@ -375,7 +308,8 @@ void Request::Hash(blake2b_state & hash) const
     blake2b_update(&hash, &type, sizeof(type));
     previous.Hash(hash);
     origin.Hash(hash);
-    signature.Hash(hash);
+    fee.Hash(hash);
+    blake2b_update(&hash, &sequence, sizeof(sequence));
 }
 
 uint16_t Request::WireSize() const
@@ -390,5 +324,17 @@ uint16_t Request::WireSize() const
            sizeof(origin.bytes) +
            sizeof(signature.bytes) +
            sizeof(previous.bytes) +
-           sizeof(next.bytes);
+           sizeof(next.bytes) +
+           sizeof(fee.bytes);
+}
+
+bool Request::operator==(const Request & other) const
+{
+    return type == other.type
+        && (previous == other.previous)
+        && (next == other.next)
+        && (origin == other.origin)
+        && (fee == other.fee)
+        && (sequence == other.sequence)
+        && (digest == other.digest);
 }

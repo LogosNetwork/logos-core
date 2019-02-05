@@ -7,15 +7,15 @@ RequestHandler::RequestHandler()
     // After startup consensus is performed
     // with an empty batch block.
     //
-    _requests.get<0>().push_back(Send());
+    _requests.get<0>().push_back(std::make_shared<Request>(Request()));
 }
 
-void RequestHandler::OnRequest(std::shared_ptr<Send> request)
+void RequestHandler::OnRequest(RequestPtr request)
 {
     LOG_DEBUG (_log) << "RequestHandler::OnRequest"
                      << request->ToJson();
 
-    _requests.get<0>().push_back(*request);
+    _requests.get<0>().push_back(request);
 }
 
 void RequestHandler::OnPostCommit(const RequestBlock & block)
@@ -40,14 +40,13 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch()
 
     for(auto pos = sequence.begin(); pos != sequence.end(); ++pos)
     {
-        // Null state blocks are used as batch delimiters. When
-        // one is encountered, remove it from the requests
-        // container and close the batch.
-
         LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch requests_size="
                          << sequence.size();
 
-        if(pos->account.is_zero() && pos->transactions.size() == 0)
+        // 'Null' requests are used as batch delimiters. When
+        // one is encountered, remove it from the requests
+        // container and close the batch.
+        if((*pos)->origin.is_zero() && (*pos)->type == RequestType::Unknown)
         {
             sequence.erase(pos);
             break;
@@ -72,7 +71,7 @@ auto RequestHandler::GetCurrentBatch() -> PrePrepare &
     return _current_batch;
 }
 
-void RequestHandler::InsertFront(const std::list<Send> & requests)
+void RequestHandler::InsertFront(const std::list<RequestPtr> & requests)
 {
     auto & sequenced = _requests.get<0>();
 
@@ -86,11 +85,11 @@ void RequestHandler::Acquire(const PrePrepare & batch)
 
     for(uint64_t pos = 0; pos < batch.requests.size(); ++pos)
     {
-        auto & request = *batch.requests[pos];
+        auto & request = batch.requests[pos];
 
-        if(hashed.find(request.GetHash()) == hashed.end())
+        if(hashed.find(request->GetHash()) == hashed.end())
         {
-            sequenced.push_back(static_cast<Send&>(request));
+            sequenced.push_back(request);
         }
     }
 }

@@ -200,23 +200,109 @@ std::unique_ptr<logos::block> logos::deserialize_block (MDB_val const & val_a)
     return deserialize_block (stream);
 }
 
-logos::account_info::account_info ()
+logos::Account::Account ()
     : reservation(0)
     , reservation_epoch(0)
     , head (0)
+    , balance (0)
+    , block_count (0)
+    , modified (0)
+{}
+
+logos::Account::Account (bool & error, const mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
+    error = Deserialize (stream);
+}
+
+logos::Account::Account (
+    block_hash const & head,
+    amount const & balance,
+    uint32_t block_count,
+    uint64_t modified)
+    : head (head)
+    , balance (balance)
+    , block_count (block_count)
+    , modified (modified)
+    , reservation(0)
+    , reservation_epoch(0)
+{}
+
+uint32_t logos::Account::Serialize (stream & stream_a) const
+{
+    auto s = write (stream_a, head.bytes);
+    s += write (stream_a, balance.bytes);
+    s += write (stream_a, block_count);
+    s += write (stream_a, modified);
+    s += write (stream_a, reservation.bytes);
+    s += write (stream_a, reservation_epoch);
+    return s;
+}
+
+bool logos::Account::Deserialize (stream & stream_a)
+{
+    auto error (read (stream_a, head.bytes));
+    if (!error)
+    {
+        error = read (stream_a, balance.bytes);
+        if (!error)
+        {
+            error = read(stream_a, block_count);
+            if (!error)
+            {
+                error = read (stream_a, modified);
+                if (!error)
+                {
+                    auto error(read(stream_a, reservation.bytes));
+                    if (!error)
+                    {
+                        error = read(stream_a, reservation_epoch);
+                    }
+                }
+            }
+        }
+    }
+
+    return error;
+}
+
+bool logos::Account::operator== (Account const & other_a) const
+{
+    return reservation == other_a.reservation &&
+           reservation_epoch == other_a.reservation_epoch &&
+           head == other_a.head &&
+           balance == other_a.balance &&
+           block_count == other_a.block_count &&
+           modified == other_a.modified;
+}
+
+bool logos::Account::operator!= (Account const & other_a) const
+{
+    return !(*this == other_a);
+}
+
+logos::mdb_val logos::Account::to_mdb_val(std::vector<uint8_t> &buf) const
+{
+    assert(buf.empty());
+    {
+        vectorstream stream(buf);
+        Serialize(stream);
+    }
+    return mdb_val(buf.size(), buf.data());
+}
+
+logos::account_info::account_info ()
+    : Account()
     , receive_head (0)
     , rep_block (0)
     , open_block (0)
-    , balance (0)
-    , modified (0)
-    , block_count (0)
     , receive_count (0)
 {}
 
 logos::account_info::account_info (bool & error, const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
-    error = deserialize (stream);
+    error = Deserialize(stream);
 }
 
 logos::account_info::account_info (
@@ -228,36 +314,35 @@ logos::account_info::account_info (
         uint64_t modified_a,
         uint32_t block_count_a,
         uint32_t receive_count_a)
-    : head (head_a)
+    : Account(head_a,
+              balance_a,
+              block_count_a,
+              modified_a)
     , receive_head (receive_head_a)
     , rep_block (rep_block_a)
     , open_block (open_block_a)
-    , balance (balance_a)
-    , modified (modified_a)
-    , block_count (block_count_a)
     , receive_count (receive_count_a)
-    , reservation(0)
-    , reservation_epoch(0)
 {}
 
-uint32_t logos::account_info::serialize (logos::stream & stream_a) const
+uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
 {
-    auto s = write (stream_a, head.bytes);
+    auto s = Account::Serialize(stream_a);
     s += write (stream_a, receive_head.bytes);
     s += write (stream_a, rep_block.bytes);
     s += write (stream_a, open_block.bytes);
-    s += write (stream_a, balance.bytes);
-    s += write (stream_a, htole64(modified));
-    s += write (stream_a, htole32(block_count));
-    s += write (stream_a, htole32(receive_count));
-    s += write (stream_a, reservation.bytes);
-    s += write (stream_a, htole32(reservation_epoch));
+    s += write (stream_a, receive_count);
+    s += write (stream_a, entries.size());
+    for(auto & entry : entries)
+    {
+        s += entry.Serialize(stream_a);
+    }
     return s;
 }
 
-bool logos::account_info::deserialize (logos::stream & stream_a)
+bool logos::account_info::Deserialize(logos::stream &stream_a)
 {
-    auto error (read (stream_a, head.bytes));
+    auto error = Account::Deserialize(stream_a);
+
     if (!error)
     {
         error = read (stream_a, receive_head.bytes);
@@ -269,32 +354,23 @@ bool logos::account_info::deserialize (logos::stream & stream_a)
                 error = read (stream_a, open_block.bytes);
                 if (!error)
                 {
-                    error = read (stream_a, balance.bytes);
                     if (!error)
                     {
-                        uint64_t modified_le = 0;
-                        error = read (stream_a, modified_le);
+                        error = read (stream_a, receive_count);
                         if (!error)
                         {
-                            modified = le64toh(modified_le);
-                            uint32_t block_count_le = 0;
-                            error = read (stream_a, block_count_le);
-                            if (!error)
+                            size_t count;
+                            error = read(stream_a, count);
+
+                            for(size_t i = 0; i < count; ++i)
                             {
-                                block_count = le32toh(block_count_le);
-                                uint32_t receive_count_le = 0;
-                                error = read (stream_a, receive_count_le);
-                                if (!error)
+                                TokenEntry entry(error, stream_a);
+                                if(error)
                                 {
-                                    receive_count = le32toh(receive_count_le);
-                                    auto error (read (stream_a, reservation.bytes));
-                                    if (!error)
-                                    {
-                                        uint32_t reservation_epoch_le = 0;
-                                        error = read (stream_a, reservation_epoch_le);
-                                        reservation_epoch = le32toh(reservation_epoch_le);
-                                    }
+                                    break;
                                 }
+
+                                entries.push_back(entry);
                             }
                         }
                     }
@@ -307,16 +383,11 @@ bool logos::account_info::deserialize (logos::stream & stream_a)
 
 bool logos::account_info::operator== (logos::account_info const & other_a) const
 {
-    return reservation == other_a.reservation &&
-           reservation_epoch == other_a.reservation_epoch &&
-           head == other_a.head &&
-           rep_block == other_a.rep_block &&
+    return rep_block == other_a.rep_block &&
            receive_head == other_a.receive_head &&
            open_block == other_a.open_block &&
-           balance == other_a.balance &&
-           modified == other_a.modified &&
-           block_count == other_a.block_count &&
-           receive_count == other_a.receive_count;
+           receive_count == other_a.receive_count &&
+           Account::operator==(other_a);
 }
 
 bool logos::account_info::operator!= (logos::account_info const & other_a) const
@@ -329,7 +400,7 @@ logos::mdb_val logos::account_info::to_mdb_val(std::vector<uint8_t> &buf) const
     assert(buf.empty());
     {
         logos::vectorstream stream(buf);
-        serialize(stream);
+        Serialize(stream);
     }
     return logos::mdb_val(buf.size(), buf.data());
 }
@@ -447,6 +518,34 @@ logos::mdb_val logos::CandidateInfo::to_mdb_val(std::vector<uint8_t> & buf) cons
     return logos::mdb_val(buf.size(), buf.data());
 }
 //*** end CandidateInfo functions
+bool logos::account_info::GetEntry(const BlockHash & token_id, TokenEntry & val) const
+{
+    bool result;
+
+    std::find_if(entries.begin(), entries.end(),
+                 [&token_id, &val, &result](const TokenEntry & entry)
+                 {
+                     if((result = (entry.token_id == token_id)))
+                     {
+                         val = entry;
+                     }
+
+                     return result;
+                 });
+
+    return result; // True if the entry is found.
+}
+
+logos::account_info::Entries::iterator
+logos::account_info::GetEntry(const BlockHash & token_id)
+{
+    return std::find_if(entries.begin(), entries.end(),
+                        [&token_id](const TokenEntry & entry)
+                        {
+                            return entry.token_id == token_id;
+                        });
+}
+
 logos::block_counts::block_counts () :
 send (0),
 receive (0),
@@ -953,6 +1052,39 @@ std::string logos::ProcessResultToString(logos::process_result result)
         break;
     case process_result::redundant:
         ret = "Setting change is redundant";
+        break;
+    case process_result::insufficient_token_balance:
+        ret = "Token balance is insufficient";
+        break;
+    case process_result::invalid_token_id:
+        ret = "Token ID is invalid";
+        break;
+    case process_result::untethered_account:
+        ret = "User account doesn't have a token balance";
+        break;
+    case process_result::invalid_controller:
+        ret = "Invalid controller specified";
+        break;
+    case process_result::controller_capacity:
+        ret = "Controllers list is full";
+        break;
+    case process_result::invalid_controller_action:
+        ret = "Invalid controller action";
+        break;
+    case process_result::unauthorized_request:
+        ret = "Not authorized to make request";
+        break;
+    case process_result::prohibitted_request:
+        ret = "The request is not allowed";
+        break;
+    case process_result::not_whitelisted:
+        ret = "Whitelisting is required";
+        break;
+    case process_result::frozen:
+        ret = "Account is frozen";
+        break;
+    case process_result::insufficient_token_fee:
+        ret = "Token fee is insufficient";
         break;
     }
 
