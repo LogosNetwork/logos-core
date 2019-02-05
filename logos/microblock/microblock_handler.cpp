@@ -229,13 +229,19 @@ MicroBlockHandler::Build(
 
     if (_store.micro_block_tip_get(previous_micro_block_hash))
     {
-        LOG_FATAL(_log) << "MicroBlockHandler::Build failed to get micro block tip";
+        LOG_FATAL(_log) << "MicroBlockHandler::Build - failed to get micro block tip";
         trace_and_halt();
     }
     if (_store.micro_block_get(previous_micro_block_hash, previous_micro_block))
     {
-        LOG_FATAL(_log) << "MicroBlockHandler::Build failed to get micro block: "
+        LOG_FATAL(_log) << "MicroBlockHandler::Build - failed to get micro block: "
                         << previous_micro_block_hash.to_string();
+        trace_and_halt();
+    }
+    if (previous_micro_block_hash != previous_micro_block.Hash())
+    {
+        LOG_FATAL(_log) << "MicroBlockHandler::Build - detected database corruption. "
+                        << "Stored micro block has a different hash from its DB key";
         trace_and_halt();
     }
 

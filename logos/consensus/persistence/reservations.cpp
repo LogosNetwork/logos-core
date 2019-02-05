@@ -4,6 +4,8 @@
 #include <logos/consensus/persistence/reservations.hpp>
 #include <logos/consensus/consensus_container.hpp>
 
+// TODO: We should only write to database when the program terminates on an uncaught exception;
+//  otherwise we suffer from  a major performance hit
 bool
 Reservations::CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates, MDB_txn * transaction)
 {
