@@ -36,7 +36,10 @@ void
 TxPeerManager::OnConnectionAccepted(const Endpoint endpoint, std::shared_ptr<Socket> socket)
 {
     LOG_DEBUG(_log) << "TxPeerManager::OnConnectionAccepted, accepted from " << endpoint;
-    (_tx_acceptor.*_reader)(socket);
+    if (_tx_acceptor.CanAcceptClientConnection(socket))
+    {
+        (_tx_acceptor.*_reader)(socket);
+    }
 }
 
 TxAcceptor::TxAcceptor(Service &service,
@@ -162,6 +165,7 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
 
     boost::beast::http::async_read(*socket, request->buffer, request->request,
             [this, request](const Error &ec, size_t size){
+        ConnectionsManager m(_cur_connections);
 
         if (request->request.method() != boost::beast::http::verb::post)
         {
@@ -178,7 +182,9 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
         Blocks blocks;
         Responses response;
 
-        auto parse = [this, request, &blocks, &response](Ptree &request_tree) {
+        bool should_buffer = request_tree.get_optional<std::string>("buffer").is_initialized();
+
+        auto parse = [this, request, &blocks, &response, should_buffer](Ptree &request_tree) {
 
             auto block = ToRequest(request_tree.get<std::string>("block"));
 
@@ -189,7 +195,6 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
                 return;
             }
 
-            bool should_buffer = request_tree.get_optional<std::string>("buffer").is_initialized();
 
             ProcessBlock(block, blocks, response, should_buffer);
 
@@ -199,15 +204,15 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
         // request could be malformed
         try
         {
-            try
+            auto tree = request_tree.get_child_optional("blocks");
+            if (tree)
             {
-                auto tree(request_tree.get_child("blocks"));
-                for (auto t : tree)
+                for (auto t : tree.value())
                 {
                     parse(t.second);
                 }
             }
-            catch (...)
+            else
             {
                 LOG_INFO(_log) << "TxAcceptor::AsyncReadJson using backward compatible format of single request";
                 parse(request_tree);
@@ -256,6 +261,8 @@ TxAcceptor::AsyncReadBin(std::shared_ptr<Socket> socket)
 
     boost::asio::async_read(*socket, boost::asio::buffer(hdr_buf->data(), hdr_buf->size()),
             [this, socket, hdr_buf](const Error &ec, size_t size){
+        ConnectionsManager m(_cur_connections);
+
         if (ec)
         {
             LOG_ERROR(_log) << "TxAcceptor::AsyncReadBin error: " << ec.message();
@@ -363,4 +370,21 @@ TxAcceptor::Validate(const std::shared_ptr<Request> & block)
     /// TODO , add proof of work
 
     return logos::process_result::progress;
+}
+
+bool
+TxAcceptor::CanAcceptClientConnection(std::shared_ptr<Socket> socket)
+{
+    if (_cur_connections <= _config.max_connections)
+    {
+        _cur_connections++;
+        return true;
+    }
+
+    socket->close();
+
+    LOG_WARN(_log) << "TxAcceptor::CanAcceptClientConnection exceeded max connections "
+                   << _config.max_connections;
+
+    return false;
 }

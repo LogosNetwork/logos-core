@@ -74,6 +74,13 @@ private:
 /// transasction to the delegate. Delegate TxAcceptor passes transaction to ConsensusContainer (TxChannel).
 class TxAcceptor
 {
+public:
+    /// Checks if a client connection doesn't exceed max_connections
+    /// @param socket accepted socket
+    /// @returns true if the client's connection can be accpted
+    bool CanAcceptClientConnection(std::shared_ptr<boost::asio::ip::tcp::socket> socket);
+
+private:
     friend class TxAcceptorStandalone;
     friend class TxAcceptorDelegate;
 
@@ -162,12 +169,26 @@ class TxAcceptor
         return logos::process_result::progress;
     }
 
+    class ConnectionsManager {
+    public:
+        ConnectionsManager(std::atomic<uint32_t> &cur_connections)
+            : _cur_connections(cur_connections)
+        {}
+        ~ConnectionsManager()
+        {
+            _cur_connections--;
+        }
+
+        std::atomic<uint32_t>&  _cur_connections;
+    };
+
     Service &                       _service;           /// boost asio service reference
     TxPeerManager                   _json_peer;         /// json request connection acceptor
     TxPeerManager                   _bin_peer;          /// binary request connection acceptor
     TxAcceptorConfig                _config;            /// tx acceptor configuration
     std::shared_ptr<TxChannel>      _acceptor_channel;  /// transaction forwarding channel
     Log                             _log;               /// boost log
+    std::atomic<uint32_t>           _cur_connections;   /// count of current connections
 };
 
 /// Standalone parses batch request and sends transactions one at a time.

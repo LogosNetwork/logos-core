@@ -41,6 +41,7 @@ struct TxAcceptorConfig
         acceptor_ip = tree.get<std::string>("acceptor_ip", ip);
         port = tree.get<uint16_t>("port", 56000);
         validate_sig = tree.get<bool>("validate_sig", false);
+        max_connections = tree.get<uint32_t>("max_connections", UINT32_MAX);
 
         return false;
     }
@@ -66,6 +67,7 @@ struct TxAcceptorConfig
         tree.put("acceptor_ip", acceptor_ip);
         tree.put("port", port);
         tree.put("validate_sig", validate_sig);
+        tree.put("max_connections", max_connections);
 
         return false;
     }
@@ -77,4 +79,5 @@ struct TxAcceptorConfig
     uint16_t              json_port=56001;
     uint16_t              bin_port=56002;
     bool                  validate_sig=false;
+    uint32_t              max_connections = UINT32_MAX;
 };
