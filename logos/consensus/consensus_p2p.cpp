@@ -432,18 +432,52 @@ bool ContainerP2p::ProcessInputMessage(const void *data, uint32_t size)
 
 int ContainerP2p::get_peers(int session_id, vector<logos::endpoint> & nodes, uint8_t count)
 {
+    std::lock_guard<std::mutex> lock(_sessions_mutex);
+
     if (session_id == P2P_GET_PEER_NEW_SESSION)
     {
-        return _session_id++;
+        session_id = _session_id++;
+        _sessions[session_id] = 0;
     }
-    else
+
+    int next = _sessions[session_id];
+    char *str_nodes[256];
+
+    count = _p2p.get_peers(&next, str_nodes, count);
+    _sessions[session_id] = next;
+
+    for (uint8_t i = 0; i < count; ++i)
     {
-        return session_id;
+        char *str = str_nodes[i];
+        char *ptr = strrchr(str, ':');
+        unsigned short port = 0;
+
+        if (ptr)
+        {
+            sscanf(ptr + 1, "%hu", &port);
+            *ptr = 0;
+        }
+
+        ptr = str;
+        if (*ptr == '[')
+        {
+            ptr++;
+            ptr[strlen(ptr) - 1] = 0;
+        }
+
+        boost::asio::ip::address addr = boost::asio::ip::address::from_string(ptr);
+        logos::endpoint point(addr, port);
+        nodes.push_back(point);
+        free(str);
     }
+
+    return session_id;
 }
 
 void ContainerP2p::close_session(int session_id)
 {
+    std::lock_guard<std::mutex> lock(_sessions_mutex);
+    _sessions.erase(session_id);
 }
 
 void ContainerP2p::add_to_blacklist(const logos::endpoint & e)

@@ -173,7 +173,9 @@ private:
     PersistenceP2p<ConsensusType::BatchStateBlock>  _batch;
     PersistenceP2p<ConsensusType::MicroBlock>       _micro;
     PersistenceP2p<ConsensusType::Epoch>            _epoch;
-    std::atomic<int>                                _session_id;
+    int                                             _session_id;
+    std::mutex                                      _sessions_mutex;
+    std::map<int,int>                               _sessions;
 
     template<ConsensusType CT>
     friend class ConsensusP2p;

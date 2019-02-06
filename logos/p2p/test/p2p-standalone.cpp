@@ -118,16 +118,42 @@ int main(int argc, char **argv) {
 
 	if (!p2p.Init(config)) return 0;
 	pthread_create(&thread, 0, &io_service_run, &config);
-	printf("Type 'exit' to exit the program or message to send.\n");
+    printf("Type 'exit' to exit the program or message to send; other commands: peers, ban host, banned host.\n");
 
-	for(;;) {
+    for(;;)
+    {
 		printf("Type message: "); fflush(stdout);
 		if (!fgets(buf, 256, stdin)) break;
 		str = buf;
 		while (*str && isspace(*str)) str++;
 		while (*str && isspace(str[strlen(str) - 1])) str[strlen(str) - 1] = 0;
-		if (!strcmp(str, "exit")) break;
-        if (*str) p2p.PropagateMessage(str, strlen(str), true);
+
+        if (!strcmp(str, "exit"))
+        {
+            break;
+        }
+        else if (!strcmp(str, "peers"))
+        {
+            char *node;
+            int next = 0;
+            while (p2p.get_peers(&next, &node, 1))
+            {
+                printf("%d. %s\n", next - 1, node);
+                free(node);
+            }
+        }
+        else if (!memcmp(str, "ban ", 4))
+        {
+            p2p.add_to_blacklist(str + 4);
+        }
+        else if (!memcmp(str, "banned ", 7))
+        {
+            printf("%s\n", p2p.is_blacklisted(str + 7) ? "yes" : "no");
+        }
+        else if (*str)
+        {
+            p2p.PropagateMessage(str, strlen(str), true);
+        }
 	}
 
 	printf("Shutdown...\n");
