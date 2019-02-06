@@ -28,12 +28,14 @@ struct TokenIssuance : TokenRequest
 
     uint16_t WireSize() const override;
 
-    std::string symbol;
-    std::string name;
-    uint16_t    total_supply;
-    Settings    settings;
-    Controllers controllers;
-    std::string issuer_info;
+    std::string  symbol;
+    std::string  name;
+    uint16_t     total_supply;
+    TokenFeeType fee_type;
+    uint16_t     fee_rate;
+    Settings     settings;
+    Controllers  controllers;
+    std::string  issuer_info;
 };
 
 struct TokenIssueAdtl : TokenRequest

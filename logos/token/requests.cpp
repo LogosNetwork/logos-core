@@ -35,6 +35,24 @@ TokenIssuance::TokenIssuance(bool & error,
         return;
     }
 
+    error = logos::read(stream, fee_type);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, fee_rate);
+    if(error)
+    {
+        return;
+    }
+
+    error = settings.Deserialize(stream);
+    if(error)
+    {
+        return;
+    }
+
     uint8_t len;
     error = logos::read(stream, len);
     if(error)
@@ -72,6 +90,14 @@ TokenIssuance::TokenIssuance(bool & error,
         symbol = tree.get<std::string>(SYMBOL);
         name = tree.get<std::string>(NAME);
         total_supply = std::stoul(tree.get<std::string>(TOTAL_SUPPLY));
+
+        fee_type = GetTokenFeeType(error, tree.get<std::string>(FEE_TYPE));
+        if(error)
+        {
+            return;
+        }
+
+        fee_rate = std::stoul(tree.get<std::string>(FEE_RATE));
 
         auto settings_tree = tree.get_child(SETTINGS);
         settings.DeserializeJson(error, settings_tree,
@@ -125,6 +151,8 @@ boost::property_tree::ptree TokenIssuance::SerializeJson() const
     tree.put(SYMBOL, symbol);
     tree.put(NAME, name);
     tree.put(TOTAL_SUPPLY, total_supply);
+    tree.put(FEE_TYPE, GetTokenFeeTypeField(fee_type));
+    tree.put(FEE_RATE, fee_rate);
 
     boost::property_tree::ptree settings_tree(
         settings.SerializeJson([](size_t pos)
@@ -152,6 +180,8 @@ uint64_t TokenIssuance::Serialize(logos::stream & stream) const
            logos::write(stream, symbol) +
            logos::write(stream, name) +
            logos::write(stream, total_supply) +
+           logos::write(stream, fee_type) +
+           logos::write(stream, fee_rate) +
            settings.Serialize(stream) +
            SerializeVector(stream, controllers) +
            logos::write<uint16_t>(stream, issuer_info);
@@ -164,6 +194,8 @@ void TokenIssuance::Hash(blake2b_state & hash) const
     blake2b_update(&hash, symbol.data(), symbol.size());
     blake2b_update(&hash, name.data(), name.size());
     blake2b_update(&hash, &total_supply, sizeof(total_supply));
+    blake2b_update(&hash, &fee_type, sizeof(fee_type));
+    blake2b_update(&hash, &fee_rate, sizeof(fee_rate));
     settings.Hash(hash);
 
     for(size_t i = 0; i < controllers.size(); ++i)
@@ -179,6 +211,8 @@ uint16_t TokenIssuance::WireSize() const
     return StringWireSize(symbol) +
            StringWireSize(name) +
            sizeof(total_supply) +
+           sizeof(fee_type) +
+           sizeof(fee_rate) +
            Settings::WireSize() +
            VectorWireSize(controllers) +
            StringWireSize<InfoSizeT>(issuer_info) +
