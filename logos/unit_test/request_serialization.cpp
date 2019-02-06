@@ -41,6 +41,8 @@ TEST (Request_Serialization, json_deserialization)
         "symbol": "MYC",
         "name": "MyCoin",
         "total_supply": "65000",
+        "fee_type": "percentage",
+        "fee_rate": "5",
         "settings": ["add", "modify_add", "whitelist"],
         "controllers": [
             {
@@ -73,6 +75,8 @@ TEST (Request_Serialization, json_deserialization)
     ASSERT_EQ(issuance.sequence, 1);
     ASSERT_EQ(issuance.symbol, "MYC");
     ASSERT_EQ(issuance.total_supply, 65000);
+    ASSERT_EQ(issuance.fee_type, TokenFeeType::Percentage);
+    ASSERT_EQ(issuance.fee_rate, 5);
     ASSERT_EQ(issuance.controllers.size(), 2);
     ASSERT_TRUE(issuance.settings[size_t(TokenSetting::AddTokens)]);
     ASSERT_FALSE(issuance.settings[size_t(TokenSetting::ModifyWhitelist)]);
