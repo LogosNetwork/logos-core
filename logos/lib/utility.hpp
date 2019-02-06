@@ -166,7 +166,7 @@ struct BitField
     BitField(bool & error,
              std::basic_streambuf<uint8_t> & stream)
     {
-        error = logos::read(stream, field);
+        error = Deserialize(stream);
     }
 
     BitField() = default;
@@ -216,6 +216,11 @@ struct BitField
         }
 
         return tree;
+    }
+
+    bool Deserialize(logos::stream & stream)
+    {
+        return logos::read(stream, field);
     }
 
     uint64_t Serialize(logos::stream & stream) const

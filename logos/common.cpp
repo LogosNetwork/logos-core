@@ -484,8 +484,7 @@ bool logos::account_info::GetEntry(const BlockHash & token_id, TokenEntry & val)
     return result; // True if the entry is found.
 }
 
-logos::account_info::Entries::iterator
-logos::account_info::GetEntry(const BlockHash & token_id)
+auto logos::account_info::GetEntry(const BlockHash & token_id) -> Entries::iterator
 {
     return std::find_if(entries.begin(), entries.end(),
                         [&token_id](const TokenEntry & entry)
