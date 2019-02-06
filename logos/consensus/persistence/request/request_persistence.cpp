@@ -24,9 +24,8 @@ PersistenceManager<R>::PersistenceManager(Store & store,
     }
 }
 
-void PersistenceManager<R>::ApplyUpdates(
-    const ApprovedRB & message,
-    uint8_t delegate_id)
+void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
+                                         uint8_t delegate_id)
 {
     // XXX - Failure during any of the database operations
     //       performed in the following two methods will cause
@@ -51,10 +50,9 @@ void PersistenceManager<R>::ApplyUpdates(
     ApplyRequestBlock(message, transaction);
 }
 
-bool PersistenceManager<R>::Validate(
-    std::shared_ptr<const Request> request,
-    logos::process_return & result,
-    bool allow_duplicates)
+bool PersistenceManager<R>::Validate(RequestPtr request,
+                                     logos::process_return & result,
+                                     bool allow_duplicates)
 {
     auto hash = request->GetHash();
 
@@ -339,8 +337,7 @@ bool PersistenceManager<R>::Validate(
     return true;
 }
 
-bool PersistenceManager<R>::Validate(
-    std::shared_ptr<const Request> request)
+bool PersistenceManager<R>::Validate(RequestPtr request)
 {
     logos::process_return ignored_result;
     auto val = Validate(request, ignored_result);
@@ -351,9 +348,8 @@ bool PersistenceManager<R>::Validate(
     return val;
 }
 
-bool PersistenceManager<R>::Validate(
-    const PrePrepare & message,
-    ValidationStatus * status)
+bool PersistenceManager<R>::Validate(const PrePrepare & message,
+                                     ValidationStatus * status)
 {
     using namespace logos;
 
@@ -373,10 +369,9 @@ bool PersistenceManager<R>::Validate(
     return valid;
 }
 
-void PersistenceManager<R>::StoreRequestBlock(
-    const ApprovedRB & message,
-    MDB_txn * transaction,
-    uint8_t delegate_id)
+void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,
+                                              MDB_txn * transaction,
+                                              uint8_t delegate_id)
 {
     auto hash(message.Hash());
     LOG_DEBUG(_log) << "PersistenceManager::StoreRequestBlock - "
@@ -428,10 +423,9 @@ void PersistenceManager<R>::ApplyRequestBlock(
     }
 }
 
-void PersistenceManager<R>::ApplyRequest(
-    std::shared_ptr<const Request> request,
-    uint64_t timestamp,
-    MDB_txn * transaction)
+void PersistenceManager<R>::ApplyRequest(RequestPtr request,
+                                         uint64_t timestamp,
+                                         MDB_txn * transaction)
 {
     std::shared_ptr<logos::Account> info;
     auto account_error(_store.account_get(request->origin, info, request->GetAccountType()));
@@ -549,9 +543,9 @@ void PersistenceManager<R>::ApplyRequest(
 
             source->balance -= send->GetLogosTotal() - send->fee;
 
-            UpdateDestinationState(send,
-                                   timestamp,
-                                   transaction);
+            ApplySend(send,
+                      timestamp,
+                      transaction);
             break;
         }
         case RequestType::ChangeRep:
@@ -615,11 +609,11 @@ void PersistenceManager<R>::ApplyRequest(
                 // TODO: Log
             }
 
-            UpdateDestinationState(revoke->transaction,
-                                   timestamp,
-                                   transaction,
-                                   revoke->token_id,
-                                   revoke->GetHash());
+            ApplySend(revoke->transaction,
+                      timestamp,
+                      transaction,
+                      revoke->token_id,
+                      revoke->GetHash());
 
             break;
         }
@@ -696,11 +690,11 @@ void PersistenceManager<R>::ApplyRequest(
 
             token_account->token_balance -= distribute->transaction.amount;
 
-            UpdateDestinationState(distribute->transaction,
-                                   timestamp,
-                                   transaction,
-                                   distribute->GetHash(),
-                                   distribute->token_id);
+            ApplySend(distribute->transaction,
+                      timestamp,
+                      transaction,
+                      distribute->GetHash(),
+                      distribute->token_id);
 
             break;
         }
@@ -711,11 +705,11 @@ void PersistenceManager<R>::ApplyRequest(
 
             token_account->token_fee_balance -= withdraw->transaction.amount;
 
-            UpdateDestinationState(withdraw->transaction,
-                                   timestamp,
-                                   transaction,
-                                   withdraw->GetHash(),
-                                   withdraw->token_id);
+            ApplySend(withdraw->transaction,
+                      timestamp,
+                      transaction,
+                      withdraw->GetHash(),
+                      withdraw->token_id);
 
             break;
         }
@@ -729,10 +723,10 @@ void PersistenceManager<R>::ApplyRequest(
 
             entry->balance -= send->GetTokenTotal();
 
-            UpdateDestinationState(send,
-                                   timestamp,
-                                   transaction,
-                                   send->token_id);
+            ApplySend(send,
+                      timestamp,
+                      transaction,
+                      send->token_id);
 
             break;
         }
@@ -752,65 +746,11 @@ void PersistenceManager<R>::ApplyRequest(
 
 }
 
-bool PersistenceManager<R>::UpdateSourceState(
-    std::shared_ptr<const Request> request,
-    MDB_txn * transaction)
-{
-
-    std::shared_ptr<logos::Account> info;
-    auto account_error(_store.account_get(request->origin, info, request->GetAccountType()));
-
-    if(account_error)
-    {
-        LOG_ERROR (_log) << "PersistenceManager::UpdateSourceState - Unable to find account.";
-        return true;
-    }
-
-    // This can happen when a duplicate request
-    // is accepted. We can ignore this transaction.
-    if(request->previous != info->head)
-    {
-        LOG_INFO(_log) << "Block previous ("
-                       << request->previous.to_string()
-                       << ") does not match account head ("
-                       << info->head.to_string()
-                       << "). Suspected duplicate request - "
-                       << "ignoring.";
-        return true;
-    }
-
-    info->block_count++;
-
-    // Send only
-//    info->balance = info->balance.number() -
-//                    request->fee.number();
-//
-//    for(auto & t : request->transactions)
-//    {
-//        info->balance = info->balance.number() - t.amount.number();
-//    }
-
-    info->head = request->GetHash();
-    info->modified = logos::seconds_since_epoch();
-
-    if(_store.account_put(request->GetAccount(), info, request->GetAccountType(), transaction))
-    {
-        LOG_FATAL(_log) << "PersistenceManager::UpdateSourceState - "
-                        << "Failed to store account: "
-                        << request->origin.to_string();
-
-        std::exit(EXIT_FAILURE);
-    }
-
-    return false;
-}
-
 template<typename SendType>
-void PersistenceManager<R>::UpdateDestinationState(
-    std::shared_ptr<const SendType> request,
-    uint64_t timestamp,
-    MDB_txn * transaction,
-    BlockHash token_id)
+void PersistenceManager<R>::ApplySend(std::shared_ptr<const SendType> request,
+                                      uint64_t timestamp,
+                                      MDB_txn *transaction,
+                                      BlockHash token_id)
 {
     // Protects against a race condition concerning
     // simultaneous receives for the same account.
@@ -819,23 +759,22 @@ void PersistenceManager<R>::UpdateDestinationState(
     uint16_t transaction_index = 0;
     for(auto & t : request->transactions)
     {
-        UpdateDestinationState(t,
-                               timestamp,
-                               transaction,
-                               request->GetHash(),
-                               token_id,
-                               transaction_index++);
+        ApplySend(t,
+                  timestamp,
+                  transaction,
+                  request->GetHash(),
+                  token_id,
+                  transaction_index++);
     }
 }
 
 template<typename AmountType>
-void PersistenceManager<R>::UpdateDestinationState(
-    const Transaction<AmountType> & send,
-    uint64_t timestamp,
-    MDB_txn * transaction,
-    const BlockHash & request_hash,
-    const BlockHash & token_id,
-    uint16_t transaction_index)
+void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
+                                      uint64_t timestamp,
+                                      MDB_txn *transaction,
+                                      const BlockHash &request_hash,
+                                      const BlockHash &token_id,
+                                      uint16_t transaction_index)
 {
     logos::account_info info;
     auto account_error(_store.account_get(send.destination, info, transaction));
@@ -852,7 +791,7 @@ void PersistenceManager<R>::UpdateDestinationState(
     if(account_error)
     {
         info.open_block = hash;
-        LOG_DEBUG(_log) << "PersistenceManager::UpdateDestinationState - "
+        LOG_DEBUG(_log) << "PersistenceManager::ApplySend - "
                         << "new account: "
                         << send.destination.to_string();
     }
@@ -880,7 +819,7 @@ void PersistenceManager<R>::UpdateDestinationState(
 
     if(_store.account_put(send.destination, info, transaction))
     {
-        LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
+        LOG_FATAL(_log) << "PersistenceManager::ApplySend - "
                         << "Failed to store account: "
                         << send.destination.to_string();
 
@@ -892,10 +831,9 @@ void PersistenceManager<R>::UpdateDestinationState(
 
 // TODO: Discuss total order of receives in
 //       receive_db of all nodes.
-void PersistenceManager<R>::PlaceReceive(
-    ReceiveBlock & receive,
-    uint64_t timestamp,
-    MDB_txn * transaction)
+void PersistenceManager<R>::PlaceReceive(ReceiveBlock & receive,
+                                         uint64_t timestamp,
+                                         MDB_txn * transaction)
 {
     ReceiveBlock prev;
     ReceiveBlock cur;
@@ -914,7 +852,7 @@ void PersistenceManager<R>::PlaceReceive(
             Send send;
             if(!_store.request_get(b.send_hash, send, transaction))
             {
-                LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
+                LOG_FATAL(_log) << "PersistenceManager::ApplySend - "
                                 << "Failed to get a previous state block with hash: "
                                 << b.send_hash.to_string();
                 trace_and_halt();
@@ -923,7 +861,7 @@ void PersistenceManager<R>::PlaceReceive(
             ApprovedRB approved;
             if(!_store.request_block_get(send.batch_hash, approved, transaction))
             {
-                LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
+                LOG_FATAL(_log) << "PersistenceManager::ApplySend - "
                                 << "Failed to get a previous batch state block with hash: "
                                 << send.batch_hash.to_string();
                 trace_and_halt();
@@ -960,7 +898,7 @@ void PersistenceManager<R>::PlaceReceive(
         Send prev_send;
         if(!_store.request_get(prev.send_hash, prev_send, transaction))
         {
-            LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
+            LOG_FATAL(_log) << "PersistenceManager::ApplySend - "
                             << "Failed to get a previous state block with hash: "
                             << prev.send_hash.to_string();
             trace_and_halt();
@@ -974,7 +912,7 @@ void PersistenceManager<R>::PlaceReceive(
 
     if(_store.receive_put(hash, receive, transaction))
     {
-        LOG_FATAL(_log) << "PersistenceManager::UpdateDestinationState - "
+        LOG_FATAL(_log) << "PersistenceManager::ApplySend - "
                         << "Failed to store receive block with hash: "
                         << hash.to_string();
 

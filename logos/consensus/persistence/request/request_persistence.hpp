@@ -19,6 +19,7 @@ protected:
     using Message         = DelegateMessage<R>;
     using PrePrepare      = PrePrepareMessage<R>;
     using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
+    using RequestPtr      = std::shared_ptr<const Request>;
 
 public:
 
@@ -29,10 +30,10 @@ public:
 
     virtual void ApplyUpdates(const ApprovedRB & message, uint8_t delegate_id);
 
-    virtual bool Validate(std::shared_ptr<const Request> request,
+    virtual bool Validate(RequestPtr request,
                           logos::process_return & result,
                           bool allow_duplicates = true);
-    virtual bool Validate(std::shared_ptr<const Request> request);
+    virtual bool Validate(RequestPtr request);
 
     virtual bool Validate(const PrePrepare & message, ValidationStatus * status = nullptr);
 
@@ -44,26 +45,23 @@ private:
 
     void ApplyRequestBlock(const ApprovedRB & message,
                            MDB_txn * transaction);
-    void ApplyRequest(std::shared_ptr<const Request> request,
+    void ApplyRequest(RequestPtr request,
                       uint64_t timestamp,
                       MDB_txn * transaction);
 
-    bool UpdateSourceState(std::shared_ptr<const Request> request,
-                           MDB_txn * transaction);
-
     template<typename SendType>
-    void UpdateDestinationState(std::shared_ptr<const SendType> request,
-                                uint64_t timestamp,
-                                MDB_txn * transaction,
-                                BlockHash token_id = 0);
+    void ApplySend(std::shared_ptr<const SendType> request,
+                   uint64_t timestamp,
+                   MDB_txn *transaction,
+                   BlockHash token_id = 0);
 
     template<typename AmountType>
-    void UpdateDestinationState(const Transaction<AmountType> & send,
-                                uint64_t timestamp,
-                                MDB_txn * transaction,
-                                const BlockHash & request_hash,
-                                const BlockHash & token_id,
-                                uint16_t transaction_index = 0);
+    void ApplySend(const Transaction<AmountType> &send,
+                   uint64_t timestamp,
+                   MDB_txn *transaction,
+                   const BlockHash &request_hash,
+                   const BlockHash &token_id,
+                   uint16_t transaction_index = 0);
 
     void PlaceReceive(ReceiveBlock & receive,
                       uint64_t timestamp,
