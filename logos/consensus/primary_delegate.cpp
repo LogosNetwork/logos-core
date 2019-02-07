@@ -258,7 +258,13 @@ void PrimaryDelegate::OnCurrentEpochSet()
     }
 
     SetQuorum(_vote_max_fault, _vote_quorum, _vote_total);
+    LOG_INFO(_log) << "VOTE:  total is " << _vote_total
+                   << " quorum is " << _vote_quorum
+                   << " max tolerated fault is " << _vote_max_fault;
     SetQuorum(_stake_max_fault, _stake_quorum, _stake_total);
+    LOG_INFO(_log) << "STAKE: total is " << _stake_total
+                   << " quorum is " << _stake_quorum
+                   << " max tolerated fault is " << _stake_max_fault;
 }
 
 void PrimaryDelegate::UpdateVotes()
@@ -300,18 +306,12 @@ void PrimaryDelegate::SetQuorum(uint128_t & max_fault, uint128_t & quorum, const
 #ifdef STRICT_CONSENSUS_THRESHOLD
     quorum = total;
     max_fault = 0;
-    LOG_INFO(_log) << "Using strict consensus threshold, total is " << total
-                   << " quorum is " << quorum
-                   << " max tolerated fault is " << max_fault;
 #else
     // SYL integration fix:
     // Per PBFT, we tolerate maximum f = floored((total - 1) / 3) faulty replicas,
     // so quorum size is 2f + 1
     max_fault = static_cast<uint128_t>((total - 1) / 3);
     quorum = max_fault * 2 + 1;
-    LOG_INFO(_log) << "Using default consensus threshold, total is " << total
-                   << " quorum is " << quorum
-                   << " max tolerated fault is " << max_fault;
 #endif
 }
 
@@ -361,7 +361,7 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
     if(!Validate(message, remote_delegate_id))
     {
         LOG_WARN(_log) << "PrimaryDelegate - Failed to validate signature for "
-                       << MessageToName(message) << " with hash " << message.Hash()
+                       << MessageToName(message) << " with hash " << GetHashSigned(message).to_string()
                        << " while in state: " << StateToString(_state);
         return ProceedAction::DO_NOTHING;
     }

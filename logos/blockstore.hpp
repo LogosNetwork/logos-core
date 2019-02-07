@@ -116,22 +116,22 @@ public:
     std::unordered_multimap<logos::block_hash, std::shared_ptr<logos::block>> unchecked_cache;
 
     template<typename T> void put(MDB_dbi&, const mdb_val &, const T &, MDB_txn *);
-    template<typename T> void put(MDB_dbi& db, const logos::uint256_union &key_256, const T &t, MDB_txn *tx)
+    template<typename T> void put(MDB_dbi& db, const Byte32Array &key_32b, const T &t, MDB_txn *tx)
     {
-        mdb_val key(key_256);
+        mdb_val key(key_32b);
         put<T>(db, key, t, tx);
     }
     template<typename T> logos::block_hash put(MDB_dbi&, const T &, MDB_txn *);
     template<typename T> bool get(MDB_dbi&, const mdb_val &key, T &, MDB_txn *tx = nullptr);
-    template<typename T> bool get(MDB_dbi& db, const logos::uint256_union &key_256, T &t, MDB_txn *tx = nullptr)
+    template<typename T> bool get(MDB_dbi& db, const Byte32Array &key_32b, T &t, MDB_txn *tx = nullptr)
     {
-        mdb_val key(key_256);
+        mdb_val key(key_32b);
         return get<T>(db,key,t,tx);
     }
     void del(MDB_dbi&, const mdb_val &, MDB_txn * tx);
-    void del(MDB_dbi& db, const logos::uint256_union &key_256, MDB_txn *tx)
+    void del(MDB_dbi& db, const Byte32Array &key_32b, MDB_txn *tx)
     {
-        mdb_val key(key_256);
+        mdb_val key(key_32b);
         del(db, key, tx);
     }
 

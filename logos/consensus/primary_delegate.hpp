@@ -44,6 +44,8 @@ public:
     PrimaryDelegate(Service & service,
                     MessageValidator & validator);
 
+    static void SetQuorum(uint128_t & max_fault, uint128_t & quorum, const uint128_t & total);
+
     template<typename M>
     void OnConsensusMessage(const M & message, uint8_t remote_delegate_id)
     {
@@ -87,7 +89,6 @@ protected:
     bool StateReadyForConsensus();
     void CancelTimer();
 
-    void SetQuorum(uint128_t & max_fault, uint128_t & quorum, const uint128_t & total);
     bool ReachedQuorum(uint128_t vote, uint128_t stake);
 
     // TODO: Revert to std::mutex after
