@@ -5,9 +5,9 @@
 #include <ios>
 
 TokenAccount::TokenAccount(const TokenIssuance & issuance)
-//    : token_fee_type(issuance.fee_type)
-//    , token_fee_rate(issuance.fee_rate)
-    : symbol(issuance.symbol)
+    : fee_type(issuance.fee_type)
+    , fee_rate(issuance.fee_rate)
+    , symbol(issuance.symbol)
     , name(issuance.name)
     , issuer_info(issuance.issuer_info)
     , controllers(issuance.controllers)

@@ -1444,7 +1444,7 @@ _consensus_container(service_a, store, alarm_a, config.consensus_manager_config,
             boost::property_tree::ptree tree;
             std::stringstream istream(logos::logos_test_genesis);
             boost::property_tree::read_json(istream, tree);
-            Send logos_genesis_block(error, tree, true, true);
+            Send logos_genesis_block(error, tree);
 
             if(error)
             {

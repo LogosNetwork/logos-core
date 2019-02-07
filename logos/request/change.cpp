@@ -3,6 +3,20 @@
 #include <logos/request/fields.hpp>
 
 Change::Change(bool & error,
+               const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
+
+Change::Change(bool & error,
                std::basic_streambuf<uint8_t> & stream)
     : Request(error, stream)
 {
@@ -11,13 +25,13 @@ Change::Change(bool & error,
         return;
     }
 
-    error = logos::read(stream, client);
+    Deserialize(error, stream);
     if(error)
     {
         return;
     }
 
-    error = logos::read(stream, representative);
+    Request::Hash();
 }
 
 Change::Change(bool & error,
@@ -40,6 +54,13 @@ Change::Change(bool & error,
         }
 
         error = representative.decode_account(tree.get<std::string>(REPRESENTATIVE));
+
+        if(error)
+        {
+            return;
+        }
+
+        Request::Hash();
     }
     catch(...)
     {
@@ -61,9 +82,30 @@ boost::property_tree::ptree Change::SerializeJson() const
 
 uint64_t Change::Serialize(logos::stream & stream) const
 {
-    return Request::Serialize(stream) +
-           logos::write(stream, client) +
+    return logos::write(stream, client) +
            logos::write(stream, representative);
+}
+
+void Change::Deserialize(bool & error, logos::stream & stream)
+{
+    error = logos::read(stream, client);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, representative);
+}
+
+void Change::DeserializeDB(bool &error, logos::stream &stream)
+{
+    Request::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
 }
 
 void Change::Hash(blake2b_state & hash) const

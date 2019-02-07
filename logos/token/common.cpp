@@ -13,7 +13,7 @@ TokenRequest::TokenRequest(bool & error,
         return;
     }
 
-    error = read(stream, token_id);
+    Deserialize(error, stream);
 }
 
 TokenRequest::TokenRequest(bool & error,
@@ -83,8 +83,23 @@ boost::property_tree::ptree TokenRequest::SerializeJson() const
 
 uint64_t TokenRequest::Serialize(logos::stream & stream) const
 {
-    return Request::Serialize(stream) +
-           logos::write(stream, token_id);
+    return logos::write(stream, token_id);
+}
+
+void TokenRequest::Deserialize(bool & error, logos::stream & stream)
+{
+    error = read(stream, token_id);
+}
+
+void TokenRequest::DeserializeDB(bool & error, logos::stream & stream)
+{
+    Request::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
 }
 
 void TokenRequest::Hash(blake2b_state & hash) const

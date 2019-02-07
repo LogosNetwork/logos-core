@@ -17,6 +17,23 @@ using namespace boost::multiprecision::literals;
 
 constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
 
+Request::Locator::Locator(bool & error,
+                          logos::stream & stream)
+{
+    error = logos::read(stream, hash);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, index);
+}
+
+uint64_t Request::Locator::Serialize(logos::stream & stream)
+{
+    return logos::write(stream, hash) +
+           logos::write(stream, index);
+}
 
 Request::Request(RequestType type,
                  const AccountAddress & origin,
@@ -46,64 +63,21 @@ Request::Request(RequestType type,
     , previous(previous)
     , fee(fee)
     , sequence(sequence)
+{}
+
+Request::Request(bool & error,
+                 const logos::mdb_val & mdbval)
 {
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+    DeserializeDB(error, stream);
     Hash();
 }
 
 Request::Request(bool & error,
-                 std::basic_streambuf<uint8_t> & stream)
+                 logos::stream & stream)
 {
-
-    error = logos::read(stream, type);
-    if(error)
-    {
-        return;
-    }
-
-    uint16_t size;
-    error = logos::read(stream, size);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, origin);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, signature);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, previous);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, next);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, fee);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, sequence);
-    if(error)
-    {
-        return;
-    }
-
-    Hash ();
+    DoDeserialize(error, stream);
 }
 
 Request::Request(bool & error,
@@ -159,14 +133,6 @@ Request::Request(bool & error,
     }
 }
 
-Request::Request(bool & error,
-                 const logos::mdb_val & mdbval)
-{
-    logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()),
-            mdbval.size());
-
-    new (this) Request(error, stream);
-}
 logos::AccountType Request::GetAccountType() const
 {
     return logos::AccountType::LogosAccount;
@@ -176,7 +142,6 @@ AccountAddress Request::GetAccount() const
 {
     return origin;
 }
-
 
 AccountAddress Request::GetSource() const
 {
@@ -222,6 +187,131 @@ std::string Request::ToJson() const
     return ostream.str();
 }
 
+uint64_t Request::ToStream(logos::stream & stream) const
+{
+    return DoSerialize(stream) +
+           Serialize(stream);
+}
+
+logos::mdb_val Request::ToDatabase(std::vector<uint8_t> & buf) const
+{
+    assert(buf.empty());
+
+    {
+        logos::vectorstream stream(buf);
+
+        DoSerialize(stream);
+        locator.Serialize(stream);
+        Serialize(stream);
+    }
+
+    return {buf.size(), buf.data()};
+}
+
+void Request::DeserializeDB(bool &error, logos::stream &stream)
+{
+    DoDeserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    locator = Locator(error, stream);
+}
+
+boost::property_tree::ptree Request::SerializeJson() const
+{
+    using namespace request::fields;
+    boost::property_tree::ptree tree;
+
+    tree.put(TYPE, GetRequestTypeField(type));
+    tree.put(ORIGIN, origin.to_account());
+    tree.put(SIGNATURE, signature.to_string());
+    tree.put(PREVIOUS, previous.to_string());
+    tree.put(NEXT, next.to_string());
+    tree.put(FEE, fee.to_string_dec());
+    tree.put(SEQUENCE, std::to_string(sequence));
+
+    return tree;
+}
+
+uint64_t Request::DoSerialize(logos::stream & stream) const
+{
+    return logos::write(stream, type) +
+
+           // An additional field is added
+           // to the stream to denote the
+           // total size of the request.
+           //
+           logos::write(stream, WireSize()) +
+           logos::write(stream, origin) +
+           logos::write(stream, signature) +
+           logos::write(stream, previous) +
+           logos::write(stream, next) +
+           logos::write(stream, fee) +
+           logos::write(stream, sequence);
+}
+
+// This is only implemented to prevent
+// Request from being an abstract class.
+uint64_t Request::Serialize(logos::stream & stream) const
+{
+    return 0;
+}
+
+void Request::DoDeserialize(bool & error, logos::stream & stream)
+{
+    error = logos::read(stream, type);
+    if(error)
+    {
+        return;
+    }
+
+    uint16_t size;
+    error = logos::read(stream, size);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, origin);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, previous);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, fee);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, sequence);
+}
+
+void Request::Deserialize(bool & error, logos::stream & stream)
+{
+    DoDeserialize(error, stream);
+}
+
 bool Request::Validate(logos::process_return & result,
                        std::shared_ptr<logos::Account> info) const
 {
@@ -247,51 +337,6 @@ bool Request::Validate(logos::process_return & result) const
     }
 
     return true;
-}
-
-boost::property_tree::ptree Request::SerializeJson() const
-{
-    using namespace request::fields;
-    boost::property_tree::ptree tree;
-
-    tree.put(TYPE, GetRequestTypeField(type));
-    tree.put(ORIGIN, origin.to_account());
-    tree.put(SIGNATURE, signature.to_string());
-    tree.put(PREVIOUS, previous.to_string());
-    tree.put(NEXT, next.to_string());
-    tree.put(FEE, fee.to_string_dec());
-    tree.put(SEQUENCE, std::to_string(sequence));
-
-    return tree;
-}
-
-uint64_t Request::Serialize(logos::stream & stream) const
-{
-    return logos::write(stream, type) +
-
-           // An additional field is added
-           // to the stream to denote the
-           // total size of the request.
-           //
-           logos::write(stream, WireSize()) +
-           logos::write(stream, origin) +
-           logos::write(stream, signature) +
-           logos::write(stream, previous) +
-           logos::write(stream, next) +
-           logos::write(stream, fee) +
-           logos::write(stream, sequence);
-}
-
-logos::mdb_val Request::SerializeDB(std::vector<uint8_t> & buf) const
-{
-    assert(buf.empty());
-
-    {
-        logos::vectorstream stream(buf);
-        Serialize(stream);
-    }
-
-    return {buf.size(), buf.data()};
 }
 
 BlockHash Request::GetHash() const

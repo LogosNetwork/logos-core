@@ -43,6 +43,8 @@ TEST (Request_Serialization, json_deserialization)
         "symbol": "MYC",
         "name": "MyCoin",
         "total_supply": "65000",
+        "fee_type": "percentage",
+        "fee_rate": "5",
         "settings": ["add", "modify_add", "whitelist"],
         "controllers": [
             {
@@ -75,6 +77,8 @@ TEST (Request_Serialization, json_deserialization)
     ASSERT_EQ(issuance.sequence, 1);
     ASSERT_EQ(issuance.symbol, "MYC");
     ASSERT_EQ(issuance.total_supply, 65000);
+    ASSERT_EQ(issuance.fee_type, TokenFeeType::Percentage);
+    ASSERT_EQ(issuance.fee_rate, 5);
     ASSERT_EQ(issuance.controllers.size(), 2);
     ASSERT_TRUE(issuance.settings[size_t(TokenSetting::AddTokens)]);
     ASSERT_FALSE(issuance.settings[size_t(TokenSetting::ModifyWhitelist)]);
@@ -652,7 +656,7 @@ TEST (Request_Serialization, election_requests_json)
     std::vector<uint8_t> buf;
     {
         logos::vectorstream write_stream(buf);
-        uint64_t size = ev.Serialize(write_stream);
+        uint64_t size = ev.ToStream(write_stream);
     }
 
     logos::bufferstream read_stream(buf.data(), buf.size());
@@ -681,14 +685,14 @@ TEST (Request_Serialization, election_requests_stream)
         {
             logos::vectorstream write_stream(buf);
             uint64_t size = p.Serialize(write_stream);
-            ASSERT_EQ(size,p.WireSize());
+            EXPECT_EQ(size,p.WireSize());
         }
 
         logos::bufferstream read_stream(buf.data(), buf.size());
         bool error = false;
         ElectionVote::CandidateVotePair p2(error,read_stream);
-        ASSERT_FALSE(error);
-        ASSERT_EQ(p,p2);
+        EXPECT_FALSE(error);
+        EXPECT_EQ(p,p2);
     }
 
     //no votes
@@ -703,15 +707,18 @@ TEST (Request_Serialization, election_requests_stream)
         std::vector<uint8_t> buf;
         {
             logos::vectorstream write_stream(buf);
-            uint64_t size = req.Serialize(write_stream);
-            ASSERT_EQ(size,req.WireSize());
+            uint64_t size = req.ToStream(write_stream);
+            EXPECT_EQ(size,req.WireSize());
         }
 
         logos::bufferstream read_stream(buf.data(), buf.size());
         bool error = false;
         Request req2(error,read_stream);
-        ASSERT_FALSE(error);
-        ASSERT_EQ(req,req2);
+        EXPECT_FALSE(error);
+        EXPECT_EQ(req.type,req2.type);
+        EXPECT_EQ(req.previous,req2.previous);
+        EXPECT_EQ(req.next,req2.next);
+        EXPECT_EQ(req,req2);
     }
 
     ElectionVote ev(address,prev1,fee,sequence,sig1);
@@ -719,15 +726,23 @@ TEST (Request_Serialization, election_requests_stream)
         std::vector<uint8_t> buf;
         {
             logos::vectorstream write_stream(buf);
-            uint64_t size = ev.Serialize(write_stream);
-            ASSERT_EQ(size,ev.WireSize());
+            uint64_t size = ev.ToStream(write_stream);
+            EXPECT_EQ(size,ev.WireSize());
         }
 
         logos::bufferstream read_stream(buf.data(), buf.size());
         bool error = false;
         ElectionVote ev2(error,read_stream);
-        ASSERT_FALSE(error);
-        ASSERT_EQ(ev,ev2);
+        EXPECT_FALSE(error);
+        EXPECT_EQ(ev.votes_,ev2.votes_);
+        EXPECT_EQ(ev.type,ev2.type);
+        EXPECT_EQ(ev.previous,ev2.previous);
+        EXPECT_EQ(ev.next,ev2.next);
+        EXPECT_EQ(ev.signature,ev2.signature);
+        EXPECT_EQ(ev.fee,ev2.fee);
+        EXPECT_EQ(ev.sequence,ev2.sequence);
+        EXPECT_EQ(ev.digest,ev2.digest);
+        EXPECT_EQ(ev,ev2);
     }
 
 
@@ -739,19 +754,28 @@ TEST (Request_Serialization, election_requests_stream)
     std::vector<ElectionVote::CandidateVotePair> votes = {p1,p2,p3,p4};
 
     ev.votes_ = votes;
+    ev.Hash(); //recompute the digest since we are changing the request
     {
         std::vector<uint8_t> buf;
         {
             logos::vectorstream write_stream(buf);
-            uint64_t size = ev.Serialize(write_stream);
-            ASSERT_EQ(size,ev.WireSize());
+            uint64_t size = ev.ToStream(write_stream);
+            EXPECT_EQ(size,ev.WireSize());
         }
 
         logos::bufferstream read_stream(buf.data(), buf.size());
         bool error = false;
         ElectionVote ev2(error,read_stream);
-        ASSERT_FALSE(error);
-        ASSERT_EQ(ev,ev2);
+        EXPECT_FALSE(error);
+        EXPECT_EQ(ev.votes_,ev2.votes_);
+        EXPECT_EQ(ev.type,ev2.type);
+        EXPECT_EQ(ev.previous,ev2.previous);
+        EXPECT_EQ(ev.next,ev2.next);
+        EXPECT_EQ(ev.signature,ev2.signature);
+        EXPECT_EQ(ev.fee,ev2.fee);
+        EXPECT_EQ(ev.sequence,ev2.sequence);
+        EXPECT_EQ(ev.digest,ev2.digest);
+        EXPECT_EQ(ev,ev2);
     }
 
 
@@ -784,18 +808,22 @@ TEST (Request_Serialization, election_requests_stream)
                 size += logos::write(write_stream, v.num_votes);
             }
 
-            ASSERT_EQ(size,ev.WireSize());
+            EXPECT_EQ(size,ev.WireSize());
         }
 
         logos::bufferstream read_stream(buf.data(), buf.size());
         bool error = false;
         ElectionVote ev2(error,read_stream);
-        ASSERT_FALSE(error);
-        ASSERT_EQ(ev.votes_,ev2.votes_);
-        ASSERT_EQ(ev.type,ev2.type);
-        ASSERT_EQ(ev.previous,ev2.previous);
-        ASSERT_EQ(ev.next,ev2.next);
-        ASSERT_EQ(ev,ev2);
+        EXPECT_FALSE(error);
+        EXPECT_EQ(ev.votes_,ev2.votes_);
+        EXPECT_EQ(ev.type,ev2.type);
+        EXPECT_EQ(ev.previous,ev2.previous);
+        EXPECT_EQ(ev.next,ev2.next);
+        EXPECT_EQ(ev.signature,ev2.signature);
+        EXPECT_EQ(ev.fee,ev2.fee);
+        EXPECT_EQ(ev.sequence,ev2.sequence);
+        EXPECT_EQ(ev.digest,ev2.digest);
+        EXPECT_EQ(ev,ev2);
     }
     
 

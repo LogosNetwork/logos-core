@@ -61,14 +61,13 @@ struct Send : Request
     /// @param with_batch_hash if the property_tree should contain the batch_hash
     /// @param with_work if the property_tree should contain the prove of work
     Send(bool & error,
-         const boost::property_tree::ptree & tree,
-         bool with_batch_hash = false,
-         bool with_work = false);
+         const boost::property_tree::ptree & tree);
 
     /// Constructor from deserializing a buffer read from the database
     /// @param error it will be set to true if deserialization fail [out]
     /// @param mdbval the buffer read from the database
-    Send(bool & error, const logos::mdb_val & mdbval);
+    Send(bool & error,
+         const logos::mdb_val & mdbval);
 
     /// Class constructor
     /// construct from deserializing a stream which was decoded from a Json string
@@ -76,8 +75,7 @@ struct Send : Request
     /// @param stream the stream containing serialized data [in]
     /// @param with_batch_hash if the serialized data should have the batch_hash [in]
     Send (bool & error,
-          logos::stream & stream,
-          bool with_batch_hash = false);
+          logos::stream & stream);
 
     Amount GetLogosTotal() const override;
 
@@ -104,15 +102,13 @@ struct Send : Request
 
     /// Serialize the data members to a stream
     /// @param stream the stream to serialize to
-    /// @param with_batch_hash if batch_hash should be serialized
     /// @returns the number of bytes serialized
     uint64_t Serialize (logos::stream & stream) const override;
+    void Deserialize(bool & error, logos::stream & stream) override;
+    void DeserializeDB(bool &error, logos::stream &stream) override;
 
     static const uint8_t MAX_TRANSACTIONS = 8;
 
     Transactions      transactions;
-    AccountSig        signature;
     uint64_t          work = 0;
-    mutable BlockHash batch_hash = 0;
-    mutable uint16_t  index_in_batch = 0;
 };

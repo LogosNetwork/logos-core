@@ -11,7 +11,9 @@ AnnounceCandidacy::AnnounceCandidacy(
     : Request(
             RequestType::AnnounceCandidacy,
             origin, previous, fee, sequence, priv, pub)
-{}  
+{
+    Hash();
+}  
 
 AnnounceCandidacy::AnnounceCandidacy(
             const AccountAddress & origin,
@@ -22,19 +24,23 @@ AnnounceCandidacy::AnnounceCandidacy(
     : Request(
             RequestType::AnnounceCandidacy,
             origin, previous, fee, sequence, sig)
-{}  
+{
+    Hash();
+}  
 
 AnnounceCandidacy::AnnounceCandidacy(bool & error,
             std::basic_streambuf<uint8_t> & stream) : Request(error, stream)
 {
     //ensure type is correct
     error = error || type != RequestType::AnnounceCandidacy;
+    Hash();
 }
 
 AnnounceCandidacy::AnnounceCandidacy(bool & error,
             boost::property_tree::ptree const & tree) : Request(error, tree)
 {
     error = error || type != RequestType::AnnounceCandidacy;
+    Hash();
 }
 
 RenounceCandidacy::RenounceCandidacy(
@@ -47,7 +53,9 @@ RenounceCandidacy::RenounceCandidacy(
     : Request(
             RequestType::RenounceCandidacy,
             origin, previous, fee, sequence, priv, pub)
-{}  
+{
+    Hash();
+}  
 
 RenounceCandidacy::RenounceCandidacy(
             const AccountAddress & origin,
@@ -58,18 +66,23 @@ RenounceCandidacy::RenounceCandidacy(
     : Request(
             RequestType::RenounceCandidacy,
             origin, previous, fee, sequence, sig)
-{} 
+{
+
+    Hash();
+} 
 
 RenounceCandidacy::RenounceCandidacy(bool & error,
             std::basic_streambuf<uint8_t> & stream) : Request(error, stream)
 {
     error = error || type != RequestType::RenounceCandidacy;
+    Hash();
 }
 
 RenounceCandidacy::RenounceCandidacy(bool & error,
             boost::property_tree::ptree const & tree) : Request(error, tree)
 {
     error = error || type != RequestType::RenounceCandidacy;
+    Hash();
 }
 
 
@@ -83,7 +96,9 @@ ElectionVote::ElectionVote(
     : Request(
             RequestType::ElectionVote,
             origin, previous, fee, sequence, priv, pub)
-{}
+{
+    Hash();
+}
 
 ElectionVote::ElectionVote(
         const AccountAddress & origin,
@@ -94,7 +109,9 @@ ElectionVote::ElectionVote(
     : Request(
             RequestType::ElectionVote,
             origin, previous, fee, sequence, signature)
-{}
+{
+    Hash();
+}
 
 ElectionVote::ElectionVote(bool & error,
             std::basic_streambuf<uint8_t> & stream) : Request(error, stream)
@@ -103,24 +120,15 @@ ElectionVote::ElectionVote(bool & error,
     {
         return;
     } 
-
-    uint8_t count;
-    error = logos::read(stream, count);
+    Deserialize(error, stream);
     if(error)
     {
         return;
     }
 
-    for(size_t i = 0; i < count; ++i)
-    {
-        CandidateVotePair vote(error, stream);
-        if(error)
-        {
-            return;
-        }
-        votes_.push_back(vote);
-    }
     Hash();
+
+
 }
 
 
@@ -148,6 +156,7 @@ ElectionVote::ElectionVote(bool & error,
             CandidateVotePair vp(candidate, vote_val);
             votes_.push_back(vp);
         }
+        Hash();
     }
     catch(std::runtime_error const &)
     {
@@ -161,7 +170,13 @@ ElectionVote::ElectionVote(bool & error,
     logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()),
             mdbval.size());
 
-    new (this) ElectionVote(error, stream);
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Hash();
 }
 
 
@@ -207,15 +222,45 @@ boost::property_tree::ptree ElectionVote::SerializeJson() const
 
 uint64_t ElectionVote::Serialize(logos::stream & stream) const
 {
-   
-   uint64_t val = Request::Serialize(stream);
    uint8_t count = votes_.size(); //TODO: this is not safe if size is too big
-   val += logos::write(stream, count);
+   uint64_t val = logos::write(stream, count);
    for(auto const & v : votes_)
    {
         val += v.Serialize(stream);
    }
    return val;
+}
+
+void ElectionVote::Deserialize(bool & error, logos::stream & stream)
+{
+    uint8_t count;
+    error = logos::read(stream, count);
+    if(error)
+    {
+        return;
+    }
+
+
+    for(size_t i = 0; i < count; ++i)
+    {
+        CandidateVotePair vote(error, stream);
+        if(error)
+        {
+            return;
+        }
+        votes_.push_back(vote);
+    }
+}
+
+void ElectionVote::DeserializeDB(bool & error, logos::stream & stream)
+{
+    Request::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
 }
 
 bool ElectionVote::operator==(const ElectionVote& other) const

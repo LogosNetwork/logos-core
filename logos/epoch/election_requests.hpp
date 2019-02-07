@@ -88,6 +88,11 @@ struct ElectionVote : Request
 
     uint64_t Serialize(logos::stream & stream) const override;
 
+    void Deserialize(bool & error, logos::stream & stream) override;
+
+    void DeserializeDB(bool & error, logos::stream & stream) override;
+
+
     bool operator==(const ElectionVote & other) const;
 
     bool operator!=(const ElectionVote & other) const;
