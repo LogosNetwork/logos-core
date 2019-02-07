@@ -26,7 +26,7 @@ struct TokenIssuance : TokenRequest
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
     void Hash(blake2b_state & hash) const override;
@@ -60,7 +60,7 @@ struct TokenIssueAdtl : TokenRequest
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
     void Hash(blake2b_state & hash) const override;
@@ -85,7 +85,7 @@ struct TokenChangeSetting : TokenRequest
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
     void Hash(blake2b_state & hash) const override;
@@ -111,7 +111,7 @@ struct TokenImmuteSetting : TokenRequest
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
     void Hash(blake2b_state & hash) const override;
@@ -144,7 +144,7 @@ struct TokenRevoke : TokenRequest
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
     void Hash(blake2b_state & hash) const override;
@@ -170,7 +170,7 @@ struct TokenFreeze : TokenRequest
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
     void Hash(blake2b_state & hash) const override;
@@ -196,7 +196,7 @@ struct TokenSetFee : TokenRequest
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
     void Hash(blake2b_state & hash) const override;
@@ -222,7 +222,7 @@ struct TokenWhitelist : TokenRequest
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
     void Hash(blake2b_state & hash) const override;
@@ -247,7 +247,7 @@ struct TokenIssuerInfo : TokenRequest
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
     void Hash(blake2b_state & hash) const override;
@@ -276,7 +276,7 @@ struct TokenController : TokenRequest
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
     void Hash(blake2b_state & hash) const override;
@@ -310,7 +310,7 @@ struct TokenBurn : TokenRequest
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
     void Hash(blake2b_state & hash) const override;
@@ -342,7 +342,7 @@ struct TokenAccountSend : TokenRequest
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
     void Hash(blake2b_state & hash) const override;
@@ -374,7 +374,7 @@ struct TokenAccountWithdrawFee : TokenRequest
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
     void Hash(blake2b_state & hash) const override;
@@ -412,7 +412,7 @@ struct TokenSend : TokenRequest
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
     void Hash(blake2b_state & hash) const override;
