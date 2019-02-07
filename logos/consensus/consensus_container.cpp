@@ -150,6 +150,7 @@ ConsensusContainer::OnSendRequest(
         return result;
     }
 
+    block->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
     _cur_epoch->_micro_manager.OnSendRequest(
         std::static_pointer_cast<Request>(block), result);;
 
@@ -172,6 +173,7 @@ ConsensusContainer::OnSendRequest(
         return result;
     }
 
+    block->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
     _cur_epoch->_epoch_manager.OnSendRequest(
             std::static_pointer_cast<Request>(block), result);;
 

@@ -107,6 +107,8 @@ inline std::string RejectionReasonToName(RejectionReason reason)
             return "Wrong Sequence Number";
         case RejectionReason::Invalid_Previous_Hash:
             return "Invalid Previous Hash";
+        case RejectionReason::Invalid_Primary_Index:
+            return "Invalid Primary Index";
     }
 }
 

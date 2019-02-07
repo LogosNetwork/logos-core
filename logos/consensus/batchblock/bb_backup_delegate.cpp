@@ -129,6 +129,7 @@ BBBackupDelegate::Reject()
     case RejectionReason::Wrong_Sequence_Number:
     case RejectionReason::Invalid_Epoch:
     case RejectionReason::New_Epoch:
+    case RejectionReason::Invalid_Primary_Index:
         Rejection msg(_pre_prepare_hash);
         DoUpdateMessage(msg);
         _validator.Sign(msg.Hash(), msg.signature);
@@ -149,6 +150,7 @@ BBBackupDelegate::HandleReject(const PrePrepare & message)
         case RejectionReason::Invalid_Previous_Hash:
         case RejectionReason::Wrong_Sequence_Number:
         case RejectionReason::Invalid_Epoch:
+        case RejectionReason::Invalid_Primary_Index:
             break;
         case RejectionReason::New_Epoch:
             if (_events_notifier.GetDelegate() == EpochTransitionDelegate::PersistentReject)
