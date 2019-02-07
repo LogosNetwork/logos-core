@@ -148,9 +148,9 @@ bool PersistenceManager<BSBCT>::ValidateRequest(
         LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash (" << block.previous.to_string()
                         << ") and current account info head (" << info.head.to_string() << ")";
 
-        // Allow duplicate requests (hash == info.head)
+        // Allow duplicate requests (either hash == info.head or hash matches a transaction further up in the chain)
         // received from batch blocks.
-        if(hash == info.head)
+        if(hash == info.head || _store.state_block_exists(hash))
         {
             if(allow_duplicates)
             {
@@ -168,13 +168,6 @@ bool PersistenceManager<BSBCT>::ValidateRequest(
             result.code = logos::process_result::fork;
             return false;
         }
-    }
-
-    // Have we seen this block before?
-    if(_store.state_block_exists(hash))
-    {
-        result.code = logos::process_result::old;
-        return false;
     }
 
     auto total = block.transaction_fee.number();
@@ -222,9 +215,9 @@ bool PersistenceManager<BSBCT>::ValidateBatch(
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
 #ifdef TEST_REJECT
-        if(!ValidateAndUpdate(static_cast<const Request&>(*message.blocks[i]), ignored_result) || bool(message.blocks[i].hash().number() & 1))
+        if(!ValidateAndUpdate(static_cast<const Request&>(*message.blocks[i]), ignored_result, true) || bool(message.blocks[i].hash().number() & 1))
 #else
-        if(!ValidateAndUpdate(static_cast<const Request&>(*message.blocks[i]), ignored_result))
+        if(!ValidateAndUpdate(static_cast<const Request&>(*message.blocks[i]), ignored_result, true))
 #endif
         {
             LOG_WARN(_log) << "PersistenceManager<BSBCT>::Validate - Rejecting " << message.blocks[i]->GetHash().to_string();
@@ -339,17 +332,29 @@ bool PersistenceManager<BSBCT>::UpdateSourceState(
         return true;
     }
 
+    auto hash = block.GetHash();
+
     // This can happen when a duplicate request
     // is accepted. We can ignore this transaction.
     if(block.previous != info.head)
     {
-        LOG_INFO(_log) << "PersistenceManager::UpdateSourceState - Block previous ("
-                       << block.previous.to_string()
-                       << ") does not match account head ("
-                       << info.head.to_string()
-                       << "). Suspected duplicate request - "
-                       << "ignoring.";
-        return true;
+        if(hash == info.head || _store.state_block_exists(hash))
+        {
+            LOG_INFO(_log) << "PersistenceManager::UpdateSourceState - Block hash: "
+                           << hash.to_string()
+                           << ", account head: "
+                           << info.head.to_string()
+                           << " - Suspected duplicate request - "
+                           << "ignoring old block.";
+            return true;
+        }
+        // Somehow a fork slipped through
+        else
+        {
+            LOG_FATAL(_log) << "PersistenceManager::UpdateSourceState - encountered fork with hash "
+                            << hash.to_string();
+            trace_and_halt();
+        }
     }
 
     info.block_count++;
@@ -361,7 +366,7 @@ bool PersistenceManager<BSBCT>::UpdateSourceState(
         info.balance = info.balance.number() - t.amount.number();
     }
 
-    info.head = block.GetHash();
+    info.head = hash;
     info.modified = logos::seconds_since_epoch();
 
     if(_store.account_put(block.account, info, transaction))

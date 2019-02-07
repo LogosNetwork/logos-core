@@ -69,7 +69,8 @@ RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch(
 
         // Ignore request and erase from primary queue if the request doesn't pass validation
         logos::process_return ignored_result;
-        if(!manager.ValidateAndUpdate(static_cast<const Request&>(**pos), ignored_result))
+        // Don't allow duplicates since we are the primary and should not include old requests
+        if(!manager.ValidateAndUpdate(static_cast<const Request&>(**pos), ignored_result, false))
         {
             pos = sequence.erase(pos);
             continue;
