@@ -1169,7 +1169,7 @@ boost::property_tree::ptree TokenIssuerInfo::SerializeJson() const
 uint64_t TokenIssuerInfo::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
-           logos::write(stream, new_info);
+           logos::write<uint16_t>(stream, new_info);
 }
 
 void TokenIssuerInfo::Deserialize(bool & error, logos::stream & stream)

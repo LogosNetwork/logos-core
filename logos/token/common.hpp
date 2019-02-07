@@ -150,25 +150,9 @@ struct ControllerInfo
     bool IsAuthorized(std::shared_ptr<const Request> request) const;
     bool IsAuthorized(TokenSetting setting) const;
 
+    bool operator== (const ControllerInfo & other) const;
+
     AccountAddress account;
     Privileges     privileges;
 };
 
-struct TokenTransaction
-{
-    TokenTransaction(bool & error,
-                     std::basic_streambuf<uint8_t> & stream);
-
-    TokenTransaction(bool & error,
-                     boost::property_tree::ptree const & tree);
-
-    boost::property_tree::ptree SerializeJson() const;
-    uint64_t Serialize(logos::stream & stream) const;
-
-    void Hash(blake2b_state & hash) const;
-
-    static uint16_t WireSize();
-
-    AccountAddress destination;
-    uint16_t       amount;
-};

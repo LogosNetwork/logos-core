@@ -75,3 +75,10 @@ uint16_t Transaction<AmountType>::WireSize()
     return sizeof(destination.bytes) +
            sizeof(amount);
 }
+
+template<typename AmountType>
+bool Transaction<AmountType>::operator== (const Transaction<AmountType> & other) const
+{
+    return destination == other.destination &&
+           amount == other.amount;
+}

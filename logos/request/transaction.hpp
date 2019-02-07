@@ -34,8 +34,10 @@ struct Transaction
 
     static uint16_t WireSize();
 
+    bool operator== (const Transaction & other) const;
+
     Address    destination;
     AmountType amount;
 };
 
-#include <logos/request/transaction.ipp>
+#include <logos/request/detail/transaction/transaction.ipp>

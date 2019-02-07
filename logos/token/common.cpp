@@ -115,7 +115,6 @@ uint16_t TokenRequest::WireSize() const
 
 ControllerInfo::ControllerInfo(bool & error,
                                std::basic_streambuf<uint8_t> & stream)
-   : privileges(error, stream)
 {
     if(error)
     {
@@ -127,6 +126,8 @@ ControllerInfo::ControllerInfo(bool & error,
     {
         return;
     }
+
+    privileges = Privileges(error, stream);
 }
 
 ControllerInfo::ControllerInfo(bool & error,
@@ -305,65 +306,9 @@ bool ControllerInfo::IsAuthorized(TokenSetting setting) const
     return result;
 }
 
-TokenTransaction::TokenTransaction(bool & error,
-                                   std::basic_streambuf<uint8_t> & stream)
+bool ControllerInfo::operator== (const ControllerInfo & other) const
 {
-    error = logos::read(stream, destination);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, amount);
+    return account == other.account &&
+           privileges == other.privileges;
 }
 
-TokenTransaction::TokenTransaction(bool & error,
-                                   boost::property_tree::ptree const & tree)
-{
-    using namespace request::fields;
-
-    try
-    {
-        error = destination.decode_account(tree.get<std::string>(DESTINATION));
-        if(error)
-        {
-            return;
-        }
-
-        amount = std::stoul(tree.get<std::string>(AMOUNT));
-    }
-    catch(...)
-    {
-        error = true;
-    }
-}
-
-boost::property_tree::ptree TokenTransaction::SerializeJson() const
-{
-    using namespace request::fields;
-
-    boost::property_tree::ptree tree;
-
-    tree.put(DESTINATION, destination.to_account());
-    tree.put(AMOUNT, amount);
-
-    return tree;
-}
-
-uint64_t TokenTransaction::Serialize(logos::stream & stream) const
-{
-    return logos::write(stream, destination) +
-           logos::write(stream, amount);
-}
-
-void TokenTransaction::Hash(blake2b_state & hash) const
-{
-    destination.Hash(hash);
-    blake2b_update(&hash, &amount, sizeof(amount));
-}
-
-uint16_t TokenTransaction::WireSize()
-{
-    return sizeof(destination.bytes) +
-           sizeof(amount);
-}
