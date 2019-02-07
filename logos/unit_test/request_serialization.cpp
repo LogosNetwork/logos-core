@@ -480,33 +480,202 @@ TEST (Request_Serialization, json_deserialization)
               "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
 }
 
-TEST (Request_Serialization, stream_methods)
+auto DoGetStreamedData = [](const auto & data, auto & buf)
 {
-    // TokenIssuance
-    //
-    //
-    TokenIssuance issuance_a;
+    buf.clear();
+    {
+        logos::vectorstream stream(buf);
+        data.ToStream(stream);
+    }
+};
 
-    issuance_a.type = RequestType::IssueTokens;
-    issuance_a.symbol = "MYC";
-    issuance_a.name = "MyCoin";
-    issuance_a.total_supply = 200;
-    issuance_a.fee_type = TokenFeeType::Flat;
-    issuance_a.fee_rate = 10;
-    issuance_a.settings = "1111111000";
+auto GetStreamedData = [](const auto & data)
+{
+    std::vector<uint8_t> buf;
+    DoGetStreamedData(data, buf);
+
+    return buf;
+};
+
+auto GenerateIssuance = []()
+{
+    TokenIssuance issuance;
+
+    issuance.type = RequestType::IssueTokens;
+    issuance.symbol = "MYC";
+    issuance.name = "MyCoin";
+    issuance.total_supply = 200;
+    issuance.fee_type = TokenFeeType::Flat;
+    issuance.fee_rate = 10;
+    issuance.settings = "1111111000";
 
     ControllerInfo controller;
     controller.account.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
     controller.privileges = "11111111110000000000";
 
-    issuance_a.controllers = {controller};
-    issuance_a.issuer_info = "MyCoin was created by Bob";
+    issuance.controllers = {controller};
+    issuance.issuer_info = "MyCoin was created by Bob";
 
-    std::vector<uint8_t> buf;
-    {
-        logos::vectorstream stream(buf);
-        issuance_a.ToStream(stream);
-    }
+    return issuance;
+};
+
+auto GenerateIssueAdtl = []()
+{
+    TokenIssueAdtl adtl;
+
+    adtl.type = RequestType::IssueAdtlTokens;
+    adtl.amount = 500;
+
+    return adtl;
+};
+
+auto GenerateTokenChangeSetting = []()
+{
+    TokenChangeSetting change;
+
+    change.type = RequestType::ChangeTokenSetting;
+    change.setting = TokenSetting::AddTokens;
+    change.value = SettingValue::Disabled;
+
+    return change;
+};
+
+auto GenerateTokenImmuteSetting = []()
+{
+    TokenImmuteSetting immute;
+
+    immute.type = RequestType::ImmuteTokenSetting;
+    immute.setting = TokenSetting::ModifyAddTokens;
+
+    return immute;
+};
+
+auto GenerateTokenRevoke = []()
+{
+    TokenRevoke revoke;
+
+    revoke.type = RequestType::RevokeTokens;
+    revoke.source.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
+    revoke.transaction.destination.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
+    revoke.transaction.amount = 500;
+
+    return revoke;
+};
+
+auto GenerateTokenFreeze = []()
+{
+    TokenFreeze freeze;
+
+    freeze.type = RequestType::FreezeTokens;
+    freeze.account.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
+    freeze.action = FreezeAction::Freeze;
+
+    return freeze;
+};
+
+auto GenerateTokenSetFee = []()
+{
+    TokenSetFee set_fee;
+
+    set_fee.type = RequestType::SetTokenFee;
+    set_fee.fee_type = TokenFeeType::Flat;
+    set_fee.fee_rate = 20;
+
+    return set_fee;
+};
+
+auto GenerateWhitelist = []()
+{
+    TokenWhitelist whitelist;
+
+    whitelist.type = RequestType::UpdateWhitelist;
+    whitelist.account.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
+
+    return whitelist;
+};
+
+auto GenerateIssuerInfo = []()
+{
+    TokenIssuerInfo info_a;
+
+    info_a.type = RequestType::UpdateIssuerInfo;
+    info_a.new_info = "MyCoin no longer requires whitelisting!";
+
+    return info_a;
+};
+
+auto GenerateTokenController = []()
+{
+    TokenController controller;
+
+    controller.type = RequestType::UpdateController;
+    controller.action = ControllerAction::Add;
+    controller.controller.account.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
+    controller.controller.privileges = "11111111110000000000";
+
+    return controller;
+};
+
+auto GenerateTokenBurn = []()
+{
+    TokenBurn burn;
+
+    burn.type = RequestType::BurnTokens;
+    burn.amount = 1000;
+
+    return burn;
+};
+
+auto GenerateTokenAccountSend = []()
+{
+    TokenAccountSend distribute;
+
+    distribute.type = RequestType::DistributeTokens;
+    distribute.transaction.destination.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
+    distribute.transaction.amount = 600;
+
+    return distribute;
+};
+
+auto GenerateWithdrawFee = []()
+{
+    TokenAccountWithdrawFee withdraw;
+
+    withdraw.type = RequestType::WithdrawTokens;
+    withdraw.transaction.destination.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
+    withdraw.transaction.amount = 600;
+
+    return withdraw;
+};
+
+auto GenerateTokenSend = []()
+{
+    TokenSend send_a;
+
+    send_a.type = RequestType::SendTokens;
+    send_a.transactions.resize(3);
+
+    send_a.transactions[0].destination.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
+    send_a.transactions[0].amount = 600;
+
+    send_a.transactions[1].destination.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
+    send_a.transactions[1].amount = 500;
+
+    send_a.transactions[2].destination.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
+    send_a.transactions[2].amount = 400;
+
+    send_a.token_fee = 20;
+
+    return send_a;
+};
+
+TEST (Request_Serialization, stream_methods)
+{
+    // TokenIssuance
+    //
+    //
+    auto issuance_a(GenerateIssuance());
+    auto buf(GetStreamedData(issuance_a));
 
     bool error = false;
     logos::bufferstream stream(buf.data(), buf.size());
@@ -527,16 +696,8 @@ TEST (Request_Serialization, stream_methods)
     // Token Issue Additional
     //
     //
-    TokenIssueAdtl adtl_a;
-
-    adtl_a.type = RequestType::IssueAdtlTokens;
-    adtl_a.amount = 500;
-
-    buf.clear();
-    {
-        logos::vectorstream stream(buf);
-        adtl_a.ToStream(stream);
-    }
+    auto adtl_a(GenerateIssueAdtl());
+    DoGetStreamedData(adtl_a, buf);
 
     stream.close();
     stream.open(buf.data(), buf.size());
@@ -553,17 +714,8 @@ TEST (Request_Serialization, stream_methods)
     // Token Change Setting
     //
     //
-    TokenChangeSetting change_a;
-
-    change_a.type = RequestType::ChangeTokenSetting;
-    change_a.setting = TokenSetting::AddTokens;
-    change_a.value = SettingValue::Disabled;
-
-    buf.clear();
-    {
-        logos::vectorstream stream(buf);
-        change_a.ToStream(stream);
-    }
+    auto change_a(GenerateTokenChangeSetting());
+    DoGetStreamedData(change_a, buf);
 
     stream.close();
     stream.open(buf.data(), buf.size());
@@ -580,16 +732,8 @@ TEST (Request_Serialization, stream_methods)
     // Token Immute Setting
     //
     //
-    TokenImmuteSetting immute_a;
-
-    immute_a.type = RequestType::ImmuteTokenSetting;
-    immute_a.setting = TokenSetting::ModifyAddTokens;
-
-    buf.clear();
-    {
-        logos::vectorstream stream(buf);
-        immute_a.ToStream(stream);
-    }
+    auto immute_a(GenerateTokenImmuteSetting());
+    DoGetStreamedData(immute_a, buf);
 
     stream.close();
     stream.open(buf.data(), buf.size());
@@ -605,18 +749,8 @@ TEST (Request_Serialization, stream_methods)
     // Token Revoke
     //
     //
-    TokenRevoke revoke_a;
-
-    revoke_a.type = RequestType::RevokeTokens;
-    revoke_a.source.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
-    revoke_a.transaction.destination.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
-    revoke_a.transaction.amount = 500;
-
-    buf.clear();
-    {
-        logos::vectorstream stream(buf);
-        revoke_a.ToStream(stream);
-    }
+    auto revoke_a(GenerateTokenRevoke());
+    DoGetStreamedData(revoke_a, buf);
 
     stream.close();
     stream.open(buf.data(), buf.size());
@@ -631,21 +765,11 @@ TEST (Request_Serialization, stream_methods)
     ASSERT_EQ(revoke_a.transaction, revoke_b.transaction);
     ASSERT_EQ(revoke_a.transaction.amount, 500);
 
-
     // Token Freeze
     //
     //
-    TokenFreeze freeze_a;
-
-    freeze_a.type = RequestType::FreezeTokens;
-    freeze_a.account.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
-    freeze_a.action = FreezeAction::Freeze;
-
-    buf.clear();
-    {
-        logos::vectorstream stream(buf);
-        freeze_a.ToStream(stream);
-    }
+    auto freeze_a(GenerateTokenFreeze());
+    DoGetStreamedData(freeze_a, buf);
 
     stream.close();
     stream.open(buf.data(), buf.size());
@@ -662,17 +786,8 @@ TEST (Request_Serialization, stream_methods)
     // Token Set Fee
     //
     //
-    TokenSetFee set_fee_a;
-
-    set_fee_a.type = RequestType::SetTokenFee;
-    set_fee_a.fee_type = TokenFeeType::Flat;
-    set_fee_a.fee_rate = 20;
-
-    buf.clear();
-    {
-        logos::vectorstream stream(buf);
-        set_fee_a.ToStream(stream);
-    }
+    auto set_fee_a(GenerateTokenSetFee());
+    DoGetStreamedData(set_fee_a, buf);
 
     stream.close();
     stream.open(buf.data(), buf.size());
@@ -689,16 +804,8 @@ TEST (Request_Serialization, stream_methods)
     // Token Whitelist
     //
     //
-    TokenWhitelist whitelist_a;
-
-    whitelist_a.type = RequestType::UpdateWhitelist;
-    whitelist_a.account.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
-
-    buf.clear();
-    {
-        logos::vectorstream stream(buf);
-        whitelist_a.ToStream(stream);
-    }
+    auto whitelist_a(GenerateWhitelist());
+    DoGetStreamedData(whitelist_a, buf);
 
     stream.close();
     stream.open(buf.data(), buf.size());
@@ -714,16 +821,8 @@ TEST (Request_Serialization, stream_methods)
     // Token Issuer Info
     //
     //
-    TokenIssuerInfo info_a;
-
-    info_a.type = RequestType::UpdateIssuerInfo;
-    info_a.new_info = "MyCoin no longer requires whitelisting!";
-
-    buf.clear();
-    {
-        logos::vectorstream stream(buf);
-        info_a.ToStream(stream);
-    }
+    auto info_a(GenerateIssuerInfo());
+    DoGetStreamedData(info_a, buf);
 
     stream.close();
     stream.open(buf.data(), buf.size());
@@ -739,18 +838,8 @@ TEST (Request_Serialization, stream_methods)
     // Token Controller
     //
     //
-    TokenController controller_a;
-
-    controller_a.type = RequestType::UpdateController;
-    controller_a.action = ControllerAction::Add;
-    controller_a.controller.account.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
-    controller_a.controller.privileges = "11111111110000000000";
-
-    buf.clear();
-    {
-        logos::vectorstream stream(buf);
-        controller_a.ToStream(stream);
-    }
+    auto controller_a(GenerateTokenController());
+    DoGetStreamedData(controller_a, buf);
 
     stream.close();
     stream.open(buf.data(), buf.size());
@@ -767,16 +856,8 @@ TEST (Request_Serialization, stream_methods)
     // Token Burn
     //
     //
-    TokenBurn burn_a;
-
-    burn_a.type = RequestType::BurnTokens;
-    burn_a.amount = 1000;
-
-    buf.clear();
-    {
-        logos::vectorstream stream(buf);
-        burn_a.ToStream(stream);
-    }
+    auto burn_a(GenerateTokenBurn());
+    DoGetStreamedData(burn_a, buf);
 
     stream.close();
     stream.open(buf.data(), buf.size());
@@ -793,17 +874,8 @@ TEST (Request_Serialization, stream_methods)
     // Token Account Send
     //
     //
-    TokenAccountSend distribute_a;
-
-    distribute_a.type = RequestType::DistributeTokens;
-    distribute_a.transaction.destination.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
-    distribute_a.transaction.amount = 600;
-
-    buf.clear();
-    {
-        logos::vectorstream stream(buf);
-        distribute_a.ToStream(stream);
-    }
+    auto distribute_a(GenerateTokenAccountSend());
+    DoGetStreamedData(distribute_a, buf);
 
     stream.close();
     stream.open(buf.data(), buf.size());
@@ -819,17 +891,8 @@ TEST (Request_Serialization, stream_methods)
     // Withdraw Fee
     //
     //
-    TokenAccountWithdrawFee withdraw_a;
-
-    withdraw_a.type = RequestType::WithdrawTokens;
-    withdraw_a.transaction.destination.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
-    withdraw_a.transaction.amount = 600;
-
-    buf.clear();
-    {
-        logos::vectorstream stream(buf);
-        withdraw_a.ToStream(stream);
-    }
+    auto withdraw_a(GenerateWithdrawFee());
+    DoGetStreamedData(withdraw_a, buf);
 
     stream.close();
     stream.open(buf.data(), buf.size());
@@ -845,33 +908,272 @@ TEST (Request_Serialization, stream_methods)
     // Token Send
     //
     //
-    TokenSend send_a;
-
-    send_a.type = RequestType::SendTokens;
-    send_a.transactions.resize(3);
-
-    send_a.transactions[0].destination.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
-    send_a.transactions[0].amount = 600;
-
-    send_a.transactions[1].destination.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
-    send_a.transactions[1].amount = 500;
-
-    send_a.transactions[2].destination.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
-    send_a.transactions[2].amount = 400;
-
-    send_a.token_fee = 20;
-
-    buf.clear();
-    {
-        logos::vectorstream stream(buf);
-        send_a.ToStream(stream);
-    }
+    auto send_a(GenerateTokenSend());
+    DoGetStreamedData(send_a, buf);
 
     stream.close();
     stream.open(buf.data(), buf.size());
 
     error = false;
     TokenSend send_b(error, stream);
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(send_a.type, send_b.type);
+    ASSERT_EQ(send_a.type, RequestType::SendTokens);
+    ASSERT_EQ(send_a.transactions, send_b.transactions);
+    ASSERT_EQ(send_a.token_fee, send_b.token_fee);
+    ASSERT_EQ(send_a.token_fee, 20);
+}
+
+TEST (Request_Serialization, database_methods)
+{
+    // TokenIssuance
+    //
+    //
+    auto issuance_a(GenerateIssuance());
+
+    std::vector<uint8_t> buf;
+
+    bool error = false;
+    TokenIssuance issuance_b(error,
+                             issuance_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(issuance_a.type, issuance_b.type);
+    ASSERT_EQ(issuance_a.type, RequestType::IssueTokens);
+    ASSERT_EQ(issuance_a.symbol, issuance_b.symbol);
+    ASSERT_EQ(issuance_a.name, issuance_b.name);
+    ASSERT_EQ(issuance_a.total_supply, issuance_b.total_supply);
+    ASSERT_EQ(issuance_a.fee_type, issuance_b.fee_type);
+    ASSERT_EQ(issuance_a.fee_rate, issuance_b.fee_rate);
+    ASSERT_EQ(issuance_a.settings, issuance_b.settings);
+    ASSERT_EQ(issuance_a.controllers, issuance_b.controllers);
+    ASSERT_EQ(issuance_a.issuer_info, issuance_b.issuer_info);
+
+    // Token Issue Additional
+    //
+    //
+    auto adtl_a(GenerateIssueAdtl());
+    DoGetStreamedData(adtl_a, buf);
+
+    buf.clear();
+
+    error = false;
+    TokenIssueAdtl adtl_b(error,
+                          adtl_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(adtl_a.type, adtl_b.type);
+    ASSERT_EQ(adtl_a.type, RequestType::IssueAdtlTokens);
+    ASSERT_EQ(adtl_a.amount, adtl_b.amount);
+    ASSERT_EQ(adtl_a.amount, 500);
+
+    // Token Change Setting
+    //
+    //
+    auto change_a(GenerateTokenChangeSetting());
+    DoGetStreamedData(change_a, buf);
+
+    buf.clear();
+
+    error = false;
+    TokenChangeSetting change_b(error,
+                                change_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(change_a.type, change_b.type);
+    ASSERT_EQ(change_a.type, RequestType::ChangeTokenSetting);
+    ASSERT_EQ(change_a.setting, change_b.setting);
+    ASSERT_EQ(change_a.value, change_b.value);
+
+    // Token Immute Setting
+    //
+    //
+    auto immute_a(GenerateTokenImmuteSetting());
+    DoGetStreamedData(immute_a, buf);
+
+    buf.clear();
+
+    error = false;
+    TokenImmuteSetting immute_b(error,
+                                immute_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(immute_a.type, immute_b.type);
+    ASSERT_EQ(immute_a.type, RequestType::ImmuteTokenSetting);
+    ASSERT_EQ(immute_a.setting, immute_b.setting);
+
+    // Token Revoke
+    //
+    //
+    auto revoke_a(GenerateTokenRevoke());
+    DoGetStreamedData(revoke_a, buf);
+
+    buf.clear();
+
+    error = false;
+    TokenRevoke revoke_b(error,
+                         revoke_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(revoke_a.type, revoke_b.type);
+    ASSERT_EQ(revoke_a.type, RequestType::RevokeTokens);
+    ASSERT_EQ(revoke_a.source, revoke_b.source);
+    ASSERT_EQ(revoke_a.transaction, revoke_b.transaction);
+    ASSERT_EQ(revoke_a.transaction.amount, 500);
+
+
+    // Token Freeze
+    //
+    //
+    auto freeze_a(GenerateTokenFreeze());
+    DoGetStreamedData(freeze_a, buf);
+
+    buf.clear();
+
+    error = false;
+    TokenFreeze freeze_b(error,
+                         freeze_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(freeze_a.type, freeze_b.type);
+    ASSERT_EQ(freeze_a.type, RequestType::FreezeTokens);
+    ASSERT_EQ(freeze_a.account, freeze_b.account);
+    ASSERT_EQ(freeze_a.action, freeze_b.action);
+
+    // Token Set Fee
+    //
+    //
+    auto set_fee_a(GenerateTokenSetFee());
+    DoGetStreamedData(set_fee_a, buf);
+
+    buf.clear();
+
+    error = false;
+    TokenSetFee set_fee_b(error,
+                          set_fee_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(set_fee_a.type, set_fee_b.type);
+    ASSERT_EQ(set_fee_a.type, RequestType::SetTokenFee);
+    ASSERT_EQ(set_fee_a.fee_type, set_fee_b.fee_type);
+    ASSERT_EQ(set_fee_a.fee_rate, set_fee_b.fee_rate);
+
+    // Token Whitelist
+    //
+    //
+    auto whitelist_a(GenerateWhitelist());
+    DoGetStreamedData(whitelist_a, buf);
+
+    buf.clear();
+
+    error = false;
+    TokenWhitelist whitelist_b(error,
+                               whitelist_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(whitelist_a.type, whitelist_b.type);
+    ASSERT_EQ(whitelist_a.type, RequestType::UpdateWhitelist);
+    ASSERT_EQ(whitelist_a.account, whitelist_b.account);
+
+    // Token Issuer Info
+    //
+    //
+    auto info_a(GenerateIssuerInfo());
+    DoGetStreamedData(info_a, buf);
+
+    buf.clear();
+
+    error = false;
+    TokenIssuerInfo info_b(error,
+                           info_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(info_a.type, info_b.type);
+    ASSERT_EQ(info_a.type, RequestType::UpdateIssuerInfo);
+    ASSERT_EQ(info_a.new_info, info_b.new_info);
+
+    // Token Controller
+    //
+    //
+    auto controller_a(GenerateTokenController());
+    DoGetStreamedData(controller_a, buf);
+
+    buf.clear();
+
+    error = false;
+    TokenController controller_b(error,
+                                 controller_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(controller_a.type, controller_b.type);
+    ASSERT_EQ(controller_a.type, RequestType::UpdateController);
+    ASSERT_EQ(controller_a.action, controller_b.action);
+    ASSERT_EQ(controller_a.controller, controller_b.controller);
+
+    // Token Burn
+    //
+    //
+    auto burn_a(GenerateTokenBurn());
+    DoGetStreamedData(burn_a, buf);
+
+    buf.clear();
+
+    error = false;
+    TokenBurn burn_b(error,
+                     burn_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(burn_a.type, burn_b.type);
+    ASSERT_EQ(burn_a.type, RequestType::BurnTokens);
+    ASSERT_EQ(burn_a.amount, burn_b.amount);
+    ASSERT_EQ(burn_a.amount, 1000);
+
+    // Token Account Send
+    //
+    //
+    auto distribute_a(GenerateTokenAccountSend());
+    DoGetStreamedData(distribute_a, buf);
+
+    buf.clear();
+
+    error = false;
+    TokenAccountSend distribute_b(error,
+                                  distribute_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(distribute_a.type, distribute_b.type);
+    ASSERT_EQ(distribute_a.type, RequestType::DistributeTokens);
+    ASSERT_EQ(distribute_a.transaction, distribute_b.transaction);
+
+    // Withdraw Fee
+    //
+    //
+    auto withdraw_a(GenerateWithdrawFee());
+    DoGetStreamedData(withdraw_a, buf);
+
+    buf.clear();
+
+    error = false;
+    TokenAccountWithdrawFee withdraw_b(error,
+                                       withdraw_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(withdraw_a.type, withdraw_b.type);
+    ASSERT_EQ(withdraw_a.type, RequestType::WithdrawTokens);
+    ASSERT_EQ(withdraw_a.transaction, withdraw_b.transaction);
+
+    // Token Send
+    //
+    //
+    auto send_a(GenerateTokenSend());
+    DoGetStreamedData(send_a, buf);
+
+    buf.clear();
+
+    error = false;
+    TokenSend send_b(error,
+                     send_a.ToDatabase(buf));
 
     ASSERT_FALSE(error);
     ASSERT_EQ(send_a.type, send_b.type);

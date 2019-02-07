@@ -155,11 +155,6 @@ uint64_t TokenIssuance::Serialize(logos::stream & stream) const
 
 void TokenIssuance::Deserialize(bool & error, logos::stream & stream)
 {
-    if(error)
-    {
-        return;
-    }
-
     error = logos::read(stream, symbol);
     if(error)
     {

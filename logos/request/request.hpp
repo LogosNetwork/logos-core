@@ -109,13 +109,12 @@ struct Request
     std::string ToJson() const;
     uint64_t ToStream(logos::stream & stream) const;
     logos::mdb_val ToDatabase(std::vector<uint8_t> & buf) const;
-    virtual void DeserializeDB(bool &error, logos::stream &stream);
+    virtual void DeserializeDB(bool & error, logos::stream & stream);
 
     virtual boost::property_tree::ptree SerializeJson() const;
     uint64_t DoSerialize(logos::stream & stream) const;
     virtual uint64_t Serialize(logos::stream & stream) const;
-    void DoDeserialize(bool & error, logos::stream & stream);
-    virtual void Deserialize(bool & error, logos::stream & stream);
+    void Deserialize(bool & error, logos::stream & stream);
 
     virtual bool Validate(logos::process_return & result,
                           std::shared_ptr<logos::Account> info) const;

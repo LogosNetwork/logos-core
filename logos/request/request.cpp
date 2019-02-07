@@ -76,7 +76,7 @@ Request::Request(bool & error,
 Request::Request(bool & error,
                  logos::stream & stream)
 {
-    DoDeserialize(error, stream);
+    Deserialize(error, stream);
 }
 
 Request::Request(bool & error,
@@ -207,9 +207,9 @@ logos::mdb_val Request::ToDatabase(std::vector<uint8_t> & buf) const
     return {buf.size(), buf.data()};
 }
 
-void Request::DeserializeDB(bool &error, logos::stream &stream)
+void Request::DeserializeDB(bool & error, logos::stream & stream)
 {
-    DoDeserialize(error, stream);
+    Deserialize(error, stream);
     if(error)
     {
         return;
@@ -258,7 +258,7 @@ uint64_t Request::Serialize(logos::stream & stream) const
     return 0;
 }
 
-void Request::DoDeserialize(bool & error, logos::stream & stream)
+void Request::Deserialize(bool & error, logos::stream & stream)
 {
     error = logos::read(stream, type);
     if(error)
@@ -304,11 +304,6 @@ void Request::DoDeserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, sequence);
-}
-
-void Request::Deserialize(bool & error, logos::stream & stream)
-{
-    DoDeserialize(error, stream);
 }
 
 bool Request::Validate(logos::process_return & result,

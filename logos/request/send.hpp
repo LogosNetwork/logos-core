@@ -104,7 +104,7 @@ struct Send : Request
     /// @param stream the stream to serialize to
     /// @returns the number of bytes serialized
     uint64_t Serialize (logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool &error, logos::stream &stream) override;
 
     static const uint8_t MAX_TRANSACTIONS = 8;
