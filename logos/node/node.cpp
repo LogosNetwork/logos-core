@@ -1352,7 +1352,6 @@ _tx_receiver{config.tx_acceptor_config.tx_acceptors.size() != 0
             BOOST_LOG (log) << "Constructing node";
         }
 
-
         logos::transaction transaction (store.environment, nullptr, true);
         if (store.latest_begin (transaction) == store.latest_end ())
         {

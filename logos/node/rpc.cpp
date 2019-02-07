@@ -2576,7 +2576,7 @@ std::unique_ptr<Send> deserialize_StateBlock_json (boost::property_tree::ptree c
         if (type == "state")
         {
             bool error;
-            std::unique_ptr<Send> obj (new Send (error, tree_a, false, true));
+            std::unique_ptr<Send> obj (new Send (error, tree_a));
             if (!error)
             {
                 result = std::move (obj);
@@ -2597,7 +2597,7 @@ void logos::rpc_handler::process ()
     std::stringstream block_stream (request_text);
     boost::property_tree::read_json (block_stream, request);
     bool error = false;
-    auto block = std::make_shared<Send> (error, request, false, true);
+    auto block = std::make_shared<Send> (error, request);
     if( ! error )
     {
         // TODO: check work, !logos::work_validate (*block)

@@ -299,7 +299,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
                      genesis_account.block_count, // sequence
                      pair.pub,                    // link/to
                      amount,
-                     fee,                         // transaction fee
+                     0,                           // transaction fee
                      pair.prv.data,
                      pair.pub,
                      work);

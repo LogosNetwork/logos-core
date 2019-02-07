@@ -24,6 +24,7 @@ Send::Send(const AccountAddress & account,
     , work(work)
 {
     transactions.push_back(Transaction(to, amount));
+    Hash();
 }
 
 Send::Send(AccountAddress const & account,
@@ -43,12 +44,11 @@ Send::Send(AccountAddress const & account,
     , work(work)
 {
     transactions.push_back(Transaction(to, amount));
+    Hash();
 }
 
 Send::Send(bool & error,
-           boost::property_tree::ptree const & tree,
-           bool with_batch_hash,
-           bool with_work)
+           boost::property_tree::ptree const & tree)
    : Request(error, tree)
 {
     using namespace request::fields;
@@ -60,37 +60,10 @@ Send::Send(bool & error,
 
     try
     {
-        error = signature.decode_hex(tree.get<std::string>("signature", "0"));
+        error = logos::from_string_hex(tree.get<std::string>("work"), work);
         if(error)
         {
             return;
-        }
-
-        if(with_work)
-        {
-            error = logos::from_string_hex(tree.get<std::string>("work"), work);
-            if(error)
-            {
-                return;
-            }
-        }
-
-        if(with_batch_hash)
-        {
-            error = batch_hash.decode_hex(tree.get<std::string>("batch_hash"));
-            if (error)
-            {
-                auto index_in_batch = std::stoul(tree.get<std::string>("index_in_batch"));
-
-                // TODO: Is a JSON deserialization method
-                //       the appropriate place for semantic
-                //       error checking?
-                error = index_in_batch > CONSENSUS_BATCH_SIZE;
-                if(error)
-                {
-                    return;
-                }
-            }
         }
 
         auto transactions_tree = tree.get_child("transactions");
@@ -109,6 +82,7 @@ Send::Send(bool & error,
             }
         }
 
+        Hash();
     }
     catch (...)
     {
@@ -117,8 +91,7 @@ Send::Send(bool & error,
 }
 
 Send::Send(bool & error,
-           logos::stream & stream,
-           bool with_batch_hash)
+           logos::stream & stream)
    : Request(error, stream)
 {
     if(error)
@@ -126,51 +99,26 @@ Send::Send(bool & error,
         return;
     }
 
-    uint8_t count;
-    error = logos::read(stream, count);
+    Deserialize(error, stream);
     if(error)
     {
         return;
     }
 
-    for(size_t i = 0; i < count; ++i)
-    {
-        Transaction t(error, stream);
-        if(error)
-        {
-            return;
-        }
-
-        transactions.push_back(t);
-    }
-
-    error = logos::read(stream, signature);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_batch_hash)
-    {
-        error = logos::read(stream, batch_hash);
-        if(error)
-        {
-            return;
-        }
-        uint16_t idx;
-        error = logos::read(stream, idx);
-        if(error)
-        {
-            return;
-        }
-        index_in_batch = idx;
-    }
+    Hash();
 }
 
 Send::Send(bool & error, const logos::mdb_val & mdbval)
 {
-    logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
-    new (this) Send(error, stream, false);
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Hash();
 }
 
 Amount Send::GetLogosTotal() const
@@ -220,7 +168,6 @@ boost::property_tree::ptree Send::SerializeJson() const
 {
     auto tree = Request::SerializeJson();
 
-    tree.put("signature", signature.to_string());
     tree.put("work", std::to_string(work));
     tree.put("number_transactions", std::to_string(transactions.size()));
 
@@ -237,15 +184,43 @@ boost::property_tree::ptree Send::SerializeJson() const
     tree.add_child("transactions", transactions_tree);
 
     tree.put("hash", digest.to_string());
-    tree.put("batch_hash", batch_hash.to_string());
-    tree.put("index_in_batch", std::to_string(index_in_batch));
 
     return tree;
 }
 
 uint64_t Send::Serialize (logos::stream & stream) const
 {
-    return  Request::Serialize(stream) +
-            SerializeVector(stream, transactions) +
-            logos::write(stream, signature);
+    return SerializeVector(stream, transactions);
+}
+
+void Send::Deserialize(bool & error, logos::stream & stream)
+{
+    uint8_t count;
+    error = logos::read(stream, count);
+    if(error)
+    {
+        return;
+    }
+
+    for(size_t i = 0; i < count; ++i)
+    {
+        Transaction t(error, stream);
+        if(error)
+        {
+            return;
+        }
+
+        transactions.push_back(t);
+    }
+}
+
+void Send::DeserializeDB(bool &error, logos::stream &stream)
+{
+    Request::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
 }
