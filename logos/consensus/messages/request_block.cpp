@@ -70,9 +70,7 @@ void RequestBlock::Hash(blake2b_state & hash) const
 
     for(uint16_t i = 0; i < size; ++i)
     {
-        // TODO: GetHash
-        //
-        requests[i]->Hash().Hash(hash);
+        requests[i]->GetHash().Hash(hash);
     }
 }
 
@@ -101,9 +99,7 @@ uint32_t RequestBlock::Serialize(logos::stream & stream, bool with_requests) con
 
     for(uint64_t i = 0; i < size; ++i)
     {
-        // TODO: GetHash
-        //
-        s += logos::write(stream, requests[i]->Hash());
+        s += logos::write(stream, requests[i]->GetHash());
     }
 
     if(with_requests)
