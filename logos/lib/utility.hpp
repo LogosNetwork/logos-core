@@ -45,7 +45,7 @@ bool read (logos::stream & stream_a, std::string & value)
         return true;
     }
 
-    value.reserve(len);
+    value.resize(len);
     uint64_t pos = 0;
 
     while(pos < len)
@@ -163,6 +163,10 @@ struct BitField
     using GetField = std::function<std::string (size_t i)>;
     using GetPos   = std::function<size_t (bool &, const std::string &)>;
 
+    BitField(const std::bitset<N> & field)
+        : field(field)
+    {}
+
     BitField(bool & error,
              std::basic_streambuf<uint8_t> & stream)
     {
@@ -179,6 +183,23 @@ struct BitField
     bool operator[] (size_t pos) const
     {
         return field[pos];
+    }
+
+    BitField & operator= (const std::bitset<N> & field)
+    {
+        this->field = field;
+        return *this;
+    }
+
+    BitField & operator= (const std::string & field)
+    {
+        this->field = std::bitset<N>(field);
+        return *this;
+    }
+
+    bool operator== (const BitField & other) const
+    {
+        return field == other.field;
     }
 
     void DeserializeJson(bool & error,

@@ -45,6 +45,8 @@ struct TokenIssuance : TokenRequest
 
 struct TokenIssueAdtl : TokenRequest
 {
+    TokenIssueAdtl() = default;
+
     TokenIssueAdtl(bool & error,
                    const logos::mdb_val & mdbval);
 
@@ -70,6 +72,8 @@ struct TokenIssueAdtl : TokenRequest
 
 struct TokenChangeSetting : TokenRequest
 {
+    TokenChangeSetting() = default;
+
     TokenChangeSetting(bool & error,
                        const logos::mdb_val & mdbval);
 
@@ -94,6 +98,8 @@ struct TokenChangeSetting : TokenRequest
 
 struct TokenImmuteSetting : TokenRequest
 {
+    TokenImmuteSetting() = default;
+
     TokenImmuteSetting(bool & error,
                        const logos::mdb_val & mdbval);
 
@@ -118,6 +124,8 @@ struct TokenImmuteSetting : TokenRequest
 struct TokenRevoke : TokenRequest
 {
     using Transaction = ::Transaction<uint16_t>;
+
+    TokenRevoke() = default;
 
     TokenRevoke(bool & error,
                 const logos::mdb_val & mdbval);
@@ -149,6 +157,8 @@ struct TokenRevoke : TokenRequest
 
 struct TokenFreeze : TokenRequest
 {
+    TokenFreeze() = default;
+
     TokenFreeze(bool & error,
                 const logos::mdb_val & mdbval);
 
@@ -173,6 +183,8 @@ struct TokenFreeze : TokenRequest
 
 struct TokenSetFee : TokenRequest
 {
+    TokenSetFee() = default;
+
     TokenSetFee(bool & error,
                 const logos::mdb_val & mdbval);
 
@@ -197,6 +209,8 @@ struct TokenSetFee : TokenRequest
 
 struct TokenWhitelist : TokenRequest
 {
+    TokenWhitelist() = default;
+
     TokenWhitelist(bool & error,
                    const logos::mdb_val & mdbval);
 
@@ -220,6 +234,8 @@ struct TokenWhitelist : TokenRequest
 
 struct TokenIssuerInfo : TokenRequest
 {
+    TokenIssuerInfo() = default;
+
     TokenIssuerInfo(bool & error,
                     const logos::mdb_val & mdbval);
 
@@ -243,6 +259,8 @@ struct TokenIssuerInfo : TokenRequest
 
 struct TokenController : TokenRequest
 {
+    TokenController() = default;
+
     TokenController(bool & error,
                     const logos::mdb_val & mdbval);
 
@@ -274,6 +292,8 @@ struct TokenController : TokenRequest
 
 struct TokenBurn : TokenRequest
 {
+    TokenBurn() = default;
+
     TokenBurn(bool & error,
               const logos::mdb_val & mdbval);
 
@@ -304,6 +324,8 @@ struct TokenAccountSend : TokenRequest
 {
     using Transaction = ::Transaction<uint16_t>;
 
+    TokenAccountSend() = default;
+
     TokenAccountSend(bool & error,
                      const logos::mdb_val & mdbval);
 
@@ -333,6 +355,8 @@ struct TokenAccountSend : TokenRequest
 struct TokenAccountWithdrawFee : TokenRequest
 {
     using Transaction = ::Transaction<uint16_t>;
+
+    TokenAccountWithdrawFee() = default;
 
     TokenAccountWithdrawFee(bool & error,
                             const logos::mdb_val & mdbval);
@@ -366,6 +390,8 @@ struct TokenSend : TokenRequest
 {
     using Transaction  = ::Transaction<uint16_t>;
     using Transactions = std::vector<Transaction>;
+
+    TokenSend() = default;
 
     TokenSend(bool & error,
               const logos::mdb_val & mdbval);
