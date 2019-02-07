@@ -110,7 +110,7 @@ uint32_t RequestBlock::Serialize(logos::stream & stream, bool with_requests) con
     {
         for(uint64_t i = 0; i < size; ++i)
         {
-            s += requests[i]->Serialize(stream);
+            s += requests[i]->ToStream(stream);
         }
     }
 

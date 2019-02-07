@@ -16,6 +16,8 @@ struct Transaction
     using GetAmount = typename Traits::Decode;
     using PutAmount = typename Traits::Encode;
 
+    Transaction() = default;
+
     Transaction(const Address & destination,
                 const AmountType & amount);
 

@@ -516,7 +516,7 @@ TEST (blocks, state_block)
     Send send_a(1,2,3,5,6,7,8,9);
 
     std::vector<uint8_t> buf;
-    auto db_val = send_a.SerializeDB(buf);
+    auto db_val = send_a.ToDatabase(buf);
 
     bool error = false;
     Send send_b(error, db_val);
@@ -562,7 +562,7 @@ TEST (blocks, state_block_json)
     boost::property_tree::ptree tree;
     std::stringstream istream(s);
     boost::property_tree::read_json(istream, tree);
-    Send send_b(error, tree, true, true);
+    Send send_b(error, tree);
     auto s2(send_b.ToJson());
 
     std::cout << "StateBlock2 json: " << s2 << std::endl;
@@ -637,7 +637,7 @@ TEST (blocks, batch_state_block_PostCommit_DB)
     vector<logos::mdb_val> sb_db_vals;
     for(uint16_t i = 0; i < block.requests.size(); ++i)
     {
-        sb_db_vals.push_back(block.requests[i]->SerializeDB(buffers[i]));
+        sb_db_vals.push_back(block.requests[i]->ToDatabase(buffers[i]));
     }
 
     bool error = false;
