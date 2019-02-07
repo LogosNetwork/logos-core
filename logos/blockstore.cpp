@@ -866,7 +866,7 @@ bool logos::block_store::batch_block_put (ApprovedBSB const & block, const Block
 
     for(uint16_t i = 0; i < block.block_count; ++i)
     {
-        status = state_block_put(block.blocks[i], transaction);
+        status = state_block_put(*block.blocks[i], transaction);
         assert(status == 0);
     }
 
@@ -940,14 +940,16 @@ bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & b
                 trace_and_halt();
             }
 
-            block.blocks.resize(block.block_count);
+            block.blocks.reserve(block.block_count);
             for(uint16_t i = 0; i < block.block_count; ++i)
             {
-                if(state_block_get(block.hashes[i], block.blocks[i], transaction))
+                auto block_ptr = std::make_shared<StateBlock>();
+                if(state_block_get(block.hashes[i], *block_ptr, transaction))
                 {
                     LOG_ERROR(log) << __func__ << " state_block_get failed";
                     return true;
                 }
+                block.blocks.push_back(block_ptr);
             }
         }
     }

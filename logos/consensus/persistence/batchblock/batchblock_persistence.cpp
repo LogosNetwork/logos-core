@@ -35,25 +35,33 @@ void PersistenceManager<BSBCT>::ApplyUpdates(
     uint16_t count = 0;
     for(uint16_t i = 0; i < message.block_count; ++i)
     {
-        message.blocks[i].batch_hash = batch_hash;
-        message.blocks[i].index_in_batch = count++;
+        message.blocks[i]->batch_hash = batch_hash;
+        message.blocks[i]->index_in_batch = count++;
     }
 
     LOG_DEBUG(_log) << "PersistenceManager<BSBCT>::ApplyUpdates - BSB with "
             << message.block_count << " StateBlocks";
 
-    // SYL integration: need to ensure the two operations below execute atomically
+    // SYL integration: need to ensure the operations below execute atomically
     // Otherwise, multiple calls to batch persistence may overwrite balance for the same account
     std::lock_guard<std::mutex> lock (_write_mutex);
-    logos::transaction transaction(_store.environment, nullptr, true);
-    StoreBatchMessage(message, transaction, delegate_id);
-    ApplyBatchMessage(message, transaction);
+    {
+        logos::transaction transaction(_store.environment, nullptr, true);
+        StoreBatchMessage(message, transaction, delegate_id);
+        ApplyBatchMessage(message, transaction);
+    }
+    // SYL Integration: clear reservation AFTER flushing to LMDB to ensure safety
+    for(uint16_t i = 0; i < message.block_count; ++i)
+    {
+        _reservations->Release(message.blocks[i]->account);
+    }
 }
 
-bool PersistenceManager<BSBCT>::Validate(
+bool PersistenceManager<BSBCT>::ValidateRequest(
     const Request & block,
     logos::process_return & result,
-    bool allow_duplicates)
+    bool allow_duplicates,
+    bool prelim)
 {
     // SYL Integration: move signature validation here so we always check
     if(! block.VerifySignature(block.account))
@@ -80,12 +88,7 @@ bool PersistenceManager<BSBCT>::Validate(
         return false;
     }
 
-    // We have to lock reservation mutex before checking *both* `account_db` (otherwise we may check balance,
-    // think it's okay to proceed, but another send transaction may decrement account balance, then clear
-    // reservation before we try to acquire, and we may let an overspend slip through ) and `reservation_db`
-    logos::transaction transaction(_store.environment, nullptr, true);
-    std::lock_guard<std::mutex> lock(_reservation_mutex);
-
+    // SYL Integration: remove _reservation_mutex for now and rely on coarser _write_mutex. Potential fix later
     logos::account_info info;
     // account doesn't exist
     if (_store.account_get(block.account, info))
@@ -97,11 +100,18 @@ bool PersistenceManager<BSBCT>::Validate(
     }
 
     // a valid (non-expired) reservation exits
-    if (!_reservations->CanAcquire(block.account, hash, allow_duplicates, transaction))
+    if (!_reservations->CanAcquire(block.account, hash, allow_duplicates))
     {
         LOG_ERROR(_log) << "PersistenceManager::Validate - Account already reserved! ";
         result.code = logos::process_result::already_reserved;
         return false;
+    }
+
+    // Set prelim to true single transaction (non-batch) validation from TxAcceptor, false for RPC
+    if (prelim)
+    {
+        result.code = logos::process_result::progress;
+        return true;
     }
 
     // Move on to check account info
@@ -178,20 +188,55 @@ bool PersistenceManager<BSBCT>::Validate(
         return false;
     }
 
-    // Update reservation here
-    _reservations->UpdateReservation(hash, block.account, transaction);
-
     result.code = logos::process_result::progress;
     return true;
 }
 
-bool PersistenceManager<BSBCT>::Validate(
-    const Request & block)
+// Use this for single transaction (non-batch) validation from RPC
+bool PersistenceManager<BSBCT>::ValidateSingleRequest(
+        const Request & block, logos::process_return & result, bool allow_duplicates)
 {
+    std::lock_guard<std::mutex> lock(_write_mutex);
+    return ValidateRequest(block, result, allow_duplicates, false);
+}
+
+// Use this for batched transactions validation (either PrepareNextBatch or backup validation)
+bool PersistenceManager<BSBCT>::ValidateAndUpdate(
+        const Request & block, logos::process_return & result, bool allow_duplicates)
+{
+    auto success (ValidateRequest(block, result, allow_duplicates, false));
+    if (success)
+    {
+        _reservations->UpdateReservation(block.GetHash(), block.account);
+    }
+    return success;
+}
+
+bool PersistenceManager<BSBCT>::ValidateBatch(
+    const PrePrepare & message, RejectionMap & rejection_map)
+{
+    // SYL Integration: use _write_mutex because we have to wait for other database writes to finish flushing
+    bool valid = true;
     logos::process_return ignored_result;
-    auto re = Validate(block, ignored_result);
-    LOG_DEBUG(_log) << "PersistenceManager<BSBCT>::Validate code " << (uint)ignored_result.code;
-    return re;
+    std::lock_guard<std::mutex> lock (_write_mutex);
+    for(uint64_t i = 0; i < message.block_count; ++i)
+    {
+#ifdef TEST_REJECT
+        if(!ValidateAndUpdate(static_cast<const Request&>(*message.blocks[i]), ignored_result) || bool(message.blocks[i].hash().number() & 1))
+#else
+        if(!ValidateAndUpdate(static_cast<const Request&>(*message.blocks[i]), ignored_result))
+#endif
+        {
+            LOG_WARN(_log) << "PersistenceManager<BSBCT>::Validate - Rejecting " << message.blocks[i]->GetHash().to_string();
+            rejection_map[i] = true;
+
+            if(valid)
+            {
+                valid = false;
+            }
+        }
+    }
+    return valid;
 }
 
 bool PersistenceManager<BSBCT>::Validate(
@@ -201,10 +246,11 @@ bool PersistenceManager<BSBCT>::Validate(
     using namespace logos;
 
     bool valid = true;
+    std::lock_guard<std::mutex> lock (_write_mutex);
     for(uint16_t i = 0; i < message.block_count; ++i)
     {
         logos::process_return   result;
-        if(!Validate(static_cast<const Request&>(message.blocks[i]), result))
+        if(!ValidateRequest(static_cast<const Request&>(*message.blocks[i]), result, true, false))
         {
             UpdateStatusRequests(status, i, result.code);
             UpdateStatusReason(status, process_result::invalid_request);
@@ -261,12 +307,9 @@ void PersistenceManager<BSBCT>::ApplyBatchMessage(
 {
     for(uint16_t i = 0; i < message.block_count; ++i)
     {
-        ApplyStateMessage(message.blocks[i],
+        ApplyStateMessage(*message.blocks[i],
                           message.timestamp,
                           transaction);
-
-        std::lock_guard<std::mutex> lock(_reservation_mutex);
-        _reservations->Release(message.blocks[i].account, transaction);
     }
 }
 

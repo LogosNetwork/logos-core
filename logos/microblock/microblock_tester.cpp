@@ -89,12 +89,12 @@ MicroBlockTester::block_create_test(
             batch_block.preprepare_sig = delegate_sig;
             batch_block.timestamp = GetStamp(); // need to model block spread
             for (int i_state = 0; i_state < n_state_blocks; ++i_state) {
-                batch_block.blocks[i_state].signature = account_sig;
+                batch_block.blocks[i_state]->signature = account_sig;
                 logos::account account(rand());
                 BlockHash hash(rand());
-                batch_block.blocks[i_state].account = account;
-                batch_block.blocks[i_state].previous = hash;
-                batch_block.blocks[i_state].AddTransaction(AccountAddress(), 1000);
+                batch_block.blocks[i_state]->account = account;
+                batch_block.blocks[i_state]->previous = hash;
+                batch_block.blocks[i_state]->AddTransaction(AccountAddress(), 1000);
             }
             batch_block.previous = previous[i_del];
             previous[i_del] = batch_block.Hash();

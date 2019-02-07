@@ -71,30 +71,14 @@ bool
 BBBackupDelegate::ValidateRequests(
     const PrePrepare & message)
 {
-    bool valid = true;
+
     _rejection_map.resize(message.block_count, false);
-
-    // TO-DISCUSS: Do we need one single transaction here?
-    for(uint64_t i = 0; i < message.block_count; ++i)
+    if (!_persistence_manager.ValidateBatch(message, _rejection_map))
     {
-#ifdef TEST_REJECT
-        if(!_persistence_manager.Validate(static_cast<const Request&>(message.blocks[i])) || bool(message.blocks[i].hash().number() & 1))
-#else
-        if(!_persistence_manager.Validate(static_cast<const Request&>(message.blocks[i])))
-#endif
-        {
-            LOG_WARN(_log) << "BBConsensusConnection::ValidateRequests - Rejecting " << message.blocks[i].GetHash().to_string();
-            _rejection_map[i] = true;
-
-            if(valid)
-            {
-                _reason = RejectionReason::Contains_Invalid_Request;
-                valid = false;
-            }
-        }
+        _reason = RejectionReason::Contains_Invalid_Request;
+        return false;
     }
-
-    return valid;
+    return true;
 }
 
 /// Commit the block to the database.
@@ -196,7 +180,7 @@ BBBackupDelegate::HandlePrePrepare(const PrePrepare & message)
 
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
-        _pre_prepare_hashes.insert(message.blocks[i].GetHash());
+        _pre_prepare_hashes.insert(message.blocks[i]->GetHash());
     }
 
     // to make sure during epoch transition, a fallback session of the new epoch
@@ -280,7 +264,7 @@ BBBackupDelegate::IsSubset(const PrePrepare & message)
 {
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
-        if(_pre_prepare_hashes.find(message.blocks[i].GetHash()) ==
+        if(_pre_prepare_hashes.find(message.blocks[i]->GetHash()) ==
                 _pre_prepare_hashes.end())
         {
             return false;

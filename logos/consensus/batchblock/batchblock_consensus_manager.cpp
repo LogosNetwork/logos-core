@@ -99,7 +99,7 @@ BatchBlockConsensusManager::Validate(
   std::shared_ptr<Request> block,
   logos::process_return & result)
 {
-    return _persistence_manager.Validate(*block, result, false);
+    return _persistence_manager.ValidateSingleRequest(*block, result, false);
 }
 
 bool
@@ -140,7 +140,7 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
 
     for(uint64_t i = 0; i < batch.block_count; ++i)
     {
-        _hashes.insert(batch.blocks[i].GetHash());
+        _hashes.insert(batch.blocks[i]->GetHash());
     }
 
     LOG_TRACE (_log) << "BatchBlockConsensusManager::PrePrepareGetNext -"
@@ -190,8 +190,11 @@ BatchBlockConsensusManager::InitiateConsensus()
     // make sure we start with a fresh set of hashes so as to not interfere with rejection logic
     _hashes.clear();
     _should_repropose = false;
-
-    _handler.PrepareNextBatch();
+    // SYL Integration: perform validation against account_db here instead of at request receive time
+    {
+        std::lock_guard<std::mutex> lock(_persistence_manager._write_mutex);
+        _handler.PrepareNextBatch(_persistence_manager);
+    }
     Manager::InitiateConsensus();
 }
 
@@ -280,7 +283,7 @@ void BatchBlockConsensusManager::TallyPrepareMessage(const Prepare & message, ui
         if(ReachedQuorum(weights.indirect_vote_support + _prepare_vote,
                          weights.indirect_stake_support + _prepare_stake))
         {
-            _hashes.erase(batch.blocks[i].GetHash());
+            _hashes.erase(batch.blocks[i]->GetHash());
         }
     }
 }
@@ -314,19 +317,19 @@ BatchBlockConsensusManager::OnRejection(
                 if(ReachedQuorum(weights.indirect_vote_support + _prepare_vote,
                                  weights.indirect_stake_support + _prepare_stake))
                 {
-                    _hashes.erase(batch.blocks[i].GetHash());
+                    _hashes.erase(batch.blocks[i]->GetHash());
                 }
             }
             else
             {
-                LOG_WARN(_log) << "BatchBlockConsensusManager::OnRejection - Received rejection for " << batch.blocks[i].GetHash().to_string();
+                LOG_WARN(_log) << "BatchBlockConsensusManager::OnRejection - Received rejection for " << batch.blocks[i]->GetHash().to_string();
                 weights.reject_vote += vote;
                 weights.reject_stake += stake;
 
                 if(Rejected(weights.reject_vote,
                             weights.reject_stake))
                 {
-                    _hashes.erase(batch.blocks[i].GetHash());
+                    _hashes.erase(batch.blocks[i]->GetHash());
                 }
             }
         }
@@ -526,7 +529,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
         }
     }
 
-    std::list<StateBlock> requests;
+    std::list<std::shared_ptr<StateBlock>> requests;
 
     // Create new pre-prepare messages
     // based on the subsets.
@@ -543,7 +546,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
             requests.push_back(batch.blocks[*itr]);
         }
 
-        requests.emplace_back(StateBlock());
+        requests.emplace_back(std::make_shared<StateBlock>());
     }
 
     // Pushing a null state_block to the front
@@ -553,7 +556,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 
     // SYL integration fix: should always add delimiter to
     // avoid spillover from new request queued to primary list
-    requests.emplace_back(StateBlock());
+    requests.emplace_back(std::make_shared<StateBlock>());
 
     _handler.PopFront();
     _handler.InsertFront(requests);

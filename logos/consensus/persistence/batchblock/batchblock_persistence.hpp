@@ -13,6 +13,8 @@ using namespace boost::multiprecision::literals;
 template<>
 class PersistenceManager<BSBCT> : public Persistence {
 
+    friend class BatchBlockConsensusManager;
+
 protected:
 
     using Request           = RequestMessage<BSBCT>;
@@ -28,8 +30,10 @@ public:
 
     virtual void ApplyUpdates(const ApprovedBSB & message, uint8_t delegate_id);
 
-    virtual bool Validate(const Request & block, logos::process_return & result, bool allow_duplicates = true);
-    virtual bool Validate(const Request & block);
+    bool ValidateRequest(const Request & block, logos::process_return & result, bool allow_duplicates = true, bool prelim = false);
+    bool ValidateSingleRequest(const Request & block, logos::process_return & result, bool allow_duplicates = true);
+    bool ValidateAndUpdate(const Request & block, logos::process_return & result, bool allow_duplicates = true);
+    bool ValidateBatch(const PrePrepare & message, RejectionMap & rejection_map);
 
     virtual bool Validate(const PrePrepare & message, ValidationStatus * status = nullptr);
 
@@ -61,6 +65,5 @@ private:
 
     Log                 _log;
     ReservationsPtr     _reservations;
-    std::mutex          _reservation_mutex;
     std::mutex          _write_mutex;
 };

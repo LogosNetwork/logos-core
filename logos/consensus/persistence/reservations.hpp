@@ -19,9 +19,9 @@ public:
         : _store(store)
     {}
     virtual ~ReservationsProvider() = default;
-    virtual bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates, MDB_txn * transaction) {return false;}
-    virtual void Release(const AccountAddress & account, MDB_txn * transaction) {}
-    virtual void UpdateReservation(const logos::block_hash & hash, const logos::account & account, MDB_txn * transaction) {}
+    virtual bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) {return false;}
+    virtual void Release(const AccountAddress & account) {}
+    virtual void UpdateReservation(const logos::block_hash & hash, const logos::account & account) {}
 protected:
     Store &      _store;
     Log          _log;
@@ -53,13 +53,12 @@ public:
     //       this is not the only case in which a cached account will be
     //       acquired.
     //-------------------------------------------------------------------------
-    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates, MDB_txn * transaction) override;
+    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) override;
 
-    void Release(const AccountAddress & account, MDB_txn * transaction) override;
+    void Release(const AccountAddress & account) override;
 
     // Can only be called after checking CanAcquire to ensure we don't corrupt reservation
-    // Also need to make sure *not* to call it when another write transaction is waiting in a higher scope, as this will cause hanging
-    void UpdateReservation(const logos::block_hash & hash, const logos::account & account, MDB_txn * transaction) override;
+    void UpdateReservation(const logos::block_hash & hash, const logos::account & account) override;
 
 private:
 
@@ -72,5 +71,5 @@ public:
     {}
     ~DefaultReservations() = default;
 
-    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates, MDB_txn * transaction) override;
+    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) override;
 };

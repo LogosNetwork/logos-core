@@ -158,7 +158,7 @@ void SecondaryRequestHandler<ConsensusType::BatchStateBlock>::PruneRequests(cons
 {
     for (uint64_t i = 0; i < block.block_count; ++i)
     {
-        BlockHash hash = block.blocks[i].GetHash();
+        BlockHash hash = block.blocks[i]->GetHash();
 
         PruneRequest(hash);
     }

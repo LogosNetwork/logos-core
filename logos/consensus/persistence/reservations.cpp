@@ -7,7 +7,7 @@
 // TODO: We should only write to database when the program terminates on an uncaught exception;
 //  otherwise we suffer from  a major performance hit
 bool
-Reservations::CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates, MDB_txn * transaction)
+Reservations::CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates)
 {
     logos::reservation_info info;
     // Check cache
@@ -41,17 +41,9 @@ Reservations::CanAcquire(const AccountAddress & account, const BlockHash & hash,
     if (info.reservation != hash)
     {
         uint32_t current_epoch = ConsensusContainer::GetCurEpochNumber();
-        // This block conflicts with existing reservation.
-        if (current_epoch < info.reservation_epoch + PersistenceManager<BSBCT>::RESERVATION_PERIOD)
-        {
-            return false;
-        }
-        // remove from cache and DB. If account info check succeeds, it will be reserved later in UpdateReservation.
-        else
-        {
-            Release(account, transaction);
-            return true;
-        }
+        // Return false if this block conflicts with an existing reservation that hasn't expired.
+        // If account info check succeeds, it will be reserved later in UpdateReservation.
+        return current_epoch >= info.reservation_epoch + PersistenceManager<BSBCT>::RESERVATION_PERIOD;
     }
     else
     {
@@ -60,14 +52,13 @@ Reservations::CanAcquire(const AccountAddress & account, const BlockHash & hash,
 }
 
 void
-Reservations::Release(const AccountAddress & account, MDB_txn * transaction)
+Reservations::Release(const AccountAddress & account)
 {
-    _store.reservation_del(account, transaction);
     _reservations.erase(account);
 }
 
 void
-Reservations::UpdateReservation(const logos::block_hash & hash, const logos::account & account, MDB_txn * transaction)
+Reservations::UpdateReservation(const logos::block_hash & hash, const logos::account & account)
 {
     uint32_t current_epoch = ConsensusContainer::GetCurEpochNumber();
     if(_reservations.find(account) != _reservations.end())
@@ -80,11 +71,10 @@ Reservations::UpdateReservation(const logos::block_hash & hash, const logos::acc
     }
     logos::reservation_info updated_reservation {hash, current_epoch};
     _reservations[account] = updated_reservation;
-    _store.reservation_put(account, updated_reservation, transaction);
 }
 
 bool
-DefaultReservations::CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates, MDB_txn * transaction)
+DefaultReservations::CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates)
 {
     logos::reservation_info info;
     return !_store.reservation_get(account, info);
