@@ -15,7 +15,7 @@ struct Change : Request
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool &error, logos::stream &stream) override;
 
     void Hash(blake2b_state & hash) const override;

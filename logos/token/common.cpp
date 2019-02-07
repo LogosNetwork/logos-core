@@ -116,11 +116,6 @@ uint16_t TokenRequest::WireSize() const
 ControllerInfo::ControllerInfo(bool & error,
                                std::basic_streambuf<uint8_t> & stream)
 {
-    if(error)
-    {
-        return;
-    }
-
     error = logos::read(stream, account);
     if(error)
     {
