@@ -68,8 +68,17 @@ TEST (Database, blockstore)
     ASSERT_FALSE(res);
     
     ElectionVote ev2;
-    res = store->request_get(ev.Hash(),ev2,txn);
+    auto hash = ev.Hash();
+    res = store->request_get(hash,ev2,txn);
     ASSERT_FALSE(res);
+    ASSERT_EQ(ev2.type,ev.type);
+    ASSERT_EQ(ev2.previous,ev.previous);
+    ASSERT_EQ(ev2.origin,ev.origin);
+    ASSERT_EQ(ev2.signature,ev.signature);
+    ASSERT_EQ(ev2.fee,ev.fee);
+    ASSERT_EQ(ev2.sequence,ev.sequence);
+    ASSERT_EQ(ev2.votes_,ev.votes_);
+    ASSERT_EQ(ev2.digest,ev.digest);
     ASSERT_EQ(ev,ev2);
 
     //Election vote with 3 votes

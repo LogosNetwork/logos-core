@@ -53,6 +53,7 @@ Request::Request(RequestType type,
 Request::Request(bool & error,
                  std::basic_streambuf<uint8_t> & stream)
 {
+
     error = logos::read(stream, type);
     if(error)
     {
@@ -325,7 +326,8 @@ uint16_t Request::WireSize() const
            sizeof(signature.bytes) +
            sizeof(previous.bytes) +
            sizeof(next.bytes) +
-           sizeof(fee.bytes);
+           sizeof(fee.bytes) +
+           sizeof(sequence);
 }
 
 bool Request::operator==(const Request & other) const

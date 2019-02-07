@@ -120,6 +120,7 @@ ElectionVote::ElectionVote(bool & error,
         }
         votes_.push_back(vote);
     }
+    Hash();
 }
 
 

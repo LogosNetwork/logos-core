@@ -71,6 +71,18 @@ RequestType GetRequestType(bool &error, std::string data)
     {
         ret = RequestType::SendTokens;
     }
+    else if(data == ANNOUNCE_CANDIDACY)
+    {
+        ret = RequestType::AnnounceCandidacy;
+    }
+    else if(data == RENOUNCE_CANDIDACY)
+    {
+        ret = RequestType::RenounceCandidacy;
+    }
+    else if(data == ELECTION_VOTE)
+    {
+        ret = RequestType::ElectionVote;
+    }
     else
     {
         error = true;

@@ -496,6 +496,8 @@ TEST (Request_Serialization, election_requests_json)
         "type": "announce_candidacy",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000"
 
@@ -505,8 +507,9 @@ TEST (Request_Serialization, election_requests_json)
     bool error = false;
 
     AnnounceCandidacy announce_candidacy(error, tree);
-    ASSERT_FALSE(error);
+
     ASSERT_EQ(announce_candidacy.type,RequestType::AnnounceCandidacy);
+    ASSERT_FALSE(error);
     //try to make the wrong type of request
     RenounceCandidacy renounce_candidacy(error, tree);
     ASSERT_TRUE(error);
@@ -515,6 +518,8 @@ TEST (Request_Serialization, election_requests_json)
         "type": "renounce_candidacy",
         "previous": "0000000000000000000000000000000000000000000000000000000000000000",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000"
 
@@ -536,6 +541,8 @@ TEST (Request_Serialization, election_requests_json)
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
 
         "request":
         {
@@ -558,7 +565,8 @@ TEST (Request_Serialization, election_requests_json)
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
-
+        "fee": "100",
+        "sequence": "1",
         "request":
         {
             "votes":
@@ -584,7 +592,8 @@ TEST (Request_Serialization, election_requests_json)
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
         "signature": "0000000000000000000000000000000000000000000000000000000000000000",
-
+        "fee": "100",
+        "sequence": "1",
         "request":
         {
             "votes":
@@ -644,7 +653,6 @@ TEST (Request_Serialization, election_requests_json)
     {
         logos::vectorstream write_stream(buf);
         uint64_t size = ev.Serialize(write_stream);
-        ASSERT_EQ(size,ev.WireSize());
     }
 
     logos::bufferstream read_stream(buf.data(), buf.size());
@@ -661,6 +669,9 @@ TEST (Request_Serialization, election_requests_json)
 
 TEST (Request_Serialization, election_requests_stream)
 {
+
+
+    
 
 
     //CandidateVotePair
@@ -686,6 +697,23 @@ TEST (Request_Serialization, election_requests_stream)
     AccountAddress address = 1;
     Amount fee = 23;
     uint32_t sequence = 7;
+
+    Request req(RequestType::ElectionVote,address,prev1,fee,sequence,sig1);
+    {
+        std::vector<uint8_t> buf;
+        {
+            logos::vectorstream write_stream(buf);
+            uint64_t size = req.Serialize(write_stream);
+            ASSERT_EQ(size,req.WireSize());
+        }
+
+        logos::bufferstream read_stream(buf.data(), buf.size());
+        bool error = false;
+        Request req2(error,read_stream);
+        ASSERT_FALSE(error);
+        ASSERT_EQ(req,req2);
+    }
+
     ElectionVote ev(address,prev1,fee,sequence,sig1);
     {
         std::vector<uint8_t> buf;
@@ -733,6 +761,8 @@ TEST (Request_Serialization, election_requests_stream)
         BlockHash next = ev.next;
         AccountSig sig = ev.signature;
         AccountAddress origin = ev.origin;
+        Amount fee = ev.fee;
+        uint32_t sequence = ev.sequence;
         RequestType type = RequestType::ElectionVote;
         std::vector<uint8_t> buf;
         {
@@ -744,6 +774,8 @@ TEST (Request_Serialization, election_requests_stream)
             size += logos::write(write_stream, sig);
             size += logos::write(write_stream, prev);
             size += logos::write(write_stream, next);
+            size += logos::write(write_stream, fee);
+            size += logos::write(write_stream, sequence);
             uint8_t count = 4;
             size += logos::write(write_stream, count);
             for(auto const & v : votes)
