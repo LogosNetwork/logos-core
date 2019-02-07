@@ -920,7 +920,7 @@ bool logos::block_store::request_put(const Request & request, const BlockHash & 
 
     std::vector<uint8_t> buf;
     auto status(mdb_put(transaction, state_db, logos::mdb_val(request.GetHash()),
-                        request.SerializeDB(buf), 0));
+                        request.ToDatabase(buf), 0));
 
     assert(status == 0);
     return status != 0;

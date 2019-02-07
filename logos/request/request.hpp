@@ -47,6 +47,19 @@ struct Request
     using BlockHash      = logos::block_hash;
     using AccountAddress = logos::uint256_union;
 
+    struct Locator
+    {
+        Locator() = default;
+
+        Locator(bool & error,
+                logos::stream & stream);
+
+        uint64_t Serialize(logos::stream & stream);
+
+        BlockHash hash  = 0;
+        uint16_t  index = 0;
+    };
+
     Request() = default;
 
     Request(RequestType type,
@@ -65,7 +78,10 @@ struct Request
             const AccountSig & signature);
 
     Request(bool & error,
-            std::basic_streambuf<uint8_t> & stream);
+            const logos::mdb_val & mdbval);
+
+    Request(bool & error,
+            logos::stream & stream);
 
     Request(bool & error,
             boost::property_tree::ptree const & tree);
@@ -91,17 +107,21 @@ struct Request
     bool VerifySignature(AccountPubKey const & pub) const;
 
     std::string ToJson() const;
+    uint64_t ToStream(logos::stream & stream) const;
+    logos::mdb_val ToDatabase(std::vector<uint8_t> & buf) const;
+    virtual void DeserializeDB(bool &error, logos::stream &stream);
+
+    virtual boost::property_tree::ptree SerializeJson() const;
+    uint64_t DoSerialize(logos::stream & stream) const;
+    virtual uint64_t Serialize(logos::stream & stream) const;
+    void DoDeserialize(bool & error, logos::stream & stream);
+    virtual void Deserialize(bool & error, logos::stream & stream);
 
     virtual bool Validate(logos::process_return & result,
                           std::shared_ptr<logos::Account> info) const;
     virtual bool Validate(logos::process_return & result) const;
 
-    virtual boost::property_tree::ptree SerializeJson() const;
-    virtual uint64_t Serialize(logos::stream & stream) const;
-    logos::mdb_val SerializeDB(std::vector<uint8_t> & buf) const;
-
     virtual BlockHash GetHash () const;
-
     BlockHash Hash() const;
     virtual void Hash(blake2b_state & hash) const;
 
@@ -114,5 +134,6 @@ struct Request
     BlockHash         next;
     Amount            fee;
     uint32_t          sequence = 0;
+    mutable Locator   locator;
     mutable BlockHash digest;
 };

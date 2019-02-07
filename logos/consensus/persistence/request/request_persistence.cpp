@@ -37,8 +37,8 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
     for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
         auto request = static_pointer_cast<const Send>(message.requests[i]);
-        request->batch_hash = batch_hash;
-        request->index_in_batch = count++;
+        request->locator.hash = batch_hash;
+        request->locator.index = count++;
     }
 
     LOG_DEBUG(_log) << "PersistenceManager<R>::ApplyUpdates - RequestBlock with "
@@ -859,11 +859,11 @@ void PersistenceManager<R>::PlaceReceive(ReceiveBlock & receive,
             }
 
             ApprovedRB approved;
-            if(!_store.request_block_get(send.batch_hash, approved, transaction))
+            if(!_store.request_block_get(send.locator.hash, approved, transaction))
             {
                 LOG_FATAL(_log) << "PersistenceManager::ApplySend - "
                                 << "Failed to get a previous batch state block with hash: "
-                                << send.batch_hash.to_string();
+                                << send.locator.hash.to_string();
                 trace_and_halt();
             }
 

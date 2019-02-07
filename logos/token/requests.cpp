@@ -8,70 +8,36 @@
 #include <numeric>
 
 TokenIssuance::TokenIssuance(bool & error,
+                             const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+    
+    Request::Hash();
+}
+
+TokenIssuance::TokenIssuance(bool & error,
                              std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
-    , settings(error, stream)
 {
     if(error)
     {
         return;
     }
-
-    error = logos::read(stream, symbol);
+    
+    Deserialize(error, stream);
     if(error)
     {
         return;
     }
 
-    error = logos::read(stream, name);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, total_supply);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, fee_type);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, fee_rate);
-    if(error)
-    {
-        return;
-    }
-
-    error = settings.Deserialize(stream);
-    if(error)
-    {
-        return;
-    }
-
-    uint8_t len;
-    error = logos::read(stream, len);
-    if(error)
-    {
-        return;
-    }
-
-    for(size_t i = 0; i < len; ++i)
-    {
-        ControllerInfo c(error, stream);
-        if(error)
-        {
-            return;
-        }
-
-        controllers.push_back(c);
-    }
-
-    error = logos::read<uint16_t>(stream, issuer_info);
+    Request::Hash();
 }
 
 TokenIssuance::TokenIssuance(bool & error,
@@ -187,6 +153,81 @@ uint64_t TokenIssuance::Serialize(logos::stream & stream) const
            logos::write<uint16_t>(stream, issuer_info);
 }
 
+void TokenIssuance::Deserialize(bool & error, logos::stream & stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, symbol);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, name);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, total_supply);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, fee_type);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, fee_rate);
+    if(error)
+    {
+        return;
+    }
+
+    error = settings.Deserialize(stream);
+    if(error)
+    {
+        return;
+    }
+
+    uint8_t len;
+    error = logos::read(stream, len);
+    if(error)
+    {
+        return;
+    }
+
+    for(size_t i = 0; i < len; ++i)
+    {
+        ControllerInfo c(error, stream);
+        if(error)
+        {
+            return;
+        }
+
+        controllers.push_back(c);
+    }
+
+    error = logos::read<uint16_t>(stream, issuer_info);
+}
+
+void TokenIssuance::DeserializeDB(bool & error, logos::stream & stream)
+{
+    TokenRequest::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
 void TokenIssuance::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
@@ -220,6 +261,21 @@ uint16_t TokenIssuance::WireSize() const
 }
 
 TokenIssueAdtl::TokenIssueAdtl(bool & error,
+                               const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
+
+TokenIssueAdtl::TokenIssueAdtl(bool & error,
                                std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
@@ -228,7 +284,13 @@ TokenIssueAdtl::TokenIssueAdtl(bool & error,
         return;
     }
 
-    error = logos::read(stream, amount);
+    Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
 }
 
 TokenIssueAdtl::TokenIssueAdtl(bool & error,
@@ -278,6 +340,27 @@ uint64_t TokenIssueAdtl::Serialize(logos::stream & stream) const
            logos::write(stream, amount);
 }
 
+void TokenIssueAdtl::Deserialize(bool & error, logos::stream & stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, amount);
+}
+
+void TokenIssueAdtl::DeserializeDB(bool & error, logos::stream & stream)
+{
+    TokenRequest::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
 void TokenIssueAdtl::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
@@ -292,6 +375,21 @@ uint16_t TokenIssueAdtl::WireSize() const
 }
 
 TokenChangeSetting::TokenChangeSetting(bool & error,
+                                       const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
+
+TokenChangeSetting::TokenChangeSetting(bool & error,
                                        std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
@@ -300,13 +398,13 @@ TokenChangeSetting::TokenChangeSetting(bool & error,
         return;
     }
 
-    error = logos::read(stream, setting);
+    Deserialize(error, stream);
     if(error)
     {
         return;
     }
 
-    error = logos::read(stream, value);
+    Request::Hash();
 }
 
 TokenChangeSetting::TokenChangeSetting(bool & error,
@@ -357,6 +455,33 @@ uint64_t TokenChangeSetting::Serialize(logos::stream & stream) const
            logos::write(stream, value);
 }
 
+void TokenChangeSetting::Deserialize(bool & error, logos::stream & stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, setting);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, value);
+}
+
+void TokenChangeSetting::DeserializeDB(bool & error, logos::stream & stream)
+{
+    TokenRequest::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
 void TokenChangeSetting::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
@@ -373,6 +498,21 @@ uint16_t TokenChangeSetting::WireSize() const
 }
 
 TokenImmuteSetting::TokenImmuteSetting(bool & error,
+                                       const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
+
+TokenImmuteSetting::TokenImmuteSetting(bool & error,
                                        std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
@@ -381,7 +521,13 @@ TokenImmuteSetting::TokenImmuteSetting(bool & error,
         return;
     }
 
-    error = logos::read(stream, setting);
+    Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
 }
 
 TokenImmuteSetting::TokenImmuteSetting(bool & error,
@@ -422,6 +568,27 @@ uint64_t TokenImmuteSetting::Serialize(logos::stream & stream) const
            logos::write(stream, setting);
 }
 
+void TokenImmuteSetting::Deserialize(bool & error, logos::stream & stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, setting);
+}
+
+void TokenImmuteSetting::DeserializeDB(bool & error, logos::stream & stream)
+{
+    TokenRequest::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
 void TokenImmuteSetting::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
@@ -436,20 +603,36 @@ uint16_t TokenImmuteSetting::WireSize() const
 }
 
 TokenRevoke::TokenRevoke(bool & error,
+                         const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
+
+TokenRevoke::TokenRevoke(bool & error,
                          std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
-    , transaction(error, stream)
 {
     if(error)
     {
         return;
     }
 
-    error = logos::read(stream, source);
+    Deserialize(error, stream);
     if(error)
     {
         return;
     }
+
+    Request::Hash();
 }
 
 TokenRevoke::TokenRevoke(bool & error,
@@ -530,6 +713,33 @@ uint64_t TokenRevoke::Serialize(logos::stream & stream) const
            transaction.Serialize(stream);
 }
 
+void TokenRevoke::Deserialize(bool & error, logos::stream & stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, source);
+    if(error)
+    {
+        return;
+    }
+
+    transaction = Transaction(error, stream);
+}
+
+void TokenRevoke::DeserializeDB(bool & error, logos::stream & stream)
+{
+    TokenRequest::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
 void TokenRevoke::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
@@ -546,6 +756,21 @@ uint16_t TokenRevoke::WireSize() const
 }
 
 TokenFreeze::TokenFreeze(bool & error,
+                         const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
+
+TokenFreeze::TokenFreeze(bool & error,
                          std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
@@ -554,13 +779,13 @@ TokenFreeze::TokenFreeze(bool & error,
         return;
     }
 
-    error = logos::read(stream, account);
+    Deserialize(error, stream);
     if(error)
     {
         return;
     }
 
-    error = logos::read(stream, action);
+    Request::Hash();
 }
 
 TokenFreeze::TokenFreeze(bool & error,
@@ -609,6 +834,33 @@ uint64_t TokenFreeze::Serialize(logos::stream & stream) const
            logos::write(stream, action);
 }
 
+void TokenFreeze::Deserialize(bool & error, logos::stream & stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, account);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, action);
+}
+
+void TokenFreeze::DeserializeDB(bool & error, logos::stream & stream)
+{
+    TokenRequest::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
 void TokenFreeze::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
@@ -625,6 +877,21 @@ uint16_t TokenFreeze::WireSize() const
 }
 
 TokenSetFee::TokenSetFee(bool & error,
+                         const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
+
+TokenSetFee::TokenSetFee(bool & error,
                          std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
@@ -633,13 +900,13 @@ TokenSetFee::TokenSetFee(bool & error,
         return;
     }
 
-    error = logos::read(stream, fee_type);
+    Deserialize(error, stream);
     if(error)
     {
         return;
     }
 
-    error = logos::read(stream, fee_rate);
+    Request::Hash();
 }
 
 TokenSetFee::TokenSetFee(bool & error,
@@ -688,6 +955,33 @@ uint64_t TokenSetFee::Serialize(logos::stream & stream) const
            logos::write(stream, fee_rate);
 }
 
+void TokenSetFee::Deserialize(bool & error, logos::stream & stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, fee_type);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, fee_rate);
+}
+
+void TokenSetFee::DeserializeDB(bool & error, logos::stream & stream)
+{
+    TokenRequest::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
 void TokenSetFee::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
@@ -704,6 +998,21 @@ uint16_t TokenSetFee::WireSize() const
 }
 
 TokenWhitelist::TokenWhitelist(bool & error,
+                               const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
+
+TokenWhitelist::TokenWhitelist(bool & error,
                                std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
@@ -712,7 +1021,13 @@ TokenWhitelist::TokenWhitelist(bool & error,
         return;
     }
 
-    error = logos::read(stream, account);
+    Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
 }
 
 TokenWhitelist::TokenWhitelist(bool & error,
@@ -753,6 +1068,27 @@ uint64_t TokenWhitelist::Serialize(logos::stream & stream) const
            logos::write(stream, account);
 }
 
+void TokenWhitelist::Deserialize(bool & error, logos::stream & stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, account);
+}
+
+void TokenWhitelist::DeserializeDB(bool & error, logos::stream & stream)
+{
+    TokenRequest::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
 void TokenWhitelist::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
@@ -766,6 +1102,21 @@ uint16_t TokenWhitelist::WireSize() const
 }
 
 TokenIssuerInfo::TokenIssuerInfo(bool & error,
+                                 const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
+
+TokenIssuerInfo::TokenIssuerInfo(bool & error,
                                  std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
@@ -774,7 +1125,13 @@ TokenIssuerInfo::TokenIssuerInfo(bool & error,
         return;
     }
 
-    error = logos::read<uint16_t>(stream, new_info);
+    Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
 }
 
 TokenIssuerInfo::TokenIssuerInfo(bool & error,
@@ -815,6 +1172,27 @@ uint64_t TokenIssuerInfo::Serialize(logos::stream & stream) const
            logos::write(stream, new_info);
 }
 
+void TokenIssuerInfo::Deserialize(bool & error, logos::stream & stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read<uint16_t>(stream, new_info);
+}
+
+void TokenIssuerInfo::DeserializeDB(bool & error, logos::stream & stream)
+{
+    TokenRequest::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
 void TokenIssuerInfo::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
@@ -828,16 +1206,36 @@ uint16_t TokenIssuerInfo::WireSize() const
 }
 
 TokenController::TokenController(bool & error,
+                                 const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
+
+TokenController::TokenController(bool & error,
                                  std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
-    , controller(error, stream)
 {
     if(error)
     {
         return;
     }
 
-    error = logos::read(stream, action);
+    Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
 }
 
 TokenController::TokenController(bool & error,
@@ -931,6 +1329,28 @@ uint64_t TokenController::Serialize(logos::stream & stream) const
            controller.Serialize(stream);
 }
 
+void TokenController::Deserialize(bool & error, logos::stream & stream)
+{
+    error = logos::read(stream, action);
+    if(error)
+    {
+        return;
+    }
+
+    controller = ControllerInfo(error, stream);
+}
+
+void TokenController::DeserializeDB(bool & error, logos::stream & stream)
+{
+    TokenRequest::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
 void TokenController::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
@@ -947,6 +1367,21 @@ uint16_t TokenController::WireSize() const
 }
 
 TokenBurn::TokenBurn(bool & error,
+                     const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
+
+TokenBurn::TokenBurn(bool & error,
                      std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
@@ -955,7 +1390,13 @@ TokenBurn::TokenBurn(bool & error,
         return;
     }
 
-    error = logos::read(stream, amount);
+    Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
 }
 
 TokenBurn::TokenBurn(bool & error,
@@ -1015,6 +1456,27 @@ uint64_t TokenBurn::Serialize(logos::stream & stream) const
            logos::write(stream, amount);
 }
 
+void TokenBurn::Deserialize(bool & error, logos::stream & stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, amount);
+}
+
+void TokenBurn::DeserializeDB(bool & error, logos::stream & stream)
+{
+    TokenRequest::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
 void TokenBurn::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
@@ -1029,10 +1491,37 @@ uint16_t TokenBurn::WireSize() const
 }
 
 TokenAccountSend::TokenAccountSend(bool & error,
+                                   const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
+
+TokenAccountSend::TokenAccountSend(bool & error,
                                    std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
-    , transaction(error, stream)
-{}
+{
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
 
 TokenAccountSend::TokenAccountSend(bool & error,
                                    boost::property_tree::ptree const & tree)
@@ -1079,6 +1568,22 @@ uint64_t TokenAccountSend::Serialize(logos::stream & stream) const
            transaction.Serialize(stream);
 }
 
+void TokenAccountSend::Deserialize(bool & error, logos::stream & stream)
+{
+    transaction = Transaction(error, stream);
+}
+
+void TokenAccountSend::DeserializeDB(bool & error, logos::stream & stream)
+{
+    TokenRequest::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
 void TokenAccountSend::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
@@ -1092,10 +1597,37 @@ uint16_t TokenAccountSend::WireSize() const
 }
 
 TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
+                                                 const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
+
+TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
                                                  std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
-    , transaction(error, stream)
-{}
+{
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
 
 TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
                                                  boost::property_tree::ptree const & tree)
@@ -1141,6 +1673,22 @@ uint64_t TokenAccountWithdrawFee::Serialize(logos::stream & stream) const
            transaction.Serialize(stream);
 }
 
+void TokenAccountWithdrawFee::Deserialize(bool & error, logos::stream & stream)
+{
+    transaction = Transaction(error, stream);
+}
+
+void TokenAccountWithdrawFee::DeserializeDB(bool & error, logos::stream & stream)
+{
+    TokenRequest::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
 void TokenAccountWithdrawFee::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
@@ -1154,6 +1702,21 @@ uint16_t TokenAccountWithdrawFee::WireSize() const
 }
 
 TokenSend::TokenSend(bool & error,
+                     const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
+
+TokenSend::TokenSend(bool & error,
                      std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
@@ -1162,25 +1725,13 @@ TokenSend::TokenSend(bool & error,
         return;
     }
 
-    uint8_t len;
-    error = logos::read(stream, len);
+    Deserialize(error, stream);
     if(error)
     {
         return;
     }
 
-    for(uint8_t i = 0; i < len; ++i)
-    {
-        Transaction t(error, stream);
-        if(error)
-        {
-            return;
-        }
-
-        transactions.push_back(t);
-    }
-
-    error = logos::read(stream, token_fee);
+    Request::Hash();
 }
 
 TokenSend::TokenSend(bool & error,
@@ -1284,6 +1835,40 @@ uint64_t TokenSend::Serialize(logos::stream & stream) const
     return TokenRequest::Serialize(stream) +
            SerializeVector(stream, transactions) +
            logos::write(stream, token_fee);
+}
+
+void TokenSend::Deserialize(bool & error, logos::stream & stream)
+{
+    uint8_t len;
+    error = logos::read(stream, len);
+    if(error)
+    {
+        return;
+    }
+
+    for(uint8_t i = 0; i < len; ++i)
+    {
+        Transaction t(error, stream);
+        if(error)
+        {
+            return;
+        }
+
+        transactions.push_back(t);
+    }
+
+    error = logos::read(stream, token_fee);
+}
+
+void TokenSend::DeserializeDB(bool & error, logos::stream & stream)
+{
+    TokenRequest::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
 }
 
 void TokenSend::Hash(blake2b_state & hash) const
