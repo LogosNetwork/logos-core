@@ -1,7 +1,8 @@
 /// @file
 /// This file contains implementation of the ConsensusNetIOManager classes, which handle
 /// network connections between the delegates
-#include <logos/consensus/network/consensus_netio_manager.hpp>
+#include <logos/network/consensus_netio_manager.hpp>
+#include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/node/node.hpp>
 

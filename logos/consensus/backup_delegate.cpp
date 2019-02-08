@@ -1,5 +1,5 @@
 #include <logos/consensus/backup_delegate.hpp>
-#include <logos/consensus/network/consensus_netio.hpp>
+#include <logos/network/consensus_netio.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 

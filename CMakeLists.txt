@@ -323,6 +323,7 @@ add_library (node
 	logos/consensus/backup_delegate.cpp
 	logos/consensus/consensus_container.cpp
 	logos/consensus/consensus_manager.cpp
+	logos/consensus/delegate_key_store.cpp
 	logos/consensus/epoch_manager.cpp
 	logos/consensus/epoch/epoch_backup_delegate.cpp
 	logos/consensus/epoch/epoch_consensus_manager.cpp
@@ -330,11 +331,6 @@ add_library (node
 	logos/consensus/messages/messages.cpp
 	logos/consensus/microblock/microblock_backup_delegate.cpp
 	logos/consensus/microblock/microblock_consensus_manager.cpp
-	logos/consensus/network/consensus_netio.cpp
-	logos/consensus/network/consensus_netio_manager.cpp
-	logos/consensus/network/net_io_assembler.cpp
-	logos/consensus/network/peer_acceptor.cpp
-	logos/consensus/network/epoch_peer_manager.cpp
 	logos/consensus/persistence/persistence.cpp
 	logos/consensus/persistence/validator_builder.cpp
 	logos/consensus/persistence/batchblock/batchblock_persistence.cpp
@@ -342,7 +338,6 @@ add_library (node
 	logos/consensus/persistence/microblock/microblock_persistence.cpp
 	logos/consensus/persistence/reservations.cpp
 	logos/consensus/primary_delegate.cpp
-	logos/consensus/delegate_key_store.cpp
 	logos/epoch/archiver.cpp
 	logos/epoch/epoch.cpp
 	logos/epoch/epoch_handler.cpp
@@ -352,6 +347,12 @@ add_library (node
 	logos/microblock/microblock.cpp
 	logos/microblock/microblock_handler.cpp
 	logos/microblock/microblock_tester.cpp
+	logos/network/consensus_netio.cpp
+	logos/network/consensus_netio_manager.cpp
+	logos/network/net_io_assembler.cpp
+	logos/network/net_io_send.cpp
+	logos/network/peer_acceptor.cpp
+	logos/network/epoch_peer_manager.cpp
 	logos/node/bootstrap.cpp
 	logos/node/bootstrap.hpp
 	logos/node/client_callback.cpp
@@ -374,6 +375,11 @@ add_library (node
 	logos/node/stats.cpp
 	logos/node/working.hpp
 	logos/node/xorshift.hpp
+	logos/tx_acceptor/tx_acceptor.cpp
+	logos/tx_acceptor/tx_acceptor_channel.cpp
+	logos/tx_acceptor/tx_message_header.cpp
+	logos/tx_acceptor/tx_receiver.cpp
+	logos/tx_acceptor/tx_receiver_channel.cpp
 	logos/wallet_server/client/callback_handler.cpp
 	logos/wallet_server/client/callback_manager.cpp
 	logos/wallet_server/client/common.hpp

@@ -13,21 +13,22 @@
 
 std::atomic<uint32_t> ConsensusContainer::_cur_epoch_number(0);
 const Seconds ConsensusContainer::GARBAGE_COLLECT = Seconds(60);
+bool ConsensusContainer::_validate_sig_config = false;
 
 ConsensusContainer::ConsensusContainer(Service & service,
                                        Store & store,
                                        logos::alarm & alarm,
-                                       const Config & config,
+                                       const logos::node_config & config,
                                        Archiver & archiver,
                                        DelegateIdentityManager & identity_manager)
-    : _peer_manager(service, config, std::bind(&ConsensusContainer::PeerBinder, this,
+    : _peer_manager(service, config.consensus_manager_config, std::bind(&ConsensusContainer::PeerBinder, this,
             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3))
     , _cur_epoch(nullptr)
     , _trans_epoch(nullptr)
     , _service(service)
     , _store(store)
     , _alarm(alarm)
-    , _config(config)
+    , _config(config.consensus_manager_config)
     , _archiver(archiver)
     , _identity_manager(identity_manager)
     , _transition_state(EpochTransitionState::None)
@@ -36,6 +37,9 @@ ConsensusContainer::ConsensusContainer(Service & service,
     uint8_t delegate_idx;
     Accounts delegates;
     _identity_manager.IdentifyDelegates(EpochDelegates::Current, delegate_idx, delegates);
+
+    _validate_sig_config = config.tx_acceptor_config.validate_sig &&
+            config.tx_acceptor_config.tx_acceptors.size() == 0; // delegate mode, don't need to re-validate sig
 
     // is the node a delegate in this epoch
     bool in_epoch = delegate_idx != NON_DELEGATE;
@@ -50,7 +54,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
     /// TODO epoch_transition_enabled is temp to facilitate testing without transition
     if (!DelegateIdentityManager::IsEpochTransitionEnabled())
     {
-        create(config);
+        create(_config);
     }
     else if (in_epoch)
     {
@@ -78,7 +82,7 @@ ConsensusContainer::CreateEpochManager(
 
 logos::process_return
 ConsensusContainer::OnSendRequest(
-    std::shared_ptr<StateBlock> block,
+    std::shared_ptr<Request> block,
     bool should_buffer)
 {
     logos::process_return result;
@@ -98,23 +102,36 @@ ConsensusContainer::OnSendRequest(
 	    return result;
 	}
 
-    using Request = RequestMessage<ConsensusType::BatchStateBlock>;
-
     if(should_buffer)
     {
         result.code = logos::process_result::buffered;
-        _cur_epoch->_batch_manager.OnBenchmarkSendRequest(
-            static_pointer_cast<Request>(block), result);
+        _cur_epoch->_batch_manager.OnBenchmarkSendRequest(block, result);
     }
     else
     {
         LOG_DEBUG(_log) << "ConsensusContainer::OnSendRequest: "
                 << "number_transaction=" << block->trans.size();
-        _cur_epoch->_batch_manager.OnSendRequest(
-            static_pointer_cast<Request>(block), result);
+        _cur_epoch->_batch_manager.OnSendRequest(block, result);
     }
 
     return result;
+}
+
+TxChannel::Responses
+ConsensusContainer::OnSendRequest(vector<std::shared_ptr<Request>> &blocks)
+{
+    logos::process_return result;
+    OptLock lock(_transition_state, _mutex);
+
+    if (_cur_epoch == nullptr)
+    {
+        result.code = logos::process_result::not_delegate;
+        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest transaction, the node is not a delegate, "
+                        << (int)DelegateIdentityManager::_global_delegate_idx;
+        return {{result.code,0}};
+    }
+
+    return _cur_epoch->_batch_manager.OnSendRequest(blocks);
 }
 
 void

@@ -3,6 +3,7 @@
 /// handles specifics of BatchBlock consensus
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/batchblock/bb_backup_delegate.hpp>
+#include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 

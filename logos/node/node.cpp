@@ -1,6 +1,8 @@
 #include <logos/node/node.hpp>
 
 #include <logos/consensus/consensus_container.hpp>
+#include <logos/tx_acceptor/tx_acceptor.hpp>
+#include <logos/tx_acceptor/tx_receiver.hpp>
 
 #include <logos/lib/interface.h>
 #include <logos/node/common.hpp>
@@ -720,6 +722,10 @@ void logos::node_config::serialize_json (boost::property_tree::ptree & tree_a) c
     boost::property_tree::ptree consensus_manager;
     consensus_manager_config.SerializeJson(consensus_manager);
     tree_a.add_child("ConsensusManager", consensus_manager);
+
+    boost::property_tree::ptree tx_acceptor;
+    tx_acceptor_config.SerializeJson(tx_acceptor);
+    tree_a.add_child("TxAcceptor", tx_acceptor);
 }
 
 bool logos::node_config::upgrade_json (unsigned version, boost::property_tree::ptree & tree_a)
@@ -931,6 +937,14 @@ bool logos::node_config::deserialize_json (bool & upgraded_a, boost::property_tr
         }
 
         result |= consensus_manager_config.DeserializeJson(tree_a.get_child("ConsensusManager"));
+        try { // temp for backward compatability
+            result |= tx_acceptor_config.DeserializeJson(tree_a.get_child("TxAcceptor"));
+        }
+        catch (std::logic_error const&)
+        {
+            result |= tx_acceptor_config.DeserializeJson(tree_a.get_child("ConsensusManager"));
+        }
+
     }
     catch (std::runtime_error const &)
     {
@@ -1274,7 +1288,14 @@ stats (config.stat_config),
 _recall_handler(),
 _identity_manager(store, config.consensus_manager_config),
 _archiver(alarm_a, store, _recall_handler),
-_consensus_container(service_a, store, alarm_a, config.consensus_manager_config, _archiver, _identity_manager)
+_consensus_container{std::make_shared<ConsensusContainer>(
+        service_a, store, alarm_a, config, _archiver, _identity_manager)},
+_tx_acceptor{config.tx_acceptor_config.tx_acceptors.size() == 0
+    ? std::make_shared<TxAcceptorDelegate>(service_a, _consensus_container, config)
+    : nullptr},
+_tx_receiver{config.tx_acceptor_config.tx_acceptors.size() != 0
+    ? std::make_shared<TxReceiver>(service_a, alarm_a, _consensus_container, config)
+    : nullptr}
 {
     BlocksCallback::Instance(service_a, config.callback_address, config.callback_port, config.callback_target, config.logging.callback_logging ());
 // Used to modify the database file with the new account_info field.
@@ -1608,7 +1629,7 @@ void logos::node::start ()
 //    add_initial_peers ();
 //    observers.started ();
 // CH added starting logic here instead of inside constructors
-    _archiver.Start(_consensus_container);
+    _archiver.Start(*_consensus_container);
 }
 
 void logos::node::stop ()
@@ -2048,14 +2069,15 @@ void logos::node::add_initial_peers ()
 
 logos::process_return logos::node::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_buffer)
 {
-    return _consensus_container.OnSendRequest(block, should_buffer);
+    return _consensus_container->OnSendRequest(
+            static_pointer_cast<RequestMessage<ConsensusType::BatchStateBlock>>(block), should_buffer);
 }
 
 logos::process_return logos::node::BufferComplete()
 {
     process_return result;
 
-    _consensus_container.BufferComplete(result);
+    _consensus_container->BufferComplete(result);
 
     return result;
 }

@@ -38,6 +38,7 @@ public:
     virtual bool Validate(const PrePrepare & message, ValidationStatus * status = nullptr);
 
     static constexpr uint32_t  RESERVATION_PERIOD  = 2;
+    static constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
 
 private:
 
@@ -60,8 +61,6 @@ private:
     void PlaceReceive(ReceiveBlock & receive,
                       uint64_t timestamp,
                       MDB_txn * transaction);
-
-    static constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
 
     Log                 _log;
     ReservationsPtr     _reservations;

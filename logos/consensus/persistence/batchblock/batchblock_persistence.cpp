@@ -3,6 +3,7 @@
 
 #include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
 #include <logos/consensus/persistence/reservations.hpp>
+#include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/lib/trace.hpp>
 #include <logos/common.hpp>
@@ -64,7 +65,7 @@ bool PersistenceManager<BSBCT>::ValidateRequest(
     bool prelim)
 {
     // SYL Integration: move signature validation here so we always check
-    if(! block.VerifySignature(block.account))
+    if(ConsensusContainer::ValidateSigConfig() && ! block.VerifySignature(block.account))
     {
         LOG_WARN(_log) << "PersistenceManager<BSBCT> - Validate, bad signature: "
                        << block.signature.to_string()
@@ -76,17 +77,7 @@ bool PersistenceManager<BSBCT>::ValidateRequest(
 
     auto hash = block.GetHash();
 
-    if(block.account.is_zero())
-    {
-        result.code = logos::process_result::opened_burn_account;
-        return false;
-    }
-
-    if(block.transaction_fee.number() < MIN_TRANSACTION_FEE)
-    {
-        result.code = logos::process_result::insufficient_fee;
-        return false;
-    }
+    // burn account and transaction fee validation is done in TxAcceptor
 
     // SYL Integration: remove _reservation_mutex for now and rely on coarser _write_mutex. Potential fix later
     logos::account_info info;

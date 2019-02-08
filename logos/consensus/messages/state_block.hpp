@@ -251,7 +251,7 @@ struct StateBlock
     /// @param error it will be set to true if deserialization fail [out]
     /// @param stream the stream containing serialized data [in]
     /// @param with_batch_hash if the serialized data should have the batch_hash [in]
-    StateBlock (bool & error, logos::stream & stream, bool with_batch_hash = false)
+    void Deserialize (bool & error, logos::stream & stream, bool with_batch_hash = false)
     {
         error = logos::read(stream, account);
         if(error)
@@ -333,6 +333,27 @@ struct StateBlock
         }
 
         Hash ();
+    }
+
+    /// Class constructor
+    /// construct from deserializing a stream which was decoded from a Json string
+    /// @param error it will be set to true if deserialization fail [out]
+    /// @param stream the stream containing serialized data [in]
+    /// @param with_batch_hash if the serialized data should have the batch_hash [in]
+    StateBlock (bool & error, logos::stream & stream, bool with_batch_hash = false)
+    {
+        Deserialize(error, stream, with_batch_hash);
+    }
+
+    /// Class constructor
+    /// construct from deserializing a stream which was decoded from a Json string
+    /// @param error it will be set to true if deserialization fail [out]
+    /// @param buf the buffer containing serialized data [in]
+    /// @param size of the serialized data [in]
+    /// @param with_batch_hash if the serialized data should have the batch_hash [in]
+    StateBlock (bool & error, const uint8_t *buf, size_t size, bool with_batch_hash = false) {
+        logos::bufferstream stream(buf, size);
+        Deserialize(error, stream, with_batch_hash);
     }
 
     /// Add a new transaction
@@ -468,6 +489,16 @@ struct StateBlock
         }
 
         return s;
+    }
+
+    /// Serialize the data members to a buffer
+    /// @param buf the buffer to serialize to
+    /// @param with_batch_hash if batch_hash should be serialized
+    /// @returns the number of bytes serialized
+    uint32_t Serialize(std::vector<uint8_t> & buf, bool with_batch_hash = false)
+    {
+        logos::vectorstream stream(buf);
+        return Serialize(stream, with_batch_hash);
     }
 
     /// Serialize the data members to a database buffer

@@ -2,7 +2,7 @@
 // Implementes DelegateBridge class
 //
 
-#include <logos/consensus/network/consensus_netio.hpp>
+#include <logos/network/consensus_netio.hpp>
 #include <logos/consensus/delegate_bridge.hpp>
 #include <logos/consensus/messages/util.hpp>
 
@@ -95,6 +95,7 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
             // will not receive Post_Committed_Block
         case MessageType::Heart_Beat:
         case MessageType::Key_Advert:
+        case MessageType::TxAcceptor_Message:
         case MessageType::Unknown:
         {
             LOG_WARN(_log) << "ConsensusConnection<" << ConsensusToName(CT) << "> - Received "
@@ -110,6 +111,7 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
 
     return ! error;
 }
+
 template class DelegateBridge<ConsensusType::BatchStateBlock>;
 template class DelegateBridge<ConsensusType::MicroBlock>;
 template class DelegateBridge<ConsensusType::Epoch>;

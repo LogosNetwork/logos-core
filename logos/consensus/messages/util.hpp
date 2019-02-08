@@ -37,6 +37,9 @@ inline std::string MessageToName(const MessageType & type)
         case MessageType::Heart_Beat:
             ret = "Heart Beat";
             break;
+        case MessageType::TxAcceptor_Message:
+            ret = "TxAcceptor Message";
+            break;
         default:
             ret = "Undefined";
     }

@@ -1,3 +1,4 @@
+#include <logos/consensus/consensus_container.hpp>
 #include <logos/microblock/microblock_handler.hpp>
 #include <logos/microblock/microblock_tester.hpp>
 #include <logos/consensus/messages/messages.hpp>
@@ -195,7 +196,7 @@ MicroBlockTester::generate_microblock(
     logos::transaction transaction(node.store.environment, nullptr, true);
     boost::property_tree::ptree response_l;
     bool last_block = _request.get<bool>("last", false);
-    node._archiver.Test_ProposeMicroBlock(node._consensus_container, last_block);
+  node._archiver.Test_ProposeMicroBlock(*node._consensus_container, last_block);
     response_l.put ("result", "sent");
     response (response_l);
 }
@@ -227,7 +228,7 @@ MicroBlockTester::start_epoch_transition(
     RecallHandler handler;
     EventProposer proposer(node.alarm, handler, false, false);
     proposer.ProposeTransitionOnce([&node]()->void{
-        node._consensus_container.EpochTransitionEventsStart();
+        node._consensus_container->EpochTransitionEventsStart();
     }, Seconds(delay));
     response_l.put ("result", "in-progress");
     response (response_l);

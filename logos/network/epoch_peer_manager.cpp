@@ -4,7 +4,7 @@
 /// which handles server connections from peers and binding of these connections
 /// to the appropriate epoch during epoch transition
 ///
-#include <logos/consensus/network/epoch_peer_manager.hpp>
+#include <logos/network/epoch_peer_manager.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/messages/util.hpp>
 #include <logos/consensus/consensus_container.hpp>
