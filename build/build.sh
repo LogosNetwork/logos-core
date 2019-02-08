@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage {
-    echo "usage: ./build.sh [-t type_name] [-n network_name] [-s] [-c num_cpus] [--reject] [-r --rebuild] [clean]"
+    echo "usage: ./build.sh [-t type_name] [-n network_name] [-s] [-c num_cpus] [--reject] [--gprof] [-r --rebuild] [clean]"
     echo "  -h  | display help"
     echo "  -t, --CMAKE_BUILD_TYPE type_name
       | specify build type, a CMake variable"
@@ -19,6 +19,8 @@ function usage {
     echo "      | defaults to off"
     echo "  --reject
       | makes delegate randomly reject transactions inside PrePrepares"
+    echo "  --gprof
+      | add -pg to build and link flags to make the software generate gmon profiling"
     echo "  -r, --rebuild
       | bypasses all checks and simply call make logos_core"
     echo "  clean
@@ -28,7 +30,7 @@ function usage {
 
 # Parse long arguments (optional) to be later used as CMake variables
 OPTIONS=t:n:c:srh
-LONGOPTS=CMAKE_BUILD_TYPE:,ACTIVE_NETWORK:,cpus:,reject,rebuild,help
+LONGOPTS=CMAKE_BUILD_TYPE:,ACTIVE_NETWORK:,cpus:,reject,gprof,rebuild,help
 
 # -temporarily store output to be able to check for errors
 # -activate quoting/enhanced mode (e.g. by writing out “--options”)
@@ -70,6 +72,10 @@ while true; do
             ;;
         --reject)
             reject_flag=" -DTEST_REJECT:BOOL="ON""
+            shift
+            ;;
+        --gprof)
+            prof_flag="-DCMAKE_CXX_FLAGS=-pg -DLINK_FLAGS=-pg "
             shift
             ;;
         -r|--rebuild)
@@ -259,8 +265,8 @@ cd ${BUILD_DIR}
 git submodule update --init --recursive
 cmake -DBOOST_ROOT="$BOOST_ROOT" -DACTIVE_NETWORK="$activeNetwork" \
     -DCMAKE_BUILD_TYPE="$cmakeBuildType" ${threshold_flag}${reject_flag} \
-    -std=c++11 -G "Unix Makefiles" ..\
-    && make logos_core -j"$numCPUs"
+    ${prof_flag} -G "Unix Makefiles" ..\
+    && make -j"$numCPUs"
 
 if [[ $? > 0 ]]
 then

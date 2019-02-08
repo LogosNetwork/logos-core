@@ -42,6 +42,7 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
     LOG_INFO (_log) << "ConsensusManager<" << ConsensusToName(CT)
                     << ">::OnSendRequest() - hash: "
                     << hash.to_string();
+    auto t0 (GetStamp());
 
     if(_state == ConsensusState::INITIALIZING)
     {
@@ -57,6 +58,9 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
                        << hash.to_string();
         return;
     }
+    LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT)
+                    << ">::OnSendRequest() - Time to check pending: "
+                    << GetStamp() - t0;
 
     if(!Validate(block, result))
     {
@@ -66,13 +70,16 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
                        << " hash: " << hash.to_string();
         return;
     }
+    LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT)
+                    << ">::OnSendRequest() - Time to validate: "
+                    << GetStamp() - t0;
 
     QueueRequest(block);
-    OnRequestQueued();
+    OnRequestQueued(false);
 }
 
 template<ConsensusType CT>
-void ConsensusManager<CT>::OnRequestQueued()
+void ConsensusManager<CT>::OnRequestQueued(bool notify)
 {
     if(ReadyForConsensus())
     {
@@ -156,6 +163,7 @@ void ConsensusManager<CT>::InitiateConsensus()
     LOG_INFO(_log) << "Initiating "
                    << ConsensusToName(CT)
                    << " consensus.";
+    auto t0 (GetStamp());
 
     auto & pre_prepare = PrePrepareGetNext();
 
@@ -164,11 +172,20 @@ void ConsensusManager<CT>::InitiateConsensus()
     // mistakenly process previous consensus messages from backups in this new round,
     // since ProceedWithMessage checks _state first then _cur_hash).
     OnConsensusInitiated(pre_prepare);
+    LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT)
+                    << ">::InitiateConsensus() - Time for OnConsensusInitiated: "
+                    << GetStamp() - t0;
     AdvanceState(ConsensusState::PRE_PREPARE);
+    LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT)
+                    << ">::InitiateConsensus() - Time to AdvanceState: "
+                    << GetStamp() - t0;
 
     pre_prepare.preprepare_sig = _pre_prepare_sig;
     LOG_DEBUG(_log) << "JSON representation: " << pre_prepare.SerializeJson();
     PrimaryDelegate::Send<PrePrepare>(pre_prepare);
+    LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT)
+                    << ">::InitiateConsensus() - Time to Send PrePrepare: "
+                    << GetStamp() - t0;
 }
 
 template<ConsensusType CT>

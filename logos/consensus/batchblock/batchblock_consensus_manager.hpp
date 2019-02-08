@@ -50,13 +50,17 @@ public:
                                MessageValidator & validator,
                                EpochEventsNotifier & events_notifier);
 
-    virtual ~BatchBlockConsensusManager() {};
+    virtual ~BatchBlockConsensusManager() {
+        _stopped = true;
+    };
 
     /// Handles benchmark requests.
     ///     @param[in]  block state block.
     ///     @param[out] result result of the operation.
     void OnBenchmarkSendRequest(std::shared_ptr<Request> block,
                                 logos::process_return & result) override;
+
+    void OnRequestQueued(bool notify = true) override;
 
     /// Called to indicate that the buffering is complete.
     ///
@@ -101,6 +105,8 @@ protected:
     uint64_t GetStoredCount() override;
 
     void InitiateConsensus() override;
+
+    void StartConsensusLoop();
 
     /// Sends buffered blocks.
     ///
@@ -174,19 +180,23 @@ private:
 
     bool Rejected(uint128_t reject_vote, uint128_t reject_stake);
 
-    WeightList            _response_weights;
-    Hashes                _hashes;
-    bool                  _should_repropose      = false; ///< indicator of whether a Contains_Invalid_Request Rejection has been received
-    BlockBuffer           _buffer;                        ///< Buffered state blocks.
-    std::mutex            _buffer_mutex;                  ///< SYL Integration fix: separate lock for benchmarking buffer
-    static RequestHandler _handler;                       ///< Primary queue of batch state blocks.
-    Timer                 _init_timer;
-    Service &             _service;
-    uint64_t              _sequence              = 0;
-    uint128_t             _connected_vote        = 0;
-    uint128_t             _connected_stake       = 0;
-    uint128_t             _ne_reject_vote        = 0;     ///< New Epoch rejection vote weight.
-    uint128_t             _ne_reject_stake       = 0;     ///< New Epoch rejection stake weight.
-    bool                  _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
-    bool                  _delegates_connected   = false;
+    WeightList              _response_weights;
+    Hashes                  _hashes;
+    bool                    _should_repropose      = false; ///< indicator of whether a Contains_Invalid_Request Rejection has been received
+    BlockBuffer             _buffer;                        ///< Buffered state blocks.
+    std::mutex              _buffer_mutex;                  ///< SYL Integration fix: separate lock for benchmarking buffer
+    static RequestHandler   _handler;                       ///< Primary queue of batch state blocks.
+    Timer                   _init_timer;
+    Service &               _service;
+    uint64_t                _sequence              = 0;
+    uint128_t               _connected_vote        = 0;
+    uint128_t               _connected_stake       = 0;
+    uint128_t               _ne_reject_vote        = 0;     ///< New Epoch rejection vote weight.
+    uint128_t               _ne_reject_stake       = 0;     ///< New Epoch rejection stake weight.
+    bool                    _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
+    bool                    _delegates_connected   = false;
+    std::thread             _consensus_thread;
+    std::condition_variable _cv;
+    std::mutex              _mutex;
+    std::atomic_bool        _stopped;
 };

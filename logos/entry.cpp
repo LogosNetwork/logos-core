@@ -9,8 +9,28 @@
 
 #include <bls/bls.hpp>
 
+// Add signal handler to terminate the program.
+// NOTE: Ctrl-C will potentially not call exit and therefore
+//       no gmon.out will be written in profiling.
+//       We introduce SIGINT here and a handler for it.
+#include <signal.h>
+
+void handle_sigint(int sig)
+{
+    printf("Received signal %d\n", sig);
+    exit(0);
+}
+
+void handle_sigterm(int sig)
+{
+    printf("Received signal %d\n", sig);
+    exit(0);
+}
+
 int main (int argc, char * const * argv)
 {
+    signal(SIGINT, handle_sigint);
+    signal(SIGTERM, handle_sigterm);
     //TODO find a better place to call, as long as before the 1st BLS operation, e.g. key generation
     bls::init();
 

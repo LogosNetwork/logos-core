@@ -19,6 +19,7 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
               validator, events_notifier)
     , _init_timer(service)
     , _service(service)
+    , _consensus_thread ([this]() { StartConsensusLoop(); })
 {
     _state = ConsensusState::INITIALIZING;
     _store.batch_tip_get(_delegate_id, _prev_pre_prepare_hash);
@@ -41,6 +42,19 @@ BatchBlockConsensusManager::OnBenchmarkSendRequest(
 
     _using_buffered_blocks = true;
     _buffer.push_back(block);
+}
+
+void
+BatchBlockConsensusManager::OnRequestQueued(bool notify)
+{
+    auto t0 (GetStamp());
+    if (notify)
+    {
+        std::unique_lock<std::mutex> lock(_mutex);
+        _cv.notify_one();
+    }
+    LOG_DEBUG(_log) << "BatchBlockConsensusManager::OnRequestQueued() - Time to complete function: "
+                    << GetStamp() - t0;
 }
 
 void
@@ -190,12 +204,31 @@ BatchBlockConsensusManager::InitiateConsensus()
     // make sure we start with a fresh set of hashes so as to not interfere with rejection logic
     _hashes.clear();
     _should_repropose = false;
+    auto t0 (GetStamp());
     // SYL Integration: perform validation against account_db here instead of at request receive time
     {
         std::lock_guard<std::mutex> lock(_persistence_manager._write_mutex);
         _handler.PrepareNextBatch(_persistence_manager);
     }
+    LOG_DEBUG(_log) << "BatchBlockConsensusManager::InitiateConsensus() - Time to PrepareNextBatch: "
+                    << GetStamp() - t0;
     Manager::InitiateConsensus();
+}
+
+void
+BatchBlockConsensusManager::StartConsensusLoop()
+{
+    while (!_stopped)
+    {
+        std::unique_lock<std::mutex> lock(_mutex);
+        if (_cv.wait_for(lock,
+                std::chrono::milliseconds(1000),
+                std::bind(&BatchBlockConsensusManager::ReadyForConsensus, this)))
+        {
+            _ongoing = true;
+            InitiateConsensus();
+        }
+    }
 }
 
 void

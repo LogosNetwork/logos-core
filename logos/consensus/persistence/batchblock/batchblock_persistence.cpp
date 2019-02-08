@@ -191,6 +191,7 @@ bool PersistenceManager<BSBCT>::ValidateSingleRequest(
 {
     std::lock_guard<std::mutex> lock(_write_mutex);
     return ValidateRequest(block, result, allow_duplicates, false);
+//    return ValidateRequest(block, result, allow_duplicates, true);
 }
 
 // Use this for batched transactions validation (either PrepareNextBatch or backup validation)

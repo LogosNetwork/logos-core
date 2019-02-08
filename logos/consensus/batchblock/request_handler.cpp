@@ -46,9 +46,14 @@ RequestHandler::BSBPrePrepare & RequestHandler::GetCurrentBatch()
 RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch(
     RequestHandler::Manager & manager)
 {
+    auto t0 (GetStamp());
     std::lock_guard<std::mutex> lock(_mutex);
+
+    LOG_DEBUG(_log) << "RequestHandler::PrepareNextBatch - Time to acquire lock: " << GetStamp() - t0;
     _current_batch = BSBPrePrepare();
+    LOG_DEBUG(_log) << "RequestHandler::PrepareNextBatch - Time to create empty block: " << GetStamp() - t0;
     auto & sequence = _requests.get<0>();
+    LOG_DEBUG(_log) << "RequestHandler::PrepareNextBatch - Time to get sequence: " << GetStamp() - t0;
 
     _current_batch.blocks.reserve(sequence.size());
     _current_batch.hashes.reserve(sequence.size());
@@ -84,6 +89,7 @@ RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch(
         pos++;
     }
 
+    LOG_DEBUG(_log) << "RequestHandler::PrepareNextBatch - Time to fill current batch: " << GetStamp() - t0;
     return _current_batch;
 }
 
