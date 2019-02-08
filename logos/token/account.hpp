@@ -18,12 +18,14 @@ struct TokenAccount : logos::Account
     using EnumType    = std::underlying_type<TokenSetting>::type;
     using Controllers = std::vector<ControllerInfo>;
 
+    TokenAccount() = default;
+
     TokenAccount(const TokenIssuance & issuance);
 
     TokenAccount(bool & error, const logos::mdb_val & mdbval);
 
-    TokenAccount(const logos::block_hash & head,
-                 logos::amount balance,
+    TokenAccount(const BlockHash & head,
+                 Amount balance,
                  uint64_t modified,
                  uint16_t token_balance,
                  uint16_t token_fee_balance,
@@ -38,6 +40,9 @@ struct TokenAccount : logos::Account
     bool Validate(TokenSetting setting,
                   bool value,
                   logos::process_return & result) const;
+
+    bool IsController(const AccountAddress & account) const;
+    bool GetController(const AccountAddress & account, ControllerInfo & controller) const;
 
     bool FeeSufficient(uint16_t token_total, uint16_t token_fee) const;
     bool SendAllowed(const TokenUserStatus & status,

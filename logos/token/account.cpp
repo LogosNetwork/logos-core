@@ -16,17 +16,21 @@ TokenAccount::TokenAccount(const TokenIssuance & issuance)
 
 TokenAccount::TokenAccount(bool & error, const logos::mdb_val & mdbval)
 {
-    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()), mdbval.size());
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
     error = Deserialize(stream);
 }
 
-TokenAccount::TokenAccount(const logos::block_hash & head,
-                           logos::amount balance,
+TokenAccount::TokenAccount(const BlockHash & head,
+                           Amount balance,
                            uint64_t modified,
                            uint16_t token_balance,
                            uint16_t token_fee_balance,
                            uint32_t block_count)
-    : logos::Account(head, balance, block_count, modified)
+    : logos::Account(head,
+                     balance,
+                     block_count,
+                     modified)
     , token_balance(token_balance)
     , token_fee_balance(token_fee_balance)
 {}
@@ -36,10 +40,14 @@ uint32_t TokenAccount::Serialize(logos::stream & stream) const
     assert(controllers.size() < MAX_CONTROLLERS);
 
     auto s = Account::Serialize(stream);
+
     s += logos::write(stream, token_balance);
     s += logos::write(stream, token_fee_balance);
     s += logos::write(stream, fee_type);
     s += logos::write(stream, fee_rate);
+    s += logos::write(stream, symbol);
+    s += logos::write(stream, name);
+    s += logos::write(stream, issuer_info);
 
     s += logos::write(stream, uint8_t(controllers.size()));
     for(auto & c : controllers)
@@ -80,6 +88,24 @@ bool TokenAccount::Deserialize(logos::stream & stream)
     }
 
     error = logos::read(stream, fee_rate);
+    if(error)
+    {
+        return error;
+    }
+
+    error = logos::read(stream, symbol);
+    if(error)
+    {
+        return error;
+    }
+
+    error = logos::read(stream, name);
+    if(error)
+    {
+        return error;
+    }
+
+    error = logos::read(stream, issuer_info);
     if(error)
     {
         return error;
@@ -179,6 +205,33 @@ bool TokenAccount::Validate(TokenSetting setting, bool value, logos::process_ret
 
     result.code = logos::process_result::progress;
     return true;
+}
+
+bool TokenAccount::IsController(const AccountAddress & account) const
+{
+    return controllers.end() != std::find_if(controllers.begin(), controllers.end(),
+                                             [&account](const ControllerInfo & c)
+                                             {
+                                                 return c.account == account;
+                                             });
+}
+
+bool TokenAccount::GetController(const AccountAddress & account, ControllerInfo & controller) const
+{
+    bool result;
+
+    std::find_if(controllers.begin(), controllers.end(),
+                 [&account, &controller, &result](const ControllerInfo & c)
+                 {
+                     if((result = (c.account == account)))
+                     {
+                         controller = c;
+                     }
+
+                     return result;
+                 });
+
+    return result; // True if the entry is found.
 }
 
 bool TokenAccount::FeeSufficient(uint16_t token_total, uint16_t token_fee) const

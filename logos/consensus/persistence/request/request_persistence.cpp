@@ -212,16 +212,10 @@ bool PersistenceManager<R>::Validate(
         if(IsTokenAdminRequest(request->type))
         {
             auto token_account = std::static_pointer_cast<TokenAccount>(info);
-
-            auto entry = std::find_if(token_account->controllers.begin(),
-                                      token_account->controllers.end(),
-                                      [request](const ControllerInfo & c)
-                                      {
-                                          return c.account == request->origin;
-                                      });
+            ControllerInfo controller;
 
             // The sender isn't a controller
-            if(entry == token_account->controllers.end())
+            if(!token_account->GetController(request->origin, controller))
             {
                 result.code = logos::process_result::unauthorized_request;
                 return false;
@@ -229,12 +223,14 @@ bool PersistenceManager<R>::Validate(
 
             // The controller isn't authorized
             // to make this request.
-            if(!entry->IsAuthorized(request))
+            if(!controller.IsAuthorized(request))
             {
                 result.code = logos::process_result::unauthorized_request;
                 return false;
             }
 
+            // The accounts settings prohibit
+            // this request
             if(!token_account->IsAllowed(request))
             {
                 result.code = logos::process_result::prohibitted_request;
@@ -323,7 +319,7 @@ bool PersistenceManager<R>::Validate(
                         {
                             TokenEntry destination_token_entry;
 
-                            // This destinationaccount has been tethered to
+                            // This destination account has been tethered to
                             // the token
                             if(destination->GetEntry(send_tokens->token_id, destination_token_entry))
                             {
