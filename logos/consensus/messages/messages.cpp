@@ -79,20 +79,24 @@ BatchStateBlock::BatchStateBlock(bool & error, logos::stream & stream, bool with
         return;
     }
 
+    hashes.reserve(block_count);
     for(uint64_t i = 0; i < block_count; ++i)
     {
-        error = logos::read(stream, hashs[i]);
+        BlockHash new_hash;
+        error = logos::read(stream, new_hash);
         if(error)
         {
             return;
         }
+        hashes.emplace_back(new_hash);
      }
 
     if( with_state_block )
     {
+        blocks.reserve(block_count);
         for(uint64_t i = 0; i < block_count; ++i)
         {
-            new(&blocks[i]) StateBlock(error, stream);
+            blocks.emplace_back(std::make_shared<StateBlock>(error, stream));
             if(error)
             {
                 return;
@@ -111,7 +115,7 @@ void BatchStateBlock::SerializeJson(boost::property_tree::ptree & batch_state_bl
     for(uint64_t i = 0; i < block_count; ++i)
     {
         boost::property_tree::ptree txn_content;
-        blocks[i].SerializeJson(txn_content, true, false);
+        blocks[i]->SerializeJson(txn_content, true, false);
         blocks_tree.push_back(std::make_pair("", txn_content));
     }
     batch_state_block.add_child("blocks", blocks_tree);
@@ -126,14 +130,14 @@ uint32_t BatchStateBlock::Serialize(logos::stream & stream, bool with_state_bloc
 
     for(uint64_t i = 0; i < block_count; ++i)
     {
-        s += logos::write(stream, hashs[i]);
+        s += logos::write(stream, hashes[i]);
     }
 
     if(with_state_block)
     {
         for(uint64_t i = 0; i < block_count; ++i)
         {
-            s += blocks[i].Serialize(stream, false);
+            s += blocks[i]->Serialize(stream, false);
         }
     }
 

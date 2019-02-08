@@ -201,9 +201,7 @@ std::unique_ptr<logos::block> logos::deserialize_block (MDB_val const & val_a)
 }
 
 logos::account_info::account_info ()
-    : reservation(0)
-    , reservation_epoch(0)
-    , head (0)
+    : head (0)
     , receive_head (0)
     , rep_block (0)
     , open_block (0)
@@ -236,8 +234,6 @@ logos::account_info::account_info (
     , modified (modified_a)
     , block_count (block_count_a)
     , receive_count (receive_count_a)
-    , reservation(0)
-    , reservation_epoch(0)
 {}
 
 uint32_t logos::account_info::serialize (logos::stream & stream_a) const
@@ -250,8 +246,6 @@ uint32_t logos::account_info::serialize (logos::stream & stream_a) const
     s += write (stream_a, htole64(modified));
     s += write (stream_a, htole32(block_count));
     s += write (stream_a, htole32(receive_count));
-    s += write (stream_a, reservation.bytes);
-    s += write (stream_a, htole32(reservation_epoch));
     return s;
 }
 
@@ -287,13 +281,6 @@ bool logos::account_info::deserialize (logos::stream & stream_a)
                                 if (!error)
                                 {
                                     receive_count = le32toh(receive_count_le);
-                                    auto error (read (stream_a, reservation.bytes));
-                                    if (!error)
-                                    {
-                                        uint32_t reservation_epoch_le = 0;
-                                        error = read (stream_a, reservation_epoch_le);
-                                        reservation_epoch = le32toh(reservation_epoch_le);
-                                    }
                                 }
                             }
                         }
@@ -307,9 +294,7 @@ bool logos::account_info::deserialize (logos::stream & stream_a)
 
 bool logos::account_info::operator== (logos::account_info const & other_a) const
 {
-    return reservation == other_a.reservation &&
-           reservation_epoch == other_a.reservation_epoch &&
-           head == other_a.head &&
+    return head == other_a.head &&
            rep_block == other_a.rep_block &&
            receive_head == other_a.receive_head &&
            open_block == other_a.open_block &&
@@ -331,7 +316,68 @@ logos::mdb_val logos::account_info::to_mdb_val(std::vector<uint8_t> &buf) const
         logos::vectorstream stream(buf);
         serialize(stream);
     }
-    return logos::mdb_val(buf.size(), buf.data());
+    return {buf.size(), buf.data()};
+}
+
+logos::reservation_info::reservation_info ()
+        : reservation(0)
+        , reservation_epoch(0)
+{}
+
+logos::reservation_info::reservation_info (bool & error, const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
+    error = deserialize (stream);
+}
+
+logos::reservation_info::reservation_info (
+        logos::block_hash const & reservation_a,
+        uint32_t const & reservation_epoch_a)
+        : reservation(reservation_a)
+        , reservation_epoch(reservation_epoch_a)
+{}
+
+uint32_t logos::reservation_info::serialize (logos::stream & stream_a) const
+{
+    auto s = write (stream_a, reservation.bytes);
+    s += write (stream_a, htole32(reservation_epoch));
+    return s;
+}
+
+bool logos::reservation_info::deserialize (logos::stream & stream_a)
+{
+    auto error (read (stream_a, reservation.bytes));
+    if (!error)
+    {
+        uint32_t reservation_epoch_le = 0;
+        error = read (stream_a, reservation_epoch_le);
+        if (!error)
+        {
+            reservation_epoch = le32toh(reservation_epoch_le);
+        }
+    }
+    return error;
+}
+
+bool logos::reservation_info::operator== (logos::reservation_info const & other_a) const
+{
+    return reservation == other_a.reservation &&
+           reservation_epoch == other_a.reservation_epoch;
+}
+
+bool logos::reservation_info::operator!= (logos::reservation_info const & other_a) const
+{
+    return !(*this == other_a);
+}
+
+logos::mdb_val logos::reservation_info::to_mdb_val(std::vector<uint8_t> &buf) const
+{
+    assert(buf.empty());
+    {
+        logos::vectorstream stream(buf);
+        serialize(stream);
+    }
+    return {buf.size(), buf.data()};
 }
 
 logos::block_counts::block_counts () :

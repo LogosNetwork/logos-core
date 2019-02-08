@@ -30,7 +30,7 @@ EpochTimeUtil::GetNextTime(T timeout, uint8_t skip)
 
 Milliseconds
 EpochTimeUtil::GetNextEpochTime(
-    uint8_t skip)
+        uint8_t skip)
 {
     return GetNextTime(EPOCH_PROPOSAL_TIME, skip);
 }
@@ -38,7 +38,7 @@ EpochTimeUtil::GetNextEpochTime(
 /// Microblock proposal happens on 10 min boundary
 Milliseconds
 EpochTimeUtil::GetNextMicroBlockTime(
-    uint8_t skip)
+        uint8_t skip)
 {
     return GetNextTime(MICROBLOCK_PROPOSAL_TIME, skip);
 }

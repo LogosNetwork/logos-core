@@ -38,7 +38,8 @@ ConsensusContainer::ConsensusContainer(Service & service,
     Accounts delegates;
     _identity_manager.IdentifyDelegates(EpochDelegates::Current, delegate_idx, delegates);
 
-    _validate_sig_config = config.tx_acceptor_config.validate_sig;
+    _validate_sig_config = config.tx_acceptor_config.validate_sig &&
+            config.tx_acceptor_config.tx_acceptors.size() == 0; // delegate mode, don't need to re-validate sig
 
     // is the node a delegate in this epoch
     bool in_epoch = delegate_idx != NON_DELEGATE;
@@ -166,6 +167,7 @@ ConsensusContainer::OnSendRequest(
         return result;
     }
 
+    block->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
     _cur_epoch->_micro_manager.OnSendRequest(
         std::static_pointer_cast<Request>(block), result);;
 
@@ -188,6 +190,7 @@ ConsensusContainer::OnSendRequest(
         return result;
     }
 
+    block->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
     _cur_epoch->_epoch_manager.OnSendRequest(
             std::static_pointer_cast<Request>(block), result);;
 

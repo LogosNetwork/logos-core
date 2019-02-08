@@ -7,7 +7,7 @@
 #include <logos/lib/log.hpp>
 
 struct ValidationStatus {
-    std::unordered_map<uint8_t, logos::process_result>  requests;
+    std::unordered_map<uint16_t, logos::process_result>  requests;
     logos::process_result                               reason;
 };
 
@@ -29,7 +29,7 @@ public:
     {}
     virtual ~Persistence() = default;
 
-    static void UpdateStatusRequests(ValidationStatus *status, uint8_t i, logos::process_result result)
+    static void UpdateStatusRequests(ValidationStatus *status, uint16_t i, logos::process_result result)
     {
         if (status != nullptr)
         {

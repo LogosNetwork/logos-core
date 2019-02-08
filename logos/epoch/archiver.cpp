@@ -18,7 +18,7 @@ Archiver::Archiver(logos::alarm & alarm,
     , _epoch_handler(store, _voting_manager)
     , _recall_handler(recall_handler)
     , _store(store)
-    {}
+{}
 
 void
 Archiver::Start(InternalConsensus &consensus)
@@ -39,7 +39,7 @@ Archiver::Start(InternalConsensus &consensus)
             _first_epoch = false;
         }
 
-       consensus.OnSendRequest(micro_block);
+        consensus.OnSendRequest(micro_block);
     };
 
     auto epoch_cb = [this, &consensus]()->void

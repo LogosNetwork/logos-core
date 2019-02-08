@@ -13,6 +13,8 @@ using namespace boost::multiprecision::literals;
 template<>
 class PersistenceManager<BSBCT> : public Persistence {
 
+    friend class BatchBlockConsensusManager;
+
 protected:
 
     using Request           = RequestMessage<BSBCT>;
@@ -20,7 +22,6 @@ protected:
     using ReservationsPtr   = std::shared_ptr<ReservationsProvider>;
 
 public:
-    static constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
 
     PersistenceManager(Store & store,
                        ReservationsPtr reservations,
@@ -29,10 +30,15 @@ public:
 
     virtual void ApplyUpdates(const ApprovedBSB & message, uint8_t delegate_id);
 
-    virtual bool Validate(const Request & block, logos::process_return & result, bool allow_duplicates = true);
-    virtual bool Validate(const Request & block);
+    bool ValidateRequest(const Request & block, logos::process_return & result, bool allow_duplicates = true, bool prelim = false);
+    bool ValidateSingleRequest(const Request & block, logos::process_return & result, bool allow_duplicates = true);
+    bool ValidateAndUpdate(const Request & block, logos::process_return & result, bool allow_duplicates = true);
+    bool ValidateBatch(const PrePrepare & message, RejectionMap & rejection_map);
 
     virtual bool Validate(const PrePrepare & message, ValidationStatus * status = nullptr);
+
+    static constexpr uint32_t  RESERVATION_PERIOD  = 2;
+    static constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
 
 private:
 
@@ -56,10 +62,7 @@ private:
                       uint64_t timestamp,
                       MDB_txn * transaction);
 
-    static constexpr uint32_t  RESERVATION_PERIOD  = 2;
-
     Log                 _log;
     ReservationsPtr     _reservations;
-    std::mutex          _reservation_mutex;
-    std::mutex          _destination_mutex;
+    std::mutex          _write_mutex;
 };

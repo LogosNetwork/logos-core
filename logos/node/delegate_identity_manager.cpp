@@ -118,7 +118,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
     {
         ApprovedEB epoch;
         ApprovedMB micro_block;
-        micro_block.primary_delegate = logos::genesis_account;
+        micro_block.primary_delegate = 0xff;
         micro_block.epoch_number = e;
         micro_block.sequence = 0;
         micro_block.timestamp = 0;
@@ -137,7 +137,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         update("micro block", micro_block, microblock_hash,
                &BlockStore::micro_block_get, &BlockStore::micro_block_put);
 
-        epoch.primary_delegate = logos::genesis_account;
+        epoch.primary_delegate = 0xff;
         epoch.epoch_number = e;
         epoch.sequence = 0;
         epoch.timestamp = 0;
@@ -170,7 +170,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
             epoch.delegates[i] = delegate;
 
             LOG_TRACE(_log) << __func__ << " bls pubic key for delegate i=" << (int)i
-            << " pub_key=" << delegate.bls_pub.to_string();
+                            << " pub_key=" << delegate.bls_pub.to_string();
         }
 
         epoch_hash = epoch.Hash();
@@ -217,8 +217,45 @@ DelegateIdentityManager::Init(const Config &config)
         epoch_number = (StaleEpoch()) ? epoch_number + 1 : epoch_number;
     }
 
-    // TBD: this is done out of order, genesis accounts are created in node::node(), needs to be reconciled
-    LoadGenesisAccounts();
+    // check account_db
+    if(_store.account_db_empty())
+    {
+        auto error (false);
+
+        // Construct genesis open block
+        boost::property_tree::ptree tree;
+        std::stringstream istream(logos::logos_test_genesis);
+        boost::property_tree::read_json(istream, tree);
+        StateBlock logos_genesis_block(error, tree, true, true);
+
+        if(error)
+        {
+            LOG_FATAL(_log) << "DelegateIdentityManager::Init - Failed to initialize Logos genesis block.";
+            trace_and_halt();
+        }
+
+        //TODO check with Greg
+        ReceiveBlock logos_genesis_receive(0, logos_genesis_block.GetHash(), 0);
+        _store.state_block_put(logos_genesis_block,
+                transaction);
+        _store.receive_put(logos_genesis_receive.Hash(),
+                logos_genesis_receive,
+                transaction);
+        _store.account_put(logos::genesis_account,
+                {
+            /* Head         */ logos_genesis_block.GetHash(),
+            /* Receive Head */ logos_genesis_receive.Hash(),
+            /* Rep          */ 0,
+            /* Open         */ logos_genesis_block.GetHash(),
+            /* Amount       */ logos_genesis_block.trans[0].amount,
+            /* Time         */ logos::seconds_since_epoch(),
+            /* Count        */ 1,
+            /* Receive      */ 1
+            },
+            transaction);
+        CreateGenesisAccounts(transaction);
+    }
+    else {LoadGenesisAccounts();}
 
     _delegate_account = logos::genesis_delegates[config.delegate_id].key.pub;
     _global_delegate_idx = config.delegate_id;
@@ -254,20 +291,16 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
         logos::genesis_delegates.push_back(delegate);
 
-        uint128_t min_fee = 0x21e19e0c9bab2400000_cppui128;
-        logos::amount amount((min_fee + (del + 1) * 1000000)*1000000);
-        logos::amount fee(min_fee);
+        logos::amount amount((del + 1) * 1000000 * 1000000);
         uint64_t work = 0;
 
-
-
-        StateBlock state(logos::logos_test_account,   // account
+        StateBlock state(logos::logos_test_account,    // account
                          genesis_account.head,         // previous
                          genesis_account.block_count,  // sequence
                          StateBlock::Type::send,
                          pair.pub,  // link/to
                          amount,
-                         fee,       // transaction fee
+                         0,       // transaction fee
                          pair.prv.data,
                          pair.pub,
                          work);
@@ -279,7 +312,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
         ReceiveBlock receive(0, state.GetHash(), 0);
 
-        _store.state_block_put(state, state.GetHash(), transaction);
+        _store.state_block_put(state, transaction);
 
         _store.receive_put(receive.Hash(),
                 receive,
@@ -287,13 +320,13 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
         _store.account_put(pair.pub,
                            {
-                               /* Head    */ state.GetHash(),
+                               /* Head    */ 0,
                                /* Receive */ receive.Hash(),
                                /* Rep     */ 0,
                                /* Open    */ state.GetHash(),
                                /* Amount  */ amount,
                                /* Time    */ logos::seconds_since_epoch(),
-                               /* Count   */ 1,
+                               /* Count   */ 0,
                                /* Receive Count */ 1
                            },
                            transaction);

@@ -259,6 +259,10 @@ ConsensusNetIO::OnData(const uint8_t * data,
     bool error = false;
     logos::bufferstream stream(data, payload_size);
 
+    LOG_DEBUG(_log) << "ConsensusNetIO - received message type " << MessageToName(message_type)
+                    << " for consensus type " << ConsensusToName(consensus_type)
+                    << " from " << _endpoint;
+
     if (consensus_type == ConsensusType::Any)
     {
         if (message_type == MessageType::Heart_Beat)

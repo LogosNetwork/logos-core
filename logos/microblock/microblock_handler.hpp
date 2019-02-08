@@ -29,9 +29,9 @@ public:
     /// @param i microblock process period interval
     MicroBlockHandler(BlockStore &store,
                       IRecallHandler & recall_handler)
-        : _store(store)
-        , _recall_handler(recall_handler)
-        {}
+            : _store(store)
+            , _recall_handler(recall_handler)
+    {}
 
     /// Class destructor
     virtual ~MicroBlockHandler() {}
@@ -63,6 +63,15 @@ public:
     static void BatchBlocksIterator(BlockStore & store, const BatchTips &start, const uint64_t &cutoff,
                                     IteratorBatchBlockReceiverCb cb);
 
+    /// Get microblock cut-off time in milliseconds
+    /// @param timestamp the base time stamp
+    /// @param add_cutoff if true then add cut off
+    /// @returns cut-off time
+    static uint64_t GetCutOffTimeMsec(const uint64_t timestamp, bool add_cutoff = false)
+    {
+        return (timestamp + ((add_cutoff)?TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count():0));
+    }
+
 private:
 
     /// Calculate Merkle root and get batch block tips.
@@ -77,7 +86,7 @@ private:
     /// @param timestamp timestamp of the previous microblock [in]
     /// @returns Merkle root
     BlockHash FastMerkleTree(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks,
-            const uint64_t timestamp);
+                             const uint64_t timestamp);
 
     /// Calculate Merkle root and get batch block tips.
     /// Genesis micro block time stamp is 0. Therefore, the first micro block following the genesis
@@ -109,15 +118,6 @@ private:
     /// @param tips new batch block tips [in|out]
     /// @param num_blocks number of selected batch blocks [out]
     void GetTipsSlow(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks);
-
-    /// Get microblock cut-off time in milliseconds
-    /// @param timestamp the base time stamp
-    /// @param add_cutoff if true then add cut off
-    /// @returns cut-off time
-    uint64_t GetCutOffTimeMsec(const uint64_t timestamp, bool add_cutoff = false)
-    {
-        return (timestamp + ((add_cutoff)?TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count():0));
-    }
 
     BlockStore &            _store;
     IRecallHandler &        _recall_handler;    ///< recall handler reference

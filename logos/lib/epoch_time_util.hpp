@@ -67,4 +67,3 @@ private:
     template<typename T>
     Milliseconds GetNextTime(T timeout, uint8_t skip);
 };
-

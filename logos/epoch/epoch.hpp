@@ -136,7 +136,7 @@ public:
 
     void Hash(blake2b_state & hash) const
     {
-        PrePrepareCommon::Hash(hash);
+        PrePrepareCommon::Hash(hash, true);
         micro_block_tip.Hash(hash);
         blake2b_update(&hash, transaction_fee_pool.bytes.data(), transaction_fee_pool.bytes.size());
         for(int i = 0; i < NUM_DELEGATES; ++i)

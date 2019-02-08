@@ -13,7 +13,7 @@ EventProposer::EventProposer(logos::alarm & alarm,
     , _skip_transition(first_epoch)
     , _skip_micro_block(first_microblock)
     , _recall_handler(recall_handler)
-    {}
+{}
 
 void
 EventProposer::Start(
