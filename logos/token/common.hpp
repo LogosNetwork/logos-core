@@ -155,4 +155,3 @@ struct ControllerInfo
     AccountAddress account;
     Privileges     privileges;
 };
-
