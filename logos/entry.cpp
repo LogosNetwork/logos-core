@@ -8,11 +8,17 @@
 #include <boost/program_options.hpp>
 
 #include <bls/bls.hpp>
+#include <logos/lib/trace.hpp>
+
+#include <exception>
+#include <cstdlib>
 
 int main (int argc, char * const * argv)
 {
     //TODO find a better place to call, as long as before the 1st BLS operation, e.g. key generation
     bls::init();
+
+    std::set_terminate(trace);
 
     boost::program_options::options_description description ("Command line options");
     logos::add_node_options (description);

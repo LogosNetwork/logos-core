@@ -104,8 +104,9 @@ class validator {
 
     bool can_proceed() // logical
     {
+        //return true; // RGD
         std::lock_guard<std::mutex> lock(mutex);
-        if(micro.empty()) {
+        if(micro.size() <= 1) { // Was micro.empty()
             return true; // No pending micros need to be processed, ok to continue...
         } else {
             std::cout << "can_proceed:: micro.size(): " << micro.size() << std::endl;
@@ -129,6 +130,7 @@ class validator {
     ///                 the network is saved to the queue
     /// @param m shared pointer of bulk_pull_response_micro
     void add_micro_block(std::shared_ptr<logos::bootstrap_attempt> &attempt, std::shared_ptr<BatchBlock::bulk_pull_response_micro> &m);
+    void request_micro_block(std::shared_ptr<logos::bootstrap_attempt> &attempt, std::shared_ptr<BatchBlock::bulk_pull_response_micro> &m);
 
     /// add_epoch_block callback where a new epoch block arriving from 
     ///                 the network is saved to the queue
@@ -185,7 +187,7 @@ class validator {
     /// validate validation logic for bsb, micro and epoch
     /// @param block shared pointer of bulk_pull_response
     /// @returns boolean (true if failed, false if success)
-    bool validate(std::shared_ptr<bulk_pull_response> block);
+    bool validate(std::shared_ptr<logos::bootstrap_attempt> attempt, std::shared_ptr<bulk_pull_response> block);
 
 };
 

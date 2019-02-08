@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 #include <logos/lib/numbers.hpp>
 #include <logos/lib/blocks.hpp>
 
@@ -11,6 +13,8 @@ using Store = logos::block_store;
 using BlockHash = logos::block_hash;
 
 const int NOT_FOUND = -1;
+
+extern int get_next_micro;
 
 enum tips_protocol {
     tips_RESPONSE  = 66,

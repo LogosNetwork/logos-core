@@ -158,6 +158,7 @@ public:
     bool micro_block_tip_put(const BlockHash &, MDB_txn*);
     bool micro_block_tip_get(BlockHash &, MDB_txn* t=0);
     bool micro_block_exists(const BlockHash &, MDB_txn* t=0);
+    bool batch_block_exists (const ApprovedBSB & block);
 
     // epoch
     bool epoch_put(ApprovedEB const &, MDB_txn*);

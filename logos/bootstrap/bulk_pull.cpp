@@ -248,7 +248,7 @@ void logos::bulk_pull_client::received_type ()
             connection->attempt->pool_connection (connection); // FIXME
 #endif
 
-            if(connection->node->_validator->validate(nullptr)) {
+            if(connection->node->_validator->validate(connection->attempt, nullptr)) {
                 if (connection->node->config.logging.bulk_pull_logging ())
                 {
                     LOG_INFO (connection->node->log) << " bulk_pull_client::received_block got invalid batch block ";
@@ -326,7 +326,7 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
                 block->peer = p2p::get_peer_id(connection->endpoint.address().to_v6().to_string());
                 block->retry_count = 0; // initial time we get this block
 
-                if(connection->node->_validator->validate(block)) {
+                if(connection->node->_validator->validate(connection->attempt, block)) {
                     if (connection->node->config.logging.bulk_pull_logging ())
                     {
                         LOG_INFO (connection->node->log) << " bulk_pull_client::received_block got invalid batch block " << hash.to_string();
@@ -513,6 +513,7 @@ void logos::bulk_pull_server::send_next ()
                 send_next();
                 return;
             }
+            try {
             resp.epoch = e; // Assign shared pointer to serialize later.
             if(current_epoch == request->e_end) {
                 current_epoch = zero; // We are at the end...
@@ -539,6 +540,11 @@ void logos::bulk_pull_server::send_next ()
             async_write (*connection->socket, boost::asio::buffer (send_buffer1->data (), size), [this_l,send_buffer1](boost::system::error_code const & ec, size_t size_a) {
                 this_l->sent_action (ec, size_a);
             });
+            } catch(std::exception &e) {
+                std::cout << "caught exception: " << e.what() << std::endl;
+            } catch(...) {
+                std::cout << "caught unknown exception: " << std::endl;
+            } // RGD
         } else if(!current_micro.is_zero()) {
             LOG_DEBUG(connection->node->log) << "logos::bulk_pull_server::send_next: micro_block" << std::endl;
             std::shared_ptr<ApprovedMB> m = Micro::readMicroBlock(connection->node->store, current_micro);
@@ -549,6 +555,7 @@ void logos::bulk_pull_server::send_next ()
                 send_next();
                 return;
             }
+            try {
             resp.micro = m; // Assign shared pointer for serialization later.
             if(current_micro == request->m_end) {
                 current_micro = zero;
@@ -574,6 +581,11 @@ void logos::bulk_pull_server::send_next ()
             async_write (*connection->socket, boost::asio::buffer (send_buffer1->data (), size), [this_l,send_buffer1](boost::system::error_code const & ec, size_t size_a) {
                 this_l->sent_action (ec, size_a);
             });
+            } catch(std::exception &e) {
+                std::cout << "caught exception: " << e.what() << std::endl;
+            } catch(...) {
+                std::cout << "caught unknown exception: " << std::endl;
+            } // RGD
         } else {
             LOG_DEBUG(connection->node->log) << "logos::bulk_pull_server::send_next: bsb_block" << std::endl;
            // Get BSB blocks. 
@@ -605,6 +617,7 @@ void logos::bulk_pull_server::send_next ()
                 std::cout << " current_bsb: " << current_bsb.to_string() << " << b->Hash().to_string() " << b->Hash().to_string()  << " message_count: " << b->block_count << " delegate_id: " << request->delegate_id << std::endl;
                 LOG_DEBUG(connection->node->log) << " current_bsb: " << current_bsb.to_string() << " << b->Hash().to_string() " << b->Hash().to_string()  << " message_count: " << b->block_count << " delegate_id: " << request->delegate_id << std::endl;
                 LOG_DEBUG(connection->node->log) << " is_non_zero: current_bsb: " << current_bsb.to_string() <<  " delegate_id: " << request->delegate_id << " request.b_end: " << request->b_end.to_string() << std::endl;
+                try {
                 if(current_bsb == request->b_end) {
                     BlockHash zero = 0;
                     current_bsb = zero; // We are at the end...
@@ -630,6 +643,11 @@ void logos::bulk_pull_server::send_next ()
                 async_write (*connection->socket, boost::asio::buffer (send_buffer1->data (), size), [this_l,send_buffer1](boost::system::error_code const & ec, size_t size_a) {
                     this_l->sent_action (ec, size_a);
                 });
+                } catch(std::exception &e) {
+                    std::cout << "caught exception: " << e.what() << std::endl;
+                } catch(...) {
+                    std::cout << "caught unknown exception: " << std::endl;
+                } // RGD
            } else {
                 LOG_DEBUG(connection->node->log) << "send_finished: current_bsb: " << current_bsb.to_string() << " request_end: " << request->b_end.to_string() << " delegate_id: " << request->delegate_id << std::endl;
                 send_finished ();

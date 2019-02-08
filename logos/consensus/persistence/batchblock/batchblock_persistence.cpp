@@ -6,6 +6,9 @@
 #include <logos/consensus/message_validator.hpp>
 #include <logos/lib/trace.hpp>
 #include <logos/common.hpp>
+#include <mutex>
+
+static std::mutex global_mutex; // RGD
 
 constexpr uint128_t PersistenceManager<BSBCT>::MIN_TRANSACTION_FEE;
 
@@ -30,6 +33,7 @@ void PersistenceManager<BSBCT>::ApplyUpdates(
     //       performed in the following two methods will cause
     //       the application to exit without committing the
     //       intermediate transactions to the database.
+    std::lock_guard<std::mutex> lock(global_mutex);
 
     auto batch_hash = message.Hash();
     uint16_t count = 0;
@@ -47,13 +51,38 @@ void PersistenceManager<BSBCT>::ApplyUpdates(
     ApplyBatchMessage(message, transaction);
 }
 
+std::atomic<int> EXPECTING;
+
 bool PersistenceManager<BSBCT>::Validate(
     const Request & block,
     logos::process_return & result,
     bool allow_duplicates)
 {
+    std::lock_guard<std::mutex> glock(global_mutex);
+
+#if 0
+    std::cout << "rgd_received: " << block.sequence << std::endl;
+    {
+    logos::account_info info;
+    auto account_error(_reservations->Acquire(block.account, info));
+
+    EXPECTING = 0;
+    // Account exists.
+    if(!account_error)
+    {
+        //sequence number
+        if(info.block_count != block.sequence)
+        {
+            std::cout << "wrong_sequence_number, request sqn="<<block.sequence
+                    << " expecting=" << info.block_count << std::endl;
+            EXPECTING = info.block_count;
+            //return false;
+        }
+    }
+    }
     result.code = logos::process_result::progress; // TODO Hack
     return true;
+#endif
 
     auto hash = block.GetHash();
     std::cout << "PersistenceManager::Validate: hash: " << hash.to_string() << std::endl;
@@ -87,8 +116,8 @@ bool PersistenceManager<BSBCT>::Validate(
             //LOG_INFO(_log) << "wrong_sequence_number, request sqn="<<block.sequence
             std::cout << "PersistenceManager::Validate: line: " << __LINE__ << std::endl;
             std::cout << "wrong_sequence_number, request sqn="<<block.sequence
-                    << " expecting=" << info.block_count << std::endl;
-            //return false; // TODO Hack
+                    << " expecting=" << info.block_count << " hash: " << hash.to_string() << std::endl;
+            return false; // TODO Hack
         }
         // No previous block set.
         if(block.previous.is_zero() && info.block_count)
@@ -108,8 +137,7 @@ bool PersistenceManager<BSBCT>::Validate(
                 BOOST_LOG (_log) << "GAP_PREVIOUS: cannot find previous hash " << block.previous.to_string()
                                  << "; current account info head is: " << info.head.to_string();
                 std::cout << "PersistenceManager::Validate: line: " << __LINE__ << std::endl;
-                //return false;
-                return true; // TODO Hack
+                return false; // TODO Hack
             }
         }
 
@@ -139,7 +167,7 @@ bool PersistenceManager<BSBCT>::Validate(
                                 << " info.head: " << info.head.to_string() 
                                 << " hash: " << hash.to_string() << std::endl;
                 std::cout << "PersistenceManager::Validate: line: " << __LINE__ << std::endl;
-                return false;
+                return false; // RGD Hack
             }
         }
 
@@ -148,7 +176,7 @@ bool PersistenceManager<BSBCT>::Validate(
         {
             result.code = logos::process_result::old;
             std::cout << "PersistenceManager::Validate: line: " << __LINE__ << std::endl;
-            return false;
+            return false; // RGD Hack
         }
 
         // TODO
@@ -210,7 +238,7 @@ bool PersistenceManager<BSBCT>::Validate(
         }
     }
 
-    std::cout << "PersistenceManager::Validate: line: " << __LINE__ << std::endl;
+    std::cout << "PersistenceManager::Validate: line: " << __LINE__ << " success: " << hash.to_string() << std::endl;
     result.code = logos::process_result::progress;
     return true;
 }
@@ -330,12 +358,14 @@ bool PersistenceManager<BSBCT>::UpdateSourceState(
     // is accepted. We can ignore this transaction.
     if(block.previous != info.head)
     {
+#if 0 // RGD It crashed here...
         LOG_INFO(_log) << "Block previous ("
                        << block.previous.to_string()
                        << ") does not match account head ("
                        << info.head.to_string()
                        << "). Suspected duplicate request - "
                        << "ignoring.";
+#endif
         return true;
     }
 

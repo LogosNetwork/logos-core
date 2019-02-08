@@ -18,7 +18,11 @@ void logos::tips_req_client::run ()
   // and kick off the process...
     LOG_DEBUG(connection->node->log) << "tips_req_client::run" << std::endl;
 
-    if(connection->attempt->pulling > 0 || total_pulls > 0 || !connection->node->_validator->can_proceed()) { // logical
+    //connection->attempt->run_defered_pull();
+
+    if(connection->attempt->pulling > 0 || 
+       total_pulls > 0 || 
+       (!connection->node->_validator->can_proceed() && !connection->attempt->pending_deferred_pulls())) { // logical
         std::cout << "can_proceed: " << connection->node->_validator->can_proceed() << std::endl;
         try {
             promise.set_value(false);
@@ -106,8 +110,8 @@ void logos::tips_req_client::receive_tips_header ()
                         this_l->received_batch_block_tips(ec, size_a);
                 });
             } else {
-                LOG_DEBUG(this_l->connection->node->log) << "received_tips" << std::endl;
-                this_l->receive_tips();
+                LOG_DEBUG(this_l->connection->node->log) << "error unsupported mode" << std::endl;
+                this_l->connection->stop(false); // stop the client.
             }
         }
         else
@@ -260,7 +264,11 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
         // block types (epoch/micro/bsb) and sends them to validator
         // when blocks arrive.
         // Run any defered pulls
+        //if(connection->attempt->pending_deferred_pulls()) {
         connection->attempt->run_defered_pull();
+        if(!connection->node->_validator->can_proceed()) {
+            return; // Finish processing before continuing to next micro...
+        }
 
         { // logical We should always get our tips.
             bool pull_epoch_block = ((epoch_seq == 0 and tips->epoch_block_seq_number == 0) ? true : false);
@@ -395,7 +403,7 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
             } else if(bsb_seq == tips->batch_block_seq_number[delegate_id]) {
                     // We are in sync, continue processing...
                     //std::cout << " line: " << __LINE__ << " file: " << __FILE__ << std::endl;
-                    connection->node->_validator->validate(nullptr);
+                    connection->node->_validator->validate(connection->attempt, nullptr);
                     LOG_DEBUG(connection->node->log) << "in sync: delegate_id: " << delegate_id << " epoch: " << epoch_seq << " theirs: " << tips->epoch_block_seq_number << " "
                           << " micro: " << micro_seq << " theirs: " << tips->micro_block_seq_number <<  " "
                           << " bsb: " << bsb_seq << " theirs: " << tips->batch_block_seq_number[delegate_id] << std::endl;

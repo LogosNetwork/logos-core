@@ -5,6 +5,8 @@
 #include <logos/bootstrap/epoch.hpp>
 #include <logos/bootstrap/bootstrap.hpp>
 
+int BatchBlock::get_next_micro = 0;
+
 BlockHash BatchBlock::getBatchBlockTip(Store& store, int delegate)
 {
     BlockHash hash = 0;
@@ -62,7 +64,14 @@ void BatchBlock::tips_response::PopulateLogical(Store & store, BatchBlock::tips_
         micro_tip = resp.micro_block_tip;
         micro_seq = resp.micro_block_seq_number;
     } else {
-        micro_seq = m->sequence;
+        // Get two at a time unless we are at the last one
+        if(!m->next.is_zero()) {
+            micro_tip = Micro::getNextMicroBlock(store, m->next);
+            m = Micro::readMicroBlock(store, m->next);
+            micro_seq = m->sequence;
+        } else {
+            micro_seq = m->sequence;
+        }
     }
     if (m != nullptr && /* assert we have a new micro to visit */
         (m->last_micro_block > 0 /* at the end micro in an epoch */ || 

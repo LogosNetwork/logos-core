@@ -225,6 +225,14 @@ public:
     /// run_defered_pull
     /// runs the pending pulls
     void run_defered_pull();
+
+    /// pending_deferred_pulls
+    /// return size of our queue
+    int pending_deferred_pulls()
+    {
+        return dpulls.size(); // Note we are locked when this is called...
+    }
+
  
     /// add_pull_bsb
     /// requests a bsb chain
@@ -262,13 +270,19 @@ public:
     std::weak_ptr<logos::bootstrap_client> connection_tips_request;
     std::weak_ptr<logos::tips_req_client> tips;
     std::deque<logos::pull_info> pulls;
-    static std::deque<logos::pull_info> dpulls;
+    static std::deque<logos::pull_info> dpulls; // At most one attempt at a time, ok for instance lock.
     std::deque<std::shared_ptr<logos::bootstrap_client>> idle;
     std::atomic<unsigned> connections;
     std::atomic<unsigned> pulling;
     std::shared_ptr<logos::node> node;
     std::atomic<unsigned> account_count;
     std::atomic<uint64_t> total_blocks;
+    // logical
+    // greater than one if we are to get
+    // the next micro in our bootstap_attempt::run()
+    // set in batch_block_validator.cpp after micro
+    // is validated. decremented in run().
+    std::atomic<int> get_next_micro;
     std::vector<request_info> req;
     bool stopped;
     std::mutex mutex;

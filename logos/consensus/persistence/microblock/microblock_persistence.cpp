@@ -6,11 +6,17 @@
 #include <logos/consensus/message_validator.hpp>
 #include <logos/lib/trace.hpp>
 
+#include <mutex>
+
+static std::mutex global_mutex; // RGD
+
 bool
 PersistenceManager<MBCT>::Validate(
     const PrePrepare & block,
     ValidationStatus * status)
 {
+    std::lock_guard<std::mutex> lock(global_mutex);
+
     BlockHash hash = block.Hash();
     using namespace logos;
 
@@ -126,6 +132,8 @@ PersistenceManager<MBCT>::ApplyUpdates(
     const ApprovedMB & block,
     uint8_t)
 {
+    std::lock_guard<std::mutex> lock(global_mutex);
+
     logos::transaction transaction(_store.environment, nullptr, true);
     BlockHash hash = block.Hash();
     if( _store.micro_block_put(block, transaction) ||

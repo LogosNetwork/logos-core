@@ -1871,9 +1871,10 @@ void logos::node::ongoing_keepalive ()
     });
 }
 
+#if 0
 void logos::node::ongoing_bootstrap ()
 {
-    auto next_wakeup (10); // Was 300
+    auto next_wakeup (300);
     if (warmed_up < 3)
     {
         // Re-attempt bootstrapping more aggressively on startup
@@ -1893,6 +1894,43 @@ void logos::node::ongoing_bootstrap ()
         }
     });
 }
+#endif
+
+void logos::node::ongoing_bootstrap ()
+{
+    auto next_wakeup (5);
+    static int count = 0;
+    if (warmed_up < 3)
+    {
+        // Re-attempt bootstrapping more aggressively on startup
+        next_wakeup = 5;
+        if (!bootstrap_initiator.in_progress () && !peers.empty ())
+        {
+            ++warmed_up;
+        }
+        bootstrap_initiator.bootstrap ();
+    }
+    std::cout << "ongoing_bootstrap:" << std::endl;
+    // bootstrap if we need the next micro or if we exceed 300 seconds
+    // wait, otherwise, go back to sleep...
+    if(BatchBlock::get_next_micro > 0 || count >= 60) {
+        std::cout << "bootstrapping started..." << std::endl;
+        bootstrap_initiator.bootstrap();
+        count = 0;
+        if(BatchBlock::get_next_micro > 0) --BatchBlock::get_next_micro;
+    } else {
+        std::cout << "count: " << count << std::endl;
+        ++count;
+    }
+    std::weak_ptr<logos::node> node_w (shared_from_this ());
+    alarm.add (std::chrono::steady_clock::now () + std::chrono::seconds (next_wakeup), [node_w]() {
+        if (auto node_l = node_w.lock ())
+        {
+            node_l->ongoing_bootstrap ();
+        }
+    });
+}
+
 
 void logos::node::backup_wallet ()
 {

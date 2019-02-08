@@ -6,6 +6,10 @@
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/lib/trace.hpp>
 
+#include <mutex>
+
+static std::mutex global_mutex; // RGD
+
 PersistenceManager<ECT>::PersistenceManager(Store & store,
                                             ReservationsPtr,
                                             Milliseconds clock_drift)
@@ -17,6 +21,8 @@ PersistenceManager<ECT>::Validate(
     const PrePrepare & epoch,
     ValidationStatus * status)
 {
+    std::lock_guard<std::mutex> lock(global_mutex);
+
     BlockHash previous_epoch_hash;
     ApprovedEB previous_epoch;
     using namespace logos;
@@ -88,6 +94,8 @@ PersistenceManager<ECT>::ApplyUpdates(
     const ApprovedEB & block,
     uint8_t)
 {
+    std::lock_guard<std::mutex> lock(global_mutex);
+
     logos::transaction transaction(_store.environment, nullptr, true);
     BlockHash epoch_hash = block.Hash();
 

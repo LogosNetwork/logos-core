@@ -209,6 +209,7 @@ pulling (0),
 node (node_a),
 account_count (0),
 total_blocks (0),
+get_next_micro (0),
 stopped (false)
 {
     logos::bootstrap_init_logger(&node->log); // Store our logger for later use.
@@ -323,8 +324,8 @@ void logos::bootstrap_attempt::run ()
         retry++;
         if(retry > bootstrap_max_retry) {
             LOG_FATAL(node->log) << "logos::bootstrap_attempt::run error too many retries for request_tips" << std::endl;
-            std::cout << "trace: " << __FILE__ << " line: " << __LINE__ << std::endl;
-            trace_and_halt(); // Or should we just return ?
+            trace();
+            break; // Couldn't get tips from this peer...
         }
         tips_failure = request_tips(lock);
     }
@@ -360,6 +361,7 @@ void logos::bootstrap_attempt::run ()
         idle[i]->socket.close();
     }
     idle.clear (); // Must wait till threads using this have stopped, else mem fault...
+
     LOG_DEBUG(node->log) << "bootstrap_attempt::run end }" << std::endl;
 }
 
@@ -660,10 +662,12 @@ void logos::bootstrap_attempt::add_pull (logos::pull_info const & pull)
 void logos::bootstrap_attempt::add_defered_pull(logos::pull_info const &pull)
 {
     std::unique_lock<std::mutex> lock (mutex);
+    //get_next_micro = 1;
     std::cout << "logos::bootstrap_attempt::add_defered_pull: " << pull.delegate_id << std::endl;
     LOG_DEBUG(node->log) << "logos::bootstrap_attempt::add_defered_pull: " << pull.delegate_id << std::endl;
     dpulls.push_back(pull);
 }
+
 
 void logos::bootstrap_attempt::run_defered_pull()
 {
@@ -753,8 +757,7 @@ void logos::bootstrap_initiator::run_bootstrap ()
             lock.unlock ();
             attempt->run (); // NOTE Call bootstrap_attempt::run
             lock.lock ();
-            // attempt->stop (); // FIXME Should this be here ?
-            attempt = nullptr;
+            attempt = nullptr; // stop is called in destructor...
             condition.notify_all ();
         }
         else

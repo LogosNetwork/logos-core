@@ -12,27 +12,25 @@ BatchBlock::validator::validator(logos::node *n)
     epoch_handler = make_shared<NonDelPersistenceManager<ECT> >(NonDelPersistenceManager<ECT>(node->store));
     micro_handler = make_shared<NonDelPersistenceManager<MBCT> >(NonDelPersistenceManager<MBCT>(node->store));
 
-#ifdef _TIMEOUT_BOOTSTRAP
-    std::thread timeout_thr(BatchBlock::validator::timeout_s, this);
-    timeout_thr.detach();
-    LOG_DEBUG(n->log) << " done BatchBlock::validator init thread " << std::endl;
-#endif
-
     LOG_DEBUG(n->log) << " done BatchBlock::validator " << std::endl;
     nr_blocks = NR_BLOCKS;
     reset(); // Start our counters at 0.
+
+    std::thread timeout_thr(BatchBlock::validator::timeout_s, this);
+    timeout_thr.detach();
+    LOG_DEBUG(n->log) << " done BatchBlock::validator init thread " << std::endl;
+}
+
+void BatchBlock::validator::timeout_s(BatchBlock::validator *this_l)
+{
+    while(true) {
+        sleep(BatchBlock::validator::TIMEOUT);
+        this_l->validate(nullptr, nullptr); // Force us to drain the queue...
+    }
 }
 
 BatchBlock::validator::~validator()
 {
-}
-
-void timeout_s(BatchBlock::validator *this_l)
-{
-    while(true) {
-        sleep(BatchBlock::validator::TIMEOUT);
-        this_l->validate(nullptr); // Force us to drain the queue...
-    }
 }
 
 bool BatchBlock::validator::reset()
@@ -57,7 +55,8 @@ std::map<int, std::pair<int64_t, BlockHash> > BatchBlock::validator::in_memory_b
         [](const std::shared_ptr<BatchBlock::bulk_pull_response> &lhs,
            const std::shared_ptr<BatchBlock::bulk_pull_response> &rhs)
         {
-            return lhs->block->timestamp < rhs->block->timestamp;
+            //return lhs->block->timestamp < rhs->block->timestamp;
+            return lhs->block->sequence < rhs->block->sequence;
         }
     );
 
@@ -125,9 +124,11 @@ void BatchBlock::validator::add_micro_block(std::shared_ptr<logos::bootstrap_att
     }
 
 //#if 0
+    bool isPrior = false;
     if(prior_micro && (m->micro->Hash() == prior_micro->micro->Hash())) {
-        std::cout << "already seen this micro" << std::endl;
-        return;
+        std::cout << "already seen this micro" << std::endl; // RGD1 probably just print error, and continue without putting in queue again
+        isPrior = true;
+        //return;
     }
 //#endif
 
@@ -135,29 +136,32 @@ void BatchBlock::validator::add_micro_block(std::shared_ptr<logos::bootstrap_att
     // we are already there, don't queue this micro up...
     auto next_micro = m->micro->Hash();
     auto isMicroPresent = Micro::readMicroBlock(node->store, next_micro);
-    if(isMicroPresent) {
+    if(isMicroPresent || isPrior) {
         std::cout << " micro block already installed, not queing up, will check our bsb tips..." << std::endl;
     } else {
         // Queue it up for later processing...
         micro.push_back(m);
     }
-
     auto bsb_tips = in_memory_bsb_tips();
     BlockHash prior_bsb_tip = 0;
     BlockHash zero = 0;
 
     // Get bsb blocks for this micro block...
+    int count = 0;
     for(int i = 0; i < NUMBER_DELEGATES; ++i) {
         if(m->micro->tips[i].is_zero()) {
+            ++count;
             continue; // Skip this...
         }
         BlockHash bsb_tip   = BatchBlock::getBatchBlockTip(node->store, i);
         uint32_t  bsb_seq   = BatchBlock::getBatchBlockSeqNr(node->store, i);
         auto iter = bsb_tips.find(i);
-        if(iter != bsb_tips.end()) {
+#if 0
+        if(iter != bsb_tips.end()) { // RGD1 probably want whats on disk...
             bsb_seq = iter->second.first;
             bsb_tip = iter->second.second;
         }
+#endif
         auto isBSBPresent = BatchBlock::readBatchStateBlock(node->store, m->micro->tips[i]);
         if(prior_micro != nullptr) {
             prior_bsb_tip = prior_micro->micro->tips[i];
@@ -186,6 +190,16 @@ void BatchBlock::validator::add_micro_block(std::shared_ptr<logos::bootstrap_att
             LOG_DEBUG(node->log) << "logos::BatchBlock::validator::add_micro_block:: init bulk_pull: delegate_id: " 
                                              << i << " my tip: " << bsb_tip.to_string() << " their tip: " << m->micro->tips[i].to_string() << std::endl; 
          }
+    }
+
+    if(count == NUMBER_DELEGATES) {
+        for(auto i = micro.begin(); i != micro.end(); ++i) {
+            if((*i)->micro->Hash() == next_micro) {
+                micro.erase(i);
+                break;
+            }
+        }
+        return; // The micro block has all zero bsb tips...
     }
 
     // Check if we are at the last micro block, and get remaining bsb...
@@ -217,6 +231,27 @@ void BatchBlock::validator::add_micro_block(std::shared_ptr<logos::bootstrap_att
     }
 }
 
+void BatchBlock::validator::request_micro_block(std::shared_ptr<logos::bootstrap_attempt> &attempt, std::shared_ptr<BatchBlock::bulk_pull_response_micro> &m)
+{
+    static std::mutex mymutex;
+    std::lock_guard<std::mutex> lock(mymutex);
+    BlockHash prior_bsb_tip = 0;
+    BlockHash zero = 0;
+
+    // Get bsb blocks for this micro block...
+    for(int i = 0; i < NUMBER_DELEGATES; ++i) {
+        BlockHash bsb_tip   = BatchBlock::getBatchBlockTip(node->store, i);
+        uint32_t  bsb_seq   = BatchBlock::getBatchBlockSeqNr(node->store, i);
+        auto isBSBPresent = BatchBlock::readBatchStateBlock(node->store, m->micro->tips[i]);
+        prior_bsb_tip = bsb_tip;
+            attempt->add_pull_bsb(
+                         0,0,
+                         0,0,
+                         i,
+                         prior_bsb_tip,m->micro->tips[i]);
+    }
+}
+
 void BatchBlock::validator::add_epoch_block(std::shared_ptr<logos::bootstrap_attempt> &attempt, std::shared_ptr<BatchBlock::bulk_pull_response_epoch> &e)
 {
     std::lock_guard<std::mutex> lock(mutex);
@@ -226,7 +261,28 @@ void BatchBlock::validator::add_epoch_block(std::shared_ptr<logos::bootstrap_att
 
 }
 
-bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_response> block)
+static
+void get_block_sequence_range(std::shared_ptr<ApprovedBSB> block, int *lmin, int *lmax)
+{
+    *lmin = (1<<20);
+    *lmax = 0;
+
+    for(int i = 0; i < block->block_count; i++) {
+        if(block->blocks[i].sequence < *lmin) {
+            *lmin = block->blocks[i].sequence;
+        }       
+    }
+
+    for(int i = 0; i < block->block_count; i++) {
+        if(block->blocks[i].sequence > *lmax) {
+            *lmax = block->blocks[i].sequence;
+        }       
+    }
+}
+
+extern std::atomic<int> EXPECTING;
+
+bool BatchBlock::validator::validate(std::shared_ptr<logos::bootstrap_attempt> attempt, std::shared_ptr<BatchBlock::bulk_pull_response> block)
 {
     std::lock_guard<std::mutex> lock(mutex);
     LOG_DEBUG(node->log) << "validate: bsb.size(): " << bsb.size() << " micro.size(): " << micro.size() << " epoch.size(): " << epoch.size() << std::endl;
@@ -241,16 +297,32 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
         [](const std::shared_ptr<BatchBlock::bulk_pull_response> &lhs,
            const std::shared_ptr<BatchBlock::bulk_pull_response> &rhs)
         {
-            return lhs->block->timestamp < rhs->block->timestamp;
+            //return lhs->block->timestamp < rhs->block->timestamp;
+            //return lhs->block->sequence < rhs->block->sequence;
+            int lmin,lmax,rmin,rmax;
+            get_block_sequence_range(lhs->block,&lmin,&lmax);
+            get_block_sequence_range(rhs->block,&rmin,&rmax);
+            //std::cout << "lmin: " << lmin << " rmin: " << rmin << " lmax: " << lmax << " rmax: " << rmax << std::endl;
+            //return lmin < rmin && lmax < rmax;
+            return lmin < rmin;
         }
     );
 
    std::set<int> finished;
+   int fail_count = 0;
    for(int i = 0; i < bsb.size(); ++i) {
         std::shared_ptr<BatchBlock::bulk_pull_response> block = bsb[i];
         LOG_DEBUG(node->log) << "trying to validate: " << std::endl;
 		ValidationStatus rtvl;
-        if (BatchBlock::Validate(node->store,
+        BlockHash peerHash = block->block->Hash();
+        //std::shared_ptr<ApprovedBSB> isBSBPresent =  BatchBlock::readBatchStateBlock(node->store, peerHash);
+        if(node->store.batch_block_exists(*block->block.get())) {
+            // Remove it from queue if its already present...
+            finished.insert(i);
+        } else {
+            // Try and validate...
+            std::cout << "rgd_validate:: block_sequence: " << block->block->sequence << std::endl;
+            if (BatchBlock::Validate(node->store,
                 *block->block.get(),block->delegate_id,&rtvl)) {
                 // Block is valid, add to database.
                 BatchBlock::ApplyUpdates(node->store,
@@ -258,14 +330,43 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
                 std::cout << "validate successful: hash: " << block->block->Hash().to_string() << " prev: " << block->block->previous.to_string() << " next: " << block->block->next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
                 LOG_INFO(node->log) << "validate successful: hash: " << block->block->Hash().to_string() << " prev: " << block->block->previous.to_string() << " next: " << block->block->next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
                 finished.insert(i);
-        } else {
+            } else {
+                bool found = false;
+                std::shared_ptr<BatchBlock::bulk_pull_response> next;
+                int j = 0;
+                for(j = 0; j < bsb.size(); ++j) {
+                    int lmin, lmax;
+                    get_block_sequence_range(bsb[j]->block,&lmin,&lmax);
+                    if(lmin == EXPECTING) {
+                        found = true;
+                        next = bsb[j];
+                        std::cout << "EXPECTED found:" << std::endl;
+                        break;
+                    }
+                }
+                if(found) {
+                    if (BatchBlock::Validate(node->store,
+                        *next->block.get(),next->delegate_id,&rtvl)) {
+                        // Block is valid, add to database.
+                        BatchBlock::ApplyUpdates(node->store,
+                                 *block->block.get(),block->delegate_id);
+                        std::cout << "validate successful: hash: " << block->block->Hash().to_string() << " prev: " << block->block->previous.to_string() << " next: " << block->block->next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
+                        LOG_INFO(node->log) << "validate successful: hash: " << block->block->Hash().to_string() << " prev: " << block->block->previous.to_string() << " next: " << block->block->next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
+                        finished.insert(j);
+                        continue;
+                    }
+                }
+                ++fail_count;
+                // RGD1 if we fail one too many times, re-issue the bsb blocks for this micro
+                //      maybe we missed something...
                 block->retry_count++; // How many times this block failed...
                 if(block->retry_count >= BatchBlock::validator::MAX_RETRY || is_black_list_error(rtvl)) {
                     // Remove block and blacklist...
-                    finished.insert(i);
-                    p2p::add_to_blacklist(block->peer); // TODO Should we also blacklist all our peers up and to including this one?
+                    //finished.insert(i); // RGD1
+                    //p2p::add_to_blacklist(block->peer); // TODO Should we also blacklist all our peers up and to including this one?
                 }
                 LOG_DEBUG(node->log) << "validate failed: hash: " << block->block->Hash().to_string() << " prev: " << block->block->previous.to_string() << " next: " << block->block->next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
+            }
         }
    }
 
@@ -315,6 +416,12 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
              if(peerMicro->last_micro_block > 0) {
                 ready = true;
              }
+            // We applied the current micro (there should only be one
+            // micro at any given time) advance to the next micro.
+            if(micro.size() == 0) {
+                if(attempt) ++attempt->get_next_micro; 
+                ++BatchBlock::get_next_micro;
+            }
         } else {
              // Try several times, if fail, we assume there is a problem.
              micro[j]->retry_count++; // How many times this block failed...
@@ -339,6 +446,10 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
 
    // Update the vector with the micro blocks we still need to process.
    micro = tmp_micro;
+
+   if(fail_count > 200 && attempt) {
+        //request_micro_block(attempt,micro[0]);
+   }
 
    if(!ready) { // logical
         return false; // Ok, no error...
@@ -386,6 +497,8 @@ bool BatchBlock::validator::validate(std::shared_ptr<BatchBlock::bulk_pull_respo
             tmp_epoch.push_back(epoch[i]);
         }
    }
+
+
 
    // Update the vector with the micro blocks we still need to process.
    epoch = tmp_epoch;
