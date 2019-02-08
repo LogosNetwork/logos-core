@@ -44,7 +44,7 @@ EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint endpoint
         // check for bogus data
         if (ids->delegate_id > NUM_DELEGATES - 1
         || static_cast<int>(ids->connection) > 2
-        || ids->epoch_number > ConsensusContainer::GetCurEpochNumber() + 10 )
+        || ids->epoch_number > ConsensusContainer::GetCurEpochNumber() + INVALID_EPOCH_GAP )
         {
             LOG_ERROR(_log) << "EpochPeerManager::OnConnectionAccepted - Likely received bogus data from unexpected connection.";
         }

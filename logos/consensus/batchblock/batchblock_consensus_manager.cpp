@@ -111,7 +111,7 @@ BatchBlockConsensusManager::ReadyForConsensus()
         // TODO: Make sure that RequestHandler::_current_batch has
         //       been prepared before calling _handler.BatchFull.
         //
-        return StateReadyForConsensus() && (_handler.BatchFull() ||
+        return !_ongoing && (_handler.BatchFull() ||
                             (_buffer.empty() && !_handler.Empty()));
     }
 

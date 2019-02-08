@@ -178,7 +178,7 @@ bool ConsensusManager<CT>::ReadyForConsensus()
     {
         return false;
     }
-    return StateReadyForConsensus() && !PrePrepareQueueEmpty();
+    return !PrePrepareQueueEmpty();
 }
 
 template<ConsensusType CT>
