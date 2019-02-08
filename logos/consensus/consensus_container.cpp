@@ -232,6 +232,10 @@ ConsensusContainer::PeerBinder(
                     << " " << (int)DelegateIdentityManager::_global_delegate_idx;
 
     epoch->_netio_manager.OnConnectionAccepted(endpoint, socket, ids);
+
+
+    //TODO ELECTIONS compute the election results here and cache
+    //can use _alarm to hand computation to boost threadpool of workers
 }
 
 void
