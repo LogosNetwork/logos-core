@@ -97,7 +97,7 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
         case MessageType::Key_Advert:
         case MessageType::Unknown:
         {
-            LOG_DEBUG(_log) << "ConsensusConnection<" << ConsensusToName(CT) << "> - Received "
+            LOG_WARN(_log) << "ConsensusConnection<" << ConsensusToName(CT) << "> - Received "
                             << MessageToName(message_type) << " message from delegate: "
                             << (int)RemoteDelegateId();
             error = true;

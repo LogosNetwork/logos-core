@@ -150,6 +150,7 @@ public:
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block);
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block, MDB_txn *);
     bool state_block_get(const BlockHash & hash, StateBlock & block, MDB_txn *);
+    std::shared_ptr<StateBlock> state_block_get(const BlockHash & hash, MDB_txn *);
     bool state_block_put(StateBlock const &, MDB_txn *);
     bool state_block_exists(const StateBlock & block);
     bool state_block_exists(const BlockHash & hash);

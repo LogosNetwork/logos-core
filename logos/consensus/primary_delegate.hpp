@@ -49,8 +49,6 @@ public:
     template<typename M>
     void OnConsensusMessage(const M & message, uint8_t remote_delegate_id)
     {
-        // SYL Integration: got rid of coarse locking and implemented granular locking inside ProceedWithMessage
-        // Changed method signatures to avoid having to keep track of remote delegate id
         ProcessMessage(message, remote_delegate_id);
     }
 

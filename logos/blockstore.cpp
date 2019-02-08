@@ -943,8 +943,8 @@ bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & b
             block.blocks.reserve(block.block_count);
             for(uint16_t i = 0; i < block.block_count; ++i)
             {
-                auto block_ptr = std::make_shared<StateBlock>();
-                if(state_block_get(block.hashes[i], *block_ptr, transaction))
+                auto block_ptr (state_block_get(block.hashes[i], transaction));
+                if(block_ptr == nullptr)
                 {
                     LOG_ERROR(log) << __func__ << " state_block_get failed";
                     return true;
@@ -1030,6 +1030,28 @@ bool logos::block_store::state_block_get(const BlockHash & hash, StateBlock & bl
     assert(!error);
 
     return error;
+}
+
+std::shared_ptr<StateBlock> logos::block_store::state_block_get(const BlockHash & hash, MDB_txn * transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    mdb_val val;
+    if(mdb_get(transaction, state_db, mdb_val(hash), val))
+    {
+        LOG_TRACE(log) << __func__ << " mdb_get failed";
+        return nullptr;
+    }
+
+    bool error = false;
+    auto block_ptr (std::make_shared<StateBlock>(error, val));
+    if (error)
+    {
+        LOG_FATAL(log) << __func__ << " failed to get state block";
+        trace_and_halt();
+    }
+
+    return block_ptr;
 }
 
 bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, mdb_val &value, MDB_txn *tx)
