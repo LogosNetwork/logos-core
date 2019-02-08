@@ -12,13 +12,13 @@ Archiver::Archiver(logos::alarm & alarm,
                    BlockStore & store,
                    IRecallHandler & recall_handler)
     : _first_epoch(IsFirstEpoch(store))
-    , _event_proposer(alarm, recall_handler, _first_epoch)
+    , _event_proposer(alarm, recall_handler, _first_epoch, IsFirstMicroBlock(store))
     , _micro_block_handler(store, recall_handler)
     , _voting_manager(store)
     , _epoch_handler(store, _voting_manager)
     , _recall_handler(recall_handler)
     , _store(store)
-    {}
+{}
 
 void
 Archiver::Start(InternalConsensus &consensus)
@@ -39,7 +39,7 @@ Archiver::Start(InternalConsensus &consensus)
             _first_epoch = false;
         }
 
-       consensus.OnSendRequest(micro_block);
+        consensus.OnSendRequest(micro_block);
     };
 
     auto epoch_cb = [this, &consensus]()->void
@@ -96,6 +96,29 @@ Archiver::IsFirstEpoch(BlockStore &store)
     }
 
     return epoch.epoch_number == GENESIS_EPOCH;
+}
+
+bool
+Archiver::IsFirstMicroBlock(BlockStore &store)
+{
+    BlockHash hash;
+    ApprovedMB microblock;
+
+    if (store.micro_block_tip_get(hash))
+    {
+        Log log;
+        LOG_ERROR(log) << "Archiver::IsFirstMicroBlock failed to get microblock tip. Genesis blocks are being generated.";
+        return true;
+    }
+
+    if (store.micro_block_get(hash, microblock))
+    {
+        LOG_ERROR(_log) << "Archiver::IsFirstMicroBlock failed to get microblock: "
+                        << hash.to_string();
+        return false;
+    }
+
+    return microblock.epoch_number == GENESIS_EPOCH;
 }
 
 bool

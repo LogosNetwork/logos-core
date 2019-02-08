@@ -24,55 +24,71 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
         ConsensusType consensus_type,
         uint32_t payload_size)
 {
-    LOG_DEBUG(_log) << "DelegateBridge<"
-                    << ConsensusToName(CT) << ">- Received "
-                    << MessageToName(message_type)
-                    << " message from delegate: " << (int)RemoteDelegateId();
-
     bool error = false;
     logos::bufferstream stream(data, payload_size);
+    auto log_message_received ([&](const std::string & msg_str, const std::string & hash_str){
+        LOG_DEBUG(_log) << "ConsensusConnection<" << ConsensusToName(CT) << "> - Received "
+                        << msg_str << " message from delegate: " << (int)RemoteDelegateId()
+                        << " with block hash " << hash_str;
+    });
     switch (message_type)
     {
         case MessageType::Pre_Prepare:
         {
             PrePrepare msg(error, stream, version);
-            if(!error)
+            if(!error){
+                log_message_received(MessageToName(message_type), msg.Hash().to_string());
                 OnConsensusMessage(msg);
+            }
             break;
         }
         case MessageType::Prepare:
         {
             Prepare msg(error, stream, version);
             if(!error)
+            {
+                log_message_received(MessageToName(message_type), msg.preprepare_hash.to_string());
                 OnConsensusMessage(msg);
+            }
             break;
         }
         case MessageType::Post_Prepare:
         {
             PostPrepare msg(error, stream, version);
-            if(!error)
+            if(!error){
+                log_message_received(MessageToName(message_type), msg.preprepare_hash.to_string());
                 OnConsensusMessage(msg);
+            }
             break;
         }
         case MessageType::Commit:
         {
             Commit msg(error, stream, version);
-            if(!error)
+            if(!error){
+                log_message_received(MessageToName(message_type), msg.preprepare_hash.to_string());
                 OnConsensusMessage(msg);
+            }
             break;
         }
         case MessageType::Post_Commit:
         {
             PostCommit msg(error, stream, version);
             if(!error)
+            {
+                log_message_received(MessageToName(message_type), msg.preprepare_hash.to_string());
                 OnConsensusMessage(msg);
+            }
             break;
         }
         case MessageType::Rejection:
         {
             Rejection msg (error, stream, version);
             if(!error)
+            {
+                auto msg_str (MessageToName(message_type) + ":" + RejectionReasonToName(msg.reason));
+                log_message_received(msg_str, msg.preprepare_hash.to_string());
                 OnConsensusMessage(msg);
+            }
             break;
         }
         case MessageType::Post_Committed_Block:
@@ -80,8 +96,13 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
         case MessageType::Heart_Beat:
         case MessageType::Key_Advert:
         case MessageType::Unknown:
+        {
+            LOG_WARN(_log) << "ConsensusConnection<" << ConsensusToName(CT) << "> - Received "
+                            << MessageToName(message_type) << " message from delegate: "
+                            << (int)RemoteDelegateId();
             error = true;
             break;
+        }
     }
 
     if(error)
@@ -89,7 +110,6 @@ bool DelegateBridge<CT>::OnMessageData(const uint8_t * data,
 
     return ! error;
 }
-
 template class DelegateBridge<ConsensusType::BatchStateBlock>;
 template class DelegateBridge<ConsensusType::MicroBlock>;
 template class DelegateBridge<ConsensusType::Epoch>;

@@ -35,7 +35,7 @@ template<ConsensusType CT>
 void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
                                          logos::process_return & result)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    // SYL Integration fix: got rid of unnecessary lock here in favor of more granular locking
 
     auto hash = block->Hash();
 
@@ -76,6 +76,9 @@ void ConsensusManager<CT>::OnRequestQueued()
 {
     if(ReadyForConsensus())
     {
+        // SYL integration fix: InitiateConsensus should only be called
+        // when no consensus session is currently going on
+        _ongoing = true;
         InitiateConsensus();
     }
 }
@@ -84,8 +87,6 @@ template<ConsensusType CT>
 void ConsensusManager<CT>::OnRequestReady(
     std::shared_ptr<Request> block)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-
     QueueRequestPrimary(block);
     OnRequestQueued();
 }
@@ -141,10 +142,12 @@ void ConsensusManager<CT>::OnConsensusReached()
 
     PrePreparePopFront();
 
-    if(!PrePrepareQueueEmpty())
-    {
-        InitiateConsensus();
-    }
+    // SYL Integration: finally set ongoing consensus indicator to false to allow next round of consensus to being
+    _ongoing = false;
+
+    // Don't need to lock _state_mutex here because there should only be
+    // one call to OnConsensusReached per consensus round
+    OnRequestQueued();
 }
 
 template<ConsensusType CT>
@@ -155,20 +158,27 @@ void ConsensusManager<CT>::InitiateConsensus()
                    << " consensus.";
 
     auto & pre_prepare = PrePrepareGetNext();
-    pre_prepare.previous = _prev_pre_prepare_hash;
 
+    // SYL Integration: if we don't want to lock _state_mutex here it is important to
+    // call OnConsensusInitiated before AdvanceState (otherwise PrimaryDelegate might
+    // mistakenly process previous consensus messages from backups in this new round,
+    // since ProceedWithMessage checks _state first then _cur_hash).
     OnConsensusInitiated(pre_prepare);
-
-    _state = ConsensusState::PRE_PREPARE;
+    AdvanceState(ConsensusState::PRE_PREPARE);
 
     pre_prepare.preprepare_sig = _pre_prepare_sig;
+    LOG_DEBUG(_log) << "JSON representation: " << pre_prepare.SerializeJson();
     PrimaryDelegate::Send<PrePrepare>(pre_prepare);
 }
 
 template<ConsensusType CT>
 bool ConsensusManager<CT>::ReadyForConsensus()
 {
-    return StateReadyForConsensus() && !PrePrepareQueueEmpty();
+    if(_ongoing)
+    {
+        return false;
+    }
+    return !PrePrepareQueueEmpty();
 }
 
 template<ConsensusType CT>

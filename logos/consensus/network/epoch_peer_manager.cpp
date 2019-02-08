@@ -7,6 +7,7 @@
 #include <logos/consensus/network/epoch_peer_manager.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/messages/util.hpp>
+#include <logos/consensus/consensus_container.hpp>
 
 EpochPeerManager::EpochPeerManager(Service& service,
                                    const Config &config,
@@ -40,6 +41,16 @@ EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint endpoint
             return;
         }
 
-        _peer_binder(Endpoint(boost::asio::ip::make_address_v4(ids->ip), endpoint.port()), socket, *ids);
+        // check for bogus data
+        if (ids->delegate_id > NUM_DELEGATES - 1
+        || static_cast<int>(ids->connection) > 2
+        || ids->epoch_number > ConsensusContainer::GetCurEpochNumber() + INVALID_EPOCH_GAP )
+        {
+            LOG_ERROR(_log) << "EpochPeerManager::OnConnectionAccepted - Likely received bogus data from unexpected connection.";
+        }
+        else
+        {
+            _peer_binder(Endpoint(boost::asio::ip::make_address_v4(ids->ip), endpoint.port()), socket, *ids);
+        }
     });
 }

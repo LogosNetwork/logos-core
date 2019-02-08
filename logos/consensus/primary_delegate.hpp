@@ -34,20 +34,26 @@ class PrimaryDelegate
 
 public:
 
+    enum class ProceedAction : uint8_t
+    {
+        APPROVED = 0,
+        REJECTED,
+        DO_NOTHING
+    };
+
     PrimaryDelegate(Service & service,
                     MessageValidator & validator);
 
-    template<typename M>
-    void OnConsensusMessage(const M & message, uint8_t delegate_id)
-    {
-        std::lock_guard<std::recursive_mutex> lock(_mutex);
+    static void SetQuorum(uint128_t & max_fault, uint128_t & quorum, const uint128_t & total);
 
-        _cur_delegate_id = delegate_id;
-        ProcessMessage(message);
+    template<typename M>
+    void OnConsensusMessage(const M & message, uint8_t remote_delegate_id)
+    {
+        ProcessMessage(message, remote_delegate_id);
     }
 
     template<typename M>
-    bool Validate(const M & message);
+    bool Validate(const M & message, uint8_t remote_delegate_id);
 
     virtual ~PrimaryDelegate()
     {}
@@ -56,6 +62,8 @@ public:
 
     virtual void Send(const void * data, size_t size) = 0;
 
+    void AdvanceState(ConsensusState new_state);
+
     template<typename TYPE>
     void Send(const TYPE & data)
     {
@@ -63,6 +71,12 @@ public:
         data.Serialize(buf);
         Send(buf.data(), buf.size());
     }
+
+    uint8_t GetDelegateIndex()
+    {
+        return _delegate_id;
+    }
+
 protected:
 
     virtual void UpdateVotes();
@@ -85,20 +99,22 @@ protected:
     DelegateSig          _pre_prepare_sig;
     AggSignature         _post_prepare_sig;
     AggSignature         _post_commit_sig;
+    std::atomic_bool     _ongoing;
+    std::atomic_bool     _state_changing;
+    std::mutex           _state_mutex;
     Weights              _weights;
     ApprovedEB           _current_epoch;
     ConsensusState       _state           = ConsensusState::VOID;
     uint128_t            _vote_total      = 0;
     uint128_t            _stake_total     = 0;
+    uint128_t            _vote_max_fault  = 0;
+    uint128_t            _stake_max_fault = 0;
     uint128_t            _vote_quorum     = 0;
     uint128_t            _stake_quorum    = 0;
-    bool                 _vq_rounded      = false;
-    bool                 _sq_rounded      = false;
     uint128_t            _prepare_vote    = 0;
     uint128_t            _prepare_stake   = 0;
     uint128_t            _my_vote         = 0;
     uint128_t            _my_stake        = 0;
-    uint8_t              _cur_delegate_id = 0;
     uint8_t              _delegate_id     = 0;
 
 private:
@@ -107,11 +123,28 @@ private:
     static const Seconds RECALL_TIMEOUT;
 
     template<ConsensusType C>
-    void ProcessMessage(const RejectionMessage<C> & message);
+    void ProcessMessage(const RejectionMessage<C> & message, uint8_t remote_delegate_id);
     template<ConsensusType C>
-    void ProcessMessage(const PrepareMessage<C> & message);
+    void ProcessMessage(const PrepareMessage<C> & message, uint8_t remote_delegate_id);
     template<ConsensusType C>
-    void ProcessMessage(const CommitMessage<C> & message);
+    void ProcessMessage(const CommitMessage<C> & message, uint8_t remote_delegate_id);
+
+    // The Tally method needs to be called with _state_mutex locked to ensure atomicity
+    template<ConsensusType C>
+    void Tally(const RejectionMessage<C> & message, uint8_t remote_delegate_id);
+
+    template<ConsensusType C>
+    void Tally(const PrepareMessage<C> & message, uint8_t remote_delegate_id);
+
+    template<ConsensusType C>
+    void Tally(const CommitMessage<C> & message, uint8_t remote_delegate_id);
+
+    template<typename M>
+    void TallyStandardPhaseMessage(const M & message, uint8_t remote_delegate_id);
+
+    virtual void TallyPrepareMessage(const PrepareMessage<ConsensusType::BatchStateBlock> & message, uint8_t remote_delegate_id);
+    virtual void TallyPrepareMessage(const PrepareMessage<ConsensusType::MicroBlock> & message, uint8_t remote_delegate_id);
+    virtual void TallyPrepareMessage(const PrepareMessage<ConsensusType::Epoch> & message, uint8_t remote_delegate_id);
 
     template<ConsensusType C>
     BlockHash GetHashSigned(const RejectionMessage<C> & message)
@@ -129,11 +162,9 @@ private:
         return _post_prepare_hash;
     }
 
-    virtual void OnRejection(const RejectionMessage<ConsensusType::BatchStateBlock> & message);
-    virtual void OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message);
-    virtual void OnRejection(const RejectionMessage<ConsensusType::Epoch> & message);
-
-    void CheckRejection();
+    virtual void OnRejection(const RejectionMessage<ConsensusType::BatchStateBlock> & message, uint8_t remote_delegate_id);
+    virtual void OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message, uint8_t remote_delegate_id);
+    virtual void OnRejection(const RejectionMessage<ConsensusType::Epoch> & message, uint8_t remote_delegate_id);
 
     template<ConsensusType C>
     void OnPrePrepareTimeout(const Error & error);
@@ -152,10 +183,10 @@ private:
     bool AllDelegatesResponded();
 
     template<typename M>
-    bool ProceedWithMessage(const M & message, ConsensusState expected_state);
+    ProceedAction ProceedWithMessage(const M & message, ConsensusState expected_state, uint8_t remote_delegate_id);
 
-    void AdvanceState(ConsensusState new_state);
     virtual void OnStateAdvanced();
+    virtual bool IsPrePrepareRejected();
     virtual void OnPrePrepareRejected();
 
     virtual void OnConsensusReached() = 0;

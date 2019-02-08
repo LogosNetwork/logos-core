@@ -200,7 +200,7 @@ using Prequel = MessagePrequel<MessageType::Unknown, ConsensusType::Any>;
 struct PrePrepareCommon
 {
     PrePrepareCommon()
-    : primary_delegate()
+    : primary_delegate(0xff)
     , epoch_number(0)
     , sequence(0)
     , timestamp(GetStamp())
@@ -221,16 +221,25 @@ struct PrePrepareCommon
         return *this;
     }
 
-    void Hash(blake2b_state & hash) const
+    void Hash(blake2b_state & hash, bool is_archive_block = false) const
     {
         uint32_t en = htole32(epoch_number);
         uint32_t sqn = htole32(sequence);
-        uint64_t tsp = htole64(timestamp);
 
-        primary_delegate.Hash(hash);
-        blake2b_update(&hash, &en, sizeof(uint32_t));
-        blake2b_update(&hash, &sqn, sizeof(uint32_t));
-        blake2b_update(&hash, &tsp, sizeof(uint64_t));
+        // SYL Integration: for archive blocks, we want to ensure the hash of a block with
+        // a given epoch_number and sequence is the same across all delegates
+        if (!is_archive_block)
+        {
+            blake2b_update(&hash, &primary_delegate, sizeof(primary_delegate));
+        }
+        blake2b_update(&hash, &en, sizeof(en));
+        blake2b_update(&hash, &sqn, sizeof(sqn));
+
+        if (!is_archive_block)
+        {
+            uint64_t tsp = htole64(timestamp);
+            blake2b_update(&hash, &tsp, sizeof(tsp));
+        }
         previous.Hash(hash);
     }
 
@@ -252,7 +261,7 @@ struct PrePrepareCommon
 
     void SerializeJson(boost::property_tree::ptree & tree) const
     {
-        tree.put("delegate", primary_delegate.to_string());
+        tree.put("delegate", std::to_string(primary_delegate));
         tree.put("epoch_number", std::to_string(epoch_number));
         tree.put("sequence", std::to_string(sequence));
         tree.put("timestamp", std::to_string(timestamp));
@@ -260,7 +269,7 @@ struct PrePrepareCommon
         tree.put("signature", preprepare_sig.to_string());
     }
 
-    AccountAddress          primary_delegate;
+    uint8_t                 primary_delegate;
     uint32_t                epoch_number;
     uint32_t                sequence;
     uint64_t                timestamp;
