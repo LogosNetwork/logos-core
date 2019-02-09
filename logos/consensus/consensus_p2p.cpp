@@ -146,7 +146,10 @@ void ConsensusP2p<CT>::RetryValidate(const logos::block_hash &hash)
         ValidationStatus status;
         auto value = cache_copy[i];
         const PostCommittedBlock<CT> &block = *value.second.second;
-        _Validate(block, value.second.first, &status);
+        if (_Validate(block, value.second.first, &status))
+        {
+            status.reason = logos::process_result::progress;
+        }
         ApplyCacheUpdates(block, value.second.second, value.second.first, status);
     }
 }		
@@ -362,10 +365,25 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
 
                 if (!_Validate(block, delegate_id, &status))
                 {
-                    LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                                    << "> - error validation PostCommittedBlock: "
-                                    << ProcessResultToString(status.reason);
-                    return false;
+                    if (status.reason != logos::process_result::gap_previous
+                        && status.reason != logos::process_result::invalid_tip
+                        && status.reason != logos::process_result::invalid_request)
+                    {
+                        LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)
+                                        << "> - error validation PostCommittedBlock: "
+                                        << ProcessResultToString(status.reason);
+                        return false;
+                    }
+                    else
+                    {
+                        LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
+                                        << "> - validation PostCommittedBlock failed, try add to cache: "
+                                        << ProcessResultToString(status.reason);
+                    }
+                }
+                else
+                {
+                    status.reason = logos::process_result::progress;
                 }
 
                 LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
