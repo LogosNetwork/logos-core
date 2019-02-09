@@ -44,8 +44,7 @@ protected:
 	/// Commits the block to the database.
 	///     @param[in] block the epoch block to commit to the database
 	///     @param[in] delegate_id delegate id
-	void ApplyUpdates(
-		const ApprovedEB &,
+	void ApplyUpdates(const ApprovedEB &,
 		uint8_t delegate_id) override;
 
 	/// Returns number of stored blocks.

@@ -2,8 +2,8 @@ cmake_minimum_required (VERSION 2.8.11)
 project (logos)
 
 include(ExternalProject)
-set (CPACK_PACKAGE_VERSION_MAJOR "14")
-set (CPACK_PACKAGE_VERSION_MINOR "0")
+set (CPACK_PACKAGE_VERSION_MAJOR "0")
+set (CPACK_PACKAGE_VERSION_MINOR "2")
 set (CPACK_PACKAGE_VERSION_PATCH "0")
 if (DEFINED GIT_COMMIT)
 set (CPACK_PACKAGE_VERSION_PATCH "GIT-${GIT_COMMIT}")
@@ -324,6 +324,7 @@ add_library (node
 	logos/consensus/consensus_container.cpp
 	logos/consensus/consensus_manager.cpp
 	logos/consensus/consensus_p2p.cpp
+	logos/consensus/delegate_key_store.cpp
 	logos/consensus/epoch_manager.cpp
 	logos/consensus/epoch/epoch_backup_delegate.cpp
 	logos/consensus/epoch/epoch_consensus_manager.cpp
@@ -331,18 +332,13 @@ add_library (node
 	logos/consensus/messages/messages.cpp
 	logos/consensus/microblock/microblock_backup_delegate.cpp
 	logos/consensus/microblock/microblock_consensus_manager.cpp
-	logos/consensus/network/consensus_netio.cpp
-	logos/consensus/network/consensus_netio_manager.cpp
-	logos/consensus/network/net_io_assembler.cpp
-	logos/consensus/network/peer_acceptor.cpp
-	logos/consensus/network/epoch_peer_manager.cpp
 	logos/consensus/persistence/persistence.cpp
 	logos/consensus/persistence/validator_builder.cpp
 	logos/consensus/persistence/batchblock/batchblock_persistence.cpp
 	logos/consensus/persistence/epoch/epoch_persistence.cpp
 	logos/consensus/persistence/microblock/microblock_persistence.cpp
+	logos/consensus/persistence/reservations.cpp
 	logos/consensus/primary_delegate.cpp
-	logos/consensus/delegate_key_store.cpp
 	logos/epoch/archiver.cpp
 	logos/epoch/epoch.cpp
 	logos/epoch/epoch_handler.cpp
@@ -352,6 +348,12 @@ add_library (node
 	logos/microblock/microblock.cpp
 	logos/microblock/microblock_handler.cpp
 	logos/microblock/microblock_tester.cpp
+	logos/network/consensus_netio.cpp
+	logos/network/consensus_netio_manager.cpp
+	logos/network/net_io_assembler.cpp
+	logos/network/net_io_send.cpp
+	logos/network/peer_acceptor.cpp
+	logos/network/epoch_peer_manager.cpp
 	logos/node/bootstrap.cpp
 	logos/node/bootstrap.hpp
 	logos/node/client_callback.cpp
@@ -374,6 +376,11 @@ add_library (node
 	logos/node/stats.cpp
 	logos/node/working.hpp
 	logos/node/xorshift.hpp
+	logos/tx_acceptor/tx_acceptor.cpp
+	logos/tx_acceptor/tx_acceptor_channel.cpp
+	logos/tx_acceptor/tx_message_header.cpp
+	logos/tx_acceptor/tx_receiver.cpp
+	logos/tx_acceptor/tx_receiver_channel.cpp
 	logos/wallet_server/client/callback_handler.cpp
 	logos/wallet_server/client/callback_manager.cpp
 	logos/wallet_server/client/common.hpp
@@ -384,12 +391,18 @@ add_library (node
 SET (ACTIVE_NETWORK logos_live_network CACHE STRING "Selects which network parameters are used")
 set_property (CACHE ACTIVE_NETWORK PROPERTY STRINGS logos_test_network logos_beta_network logos_live_network)
 
-if (LOGOS_TEST)
-	add_executable (unit_test        	       
-		logos/unit_test/consensus_msg_serialize.cpp
-	)
+option(STRICT_CONSENSUS_THRESHOLD "Require approval from all delegates for transaction validation" OFF)
+option(TEST_REJECT "Makes delegate reject random transactions inside PrePrepare messages" OFF)
 
-	set_target_properties (unit_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1")
+if (LOGOS_TEST)
+	add_executable (unit_test
+		logos/unit_test/consensus_msg_serialize.cpp
+		logos/unit_test/tallying.cpp)
+
+	set_target_properties (unit_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1 ")
+	if (STRICT_CONSENSUS_THRESHOLD MATCHES ON)
+		set_property (TARGET unit_test APPEND_STRING PROPERTY COMPILE_FLAGS "-DSTRICT_CONSENSUS_THRESHOLD ")
+	endif (STRICT_CONSENSUS_THRESHOLD MATCHES ON)
 	set_target_properties (unit_test PROPERTIES LINK_FLAGS "${PLATFORM_LINK_FLAGS}")
 endif (LOGOS_TEST)
 
@@ -401,7 +414,13 @@ add_executable (logos_core
 set_target_properties (argon2 PROPERTIES COMPILE_FLAGS "${PLATFORM_C_FLAGS} ${PLATFORM_COMPILE_FLAGS}")
 set_target_properties (blake2 PROPERTIES COMPILE_FLAGS "${PLATFORM_C_FLAGS} ${PLATFORM_COMPILE_FLAGS} -D__SSE2__")
 set_target_properties (ed25519 PROPERTIES COMPILE_FLAGS "${PLATFORM_C_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DED25519_CUSTOMHASH -DED25519_CUSTOMRNG")
-set_target_properties (secure node logos_core logos_lib logos_lib_static PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1")
+set_target_properties (secure node logos_core logos_lib logos_lib_static PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1 ")
+if (STRICT_CONSENSUS_THRESHOLD MATCHES ON)
+	set_property (TARGET secure node logos_core logos_lib logos_lib_static APPEND_STRING PROPERTY COMPILE_FLAGS "-DSTRICT_CONSENSUS_THRESHOLD ")
+endif (STRICT_CONSENSUS_THRESHOLD MATCHES ON)
+if (TEST_REJECT MATCHES ON)
+	set_property (TARGET secure node logos_core logos_lib logos_lib_static APPEND_STRING PROPERTY COMPILE_FLAGS "-DTEST_REJECT ")
+endif (TEST_REJECT MATCHES ON)
 set_target_properties (secure node logos_core PROPERTIES LINK_FLAGS "${PLATFORM_LINK_FLAGS}")
 
 if (WIN32)

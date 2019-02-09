@@ -2,6 +2,7 @@
 /// This file contains declaration of the EpochManager class, which encapsulates
 /// consensus related types and participates in the epoch transition
 
+#include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/node/node.hpp>

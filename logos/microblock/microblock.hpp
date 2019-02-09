@@ -51,7 +51,7 @@ struct MicroBlock : PrePrepareCommon
     void Hash(blake2b_state & hash) const
     {
         uint32_t nbb = htole32(number_batch_blocks);
-        PrePrepareCommon::Hash(hash);
+        PrePrepareCommon::Hash(hash, true);
         blake2b_update(&hash, &last_micro_block, sizeof(uint8_t));
         blake2b_update(&hash, &nbb, sizeof(uint32_t));
         for(int i = 0; i < NUM_DELEGATES; ++i)

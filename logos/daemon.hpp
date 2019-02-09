@@ -22,5 +22,6 @@ class daemon
 {
 public:
     void run (boost::filesystem::path const &, daemon_config &);
+    void run_tx_acceptor(boost::filesystem::path const &);
 };
 }

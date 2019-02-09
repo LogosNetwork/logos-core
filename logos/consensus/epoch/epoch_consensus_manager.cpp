@@ -58,12 +58,12 @@ EpochConsensusManager::QueueRequestPrimary(
 auto
 EpochConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
-  return *_cur_epoch;
+    return *_cur_epoch;
 }
 auto
 EpochConsensusManager::PrePrepareGetCurr() -> PrePrepare &
 {
-  return *_cur_epoch;
+    return *_cur_epoch;
 }
 
 void 
@@ -139,12 +139,12 @@ EpochConsensusManager::DesignatedDelegate(
     }
 
     // delegate who proposed last microblock also proposes epoch block
-    if (block.last_micro_block && block.primary_delegate == DelegateIdentityManager::_delegate_account)
+    if (block.last_micro_block && block.primary_delegate == _delegate_id)
     {
         LOG_DEBUG(_log) << "EpochConsensusManager::DesignatedDelegate epoch proposed by delegate "
                         << (int)_delegate_id << " " << (int)DelegateIdentityManager::_global_delegate_idx
                         << " " << _events_notifier.GetEpochNumber()
-                        << " " << block.primary_delegate.to_string();
+                        << " " << (int)block.primary_delegate;
         return _delegate_id;
     }
 

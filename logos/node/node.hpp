@@ -8,7 +8,7 @@
 #include <logos/epoch/archiver.hpp>
 #include <logos/epoch/recall_handler.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
-#include <logos/consensus/consensus_container.hpp>
+#include <logos/tx_acceptor/tx_acceptor_config.hpp>
 #include <logos/p2p/p2p.h>
 
 #include <condition_variable>
@@ -37,6 +37,10 @@ namespace program_options
     class variables_map;
 }
 }
+
+class ConsensusContainer;
+class TxAcceptor;
+class TxReceiver;
 
 namespace logos
 {
@@ -395,6 +399,7 @@ public:
     logos::block_hash state_block_parse_canary;
     logos::block_hash state_block_generate_canary;
     ConsensusManagerConfig consensus_manager_config;
+    TxAcceptorConfig tx_acceptor_config;
     p2p_config p2p_conf;
     static std::chrono::seconds constexpr keepalive_period = std::chrono::seconds (60);
     static std::chrono::seconds constexpr keepalive_cutoff = keepalive_period * 5;
@@ -502,7 +507,7 @@ public:
     logos::node_config config;
     logos::alarm & alarm;
     logos::work_pool & work;
-    boost::log::sources::logger_mt log;
+    Log log;
     logos::block_store store;
     logos::gap_cache gap_cache;
     logos::ledger ledger;
@@ -527,7 +532,9 @@ public:
     DelegateIdentityManager _identity_manager;
     Archiver _archiver;
     Logos_p2p_interface p2p;
-    ConsensusContainer _consensus_container;
+    std::shared_ptr<ConsensusContainer> _consensus_container;
+    std::shared_ptr<TxAcceptor> _tx_acceptor;
+    std::shared_ptr<TxReceiver> _tx_receiver;
     p2p_config p2p_conf;
     static double constexpr price_max = 16.0;
     static double constexpr free_cutoff = 1024.0;

@@ -37,6 +37,9 @@ inline std::string MessageToName(const MessageType & type)
         case MessageType::Heart_Beat:
             ret = "Heart Beat";
             break;
+        case MessageType::TxAcceptor_Message:
+            ret = "TxAcceptor Message";
+            break;
         default:
             ret = "Undefined";
     }
@@ -104,9 +107,11 @@ inline std::string RejectionReasonToName(RejectionReason reason)
         case RejectionReason::New_Epoch:
             return "New Epoch";
         case RejectionReason::Wrong_Sequence_Number:
-            return "Contains Invalid Request";
+            return "Wrong Sequence Number";
         case RejectionReason::Invalid_Previous_Hash:
             return "Invalid Previous Hash";
+        case RejectionReason::Invalid_Primary_Index:
+            return "Invalid Primary Index";
     }
 }
 

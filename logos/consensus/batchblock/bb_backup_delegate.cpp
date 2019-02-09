@@ -44,6 +44,8 @@ BBBackupDelegate::DoValidate(
         return false;
     }
 
+    // TODO: Validate if primary_delegate is correct
+
     if(!ValidateRequests(message))
     {
         LOG_DEBUG(_log) << "BBBackupDelegate::DoValidate ValidateRequests failed";
@@ -70,23 +72,14 @@ bool
 BBBackupDelegate::ValidateRequests(
     const PrePrepare & message)
 {
-    bool valid = true;
+
     _rejection_map.resize(message.block_count, false);
-    for(uint64_t i = 0; i < message.block_count; ++i)
+    if (!_persistence_manager.ValidateBatch(message, _rejection_map))
     {
-        if(!_persistence_manager.Validate(static_cast<const Request&>(message.blocks[i])))
-        {
-            _rejection_map[i] = true;
-
-            if(valid)
-            {
-                _reason = RejectionReason::Contains_Invalid_Request;
-                valid = false;
-            }
-        }
+        _reason = RejectionReason::Contains_Invalid_Request;
+        return false;
     }
-
-    return valid;
+    return true;
 }
 
 /// Commit the block to the database.
@@ -137,6 +130,7 @@ BBBackupDelegate::Reject()
     case RejectionReason::Wrong_Sequence_Number:
     case RejectionReason::Invalid_Epoch:
     case RejectionReason::New_Epoch:
+    case RejectionReason::Invalid_Primary_Index:
         Rejection msg(_pre_prepare_hash);
         DoUpdateMessage(msg);
         _validator.Sign(msg.Hash(), msg.signature);
@@ -157,6 +151,7 @@ BBBackupDelegate::HandleReject(const PrePrepare & message)
         case RejectionReason::Invalid_Previous_Hash:
         case RejectionReason::Wrong_Sequence_Number:
         case RejectionReason::Invalid_Epoch:
+        case RejectionReason::Invalid_Primary_Index:
             break;
         case RejectionReason::New_Epoch:
             if (_events_notifier.GetDelegate() == EpochTransitionDelegate::PersistentReject)
@@ -183,11 +178,12 @@ BBBackupDelegate::HandleReject(const PrePrepare & message)
 void
 BBBackupDelegate::HandlePrePrepare(const PrePrepare & message)
 {
+    std::lock_guard<std::mutex> lock(_mutex);  // SYL Integration fix
     _pre_prepare_hashes.clear();
 
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
-        _pre_prepare_hashes.insert(message.blocks[i].GetHash());
+        _pre_prepare_hashes.insert(message.blocks[i]->GetHash());
     }
 
     // to make sure during epoch transition, a fallback session of the new epoch
@@ -271,7 +267,7 @@ BBBackupDelegate::IsSubset(const PrePrepare & message)
 {
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
-        if(_pre_prepare_hashes.find(message.blocks[i].GetHash()) ==
+        if(_pre_prepare_hashes.find(message.blocks[i]->GetHash()) ==
                 _pre_prepare_hashes.end())
         {
             return false;

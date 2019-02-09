@@ -30,7 +30,9 @@ public:
     /// @param alarm logos::alarm reference [in]
     /// @param recall_handler recall handler reference [in]
     /// @param first_epoch is it first epoch [in]
-    EventProposer(logos::alarm &, IRecallHandler &recall_handler, bool first_epoch);
+    /// @param first_microblock is it first epoch [in]
+    EventProposer(logos::alarm &, IRecallHandler &recall_handler,
+                  bool first_epoch, bool first_microblock);
     ~EventProposer() = default;
 
     /// Generates periodic event to propose microblock
@@ -62,6 +64,8 @@ public:
     /// @param ecb callback to call when the epoch should be proposed [in]
     void Start(MicroCb mcb, TransitionCb tcb, EpochCb ecb);
 private:
+    // number of intervals to skip on first microblock after genesis microblock
+    const uint8_t       FIRST_MICROBLOCK_SKIP = 2;
     logos::alarm &      _alarm;            ///< logos::alarm reference
     EpochCb             _epoch_cb;         ///< delayed epoch call back
     Log                 _log;              ///< boost asio log

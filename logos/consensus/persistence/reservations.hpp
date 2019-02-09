@@ -5,6 +5,9 @@
 #include <logos/blockstore.hpp>
 #include <logos/lib/log.hpp>
 #include <logos/common.hpp>
+#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
+//#include <logos/node/delegate_identity_manager.hpp>
+//#include <logos/consensus/consensus_container.hpp>
 
 #include <unordered_map>
 
@@ -12,12 +15,13 @@ class ReservationsProvider {
 protected:
     using Store = logos::block_store;
 public:
-    ReservationsProvider(Store & store)
+    explicit ReservationsProvider(Store & store)
         : _store(store)
     {}
     virtual ~ReservationsProvider() = default;
-    virtual bool Acquire(const AccountAddress & account, logos::account_info &info) {return true;}
+    virtual bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) {return false;}
     virtual void Release(const AccountAddress & account) {}
+    virtual void UpdateReservation(const logos::block_hash & hash, const logos::account & account) {}
 protected:
     Store &      _store;
     Log          _log;
@@ -27,10 +31,10 @@ class Reservations : public ReservationsProvider
 {
 protected:
 
-    using AccountCache = std::unordered_map<AccountAddress, logos::account_info>;
+    using ReservationCache = std::unordered_map<AccountAddress, logos::reservation_info>;
 
 public:
-    Reservations(Store & store)
+    explicit Reservations(Store & store)
         : ReservationsProvider(store)
     {}
     ~Reservations() = default;
@@ -49,51 +53,23 @@ public:
     //       this is not the only case in which a cached account will be
     //       acquired.
     //-------------------------------------------------------------------------
-    bool Acquire(const AccountAddress & account, logos::account_info &info) override
-    {
-        std::lock_guard<std::mutex> lock(_mutex);
+    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) override;
 
-        if(_accounts.find(account) != _accounts.end())
-        {
-            LOG_WARN(_log) << "Reservations::Acquire - Warning - attempt to "
-                           << "acquire account "
-                           << account.to_string()
-                           << " which is already in the Reservations cache.";
+    void Release(const AccountAddress & account) override;
 
-            info = _accounts[account];
-            return false;
-        }
-
-        auto ret = _store.account_get(account, info);
-
-        if(!ret)
-        {
-            _accounts[account] = info;
-        }
-
-        return ret;
-    }
-
-    void Release(const AccountAddress & account) override
-    {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _accounts.erase(account);
-    }
+    // Can only be called after checking CanAcquire to ensure we don't corrupt reservation
+    void UpdateReservation(const logos::block_hash & hash, const logos::account & account) override;
 
 private:
 
-    AccountCache _accounts;
-    std::mutex   _mutex;
+    ReservationCache _reservations;
 };
 
 class DefaultReservations : public ReservationsProvider {
 public:
-    DefaultReservations(Store & store) : ReservationsProvider(store)
+    explicit DefaultReservations(Store & store) : ReservationsProvider(store)
     {}
     ~DefaultReservations() = default;
 
-    bool Acquire(const AccountAddress & account, logos::account_info &info) override
-    {
-        return _store.account_get(account, info);
-    }
+    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) override;
 };

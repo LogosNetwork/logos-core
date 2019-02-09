@@ -5,13 +5,14 @@
 
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
-#include <logos/consensus/network/consensus_netio_manager.hpp>
-#include <logos/consensus/network/epoch_peer_manager.hpp>
+#include <logos/network/consensus_netio_manager.hpp>
+#include <logos/network/epoch_peer_manager.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
+#include <logos/tx_acceptor/tx_channel.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/consensus_p2p.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/epoch/epoch_transition.hpp>
 
 #include <queue>
@@ -78,7 +79,8 @@ public:
 /// and other consensus-related types and provides an interface
 /// to the node object.
 class ConsensusContainer : public InternalConsensus,
-                           public NewEpochEventHandler
+                           public NewEpochEventHandler,
+                           public TxChannel
 {
     friend class DelegateIdentityManager;
 
@@ -111,7 +113,7 @@ public:
     ConsensusContainer(Service & service,
                        Store & store,
                        logos::alarm & alarm,
-                       const Config & config,
+                       const logos::node_config & config,
                        Archiver & archiver,
                        DelegateIdentityManager & identity_manager,
                        p2p_interface & p2p);
@@ -125,8 +127,15 @@ public:
     ///     @param[in] should_buffer bool flag that, when set, will
     ///                              cause the block to be buffered
     ///     @return process_return result of the operation
-    logos::process_return OnSendRequest(std::shared_ptr<StateBlock> block,
-                                        bool should_buffer);
+    logos::process_return OnSendRequest(std::shared_ptr<Request> block,
+                                        bool should_buffer) override;
+
+    /// Handles requests for batch block consensus.
+    ///
+    /// Submits transactions to consensus logic.
+    ///     @param[in] blocks state blocks containing the transaction
+    ///     @return responses containinig process_result and hash
+    Responses OnSendRequest(std::vector<std::shared_ptr<Request>> &blocks) override;
 
     /// Called when buffering is done for batch block consensus.
     ///
@@ -149,6 +158,11 @@ public:
 
     /// Receive message from p2p network
     bool OnP2pReceive(const void *message, size_t size);
+
+    static bool ValidateSigConfig()
+    {
+        return _validate_sig_config;
+    }
 
 protected:
 
@@ -246,5 +260,6 @@ private:
     EpochTransitionDelegate             _transition_delegate;       ///< type of delegate during transition
     std::queue<ConnectionCache>         _connections_queue;         ///< queue for delegates set connections
     BindingMap                          _binding_map;               ///< map for binding connection to epoch manager
+    static bool                         _validate_sig_config;       ///< validate sig in BBS for added security
     ContainerP2p                        _p2p;                       ///< p2p-related data
 };

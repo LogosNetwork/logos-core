@@ -40,9 +40,11 @@ PrePrepareMessage<ConsensusType::BatchStateBlock>
 create_bsb_preprepare(uint16_t num_sb)
 {
     PrePrepareMessage<ConsensusType::BatchStateBlock> block;
+    block.blocks.reserve(num_sb);
+    block.hashes.reserve(num_sb);
     for(uint32_t i = 0; i < num_sb; ++i)
     {
-        block.AddStateBlock(StateBlock(1,2,i,StateBlock::Type::send,5,6,7,8,9));
+        block.AddStateBlock(std::make_shared<StateBlock>(1,2,i,StateBlock::Type::send,5,6,7,8,9));
     }
 
     return block;
@@ -594,7 +596,7 @@ TEST (blocks, batch_state_block_PrePrepare_empty)
 TEST (blocks, batch_state_block_PrePrepare_full)
 {
     auto block = create_bsb_preprepare(CONSENSUS_BATCH_SIZE);
-    ASSERT_FALSE(block.AddStateBlock(StateBlock(1,2,CONSENSUS_BATCH_SIZE+1,StateBlock::Type::send,5,6,7,8,9)));
+    ASSERT_FALSE(block.AddStateBlock(std::make_shared<StateBlock>(1,2,CONSENSUS_BATCH_SIZE+1,StateBlock::Type::send,5,6,7,8,9)));
     ASSERT_EQ(block.block_count, CONSENSUS_BATCH_SIZE);
     vector<uint8_t> buf;
     block.Serialize(buf);
@@ -625,17 +627,18 @@ TEST (blocks, batch_state_block_PostCommit_net)
 
 TEST (blocks, batch_state_block_PostCommit_DB)
 {
-    auto block_pp = create_bsb_preprepare(CONSENSUS_BATCH_SIZE/2);/* /2 so not a full block*/
+    uint16_t num_state_block =  CONSENSUS_BATCH_SIZE/2; /* /2 so not a full block*/
+    auto block_pp = create_bsb_preprepare(num_state_block);
     auto block = create_approved_block<ConsensusType::BatchStateBlock>(block_pp);
     block.next = 90;
 
     vector<uint8_t> buf;
     auto block_db_val = block.to_mdb_val(buf);
-    vector<vector<uint8_t> > buffers(CONSENSUS_BATCH_SIZE);
+    vector<vector<uint8_t> > buffers(num_state_block);
     vector<logos::mdb_val> sb_db_vals;
-    for(uint16_t i = 0; i < CONSENSUS_BATCH_SIZE; ++i)
+    for(uint16_t i = 0; i < num_state_block; ++i)
     {
-        sb_db_vals.push_back(block.blocks[i].to_mdb_val(buffers[i]));
+        sb_db_vals.push_back(block.blocks[i]->to_mdb_val(buffers[i]));
     }
 
     bool error = false;
@@ -643,9 +646,10 @@ TEST (blocks, batch_state_block_PostCommit_DB)
     ASSERT_FALSE(error);
     if(! error)
     {
+        block.blocks.reserve(block.block_count);
         for(uint16_t i = 0; i < block.block_count; ++i)
         {
-            new (&block.blocks[i]) StateBlock(error, sb_db_vals[i]);
+            block.blocks.emplace_back(std::make_shared<StateBlock>(error, sb_db_vals[i]));
             ASSERT_FALSE(error);
         }
     }
@@ -1006,7 +1010,7 @@ TEST (DB, state_block)
 
     StateBlock block(1,2,3,StateBlock::Type::send,5,6,7,8,9);
     std::vector<uint8_t> buf;
-    ASSERT_FALSE(store->state_block_put(block, block.GetHash(), txn));
+    ASSERT_FALSE(store->state_block_put(block, txn));
 
     StateBlock block2;
     ASSERT_FALSE(store->state_block_get(block.GetHash(), block2, txn));
@@ -1026,8 +1030,6 @@ TEST (DB, account)
     logos::transaction txn(store->environment, nullptr, true);
 
     logos::account_info block(1, 2, 3, 4, 5, 6, 7, 8);
-    block.reservation = 9;
-    block.reservation_epoch = 10;
     AccountAddress address(11);
 
     vector<uint8_t> buf;

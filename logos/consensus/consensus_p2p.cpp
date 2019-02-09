@@ -184,7 +184,7 @@ bool ConsensusP2p<ConsensusType::BatchStateBlock>::ApplyCacheUpdates(
 
             for(uint32_t i = 0; i < block.block_count; ++i)
             {
-                _container->RetryValidate(block.blocks[i].Hash());
+                _container->RetryValidate(block.blocks[i]->Hash());
             }
             return true;
 
@@ -197,7 +197,7 @@ bool ConsensusP2p<ConsensusType::BatchStateBlock>::ApplyCacheUpdates(
             {
                 if (status.requests[i] == logos::process_result::gap_previous)
                 {
-                    CacheInsert(block.blocks[i].previous, delegate_id, block, pblock);
+                    CacheInsert(block.blocks[i]->previous, delegate_id, block, pblock);
                 }
             }
             return false;

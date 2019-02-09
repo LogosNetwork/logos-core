@@ -76,6 +76,7 @@ protected:
     using PostCommit  = PostCommitMessage<CT>;
     using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
     using ApprovedBlock   = PostCommittedBlock<CT>;
+    using Responses   = std::vector<std::pair<logos::process_result, BlockHash>>;
 
 public:
 
@@ -86,8 +87,14 @@ public:
                      EpochEventsNotifier & events_notifier,
                      p2p_interface & p2p);
 
+    void HandleRequest(std::shared_ptr<Request> block,
+                       BlockHash &hash,
+                       logos::process_return & result);
+
     void OnSendRequest(std::shared_ptr<Request> block,
                        logos::process_return & result);
+
+    Responses OnSendRequest(std::vector<std::shared_ptr<Request>>& blocks);
 
     void OnRequestQueued();
 

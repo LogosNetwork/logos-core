@@ -198,6 +198,7 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
         ConsensusBlock<CT>::SerializeJson(tree);
         post_prepare_sig.SerializeJson(tree);
         post_commit_sig.SerializeJson(tree);
+        tree.put("next", next.to_string());
         tree.put("hash", Hash().to_string());
     }
 
