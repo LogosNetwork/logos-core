@@ -2,6 +2,7 @@
 
 #include <logos/token/requests.hpp>
 #include <logos/request/change.hpp>
+#include <logos/request/send.hpp>
 
 #include <boost/property_tree/ptree.hpp>
 
@@ -478,6 +479,52 @@ TEST (Request_Serialization, json_deserialization)
               "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
     ASSERT_EQ(change.representative.to_account(),
               "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
+
+    // Send
+    //
+    //
+    char const * native_send = R"%%%({
+        "type": "send",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "100",
+        "sequence": "1",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "transactions": [
+            {
+                 "destination": "lgs_1sibjaeaceh59dh7fefo49narpsoytqac5hafhujum3grnd7qrhbczfy9wx8",
+                 "amount": "1"
+            },
+            {
+                 "destination": "lgs_15p6h3z7dgif1kt8skmdmo8xmobh3xyfzthoden6jqu34t6i4sgtcr4pfj5h",
+                 "amount": "2"
+            },
+            {
+                 "destination": "lgs_1mkqajo9pedc1x764b5y5yzkykcm3h3hx1bumznzhgjqimjpajy9w5qfsis6",
+                 "amount": "3"
+            }
+        ],
+        "work": "0"
+     })%%%";
+
+    tree = get_tree(native_send);
+    Send logos_send(error, tree);
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(logos_send.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(logos_send.fee.number(), 100);
+    ASSERT_EQ(logos_send.sequence, 1);
+    ASSERT_EQ(logos_send.transactions.size(), 3);
+    ASSERT_EQ(logos_send.transactions[0].destination.to_account(),
+              "lgs_1sibjaeaceh59dh7fefo49narpsoytqac5hafhujum3grnd7qrhbczfy9wx8");
+    ASSERT_EQ(logos_send.transactions[0].amount, 1);
+    ASSERT_EQ(logos_send.transactions[1].destination.to_account(),
+              "lgs_15p6h3z7dgif1kt8skmdmo8xmobh3xyfzthoden6jqu34t6i4sgtcr4pfj5h");
+    ASSERT_EQ(logos_send.transactions[1].amount, 2);
+    ASSERT_EQ(logos_send.transactions[2].destination.to_account(),
+              "lgs_1mkqajo9pedc1x764b5y5yzkykcm3h3hx1bumznzhgjqimjpajy9w5qfsis6");
+    ASSERT_EQ(logos_send.transactions[2].amount, 3);
 }
 
 auto DoGetStreamedData = [](const auto & data, auto & buf)
