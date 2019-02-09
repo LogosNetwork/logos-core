@@ -1305,7 +1305,7 @@ bool logos::block_store::token_account_db_empty()
 bool logos::block_store::token_account_put(const AccountAddress & account, const TokenAccount & info, MDB_txn * transaction)
 {
     std::vector<uint8_t> buf;
-    auto status(mdb_put(transaction, account_db, logos::mdb_val(account), info.to_mdb_val(buf), 0));
+    auto status(mdb_put(transaction, token_account_db, logos::mdb_val(account), info.to_mdb_val(buf), 0));
 
     assert(status == 0);
     return status != 0;
