@@ -46,14 +46,16 @@ char const * live_genesis_data = R"%%%({
 })%%%";
 
 char const * logos_genesis_data = R"%%%({
-"account": "lgs_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
+"type": "send",
+"origin": "lgs_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
 "previous": "0000000000000000000000000000000000000000000000000000000000000000",
 "sequence": "0",
+"next": "0000000000000000000000000000000000000000000000000000000000000000",
 "transaction_type": "send",
 "transaction_fee": "0",
 "signature": "B9102BBECB89D3E3B2EDCB7D09D76C07B51DB99760464CBB8F60829B907FF1504567F33414FC37270E9EB04F06BD7A41ADE2661B8C9AABAFEF3C90F78829A401",
 "work": "0",
-"number_transactions": "1",
+"fee": "100",
 "transactions": [
     {
         "destination": "lgs_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
@@ -62,7 +64,8 @@ char const * logos_genesis_data = R"%%%({
 ],
 "hash": "B2BC10F486B514C797DE1AE90A4774F1677FEE4A0261D1E3F36EA2AB9E50D56B",
 "batch_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-"index_in_batch": "0"
+"index_in_batch": "0",
+"work": "0"
 })%%%";
 
 
