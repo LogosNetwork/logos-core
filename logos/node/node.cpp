@@ -942,7 +942,7 @@ bool logos::node_config::deserialize_json (bool & upgraded_a, boost::property_tr
         try { // temp for backward compatability
             result |= tx_acceptor_config.DeserializeJson(tree_a.get_child("TxAcceptor"));
         }
-        catch (std::logic_error const&)
+        catch (...)
         {
             result |= tx_acceptor_config.DeserializeJson(tree_a.get_child("ConsensusManager"));
         }

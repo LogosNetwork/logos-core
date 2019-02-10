@@ -4,6 +4,12 @@
 
 namespace logos_daemon
 {
+class daemon
+{
+public:
+    void run (boost::filesystem::path const &, const p2p_config &);
+    void run_tx_acceptor(boost::filesystem::path const &);
+};
 class daemon_config
 {
 public:
@@ -17,11 +23,5 @@ public:
     bool opencl_enable;
     logos::opencl_config opencl;
     p2p_config p2p_conf;
-};
-class daemon
-{
-public:
-    void run (boost::filesystem::path const &, daemon_config &);
-    void run_tx_acceptor(boost::filesystem::path const &);
 };
 }

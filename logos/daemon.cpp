@@ -124,14 +124,17 @@ void logos_daemon::daemon::run_tx_acceptor (boost::filesystem::path const & data
     }
 }
 
-void logos_daemon::daemon::run (boost::filesystem::path const & data_path, logos_daemon::daemon_config &config)
+void logos_daemon::daemon::run (boost::filesystem::path const & data_path, const p2p_config &p2p_conf)
 {
+    boost::filesystem::create_directories (data_path);
+    logos_daemon::daemon_config config (data_path);
     auto config_path ((data_path / "config.json"));
     std::fstream config_file;
     std::unique_ptr<logos::thread_runner> runner;
     auto error (logos::fetch_object (config, config_path, config_file));
     if (!error)
     {
+        config.p2p_conf = p2p_conf;
         config.node.logging.init (data_path);
         config_file.close ();
         boost::asio::io_service service;

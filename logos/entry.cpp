@@ -53,14 +53,14 @@ int main (int argc, char * const * argv)
     boost::program_options::notify (vm);
     int result (0);
     boost::filesystem::path data_path = vm.count ("data_path") ? boost::filesystem::path (vm["data_path"].as<std::string> ()) : logos::working_path ();
+
     if (!logos::handle_node_options (vm))
     {
     }
     else if (vm.count ("daemon") > 0)
     {
         logos_daemon::daemon daemon;
-        boost::filesystem::create_directories (data_path);
-        logos_daemon::daemon_config config (data_path);
+        p2p_config p2p_conf;
 
         int nopts = 1;
         vector<char *> opts;
@@ -91,10 +91,10 @@ int main (int argc, char * const * argv)
                 }
             }
         });
-        config.p2p_conf.argc = nopts;
-        config.p2p_conf.argv = &opts[0];
+        p2p_conf.argc = nopts;
+        p2p_conf.argv = &opts[0];
 
-        daemon.run (data_path, config);
+        daemon.run (data_path, p2p_conf);
     }
     else if (vm.count ("tx_acceptor") > 0)
     {
