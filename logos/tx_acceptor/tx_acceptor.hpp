@@ -84,13 +84,13 @@ private:
     friend class TxAcceptorStandalone;
     friend class TxAcceptorDelegate;
 
-    using Service       = boost::asio::io_service;
-    using Socket        = boost::asio::ip::tcp::socket;
-    using Ptree         = boost::property_tree::ptree;
-    using Error         = boost::system::error_code;
-    using Responses     = std::vector<std::pair<logos::process_result, BlockHash>>;
-    using Request       = RequestMessage<ConsensusType::BatchStateBlock>;
-    using Blocks        = std::vector<std::shared_ptr<Request>>;
+    using Service   = boost::asio::io_service;
+    using Socket    = boost::asio::ip::tcp::socket;
+    using Ptree     = boost::property_tree::ptree;
+    using Error     = boost::system::error_code;
+    using Responses = std::vector<std::pair<logos::process_result, BlockHash>>;
+    using DM        = DelegateMessage<ConsensusType::Request>;
+    using Messages  = std::vector<std::shared_ptr<DM>>;
 
     /// Delegate class constructor
     /// @param service boost asio service reference [in]
@@ -104,8 +104,8 @@ private:
     /// Class destructor
     virtual ~TxAcceptor() = default;
 
-    static constexpr uint32_t  MAX_REQUEST_SIZE = (sizeof(StateBlock) +
-            sizeof(StateBlock::Transaction) * StateBlock::MAX_TRANSACTION) * 1500;
+    static constexpr uint32_t  MAX_REQUEST_SIZE = (sizeof(Send) +
+            sizeof(Send::Transaction) * Send::MAX_TRANSACTIONS) * 1500;
     static constexpr uint32_t BLOCK_SIZE_SIZE = sizeof(uint32_t);
 
     /// Read json request
@@ -133,22 +133,22 @@ private:
     /// Deserialize string to state block
     /// @param block_text serialized block [in]
     /// @return StateBlock structure
-    std::shared_ptr<Request> ToRequest(const std::string &block_text);
+    std::shared_ptr<DM> ToRequest(const std::string &block_text);
     /// Validate state block
     /// @param block state block [in]
     /// @return result of the validation, 'progress' is success
-    logos::process_result Validate(const std::shared_ptr<Request> & block);
+    logos::process_result Validate(const std::shared_ptr<DM> & block);
     /// Validate/send received transaction for consensus protocol
     /// @param block received transaction [in]
     /// @param blocks to aggregate in delegate mode [in|out]
     /// @param response object [in|out]
     /// @param should_buffer benchmarking flag [in]
-    void ProcessBlock(std::shared_ptr<Request> block, Blocks &blocks,
+    void ProcessBlock(std::shared_ptr<DM> block, Messages &blocks,
                       Responses &response, bool should_buffer = false);
     /// Run post processing once all blocks are processed individually
     /// @param blocks all valid blocks [in]
     /// @param response object [in|out]
-    virtual void PostProcessBlocks(Blocks &blocks, Responses &response)
+    virtual void PostProcessBlocks(Messages &blocks, Responses &response)
     {
         auto res = _acceptor_channel->OnSendRequest(blocks);
         if (res[0].first == logos::process_result::initializing)
@@ -162,7 +162,7 @@ private:
     /// @param blocks to aggregate in delegate mode [in|out]
     /// @param response object [in|out]
     /// @param should_buffer benchmarking flag [in]
-    virtual logos::process_result OnSendRequest(std::shared_ptr<Request> block, Blocks &blocks,
+    virtual logos::process_result OnSendRequest(std::shared_ptr<DM> block, Messages &blocks,
                                                 Responses &response, bool should_buffer = false)
     {
         blocks.push_back(block);

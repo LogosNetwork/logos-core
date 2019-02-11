@@ -979,10 +979,11 @@ void logos::rpc_handler::blocks ()
         }
         Send send;
         ReceiveBlock receive_block;
+        boost::property_tree::ptree contents;
 
         if(!node.store.request_get(hash, send, transaction))
         {
-            boost::property_tree::ptree contents = send.SerializeJson();
+            contents = send.SerializeJson();
             contents.put ("type", "send");
             contents.put ("hash", hash_text);
             blocks.push_back (std::make_pair("", contents));
@@ -1741,14 +1742,14 @@ void logos::rpc_handler::account_history ()
     bool receive_not_found (node.store.receive_get (receive_hash, receive_block, transaction));
     bool put_send (false);
     uint64_t timestamp;
-    ApprovedBSB batch;
+    ApprovedRB batch;
     while (!(send_not_found && receive_not_found) && count > 0)
     {
         // compare timestamp of send and receive, serialize whichever is more recent
         if (receive_not_found)  // at end of receive chain?
         {
             put_send = true;
-            if (node.store.batch_block_get(send_request.batch_hash, batch))
+            if (node.store.request_block_get(send_request.locator.hash, batch))
             {
                 error_response (response, "Internal error: batch not found for send.");
             }
@@ -1765,7 +1766,7 @@ void logos::rpc_handler::account_history ()
             if (send_not_found)
             {
                 put_send = false;
-                if (node.store.request_get(receive_link_block.batch_hash, batch))
+                if (node.store.request_block_get(receive_link_block.locator.hash, batch))
                 {
                     error_response (response, "Internal error: batch not found for send.");
                 }
@@ -1775,13 +1776,13 @@ void logos::rpc_handler::account_history ()
             else
             {
                 // send timestamp
-                if (node.store.request_get(send_request.batch_hash, batch))
+                if (node.store.request_block_get(send_request.locator.hash, batch))
                 {
                     error_response (response, "Internal error: batch not found for send.");
                 }
                 auto send_ts (batch.timestamp);
                 // receive timestamp
-                if (node.store.request_get(receive_link_block.batch_hash, batch))
+                if (node.store.request_block_get(receive_link_block.locator.hash, batch))
                 {
                     error_response (response, "Internal error: batch not found for send.");
                 }
@@ -2601,7 +2602,7 @@ void logos::rpc_handler::process ()
     if( ! error )
     {
         // TODO: check work, !logos::work_validate (*block)
-        auto result = node.OnSendRequest(block, should_buffer_request());
+        auto result = node.OnRequest(std::static_pointer_cast<Request>(block), should_buffer_request());
         auto hash = block->GetHash();
 
         switch (result.code)

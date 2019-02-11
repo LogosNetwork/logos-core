@@ -152,7 +152,7 @@ public:
 
     bool request_get(const BlockHash &hash, Request & request, MDB_txn *transaction);
     bool request_get(const BlockHash &hash, std::shared_ptr<Request> & request, MDB_txn *transaction);
-    bool request_put(const Request &, const BlockHash &, MDB_txn *);
+    bool request_put(const Request &, MDB_txn *);
     bool request_exists(const Request & request);
     bool request_exists(const BlockHash & hash);
 
@@ -171,6 +171,10 @@ public:
     bool account_db_empty();
     bool account_put (AccountAddress const &, std::shared_ptr<Account> info, AccountType type, MDB_txn *);
     bool account_put (AccountAddress const &, logos::account_info const &, MDB_txn *);
+
+    void reservation_put(AccountAddress const & account_a, logos::reservation_info const & info_a, MDB_txn *);
+    bool reservation_get(AccountAddress const & account_a, logos::reservation_info & info_a, MDB_txn * t=nullptr);
+    void reservation_del(AccountAddress const & account_a, MDB_txn *);;
 
     bool receive_put(const BlockHash & hash, const ReceiveBlock & block, MDB_txn *);
     bool receive_get(const BlockHash & hash, ReceiveBlock & block, MDB_txn *);

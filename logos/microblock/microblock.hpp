@@ -48,7 +48,7 @@ struct MicroBlock : PrePrepareCommon
         }
     }
 
-    void Hash(blake2b_state & hash) const override
+    void Hash(blake2b_state & hash) const
     {
         uint32_t nbb = htole32(number_batch_blocks);
         PrePrepareCommon::Hash(hash, true);

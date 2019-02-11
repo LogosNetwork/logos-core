@@ -93,7 +93,7 @@ PrePrepareCommon & PrePrepareCommon::operator= (const PrePrepareCommon & other)
     return *this;
 }
 
-void PrePrepareCommon::Hash(blake2b_state & hash) const
+void PrePrepareCommon::Hash(blake2b_state & hash, bool is_archive_block) const
 {
     uint32_t en = htole32(epoch_number);
     uint32_t sqn = htole32(sequence);

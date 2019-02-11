@@ -33,7 +33,7 @@ struct RequestBlock : PrePrepareCommon
 
     /// Add the data members to a hash context
     /// @param hash the hash context
-    void Hash(blake2b_state & hash) const override;
+    void Hash(blake2b_state & hash) const;
 
     /// Add the data members to the property_tree which will be encoded to Json
     /// @param tree the property_tree to add data members to

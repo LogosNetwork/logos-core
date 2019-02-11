@@ -49,21 +49,21 @@ public:
         return PersistenceManager<R>::Validate(message, status);
     }
 
-    bool ValidateSingleRequest(const Request & block, logos::process_return &result, bool allow_duplicate=false) override
+    bool Validate(std::shared_ptr<const Request> block, logos::process_return &result, bool allow_duplicate=false) override
     {
-        if(block.account.is_zero())
+        if(block->origin.is_zero())
         {
             result.code = logos::process_result::opened_burn_account;
             return false;
         }
 
-        if(block.transaction_fee.number() < MIN_TRANSACTION_FEE)
+        if(block->fee.number() < MIN_TRANSACTION_FEE)
         {
             result.code = logos::process_result::insufficient_fee;
             return false;
         }
 
-        return PersistenceManager<BSBCT>::ValidateSingleRequest(block, result, allow_duplicate);
+        return PersistenceManager<R>::ValidateSingleRequest(block, result, allow_duplicate);
     }
 
     bool ValidateSingleRequest(const Request & block)

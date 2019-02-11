@@ -2081,9 +2081,11 @@ void logos::node::add_initial_peers ()
 }
 
 
-logos::process_return logos::node::OnSendRequest(std::shared_ptr<Send> request, bool should_buffer)
+logos::process_return logos::node::OnRequest(std::shared_ptr<Request> request, bool should_buffer)
 {
-    return _consensus_container->OnDelegateMessage(request, should_buffer);
+    return _consensus_container->OnDelegateMessage(
+        static_pointer_cast<DelegateMessage<ConsensusType::Request>>(request),
+        should_buffer);
 }
 
 logos::process_return logos::node::BufferComplete()

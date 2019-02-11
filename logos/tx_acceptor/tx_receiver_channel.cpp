@@ -101,12 +101,12 @@ TxReceiverChannel::AsyncReadHeader()
 void
 TxReceiverChannel::AsyncReadMessage(const TxMessageHeader & header)
 {
-    using Request = RequestMessage<ConsensusType::BatchStateBlock>;
+    using DM = DelegateMessage<ConsensusType::Request>;
     auto payload_size = header.payload_size;
     _assembler.ReadBytes([this, payload_size, header](const uint8_t *data) mutable -> void {
         logos::bufferstream stream(data, payload_size);
-        std::shared_ptr<Request> block = nullptr;
-        std::vector<std::shared_ptr<Request>> blocks;
+        std::shared_ptr<DM> block = nullptr;
+        std::vector<std::shared_ptr<DM>> blocks;
         auto nblocks = header.mpf;
         bool error = false;
 
@@ -115,14 +115,15 @@ TxReceiverChannel::AsyncReadMessage(const TxMessageHeader & header)
 
         while (nblocks > 0)
         {
-            auto block = std::make_shared<StateBlock>(error, stream);
+            // TODO: request factory
+            auto block = std::make_shared<::Request>(error, stream);
             if (error) {
                 LOG_ERROR(_log) << "TxReceiverChannel::AsyncReadMessage deserialize error, payload size "
                                 << payload_size;
                 ReConnect(true);
                 return;
             }
-            blocks.push_back(static_pointer_cast<Request>(block));
+            blocks.push_back(static_pointer_cast<DM>(block));
             nblocks--;
         }
 

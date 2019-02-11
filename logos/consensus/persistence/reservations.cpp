@@ -43,7 +43,7 @@ Reservations::CanAcquire(const AccountAddress & account, const BlockHash & hash,
         uint32_t current_epoch = ConsensusContainer::GetCurEpochNumber();
         // Return false if this block conflicts with an existing reservation that hasn't expired.
         // If account info check succeeds, it will be reserved later in UpdateReservation.
-        return current_epoch >= info.reservation_epoch + PersistenceManager<BSBCT>::RESERVATION_PERIOD;
+        return current_epoch >= info.reservation_epoch + PersistenceManager<R>::RESERVATION_PERIOD;
     }
     else
     {
@@ -64,7 +64,7 @@ Reservations::UpdateReservation(const logos::block_hash & hash, const logos::acc
     if(_reservations.find(account) != _reservations.end() &&
             _reservations[account].reservation != hash)
     {
-        if (_reservations[account].reservation_epoch + PersistenceManager<BSBCT>::RESERVATION_PERIOD > current_epoch)
+        if (_reservations[account].reservation_epoch + PersistenceManager<R>::RESERVATION_PERIOD > current_epoch)
         {
             LOG_FATAL(_log) << "Reservations::UpdateReservation - update called before reservation epoch expiration!";
             trace_and_halt();

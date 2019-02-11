@@ -70,11 +70,11 @@ void ConsensusManager<CT>::HandleRequest(std::shared_ptr<DelegateMessage> messag
         return;
     }
 
-    QueueRequest(block);
+    QueueMessage(message);
 }
 
 template<ConsensusType CT>
-void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
+void ConsensusManager<CT>::OnDelegateMessage(std::shared_ptr<DelegateMessage> block,
                                          logos::process_return & result)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
@@ -82,16 +82,17 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
     auto hash = block->Hash();
 
     HandleRequest(block, hash, result);
+
     if (result.code == logos::process_result::progress)
     {
-        OnRequestQueued();
+        OnMessageQueued();
     }
 }
 
 template<>
 std::vector<std::pair<logos::process_result, BlockHash>>
-ConsensusManager<ConsensusType::BatchStateBlock>::OnSendRequest(
-    std::vector<std::shared_ptr<RequestMessage<ConsensusType::BatchStateBlock>>>& blocks)
+ConsensusManager<ConsensusType::Request>::OnSendRequest(
+    std::vector<std::shared_ptr<DelegateMessage>>& blocks)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
 
@@ -113,7 +114,7 @@ ConsensusManager<ConsensusType::BatchStateBlock>::OnSendRequest(
 
     if (res)
     {
-        OnRequestQueued();
+        OnMessageQueued();
     }
 
     return response;
@@ -135,8 +136,8 @@ template<ConsensusType CT>
 void ConsensusManager<CT>::OnMessageReady(
     std::shared_ptr<DelegateMessage> block)
 {
-    QueueRequestPrimary(block);
-    OnRequestQueued();
+    QueueMessagePrimary(block);
+    OnMessageQueued();
 }
 
 template<ConsensusType CT>
@@ -200,7 +201,7 @@ void ConsensusManager<CT>::OnConsensusReached()
 
     // Don't need to lock _state_mutex here because there should only be
     // one call to OnConsensusReached per consensus round
-    OnRequestQueued();
+    OnMessageQueued();
 }
 
 template<ConsensusType CT>
