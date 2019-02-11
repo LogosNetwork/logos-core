@@ -134,7 +134,7 @@ public:
         }
     }
 
-    void Hash(blake2b_state & hash) const override
+    void Hash(blake2b_state & hash) const
     {
         PrePrepareCommon::Hash(hash, true);
         micro_block_tip.Hash(hash);

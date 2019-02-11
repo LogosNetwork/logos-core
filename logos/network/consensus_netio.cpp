@@ -270,7 +270,7 @@ ConsensusNetIO::OnData(const uint8_t * data,
             HeartBeat hb(error, stream, version);
             if(error)
             {
-                HandleMessageError("deserialize HeartBeat");
+                HandleMessageError("Deserialize HeartBeat");
                 return;
             }
             OnHeartBeat(hb);
@@ -280,7 +280,7 @@ ConsensusNetIO::OnData(const uint8_t * data,
             KeyAdvertisement key_adv(error, stream, version);
             if(error)
             {
-                HandleMessageError("deserialize KeyAdvertisement");
+                HandleMessageError("Deserialize KeyAdvertisement");
                 return;
             }
             OnPublicKey(key_adv);

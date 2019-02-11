@@ -14,7 +14,7 @@ template<>
 class PersistenceManager<R> : public Persistence
 {
 
-    friend class BatchBlockConsensusManager;
+    friend class RequestConsensusManager;
 
 protected:
 

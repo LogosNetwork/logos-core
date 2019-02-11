@@ -416,7 +416,7 @@ logos::reservation_info::reservation_info ()
 logos::reservation_info::reservation_info (bool & error, const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
-    error = deserialize (stream);
+    error = Deserialize(stream);
 }
 
 logos::reservation_info::reservation_info (
@@ -433,7 +433,7 @@ uint32_t logos::reservation_info::serialize (logos::stream & stream_a) const
     return s;
 }
 
-bool logos::reservation_info::deserialize (logos::stream & stream_a)
+bool logos::reservation_info::Deserialize(logos::stream &stream_a)
 {
     auto error (read (stream_a, reservation.bytes));
     if (!error)

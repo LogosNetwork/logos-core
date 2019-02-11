@@ -85,7 +85,7 @@ ConsensusContainer::CreateEpochManager(
 
 logos::process_return
 ConsensusContainer::OnDelegateMessage(
-    std::shared_ptr<Request> request,
+    std::shared_ptr<DM> request,
     bool should_buffer)
 {
     logos::process_return result;
@@ -126,7 +126,7 @@ ConsensusContainer::OnDelegateMessage(
 }
 
 TxChannel::Responses
-ConsensusContainer::OnSendRequest(vector<std::shared_ptr<Request>> &blocks)
+ConsensusContainer::OnSendRequest(vector<std::shared_ptr<DM>> &blocks)
 {
     logos::process_return result;
     OptLock lock(_transition_state, _mutex);
@@ -139,7 +139,7 @@ ConsensusContainer::OnSendRequest(vector<std::shared_ptr<Request>> &blocks)
         return {{result.code,0}};
     }
 
-    return _cur_epoch->_batch_manager.OnSendRequest(blocks);
+    return _cur_epoch->_request_manager.OnSendRequest(blocks);
 }
 
 void

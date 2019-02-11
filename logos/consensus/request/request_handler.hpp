@@ -1,9 +1,9 @@
 #pragma once
 
+#include <logos/consensus/persistence/request/request_persistence.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/blocks.hpp>
 #include <logos/lib/log.hpp>
-#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
 
 #include <memory>
 #include <list>
@@ -36,7 +36,6 @@ class RequestHandler
 public:
 
     using PrePrepare = PrePrepareMessage<ConsensusType::Request>;
-    using Request    = RequestMessage<ConsensusType::Request>;
     using Manager    = PersistenceManager<ConsensusType::Request>;
 
     RequestHandler();
@@ -44,7 +43,7 @@ public:
     void OnRequest(RequestPtr request);
     void OnPostCommit(const RequestBlock & block);
 
-    PrePrepare & PrepareNextBatch();
+    PrePrepare & PrepareNextBatch(Manager & manager);
     PrePrepare & GetCurrentBatch();
 
     void InsertFront(const std::list<RequestPtr> & requests);

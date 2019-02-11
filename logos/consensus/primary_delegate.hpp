@@ -151,9 +151,12 @@ private:
     template<typename M>
     void TallyStandardPhaseMessage(const M & message, uint8_t remote_delegate_id);
 
-    virtual void TallyPrepareMessage(const PrepareMessage<ConsensusType::BatchStateBlock> & message, uint8_t remote_delegate_id);
-    virtual void TallyPrepareMessage(const PrepareMessage<ConsensusType::MicroBlock> & message, uint8_t remote_delegate_id);
-    virtual void TallyPrepareMessage(const PrepareMessage<ConsensusType::Epoch> & message, uint8_t remote_delegate_id);
+    virtual void TallyPrepareMessage(const PrepareMessage<ConsensusType::Request> & message,
+                                     uint8_t remote_delegate_id);
+    virtual void TallyPrepareMessage(const PrepareMessage<ConsensusType::MicroBlock> & message,
+                                     uint8_t remote_delegate_id);
+    virtual void TallyPrepareMessage(const PrepareMessage<ConsensusType::Epoch> & message,
+                                     uint8_t remote_delegate_id);
 
     template<ConsensusType C>
     BlockHash GetHashSigned(const RejectionMessage<C> & message)
@@ -171,17 +174,9 @@ private:
         return _post_prepare_hash;
     }
 
-<<<<<<< HEAD
-    virtual void OnRejection(const RejectionMessage<ConsensusType::BatchStateBlock> & message, uint8_t remote_delegate_id);
+    virtual void OnRejection(const RejectionMessage<ConsensusType::Request> & message, uint8_t remote_delegate_id);
     virtual void OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message, uint8_t remote_delegate_id);
     virtual void OnRejection(const RejectionMessage<ConsensusType::Epoch> & message, uint8_t remote_delegate_id);
-=======
-    virtual void OnRejection(const RejectionMessage<ConsensusType::Request> & message);
-    virtual void OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message);
-    virtual void OnRejection(const RejectionMessage<ConsensusType::Epoch> & message);
-
-    void CheckRejection();
->>>>>>> Rename ConsensusType::BatchStateBlock to ConsensusType::Request
 
     template<ConsensusType C>
     void OnPrePrepareTimeout(const Error & error);

@@ -204,7 +204,7 @@ bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, T &t, MDB_txn *tx)
     else
     {
         logos::bufferstream stream (reinterpret_cast<uint8_t const *> (value.data ()), value.size ());
-        result = t.deserialize (stream);
+        result = t.Deserialize (stream);
         assert (!result);
     }
     return result;
@@ -872,7 +872,7 @@ bool logos::block_store::request_block_put(ApprovedRB const &block, const BlockH
 
     for(uint16_t i = 0; i < block.requests.size(); ++i)
     {
-        status = request_put(*block.requests[i], block.requests[i]->GetHash(), transaction);
+        status = request_put(*block.requests[i], transaction);
         assert(status == 0);
     }
 
@@ -916,7 +916,7 @@ bool logos::block_store::request_get(const BlockHash & hash, std::shared_ptr<Req
     return error;
 }
 
-bool logos::block_store::request_put(const Request & request, const BlockHash & batch_hash, MDB_txn * transaction)
+bool logos::block_store::request_put(const Request & request, MDB_txn * transaction)
 {
     auto hash(request.GetHash());
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();

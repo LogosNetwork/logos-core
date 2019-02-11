@@ -4,7 +4,7 @@
 
 #include <logos/blockstore.hpp>
 #include <logos/lib/log.hpp>
-#include <logos/common.hpp>u
+#include <logos/common.hpp>
 
 #include <unordered_map>
 

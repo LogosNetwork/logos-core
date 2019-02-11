@@ -188,7 +188,7 @@ struct PrePrepareCommon
 
     PrePrepareCommon & operator= (const PrePrepareCommon & other);
 
-    virtual void Hash(blake2b_state & hash) const;
+    virtual void Hash(blake2b_state & hash, bool is_archive_block = false) const;
 
     uint32_t Serialize(logos::stream & stream) const;
     void SerializeJson(boost::property_tree::ptree & tree) const;

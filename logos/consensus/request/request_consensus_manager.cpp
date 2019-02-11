@@ -105,7 +105,7 @@ RequestConsensusManager::Validate(
   std::shared_ptr<DelegateMessage> message,
   logos::process_return & result)
 {
-    return _persistence_manager.ValidateSingleRequest(*message, result, false);
+    return _persistence_manager.ValidateSingleRequest(message, result, false);
 }
 
 bool
@@ -271,7 +271,7 @@ RequestConsensusManager::AcquirePrePrepare(const PrePrepare & message)
     OnMessageQueued();
 }
 
-void BatchBlockConsensusManager::TallyPrepareMessage(const Prepare & message, uint8_t remote_delegate_id)
+void RequestConsensusManager::TallyPrepareMessage(const Prepare & message, uint8_t remote_delegate_id)
 {
     if(!_should_repropose)  // We only check individual transactions if we have already seen Rejection messages
     {
@@ -282,7 +282,7 @@ void BatchBlockConsensusManager::TallyPrepareMessage(const Prepare & message, ui
     auto & stake = _weights[remote_delegate_id].stake_weight;
 
     auto batch = _handler.GetCurrentBatch();
-    auto block_count = batch.block_count;
+    auto block_count = batch.requests.size();
 
     for(uint64_t i = 0; i < block_count; ++i)
     {
@@ -291,7 +291,7 @@ void BatchBlockConsensusManager::TallyPrepareMessage(const Prepare & message, ui
         if(ReachedQuorum(weights.indirect_vote_support + _prepare_vote,
                          weights.indirect_stake_support + _prepare_stake))
         {
-            _hashes.erase(batch.blocks[i]->GetHash());
+            _hashes.erase(batch.requests[i]->GetHash());
         }
     }
 }
@@ -330,7 +330,7 @@ RequestConsensusManager::OnRejection(
             }
             else
             {
-                LOG_WARN(_log) << "BatchBlockConsensusManager::OnRejection - Received rejection for " << batch.blocks[i]->GetHash().to_string();
+                LOG_WARN(_log) << "BatchBlockConsensusManager::OnRejection - Received rejection for " << batch.requests[i]->GetHash().to_string();
                 weights.reject_vote += vote;
                 weights.reject_stake += stake;
 

@@ -51,13 +51,13 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
     std::lock_guard<std::mutex> lock (_write_mutex);
     {
         logos::transaction transaction(_store.environment, nullptr, true);
-        StoreBatchMessage(message, transaction, delegate_id);
-        ApplyBatchMessage(message, transaction);
+        StoreRequestBlock(message, transaction, delegate_id);
+        ApplyRequestBlock(message, transaction);
     }
     // SYL Integration: clear reservation AFTER flushing to LMDB to ensure safety
-    for(uint16_t i = 0; i < message.block_count; ++i)
+    for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
-        _reservations->Release(message.blocks[i]->account);
+        _reservations->Release(message.requests[i]->origin);
     }
 }
 
@@ -67,32 +67,31 @@ bool PersistenceManager<R>::BlockExists(
     return _store.batch_block_exists(message);
 }
 
-
-bool PersistenceManager<R>::Validate(
+bool PersistenceManager<R>::ValidateRequest(
     RequestPtr request,
     logos::process_return & result,
     bool allow_duplicates,
     bool prelim)
 {
     // SYL Integration: move signature validation here so we always check
-    if(ConsensusContainer::ValidateSigConfig() && ! request.VerifySignature(request.account))
+    if(ConsensusContainer::ValidateSigConfig() && ! request->VerifySignature(request->origin))
     {
         LOG_WARN(_log) << "PersistenceManager<R> - Validate, bad signature: "
-                       << request.signature.to_string()
-                       << " account: " << request.account.to_string();
+                       << request->signature.to_string()
+                       << " account: " << request->origin.to_string();
 
         result.code = logos::process_result::bad_signature;
         return false;
     }
 
-    auto hash = request.GetHash();
+    auto hash = request->GetHash();
 
     // burn account and transaction fee validation is done in TxAcceptor
 
     // SYL Integration: remove _reservation_mutex for now and rely on coarser _write_mutex. Potential fix later
     logos::account_info info;
     // account doesn't exist
-    if (_store.account_get(request.account, info))
+    if (_store.account_get(request->origin, info))
     {
         // Currently do not accept state blocks
         // with non-existent accounts.
@@ -101,7 +100,7 @@ bool PersistenceManager<R>::Validate(
     }
 
     // a valid (non-expired) reservation exits
-    if (!_reservations->CanAcquire(request.account, hash, allow_duplicates))
+    if (!_reservations->CanAcquire(request->origin, hash, allow_duplicates))
     {
         LOG_ERROR(_log) << "PersistenceManager::Validate - Account already reserved! ";
         result.code = logos::process_result::already_reserved;
@@ -117,16 +116,16 @@ bool PersistenceManager<R>::Validate(
 
     // Move on to check account info
     //sequence number
-    if(info.block_count != request.sequence)
+    if(info.block_count != request->sequence)
     {
         result.code = logos::process_result::wrong_sequence_number;
-        LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request.sequence
-                << " expecting=" << info.block_count;
+        LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request->sequence
+                       << " expecting=" << info.block_count;
         return false;
     }
 
     // No previous block set.
-    if(request.previous.is_zero() && info.block_count)
+    if(request->previous.is_zero() && info.block_count)
     {
         result.code = logos::process_result::fork;
         return false;
@@ -135,23 +134,23 @@ bool PersistenceManager<R>::Validate(
     // This account has issued at least one send transaction.
     if(info.block_count)
     {
-        if(!_store.state_block_exists(request.previous))
+        if(!_store.request_exists(request->previous))
         {
             result.code = logos::process_result::gap_previous;
-            LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << block.previous.to_string()
+            LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << request->previous.to_string()
                             << "; current account info head is: " << info.head.to_string();
             return false;
         }
     }
 
-    if(request.previous != info.head)
+    if(request->previous != info.head)
     {
-        LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash (" << block.previous.to_string()
+        LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash (" << request->previous.to_string()
                         << ") and current account info head (" << info.head.to_string() << ")";
 
         // Allow duplicate requests (either hash == info.head or hash matches a transaction further up in the chain)
         // received from batch blocks.
-        if(hash == info.head || _store.state_block_exists(hash))
+        if(hash == info.head || _store.request_exists(hash))
         {
             if(allow_duplicates)
             {
@@ -175,22 +174,22 @@ bool PersistenceManager<R>::Validate(
 
         auto update_reservation = [&info, &hash, current_epoch]()
                                   {
-                                       info->reservation = hash;
-                                       info->reservation_epoch = current_epoch;
+                                       info.reservation = hash;
+                                       info.reservation_epoch = current_epoch;
                                   };
 
         // Account is not reserved.
-        if(info->reservation.is_zero())
+        if(info.reservation.is_zero())
         {
             update_reservation();
         }
 
         // Account is already reserved.
-        else if(info->reservation != hash)
+        else if(info.reservation != hash)
         {
             // This request conflicts with an
             // existing reservation.
-            if(current_epoch < info->reservation_epoch + RESERVATION_PERIOD)
+            if(current_epoch < info.reservation_epoch + RESERVATION_PERIOD)
             {
                 result.code = logos::process_result::already_reserved;
                 return false;
@@ -202,165 +201,165 @@ bool PersistenceManager<R>::Validate(
 
         // Make sure there's enough Logos
         // to cover the request.
-        if(request->GetLogosTotal() > info->balance)
+        if(request->GetLogosTotal() > info.balance)
         {
             result.code = logos::process_result::insufficient_balance;
             return false;
         }
 
-        // Only controllers can issue these
-        if(IsTokenAdminRequest(request->type))
-        {
-            auto token_account = std::static_pointer_cast<TokenAccount>(info);
-            ControllerInfo controller;
-
-            // The sender isn't a controller
-            if(!token_account->GetController(request->origin, controller))
-            {
-                result.code = logos::process_result::unauthorized_request;
-                return false;
-            }
-
-            // The controller isn't authorized
-            // to make this request.
-            if(!controller.IsAuthorized(request))
-            {
-                result.code = logos::process_result::unauthorized_request;
-                return false;
-            }
-
-            // The accounts settings prohibit
-            // this request
-            if(!token_account->IsAllowed(request))
-            {
-                result.code = logos::process_result::prohibitted_request;
-                return false;
-            }
-        }
-
-        uint16_t token_total = request->GetTokenTotal();
-
-        // This request transfers tokens
-        if(token_total > 0)
-        {
-            // The account that will own the request
-            // is not the account losing/sending
-            // tokens.
-            if(request->GetAccount() != request->GetSource())
-            {
-                std::shared_ptr<logos::Account> source;
-                if(_store.account_get(request->GetSource(), source))
-                {
-                    // TODO: Bootstrapping
-                    result.code = logos::process_result::unknown_source_account;
-                    return false;
-                }
-
-                // The available tokens and the
-                // amount requested don't add up.
-                if(!request->Validate(result, source))
-                {
-                    return false;
-                }
-                else
-                {
-                    // TODO: Pending revoke cache
-                }
-            }
-
-            // The account that will own the request
-            // is the account losing/sending tokens.
-            else
-            {
-
-                // This is a Send Token Request.
-                if(request->type == RequestType::SendTokens)
-                {
-                    auto send_tokens = dynamic_pointer_cast<const TokenSend>(request);
-                    assert(send_tokens);
-
-                    std::shared_ptr<TokenAccount> token_account;
-
-                    // This token id doesn't exist.
-                    if(_reservations->Acquire(send_tokens->token_id, token_account))
-                    {
-                        result.code = logos::process_result::invalid_token_id;
-                        return false;
-                    }
-
-                    auto user_account = std::static_pointer_cast<logos::account_info>(info);
-
-                    // Get sender's token entry
-                    TokenEntry source_token_entry;
-                    if(!user_account->GetEntry(send_tokens->token_id, source_token_entry))
-                    {
-                        result.code = logos::process_result::untethered_account;
-                        return false;
-                    }
-
-                    // The sender's account is either frozen or
-                    // not yet whitelisted.
-                    if(!token_account->SendAllowed(source_token_entry.status, result))
-                    {
-                        return false;
-                    }
-
-                    // Check each transaction in the Send Token Request
-                    for(auto & t : send_tokens->transactions)
-                    {
-                        std::shared_ptr<logos::account_info> destination;
-                        TokenUserStatus destination_status;
-
-                        BlockHash token_user_id(GetTokenUserId(send_tokens->token_id,
-                                                               t.destination));
-
-                        // We have the destination account
-                        if(!_reservations->Acquire(t.destination, destination))
-                        {
-                            TokenEntry destination_token_entry;
-
-                            // This destination account has been tethered to
-                            // the token
-                            if(destination->GetEntry(send_tokens->token_id, destination_token_entry))
-                            {
-                                destination_status = destination_token_entry.status;
-                            }
-
-                            // This destination account is untethered
-                            else
-                            {
-                                _store.token_user_status_get(token_user_id, destination_status);
-                            }
-                        }
-
-                        // We don't have the destination account
-                        else
-                        {
-                            _store.token_user_status_get(token_user_id, destination_status);
-                        }
-
-                        // The destination account is either frozen
-                        // or not yet whitelisted.
-                        if(!token_account->SendAllowed(destination_status, result))
-                        {
-                            return false;
-                        }
-
-                        // Token fee is insufficient
-                        if(!token_account->FeeSufficient(token_total, send_tokens->token_fee))
-                        {
-                            result.code = logos::process_result::insufficient_token_fee;
-                            return false;
-                        }
-                    }
-                }
-
-                if(!request->Validate(result, info))
-                {
-                    return false;
-                }
-            }
-        }
+//        // Only controllers can issue these
+//        if(IsTokenAdminRequest(request->type))
+//        {
+//            auto token_account = std::static_pointer_cast<TokenAccount>(info);
+//            ControllerInfo controller;
+//
+//            // The sender isn't a controller
+//            if(!token_account->GetController(request->origin, controller))
+//            {
+//                result.code = logos::process_result::unauthorized_request;
+//                return false;
+//            }
+//
+//            // The controller isn't authorized
+//            // to make this request.
+//            if(!controller.IsAuthorized(request))
+//            {
+//                result.code = logos::process_result::unauthorized_request;
+//                return false;
+//            }
+//
+//            // The accounts settings prohibit
+//            // this request
+//            if(!token_account->IsAllowed(request))
+//            {
+//                result.code = logos::process_result::prohibitted_request;
+//                return false;
+//            }
+//        }
+//
+//        uint16_t token_total = request->GetTokenTotal();
+//
+//        // This request transfers tokens
+//        if(token_total > 0)
+//        {
+//            // The account that will own the request
+//            // is not the account losing/sending
+//            // tokens.
+//            if(request->GetAccount() != request->GetSource())
+//            {
+//                std::shared_ptr<logos::Account> source;
+//                if(_store.account_get(request->GetSource(), source))
+//                {
+//                    // TODO: Bootstrapping
+//                    result.code = logos::process_result::unknown_source_account;
+//                    return false;
+//                }
+//
+//                // The available tokens and the
+//                // amount requested don't add up.
+//                if(!request->Validate(result, source))
+//                {
+//                    return false;
+//                }
+//                else
+//                {
+//                    // TODO: Pending revoke cache
+//                }
+//            }
+//
+//            // The account that will own the request
+//            // is the account losing/sending tokens.
+//            else
+//            {
+//
+//                // This is a Send Token Request.
+//                if(request->type == RequestType::SendTokens)
+//                {
+//                    auto send_tokens = dynamic_pointer_cast<const TokenSend>(request);
+//                    assert(send_tokens);
+//
+//                    std::shared_ptr<TokenAccount> token_account;
+//
+//                    // This token id doesn't exist.
+//                    if(_reservations->Acquire(send_tokens->token_id, token_account))
+//                    {
+//                        result.code = logos::process_result::invalid_token_id;
+//                        return false;
+//                    }
+//
+//                    auto user_account = std::static_pointer_cast<logos::account_info>(info);
+//
+//                    // Get sender's token entry
+//                    TokenEntry source_token_entry;
+//                    if(!user_account->GetEntry(send_tokens->token_id, source_token_entry))
+//                    {
+//                        result.code = logos::process_result::untethered_account;
+//                        return false;
+//                    }
+//
+//                    // The sender's account is either frozen or
+//                    // not yet whitelisted.
+//                    if(!token_account->SendAllowed(source_token_entry.status, result))
+//                    {
+//                        return false;
+//                    }
+//
+//                    // Check each transaction in the Send Token Request
+//                    for(auto & t : send_tokens->transactions)
+//                    {
+//                        std::shared_ptr<logos::account_info> destination;
+//                        TokenUserStatus destination_status;
+//
+//                        BlockHash token_user_id(GetTokenUserId(send_tokens->token_id,
+//                                                               t.destination));
+//
+//                        // We have the destination account
+//                        if(!_reservations->Acquire(t.destination, destination))
+//                        {
+//                            TokenEntry destination_token_entry;
+//
+//                            // This destination account has been tethered to
+//                            // the token
+//                            if(destination->GetEntry(send_tokens->token_id, destination_token_entry))
+//                            {
+//                                destination_status = destination_token_entry.status;
+//                            }
+//
+//                            // This destination account is untethered
+//                            else
+//                            {
+//                                _store.token_user_status_get(token_user_id, destination_status);
+//                            }
+//                        }
+//
+//                        // We don't have the destination account
+//                        else
+//                        {
+//                            _store.token_user_status_get(token_user_id, destination_status);
+//                        }
+//
+//                        // The destination account is either frozen
+//                        // or not yet whitelisted.
+//                        if(!token_account->SendAllowed(destination_status, result))
+//                        {
+//                            return false;
+//                        }
+//
+//                        // Token fee is insufficient
+//                        if(!token_account->FeeSufficient(token_total, send_tokens->token_fee))
+//                        {
+//                            result.code = logos::process_result::insufficient_token_fee;
+//                            return false;
+//                        }
+//                    }
+//                }
+//
+//                if(!request->Validate(result, info))
+//                {
+//                    return false;
+//                }
+//            }
+//        }
     }
 
     result.code = logos::process_result::progress;
@@ -372,17 +371,17 @@ bool PersistenceManager<R>::ValidateSingleRequest(
         const RequestPtr request, logos::process_return & result, bool allow_duplicates)
 {
     std::lock_guard<std::mutex> lock(_write_mutex);
-    return ValidateRequest(block, result, allow_duplicates, false);
+    return ValidateRequest(request, result, allow_duplicates, false);
 }
 
 // Use this for batched transactions validation (either PrepareNextBatch or backup validation)
 bool PersistenceManager<R>::ValidateAndUpdate(
-        const Request & block, logos::process_return & result, bool allow_duplicates)
+    RequestPtr request, logos::process_return & result, bool allow_duplicates)
 {
-    auto success (ValidateRequest(block, result, allow_duplicates, false));
+    auto success (ValidateRequest(request, result, allow_duplicates, false));
     if (success)
     {
-        _reservations->UpdateReservation(block.GetHash(), block.origin);
+        _reservations->UpdateReservation(request->GetHash(), request->origin);
     }
     return success;
 }
@@ -397,9 +396,9 @@ bool PersistenceManager<R>::ValidateBatch(
     for(uint64_t i = 0; i < message.requests.size(); ++i)
     {
 #ifdef TEST_REJECT
-        if(!ValidateAndUpdate(static_cast<const Request&>(*message.blocks[i]), ignored_result, true) || bool(message.blocks[i].hash().number() & 1))
+        if(!ValidateAndUpdate(message.requests[i], ignored_result, true) || bool(message.requests[i].hash().number() & 1))
 #else
-        if(!ValidateAndUpdate(static_cast<const Request&>(*message.requests[i]), ignored_result, true))
+        if(!ValidateAndUpdate(message.requests[i], ignored_result, true))
 #endif
         {
             LOG_WARN(_log) << "PersistenceManager<R>::Validate - Rejecting " << message.requests[i]->GetHash().to_string();
@@ -424,7 +423,7 @@ bool PersistenceManager<R>::Validate(const PrePrepare & message,
     for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
         logos::process_return   result;
-        if(!ValidateRequest(static_cast<const Request&>(*message.requests[i]), result, true, false))
+        if(!ValidateRequest(message.requests[i], result, true, false))
         {
             UpdateStatusRequests(status, i, result.code);
             UpdateStatusReason(status, process_result::invalid_request);
@@ -482,9 +481,9 @@ void PersistenceManager<R>::ApplyRequestBlock(
     for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
         auto request = static_pointer_cast<Send>(message.requests[i]);
-        ApplyStateMessage(*request,
-                          message.timestamp,
-                          transaction);
+        ApplyRequest(request,
+                     message.timestamp,
+                     transaction);
     }
 }
 
@@ -978,7 +977,7 @@ void PersistenceManager<R>::PlaceReceive(ReceiveBlock & receive,
                                 << prev.send_hash.to_string();
                 trace_and_halt();
             }
-            if(!prev_send.account.is_zero())
+            if(!prev_send.origin.is_zero())
             {
                 // point following receive aka prev's 'previous' field to new receive
                 receive.previous = prev.previous;

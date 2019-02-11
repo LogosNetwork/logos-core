@@ -237,17 +237,17 @@ DelegateIdentityManager::Init(const Config &config)
         //TODO check with Greg
         ReceiveBlock logos_genesis_receive(0, logos_genesis_block.GetHash(), 0);
         _store.request_put(logos_genesis_block,
-                transaction);
+                           transaction);
         _store.receive_put(logos_genesis_receive.Hash(),
-                logos_genesis_receive,
-                transaction);
+                           logos_genesis_receive,
+                           transaction);
         _store.account_put(logos::genesis_account,
             {
                 /* Head         */ logos_genesis_block.GetHash(),
                 /* Receive Head */ logos_genesis_receive.Hash(),
                 /* Rep          */ 0,
                 /* Open         */ logos_genesis_block.GetHash(),
-                /* Amount       */ logos_genesis_block.trans[0].amount,
+                /* Amount       */ logos_genesis_block.transactions[0].amount,
                 /* Time         */ logos::seconds_since_epoch(),
                 /* Count        */ 1,
                 /* Receive      */ 1
@@ -311,7 +311,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
         ReceiveBlock receive(0, request.GetHash(), 0);
 
-        _store.request_put(request, request.GetHash(), transaction);
+        _store.request_put(request, transaction);
 
         _store.receive_put(receive.Hash(),
                 receive,

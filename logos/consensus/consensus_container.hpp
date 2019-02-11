@@ -5,9 +5,9 @@
 
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
 #include <logos/consensus/request/request_consensus_manager.hpp>
-#include <logos/consensus/network/consensus_netio_manager.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
-#include <logos/consensus/network/epoch_peer_manager.hpp>
+#include <logos/network/epoch_peer_manager.hpp>
+#include <logos/network/consensus_netio_manager.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
@@ -130,7 +130,7 @@ public:
     ///     @param[in] should_buffer bool flag that, when set, will
     ///                              cause the block to be buffered
     ///     @return process_return result of the operation
-    logos::process_return OnDelegateMessage(std::shared_ptr<Request> request,
+    logos::process_return OnDelegateMessage(std::shared_ptr<DM> request,
                                             bool should_buffer) override;
 
     /// Handles requests for batch block consensus.
@@ -138,7 +138,7 @@ public:
     /// Submits transactions to consensus logic.
     ///     @param[in] blocks state blocks containing the transaction
     ///     @return responses containinig process_result and hash
-    Responses OnSendRequest(std::vector<std::shared_ptr<Send>> &blocks) override;
+    Responses OnSendRequest(std::vector<std::shared_ptr<DM>> &blocks) override;
 
     /// Called when buffering is done for batch block consensus.
     ///

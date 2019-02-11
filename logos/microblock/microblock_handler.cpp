@@ -49,11 +49,11 @@ MicroBlockHandler::BatchBlocksIterator(
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
     {
         BlockHash hash = start[delegate];
-        ApprovedBSB batch;
+        ApprovedRB batch;
         bool not_found = false;
-        for (not_found = store.batch_block_get(hash, batch);
+        for (not_found = store.request_block_get(hash, batch);
              !not_found && batch.timestamp < cutoff;
-             hash = batch.next, not_found = store.batch_block_get(hash, batch))
+             hash = batch.next, not_found = store.request_block_get(hash, batch))
         {
             batchblock_receiver(delegate, batch);
         }
@@ -247,16 +247,6 @@ MicroBlockHandler::Build(
 
     // collect current batch block tips
     BatchTips start;
-<<<<<<< HEAD
-=======
-    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
-    {
-        if (_store.request_tip_get(delegate, start[delegate]))
-        {
-            start[delegate].clear();
-        }
-    }
->>>>>>> Renaming away batch block in blockstore
 
     // first microblock after genesis, the cut-off time is
     // the Min timestamp of the very first BSB for all delegates + remainder from Min to nearest 10 min + 10 min;
@@ -265,7 +255,7 @@ MicroBlockHandler::Build(
     {
         for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
         {
-            if (_store.batch_tip_get(delegate, start[delegate]))
+            if (_store.request_tip_get(delegate, start[delegate]))
             {
                 start[delegate].clear();
             }

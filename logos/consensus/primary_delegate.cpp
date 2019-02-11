@@ -6,9 +6,9 @@
 
 // ConsensusType::Request
 //
-template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::Request>&);
-template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Request>&);
-template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Request>&);
+template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::Request>&, uint8_t);
+template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Request>&, uint8_t);
+template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Request>&, uint8_t);
 template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Request>&);
 template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::Request>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::Request>&, uint8_t remote_delegate_id);
@@ -16,9 +16,9 @@ template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::Reques
 
 // ConsensusType::MicroBlock
 //
-template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::MicroBlock>&);
-template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::MicroBlock>&);
-template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::MicroBlock>&);
+template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::MicroBlock>&, uint8_t);
+template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::MicroBlock>&, uint8_t);
+template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::MicroBlock>&, uint8_t);
 template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::MicroBlock>&);
 template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
@@ -26,9 +26,9 @@ template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::MicroB
 
 // ConsensusType::Epoch
 //
-template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::Epoch>&);
-template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Epoch>&);
-template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Epoch>&);
+template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::Epoch>&, uint8_t);
+template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Epoch>&, uint8_t);
+template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Epoch>&, uint8_t);
 template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Epoch>&);
 template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
