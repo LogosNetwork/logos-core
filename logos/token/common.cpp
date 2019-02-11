@@ -58,6 +58,11 @@ logos::AccountType TokenRequest::GetAccountType() const
     return logos::AccountType::TokenAccount;
 }
 
+logos::AccountType TokenRequest::GetSourceType() const
+{
+    return logos::AccountType::TokenAccount;
+}
+
 AccountAddress TokenRequest::GetAccount() const
 {
     return token_id;

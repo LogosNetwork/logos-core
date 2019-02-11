@@ -107,6 +107,7 @@ struct TokenRequest : Request
     bool Validate(logos::process_return & result) const override;
 
     logos::AccountType GetAccountType() const override;
+    logos::AccountType GetSourceType() const override;
 
     AccountAddress GetAccount() const override;
     AccountAddress GetSource() const override;
