@@ -68,6 +68,14 @@ public:
 
     virtual void CleanUp() {}
 
+    /// set previous hash, microblock and epoch block have only one chain
+    /// consequently in the override function have to set all backup's hash to previous
+    /// @param hash to set
+    virtual void SetPreviousPrePrepareHash(const BlockHash &hash)
+    {
+        _prev_pre_prepare_hash = hash;
+    }
+
 protected:
 
     static constexpr uint16_t MAX_CLOCK_DRIFT_MS = 20000;
@@ -88,7 +96,7 @@ protected:
     bool Validate(const M & message);
     bool Validate(const PrePrepare & message);
 
-    bool ValidateTimestamp(const PrePrepare & message);
+    virtual bool ValidateTimestamp(const PrePrepare & message);
 
     virtual bool DoValidate(const PrePrepare & message) = 0;
     template<typename M>

@@ -45,6 +45,17 @@ public:
 
     bool IsPrePrepared(const BlockHash & hash) override;
 
+protected:
+    bool ValidateTimestamp(const PrePrepare & message) override;
+
+    /// set previous hash, microblock and epoch block have only one chain
+    /// consequently primary has to set all backup's hash to previous
+    /// @param hash to set
+    void SetPreviousPrePrepareHash(const BlockHash &hash) override
+    {
+        _primary.SetPreviousPrePrepareHash(hash);
+    }
+
 private:
     ArchiverMicroBlockHandler &  _microblock_handler;
 };

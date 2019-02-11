@@ -50,3 +50,22 @@ EpochBackupDelegate::IsPrePrepared(
 
     return (_pre_prepare && hash == _pre_prepare->Hash());
 }
+
+
+bool
+EpochBackupDelegate::ValidateTimestamp(
+    const PrePrepare &message )
+{
+    auto now = GetStamp();
+    auto ts = message.timestamp;
+
+    auto drift = now > ts ? now - ts : ts - now;
+
+    // secondary can propose up to a timeout cap later
+    if(drift > TConvert<Milliseconds>(SECONDARY_LIST_TIMEOUT_CAP+CLOCK_DRIFT).count())
+    {
+        return false;
+    }
+
+    return true;
+}

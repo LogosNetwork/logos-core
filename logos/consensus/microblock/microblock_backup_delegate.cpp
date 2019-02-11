@@ -54,3 +54,22 @@ MicroBlockBackupDelegate::IsPrePrepared(
 
     return (_pre_prepare && hash == _pre_prepare->Hash());
 }
+
+bool
+MicroBlockBackupDelegate::ValidateTimestamp(
+    const PrePrepare &message )
+{
+    auto now = GetStamp();
+    auto ts = message.timestamp;
+
+    auto drift = now > ts ? now - ts : ts - now;
+
+    // secondary can propose after 20*i seconds
+    if(drift > TConvert<Milliseconds>(CLOCK_DRIFT).count() * (message.primary_delegate + 1))
+    {
+        return false;
+    }
+
+    return true;
+}
+

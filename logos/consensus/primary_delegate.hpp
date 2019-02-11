@@ -77,6 +77,15 @@ public:
         return _delegate_id;
     }
 
+    /// set previous hash, microblock and epoch block have only one chain
+    /// consequently primary has to set all backup's hash to previous in
+    /// the overload function
+    /// @param hash to set
+    virtual void SetPreviousPrePrepareHash(const BlockHash &hash)
+    {
+        _prev_pre_prepare_hash = hash;
+    }
+
 protected:
 
     virtual void UpdateVotes();

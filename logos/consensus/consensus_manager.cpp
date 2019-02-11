@@ -81,6 +81,8 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
 
     HandleRequest(block, hash, result);
 
+    OnRequestQueued();
+
 }
 
 template<>
@@ -180,7 +182,7 @@ void ConsensusManager<CT>::OnConsensusReached()
     block.Serialize(buf, true, true);
     _consensus_p2p.ProcessOutputMessage(buf.data(), buf.size());
 
-    _prev_pre_prepare_hash = _pre_prepare_hash;
+    SetPreviousPrePrepareHash(_pre_prepare_hash);
 
     PrePreparePopFront();
 

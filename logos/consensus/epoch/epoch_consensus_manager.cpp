@@ -128,14 +128,14 @@ EpochConsensusManager::DesignatedDelegate(
 
     if (_store.micro_block_tip_get(hash))
     {
-        LOG_ERROR(_log) << "EpochConsensusManager::DesignatedDelegate failed to get microblock tip";
-        return 0;
+        LOG_FATAL(_log) << "EpochConsensusManager::DesignatedDelegate failed to get microblock tip";
+        trace_and_halt();
     }
 
     if (_store.micro_block_get(hash, block))
     {
-        LOG_ERROR(_log) << "EpochConsensusManager::DesignatedDelegate failed to get microblock";
-        return 0;
+        LOG_FATAL(_log) << "EpochConsensusManager::DesignatedDelegate failed to get microblock";
+        trace_and_halt();
     }
 
     // delegate who proposed last microblock also proposes epoch block
@@ -148,5 +148,5 @@ EpochConsensusManager::DesignatedDelegate(
         return _delegate_id;
     }
 
-    return 0;
+    return 0xff;
 }
