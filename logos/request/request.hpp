@@ -89,6 +89,7 @@ struct Request
     virtual ~Request() = default;
 
     virtual logos::AccountType GetAccountType() const;
+    virtual logos::AccountType GetSourceType() const;
 
     // The account that will own the
     // request.

@@ -137,6 +137,11 @@ logos::AccountType Request::GetAccountType() const
     return logos::AccountType::LogosAccount;
 }
 
+logos::AccountType Request::GetSourceType() const
+{
+    return logos::AccountType::LogosAccount;
+}
+
 AccountAddress Request::GetAccount() const
 {
     return origin;

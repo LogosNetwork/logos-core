@@ -663,6 +663,11 @@ AccountAddress TokenRevoke::GetSource() const
     return source;
 }
 
+logos::AccountType TokenRevoke::GetSourceType() const
+{
+    return logos::AccountType::LogosAccount;
+}
+
 uint16_t TokenRevoke::GetTokenTotal() const
 {
     return transaction.amount;
@@ -1420,6 +1425,11 @@ uint16_t TokenBurn::GetTokenTotal() const
     return amount;
 }
 
+logos::AccountType TokenBurn::GetSourceType() const
+{
+    return logos::AccountType::LogosAccount;
+}
+
 bool TokenBurn::Validate(logos::process_return & result,
                          std::shared_ptr<logos::Account> info) const
 {
@@ -1532,6 +1542,11 @@ uint16_t TokenAccountSend::GetTokenTotal() const
     return transaction.amount;
 }
 
+logos::AccountType TokenAccountSend::GetSourceType() const
+{
+    return logos::AccountType::TokenAccount;
+}
+
 bool TokenAccountSend::Validate(logos::process_return & result,
                                 std::shared_ptr<logos::Account> info) const
 {
@@ -1635,6 +1650,11 @@ TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
 uint16_t TokenAccountWithdrawFee::GetTokenTotal() const
 {
     return transaction.amount;
+}
+
+logos::AccountType TokenAccountWithdrawFee::GetSourceType() const
+{
+    return logos::AccountType::TokenAccount;
 }
 
 bool TokenAccountWithdrawFee::Validate(logos::process_return & result,
@@ -1772,6 +1792,11 @@ uint16_t TokenSend::GetTokenTotal() const
                                  });
 
     return total + token_fee;
+}
+
+logos::AccountType TokenSend::GetSourceType() const
+{
+    return logos::AccountType::LogosAccount;
 }
 
 bool TokenSend::Validate(logos::process_return & result,

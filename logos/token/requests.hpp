@@ -137,6 +137,7 @@ struct TokenRevoke : TokenRequest
                 boost::property_tree::ptree const & tree);
 
     AccountAddress GetSource() const override;
+    logos::AccountType GetSourceType() const override;
     uint16_t GetTokenTotal() const override;
 
     bool Validate(logos::process_return & result,
@@ -304,6 +305,7 @@ struct TokenBurn : TokenRequest
               boost::property_tree::ptree const & tree);
 
     uint16_t GetTokenTotal() const override;
+    logos::AccountType GetSourceType() const override;
 
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
@@ -336,6 +338,7 @@ struct TokenAccountSend : TokenRequest
                      boost::property_tree::ptree const & tree);
 
     uint16_t GetTokenTotal() const override;
+    logos::AccountType GetSourceType() const override;
 
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
@@ -368,6 +371,7 @@ struct TokenAccountWithdrawFee : TokenRequest
                             boost::property_tree::ptree const & tree);
 
     uint16_t GetTokenTotal() const override;
+    logos::AccountType GetSourceType() const override;
 
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
@@ -403,6 +407,7 @@ struct TokenSend : TokenRequest
               boost::property_tree::ptree const & tree);
 
     uint16_t GetTokenTotal() const override;
+    logos::AccountType GetSourceType() const override;
 
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;

@@ -12,6 +12,7 @@ namespace
 {
 
 using logos::AccountType;
+using logos::reservation_info;
 
 }
 
@@ -25,19 +26,23 @@ protected:
     using LogosAccountPtr = std::shared_ptr<logos::account_info>;
 
 public:
+
     explicit ReservationsProvider(Store & store)
         : _store(store)
     {}
 
     virtual ~ReservationsProvider() = default;
-    virtual bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) {return false;}
-    virtual void Release(const AccountAddress & account) {}
-    virtual void UpdateReservation(const logos::block_hash & hash, const logos::account & account) {}
+    virtual bool CanAcquire(const AccountAddress & account,
+                            const BlockHash & hash,
+                            AccountType type,
+                            bool allow_duplicates) {return false;}
 
-    virtual bool Acquire(const AccountAddress & account,
-                         logos::account_info &info)
-    { return true; }
+    virtual void Release(const AccountAddress & account,
+                         AccountType type) {}
 
+    virtual void UpdateReservation(const BlockHash & hash,
+                                   const AccountAddress & account,
+                                   AccountType type) {}
 protected:
 
     Store & _store;
@@ -48,7 +53,9 @@ class Reservations : public ReservationsProvider
 {
 protected:
 
-    using ReservationCache = std::unordered_map<AccountAddress, logos::reservation_info>;
+    using CacheType  = std::unordered_map<logos::uint256_union, reservation_info>;
+    using LogosCache = std::unordered_map<AccountAddress, reservation_info>;
+    using TokenCache = std::unordered_map<BlockHash, reservation_info>;
 
 public:
     explicit Reservations(Store & store)
@@ -71,32 +78,40 @@ public:
     //       this is not the only case in which a cached account will be
     //       acquired.
     //-------------------------------------------------------------------------
-    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) override;
+    bool CanAcquire(const AccountAddress & account,
+                    const BlockHash & hash,
+                    AccountType type,
+                    bool allow_duplicates) override;
 
-    void Release(const AccountAddress & account) override;
+    void Release(const AccountAddress & account,
+                 AccountType type) override;
 
     // Can only be called after checking CanAcquire to ensure we don't corrupt reservation
-    void UpdateReservation(const logos::block_hash & hash, const logos::account & account) override;
+    void UpdateReservation(const BlockHash & hash,
+                           const AccountAddress & account,
+                           AccountType type) override;
 
 private:
 
-    ReservationCache _reservations;
+    CacheType & GetReservations(AccountType type);
+
+    LogosCache _logos_reservations;
+    TokenCache _token_reservations;
 };
 
 class DefaultReservations : public ReservationsProvider
 {
 
 public:
+
     explicit DefaultReservations(Store & store)
         : ReservationsProvider(store)
     {}
 
     virtual ~DefaultReservations() = default;
 
-    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) override;
-
-    bool Acquire(const AccountAddress & account, logos::account_info & info) override
-    {
-        return _store.account_get(account, info);
-    }
+    bool CanAcquire(const AccountAddress & account,
+                    const BlockHash & hash,
+                    AccountType type,
+                    bool allow_duplicates) override;
 };
