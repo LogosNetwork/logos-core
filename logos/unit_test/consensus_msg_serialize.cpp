@@ -40,7 +40,7 @@ PrePrepareMessage<ConsensusType::Request>
 create_bsb_preprepare(uint16_t num_sb)
 {
     PrePrepareMessage<ConsensusType::Request> block;
-    block.blocks.reserve(num_sb);
+    block.requests.reserve(num_sb);
     block.hashes.reserve(num_sb);
     for(uint32_t i = 0; i < num_sb; ++i)
     {
@@ -1014,7 +1014,7 @@ TEST (DB, state_block)
 
     Send send_a(1,2,3,5,6,7,8,9);
     std::vector<uint8_t> buf;
-    ASSERT_FALSE(store->request_put(send_a, send_a.GetHash(), txn));
+    ASSERT_FALSE(store->request_put(static_cast<Request&>(send_a), txn));
 
     Send send_b;
     ASSERT_FALSE(store->request_get(send_a.GetHash(), send_b, txn));

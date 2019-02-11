@@ -36,7 +36,7 @@ TxAcceptorChannel::OnConnectionAccepted(const Endpoint endpoint, shared_ptr<Sock
 }
 
 logos::process_return
-TxAcceptorChannel::OnSendRequest(std::shared_ptr<Request> block, bool should_buffer)
+TxAcceptorChannel::OnDelegateMessage(std::shared_ptr<DM> block, bool should_buffer)
 {
     logos::process_return result{logos::process_result::progress};
 
@@ -59,14 +59,14 @@ TxAcceptorChannel::OnSendRequest(std::shared_ptr<Request> block, bool should_buf
         _last_sent = GetStamp();
     }
 
-    LOG_INFO(_log) << "TxAcceptorChannel::OnSendRequest sent " << header.payload_size
+    LOG_INFO(_log) << "TxAcceptorChannel::OnDelegateMessage sent " << header.payload_size
                    << ProcessResultToString(result.code);
 
     return result;
 }
 
 TxChannel::Responses
-TxAcceptorChannel::OnSendRequest(std::vector<std::shared_ptr<Request>> &blocks)
+TxAcceptorChannel::OnSendRequest(std::vector<std::shared_ptr<DM>> &blocks)
 {
     logos::process_result result{logos::process_result::progress};
 

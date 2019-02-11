@@ -180,7 +180,7 @@ struct reservation_info
                       uint32_t const & reservation_epoch);
 
     uint32_t serialize (logos::stream &) const;
-    bool deserialize (logos::stream &);
+    bool Deserialize(logos::stream &stream_a);
     bool operator== (logos::reservation_info const &) const;
     bool operator!= (logos::reservation_info const &) const;
     logos::mdb_val to_mdb_val(std::vector<uint8_t> &buf) const;

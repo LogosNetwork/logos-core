@@ -1,9 +1,9 @@
 #pragma once
 
+#include <logos/consensus/persistence/request/request_persistence.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/blocks.hpp>
 #include <logos/lib/log.hpp>
-#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
 
 #include <memory>
 #include <list>
@@ -36,7 +36,6 @@ class RequestHandler
 public:
 
     using PrePrepare = PrePrepareMessage<ConsensusType::Request>;
-    using Request    = RequestMessage<ConsensusType::Request>;
     using Manager    = PersistenceManager<ConsensusType::Request>;
 
     RequestHandler();

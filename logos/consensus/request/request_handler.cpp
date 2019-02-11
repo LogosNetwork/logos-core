@@ -72,7 +72,7 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(
         // Don't allow duplicates since we are the primary and should not include old requests
         // unless we are reproposing
         bool allow_duplicates = repropose;
-        if(!manager.ValidateAndUpdate(static_cast<const Request&>(*pos), ignored_result, allow_duplicates))
+        if(!manager.ValidateAndUpdate(*pos, ignored_result, allow_duplicates))
         {
             pos = sequence.erase(pos);
             continue;

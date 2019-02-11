@@ -498,8 +498,8 @@ public:
 
     // consensus-related functionality.
 
-    process_return OnSendRequest(std::shared_ptr<Send> request,
-                                 bool should_buffer);
+    process_return OnRequest(std::shared_ptr<Request> request,
+                             bool should_buffer);
     process_return BufferComplete();
 
 

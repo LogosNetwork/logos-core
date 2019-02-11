@@ -10,8 +10,8 @@
 class TxChannel
 {
 protected:
-    using Responses     = std::vector<std::pair<logos::process_result, BlockHash>>;
-    using Request       = RequestMessage<ConsensusType::BatchStateBlock>;
+    using Responses = std::vector<std::pair<logos::process_result, BlockHash>>;
+    using DM        = DelegateMessage<ConsensusType::Request>;
 public:
     /// Class constructor
     TxChannel() = default;
@@ -23,11 +23,11 @@ public:
     ///     @param should_buffer bool flag that, when set, will [in]
     ///                              cause the block to be buffered
     ///     @return process_return result of the operation
-    virtual logos::process_return OnSendRequest(std::shared_ptr<Request> block,
-                                                bool should_buffer = false) = 0;
+    virtual logos::process_return OnDelegateMessage(std::shared_ptr<DM> block,
+                                                    bool should_buffer = false) = 0;
     /// Forwards transactions  for batch block consensus.
     /// Submits transactions to consensus logic. Optimized when TxAcceptor runs in delegate mode
     ///     @param blocks of transaction [in]
     ///     @return process_return result of the operation, in standalone returns either progress or initializing
-    virtual Responses OnSendRequest(std::vector<std::shared_ptr<Request>> &blocks) = 0;
+    virtual Responses OnSendRequest(std::vector<std::shared_ptr<DM>> &blocks) = 0;
 };
