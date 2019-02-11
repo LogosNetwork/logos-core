@@ -79,6 +79,8 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
 
     HandleRequest(block, hash, result);
 
+    OnRequestQueued();
+
 }
 
 template<>
@@ -174,7 +176,7 @@ void ConsensusManager<CT>::OnConsensusReached()
                         << " blocks.";
     }
 
-    _prev_pre_prepare_hash = _pre_prepare_hash;
+    SetPreviousPrePrepareHash(_pre_prepare_hash);
 
     PrePreparePopFront();
 

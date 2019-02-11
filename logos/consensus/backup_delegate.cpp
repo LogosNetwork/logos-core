@@ -86,7 +86,7 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
         BlocksCallback::Callback<CT>(block);
 
         _state = ConsensusState::VOID;
-        _prev_pre_prepare_hash = _pre_prepare_hash;
+        SetPreviousPrePrepareHash(_pre_prepare_hash);
 
         _events_notifier.OnPostCommit(_pre_prepare->epoch_number);
     }
@@ -138,7 +138,10 @@ bool BackupDelegate<CT>::Validate(const PrePrepare & message)
 
     if(message.previous != _prev_pre_prepare_hash)
     {
-        LOG_DEBUG(_log) << " BackupDelegate<CT>::Validate Invalid_Previous_Hash";
+        LOG_DEBUG(_log) << " BackupDelegate<"<< ConsensusToName(CT)
+                        << ">::Validate Invalid_Previous_Hash "
+                        << message.previous.to_string() << " "
+                        << _prev_pre_prepare_hash.to_string();
         _reason = RejectionReason::Invalid_Previous_Hash;
         return false;
     }

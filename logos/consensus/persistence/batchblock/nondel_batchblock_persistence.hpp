@@ -49,7 +49,7 @@ public:
         return PersistenceManager<BSBCT>::Validate(message, status);
     }
 
-    bool Validate(const request & block, logos::process_return &result, bool allow_duplicate=false) override
+    bool ValidateSingleRequest(const Request & block, logos::process_return &result, bool allow_duplicate=false) override
     {
         if(block.account.is_zero())
         {
@@ -63,12 +63,12 @@ public:
             return false;
         }
 
-        return PersistenceManager<BSBCT>::Validate(block, result, allow_duplidate);
+        return PersistenceManager<BSBCT>::ValidateSingleRequest(block, result, allow_duplicate);
     }
 
-    bool Validate(const request & block) override
+    bool ValidateSingleRequest(const Request & block)
     {
        logos::process_return res;
-       return Validate(block, res);
+       return ValidateSingleRequest(block, res);
     }
 };
