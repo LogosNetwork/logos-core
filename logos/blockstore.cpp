@@ -1,6 +1,8 @@
 #include <queue>
 #include <logos/blockstore.hpp>
 #include <logos/versioning.hpp>
+#include <logos/lib/trace.hpp>
+#include <logos/consensus/messages/util.hpp>
 
 namespace
 {
@@ -166,13 +168,10 @@ bool logos::store_iterator::operator!= (logos::store_iterator const & other_a) c
 }
 
 template<typename T>
-void logos::block_store::put(MDB_dbi &db, const mdb_val &key, const T &t, MDB_txn *transaction)
+void logos::block_store::put(MDB_dbi &db, const mdb_val &key, const T &t, MDB_txn *tx)
 {
-
-    auto status(mdb_put(transaction, db, key,
-                        mdb_val(sizeof(T),
-                                const_cast<T *>(&t)), 0));
-
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(tx, db, key, t.to_mdb_val(buf), 0));
     assert(status == 0);
 }
 
@@ -185,7 +184,7 @@ logos::block_hash logos::block_store::put(MDB_dbi &db, const T &t, MDB_txn *tran
 }
 
 template<typename T>
-bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, const T &t, MDB_txn *tx)
+bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, T &t, MDB_txn *tx)
 {
     logos::mdb_val value;
 
@@ -197,17 +196,24 @@ bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, const T &t, MDB_tx
         status = mdb_get(tx, db, key, value);
     }
     assert (status == 0 || status == MDB_NOTFOUND);
-    bool result = false;
+    bool result;
     if (status == MDB_NOTFOUND)
     {
         result = true;
     }
     else
     {
-        memcpy((void*)&t, (void*)reinterpret_cast<T*> (value.data ()),
-               value.size());
+        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (value.data ()), value.size ());
+        result = t.deserialize (stream);
+        assert (!result);
     }
     return result;
+}
+
+void logos::block_store::del(MDB_dbi &db, const mdb_val &key, MDB_txn *tx)
+{
+    auto status (mdb_del (tx, db, key, nullptr));
+    assert (status == 0);
 }
 
 logos::store_iterator logos::block_store::block_info_begin (MDB_txn * transaction_a, logos::block_hash const & hash_a)
@@ -271,7 +277,6 @@ logos::store_iterator logos::block_store::vote_end ()
 logos::block_store::block_store (bool & error_a, boost::filesystem::path const & path_a, int lmdb_max_dbs) :
 environment (error_a, path_a, lmdb_max_dbs),
 frontiers (0),
-accounts (0),
 pending (0),
 blocks_info (0),
 representation (0),
@@ -286,6 +291,7 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "batch_db", MDB_CREATE, &batch_db) != 0;
         error_a |= mdb_dbi_open (transaction, "state_db", MDB_CREATE, &state_db) != 0;
         error_a |= mdb_dbi_open (transaction, "account_db", MDB_CREATE, &account_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "reservation_db", MDB_CREATE, &reservation_db) != 0;
         error_a |= mdb_dbi_open (transaction, "receive_db", MDB_CREATE, &receive_db) != 0;
         error_a |= mdb_dbi_open (transaction, "batch_tips_db", MDB_CREATE, &batch_tips_db) != 0;
 
@@ -298,7 +304,6 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "epoch_tip_db", MDB_CREATE, &epoch_tip_db) != 0;
 
         error_a |= mdb_dbi_open (transaction, "frontiers", MDB_CREATE, &frontiers) != 0;
-        error_a |= mdb_dbi_open (transaction, "accounts", MDB_CREATE, &accounts) != 0;
         error_a |= mdb_dbi_open (transaction, "state", MDB_CREATE, &state_blocks) != 0;
         error_a |= mdb_dbi_open (transaction, "pending", MDB_CREATE, &pending) != 0;
         error_a |= mdb_dbi_open (transaction, "blocks_info", MDB_CREATE, &blocks_info) != 0;
@@ -494,8 +499,7 @@ bool logos::block_store::root_exists (MDB_txn * transaction_a, logos::uint256_un
 
 void logos::block_store::account_del (MDB_txn * transaction_a, logos::account const & account_a)
 {
-    auto status (mdb_del (transaction_a, accounts, logos::mdb_val (account_a), nullptr));
-    assert (status == 0);
+    del(account_db, account_a, transaction_a);
 }
 
 bool logos::block_store::account_exists (MDB_txn * transaction_a, logos::account const & account_a)
@@ -511,21 +515,7 @@ bool logos::block_store::account_get (MDB_txn * transaction_a, logos::account co
 
 bool logos::block_store::account_get (MDB_txn * transaction_a, logos::account const & account_a, logos::account_info & info_a, MDB_dbi db)
 {
-    logos::mdb_val value;
-    auto status (mdb_get (transaction_a, db, logos::mdb_val (account_a), value));
-    assert (status == 0 || status == MDB_NOTFOUND);
-    bool result;
-    if (status == MDB_NOTFOUND)
-    {
-        result = true;
-    }
-    else
-    {
-        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (value.data ()), value.size ());
-        result = info_a.deserialize (stream);
-        assert (!result);
-    }
-    return result;
+    return get(account_db, account_a, info_a, transaction_a);
 }
 
 void logos::block_store::frontier_put (MDB_txn * transaction_a, logos::block_hash const & block_a, logos::account const & account_a)
@@ -564,9 +554,24 @@ size_t logos::block_store::account_count (MDB_txn * transaction_a)
 
 void logos::block_store::account_put (MDB_txn * transaction_a, logos::account const & account_a, logos::account_info const & info_a)
 {
-    auto status (mdb_put (transaction_a, accounts, logos::mdb_val (account_a), info_a.val (), 0));
-    assert (status == 0);
+    put(account_db, account_a, info_a, transaction_a);
 }
+
+void logos::block_store::reservation_put (AccountAddress const & account_a, logos::reservation_info const & info_a, MDB_txn * transaction_a)
+{
+    put(reservation_db, account_a, info_a, transaction_a);
+}
+
+bool logos::block_store::reservation_get (AccountAddress const & account_a, logos::reservation_info & info_a, MDB_txn * transaction_a)
+{
+    return get(reservation_db, account_a, info_a, transaction_a);
+}
+
+void logos::block_store::reservation_del (AccountAddress const & account_a, MDB_txn * transaction_a)
+{
+    return del(reservation_db, account_a, transaction_a);
+}
+
 
 void logos::block_store::pending_put (MDB_txn * transaction_a, logos::pending_key const & key_a, logos::pending_info const & pending_a)
 {
@@ -827,51 +832,70 @@ void logos::block_store::checksum_del (MDB_txn * transaction_a, uint64_t prefix,
     assert (status == 0);
 }
 
-bool logos::block_store::consensus_block_get (const logos::block_hash & hash, BatchStateBlock & block)
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+bool logos::block_store::consensus_block_get (const BlockHash& hash, ApprovedBSB & block)
 {
     return batch_block_get (hash, block);
 }
-bool logos::block_store::consensus_block_get (const logos::block_hash & hash, MicroBlock & block)
+bool logos::block_store::consensus_block_get (const BlockHash& hash, ApprovedMB & block)
 {
     return micro_block_get (hash, block);
 }
-bool logos::block_store::consensus_block_get (const logos::block_hash & hash, Epoch & block)
+bool logos::block_store::consensus_block_get (const BlockHash& hash, ApprovedEB & block)
 {
     return epoch_get (hash, block);
 }
 
-bool logos::block_store::batch_block_put (BatchStateBlock const & block, MDB_txn * transaction)
+bool logos::block_store::batch_block_put (ApprovedBSB const & block, MDB_txn * transaction)
 {
     return batch_block_put(block, block.Hash(), transaction);
 }
 
-bool logos::block_store::batch_block_put (BatchStateBlock const & block, const logos::block_hash & hash, MDB_txn * transaction)
+bool logos::block_store::batch_block_put (ApprovedBSB const & block, const BlockHash & hash, MDB_txn * transaction)
 {
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    std::vector<uint8_t> buf;
+    auto value(block.to_mdb_val(buf));
     auto status(mdb_put(transaction, batch_db, logos::mdb_val(hash),
-                        mdb_val(sizeof(BatchStateBlock),
-                                const_cast<BatchStateBlock *>(&block)), 0));
+                        value, 0));
+    assert(status == 0);
+
+    for(uint16_t i = 0; i < block.block_count; ++i)
+    {
+        status = state_block_put(*block.blocks[i], transaction);
+        assert(status == 0);
+    }
 
     assert(status == 0);
     return status != 0;
 }
 
-bool logos::block_store::state_block_put(state_block const & block, StateBlockLocator const & locator, MDB_txn * transaction)
+bool logos::block_store::state_block_put(StateBlock const & block, MDB_txn * transaction)
 {
-    auto status(mdb_put(transaction, state_db, logos::mdb_val(block.hash()),
-                        mdb_val(sizeof(StateBlockLocator),
-                                const_cast<StateBlockLocator *>(&locator)), 0));
+    auto hash(block.GetHash());
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(transaction, state_db, logos::mdb_val(hash),
+                        block.to_mdb_val(buf), 0));
 
     assert(status == 0);
     return status != 0;
 }
 
-bool logos::block_store::state_block_exists(const state_block & block)
+bool logos::block_store::state_block_exists(const StateBlock & block)
 {
-    return state_block_exists(block.hash());
+    return state_block_exists(block.GetHash());
 }
 
-bool logos::block_store::state_block_exists(const block_hash & hash)
+bool logos::block_store::state_block_exists(const BlockHash & hash)
 {
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
     logos::mdb_val junk;
     logos::transaction transaction(environment, nullptr, false);
 
@@ -881,126 +905,293 @@ bool logos::block_store::state_block_exists(const block_hash & hash)
     return status == 0;
 }
 
-bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchStateBlock & block)
+bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & block)
 {
-    return get<BatchStateBlock>(batch_db, hash, block);
+    transaction transaction(environment, nullptr, false);
+    return batch_block_get(hash, block, transaction);
 }
 
-bool logos::block_store::batch_block_get (const logos::block_hash &hash, BatchStateBlock & block, MDB_txn * transaction)
+bool logos::block_store::batch_block_get (const BlockHash &hash, ApprovedBSB & block, MDB_txn * transaction)
 {
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
     mdb_val value;
     mdb_val key(hash);
 
     auto status (mdb_get (transaction, batch_db, key, value));
     assert (status == 0 || status == MDB_NOTFOUND);
 
-    bool result = false;
+    bool error = false;
     if (status == MDB_NOTFOUND)
     {
-        result = true;
+        LOG_TRACE(log) << __func__ << " MDB_NOTFOUND";
+        error = true;
     }
     else
     {
-        memcpy(&block, value.data(), value.size());
+        new(&block) ApprovedBSB(error, value);
+        assert(!error);
+
+        if(!error)
+        {
+            if(block.block_count > CONSENSUS_BATCH_SIZE)
+            {
+                LOG_FATAL(log) << __func__ << " state_block_get failed, block.block_count > CONSENSUS_BATCH_SIZE";
+                trace_and_halt();
+            }
+
+            block.blocks.reserve(block.block_count);
+            for(uint16_t i = 0; i < block.block_count; ++i)
+            {
+                auto block_ptr (state_block_get(block.hashes[i], transaction));
+                if(block_ptr == nullptr)
+                {
+                    LOG_ERROR(log) << __func__ << " state_block_get failed";
+                    return true;
+                }
+                block.blocks.push_back(block_ptr);
+            }
+        }
     }
 
-    return result;
+    return error;
 }
 
-bool logos::block_store::state_block_get(const logos::block_hash & hash, logos::state_block & block, MDB_txn * transaction)
+bool logos::block_store::consensus_block_update_next(const BlockHash & hash, const BlockHash & next, ConsensusType type, MDB_txn * transaction)
 {
-    mdb_val val;
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
 
-    if(mdb_get(transaction, state_db, mdb_val(hash), val))
-    {
-        return true;
+    mdb_val value;
+    mdb_val key(hash);
+    MDB_dbi db = 0; //typedef unsigned int    MDB_dbi, maybe use a naked pointer?
+
+    switch(type){
+    case ConsensusType::BatchStateBlock:
+        db = batch_db;
+        break;
+    case ConsensusType::MicroBlock:
+        db = micro_block_db;
+        break;
+    case ConsensusType::Epoch:
+        db = epoch_db;
+        break;
+    default:
+        LOG_FATAL(log) << __func__ << " wrong consensus type " << (uint)type;
+        trace_and_halt();
     }
 
-    auto locator(*reinterpret_cast<StateBlockLocator *>(val.data()));
-
-    if(mdb_get(transaction, batch_db,
-                mdb_val(locator.hash),
-                val))
+    auto status(mdb_get (transaction, db, key, value));
+    if (status == MDB_NOTFOUND)
     {
+        LOG_TRACE(log) << __func__ << " MDB_NOTFOUND";
         return true;
     }
+    else if(status != 0)
+    {
+        LOG_FATAL(log) << __func__ << " failed to get consensus block "
+                << ConsensusToName(type);
+        trace_and_halt();
+    }
 
-    block = reinterpret_cast<BatchStateBlock *>(val.data())->blocks[locator.index];
-
+    // From LMDB:
+    //    The memory pointed to by the returned values is owned by the database.
+    //    The caller need not dispose of the memory, and may not modify it in any
+    //    way. For values returned in a read-only transaction any modification
+    //    attempts will cause a SIGSEGV.
+    //    Values returned from the database are valid only until a subsequent
+    //    update operation, or the end of the transaction.
+    auto data_size(value.size());
+    std::vector<uint8_t> buf(data_size);
+    mdb_val value_buf(data_size, buf.data());
+    update_PostCommittedBlock_next_field(value, value_buf, next);
+    status = mdb_put(transaction, db, key, value_buf, 0);
+    if(status != 0)
+    {
+        LOG_FATAL(log) << __func__ << " failed to put consensus block "
+                << ConsensusToName(type);
+        trace_and_halt();
+    }
     return false;
 }
 
-logos::block_hash logos::block_store::micro_block_put(MicroBlock const &block, MDB_txn *transaction)
+bool logos::block_store::state_block_get(const BlockHash & hash, StateBlock & block, MDB_txn * transaction)
 {
-    return put<MicroBlock>(micro_block_db, block, transaction);
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    mdb_val val;
+    if(mdb_get(transaction, state_db, mdb_val(hash), val))
+    {
+        LOG_TRACE(log) << __func__ << " mdb_get failed";
+        return true;
+    }
+
+    bool error = false;
+    new(&block) StateBlock(error, val);
+    assert(!error);
+
+    return error;
 }
 
-bool logos::block_store::micro_block_get(const logos::block_hash &hash, MicroBlock &block, MDB_txn *transaction)
+std::shared_ptr<StateBlock> logos::block_store::state_block_get(const BlockHash & hash, MDB_txn * transaction)
 {
-  return get<MicroBlock>(micro_block_db, mdb_val(hash), block, transaction);
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    mdb_val val;
+    if(mdb_get(transaction, state_db, mdb_val(hash), val))
+    {
+        LOG_TRACE(log) << __func__ << " mdb_get failed";
+        return nullptr;
+    }
+
+    bool error = false;
+    auto block_ptr (std::make_shared<StateBlock>(error, val));
+    if (error)
+    {
+        LOG_FATAL(log) << __func__ << " failed to get state block";
+        trace_and_halt();
+    }
+
+    return block_ptr;
 }
 
-void logos::block_store::micro_block_tip_put(const block_hash& hash, MDB_txn *transaction)
+bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, mdb_val &value, MDB_txn *tx)
 {
-  const uint8_t key = 0; // only one tip
-    put<block_hash>(micro_block_tip_db, logos::mdb_val(sizeof(key),const_cast<uint8_t*>(&key)), hash, transaction);
+    int status = 0;
+    if (tx == 0) {
+        logos::transaction transaction(environment, nullptr, false);
+        status = mdb_get(transaction, db, key, value);
+    } else {
+        status = mdb_get(tx, db, key, value);
+    }
+    if( ! (status == 0 || status == MDB_NOTFOUND))
+    {
+        trace_and_halt();
+    }
+
+    bool error = (status == MDB_NOTFOUND);
+    return error;
 }
 
-bool logos::block_store::micro_block_tip_get(const block_hash &hash, MDB_txn *transaction)
+bool logos::block_store::micro_block_put(ApprovedMB const &block, MDB_txn *transaction)
 {
-  const uint8_t i = 0; // only one tip
-  mdb_val key(sizeof(i), const_cast<uint8_t*>(&i));
-  return get<block_hash>(micro_block_tip_db, key, hash, transaction);
+    auto hash(block.Hash());
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(transaction, micro_block_db, mdb_val(hash), block.to_mdb_val(buf), 0));
+    assert(status == 0);
+    return status != 0;
 }
 
-bool logos::block_store::micro_block_exists(const logos::block_hash &hash, MDB_txn *transaction)
+bool logos::block_store::micro_block_get(const BlockHash &hash, ApprovedMB &block, MDB_txn *transaction)
 {
-    MicroBlock mb;
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    mdb_val val;
+    if(get(micro_block_db, mdb_val(hash), val, transaction))
+    {
+        return true;
+    }
+
+    bool error = false;
+    new(&block) ApprovedMB(error, val);
+    assert(!error);
+    return error;
+}
+
+bool logos::block_store::micro_block_tip_put(const BlockHash & hash, MDB_txn *transaction)
+{
+    const uint8_t key = 0; // only one tip
+    auto status(mdb_put(transaction, micro_block_tip_db, logos::mdb_val(key), mdb_val(hash), 0));
+    assert(status == 0);
+    return status != 0;
+}
+
+bool logos::block_store::micro_block_tip_get(BlockHash & hash, MDB_txn *transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    const uint8_t key = 0; // only one tip
+    mdb_val val;
+    if(get(micro_block_tip_db, mdb_val(key), val, transaction))
+    {
+        return true;
+    }
+    assert(val.size() == HASH_SIZE);
+    new (&hash) BlockHash(val.data(), val.size());
+    return false;
+}
+
+bool logos::block_store::micro_block_exists(const BlockHash &hash, MDB_txn *transaction)
+{
+    ApprovedMB mb;
     return (false == micro_block_get(hash, mb, transaction));
 }
 
-logos::block_hash logos::block_store::epoch_put(Epoch const &block, MDB_txn *transaction)
+bool logos::block_store::epoch_put(ApprovedEB const &block, MDB_txn *transaction)
 {
-    return put<Epoch>(epoch_db, block, transaction);
+    auto hash(block.Hash());
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(transaction, epoch_db, mdb_val(hash), block.to_mdb_val(buf), 0));
+
+    assert(status == 0);
+    return status != 0;
 }
 
-bool logos::block_store::epoch_get(const logos::block_hash &hash, Epoch &block, MDB_txn *transaction)
+bool logos::block_store::epoch_get(const BlockHash &hash, ApprovedEB &block, MDB_txn *transaction)
 {
-  return get<Epoch>(epoch_db, mdb_val(hash), block, transaction);
-}
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
 
-void logos::block_store::epoch_tip_put(const block_hash& hash, MDB_txn *transaction)
-{
-  const uint8_t key = 0; // only one tip
-    put<block_hash>(epoch_tip_db, logos::mdb_val(sizeof(key),const_cast<uint8_t*>(&key)), hash, transaction);
-}
-
-bool logos::block_store::epoch_tip_get(block_hash &hash, MDB_txn *transaction)
-{
-  const uint8_t i = 0; // only one tip
-  mdb_val key(sizeof(i), const_cast<uint8_t*>(&i));
-  return get<block_hash>(epoch_tip_db, key, hash, transaction);
-}
-
-bool logos::block_store::account_get(logos::account const & account_a, account_info & info_a)
-{
-    mdb_val value;
-    transaction transaction(environment, nullptr, false);
-
-    auto status (mdb_get (transaction, account_db, mdb_val (account_a), value));
-    assert (status == 0 || status == MDB_NOTFOUND);
-    bool result;
-    if (status == MDB_NOTFOUND)
+    mdb_val val;
+    if(get(epoch_db, mdb_val(hash), val, transaction))
     {
-        result = true;
+        return true;
     }
-    else
+
+    bool error = false;
+    new(&block) ApprovedEB(error, val);
+    assert(!error);
+    return error;
+}
+
+bool logos::block_store::epoch_tip_put(const BlockHash & hash, MDB_txn *transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    const uint8_t key = 0; // only one tip
+    auto status(mdb_put(transaction, epoch_tip_db, logos::mdb_val(key), mdb_val(hash), 0));
+    assert(status == 0);
+    return status != 0;
+}
+
+bool logos::block_store::epoch_tip_get(BlockHash & hash, MDB_txn *transaction)
+{
+    const uint8_t key = 0; // only one tip
+    mdb_val val;
+    if(get(epoch_tip_db, mdb_val(key), val, transaction))
     {
-        bufferstream stream (reinterpret_cast<uint8_t const *> (value.data ()), value.size ());
-        result = info_a.deserialize (stream);
-        assert (!result);
+        return true;
     }
-    return result;
+    new (&hash) BlockHash(val.data(), val.size());
+    LOG_TRACE(log) << __func__ << " value " << hash.to_string();
+    return false;
+}
+
+bool logos::block_store::account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << account_a.to_string();
+    mdb_val val;
+    if(get(account_db, mdb_val(account_a), val, transaction))
+    {
+        return true;
+    }
+
+    bool error = false;
+    new (&info_a) account_info(error, val);
+    assert (!error);
+    return error;
 }
 
 bool logos::block_store::account_db_empty()
@@ -1013,31 +1204,51 @@ bool logos::block_store::account_db_empty()
     return begin == end;
 }
 
-bool logos::block_store::account_put(const logos::account & account, const logos::account_info & info, MDB_txn * transaction)
+bool logos::block_store::account_put(const AccountAddress & account, const logos::account_info & info, MDB_txn * transaction)
 {
-    auto status(mdb_put(transaction, account_db, logos::mdb_val(account), info.val(), 0));
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(transaction, account_db, logos::mdb_val(account), info.to_mdb_val(buf), 0));
 
     assert(status == 0);
     return status != 0;
 }
 
-bool logos::block_store::receive_put(const block_hash & hash, const state_block & block, MDB_txn * transaction)
+bool logos::block_store::receive_put(const BlockHash & hash, const ReceiveBlock & block, MDB_txn * transaction)
 {
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    std::vector<uint8_t> buf;
     auto status(mdb_put(transaction, receive_db, logos::mdb_val(hash),
-                        mdb_val(sizeof(state_block),
-                                const_cast<state_block *>(&block)), 0));
+            block.to_mdb_val(buf), 0));
 
     assert(status == 0);
     return status != 0;
 }
 
-bool logos::block_store::receive_get (const block_hash &hash, state_block & block)
+bool logos::block_store::receive_get (const BlockHash & hash, ReceiveBlock & block, MDB_txn * transaction)
 {
-    return get<state_block>(receive_db, hash, block);
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    logos::mdb_val value;
+
+    auto status (mdb_get (transaction, receive_db, mdb_val(hash), value));
+    assert (status == 0 || status == MDB_NOTFOUND);
+    bool error = false;
+    if (status == MDB_NOTFOUND)
+    {
+        error = true;
+    }
+    else
+    {
+        new (&block) ReceiveBlock(error, value);
+    }
+    return error;
 }
 
-bool logos::block_store::receive_exists(const block_hash & hash)
+bool logos::block_store::receive_exists(const BlockHash & hash)
 {
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
     logos::mdb_val junk;
     logos::transaction transaction(environment, nullptr, false);
 
@@ -1047,18 +1258,21 @@ bool logos::block_store::receive_exists(const block_hash & hash)
     return status == 0;
 }
 
-bool logos::block_store::batch_tip_put(uint8_t delegate_id, const block_hash & hash, MDB_txn * transaction)
+bool logos::block_store::batch_tip_put(uint8_t delegate_id, const BlockHash & hash, MDB_txn * transaction)
 {
-    auto status(mdb_put(transaction, batch_tips_db, logos::mdb_val(sizeof(delegate_id),
-                                                                 &delegate_id),
-                        mdb_val(sizeof(block_hash),
-                                const_cast<block_hash *>(&hash)), 0));
+    LOG_TRACE(log) << __func__ << " value " << hash.to_string();
+
+    auto status(mdb_put(transaction,
+            batch_tips_db,
+            mdb_val(sizeof(delegate_id), &delegate_id),
+            mdb_val(hash),
+            0));
 
     assert(status == 0);
     return status != 0;
 }
 
-bool logos::block_store::batch_tip_get(uint8_t delegate_id, block_hash & hash)
+bool logos::block_store::batch_tip_get(uint8_t delegate_id, BlockHash & hash)
 {
     logos::mdb_val value;
     logos::transaction transaction(environment, nullptr, false);
@@ -1066,48 +1280,50 @@ bool logos::block_store::batch_tip_get(uint8_t delegate_id, block_hash & hash)
     auto status (mdb_get (transaction, batch_tips_db, logos::mdb_val(sizeof(delegate_id),
                                                                           &delegate_id), value));
     assert (status == 0 || status == MDB_NOTFOUND);
-    bool result = false;
+    bool error = false;
     if (status == MDB_NOTFOUND)
     {
-        result = true;
+        error = true;
     }
     else
     {
-        memcpy(&hash, reinterpret_cast<uint8_t const *> (value.data ()), value.size());
+        new (&hash) BlockHash(value.data (), value.size());
+        LOG_TRACE(log) << __func__ << " key " << hash.to_string();
     }
-    return result;
+    return error;
 }
 
-void logos::block_store::flush (MDB_txn * transaction_a)
-{
-    std::unordered_map<logos::account, std::shared_ptr<logos::vote>> sequence_cache_l;
-    std::unordered_multimap<logos::block_hash, std::shared_ptr<logos::block>> unchecked_cache_l;
-    {
-        std::lock_guard<std::mutex> lock (cache_mutex);
-        sequence_cache_l.swap (vote_cache);
-        unchecked_cache_l.swap (unchecked_cache);
-    }
-    for (auto & i : unchecked_cache_l)
-    {
-        std::vector<uint8_t> vector;
-        {
-            logos::vectorstream stream (vector);
-            logos::serialize_block (stream, *i.second);
-        }
-        auto status (mdb_put (transaction_a, unchecked, logos::mdb_val (i.first), logos::mdb_val (vector.size (), vector.data ()), 0));
-        assert (status == 0);
-    }
-    for (auto i (sequence_cache_l.begin ()), n (sequence_cache_l.end ()); i != n; ++i)
-    {
-        std::vector<uint8_t> vector;
-        {
-            logos::vectorstream stream (vector);
-            i->second->serialize (stream);
-        }
-        auto status1 (mdb_put (transaction_a, vote, logos::mdb_val (i->first), logos::mdb_val (vector.size (), vector.data ()), 0));
-        assert (status1 == 0);
-    }
-}
+// will not fix unless needed
+//void logos::block_store::flush (MDB_txn * transaction_a)
+//{
+//    std::unordered_map<logos::account, std::shared_ptr<logos::vote>> sequence_cache_l;
+//    std::unordered_multimap<logos::block_hash, std::shared_ptr<logos::block>> unchecked_cache_l;
+//    {
+//        std::lock_guard<std::mutex> lock (cache_mutex);
+//        sequence_cache_l.swap (vote_cache);
+//        unchecked_cache_l.swap (unchecked_cache);
+//    }
+//    for (auto & i : unchecked_cache_l)
+//    {
+//        std::vector<uint8_t> vector;
+//        {
+//            logos::vectorstream stream (vector);
+//            logos::serialize_block (stream, *i.second);
+//        }
+//        auto status (mdb_put (transaction_a, unchecked, logos::mdb_val (i.first), logos::mdb_val (vector.size (), vector.data ()), 0));
+//        assert (status == 0);
+//    }
+//    for (auto i (sequence_cache_l.begin ()), n (sequence_cache_l.end ()); i != n; ++i)
+//    {
+//        std::vector<uint8_t> vector;
+//        {
+//            logos::vectorstream stream (vector);
+//            i->second->serialize (stream);
+//        }
+//        auto status1 (mdb_put (transaction_a, vote, logos::mdb_val (i->first), logos::mdb_val (vector.size (), vector.data ()), 0));
+//        assert (status1 == 0);
+//    }
+//}
 std::shared_ptr<logos::vote> logos::block_store::vote_current (MDB_txn * transaction_a, logos::account const & account_a)
 {
     assert (!cache_mutex.try_lock ());
@@ -1152,13 +1368,13 @@ std::shared_ptr<logos::vote> logos::block_store::vote_max (MDB_txn * transaction
 
 logos::store_iterator logos::block_store::latest_begin (MDB_txn * transaction_a, logos::account const & account_a)
 {
-    logos::store_iterator result (transaction_a, accounts, logos::mdb_val (account_a));
+    logos::store_iterator result (transaction_a, account_db, logos::mdb_val (account_a));
     return result;
 }
 
 logos::store_iterator logos::block_store::latest_begin (MDB_txn * transaction_a)
 {
-    logos::store_iterator result (transaction_a, accounts);
+    logos::store_iterator result (transaction_a, account_db);
     return result;
 }
 

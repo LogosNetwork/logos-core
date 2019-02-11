@@ -7,78 +7,160 @@
 #include <logos/lib/merkle.hpp>
 #include <logos/lib/numbers.hpp>
 
+#include <bls/bls.hpp>
+
 static const uint GENESIS_EPOCH = 2;
 
 /// An election result entry, i.e. a delegate with it stake, and the votes
 /// it received
 struct Delegate 
 {
-    logos::account      account;
-    uint64_t            vote;
-    uint64_t            stake;
+    AccountAddress      account;
+    DelegatePubKey      bls_pub;
+    Amount              vote;
+    Amount              stake;
+
+    Delegate()
+    : account()
+    , bls_pub()
+    , vote(0)
+    , stake(0)
+    {}
+
+    Delegate(AccountAddress const & account,
+            DelegatePubKey const & bls_pub,
+            Amount vote,
+            Amount stake)
+    : account(account)
+    , bls_pub(bls_pub)
+    , vote(vote)
+    , stake(stake)
+    {}
+
+    void Hash(blake2b_state & hash) const
+    {
+        account.Hash(hash);
+        bls_pub.Hash(hash);
+        blake2b_update(&hash, vote.bytes.data(), vote.bytes.size());
+        blake2b_update(&hash, stake.bytes.data(), stake.bytes.size());
+    }
+
+    uint32_t Serialize(logos::stream & stream) const
+    {
+        uint32_t s = logos::write(stream, account);
+        s += logos::write(stream, bls_pub);
+        s += logos::write(stream, vote);
+        s += logos::write(stream, stake);
+        return s;
+    }
+
+    Delegate(bool & error, logos::stream & stream)
+    {
+        error = logos::read(stream, account);
+        if(error)
+        {
+            return;
+        }
+
+        error = logos::read(stream, bls_pub);
+        if(error)
+        {
+            return;
+        }
+
+        error = logos::read(stream, vote);
+        if(error)
+        {
+            return;
+        }
+
+        error = logos::read(stream, stake);
+    }
+
+    void SerializeJson(boost::property_tree::ptree & epoch_block) const
+    {
+        epoch_block.put("account", account.to_string());
+        epoch_block.put("bls_pub", bls_pub.to_string());
+        epoch_block.put("vote", vote.to_string());
+        epoch_block.put("stake", stake.to_string());
+    }
 };
 
 /// A epoch block is proposed after the last micro block.
 /// Like micro blocks, epoch block is used for checkpointing and boostrapping.
 /// In addition, it enables delegates transition and facilitates governance.
-struct Epoch : MessageHeader<MessageType::Pre_Prepare, ConsensusType::Epoch>
+struct Epoch : PrePrepareCommon
 {
-    using BlockHash = logos::block_hash;
-    using HashCb    = function<void(const void *data,size_t)>;
+    using Amount                = logos::amount;
+
 public:
     /// Class constructor
     Epoch()
-        : MessageHeader(0)
-        , account(0)
-        , epoch_number(0)
-        , micro_block_tip(0)
-        , transaction_fee_pool(0)
-        , delegates{0}
-        , next(0)
-        , signature{0}
-    {
-        previous = 0;
-    }
+        : PrePrepareCommon()
+        , micro_block_tip()
+        , transaction_fee_pool(0ull)
+        , delegates()
+    {}
+
     ~Epoch() {}
 
-    /// Calculate Proposer's  hash
-    /// @param cb call back to add data to the hash
-    void ProposerHash(HashCb cb) const
+    Epoch(bool & error, logos::stream & stream, bool with_appendix)
+    : PrePrepareCommon(error, stream)
     {
-        cb(previous.bytes.data(), sizeof(previous));
-        //cb(&timestamp, sizeof(timestamp));
-        cb(&epoch_number, sizeof(epoch_number));
-        //cb(_account.bytes.data(), sizeof(_account));
-        cb(micro_block_tip.bytes.data(), sizeof(micro_block_tip));
-        cb(&transaction_fee_pool, sizeof(transaction_fee_pool));
-        cb(delegates, NUM_DELEGATES * sizeof(Delegate));
+        if(error)
+        {
+            return;
+        }
+
+        error = logos::read(stream, micro_block_tip);
+        if(error)
+        {
+            return;
+        }
+
+        error = logos::read(stream, transaction_fee_pool);
+        if(error)
+        {
+            return;
+        }
+
+        for(int i = 0; i < NUM_DELEGATES; ++i)
+        {
+            new (&delegates[i]) Delegate(error, stream);
+            if(error)
+            {
+                return;
+            }
+        }
     }
 
-    /// Calculate epoch's block hash
-    BlockHash Hash() const {
-        return merkle::Hash([&](HashCb cb)mutable->void {
-            ProposerHash(cb);
-        });
-    }
-    /// Calculate epoch's block hash
-    BlockHash hash() const
+    void Hash(blake2b_state & hash) const
     {
-        return merkle::Hash([&](HashCb cb)mutable->void {
-            ProposerHash(cb);
-        });
+        PrePrepareCommon::Hash(hash, true);
+        micro_block_tip.Hash(hash);
+        blake2b_update(&hash, transaction_fee_pool.bytes.data(), transaction_fee_pool.bytes.size());
+        for(int i = 0; i < NUM_DELEGATES; ++i)
+        {
+            delegates[i].Hash(hash);
+        }
     }
 
+    uint32_t Serialize(logos::stream & stream, bool with_appendix) const
+    {
+        auto s = PrePrepareCommon::Serialize(stream);
+        s += logos::write(stream, micro_block_tip);
+        s += logos::write(stream, transaction_fee_pool);
+        for(int i = 0; i < NUM_DELEGATES; ++i)
+        {
+            s += delegates[i].Serialize(stream);
+        }
+        return s;
+    }
     /// JSON representation of Epoch (primarily for RPC messages)
     std::string SerializeJson() const;
     void SerializeJson(boost::property_tree::ptree &) const;
 
-    static const size_t     HASHABLE_BYTES;              ///< hashable bytes of the epoch - used in signing
-    logos::account          account;                     ///< account address of the epoch's proposer
-    uint32_t                epoch_number;                ///< epoch number
-    uint32_t                padding;                     ///< padding
     BlockHash               micro_block_tip;             ///< microblock tip of this epoch
-    uint64_t                transaction_fee_pool;        ///< this epoch's transaction fee pool
+    Amount                  transaction_fee_pool;        ///< this epoch's transaction fee pool
     Delegate                delegates[NUM_DELEGATES];    ///< delegate'ls list
-    BlockHash               next;                        ///< next block's reference
-    Signature               signature;                   ///< signature of hashable bytes
 };

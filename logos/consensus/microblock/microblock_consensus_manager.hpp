@@ -12,7 +12,6 @@ class MicroBlockConsensusManager: public ConsensusManager<ConsensusType::MicroBl
 {
 
 public:
-
     /// Class constructor
     ///
     /// Called by ConsensusContainer.
@@ -20,13 +19,11 @@ public:
     ///     @param[in] store reference to blockstore
     ///     @param[in] log reference to boost asio log
     ///     @param[in] config reference to ConsensusManagerConfig configuration
-    ///     @param[in] key_store delegates public key store
     ///     @param[in] validator validator/signer of consensus messages
     ///     @param[in] events_notifier epoch transition helper
     MicroBlockConsensusManager(Service & service,
                                Store & store,
                                const Config & config,
-                               DelegateKeyStore & key_store,
                                MessageValidator & validator,
                                ArchiverMicroBlockHandler & handler,
                                EpochEventsNotifier & events_notifier);
@@ -50,7 +47,7 @@ protected:
     ///     @param[in] block the micro block to commit to the database
     ///     @param[in] delegate_id delegate id
     void ApplyUpdates(
-        PrePrepare &,
+        const ApprovedMB &,
         uint8_t delegate_id) override;
 
     /// Returns number of stored blocks.
@@ -74,6 +71,8 @@ protected:
     ///     @return reference to MicroBlock
     PrePrepare & PrePrepareGetNext() override;
 
+    PrePrepare & PrePrepareGetCurr() override;
+
     ///< Pops the MicroBlock from the queue
     void PrePreparePopFront() override;
 
@@ -84,20 +83,17 @@ protected:
     /// Primary list contains request with the hash
     /// @param request's hash
     /// @returns true if the request is in the list
-    bool PrimaryContains(const logos::block_hash&) override;
+    bool PrimaryContains(const BlockHash&) override;
 
     /// Queue request in the secondary list
     /// @param request
     void QueueRequestSecondary(std::shared_ptr<Request>) override;
 
-    /// Create specialized instance of ConsensusConnection
+    /// Create specialized instance of BackupDelegate
     ///     @param iochannel NetIOChannel pointer
-    ///     @param primary PrimaryDelegate pointer
-    ///     @param key_store Delegates' public key store
-    ///     @param validator Validator/Signer of consensus messages
     ///     @param ids Delegate's id
-    ///     @return ConsensusConnection
-    std::shared_ptr<ConsensusConnection<ConsensusType::MicroBlock>> MakeConsensusConnection(
+    ///     @return BackupDelegate
+    std::shared_ptr<BackupDelegate<ConsensusType::MicroBlock>> MakeBackupDelegate(
             std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
 
 private:

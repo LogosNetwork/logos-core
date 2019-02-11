@@ -30,8 +30,8 @@ class DelegateIdentityManager
 {
     using Store     = logos::block_store;
     using Config    = ConsensusManagerConfig;
-    using IPs       = std::map<logos::account, std::string>;
-    using Accounts  = logos::account[NUM_DELEGATES];
+    using IPs       = std::map<AccountAddress, std::string>;
+    using Accounts  = AccountAddress[NUM_DELEGATES];
 
 public:
     /// Class constructor
@@ -76,7 +76,7 @@ public:
     /// Get current epoch (i - 2)
     /// @param store block store reference
     /// @param epoch returned epoch
-    static void GetCurrentEpoch(logos::block_store &store, Epoch & epoch);
+    static void GetCurrentEpoch(logos::block_store &store,  ApprovedEB & epoch);
 
     /// @returns true if epoch transition is enabled
     static bool IsEpochTransitionEnabled()
@@ -85,9 +85,10 @@ public:
     }
 
     Store &                 _store;                ///< logos block store reference
-    static logos::account   _delegate_account;     ///< this delegate's account or 0 if non-delegate
+    static AccountAddress   _delegate_account;     ///< this delegate's account or 0 if non-delegate
     static IPs              _delegates_ip;         ///< all delegates ip
     static uint8_t          _global_delegate_idx;  ///< global delegate index in all delegate's list
     Log                     _log;                  ///< boost log instances
     static bool             _epoch_transition_enabled; ///< is epoch transition enabled
+
 };

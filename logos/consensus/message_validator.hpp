@@ -21,21 +21,64 @@ public:
     struct DelegateSignature
     {
         uint8_t   delegate_id;
-        Signature signature;
+        DelegateSig signature;
     };
 
-    MessageValidator(DelegateKeyStore & key_store);
+    MessageValidator(DelegateKeyStore & key_store, KeyPair &key_pair);
 
-    // Aggregate sign
-    template<typename MSG>
-    bool Sign(MSG & message, const std::vector<DelegateSignature> & signatures)
+    //single
+    void Sign(const BlockHash & hash, DelegateSig & sig)
+    {
+        string hash_str(reinterpret_cast<const char*>(hash.data()), HASH_SIZE);
+
+        SignatureReal sig_real;
+        _keypair.prv.sign(sig_real, hash_str);
+
+        string sig_str;
+        sig_real.serialize(sig_str);
+        memcpy(&sig, sig_str.data(), CONSENSUS_SIG_SIZE);
+    }
+    //single
+    bool Validate(const BlockHash & hash, const DelegateSig & sig, uint8_t delegate_id)
+    {
+        //hash
+        string hash_str(reinterpret_cast<const char*>(hash.data()), HASH_SIZE);
+
+        //deserialize sig
+        SignatureReal sig_real;
+        string sig_str(reinterpret_cast<const char*>(&sig), CONSENSUS_SIG_SIZE);
+
+        try
+        {
+            sig_real.deserialize(sig_str);
+        }
+        catch (const bls::Exception &)
+        {
+            LOG_ERROR(_log) << "MessageValidator - Failed to deserialize signature.";
+            return false;
+        }
+
+        //verify
+        return sig_real.verify(_keys.GetPublicKey(delegate_id), hash_str);
+    }
+    //aggregate
+    bool AggregateSignature(const std::vector<DelegateSignature> & signatures, AggSignature & agg_sig)
     {
         PublicKeyVec keyvec;
         SignatureVec sigvec;
 
+        std::set<uint8_t> participants;
+
         for(auto & sig : signatures)
         {
-            message.participation_map[sig.delegate_id] = true;
+            auto did = sig.delegate_id;
+            if(participants.find(did) != participants.end())
+            {
+                LOG_WARN(_log) << "MessageValidator - duplicate single sig from "<<(uint)did;
+                continue;
+            }
+            participants.insert(did);
+            agg_sig.map[did] = true;
 
             SignatureReal sigReal;
             string sig_str(reinterpret_cast<const char*>(&sig.signature), CONSENSUS_SIG_SIZE);
@@ -59,47 +102,26 @@ public:
 
         string asig_str;
         asig.serialize(asig_str);
-        memcpy(&message.signature, asig_str.data(), CONSENSUS_SIG_SIZE);
+        memcpy(&agg_sig.sig, asig_str.data(), CONSENSUS_SIG_SIZE);
         return true;
     }
 
-    // Single sign
-    template<typename MSG>
-    void Sign(MSG & message)
+    //aggregate
+    bool Validate(const BlockHash & hash, const AggSignature & sig)
     {
-        string msg(reinterpret_cast<const char*>(&message), MSG::HASHABLE_BYTES);
-
-        SignatureReal sig;
-        _keypair.prv.sign(sig, msg);
-
-        string sig_str;
-        sig.serialize(sig_str);
-        memcpy(&message.signature, sig_str.data(), CONSENSUS_SIG_SIZE);
-    }
-
-    // Aggregate validation
-    template<MessageType type, MessageType type2, ConsensusType consensus_type>
-    bool Validate(const PostPhaseMessage<type, consensus_type> & message, const StandardPhaseMessage<type2, consensus_type> & reference)
-    {
-        if (message.participation_map.none())
-        {
-            LOG_ERROR (_log) << "MessageValidator - Aggregate validate, empty participation_map";
-            return false;
-        }
-
         //public key agg
-        auto apk = _keys.GetAggregatedPublicKey(message.participation_map);
+        auto apk = _keys.GetAggregatedPublicKey(sig.map);
 
-        //message
-        string msg(reinterpret_cast<const char*>(&reference), StandardPhaseMessage<type2, consensus_type>::HASHABLE_BYTES);
+        //hash
+        string hash_str(reinterpret_cast<const char*>(hash.data()), HASH_SIZE);
 
         //deserialize sig
-        SignatureReal sig;
-        string sig_str(reinterpret_cast<const char*>(&message.signature), CONSENSUS_SIG_SIZE);
+        SignatureReal sig_real;
+        string sig_str(reinterpret_cast<const char*>(&sig.sig), CONSENSUS_SIG_SIZE);
 
         try
         {
-            sig.deserialize(sig_str);
+            sig_real.deserialize(sig_str);
         }
         catch (const bls::Exception &)
         {
@@ -108,46 +130,10 @@ public:
         }
 
         //verify
-        return sig.verify(apk, msg);
+        return sig_real.verify(apk, hash_str);
     }
 
-    // Single validation.
-    //
-    // TODO: Validate PrePrepare messages
-    //
-    template<typename MSG>
-    bool Validate(const MSG & message, uint8_t delegate_id)
-    {
-        //message
-        string msg(reinterpret_cast<const char*>(&message), MSG::HASHABLE_BYTES);
-
-        //deserialize sig
-        SignatureReal sig;
-        string sig_str(reinterpret_cast<const char*>(&message.signature), CONSENSUS_SIG_SIZE);
-
-        try
-        {
-            sig.deserialize(sig_str);
-        }
-        catch (const bls::Exception & e)
-        {
-            LOG_ERROR(_log) << "MessageValidator - Error deserializing signature string: " << e.toString();
-            return false;
-        }
-
-        //verify
-        return sig.verify(_keys.GetPublicKey(delegate_id), msg);
-    }
-
-    // TODO: Stub for validating PostCommits received
-    //       out of synch.
-    template<typename MSG>
-    bool Validate(const MSG & message)
-    {
-        return true;
-    }
-
-    PublicKey GetPublicKey();
+    DelegatePubKey GetPublicKey();
 
 private:
 

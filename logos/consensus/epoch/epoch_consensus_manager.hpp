@@ -11,7 +11,6 @@ class ArchiverEpochHandler;
 class EpochConsensusManager: public ConsensusManager<ConsensusType::Epoch>
 {
 public:
-
 	/// Class constructor
 	///
 	/// Called by ConsensusContainer.
@@ -19,15 +18,12 @@ public:
 	///     @param[in] store reference to blockstore
 	///     @param[in] log reference to boost asio log
 	///     @param[in] config reference to ConsensusManagerConfig configuration
-	///     @param[in] key_store delegates public key store
 	///     @param[in] validator validator/signer of consensus messages
 	///     @param[in] events_notifier epoch transition helper
 	EpochConsensusManager(Service & service,
 	                      Store & store,
 					      const Config & config,
-                          DelegateKeyStore & key_store,
                           MessageValidator & validator,
-                          ArchiverEpochHandler & handler,
                           EpochEventsNotifier & events_notifier);
 
     ~EpochConsensusManager() = default;
@@ -47,8 +43,7 @@ protected:
 	/// Commits the block to the database.
 	///     @param[in] block the epoch block to commit to the database
 	///     @param[in] delegate_id delegate id
-	void ApplyUpdates(
-		PrePrepare &,
+	void ApplyUpdates(const ApprovedEB &,
 		uint8_t delegate_id) override;
 
 	/// Returns number of stored blocks.
@@ -72,6 +67,8 @@ protected:
 	///		@return reference to epoch block
     PrePrepare & PrePrepareGetNext() override;
 
+    PrePrepare & PrePrepareGetCurr() override;
+
     /// Pops the Epoch from the queue
     void PrePreparePopFront() override;
 
@@ -82,18 +79,15 @@ protected:
     /// Primary list contains request with the hash
     /// @param request's hash
     /// @returns true if the request is in the list
-    bool PrimaryContains(const logos::block_hash&) override;
+    bool PrimaryContains(const BlockHash&) override;
 
 	void QueueRequestSecondary(std::shared_ptr<Request> request) override;
 
-	/// Create specialized instance of ConsensusConnection
+	/// Create specialized instance of BackupDelegate
 	///     @param iochannel NetIOChannel pointer
-	///     @param primary PrimaryDelegate pointer
-	///     @param key_store Delegates' public key store
-	///     @param validator Validator/Signer of consensus messages
 	///     @param ids Delegate's id
-	///     @return ConsensusConnection
-	std::shared_ptr<ConsensusConnection<ConsensusType::Epoch>> MakeConsensusConnection(
+	///     @return BackupDelegate
+	std::shared_ptr<BackupDelegate<ConsensusType::Epoch>> MakeBackupDelegate(
 			std::shared_ptr<IOChannel> iochannel, const DelegateIdentities& ids) override;
 
 	/// Request's primary delegate, 0 (delegate with most voting power) for Micro/Epoch Block
@@ -103,6 +97,5 @@ protected:
 
 private:
     std::shared_ptr<PrePrepare>  _cur_epoch; 	///< Currently handled epoch
-    ArchiverEpochHandler &       _epoch_handler;///< Epoch handler
 	bool 						 _enqueued;   	///< Request is enqueued
 };

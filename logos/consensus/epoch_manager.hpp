@@ -13,7 +13,9 @@ class Archiver;
 class NewEpochEventHandler;
 namespace logos { class alarm; };
 
-class EpochInfo {
+class EpochInfo
+{
+
 public:
     EpochInfo() = default;
     virtual ~EpochInfo() = default;
@@ -25,7 +27,9 @@ public:
     virtual bool IsWaitingDisconnect() = 0;
 };
 
-class EpochEventsNotifier {
+class EpochEventsNotifier
+{
+
 public:
     EpochEventsNotifier() = default;
     virtual ~EpochEventsNotifier() = default;
@@ -51,18 +55,20 @@ class EpochManager : public EpochInfo,
     using Alarm      = logos::alarm;
 
 public:
+
     EpochManager(Service & service,
-                     Store & store,
-                     Alarm & alarm,
-                     const Config & config,
-                     Archiver & archiver,
-                     PeerAcceptorStarter & starter,
-                     std::atomic<EpochTransitionState> & state,
-                     EpochTransitionDelegate delegate,
-                     EpochConnection connection,
-                     const uint32_t epoch_number,
-                     NewEpochEventHandler & event_handler);
-    ~EpochManager() {}
+                 Store & store,
+                 Alarm & alarm,
+                 const Config & config,
+                 Archiver & archiver,
+                 PeerAcceptorStarter & starter,
+                 std::atomic<EpochTransitionState> & state,
+                 EpochTransitionDelegate delegate,
+                 EpochConnection connection,
+                 const uint32_t epoch_number,
+                 NewEpochEventHandler & event_handler);
+
+    ~EpochManager();
 
     uint32_t GetEpochNumber() override { return _epoch_number; }
 
@@ -86,7 +92,18 @@ public:
 
     bool IsRecall() override;
 
+    void CleanUp();
+
 private:
+
+    /// Update secondary request handler promoter during epoch transition
+    void UpdateRequestPromoter()
+    {
+        _batch_manager.UpdateRequestPromoter();
+        _micro_manager.UpdateRequestPromoter();
+        _epoch_manager.UpdateRequestPromoter();
+    }
+
     std::atomic<EpochTransitionState> &     _state;             ///< State of transition
     std::atomic<EpochTransitionDelegate>    _delegate;          ///< Type of transition delegate
     std::atomic<EpochConnection>            _connection_state;  ///< Delegate's connection set
@@ -98,13 +115,5 @@ private:
     MicroBlockConsensusManager	            _micro_manager; 	///< Handles micro block consensus
     EpochConsensusManager	                _epoch_manager; 	///< Handles epoch consensus
     ConsensusNetIOManager                   _netio_manager; 	///< Establishes connections to other delegates
-    Log                                     _log;               ///< Boost log reference
-
-    /// Update secondary request handler promoter during epoch transition
-    void UpdateRequestPromoter()
-    {
-        _batch_manager.UpdateRequestPromoter();
-        _micro_manager.UpdateRequestPromoter();
-        _epoch_manager.UpdateRequestPromoter();
-    }
+    Log                                     _log;               ///< Boost log
 };

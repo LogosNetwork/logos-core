@@ -15,7 +15,7 @@ class DelegateKeyStore
 
 public:
 
-    bool OnPublicKey(uint8_t delegate_id, const PublicKey & key);
+    bool OnPublicKey(uint8_t delegate_id, const DelegatePubKey & key);
 
     PublicKeyReal GetPublicKey(uint8_t delegate_id);
     PublicKeyReal GetAggregatedPublicKey(const ParicipationMap &pmap);

@@ -4,16 +4,16 @@
 #include <logos/consensus/epoch_manager.hpp>
 
 NetIOAssembler::NetIOAssembler(std::shared_ptr<Socket> socket,
-                               const std::atomic_bool & connected,
-                               EpochInfo & epoch_info)
+                               EpochInfo & epoch_info,
+                               IOChannelReconnect & netio)
     : _socket(socket)
-    , _connected(connected)
     , _epoch_info(epoch_info)
+    , _netio(netio)
 {}
 
 void NetIOAssembler::ReadPrequel(ReadCallback callback)
 {
-    ReadBytes(callback, sizeof(Prequel));
+    ReadBytes(callback, MessagePrequelSize);
 }
 
 void NetIOAssembler::ReadBytes(ReadCallback callback, size_t bytes)
@@ -30,6 +30,7 @@ void NetIOAssembler::ReadBytes(ReadCallback callback, size_t bytes, bool read_in
                     << ") 'bytes' size (" << bytes << "), processing callback" ;
     if(_buffer_size >= bytes)
     {
+        _netio.UpdateTimestamp();
         LOG_DEBUG(_log) << "NetIOAssembler::ReadBytes - processing callback" ;
         ProcessCallback();
     }
@@ -64,13 +65,14 @@ void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size
     if(error)
     {
         // cancelled at the end of epoch transition
-        if (_connected && !_epoch_info.IsWaitingDisconnect())
+        if (_netio.Connected() && !_epoch_info.IsWaitingDisconnect())
         {
             LOG_ERROR(_log) << "NetIOAssembler - Error receiving message: "
                             << error.message() << " global " << (int)DelegateIdentityManager::_global_delegate_idx
                             << " connection " << _epoch_info.GetConnectionName()
                             << " delegate " << _epoch_info.GetDelegateName()
                             << " state " << _epoch_info.GetStateName();
+            _netio.OnNetIOError(error);
         }
         return;
     }

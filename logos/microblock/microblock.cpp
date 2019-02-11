@@ -3,24 +3,6 @@
 /// in the Microblock processing
 #include <logos/microblock/microblock.hpp>
 
-const size_t MicroBlock::HASHABLE_BYTES = sizeof(MicroBlock)
-                                            - sizeof(BlockHash)
-                                            - sizeof(Signature);
-
-BlockHash
-MicroBlock::Hash() const {
-    return merkle::Hash([&](std::function<void(const void *data, size_t)> cb)mutable -> void {
-        //cb(&timestamp, sizeof(timestamp));
-        cb(previous.bytes.data(), sizeof(previous));
-        //cb(&_delegate, sizeof(account));
-        cb(&epoch_number, sizeof(epoch_number));
-        cb(&sequence, sizeof(sequence));
-        cb(&last_micro_block, sizeof(last_micro_block));
-        cb(&number_batch_blocks, sizeof(number_batch_blocks));
-        cb(tips, NUM_DELEGATES * sizeof(BlockHash));
-    });
-}
-
 std::string MicroBlock::SerializeJson() const
 {
     boost::property_tree::ptree micro_block;
@@ -32,13 +14,10 @@ std::string MicroBlock::SerializeJson() const
 
 void MicroBlock::SerializeJson(boost::property_tree::ptree & micro_block) const
 {
-    micro_block.put("timestamp", std::to_string(timestamp));
-    micro_block.put("previous", previous.to_string());
-    micro_block.put("hash", Hash().to_string());
-    micro_block.put("account", account.to_string());
-    micro_block.put("epoch_number", std::to_string(epoch_number));
-    micro_block.put("sequence", std::to_string(sequence));
+    PrePrepareCommon::SerializeJson(micro_block);
+    micro_block.put("type", "MicroBlock");
     micro_block.put("last_micro_block", std::to_string(last_micro_block));
+
     boost::property_tree::ptree ptree_tips;
     for (const auto & tip : tips) {
         boost::property_tree::ptree tip_member;
@@ -47,8 +26,18 @@ void MicroBlock::SerializeJson(boost::property_tree::ptree & micro_block) const
     }
     micro_block.add_child("tips", ptree_tips);
     micro_block.put("number_batch_blocks", std::to_string(number_batch_blocks));
-    micro_block.put("next", next.to_string());
-    logos::uint256_union signature_tmp; // hacky fix, need to replicate uint256_union functionalities
-    signature_tmp.bytes = signature;
-    micro_block.put("signature", signature_tmp.to_string ());
+}
+
+uint32_t MicroBlock::Serialize(logos::stream & stream, bool with_appendix) const
+{
+    auto s = PrePrepareCommon::Serialize(stream);
+    s += logos::write(stream, last_micro_block);
+    s += logos::write(stream, htole32(number_batch_blocks));
+
+    for(int i = 0; i < NUM_DELEGATES; ++i)
+    {
+        s += logos::write(stream, tips[i]);
+    }
+
+    return s;
 }

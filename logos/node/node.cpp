@@ -8,6 +8,7 @@
 #include <logos/node/client_callback.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/microblock/microblock.hpp>
+#include <logos/consensus/messages/state_block.hpp>
 
 #include <algorithm>
 #include <future>
@@ -1328,42 +1329,6 @@ _consensus_container(service_a, store, alarm_a, config.consensus_manager_config,
             logos::genesis genesis;
             genesis.initialize (transaction, store);
         }
-
-        // check consensus-prototype account_db
-        if(store.account_db_empty())
-        {
-            auto error (false);
-
-            // Construct genesis open block
-            //
-            boost::property_tree::ptree tree;
-            std::stringstream istream(logos::logos_test_genesis);
-            boost::property_tree::read_json(istream, tree);
-            state_block logos_genesis_block(error, tree);
-
-            if(error)
-            {
-                throw std::runtime_error("Failed to initialize Logos genesis block.");
-            }
-
-            store.receive_put(logos_genesis_block.hash(),
-                              logos_genesis_block,
-                              transaction);
-
-            store.account_put(genesis_account,
-                              {
-                                  /* Head         */ 0,
-                                  /* Receive Head */ 0,
-                                  /* Rep          */ 0,
-                                  /* Open         */ logos_genesis_block.hash(),
-                                  /* Amount       */ std::numeric_limits<logos::uint128_t>::max(),
-                                  /* Time         */ logos::seconds_since_epoch(),
-                                  /* Count        */ 0,
-                                  /* Receive      */ 0
-                              },
-                              transaction);
-            _identity_manager.CreateGenesisAccounts(transaction);
-        }
     }
     if (logos::logos_network ==logos::logos_networks::logos_live_network)
     {
@@ -1754,21 +1719,6 @@ void logos::node::ongoing_bootstrap ()
     });
 }
 
-void logos::node::ongoing_store_flush ()
-{
-    {
-        logos::transaction transaction (store.environment, nullptr, true);
-        store.flush (transaction);
-    }
-    std::weak_ptr<logos::node> node_w (shared_from_this ());
-    alarm.add (std::chrono::steady_clock::now () + std::chrono::seconds (5), [node_w]() {
-        if (auto node_l = node_w.lock ())
-        {
-            node_l->ongoing_store_flush ();
-        }
-    });
-}
-
 void logos::node::backup_wallet ()
 {
     logos::transaction transaction (store.environment, nullptr, false);
@@ -2096,8 +2046,7 @@ void logos::node::add_initial_peers ()
 }
 
 
-
-logos::process_return logos::node::OnSendRequest(std::shared_ptr<logos::state_block> block, bool should_buffer)
+logos::process_return logos::node::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_buffer)
 {
     return _consensus_container.OnSendRequest(block, should_buffer);
 }

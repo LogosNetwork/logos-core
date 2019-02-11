@@ -10,6 +10,8 @@
 
 #include <blake2/blake2.h>
 
+#include <bls/bls.hpp>
+
 namespace boost
 {
 template <>
@@ -96,11 +98,10 @@ std::unique_ptr<logos::block> deserialize_block (MDB_val const &);
 /**
  * Latest information about an account
  */
-class account_info
+struct account_info
 {
-public:
     account_info ();
-    account_info (MDB_val const &);
+    account_info (bool & error, const logos::mdb_val & mdbval);
     account_info (logos::account_info const &) = default;
 
     account_info (logos::block_hash const & head,
@@ -109,16 +110,16 @@ public:
                   logos::block_hash const & open_block,
                   logos::amount const & balance,
                   uint64_t modified,
-                  uint64_t block_count,
-                  uint64_t receive_count);
+                  uint32_t block_count,
+                  uint32_t receive_count);
 
-    void serialize (logos::stream &) const;
+    uint32_t serialize (logos::stream &) const;
     bool deserialize (logos::stream &);
     bool operator== (logos::account_info const &) const;
     bool operator!= (logos::account_info const &) const;
-    logos::mdb_val val () const;
-    logos::block_hash reservation;
-    uint64_t reservation_epoch;
+    //logos::mdb_val val () const;
+    logos::mdb_val to_mdb_val(std::vector<uint8_t> &buf) const;
+
     logos::block_hash head;
     logos::block_hash receive_head;
     logos::block_hash rep_block;
@@ -126,8 +127,30 @@ public:
     logos::amount balance;
     /** Seconds since posix epoch */
     uint64_t modified;
-    uint64_t block_count;
-    uint64_t receive_count;
+    uint32_t block_count; //sequence number
+    uint32_t receive_count;
+};
+
+/**
+ * Latest information about an account reservation, if any exists
+ */
+struct reservation_info
+{
+    reservation_info ();
+    reservation_info (bool & error, const logos::mdb_val & mdbval);
+    reservation_info (logos::reservation_info const &) = default;
+
+    reservation_info (logos::block_hash const & reservation,
+                      uint32_t const & reservation_epoch);
+
+    uint32_t serialize (logos::stream &) const;
+    bool deserialize (logos::stream &);
+    bool operator== (logos::reservation_info const &) const;
+    bool operator!= (logos::reservation_info const &) const;
+    logos::mdb_val to_mdb_val(std::vector<uint8_t> &buf) const;
+
+    logos::block_hash   reservation;        /// the transaction hash for which the account was reserved
+    uint32_t            reservation_epoch;  /// epoch in which account was reserved
 };
 
 /**
@@ -237,7 +260,12 @@ enum class process_result
     initializing,           // Logos - The delegate is initializing and not accepting transactions.
     insufficient_fee,       // Logos - Transaction fee is insufficient.
     insufficient_balance,   // Logos - Balance is insufficient.
-    not_delegate           // Logos - A non-delegate node rejects transaction request
+    not_delegate,           // Logos - A non-delegate node rejects transaction request, or invalid delegate in epoch block
+    clock_drift,            // Logos - timestamp exceeds allowed clock drift
+    wrong_sequence_number,  // Logos - invalid block sequence number
+    invalid_request,        // Logos - batch block contains invalid request
+    invalid_tip,            // Logos - invalid microblock tip
+    invalid_number_blocks   // Logos - invalid number of blocks in microblock
 };
 
 std::string ProcessResultToString(process_result result);
@@ -270,9 +298,10 @@ public:
 };
 struct genesis_delegate
 {
-   logos::keypair   key; ///< EDDSA key for signing Micro/Epoch blocks (TBD, should come from wallet)
-   uint64_t        _vote;
-   uint64_t        _stake;
+   logos::keypair  key; ///< EDDSA key for signing Micro/Epoch blocks (TBD, should come from wallet)
+   bls::KeyPair    bls_key;
+   uint64_t        vote;
+   uint64_t        stake;
 };
 extern logos::keypair const & zero_key;
 extern logos::keypair const & test_genesis_key;

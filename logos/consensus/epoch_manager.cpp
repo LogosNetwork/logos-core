@@ -22,13 +22,10 @@ EpochManager::EpochManager(Service & service,
     , _connection_state(connection)
     , _epoch_number(epoch_number)
     , _new_epoch_handler(handler)
-    , _validator(_key_store)
-    , _batch_manager(service, store,
-                     config, _key_store, _validator, *this)
-    , _micro_manager(service, store,
-                     config, _key_store, _validator, archiver, *this)
-    , _epoch_manager(service, store,
-                     config, _key_store, _validator, archiver, *this)
+    , _validator(_key_store, logos::genesis_delegates[DelegateIdentityManager::_global_delegate_idx].bls_key)
+    , _batch_manager(service, store, config, _validator, *this)
+    , _micro_manager(service, store, config, _validator, archiver, *this)
+    , _epoch_manager(service, store, config, _validator, *this)
     , _netio_manager(
         {
             {ConsensusType::BatchStateBlock, _batch_manager},
@@ -38,6 +35,11 @@ EpochManager::EpochManager(Service & service,
         service, alarm, config,
         _key_store, _validator, starter, *this)
 {}
+
+EpochManager::~EpochManager()
+{
+    LOG_DEBUG(_log) << "EpochManager::~EpochManager";
+}
 
 void
 EpochManager::OnPostCommit(
@@ -68,4 +70,10 @@ bool
 EpochManager::IsRecall()
 {
     return _new_epoch_handler.IsRecall();
+}
+
+void
+EpochManager::CleanUp()
+{
+    _netio_manager.CleanUp();
 }

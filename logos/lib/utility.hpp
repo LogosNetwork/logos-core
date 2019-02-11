@@ -31,4 +31,7 @@ public:
 };
 
 std::string string_to_hex_str(const std::string& input);
+
+std::string byte_vector_to_string(const std::vector<uint8_t> & buf);
+
 }

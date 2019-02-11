@@ -1,8 +1,9 @@
 #include <logos/consensus/consensus_manager.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 
-#include <boost/log/core.hpp>
 #include <boost/log/sources/severity_feature.hpp>
+#include <boost/log/core.hpp>
 
 template<ConsensusType CT>
 constexpr uint8_t ConsensusManager<CT>::BATCH_TIMEOUT_DELAY;
@@ -14,25 +15,29 @@ template<ConsensusType CT>
 ConsensusManager<CT>::ConsensusManager(Service & service,
                                        Store & store,
                                        const Config & config,
-                                       DelegateKeyStore & key_store,
                                        MessageValidator & validator,
                                        EpochEventsNotifier & events_notifier)
     : PrimaryDelegate(service, validator)
     , _store(store)
-    , _key_store(key_store)
     , _validator(validator)
-    , _delegate_id(config.delegate_id)
     , _secondary_handler(SecondaryRequestHandlerInstance(service, this))
     , _events_notifier(events_notifier)
-{}
+    , _reservations(std::make_shared<Reservations>(store))
+    , _persistence_manager(store, _reservations)
+{
+    _delegate_id = config.delegate_id;
+
+    DelegateIdentityManager::GetCurrentEpoch(_store, _current_epoch);
+    OnCurrentEpochSet();
+}
 
 template<ConsensusType CT>
 void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
                                          logos::process_return & result)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    // SYL Integration fix: got rid of unnecessary lock here in favor of more granular locking
 
-    auto hash = block->hash();
+    auto hash = block->Hash();
 
     LOG_INFO (_log) << "ConsensusManager<" << ConsensusToName(CT)
                     << ">::OnSendRequest() - hash: "
@@ -71,6 +76,9 @@ void ConsensusManager<CT>::OnRequestQueued()
 {
     if(ReadyForConsensus())
     {
+        // SYL integration fix: InitiateConsensus should only be called
+        // when no consensus session is currently going on
+        _ongoing = true;
         InitiateConsensus();
     }
 }
@@ -79,8 +87,6 @@ template<ConsensusType CT>
 void ConsensusManager<CT>::OnRequestReady(
     std::shared_ptr<Request> block)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-
     QueueRequestPrimary(block);
     OnRequestQueued();
 }
@@ -113,9 +119,11 @@ void ConsensusManager<CT>::Send(const void * data, size_t size)
 template<ConsensusType CT>
 void ConsensusManager<CT>::OnConsensusReached()
 {
-    auto pre_prepare (PrePrepareGetNext());
-    ApplyUpdates(pre_prepare, _delegate_id);
-    BlocksCallback::Callback<CT>(pre_prepare);  // TODO: would rather use a shared pointer to avoid copying the whole BlockList for BSB
+    auto & pre_prepare (PrePrepareGetCurr());
+    ApprovedBlock block(pre_prepare, _post_prepare_sig, _post_commit_sig);
+
+    ApplyUpdates(block, _delegate_id);
+    BlocksCallback::Callback<CT>(block);  // TODO: would rather use a shared pointer to avoid copying the whole BlockList for BSB
 
     // Helpful for benchmarking
     //
@@ -130,43 +138,52 @@ void ConsensusManager<CT>::OnConsensusReached()
                         << " blocks.";
     }
 
-    _prev_hash = _cur_hash;
+    _prev_pre_prepare_hash = _pre_prepare_hash;
 
     PrePreparePopFront();
 
-    if(!PrePrepareQueueEmpty())
-    {
-        InitiateConsensus();
-    }
+    // SYL Integration: finally set ongoing consensus indicator to false to allow next round of consensus to being
+    _ongoing = false;
+
+    // Don't need to lock _state_mutex here because there should only be
+    // one call to OnConsensusReached per consensus round
+    OnRequestQueued();
 }
 
 template<ConsensusType CT>
 void ConsensusManager<CT>::InitiateConsensus()
 {
     LOG_INFO(_log) << "Initiating "
-                   << ConsensusToName(CT) << " consensus.";
+                   << ConsensusToName(CT)
+                   << " consensus.";
 
     auto & pre_prepare = PrePrepareGetNext();
-    pre_prepare.previous = _prev_hash;
 
+    // SYL Integration: if we don't want to lock _state_mutex here it is important to
+    // call OnConsensusInitiated before AdvanceState (otherwise PrimaryDelegate might
+    // mistakenly process previous consensus messages from backups in this new round,
+    // since ProceedWithMessage checks _state first then _cur_hash).
     OnConsensusInitiated(pre_prepare);
+    AdvanceState(ConsensusState::PRE_PREPARE);
 
-    _state = ConsensusState::PRE_PREPARE;
-
-    _validator.Sign(pre_prepare);
+    pre_prepare.preprepare_sig = _pre_prepare_sig;
     LOG_DEBUG(_log) << "JSON representation: " << pre_prepare.SerializeJson();
-    Send(&pre_prepare, sizeof(PrePrepare));
+    PrimaryDelegate::Send<PrePrepare>(pre_prepare);
 }
 
 template<ConsensusType CT>
 bool ConsensusManager<CT>::ReadyForConsensus()
 {
-    return StateReadyForConsensus() && !PrePrepareQueueEmpty();
+    if(_ongoing)
+    {
+        return false;
+    }
+    return !PrePrepareQueueEmpty();
 }
 
 template<ConsensusType CT>
 bool
-ConsensusManager<CT>::IsPrePrepared(const logos::block_hash & hash)
+ConsensusManager<CT>::IsPrePrepared(const BlockHash & hash)
 {
     std::lock_guard<std::mutex> lock(_connection_mutex);
 
@@ -190,10 +207,12 @@ ConsensusManager<CT>::QueueRequest(
 
     if(designated_delegate_id == _delegate_id)
     {
+        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueRequest primary";
         QueueRequestPrimary(request);
     }
     else
     {
+        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueRequest secondary";
         QueueRequestSecondary(request);
     }
 }
@@ -209,7 +228,7 @@ ConsensusManager<CT>::QueueRequestSecondary(
 template<ConsensusType CT>
 bool
 ConsensusManager<CT>::SecondaryContains(
-    const logos::block_hash &hash)
+    const BlockHash &hash)
 {
     return _secondary_handler.Contains(hash);
 }
@@ -219,7 +238,7 @@ bool
 ConsensusManager<CT>::IsPendingRequest(
     std::shared_ptr<Request> block)
 {
-    auto hash = block->hash();
+    auto hash = block->Hash();
 
     return (PrimaryContains(hash) ||
             SecondaryContains(hash) ||
@@ -227,11 +246,13 @@ ConsensusManager<CT>::IsPendingRequest(
 }
 
 template<ConsensusType CT>
-std::shared_ptr<PrequelParser>
+std::shared_ptr<MessageParser>
 ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                                     const DelegateIdentities & ids)
 {
-    auto connection = MakeConsensusConnection(iochannel, ids);
+    std::lock_guard<std::mutex> lock(_connection_mutex);
+
+    auto connection = MakeBackupDelegate(iochannel, ids);
     _connections.push_back(connection);
 
     return connection;
@@ -242,6 +263,23 @@ void
 ConsensusManager<CT>::UpdateRequestPromoter()
 {
     _secondary_handler.UpdateRequestPromoter(this);
+}
+
+template<ConsensusType CT>
+void
+ConsensusManager<CT>::OnNetIOError(uint8_t delegate_id)
+{
+    std::lock_guard<std::mutex> lock(_connection_mutex);
+
+    for (auto it = _connections.begin(); it != _connections.end(); ++it)
+    {
+        if ((*it)->IsRemoteDelegate(delegate_id))
+        {
+            (*it)->CleanUp();
+            _connections.erase(it);
+            break;
+        }
+    }
 }
 
 template class ConsensusManager<ConsensusType::BatchStateBlock>;

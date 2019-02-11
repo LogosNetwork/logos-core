@@ -3,6 +3,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/blocks.hpp>
 #include <logos/lib/log.hpp>
+#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
 
 #include <memory>
 #include <list>
@@ -20,12 +21,12 @@ class RequestHandler
 {
     using Requests =
             boost::multi_index_container<
-                logos::state_block,
+                std::shared_ptr<StateBlock>,
                 indexed_by<
                     sequenced<>,
                     hashed_non_unique<
                         const_mem_fun<
-                            logos::block, BlockHash, &logos::block::hash
+                            StateBlock, BlockHash, &StateBlock::GetHash
                         >
                     >
                 >
@@ -33,16 +34,19 @@ class RequestHandler
 
 public:
 
+    using BSBPrePrepare = PrePrepareMessage<ConsensusType::BatchStateBlock>;
+    using Request       = RequestMessage<ConsensusType::BatchStateBlock>;
+    using Manager       = PersistenceManager<ConsensusType::BatchStateBlock>;
+
     RequestHandler();
 
-    void OnRequest(std::shared_ptr<logos::state_block> block);
+    void OnRequest(std::shared_ptr<StateBlock> block);
     void OnPostCommit(const BatchStateBlock & batch);
 
-    BatchStateBlock & PrepareNextBatch();
-    BatchStateBlock & GetCurrentBatch();
-
-    void InsertFront(const std::list<logos::state_block> & blocks);
-    void Acquire(const BatchStateBlock & batch);
+    BSBPrePrepare & PrepareNextBatch(Manager & manager);
+    BSBPrePrepare & GetCurrentBatch();
+    void InsertFront(const std::list<std::shared_ptr<StateBlock>> & blocks);
+    void Acquire(const BSBPrePrepare & batch);
 
     void PopFront();
     bool BatchFull();
@@ -52,7 +56,8 @@ public:
 
 private:
 
+    std::mutex      _mutex;
     Log             _log;
-    BatchStateBlock _current_batch;
+    BSBPrePrepare   _current_batch;
     Requests        _requests;
 };

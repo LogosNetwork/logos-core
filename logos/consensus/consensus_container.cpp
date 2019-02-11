@@ -4,6 +4,7 @@
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
+#include <logos/consensus/messages/state_block.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/epoch/archiver.hpp>
@@ -11,6 +12,7 @@
 #include <logos/lib/trace.hpp>
 
 std::atomic<uint32_t> ConsensusContainer::_cur_epoch_number(0);
+const Seconds ConsensusContainer::GARBAGE_COLLECT = Seconds(60);
 
 ConsensusContainer::ConsensusContainer(Service & service,
                                        Store & store,
@@ -76,7 +78,7 @@ ConsensusContainer::CreateEpochManager(
 
 logos::process_return
 ConsensusContainer::OnSendRequest(
-    std::shared_ptr<logos::state_block> block, 
+    std::shared_ptr<StateBlock> block,
     bool should_buffer)
 {
     logos::process_return result;
@@ -106,6 +108,8 @@ ConsensusContainer::OnSendRequest(
     }
     else
     {
+        LOG_DEBUG(_log) << "ConsensusContainer::OnSendRequest: "
+                << "number_transaction=" << block->trans.size();
         _cur_epoch->_batch_manager.OnSendRequest(
             static_pointer_cast<Request>(block), result);
     }
@@ -132,7 +136,7 @@ ConsensusContainer::BufferComplete(
 
 logos::process_return
 ConsensusContainer::OnSendRequest(
-    std::shared_ptr<MicroBlock> block)
+    std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>> block)
 {
     OptLock lock(_transition_state, _mutex);
     logos::process_return result;
@@ -146,6 +150,7 @@ ConsensusContainer::OnSendRequest(
         return result;
     }
 
+    block->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
     _cur_epoch->_micro_manager.OnSendRequest(
         std::static_pointer_cast<Request>(block), result);;
 
@@ -154,7 +159,7 @@ ConsensusContainer::OnSendRequest(
 
 logos::process_return
 ConsensusContainer::OnSendRequest(
-    std::shared_ptr<Epoch> block)
+    std::shared_ptr<RequestMessage<ConsensusType::Epoch>> block)
 {
     OptLock lock(_transition_state, _mutex);
     logos::process_return result;
@@ -168,6 +173,7 @@ ConsensusContainer::OnSendRequest(
         return result;
     }
 
+    block->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
     _cur_epoch->_epoch_manager.OnSendRequest(
             std::static_pointer_cast<Request>(block), result);;
 
@@ -434,8 +440,23 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
 {
     std::lock_guard<std::mutex>   lock(_mutex);
 
+    LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEnd "
+                   << TransitionDelegateToName(_transition_delegate)
+                   << " " << (int)delegate_idx << " " << (int)DelegateIdentityManager::_global_delegate_idx
+                   << " " << _cur_epoch_number;
+
     _transition_state = EpochTransitionState::None;
 
+    if (_transition_delegate != EpochTransitionDelegate::New)
+    {
+        _trans_epoch->CleanUp();
+    }
+
+    // schedule for destruction
+    auto gb = _trans_epoch;
+    _alarm.add(GARBAGE_COLLECT, [gb]() mutable -> void {
+        gb = nullptr;
+    });
     _trans_epoch = nullptr;
 
     if (_transition_delegate == EpochTransitionDelegate::Retiring)
@@ -448,11 +469,6 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
         _cur_epoch->_delegate = EpochTransitionDelegate::None;
         _cur_epoch->_connection_state = EpochConnection::Current;
     }
-
-    LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEnd "
-                    << TransitionDelegateToName(_transition_delegate)
-                    << " " << (int)delegate_idx << " " << (int)DelegateIdentityManager::_global_delegate_idx
-                    << " " << _cur_epoch_number;
 
     _transition_delegate = EpochTransitionDelegate::None;
 }

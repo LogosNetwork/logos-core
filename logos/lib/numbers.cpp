@@ -132,6 +132,11 @@ logos::uint256_union::uint256_union (logos::uint256_t const & number_a)
     }
 }
 
+logos::uint256_union::uint256_union (std::array<uint8_t, 32> const & a)
+{
+    bytes = a;
+}
+
 bool logos::uint256_union::operator== (logos::uint256_union const & other_a) const
 {
     return bytes == other_a.bytes;

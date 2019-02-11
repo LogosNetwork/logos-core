@@ -11,11 +11,13 @@
 #include <boost/asio/io_service.hpp>
 
 #include <functional>
+#include <atomic>
 #include <map>
 
-class PrequelParser;
+class MessageParser;
 class MessageValidator;
 class EpochInfo;
+class NetIOErrorHandler;
 
 namespace logos
 {
@@ -35,7 +37,7 @@ public:
 
     IOChannel() = default;
 
-    virtual ~IOChannel() {}
+    virtual ~IOChannel() = default;
 
     /// Send data.
     ///
@@ -56,6 +58,19 @@ public:
     virtual void ReadPrequel() = 0;
 };
 
+class IOChannelReconnect
+{
+protected:
+    using ErrorCode     = boost::system::error_code;
+public:
+    IOChannelReconnect() = default;
+    ~IOChannelReconnect() = default;
+    virtual void OnNetIOError(const ErrorCode &ec, bool reconnect = true) = 0;
+    virtual void UpdateTimestamp() = 0;
+    virtual bool Connected() = 0;
+
+};
+
 /// ConsensusNetIO represent connection to a peer.
 ///
 /// Network connection to a peer. There is one connection per peer.
@@ -64,6 +79,7 @@ public:
 /// the server. The type of connection is based on the delegates'
 /// id ordering.
 class ConsensusNetIO: public IOChannel,
+                      public IOChannelReconnect,
                       public std::enable_shared_from_this<ConsensusNetIO>
 {
 
@@ -71,10 +87,8 @@ class ConsensusNetIO: public IOChannel,
     using Endpoint      = boost::asio::ip::tcp::endpoint;
     using Socket        = boost::asio::ip::tcp::socket;
     using Address       = boost::asio::ip::address;
-    using ErrorCode     = boost::system::error_code;
     using IOBinder      = function<void(std::shared_ptr<ConsensusNetIO>, uint8_t)>;
-    using ReceiveBuffer = std::array<uint8_t, sizeof(KeyAdvertisement)>;
-    using Connections   = std::shared_ptr<PrequelParser> [CONSENSUS_TYPE_COUNT];
+    using Connections   = std::shared_ptr<MessageParser> [CONSENSUS_TYPE_COUNT];
     using QueuedWrites  = std::list<std::shared_ptr<std::vector<uint8_t>>>;
 
 public:
@@ -93,6 +107,7 @@ public:
     ///     @param local_ip local ip of this node's delegate
     ///     @param connection_mutex mutex to protect consensus connections
     ///     @param epoch_info epoch transition info
+    ///     @param error_handler socket error handler
     ConsensusNetIO(Service & service,
                    const Endpoint & endpoint,
                    logos::alarm & alarm,
@@ -102,7 +117,8 @@ public:
                    MessageValidator & validator,
                    IOBinder binder,
                    std::recursive_mutex & connection_mutex,
-                   EpochInfo & epoch_info);
+                   EpochInfo & epoch_info,
+                   NetIOErrorHandler & error_handler);
 
     /// Class constructor.
     ///
@@ -117,6 +133,7 @@ public:
     ///     @param binder callback for binding netio interface to a consensus manager
     ///     @param connection_mutex mutex to protect consensus connections
     ///     @param epoch_info epoch transition info
+    ///     @param error_handler socket error handler
     ConsensusNetIO(std::shared_ptr<Socket> socket,
                    const Endpoint endpoint,
                    logos::alarm & alarm,
@@ -126,9 +143,15 @@ public:
                    MessageValidator & validator,
                    IOBinder binder,
                    std::recursive_mutex & connection_mutex,
-                   EpochInfo & epoch_info);
+                   EpochInfo & epoch_info,
+                   NetIOErrorHandler & error_handler);
 
-    virtual ~ConsensusNetIO() = default;
+    virtual ~ConsensusNetIO()
+    {
+        LOG_DEBUG(_log) << "~ConsensusNetIO local delegate " << (int)_local_delegate_id
+                        << " remote delegate " << (int)_remote_delegate_id
+                        << " ptr " << (uint64_t)this;
+    }
 
     /// Send data
     ///
@@ -142,16 +165,19 @@ public:
     template<typename TYPE>
     void Send(const TYPE & data)
     {
-        Send(reinterpret_cast<const void *>(&data), sizeof(data));
+        std::vector<uint8_t> buf;
+        data.Serialize(buf);
+        Send(buf.data(), buf.size());
+        //Send(reinterpret_cast<const void *>(&data), sizeof(data));
     }
     
     /// Adds ConsensusConnection of ConsensusType to netio callbacks.
     ///
     /// Adds specific consensus type to be serviced by this netio channel.
     ///     @param t consensus type
-    ///     @param consensus_connection specific consensus connection
+    ///     @param connection specific DelegateBridge
     void AddConsensusConnection(ConsensusType t,
-                                std::shared_ptr<PrequelParser> connection);
+                                std::shared_ptr<MessageParser> connection);
 
     /// Read prequel header, dispatch the message
     /// to respective consensus type.
@@ -167,6 +193,61 @@ public:
 
 
     void Close();
+
+    /// Checks if delegate id is remote delegate id
+    /// @param delegate_id delegate id
+    /// @returns true if delegate id is remote delegate id
+    bool IsRemoteDelegate(uint8_t delegate_id)
+    {
+        return _remote_delegate_id == delegate_id;
+    }
+
+    /// @return remote delegate id
+    uint8_t GetRemoteDelegateId()
+    {
+        return _remote_delegate_id;
+    }
+
+    /// @return delegate's endpoint
+    Endpoint & GetEndpoint()
+    {
+        return _endpoint;
+    }
+
+    /// @return true if connected
+    bool Connected() override
+    {
+        return _connected;
+    }
+
+    /// @param ec error code
+    /// @return true if error was already handled
+    void OnNetIOError(const ErrorCode &ec, bool reconnect = true) override;
+
+    /// Update timestamp of the last received message
+    void UpdateTimestamp() override
+    {
+        _last_timestamp = GetStamp();
+    }
+
+    /// Get timestamp of the last received message
+    /// @return timestamp
+    uint64_t GetTimestamp()
+    {
+        return _last_timestamp;
+    }
+
+    /// Must be called right before destruction but
+    /// not in the destructor
+    void UnbindIOChannel()
+    {
+        for (uint8_t i = 0; i < CONSENSUS_TYPE_COUNT; ++i)
+        {
+            _connections[i].reset();
+        }
+    }
+
+    static constexpr uint8_t CONNECT_RETRY_DELAY = 5;     ///< Reconnect delay in seconds.
 
 private:
 
@@ -189,7 +270,13 @@ private:
     /// Call back for async read
     ///
     ///     @param data data received
-    void OnData(const uint8_t * data);
+    void OnData(const uint8_t * data,
+            uint8_t version,
+            MessageType message_type,
+            ConsensusType consensus_type,
+            uint32_t payload_size);
+
+    void OnPrequel(const uint8_t * data);
 
     /// Send public key to the connected peer.
     void SendKeyAdvertisement();
@@ -197,19 +284,22 @@ private:
     /// Public key callback.
     ///
     ///     @param data received data
-    void OnPublicKey(const uint8_t * data);
+    void OnPublicKey(KeyAdvertisement & key_adv);
 
     /// async_write callback
     /// @param error error code
     /// @param size size of written data
     void OnWrite(const ErrorCode & error, size_t size);
 
-    static constexpr uint8_t CONNECT_RETRY_DELAY = 5;     ///< Reconnect delay in seconds.
+    /// Handle heartbeat message
+    /// @param prequel data
+    void OnHeartBeat(HeartBeat &hb);
+
+    void HandleMessageError(const char * operation);
 
     std::shared_ptr<Socket>        _socket;               ///< Connected socket
     std::atomic_bool               _connected;            ///< is the socket is connected?
-    ReceiveBuffer                  _receive_buffer;       ///< receive buffer
-	QueuedWrites                   _queued_writes;        ///< data waiting to get sent on the network
+    QueuedWrites                   _queued_writes;        ///< data waiting to get sent on the network
     Log                            _log;                  ///< boost asio log
     Endpoint                       _endpoint;             ///< remote peer endpoint
     logos::alarm &                 _alarm;                ///< alarm reference
@@ -225,4 +315,8 @@ private:
 	uint64_t                       _queue_reservation = 0;///< How many queued entries are being sent?
     bool                           _sending = false;      ///< is an async write in progress?
     EpochInfo &                    _epoch_info;           ///< Epoch transition info
+    NetIOErrorHandler &            _error_handler;        ///< Pass socket error to ConsensusNetIOManager
+    std::recursive_mutex           _error_mutex;          ///< Error handling mutex
+    bool                           _error_handled;        ///< Socket error handled, prevent continous error loop
+    std::atomic<uint64_t>          _last_timestamp;       ///< Last message timestamp
 };

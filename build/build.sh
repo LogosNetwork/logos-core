@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage {
-    echo "usage: ./build.sh [-t type_name] [-n network_name] [-c num_cpus] [-r --rebuild] [clean]"
+    echo "usage: ./build.sh [-t type_name] [-n network_name] [-s] [-c num_cpus] [--reject] [-r --rebuild] [clean]"
     echo "  -h  | display help"
     echo "  -t, --CMAKE_BUILD_TYPE type_name
       | specify build type, a CMake variable"
@@ -13,7 +13,12 @@ function usage {
     echo "      | defaults to \"logos_test_network\""
     echo "  -c, --cpus num_cpus
       | specify number of (virtual) CPUs to use for compiling c++ executable"
-    echo "      | defaults to 1"
+    echo "      | defaults to max virtual cpu minus one"
+    echo "  -s
+      | require all delegates' approval for transaction validation instead of two thirds for testing purposes"
+    echo "      | defaults to off"
+    echo "  --reject
+      | makes delegate randomly reject transactions inside PrePrepares"
     echo "  -r, --rebuild
       | bypasses all checks and simply call make logos_core"
     echo "  clean
@@ -22,8 +27,8 @@ function usage {
 }
 
 # Parse long arguments (optional) to be later used as CMake variables
-OPTIONS=t:n:c:rh
-LONGOPTS=CMAKE_BUILD_TYPE:,ACTIVE_NETWORK:,cpus:,rebuild,help
+OPTIONS=t:n:c:srh
+LONGOPTS=CMAKE_BUILD_TYPE:,ACTIVE_NETWORK:,cpus:,reject,rebuild,help
 
 # -temporarily store output to be able to check for errors
 # -activate quoting/enhanced mode (e.g. by writing out “--options”)
@@ -58,6 +63,14 @@ while true; do
         -c|--cpus)
             numCPUs="$2"
             shift 2
+            ;;
+        -s)
+            threshold_flag=" -DSTRICT_CONSENSUS_THRESHOLD:BOOL="ON""
+            shift
+            ;;
+        --reject)
+            reject_flag=" -DTEST_REJECT:BOOL="ON""
+            shift
             ;;
         -r|--rebuild)
             rebuild=true
@@ -244,8 +257,9 @@ echo "Building Logos..."
 cd ${BUILD_DIR}
 
 git submodule update --init --recursive
-cmake -DBOOST_ROOT="$BOOST_ROOT" -DACTIVE_NETWORK="$activeNetwork" -DCMAKE_BUILD_TYPE="$cmakeBuildType" -std=c++11 \
-    -G "Unix Makefiles" ..\
+cmake -DBOOST_ROOT="$BOOST_ROOT" -DACTIVE_NETWORK="$activeNetwork" \
+    -DCMAKE_BUILD_TYPE="$cmakeBuildType" ${threshold_flag}${reject_flag} \
+    -std=c++11 -G "Unix Makefiles" ..\
     && make logos_core -j"$numCPUs"
 
 if [[ $? > 0 ]]

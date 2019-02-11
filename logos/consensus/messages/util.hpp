@@ -34,6 +34,9 @@ inline std::string MessageToName(const MessageType & type)
         case MessageType::Unknown:
             ret = "Unknown";
             break;
+        case MessageType::Heart_Beat:
+            ret = "Heart Beat";
+            break;
         default:
             ret = "Undefined";
     }
@@ -84,41 +87,6 @@ inline size_t ConsensusTypeToIndex(ConsensusType type)
     return index;
 }
 
-template<ConsensusType CT>
-inline size_t MessageTypeToSize(MessageType type)
-{
-    size_t ret = 0;
-
-    switch (type)
-    {
-        case MessageType::Pre_Prepare:
-            ret =  sizeof(PrePrepareMessage<CT>);
-            break;
-        case MessageType::Prepare:
-            ret = sizeof(PrepareMessage<CT>);
-            break;
-        case MessageType::Post_Prepare:
-            ret = sizeof(PostPrepareMessage<CT>);
-            break;
-        case MessageType::Commit:
-            ret = sizeof(CommitMessage<CT>);
-            break;
-        case MessageType::Post_Commit:
-            ret = sizeof(PostCommitMessage<CT>);
-            break;
-        case MessageType::Key_Advert:
-            ret = sizeof(KeyAdvertisement);
-            break;
-        case MessageType::Rejection:
-            ret = sizeof(RejectionMessage<CT>);
-            break;
-        case MessageType::Unknown:
-            break;
-    }
-
-    return ret;
-}
-
 inline std::string RejectionReasonToName(RejectionReason reason)
 {
     switch (reason)
@@ -139,5 +107,27 @@ inline std::string RejectionReasonToName(RejectionReason reason)
             return "Wrong Sequence Number";
         case RejectionReason::Invalid_Previous_Hash:
             return "Invalid Previous Hash";
+        case RejectionReason::Invalid_Primary_Index:
+            return "Invalid Primary Index";
     }
 }
+
+template<MessageType MT, ConsensusType CT>
+std::ostream& operator<<(std::ostream& os, const MessagePrequel<MT, CT>& m)
+{
+    os << "version: " << int(m.version)
+       << " type: " << MessageToName(m.type)
+       << " consensus_type: " << ConsensusToName(m.consensus_type);
+
+    return os;
+}
+
+template<ConsensusType CT>
+std::ostream& operator<<(std::ostream& os, const RejectionMessage<CT>& m)
+{
+    os << static_cast<MessagePrequel<MessageType::Rejection, CT> &>(m);
+    return os;
+}
+
+
+
