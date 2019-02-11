@@ -291,7 +291,8 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "batch_db", MDB_CREATE, &batch_db) != 0;
         error_a |= mdb_dbi_open (transaction, "state_db", MDB_CREATE, &state_db) != 0;
         error_a |= mdb_dbi_open (transaction, "account_db", MDB_CREATE, &account_db) != 0;
-        error_a |= mdb_dbi_open (transaction, "reservation_db", MDB_CREATE, &reservation_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "logos_reservation_db", MDB_CREATE, &logos_reservation_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "token_reservation_db", MDB_CREATE, &token_reservation_db) != 0;
         error_a |= mdb_dbi_open (transaction, "receive_db", MDB_CREATE, &receive_db) != 0;
         error_a |= mdb_dbi_open (transaction, "request_tips_db", MDB_CREATE, &request_tips_db) != 0;
 
@@ -563,21 +564,54 @@ void logos::block_store::account_put (MDB_txn * transaction_a, logos::account co
     put(account_db, account_a, info_a, transaction_a);
 }
 
-void logos::block_store::reservation_put (AccountAddress const & account_a, logos::reservation_info const & info_a, MDB_txn * transaction_a)
+void logos::block_store::reservation_put (AccountAddress const & account_a,
+                                          logos::reservation_info const & info_a,
+                                          AccountType type,
+                                          MDB_txn * transaction_a)
 {
-    put(reservation_db, account_a, info_a, transaction_a);
+    switch(type)
+    {
+        case AccountType::LogosAccount:
+            put(logos_reservation_db, account_a, info_a, transaction_a);
+            break;
+        case AccountType::TokenAccount:
+            put(token_reservation_db, account_a, info_a, transaction_a);
+            break;
+    }
 }
 
-bool logos::block_store::reservation_get (AccountAddress const & account_a, logos::reservation_info & info_a, MDB_txn * transaction_a)
+bool logos::block_store::reservation_get (AccountAddress const & account_a,
+                                          logos::reservation_info & info_a,
+                                          AccountType type,
+                                          MDB_txn * transaction_a)
 {
-    return get(reservation_db, account_a, info_a, transaction_a);
+    bool result;
+
+    switch(type)
+    {
+        case AccountType::LogosAccount:
+            result = get(logos_reservation_db, account_a, info_a, transaction_a);
+            break;
+        case AccountType::TokenAccount:
+            result = get(token_reservation_db, account_a, info_a, transaction_a);
+            break;
+    }
+
+    return result;
 }
 
-void logos::block_store::reservation_del (AccountAddress const & account_a, MDB_txn * transaction_a)
+void logos::block_store::reservation_del (AccountAddress const & account_a, AccountType type, MDB_txn * transaction_a)
 {
-    return del(reservation_db, account_a, transaction_a);
+    switch(type)
+    {
+        case AccountType::LogosAccount:
+            del(logos_reservation_db, account_a, transaction_a);
+            break;
+        case AccountType::TokenAccount:
+            del(token_reservation_db, account_a, transaction_a);
+            break;
+    }
 }
-
 
 void logos::block_store::pending_put (MDB_txn * transaction_a, logos::pending_key const & key_a, logos::pending_info const & pending_a)
 {
@@ -1211,11 +1245,11 @@ bool logos::block_store::epoch_tip_get(BlockHash & hash, MDB_txn *transaction)
 
 bool logos::block_store::epoch_exists (const ApprovedEB & block)
 {
-    auto exists (true);
+    auto exists(true);
     logos::mdb_val junk;
     transaction transaction_a(environment, nullptr, false);
 
-    auto status (mdb_get (transaction_a, epoch_db, logos::mdb_val (block.Hash()), junk));
+    auto status(mdb_get(transaction_a, epoch_db, logos::mdb_val(block.Hash()), junk));
     assert (status == 0 || status == MDB_NOTFOUND);
     exists = status == 0;
 
@@ -1266,34 +1300,34 @@ bool logos::block_store::epoch_exists (const BlockHash &hash, MDB_txn *transacti
     return (false == epoch_get(hash, eb, transaction));
 }
 
-bool logos::block_store::token_account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, MDB_txn* transaction)
+bool logos::block_store::token_account_get(const BlockHash & token_id, std::shared_ptr<Account> & info, MDB_txn* transaction)
 {
-    LOG_TRACE(log) << __func__ << " key " << account_a.to_string();
+    LOG_TRACE(log) << __func__ << " key " << token_id.to_string();
     mdb_val val;
 
-    if(get(token_account_db, mdb_val(account_a), val, transaction))
+    if(get(token_account_db, mdb_val(token_id), val, transaction))
     {
         return true;
     }
 
     bool error = false;
-    info_a.reset(new TokenAccount(error, val));
+    info.reset(new TokenAccount(error, val));
 
     assert (!error);
     return error;
 }
 
-bool logos::block_store::token_account_get(AccountAddress const & account_a, TokenAccount & info_a, MDB_txn* transaction)
+bool logos::block_store::token_account_get(const BlockHash & token_id, TokenAccount & info, MDB_txn* transaction)
 {
-    LOG_TRACE(log) << __func__ << " key " << account_a.to_string();
+    LOG_TRACE(log) << __func__ << " key " << token_id.to_string();
     mdb_val val;
-    if(get(token_account_db, mdb_val(account_a), val, transaction))
+    if(get(token_account_db, mdb_val(token_id), val, transaction))
     {
         return true;
     }
 
     bool error = false;
-    new (&info_a) TokenAccount(error, val);
+    new (&info) TokenAccount(error, val);
     assert (!error);
     return error;
 }
