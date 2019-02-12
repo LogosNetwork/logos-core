@@ -123,13 +123,7 @@ TxAcceptor::ToRequest(const std::string &block_text)
     boost::property_tree::read_json(block_stream, pblock);
     bool error = false;
 
-    // TODO: Request factory
-    auto block = std::make_shared<::Request>(error, pblock);
-
-    if (error)
-    {
-        block = nullptr;
-    }
+    auto block = DeserializeRequest(error, pblock);
 
     return static_pointer_cast<DM>(block);
 }
@@ -315,8 +309,8 @@ TxAcceptor::AsyncReadBin(std::shared_ptr<Socket> socket)
              while (nblocks > 0)
              {
                  error = false;
-                 // TODO: Request factory
-                 block = static_pointer_cast<DM>(std::make_shared<::Request>(error, stream));
+
+                 block = static_pointer_cast<DM>(DeserializeRequest(error, stream));
 
                  if (error)
                  {

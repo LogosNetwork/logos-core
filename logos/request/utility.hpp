@@ -1,9 +1,16 @@
 #pragma once
 
 #include <logos/request/request.hpp>
+#include <logos/request/change.hpp>
+#include <logos/token/requests.hpp>
+#include <logos/request/send.hpp>
 
 RequestType GetRequestType(bool &error, std::string data);
 std::string GetRequestTypeField(RequestType type);
+
+std::shared_ptr<Request> DeserializeRequest(bool & error, const logos::mdb_val & mdbval);
+std::shared_ptr<Request> DeserializeRequest(bool & error, logos::stream & stream);
+std::shared_ptr<Request> DeserializeRequest(bool & error, boost::property_tree::ptree & tree);
 
 template<typename T>
 uint16_t VectorWireSize(const std::vector<T> & v)
@@ -46,4 +53,77 @@ uint64_t SerializeVector(logos::stream & stream, const std::vector<T> & v)
     }
 
     return written;
+}
+
+template<typename Request>
+RequestType GetRequestType()
+{
+    RequestType result = RequestType::Unknown;
+
+    if(std::is_same<Request, Send>::value)
+    {
+        result = RequestType::Send;
+    }
+    else if(std::is_same<Request, Change>::value)
+    {
+        result = RequestType::ChangeRep;
+    }
+    else if(std::is_same<Request, TokenIssuance>::value)
+    {
+        result = RequestType::IssueTokens;
+    }
+    else if(std::is_same<Request, TokenIssueAdtl>::value)
+    {
+        result = RequestType::IssueAdtlTokens;
+    }
+    else if(std::is_same<Request, TokenChangeSetting>::value)
+    {
+        result = RequestType::ChangeTokenSetting;
+    }
+    else if(std::is_same<Request, TokenImmuteSetting>::value)
+    {
+        result = RequestType::ImmuteTokenSetting;
+    }
+    else if(std::is_same<Request, TokenRevoke>::value)
+    {
+        result = RequestType::RevokeTokens;
+    }
+    else if(std::is_same<Request, TokenFreeze>::value)
+    {
+        result = RequestType::FreezeTokens;
+    }
+    else if(std::is_same<Request, TokenSetFee>::value)
+    {
+        result = RequestType::SetTokenFee;
+    }
+    else if(std::is_same<Request, TokenWhitelist>::value)
+    {
+        result = RequestType::UpdateWhitelist;
+    }
+    else if(std::is_same<Request, TokenIssuerInfo>::value)
+    {
+        result = RequestType::UpdateIssuerInfo;
+    }
+    else if(std::is_same<Request, TokenController>::value)
+    {
+        result = RequestType::UpdateController;
+    }
+    else if(std::is_same<Request, TokenBurn>::value)
+    {
+        result = RequestType::BurnTokens;
+    }
+    else if(std::is_same<Request, TokenAccountSend>::value)
+    {
+        result = RequestType::DistributeTokens;
+    }
+    else if(std::is_same<Request, TokenAccountWithdrawFee>::value)
+    {
+        result = RequestType::WithdrawTokens;
+    }
+    else if(std::is_same<Request, TokenSend>::value)
+    {
+        result = RequestType::SendTokens;
+    }
+
+    return result;
 }

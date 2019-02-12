@@ -121,6 +121,26 @@ uint64_t write (logos::stream & stream_a, const std::bitset<N> & value)
     return write(stream_a, val);
 }
 
+template <typename T>
+bool peek (logos::stream & stream_a, T & value)
+{
+    static_assert (std::is_pod<T>::value, "Can't stream read non-standard layout types");
+    auto amount_read (stream_a.sgetn (reinterpret_cast<uint8_t *> (&value), sizeof (value)));
+    bool failure = amount_read != sizeof (value);
+    if(!failure)
+    {
+        decltype(amount_read) pos = 0;
+        while(pos++ < amount_read)
+        {
+            if((failure = (stream_a.sungetc() == stream::traits_type::eof())))
+            {
+                break;
+            }
+        }
+    }
+    return failure;
+}
+
 bool read (logos::stream & stream_a, uint128_union & value);
 uint64_t write (logos::stream & stream_a, uint128_union const & value);
 bool read (logos::stream & stream_a, uint256_union & value);

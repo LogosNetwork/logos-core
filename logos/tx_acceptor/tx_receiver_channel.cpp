@@ -115,9 +115,9 @@ TxReceiverChannel::AsyncReadMessage(const TxMessageHeader & header)
 
         while (nblocks > 0)
         {
-            // TODO: request factory
-            auto block = std::make_shared<::Request>(error, stream);
-            if (error) {
+            auto block = DeserializeRequest(error, stream);
+            if (error)
+            {
                 LOG_ERROR(_log) << "TxReceiverChannel::AsyncReadMessage deserialize error, payload size "
                                 << payload_size;
                 ReConnect(true);
