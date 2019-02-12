@@ -23,9 +23,6 @@ struct RequestBlock : PrePrepareCommon
     /// @param with_requests if the serialized data have state blocks [in]
     RequestBlock(bool & error, logos::stream & stream, bool with_requests);
 
-    // TODO: Possibly preserve shared_ptr from rpc request
-    //
-
     /// Add a new request
     /// @param request the new request to be added
     /// @returns true if the new request was added.

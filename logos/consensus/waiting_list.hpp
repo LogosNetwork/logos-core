@@ -56,7 +56,7 @@ public:
 
     bool Contains(const BlockHash & hash);
 
-    void OnRequest(std::shared_ptr<DelegateMessage<CT>> block,
+    void OnMessage(std::shared_ptr<DelegateMessage<CT>> block,
                    Seconds seconds = REQUEST_TIMEOUT);
 
     void OnTimeout(const Error & error);
@@ -67,10 +67,10 @@ public:
 
 private:
 
-    void PruneRequest(const BlockHash & hash);
+    void PruneMessage(const BlockHash &hash);
 
     void ScheduleTimer(const Seconds & timeout);
-    void PruneRequests(const PrePrepare & block);
+    void PruneMessages(const PrePrepare & block);
 
     static const Seconds REQUEST_TIMEOUT;
     static const Seconds MIN_TIMEOUT;

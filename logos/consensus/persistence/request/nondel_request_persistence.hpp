@@ -49,7 +49,7 @@ public:
         return PersistenceManager<R>::Validate(message, status);
     }
 
-    bool Validate(std::shared_ptr<const Request> block, logos::process_return &result, bool allow_duplicate=false) override
+    bool ValidateSingleRequest(std::shared_ptr<const Request> block, logos::process_return &result, bool allow_duplicate=false) override
     {
         if(block->origin.is_zero())
         {
@@ -66,7 +66,7 @@ public:
         return PersistenceManager<R>::ValidateSingleRequest(block, result, allow_duplicate);
     }
 
-    bool ValidateSingleRequest(const Request & block)
+    bool ValidateSingleRequest(const std::shared_ptr<Request> block)
     {
        logos::process_return res;
        return ValidateSingleRequest(block, res);

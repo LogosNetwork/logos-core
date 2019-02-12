@@ -126,8 +126,6 @@ public:
     amount     balance;
     uint32_t   block_count;
     uint64_t   modified;      ///< Seconds since posix epoch
-    block_hash reservation;
-    uint32_t   reservation_epoch;
 };
 
 /**
