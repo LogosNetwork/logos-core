@@ -36,6 +36,8 @@ void SecondaryRequestHandler<CT>::OnRequest(std::shared_ptr<RequestMessage<CT>> 
         return;
     }
 
+    LOG_DEBUG(_log) << "SecondaryRequestHandler<" << ConsensusToName(CT) << "> - queued secondary request with hash "
+                    << hash.to_string();
     _requests.insert(Request{hash, block, Clock::universal_time() + seconds});
 
     if(_requests.size() == 1)
@@ -156,7 +158,7 @@ void SecondaryRequestHandler<ConsensusType::BatchStateBlock>::PruneRequests(cons
 {
     for (uint64_t i = 0; i < block.block_count; ++i)
     {
-        BlockHash hash = block.blocks[i].GetHash();
+        BlockHash hash = block.blocks[i]->GetHash();
 
         PruneRequest(hash);
     }

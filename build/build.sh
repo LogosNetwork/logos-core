@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage {
-    echo "usage: ./build.sh [-t type_name] [-n network_name] [-c num_cpus] [-r --rebuild] [clean]"
+    echo "usage: ./build.sh [-t type_name] [-n network_name] [-s] [-c num_cpus] [--reject] [-r --rebuild] [clean]"
     echo "  -h  | display help"
     echo "  -t, --CMAKE_BUILD_TYPE type_name
       | specify build type, a CMake variable"
@@ -13,7 +13,12 @@ function usage {
     echo "      | defaults to \"logos_test_network\""
     echo "  -c, --cpus num_cpus
       | specify number of (virtual) CPUs to use for compiling c++ executable"
-    echo "      | defaults to 1"
+    echo "      | defaults to max virtual cpu minus one"
+    echo "  -s
+      | require all delegates' approval for transaction validation instead of two thirds for testing purposes"
+    echo "      | defaults to off"
+    echo "  --reject
+      | makes delegate randomly reject transactions inside PrePrepares"
     echo "  -r, --rebuild
       | bypasses all checks and simply call make logos_core"
     echo "  clean
@@ -22,8 +27,8 @@ function usage {
 }
 
 # Parse long arguments (optional) to be later used as CMake variables
-OPTIONS=t:n:c:rh
-LONGOPTS=CMAKE_BUILD_TYPE:,ACTIVE_NETWORK:,cpus:,rebuild,help
+OPTIONS=t:n:c:srh
+LONGOPTS=CMAKE_BUILD_TYPE:,ACTIVE_NETWORK:,cpus:,reject,rebuild,help
 
 # -temporarily store output to be able to check for errors
 # -activate quoting/enhanced mode (e.g. by writing out “--options”)
@@ -37,8 +42,13 @@ fi
 
 # read getopt’s output this way to handle the quoting right:
 eval set -- "${PARSED}"
-
-cmakeBuildType="Debug" activeNetwork="logos_test_network" numCPUs=$(($(nproc) + 1)) rebuild=false
+if ! [[ -x "$(command -v nproc)" ]]; then
+    # Mac
+    numCPUs=$(($(sysctl -n hw.ncpu) + 1))
+else
+    numCPUs=$(($(nproc) + 1))
+fi
+cmakeBuildType="Debug" activeNetwork="logos_test_network" rebuild=false
 # now enjoy the options in order and nicely split until we see --
 while true; do
     case "$1" in
@@ -53,6 +63,14 @@ while true; do
         -c|--cpus)
             numCPUs="$2"
             shift 2
+            ;;
+        -s)
+            threshold_flag=" -DSTRICT_CONSENSUS_THRESHOLD:BOOL="ON""
+            shift
+            ;;
+        --reject)
+            reject_flag=" -DTEST_REJECT:BOOL="ON""
+            shift
             ;;
         -r|--rebuild)
             rebuild=true
@@ -192,10 +210,8 @@ BOOST_ROOT=${BOOST_ROOT-/usr/local/boost}
 if [ -d "$BOOST_ROOT" ]; then
     echo "Boost directory already exists, please remove if you want Boost rebuilt"
 else
-    #BOOST_URL=https://downloads.sourceforge.net/project/boost/boost/1.67.0/${BOOST_BASENAME}.tar.bz2
-    BOOST_URL=https://dl.bintray.com/boostorg/release/1.67.0/source/${BOOST_BASENAME}.tar.bz2
+    BOOST_URL=https://downloads.sourceforge.net/project/boost/boost/1.67.0/${BOOST_BASENAME}.tar.bz2
     BOOST_ARCHIVE="${BOOST_BASENAME}.tar.bz2"
-    #BOOST_ARCHIVE_SHA256='5721818253e6a0989583192f96782c4a98eb6204965316df9f5ad75819225ca9'
     BOOST_ARCHIVE_SHA256='2684c972994ee57fc5632e03bf044746f6eb45d4920c343937a465fd67a5adba'
     if [ -f "$BOOST_ARCHIVE" ]; then
         echo "boost.tar.gz is already in the local directory, skipping the long download"
@@ -241,8 +257,9 @@ echo "Building Logos..."
 cd ${BUILD_DIR}
 
 git submodule update --init --recursive
-cmake -DBOOST_ROOT="$BOOST_ROOT" -DLOGOS_TEST=ON -DACTIVE_NETWORK="$activeNetwork" -DCMAKE_BUILD_TYPE="$cmakeBuildType" \
-    -G "Unix Makefiles" ..\
+cmake -DBOOST_ROOT="$BOOST_ROOT" -DACTIVE_NETWORK="$activeNetwork" \
+    -DCMAKE_BUILD_TYPE="$cmakeBuildType" ${threshold_flag}${reject_flag} \
+    -std=c++11 -G "Unix Makefiles" ..\
     && make logos_core -j"$numCPUs"
 
 if [[ $? > 0 ]]

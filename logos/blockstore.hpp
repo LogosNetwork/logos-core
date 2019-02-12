@@ -116,12 +116,23 @@ public:
     std::unordered_multimap<logos::block_hash, std::shared_ptr<logos::block>> unchecked_cache;
 
     template<typename T> void put(MDB_dbi&, const mdb_val &, const T &, MDB_txn *);
-    template<typename T> logos::block_hash put(MDB_dbi&, const T &, MDB_txn *);
-    template<typename T> bool get(MDB_dbi&, const mdb_val &key, const T &, MDB_txn *tx = 0);
-    template<typename T> bool get(MDB_dbi& db, const logos::block_hash &hash, const T &t, MDB_txn *tx = 0)
+    template<typename T> void put(MDB_dbi& db, const Byte32Array &key_32b, const T &t, MDB_txn *tx)
     {
-        mdb_val key(hash);
+        mdb_val key(key_32b);
+        put<T>(db, key, t, tx);
+    }
+    template<typename T> logos::block_hash put(MDB_dbi&, const T &, MDB_txn *);
+    template<typename T> bool get(MDB_dbi&, const mdb_val &key, T &, MDB_txn *tx = nullptr);
+    template<typename T> bool get(MDB_dbi& db, const Byte32Array &key_32b, T &t, MDB_txn *tx = nullptr)
+    {
+        mdb_val key(key_32b);
         return get<T>(db,key,t,tx);
+    }
+    void del(MDB_dbi&, const mdb_val &, MDB_txn * tx);
+    void del(MDB_dbi& db, const Byte32Array &key_32b, MDB_txn *tx)
+    {
+        mdb_val key(key_32b);
+        del(db, key, tx);
     }
 
     //////////////////
@@ -139,12 +150,16 @@ public:
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block);
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block, MDB_txn *);
     bool state_block_get(const BlockHash & hash, StateBlock & block, MDB_txn *);
-    bool state_block_put(StateBlock const &, const BlockHash & hash, MDB_txn *);
+    std::shared_ptr<StateBlock> state_block_get(const BlockHash & hash, MDB_txn *);
+    bool state_block_put(StateBlock const &, MDB_txn *);
     bool state_block_exists(const StateBlock & block);
     bool state_block_exists(const BlockHash & hash);
-    bool account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* t=0);
+    bool account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* t = nullptr);
     bool account_db_empty();
     bool account_put (AccountAddress const &, logos::account_info const &, MDB_txn *);
+    bool reservation_get (AccountAddress const &, logos::reservation_info &, MDB_txn * t = nullptr);
+    void reservation_del (AccountAddress const &, MDB_txn *);
+    void reservation_put (AccountAddress const &, logos::reservation_info const &, MDB_txn *);
     bool receive_put(const BlockHash & hash, const ReceiveBlock & block, MDB_txn *);
     bool receive_get(const BlockHash & hash, ReceiveBlock & block, MDB_txn *);
     bool receive_exists(const BlockHash & hash);
@@ -212,6 +227,12 @@ public:
     MDB_dbi account_db;
 
     /**
+     * Maps account to reservation (transaction hash), reservation_epoch;.
+     * logos::account -> logos::block_hash, uint32_t
+     */
+    MDB_dbi reservation_db;
+
+    /**
      * Maps block hash to receive block.
      * logos::block_hash -> logos::state_block
      */
@@ -256,12 +277,6 @@ public:
      * logos::block_hash -> logos::account
      */
     MDB_dbi frontiers;
-
-    /**
-     * Maps account to account information, head, rep, open, balance, timestamp and block count.
-     * logos::account -> logos::block_hash, logos::block_hash, logos::block_hash, logos::amount, uint64_t, uint64_t
-     */
-    MDB_dbi accounts;
 
     /**
      * Maps block hash to state block.

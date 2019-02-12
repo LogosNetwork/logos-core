@@ -47,14 +47,14 @@ public:
     ~EpochTimeUtil() = default;
 
     /// Get time for the next microblock construction
-    /// @param skip if true then skip the closest time, needed in case of a recall or first block [in]
+    /// @param skip number of proposal intervals, needed in case of a recall or first block [in]
     /// @returns time lapse in seconds for the next microblock event
-    Milliseconds GetNextMicroBlockTime(bool skip=false);
+    Milliseconds GetNextMicroBlockTime(uint8_t skip=0);
 
     /// Get time for the next epoch construction/transition
-    /// @param skip if true then skip the closest time, needed in case of a recall or first block [in]
+    /// @param skip number of proposal intervals, needed in case of a recall or first block [in]
     /// @returns time lapse in seconds for the next epoch event
-    Milliseconds GetNextEpochTime(bool skip=false);
+    Milliseconds GetNextEpochTime(uint8_t skip=0);
 
     /// Is this epoch time (12h boundary +- clock drift)
     /// @returns true if it is epoch construction/transition time
@@ -62,9 +62,8 @@ public:
 private:
     /// Get next timeout value
     /// @param timeout value [in]
-    /// @param skip if true then skip the closest time, needed in case of a recall or first block [in]
+    /// @param skip number of proposal intervals, needed in case of a recall or first block [in]
     /// @returns time lapse in seconds for the next epoch event
     template<typename T>
-    Milliseconds GetNextTime(T timeout, bool skip);
+    Milliseconds GetNextTime(T timeout, uint8_t skip);
 };
-

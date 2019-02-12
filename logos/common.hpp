@@ -98,9 +98,8 @@ std::unique_ptr<logos::block> deserialize_block (MDB_val const &);
 /**
  * Latest information about an account
  */
-class account_info
+struct account_info
 {
-public:
     account_info ();
     account_info (bool & error, const logos::mdb_val & mdbval);
     account_info (logos::account_info const &) = default;
@@ -130,8 +129,28 @@ public:
     uint64_t modified;
     uint32_t block_count; //sequence number
     uint32_t receive_count;
-    logos::block_hash reservation;
-    uint32_t reservation_epoch;
+};
+
+/**
+ * Latest information about an account reservation, if any exists
+ */
+struct reservation_info
+{
+    reservation_info ();
+    reservation_info (bool & error, const logos::mdb_val & mdbval);
+    reservation_info (logos::reservation_info const &) = default;
+
+    reservation_info (logos::block_hash const & reservation,
+                      uint32_t const & reservation_epoch);
+
+    uint32_t serialize (logos::stream &) const;
+    bool deserialize (logos::stream &);
+    bool operator== (logos::reservation_info const &) const;
+    bool operator!= (logos::reservation_info const &) const;
+    logos::mdb_val to_mdb_val(std::vector<uint8_t> &buf) const;
+
+    logos::block_hash   reservation;        /// the transaction hash for which the account was reserved
+    uint32_t            reservation_epoch;  /// epoch in which account was reserved
 };
 
 /**

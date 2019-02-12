@@ -3,7 +3,8 @@
 /// an interface to the underlying socket.
 #pragma once
 
-#include <logos/consensus/network/net_io_assembler.hpp>
+#include <logos/network/net_io_assembler.hpp>
+#include <logos/network/net_io_send.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/log.hpp>
@@ -71,6 +72,25 @@ public:
 
 };
 
+class ConsensusNetIOAssembler : public NetIOAssembler {
+    using Socket        = boost::asio::ip::tcp::socket;
+    using Error         = boost::system::error_code;
+public:
+    ConsensusNetIOAssembler (std::shared_ptr<Socket> socket, EpochInfo& epoch_info, IOChannelReconnect &netio)
+        : NetIOAssembler(socket)
+        , _epoch_info(epoch_info)
+        , _netio(netio)
+    {}
+    ~ConsensusNetIOAssembler () = default;
+protected:
+    void OnError(const Error &error) override;
+    void OnRead() override;
+
+private:
+    EpochInfo &             _epoch_info;
+    IOChannelReconnect &    _netio;
+};
+
 /// ConsensusNetIO represent connection to a peer.
 ///
 /// Network connection to a peer. There is one connection per peer.
@@ -80,6 +100,7 @@ public:
 /// id ordering.
 class ConsensusNetIO: public IOChannel,
                       public IOChannelReconnect,
+                      public NetIOSend,
                       public std::enable_shared_from_this<ConsensusNetIO>
 {
 
@@ -249,6 +270,10 @@ public:
 
     static constexpr uint8_t CONNECT_RETRY_DELAY = 5;     ///< Reconnect delay in seconds.
 
+protected:
+
+    void OnError(const ErrorCode &ec) override;
+
 private:
 
     /// Async connect to the peer.
@@ -286,11 +311,6 @@ private:
     ///     @param data received data
     void OnPublicKey(KeyAdvertisement & key_adv);
 
-    /// async_write callback
-    /// @param error error code
-    /// @param size size of written data
-    void OnWrite(const ErrorCode & error, size_t size);
-
     /// Handle heartbeat message
     /// @param prequel data
     void OnHeartBeat(HeartBeat &hb);
@@ -299,7 +319,6 @@ private:
 
     std::shared_ptr<Socket>        _socket;               ///< Connected socket
     std::atomic_bool               _connected;            ///< is the socket is connected?
-    QueuedWrites                   _queued_writes;        ///< data waiting to get sent on the network
     Log                            _log;                  ///< boost asio log
     Endpoint                       _endpoint;             ///< remote peer endpoint
     logos::alarm &                 _alarm;                ///< alarm reference
@@ -309,11 +328,8 @@ private:
     DelegateKeyStore &             _key_store;            ///< Delegates' public key store
     MessageValidator &             _validator;            ///< Validator/Signer of consensus messages
     IOBinder                       _io_channel_binder;    ///< Network i/o to consensus binder
-    NetIOAssembler                 _assembler;            ///< Assembles messages from TCP buffer
+    ConsensusNetIOAssembler        _assembler;            ///< Assembles messages from TCP buffer
     std::recursive_mutex &         _connection_mutex;     ///< _connections access mutex
-    std::mutex                     _send_mutex;           ///< Protect concurrent writes
-	uint64_t                       _queue_reservation = 0;///< How many queued entries are being sent?
-    bool                           _sending = false;      ///< is an async write in progress?
     EpochInfo &                    _epoch_info;           ///< Epoch transition info
     NetIOErrorHandler &            _error_handler;        ///< Pass socket error to ConsensusNetIOManager
     std::recursive_mutex           _error_mutex;          ///< Error handling mutex

@@ -28,14 +28,10 @@ PersistenceManager<MBCT>::Validate(
         return true;
     }
 
-    // Account exists
-    logos::account_info info;
-    if (_store.account_get(block.primary_delegate, info))
+    if (block.primary_delegate >= NUM_DELEGATES)
     {
-        LOG_ERROR(_log) << "PersistenceManager::VerifyMicroBlock account doesn't exist "
-                        << " hash " << hash.to_string()
-                        << " account " << block.primary_delegate.to_string();
-        UpdateStatusReason(status, process_result::unknown_source_account);
+        UpdateStatusReason(status, process_result::invalid_request);
+        LOG_ERROR(_log) << "PersistenceManager::Validate primary index out of range " << (int) block.primary_delegate;
         return false;
     }
 

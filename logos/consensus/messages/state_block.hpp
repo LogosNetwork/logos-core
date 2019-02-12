@@ -74,6 +74,8 @@ struct ReceiveBlock
         tree.put("previous", previous.to_string());
         tree.put("send_hash", send_hash.to_string());
         tree.put("index_to_send_block", std::to_string(index2send));
+        tree.put("transaction_type", "receive");
+        tree.put("hash", Hash().to_string());
     }
 
     /// Serialize the data members to a stream
@@ -99,7 +101,7 @@ struct ReceiveBlock
     void Hash(blake2b_state & hash) const
     {
         uint16_t s = htole16(index2send);
-        previous.Hash(hash);
+        // SYL integration fix: receive block shouldn't be hashed with previous, since this field might change
         send_hash.Hash(hash);
         blake2b_update(&hash, &s, sizeof(uint16_t));
     }
@@ -249,7 +251,7 @@ struct StateBlock
     /// @param error it will be set to true if deserialization fail [out]
     /// @param stream the stream containing serialized data [in]
     /// @param with_batch_hash if the serialized data should have the batch_hash [in]
-    StateBlock (bool & error, logos::stream & stream, bool with_batch_hash = false)
+    void Deserialize (bool & error, logos::stream & stream, bool with_batch_hash = false)
     {
         error = logos::read(stream, account);
         if(error)
@@ -333,6 +335,27 @@ struct StateBlock
         Hash ();
     }
 
+    /// Class constructor
+    /// construct from deserializing a stream which was decoded from a Json string
+    /// @param error it will be set to true if deserialization fail [out]
+    /// @param stream the stream containing serialized data [in]
+    /// @param with_batch_hash if the serialized data should have the batch_hash [in]
+    StateBlock (bool & error, logos::stream & stream, bool with_batch_hash = false)
+    {
+        Deserialize(error, stream, with_batch_hash);
+    }
+
+    /// Class constructor
+    /// construct from deserializing a stream which was decoded from a Json string
+    /// @param error it will be set to true if deserialization fail [out]
+    /// @param buf the buffer containing serialized data [in]
+    /// @param size of the serialized data [in]
+    /// @param with_batch_hash if the serialized data should have the batch_hash [in]
+    StateBlock (bool & error, const uint8_t *buf, size_t size, bool with_batch_hash = false) {
+        logos::bufferstream stream(buf, size);
+        Deserialize(error, stream, with_batch_hash);
+    }
+
     /// Add a new transaction
     /// @param to the target account
     /// @param amount the transaction amount
@@ -362,18 +385,18 @@ struct StateBlock
         account.Hash(hash);
         previous.Hash(hash);
         uint32_t s = htole32(sequence);
-        blake2b_update(&hash, &s, sizeof(uint32_t));
-        blake2b_update(&hash, &type, sizeof(uint8_t));
-        blake2b_update(&hash, transaction_fee.data(), ACCOUNT_AMOUNT_SIZE);
+        blake2b_update(&hash, &s, sizeof(s));
+        blake2b_update(&hash, &type, sizeof(type));
         uint16_t tran_count = trans.size();
         tran_count = htole16(tran_count);
-        blake2b_update(&hash, &tran_count, sizeof(uint16_t));
-
+        blake2b_update(&hash, &tran_count, sizeof(tran_count));
         for (const auto & t : trans)
         {
             t.target.Hash(hash);
             blake2b_update(&hash, t.amount.data(), ACCOUNT_AMOUNT_SIZE);
         }
+
+        blake2b_update(&hash, transaction_fee.data(), ACCOUNT_AMOUNT_SIZE);
     }
 
     /**
@@ -466,6 +489,16 @@ struct StateBlock
         }
 
         return s;
+    }
+
+    /// Serialize the data members to a buffer
+    /// @param buf the buffer to serialize to
+    /// @param with_batch_hash if batch_hash should be serialized
+    /// @returns the number of bytes serialized
+    uint32_t Serialize(std::vector<uint8_t> & buf, bool with_batch_hash = false)
+    {
+        logos::vectorstream stream(buf);
+        return Serialize(stream, with_batch_hash);
     }
 
     /// Serialize the data members to a database buffer

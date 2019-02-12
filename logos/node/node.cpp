@@ -1,6 +1,8 @@
 #include <logos/node/node.hpp>
 
 #include <logos/consensus/consensus_container.hpp>
+#include <logos/tx_acceptor/tx_acceptor.hpp>
+#include <logos/tx_acceptor/tx_receiver.hpp>
 
 #include <logos/lib/interface.h>
 #include <logos/node/common.hpp>
@@ -731,6 +733,10 @@ void logos::node_config::serialize_json (boost::property_tree::ptree & tree_a) c
     boost::property_tree::ptree consensus_manager;
     consensus_manager_config.SerializeJson(consensus_manager);
     tree_a.add_child("ConsensusManager", consensus_manager);
+
+    boost::property_tree::ptree tx_acceptor;
+    tx_acceptor_config.SerializeJson(tx_acceptor);
+    tree_a.add_child("TxAcceptor", tx_acceptor);
 }
 
 bool logos::node_config::upgrade_json (unsigned version, boost::property_tree::ptree & tree_a)
@@ -942,6 +948,14 @@ bool logos::node_config::deserialize_json (bool & upgraded_a, boost::property_tr
         }
 
         result |= consensus_manager_config.DeserializeJson(tree_a.get_child("ConsensusManager"));
+        try { // temp for backward compatability
+            result |= tx_acceptor_config.DeserializeJson(tree_a.get_child("TxAcceptor"));
+        }
+        catch (std::logic_error const&)
+        {
+            result |= tx_acceptor_config.DeserializeJson(tree_a.get_child("ConsensusManager"));
+        }
+
     }
     catch (std::runtime_error const &)
     {
@@ -1285,10 +1299,15 @@ block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
 stats (config.stat_config),
 _recall_handler(),
 _identity_manager(store, config.consensus_manager_config),
-_archiver(alarm_a, store, _recall_handler)
-#ifdef _PRODUCTION
-,_consensus_container(service_a, store, alarm_a, config.consensus_manager_config, _archiver, _identity_manager)
-#endif
+_archiver(alarm_a, store, _recall_handler),
+_consensus_container{std::make_shared<ConsensusContainer>(
+        service_a, store, alarm_a, config, _archiver, _identity_manager)},
+_tx_acceptor{config.tx_acceptor_config.tx_acceptors.size() == 0
+    ? std::make_shared<TxAcceptorDelegate>(service_a, _consensus_container, config)
+    : nullptr},
+_tx_receiver{config.tx_acceptor_config.tx_acceptors.size() != 0
+    ? std::make_shared<TxReceiver>(service_a, alarm_a, _consensus_container, config)
+    : nullptr}
 {
     BlocksCallback::Instance(service_a, config.callback_address, config.callback_port, config.callback_target, config.logging.callback_logging ());
 // Used to modify the database file with the new account_info field.
@@ -1325,110 +1344,6 @@ _archiver(alarm_a, store, _recall_handler)
     peers.disconnect_observer = [this]() {
         observers.disconnect ();
     };
-    observers.blocks.add ([this](std::shared_ptr<logos::block> block_a, logos::account const & account_a, logos::amount const & amount_a, bool is_state_send_a) {
-        if (this->block_arrival.recent (block_a->hash ()))
-        {
-            auto node_l (shared_from_this ());
-            background ([node_l, block_a, account_a, amount_a, is_state_send_a]() {
-                if (!node_l->config.callback_address.empty ())
-                {
-                    boost::property_tree::ptree event;
-                    event.add ("account", account_a.to_account ());
-                    event.add ("hash", block_a->hash ().to_string ());
-                    std::string block_text;
-                    block_a->serialize_json (block_text);
-                    event.add ("block", block_text);
-                    event.add ("amount", amount_a.to_string_dec ());
-                    if (is_state_send_a)
-                    {
-                        event.add ("is_send", is_state_send_a);
-                    }
-                    std::stringstream ostream;
-                    boost::property_tree::write_json (ostream, event);
-                    ostream.flush ();
-                    auto body (std::make_shared<std::string> (ostream.str ()));
-                    auto address (node_l->config.callback_address);
-                    auto port (node_l->config.callback_port);
-                    auto target (std::make_shared<std::string> (node_l->config.callback_target));
-                    auto resolver (std::make_shared<boost::asio::ip::tcp::resolver> (node_l->service));
-                    resolver->async_resolve (boost::asio::ip::tcp::resolver::query (address, std::to_string (port)), [node_l, address, port, target, body, resolver](boost::system::error_code const & ec, boost::asio::ip::tcp::resolver::iterator i_a) {
-                        if (!ec)
-                        {
-                            for (auto i (i_a), n (boost::asio::ip::tcp::resolver::iterator{}); i != n; ++i)
-                            {
-                                auto sock (std::make_shared<boost::asio::ip::tcp::socket> (node_l->service));
-                                sock->async_connect (i->endpoint (), [node_l, target, body, sock, address, port](boost::system::error_code const & ec) {
-                                    if (!ec)
-                                    {
-                                        auto req (std::make_shared<boost::beast::http::request<boost::beast::http::string_body>> ());
-                                        req->method (boost::beast::http::verb::post);
-                                        req->target (*target);
-                                        req->version (11);
-                                        req->insert (boost::beast::http::field::host, address);
-                                        req->insert (boost::beast::http::field::content_type, "application/json");
-                                        req->body () = *body;
-                                        //req->prepare (*req);
-                                        //boost::beast::http::prepare(req);
-                                        req->prepare_payload ();
-                                        boost::beast::http::async_write (*sock, *req, [node_l, sock, address, port, req](boost::system::error_code const & ec, size_t bytes_transferred) {
-                                            if (!ec)
-                                            {
-                                                auto sb (std::make_shared<boost::beast::flat_buffer> ());
-                                                auto resp (std::make_shared<boost::beast::http::response<boost::beast::http::string_body>> ());
-                                                boost::beast::http::async_read (*sock, *sb, *resp, [node_l, sb, resp, sock, address, port](boost::system::error_code const & ec, size_t bytes_transferred) {
-                                                    if (!ec)
-                                                    {
-                                                        if (resp->result () == boost::beast::http::status::ok)
-                                                        {
-                                                        }
-                                                        else
-                                                        {
-                                                            if (node_l->config.logging.callback_logging ())
-                                                            {
-                                                                BOOST_LOG (node_l->log) << boost::str (boost::format ("Callback to %1%:%2% failed with status: %3%") % address % port % resp->result ());
-                                                            }
-                                                        }
-                                                    }
-                                                    else
-                                                    {
-                                                        if (node_l->config.logging.callback_logging ())
-                                                        {
-                                                            BOOST_LOG (node_l->log) << boost::str (boost::format ("Unable complete callback: %1%:%2%: %3%") % address % port % ec.message ());
-                                                        }
-                                                    };
-                                                });
-                                            }
-                                            else
-                                            {
-                                                if (node_l->config.logging.callback_logging ())
-                                                {
-                                                    BOOST_LOG (node_l->log) << boost::str (boost::format ("Unable to send callback: %1%:%2%: %3%") % address % port % ec.message ());
-                                                }
-                                            }
-                                        });
-                                    }
-                                    else
-                                    {
-                                        if (node_l->config.logging.callback_logging ())
-                                        {
-                                            BOOST_LOG (node_l->log) << boost::str (boost::format ("Unable to connect to callback address: %1%:%2%: %3%") % address % port % ec.message ());
-                                        }
-                                    }
-                                });
-                            }
-                        }
-                        else
-                        {
-                            if (node_l->config.logging.callback_logging ())
-                            {
-                                BOOST_LOG (node_l->log) << boost::str (boost::format ("Error resolving callback: %1%:%2%: %3%") % address % port % ec.message ());
-                            }
-                        }
-                    });
-                }
-            });
-        }
-    });
 
     BOOST_LOG (log) << "Node starting, version: " << LOGOS_VERSION_MAJOR << "." << LOGOS_VERSION_MINOR;
     BOOST_LOG (log) << boost::str (boost::format ("Work pool running %1% threads") % work.threads.size ());
@@ -1446,46 +1361,6 @@ _archiver(alarm_a, store, _recall_handler)
             // Store was empty meaning we just created it, add the genesis block
             logos::genesis genesis;
             genesis.initialize (transaction, store);
-        }
-
-        // check consensus-prototype account_db
-        if(store.account_db_empty())
-        {
-            auto error (false);
-
-            // Construct genesis open block
-            //
-            boost::property_tree::ptree tree;
-            std::stringstream istream(logos::logos_test_genesis);
-            boost::property_tree::read_json(istream, tree);
-            StateBlock logos_genesis_block(error, tree, true, true);
-
-            if(error)
-            {
-                throw std::runtime_error("Failed to initialize Logos genesis block.");
-            }
-
-            //TODO check with Greg
-            ReceiveBlock logos_genesis_receive(0, logos_genesis_block.GetHash(), 0);
-            store.state_block_put(logos_genesis_block,
-                    logos_genesis_block.GetHash(),
-                    transaction);
-            store.receive_put(logos_genesis_receive.Hash(),
-                    logos_genesis_receive,
-                    transaction);
-            store.account_put(genesis_account,
-                              {
-                                  /* Head         */ logos_genesis_block.GetHash(),
-                                  /* Receive Head */ logos_genesis_receive.Hash(),
-                                  /* Rep          */ 0,
-                                  /* Open         */ logos_genesis_block.GetHash(),
-                                  /* Amount       */ logos_genesis_block.trans[0].amount,
-                                  /* Time         */ logos::seconds_since_epoch(),
-                                  /* Count        */ 1,
-                                  /* Receive      */ 1
-                              },
-                              transaction);
-            _identity_manager.CreateGenesisAccounts(transaction);
         }
     }
     if (logos::logos_network ==logos::logos_networks::logos_live_network)
@@ -1780,9 +1655,7 @@ void logos::node::start ()
 //#endif
 
 // CH added starting logic here instead of inside constructors
-#ifdef _PRODUCTION
-    _archiver.Start(_consensus_container);
-#endif
+    _archiver.Start(*_consensus_container);
 }
 
 void logos::node::stop ()
@@ -2291,21 +2164,15 @@ void logos::node::add_initial_peers ()
 
 logos::process_return logos::node::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_buffer)
 {
-    process_return result;
-#ifndef _PRODUCTION
-    return result;
-#else
-    return _consensus_container.OnSendRequest(block, should_buffer);
-#endif
+    return _consensus_container->OnSendRequest(
+            static_pointer_cast<RequestMessage<ConsensusType::BatchStateBlock>>(block), should_buffer);
 }
 
 logos::process_return logos::node::BufferComplete()
 {
     process_return result;
 
-#ifdef _PRODUCTION
-    _consensus_container.BufferComplete(result);
-#endif
+    _consensus_container->BufferComplete(result);
 
     return result;
 }

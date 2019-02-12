@@ -8,19 +8,29 @@
 
 template<typename T>
 Milliseconds
-EpochTimeUtil::GetNextTime(T timeout, bool skip)
+EpochTimeUtil::GetNextTime(T timeout, uint8_t skip)
 {
     auto now = GetStamp();
-    auto mult = (skip) ? 2 : 1;
     auto timeout_msec = TConvert<Milliseconds>(timeout).count();
     auto rem = now % timeout_msec;
 
-    return (rem != 0) ? Milliseconds(timeout_msec * mult - rem) : Milliseconds(0);
+    if (rem != 0)
+    {
+        return  Milliseconds(timeout_msec * (skip +1) - rem);
+    }
+    else if (skip != 0)
+    {
+        return Milliseconds(timeout_msec * skip);
+    }
+    else
+    {
+        return Milliseconds(0);
+    }
 }
 
 Milliseconds
 EpochTimeUtil::GetNextEpochTime(
-    bool skip )
+        uint8_t skip)
 {
     return GetNextTime(EPOCH_PROPOSAL_TIME, skip);
 }
@@ -28,7 +38,7 @@ EpochTimeUtil::GetNextEpochTime(
 /// Microblock proposal happens on 10 min boundary
 Milliseconds
 EpochTimeUtil::GetNextMicroBlockTime(
-    bool skip)
+        uint8_t skip)
 {
     return GetNextTime(MICROBLOCK_PROPOSAL_TIME, skip);
 }

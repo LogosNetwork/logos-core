@@ -3,7 +3,9 @@
 /// handles specifics of BatchBlock consensus
 #include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/batchblock/bb_backup_delegate.hpp>
+#include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/epoch_manager.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 
 const boost::posix_time::seconds BatchBlockConsensusManager::ON_CONNECTED_TIMEOUT{10};
 RequestHandler BatchBlockConsensusManager::_handler;
@@ -33,7 +35,7 @@ BatchBlockConsensusManager::OnBenchmarkSendRequest(
   std::shared_ptr<Request> block,
   logos::process_return & result)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_buffer_mutex);
 
     LOG_DEBUG (_log) << "BatchBlockConsensusManager::OnBenchmarkSendRequest() - hash: "
                      << block->GetHash().to_string();
@@ -62,8 +64,9 @@ BatchBlockConsensusManager::BindIOChannel(
     _connected_vote += _weights[ids.remote].vote_weight;
     _connected_stake += _weights[ids.remote].stake_weight;
 
-    if(ReachedQuorum(_connected_vote,
-                     _connected_stake))
+    // SYL Integration fix: need to add in our own vote and stake as well
+    if(ReachedQuorum(_connected_vote + _my_vote,
+                     _connected_stake + _my_stake))
     {
         OnDelegatesConnected();
     }
@@ -75,6 +78,7 @@ void
 BatchBlockConsensusManager::SendBufferedBlocks()
 {
     logos::process_return unused;
+    std::lock_guard<std::mutex> lock(_buffer_mutex);
 
     for(uint64_t i = 0; _buffer.size() && i < CONSENSUS_BATCH_SIZE; ++i)
     {
@@ -96,17 +100,7 @@ BatchBlockConsensusManager::Validate(
   std::shared_ptr<Request> block,
   logos::process_return & result)
 {
-    if(! block->VerifySignature(block->account))
-    {
-        LOG_INFO(_log) << "BatchBlockConsensusManager - Validate, bad signature: "
-                       << block->signature.to_string()
-                       << " account: " << block->account.to_string();
-
-        result.code = logos::process_result::bad_signature;
-        return false;
-    }
-
-    return _persistence_manager.Validate(*block, result, false);
+    return _persistence_manager.ValidateSingleRequest(*block, result, false);
 }
 
 bool
@@ -114,10 +108,11 @@ BatchBlockConsensusManager::ReadyForConsensus()
 {
     if(_using_buffered_blocks)
     {
+        std::lock_guard<std::mutex> lock(_buffer_mutex);
         // TODO: Make sure that RequestHandler::_current_batch has
         //       been prepared before calling _handler.BatchFull.
         //
-        return StateReadyForConsensus() && (_handler.BatchFull() ||
+        return !_ongoing && (_handler.BatchFull() ||
                             (_buffer.empty() && !_handler.Empty()));
     }
 
@@ -131,6 +126,7 @@ BatchBlockConsensusManager::QueueRequestPrimary(
     _handler.OnRequest(request);
 }
 
+// This should only be called once per consensus round
 auto
 BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
@@ -139,10 +135,13 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
     batch.sequence = _sequence;
     batch.timestamp = GetStamp();
     batch.epoch_number = _events_notifier.GetEpochNumber();
+    batch.primary_delegate = _delegate_id;
+    // SYL Integration fix: move previous assignment here to avoid overriding in archive blocks
+    batch.previous = _prev_pre_prepare_hash;
 
     for(uint64_t i = 0; i < batch.block_count; ++i)
     {
-        _hashes.insert(batch.blocks[i].GetHash());
+        _hashes.insert(batch.blocks[i]->GetHash());
     }
 
     LOG_TRACE (_log) << "BatchBlockConsensusManager::PrePrepareGetNext -"
@@ -189,8 +188,14 @@ BatchBlockConsensusManager::InitiateConsensus()
 {
     _ne_reject_vote = 0;
     _ne_reject_stake = 0;
-
-    _handler.PrepareNextBatch();
+    // make sure we start with a fresh set of hashes so as to not interfere with rejection logic
+    _hashes.clear();
+    _should_repropose = false;
+    // SYL Integration: perform validation against account_db here instead of at request receive time
+    {
+        std::lock_guard<std::mutex> lock(_persistence_manager._write_mutex);
+        _handler.PrepareNextBatch(_persistence_manager);
+    }
     Manager::InitiateConsensus();
 }
 
@@ -234,6 +239,8 @@ BatchBlockConsensusManager::PrimaryContains(const BlockHash &hash)
 void
 BatchBlockConsensusManager::OnPostCommit(const PrePrepare & block)
 {
+    // SYL integration: don't need locking here because we can safely append to Primary queue,
+    // and OnRequestQueued has detection for ongoing consensus round
     _handler.OnPostCommit(block);
     Manager::OnPostCommit(block);
 }
@@ -251,23 +258,49 @@ BatchBlockConsensusManager::MakeBackupDelegate(
 void
 BatchBlockConsensusManager::AcquirePrePrepare(const PrePrepare & message)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-
+    // SYL integration: don't need locking here because we can safely append to Primary queue,
+    // and OnRequestQueued has detection for ongoing consensus round
     _handler.Acquire(message);
     OnRequestQueued();
 }
 
+void BatchBlockConsensusManager::TallyPrepareMessage(const Prepare & message, uint8_t remote_delegate_id)
+{
+    if(!_should_repropose)  // We only check individual transactions if we have already seen Rejection messages
+    {
+        return;
+    }
+
+    auto & vote = _weights[remote_delegate_id].vote_weight;
+    auto & stake = _weights[remote_delegate_id].stake_weight;
+
+    auto batch = _handler.GetCurrentBatch();
+    auto block_count = batch.block_count;
+
+    for(uint64_t i = 0; i < block_count; ++i)
+    {
+        auto & weights = _response_weights[i];
+
+        if(ReachedQuorum(weights.indirect_vote_support + _prepare_vote,
+                         weights.indirect_stake_support + _prepare_stake))
+        {
+            _hashes.erase(batch.blocks[i]->GetHash());
+        }
+    }
+}
+
 void
 BatchBlockConsensusManager::OnRejection(
-        const Rejection & message)
+        const Rejection & message, uint8_t remote_delegate_id)
 {
-    auto & vote = _weights[_cur_delegate_id].vote_weight;
-    auto & stake = _weights[_cur_delegate_id].stake_weight;
+    auto & vote = _weights[remote_delegate_id].vote_weight;
+    auto & stake = _weights[remote_delegate_id].stake_weight;
 
     switch(message.reason)
     {
     case RejectionReason::Contains_Invalid_Request:
     {
+        _should_repropose = true;
         auto batch = _handler.GetCurrentBatch();
         auto block_count = batch.block_count;
 
@@ -280,35 +313,27 @@ BatchBlockConsensusManager::OnRejection(
                 weights.indirect_vote_support += vote;
                 weights.indirect_stake_support += stake;
 
-                weights.supporting_delegates.insert(_cur_delegate_id);
+                weights.supporting_delegates.insert(remote_delegate_id);
 
                 if(ReachedQuorum(weights.indirect_vote_support + _prepare_vote,
                                  weights.indirect_stake_support + _prepare_stake))
                 {
-                    _hashes.erase(batch.blocks[i].GetHash());
+                    _hashes.erase(batch.blocks[i]->GetHash());
                 }
             }
             else
             {
+                LOG_WARN(_log) << "BatchBlockConsensusManager::OnRejection - Received rejection for " << batch.blocks[i]->GetHash().to_string();
                 weights.reject_vote += vote;
                 weights.reject_stake += stake;
 
                 if(Rejected(weights.reject_vote,
                             weights.reject_stake))
                 {
-                    _hashes.erase(batch.blocks[i].GetHash());
+                    _hashes.erase(batch.blocks[i]->GetHash());
                 }
             }
         }
-
-        // All requests have been explicitly
-        // rejected or accepted.
-        if(_hashes.empty())
-        {
-            CancelTimer();
-            OnPrePrepareRejected();
-        }
-
         break;
     }
     case RejectionReason::New_Epoch:
@@ -320,6 +345,7 @@ BatchBlockConsensusManager::OnRejection(
     case RejectionReason::Invalid_Previous_Hash:
     case RejectionReason::Wrong_Sequence_Number:
     case RejectionReason::Invalid_Epoch:
+    case RejectionReason::Invalid_Primary_Index:
     case RejectionReason::Void:
         break;
     }
@@ -331,9 +357,34 @@ BatchBlockConsensusManager::OnStateAdvanced()
     _response_weights.fill(Weights());
 }
 
+// All requests have been explicitly rejected or accepted.
+// Needs _state_mutex locked
+bool
+BatchBlockConsensusManager::IsPrePrepareRejected()
+{
+    if(_hashes.empty() && _should_repropose)  // SYL Integration: extra flag prevents mistakenly rejecting an empty BSB
+    {
+        LOG_DEBUG(_log) << "BatchBlockConsensusManager::OnRejection - all requests in current batch "
+                        << "have been explicitly rejected or accepted";
+        return true;
+    }
+    else if (Rejected(_ne_reject_vote, _ne_reject_stake))
+    {
+        LOG_DEBUG(_log) << "BatchBlockConsensusManager::OnRejection - Rejected because of new epoch";
+        return true;
+    }
+    return false;
+}
+
+// This should be called while _state_mutex is still locked.
 void
 BatchBlockConsensusManager::OnPrePrepareRejected()
 {
+    if (_state != ConsensusState::PRE_PREPARE)
+    {
+        LOG_FATAL(_log) << "BatchBlockConsensusManager::OnPrePrepareRejected - unexpected state " << StateToString(_state);
+        trace_and_halt();
+    }
     if (Rejected(_ne_reject_vote, _ne_reject_stake))
     {
         _ne_reject_vote = 0;
@@ -480,7 +531,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
         }
     }
 
-    std::list<StateBlock> requests;
+    std::list<std::shared_ptr<StateBlock>> requests;
 
     // Create new pre-prepare messages
     // based on the subsets.
@@ -497,24 +548,28 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
             requests.push_back(batch.blocks[*itr]);
         }
 
-        requests.push_back(StateBlock());
+        requests.emplace_back(std::make_shared<StateBlock>());
     }
 
     // Pushing a null state_block to the front
     // of the queue will trigger consensus
     // with an empty batch block, which is how
     // we proceed if no requests can be re-proposed.
-    if(requests.empty())
-    {
-        requests.push_back(StateBlock());
-    }
+
+    // SYL integration fix: should always add delimiter to
+    // avoid spillover from new request queued to primary list
+    requests.emplace_back(std::make_shared<StateBlock>());
 
     _handler.PopFront();
     _handler.InsertFront(requests);
 
-    _state = ConsensusState::VOID;
+    AdvanceState(ConsensusState::VOID);
 
-    OnRequestQueued();
+    // SYL integration fix: this is the only place other than
+    // OnConsensusReached where we reset the ongoing status
+
+    // Don't have to change _ongoing because we have to immediately repropose
+    InitiateConsensus();
 }
 
 void
@@ -531,8 +586,7 @@ BatchBlockConsensusManager::OnDelegatesConnected()
     {
         _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
         _init_timer.async_wait([this](const Error &error) {
-            std::lock_guard<std::recursive_mutex> lock(_mutex);
-
+            _ongoing = true;
             InitiateConsensus();
         });
     }
@@ -542,24 +596,8 @@ BatchBlockConsensusManager::OnDelegatesConnected()
     }
 }
 
-void
-BatchBlockConsensusManager::OnCurrentEpochSet()
-{
-    PrimaryDelegate::OnCurrentEpochSet();
-
-    _vote_reject_quorum = _vote_total - _vote_quorum;
-    _stake_reject_quorum = _stake_total - _stake_quorum;
-}
-
 bool
 BatchBlockConsensusManager::Rejected(uint128_t reject_vote, uint128_t reject_stake)
 {
-    auto op = [](bool & r, uint128_t t, uint128_t q)
-              {
-                  return r ? t > q
-                           : t >= q;
-              };
-
-    return op(_vq_rounded, reject_vote, _vote_reject_quorum) &&
-           op(_sq_rounded, reject_stake, _stake_reject_quorum);
+    return (reject_vote > _vote_max_fault) || (reject_stake > _stake_max_fault);
 }

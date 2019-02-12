@@ -22,11 +22,17 @@ class NetIOAssembler
 
 public:
 
-    NetIOAssembler(std::shared_ptr<Socket> socket, EpochInfo&, IOChannelReconnect &netio);
-    ~NetIOAssembler() = default;
+    NetIOAssembler(std::shared_ptr<Socket> socket);
+    virtual ~NetIOAssembler() = default;
 
     void ReadPrequel(ReadCallback callback);
     void ReadBytes(ReadCallback callback, size_t bytes);
+
+protected:
+    virtual void OnError(const ErrorCode &ec) {}
+    virtual void OnRead() {}
+
+    Log                            _log;
 
 private:
 
@@ -55,11 +61,8 @@ private:
     ReadCallback                   _callback;
     QueuedRequest                  _queued_request;
     std::shared_ptr<Socket>        _socket;
-    Log                            _log;
     size_t                         _buffer_size         = 0;
     size_t                         _bytes_to_read       = 0;
     bool                           _processing_callback = false;
-    EpochInfo &                    _epoch_info;
-    IOChannelReconnect &           _netio;
 };
 

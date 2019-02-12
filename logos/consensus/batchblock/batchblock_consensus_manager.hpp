@@ -13,6 +13,7 @@ class BatchBlockConsensusManager: public ConsensusManager<ConsensusType::BatchSt
 
     using BlockBuffer = std::list<std::shared_ptr<Request>>;
     using Rejection   = RejectionMessage<ConsensusType::BatchStateBlock>;
+    using Prepare     = PrepareMessage<ConsensusType::BatchStateBlock>;
     using Seconds     = boost::posix_time::seconds;
     using Timer       = boost::asio::deadline_timer;
     using Error       = boost::system::error_code;
@@ -163,19 +164,21 @@ private:
 
     void AcquirePrePrepare(const PrePrepare & message) override;
 
-    void OnRejection(const Rejection & message) override;
+    void TallyPrepareMessage(const Prepare & message, uint8_t remote_delegate_id) override;
+    void OnRejection(const Rejection & message, uint8_t remote_delegate_id) override;
     void OnStateAdvanced() override;
+    bool IsPrePrepareRejected() override;
     void OnPrePrepareRejected() override;
 
     void OnDelegatesConnected();
-
-    void OnCurrentEpochSet() override;
 
     bool Rejected(uint128_t reject_vote, uint128_t reject_stake);
 
     WeightList            _response_weights;
     Hashes                _hashes;
+    bool                  _should_repropose      = false; ///< indicator of whether a Contains_Invalid_Request Rejection has been received
     BlockBuffer           _buffer;                        ///< Buffered state blocks.
+    std::mutex            _buffer_mutex;                  ///< SYL Integration fix: separate lock for benchmarking buffer
     static RequestHandler _handler;                       ///< Primary queue of batch state blocks.
     Timer                 _init_timer;
     Service &             _service;
@@ -184,8 +187,6 @@ private:
     uint128_t             _connected_stake       = 0;
     uint128_t             _ne_reject_vote        = 0;     ///< New Epoch rejection vote weight.
     uint128_t             _ne_reject_stake       = 0;     ///< New Epoch rejection stake weight.
-    uint128_t             _vote_reject_quorum    = 0;
-    uint128_t             _stake_reject_quorum   = 0;
     bool                  _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
     bool                  _delegates_connected   = false;
 };

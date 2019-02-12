@@ -8,7 +8,7 @@
 #include <logos/consensus/messages/state_block.hpp>
 
 
-using BlockList             = std::vector<StateBlock>;
+using BlockList             = std::vector<std::shared_ptr<StateBlock>>;
 using BlockHashList         = std::vector<BlockHash>;
 
 struct BatchStateBlock : PrePrepareCommon
@@ -25,14 +25,13 @@ struct BatchStateBlock : PrePrepareCommon
     /// Add a new state block
     /// @param to_add the new state block to be added
     /// @returns if the new state block is added.
-    bool AddStateBlock(const StateBlock & to_add)
+    bool AddStateBlock(std::shared_ptr<StateBlock> to_add)
     {
         if(block_count >= CONSENSUS_BATCH_SIZE)
             return false;
-
         // ideally should reserve batch size before calling push_back to avoid unnecessary reallocation
-        blocks.emplace_back(StateBlock(to_add));
-        hashes.emplace_back(blocks[block_count].GetHash());
+        blocks.emplace_back(to_add);
+        hashes.emplace_back(blocks[block_count]->GetHash());
         ++block_count;
         return true;
     }

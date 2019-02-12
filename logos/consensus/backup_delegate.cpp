@@ -1,5 +1,5 @@
 #include <logos/consensus/backup_delegate.hpp>
-#include <logos/consensus/network/consensus_netio.hpp>
+#include <logos/network/consensus_netio.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 
@@ -86,7 +86,7 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
         BlocksCallback::Callback<CT>(block);
 
         _state = ConsensusState::VOID;
-        _prev_pre_prepare_hash = _pre_prepare_hash;
+        SetPreviousPrePrepareHash(_pre_prepare_hash);
 
         _events_notifier.OnPostCommit(_pre_prepare->epoch_number);
     }
@@ -113,6 +113,18 @@ void BackupDelegate<CT>::OnConsensusMessage(const Rejection & message)
 template<ConsensusType CT>
 bool BackupDelegate<CT>::Validate(const PrePrepare & message)
 {
+    // TODO: Once ID management is ready, we have to check if signature and primary_delegate match
+    if(message.primary_delegate != _delegate_ids.remote)
+    {
+        LOG_DEBUG(_log) << " BackupDelegate<CT>::Validate wrong primary id "
+                << " msg " << message.Hash().to_string()
+                << " id in pre-perpare " << (uint)message.primary_delegate
+                << " id by connection " << (uint)_delegate_ids.remote;
+
+        _reason = RejectionReason::Invalid_Primary_Index;
+        return false;
+    }
+
     if(!_validator.Validate(message.Hash(), message.preprepare_sig, _delegate_ids.remote))
     {
         LOG_DEBUG(_log) << " BackupDelegate<CT>::Validate Bad_Signature "
@@ -126,7 +138,10 @@ bool BackupDelegate<CT>::Validate(const PrePrepare & message)
 
     if(message.previous != _prev_pre_prepare_hash)
     {
-        LOG_DEBUG(_log) << " BackupDelegate<CT>::Validate Invalid_Previous_Hash";
+        LOG_DEBUG(_log) << " BackupDelegate<"<< ConsensusToName(CT)
+                        << ">::Validate Invalid_Previous_Hash "
+                        << message.previous.to_string() << " "
+                        << _prev_pre_prepare_hash.to_string();
         _reason = RejectionReason::Invalid_Previous_Hash;
         return false;
     }

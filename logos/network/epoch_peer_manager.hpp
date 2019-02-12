@@ -7,8 +7,8 @@
 #pragma once
 
 #include <logos/consensus/consensus_manager_config.hpp>
-#include <logos/consensus/network/peer_acceptor.hpp>
-#include <logos/consensus/network/delegate_peer_manager.hpp>
+#include <logos/network/peer_acceptor.hpp>
+#include <logos/network/peer_manager.hpp>
 
 struct KeyAdvertisement;
 
@@ -24,7 +24,7 @@ public:
 /// The callback reads peer's public key/epoch/delegate id and
 /// calls respective epoch manager to bind the channel to the
 /// backup delegate
-class EpochPeerManager : public DelegatePeerManager,
+class EpochPeerManager : public PeerManager,
                          public PeerAcceptorStarter
 {
     using Service     = boost::asio::io_service;
@@ -55,6 +55,8 @@ public:
     }
 
 private:
+    static constexpr uint8_t INVALID_EPOCH_GAP = 10; ///< Gap client connections with epoch number greater than which plus our current epoch number will be rejected
+
     PeerAcceptor    _peer_acceptor; ///< Accepts connections from peers
     Log             _log;           ///< Boost log
     PeerBinder      _peer_binder;   ///< Peer binding to NetIOConsensus

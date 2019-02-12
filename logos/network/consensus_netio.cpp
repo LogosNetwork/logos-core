@@ -1,13 +1,35 @@
 /// @file
 /// This file contains implementation of the ConsensusNetIO and ConsensusNetIOManager classes, which handle
 /// network connections between the delegates.
-#include <logos/consensus/network/consensus_netio.hpp>
+#include <logos/network/consensus_netio.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
 #include <boost/system/error_code.hpp>
 
 const uint8_t ConsensusNetIO::CONNECT_RETRY_DELAY;
+
+void
+ConsensusNetIOAssembler::OnError(const Error &error)
+{
+    // cancelled at the end of epoch transition
+    if (_netio.Connected() && !_epoch_info.IsWaitingDisconnect()) {
+        LOG_ERROR(_log) << "NetIOAssembler - Error receiving message: "
+                        << error.message() << " global " << (int) DelegateIdentityManager::_global_delegate_idx
+                        << " connection " << _epoch_info.GetConnectionName()
+                        << " delegate " << _epoch_info.GetDelegateName()
+                        << " state " << _epoch_info.GetStateName();
+        _netio.OnNetIOError(error);
+    }
+}
+
+inline
+void
+ConsensusNetIOAssembler::OnRead()
+{
+    _netio.UpdateTimestamp();
+}
 
 ConsensusNetIO::ConsensusNetIO(Service & service,
                                const Endpoint & endpoint,
@@ -20,7 +42,8 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
                                std::recursive_mutex & connection_mutex,
                                EpochInfo & epoch_info,
                                NetIOErrorHandler & error_handler)
-    : _socket(new Socket(service))
+    : NetIOSend(std::make_shared<Socket>(service))
+    , _socket(*this)
     , _connected(false)
     , _endpoint(endpoint)
     , _alarm(alarm)
@@ -55,7 +78,8 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
                                std::recursive_mutex & connection_mutex,
                                EpochInfo & epoch_info,
                                NetIOErrorHandler & error_handler)
-    : _socket(socket)
+    : NetIOSend(socket)
+    , _socket(socket)
     , _connected(false)
     , _endpoint(endpoint)
     , _alarm(alarm)
@@ -99,22 +123,7 @@ ConsensusNetIO::Send(
     auto send_buffer(std::make_shared<std::vector<uint8_t>>(size, uint8_t(0)));
     std::memcpy(send_buffer->data(), data, size);
 
-    std::lock_guard<std::mutex> lock(_send_mutex);
-
-    if(!_sending)
-    {
-        _sending = true;
-
-        boost::asio::async_write(*_socket,
-                                 boost::asio::buffer(send_buffer->data(),
-                                                     size),
-                                 [this, send_buffer](const ErrorCode & ec, size_t size)
-                                 { OnWrite(ec, size); });
-    }
-    else
-    {
-        _queued_writes.push_back(send_buffer);
-    }
+    AsyncSend(send_buffer);
 }
 
 void 
@@ -250,6 +259,10 @@ ConsensusNetIO::OnData(const uint8_t * data,
     bool error = false;
     logos::bufferstream stream(data, payload_size);
 
+    LOG_DEBUG(_log) << "ConsensusNetIO - received message type " << MessageToName(message_type)
+                    << " for consensus type " << ConsensusToName(consensus_type)
+                    << " from " << _endpoint;
+
     if (consensus_type == ConsensusType::Any)
     {
         if (message_type == MessageType::Heart_Beat)
@@ -343,46 +356,14 @@ ConsensusNetIO::AddConsensusConnection(
 }
 
 void
-ConsensusNetIO::OnWrite(const ErrorCode & error, size_t size)
+ConsensusNetIO::OnError(const ErrorCode &error)
 {
-    if (error)
+    if (_connected)
     {
-        if (_connected)
-        {
-            LOG_ERROR(_log) << "ConsensusConnection - Error on write to socket: "
-                                   << error.message() << ". Remote endpoint: "
-                            << _endpoint;
-            OnNetIOError(error);
-        }
-        return;
-    }
-
-    std::lock_guard<std::mutex> lock(_send_mutex);
-
-    auto begin = _queued_writes.begin();
-    auto end = _queued_writes.begin();
-    std::advance(end, _queue_reservation);
-
-    _queued_writes.erase(begin, end);
-
-    if((_queue_reservation = _queued_writes.size()))
-    {
-        std::vector<boost::asio::const_buffer> buffers;
-
-        for(auto entry = _queued_writes.begin(); entry != _queued_writes.end(); ++entry)
-        {
-            buffers.push_back(boost::asio::const_buffer((*entry)->data(),
-                                                        (*entry)->size()));
-        }
-
-        boost::asio::async_write(*_socket, buffers,
-                                 std::bind(&ConsensusNetIO::OnWrite, this,
-                                           std::placeholders::_1,
-                                           std::placeholders::_2));
-    }
-    else
-    {
-        _sending = false;
+        LOG_ERROR(_log) << "ConsensusConnection - Error on write to socket: "
+                        << error.message() << ". Remote endpoint: "
+                        << _endpoint;
+        OnNetIOError(error);
     }
 }
 

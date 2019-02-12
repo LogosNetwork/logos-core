@@ -37,14 +37,26 @@ public:
 		std::shared_ptr<Request>,
 		logos::process_return & ) override;
 
+    /// set previous hash, microblock and epoch block have only one chain
+    /// consequently primary has to set all backup's hash to previous
+    /// @param hash to set
+    void SetPreviousPrePrepareHash(const BlockHash &hash) override
+    {
+        std::lock_guard<std::mutex> lock(_connection_mutex);
+        for (auto conn : _connections)
+        {
+            conn->BackupDelegate::SetPreviousPrePrepareHash(hash);
+        }
+        PrimaryDelegate::SetPreviousPrePrepareHash(hash);
+    }
+
 protected:
 	/// Commit to the store.
 	///
 	/// Commits the block to the database.
 	///     @param[in] block the epoch block to commit to the database
 	///     @param[in] delegate_id delegate id
-	void ApplyUpdates(
-		const ApprovedEB &,
+	void ApplyUpdates(const ApprovedEB &,
 		uint8_t delegate_id) override;
 
 	/// Returns number of stored blocks.

@@ -57,12 +57,12 @@ EpochConsensusManager::QueueRequestPrimary(
 auto
 EpochConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
-  return *_cur_epoch;
+    return *_cur_epoch;
 }
 auto
 EpochConsensusManager::PrePrepareGetCurr() -> PrePrepare &
 {
-  return *_cur_epoch;
+    return *_cur_epoch;
 }
 
 void 
@@ -127,25 +127,25 @@ EpochConsensusManager::DesignatedDelegate(
 
     if (_store.micro_block_tip_get(hash))
     {
-        LOG_ERROR(_log) << "EpochConsensusManager::DesignatedDelegate failed to get microblock tip";
-        return 0;
+        LOG_FATAL(_log) << "EpochConsensusManager::DesignatedDelegate failed to get microblock tip";
+        trace_and_halt();
     }
 
     if (_store.micro_block_get(hash, block))
     {
-        LOG_ERROR(_log) << "EpochConsensusManager::DesignatedDelegate failed to get microblock";
-        return 0;
+        LOG_FATAL(_log) << "EpochConsensusManager::DesignatedDelegate failed to get microblock";
+        trace_and_halt();
     }
 
     // delegate who proposed last microblock also proposes epoch block
-    if (block.last_micro_block && block.primary_delegate == DelegateIdentityManager::_delegate_account)
+    if (block.last_micro_block && block.primary_delegate == _delegate_id)
     {
         LOG_DEBUG(_log) << "EpochConsensusManager::DesignatedDelegate epoch proposed by delegate "
                         << (int)_delegate_id << " " << (int)DelegateIdentityManager::_global_delegate_idx
                         << " " << _events_notifier.GetEpochNumber()
-                        << " " << block.primary_delegate.to_string();
+                        << " " << (int)block.primary_delegate;
         return _delegate_id;
     }
 
-    return 0;
+    return 0xff;
 }

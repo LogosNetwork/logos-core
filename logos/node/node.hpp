@@ -12,6 +12,7 @@
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/bootstrap/bootstrap_interface.hpp>
 #include <logos/bootstrap/batch_block_validator.hpp>
+#include <logos/tx_acceptor/tx_acceptor_config.hpp>
 
 #include <condition_variable>
 #include <memory>
@@ -39,6 +40,10 @@ namespace program_options
     class variables_map;
 }
 }
+
+class ConsensusContainer;
+class TxAcceptor;
+class TxReceiver;
 
 namespace logos
 {
@@ -392,6 +397,7 @@ public:
     logos::block_hash state_block_parse_canary;
     logos::block_hash state_block_generate_canary;
     ConsensusManagerConfig consensus_manager_config;
+    TxAcceptorConfig tx_acceptor_config;
     static std::chrono::seconds constexpr keepalive_period = std::chrono::seconds (60);
     static std::chrono::seconds constexpr keepalive_cutoff = keepalive_period * 5;
     static std::chrono::minutes constexpr wallet_backup_interval = std::chrono::minutes (5);
@@ -486,7 +492,7 @@ public:
     logos::node_config config;
     logos::alarm & alarm;
     logos::work_pool & work;
-    boost::log::sources::logger_mt log;
+    Log log;
     logos::block_store store;
     logos::gap_cache gap_cache;
     logos::ledger ledger;
@@ -511,9 +517,9 @@ public:
     RecallHandler _recall_handler;
     DelegateIdentityManager _identity_manager;
     Archiver _archiver;
-#ifdef _PRODUCTION
-    ConsensusContainer _consensus_container;
-#endif
+    std::shared_ptr<ConsensusContainer> _consensus_container;
+    std::shared_ptr<TxAcceptor> _tx_acceptor;
+    std::shared_ptr<TxReceiver> _tx_receiver;
     static double constexpr price_max = 16.0;
     static double constexpr free_cutoff = 1024.0;
     static std::chrono::seconds constexpr period = std::chrono::seconds (60);

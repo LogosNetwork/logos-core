@@ -128,6 +128,7 @@ using DelegateSig           = ByteArray<CONSENSUS_SIG_SIZE>;
 using DelegatePubKey        = ByteArray<CONSENSUS_PUB_KEY_SIZE>;
 using DelegatePrivKey       = ByteArray<CONSENSUS_PRIV_KEY_SIZE>;
 
+using Byte32Array           = ByteArray<HASH_SIZE>;
 using AccountAddress        = ByteArray<ACCOUNT_ADDRESS_SIZE>;
 using AccountPubKey         = ByteArray<ACCOUNT_PUB_KEY_SIZE>;
 using AccountPrivKey        = ByteArray<ACCOUNT_PRIV_KEY_SIZE>;
@@ -140,6 +141,7 @@ using DelegateSig           = ByteArray<CONSENSUS_SIG_SIZE>;
 using DelegatePubKey        = ByteArray<CONSENSUS_PUB_KEY_SIZE>;
 using DelegatePrivKey       = ByteArray<CONSENSUS_PRIV_KEY_SIZE>;
 
+using Byte32Array           = logos::uint256_union;
 using AccountAddress        = logos::uint256_union;
 using AccountPubKey         = logos::uint256_union;
 using AccountPrivKey        = logos::uint256_union;

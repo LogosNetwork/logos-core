@@ -1,9 +1,9 @@
-#include <logos/consensus/network/peer_acceptor.hpp>
+#include <logos/network/peer_acceptor.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 
 PeerAcceptor::PeerAcceptor(Service & service,
                            const Endpoint & local_endpoint,
-                           DelegatePeerManager & manager)
+                           PeerManager & manager)
     : _acceptor(service)
     , _service(service)
     , _local_endpoint(local_endpoint)
