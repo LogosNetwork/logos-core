@@ -52,7 +52,7 @@ const std::string currentDateTime()
 
 class validator {
 
-    std::vector<std::shared_ptr<BatchBlock::bulk_pull_response> > bsb; // Batch State Blocks received.
+    std::vector<std::shared_ptr<BatchBlock::bulk_pull_response> > bsb[NUMBER_DELEGATES]; // Batch State Blocks received.
     std::vector<std::shared_ptr<BatchBlock::bulk_pull_response_micro> > micro; // Micro.
     std::vector<std::shared_ptr<BatchBlock::bulk_pull_response_epoch> > epoch; // Epoch.
     std::vector<std::shared_ptr<BatchBlock::tips_response> > tips; // Tips.
@@ -106,7 +106,8 @@ class validator {
     {
         //return true; // RGD
         std::lock_guard<std::mutex> lock(mutex);
-        if(micro.size() <= 1) { // Was micro.empty()
+        return true; // Hack...
+        if(micro.size() <= 3) { // Was micro.empty()
             return true; // No pending micros need to be processed, ok to continue...
         } else {
             std::cout << "can_proceed:: micro.size(): " << micro.size() << std::endl;

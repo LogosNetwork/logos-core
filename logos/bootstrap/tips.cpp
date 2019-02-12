@@ -447,6 +447,7 @@ void logos::tips_req_server::send_next ()
 
     if(nr_delegate > next_delegate)
     {
+       std::cout << "logos::tips_req_server::send_next:: next_delegate: " << next_delegate << " nr_delegate: " << nr_delegate << std::endl;
        LOG_DEBUG(connection->node->log) << "logos::tips_req_server::send_next:: next_delegate: " << next_delegate << " nr_delegate: " << nr_delegate << std::endl;
        send_batch_blocks_tips();
        next_delegate++; 
@@ -515,6 +516,7 @@ void logos::tips_req_server::sent_action (boost::system::error_code const & ec, 
 
 void logos::tips_req_server::send_batch_blocks_tips()
 {
+    std::cout << "logos::tips_req_server::send_batch_blocks_tips: " << std::endl;
     LOG_DEBUG(connection->node->log) << "logos::tips_req_server::send_batch_blocks_tips: " << std::endl;
 
     // logical, send one micro at a time and change epochs when we get to the last micro...

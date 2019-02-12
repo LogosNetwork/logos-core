@@ -73,13 +73,17 @@ void BatchBlock::tips_response::PopulateLogical(Store & store, BatchBlock::tips_
             micro_seq = m->sequence;
         }
     }
+    micro_tip = Micro::getMicroBlockTip(store); // RGD Hack
+    m = Micro::readMicroBlock(store, micro_tip);
     if (m != nullptr && /* assert we have a new micro to visit */
         (m->last_micro_block > 0 /* at the end micro in an epoch */ || 
         resp.epoch_block_seq_number <= 2 /* at the beginning of epochs */)) {
         // Advance the epoch
         epoch_tip = EpochBlock::getNextEpochBlock(store, resp.epoch_block_tip);
         auto e = EpochBlock::readEpochBlock(store, epoch_tip);
-        epoch_seq = e->epoch_number;
+        if(e) {
+            epoch_seq = e->epoch_number;
+        }
     } else {
         // Stay in same epoch
         epoch_tip = resp.epoch_block_tip;
@@ -93,6 +97,8 @@ void BatchBlock::tips_response::PopulateLogical(Store & store, BatchBlock::tips_
     Micro::dumpMicroBlockTips(store,micro_tip);
 
     // NOTE Get the tips for all delegates and send them one by one for processing...
+    std::cout << " rgd { " << std::endl;
+    std::cout << " micro_tip: " << micro_tip.to_string() << std::endl;
     for(int i = 0; i < NUMBER_DELEGATES; i++)
     {
         BlockHash bsb_tip   = BatchBlock::getBatchBlockTip(store, i);
@@ -100,7 +106,10 @@ void BatchBlock::tips_response::PopulateLogical(Store & store, BatchBlock::tips_
         // Fill in the response...
         batch_block_tip[i]        = bsb_tip;
         batch_block_seq_number[i] = bsb_seq;
+        std::cout << " bsb_tip: " << bsb_tip.to_string()
+                  << " bsb_seq: " << bsb_seq;
     }
+    std::cout << " } " << std::endl;
 
     delegate_id = 0;
     timestamp_start = 0;

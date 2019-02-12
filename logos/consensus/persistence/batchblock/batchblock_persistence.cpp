@@ -80,9 +80,9 @@ bool PersistenceManager<BSBCT>::Validate(
         }
     }
     }
+#endif
     result.code = logos::process_result::progress; // TODO Hack
     return true;
-#endif
 
     auto hash = block.GetHash();
     std::cout << "PersistenceManager::Validate: hash: " << hash.to_string() << std::endl;

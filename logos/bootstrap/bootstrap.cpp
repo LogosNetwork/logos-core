@@ -543,6 +543,7 @@ void logos::bootstrap_attempt::populate_connections ()
         // delta = NUMBER_DELEGATES; // Maybe set to 0 of clients is too big ?
         delta = 1; // delta of 1 seems to work the best in testing...
 
+        std::cout << "bootstrap_attempt:: delta: " << delta << " target: " << target << " connections: " << connections << " max: " << bootstrap_max_new_connections << " clients.size: " << clients.size() << std::endl;
         LOG_DEBUG(node->log) << "bootstrap_attempt:: delta: " << delta << " target: " << target << " connections: " << connections << " max: " << bootstrap_max_new_connections << " clients.size: " << clients.size() << std::endl;
 
         for (int i = 0; i < delta; i++)
