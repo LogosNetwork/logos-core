@@ -2080,7 +2080,6 @@ void logos::node::add_initial_peers ()
 {
 }
 
-
 logos::process_return logos::node::OnRequest(std::shared_ptr<Request> request, bool should_buffer)
 {
     return _consensus_container->OnDelegateMessage(
