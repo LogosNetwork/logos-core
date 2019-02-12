@@ -264,7 +264,7 @@ void
 ConsensusManager<CT>::QueueMessageSecondary(
     std::shared_ptr<DelegateMessage> message)
 {
-    _waiting_list.OnRequest(message);
+    _waiting_list.OnMessage(message);
 }
 
 template<ConsensusType CT>

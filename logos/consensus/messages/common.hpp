@@ -93,12 +93,6 @@ struct AggSignature
     uint32_t Serialize(logos::stream & stream) const;
     void SerializeJson(boost::property_tree::ptree & tree) const;
 
-    void SerializeJson(boost::property_tree::ptree & tree) const
-    {
-        tree.put("participation_map", map.to_string());
-        tree.put("signature", sig.to_string());
-    }
-
     ParicipationMap map;
     DelegateSig     sig;
 };

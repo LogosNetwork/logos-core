@@ -101,8 +101,8 @@ MicroBlockConsensusManager::PrimaryContains(const BlockHash &hash)
 void
 MicroBlockConsensusManager::QueueMessageSecondary(std::shared_ptr<DelegateMessage> message)
 {
-    _waiting_list.OnRequest(message,
-        boost::posix_time::seconds(_delegate_id * SECONDARY_LIST_TIMEOUT.count()));
+    _waiting_list.OnMessage(message,
+                            boost::posix_time::seconds(_delegate_id * SECONDARY_LIST_TIMEOUT.count()));
 }
 
 std::shared_ptr<BackupDelegate<ConsensusType::MicroBlock>>

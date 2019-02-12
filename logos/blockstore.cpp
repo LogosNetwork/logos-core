@@ -1017,6 +1017,7 @@ bool logos::block_store::request_block_get(const BlockHash &hash, ApprovedRB &bl
                 trace_and_halt();
             }
 
+            block.requests.reserve(block.hashes.size());
             for(uint16_t i = 0; i < block.hashes.size(); ++i)
             {
                 block.requests.push_back(std::shared_ptr<Request>(nullptr));

@@ -38,9 +38,9 @@ public:
                          logos::process_return & result,
                          bool allow_duplicates = true,
                          bool prelim = false);
-    bool ValidateSingleRequest(RequestPtr request,
-                               logos::process_return & result,
-                               bool allow_duplicates = true);
+    virtual bool ValidateSingleRequest(RequestPtr request,
+                                       logos::process_return & result,
+                                       bool allow_duplicates = true);
     bool ValidateAndUpdate(RequestPtr request,
                            logos::process_return & result,
                            bool allow_duplicates = true);
