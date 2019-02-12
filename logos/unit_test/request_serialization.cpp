@@ -1001,7 +1001,6 @@ TEST (Request_Serialization, database_methods)
     //
     //
     auto adtl_a(GenerateIssueAdtl());
-    DoGetStreamedData(adtl_a, buf);
 
     buf.clear();
 
@@ -1019,7 +1018,6 @@ TEST (Request_Serialization, database_methods)
     //
     //
     auto change_a(GenerateTokenChangeSetting());
-    DoGetStreamedData(change_a, buf);
 
     buf.clear();
 
@@ -1037,7 +1035,6 @@ TEST (Request_Serialization, database_methods)
     //
     //
     auto immute_a(GenerateTokenImmuteSetting());
-    DoGetStreamedData(immute_a, buf);
 
     buf.clear();
 
@@ -1054,7 +1051,6 @@ TEST (Request_Serialization, database_methods)
     //
     //
     auto revoke_a(GenerateTokenRevoke());
-    DoGetStreamedData(revoke_a, buf);
 
     buf.clear();
 
@@ -1074,7 +1070,6 @@ TEST (Request_Serialization, database_methods)
     //
     //
     auto freeze_a(GenerateTokenFreeze());
-    DoGetStreamedData(freeze_a, buf);
 
     buf.clear();
 
@@ -1092,7 +1087,6 @@ TEST (Request_Serialization, database_methods)
     //
     //
     auto set_fee_a(GenerateTokenSetFee());
-    DoGetStreamedData(set_fee_a, buf);
 
     buf.clear();
 
@@ -1110,7 +1104,6 @@ TEST (Request_Serialization, database_methods)
     //
     //
     auto whitelist_a(GenerateWhitelist());
-    DoGetStreamedData(whitelist_a, buf);
 
     buf.clear();
 
@@ -1127,7 +1120,6 @@ TEST (Request_Serialization, database_methods)
     //
     //
     auto info_a(GenerateIssuerInfo());
-    DoGetStreamedData(info_a, buf);
 
     buf.clear();
 
@@ -1144,7 +1136,6 @@ TEST (Request_Serialization, database_methods)
     //
     //
     auto controller_a(GenerateTokenController());
-    DoGetStreamedData(controller_a, buf);
 
     buf.clear();
 
@@ -1162,7 +1153,6 @@ TEST (Request_Serialization, database_methods)
     //
     //
     auto burn_a(GenerateTokenBurn());
-    DoGetStreamedData(burn_a, buf);
 
     buf.clear();
 
@@ -1180,7 +1170,6 @@ TEST (Request_Serialization, database_methods)
     //
     //
     auto distribute_a(GenerateTokenAccountSend());
-    DoGetStreamedData(distribute_a, buf);
 
     buf.clear();
 
@@ -1197,7 +1186,6 @@ TEST (Request_Serialization, database_methods)
     //
     //
     auto withdraw_a(GenerateWithdrawFee());
-    DoGetStreamedData(withdraw_a, buf);
 
     buf.clear();
 
@@ -1214,7 +1202,6 @@ TEST (Request_Serialization, database_methods)
     //
     //
     auto send_a(GenerateTokenSend());
-    DoGetStreamedData(send_a, buf);
 
     buf.clear();
 
