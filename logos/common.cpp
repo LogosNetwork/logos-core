@@ -204,9 +204,7 @@ std::unique_ptr<logos::block> logos::deserialize_block (MDB_val const & val_a)
 }
 
 logos::Account::Account ()
-    : reservation(0)
-    , reservation_epoch(0)
-    , head (0)
+    : head (0)
     , balance (0)
     , block_count (0)
     , modified (0)
@@ -227,8 +225,6 @@ logos::Account::Account (
     , balance (balance)
     , block_count (block_count)
     , modified (modified)
-    , reservation(0)
-    , reservation_epoch(0)
 {}
 
 uint32_t logos::Account::Serialize (stream & stream_a) const
@@ -237,8 +233,6 @@ uint32_t logos::Account::Serialize (stream & stream_a) const
     s += write (stream_a, balance.bytes);
     s += write (stream_a, block_count);
     s += write (stream_a, modified);
-    s += write (stream_a, reservation.bytes);
-    s += write (stream_a, reservation_epoch);
     return s;
 }
 
@@ -254,14 +248,6 @@ bool logos::Account::Deserialize (stream & stream_a)
             if (!error)
             {
                 error = read (stream_a, modified);
-                if (!error)
-                {
-                    auto error(read(stream_a, reservation.bytes));
-                    if (!error)
-                    {
-                        error = read(stream_a, reservation_epoch);
-                    }
-                }
             }
         }
     }
@@ -271,9 +257,7 @@ bool logos::Account::Deserialize (stream & stream_a)
 
 bool logos::Account::operator== (Account const & other_a) const
 {
-    return reservation == other_a.reservation &&
-           reservation_epoch == other_a.reservation_epoch &&
-           head == other_a.head &&
+    return head == other_a.head &&
            balance == other_a.balance &&
            block_count == other_a.block_count &&
            modified == other_a.modified;

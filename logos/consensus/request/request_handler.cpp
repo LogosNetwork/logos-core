@@ -13,7 +13,7 @@ RequestHandler::RequestHandler()
 
 void RequestHandler::OnRequest(RequestPtr request)
 {
-    LOG_DEBUG (_log) << "RequestHandler::OnRequest"
+    LOG_DEBUG (_log) << "RequestHandler::OnMessage"
                      << request->ToJson();
 
     _requests.get<0>().push_back(request);

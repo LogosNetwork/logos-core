@@ -173,33 +173,6 @@ bool PersistenceManager<R>::ValidateRequest(
     // TODO
     uint32_t current_epoch = 0;
 
-    auto update_reservation = [&info, &hash, current_epoch]()
-                              {
-                                   info->reservation = hash;
-                                   info->reservation_epoch = current_epoch;
-                              };
-
-    // Account is not reserved.
-    if(info->reservation.is_zero())
-    {
-        update_reservation();
-    }
-
-    // Account is already reserved.
-    else if(info->reservation != hash)
-    {
-        // This request conflicts with an
-        // existing reservation.
-        if(current_epoch < info->reservation_epoch + RESERVATION_PERIOD)
-        {
-            result.code = logos::process_result::already_reserved;
-            return false;
-        }
-
-        // Reservation has expired.
-        update_reservation();
-    }
-
     // Make sure there's enough Logos
     // to cover the request.
     if(request->GetLogosTotal() > info->balance)

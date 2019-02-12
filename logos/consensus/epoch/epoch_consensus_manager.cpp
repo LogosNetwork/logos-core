@@ -118,7 +118,7 @@ EpochConsensusManager::QueueMessageSecondary(std::shared_ptr<DelegateMessage> me
     {
         timeout_sec = TConvert<::Seconds>(SECONDARY_LIST_TIMEOUT_CAP).count();
     }
-    _waiting_list.OnRequest(message, boost::posix_time::seconds(timeout_sec));
+    _waiting_list.OnMessage(message, boost::posix_time::seconds(timeout_sec));
 }
 
 std::shared_ptr<BackupDelegate<ConsensusType::Epoch>>

@@ -24,7 +24,7 @@ bool WaitingList<CT>::Contains(const BlockHash & hash)
 }
 
 template<ConsensusType CT>
-void WaitingList<CT>::OnRequest(std::shared_ptr<DelegateMessage<CT>> block, Seconds seconds)
+void WaitingList<CT>::OnMessage(std::shared_ptr<DelegateMessage<CT>> block, Seconds seconds)
 {
     auto hash = block->Hash();
 
@@ -102,7 +102,7 @@ void WaitingList<CT>::OnPostCommit(const PrePrepare & message)
 {
     std::lock_guard<std::mutex> lock(_mutex);
 
-    PruneRequests(message);
+    PruneMessages(message);
 
     if (_entries.empty())
     {
@@ -119,7 +119,7 @@ void WaitingList<CT>::ScheduleTimer(const Seconds & timeout)
 }
 
 template <ConsensusType CT>
-void WaitingList<CT>::PruneRequest(const BlockHash & hash)
+void WaitingList<CT>::PruneMessage(const BlockHash &hash)
 {
     if(_entries. template get<1>().find(hash) != _entries. template get<1>().end())
     {
@@ -140,25 +140,25 @@ void WaitingList<CT>::UpdateMessagePromoter(MessagePromoter<CT>* promoter)
 }
 
 template<>
-void WaitingList<ConsensusType::MicroBlock>::PruneRequests(const PrePrepare & block)
+void WaitingList<ConsensusType::MicroBlock>::PruneMessages(const PrePrepare & block)
 {
-    PruneRequest(block.Hash());
+    PruneMessage(block.Hash());
 }
 
 template<>
-void WaitingList<ConsensusType::Epoch>::PruneRequests(const PrePrepare & block)
+void WaitingList<ConsensusType::Epoch>::PruneMessages(const PrePrepare & block)
 {
-    PruneRequest(block.Hash());
+    PruneMessage(block.Hash());
 }
 
 template<>
-void WaitingList<ConsensusType::Request>::PruneRequests(const PrePrepare & block)
+void WaitingList<ConsensusType::Request>::PruneMessages(const PrePrepare & block)
 {
     for (uint64_t i = 0; i < block.requests.size(); ++i)
     {
         BlockHash hash = block.requests[i]->GetHash();
 
-        PruneRequest(hash);
+        PruneMessage(hash);
     }
 }
 
