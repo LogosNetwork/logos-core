@@ -2594,16 +2594,16 @@ void logos::rpc_handler::process ()
 {
     std::string request_text (request.get<std::string> ("request"));
 
-    boost::property_tree::ptree request;
+    boost::property_tree::ptree request_json;
     std::stringstream block_stream (request_text);
-    boost::property_tree::read_json (block_stream, request);
+    boost::property_tree::read_json (block_stream, request_json);
     bool error = false;
-    auto block = std::make_shared<Send> (error, request);
+    auto request = DeserializeRequest(error, request_json);
     if( ! error )
     {
-        // TODO: check work, !logos::work_validate (*block)
-        auto result = node.OnRequest(std::static_pointer_cast<Request>(block), should_buffer_request());
-        auto hash = block->GetHash();
+        // TODO: check work, !logos::work_validate (*request)
+        auto result = node.OnRequest(request, should_buffer_request());
+        auto hash = request->GetHash();
 
         switch (result.code)
         {
@@ -2648,7 +2648,8 @@ void logos::rpc_handler::process ()
             }
             default:
             {
-                error_response (response, ProcessResultToString(result.code));
+                error_response (response,
+                                ProcessResultToString(result.code));
                 break;
             }
         }
