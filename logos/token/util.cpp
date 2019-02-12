@@ -472,27 +472,27 @@ bool IsTokenAdminRequest(RequestType type)
 
     switch(type)
     {
-    case RequestType::Send:
-    case RequestType::ChangeRep:
-    case RequestType::IssueTokens:
-        break;
-    case RequestType::IssueAdtlTokens:
-    case RequestType::ChangeTokenSetting:
-    case RequestType::ImmuteTokenSetting:
-    case RequestType::RevokeTokens:
-    case RequestType::FreezeTokens:
-    case RequestType::SetTokenFee:
-    case RequestType::UpdateWhitelist:
-    case RequestType::UpdateIssuerInfo:
-    case RequestType::UpdateController:
-    case RequestType::BurnTokens:
-    case RequestType::DistributeTokens:
-    case RequestType::WithdrawTokens:
-        result = true;
-        break;
-    case RequestType::SendTokens:
-    case RequestType::Unknown:
-        break;
+        case RequestType::Send:
+        case RequestType::ChangeRep:
+        case RequestType::IssueTokens:
+            break;
+        case RequestType::IssueAdtlTokens:
+        case RequestType::ChangeTokenSetting:
+        case RequestType::ImmuteTokenSetting:
+        case RequestType::RevokeTokens:
+        case RequestType::FreezeTokens:
+        case RequestType::SetTokenFee:
+        case RequestType::UpdateWhitelist:
+        case RequestType::UpdateIssuerInfo:
+        case RequestType::UpdateController:
+        case RequestType::BurnTokens:
+        case RequestType::DistributeTokens:
+        case RequestType::WithdrawTokens:
+            result = true;
+            break;
+        case RequestType::SendTokens:
+        case RequestType::Unknown:
+            break;
     }
 
     return result;

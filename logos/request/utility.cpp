@@ -1,6 +1,7 @@
 #include <logos/request/utility.hpp>
 
 #include <logos/request/fields.hpp>
+#include <logos/lib/utility.hpp>
 
 RequestType GetRequestType(bool &error, std::string data)
 {
@@ -26,6 +27,10 @@ RequestType GetRequestType(bool &error, std::string data)
     else if(data == ISSUE_ADTL)
     {
         ret = RequestType::IssueAdtlTokens;
+    }
+    else if(data == CHANGE_SETTING)
+    {
+        ret = RequestType::ChangeTokenSetting;
     }
     else if(data == IMMUTE)
     {
@@ -99,7 +104,7 @@ std::string GetRequestTypeField(RequestType type)
             ret = ISSUE_ADTL;
             break;
         case RequestType::ChangeTokenSetting:
-            ret = IMMUTE;
+            ret = CHANGE_SETTING;
             break;
         case RequestType::ImmuteTokenSetting:
             ret = IMMUTE;
@@ -140,4 +145,109 @@ std::string GetRequestTypeField(RequestType type)
     }
 
     return ret;
+}
+
+template<typename ...Args>
+std::shared_ptr<Request> BuildRequest(RequestType type, Args&& ...args)
+{
+    std::shared_ptr<Request> result;
+
+    switch(type)
+    {
+        case RequestType::Send:
+            result = std::make_shared<Send>(Send(args...));
+            break;
+        case RequestType::ChangeRep:
+            result = std::make_shared<Change>(Change(args...));
+            break;
+        case RequestType::IssueTokens:
+            result = std::make_shared<TokenIssuance>(TokenIssuance(args...));
+            break;
+        case RequestType::IssueAdtlTokens:
+            result = std::make_shared<TokenIssueAdtl>(TokenIssueAdtl(args...));
+            break;
+        case RequestType::ChangeTokenSetting:
+            result = std::make_shared<TokenChangeSetting>(TokenChangeSetting(args...));
+            break;
+        case RequestType::ImmuteTokenSetting:
+            result = std::make_shared<TokenImmuteSetting>(TokenImmuteSetting(args...));
+            break;
+        case RequestType::RevokeTokens:
+            result = std::make_shared<TokenRevoke>(TokenRevoke(args...));
+            break;
+        case RequestType::FreezeTokens:
+            result = std::make_shared<TokenFreeze>(TokenFreeze(args...));
+            break;
+        case RequestType::SetTokenFee:
+            result = std::make_shared<TokenSetFee>(TokenSetFee(args...));
+            break;
+        case RequestType::UpdateWhitelist:
+            result = std::make_shared<TokenWhitelist>(TokenWhitelist(args...));
+            break;
+        case RequestType::UpdateIssuerInfo:
+            result = std::make_shared<TokenIssuerInfo>(TokenIssuerInfo(args...));
+            break;
+        case RequestType::UpdateController:
+            result = std::make_shared<TokenController>(TokenController(args...));
+            break;
+        case RequestType::BurnTokens:
+            result = std::make_shared<TokenBurn>(TokenBurn(args...));
+            break;
+        case RequestType::DistributeTokens:
+            result = std::make_shared<TokenAccountSend>(TokenAccountSend(args...));
+            break;
+        case RequestType::WithdrawTokens:
+            result = std::make_shared<TokenAccountWithdrawFee>(TokenAccountWithdrawFee(args...));
+            break;
+        case RequestType::SendTokens:
+            result = std::make_shared<TokenSend>(TokenSend(args...));
+            break;
+        case RequestType::Unknown:
+            break;
+    }
+
+    return result;
+}
+
+std::shared_ptr<Request> DeserializeRequest(bool & error, const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    RequestType type = RequestType::Unknown;
+
+    error = logos::read(stream, type);
+    if(error)
+    {
+        return {nullptr};
+    }
+
+    return BuildRequest(type, error, mdbval);
+}
+
+std::shared_ptr<Request> DeserializeRequest(bool & error, logos::stream & stream)
+{
+    RequestType type;
+
+    error = logos::peek(stream, type);
+    if(error)
+    {
+        return {nullptr};
+    }
+
+    return BuildRequest(type, error, stream);
+}
+
+
+std::shared_ptr<Request> DeserializeRequest(bool & error, boost::property_tree::ptree & tree)
+{
+    using namespace request::fields;
+
+    RequestType type = GetRequestType(error, tree.get<std::string>(TYPE, UNKNOWN));
+    if(error)
+    {
+        return {nullptr};
+    }
+
+    return BuildRequest(type, error, tree);
 }

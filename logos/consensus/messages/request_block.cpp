@@ -1,5 +1,7 @@
 #include <logos/consensus/messages/request_block.hpp>
 
+#include <logos/request/utility.hpp>
+
 RequestBlock::RequestBlock(bool & error, logos::stream & stream, bool with_requests)
     : PrePrepareCommon(error, stream)
 {
@@ -34,7 +36,7 @@ RequestBlock::RequestBlock(bool & error, logos::stream & stream, bool with_reque
     {
         for(uint64_t i = 0; i < size; ++i)
         {
-            auto val = RequestPtr(new Send(error, stream));
+            auto val = DeserializeRequest(error, stream);
             if(error)
             {
                 return;
