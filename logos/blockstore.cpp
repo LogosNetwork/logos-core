@@ -914,24 +914,6 @@ bool logos::block_store::request_block_put(ApprovedRB const &block, const BlockH
     return status != 0;
 }
 
-bool logos::block_store::request_get(const BlockHash & hash, Request & request, MDB_txn * transaction)
-{
-    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
-
-    mdb_val val;
-    if(mdb_get(transaction, state_db, mdb_val(hash), val))
-    {
-        LOG_TRACE(log) << __func__ << " mdb_get failed";
-        return true;
-    }
-
-    bool error = false;
-    new(&request) Send(error, val);
-    assert(!error);
-
-    return error;
-}
-
 bool logos::block_store::request_get(const BlockHash & hash, std::shared_ptr<Request> & request, MDB_txn * transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();
@@ -944,7 +926,7 @@ bool logos::block_store::request_get(const BlockHash & hash, std::shared_ptr<Req
     }
 
     bool error = false;
-    request.reset(new Send(error, val));
+    request = DeserializeRequest(error, val);
     assert(!error);
 
     return error;

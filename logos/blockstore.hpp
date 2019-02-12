@@ -3,6 +3,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/messages/common.hpp>
 #include <logos/microblock/microblock.hpp>
+#include <logos/request/utility.hpp>
 #include <logos/token/account.hpp>
 #include <logos/epoch/epoch.hpp>
 #include <logos/lib/log.hpp>
@@ -150,7 +151,26 @@ public:
     bool request_block_get(const BlockHash & hash, ApprovedRB & block);
     bool request_block_get(const BlockHash &hash, ApprovedRB &block, MDB_txn *);
 
-    bool request_get(const BlockHash &hash, Request & request, MDB_txn *transaction);
+    template<typename RequestType>
+    bool request_get(const BlockHash &hash, RequestType & request, MDB_txn *transaction)
+    {
+        LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+        mdb_val val;
+        if(mdb_get(transaction, state_db, mdb_val(hash), val))
+        {
+            LOG_TRACE(log) << __func__ << " mdb_get failed";
+            return true;
+        }
+
+        bool error = false;
+        request = *static_pointer_cast<RequestType>(DeserializeRequest(error, val));
+        assert(GetRequestType<RequestType>() == request.type);
+        assert(!error);
+
+        return error;
+    }
+
     bool request_get(const BlockHash &hash, std::shared_ptr<Request> & request, MDB_txn *transaction);
     bool request_put(const Request &, MDB_txn *);
     bool request_exists(const Request & request);

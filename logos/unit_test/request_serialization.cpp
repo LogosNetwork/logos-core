@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <logos/request/utility.hpp>
 #include <logos/token/requests.hpp>
 #include <logos/request/change.hpp>
 #include <logos/request/send.hpp>
@@ -716,6 +717,12 @@ auto GenerateTokenSend = []()
     return send_a;
 };
 
+template<typename RequestType, typename ...Args>
+RequestType GetRequest(Args&& ...args)
+{
+    return *static_pointer_cast<RequestType>(DeserializeRequest(args...));
+}
+
 TEST (Request_Serialization, stream_methods)
 {
     // TokenIssuance
@@ -726,7 +733,7 @@ TEST (Request_Serialization, stream_methods)
 
     bool error = false;
     logos::bufferstream stream(buf.data(), buf.size());
-    TokenIssuance issuance_b(error, stream);
+    TokenIssuance issuance_b(GetRequest<TokenIssuance>(error, stream));
 
     ASSERT_FALSE(error);
     ASSERT_EQ(issuance_a.type, issuance_b.type);
@@ -750,7 +757,7 @@ TEST (Request_Serialization, stream_methods)
     stream.open(buf.data(), buf.size());
 
     error = false;
-    TokenIssueAdtl adtl_b(error, stream);
+    TokenIssueAdtl adtl_b(GetRequest<TokenIssueAdtl>(error, stream));
 
     ASSERT_FALSE(error);
     ASSERT_EQ(adtl_a.type, adtl_b.type);
@@ -768,7 +775,7 @@ TEST (Request_Serialization, stream_methods)
     stream.open(buf.data(), buf.size());
 
     error = false;
-    TokenChangeSetting change_b(error, stream);
+    TokenChangeSetting change_b(GetRequest<TokenChangeSetting>(error, stream));
 
     ASSERT_FALSE(error);
     ASSERT_EQ(change_a.type, change_b.type);
@@ -786,7 +793,7 @@ TEST (Request_Serialization, stream_methods)
     stream.open(buf.data(), buf.size());
 
     error = false;
-    TokenImmuteSetting immute_b(error, stream);
+    TokenImmuteSetting immute_b(GetRequest<TokenImmuteSetting>(error, stream));
 
     ASSERT_FALSE(error);
     ASSERT_EQ(immute_a.type, immute_b.type);
@@ -803,7 +810,7 @@ TEST (Request_Serialization, stream_methods)
     stream.open(buf.data(), buf.size());
 
     error = false;
-    TokenRevoke revoke_b(error, stream);
+    TokenRevoke revoke_b(GetRequest<TokenRevoke>(error, stream));
 
     ASSERT_FALSE(error);
     ASSERT_EQ(revoke_a.type, revoke_b.type);
@@ -822,7 +829,7 @@ TEST (Request_Serialization, stream_methods)
     stream.open(buf.data(), buf.size());
 
     error = false;
-    TokenFreeze freeze_b(error, stream);
+    TokenFreeze freeze_b(GetRequest<TokenFreeze>(error, stream));
 
     ASSERT_FALSE(error);
     ASSERT_EQ(freeze_a.type, freeze_b.type);
@@ -840,7 +847,7 @@ TEST (Request_Serialization, stream_methods)
     stream.open(buf.data(), buf.size());
 
     error = false;
-    TokenSetFee set_fee_b(error, stream);
+    TokenSetFee set_fee_b(GetRequest<TokenSetFee>(error, stream));
 
     ASSERT_FALSE(error);
     ASSERT_EQ(set_fee_a.type, set_fee_b.type);
@@ -858,7 +865,7 @@ TEST (Request_Serialization, stream_methods)
     stream.open(buf.data(), buf.size());
 
     error = false;
-    TokenWhitelist whitelist_b(error, stream);
+    TokenWhitelist whitelist_b(GetRequest<TokenWhitelist>(error, stream));
 
     ASSERT_FALSE(error);
     ASSERT_EQ(whitelist_a.type, whitelist_b.type);
@@ -875,7 +882,7 @@ TEST (Request_Serialization, stream_methods)
     stream.open(buf.data(), buf.size());
 
     error = false;
-    TokenIssuerInfo info_b(error, stream);
+    TokenIssuerInfo info_b(GetRequest<TokenIssuerInfo>(error, stream));
 
     ASSERT_FALSE(error);
     ASSERT_EQ(info_a.type, info_b.type);
@@ -892,7 +899,7 @@ TEST (Request_Serialization, stream_methods)
     stream.open(buf.data(), buf.size());
 
     error = false;
-    TokenController controller_b(error, stream);
+    TokenController controller_b(GetRequest<TokenController>(error, stream));
 
     ASSERT_FALSE(error);
     ASSERT_EQ(controller_a.type, controller_b.type);
@@ -910,7 +917,7 @@ TEST (Request_Serialization, stream_methods)
     stream.open(buf.data(), buf.size());
 
     error = false;
-    TokenBurn burn_b(error, stream);
+    TokenBurn burn_b(GetRequest<TokenBurn>(error, stream));
 
     ASSERT_FALSE(error);
     ASSERT_EQ(burn_a.type, burn_b.type);
@@ -928,7 +935,7 @@ TEST (Request_Serialization, stream_methods)
     stream.open(buf.data(), buf.size());
 
     error = false;
-    TokenAccountSend distribute_b(error, stream);
+    TokenAccountSend distribute_b(GetRequest<TokenAccountSend>(error, stream));
 
     ASSERT_FALSE(error);
     ASSERT_EQ(distribute_a.type, distribute_b.type);
@@ -945,7 +952,7 @@ TEST (Request_Serialization, stream_methods)
     stream.open(buf.data(), buf.size());
 
     error = false;
-    TokenAccountWithdrawFee withdraw_b(error, stream);
+    TokenAccountWithdrawFee withdraw_b(GetRequest<TokenAccountWithdrawFee>(error, stream));
 
     ASSERT_FALSE(error);
     ASSERT_EQ(withdraw_a.type, withdraw_b.type);
@@ -962,7 +969,7 @@ TEST (Request_Serialization, stream_methods)
     stream.open(buf.data(), buf.size());
 
     error = false;
-    TokenSend send_b(error, stream);
+    TokenSend send_b(GetRequest<TokenSend>(error, stream));
 
     ASSERT_FALSE(error);
     ASSERT_EQ(send_a.type, send_b.type);
@@ -1064,7 +1071,6 @@ TEST (Request_Serialization, database_methods)
     ASSERT_EQ(revoke_a.source, revoke_b.source);
     ASSERT_EQ(revoke_a.transaction, revoke_b.transaction);
     ASSERT_EQ(revoke_a.transaction.amount, 500);
-
 
     // Token Freeze
     //
