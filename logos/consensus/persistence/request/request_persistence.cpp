@@ -594,8 +594,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             auto issuance = static_pointer_cast<const TokenIssuance>(request);
             TokenAccount account(*issuance);
 
-            account.settings = issuance->settings;
-            account.controllers = issuance->controllers;
+            _store.token_account_put(issuance->token_id, account, transaction);
             break;
         }
         case RequestType::IssueAdtlTokens:
