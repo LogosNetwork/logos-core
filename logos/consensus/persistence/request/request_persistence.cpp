@@ -502,7 +502,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
     info->modified = logos::seconds_since_epoch();
 
     // TODO: Harvest fees
-    info->balance -= MIN_TRANSACTION_FEE;
+    info->balance -= request->fee;
 
     enum class Status : uint8_t
     {
@@ -601,6 +601,11 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         {
             auto issuance = static_pointer_cast<const TokenIssuance>(request);
             TokenAccount account(*issuance);
+
+            // TODO: Consider providing a TokenIsuance field
+            //       for explicitly  declaring the amount of
+            //       Logos designated for the account's balance.
+            account.balance += request->fee - MIN_TRANSACTION_FEE;
 
             _store.token_account_put(issuance->token_id, account, transaction);
             break;
