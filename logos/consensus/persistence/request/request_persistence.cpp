@@ -475,7 +475,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                                          MDB_txn * transaction)
 {
     std::shared_ptr<logos::Account> info;
-    auto account_error(_store.account_get(request->origin, info, request->GetAccountType()));
+    auto account_error(_store.account_get(request->GetAccount(), info, request->GetAccountType()));
 
     if(account_error)
     {
