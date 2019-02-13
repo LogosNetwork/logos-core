@@ -477,13 +477,13 @@ logos::uint128_union logos::uint128_union::operator- (logos::uint128_union const
 
 logos::uint128_union & logos::uint128_union::operator+=(const logos::uint128_union & other)
 {
-    number() += other.number();
+    *this = {number() + other.number()};
     return *this;
 }
 
 logos::uint128_union & logos::uint128_union::operator-=(const logos::uint128_union & other)
 {
-    number() -= other.number();
+    *this = {number() - other.number()};
     return *this;
 }
 
