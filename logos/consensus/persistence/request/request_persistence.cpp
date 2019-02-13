@@ -100,16 +100,11 @@ bool PersistenceManager<R>::ValidateRequest(
     // The account doesn't exist
     if (_store.account_get(request->GetAccount(), info, request->GetAccountType()))
     {
-        // Issue token requests have unknown accounts
-        // as the token account doesn't yet exist.
-        if(request->type != RequestType::IssueTokens)
-        {
-            // We can only get here if this is an administrative
-            // token request, which means an invalid token ID
-            // was provided.
-            result.code = logos::process_result::invalid_token_id;
-            return false;
-        }
+        // We can only get here if this is an administrative
+        // token request, which means an invalid token ID
+        // was provided.
+        result.code = logos::process_result::invalid_token_id;
+        return false;
     }
 
     // a valid (non-expired) reservation exits
