@@ -891,135 +891,138 @@ std::string logos::ProcessResultToString(logos::process_result result)
 
     switch(result)
     {
-    case process_result::progress:
-        ret = "Progress";
-        break;
-    case process_result::bad_signature:
-        ret = "Bad Signature";
-        break;
-    case process_result::old:
-        ret = "Old Block";
-        break;
-    case process_result::negative_spend:
-        ret = "Negative Spend";
-        break;
-    case process_result::fork:
-        ret = "Fork";
-        break;
-    case process_result::unreceivable:
-        ret = "Unreceivable";
-        break;
-    case process_result::gap_previous:
-        ret = "Gap Previous Block";
-        break;
-    case process_result::gap_source:
-        ret = "Gap Source Block";
-        break;
-    case process_result::state_block_disabled:
-        ret = "State Blocks Are Disabled";
-        break;
-    case process_result::not_receive_from_send:
-        ret = "Not Receive From Send";
-        break;
-    case process_result::account_mismatch:
-        ret = "Account Mismatch";
-        break;
-    case process_result::opened_burn_account:
-        ret = "Invalid account (burn account)";
-        break;
-    case process_result::balance_mismatch:
-        ret = "Balance Mismatch";
-        break;
-    case process_result::block_position:
-        ret = "Block Position";
-        break;
-    case process_result::invalid_block_type:
-        ret = "Invalid Block Type";
-        break;
-    case process_result::unknown_source_account:
-        ret = "Unknown Source Account";
-        break;
-    case process_result::buffered:
-        ret = "Buffered";
-        break;
-    case process_result::buffering_done:
-        ret = "Buffering Done";
-        break;
-    case process_result::pending:
-        ret = "Already Pending";
-        break;
-    case process_result::already_reserved:
-        ret = "Account already Reserved";
-        break;
-    case process_result::initializing:
-        ret = "Delegate is initializing";
-        break;
-    case process_result::insufficient_fee:
-        ret = "Transaction fee is insufficient";
-        break;
-    case process_result::insufficient_balance:
-        ret = "Account balance is insufficient";
-        break;
-    case process_result::not_delegate:
-         ret = "Not a delegate";
-        break;
-    case process_result::clock_drift:
-        ret = "Clock drift";
-        break;
-    case process_result::wrong_sequence_number:
-        ret = "Wrong sequence number";
-        break;
-    case process_result::invalid_request:
-        ret = "Invalid request";
-        break;
-    case process_result::invalid_tip:
-        ret = "Invalid tip";
-        break;
-    case process_result::invalid_number_blocks:
-        ret = "Invalid number blocks";
-        break;
-    case process_result::revert_immutability:
-        ret = "Unable to revert immutability for token settings";
-        break;
-    case process_result::immutable:
-        ret = "Setting is not mutable";
-        break;
-    case process_result::redundant:
-        ret = "Setting change is redundant";
-        break;
-    case process_result::insufficient_token_balance:
-        ret = "Token balance is insufficient";
-        break;
-    case process_result::invalid_token_id:
-        ret = "Token ID is invalid";
-        break;
-    case process_result::untethered_account:
-        ret = "User account doesn't have a token balance";
-        break;
-    case process_result::invalid_controller:
-        ret = "Invalid controller specified";
-        break;
-    case process_result::controller_capacity:
-        ret = "Controllers list is full";
-        break;
-    case process_result::invalid_controller_action:
-        ret = "Invalid controller action";
-        break;
-    case process_result::unauthorized_request:
-        ret = "Not authorized to make request";
-        break;
-    case process_result::prohibitted_request:
-        ret = "The request is not allowed";
-        break;
-    case process_result::not_whitelisted:
-        ret = "Whitelisting is required";
-        break;
-    case process_result::frozen:
-        ret = "Account is frozen";
-        break;
-    case process_result::insufficient_token_fee:
-        ret = "Token fee is insufficient";
-        break;
+        case process_result::progress:
+            ret = "Progress";
+            break;
+        case process_result::bad_signature:
+            ret = "Bad Signature";
+            break;
+        case process_result::old:
+            ret = "Old Block";
+            break;
+        case process_result::negative_spend:
+            ret = "Negative Spend";
+            break;
+        case process_result::fork:
+            ret = "Fork";
+            break;
+        case process_result::unreceivable:
+            ret = "Unreceivable";
+            break;
+        case process_result::gap_previous:
+            ret = "Gap Previous Block";
+            break;
+        case process_result::gap_source:
+            ret = "Gap Source Block";
+            break;
+        case process_result::state_block_disabled:
+            ret = "State Blocks Are Disabled";
+            break;
+        case process_result::not_receive_from_send:
+            ret = "Not Receive From Send";
+            break;
+        case process_result::account_mismatch:
+            ret = "Account Mismatch";
+            break;
+        case process_result::opened_burn_account:
+            ret = "Invalid account (burn account)";
+            break;
+        case process_result::balance_mismatch:
+            ret = "Balance Mismatch";
+            break;
+        case process_result::block_position:
+            ret = "Block Position";
+            break;
+        case process_result::invalid_block_type:
+            ret = "Invalid Block Type";
+            break;
+        case process_result::unknown_source_account:
+            ret = "Unknown Source Account";
+            break;
+        case process_result::unknown_origin:
+            ret = "The sender's account is unknown";
+            break;
+        case process_result::buffered:
+            ret = "Buffered";
+            break;
+        case process_result::buffering_done:
+            ret = "Buffering Done";
+            break;
+        case process_result::pending:
+            ret = "Already Pending";
+            break;
+        case process_result::already_reserved:
+            ret = "Account already Reserved";
+            break;
+        case process_result::initializing:
+            ret = "Delegate is initializing";
+            break;
+        case process_result::insufficient_fee:
+            ret = "Transaction fee is insufficient";
+            break;
+        case process_result::insufficient_balance:
+            ret = "Account balance is insufficient";
+            break;
+        case process_result::not_delegate:
+             ret = "Not a delegate";
+            break;
+        case process_result::clock_drift:
+            ret = "Clock drift";
+            break;
+        case process_result::wrong_sequence_number:
+            ret = "Wrong sequence number";
+            break;
+        case process_result::invalid_request:
+            ret = "Invalid request";
+            break;
+        case process_result::invalid_tip:
+            ret = "Invalid tip";
+            break;
+        case process_result::invalid_number_blocks:
+            ret = "Invalid number blocks";
+            break;
+        case process_result::revert_immutability:
+            ret = "Unable to revert immutability for token settings";
+            break;
+        case process_result::immutable:
+            ret = "Setting is not mutable";
+            break;
+        case process_result::redundant:
+            ret = "Setting change is redundant";
+            break;
+        case process_result::insufficient_token_balance:
+            ret = "Token balance is insufficient";
+            break;
+        case process_result::invalid_token_id:
+            ret = "Token ID is invalid";
+            break;
+        case process_result::untethered_account:
+            ret = "User account doesn't have a token balance";
+            break;
+        case process_result::invalid_controller:
+            ret = "Invalid controller specified";
+            break;
+        case process_result::controller_capacity:
+            ret = "Controllers list is full";
+            break;
+        case process_result::invalid_controller_action:
+            ret = "Invalid controller action";
+            break;
+        case process_result::unauthorized_request:
+            ret = "Not authorized to make request";
+            break;
+        case process_result::prohibitted_request:
+            ret = "The request is not allowed";
+            break;
+        case process_result::not_whitelisted:
+            ret = "Whitelisting is required";
+            break;
+        case process_result::frozen:
+            ret = "Account is frozen";
+            break;
+        case process_result::insufficient_token_fee:
+            ret = "Token fee is insufficient";
+            break;
     }
 
     return ret;

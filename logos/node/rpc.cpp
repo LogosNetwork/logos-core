@@ -2626,6 +2626,7 @@ void logos::rpc_handler::process ()
             case logos::process_result::account_mismatch:
             case logos::process_result::invalid_block_type:
             case logos::process_result::unknown_source_account:
+            case logos::process_result::unknown_origin:
             case logos::process_result::opened_burn_account:
             case logos::process_result::already_reserved:
             case logos::process_result::initializing:
