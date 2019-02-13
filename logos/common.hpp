@@ -291,6 +291,7 @@ enum class process_result
     block_position,             // This block cannot follow the previous block
     invalid_block_type,         // Logos - Only allow state blocks
     unknown_source_account,     // Logos - The source account is unknown.
+    unknown_origin,             // Logos - The sender's account is unknown.
     buffered,                   // Logos - The block has been buffered for benchmarking.
     buffering_done,             // Logos - The last block has been buffered and consensus will begin.
     pending,                    // Logos - The block has already been received and is pending consensus.
