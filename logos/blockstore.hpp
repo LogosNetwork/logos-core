@@ -191,6 +191,7 @@ public:
     bool account_db_empty();
     bool account_put (AccountAddress const &, std::shared_ptr<Account> info, AccountType type, MDB_txn *);
     bool account_put (AccountAddress const &, logos::account_info const &, MDB_txn *);
+    bool account_exists (AccountAddress const &);
 
     void reservation_put(AccountAddress const & account_a, logos::reservation_info const & info_a, AccountType type, MDB_txn *);
     bool reservation_get(AccountAddress const & account_a, logos::reservation_info & info_a, AccountType type, MDB_txn * t=nullptr);
