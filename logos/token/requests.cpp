@@ -92,6 +92,7 @@ TokenIssuance::TokenIssuance(bool & error,
         // TODO: info is optional
         //
         issuer_info = tree.get<std::string>(INFO);
+        Request::Hash();
     }
     catch (...)
     {
@@ -312,6 +313,7 @@ TokenIssueAdtl::TokenIssueAdtl(bool & error,
     try
     {
         amount = std::stoul(tree.get<std::string>(AMOUNT));
+        Request::Hash();
     }
     catch(...)
     {
@@ -434,6 +436,8 @@ TokenChangeSetting::TokenChangeSetting(bool & error,
         value = tree.get<bool>(VALUE) ?
                 SettingValue::Enabled :
                 SettingValue::Disabled;
+
+        Request::Hash();
     }
     catch(...)
     {
@@ -549,6 +553,12 @@ TokenImmuteSetting::TokenImmuteSetting(bool & error,
     try
     {
         setting = GetTokenSetting(error, tree.get<std::string>(SETTING));
+        if(error)
+        {
+            return;
+        }
+
+        Request::Hash();
     }
     catch(...)
     {
@@ -657,6 +667,12 @@ TokenRevoke::TokenRevoke(bool & error,
     try
     {
         error = source.decode_account(tree.get<std::string>(SOURCE));
+        if(error)
+        {
+            return;
+        }
+
+        Request::Hash();
     }
     catch(...)
     {
@@ -818,6 +834,12 @@ TokenFreeze::TokenFreeze(bool & error,
         }
 
         action = GetFreezeAction(error, tree.get<std::string>(ACTION));
+        if(error)
+        {
+            return;
+        }
+
+        Request::Hash();
     }
     catch(...)
     {
@@ -939,6 +961,7 @@ TokenSetFee::TokenSetFee(bool & error,
         }
 
         fee_rate = std::stoul(tree.get<std::string>(FEE_RATE));
+        Request::Hash();
     }
     catch(...)
     {
@@ -1054,6 +1077,12 @@ TokenWhitelist::TokenWhitelist(bool & error,
     try
     {
         error = account.decode_account(tree.get<std::string>(ACCOUNT));
+        if(error)
+        {
+            return;
+        }
+
+        Request::Hash();
     }
     catch(...)
     {
@@ -1158,6 +1187,7 @@ TokenIssuerInfo::TokenIssuerInfo(bool & error,
     try
     {
         new_info = tree.get<std::string>(NEW_INFO);
+        Request::Hash();
     }
     catch(...)
     {
@@ -1268,6 +1298,12 @@ TokenController::TokenController(bool & error,
         }
 
         controller.DeserializeJson(error, tree.get_child(CONTROLLER));
+        if(error)
+        {
+            return;
+        }
+
+        Request::Hash();
     }
     catch(...)
     {
@@ -1423,6 +1459,7 @@ TokenBurn::TokenBurn(bool & error,
     try
     {
         amount = std::stoul(tree.get<std::string>(AMOUNT));
+        Request::Hash();
     }
     catch(...)
     {
@@ -1544,7 +1581,14 @@ TokenAccountSend::TokenAccountSend(bool & error,
     , transaction(error,
                   tree.get_child(request::fields::TRANSACTION,
                                  boost::property_tree::ptree()))
-{}
+{
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
 
 
 uint16_t TokenAccountSend::GetTokenTotal() const
@@ -1655,7 +1699,14 @@ TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
     , transaction(error,
                   tree.get_child(request::fields::TRANSACTION,
                                  boost::property_tree::ptree()))
-{}
+{
+    if(error)
+    {
+        return;
+    }
+
+    Request::Hash();
+}
 
 uint16_t TokenAccountWithdrawFee::GetTokenTotal() const
 {
@@ -1785,6 +1836,7 @@ TokenSend::TokenSend(bool & error,
         }
 
         token_fee = std::stoul(tree.get<std::string>(TOKEN_FEE));
+        Request::Hash();
     }
     catch(...)
     {
