@@ -23,7 +23,6 @@ void logos::tips_req_client::run ()
     if(connection->attempt->pulling > 0 || 
        total_pulls > 0 || 
        (!connection->node->_validator->can_proceed() && !connection->attempt->pending_deferred_pulls())) { // logical
-        std::cout << "can_proceed: " << connection->node->_validator->can_proceed() << std::endl;
         try {
             promise.set_value(false);
         } catch(const std::future_error &e)
@@ -55,7 +54,6 @@ void logos::tips_req_client::run ()
     connection->start_timeout ();
 
     auto address = connection->socket.remote_endpoint().address();
-    std::cout << " client start remote peer: " << address.to_v6() << " pid: " << getpid() << std::endl;
 
     boost::asio::async_write (connection->socket, boost::asio::buffer (send_buffer->data (), send_buffer->size ()), [this_l, send_buffer](boost::system::error_code const & ec, size_t size_a) {
         this_l->connection->stop_timeout ();
@@ -188,13 +186,11 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
     LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips: ec: " << ec << std::endl;
 
     auto address = connection->socket.remote_endpoint().address();
-    std::cout << " client remote peer: " << address.to_v6() << " pid: " << getpid() << std::endl;
 
     if(!ec) {
         uint8_t *data = connection->receive_buffer.data(); // Get it from wire.
         std::shared_ptr<BatchBlock::tips_response> tips(new BatchBlock::tips_response);
         logos::bufferstream stream(data, connection->receive_buffer.size());
-        std::cout << " DeSerialize: " << std::endl;
         BatchBlock::tips_response::DeSerialize(stream, *tips.get());
         connection->node->_validator->add_tips_response(tips); // Store our response.
 
@@ -202,11 +198,9 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
         mytips.Populate(connection->node->store);
         std::cout << "tips<0>: " << mytips;
 
-        std::cout << "line: " << __LINE__ << " file: " << __FILE__ << " delegate: " << tips->delegate_id << std::endl;
 
         // Handle errors and proceed to next peer...
         if(tips->delegate_id < 0 || tips->delegate_id >= NUMBER_DELEGATES) {
-            std::cout << "line: " << __LINE__ << " file: " << __FILE__ << " delegate: " << tips->delegate_id << std::endl;
             LOG_DEBUG(connection->node->log) << " Error receiving tips for delegate_id: " << tips->delegate_id << std::endl;
             try {
                 promise.set_value(true); // We got an error...
@@ -219,7 +213,6 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
 
         LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips : " << *tips << std::endl;
 
-        std::cout << "line: " << __LINE__ << " file: " << __FILE__ << std::endl;
         // This is our tips algorithm...
         // Get my tips...
         BlockHash epoch_tip = EpochBlock::getEpochBlockTip(connection->node->store);
@@ -245,7 +238,6 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
             micro_tip = in_memory_micro_tip.second;
         }
 
-        std::cout << "line: " << __LINE__ << " file: " << __FILE__ << std::endl;
         //LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: tips<1>... delegate: "  
         std::cout << "logos::tips_req_client::received_batch_block_tips:: tips<1>... delegate: "   // RGD
                   << tips->delegate_id << " "
@@ -253,7 +245,6 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
                   << " micro_tip: " << micro_tip.to_string() << " "
                   << " bsb_tip: "   << bsb_tip.to_string()   << "\ntips: " << *tips << std::endl;
 
-        std::cout << "line: " << __LINE__ << " file: " << __FILE__ << std::endl;
         //  Am I behind or ahead for this delegate...
         BlockHash zero = 0;
 
@@ -274,18 +265,15 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
             bool pull_epoch_block = ((epoch_seq == 0 and tips->epoch_block_seq_number == 0) ? true : false);
             bool pull_micro_block = ((micro_seq == 0 and tips->micro_block_seq_number == 0) ? true : false);
             // Get Epoch blocks...
-            std::cout << "epoch_seq: " << epoch_seq << " tips->epoch_seq: " << tips->epoch_block_seq_number << " pull_epoch_block: " << pull_epoch_block << " micro_seq: " << micro_seq << " tips->micro_seq: " << tips->micro_block_seq_number << " pull_micro_block: " << pull_micro_block << " epoch_tip: " << epoch_tip.to_string() << " micro_tip: " << micro_tip.to_string() << std::endl;
             if(epoch_seq < tips->epoch_block_seq_number || pull_epoch_block) {
                 // I have less sequence number than my peer, I am behind...
                 if((epoch_seq == 0) && (epoch_tip == tips->epoch_block_tip)) {
-                    std::cout << "return: " << __LINE__ << std::endl;
                     connection->attempt->add_pull(logos::pull_info(0,0, 
                              0,0,
                              tips->delegate_id,tips->epoch_block_tip,tips->epoch_block_tip,
                              zero,zero,
                              zero,zero));
                 } else {
-                    std::cout << "return: " << __LINE__ << std::endl;
                     connection->attempt->add_pull(logos::pull_info(0,0,
                              0,0,
                              tips->delegate_id,epoch_tip,tips->epoch_block_tip,
@@ -294,7 +282,6 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
                 }
                 LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: bulk_pull: delegate_id: epoch: " << tips->delegate_id << std::endl;
                 // logical Return here and let the logical stuff handle the rest in callbacks...
-                std::cout << "return: " << __LINE__ << std::endl;
                 try {
                     promise.set_value(false); // We got everything, indicate we are ok to bootstrap.cpp...
                 } catch(const std::future_error &e)
@@ -322,8 +309,6 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
                (micro_seq < tips->micro_block_seq_number || pull_micro_block)) {
                 // I have less sequence number than my peer, I am behind...
                 if((micro_seq == 0) && (micro_tip == tips->micro_block_tip)) {
-                    std::cout << "return: " << __LINE__ << std::endl;
-                    std::cout << " micro_tip: " << micro_tip.to_string() << " tips->micro_tip: " << tips->micro_block_tip.to_string() << std::endl;
                     connection->attempt->add_pull(logos::pull_info(0,0,
                              0,0,
                              tips->delegate_id,
@@ -331,7 +316,6 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
                              tips->micro_block_tip,tips->micro_block_tip,
                              zero,zero));
                 } else {
-                    std::cout << "return: " << __LINE__ << std::endl;
                     connection->attempt->add_pull(logos::pull_info(0,0,
                              0,0,
                              tips->delegate_id,
@@ -371,18 +355,13 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
         for(int delegate_id = 0; delegate_id < NUMBER_DELEGATES; delegate_id++) {
             uint32_t  bsb_seq   = BatchBlock::getBatchBlockSeqNr(connection->node->store, delegate_id);
             BlockHash bsb_tip   = BatchBlock::getBatchBlockTip(connection->node->store, delegate_id);
-            std::cout << "bsb_tip<0>: " << bsb_tip.to_string() << " delegate_id: " << delegate_id
-                      << " tips: " << tips->batch_block_tip[delegate_id].to_string() << std::endl;
             auto iter = in_memory_bsb_tips.find(delegate_id);
             if(iter != in_memory_bsb_tips.end()) {
                 bsb_seq = iter->second.first;
                 bsb_tip = iter->second.second;
             }
-            std::cout << "bsb_tip<1>: " << bsb_tip.to_string() << " delegate_id: " << delegate_id
-                      << " tips: " << tips->batch_block_tip[delegate_id].to_string() << std::endl;
             if(bsb_seq == BatchBlock::NOT_FOUND || bsb_tip.is_zero()) {
                     // Init, we have nothing for this delegate...
-                std::cout << " line: " << __LINE__ << " file: " << __FILE__ << std::endl;
                 connection->attempt->add_pull(logos::pull_info(0,0,
                          bsb_seq,tips->batch_block_seq_number[delegate_id],
                          delegate_id,
@@ -391,7 +370,6 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
                          tips->batch_block_tip[delegate_id],tips->batch_block_tip[delegate_id]));
                 LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips:: init bulk_pull: delegate_id: " << delegate_id << " tips.batch_block_tip: " << tips->batch_block_tip[delegate_id].to_string() << std::endl; 
             } else if(bsb_seq < tips->batch_block_seq_number[delegate_id]) {
-                std::cout << " line: " << __LINE__ << " file: " << __FILE__ << std::endl;
                 // I have less sequence number than my peer, I am behind...
                 connection->attempt->add_pull(logos::pull_info(0,0,
                          bsb_seq,tips->batch_block_seq_number[delegate_id],
@@ -447,7 +425,6 @@ void logos::tips_req_server::send_next ()
 
     if(nr_delegate > next_delegate)
     {
-       std::cout << "logos::tips_req_server::send_next:: next_delegate: " << next_delegate << " nr_delegate: " << nr_delegate << std::endl;
        LOG_DEBUG(connection->node->log) << "logos::tips_req_server::send_next:: next_delegate: " << next_delegate << " nr_delegate: " << nr_delegate << std::endl;
        send_batch_blocks_tips();
        next_delegate++; 
@@ -516,12 +493,10 @@ void logos::tips_req_server::sent_action (boost::system::error_code const & ec, 
 
 void logos::tips_req_server::send_batch_blocks_tips()
 {
-    std::cout << "logos::tips_req_server::send_batch_blocks_tips: " << std::endl;
     LOG_DEBUG(connection->node->log) << "logos::tips_req_server::send_batch_blocks_tips: " << std::endl;
 
     // logical, send one micro at a time and change epochs when we get to the last micro...
     auto address = connection->socket->remote_endpoint().address();
-    std::cout << " server remote peer: " << address.to_v6() << " pid: " << getpid() << std::endl;
 
     auto this_l = this;
 
@@ -529,7 +504,6 @@ void logos::tips_req_server::send_batch_blocks_tips()
     resp.Populate(connection->node->store); // Figure out if we are ahead or behind...
     bool can_proceed = resp.CanProceed(request->tips);
 
-    std::cout << "nr_delegate: " << nr_delegate << " can_proceed: " << can_proceed << std::endl;
 
     if(nr_delegate == NUMBER_DELEGATES && can_proceed) {
 
@@ -540,7 +514,6 @@ void logos::tips_req_server::send_batch_blocks_tips()
         auto send_buffer1(std::make_shared<std::vector<uint8_t>>());
         {
             logos::vectorstream stream(*send_buffer1.get());
-            std::cout << "Serialize" << std::endl;
             resp.Serialize(stream);
         }
 

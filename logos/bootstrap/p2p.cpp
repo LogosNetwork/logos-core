@@ -89,7 +89,6 @@ logos::endpoint p2p::get_random_peer()
     std::lock_guard<std::mutex> lock(smutex);
     if(nodes_vector.size() <= 0) {
         // Nothing here...
-        std::cout << "empty vector" << std::endl;
         return logos::endpoint(boost::asio::ip::address_v6::any(),0);
     }
     // Pick a peer to return.

@@ -9,8 +9,6 @@
 #include <logos/common.hpp>
 #include <mutex>
 
-static std::mutex global_mutex; // RGD
-
 constexpr uint128_t PersistenceManager<BSBCT>::MIN_TRANSACTION_FEE;
 
 PersistenceManager<BSBCT>::PersistenceManager(Store & store,
@@ -34,8 +32,6 @@ void PersistenceManager<BSBCT>::ApplyUpdates(
     //       performed in the following two methods will cause
     //       the application to exit without committing the
     //       intermediate transactions to the database.
-    std::lock_guard<std::mutex> lock(global_mutex);
-
     auto batch_hash = message.Hash();
     uint16_t count = 0;
     for(uint16_t i = 0; i < message.block_count; ++i)
@@ -61,8 +57,6 @@ void PersistenceManager<BSBCT>::ApplyUpdates(
         _reservations->Release(message.blocks[i]->account);
     }
 }
-
-std::atomic<int> EXPECTING;
 
 bool PersistenceManager<BSBCT>::ValidateRequest(
     const Request & block,

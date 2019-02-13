@@ -97,8 +97,6 @@ void BatchBlock::tips_response::PopulateLogical(Store & store, BatchBlock::tips_
     Micro::dumpMicroBlockTips(store,micro_tip);
 
     // NOTE Get the tips for all delegates and send them one by one for processing...
-    std::cout << " rgd { " << std::endl;
-    std::cout << " micro_tip: " << micro_tip.to_string() << std::endl;
     for(int i = 0; i < NUMBER_DELEGATES; i++)
     {
         BlockHash bsb_tip   = BatchBlock::getBatchBlockTip(store, i);
@@ -106,10 +104,7 @@ void BatchBlock::tips_response::PopulateLogical(Store & store, BatchBlock::tips_
         // Fill in the response...
         batch_block_tip[i]        = bsb_tip;
         batch_block_seq_number[i] = bsb_seq;
-        std::cout << " bsb_tip: " << bsb_tip.to_string()
-                  << " bsb_seq: " << bsb_seq;
     }
-    std::cout << " } " << std::endl;
 
     delegate_id = 0;
     timestamp_start = 0;

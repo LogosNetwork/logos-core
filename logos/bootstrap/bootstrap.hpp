@@ -27,8 +27,8 @@ constexpr uint32_t bootstrap_max_retry = 1000;
 
 namespace logos
 {
-boost::log::sources::logger_mt &bootstrap_get_logger();
-void bootstrap_init_logger(boost::log::sources::logger_mt *log);
+Log &bootstrap_get_logger();
+void bootstrap_init_logger(Log *log);
 
 class bootstrap_attempt;
 class bootstrap_client;

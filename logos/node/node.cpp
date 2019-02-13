@@ -1783,11 +1783,9 @@ void logos::node::ongoing_bootstrap ()
         }
         bootstrap_initiator.bootstrap ();
     }
-    std::cout << "ongoing_bootstrap:" << std::endl;
     // bootstrap if we need the next micro or if we exceed 300 seconds
     // wait, otherwise, go back to sleep...
     if(BatchBlock::get_next_micro > 0 || count >= 60) {
-        std::cout << "bootstrapping started..." << std::endl;
         bootstrap_initiator.bootstrap();
         count = 0;
         if(BatchBlock::get_next_micro > 0) --BatchBlock::get_next_micro;
@@ -2129,7 +2127,6 @@ uint64_t logos::node::work_generate_blocking (logos::uint256_union const & hash_
 
 void logos::node::add_initial_peers ()
 {
-    std::cout << "logos::node::add_initial_peers: " << std::endl;
 #ifdef _PRODUCTION
     LOG_DEBUG(log) << "logos::node::add_initial_peers: ";
     // Add our peers from the configuation...
@@ -2142,7 +2139,6 @@ void logos::node::add_initial_peers ()
 #endif
         boost::asio::ip::address_v4 v4 = boost::asio::ip::make_address_v4(config.consensus_manager_config.delegates[i].ip);
         boost::asio::ip::address_v6 v6 = boost::asio::ip::make_address_v6(boost::asio::ip::v4_mapped,v4);
-        std::cout << " v6: " << v6.to_string() << std::endl;
         logos::endpoint peer = logos::endpoint(
             boost::asio::ip::address::from_string(
                 v6.to_string()), port );
@@ -2280,7 +2276,6 @@ std::vector<logos::peer_information> logos::peer_container::purge_list (std::chr
         auto pivot (peers.get<1> ().lower_bound (cutoff - std::chrono::hours(24*365))); // Disable cut-off for testing... RGD
         //auto pivot (peers.get<1> ().lower_bound (cutoff));
         result.assign (pivot, peers.get<1> ().end ());
-        std::cout << " result.assign:= " << result.size() << std::endl;
         // Remove peers that haven't been heard from past the cutoff
         peers.get<1> ().erase (peers.get<1> ().begin (), pivot);
         for (auto i (peers.begin ()), n (peers.end ()); i != n; ++i)

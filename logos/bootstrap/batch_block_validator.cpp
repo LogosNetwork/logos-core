@@ -113,7 +113,7 @@ std::pair<int64_t, BlockHash> BatchBlock::validator::in_memory_epoch_tips()
 void BatchBlock::validator::add_micro_block(std::shared_ptr<logos::bootstrap_attempt> &attempt, std::shared_ptr<BatchBlock::bulk_pull_response_micro> &m)
 {
     std::lock_guard<std::mutex> lock(mutex);
-    std::cout << "BatchBlock::validator::add_micro_block:: " << m->micro->Hash().to_string() << std::endl;
+    LOG_DEBUG(node->log) << "BatchBlock::validator::add_micro_block:: " << m->micro->Hash().to_string() << std::endl;
     in_memory_micro_tips();
     std::shared_ptr<BatchBlock::bulk_pull_response_micro> prior_micro = nullptr;
 
@@ -130,7 +130,6 @@ void BatchBlock::validator::add_micro_block(std::shared_ptr<logos::bootstrap_att
 //#if 0
     bool isPrior = false;
     if(prior_micro && (m->micro->Hash() == prior_micro->micro->Hash())) {
-        std::cout << "already seen this micro" << std::endl; // RGD1 probably just print error, and continue without putting in queue again
         isPrior = true;
         //return;
     }
@@ -141,7 +140,7 @@ void BatchBlock::validator::add_micro_block(std::shared_ptr<logos::bootstrap_att
     auto next_micro = m->micro->Hash();
     auto isMicroPresent = Micro::readMicroBlock(node->store, next_micro);
     if(isMicroPresent || isPrior) {
-        std::cout << " micro block already installed, not queing up, will check our bsb tips..." << std::endl;
+        LOG_DEBUG(node->log) << " micro block already installed, not queing up, will check our bsb tips..." << std::endl;
     } else {
         // Queue it up for later processing...
         micro.push_back(m);
@@ -174,10 +173,8 @@ void BatchBlock::validator::add_micro_block(std::shared_ptr<logos::bootstrap_att
         } else {
             prior_bsb_tip = bsb_tip;
         }
-        std::cout << "prior_bsb_tip: " << prior_bsb_tip.to_string() << " bsb_seq: " << bsb_seq << " isBSBPresent: " << (isBSBPresent == nullptr) << " bsb_tip: " << bsb_tip.to_string() << " m->tips: " << m->micro->tips[i].to_string() << std::endl;
         if(isBSBPresent == nullptr && bsb_seq == BatchBlock::NOT_FOUND) {
             // Init, we have nothing yet for this delegate...
-            std::cout << "add_pull_bsb: " << __LINE__ << " file: " << __FILE__ << std::endl;
             attempt->add_pull_bsb(
                          0,0,
                          0,0,
@@ -185,7 +182,6 @@ void BatchBlock::validator::add_micro_block(std::shared_ptr<logos::bootstrap_att
                          prior_bsb_tip,prior_bsb_tip);
             LOG_DEBUG(node->log) << "logos::BatchBlock::validator::add_micro_block:: init bulk_pull: delegate_id: " << i << " tips: " << m->micro->tips[i].to_string() << std::endl; 
         } else if(isBSBPresent == nullptr && bsb_tip != m->micro->tips[i]) {
-            std::cout << "add_pull_bsb: " << __LINE__ << " file: " << __FILE__ << std::endl;
             attempt->add_pull_bsb(
                          0,0,
                          0,0,
@@ -218,16 +214,11 @@ void BatchBlock::validator::add_micro_block(std::shared_ptr<logos::bootstrap_att
                     bsb_tip = iter->second.second;
                 }
                 if(prior_micro) {
-                    std::cout << "add_pull_bsb: " << __LINE__ << " file: " << __FILE__ << std::endl;
                     attempt->add_pull_bsb(0,0,0,0,i,prior_micro->micro->tips[i],tips[0]->batch_block_tip[i]);
                 } else if(bsb_tip == zero) {
-                    std::cout << "add_pull_bsb: " << __LINE__ << " file: " << __FILE__ << std::endl;
-                    std::cout << " tips.bsb_tip: " << tips[0]->batch_block_tip[i].to_string() << std::endl;
                     attempt->add_pull_bsb(0,0,0,0,i,tips[0]->batch_block_tip[i],tips[0]->batch_block_tip[i]);
 
                 } else { //if(bsb_tip != tips[0]->batch_block_tip[i]) {
-                    std::cout << "add_pull_bsb: " << __LINE__ << " file: " << __FILE__ << std::endl;
-                    std::cout << "bsb_tip: " << bsb_tip.to_string() << " tips.bsb_tip: " << tips[0]->batch_block_tip[i].to_string() << std::endl;
                     attempt->add_pull_bsb(0,0,0,0,i,bsb_tip,tips[0]->batch_block_tip[i]); 
                 }
             }
@@ -259,7 +250,7 @@ void BatchBlock::validator::request_micro_block(std::shared_ptr<logos::bootstrap
 void BatchBlock::validator::add_epoch_block(std::shared_ptr<logos::bootstrap_attempt> &attempt, std::shared_ptr<BatchBlock::bulk_pull_response_epoch> &e)
 {
     std::lock_guard<std::mutex> lock(mutex);
-    std::cout << "BatchBlock::validator::add_epoch_block:: " << e->epoch->Hash().to_string() << std::endl;
+    LOG_DEBUG(node->log) << "BatchBlock::validator::add_epoch_block:: " << e->epoch->Hash().to_string() << std::endl;
 
     epoch.push_back(e); // logical
 
@@ -272,19 +263,17 @@ void get_block_sequence_range(std::shared_ptr<ApprovedBSB> block, int *lmin, int
     *lmax = 0;
 
     for(int i = 0; i < block->block_count; i++) {
-        if(block->blocks[i].sequence < *lmin) {
-            *lmin = block->blocks[i].sequence;
+        if(block->blocks[i]->sequence < *lmin) {
+            *lmin = block->blocks[i]->sequence;
         }       
     }
 
     for(int i = 0; i < block->block_count; i++) {
-        if(block->blocks[i].sequence > *lmax) {
-            *lmax = block->blocks[i].sequence;
+        if(block->blocks[i]->sequence > *lmax) {
+            *lmax = block->blocks[i]->sequence;
         }       
     }
 }
-
-extern std::atomic<int> EXPECTING;
 
 bool BatchBlock::validator::validate(std::shared_ptr<logos::bootstrap_attempt> attempt, std::shared_ptr<BatchBlock::bulk_pull_response> block)
 {
@@ -346,13 +335,11 @@ bool BatchBlock::validator::validate(std::shared_ptr<logos::bootstrap_attempt> a
 	            finished_bsb[j].insert(i);
 	        } else {
 	            // Try and validate...
-	            std::cout << "rgd_validate:: block_sequence: " << block->block->sequence << std::endl;
 	            if (BatchBlock::Validate(node->store,
 	                *block->block.get(),block->delegate_id,&rtvl)) {
 	                // Block is valid, add to database.
 	                BatchBlock::ApplyUpdates(node->store,
 	                                 *block->block.get(),block->delegate_id);
-	                std::cout << "validate successful: hash: " << block->block->Hash().to_string() << " prev: " << block->block->previous.to_string() << " next: " << block->block->next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
 	                LOG_INFO(node->log) << "validate successful: hash: " << block->block->Hash().to_string() << " prev: " << block->block->previous.to_string() << " next: " << block->block->next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
 	                finished_bsb[j].insert(i);
 	            } else {
@@ -437,9 +424,6 @@ bool BatchBlock::validator::validate(std::shared_ptr<logos::bootstrap_attempt> a
         //using Request = RequestMessage<MBCT>;
 		ValidationStatus rtvl;
         if((!peerMicro->previous.is_zero() || !peerMicro->next.is_zero()) && micro_handler->Validate(*peerMicro, &rtvl)) {
-             std::cout << "micro_handler->Validate: " 
-                      << peerMicro->Hash().to_string() << " prev: " << peerMicro->previous.to_string()
-                      << " next: " << peerMicro->next.to_string() << std::endl;
              LOG_DEBUG(node->log) << "micro_handler->Validate: " 
                       << peerMicro->Hash().to_string() << " prev: " << peerMicro->previous.to_string()
                       << " next: " << peerMicro->next.to_string() << std::endl;
@@ -508,7 +492,6 @@ bool BatchBlock::validator::validate(std::shared_ptr<logos::bootstrap_attempt> a
         ValidationStatus rtvl;
         if(epoch[j]->epoch->micro_block_tip == current_micro_hash && 
            (isValid=epoch_handler->Validate(*(epoch[j]->epoch), &rtvl))) {
-            std::cout << "epoch_handler->ApplyUpdates: " << epoch[j]->epoch->Hash().to_string() << std::endl;
             LOG_INFO(node->log) << "epoch_handler->ApplyUpdates: " << epoch[j]->epoch->Hash().to_string() << std::endl;
             epoch_handler->ApplyUpdates(*(epoch[j]->epoch)); // Validation succeeded, add to database.
             finished.insert(j);
