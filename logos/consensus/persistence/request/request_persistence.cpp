@@ -86,17 +86,30 @@ bool PersistenceManager<R>::ValidateRequest(
 
     auto hash = request->GetHash();
 
-    // burn account and transaction fee validation is done in TxAcceptor
-
-    // SYL Integration: remove _reservation_mutex for now and rely on coarser _write_mutex. Potential fix later
-    std::shared_ptr<logos::Account> info;
-    // account doesn't exist
-    if (_store.account_get(request->origin, info, request->GetAccountType()))
+    if(!_store.account_exists(request->origin))
     {
-        // Currently do not accept state blocks
-        // with non-existent accounts.
-        result.code = logos::process_result::unknown_source_account;
+        result.code = logos::process_result::unknown_origin;
         return false;
+    }
+
+    // burn account and transaction fee validation is done in TxAcceptor
+    // SYL Integration: remove _reservation_mutex for now and rely on coarser _write_mutex. Potential fix later
+
+    std::shared_ptr<logos::Account> info;
+
+    // The account doesn't exist
+    if (_store.account_get(request->GetAccount(), info, request->GetAccountType()))
+    {
+        // Issue token requests have unknown accounts
+        // as the token account doesn't yet exist.
+        if(request->type != RequestType::IssueTokens)
+        {
+            // We can only get here if this is an administrative
+            // token request, which means an invalid token ID
+            // was provided.
+            result.code = logos::process_result::invalid_token_id;
+            return false;
+        }
     }
 
     // a valid (non-expired) reservation exits
