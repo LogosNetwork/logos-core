@@ -22,6 +22,7 @@ struct TokenIssuance : TokenRequest
     TokenIssuance(bool & error,
                   boost::property_tree::ptree const & tree);
 
+    logos::AccountType GetAccountType() const override;
     AccountAddress GetSource() const override;
 
     boost::property_tree::ptree SerializeJson() const override;
