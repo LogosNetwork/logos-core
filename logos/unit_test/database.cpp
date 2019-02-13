@@ -5,6 +5,7 @@
 #include <logos/epoch/election_requests.hpp>
 #include <logos/common.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
+#include <logos/elections/database.hpp>
 
 #define Unit_Test_Database
 
@@ -27,7 +28,7 @@ void generateReps(
        } 
        bool res = store->request_put(ev,ev.Hash(),txn);
        ASSERT_FALSE(res);
-       logos::RepInfo rep_info;
+       RepInfo rep_info;
        AccountAddress rep_account = i;
        rep_info.election_vote_tip = ev.Hash();
        res = store->rep_put(rep_account,rep_info,txn);
@@ -37,13 +38,11 @@ void generateReps(
 
 TEST (Database, blockstore)
 {
-
     logos::block_store* store(get_db());
     ASSERT_NE(store,nullptr);
     store->clear(store->representative_db);
     {
         logos::transaction txn(store->environment,nullptr,true);
-
 
         //Generic request
         Request req;
@@ -116,14 +115,14 @@ TEST (Database, blockstore)
         ASSERT_NE(ev3,ev2);
 
 
-        logos::RepInfo rep_info;
+        RepInfo rep_info;
         AccountAddress rep_account = 1;
         rep_info.election_vote_tip = ev.Hash();
 
         res = store->rep_put(rep_account,rep_info,txn);
         ASSERT_FALSE(res);
 
-        logos::RepInfo rep_info2;
+        RepInfo rep_info2;
         res = store->rep_get(rep_account,rep_info2,txn);
         ASSERT_FALSE(res);
         ASSERT_EQ(rep_info,rep_info2);
@@ -147,10 +146,8 @@ TEST (Database, blockstore)
     //add some more reps to db
     {
 
-        std::cout << "big test" << std::endl;
         std::vector<AccountAddress> candidates{100,101,102,103,104,105,106,107};
-        generateReps(100000,candidates,store);
-        std::cout << "wrote reps" << std::endl; 
+        generateReps(100,candidates,store);
         EpochVotingManager mgr(*store);
         std::vector<Delegate> de(mgr.GetDelegateElects(4));
         ASSERT_EQ(de.size(), 4);
@@ -159,7 +156,13 @@ TEST (Database, blockstore)
         ASSERT_EQ(de[2].account,candidates[2]);
         ASSERT_EQ(de[3].account,candidates[3]);
     }
+}
 
+
+TEST(database, candidates)
+{
+
+    //TODO: write tests for candidate functions
 }
 
 #endif

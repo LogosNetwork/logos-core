@@ -1373,6 +1373,20 @@ bool logos::block_store::candidate_put(
     return status != 0;
 }
 
+bool logos::block_store::candidate_add_vote(
+        const AccountAddress & account,
+        uint64_t weighted_vote,
+        MDB_txn * txn)
+{
+    CandidateInfo c_info;
+    if(!candidate_get(account,c_info,txn))
+    {
+        c_info.votes_received_weighted += weighted_vote;
+        return candidate_put(account,c_info,txn);
+    }
+    return true;
+}
+
 bool logos::block_store::receive_put(const BlockHash & hash, const ReceiveBlock & block, MDB_txn * transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();

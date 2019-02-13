@@ -356,6 +356,8 @@ add_library (node
 	logos/epoch/epoch_voting_manager.cpp
 	logos/epoch/event_proposer.cpp
     logos/epoch/election_requests.cpp
+    logos/elections/database.cpp
+    logos/elections/database_functions.cpp
 	logos/microblock/microblock.cpp
 	logos/microblock/microblock_handler.cpp
 	logos/microblock/microblock_tester.cpp

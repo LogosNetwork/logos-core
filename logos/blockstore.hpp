@@ -7,6 +7,7 @@
 #include <logos/epoch/epoch.hpp>
 #include <logos/lib/log.hpp>
 #include <logos/common.hpp>
+#include <logos/elections/database.hpp>
 
 namespace logos
 {
@@ -223,11 +224,11 @@ public:
 
     bool rep_get(
             AccountAddress const & account,
-            logos::RepInfo & rep_info,
+            RepInfo & rep_info,
             MDB_txn* t=0);
     bool rep_put(
             AccountAddress const & account,
-            const logos::RepInfo & rep_info,
+            const RepInfo & rep_info,
             MDB_txn *);
 
     bool candidate_get(
@@ -238,6 +239,12 @@ public:
             const AccountAddress & account,
             const CandidateInfo & candidate_info,
             MDB_txn *);
+
+    bool candidate_add_vote(
+            const AccountAddress & account,
+            uint64_t weighted_vote,
+            MDB_txn *);
+
     bool token_user_status_get(const BlockHash & token_user_id, TokenUserStatus & status, MDB_txn* t=0);
     bool token_user_status_put(const BlockHash & token_user_id, const TokenUserStatus & status, MDB_txn *);
 

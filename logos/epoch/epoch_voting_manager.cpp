@@ -8,7 +8,7 @@
 #include <logos/epoch/election_requests.hpp>
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
-
+#include <logos/elections/database.hpp>
 #include <unordered_map>
 
 
@@ -30,7 +30,7 @@ std::vector<Delegate> EpochVotingManager::GetDelegateElects(size_t num_new)
     {
         logos::account account(it->first.uint256());
         bool error = false;
-        logos::RepInfo rep_info(error, it->second);
+        RepInfo rep_info(error, it->second);
         ElectionVote ev;
         if(!_store.request_get(rep_info.election_vote_tip,ev,txn))
         {
