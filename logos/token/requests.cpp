@@ -99,6 +99,11 @@ TokenIssuance::TokenIssuance(bool & error,
     }
 }
 
+logos::AccountType TokenIssuance::GetAccountType() const
+{
+    return logos::AccountType::LogosAccount;
+}
+
 AccountAddress TokenIssuance::GetSource() const
 {
     // The source account for TokenIssuance
