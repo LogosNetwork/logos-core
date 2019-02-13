@@ -183,7 +183,7 @@ public:
     bool token_account_get(const BlockHash & token_id, std::shared_ptr<Account> & info, MDB_txn* t=0);
     bool token_account_get(const BlockHash & token_id, TokenAccount & info, MDB_txn* t=0);
     bool token_account_db_empty();
-    bool token_account_put (AccountAddress const &, TokenAccount const &, MDB_txn *);
+    bool token_account_put (const BlockHash &, TokenAccount const &, MDB_txn *);
 
     bool account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, AccountType type, MDB_txn* t=0);
     bool account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, MDB_txn* t=0);
