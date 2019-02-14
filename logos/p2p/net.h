@@ -117,16 +117,16 @@ class CConnman;
 class AsioSession : public std::enable_shared_from_this<AsioSession>
 {
 public:
-    AsioSession(boost::asio::io_service& ios, CConnman *connman_);
+    AsioSession(boost::asio::io_service& ios, CConnman &connman_);
     ~AsioSession();
     boost::asio::ip::tcp::socket& get_socket() { return socket; }
     void setNode(std::shared_ptr<CNode> pnode_);
     void start();
     void shutdown();
     void async_write(const char *buf, size_t bytes);
+    CConnman &connman;
 private:
     boost::asio::ip::tcp::socket socket;
-    CConnman *connman;
     std::shared_ptr<CNode> pnode;
     NodeId id;
     bool in_shutdown;
@@ -140,14 +140,14 @@ private:
 
 enum ConnFlags {
 	CONN_ONE_SHOT	= 1,
-	CONN_FEELER	= 2,
-	CONN_MANUAL	= 4,
+    CONN_FEELER     = 2,
+    CONN_MANUAL     = 4,
 	CONN_FAILURE	= 8,
 };
 
 class AsioClient {
 public:
-    AsioClient(CConnman *conn, const char *nam, std::shared_ptr<CSemaphoreGrant> grant, int fl);
+    AsioClient(CConnman &conn, const char *nam, std::shared_ptr<CSemaphoreGrant> grant, int fl);
     ~AsioClient();
     void connect(const std::string &host, const std::string &port);
     void resolve_handler(const boost::system::error_code& ec,
@@ -155,7 +155,7 @@ public:
     void connect_handler(std::shared_ptr<AsioSession> session, const boost::system::error_code& ec,
 		const boost::asio::ip::tcp::endpoint& endpoint);
 private:
-    CConnman *connman;
+    CConnman &connman;
     char *name;
     std::shared_ptr<CSemaphoreGrant> grantOutbound;
     int flags;
@@ -165,12 +165,12 @@ private:
 
 class AsioServer : public std::enable_shared_from_this<AsioServer> {
 public:
-    AsioServer(CConnman *, boost::asio::ip::address &, short port, bool wlisted);
+    AsioServer(CConnman &, boost::asio::ip::address &, short port, bool wlisted);
     ~AsioServer();
     void start();
     void shutdown();
 private:
-    CConnman *connman;
+    CConnman &connman;
     boost::asio::ip::tcp::acceptor acceptor;
     bool whitelisted;
     bool in_shutdown;
@@ -343,6 +343,7 @@ public:
     void GetNodeStats(std::vector<CNodeStats>& vstats);
     bool DisconnectNode(const std::string& node);
     bool DisconnectNode(NodeId id);
+    void FinalizeNode(NodeId id, const CAddress &addr);
 
     ServiceFlags GetLocalServices() const;
 
@@ -812,6 +813,7 @@ private:
     // Our address, as reported by the peer
     CService addrLocal;
     mutable Mutex cs_addrLocal;
+    CConnman &connman;
 public:
 
     NodeId GetId() const {

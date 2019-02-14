@@ -361,9 +361,9 @@ static CAddress GetBindAddress(SOCKET sock)
     return addr_bind;
 }
 
-AsioSession::AsioSession(boost::asio::io_service& ios, CConnman *connman_)
-    : socket(ios)
-    , connman(connman_)
+AsioSession::AsioSession(boost::asio::io_service& ios, CConnman &connman_)
+    : connman(connman_)
+    , socket(ios)
     , pnode(0)
     , id(-1ll)
     , in_shutdown(false)
@@ -413,15 +413,7 @@ void AsioSession::shutdown()
     }
     else
     {
-        std::shared_ptr<CNode> pnode_ = pnode;
         pnode = std::shared_ptr<CNode>();
-        LOCK(pnode_->cs_vSend);
-        bool fUpdateConnectionTime = false;
-        connman->m_msgproc->FinalizeNode(id, fUpdateConnectionTime);
-        if (fUpdateConnectionTime)
-        {
-            connman->addrman.Connected(pnode_->addr);
-        }
         LogDebug(BCLog::NET, "Session shutdown, peer=%ld\n", id);
     }
 }
@@ -434,7 +426,7 @@ void AsioSession::handle_read(std::shared_ptr<AsioSession> s,
     {
         LogError(BCLog::NET, "Error in receive, peer=%lld: %s", id, err.message());
         if (!in_shutdown)
-            connman->AcceptReceivedBytes(pnode, data, -1);
+            connman.AcceptReceivedBytes(pnode, data, -1);
         shutdown();
     }
     else if (in_shutdown)
@@ -442,7 +434,7 @@ void AsioSession::handle_read(std::shared_ptr<AsioSession> s,
         LogWarning(BCLog::NET, "Received %d bytes before shutdown, peer=%lld", bytes_transferred, id);
         shutdown();
     }
-    else if (!connman->AcceptReceivedBytes(pnode, data, bytes_transferred))
+    else if (!connman.AcceptReceivedBytes(pnode, data, bytes_transferred))
     {
         LogError(BCLog::NET, "Error in accept %d received bytes, peer=%lld", bytes_transferred, id);
         shutdown();
@@ -466,7 +458,7 @@ void AsioSession::handle_write(std::shared_ptr<AsioSession> s,
         LogError(BCLog::NET, "Error in transmit, peer=%lld: %s", id, err.message());
         if (!in_shutdown)
         {
-            connman->SocketSendFinish(pnode, -1);
+            connman.SocketSendFinish(pnode, -1);
             shutdown();
         }
     }
@@ -474,7 +466,7 @@ void AsioSession::handle_write(std::shared_ptr<AsioSession> s,
     {
         LogWarning(BCLog::NET, "Transmitted %d bytes before shutdown, peer=%lld", bytes_transferred, id);
     }
-    else if (!connman->SocketSendFinish(pnode, bytes_transferred))
+    else if (!connman.SocketSendFinish(pnode, bytes_transferred))
     {
         LogError(BCLog::NET, "Error in accept %d transmitted bytes, peer=%lld", bytes_transferred, id);
         shutdown();
@@ -482,7 +474,7 @@ void AsioSession::handle_write(std::shared_ptr<AsioSession> s,
     else
     {
         LogTrace(BCLog::NET, "Transmitted %d bytes, peer=%lld", bytes_transferred, id);
-        sem_post(&connman->dataWritten);
+        sem_post(&connman.dataWritten);
     }
 }
 
@@ -494,12 +486,12 @@ void AsioSession::async_write(const char *buf, size_t bytes)
             boost::asio::placeholders::bytes_transferred));
 }
 
-AsioClient::AsioClient(CConnman *conn, const char *nam, std::shared_ptr<CSemaphoreGrant> grant, int fl)
+AsioClient::AsioClient(CConnman &conn, const char *nam, std::shared_ptr<CSemaphoreGrant> grant, int fl)
     : connman(conn)
     , name(nam ? strdup(nam) : nullptr)
     , grantOutbound(grant)
     , flags(fl)
-    , resolver(*conn->io_service)
+    , resolver(*conn.io_service)
 {
 }
 
@@ -522,7 +514,7 @@ void AsioClient::resolve_handler(const boost::system::error_code& ec, boost::asi
     }
     else
     {
-        std::shared_ptr<AsioSession> session = std::make_shared<AsioSession>(*connman->io_service, connman);
+        std::shared_ptr<AsioSession> session = std::make_shared<AsioSession>(*connman.io_service, connman);
         boost::asio::async_connect(session->get_socket(), results,
                 boost::bind(&AsioClient::connect_handler, this, session, _1, _2));
     }
@@ -588,7 +580,7 @@ void AsioClient::connect_handler(std::shared_ptr<AsioSession> session, const boo
     {
         LogWarning(BCLog::NET, "Connect error: %s", ec.message());
     }
-    else if (!connman->ConnectNodeFinish(this, session))
+    else if (!connman.ConnectNodeFinish(this, session))
     {
         LogInfo(BCLog::NET, "Connected node already exists");
     }
@@ -620,7 +612,7 @@ void CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, std::share
             pszDest ? pszDest : addrConnect.ToString(),
             pszDest ? 0.0 : (double)(GetAdjustedTime() - addrConnect.nTime)/3600.0);
 
-    AsioClient *client = new AsioClient(this, pszDest, grantOutbound, flags);
+    AsioClient *client = new AsioClient(*this, pszDest, grantOutbound, flags);
     std::string host, port;
 
     if (pszDest)
@@ -1303,12 +1295,12 @@ std::shared_ptr<CNode> CConnman::AcceptConnection(std::shared_ptr<AsioSession> s
     return pnode;
 }
 
-AsioServer::AsioServer(CConnman *conn,
+AsioServer::AsioServer(CConnman &conn,
                        boost::asio::ip::address &addr,
                        short port,
                        bool wlisted)
     : connman(conn)
-    , acceptor(*conn->io_service, boost::asio::ip::tcp::endpoint(addr, port))
+    , acceptor(*conn.io_service, boost::asio::ip::tcp::endpoint(addr, port))
     , whitelisted(wlisted)
     , in_shutdown(false)
 {
@@ -1318,7 +1310,7 @@ AsioServer::AsioServer(CConnman *conn,
 void AsioServer::start()
 {
     LogDebug(BCLog::NET, "AsioServer started\n");
-    std::shared_ptr<AsioSession> session = std::make_shared<AsioSession>(*connman->io_service, connman);
+    std::shared_ptr<AsioSession> session = std::make_shared<AsioSession>(*connman.io_service, connman);
     acceptor.async_accept(session->get_socket(),
 			boost::bind(&AsioServer::handle_accept, this, shared_from_this(), session,
 			boost::asio::placeholders::error));
@@ -1336,14 +1328,14 @@ void AsioServer::handle_accept(std::shared_ptr<AsioServer> ptr, std::shared_ptr<
         LogError(BCLog::NET, "Error: can't accept connection: %s\n", err.message());
         session.reset();
     }
-    else if (!connman->AcceptConnection(session, whitelisted))
+    else if (!connman.AcceptConnection(session, whitelisted))
     {
         session.reset();
     }
     else
     {
         session->start();
-        session = std::make_shared<AsioSession>(*connman->io_service, connman);
+        session = std::make_shared<AsioSession>(*connman.io_service, connman);
     }
     if (!in_shutdown)
     {
@@ -2118,20 +2110,23 @@ bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, b
     socklen_t len = sizeof(sockaddr);
     if (!addrBind.GetSockAddr((struct sockaddr*)&sockaddr, &len))
     {
-	strError = strprintf("Error: Bind address family for %s not supported", addrBind.ToString());
-	LogPrintf("%s\n", strError);
-	return false;
+        strError = strprintf("Error: Bind address family for %s not supported", addrBind.ToString());
+        LogPrintf("%s\n", strError);
+        return false;
     }
 
     ListenSocket sock;
 
-    try {
-	boost::asio::ip::address asio_addr = boost::asio::ip::make_address(addr);
-	sock = std::make_shared<AsioServer>(this, asio_addr, port, fWhitelisted);
-    } catch(std::exception &ex) {
-	strError = strprintf("Error: Unable to bind to %s: %s\n", addrBind.ToString(), ex.what());
-	LogPrintf("%s\n", strError);
-	return false;
+    try
+    {
+        boost::asio::ip::address asio_addr = boost::asio::ip::make_address(addr);
+        sock = std::make_shared<AsioServer>(*this, asio_addr, port, fWhitelisted);
+    }
+    catch(std::exception &ex)
+    {
+        strError = strprintf("Error: Unable to bind to %s: %s\n", addrBind.ToString(), ex.what());
+        LogPrintf("%s\n", strError);
+        return false;
     }
 
     vhListenSocket.push_back(sock);
@@ -2686,7 +2681,8 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     nLocalHostNonce(nLocalHostNonceIn),
     nLocalServices(nLocalServicesIn),
     nMyStartingHeight(nMyStartingHeightIn),
-    nSendVersion(0)
+    nSendVersion(0),
+    connman(sessionIn->connman)
 {
     nServices = NODE_NONE;
     session = sessionIn;
@@ -2746,7 +2742,19 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
 CNode::~CNode()
 {
     session->shutdown();
+    LOCK(cs_vSend);
+    connman.FinalizeNode(id, addr);
     LogDebug(BCLog::NET, "Node destroyed, peer=%d\n", id);
+}
+
+void CConnman::FinalizeNode(NodeId id, const CAddress &addr)
+{
+    bool fUpdateConnectionTime = false;
+    m_msgproc->FinalizeNode(id, fUpdateConnectionTime);
+    if (fUpdateConnectionTime)
+    {
+        addrman.Connected(addr);
+    }
 }
 
 bool CConnman::NodeFullyConnected(std::shared_ptr<CNode> pnode)
