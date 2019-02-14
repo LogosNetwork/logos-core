@@ -195,7 +195,7 @@ struct BitField
 
     BitField() = default;
 
-    void Set(size_t pos, bool value)
+    void Set(size_t pos, bool value = true)
     {
         field.set(pos, value);
     }
