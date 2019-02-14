@@ -247,9 +247,9 @@ bool ControllerInfo::IsAuthorized(std::shared_ptr<const Request> request) const
             result = privileges[size_t(ControllerPrivilege::Burn)];
             break;
         case RequestType::DistributeTokens:
-            result = privileges[size_t(ControllerPrivilege::Withdraw)];
+            result = privileges[size_t(ControllerPrivilege::Distribute)];
             break;
-        case RequestType::WithdrawTokens:
+        case RequestType::WithdrawFee:
             result = privileges[size_t(ControllerPrivilege::WithdrawFee)];
             break;
 

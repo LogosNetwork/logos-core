@@ -689,7 +689,7 @@ auto GenerateWithdrawFee = []()
 {
     TokenAccountWithdrawFee withdraw;
 
-    withdraw.type = RequestType::WithdrawTokens;
+    withdraw.type = RequestType::WithdrawFee;
     withdraw.transaction.destination.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
     withdraw.transaction.amount = 600;
 
@@ -956,7 +956,7 @@ TEST (Request_Serialization, stream_methods)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(withdraw_a.type, withdraw_b.type);
-    ASSERT_EQ(withdraw_a.type, RequestType::WithdrawTokens);
+    ASSERT_EQ(withdraw_a.type, RequestType::WithdrawFee);
     ASSERT_EQ(withdraw_a.transaction, withdraw_b.transaction);
 
     // Token Send
@@ -1201,7 +1201,7 @@ TEST (Request_Serialization, database_methods)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(withdraw_a.type, withdraw_b.type);
-    ASSERT_EQ(withdraw_a.type, RequestType::WithdrawTokens);
+    ASSERT_EQ(withdraw_a.type, RequestType::WithdrawFee);
     ASSERT_EQ(withdraw_a.transaction, withdraw_b.transaction);
 
     // Token Send

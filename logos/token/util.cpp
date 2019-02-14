@@ -231,9 +231,9 @@ ControllerPrivilege GetControllerPrivilege(bool & error, std::string data)
     {
         ret = ControllerPrivilege::Burn;
     }
-    else if(data == WITHDRAW)
+    else if(data == DISTRIBUTE)
     {
-        ret = ControllerPrivilege::Withdraw;
+        ret = ControllerPrivilege::Distribute;
     }
     else if(data == WITHDRAW_FEE)
     {
@@ -314,8 +314,8 @@ std::string GetControllerPrivilegeField(ControllerPrivilege privilege)
         case ControllerPrivilege::Burn:
             ret = BURN;
             break;
-        case ControllerPrivilege::Withdraw:
-            ret = WITHDRAW;
+        case ControllerPrivilege::Distribute:
+            ret = DISTRIBUTE;
             break;
         case ControllerPrivilege::WithdrawFee:
             ret = WITHDRAW_FEE;
@@ -487,7 +487,7 @@ bool IsTokenAdminRequest(RequestType type)
         case RequestType::UpdateController:
         case RequestType::BurnTokens:
         case RequestType::DistributeTokens:
-        case RequestType::WithdrawTokens:
+        case RequestType::WithdrawFee:
             result = true;
             break;
         case RequestType::SendTokens:

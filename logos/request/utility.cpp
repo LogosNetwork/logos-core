@@ -68,9 +68,9 @@ RequestType GetRequestType(bool &error, std::string data)
     {
         ret = RequestType::DistributeTokens;
     }
-    else if(data == WITHDRAW)
+    else if(data == WITHDRAW_FEE)
     {
-        ret = RequestType::WithdrawTokens;
+        ret = RequestType::WithdrawFee;
     }
     else if(data == SEND_TOKENS)
     {
@@ -133,8 +133,8 @@ std::string GetRequestTypeField(RequestType type)
         case RequestType::DistributeTokens:
             ret = DISTRIBUTE;
             break;
-        case RequestType::WithdrawTokens:
-            ret = WITHDRAW;
+        case RequestType::WithdrawFee:
+            ret = WITHDRAW_FEE;
             break;
         case RequestType::SendTokens:
             ret = SEND_TOKENS;
@@ -196,7 +196,7 @@ std::shared_ptr<Request> BuildRequest(RequestType type, Args&& ...args)
         case RequestType::DistributeTokens:
             result = std::make_shared<TokenAccountSend>(TokenAccountSend(args...));
             break;
-        case RequestType::WithdrawTokens:
+        case RequestType::WithdrawFee:
             result = std::make_shared<TokenAccountWithdrawFee>(TokenAccountWithdrawFee(args...));
             break;
         case RequestType::SendTokens:
