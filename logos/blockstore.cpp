@@ -1378,11 +1378,38 @@ bool logos::block_store::candidate_add_vote(
         uint64_t weighted_vote,
         MDB_txn * txn)
 {
-    CandidateInfo c_info;
-    if(!candidate_get(account,c_info,txn))
+    CandidateInfo info;
+    if(!candidate_get(account,info,txn) && info.active)
     {
-        c_info.votes_received_weighted += weighted_vote;
-        return candidate_put(account,c_info,txn);
+        info.votes_received_weighted += weighted_vote;
+        return candidate_put(account,info,txn);
+    }
+    return true;
+}
+
+bool logos::block_store::candidate_add_new(
+        const AccountAddress & account,
+        MDB_txn * txn)
+{
+    CandidateInfo info(false,false,0);
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(txn, candidacy_db, logos::mdb_val(account), info.to_mdb_val(buf), MDB_NOOVERWRITE));
+
+    assert(status == 0);
+    return status != 0;
+}
+
+
+bool logos::block_store::candidate_mark_remove(
+        const AccountAddress & account,
+        MDB_txn * txn)
+{
+    CandidateInfo info;
+    //TODO only remove if remove is false and active is true?
+    if(!candidate_get(account,info,txn))
+    {
+        info.remove = true;
+        return candidate_put(account,info,txn);
     }
     return true;
 }

@@ -19,12 +19,14 @@ struct Delegate
     DelegatePubKey      bls_pub;
     Amount              vote;
     Amount              stake;
+    bool                starting_term;
 
     Delegate()
     : account()
     , bls_pub()
     , vote(0)
     , stake(0)
+    , starting_term(false)
     {}
 
     Delegate(AccountAddress const & account,
@@ -35,6 +37,7 @@ struct Delegate
     , bls_pub(bls_pub)
     , vote(vote)
     , stake(stake)
+    , starting_term(false)
     {}
 
     void Hash(blake2b_state & hash) const
@@ -51,6 +54,7 @@ struct Delegate
         s += logos::write(stream, bls_pub);
         s += logos::write(stream, vote);
         s += logos::write(stream, stake);
+        s += logos::write(stream, starting_term);
         return s;
     }
 
@@ -75,6 +79,11 @@ struct Delegate
         }
 
         error = logos::read(stream, stake);
+        if(error)
+        {
+            return;
+        }
+        error = logos::read(stream, starting_term);
     }
 
     void SerializeJson(boost::property_tree::ptree & epoch_block) const
@@ -83,6 +92,7 @@ struct Delegate
         epoch_block.put("bls_pub", bls_pub.to_string());
         epoch_block.put("vote", vote.to_string());
         epoch_block.put("stake", stake.to_string());
+        epoch_block.put("starting_term", starting_term);
     }
 
     //TODO: is this enough? do we need to use bls key too?

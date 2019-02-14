@@ -245,6 +245,14 @@ public:
             uint64_t weighted_vote,
             MDB_txn *);
 
+    bool candidate_add_new(
+            const AccountAddress & account,
+            MDB_txn *);
+
+    bool candidate_mark_remove(
+            const AccountAddress & account,
+            MDB_txn *);
+
     bool token_user_status_get(const BlockHash & token_user_id, TokenUserStatus & status, MDB_txn* t=0);
     bool token_user_status_put(const BlockHash & token_user_id, const TokenUserStatus & status, MDB_txn *);
 
