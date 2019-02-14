@@ -235,6 +235,15 @@ bool TokenAccount::GetController(const AccountAddress & account, ControllerInfo 
     return result; // True if the entry is found.
 }
 
+auto TokenAccount::GetController(const AccountAddress & account) -> Controllers::iterator
+{
+    return std::find_if(controllers.begin(), controllers.end(),
+                        [&account](const ControllerInfo & c)
+                        {
+                            return c.account == account;
+                        });
+}
+
 bool TokenAccount::FeeSufficient(uint16_t token_total, uint16_t token_fee) const
 {
     uint16_t min_fee;

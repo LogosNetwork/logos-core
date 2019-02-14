@@ -43,6 +43,7 @@ struct TokenAccount : logos::Account
 
     bool IsController(const AccountAddress & account) const;
     bool GetController(const AccountAddress & account, ControllerInfo & controller) const;
+    Controllers::iterator GetController(const AccountAddress & account);
 
     bool FeeSufficient(uint16_t token_total, uint16_t token_fee) const;
     bool SendAllowed(const TokenUserStatus & status,

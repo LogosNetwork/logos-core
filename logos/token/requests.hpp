@@ -8,6 +8,8 @@
 //
 struct TokenIssuance : TokenRequest
 {
+    using Request::Hash;
+
     using Settings    = BitField<TOKEN_SETTINGS_COUNT>;
     using Controllers = std::vector<ControllerInfo>;
 
@@ -47,6 +49,8 @@ struct TokenIssuance : TokenRequest
 
 struct TokenIssueAdtl : TokenRequest
 {
+    using Request::Hash;
+
     TokenIssueAdtl() = default;
 
     TokenIssueAdtl(bool & error,
@@ -74,6 +78,8 @@ struct TokenIssueAdtl : TokenRequest
 
 struct TokenChangeSetting : TokenRequest
 {
+    using Request::Hash;
+    
     TokenChangeSetting() = default;
 
     TokenChangeSetting(bool & error,
@@ -100,6 +106,8 @@ struct TokenChangeSetting : TokenRequest
 
 struct TokenImmuteSetting : TokenRequest
 {
+    using Request::Hash;
+
     TokenImmuteSetting() = default;
 
     TokenImmuteSetting(bool & error,
@@ -125,6 +133,8 @@ struct TokenImmuteSetting : TokenRequest
 
 struct TokenRevoke : TokenRequest
 {
+    using Request::Hash;
+
     using Transaction = ::Transaction<uint16_t>;
 
     TokenRevoke() = default;
@@ -160,6 +170,8 @@ struct TokenRevoke : TokenRequest
 
 struct TokenFreeze : TokenRequest
 {
+    using Request::Hash;
+
     TokenFreeze() = default;
 
     TokenFreeze(bool & error,
@@ -186,6 +198,8 @@ struct TokenFreeze : TokenRequest
 
 struct TokenSetFee : TokenRequest
 {
+    using Request::Hash;
+
     TokenSetFee() = default;
 
     TokenSetFee(bool & error,
@@ -212,6 +226,8 @@ struct TokenSetFee : TokenRequest
 
 struct TokenWhitelist : TokenRequest
 {
+    using Request::Hash;
+
     TokenWhitelist() = default;
 
     TokenWhitelist(bool & error,
@@ -237,6 +253,8 @@ struct TokenWhitelist : TokenRequest
 
 struct TokenIssuerInfo : TokenRequest
 {
+    using Request::Hash;
+
     TokenIssuerInfo() = default;
 
     TokenIssuerInfo(bool & error,
@@ -262,6 +280,8 @@ struct TokenIssuerInfo : TokenRequest
 
 struct TokenController : TokenRequest
 {
+    using Request::Hash;
+
     TokenController() = default;
 
     TokenController(bool & error,
@@ -295,6 +315,8 @@ struct TokenController : TokenRequest
 
 struct TokenBurn : TokenRequest
 {
+    using Request::Hash;
+
     TokenBurn() = default;
 
     TokenBurn(bool & error,
@@ -326,6 +348,8 @@ struct TokenBurn : TokenRequest
 
 struct TokenAccountSend : TokenRequest
 {
+    using Request::Hash;
+
     using Transaction = ::Transaction<uint16_t>;
 
     TokenAccountSend() = default;
@@ -359,6 +383,8 @@ struct TokenAccountSend : TokenRequest
 
 struct TokenAccountWithdrawFee : TokenRequest
 {
+    using Request::Hash;
+
     using Transaction = ::Transaction<uint16_t>;
 
     TokenAccountWithdrawFee() = default;
@@ -394,6 +420,8 @@ struct TokenAccountWithdrawFee : TokenRequest
 //
 struct TokenSend : TokenRequest
 {
+    using Request::Hash;
+
     using Transaction  = ::Transaction<uint16_t>;
     using Transactions = std::vector<Transaction>;
 

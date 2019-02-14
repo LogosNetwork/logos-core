@@ -19,7 +19,7 @@ TokenIssuance::TokenIssuance(bool & error,
         return;
     }
     
-    Request::Hash();
+    Hash();
 }
 
 TokenIssuance::TokenIssuance(bool & error,
@@ -37,7 +37,7 @@ TokenIssuance::TokenIssuance(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenIssuance::TokenIssuance(bool & error,
@@ -92,7 +92,7 @@ TokenIssuance::TokenIssuance(bool & error,
         // TODO: info is optional
         //
         issuer_info = tree.get<std::string>(INFO);
-        Request::Hash();
+        Hash();
     }
     catch (...)
     {
@@ -278,7 +278,7 @@ TokenIssueAdtl::TokenIssueAdtl(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenIssueAdtl::TokenIssueAdtl(bool & error,
@@ -296,7 +296,7 @@ TokenIssueAdtl::TokenIssueAdtl(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenIssueAdtl::TokenIssueAdtl(bool & error,
@@ -313,7 +313,7 @@ TokenIssueAdtl::TokenIssueAdtl(bool & error,
     try
     {
         amount = std::stoul(tree.get<std::string>(AMOUNT));
-        Request::Hash();
+        Hash();
     }
     catch(...)
     {
@@ -393,7 +393,7 @@ TokenChangeSetting::TokenChangeSetting(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenChangeSetting::TokenChangeSetting(bool & error,
@@ -411,7 +411,7 @@ TokenChangeSetting::TokenChangeSetting(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenChangeSetting::TokenChangeSetting(bool & error,
@@ -437,7 +437,7 @@ TokenChangeSetting::TokenChangeSetting(bool & error,
                 SettingValue::Enabled :
                 SettingValue::Disabled;
 
-        Request::Hash();
+        Hash();
     }
     catch(...)
     {
@@ -518,7 +518,7 @@ TokenImmuteSetting::TokenImmuteSetting(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenImmuteSetting::TokenImmuteSetting(bool & error,
@@ -536,7 +536,7 @@ TokenImmuteSetting::TokenImmuteSetting(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenImmuteSetting::TokenImmuteSetting(bool & error,
@@ -558,7 +558,7 @@ TokenImmuteSetting::TokenImmuteSetting(bool & error,
             return;
         }
 
-        Request::Hash();
+        Hash();
     }
     catch(...)
     {
@@ -629,7 +629,7 @@ TokenRevoke::TokenRevoke(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenRevoke::TokenRevoke(bool & error,
@@ -647,7 +647,7 @@ TokenRevoke::TokenRevoke(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenRevoke::TokenRevoke(bool & error,
@@ -672,7 +672,7 @@ TokenRevoke::TokenRevoke(bool & error,
             return;
         }
 
-        Request::Hash();
+        Hash();
     }
     catch(...)
     {
@@ -793,7 +793,7 @@ TokenFreeze::TokenFreeze(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenFreeze::TokenFreeze(bool & error,
@@ -811,7 +811,7 @@ TokenFreeze::TokenFreeze(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenFreeze::TokenFreeze(bool & error,
@@ -839,7 +839,7 @@ TokenFreeze::TokenFreeze(bool & error,
             return;
         }
 
-        Request::Hash();
+        Hash();
     }
     catch(...)
     {
@@ -920,7 +920,7 @@ TokenSetFee::TokenSetFee(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenSetFee::TokenSetFee(bool & error,
@@ -938,7 +938,7 @@ TokenSetFee::TokenSetFee(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenSetFee::TokenSetFee(bool & error,
@@ -961,7 +961,7 @@ TokenSetFee::TokenSetFee(bool & error,
         }
 
         fee_rate = std::stoul(tree.get<std::string>(FEE_RATE));
-        Request::Hash();
+        Hash();
     }
     catch(...)
     {
@@ -1042,7 +1042,7 @@ TokenWhitelist::TokenWhitelist(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenWhitelist::TokenWhitelist(bool & error,
@@ -1060,7 +1060,7 @@ TokenWhitelist::TokenWhitelist(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenWhitelist::TokenWhitelist(bool & error,
@@ -1082,7 +1082,7 @@ TokenWhitelist::TokenWhitelist(bool & error,
             return;
         }
 
-        Request::Hash();
+        Hash();
     }
     catch(...)
     {
@@ -1152,7 +1152,7 @@ TokenIssuerInfo::TokenIssuerInfo(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenIssuerInfo::TokenIssuerInfo(bool & error,
@@ -1170,7 +1170,7 @@ TokenIssuerInfo::TokenIssuerInfo(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenIssuerInfo::TokenIssuerInfo(bool & error,
@@ -1187,7 +1187,7 @@ TokenIssuerInfo::TokenIssuerInfo(bool & error,
     try
     {
         new_info = tree.get<std::string>(NEW_INFO);
-        Request::Hash();
+        Hash();
     }
     catch(...)
     {
@@ -1257,7 +1257,7 @@ TokenController::TokenController(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenController::TokenController(bool & error,
@@ -1275,7 +1275,7 @@ TokenController::TokenController(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenController::TokenController(bool & error,
@@ -1303,7 +1303,7 @@ TokenController::TokenController(bool & error,
             return;
         }
 
-        Request::Hash();
+        Hash();
     }
     catch(...)
     {
@@ -1327,9 +1327,22 @@ bool TokenController::Validate(logos::process_return & result,
 {
     auto token_account = std::static_pointer_cast<TokenAccount>(info);
 
+    ControllerInfo c;
+    auto controller_found = token_account->GetController(controller.account, c);
+
     if(action == ControllerAction::Add)
     {
-        if(token_account->controllers.size() == TokenAccount::MAX_CONTROLLERS)
+        // This request will update the privileges
+        // of an existing controller.
+        if(controller_found)
+        {
+            return true;
+        }
+
+        // This request would cause the token
+        // account to exceed the maximum amount
+        // of controllers.
+        else if(token_account->controllers.size() == TokenAccount::MAX_CONTROLLERS)
         {
             result.code = logos::process_result::controller_capacity;
             return false;
@@ -1337,16 +1350,7 @@ bool TokenController::Validate(logos::process_return & result,
     }
     else if(action == ControllerAction::Remove)
     {
-        // TODO: Find controllers via TokenAccount
-        //       member function.
-        auto entry = std::find_if(token_account->controllers.begin(),
-                                  token_account->controllers.end(),
-                                  [this](const ControllerInfo & c)
-                                  {
-                                      return c.account == controller.account;
-                                  });
-
-        if(entry == token_account->controllers.end())
+        if(!controller_found)
         {
             result.code = logos::process_result::invalid_controller;
             return false;
@@ -1424,7 +1428,7 @@ TokenBurn::TokenBurn(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenBurn::TokenBurn(bool & error,
@@ -1442,7 +1446,7 @@ TokenBurn::TokenBurn(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenBurn::TokenBurn(bool & error,
@@ -1459,7 +1463,7 @@ TokenBurn::TokenBurn(bool & error,
     try
     {
         amount = std::stoul(tree.get<std::string>(AMOUNT));
-        Request::Hash();
+        Hash();
     }
     catch(...)
     {
@@ -1554,7 +1558,7 @@ TokenAccountSend::TokenAccountSend(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenAccountSend::TokenAccountSend(bool & error,
@@ -1572,7 +1576,7 @@ TokenAccountSend::TokenAccountSend(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenAccountSend::TokenAccountSend(bool & error,
@@ -1587,7 +1591,7 @@ TokenAccountSend::TokenAccountSend(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 
@@ -1672,7 +1676,7 @@ TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
@@ -1690,7 +1694,7 @@ TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
@@ -1705,7 +1709,7 @@ TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 uint16_t TokenAccountWithdrawFee::GetTokenTotal() const
@@ -1789,7 +1793,7 @@ TokenSend::TokenSend(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenSend::TokenSend(bool & error,
@@ -1807,7 +1811,7 @@ TokenSend::TokenSend(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 TokenSend::TokenSend(bool & error,
@@ -1836,7 +1840,7 @@ TokenSend::TokenSend(bool & error,
         }
 
         token_fee = std::stoul(tree.get<std::string>(TOKEN_FEE));
-        Request::Hash();
+        Hash();
     }
     catch(...)
     {
