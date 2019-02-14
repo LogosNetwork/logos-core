@@ -31,7 +31,7 @@ uint64_t  BatchBlock::getBatchBlockSeqNr(Store& store, int delegate)
     return batch.sequence;
 }
 
-bool BatchBlock::tips_response::CanProceed(BatchBlock::tips_response & resp)
+bool BatchBlock::tips_response::CanProceed(BatchBlock::tips_response & resp)//TODO sqn change
 {
     LOG_DEBUG(logos::bootstrap_get_logger()) << "CanProceed mine: " << *this << " theirs: " << resp << std::endl;
 
@@ -49,6 +49,7 @@ bool BatchBlock::tips_response::CanProceed(BatchBlock::tips_response & resp)
     }
 }
 
+//TODO sqn change
 void BatchBlock::tips_response::PopulateLogical(Store & store, BatchBlock::tips_response & resp) // logical
 {
     BlockHash epoch_tip = 0;

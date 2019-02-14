@@ -197,43 +197,14 @@ bool logos::frontier_req::deserialize (logos::stream & stream_a)
     auto result (read_header (stream_a, version_max, version_using, version_min, type, extensions));
     assert (!result);
     assert (logos::message_type::frontier_req == type);
-    if (!result)
-    {
-        assert (type == logos::message_type::frontier_req);
-        result = read (stream_a, start.bytes);
-        if (!result)
-        {
-            result = read(stream_a, nr_delegate);
-            if(!result)
-            {
-                result = read (stream_a, age);
-                if (!result)
-                {
-                    result = read (stream_a, count);
-                }
-            }
-        }
-    }
 
     BatchBlock::tips_response::DeSerialize(stream_a, tips);
-
-#ifdef _DEBUG
-    std::cout << "logos::frontier_req::deserialize: result " << result 
-              << " age: " << age << std::endl
-              <<  " count: " << count << std::endl
-              << " nr_delegate: " << nr_delegate << std::endl
-              << " tips: " << tips << std::endl;
-#endif
     return result;
 }
 
 void logos::frontier_req::serialize (logos::stream & stream_a)
 {
     write_header (stream_a);
-    write (stream_a, start.bytes);
-    write (stream_a, nr_delegate);
-    write (stream_a, age);
-    write (stream_a, count);
     tips.Serialize(stream_a);
 }
 
@@ -244,7 +215,7 @@ void logos::frontier_req::visit (logos::message_visitor & visitor_a) const
 
 bool logos::frontier_req::operator== (logos::frontier_req const & other_a) const
 {
-    return start == other_a.start && age == other_a.age && count == other_a.count;
+    return true;//TODO all fields removed.start == other_a.start && age == other_a.age && count == other_a.count;
 }
 
 logos::bulk_pull::bulk_pull () :
@@ -291,7 +262,7 @@ bool logos::bulk_pull::deserialize (logos::stream & stream_a) // Implemented the
                                                 if(!result) {
                                                     result = read(stream_a,b_start);
                                                     if(!result) {
-                                                        result = read(stream_a,b_end); // Yeah, I know...
+                                                        result = read(stream_a,b_end); //RGD Yeah, I know...
                                                     }
                                                 }
                                             }
@@ -336,7 +307,7 @@ message (logos::message_type::bulk_pull_blocks)
 
 void logos::bulk_pull_blocks::visit (logos::message_visitor & visitor_a) const
 {
-    visitor_a.bulk_pull_blocks (*this);
+//    visitor_a.bulk_pull_blocks (*this);
 }
 
 bool logos::bulk_pull_blocks::deserialize (logos::stream & stream_a)
@@ -395,7 +366,7 @@ void logos::bulk_push::serialize (logos::stream & stream_a)
 
 void logos::bulk_push::visit (logos::message_visitor & visitor_a) const
 {
-    visitor_a.bulk_push (*this);
+//    visitor_a.bulk_push (*this);
 }
 
 logos::message_visitor::~message_visitor ()

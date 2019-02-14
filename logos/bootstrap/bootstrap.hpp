@@ -91,7 +91,7 @@ struct request_info {
     BlockHash m_end;
     BlockHash b_start;
     BlockHash b_end;
-};
+};//TODO we don't pull different ApprovedBlocks together
 
 class socket_timeout
 {
@@ -122,7 +122,6 @@ static const int bootstrap_message_header_size = sizeof (logos::message::magic_n
 class bootstrap_client;
 
 enum pull_type {
-    account_pull     = 0,
     batch_block_pull = 1
 };
 
@@ -131,11 +130,6 @@ class pull_info
 public:
     /// Default class constructor
     pull_info ();
-    /// Class constructor
-    /// @param account
-    /// @param block_hash
-    /// @param block_hash
-    pull_info (logos::account const &, logos::block_hash const &, logos::block_hash const &);
 
     /// Class constructor
     /// @param start
@@ -151,7 +145,6 @@ public:
     /// @param b_end (end of bsb block chain)
     pull_info (uint64_t start, uint64_t end, uint64_t seq_start, uint64_t seq_end, int delegate_id, BlockHash e_start, BlockHash e_end, BlockHash m_start, BlockHash m_end, BlockHash b_start, BlockHash b_end);
 
-    logos::account account;
     logos::block_hash head;
     logos::block_hash end;
     unsigned attempts;
@@ -167,7 +160,7 @@ public:
     BlockHash b_start;
     BlockHash b_end;
     pull_type type;
-};
+};//TODO we don't pull different ApprovedBlocks together
 class tips_req_client;
 class bootstrap_attempt : public std::enable_shared_from_this<bootstrap_attempt>
 {
@@ -447,11 +440,6 @@ public:
     /// @param error_code
     /// @param size
     void receive_bulk_pull_action (boost::system::error_code const &, size_t);
-
-    /// receive_bulk_pull_blocks_action composed operation
-    /// @param error_code
-    /// @param size
-    void receive_bulk_pull_blocks_action (boost::system::error_code const &, size_t);
 
     /// receive_tips_req_action composed operation
     /// @param error_code

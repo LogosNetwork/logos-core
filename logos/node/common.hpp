@@ -167,7 +167,7 @@ public:
     bool operator== (logos::keepalive const &) const;
     std::array<logos::endpoint, 8> peers;
 };
-class frontier_req : public message
+class frontier_req : public message //TODO nice to do
 {
 public:
     frontier_req ();
@@ -175,10 +175,6 @@ public:
     void serialize (logos::stream &) override;
     void visit (logos::message_visitor &) const override;
     bool operator== (logos::frontier_req const &) const;
-    logos::account start;
-    uint32_t age;
-    uint32_t count;
-    uint64_t nr_delegate; // total number of delegates we are requesting frontier for.
     BatchBlock::tips_response tips; // our tips.
 };
 class bulk_pull : public message
@@ -188,10 +184,10 @@ public:
     bool deserialize (logos::stream &) override; // Need to implement these for us.
     void serialize (logos::stream &) override;
     void visit (logos::message_visitor &) const override;
-    logos::uint256_union start;
-    logos::block_hash end;
-    uint64_t timestamp_start;
-    uint64_t timestamp_end;
+    logos::uint256_union start;//TODO consider remove
+    logos::block_hash end;//TODO consider remove
+    uint64_t timestamp_start;//TODO consider remove
+    uint64_t timestamp_end;//TODO consider remove
     uint64_t seq_start;
     uint64_t seq_end;
     int      delegate_id; // Call for each delegate.
@@ -200,7 +196,7 @@ public:
     BlockHash m_start; // I think this has to point to micro/epoch blocks.
     BlockHash m_end;
     BlockHash b_start;
-    BlockHash b_end;
+    BlockHash b_end;//TODO union of bsb, micro, epoch
 
     static constexpr int SIZE = 
                         sizeof (logos::uint256_union)   // start
@@ -249,8 +245,10 @@ class message_visitor
 public:
     virtual void keepalive (logos::keepalive const &) = 0;
     virtual void bulk_pull (logos::bulk_pull const &) = 0;
+
     virtual void bulk_pull_blocks (logos::bulk_pull_blocks const &) = 0;
     virtual void bulk_push (logos::bulk_push const &) = 0;
+
     virtual void frontier_req (logos::frontier_req const &) = 0;
     virtual ~message_visitor ();
 };

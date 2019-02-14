@@ -12,7 +12,6 @@
 extern std::atomic<int> total_pulls;
 
 logos::pull_info::pull_info () :
-account (0),
 end (0),
 attempts (0),
 timestamp_start (0),
@@ -24,25 +23,7 @@ m_start(0),
 m_end(0),
 b_start(0),
 b_end(0),
-type(pull_type::account_pull)
-{
-}
-
-logos::pull_info::pull_info (logos::account const & account_a, logos::block_hash const & head_a, logos::block_hash const & end_a) :
-account (account_a),
-head (head_a),
-end (end_a),
-attempts (0),
-timestamp_start (0),
-timestamp_end (0),
-seq_start(0),
-seq_end(0),
-delegate_id(-1),
-m_start(0),
-m_end(0),
-b_start(0),
-b_end(0),
-type(pull_type::account_pull)
+type(pull_type::batch_block_pull)
 {
 }
 
@@ -91,7 +72,6 @@ void logos::bulk_pull_client::request_batch_block()
     LOG_DEBUG(connection->node->log) << "logos::bulk_pull_client::request_batch_block delegate_id: " << pull.delegate_id << std::endl;
     logos::bulk_pull    req;
     req.type            = logos::message_type::batch_blocks_pull;
-    req.start           = pull.account;
     req.end             = pull.end;
     req.timestamp_start = pull.timestamp_start;
     req.timestamp_end   = pull.timestamp_end;
@@ -124,18 +104,7 @@ void logos::bulk_pull_client::request_batch_block()
         logos::vectorstream stream (*buffer);
         req.serialize (stream); // NOTE Serialize has been implemented to support new fields.
     }
-    // Logging...
-    if (connection->node->config.logging.bulk_pull_logging ())
-    {
-        std::unique_lock<std::mutex> lock (connection->attempt->mutex);
-        LOG_INFO (connection->node->log) << "bulk_pull_client::request_batch_block start: " << req.timestamp_start 
-                                          << " end: " << req.timestamp_end << " delegate_id: " << req.delegate_id;
-    }
-    else if (connection->node->config.logging.network_logging () && connection->attempt->should_log ())
-    {
-        std::unique_lock<std::mutex> lock (connection->attempt->mutex);
-        LOG_INFO (connection->node->log) << boost::str (boost::format ("%1% accounts in pull queue") % connection->attempt->pulls.size ());
-    }
+
     auto this_l (shared_from_this ());
     connection->start_timeout ();
     LOG_DEBUG(connection->node->log) << "logos::bulk_pull_client::request_batch_block async_write delegate_id: " << pull.delegate_id << std::endl;
@@ -417,6 +386,10 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 /**
  * Handle a request for the pull of all blocks (bsb,micro,epoch) associated with a delegate.
  */
@@ -426,7 +399,7 @@ void logos::bulk_pull_server::set_current_end ()
 
     // Setup current_micro and current_bsb for iterating micro and bsb blocks.
     current_epoch   = request->e_start;
-    if(current_epoch == request->e_end && !current_epoch.is_zero())
+    if(current_epoch == request->e_end && !current_epoch.is_zero())//TODO bootstrap from beginning
     {
         while(true) {
            BlockHash previous = EpochBlock::getPrevEpochBlock(connection->node->store, current_epoch);
@@ -462,6 +435,9 @@ void logos::bulk_pull_server::set_current_end ()
         }
     }
 
+
+    //TODO work around for a consensus bug where chains are broken
+/*
     // Special case...
     BlockHash b_start = request->b_end;
     BlockHash current_previous = BatchBlock::getPrevBatchStateBlock(connection->node->store, request->delegate_id, current_bsb);
@@ -476,7 +452,7 @@ void logos::bulk_pull_server::set_current_end ()
             b_start = previous; // Walk backwards till we reach the beginning...
         }
     }
-
+*/
 
     LOG_DEBUG(connection->node->log) << "logos::bulk_pull_server::set_current_end: current_epoch: " << current_epoch.to_string() << " current_micro: " << current_micro.to_string() << " current_bsb: " << current_bsb.to_string() << " delegate_id: " << request->delegate_id << std::endl;
     LOG_DEBUG(connection->node->log) << "logos::bulk_pull_server::set_current_end: e_end: " << request->e_end.to_string() << " m_end: " << request->m_end.to_string() << " b_end: " << request->b_end.to_string() << " delegate_id: " << request->delegate_id << std::endl;

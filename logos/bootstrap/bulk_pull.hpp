@@ -48,7 +48,7 @@ public:
     bulk_pull_server (std::shared_ptr<logos::bootstrap_server> const &, std::unique_ptr<logos::bulk_pull>);
 
     /// set_current_end sets end of transmission
-    void set_current_end ();
+    void set_current_end ();//walk backwards, set start and end
 
     /// send_next sends next block
     void send_next ();

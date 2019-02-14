@@ -55,7 +55,7 @@ class validator {
     std::vector<std::shared_ptr<BatchBlock::bulk_pull_response> > bsb[NUMBER_DELEGATES]; // Batch State Blocks received.
     std::vector<std::shared_ptr<BatchBlock::bulk_pull_response_micro> > micro; // Micro.
     std::vector<std::shared_ptr<BatchBlock::bulk_pull_response_epoch> > epoch; // Epoch.
-    std::vector<std::shared_ptr<BatchBlock::tips_response> > tips; // Tips.
+    std::shared_ptr<BatchBlock::tips_response> tips;
 
     static constexpr int NR_BLOCKS = 4096; // Max blocks we wait for before processing.
 
@@ -71,19 +71,6 @@ class validator {
     shared_ptr<NonDelPersistenceManager<ECT> >  epoch_handler;
     shared_ptr<NonDelPersistenceManager<MBCT> > micro_handler;
  
-    uint64_t nextMicro_counter;
-    uint64_t nextEpoch_counter;
-    uint64_t micro_validation_error_counter;
-    uint64_t epoch_validation_error_counter;
-    uint64_t micro_not_ready_counter;
-    uint64_t epoch_not_ready_counter;
-
-    static int constexpr NEXT_MICRO_COUNTER_MAX             = 100;
-    static int constexpr NEXT_EPOCH_COUNTER_MAX             = 100;
-    static int constexpr MICRO_VALIDATION_ERROR_COUNTER_MAX = 100;
-    static int constexpr EPOCH_VALIDATION_ERROR_COUNTER_MAX = 100;
-    static int constexpr MICRO_NOT_READY_COUNTER_MAX        = 100;
-    static int constexpr EPOCH_NOT_READY_COUNTER_MAX        = 100;
     static int constexpr MAX_RETRY                          = 1000;
 
     public:
@@ -98,11 +85,7 @@ class validator {
     /// Class destructor
     virtual ~validator();
 
-    /// reset clears state of class
-    /// @param none
-    bool reset();
-
-    bool can_proceed() // logical
+    bool can_proceed() // logical //TODO
     {
         //return true; // RGD
         std::lock_guard<std::mutex> lock(mutex);
@@ -123,8 +106,7 @@ class validator {
     void add_tips_response(std::shared_ptr<BatchBlock::tips_response> &resp)
     {
         std::lock_guard<std::mutex> lock(mutex); // DEBUG Might need additional locking in this class...
-        tips.clear(); // Store most recent tips only.
-        tips.push_back(resp);
+        tips = resp;
     }
 
     /// add_micro_block callback where a new micro block arriving from 
@@ -155,7 +137,7 @@ class validator {
     // Report what we have in our queues so we don't re-request the same blocks...
 
     /// in_memory_bsb_tips the current bsb tips in memory (not in database yet)
-    std::map<int, std::pair<int64_t, BlockHash> >  in_memory_bsb_tips();
+    std::map<int, std::pair<int64_t, BlockHash> >  in_memory_bsb_tips();//all the blocks in the cache
 
     /// in_memory_micro_tips the current micro block tips in memory (not in database yet)
     std::pair<int64_t, BlockHash> in_memory_micro_tips();
@@ -166,7 +148,7 @@ class validator {
     /// is_black_list_error
     /// @param result of validation of a block
     /// @returns true if the result implies we blacklist the peer
-    bool is_black_list_error(ValidationStatus & result)
+    bool is_black_list_error(ValidationStatus & result)//TODO error type
     {
 #if 0
         if(result.reason == logos::process_result::progress         ||

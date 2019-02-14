@@ -18,11 +18,9 @@ void logos::tips_req_client::run ()
   // and kick off the process...
     LOG_DEBUG(connection->node->log) << "tips_req_client::run" << std::endl;
 
-    //connection->attempt->run_defered_pull();
-
-    if(connection->attempt->pulling > 0 || 
-       total_pulls > 0 || 
-       (!connection->node->_validator->can_proceed() && !connection->attempt->pending_deferred_pulls())) { // logical
+    if(connection->attempt->pulling > 0 ||
+       total_pulls > 0 || //TODO remove this or the one above
+       (!connection->node->_validator->can_proceed()/*TODO*/ && !connection->attempt->pending_deferred_pulls())) { // logical
         try {
             promise.set_value(false);
         } catch(const std::future_error &e)
@@ -37,14 +35,8 @@ void logos::tips_req_client::run ()
     }
     LOG_DEBUG(connection->node->log) << "logos::tips_req_client:: total_pulls: " << total_pulls << std::endl;
     std::unique_ptr<logos::frontier_req> request (new logos::frontier_req);
-    request->start.clear ();
-    request->age = std::numeric_limits<decltype (request->age)>::max ();
-    request->count = std::numeric_limits<decltype (request->age)>::max ();
-    request->nr_delegate = NUMBER_DELEGATES;
     request->tips.Populate(connection->node->store); // Get a snapshot of our tips.
     
-    LOG_DEBUG(connection->node->log) << "::run count: " << request->count << " age: " << request->age << " nr_delegate: " << request->nr_delegate << " NUMBER_DELEGATES " << NUMBER_DELEGATES << std::endl;
-
     auto send_buffer (std::make_shared<std::vector<uint8_t>> ());
     {
         logos::vectorstream stream (*send_buffer);
@@ -53,7 +45,7 @@ void logos::tips_req_client::run ()
     auto this_l (shared_from_this ());
     connection->start_timeout ();
 
-    auto address = connection->socket.remote_endpoint().address();
+    //auto address = connection->socket.remote_endpoint().address();
 
     boost::asio::async_write (connection->socket, boost::asio::buffer (send_buffer->data (), send_buffer->size ()), [this_l, send_buffer](boost::system::error_code const & ec, size_t size_a) {
         this_l->connection->stop_timeout ();
@@ -80,12 +72,17 @@ void logos::tips_req_client::run ()
 }
 
 logos::tips_req_client::tips_req_client (std::shared_ptr<logos::bootstrap_client> connection_a) :
-connection (connection_a),
+connection (connection_a)
+/*
+,
 current (0),
 count (0)
+*/
 {
+/*
     logos::transaction transaction (connection->node->store.environment, nullptr, false);
     next (transaction);
+*/
 }
 
 logos::tips_req_client::~tips_req_client ()
@@ -129,6 +126,7 @@ void logos::tips_req_client::receive_tips_header ()
     });
 }
 
+/*
 void logos::tips_req_client::receive_tips ()
 { // NOTE: Called from tips_req_client::run
     auto this_l (shared_from_this ());
@@ -159,14 +157,15 @@ void logos::tips_req_client::receive_tips ()
         }
     });
 }
+*/
 
-void logos::tips_req_client::received_tips (boost::system::error_code const & ec, size_t size_a)
+/*void logos::tips_req_client::received_tips (boost::system::error_code const & ec, size_t size_a)
 { // NOTE: Called from 'logos::tips_req_client::receive_tips'
 }
 
 void logos::tips_req_client::next (MDB_txn * transaction_a)
 {
-}
+}*/
 
 void logos::tips_req_client::finish_request()
 {
@@ -174,7 +173,7 @@ void logos::tips_req_client::finish_request()
         try {
             promise.set_value(false); // We got everything, indicate we are ok to bootstrap.cpp...
         } catch(const std::future_error &e)
-        {
+        {/**/
             LOG_DEBUG(connection->node->log) << "logos::tips_req_client::received_batch_block_tips caught error in setting promise: " << e.what() << std::endl;
         }
         connection->attempt->pool_connection (connection);
@@ -405,13 +404,9 @@ void logos::tips_req_client::received_batch_block_tips(boost::system::error_code
 // NOTE Server sends tips to the client, client decides what to do
 logos::tips_req_server::tips_req_server (std::shared_ptr<logos::bootstrap_server> const & connection_a, std::unique_ptr<logos::frontier_req> request_a) :
 connection (connection_a),
-current (request_a->start.number () - 1),
-info (0, 0, 0, 0, 0, 0, 0, 0),
-next_delegate(0),
 request (std::move (request_a))
 {
-    nr_delegate = request->nr_delegate;
-    LOG_DEBUG(connection->node->log) << "logos::tips_req_server::tips_req_server request->nr_delegate: " << request->nr_delegate << " nr_delegate:: " << nr_delegate << " NUMBER_DELEGATES " << NUMBER_DELEGATES << std::endl;
+    //LOG_DEBUG(connection->node->log) << "logos::tips_req_server::tips_req_server request->nr_delegate: " << request->nr_delegate << " nr_delegate:: " << nr_delegate << " NUMBER_DELEGATES " << NUMBER_DELEGATES << std::endl;
 }
 
 logos::tips_req_server::~tips_req_server()
@@ -419,6 +414,7 @@ logos::tips_req_server::~tips_req_server()
     LOG_DEBUG(connection->node->log) << "logos::~tips_req_server:: called" << std::endl;
 }
 
+/*
 void logos::tips_req_server::send_next ()
 {
     LOG_DEBUG(connection->node->log) << "logos::tips_req_server::send_next: " << std::endl;
@@ -435,6 +431,7 @@ void logos::tips_req_server::send_next ()
         send_finished();
     }
 }
+
 
 void logos::tips_req_server::send_finished ()
 {
@@ -475,8 +472,9 @@ void logos::tips_req_server::no_block_sent (boost::system::error_code const & ec
         }
     }
 }
+*/
 
-void logos::tips_req_server::sent_action (boost::system::error_code const & ec, size_t size_a)
+/*void logos::tips_req_server::sent_action (boost::system::error_code const & ec, size_t size_a)
 {
     if (!ec)
     {
@@ -489,7 +487,7 @@ void logos::tips_req_server::sent_action (boost::system::error_code const & ec, 
             LOG_INFO (connection->node->log) << boost::str (boost::format ("Error sending tips pair: %1%") % ec.message ());
         }
     }
-}
+}*/
 
 void logos::tips_req_server::send_batch_blocks_tips()
 {
@@ -505,10 +503,10 @@ void logos::tips_req_server::send_batch_blocks_tips()
     bool can_proceed = resp.CanProceed(request->tips);
 
 
-    if(nr_delegate == NUMBER_DELEGATES && can_proceed) {
+    if(can_proceed) {
 
         // logical Compute our next logical step...
-        resp.PopulateLogical(connection->node->store, request->tips);
+        resp.PopulateLogical(connection->node->store, request->tips);//TODO sqn change
 
         // All done, write it out to the client...
         auto send_buffer1(std::make_shared<std::vector<uint8_t>>());
@@ -517,30 +515,28 @@ void logos::tips_req_server::send_batch_blocks_tips()
             resp.Serialize(stream);
         }
 
-        std::cout << " tips<2.1> " << resp;
+        //std::cout << " tips<2.1> " << resp;
 
         LOG_DEBUG(connection->node->log) << "send_batch_blocks_tips this: " << this << " connection: " << connection << " this_l->connection: " << this_l->connection << std::endl;
             boost::asio::write(*connection->socket, boost::asio::buffer (send_buffer1->data (), send_buffer1->size ()),
                     boost::asio::transfer_all());
 
     } else {
-        if(nr_delegate == NUMBER_DELEGATES) {
-            connection->node->ongoing_bootstrap();
-        }
+        connection->node->ongoing_bootstrap();
+
         // Send back error to client so they can skip to next peer.
         LOG_DEBUG(connection->node->log) 
-                  << "logos::tips_req_server::send_batch_blocks_tips error: " << std::endl
-                  << " nr_delegate: " << nr_delegate << " NUMBER_DELEGATES " << NUMBER_DELEGATES << std::endl;
+                  << "logos::tips_req_server::send_batch_blocks_tips error: " << std::endl;
         // Send out a response with delegate_id == -1 => imply error
         BatchBlock::tips_response resp;
-        resp.delegate_id = -1;
+        resp.delegate_id = -1;//TODO client should check
         auto send_buffer1(std::make_shared<std::vector<uint8_t>>());
         {
             logos::vectorstream stream(*send_buffer1.get());
             resp.Serialize(stream);
         }
 
-        std::cout << " tips<2.2> " << resp;
+        //std::cout << " tips<2.2> " << resp;
 
         LOG_DEBUG(connection->node->log) << "send_batch_blocks_tips this: " << this << " connection: " << connection << " this_l->connection: " << this_l->connection << std::endl;
         boost::asio::write(*connection->socket, boost::asio::buffer (send_buffer1->data (), send_buffer1->size ()),

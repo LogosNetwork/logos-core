@@ -14,15 +14,7 @@ std::atomic<int> total_pulls;
 
 #undef _DEBUG
 
-#define _MODIFY_BUFFER 1
-#define RECV_BUFFER_SIZE (1 << 20)
-#define _ERROR 1
-
-#ifdef _DEBUG
-static std::atomic<int> open_count;
-static std::atomic<int> server_open_count;
-static std::atomic<int> close_count;
-#endif
+//#define _ERROR 1
 
 static Log *log_g = nullptr;
 std::deque<logos::pull_info> logos::bootstrap_attempt::dpulls;
@@ -59,9 +51,6 @@ void logos::socket_timeout::start (std::chrono::steady_clock::time_point timeout
             if (client_l->timeout.ticket == ticket_l)
             {
                 LOG_DEBUG(logos::bootstrap_get_logger()) << "logos::socket_timeout::start: socket->close" << std::endl;
-#ifdef _DEBUG
-                close_count++;
-#endif
                 client_l->socket.close ();
                 if (client_l->node->config.logging.bulk_pull_logging ())
                 {
@@ -115,11 +104,6 @@ double logos::bootstrap_client::elapsed_seconds () const
 void logos::bootstrap_client::stop (bool force)
 {
     LOG_DEBUG(node->log) << "logos::bootstrap_client::stop:" << std::endl;
-#ifdef _DEBUG
-    std::cout << "trace: " << __FILE__ << " line: " << __LINE__ << std::endl;
-    trace();
-#endif
-
     pending_stop = true;
     if (force)
     {
@@ -145,32 +129,11 @@ void logos::bootstrap_client::run ()
         this_l->stop_timeout ();
         if (!ec)
         {
-#ifdef _MODIFY_BUFFER
-            try {
-                boost::asio::socket_base::send_buffer_size option1(RECV_BUFFER_SIZE);
-                this_l->socket.set_option(option1);
-                boost::asio::socket_base::receive_buffer_size option2(RECV_BUFFER_SIZE);
-                this_l->socket.set_option(option2);
-            } 
-            // NOTE: These exceptions are ok, just means we couldn't set the size, but there is a default.
-            catch(const boost::system::system_error& e)
-            {
-                LOG_DEBUG(this_l->node->log) << "exception while setting socket option: " << e.what() << std::endl;
-            }
-            catch(...) 
-            {
-                LOG_DEBUG(this_l->node->log) << "unknown exception while setting socket option" << std::endl;
-            }
-#endif
             if (this_l->node->config.logging.bulk_pull_logging ())
             {
                 LOG_INFO (this_l->node->log) << boost::str (boost::format ("Connection established to %1%") % this_l->endpoint);
             }
             
-#ifdef _DEBUG
-            std::cout << "trace: " << __FILE__ << " line: " << __LINE__ << std::endl;
-            trace();
-#endif
             LOG_DEBUG(this_l->node->log) << "logos::bootstrap_client::run: pool_connection called" << std::endl;
             this_l->attempt->pool_connection (this_l->shared_from_this ()); // NOTE: Add connection, updates idle queue.
         }
@@ -328,18 +291,20 @@ void logos::bootstrap_attempt::run ()
         }
         tips_failure = request_tips(lock);
     }
-    // Shuffle pulls.
+
+    /*    // Shuffle pulls.
     for (int i = pulls.size () - 1; i > 0; i--)
     {
         auto k = logos::random_pool.GenerateWord32 (0, i);
         std::swap (pulls[i], pulls[k]);
-    }
+    }*/
+
     while (still_pulling ())
-    {
+    {//TODO nano code
         while (still_pulling ())
-        {
+        {//TODO nano code
             LOG_DEBUG(node->log) << "logos::pulling:: total_pulls: " << total_pulls << std::endl;
-            if (!pulls.empty () && total_pulls <= 32)
+            if (!pulls.empty ())//TODO  && total_pulls <= 32
             {
                 request_pull (lock); // NOTE: Start of bulk_pull_client.
             }
@@ -539,8 +504,7 @@ void logos::bootstrap_attempt::populate_connections ()
     {
         auto delta = std::min ((target - connections) * 2, bootstrap_max_new_connections);
         // Not many peers respond, need to try to make more connections than we need.
-        // delta = NUMBER_DELEGATES; // Maybe set to 0 of clients is too big ?
-        delta = 1; // delta of 1 seems to work the best in testing...
+        // delta = 1; //TODO Roger: delta of 1 seems to work the best in testing...
 
         LOG_DEBUG(node->log) << "bootstrap_attempt:: delta: " << delta << " target: " << target << " connections: " << connections << " max: " << bootstrap_max_new_connections << " clients.size: " << clients.size() << std::endl;
 
@@ -564,15 +528,14 @@ void logos::bootstrap_attempt::populate_connections ()
             }
             // ok to proceed, not blacklisted...
             p2p::add_peer(peer);
+
+            //TODO for testing: filter out local address
             if(address.to_v6().to_string() == std::string("::ffff:172.1.1.100")) {
                 continue; // RGD Hack TODO remove this...
             }
 
             if (peer != logos::endpoint (boost::asio::ip::address_v6::any (), 0))
             {
-#ifdef _DEBUG
-                open_count++;
-#endif
                 auto client (std::make_shared<logos::bootstrap_client> (node, shared_from_this (), logos::tcp_endpoint (peer.address (), BOOTSTRAP_PORT )));
                 client->run ();
                 std::lock_guard<std::mutex> lock (mutex);
@@ -601,9 +564,6 @@ void logos::bootstrap_attempt::populate_connections ()
 
 void logos::bootstrap_attempt::add_connection (logos::endpoint const & endpoint_a)
 {
-#ifdef _DEBUG
-    open_count++;
-#endif
     auto client (std::make_shared<logos::bootstrap_client> (node, shared_from_this (), logos::tcp_endpoint (endpoint_a.address (), endpoint_a.port ())));
     client->run ();
 }
@@ -627,9 +587,6 @@ void logos::bootstrap_attempt::stop ()
         if (auto client = i.lock ())
         {
             LOG_DEBUG(node->log) << "logos::bootstrap_attempt::stop: socket->close" << std::endl;
-#ifdef _DEBUG
-            close_count++;
-#endif
             client->socket.close ();
         }
     }
@@ -659,7 +616,6 @@ void logos::bootstrap_attempt::add_pull (logos::pull_info const & pull)
 void logos::bootstrap_attempt::add_defered_pull(logos::pull_info const &pull)
 {
     std::unique_lock<std::mutex> lock (mutex);
-    //get_next_micro = 1;
     LOG_DEBUG(node->log) << "logos::bootstrap_attempt::add_defered_pull: " << pull.delegate_id << std::endl;
     dpulls.push_back(pull);
 }
@@ -843,9 +799,6 @@ void logos::bootstrap_listener::stop ()
         connections_l.swap (connections);
     }
     LOG_DEBUG(node.log) << "logos::bootstrap_listener::stop: acceptor->close" << std::endl;
-#ifdef _DEBUG
-    close_count++;
-#endif
     acceptor.close ();
     for (auto & i : connections_l)
     {
@@ -853,9 +806,6 @@ void logos::bootstrap_listener::stop ()
         if (connection)
         {
             LOG_DEBUG(node.log) << "logos::bootstrap_listener::stop: socket->close" << std::endl;
-#ifdef _DEBUG
-            close_count++;
-#endif
             connection->socket->close ();
         }
     }
@@ -864,33 +814,8 @@ void logos::bootstrap_listener::stop ()
 void logos::bootstrap_listener::accept_connection ()
 {
     auto socket (std::make_shared<boost::asio::ip::tcp::socket> (service));
-    //std::shared_ptr<boost::asio::ip::tcp::socket> socket (new boost::asio::ip::tcp::socket(service,endpoint()));
-    //auto end = boost::asio::ip::tcp::endpoint 
-    //    (boost::asio::ip::address_v6::from_string(std::string("::ffff:") + (node.config.consensus_manager_config.local_address)));
-    //std::shared_ptr<boost::asio::ip::tcp::socket> socket (new boost::asio::ip::tcp::socket(service,end));
 
-#ifdef _MODIFY_BUFFER
-    try {
-        boost::asio::socket_base::send_buffer_size option1(RECV_BUFFER_SIZE);
-        socket->set_option(option1);
-        boost::asio::socket_base::receive_buffer_size option2(RECV_BUFFER_SIZE);
-        socket->set_option(option2);
-    } 
-    //NOTE: These exceptions are ok, just means we couldn't set the size, but there is a default.
-    catch(const boost::system::system_error& e)
-    {
-        LOG_DEBUG(node.log) << "exception while setting socket option: " << e.what() << std::endl;
-    }
-    catch(...) 
-    {
-        LOG_DEBUG(node.log) << "unknown exception while setting socket option" << std::endl;
-    }
-#endif
     acceptor.async_accept (*socket, [this, socket](boost::system::error_code const & ec) {
-#ifdef _DEBUG
-        server_open_count++;
-        open_count++;
-#endif
         accept_action (ec, socket);
     });
 }
@@ -902,25 +827,14 @@ void logos::bootstrap_listener::accept_action (boost::system::error_code const &
         accept_connection ();
         auto connection (std::make_shared<logos::bootstrap_server> (socket_a, node.shared ()));
         {
-#ifdef _ERROR
-            std::unique_lock<std::mutex> lock (mutex);
-            if (connections.size () < node.config.bootstrap_connections_max && acceptor.is_open ())
-#else
             std::lock_guard<std::mutex> lock (mutex);
-            if (connections.size () < 8192 && acceptor.is_open ())
-#endif
+            if (connections.size () < 8192 && acceptor.is_open ())//TODO 8192
             {
                 LOG_DEBUG(node.log) << "logos::bootstrap_listener::accept_action: " << connections.size() << " acceptor.is_open(): " << acceptor.is_open() << std::endl;
                 connections[connection.get ()] = connection;
                 connection->receive ();
             } else {
-                LOG_DEBUG(node.log) << "logos::bootstrap_listener::accept_action: error " << connections.size() << " acceptor.is_open(): " << acceptor.is_open() << std::endl;
-                /* 
-                lock.unlock();
-                stop();
-                lock.lock();
-                start();
-                */
+                LOG_WARN(node.log) << "logos::bootstrap_listener::accept_action: " << connections.size() << " acceptor.is_open(): " << acceptor.is_open() << std::endl;
             }
         }
     }
@@ -928,9 +842,6 @@ void logos::bootstrap_listener::accept_action (boost::system::error_code const &
     {
         LOG_INFO (node.log) << boost::str (boost::format ("Error while accepting bootstrap connections: %1%") % ec.message ());
         LOG_DEBUG(node.log) << "logos::bootstrap_listener::accept_action: networking error: ec.message: " << ec.message() << std::endl;
-#ifdef _DEBUG
-        LOG_DEBUG(node.log) << " open: " << open_count << " closed: " << close_count << " server_open_count: " << server_open_count << " client open count: " << (open_count-server_open_count) << std::endl;
-#endif
     }
 }
 
@@ -950,10 +861,6 @@ logos::bootstrap_server::~bootstrap_server ()
     }
     std::lock_guard<std::mutex> lock (node->bootstrap.mutex);
     LOG_DEBUG(node->log) << "logos::bootstrap_server::~bootstrap_server" << std::endl;
-#ifdef _DEBUG
-    std::cout << "trace: " << __FILE__ << " line: " << __LINE__ << std::endl;
-    trace();
-#endif
     socket->close();
     node->bootstrap.connections.erase (this);
 }
@@ -1054,7 +961,16 @@ public:
     {
     }
     virtual ~request_response_visitor () = default;
+
     void keepalive (logos::keepalive const &) override
+    {
+        assert (false);
+    }
+    void bulk_pull_blocks (logos::bulk_pull_blocks const &) override
+    {
+        assert (false);
+    }
+    void bulk_push (logos::bulk_push const &) override
     {
         assert (false);
     }
@@ -1064,18 +980,10 @@ public:
         auto response (std::make_shared<logos::bulk_pull_server> (connection, std::unique_ptr<logos::bulk_pull> (static_cast<logos::bulk_pull *> (connection->requests.front ().release ()))));
         response->send_next ();
     }
-    void bulk_pull_blocks (logos::bulk_pull_blocks const &) override
-    {
-        LOG_DEBUG(logos::bootstrap_get_logger()) << "request_response_visitor::bulk_pull_blocks" << std::endl;
-    }
-    void bulk_push(logos::bulk_push const &) override
-    {
-        LOG_DEBUG(logos::bootstrap_get_logger()) << "request_response_visitor::bulk_push" << std::endl;
-    }
     void frontier_req (logos::frontier_req const &) override
     {
         auto response (std::make_shared<logos::tips_req_server> (connection, std::unique_ptr<logos::frontier_req> (static_cast<logos::frontier_req *> (connection->requests.front ().release ()))));
-        response->send_next ();
+        response->send_batch_blocks_tips();
     }
     std::shared_ptr<logos::bootstrap_server> connection;
 };
@@ -1103,26 +1011,6 @@ void logos::bootstrap_server::receive_bulk_pull_action (boost::system::error_cod
     }
 }
 
-void logos::bootstrap_server::receive_bulk_pull_blocks_action (boost::system::error_code const & ec, size_t size_a)
-{
-    LOG_DEBUG(node->log) << "logos::bootstrap_server::receive_bulk_pull_blocks_action" << std::endl;
-    if (!ec)
-    {
-        std::unique_ptr<logos::bulk_pull_blocks> request (new logos::bulk_pull_blocks);
-        logos::bufferstream stream (receive_buffer.data (), bootstrap_header_size + sizeof (logos::uint256_union) + sizeof (logos::uint256_union) + sizeof (bulk_pull_blocks_mode) + sizeof (uint32_t));
-        auto error (request->deserialize (stream));
-        if (!error)
-        {
-            if (node->config.logging.bulk_pull_logging ())
-            {
-                LOG_INFO (node->log) << boost::str (boost::format ("Received bulk pull blocks for %1% to %2%") % request->min_hash.to_string () % request->max_hash.to_string ());
-            }
-            add_request (std::unique_ptr<logos::message> (request.release ()));
-            receive ();
-        }
-    }
-}
-
 void logos::bootstrap_server::receive_tips_req_action (boost::system::error_code const & ec, size_t size_a)
 {
     LOG_DEBUG(node->log) << "logos::bootstrap_server::receive_tips_req_action" << std::endl;
@@ -1134,10 +1022,6 @@ void logos::bootstrap_server::receive_tips_req_action (boost::system::error_code
         auto error (request->deserialize (stream));
         if (!error)
         {
-            if (node->config.logging.bulk_pull_logging ())
-            {
-                LOG_INFO (node->log) << boost::str (boost::format ("Received tips request for %1% with age %2%") % request->start.to_string () % request->age);
-            }
             // NOTE Store the request for later processing.
             add_request (std::unique_ptr<logos::message> (request.release ()));
             receive ();
