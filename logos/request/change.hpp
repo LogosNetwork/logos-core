@@ -4,6 +4,8 @@
 
 struct Change : Request
 {
+    using Request::Hash;
+
     Change(bool & error,
            const logos::mdb_val & mdbval);
 
