@@ -1,6 +1,7 @@
 #include <logos/elections/database_functions.hpp>
 #include <logos/elections/database.hpp>
 #include <logos/blockstore.hpp>
+#include <logos/epoch/election_requests.hpp>
 
 
 template <typename T>
@@ -181,6 +182,85 @@ bool transitionCandidatesDBNextEpoch(logos::block_store& store)
         result = true;
     }
     return result;
+}
+
+bool valid(logos::block_store& store, ElectionVote& vote_request, uint32_t cur_epoch_num)
+{
+    logos::transaction txn(store.environment,nullptr,true);
+    RepInfo info;
+    //are you a rep at all?
+    if(store.rep_get(vote_request.origin,info,txn))
+    {
+        return false;
+    }
+    auto hash = info.rep_action_tip;
+    std::shared_ptr<Request> rep_action;
+    if(store.request_get(hash,rep_action,txn))
+    {
+        return false;
+    }
+    ApprovedRB rb;
+    if(store.request_block_get(rep_action->locator.hash,rb,txn))
+    {
+        return false;
+    }
+    //What is your status as a rep
+    if(rep_action->type == RequestType::StartRepresenting && rb.epoch_number == cur_epoch_num)
+    {
+        return false;
+    }
+    else if(rep_action->type == RequestType::StopRepresenting && rb.epoch_number != cur_epoch_num)
+    {
+        return false;
+    }
+    else
+    {
+        return false;
+    }
+    hash = info.election_vote_tip;
+    std::shared_ptr<Request> vote_action;
+    if(store.request_get(hash,vote_action,txn))
+    {
+        return false;
+    }
+
+    if(store.request_block_get(vote_action->locator.hash,rb,txn))
+    {
+        return false;
+    }
+    //did you vote already this epoch?
+    if(rb.epoch_number == cur_epoch_num)
+    {
+        return false;
+    }
+
+    //has the epoch block been created?
+    if(store.epoch_tip_get(hash,txn))
+    {
+        return false;
+    }
+    
+    ApprovedEB eb;
+    if(store.epoch_get(hash,eb,txn))
+    {
+       if(eb.epoch_number != cur_epoch_num)
+       {
+            return false;
+       } 
+    }
+
+    size_t total = 0;
+    //are these proper votes?
+    for(auto& cp : vote_request.votes_)
+    {
+        total += cp.num_votes;
+        CandidateInfo info;
+        if(store.candidate_get(cp.account,info,txn) || !info.active)
+        {
+            return false;
+        }
+    }
+    return total > MAX_VOTES;
 }
 
 template class FixedSizeHeap<int>;

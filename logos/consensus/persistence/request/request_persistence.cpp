@@ -733,6 +733,8 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         case RequestType::AnnounceCandidacy:
         case RequestType::RenounceCandidacy:
         case RequestType::ElectionVote:
+        case RequestType::StartRepresenting:
+        case RequestType::StopRepresenting:
             break;
         case RequestType::Unknown:
             // TODO

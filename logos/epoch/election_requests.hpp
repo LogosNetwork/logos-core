@@ -7,6 +7,8 @@
 
 using AccountAddress = logos::uint256_union;
 
+const size_t MAX_VOTES = 8;
+
 struct ElectionVote : Request
 {
     struct CandidateVotePair
@@ -146,7 +148,51 @@ struct RenounceCandidacy : Request
             boost::property_tree::ptree const & tree);
 
 };
+/*
+struct StartRepresenting : Request
+{
+    StartRepresenting(const AccountAddress & origin,
+            const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
+            const AccountPrivKey & priv,
+            const AccountPubKey & pub);
 
+    StartRepresenting(const AccountAddress & origin,
+            const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
+            const AccountSig & signature);
+
+    StartRepresenting(bool & error,
+            std::basic_streambuf<uint8_t> & stream);
+
+    StartRepresenting(bool & error,
+            boost::property_tree::ptree const & tree);
+};
+
+struct StopRepresenting : Request
+{
+    StopRepresenting(const AccountAddress & origin,
+            const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
+            const AccountPrivKey & priv,
+            const AccountPubKey & pub);
+
+    StopRepresenting(const AccountAddress & origin,
+            const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
+            const AccountSig & signature);
+
+    StopRepresenting(bool & error,
+            std::basic_streambuf<uint8_t> & stream);
+
+    StopRepresenting(bool & error,
+            boost::property_tree::ptree const & tree);
+};
+*/
 
 
 

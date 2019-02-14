@@ -26,6 +26,8 @@ const char SEND_TOKENS[]        = "send_tokens";
 const char ANNOUNCE_CANDIDACY[] = "announce_candidacy";
 const char RENOUNCE_CANDIDACY[] = "renounce_candidacy";
 const char ELECTION_VOTE[]      = "election_vote";
+const char START_REPRESENTING[] = "start_representing";
+const char STOP_REPRESENTING[]  = "stop_representing";
 const char UNKNOWN[]            = "unknown";
 
 // Request fields

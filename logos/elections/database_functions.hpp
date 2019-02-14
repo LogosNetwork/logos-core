@@ -1,5 +1,6 @@
 #pragma once
 #include <logos/blockstore.hpp>
+#include <logos/epoch/election_requests.hpp>
 
 std::vector<std::pair<AccountAddress,uint64_t>> getElectionWinners(size_t num_winners, logos::block_store& store);
 
@@ -11,6 +12,7 @@ bool updateCandidatesDB(logos::block_store& store);
 bool markDelegateElectsAsRemove(logos::block_store& store);
 bool addReelectionCandidates(logos::block_store& store);
 bool transitionCandidatesDBNextEpoch(logos::block_store& store);
+bool isValid(logos::block_store& store, ElectionVote& vote_request, uint32_t cur_epoch_num); 
 
 template <typename T>
 class FixedSizeHeap

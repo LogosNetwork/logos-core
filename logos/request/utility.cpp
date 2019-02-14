@@ -155,6 +155,12 @@ std::string GetRequestTypeField(RequestType type)
         case RequestType::ElectionVote:
             ret = ELECTION_VOTE;
             break;
+        case RequestType::StartRepresenting:
+            ret = START_REPRESENTING;
+            break;
+        case RequestType::StopRepresenting:
+            ret = STOP_REPRESENTING;
+            break;
         case RequestType::Unknown:
             ret = UNKNOWN;
             break;
