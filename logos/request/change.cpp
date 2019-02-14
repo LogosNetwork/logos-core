@@ -13,7 +13,7 @@ Change::Change(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 Change::Change(bool & error,
@@ -31,7 +31,7 @@ Change::Change(bool & error,
         return;
     }
 
-    Request::Hash();
+    Hash();
 }
 
 Change::Change(bool & error,
@@ -60,7 +60,7 @@ Change::Change(bool & error,
             return;
         }
 
-        Request::Hash();
+        Hash();
     }
     catch(...)
     {

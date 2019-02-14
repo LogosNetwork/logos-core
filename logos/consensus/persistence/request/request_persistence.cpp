@@ -706,21 +706,26 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             auto update = static_pointer_cast<const TokenController>(request);
             auto token_account = static_pointer_cast<TokenAccount>(info);
 
+            auto controller = token_account->GetController(update->controller.account);
+
             if(update->action == ControllerAction::Add)
             {
-                token_account->controllers.push_back(update->controller);
+                // Update an existing controller
+                if(controller != token_account->controllers.end())
+                {
+                    *controller = update->controller;
+                }
+
+                // Add a new controller
+                else
+                {
+                    token_account->controllers.push_back(update->controller);
+                }
             }
             else
             {
-                auto entry = std::find_if(token_account->controllers.begin(),
-                                          token_account->controllers.end(),
-                                          [update](const ControllerInfo & c)
-                                          {
-                                              return c.account == update->controller.account;
-                                          });
-
-                assert(entry != token_account->controllers.end());
-                token_account->controllers.erase(entry);
+                assert(controller != token_account->controllers.end());
+                token_account->controllers.erase(controller);
             }
 
             break;
