@@ -22,7 +22,7 @@ const char UPDATE_INFO[]       = "update_issuer_info";
 const char UPDATE_CONTROLLER[] = "update_controller";
 const char BURN[]              = "burn";
 const char DISTRIBUTE[]        = "distribute";
-const char WITHDRAW[]          = "withdraw";
+const char WITHDRAW_FEE[]      = "withdraw_fee";
 const char SEND_TOKENS[]       = "send_tokens";
 const char UNKNOWN[]           = "unknown";
 
@@ -97,7 +97,6 @@ const char CHANGE_MODIFY_ADJUST_FEE[] = "change_modify_adjust_fee";
 const char CHANGE_WHITELIST[]         = "change_whitelist";
 const char CHANGE_MODIFY_WHITELIST[]  = "change_modify_whitelisting";
 const char PROMOTE_CONTROLLER[]       = "promote_controller";
-const char WITHDRAW_FEE[]             = "withdraw_fee";
 const char UPDATE_ISSUER_INFO[]       = "update_issuer_info";
 
 } // namespace fields

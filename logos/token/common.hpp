@@ -83,7 +83,7 @@ enum class ControllerPrivilege : uint8_t
     Whitelist                = 15,
     UpdateIssuerInfo         = 16,
     Burn                     = 17,
-    Withdraw                 = 18,
+    Distribute               = 18,
     WithdrawFee              = 19,
 
     Unknown                  = 20

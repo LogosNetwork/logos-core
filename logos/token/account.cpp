@@ -332,7 +332,7 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
         case RequestType::UpdateController:
         case RequestType::BurnTokens:
         case RequestType::DistributeTokens:
-        case RequestType::WithdrawTokens:
+        case RequestType::WithdrawFee:
         case RequestType::SendTokens:
             result = true;
             break;

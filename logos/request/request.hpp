@@ -29,7 +29,7 @@ enum class RequestType : uint8_t
     UpdateController   = 11,
     BurnTokens         = 12,
     DistributeTokens   = 13,
-    WithdrawTokens     = 14,
+    WithdrawFee        = 14,
 
     // Token User Requests
     //
