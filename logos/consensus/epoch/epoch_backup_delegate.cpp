@@ -15,9 +15,10 @@ EpochBackupDelegate::EpochBackupDelegate(
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
                              EpochEventsNotifier & events_notifier,
-                             PersistenceManager<ECT> & persistence_manager)
+                             PersistenceManager<ECT> & persistence_manager,
+                             p2p_interface & p2p)
     : BackupDelegate<ECT>(iochannel, primary, promoter, validator,
-                                                ids, events_notifier, persistence_manager)
+                                                ids, events_notifier, persistence_manager, p2p)
 {
     if (promoter.GetStore().epoch_tip_get(_prev_pre_prepare_hash))
     {

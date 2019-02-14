@@ -14,9 +14,10 @@ EpochConsensusManager::EpochConsensusManager(
 	                      Store & store,
 					      const Config & config,
                           MessageValidator & validator,
-                          EpochEventsNotifier & events_notifier)
+                          EpochEventsNotifier & events_notifier,
+                          p2p_interface & p2p)
 	: Manager(service, store, config,
-		      validator, events_notifier)
+		      validator, events_notifier, p2p)
 	, _enqueued(false)
 {
 	if (_store.epoch_tip_get(_prev_pre_prepare_hash))
@@ -115,7 +116,7 @@ EpochConsensusManager::MakeBackupDelegate(
         const DelegateIdentities& ids)
 {
     return std::make_shared<EpochBackupDelegate>(iochannel, *this, *this,
-            _validator, ids, _events_notifier, _persistence_manager);
+            _validator, ids, _events_notifier, _persistence_manager, Manager::_consensus_p2p._p2p);
 }
 
 uint8_t

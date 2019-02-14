@@ -109,3 +109,9 @@ PersistenceManager<ECT>::ApplyUpdates(
         trace_and_halt();
     }
 }
+
+bool PersistenceManager<ECT>::BlockExists(
+    const ApprovedEB & message)
+{
+    return _store.epoch_exists(message);
+}

@@ -17,16 +17,17 @@ EpochManager::EpochManager(Service & service,
                            EpochTransitionDelegate delegate,
                            EpochConnection connection,
                            const uint32_t epoch_number,
-                           NewEpochEventHandler & handler)
+                           NewEpochEventHandler & handler,
+                           p2p_interface & p2p)
     : _state(state)
     , _delegate(delegate)
     , _connection_state(connection)
     , _epoch_number(epoch_number)
     , _new_epoch_handler(handler)
     , _validator(_key_store, logos::genesis_delegates[DelegateIdentityManager::_global_delegate_idx].bls_key)
-    , _batch_manager(service, store, config, _validator, *this)
-    , _micro_manager(service, store, config, _validator, archiver, *this)
-    , _epoch_manager(service, store, config, _validator, *this)
+    , _batch_manager(service, store, config, _validator, *this, p2p)
+    , _micro_manager(service, store, config, _validator, archiver, *this, p2p)
+    , _epoch_manager(service, store, config, _validator, *this, p2p)
     , _netio_manager(
         {
             {ConsensusType::BatchStateBlock, _batch_manager},

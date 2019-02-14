@@ -6,6 +6,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/consensus_state.hpp>
+#include <logos/consensus/consensus_p2p.hpp>
 #include <logos/consensus/delegate_bridge.hpp>
 #include <logos/node/client_callback.hpp>
 
@@ -50,7 +51,8 @@ public:
                         MessageValidator & validator,
                         const DelegateIdentities & ids,
                         EpochEventsNotifier & events_notifier,
-                        PersistenceManager<CT> & persistence_manager);
+                        PersistenceManager<CT> & persistence_manager,
+                        p2p_interface & p2p);
 
     virtual ~BackupDelegate()
     {
@@ -149,4 +151,5 @@ protected:
     uint64_t                    _sequence_number = 0;
     EpochEventsNotifier &       _events_notifier;
     PersistenceManager<CT> &    _persistence_manager;
+    ConsensusP2pOutput<CT>      _consensus_p2p;
 };

@@ -16,9 +16,10 @@ BBBackupDelegate::BBBackupDelegate(
         const DelegateIdentities & ids,
         Service & service,
         EpochEventsNotifier & events_notifier,
-        PersistenceManager<BSBCT> & persistence_manager)
+	PersistenceManager<BSBCT> & persistence_manager,
+	p2p_interface & p2p)
     : Connection(iochannel, primary, promoter,
-                 validator, ids, events_notifier, persistence_manager)
+		 validator, ids, events_notifier, persistence_manager, p2p)
     , _timer(service)
 {
     ApprovedBSB block;

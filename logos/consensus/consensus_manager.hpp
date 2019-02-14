@@ -11,6 +11,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
+#include <logos/consensus/consensus_p2p.hpp>
 #include <logos/node/client_callback.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
@@ -83,7 +84,8 @@ public:
                      Store & store,
                      const Config & config,
                      MessageValidator & validator,
-                     EpochEventsNotifier & events_notifier);
+                     EpochEventsNotifier & events_notifier,
+                     p2p_interface & p2p);
 
     void HandleRequest(std::shared_ptr<Request> block,
                        BlockHash &hash,
@@ -185,5 +187,6 @@ protected:
     EpochEventsNotifier &           _events_notifier;      ///< Notifies epoch manager of transition related events
     ReservationsPtr                 _reservations;
     PersistenceManager<CT>          _persistence_manager;
+    ConsensusP2pOutput<CT>          _consensus_p2p;
 };
 

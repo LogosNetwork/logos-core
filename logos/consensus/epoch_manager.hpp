@@ -66,7 +66,8 @@ public:
                  EpochTransitionDelegate delegate,
                  EpochConnection connection,
                  const uint32_t epoch_number,
-                 NewEpochEventHandler & event_handler);
+                 NewEpochEventHandler & event_handler,
+                 p2p_interface & p2p);
 
     ~EpochManager();
 

@@ -285,7 +285,8 @@ bool logos::operation::operator> (logos::operation const & other_a) const
 
 logos::alarm::alarm (boost::asio::io_service & service_a) :
 service (service_a),
-thread ([this]() { run (); })
+thread ([this]() { run (); }),
+operation_handle(0)
 {
 }
 
@@ -607,13 +608,14 @@ bool logos::logging::log_to_cerr () const
 
 logos::node_init::node_init () :
 block_store_init (false),
-wallet_init (false)
+wallet_init (false),
+p2p_init (false)
 {
 }
 
 bool logos::node_init::error ()
 {
-    return block_store_init || wallet_init;
+    return block_store_init || wallet_init || p2p_init;
 }
 
 logos::node_config::node_config () :
@@ -940,7 +942,7 @@ bool logos::node_config::deserialize_json (bool & upgraded_a, boost::property_tr
         try { // temp for backward compatability
             result |= tx_acceptor_config.DeserializeJson(tree_a.get_child("TxAcceptor"));
         }
-        catch (std::logic_error const&)
+        catch (...)
         {
             result |= tx_acceptor_config.DeserializeJson(tree_a.get_child("ConsensusManager"));
         }
@@ -1288,8 +1290,9 @@ stats (config.stat_config),
 _recall_handler(),
 _identity_manager(store, config.consensus_manager_config),
 _archiver(alarm_a, store, _recall_handler),
+p2p(*this),
 _consensus_container{std::make_shared<ConsensusContainer>(
-        service_a, store, alarm_a, config, _archiver, _identity_manager)},
+        service_a, store, alarm_a, config, _archiver, _identity_manager, p2p)},
 _tx_acceptor{config.tx_acceptor_config.tx_acceptors.size() == 0
     ? std::make_shared<TxAcceptorDelegate>(service_a, _consensus_container, config)
     : nullptr},
@@ -1335,6 +1338,13 @@ _tx_receiver{config.tx_acceptor_config.tx_acceptors.size() != 0
 
     BOOST_LOG (log) << "Node starting, version: " << LOGOS_VERSION_MAJOR << "." << LOGOS_VERSION_MINOR;
     BOOST_LOG (log) << boost::str (boost::format ("Work pool running %1% threads") % work.threads.size ());
+
+    p2p_conf = config.p2p_conf;
+    p2p_conf.lmdb_env = store.environment.environment;
+    p2p_conf.lmdb_dbi = store.p2p_db;
+    p2p_conf.boost_io_service = &service;
+    init_a.p2p_init = !p2p.Init(p2p_conf);
+
     if (!init_a.error ())
     {
         if (config.logging.node_lifetime_tracing ())
@@ -1646,6 +1656,11 @@ void logos::node::stop ()
     bootstrap.stop ();
     port_mapping.stop ();
     wallets.stop ();
+    p2p.Shutdown ();
+}
+
+bool logos::Logos_p2p_interface::ReceiveMessageCallback(const void *message, unsigned size) {
+    return _node._consensus_container->OnP2pReceive(message, size);
 }
 
 void logos::node::keepalive_preconfigured (std::vector<std::string> const & peers_a)

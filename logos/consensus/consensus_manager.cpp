@@ -16,7 +16,8 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
                                        Store & store,
                                        const Config & config,
                                        MessageValidator & validator,
-                                       EpochEventsNotifier & events_notifier)
+                                       EpochEventsNotifier & events_notifier,
+                                       p2p_interface & p2p)
     : PrimaryDelegate(service, validator)
     , _store(store)
     , _validator(validator)
@@ -24,6 +25,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _events_notifier(events_notifier)
     , _reservations(std::make_shared<Reservations>(store))
     , _persistence_manager(store, _reservations)
+    , _consensus_p2p(p2p, config.delegate_id)
 {
     _delegate_id = config.delegate_id;
 
@@ -175,6 +177,10 @@ void ConsensusManager<CT>::OnConsensusReached()
                         << messages_stored
                         << " blocks.";
     }
+
+    std::vector<uint8_t> buf;
+    block.Serialize(buf, true, true);
+    _consensus_p2p.ProcessOutputMessage(buf.data(), buf.size());
 
     SetPreviousPrePrepareHash(_pre_prepare_hash);
 

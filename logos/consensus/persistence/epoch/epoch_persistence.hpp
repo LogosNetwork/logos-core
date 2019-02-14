@@ -48,4 +48,6 @@ public:
     {
         ApplyUpdates(block, 0);
     }
+
+    virtual bool BlockExists(const ApprovedEB & message);
 };

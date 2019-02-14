@@ -48,7 +48,8 @@ public:
                                Store & store,
                                const Config & config,
                                MessageValidator & validator,
-                               EpochEventsNotifier & events_notifier);
+                               EpochEventsNotifier & events_notifier,
+                               p2p_interface & p2p);
 
     virtual ~BatchBlockConsensusManager() {};
 

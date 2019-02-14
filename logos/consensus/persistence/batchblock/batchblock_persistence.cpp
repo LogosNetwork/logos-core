@@ -58,6 +58,12 @@ void PersistenceManager<BSBCT>::ApplyUpdates(
     }
 }
 
+bool PersistenceManager<BSBCT>::BlockExists(
+    const ApprovedBSB & message)
+{
+    return _store.batch_block_exists(message);
+}
+
 bool PersistenceManager<BSBCT>::ValidateRequest(
     const Request & block,
     logos::process_return & result,
