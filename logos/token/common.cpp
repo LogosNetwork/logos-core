@@ -2,6 +2,7 @@
 
 #include <logos/token/requests.hpp>
 #include <logos/request/fields.hpp>
+#include <logos/token/account.hpp>
 #include <logos/token/util.hpp>
 
 TokenRequest::TokenRequest(bool & error,
@@ -221,7 +222,7 @@ bool ControllerInfo::IsAuthorized(std::shared_ptr<const Request> request) const
         case RequestType::ImmuteTokenSetting:
         {
             auto immute = static_pointer_cast<const TokenImmuteSetting>(request);
-            result = IsAuthorized(immute->setting);
+            result = IsAuthorized(TokenAccount::GetMutabilitySetting(immute->setting));
             break;
         }
         case RequestType::RevokeTokens:

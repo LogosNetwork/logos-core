@@ -452,7 +452,7 @@ bool TokenAccount::Allowed(TokenSetting setting) const
     return settings[static_cast<EnumType>(setting)];
 }
 
-bool TokenAccount::IsMutabilitySetting(TokenSetting setting) const
+bool TokenAccount::IsMutabilitySetting(TokenSetting setting)
 {
     // Enum values for mutability settings
     // are odd numbers.
@@ -460,7 +460,7 @@ bool TokenAccount::IsMutabilitySetting(TokenSetting setting) const
     return static_cast<EnumType>(setting) % 2;
 }
 
-TokenSetting TokenAccount::GetMutabilitySetting(TokenSetting setting) const
+TokenSetting TokenAccount::GetMutabilitySetting(TokenSetting setting)
 {
     // For a given enum value representing
     // a basic setting, the corresponding
