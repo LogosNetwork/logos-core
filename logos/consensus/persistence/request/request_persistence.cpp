@@ -217,6 +217,12 @@ bool PersistenceManager<R>::ValidateRequest(
             result.code = logos::process_result::prohibitted_request;
             return false;
         }
+
+        // Request failed type-specific validation.
+        if(!request->Validate(result, info))
+        {
+            return false;
+        }
     }
 
     uint16_t token_total = request->GetTokenTotal();
@@ -631,7 +637,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             auto immute = static_pointer_cast<const TokenImmuteSetting>(request);
             auto token_account = static_pointer_cast<TokenAccount>(info);
 
-            token_account->Set(token_account->GetMutabilitySetting(immute->setting), false);
+            token_account->Set(TokenAccount::GetMutabilitySetting(immute->setting), false);
             break;
         }
         case RequestType::RevokeTokens:

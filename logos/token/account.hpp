@@ -56,8 +56,8 @@ struct TokenAccount : logos::Account
     void Set(TokenSetting setting, SettingValue value);
     bool Allowed(TokenSetting setting) const;
 
-    bool IsMutabilitySetting(TokenSetting setting) const;
-    TokenSetting GetMutabilitySetting(TokenSetting setting) const;
+    static bool IsMutabilitySetting(TokenSetting setting);
+    static TokenSetting GetMutabilitySetting(TokenSetting setting);
 
     static constexpr uint8_t MAX_CONTROLLERS = 10;
 
