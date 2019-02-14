@@ -545,12 +545,14 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         // the change.
         auto update_status = [this, &message, &transaction, status, &do_update_status]()
         {
+            auto token_user_id = GetTokenUserId(message->token_id, message->account);
+
             TokenUserStatus user_status;
-            _store.token_user_status_get(message->token_id, user_status, transaction);
+            _store.token_user_status_get(token_user_id, user_status, transaction);
 
             do_update_status(user_status);
 
-            _store.token_user_status_put(message->token_id, user_status, transaction);
+            _store.token_user_status_put(token_user_id, user_status, transaction);
         };
 
         logos::account_info user_account;
