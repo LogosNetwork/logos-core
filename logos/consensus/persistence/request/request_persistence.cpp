@@ -762,7 +762,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 
             break;
         }
-        case RequestType::WithdrawTokens:
+        case RequestType::WithdrawFee:
         {
             auto withdraw = static_pointer_cast<const TokenAccountWithdrawFee>(request);
             auto token_account = static_pointer_cast<TokenAccount>(info);

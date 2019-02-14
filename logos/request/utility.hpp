@@ -118,7 +118,7 @@ RequestType GetRequestType()
     }
     else if(std::is_same<Request, TokenAccountWithdrawFee>::value)
     {
-        result = RequestType::WithdrawTokens;
+        result = RequestType::WithdrawFee;
     }
     else if(std::is_same<Request, TokenSend>::value)
     {
