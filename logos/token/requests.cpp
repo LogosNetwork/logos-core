@@ -1723,7 +1723,7 @@ logos::AccountType TokenAccountWithdrawFee::GetSourceType() const
 }
 
 bool TokenAccountWithdrawFee::Validate(logos::process_return & result,
-                                std::shared_ptr<logos::Account> info) const
+                                       std::shared_ptr<logos::Account> info) const
 {
     auto token_account = std::static_pointer_cast<TokenAccount>(info);
 

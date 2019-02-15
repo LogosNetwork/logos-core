@@ -1264,6 +1264,11 @@ bool logos::block_store::token_user_status_put(const BlockHash & token_user_id, 
     return result != 0;
 }
 
+void logos::block_store::token_user_status_del(const BlockHash & token_user_id, MDB_txn * transaction)
+{
+    del(token_user_status_db, token_user_id, transaction);
+}
+
 bool logos::block_store::token_account_exists(const BlockHash & token_id)
 {
     LOG_TRACE(log) << __func__ << " key " << token_id.to_string();

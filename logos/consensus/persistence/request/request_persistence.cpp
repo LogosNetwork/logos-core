@@ -260,6 +260,42 @@ bool PersistenceManager<R>::ValidateRequest(
         else
         {
 
+            // Lmabda for retreiving the user's current status
+            // with the token (frozen, whitelisted).
+            //
+            auto get_user_status = [this](const auto & destination_address,
+                                          auto & destination_status,
+                                          const auto & token_id)
+            {
+                std::shared_ptr<logos::account_info> destination(new logos::account_info);
+                BlockHash token_user_id(GetTokenUserId(token_id, destination_address));
+
+                // We have the destination account
+                if (!_store.account_get(destination_address, *destination))
+                {
+                    TokenEntry destination_token_entry;
+
+                    // This destination account has been tethered to
+                    // the token
+                    if (destination->GetEntry(token_id, destination_token_entry))
+                    {
+                        destination_status = destination_token_entry.status;
+                    }
+
+                    // This destination account is untethered
+                    else
+                    {
+                        _store.token_user_status_get(token_user_id, destination_status);
+                    }
+                }
+
+                // We don't have the destination account
+                else
+                {
+                    _store.token_user_status_get(token_user_id, destination_status);
+                }
+            };
+
             // This is a Send Token Request.
             if(request->type == RequestType::SendTokens)
             {
@@ -269,7 +305,6 @@ bool PersistenceManager<R>::ValidateRequest(
                 std::shared_ptr<TokenAccount> token_account(new TokenAccount);
 
                 // This token id doesn't exist.
-                //if(_reservations->Acquire(send_tokens->token_id, token_account))
                 if(_store.token_account_get(send_tokens->token_id, *token_account))
                 {
                     result.code = logos::process_result::invalid_token_id;
@@ -296,37 +331,10 @@ bool PersistenceManager<R>::ValidateRequest(
                 // Check each transaction in the Send Token Request
                 for(auto & t : send_tokens->transactions)
                 {
-                    std::shared_ptr<logos::account_info> destination(new logos::account_info);
+
+                    // Pull the user's current status.
                     TokenUserStatus destination_status;
-
-                    BlockHash token_user_id(GetTokenUserId(send_tokens->token_id,
-                                                           t.destination));
-
-                    // We have the destination account
-                    //if(!_reservations->Acquire(t.destination, destination))
-                    if(!_store.account_get(t.destination, *destination))
-                    {
-                        TokenEntry destination_token_entry;
-
-                        // This destination account has been tethered to
-                        // the token
-                        if(destination->GetEntry(send_tokens->token_id, destination_token_entry))
-                        {
-                            destination_status = destination_token_entry.status;
-                        }
-
-                        // This destination account is untethered
-                        else
-                        {
-                            _store.token_user_status_get(token_user_id, destination_status);
-                        }
-                    }
-
-                    // We don't have the destination account
-                    else
-                    {
-                        _store.token_user_status_get(token_user_id, destination_status);
-                    }
+                    get_user_status(t.destination, destination_status, send_tokens->token_id);
 
                     // The destination account is either frozen
                     // or not yet whitelisted.
@@ -344,7 +352,37 @@ bool PersistenceManager<R>::ValidateRequest(
                 }
             }
 
-            if(!request->Validate(result, info))
+            // This is a TokenAccountSend or TokenAccountWithdrawFee
+            // request
+            else
+            {
+                auto get_destination = [](auto token_request)
+                {
+                    if(token_request->type == RequestType::DistributeTokens)
+                    {
+                        return static_pointer_cast<const TokenAccountSend>(token_request)->transaction.destination;
+                    }
+
+                    assert(token_request->type == RequestType::WithdrawFee);
+                    return static_pointer_cast<const TokenAccountWithdrawFee>(token_request)->transaction.destination;
+                };
+
+                auto token_account = static_pointer_cast<TokenAccount>(info);
+                auto token_request = static_pointer_cast<const TokenRequest>(request);
+
+                // Pull the user's current status.
+                TokenUserStatus destination_status;
+                get_user_status(get_destination(token_request), destination_status, token_request->token_id);
+
+                // The destination account is either frozen
+                // or not yet whitelisted.
+                if (!token_account->SendAllowed(destination_status, result))
+                {
+                    return false;
+                }
+            }
+
+            if (!request->Validate(result, info))
             {
                 return false;
             }
@@ -586,7 +624,6 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         {
             update_status();
         }
-
     };
 
     switch(request->type)
@@ -864,16 +901,48 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
     info.receive_head = hash;
     info.modified = logos::seconds_since_epoch();
 
+    // This is a logos transaction
     if(token_id.is_zero())
     {
         info.balance += send.amount;
     }
+
+    // This is a token transaction
     else
     {
         auto entry = info.GetEntry(token_id);
-        assert(entry != info.entries.end());
 
-        // TODO: create explicit bond between
+        // The destination account is being
+        // tethered to this token.
+        if(entry == info.entries.end())
+        {
+            TokenEntry new_entry;
+            new_entry.token_id = token_id;
+
+            // TODO: Put a limit on the number
+            //       of token entries a single
+            //       account can have.
+            info.entries.push_back(new_entry);
+
+            entry = info.GetEntry(token_id);
+            assert(entry != info.entries.end());
+
+            TokenUserStatus status;
+            auto token_user_id = GetTokenUserId(token_id, send.destination);
+
+            // This user's token status has been stored
+            // in the central freeze/white list.
+            if(!_store.token_user_status_get(token_user_id, status, transaction))
+            {
+                // Once an account is tethered to a token,
+                // the token entry itself will be used to
+                // store the token user status.
+                entry->status = status;
+                _store.token_user_status_del(token_user_id, transaction);
+            }
+        }
+
+        // TODO: Create an explicit bond between
         //       token transactions and amount
         //       type.
         auto token_send = reinterpret_cast<const Transaction<uint16_t> &>(send);
