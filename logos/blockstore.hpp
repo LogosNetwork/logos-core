@@ -178,6 +178,7 @@ public:
 
     bool token_user_status_get(const BlockHash & token_user_id, TokenUserStatus & status, MDB_txn* t=0);
     bool token_user_status_put(const BlockHash & token_user_id, const TokenUserStatus & status, MDB_txn *);
+    void token_user_status_del(const BlockHash & token_user_id, MDB_txn *);
 
     bool token_account_exists(const BlockHash & token_id);
     bool token_account_get(const BlockHash & token_id, std::shared_ptr<Account> & info, MDB_txn* t=0);

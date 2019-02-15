@@ -44,12 +44,12 @@ struct TokenEntry
     TokenEntry() = default;
 
     TokenEntry(bool & error,
-          logos::stream & stream);
+               logos::stream & stream);
 
     uint32_t Serialize(logos::stream & stream) const;
     bool Deserialize(logos::stream & stream);
 
-    logos::block_hash token_id;
-    TokenUserStatus   status;
-    uint16_t          balance;
+    BlockHash       token_id;
+    TokenUserStatus status;
+    uint16_t        balance = 0;
 };
