@@ -2,6 +2,7 @@
 
 #include <logos/consensus/messages/common.hpp>
 #include <logos/node/utility.hpp>
+#include <logos/lib/log.hpp>
 
 enum class RejectionReason : uint8_t
 {
@@ -34,22 +35,34 @@ struct RejectionMessage
         error = logos::read(stream, preprepare_hash);
         if(error)
         {
+            Log log;
+            LOG_ERROR(log) << "RejectionMessage: error deserializing preprepare_hash";
             return;
         }
 
         error = logos::read(stream, reason);
         if(error)
         {
+            Log log;
+            LOG_ERROR(log) << "RejectionMessage: error deserializing reason";
             return;
         }
 
         error = logos::read(stream, rejection_map);
         if(error)
         {
+            Log log;
+            LOG_ERROR(log) << "RejectionMessage: error deserializing rejection_map";
             return;
         }
 
         error = logos::read(stream, signature);
+        if(error)
+        {
+            Log log;
+            LOG_ERROR(log) << "RejectionMessage: error deserializing signature";
+            return;
+        }
     }
 
     BlockHash Hash() const
