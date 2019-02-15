@@ -52,6 +52,7 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
 
 bool PersistenceManager<R>::Validate(RequestPtr request,
                                      logos::process_return & result,
+                                     uint32_t cur_epoch_num,
                                      bool allow_duplicates)
 {
     auto hash = request->GetHash();
@@ -337,10 +338,10 @@ bool PersistenceManager<R>::Validate(RequestPtr request,
     return true;
 }
 
-bool PersistenceManager<R>::Validate(RequestPtr request)
+bool PersistenceManager<R>::Validate(RequestPtr request, uint32_t cur_epoch_num)
 {
     logos::process_return ignored_result;
-    auto val = Validate(request, ignored_result);
+    auto val = Validate(request, ignored_result,cur_epoch_num);
 
     LOG_DEBUG(_log) << "PersistenceManager<R>::Validate code "
                     << (uint)ignored_result.code;
@@ -357,7 +358,7 @@ bool PersistenceManager<R>::Validate(const PrePrepare & message,
     for(uint64_t i = 0; i < message.requests.size(); ++i)
     {
         logos::process_return result;
-        if(!Validate(message.requests[i], result))
+        if(!Validate(message.requests[i], result, message.epoch_number))
         {
             UpdateStatusRequests(status, i, result.code);
             UpdateStatusReason(status, process_result::invalid_request);
@@ -416,7 +417,8 @@ void PersistenceManager<R>::ApplyRequestBlock(
     {
         ApplyRequest(message.requests[i],
                      message.timestamp,
-                     transaction);
+                     transaction,
+                     message.epoch_number);
 
         std::lock_guard<std::mutex> lock(_reservation_mutex);
         _reservations->Release(message.requests[i]->GetAccount());
@@ -425,7 +427,8 @@ void PersistenceManager<R>::ApplyRequestBlock(
 
 void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                                          uint64_t timestamp,
-                                         MDB_txn * transaction)
+                                         MDB_txn * transaction,
+                                         uint32_t cur_epoch_num)
 {
     std::shared_ptr<logos::Account> info;
     auto account_error(_store.account_get(request->origin, info, request->GetAccountType()));

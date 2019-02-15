@@ -32,8 +32,9 @@ public:
 
     virtual bool Validate(RequestPtr request,
                           logos::process_return & result,
+                          uint32_t cur_epoch_num,
                           bool allow_duplicates = true);
-    virtual bool Validate(RequestPtr request);
+    virtual bool Validate(RequestPtr request,uint32_t cur_epoch_num);
 
     virtual bool Validate(const PrePrepare & message, ValidationStatus * status = nullptr);
 
@@ -47,7 +48,8 @@ private:
                            MDB_txn * transaction);
     void ApplyRequest(RequestPtr request,
                       uint64_t timestamp,
-                      MDB_txn * transaction);
+                      MDB_txn * transaction,
+                      uint32_t cur_epoch_num);
 
     template<typename SendType>
     void ApplySend(std::shared_ptr<const SendType> request,

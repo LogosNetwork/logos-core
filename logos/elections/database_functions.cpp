@@ -2,6 +2,7 @@
 #include <logos/elections/database.hpp>
 #include <logos/blockstore.hpp>
 #include <logos/epoch/election_requests.hpp>
+#include <logos/lib/epoch_time_util.hpp>
 
 
 template <typename T>
@@ -184,8 +185,12 @@ bool transitionCandidatesDBNextEpoch(logos::block_store& store)
     return result;
 }
 
-bool valid(logos::block_store& store, ElectionVote& vote_request, uint32_t cur_epoch_num)
+bool isValid(logos::block_store& store, ElectionVote& vote_request, uint32_t cur_epoch_num)
 {
+    if(!isOutsideOfEpochBoundary(store,cur_epoch_num))
+    {
+        return false;
+    }
     logos::transaction txn(store.environment,nullptr,true);
     RepInfo info;
     //are you a rep at all?
@@ -193,47 +198,86 @@ bool valid(logos::block_store& store, ElectionVote& vote_request, uint32_t cur_e
     {
         return false;
     }
-    auto hash = info.rep_action_tip;
-    std::shared_ptr<Request> rep_action;
-    if(store.request_get(hash,rep_action,txn))
-    {
-        return false;
-    }
-    ApprovedRB rb;
-    if(store.request_block_get(rep_action->locator.hash,rb,txn))
-    {
-        return false;
-    }
+
     //What is your status as a rep
-    if(rep_action->type == RequestType::StartRepresenting && rb.epoch_number == cur_epoch_num)
+    if(!info.announced_stop && info.rep_action_epoch == cur_epoch_num)
     {
         return false;
     }
-    else if(rep_action->type == RequestType::StopRepresenting && rb.epoch_number != cur_epoch_num)
-    {
-        return false;
-    }
-    else
-    {
-        return false;
-    }
-    hash = info.election_vote_tip;
-    std::shared_ptr<Request> vote_action;
-    if(store.request_get(hash,vote_action,txn))
+    else if(info.rep_action_epoch != cur_epoch_num)
     {
         return false;
     }
 
-    if(store.request_block_get(vote_action->locator.hash,rb,txn))
-    {
-        return false;
-    }
     //did you vote already this epoch?
-    if(rb.epoch_number == cur_epoch_num)
+    if(info.last_epoch_voted == cur_epoch_num)
     {
         return false;
     }
 
+    size_t total = 0;
+    //are these proper votes?
+    for(auto& cp : vote_request.votes_)
+    {
+        total += cp.num_votes;
+        CandidateInfo info;
+        if(store.candidate_get(cp.account,info,txn) || !info.active)
+        {
+            return false;
+        }
+    }
+    return total <= MAX_VOTES;
+}
+
+bool isValid(
+        logos::block_store& store,
+        AnnounceCandidacy& request,
+        uint32_t cur_epoch_num)
+{
+    if(!isOutsideOfEpochBoundary(store,cur_epoch_num))
+    {
+        return false;
+    }
+    logos::transaction txn(store.environment,nullptr,true);
+    RepInfo r_info;
+    //TODO: do we really need this requirement, that you are a rep to be a candidate
+    if(store.rep_get(request.origin,r_info,txn))
+    {
+        return false;
+    }
+    CandidateInfo c_info;
+    return store.candidate_get(request.origin,c_info,txn);
+}
+
+bool isValid(
+        logos::block_store& store,
+        RenounceCandidacy& request,
+        uint32_t cur_epoch_num)
+{
+    if(!isOutsideOfEpochBoundary(store,cur_epoch_num))
+    {
+        return false;
+    }
+    logos::transaction txn(store.environment,nullptr,true);
+    CandidateInfo info;
+    if(store.candidate_get(request.origin,info,txn))
+    {
+        return false;
+    }
+    return info.active;
+}
+
+bool isOutsideOfEpochBoundary(logos::block_store& store, uint32_t cur_epoch_num)
+{
+    EpochTimeUtil util;
+    auto lapse = util.GetNextEpochTime(false);
+    if(lapse < VOTING_DOWNTIME)
+    {
+        return false;
+    }
+
+    logos::transaction txn(store.environment,nullptr,true);
+    BlockHash hash; 
     //has the epoch block been created?
     if(store.epoch_tip_get(hash,txn))
     {
@@ -248,19 +292,103 @@ bool valid(logos::block_store& store, ElectionVote& vote_request, uint32_t cur_e
             return false;
        } 
     }
+    return true;
+}
 
-    size_t total = 0;
-    //are these proper votes?
-    for(auto& cp : vote_request.votes_)
+bool applyElectionVote(logos::block_store& store, ElectionVote& request, uint32_t cur_epoch_num)
+{
+    logos::transaction txn(store.environment,nullptr,true);
+    RepInfo rep;
+    if(store.rep_get(request.origin,rep,txn))
     {
-        total += cp.num_votes;
-        CandidateInfo info;
-        if(store.candidate_get(cp.account,info,txn) || !info.active)
+        return false;
+    }
+    rep.last_epoch_voted = cur_epoch_num;
+    rep.election_vote_tip = request.Hash();
+    if(store.rep_put(request.origin,rep,txn))
+    {
+        return false;
+    }
+    if(store.request_put(request,request.Hash(),txn))
+    {
+        mdb_txn_abort(txn);
+        return false;
+    }
+    for(auto& p : request.votes_)
+    {
+        if(store.candidate_add_vote(p.account,p.num_votes*rep.stake,txn))
         {
+            mdb_txn_abort(txn);
             return false;
         }
     }
-    return total > MAX_VOTES;
+    return true;
+}
+
+bool applyCandidacyRequest(logos::block_store& store, AnnounceCandidacy& request)
+{
+    logos::transaction txn(store.environment,nullptr,true);
+    return !store.candidate_add_new(request.origin,txn);
+}
+
+bool applyCandidacyRequest(logos::block_store& store, RenounceCandidacy& request)
+{
+    logos::transaction txn(store.environment,nullptr,true);
+    return !store.candidate_mark_remove(request.origin,txn);
+}
+
+bool isValid(logos::block_store& store, StartRepresenting& request, uint32_t cur_epoch_num)
+{
+    if(!isOutsideOfEpochBoundary(store,cur_epoch_num))
+    {
+        return false;
+    }
+
+    logos::transaction txn(store.environment,nullptr,true);
+    RepInfo rep;
+    if(!store.rep_get(request.origin,rep,txn))
+    {
+        //Only accept if the rep is supposed to be removed but hasnt
+        return rep.announced_stop && rep.rep_action_epoch != cur_epoch_num;   
+    }
+    return true;
+}
+
+bool isValid(logos::block_store& store, StopRepresenting& request, uint32_t cur_epoch_num)
+{
+    if(!isOutsideOfEpochBoundary(store,cur_epoch_num))
+    {
+        return false;
+    }
+
+    logos::transaction txn(store.environment,nullptr,true);
+    RepInfo rep;
+    if(!store.rep_get(request.origin,rep,txn))
+    {
+        return !rep.announced_stop && rep.rep_action_epoch;
+    }
+    return false;
+}
+
+bool applyRequest(logos::block_store& store, StartRepresenting& request, uint32_t cur_epoch_num)
+{
+    logos::transaction txn(store.environment,nullptr,true);
+    RepInfo rep;
+    rep.rep_action_epoch = cur_epoch_num;
+    return !store.rep_put(request.origin,rep,txn);
+}
+
+bool applyRequest(logos::block_store& store, StopRepresenting& request, uint32_t cur_epoch_num)
+{
+    logos::transaction txn(store.environment,nullptr,true);
+    RepInfo rep;
+    if(store.rep_get(request.origin,rep,txn))
+    {
+        return false;
+    }
+    rep.announced_stop = true;
+    rep.rep_action_epoch = cur_epoch_num;
+    return !store.rep_put(request.origin,rep,txn);
 }
 
 template class FixedSizeHeap<int>;

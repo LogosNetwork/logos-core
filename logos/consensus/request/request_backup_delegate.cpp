@@ -73,7 +73,7 @@ RequestBackupDelegate::ValidateRequests(
     _rejection_map.resize(message.requests.size(), false);
     for(uint64_t i = 0; i < message.requests.size(); ++i)
     {
-        if(!_persistence_manager.Validate(message.requests[i]))
+        if(!_persistence_manager.Validate(message.requests[i],message.epoch_number))
         {
             _rejection_map[i] = true;
 
