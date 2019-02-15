@@ -31,6 +31,9 @@ uint32_t RepInfo::serialize (logos::stream & stream) const
     auto s = logos::write(stream, candidacy_action_tip.bytes);
     s += logos::write(stream, election_vote_tip.bytes);
     s += logos::write(stream, rep_action_tip.bytes);
+    s += logos::write(stream, last_epoch_voted);
+    s += logos::write(stream, announced_stop);
+    s += logos::write(stream, rep_action_epoch);
     return s;
 }
 
@@ -49,7 +52,23 @@ bool RepInfo::deserialize (logos::stream & stream)
         return error;
     }
 
-    return logos::read(stream, rep_action_tip.bytes);
+    error = logos::read(stream, rep_action_tip.bytes);
+    if(error)
+    {
+        return error;
+    }
+
+    error = logos::read(stream, last_epoch_voted);
+    if(error)
+    {
+        return error;
+    }
+    error = logos::read(stream, announced_stop);
+    if(error)
+    {
+        return error;
+    }
+    return logos::read(stream, rep_action_epoch);
 }
 
 bool RepInfo::operator== (RepInfo const & other) const

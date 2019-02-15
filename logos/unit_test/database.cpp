@@ -164,9 +164,10 @@ void computeWinners(
         size_t num_candidates,
         size_t num_winners,
         std::function<uint64_t(size_t i)> votes_func,
-        logos::block_store& store)
+        logos::block_store& store,
+        MDB_txn* txn)
 {
-    store.clear(store.candidacy_db);
+    store.clear(store.candidacy_db,txn);
     using CandidatePair = std::pair<AccountAddress,CandidateInfo>;
     auto hash_func = [](const CandidatePair& c) {
         return std::hash<AccountAddress>()(c.first) ^ 
@@ -177,7 +178,6 @@ void computeWinners(
         candidates(num_candidates,hash_func);
     {
 
-        logos::transaction txn(store.environment,nullptr,true);
         for(size_t i = 0; i < num_candidates; ++i)
         {
             CandidateInfo c(true,false,votes_func(i));
@@ -200,7 +200,8 @@ void computeWinners(
         }
         ASSERT_EQ(candidates,candidates_from_db);
     }
-    auto results = getElectionWinners(num_winners,store);
+
+    auto results = getElectionWinners(num_winners,store,txn);
 
     std::vector<CandidatePair> res_exp(candidates.begin(),candidates.end());
 
@@ -277,8 +278,8 @@ TEST(database, candidates)
     CandidateInfo c2(false,false,110);
     AccountAddress a2(1);
 
+    logos::transaction txn(store->environment,nullptr,true);
     {
-        logos::transaction txn(store->environment,nullptr,true);
         bool res = store->candidate_put(a1,c1,txn);
         ASSERT_FALSE(res);
         res = store->candidate_put(a2,c2,txn);
@@ -312,9 +313,10 @@ TEST(database, candidates)
         
     }
 
-    computeWinners(25,8,[](size_t i){ return i;},*store);
+    std::cout << "trying to compute winners" << std::endl;
+    computeWinners(25,8,[](size_t i){ return i;},*store,txn);
 
-    computeWinners(100,8,[](size_t i){ return i + (100 * i%3);},*store);
+    computeWinners(100,8,[](size_t i){ return i + (100 * i%3);},*store,txn);
 
 
 
@@ -324,9 +326,9 @@ TEST(database, candidates)
 
 void iterateCandidatesDB(
         logos::block_store& store,
-        std::function<void(logos::store_iterator& it)> func)
+        std::function<void(logos::store_iterator& it)> func,
+        MDB_txn* txn)
 {
-    logos::transaction txn(store.environment, nullptr, true);
     for(auto it = logos::store_iterator(txn,store.candidacy_db);
             it != logos::store_iterator(nullptr); ++it)
     {
@@ -343,8 +345,8 @@ TEST(database,candidates_transition)
     AccountAddress a2(1);
     AccountAddress a3(2);
 
+    logos::transaction txn(store->environment,nullptr,true);
     {
-        logos::transaction txn(store->environment,nullptr,true);
         bool res = store->candidate_add_new(a1,txn);
         ASSERT_FALSE(res);
         res = store->candidate_add_new(a2,txn);
@@ -356,9 +358,9 @@ TEST(database,candidates_transition)
             ASSERT_FALSE(error);
             ASSERT_FALSE(info.active);
             ASSERT_FALSE(info.remove);
-            });       
+            },txn);       
 
-    updateCandidatesDB(*store);
+    updateCandidatesDB(*store,txn);
 
     iterateCandidatesDB(*store,[](auto& it){
             bool error = false;
@@ -366,10 +368,9 @@ TEST(database,candidates_transition)
             ASSERT_FALSE(error);
             ASSERT_TRUE(info.active);
             ASSERT_FALSE(info.remove);
-            });
+            },txn);
 
     {
-        logos::transaction txn(store->environment,nullptr,true);
         bool res = store->candidate_mark_remove(a1,txn);
         ASSERT_FALSE(res);
         CandidateInfo info;
@@ -381,10 +382,9 @@ TEST(database,candidates_transition)
         ASSERT_FALSE(res);
     }
 
-    updateCandidatesDB(*store);
+    updateCandidatesDB(*store,txn);
 
     {
-        logos::transaction txn(store->environment,nullptr,true);
         CandidateInfo info;
         bool res = store->candidate_get(a1,info,txn);
         ASSERT_TRUE(res);
@@ -400,9 +400,8 @@ TEST(database,candidates_transition)
             ASSERT_FALSE(error);
             ASSERT_TRUE(info.active);
             ASSERT_FALSE(info.remove);
-            });
+            },txn);
     {
-        logos::transaction txn(store->environment,nullptr,true);
         ApprovedEB eb;
         eb.delegates[0].account = a2;
         eb.delegates[0].starting_term = true;
@@ -411,11 +410,10 @@ TEST(database,candidates_transition)
         ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
 
     }    
-    ASSERT_FALSE(transitionCandidatesDBNextEpoch(*store));
+    ASSERT_FALSE(transitionCandidatesDBNextEpoch(*store,txn));
 
 
     {
-        logos::transaction txn(store->environment,nullptr,true);
         CandidateInfo info;
         bool res = store->candidate_get(a2,info,txn);
         ASSERT_TRUE(res);
@@ -427,7 +425,6 @@ TEST(database,candidates_transition)
 
         ApprovedEB eb;
         {
-            logos::transaction txn(store->environment,nullptr,true);
             BlockHash hash;
             ASSERT_FALSE(store->epoch_tip_get(hash,txn));
             eb.previous = hash;
@@ -438,9 +435,8 @@ TEST(database,candidates_transition)
             ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
         }
 
-        ASSERT_FALSE(transitionCandidatesDBNextEpoch(*store));
+        ASSERT_FALSE(transitionCandidatesDBNextEpoch(*store,txn));
         {
-            logos::transaction txn(store->environment,nullptr,true);
             CandidateInfo info;
             bool res = store->candidate_get(a2,info,txn);
             ASSERT_TRUE(res);
@@ -450,15 +446,98 @@ TEST(database,candidates_transition)
         }
     }
 
-    ASSERT_FALSE(transitionCandidatesDBNextEpoch(*store));
+    ASSERT_FALSE(transitionCandidatesDBNextEpoch(*store,txn));
 
     {
-        logos::transaction txn(store->environment,nullptr,true);
         CandidateInfo info;
         bool res = store->candidate_get(a2,info,txn);
         ASSERT_FALSE(res);
     }
+}
+
+TEST(database,validate)
+{
+    logos::block_store* store = get_db();
+    store->clear(store->candidacy_db);
+    store->clear(store->representative_db);
+    store->clear(store->epoch_db);
+    logos::transaction txn(store->environment,nullptr,true);
+
+    uint32_t epoch_num;
+    ElectionVote vote;
+    AnnounceCandidacy announce;
+    RenounceCandidacy renounce;
+    StartRepresenting start_rep;
+    StopRepresenting stop_rep;
+    //no epoch block created yet, everything should fail
+    ASSERT_FALSE(isValid(*store,vote,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,announce,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,renounce,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,stop_rep,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,start_rep,epoch_num,txn));
+
+    ApprovedEB eb;
+    eb.epoch_number = epoch_num;
+    eb.previous = 0;
+    ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
+    ASSERT_FALSE(store->epoch_put(eb,txn));
+
+    //epoch block created, but only StartRepresenting should pass
+    ASSERT_FALSE(isValid(*store,vote,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,announce,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,renounce,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,stop_rep,epoch_num,txn));
+    ASSERT_TRUE(isValid(*store,start_rep,epoch_num,txn));
+
+    ASSERT_TRUE(applyRequest(*store,start_rep,epoch_num,txn));
+
+    //all should fail
+    ASSERT_FALSE(isValid(*store,vote,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,announce,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,renounce,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,stop_rep,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,start_rep,epoch_num,txn));
     
+    auto transition_epoch = [&eb,&store,&txn,&epoch_num]()
+    {
+        ++epoch_num;
+        eb.previous = eb.Hash();
+        eb.epoch_number = epoch_num;
+        ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
+        ASSERT_FALSE(store->epoch_put(eb,txn));
+        ASSERT_FALSE(transitionCandidatesDBNextEpoch(*store,txn));
+    };
+
+    std::cout << "first transition" << std::endl;
+    transition_epoch();
+
+    ASSERT_TRUE(isValid(*store,vote,epoch_num,txn));
+    ASSERT_TRUE(isValid(*store,announce,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,renounce,epoch_num,txn));
+    ASSERT_TRUE(isValid(*store,stop_rep,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,start_rep,epoch_num,txn));
+
+
+    ASSERT_TRUE(applyRequest(*store,vote,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,vote,epoch_num,txn));
+    ASSERT_TRUE(applyRequest(*store,announce,txn));
+    ASSERT_FALSE(isValid(*store,announce,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,renounce,epoch_num,txn));
+
+
+    std::cout << "second transition" << std::endl;
+    transition_epoch();
+
+    CandidateInfo info;
+    ASSERT_FALSE(store->candidate_get(announce.origin,info,txn));
+    ASSERT_TRUE(info.active);
+    ASSERT_FALSE(info.remove);
+
+    ASSERT_TRUE(isValid(*store,vote,epoch_num,txn));
+    ASSERT_TRUE(isValid(*store,renounce,epoch_num,txn));
+    ASSERT_FALSE(isValid(*store,announce,epoch_num,txn));
+
+    //TODO: actually elect someone, test if they are removed from candidates db
 }
 
 #endif

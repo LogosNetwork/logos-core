@@ -351,10 +351,15 @@ int logos::block_store::version_get (MDB_txn * transaction_a)
     return result;
 }
 
-void logos::block_store::clear (MDB_dbi db_a)
+void logos::block_store::clear (MDB_dbi db_a, MDB_txn *tx)
 {
-    logos::transaction transaction (environment, nullptr, true);
-    auto status (mdb_drop (transaction, db_a, 0));
+    int status = 0;
+    if (tx == 0) {
+        logos::transaction transaction(environment, nullptr, true);
+        status = mdb_drop (transaction, db_a, 0);
+    } else {
+        status = mdb_drop (tx, db_a, 0);
+    }
     assert (status == 0);
 }
 

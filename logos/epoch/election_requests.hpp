@@ -105,6 +105,8 @@ struct ElectionVote : Request
 
 struct AnnounceCandidacy : Request
 {
+    AnnounceCandidacy() = default;
+
     AnnounceCandidacy(const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,
@@ -128,6 +130,8 @@ struct AnnounceCandidacy : Request
 
 struct RenounceCandidacy : Request
 {
+    RenounceCandidacy() = default;
+
     RenounceCandidacy(const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,

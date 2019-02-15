@@ -312,7 +312,7 @@ public:
     void version_put (MDB_txn *, int);
     int version_get (MDB_txn *);
 
-    void clear (MDB_dbi);
+    void clear (MDB_dbi, MDB_txn *t=0);
 
     logos::mdb_env environment;
 

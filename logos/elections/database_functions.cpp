@@ -41,10 +41,10 @@ const std::vector<T>& FixedSizeHeap<T>::getStorage()
 
 std::vector<std::pair<AccountAddress,uint64_t>> getElectionWinners(
         size_t num_winners,
-        logos::block_store& store)
+        logos::block_store& store,
+        MDB_txn* txn)
 {
 
-    logos::transaction txn(store.environment, nullptr, false);
     FixedSizeHeap<std::pair<AccountAddress,uint64_t>> results(num_winners,
             [](auto p1,auto p2)
             {
@@ -64,9 +64,8 @@ std::vector<std::pair<AccountAddress,uint64_t>> getElectionWinners(
     return results.getResults();
 }
 
-bool markDelegateElectsAsRemove(logos::block_store& store)
+bool markDelegateElectsAsRemove(logos::block_store& store, MDB_txn* txn)
 {
-    logos::transaction txn(store.environment, nullptr, true);
     BlockHash hash;
     bool res = store.epoch_tip_get(hash,txn);
     if(res)
@@ -93,17 +92,18 @@ bool markDelegateElectsAsRemove(logos::block_store& store)
     return res;
 }
 
-bool addReelectionCandidates(logos::block_store& store)
+bool addReelectionCandidates(logos::block_store& store, MDB_txn* txn)
 {
-    logos::transaction txn(store.environment, nullptr, true);
     BlockHash hash;
     if(store.epoch_tip_get(hash,txn))
     {
+        std::cout << "didnt get tip" << std::endl;
         return true;
     }
     ApprovedEB epoch;
     if(store.epoch_get(hash,epoch,txn))
     {
+        std::cout << "didnt get epoch" << std::endl;
         return true;
     }
 
@@ -118,6 +118,7 @@ bool addReelectionCandidates(logos::block_store& store)
         }
         if(store.epoch_get(previous_hash,epoch,txn))
         {
+            std::cout << "failed to get previous epoch" << std::endl;
             return true;
         }
     }
@@ -132,10 +133,9 @@ bool addReelectionCandidates(logos::block_store& store)
     return false;
 }
 
-bool updateCandidatesDB(logos::block_store& store)
+bool updateCandidatesDB(logos::block_store& store, MDB_txn* txn)
 {
     bool res = false;
-    logos::transaction txn(store.environment,nullptr,true);
     for(auto it = logos::store_iterator(txn, store.candidacy_db);
             it != logos::store_iterator(nullptr); ++it)
     {
@@ -167,33 +167,37 @@ bool updateCandidatesDB(logos::block_store& store)
 }
 
 
-bool transitionCandidatesDBNextEpoch(logos::block_store& store)
+bool transitionCandidatesDBNextEpoch(logos::block_store& store, MDB_txn* txn)
 {
     bool result = false;
-    if(addReelectionCandidates(store))
+    if(addReelectionCandidates(store, txn))
     {
+        std::cout << "failed to add reelection candidates" << std::endl;
         result = true;
     }
-    if(markDelegateElectsAsRemove(store))
+    if(markDelegateElectsAsRemove(store, txn))
     {
+        std::cout << "failed to mark delegate elects as remove" << std::endl;
         result = true;
     }
-    if(updateCandidatesDB(store))
+    if(updateCandidatesDB(store, txn))
     {
+        std::cout << "failed to update candidates db" << std::endl;
         result = true;
     }
     return result;
 }
 
-bool isValid(logos::block_store& store, ElectionVote& vote_request, uint32_t cur_epoch_num)
+bool isValid(logos::block_store& store, ElectionVote& vote_request, uint32_t cur_epoch_num, MDB_txn* txn)
 {
-    if(!isOutsideOfEpochBoundary(store,cur_epoch_num))
+    std::cout << "epoch boundary" << std::endl;
+    if(!isOutsideOfEpochBoundary(store,cur_epoch_num,txn))
     {
         return false;
     }
-    logos::transaction txn(store.environment,nullptr,true);
     RepInfo info;
     //are you a rep at all?
+    std::cout << "rep get" << std::endl;
     if(store.rep_get(vote_request.origin,info,txn))
     {
         return false;
@@ -204,7 +208,7 @@ bool isValid(logos::block_store& store, ElectionVote& vote_request, uint32_t cur
     {
         return false;
     }
-    else if(info.rep_action_epoch != cur_epoch_num)
+    else if(info.announced_stop && info.rep_action_epoch != cur_epoch_num)
     {
         return false;
     }
@@ -217,6 +221,8 @@ bool isValid(logos::block_store& store, ElectionVote& vote_request, uint32_t cur
 
     size_t total = 0;
     //are these proper votes?
+
+    std::cout << "checking candidates" << std::endl;
     for(auto& cp : vote_request.votes_)
     {
         total += cp.num_votes;
@@ -232,16 +238,20 @@ bool isValid(logos::block_store& store, ElectionVote& vote_request, uint32_t cur
 bool isValid(
         logos::block_store& store,
         AnnounceCandidacy& request,
-        uint32_t cur_epoch_num)
+        uint32_t cur_epoch_num,
+        MDB_txn* txn)
 {
-    if(!isOutsideOfEpochBoundary(store,cur_epoch_num))
+    if(!isOutsideOfEpochBoundary(store,cur_epoch_num,txn))
     {
         return false;
     }
-    logos::transaction txn(store.environment,nullptr,true);
     RepInfo r_info;
     //TODO: do we really need this requirement, that you are a rep to be a candidate
     if(store.rep_get(request.origin,r_info,txn))
+    {
+        return false;
+    }
+    if(!r_info.announced_stop && r_info.rep_action_epoch==cur_epoch_num)
     {
         return false;
     }
@@ -252,13 +262,13 @@ bool isValid(
 bool isValid(
         logos::block_store& store,
         RenounceCandidacy& request,
-        uint32_t cur_epoch_num)
+        uint32_t cur_epoch_num,
+        MDB_txn* txn)
 {
-    if(!isOutsideOfEpochBoundary(store,cur_epoch_num))
+    if(!isOutsideOfEpochBoundary(store,cur_epoch_num,txn))
     {
         return false;
     }
-    logos::transaction txn(store.environment,nullptr,true);
     CandidateInfo info;
     if(store.candidate_get(request.origin,info,txn))
     {
@@ -267,37 +277,39 @@ bool isValid(
     return info.active;
 }
 
-bool isOutsideOfEpochBoundary(logos::block_store& store, uint32_t cur_epoch_num)
+//TODO how to make this unit testable? We might end up too close to the epoch boundary
+//during a unit test
+bool isOutsideOfEpochBoundary(logos::block_store& store, uint32_t cur_epoch_num, MDB_txn* txn)
 {
     EpochTimeUtil util;
+    std::cout << "get next time" << std::endl;
     auto lapse = util.GetNextEpochTime(false);
     if(lapse < VOTING_DOWNTIME)
     {
         return false;
     }
 
-    logos::transaction txn(store.environment,nullptr,true);
+    std::cout << "creating transaction" << std::endl;
+
     BlockHash hash; 
     //has the epoch block been created?
+    std::cout << "get tip" << std::endl;
     if(store.epoch_tip_get(hash,txn))
     {
         return false;
     }
     
     ApprovedEB eb;
+    std::cout << "get epoch" << std::endl;
     if(store.epoch_get(hash,eb,txn))
     {
-       if(eb.epoch_number != cur_epoch_num)
-       {
-            return false;
-       } 
+        return false;
     }
-    return true;
+    return eb.epoch_number == cur_epoch_num;
 }
 
-bool applyElectionVote(logos::block_store& store, ElectionVote& request, uint32_t cur_epoch_num)
+bool applyRequest(logos::block_store& store, ElectionVote& request, uint32_t cur_epoch_num, MDB_txn* txn)
 {
-    logos::transaction txn(store.environment,nullptr,true);
     RepInfo rep;
     if(store.rep_get(request.origin,rep,txn))
     {
@@ -325,26 +337,23 @@ bool applyElectionVote(logos::block_store& store, ElectionVote& request, uint32_
     return true;
 }
 
-bool applyCandidacyRequest(logos::block_store& store, AnnounceCandidacy& request)
+bool applyRequest(logos::block_store& store, AnnounceCandidacy& request, MDB_txn* txn)
 {
-    logos::transaction txn(store.environment,nullptr,true);
     return !store.candidate_add_new(request.origin,txn);
 }
 
-bool applyCandidacyRequest(logos::block_store& store, RenounceCandidacy& request)
+bool applyRequest(logos::block_store& store, RenounceCandidacy& request, MDB_txn* txn)
 {
-    logos::transaction txn(store.environment,nullptr,true);
     return !store.candidate_mark_remove(request.origin,txn);
 }
 
-bool isValid(logos::block_store& store, StartRepresenting& request, uint32_t cur_epoch_num)
+bool isValid(logos::block_store& store, StartRepresenting& request, uint32_t cur_epoch_num, MDB_txn* txn)
 {
-    if(!isOutsideOfEpochBoundary(store,cur_epoch_num))
+    if(!isOutsideOfEpochBoundary(store,cur_epoch_num,txn))
     {
         return false;
     }
 
-    logos::transaction txn(store.environment,nullptr,true);
     RepInfo rep;
     if(!store.rep_get(request.origin,rep,txn))
     {
@@ -354,33 +363,31 @@ bool isValid(logos::block_store& store, StartRepresenting& request, uint32_t cur
     return true;
 }
 
-bool isValid(logos::block_store& store, StopRepresenting& request, uint32_t cur_epoch_num)
+bool isValid(logos::block_store& store, StopRepresenting& request, uint32_t cur_epoch_num, MDB_txn* txn)
 {
-    if(!isOutsideOfEpochBoundary(store,cur_epoch_num))
+    if(!isOutsideOfEpochBoundary(store,cur_epoch_num,txn))
     {
         return false;
     }
 
-    logos::transaction txn(store.environment,nullptr,true);
     RepInfo rep;
     if(!store.rep_get(request.origin,rep,txn))
     {
-        return !rep.announced_stop && rep.rep_action_epoch;
+        return !rep.announced_stop && rep.rep_action_epoch != cur_epoch_num;
     }
     return false;
 }
 
-bool applyRequest(logos::block_store& store, StartRepresenting& request, uint32_t cur_epoch_num)
+bool applyRequest(logos::block_store& store, StartRepresenting& request, uint32_t cur_epoch_num, MDB_txn* txn)
 {
-    logos::transaction txn(store.environment,nullptr,true);
     RepInfo rep;
     rep.rep_action_epoch = cur_epoch_num;
+    rep.announced_stop = false;
     return !store.rep_put(request.origin,rep,txn);
 }
 
-bool applyRequest(logos::block_store& store, StopRepresenting& request, uint32_t cur_epoch_num)
+bool applyRequest(logos::block_store& store, StopRepresenting& request, uint32_t cur_epoch_num, MDB_txn* txn)
 {
-    logos::transaction txn(store.environment,nullptr,true);
     RepInfo rep;
     if(store.rep_get(request.origin,rep,txn))
     {
