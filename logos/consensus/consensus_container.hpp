@@ -12,6 +12,7 @@
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
+#include <logos/consensus/consensus_p2p.hpp>
 #include <logos/epoch/epoch_transition.hpp>
 
 #include <queue>
@@ -115,7 +116,8 @@ public:
                        logos::alarm & alarm,
                        const logos::node_config & config,
                        Archiver & archiver,
-                       DelegateIdentityManager & identity_manager);
+                       DelegateIdentityManager & identity_manager,
+                       p2p_interface & p2p);
 
     ~ConsensusContainer() = default;
 
@@ -154,6 +156,9 @@ public:
 
     /// Start Epoch Transition
     void EpochTransitionEventsStart() override;
+
+    /// Receive message from p2p network
+    bool OnP2pReceive(const void *message, size_t size);
 
     static bool ValidateSigConfig()
     {
@@ -257,4 +262,5 @@ private:
     std::queue<ConnectionCache>         _connections_queue;         ///< queue for delegates set connections
     BindingMap                          _binding_map;               ///< map for binding connection to epoch manager
     static bool                         _validate_sig_config;       ///< validate sig in BBS for added security
+    ContainerP2p                        _p2p;                       ///< p2p-related data
 };

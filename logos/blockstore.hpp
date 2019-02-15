@@ -149,6 +149,7 @@ public:
     bool batch_block_put(ApprovedBSB const &, const BlockHash &, MDB_txn *);
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block);
     bool batch_block_get(const BlockHash & hash, ApprovedBSB & block, MDB_txn *);
+    bool batch_block_exists(const ApprovedBSB &);
     bool state_block_get(const BlockHash & hash, StateBlock & block, MDB_txn *);
     std::shared_ptr<StateBlock> state_block_get(const BlockHash & hash, MDB_txn *);
     bool state_block_put(StateBlock const &, MDB_txn *);
@@ -173,13 +174,14 @@ public:
     bool micro_block_tip_put(const BlockHash &, MDB_txn*);
     bool micro_block_tip_get(BlockHash &, MDB_txn* t=0);
     bool micro_block_exists(const BlockHash &, MDB_txn* t=0);
-    bool batch_block_exists (const ApprovedBSB & block);
+    bool micro_block_exists(const ApprovedMB &);
 
     // epoch
     bool epoch_put(ApprovedEB const &, MDB_txn*);
     bool epoch_get(const BlockHash &, ApprovedEB &, MDB_txn *t=0);
     bool epoch_tip_put(const BlockHash &, MDB_txn*);
     bool epoch_tip_get(BlockHash &, MDB_txn *t=0);
+    bool epoch_exists(const ApprovedEB &);
 
     //////////////////
 
@@ -260,22 +262,22 @@ public:
     MDB_dbi micro_block_tip_db;
 
     /**
-        * Maps block hash to epoch
+   	 * Maps block hash to epoch
      * logos::block_hash -> 
      */
     MDB_dbi epoch_db;
 
-      /**
+  	/**
      * Epoch tip
      * references epoch tip
      * 'epochtip' -> logos::block_hash
      */
     MDB_dbi epoch_tip_db;
 
-    /**
-     * Maps head block to owning account
-     * logos::block_hash -> logos::account
-     */
+	/**
+	 * Maps head block to owning account
+	 * logos::block_hash -> logos::account
+	 */
     MDB_dbi frontiers;
 
     /**
@@ -325,6 +327,12 @@ public:
      * logos::uint256_union (arbitrary key) -> blob
      */
     MDB_dbi meta;
+
+    /**
+     * P2p databases (peers, banlist).
+     * std::string (database name) -> std::vector<uint8_t>
+     */
+    MDB_dbi p2p_db;
 
     Log log;
 };

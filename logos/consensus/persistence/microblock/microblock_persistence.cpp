@@ -89,6 +89,22 @@ PersistenceManager<MBCT>::Validate(
         return false;
     }
 
+    // verify can get the batch block tips
+    bool valid = true;
+    ApprovedBSB bsb;
+    for (int del = 0; del < NUM_DELEGATES; ++del)
+    {
+        if (! block.tips[del].is_zero() && _store.batch_block_get(block.tips[del], bsb))
+        {
+            LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
+                            << block.Hash().to_string() << " "
+                            << block.tips[del].to_string();
+            UpdateStatusReason(status, process_result::invalid_request);
+            UpdateStatusRequests(status, del, process_result::gap_previous);
+            valid = false;
+        }
+    }
+
     /// verify can iterate the chain and the number of blocks checks out
     int number_batch_blocks = 0;
     MicroBlockHandler::BatchBlocksIterator(_store, block.tips, previous_microblock.tips,
@@ -102,22 +118,6 @@ PersistenceManager<MBCT>::Validate(
                         << " block " << block.number_batch_blocks << " to database: " << number_batch_blocks;
         UpdateStatusReason(status, process_result::invalid_number_blocks);
         return false;
-    }
-
-    // verify can get the batch block tips
-    bool valid = true;
-    ApprovedBSB bsb;
-    for (int del = 0; del < NUM_DELEGATES; ++del)
-    {
-        if (! block.tips[del].is_zero() && _store.batch_block_get(block.tips[del], bsb))
-        {
-            LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
-                            << block.Hash().to_string() << " "
-                            << block.tips[del].to_string();
-            UpdateStatusReason(status, process_result::gap_previous);
-            UpdateStatusRequests(status, del, process_result::gap_previous);
-            valid = false;
-        }
     }
 
     return valid;
@@ -148,4 +148,10 @@ PersistenceManager<MBCT>::ApplyUpdates(
     }
     LOG_INFO(_log) << "PersistenceManager::ApplyUpdates hash: " << hash.to_string()
                    << " previous " << block.previous.to_string();
+}
+
+bool PersistenceManager<MBCT>::BlockExists(
+    const ApprovedMB & message)
+{
+    return _store.micro_block_exists(message);
 }

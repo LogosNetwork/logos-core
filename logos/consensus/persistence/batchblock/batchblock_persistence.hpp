@@ -30,6 +30,8 @@ public:
 
     virtual void ApplyUpdates(const ApprovedBSB & message, uint8_t delegate_id);
 
+    virtual bool BlockExists(const ApprovedBSB & message);
+
     bool ValidateRequest(const Request & block, logos::process_return & result, bool allow_duplicates = true, bool prelim = false);
     virtual bool ValidateSingleRequest(const Request & block, logos::process_return & result, bool allow_duplicates = true);
     bool ValidateAndUpdate(const Request & block, logos::process_return & result, bool allow_duplicates = true);

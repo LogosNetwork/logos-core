@@ -26,7 +26,8 @@ public:
                                const Config & config,
                                MessageValidator & validator,
                                ArchiverMicroBlockHandler & handler,
-                               EpochEventsNotifier & events_notifier);
+                               EpochEventsNotifier & events_notifier,
+                               p2p_interface & p2p);
 
     ~MicroBlockConsensusManager() = default;
 

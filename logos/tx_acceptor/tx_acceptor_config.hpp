@@ -27,7 +27,7 @@ struct TxAcceptorConfig
                 });
             }
 
-        } catch (std::logic_error const &)
+        } catch (...)
         {}
 
         std::string ip = "";

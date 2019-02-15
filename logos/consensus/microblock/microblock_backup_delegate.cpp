@@ -16,9 +16,10 @@ MicroBlockBackupDelegate::MicroBlockBackupDelegate(
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler,
                                   EpochEventsNotifier & events_notifier,
-                                  PersistenceManager<MBCT> & persistence_manager)
+                                  PersistenceManager<MBCT> & persistence_manager,
+                                  p2p_interface & p2p)
     : BackupDelegate<MBCT>(iochannel, primary, promoter, validator, ids,
-                                                     events_notifier, persistence_manager)
+                                                     events_notifier, persistence_manager, p2p)
     , _microblock_handler(handler)
 {
     if (promoter.GetStore().micro_block_tip_get(_prev_pre_prepare_hash))

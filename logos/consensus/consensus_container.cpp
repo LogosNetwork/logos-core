@@ -20,7 +20,8 @@ ConsensusContainer::ConsensusContainer(Service & service,
                                        logos::alarm & alarm,
                                        const logos::node_config & config,
                                        Archiver & archiver,
-                                       DelegateIdentityManager & identity_manager)
+                                       DelegateIdentityManager & identity_manager,
+                                       p2p_interface & p2p)
     : _peer_manager(service, config.consensus_manager_config, std::bind(&ConsensusContainer::PeerBinder, this,
             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3))
     , _cur_epoch(nullptr)
@@ -33,6 +34,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
     , _identity_manager(identity_manager)
     , _transition_state(EpochTransitionState::None)
     , _transition_delegate(EpochTransitionDelegate::None)
+    , _p2p(p2p, store)
 {
     uint8_t delegate_idx;
     Accounts delegates;
@@ -77,7 +79,7 @@ ConsensusContainer::CreateEpochManager(
 {
     return std::make_shared<EpochManager>(_service, _store, _alarm, config,
                                           _archiver, _peer_manager, _transition_state,
-                                          delegate, connection, epoch_number, *this);
+                                          delegate, connection, epoch_number, *this, _p2p._p2p);
 }
 
 logos::process_return
@@ -530,4 +532,9 @@ ConsensusContainer::CheckEpochNull(bool is_null, const char* where)
                         << " cur null " << !_cur_epoch << " trans null " << !_trans_epoch;
         trace_and_halt();
     }
+}
+
+bool
+ConsensusContainer::OnP2pReceive(const void *message, size_t size) {
+    return _p2p.ProcessInputMessage(message, size);
 }

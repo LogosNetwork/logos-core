@@ -15,9 +15,10 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
         Store & store,
         const Config & config,
         MessageValidator & validator,
-        EpochEventsNotifier & events_notifier)
+        EpochEventsNotifier & events_notifier,
+        p2p_interface & p2p)
     : Manager(service, store, config,
-              validator, events_notifier)
+	      validator, events_notifier, p2p)
     , _init_timer(service)
     , _service(service)
 {
@@ -252,7 +253,7 @@ BatchBlockConsensusManager::MakeBackupDelegate(
 {
     return std::make_shared<BBBackupDelegate>(
             iochannel, *this, *this, _validator,
-            ids, _service, _events_notifier, _persistence_manager);
+	    ids, _service, _events_notifier, _persistence_manager, Manager::_consensus_p2p._p2p);
 }
 
 void

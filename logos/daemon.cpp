@@ -124,7 +124,7 @@ void logos_daemon::daemon::run_tx_acceptor (boost::filesystem::path const & data
     }
 }
 
-void logos_daemon::daemon::run (boost::filesystem::path const & data_path)
+void logos_daemon::daemon::run (boost::filesystem::path const & data_path, const p2p_config &p2p_conf)
 {
     boost::filesystem::create_directories (data_path);
     logos_daemon::daemon_config config (data_path);
@@ -134,6 +134,7 @@ void logos_daemon::daemon::run (boost::filesystem::path const & data_path)
     auto error (logos::fetch_object (config, config_path, config_file));
     if (!error)
     {
+        config.p2p_conf = p2p_conf;
         config.node.logging.init (data_path);
         config_file.close ();
         boost::asio::io_service service;
@@ -146,6 +147,16 @@ void logos_daemon::daemon::run (boost::filesystem::path const & data_path)
         logos::node_init init;
         try
         {
+            config.p2p_conf.scheduleAfterMs = std::bind(&logos::alarm::addAfter, &alarm, std::placeholders::_1, std::placeholders::_2);
+            config.p2p_conf.userInterfaceMessage = [](int type, const char *mess)
+            {
+                if (type & (P2P_UI_WARNING|P2P_UI_ERROR))
+                {
+                    std::cerr << "P2p " << (type & P2P_UI_INIT ? "initialization " : "")
+                                << (type & P2P_UI_ERROR ? "error" : "warning") << ": " << mess << std::endl;
+                }
+            };
+            config.node.p2p_conf = config.p2p_conf;
             auto node (std::make_shared<logos::node> (init, service, data_path, alarm, config.node, opencl_work));
             if (!init.error ())
             {

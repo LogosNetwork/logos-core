@@ -43,7 +43,8 @@ public:
                           const DelegateIdentities & ids,
 						  Service & service,
                           EpochEventsNotifier & events_notifier,
-                          PersistenceManager<BSBCT> & persistence_manager);
+                          PersistenceManager<BSBCT> & persistence_manager,
+                          p2p_interface & p2p);
     ~BBBackupDelegate() {}
 
     /// Validate PrePrepare message

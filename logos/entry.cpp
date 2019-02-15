@@ -45,18 +45,62 @@ int main (int argc, char * const * argv)
         ("threads", boost::program_options::value<std::string> (), "Defines <threads> count for OpenCL command");
     // clang-format on
 
+    p2p_interface::TraverseCommandLineOptions([&description](const char *option, const char *help, int flags) {
+	if (flags & P2P_OPTION_MULTI)
+		description.add_options()(option, boost::program_options::value<std::vector<std::string> >(), help);
+	else if (flags & P2P_OPTION_ARGUMENT)
+		description.add_options()(option, boost::program_options::value<std::string> (), help);
+	else
+		description.add_options()(option, help);
+    });
+
     boost::program_options::variables_map vm;
     boost::program_options::store (boost::program_options::parse_command_line (argc, argv, description), vm);
     boost::program_options::notify (vm);
     int result (0);
     boost::filesystem::path data_path = vm.count ("data_path") ? boost::filesystem::path (vm["data_path"].as<std::string> ()) : logos::working_path ();
+
     if (!logos::handle_node_options (vm))
     {
     }
     else if (vm.count ("daemon") > 0)
     {
         logos_daemon::daemon daemon;
-        daemon.run (data_path);
+        p2p_config p2p_conf;
+
+        int nopts = 1;
+        vector<char *> opts;
+        opts.push_back(strdup(argv[0]));
+        p2p_interface::TraverseCommandLineOptions([&vm, &opts, &nopts](const char *option, const char *help, int flags)
+        {
+            if (vm.count(option) > 0)
+            {
+                std::string opt = std::string("-") + option;
+                if (flags & P2P_OPTION_MULTI)
+                {
+                    auto v = vm[option].as<std::vector<std::string> >();
+                    for (auto it : v)
+                    {
+                        opts.push_back(strdup((opt + "=" + it).c_str()));
+                        nopts++;
+                    }
+                }
+                else if (flags & P2P_OPTION_ARGUMENT)
+                {
+                    opts.push_back(strdup((opt + "=" + vm[option].as<std::string>()).c_str()));
+                    nopts++;
+                }
+                else
+                {
+                    opts.push_back(strdup(opt.c_str()));
+                    nopts++;
+                }
+            }
+        });
+        p2p_conf.argc = nopts;
+        p2p_conf.argv = &opts[0];
+
+        daemon.run (data_path, p2p_conf);
     }
     else if (vm.count ("tx_acceptor") > 0)
     {

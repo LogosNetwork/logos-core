@@ -9,9 +9,10 @@ MicroBlockConsensusManager::MicroBlockConsensusManager(
                                const Config & config,
                                MessageValidator & validator,
                                ArchiverMicroBlockHandler & handler,
-                               EpochEventsNotifier & events_notifier)
+                               EpochEventsNotifier & events_notifier,
+                               p2p_interface & p2p)
     : Manager(service, store, config,
-              validator, events_notifier)
+	      validator, events_notifier, p2p)
     , _microblock_handler(handler)
     , _enqueued(false)
 {
@@ -110,5 +111,5 @@ MicroBlockConsensusManager::MakeBackupDelegate(
         const DelegateIdentities& ids)
 {
     return std::make_shared<MicroBlockBackupDelegate>(iochannel, *this, *this,
-            _validator, ids, _microblock_handler, _events_notifier, _persistence_manager);
+            _validator, ids, _microblock_handler, _events_notifier, _persistence_manager, Manager::_consensus_p2p._p2p);
 }
