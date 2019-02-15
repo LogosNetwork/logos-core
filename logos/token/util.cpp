@@ -227,6 +227,10 @@ ControllerPrivilege GetControllerPrivilege(bool & error, std::string data)
     {
         ret = ControllerPrivilege::Whitelist;
     }
+    else if(data == UPDATE_ISSUER_INFO)
+    {
+        ret = ControllerPrivilege::UpdateIssuerInfo;
+    }
     else if(data == BURN)
     {
         ret = ControllerPrivilege::Burn;

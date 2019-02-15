@@ -352,9 +352,9 @@ bool PersistenceManager<R>::ValidateRequest(
                 }
             }
 
-            // This is a TokenAccountSend or TokenAccountWithdrawFee
-            // request
-            else
+            // This is a TokenAccountSend or TokenAccountWithdrawFee request
+            else if (request->type == RequestType::DistributeTokens or
+                     request->type == RequestType::WithdrawFee)
             {
                 auto get_destination = [](auto token_request)
                 {
@@ -819,6 +819,19 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             auto send = static_pointer_cast<const TokenSend>(request);
             auto source = static_pointer_cast<logos::account_info>(info);
 
+            TokenAccount token_account;
+            if(_store.token_account_get(send->token_id, token_account, transaction))
+            {
+                // TODO: error
+            }
+
+            token_account.token_fee_balance += send->token_fee;
+
+            if(_store.token_account_put(send->token_id, token_account, transaction))
+            {
+                //TODO: error
+            }
+
             auto entry = source->GetEntry(send->token_id);
             assert(entry != source->entries.end());
 
@@ -983,7 +996,7 @@ void PersistenceManager<R>::PlaceReceive(ReceiveBlock & receive,
         {
             // need b's timestamp
             Send send;
-            if(!_store.request_get(b.send_hash, send, transaction))
+            if(_store.request_get(b.send_hash, send, transaction))
             {
                 LOG_FATAL(_log) << "PersistenceManager::PlaceReceive - "
                                 << "Failed to get a previous state block with hash: "
@@ -992,7 +1005,7 @@ void PersistenceManager<R>::PlaceReceive(ReceiveBlock & receive,
             }
 
             ApprovedRB approved;
-            if(!_store.request_block_get(send.locator.hash, approved, transaction))
+            if(_store.request_block_get(send.locator.hash, approved, transaction))
             {
                 LOG_FATAL(_log) << "PersistenceManager::PlaceReceive - "
                                 << "Failed to get a previous batch state block with hash: "
