@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <map>
+/*
 
 static std::mutex smutex;
 static std::vector<logos::endpoint>     nodes_vector;
@@ -12,39 +13,44 @@ static std::map<int,logos::endpoint>    endpoint_map;
 static int id           = 0;
 static int next_peer    = 0;
 
-int p2p::get_peers(int session_id, std::vector<logos::endpoint> & nodes, uint8_t count)
+*/
+/*int p2p::get_peers(int session_id, std::vector<logos::endpoint> & nodes, uint8_t count)
 {
     // TODO Implement by calling real p2p...
     return 0;
-}
+}*//*
 
-void p2p::close_session(int session_id)
+
+void p2p::close_session(PeerInfoProvider & peer_provider, int session_id)
 {
     std::lock_guard<std::mutex> lock(smutex);
-    // TODO Implement by calling real p2p...
     nodes_vector.clear();
     next_peer = 0;
+    peer_provider.close_session(session_id);
 }
 
-void p2p::add_to_blacklist(logos::endpoint &e)
+*/
+/*void p2p::add_to_blacklist(PeerInfoProvider & peer_provider, logos::endpoint &e)
 {
-    // TODO Implement by calling real p2p...
-}
+    // TODO Implement by calling real p2p....
+    peer_provider.
+}*//*
 
-void p2p::add_to_blacklist(int peer)
+
+void p2p::add_to_blacklist(PeerInfoProvider & peer_provider, int peer)
 {
     std::lock_guard<std::mutex> lock(smutex);
     if(endpoint_map.find(peer) != endpoint_map.end()) {
-        p2p::add_to_blacklist(endpoint_map[peer]); 
+        peer_provider.add_to_blacklist(endpoint_map[peer]);
     }
 }
 
-bool p2p::is_blacklisted(logos::endpoint & e)
+bool p2p::is_blacklisted(PeerInfoProvider & peer_provider, logos::endpoint & e)
 {
-    // TODO Implement by calling real p2p...
-    return false;
+    return peer_provider.is_blacklisted(e);
 }
 
+//TODO will be called, if cannot get peers from external source, i.e. p2p peer list.
 void p2p::add_peer(logos::endpoint &e)
 {
     std::lock_guard<std::mutex> lock(smutex);
@@ -57,6 +63,8 @@ void p2p::add_peer(logos::endpoint &e)
     }
 }
 
+*/
+/*
 int p2p::get_peer_id(logos::endpoint &e)
 {
     std::lock_guard<std::mutex> lock(smutex);
@@ -67,6 +75,8 @@ int p2p::get_peer_id(logos::endpoint &e)
     }
     return id_map[address_str];
 }
+*//*
+
 
 int p2p::get_peer_id(std::string address_str)
 {
@@ -77,10 +87,10 @@ int p2p::get_peer_id(std::string address_str)
     return id_map[address_str];
 }
 
-int p2p::get_peers()
+int p2p::get_peers(PeerInfoProvider & peer_provider)
 {
     std::lock_guard<std::mutex> lock(smutex);
-    int session = p2p::get_peers(p2p::INVALID_SESSION, nodes_vector, p2p::MAX_PEER_REQUEST);
+    int session = peer_provider.get_peers(P2P_GET_PEER_NEW_SESSION, nodes_vector, p2p::MAX_PEER_REQUEST);
     return session;
 }
 
@@ -94,3 +104,4 @@ logos::endpoint p2p::get_random_peer()
     // Pick a peer to return.
     return nodes_vector[next_peer++ % nodes_vector.size()];
 }
+*/

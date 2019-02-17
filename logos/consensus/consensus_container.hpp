@@ -165,6 +165,11 @@ public:
         return _validate_sig_config;
     }
 
+    PeerInfoProvider & GetPeerInfoProvider()
+    {
+        return _p2p;
+    }
+
 protected:
 
 	/// Initiate MicroBlock consensus, internal request

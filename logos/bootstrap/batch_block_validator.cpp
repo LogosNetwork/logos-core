@@ -310,6 +310,8 @@ bool BatchBlock::validator::validate(std::shared_ptr<logos::bootstrap_attempt> a
 	                    // Remove block and blacklist...
 	                    //finished.insert(i); // RGD1
 	                    //p2p::add_to_blacklist(block->peer); // TODO Should we also blacklist all our peers up and to including this one?
+                        finished_bsb[j].insert(i);
+//TODO	                    p2p::add_to_blacklist(attempt->peer_provider, block->peer);
 	                }
 	                LOG_DEBUG(node->log) << "validate failed: hash: " << block->block->Hash().to_string() << " prev: " << block->block->previous.to_string() << " next: " << block->block->next.to_string() << " delegate_id: " << block->delegate_id << std::endl;
                     break;
@@ -378,7 +380,7 @@ bool BatchBlock::validator::validate(std::shared_ptr<logos::bootstrap_attempt> a
              if(micro[j]->retry_count >= BatchBlock::validator::MAX_RETRY || is_black_list_error(rtvl)) {
                 // Remove block and blacklist...
                 finished.insert(j);
-                p2p::add_to_blacklist(micro[j]->peer); // TODO Should we also blacklist all our peers up and to including this one?
+//TODO                p2p::add_to_blacklist(attempt->peer_provider, micro[j]->peer); // TODO Should we also blacklist all our peers up and to including this one?
              }
              LOG_DEBUG(node->log) 
                       << "error validating: " << peerMicro->Hash().to_string() << " prev: " << peerMicro->previous.to_string()
@@ -433,7 +435,7 @@ bool BatchBlock::validator::validate(std::shared_ptr<logos::bootstrap_attempt> a
              if(epoch[j]->retry_count >= BatchBlock::validator::MAX_RETRY || is_black_list_error(rtvl)) {
                 // Remove block and blacklist...
                 finished.insert(j);
-                p2p::add_to_blacklist(epoch[j]->peer); // TODO Should we also blacklist all our peers up and to including this one?
+//TODO                p2p::add_to_blacklist(attempt->peer_provider, epoch[j]->peer); // TODO Should we also blacklist all our peers up and to including this one?
              }
        } else {
             LOG_DEBUG(node->log) << "epoch_handler->Failed Validation: " << epoch[j]->epoch->micro_block_tip.to_string() << " current: " << current_micro_hash.to_string() << " isValid: " << isValid << std::endl;

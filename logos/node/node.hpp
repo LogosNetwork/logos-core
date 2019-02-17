@@ -157,7 +157,7 @@ public:
     logos::endpoint endpoint;
     std::chrono::steady_clock::time_point last_attempt;
 };
-class peer_container
+class peer_container//TODO overlapping functionality with p2p peer handling
 {
 public:
     peer_container (logos::endpoint const &);
@@ -505,6 +505,11 @@ public:
     process_return OnSendRequest(std::shared_ptr<StateBlock> block,
                                  bool should_buffer);
     process_return BufferComplete();
+
+    PeerInfoProvider & GetPeerInfoProvider()
+    {
+        return _consensus_container->GetPeerInfoProvider();
+    }
 
 
     boost::asio::io_service & service;

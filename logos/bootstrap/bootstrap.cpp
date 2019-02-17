@@ -172,12 +172,13 @@ node (node_a),
 account_count (0),
 total_blocks (0),
 get_next_micro (0),
-stopped (false)
+stopped (false),
+peer_provider(node_a->GetPeerInfoProvider())
 {
     logos::bootstrap_init_logger(&node->log); // Store our logger for later use.
     LOG_INFO (node->log) << "Starting bootstrap attempt";
     node->bootstrap_initiator.notify_listeners (true);
-    session_id = p2p::get_peers();
+//TODO    session_id = p2p::get_peers(peer_provider);
 }
 
 logos::bootstrap_attempt::~bootstrap_attempt ()
@@ -185,7 +186,7 @@ logos::bootstrap_attempt::~bootstrap_attempt ()
     LOG_INFO (node->log) << "Exiting bootstrap attempt";
     stop();
     node->bootstrap_initiator.notify_listeners (false);
-    p2p::close_session(session_id);
+//TODO    p2p::close_session(peer_provider, session_id);
 }
 
 bool logos::bootstrap_attempt::should_log ()
@@ -515,7 +516,8 @@ void logos::bootstrap_attempt::populate_connections ()
             // Check if we are in the blacklist and retry if it is until we get one that isn't
             // If we run out of peers, we shut this bootstrap_attempt down and retry later...
             int retry = 0;
-            while(p2p::is_blacklisted(peer)) {
+/* TODO
+            while(p2p::is_blacklisted(peer_provider, peer)) {
                 ++retry;
                 if(retry >= p2p::MAX_BLACKLIST_RETRY) {
                     // Shutdown this attempt, we failed too many times...
@@ -528,6 +530,7 @@ void logos::bootstrap_attempt::populate_connections ()
             }
             // ok to proceed, not blacklisted...
             p2p::add_peer(peer);
+*/
 
             //TODO for testing: filter out local address
             if(address.to_v6().to_string() == std::string("::ffff:172.1.1.100")) {

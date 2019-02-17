@@ -283,7 +283,7 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
                 }
                 connection->attempt->total_blocks++;
 
-                block->peer = p2p::get_peer_id(connection->endpoint.address().to_v6().to_string());
+//TODO                block->peer = p2p::get_peer_id(connection->endpoint.address().to_v6().to_string());
                 block->retry_count = 0; // initial time we get this block
 
                 if(connection->node->_validator->validate(connection->attempt, block)) {
@@ -321,7 +321,7 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
                 }
                 connection->attempt->total_blocks++;
 
-                block->peer = p2p::get_peer_id(connection->endpoint.address().to_v6().to_string());
+//TODO                block->peer = p2p::get_peer_id(connection->endpoint.address().to_v6().to_string());
                 block->retry_count = 0; // initial time we get this block
                 connection->node->_validator->add_micro_block(connection->attempt, block);
 
@@ -352,7 +352,7 @@ void logos::bulk_pull_client::received_block (boost::system::error_code const & 
                 connection->attempt->total_blocks++;
 
                 LOG_DEBUG(connection->node->log) << " received_epoch: " << hash.to_string() << std::endl;
-                block->peer = p2p::get_peer_id(connection->endpoint.address().to_v6().to_string());
+//TODO                block->peer = p2p::get_peer_id(connection->endpoint.address().to_v6().to_string());
                 block->retry_count = 0; // initial time we get this block
                 connection->node->_validator->add_epoch_block(connection->attempt, block);
 

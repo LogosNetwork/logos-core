@@ -1533,10 +1533,12 @@ std::map<logos::endpoint, unsigned> logos::peer_container::list_version ()
 
 logos::endpoint logos::peer_container::bootstrap_peer ()
 {
-    logos::endpoint p2p_result = p2p::get_random_peer(); // Get a peer from p2p system...
+/*TODO    logos::endpoint p2p_result = p2p::get_random_peer(); // Get a peer from p2p system...
+
     if(p2p_result != logos::endpoint (boost::asio::ip::address_v6::any (), 0)) {
         return p2p_result;
     }
+*/
     // Otherwise, use our values from config.consensus_manager_config.delegates
     logos::endpoint result (boost::asio::ip::address_v6::any (), 0);
     std::lock_guard<std::mutex> lock (mutex);

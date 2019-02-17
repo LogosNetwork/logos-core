@@ -280,6 +280,8 @@ public:
     bool stopped;
     std::mutex mutex;
     std::condition_variable condition;
+
+    PeerInfoProvider & peer_provider;
 };
 
 class bootstrap_client : public std::enable_shared_from_this<bootstrap_client>

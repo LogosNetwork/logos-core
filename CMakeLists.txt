@@ -408,7 +408,7 @@ option(TEST_REJECT "Makes delegate reject random transactions inside PrePrepare 
 if (LOGOS_TEST)
 	add_executable (unit_test
 		logos/unit_test/consensus_msg_serialize.cpp
-        logos/unit_test/node.cpp
+        #[[logos/unit_test/node.cpp]]
 		logos/unit_test/tallying.cpp)
 
 	set_target_properties (unit_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1 ")
@@ -454,7 +454,7 @@ endif (LOGOS_TEST)
 target_link_libraries (logos_lib ed25519 ${BLS_libs} xxhash blake2 ${CRYPTOPP_LIBRARY})
 target_link_libraries (logos_lib_static ed25519 ${BLS_libs} xxhash blake2 ${CRYPTOPP_LIBRARY})
 
-target_link_libraries (logos_core node p2p secure lmdb ed25519 ${BLS_libs} logos_lib_static argon2 ${OPENSSL_LIBRARIES} ${CRYPTOPP_LIBRARY} libminiupnpc-static ${Boost_ATOMIC_LIBRARY} ${Boost_CHRONO_LIBRARY} ${Boost_REGEX_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_LOG_LIBRARY} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_LOG_SETUP_LIBRARY} ${Boost_THREAD_LIBRARY} ${PLATFORM_LIBS})
+target_link_libraries (logos_core node p2p node secure lmdb ed25519 ${BLS_libs} logos_lib_static argon2 ${OPENSSL_LIBRARIES} ${CRYPTOPP_LIBRARY} libminiupnpc-static ${Boost_ATOMIC_LIBRARY} ${Boost_CHRONO_LIBRARY} ${Boost_REGEX_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_LOG_LIBRARY} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_LOG_SETUP_LIBRARY} ${Boost_THREAD_LIBRARY} ${PLATFORM_LIBS})
 
 set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE)
 
