@@ -17,8 +17,8 @@ const char IMMUTE[]            = "immute";
 const char REVOKE[]            = "revoke";
 const char FREEZE[]            = "freeze";
 const char SET_FEE[]           = "set_fee";
-const char UPDATE_WHITELIST[]  = "update_whitelist";
-const char UPDATE_INFO[]       = "update_issuer_info";
+const char WHITELIST[]         = "whitelist";
+const char UPDATE_INFO[]       = "update_info";
 const char UPDATE_CONTROLLER[] = "update_controller";
 const char BURN[]              = "burn";
 const char DISTRIBUTE[]        = "distribute";
@@ -68,7 +68,6 @@ const char MODIFY_REVOKE[]     = "modify_revoke";
 const char MODIFY_FREEZE[]     = "modify_freeze";
 const char ADJUST_FEE[]        = "adjust_fee";
 const char MODIFY_ADJUST_FEE[] = "modify_adjust_fee";
-const char WHITELIST[]         = "whitelist";
 const char MODIFY_WHITELIST[]  = "modify_whitelist";
 
 // Token Fee type fields
