@@ -18,13 +18,11 @@ Send::Send(const AccountAddress & account,
               account,
               previous,
               transaction_fee,
-              sequence,
-              priv,
-              pub)
+              sequence)
     , work(work)
 {
     transactions.push_back(Transaction(to, amount));
-    Hash();
+    Sign(priv, pub);
 }
 
 Send::Send(AccountAddress const & account,

@@ -39,17 +39,13 @@ Request::Request(RequestType type,
                  const AccountAddress & origin,
                  const BlockHash & previous,
                  const Amount & fee,
-                 uint32_t sequence,
-                 const AccountPrivKey & priv,
-                 const AccountPubKey & pub)
+                 uint32_t sequence)
     : type(type)
     , origin(origin)
     , previous(previous)
     , fee(fee)
     , sequence(sequence)
-{
-    Sign(priv, pub);
-}
+{}
 
 Request::Request(RequestType type,
                  const AccountAddress & origin,
@@ -160,6 +156,11 @@ Amount Request::GetLogosTotal() const
 uint16_t Request::GetTokenTotal() const
 {
     return {0};
+}
+
+void Request::Sign(AccountPrivKey const & priv)
+{
+    Sign(priv, origin);
 }
 
 void Request::Sign(AccountPrivKey const & priv, AccountPubKey const & pub)
