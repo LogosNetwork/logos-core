@@ -66,9 +66,7 @@ struct Request
             const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,
-            uint32_t sequence,
-            const AccountPrivKey & priv,
-            const AccountPubKey & pub);
+            uint32_t sequence);
 
     Request(RequestType type,
             const AccountAddress & origin,
@@ -104,6 +102,7 @@ struct Request
     virtual Amount GetLogosTotal() const;
     virtual uint16_t GetTokenTotal() const;
 
+    void Sign(AccountPrivKey const & priv);
     void Sign(AccountPrivKey const & priv, AccountPubKey const & pub);
     bool VerifySignature(AccountPubKey const & pub) const;
 
