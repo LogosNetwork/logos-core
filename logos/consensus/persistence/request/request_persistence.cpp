@@ -84,6 +84,11 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
+    if(!request->Validate(result))
+    {
+        return false;
+    }
+
     auto hash = request->GetHash();
 
     if(!_store.account_exists(request->origin))
@@ -268,7 +273,7 @@ bool PersistenceManager<R>::ValidateRequest(
                                           const auto & token_id)
             {
                 std::shared_ptr<logos::account_info> destination(new logos::account_info);
-                BlockHash token_user_id(GetTokenUserId(token_id, destination_address));
+                BlockHash token_user_id(GetTokenUserID(token_id, destination_address));
 
                 // We have the destination account
                 if (!_store.account_get(destination_address, *destination))
@@ -583,7 +588,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         // the change.
         auto update_status = [this, &message, &transaction, status, &do_update_status]()
         {
-            auto token_user_id = GetTokenUserId(message->token_id, message->account);
+            auto token_user_id = GetTokenUserID(message->token_id, message->account);
 
             TokenUserStatus user_status;
             _store.token_user_status_get(token_user_id, user_status, transaction);
@@ -941,7 +946,7 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
             assert(entry != info.entries.end());
 
             TokenUserStatus status;
-            auto token_user_id = GetTokenUserId(token_id, send.destination);
+            auto token_user_id = GetTokenUserID(token_id, send.destination);
 
             // This user's token status has been stored
             // in the central freeze/white list.

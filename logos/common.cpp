@@ -1023,6 +1023,15 @@ std::string logos::ProcessResultToString(logos::process_result result)
         case process_result::insufficient_token_fee:
             ret = "Token fee is insufficient";
             break;
+        case process_result::invalid_token_symbol:
+            ret = "Token symbol is invalid";
+            break;
+        case process_result::invalid_token_name:
+            ret = "Token symbol is invalid";
+            break;
+        case process_result::invalid_token_amount:
+            ret = "Token amount is invalid";
+            break;
     }
 
     return ret;

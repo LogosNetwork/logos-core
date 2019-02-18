@@ -4,20 +4,6 @@
 #include <logos/lib/numbers.hpp>
 #include <logos/lib/hash.hpp>
 
-BlockHash GetTokenUserId(const BlockHash & token_id,
-                         const AccountAddress & user);
-
-struct TokenUserID
-{
-    TokenUserID(const BlockHash & token_id,
-                const AccountAddress & user);
-
-    void Hash(blake2b_state & hash) const;
-
-    BlockHash      token_id;
-    AccountAddress user;
-};
-
 struct TokenUserStatus
 {
     TokenUserStatus() = default;
@@ -52,4 +38,44 @@ struct TokenEntry
     BlockHash       token_id;
     TokenUserStatus status;
     uint16_t        balance = 0;
+};
+
+class TokenIssuance;
+
+BlockHash GetTokenID(const std::string & symbol,
+                     const std::string & name,
+                     const AccountAddress & issuer,
+                     const BlockHash & previous);
+
+BlockHash GetTokenID(const TokenIssuance & issuance);
+
+struct TokenID
+{
+    TokenID(const std::string & symbol,
+            const std::string & name,
+            const AccountAddress & issuer,
+            const BlockHash & previous);
+
+    TokenID(const TokenIssuance & issuance);
+
+    void Hash(blake2b_state & hash) const;
+
+    std::string    symbol;
+    std::string    name;
+    AccountAddress issuer;
+    BlockHash      previous;
+};
+
+BlockHash GetTokenUserID(const BlockHash & token_id,
+                         const AccountAddress & user);
+
+struct TokenUserID
+{
+    TokenUserID(const BlockHash & token_id,
+                const AccountAddress & user);
+
+    void Hash(blake2b_state & hash) const;
+
+    BlockHash      token_id;
+    AccountAddress user;
 };

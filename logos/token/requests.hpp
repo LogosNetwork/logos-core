@@ -24,6 +24,8 @@ struct TokenIssuance : TokenRequest
     TokenIssuance(bool & error,
                   boost::property_tree::ptree const & tree);
 
+    bool Validate(logos::process_return & result) const override;
+
     logos::AccountType GetAccountType() const override;
     AccountAddress GetAccount() const override;
     AccountAddress GetSource() const override;
@@ -36,6 +38,9 @@ struct TokenIssuance : TokenRequest
     void Hash(blake2b_state & hash) const override;
 
     uint16_t WireSize() const override;
+
+    static constexpr uint8_t SYMBOL_MAX_SIZE = 8;
+    static constexpr uint8_t NAME_MAX_SIZE   = 32;
 
     std::string  symbol;
     std::string  name;
