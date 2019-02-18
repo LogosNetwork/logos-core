@@ -48,7 +48,7 @@ RequestType GetRequestType(bool &error, std::string data)
     {
         ret = RequestType::SetTokenFee;
     }
-    else if(data == UPDATE_WHITELIST)
+    else if(data == WHITELIST)
     {
         ret = RequestType::UpdateWhitelist;
     }
@@ -119,7 +119,7 @@ std::string GetRequestTypeField(RequestType type)
             ret = SET_FEE;
             break;
         case RequestType::UpdateWhitelist:
-            ret = UPDATE_WHITELIST;
+            ret = WHITELIST;
             break;
         case RequestType::UpdateIssuerInfo:
             ret = UPDATE_INFO;
