@@ -1,21 +1,6 @@
 #include <logos/token/entry.hpp>
 
-BlockHash GetTokenUserId(const BlockHash & token_id, const AccountAddress & user)
-{
-    return Blake2bHash(TokenUserID(token_id, user));
-}
-
-TokenUserID::TokenUserID(const BlockHash & token_id,
-                         const AccountAddress & user)
-    : token_id(token_id)
-    , user(user)
-{}
-
-void TokenUserID::Hash(blake2b_state & hash) const
-{
-    token_id.Hash(hash);
-    user.Hash(hash);
-}
+#include <logos/token/requests.hpp>
 
 TokenUserStatus::TokenUserStatus(bool & error,
                                  logos::stream & stream)
@@ -88,4 +73,59 @@ bool TokenEntry::Deserialize(logos::stream & stream)
     }
 
     return (error = logos::read(stream, balance));
+}
+
+BlockHash GetTokenID(const std::string & symbol,
+                     const std::string & name,
+                     const AccountAddress & issuer,
+                     const BlockHash & previous)
+{
+    return Blake2bHash(TokenID(symbol, name, issuer, previous));
+}
+
+BlockHash GetTokenID(const TokenIssuance & issuance)
+{
+    return Blake2bHash(TokenID(issuance));
+}
+
+TokenID::TokenID(const std::string & symbol,
+                 const std::string & name,
+                 const AccountAddress & issuer,
+                 const BlockHash & previous)
+    : symbol(symbol)
+    , name(name)
+    , issuer(issuer)
+    , previous(previous)
+{}
+
+TokenID::TokenID(const TokenIssuance & issuance)
+    : symbol(issuance.symbol)
+    , name(issuance.name)
+    , issuer(issuance.origin)
+    , previous(issuance.previous)
+{}
+
+void TokenID::Hash(blake2b_state & hash) const
+{
+    previous.Hash(hash);
+    issuer.Hash(hash);
+    std::string handle(symbol + name);
+    blake2b_update(&hash, handle.data(), handle.size());
+}
+
+BlockHash GetTokenUserID(const BlockHash & token_id, const AccountAddress & user)
+{
+    return Blake2bHash(TokenUserID(token_id, user));
+}
+
+TokenUserID::TokenUserID(const BlockHash & token_id,
+                         const AccountAddress & user)
+    : token_id(token_id)
+      , user(user)
+{}
+
+void TokenUserID::Hash(blake2b_state & hash) const
+{
+    token_id.Hash(hash);
+    user.Hash(hash);
 }
