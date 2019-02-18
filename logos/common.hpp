@@ -318,7 +318,10 @@ enum class process_result
     prohibitted_request,        // Logos - The request is not allowed.
     not_whitelisted,            // Logos - Whitelisting is required.
     frozen,                     // Logos - Account is frozen.
-    insufficient_token_fee      // Logos - Token fee is insufficient.
+    insufficient_token_fee,     // Logos - Token fee is insufficient.
+    invalid_token_symbol,       // Logos - Token symbol is invalid.
+    invalid_token_name,         // Logos - Token name is invalid.
+    invalid_token_amount        // Logos - Token amount is invalid.
 };
 
 std::string ProcessResultToString(process_result result);

@@ -100,6 +100,48 @@ TokenIssuance::TokenIssuance(bool & error,
     }
 }
 
+bool TokenIssuance::Validate(logos::process_return & result) const
+{
+    auto is_alphanumeric = [](const auto & str)
+    {
+        for(auto c : str)
+        {
+            if(!std::isalnum(c))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    if(symbol.empty() || !is_alphanumeric(symbol) || symbol.size() > SYMBOL_MAX_SIZE)
+    {
+        result.code = logos::process_result::invalid_token_symbol;
+        return false;
+    }
+
+    if(name.empty() || !is_alphanumeric(name) || name.size() > NAME_MAX_SIZE)
+    {
+        result.code = logos::process_result::invalid_token_name;
+        return false;
+    }
+
+    if(!total_supply)
+    {
+        result.code = logos::process_result::invalid_token_amount;
+        return false;
+    }
+
+    if(token_id != GetTokenID(*this))
+    {
+        result.code = logos::process_result::invalid_token_id;
+        return false;
+    }
+
+    return true;
+}
+
 logos::AccountType TokenIssuance::GetAccountType() const
 {
     return logos::AccountType::LogosAccount;
