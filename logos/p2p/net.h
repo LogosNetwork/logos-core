@@ -19,7 +19,7 @@
 #include <random.h>
 #include <streams.h>
 #include <sync.h>
-#include <uint512.h>
+#include <uint256.h>
 #include <threadinterrupt.h>
 
 #include <atomic>
@@ -654,8 +654,8 @@ public:
 
 class CNetMessage {
 private:
-    mutable CHash512 hasher;
-    mutable uint512 data_hash;
+    mutable CHash256 hasher;
+    mutable uint256 data_hash;
 public:
     bool in_data;                   // parsing header (false) or data (true)
 
@@ -683,7 +683,7 @@ public:
         return (hdr.nMessageSize == nDataPos);
     }
 
-    const uint512& GetMessageHash() const;
+    const uint256& GetMessageHash() const;
 
     void SetVersion(int nVersionIn)
     {
@@ -762,14 +762,14 @@ protected:
     mapMsgCmdSize mapRecvBytesPerMsgCmd;
 
 public:
-    uint512 hashContinue;
+    uint256 hashContinue;
     std::atomic<int> nStartingHeight;
 
     // flood relay
     std::vector<CAddress> vAddrToSend;
     CRollingBloomFilter addrKnown;
     bool fGetAddr;
-    std::set<uint512> setKnown;
+    std::set<uint256> setKnown;
     int64_t nNextAddrSend;
     int64_t nNextLocalAddrSend;
 

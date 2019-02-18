@@ -1031,7 +1031,7 @@ int CNetMessage::readData(const char *pch, unsigned int nBytes)
     return nCopy;
 }
 
-const uint512& CNetMessage::GetMessageHash() const
+const uint256& CNetMessage::GetMessageHash() const
 {
     assert(complete());
     if (data_hash.IsNull())
@@ -2704,7 +2704,7 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     fSuccessfullyConnected = false;
     fDisconnect = false;
     nSendSize = 0;
-    hashContinue = uint512();
+    hashContinue = uint256();
     nStartingHeight = -1;
     fGetAddr = false;
     nNextLocalAddrSend = 0;
@@ -2770,7 +2770,7 @@ void CConnman::PushMessage(std::shared_ptr<CNode> pnode, CSerializedNetMsg&& msg
 
     std::vector<unsigned char> serializedHeader;
     serializedHeader.reserve(CMessageHeader::HEADER_SIZE);
-    uint512 hash = Hash(msg.data.data(), msg.data.data() + nMessageSize);
+    uint256 hash = Hash(msg.data.data(), msg.data.data() + nMessageSize);
     CMessageHeader hdr(Params().MessageStart(), msg.command.c_str(), nMessageSize);
     memcpy(hdr.pchChecksum, hash.begin(), CMessageHeader::CHECKSUM_SIZE);
 

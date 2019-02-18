@@ -842,7 +842,7 @@ bool PeerLogicValidation::ProcessMessages(std::shared_ptr<CNode> pfrom, std::ato
 
     // Checksum
     CDataStream& vRecv = msg.vRecv;
-    const uint512& hash = msg.GetMessageHash();
+    const uint256& hash = msg.GetMessageHash();
     if (memcmp(hash.begin(), hdr.pchChecksum, CMessageHeader::CHECKSUM_SIZE) != 0)
     {
         LogPrint(BCLog::NET, "%s(%s, %u bytes): CHECKSUM ERROR expected %s was %s\n", __func__,
