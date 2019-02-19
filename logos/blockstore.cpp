@@ -1015,7 +1015,7 @@ bool logos::block_store::request_block_get(const BlockHash &hash, ApprovedRB &bl
     return error;
 }
 
-bool logos::block_store::batch_block_exists (const ApprovedBSB & block)
+bool logos::block_store::request_block_exists (const ApprovedRB & block)
 {
     auto exists (true);
     logos::mdb_val junk;

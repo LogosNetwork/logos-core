@@ -145,7 +145,8 @@ public:
     bool consensus_block_get (const BlockHash & hash, ApprovedEB & block);
     // return true if cannot found hash
     bool consensus_block_update_next(const BlockHash & hash, const BlockHash & next, ConsensusType type, MDB_txn * transaction);
-    
+
+    bool request_block_exists(const ApprovedRB & block);
     bool request_block_put(ApprovedRB const & block, MDB_txn * transaction);
     bool request_block_put(ApprovedRB const & block, const BlockHash & hash, MDB_txn *transaction);
     bool request_block_get(const BlockHash & hash, ApprovedRB & block);

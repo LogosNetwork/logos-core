@@ -62,9 +62,9 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
 }
 
 bool PersistenceManager<R>::BlockExists(
-    const ApprovedBSB & message)
+    const ApprovedRB & message)
 {
-    return _store.batch_block_exists(message);
+    return _store.request_block_exists(message);
 }
 
 bool PersistenceManager<R>::ValidateRequest(
