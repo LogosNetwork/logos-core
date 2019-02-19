@@ -613,7 +613,10 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                 do_update_status(entry->status);
                 if(_store.account_put(message->account, user_account, transaction))
                 {
-                    // TODO: log
+                    LOG_FATAL(_log) << "PersistenceManager::ApplyRequest - "
+                                    << "Failed to store account: "
+                                    << message->account.to_account();
+                    trace_and_halt();
                 }
             }
 
@@ -704,14 +707,20 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 
                 if(_store.account_put(revoke->source, user_account, transaction))
                 {
-                    // TODO: Log
+                    LOG_FATAL(_log) << "PersistenceManager::ApplyRequest - "
+                                    << "Failed to store account: "
+                                    << revoke->source.to_account();
+                    trace_and_halt();
                 }
             }
 
             // Couldn't find account
             else
             {
-                // TODO: Log
+                LOG_FATAL(_log) << "PersistenceManager::ApplyRequest - "
+                                << "Failed to find account: "
+                                << revoke->source.to_account();
+                trace_and_halt();
             }
 
             ApplySend(revoke->transaction,
@@ -832,14 +841,20 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             TokenAccount token_account;
             if(_store.token_account_get(send->token_id, token_account, transaction))
             {
-                // TODO: error
+                LOG_FATAL(_log) << "PersistenceManager::ApplyRequest - "
+                                << "Failed to get token account with token ID: "
+                                << send->token_id.to_string();
+                trace_and_halt();
             }
 
             token_account.token_fee_balance += send->token_fee;
 
             if(_store.token_account_put(send->token_id, token_account, transaction))
             {
-                //TODO: error
+                LOG_FATAL(_log) << "PersistenceManager::ApplyRequest - "
+                                << "Failed to store token account with token ID: "
+                                << send->token_id.to_string();
+                trace_and_halt();
             }
 
             auto entry = source->GetEntry(send->token_id);
@@ -855,7 +870,8 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             break;
         }
         case RequestType::Unknown:
-            // TODO
+            LOG_ERROR(_log) << "PersistenceManager::ApplyRequest - "
+                            << "Unknown request type.";
             break;
     }
 
@@ -865,7 +881,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                         << "Failed to store account: "
                         << request->origin.to_string();
 
-        std::exit(EXIT_FAILURE);
+        trace_and_halt();
     }
 
 }
