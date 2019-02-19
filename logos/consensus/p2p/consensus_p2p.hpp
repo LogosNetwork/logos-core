@@ -177,7 +177,7 @@ private:
         _epoch._p2p.RetryValidate(hash);
     }
 
-    PersistenceP2p<ConsensusType::BatchStateBlock>  _batch;
+    PersistenceP2p<ConsensusType::Request>          _batch;
     PersistenceP2p<ConsensusType::MicroBlock>       _micro;
     PersistenceP2p<ConsensusType::Epoch>            _epoch;
     int                                             _session_id;

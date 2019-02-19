@@ -32,7 +32,7 @@ public:
 
     virtual void ApplyUpdates(const ApprovedRB & message, uint8_t delegate_id);
 
-    virtual bool BlockExists(const ApprovedBSB & message);
+    virtual bool BlockExists(const ApprovedRB & message);
 
     bool ValidateRequest(RequestPtr request,
                          logos::process_return & result,
