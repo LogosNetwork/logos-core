@@ -27,8 +27,8 @@ struct TokenAccount : logos::Account
     TokenAccount(const BlockHash & head,
                  Amount balance,
                  uint64_t modified,
-                 uint16_t token_balance,
-                 uint16_t token_fee_balance,
+                 Amount token_balance,
+                 Amount token_fee_balance,
                  uint32_t block_count);
 
     uint32_t Serialize(logos::stream &) const override;
@@ -45,7 +45,7 @@ struct TokenAccount : logos::Account
     bool GetController(const AccountAddress & account, ControllerInfo & controller) const;
     Controllers::iterator GetController(const AccountAddress & account);
 
-    bool FeeSufficient(uint16_t token_total, uint16_t token_fee) const;
+    bool FeeSufficient(Amount token_total, Amount token_fee) const;
     bool SendAllowed(const TokenUserStatus & status,
                      logos::process_return & result) const;
     bool IsAllowed(std::shared_ptr<const Request> request) const;
@@ -62,10 +62,11 @@ struct TokenAccount : logos::Account
     static constexpr uint8_t MAX_CONTROLLERS = 10;
 
     mutable Log  log;
-    uint16_t     token_balance     = 0;
-    uint16_t     token_fee_balance = 0;
+    Amount       total_supply      = 0;
+    Amount       token_balance     = 0;
+    Amount       token_fee_balance = 0;
     TokenFeeType fee_type;
-    uint16_t     fee_rate;
+    Amount       fee_rate;
     std::string  symbol;
     std::string  name;
     std::string  issuer_info;

@@ -59,21 +59,21 @@ template<typename AmountType>
 uint64_t Transaction<AmountType>::Serialize(logos::stream & stream) const
 {
     return logos::write(stream, destination) +
-           logos::write(stream, amount);
+           logos::write(stream, amount.bytes);
 }
 
 template<typename AmountType>
 void Transaction<AmountType>::Hash(blake2b_state & hash) const
 {
     destination.Hash(hash);
-    blake2b_update(&hash, &amount, sizeof(amount));
+    amount.Hash(hash);
 }
 
 template<typename AmountType>
 uint16_t Transaction<AmountType>::WireSize()
 {
     return sizeof(destination.bytes) +
-           sizeof(amount);
+           sizeof(amount.bytes);
 }
 
 template<typename AmountType>

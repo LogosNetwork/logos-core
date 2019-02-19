@@ -321,7 +321,8 @@ enum class process_result
     insufficient_token_fee,     // Logos - Token fee is insufficient.
     invalid_token_symbol,       // Logos - Token symbol is invalid.
     invalid_token_name,         // Logos - Token name is invalid.
-    invalid_token_amount        // Logos - Token amount is invalid.
+    invalid_token_amount,       // Logos - Token amount is invalid.
+    total_supply_overflow       // Logos - The request would case the token total supply to overflow.
 };
 
 std::string ProcessResultToString(process_result result);

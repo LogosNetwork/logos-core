@@ -158,8 +158,10 @@ bool PersistenceManager<R>::ValidateRequest(
 
     if(request->previous != info->head)
     {
-        LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash (" << request->previous.to_string()
-                        << ") and current account info head (" << info->head.to_string() << ")";
+        LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash ("
+                        << request->previous.to_string()
+                        << ") and current account info head ("
+                        << info->head.to_string() << ")";
 
         // Allow duplicate requests (either hash == info.head or hash matches a transaction further up in the chain)
         // received from batch blocks.
@@ -230,7 +232,7 @@ bool PersistenceManager<R>::ValidateRequest(
         }
     }
 
-    uint16_t token_total = request->GetTokenTotal();
+    Amount token_total = request->GetTokenTotal();
 
     // This request transfers tokens
     if(token_total > 0)
@@ -265,7 +267,7 @@ bool PersistenceManager<R>::ValidateRequest(
         else
         {
 
-            // Lmabda for retreiving the user's current status
+            // Lmabda for retrieving the user's current status
             // with the token (frozen, whitelisted).
             //
             auto get_user_status = [this](const auto & destination_address,
@@ -666,6 +668,8 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             auto token_account = static_pointer_cast<TokenAccount>(info);
 
             token_account->token_balance += issue_adtl->amount;
+            token_account->total_supply += issue_adtl->amount;
+
             break;
         }
         case RequestType::ChangeTokenSetting:
@@ -785,6 +789,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             auto burn = static_pointer_cast<const TokenBurn>(request);
             auto token_account = static_pointer_cast<TokenAccount>(info);
 
+            token_account->total_supply -= burn->amount;
             token_account->token_balance -= burn->amount;
 
             break;
@@ -960,12 +965,7 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
             }
         }
 
-        // TODO: Create an explicit bond between
-        //       token transactions and amount
-        //       type.
-        auto token_send = reinterpret_cast<const Transaction<uint16_t> &>(send);
-
-        entry->balance += token_send.amount;
+        entry->balance += send.amount;
     }
 
     if(_store.account_put(send.destination, info, transaction))

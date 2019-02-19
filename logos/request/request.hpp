@@ -100,7 +100,7 @@ struct Request
     virtual AccountAddress GetSource() const;
 
     virtual Amount GetLogosTotal() const;
-    virtual uint16_t GetTokenTotal() const;
+    virtual Amount GetTokenTotal() const;
 
     void Sign(AccountPrivKey const & priv);
     void Sign(AccountPrivKey const & priv, AccountPubKey const & pub);

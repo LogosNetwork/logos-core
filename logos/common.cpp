@@ -1032,6 +1032,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
         case process_result::invalid_token_amount:
             ret = "Token amount is invalid";
             break;
+        case process_result::total_supply_overflow:
+            ret = "Total supply overflow";
+            break;
     }
 
     return ret;

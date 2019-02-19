@@ -453,7 +453,7 @@ RequestConsensusManager::OnPrePrepareRejected()
             }
 
             // At least one other request was accepted
-            // the same set of delegates.
+            // by the same set of delegates.
             else
             {
                 entry->second.insert(i);
