@@ -189,7 +189,7 @@ MicroBlockHandler::GetTipsSlow(
     array<vector<pair>, NUM_DELEGATES> entries;
     uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
 
-    // frist get hashes and timestamps of all blocks; and min timestamp to use as the base
+    // first get hashes and timestamps of all blocks; and min timestamp to use as the base
     BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedBSB &batch)mutable->void{
         entries[delegate].push_back({batch.timestamp, batch.Hash()});
         if (batch.timestamp < min_timestamp)
@@ -200,7 +200,7 @@ MicroBlockHandler::GetTipsSlow(
 
     // remainder from min_timestamp to the nearest 10min
     auto rem = min_timestamp % TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count();
-    auto cutoff = min_timestamp + (rem!=0)?TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count() - rem:0;
+    auto cutoff = min_timestamp + ((rem!=0)?TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count() - rem:0);
 
     // iterate over all blocks, selecting the ones that are less than cutoff time
     uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff, true);

@@ -1743,11 +1743,7 @@ void logos::rpc_handler::account_history ()
         if (receive_block_not_found)  // at end of receive chain?
         {
             put_send = true;
-            if (node.store.batch_block_get(send_block.batch_hash, batch))
-            {
-                error_response (response, "Internal error: batch not found for send.");
-            }
-            timestamp = batch.timestamp;
+            timestamp = node.store.batch_block_get(send_block.batch_hash, batch) ? 0 : batch.timestamp;
         }
         else
         {
@@ -1760,29 +1756,18 @@ void logos::rpc_handler::account_history ()
             if (send_block_not_found)
             {
                 put_send = false;
-                if (node.store.batch_block_get(receive_link_block.batch_hash, batch))
-                {
-                    error_response (response, "Internal error: batch not found for send.");
-                }
-                timestamp = batch.timestamp;
+                timestamp = node.store.batch_block_get(receive_link_block.batch_hash, batch) ? 0 : batch.timestamp;
             }
             // compare timestamps
             else
             {
                 // send timestamp
-                if (node.store.batch_block_get(send_block.batch_hash, batch))
-                {
-                    error_response (response, "Internal error: batch not found for send.");
-                }
-                auto send_ts (batch.timestamp);
+                // must be one of the genesis delegate creation blocks if can't get batch
+                uint64_t send_ts (node.store.batch_block_get(send_block.batch_hash, batch) ? 0 : batch.timestamp);
                 // receive timestamp
-                if (node.store.batch_block_get(receive_link_block.batch_hash, batch))
-                {
-                    error_response (response, "Internal error: batch not found for send.");
-                }
-                auto recv_ts (batch.timestamp);
-                put_send = send_ts > recv_ts;
-                timestamp = send_ts > recv_ts ? send_ts : recv_ts;
+                uint64_t recv_ts (node.store.batch_block_get(receive_link_block.batch_hash, batch) ? 0 : batch.timestamp);
+                put_send = send_ts >= recv_ts;
+                timestamp = send_ts >= recv_ts ? send_ts : recv_ts;
             }
         }
 

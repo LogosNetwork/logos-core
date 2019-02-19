@@ -212,7 +212,7 @@ bool PersistenceManager<BSBCT>::ValidateBatch(
     for(uint64_t i = 0; i < message.block_count; ++i)
     {
 #ifdef TEST_REJECT
-        if(!ValidateAndUpdate(static_cast<const Request&>(*message.blocks[i]), ignored_result, true) || bool(message.blocks[i].hash().number() & 1))
+        if(!ValidateAndUpdate(static_cast<const Request&>(*message.blocks[i]), ignored_result, true) || bool(message.blocks[i]->GetHash().number() & 1))
 #else
         if(!ValidateAndUpdate(static_cast<const Request&>(*message.blocks[i]), ignored_result, true))
 #endif
@@ -458,15 +458,9 @@ void PersistenceManager<BSBCT>::PlaceReceive(
                     }
 
                     ApprovedBSB absb;
-                    if(_store.batch_block_get(sb.batch_hash, absb, transaction))
-                    {
-                        LOG_FATAL(_log) << "PersistenceManager<BSBCT>::PlaceReceive - "
-                                        << "Failed to get a previous batch state block with hash: "
-                                        << sb.batch_hash.to_string();
-                        trace_and_halt();
-                    }
 
-                    auto timestamp_b = absb.timestamp;
+                    // If request block is not found, then it must be one of the genesis blocks
+                    auto timestamp_b = _store.batch_block_get(sb.batch_hash, absb, transaction) ? 0 : absb.timestamp;
                     bool a_is_less;
                     if(timestamp_a != timestamp_b)
                     {
