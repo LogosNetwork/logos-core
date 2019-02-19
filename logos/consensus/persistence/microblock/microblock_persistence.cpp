@@ -102,7 +102,7 @@ PersistenceManager<MBCT>::Validate(
     /// verify can iterate the chain and the number of blocks checks out
     int number_batch_blocks = 0;
     MicroBlockHandler::BatchBlocksIterator(_store, block.tips, previous_microblock.tips,
-                                           [&number_batch_blocks](uint8_t, const BatchStateBlock &) mutable -> void {
+                                           [&number_batch_blocks](uint8_t, const RequestBlock &) mutable -> void {
        ++number_batch_blocks;
     });
     if (number_batch_blocks != block.number_batch_blocks)

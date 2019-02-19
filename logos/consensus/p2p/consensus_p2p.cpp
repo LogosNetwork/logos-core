@@ -88,9 +88,9 @@ ConsensusP2p<CT>::ConsensusP2p(p2p_interface & p2p,
 {}
 
 template<>
-bool ConsensusP2p<ConsensusType::BatchStateBlock>::ApplyCacheUpdates(
-        const PostCommittedBlock<ConsensusType::BatchStateBlock> & block,
-        std::shared_ptr<PostCommittedBlock<ConsensusType::BatchStateBlock>> pblock,
+bool ConsensusP2p<ConsensusType::Request>::ApplyCacheUpdates(
+        const PostCommittedBlock<ConsensusType::Request> & block,
+        std::shared_ptr<PostCommittedBlock<ConsensusType::Request>> pblock,
         uint8_t delegate_id,
         ValidationStatus &status);
 
@@ -159,9 +159,9 @@ void ConsensusP2p<CT>::CacheInsert(
 }
 
 template<>
-bool ConsensusP2p<ConsensusType::BatchStateBlock>::ApplyCacheUpdates(
-        const PostCommittedBlock<ConsensusType::BatchStateBlock> & block,
-        std::shared_ptr<PostCommittedBlock<ConsensusType::BatchStateBlock>> pblock,
+bool ConsensusP2p<ConsensusType::Request>::ApplyCacheUpdates(
+        const PostCommittedBlock<ConsensusType::Request> & block,
+        std::shared_ptr<PostCommittedBlock<ConsensusType::Request>> pblock,
         uint8_t delegate_id,
         ValidationStatus &status)
 {
@@ -173,7 +173,7 @@ bool ConsensusP2p<ConsensusType::BatchStateBlock>::ApplyCacheUpdates(
 
             for(uint32_t i = 0; i < block.block_count; ++i)
             {
-                _container->RetryValidate(block.blocks[i]->Hash());
+                _container->RetryValidate(block.requests[i]->Hash());
             }
             return true;
 
@@ -182,11 +182,11 @@ bool ConsensusP2p<ConsensusType::BatchStateBlock>::ApplyCacheUpdates(
             return false;
 
         case logos::process_result::invalid_request:
-            for(uint32_t i = 0; i < block.block_count; ++i)
+            for(uint32_t i = 0; i < block.requests.size(); ++i)
             {
                 if (status.requests[i] == logos::process_result::gap_previous)
                 {
-                    CacheInsert(block.blocks[i]->previous, delegate_id, block, pblock);
+                    CacheInsert(block.requests[i]->previous, delegate_id, block, pblock);
                 }
             }
             return false;
@@ -353,7 +353,7 @@ bool ContainerP2p::ProcessInputMessage(const Prequel &prequel, const void *data,
 {
     switch (prequel.consensus_type)
     {
-        case ConsensusType::BatchStateBlock:
+        case ConsensusType::Request:
             return _batch.ProcessInputMessage(prequel, data, size);
         case ConsensusType::MicroBlock:
             return _micro.ProcessInputMessage(prequel, data, size);
@@ -426,10 +426,10 @@ bool ContainerP2p::is_blacklisted(const logos::endpoint & e)
     return _p2p.is_blacklisted(e.address().to_string().c_str());
 }
 
-template class ConsensusP2pOutput<ConsensusType::BatchStateBlock>;
+template class ConsensusP2pOutput<ConsensusType::Request>;
 template class ConsensusP2pOutput<ConsensusType::MicroBlock>;
 template class ConsensusP2pOutput<ConsensusType::Epoch>;
 
-template class ConsensusP2p<ConsensusType::BatchStateBlock>;
+template class ConsensusP2p<ConsensusType::Request>;
 template class ConsensusP2p<ConsensusType::MicroBlock>;
 template class ConsensusP2p<ConsensusType::Epoch>;
