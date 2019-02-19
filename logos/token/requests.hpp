@@ -1,6 +1,5 @@
 #pragma once
 
-#include <logos/request/transaction.hpp>
 #include <logos/token/common.hpp>
 #include <logos/lib/numbers.hpp>
 
@@ -44,9 +43,9 @@ struct TokenIssuance : TokenRequest
 
     std::string  symbol;
     std::string  name;
-    uint16_t     total_supply;
+    Amount       total_supply;
     TokenFeeType fee_type;
-    uint16_t     fee_rate;
+    Amount       fee_rate;
     Settings     settings;
     Controllers  controllers;
     std::string  issuer_info;
@@ -67,6 +66,9 @@ struct TokenIssueAdtl : TokenRequest
     TokenIssueAdtl(bool & error,
                    boost::property_tree::ptree const & tree);
 
+    bool Validate(logos::process_return & result,
+                  std::shared_ptr<logos::Account> info) const override;
+
     AccountAddress GetSource() const override;
 
     boost::property_tree::ptree SerializeJson() const override;
@@ -78,7 +80,7 @@ struct TokenIssueAdtl : TokenRequest
 
     uint16_t WireSize() const override;
 
-    uint16_t amount;
+    Amount amount;
 };
 
 struct TokenChangeSetting : TokenRequest
@@ -140,8 +142,6 @@ struct TokenRevoke : TokenRequest
 {
     using Request::Hash;
 
-    using Transaction = ::Transaction<uint16_t>;
-
     TokenRevoke() = default;
 
     TokenRevoke(bool & error,
@@ -155,7 +155,7 @@ struct TokenRevoke : TokenRequest
 
     AccountAddress GetSource() const override;
     logos::AccountType GetSourceType() const override;
-    uint16_t GetTokenTotal() const override;
+    Amount GetTokenTotal() const override;
 
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
@@ -226,7 +226,7 @@ struct TokenSetFee : TokenRequest
     uint16_t WireSize() const override;
 
     TokenFeeType fee_type;
-    uint16_t     fee_rate;
+    Amount       fee_rate;
 };
 
 struct TokenWhitelist : TokenRequest
@@ -333,7 +333,7 @@ struct TokenBurn : TokenRequest
     TokenBurn(bool & error,
               boost::property_tree::ptree const & tree);
 
-    uint16_t GetTokenTotal() const override;
+    Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;
 
     bool Validate(logos::process_return & result,
@@ -348,14 +348,12 @@ struct TokenBurn : TokenRequest
 
     uint16_t WireSize() const override;
 
-    uint16_t amount;
+    Amount amount;
 };
 
 struct TokenAccountSend : TokenRequest
 {
     using Request::Hash;
-
-    using Transaction = ::Transaction<uint16_t>;
 
     TokenAccountSend() = default;
 
@@ -368,7 +366,7 @@ struct TokenAccountSend : TokenRequest
     TokenAccountSend(bool & error,
                      boost::property_tree::ptree const & tree);
 
-    uint16_t GetTokenTotal() const override;
+    Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;
 
     bool Validate(logos::process_return & result,
@@ -390,8 +388,6 @@ struct TokenAccountWithdrawFee : TokenRequest
 {
     using Request::Hash;
 
-    using Transaction = ::Transaction<uint16_t>;
-
     TokenAccountWithdrawFee() = default;
 
     TokenAccountWithdrawFee(bool & error,
@@ -403,7 +399,7 @@ struct TokenAccountWithdrawFee : TokenRequest
     TokenAccountWithdrawFee(bool & error,
                             boost::property_tree::ptree const & tree);
 
-    uint16_t GetTokenTotal() const override;
+    Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;
 
     bool Validate(logos::process_return & result,
@@ -427,7 +423,6 @@ struct TokenSend : TokenRequest
 {
     using Request::Hash;
 
-    using Transaction  = ::Transaction<uint16_t>;
     using Transactions = std::vector<Transaction>;
 
     TokenSend() = default;
@@ -441,7 +436,7 @@ struct TokenSend : TokenRequest
     TokenSend(bool & error,
               boost::property_tree::ptree const & tree);
 
-    uint16_t GetTokenTotal() const override;
+    Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;
 
     bool Validate(logos::process_return & result,
@@ -460,5 +455,5 @@ struct TokenSend : TokenRequest
     uint16_t WireSize() const override;
 
     Transactions transactions;
-    uint16_t     token_fee;
+    Amount       token_fee;
 };

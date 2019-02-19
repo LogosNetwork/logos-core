@@ -1,6 +1,7 @@
 #pragma once
 
 #include <logos/consensus/messages/byte_arrays.hpp>
+#include <logos/request/transaction.hpp>
 #include <logos/request/request.hpp>
 #include <logos/lib/utility.hpp>
 #include <logos/common.hpp>
@@ -94,7 +95,8 @@ const size_t CONTROLLER_PRIVILEGE_COUNT = 20;
 
 struct TokenRequest : Request
 {
-    using InfoSizeT = uint16_t;
+    using InfoSizeT   = uint16_t;
+    using Transaction = ::Transaction<Amount>;
 
     TokenRequest() = default;
 
