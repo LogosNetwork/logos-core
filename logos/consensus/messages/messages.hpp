@@ -471,6 +471,39 @@ struct HeartBeat : MessagePrequel<MessageType::Heart_Beat,
     }
 };
 
+struct P2pConsensusHeader
+{
+    P2pConsensusHeader(uint32_t e, uint8_t d) : epoch_number(e), dest_delegate_id(d) {}
+    P2pConsensusHeader(bool & error, logos::stream & stream)
+    {
+        Deserialize(error, stream);
+    }
+    P2pConsensusHeader(bool & error, std::vector<uint8_t> &buf)
+    {
+        logos::vectorstream stream(buf);
+        Deserialize(error, stream);
+    }
+    void Deserialize(bool &error, logos::stream &stream)
+    {
+        error = logos::read(stream, epoch_number) || logos::read(stream, dest_delegate_id);
+    }
+
+    uint32_t Serialize(logos::vectorstream &stream)
+    {
+       return logos::write(stream, epoch_number) + logos::write(stream, dest_delegate_id);
+    }
+
+    uint32_t Serialize(std::vector<uint8_t> &buf)
+    {
+        logos::vectorstream stream(buf);
+        return Serialize(stream);
+    }
+
+    uint32_t    epoch_number = 0;
+    uint8_t     dest_delegate_id = 0;
+    static constexpr size_t P2PHEADER_SIZE = sizeof(epoch_number) + sizeof(dest_delegate_id);
+};
+
 // Convenience aliases for message names.
 //
 template<ConsensusType CT>

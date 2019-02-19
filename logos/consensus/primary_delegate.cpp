@@ -30,12 +30,14 @@ const PrimaryDelegate::Seconds PrimaryDelegate::PRIMARY_TIMEOUT{60};
 const PrimaryDelegate::Seconds PrimaryDelegate::RECALL_TIMEOUT{300};
 
 PrimaryDelegate::PrimaryDelegate(Service & service,
-                                 MessageValidator & validator)
+                                 MessageValidator & validator,
+                                 uint32_t epoch_number)
     // NOTE: Don't use _validator in this constructor
     //       as it's not yet initialized.
     //
     : _primary_timer(service)
     , _validator(validator)
+    , _epoch_number(epoch_number)
     , _recall_timer(service)
 {}
 

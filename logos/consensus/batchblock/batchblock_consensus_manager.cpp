@@ -20,7 +20,6 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
     : Manager(service, store, config,
 	      validator, events_notifier, p2p)
     , _init_timer(service)
-    , _service(service)
 {
     _state = ConsensusState::INITIALIZING;
     _store.batch_tip_get(_delegate_id, _prev_pre_prepare_hash);
@@ -55,7 +54,7 @@ BatchBlockConsensusManager::BufferComplete(
     SendBufferedBlocks();
 }
 
-std::shared_ptr<MessageParser>
+std::shared_ptr<ConsensusMsgSink>
 BatchBlockConsensusManager::BindIOChannel(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities & ids)
@@ -253,7 +252,7 @@ BatchBlockConsensusManager::MakeBackupDelegate(
 {
     return std::make_shared<BBBackupDelegate>(
             iochannel, *this, *this, _validator,
-	    ids, _service, _events_notifier, _persistence_manager, Manager::_consensus_p2p._p2p);
+	    ids, _service, _events_notifier, _persistence_manager, GetP2p());
 }
 
 void

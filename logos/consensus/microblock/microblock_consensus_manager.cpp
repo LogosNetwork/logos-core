@@ -111,5 +111,6 @@ MicroBlockConsensusManager::MakeBackupDelegate(
         const DelegateIdentities& ids)
 {
     return std::make_shared<MicroBlockBackupDelegate>(iochannel, *this, *this,
-            _validator, ids, _microblock_handler, _events_notifier, _persistence_manager, Manager::_consensus_p2p._p2p);
+            _validator, ids, _microblock_handler, _events_notifier, _persistence_manager,
+            GetP2p(), _service);
 }

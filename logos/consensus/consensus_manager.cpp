@@ -18,14 +18,15 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
                                        MessageValidator & validator,
                                        EpochEventsNotifier & events_notifier,
                                        p2p_interface & p2p)
-    : PrimaryDelegate(service, validator)
+    : PrimaryDelegate(service, validator, events_notifier.GetEpochNumber())
+    , ConsensusP2pBridge<CT>(service, p2p, config.delegate_id)
+    , _service(service)
     , _store(store)
     , _validator(validator)
     , _secondary_handler(SecondaryRequestHandlerInstance(service, this))
     , _events_notifier(events_notifier)
     , _reservations(std::make_shared<Reservations>(store))
     , _persistence_manager(store, _reservations)
-    , _consensus_p2p(p2p, config.delegate_id)
 {
     _delegate_id = config.delegate_id;
 
@@ -180,7 +181,7 @@ void ConsensusManager<CT>::OnConsensusReached()
 
     std::vector<uint8_t> buf;
     block.Serialize(buf, true, true);
-    _consensus_p2p.ProcessOutputMessage(buf.data(), buf.size());
+    this->Broadcast(buf.data(), buf.size());
 
     SetPreviousPrePrepareHash(_pre_prepare_hash);
 
@@ -290,7 +291,7 @@ ConsensusManager<CT>::IsPendingRequest(
 }
 
 template<ConsensusType CT>
-std::shared_ptr<MessageParser>
+std::shared_ptr<ConsensusMsgSink>
 ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                                     const DelegateIdentities & ids)
 {
@@ -324,6 +325,28 @@ ConsensusManager<CT>::OnNetIOError(uint8_t delegate_id)
             break;
         }
     }
+}
+
+template<ConsensusType CT>
+bool
+ConsensusManager<CT>::AddToConsensusQueue(const uint8_t * data,
+                                          uint8_t version,
+                                          MessageType message_type,
+                                          ConsensusType consensus_type,
+                                          uint32_t payload_size,
+                                          uint8_t delegate_id)
+{
+    std::lock_guard<std::mutex> lock(_connection_mutex);
+
+    for (auto it = _connections.begin(); it != _connections.end(); ++it)
+    {
+        if ((*it)->GetDelegateId() == delegate_id)
+        {
+            (*it)->Push(delegate_id, data, version, message_type, consensus_type, payload_size, true);
+            break;
+        }
+    }
+
 }
 
 template class ConsensusManager<ConsensusType::BatchStateBlock>;

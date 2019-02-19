@@ -6,12 +6,13 @@
 #include <logos/consensus/secondary_request_handler.hpp>
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/consensus/persistence/reservations.hpp>
+#include <logos/consensus/p2p/consensus_p2p_bridge.hpp>
+#include <logos/consensus/consensus_msg_producer.hpp>
 #include <logos/consensus/backup_delegate.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
-#include <logos/consensus/consensus_p2p.hpp>
 #include <logos/node/client_callback.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
@@ -28,7 +29,7 @@ public:
     virtual ~NetIOHandler() = default;
 
     virtual
-    std::shared_ptr<MessageParser>
+    std::shared_ptr<ConsensusMsgSink>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) = 0;
     virtual void OnNetIOError(uint8_t delegate_id) = 0;
@@ -59,7 +60,9 @@ public:
 template<ConsensusType CT>
 class ConsensusManager : public PrimaryDelegate,
                          public NetIOHandler,
-                         public RequestPromoter<CT>
+                         public RequestPromoter<CT>,
+                         public ConsensusP2pBridge<CT>,
+                         public ConsensusMsgProducer
 {
 
 protected:
@@ -114,7 +117,7 @@ public:
 
     Store & GetStore() override;
 
-    std::shared_ptr<MessageParser>
+    std::shared_ptr<ConsensusMsgSink>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) override;
 
@@ -178,6 +181,19 @@ protected:
         return handler;
     }
 
+    bool AddToConsensusQueue(const uint8_t * data,
+                             uint8_t version,
+                             MessageType message_type,
+                             ConsensusType consensus_type,
+                             uint32_t payload_size,
+                             uint8_t delegate_id=0xff) override;
+
+    void SendP2p(const uint8_t *data, uint32_t size, uint32_t epoch_number, uint8_t dest_delegate_id) override
+    {
+        ConsensusP2pBridge<CT>::SendP2p(data, size, epoch_number, dest_delegate_id);
+    }
+
+    Service &                       _service;
     Connections                     _connections;
     Store &                         _store;
     MessageValidator &              _validator;
@@ -187,6 +203,5 @@ protected:
     EpochEventsNotifier &           _events_notifier;      ///< Notifies epoch manager of transition related events
     ReservationsPtr                 _reservations;
     PersistenceManager<CT>          _persistence_manager;
-    ConsensusP2pOutput<CT>          _consensus_p2p;
 };
 

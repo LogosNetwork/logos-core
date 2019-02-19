@@ -19,7 +19,7 @@ BBBackupDelegate::BBBackupDelegate(
 	PersistenceManager<BSBCT> & persistence_manager,
 	p2p_interface & p2p)
     : Connection(iochannel, primary, promoter,
-		 validator, ids, events_notifier, persistence_manager, p2p)
+		 validator, ids, events_notifier, persistence_manager, p2p, service)
     , _timer(service)
 {
     ApprovedBSB block;

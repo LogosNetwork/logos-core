@@ -11,18 +11,20 @@ BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
                                              RequestPromoter<CT> & promoter,
                                              MessageValidator & validator,
                                              const DelegateIdentities & ids,
-                                             EpochEventsNotifier & events_notifer,
+                                             EpochEventsNotifier & events_notifier,
                                              PersistenceManager<CT> & persistence_manager,
-                                             p2p_interface & p2p)
-    : DelegateBridge<CT>(iochannel)
+                                             p2p_interface & p2p,
+                                             Service & service)
+    : DelegateBridge<CT>(service, iochannel)
+    , ConsensusP2pBridge<CT>(service, p2p, ids.remote)
     , _delegate_ids(ids)
     , _reason(RejectionReason::Void)
     , _validator(validator)
     , _primary(primary)
     , _promoter(promoter)
-    , _events_notifier(events_notifer)
+    , _events_notifier(events_notifier)
     , _persistence_manager(persistence_manager)
-    , _consensus_p2p(p2p, ids.remote)
+    , _epoch_number(events_notifier.GetEpochNumber())
 {}
 
 template<ConsensusType CT>
@@ -94,7 +96,7 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 
         std::vector<uint8_t> buf;
         block.Serialize(buf, true, true);
-        _consensus_p2p.ProcessOutputMessage(buf.data(), buf.size());
+        this->Broadcast(buf.data(), buf.size());
     }
 }
 

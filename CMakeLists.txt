@@ -323,15 +323,17 @@ add_library (node
 	logos/consensus/backup_delegate.cpp
 	logos/consensus/consensus_container.cpp
 	logos/consensus/consensus_manager.cpp
-	logos/consensus/consensus_p2p.cpp
 	logos/consensus/delegate_key_store.cpp
 	logos/consensus/epoch_manager.cpp
 	logos/consensus/epoch/epoch_backup_delegate.cpp
 	logos/consensus/epoch/epoch_consensus_manager.cpp
 	logos/consensus/message_validator.cpp
 	logos/consensus/messages/messages.cpp
+	logos/consensus/consensus_msg_sink.cpp
 	logos/consensus/microblock/microblock_backup_delegate.cpp
 	logos/consensus/microblock/microblock_consensus_manager.cpp
+	logos/consensus/p2p/consensus_p2p.cpp
+	logos/consensus/p2p/consensus_p2p_bridge.cpp
 	logos/consensus/persistence/persistence.cpp
 	logos/consensus/persistence/validator_builder.cpp
 	logos/consensus/persistence/batchblock/batchblock_persistence.cpp

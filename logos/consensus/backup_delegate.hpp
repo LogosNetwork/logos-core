@@ -1,12 +1,13 @@
 #pragma once
 
 #include <logos/consensus/persistence/persistence_manager.hpp>
+#include <logos/consensus/p2p/consensus_p2p_bridge.hpp>
 #include <logos/consensus/messages/rejection.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/consensus_state.hpp>
-#include <logos/consensus/consensus_p2p.hpp>
+#include <logos/consensus/p2p/consensus_p2p.hpp>
 #include <logos/consensus/delegate_bridge.hpp>
 #include <logos/node/client_callback.hpp>
 
@@ -28,7 +29,8 @@ class RequestPromoter;
 
 
 template<ConsensusType CT>
-class BackupDelegate : public DelegateBridge<CT>
+class BackupDelegate : public DelegateBridge<CT>,
+                       public ConsensusP2pBridge<CT>
 {
 protected:
 
@@ -38,6 +40,7 @@ protected:
     using PostPrepare = PostPrepareMessage<CT>;
     using PostCommit  = PostCommitMessage<CT>;
     using Rejection   = RejectionMessage<CT>;
+    using Service     = boost::asio::io_service;
 
     template<MessageType T>
     using SPMessage   = StandardPhaseMessage<T, CT>;
@@ -46,13 +49,14 @@ protected:
 public:
 
     BackupDelegate(std::shared_ptr<IOChannel> iochannel,
-                        PrimaryDelegate & primary,
-                        RequestPromoter<CT> & promoter,
-                        MessageValidator & validator,
-                        const DelegateIdentities & ids,
-                        EpochEventsNotifier & events_notifier,
-                        PersistenceManager<CT> & persistence_manager,
-                        p2p_interface & p2p);
+                   PrimaryDelegate & primary,
+                   RequestPromoter<CT> & promoter,
+                   MessageValidator & validator,
+                   const DelegateIdentities & ids,
+                   EpochEventsNotifier & events_notifier,
+                   PersistenceManager<CT> & persistence_manager,
+                   p2p_interface & p2p,
+                   Service & service);
 
     virtual ~BackupDelegate()
     {
@@ -74,6 +78,11 @@ public:
     virtual void SetPreviousPrePrepareHash(const BlockHash &hash)
     {
         _prev_pre_prepare_hash = hash;
+    }
+	
+	uint8_t GetDelegateId()
+    {
+        return _delegate_ids.local;
     }
 
 protected:
@@ -116,6 +125,7 @@ protected:
         std::vector<uint8_t> buf;
         msg.Serialize(buf);
         this->Send(buf.data(), buf.size());
+        this->SendP2p(buf.data(), buf.size(), _epoch_number, _delegate_ids.remote);
     }
 
     void SetPrePrepare(const PrePrepare & message);
@@ -151,5 +161,5 @@ protected:
     uint64_t                    _sequence_number = 0;
     EpochEventsNotifier &       _events_notifier;
     PersistenceManager<CT> &    _persistence_manager;
-    ConsensusP2pOutput<CT>      _consensus_p2p;
+    uint32_t                    _epoch_number;
 };
