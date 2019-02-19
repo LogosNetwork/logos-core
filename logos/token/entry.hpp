@@ -37,7 +37,7 @@ struct TokenEntry
 
     BlockHash       token_id;
     TokenUserStatus status;
-    uint16_t        balance = 0;
+    Amount          balance = 0;
 };
 
 class TokenIssuance;

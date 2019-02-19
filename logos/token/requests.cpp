@@ -55,7 +55,12 @@ TokenIssuance::TokenIssuance(bool & error,
     {
         symbol = tree.get<std::string>(SYMBOL);
         name = tree.get<std::string>(NAME);
-        total_supply = std::stoul(tree.get<std::string>(TOTAL_SUPPLY));
+
+        error = total_supply.decode_dec(tree.get<std::string>(TOTAL_SUPPLY));
+        if(error)
+        {
+            return;
+        }
 
         fee_type = GetTokenFeeType(error, tree.get<std::string>(FEE_TYPE));
         if(error)
@@ -63,7 +68,11 @@ TokenIssuance::TokenIssuance(bool & error,
             return;
         }
 
-        fee_rate = std::stoul(tree.get<std::string>(FEE_RATE));
+        error = fee_rate.decode_dec(tree.get<std::string>(FEE_RATE));
+        if(error)
+        {
+            return;
+        }
 
         auto settings_tree = tree.get_child(SETTINGS);
         settings.DeserializeJson(error, settings_tree,
@@ -127,7 +136,7 @@ bool TokenIssuance::Validate(logos::process_return & result) const
         return false;
     }
 
-    if(!total_supply)
+    if(total_supply.is_zero())
     {
         result.code = logos::process_result::invalid_token_amount;
         return false;
@@ -169,9 +178,9 @@ boost::property_tree::ptree TokenIssuance::SerializeJson() const
 
     tree.put(SYMBOL, symbol);
     tree.put(NAME, name);
-    tree.put(TOTAL_SUPPLY, total_supply);
+    tree.put(TOTAL_SUPPLY, total_supply.to_string_dec());
     tree.put(FEE_TYPE, GetTokenFeeTypeField(fee_type));
-    tree.put(FEE_RATE, fee_rate);
+    tree.put(FEE_RATE, fee_rate.to_string_dec());
 
     boost::property_tree::ptree settings_tree(
         settings.SerializeJson([](size_t pos)
@@ -282,9 +291,9 @@ void TokenIssuance::Hash(blake2b_state & hash) const
 
     blake2b_update(&hash, symbol.data(), symbol.size());
     blake2b_update(&hash, name.data(), name.size());
-    blake2b_update(&hash, &total_supply, sizeof(total_supply));
+    total_supply.Hash(hash);
     blake2b_update(&hash, &fee_type, sizeof(fee_type));
-    blake2b_update(&hash, &fee_rate, sizeof(fee_rate));
+    fee_rate.Hash(hash);
     settings.Hash(hash);
 
     for(size_t i = 0; i < controllers.size(); ++i)
@@ -299,9 +308,9 @@ uint16_t TokenIssuance::WireSize() const
 {
     return StringWireSize(symbol) +
            StringWireSize(name) +
-           sizeof(total_supply) +
+           sizeof(total_supply.bytes) +
            sizeof(fee_type) +
-           sizeof(fee_rate) +
+           sizeof(fee_rate.bytes) +
            Settings::WireSize() +
            VectorWireSize(controllers) +
            StringWireSize<InfoSizeT>(issuer_info) +
@@ -354,13 +363,32 @@ TokenIssueAdtl::TokenIssueAdtl(bool & error,
 
     try
     {
-        amount = std::stoul(tree.get<std::string>(AMOUNT));
+        error = amount.decode_dec(tree.get<std::string>(AMOUNT));
+        if(error)
+        {
+            return;
+        }
+
         Hash();
     }
     catch(...)
     {
         error = true;
     }
+}
+
+bool TokenIssueAdtl::Validate(logos::process_return & result,
+                              std::shared_ptr<logos::Account> info) const
+{
+    auto token_account = std::static_pointer_cast<TokenAccount>(info);
+
+    if(token_account->total_supply + amount < token_account->total_supply)
+    {
+        result.code = logos::process_result::total_supply_overflow;
+        return false;
+    }
+
+    return true;
 }
 
 AccountAddress TokenIssueAdtl::GetSource() const
@@ -378,7 +406,7 @@ boost::property_tree::ptree TokenIssueAdtl::SerializeJson() const
 
     boost::property_tree::ptree tree = TokenRequest::SerializeJson();
 
-    tree.put(AMOUNT, amount);
+    tree.put(AMOUNT, amount.to_string_dec());
 
     return tree;
 }
@@ -413,13 +441,12 @@ void TokenIssueAdtl::DeserializeDB(bool & error, logos::stream & stream)
 void TokenIssueAdtl::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
-
-    blake2b_update(&hash, &amount, sizeof(amount));
+    amount.Hash(hash);
 }
 
 uint16_t TokenIssueAdtl::WireSize() const
 {
-    return sizeof(amount) +
+    return sizeof(amount.bytes) +
            TokenRequest::WireSize();
 }
 
@@ -736,7 +763,7 @@ logos::AccountType TokenRevoke::GetSourceType() const
     return logos::AccountType::LogosAccount;
 }
 
-uint16_t TokenRevoke::GetTokenTotal() const
+Amount TokenRevoke::GetTokenTotal() const
 {
     return transaction.amount;
 }
@@ -1002,7 +1029,12 @@ TokenSetFee::TokenSetFee(bool & error,
             return;
         }
 
-        fee_rate = std::stoul(tree.get<std::string>(FEE_RATE));
+        error = fee_rate.decode_dec(tree.get<std::string>(FEE_RATE));
+        if(error)
+        {
+            return;
+        }
+
         Hash();
     }
     catch(...)
@@ -1018,7 +1050,7 @@ boost::property_tree::ptree TokenSetFee::SerializeJson() const
     boost::property_tree::ptree tree = TokenRequest::SerializeJson();
 
     tree.put(FEE_TYPE, GetTokenFeeTypeField(fee_type));
-    tree.put(FEE_RATE, fee_rate);
+    tree.put(FEE_RATE, fee_rate.to_string_dec());
 
     return tree;
 }
@@ -1027,7 +1059,7 @@ uint64_t TokenSetFee::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write(stream, fee_type) +
-           logos::write(stream, fee_rate);
+           logos::write(stream, fee_rate.bytes);
 }
 
 void TokenSetFee::Deserialize(bool & error, logos::stream & stream)
@@ -1062,13 +1094,13 @@ void TokenSetFee::Hash(blake2b_state & hash) const
     TokenRequest::Hash(hash);
 
     blake2b_update(&hash, &fee_type, sizeof(fee_type));
-    blake2b_update(&hash, &fee_rate, sizeof(fee_rate));
+    fee_rate.Hash(hash);
 }
 
 uint16_t TokenSetFee::WireSize() const
 {
     return sizeof(fee_type) +
-           sizeof(fee_rate) +
+           sizeof(fee_rate.bytes) +
            TokenRequest::WireSize();
 }
 
@@ -1504,7 +1536,12 @@ TokenBurn::TokenBurn(bool & error,
 
     try
     {
-        amount = std::stoul(tree.get<std::string>(AMOUNT));
+        error = amount.decode_dec(tree.get<std::string>(AMOUNT));
+        if(error)
+        {
+            return;
+        }
+
         Hash();
     }
     catch(...)
@@ -1513,7 +1550,7 @@ TokenBurn::TokenBurn(bool & error,
     }
 }
 
-uint16_t TokenBurn::GetTokenTotal() const
+Amount TokenBurn::GetTokenTotal() const
 {
     return amount;
 }
@@ -1543,7 +1580,7 @@ boost::property_tree::ptree TokenBurn::SerializeJson() const
 
     boost::property_tree::ptree tree = TokenRequest::SerializeJson();
 
-    tree.put(AMOUNT, amount);
+    tree.put(AMOUNT, amount.to_string_dec());
 
     return tree;
 }
@@ -1579,7 +1616,7 @@ void TokenBurn::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
 
-    blake2b_update(&hash, &amount, sizeof(amount));
+    amount.Hash(hash);
 }
 
 uint16_t TokenBurn::WireSize() const
@@ -1637,7 +1674,7 @@ TokenAccountSend::TokenAccountSend(bool & error,
 }
 
 
-uint16_t TokenAccountSend::GetTokenTotal() const
+Amount TokenAccountSend::GetTokenTotal() const
 {
     return transaction.amount;
 }
@@ -1754,7 +1791,7 @@ TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
     Hash();
 }
 
-uint16_t TokenAccountWithdrawFee::GetTokenTotal() const
+Amount TokenAccountWithdrawFee::GetTokenTotal() const
 {
     return transaction.amount;
 }
@@ -1881,7 +1918,12 @@ TokenSend::TokenSend(bool & error,
             transactions.push_back(t);
         }
 
-        token_fee = std::stoul(tree.get<std::string>(TOKEN_FEE));
+        error = token_fee.decode_dec(tree.get<std::string>(TOKEN_FEE));
+        if(error)
+        {
+            return;
+        }
+
         Hash();
     }
     catch(...)
@@ -1890,11 +1932,11 @@ TokenSend::TokenSend(bool & error,
     }
 }
 
-uint16_t TokenSend::GetTokenTotal() const
+Amount TokenSend::GetTokenTotal() const
 {
     auto total = std::accumulate(transactions.begin(), transactions.end(),
-                                 uint16_t(0),
-                                 [](const uint16_t a, const Transaction & t)
+                                 Amount(0),
+                                 [](const Amount a, const Transaction & t)
                                  {
                                      return a + t.amount;
                                  });
@@ -1953,7 +1995,7 @@ boost::property_tree::ptree TokenSend::SerializeJson() const
     }
     tree.add_child(TRANSACTIONS, transactions_tree);
 
-    tree.put(TOKEN_FEE, token_fee);
+    tree.put(TOKEN_FEE, token_fee.to_string_dec());
 
     return tree;
 }
@@ -2008,7 +2050,7 @@ void TokenSend::Hash(blake2b_state & hash) const
         transactions[i].Hash(hash);
     }
 
-    blake2b_update(&hash, &token_fee, sizeof(token_fee));
+    token_fee.Hash(hash);
 }
 
 uint16_t TokenSend::WireSize() const

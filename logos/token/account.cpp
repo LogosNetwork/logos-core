@@ -5,7 +5,8 @@
 #include <ios>
 
 TokenAccount::TokenAccount(const TokenIssuance & issuance)
-    : token_balance(issuance.total_supply)
+    : total_supply(issuance.total_supply)
+    , token_balance(issuance.total_supply)
     , fee_type(issuance.fee_type)
     , fee_rate(issuance.fee_rate)
     , symbol(issuance.symbol)
@@ -25,13 +26,14 @@ TokenAccount::TokenAccount(bool & error, const logos::mdb_val & mdbval)
 TokenAccount::TokenAccount(const BlockHash & head,
                            Amount balance,
                            uint64_t modified,
-                           uint16_t token_balance,
-                           uint16_t token_fee_balance,
+                           Amount token_balance,
+                           Amount token_fee_balance,
                            uint32_t block_count)
     : logos::Account(head,
                      balance,
                      block_count,
                      modified)
+    , total_supply(token_balance)
     , token_balance(token_balance)
     , token_fee_balance(token_fee_balance)
 {}
@@ -42,6 +44,7 @@ uint32_t TokenAccount::Serialize(logos::stream & stream) const
 
     auto s = Account::Serialize(stream);
 
+    s += logos::write(stream, total_supply);
     s += logos::write(stream, token_balance);
     s += logos::write(stream, token_fee_balance);
     s += logos::write(stream, fee_type);
@@ -64,6 +67,12 @@ uint32_t TokenAccount::Serialize(logos::stream & stream) const
 bool TokenAccount::Deserialize(logos::stream & stream)
 {
     auto error = Account::Deserialize(stream);
+    if(error)
+    {
+        return error;
+    }
+
+    error = logos::read(stream, total_supply);
     if(error)
     {
         return error;
@@ -138,7 +147,8 @@ bool TokenAccount::Deserialize(logos::stream & stream)
 
 bool TokenAccount::operator== (TokenAccount const & other) const
 {
-    return token_balance == other.token_balance &&
+    return total_supply == other.total_supply &&
+           token_balance == other.token_balance &&
            token_fee_balance == other.token_fee_balance &&
            fee_type == other.fee_type &&
            fee_rate == other.fee_rate &&
@@ -244,9 +254,9 @@ auto TokenAccount::GetController(const AccountAddress & account) -> Controllers:
                         });
 }
 
-bool TokenAccount::FeeSufficient(uint16_t token_total, uint16_t token_fee) const
+bool TokenAccount::FeeSufficient(Amount token_total, Amount token_fee) const
 {
-    uint16_t min_fee;
+    Amount min_fee;
 
     switch(fee_type)
     {
@@ -255,8 +265,8 @@ bool TokenAccount::FeeSufficient(uint16_t token_total, uint16_t token_fee) const
             break;
         case TokenFeeType::Percentage:
         {
-            constexpr double DENOM = 100.0;
-            min_fee = uint16_t(std::ceil((fee_rate / DENOM) * token_total));
+            const Amount DENOM = 100;
+            min_fee = Amount((fee_rate.number() / DENOM.number()) * token_total.number());
             break;
         }
         case TokenFeeType::Unknown:
@@ -266,7 +276,7 @@ bool TokenAccount::FeeSufficient(uint16_t token_total, uint16_t token_fee) const
     }
 
     // Token fee is insufficient
-    return token_fee >= min_fee;
+    return token_fee.number() >= min_fee.number();
 }
 
 bool TokenAccount::SendAllowed(const TokenUserStatus & status,
