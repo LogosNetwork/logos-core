@@ -538,7 +538,8 @@ ConsensusContainer::CheckEpochNull(bool is_null, const char* where)
 bool
 ConsensusContainer::OnP2pReceive(const void *data, size_t size)
 {
-    if (size < (MessagePrequelSize + P2pConsensusHeader::P2PHEADER_SIZE))
+    auto hdrs_size = P2pConsensusHeader::P2PHEADER_SIZE + MessagePrequelSize;
+    if (size < hdrs_size)
     {
         LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid message, size is less than header, "
                         << size;
@@ -560,31 +561,32 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
         return false;
     }
 
-    if (size != (P2pConsensusHeader::P2PHEADER_SIZE + MessagePrequelSize + prequel.payload_size))
+    if (size != (hdrs_size + prequel.payload_size))
     {
         LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid message size, " << size
                         << " payload size " << prequel.payload_size;
         return false;
     }
 
-    size -= (P2pConsensusHeader::P2PHEADER_SIZE + MessagePrequelSize);
-    uint8_t *pData = ((uint8_t*)data) + P2pConsensusHeader::P2PHEADER_SIZE + MessagePrequelSize;
+    size -= hdrs_size;
+    uint8_t *payload_data = ((uint8_t*)data) + hdrs_size;
     if (prequel.type == MessageType::Post_Committed_Block)
     {
         LOG_DEBUG(_log) << "ConsensusContainer::OnP2pReceive, processing post committed block, size "
                         << size;
-        return _p2p.ProcessInputMessage(prequel, pData, size);
+        return _p2p.ProcessInputMessage(prequel, payload_data, size);
     }
 
     std::shared_ptr<EpochManager> epoch = nullptr;
 
-    if (_cur_epoch && _cur_epoch->GetEpochNumber() == p2pheader.epoch_number)
     {
-        epoch = _cur_epoch;
-    }
-    else if (_trans_epoch && _trans_epoch->GetEpochNumber() == p2pheader.epoch_number)
-    {
-        epoch = _trans_epoch;
+        OptLock lock(_transition_state, _mutex);
+
+        if (_cur_epoch && _cur_epoch->GetEpochNumber() == p2pheader.epoch_number) {
+            epoch = _cur_epoch;
+        } else if (_trans_epoch && _trans_epoch->GetEpochNumber() == p2pheader.epoch_number) {
+            epoch = _trans_epoch;
+        }
     }
 
     if (epoch && (p2pheader.dest_delegate_id == 0xff ||
@@ -593,15 +595,15 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
         ConsensusMsgProducer *producer = nullptr;
         if (prequel.consensus_type == ConsensusType::BatchStateBlock)
         {
-            producer = &_cur_epoch->_batch_manager;
+            producer = &epoch->_batch_manager;
         }
         else if (prequel.consensus_type == ConsensusType::MicroBlock)
         {
-            producer = &_cur_epoch->_micro_manager;
+            producer = &epoch->_micro_manager;
         }
         else if (prequel.consensus_type == ConsensusType::Epoch)
         {
-            producer = &_cur_epoch->_epoch_manager;
+            producer = &epoch->_epoch_manager;
         }
         else
         {
@@ -609,14 +611,14 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
                             << ConsensusToName(prequel.consensus_type);
             return false;
         }
-        
+
         LOG_DEBUG(_log) << "ConsensusContainer::OnP2pReceive, adding to consensus queue "
                         << MessageToName(prequel.type) << " " << ConsensusToName(prequel.consensus_type)
                         << " payload size " << prequel.payload_size
                         << " src delegate " << (int)p2pheader.src_delegate_id
                         << " dest delegate " << (int)p2pheader.dest_delegate_id;
 
-        return producer->AddToConsensusQueue(pData, prequel.version, prequel.type, prequel.consensus_type,
+        return producer->AddToConsensusQueue(payload_data, prequel.version, prequel.type, prequel.consensus_type,
                                              prequel.payload_size, p2pheader.src_delegate_id);
     }
     else
