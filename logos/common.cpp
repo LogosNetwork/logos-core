@@ -203,11 +203,14 @@ std::unique_ptr<logos::block> logos::deserialize_block (MDB_val const & val_a)
     return deserialize_block (stream);
 }
 
-logos::Account::Account ()
-    : head (0)
+logos::Account::Account (AccountType type)
+    : type (type)
+    , head (0)
     , balance (0)
     , block_count (0)
     , modified (0)
+    , receive_head (0)
+    , receive_count (0)
 {}
 
 logos::Account::Account (bool & error, const mdb_val & mdbval)
@@ -216,38 +219,64 @@ logos::Account::Account (bool & error, const mdb_val & mdbval)
     error = Deserialize (stream);
 }
 
+logos::Account::Account (bool & error, logos::stream & stream)
+{
+    error = Deserialize(stream);
+}
+
 logos::Account::Account (
-    block_hash const & head,
-    amount const & balance,
+    AccountType type,
+    const BlockHash & head,
+    const amount & balance,
     uint32_t block_count,
-    uint64_t modified)
-    : head (head)
+    uint64_t modified,
+    const BlockHash & receive_head,
+    uint32_t receive_count)
+    : type (type)
+    , head (head)
     , balance (balance)
     , block_count (block_count)
     , modified (modified)
+    , receive_head (receive_head)
+    , receive_count (receive_count)
 {}
 
 uint32_t logos::Account::Serialize (stream & stream_a) const
 {
-    auto s = write (stream_a, head.bytes);
+    auto s = write (stream_a, type);
+    s += write (stream_a, head.bytes);
     s += write (stream_a, balance.bytes);
     s += write (stream_a, block_count);
     s += write (stream_a, modified);
+    s += write (stream_a, receive_head.bytes);
+    s += write (stream_a, receive_count);
     return s;
 }
 
 bool logos::Account::Deserialize (stream & stream_a)
 {
-    auto error (read (stream_a, head.bytes));
+    auto error (read (stream_a, type));
     if (!error)
     {
-        error = read (stream_a, balance.bytes);
+        auto error(read(stream_a, head.bytes));
         if (!error)
         {
-            error = read(stream_a, block_count);
+            error = read(stream_a, balance.bytes);
             if (!error)
             {
-                error = read (stream_a, modified);
+                error = read(stream_a, block_count);
+                if (!error)
+                {
+                    error = read(stream_a, modified);
+                    if (!error)
+                    {
+                        error = read(stream_a, receive_head.bytes);
+                        if (!error)
+                        {
+                            error = read(stream_a, receive_count);
+                        }
+                    }
+                }
             }
         }
     }
@@ -257,10 +286,13 @@ bool logos::Account::Deserialize (stream & stream_a)
 
 bool logos::Account::operator== (Account const & other_a) const
 {
-    return head == other_a.head &&
+    return type == other_a.type &&
+           head == other_a.head &&
            balance == other_a.balance &&
            block_count == other_a.block_count &&
-           modified == other_a.modified;
+           modified == other_a.modified &&
+           receive_head == other_a.receive_head &&
+           receive_count == other_a.receive_count;
 }
 
 bool logos::Account::operator!= (Account const & other_a) const
@@ -279,16 +311,19 @@ logos::mdb_val logos::Account::to_mdb_val(std::vector<uint8_t> &buf) const
 }
 
 logos::account_info::account_info ()
-    : Account()
-    , receive_head (0)
+    : Account(AccountType::LogosAccount)
     , rep_block (0)
     , open_block (0)
-    , receive_count (0)
 {}
 
 logos::account_info::account_info (bool & error, const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
+    error = Deserialize(stream);
+}
+
+logos::account_info::account_info (bool & error, logos::stream & stream)
+{
     error = Deserialize(stream);
 }
 
@@ -301,23 +336,22 @@ logos::account_info::account_info (
         uint64_t modified_a,
         uint32_t block_count_a,
         uint32_t receive_count_a)
-    : Account(head_a,
+    : Account(AccountType::LogosAccount,
+              head_a,
               balance_a,
               block_count_a,
-              modified_a)
-    , receive_head (receive_head_a)
+              modified_a,
+              receive_head_a,
+              receive_count_a)
     , rep_block (rep_block_a)
     , open_block (open_block_a)
-    , receive_count (receive_count_a)
 {}
 
 uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
 {
     auto s = Account::Serialize(stream_a);
-    s += write (stream_a, receive_head.bytes);
     s += write (stream_a, rep_block.bytes);
     s += write (stream_a, open_block.bytes);
-    s += write (stream_a, receive_count);
     s += write (stream_a, entries.size());
     for(auto & entry : entries)
     {
@@ -332,48 +366,39 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
 
     if (!error)
     {
-        error = read (stream_a, receive_head.bytes);
+        error = read (stream_a, rep_block.bytes);
         if (!error)
         {
-            error = read (stream_a, rep_block.bytes);
+            error = read (stream_a, open_block.bytes);
             if (!error)
             {
-                error = read (stream_a, open_block.bytes);
                 if (!error)
                 {
-                    if (!error)
+                    size_t count;
+                    error = read(stream_a, count);
+
+                    for(size_t i = 0; i < count; ++i)
                     {
-                        error = read (stream_a, receive_count);
-                        if (!error)
+                        TokenEntry entry(error, stream_a);
+                        if(error)
                         {
-                            size_t count;
-                            error = read(stream_a, count);
-
-                            for(size_t i = 0; i < count; ++i)
-                            {
-                                TokenEntry entry(error, stream_a);
-                                if(error)
-                                {
-                                    break;
-                                }
-
-                                entries.push_back(entry);
-                            }
+                            break;
                         }
+
+                        entries.push_back(entry);
                     }
                 }
             }
         }
     }
+
     return error;
 }
 
 bool logos::account_info::operator== (logos::account_info const & other_a) const
 {
     return rep_block == other_a.rep_block &&
-           receive_head == other_a.receive_head &&
            open_block == other_a.open_block &&
-           receive_count == other_a.receive_count &&
            Account::operator==(other_a);
 }
 
@@ -390,6 +415,53 @@ logos::mdb_val logos::account_info::to_mdb_val(std::vector<uint8_t> &buf) const
         Serialize(stream);
     }
     return {buf.size(), buf.data()};
+}
+
+template<typename ...Args>
+std::shared_ptr<logos::Account> BuildAccount(logos::AccountType type, Args&& ...args)
+{
+    std::shared_ptr<logos::Account> result;
+
+    switch(type)
+    {
+        case logos::AccountType::LogosAccount:
+            result = std::make_shared<logos::account_info>(args...);
+            break;
+        case logos::AccountType::TokenAccount:
+            result = std::make_shared<TokenAccount>(args...);
+            break;
+    }
+
+    return result;
+}
+
+std::shared_ptr<logos::Account> logos::DeserializeAccount(bool & error, const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    AccountType type;
+
+    error = logos::read(stream, type);
+    if(error)
+    {
+        return {nullptr};
+    }
+
+    return BuildAccount(type, error, mdbval);
+}
+
+std::shared_ptr<logos::Account> logos::DeserializeAccount(bool & error, logos::stream & stream)
+{
+    AccountType type;
+
+    error = logos::peek(stream, type);
+    if(error)
+    {
+        return {nullptr};
+    }
+
+    return BuildAccount(type, error, stream);
 }
 
 logos::reservation_info::reservation_info ()
@@ -1034,6 +1106,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
             break;
         case process_result::total_supply_overflow:
             ret = "Total supply overflow";
+            break;
+        case process_result::key_collision:
+            ret = "There is already an account with this key";
             break;
     }
 

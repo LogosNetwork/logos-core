@@ -238,7 +238,6 @@ std::shared_ptr<Request> DeserializeRequest(bool & error, logos::stream & stream
     return BuildRequest(type, error, stream);
 }
 
-
 std::shared_ptr<Request> DeserializeRequest(bool & error, boost::property_tree::ptree & tree)
 {
     using namespace request::fields;

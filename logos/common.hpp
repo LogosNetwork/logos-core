@@ -106,14 +106,19 @@ struct Account
 {
 public:
 
-    Account();
-    Account(bool & error, const mdb_val & mdbval);
-    //Account (logos::account_info const &) = default;
+    Account() = default;
 
-    Account(block_hash const & head,
+    Account(AccountType type);
+    Account(bool & error, const mdb_val & mdbval);
+    Account(bool & error, logos::stream & stream);
+
+    Account(AccountType type,
+            block_hash const & head,
             amount const & balance,
             uint32_t block_count,
-            uint64_t modified);
+            uint64_t modified,
+            const BlockHash & receive_head,
+            uint32_t receive_count);
 
     virtual uint32_t Serialize(logos::stream &) const;
     virtual bool Deserialize(logos::stream &);
@@ -122,10 +127,13 @@ public:
 
     virtual mdb_val to_mdb_val(std::vector<uint8_t> &buf) const = 0;
 
-    block_hash head;
-    amount     balance;
-    uint32_t   block_count;
-    uint64_t   modified;      ///< Seconds since posix epoch
+    AccountType type;
+    BlockHash   head;
+    amount      balance;
+    uint32_t    block_count;
+    uint64_t    modified;      ///< Seconds since posix epoch
+    BlockHash   receive_head;
+    uint32_t    receive_count;
 };
 
 /**
@@ -137,6 +145,7 @@ struct account_info : Account
 
     account_info ();
     account_info (bool & error, const mdb_val & mdbval);
+    account_info (bool & error, logos::stream & stream);
     account_info (account_info const &) = default;
 
     account_info (block_hash const & head,
@@ -161,9 +170,10 @@ struct account_info : Account
     block_hash rep_block;
     block_hash open_block;
     Entries    entries;
-    block_hash receive_head;
-    uint32_t   receive_count;
 };
+
+std::shared_ptr<Account>DeserializeAccount(bool & error, const logos::mdb_val & mdbval);
+std::shared_ptr<Account> DeserializeAccount(bool & error, logos::stream & stream);
 
 /**
  * Latest information about an account reservation, if any exists
@@ -322,7 +332,8 @@ enum class process_result
     invalid_token_symbol,       // Logos - Token symbol is invalid.
     invalid_token_name,         // Logos - Token name is invalid.
     invalid_token_amount,       // Logos - Token amount is invalid.
-    total_supply_overflow       // Logos - The request would case the token total supply to overflow.
+    total_supply_overflow,      // Logos - The request would case the token total supply to overflow.
+    key_collision               // Logos - There is already a user account or token account with the same key.
 };
 
 std::string ProcessResultToString(process_result result);

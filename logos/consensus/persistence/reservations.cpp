@@ -9,24 +9,22 @@
 bool
 Reservations::CanAcquire(const AccountAddress & account,
                          const BlockHash & hash,
-                         AccountType type,
                          bool allow_duplicates)
 {
     logos::reservation_info info;
-    auto reservations = GetReservations(type);
 
     // Check cache
-    if(reservations.find(account) == reservations.end())
+    if(_reservations.find(account) == _reservations.end())
     {
         // Not in LMDB either
-        if (_store.reservation_get(account, info, type))
+        if (_store.reservation_get(account, info))
         {
             return true;
         }
         else // populate cache with database reservation
         {
             // TODO: Check bootstrap since we might have died and now fallen behind
-            reservations[account] = info;
+            _reservations[account] = info;
             return false;
         }
     }
@@ -39,7 +37,7 @@ Reservations::CanAcquire(const AccountAddress & account,
                        << account.to_string()
                        << " which is already in the Reservations cache.";
 
-        info = reservations[account];
+        info = _reservations[account];
     }
 
     // Reservation exists
@@ -57,56 +55,35 @@ Reservations::CanAcquire(const AccountAddress & account,
 }
 
 void
-Reservations::Release(const AccountAddress & account,
-                      AccountType type)
+Reservations::Release(const AccountAddress & account)
 {
-    GetReservations(type).erase(account);
+    _reservations.erase(account);
 }
 
 void
 Reservations::UpdateReservation(const BlockHash & hash,
-                                const AccountAddress & account,
-                                AccountType type)
+                                const AccountAddress & account)
 {
     uint32_t current_epoch = ConsensusContainer::GetCurEpochNumber();
-    auto reservations = GetReservations(type);
 
-    if(reservations.find(account) != reservations.end() &&
-       reservations[account].reservation != hash)
+    if(_reservations.find(account) != _reservations.end() &&
+           _reservations[account].reservation != hash))
     {
-        if (reservations[account].reservation_epoch + PersistenceManager<R>::RESERVATION_PERIOD > current_epoch)
+        if (_reservations[account].reservation_epoch + PersistenceManager<R>::RESERVATION_PERIOD > current_epoch)
         {
             LOG_FATAL(_log) << "Reservations::UpdateReservation - update called before reservation epoch expiration!";
             trace_and_halt();
         }
     }
     logos::reservation_info updated_reservation {hash, current_epoch};
-    reservations[account] = updated_reservation;
-}
-
-auto Reservations::GetReservations(AccountType type) -> CacheType &
-{
-    CacheType * reservations_ptr;
-
-    switch(type)
-    {
-        case AccountType::LogosAccount:
-            reservations_ptr = & _logos_reservations;
-            break;
-        case AccountType::TokenAccount:
-            reservations_ptr = & _token_reservations;
-            break;
-    }
-
-    return *reservations_ptr;
+    _reservations[account] = updated_reservation;
 }
 
 bool
 DefaultReservations::CanAcquire(const AccountAddress & account,
                                 const BlockHash & hash,
-                                AccountType type,
                                 bool allow_duplicates)
 {
     logos::reservation_info info;
-    return !_store.reservation_get(account, info, type);
+    return !_store.reservation_get(account, info);
 }
