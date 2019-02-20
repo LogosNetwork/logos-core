@@ -536,8 +536,8 @@ ConsensusContainer::CheckEpochNull(bool is_null, const char* where)
 }
 
 bool
-ConsensusContainer::OnP2pReceive(const void *data, size_t size) {
-
+ConsensusContainer::OnP2pReceive(const void *data, size_t size)
+{
     if (size < (MessagePrequelSize + P2pConsensusHeader::P2PHEADER_SIZE))
     {
         LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid message, size is less than header, "
@@ -571,6 +571,8 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size) {
     uint8_t *pData = ((uint8_t*)data) + P2pConsensusHeader::P2PHEADER_SIZE + MessagePrequelSize;
     if (prequel.type == MessageType::Post_Committed_Block)
     {
+        LOG_DEBUG(_log) << "ConsensusContainer::OnP2pReceive, processing post committed block, size "
+                        << size;
         return _p2p.ProcessInputMessage(prequel, pData, size);
     }
 
@@ -603,20 +605,26 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size) {
         }
         else
         {
-            LOG_ERROR(_log) << "ConsensusContainer::P2pReceive, invalid consensus type "
+            LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid consensus type "
                             << ConsensusToName(prequel.consensus_type);
             return false;
         }
+        
+        LOG_DEBUG(_log) << "ConsensusContainer::OnP2pReceive, adding to consensus queue "
+                        << MessageToName(prequel.type) << " " << ConsensusToName(prequel.consensus_type)
+                        << " payload size " << prequel.payload_size
+                        << " src delegate " << (int)p2pheader.src_delegate_id
+                        << " dest delegate " << (int)p2pheader.dest_delegate_id;
 
         return producer->AddToConsensusQueue(pData, prequel.version, prequel.type, prequel.consensus_type,
-                                             prequel.payload_size, p2pheader.dest_delegate_id);
+                                             prequel.payload_size, p2pheader.src_delegate_id);
     }
     else
     {
-        LOG_ERROR(_log) << "ConsensusContainer::p2pReceive, no matching epoch or delegate id "
-                        << ", epoch " << p2pheader.epoch_number
-                        << ", delegate id " << p2pheader.dest_delegate_id;
+        LOG_WARN(_log) << "ConsensusContainer::OnP2pReceive, no matching epoch or delegate id "
+                       << ", epoch " << p2pheader.epoch_number
+                       << ", delegate id " << (int)p2pheader.dest_delegate_id;
     }
 
-    return false;
+    return true;
 }

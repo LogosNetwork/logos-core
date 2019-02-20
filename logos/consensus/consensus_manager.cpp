@@ -39,6 +39,7 @@ void ConsensusManager<CT>::HandleRequest(std::shared_ptr<Request> block,
                                          BlockHash &hash,
                                          logos::process_return & result)
 {
+    result.code = logos::process_result::progress;
     // SYL Integration fix: got rid of unnecessary lock here in favor of more granular locking
 
     LOG_INFO (_log) << "ConsensusManager<" << ConsensusToName(CT)
@@ -81,9 +82,10 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
     auto hash = block->Hash();
 
     HandleRequest(block, hash, result);
-
-    OnRequestQueued();
-
+    if (result.code == logos::process_result::progress)
+    {
+        OnRequestQueued();
+    }
 }
 
 template<>
@@ -95,6 +97,7 @@ ConsensusManager<ConsensusType::BatchStateBlock>::OnSendRequest(
 
     Responses response;
     logos::process_return result;
+    bool res = true;
 
     for (auto block : blocks)
     {
@@ -103,11 +106,15 @@ ConsensusManager<ConsensusType::BatchStateBlock>::OnSendRequest(
          if (result.code != logos::process_result::progress)
          {
              hash = 0;
+             res = false;
          }
          response.push_back({result.code, hash});
     }
 
-    OnRequestQueued();
+    if (res)
+    {
+        OnRequestQueued();
+    }
 
     return response;
 }
@@ -340,13 +347,13 @@ ConsensusManager<CT>::AddToConsensusQueue(const uint8_t * data,
 
     for (auto it = _connections.begin(); it != _connections.end(); ++it)
     {
-        if ((*it)->GetDelegateId() == delegate_id)
+        if ((*it)->RemoteDelegateId() == delegate_id)
         {
             (*it)->Push(delegate_id, data, version, message_type, consensus_type, payload_size, true);
             break;
         }
     }
-
+    return true;
 }
 
 template class ConsensusManager<ConsensusType::BatchStateBlock>;

@@ -15,8 +15,10 @@ void ConsensusP2pOutput<CT>::AddMessageToBuffer(const uint8_t *data,
                                                 uint8_t dest_delegate_id)
 {
     _p2p_buffer.resize(size + P2pConsensusHeader::P2PHEADER_SIZE);
-    P2pConsensusHeader header={epoch_number, dest_delegate_id};
-    assert(header.Serialize(_p2p_buffer) == P2pConsensusHeader::P2PHEADER_SIZE);
+    P2pConsensusHeader header={epoch_number, _delegate_id, dest_delegate_id};
+    std::vector<uint8_t> hdr_buf;
+    assert(header.Serialize(hdr_buf) == P2pConsensusHeader::P2PHEADER_SIZE);
+    memcpy(_p2p_buffer.data(), hdr_buf.data(), hdr_buf.size());
     memcpy(_p2p_buffer.data() + P2pConsensusHeader::P2PHEADER_SIZE, data, size);
 
     LOG_DEBUG(_log) << "ConsensusP2pOutput<" << ConsensusToName(CT)

@@ -473,7 +473,10 @@ struct HeartBeat : MessagePrequel<MessageType::Heart_Beat,
 
 struct P2pConsensusHeader
 {
-    P2pConsensusHeader(uint32_t e, uint8_t d) : epoch_number(e), dest_delegate_id(d) {}
+    P2pConsensusHeader(uint32_t epoch, uint8_t src, uint8_t dest)
+    : epoch_number(epoch)
+    , src_delegate_id(src)
+    , dest_delegate_id(dest) {}
     P2pConsensusHeader(bool & error, logos::stream & stream)
     {
         Deserialize(error, stream);
@@ -485,12 +488,16 @@ struct P2pConsensusHeader
     }
     void Deserialize(bool &error, logos::stream &stream)
     {
-        error = logos::read(stream, epoch_number) || logos::read(stream, dest_delegate_id);
+        error = logos::read(stream, epoch_number) ||
+                logos::read(stream, src_delegate_id);
+                logos::read(stream, dest_delegate_id);
     }
 
     uint32_t Serialize(logos::vectorstream &stream)
     {
-       return logos::write(stream, epoch_number) + logos::write(stream, dest_delegate_id);
+       return logos::write(stream, epoch_number) +
+              logos::write(stream, src_delegate_id) +
+              logos::write(stream, dest_delegate_id);
     }
 
     uint32_t Serialize(std::vector<uint8_t> &buf)
@@ -500,8 +507,11 @@ struct P2pConsensusHeader
     }
 
     uint32_t    epoch_number = 0;
+    uint8_t     src_delegate_id = 0;
     uint8_t     dest_delegate_id = 0;
-    static constexpr size_t P2PHEADER_SIZE = sizeof(epoch_number) + sizeof(dest_delegate_id);
+    static constexpr size_t P2PHEADER_SIZE = sizeof(epoch_number) +
+                sizeof(src_delegate_id) +
+                sizeof(dest_delegate_id);
 };
 
 // Convenience aliases for message names.

@@ -35,7 +35,8 @@ PrimaryDelegate::PrimaryDelegate(Service & service,
     // NOTE: Don't use _validator in this constructor
     //       as it's not yet initialized.
     //
-    : _primary_timer(service)
+    : _ongoing(false)
+    , _primary_timer(service)
     , _validator(validator)
     , _epoch_number(epoch_number)
     , _recall_timer(service)

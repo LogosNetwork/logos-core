@@ -16,7 +16,7 @@ BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
                                              p2p_interface & p2p,
                                              Service & service)
     : DelegateBridge<CT>(service, iochannel)
-    , ConsensusP2pBridge<CT>(service, p2p, ids.remote)
+    , ConsensusP2pBridge<CT>(service, p2p, ids.local)
     , _delegate_ids(ids)
     , _reason(RejectionReason::Void)
     , _validator(validator)

@@ -109,7 +109,7 @@ void DelegateBridge<CT>::OnMessage(std::shared_ptr<MessageBase> message, Message
         }
         case MessageType::Post_Commit:
         {
-            auto msg = dynamic_pointer_cast<Commit>(message);
+            auto msg = dynamic_pointer_cast<PostCommit>(message);
             log_message_received(MessageToName(message_type), msg->preprepare_hash.to_string());
             OnConsensusMessage(*msg);
             break;

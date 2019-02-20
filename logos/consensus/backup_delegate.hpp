@@ -85,6 +85,11 @@ public:
         return _delegate_ids.local;
     }
 
+    uint8_t RemoteDelegateId()
+    {
+        return _delegate_ids.remote;
+    }
+
 protected:
 
     static constexpr uint16_t MAX_CLOCK_DRIFT_MS = 20000;
@@ -124,7 +129,7 @@ protected:
     {
         std::vector<uint8_t> buf;
         msg.Serialize(buf);
-        this->Send(buf.data(), buf.size());
+        //this->Send(buf.data(), buf.size());
         this->SendP2p(buf.data(), buf.size(), _epoch_number, _delegate_ids.remote);
     }
 
@@ -137,11 +142,6 @@ protected:
     virtual void HandleReject(const PrePrepare & message) {}
 
     virtual bool ValidateReProposal(const PrePrepare & message);
-
-    uint8_t RemoteDelegateId()
-    {
-        return _delegate_ids.remote;
-    }
 
     std::mutex                  _mutex;
     std::shared_ptr<PrePrepare> _pre_prepare;
