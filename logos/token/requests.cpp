@@ -635,6 +635,17 @@ TokenImmuteSetting::TokenImmuteSetting(bool & error,
     }
 }
 
+bool TokenImmuteSetting::Validate(logos::process_return & result) const
+{
+    if(!TokenAccount::IsMutabilitySetting(setting))
+    {
+        result.code = logos::process_result::prohibitted_request;
+        return false;
+    }
+
+    return true;
+};
+
 boost::property_tree::ptree TokenImmuteSetting::SerializeJson() const
 {
     using namespace request::fields;
@@ -1275,7 +1286,7 @@ boost::property_tree::ptree TokenIssuerInfo::SerializeJson() const
 
     boost::property_tree::ptree tree = TokenRequest::SerializeJson();
 
-    tree.put(INFO, new_info);
+    tree.put(NEW_INFO, new_info);
 
     return tree;
 }
