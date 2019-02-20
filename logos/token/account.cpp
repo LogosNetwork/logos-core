@@ -472,6 +472,8 @@ bool TokenAccount::IsMutabilitySetting(TokenSetting setting)
 
 TokenSetting TokenAccount::GetMutabilitySetting(TokenSetting setting)
 {
+    assert(!IsMutabilitySetting(setting));
+
     // For a given enum value representing
     // a basic setting, the corresponding
     // mutability setting will have a value
