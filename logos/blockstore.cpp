@@ -291,8 +291,7 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "batch_db", MDB_CREATE, &batch_db) != 0;
         error_a |= mdb_dbi_open (transaction, "state_db", MDB_CREATE, &state_db) != 0;
         error_a |= mdb_dbi_open (transaction, "account_db", MDB_CREATE, &account_db) != 0;
-        error_a |= mdb_dbi_open (transaction, "logos_reservation_db", MDB_CREATE, &logos_reservation_db) != 0;
-        error_a |= mdb_dbi_open (transaction, "token_reservation_db", MDB_CREATE, &token_reservation_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "reservation_db", MDB_CREATE, &reservation_db) != 0;
         error_a |= mdb_dbi_open (transaction, "receive_db", MDB_CREATE, &receive_db) != 0;
         error_a |= mdb_dbi_open (transaction, "request_tips_db", MDB_CREATE, &request_tips_db) != 0;
 
@@ -305,7 +304,6 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "epoch_tip_db", MDB_CREATE, &epoch_tip_db) != 0;
 
         // token platform
-        error_a |= mdb_dbi_open (transaction, "token_account_db", MDB_CREATE, &token_account_db) != 0;
         error_a |= mdb_dbi_open (transaction, "token_user_status_db", MDB_CREATE, &token_user_status_db) != 0;
 
         // legacy
@@ -566,51 +564,21 @@ void logos::block_store::account_put (MDB_txn * transaction_a, logos::account co
 
 void logos::block_store::reservation_put (AccountAddress const & account_a,
                                           logos::reservation_info const & info_a,
-                                          AccountType type,
                                           MDB_txn * transaction_a)
 {
-    switch(type)
-    {
-        case AccountType::LogosAccount:
-            put(logos_reservation_db, account_a, info_a, transaction_a);
-            break;
-        case AccountType::TokenAccount:
-            put(token_reservation_db, account_a, info_a, transaction_a);
-            break;
-    }
+    put(reservation_db, account_a, info_a, transaction_a);
 }
 
 bool logos::block_store::reservation_get (AccountAddress const & account_a,
                                           logos::reservation_info & info_a,
-                                          AccountType type,
                                           MDB_txn * transaction_a)
 {
-    bool result;
-
-    switch(type)
-    {
-        case AccountType::LogosAccount:
-            result = get(logos_reservation_db, account_a, info_a, transaction_a);
-            break;
-        case AccountType::TokenAccount:
-            result = get(token_reservation_db, account_a, info_a, transaction_a);
-            break;
-    }
-
-    return result;
+    return get(reservation_db, account_a, info_a, transaction_a);
 }
 
-void logos::block_store::reservation_del (AccountAddress const & account_a, AccountType type, MDB_txn * transaction_a)
+void logos::block_store::reservation_del (AccountAddress const & account_a, MDB_txn * transaction_a)
 {
-    switch(type)
-    {
-        case AccountType::LogosAccount:
-            del(logos_reservation_db, account_a, transaction_a);
-            break;
-        case AccountType::TokenAccount:
-            del(token_reservation_db, account_a, transaction_a);
-            break;
-    }
+    del(reservation_db, account_a, transaction_a);
 }
 
 void logos::block_store::pending_put (MDB_txn * transaction_a, logos::pending_key const & key_a, logos::pending_info const & pending_a)
@@ -1269,41 +1237,11 @@ void logos::block_store::token_user_status_del(const BlockHash & token_user_id, 
     del(token_user_status_db, token_user_id, transaction);
 }
 
-bool logos::block_store::token_account_exists(const BlockHash & token_id)
-{
-    LOG_TRACE(log) << __func__ << " key " << token_id.to_string();
-
-    logos::mdb_val junk;
-    logos::transaction transaction(environment, nullptr, false);
-
-    auto status(mdb_get(transaction, token_account_db, logos::mdb_val(token_id), junk));
-    assert(status == 0 || status == MDB_NOTFOUND);
-
-    return status == 0;
-}
-
-bool logos::block_store::token_account_get(const BlockHash & token_id, std::shared_ptr<Account> & info, MDB_txn* transaction)
-{
-    LOG_TRACE(log) << __func__ << " key " << token_id.to_string();
-    mdb_val val;
-
-    if(get(token_account_db, mdb_val(token_id), val, transaction))
-    {
-        return true;
-    }
-
-    bool error = false;
-    info.reset(new TokenAccount(error, val));
-
-    assert (!error);
-    return error;
-}
-
 bool logos::block_store::token_account_get(const BlockHash & token_id, TokenAccount & info, MDB_txn* transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << token_id.to_string();
     mdb_val val;
-    if(get(token_account_db, mdb_val(token_id), val, transaction))
+    if(get(account_db, mdb_val(token_id), val, transaction))
     {
         return true;
     }
@@ -1314,30 +1252,13 @@ bool logos::block_store::token_account_get(const BlockHash & token_id, TokenAcco
     return error;
 }
 
-bool logos::block_store::token_account_db_empty()
-{
-    logos::transaction transaction(environment, nullptr, false);
-
-    logos::store_iterator begin(transaction, token_account_db);
-    logos::store_iterator end(nullptr);
-
-    return begin == end;
-}
-
 bool logos::block_store::token_account_put(const BlockHash & token_id, const TokenAccount & info, MDB_txn * transaction)
 {
     std::vector<uint8_t> buf;
-    auto status(mdb_put(transaction, token_account_db, logos::mdb_val(token_id), info.to_mdb_val(buf), 0));
+    auto status(mdb_put(transaction, account_db, logos::mdb_val(token_id), info.to_mdb_val(buf), 0));
 
     assert(status == 0);
     return status != 0;
-}
-
-bool logos::block_store::account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, AccountType type, MDB_txn* transaction)
-{
-    return type == AccountType::LogosAccount ?
-           account_get(account_a, info_a, transaction) :
-           token_account_get(account_a, info_a, transaction);
 }
 
 bool logos::block_store::account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, MDB_txn* transaction)
@@ -1351,7 +1272,7 @@ bool logos::block_store::account_get(AccountAddress const & account_a, std::shar
     }
 
     bool error = false;
-    info_a.reset(new account_info(error, val));
+    info_a = DeserializeAccount(error, val);
 
     assert (!error);
     return error;
@@ -1382,9 +1303,9 @@ bool logos::block_store::account_db_empty()
     return begin == end;
 }
 
-bool logos::block_store::account_put(const AccountAddress & account, std::shared_ptr<Account> info, AccountType type, MDB_txn * transaction)
+bool logos::block_store::account_put(const AccountAddress & account, std::shared_ptr<Account> info, MDB_txn * transaction)
 {
-    return type == AccountType::LogosAccount ?
+    return info->type == AccountType::LogosAccount ?
            account_put(account, *static_pointer_cast<account_info>(info), transaction) :
            token_account_put(account, *static_pointer_cast<TokenAccount>(info), transaction);
 }

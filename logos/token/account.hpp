@@ -18,18 +18,21 @@ struct TokenAccount : logos::Account
     using EnumType    = std::underlying_type<TokenSetting>::type;
     using Controllers = std::vector<ControllerInfo>;
 
-    TokenAccount() = default;
+    TokenAccount();
 
     TokenAccount(const TokenIssuance & issuance);
 
     TokenAccount(bool & error, const logos::mdb_val & mdbval);
+    TokenAccount(bool & error, logos::stream & stream);
 
     TokenAccount(const BlockHash & head,
                  Amount balance,
                  uint64_t modified,
                  Amount token_balance,
                  Amount token_fee_balance,
-                 uint32_t block_count);
+                 uint32_t block_count,
+                 const BlockHash & receive_head,
+                 uint32_t receive_count);
 
     uint32_t Serialize(logos::stream &) const override;
     bool Deserialize(logos::stream &) override;

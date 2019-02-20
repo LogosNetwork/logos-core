@@ -181,23 +181,19 @@ public:
     bool token_user_status_put(const BlockHash & token_user_id, const TokenUserStatus & status, MDB_txn *);
     void token_user_status_del(const BlockHash & token_user_id, MDB_txn *);
 
-    bool token_account_exists(const BlockHash & token_id);
-    bool token_account_get(const BlockHash & token_id, std::shared_ptr<Account> & info, MDB_txn* t=0);
     bool token_account_get(const BlockHash & token_id, TokenAccount & info, MDB_txn* t=0);
-    bool token_account_db_empty();
     bool token_account_put (const BlockHash &, TokenAccount const &, MDB_txn *);
 
-    bool account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, AccountType type, MDB_txn* t=0);
     bool account_get(AccountAddress const & account_a, std::shared_ptr<Account> & info_a, MDB_txn* t=0);
     bool account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* t=0);
     bool account_db_empty();
-    bool account_put (AccountAddress const &, std::shared_ptr<Account> info, AccountType type, MDB_txn *);
+    bool account_put (AccountAddress const &, std::shared_ptr<Account> info, MDB_txn *);
     bool account_put (AccountAddress const &, logos::account_info const &, MDB_txn *);
     bool account_exists (AccountAddress const &);
 
-    void reservation_put(AccountAddress const & account_a, logos::reservation_info const & info_a, AccountType type, MDB_txn *);
-    bool reservation_get(AccountAddress const & account_a, logos::reservation_info & info_a, AccountType type, MDB_txn * t=nullptr);
-    void reservation_del(AccountAddress const & account_a, AccountType type, MDB_txn *);
+    void reservation_put(AccountAddress const & account_a, logos::reservation_info const & info_a, MDB_txn *);
+    bool reservation_get(AccountAddress const & account_a, logos::reservation_info & info_a, MDB_txn * t=nullptr);
+    void reservation_del(AccountAddress const & account_a, MDB_txn *);
 
     bool receive_put(const BlockHash & hash, const ReceiveBlock & block, MDB_txn *);
     bool receive_get(const BlockHash & hash, ReceiveBlock & block, MDB_txn *);
@@ -271,13 +267,7 @@ public:
      * Maps account to reservation (transaction hash), reservation_epoch;.
      * logos::account -> logos::block_hash, uint32_t
      */
-    MDB_dbi logos_reservation_db;
-
-    /**
-     * Maps token id to reservation (transaction hash), reservation_epoch;.
-     * logos::block_hash -> logos::block_hash, uint32_t
-     */
-    MDB_dbi token_reservation_db;
+    MDB_dbi reservation_db;
 
     /**
      * Maps block hash to receive block.
@@ -318,12 +308,6 @@ public:
      * 'epochtip' -> logos::block_hash
      */
     MDB_dbi epoch_tip_db;
-
-    /**
-    * Token Accounts
-    * block_hash token_id -> TokenAccount
-    */
-    MDB_dbi token_account_db;
 
     /**
     * Token User Statuses

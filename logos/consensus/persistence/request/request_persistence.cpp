@@ -57,7 +57,7 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
     // SYL Integration: clear reservation AFTER flushing to LMDB to ensure safety
     for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
-        _reservations->Release(message.requests[i]->GetAccount(), message.requests[i]->GetAccountType());
+        _reservations->Release(message.requests[i]->GetAccount());
     }
 }
 
@@ -103,7 +103,7 @@ bool PersistenceManager<R>::ValidateRequest(
     std::shared_ptr<logos::Account> info;
 
     // The account doesn't exist
-    if (_store.account_get(request->GetAccount(), info, request->GetAccountType()))
+    if (_store.account_get(request->GetAccount(), info))
     {
         // We can only get here if this is an administrative
         // token request, which means an invalid token ID
@@ -113,7 +113,7 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
     // a valid (non-expired) reservation exits
-    if (!_reservations->CanAcquire(request->GetAccount(), hash, request->GetAccountType(), allow_duplicates))
+    if (!_reservations->CanAcquire(request->GetAccount(), hash, allow_duplicates))
     {
         LOG_ERROR(_log) << "PersistenceManager::Validate - Account already reserved! ";
         result.code = logos::process_result::already_reserved;
@@ -196,6 +196,17 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
+    if(request->type == RequestType::IssueTokens)
+    {
+        auto issuance = static_pointer_cast<const TokenIssuance>(request);
+
+        if(_store.account_exists(issuance->token_id))
+        {
+            result.code = logos::process_result::key_collision;
+            return false;
+        }
+    }
+
     // Only controllers can issue these
     if(IsTokenAdminRequest(request->type))
     {
@@ -243,7 +254,7 @@ bool PersistenceManager<R>::ValidateRequest(
         if(request->GetAccount() != request->GetSource())
         {
             std::shared_ptr<logos::Account> source;
-            if(_store.account_get(request->GetSource(), source, request->GetSourceType()))
+            if(_store.account_get(request->GetSource(), source))
             {
                 // TODO: Bootstrapping
                 result.code = logos::process_result::unknown_source_account;
@@ -415,7 +426,7 @@ bool PersistenceManager<R>::ValidateAndUpdate(
     auto success (ValidateRequest(request, result, allow_duplicates, false));
     if (success)
     {
-        _reservations->UpdateReservation(request->GetHash(), request->GetAccount(), request->GetAccountType());
+        _reservations->UpdateReservation(request->GetHash(), request->GetAccount());
     }
     return success;
 }
@@ -526,7 +537,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                                          MDB_txn * transaction)
 {
     std::shared_ptr<logos::Account> info;
-    auto account_error(_store.account_get(request->GetAccount(), info, request->GetAccountType()));
+    auto account_error(_store.account_get(request->GetAccount(), info));
 
     if(account_error)
     {
@@ -546,7 +557,6 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                        << "ignoring.";
         return;
     }
-
 
     info->block_count++;
     info->head = request->GetHash();
@@ -643,7 +653,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             auto send = static_pointer_cast<const Send>(request);
             auto source = static_pointer_cast<logos::account_info>(info);
 
-            source->balance -= send->GetLogosTotal() - send->fee;
+            source->balance -= send->GetLogosTotal();
 
             ApplySend(send,
                       timestamp,
@@ -875,7 +885,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             break;
     }
 
-    if(_store.account_put(request->GetAccount(), info, request->GetAccountType(), transaction))
+    if(_store.account_put(request->GetAccount(), info, transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager::ApplyRequest - "
                         << "Failed to store account: "
@@ -916,11 +926,11 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
                                       const BlockHash &token_id,
                                       uint16_t transaction_index)
 {
-    logos::account_info info;
+    std::shared_ptr<logos::Account> info;
     auto account_error(_store.account_get(send.destination, info, transaction));
 
     ReceiveBlock receive(
-        /* Previous          */ info.receive_head,
+        /* Previous          */ info ? info->receive_head : 0,
         /* send_hash         */ request_hash,
         /* transaction_index */ transaction_index
     );
@@ -930,30 +940,33 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
     // Destination account doesn't exist yet
     if(account_error)
     {
-        info.open_block = hash;
+        info.reset(new logos::account_info);
+        static_pointer_cast<logos::account_info>(info)->open_block = hash;
+
         LOG_DEBUG(_log) << "PersistenceManager::ApplySend - "
                         << "new account: "
                         << send.destination.to_string();
     }
 
-    info.receive_count++;
-    info.receive_head = hash;
-    info.modified = logos::seconds_since_epoch();
+    info->receive_count++;
+    info->receive_head = hash;
+    info->modified = logos::seconds_since_epoch();
 
     // This is a logos transaction
     if(token_id.is_zero())
     {
-        info.balance += send.amount;
+        info->balance += send.amount;
     }
 
     // This is a token transaction
     else
     {
-        auto entry = info.GetEntry(token_id);
+        auto user_info = static_pointer_cast<logos::account_info>(info);
+        auto entry = user_info->GetEntry(token_id);
 
         // The destination account is being
         // tethered to this token.
-        if(entry == info.entries.end())
+        if(entry == user_info->entries.end())
         {
             TokenEntry new_entry;
             new_entry.token_id = token_id;
@@ -961,10 +974,10 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
             // TODO: Put a limit on the number
             //       of token entries a single
             //       account can have.
-            info.entries.push_back(new_entry);
+            user_info->entries.push_back(new_entry);
 
-            entry = info.GetEntry(token_id);
-            assert(entry != info.entries.end());
+            entry = user_info->GetEntry(token_id);
+            assert(entry != user_info->entries.end());
 
             TokenUserStatus status;
             auto token_user_id = GetTokenUserID(token_id, send.destination);

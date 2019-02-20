@@ -11,7 +11,6 @@
 namespace
 {
 
-using logos::AccountType;
 using logos::reservation_info;
 
 }
@@ -34,15 +33,12 @@ public:
     virtual ~ReservationsProvider() = default;
     virtual bool CanAcquire(const AccountAddress & account,
                             const BlockHash & hash,
-                            AccountType type,
                             bool allow_duplicates) {return false;}
 
-    virtual void Release(const AccountAddress & account,
-                         AccountType type) {}
+    virtual void Release(const AccountAddress & account) {}
 
     virtual void UpdateReservation(const BlockHash & hash,
-                                   const AccountAddress & account,
-                                   AccountType type) {}
+                                   const AccountAddress & account) {}
 protected:
 
     Store & _store;
@@ -53,9 +49,7 @@ class Reservations : public ReservationsProvider
 {
 protected:
 
-    using CacheType  = std::unordered_map<logos::uint256_union, reservation_info>;
-    using LogosCache = std::unordered_map<AccountAddress, reservation_info>;
-    using TokenCache = std::unordered_map<BlockHash, reservation_info>;
+    using ReservationCache = std::unordered_map<AccountAddress, reservation_info>;
 
 public:
     explicit Reservations(Store & store)
@@ -80,23 +74,17 @@ public:
     //-------------------------------------------------------------------------
     bool CanAcquire(const AccountAddress & account,
                     const BlockHash & hash,
-                    AccountType type,
                     bool allow_duplicates) override;
 
-    void Release(const AccountAddress & account,
-                 AccountType type) override;
+    void Release(const AccountAddress & account) override;
 
     // Can only be called after checking CanAcquire to ensure we don't corrupt reservation
     void UpdateReservation(const BlockHash & hash,
-                           const AccountAddress & account,
-                           AccountType type) override;
+                           const AccountAddress & account) override;
 
 private:
 
-    CacheType & GetReservations(AccountType type);
-
-    LogosCache _logos_reservations;
-    TokenCache _token_reservations;
+    ReservationCache _reservations;
 };
 
 class DefaultReservations : public ReservationsProvider
@@ -108,6 +96,5 @@ public:
 
     bool CanAcquire(const AccountAddress & account,
                     const BlockHash & hash,
-                    AccountType type,
                     bool allow_duplicates) override;
 };
