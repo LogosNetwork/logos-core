@@ -637,7 +637,7 @@ TokenImmuteSetting::TokenImmuteSetting(bool & error,
 
 bool TokenImmuteSetting::Validate(logos::process_return & result) const
 {
-    if(!TokenAccount::IsMutabilitySetting(setting))
+    if(TokenAccount::IsMutabilitySetting(setting))
     {
         result.code = logos::process_result::prohibitted_request;
         return false;

@@ -4,8 +4,13 @@
 
 #include <ios>
 
+TokenAccount::TokenAccount()
+    : logos::Account(logos::AccountType::TokenAccount)
+{}
+
 TokenAccount::TokenAccount(const TokenIssuance & issuance)
-    : total_supply(issuance.total_supply)
+    : logos::Account(logos::AccountType::TokenAccount)
+    , total_supply(issuance.total_supply)
     , token_balance(issuance.total_supply)
     , fee_type(issuance.fee_type)
     , fee_rate(issuance.fee_rate)
@@ -23,16 +28,26 @@ TokenAccount::TokenAccount(bool & error, const logos::mdb_val & mdbval)
     error = Deserialize(stream);
 }
 
+TokenAccount::TokenAccount(bool & error, logos::stream & stream)
+{
+    error = Deserialize(stream);
+}
+
 TokenAccount::TokenAccount(const BlockHash & head,
                            Amount balance,
                            uint64_t modified,
                            Amount token_balance,
                            Amount token_fee_balance,
-                           uint32_t block_count)
-    : logos::Account(head,
+                           uint32_t block_count,
+                           const BlockHash & receive_head,
+                           uint32_t receive_count)
+    : logos::Account(logos::AccountType::TokenAccount,
+                     head,
                      balance,
                      block_count,
-                     modified)
+                     modified,
+                     receive_head,
+                     receive_count)
     , total_supply(token_balance)
     , token_balance(token_balance)
     , token_fee_balance(token_fee_balance)
