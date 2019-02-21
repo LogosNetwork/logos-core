@@ -181,6 +181,10 @@ struct BitField
     using GetField = std::function<std::string (size_t i)>;
     using GetPos   = std::function<size_t (bool &, const std::string &)>;
 
+    BitField(const std::string & field)
+        : field(field)
+    {}
+
     BitField(const std::bitset<N> & field)
         : field(field)
     {}

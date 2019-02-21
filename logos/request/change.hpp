@@ -24,6 +24,8 @@ struct Change : Request
 
     uint16_t WireSize() const override;
 
+    bool operator==(const Request & other) const override;
+
     AccountAddress client;
     AccountAddress representative;
 };

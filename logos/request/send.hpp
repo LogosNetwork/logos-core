@@ -107,6 +107,8 @@ struct Send : Request
     void Deserialize(bool & error, logos::stream & stream);
     void DeserializeDB(bool &error, logos::stream &stream) override;
 
+    bool operator==(const Request & other) const override;
+
     static const uint8_t MAX_TRANSACTIONS = 8;
 
     Transactions      transactions;

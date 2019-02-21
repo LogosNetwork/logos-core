@@ -222,3 +222,19 @@ void Send::DeserializeDB(bool &error, logos::stream &stream)
 
     Deserialize(error, stream);
 }
+
+bool Send::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const Send &>(other);
+
+        return Request::operator==(other) &&
+               transactions == derived.transactions &&
+               work == derived.work;
+    }
+    catch(...)
+    {}
+
+    return false;
+}
