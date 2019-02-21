@@ -167,7 +167,11 @@ bool TokenAccount::operator== (TokenAccount const & other) const
            token_fee_balance == other.token_fee_balance &&
            fee_type == other.fee_type &&
            fee_rate == other.fee_rate &&
-           token_fee_balance == other.token_fee_balance &&
+           symbol == other.symbol &&
+           name == other.name &&
+           issuer_info == other.issuer_info &&
+           controllers == other.controllers &&
+           settings == other.settings &&
            Account::operator==(other);
 }
 
@@ -495,4 +499,26 @@ TokenSetting TokenAccount::GetMutabilitySetting(TokenSetting setting)
     // that is greater by 1.
     //
     return static_cast<TokenSetting>(static_cast<EnumType>(setting) + 1);
+}
+
+bool TokenAccount::ValidateFee(TokenFeeType fee_type, Amount fee_rate)
+{
+    auto result = false;
+
+    switch(fee_type)
+    {
+        case TokenFeeType::Percentage:
+            if(fee_rate.number() <= 100)
+            {
+                result = true;
+            }
+            break;
+        case TokenFeeType::Flat:
+            result = true;
+            break;
+        case TokenFeeType::Unknown:
+            break;
+    }
+
+    return result;
 }

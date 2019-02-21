@@ -172,7 +172,7 @@ struct account_info : Account
     Entries    entries;
 };
 
-std::shared_ptr<Account>DeserializeAccount(bool & error, const logos::mdb_val & mdbval);
+std::shared_ptr<Account> DeserializeAccount(bool & error, const logos::mdb_val & mdbval);
 std::shared_ptr<Account> DeserializeAccount(bool & error, logos::stream & stream);
 
 /**
@@ -333,7 +333,8 @@ enum class process_result
     invalid_token_name,         // Logos - Token name is invalid.
     invalid_token_amount,       // Logos - Token amount is invalid.
     total_supply_overflow,      // Logos - The request would case the token total supply to overflow.
-    key_collision               // Logos - There is already a user account or token account with the same key.
+    key_collision,              // Logos - There is already a user account or token account with the same key.
+    invalid_fee                 // Logos - The fee settings are invalid.
 };
 
 std::string ProcessResultToString(process_result result);
