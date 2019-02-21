@@ -120,3 +120,19 @@ uint16_t Change::WireSize() const
            sizeof(representative.bytes) +
            Request::WireSize();
 }
+
+bool Change::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const Change &>(other);
+
+        return Request::operator==(other) &&
+               client == derived.client &&
+               representative == derived.representative;
+    }
+    catch(...)
+    {}
+
+    return false;
+}
