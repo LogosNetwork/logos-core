@@ -243,12 +243,6 @@ boost::property_tree::ptree Request::SerializeJson() const
 uint64_t Request::DoSerialize(logos::stream & stream) const
 {
     return logos::write(stream, type) +
-
-           // An additional field is added
-           // to the stream to denote the
-           // total size of the request.
-           //
-           logos::write(stream, WireSize()) +
            logos::write(stream, origin) +
            logos::write(stream, signature) +
            logos::write(stream, previous) +
@@ -267,13 +261,6 @@ uint64_t Request::Serialize(logos::stream & stream) const
 void Request::Deserialize(bool & error, logos::stream & stream)
 {
     error = logos::read(stream, type);
-    if(error)
-    {
-        return;
-    }
-
-    uint16_t size;
-    error = logos::read(stream, size);
     if(error)
     {
         return;

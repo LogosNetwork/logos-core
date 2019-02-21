@@ -129,14 +129,12 @@ bool peek (logos::stream & stream_a, T & value)
     bool failure = amount_read != sizeof (value);
     if(!failure)
     {
-        decltype(amount_read) pos = 0;
-        while(pos++ < amount_read)
-        {
-            if((failure = (stream_a.sungetc() == stream::traits_type::eof())))
-            {
-                break;
-            }
-        }
+        constexpr int failed_offset = -1;
+
+        failure = (stream_a.pubseekoff(-stream::off_type(amount_read),
+                                       std::ios_base::seekdir::_S_cur,
+                                       std::ios_base::in)
+                   == stream::pos_type(stream::off_type(failed_offset)));
     }
     return failure;
 }
