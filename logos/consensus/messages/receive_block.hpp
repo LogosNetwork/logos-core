@@ -41,6 +41,10 @@ struct ReceiveBlock
     void SerializeJson(boost::property_tree::ptree & tree) const;
     boost::property_tree::ptree SerializeJson() const;
 
+    /// Serialize the data members to Json
+    /// @returns the Json string
+    boost::property_tree::ptree SerializeJson() const;
+
     /// Serialize the data members to a stream
     /// @param stream the stream to serialize to
     void Serialize (logos::stream & stream) const;

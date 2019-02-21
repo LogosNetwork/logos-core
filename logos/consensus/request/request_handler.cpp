@@ -34,11 +34,13 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(
     bool repropose)
 {
     std::lock_guard<std::mutex> lock(_mutex);
-    _current_batch = PrePrepare();
     auto & sequence = _requests.get<0>();
 
     _current_batch.requests.reserve(sequence.size());
     _current_batch.hashes.reserve(sequence.size());
+
+
+
     for(auto pos = sequence.begin(); pos != sequence.end();)
     {
         LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch requests_size="
@@ -58,8 +60,9 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(
         // Don't allow duplicates since we are the primary and should not include old requests
         // unless we are reproposing
         bool allow_duplicates = repropose;
-        if(!manager.ValidateAndUpdate(*pos, ignored_result, allow_duplicates))
+        if(!manager.ValidateAndUpdate(*pos, _current_batch.epoch_number, ignored_result, allow_duplicates))
         {
+
             pos = sequence.erase(pos);
             continue;
         }

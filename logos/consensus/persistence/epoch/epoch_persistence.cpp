@@ -6,6 +6,7 @@
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/microblock/microblock_handler.hpp>
 #include <logos/lib/trace.hpp>
+#include <logos/elections/database_functions.hpp>
 
 PersistenceManager<ECT>::PersistenceManager(Store & store,
                                             ReservationsPtr,
@@ -93,6 +94,7 @@ PersistenceManager<ECT>::ApplyUpdates(
     const ApprovedEB & block,
     uint8_t)
 {
+    LOG_INFO(_log) << "Applying updates for Epoch";
     logos::transaction transaction(_store.environment, nullptr, true);
 
     // See comments in request_persistence.cpp
@@ -103,12 +105,19 @@ PersistenceManager<ECT>::ApplyUpdates(
     }
 
     BlockHash epoch_hash = block.Hash();
+    bool transition = !BlockExists(block);
 
     if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(epoch_hash, transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to store epoch or epoch tip "
                                 << epoch_hash.to_string();
         trace_and_halt();
+    }
+
+    //The epoch number in the epoch block is one less than the current epoch
+    if(transition)
+    {
+        TransitionNextEpoch(transaction, block.epoch_number+1);
     }
 
     if(_store.consensus_block_update_next(block.previous, epoch_hash, ConsensusType::Epoch, transaction))
@@ -190,3 +199,126 @@ bool PersistenceManager<ECT>::BlockExists(
 {
     return _store.epoch_exists(message);
 }
+
+
+
+void PersistenceManager<ECT>::MarkDelegateElectsAsRemove(MDB_txn* txn)
+{
+    BlockHash hash;
+    assert(!_store.epoch_tip_get(hash,txn));
+    ApprovedEB epoch;
+    assert(!_store.epoch_get(hash,epoch,txn));
+
+    for(Delegate& d: epoch.delegates)
+    {
+        if(d.starting_term)
+        {
+            assert(!_store.candidate_mark_remove(d.account,txn));
+        }
+    }
+}
+
+void PersistenceManager<ECT>::AddReelectionCandidates(MDB_txn* txn)
+{
+    ApprovedEB epoch;
+    assert(!_store.epoch_get_n(3,epoch,txn));
+
+    for(auto& d : epoch.delegates)
+    {
+        if(d.starting_term)
+        {
+            RepInfo rep;
+            assert(!_store.rep_get(d.account,rep,txn));
+            std::shared_ptr<Request> req;
+            assert(!_store.request_get(rep.candidacy_action_tip,req,txn));
+            if(req->type == RequestType::AnnounceCandidacy)
+            {
+                auto ac = static_pointer_cast<AnnounceCandidacy>(req); 
+                assert(!_store.candidate_add_new(d.account,ac->bls_key,ac->stake,txn));
+            }         
+        }
+    }
+}
+
+void PersistenceManager<ECT>::UpdateRepresentativesDB(MDB_txn* txn)
+{
+    for(auto it = logos::store_iterator(txn, _store.representative_db);
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        bool error = false;
+        RepInfo info(error,it->second);
+        if(!error)
+        {
+            if(info.remove)
+            {
+                assert(!mdb_cursor_del(it.cursor,0));
+            }
+            else if(!info.active)
+            {
+                info.active = true;
+                std::vector<uint8_t> buf;
+                assert(!mdb_cursor_put(it.cursor,it->first,info.to_mdb_val(buf),MDB_CURRENT));
+            } else
+            {
+                info.voted = false;
+                std::vector<uint8_t> buf;
+                assert(!mdb_cursor_put(it.cursor,it->first,info.to_mdb_val(buf),MDB_CURRENT));
+            }
+        }
+    }
+}
+
+void PersistenceManager<ECT>::UpdateCandidatesDB(MDB_txn* txn)
+{
+    std::cout << "updating candidates db" << std::endl;
+    for(auto it = logos::store_iterator(txn, _store.candidacy_db);
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        bool error = false;
+        CandidateInfo info(error,it->second);
+        assert(!error);
+        if(info.remove)
+        {
+            assert(!mdb_cursor_del(it.cursor,0));
+        }
+        else if(!info.active)
+        {
+            info.active = true;
+            std::vector<uint8_t> buf;
+
+            assert(!mdb_cursor_put(it.cursor,it->first,info.to_mdb_val(buf),MDB_CURRENT));
+        }
+        else
+        {
+            info.votes_received_weighted = 0;
+            std::vector<uint8_t> buf;
+            assert(!mdb_cursor_put(it.cursor,it->first,info.to_mdb_val(buf),MDB_CURRENT));
+        }
+    }
+
+    _store.clear(_store.leading_candidates_db,txn);
+}
+
+
+void PersistenceManager<ECT>::TransitionCandidatesDBNextEpoch(MDB_txn* txn, uint32_t next_epoch_num)
+{
+    if(next_epoch_num >= EpochVotingManager::START_ELECTIONS_EPOCH)
+    {
+        AddReelectionCandidates(txn);
+    }
+    if(next_epoch_num > EpochVotingManager::START_ELECTIONS_EPOCH)
+    {
+        MarkDelegateElectsAsRemove(txn);
+    }
+    UpdateCandidatesDB(txn);
+}
+
+void PersistenceManager<ECT>::TransitionNextEpoch(MDB_txn* txn, uint32_t next_epoch_num)
+{
+    TransitionCandidatesDBNextEpoch(txn,next_epoch_num);
+    UpdateRepresentativesDB(txn);
+}
+
+
+
+

@@ -348,6 +348,9 @@ add_library (node
 	logos/consensus/persistence/microblock/microblock_persistence.cpp
 	logos/consensus/persistence/reservations.cpp
 	logos/consensus/primary_delegate.cpp
+	logos/elections/requests.cpp
+	logos/elections/database.cpp
+    logos/elections/database_functions.cpp
 	logos/epoch/archiver.cpp
 	logos/epoch/epoch.cpp
 	logos/epoch/epoch_handler.cpp
@@ -377,6 +380,8 @@ add_library (node
 	logos/node/openclwork.hpp
 	logos/node/rpc.hpp
 	logos/node/rpc.cpp
+	logos/node/rpc_logic.hpp
+	logos/node/rpc_logic.cpp
 	logos/node/testing.hpp
 	logos/node/testing.cpp
 	logos/node/wallet.hpp
@@ -462,7 +467,7 @@ else (WIN32)
 endif (WIN32)
 
 if (LOGOS_TEST)
-	target_link_libraries (unit_test node secure lmdb ed25519 ${BLS_libs} logos_lib_static argon2 ${OPENSSL_LIBRARIES} ${CRYPTOPP_LIBRARY} gtest_main gtest libminiupnpc-static ${Boost_ATOMIC_LIBRARY} ${Boost_CHRONO_LIBRARY} ${Boost_REGEX_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_LOG_LIBRARY} ${Boost_LOG_SETUP_LIBRARY} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${PLATFORM_LIBS})
+	target_link_libraries (unit_test node p2p secure lmdb ed25519 ${BLS_libs} logos_lib_static argon2 ${OPENSSL_LIBRARIES} ${CRYPTOPP_LIBRARY} gtest_main gtest libminiupnpc-static ${Boost_ATOMIC_LIBRARY} ${Boost_CHRONO_LIBRARY} ${Boost_REGEX_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_LOG_LIBRARY} ${Boost_LOG_SETUP_LIBRARY} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${PLATFORM_LIBS})
 endif (LOGOS_TEST)
 
 target_link_libraries (logos_lib ed25519 ${BLS_libs} xxhash blake2 ${CRYPTOPP_LIBRARY})

@@ -2,6 +2,8 @@
 
 #include <logos/request/fields.hpp>
 #include <logos/lib/utility.hpp>
+#include <logos/elections/requests.hpp>
+#include <logos/lib/log.hpp>
 
 RequestType GetRequestType(bool &error, std::string data)
 {
@@ -76,6 +78,26 @@ RequestType GetRequestType(bool &error, std::string data)
     {
         ret = RequestType::TokenSend;
     }
+    else if(data == ANNOUNCE_CANDIDACY)
+    {
+        ret = RequestType::AnnounceCandidacy;
+    }
+    else if(data == RENOUNCE_CANDIDACY)
+    {
+        ret = RequestType::RenounceCandidacy;
+    }
+    else if(data == ELECTION_VOTE)
+    {
+        ret = RequestType::ElectionVote;
+    }
+    else if(data == START_REPRESENTING)
+    {
+        ret = RequestType::StartRepresenting;
+    }
+    else if(data == STOP_REPRESENTING)
+    {
+        ret = RequestType::StopRepresenting;
+    }
     else
     {
         error = true;
@@ -138,6 +160,21 @@ std::string GetRequestTypeField(RequestType type)
             break;
         case RequestType::TokenSend:
             ret = TOKEN_SEND;
+            break;
+        case RequestType::AnnounceCandidacy:
+            ret = ANNOUNCE_CANDIDACY;
+            break;
+        case RequestType::RenounceCandidacy:
+            ret = RENOUNCE_CANDIDACY;
+            break;
+        case RequestType::ElectionVote:
+            ret = ELECTION_VOTE;
+            break;
+        case RequestType::StartRepresenting:
+            ret = START_REPRESENTING;
+            break;
+        case RequestType::StopRepresenting:
+            ret = STOP_REPRESENTING;
             break;
         case RequestType::Unknown:
             ret = UNKNOWN;
@@ -202,6 +239,21 @@ std::shared_ptr<Request> BuildRequest(RequestType type, bool & error, Data && da
         case RequestType::TokenSend:
             result = std::make_shared<TokenSend>(error, data);
             break;
+        case RequestType::AnnounceCandidacy:
+            result = std::make_shared<AnnounceCandidacy>(AnnounceCandidacy(args...));
+            break;
+        case RequestType::RenounceCandidacy:
+            result = std::make_shared<RenounceCandidacy>(RenounceCandidacy(args...));
+            break;
+        case RequestType::ElectionVote:
+            result = std::make_shared<ElectionVote>(ElectionVote(args...));
+            break;
+        case RequestType::StartRepresenting:
+            result = std::make_shared<StartRepresenting>(StartRepresenting(args...));
+            break;
+        case RequestType::StopRepresenting:
+            result = std::make_shared<StopRepresenting>(StopRepresenting(args...));
+            break;
         case RequestType::Unknown:
             error = true;
             break;
@@ -218,6 +270,7 @@ std::shared_ptr<Request> DeserializeRequest(bool & error, const logos::mdb_val &
     RequestType type = RequestType::Unknown;
 
     error = logos::read(stream, type);
+    assert(type != RequestType::Unknown);
     if(error)
     {
         return {nullptr};
@@ -229,10 +282,11 @@ std::shared_ptr<Request> DeserializeRequest(bool & error, const logos::mdb_val &
 std::shared_ptr<Request> DeserializeRequest(bool & error, logos::stream & stream)
 {
     RequestType type;
-
+    Log log;
     error = logos::peek(stream, type);
     if(error)
     {
+        LOG_FATAL(log) << "DeserializeRequest - Error getting request type";
         return {nullptr};
     }
 

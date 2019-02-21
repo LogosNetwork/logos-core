@@ -789,6 +789,7 @@ bool p2p_interface::Init(p2p_config &config)
     }
     catch (const std::exception& e)
     {
+        std::cout << "Exception selecting chain params : " << e.what() << std::endl;
         InitError(e.what());
         return false;
     }
