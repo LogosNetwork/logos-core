@@ -406,6 +406,7 @@ if (LOGOS_TEST)
 	endif (STRICT_CONSENSUS_THRESHOLD MATCHES ON)
 	set_target_properties (unit_test PROPERTIES LINK_FLAGS "${PLATFORM_LINK_FLAGS}")
     target_include_directories (unit_test PRIVATE logos/p2p)
+    target_link_libraries (unit_test p2p)
 endif (LOGOS_TEST)
 
 add_executable (logos_core
