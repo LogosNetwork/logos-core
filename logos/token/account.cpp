@@ -160,6 +160,34 @@ bool TokenAccount::Deserialize(logos::stream & stream)
     return error;
 }
 
+boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
+{
+    boost::property_tree::ptree tree;
+    tree.put("token_balance",token_balance.to_string_dec());
+    tree.put("total_supply",total_supply.to_string_dec());
+    tree.put("token_fee_balance",token_fee_balance.to_string_dec());
+    tree.put("symbol",symbol);
+    tree.put("name",name);
+    tree.put("issuer_info",issuer_info);
+    if(details) {
+        boost::property_tree::ptree controllers_tree;
+        for(auto & c : controllers)
+        {
+            boost::property_tree::ptree ctree(c.SerializeJson());
+            controllers_tree.push_back(std::make_pair("",ctree));
+        }
+        tree.add_child("controllers", controllers_tree);
+
+        boost::property_tree::ptree settings_tree;
+        for(uint8_t i = 0; i < settings.field.size(); ++i)
+        {
+            settings_tree.put(GetTokenSettingField(i),settings[i]);
+        }
+        tree.add_child("settings", settings_tree);
+    }
+    return tree;
+}
+
 bool TokenAccount::operator== (TokenAccount const & other) const
 {
     return total_supply == other.total_supply &&
@@ -368,6 +396,11 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
         case RequestType::TokenSend:
             result = true;
             break;
+        case RequestType::AnnounceCandidacy:
+        case RequestType::RenounceCandidacy:
+        case RequestType::ElectionVote:
+        case RequestType::StartRepresenting:
+        case RequestType::StopRepresenting:
         case RequestType::Unknown:
             result = false;
             break;
@@ -482,4 +515,26 @@ TokenSetting TokenAccount::GetMutabilitySetting(TokenSetting setting)
     // that is greater by 1.
     //
     return static_cast<TokenSetting>(static_cast<EnumType>(setting) + 1);
+}
+
+bool TokenAccount::ValidateFee(TokenFeeType fee_type, Amount fee_rate)
+{
+    auto result = false;
+
+    switch(fee_type)
+    {
+        case TokenFeeType::Percentage:
+            if(fee_rate.number() <= 100)
+            {
+                result = true;
+            }
+            break;
+        case TokenFeeType::Flat:
+            result = true;
+            break;
+        case TokenFeeType::Unknown:
+            break;
+    }
+
+    return result;
 }

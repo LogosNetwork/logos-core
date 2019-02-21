@@ -217,8 +217,53 @@ public:
     bool epoch_get(const BlockHash &, ApprovedEB &, MDB_txn *t=0);
     bool epoch_tip_put(const BlockHash &, MDB_txn*);
     bool epoch_tip_get(BlockHash &, MDB_txn *t=0);
-    bool epoch_exists(const ApprovedEB &);
     bool epoch_exists(const BlockHash &, MDB_txn* t=0);
+    uint32_t next_epoch_number();
+    bool epoch_get_n(uint32_t ago, ApprovedEB &, MDB_txn *t=0);
+
+    bool rep_get(
+            AccountAddress const & account,
+            RepInfo & rep_info,
+            MDB_txn* t=0);
+    bool rep_put(
+            AccountAddress const & account,
+            const RepInfo & rep_info,
+            MDB_txn *);
+
+    bool candidate_get(
+            const AccountAddress & account,
+            CandidateInfo & candidate_info,
+            MDB_txn* t=0);
+    bool candidate_put(
+            const AccountAddress & account,
+            const CandidateInfo & candidate_info,
+            MDB_txn *);
+
+    bool candidate_add_vote(
+            const AccountAddress & account,
+            Amount weighted_vote,
+            MDB_txn *);
+
+    bool candidate_add_new(
+            const AccountAddress & account,
+            const DelegatePubKey & bls_key,
+            const Amount & stake,
+            MDB_txn *);
+
+    bool candidate_mark_remove(
+            const AccountAddress & account,
+            MDB_txn *);
+
+    bool update_leading_candidates(
+            const AccountAddress & account,
+            const CandidateInfo & candidate_info,
+            MDB_txn* txn);
+
+    bool candidate_is_greater(
+            const AccountAddress& account1,
+            const CandidateInfo& candidate1,
+            const AccountAddress& account2,
+            const CandidateInfo& candidate2);
 
     //////////////////
 
@@ -242,7 +287,7 @@ public:
     void version_put (MDB_txn *, int);
     int version_get (MDB_txn *);
 
-    void clear (MDB_dbi);
+    void clear (MDB_dbi, MDB_txn *t=0);
 
     logos::mdb_env environment;
 
@@ -347,6 +392,24 @@ public:
      * logos::account -> logos::uint128_t
      */
     MDB_dbi representation;
+
+    /**
+     * Representative info
+     * logos::account -> logos::RepInfo
+     */
+    MDB_dbi representative_db;
+
+    /**
+     * Candidacy info
+     * AccountAddress -> CandidateInfo
+     */
+    MDB_dbi candidacy_db;
+
+    /**
+     * Candidacy info of candidates to win
+     * AccountAddress -> CandidateInfo 
+     */
+    MDB_dbi leading_candidates_db;
 
     /**
      * Unchecked bootstrap blocks.

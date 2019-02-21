@@ -154,23 +154,37 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
             assert(s.size() == CONSENSUS_PUB_KEY_SIZE);
             memcpy(dpk.data(), s.data(), CONSENSUS_PUB_KEY_SIZE);
         };
-        for (uint8_t i = 0; i < NUM_DELEGATES; ++i) {
+        for (uint8_t i = 0; i < NUM_DELEGATES*2; ++i) {
             get_bls(bls_keys[0]); // same in epoch 0, doesn't matter
             Delegate delegate = {0, dpk, 0, 0};
 
-            if (e != 0 || !_epoch_transition_enabled)
+            if (true)//e != 0 || !_epoch_transition_enabled)
             {
-                uint8_t del = i + (e - 1) * 8 * _epoch_transition_enabled;
+                uint8_t del = i;// + (e - 1) * 8 * _epoch_transition_enabled;
                 get_bls(bls_keys[del]);
                 char buff[5];
                 sprintf(buff, "%02x", del + 1);
                 logos::keypair pair(buff);
-                delegate = {pair.pub, dpk, 100000 + (uint64_t)del * 100, 100000 + (uint64_t)del * 100};
-            }
-            epoch.delegates[i] = delegate;
+                Amount stake = 100000 + (uint64_t)del * 100;
+                delegate = {pair.pub, dpk, 100000 + (uint64_t)del * 100, stake};
+                if(e == 0)
+                {
+                    RepInfo rep;
+                    rep.stake = stake;
+                    _store.rep_put(pair.pub,rep,transaction);
 
-            LOG_TRACE(_log) << __func__ << " bls pubic key for delegate i=" << (int)i
-                            << " pub_key=" << delegate.bls_pub.to_string();
+                    _store.candidate_add_new(pair.pub,dpk,stake,transaction);
+                }
+
+
+            LOG_INFO(_log) << __func__ << " account for delegate i :" << (int)i
+                            << " account=" << pair.pub.to_account();
+            }
+            if(i < NUM_DELEGATES)
+            {
+                delegate.starting_term = false;
+                epoch.delegates[i] = delegate;
+            }
         }
 
         epoch_hash = epoch.Hash();
@@ -259,6 +273,7 @@ DelegateIdentityManager::Init(const Config &config)
 
     _delegate_account = logos::genesis_delegates[config.delegate_id].key.pub;
     _global_delegate_idx = config.delegate_id;
+    LOG_INFO(_log) << "delegate id is " << _global_delegate_idx;
 
     ConsensusContainer::SetCurEpochNumber(epoch_number);
 
@@ -268,6 +283,7 @@ DelegateIdentityManager::Init(const Config &config)
         auto account = logos::genesis_delegates[del].key.pub;
         auto ip = config.all_delegates[del].ip;
         _delegates_ip[account] = ip;
+        LOG_INFO(_log) << "delegate ip is : " << ip;
     }
 }
 
@@ -291,7 +307,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
         logos::genesis_delegates.push_back(delegate);
 
-        logos::amount amount((del + 1) * 1000000 * 1000000);
+        logos::amount amount((del + 1) * 1000000 * PersistenceManager<R>::MIN_TRANSACTION_FEE);
         uint64_t work = 0;
 
         Send request(logos::logos_test_account,   // account
@@ -371,7 +387,7 @@ DelegateIdentityManager::IdentifyDelegates(
     // requested epoch block is not created yet
     if (stale_epoch && epoch_delegates == EpochDelegates::Next)
     {
-        LOG_ERROR(_log) << "DelegateIdentityManager::IdentifyDelegates delegates set is requested for next epoch";
+        LOG_ERROR(_log) << "DelegateIdentityManager::IdentifyDelegates delegates set is requested for next epoch but epoch is stale";
         return;
     }
 
@@ -465,6 +481,7 @@ DelegateIdentityManager::IdentifyDelegates(
 bool
 DelegateIdentityManager::StaleEpoch()
 {
+
     auto now_msec = GetStamp();
     auto rem = Seconds(now_msec % TConvert<Milliseconds>(EPOCH_PROPOSAL_TIME).count());
     return (rem < MICROBLOCK_PROPOSAL_TIME);

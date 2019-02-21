@@ -8,6 +8,7 @@ namespace fields
 
 // Request types
 //
+<<<<<<< HEAD
 const char SEND[]               = "send";
 const char CHANGE[]             = "change";
 const char ISSUANCE[]           = "issuance";
@@ -23,6 +24,11 @@ const char BURN[]               = "burn";
 const char DISTRIBUTE[]         = "distribute";
 const char WITHDRAW_FEE[]       = "withdraw_fee";
 const char TOKEN_SEND[]         = "token_send";
+const char ANNOUNCE_CANDIDACY[] = "announce_candidacy";
+const char RENOUNCE_CANDIDACY[] = "renounce_candidacy";
+const char ELECTION_VOTE[]      = "election_vote";
+const char START_REPRESENTING[] = "start_representing";
+const char STOP_REPRESENTING[]  = "stop_representing";
 const char UNKNOWN[]            = "unknown";
 
 // Request fields
@@ -64,6 +70,12 @@ const char WHITELISTED[]     = "whitelisted";
 const char NOT_WHITELISTED[] = "not_whitelisted";
 const char STATUS[]          = "status";
 const char WORK[]            = "work";
+const char WALLET[]         = "wallet";
+const char VOTES[]          = "votes";
+const char REQUEST[]        = "request";
+const char STAKE[]          = "stake";
+const char EPOCH_NUM[]      = "epoch_num";
+const char BLS_KEY[]        = "bls_key"; 
 
 // Token setting fields
 //

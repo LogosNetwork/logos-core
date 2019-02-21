@@ -12,6 +12,8 @@
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
 
+#include <logos/elections/database_functions.hpp>
+
 std::atomic<uint32_t> ConsensusContainer::_cur_epoch_number(0);
 const Seconds ConsensusContainer::GARBAGE_COLLECT = Seconds(60);
 bool ConsensusContainer::_validate_sig_config = false;
@@ -267,6 +269,30 @@ ConsensusContainer::PeerBinder(
                     << " " << (int)DelegateIdentityManager::_global_delegate_idx;
 
     epoch->_netio_manager.OnConnectionAccepted(endpoint, socket, ids);
+
+    
+
+}
+
+uint32_t GetNextEpochNum(logos::block_store& store)
+{
+    Log log;
+    BlockHash epoch_tip;
+    if (store.epoch_tip_get(epoch_tip))
+    {
+        LOG_FATAL(log) << "GetNextEpochNum failed to get epoch tip";
+        trace_and_halt();
+    }
+
+    ApprovedEB epoch;
+    if (store.epoch_get(epoch_tip, epoch))
+    {
+        LOG_FATAL(log) << "GetNextEpochNum failed to get epoch: "
+                        << epoch_tip.to_string();
+        trace_and_halt();
+    }
+
+    return epoch.epoch_number + 1;
 }
 
 void
@@ -334,8 +360,8 @@ ConsensusContainer::EpochTransitionEventsStart()
     if (_transition_delegate != EpochTransitionDelegate::Retiring)
     {
         ConsensusManagerConfig epoch_config = BuildConsensusConfig(delegate_idx, delegates);
-        _trans_epoch = CreateEpochManager(_cur_epoch_number+1, epoch_config, _transition_delegate,
-                                          EpochConnection::Transitioning);
+        _trans_epoch = CreateEpochManager(GetNextEpochNum(_store), epoch_config, _transition_delegate,
+                EpochConnection::Transitioning);
 
         if (_transition_delegate == EpochTransitionDelegate::Persistent)
         {
@@ -345,6 +371,7 @@ ConsensusContainer::EpochTransitionEventsStart()
 
         // New and Persistent delegates in the new delegate's set
         _binding_map[_trans_epoch->_epoch_number] = _trans_epoch;
+
     }
     else
     {
@@ -482,7 +509,7 @@ ConsensusContainer::EpochStart(uint8_t delegate_idx)
 
     _binding_map.erase(_cur_epoch_number);
 
-    _cur_epoch_number++;
+    _cur_epoch_number = GetNextEpochNum(_store);
 
     _alarm.add(EPOCH_TRANSITION_END, std::bind(&ConsensusContainer::EpochTransitionEnd, this, delegate_idx));
 }
@@ -545,7 +572,7 @@ ConsensusContainer::BuildConsensusConfig(
         config.delegates.push_back(ConsensusManagerConfig::Delegate{ip, del});
         str << (int)del << " " << ip << " ";
    }
-   LOG_DEBUG(_log) << str.str();
+   LOG_DEBUG(_log) << str.str() << "Delegate id is " << delegate_idx;
 
    return config;
 }

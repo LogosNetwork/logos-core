@@ -34,6 +34,14 @@ struct ByteArray : public std::array<byte, len>
         memcpy(this->data(), buf, len);
     }
 
+    ByteArray(const std::string& hex_text)
+    {
+        assert(hex_text.size() == len * 2);
+        logos::uint512_union num;
+        num.decode_hex(hex_text);
+        memcpy(this->data(),num.data(),len);
+    }
+
     void clear()
     {
         memset(this->data(), 0, len);

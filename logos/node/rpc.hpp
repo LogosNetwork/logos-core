@@ -147,6 +147,7 @@ public:
     void bootstrap ();
     void bootstrap_any ();
     void chain ();
+    void candidates ();
     //CH void confirmation_history ();
     template <typename  CT>
     void consensus_blocks ();
@@ -178,6 +179,7 @@ public:
     void pending ();
     void pending_exists ();
     void process ();
+    void process(std::shared_ptr<Request> request);
     void rai_to_raw ();
     void rai_from_raw ();
     void receive ();
@@ -192,6 +194,7 @@ public:
     void stats ();
     void stop ();
     void successors ();
+    void tokens_info ();
     void unchecked ();
     void unchecked_clear ();
     void unchecked_get ();

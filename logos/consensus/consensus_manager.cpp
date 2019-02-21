@@ -60,6 +60,7 @@ void ConsensusManager<CT>::HandleRequest(std::shared_ptr<DelegateMessage> messag
                        << hash.to_string();
         return;
     }
+    LOG_INFO(_log) << "ConsensusManager::HandleRequest - " << hash.to_string();
 
     if(!Validate(message, result))
     {
@@ -69,6 +70,9 @@ void ConsensusManager<CT>::HandleRequest(std::shared_ptr<DelegateMessage> messag
                        << " hash: " << hash.to_string();
         return;
     }
+
+    LOG_INFO(_log) << "ConsensusManager::HandleRequest - passed validation "
+        << hash.to_string();
 
     QueueMessage(message);
 }
@@ -125,10 +129,15 @@ void ConsensusManager<CT>::OnMessageQueued()
 {
     if(ReadyForConsensus())
     {
+        LOG_INFO(_log) << "ConsensusManager::OnMessageQueued - ready for consensus";
         // SYL integration fix: InitiateConsensus should only be called
         // when no consensus session is currently going on
         _ongoing = true;
         InitiateConsensus();
+    }
+    else
+    {
+        LOG_INFO(_log) << "ConsensusManager::OnMessageQueued - not ready for consensus";
     }
 }
 
@@ -230,8 +239,11 @@ bool ConsensusManager<CT>::ReadyForConsensus()
 {
     if(_ongoing)
     {
+        LOG_INFO(_log) << "ConsensusManager::ReadyForConsensus - ongoing is true";
         return false;
     }
+    LOG_INFO(_log) << "ConsensusManager::ReadyForConsensus - ongoing is false"
+        << " PrePrepareQueueEmpty = " << PrePrepareQueueEmpty();
     return !PrePrepareQueueEmpty();
 }
 

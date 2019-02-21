@@ -339,6 +339,21 @@ enum class process_result
     invalid_fee,                // Logos - The fee settings are invalid.
     invalid_issuer_info,        // Logos - The issuer info supplied is invalid.
     too_many_token_entries      // Logos - The account has too many token entries.
+    elections_dead_period,           // Logos - the vote is at the beginning of the epoch when no votes are being processed
+    not_a_rep,                 // Logos - the voter is not a representative
+    already_voted,
+    invalid_candidate,
+    not_enough_stake,
+    never_announced_candidacy,
+    already_renounced_candidacy,
+    already_announced_candidacy,
+    is_delegate,
+    is_candidate,
+    is_rep,
+    wrong_epoch_number,
+    no_elections,
+    pending_rep_action,
+    pending_candidacy_action
 };
 
 std::string ProcessResultToString(process_result result);

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <logos/consensus/persistence/persistence_manager.hpp>
+#include <unordered_set>
 
 static constexpr ConsensusType ECT = ConsensusType::Epoch;
 
@@ -52,4 +53,18 @@ public:
     }
 
     virtual bool BlockExists(const ApprovedEB & message);
+
+    void UpdateCandidatesDB(MDB_txn* txn);
+    void UpdateRepresentativesDB(MDB_txn* txn);
+    void TransitionNextEpoch(MDB_txn* txn, uint32_t next_epoch_num);
+    void MarkDelegateElectsAsRemove(MDB_txn* txn);
+    void AddReelectionCandidates(MDB_txn* txn);
+    void TransitionCandidatesDBNextEpoch(MDB_txn* txn, uint32_t next_epoch_num);
+
+    bool ShouldForceRetire(uint32_t next_epoch_number);
+    
+    std::unordered_set<Delegate> GetDelegatesToForceRetire(
+            uint32_t next_epoch_num,
+            MDB_txn* txn);
+
 };
