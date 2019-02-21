@@ -12,8 +12,8 @@ namespace rpclogic
     struct RpcResponse
     {
         T contents;
-        bool error;
-        std::string error_msg;
+        bool error = false;
+        std::string error_msg = "";
     };
     RpcResponse<BoostJson> tokens_info(const BoostJson& request, BlockStore& store);
 

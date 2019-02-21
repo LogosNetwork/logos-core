@@ -94,11 +94,6 @@ Request::Request(bool & error,
             return;
         }
 
-        error = signature.decode_hex(tree.get<std::string>(SIGNATURE));
-        if(error)
-        {
-            return;
-        }
 
         error = previous.decode_hex(tree.get<std::string>(PREVIOUS));
         if(error)
@@ -121,6 +116,32 @@ Request::Request(bool & error,
         sequence = std::stoul(tree.get<std::string>(SEQUENCE));
 
         Hash();
+
+        if(tree.find(SIGNATURE)!=tree.not_found())
+        {
+            error = signature.decode_hex(tree.get<std::string>(SIGNATURE));
+            if(error)
+            {
+                return;
+            }
+        }
+        else
+        {
+            AccountPrivKey prv;
+            error = prv.decode_hex(tree.get<std::string>(PRIVATE_KEY));
+            if(error)
+            {
+                return;
+            }
+            AccountPubKey pub;
+            error = pub.decode_hex(tree.get<std::string>(PUBLIC_KEY));
+            if(error)
+            {
+                return;
+            }
+            Sign(pub,prv);
+        }
+
     }
     catch (...)
     {

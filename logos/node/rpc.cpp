@@ -982,13 +982,7 @@ void logos::rpc_handler::block_count_type ()
 void logos::rpc_handler::block_create ()
 {
 
-    //This function basically just calls a factory method that constructs the
-    //proper request based on the type.
-    //However, this function also provides some convenience functionality:
-    //generate private key from wallet and account
-    //generate public key/account from private key
-    //generate work
-    //generate the correct sequence number
+    //TODO: refactor this function to make it cleaner/shorter
     using namespace request::fields;
     if (rpc.config.enable_control)
     {
@@ -1089,6 +1083,10 @@ void logos::rpc_handler::block_create ()
                 origin = pub;
                 request.put(ORIGIN,origin.to_account());
             }
+
+            std::string pub_key_str;
+            pub.encode_hex(pub_key_str);
+            request.put(PUBLIC_KEY,pub_key_str);
             bool error = false;
             RequestType type = GetRequestType(error,request.get<std::string>(TYPE));
             if(error)

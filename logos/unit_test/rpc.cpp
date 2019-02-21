@@ -311,6 +311,100 @@ void setupAccountWithTokens(
     }
 }
 
+TEST(RPC, block)
+{
+    using BoostJson = boost::property_tree::ptree;
+    logos::block_store* store(get_db());
+    store->clear(store->state_db);
+
+    TokenSend token_req;
+    token_req.type = RequestType::SendTokens;
+    token_req.token_fee = 5;
+    std::vector<Transaction<Amount>> transactions;
+    for(size_t i = 0; i < 3; ++i)
+    {
+        transactions.emplace_back(i,i*100);
+    }
+    token_req.transactions = transactions;
+    token_req.Hash();
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        bool error = store->request_put(token_req,txn);
+        ASSERT_FALSE(error);
+        std::shared_ptr<Request> request_ptr;
+        error = store->request_get(token_req.Hash(),request_ptr,txn);
+        ASSERT_FALSE(error);
+    }
+
+    BoostJson request;
+    request.put("hash",token_req.Hash().to_string());
+
+    auto res = rpclogic::block(request,*store);
+    std::cout << "returned from rpclogic::block" << std::endl;
+    ASSERT_FALSE(res.error);
+    bool error = false;
+    TokenSend token_req_2(error,res.contents);
+    ASSERT_FALSE(error);
+    ASSERT_EQ(token_req_2.transactions,token_req.transactions);
+    ASSERT_EQ(token_req_2.token_fee,token_req.token_fee);
+}
+
+TEST(RPC, blocks)
+{
+    using BoostJson = boost::property_tree::ptree;
+    logos::block_store* store(get_db());
+    store->clear(store->state_db);
+
+    std::unordered_map<BlockHash, TokenSend> token_reqs;
+    BoostJson request;
+    BoostJson hashes;
+    for(size_t i = 0; i < 5; ++i)
+    {
+
+        TokenSend token_req;
+        token_req.type = RequestType::SendTokens;
+        token_req.token_fee = 5;
+        std::vector<Transaction<Amount>> transactions;
+        for(size_t j = 0; j < 3; ++j)
+        {
+            transactions.emplace_back(i*j,i*j*100);
+        }
+        token_req.transactions = transactions;
+        token_req.Hash();
+        {
+            logos::transaction txn(store->environment,nullptr,true);
+            bool error = store->request_put(token_req,txn);
+            ASSERT_FALSE(error);
+            std::shared_ptr<Request> request_ptr;
+            error = store->request_get(token_req.Hash(),request_ptr,txn);
+            ASSERT_FALSE(error);
+        }
+        token_reqs[token_req.Hash()] = token_req;
+        BoostJson token_hash;
+        token_hash.put("",token_req.Hash().to_string());
+        hashes.push_back(std::make_pair("",token_hash));
+    }
+
+
+    request.add_child("hashes",hashes);
+
+
+
+    auto res = rpclogic::blocks(request,*store);
+    ASSERT_FALSE(res.error);
+    bool error = false;
+    for(auto it : res.contents.get_child("blocks"))
+    {
+        bool error = false;
+        TokenSend token_req(error,it.second);
+        ASSERT_FALSE(error);
+        BlockHash hash(it.first);
+        ASSERT_EQ(token_reqs[hash].transactions,token_req.transactions);
+        ASSERT_EQ(token_reqs[hash].token_fee,token_req.token_fee);
+    }
+
+}
+
 TEST(RPC, account_info)
 {
 
@@ -352,7 +446,6 @@ TEST(RPC, account_info)
 
 
     ASSERT_FALSE(res.error);
-    print(res.contents);
     ASSERT_EQ(res.contents.get_child("tokens").size(),num_tokens);
 
     for(auto& e : entries)
