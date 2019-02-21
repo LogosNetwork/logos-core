@@ -907,73 +907,29 @@ void logos::rpc_handler::batch_blocks_latest ()
 
 void logos::rpc_handler::block ()
 {
-    std::string hash_text (request.get<std::string> ("hash"));
-    logos::uint256_union hash;
-    if (hash.decode_hex (hash_text))
+    auto res = rpclogic::block(request,node.store);
+    if(!res.error)
     {
-        error_response (response, "Bad hash number");
-    }
-    logos::transaction transaction (node.store.environment, nullptr, false);
-    boost::property_tree::ptree response_l;
-
-    Send send;
-    ReceiveBlock receive;
-    std::string block_type;
-    if (!node.store.request_get(hash, send, transaction))
-    {
-        block_type = "send";
-        response_l = send.SerializeJson ();
-    }
-    else if (!node.store.receive_get(hash, receive, transaction))
-    {
-        block_type = "receive";
-        receive.SerializeJson ();
+        response(res.contents);
     }
     else
     {
-        error_response (response, "Block not found");
+        error_response(response,res.error_msg);
     }
-    response (response_l);
 }
 
 
 void logos::rpc_handler::blocks ()
 {
-    std::vector<std::string> hashes;
-    boost::property_tree::ptree response_l;
-    boost::property_tree::ptree blocks;
-    logos::transaction transaction (node.store.environment, nullptr, false);
-    for (boost::property_tree::ptree::value_type & hashes : request.get_child ("hashes"))
+    auto res = rpclogic::blocks(request,node.store);
+    if(!res.error)
     {
-        std::string hash_text = hashes.second.data ();
-        logos::uint256_union hash;
-        if (hash.decode_hex (hash_text))
-        {
-            error_response (response, "Bad hash number");
-        }
-        Send send;
-        ReceiveBlock receive_block;
-        boost::property_tree::ptree contents;
-
-        if(!node.store.request_get(hash, send, transaction))
-        {
-            contents = send.SerializeJson();
-            contents.put ("type", "send");
-            contents.put ("hash", hash_text);
-            blocks.push_back (std::make_pair("", contents));
-        }
-        else if (!node.store.receive_get(hash, receive_block, transaction))
-        {
-            receive_block.SerializeJson(contents);
-        }
-        else
-        {
-            error_response (response, "Block not found for hash " + hash_text);
-        }
-        blocks.push_back (std::make_pair("", contents));
+        response(res.contents);
     }
-    response_l.add_child ("blocks", blocks);
-    response (response_l);
+    else
+    {
+        error_response(response,res.error_msg);
+    }
 }
 
 void logos::rpc_handler::block_account ()

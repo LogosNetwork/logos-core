@@ -191,4 +191,98 @@ RpcResponse<BoostJson> account_balance(
     }
     return res;
 }
+
+BoostJson getBlockJson(const logos::uint256_union& hash, BlockStore& store)
+{
+    logos::transaction transaction (store.environment, nullptr, false);
+    std::shared_ptr<Request> request_ptr;
+    ReceiveBlock receive;
+    if (!store.request_get(hash, request_ptr, transaction))
+    {
+        return request_ptr->SerializeJson();
+    }
+    else if (!store.receive_get(hash, receive, transaction))
+    {
+        return receive.SerializeJson();
+    }
+    else
+    {
+        BoostJson empty_tree;
+        return empty_tree;
+    }
+}
+
+RpcResponse<BoostJson> block(const BoostJson& request, BlockStore& store)
+{
+    RpcResponse<BoostJson> res;
+    res.error = false;
+    try
+    {
+        std::string hash_text (request.get<std::string> ("hash"));
+        logos::uint256_union hash;
+        if (hash.decode_hex (hash_text))
+        {
+            res.error = true;
+            res.error_msg = "Bad hash number";
+            return res;
+        }
+        res.contents = getBlockJson(hash,store);
+        if(res.contents.empty())
+        {
+            res.error = true;
+            res.error_msg = "block not found: " + hash_text;
+        }
+    }
+    catch(std::exception& e)
+    {
+        res.error = true;
+        res.error_msg = e.what();
+    }
+    return res;
+}
+
+RpcResponse<BoostJson> blocks(const BoostJson& request, BlockStore& store)
+{
+    RpcResponse<BoostJson> res;
+    res.error = false;
+    try
+    {
+        std::vector<std::string> hashes;
+        boost::property_tree::ptree blocks;
+        logos::transaction transaction (store.environment, nullptr, false);
+        for (const boost::property_tree::ptree::value_type & hashes : request.get_child ("hashes"))
+        {
+            std::string hash_text = hashes.second.data ();
+            logos::uint256_union hash;
+            if (hash.decode_hex (hash_text))
+            {
+                res.error = true;
+                res.error_msg += "Bad hash number: " + hash_text + " .";
+            }
+            else
+            {
+                boost::property_tree::ptree contents = getBlockJson(hash,store);
+                if(contents.empty())
+                {
+                    res.error = true;
+                    res.error_msg += "Block not found: " + hash_text + " .";
+                }
+                else
+                {
+                    blocks.push_back (std::make_pair(hash_text, contents));
+                }
+            }
+        }
+        res.contents.add_child ("blocks", blocks);
+    }
+    catch(std::exception& e)
+    {
+        res.error = true;
+        res.error_msg = e.what();
+    }
+    return res;
+}
+
+
+
 }

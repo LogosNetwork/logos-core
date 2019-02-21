@@ -21,5 +21,9 @@ namespace rpclogic
 
     RpcResponse<BoostJson> account_balance(const BoostJson& request, BlockStore& store);
 
+    RpcResponse<BoostJson> block(const BoostJson& request, BlockStore& store);
+
+    RpcResponse<BoostJson> blocks(const BoostJson& request, BlockStore& store);
 
 }
+
