@@ -1,10 +1,13 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <logos/node/rpc.hpp>
+#include <logos/node/rpc_logic.hpp>
 #include <logos/microblock/microblock_tester.hpp>
 
 #include <logos/lib/interface.h>
 #include <logos/node/node.hpp>
+
+#include <logos/request/utility.hpp>
 
 #include <ed25519-donna/ed25519.h>
 
@@ -230,19 +233,16 @@ bool decode_unsigned (std::string const & text, uint64_t & number)
 
 void logos::rpc_handler::account_balance ()
 {
-    std::string account_text (request.get<std::string> ("account"));
-    logos::uint256_union account;
-    auto error (account.decode_account (account_text));
-    if (!error)
+
+    auto res = rpclogic::account_balance(
+            request,node.store);
+    if(!res.error)
     {
-        auto balance (node.balance (account));
-        boost::property_tree::ptree response_l;
-        response_l.put ("balance", balance.convert_to<std::string> ());
-        response (response_l);
+        response(res.contents);
     }
     else
     {
-        error_response (response, "Bad account number");
+        error_response(response,res.error_msg);
     }
 }
 
@@ -332,42 +332,16 @@ void logos::rpc_handler::account_from_key ()
 
 void logos::rpc_handler::account_info ()
 {
-    std::string account_text (request.get<std::string> ("account"));
-    logos::uint256_union account;
-    auto error (account.decode_account (account_text));
-    if (!error)
+    auto res = rpclogic::account_info(
+            request,node.store);
+    if(!res.error)
     {
-        const bool representative = request.get<bool> ("representative", false);
-        const bool weight = request.get<bool> ("weight", false);
-        logos::transaction transaction (node.store.environment, nullptr, false);
-        logos::account_info info;
+        response(res.contents);
 
-        MDB_dbi db = node.store.account_db;
-
-        if (!node.store.account_get (transaction, account, info, db))
-        {
-            boost::property_tree::ptree response_l;
-            response_l.put ("frontier", info.head.to_string ());
-            response_l.put ("receive_tip", info.receive_head.to_string ());
-            response_l.put ("open_block", info.open_block.to_string ());
-            response_l.put ("representative_block", info.rep_block.to_string ());
-            std::string balance;
-            logos::uint128_union (info.balance).encode_dec (balance);
-            response_l.put ("balance", balance);
-            response_l.put ("modified_timestamp", std::to_string (info.modified));
-            response_l.put ("request_count", std::to_string (info.block_count + info.receive_count));
-            // if (representative) {}
-            // if (weight) {}
-            response (response_l);
-        }
-        else
-        {
-            error_response (response, "Account not found");
-        }
     }
     else
     {
-        error_response (response, "Bad account number");
+        error_response(response,res.error_msg);
     }
 }
 
@@ -1051,11 +1025,20 @@ void logos::rpc_handler::block_count_type ()
 
 void logos::rpc_handler::block_create ()
 {
+
+    //This function basically just calls a factory method that constructs the
+    //proper request based on the type.
+    //However, this function also provides some convenience functionality:
+    //generate private key from wallet and account
+    //generate public key/account from private key
+    //generate work
+    //generate the correct sequence number
+    using namespace request::fields;
     if (rpc.config.enable_control)
     {
-        std::string type (request.get<std::string> ("type"));
+
         logos::uint256_union wallet (0);
-        boost::optional<std::string> wallet_text (request.get_optional<std::string> ("wallet"));
+        boost::optional<std::string> wallet_text (request.get_optional<std::string> (WALLET));
         if (wallet_text.is_initialized ())
         {
             auto error (wallet.decode_hex (wallet_text.get ()));
@@ -1064,39 +1047,19 @@ void logos::rpc_handler::block_create ()
                 error_response (response, "Bad wallet number");
             }
         }
-        AccountAddress account (0);
-        boost::optional<std::string> account_text (request.get_optional<std::string> ("account"));
-        if (account_text.is_initialized ())
+        AccountAddress origin(0);
+        boost::optional<std::string> origin_text (request.get_optional<std::string> (ORIGIN));
+        if (origin_text.is_initialized ())
         {
-            auto error_account (account.decode_account (account_text.get ()));
-            if (error_account)
+            auto error (origin.decode_account (origin_text.get ()));
+            if (error)
             {
                 error_response (response, "Bad account number");
             }
         }
 
-        Amount amount (0);
-        boost::optional<std::string> amount_text (request.get_optional<std::string> ("amount"));
-        if (amount_text.is_initialized ())
-        {
-            auto error_amount (amount.decode_dec (amount_text.get ()));
-            if (error_amount)
-            {
-                error_response (response, "Bad amount number");
-            }
-        }
-        Amount transaction_fee (0);
-        boost::optional<std::string> transaction_fee_text (request.get_optional<std::string> ("transaction_fee"));
-        if (transaction_fee_text.is_initialized ())
-        {
-            auto error_transaction_fee (transaction_fee.decode_dec (transaction_fee_text.get ()));
-            if (error_transaction_fee)
-            {
-                error_response (response, "Bad transaction fee number");
-            }
-        }
         uint64_t work (0);
-        boost::optional<std::string> work_text (request.get_optional<std::string> ("work"));
+        boost::optional<std::string> work_text (request.get_optional<std::string> (WORK));
         if (work_text.is_initialized ())
         {
             auto work_error (logos::from_string_hex (work_text.get (), work));
@@ -1105,10 +1068,13 @@ void logos::rpc_handler::block_create ()
                 error_response (response, "Bad work");
             }
         }
+
+
+
         logos::raw_key prv;
         prv.data.clear ();
         BlockHash previous (0);
-        if (wallet != 0 && account != 0)
+        if (wallet != 0 && origin != 0)
         {
             auto existing (node.wallets.items.find (wallet));
             if (existing != node.wallets.items.end ())
@@ -1117,11 +1083,11 @@ void logos::rpc_handler::block_create ()
                 auto unlock_check (existing->second->store.valid_password (transaction));
                 if (unlock_check)
                 {
-                    auto account_check (existing->second->store.find (transaction, account));
+                    auto account_check (existing->second->store.find (transaction, origin));
                     if (account_check != existing->second->store.end ())
                     {
-                        existing->second->store.fetch (transaction, account, prv);
-                        previous = node.ledger.latest (transaction, account);
+                        existing->second->store.fetch (transaction, origin, prv);
+                        previous = node.ledger.latest (transaction, origin);
                     }
                     else
                     {
@@ -1138,75 +1104,74 @@ void logos::rpc_handler::block_create ()
                 error_response (response, "Wallet not found");
             }
         }
-        boost::optional<std::string> key_text (request.get_optional<std::string> ("key"));
-        if (key_text.is_initialized ())
+
+        boost::optional<std::string> prv_text(request.get_optional<std::string>(PRIVATE_KEY));
+        if(prv_text.is_initialized())
         {
-            auto error_key (prv.data.decode_hex (key_text.get ()));
-            if (error_key)
+            bool error = prv.data.decode_hex(prv_text.get());
+            if(error)
             {
-                error_response (response, "Bad private key");
+                error_response(response, "error decoding private key");
+                return;
             }
-        }
-        boost::optional<std::string> previous_text (request.get_optional<std::string> ("previous"));
-        if (previous_text.is_initialized ())
-        {
-            auto error_previous (previous.decode_hex (previous_text.get ()));
-            if (error_previous)
-            {
-                error_response (response, "Invalid previous hash");
-            }
-        }
-        AccountAddress link (0);
-        boost::optional<std::string> link_text (request.get_optional<std::string> ("link"));
-        if (link_text.is_initialized ())
-        {
-            auto error_link (link.decode_account (link_text.get ()));
-            if (error_link)
-            {
-                auto error_link (link.decode_hex (link_text.get ()));
-                if (error_link)
-                {
-                    error_response (response, "Bad link number");
-                }
-            }
-            if (link.is_zero())
-            {
-                error_response (response, "Link (destination) is required");
-            }
-        }
-        else
-        {
-            error_response (response, "Link (destination) is required");
         }
         if (prv.data != 0)
         {
             AccountPubKey pub;
             ed25519_publickey (prv.data.data (), pub.data ());
+
             // Check for incorrect account key
-            if (account_text.is_initialized ())
+            if (origin_text.is_initialized ())
             {
-                if (account != pub)
+                if (origin != pub)
                 {
                     error_response (response, "Incorrect key for given account");
                 }
             }
+            else
+            {
+                origin = pub;
+                request.put(ORIGIN,origin.to_account());
+            }
             if (type == "send")
             {
-                if (previous_text.is_initialized ())
+                error_response(response,"Couldn't decode request type");
+                return;
+            }
+            if (type == RequestType::Send && work == 0)
+            {
+                uint256_union previous;
+                error = previous.decode_hex(request.get<std::string>(PREVIOUS));
+                if(error)
                 {
-                    if (work == 0)
-                    {
-                        work = node.work_generate_blocking (previous.is_zero () ? pub : previous);
-                    }
+                    error_response(response,"error decoding previous hash");
+                    return;
+                }
+                work = node.work_generate_blocking (previous.is_zero () ? pub : previous);
+                std::string work_str;
+                uint256_union temp(work);
+                temp.encode_hex(work_str);
+                request.put(WORK,work_str);
+            }
 
-                    account = pub;
-                    logos::account_info info;
-                    auto account_error(node.store.account_get(account, info));
-                    if(account_error)
-                    {
-                        error_response (response, "logos::rpc_handler::block_create - Unable to find account.");
-                    }
-                    uint32_t sequence = info.block_count;
+            logos::account_info info;
+            auto account_error(node.store.account_get(origin, info));
+            if(account_error)
+            {
+                error_response (response, "logos::rpc_handler::block_create - Unable to find account.");
+            }
+            request.put(SEQUENCE, info.block_count);
+
+
+
+            auto created_request = DeserializeRequest(error, request);
+            if(error)
+            {
+
+                std::stringstream ss;
+                boost::property_tree::json_parser::write_json(ss, request);
+                error_response (response, "error creating request from: \n" + ss.str());
+                return;
 
                     Send send (account, previous, sequence, link, amount, transaction_fee, prv.data, pub, work);
                     boost::property_tree::ptree response_l;
@@ -1220,10 +1185,25 @@ void logos::rpc_handler::block_create ()
                     error_response (response, "Previous is required");
                 }
             }
-            else
+            if(type == RequestType::IssueTokens)
             {
-                error_response (response, "Invalid block type");
+                auto issuance = static_pointer_cast<TokenIssuance>(created_request);
+                issuance->token_id = GetTokenID(*issuance);
             }
+
+            std::shared_ptr<logos::Account> info_ptr;
+            if(!node.store.account_get(created_request->GetAccount(),info_ptr,created_request->GetAccountType()))
+            {
+                created_request->sequence = info_ptr->block_count;
+                created_request->previous = info_ptr->head;
+            }
+
+            boost::property_tree::ptree response_l;
+            response_l.put ("hash", created_request->GetHash ().to_string ());
+            std::string contents(created_request->ToJson());
+            response_l.put ("request", contents);
+            response (response_l);
+
         }
         else
         {
@@ -2590,7 +2570,9 @@ std::unique_ptr<Send> deserialize_StateBlock_json (boost::property_tree::ptree c
     return result;
 }
 
-void logos::rpc_handler::process ()
+template <typename T>
+void logos::rpc_handler::process(
+        std::shared_ptr<T> request)
 {
     std::string request_text (request.get<std::string> ("request"));
 
@@ -2605,9 +2587,9 @@ void logos::rpc_handler::process ()
         auto result = node.OnRequest(request, should_buffer_request());
         auto hash = request->GetHash();
 
-        switch (result.code)
-        {
-            case logos::process_result::progress:
+
+    {
+        case logos::process_result::progress:
             {
                 boost::property_tree::ptree response_l;
                 response_l.put ("hash", hash.to_string ());
@@ -2634,25 +2616,66 @@ void logos::rpc_handler::process ()
             case logos::process_result::not_delegate:
             {
                 error_response (response,
-                                ProcessResultToString(result.code));
+                        ProcessResultToString(result.code));
                 break;
             }
-            case logos::process_result::buffered:
-            case logos::process_result::buffering_done:
-            case logos::process_result::pending:
+        case logos::process_result::buffered:
+        case logos::process_result::buffering_done:
+        case logos::process_result::pending:
             {
                 boost::property_tree::ptree response_l;
                 response_l.put ("result",
-                                ProcessResultToString(result.code));
+                        ProcessResultToString(result.code));
                 response (response_l);
                 break;
             }
-            default:
+        default:
             {
                 error_response (response,
                                 ProcessResultToString(result.code));
                 break;
             }
+    }
+
+}
+
+void logos::rpc_handler::process ()
+{
+    std::string request_text (request.get<std::string> ("request"));
+
+    boost::property_tree::ptree request_json;
+    std::stringstream block_stream (request_text);
+    boost::property_tree::read_json (block_stream, request_json);
+    bool error = false;
+    auto request = DeserializeRequest(error, request_json);
+
+
+    if( ! error)
+    {
+        switch(request->type)
+        {
+            case RequestType::Send:
+            case RequestType::IssueTokens:
+            case RequestType::ChangeTokenSetting:
+            case RequestType::IssueAdtlTokens:
+            case RequestType::ImmuteTokenSetting:
+            case RequestType::RevokeTokens:
+            case RequestType::FreezeTokens:
+            case RequestType::SetTokenFee:
+            case RequestType::UpdateWhitelist:
+            case RequestType::UpdateIssuerInfo:
+            case RequestType::UpdateController:
+            case RequestType::BurnTokens:
+            case RequestType::DistributeTokens:
+            case RequestType::WithdrawFee:
+            case RequestType::SendTokens:
+                process(request);
+                break;
+            case RequestType::ChangeRep:
+                error_response(response, "ChangeRep is not implemented yet");
+                break;
+            default:
+                error_response(response, "Request is invalid");
         }
     }
     else
@@ -3127,6 +3150,34 @@ void logos::rpc_handler::stop ()
     else
     {
         error_response (response, "RPC control is disabled");
+    }
+}
+
+void logos::rpc_handler::tokens_info ()
+{
+    auto res = rpclogic::tokens_info(
+            request,node.store);
+    if(!res.error)
+    {
+        response(res.contents);
+    }
+    else
+    {
+        error_response(response,res.error_msg);
+    }
+}
+
+void logos::rpc_handler::token_list ()
+{
+    auto res = rpclogic::token_list(
+            request,node.store);
+    if(!res.error)
+    {
+        response(res.contents);
+    }
+    else
+    {
+        error_response(response,res.error_msg);
     }
 }
 
@@ -4374,7 +4425,7 @@ void logos::rpc_handler::process_request ()
     {
         std::stringstream istream (body);
         boost::property_tree::read_json (istream, request);
-        std::string action (request.get<std::string> ("action"));
+        std::string action (request.get<std::string> ("rpc_action"));
         if (action == "password_enter")
         {
             password_enter ();
@@ -4702,6 +4753,13 @@ void logos::rpc_handler::process_request ()
         else if (action == "stop")
         {
             stop ();
+        }
+        else if(action == "tokens_info")
+        {
+            tokens_info();
+        } else if(action == "token_list")
+        {
+            token_list();
         }
         else if (action == "unchecked")
         {

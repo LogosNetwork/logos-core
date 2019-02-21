@@ -59,6 +59,10 @@ const char CLIENT[]         = "client";
 const char REPRESENTATIVE[] = "representative";
 const char TOKEN_FEE[]      = "token_fee";
 const char SEQUENCE[]       = "sequence";
+const char PRIVATE_KEY[]    = "private_key";
+const char PUBLIC_KEY[]     = "public_key";
+const char WORK[]           = "work";
+const char WALLET[]         = "wallet";
 
 // Token setting fields
 //

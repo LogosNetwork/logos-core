@@ -178,6 +178,8 @@ public:
     void pending ();
     void pending_exists ();
     void process ();
+    template <typename T>
+    void process(std::shared_ptr<T> request);
     void rai_to_raw ();
     void rai_from_raw ();
     void receive ();
@@ -192,6 +194,8 @@ public:
     void stats ();
     void stop ();
     void successors ();
+    void tokens_info ();
+    void token_list ();
     void unchecked ();
     void unchecked_clear ();
     void unchecked_get ();

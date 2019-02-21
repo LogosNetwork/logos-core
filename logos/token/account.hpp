@@ -36,6 +36,7 @@ struct TokenAccount : logos::Account
 
     uint32_t Serialize(logos::stream &) const override;
     bool Deserialize(logos::stream &) override;
+    boost::property_tree::ptree SerializeJson(bool details=false) const;
     bool operator==(const TokenAccount &) const;
     bool operator!=(const TokenAccount &) const;
     logos::mdb_val to_mdb_val(std::vector<uint8_t> &) const override;

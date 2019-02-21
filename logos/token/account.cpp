@@ -160,6 +160,30 @@ bool TokenAccount::Deserialize(logos::stream & stream)
     return error;
 }
 
+boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
+{
+    boost::property_tree::ptree tree;
+    tree.put("token_balance",token_balance);
+    tree.put("token_fee_balance",token_fee_balance);
+    if(details) {
+        boost::property_tree::ptree controllers_tree;
+        for(auto & c : controllers)
+        {
+            boost::property_tree::ptree ctree(c.SerializeJson());
+            controllers_tree.push_back(std::make_pair("",ctree));
+        }
+        tree.add_child("controllers", controllers_tree);
+
+        boost::property_tree::ptree settings_tree;
+        for(uint8_t i = 0; i < settings.size(); ++i)
+        {
+            settings_tree.put(TokenSettingString[i],settings[i]);
+        }
+        tree.add_child("settings", settings_tree);
+    }
+    return tree;
+}
+
 bool TokenAccount::operator== (TokenAccount const & other) const
 {
     return total_supply == other.total_supply &&
