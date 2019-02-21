@@ -340,10 +340,10 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
             result = settings[size_t(TokenSetting::AddTokens)];
             break;
         case RequestType::ChangeTokenSetting:
-            result = IsAllowed(static_pointer_cast<const TokenImmuteSetting>(request));
+            result = IsAllowed(static_pointer_cast<const TokenChangeSetting>(request));
             break;
         case RequestType::ImmuteTokenSetting:
-            result = IsAllowed(static_pointer_cast<const TokenImmuteSetting>(request));
+            result = !IsMutabilitySetting(static_pointer_cast<const TokenImmuteSetting>(request)->setting);
             break;
         case RequestType::RevokeTokens:
             result = settings[size_t(TokenSetting::Revoke)];
@@ -367,47 +367,6 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
             break;
         case RequestType::Unknown:
             result = false;
-            break;
-    }
-
-    return result;
-}
-
-bool TokenAccount::IsAllowed(std::shared_ptr<const TokenImmuteSetting> immute) const
-{
-    bool result = false;
-
-    switch(immute->setting)
-    {
-        case TokenSetting::AddTokens:
-            result = settings[size_t(TokenSetting::ModifyAddTokens)];
-            break;
-
-        // You can't immute mutability
-        // settings.
-        case TokenSetting::ModifyAddTokens:
-            break;
-        case TokenSetting::Revoke:
-            result = settings[size_t(TokenSetting::ModifyRevoke)];
-            break;
-        case TokenSetting::ModifyRevoke:
-            break;
-        case TokenSetting::Freeze:
-            result = settings[size_t(TokenSetting::ModifyFreeze)];
-            break;
-        case TokenSetting::ModifyFreeze:
-            break;
-        case TokenSetting::AdjustFee:
-            result = settings[size_t(TokenSetting::ModifyAdjustFee)];
-            break;
-        case TokenSetting::ModifyAdjustFee:
-            break;
-        case TokenSetting::Whitelist:
-            result = settings[size_t(TokenSetting::ModifyWhitelist)];
-            break;
-        case TokenSetting::ModifyWhitelist:
-            break;
-        case TokenSetting::Unknown:
             break;
     }
 
