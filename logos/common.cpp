@@ -1110,6 +1110,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
         case process_result::key_collision:
             ret = "There is already an account with this key";
             break;
+        case process_result::invalid_fee:
+            ret = "The fee settings are invalid";
+            break;
     }
 
     return ret;

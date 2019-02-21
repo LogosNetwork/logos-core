@@ -152,8 +152,8 @@ public:
     bool request_block_get(const BlockHash & hash, ApprovedRB & block);
     bool request_block_get(const BlockHash &hash, ApprovedRB &block, MDB_txn *);
 
-    template<typename RequestType>
-    bool request_get(const BlockHash &hash, RequestType & request, MDB_txn *transaction)
+    template<typename T>
+    bool request_get(const BlockHash &hash, T & request, MDB_txn *transaction)
     {
         LOG_TRACE(log) << __func__ << " key " << hash.to_string();
 
@@ -165,8 +165,8 @@ public:
         }
 
         bool error = false;
-        request = *static_pointer_cast<RequestType>(DeserializeRequest(error, val));
-        assert(GetRequestType<RequestType>() == request.type);
+        request = *static_pointer_cast<T>(DeserializeRequest(error, val));
+        assert(GetRequestType<T>() == request.type);
         assert(!error);
 
         return error;

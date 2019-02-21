@@ -62,6 +62,8 @@ struct TokenAccount : logos::Account
     static bool IsMutabilitySetting(TokenSetting setting);
     static TokenSetting GetMutabilitySetting(TokenSetting setting);
 
+    static bool ValidateFee(TokenFeeType fee_type, Amount fee_rate);
+
     static constexpr uint8_t MAX_CONTROLLERS = 10;
 
     mutable Log  log;

@@ -142,6 +142,12 @@ bool TokenIssuance::Validate(logos::process_return & result) const
         return false;
     }
 
+    if(!TokenAccount::ValidateFee(fee_type, fee_rate))
+    {
+        result.code = logos::process_result::invalid_fee;
+        return false;
+    }
+
     if(token_id != GetTokenID(*this))
     {
         result.code = logos::process_result::invalid_token_id;
@@ -1052,6 +1058,17 @@ TokenSetFee::TokenSetFee(bool & error,
     {
         error = true;
     }
+}
+
+bool TokenSetFee::Validate(logos::process_return & result) const
+{
+    if(!TokenAccount::ValidateFee(fee_type, fee_rate))
+    {
+        result.code = logos::process_result::invalid_fee;
+        return false;
+    }
+
+    return true;
 }
 
 boost::property_tree::ptree TokenSetFee::SerializeJson() const
