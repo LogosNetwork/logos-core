@@ -125,6 +125,7 @@ void RequestHandler::PopFront()
 
 bool RequestHandler::BatchFull()
 {
+    std::lock_guard<std::mutex> lock(_mutex);
     return _current_batch.requests.size() == CONSENSUS_BATCH_SIZE;
 }
 
