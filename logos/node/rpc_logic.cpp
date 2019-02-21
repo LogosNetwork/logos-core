@@ -38,80 +38,6 @@ RpcResponse<BoostJson> tokens_info(
 }
 
 
-RpcResponse<BoostJson> token_list(
-        const BoostJson& request,
-        BlockStore& store)
-{
-    RpcResponse<BoostJson> res;
-    res.error = false;
-    try{
-
-        bool details = "true" == request.get<std::string>("details","false");
-        //Default to giving only 10 tokens if count is not specified
-        int count = std::stol(request.get<std::string>("count","10"));
-        if(count < 0)
-        {
-            res.error = true;
-            res.error_msg = "Count must be greater than 0";
-            return res;
-        }
-
-        logos::transaction txn(store.environment, nullptr,false);
-        std::string head_str = request.get<std::string>("head","");
-        logos::store_iterator it(nullptr);
-        if(head_str != "")
-        {
-            logos::uint256_union head(head_str);
-            it = logos::store_iterator(
-                    txn,
-                    store.token_account_db,
-                    logos::mdb_val(head));
-            ++it;
-        } else
-        {
-            it = logos::store_iterator(txn, store.token_account_db);
-        }
-
-        std::string last = "";
-        boost::property_tree::ptree response;
-        for(size_t i = 0;
-                i < count && it != logos::store_iterator(nullptr);
-                ++i,++it)
-        {
-            bool error;
-            TokenAccount token_account_info(error, it->second);
-            if(!error)
-            {
-                response.add_child(
-                        it->first.uint256().to_string(),
-                        token_account_info.SerializeJson(details));
-                last = it->first.uint256().to_string();
-            }
-            else
-            {
-                res.error = true;
-                res.error_msg = "Error deserializing TokenAccount. Key : "
-                    + it->first.uint256().to_string();
-            }
-        }
-        if(it == logos::store_iterator(nullptr))
-        {
-            response.put("last","null");
-        }
-        else
-        {
-            response.put("last",last);
-        }
-        res.contents = response;
-    }
-    catch(std::exception& e)
-    {
-        res.error = true;
-        res.error_msg = e.what();
-    }
-    return res;
-}
-
 
 
 RpcResponse<BoostJson> account_info(
@@ -172,7 +98,7 @@ RpcResponse<BoostJson> account_info(
                         boost::property_tree::ptree entry_tree;
                         entry_tree.put("whitelisted",e.status.whitelisted);
                         entry_tree.put("frozen",e.status.frozen);
-                        entry_tree.put("balance",e.balance);
+                        entry_tree.put("balance",e.balance.to_string_dec());
                         token_tree.add_child(e.token_id.to_string(),entry_tree);
                     }
                 }
@@ -248,7 +174,7 @@ RpcResponse<BoostJson> account_balance(
             if(nofilter ||
                     token_ids.find(e.token_id.to_string())!=token_ids.end())
             {
-                token_tree.put(e.token_id.to_string(),e.balance);
+                token_tree.put(e.token_id.to_string(),e.balance.to_string_dec());
             }
         }
         if(token_tree.size() > 0)

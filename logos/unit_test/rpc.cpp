@@ -23,9 +23,9 @@ TEST(RPC, tokens_info)
     };
     using BoostJson = boost::property_tree::ptree;
     logos::block_store* store(get_db());
-    store->clear(store->token_account_db);
+    store->clear(store->account_db);
     {
-        TokenAccount token_account(0,10,0,100,25,1);
+        TokenAccount token_account(0,10,0,100,25,1,7,11);
         token_account.fee_type = TokenFeeType::Flat;
         token_account.fee_rate = 7;
         token_account.symbol = "FOO";
@@ -66,12 +66,12 @@ TEST(RPC, tokens_info)
 
         auto child = res.contents.get_child(account_str);
         ASSERT_EQ(
-                std::stoi(child.get<std::string>("token_balance")),
-                token_account.token_balance);
+                child.get<std::string>("token_balance"),
+                token_account.token_balance.to_string_dec());
 
         ASSERT_EQ(
-                std::stoi(child.get<std::string>("token_fee_balance")),
-                token_account.token_fee_balance);
+                child.get<std::string>("token_fee_balance"),
+                token_account.token_fee_balance.to_string_dec());
 
         ASSERT_EQ(child.get<std::string>("symbol"),token_account.symbol);
         ASSERT_EQ(child.get<std::string>("name"),token_account.name);
@@ -88,7 +88,7 @@ TEST(RPC, tokens_info)
         size_t num_tokens = 10;
         for(size_t i = 0; i < num_tokens; ++i)
         {
-            TokenAccount token_account(0,10,0,100,25,1);
+            TokenAccount token_account(0,10,0,100,25,1,7,11);
             token_account.fee_type = TokenFeeType::Flat;
             token_account.fee_rate = 7;
             token_account.symbol = "FOO" + std::to_string(i);
@@ -120,12 +120,12 @@ TEST(RPC, tokens_info)
         {
             auto child = res.contents.get_child(accounts[i].first.to_string());
             ASSERT_EQ(
-                    std::stoi(child.get<std::string>("token_balance")),
-                    accounts[i].second.token_balance);
+                    child.get<std::string>("token_balance"),
+                    accounts[i].second.token_balance.to_string_dec());
 
             ASSERT_EQ(
-                    std::stoi(child.get<std::string>("token_fee_balance")),
-                    accounts[i].second.token_fee_balance);
+                    child.get<std::string>("token_fee_balance"),
+                    accounts[i].second.token_fee_balance.to_string_dec());
             ASSERT_EQ(
                     child.get<std::string>("symbol"),
                     accounts[i].second.symbol);
@@ -142,7 +142,7 @@ TEST(RPC, tokens_info)
     //with details
     {
 
-        TokenAccount token_account(0,10,0,100,25,1);
+        TokenAccount token_account(0,10,0,100,25,1,7,11);
         token_account.fee_type = TokenFeeType::Flat;
         token_account.fee_rate = 3;
         token_account.symbol = "BAR";
@@ -269,88 +269,6 @@ TEST(RPC, tokens_info)
     }
 }
 
-
-TEST(RPC, token_list)
-{
-
-    using BoostJson = boost::property_tree::ptree;
-    auto print = [](BoostJson res){
-        std::stringstream ss;
-        boost::property_tree::json_parser::write_json(ss, res);
-        std::cout << ss.str() << std::endl;
-    };
-
-
-    logos::block_store* store(get_db());
-    store->clear(store->token_account_db);
-     //multiple token requests
-    std::vector<std::pair<AccountAddress,TokenAccount>> accounts;
-    size_t num_tokens = 23;
-    {
-        logos::transaction txn(store->environment,nullptr,true);
-        for(size_t i = 0; i < num_tokens; ++i)
-        {
-            TokenAccount token_account(0,10,0,100,25,1);
-            token_account.fee_type = TokenFeeType::Flat;
-            token_account.fee_rate = 7;
-            token_account.symbol = "FOO" + std::to_string(i);
-            token_account.name = "foocoin" + std::to_string(i);
-            token_account.issuer_info = "issuer string" + std::to_string(i);
-            AccountAddress address = i * 1234567;
-            bool error = store->token_account_put(address,token_account,txn);
-            ASSERT_FALSE(error);
-            accounts.push_back(
-                    std::make_pair(
-                        address,token_account));
-        }
-    }
-
-    BoostJson request;
-    request.put("count",5);
-    std::map<std::string,BoostJson> results;
-    std::string last;
-    do{
-        auto res = rpclogic::token_list(request,*store);
-
-        ASSERT_FALSE(res.error);
-        for(auto& t : res.contents)
-        {
-            if(t.first != "last")
-            {
-                results[t.first] = t.second;
-            }
-        }
-        last = res.contents.get<std::string>("last");
-        request.put("head",last);
-    } while(last != "null");
-
-    ASSERT_EQ(results.size(),num_tokens);
-
-
-    for(auto& account : accounts)
-    {
-
-            auto child = results[account.first.to_string()];
-            ASSERT_EQ(
-                    std::stoi(child.get<std::string>("token_balance")),
-                    account.second.token_balance);
-
-            ASSERT_EQ(
-                    std::stoi(child.get<std::string>("token_fee_balance")),
-                    account.second.token_fee_balance);
-            ASSERT_EQ(
-                    child.get<std::string>("symbol"),
-                    account.second.symbol);
-            ASSERT_EQ(
-                    child.get<std::string>("name"),
-                    account.second.name);
-            ASSERT_EQ(
-                    child.get<std::string>("issuer_info"),
-                    account.second.issuer_info);
-    }
-
-}
-
 void setupAccountWithTokens(
         AccountAddress& address,
         logos::account_info& account,
@@ -399,7 +317,7 @@ TEST(RPC, account_info)
     using BoostJson = boost::property_tree::ptree;
 
     logos::block_store* store(get_db());
-    store->clear(store->token_account_db);
+    store->clear(store->account_db);
     auto print = [](BoostJson res){
         std::stringstream ss;
         boost::property_tree::json_parser::write_json(ss, res);
@@ -450,7 +368,7 @@ TEST(RPC, account_info)
 
         ASSERT_EQ(
                 get(res.contents,"tokens."+e.token_id.to_string()+".balance"),
-                std::to_string(e.balance));
+                e.balance.to_string_dec());
     }
 
     request.put("tokens","");
@@ -489,7 +407,7 @@ TEST(RPC, account_info)
     ASSERT_EQ(
             get(res.contents,
                 "tokens."+entries[0].token_id.to_string()+".balance"),
-            std::to_string(entries[0].balance));
+            entries[0].balance.to_string_dec());
 
     ASSERT_EQ(
             get(res.contents,
@@ -504,7 +422,7 @@ TEST(RPC, account_info)
     ASSERT_EQ(
             get(res.contents,
                 "tokens."+entries[1].token_id.to_string()+".balance"),
-            std::to_string(entries[1].balance));
+            entries[1].balance.to_string_dec());
 
 }
 
@@ -513,7 +431,7 @@ TEST(RPC, account_balance)
 {
     using BoostJson = boost::property_tree::ptree;
     logos::block_store* store(get_db());
-    store->clear(store->token_account_db);
+    store->clear(store->account_db);
     auto print = [](BoostJson res){
         std::stringstream ss;
         boost::property_tree::json_parser::write_json(ss, res);
@@ -545,7 +463,7 @@ TEST(RPC, account_balance)
 
         ASSERT_EQ(
                 get(res.contents,"token_balances."+e.token_id.to_string()),
-                std::to_string(e.balance));
+                e.balance.to_string_dec());
     }
 
     request.put("tokens","");
@@ -574,11 +492,11 @@ TEST(RPC, account_balance)
 
     ASSERT_EQ(
             get(res.contents,"token_balances."+entries[0].token_id.to_string()),
-            std::to_string(entries[0].balance));
+            entries[0].balance.to_string_dec());
 
 
     ASSERT_EQ(
             get(res.contents,"token_balances."+entries[1].token_id.to_string()),
-            std::to_string(entries[1].balance));
+            entries[1].balance.to_string_dec());
 }
 #endif

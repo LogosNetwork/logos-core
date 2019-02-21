@@ -163,8 +163,12 @@ bool TokenAccount::Deserialize(logos::stream & stream)
 boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
 {
     boost::property_tree::ptree tree;
-    tree.put("token_balance",token_balance);
-    tree.put("token_fee_balance",token_fee_balance);
+    tree.put("token_balance",token_balance.to_string_dec());
+    tree.put("total_supply",total_supply.to_string_dec());
+    tree.put("token_fee_balance",token_fee_balance.to_string_dec());
+    tree.put("symbol",symbol);
+    tree.put("name",name);
+    tree.put("issuer_info",issuer_info);
     if(details) {
         boost::property_tree::ptree controllers_tree;
         for(auto & c : controllers)
@@ -175,9 +179,9 @@ boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
         tree.add_child("controllers", controllers_tree);
 
         boost::property_tree::ptree settings_tree;
-        for(uint8_t i = 0; i < settings.size(); ++i)
+        for(uint8_t i = 0; i < settings.field.size(); ++i)
         {
-            settings_tree.put(TokenSettingString[i],settings[i]);
+            settings_tree.put(GetTokenSettingField(i),settings[i]);
         }
         tree.add_child("settings", settings_tree);
     }

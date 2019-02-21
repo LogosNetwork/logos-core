@@ -195,7 +195,6 @@ public:
     void stop ();
     void successors ();
     void tokens_info ();
-    void token_list ();
     void unchecked ();
     void unchecked_clear ();
     void unchecked_get ();

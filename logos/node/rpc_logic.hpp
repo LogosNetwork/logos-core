@@ -17,8 +17,6 @@ namespace rpclogic
     };
     RpcResponse<BoostJson> tokens_info(const BoostJson& request, BlockStore& store);
 
-    RpcResponse<BoostJson> token_list(const BoostJson& request, BlockStore& store);
-
     RpcResponse<BoostJson> account_info(const BoostJson& request, BlockStore& store);
 
     RpcResponse<BoostJson> account_balance(const BoostJson& request, BlockStore& store);

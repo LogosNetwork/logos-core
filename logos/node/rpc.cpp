@@ -1133,9 +1133,11 @@ void logos::rpc_handler::block_create ()
                 origin = pub;
                 request.put(ORIGIN,origin.to_account());
             }
-            if (type == "send")
+            bool error = false;
+            RequestType type = GetRequestType(error,request.get<std::string>(TYPE));
+            if(error)
             {
-                error_response(response,"Couldn't decode request type");
+                error_response(response,"Unable to decode request type");
                 return;
             }
             if (type == RequestType::Send && work == 0)
@@ -1152,6 +1154,14 @@ void logos::rpc_handler::block_create ()
                 uint256_union temp(work);
                 temp.encode_hex(work_str);
                 request.put(WORK,work_str);
+            }
+            if(type == RequestType::IssueTokens)
+            {
+                auto token_id_str = request.get_optional<std::string>(TOKEN_ID);
+                if(!token_id_str.is_initialized())
+                {
+                    request.put(TOKEN_ID,"placeholder");
+                }
             }
 
             logos::account_info info;
@@ -1173,17 +1183,6 @@ void logos::rpc_handler::block_create ()
                 error_response (response, "error creating request from: \n" + ss.str());
                 return;
 
-                    Send send (account, previous, sequence, link, amount, transaction_fee, prv.data, pub, work);
-                    boost::property_tree::ptree response_l;
-                    response_l.put ("hash", send.GetHash ().to_string ());
-                    std::string contents(send.ToJson());
-                    response_l.put ("block", contents);
-                    response (response_l);
-                }
-                else
-                {
-                    error_response (response, "Previous is required");
-                }
             }
             if(type == RequestType::IssueTokens)
             {
@@ -1192,7 +1191,7 @@ void logos::rpc_handler::block_create ()
             }
 
             std::shared_ptr<logos::Account> info_ptr;
-            if(!node.store.account_get(created_request->GetAccount(),info_ptr,created_request->GetAccountType()))
+            if(!node.store.account_get(created_request->GetAccount(),info_ptr))
             {
                 created_request->sequence = info_ptr->block_count;
                 created_request->previous = info_ptr->head;
@@ -2574,20 +2573,12 @@ template <typename T>
 void logos::rpc_handler::process(
         std::shared_ptr<T> request)
 {
-    std::string request_text (request.get<std::string> ("request"));
 
-    boost::property_tree::ptree request_json;
-    std::stringstream block_stream (request_text);
-    boost::property_tree::read_json (block_stream, request_json);
-    bool error = false;
-    auto request = DeserializeRequest(error, request_json);
-    if( ! error )
-    {
-        // TODO: check work, !logos::work_validate (*request)
-        auto result = node.OnRequest(request, should_buffer_request());
-        auto hash = request->GetHash();
+    // TODO: check work, !logos::work_validate (*request)
+    auto result = node.OnRequest(request, should_buffer_request());
+    auto hash = request->GetHash();
 
-
+    switch(result.code)
     {
         case logos::process_result::progress:
             {
@@ -2596,24 +2587,24 @@ void logos::rpc_handler::process(
                 response (response_l);
                 break;
             }
-            case logos::process_result::gap_previous:
-            case logos::process_result::gap_source:
-            case logos::process_result::state_block_disabled:
-            case logos::process_result::old:
-            case logos::process_result::bad_signature:
-            case logos::process_result::negative_spend:
-            case logos::process_result::unreceivable:
-            case logos::process_result::not_receive_from_send:
-            case logos::process_result::fork:
-            case logos::process_result::account_mismatch:
-            case logos::process_result::invalid_block_type:
-            case logos::process_result::unknown_source_account:
-            case logos::process_result::unknown_origin:
-            case logos::process_result::opened_burn_account:
-            case logos::process_result::already_reserved:
-            case logos::process_result::initializing:
-            case logos::process_result::insufficient_balance:
-            case logos::process_result::not_delegate:
+        case logos::process_result::gap_previous:
+        case logos::process_result::gap_source:
+        case logos::process_result::state_block_disabled:
+        case logos::process_result::old:
+        case logos::process_result::bad_signature:
+        case logos::process_result::negative_spend:
+        case logos::process_result::unreceivable:
+        case logos::process_result::not_receive_from_send:
+        case logos::process_result::fork:
+        case logos::process_result::account_mismatch:
+        case logos::process_result::invalid_block_type:
+        case logos::process_result::unknown_source_account:
+        case logos::process_result::unknown_origin:
+        case logos::process_result::opened_burn_account:
+        case logos::process_result::already_reserved:
+        case logos::process_result::initializing:
+        case logos::process_result::insufficient_balance:
+        case logos::process_result::not_delegate:
             {
                 error_response (response,
                         ProcessResultToString(result.code));
@@ -2632,7 +2623,7 @@ void logos::rpc_handler::process(
         default:
             {
                 error_response (response,
-                                ProcessResultToString(result.code));
+                        ProcessResultToString(result.code));
                 break;
             }
     }
@@ -3156,20 +3147,6 @@ void logos::rpc_handler::stop ()
 void logos::rpc_handler::tokens_info ()
 {
     auto res = rpclogic::tokens_info(
-            request,node.store);
-    if(!res.error)
-    {
-        response(res.contents);
-    }
-    else
-    {
-        error_response(response,res.error_msg);
-    }
-}
-
-void logos::rpc_handler::token_list ()
-{
-    auto res = rpclogic::token_list(
             request,node.store);
     if(!res.error)
     {
@@ -4757,9 +4734,6 @@ void logos::rpc_handler::process_request ()
         else if(action == "tokens_info")
         {
             tokens_info();
-        } else if(action == "token_list")
-        {
-            token_list();
         }
         else if (action == "unchecked")
         {
