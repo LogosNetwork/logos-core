@@ -126,6 +126,8 @@ struct Request
 
     virtual uint16_t WireSize() const;
 
+    virtual bool operator==(const Request & other) const;
+
     RequestType       type = RequestType::Unknown;
     AccountAddress    origin;
     AccountSig        signature;

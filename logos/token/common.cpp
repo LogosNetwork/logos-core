@@ -119,6 +119,12 @@ uint16_t TokenRequest::WireSize() const
     return sizeof(token_id.bytes) + Request::WireSize();
 }
 
+ControllerInfo::ControllerInfo(const AccountAddress & account,
+                               const Privileges & privileges)
+    : account(account)
+    , privileges(privileges)
+{}
+
 ControllerInfo::ControllerInfo(bool & error,
                                std::basic_streambuf<uint8_t> & stream)
 {

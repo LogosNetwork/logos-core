@@ -134,6 +134,9 @@ struct ControllerInfo
 
     ControllerInfo() = default;
 
+    ControllerInfo(const AccountAddress & account,
+                   const Privileges & privileges);
+
     ControllerInfo(bool & error,
                    std::basic_streambuf<uint8_t> & stream);
 

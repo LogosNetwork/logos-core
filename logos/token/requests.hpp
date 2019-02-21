@@ -38,6 +38,8 @@ struct TokenIssuance : TokenRequest
 
     uint16_t WireSize() const override;
 
+    bool operator==(const Request & other) const override;
+
     static constexpr uint8_t SYMBOL_MAX_SIZE = 8;
     static constexpr uint8_t NAME_MAX_SIZE   = 32;
 
@@ -80,6 +82,8 @@ struct TokenIssueAdtl : TokenRequest
 
     uint16_t WireSize() const override;
 
+    bool operator==(const Request & other) const override;
+
     Amount amount;
 };
 
@@ -106,6 +110,8 @@ struct TokenChangeSetting : TokenRequest
     void Hash(blake2b_state & hash) const override;
 
     uint16_t WireSize() const override;
+
+    bool operator==(const Request & other) const override;
 
     TokenSetting setting;
     SettingValue value;
@@ -136,6 +142,8 @@ struct TokenImmuteSetting : TokenRequest
     void Hash(blake2b_state & hash) const override;
 
     uint16_t WireSize() const override;
+
+    bool operator==(const Request & other) const override;
 
     TokenSetting setting;
 };
@@ -171,6 +179,8 @@ struct TokenRevoke : TokenRequest
 
     uint16_t WireSize() const override;
 
+    bool operator==(const Request & other) const override;
+
     AccountAddress source;
     Transaction    transaction;
 };
@@ -198,6 +208,8 @@ struct TokenFreeze : TokenRequest
     void Hash(blake2b_state & hash) const override;
 
     uint16_t WireSize() const override;
+
+    bool operator==(const Request & other) const override;
 
     AccountAddress account;
     FreezeAction   action;
@@ -229,6 +241,8 @@ struct TokenSetFee : TokenRequest
 
     uint16_t WireSize() const override;
 
+    bool operator==(const Request & other) const override;
+
     TokenFeeType fee_type;
     Amount       fee_rate;
 };
@@ -257,6 +271,8 @@ struct TokenWhitelist : TokenRequest
 
     uint16_t WireSize() const override;
 
+    bool operator==(const Request & other) const override;
+
     AccountAddress account;
 };
 
@@ -283,6 +299,8 @@ struct TokenIssuerInfo : TokenRequest
     void Hash(blake2b_state & hash) const override;
 
     uint16_t WireSize() const override;
+
+    bool operator==(const Request & other) const override;
 
     std::string new_info;
 };
@@ -314,6 +332,8 @@ struct TokenController : TokenRequest
     void Hash(blake2b_state & hash) const override;
 
     uint16_t WireSize() const override;
+
+    bool operator==(const Request & other) const override;
 
     // TODO: controller.privileges is
     //       ignored when action == remove?
@@ -352,6 +372,8 @@ struct TokenBurn : TokenRequest
 
     uint16_t WireSize() const override;
 
+    bool operator==(const Request & other) const override;
+
     Amount amount;
 };
 
@@ -385,6 +407,8 @@ struct TokenAccountSend : TokenRequest
 
     uint16_t WireSize() const override;
 
+    bool operator==(const Request & other) const override;
+
     Transaction transaction;
 };
 
@@ -417,6 +441,8 @@ struct TokenAccountWithdrawFee : TokenRequest
     void Hash(blake2b_state & hash) const override;
 
     uint16_t WireSize() const override;
+
+    bool operator==(const Request & other) const override;
 
     Transaction transaction;
 };
@@ -457,6 +483,8 @@ struct TokenSend : TokenRequest
     void Hash(blake2b_state & hash) const override;
 
     uint16_t WireSize() const override;
+
+    bool operator==(const Request & other) const override;
 
     Transactions transactions;
     Amount       token_fee;

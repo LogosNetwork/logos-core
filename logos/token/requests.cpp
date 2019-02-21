@@ -323,6 +323,28 @@ uint16_t TokenIssuance::WireSize() const
            TokenRequest::WireSize();
 }
 
+bool TokenIssuance::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const TokenIssuance &>(other);
+
+        return Request::operator==(other) &&
+               symbol == derived.symbol &&
+               name == derived.name &&
+               total_supply == derived.total_supply &&
+               fee_type == derived.fee_type &&
+               fee_rate == derived.fee_rate &&
+               settings == derived.settings &&
+               controllers == derived.controllers &&
+               issuer_info == derived.issuer_info;
+    }
+    catch(...)
+    {}
+
+    return false;
+}
+
 TokenIssueAdtl::TokenIssueAdtl(bool & error,
                                const logos::mdb_val & mdbval)
 {
@@ -456,6 +478,21 @@ uint16_t TokenIssueAdtl::WireSize() const
            TokenRequest::WireSize();
 }
 
+bool TokenIssueAdtl::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const TokenIssueAdtl &>(other);
+
+        return Request::operator==(other) &&
+               amount == derived.amount;
+    }
+    catch(...)
+    {}
+
+    return false;
+}
+
 TokenChangeSetting::TokenChangeSetting(bool & error,
                                        const logos::mdb_val & mdbval)
 {
@@ -527,7 +564,7 @@ boost::property_tree::ptree TokenChangeSetting::SerializeJson() const
     boost::property_tree::ptree tree = TokenRequest::SerializeJson();
 
     tree.put(SETTING, GetTokenSettingField(setting));
-    tree.put(VALUE, bool(value));
+    tree.put(VALUE, value == SettingValue::Enabled ? true : false);
 
     return tree;
 }
@@ -579,6 +616,22 @@ uint16_t TokenChangeSetting::WireSize() const
     return sizeof(setting) +
            sizeof(value) +
            TokenRequest::WireSize();
+}
+
+bool TokenChangeSetting::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const TokenChangeSetting &>(other);
+
+        return Request::operator==(other) &&
+               setting == derived.setting &&
+               value == derived.value;
+    }
+    catch(...)
+    {}
+
+    return false;
 }
 
 TokenImmuteSetting::TokenImmuteSetting(bool & error,
@@ -701,6 +754,21 @@ uint16_t TokenImmuteSetting::WireSize() const
 {
     return sizeof(setting) +
            TokenRequest::WireSize();
+}
+
+bool TokenImmuteSetting::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const TokenImmuteSetting &>(other);
+
+        return Request::operator==(other) &&
+               setting == derived.setting;
+    }
+    catch(...)
+    {}
+
+    return false;
 }
 
 TokenRevoke::TokenRevoke(bool & error,
@@ -867,6 +935,22 @@ uint16_t TokenRevoke::WireSize() const
            TokenRequest::WireSize();
 }
 
+bool TokenRevoke::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const TokenRevoke &>(other);
+
+        return Request::operator==(other) &&
+               source == derived.source &&
+               transaction == derived.transaction;
+    }
+    catch(...)
+    {}
+
+    return false;
+}
+
 TokenFreeze::TokenFreeze(bool & error,
                          const logos::mdb_val & mdbval)
 {
@@ -992,6 +1076,22 @@ uint16_t TokenFreeze::WireSize() const
     return sizeof(account.bytes) +
            sizeof(action) +
            TokenRequest::WireSize();
+}
+
+bool TokenFreeze::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const TokenFreeze &>(other);
+
+        return Request::operator==(other) &&
+               account == derived.account &&
+               action == derived.action;
+    }
+    catch(...)
+    {}
+
+    return false;
 }
 
 TokenSetFee::TokenSetFee(bool & error,
@@ -1132,6 +1232,22 @@ uint16_t TokenSetFee::WireSize() const
            TokenRequest::WireSize();
 }
 
+bool TokenSetFee::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const TokenSetFee &>(other);
+
+        return Request::operator==(other) &&
+               fee_type == derived.fee_type &&
+               fee_rate == derived.fee_rate;
+    }
+    catch(...)
+    {}
+
+    return false;
+}
+
 TokenWhitelist::TokenWhitelist(bool & error,
                                const logos::mdb_val & mdbval)
 {
@@ -1242,6 +1358,21 @@ uint16_t TokenWhitelist::WireSize() const
            TokenRequest::WireSize();
 }
 
+bool TokenWhitelist::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const TokenWhitelist &>(other);
+
+        return Request::operator==(other) &&
+               account == derived.account;
+    }
+    catch(...)
+    {}
+
+    return false;
+}
+
 TokenIssuerInfo::TokenIssuerInfo(bool & error,
                                  const logos::mdb_val & mdbval)
 {
@@ -1345,6 +1476,21 @@ uint16_t TokenIssuerInfo::WireSize() const
 {
     return StringWireSize<InfoSizeT>(new_info) +
            TokenRequest::WireSize();
+}
+
+bool TokenIssuerInfo::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const TokenIssuerInfo &>(other);
+
+        return Request::operator==(other) &&
+               new_info == derived.new_info;
+    }
+    catch(...)
+    {}
+
+    return false;
 }
 
 TokenController::TokenController(bool & error,
@@ -1518,6 +1664,22 @@ uint16_t TokenController::WireSize() const
            TokenRequest::WireSize();
 }
 
+bool TokenController::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const TokenController &>(other);
+
+        return Request::operator==(other) &&
+               action == derived.action &&
+               controller == derived.controller;
+    }
+    catch(...)
+    {}
+
+    return false;
+}
+
 TokenBurn::TokenBurn(bool & error,
                      const logos::mdb_val & mdbval)
 {
@@ -1653,6 +1815,21 @@ uint16_t TokenBurn::WireSize() const
            TokenRequest::WireSize();
 }
 
+bool TokenBurn::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const TokenBurn &>(other);
+
+        return Request::operator==(other) &&
+               amount == derived.amount;
+    }
+    catch(...)
+    {}
+
+    return false;
+}
+
 TokenAccountSend::TokenAccountSend(bool & error,
                                    const logos::mdb_val & mdbval)
 {
@@ -1771,6 +1948,21 @@ uint16_t TokenAccountSend::WireSize() const
            TokenRequest::WireSize();
 }
 
+bool TokenAccountSend::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const TokenAccountSend &>(other);
+
+        return Request::operator==(other) &&
+               transaction == derived.transaction;
+    }
+    catch(...)
+    {}
+
+    return false;
+}
+
 TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
                                                  const logos::mdb_val & mdbval)
 {
@@ -1886,6 +2078,21 @@ uint16_t TokenAccountWithdrawFee::WireSize() const
 {
     return Transaction::WireSize() +
            TokenRequest::WireSize();
+}
+
+bool TokenAccountWithdrawFee::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const TokenAccountWithdrawFee &>(other);
+
+        return Request::operator==(other) &&
+               transaction == derived.transaction;
+    }
+    catch(...)
+    {}
+
+    return false;
 }
 
 TokenSend::TokenSend(bool & error,
@@ -2086,4 +2293,20 @@ uint16_t TokenSend::WireSize() const
     return VectorWireSize(transactions) +
            sizeof(token_fee) +
            TokenRequest::WireSize();
+}
+
+bool TokenSend::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const TokenSend &>(other);
+
+        return Request::operator==(other) &&
+               transactions == derived.transactions &&
+               token_fee == derived.token_fee;
+    }
+    catch(...)
+    {}
+
+    return false;
 }

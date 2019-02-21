@@ -571,12 +571,17 @@ auto GenerateIssuance = []()
     issuance.fee_type = TokenFeeType::Flat;
     issuance.fee_rate = 10;
     issuance.settings = "1111111000";
-
-    ControllerInfo controller;
-    controller.account.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
-    controller.privileges = "11111111110000000000";
-
-    issuance.controllers = {controller};
+    issuance.controllers =
+        {
+            {
+                {"lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju"},
+                {"11111111110000000000"}
+            },
+            {
+                {"lgs_15p6h3z7dgif1kt8skmdmo8xmobh3xyfzthoden6jqu34t6i4sgtcr4pfj5h"},
+                {"11111111110000100100"}
+            }
+        };
     issuance.issuer_info = "MyCoin was created by Bob";
 
     return issuance;
@@ -1236,6 +1241,180 @@ TEST (Request_Serialization, database_methods)
     ASSERT_EQ(send_a.transactions, send_b.transactions);
     ASSERT_EQ(send_a.token_fee, send_b.token_fee);
     ASSERT_EQ(send_a.token_fee, 20);
+}
+
+TEST (Request_Serialization, json_serialization)
+{
+    // TokenIssuance
+    //
+    //
+    auto issuance_a(GenerateIssuance());
+
+    bool error = false;
+    TokenIssuance issuance_b(error,
+                             issuance_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(issuance_a, issuance_b);
+
+    // Token Issue Additional
+    //
+    //
+    auto adtl_a(GenerateIssueAdtl());
+
+    error = false;
+    TokenIssueAdtl adtl_b(error,
+                          adtl_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(adtl_a, adtl_b);
+
+    // Token Change Setting
+    //
+    //
+    auto change_a(GenerateTokenChangeSetting());
+
+    error = false;
+    TokenChangeSetting change_b(error,
+                                change_a.SerializeJson());
+
+    std::cout << change_a.ToJson() << std::endl;
+    std::cout << change_b.ToJson() << std::endl;
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(change_a, change_b);
+
+    // Token Immute Setting
+    //
+    //
+    auto immute_a(GenerateTokenImmuteSetting());
+
+    error = false;
+    TokenImmuteSetting immute_b(error,
+                                immute_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(immute_a, immute_b);
+
+    // Token Revoke
+    //
+    //
+    auto revoke_a(GenerateTokenRevoke());
+
+    error = false;
+    TokenRevoke revoke_b(error,
+                         revoke_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(revoke_a, revoke_b);
+
+    // Token Freeze
+    //
+    //
+    auto freeze_a(GenerateTokenFreeze());
+
+    error = false;
+    TokenFreeze freeze_b(error,
+                         freeze_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(freeze_a, freeze_b);
+
+    // Token Set Fee
+    //
+    //
+    auto set_fee_a(GenerateTokenSetFee());
+
+    error = false;
+    TokenSetFee set_fee_b(error,
+                          set_fee_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(set_fee_a, set_fee_b);
+
+    // Token Whitelist
+    //
+    //
+    auto whitelist_a(GenerateWhitelist());
+
+    error = false;
+    TokenWhitelist whitelist_b(error,
+                               whitelist_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(whitelist_a, whitelist_b);
+
+    // Token Issuer Info
+    //
+    //
+    auto info_a(GenerateIssuerInfo());
+
+    error = false;
+    TokenIssuerInfo info_b(error,
+                           info_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(info_a, info_b);
+
+    // Token Controller
+    //
+    //
+    auto controller_a(GenerateTokenController());
+
+    error = false;
+    TokenController controller_b(error,
+                                 controller_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(controller_a, controller_b);
+
+    // Token Burn
+    //
+    //
+    auto burn_a(GenerateTokenBurn());
+
+    error = false;
+    TokenBurn burn_b(error,
+                     burn_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(burn_a, burn_b);
+
+    // Token Account Send
+    //
+    //
+    auto distribute_a(GenerateTokenAccountSend());
+
+    error = false;
+    TokenAccountSend distribute_b(error,
+                                  distribute_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(distribute_a, distribute_b);
+
+    // Withdraw Fee
+    //
+    //
+    auto withdraw_a(GenerateWithdrawFee());
+
+    error = false;
+    TokenAccountWithdrawFee withdraw_b(error,
+                                       withdraw_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(withdraw_a, withdraw_b);
+
+    // Token Send
+    //
+    //
+    auto send_a(GenerateTokenSend());
+
+    error = false;
+    TokenSend send_b(error,
+                     send_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(send_a, send_b);
 }
 
 #endif // #ifdef Unit_Test_Request_Serialization

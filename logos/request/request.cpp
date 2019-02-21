@@ -348,16 +348,21 @@ void Request::Hash(blake2b_state & hash) const
 uint16_t Request::WireSize() const
 {
     return sizeof(type) +
-
-           // An additional field is added
-           // to the stream to denote the
-           // total size of the request.
-           //
-           sizeof(uint16_t) +
            sizeof(origin.bytes) +
            sizeof(signature.bytes) +
            sizeof(previous.bytes) +
            sizeof(next.bytes) +
            sizeof(fee.bytes) +
            sizeof(sequence);
+}
+
+bool Request::operator==(const Request & other) const
+{
+    return type == other.type &&
+           origin == other.origin &&
+           signature == other.signature &&
+           previous == other.previous &&
+           next == other.next &&
+           fee == other.fee &&
+           sequence == other.sequence;
 }
