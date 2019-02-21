@@ -233,7 +233,6 @@ bool decode_unsigned (std::string const & text, uint64_t & number)
 
 void logos::rpc_handler::account_balance ()
 {
-
     auto res = rpclogic::account_balance(
             request,node.store);
     if(!res.error)
@@ -981,7 +980,6 @@ void logos::rpc_handler::block_count_type ()
 
 void logos::rpc_handler::block_create ()
 {
-
     //TODO: refactor this function to make it cleaner/shorter
     using namespace request::fields;
     if (rpc.config.enable_control)
@@ -2523,9 +2521,8 @@ std::unique_ptr<Send> deserialize_StateBlock_json (boost::property_tree::ptree c
     return result;
 }
 
-template <typename T>
 void logos::rpc_handler::process(
-        std::shared_ptr<T> request)
+        std::shared_ptr<Request> request)
 {
 
     // TODO: check work, !logos::work_validate (*request)
@@ -2595,7 +2592,7 @@ void logos::rpc_handler::process ()
     auto request = DeserializeRequest(error, request_json);
 
 
-    if( ! error)
+    if(!error)
     {
         switch(request->type)
         {
@@ -3100,8 +3097,7 @@ void logos::rpc_handler::stop ()
 
 void logos::rpc_handler::tokens_info ()
 {
-    auto res = rpclogic::tokens_info(
-            request,node.store);
+    auto res = rpclogic::tokens_info(request,node.store);
     if(!res.error)
     {
         response(res.contents);

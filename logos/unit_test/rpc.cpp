@@ -481,7 +481,6 @@ TEST(RPC, account_info)
     tokens_request.push_back(std::make_pair("",token2));
 
     request.add_child("tokens",tokens_request);
-    print(request);
 
     res = rpclogic::account_info(request,*store);
 
@@ -549,7 +548,6 @@ TEST(RPC, account_balance)
 
     ASSERT_EQ(res.contents.get_child("token_balances").size(),num_tokens);
 
-    print(res.contents);
 
     for(auto& e : entries)
     {
@@ -581,7 +579,6 @@ TEST(RPC, account_balance)
     ASSERT_FALSE(res.error);
     ASSERT_EQ(res.contents.get_child("token_balances").size(),2);
 
-    print(res.contents);
 
     ASSERT_EQ(
             get(res.contents,"token_balances."+entries[0].token_id.to_string()),

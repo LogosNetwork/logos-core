@@ -32,10 +32,6 @@ struct ReceiveBlock
     /// @param mdbval the buffer read from the database
     ReceiveBlock(bool & error, const logos::mdb_val & mdbval);
 
-    /// Serialize the data members to a Json string
-    /// @returns the Json string
-    //std::string SerializeJson() const;
-
     /// Add the data members to the property_tree which will be encoded to Json
     /// @param batch_state_block the property_tree to add data members to
     void SerializeJson(boost::property_tree::ptree & tree) const;

@@ -178,8 +178,7 @@ public:
     void pending ();
     void pending_exists ();
     void process ();
-    template <typename T>
-    void process(std::shared_ptr<T> request);
+    void process(std::shared_ptr<Request> request);
     void rai_to_raw ();
     void rai_from_raw ();
     void receive ();

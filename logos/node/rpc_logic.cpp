@@ -37,9 +37,6 @@ RpcResponse<BoostJson> tokens_info(
     return res;
 }
 
-
-
-
 RpcResponse<BoostJson> account_info(
         const BoostJson& request,
         BlockStore& store)
@@ -282,7 +279,4 @@ RpcResponse<BoostJson> blocks(const BoostJson& request, BlockStore& store)
     }
     return res;
 }
-
-
-
 }
