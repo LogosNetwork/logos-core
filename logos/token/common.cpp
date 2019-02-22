@@ -5,6 +5,10 @@
 #include <logos/token/account.hpp>
 #include <logos/token/util.hpp>
 
+TokenRequest::TokenRequest(RequestType type)
+    : Request(type)
+{}
+
 TokenRequest::TokenRequest(bool & error,
                            std::basic_streambuf<uint8_t> & stream)
     : Request(error, stream)

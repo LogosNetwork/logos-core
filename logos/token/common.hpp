@@ -27,14 +27,14 @@ enum class TokenSetting : uint8_t
 
 enum class SettingValue : uint8_t
 {
-    Enabled  = 0,
-    Disabled = 1
+    Disabled = 0,
+    Enabled  = 1
 };
 
 enum class PrivilegeValue : uint8_t
 {
-    Enabled  = 0,
-    Disabled = 1
+    Disabled = 0,
+    Enabled  = 1
 };
 
 enum class TokenFeeType : uint8_t
@@ -90,8 +90,11 @@ enum class ControllerPrivilege : uint8_t
     Unknown                  = 20
 };
 
-const size_t TOKEN_SETTINGS_COUNT       = 10;
-const size_t CONTROLLER_PRIVILEGE_COUNT = 20;
+// Larger than necessary in anticipation of
+// values added for additional capabilities
+// in the future.
+const size_t TOKEN_SETTINGS_COUNT       = 32;
+const size_t CONTROLLER_PRIVILEGE_COUNT = 32;
 
 struct TokenRequest : Request
 {
@@ -99,6 +102,8 @@ struct TokenRequest : Request
     using Transaction = ::Transaction<Amount>;
 
     TokenRequest() = default;
+
+    TokenRequest(RequestType type);
 
     TokenRequest(bool & error,
                  std::basic_streambuf<uint8_t> & stream);
