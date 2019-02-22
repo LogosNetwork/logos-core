@@ -62,6 +62,8 @@ struct Request
 
     Request() = default;
 
+    Request(RequestType type);
+
     Request(RequestType type,
             const AccountAddress & origin,
             const BlockHash & previous,
@@ -89,14 +91,18 @@ struct Request
     virtual logos::AccountType GetAccountType() const;
     virtual logos::AccountType GetSourceType() const;
 
-    // The account that will own the
-    // request.
-    //
+    /// This method returns the account that will
+    /// own the request. Eg. For TokenSend requests
+    /// this will be the origin, but for Revoke
+    /// requests, this will be the token account.
+    /// @return The address of the owning account.
     virtual AccountAddress GetAccount() const;
 
-    // The account from which an amount
-    // is being deducted.
-    //
+    /// This method returns the account from which
+    /// an amount is being deducted. For most accounts
+    /// this will be the origin, but for Revoke
+    /// commands, this is not the case.
+    /// @return The address of the source account.
     virtual AccountAddress GetSource() const;
 
     virtual Amount GetLogosTotal() const;

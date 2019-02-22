@@ -1278,9 +1278,6 @@ TEST (Request_Serialization, json_serialization)
     TokenChangeSetting change_b(error,
                                 change_a.SerializeJson());
 
-    std::cout << change_a.ToJson() << std::endl;
-    std::cout << change_b.ToJson() << std::endl;
-
     ASSERT_FALSE(error);
     ASSERT_EQ(change_a, change_b);
 

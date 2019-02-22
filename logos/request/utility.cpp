@@ -147,62 +147,63 @@ std::string GetRequestTypeField(RequestType type)
     return ret;
 }
 
-template<typename ...Args>
-std::shared_ptr<Request> BuildRequest(RequestType type, Args&& ...args)
+template<typename Data>
+std::shared_ptr<Request> BuildRequest(RequestType type, bool & error, Data && data)
 {
     std::shared_ptr<Request> result;
 
     switch(type)
     {
         case RequestType::Send:
-            result = std::make_shared<Send>(Send(args...));
+            result = std::make_shared<Send>(error, data);
             break;
         case RequestType::ChangeRep:
-            result = std::make_shared<Change>(Change(args...));
+            result = std::make_shared<Change>(error, data);
             break;
         case RequestType::IssueTokens:
-            result = std::make_shared<TokenIssuance>(TokenIssuance(args...));
+            result = std::make_shared<TokenIssuance>(error, data);
             break;
         case RequestType::IssueAdtlTokens:
-            result = std::make_shared<TokenIssueAdtl>(TokenIssueAdtl(args...));
+            result = std::make_shared<TokenIssueAdtl>(error, data);
             break;
         case RequestType::ChangeTokenSetting:
-            result = std::make_shared<TokenChangeSetting>(TokenChangeSetting(args...));
+            result = std::make_shared<TokenChangeSetting>(error, data);
             break;
         case RequestType::ImmuteTokenSetting:
-            result = std::make_shared<TokenImmuteSetting>(TokenImmuteSetting(args...));
+            result = std::make_shared<TokenImmuteSetting>(error, data);
             break;
         case RequestType::RevokeTokens:
-            result = std::make_shared<TokenRevoke>(TokenRevoke(args...));
+            result = std::make_shared<TokenRevoke>(error, data);
             break;
         case RequestType::FreezeTokens:
-            result = std::make_shared<TokenFreeze>(TokenFreeze(args...));
+            result = std::make_shared<TokenFreeze>(error, data);
             break;
         case RequestType::SetTokenFee:
-            result = std::make_shared<TokenSetFee>(TokenSetFee(args...));
+            result = std::make_shared<TokenSetFee>(error, data);
             break;
         case RequestType::UpdateWhitelist:
-            result = std::make_shared<TokenWhitelist>(TokenWhitelist(args...));
+            result = std::make_shared<TokenWhitelist>(error, data);
             break;
         case RequestType::UpdateIssuerInfo:
-            result = std::make_shared<TokenIssuerInfo>(TokenIssuerInfo(args...));
+            result = std::make_shared<TokenIssuerInfo>(error, data);
             break;
         case RequestType::UpdateController:
-            result = std::make_shared<TokenController>(TokenController(args...));
+            result = std::make_shared<TokenController>(error, data);
             break;
         case RequestType::BurnTokens:
-            result = std::make_shared<TokenBurn>(TokenBurn(args...));
+            result = std::make_shared<TokenBurn>(error, data);
             break;
         case RequestType::DistributeTokens:
-            result = std::make_shared<TokenAccountSend>(TokenAccountSend(args...));
+            result = std::make_shared<TokenAccountSend>(error, data);
             break;
         case RequestType::WithdrawFee:
-            result = std::make_shared<TokenAccountWithdrawFee>(TokenAccountWithdrawFee(args...));
+            result = std::make_shared<TokenAccountWithdrawFee>(error, data);
             break;
         case RequestType::SendTokens:
-            result = std::make_shared<TokenSend>(TokenSend(args...));
+            result = std::make_shared<TokenSend>(error, data);
             break;
         case RequestType::Unknown:
+            error = true;
             break;
     }
 

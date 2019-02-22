@@ -54,6 +54,15 @@ public:
 
 private:
 
+    bool ValidateTokenAdminRequest(RequestPtr request,
+                                   logos::process_return & result,
+                                   std::shared_ptr<logos::Account> info);
+
+    bool ValidateTokenTransfer(RequestPtr request,
+                               logos::process_return & result,
+                               std::shared_ptr<logos::Account> info,
+                               const Amount & token_total);
+
     void StoreRequestBlock(const ApprovedRB & message,
                            MDB_txn * transaction,
                            uint8_t delegate_id);

@@ -35,6 +35,10 @@ uint64_t Request::Locator::Serialize(logos::stream & stream)
            logos::write(stream, index);
 }
 
+Request::Request(RequestType type)
+    : type(type)
+{}
+
 Request::Request(RequestType type,
                  const AccountAddress & origin,
                  const BlockHash & previous,

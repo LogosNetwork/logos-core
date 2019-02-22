@@ -196,215 +196,59 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    if(request->type == RequestType::IssueTokens)
+    switch(request->type)
     {
-        auto issuance = static_pointer_cast<const TokenIssuance>(request);
-
-        if(_store.account_exists(issuance->token_id))
+        case RequestType::Send:
+        case RequestType::ChangeRep:
+            break;
+        case RequestType::IssueTokens:
         {
-            result.code = logos::process_result::key_collision;
-            return false;
-        }
-    }
+            auto issuance = dynamic_pointer_cast<const TokenIssuance>(request);
+            assert(issuance);
 
-    // Only controllers can issue these
-    if(IsTokenAdminRequest(request->type))
-    {
-        auto token_account = std::static_pointer_cast<TokenAccount>(info);
-        ControllerInfo controller;
-
-        // The sender isn't a controller
-        if(!token_account->GetController(request->origin, controller))
-        {
-            result.code = logos::process_result::unauthorized_request;
-            return false;
-        }
-
-        // The controller isn't authorized
-        // to make this request.
-        if(!controller.IsAuthorized(request))
-        {
-            result.code = logos::process_result::unauthorized_request;
-            return false;
-        }
-
-        // The accounts settings prohibit
-        // this request
-        if(!token_account->IsAllowed(request))
-        {
-            result.code = logos::process_result::prohibitted_request;
-            return false;
-        }
-
-        // Request failed type-specific validation.
-        if(!request->Validate(result, info))
-        {
-            return false;
-        }
-    }
-
-    Amount token_total = request->GetTokenTotal();
-
-    // This request transfers tokens
-    if(token_total > 0)
-    {
-        // The account that will own the request
-        // is not the account losing/sending
-        // tokens.
-        if(request->GetAccount() != request->GetSource())
-        {
-            std::shared_ptr<logos::Account> source;
-            if(_store.account_get(request->GetSource(), source))
+            if(_store.account_exists(issuance->token_id))
             {
-                // TODO: Bootstrapping
-                result.code = logos::process_result::unknown_source_account;
-                return false;
-            }
-
-            // The available tokens and the
-            // amount requested don't add up.
-            if(!request->Validate(result, source))
-            {
-                return false;
-            }
-            else
-            {
-                // TODO: Pending revoke cache
-            }
-        }
-
-        // The account that will own the request
-        // is the account losing/sending tokens.
-        else
-        {
-
-            // Lmabda for retrieving the user's current status
-            // with the token (frozen, whitelisted).
-            //
-            auto get_user_status = [this](const auto & destination_address,
-                                          auto & destination_status,
-                                          const auto & token_id)
-            {
-                std::shared_ptr<logos::account_info> destination(new logos::account_info);
-                BlockHash token_user_id(GetTokenUserID(token_id, destination_address));
-
-                // We have the destination account
-                if (!_store.account_get(destination_address, *destination))
-                {
-                    TokenEntry destination_token_entry;
-
-                    // This destination account has been tethered to
-                    // the token
-                    if (destination->GetEntry(token_id, destination_token_entry))
-                    {
-                        destination_status = destination_token_entry.status;
-                    }
-
-                    // This destination account is untethered
-                    else
-                    {
-                        _store.token_user_status_get(token_user_id, destination_status);
-                    }
-                }
-
-                // We don't have the destination account
-                else
-                {
-                    _store.token_user_status_get(token_user_id, destination_status);
-                }
-            };
-
-            // This is a Send Token Request.
-            if(request->type == RequestType::SendTokens)
-            {
-                auto send_tokens = dynamic_pointer_cast<const TokenSend>(request);
-                assert(send_tokens);
-
-                std::shared_ptr<TokenAccount> token_account(new TokenAccount);
-
-                // This token id doesn't exist.
-                if(_store.token_account_get(send_tokens->token_id, *token_account))
-                {
-                    result.code = logos::process_result::invalid_token_id;
-                    return false;
-                }
-
-                auto user_account = std::static_pointer_cast<logos::account_info>(info);
-
-                // Get sender's token entry
-                TokenEntry source_token_entry;
-                if(!user_account->GetEntry(send_tokens->token_id, source_token_entry))
-                {
-                    result.code = logos::process_result::untethered_account;
-                    return false;
-                }
-
-                // The sender's account is either frozen or
-                // not yet whitelisted.
-                if(!token_account->SendAllowed(source_token_entry.status, result))
-                {
-                    return false;
-                }
-
-                // Check each transaction in the Send Token Request
-                for(auto & t : send_tokens->transactions)
-                {
-
-                    // Pull the user's current status.
-                    TokenUserStatus destination_status;
-                    get_user_status(t.destination, destination_status, send_tokens->token_id);
-
-                    // The destination account is either frozen
-                    // or not yet whitelisted.
-                    if(!token_account->SendAllowed(destination_status, result))
-                    {
-                        return false;
-                    }
-
-                    // Token fee is insufficient
-                    if(!token_account->FeeSufficient(token_total, send_tokens->token_fee))
-                    {
-                        result.code = logos::process_result::insufficient_token_fee;
-                        return false;
-                    }
-                }
-            }
-
-            // This is a TokenAccountSend or TokenAccountWithdrawFee request
-            else if (request->type == RequestType::DistributeTokens or
-                     request->type == RequestType::WithdrawFee)
-            {
-                auto get_destination = [](auto token_request)
-                {
-                    if(token_request->type == RequestType::DistributeTokens)
-                    {
-                        return static_pointer_cast<const TokenAccountSend>(token_request)->transaction.destination;
-                    }
-
-                    assert(token_request->type == RequestType::WithdrawFee);
-                    return static_pointer_cast<const TokenAccountWithdrawFee>(token_request)->transaction.destination;
-                };
-
-                auto token_account = static_pointer_cast<TokenAccount>(info);
-                auto token_request = static_pointer_cast<const TokenRequest>(request);
-
-                // Pull the user's current status.
-                TokenUserStatus destination_status;
-                get_user_status(get_destination(token_request), destination_status, token_request->token_id);
-
-                // The destination account is either frozen
-                // or not yet whitelisted.
-                if (!token_account->SendAllowed(destination_status, result))
-                {
-                    return false;
-                }
-            }
-
-            if (!request->Validate(result, info))
-            {
+                result.code = logos::process_result::key_collision;
                 return false;
             }
         }
+        case RequestType::ChangeTokenSetting:
+        case RequestType::IssueAdtlTokens:
+        case RequestType::ImmuteTokenSetting:
+        case RequestType::RevokeTokens:
+        case RequestType::FreezeTokens:
+        case RequestType::SetTokenFee:
+        case RequestType::UpdateWhitelist:
+        case RequestType::UpdateIssuerInfo:
+        case RequestType::UpdateController:
+        case RequestType::BurnTokens:
+        case RequestType::DistributeTokens:
+        case RequestType::WithdrawFee:
+            if(!ValidateTokenAdminRequest(request, result, info))
+            {
+                return false;
+            }
+        case RequestType::SendTokens:
+        {
+            Amount token_total = request->GetTokenTotal();
+
+            if(token_total > 0)
+            {
+                if(!ValidateTokenTransfer(request, result, info, token_total))
+                {
+                    return false;
+                }
+            }
+
+            break;
+        }
+        case RequestType::Unknown:
+            LOG_ERROR(_log) << "PersistenceManager::Validate - Received unknown request type";
+
+            result.code = logos::process_result::invalid_request;
+            return false;
+
+            break;
     }
 
     result.code = logos::process_result::progress;
@@ -478,6 +322,214 @@ bool PersistenceManager<R>::Validate(const PrePrepare & message,
     }
 
     return valid;
+}
+
+bool PersistenceManager<R>::ValidateTokenAdminRequest(RequestPtr request,
+                                                      logos::process_return & result,
+                                                      std::shared_ptr<logos::Account> info)
+{
+    auto token_account = std::static_pointer_cast<TokenAccount>(info);
+    ControllerInfo controller;
+
+    // The sender isn't a controller
+    if (!token_account->GetController(request->origin, controller))
+    {
+        result.code = logos::process_result::unauthorized_request;
+        return false;
+    }
+
+    // The controller isn't authorized
+    // to make this request.
+    if (!controller.IsAuthorized(request))
+    {
+        result.code = logos::process_result::unauthorized_request;
+        return false;
+    }
+
+    // The accounts settings prohibit
+    // this request
+    if (!token_account->IsAllowed(request))
+    {
+        result.code = logos::process_result::prohibitted_request;
+        return false;
+    }
+
+    // Request failed type-specific validation.
+    if (!request->Validate(result, info))
+    {
+        return false;
+    }
+}
+
+bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
+                                                  logos::process_return & result,
+                                                  std::shared_ptr<logos::Account> info,
+                                                  const Amount & token_total)
+{
+    // Lambda for retrieving the user's current status
+    // with the token (frozen, whitelisted).
+    //
+    auto get_user_status = [this](const auto & destination_address,
+                                  auto & destination_status,
+                                  const auto & token_id)
+    {
+        std::shared_ptr<logos::account_info> destination(new logos::account_info);
+        BlockHash token_user_id(GetTokenUserID(token_id, destination_address));
+
+        // We have the destination account
+        if (!_store.account_get(destination_address, *destination))
+        {
+            TokenEntry destination_token_entry;
+
+            // This destination account has been tethered to
+            // the token
+            if (destination->GetEntry(token_id, destination_token_entry))
+            {
+                destination_status = destination_token_entry.status;
+            }
+
+                // This destination account is untethered
+            else
+            {
+                _store.token_user_status_get(token_user_id, destination_status);
+            }
+        }
+
+            // We don't have the destination account
+        else
+        {
+            _store.token_user_status_get(token_user_id, destination_status);
+        }
+    };
+
+    if(request->type == RequestType::RevokeTokens)
+    {
+        auto revoke = static_pointer_cast<const TokenRevoke>(request);
+        auto token_account = static_pointer_cast<TokenAccount>(info);
+
+        std::shared_ptr<logos::Account> source;
+        if(_store.account_get(request->GetSource(), source))
+        {
+            // TODO: Bootstrapping
+            result.code = logos::process_result::unknown_source_account;
+            return false;
+        }
+
+        // Pull the user's current status.
+        TokenUserStatus destination_status;
+        get_user_status(revoke->transaction.destination, destination_status, revoke->token_id);
+
+        // The destination account is either frozen
+        // or not yet whitelisted.
+        if(!token_account->SendAllowed(destination_status, result))
+        {
+            return false;
+        }
+
+        // The available tokens and the
+        // amount requested don't add up.
+        if(!request->Validate(result, source))
+        {
+            return false;
+        }
+
+        // TODO: Pending revoke cache
+        //
+    }
+
+    else if(request->type == RequestType::SendTokens)
+    {
+        auto send_tokens = dynamic_pointer_cast<const TokenSend>(request);
+        assert(send_tokens);
+
+        std::shared_ptr<TokenAccount> token_account(new TokenAccount);
+
+        // This token id doesn't exist.
+        if(_store.token_account_get(send_tokens->token_id, *token_account))
+        {
+            result.code = logos::process_result::invalid_token_id;
+            return false;
+        }
+
+        auto user_account = std::static_pointer_cast<logos::account_info>(info);
+
+        // Get sender's token entry
+        TokenEntry source_token_entry;
+        if(!user_account->GetEntry(send_tokens->token_id, source_token_entry))
+        {
+            result.code = logos::process_result::untethered_account;
+            return false;
+        }
+
+        // The sender's account is either frozen or
+        // not yet whitelisted.
+        if(!token_account->SendAllowed(source_token_entry.status, result))
+        {
+            return false;
+        }
+
+        // Check each transaction in the Send Token Request
+        for(auto & t : send_tokens->transactions)
+        {
+
+            // Pull the user's current status.
+            TokenUserStatus destination_status;
+            get_user_status(t.destination, destination_status, send_tokens->token_id);
+
+            // The destination account is either frozen
+            // or not yet whitelisted.
+            if(!token_account->SendAllowed(destination_status, result))
+            {
+                return false;
+            }
+
+            // Token fee is insufficient
+            if(!token_account->FeeSufficient(token_total, send_tokens->token_fee))
+            {
+                result.code = logos::process_result::insufficient_token_fee;
+                return false;
+            }
+        }
+
+        if(!request->Validate(result, info))
+        {
+            return false;
+        }
+    }
+
+    else if (request->type == RequestType::DistributeTokens or
+             request->type == RequestType::WithdrawFee)
+    {
+        auto get_destination = [](auto token_request)
+        {
+            if(token_request->type == RequestType::DistributeTokens)
+            {
+                return static_pointer_cast<const TokenAccountSend>(token_request)->transaction.destination;
+            }
+
+            assert(token_request->type == RequestType::WithdrawFee);
+            return static_pointer_cast<const TokenAccountWithdrawFee>(token_request)->transaction.destination;
+        };
+
+        auto token_account = static_pointer_cast<TokenAccount>(info);
+        auto token_request = static_pointer_cast<const TokenRequest>(request);
+
+        // Pull the user's current status.
+        TokenUserStatus destination_status;
+        get_user_status(get_destination(token_request), destination_status, token_request->token_id);
+
+        // The destination account is either frozen
+        // or not yet whitelisted.
+        if (!token_account->SendAllowed(destination_status, result))
+        {
+            return false;
+        }
+
+        if(!request->Validate(result, info))
+        {
+            return false;
+        }
+    }
 }
 
 void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,

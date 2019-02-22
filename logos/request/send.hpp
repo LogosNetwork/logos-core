@@ -12,7 +12,7 @@ struct Send : Request
     using Transaction  = ::Transaction<Amount>;
     using Transactions = std::vector<Transaction>;
 
-    Send () = default;
+    Send ();
 
     /// Class constructor
     /// Note that if additional transaction is added after construction, the StateBlock must be re-signed
