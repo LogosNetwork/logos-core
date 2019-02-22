@@ -211,6 +211,8 @@ bool PersistenceManager<R>::ValidateRequest(
                 result.code = logos::process_result::key_collision;
                 return false;
             }
+
+            break;
         }
         case RequestType::ChangeTokenSetting:
         case RequestType::IssueAdtlTokens:
@@ -359,6 +361,8 @@ bool PersistenceManager<R>::ValidateTokenAdminRequest(RequestPtr request,
     {
         return false;
     }
+
+    return true;
 }
 
 bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
@@ -388,14 +392,14 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
                 destination_status = destination_token_entry.status;
             }
 
-                // This destination account is untethered
+            // This destination account is untethered
             else
             {
                 _store.token_user_status_get(token_user_id, destination_status);
             }
         }
 
-            // We don't have the destination account
+        // We don't have the destination account
         else
         {
             _store.token_user_status_get(token_user_id, destination_status);
@@ -530,6 +534,8 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
             return false;
         }
     }
+
+    return true;
 }
 
 void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,

@@ -36,32 +36,32 @@ static uint64_t WriteUnion (logos::stream & stream_a, U const & value)
 
 bool logos::read (logos::stream & stream_a, uint128_union & value)
 {
-    ReadUnion(stream_a, value);
+    return ReadUnion(stream_a, value);
 }
 
 uint64_t logos::write (logos::stream & stream_a, uint128_union const & value)
 {
-    WriteUnion(stream_a, value);
+    return WriteUnion(stream_a, value);
 }
 
 bool logos::read (logos::stream & stream_a, uint256_union & value)
 {
-    ReadUnion(stream_a, value);
+    return ReadUnion(stream_a, value);
 }
 
 uint64_t logos::write (logos::stream & stream_a, uint256_union const & value)
 {
-    WriteUnion(stream_a, value);
+    return WriteUnion(stream_a, value);
 }
 
 bool logos::read (logos::stream & stream_a, uint512_union & value)
 {
-    ReadUnion(stream_a, value);
+    return ReadUnion(stream_a, value);
 }
 
 uint64_t logos::write (logos::stream & stream_a, uint512_union const & value)
 {
-    WriteUnion(stream_a, value);
+    return WriteUnion(stream_a, value);
 }
 
 uint16_t bits_to_bytes_ceiling(uint16_t x)
