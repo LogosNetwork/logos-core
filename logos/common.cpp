@@ -1113,6 +1113,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
         case process_result::invalid_fee:
             ret = "The fee settings are invalid";
             break;
+        case process_result::invalid_issuer_info:
+            ret = "The issuer info field is invalid";
+            break;
     }
 
     return ret;

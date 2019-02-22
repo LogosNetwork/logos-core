@@ -5,6 +5,10 @@
 
 #include <numeric>
 
+Send::Send()
+    : Request(RequestType::Send)
+{}
+
 Send::Send(const AccountAddress & account,
            const BlockHash & previous,
            uint32_t sequence,

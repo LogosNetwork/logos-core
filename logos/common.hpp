@@ -334,7 +334,8 @@ enum class process_result
     invalid_token_amount,       // Logos - Token amount is invalid.
     total_supply_overflow,      // Logos - The request would case the token total supply to overflow.
     key_collision,              // Logos - There is already a user account or token account with the same key.
-    invalid_fee                 // Logos - The fee settings are invalid.
+    invalid_fee,                // Logos - The fee settings are invalid.
+    invalid_issuer_info         // Logos - The issuer info supplied is invalid.
 };
 
 std::string ProcessResultToString(process_result result);

@@ -2,6 +2,10 @@
 
 #include <logos/request/fields.hpp>
 
+Change::Change()
+    : Request(RequestType::ChangeRep)
+{}
+
 Change::Change(bool & error,
                const logos::mdb_val & mdbval)
 {

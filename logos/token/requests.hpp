@@ -12,7 +12,7 @@ struct TokenIssuance : TokenRequest
     using Settings    = BitField<TOKEN_SETTINGS_COUNT>;
     using Controllers = std::vector<ControllerInfo>;
 
-    TokenIssuance() = default;
+    TokenIssuance();
 
     TokenIssuance(bool & error,
                   const logos::mdb_val & mdbval);
@@ -40,8 +40,9 @@ struct TokenIssuance : TokenRequest
 
     bool operator==(const Request & other) const override;
 
-    static constexpr uint8_t SYMBOL_MAX_SIZE = 8;
-    static constexpr uint8_t NAME_MAX_SIZE   = 32;
+    static constexpr uint8_t  SYMBOL_MAX_SIZE = 8;
+    static constexpr uint8_t  NAME_MAX_SIZE   = 32;
+    static constexpr uint16_t INFO_MAX_SIZE   = 16;
 
     std::string  symbol;
     std::string  name;
@@ -57,7 +58,7 @@ struct TokenIssueAdtl : TokenRequest
 {
     using Request::Hash;
 
-    TokenIssueAdtl() = default;
+    TokenIssueAdtl();
 
     TokenIssueAdtl(bool & error,
                    const logos::mdb_val & mdbval);
@@ -91,7 +92,7 @@ struct TokenChangeSetting : TokenRequest
 {
     using Request::Hash;
     
-    TokenChangeSetting() = default;
+    TokenChangeSetting();
 
     TokenChangeSetting(bool & error,
                        const logos::mdb_val & mdbval);
@@ -121,7 +122,7 @@ struct TokenImmuteSetting : TokenRequest
 {
     using Request::Hash;
 
-    TokenImmuteSetting() = default;
+    TokenImmuteSetting();
 
     TokenImmuteSetting(bool & error,
                        const logos::mdb_val & mdbval);
@@ -152,7 +153,7 @@ struct TokenRevoke : TokenRequest
 {
     using Request::Hash;
 
-    TokenRevoke() = default;
+    TokenRevoke();
 
     TokenRevoke(bool & error,
                 const logos::mdb_val & mdbval);
@@ -189,7 +190,7 @@ struct TokenFreeze : TokenRequest
 {
     using Request::Hash;
 
-    TokenFreeze() = default;
+    TokenFreeze();
 
     TokenFreeze(bool & error,
                 const logos::mdb_val & mdbval);
@@ -219,7 +220,7 @@ struct TokenSetFee : TokenRequest
 {
     using Request::Hash;
 
-    TokenSetFee() = default;
+    TokenSetFee();
 
     TokenSetFee(bool & error,
                 const logos::mdb_val & mdbval);
@@ -251,7 +252,7 @@ struct TokenWhitelist : TokenRequest
 {
     using Request::Hash;
 
-    TokenWhitelist() = default;
+    TokenWhitelist();
 
     TokenWhitelist(bool & error,
                    const logos::mdb_val & mdbval);
@@ -280,7 +281,7 @@ struct TokenIssuerInfo : TokenRequest
 {
     using Request::Hash;
 
-    TokenIssuerInfo() = default;
+    TokenIssuerInfo();
 
     TokenIssuerInfo(bool & error,
                     const logos::mdb_val & mdbval);
@@ -290,6 +291,8 @@ struct TokenIssuerInfo : TokenRequest
 
     TokenIssuerInfo(bool & error,
                     boost::property_tree::ptree const & tree);
+
+    bool Validate(logos::process_return & result) const override;
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
@@ -309,7 +312,7 @@ struct TokenController : TokenRequest
 {
     using Request::Hash;
 
-    TokenController() = default;
+    TokenController();
 
     TokenController(bool & error,
                     const logos::mdb_val & mdbval);
@@ -346,7 +349,7 @@ struct TokenBurn : TokenRequest
 {
     using Request::Hash;
 
-    TokenBurn() = default;
+    TokenBurn();
 
     TokenBurn(bool & error,
               const logos::mdb_val & mdbval);
@@ -381,7 +384,7 @@ struct TokenAccountSend : TokenRequest
 {
     using Request::Hash;
 
-    TokenAccountSend() = default;
+    TokenAccountSend();
 
     TokenAccountSend(bool & error,
                      const logos::mdb_val & mdbval);
@@ -416,7 +419,7 @@ struct TokenAccountWithdrawFee : TokenRequest
 {
     using Request::Hash;
 
-    TokenAccountWithdrawFee() = default;
+    TokenAccountWithdrawFee();
 
     TokenAccountWithdrawFee(bool & error,
                             const logos::mdb_val & mdbval);
@@ -455,7 +458,7 @@ struct TokenSend : TokenRequest
 
     using Transactions = std::vector<Transaction>;
 
-    TokenSend() = default;
+    TokenSend();
 
     TokenSend(bool & error,
               const logos::mdb_val & mdbval);

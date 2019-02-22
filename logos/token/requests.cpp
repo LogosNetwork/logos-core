@@ -7,6 +7,10 @@
 
 #include <numeric>
 
+TokenIssuance::TokenIssuance()
+    : TokenRequest(RequestType::IssueTokens)
+{}
+
 TokenIssuance::TokenIssuance(bool & error,
                              const logos::mdb_val & mdbval)
 {
@@ -124,6 +128,12 @@ bool TokenIssuance::Validate(logos::process_return & result) const
         return true;
     };
 
+    if(token_id != GetTokenID(*this))
+    {
+        result.code = logos::process_result::invalid_token_id;
+        return false;
+    }
+
     if(symbol.empty() || !is_alphanumeric(symbol) || symbol.size() > SYMBOL_MAX_SIZE)
     {
         result.code = logos::process_result::invalid_token_symbol;
@@ -148,9 +158,15 @@ bool TokenIssuance::Validate(logos::process_return & result) const
         return false;
     }
 
-    if(token_id != GetTokenID(*this))
+    if(controllers.size() > TokenAccount::MAX_CONTROLLERS)
     {
-        result.code = logos::process_result::invalid_token_id;
+        result.code = logos::process_result::controller_capacity;
+        return false;
+    }
+
+    if(issuer_info.size() > TokenIssuance::INFO_MAX_SIZE)
+    {
+        result.code = logos::process_result::invalid_issuer_info;
         return false;
     }
 
@@ -345,6 +361,10 @@ bool TokenIssuance::operator==(const Request & other) const
     return false;
 }
 
+TokenIssueAdtl::TokenIssueAdtl()
+    : TokenRequest(RequestType::IssueAdtlTokens)
+{}
+
 TokenIssueAdtl::TokenIssueAdtl(bool & error,
                                const logos::mdb_val & mdbval)
 {
@@ -493,6 +513,10 @@ bool TokenIssueAdtl::operator==(const Request & other) const
     return false;
 }
 
+TokenChangeSetting::TokenChangeSetting()
+    : TokenRequest(RequestType::ChangeTokenSetting)
+{}
+
 TokenChangeSetting::TokenChangeSetting(bool & error,
                                        const logos::mdb_val & mdbval)
 {
@@ -564,7 +588,7 @@ boost::property_tree::ptree TokenChangeSetting::SerializeJson() const
     boost::property_tree::ptree tree = TokenRequest::SerializeJson();
 
     tree.put(SETTING, GetTokenSettingField(setting));
-    tree.put(VALUE, value == SettingValue::Enabled ? true : false);
+    tree.put(VALUE, bool(value));
 
     return tree;
 }
@@ -633,6 +657,10 @@ bool TokenChangeSetting::operator==(const Request & other) const
 
     return false;
 }
+
+TokenImmuteSetting::TokenImmuteSetting()
+    : TokenRequest(RequestType::ImmuteTokenSetting)
+{}
 
 TokenImmuteSetting::TokenImmuteSetting(bool & error,
                                        const logos::mdb_val & mdbval)
@@ -770,6 +798,10 @@ bool TokenImmuteSetting::operator==(const Request & other) const
 
     return false;
 }
+
+TokenRevoke::TokenRevoke()
+    : TokenRequest(RequestType::RevokeTokens)
+{}
 
 TokenRevoke::TokenRevoke(bool & error,
                          const logos::mdb_val & mdbval)
@@ -951,6 +983,10 @@ bool TokenRevoke::operator==(const Request & other) const
     return false;
 }
 
+TokenFreeze::TokenFreeze()
+    : TokenRequest(RequestType::FreezeTokens)
+{}
+
 TokenFreeze::TokenFreeze(bool & error,
                          const logos::mdb_val & mdbval)
 {
@@ -1093,6 +1129,10 @@ bool TokenFreeze::operator==(const Request & other) const
 
     return false;
 }
+
+TokenSetFee::TokenSetFee()
+    : TokenRequest(RequestType::SetTokenFee)
+{}
 
 TokenSetFee::TokenSetFee(bool & error,
                          const logos::mdb_val & mdbval)
@@ -1248,6 +1288,10 @@ bool TokenSetFee::operator==(const Request & other) const
     return false;
 }
 
+TokenWhitelist::TokenWhitelist()
+    : TokenRequest(RequestType::UpdateWhitelist)
+{}
+
 TokenWhitelist::TokenWhitelist(bool & error,
                                const logos::mdb_val & mdbval)
 {
@@ -1373,6 +1417,10 @@ bool TokenWhitelist::operator==(const Request & other) const
     return false;
 }
 
+TokenIssuerInfo::TokenIssuerInfo()
+    : TokenRequest(RequestType::UpdateIssuerInfo)
+{}
+
 TokenIssuerInfo::TokenIssuerInfo(bool & error,
                                  const logos::mdb_val & mdbval)
 {
@@ -1427,6 +1475,17 @@ TokenIssuerInfo::TokenIssuerInfo(bool & error,
         error = true;
     }
 }
+
+bool TokenIssuerInfo::Validate(logos::process_return & result) const
+{
+    if(new_info.size() > TokenIssuance::INFO_MAX_SIZE)
+    {
+        result.code = logos::process_result::invalid_issuer_info;
+        return false;
+    }
+
+    return true;
+};
 
 boost::property_tree::ptree TokenIssuerInfo::SerializeJson() const
 {
@@ -1492,6 +1551,10 @@ bool TokenIssuerInfo::operator==(const Request & other) const
 
     return false;
 }
+
+TokenController::TokenController()
+    : TokenRequest(RequestType::UpdateController)
+{}
 
 TokenController::TokenController(bool & error,
                                  const logos::mdb_val & mdbval)
@@ -1561,10 +1624,14 @@ TokenController::TokenController(bool & error,
 
 bool TokenController::Validate(logos::process_return & result) const
 {
-    if(action == ControllerAction::Unknown)
+    switch(action)
     {
-        result.code = logos::process_result::invalid_controller_action;
-        return false;
+        case ControllerAction::Add:
+        case ControllerAction::Remove:
+            break;
+        default:
+            result.code = logos::process_result::invalid_controller_action;
+            return false;
     }
 
     return true;
@@ -1679,6 +1746,10 @@ bool TokenController::operator==(const Request & other) const
 
     return false;
 }
+
+TokenBurn::TokenBurn()
+    : TokenRequest(RequestType::BurnTokens)
+{}
 
 TokenBurn::TokenBurn(bool & error,
                      const logos::mdb_val & mdbval)
@@ -1830,6 +1901,10 @@ bool TokenBurn::operator==(const Request & other) const
     return false;
 }
 
+TokenAccountSend::TokenAccountSend()
+    : TokenRequest(RequestType::DistributeTokens)
+{}
+
 TokenAccountSend::TokenAccountSend(bool & error,
                                    const logos::mdb_val & mdbval)
 {
@@ -1963,6 +2038,10 @@ bool TokenAccountSend::operator==(const Request & other) const
     return false;
 }
 
+TokenAccountWithdrawFee::TokenAccountWithdrawFee()
+    : TokenRequest(RequestType::WithdrawFee)
+{}
+
 TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
                                                  const logos::mdb_val & mdbval)
 {
@@ -2094,6 +2173,10 @@ bool TokenAccountWithdrawFee::operator==(const Request & other) const
 
     return false;
 }
+
+TokenSend::TokenSend()
+    : TokenRequest(RequestType::SendTokens)
+{}
 
 TokenSend::TokenSend(bool & error,
                      const logos::mdb_val & mdbval)
