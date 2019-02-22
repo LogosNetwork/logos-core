@@ -537,7 +537,11 @@ TEST(database,validate)
     ASSERT_TRUE(isValid(*store,renounce,epoch_num,txn));
     ASSERT_FALSE(isValid(*store,announce,epoch_num,txn));
 
+
     //TODO: actually elect someone, test if they are removed from candidates db
+
+
+
 }
 
 #endif

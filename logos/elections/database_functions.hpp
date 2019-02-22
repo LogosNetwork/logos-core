@@ -5,8 +5,15 @@
 
 std::vector<std::pair<AccountAddress,uint64_t>> getElectionWinners(size_t num_winners, logos::block_store& store, MDB_txn* txn);
 
+
+
 const std::chrono::milliseconds VOTING_DOWNTIME(1000 * 60 * 10); //10 minutes
 
+bool getOldEpochBlock(
+        logos::block_store& store,
+        MDB_txn* txn,
+        size_t num_epochs_ago,
+        ApprovedEB& output);
 
 //TODO: make some of these private
 //want to be able to unit test each of them individually

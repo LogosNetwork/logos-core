@@ -92,18 +92,43 @@ bool markDelegateElectsAsRemove(logos::block_store& store, MDB_txn* txn)
     return res;
 }
 
+bool getOldEpochBlock(
+        logos::block_store& store,
+        MDB_txn* txn,
+        size_t num_epochs_ago,
+        ApprovedEB& output)
+{
+    BlockHash hash;
+    if(store.epoch_tip_get(hash,txn))
+    {
+        return true;
+    }
+    assert(!store.epoch_get(hash,output,txn));
+
+    for(size_t i = 0; i < num_epochs_ago; ++i)
+    {
+        auto previous_hash = output.previous;
+        if(previous_hash == 0)
+        {
+            //not enough epochs have passed
+            return true;
+        }
+        //This should never happen
+        assert(!store.epoch_get(previous_hash,output,txn));
+    }
+    return false;
+}
+
 bool addReelectionCandidates(logos::block_store& store, MDB_txn* txn)
 {
     BlockHash hash;
     if(store.epoch_tip_get(hash,txn))
     {
-        std::cout << "didnt get tip" << std::endl;
         return true;
     }
     ApprovedEB epoch;
     if(store.epoch_get(hash,epoch,txn))
     {
-        std::cout << "didnt get epoch" << std::endl;
         return true;
     }
 
@@ -118,7 +143,6 @@ bool addReelectionCandidates(logos::block_store& store, MDB_txn* txn)
         }
         if(store.epoch_get(previous_hash,epoch,txn))
         {
-            std::cout << "failed to get previous epoch" << std::endl;
             return true;
         }
     }
