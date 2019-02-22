@@ -26,7 +26,6 @@ class ConsensusMsgSink : public ConsensusMsgConsumer
 
 protected:
     using Service   = boost::asio::io_service;
-    using Counts    = std::map<uint8_t, ConnCnts>;
 
 public:
     ConsensusMsgSink(Service &service);
@@ -35,13 +34,21 @@ public:
               MessageType message_type, ConsensusType consensus_type, uint32_t payload_size, bool is_p2p);
     void Pop();
     void Post(std::shared_ptr<MessageBase> message, MessageType message_type, bool is_p2p);
+    void ResetConnectStats()
+    {
+        _direct_connect = 0;
+    }
+    bool IsDirectPrimary()
+    {
+        return _direct_connect > 0;
+    }
 
 
 protected:
     Service &               _service;
     std::queue<Message>     _msg_queue;
     std::mutex              _queue_mutex;
-    Counts                  _msg_cnt;
+    std::atomic<uint32_t>   _direct_connect;
     bool                    _consuming;
 };
 

@@ -90,7 +90,8 @@ public:
 
 protected:
 
-    virtual void SendP2p(const uint8_t *, uint32_t, uint32_t, uint8_t) = 0;
+    virtual bool SendP2p(const uint8_t *, uint32_t, uint32_t, uint8_t) = 0;
+    virtual void EnableP2p(bool enable) = 0;
 
     virtual void UpdateVotes();
 

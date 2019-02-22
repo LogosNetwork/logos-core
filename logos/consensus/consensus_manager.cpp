@@ -355,6 +355,52 @@ ConsensusManager<CT>::AddToConsensusQueue(const uint8_t * data,
     }
     return true;
 }
+template<ConsensusType CT>
+void
+ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {
+
+    if (ec && ec == boost::asio::error::operation_aborted)
+    {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(_connection_mutex);
+
+    uint64_t quorum = 0;
+    logos::uint128_t vote = 0;
+    logos::uint128_t stake = 0;
+    for (auto it = _connections.begin(); it != _connections.end(); ++it)
+    {
+        auto sink = std::dynamic_pointer_cast<ConsensusMsgSink>(*it);
+        auto direct = sink->IsDirectPrimary()?1:0;
+        sink->ResetConnectStats();
+        vote += direct * _weights[(*it)->RemoteDelegateId()].vote_weight;
+        stake += direct * _weights[(*it)->RemoteDelegateId()].stake_weight;
+    }
+
+    if (!(vote >= _vote_quorum && stake >= _stake_quorum))
+    {
+        ConsensusP2pBridge<CT>::ScheduleP2pTimer(std::bind(&ConsensusManager::OnP2pTimeout, this,
+                                                           std::placeholders::_1));
+    }
+    else
+    {
+        ConsensusP2pBridge<CT>::EnableP2p(false);
+    }
+}
+
+template<ConsensusType CT>
+void
+ConsensusManager<CT>::EnableP2p(bool enable)
+{
+    ConsensusP2pBridge<CT>::EnableP2p(enable);
+
+    if (enable)
+    {
+       ConsensusP2pBridge<CT>::ScheduleP2pTimer(std::bind(&ConsensusManager::OnP2pTimeout, this,
+                                                std::placeholders::_1));
+    }
+}
 
 template class ConsensusManager<ConsensusType::BatchStateBlock>;
 template class ConsensusManager<ConsensusType::MicroBlock>;

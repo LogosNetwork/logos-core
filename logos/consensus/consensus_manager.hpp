@@ -80,6 +80,7 @@ protected:
     using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
     using ApprovedBlock   = PostCommittedBlock<CT>;
     using Responses   = std::vector<std::pair<logos::process_result, BlockHash>>;
+    using ErrorCode   = boost::system::error_code;
 
 public:
 
@@ -188,10 +189,14 @@ protected:
                              uint32_t payload_size,
                              uint8_t delegate_id=0xff) override;
 
-    void SendP2p(const uint8_t *data, uint32_t size, uint32_t epoch_number, uint8_t dest_delegate_id) override
+    bool SendP2p(const uint8_t *data, uint32_t size, uint32_t epoch_number, uint8_t dest_delegate_id) override
     {
-        ConsensusP2pBridge<CT>::SendP2p(data, size, epoch_number, dest_delegate_id);
+        return ConsensusP2pBridge<CT>::SendP2p(data, size, epoch_number, dest_delegate_id);
     }
+
+    void EnableP2p(bool enable) override;
+
+    void OnP2pTimeout(const ErrorCode &);
 
     Service &                       _service;
     Connections                     _connections;

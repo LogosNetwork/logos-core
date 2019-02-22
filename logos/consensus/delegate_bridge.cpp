@@ -7,8 +7,12 @@
 #include <logos/consensus/messages/util.hpp>
 
 template<ConsensusType CT>
-DelegateBridge<CT>::DelegateBridge(Service & service, std::shared_ptr<IOChannel> iochannel)
+DelegateBridge<CT>::DelegateBridge(Service & service,
+                                   std::shared_ptr<IOChannel> iochannel,
+                                   p2p_interface & p2p,
+                                   uint8_t delegate_id)
     : ConsensusMsgSink(service)
+    , ConsensusP2pBridge<CT>(service, p2p, delegate_id)
     , _iochannel(iochannel)
 {}
 
@@ -81,6 +85,7 @@ void DelegateBridge<CT>::OnMessage(std::shared_ptr<MessageBase> message, Message
     {
         case MessageType::Pre_Prepare:
         {
+            this->EnableP2p(is_p2p);
             auto msg = dynamic_pointer_cast<PrePrepare>(message);
             log_message_received(MessageToName(message_type), msg->Hash().to_string());
             OnConsensusMessage(*msg);
@@ -95,6 +100,7 @@ void DelegateBridge<CT>::OnMessage(std::shared_ptr<MessageBase> message, Message
         }
         case MessageType::Post_Prepare:
         {
+            this->EnableP2p(is_p2p);
             auto msg = dynamic_pointer_cast<PostPrepare>(message);
             log_message_received(MessageToName(message_type), msg->preprepare_hash.to_string());
             OnConsensusMessage(*msg);
@@ -109,6 +115,7 @@ void DelegateBridge<CT>::OnMessage(std::shared_ptr<MessageBase> message, Message
         }
         case MessageType::Post_Commit:
         {
+            this->EnableP2p(is_p2p);
             auto msg = dynamic_pointer_cast<PostCommit>(message);
             log_message_received(MessageToName(message_type), msg->preprepare_hash.to_string());
             OnConsensusMessage(*msg);

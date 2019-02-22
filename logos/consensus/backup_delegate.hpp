@@ -1,7 +1,6 @@
 #pragma once
 
 #include <logos/consensus/persistence/persistence_manager.hpp>
-#include <logos/consensus/p2p/consensus_p2p_bridge.hpp>
 #include <logos/consensus/messages/rejection.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/messages/messages.hpp>
@@ -29,8 +28,7 @@ class RequestPromoter;
 
 
 template<ConsensusType CT>
-class BackupDelegate : public DelegateBridge<CT>,
-                       public ConsensusP2pBridge<CT>
+class BackupDelegate : public DelegateBridge<CT>
 {
 protected:
 

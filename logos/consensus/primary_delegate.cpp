@@ -210,8 +210,9 @@ void PrimaryDelegate::OnTimeout(const Error & error,
                        << " Aborting timeout.";
         return;
     }
-    LOG_ERROR(_log) << "PrimaryDelegate::OnTimeout<" << ConsensusToName(C) << "> - Delegate going into recall! ";
-    AdvanceState(ConsensusState::RECALL);
+    LOG_ERROR(_log) << "PrimaryDelegate::OnTimeout<" << ConsensusToName(C) << "> - Delegate s enabling P2p";
+
+    EnableP2p(true);
 }
 
 template<ConsensusType C>

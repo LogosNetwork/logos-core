@@ -19,13 +19,8 @@ ConsensusMsgSink::Push(uint8_t delegate_id,
 {
     std::lock_guard<std::mutex> lock(_queue_mutex);
 
-    // have to differentiate messages designated for ConsensusManager (Prepare, Commit) and assign to local
-    // delegate id
-    if (is_p2p) {
-        _msg_cnt[delegate_id].p2p_cnt++;
-    } else {
-        _msg_cnt[delegate_id].dir_cnt++;
-    }
+    _direct_connect += ((false == is_p2p && message_type != MessageType::Pre_Prepare &&
+            message_type != MessageType::Post_Prepare && message_type != MessageType::Post_Commit) ? 1 : 0);
 
     auto message = Parse(data, version, message_type, consensus_type, payload_size);
     if (false == _consuming)
