@@ -34,6 +34,7 @@ struct p2p_config
     void *                                                          boost_io_service;
     std::function<void(std::function<void()> const &, unsigned)>    scheduleAfterMs;
     std::function<void(int,const char *)>                           userInterfaceMessage;
+    bool                                                            test_mode;
 };
 
 enum p2p_option_flags

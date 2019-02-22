@@ -501,6 +501,9 @@ bool AppInitMain(p2p_config &config)
     connman.io_service = io_service;
     connman.scheduleAfter = config.scheduleAfterMs;
 
+    if (config.test_mode)
+        return true;
+
     peerLogic.reset(new PeerLogicValidation(&connman, gArgs.GetBoolArg("-enablebip61", DEFAULT_ENABLE_BIP61)));
 
     // sanitize comments per BIP-0014, format user agent and check total size

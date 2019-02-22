@@ -398,7 +398,8 @@ if (LOGOS_TEST)
 	add_executable (unit_test
 		logos/unit_test/consensus_msg_serialize.cpp
         logos/unit_test/tallying.cpp
-        logos/p2p/test/propagate_test.cpp)
+        logos/p2p/test/propagate_test.cpp
+        logos/p2p/test/storage_test.cpp)
 
 	set_target_properties (unit_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1 ")
 	if (STRICT_CONSENSUS_THRESHOLD MATCHES ON)
