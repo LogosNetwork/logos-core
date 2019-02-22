@@ -345,7 +345,9 @@ void BackupDelegate<CT>::ResetRejectionStatus()
 
 template<ConsensusType CT>
 bool BackupDelegate<CT>::ValidateReProposal(const PrePrepare & message)
-{}
+{
+    return false;
+}
 
 template class BackupDelegate<ConsensusType::Request>;
 template class BackupDelegate<ConsensusType::MicroBlock>;

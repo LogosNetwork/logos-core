@@ -42,7 +42,7 @@ struct TokenIssuance : TokenRequest
 
     static constexpr uint8_t  SYMBOL_MAX_SIZE = 8;
     static constexpr uint8_t  NAME_MAX_SIZE   = 32;
-    static constexpr uint16_t INFO_MAX_SIZE   = 16;
+    static constexpr uint16_t INFO_MAX_SIZE   = 512;
 
     std::string  symbol;
     std::string  name;

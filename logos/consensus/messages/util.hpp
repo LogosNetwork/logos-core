@@ -95,27 +95,40 @@ inline size_t ConsensusTypeToIndex(ConsensusType type)
 
 inline std::string RejectionReasonToName(RejectionReason reason)
 {
+    std::string result;
+
     switch (reason)
     {
         case RejectionReason::Void:
-            return "Void";
+            result = "Void";
+            break;
         case RejectionReason::Contains_Invalid_Request:
-            return "Contains Invalid Request";
+            result = "Contains Invalid Request";
+            break;
         case RejectionReason::Clock_Drift:
-            return "Clock Drift";
+            result = "Clock Drift";
+            break;
         case RejectionReason::Bad_Signature:
-            return "Bad Signature";
+            result = "Bad Signature";
+            break;
         case RejectionReason::Invalid_Epoch:
-            return "Invalid Epoch";
+            result = "Invalid Epoch";
+            break;
         case RejectionReason::New_Epoch:
-            return "New Epoch";
+            result = "New Epoch";
+            break;
         case RejectionReason::Wrong_Sequence_Number:
-            return "Wrong Sequence Number";
+            result = "Wrong Sequence Number";
+            break;
         case RejectionReason::Invalid_Previous_Hash:
-            return "Invalid Previous Hash";
+            result = "Invalid Previous Hash";
+            break;
         case RejectionReason::Invalid_Primary_Index:
-            return "Invalid Primary Index";
+            result = "Invalid Primary Index";
+            break;
     }
+
+    return result;
 }
 
 template<MessageType MT, ConsensusType CT>

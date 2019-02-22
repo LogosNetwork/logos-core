@@ -334,7 +334,7 @@ void logos::alarm::run ()
     }
 }
 
-void logos::alarm::add (std::chrono::steady_clock::time_point const & wakeup_a, std::function<void()> const & operation)
+logos::alarm::Handle logos::alarm::add (std::chrono::steady_clock::time_point const & wakeup_a, std::function<void()> const & operation)
 {
     std::lock_guard<std::mutex> lock(mutex);
 
@@ -344,6 +344,8 @@ void logos::alarm::add (std::chrono::steady_clock::time_point const & wakeup_a, 
     pending_operations.insert(handle);
 
     condition.notify_all();
+
+    return handle;
 }
 
 void logos::alarm::cancel(Handle handle)
