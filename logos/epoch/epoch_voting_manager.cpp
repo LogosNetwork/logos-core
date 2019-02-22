@@ -10,6 +10,7 @@
 #include <logos/lib/trace.hpp>
 #include <logos/elections/database.hpp>
 #include <unordered_map>
+#include <logos/elections/database_functions.hpp>
 
 
 
@@ -17,6 +18,22 @@
 std::unordered_set<Delegate> EpochVotingManager::GetRetiringDelegates()
 {
     std::unordered_set<Delegate> retiring;
+
+    ApprovedEB epoch;
+    logos::transaction txn(_store.environment,nullptr,false);
+    if(getOldEpochBlock(_store, txn, 4, epoch))
+    {
+        return retiring;
+    }
+
+    for(auto& d : epoch.delegates)
+    {
+        if(d.starting_term)
+        {
+            retiring.insert(d);
+        }
+    }
+    
     return retiring;
 }
 

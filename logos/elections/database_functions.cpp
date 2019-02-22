@@ -121,30 +121,10 @@ bool getOldEpochBlock(
 
 bool addReelectionCandidates(logos::block_store& store, MDB_txn* txn)
 {
-    BlockHash hash;
-    if(store.epoch_tip_get(hash,txn))
-    {
-        return true;
-    }
     ApprovedEB epoch;
-    if(store.epoch_get(hash,epoch,txn))
+    if(getOldEpochBlock(store,txn,3,epoch))
     {
         return true;
-    }
-
-    size_t num_epochs = 3;
-    for(size_t i = 0; i < num_epochs; ++i)
-    {
-        auto previous_hash = epoch.previous;
-        if(previous_hash == 0)
-        {
-            //not enough epochs have passed
-            return false;
-        }
-        if(store.epoch_get(previous_hash,epoch,txn))
-        {
-            return true;
-        }
     }
 
     for(auto& d : epoch.delegates)
