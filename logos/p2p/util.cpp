@@ -85,7 +85,7 @@ const int64_t nStartupTime = GetTime();
 const char * const BITCOIN_CONF_FILENAME = PACKAGE_NAME ".conf";
 const char * const BITCOIN_PID_FILENAME = PACKAGE_NAME ".pid";
 
-ArgsManager gArgs;
+ArgsManager *g_Args = 0;
 
 /** Init OpenSSL library multithreading support */
 static std::unique_ptr<CCriticalSection[]> ppmutexOpenSSL;

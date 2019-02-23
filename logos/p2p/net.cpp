@@ -2256,6 +2256,54 @@ bool CConnman::InitBinds(const std::vector<CService>& binds, const std::vector<C
     return fBound;
 }
 
+bool CConnman::LoadData()
+{
+    bool res = true;
+
+    if (clientInterface)
+    {
+        clientInterface->InitMessage(_("Loading P2P addresses..."));
+    }
+    // Load addresses from peers.dat
+    int64_t nStart = GetTimeMillis();
+    {
+        CAddrDB adb;
+        if (adb.Read(addrman))
+            LogPrintf("Loaded %i addresses from peers.dat  %dms\n", addrman.size(), GetTimeMillis() - nStart);
+        else
+        {
+            addrman.Clear(); // Addrman can be in an inconsistent state after failure, reset it
+            LogPrintf("Invalid or missing peers.dat; recreating\n");
+            DumpAddresses();
+            res = false;
+        }
+    }
+    if (clientInterface)
+        clientInterface->InitMessage(_("Loading banlist..."));
+    // Load addresses from banlist.dat
+    nStart = GetTimeMillis();
+    CBanDB bandb;
+    banmap_t banmap;
+    if (bandb.Read(banmap))
+    {
+        SetBanned(banmap); // thread save setter
+        SetBannedSetDirty(false); // no need to write down, just read data
+        SweepBanned(); // sweep out unused entries
+
+        LogPrint(BCLog::NET, "Loaded %d banned node ips/subnets from banlist.dat  %dms\n",
+            banmap.size(), GetTimeMillis() - nStart);
+    }
+    else
+    {
+        LogPrintf("Invalid or missing banlist.dat; recreating\n");
+        SetBannedSetDirty(true); // force write
+        DumpBanlist();
+        res = false;
+    }
+
+    return res;
+}
+
 bool CConnman::Start(const Options& connOptions)
 {
     Init(connOptions);
@@ -2282,39 +2330,7 @@ bool CConnman::Start(const Options& connOptions)
         AddOneShot(strDest);
     }
 
-    if (clientInterface) {
-        clientInterface->InitMessage(_("Loading P2P addresses..."));
-    }
-    // Load addresses from peers.dat
-    int64_t nStart = GetTimeMillis();
-    {
-        CAddrDB adb;
-        if (adb.Read(addrman))
-            LogPrintf("Loaded %i addresses from peers.dat  %dms\n", addrman.size(), GetTimeMillis() - nStart);
-        else {
-            addrman.Clear(); // Addrman can be in an inconsistent state after failure, reset it
-            LogPrintf("Invalid or missing peers.dat; recreating\n");
-            DumpAddresses();
-        }
-    }
-    if (clientInterface)
-        clientInterface->InitMessage(_("Loading banlist..."));
-    // Load addresses from banlist.dat
-    nStart = GetTimeMillis();
-    CBanDB bandb;
-    banmap_t banmap;
-    if (bandb.Read(banmap)) {
-        SetBanned(banmap); // thread save setter
-        SetBannedSetDirty(false); // no need to write down, just read data
-        SweepBanned(); // sweep out unused entries
-
-        LogPrint(BCLog::NET, "Loaded %d banned node ips/subnets from banlist.dat  %dms\n",
-            banmap.size(), GetTimeMillis() - nStart);
-    } else {
-        LogPrintf("Invalid or missing banlist.dat; recreating\n");
-        SetBannedSetDirty(true); // force write
-        DumpBanlist();
-    }
+    LoadData();
 
     uiInterface.InitMessage(_("Starting network threads..."));
 

@@ -321,6 +321,8 @@ public:
     bool Unban(const CSubNet &ip);
     void GetBanned(banmap_t &banmap);
     void SetBanned(const banmap_t &banmap);
+    bool LoadData();
+    void DumpData();
 
     // This allows temporarily exceeding nMaxOutbound, with the goal of finding
     // a peer that is better than all our current peers.
@@ -387,13 +389,15 @@ public:
     */
     int64_t PoissonNextSendInbound(int64_t now, int average_interval_seconds);
 
-    void scheduleEveryRecurse(std::function<void()> const &handler, unsigned ms) {
-	handler();
-	scheduleAfter(std::bind(&CConnman::scheduleEveryRecurse, this, handler, ms), ms);
+    void scheduleEveryRecurse(std::function<void()> const &handler, unsigned ms)
+    {
+        handler();
+        scheduleAfter(std::bind(&CConnman::scheduleEveryRecurse, this, handler, ms), ms);
     }
 
-    void scheduleEvery(std::function<void()> const &handler, unsigned ms) {
-	scheduleAfter(std::bind(&CConnman::scheduleEveryRecurse, this, handler, ms), ms);
+    void scheduleEvery(std::function<void()> const &handler, unsigned ms)
+    {
+        scheduleAfter(std::bind(&CConnman::scheduleEveryRecurse, this, handler, ms), ms);
     }
 
     p2p_interface *p2p;
@@ -443,7 +447,6 @@ private:
     //!clean unused entries (if bantime has expired)
     void SweepBanned();
     void DumpAddresses();
-    void DumpData();
     void DumpBanlist();
 
     // Network stats

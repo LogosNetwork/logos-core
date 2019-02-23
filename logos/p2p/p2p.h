@@ -75,6 +75,12 @@ public:
      */
     bool is_blacklisted(const char *addr);
 
+    /* load peers and blacklist databases from disk; returns true if success */
+    bool load_databases();
+
+    /* save peers and blacklist databases to disk; returns true if success */
+    bool save_databases();
+
     virtual bool ReceiveMessageCallback(const void *message, unsigned size)
     {
         return false;
