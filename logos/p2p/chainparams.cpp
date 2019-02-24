@@ -82,8 +82,8 @@ std::unique_ptr<CChainParams> CreateChainParams(const std::string& chain)
     throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
 }
 
-void SelectParams(const std::string& network)
+void SelectParams(ArgsManager &Args, const std::string& network)
 {
-    SelectBaseParams(network);
+    SelectBaseParams(Args, network);
     globalChainParams = CreateChainParams(network);
 }

@@ -246,9 +246,6 @@ public:
     bool IsArgKnown(const std::string& key) const;
 };
 
-extern ArgsManager *g_Args;
-#define gArgs (*g_Args)
-
 /**
  * @return true if help has been requested via a command-line arg
  */

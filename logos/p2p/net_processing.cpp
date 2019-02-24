@@ -55,7 +55,7 @@ static constexpr int HISTORICAL_BLOCK_AGE = 7 * 24 * 60 * 60;
 CCriticalSection cs_main;
 
 /** Increase a node's misbehavior score. */
-void Misbehaving(NodeId nodeid, int howmuch, const std::string& message="") EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+void Misbehaving(NodeId nodeid, int howmuch, int banscore, const std::string& message="") EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
 /** Average delay between local address broadcasts in seconds. */
 static constexpr unsigned int AVG_LOCAL_ADDRESS_BROADCAST_INTERVAL = 24 * 60 * 60;
@@ -309,7 +309,7 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats) {
 /**
  * Mark a misbehaving peer to be banned depending upon the value of `-banscore`.
  */
-void Misbehaving(NodeId pnode, int howmuch, const std::string& message) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+void Misbehaving(NodeId pnode, int howmuch, int banscore, const std::string& message) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     if (howmuch == 0)
         return;
@@ -319,7 +319,6 @@ void Misbehaving(NodeId pnode, int howmuch, const std::string& message) EXCLUSIV
         return;
 
     state->nMisbehavior += howmuch;
-    int banscore = gArgs.GetArg("-banscore", DEFAULT_BANSCORE_THRESHOLD);
     std::string message_prefixed = message.empty() ? "" : (": " + message);
     if (state->nMisbehavior >= banscore && state->nMisbehavior - howmuch < banscore)
     {
@@ -391,7 +390,7 @@ static void RelayAddress(const CAddress& addr, bool fReachable, CConnman* connma
 bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strCommand, CDataStream& vRecv, int64_t nTimeReceived, const CChainParams& chainparams, CConnman* connman, const std::atomic<bool>& interruptMsgProc, bool enable_bip61)
 {
     LogPrint(BCLog::NET, "received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->GetId());
-    if (gArgs.IsArgSet("-dropmessagestest") && GetRand(gArgs.GetArg("-dropmessagestest", 0)) == 0)
+    if (connman->Args.IsArgSet("-dropmessagestest") && GetRand(connman->Args.GetArg("-dropmessagestest", 0)) == 0)
     {
         LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");
         return true;
@@ -416,6 +415,8 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
         return true;
     }
 
+    int banscore = connman->Args.GetArg("-banscore", DEFAULT_BANSCORE_THRESHOLD);
+
     if (strCommand == NetMsgType::VERSION) {
         // Each connection can only send one version message
         if (pfrom->nVersion != 0)
@@ -424,7 +425,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
                 connman->PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_DUPLICATE, std::string("Duplicate version message")));
             }
             LOCK(cs_main);
-            Misbehaving(pfrom->GetId(), 1);
+            Misbehaving(pfrom->GetId(), 1, banscore);
             return false;
         }
 
@@ -524,7 +525,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
             // Advertise our address
             if (fListen && !IsInitialBlockDownload())
             {
-                CAddress addr = GetLocalAddress(&pfrom->addr, pfrom->GetLocalServices());
+                CAddress addr = connman->GetLocalAddress(&pfrom->addr, pfrom->GetLocalServices());
                 FastRandomContext insecure_rand;
                 if (addr.IsRoutable())
                 {
@@ -554,7 +555,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
 
         int64_t nTimeOffset = nTime - GetTime();
         pfrom->nTimeOffset = nTimeOffset;
-        AddTimeData(pfrom->addr, nTimeOffset);
+        AddTimeData(connman->Args, pfrom->addr, nTimeOffset);
 
         // Feeler connections exist only to verify if address is online.
         if (pfrom->fFeeler) {
@@ -567,7 +568,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
     if (pfrom->nVersion == 0) {
         // Must have a version message before anything else
         LOCK(cs_main);
-        Misbehaving(pfrom->GetId(), 1);
+        Misbehaving(pfrom->GetId(), 1, banscore);
         return false;
     }
 
@@ -594,7 +595,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
     if (!pfrom->fSuccessfullyConnected) {
         // Must have a verack message before anything else
         LOCK(cs_main);
-        Misbehaving(pfrom->GetId(), 1);
+        Misbehaving(pfrom->GetId(), 1, banscore);
         return false;
     }
 
@@ -605,7 +606,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
         if (vAddr.size() > 1000)
         {
             LOCK(cs_main);
-            Misbehaving(pfrom->GetId(), 20, strprintf("message addr size() = %u", vAddr.size()));
+            Misbehaving(pfrom->GetId(), 20, banscore, strprintf("message addr size() = %u", vAddr.size()));
             return false;
         }
 

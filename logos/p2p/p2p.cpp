@@ -93,12 +93,10 @@ public:
         , nLocalServices(ServiceFlags(NODE_NETWORK | NODE_NETWORK_LIMITED))
         , io_service((boost::asio::io_service *)config.boost_io_service)
     {
-        g_Args = &Args;
     }
 
     ~p2p_internal()
     {
-        g_Args = 0;
     }
 
 #ifdef WIN32
@@ -504,7 +502,11 @@ bool AppInitMain(p2p_config &config)
     // need to reindex later.
 
     assert(!g_connman);
-    g_connman = std::unique_ptr<CConnman>(new CConnman(GetRand(std::numeric_limits<uint64_t>::max()), GetRand(std::numeric_limits<uint64_t>::max())));
+    g_connman = std::unique_ptr<CConnman>(new CConnman(
+            GetRand(std::numeric_limits<uint64_t>::max()),
+            GetRand(std::numeric_limits<uint64_t>::max()),
+            Args
+            ));
     CConnman& connman = *g_connman;
     connman.p2p = &interface;
     connman.p2p_store = &store;
@@ -553,7 +555,7 @@ bool AppInitMain(p2p_config &config)
 
     for (const std::string& strAddr : Args.GetArgs("-externalip")) {
         CService addrLocal;
-        if (Lookup(strAddr.c_str(), addrLocal, GetListenPort(), fNameLookup) && addrLocal.IsValid())
+        if (Lookup(strAddr.c_str(), addrLocal, connman.GetListenPort(), fNameLookup) && addrLocal.IsValid())
             AddLocal(addrLocal, LOCAL_MANUAL);
         else
             return InitError(ResolveErrMsg("externalip", strAddr));
@@ -566,7 +568,7 @@ bool AppInitMain(p2p_config &config)
         nMaxOutboundLimit = Args.GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024;
     }
 
-    Discover();
+    connman.Discover();
 
     // Map ports with UPnP
     if (Args.GetBoolArg("-upnp", DEFAULT_UPNP)) {
@@ -590,7 +592,7 @@ bool AppInitMain(p2p_config &config)
 
     for (const std::string& strBind : Args.GetArgs("-bind")) {
         CService addrBind;
-        if (!Lookup(strBind.c_str(), addrBind, GetListenPort(), false)) {
+        if (!Lookup(strBind.c_str(), addrBind, connman.GetListenPort(), false)) {
             return InitError(ResolveErrMsg("bind", strBind));
         }
         connOptions.vBinds.push_back(addrBind);
@@ -757,7 +759,7 @@ bool p2p_interface::Init(p2p_config &config)
     // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
     try
     {
-        SelectParams(p2p->getArgs().GetChainName());
+        SelectParams(p2p->getArgs(), p2p->getArgs().GetChainName());
     }
     catch (const std::exception& e)
     {
