@@ -226,7 +226,7 @@ bool AddLocal(const CService& addr, int nScore)
 
 bool CConnman::AddLocal(const CNetAddr &addr, int nScore)
 {
-    return AddLocal(CService(addr, GetListenPort()), nScore);
+    return ::AddLocal(CService(addr, GetListenPort()), nScore);
 }
 
 void RemoveLocal(const CService& addr)
