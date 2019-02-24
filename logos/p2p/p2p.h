@@ -58,12 +58,14 @@ public:
     void Shutdown();
     bool PropagateMessage(const void *message, unsigned size, bool output);
 
+    /* add nodes array to the database; return number of successfully added */
+    int add_peers(char **nodes, uint8_t count);
+
     /* Fills the nodes array of the count size by pointers to subsequent nodes
      * starting from the node with id *next.
      * Returns number of filled nodes, set *next to id of next node to fill.
      */
     int get_peers(int *next, char **nodes, uint8_t count);
-
 
     /* Add a peer to a blacklist
      * to be called when validation fails

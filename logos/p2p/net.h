@@ -550,7 +550,6 @@ private:
     friend class AsioSession;
     friend class p2p_internal;
 };
-extern std::unique_ptr<CConnman> g_connman;
 void StartMapPort();
 void InterruptMapPort();
 void StopMapPort();

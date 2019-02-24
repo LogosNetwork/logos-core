@@ -647,6 +647,32 @@ bool Propagate(PropagateMessage &mess)
     return store.Insert(mess);
 }
 
+int add_peers(char **nodes, uint8_t count)
+{
+    if (!g_connman)
+    {
+        return 0;
+    }
+
+    std::vector<CAddress> vAddr;
+    uint8_t res = 0;
+
+    for (; res < count; ++res)
+    {
+        CAddress addr;
+        if (!Lookup(nodes[res], addr, MAINNET_DEFAULT_PORT, false))
+        {
+            break;
+        }
+        vAddr.push_back(addr);
+    }
+
+    if (res)
+        g_connman->AddNewAddresses(vAddr, vAddr[0], 2 * 60 * 60);
+
+    return res;
+}
+
 int get_peers(int *next, char **nodes, uint8_t count)
 {
     if (!g_connman)
@@ -831,6 +857,16 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
     }
 
 	return true;
+}
+
+int p2p_interface::add_peers(char **nodes, uint8_t count)
+{
+    if (!p2p)
+    {
+        return 0;
+    }
+
+    return p2p->add_peers(nodes, count);
 }
 
 int p2p_interface::get_peers(int *next, char **nodes, uint8_t count)
