@@ -127,7 +127,7 @@ protected:
     {
         std::vector<uint8_t> buf;
         msg.Serialize(buf);
-        //this->Send(buf.data(), buf.size());
+        this->Send(buf.data(), buf.size());
         this->SendP2p(buf.data(), buf.size(), _epoch_number, _delegate_ids.remote);
     }
 
