@@ -22,7 +22,7 @@ bool getOldEpochBlock(
 bool updateCandidatesDB(logos::block_store& store, MDB_txn* txn);
 bool markDelegateElectsAsRemove(logos::block_store& store, MDB_txn* txn);
 bool addReelectionCandidates(logos::block_store& store, MDB_txn* txn);
-bool transitionCandidatesDBNextEpoch(logos::block_store& store, MDB_txn* txn);
+bool transitionCandidatesDBNextEpoch(logos::block_store& store, MDB_txn* txn,bool reelection=true);
 bool isValid(logos::block_store& store, ElectionVote& request, uint32_t cur_epoch_num, MDB_txn* txn); 
 bool isValid(logos::block_store& store, AnnounceCandidacy& request, uint32_t cur_epoch_num, MDB_txn* txn);
 bool isValid(logos::block_store& store, RenounceCandidacy& request, uint32_t cur_epoch_num, MDB_txn* txn);

@@ -267,6 +267,8 @@ TEST(Database,candidates_transition)
 {
     logos::block_store* store = get_db();
     store->clear(store->candidacy_db);
+    store->clear(store->epoch_db);
+    store->clear(store->epoch_tip_db);
 
     AccountAddress a1(0);
     AccountAddress a2(1);
@@ -337,7 +339,7 @@ TEST(Database,candidates_transition)
         ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
 
     }    
-    ASSERT_FALSE(transitionCandidatesDBNextEpoch(*store,txn));
+    ASSERT_FALSE(transitionCandidatesDBNextEpoch(*store,txn,false));
 
 
     {
@@ -362,7 +364,7 @@ TEST(Database,candidates_transition)
             ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
         }
 
-        ASSERT_FALSE(transitionCandidatesDBNextEpoch(*store,txn));
+        ASSERT_FALSE(transitionCandidatesDBNextEpoch(*store,txn,false));
         {
             CandidateInfo info;
             bool res = store->candidate_get(a2,info,txn);

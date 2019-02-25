@@ -172,10 +172,10 @@ bool updateCandidatesDB(logos::block_store& store, MDB_txn* txn)
 }
 
 
-bool transitionCandidatesDBNextEpoch(logos::block_store& store, MDB_txn* txn)
+bool transitionCandidatesDBNextEpoch(logos::block_store& store, MDB_txn* txn,bool reelection)
 {
     bool result = false;
-    if(addReelectionCandidates(store, txn))
+    if(reelection && addReelectionCandidates(store, txn))
     {
         std::cout << "failed to add reelection candidates" << std::endl;
         result = true;
