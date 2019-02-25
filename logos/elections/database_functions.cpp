@@ -39,15 +39,16 @@ const std::vector<T>& FixedSizeHeap<T>::getStorage()
     return storage;
 }
 
-std::vector<std::pair<AccountAddress,uint64_t>> getElectionWinners(
+std::vector<std::pair<AccountAddress,Amount>> getElectionWinners(
         size_t num_winners,
         logos::block_store& store,
         MDB_txn* txn)
 {
 
-    FixedSizeHeap<std::pair<AccountAddress,uint64_t>> results(num_winners,
+    FixedSizeHeap<std::pair<AccountAddress,Amount>> results(num_winners,
             [](auto p1,auto p2)
             {
+            //TODO: tiebreakers
                 return p1.second > p2.second;
             });
     for(auto it = logos::store_iterator(txn, store.candidacy_db);

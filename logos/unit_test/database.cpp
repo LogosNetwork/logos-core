@@ -7,35 +7,12 @@
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/elections/database.hpp>
 #include <logos/elections/database_functions.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 
 #define Unit_Test_Database
 
 #ifdef Unit_Test_Database
 
-
-//candidates are passed in outcome order)
-void generateReps(
-        size_t num_reps,
-        const std::vector<AccountAddress>& candidates,
-        logos::block_store* store)
-{
-    logos::transaction txn(store->environment,nullptr,true);
-    for(size_t i = 0; i < num_reps; ++i)
-    {
-       ElectionVote ev;
-       for(size_t j = 0; j < candidates.size(); ++j)
-       {
-            ev.votes_.emplace_back(candidates[j],candidates.size()-j);
-       } 
-       bool res = store->request_put(ev,ev.Hash(),txn);
-       ASSERT_FALSE(res);
-       RepInfo rep_info;
-       AccountAddress rep_account = i;
-       rep_info.election_vote_tip = ev.Hash();
-       res = store->rep_put(rep_account,rep_info,txn);
-       ASSERT_FALSE(res);
-    }
-}
 
 TEST (Database, blockstore)
 {
@@ -129,96 +106,13 @@ TEST (Database, blockstore)
         ASSERT_EQ(rep_info,rep_info2);
     }
    
-    { 
-    //voting with one rep
-    EpochVotingManager mgr(*store);
-
-    std::vector<Delegate> de(mgr.GetDelegateElects(1));
-
-    ASSERT_EQ(de.size(),1);
-    ASSERT_EQ(de[0].account,2);
-
-    de = mgr.GetDelegateElects(3);
-    ASSERT_EQ(de.size(),3);
-    ASSERT_EQ(de[0].account,2);
-    ASSERT_EQ(de[1].account,1);
-    ASSERT_EQ(de[2].account,3);
-    }
-    //add some more reps to db
-    {
-
-        std::vector<AccountAddress> candidates{100,101,102,103,104,105,106,107};
-        generateReps(100,candidates,store);
-        EpochVotingManager mgr(*store);
-        std::vector<Delegate> de(mgr.GetDelegateElects(4));
-        ASSERT_EQ(de.size(), 4);
-        ASSERT_EQ(de[0].account,candidates[0]);
-        ASSERT_EQ(de[1].account,candidates[1]);
-        ASSERT_EQ(de[2].account,candidates[2]);
-        ASSERT_EQ(de[3].account,candidates[3]);
-    }
 }
 
 
-void computeWinners(
-        size_t num_candidates,
-        size_t num_winners,
-        std::function<uint64_t(size_t i)> votes_func,
-        logos::block_store& store,
-        MDB_txn* txn)
-{
-    store.clear(store.candidacy_db,txn);
-    using CandidatePair = std::pair<AccountAddress,CandidateInfo>;
-    auto hash_func = [](const CandidatePair& c) {
-        return std::hash<AccountAddress>()(c.first) ^ 
-            std::hash<uint64_t>()(c.second.votes_received_weighted);
-    };
-
-    std::unordered_set<CandidatePair,decltype(hash_func)> 
-        candidates(num_candidates,hash_func);
-    {
-
-        for(size_t i = 0; i < num_candidates; ++i)
-        {
-            CandidateInfo c(true,false,votes_func(i));
-            AccountAddress a(i);
-            bool res = store.candidate_put(a,c,txn);
-            ASSERT_FALSE(res);
-            candidates.insert(std::make_pair(a,c));
-        }
-
-        std::unordered_set<CandidatePair,decltype(hash_func)> 
-            candidates_from_db(num_candidates,hash_func);
-        for(auto it = logos::store_iterator(txn, store.candidacy_db);
-                it != logos::store_iterator(nullptr); ++it)
-        {
-            AccountAddress a(it->first.uint256());
-            bool res = false;
-            CandidateInfo c(res,it->second);
-            ASSERT_FALSE(res);
-            candidates_from_db.insert(std::make_pair(a,c));
-        }
-        ASSERT_EQ(candidates,candidates_from_db);
-    }
-
-    auto results = getElectionWinners(num_winners,store,txn);
-
-    std::vector<CandidatePair> res_exp(candidates.begin(),candidates.end());
-
-    std::sort(res_exp.begin(),res_exp.end(),[](auto& p1,auto& p2){
-            return p1.second.votes_received_weighted > p2.second.votes_received_weighted;});
-
-    ASSERT_EQ(results.size(),num_winners);
-
-    for(size_t i = 0; i < num_winners; ++i)
-    {
-        ASSERT_EQ(results[i].first,res_exp[i].first);
-        ASSERT_EQ(results[i].second,res_exp[i].second.votes_received_weighted);
-    } 
-}
 
 
-TEST(database, heap)
+
+TEST(Database, heap)
 {
     std::vector<int> nums;
     nums.resize(100);
@@ -267,7 +161,7 @@ TEST(database, heap)
 }
 
 
-TEST(database, candidates)
+TEST(Database, candidates_simple)
 {
     
     logos::block_store* store = get_db();
@@ -300,9 +194,15 @@ TEST(database, candidates)
         res = store->candidate_add_vote(a1,50,txn);
         ASSERT_FALSE(res);
 
-        res = store->candidate_get(a1,c1_copy,txn);
+//        CandidateInfo c3(true,false,250);
+//        res = store->candidate_put(a1,c3,txn);
+//        ASSERT_FALSE(res);
+//        ASSERT_EQ(c3.votes_received_weighted,c1.votes_received_weighted+100+50);
+
+        CandidateInfo c3_copy;
+        res = store->candidate_get(a1,c3_copy,txn);
         ASSERT_FALSE(res);
-        ASSERT_EQ(c1_copy.votes_received_weighted,c1.votes_received_weighted+100+50);
+        ASSERT_EQ(c3_copy.votes_received_weighted,c1.votes_received_weighted+100+50);
         
         res = store->candidate_add_vote(a2,100,txn);
         ASSERT_TRUE(res);
@@ -313,15 +213,42 @@ TEST(database, candidates)
         
     }
 
-    std::cout << "trying to compute winners" << std::endl;
-    computeWinners(25,8,[](size_t i){ return i;},*store,txn);
-
-    computeWinners(100,8,[](size_t i){ return i + (100 * i%3);},*store,txn);
-
-
-
-
     //TODO: write tests for candidate functions
+}
+
+TEST(Database, get_winners)
+{
+
+    logos::block_store* store = get_db();
+    store->clear(store->candidacy_db);
+    logos::transaction txn(store->environment,nullptr,true);
+
+    size_t num_winners = 8;
+    auto winners = getElectionWinners(num_winners,*store,txn);
+    ASSERT_EQ(winners.size(),0);
+    
+    std::vector<std::pair<AccountAddress,Amount>> candidates;
+    size_t num_candidates = 100;
+    for(size_t i = 0; i < num_candidates; ++i)
+    {
+        CandidateInfo c(false,false,(i % 3) * 100 + i);
+        AccountAddress a(i);
+        store->candidate_put(a,c,txn);
+        candidates.push_back(std::make_pair(a,c.votes_received_weighted));
+    }
+    std::sort(candidates.begin(), candidates.end(),
+            [](auto p1, auto p2) 
+            {
+                return p1.second > p2.second;
+            });
+
+    std::vector<std::pair<AccountAddress,Amount>> results(
+            candidates.begin(),candidates.begin() + num_winners);
+    
+    winners = getElectionWinners(num_winners,*store,txn);
+
+    ASSERT_EQ(winners,results);
+    
 }
 
 void iterateCandidatesDB(
@@ -336,7 +263,7 @@ void iterateCandidatesDB(
     }
 }
 
-TEST(database,candidates_transition)
+TEST(Database,candidates_transition)
 {
     logos::block_store* store = get_db();
     store->clear(store->candidacy_db);
@@ -455,7 +382,150 @@ TEST(database,candidates_transition)
     }
 }
 
-TEST(database,validate)
+TEST(Database,get_next_epoch_delegates)
+{
+    logos::block_store* store = get_db();
+    store->clear(store->candidacy_db);
+    store->clear(store->epoch_db);
+    store->clear(store->epoch_tip_db);
+    DelegateIdentityManager::_epoch_transition_enabled = true;
+
+    uint32_t epoch_num = 0;
+    ApprovedEB eb;
+    eb.epoch_number = epoch_num;
+    eb.previous = 0;
+    EpochVotingManager mgr(*store);
+
+    std::vector<Delegate> delegates;
+    for(size_t i = 0; i < 32; ++i)
+    {
+        DelegatePubKey dummy_bls_pub;
+        Amount dummy_stake = 1; 
+        Delegate d(i,dummy_bls_pub,i,1);
+        d.starting_term = true;
+        eb.delegates[i] = d;
+        delegates.push_back(d);
+    }
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
+        ASSERT_FALSE(store->epoch_put(eb,txn));
+    }
+
+    auto transition_epoch = [&eb,&store,&epoch_num,&mgr](int retire_idx = -1)
+    {
+        std::cout << "transitioning" << std::endl;
+        ++epoch_num;
+        eb.previous = eb.Hash();
+        eb.epoch_number = epoch_num;
+        if(retire_idx >= 0)
+        {
+            std::unordered_set<Delegate> to_retire;
+            size_t end = retire_idx + 8;
+            for(;retire_idx < end; ++retire_idx)
+            {
+                to_retire.insert(eb.delegates[retire_idx]);
+            }
+            mgr.GetNextEpochDelegates(eb.delegates,&to_retire);
+        }
+        else
+        {
+            mgr.GetNextEpochDelegates(eb.delegates);
+        }
+        logos::transaction txn(store->environment,nullptr,true);
+        ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
+        ASSERT_FALSE(store->epoch_put(eb,txn));
+        if(epoch_num > 2)
+        {
+            ASSERT_FALSE(transitionCandidatesDBNextEpoch(*store,txn));
+        }
+    };
+
+    auto compare_delegates = [&eb,&delegates]()
+    {
+        for(size_t i = 0; i < 32; ++i)
+        {
+            std::cout << "i is " << i << std::endl;
+            ASSERT_EQ(eb.delegates[i].account,delegates[i].account);
+
+            ASSERT_EQ(eb.delegates[i].stake,delegates[i].stake);
+            ASSERT_EQ(eb.delegates[i].bls_pub,delegates[i].bls_pub);
+
+            ASSERT_EQ(eb.delegates[i].vote,delegates[i].vote);
+
+            ASSERT_EQ(eb.delegates[i].starting_term,delegates[i].starting_term);
+            ASSERT_EQ(eb.delegates[i],delegates[i]);
+        }
+    };
+
+    auto get_candidates = [&store]() -> std::vector<CandidateInfo>
+    {
+        std::vector<CandidateInfo> results;
+        logos::transaction txn(store->environment,nullptr,false);
+        for(auto it = logos::store_iterator(txn, store->candidacy_db);
+                it != logos::store_iterator(nullptr); ++it)
+        {
+            bool error = false;
+            CandidateInfo info(error,it->second);
+            assert(!error);
+            results.push_back(info);
+        }
+        return results;
+    };
+
+    compare_delegates();
+
+    transition_epoch();
+
+    for(size_t i = 0; i < 32; ++i)
+    {
+        delegates[i].starting_term = false;
+    }
+
+
+    compare_delegates();
+
+    transition_epoch();
+
+    compare_delegates();
+
+    transition_epoch();
+
+    compare_delegates();
+
+    
+    auto candidates = get_candidates();
+
+    ASSERT_EQ(candidates.size(),delegates.size());
+
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        for(size_t i = 0; i < 8; ++i)
+        {
+            store->candidate_add_vote(delegates[i].account,100+i,txn);
+            delegates[i].vote = 100+i; 
+            delegates[i].starting_term = true;
+        }
+        std::sort(delegates.begin(),delegates.end(),[](auto d1, auto d2){
+                return d1.vote < d2.vote;
+                });
+    }
+    transition_epoch(0);
+    compare_delegates();
+    candidates = get_candidates();
+    ASSERT_EQ(candidates.size(),24);
+
+    //transition_epoch();
+
+
+    
+    
+    
+
+    
+}
+
+TEST(Database,validate)
 {
     logos::block_store* store = get_db();
     store->clear(store->candidacy_db);
@@ -463,7 +533,9 @@ TEST(database,validate)
     store->clear(store->epoch_db);
     logos::transaction txn(store->environment,nullptr,true);
 
-    uint32_t epoch_num;
+    DelegateIdentityManager::_epoch_transition_enabled = true;
+
+    uint32_t epoch_num = 0;
     ElectionVote vote;
     AnnounceCandidacy announce;
     RenounceCandidacy renounce;
@@ -539,9 +611,6 @@ TEST(database,validate)
 
 
     //TODO: actually elect someone, test if they are removed from candidates db
-
-
-
 }
 
 #endif

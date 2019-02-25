@@ -478,6 +478,7 @@ logos::uint128_union logos::uint128_union::operator- (logos::uint128_union const
 logos::uint128_union & logos::uint128_union::operator+=(const logos::uint128_union & other)
 {
     number() += other.number();
+    new (this) uint128_union(number() += other.number());
     return *this;
 }
 

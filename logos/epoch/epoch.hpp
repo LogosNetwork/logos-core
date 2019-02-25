@@ -98,7 +98,10 @@ struct Delegate
     //TODO: is this enough? do we need to use bls key too?
     bool operator==(const Delegate& other) const
     {
-        return account == other.account;
+        return account == other.account
+            && vote == other.vote
+            && stake == other.stake
+            && starting_term == other.starting_term;
     }
 
     bool operator!=(const Delegate& other) const

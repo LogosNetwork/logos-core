@@ -32,7 +32,7 @@ public:
 
     /// Get the list of next epoch delegates
     /// @param delegates list of new delegates [in,out]
-    void GetNextEpochDelegates(Delegates &delegates);
+    void GetNextEpochDelegates(Delegates &delegates,std::unordered_set<Delegate>* to_retire = nullptr);
 
     /// Verify epoch delegates
     /// @param delegates list of epoch delegates [in,out]

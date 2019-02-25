@@ -3,7 +3,7 @@
 #include <logos/epoch/election_requests.hpp>
 #include <logos/lib/epoch_time_util.hpp>
 
-std::vector<std::pair<AccountAddress,uint64_t>> getElectionWinners(size_t num_winners, logos::block_store& store, MDB_txn* txn);
+std::vector<std::pair<AccountAddress,Amount>> getElectionWinners(size_t num_winners, logos::block_store& store, MDB_txn* txn);
 
 
 

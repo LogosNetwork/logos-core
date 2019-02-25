@@ -242,7 +242,7 @@ public:
 
     bool candidate_add_vote(
             const AccountAddress & account,
-            uint64_t weighted_vote,
+            Amount weighted_vote,
             MDB_txn *);
 
     bool candidate_add_new(

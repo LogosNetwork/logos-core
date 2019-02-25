@@ -49,6 +49,6 @@ struct CandidateInfo
 
     bool active = false;
     bool remove = false;
-    uint64_t votes_received_weighted = 0;
+    Amount votes_received_weighted = 0;
 };
 

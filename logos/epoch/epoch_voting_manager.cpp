@@ -40,48 +40,24 @@ std::unordered_set<Delegate> EpochVotingManager::GetRetiringDelegates()
 //these are the delegate-elects
 std::vector<Delegate> EpochVotingManager::GetDelegateElects(size_t num_new)
 {
-    std::unordered_map<AccountAddress,uint128_t> results;
-    logos::transaction txn(_store.environment, nullptr, false);
-    for(auto it = logos::store_iterator(txn, _store.representative_db);
-            it != logos::store_iterator(nullptr); ++it)
-    {
-        logos::account account(it->first.uint256());
-        bool error = false;
-        RepInfo rep_info(error, it->second);
-        ElectionVote ev;
-        if(!_store.request_get(rep_info.election_vote_tip,ev,txn))
-        {
-            //TODO: check if ev is for proper epoch by looking at batchhash
-            for(const auto & cp: ev.votes_)
-            {
-                //TODO: weight the vote by stake
-                results[cp.account] += cp.num_votes;
-            }
-        }
-    }
-
-    std::vector<std::pair<AccountAddress,uint128_t>> sorted(
-            results.begin(), results.end());
-    std::sort(sorted.begin(),sorted.end(),
-            [](auto p1, auto p2){
-                return p1.second > p2.second;
-            }); //TODO: tiebreaker rules
+    logos::transaction txn(_store.environment,nullptr,false);
+    auto results = getElectionWinners(num_new, _store,txn);
     DelegatePubKey dummy_bls_pub;
     Amount dummy_stake = 1;
-    std::vector<Delegate> all;
-    all.resize(sorted.size());
-    std::transform(sorted.begin(),sorted.end(),all.begin(),
+    std::vector<Delegate> delegate_elects(results.size());
+    std::transform(results.begin(),results.end(),delegate_elects.begin(),
             [dummy_bls_pub,dummy_stake](auto p){
-                return Delegate(p.first,dummy_bls_pub,p.second,dummy_stake);
+                Delegate d(p.first,dummy_bls_pub,p.second,dummy_stake);
+                d.starting_term = true;
+                return d;
             });
-    std::vector<Delegate> delegate_elects(all.begin(),all.begin()+num_new);
     return delegate_elects;
 }
 
 //TODO: does this really need to use an output variable? Just return the delegates
 void
 EpochVotingManager::GetNextEpochDelegates(
-   Delegates &delegates)
+   Delegates &delegates, std::unordered_set<Delegate>* to_retire)
 {
     int constexpr num_epochs = 3;
     int constexpr num_new_delegates = 8;
@@ -119,12 +95,14 @@ EpochVotingManager::GetNextEpochDelegates(
         trace_and_halt();
     }
 
-    std::unordered_set<Delegate> retiring(GetRetiringDelegates());
+    std::unordered_set<Delegate> retiring = to_retire != nullptr ? *to_retire : GetRetiringDelegates();
     std::vector<Delegate> delegate_elects(GetDelegateElects(num_new_delegates));
     if(retiring.size() != delegate_elects.size())
     {
         LOG_FATAL(_log) << "EpochVotingManager::GetNextEpochDelegates mismatch"
            << " in size of retiring and delegate_elects. Need to be equal"; 
+        LOG_FATAL(_log) << "Delegate-elects size : " << delegate_elects.size()
+            << " . Retiring size " << retiring.size();
         trace_and_halt();
     }
 
@@ -138,12 +116,13 @@ EpochVotingManager::GetNextEpochDelegates(
         } else
         {
             delegates[del] = previous_epoch.delegates[del];
+            delegates[del].starting_term = false;
         }
     }
 
     std::sort(std::begin(delegates), std::end(delegates),
             [](const Delegate &d1, const Delegate &d2){
-            return d1.stake < d2.stake;});
+            return d1.vote < d2.vote;});
 }
 
 bool

@@ -1380,14 +1380,20 @@ bool logos::block_store::candidate_put(
 
 bool logos::block_store::candidate_add_vote(
         const AccountAddress & account,
-        uint64_t weighted_vote,
+        Amount weighted_vote,
         MDB_txn * txn)
 {
     CandidateInfo info;
+    std::cout << "adding vote : " << weighted_vote.to_string() << std::endl;
     if(!candidate_get(account,info,txn) && info.active)
     {
         info.votes_received_weighted += weighted_vote;
+        std::cout << "total vote is " << info.votes_received_weighted.to_string() << std::endl;
         return candidate_put(account,info,txn);
+    }
+    else
+    {
+        std::cout << "didnt get candidate account" << std::endl;
     }
     return true;
 }
