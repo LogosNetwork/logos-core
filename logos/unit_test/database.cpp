@@ -514,8 +514,128 @@ TEST(Database,get_next_epoch_delegates)
     compare_delegates();
     candidates = get_candidates();
     ASSERT_EQ(candidates.size(),24);
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        for(size_t i = 0; i < 8; ++i)
+        {
+            store->candidate_add_vote(delegates[i].account,200+i,txn);
+            delegates[i].vote = 200+i; 
+            delegates[i].starting_term = true;
+        }
+        for(size_t i = 24; i < 32; ++i)
+        {
+            delegates[i].starting_term = false;
+        }
+        std::sort(delegates.begin(),delegates.end(),[](auto d1, auto d2){
+                return d1.vote < d2.vote;
+                });
+    }
+    transition_epoch(0);
+    compare_delegates();
+    candidates = get_candidates();
+    ASSERT_EQ(candidates.size(),16);
 
-    //transition_epoch();
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        for(size_t i = 0; i < 8; ++i)
+        {
+            store->candidate_add_vote(delegates[i].account,300+i,txn);
+            delegates[i].vote = 300+i; 
+            delegates[i].starting_term = true;
+        }
+        for(size_t i = 24; i < 32; ++i)
+        {
+            delegates[i].starting_term = false;
+        }
+        std::sort(delegates.begin(),delegates.end(),[](auto d1, auto d2){
+                return d1.vote < d2.vote;
+                });
+    }
+
+    transition_epoch(0);
+    compare_delegates();
+    candidates = get_candidates();
+    ASSERT_EQ(candidates.size(),8);
+
+
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        for(size_t i = 0; i < 8; ++i)
+        {
+            store->candidate_add_vote(delegates[i].account,400+i,txn);
+            delegates[i].vote = 400+i; 
+            delegates[i].starting_term = true;
+        }
+        for(size_t i = 24; i < 32; ++i)
+        {
+            delegates[i].starting_term = false;
+        }
+        std::sort(delegates.begin(),delegates.end(),[](auto d1, auto d2){
+                return d1.vote < d2.vote;
+                });
+    }
+
+    transition_epoch(0);
+    compare_delegates();
+
+
+    auto retiring = mgr.GetRetiringDelegates();
+
+
+//    for(auto it : retiring)
+//    {
+//        std::cout << it.account.to_string() << std::endl;
+//        std::cout << it.vote.to_string() << std::endl;
+//        std::cout << it.stake.to_string() << std::endl;
+//        std::cout << it.starting_term << std::endl;
+//    }
+//
+//    for(size_t i = 0; i < 8; ++i)
+//    {
+//        std::cout << delegates[i].account.to_string() << std::endl;
+//        std::cout << delegates[i].vote.to_string() << std::endl;
+//        std::cout << delegates[i].stake.to_string() << std::endl;
+//        std::cout << delegates[i].starting_term << std::endl;
+//    }
+//
+//    for(size_t i = 0; i < 8; ++i)
+//    {
+//        ASSERT_TRUE(retiring.find(delegates[i])!=retiring.end());
+//    }
+//
+
+    for(size_t e = 0; e < 50; ++e)
+    {
+        std::cout << "******LOOP NUMBER " << e << std::endl;
+    candidates = get_candidates();
+    ASSERT_EQ(candidates.size(),8);
+    ASSERT_EQ(mgr.GetRetiringDelegates().size(),8);
+        {
+            logos::transaction txn(store->environment,nullptr,true);
+            for(size_t i = 0; i < 8; ++i)
+            {
+                auto vote = 500 + (e*100) + i;
+                ASSERT_FALSE(store->candidate_add_vote(delegates[i].account,vote,txn));
+                delegates[i].vote = vote; 
+                delegates[i].starting_term = true;
+            }
+            for(size_t i = 24; i < 32; ++i)
+            {
+                delegates[i].starting_term = false;
+            }
+            std::sort(delegates.begin(),delegates.end(),[](auto d1, auto d2){
+                    return d1.vote < d2.vote;
+                    });
+        }
+    transition_epoch();
+    compare_delegates();
+    }
+
+
+
+
+
+    
 
 
     

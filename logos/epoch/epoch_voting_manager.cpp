@@ -21,7 +21,7 @@ std::unordered_set<Delegate> EpochVotingManager::GetRetiringDelegates()
 
     ApprovedEB epoch;
     logos::transaction txn(_store.environment,nullptr,false);
-    if(getOldEpochBlock(_store, txn, 4, epoch))
+    if(getOldEpochBlock(_store, txn, 3, epoch))
     {
         return retiring;
     }
@@ -30,6 +30,7 @@ std::unordered_set<Delegate> EpochVotingManager::GetRetiringDelegates()
     {
         if(d.starting_term)
         {
+            d.starting_term = false;
             retiring.insert(d);
         }
     }
