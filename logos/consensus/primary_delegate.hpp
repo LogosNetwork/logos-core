@@ -70,7 +70,7 @@ public:
     {
         std::vector<uint8_t> buf;
         data.Serialize(buf);
-        //Send(buf.data(), buf.size());
+        Send(buf.data(), buf.size());
         SendP2p(buf.data(), buf.size(), _epoch_number, 0xff);
     }
 
@@ -205,6 +205,7 @@ private:
     virtual void OnPrePrepareRejected();
 
     virtual void OnConsensusReached() = 0;
+    virtual void OnQuorumFailed() = 0;
 
     Signatures         _signatures;
     Log                _log;

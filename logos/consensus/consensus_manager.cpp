@@ -402,6 +402,25 @@ ConsensusManager<CT>::EnableP2p(bool enable)
     }
 }
 
+template<ConsensusType CT>
+void
+ConsensusManager<CT>::OnQuorumFailed()
+{
+    LOG_ERROR(_log) << "ConsensusManager::OnQuorumFailed<" << ConsensusToName(CT)
+                    << "> - PRIMARY DELEGATE IS ENABLING P2P!!!";
+
+    // ignore if the old delegate's set, the new delegate's set will pick it up
+    if (_events_notifier.GetState() != EpochTransitionState::None &&
+            _events_notifier.GetConnection() == EpochConnection::Current)
+    {
+        EnableP2p(true);
+
+        AdvanceState(ConsensusState::VOID);
+
+        InitiateConsensus();
+    }
+}
+
 template class ConsensusManager<ConsensusType::BatchStateBlock>;
 template class ConsensusManager<ConsensusType::MicroBlock>;
 template class ConsensusManager<ConsensusType::Epoch>;

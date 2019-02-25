@@ -77,9 +77,10 @@ void DelegateBridge<CT>::OnMessage(std::shared_ptr<MessageBase> message, Message
 {
     bool error = false;
     auto log_message_received ([&](const std::string & msg_str, const std::string & hash_str){
-        LOG_DEBUG(_log) << "ConsensusConnection<" << ConsensusToName(CT) << "> - Received "
+        LOG_DEBUG(_log) << "DelegateBridge<" << ConsensusToName(CT) << "> - Received "
                         << msg_str << " message from delegate: " << (int)RemoteDelegateId()
-                        << " with block hash " << hash_str;
+                        << " with block hash " << hash_str
+                        << " via direct connection " << (!is_p2p);
     });
     switch (message_type)
     {
@@ -136,7 +137,7 @@ void DelegateBridge<CT>::OnMessage(std::shared_ptr<MessageBase> message, Message
         case MessageType::TxAcceptor_Message:
         case MessageType::Unknown:
         {
-            LOG_WARN(_log) << "ConsensusConnection<" << ConsensusToName(CT) << "> - Received "
+            LOG_WARN(_log) << "DelegateBridge<" << ConsensusToName(CT) << "> - Received "
                             << MessageToName(message_type) << " message from delegate: "
                             << (int)RemoteDelegateId();
             error = true;

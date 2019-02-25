@@ -198,6 +198,8 @@ protected:
 
     void OnP2pTimeout(const ErrorCode &);
 
+    void OnQuorumFailed() override;
+
     Service &                       _service;
     Connections                     _connections;
     Store &                         _store;

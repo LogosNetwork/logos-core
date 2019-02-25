@@ -10,7 +10,7 @@ const boost::posix_time::seconds ConsensusP2pBridge<CT>::P2P_TIMEOUT{60};
 template<ConsensusType CT>
 ConsensusP2pBridge<CT>::ConsensusP2pBridge(Service &service, p2p_interface &p2p, uint8_t delegate_id)
     : _p2p_output(p2p, delegate_id)
-    , _enable_p2p(true)
+    , _enable_p2p(false)
     , _timer(service)
 {}
 
