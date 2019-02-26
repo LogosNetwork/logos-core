@@ -67,7 +67,7 @@ endif (WIN32)
 if (WIN32)
 	set (PLATFORM_CXX_FLAGS "/bigobj")
 else (WIN32)
-	set (PLATFORM_CXX_FLAGS "-std=c++14 -Werror=return-type")
+	set (PLATFORM_CXX_FLAGS "-std=c++14 -Werror")
 endif (WIN32)
 
 if (WIN32)

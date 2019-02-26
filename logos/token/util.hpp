@@ -20,7 +20,7 @@ std::string GetTokenFeeTypeField(TokenFeeType fee_type);
 ControllerAction GetControllerAction(bool & error, std::string data);
 std::string GetControllerActionField(ControllerAction action);
 
-FreezeAction GetFreezeAction(bool & error, std::string data);
-std::string GetFreezeActionField(FreezeAction action);
+UserStatus GetUserStatus(bool & error, std::string data);
+std::string GetUserStatusField(UserStatus status);
 
 bool IsTokenAdminRequest(RequestType type);

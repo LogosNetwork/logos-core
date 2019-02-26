@@ -210,10 +210,14 @@ bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, T &t, MDB_txn *tx)
     return result;
 }
 
-void logos::block_store::del(MDB_dbi &db, const mdb_val &key, MDB_txn *tx)
+bool logos::block_store::del(MDB_dbi &db, const mdb_val &key, MDB_txn *tx)
 {
     auto status (mdb_del (tx, db, key, nullptr));
-    assert (status == 0);
+
+    auto error = status != 0;
+    assert (!error);
+
+    return error;
 }
 
 logos::store_iterator logos::block_store::block_info_begin (MDB_txn * transaction_a, logos::block_hash const & hash_a)
@@ -1219,8 +1223,16 @@ bool logos::block_store::token_user_status_get(const BlockHash & token_user_id, 
 
     bool error = false;
     new (&status) TokenUserStatus(error, val);
-    assert (!error);
-    return error;
+
+    if(error)
+    {
+        LOG_FATAL(log) << __func__ << " key " << token_user_id.to_string()
+                       << " - failed to deserialize TokenUserStatus";
+
+        trace_and_halt();
+    }
+
+    return false;
 }
 
 bool logos::block_store::token_user_status_put(const BlockHash & token_user_id, const TokenUserStatus & status, MDB_txn * transaction)
@@ -1232,9 +1244,9 @@ bool logos::block_store::token_user_status_put(const BlockHash & token_user_id, 
     return result != 0;
 }
 
-void logos::block_store::token_user_status_del(const BlockHash & token_user_id, MDB_txn * transaction)
+bool logos::block_store::token_user_status_del(const BlockHash & token_user_id, MDB_txn * transaction)
 {
-    del(token_user_status_db, token_user_id, transaction);
+    return del(token_user_status_db, token_user_id, transaction);
 }
 
 bool logos::block_store::token_account_get(const BlockHash & token_id, TokenAccount & info, MDB_txn* transaction)
@@ -1248,8 +1260,16 @@ bool logos::block_store::token_account_get(const BlockHash & token_id, TokenAcco
 
     bool error = false;
     new (&info) TokenAccount(error, val);
-    assert (!error);
-    return error;
+
+    if(error)
+    {
+        LOG_FATAL(log) << __func__ << " key " << token_id.to_string()
+                       << " - failed to deserialize TokenAccount";
+
+        trace_and_halt();
+    }
+
+    return false;
 }
 
 bool logos::block_store::token_account_put(const BlockHash & token_id, const TokenAccount & info, MDB_txn * transaction)
