@@ -66,63 +66,59 @@ RequestType GetRequestType()
     }
     else if(std::is_same<Request, Change>::value)
     {
-        result = RequestType::ChangeRep;
+        result = RequestType::Change;
     }
-    else if(std::is_same<Request, TokenIssuance>::value)
+    else if(std::is_same<Request, Issuance>::value)
     {
-        result = RequestType::IssueTokens;
+        result = RequestType::Issuance;
     }
-    else if(std::is_same<Request, TokenIssueAdtl>::value)
+    else if(std::is_same<Request, IssueAdditional>::value)
     {
-        result = RequestType::IssueAdtlTokens;
+        result = RequestType::IssueAdditional;
     }
-    else if(std::is_same<Request, TokenChangeSetting>::value)
+    else if(std::is_same<Request, ChangeSetting>::value)
     {
-        result = RequestType::ChangeTokenSetting;
+        result = RequestType::ChangeSetting;
     }
-    else if(std::is_same<Request, TokenImmuteSetting>::value)
+    else if(std::is_same<Request, ImmuteSetting>::value)
     {
-        result = RequestType::ImmuteTokenSetting;
+        result = RequestType::ImmuteSetting;
     }
-    else if(std::is_same<Request, TokenRevoke>::value)
+    else if(std::is_same<Request, Revoke>::value)
     {
-        result = RequestType::RevokeTokens;
+        result = RequestType::Revoke;
     }
-    else if(std::is_same<Request, TokenFreeze>::value)
+    else if(std::is_same<Request, AdjustUserStatus>::value)
     {
-        result = RequestType::FreezeTokens;
+        result = RequestType::AdjustUserStatus;
     }
-    else if(std::is_same<Request, TokenSetFee>::value)
+    else if(std::is_same<Request, AdjustFee>::value)
     {
-        result = RequestType::SetTokenFee;
+        result = RequestType::AdjustFee;
     }
-    else if(std::is_same<Request, TokenWhitelist>::value)
-    {
-        result = RequestType::UpdateWhitelist;
-    }
-    else if(std::is_same<Request, TokenIssuerInfo>::value)
+    else if(std::is_same<Request, UpdateIssuerInfo>::value)
     {
         result = RequestType::UpdateIssuerInfo;
     }
-    else if(std::is_same<Request, TokenController>::value)
+    else if(std::is_same<Request, UpdateController>::value)
     {
         result = RequestType::UpdateController;
     }
-    else if(std::is_same<Request, TokenBurn>::value)
+    else if(std::is_same<Request, Burn>::value)
     {
-        result = RequestType::BurnTokens;
+        result = RequestType::Burn;
     }
-    else if(std::is_same<Request, TokenAccountSend>::value)
+    else if(std::is_same<Request, Distribute>::value)
     {
-        result = RequestType::DistributeTokens;
+        result = RequestType::Distribute;
     }
-    else if(std::is_same<Request, TokenAccountWithdrawFee>::value)
+    else if(std::is_same<Request, WithdrawFee>::value)
     {
         result = RequestType::WithdrawFee;
     }
     else if(std::is_same<Request, TokenSend>::value)
     {
-        result = RequestType::SendTokens;
+        result = RequestType::TokenSend;
     }
 
     return result;

@@ -3,7 +3,7 @@
 #include <logos/request/fields.hpp>
 
 Change::Change()
-    : Request(RequestType::ChangeRep)
+    : Request(RequestType::Change)
 {}
 
 Change::Change(bool & error,

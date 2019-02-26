@@ -199,11 +199,11 @@ bool PersistenceManager<R>::ValidateRequest(
     switch(request->type)
     {
         case RequestType::Send:
-        case RequestType::ChangeRep:
+        case RequestType::Change:
             break;
-        case RequestType::IssueTokens:
+        case RequestType::Issuance:
         {
-            auto issuance = dynamic_pointer_cast<const TokenIssuance>(request);
+            auto issuance = dynamic_pointer_cast<const Issuance>(request);
             assert(issuance);
 
             if(_store.account_exists(issuance->token_id))
@@ -214,36 +214,27 @@ bool PersistenceManager<R>::ValidateRequest(
 
             break;
         }
-        case RequestType::ChangeTokenSetting:
-        case RequestType::IssueAdtlTokens:
-        case RequestType::ImmuteTokenSetting:
-        case RequestType::RevokeTokens:
-        case RequestType::FreezeTokens:
-        case RequestType::SetTokenFee:
-        case RequestType::UpdateWhitelist:
+        case RequestType::ChangeSetting:
+        case RequestType::IssueAdditional:
+        case RequestType::ImmuteSetting:
+        case RequestType::Revoke:
+        case RequestType::AdjustUserStatus:
+        case RequestType::AdjustFee:
         case RequestType::UpdateIssuerInfo:
         case RequestType::UpdateController:
-        case RequestType::BurnTokens:
-        case RequestType::DistributeTokens:
+        case RequestType::Burn:
+        case RequestType::Distribute:
         case RequestType::WithdrawFee:
             if(!ValidateTokenAdminRequest(request, result, info))
             {
                 return false;
             }
-        case RequestType::SendTokens:
-        {
-            Amount token_total = request->GetTokenTotal();
-
-            if(token_total > 0)
+        case RequestType::TokenSend:
+            if(!ValidateTokenTransfer(request, result, info, request->GetTokenTotal()))
             {
-                if(!ValidateTokenTransfer(request, result, info, token_total))
-                {
-                    return false;
-                }
+                return false;
             }
-
             break;
-        }
         case RequestType::Unknown:
             LOG_ERROR(_log) << "PersistenceManager::Validate - Received unknown request type";
 
@@ -356,13 +347,7 @@ bool PersistenceManager<R>::ValidateTokenAdminRequest(RequestPtr request,
         return false;
     }
 
-    // Request failed type-specific validation.
-    if (!request->Validate(result, info))
-    {
-        return false;
-    }
-
-    return true;
+    return request->Validate(result, info);
 }
 
 bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
@@ -370,6 +355,13 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
                                                   std::shared_ptr<logos::Account> info,
                                                   const Amount & token_total)
 {
+    // Filter out requests that don't actually
+    // transfer tokens.
+    if(request->GetTokenTotal() == 0)
+    {
+        return true;
+    }
+
     // Lambda for retrieving the user's current status
     // with the token (frozen, whitelisted).
     //
@@ -406,9 +398,9 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
         }
     };
 
-    if(request->type == RequestType::RevokeTokens)
+    if(request->type == RequestType::Revoke)
     {
-        auto revoke = static_pointer_cast<const TokenRevoke>(request);
+        auto revoke = static_pointer_cast<const Revoke>(request);
         auto token_account = static_pointer_cast<TokenAccount>(info);
 
         std::shared_ptr<logos::Account> source;
@@ -441,7 +433,7 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
         //
     }
 
-    else if(request->type == RequestType::SendTokens)
+    else if(request->type == RequestType::TokenSend)
     {
         auto send_tokens = dynamic_pointer_cast<const TokenSend>(request);
         assert(send_tokens);
@@ -501,18 +493,18 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
         }
     }
 
-    else if (request->type == RequestType::DistributeTokens or
+    else if (request->type == RequestType::Distribute or
              request->type == RequestType::WithdrawFee)
     {
         auto get_destination = [](auto token_request)
         {
-            if(token_request->type == RequestType::DistributeTokens)
+            if(token_request->type == RequestType::Distribute)
             {
-                return static_pointer_cast<const TokenAccountSend>(token_request)->transaction.destination;
+                return static_pointer_cast<const Distribute>(token_request)->transaction.destination;
             }
 
             assert(token_request->type == RequestType::WithdrawFee);
-            return static_pointer_cast<const TokenAccountWithdrawFee>(token_request)->transaction.destination;
+            return static_pointer_cast<const WithdrawFee>(token_request)->transaction.destination;
         };
 
         auto token_account = static_pointer_cast<TokenAccount>(info);
@@ -623,49 +615,59 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
     // TODO: Harvest fees
     info->balance -= request->fee;
 
-    enum class Status : uint8_t
-    {
-        FROZEN      = 0,
-        UNFROZEN    = 1,
-        WHITELISTED = 2
-    };
-
     // Performs the actions required by whitelisting
     // and freezing.
-    auto update_token_user_status = [this, &transaction](auto message, Status status)
+    auto adjust_token_user_status = [this, &transaction](auto message, UserStatus status)
     {
 
         // Set the appropriate field
         // according to the required
         // status change.
-        auto do_update_status = [status](TokenUserStatus & user_status)
+        auto do_adjust_status = [status](TokenUserStatus & user_status)
         {
             switch(status)
             {
-                case Status::FROZEN:
+                case UserStatus::Frozen:
                     user_status.frozen = true;
                     break;
-                case Status::UNFROZEN:
+                case UserStatus::Unfrozen:
                     user_status.frozen = false;
                     break;
-                case Status::WHITELISTED:
+                case UserStatus::Whitelisted:
                     user_status.whitelisted = true;
+                    break;
+                case UserStatus::NotWhitelisted:
+                    user_status.whitelisted = false;
+                    break;
+                case UserStatus::Unknown:
                     break;
             }
         };
 
         // Update the user's status and persist
         // the change.
-        auto update_status = [this, &message, &transaction, status, &do_update_status]()
+        auto adjust_status = [this, &message, &transaction, status, &do_adjust_status]()
         {
             auto token_user_id = GetTokenUserID(message->token_id, message->account);
 
             TokenUserStatus user_status;
             _store.token_user_status_get(token_user_id, user_status, transaction);
 
-            do_update_status(user_status);
+            do_adjust_status(user_status);
 
-            _store.token_user_status_put(token_user_id, user_status, transaction);
+            if(_store.token_user_status_put(token_user_id, user_status, transaction))
+            {
+                LOG_FATAL(_log) << "PersistenceManager::ApplySend - "
+                                << "Failed to store token user status. "
+                                << "Token id: "
+                                << message->token_id.to_string()
+                                << " User account: "
+                                << message->account.to_account()
+                                << " Token user id: "
+                                << token_user_id.to_string();
+
+                trace_and_halt();
+            }
         };
 
         logos::account_info user_account;
@@ -678,7 +680,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             // Account is tethered; use TokenEntry
             if(entry != user_account.entries.end())
             {
-                do_update_status(entry->status);
+                do_adjust_status(entry->status);
                 if(_store.account_put(message->account, user_account, transaction))
                 {
                     LOG_FATAL(_log) << "PersistenceManager::ApplyRequest - "
@@ -692,7 +694,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             // central freeze/whitelist
             else
             {
-                update_status();
+                adjust_status();
             }
         }
 
@@ -700,7 +702,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         // central freeze/whitelist
         else
         {
-            update_status();
+            adjust_status();
         }
     };
 
@@ -718,11 +720,11 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                       transaction);
             break;
         }
-        case RequestType::ChangeRep:
+        case RequestType::Change:
             break;
-        case RequestType::IssueTokens:
+        case RequestType::Issuance:
         {
-            auto issuance = static_pointer_cast<const TokenIssuance>(request);
+            auto issuance = static_pointer_cast<const Issuance>(request);
             TokenAccount account(*issuance);
 
             // TODO: Consider providing a TokenIsuance field
@@ -733,9 +735,9 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             _store.token_account_put(issuance->token_id, account, transaction);
             break;
         }
-        case RequestType::IssueAdtlTokens:
+        case RequestType::IssueAdditional:
         {
-            auto issue_adtl = static_pointer_cast<const TokenIssueAdtl>(request);
+            auto issue_adtl = static_pointer_cast<const IssueAdditional>(request);
             auto token_account = static_pointer_cast<TokenAccount>(info);
 
             token_account->token_balance += issue_adtl->amount;
@@ -743,25 +745,25 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 
             break;
         }
-        case RequestType::ChangeTokenSetting:
+        case RequestType::ChangeSetting:
         {
-            auto change = static_pointer_cast<const TokenChangeSetting>(request);
+            auto change = static_pointer_cast<const ChangeSetting>(request);
             auto token_account = static_pointer_cast<TokenAccount>(info);
 
             token_account->Set(change->setting, change->value);
             break;
         }
-        case RequestType::ImmuteTokenSetting:
+        case RequestType::ImmuteSetting:
         {
-            auto immute = static_pointer_cast<const TokenImmuteSetting>(request);
+            auto immute = static_pointer_cast<const ImmuteSetting>(request);
             auto token_account = static_pointer_cast<TokenAccount>(info);
 
             token_account->Set(TokenAccount::GetMutabilitySetting(immute->setting), false);
             break;
         }
-        case RequestType::RevokeTokens:
+        case RequestType::Revoke:
         {
-            auto revoke = static_pointer_cast<const TokenRevoke>(request);
+            auto revoke = static_pointer_cast<const Revoke>(request);
 
             logos::account_info user_account;
 
@@ -799,17 +801,15 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 
             break;
         }
-        case RequestType::FreezeTokens:
+        case RequestType::AdjustUserStatus:
         {
-            auto freeze = static_pointer_cast<const TokenFreeze>(request);
-            update_token_user_status(freeze,
-                                     freeze->action == FreezeAction::Freeze ?
-                                     Status::FROZEN : Status::UNFROZEN);
+            auto adjust = static_pointer_cast<const AdjustUserStatus>(request);
+            adjust_token_user_status(adjust, adjust->status);
             break;
         }
-        case RequestType::SetTokenFee:
+        case RequestType::AdjustFee:
         {
-            auto set_fee = static_pointer_cast<const TokenSetFee>(request);
+            auto set_fee = static_pointer_cast<const AdjustFee>(request);
             auto token_account = static_pointer_cast<TokenAccount>(info);
 
             token_account->fee_type = set_fee->fee_type;
@@ -817,15 +817,9 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 
             break;
         }
-        case RequestType::UpdateWhitelist:
-        {
-            auto whitelist = static_pointer_cast<const TokenWhitelist>(request);
-            update_token_user_status(whitelist, Status::WHITELISTED);
-            break;
-        }
         case RequestType::UpdateIssuerInfo:
         {
-            auto issuer_info = static_pointer_cast<const TokenIssuerInfo>(request);
+            auto issuer_info = static_pointer_cast<const UpdateIssuerInfo>(request);
             auto token_account = static_pointer_cast<TokenAccount>(info);
 
             token_account->issuer_info = issuer_info->new_info;
@@ -834,7 +828,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         }
         case RequestType::UpdateController:
         {
-            auto update = static_pointer_cast<const TokenController>(request);
+            auto update = static_pointer_cast<const UpdateController>(request);
             auto token_account = static_pointer_cast<TokenAccount>(info);
 
             auto controller = token_account->GetController(update->controller.account);
@@ -861,9 +855,9 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 
             break;
         }
-        case RequestType::BurnTokens:
+        case RequestType::Burn:
         {
-            auto burn = static_pointer_cast<const TokenBurn>(request);
+            auto burn = static_pointer_cast<const Burn>(request);
             auto token_account = static_pointer_cast<TokenAccount>(info);
 
             token_account->total_supply -= burn->amount;
@@ -871,9 +865,9 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 
             break;
         }
-        case RequestType::DistributeTokens:
+        case RequestType::Distribute:
         {
-            auto distribute = static_pointer_cast<const TokenAccountSend>(request);
+            auto distribute = static_pointer_cast<const Distribute>(request);
             auto token_account = static_pointer_cast<TokenAccount>(info);
 
             token_account->token_balance -= distribute->transaction.amount;
@@ -888,7 +882,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         }
         case RequestType::WithdrawFee:
         {
-            auto withdraw = static_pointer_cast<const TokenAccountWithdrawFee>(request);
+            auto withdraw = static_pointer_cast<const WithdrawFee>(request);
             auto token_account = static_pointer_cast<TokenAccount>(info);
 
             token_account->token_fee_balance -= withdraw->transaction.amount;
@@ -901,7 +895,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 
             break;
         }
-        case RequestType::SendTokens:
+        case RequestType::TokenSend:
         {
             auto send = static_pointer_cast<const TokenSend>(request);
             auto source = static_pointer_cast<logos::account_info>(info);
@@ -1048,7 +1042,19 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
                 // the token entry itself will be used to
                 // store the token user status.
                 entry->status = status;
-                _store.token_user_status_del(token_user_id, transaction);
+                if(_store.token_user_status_del(token_user_id, transaction))
+                {
+                    LOG_FATAL(_log) << "PersistenceManager::ApplySend - "
+                                    << "Failed to delete token user status. "
+                                    << "Token id: "
+                                    << token_id.to_string()
+                                    << " User account: "
+                                    << send.destination.to_account()
+                                    << " Token user id: "
+                                    << token_user_id.to_string();
+
+                    trace_and_halt();
+                }
             }
         }
 
