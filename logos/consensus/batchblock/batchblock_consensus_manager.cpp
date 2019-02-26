@@ -587,6 +587,7 @@ BatchBlockConsensusManager::OnDelegatesConnected()
     {
         _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
         _init_timer.async_wait([this](const Error &error) {
+            _state = ConsensusState::VOID;
             _ongoing = true;
             InitiateConsensus();
         });

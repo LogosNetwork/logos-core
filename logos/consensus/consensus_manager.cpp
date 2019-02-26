@@ -40,6 +40,7 @@ void ConsensusManager<CT>::HandleRequest(std::shared_ptr<Request> block,
 {
     // SYL Integration fix: got rid of unnecessary lock here in favor of more granular locking
 
+    result.code = logos::process_result::progress;
     LOG_INFO (_log) << "ConsensusManager<" << ConsensusToName(CT)
                     << ">::OnSendRequest() - hash: "
                     << hash.to_string();
@@ -81,8 +82,10 @@ void ConsensusManager<CT>::OnSendRequest(std::shared_ptr<Request> block,
 
     HandleRequest(block, hash, result);
 
-    OnRequestQueued();
-
+    if (result.code == logos::process_result::progress)
+    {
+        OnRequestQueued();
+    }
 }
 
 template<>
@@ -95,6 +98,7 @@ ConsensusManager<ConsensusType::BatchStateBlock>::OnSendRequest(
     Responses response;
     logos::process_return result;
 
+    bool progress (false);
     for (auto block : blocks)
     {
          auto hash = block->Hash();
@@ -103,10 +107,16 @@ ConsensusManager<ConsensusType::BatchStateBlock>::OnSendRequest(
          {
              hash = 0;
          }
+         else
+         {
+             progress = true;
+         }
          response.push_back({result.code, hash});
     }
-
-    OnRequestQueued();
+    if (progress)
+    {
+        OnRequestQueued();
+    }
 
     return response;
 }

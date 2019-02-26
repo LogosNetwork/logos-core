@@ -248,10 +248,11 @@ MicroBlockHandler::Build(
     // collect current batch block tips
     BatchTips start;
 
-    // first microblock after genesis, the cut-off time is
-    // the Min timestamp of the very first BSB for all delegates + remainder from Min to nearest 10 min + 10 min;
-    // start is the current tips
-    if (previous_micro_block.epoch_number == GENESIS_EPOCH)
+    // first microblock after genesis, the cut-off time is the Min timestamp of the very first BSB
+    // for all delegates + remainder from Min to nearest 10 min + 10 min; start is the current tips
+    // Also, we need to call GetTipsSlow if at the beginning of an epoch, since there is a gap
+    // between a retiring and a new delegate's batch chains
+    if (previous_micro_block.epoch_number == GENESIS_EPOCH || previous_micro_block.last_micro_block)
     {
         for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
         {
