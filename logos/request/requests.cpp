@@ -1,4 +1,4 @@
-#include <logos/request/request.hpp>
+#include <logos/request/requests.hpp>
 
 #include <logos/consensus/persistence/reservations.hpp>
 #include <logos/request/utility.hpp>
@@ -11,6 +11,8 @@
 #include <blake2/blake2.h>
 
 #include <ed25519-donna/ed25519.h>
+
+#include <numeric>
 
 using boost::multiprecision::uint128_t;
 using namespace boost::multiprecision::literals;
@@ -110,7 +112,7 @@ Request::Request(bool & error,
             return;
         }
 
-        error = next.decode_hex(tree.get<std::string>(NEXT));
+        error = next.decode_hex(tree.get<std::string>(NEXT, ""));
         if(error)
         {
             return;
@@ -369,4 +371,381 @@ bool Request::operator==(const Request & other) const
            next == other.next &&
            fee == other.fee &&
            sequence == other.sequence;
+}
+
+Change::Change()
+    : Request(RequestType::Change)
+{}
+
+Change::Change(bool & error,
+               const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Hash();
+}
+
+Change::Change(bool & error,
+               std::basic_streambuf<uint8_t> & stream)
+    : Request(error, stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Hash();
+}
+
+Change::Change(bool & error,
+               boost::property_tree::ptree const & tree)
+    : Request(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        error = client.decode_account(tree.get<std::string>(CLIENT));
+        if(error)
+        {
+            return;
+        }
+
+        error = representative.decode_account(tree.get<std::string>(REPRESENTATIVE));
+
+        if(error)
+        {
+            return;
+        }
+
+        Hash();
+    }
+    catch(...)
+    {
+        error = true;
+    }
+}
+
+boost::property_tree::ptree Change::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree;
+
+    tree.put(CLIENT, client.to_account());
+    tree.put(REPRESENTATIVE, representative.to_account());
+
+    return tree;
+}
+
+uint64_t Change::Serialize(logos::stream & stream) const
+{
+    return logos::write(stream, client) +
+           logos::write(stream, representative);
+}
+
+void Change::Deserialize(bool & error, logos::stream & stream)
+{
+    error = logos::read(stream, client);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, representative);
+}
+
+void Change::DeserializeDB(bool &error, logos::stream &stream)
+{
+    Request::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
+void Change::Hash(blake2b_state & hash) const
+{
+    client.Hash(hash);
+    representative.Hash(hash);
+}
+
+uint16_t Change::WireSize() const
+{
+    return sizeof(client.bytes) +
+           sizeof(representative.bytes) +
+           Request::WireSize();
+}
+
+bool Change::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const Change &>(other);
+
+        return Request::operator==(other) &&
+               client == derived.client &&
+               representative == derived.representative;
+    }
+    catch(...)
+    {}
+
+    return false;
+}
+
+Send::Send()
+    : Request(RequestType::Send)
+{}
+
+Send::Send(const AccountAddress & account,
+           const BlockHash & previous,
+           uint32_t sequence,
+           const AccountAddress & to,
+           const Amount & amount,
+           const Amount & transaction_fee,
+           const AccountPrivKey & priv,
+           const AccountPubKey & pub,
+           uint64_t work)
+    : Request(RequestType::Send,
+              account,
+              previous,
+              transaction_fee,
+              sequence)
+      , work(work)
+{
+    transactions.push_back(Transaction(to, amount));
+    Sign(priv, pub);
+}
+
+Send::Send(AccountAddress const & account,
+           BlockHash const & previous,
+           uint32_t sequence,
+           AccountAddress const & to,
+           Amount const & amount,
+           Amount const & transaction_fee,
+           const AccountSig & sig,
+           uint64_t work)
+    : Request(RequestType::Send,
+              account,
+              previous,
+              transaction_fee,
+              sequence,
+              sig)
+      , work(work)
+{
+    transactions.push_back(Transaction(to, amount));
+    Hash();
+}
+
+Send::Send(bool & error,
+           boost::property_tree::ptree const & tree)
+    : Request(error, tree)
+{
+    using namespace request::fields;
+
+    if(error)
+    {
+        return;
+    }
+
+    try
+    {
+        error = logos::from_string_hex(tree.get<std::string>("work"), work);
+        if(error)
+        {
+            return;
+        }
+
+        auto transactions_tree = tree.get_child("transactions");
+        for (auto & entry : transactions_tree)
+        {
+            Transaction t(error, entry.second);
+            if(error)
+            {
+                return;
+            }
+
+            error = !AddTransaction(t);
+            if(error)
+            {
+                return;
+            }
+        }
+
+        Hash();
+    }
+    catch (...)
+    {
+        error = true;
+    }
+}
+
+Send::Send(bool & error,
+           logos::stream & stream)
+    : Request(error, stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Hash();
+}
+
+Send::Send(bool & error, const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Hash();
+}
+
+Amount Send::GetLogosTotal() const
+{
+    auto total = std::accumulate(transactions.begin(), transactions.end(),
+                                 Amount(0),
+                                 [](const Amount & a, const Transaction & t)
+                                 {
+                                     return a + t.amount;
+                                 });
+
+    return total + Request::GetLogosTotal();
+}
+
+bool Send::AddTransaction(const AccountAddress & to, const Amount & amount)
+{
+    return AddTransaction(Transaction(to, amount));
+}
+
+bool Send::AddTransaction(const Transaction & transaction)
+{
+    if(transactions.size() < MAX_TRANSACTIONS)
+    {
+        transactions.push_back(transaction);
+        return true;
+    }
+    return false;
+}
+
+void Send::Hash(blake2b_state & hash) const
+{
+    Request::Hash(hash);
+
+    for(const auto & t : transactions)
+    {
+        t.destination.Hash(hash);
+        t.amount.Hash(hash);
+    }
+}
+
+BlockHash Send::GetHash() const
+{
+    return digest;
+}
+
+boost::property_tree::ptree Send::SerializeJson() const
+{
+    auto tree = Request::SerializeJson();
+
+    tree.put("work", std::to_string(work));
+    tree.put("number_transactions", std::to_string(transactions.size()));
+
+    boost::property_tree::ptree transactions_tree;
+    for (const auto & t : transactions)
+    {
+        boost::property_tree::ptree cur_transaction;
+
+        cur_transaction.put("destination", t.destination.to_account());
+        cur_transaction.put("amount", t.amount.to_string_dec());
+
+        transactions_tree.push_back(std::make_pair("", cur_transaction));
+    }
+    tree.add_child("transactions", transactions_tree);
+
+    tree.put("hash", digest.to_string());
+
+    return tree;
+}
+
+uint64_t Send::Serialize (logos::stream & stream) const
+{
+    return SerializeVector(stream, transactions);
+}
+
+void Send::Deserialize(bool & error, logos::stream & stream)
+{
+    uint8_t count;
+    error = logos::read(stream, count);
+    if(error)
+    {
+        return;
+    }
+
+    for(size_t i = 0; i < count; ++i)
+    {
+        Transaction t(error, stream);
+        if(error)
+        {
+            return;
+        }
+
+        transactions.push_back(t);
+    }
+}
+
+void Send::DeserializeDB(bool &error, logos::stream &stream)
+{
+    Request::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
+bool Send::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const Send &>(other);
+
+        return Request::operator==(other) &&
+               transactions == derived.transactions &&
+               work == derived.work;
+    }
+    catch(...)
+    {}
+
+    return false;
 }

@@ -2,7 +2,7 @@
 
 #include <logos/consensus/messages/byte_arrays.hpp>
 #include <logos/request/transaction.hpp>
-#include <logos/request/request.hpp>
+#include <logos/request/requests.hpp>
 #include <logos/lib/utility.hpp>
 #include <logos/common.hpp>
 
@@ -98,6 +98,9 @@ enum class ControllerPrivilege : uint8_t
 const size_t TOKEN_SETTINGS_COUNT       = 32;
 const size_t CONTROLLER_PRIVILEGE_COUNT = 32;
 
+// The smallest denomination for token amounts.
+const logos::uint128_t TOKEN_RAW = 10000;
+
 struct TokenRequest : Request
 {
     using InfoSizeT   = uint16_t;
@@ -114,6 +117,8 @@ struct TokenRequest : Request
                  boost::property_tree::ptree const & tree);
 
     bool Validate(logos::process_return & result) const override;
+    bool ValidateFee(TokenFeeType fee_type, Amount fee_rate) const;
+    bool ValidateTokenAmount(const Amount & amount, bool non_zero = true) const;
 
     logos::AccountType GetAccountType() const override;
     logos::AccountType GetSourceType() const override;
@@ -130,7 +135,7 @@ struct TokenRequest : Request
 
     uint16_t WireSize() const override;
 
-   logos::block_hash token_id;
+    BlockHash token_id;
 };
 
 struct AdjustUserStatus;
