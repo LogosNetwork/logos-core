@@ -2,8 +2,6 @@
 
 #include <logos/request/utility.hpp>
 #include <logos/token/requests.hpp>
-#include <logos/request/change.hpp>
-#include <logos/request/send.hpp>
 
 #include <boost/property_tree/ptree.hpp>
 

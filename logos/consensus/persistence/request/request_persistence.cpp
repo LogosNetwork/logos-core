@@ -775,6 +775,11 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 
                 entry->balance -= revoke->transaction.amount;
 
+                ReceiveBlock receive(user_account.receive_head, revoke->GetHash(), 0);
+                user_account.receive_head = receive.Hash();
+
+                PlaceReceive(receive, timestamp, transaction);
+
                 if(_store.account_put(revoke->source, user_account, transaction))
                 {
                     LOG_FATAL(_log) << "PersistenceManager::ApplyRequest - "
@@ -847,7 +852,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                     token_account->controllers.push_back(update->controller);
                 }
             }
-            else
+            else if(update->action == ControllerAction::Remove)
             {
                 assert(controller != token_account->controllers.end());
                 token_account->controllers.erase(controller);
@@ -1093,8 +1098,8 @@ void PersistenceManager<R>::PlaceReceive(ReceiveBlock & receive,
                                const ReceiveBlock & b)
         {
             // need b's timestamp
-            std::shared_ptr<Request> send;
-            if(_store.request_get(b.send_hash, send, transaction))
+            std::shared_ptr<Request> request;
+            if(_store.request_get(b.send_hash, request, transaction))
             {
                 LOG_FATAL(_log) << "PersistenceManager::PlaceReceive - "
                                 << "Failed to get a previous state block with hash: "
@@ -1103,11 +1108,11 @@ void PersistenceManager<R>::PlaceReceive(ReceiveBlock & receive,
             }
 
             ApprovedRB approved;
-            if(_store.request_block_get(send->locator.hash, approved, transaction))
+            if(_store.request_block_get(request->locator.hash, approved, transaction))
             {
                 LOG_FATAL(_log) << "PersistenceManager::PlaceReceive - "
                                 << "Failed to get a previous batch state block with hash: "
-                                << send->locator.hash.to_string();
+                                << request->locator.hash.to_string();
                 trace_and_halt();
             }
 
@@ -1149,15 +1154,15 @@ void PersistenceManager<R>::PlaceReceive(ReceiveBlock & receive,
         // SYL integration fix: we only want to modify prev in DB if we are inserting somewhere in the middle of the receive chain
         if(!prev.send_hash.is_zero())
         {
-            std::shared_ptr<Request> prev_send;
-            if(_store.request_get(prev.send_hash, prev_send, transaction))
+            std::shared_ptr<Request> prev_request;
+            if(_store.request_get(prev.send_hash, prev_request, transaction))
             {
                 LOG_FATAL(_log) << "PersistenceManager<B>::PlaceReceive - "
                                 << "Failed to get a previous state block with hash: "
                                 << prev.send_hash.to_string();
                 trace_and_halt();
             }
-            if(!prev_send->origin.is_zero())
+            if(!prev_request->origin.is_zero())
             {
                 // point following receive aka prev's 'previous' field to new receive
                 receive.previous = prev.previous;

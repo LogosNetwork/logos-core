@@ -1,9 +1,179 @@
 #pragma once
 
-#include <logos/consensus/messages/byte_arrays.hpp>
 #include <logos/request/transaction.hpp>
-#include <logos/request/request.hpp>
 #include <logos/node/utility.hpp>
+#include <logos/lib/utility.hpp>
+#include <logos/lib/numbers.hpp>
+#include <logos/common.hpp>
+
+#include <boost/property_tree/ptree.hpp>
+
+enum class RequestType : uint8_t
+{
+    // Native Logos Requests
+    //
+    Send              = 0,
+    Change            = 1,
+    Issuance          = 2,
+
+    // Administrative Token
+    // Requests
+    //
+    IssueAdditional  = 3,
+    ChangeSetting    = 4,
+    ImmuteSetting    = 5,
+    Revoke           = 6,
+    AdjustUserStatus = 7,
+    AdjustFee        = 8,
+    UpdateIssuerInfo = 10,
+    UpdateController = 11,
+    Burn             = 12,
+    Distribute       = 13,
+    WithdrawFee      = 14,
+
+    // Token User Requests
+    //
+    TokenSend        = 15,
+
+    // Unknown
+    //
+    Unknown          = 16
+};
+
+class ReservationsProvider;
+
+struct Request
+{
+    using BlockHash      = logos::block_hash;
+    using AccountAddress = logos::uint256_union;
+
+    struct Locator
+    {
+        Locator() = default;
+
+        Locator(bool & error,
+                logos::stream & stream);
+
+        uint64_t Serialize(logos::stream & stream);
+
+        BlockHash hash  = 0;
+        uint16_t  index = 0;
+    };
+
+    Request() = default;
+
+    Request(RequestType type);
+
+    Request(RequestType type,
+            const AccountAddress & origin,
+            const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence);
+
+    Request(RequestType type,
+            const AccountAddress & origin,
+            const BlockHash & previous,
+            const Amount & fee,
+            uint32_t sequence,
+            const AccountSig & signature);
+
+    Request(bool & error,
+            const logos::mdb_val & mdbval);
+
+    Request(bool & error,
+            logos::stream & stream);
+
+    Request(bool & error,
+            boost::property_tree::ptree const & tree);
+
+    virtual ~Request() = default;
+
+    virtual logos::AccountType GetAccountType() const;
+    virtual logos::AccountType GetSourceType() const;
+
+    /// This method returns the account that will
+    /// own the request. Eg. For TokenSend requests
+    /// this will be the origin, but for Revoke
+    /// requests, this will be the token account.
+    /// @return The address of the owning account.
+    virtual AccountAddress GetAccount() const;
+
+    /// This method returns the account from which
+    /// an amount is being deducted. For most accounts
+    /// this will be the origin, but for Revoke
+    /// commands, this is not the case.
+    /// @return The address of the source account.
+    virtual AccountAddress GetSource() const;
+
+    virtual Amount GetLogosTotal() const;
+    virtual Amount GetTokenTotal() const;
+
+    void Sign(AccountPrivKey const & priv);
+    void Sign(AccountPrivKey const & priv, AccountPubKey const & pub);
+    bool VerifySignature(AccountPubKey const & pub) const;
+
+    std::string ToJson() const;
+    uint64_t ToStream(logos::stream & stream) const;
+    logos::mdb_val ToDatabase(std::vector<uint8_t> & buf) const;
+    virtual void DeserializeDB(bool & error, logos::stream & stream);
+
+    virtual boost::property_tree::ptree SerializeJson() const;
+    uint64_t DoSerialize(logos::stream & stream) const;
+    virtual uint64_t Serialize(logos::stream & stream) const;
+    void Deserialize(bool & error, logos::stream & stream);
+
+    virtual bool Validate(logos::process_return & result,
+                          std::shared_ptr<logos::Account> info) const;
+    virtual bool Validate(logos::process_return & result) const;
+
+    virtual BlockHash GetHash () const;
+    BlockHash Hash() const;
+    virtual void Hash(blake2b_state & hash) const;
+
+    virtual uint16_t WireSize() const;
+
+    virtual bool operator==(const Request & other) const;
+
+    RequestType       type = RequestType::Unknown;
+    AccountAddress    origin;
+    AccountSig        signature;
+    BlockHash         previous;
+    BlockHash         next;
+    Amount            fee;
+    uint32_t          sequence = 0;
+    mutable Locator   locator;
+    mutable BlockHash digest;
+};
+
+struct Change : Request
+{
+    using Request::Hash;
+
+    Change();
+
+    Change(bool & error,
+           const logos::mdb_val & mdbval);
+
+    Change(bool & error,
+           std::basic_streambuf<uint8_t> & stream);
+
+    Change(bool & error,
+           boost::property_tree::ptree const & tree);
+
+    boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
+    void Deserialize(bool & error, logos::stream & stream);
+    void DeserializeDB(bool &error, logos::stream &stream) override;
+
+    void Hash(blake2b_state & hash) const override;
+
+    uint16_t WireSize() const override;
+
+    bool operator==(const Request & other) const override;
+
+    AccountAddress client;
+    AccountAddress representative;
+};
 
 struct Send : Request
 {

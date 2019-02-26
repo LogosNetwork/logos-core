@@ -1,4 +1,4 @@
-#include <logos/token/util.hpp>
+#include <logos/token/utility.hpp>
 
 #include <logos/request/fields.hpp>
 

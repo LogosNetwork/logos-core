@@ -285,7 +285,13 @@ bool TokenAccount::FeeSufficient(Amount token_total, Amount token_fee) const
         case TokenFeeType::Percentage:
         {
             const Amount DENOM = 100;
+
             min_fee = Amount((fee_rate.number() / DENOM.number()) * token_total.number());
+
+            // Round down to the minimum token
+            // denomination.
+            min_fee -= {min_fee.number() % TOKEN_RAW};
+
             break;
         }
         case TokenFeeType::Unknown:
@@ -476,26 +482,4 @@ TokenSetting TokenAccount::GetMutabilitySetting(TokenSetting setting)
     // that is greater by 1.
     //
     return static_cast<TokenSetting>(static_cast<EnumType>(setting) + 1);
-}
-
-bool TokenAccount::ValidateFee(TokenFeeType fee_type, Amount fee_rate)
-{
-    auto result = false;
-
-    switch(fee_type)
-    {
-        case TokenFeeType::Percentage:
-            if(fee_rate.number() <= 100)
-            {
-                result = true;
-            }
-            break;
-        case TokenFeeType::Flat:
-            result = true;
-            break;
-        case TokenFeeType::Unknown:
-            break;
-    }
-
-    return result;
 }

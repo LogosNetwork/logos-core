@@ -67,6 +67,7 @@ struct IssueAdditional : TokenRequest
     IssueAdditional(bool & error,
                     boost::property_tree::ptree const & tree);
 
+    bool Validate(logos::process_return & result) const override;
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
 
@@ -166,6 +167,7 @@ struct Revoke : TokenRequest
     logos::AccountType GetSourceType() const override;
     Amount GetTokenTotal() const override;
 
+    bool Validate(logos::process_return & result) const override;
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
 
@@ -329,6 +331,7 @@ struct Burn : TokenRequest
     Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;
 
+    bool Validate(logos::process_return & result) const override;
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
 
@@ -364,6 +367,7 @@ struct Distribute : TokenRequest
     Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;
 
+    bool Validate(logos::process_return & result) const override;
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
 
@@ -399,6 +403,7 @@ struct WithdrawFee : TokenRequest
     Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;
 
+    bool Validate(logos::process_return & result) const override;
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
 
@@ -436,6 +441,7 @@ struct TokenSend : TokenRequest
     Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;
 
+    bool Validate(logos::process_return & result) const override;
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
 

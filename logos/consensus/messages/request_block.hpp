@@ -6,7 +6,7 @@
 
 #include <logos/consensus/messages/receive_block.hpp>
 #include <logos/consensus/messages/common.hpp>
-#include <logos/request/send.hpp>
+#include <logos/request/requests.hpp>
 
 struct RequestBlock : PrePrepareCommon
 {
