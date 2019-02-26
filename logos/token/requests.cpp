@@ -3,7 +3,7 @@
 #include <logos/request/utility.hpp>
 #include <logos/request/fields.hpp>
 #include <logos/token/account.hpp>
-#include <logos/token/util.hpp>
+#include <logos/token/utility.hpp>
 
 #include <numeric>
 
@@ -102,9 +102,7 @@ Issuance::Issuance(bool & error,
             controllers.push_back(c);
         }
 
-        // TODO: info is optional
-        //
-        issuer_info = tree.get<std::string>(ISSUER_INFO);
+        issuer_info = tree.get<std::string>(ISSUER_INFO, "");
         Hash();
     }
     catch (...)
@@ -146,13 +144,13 @@ bool Issuance::Validate(logos::process_return & result) const
         return false;
     }
 
-    if(total_supply.is_zero())
+    if(!ValidateTokenAmount(total_supply))
     {
         result.code = logos::process_result::invalid_token_amount;
         return false;
     }
 
-    if(!TokenAccount::ValidateFee(fee_type, fee_rate))
+    if(!ValidateFee(fee_type, fee_rate))
     {
         result.code = logos::process_result::invalid_fee;
         return false;
@@ -423,6 +421,17 @@ IssueAdditional::IssueAdditional(bool & error,
     {
         error = true;
     }
+}
+
+bool IssueAdditional::Validate(logos::process_return & result) const
+{
+    if(!ValidateTokenAmount(amount))
+    {
+        result.code = logos::process_result::invalid_token_amount;
+        return false;
+    }
+
+    return true;
 }
 
 bool IssueAdditional::Validate(logos::process_return & result,
@@ -885,6 +894,17 @@ Amount Revoke::GetTokenTotal() const
     return transaction.amount;
 }
 
+bool Revoke::Validate(logos::process_return & result) const
+{
+    if(!ValidateTokenAmount(transaction.amount))
+    {
+        result.code = logos::process_result::invalid_token_amount;
+        return false;
+    }
+
+    return true;
+}
+
 bool Revoke::Validate(logos::process_return & result,
                       std::shared_ptr<logos::Account> info) const
 {
@@ -1202,7 +1222,7 @@ AdjustFee::AdjustFee(bool & error,
 
 bool AdjustFee::Validate(logos::process_return & result) const
 {
-    if(!TokenAccount::ValidateFee(fee_type, fee_rate))
+    if(!ValidateFee(fee_type, fee_rate))
     {
         result.code = logos::process_result::invalid_fee;
         return false;
@@ -1692,6 +1712,17 @@ logos::AccountType Burn::GetSourceType() const
     return logos::AccountType::LogosAccount;
 }
 
+bool Burn::Validate(logos::process_return & result) const
+{
+    if(!ValidateTokenAmount(amount))
+    {
+        result.code = logos::process_result::invalid_token_amount;
+        return false;
+    }
+
+    return true;
+}
+
 bool Burn::Validate(logos::process_return & result,
                     std::shared_ptr<logos::Account> info) const
 {
@@ -1835,6 +1866,17 @@ logos::AccountType Distribute::GetSourceType() const
     return logos::AccountType::TokenAccount;
 }
 
+bool Distribute::Validate(logos::process_return & result) const
+{
+    if(!ValidateTokenAmount(transaction.amount))
+    {
+        result.code = logos::process_result::invalid_token_amount;
+        return false;
+    }
+
+    return true;
+}
+
 bool Distribute::Validate(logos::process_return & result,
                           std::shared_ptr<logos::Account> info) const
 {
@@ -1969,6 +2011,17 @@ Amount WithdrawFee::GetTokenTotal() const
 logos::AccountType WithdrawFee::GetSourceType() const
 {
     return logos::AccountType::TokenAccount;
+}
+
+bool WithdrawFee::Validate(logos::process_return & result) const
+{
+    if(!ValidateTokenAmount(transaction.amount))
+    {
+        result.code = logos::process_result::invalid_token_amount;
+        return false;
+    }
+
+    return true;
 }
 
 bool WithdrawFee::Validate(logos::process_return & result,
@@ -2136,6 +2189,20 @@ Amount TokenSend::GetTokenTotal() const
 logos::AccountType TokenSend::GetSourceType() const
 {
     return logos::AccountType::LogosAccount;
+}
+
+bool TokenSend::Validate(logos::process_return & result) const
+{
+    for(auto & transaction : transactions)
+    {
+        if(!ValidateTokenAmount(transaction.amount))
+        {
+            result.code = logos::process_result::invalid_token_amount;
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool TokenSend::Validate(logos::process_return & result,

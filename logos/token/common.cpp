@@ -3,7 +3,7 @@
 #include <logos/token/requests.hpp>
 #include <logos/request/fields.hpp>
 #include <logos/token/account.hpp>
-#include <logos/token/util.hpp>
+#include <logos/token/utility.hpp>
 
 TokenRequest::TokenRequest(RequestType type)
     : Request(type)
@@ -56,6 +56,38 @@ bool TokenRequest::Validate(logos::process_return & result) const
     }
 
     return true;
+}
+
+bool TokenRequest::ValidateFee(TokenFeeType fee_type, Amount fee_rate) const
+{
+    auto result = false;
+
+    switch(fee_type)
+    {
+        case TokenFeeType::Percentage:
+            if(fee_rate.number() <= 100)
+            {
+                result = true;
+            }
+            break;
+        case TokenFeeType::Flat:
+            result = ValidateTokenAmount(fee_rate, false);
+            break;
+        case TokenFeeType::Unknown:
+            break;
+    }
+
+    return result;
+}
+
+bool TokenRequest::ValidateTokenAmount(const Amount & amount, bool non_zero) const
+{
+    if(non_zero and amount.is_zero())
+    {
+        return false;
+    }
+
+    return amount.number() % TOKEN_RAW == 0;
 }
 
 logos::AccountType TokenRequest::GetAccountType() const

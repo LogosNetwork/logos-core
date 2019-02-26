@@ -1,9 +1,7 @@
 #pragma once
 
-#include <logos/request/request.hpp>
-#include <logos/request/change.hpp>
+#include <logos/request/requests.hpp>
 #include <logos/token/requests.hpp>
-#include <logos/request/send.hpp>
 
 RequestType GetRequestType(bool &error, std::string data);
 std::string GetRequestTypeField(RequestType type);

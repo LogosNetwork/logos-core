@@ -1,8 +1,8 @@
 #pragma once
 
+#include <logos/token/utility.hpp>
 #include <logos/token/common.hpp>
 #include <logos/lib/numbers.hpp>
-#include <logos/token/util.hpp>
 #include <logos/lib/log.hpp>
 #include <logos/common.hpp>
 
@@ -60,8 +60,6 @@ struct TokenAccount : logos::Account
 
     static bool IsMutabilitySetting(TokenSetting setting);
     static TokenSetting GetMutabilitySetting(TokenSetting setting);
-
-    static bool ValidateFee(TokenFeeType fee_type, Amount fee_rate);
 
     static constexpr uint8_t MAX_CONTROLLERS = 10;
 
