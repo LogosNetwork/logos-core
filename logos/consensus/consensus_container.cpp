@@ -12,6 +12,8 @@
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
 
+#include <logos/elections/database_functions.hpp>
+
 std::atomic<uint32_t> ConsensusContainer::_cur_epoch_number(0);
 const Seconds ConsensusContainer::GARBAGE_COLLECT = Seconds(60);
 bool ConsensusContainer::_validate_sig_config = false;
