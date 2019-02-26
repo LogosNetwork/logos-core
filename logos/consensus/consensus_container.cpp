@@ -257,6 +257,15 @@ ConsensusContainer::PeerBinder(
                     << " " << (int)DelegateIdentityManager::_global_delegate_idx;
 
     epoch->_netio_manager.OnConnectionAccepted(endpoint, socket, ids);
+
+
+    _alarm.add(std::chrono::steady_clock::now(), [this]()
+            {
+                logos::transaction txn(_store.environment, nullptr, false);
+                auto winners = 
+                    getElectionWinners(NUM_DELEGATES / TERM_LENGTH, _store, txn);
+                _archiver.CacheElectionWinners(winners);
+            });
 }
 
 void

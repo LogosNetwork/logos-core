@@ -5,6 +5,7 @@
 #include <logos/consensus/message_validator.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/lib/trace.hpp>
+#include <logos/elections/database_functions.hpp>
 
 PersistenceManager<ECT>::PersistenceManager(Store & store,
                                             ReservationsPtr,
@@ -100,6 +101,13 @@ PersistenceManager<ECT>::ApplyUpdates(
         LOG_FATAL(_log) << "PersistenceManager::ApplyUpdate failed to store epoch or epoch tip "
                                 << epoch_hash.to_string();
         trace_and_halt();
+    }
+
+    bool reelection = block.epoch_number == START_ELECTIONS_EPOCH;
+    if(transitionCandidatesDBNextEpoch(_store, transaction, reelection))
+    {
+        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdate failed to "
+            << "transition candidates_db to next epoch";
     }
 
     if(_store.consensus_block_update_next(block.previous, epoch_hash, ConsensusType::Epoch, transaction))
