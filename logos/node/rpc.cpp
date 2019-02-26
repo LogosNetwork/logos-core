@@ -1680,11 +1680,7 @@ void logos::rpc_handler::account_history ()
         if (receive_not_found)  // at end of receive chain?
         {
             put_send = true;
-            if (node.store.request_block_get(send_request.locator.hash, batch))
-            {
-                error_response (response, "Internal error: batch not found for send.");
-            }
-            timestamp = batch.timestamp;
+            timestamp = node.store.request_block_get(send_request.locator.hash, batch) ? 0 : batch.timestamp;
         }
         else
         {
@@ -1697,29 +1693,17 @@ void logos::rpc_handler::account_history ()
             if (send_not_found)
             {
                 put_send = false;
-                if (node.store.request_block_get(receive_link_block.locator.hash, batch))
-                {
-                    error_response (response, "Internal error: batch not found for send.");
-                }
-                timestamp = batch.timestamp;
+                timestamp = node.store.request_block_get(receive_link_block.locator.hash, batch) ? 0 : batch.timestamp;
             }
             // compare timestamps
             else
             {
                 // send timestamp
-                if (node.store.request_block_get(send_request.locator.hash, batch))
-                {
-                    error_response (response, "Internal error: batch not found for send.");
-                }
-                auto send_ts (batch.timestamp);
+                auto send_ts (node.store.request_block_get(send_request.locator.hash, batch) ? 0 : batch.timestamp);
                 // receive timestamp
-                if (node.store.request_block_get(receive_link_block.locator.hash, batch))
-                {
-                    error_response (response, "Internal error: batch not found for send.");
-                }
-                auto recv_ts (batch.timestamp);
-                put_send = send_ts > recv_ts;
-                timestamp = send_ts > recv_ts ? send_ts : recv_ts;
+                auto recv_ts (node.store.request_block_get(receive_link_block.locator.hash, batch) ? 0 : batch.timestamp);
+                put_send = send_ts >= recv_ts;
+                timestamp = send_ts >= recv_ts ? send_ts : recv_ts;
             }
         }
 
