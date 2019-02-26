@@ -349,7 +349,7 @@ bool applyRequest(logos::block_store& store, ElectionVote& request, uint32_t cur
     {
         return false;
     }
-    if(store.request_put(request,request.Hash(),txn))
+    if(store.request_put(request,txn))
     {
         mdb_txn_abort(txn);
         return false;
@@ -364,7 +364,7 @@ bool applyRequest(logos::block_store& store, ElectionVote& request, uint32_t cur
     }
     return true;
 }
-
+//TODO: this doesn't store the request itself
 bool applyRequest(logos::block_store& store, AnnounceCandidacy& request, MDB_txn* txn)
 {
     if(request.stake > 0)

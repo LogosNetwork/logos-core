@@ -34,10 +34,18 @@ enum class RequestType : uint8_t
     // Token User Requests
     //
     SendTokens         = 15,
+    
+    //Election Requests
+    //
+    AnnounceCandidacy  = 16,
+    RenounceCandidacy  = 17,
+    ElectionVote       = 18,
+    StartRepresenting  = 19,
+    StopRepresenting   = 20,
 
     // Unknown
     //
-    Unknown            = 16
+    Unknown            = 21
 };
 
 class ReservationsProvider;

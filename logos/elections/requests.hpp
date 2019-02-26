@@ -62,9 +62,7 @@ struct ElectionVote : Request
     ElectionVote(const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,
-            uint32_t sequence,
-            const AccountPrivKey & priv,
-            const AccountPubKey & pub);
+            uint32_t sequence);
 
     ElectionVote(const AccountAddress & origin,
             const BlockHash & previous,
@@ -91,7 +89,7 @@ struct ElectionVote : Request
 
     uint64_t Serialize(logos::stream & stream) const override;
 
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
 
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
@@ -111,9 +109,7 @@ struct AnnounceCandidacy : Request
     AnnounceCandidacy(const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,
-            uint32_t sequence,
-            const AccountPrivKey & priv,
-            const AccountPubKey & pub);
+            uint32_t sequence);
 
     AnnounceCandidacy(const AccountAddress & origin,
             const BlockHash & previous,
@@ -127,6 +123,9 @@ struct AnnounceCandidacy : Request
     AnnounceCandidacy(bool & error,
             boost::property_tree::ptree const & tree);
 
+    AnnounceCandidacy(bool& error,
+            const logos::mdb_val& mdbval);
+
     Amount stake = 0;
 
 };
@@ -138,9 +137,7 @@ struct RenounceCandidacy : Request
     RenounceCandidacy(const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,
-            uint32_t sequence,
-            const AccountPrivKey & priv,
-            const AccountPubKey & pub);
+            uint32_t sequence);
 
     RenounceCandidacy(const AccountAddress & origin,
             const BlockHash & previous,
@@ -154,6 +151,9 @@ struct RenounceCandidacy : Request
     RenounceCandidacy(bool & error,
             boost::property_tree::ptree const & tree);
 
+    RenounceCandidacy(bool& error,
+            const logos::mdb_val& mdbval);
+
 };
 
 struct StartRepresenting : Request
@@ -165,8 +165,6 @@ struct StartRepresenting : Request
             const BlockHash & previous,
             const Amount & fee,
             uint32_t sequence,
-            const AccountPrivKey & priv,
-            const AccountPubKey & pub,
             const Amount stake);
 
     StartRepresenting(const AccountAddress & origin,
@@ -185,7 +183,7 @@ struct StartRepresenting : Request
     StartRepresenting(bool& error,
             const logos::mdb_val& mdbval);
 
-    void Deserialize(bool & error, logos::stream & stream) override;
+    void Deserialize(bool & error, logos::stream & stream);
 
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
@@ -200,9 +198,7 @@ struct StopRepresenting : Request
     StopRepresenting(const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,
-            uint32_t sequence,
-            const AccountPrivKey & priv,
-            const AccountPubKey & pub);
+            uint32_t sequence);
 
     StopRepresenting(const AccountAddress & origin,
             const BlockHash & previous,
@@ -219,7 +215,7 @@ struct StopRepresenting : Request
     StopRepresenting(bool& error,
             const logos::mdb_val& mdbval);
 
-    void Deserialize(bool& error, logos::stream& stream) override;
+    void Deserialize(bool& error, logos::stream& stream);
 
     void DeserializeDB(bool& error, logos::stream& stream) override;
 };

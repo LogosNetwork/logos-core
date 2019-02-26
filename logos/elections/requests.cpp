@@ -5,12 +5,10 @@ AnnounceCandidacy::AnnounceCandidacy(
             const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,
-            uint32_t sequence,
-            const AccountPrivKey & priv,
-            const AccountPubKey & pub)
+            uint32_t sequence)
     : Request(
             RequestType::AnnounceCandidacy,
-            origin, previous, fee, sequence, priv, pub)
+            origin, previous, fee, sequence)
 {
     Hash();
 }  
@@ -36,6 +34,22 @@ AnnounceCandidacy::AnnounceCandidacy(bool & error,
     Hash();
 }
 
+AnnounceCandidacy::AnnounceCandidacy(bool& error, const logos::mdb_val& mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()),
+            mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Hash();
+}
+
+
+
 AnnounceCandidacy::AnnounceCandidacy(bool & error,
             boost::property_tree::ptree const & tree) : Request(error, tree)
 {
@@ -47,12 +61,10 @@ RenounceCandidacy::RenounceCandidacy(
             const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,
-            uint32_t sequence,
-            const AccountPrivKey & priv,
-            const AccountPubKey & pub)
+            uint32_t sequence)
     : Request(
             RequestType::RenounceCandidacy,
-            origin, previous, fee, sequence, priv, pub)
+            origin, previous, fee, sequence)
 {
     Hash();
 }  
@@ -78,6 +90,20 @@ RenounceCandidacy::RenounceCandidacy(bool & error,
     Hash();
 }
 
+RenounceCandidacy::RenounceCandidacy(bool& error, const logos::mdb_val& mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()),
+            mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Hash();
+}
+
 RenounceCandidacy::RenounceCandidacy(bool & error,
             boost::property_tree::ptree const & tree) : Request(error, tree)
 {
@@ -90,12 +116,10 @@ ElectionVote::ElectionVote(
         const AccountAddress & origin,
         const BlockHash & previous,
         const Amount & fee,
-        uint32_t sequence,
-        const AccountPrivKey & priv,
-        const AccountPubKey & pub)
+        uint32_t sequence)
     : Request(
             RequestType::ElectionVote,
-            origin, previous, fee, sequence, priv, pub)
+            origin, previous, fee, sequence)
 {
     Hash();
 }
@@ -278,10 +302,8 @@ StartRepresenting::StartRepresenting(
             const BlockHash & previous,
             const Amount & fee,
             uint32_t sequence,
-            const AccountPrivKey & priv,
-            const AccountPubKey & pub,
             const Amount stake)
-    : Request(RequestType::StartRepresenting, origin, previous, fee, sequence, priv, pub), stake(stake)
+    : Request(RequestType::StartRepresenting, origin, previous, fee, sequence), stake(stake)
 {}
 
 StartRepresenting::StartRepresenting(
@@ -368,10 +390,8 @@ StopRepresenting::StopRepresenting(
         const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,
-            uint32_t sequence,
-            const AccountPrivKey & priv,
-            const AccountPubKey & pub)
-    : Request(RequestType::StopRepresenting, origin, previous, fee, sequence, priv, pub)
+            uint32_t sequence)
+    : Request(RequestType::StopRepresenting, origin, previous, fee, sequence)
 {}
 
 StopRepresenting::StopRepresenting(

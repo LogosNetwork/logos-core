@@ -1207,6 +1207,113 @@ bool logos::block_store::epoch_exists (const ApprovedEB & block)
     return exists;
 }
 
+
+
+bool logos::block_store::rep_get(AccountAddress const & account, RepInfo & rep_info, MDB_txn* transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << account.to_string();
+    mdb_val val;
+    if(get(representative_db, mdb_val(account), val, transaction))
+    {
+        return true;
+    }
+
+    bool error = false;
+    new (&rep_info) RepInfo(error, val);
+    assert (!error);
+    return error;
+}
+
+bool logos::block_store::rep_put(
+        const AccountAddress & account, 
+        const RepInfo & rep_info,
+        MDB_txn * transaction)
+{
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(transaction, representative_db, logos::mdb_val(account), rep_info.to_mdb_val(buf), 0));
+
+    assert(status == 0);
+    return status != 0;
+}
+
+bool logos::block_store::candidate_get(AccountAddress const & account, CandidateInfo & candidate_info, MDB_txn* transaction)
+{
+    LOG_TRACE(log) << __func__ << " key " << account.to_string();
+    mdb_val val;
+    if(get(candidacy_db, mdb_val(account), val, transaction))
+    {
+        return true;
+    }
+
+    bool error = false;
+    new (&candidate_info) CandidateInfo(error, val);
+    assert (!error);
+    return error;
+}
+
+bool logos::block_store::candidate_put(
+        const AccountAddress & account, 
+        const CandidateInfo & candidate_info,
+        MDB_txn * transaction)
+{
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(transaction, candidacy_db, logos::mdb_val(account), candidate_info.to_mdb_val(buf), 0));
+
+    assert(status == 0);
+    return status != 0;
+}
+
+bool logos::block_store::candidate_add_vote(
+        const AccountAddress & account,
+        Amount weighted_vote,
+        MDB_txn * txn)
+{
+    CandidateInfo info;
+    std::cout << "adding vote : " << weighted_vote.to_string() << std::endl;
+    if(!candidate_get(account,info,txn) && info.active)
+    {
+        info.votes_received_weighted += weighted_vote;
+        std::cout << "total vote is " << info.votes_received_weighted.to_string() << std::endl;
+        return candidate_put(account,info,txn);
+    }
+    else
+    {
+        std::cout << "didnt get candidate account" << std::endl;
+    }
+    return true;
+}
+
+bool logos::block_store::candidate_add_new(
+        const AccountAddress & account,
+        MDB_txn * txn)
+{
+    CandidateInfo info(false,false,0);
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(txn, candidacy_db, logos::mdb_val(account), info.to_mdb_val(buf), MDB_NOOVERWRITE));
+
+    assert(status == 0);
+    return status != 0;
+}
+
+
+bool logos::block_store::candidate_mark_remove(
+        const AccountAddress & account,
+        MDB_txn * txn)
+{
+    CandidateInfo info;
+    //TODO only remove if remove is false and active is true?
+    if(!candidate_get(account,info,txn))
+    {
+        info.remove = true;
+        return candidate_put(account,info,txn);
+    }
+    return true;
+}
+
+
+
+
+
 bool logos::block_store::token_user_status_get(const BlockHash & token_user_id, TokenUserStatus & status, MDB_txn * transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << token_user_id.to_string();

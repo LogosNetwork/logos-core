@@ -24,6 +24,12 @@ const char BURN[]              = "burn";
 const char DISTRIBUTE[]        = "distribute";
 const char WITHDRAW_FEE[]      = "withdraw_fee";
 const char SEND_TOKENS[]       = "send_tokens";
+const char ANNOUNCE_CANDIDACY[] = "announce_candidacy";
+const char RENOUNCE_CANDIDACY[] = "renounce_candidacy";
+const char ELECTION_VOTE[]      = "election_vote";
+const char START_REPRESENTING[] = "start_representing";
+const char STOP_REPRESENTING[]  = "stop_representing";
+
 const char UNKNOWN[]           = "unknown";
 
 // Request fields
@@ -63,6 +69,8 @@ const char PRIVATE_KEY[]    = "private_key";
 const char PUBLIC_KEY[]     = "public_key";
 const char WORK[]           = "work";
 const char WALLET[]         = "wallet";
+const char VOTES[]          = "votes";
+const char REQUEST[]        = "request";
 
 // Token setting fields
 //

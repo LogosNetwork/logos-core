@@ -260,7 +260,13 @@ bool ControllerInfo::IsAuthorized(std::shared_ptr<const Request> request) const
             break;
 
         // TODO: N/A
+
         case RequestType::SendTokens:
+        case RequestType::AnnounceCandidacy:
+        case RequestType::RenounceCandidacy:
+        case RequestType::ElectionVote:
+        case RequestType::StartRepresenting:
+        case RequestType::StopRepresenting:
         case RequestType::Unknown:
             result = false;
             break;

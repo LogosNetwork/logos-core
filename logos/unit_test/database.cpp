@@ -24,7 +24,7 @@ TEST (Database, blockstore)
 
         //Generic request
         Request req;
-        bool res = store->request_put(req,req.Hash(),txn);
+        bool res = store->request_put(req,txn);
         ASSERT_FALSE(res);
 
         Request req2;
@@ -47,7 +47,7 @@ TEST (Database, blockstore)
         uint32_t sequence = 2;
         ElectionVote ev(address, prev, fee, sequence, sig);
 
-        res = store->request_put(ev,ev.Hash(),txn);
+        res = store->request_put(ev,txn);
         ASSERT_FALSE(res);
 
         ElectionVote ev2;
@@ -74,7 +74,7 @@ TEST (Database, blockstore)
 
         std::cout << "putting" << std::endl;
         hash = ev.Hash();
-        res = store->request_put(ev,hash,txn);
+        res = store->request_put(ev,txn);
         ASSERT_FALSE(res);
 
         ElectionVote ev3;

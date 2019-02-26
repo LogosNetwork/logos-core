@@ -2,6 +2,7 @@
 
 #include <logos/request/fields.hpp>
 #include <logos/lib/utility.hpp>
+#include <logos/elections/requests.hpp>
 
 RequestType GetRequestType(bool &error, std::string data)
 {
@@ -76,6 +77,26 @@ RequestType GetRequestType(bool &error, std::string data)
     {
         ret = RequestType::SendTokens;
     }
+    else if(data == ANNOUNCE_CANDIDACY)
+    {
+        ret = RequestType::AnnounceCandidacy;
+    }
+    else if(data == RENOUNCE_CANDIDACY)
+    {
+        ret = RequestType::RenounceCandidacy;
+    }
+    else if(data == ELECTION_VOTE)
+    {
+        ret = RequestType::ElectionVote;
+    }
+    else if(data == START_REPRESENTING)
+    {
+        ret = RequestType::StartRepresenting;
+    }
+    else if(data == STOP_REPRESENTING)
+    {
+        ret = RequestType::StopRepresenting;
+    }
     else
     {
         error = true;
@@ -139,6 +160,21 @@ std::string GetRequestTypeField(RequestType type)
         case RequestType::SendTokens:
             ret = SEND_TOKENS;
             break;
+        case RequestType::AnnounceCandidacy:
+            ret = ANNOUNCE_CANDIDACY;
+            break;
+        case RequestType::RenounceCandidacy:
+            ret = RENOUNCE_CANDIDACY;
+            break;
+        case RequestType::ElectionVote:
+            ret = ELECTION_VOTE;
+            break;
+        case RequestType::StartRepresenting:
+            ret = START_REPRESENTING;
+            break;
+        case RequestType::StopRepresenting:
+            ret = STOP_REPRESENTING;
+            break;
         case RequestType::Unknown:
             ret = UNKNOWN;
             break;
@@ -201,6 +237,21 @@ std::shared_ptr<Request> BuildRequest(RequestType type, Args&& ...args)
             break;
         case RequestType::SendTokens:
             result = std::make_shared<TokenSend>(TokenSend(args...));
+            break;
+        case RequestType::AnnounceCandidacy:
+            result = std::make_shared<AnnounceCandidacy>(AnnounceCandidacy(args...));
+            break;
+        case RequestType::RenounceCandidacy:
+            result = std::make_shared<RenounceCandidacy>(RenounceCandidacy(args...));
+            break;
+        case RequestType::ElectionVote:
+            result = std::make_shared<ElectionVote>(ElectionVote(args...));
+            break;
+        case RequestType::StartRepresenting:
+            result = std::make_shared<StartRepresenting>(StartRepresenting(args...));
+            break;
+        case RequestType::StopRepresenting:
+            result = std::make_shared<StopRepresenting>(StopRepresenting(args...));
             break;
         case RequestType::Unknown:
             break;

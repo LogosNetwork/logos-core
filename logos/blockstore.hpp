@@ -8,6 +8,7 @@
 #include <logos/epoch/epoch.hpp>
 #include <logos/lib/log.hpp>
 #include <logos/common.hpp>
+#include <logos/elections/database.hpp>
 
 namespace logos
 {
@@ -218,6 +219,37 @@ public:
     bool epoch_tip_get(BlockHash &, MDB_txn *t=0);
     bool epoch_exists(const ApprovedEB &);
 
+    bool rep_get(
+            AccountAddress const & account,
+            RepInfo & rep_info,
+            MDB_txn* t=0);
+    bool rep_put(
+            AccountAddress const & account,
+            const RepInfo & rep_info,
+            MDB_txn *);
+
+    bool candidate_get(
+            const AccountAddress & account,
+            CandidateInfo & candidate_info,
+            MDB_txn* t=0);
+    bool candidate_put(
+            const AccountAddress & account,
+            const CandidateInfo & candidate_info,
+            MDB_txn *);
+
+    bool candidate_add_vote(
+            const AccountAddress & account,
+            Amount weighted_vote,
+            MDB_txn *);
+
+    bool candidate_add_new(
+            const AccountAddress & account,
+            MDB_txn *);
+
+    bool candidate_mark_remove(
+            const AccountAddress & account,
+            MDB_txn *);
+
     //////////////////
 
     void checksum_put (MDB_txn *, uint64_t, uint8_t, logos::checksum const &);
@@ -347,9 +379,21 @@ public:
     MDB_dbi representation;
 
     /**
+     * Representative info
+     * logos::account -> logos::RepInfo
+     */
+    MDB_dbi representative_db;
+
+    /**
+     * Candidacy info
+     * logos::account -> single bit. 0 is for pending, 1 is for active
+     */
+    MDB_dbi candidacy_db;
+    /**
      * Unchecked bootstrap blocks.
      * logos::block_hash -> logos::block
      */
+
     MDB_dbi unchecked;
 
     /**

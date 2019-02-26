@@ -879,6 +879,11 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 
             break;
         }
+        case RequestType::AnnounceCandidacy:
+        case RequestType::RenounceCandidacy:
+        case RequestType::ElectionVote:
+        case RequestType::StartRepresenting:
+        case RequestType::StopRepresenting:
         case RequestType::Unknown:
             LOG_ERROR(_log) << "PersistenceManager::ApplyRequest - "
                             << "Unknown request type.";
