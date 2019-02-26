@@ -8,11 +8,11 @@ std::string TokenSettingName(TokenSetting setting)
 
     switch(setting)
     {
-    case TokenSetting::AddTokens:
-        name = "Add Tokens";
+    case TokenSetting::Issuance:
+        name = "Issuance";
         break;
-    case TokenSetting::ModifyAddTokens:
-        name = "Modify Add Tokens";
+    case TokenSetting::ModifyIssuance:
+        name = "Modify Issuance";
         break;
     case TokenSetting::Revoke:
         name = "Revoke";
@@ -55,13 +55,13 @@ TokenSetting GetTokenSetting(bool & error, std::string data)
 
     TokenSetting ret = TokenSetting::Unknown;
 
-    if(data == ADD)
+    if(data == ISSUANCE)
     {
-        ret = TokenSetting::AddTokens;
+        ret = TokenSetting::Issuance;
     }
-    else if(data == MODIFY_ADD)
+    else if(data == MODIFY_ISSUANCE)
     {
-        ret = TokenSetting::ModifyAddTokens;
+        ret = TokenSetting::ModifyIssuance;
     }
     else if(data == REVOKE)
     {
@@ -116,11 +116,11 @@ std::string GetTokenSettingField(TokenSetting setting)
 
     switch(setting)
     {
-        case TokenSetting::AddTokens:
-            ret = ADD;
+        case TokenSetting::Issuance:
+            ret = ISSUANCE;
             break;
-        case TokenSetting::ModifyAddTokens:
-            ret = MODIFY_ADD;
+        case TokenSetting::ModifyIssuance:
+            ret = MODIFY_ISSUANCE;
             break;
         case TokenSetting::Revoke:
             ret = REVOKE;
@@ -163,13 +163,13 @@ ControllerPrivilege GetControllerPrivilege(bool & error, std::string data)
 
     ControllerPrivilege ret = ControllerPrivilege::Unknown;
 
-    if(data == CHANGE_ADD)
+    if(data == CHANGE_ISSUANCE)
     {
-        ret = ControllerPrivilege::ChangeAddTokens;
+        ret = ControllerPrivilege::ChangeIssuance;
     }
-    else if(data == CHANGE_MODIFY_ADD)
+    else if(data == CHANGE_MODIFY_ISSUANCE)
     {
-        ret = ControllerPrivilege::ChangeModifyAddTokens;
+        ret = ControllerPrivilege::ChangeModifyIssuance;
     }
     else if(data == CHANGE_REVOKE)
     {
@@ -203,13 +203,13 @@ ControllerPrivilege GetControllerPrivilege(bool & error, std::string data)
     {
         ret = ControllerPrivilege::ChangeModifyWhitelist;
     }
-    else if(data == PROMOTE_CONTROLLER)
+    else if(data == UPDATE_CONTROLLER)
     {
-        ret = ControllerPrivilege::PromoteController;
+        ret = ControllerPrivilege::UpdateController;
     }
-    else if(data == ADD)
+    else if(data == ISSUANCE)
     {
-        ret = ControllerPrivilege::AddTokens;
+        ret = ControllerPrivilege::Issuance;
     }
     else if(data == REVOKE)
     {
@@ -264,11 +264,11 @@ std::string GetControllerPrivilegeField(ControllerPrivilege privilege)
 
     switch(privilege)
     {
-        case ControllerPrivilege::ChangeAddTokens:
-            ret = CHANGE_ADD;
+        case ControllerPrivilege::ChangeIssuance:
+            ret = CHANGE_ISSUANCE;
             break;
-        case ControllerPrivilege::ChangeModifyAddTokens:
-            ret = CHANGE_MODIFY_ADD;
+        case ControllerPrivilege::ChangeModifyIssuance:
+            ret = CHANGE_MODIFY_ISSUANCE;
             break;
         case ControllerPrivilege::ChangeRevoke:
             ret = CHANGE_REVOKE;
@@ -294,11 +294,11 @@ std::string GetControllerPrivilegeField(ControllerPrivilege privilege)
         case ControllerPrivilege::ChangeModifyWhitelist:
             ret = CHANGE_MODIFY_WHITELIST;
             break;
-        case ControllerPrivilege::PromoteController:
-            ret = PROMOTE_CONTROLLER;
+        case ControllerPrivilege::UpdateController:
+            ret = UPDATE_CONTROLLER;
             break;
-        case ControllerPrivilege::AddTokens:
-            ret = ADD;
+        case ControllerPrivilege::Issuance:
+            ret = ISSUANCE;
             break;
         case ControllerPrivilege::Revoke:
             ret = REVOKE;
@@ -424,22 +424,30 @@ std::string GetControllerActionField(ControllerAction action)
     return ret;
 }
 
-FreezeAction GetFreezeAction(bool & error, std::string data)
+UserStatus GetUserStatus(bool & error, std::string data)
 {
     using namespace::request::fields;
 
     std::transform(data.begin(), data.end(),
                    data.begin(), ::tolower);
 
-    FreezeAction ret = FreezeAction::Unknown;
+    UserStatus ret = UserStatus::Unknown;
 
-    if(data == FREEZE)
+    if(data == FROZEN)
     {
-        ret = FreezeAction::Freeze;
+        ret = UserStatus::Frozen;
     }
-    else if(data == UNFREEZE)
+    else if(data == UNFROZEN)
     {
-        ret = FreezeAction::Unfreeze;
+        ret = UserStatus::Unfrozen;
+    }
+    else if(data == WHITELISTED)
+    {
+        ret = UserStatus::Whitelisted;
+    }
+    else if(data == NOT_WHITELISTED)
+    {
+        ret = UserStatus::NotWhitelisted;
     }
     else
     {
@@ -449,7 +457,7 @@ FreezeAction GetFreezeAction(bool & error, std::string data)
     return ret;
 }
 
-std::string GetFreezeActionField(FreezeAction action)
+std::string GetUserStatusField(UserStatus action)
 {
     using namespace::request::fields;
 
@@ -457,13 +465,20 @@ std::string GetFreezeActionField(FreezeAction action)
 
     switch(action)
     {
-    case FreezeAction::Freeze:
-        ret = FREEZE;
+    case UserStatus::Frozen:
+        ret = FROZEN;
         break;
-    case FreezeAction::Unfreeze:
-        ret = UNFREEZE;
+    case UserStatus::Unfrozen:
+        ret = UNFROZEN;
         break;
-    case FreezeAction::Unknown:
+    case UserStatus::Whitelisted:
+        ret = WHITELISTED;
+        break;
+    case UserStatus::NotWhitelisted:
+        ret = NOT_WHITELISTED;
+        break;
+    case UserStatus::Unknown:
+        ret = UNKNOWN;
         break;
     }
 
@@ -477,24 +492,23 @@ bool IsTokenAdminRequest(RequestType type)
     switch(type)
     {
         case RequestType::Send:
-        case RequestType::ChangeRep:
-        case RequestType::IssueTokens:
+        case RequestType::Change:
+        case RequestType::Issuance:
             break;
-        case RequestType::IssueAdtlTokens:
-        case RequestType::ChangeTokenSetting:
-        case RequestType::ImmuteTokenSetting:
-        case RequestType::RevokeTokens:
-        case RequestType::FreezeTokens:
-        case RequestType::SetTokenFee:
-        case RequestType::UpdateWhitelist:
+        case RequestType::IssueAdditional:
+        case RequestType::ChangeSetting:
+        case RequestType::ImmuteSetting:
+        case RequestType::Revoke:
+        case RequestType::AdjustUserStatus:
+        case RequestType::AdjustFee:
         case RequestType::UpdateIssuerInfo:
         case RequestType::UpdateController:
-        case RequestType::BurnTokens:
-        case RequestType::DistributeTokens:
+        case RequestType::Burn:
+        case RequestType::Distribute:
         case RequestType::WithdrawFee:
             result = true;
             break;
-        case RequestType::SendTokens:
+        case RequestType::TokenSend:
         case RequestType::Unknown:
             break;
     }

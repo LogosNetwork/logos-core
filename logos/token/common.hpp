@@ -11,8 +11,8 @@
 //       setting.
 enum class TokenSetting : uint8_t
 {
-    AddTokens       = 0,
-    ModifyAddTokens = 1,
+    Issuance        = 0,
+    ModifyIssuance  = 1,
     Revoke          = 2,
     ModifyRevoke    = 3,
     Freeze          = 4,
@@ -51,43 +51,45 @@ enum class ControllerAction : uint8_t
     Unknown = 2
 };
 
-enum class FreezeAction : uint8_t
+enum class UserStatus : uint8_t
 {
-    Freeze   = 0,
-    Unfreeze = 1,
-    Unknown  = 2
+    Frozen         = 0,
+    Unfrozen       = 1,
+    Whitelisted    = 2,
+    NotWhitelisted = 3,
+    Unknown        = 4
 };
 
 enum class ControllerPrivilege : uint8_t
 {
     // Privileges for modifying
     // token account settings.
-    ChangeAddTokens          = 0,
-    ChangeModifyAddTokens    = 1,
-    ChangeRevoke             = 2,
-    ChangeModifyRevoke       = 3,
-    ChangeFreeze             = 4,
-    ChangeModifyFreeze       = 5,
-    ChangeAdjustFee          = 6,
-    ChangeModifyAdjustFee    = 7,
-    ChangeWhitelist          = 8,
-    ChangeModifyWhitelist    = 9,
+    ChangeIssuance        = 0,
+    ChangeModifyIssuance  = 1,
+    ChangeRevoke          = 2,
+    ChangeModifyRevoke    = 3,
+    ChangeFreeze          = 4,
+    ChangeModifyFreeze    = 5,
+    ChangeAdjustFee       = 6,
+    ChangeModifyAdjustFee = 7,
+    ChangeWhitelist       = 8,
+    ChangeModifyWhitelist = 9,
 
     // Privileges for performing
     // token-related actions in
     // the system.
-    PromoteController        = 10,
-    AddTokens                = 11,
-    Revoke                   = 12,
-    Freeze                   = 13,
-    AdjustFee                = 14,
-    Whitelist                = 15,
-    UpdateIssuerInfo         = 16,
-    Burn                     = 17,
-    Distribute               = 18,
-    WithdrawFee              = 19,
+    Issuance              = 10,
+    Revoke                = 11,
+    Freeze                = 12,
+    AdjustFee             = 13,
+    Whitelist             = 14,
+    UpdateIssuerInfo      = 15,
+    UpdateController      = 16,
+    Burn                  = 17,
+    Distribute            = 18,
+    WithdrawFee           = 19,
 
-    Unknown                  = 20
+    Unknown               = 20
 };
 
 // Larger than necessary in anticipation of
@@ -131,7 +133,7 @@ struct TokenRequest : Request
    logos::block_hash token_id;
 };
 
-class TokenImmuteSetting;
+struct AdjustUserStatus;
 
 struct ControllerInfo
 {
@@ -159,9 +161,10 @@ struct ControllerInfo
     static uint16_t WireSize();
 
     bool IsAuthorized(std::shared_ptr<const Request> request) const;
+    bool IsAuthorized(UserStatus status) const;
     bool IsAuthorized(TokenSetting setting) const;
 
-    bool operator== (const ControllerInfo & other) const;
+    bool operator==(const ControllerInfo & other) const;
 
     AccountAddress account;
     Privileges     privileges;

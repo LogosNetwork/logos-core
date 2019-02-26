@@ -130,11 +130,11 @@ public:
         mdb_val key(key_32b);
         return get<T>(db,key,t,tx);
     }
-    void del(MDB_dbi&, const mdb_val &, MDB_txn * tx);
-    void del(MDB_dbi& db, const Byte32Array &key_32b, MDB_txn *tx)
+    bool del(MDB_dbi&, const mdb_val &, MDB_txn * tx);
+    bool del(MDB_dbi& db, const Byte32Array &key_32b, MDB_txn *tx)
     {
         mdb_val key(key_32b);
-        del(db, key, tx);
+        return del(db, key, tx);
     }
 
     //////////////////
@@ -180,7 +180,7 @@ public:
 
     bool token_user_status_get(const BlockHash & token_user_id, TokenUserStatus & status, MDB_txn* t=0);
     bool token_user_status_put(const BlockHash & token_user_id, const TokenUserStatus & status, MDB_txn *);
-    void token_user_status_del(const BlockHash & token_user_id, MDB_txn *);
+    bool token_user_status_del(const BlockHash & token_user_id, MDB_txn *);
 
     bool token_account_get(const BlockHash & token_id, TokenAccount & info, MDB_txn* t=0);
     bool token_account_put (const BlockHash &, TokenAccount const &, MDB_txn *);
