@@ -260,9 +260,13 @@ ConsensusContainer::PeerBinder(
 
     epoch->_netio_manager.OnConnectionAccepted(endpoint, socket, ids);
 
-
+    
+    LOG_INFO(_log) << "ConsensusContainer::PeerBinder,"
+        << "Adding job to cache election results";
     _alarm.add(std::chrono::steady_clock::now(), [this]()
             {
+                LOG_INFO(_log) << "ConsensusContainer::PeerBinder, "
+                    << "Caching election results";
                 logos::transaction txn(_store.environment, nullptr, false);
                 auto winners = 
                     getElectionWinners(NUM_DELEGATES / TERM_LENGTH, _store, txn);

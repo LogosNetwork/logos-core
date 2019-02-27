@@ -30,6 +30,8 @@ std::unordered_set<Delegate> EpochVotingManager::GetRetiringDelegates()
     logos::transaction txn(_store.environment,nullptr,false);
     if(getOldEpochBlock(_store, txn, 3, epoch))
     {
+        LOG_INFO(_log) << "EpochVotingManager::GetRetiringDelegates "
+            << "Not enough epochs have passed. Retiring 0 delegates";
         return retiring;
     }
 
@@ -74,7 +76,8 @@ EpochVotingManager::GetNextEpochDelegates(
     ApprovedEB previous_epoch;
     BlockHash hash;
     std::unordered_map<AccountPubKey,bool> delegates3epochs;
-
+    
+    LOG_INFO(_log) << "EpochVotingManager::GetNextEpochDelegates";
     // get all delegate in the previous 3 epochs
     if (_store.epoch_tip_get(hash))
     {
@@ -110,11 +113,14 @@ EpochVotingManager::GetNextEpochDelegates(
     if(retiring.size() != delegate_elects.size())
     {
         LOG_FATAL(_log) << "EpochVotingManager::GetNextEpochDelegates mismatch"
-           << " in size of retiring and delegate_elects. Need to be equal"; 
-        LOG_FATAL(_log) << "Delegate-elects size : " << delegate_elects.size()
+           << " in size of retiring and delegate_elects. Need to be equal."
+           << "Delegate-elects size : " << delegate_elects.size()
             << " . Retiring size " << retiring.size();
         trace_and_halt();
     }
+
+    LOG_INFO(_log) << "EpochVotingManager::Delegate-Elects size is : " << delegate_elects.size()
+        << " . Retiring size is " << retiring.size();
 
     size_t del_elects_idx = 0;
     for (int del = 0; del < NUM_DELEGATES; ++del)
