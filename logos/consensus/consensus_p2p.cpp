@@ -96,6 +96,7 @@ ConsensusP2p<CT>::ConsensusP2p(p2p_interface & p2p,
     , _Validate(Validate)
     , _ApplyUpdates(ApplyUpdates)
     , _BlockExists(BlockExists)
+    , _container(0)
 {}
 
 template<>
@@ -155,6 +156,13 @@ void ConsensusP2p<CT>::RetryValidate(const logos::block_hash &hash)
 }		
 
 template<ConsensusType CT>
+void ConsensusP2p<CT>::_RetryValidate(const logos::block_hash &hash)
+{
+    if (_container) _container->RetryValidate(hash);
+    else RetryValidate(hash);
+}
+
+template<ConsensusType CT>
 void ConsensusP2p<CT>::CacheInsert(
         const logos::block_hash & hash,
         uint8_t delegate_id,
@@ -180,11 +188,11 @@ bool ConsensusP2p<ConsensusType::BatchStateBlock>::ApplyCacheUpdates(
     {
         case logos::process_result::progress:
             _ApplyUpdates(block, delegate_id);
-            _container->RetryValidate(block.Hash());
+            _RetryValidate(block.Hash());
 
             for(uint32_t i = 0; i < block.block_count; ++i)
             {
-                _container->RetryValidate(block.blocks[i]->Hash());
+                _RetryValidate(block.blocks[i]->Hash());
             }
             return true;
 
@@ -218,7 +226,7 @@ bool ConsensusP2p<ConsensusType::MicroBlock>::ApplyCacheUpdates(
     {
         case logos::process_result::progress:
             _ApplyUpdates(block, delegate_id);
-            _container->RetryValidate(block.Hash());
+            _RetryValidate(block.Hash());
             return true;
 
         case logos::process_result::gap_previous:
@@ -251,7 +259,7 @@ bool ConsensusP2p<ConsensusType::Epoch>::ApplyCacheUpdates(
     {
         case logos::process_result::progress:
             _ApplyUpdates(block, delegate_id);
-            _container->RetryValidate(block.Hash());
+            _RetryValidate(block.Hash());
             return true;
 
         case logos::process_result::gap_previous:

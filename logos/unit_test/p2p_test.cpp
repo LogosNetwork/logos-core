@@ -117,6 +117,59 @@ TEST (P2pTest, VerifyPeersInterface)
     }
 }
 
+template <ConsensusType CT>
+static void generate_block(std::vector<uint8_t> &buf, logos::block_hash &hash, int sequence, int delegate_id)
+{
+    PostCommittedBlock<CT> block;
+    block.sequence = sequence;
+    block.primary_delegate = delegate_id;
+    block.previous = hash;
+    hash = block.Hash();
+
+    std::vector<uint8_t> buf0;
+    block.Serialize(buf0, true, true);
+    buf.clear();
+    buf.push_back(4), buf.push_back(0), buf.push_back(0), buf.push_back(0);
+    buf.push_back(2), buf.push_back(logos_version),
+    buf.push_back((int)CT), buf.push_back(block.primary_delegate);
+    while (buf0.size() & 3) buf0.push_back(0);
+    buf.push_back(buf0.size() & 0xff), buf.push_back(buf0.size() / 0x100), buf.push_back(0), buf.push_back(0);
+    buf.insert(buf.end(), buf0.begin(), buf0.end());
+}
+
+template <ConsensusType CT>
+ConsensusP2p<CT> *get_cp2p(p2p_interface &p2p, uint32_t &max_saved)
+{
+    return new ConsensusP2p<CT>(p2p,
+        [&max_saved](const PostCommittedBlock<CT> &block, uint8_t id, ValidationStatus *status) -> bool
+        {
+            bool res;
+            if (block.sequence > max_saved + 1)
+            {
+                status->reason = logos::process_result::gap_previous;
+                res = false;
+            }
+            else
+            {
+                status->reason = logos::process_result::progress;
+                res = true;
+            }
+            printf("Validate(%u,%u) -> %s\n", block.sequence, id, (res ? "true" : "false"));
+            return res;
+        },
+        [&max_saved](const PostCommittedBlock<CT> &block, uint8_t id)
+        {
+            max_saved = std::max(max_saved, block.sequence);
+            printf("ApplyUpdates(%u,%u) -> %d\n", block.sequence, id, max_saved);
+         },
+        [&max_saved](const PostCommittedBlock<CT> &block) -> bool
+        {
+            bool res = (block.sequence <= max_saved);
+            printf("BlockExists(%u,%u) -> %s\n", block.sequence, block.primary_delegate, (res ? "true" : "false"));
+            return res;
+        });
+}
+
 TEST (P2pTest, VerifyCache)
 {
     const char *argv[] = {"unit_test", "-debug=net", 0};
@@ -139,37 +192,57 @@ TEST (P2pTest, VerifyCache)
     };
 
     p2p_interface p2p;
-    ConsensusP2p<ConsensusType::BatchStateBlock> cp2p(p2p,
-        [](const PostCommittedBlock<ConsensusType::BatchStateBlock> &block, uint8_t id, ValidationStatus *status) -> bool
-        {
-            printf("Validate(%d,%d) called\n", block.sequence, id);
-            status->reason = logos::process_result::gap_previous;
-            return false;
-        },
-        [](const PostCommittedBlock<ConsensusType::BatchStateBlock> &block, uint8_t id)
-        {
-            printf("ApplyUpdates(%d,%d) called\n", block.sequence, id);
-        },
-        [](const PostCommittedBlock<ConsensusType::BatchStateBlock> &block) -> bool
-        {
-            printf("BlockExists(%d,%d) called\n", block.sequence, block.primary_delegate);
-            return false;
-        });
-
     EXPECT_EQ(p2p.Init(config), true);
 
-    PostCommittedBlock<ConsensusType::BatchStateBlock> block1;
-    block1.sequence = 1;
-    block1.primary_delegate = 5;
+    uint32_t max_savedB = 0, max_savedM = 0, max_savedE = 0;
+    ConsensusP2p<ConsensusType::BatchStateBlock> *cp2pB = get_cp2p<ConsensusType::BatchStateBlock>(p2p, max_savedB);
+    ConsensusP2p<ConsensusType::MicroBlock>      *cp2pM = get_cp2p<ConsensusType::MicroBlock>     (p2p, max_savedM);
+    ConsensusP2p<ConsensusType::Epoch>           *cp2pE = get_cp2p<ConsensusType::Epoch>          (p2p, max_savedE);
 
-    std::vector<uint8_t> buf0, buf;
-    block1.Serialize(buf0, true, true);
-    buf.push_back(4), buf.push_back(0), buf.push_back(0), buf.push_back(0);
-    buf.push_back(2), buf.push_back(logos_version),
-    buf.push_back((int)ConsensusType::BatchStateBlock), buf.push_back(block1.primary_delegate);
-    while (buf0.size() & 3) buf0.push_back(0);
-    buf.push_back(buf0.size() & 0xff), buf.push_back(buf0.size() / 0x100), buf.push_back(0), buf.push_back(0);
-    buf.insert(buf.end(), buf0.begin(), buf0.end());
+    std::vector<uint8_t> bufB[5], bufM[5], bufE[5];
+    logos::block_hash hashB, hashM, hashE;
 
-    EXPECT_EQ(cp2p.ProcessInputMessage(buf.data(), buf.size()), true);
+    for (uint32_t i = 0; i < 5; ++i)
+    {
+        generate_block<ConsensusType::BatchStateBlock>  (bufB[i], hashB, i + 1, 7);
+        generate_block<ConsensusType::MicroBlock>       (bufM[i], hashM, i + 1, 8);
+        generate_block<ConsensusType::Epoch>            (bufE[i], hashE, i + 1, 9);
+    }
+
+    EXPECT_EQ(cp2pB->ProcessInputMessage(bufB[1].data(), bufB[1].size()), true);
+    EXPECT_EQ(max_savedB, 0);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(bufB[2].data(), bufB[2].size()), true);
+    EXPECT_EQ(max_savedB, 0);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(bufB[4].data(), bufB[4].size()), true);
+    EXPECT_EQ(max_savedB, 0);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(bufB[0].data(), bufB[0].size()), true);
+    EXPECT_EQ(max_savedB, 3);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(bufB[3].data(), bufB[3].size()), true);
+    EXPECT_EQ(max_savedB, 5);
+
+    EXPECT_EQ(cp2pM->ProcessInputMessage(bufM[2].data(), bufM[2].size()), true);
+    EXPECT_EQ(max_savedM, 0);
+    EXPECT_EQ(cp2pM->ProcessInputMessage(bufM[1].data(), bufM[1].size()), true);
+    EXPECT_EQ(max_savedM, 0);
+    EXPECT_EQ(cp2pM->ProcessInputMessage(bufM[0].data(), bufM[0].size()), true);
+    EXPECT_EQ(max_savedM, 3);
+    EXPECT_EQ(cp2pM->ProcessInputMessage(bufM[4].data(), bufM[4].size()), true);
+    EXPECT_EQ(max_savedM, 3);
+    EXPECT_EQ(cp2pM->ProcessInputMessage(bufM[3].data(), bufM[3].size()), true);
+    EXPECT_EQ(max_savedM, 5);
+
+    EXPECT_EQ(cp2pE->ProcessInputMessage(bufE[4].data(), bufE[4].size()), true);
+    EXPECT_EQ(max_savedE, 0);
+    EXPECT_EQ(cp2pE->ProcessInputMessage(bufE[3].data(), bufE[3].size()), true);
+    EXPECT_EQ(max_savedE, 0);
+    EXPECT_EQ(cp2pE->ProcessInputMessage(bufE[0].data(), bufE[0].size()), true);
+    EXPECT_EQ(max_savedE, 1);
+    EXPECT_EQ(cp2pE->ProcessInputMessage(bufE[1].data(), bufE[1].size()), true);
+    EXPECT_EQ(max_savedE, 2);
+    EXPECT_EQ(cp2pE->ProcessInputMessage(bufE[2].data(), bufE[2].size()), true);
+    EXPECT_EQ(max_savedE, 5);
+
+    delete cp2pB;
+    delete cp2pM;
+    delete cp2pE;
 }

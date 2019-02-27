@@ -52,6 +52,7 @@ public:
     p2p_interface &                                                                             _p2p;
 
 private:
+    void _RetryValidate(const logos::block_hash &hash);
     void RetryValidate(const logos::block_hash &hash);
 
     bool ApplyCacheUpdates(const PostCommittedBlock<CT> & block,
