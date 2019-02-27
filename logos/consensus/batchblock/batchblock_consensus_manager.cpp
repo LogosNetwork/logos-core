@@ -184,7 +184,7 @@ BatchBlockConsensusManager::GetStoredCount()
 }
 
 void
-BatchBlockConsensusManager::InitiateConsensus()
+BatchBlockConsensusManager::InitiateConsensus(bool reproposing)
 {
     _ne_reject_vote = 0;
     _ne_reject_stake = 0;
@@ -194,9 +194,9 @@ BatchBlockConsensusManager::InitiateConsensus()
     // SYL Integration: perform validation against account_db here instead of at request receive time
     {
         std::lock_guard<std::mutex> lock(_persistence_manager._write_mutex);
-        _handler.PrepareNextBatch(_persistence_manager);
+        _handler.PrepareNextBatch(_persistence_manager, reproposing);
     }
-    Manager::InitiateConsensus();
+    Manager::InitiateConsensus(reproposing);
 }
 
 void

@@ -1,21 +1,21 @@
-//
-// Created by gregt on 2/13/19.
+// @file
+// Defines sink for consensus message
 //
 
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/consensus_msg_sink.hpp>
+#include <logos/consensus/messages/util.hpp>
+
+#include <logos/consensus/backup_delegate.hpp>
 
 #include <sys/stat.h>
-
-#define P2PTEST
 
 ConsensusMsgSink::ConsensusMsgSink(Service &service)
     : _service(service)
 {}
 
 bool
-ConsensusMsgSink::Push(uint8_t delegate_id,
-                       const uint8_t * data,
+ConsensusMsgSink::Push(const uint8_t * data,
                        uint8_t version,
                        MessageType message_type,
                        ConsensusType consensus_type,
@@ -24,19 +24,8 @@ ConsensusMsgSink::Push(uint8_t delegate_id,
 {
     std::lock_guard<std::mutex> lock(_queue_mutex);
 
-#ifdef P2PTEST
-    struct stat sb;
-    std::string path = "./DB/Consensus_" +
-                       std::to_string((int)DelegateIdentityManager::_global_delegate_idx) +
-                       "/p2ptest";
-    if (stat(path.c_str(), &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFREG)
-    {
-        return true;
-    }
-#endif
-
-    _direct_connect += ((false == is_p2p && message_type != MessageType::Pre_Prepare &&
-            message_type != MessageType::Post_Prepare && message_type != MessageType::Post_Commit) ? 1 : 0);
+    _direct_connect += ((false == is_p2p && (message_type == MessageType::Prepare ||
+            message_type == MessageType::Rejection || message_type == MessageType::Commit)) ? 1 : 0);
 
     auto message = Parse(data, version, message_type, consensus_type, payload_size);
     if (message == nullptr)

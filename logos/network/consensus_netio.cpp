@@ -315,13 +315,26 @@ ConsensusNetIO::OnData(const uint8_t * data,
         case MessageType::Post_Prepare:
         case MessageType::Commit:
         case MessageType::Post_Commit:
-            if( ! AddToConsensusQueue(data,
-                    version,
-                    message_type,
-                    consensus_type,
-                    payload_size))
+        {
+#define P2PTEST
+#ifdef P2PTEST
+            // simulate network receive failure
+            struct stat sb;
+            std::string path = "./DB/Consensus_" +
+                               std::to_string((int) DelegateIdentityManager::_global_delegate_idx) +
+                               "/recvoff";
+            if (stat(path.c_str(), &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFREG) {
+                break;
+            }
+#endif
+            if (!AddToConsensusQueue(data,
+                                     version,
+                                     message_type,
+                                     consensus_type,
+                                     payload_size))
                 HandleMessageError("Wrong consensus message");
             break;
+        }
         default:
             HandleMessageError("Wrong message type");
             break;
@@ -430,6 +443,6 @@ ConsensusNetIO::AddToConsensusQueue(const uint8_t * data,
                                     uint32_t payload_size,
                                     uint8_t delegate_id)
 {
-    return _connections[ConsensusTypeToIndex(consensus_type)]->Push(_local_delegate_id, data, version, message_type,
+    return _connections[ConsensusTypeToIndex(consensus_type)]->Push(data, version, message_type,
                                                                     consensus_type, payload_size, false);
 }

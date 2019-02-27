@@ -181,6 +181,12 @@ bool BackupDelegate<CT>::Validate(const M & message)
 {
     if(message.type == MessageType::Post_Prepare)
     {
+        if (_pre_prepare_hash != message.preprepare_hash)
+        {
+            LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::Validate "
+                            << " invalid Post_Prepare, pre_prepare hash " << _pre_prepare_hash.to_string()
+                            << ", message pre_prepare hash " << message.preprepare_hash.to_string();
+        }
         assert(_pre_prepare_hash==message.preprepare_hash);
         auto good = _validator.Validate(_pre_prepare_hash, message.signature);
         if(!good)
@@ -198,6 +204,12 @@ bool BackupDelegate<CT>::Validate(const M & message)
     {
         if(_state == ConsensusState::COMMIT)
         {
+            if (_pre_prepare_hash != message.preprepare_hash)
+            {
+                LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::Validate "
+                                << " invalid Post_Commit, pre_prepare hash " << _pre_prepare_hash.to_string()
+                                << ", message pre_prepare hash " << message.preprepare_hash.to_string();
+            }
             assert(_pre_prepare_hash==message.preprepare_hash);
             return _validator.Validate(_post_prepare_hash, message.signature);
         }

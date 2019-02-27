@@ -54,6 +54,7 @@ MicroBlockConsensusManager::QueueRequestPrimary(
 auto
 MicroBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
+    _cur_microblock->timestamp = GetStamp();
     return *_cur_microblock;
 }
 

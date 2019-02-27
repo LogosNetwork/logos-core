@@ -58,6 +58,7 @@ EpochConsensusManager::QueueRequestPrimary(
 auto
 EpochConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
+    _cur_epoch->timestamp = GetStamp();
     return *_cur_epoch;
 }
 auto

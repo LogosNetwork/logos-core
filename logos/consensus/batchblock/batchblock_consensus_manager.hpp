@@ -101,7 +101,7 @@ protected:
     ///     @return number of stored blocks
     uint64_t GetStoredCount() override;
 
-    void InitiateConsensus() override;
+    void InitiateConsensus(bool reproposing = false) override;
 
     /// Sends buffered blocks.
     ///

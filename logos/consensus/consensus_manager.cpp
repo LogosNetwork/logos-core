@@ -203,7 +203,7 @@ void ConsensusManager<CT>::OnConsensusReached()
 }
 
 template<ConsensusType CT>
-void ConsensusManager<CT>::InitiateConsensus()
+void ConsensusManager<CT>::InitiateConsensus(bool reproposing)
 {
     LOG_INFO(_log) << "Initiating "
                    << ConsensusToName(CT)
@@ -349,7 +349,7 @@ ConsensusManager<CT>::AddToConsensusQueue(const uint8_t * data,
     {
         if ((*it)->RemoteDelegateId() == delegate_id)
         {
-            (*it)->Push(delegate_id, data, version, message_type, consensus_type, payload_size, true);
+            (*it)->Push(data, version, message_type, consensus_type, payload_size, true);
             break;
         }
     }
@@ -373,7 +373,7 @@ ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {
     {
         auto sink = std::dynamic_pointer_cast<ConsensusMsgSink>(*it);
         auto direct = sink->IsDirectPrimary()?1:0;
-        sink->ResetConnectStats();
+        sink->ResetConnectCount();
         vote += direct * _weights[(*it)->RemoteDelegateId()].vote_weight;
         stake += direct * _weights[(*it)->RemoteDelegateId()].stake_weight;
     }
@@ -385,6 +385,8 @@ ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {
     }
     else
     {
+        LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT)
+                        << ">::OnP2pTimeout, DELEGATE " << (int)_delegate_id << " DISABLING P2P ";
         ConsensusP2pBridge<CT>::EnableP2p(false);
     }
 }
@@ -410,14 +412,22 @@ ConsensusManager<CT>::OnQuorumFailed()
                     << "> - PRIMARY DELEGATE IS ENABLING P2P!!!";
 
     // ignore if the old delegate's set, the new delegate's set will pick it up
-    if (_events_notifier.GetState() != EpochTransitionState::None &&
-            _events_notifier.GetConnection() == EpochConnection::Current)
+    if (_events_notifier.GetState() == EpochTransitionState::None ||
+            _events_notifier.GetConnection() == EpochConnection::Transitioning)
     {
+        {
+            std::lock_guard<std::mutex> lock(_connection_mutex);
+
+            for (auto it = _connections.begin(); it != _connections.end(); ++it)
+            {
+                (*it)->ResetConnectCount();
+            }
+        }
         EnableP2p(true);
 
         AdvanceState(ConsensusState::VOID);
 
-        InitiateConsensus();
+        InitiateConsensus(true);
     }
 }
 
