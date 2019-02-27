@@ -68,17 +68,17 @@ uint32_t ElectionsConfig::START_ELECTIONS_EPOCH = 10;
 uint32_t ElectionsConfig::TERM_LENGTH = 4;
 
 std::unordered_set<Delegate> getDelegatesToForceRetire(logos::block_store& store,
-        uint32_t next_epoch_num)
+        uint32_t next_epoch_num,
+        MDB_txn* txn)
 {
     std::unordered_set<Delegate> to_retire;
-    logos::transaction txn(store.environment, nullptr, true);
     ApprovedEB epoch;
     size_t num_epochs_ago = next_epoch_num - ElectionsConfig::START_ELECTIONS_EPOCH - 1;
     assert(num_epochs_ago <= 4);
     getOldEpochBlock(store, txn, num_epochs_ago, epoch);
     size_t offset = num_epochs_ago * (NUM_DELEGATES / ElectionsConfig::TERM_LENGTH); 
 
-    for(size_t i = offset; i < offset + ElectionsConfig::TERM_LENGTH; ++i)
+    for(size_t i = offset; i < offset + (NUM_DELEGATES / ElectionsConfig::TERM_LENGTH); ++i)
     {
         to_retire.insert(epoch.delegates[i]);
     }

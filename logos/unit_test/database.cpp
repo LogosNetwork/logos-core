@@ -464,14 +464,10 @@ TEST(Database,get_next_epoch_delegates)
         logos::transaction txn(store->environment,nullptr,true);
         auto winners = getElectionWinners(8,*store,txn);
         mgr.CacheElectionWinners(winners);
-        if(retire_idx >= 0)
+        if(shouldForceRetire(epoch_num))
         {
-            std::unordered_set<Delegate> to_retire;
-            size_t end = retire_idx + 8;
-            for(;retire_idx < end; ++retire_idx)
-            {
-                to_retire.insert(eb.delegates[retire_idx]);
-            }
+            std::unordered_set<Delegate> to_retire = 
+                getDelegatesToForceRetire(*store,epoch_num, txn);
             
             mgr.GetNextEpochDelegates(eb.delegates,&to_retire);
         }

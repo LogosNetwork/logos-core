@@ -29,7 +29,7 @@ bool getOldEpochBlock(
 
 bool shouldForceRetire(uint32_t next_epoch_number);
 std::unordered_set<Delegate> getDelegatesToForceRetire(logos::block_store& store,
-        uint32_t next_epoch_num);
+        uint32_t next_epoch_num, MDB_txn* txn);
 
 
 //TODO: make some of these private
