@@ -166,7 +166,7 @@ public:
         }
 
         bool error = false;
-        request = *static_pointer_cast<T>(DeserializeRequest(error, val));
+        new (&request) T(error,val);
         assert(GetRequestType<T>() == request.type);
         assert(!error);
 

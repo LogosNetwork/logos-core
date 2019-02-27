@@ -14,6 +14,13 @@ const uint32_t TERM_LENGTH = 4; //Number of epochs to stay in office
 const Amount MIN_REP_STAKE = 1;
 const Amount MIN_DELEGATE_STAKE = 1;
 
+class ElectionsConfig
+{
+    public:
+    static uint32_t START_ELECTIONS_EPOCH;
+    static uint32_t TERM_LENGTH;
+};
+
 bool getOldEpochBlock(
         logos::block_store& store,
         MDB_txn* txn,

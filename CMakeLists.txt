@@ -423,9 +423,8 @@ if (LOGOS_TEST)
 		logos/unit_test/msg_validator_setup.cpp
 		logos/unit_test/request_serialization.cpp
 		logos/unit_test/rpc.cpp
-		logos/unit_test/database.cpp
+        logos/unit_test/database.cpp
 		logos/unit_test/tallying.cpp)
-
 
 	set_target_properties (unit_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1 ")
 	if (STRICT_CONSENSUS_THRESHOLD MATCHES ON)
@@ -464,7 +463,7 @@ else (WIN32)
 endif (WIN32)
 
 if (LOGOS_TEST)
-	target_link_libraries (unit_test node secure lmdb ed25519 ${BLS_libs} logos_lib_static argon2 ${OPENSSL_LIBRARIES} ${CRYPTOPP_LIBRARY} gtest_main gtest libminiupnpc-static ${Boost_ATOMIC_LIBRARY} ${Boost_CHRONO_LIBRARY} ${Boost_REGEX_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_LOG_LIBRARY} ${Boost_LOG_SETUP_LIBRARY} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${PLATFORM_LIBS})
+	target_link_libraries (unit_test node p2p secure lmdb ed25519 ${BLS_libs} logos_lib_static argon2 ${OPENSSL_LIBRARIES} ${CRYPTOPP_LIBRARY} gtest_main gtest libminiupnpc-static ${Boost_ATOMIC_LIBRARY} ${Boost_CHRONO_LIBRARY} ${Boost_REGEX_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_LOG_LIBRARY} ${Boost_LOG_SETUP_LIBRARY} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_THREAD_LIBRARY} ${PLATFORM_LIBS})
 endif (LOGOS_TEST)
 
 target_link_libraries (logos_lib ed25519 ${BLS_libs} xxhash blake2 ${CRYPTOPP_LIBRARY})

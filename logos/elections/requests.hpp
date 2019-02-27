@@ -126,6 +126,13 @@ struct AnnounceCandidacy : Request
     AnnounceCandidacy(bool& error,
             const logos::mdb_val& mdbval);
 
+
+    void Deserialize(bool & error, logos::stream& stream);
+
+    void DeserializeDB(bool & erro, logos::stream& stream) override;
+
+    uint64_t Serialize(logos::stream & stream) const override;
+
     Amount stake = 0;
 
 };
@@ -186,6 +193,8 @@ struct StartRepresenting : Request
     void Deserialize(bool & error, logos::stream & stream);
 
     void DeserializeDB(bool & error, logos::stream & stream) override;
+
+    uint64_t Serialize(logos::stream & stream) const override;
 
     Amount stake;
 };

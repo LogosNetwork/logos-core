@@ -57,6 +57,28 @@ AnnounceCandidacy::AnnounceCandidacy(bool & error,
     Hash();
 }
 
+uint64_t AnnounceCandidacy::Serialize(logos::stream & stream) const
+{
+    return logos::write(stream, stake);
+}
+
+void AnnounceCandidacy::Deserialize(bool & error, logos::stream & stream)
+{
+    error = logos::read(stream, stake);
+
+}
+
+void AnnounceCandidacy::DeserializeDB(bool & error, logos::stream & stream)
+{
+    Request::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+}
+
 RenounceCandidacy::RenounceCandidacy(
             const AccountAddress & origin,
             const BlockHash & previous,
@@ -304,7 +326,9 @@ StartRepresenting::StartRepresenting(
             uint32_t sequence,
             const Amount stake)
     : Request(RequestType::StartRepresenting, origin, previous, fee, sequence), stake(stake)
-{}
+{
+    Hash();
+}
 
 StartRepresenting::StartRepresenting(
         const AccountAddress & origin,
@@ -314,7 +338,9 @@ StartRepresenting::StartRepresenting(
             const AccountSig & signature,
             const Amount stake)
     : Request(RequestType::StartRepresenting, origin, previous, fee, sequence, signature), stake(stake)
-{}
+{
+    Hash();
+}
 
 
 StartRepresenting::StartRepresenting(bool & error,
@@ -368,10 +394,18 @@ StartRepresenting::StartRepresenting(bool & error,
    }
 }
 
+uint64_t StartRepresenting::Serialize(logos::stream & stream) const
+{
+    return logos::write(stream, stake);
+}
+
 void StartRepresenting::Deserialize(bool& error, logos::stream& stream)
 {
-    error = logos::read(stream,stake);
-    
+    error = logos::read(stream, stake);
+    if(error)
+    {
+        std::cout << "error reading stake" << std::endl;
+    }
 }
 
 void StartRepresenting::DeserializeDB(bool& error, logos::stream& stream)
@@ -379,6 +413,7 @@ void StartRepresenting::DeserializeDB(bool& error, logos::stream& stream)
     Request::DeserializeDB(error, stream);
     if(error)
     {
+        std::cout << "error in base" << std::endl;
         return;
     }
 
@@ -392,7 +427,9 @@ StopRepresenting::StopRepresenting(
             const Amount & fee,
             uint32_t sequence)
     : Request(RequestType::StopRepresenting, origin, previous, fee, sequence)
-{}
+{
+    Hash();
+}
 
 StopRepresenting::StopRepresenting(
         const AccountAddress & origin,
@@ -401,7 +438,9 @@ StopRepresenting::StopRepresenting(
             uint32_t sequence,
             const AccountSig & signature)
     : Request(RequestType::StopRepresenting, origin, previous, fee, sequence, signature)
-{}
+{
+    Hash();
+}
 
 
 StopRepresenting::StopRepresenting(bool & error,

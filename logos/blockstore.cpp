@@ -312,6 +312,8 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "pending", MDB_CREATE, &pending) != 0;
         error_a |= mdb_dbi_open (transaction, "blocks_info", MDB_CREATE, &blocks_info) != 0;
         error_a |= mdb_dbi_open (transaction, "representation", MDB_CREATE, &representation) != 0;
+        error_a |= mdb_dbi_open (transaction, "representative_db", MDB_CREATE, &representative_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "candidacy_db", MDB_CREATE, &candidacy_db) != 0;
         error_a |= mdb_dbi_open (transaction, "unchecked", MDB_CREATE | MDB_DUPSORT, &unchecked) != 0;
         error_a |= mdb_dbi_open (transaction, "checksum", MDB_CREATE, &checksum) != 0;
         error_a |= mdb_dbi_open (transaction, "vote", MDB_CREATE, &vote) != 0;

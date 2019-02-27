@@ -19,15 +19,19 @@ TEST (Database, blockstore)
     logos::block_store* store(get_db());
     ASSERT_NE(store,nullptr);
     store->clear(store->representative_db);
+    store->clear(store->state_db);
     {
         logos::transaction txn(store->environment,nullptr,true);
 
         //Generic request
         Request req;
+        req.type = RequestType::Unknown;
+        req.Hash();
         bool res = store->request_put(req,txn);
         ASSERT_FALSE(res);
 
         Request req2;
+        req2.type = RequestType::Unknown;
         res = store->request_get(req.Hash(),req2,txn);
 
         ASSERT_FALSE(res);
@@ -35,7 +39,10 @@ TEST (Database, blockstore)
         EXPECT_EQ(req.previous,req2.previous);
         EXPECT_EQ(req.next,req2.next);
         EXPECT_EQ(req.fee,req2.fee);
+        EXPECT_EQ(req.origin,req2.origin);
         EXPECT_EQ(req.sequence,req2.sequence);
+        req.Hash();
+        req2.Hash();
         EXPECT_EQ(req.digest,req2.digest);
         ASSERT_EQ(req,req2);
 
@@ -51,8 +58,11 @@ TEST (Database, blockstore)
         ASSERT_FALSE(res);
 
         ElectionVote ev2;
+        ev2.type = RequestType::ElectionVote;
         auto hash = ev.Hash();
+        std::cout << "getting ev2" << std::endl;
         res = store->request_get(hash,ev2,txn);
+        std::cout << "got ev2" << std::endl;
         ASSERT_FALSE(res);
         ASSERT_EQ(ev2.type,ev.type);
         ASSERT_EQ(ev2.previous,ev.previous);
@@ -78,6 +88,7 @@ TEST (Database, blockstore)
         ASSERT_FALSE(res);
 
         ElectionVote ev3;
+        ev3.type = RequestType::ElectionVote;
         std::cout << "size before serializing is " << ev.WireSize() << std::endl;
         res = store->request_get(ev.Hash(),ev3,txn);
         ASSERT_FALSE(res);
@@ -93,9 +104,39 @@ TEST (Database, blockstore)
         ASSERT_NE(ev3,ev2);
 
 
+        AnnounceCandidacy announce(7,12,23,2);
+        announce.stake = 4;
+
+        ASSERT_FALSE(store->request_put(announce,txn));
+        AnnounceCandidacy announce2;
+        ASSERT_FALSE(store->request_get(announce.Hash(),announce2,txn));
+        ASSERT_EQ(announce2.type,RequestType::AnnounceCandidacy);
+        ASSERT_EQ(announce.stake,announce2.stake);
+        ASSERT_EQ(announce,announce2);
+
+        RenounceCandidacy renounce(2,3,5,7);
+        ASSERT_FALSE(store->request_put(renounce,txn));
+        RenounceCandidacy renounce2;
+        ASSERT_FALSE(store->request_get(renounce.Hash(),renounce2,txn));
+        ASSERT_EQ(renounce,renounce2);
+
+        StartRepresenting start(4,5,2,3,32);
+        ASSERT_FALSE(store->request_put(start,txn));
+        StartRepresenting start2;
+        ASSERT_EQ(GetRequestType<StartRepresenting>(),RequestType::StartRepresenting);
+        ASSERT_FALSE(store->request_get(start.Hash(),start2,txn));
+        ASSERT_EQ(start.stake,start2.stake);
+        ASSERT_EQ(start,start2);
+
+
         RepInfo rep_info;
         AccountAddress rep_account = 1;
         rep_info.election_vote_tip = ev.Hash();
+        rep_info.candidacy_action_tip = announce.Hash();
+        rep_info.rep_action_tip = start.Hash();
+        rep_info.rep_action_epoch = 3;
+        rep_info.stake = 37;
+        rep_info.announced_stop = false;
 
         res = store->rep_put(rep_account,rep_info,txn);
         ASSERT_FALSE(res);
@@ -104,6 +145,9 @@ TEST (Database, blockstore)
         res = store->rep_get(rep_account,rep_info2,txn);
         ASSERT_FALSE(res);
         ASSERT_EQ(rep_info,rep_info2);
+
+
+
     }
    
 }
@@ -409,6 +453,8 @@ TEST(Database,get_next_epoch_delegates)
         ASSERT_FALSE(store->epoch_put(eb,txn));
     }
 
+    ElectionsConfig::START_ELECTIONS_EPOCH = 3;
+
     auto transition_epoch = [&eb,&store,&epoch_num,&mgr](int retire_idx = -1)
     {
         std::cout << "transitioning" << std::endl;
@@ -435,7 +481,7 @@ TEST(Database,get_next_epoch_delegates)
         }
         ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
         ASSERT_FALSE(store->epoch_put(eb,txn));
-        if(epoch_num > 2)
+        if(epoch_num >= ElectionsConfig::START_ELECTIONS_EPOCH)
         {
             ASSERT_FALSE(transitionCandidatesDBNextEpoch(*store,txn));
         }

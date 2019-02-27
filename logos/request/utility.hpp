@@ -4,6 +4,7 @@
 #include <logos/request/change.hpp>
 #include <logos/token/requests.hpp>
 #include <logos/request/send.hpp>
+#include <logos/elections/requests.hpp>
 
 RequestType GetRequestType(bool &error, std::string data);
 std::string GetRequestTypeField(RequestType type);
@@ -124,6 +125,25 @@ RequestType GetRequestType()
     {
         result = RequestType::SendTokens;
     }
-
+    else if(std::is_same<Request, ElectionVote>::value)
+    {
+        result = RequestType::ElectionVote;
+    }
+    else if(std::is_same<Request, AnnounceCandidacy>::value)
+    {
+        result = RequestType::AnnounceCandidacy;
+    }
+    else if(std::is_same<Request, RenounceCandidacy>::value)
+    {
+        result = RequestType::RenounceCandidacy;
+    }
+    else if(std::is_same<Request, StartRepresenting>::value)
+    {
+        result = RequestType::StartRepresenting;
+    }
+    else if(std::is_same<Request, StopRepresenting>::value)
+    {
+        result = RequestType::StopRepresenting;
+    }
     return result;
 }
