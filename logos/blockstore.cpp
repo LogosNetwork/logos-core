@@ -1267,14 +1267,6 @@ bool logos::block_store::token_account_get(const BlockHash & token_id, TokenAcco
     bool error = false;
     new (&info) TokenAccount(error, val);
 
-    if(error)
-    {
-        LOG_FATAL(log) << __func__ << " key " << token_id.to_string()
-                       << " - failed to deserialize TokenAccount";
-
-        trace_and_halt();
-    }
-
     return false;
 }
 
