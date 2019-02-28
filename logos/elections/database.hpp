@@ -51,5 +51,6 @@ struct CandidateInfo
     bool remove = false;
     Amount votes_received_weighted = 0;
     DelegatePubKey bls_key;
+    Amount stake;
 };
 

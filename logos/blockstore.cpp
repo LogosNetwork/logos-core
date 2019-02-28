@@ -1288,10 +1288,12 @@ bool logos::block_store::candidate_add_vote(
 bool logos::block_store::candidate_add_new(
         const AccountAddress & account,
         const DelegatePubKey & bls_key,
+        const Amount & stake,
         MDB_txn * txn)
 {
     CandidateInfo info(false,false,0);
     info.bls_key = bls_key;
+    info.stake = stake;
     std::vector<uint8_t> buf;
     auto status(mdb_put(txn, candidacy_db, logos::mdb_val(account), info.to_mdb_val(buf), MDB_NOOVERWRITE));
 

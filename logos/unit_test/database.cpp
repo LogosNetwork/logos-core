@@ -266,22 +266,23 @@ TEST(Database, get_winners)
     auto winners = getElectionWinners(num_winners,*store,txn);
     ASSERT_EQ(winners.size(),0);
     
-    std::vector<std::pair<AccountAddress,Amount>> candidates;
+    std::vector<std::pair<AccountAddress,CandidateInfo>> candidates;
     size_t num_candidates = 100;
     for(size_t i = 0; i < num_candidates; ++i)
     {
         CandidateInfo c(false,false,(i % 3) * 100 + i);
+        c.bls_key = i * 4 + 37;
         AccountAddress a(i);
         store->candidate_put(a,c,txn);
-        candidates.push_back(std::make_pair(a,c.votes_received_weighted));
+        candidates.push_back(std::make_pair(a,c));
     }
     std::sort(candidates.begin(), candidates.end(),
             [](auto p1, auto p2) 
             {
-                return p1.second > p2.second;
+                return p1.second.votes_received_weighted > p2.second.votes_received_weighted;
             });
 
-    std::vector<std::pair<AccountAddress,Amount>> results(
+    std::vector<std::pair<AccountAddress,CandidateInfo>> results(
             candidates.begin(),candidates.begin() + num_winners);
     
     winners = getElectionWinners(num_winners,*store,txn);
@@ -312,12 +313,18 @@ TEST(Database,candidates_transition)
     AccountAddress a1(0);
     AccountAddress a2(1);
     AccountAddress a3(2);
+    DelegatePubKey bls1(0);
+    DelegatePubKey bls2(1);
+    DelegatePubKey bls3(2);
+    Amount stake1(0);
+    Amount stake2(1);
+    Amount stake3(2);
 
     logos::transaction txn(store->environment,nullptr,true);
     {
-        bool res = store->candidate_add_new(a1,txn);
+        bool res = store->candidate_add_new(a1,bls1,stake1,txn);
         ASSERT_FALSE(res);
-        res = store->candidate_add_new(a2,txn);
+        res = store->candidate_add_new(a2,bls2,stake2,txn);
         ASSERT_FALSE(res);
     }
     iterateCandidatesDB(*store,[](auto& it){
@@ -346,7 +353,7 @@ TEST(Database,candidates_transition)
         ASSERT_FALSE(res);
         ASSERT_TRUE(info.remove);
         ASSERT_TRUE(info.active);
-        res = store->candidate_add_new(a3,txn);
+        res = store->candidate_add_new(a3,bls3,stake3,txn);
         ASSERT_FALSE(res);
     }
 
@@ -440,12 +447,15 @@ TEST(Database,get_next_epoch_delegates)
     std::vector<Delegate> delegates;
     for(size_t i = 0; i < 32; ++i)
     {
-        DelegatePubKey dummy_bls_pub;
-        Amount dummy_stake = 1; 
-        Delegate d(i,dummy_bls_pub,i,1);
+        Delegate d(i,i,i,i);
         d.starting_term = true;
         eb.delegates[i] = d;
         delegates.push_back(d);
+
+        RepInfo rep;
+        rep.stake = i; 
+        logos::transaction txn(store->environment, nullptr, true);
+        store->rep_put(i,rep,txn);
     }
     {
         logos::transaction txn(store->environment,nullptr,true);

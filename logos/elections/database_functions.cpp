@@ -154,11 +154,17 @@ bool addReelectionCandidates(logos::block_store& store, MDB_txn* txn)
         return true;
     }
 
+
     for(auto& d : epoch.delegates)
     {
         if(d.starting_term)
         {
-            store.candidate_add_new(d.account,d.bls_pub,txn);
+            RepInfo rep;
+            if(store.rep_get(d.account,rep, txn))
+            {
+                return true;
+            }
+            store.candidate_add_new(d.account,d.bls_pub,rep.stake,txn);
         }
     }
     return false;
@@ -370,21 +376,28 @@ bool applyRequest(logos::block_store& store, ElectionVote& request, uint32_t cur
 //TODO: this doesn't store the request itself
 bool applyRequest(logos::block_store& store, AnnounceCandidacy& request, MDB_txn* txn)
 {
+    auto stake = request.stake;
+    RepInfo rep;
+    if(store.rep_get(request.origin,rep, txn))
+    {
+        return true;
+    }
     if(request.stake > 0)
     {
-        RepInfo rep;
-        if(store.rep_get(request.origin,rep, txn))
-        {
-            return true;
-        }
+
         rep.stake = request.stake;
         if(store.rep_put(request.origin,rep,txn))
         {
             return true;
         }
     }
+    else
+    {
+        stake = rep.stake;
+    }
 
-    return !store.candidate_add_new(request.origin,request.bls_key,txn);
+
+    return !store.candidate_add_new(request.origin,request.bls_key,stake,txn);
 }
 
 bool applyRequest(logos::block_store& store, RenounceCandidacy& request, MDB_txn* txn)

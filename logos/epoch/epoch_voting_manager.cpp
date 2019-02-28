@@ -60,10 +60,8 @@ std::vector<Delegate> EpochVotingManager::GetDelegateElects(size_t num_new)
     std::vector<Delegate> delegate_elects(results.size());
     std::transform(results.begin(),results.end(),delegate_elects.begin(),
             [this](auto p){
-                RepInfo info;
-                _store.rep_get(p.first,info);
 
-                Delegate d(p.first,p.second.bls_key,p.second.votes_received_weighted,info.stake);
+                Delegate d(p.first,p.second.bls_key,p.second.votes_received_weighted,p.second.stake);
                 d.starting_term = true;
                 return d;
             });
