@@ -27,6 +27,7 @@ const char UNKNOWN[]            = "unknown";
 
 // Request fields
 //
+const char HASH[]            = "hash";
 const char TYPE[]            = "type";
 const char ORIGIN[]          = "origin";
 const char SIGNATURE[]       = "signature";

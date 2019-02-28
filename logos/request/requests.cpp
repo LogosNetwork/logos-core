@@ -263,6 +263,7 @@ boost::property_tree::ptree Request::SerializeJson() const
     tree.put(NEXT, next.to_string());
     tree.put(FEE, fee.to_string_dec());
     tree.put(SEQUENCE, std::to_string(sequence));
+    tree.put(HASH, digest.to_string());
 
     return tree;
 }
@@ -712,8 +713,6 @@ boost::property_tree::ptree Send::SerializeJson() const
         transactions_tree.push_back(std::make_pair("", cur_transaction));
     }
     tree.add_child("transactions", transactions_tree);
-
-    tree.put("hash", digest.to_string());
 
     return tree;
 }
