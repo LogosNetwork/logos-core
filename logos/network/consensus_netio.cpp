@@ -316,7 +316,6 @@ ConsensusNetIO::OnData(const uint8_t * data,
         case MessageType::Commit:
         case MessageType::Post_Commit:
         {
-#define P2PTEST
 #ifdef P2PTEST
             // simulate network receive failure
             struct stat sb;

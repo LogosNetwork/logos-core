@@ -12,6 +12,8 @@
 
 ConsensusMsgSink::ConsensusMsgSink(Service &service)
     : _service(service)
+    , _direct_connect(0)
+    , _p2p_connect(0)
 {}
 
 bool
@@ -24,8 +26,10 @@ ConsensusMsgSink::Push(const uint8_t * data,
 {
     std::lock_guard<std::mutex> lock(_queue_mutex);
 
-    _direct_connect += ((false == is_p2p && (message_type == MessageType::Prepare ||
-            message_type == MessageType::Rejection || message_type == MessageType::Commit)) ? 1 : 0);
+    bool dest_primary = message_type == MessageType::Prepare ||
+            message_type == MessageType::Rejection || message_type == MessageType::Commit;
+    _direct_connect += ((false == is_p2p && dest_primary) ? 1 : 0);
+    _p2p_connect += ((is_p2p && dest_primary) ? 1 : 0);
 
     auto message = Parse(data, version, message_type, consensus_type, payload_size);
     if (message == nullptr)

@@ -20,7 +20,6 @@ DelegateBridge<CT>::DelegateBridge(Service & service,
 template<ConsensusType CT>
 void DelegateBridge<CT>::Send(const void * data, size_t size)
 {
-#define P2PTEST
 #ifdef P2PTEST
     // simulate network send failure
     struct stat sb;

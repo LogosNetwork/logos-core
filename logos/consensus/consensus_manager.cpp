@@ -372,7 +372,7 @@ ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {
     for (auto it = _connections.begin(); it != _connections.end(); ++it)
     {
         auto sink = std::dynamic_pointer_cast<ConsensusMsgSink>(*it);
-        auto direct = sink->IsDirectPrimary()?1:0;
+        auto direct = sink->PrimaryDirectlyConnected()?1:0;
         sink->ResetConnectCount();
         vote += direct * _weights[(*it)->RemoteDelegateId()].vote_weight;
         stake += direct * _weights[(*it)->RemoteDelegateId()].stake_weight;
@@ -380,6 +380,10 @@ ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {
 
     if (!(vote >= _vote_quorum && stake >= _stake_quorum))
     {
+        LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT)
+                        << ">::OnP2pTimeout, scheduling p2p timer "
+                        << " vote " << vote << "/" << _vote_quorum
+                        << " stake " << stake << "/" << _stake_quorum;
         ConsensusP2pBridge<CT>::ScheduleP2pTimer(std::bind(&ConsensusManager::OnP2pTimeout, this,
                                                            std::placeholders::_1));
     }

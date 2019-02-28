@@ -54,12 +54,14 @@ public:
     void ResetConnectCount()
     {
         _direct_connect = 0;
+        _p2p_connect = 0;
     }
     /// @returns true if messages designated to the primary delegate are received via
     ///   direct connection
-    bool IsDirectPrimary()
+    bool PrimaryDirectlyConnected()
     {
-        return _direct_connect > 0;
+        // either received direct messages or have not received any messages
+        return _direct_connect > 0 || _p2p_connect == 0;
     }
 
 protected:
@@ -67,6 +69,7 @@ protected:
     std::queue<Message>     _msg_queue;         /// Message queue of consensus messages
     std::mutex              _queue_mutex;       /// Queue mutex
     std::atomic<uint32_t>   _direct_connect;    /// Direct connections count
+    std::atomic<uint32_t>   _p2p_connect;       /// P2p connections count
     bool                    _consuming;         /// Is message currently being consumed
     Log                     _log;               /// Log object
 };
