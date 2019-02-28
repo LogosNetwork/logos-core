@@ -312,7 +312,7 @@ enum class process_result
     not_delegate,               // Logos - A non-delegate node rejects transaction request, or invalid delegate in epoch block
     clock_drift,                // Logos - timestamp exceeds allowed clock drift
     wrong_sequence_number,      // Logos - invalid block sequence number
-    invalid_request,            // Logos - batch block contains invalid request
+    invalid_request,            // Logos - An incoming request is invalid.
     invalid_tip,                // Logos - invalid microblock tip
     invalid_number_blocks,      // Logos - invalid number of blocks in microblock
     revert_immutability,        // Logos - Attempting to change a token account mutability setting from false to true
