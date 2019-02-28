@@ -1107,7 +1107,7 @@ void logos::rpc_handler::block_create ()
                 temp.encode_hex(work_str);
                 request.put(WORK,work_str);
             }
-            if(type == RequestType::IssueTokens)
+            if(type == RequestType::Issuance)
             {
                 auto token_id_str = request.get_optional<std::string>(TOKEN_ID);
                 if(!token_id_str.is_initialized())
@@ -1136,7 +1136,7 @@ void logos::rpc_handler::block_create ()
                 return;
 
             }
-            if(type == RequestType::IssueTokens)
+            if(type == RequestType::Issuance)
             {
                 auto issuance = static_pointer_cast<TokenIssuance>(created_request);
                 issuance->token_id = GetTokenID(*issuance);
@@ -2581,7 +2581,7 @@ void logos::rpc_handler::process ()
         switch(request->type)
         {
             case RequestType::Send:
-            case RequestType::IssueTokens:
+            case RequestType::Issuance:
             case RequestType::ChangeTokenSetting:
             case RequestType::IssueAdtlTokens:
             case RequestType::ImmuteTokenSetting:
