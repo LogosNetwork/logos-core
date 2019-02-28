@@ -118,9 +118,13 @@ TEST (P2pTest, VerifyPeersInterface)
 }
 
 template <ConsensusType CT>
-static void generate_block(std::vector<uint8_t> &buf, logos::block_hash &hash, int sequence, int delegate_id)
+static void generate_block(
+        PostCommittedBlock<CT> &block,
+        std::vector<uint8_t> &buf,
+        logos::block_hash &hash,
+        int sequence,
+        int delegate_id)
 {
-    PostCommittedBlock<CT> block;
     block.sequence = sequence;
     block.primary_delegate = delegate_id;
     block.previous = hash;
@@ -146,7 +150,19 @@ ConsensusP2p<CT> *get_cp2p(p2p_interface &p2p, uint32_t &max_saved)
             bool res;
             if (block.sequence > max_saved + 1)
             {
-                status->reason = logos::process_result::gap_previous;
+                if (id >= 20)
+                {
+                    status->reason = logos::process_result::invalid_tip;
+                }
+                else if (id >= 10)
+                {
+                    status->reason = logos::process_result::invalid_request;
+                    status->requests[0] = logos::process_result::gap_previous;
+                }
+                else
+                {
+                    status->reason = logos::process_result::gap_previous;
+                }
                 res = false;
             }
             else
@@ -199,16 +215,34 @@ TEST (P2pTest, VerifyCache)
     ConsensusP2p<ConsensusType::MicroBlock>      *cp2pM = get_cp2p<ConsensusType::MicroBlock>     (p2p, max_savedM);
     ConsensusP2p<ConsensusType::Epoch>           *cp2pE = get_cp2p<ConsensusType::Epoch>          (p2p, max_savedE);
 
+    std::function<void (const logos::block_hash &)> _RetryValidateB = cp2pB->_RetryValidate;
+    std::function<void (const logos::block_hash &)> _RetryValidateM = cp2pM->_RetryValidate;
+    std::function<void (const logos::block_hash &)> _RetryValidateE = cp2pE->_RetryValidate;
+
+    cp2pB->_RetryValidate
+        = cp2pM->_RetryValidate
+        = cp2pE->_RetryValidate
+        = [&_RetryValidateB, &_RetryValidateM, &_RetryValidateE](const logos::block_hash &hash)
+            {
+                _RetryValidateB(hash);
+                _RetryValidateM(hash);
+                _RetryValidateE(hash);
+            };
+
+    PostCommittedBlock<ConsensusType::BatchStateBlock> blockB;
+    PostCommittedBlock<ConsensusType::MicroBlock> blockM;
+    PostCommittedBlock<ConsensusType::Epoch> blockE;
     std::vector<uint8_t> bufB[5], bufM[5], bufE[5];
     logos::block_hash hashB, hashM, hashE;
 
     for (uint32_t i = 0; i < 5; ++i)
     {
-        generate_block<ConsensusType::BatchStateBlock>  (bufB[i], hashB, i + 1, 7);
-        generate_block<ConsensusType::MicroBlock>       (bufM[i], hashM, i + 1, 8);
-        generate_block<ConsensusType::Epoch>            (bufE[i], hashE, i + 1, 9);
+        generate_block<ConsensusType::BatchStateBlock>  (blockB, bufB[i], hashB, i + 1, 7);
+        generate_block<ConsensusType::MicroBlock>       (blockM, bufM[i], hashM, i + 1, 8);
+        generate_block<ConsensusType::Epoch>            (blockE, bufE[i], hashE, i + 1, 9);
     }
 
+    /* BatchStateBlocks out of order */
     EXPECT_EQ(cp2pB->ProcessInputMessage(bufB[1].data(), bufB[1].size()), true);
     EXPECT_EQ(max_savedB, 0);
     EXPECT_EQ(cp2pB->ProcessInputMessage(bufB[2].data(), bufB[2].size()), true);
@@ -220,6 +254,7 @@ TEST (P2pTest, VerifyCache)
     EXPECT_EQ(cp2pB->ProcessInputMessage(bufB[3].data(), bufB[3].size()), true);
     EXPECT_EQ(max_savedB, 5);
 
+    /* MicroBlocks out of order */
     EXPECT_EQ(cp2pM->ProcessInputMessage(bufM[2].data(), bufM[2].size()), true);
     EXPECT_EQ(max_savedM, 0);
     EXPECT_EQ(cp2pM->ProcessInputMessage(bufM[1].data(), bufM[1].size()), true);
@@ -231,6 +266,7 @@ TEST (P2pTest, VerifyCache)
     EXPECT_EQ(cp2pM->ProcessInputMessage(bufM[3].data(), bufM[3].size()), true);
     EXPECT_EQ(max_savedM, 5);
 
+    /* Epochs out of order */
     EXPECT_EQ(cp2pE->ProcessInputMessage(bufE[4].data(), bufE[4].size()), true);
     EXPECT_EQ(max_savedE, 0);
     EXPECT_EQ(cp2pE->ProcessInputMessage(bufE[3].data(), bufE[3].size()), true);
@@ -241,6 +277,77 @@ TEST (P2pTest, VerifyCache)
     EXPECT_EQ(max_savedE, 2);
     EXPECT_EQ(cp2pE->ProcessInputMessage(bufE[2].data(), bufE[2].size()), true);
     EXPECT_EQ(max_savedE, 5);
+
+    /* BatchStateBlocks with StateBlocks out of order */
+    PostCommittedBlock<ConsensusType::BatchStateBlock> blockBS[5];
+    logos::block_hash hashS;
+    std::vector<uint8_t> bufS[5];
+    for (uint32_t i = 0; i < 5; ++i)
+    {
+        std::shared_ptr<StateBlock> S = make_shared<StateBlock>();
+        S->sequence = i;
+        S->previous = hashS;
+        hashS = S->Hash();
+        blockBS[i].block_count = 1;
+        blockBS[i].blocks.push_back(S);
+        blockBS[i].hashes.push_back(hashS);
+        memset(&hashB, 0, sizeof(hashB));
+        generate_block<ConsensusType::BatchStateBlock>(blockBS[i], bufS[i], hashB, i + 1, 10 + i);
+    }
+
+    max_savedB = 0;
+
+    EXPECT_EQ(cp2pB->ProcessInputMessage(bufS[0].data(), bufS[0].size()), true);
+    EXPECT_EQ(max_savedB, 1);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(bufS[2].data(), bufS[2].size()), true);
+    EXPECT_EQ(max_savedB, 1);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(bufS[4].data(), bufS[4].size()), true);
+    EXPECT_EQ(max_savedB, 1);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(bufS[1].data(), bufS[1].size()), true);
+    EXPECT_EQ(max_savedB, 3);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(bufS[3].data(), bufS[3].size()), true);
+    EXPECT_EQ(max_savedB, 5);
+
+    /* Microblock before BatchStateBlock tip */
+    std::vector<uint8_t> bufBT, bufMT;
+
+    memset(&hashB, 0, sizeof(hashB));
+    generate_block<ConsensusType::BatchStateBlock>(blockB, bufBT, hashB, 1, 0);
+    memset(&hashM, 0, sizeof(hashM));
+    blockM.tips[0] = hashB;
+    generate_block<ConsensusType::MicroBlock>(blockM, bufMT, hashM, 2, 15);
+
+    max_savedB = 0;
+    max_savedM = 0;
+
+    EXPECT_EQ(cp2pM->ProcessInputMessage(bufMT.data(), bufMT.size()), true);
+    EXPECT_EQ(max_savedB, 0);
+    EXPECT_EQ(max_savedM, 0);
+    max_savedM = 1;
+    EXPECT_EQ(cp2pB->ProcessInputMessage(bufBT.data(), bufBT.size()), true);
+    EXPECT_EQ(max_savedB, 1);
+    EXPECT_EQ(max_savedM, 2);
+
+    /* Epoch before MicroBlock tip */
+    std::vector<uint8_t> bufET, bufEMT;
+
+    memset(&hashM, 0, sizeof(hashM));
+    generate_block<ConsensusType::MicroBlock>(blockM, bufEMT, hashM, 1, 0);
+    memset(&hashE, 0, sizeof(hashE));
+    blockE.micro_block_tip = hashM;
+    generate_block<ConsensusType::Epoch>(blockE, bufET, hashE, 2, 20);
+
+    max_savedM = 0;
+    max_savedE = 0;
+
+    EXPECT_EQ(cp2pE->ProcessInputMessage(bufET.data(), bufET.size()), true);
+    EXPECT_EQ(max_savedM, 0);
+    EXPECT_EQ(max_savedE, 0);
+    max_savedE = 1;
+    EXPECT_EQ(cp2pM->ProcessInputMessage(bufEMT.data(), bufEMT.size()), true);
+    EXPECT_EQ(max_savedM, 1);
+    EXPECT_EQ(max_savedE, 2);
+
 
     delete cp2pB;
     delete cp2pM;

@@ -93,10 +93,13 @@ ConsensusP2p<CT>::ConsensusP2p(p2p_interface & p2p,
                                std::function<void (const PostCommittedBlock<CT> &, uint8_t)> ApplyUpdates,
                                std::function<bool (const PostCommittedBlock<CT> &)> BlockExists)
     : _p2p(p2p)
+    , _RetryValidate([this](const logos::block_hash &hash)
+        {
+            this->RetryValidate(hash);
+        })
     , _Validate(Validate)
     , _ApplyUpdates(ApplyUpdates)
     , _BlockExists(BlockExists)
-    , _container(0)
 {}
 
 template<>
@@ -154,13 +157,6 @@ void ConsensusP2p<CT>::RetryValidate(const logos::block_hash &hash)
         ApplyCacheUpdates(block, value.second.second, value.second.first, status);
     }
 }		
-
-template<ConsensusType CT>
-void ConsensusP2p<CT>::_RetryValidate(const logos::block_hash &hash)
-{
-    if (_container) _container->RetryValidate(hash);
-    else RetryValidate(hash);
-}
 
 template<ConsensusType CT>
 void ConsensusP2p<CT>::CacheInsert(
