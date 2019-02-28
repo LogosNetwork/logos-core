@@ -405,16 +405,22 @@ ConsensusManager<CT>::EnableP2p(bool enable)
 }
 
 template<ConsensusType CT>
+bool
+ConsensusManager<CT>::ProceedWithRePropose()
+{
+    // ignore if the old delegate's set, the new delegate's set will pick it up
+    return  _events_notifier.GetState() == EpochTransitionState::None ||
+            _events_notifier.GetConnection() == EpochConnection::Transitioning;
+}
+
+template<ConsensusType CT>
 void
 ConsensusManager<CT>::OnQuorumFailed()
 {
-    LOG_ERROR(_log) << "ConsensusManager::OnQuorumFailed<" << ConsensusToName(CT)
-                    << "> - PRIMARY DELEGATE IS ENABLING P2P!!!";
-
-    // ignore if the old delegate's set, the new delegate's set will pick it up
-    if (_events_notifier.GetState() == EpochTransitionState::None ||
-            _events_notifier.GetConnection() == EpochConnection::Transitioning)
+    if (ProceedWithRePropose())
     {
+        LOG_ERROR(_log) << "ConsensusManager::OnQuorumFailed<" << ConsensusToName(CT)
+                        << "> - PRIMARY DELEGATE IS ENABLING P2P!!!";
         {
             std::lock_guard<std::mutex> lock(_connection_mutex);
 

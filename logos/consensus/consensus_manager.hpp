@@ -200,6 +200,8 @@ protected:
 
     void OnQuorumFailed() override;
 
+    virtual bool ProceedWithRePropose();
+
     Service &                       _service;
     Connections                     _connections;
     Store &                         _store;
