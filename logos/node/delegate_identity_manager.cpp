@@ -158,9 +158,9 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
             get_bls(bls_keys[0]); // same in epoch 0, doesn't matter
             Delegate delegate = {0, dpk, 0, 0};
 
-            if (e != 0 || !_epoch_transition_enabled)
+            if (true)//e != 0 || !_epoch_transition_enabled)
             {
-                uint8_t del = i + (e - 1) * 8 * _epoch_transition_enabled;
+                uint8_t del = i;// + (e - 1) * 8 * _epoch_transition_enabled;
                 get_bls(bls_keys[del]);
                 char buff[5];
                 sprintf(buff, "%02x", del + 1);

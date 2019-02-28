@@ -261,17 +261,7 @@ ConsensusContainer::PeerBinder(
     epoch->_netio_manager.OnConnectionAccepted(endpoint, socket, ids);
 
     
-    LOG_INFO(_log) << "ConsensusContainer::PeerBinder,"
-        << "Adding job to cache election results";
-    _alarm.add(std::chrono::steady_clock::now(), [this]()
-            {
-                LOG_INFO(_log) << "ConsensusContainer::PeerBinder, "
-                    << "Caching election results";
-                logos::transaction txn(_store.environment, nullptr, false);
-                auto winners = 
-                    getElectionWinners(NUM_DELEGATES / TERM_LENGTH, _store, txn);
-                _archiver.CacheElectionWinners(winners);
-            });
+
 }
 
 void
@@ -323,7 +313,7 @@ ConsensusContainer::EpochTransitionEventsStart()
     {
         ConsensusManagerConfig epoch_config = BuildConsensusConfig(delegate_idx, delegates);
         _trans_epoch = CreateEpochManager(_cur_epoch_number+1, epoch_config, _transition_delegate,
-                                          EpochConnection::Transitioning);
+                EpochConnection::Transitioning);
 
         if (_transition_delegate == EpochTransitionDelegate::Persistent)
         {
@@ -333,6 +323,14 @@ ConsensusContainer::EpochTransitionEventsStart()
 
         // New and Persistent delegates in the new delegate's set
         _binding_map[_trans_epoch->_epoch_number] = _trans_epoch;
+        _alarm.add(std::chrono::steady_clock::now(), [this]()
+                {
+                LOG_INFO(_log) << "Caching election results";
+                logos::transaction txn(_store.environment, nullptr, false);
+                auto winners = 
+                    getElectionWinners(NUM_DELEGATES / TERM_LENGTH, _store, txn);
+                _archiver.CacheElectionWinners(winners);
+                });
     }
     else
     {
