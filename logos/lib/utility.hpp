@@ -273,10 +273,8 @@ struct BitField
 
     void Hash(blake2b_state & hash) const
     {
-        using H = std::hash<std::bitset<N>>;
-
-        size_t h(H()(field));
-        blake2b_update(&hash, &h, sizeof(h));
+        auto f(field.to_ullong());
+        blake2b_update(&hash, &f, sizeof(f));
     }
 
     static constexpr uint64_t WireSize()

@@ -367,6 +367,8 @@ struct Distribute : TokenRequest
     Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;
 
+    AccountAddress GetDestination() const override;
+
     bool Validate(logos::process_return & result) const override;
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
@@ -402,6 +404,8 @@ struct WithdrawFee : TokenRequest
 
     Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;
+
+    AccountAddress GetDestination() const override;
 
     bool Validate(logos::process_return & result) const override;
     bool Validate(logos::process_return & result,

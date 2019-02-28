@@ -112,6 +112,11 @@ AccountAddress TokenRequest::GetSource() const
     return GetAccount();
 }
 
+AccountAddress TokenRequest::GetDestination() const
+{
+    return {0};
+}
+
 boost::property_tree::ptree TokenRequest::SerializeJson() const
 {
     using namespace request::fields;
