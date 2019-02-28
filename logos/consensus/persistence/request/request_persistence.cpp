@@ -374,24 +374,38 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
         return true;
     }
 
-    // Lambda for retrieving the user's current status
-    // with the token (frozen, whitelisted).
-    //
-    auto get_user_status = [this](const auto & destination_address,
-                                  auto & destination_status,
-                                  const auto & token_id)
+    // Lambda for validating the account
+    // receiving tokens.
+    auto validate_destination = [this, &result](const auto & destination_address,
+                                                const auto & token_id,
+                                                auto & token_account)
     {
-        std::shared_ptr<logos::account_info> destination(new logos::account_info);
-        BlockHash token_user_id(GetTokenUserID(token_id, destination_address));
+        std::shared_ptr<logos::Account> account;
+
+        auto found = !_store.account_get(destination_address, account);
+        auto destination = dynamic_pointer_cast<logos::account_info>(account);
+
+        if(!destination)
+        {
+            // The destination account type for
+            // this token transfer is incorrect.
+            // Only user accounts can receive
+            // tokens.
+            result.code = logos::process_result::invalid_request;
+            return false;
+        }
+
+        TokenUserStatus destination_status;
+        BlockHash token_user_id(GetTokenUserID(token_id,  destination_address));
 
         // We have the destination account
-        if (!_store.account_get(destination_address, *destination))
+        if(found)
         {
             TokenEntry destination_token_entry;
 
             // This destination account has been tethered to
             // the token
-            if (destination->GetEntry(token_id, destination_token_entry))
+            if(destination->GetEntry(token_id, destination_token_entry))
             {
                 destination_status = destination_token_entry.status;
             }
@@ -399,6 +413,14 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
             // This destination account is untethered
             else
             {
+                // The account's token entries are
+                // at maximum capacity.
+                if(destination->entries.size() == logos::account_info::MAX_TOKEN_ENTRIES)
+                {
+                    result.code = logos::process_result::too_many_token_entries;
+                    return false;
+                }
+
                 _store.token_user_status_get(token_user_id, destination_status);
             }
         }
@@ -408,7 +430,18 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
         {
             _store.token_user_status_get(token_user_id, destination_status);
         }
-    };
+
+
+        // The destination account is either frozen
+        // or not yet whitelisted.
+        if(!token_account->SendAllowed(destination_status, result))
+        {
+            return false;
+        }
+
+        return true;
+
+    }; // Lambda validate_destination
 
     if(request->type == RequestType::Revoke)
     {
@@ -429,13 +462,9 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
             return false;
         }
 
-        // Pull the user's current status.
-        TokenUserStatus destination_status;
-        get_user_status(revoke->transaction.destination, destination_status, revoke->token_id);
-
-        // The destination account is either frozen
-        // or not yet whitelisted.
-        if(!token_account->SendAllowed(destination_status, result))
+        if(!validate_destination(revoke->transaction.destination,
+                                 revoke->token_id,
+                                 token_account))
         {
             return false;
         }
@@ -496,14 +525,9 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
         // Check each transaction in the Send Token Request
         for(auto & t : send_tokens->transactions)
         {
-
-            // Pull the user's current status.
-            TokenUserStatus destination_status;
-            get_user_status(t.destination, destination_status, send_tokens->token_id);
-
-            // The destination account is either frozen
-            // or not yet whitelisted.
-            if(!token_account->SendAllowed(destination_status, result))
+            if(!validate_destination(t.destination,
+                                     send_tokens->token_id,
+                                     token_account))
             {
                 return false;
             }
@@ -542,13 +566,9 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
             return false;
         }
 
-        // Pull the user's current status.
-        TokenUserStatus destination_status;
-        get_user_status(destination, destination_status, token_request->token_id);
-
-        // The destination account is either frozen
-        // or not yet whitelisted.
-        if (!token_account->SendAllowed(destination_status, result))
+        if(!validate_destination(destination,
+                                 token_request->token_id,
+                                 token_account))
         {
             return false;
         }
