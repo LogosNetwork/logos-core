@@ -1866,6 +1866,11 @@ logos::AccountType Distribute::GetSourceType() const
     return logos::AccountType::TokenAccount;
 }
 
+AccountAddress Distribute::GetDestination() const
+{
+    return transaction.destination;
+}
+
 bool Distribute::Validate(logos::process_return & result) const
 {
     if(!ValidateTokenAmount(transaction.amount))
@@ -2011,6 +2016,11 @@ Amount WithdrawFee::GetTokenTotal() const
 logos::AccountType WithdrawFee::GetSourceType() const
 {
     return logos::AccountType::TokenAccount;
+}
+
+AccountAddress WithdrawFee::GetDestination() const
+{
+    return transaction.destination;
 }
 
 bool WithdrawFee::Validate(logos::process_return & result) const

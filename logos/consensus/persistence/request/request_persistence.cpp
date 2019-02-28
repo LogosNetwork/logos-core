@@ -37,7 +37,7 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
     uint16_t count = 0;
     for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
-        auto request = static_pointer_cast<const Send>(message.requests[i]);
+        auto request = message.requests[i];
         request->locator.hash = batch_hash;
         request->locator.index = count++;
     }
@@ -204,7 +204,12 @@ bool PersistenceManager<R>::ValidateRequest(
         case RequestType::Issuance:
         {
             auto issuance = dynamic_pointer_cast<const Issuance>(request);
-            assert(issuance);
+
+            if(!issuance)
+            {
+                result.code = logos::process_result::invalid_request;
+                return false;
+            }
 
             if(_store.account_exists(issuance->token_id))
             {
@@ -321,7 +326,14 @@ bool PersistenceManager<R>::ValidateTokenAdminRequest(RequestPtr request,
                                                       logos::process_return & result,
                                                       std::shared_ptr<logos::Account> info)
 {
-    auto token_account = std::static_pointer_cast<TokenAccount>(info);
+    auto token_account = dynamic_pointer_cast<TokenAccount>(info);
+
+    if(!token_account)
+    {
+        result.code = logos::process_result::invalid_request;
+        return false;
+    }
+
     ControllerInfo controller;
 
     // The sender isn't a controller
@@ -362,24 +374,38 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
         return true;
     }
 
-    // Lambda for retrieving the user's current status
-    // with the token (frozen, whitelisted).
-    //
-    auto get_user_status = [this](const auto & destination_address,
-                                  auto & destination_status,
-                                  const auto & token_id)
+    // Lambda for validating the account
+    // receiving tokens.
+    auto validate_destination = [this, &result](const auto & destination_address,
+                                                const auto & token_id,
+                                                auto & token_account)
     {
-        std::shared_ptr<logos::account_info> destination(new logos::account_info);
-        BlockHash token_user_id(GetTokenUserID(token_id, destination_address));
+        std::shared_ptr<logos::Account> account;
+
+        auto found = !_store.account_get(destination_address, account);
+        auto destination = dynamic_pointer_cast<logos::account_info>(account);
+
+        if(!destination)
+        {
+            // The destination account type for
+            // this token transfer is incorrect.
+            // Only user accounts can receive
+            // tokens.
+            result.code = logos::process_result::invalid_request;
+            return false;
+        }
+
+        TokenUserStatus destination_status;
+        BlockHash token_user_id(GetTokenUserID(token_id,  destination_address));
 
         // We have the destination account
-        if (!_store.account_get(destination_address, *destination))
+        if(found)
         {
             TokenEntry destination_token_entry;
 
             // This destination account has been tethered to
             // the token
-            if (destination->GetEntry(token_id, destination_token_entry))
+            if(destination->GetEntry(token_id, destination_token_entry))
             {
                 destination_status = destination_token_entry.status;
             }
@@ -387,6 +413,14 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
             // This destination account is untethered
             else
             {
+                // The account's token entries are
+                // at maximum capacity.
+                if(destination->entries.size() == logos::account_info::MAX_TOKEN_ENTRIES)
+                {
+                    result.code = logos::process_result::too_many_token_entries;
+                    return false;
+                }
+
                 _store.token_user_status_get(token_user_id, destination_status);
             }
         }
@@ -396,12 +430,29 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
         {
             _store.token_user_status_get(token_user_id, destination_status);
         }
-    };
+
+
+        // The destination account is either frozen
+        // or not yet whitelisted.
+        if(!token_account->SendAllowed(destination_status, result))
+        {
+            return false;
+        }
+
+        return true;
+
+    }; // Lambda validate_destination
 
     if(request->type == RequestType::Revoke)
     {
-        auto revoke = static_pointer_cast<const Revoke>(request);
-        auto token_account = static_pointer_cast<TokenAccount>(info);
+        auto revoke = dynamic_pointer_cast<const Revoke>(request);
+        auto token_account = dynamic_pointer_cast<TokenAccount>(info);
+
+        if(!token_account || !revoke)
+        {
+            result.code = logos::process_result::invalid_request;
+            return false;
+        }
 
         std::shared_ptr<logos::Account> source;
         if(_store.account_get(request->GetSource(), source))
@@ -411,13 +462,9 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
             return false;
         }
 
-        // Pull the user's current status.
-        TokenUserStatus destination_status;
-        get_user_status(revoke->transaction.destination, destination_status, revoke->token_id);
-
-        // The destination account is either frozen
-        // or not yet whitelisted.
-        if(!token_account->SendAllowed(destination_status, result))
+        if(!validate_destination(revoke->transaction.destination,
+                                 revoke->token_id,
+                                 token_account))
         {
             return false;
         }
@@ -436,7 +483,12 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
     else if(request->type == RequestType::TokenSend)
     {
         auto send_tokens = dynamic_pointer_cast<const TokenSend>(request);
-        assert(send_tokens);
+
+        if(!send_tokens)
+        {
+            result.code = logos::process_result::invalid_request;
+            return false;
+        }
 
         std::shared_ptr<TokenAccount> token_account(new TokenAccount);
 
@@ -447,7 +499,13 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
             return false;
         }
 
-        auto user_account = std::static_pointer_cast<logos::account_info>(info);
+        auto user_account = std::dynamic_pointer_cast<logos::account_info>(info);
+
+        if(!user_account)
+        {
+            result.code = logos::process_result::invalid_request;
+            return false;
+        }
 
         // Get sender's token entry
         TokenEntry source_token_entry;
@@ -467,14 +525,9 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
         // Check each transaction in the Send Token Request
         for(auto & t : send_tokens->transactions)
         {
-
-            // Pull the user's current status.
-            TokenUserStatus destination_status;
-            get_user_status(t.destination, destination_status, send_tokens->token_id);
-
-            // The destination account is either frozen
-            // or not yet whitelisted.
-            if(!token_account->SendAllowed(destination_status, result))
+            if(!validate_destination(t.destination,
+                                     send_tokens->token_id,
+                                     token_account))
             {
                 return false;
             }
@@ -496,27 +549,26 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
     else if (request->type == RequestType::Distribute or
              request->type == RequestType::WithdrawFee)
     {
-        auto get_destination = [](auto token_request)
+        auto token_account = dynamic_pointer_cast<TokenAccount>(info);
+        auto token_request = dynamic_pointer_cast<const TokenRequest>(request);
+
+        if(!token_account || !token_request)
         {
-            if(token_request->type == RequestType::Distribute)
-            {
-                return static_pointer_cast<const Distribute>(token_request)->transaction.destination;
-            }
+            result.code = logos::process_result::invalid_request;
+            return false;
+        }
 
-            assert(token_request->type == RequestType::WithdrawFee);
-            return static_pointer_cast<const WithdrawFee>(token_request)->transaction.destination;
-        };
+        AccountAddress destination = token_request->GetDestination();
 
-        auto token_account = static_pointer_cast<TokenAccount>(info);
-        auto token_request = static_pointer_cast<const TokenRequest>(request);
+        if(destination.is_zero())
+        {
+            result.code = logos::process_result::invalid_request;
+            return false;
+        }
 
-        // Pull the user's current status.
-        TokenUserStatus destination_status;
-        get_user_status(get_destination(token_request), destination_status, token_request->token_id);
-
-        // The destination account is either frozen
-        // or not yet whitelisted.
-        if (!token_account->SendAllowed(destination_status, result))
+        if(!validate_destination(destination,
+                                 token_request->token_id,
+                                 token_account))
         {
             return false;
         }
@@ -575,8 +627,7 @@ void PersistenceManager<R>::ApplyRequestBlock(
 {
     for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
-        auto request = static_pointer_cast<Send>(message.requests[i]);
-        ApplyRequest(request,
+        ApplyRequest(message.requests[i],
                      message.timestamp,
                      transaction);
     }
@@ -710,8 +761,9 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
     {
         case RequestType::Send:
         {
-            auto send = static_pointer_cast<const Send>(request);
-            auto source = static_pointer_cast<logos::account_info>(info);
+            auto send = dynamic_pointer_cast<const Send>(request);
+            auto source = dynamic_pointer_cast<logos::account_info>(info);
+            assert(send && source);
 
             source->balance -= send->GetLogosTotal();
 
@@ -724,7 +776,9 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             break;
         case RequestType::Issuance:
         {
-            auto issuance = static_pointer_cast<const Issuance>(request);
+            auto issuance = dynamic_pointer_cast<const Issuance>(request);
+            assert(issuance);
+
             TokenAccount account(*issuance);
 
             // TODO: Consider providing a TokenIsuance field
@@ -737,8 +791,9 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         }
         case RequestType::IssueAdditional:
         {
-            auto issue_adtl = static_pointer_cast<const IssueAdditional>(request);
-            auto token_account = static_pointer_cast<TokenAccount>(info);
+            auto issue_adtl = dynamic_pointer_cast<const IssueAdditional>(request);
+            auto token_account = dynamic_pointer_cast<TokenAccount>(info);
+            assert(issue_adtl && token_account);
 
             token_account->token_balance += issue_adtl->amount;
             token_account->total_supply += issue_adtl->amount;
@@ -747,23 +802,26 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         }
         case RequestType::ChangeSetting:
         {
-            auto change = static_pointer_cast<const ChangeSetting>(request);
-            auto token_account = static_pointer_cast<TokenAccount>(info);
+            auto change = dynamic_pointer_cast<const ChangeSetting>(request);
+            auto token_account = dynamic_pointer_cast<TokenAccount>(info);
+            assert(change && token_account);
 
             token_account->Set(change->setting, change->value);
             break;
         }
         case RequestType::ImmuteSetting:
         {
-            auto immute = static_pointer_cast<const ImmuteSetting>(request);
-            auto token_account = static_pointer_cast<TokenAccount>(info);
+            auto immute = dynamic_pointer_cast<const ImmuteSetting>(request);
+            auto token_account = dynamic_pointer_cast<TokenAccount>(info);
+            assert(immute && token_account);
 
             token_account->Set(TokenAccount::GetMutabilitySetting(immute->setting), false);
             break;
         }
         case RequestType::Revoke:
         {
-            auto revoke = static_pointer_cast<const Revoke>(request);
+            auto revoke = dynamic_pointer_cast<const Revoke>(request);
+            assert(revoke);
 
             logos::account_info user_account;
 
@@ -808,14 +866,17 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         }
         case RequestType::AdjustUserStatus:
         {
-            auto adjust = static_pointer_cast<const AdjustUserStatus>(request);
+            auto adjust = dynamic_pointer_cast<const AdjustUserStatus>(request);
+            assert(adjust);
+
             adjust_token_user_status(adjust, adjust->status);
             break;
         }
         case RequestType::AdjustFee:
         {
-            auto set_fee = static_pointer_cast<const AdjustFee>(request);
-            auto token_account = static_pointer_cast<TokenAccount>(info);
+            auto set_fee = dynamic_pointer_cast<const AdjustFee>(request);
+            auto token_account = dynamic_pointer_cast<TokenAccount>(info);
+            assert(set_fee && token_account);
 
             token_account->fee_type = set_fee->fee_type;
             token_account->fee_rate = set_fee->fee_rate;
@@ -824,8 +885,9 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         }
         case RequestType::UpdateIssuerInfo:
         {
-            auto issuer_info = static_pointer_cast<const UpdateIssuerInfo>(request);
-            auto token_account = static_pointer_cast<TokenAccount>(info);
+            auto issuer_info = dynamic_pointer_cast<const UpdateIssuerInfo>(request);
+            auto token_account = dynamic_pointer_cast<TokenAccount>(info);
+            assert(issuer_info && token_account);
 
             token_account->issuer_info = issuer_info->new_info;
 
@@ -833,8 +895,9 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         }
         case RequestType::UpdateController:
         {
-            auto update = static_pointer_cast<const UpdateController>(request);
-            auto token_account = static_pointer_cast<TokenAccount>(info);
+            auto update = dynamic_pointer_cast<const UpdateController>(request);
+            auto token_account = dynamic_pointer_cast<TokenAccount>(info);
+            assert(update && token_account);
 
             auto controller = token_account->GetController(update->controller.account);
 
@@ -862,8 +925,9 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         }
         case RequestType::Burn:
         {
-            auto burn = static_pointer_cast<const Burn>(request);
-            auto token_account = static_pointer_cast<TokenAccount>(info);
+            auto burn = dynamic_pointer_cast<const Burn>(request);
+            auto token_account = dynamic_pointer_cast<TokenAccount>(info);
+            assert(burn && token_account);
 
             token_account->total_supply -= burn->amount;
             token_account->token_balance -= burn->amount;
@@ -872,8 +936,9 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         }
         case RequestType::Distribute:
         {
-            auto distribute = static_pointer_cast<const Distribute>(request);
-            auto token_account = static_pointer_cast<TokenAccount>(info);
+            auto distribute = dynamic_pointer_cast<const Distribute>(request);
+            auto token_account = dynamic_pointer_cast<TokenAccount>(info);
+            assert(distribute && token_account);
 
             token_account->token_balance -= distribute->transaction.amount;
 
@@ -887,8 +952,9 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         }
         case RequestType::WithdrawFee:
         {
-            auto withdraw = static_pointer_cast<const WithdrawFee>(request);
-            auto token_account = static_pointer_cast<TokenAccount>(info);
+            auto withdraw = dynamic_pointer_cast<const WithdrawFee>(request);
+            auto token_account = dynamic_pointer_cast<TokenAccount>(info);
+            assert(withdraw && token_account);
 
             token_account->token_fee_balance -= withdraw->transaction.amount;
 
@@ -902,8 +968,9 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         }
         case RequestType::TokenSend:
         {
-            auto send = static_pointer_cast<const TokenSend>(request);
-            auto source = static_pointer_cast<logos::account_info>(info);
+            auto send = dynamic_pointer_cast<const TokenSend>(request);
+            auto source = dynamic_pointer_cast<logos::account_info>(info);
+            assert(send && source);
 
             TokenAccount token_account;
             if(_store.token_account_get(send->token_id, token_account, transaction))
@@ -1018,7 +1085,9 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
     // This is a token transaction
     else
     {
-        auto user_info = static_pointer_cast<logos::account_info>(info);
+        auto user_info = dynamic_pointer_cast<logos::account_info>(info);
+        assert(user_info);
+
         auto entry = user_info->GetEntry(token_id);
 
         // The destination account is being

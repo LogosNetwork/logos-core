@@ -126,6 +126,8 @@ struct TokenRequest : Request
     AccountAddress GetAccount() const override;
     AccountAddress GetSource() const override;
 
+    virtual AccountAddress GetDestination() const;
+
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
     void Deserialize(bool & error, logos::stream & stream);
