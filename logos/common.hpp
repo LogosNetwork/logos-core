@@ -167,6 +167,8 @@ struct account_info : Account
     bool GetEntry(const BlockHash & token_id, TokenEntry & val) const;
     Entries::iterator GetEntry(const BlockHash & token_id);
 
+    static constexpr uint16_t MAX_TOKEN_ENTRIES = std::numeric_limits<uint16_t>::max();
+
     block_hash rep_block;
     block_hash open_block;
     Entries    entries;
@@ -335,7 +337,8 @@ enum class process_result
     total_supply_overflow,      // Logos - The request would case the token total supply to overflow.
     key_collision,              // Logos - There is already a user account or token account with the same key.
     invalid_fee,                // Logos - The fee settings are invalid.
-    invalid_issuer_info         // Logos - The issuer info supplied is invalid.
+    invalid_issuer_info,        // Logos - The issuer info supplied is invalid.
+    too_many_token_entries      // Logos - The account has too many token entries.
 };
 
 std::string ProcessResultToString(process_result result);

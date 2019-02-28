@@ -352,7 +352,7 @@ uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
     auto s = Account::Serialize(stream_a);
     s += write (stream_a, rep_block.bytes);
     s += write (stream_a, open_block.bytes);
-    s += write (stream_a, entries.size());
+    s += write (stream_a, uint16_t(entries.size()));
     for(auto & entry : entries)
     {
         s += entry.Serialize(stream_a);
@@ -374,7 +374,7 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
             {
                 if (!error)
                 {
-                    size_t count;
+                    uint16_t count;
                     error = read(stream_a, count);
 
                     for(size_t i = 0; i < count; ++i)
@@ -1115,6 +1115,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
             break;
         case process_result::invalid_issuer_info:
             ret = "The issuer info field is invalid";
+            break;
+        case process_result::too_many_token_entries:
+            ret = "The account has too many token entries";
             break;
     }
 
