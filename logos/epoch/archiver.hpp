@@ -70,7 +70,7 @@ public:
     /// @returns true if recall
     bool IsRecall();
 
-    void CacheElectionWinners(std::vector<std::pair<AccountAddress,Amount>>& winners);
+    void CacheElectionWinners(std::vector<std::pair<AccountAddress,CandidateInfo>>& winners);
 
 private:
     static constexpr uint8_t SELECT_PRIMARY_DELEGATE = 0x1F;

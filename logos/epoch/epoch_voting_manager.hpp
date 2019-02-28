@@ -10,6 +10,7 @@
 #include <logos/lib/log.hpp>
 
 #include <unordered_set>
+#include <logos/elections/database.hpp>
 
 namespace logos
 {
@@ -50,11 +51,11 @@ public:
 
     //TODO: documentation
     void CacheElectionWinners(
-            std::vector<std::pair<AccountAddress,Amount>>& winners);
+            std::vector<std::pair<AccountAddress,CandidateInfo>>& winners);
 
 private:
 
-    std::vector<std::pair<AccountAddress,Amount>> _cached_election_winners;
+    std::vector<std::pair<AccountAddress,CandidateInfo>> _cached_election_winners;
     std::mutex _cache_mutex; 
     bool _cache_written = false;
     BlockStore &    _store; ///< logos block store reference

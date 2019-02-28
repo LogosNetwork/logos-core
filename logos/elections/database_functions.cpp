@@ -38,17 +38,17 @@ const std::vector<T>& FixedSizeHeap<T>::getStorage()
     return storage;
 }
 
-std::vector<std::pair<AccountAddress,Amount>> getElectionWinners(
+std::vector<std::pair<AccountAddress,CandidateInfo>> getElectionWinners(
         size_t num_winners,
         logos::block_store& store,
         MDB_txn* txn)
 {
 
-    FixedSizeHeap<std::pair<AccountAddress,Amount>> results(num_winners,
+    FixedSizeHeap<std::pair<AccountAddress,CandidateInfo>> results(num_winners,
             [](auto p1,auto p2)
             {
             //TODO: tiebreakers
-                return p1.second > p2.second;
+                return p1.second.votes_received_weighted > p2.second.votes_received_weighted;
             });
     for(auto it = logos::store_iterator(txn, store.candidacy_db);
            it != logos::store_iterator(nullptr); ++it)
@@ -57,7 +57,7 @@ std::vector<std::pair<AccountAddress,Amount>> getElectionWinners(
         CandidateInfo candidate_info(error,it->second);
         if(!error)
         {
-            auto pair = std::make_pair(it->first.uint256(),candidate_info.votes_received_weighted);
+            auto pair = std::make_pair(it->first.uint256(),candidate_info);
             results.try_push(pair);
         } 
     }
@@ -158,7 +158,7 @@ bool addReelectionCandidates(logos::block_store& store, MDB_txn* txn)
     {
         if(d.starting_term)
         {
-            store.candidate_add_new(d.account,txn);
+            store.candidate_add_new(d.account,d.bls_pub,txn);
         }
     }
     return false;
@@ -384,7 +384,7 @@ bool applyRequest(logos::block_store& store, AnnounceCandidacy& request, MDB_txn
         }
     }
 
-    return !store.candidate_add_new(request.origin,txn);
+    return !store.candidate_add_new(request.origin,request.bls_key,txn);
 }
 
 bool applyRequest(logos::block_store& store, RenounceCandidacy& request, MDB_txn* txn)

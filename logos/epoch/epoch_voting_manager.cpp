@@ -13,7 +13,7 @@
 #include <logos/elections/database_functions.hpp>
 
 
-void EpochVotingManager::CacheElectionWinners(std::vector<std::pair<AccountAddress,Amount>>& winners)
+void EpochVotingManager::CacheElectionWinners(std::vector<std::pair<AccountAddress,CandidateInfo>>& winners)
 {
     std::lock_guard<std::mutex> guard(_cache_mutex);
     _cached_election_winners = winners;
@@ -53,13 +53,17 @@ std::vector<Delegate> EpochVotingManager::GetDelegateElects(size_t num_new)
     logos::transaction txn(_store.environment,nullptr,false);
     std::lock_guard<std::mutex> guard(_cache_mutex);
     auto results = _cached_election_winners;
+    //TODO: this shouldnt assert, but should wait?
     assert(_cache_written);
     DelegatePubKey dummy_bls_pub;
     Amount dummy_stake = 1;
     std::vector<Delegate> delegate_elects(results.size());
     std::transform(results.begin(),results.end(),delegate_elects.begin(),
-            [dummy_bls_pub,dummy_stake](auto p){
-                Delegate d(p.first,dummy_bls_pub,p.second,dummy_stake);
+            [this](auto p){
+                RepInfo info;
+                _store.rep_get(p.first,info);
+
+                Delegate d(p.first,p.second.bls_key,p.second.votes_received_weighted,info.stake);
                 d.starting_term = true;
                 return d;
             });

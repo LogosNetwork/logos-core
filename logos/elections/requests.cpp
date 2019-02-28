@@ -59,13 +59,19 @@ AnnounceCandidacy::AnnounceCandidacy(bool & error,
 
 uint64_t AnnounceCandidacy::Serialize(logos::stream & stream) const
 {
-    return logos::write(stream, stake);
+    auto val = logos::write(stream, stake);
+    val += logos::write(stream, bls_key);
+    return val;
 }
 
 void AnnounceCandidacy::Deserialize(bool & error, logos::stream & stream)
 {
     error = logos::read(stream, stake);
-
+    if(error)
+    {
+        return;
+    }
+    error = logos::read(stream, bls_key);
 }
 
 void AnnounceCandidacy::DeserializeDB(bool & error, logos::stream & stream)

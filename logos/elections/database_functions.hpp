@@ -4,7 +4,7 @@
 #include <logos/lib/epoch_time_util.hpp>
 #include <unordered_set>
 
-std::vector<std::pair<AccountAddress,Amount>> getElectionWinners(size_t num_winners, logos::block_store& store, MDB_txn* txn);
+std::vector<std::pair<AccountAddress,CandidateInfo>> getElectionWinners(size_t num_winners, logos::block_store& store, MDB_txn* txn);
 
 
 

@@ -134,6 +134,7 @@ struct AnnounceCandidacy : Request
     uint64_t Serialize(logos::stream & stream) const override;
 
     Amount stake = 0;
+    DelegatePubKey bls_key;
 
 };
 

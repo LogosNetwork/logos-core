@@ -121,6 +121,7 @@ uint32_t CandidateInfo::serialize(logos::stream & stream) const
     auto val = logos::write(stream, active);
     val += logos::write(stream, remove);
     val += logos::write(stream, votes_received_weighted);
+    val += logos::write(stream, bls_key);
     return val;
 }
 
@@ -136,7 +137,12 @@ bool CandidateInfo::deserialize(logos::stream & stream)
     {
         return error;
     }
-    return logos::read(stream, votes_received_weighted);
+    error = logos::read(stream, votes_received_weighted);
+    if(error)
+    {
+        return error;
+    }
+    return logos::read(stream, bls_key);
 }
 bool CandidateInfo::operator==(const CandidateInfo& other) const
 {

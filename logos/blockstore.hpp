@@ -244,6 +244,7 @@ public:
 
     bool candidate_add_new(
             const AccountAddress & account,
+            const DelegatePubKey & bls_key,
             MDB_txn *);
 
     bool candidate_mark_remove(
@@ -389,11 +390,14 @@ public:
      * logos::account -> single bit. 0 is for pending, 1 is for active
      */
     MDB_dbi candidacy_db;
+
+    //TODO: winning candidates cache
+    MDB_dbi leading_candidates_db;
+
     /**
      * Unchecked bootstrap blocks.
      * logos::block_hash -> logos::block
      */
-
     MDB_dbi unchecked;
 
     /**

@@ -129,7 +129,7 @@ Archiver::IsRecall()
 }
 
 void
-Archiver::CacheElectionWinners(std::vector<std::pair<AccountAddress,Amount>>& winners)
+Archiver::CacheElectionWinners(std::vector<std::pair<AccountAddress,CandidateInfo>>& winners)
 {
     _voting_manager.CacheElectionWinners(winners);
 }
