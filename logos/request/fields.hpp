@@ -67,6 +67,7 @@ const char UNFROZEN[]        = "unfrozen";
 const char WHITELISTED[]     = "whitelisted";
 const char NOT_WHITELISTED[] = "not_whitelisted";
 const char STATUS[]          = "status";
+const char ISSUER_INFO[]     = "issuer_info";
 
 // Token setting fields
 //

@@ -1107,7 +1107,7 @@ void logos::rpc_handler::block_create ()
                 temp.encode_hex(work_str);
                 request.put(WORK,work_str);
             }
-            if(type == RequestType::IssueTokens)
+            if(type == RequestType::Issuance)
             {
                 auto token_id_str = request.get_optional<std::string>(TOKEN_ID);
                 if(!token_id_str.is_initialized())
@@ -1136,9 +1136,9 @@ void logos::rpc_handler::block_create ()
                 return;
 
             }
-            if(type == RequestType::IssueTokens)
+            if(type == RequestType::Issuance)
             {
-                auto issuance = static_pointer_cast<TokenIssuance>(created_request);
+                auto issuance = static_pointer_cast<Issuance>(created_request);
                 issuance->token_id = GetTokenID(*issuance);
             }
 
@@ -2581,23 +2581,22 @@ void logos::rpc_handler::process ()
         switch(request->type)
         {
             case RequestType::Send:
-            case RequestType::IssueTokens:
-            case RequestType::ChangeTokenSetting:
-            case RequestType::IssueAdtlTokens:
-            case RequestType::ImmuteTokenSetting:
-            case RequestType::RevokeTokens:
-            case RequestType::FreezeTokens:
-            case RequestType::SetTokenFee:
-            case RequestType::UpdateWhitelist:
+            case RequestType::Issuance:
+            case RequestType::ChangeSetting:
+            case RequestType::IssueAdditional:
+            case RequestType::ImmuteSetting:
+            case RequestType::Revoke:
+            case RequestType::AdjustUserStatus:
+            case RequestType::AdjustFee:
             case RequestType::UpdateIssuerInfo:
             case RequestType::UpdateController:
-            case RequestType::BurnTokens:
-            case RequestType::DistributeTokens:
+            case RequestType::Burn:
+            case RequestType::Distribute:
             case RequestType::WithdrawFee:
-            case RequestType::SendTokens:
+            case RequestType::TokenSend:
                 process(request);
                 break;
-            case RequestType::ChangeRep:
+            case RequestType::Change:
                 error_response(response, "ChangeRep is not implemented yet");
                 break;
             default:
