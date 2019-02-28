@@ -3,12 +3,16 @@
 #include <logos/request/utility.hpp>
 #include <logos/request/fields.hpp>
 #include <logos/token/account.hpp>
-#include <logos/token/util.hpp>
+#include <logos/token/utility.hpp>
 
 #include <numeric>
 
-TokenIssuance::TokenIssuance(bool & error,
-                             const logos::mdb_val & mdbval)
+Issuance::Issuance()
+    : TokenRequest(RequestType::Issuance)
+{}
+
+Issuance::Issuance(bool & error,
+                   const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
                                mdbval.size());
@@ -18,19 +22,19 @@ TokenIssuance::TokenIssuance(bool & error,
     {
         return;
     }
-    
+
     Hash();
 }
 
-TokenIssuance::TokenIssuance(bool & error,
-                             std::basic_streambuf<uint8_t> & stream)
+Issuance::Issuance(bool & error,
+                   std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
     if(error)
     {
         return;
     }
-    
+
     Deserialize(error, stream);
     if(error)
     {
@@ -40,8 +44,8 @@ TokenIssuance::TokenIssuance(bool & error,
     Hash();
 }
 
-TokenIssuance::TokenIssuance(bool & error,
-                             boost::property_tree::ptree const & tree)
+Issuance::Issuance(bool & error,
+                   boost::property_tree::ptree const & tree)
     : TokenRequest(error, tree)
 {
     using namespace request::fields;
@@ -98,9 +102,7 @@ TokenIssuance::TokenIssuance(bool & error,
             controllers.push_back(c);
         }
 
-        // TODO: info is optional
-        //
-        issuer_info = tree.get<std::string>(INFO);
+        issuer_info = tree.get<std::string>(ISSUER_INFO, "");
         Hash();
     }
     catch (...)
@@ -109,7 +111,7 @@ TokenIssuance::TokenIssuance(bool & error,
     }
 }
 
-bool TokenIssuance::Validate(logos::process_return & result) const
+bool Issuance::Validate(logos::process_return & result) const
 {
     auto is_alphanumeric = [](const auto & str)
     {
@@ -124,6 +126,12 @@ bool TokenIssuance::Validate(logos::process_return & result) const
         return true;
     };
 
+    if(token_id != GetTokenID(*this))
+    {
+        result.code = logos::process_result::invalid_token_id;
+        return false;
+    }
+
     if(symbol.empty() || !is_alphanumeric(symbol) || symbol.size() > SYMBOL_MAX_SIZE)
     {
         result.code = logos::process_result::invalid_token_symbol;
@@ -136,47 +144,53 @@ bool TokenIssuance::Validate(logos::process_return & result) const
         return false;
     }
 
-    if(total_supply.is_zero())
+    if(!ValidateTokenAmount(total_supply))
     {
         result.code = logos::process_result::invalid_token_amount;
         return false;
     }
 
-    if(!TokenAccount::ValidateFee(fee_type, fee_rate))
+    if(!ValidateFee(fee_type, fee_rate))
     {
         result.code = logos::process_result::invalid_fee;
         return false;
     }
 
-    if(token_id != GetTokenID(*this))
+    if(controllers.size() > TokenAccount::MAX_CONTROLLERS)
     {
-        result.code = logos::process_result::invalid_token_id;
+        result.code = logos::process_result::controller_capacity;
+        return false;
+    }
+
+    if(issuer_info.size() > Issuance::INFO_MAX_SIZE)
+    {
+        result.code = logos::process_result::invalid_issuer_info;
         return false;
     }
 
     return true;
 }
 
-logos::AccountType TokenIssuance::GetAccountType() const
+logos::AccountType Issuance::GetAccountType() const
 {
     return logos::AccountType::LogosAccount;
 }
 
-AccountAddress TokenIssuance::GetAccount() const
+AccountAddress Issuance::GetAccount() const
 {
     return origin;
 }
 
-AccountAddress TokenIssuance::GetSource() const
+AccountAddress Issuance::GetSource() const
 {
-    // The source account for TokenIssuance
+    // The source account for Issuance
     // requests is atypical with respect
     // to other TokenRequests.
     //
     return origin;
 }
 
-boost::property_tree::ptree TokenIssuance::SerializeJson() const
+boost::property_tree::ptree Issuance::SerializeJson() const
 {
     using namespace request::fields;
 
@@ -199,16 +213,16 @@ boost::property_tree::ptree TokenIssuance::SerializeJson() const
     for(size_t i = 0; i < controllers.size(); ++i)
     {
         controllers_tree.push_back(std::make_pair("",
-            controllers[i].SerializeJson()));
+                                                  controllers[i].SerializeJson()));
     }
     tree.add_child(CONTROLLERS, controllers_tree);
 
-    tree.put(INFO, issuer_info);
+    tree.put(ISSUER_INFO, issuer_info);
 
     return tree;
 }
 
-uint64_t TokenIssuance::Serialize(logos::stream & stream) const
+uint64_t Issuance::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write(stream, symbol) +
@@ -221,7 +235,7 @@ uint64_t TokenIssuance::Serialize(logos::stream & stream) const
            logos::write<uint16_t>(stream, issuer_info);
 }
 
-void TokenIssuance::Deserialize(bool & error, logos::stream & stream)
+void Issuance::Deserialize(bool & error, logos::stream & stream)
 {
     error = logos::read(stream, symbol);
     if(error)
@@ -280,7 +294,7 @@ void TokenIssuance::Deserialize(bool & error, logos::stream & stream)
     error = logos::read<uint16_t>(stream, issuer_info);
 }
 
-void TokenIssuance::DeserializeDB(bool & error, logos::stream & stream)
+void Issuance::DeserializeDB(bool & error, logos::stream & stream)
 {
     TokenRequest::DeserializeDB(error, stream);
     if(error)
@@ -291,7 +305,7 @@ void TokenIssuance::DeserializeDB(bool & error, logos::stream & stream)
     Deserialize(error, stream);
 }
 
-void TokenIssuance::Hash(blake2b_state & hash) const
+void Issuance::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
 
@@ -310,7 +324,7 @@ void TokenIssuance::Hash(blake2b_state & hash) const
     blake2b_update(&hash, issuer_info.data(), issuer_info.size());
 }
 
-uint16_t TokenIssuance::WireSize() const
+uint16_t Issuance::WireSize() const
 {
     return StringWireSize(symbol) +
            StringWireSize(name) +
@@ -323,11 +337,11 @@ uint16_t TokenIssuance::WireSize() const
            TokenRequest::WireSize();
 }
 
-bool TokenIssuance::operator==(const Request & other) const
+bool Issuance::operator==(const Request & other) const
 {
     try
     {
-        auto derived = dynamic_cast<const TokenIssuance &>(other);
+        auto derived = dynamic_cast<const Issuance &>(other);
 
         return Request::operator==(other) &&
                symbol == derived.symbol &&
@@ -345,8 +359,12 @@ bool TokenIssuance::operator==(const Request & other) const
     return false;
 }
 
-TokenIssueAdtl::TokenIssueAdtl(bool & error,
-                               const logos::mdb_val & mdbval)
+IssueAdditional::IssueAdditional()
+    : TokenRequest(RequestType::IssueAdditional)
+{}
+
+IssueAdditional::IssueAdditional(bool & error,
+                                 const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
                                mdbval.size());
@@ -360,8 +378,8 @@ TokenIssueAdtl::TokenIssueAdtl(bool & error,
     Hash();
 }
 
-TokenIssueAdtl::TokenIssueAdtl(bool & error,
-                               std::basic_streambuf<uint8_t> & stream)
+IssueAdditional::IssueAdditional(bool & error,
+                                 std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
     if(error)
@@ -378,8 +396,8 @@ TokenIssueAdtl::TokenIssueAdtl(bool & error,
     Hash();
 }
 
-TokenIssueAdtl::TokenIssueAdtl(bool & error,
-                               boost::property_tree::ptree const & tree)
+IssueAdditional::IssueAdditional(bool & error,
+                                 boost::property_tree::ptree const & tree)
     : TokenRequest(error, tree)
 {
     using namespace request::fields;
@@ -405,8 +423,19 @@ TokenIssueAdtl::TokenIssueAdtl(bool & error,
     }
 }
 
-bool TokenIssueAdtl::Validate(logos::process_return & result,
-                              std::shared_ptr<logos::Account> info) const
+bool IssueAdditional::Validate(logos::process_return & result) const
+{
+    if(!ValidateTokenAmount(amount))
+    {
+        result.code = logos::process_result::invalid_token_amount;
+        return false;
+    }
+
+    return true;
+}
+
+bool IssueAdditional::Validate(logos::process_return & result,
+                               std::shared_ptr<logos::Account> info) const
 {
     auto token_account = std::static_pointer_cast<TokenAccount>(info);
 
@@ -419,16 +448,16 @@ bool TokenIssueAdtl::Validate(logos::process_return & result,
     return true;
 }
 
-AccountAddress TokenIssueAdtl::GetSource() const
+AccountAddress IssueAdditional::GetSource() const
 {
-    // The source account for TokenIssueAdtl
+    // The source account for IssueAdditional
     // requests is atypical with respect
     // to other TokenRequests.
     //
     return origin;
 }
 
-boost::property_tree::ptree TokenIssueAdtl::SerializeJson() const
+boost::property_tree::ptree IssueAdditional::SerializeJson() const
 {
     using namespace request::fields;
 
@@ -439,13 +468,13 @@ boost::property_tree::ptree TokenIssueAdtl::SerializeJson() const
     return tree;
 }
 
-uint64_t TokenIssueAdtl::Serialize(logos::stream & stream) const
+uint64_t IssueAdditional::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write(stream, amount);
 }
 
-void TokenIssueAdtl::Deserialize(bool & error, logos::stream & stream)
+void IssueAdditional::Deserialize(bool & error, logos::stream & stream)
 {
     if(error)
     {
@@ -455,7 +484,7 @@ void TokenIssueAdtl::Deserialize(bool & error, logos::stream & stream)
     error = logos::read(stream, amount);
 }
 
-void TokenIssueAdtl::DeserializeDB(bool & error, logos::stream & stream)
+void IssueAdditional::DeserializeDB(bool & error, logos::stream & stream)
 {
     TokenRequest::DeserializeDB(error, stream);
     if(error)
@@ -466,23 +495,23 @@ void TokenIssueAdtl::DeserializeDB(bool & error, logos::stream & stream)
     Deserialize(error, stream);
 }
 
-void TokenIssueAdtl::Hash(blake2b_state & hash) const
+void IssueAdditional::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
     amount.Hash(hash);
 }
 
-uint16_t TokenIssueAdtl::WireSize() const
+uint16_t IssueAdditional::WireSize() const
 {
     return sizeof(amount.bytes) +
            TokenRequest::WireSize();
 }
 
-bool TokenIssueAdtl::operator==(const Request & other) const
+bool IssueAdditional::operator==(const Request & other) const
 {
     try
     {
-        auto derived = dynamic_cast<const TokenIssueAdtl &>(other);
+        auto derived = dynamic_cast<const IssueAdditional &>(other);
 
         return Request::operator==(other) &&
                amount == derived.amount;
@@ -493,8 +522,12 @@ bool TokenIssueAdtl::operator==(const Request & other) const
     return false;
 }
 
-TokenChangeSetting::TokenChangeSetting(bool & error,
-                                       const logos::mdb_val & mdbval)
+ChangeSetting::ChangeSetting()
+    : TokenRequest(RequestType::ChangeSetting)
+{}
+
+ChangeSetting::ChangeSetting(bool & error,
+                             const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
                                mdbval.size());
@@ -508,8 +541,8 @@ TokenChangeSetting::TokenChangeSetting(bool & error,
     Hash();
 }
 
-TokenChangeSetting::TokenChangeSetting(bool & error,
-                                       std::basic_streambuf<uint8_t> & stream)
+ChangeSetting::ChangeSetting(bool & error,
+                             std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
     if(error)
@@ -526,8 +559,8 @@ TokenChangeSetting::TokenChangeSetting(bool & error,
     Hash();
 }
 
-TokenChangeSetting::TokenChangeSetting(bool & error,
-                                       boost::property_tree::ptree const & tree)
+ChangeSetting::ChangeSetting(bool & error,
+                             boost::property_tree::ptree const & tree)
     : TokenRequest(error, tree)
 {
     using namespace request::fields;
@@ -557,26 +590,26 @@ TokenChangeSetting::TokenChangeSetting(bool & error,
     }
 }
 
-boost::property_tree::ptree TokenChangeSetting::SerializeJson() const
+boost::property_tree::ptree ChangeSetting::SerializeJson() const
 {
     using namespace request::fields;
 
     boost::property_tree::ptree tree = TokenRequest::SerializeJson();
 
     tree.put(SETTING, GetTokenSettingField(setting));
-    tree.put(VALUE, value == SettingValue::Enabled ? true : false);
+    tree.put(VALUE, bool(value));
 
     return tree;
 }
 
-uint64_t TokenChangeSetting::Serialize(logos::stream & stream) const
+uint64_t ChangeSetting::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write(stream, setting) +
            logos::write(stream, value);
 }
 
-void TokenChangeSetting::Deserialize(bool & error, logos::stream & stream)
+void ChangeSetting::Deserialize(bool & error, logos::stream & stream)
 {
     if(error)
     {
@@ -592,7 +625,7 @@ void TokenChangeSetting::Deserialize(bool & error, logos::stream & stream)
     error = logos::read(stream, value);
 }
 
-void TokenChangeSetting::DeserializeDB(bool & error, logos::stream & stream)
+void ChangeSetting::DeserializeDB(bool & error, logos::stream & stream)
 {
     TokenRequest::DeserializeDB(error, stream);
     if(error)
@@ -603,7 +636,7 @@ void TokenChangeSetting::DeserializeDB(bool & error, logos::stream & stream)
     Deserialize(error, stream);
 }
 
-void TokenChangeSetting::Hash(blake2b_state & hash) const
+void ChangeSetting::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
 
@@ -611,18 +644,18 @@ void TokenChangeSetting::Hash(blake2b_state & hash) const
     blake2b_update(&hash, &value, sizeof(value));
 }
 
-uint16_t TokenChangeSetting::WireSize() const
+uint16_t ChangeSetting::WireSize() const
 {
     return sizeof(setting) +
            sizeof(value) +
            TokenRequest::WireSize();
 }
 
-bool TokenChangeSetting::operator==(const Request & other) const
+bool ChangeSetting::operator==(const Request & other) const
 {
     try
     {
-        auto derived = dynamic_cast<const TokenChangeSetting &>(other);
+        auto derived = dynamic_cast<const ChangeSetting &>(other);
 
         return Request::operator==(other) &&
                setting == derived.setting &&
@@ -634,8 +667,12 @@ bool TokenChangeSetting::operator==(const Request & other) const
     return false;
 }
 
-TokenImmuteSetting::TokenImmuteSetting(bool & error,
-                                       const logos::mdb_val & mdbval)
+ImmuteSetting::ImmuteSetting()
+    : TokenRequest(RequestType::ImmuteSetting)
+{}
+
+ImmuteSetting::ImmuteSetting(bool & error,
+                             const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
                                mdbval.size());
@@ -649,8 +686,8 @@ TokenImmuteSetting::TokenImmuteSetting(bool & error,
     Hash();
 }
 
-TokenImmuteSetting::TokenImmuteSetting(bool & error,
-                                       std::basic_streambuf<uint8_t> & stream)
+ImmuteSetting::ImmuteSetting(bool & error,
+                             std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
     if(error)
@@ -667,8 +704,8 @@ TokenImmuteSetting::TokenImmuteSetting(bool & error,
     Hash();
 }
 
-TokenImmuteSetting::TokenImmuteSetting(bool & error,
-                                       boost::property_tree::ptree const & tree)
+ImmuteSetting::ImmuteSetting(bool & error,
+                             boost::property_tree::ptree const & tree)
     : TokenRequest(error, tree)
 {
     using namespace request::fields;
@@ -694,7 +731,7 @@ TokenImmuteSetting::TokenImmuteSetting(bool & error,
     }
 }
 
-bool TokenImmuteSetting::Validate(logos::process_return & result) const
+bool ImmuteSetting::Validate(logos::process_return & result) const
 {
     if(TokenAccount::IsMutabilitySetting(setting))
     {
@@ -705,7 +742,7 @@ bool TokenImmuteSetting::Validate(logos::process_return & result) const
     return true;
 };
 
-boost::property_tree::ptree TokenImmuteSetting::SerializeJson() const
+boost::property_tree::ptree ImmuteSetting::SerializeJson() const
 {
     using namespace request::fields;
 
@@ -716,13 +753,13 @@ boost::property_tree::ptree TokenImmuteSetting::SerializeJson() const
     return tree;
 }
 
-uint64_t TokenImmuteSetting::Serialize(logos::stream & stream) const
+uint64_t ImmuteSetting::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write(stream, setting);
 }
 
-void TokenImmuteSetting::Deserialize(bool & error, logos::stream & stream)
+void ImmuteSetting::Deserialize(bool & error, logos::stream & stream)
 {
     if(error)
     {
@@ -732,7 +769,7 @@ void TokenImmuteSetting::Deserialize(bool & error, logos::stream & stream)
     error = logos::read(stream, setting);
 }
 
-void TokenImmuteSetting::DeserializeDB(bool & error, logos::stream & stream)
+void ImmuteSetting::DeserializeDB(bool & error, logos::stream & stream)
 {
     TokenRequest::DeserializeDB(error, stream);
     if(error)
@@ -743,24 +780,24 @@ void TokenImmuteSetting::DeserializeDB(bool & error, logos::stream & stream)
     Deserialize(error, stream);
 }
 
-void TokenImmuteSetting::Hash(blake2b_state & hash) const
+void ImmuteSetting::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
 
     blake2b_update(&hash, &setting, sizeof(setting));
 }
 
-uint16_t TokenImmuteSetting::WireSize() const
+uint16_t ImmuteSetting::WireSize() const
 {
     return sizeof(setting) +
            TokenRequest::WireSize();
 }
 
-bool TokenImmuteSetting::operator==(const Request & other) const
+bool ImmuteSetting::operator==(const Request & other) const
 {
     try
     {
-        auto derived = dynamic_cast<const TokenImmuteSetting &>(other);
+        auto derived = dynamic_cast<const ImmuteSetting &>(other);
 
         return Request::operator==(other) &&
                setting == derived.setting;
@@ -771,8 +808,12 @@ bool TokenImmuteSetting::operator==(const Request & other) const
     return false;
 }
 
-TokenRevoke::TokenRevoke(bool & error,
-                         const logos::mdb_val & mdbval)
+Revoke::Revoke()
+    : TokenRequest(RequestType::Revoke)
+{}
+
+Revoke::Revoke(bool & error,
+               const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
                                mdbval.size());
@@ -786,8 +827,8 @@ TokenRevoke::TokenRevoke(bool & error,
     Hash();
 }
 
-TokenRevoke::TokenRevoke(bool & error,
-                         std::basic_streambuf<uint8_t> & stream)
+Revoke::Revoke(bool & error,
+               std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
     if(error)
@@ -804,8 +845,8 @@ TokenRevoke::TokenRevoke(bool & error,
     Hash();
 }
 
-TokenRevoke::TokenRevoke(bool & error,
-                         boost::property_tree::ptree const & tree)
+Revoke::Revoke(bool & error,
+               boost::property_tree::ptree const & tree)
     : TokenRequest(error, tree)
     , transaction(error,
                   tree.get_child(request::fields::TRANSACTION,
@@ -834,27 +875,38 @@ TokenRevoke::TokenRevoke(bool & error,
     }
 }
 
-AccountAddress TokenRevoke::GetSource() const
+AccountAddress Revoke::GetSource() const
 {
-    // The source account for TokenRevoke
+    // The source account for Revoke
     // requests is atypical with respect
     // to other TokenRequests.
     //
     return source;
 }
 
-logos::AccountType TokenRevoke::GetSourceType() const
+logos::AccountType Revoke::GetSourceType() const
 {
     return logos::AccountType::LogosAccount;
 }
 
-Amount TokenRevoke::GetTokenTotal() const
+Amount Revoke::GetTokenTotal() const
 {
     return transaction.amount;
 }
 
-bool TokenRevoke::Validate(logos::process_return & result,
-                           std::shared_ptr<logos::Account> info) const
+bool Revoke::Validate(logos::process_return & result) const
+{
+    if(!ValidateTokenAmount(transaction.amount))
+    {
+        result.code = logos::process_result::invalid_token_amount;
+        return false;
+    }
+
+    return true;
+}
+
+bool Revoke::Validate(logos::process_return & result,
+                      std::shared_ptr<logos::Account> info) const
 {
     auto user_account = std::static_pointer_cast<logos::account_info>(info);
 
@@ -874,7 +926,7 @@ bool TokenRevoke::Validate(logos::process_return & result,
     return true;
 }
 
-boost::property_tree::ptree TokenRevoke::SerializeJson() const
+boost::property_tree::ptree Revoke::SerializeJson() const
 {
     using namespace request::fields;
 
@@ -886,14 +938,14 @@ boost::property_tree::ptree TokenRevoke::SerializeJson() const
     return tree;
 }
 
-uint64_t TokenRevoke::Serialize(logos::stream & stream) const
+uint64_t Revoke::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write(stream, source) +
            transaction.Serialize(stream);
 }
 
-void TokenRevoke::Deserialize(bool & error, logos::stream & stream)
+void Revoke::Deserialize(bool & error, logos::stream & stream)
 {
     if(error)
     {
@@ -909,7 +961,7 @@ void TokenRevoke::Deserialize(bool & error, logos::stream & stream)
     transaction = Transaction(error, stream);
 }
 
-void TokenRevoke::DeserializeDB(bool & error, logos::stream & stream)
+void Revoke::DeserializeDB(bool & error, logos::stream & stream)
 {
     TokenRequest::DeserializeDB(error, stream);
     if(error)
@@ -920,7 +972,7 @@ void TokenRevoke::DeserializeDB(bool & error, logos::stream & stream)
     Deserialize(error, stream);
 }
 
-void TokenRevoke::Hash(blake2b_state & hash) const
+void Revoke::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
 
@@ -928,18 +980,18 @@ void TokenRevoke::Hash(blake2b_state & hash) const
     transaction.Hash(hash);
 }
 
-uint16_t TokenRevoke::WireSize() const
+uint16_t Revoke::WireSize() const
 {
     return sizeof(source.bytes) +
            Transaction::WireSize() +
            TokenRequest::WireSize();
 }
 
-bool TokenRevoke::operator==(const Request & other) const
+bool Revoke::operator==(const Request & other) const
 {
     try
     {
-        auto derived = dynamic_cast<const TokenRevoke &>(other);
+        auto derived = dynamic_cast<const Revoke &>(other);
 
         return Request::operator==(other) &&
                source == derived.source &&
@@ -951,8 +1003,12 @@ bool TokenRevoke::operator==(const Request & other) const
     return false;
 }
 
-TokenFreeze::TokenFreeze(bool & error,
-                         const logos::mdb_val & mdbval)
+AdjustUserStatus::AdjustUserStatus()
+    : TokenRequest(RequestType::AdjustUserStatus)
+{}
+
+AdjustUserStatus::AdjustUserStatus(bool & error,
+                                   const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
                                mdbval.size());
@@ -966,8 +1022,8 @@ TokenFreeze::TokenFreeze(bool & error,
     Hash();
 }
 
-TokenFreeze::TokenFreeze(bool & error,
-                         std::basic_streambuf<uint8_t> & stream)
+AdjustUserStatus::AdjustUserStatus(bool & error,
+                                   std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
     if(error)
@@ -984,8 +1040,8 @@ TokenFreeze::TokenFreeze(bool & error,
     Hash();
 }
 
-TokenFreeze::TokenFreeze(bool & error,
-                         boost::property_tree::ptree const & tree)
+AdjustUserStatus::AdjustUserStatus(bool & error,
+                                   boost::property_tree::ptree const & tree)
     : TokenRequest(error, tree)
 {
     using namespace request::fields;
@@ -1003,7 +1059,7 @@ TokenFreeze::TokenFreeze(bool & error,
             return;
         }
 
-        action = GetFreezeAction(error, tree.get<std::string>(ACTION));
+        status = GetUserStatus(error, tree.get<std::string>(STATUS));
         if(error)
         {
             return;
@@ -1017,26 +1073,26 @@ TokenFreeze::TokenFreeze(bool & error,
     }
 }
 
-boost::property_tree::ptree TokenFreeze::SerializeJson() const
+boost::property_tree::ptree AdjustUserStatus::SerializeJson() const
 {
     using namespace request::fields;
 
     boost::property_tree::ptree tree = TokenRequest::SerializeJson();
 
     tree.put(ACCOUNT, account.to_account());
-    tree.put(ACTION, GetFreezeActionField(action));
+    tree.put(STATUS, GetUserStatusField(status));
 
     return tree;
 }
 
-uint64_t TokenFreeze::Serialize(logos::stream & stream) const
+uint64_t AdjustUserStatus::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write(stream, account) +
-           logos::write(stream, action);
+           logos::write(stream, status);
 }
 
-void TokenFreeze::Deserialize(bool & error, logos::stream & stream)
+void AdjustUserStatus::Deserialize(bool & error, logos::stream & stream)
 {
     if(error)
     {
@@ -1049,10 +1105,10 @@ void TokenFreeze::Deserialize(bool & error, logos::stream & stream)
         return;
     }
 
-    error = logos::read(stream, action);
+    error = logos::read(stream, status);
 }
 
-void TokenFreeze::DeserializeDB(bool & error, logos::stream & stream)
+void AdjustUserStatus::DeserializeDB(bool & error, logos::stream & stream)
 {
     TokenRequest::DeserializeDB(error, stream);
     if(error)
@@ -1063,30 +1119,30 @@ void TokenFreeze::DeserializeDB(bool & error, logos::stream & stream)
     Deserialize(error, stream);
 }
 
-void TokenFreeze::Hash(blake2b_state & hash) const
+void AdjustUserStatus::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
 
     account.Hash(hash);
-    blake2b_update(&hash, &action, sizeof(action));
+    blake2b_update(&hash, &status, sizeof(status));
 }
 
-uint16_t TokenFreeze::WireSize() const
+uint16_t AdjustUserStatus::WireSize() const
 {
     return sizeof(account.bytes) +
-           sizeof(action) +
+           sizeof(status) +
            TokenRequest::WireSize();
 }
 
-bool TokenFreeze::operator==(const Request & other) const
+bool AdjustUserStatus::operator==(const Request & other) const
 {
     try
     {
-        auto derived = dynamic_cast<const TokenFreeze &>(other);
+        auto derived = dynamic_cast<const AdjustUserStatus &>(other);
 
         return Request::operator==(other) &&
                account == derived.account &&
-               action == derived.action;
+               status == derived.status;
     }
     catch(...)
     {}
@@ -1094,8 +1150,12 @@ bool TokenFreeze::operator==(const Request & other) const
     return false;
 }
 
-TokenSetFee::TokenSetFee(bool & error,
-                         const logos::mdb_val & mdbval)
+AdjustFee::AdjustFee()
+    : TokenRequest(RequestType::AdjustFee)
+{}
+
+AdjustFee::AdjustFee(bool & error,
+                     const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
                                mdbval.size());
@@ -1109,8 +1169,8 @@ TokenSetFee::TokenSetFee(bool & error,
     Hash();
 }
 
-TokenSetFee::TokenSetFee(bool & error,
-                         std::basic_streambuf<uint8_t> & stream)
+AdjustFee::AdjustFee(bool & error,
+                     std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
     if(error)
@@ -1127,8 +1187,8 @@ TokenSetFee::TokenSetFee(bool & error,
     Hash();
 }
 
-TokenSetFee::TokenSetFee(bool & error,
-                         boost::property_tree::ptree const & tree)
+AdjustFee::AdjustFee(bool & error,
+                     boost::property_tree::ptree const & tree)
     : TokenRequest(error, tree)
 {
     using namespace request::fields;
@@ -1160,9 +1220,9 @@ TokenSetFee::TokenSetFee(bool & error,
     }
 }
 
-bool TokenSetFee::Validate(logos::process_return & result) const
+bool AdjustFee::Validate(logos::process_return & result) const
 {
-    if(!TokenAccount::ValidateFee(fee_type, fee_rate))
+    if(!ValidateFee(fee_type, fee_rate))
     {
         result.code = logos::process_result::invalid_fee;
         return false;
@@ -1171,7 +1231,7 @@ bool TokenSetFee::Validate(logos::process_return & result) const
     return true;
 }
 
-boost::property_tree::ptree TokenSetFee::SerializeJson() const
+boost::property_tree::ptree AdjustFee::SerializeJson() const
 {
     using namespace request::fields;
 
@@ -1183,14 +1243,14 @@ boost::property_tree::ptree TokenSetFee::SerializeJson() const
     return tree;
 }
 
-uint64_t TokenSetFee::Serialize(logos::stream & stream) const
+uint64_t AdjustFee::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write(stream, fee_type) +
            logos::write(stream, fee_rate.bytes);
 }
 
-void TokenSetFee::Deserialize(bool & error, logos::stream & stream)
+void AdjustFee::Deserialize(bool & error, logos::stream & stream)
 {
     if(error)
     {
@@ -1206,7 +1266,7 @@ void TokenSetFee::Deserialize(bool & error, logos::stream & stream)
     error = logos::read(stream, fee_rate);
 }
 
-void TokenSetFee::DeserializeDB(bool & error, logos::stream & stream)
+void AdjustFee::DeserializeDB(bool & error, logos::stream & stream)
 {
     TokenRequest::DeserializeDB(error, stream);
     if(error)
@@ -1217,7 +1277,7 @@ void TokenSetFee::DeserializeDB(bool & error, logos::stream & stream)
     Deserialize(error, stream);
 }
 
-void TokenSetFee::Hash(blake2b_state & hash) const
+void AdjustFee::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
 
@@ -1225,18 +1285,18 @@ void TokenSetFee::Hash(blake2b_state & hash) const
     fee_rate.Hash(hash);
 }
 
-uint16_t TokenSetFee::WireSize() const
+uint16_t AdjustFee::WireSize() const
 {
     return sizeof(fee_type) +
            sizeof(fee_rate.bytes) +
            TokenRequest::WireSize();
 }
 
-bool TokenSetFee::operator==(const Request & other) const
+bool AdjustFee::operator==(const Request & other) const
 {
     try
     {
-        auto derived = dynamic_cast<const TokenSetFee &>(other);
+        auto derived = dynamic_cast<const AdjustFee &>(other);
 
         return Request::operator==(other) &&
                fee_type == derived.fee_type &&
@@ -1248,8 +1308,12 @@ bool TokenSetFee::operator==(const Request & other) const
     return false;
 }
 
-TokenWhitelist::TokenWhitelist(bool & error,
-                               const logos::mdb_val & mdbval)
+UpdateIssuerInfo::UpdateIssuerInfo()
+    : TokenRequest(RequestType::UpdateIssuerInfo)
+{}
+
+UpdateIssuerInfo::UpdateIssuerInfo(bool & error,
+                                   const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
                                mdbval.size());
@@ -1263,8 +1327,8 @@ TokenWhitelist::TokenWhitelist(bool & error,
     Hash();
 }
 
-TokenWhitelist::TokenWhitelist(bool & error,
-                               std::basic_streambuf<uint8_t> & stream)
+UpdateIssuerInfo::UpdateIssuerInfo(bool & error,
+                                   std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
     if(error)
@@ -1281,133 +1345,8 @@ TokenWhitelist::TokenWhitelist(bool & error,
     Hash();
 }
 
-TokenWhitelist::TokenWhitelist(bool & error,
-                               boost::property_tree::ptree const & tree)
-    : TokenRequest(error, tree)
-{
-    using namespace request::fields;
-
-    if(error)
-    {
-        return;
-    }
-
-    try
-    {
-        error = account.decode_account(tree.get<std::string>(ACCOUNT));
-        if(error)
-        {
-            return;
-        }
-
-        Hash();
-    }
-    catch(...)
-    {
-        error = true;
-    }
-}
-
-boost::property_tree::ptree TokenWhitelist::SerializeJson() const
-{
-    using namespace request::fields;
-
-    boost::property_tree::ptree tree = TokenRequest::SerializeJson();
-
-    tree.put(ACCOUNT, account.to_account());
-
-    return tree;
-}
-
-uint64_t TokenWhitelist::Serialize(logos::stream & stream) const
-{
-    return TokenRequest::Serialize(stream) +
-           logos::write(stream, account);
-}
-
-void TokenWhitelist::Deserialize(bool & error, logos::stream & stream)
-{
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, account);
-}
-
-void TokenWhitelist::DeserializeDB(bool & error, logos::stream & stream)
-{
-    TokenRequest::DeserializeDB(error, stream);
-    if(error)
-    {
-        return;
-    }
-
-    Deserialize(error, stream);
-}
-
-void TokenWhitelist::Hash(blake2b_state & hash) const
-{
-    TokenRequest::Hash(hash);
-    account.Hash(hash);
-}
-
-uint16_t TokenWhitelist::WireSize() const
-{
-    return sizeof(account.bytes) +
-           TokenRequest::WireSize();
-}
-
-bool TokenWhitelist::operator==(const Request & other) const
-{
-    try
-    {
-        auto derived = dynamic_cast<const TokenWhitelist &>(other);
-
-        return Request::operator==(other) &&
-               account == derived.account;
-    }
-    catch(...)
-    {}
-
-    return false;
-}
-
-TokenIssuerInfo::TokenIssuerInfo(bool & error,
-                                 const logos::mdb_val & mdbval)
-{
-    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
-                               mdbval.size());
-
-    DeserializeDB(error, stream);
-    if(error)
-    {
-        return;
-    }
-
-    Hash();
-}
-
-TokenIssuerInfo::TokenIssuerInfo(bool & error,
-                                 std::basic_streambuf<uint8_t> & stream)
-    : TokenRequest(error, stream)
-{
-    if(error)
-    {
-        return;
-    }
-
-    Deserialize(error, stream);
-    if(error)
-    {
-        return;
-    }
-
-    Hash();
-}
-
-TokenIssuerInfo::TokenIssuerInfo(bool & error,
-                                 boost::property_tree::ptree const & tree)
+UpdateIssuerInfo::UpdateIssuerInfo(bool & error,
+                                   boost::property_tree::ptree const & tree)
     : TokenRequest(error, tree)
 {
     using namespace request::fields;
@@ -1428,7 +1367,18 @@ TokenIssuerInfo::TokenIssuerInfo(bool & error,
     }
 }
 
-boost::property_tree::ptree TokenIssuerInfo::SerializeJson() const
+bool UpdateIssuerInfo::Validate(logos::process_return & result) const
+{
+    if(new_info.size() > Issuance::INFO_MAX_SIZE)
+    {
+        result.code = logos::process_result::invalid_issuer_info;
+        return false;
+    }
+
+    return true;
+};
+
+boost::property_tree::ptree UpdateIssuerInfo::SerializeJson() const
 {
     using namespace request::fields;
 
@@ -1439,13 +1389,13 @@ boost::property_tree::ptree TokenIssuerInfo::SerializeJson() const
     return tree;
 }
 
-uint64_t TokenIssuerInfo::Serialize(logos::stream & stream) const
+uint64_t UpdateIssuerInfo::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write<uint16_t>(stream, new_info);
 }
 
-void TokenIssuerInfo::Deserialize(bool & error, logos::stream & stream)
+void UpdateIssuerInfo::Deserialize(bool & error, logos::stream & stream)
 {
     if(error)
     {
@@ -1455,7 +1405,7 @@ void TokenIssuerInfo::Deserialize(bool & error, logos::stream & stream)
     error = logos::read<uint16_t>(stream, new_info);
 }
 
-void TokenIssuerInfo::DeserializeDB(bool & error, logos::stream & stream)
+void UpdateIssuerInfo::DeserializeDB(bool & error, logos::stream & stream)
 {
     TokenRequest::DeserializeDB(error, stream);
     if(error)
@@ -1466,23 +1416,23 @@ void TokenIssuerInfo::DeserializeDB(bool & error, logos::stream & stream)
     Deserialize(error, stream);
 }
 
-void TokenIssuerInfo::Hash(blake2b_state & hash) const
+void UpdateIssuerInfo::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
     blake2b_update(&hash, new_info.data(), new_info.size());
 }
 
-uint16_t TokenIssuerInfo::WireSize() const
+uint16_t UpdateIssuerInfo::WireSize() const
 {
     return StringWireSize<InfoSizeT>(new_info) +
            TokenRequest::WireSize();
 }
 
-bool TokenIssuerInfo::operator==(const Request & other) const
+bool UpdateIssuerInfo::operator==(const Request & other) const
 {
     try
     {
-        auto derived = dynamic_cast<const TokenIssuerInfo &>(other);
+        auto derived = dynamic_cast<const UpdateIssuerInfo &>(other);
 
         return Request::operator==(other) &&
                new_info == derived.new_info;
@@ -1493,8 +1443,12 @@ bool TokenIssuerInfo::operator==(const Request & other) const
     return false;
 }
 
-TokenController::TokenController(bool & error,
-                                 const logos::mdb_val & mdbval)
+UpdateController::UpdateController()
+    : TokenRequest(RequestType::UpdateController)
+{}
+
+UpdateController::UpdateController(bool & error,
+                                   const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
                                mdbval.size());
@@ -1508,8 +1462,8 @@ TokenController::TokenController(bool & error,
     Hash();
 }
 
-TokenController::TokenController(bool & error,
-                                 std::basic_streambuf<uint8_t> & stream)
+UpdateController::UpdateController(bool & error,
+                                   std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
     if(error)
@@ -1526,8 +1480,8 @@ TokenController::TokenController(bool & error,
     Hash();
 }
 
-TokenController::TokenController(bool & error,
-                                 boost::property_tree::ptree const & tree)
+UpdateController::UpdateController(bool & error,
+                                   boost::property_tree::ptree const & tree)
     : TokenRequest(error, tree)
 {
     using namespace request::fields;
@@ -1559,19 +1513,23 @@ TokenController::TokenController(bool & error,
     }
 }
 
-bool TokenController::Validate(logos::process_return & result) const
+bool UpdateController::Validate(logos::process_return & result) const
 {
-    if(action == ControllerAction::Unknown)
+    switch(action)
     {
-        result.code = logos::process_result::invalid_controller_action;
-        return false;
+        case ControllerAction::Add:
+        case ControllerAction::Remove:
+            break;
+        default:
+            result.code = logos::process_result::invalid_controller_action;
+            return false;
     }
 
     return true;
 };
 
-bool TokenController::Validate(logos::process_return & result,
-                               std::shared_ptr<logos::Account> info) const
+bool UpdateController::Validate(logos::process_return & result,
+                                std::shared_ptr<logos::Account> info) const
 {
     auto token_account = std::static_pointer_cast<TokenAccount>(info);
 
@@ -1608,7 +1566,7 @@ bool TokenController::Validate(logos::process_return & result,
     return true;
 }
 
-boost::property_tree::ptree TokenController::SerializeJson() const
+boost::property_tree::ptree UpdateController::SerializeJson() const
 {
     using namespace request::fields;
 
@@ -1620,14 +1578,14 @@ boost::property_tree::ptree TokenController::SerializeJson() const
     return tree;
 }
 
-uint64_t TokenController::Serialize(logos::stream & stream) const
+uint64_t UpdateController::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write(stream, action) +
            controller.Serialize(stream);
 }
 
-void TokenController::Deserialize(bool & error, logos::stream & stream)
+void UpdateController::Deserialize(bool & error, logos::stream & stream)
 {
     error = logos::read(stream, action);
     if(error)
@@ -1638,7 +1596,7 @@ void TokenController::Deserialize(bool & error, logos::stream & stream)
     controller = ControllerInfo(error, stream);
 }
 
-void TokenController::DeserializeDB(bool & error, logos::stream & stream)
+void UpdateController::DeserializeDB(bool & error, logos::stream & stream)
 {
     TokenRequest::DeserializeDB(error, stream);
     if(error)
@@ -1649,7 +1607,7 @@ void TokenController::DeserializeDB(bool & error, logos::stream & stream)
     Deserialize(error, stream);
 }
 
-void TokenController::Hash(blake2b_state & hash) const
+void UpdateController::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
 
@@ -1657,18 +1615,18 @@ void TokenController::Hash(blake2b_state & hash) const
     controller.Hash(hash);
 }
 
-uint16_t TokenController::WireSize() const
+uint16_t UpdateController::WireSize() const
 {
     return sizeof(action) +
            ControllerInfo::WireSize() +
            TokenRequest::WireSize();
 }
 
-bool TokenController::operator==(const Request & other) const
+bool UpdateController::operator==(const Request & other) const
 {
     try
     {
-        auto derived = dynamic_cast<const TokenController &>(other);
+        auto derived = dynamic_cast<const UpdateController &>(other);
 
         return Request::operator==(other) &&
                action == derived.action &&
@@ -1680,8 +1638,12 @@ bool TokenController::operator==(const Request & other) const
     return false;
 }
 
-TokenBurn::TokenBurn(bool & error,
-                     const logos::mdb_val & mdbval)
+Burn::Burn()
+    : TokenRequest(RequestType::Burn)
+{}
+
+Burn::Burn(bool & error,
+           const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
                                mdbval.size());
@@ -1695,8 +1657,8 @@ TokenBurn::TokenBurn(bool & error,
     Hash();
 }
 
-TokenBurn::TokenBurn(bool & error,
-                     std::basic_streambuf<uint8_t> & stream)
+Burn::Burn(bool & error,
+           std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
     if(error)
@@ -1713,8 +1675,8 @@ TokenBurn::TokenBurn(bool & error,
     Hash();
 }
 
-TokenBurn::TokenBurn(bool & error,
-                     boost::property_tree::ptree const & tree)
+Burn::Burn(bool & error,
+           boost::property_tree::ptree const & tree)
     : TokenRequest(error, tree)
 {
     using namespace request::fields;
@@ -1740,18 +1702,29 @@ TokenBurn::TokenBurn(bool & error,
     }
 }
 
-Amount TokenBurn::GetTokenTotal() const
+Amount Burn::GetTokenTotal() const
 {
     return amount;
 }
 
-logos::AccountType TokenBurn::GetSourceType() const
+logos::AccountType Burn::GetSourceType() const
 {
     return logos::AccountType::LogosAccount;
 }
 
-bool TokenBurn::Validate(logos::process_return & result,
-                         std::shared_ptr<logos::Account> info) const
+bool Burn::Validate(logos::process_return & result) const
+{
+    if(!ValidateTokenAmount(amount))
+    {
+        result.code = logos::process_result::invalid_token_amount;
+        return false;
+    }
+
+    return true;
+}
+
+bool Burn::Validate(logos::process_return & result,
+                    std::shared_ptr<logos::Account> info) const
 {
     auto token_account = std::static_pointer_cast<TokenAccount>(info);
 
@@ -1764,7 +1737,7 @@ bool TokenBurn::Validate(logos::process_return & result,
     return true;
 }
 
-boost::property_tree::ptree TokenBurn::SerializeJson() const
+boost::property_tree::ptree Burn::SerializeJson() const
 {
     using namespace request::fields;
 
@@ -1775,13 +1748,13 @@ boost::property_tree::ptree TokenBurn::SerializeJson() const
     return tree;
 }
 
-uint64_t TokenBurn::Serialize(logos::stream & stream) const
+uint64_t Burn::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write(stream, amount);
 }
 
-void TokenBurn::Deserialize(bool & error, logos::stream & stream)
+void Burn::Deserialize(bool & error, logos::stream & stream)
 {
     if(error)
     {
@@ -1791,7 +1764,7 @@ void TokenBurn::Deserialize(bool & error, logos::stream & stream)
     error = logos::read(stream, amount);
 }
 
-void TokenBurn::DeserializeDB(bool & error, logos::stream & stream)
+void Burn::DeserializeDB(bool & error, logos::stream & stream)
 {
     TokenRequest::DeserializeDB(error, stream);
     if(error)
@@ -1802,24 +1775,24 @@ void TokenBurn::DeserializeDB(bool & error, logos::stream & stream)
     Deserialize(error, stream);
 }
 
-void TokenBurn::Hash(blake2b_state & hash) const
+void Burn::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
 
     amount.Hash(hash);
 }
 
-uint16_t TokenBurn::WireSize() const
+uint16_t Burn::WireSize() const
 {
     return sizeof(amount) +
            TokenRequest::WireSize();
 }
 
-bool TokenBurn::operator==(const Request & other) const
+bool Burn::operator==(const Request & other) const
 {
     try
     {
-        auto derived = dynamic_cast<const TokenBurn &>(other);
+        auto derived = dynamic_cast<const Burn &>(other);
 
         return Request::operator==(other) &&
                amount == derived.amount;
@@ -1830,8 +1803,12 @@ bool TokenBurn::operator==(const Request & other) const
     return false;
 }
 
-TokenAccountSend::TokenAccountSend(bool & error,
-                                   const logos::mdb_val & mdbval)
+Distribute::Distribute()
+    : TokenRequest(RequestType::Distribute)
+{}
+
+Distribute::Distribute(bool & error,
+                       const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
                                mdbval.size());
@@ -1845,8 +1822,8 @@ TokenAccountSend::TokenAccountSend(bool & error,
     Hash();
 }
 
-TokenAccountSend::TokenAccountSend(bool & error,
-                                   std::basic_streambuf<uint8_t> & stream)
+Distribute::Distribute(bool & error,
+                       std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
     if(error)
@@ -1863,8 +1840,8 @@ TokenAccountSend::TokenAccountSend(bool & error,
     Hash();
 }
 
-TokenAccountSend::TokenAccountSend(bool & error,
-                                   boost::property_tree::ptree const & tree)
+Distribute::Distribute(bool & error,
+                       boost::property_tree::ptree const & tree)
     : TokenRequest(error, tree)
     , transaction(error,
                   tree.get_child(request::fields::TRANSACTION,
@@ -1879,18 +1856,29 @@ TokenAccountSend::TokenAccountSend(bool & error,
 }
 
 
-Amount TokenAccountSend::GetTokenTotal() const
+Amount Distribute::GetTokenTotal() const
 {
     return transaction.amount;
 }
 
-logos::AccountType TokenAccountSend::GetSourceType() const
+logos::AccountType Distribute::GetSourceType() const
 {
     return logos::AccountType::TokenAccount;
 }
 
-bool TokenAccountSend::Validate(logos::process_return & result,
-                                std::shared_ptr<logos::Account> info) const
+bool Distribute::Validate(logos::process_return & result) const
+{
+    if(!ValidateTokenAmount(transaction.amount))
+    {
+        result.code = logos::process_result::invalid_token_amount;
+        return false;
+    }
+
+    return true;
+}
+
+bool Distribute::Validate(logos::process_return & result,
+                          std::shared_ptr<logos::Account> info) const
 {
     auto token_account = std::static_pointer_cast<TokenAccount>(info);
 
@@ -1903,7 +1891,7 @@ bool TokenAccountSend::Validate(logos::process_return & result,
     return true;
 }
 
-boost::property_tree::ptree TokenAccountSend::SerializeJson() const
+boost::property_tree::ptree Distribute::SerializeJson() const
 {
     using namespace request::fields;
 
@@ -1914,18 +1902,18 @@ boost::property_tree::ptree TokenAccountSend::SerializeJson() const
     return tree;
 }
 
-uint64_t TokenAccountSend::Serialize(logos::stream & stream) const
+uint64_t Distribute::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            transaction.Serialize(stream);
 }
 
-void TokenAccountSend::Deserialize(bool & error, logos::stream & stream)
+void Distribute::Deserialize(bool & error, logos::stream & stream)
 {
     transaction = Transaction(error, stream);
 }
 
-void TokenAccountSend::DeserializeDB(bool & error, logos::stream & stream)
+void Distribute::DeserializeDB(bool & error, logos::stream & stream)
 {
     TokenRequest::DeserializeDB(error, stream);
     if(error)
@@ -1936,23 +1924,23 @@ void TokenAccountSend::DeserializeDB(bool & error, logos::stream & stream)
     Deserialize(error, stream);
 }
 
-void TokenAccountSend::Hash(blake2b_state & hash) const
+void Distribute::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
     transaction.Hash(hash);
 }
 
-uint16_t TokenAccountSend::WireSize() const
+uint16_t Distribute::WireSize() const
 {
     return Transaction::WireSize() +
            TokenRequest::WireSize();
 }
 
-bool TokenAccountSend::operator==(const Request & other) const
+bool Distribute::operator==(const Request & other) const
 {
     try
     {
-        auto derived = dynamic_cast<const TokenAccountSend &>(other);
+        auto derived = dynamic_cast<const Distribute &>(other);
 
         return Request::operator==(other) &&
                transaction == derived.transaction;
@@ -1963,8 +1951,12 @@ bool TokenAccountSend::operator==(const Request & other) const
     return false;
 }
 
-TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
-                                                 const logos::mdb_val & mdbval)
+WithdrawFee::WithdrawFee()
+    : TokenRequest(RequestType::WithdrawFee)
+{}
+
+WithdrawFee::WithdrawFee(bool & error,
+                         const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
                                mdbval.size());
@@ -1978,8 +1970,8 @@ TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
     Hash();
 }
 
-TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
-                                                 std::basic_streambuf<uint8_t> & stream)
+WithdrawFee::WithdrawFee(bool & error,
+                         std::basic_streambuf<uint8_t> & stream)
     : TokenRequest(error, stream)
 {
     if(error)
@@ -1996,8 +1988,8 @@ TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
     Hash();
 }
 
-TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
-                                                 boost::property_tree::ptree const & tree)
+WithdrawFee::WithdrawFee(bool & error,
+                         boost::property_tree::ptree const & tree)
     : TokenRequest(error, tree)
     , transaction(error,
                   tree.get_child(request::fields::TRANSACTION,
@@ -2011,18 +2003,29 @@ TokenAccountWithdrawFee::TokenAccountWithdrawFee(bool & error,
     Hash();
 }
 
-Amount TokenAccountWithdrawFee::GetTokenTotal() const
+Amount WithdrawFee::GetTokenTotal() const
 {
     return transaction.amount;
 }
 
-logos::AccountType TokenAccountWithdrawFee::GetSourceType() const
+logos::AccountType WithdrawFee::GetSourceType() const
 {
     return logos::AccountType::TokenAccount;
 }
 
-bool TokenAccountWithdrawFee::Validate(logos::process_return & result,
-                                       std::shared_ptr<logos::Account> info) const
+bool WithdrawFee::Validate(logos::process_return & result) const
+{
+    if(!ValidateTokenAmount(transaction.amount))
+    {
+        result.code = logos::process_result::invalid_token_amount;
+        return false;
+    }
+
+    return true;
+}
+
+bool WithdrawFee::Validate(logos::process_return & result,
+                           std::shared_ptr<logos::Account> info) const
 {
     auto token_account = std::static_pointer_cast<TokenAccount>(info);
 
@@ -2035,7 +2038,7 @@ bool TokenAccountWithdrawFee::Validate(logos::process_return & result,
     return true;
 }
 
-boost::property_tree::ptree TokenAccountWithdrawFee::SerializeJson() const
+boost::property_tree::ptree WithdrawFee::SerializeJson() const
 {
     using namespace request::fields;
 
@@ -2046,18 +2049,18 @@ boost::property_tree::ptree TokenAccountWithdrawFee::SerializeJson() const
     return tree;
 }
 
-uint64_t TokenAccountWithdrawFee::Serialize(logos::stream & stream) const
+uint64_t WithdrawFee::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            transaction.Serialize(stream);
 }
 
-void TokenAccountWithdrawFee::Deserialize(bool & error, logos::stream & stream)
+void WithdrawFee::Deserialize(bool & error, logos::stream & stream)
 {
     transaction = Transaction(error, stream);
 }
 
-void TokenAccountWithdrawFee::DeserializeDB(bool & error, logos::stream & stream)
+void WithdrawFee::DeserializeDB(bool & error, logos::stream & stream)
 {
     TokenRequest::DeserializeDB(error, stream);
     if(error)
@@ -2068,23 +2071,23 @@ void TokenAccountWithdrawFee::DeserializeDB(bool & error, logos::stream & stream
     Deserialize(error, stream);
 }
 
-void TokenAccountWithdrawFee::Hash(blake2b_state & hash) const
+void WithdrawFee::Hash(blake2b_state & hash) const
 {
     TokenRequest::Hash(hash);
     transaction.Hash(hash);
 }
 
-uint16_t TokenAccountWithdrawFee::WireSize() const
+uint16_t WithdrawFee::WireSize() const
 {
     return Transaction::WireSize() +
            TokenRequest::WireSize();
 }
 
-bool TokenAccountWithdrawFee::operator==(const Request & other) const
+bool WithdrawFee::operator==(const Request & other) const
 {
     try
     {
-        auto derived = dynamic_cast<const TokenAccountWithdrawFee &>(other);
+        auto derived = dynamic_cast<const WithdrawFee &>(other);
 
         return Request::operator==(other) &&
                transaction == derived.transaction;
@@ -2094,6 +2097,10 @@ bool TokenAccountWithdrawFee::operator==(const Request & other) const
 
     return false;
 }
+
+TokenSend::TokenSend()
+    : TokenRequest(RequestType::TokenSend)
+{}
 
 TokenSend::TokenSend(bool & error,
                      const logos::mdb_val & mdbval)
@@ -2182,6 +2189,20 @@ Amount TokenSend::GetTokenTotal() const
 logos::AccountType TokenSend::GetSourceType() const
 {
     return logos::AccountType::LogosAccount;
+}
+
+bool TokenSend::Validate(logos::process_return & result) const
+{
+    for(auto & transaction : transactions)
+    {
+        if(!ValidateTokenAmount(transaction.amount))
+        {
+            result.code = logos::process_result::invalid_token_amount;
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool TokenSend::Validate(logos::process_return & result,

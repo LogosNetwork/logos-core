@@ -67,7 +67,7 @@ endif (WIN32)
 if (WIN32)
 	set (PLATFORM_CXX_FLAGS "/bigobj")
 else (WIN32)
-	set (PLATFORM_CXX_FLAGS "-std=c++14")
+	set (PLATFORM_CXX_FLAGS "-std=c++14 -Werror")
 endif (WIN32)
 
 if (WIN32)
@@ -385,16 +385,14 @@ add_library (node
 	logos/node/stats.cpp
 	logos/node/working.hpp
 	logos/node/xorshift.hpp
-	logos/request/change.cpp
-	logos/request/request.cpp
-	logos/request/send.cpp
-	logos/request/utility.cpp
+    logos/request/requests.cpp
+    logos/request/utility.cpp
 	logos/request/utility.cpp
 	logos/token/account.cpp
 	logos/token/common.cpp
 	logos/token/entry.cpp
 	logos/token/requests.cpp
-	logos/token/util.cpp
+    logos/token/utility.cpp
 	logos/tx_acceptor/tx_acceptor.cpp
 	logos/tx_acceptor/tx_acceptor_channel.cpp
 	logos/tx_acceptor/tx_message_header.cpp

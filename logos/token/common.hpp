@@ -2,7 +2,7 @@
 
 #include <logos/consensus/messages/byte_arrays.hpp>
 #include <logos/request/transaction.hpp>
-#include <logos/request/request.hpp>
+#include <logos/request/requests.hpp>
 #include <logos/lib/utility.hpp>
 #include <logos/common.hpp>
 
@@ -11,8 +11,8 @@
 //       setting.
 enum class TokenSetting : uint8_t
 {
-    AddTokens       = 0,
-    ModifyAddTokens = 1,
+    Issuance        = 0,
+    ModifyIssuance  = 1,
     Revoke          = 2,
     ModifyRevoke    = 3,
     Freeze          = 4,
@@ -27,14 +27,14 @@ enum class TokenSetting : uint8_t
 
 enum class SettingValue : uint8_t
 {
-    Enabled  = 0,
-    Disabled = 1
+    Disabled = 0,
+    Enabled  = 1
 };
 
 enum class PrivilegeValue : uint8_t
 {
-    Enabled  = 0,
-    Disabled = 1
+    Disabled = 0,
+    Enabled  = 1
 };
 
 enum class TokenFeeType : uint8_t
@@ -51,47 +51,55 @@ enum class ControllerAction : uint8_t
     Unknown = 2
 };
 
-enum class FreezeAction : uint8_t
+enum class UserStatus : uint8_t
 {
-    Freeze   = 0,
-    Unfreeze = 1,
-    Unknown  = 2
+    Frozen         = 0,
+    Unfrozen       = 1,
+    Whitelisted    = 2,
+    NotWhitelisted = 3,
+    Unknown        = 4
 };
 
 enum class ControllerPrivilege : uint8_t
 {
     // Privileges for modifying
     // token account settings.
-    ChangeAddTokens          = 0,
-    ChangeModifyAddTokens    = 1,
-    ChangeRevoke             = 2,
-    ChangeModifyRevoke       = 3,
-    ChangeFreeze             = 4,
-    ChangeModifyFreeze       = 5,
-    ChangeAdjustFee          = 6,
-    ChangeModifyAdjustFee    = 7,
-    ChangeWhitelist          = 8,
-    ChangeModifyWhitelist    = 9,
+    ChangeIssuance        = 0,
+    ChangeModifyIssuance  = 1,
+    ChangeRevoke          = 2,
+    ChangeModifyRevoke    = 3,
+    ChangeFreeze          = 4,
+    ChangeModifyFreeze    = 5,
+    ChangeAdjustFee       = 6,
+    ChangeModifyAdjustFee = 7,
+    ChangeWhitelist       = 8,
+    ChangeModifyWhitelist = 9,
 
     // Privileges for performing
     // token-related actions in
     // the system.
-    PromoteController        = 10,
-    AddTokens                = 11,
-    Revoke                   = 12,
-    Freeze                   = 13,
-    AdjustFee                = 14,
-    Whitelist                = 15,
-    UpdateIssuerInfo         = 16,
-    Burn                     = 17,
-    Distribute               = 18,
-    WithdrawFee              = 19,
+    Issuance              = 10,
+    Revoke                = 11,
+    Freeze                = 12,
+    AdjustFee             = 13,
+    Whitelist             = 14,
+    UpdateIssuerInfo      = 15,
+    UpdateController      = 16,
+    Burn                  = 17,
+    Distribute            = 18,
+    WithdrawFee           = 19,
 
-    Unknown                  = 20
+    Unknown               = 20
 };
 
-const size_t TOKEN_SETTINGS_COUNT       = 10;
-const size_t CONTROLLER_PRIVILEGE_COUNT = 20;
+// Larger than necessary in anticipation of
+// values added for additional capabilities
+// in the future.
+const size_t TOKEN_SETTINGS_COUNT       = 32;
+const size_t CONTROLLER_PRIVILEGE_COUNT = 32;
+
+// The smallest denomination for token amounts.
+const logos::uint128_t TOKEN_RAW = 10000;
 
 struct TokenRequest : Request
 {
@@ -100,6 +108,8 @@ struct TokenRequest : Request
 
     TokenRequest() = default;
 
+    TokenRequest(RequestType type);
+
     TokenRequest(bool & error,
                  std::basic_streambuf<uint8_t> & stream);
 
@@ -107,6 +117,8 @@ struct TokenRequest : Request
                  boost::property_tree::ptree const & tree);
 
     bool Validate(logos::process_return & result) const override;
+    bool ValidateFee(TokenFeeType fee_type, Amount fee_rate) const;
+    bool ValidateTokenAmount(const Amount & amount, bool non_zero = true) const;
 
     logos::AccountType GetAccountType() const override;
     logos::AccountType GetSourceType() const override;
@@ -123,10 +135,10 @@ struct TokenRequest : Request
 
     uint16_t WireSize() const override;
 
-   logos::block_hash token_id;
+    BlockHash token_id;
 };
 
-class TokenImmuteSetting;
+struct AdjustUserStatus;
 
 struct ControllerInfo
 {
@@ -154,9 +166,10 @@ struct ControllerInfo
     static uint16_t WireSize();
 
     bool IsAuthorized(std::shared_ptr<const Request> request) const;
+    bool IsAuthorized(UserStatus status) const;
     bool IsAuthorized(TokenSetting setting) const;
 
-    bool operator== (const ControllerInfo & other) const;
+    bool operator==(const ControllerInfo & other) const;
 
     AccountAddress account;
     Privileges     privileges;

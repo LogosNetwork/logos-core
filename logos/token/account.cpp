@@ -8,7 +8,7 @@ TokenAccount::TokenAccount()
     : logos::Account(logos::AccountType::TokenAccount)
 {}
 
-TokenAccount::TokenAccount(const TokenIssuance & issuance)
+TokenAccount::TokenAccount(const Issuance & issuance)
     : logos::Account(logos::AccountType::TokenAccount)
     , total_supply(issuance.total_supply)
     , token_balance(issuance.total_supply)
@@ -313,7 +313,13 @@ bool TokenAccount::FeeSufficient(Amount token_total, Amount token_fee) const
         case TokenFeeType::Percentage:
         {
             const Amount DENOM = 100;
+
             min_fee = Amount((fee_rate.number() / DENOM.number()) * token_total.number());
+
+            // Round down to the minimum token
+            // denomination.
+            min_fee -= {min_fee.number() % TOKEN_RAW};
+
             break;
         }
         case TokenFeeType::Unknown:
@@ -361,36 +367,33 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
     {
         // TODO: N/A
         case RequestType::Send:
-        case RequestType::ChangeRep:
-        case RequestType::IssueTokens:
+        case RequestType::Change:
+        case RequestType::Issuance:
             break;
-        case RequestType::IssueAdtlTokens:
-            result = settings[size_t(TokenSetting::AddTokens)];
+        case RequestType::IssueAdditional:
+            result = settings[size_t(TokenSetting::Issuance)];
             break;
-        case RequestType::ChangeTokenSetting:
-            result = IsAllowed(static_pointer_cast<const TokenImmuteSetting>(request));
+        case RequestType::ChangeSetting:
+            result = IsAllowed(static_pointer_cast<const ChangeSetting>(request));
             break;
-        case RequestType::ImmuteTokenSetting:
-            result = IsAllowed(static_pointer_cast<const TokenImmuteSetting>(request));
+        case RequestType::ImmuteSetting:
+            result = !IsMutabilitySetting(static_pointer_cast<const ImmuteSetting>(request)->setting);
             break;
-        case RequestType::RevokeTokens:
+        case RequestType::Revoke:
             result = settings[size_t(TokenSetting::Revoke)];
             break;
-        case RequestType::FreezeTokens:
-            result = settings[size_t(TokenSetting::Freeze)];
+        case RequestType::AdjustUserStatus:
+            result = IsAllowed(static_pointer_cast<const AdjustUserStatus>(request)->status);
             break;
-        case RequestType::SetTokenFee:
+        case RequestType::AdjustFee:
             result = settings[size_t(TokenSetting::AdjustFee)];
-            break;
-        case RequestType::UpdateWhitelist:
-            result = settings[size_t(TokenSetting::Whitelist)];
             break;
         case RequestType::UpdateIssuerInfo:
         case RequestType::UpdateController:
-        case RequestType::BurnTokens:
-        case RequestType::DistributeTokens:
+        case RequestType::Burn:
+        case RequestType::Distribute:
         case RequestType::WithdrawFee:
-        case RequestType::SendTokens:
+        case RequestType::TokenSend:
             result = true;
             break;
         case RequestType::Unknown:
@@ -401,58 +404,38 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
     return result;
 }
 
-bool TokenAccount::IsAllowed(std::shared_ptr<const TokenImmuteSetting> immute) const
+bool TokenAccount::IsAllowed(UserStatus status) const
 {
     bool result = false;
 
-    switch(immute->setting)
+    switch(status)
     {
-        case TokenSetting::AddTokens:
-            result = settings[size_t(TokenSetting::ModifyAddTokens)];
+        case UserStatus::Frozen:
+        case UserStatus::Unfrozen:
+            result = settings[size_t(TokenSetting::Freeze)];
             break;
-
-        // You can't immute mutability
-        // settings.
-        case TokenSetting::ModifyAddTokens:
+        case UserStatus::Whitelisted:
+        case UserStatus::NotWhitelisted:
+            result = settings[size_t(TokenSetting::Whitelist)];
             break;
-        case TokenSetting::Revoke:
-            result = settings[size_t(TokenSetting::ModifyRevoke)];
-            break;
-        case TokenSetting::ModifyRevoke:
-            break;
-        case TokenSetting::Freeze:
-            result = settings[size_t(TokenSetting::ModifyFreeze)];
-            break;
-        case TokenSetting::ModifyFreeze:
-            break;
-        case TokenSetting::AdjustFee:
-            result = settings[size_t(TokenSetting::ModifyAdjustFee)];
-            break;
-        case TokenSetting::ModifyAdjustFee:
-            break;
-        case TokenSetting::Whitelist:
-            result = settings[size_t(TokenSetting::ModifyWhitelist)];
-            break;
-        case TokenSetting::ModifyWhitelist:
-            break;
-        case TokenSetting::Unknown:
+        default:
             break;
     }
 
     return result;
 }
 
-bool TokenAccount::IsAllowed(std::shared_ptr<const TokenChangeSetting> change) const
+bool TokenAccount::IsAllowed(std::shared_ptr<const ChangeSetting> change) const
 {
     bool result = false;
 
     switch(change->setting)
     {
-        case TokenSetting::AddTokens:
-            result = settings[size_t(TokenSetting::ModifyAddTokens)];
+        case TokenSetting::Issuance:
+            result = settings[size_t(TokenSetting::ModifyIssuance)];
             break;
-        case TokenSetting::ModifyAddTokens:
-            result = settings[size_t(TokenSetting::ModifyAddTokens)] or
+        case TokenSetting::ModifyIssuance:
+            result = settings[size_t(TokenSetting::ModifyIssuance)] or
                      change->value == SettingValue::Disabled;
             break;
         case TokenSetting::Revoke:
@@ -527,26 +510,4 @@ TokenSetting TokenAccount::GetMutabilitySetting(TokenSetting setting)
     // that is greater by 1.
     //
     return static_cast<TokenSetting>(static_cast<EnumType>(setting) + 1);
-}
-
-bool TokenAccount::ValidateFee(TokenFeeType fee_type, Amount fee_rate)
-{
-    auto result = false;
-
-    switch(fee_type)
-    {
-        case TokenFeeType::Percentage:
-            if(fee_rate.number() <= 100)
-            {
-                result = true;
-            }
-            break;
-        case TokenFeeType::Flat:
-            result = true;
-            break;
-        case TokenFeeType::Unknown:
-            break;
-    }
-
-    return result;
 }

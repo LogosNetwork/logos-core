@@ -3,25 +3,23 @@
 #include <logos/token/common.hpp>
 #include <logos/lib/numbers.hpp>
 
-// Token Admin Requests
-//
-struct TokenIssuance : TokenRequest
+struct Issuance : TokenRequest
 {
     using Request::Hash;
 
     using Settings    = BitField<TOKEN_SETTINGS_COUNT>;
     using Controllers = std::vector<ControllerInfo>;
 
-    TokenIssuance() = default;
+    Issuance();
 
-    TokenIssuance(bool & error,
-                  const logos::mdb_val & mdbval);
+    Issuance(bool & error,
+             const logos::mdb_val & mdbval);
 
-    TokenIssuance(bool & error,
-                  std::basic_streambuf<uint8_t> & stream);
+    Issuance(bool & error,
+             std::basic_streambuf<uint8_t> & stream);
 
-    TokenIssuance(bool & error,
-                  boost::property_tree::ptree const & tree);
+    Issuance(bool & error,
+             boost::property_tree::ptree const & tree);
 
     bool Validate(logos::process_return & result) const override;
 
@@ -40,8 +38,9 @@ struct TokenIssuance : TokenRequest
 
     bool operator==(const Request & other) const override;
 
-    static constexpr uint8_t SYMBOL_MAX_SIZE = 8;
-    static constexpr uint8_t NAME_MAX_SIZE   = 32;
+    static constexpr uint8_t  SYMBOL_MAX_SIZE = 8;
+    static constexpr uint8_t  NAME_MAX_SIZE   = 32;
+    static constexpr uint16_t INFO_MAX_SIZE   = 512;
 
     std::string  symbol;
     std::string  name;
@@ -53,21 +52,22 @@ struct TokenIssuance : TokenRequest
     std::string  issuer_info;
 };
 
-struct TokenIssueAdtl : TokenRequest
+struct IssueAdditional : TokenRequest
 {
     using Request::Hash;
 
-    TokenIssueAdtl() = default;
+    IssueAdditional();
 
-    TokenIssueAdtl(bool & error,
-                   const logos::mdb_val & mdbval);
+    IssueAdditional(bool & error,
+                    const logos::mdb_val & mdbval);
 
-    TokenIssueAdtl(bool & error,
-                  std::basic_streambuf<uint8_t> & stream);
+    IssueAdditional(bool & error,
+                    std::basic_streambuf<uint8_t> & stream);
 
-    TokenIssueAdtl(bool & error,
-                   boost::property_tree::ptree const & tree);
+    IssueAdditional(bool & error,
+                    boost::property_tree::ptree const & tree);
 
+    bool Validate(logos::process_return & result) const override;
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
 
@@ -87,20 +87,20 @@ struct TokenIssueAdtl : TokenRequest
     Amount amount;
 };
 
-struct TokenChangeSetting : TokenRequest
+struct ChangeSetting : TokenRequest
 {
     using Request::Hash;
-    
-    TokenChangeSetting() = default;
 
-    TokenChangeSetting(bool & error,
-                       const logos::mdb_val & mdbval);
+    ChangeSetting();
 
-    TokenChangeSetting(bool & error,
-                       std::basic_streambuf<uint8_t> & stream);
+    ChangeSetting(bool & error,
+                  const logos::mdb_val & mdbval);
 
-    TokenChangeSetting(bool & error,
-                       boost::property_tree::ptree const & tree);
+    ChangeSetting(bool & error,
+                  std::basic_streambuf<uint8_t> & stream);
+
+    ChangeSetting(bool & error,
+                  boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
@@ -117,20 +117,20 @@ struct TokenChangeSetting : TokenRequest
     SettingValue value;
 };
 
-struct TokenImmuteSetting : TokenRequest
+struct ImmuteSetting : TokenRequest
 {
     using Request::Hash;
 
-    TokenImmuteSetting() = default;
+    ImmuteSetting();
 
-    TokenImmuteSetting(bool & error,
-                       const logos::mdb_val & mdbval);
+    ImmuteSetting(bool & error,
+                  const logos::mdb_val & mdbval);
 
-    TokenImmuteSetting(bool & error,
-                       std::basic_streambuf<uint8_t> & stream);
+    ImmuteSetting(bool & error,
+                  std::basic_streambuf<uint8_t> & stream);
 
-    TokenImmuteSetting(bool & error,
-                       boost::property_tree::ptree const & tree);
+    ImmuteSetting(bool & error,
+                  boost::property_tree::ptree const & tree);
 
     bool Validate(logos::process_return & result) const override;
 
@@ -148,25 +148,26 @@ struct TokenImmuteSetting : TokenRequest
     TokenSetting setting;
 };
 
-struct TokenRevoke : TokenRequest
+struct Revoke : TokenRequest
 {
     using Request::Hash;
 
-    TokenRevoke() = default;
+    Revoke();
 
-    TokenRevoke(bool & error,
-                const logos::mdb_val & mdbval);
+    Revoke(bool & error,
+           const logos::mdb_val & mdbval);
 
-    TokenRevoke(bool & error,
-                std::basic_streambuf<uint8_t> & stream);
+    Revoke(bool & error,
+           std::basic_streambuf<uint8_t> & stream);
 
-    TokenRevoke(bool & error,
-                boost::property_tree::ptree const & tree);
+    Revoke(bool & error,
+           boost::property_tree::ptree const & tree);
 
     AccountAddress GetSource() const override;
     logos::AccountType GetSourceType() const override;
     Amount GetTokenTotal() const override;
 
+    bool Validate(logos::process_return & result) const override;
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
 
@@ -185,20 +186,20 @@ struct TokenRevoke : TokenRequest
     Transaction    transaction;
 };
 
-struct TokenFreeze : TokenRequest
+struct AdjustUserStatus : TokenRequest
 {
     using Request::Hash;
 
-    TokenFreeze() = default;
+    AdjustUserStatus();
 
-    TokenFreeze(bool & error,
-                const logos::mdb_val & mdbval);
+    AdjustUserStatus(bool & error,
+                     const logos::mdb_val & mdbval);
 
-    TokenFreeze(bool & error,
-                std::basic_streambuf<uint8_t> & stream);
+    AdjustUserStatus(bool & error,
+                     std::basic_streambuf<uint8_t> & stream);
 
-    TokenFreeze(bool & error,
-                boost::property_tree::ptree const & tree);
+    AdjustUserStatus(bool & error,
+                     boost::property_tree::ptree const & tree);
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
@@ -212,23 +213,23 @@ struct TokenFreeze : TokenRequest
     bool operator==(const Request & other) const override;
 
     AccountAddress account;
-    FreezeAction   action;
+    UserStatus     status;
 };
 
-struct TokenSetFee : TokenRequest
+struct AdjustFee : TokenRequest
 {
     using Request::Hash;
 
-    TokenSetFee() = default;
+    AdjustFee();
 
-    TokenSetFee(bool & error,
-                const logos::mdb_val & mdbval);
+    AdjustFee(bool & error,
+              const logos::mdb_val & mdbval);
 
-    TokenSetFee(bool & error,
-                std::basic_streambuf<uint8_t> & stream);
+    AdjustFee(bool & error,
+              std::basic_streambuf<uint8_t> & stream);
 
-    TokenSetFee(bool & error,
-                boost::property_tree::ptree const & tree);
+    AdjustFee(bool & error,
+              boost::property_tree::ptree const & tree);
 
     bool Validate(logos::process_return & result) const override;
 
@@ -247,49 +248,22 @@ struct TokenSetFee : TokenRequest
     Amount       fee_rate;
 };
 
-struct TokenWhitelist : TokenRequest
+struct UpdateIssuerInfo : TokenRequest
 {
     using Request::Hash;
 
-    TokenWhitelist() = default;
+    UpdateIssuerInfo();
 
-    TokenWhitelist(bool & error,
-                   const logos::mdb_val & mdbval);
+    UpdateIssuerInfo(bool & error,
+                     const logos::mdb_val & mdbval);
 
-    TokenWhitelist(bool & error,
-                   std::basic_streambuf<uint8_t> & stream);
+    UpdateIssuerInfo(bool & error,
+                     std::basic_streambuf<uint8_t> & stream);
 
-    TokenWhitelist(bool & error,
-                   boost::property_tree::ptree const & tree);
+    UpdateIssuerInfo(bool & error,
+                     boost::property_tree::ptree const & tree);
 
-    boost::property_tree::ptree SerializeJson() const override;
-    uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream);
-    void DeserializeDB(bool & error, logos::stream & stream) override;
-
-    void Hash(blake2b_state & hash) const override;
-
-    uint16_t WireSize() const override;
-
-    bool operator==(const Request & other) const override;
-
-    AccountAddress account;
-};
-
-struct TokenIssuerInfo : TokenRequest
-{
-    using Request::Hash;
-
-    TokenIssuerInfo() = default;
-
-    TokenIssuerInfo(bool & error,
-                    const logos::mdb_val & mdbval);
-
-    TokenIssuerInfo(bool & error,
-                    std::basic_streambuf<uint8_t> & stream);
-
-    TokenIssuerInfo(bool & error,
-                    boost::property_tree::ptree const & tree);
+    bool Validate(logos::process_return & result) const override;
 
     boost::property_tree::ptree SerializeJson() const override;
     uint64_t Serialize(logos::stream & stream) const override;
@@ -305,20 +279,20 @@ struct TokenIssuerInfo : TokenRequest
     std::string new_info;
 };
 
-struct TokenController : TokenRequest
+struct UpdateController : TokenRequest
 {
     using Request::Hash;
 
-    TokenController() = default;
+    UpdateController();
 
-    TokenController(bool & error,
-                    const logos::mdb_val & mdbval);
+    UpdateController(bool & error,
+                     const logos::mdb_val & mdbval);
 
-    TokenController(bool & error,
-                    std::basic_streambuf<uint8_t> & stream);
+    UpdateController(bool & error,
+                     std::basic_streambuf<uint8_t> & stream);
 
-    TokenController(bool & error,
-                    boost::property_tree::ptree const & tree);
+    UpdateController(bool & error,
+                     boost::property_tree::ptree const & tree);
 
     bool Validate(logos::process_return & result) const override;
     bool Validate(logos::process_return & result,
@@ -335,31 +309,29 @@ struct TokenController : TokenRequest
 
     bool operator==(const Request & other) const override;
 
-    // TODO: controller.privileges is
-    //       ignored when action == remove?
-    //
     ControllerAction action;
     ControllerInfo   controller;
 };
 
-struct TokenBurn : TokenRequest
+struct Burn : TokenRequest
 {
     using Request::Hash;
 
-    TokenBurn() = default;
+    Burn();
 
-    TokenBurn(bool & error,
-              const logos::mdb_val & mdbval);
+    Burn(bool & error,
+         const logos::mdb_val & mdbval);
 
-    TokenBurn(bool & error,
-              std::basic_streambuf<uint8_t> & stream);
+    Burn(bool & error,
+         std::basic_streambuf<uint8_t> & stream);
 
-    TokenBurn(bool & error,
-              boost::property_tree::ptree const & tree);
+    Burn(bool & error,
+         boost::property_tree::ptree const & tree);
 
     Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;
 
+    bool Validate(logos::process_return & result) const override;
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
 
@@ -377,24 +349,25 @@ struct TokenBurn : TokenRequest
     Amount amount;
 };
 
-struct TokenAccountSend : TokenRequest
+struct Distribute : TokenRequest
 {
     using Request::Hash;
 
-    TokenAccountSend() = default;
+    Distribute();
 
-    TokenAccountSend(bool & error,
-                     const logos::mdb_val & mdbval);
+    Distribute(bool & error,
+               const logos::mdb_val & mdbval);
 
-    TokenAccountSend(bool & error,
-                     std::basic_streambuf<uint8_t> & stream);
+    Distribute(bool & error,
+               std::basic_streambuf<uint8_t> & stream);
 
-    TokenAccountSend(bool & error,
-                     boost::property_tree::ptree const & tree);
+    Distribute(bool & error,
+               boost::property_tree::ptree const & tree);
 
     Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;
 
+    bool Validate(logos::process_return & result) const override;
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
 
@@ -412,24 +385,25 @@ struct TokenAccountSend : TokenRequest
     Transaction transaction;
 };
 
-struct TokenAccountWithdrawFee : TokenRequest
+struct WithdrawFee : TokenRequest
 {
     using Request::Hash;
 
-    TokenAccountWithdrawFee() = default;
+    WithdrawFee();
 
-    TokenAccountWithdrawFee(bool & error,
-                            const logos::mdb_val & mdbval);
+    WithdrawFee(bool & error,
+                const logos::mdb_val & mdbval);
 
-    TokenAccountWithdrawFee(bool & error,
-                            std::basic_streambuf<uint8_t> & stream);
+    WithdrawFee(bool & error,
+                std::basic_streambuf<uint8_t> & stream);
 
-    TokenAccountWithdrawFee(bool & error,
-                            boost::property_tree::ptree const & tree);
+    WithdrawFee(bool & error,
+                boost::property_tree::ptree const & tree);
 
     Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;
 
+    bool Validate(logos::process_return & result) const override;
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
 
@@ -447,15 +421,13 @@ struct TokenAccountWithdrawFee : TokenRequest
     Transaction transaction;
 };
 
-// Token User Requests
-//
 struct TokenSend : TokenRequest
 {
     using Request::Hash;
 
     using Transactions = std::vector<Transaction>;
 
-    TokenSend() = default;
+    TokenSend();
 
     TokenSend(bool & error,
               const logos::mdb_val & mdbval);
@@ -469,6 +441,7 @@ struct TokenSend : TokenRequest
     Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;
 
+    bool Validate(logos::process_return & result) const override;
     bool Validate(logos::process_return & result,
                   std::shared_ptr<logos::Account> info) const override;
 

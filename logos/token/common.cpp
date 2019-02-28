@@ -3,7 +3,11 @@
 #include <logos/token/requests.hpp>
 #include <logos/request/fields.hpp>
 #include <logos/token/account.hpp>
-#include <logos/token/util.hpp>
+#include <logos/token/utility.hpp>
+
+TokenRequest::TokenRequest(RequestType type)
+    : Request(type)
+{}
 
 TokenRequest::TokenRequest(bool & error,
                            std::basic_streambuf<uint8_t> & stream)
@@ -52,6 +56,38 @@ bool TokenRequest::Validate(logos::process_return & result) const
     }
 
     return true;
+}
+
+bool TokenRequest::ValidateFee(TokenFeeType fee_type, Amount fee_rate) const
+{
+    auto result = false;
+
+    switch(fee_type)
+    {
+        case TokenFeeType::Percentage:
+            if(fee_rate.number() <= 100)
+            {
+                result = true;
+            }
+            break;
+        case TokenFeeType::Flat:
+            result = ValidateTokenAmount(fee_rate, false);
+            break;
+        case TokenFeeType::Unknown:
+            break;
+    }
+
+    return result;
+}
+
+bool TokenRequest::ValidateTokenAmount(const Amount & amount, bool non_zero) const
+{
+    if(non_zero and amount.is_zero())
+    {
+        return false;
+    }
+
+    return amount.number() % TOKEN_RAW == 0;
 }
 
 logos::AccountType TokenRequest::GetAccountType() const
@@ -213,46 +249,46 @@ bool ControllerInfo::IsAuthorized(std::shared_ptr<const Request> request) const
     {
         // TODO: N/A
         case RequestType::Send:
-        case RequestType::ChangeRep:
-        case RequestType::IssueTokens:
+        case RequestType::Change:
+        case RequestType::Issuance:
             break;
-        case RequestType::IssueAdtlTokens:
-            result = privileges[size_t(ControllerPrivilege::AddTokens)];
+        case RequestType::IssueAdditional:
+            result = privileges[size_t(ControllerPrivilege::Issuance)];
             break;
-        case RequestType::ChangeTokenSetting:
+        case RequestType::ChangeSetting:
         {
-            auto change = static_pointer_cast<const TokenChangeSetting>(request);
+            auto change = static_pointer_cast<const ChangeSetting>(request);
             result = IsAuthorized(change->setting);
             break;
         }
-        case RequestType::ImmuteTokenSetting:
+        case RequestType::ImmuteSetting:
         {
-            auto immute = static_pointer_cast<const TokenImmuteSetting>(request);
+            auto immute = static_pointer_cast<const ImmuteSetting>(request);
             result = IsAuthorized(TokenAccount::GetMutabilitySetting(immute->setting));
             break;
         }
-        case RequestType::RevokeTokens:
+        case RequestType::Revoke:
             result = privileges[size_t(ControllerPrivilege::Revoke)];
             break;
-        case RequestType::FreezeTokens:
-            result = privileges[size_t(ControllerPrivilege::Freeze)];
+        case RequestType::AdjustUserStatus:
+        {
+            auto adjust = static_pointer_cast<const AdjustUserStatus>(request);
+            result = IsAuthorized(adjust->status);
             break;
-        case RequestType::SetTokenFee:
+        }
+        case RequestType::AdjustFee:
             result = privileges[size_t(ControllerPrivilege::AdjustFee)];
-            break;
-        case RequestType::UpdateWhitelist:
-            result = privileges[size_t(ControllerPrivilege::Whitelist)];
             break;
         case RequestType::UpdateIssuerInfo:
             result = privileges[size_t(ControllerPrivilege::UpdateIssuerInfo)];
             break;
         case RequestType::UpdateController:
-            result = privileges[size_t(ControllerPrivilege::PromoteController)];
+            result = privileges[size_t(ControllerPrivilege::UpdateController)];
             break;
-        case RequestType::BurnTokens:
+        case RequestType::Burn:
             result = privileges[size_t(ControllerPrivilege::Burn)];
             break;
-        case RequestType::DistributeTokens:
+        case RequestType::Distribute:
             result = privileges[size_t(ControllerPrivilege::Distribute)];
             break;
         case RequestType::WithdrawFee:
@@ -260,9 +296,30 @@ bool ControllerInfo::IsAuthorized(std::shared_ptr<const Request> request) const
             break;
 
         // TODO: N/A
-        case RequestType::SendTokens:
+        case RequestType::TokenSend:
         case RequestType::Unknown:
             result = false;
+            break;
+    }
+
+    return result;
+}
+
+bool ControllerInfo::IsAuthorized(UserStatus status) const
+{
+    bool result = false;
+
+    switch(status)
+    {
+        case UserStatus::Frozen:
+        case UserStatus::Unfrozen:
+            result = privileges[size_t(ControllerPrivilege::Freeze)];
+            break;
+        case UserStatus::Whitelisted:
+        case UserStatus::NotWhitelisted:
+            result = privileges[size_t(ControllerPrivilege::Whitelist)];
+            break;
+        default:
             break;
     }
 
@@ -275,11 +332,11 @@ bool ControllerInfo::IsAuthorized(TokenSetting setting) const
 
     switch(setting)
     {
-        case TokenSetting::AddTokens:
-            result = privileges[size_t(ControllerPrivilege::ChangeAddTokens)];
+        case TokenSetting::Issuance:
+            result = privileges[size_t(ControllerPrivilege::ChangeIssuance)];
             break;
-        case TokenSetting::ModifyAddTokens:
-            result = privileges[size_t(ControllerPrivilege::ChangeModifyAddTokens)];
+        case TokenSetting::ModifyIssuance:
+            result = privileges[size_t(ControllerPrivilege::ChangeModifyIssuance)];
             break;
         case TokenSetting::Revoke:
             result = privileges[size_t(ControllerPrivilege::ChangeRevoke)];

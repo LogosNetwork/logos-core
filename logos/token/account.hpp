@@ -1,16 +1,15 @@
 #pragma once
 
+#include <logos/token/utility.hpp>
 #include <logos/token/common.hpp>
 #include <logos/lib/numbers.hpp>
-#include <logos/token/util.hpp>
 #include <logos/lib/log.hpp>
 #include <logos/common.hpp>
 
 #include <bitset>
 
-class TokenIssuance;
-class TokenImmuteSetting;
-class TokenChangeSetting;
+class Issuance;
+class ChangeSetting;
 
 struct TokenAccount : logos::Account
 {
@@ -20,7 +19,7 @@ struct TokenAccount : logos::Account
 
     TokenAccount();
 
-    TokenAccount(const TokenIssuance & issuance);
+    TokenAccount(const Issuance & issuance);
 
     TokenAccount(bool & error, const logos::mdb_val & mdbval);
     TokenAccount(bool & error, logos::stream & stream);
@@ -53,8 +52,8 @@ struct TokenAccount : logos::Account
     bool SendAllowed(const TokenUserStatus & status,
                      logos::process_return & result) const;
     bool IsAllowed(std::shared_ptr<const Request> request) const;
-    bool IsAllowed(std::shared_ptr<const TokenImmuteSetting> immute) const;
-    bool IsAllowed(std::shared_ptr<const TokenChangeSetting> change) const;
+    bool IsAllowed(UserStatus status) const;
+    bool IsAllowed(std::shared_ptr<const ChangeSetting> change) const;
 
     void Set(TokenSetting setting, bool value);
     void Set(TokenSetting setting, SettingValue value);
@@ -62,8 +61,6 @@ struct TokenAccount : logos::Account
 
     static bool IsMutabilitySetting(TokenSetting setting);
     static TokenSetting GetMutabilitySetting(TokenSetting setting);
-
-    static bool ValidateFee(TokenFeeType fee_type, Amount fee_rate);
 
     static constexpr uint8_t MAX_CONTROLLERS = 10;
 

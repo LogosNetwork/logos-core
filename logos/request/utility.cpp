@@ -18,41 +18,37 @@ RequestType GetRequestType(bool &error, std::string data)
     }
     else if(data == CHANGE)
     {
-        ret = RequestType::ChangeRep;
+        ret = RequestType::Change;
     }
-    else if(data == ISSUE_TOKENS)
+    else if(data == ISSUANCE)
     {
-        ret = RequestType::IssueTokens;
+        ret = RequestType::Issuance;
     }
-    else if(data == ISSUE_ADTL)
+    else if(data == ISSUE_ADDITIONAL)
     {
-        ret = RequestType::IssueAdtlTokens;
+        ret = RequestType::IssueAdditional;
     }
     else if(data == CHANGE_SETTING)
     {
-        ret = RequestType::ChangeTokenSetting;
+        ret = RequestType::ChangeSetting;
     }
-    else if(data == IMMUTE)
+    else if(data == IMMUTE_SETTING)
     {
-        ret = RequestType::ImmuteTokenSetting;
+        ret = RequestType::ImmuteSetting;
     }
     else if(data == REVOKE)
     {
-        ret = RequestType::RevokeTokens;
+        ret = RequestType::Revoke;
     }
-    else if(data == FREEZE)
+    else if(data == ADJUST_USER_STATUS)
     {
-        ret = RequestType::FreezeTokens;
+        ret = RequestType::AdjustUserStatus;
     }
-    else if(data == SET_FEE)
+    else if(data == ADJUST_FEE)
     {
-        ret = RequestType::SetTokenFee;
+        ret = RequestType::AdjustFee;
     }
-    else if(data == WHITELIST)
-    {
-        ret = RequestType::UpdateWhitelist;
-    }
-    else if(data == UPDATE_INFO)
+    else if(data == UPDATE_ISSUER_INFO)
     {
         ret = RequestType::UpdateIssuerInfo;
     }
@@ -62,19 +58,19 @@ RequestType GetRequestType(bool &error, std::string data)
     }
     else if(data == BURN)
     {
-        ret = RequestType::BurnTokens;
+        ret = RequestType::Burn;
     }
     else if(data == DISTRIBUTE)
     {
-        ret = RequestType::DistributeTokens;
+        ret = RequestType::Distribute;
     }
     else if(data == WITHDRAW_FEE)
     {
         ret = RequestType::WithdrawFee;
     }
-    else if(data == SEND_TOKENS)
+    else if(data == TOKEN_SEND)
     {
-        ret = RequestType::SendTokens;
+        ret = RequestType::TokenSend;
     }
     else
     {
@@ -94,50 +90,47 @@ std::string GetRequestTypeField(RequestType type)
         case RequestType::Send:
             ret = SEND;
             break;
-        case RequestType::ChangeRep:
+        case RequestType::Change:
             ret = CHANGE;
             break;
-        case RequestType::IssueTokens:
-            ret = ISSUE_TOKENS;
+        case RequestType::Issuance:
+            ret = ISSUANCE;
             break;
-        case RequestType::IssueAdtlTokens:
-            ret = ISSUE_ADTL;
+        case RequestType::IssueAdditional:
+            ret = ISSUE_ADDITIONAL;
             break;
-        case RequestType::ChangeTokenSetting:
+        case RequestType::ChangeSetting:
             ret = CHANGE_SETTING;
             break;
-        case RequestType::ImmuteTokenSetting:
-            ret = IMMUTE;
+        case RequestType::ImmuteSetting:
+            ret = IMMUTE_SETTING;
             break;
-        case RequestType::RevokeTokens:
+        case RequestType::Revoke:
             ret = REVOKE;
             break;
-        case RequestType::FreezeTokens:
-            ret = FREEZE;
+        case RequestType::AdjustUserStatus:
+            ret = ADJUST_USER_STATUS;
             break;
-        case RequestType::SetTokenFee:
-            ret = SET_FEE;
-            break;
-        case RequestType::UpdateWhitelist:
-            ret = WHITELIST;
+        case RequestType::AdjustFee:
+            ret = ADJUST_FEE;
             break;
         case RequestType::UpdateIssuerInfo:
-            ret = UPDATE_INFO;
+            ret = UPDATE_ISSUER_INFO;
             break;
         case RequestType::UpdateController:
             ret = UPDATE_CONTROLLER;
             break;
-        case RequestType::BurnTokens:
+        case RequestType::Burn:
             ret = BURN;
             break;
-        case RequestType::DistributeTokens:
+        case RequestType::Distribute:
             ret = DISTRIBUTE;
             break;
         case RequestType::WithdrawFee:
             ret = WITHDRAW_FEE;
             break;
-        case RequestType::SendTokens:
-            ret = SEND_TOKENS;
+        case RequestType::TokenSend:
+            ret = TOKEN_SEND;
             break;
         case RequestType::Unknown:
             ret = UNKNOWN;
@@ -147,62 +140,60 @@ std::string GetRequestTypeField(RequestType type)
     return ret;
 }
 
-template<typename ...Args>
-std::shared_ptr<Request> BuildRequest(RequestType type, Args&& ...args)
+template<typename Data>
+std::shared_ptr<Request> BuildRequest(RequestType type, bool & error, Data && data)
 {
     std::shared_ptr<Request> result;
 
     switch(type)
     {
         case RequestType::Send:
-            result = std::make_shared<Send>(Send(args...));
+            result = std::make_shared<Send>(error, data);
             break;
-        case RequestType::ChangeRep:
-            result = std::make_shared<Change>(Change(args...));
+        case RequestType::Change:
+            result = std::make_shared<Change>(error, data);
             break;
-        case RequestType::IssueTokens:
-            result = std::make_shared<TokenIssuance>(TokenIssuance(args...));
+        case RequestType::Issuance:
+            result = std::make_shared<Issuance>(error, data);
             break;
-        case RequestType::IssueAdtlTokens:
-            result = std::make_shared<TokenIssueAdtl>(TokenIssueAdtl(args...));
+        case RequestType::IssueAdditional:
+            result = std::make_shared<IssueAdditional>(error, data);
             break;
-        case RequestType::ChangeTokenSetting:
-            result = std::make_shared<TokenChangeSetting>(TokenChangeSetting(args...));
+        case RequestType::ChangeSetting:
+            result = std::make_shared<ChangeSetting>(error, data);
             break;
-        case RequestType::ImmuteTokenSetting:
-            result = std::make_shared<TokenImmuteSetting>(TokenImmuteSetting(args...));
+        case RequestType::ImmuteSetting:
+            result = std::make_shared<ImmuteSetting>(error, data);
             break;
-        case RequestType::RevokeTokens:
-            result = std::make_shared<TokenRevoke>(TokenRevoke(args...));
+        case RequestType::Revoke:
+            result = std::make_shared<Revoke>(error, data);
             break;
-        case RequestType::FreezeTokens:
-            result = std::make_shared<TokenFreeze>(TokenFreeze(args...));
+        case RequestType::AdjustUserStatus:
+            result = std::make_shared<AdjustUserStatus>(error, data);
             break;
-        case RequestType::SetTokenFee:
-            result = std::make_shared<TokenSetFee>(TokenSetFee(args...));
-            break;
-        case RequestType::UpdateWhitelist:
-            result = std::make_shared<TokenWhitelist>(TokenWhitelist(args...));
+        case RequestType::AdjustFee:
+            result = std::make_shared<AdjustFee>(error, data);
             break;
         case RequestType::UpdateIssuerInfo:
-            result = std::make_shared<TokenIssuerInfo>(TokenIssuerInfo(args...));
+            result = std::make_shared<UpdateIssuerInfo>(error, data);
             break;
         case RequestType::UpdateController:
-            result = std::make_shared<TokenController>(TokenController(args...));
+            result = std::make_shared<UpdateController>(error, data);
             break;
-        case RequestType::BurnTokens:
-            result = std::make_shared<TokenBurn>(TokenBurn(args...));
+        case RequestType::Burn:
+            result = std::make_shared<Burn>(error, data);
             break;
-        case RequestType::DistributeTokens:
-            result = std::make_shared<TokenAccountSend>(TokenAccountSend(args...));
+        case RequestType::Distribute:
+            result = std::make_shared<Distribute>(error, data);
             break;
         case RequestType::WithdrawFee:
-            result = std::make_shared<TokenAccountWithdrawFee>(TokenAccountWithdrawFee(args...));
+            result = std::make_shared<WithdrawFee>(error, data);
             break;
-        case RequestType::SendTokens:
-            result = std::make_shared<TokenSend>(TokenSend(args...));
+        case RequestType::TokenSend:
+            result = std::make_shared<TokenSend>(error, data);
             break;
         case RequestType::Unknown:
+            error = true;
             break;
     }
 

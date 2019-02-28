@@ -40,14 +40,14 @@ struct TokenEntry
     Amount          balance = 0;
 };
 
-class TokenIssuance;
+class Issuance;
 
 BlockHash GetTokenID(const std::string & symbol,
                      const std::string & name,
                      const AccountAddress & issuer,
                      const BlockHash & previous);
 
-BlockHash GetTokenID(const TokenIssuance & issuance);
+BlockHash GetTokenID(const Issuance & issuance);
 
 struct TokenID
 {
@@ -56,7 +56,7 @@ struct TokenID
             const AccountAddress & issuer,
             const BlockHash & previous);
 
-    TokenID(const TokenIssuance & issuance);
+    TokenID(const Issuance & issuance);
 
     void Hash(blake2b_state & hash) const;
 

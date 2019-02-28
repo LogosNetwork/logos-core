@@ -83,7 +83,7 @@ BlockHash GetTokenID(const std::string & symbol,
     return Blake2bHash(TokenID(symbol, name, issuer, previous));
 }
 
-BlockHash GetTokenID(const TokenIssuance & issuance)
+BlockHash GetTokenID(const Issuance & issuance)
 {
     return Blake2bHash(TokenID(issuance));
 }
@@ -98,7 +98,7 @@ TokenID::TokenID(const std::string & symbol,
     , previous(previous)
 {}
 
-TokenID::TokenID(const TokenIssuance & issuance)
+TokenID::TokenID(const Issuance & issuance)
     : symbol(issuance.symbol)
     , name(issuance.name)
     , issuer(issuance.origin)
