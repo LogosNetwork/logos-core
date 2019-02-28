@@ -1622,7 +1622,7 @@ void logos::rpc_handler::account_history ()
     std::string count_text (request.get<std::string> ("count"));
     bool output_raw (request.get_optional<bool> ("raw") == true);
     auto error (false);
-    logos::block_hash send_hash, receive_hash;
+    logos::block_hash request_hash, receive_hash;
     auto head_str (request.get_optional<std::string> ("head"));
     logos::transaction transaction (node.store.environment, nullptr, false);
 
@@ -1639,12 +1639,12 @@ void logos::rpc_handler::account_history ()
         error_response (response, "Account not found.");
     }
 
-    send_hash = info.head;
+    request_hash = info.head;
     receive_hash = info.receive_head;
     // get optional send head block
     if (head_str)
     {
-        if (send_hash.decode_hex (*head_str))
+        if (request_hash.decode_hex (*head_str))
         {
             error_response (response, "Invalid block hash");
         }
@@ -1666,44 +1666,44 @@ void logos::rpc_handler::account_history ()
     boost::property_tree::ptree response_l;
     boost::property_tree::ptree history;
     response_l.put ("account", account_text);
-    Send send_request;
-    ReceiveBlock receive_block;
+    std::shared_ptr<Request> request_ptr;
+    ReceiveBlock receive_data;
     Send receive_link_block;  // i.e. source send block
-    bool send_not_found (node.store.request_get(send_hash, send_request, transaction));
-    bool receive_not_found (node.store.receive_get (receive_hash, receive_block, transaction));
-    bool put_send (false);
+    bool request_not_found (node.store.request_get(request_hash, request_ptr, transaction));
+    bool receive_not_found (node.store.receive_get (receive_hash, receive_data, transaction));
+    bool put_request (false);
     uint64_t timestamp;
     ApprovedRB batch;
-    while (!(send_not_found && receive_not_found) && count > 0)
+    while (!(request_not_found && receive_not_found) && count > 0)
     {
-        // compare timestamp of send and receive, serialize whichever is more recent
+        // compare timestamp of request and receive, serialize whichever is more recent
         if (receive_not_found)  // at end of receive chain?
         {
-            put_send = true;
-            timestamp = node.store.request_block_get(send_request.locator.hash, batch) ? 0 : batch.timestamp;
+            put_request = true;
+            timestamp = node.store.request_block_get(request_ptr->locator.hash, batch) ? 0 : batch.timestamp;
         }
         else
         {
             // get receive's source send
-            if (node.store.request_get(receive_block.send_hash, receive_link_block, transaction))
+            if (node.store.request_get(receive_data.send_hash, receive_link_block, transaction))
             {
                 error_response (response, "Internal error: send not found for receive.");
             }
-            // at end of send chain?
-            if (send_not_found)
+            // at end of request chain?
+            if (request_not_found)
             {
-                put_send = false;
+                put_request = false;
                 timestamp = node.store.request_block_get(receive_link_block.locator.hash, batch) ? 0 : batch.timestamp;
             }
             // compare timestamps
             else
             {
-                // send timestamp
-                auto send_ts (node.store.request_block_get(send_request.locator.hash, batch) ? 0 : batch.timestamp);
+                // request timestamp
+                auto request_ts (node.store.request_block_get(request_ptr->locator.hash, batch) ? 0 : batch.timestamp);
                 // receive timestamp
                 auto recv_ts (node.store.request_block_get(receive_link_block.locator.hash, batch) ? 0 : batch.timestamp);
-                put_send = send_ts >= recv_ts;
-                timestamp = send_ts >= recv_ts ? send_ts : recv_ts;
+                put_request = request_ts >= recv_ts;
+                timestamp = request_ts >= recv_ts ? request_ts : recv_ts;
             }
         }
 
@@ -1714,27 +1714,26 @@ void logos::rpc_handler::account_history ()
         else
         {
             boost::property_tree::ptree entry;
-            const Send & display_block = put_send ? send_request : receive_link_block;
-            boost::property_tree::ptree contents = display_block.SerializeJson();
+            boost::property_tree::ptree contents = put_request ? request_ptr->SerializeJson() : receive_link_block.SerializeJson();
             contents.put("timestamp", std::to_string(timestamp));
             history.push_back (std::make_pair("", contents));
             --count;
         }
-        if (put_send)
+        if (put_request)
         {
-            send_hash = send_request.previous;
-            send_not_found = node.store.request_get(send_hash, send_request, transaction);
+            request_hash = request_ptr->previous;
+            request_not_found = node.store.request_get(request_hash, request_ptr, transaction);
         }
         else
         {
-            receive_hash = receive_block.previous;
-            receive_not_found = node.store.receive_get (receive_hash, receive_block, transaction);
+            receive_hash = receive_data.previous;
+            receive_not_found = node.store.receive_get (receive_hash, receive_data, transaction);
         }
     }
     response_l.add_child ("history", history);
-    if (!send_hash.is_zero ())  // TODO: fix pagination
+    if (!request_hash.is_zero ())  // TODO: fix pagination
     {
-        response_l.put ("previous", send_hash.to_string ());
+        response_l.put ("previous", request_hash.to_string ());
     }
     response (response_l);
 }
