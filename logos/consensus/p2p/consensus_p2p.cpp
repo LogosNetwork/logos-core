@@ -11,19 +11,27 @@ ConsensusP2pOutput<CT>::ConsensusP2pOutput(p2p_interface & p2p,
 template<ConsensusType CT>
 void ConsensusP2pOutput<CT>::AddMessageToBuffer(const uint8_t *data,
                                                 uint32_t size,
+                                                MessageType message_type,
                                                 uint32_t epoch_number,
                                                 uint8_t dest_delegate_id)
 {
     _p2p_buffer.resize(size + P2pConsensusHeader::P2PHEADER_SIZE);
-    P2pConsensusHeader header={epoch_number, _delegate_id, dest_delegate_id};
+    uint8_t src_delegate_id = _delegate_id;
+    if (message_type == MessageType::Post_Committed_Block)
+    {
+        src_delegate_id = 0xff;
+        dest_delegate_id = 0xff;
+    }
+    P2pConsensusHeader header={epoch_number, src_delegate_id, dest_delegate_id};
     std::vector<uint8_t> hdr_buf;
     assert(header.Serialize(hdr_buf) == P2pConsensusHeader::P2PHEADER_SIZE);
     memcpy(_p2p_buffer.data(), hdr_buf.data(), hdr_buf.size());
     memcpy(_p2p_buffer.data() + P2pConsensusHeader::P2PHEADER_SIZE, data, size);
 
     LOG_DEBUG(_log) << "ConsensusP2pOutput<" << ConsensusToName(CT)
-                    << "> - message of size " << size
-                    << " added to p2p batch to delegate " << (unsigned)_delegate_id;
+                    << "> - message type " << MessageToName(message_type)
+                    << ", size " << size
+                    << " is added to p2p to delegate " << (unsigned)_delegate_id;
 }
 
 template<ConsensusType CT>
@@ -40,13 +48,13 @@ bool ConsensusP2pOutput<CT>::Propagate()
     if (res)
     {
         LOG_INFO(_log) << "ConsensusP2pOutput<" << ConsensusToName(CT)
-                       << "> - p2p batch of size " << _p2p_buffer.size()
+                       << "> - p2p of size " << _p2p_buffer.size()
                        << " propagated to delegate " << (unsigned)_delegate_id << ".";
     }
     else
     {
         LOG_ERROR(_log) << "ConsensusP2pOutput<" << ConsensusToName(CT)
-                        << "> - p2p batch not propagated to delegate " << (unsigned)_delegate_id << ".";
+                        << "> - p2p not propagated to delegate " << (unsigned)_delegate_id << ".";
     }
 
     Clean();
@@ -57,12 +65,13 @@ bool ConsensusP2pOutput<CT>::Propagate()
 template<ConsensusType CT>
 bool ConsensusP2pOutput<CT>::ProcessOutputMessage(const uint8_t *data,
                                                   uint32_t size,
+                                                  MessageType message_type,
                                                   uint32_t epoch_number,
                                                   uint8_t dest_delegate_id)
 {
     Clean();
 
-    AddMessageToBuffer(data, size, epoch_number, dest_delegate_id);
+    AddMessageToBuffer(data, size, message_type, epoch_number, dest_delegate_id);
 
     return Propagate();
 }

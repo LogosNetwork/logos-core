@@ -3,6 +3,7 @@
 //
 
 #include <logos/consensus/p2p/consensus_p2p_bridge.hpp>
+#include <logos/consensus/messages/common.hpp>
 
 template<ConsensusType CT>
 const boost::posix_time::seconds ConsensusP2pBridge<CT>::P2P_TIMEOUT{60};
@@ -16,18 +17,19 @@ ConsensusP2pBridge<CT>::ConsensusP2pBridge(Service &service, p2p_interface &p2p,
 
 template<ConsensusType CT>
 bool
-ConsensusP2pBridge<CT>::Broadcast(const uint8_t *data, uint32_t size)
+ConsensusP2pBridge<CT>::Broadcast(const uint8_t *data, uint32_t size, MessageType message_type)
 {
-    return _p2p_output.ProcessOutputMessage(data, size, 0, 0xff);
+    return _p2p_output.ProcessOutputMessage(data, size, message_type, 0, 0xff);
 }
 
 template<ConsensusType CT>
 bool
-ConsensusP2pBridge<CT>::SendP2p(const uint8_t *data, uint32_t size, uint32_t epoch_number, uint8_t dest_delegate_id)
+ConsensusP2pBridge<CT>::SendP2p(const uint8_t *data, uint32_t size, MessageType message_type,
+                        uint32_t epoch_number, uint8_t dest_delegate_id)
 {
     if (_enable_p2p)
     {
-        return _p2p_output.ProcessOutputMessage(data, size, epoch_number, dest_delegate_id);
+        return _p2p_output.ProcessOutputMessage(data, size, message_type, epoch_number, dest_delegate_id);
     }
     return true;
 }

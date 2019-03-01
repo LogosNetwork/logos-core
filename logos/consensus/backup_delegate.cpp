@@ -95,7 +95,7 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 
         std::vector<uint8_t> buf;
         block.Serialize(buf, true, true);
-        this->Broadcast(buf.data(), buf.size());
+        this->Broadcast(buf.data(), buf.size(), block.type);
     }
 }
 

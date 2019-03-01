@@ -188,7 +188,7 @@ void ConsensusManager<CT>::OnConsensusReached()
 
     std::vector<uint8_t> buf;
     block.Serialize(buf, true, true);
-    this->Broadcast(buf.data(), buf.size());
+    this->Broadcast(buf.data(), buf.size(), block.type);
 
     SetPreviousPrePrepareHash(_pre_prepare_hash);
 

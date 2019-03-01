@@ -36,8 +36,9 @@ protected:
     /// Broadcast message to all peers via p2p
     /// @param data buffer
     /// @param size buffer size
+    /// @param message_type being broadcasted
     /// @returns true on success
-    bool Broadcast(const uint8_t *data, uint32_t size);
+    bool Broadcast(const uint8_t *data, uint32_t size, MessageType message_type);
     /// P2p timer to check if p2p should be enabled/disabled
     /// @param ec timer error code
     virtual void OnP2pTimeout(const ErrorCode & ec) {}
@@ -52,10 +53,12 @@ protected:
     /// dest_delegate_id = 0xff is the same as broadcast
     /// @param data buffer
     /// @param size buffer size
+    /// @param message_type being broadcasted
     /// @param epoch_number current epoch number used for filtering
     /// @param dest_delegate_id destination delegate id used for filtering
     /// @returns true on success
-    virtual bool SendP2p(const uint8_t *data, uint32_t size, uint32_t epoch_number, uint8_t dest_delegate_id);
+    virtual bool SendP2p(const uint8_t *data, uint32_t size, MessageType message_type,
+                         uint32_t epoch_number, uint8_t dest_delegate_id);
     /// Get p2p interface
     /// @returns p2p interface reference
     p2p_interface & GetP2p() { return _p2p_output._p2p; }

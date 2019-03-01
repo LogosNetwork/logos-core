@@ -61,11 +61,12 @@ protected:
 
     virtual uint8_t RemoteDelegateId() = 0;
 
-    bool SendP2p(const uint8_t *data, uint32_t size, uint32_t epoch_number, uint8_t dest_delegate_id) override
+    bool SendP2p(const uint8_t *data, uint32_t size, MessageType message_type,
+                 uint32_t epoch_number, uint8_t dest_delegate_id) override
     {
         // backup delegate replies via p2p if the message was received via p2p
         // p2p is disabled after the reply
-        auto ret = ConsensusP2pBridge<CT>::SendP2p(data, size, epoch_number, dest_delegate_id);
+        auto ret = ConsensusP2pBridge<CT>::SendP2p(data, size, message_type, epoch_number, dest_delegate_id);
         ConsensusP2pBridge<CT>::EnableP2p(false);
         return ret;
     }

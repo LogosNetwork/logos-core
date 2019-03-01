@@ -19,14 +19,14 @@ public:
     ConsensusP2pOutput(p2p_interface & p2p,
                        uint8_t delegate_id);
 
-    bool ProcessOutputMessage(const uint8_t *data, uint32_t size,
+    bool ProcessOutputMessage(const uint8_t *data, uint32_t size, MessageType message_type,
                               uint32_t epoch_number, uint8_t dest_delegate_id);
 
     p2p_interface &         _p2p;
 
 private:
     void Clean();
-    void AddMessageToBuffer(const uint8_t *data, uint32_t size,
+    void AddMessageToBuffer(const uint8_t *data, uint32_t size, MessageType message_type,
                             uint32_t epoch_number, uint8_t dest_delegate_id);
     bool Propagate();
 

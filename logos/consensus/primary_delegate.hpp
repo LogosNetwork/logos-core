@@ -71,7 +71,7 @@ public:
         std::vector<uint8_t> buf;
         data.Serialize(buf);
         Send(buf.data(), buf.size());
-        SendP2p(buf.data(), buf.size(), _epoch_number, 0xff);
+        SendP2p(buf.data(), buf.size(), data.type, _epoch_number, 0xff);
     }
 
     uint8_t GetDelegateIndex()
@@ -90,7 +90,7 @@ public:
 
 protected:
 
-    virtual bool SendP2p(const uint8_t *, uint32_t, uint32_t, uint8_t) = 0;
+    virtual bool SendP2p(const uint8_t *, uint32_t, MessageType, uint32_t, uint8_t) = 0;
     virtual void EnableP2p(bool enable) = 0;
 
     virtual void UpdateVotes();

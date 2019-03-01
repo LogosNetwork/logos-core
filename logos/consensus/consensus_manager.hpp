@@ -189,9 +189,10 @@ protected:
                              uint32_t payload_size,
                              uint8_t delegate_id=0xff) override;
 
-    bool SendP2p(const uint8_t *data, uint32_t size, uint32_t epoch_number, uint8_t dest_delegate_id) override
+    bool SendP2p(const uint8_t *data, uint32_t size, MessageType message_type,
+                 uint32_t epoch_number, uint8_t dest_delegate_id) override
     {
-        return ConsensusP2pBridge<CT>::SendP2p(data, size, epoch_number, dest_delegate_id);
+        return ConsensusP2pBridge<CT>::SendP2p(data, size, message_type, epoch_number, dest_delegate_id);
     }
 
     void EnableP2p(bool enable) override;
