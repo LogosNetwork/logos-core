@@ -1131,6 +1131,12 @@ std::string logos::ProcessResultToString(logos::process_result result)
         case process_result::invalid_candidate:
             ret = "Voted for an account that is not an active candidate";
             break;
+        case process_result::not_enough_stake:
+            ret = "Not enough stake for action";
+            break;
+        case process_result::already_candidate:
+            ret = "Already a candidate";
+            break;
     }
     return ret;
 }

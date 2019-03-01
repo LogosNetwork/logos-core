@@ -147,6 +147,7 @@ public:
     void bootstrap ();
     void bootstrap_any ();
     void chain ();
+    void candidates ();
     //CH void confirmation_history ();
     template <typename  CT>
     void consensus_blocks ();

@@ -424,6 +424,17 @@ bool PersistenceManager<R>::ValidateRequest(
             return false;
         }
     }
+    else if(request->type == RequestType::AnnounceCandidacy)
+    {
+        logos::transaction txn(_store.environment,nullptr,false);
+        auto ac = dynamic_pointer_cast<const AnnounceCandidacy>(request);
+        if(!isValid(_store, *ac, cur_epoch_num, txn, result))
+        {
+            LOG_INFO(_log) << "AnnounceCandidacy is invalid: " << ac->Hash().to_string()
+            << " code is " << logos::ProcessResultToString(result.code);
+            return false;
+        }
+    }
 
     result.code = logos::process_result::progress;
     return true;
@@ -554,8 +565,8 @@ void PersistenceManager<R>::ApplyRequestBlock(
         LOG_INFO(_log) << "Applying request: " 
             << message.requests[i]->Hash().to_string();
         ApplyRequest(message.requests[i],
-                    message.epoch_number,
                      message.timestamp,
+                     message.epoch_number,
                      transaction);
     }
 }
@@ -922,6 +933,16 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             break;
         }
         case RequestType::AnnounceCandidacy:
+        {
+            auto ac = dynamic_pointer_cast<const AnnounceCandidacy>(request);
+            if(!applyRequest(_store,*ac,transaction))
+            {
+                LOG_ERROR(_log) << "PersistenceManager::ApplyRequest - "
+                    << request->Hash().to_string() << " Error applying AnnounceCandidacy";
+            }
+            break;
+        }
+
         case RequestType::RenounceCandidacy:
         case RequestType::StartRepresenting:
         case RequestType::StopRepresenting:

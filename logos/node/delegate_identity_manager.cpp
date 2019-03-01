@@ -180,6 +180,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
             }
             if(i < NUM_DELEGATES)
             {
+                delegate.starting_term = true;
                 epoch.delegates[i] = delegate;
             }
         }

@@ -105,7 +105,9 @@ RequestConsensusManager::Validate(
   std::shared_ptr<DelegateMessage> message,
   logos::process_return & result)
 {
-    return _persistence_manager.ValidateSingleRequest(message, ConsensusContainer::GetCurEpochNumber(), result, false);
+
+
+    return _persistence_manager.ValidateSingleRequest(message, _events_notifier.GetEpochNumber(), result, false);
 }
 
 bool

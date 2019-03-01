@@ -340,7 +340,9 @@ enum class process_result
     pending_rep,
     old_rep,
     already_voted,
-    invalid_candidate
+    invalid_candidate,
+    not_enough_stake,
+    already_candidate
 };
 
 std::string ProcessResultToString(process_result result);

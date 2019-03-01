@@ -1307,6 +1307,32 @@ void logos::rpc_handler::chain ()
     }
 }
 
+void logos::rpc_handler::candidates ()
+{
+    boost::property_tree::ptree res;
+
+    logos::transaction txn(node.store.environment,nullptr,false);
+
+    for(auto it = logos::store_iterator(txn,node.store.candidacy_db);
+           it != logos::store_iterator(nullptr); ++it)
+    {
+        boost::property_tree::ptree candidate;
+        bool error = false;
+        CandidateInfo info(error, it->second);
+        if(error)
+        {
+            error_response(response,"error reading candidate");
+            return;
+        }
+        candidate.put("active",info.active);
+        candidate.put("remove",info.remove);
+        candidate.put("votes_received_weighted",info.votes_received_weighted.to_string());
+        candidate.put("bls_key",info.bls_key.to_string());
+        res.add_child(it->first.uint256().to_string(),candidate);
+    } 
+    response(res);
+}
+
 template <typename  CT>
 void logos::rpc_handler::consensus_blocks ()
 {
@@ -4505,6 +4531,10 @@ void logos::rpc_handler::process_request ()
         else if (action == "chain")
         {
             chain ();
+        }
+        else if (action == "candidates")
+        {
+            candidates();
         }
         else if (action == "delegators")
         {

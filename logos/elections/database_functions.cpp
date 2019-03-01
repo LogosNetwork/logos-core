@@ -65,7 +65,7 @@ std::vector<std::pair<AccountAddress,CandidateInfo>> getElectionWinners(
     return results.getResults();
 }
 
-uint32_t ElectionsConfig::START_ELECTIONS_EPOCH = 10;
+uint32_t ElectionsConfig::START_ELECTIONS_EPOCH = 3;
 uint32_t ElectionsConfig::TERM_LENGTH = 4;
 
 std::unordered_set<Delegate> getDelegatesToForceRetire(logos::block_store& store,
@@ -222,6 +222,10 @@ bool transitionCandidatesDBNextEpoch(logos::block_store& store, MDB_txn* txn,boo
 
 bool isValid(logos::block_store& store, const ElectionVote& vote_request, uint32_t cur_epoch_num, MDB_txn* txn, logos::process_return & result)
 {
+
+        Log log;
+        LOG_INFO(log) << "ElectionVote epoch number is " << cur_epoch_num;
+
     std::cout << "epoch boundary" << std::endl;
     if(!isOutsideOfEpochBoundary(store,cur_epoch_num,txn))
     {
@@ -274,31 +278,44 @@ bool isValid(logos::block_store& store, const ElectionVote& vote_request, uint32
 
 bool isValid(
         logos::block_store& store,
-        AnnounceCandidacy& request,
+        const AnnounceCandidacy& request,
         uint32_t cur_epoch_num,
-        MDB_txn* txn)
+        MDB_txn* txn,
+        logos::process_return& result)
 {
     if(!isOutsideOfEpochBoundary(store,cur_epoch_num,txn))
     {
+
+        result.code = logos::process_result::dead_period_vote;
         return false;
     }
     RepInfo r_info;
     //TODO: do we really need this requirement, that you are a rep to be a candidate
     if(store.rep_get(request.origin,r_info,txn))
     {
+
+        result.code = logos::process_result::not_a_rep;
         return false;
     }
     Amount stake = request.stake != 0 ? request.stake : r_info.stake;
     if(stake < MIN_DELEGATE_STAKE)
     {
+        result.code = logos::process_result::not_enough_stake;
         return false;
     }
     if(!r_info.announced_stop && r_info.rep_action_epoch==cur_epoch_num)
     {
+
+        result.code = logos::process_result::pending_rep;
         return false;
     }
     CandidateInfo c_info;
-    return store.candidate_get(request.origin,c_info,txn);
+    if(!store.candidate_get(request.origin,c_info,txn))
+    {
+        result.code = logos::process_result::already_candidate;
+        return false;
+    }
+    return true;
 }
 
 bool isValid(
@@ -366,6 +383,8 @@ bool applyRequest(logos::block_store& store, const ElectionVote& request, uint32
     {
         return false;
     }
+        Log log;
+        LOG_INFO(log) << "wrote rep as voting in epoch : " << cur_epoch_num;
     if(store.request_put(request,txn))
     {
         mdb_txn_abort(txn);
@@ -381,8 +400,7 @@ bool applyRequest(logos::block_store& store, const ElectionVote& request, uint32
     }
     return true;
 }
-//TODO: this doesn't store the request itself
-bool applyRequest(logos::block_store& store, AnnounceCandidacy& request, MDB_txn* txn)
+bool applyRequest(logos::block_store& store, const AnnounceCandidacy& request, MDB_txn* txn)
 {
     auto stake = request.stake;
     RepInfo rep;
@@ -403,6 +421,12 @@ bool applyRequest(logos::block_store& store, AnnounceCandidacy& request, MDB_txn
     {
         stake = rep.stake;
     }
+    if(store.request_put(request,txn))
+    {
+        mdb_txn_abort(txn);
+        return false;
+    }
+
 
 
     return !store.candidate_add_new(request.origin,request.bls_key,stake,txn);
