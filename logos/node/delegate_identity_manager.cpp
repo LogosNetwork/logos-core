@@ -165,7 +165,14 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 char buff[5];
                 sprintf(buff, "%02x", del + 1);
                 logos::keypair pair(buff);
-                delegate = {pair.pub, dpk, 100000 + (uint64_t)del * 100, 100000 + (uint64_t)del * 100};
+                Amount stake = 100000 + (uint64_t)del * 100;
+                delegate = {pair.pub, dpk, 100000 + (uint64_t)del * 100, stake};
+                if(e == 0)
+                {
+                    RepInfo rep;
+                    rep.stake = stake;
+                    _store.rep_put(pair.pub,rep,transaction);
+                }
             }
             epoch.delegates[i] = delegate;
 

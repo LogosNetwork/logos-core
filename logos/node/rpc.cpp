@@ -2595,6 +2595,11 @@ void logos::rpc_handler::process ()
             case RequestType::DistributeTokens:
             case RequestType::WithdrawFee:
             case RequestType::SendTokens:
+            case RequestType::AnnounceCandidacy:
+            case RequestType::RenounceCandidacy:
+            case RequestType::ElectionVote:
+            case RequestType::StartRepresenting:
+            case RequestType::StopRepresenting:
                 process(request);
                 break;
             case RequestType::ChangeRep:

@@ -154,17 +154,11 @@ bool addReelectionCandidates(logos::block_store& store, MDB_txn* txn)
         return true;
     }
 
-
     for(auto& d : epoch.delegates)
     {
         if(d.starting_term)
         {
-            RepInfo rep;
-            if(store.rep_get(d.account,rep, txn))
-            {
-                return true;
-            }
-            store.candidate_add_new(d.account,d.bls_pub,rep.stake,txn);
+            store.candidate_add_new(d.account,d.bls_pub,d.stake,txn);
         }
     }
     return false;
