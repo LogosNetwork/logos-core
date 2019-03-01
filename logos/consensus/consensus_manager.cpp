@@ -56,6 +56,7 @@ void ConsensusManager<CT>::HandleRequest(std::shared_ptr<DelegateMessage> messag
                        << hash.to_string();
         return;
     }
+    LOG_INFO(_log) << "ConsensusManager::HandleRequest - " << hash.to_string();
 
     if(!Validate(message, result))
     {
@@ -65,6 +66,9 @@ void ConsensusManager<CT>::HandleRequest(std::shared_ptr<DelegateMessage> messag
                        << " hash: " << hash.to_string();
         return;
     }
+
+    LOG_INFO(_log) << "ConsensusManager::HandleRequest - passed validation "
+        << hash.to_string();
 
     QueueMessage(message);
 }

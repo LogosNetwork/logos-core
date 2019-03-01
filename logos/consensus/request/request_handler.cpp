@@ -46,11 +46,13 @@ RequestHandler::PrePrepare & RequestHandler::GetCurrentBatch()
 RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(Manager & manager)
 {
     std::lock_guard<std::mutex> lock(_mutex);
-    _current_batch = PrePrepare();
     auto & sequence = _requests.get<0>();
 
     _current_batch.requests.reserve(sequence.size());
     _current_batch.hashes.reserve(sequence.size());
+
+
+
     for(auto pos = sequence.begin(); pos != sequence.end();)
     {
         LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch requests_size="
@@ -68,8 +70,9 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(Manager & manager)
         // Ignore request and erase from primary queue if the request doesn't pass validation
         logos::process_return ignored_result;
         // Don't allow duplicates since we are the primary and should not include old requests
-        if(!manager.ValidateAndUpdate(*pos, ignored_result, false))
+        if(!manager.ValidateAndUpdate(*pos, _current_batch.epoch_number, ignored_result, false))
         {
+
             pos = sequence.erase(pos);
             continue;
         }

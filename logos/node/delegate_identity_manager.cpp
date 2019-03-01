@@ -154,7 +154,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
             assert(s.size() == CONSENSUS_PUB_KEY_SIZE);
             memcpy(dpk.data(), s.data(), CONSENSUS_PUB_KEY_SIZE);
         };
-        for (uint8_t i = 0; i < NUM_DELEGATES; ++i) {
+        for (uint8_t i = 0; i < NUM_DELEGATES*2; ++i) {
             get_bls(bls_keys[0]); // same in epoch 0, doesn't matter
             Delegate delegate = {0, dpk, 0, 0};
 
@@ -173,11 +173,15 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                     rep.stake = stake;
                     _store.rep_put(pair.pub,rep,transaction);
                 }
-            }
-            epoch.delegates[i] = delegate;
 
-            LOG_TRACE(_log) << __func__ << " bls pubic key for delegate i=" << (int)i
-                            << " pub_key=" << delegate.bls_pub.to_string();
+
+            LOG_INFO(_log) << __func__ << " account for delegate i :" << (int)i
+                            << " account=" << pair.pub.to_account();
+            }
+            if(i < NUM_DELEGATES)
+            {
+                epoch.delegates[i] = delegate;
+            }
         }
 
         epoch_hash = epoch.Hash();
@@ -298,7 +302,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
         logos::genesis_delegates.push_back(delegate);
 
-        logos::amount amount((del + 1) * 1000000 * 1000000);
+        logos::amount amount((del + 1) * 1000000 * PersistenceManager<R>::MIN_TRANSACTION_FEE);
         uint64_t work = 0;
 
         Send request(logos::logos_test_account,   // account

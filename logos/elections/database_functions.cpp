@@ -1,4 +1,5 @@
 #include <logos/elections/database_functions.hpp>
+#include <logos/lib/log.hpp>
 #include <logos/elections/database.hpp>
 #include <logos/blockstore.hpp>
 #include <logos/lib/epoch_time_util.hpp>
@@ -219,11 +220,12 @@ bool transitionCandidatesDBNextEpoch(logos::block_store& store, MDB_txn* txn,boo
     return result;
 }
 
-bool isValid(logos::block_store& store, ElectionVote& vote_request, uint32_t cur_epoch_num, MDB_txn* txn)
+bool isValid(logos::block_store& store, const ElectionVote& vote_request, uint32_t cur_epoch_num, MDB_txn* txn, logos::process_return & result)
 {
     std::cout << "epoch boundary" << std::endl;
     if(!isOutsideOfEpochBoundary(store,cur_epoch_num,txn))
     {
+        result.code = logos::process_result::dead_period_vote;
         return false;
     }
     RepInfo info;
@@ -231,22 +233,26 @@ bool isValid(logos::block_store& store, ElectionVote& vote_request, uint32_t cur
     std::cout << "rep get" << std::endl;
     if(store.rep_get(vote_request.origin,info,txn))
     {
+        result.code = logos::process_result::not_a_rep;
         return false;
     }
 
     //What is your status as a rep
     if(!info.announced_stop && info.rep_action_epoch == cur_epoch_num)
     {
+        result.code = logos::process_result::pending_rep;
         return false;
     }
     else if(info.announced_stop && info.rep_action_epoch != cur_epoch_num)
     {
+        result.code = logos::process_result::old_rep;
         return false;
     }
 
     //did you vote already this epoch?
     if(info.last_epoch_voted == cur_epoch_num)
     {
+        result.code = logos::process_result::already_voted;
         return false;
     }
 
@@ -259,6 +265,7 @@ bool isValid(logos::block_store& store, ElectionVote& vote_request, uint32_t cur
         CandidateInfo info;
         if(store.candidate_get(cp.account,info,txn) || !info.active)
         {
+            result.code = logos::process_result::invalid_candidate;
             return false;
         }
     }
@@ -316,30 +323,37 @@ bool isValid(
 //during a unit test
 bool isOutsideOfEpochBoundary(logos::block_store& store, uint32_t cur_epoch_num, MDB_txn* txn)
 {
-    EpochTimeUtil util;
-    auto lapse = util.GetNextEpochTime(false);
-    if(lapse < VOTING_DOWNTIME)
-    {
-        return false;
-    }
+//    EpochTimeUtil util;
+//    auto lapse = util.GetNextEpochTime(false);
+//    if(lapse < VOTING_DOWNTIME)
+//    {
+//        return false;
+//    }
 
 
     BlockHash hash; 
     //has the epoch block been created?
     if(store.epoch_tip_get(hash,txn))
     {
+        Log log;
+        LOG_INFO(log) << "couldn't get epoch tip";
         return false;
     }
     
     ApprovedEB eb;
     if(store.epoch_get(hash,eb,txn))
     {
+        Log log;
+        LOG_INFO(log) << "couldn't get epoch";
         return false;
     }
+
+    Log log;
+    LOG_INFO(log) << "get epoch and epoch tip";
     return eb.epoch_number == cur_epoch_num;
 }
 
-bool applyRequest(logos::block_store& store, ElectionVote& request, uint32_t cur_epoch_num, MDB_txn* txn)
+bool applyRequest(logos::block_store& store, const ElectionVote& request, uint32_t cur_epoch_num, MDB_txn* txn)
 {
     RepInfo rep;
     if(store.rep_get(request.origin,rep,txn))

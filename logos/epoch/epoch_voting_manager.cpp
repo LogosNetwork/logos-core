@@ -11,6 +11,7 @@
 #include <logos/elections/database.hpp>
 #include <unordered_map>
 #include <logos/elections/database_functions.hpp>
+#include <logos/consensus/consensus_container.hpp>
 
 
 void EpochVotingManager::CacheElectionWinners(std::vector<std::pair<AccountAddress,CandidateInfo>>& winners)
@@ -50,22 +51,30 @@ std::unordered_set<Delegate> EpochVotingManager::GetRetiringDelegates()
 //these are the delegate-elects
 std::vector<Delegate> EpochVotingManager::GetDelegateElects(size_t num_new)
 {
-    logos::transaction txn(_store.environment,nullptr,false);
-    std::lock_guard<std::mutex> guard(_cache_mutex);
-    auto results = _cached_election_winners;
-    //TODO: this shouldnt assert, but should wait?
-    assert(_cache_written);
-    DelegatePubKey dummy_bls_pub;
-    Amount dummy_stake = 1;
-    std::vector<Delegate> delegate_elects(results.size());
-    std::transform(results.begin(),results.end(),delegate_elects.begin(),
-            [this](auto p){
+
+    if(ConsensusContainer::GetCurEpochNumber() > ElectionsConfig::START_ELECTIONS_EPOCH)
+    {
+        logos::transaction txn(_store.environment,nullptr,false);
+        std::lock_guard<std::mutex> guard(_cache_mutex);
+        auto results = _cached_election_winners;
+        //TODO: this shouldnt assert, but should wait?
+        assert(_cache_written);
+        DelegatePubKey dummy_bls_pub;
+        Amount dummy_stake = 1;
+        std::vector<Delegate> delegate_elects(results.size());
+        std::transform(results.begin(),results.end(),delegate_elects.begin(),
+                [this](auto p){
 
                 Delegate d(p.first,p.second.bls_key,p.second.votes_received_weighted,p.second.stake);
                 d.starting_term = true;
                 return d;
-            });
-    return delegate_elects;
+                });
+        return delegate_elects;
+    }
+    else
+    {
+        return {};
+    }
 }
 
 //TODO: does this really need to use an output variable? Just return the delegates

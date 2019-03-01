@@ -1,5 +1,6 @@
 #include <logos/elections/requests.hpp>
 #include <logos/request/fields.hpp>
+#include <logos/lib/log.hpp>
 
 AnnounceCandidacy::AnnounceCandidacy(
             const AccountAddress & origin,
@@ -193,7 +194,7 @@ ElectionVote::ElectionVote(bool & error,
         return;
     } 
     try {
-        auto votes = tree.get_child("request.votes");
+        auto votes = tree.get_child("votes");
         for(const std::pair<std::string,boost::property_tree::ptree> &v : votes)
         {
             auto account_s (v.first);
@@ -210,9 +211,10 @@ ElectionVote::ElectionVote(bool & error,
         }
         Hash();
     }
-    catch(std::runtime_error const &)
+    catch(std::runtime_error const & e)
     {
         error = true;
+        throw e;
     }
 }
 
@@ -263,12 +265,11 @@ boost::property_tree::ptree ElectionVote::SerializeJson() const
         votes_tree.put(v.account.to_account()
                 ,std::to_string(v.num_votes));
     }
-    boost::property_tree::ptree tree;
-    tree.add_child(VOTES,votes_tree);
     
-    boost::property_tree::ptree super_tree(Request::SerializeJson());
-    super_tree.add_child(REQUEST,tree);
-    return super_tree; 
+    boost::property_tree::ptree tree(Request::SerializeJson());
+
+    tree.add_child(VOTES,votes_tree);
+    return tree; 
 }
 
 

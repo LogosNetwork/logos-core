@@ -105,7 +105,7 @@ RequestConsensusManager::Validate(
   std::shared_ptr<DelegateMessage> message,
   logos::process_return & result)
 {
-    return _persistence_manager.ValidateSingleRequest(message, result, false);
+    return _persistence_manager.ValidateSingleRequest(message, ConsensusContainer::GetCurEpochNumber(), result, false);
 }
 
 bool
@@ -135,14 +135,10 @@ RequestConsensusManager::QueueMessagePrimary(
 auto
 RequestConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
+
+
     auto & batch = _handler.GetCurrentBatch();
 
-    batch.sequence = _sequence;
-    batch.timestamp = GetStamp();
-    batch.epoch_number = _events_notifier.GetEpochNumber();
-    batch.primary_delegate = _delegate_id;
-    // SYL Integration fix: move previous assignment here to avoid overriding in archive blocks
-    batch.previous = _prev_pre_prepare_hash;
 
     for(uint64_t i = 0; i < batch.requests.size(); ++i)
     {
@@ -196,9 +192,20 @@ RequestConsensusManager::InitiateConsensus()
     // make sure we start with a fresh set of hashes so as to not interfere with rejection logic
     _hashes.clear();
     _should_repropose = false;
+
+    auto & batch = _handler.GetCurrentBatch();
+    batch = PrePrepare();
+
+    batch.sequence = _sequence;
+    batch.timestamp = GetStamp();
+    batch.epoch_number = _events_notifier.GetEpochNumber();
+    batch.primary_delegate = _delegate_id;
+    // SYL Integration fix: move previous assignment here to avoid overriding in archive blocks
+    batch.previous = _prev_pre_prepare_hash;
     // SYL Integration: perform validation against account_db here instead of at request receive time
     {
         std::lock_guard<std::mutex> lock(_persistence_manager._write_mutex);
+        
         _handler.PrepareNextBatch(_persistence_manager);
     }
     Manager::InitiateConsensus();

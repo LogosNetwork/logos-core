@@ -9,6 +9,7 @@
 #include <logos/token/entry.hpp>
 #include <logos/lib/trace.hpp>
 #include <logos/common.hpp>
+#include <logos/elections/database_functions.hpp>
 
 constexpr uint128_t PersistenceManager<R>::MIN_TRANSACTION_FEE;
 
@@ -69,16 +70,19 @@ bool PersistenceManager<R>::BlockExists(
 
 bool PersistenceManager<R>::ValidateRequest(
     RequestPtr request,
+    uint32_t cur_epoch_num,
     logos::process_return & result,
     bool allow_duplicates,
     bool prelim)
 {
+    LOG_INFO(_log) << "PersistenceManager::ValidateRequest - validating request"
+        << request->Hash().to_string();
     // SYL Integration: move signature validation here so we always check
     if(ConsensusContainer::ValidateSigConfig() && ! request->VerifySignature(request->origin))
     {
         LOG_WARN(_log) << "PersistenceManager<R> - Validate, bad signature: "
-                       << request->signature.to_string()
-                       << " account: " << request->origin.to_string();
+            << request->signature.to_string()
+            << " account: " << request->origin.to_string();
 
         result.code = logos::process_result::bad_signature;
         return false;
@@ -133,7 +137,7 @@ bool PersistenceManager<R>::ValidateRequest(
     {
         result.code = logos::process_result::wrong_sequence_number;
         LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request->sequence
-                       << " expecting=" << info->block_count;
+            << " expecting=" << info->block_count;
         return false;
     }
 
@@ -151,7 +155,7 @@ bool PersistenceManager<R>::ValidateRequest(
         {
             result.code = logos::process_result::gap_previous;
             LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << request->previous.to_string()
-                            << "; current account info head is: " << info->head.to_string();
+                << "; current account info head is: " << info->head.to_string();
             return false;
         }
     }
@@ -159,9 +163,9 @@ bool PersistenceManager<R>::ValidateRequest(
     if(request->previous != info->head)
     {
         LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash ("
-                        << request->previous.to_string()
-                        << ") and current account info head ("
-                        << info->head.to_string() << ")";
+            << request->previous.to_string()
+            << ") and current account info head ("
+            << info->head.to_string() << ")";
 
         // Allow duplicate requests (either hash == info.head or hash matches a transaction further up in the chain)
         // received from batch blocks.
@@ -282,8 +286,8 @@ bool PersistenceManager<R>::ValidateRequest(
             // with the token (frozen, whitelisted).
             //
             auto get_user_status = [this](const auto & destination_address,
-                                          auto & destination_status,
-                                          const auto & token_id)
+                    auto & destination_status,
+                    const auto & token_id)
             {
                 std::shared_ptr<logos::account_info> destination(new logos::account_info);
                 BlockHash token_user_id(GetTokenUserID(token_id, destination_address));
@@ -372,7 +376,7 @@ bool PersistenceManager<R>::ValidateRequest(
 
             // This is a TokenAccountSend or TokenAccountWithdrawFee request
             else if (request->type == RequestType::DistributeTokens or
-                     request->type == RequestType::WithdrawFee)
+                    request->type == RequestType::WithdrawFee)
             {
                 auto get_destination = [](auto token_request)
                 {
@@ -404,6 +408,20 @@ bool PersistenceManager<R>::ValidateRequest(
             {
                 return false;
             }
+
+
+        }
+    }
+
+    if(request->type == RequestType::ElectionVote)
+    {
+        logos::transaction txn(_store.environment,nullptr,false);
+        auto ev = dynamic_pointer_cast<const ElectionVote>(request);
+        if(!isValid(_store, *ev, cur_epoch_num, txn, result))
+        {
+            LOG_INFO(_log) << "ElectionVote is invalid: " << ev->Hash().to_string()
+            << " code is " << logos::ProcessResultToString(result.code);
+            return false;
         }
     }
 
@@ -413,17 +431,21 @@ bool PersistenceManager<R>::ValidateRequest(
 
 // Use this for single transaction (non-batch) validation from RPC
 bool PersistenceManager<R>::ValidateSingleRequest(
-        const RequestPtr request, logos::process_return & result, bool allow_duplicates)
+        const RequestPtr request, uint32_t cur_epoch_num, logos::process_return & result, bool allow_duplicates)
 {
     std::lock_guard<std::mutex> lock(_write_mutex);
-    return ValidateRequest(request, result, allow_duplicates, false);
+    return ValidateRequest(request, cur_epoch_num, result, allow_duplicates, false);
 }
 
 // Use this for batched transactions validation (either PrepareNextBatch or backup validation)
 bool PersistenceManager<R>::ValidateAndUpdate(
-    RequestPtr request, logos::process_return & result, bool allow_duplicates)
+    RequestPtr request, uint32_t cur_epoch_num, logos::process_return & result, bool allow_duplicates)
 {
-    auto success (ValidateRequest(request, result, allow_duplicates, false));
+    auto success (ValidateRequest(request, cur_epoch_num, result, allow_duplicates, false));
+
+    LOG_INFO(_log) << "PersistenceManager::ValidateAndUpdate - "
+        << "request is : " << request->Hash().to_string() <<  " . result is "
+        << success;
     if (success)
     {
         _reservations->UpdateReservation(request->GetHash(), request->GetAccount());
@@ -441,9 +463,9 @@ bool PersistenceManager<R>::ValidateBatch(
     for(uint64_t i = 0; i < message.requests.size(); ++i)
     {
 #ifdef TEST_REJECT
-        if(!ValidateAndUpdate(message.requests[i], ignored_result, true) || bool(message.requests[i].hash().number() & 1))
+        if(!ValidateAndUpdate(message.requests[i], message.epoch_number, ignored_result, true) || bool(message.requests[i].hash().number() & 1))
 #else
-        if(!ValidateAndUpdate(message.requests[i], ignored_result, true))
+        if(!ValidateAndUpdate(message.requests[i], message.epoch_number, ignored_result, true))
 #endif
         {
             LOG_WARN(_log) << "PersistenceManager<R>::Validate - Rejecting " << message.requests[i]->GetHash().to_string();
@@ -468,10 +490,14 @@ bool PersistenceManager<R>::Validate(const PrePrepare & message,
     for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
         logos::process_return   result;
-        if(!ValidateRequest(message.requests[i], result, true, false))
+        LOG_INFO(_log) << "PersistenceManager::Validate - " 
+            << "attempting to validate : " << message.requests[i]->Hash().to_string();
+        if(!ValidateRequest(message.requests[i], message.epoch_number, result, true, false))
         {
             UpdateStatusRequests(status, i, result.code);
             UpdateStatusReason(status, process_result::invalid_request);
+            LOG_INFO(_log) << "PersistenceManager::Validate - "
+                << "failed to validate request : " << message.requests[i]->Hash().to_string(); 
 
             valid = false;
         }
@@ -525,8 +551,10 @@ void PersistenceManager<R>::ApplyRequestBlock(
 {
     for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
-        auto request = static_pointer_cast<Send>(message.requests[i]);
-        ApplyRequest(request,
+        LOG_INFO(_log) << "Applying request: " 
+            << message.requests[i]->Hash().to_string();
+        ApplyRequest(message.requests[i],
+                    message.epoch_number,
                      message.timestamp,
                      transaction);
     }
@@ -534,8 +562,12 @@ void PersistenceManager<R>::ApplyRequestBlock(
 
 void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                                          uint64_t timestamp,
+                                         uint32_t cur_epoch_num,
                                          MDB_txn * transaction)
 {
+
+    LOG_INFO(_log) << "PersistenceManager::ApplyRequest -"
+        << request->Hash().to_string();
     std::shared_ptr<logos::Account> info;
     auto account_error(_store.account_get(request->GetAccount(), info));
 
@@ -879,9 +911,18 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 
             break;
         }
+        case RequestType::ElectionVote:
+        {
+            auto ev = dynamic_pointer_cast<const ElectionVote>(request);
+            if(!applyRequest(_store,*ev,cur_epoch_num,transaction))
+            {
+                LOG_ERROR(_log) << "PersistenceManager::ApplyRequest - "
+                    << request->Hash().to_string() << " Error applying ElectionVote";
+            }
+            break;
+        }
         case RequestType::AnnounceCandidacy:
         case RequestType::RenounceCandidacy:
-        case RequestType::ElectionVote:
         case RequestType::StartRepresenting:
         case RequestType::StopRepresenting:
         case RequestType::Unknown:

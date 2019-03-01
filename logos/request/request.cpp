@@ -143,9 +143,10 @@ Request::Request(bool & error,
         }
 
     }
-    catch (...)
+    catch (std::exception& e)
     {
         error = true;
+        throw e;
     }
 }
 

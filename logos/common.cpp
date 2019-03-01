@@ -1113,7 +1113,24 @@ std::string logos::ProcessResultToString(logos::process_result result)
         case process_result::invalid_fee:
             ret = "The fee settings are invalid";
             break;
+        case process_result::dead_period_vote:
+            ret = "Attempting to vote during dead period";
+            break;
+        case process_result::not_a_rep: 
+            ret = "Not a rep";
+            break;
+        case process_result::pending_rep:
+            ret = "Representative status pending";
+            break;
+        case process_result::old_rep:
+            ret = "No longer representative";
+            break;
+        case process_result::already_voted:
+            ret = "Already voted this epoch";
+            break;
+        case process_result::invalid_candidate:
+            ret = "Voted for an account that is not an active candidate";
+            break;
     }
-
     return ret;
 }

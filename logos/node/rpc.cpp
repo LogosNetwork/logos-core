@@ -2557,7 +2557,7 @@ void logos::rpc_handler::process(
             }
         default:
             {
-                error_response (response,
+                error_response (response, "Deserialized successfully but : " +
                         ProcessResultToString(result.code));
                 break;
             }
@@ -2573,8 +2573,18 @@ void logos::rpc_handler::process ()
     std::stringstream block_stream (request_text);
     boost::property_tree::read_json (block_stream, request_json);
     bool error = false;
-    auto request = DeserializeRequest(error, request_json);
-
+    std::shared_ptr<Request> request;
+    try
+    {
+        request = DeserializeRequest(error, request_json);
+    }
+    catch(std::exception& e)
+    {
+        std::string msg("Error deserializing request : ");
+        msg += e.what();
+        error_response(response, msg);
+        return;
+    }
 
     if(!error)
     {

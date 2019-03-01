@@ -35,13 +35,16 @@ public:
     virtual bool BlockExists(const ApprovedRB & message);
 
     bool ValidateRequest(RequestPtr request,
+                        uint32_t cur_epoch_num,
                          logos::process_return & result,
                          bool allow_duplicates = true,
                          bool prelim = false);
     virtual bool ValidateSingleRequest(RequestPtr request,
+                                        uint32_t cur_epoch_num,
                                        logos::process_return & result,
                                        bool allow_duplicates = true);
     bool ValidateAndUpdate(RequestPtr request,
+                            uint32_t cur_epoch_num,
                            logos::process_return & result,
                            bool allow_duplicates = true);
 
@@ -62,6 +65,7 @@ private:
                            MDB_txn * transaction);
     void ApplyRequest(RequestPtr request,
                       uint64_t timestamp,
+                      uint32_t cur_epoch_num,
                       MDB_txn * transaction);
 
     template<typename SendType>
