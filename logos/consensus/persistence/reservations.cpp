@@ -73,10 +73,3 @@ Reservations::UpdateReservation(const logos::block_hash & hash, const logos::acc
     logos::reservation_info updated_reservation {hash, current_epoch};
     _reservations[account] = updated_reservation;
 }
-
-bool
-DefaultReservations::CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates)
-{
-    logos::reservation_info info;
-    return !_store.reservation_get(account, info);
-}
