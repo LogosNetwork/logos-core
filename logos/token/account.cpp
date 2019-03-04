@@ -169,6 +169,8 @@ boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
     tree.put("symbol",symbol);
     tree.put("name",name);
     tree.put("issuer_info",issuer_info);
+    tree.put("fee_rate",fee_rate.to_string_dec());
+    tree.put("fee_type",fee_type == TokenFeeType::Percentage ? "Percentage" : fee_type == TokenFeeType::Flat ? "Flat" : "Unknown");
     if(details) {
         boost::property_tree::ptree controllers_tree;
         for(auto & c : controllers)

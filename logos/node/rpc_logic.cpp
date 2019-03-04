@@ -62,13 +62,13 @@ RpcResponse<BoostJson> account_info(
             }
 
             boost::property_tree::ptree response;
-            response.put("type",account_ptr->type == logos::AccountType::TokenAccount ? "TokenAccount" : "LogosAccount");
 
             if(account_ptr->type == logos::AccountType::TokenAccount)
             {
                 TokenAccount token_account = 
                     *static_pointer_cast<TokenAccount>(account_ptr); 
                 response = token_account.SerializeJson(false);
+                response.put("type","TokenAccount");
                 response.put("sequence",token_account.block_count);
                 response.put("frontier",token_account.head.to_string());
                 response.put("receive_tip",token_account.receive_head.to_string());
@@ -86,6 +86,7 @@ RpcResponse<BoostJson> account_info(
                 res.error = store.account_get (transaction, account, info, db);
                 if (!res.error)
                 {
+                    response.put("type","LogosAccount");
                     response.put ("frontier", info.head.to_string ());
                     response.put ("receive_tip", info.receive_head.to_string ());
                     response.put ("open_block", info.open_block.to_string ());
