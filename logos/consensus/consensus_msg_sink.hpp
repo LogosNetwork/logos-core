@@ -30,7 +30,7 @@ protected:
 public:
     /// Class constructor
     /// @param service boost asio service
-    ConsensusMsgSink(Service &service);
+    ConsensusMsgSink(Service &service, std::atomic<uint32_t> & direct_connect);
     /// Class destructor
     virtual ~ConsensusMsgSink() = default;
     /// Push the message onto the queue
@@ -54,22 +54,20 @@ public:
     void ResetConnectCount()
     {
         _direct_connect = 0;
-        _p2p_connect = 0;
     }
     /// @returns true if messages designated to the primary delegate are received via
     ///   direct connection
     bool PrimaryDirectlyConnected()
     {
         // either received direct messages or have not received any messages
-        return _direct_connect > 0 || _p2p_connect == 0;
+        return _direct_connect > 0;
     }
 
 protected:
     Service &               _service;           /// Boost asio service
     std::queue<Message>     _msg_queue;         /// Message queue of consensus messages
     std::mutex              _queue_mutex;       /// Queue mutex
-    std::atomic<uint32_t>   _direct_connect;    /// Direct connections count
-    std::atomic<uint32_t>   _p2p_connect;       /// P2p connections count
+    std::atomic<uint32_t>&  _direct_connect;    /// Direct connections count reference (ConsensusNetIO::_direct_connect)
     bool                    _consuming;         /// Is message currently being consumed
     Log                     _log;               /// Log object
 };

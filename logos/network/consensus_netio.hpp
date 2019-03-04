@@ -270,6 +270,11 @@ public:
         }
     }
 
+    std::atomic<uint32_t> & DirectConnectRef()
+    {
+        return _direct_connect;
+    }
+
     static constexpr uint8_t CONNECT_RETRY_DELAY = 5;     ///< Reconnect delay in seconds.
 
 protected:
@@ -343,4 +348,5 @@ private:
     std::recursive_mutex           _error_mutex;          ///< Error handling mutex
     bool                           _error_handled;        ///< Socket error handled, prevent continous error loop
     std::atomic<uint64_t>          _last_timestamp;       ///< Last message timestamp
+    std::atomic<uint32_t>          _direct_connect;       ///< Count of received messages, used to disable p2p
 };

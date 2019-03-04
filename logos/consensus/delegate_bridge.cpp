@@ -12,7 +12,8 @@ DelegateBridge<CT>::DelegateBridge(Service & service,
                                    std::shared_ptr<IOChannel> iochannel,
                                    p2p_interface & p2p,
                                    uint8_t delegate_id)
-    : ConsensusMsgSink(service)
+    : ConsensusMsgSink(service,
+                       std::dynamic_pointer_cast<ConsensusNetIO>(iochannel)->DirectConnectRef())
     , ConsensusP2pBridge<CT>(service, p2p, delegate_id)
     , _iochannel(iochannel)
 {}

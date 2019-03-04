@@ -66,7 +66,7 @@ protected:
     /// @returns true if p2p is enabled
     bool P2pEnabled()
     {
-        _enable_p2p;
+        return _enable_p2p;
     }
 
     /// Schedule p2p timer

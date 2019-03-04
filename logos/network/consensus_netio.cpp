@@ -425,6 +425,8 @@ ConsensusNetIO::OnHeartBeat(HeartBeat &heartbeat)
         heartbeat.is_request = false;
         Send(heartbeat);
     }
+
+    _direct_connect++;
 }
 
 void ConsensusNetIO::HandleMessageError(const char * operation)
