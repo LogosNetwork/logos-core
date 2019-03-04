@@ -53,62 +53,90 @@ RpcResponse<BoostJson> account_info(
                 request.get<bool>("representative", false);
             const bool weight = request.get<bool>("weight", false);
             logos::transaction transaction (store.environment, nullptr, false);
-            logos::account_info info;
-
-            MDB_dbi db = store.account_db;
-            res.error = store.account_get (transaction, account, info, db);
-            if (!res.error)
+            std::shared_ptr<logos::Account> account_ptr;
+            if(store.account_get(account,account_ptr))
             {
-                boost::property_tree::ptree response;
-                response.put ("frontier", info.head.to_string ());
-                response.put ("receive_tip", info.receive_head.to_string ());
-                response.put ("open_block", info.open_block.to_string ());
-                response.put ("representative_block",
-                        info.rep_block.to_string ());
+                res.error = true;
+                res.error_msg = "failed to get account";
+                return res;
+            }
+
+            boost::property_tree::ptree response;
+            response.put("type",account_ptr->type == logos::AccountType::TokenAccount ? "TokenAccount" : "LogosAccount");
+
+            if(account_ptr->type == logos::AccountType::TokenAccount)
+            {
+                TokenAccount token_account = 
+                    *static_pointer_cast<TokenAccount>(account_ptr); 
+                response = token_account.SerializeJson(false);
+                response.put("sequence",token_account.block_count);
+                response.put("frontier",token_account.head.to_string());
+                response.put("receive_tip",token_account.receive_head.to_string());
                 std::string balance;
-                logos::uint128_union (info.balance).encode_dec (balance);
+                logos::uint128_union (token_account.balance).encode_dec (balance);
                 response.put ("balance", balance);
-                response.put ("modified_timestamp",
-                        std::to_string (info.modified));
-                response.put ("request_count",
-                        std::to_string(info.block_count + info.receive_count));
-
-                std::unordered_set<std::string> token_ids;
-                BoostJson token_tree;
-                bool nofilter = true;
-                if(request.find("tokens")!=request.not_found())
-                {
-                    nofilter = false;
-                    for(auto& t : request.get_child("tokens"))
-                    {
-                        token_ids.emplace(t.second.data());
-                    }
-
-                }
-                for(TokenEntry& e : info.entries)
-                {
-                    auto token_id_str = e.token_id.to_string();
-                    if(nofilter ||
-                            token_ids.find(e.token_id.to_string())
-                            !=token_ids.end())
-                    {
-                        boost::property_tree::ptree entry_tree;
-                        entry_tree.put("whitelisted",e.status.whitelisted);
-                        entry_tree.put("frozen",e.status.frozen);
-                        entry_tree.put("balance",e.balance.to_string_dec());
-                        token_tree.add_child(e.token_id.to_string(),entry_tree);
-                    }
-                }
-                if(token_tree.size() > 0)
-                {
-                    response.add_child("tokens",token_tree);
-                }
-
                 res.contents = response;
             }
             else
-            {
-                res.error_msg = "Account not found";
+            { 
+                logos::account_info info = 
+                    *static_pointer_cast<logos::account_info>(account_ptr);
+
+                MDB_dbi db = store.account_db;
+                res.error = store.account_get (transaction, account, info, db);
+                if (!res.error)
+                {
+                    response.put ("frontier", info.head.to_string ());
+                    response.put ("receive_tip", info.receive_head.to_string ());
+                    response.put ("open_block", info.open_block.to_string ());
+                    response.put ("representative_block",
+                            info.rep_block.to_string ());
+                    std::string balance;
+                    logos::uint128_union (info.balance).encode_dec (balance);
+                    response.put ("balance", balance);
+                    response.put ("modified_timestamp",
+                            std::to_string (info.modified));
+                    response.put ("request_count",
+                            std::to_string(info.block_count + info.receive_count));
+                    response.put("sequence",info.block_count);
+
+                    std::unordered_set<std::string> token_ids;
+                    BoostJson token_tree;
+                    bool nofilter = true;
+                    if(request.find("tokens")!=request.not_found())
+                    {
+                        nofilter = false;
+                        for(auto& t : request.get_child("tokens"))
+                        {
+                            token_ids.emplace(t.second.data());
+                        }
+
+                    }
+                    for(TokenEntry& e : info.entries)
+                    {
+                        auto token_id_str = e.token_id.to_string();
+                        if(nofilter ||
+                                token_ids.find(e.token_id.to_string())
+                                !=token_ids.end())
+                        {
+                            boost::property_tree::ptree entry_tree;
+                            entry_tree.put("whitelisted",e.status.whitelisted);
+                            entry_tree.put("frozen",e.status.frozen);
+                            entry_tree.put("balance",e.balance.to_string_dec());
+                            token_tree.add_child(e.token_id.to_string(),entry_tree);
+                        }
+                    }
+                    if(token_tree.size() > 0)
+                    {
+                        response.add_child("tokens",token_tree);
+                    }
+
+                    res.contents = response;
+                }
+                else
+                {
+                    res.error_msg = "Account not found";
+                }
             }
         }
         else
