@@ -93,6 +93,8 @@ ConsensusP2p<CT>::ConsensusP2p(p2p_interface & p2p,
                                std::function<void (const PostCommittedBlock<CT> &, uint8_t)> ApplyUpdates,
                                std::function<bool (const PostCommittedBlock<CT> &)> BlockExists)
     : _p2p(p2p)
+      /* In the unit test we redefine the _RetryValidate function, but the redefinition calls this initial version
+         of this function, see the file unit_test/p2p_test.cpp, the test VerifyCache. */
     , _RetryValidate([this](const logos::block_hash &hash)
         {
             this->RetryValidate(hash);
