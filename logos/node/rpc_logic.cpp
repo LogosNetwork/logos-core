@@ -80,7 +80,7 @@ RpcResponse<BoostJson> account_info(
             {
                 TokenAccount token_account = 
                     *static_pointer_cast<TokenAccount>(account_ptr); 
-                response = token_account.SerializeJson(false);
+                response = token_account.SerializeJson(true);
                 response.put("type","TokenAccount");
                 response.put("sequence",token_account.block_count);
                 response.put("frontier",token_account.head.to_string());
