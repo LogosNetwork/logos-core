@@ -94,16 +94,19 @@ bool shouldForceRetire(uint32_t next_epoch_number)
 
 bool markDelegateElectsAsRemove(logos::block_store& store, MDB_txn* txn)
 {
+    Log log;
     BlockHash hash;
     bool res = store.epoch_tip_get(hash,txn);
     if(res)
     {
+        LOG_FATAL(log) << "markDelegateElectsAsRemove - failed to get epoch tip";
         return res;
     }
     ApprovedEB epoch;
     res = store.epoch_get(hash,epoch,txn);
     if(res)
     {
+        LOG_FATAL(log) << "markDelegateElectsAsRemove - failed to get epoch"; 
         return res;
     }
 
@@ -113,6 +116,8 @@ bool markDelegateElectsAsRemove(logos::block_store& store, MDB_txn* txn)
         {
             if(store.candidate_mark_remove(d.account,txn))
             {
+                LOG_FATAL(log) << "markDelegateElectsAsRemove - "
+                   << "failed to mark candidate as remove"; 
                 res = true;
             }
         }
@@ -147,6 +152,8 @@ bool getOldEpochBlock(
     return false;
 }
 
+
+
 bool addReelectionCandidates(logos::block_store& store, MDB_txn* txn)
 {
     ApprovedEB epoch;
@@ -159,7 +166,29 @@ bool addReelectionCandidates(logos::block_store& store, MDB_txn* txn)
     {
         if(d.starting_term)
         {
-            store.candidate_add_new(d.account,d.bls_pub,d.stake,txn);
+            RepInfo rep;
+            if(store.rep_get(d.account,rep,txn))
+            {
+                assert(false);
+            }
+            auto candidacy_tip = rep.candidacy_action_tip;
+            if(candidacy_tip != 0)
+            {
+                std::shared_ptr<Request> req;
+                if(store.request_get(candidacy_tip,req,txn))
+                {
+                    assert(false);
+                }
+                if(req->type == RequestType::AnnounceCandidacy)
+                {
+                    
+                    store.candidate_add_new(d.account,d.bls_pub,d.stake,txn);
+                }         
+            }
+            else //Delegate is a genesis delegate. will be added for reelection
+            {
+                store.candidate_add_new(d.account,d.bls_pub,d.stake,txn);
+            }
         }
     }
     return false;

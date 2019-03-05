@@ -32,6 +32,17 @@ AnnounceCandidacy::AnnounceCandidacy(bool & error,
 {
     //ensure type is correct
     error = error || type != RequestType::AnnounceCandidacy;
+
+    if(error)
+    {
+        return;
+    } 
+    Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
     Hash();
 }
 
@@ -55,6 +66,41 @@ AnnounceCandidacy::AnnounceCandidacy(bool & error,
             boost::property_tree::ptree const & tree) : Request(error, tree)
 {
     error = error || type != RequestType::AnnounceCandidacy;
+    
+    if(error)
+    {
+        std::cout << "error in base ctor" << std::endl;
+        throw std::runtime_error("Error in base ctor when constructing AnnounceCandidacy request");
+        return;
+    }
+
+    try
+    {
+        boost::optional<std::string> stake_text (tree.get_optional<std::string>("stake"));
+        if(stake_text.is_initialized())
+        {
+            error = stake.decode_hex(stake_text.get());
+            if(error)
+            {
+                std::cout << "error decoding stake" << std::endl;
+                throw std::runtime_error("Error decoding stake");
+                return;
+            }
+        }
+        else
+        {
+            stake = 0;
+        }
+
+        std::string bls_key_text = tree.get<std::string>("bls_key");
+        bls_key = DelegatePubKey(bls_key_text);
+
+    }
+    catch(std::exception& e)
+    {
+        error = true;
+        throw e;
+    }
     Hash();
 }
 
@@ -84,6 +130,21 @@ void AnnounceCandidacy::DeserializeDB(bool & error, logos::stream & stream)
     }
 
     Deserialize(error, stream);
+}
+
+boost::property_tree::ptree AnnounceCandidacy::SerializeJson() const
+{
+    boost::property_tree::ptree tree(Request::SerializeJson());
+
+    tree.put("stake",stake.to_string());
+    tree.put("bls_key",bls_key.to_string());    
+    return tree;
+}
+
+
+uint16_t AnnounceCandidacy::WireSize() const
+{
+    return Request::WireSize() + sizeof(stake) + sizeof(bls_key); 
 }
 
 RenounceCandidacy::RenounceCandidacy(
@@ -200,9 +261,10 @@ ElectionVote::ElectionVote(bool & error,
             auto account_s (v.first);
             AccountAddress candidate;
             error = candidate.decode_account(account_s);
+            std::cout << "account is : " << v.first << std::endl;
             if(error)
             {
-                break;
+                std::cout << "error decoding account" << std::endl;
             }
             uint8_t vote_val;
             vote_val = std::stoi(v.second.data());
@@ -211,7 +273,7 @@ ElectionVote::ElectionVote(bool & error,
         }
         Hash();
     }
-    catch(std::runtime_error const & e)
+    catch(std::exception const & e)
     {
         error = true;
         throw e;
@@ -427,6 +489,14 @@ void StartRepresenting::DeserializeDB(bool& error, logos::stream& stream)
     Deserialize(error, stream);
 }
 
+
+
+boost::property_tree::ptree StartRepresenting::SerializeJson() const
+{
+    boost::property_tree::ptree tree = Request::SerializeJson();
+    tree.put("stake",stake.to_string());
+    return tree;
+}
 
 StopRepresenting::StopRepresenting(
         const AccountAddress & origin,

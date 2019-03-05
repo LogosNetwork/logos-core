@@ -21,6 +21,11 @@ void EpochVotingManager::CacheElectionWinners(std::vector<std::pair<AccountAddre
     _cache_written = true;
 }
 
+void EpochVotingManager::InvalidateCache()
+{
+    std::lock_guard<std::mutex> guard(_cache_mutex);
+    _cache_written = false; 
+}
 
 //these are the delegates that are in their last epoch
 std::unordered_set<Delegate> EpochVotingManager::GetRetiringDelegates()
@@ -127,6 +132,7 @@ EpochVotingManager::GetNextEpochDelegates(
            << " in size of retiring and delegate_elects. Need to be equal."
            << "Delegate-elects size : " << delegate_elects.size()
             << " . Retiring size " << retiring.size();
+        assert(false);
         trace_and_halt();
     }
 

@@ -94,15 +94,9 @@ PersistenceManager<ECT>::ApplyUpdates(
     uint8_t)
 {
     LOG_INFO(_log) << "Applying updates for Epoch";
-    trace_and_dont_halt();
     logos::transaction transaction(_store.environment, nullptr, true);
     BlockHash epoch_hash = block.Hash();
-    if(_store.epoch_exists(block))
-    {
-        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdate - attempting to write"
-            << "epoch block that already exists. aborting write";
-        return;
-    }
+    bool transition = !BlockExists(block);
 
     if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(epoch_hash, transaction))
     {
@@ -113,7 +107,7 @@ PersistenceManager<ECT>::ApplyUpdates(
 
     bool reelection = block.epoch_number >= ElectionsConfig::START_ELECTIONS_EPOCH;
     LOG_INFO(_log) << "Reelection is " << reelection;
-    if(transitionCandidatesDBNextEpoch(_store, transaction, reelection))
+    if(transition && transitionCandidatesDBNextEpoch(_store, transaction, reelection))
     {
         LOG_FATAL(_log) << "PersistenceManager::ApplyUpdate failed to "
             << "transition candidates_db to next epoch";

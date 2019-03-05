@@ -1125,8 +1125,19 @@ void logos::rpc_handler::block_create ()
             request.put(SEQUENCE, info.block_count);
 
 
+            std::shared_ptr<Request> created_request;
+            try
+            {
 
-            auto created_request = DeserializeRequest(error, request);
+                created_request = DeserializeRequest(error, request);
+            }
+            catch(std::exception& e)
+            {
+                std::string msg("Error deserializing request: ");
+                msg += e.what();
+                error_response(response,msg);
+                return;
+            }
             if(error)
             {
 
@@ -2642,7 +2653,7 @@ void logos::rpc_handler::process ()
                 error_response(response, "ChangeRep is not implemented yet");
                 break;
             default:
-                error_response(response, "Request is invalid");
+                error_response(response, "Request type is invalid");
         }
     }
     else

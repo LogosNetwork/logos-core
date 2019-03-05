@@ -133,6 +133,11 @@ struct AnnounceCandidacy : Request
 
     uint64_t Serialize(logos::stream & stream) const override;
 
+    boost::property_tree::ptree SerializeJson() const override;
+
+
+    uint16_t WireSize() const override;
+
     Amount stake = 0;
     DelegatePubKey bls_key;
 
@@ -196,6 +201,8 @@ struct StartRepresenting : Request
     void DeserializeDB(bool & error, logos::stream & stream) override;
 
     uint64_t Serialize(logos::stream & stream) const override;
+
+    boost::property_tree::ptree SerializeJson() const override;
 
     Amount stake;
 };

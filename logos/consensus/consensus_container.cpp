@@ -264,6 +264,27 @@ ConsensusContainer::PeerBinder(
 
 }
 
+uint32_t GetNextEpochNum(logos::block_store& store)
+{
+    Log log;
+    BlockHash epoch_tip;
+    if (store.epoch_tip_get(epoch_tip))
+    {
+        LOG_FATAL(log) << "GetNextEpochNum failed to get epoch tip";
+        trace_and_halt();
+    }
+
+    ApprovedEB epoch;
+    if (store.epoch_get(epoch_tip, epoch))
+    {
+        LOG_FATAL(log) << "GetNextEpochNum failed to get epoch: "
+                        << epoch_tip.to_string();
+        trace_and_halt();
+    }
+
+    return epoch.epoch_number + 1;
+}
+
 void
 ConsensusContainer::EpochTransitionEventsStart()
 {
@@ -312,7 +333,7 @@ ConsensusContainer::EpochTransitionEventsStart()
     if (_transition_delegate != EpochTransitionDelegate::Retiring)
     {
         ConsensusManagerConfig epoch_config = BuildConsensusConfig(delegate_idx, delegates);
-        _trans_epoch = CreateEpochManager(_cur_epoch_number+1, epoch_config, _transition_delegate,
+        _trans_epoch = CreateEpochManager(GetNextEpochNum(_store), epoch_config, _transition_delegate,
                 EpochConnection::Transitioning);
 
         if (_transition_delegate == EpochTransitionDelegate::Persistent)
@@ -468,7 +489,7 @@ ConsensusContainer::EpochStart(uint8_t delegate_idx)
 
     _binding_map.erase(_cur_epoch_number);
 
-    _cur_epoch_number++;
+    _cur_epoch_number = GetNextEpochNum(_store);
 
     _alarm.add(EPOCH_TRANSITION_END, std::bind(&ConsensusContainer::EpochTransitionEnd, this, delegate_idx));
 }

@@ -53,6 +53,9 @@ public:
     void CacheElectionWinners(
             std::vector<std::pair<AccountAddress,CandidateInfo>>& winners);
 
+    void InvalidateCache();
+
+
 private:
 
     std::vector<std::pair<AccountAddress,CandidateInfo>> _cached_election_winners;

@@ -172,6 +172,8 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                     RepInfo rep;
                     rep.stake = stake;
                     _store.rep_put(pair.pub,rep,transaction);
+
+                    _store.candidate_add_new(pair.pub,dpk,stake,transaction);
                 }
 
 
@@ -180,7 +182,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
             }
             if(i < NUM_DELEGATES)
             {
-                delegate.starting_term = true;
+                delegate.starting_term = false;
                 epoch.delegates[i] = delegate;
             }
         }
@@ -271,6 +273,7 @@ DelegateIdentityManager::Init(const Config &config)
 
     _delegate_account = logos::genesis_delegates[config.delegate_id].key.pub;
     _global_delegate_idx = config.delegate_id;
+    LOG_INFO(_log) << "delegate id is " << _global_delegate_idx;
 
     ConsensusContainer::SetCurEpochNumber(epoch_number);
 
@@ -280,6 +283,7 @@ DelegateIdentityManager::Init(const Config &config)
         auto account = logos::genesis_delegates[del].key.pub;
         auto ip = config.all_delegates[del].ip;
         _delegates_ip[account] = ip;
+        LOG_INFO(_log) << "delegate ip is : " << ip;
     }
 }
 
@@ -383,7 +387,7 @@ DelegateIdentityManager::IdentifyDelegates(
     // requested epoch block is not created yet
     if (stale_epoch && epoch_delegates == EpochDelegates::Next)
     {
-        LOG_ERROR(_log) << "DelegateIdentityManager::IdentifyDelegates delegates set is requested for next epoch";
+        LOG_ERROR(_log) << "DelegateIdentityManager::IdentifyDelegates delegates set is requested for next epoch but epoch is stale";
         return;
     }
 
@@ -477,6 +481,7 @@ DelegateIdentityManager::IdentifyDelegates(
 bool
 DelegateIdentityManager::StaleEpoch()
 {
+
     auto now_msec = GetStamp();
     auto rem = Seconds(now_msec % TConvert<Milliseconds>(EPOCH_PROPOSAL_TIME).count());
     return (rem < MICROBLOCK_PROPOSAL_TIME);

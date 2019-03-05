@@ -6,6 +6,7 @@
 #include <logos/blockstore.hpp>
 #include <logos/lib/trace.hpp>
 #include <logos/lib/log.hpp>
+#include <logos/elections/database_functions.hpp>
 
 bool
 EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
@@ -46,7 +47,16 @@ EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
     epoch.primary_delegate = 0xff;//epoch_handler does not know the delegate index which could change after every epoch transition
     epoch.epoch_number = previous_epoch.epoch_number + 1;
     epoch.micro_block_tip = previous_micro_block_hash;
-    _voting_manager.GetNextEpochDelegates(epoch.delegates);
+    if(shouldForceRetire(epoch.epoch_number))
+    {
+        logos::transaction txn(_store.environment,nullptr,false);
+        std::unordered_set<Delegate> to_retire = getDelegatesToForceRetire(_store,epoch.epoch_number,txn);
+        _voting_manager.GetNextEpochDelegates(epoch.delegates,&to_retire);
+    }
+    else
+    {
+        _voting_manager.GetNextEpochDelegates(epoch.delegates);
+    }
     epoch.transaction_fee_pool = 0; // TODO
 
     LOG_INFO(_log) << "EpochHandler::Build, built epoch block:"

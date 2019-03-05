@@ -3,6 +3,7 @@
 #include <logos/request/fields.hpp>
 #include <logos/lib/utility.hpp>
 #include <logos/elections/requests.hpp>
+#include <logos/lib/log.hpp>
 
 RequestType GetRequestType(bool &error, std::string data)
 {
@@ -279,10 +280,11 @@ std::shared_ptr<Request> DeserializeRequest(bool & error, const logos::mdb_val &
 std::shared_ptr<Request> DeserializeRequest(bool & error, logos::stream & stream)
 {
     RequestType type;
-
+    Log log;
     error = logos::peek(stream, type);
     if(error)
     {
+        LOG_FATAL(log) << "DeserializeRequest - Error getting request type";
         return {nullptr};
     }
 
