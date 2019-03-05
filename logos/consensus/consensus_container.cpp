@@ -552,7 +552,7 @@ ConsensusContainer::BuildConsensusConfig(
         config.delegates.push_back(ConsensusManagerConfig::Delegate{ip, del});
         str << (int)del << " " << ip << " ";
    }
-   LOG_DEBUG(_log) << str.str();
+   LOG_DEBUG(_log) << str.str() << "Delegate id is " << delegate_idx;
 
    return config;
 }
