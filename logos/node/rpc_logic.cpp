@@ -1,5 +1,6 @@
 #include <logos/node/rpc_logic.hpp>
 #include <unordered_set>
+#include <logos/lib/log.hpp>
 
 namespace rpclogic
 {
@@ -7,11 +8,21 @@ RpcResponse<BoostJson> tokens_info(
         const BoostJson& request,
         BlockStore& store)
 {
+    Log log;
     RpcResponse<BoostJson> res;
     res.error = false;
     try{
         boost::property_tree::ptree response;
-        bool details = "true" == request.get<std::string>("details","false");
+        bool details = false;
+        boost::optional<std::string> details_text (
+                request.get_optional<std::string>("details"));
+        if(details_text.is_initialized())
+        {
+            details = details_text.get() == "true";
+        }
+        
+        LOG_INFO(log) << "rpclogic::tokens_info - details is " <<
+            details;
         for(auto & item : request.get_child("tokens"))
         {
             std::string account_string(item.second.get_value<std::string>());
@@ -19,6 +30,8 @@ RpcResponse<BoostJson> tokens_info(
             TokenAccount token_account_info;
             if(!store.token_account_get(account,token_account_info))
             {
+                LOG_INFO(log) << "rpclogoc::tokens_info - serializing "
+                << "token account to json for account : " << account_string;
                 response.add_child(
                         account_string,
                         token_account_info.SerializeJson(details));

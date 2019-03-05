@@ -3,6 +3,7 @@
 #include <logos/token/requests.hpp>
 
 #include <ios>
+#include <logos/lib/log.hpp>
 
 TokenAccount::TokenAccount()
     : logos::Account(logos::AccountType::TokenAccount)
@@ -162,6 +163,7 @@ bool TokenAccount::Deserialize(logos::stream & stream)
 
 boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
 {
+    Log log;
     boost::property_tree::ptree tree;
     tree.put("token_balance",token_balance.to_string_dec());
     tree.put("total_supply",total_supply.to_string_dec());
@@ -179,9 +181,14 @@ boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
             controllers_tree.push_back(std::make_pair("",ctree));
         }
         tree.add_child("controllers", controllers_tree);
+        LOG_INFO(log) << "TokenAccount::SerializeJson - serializing settings "
+            << ".settings size is " << settings.field.size();
         boost::property_tree::ptree settings_tree;
         for(uint8_t i = 0; i < settings.field.size(); ++i)
         {
+            LOG_INFO(log) << "TokenAccount::SerializeJson - serializing setting i = "
+                << i << " . SettingField is " << GetTokenSettingField(i)
+                << ". value is " << settings[i];
             settings_tree.put(GetTokenSettingField(i),settings[i] ? "true" : "false");
         }
         tree.add_child("settings", settings_tree);
