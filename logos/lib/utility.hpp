@@ -273,8 +273,8 @@ struct BitField
 
     void Hash(blake2b_state & hash) const
     {
-        auto f(field.to_ullong());
-        blake2b_update(&hash, &f, sizeof(f));
+        uint64_t data(field.to_ullong());
+        blake2b_update(&hash, &data, sizeof(data));
     }
 
     static constexpr uint64_t WireSize()

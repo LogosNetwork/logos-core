@@ -1668,7 +1668,7 @@ void logos::rpc_handler::account_history ()
     response_l.put ("account", account_text);
     std::shared_ptr<Request> request_ptr;
     ReceiveBlock receive_data;
-    Send receive_link_block;  // i.e. source send block
+    std::shared_ptr<Request> receive_source_ptr;
     bool request_not_found (node.store.request_get(request_hash, request_ptr, transaction));
     bool receive_not_found (node.store.receive_get (receive_hash, receive_data, transaction));
     bool put_request (false);
@@ -1685,7 +1685,7 @@ void logos::rpc_handler::account_history ()
         else
         {
             // get receive's source send
-            if (node.store.request_get(receive_data.send_hash, receive_link_block, transaction))
+            if (node.store.request_get(receive_data.send_hash, receive_source_ptr, transaction))
             {
                 error_response (response, "Internal error: send not found for receive.");
             }
@@ -1693,7 +1693,7 @@ void logos::rpc_handler::account_history ()
             if (request_not_found)
             {
                 put_request = false;
-                timestamp = node.store.request_block_get(receive_link_block.locator.hash, batch) ? 0 : batch.timestamp;
+                timestamp = node.store.request_block_get(receive_source_ptr->locator.hash, batch) ? 0 : batch.timestamp;
             }
             // compare timestamps
             else
@@ -1701,7 +1701,7 @@ void logos::rpc_handler::account_history ()
                 // request timestamp
                 auto request_ts (node.store.request_block_get(request_ptr->locator.hash, batch) ? 0 : batch.timestamp);
                 // receive timestamp
-                auto recv_ts (node.store.request_block_get(receive_link_block.locator.hash, batch) ? 0 : batch.timestamp);
+                auto recv_ts (node.store.request_block_get(receive_source_ptr->locator.hash, batch) ? 0 : batch.timestamp);
                 put_request = request_ts >= recv_ts;
                 timestamp = request_ts >= recv_ts ? request_ts : recv_ts;
             }
@@ -1714,7 +1714,7 @@ void logos::rpc_handler::account_history ()
         else
         {
             boost::property_tree::ptree entry;
-            boost::property_tree::ptree contents = put_request ? request_ptr->SerializeJson() : receive_link_block.SerializeJson();
+            boost::property_tree::ptree contents = (put_request ? request_ptr : receive_source_ptr)->SerializeJson();
             contents.put("timestamp", std::to_string(timestamp));
             history.push_back (std::make_pair("", contents));
             --count;
