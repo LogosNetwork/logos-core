@@ -184,12 +184,16 @@ boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
         LOG_INFO(log) << "TokenAccount::SerializeJson - serializing settings "
             << ".settings size is " << settings.field.size();
         boost::property_tree::ptree settings_tree;
-        for(uint8_t i = 0; i < settings.field.size(); ++i)
+        for(size_t i = 0; i < settings.field.size(); ++i)
         {
             LOG_INFO(log) << "TokenAccount::SerializeJson - serializing setting i = "
                 << i << " . SettingField is " << GetTokenSettingField(i)
                 << ". value is " << settings[i];
-            settings_tree.put(GetTokenSettingField(i),settings[i] ? "true" : "false");
+            std::string field = GetTokenSettingField(i);
+            if(field != "" && settings[i])
+            {
+                settings_tree.put(field,settings[i] ? "true" : "false");
+            }
         }
         tree.add_child("settings", settings_tree);
     }
