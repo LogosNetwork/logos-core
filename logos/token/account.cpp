@@ -179,12 +179,12 @@ boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
             controllers_tree.push_back(std::make_pair("",ctree));
         }
         tree.add_child("controllers", controllers_tree);
-   //     boost::property_tree::ptree settings_tree;
-   //     for(uint8_t i = 0; i < settings.field.size(); ++i)
-   //     {
-   //         settings_tree.put(GetTokenSettingField(i),settings[i]);
-   //     }
-   //     tree.add_child("settings", settings_tree);
+        boost::property_tree::ptree settings_tree;
+        for(uint8_t i = 0; i < settings.field.size(); ++i)
+        {
+            settings_tree.put(GetTokenSettingField(i),settings[i] ? "true" : "false");
+        }
+        tree.add_child("settings", settings_tree);
     }
     return tree;
 }
