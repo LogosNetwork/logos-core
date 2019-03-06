@@ -116,11 +116,13 @@ private:
     friend class ConsensusP2p<CT>;
 };
 
-constexpr int P2P_GET_PEER_NEW_SESSION = -1;
+
 
 class PeerInfoProvider //TODO delete and use p2p_interface
 {
 public:
+    static constexpr int GET_PEER_NEW_SESSION = -1;
+
     /* Where session_id is initialized with an invalid value (-1) and a new session_id
      * is returned by the function, along with a list of peers. count indicates how
      * many peers we are asking for.

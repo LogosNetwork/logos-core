@@ -4,4 +4,4 @@
 #include <logos/bootstrap/bulk_pull.hpp>
 #include <logos/bootstrap/tips.hpp>
 
-constexpr int BOOTSTRAP_PORT = 7000;
+//constexpr int BOOTSTRAP_PORT = 7000;

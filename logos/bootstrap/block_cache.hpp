@@ -2,11 +2,12 @@
 
 #include <memory>
 #include <mutex>
+#include <unordered_set>
 
 #include <logos/lib/numbers.hpp>
 #include <logos/lib/blocks.hpp>
 #include <logos/bootstrap/bulk_pull_response.hpp>
-#include <logos/bootstrap/batch_block_tips.hpp>
+#include <logos/bootstrap/bootstrap_messages.hpp>
 #include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/consensus_manager.hpp>
@@ -25,16 +26,45 @@
 #include <logos/microblock/microblock.hpp>
 #include <logos/microblock/microblock_handler.hpp>
 
-
-namespace BatchBlock {
-    class validator;
-}
-
 #include <logos/node/node.hpp>
 
-#include <logos/bootstrap/epoch.hpp>
+#include <logos/bootstrap/attempt.hpp>
 #include <logos/bootstrap/microblock.hpp>
 #include <logos/lib/trace.hpp>
+
+class BlockCache
+{
+public:
+    bool AddBSB(std::shared_ptr<ApprovedBSB> bsb);
+    bool AddMB(std::shared_ptr<ApprovedMB> mb);
+    bool AddEB(std::shared_ptr<ApprovedEB> eb);
+
+    bool IsMBCached(BlockHash block_hash);
+    bool IsEBCached(BlockHash block_hash);
+
+/*
+    size_t GetNumBSB();
+    size_t GetNumMB();
+    size_t GetNumEB();
+*/
+private:
+    std::vector<std::shared_ptr<ApprovedBSB > > bsb[NUM_DELEGATES]; // Batch State Blocks received.
+    std::vector<std::shared_ptr<ApprovedMB > > micro; // Micro.
+    std::vector<std::shared_ptr<ApprovedEB > > epoch; // Epoch.
+
+    std::shared_ptr<NonDelPersistenceManager<ECT> >  epoch_handler;
+    std::shared_ptr<NonDelPersistenceManager<MBCT> > micro_handler;
+    std::shared_ptr<NonDelPersistenceManager<BSBCT> >  bsb_handler;
+
+    std::bitset<NUM_DELEGATES> mb_dependences; //1 for each unprocessed tip of the oldest mb
+
+    std::mutex mutex;
+    //TODO detect double spend
+};
+
+
+
+/*
 
 namespace BatchBlock {
 
@@ -175,3 +205,4 @@ class validator {
 };
 
 } // namespace BatchBlock
+*/

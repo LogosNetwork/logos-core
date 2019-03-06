@@ -1,62 +1,75 @@
 #pragma once
 
-#include <logos/bootstrap/bootstrap.hpp>
+#include <logos/bootstrap/bootstrap_messages.hpp>
+//#include <logos/bootstrap/bootstrap.hpp>
+#include <logos/lib/log.hpp>
 
-namespace logos
+namespace Bootstrap
 {
+    class TipUtils{
+    public:
+        static TipSet CreateTipSet(Store & store)
+        {
+            logos::transaction transaction (store.environment, nullptr, false);
 
-class tips_req_client : public std::enable_shared_from_this<logos::tips_req_client>
-{
-public:
+        }
 
-    /// Class constructor
-    /// @param bootstrap_client
-    tips_req_client (std::shared_ptr<logos::bootstrap_client>);
+        static bool IsBehind(const TipSet & a, const TipSet & b)
+        {
+            return true;
+        }
+    };
 
-    /// Class destructor
-    ~tips_req_client ();
+class tips_req_client : public std::enable_shared_from_this<Bootstrap::tips_req_client>
+    {
+    public:
 
-    /// run starts the client
-    void run ();
+        /// Class constructor
+        /// @param bootstrap_client
+        tips_req_client (std::shared_ptr<bootstrap_client> connection);
 
-    /// receive_tips_header start of receiving the tips from server
-    void receive_tips_header ();
+        /// Class destructor
+        ~tips_req_client ();
 
-    /// received_batch_block_tips final call to receiving tips in composed operation
-    /// @param error_code error if there was a problem in the network
-    /// @param size_t length of message received
-    void received_batch_block_tips (boost::system::error_code const &, size_t);
+        /// run starts the client
+        void run ();
 
-    /// finish_request
-    /// set promise and pool connection
-    void finish_request();
+        /// receive_tips_header start of receiving the tips from server
+        void receive_tips_header ();
 
-    std::shared_ptr<logos::bootstrap_client> connection;
+        /// received_batch_block_tips final call to receiving tips in composed operation
+        /// @param error_code error if there was a problem in the network
+        /// @param size_t length of message received
+        void received_batch_block_tips (boost::system::error_code const &, size_t);
 
-    std::chrono::steady_clock::time_point start_time;
-    std::promise<bool> promise;
-};
+        /// finish_request
+        /// set promise and pool connection
+        void finish_request();
 
-class frontier_req;
-class tips_req_server : public std::enable_shared_from_this<logos::tips_req_server>
-{
-public:
+        std::shared_ptr<bootstrap_client> connection;
+        TipSet request;
+        TipSet response;
+        std::promise<bool> promise;
+        Log log;
+    };
 
-    /// Class constructor
-    /// @param bootstrap_server
-    /// @param frontier_req (request made by the client)
-    tips_req_server (std::shared_ptr<logos::bootstrap_server> const &, std::unique_ptr<logos::frontier_req>);
+class tips_req_server : public std::enable_shared_from_this<Bootstrap::tips_req_server>
+    {
+    public:
 
-    /// Class destructor
-    ~tips_req_server();
+        /// Class constructor
+        /// @param bootstrap_server
+        /// @param frontier_req (request made by the client)
+        tips_req_server (std::shared_ptr<bootstrap_server> , TipSet);
 
-    /// sends the batch block tips to the client
-    void send_batch_blocks_tips();
+        /// Class destructor
+        ~tips_req_server();
 
-    std::shared_ptr<logos::bootstrap_server> connection;
-    std::shared_ptr<logos::frontier_req> request;
-    std::vector<uint8_t> send_buffer;
-    size_t count;
-};
+        /// sends the batch block tips to the client
+        void run();
 
+        std::shared_ptr<bootstrap_server> connection;
+        TipSet request;
+        Log log;
+    };
 }

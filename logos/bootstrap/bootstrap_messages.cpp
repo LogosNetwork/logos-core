@@ -1,8 +1,8 @@
 #include <iostream>
 #include <logos/blockstore.hpp>
-#include <logos/bootstrap/batch_block_tips.hpp>
+#include <logos/bootstrap/bootstrap_messages.hpp>
 #include <logos/bootstrap/microblock.hpp>
-#include <logos/bootstrap/epoch.hpp>
+#include <logos/bootstrap/attempt.hpp>
 #include <logos/bootstrap/bootstrap.hpp>
 
 int BatchBlock::get_next_micro = 0;

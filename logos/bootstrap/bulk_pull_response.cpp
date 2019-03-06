@@ -1,12 +1,16 @@
 #include <logos/blockstore.hpp>
 #include <logos/bootstrap/bulk_pull_response.hpp>
-#include <logos/consensus/persistence/batchblock/nondel_batchblock_persistence.hpp>//batchblock_persistence.hpp>
+#include <logos/consensus/persistence/batchblock/nondel_batchblock_persistence.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/messages/common.hpp>
 
+
+
+
+/*
+
 #include <mutex>
 
-#define _DEBUG 1
 
 static std::mutex mutex_s;
 static NonDelPersistenceManager<BSBCT> * persistence_manager = nullptr;
@@ -70,3 +74,4 @@ std::shared_ptr<ApprovedBSB> BatchBlock::readBatchStateBlock(Store &store, Block
     }
     return block;
 }
+*/

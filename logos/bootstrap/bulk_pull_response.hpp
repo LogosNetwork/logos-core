@@ -1,15 +1,77 @@
 #pragma once
 
-#include <logos/lib/numbers.hpp>
-#include <logos/lib/blocks.hpp>
-#include <logos/consensus/messages/common.hpp>
-#include <logos/consensus/messages/messages.hpp>
-#include <logos/consensus/consensus_manager.hpp>
-#include <logos/consensus/consensus_container.hpp>
-#include <logos/consensus/persistence/persistence_manager.hpp>
 
-#include <logos/bootstrap/batch_block_tips.hpp>
+#include <logos/bootstrap/bootstrap_messages.hpp>
+#include <logos/bootstrap/connection.hpp>
 
+namespace Bootstrap
+{
+    using PullPtr = std::shared_ptr<PullRequest>;
+
+    class bulk_pull_client : public std::enable_shared_from_this<Bootstrap::bulk_pull_client>
+    {
+    public:
+        /// Class constructor
+        /// @param bootstrap_client
+        /// @param pull_info
+        bulk_pull_client (std::shared_ptr<bootstrap_client>, PullPtr pull);
+
+        /// Class desctructor
+        ~bulk_pull_client ();
+
+        /// request_batch_block start of operation
+        void run();
+
+        /// receive_block composed operation
+        void receive_block ();
+
+        /// received_type composed operation, receive 1 byte indicating block type
+        void received_type ();
+
+        /// received_block_size composed operation, receive the 4 byte size of the message
+        void received_block_size(boost::system::error_code const &, size_t);
+
+        /// received_block composed operation, receive the actual block
+        void received_block (boost::system::error_code const &, size_t);
+
+        std::shared_ptr<bootstrap_client> connection;
+        PullPtr pull;
+    };
+
+    class bulk_pull;
+    class bulk_pull_server : public std::enable_shared_from_this<Bootstrap::bulk_pull_server>
+    {
+    public:
+        /// Class constructor
+        /// @param bootstrap_server
+        /// @param bulk_pull (the actual request being made)
+        bulk_pull_server (std::shared_ptr<bootstrap_server> server, PullPtr pull);
+
+        /// set_current_end sets end of transmission
+        void set_current_end ();//walk backwards, set start and end
+
+        /// send_next sends next block
+        void send_next ();
+
+        /// sent_action composed operation
+        void sent_action (boost::system::error_code const &, size_t);
+
+        /// send_finished send end of transmission
+        void send_finished ();
+
+        /// no_block_sent
+        void no_block_sent (boost::system::error_code const &, size_t);
+
+        std::shared_ptr<bootstrap_server> connection;
+        PullPtr request;
+        std::vector<uint8_t> send_buffer;
+    };
+
+}
+
+
+
+/*
 namespace BatchBlock {
 
 const int BULK_PULL_RESPONSE = 65;
@@ -278,3 +340,4 @@ std::shared_ptr<ApprovedBSB> readBatchStateBlock(Store &store, BlockHash &h);
 BlockHash getPrevBatchStateBlock(Store &store, int delegate, BlockHash &h);
 
 } // BatchBlock
+*/

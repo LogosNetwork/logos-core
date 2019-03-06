@@ -1209,7 +1209,7 @@ logos::process_return logos::block_processor::process_receive_one (MDB_txn * tra
             if (!node.block_arrival.recent (hash))
             {
                 // Only let the bootstrap attempt know about forked blocks that did not arrive via UDP.
-                node.bootstrap_initiator.process_fork (transaction_a, block_a);
+                // node.bootstrap_initiator.process_fork (transaction_a, block_a);
             }
             if (node.config.logging.ledger_logging ())
             {

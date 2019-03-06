@@ -1,399 +1,85 @@
 #pragma once
 
-#include <logos/blockstore.hpp>
-#include <logos/ledger.hpp>
-#include <logos/node/common.hpp>
-
 #include <atomic>
 #include <future>
 #include <queue>
 #include <stack>
 #include <unordered_set>
 
-#include <boost/log/sources/logger.hpp>
+#include <logos/blockstore.hpp>
+#include <logos/lib/log.hpp>
+#include <logos/node/common.hpp>
 
-#include <logos/bootstrap/bulk_pull_response.hpp>
+#include <logos/bootstrap/attempt.hpp>
+#include <logos/bootstrap/connection.hpp>
 
 constexpr double bootstrap_connection_scale_target_blocks = 50000.0;
 constexpr double bootstrap_connection_warmup_time_sec = 5.0;
 constexpr double bootstrap_minimum_blocks_per_sec = 10.0;
-constexpr double bootstrap_minimum_tips_blocks_per_sec = 1000.0;
-constexpr unsigned bootstrap_tips_retry_limit = 16;
 constexpr double bootstrap_minimum_termination_time_sec = 30.0;
-constexpr unsigned bootstrap_max_new_connections = 128; // NOTE: Increase limit from 10.
-constexpr uint8_t bootstrap_header_size = 8;
-constexpr uint8_t bootstrap_header_multiplier = 8;
-constexpr uint32_t bootstrap_max_retry = 1000;
+constexpr uint32_t bootstrap_max_new_connections = 10;//128; // NOTE: Increase limit from 10.
+constexpr uint32_t bootstrap_tips_retry_limit = 16;
+constexpr uint32_t bootstrap_max_retry = 64;
 
-namespace logos
+namespace Bootstrap
 {
-Log &bootstrap_get_logger();
-void bootstrap_init_logger(Log *log);
+    using Service = boost::asio::io_service;
 
-class bootstrap_attempt;
-class bootstrap_client;
-class node;
-enum class sync_result
-{
-    success,
-    error,
-    fork
-};
-
-struct request_info {
-
-    /// Class constructor
-    /// @param _timestamp_start
-    /// @param _timestamp_end
-    /// @param _seq_start
-    /// @param _seq_end
-    /// @param _delegate_id
-    /// @param _e_start
-    /// @param _e_end
-    /// @param _m_start
-    /// @param _m_end
-    /// @param _b_start
-    /// @param _b_end
-    request_info(
-        uint64_t  _timestamp_start,
-        uint64_t  _timestamp_end,
-        uint64_t  _seq_start,
-        uint64_t  _seq_end,
-        int       _delegate_id,
-        BlockHash _e_start,
-        BlockHash _e_end,
-        BlockHash _m_start,
-        BlockHash _m_end,
-        BlockHash _b_start,
-        BlockHash _b_end)
-    :
-        timestamp_start(_timestamp_start),
-        timestamp_end(_timestamp_end),
-        seq_start(_seq_start),
-        seq_end(_seq_end),
-        delegate_id(_delegate_id),
-        e_start(_e_start),
-        e_end(_e_end),
-        m_start(_m_start),
-        m_end(_m_end),
-        b_start(_b_start),
-        b_end(_b_end)
+    class bootstrap_initiator
     {
-    }
-    uint64_t  timestamp_start;
-    uint64_t  timestamp_end;
-    uint64_t  seq_start;
-    uint64_t  seq_end;
-    int       delegate_id;
-    BlockHash e_start;
-    BlockHash e_end;
-    BlockHash m_start;
-    BlockHash m_end;
-    BlockHash b_start;
-    BlockHash b_end;
-};//TODO we don't pull different ApprovedBlocks together
+    public:
+        /// Class constructor
+        /// @param node
+        bootstrap_initiator (Service & service, logos::alarm & alarm, uint8_t max_connected = 8);
 
-class socket_timeout
-{
-public:
+        /// Class desctructor
+        ~bootstrap_initiator ();
 
-    /// Class constructor
-    /// @param boostrap_client
-    socket_timeout (logos::bootstrap_client &);
+        /// bootstrap
+        /// @param endpoint to bootstrap from
+        /// @param add_to_peers add this endpoint to list of peers to bootstrap from
+        void bootstrap (logos::endpoint const &);
 
-    /// start start of timer
-    /// @param time_point
-    void start (std::chrono::steady_clock::time_point);
+        /// bootstrap initiates bootstrapping
+        void bootstrap ();
 
-    /// stop stops the timer so as not to timeout
-    void stop ();
+        /// run_bootstrap start of bootstrapping
+        void run_bootstrap ();
 
-private:
-    std::atomic<unsigned> ticket;
-    logos::bootstrap_client & client;
-};
+        /// in_progress
+        /// @returns true if bootstrapping is running
+        bool in_progress ();
 
-/**
- * The length of every message header, parsed by logos::message::read_header ()
- * The 2 here represents the size of a std::bitset<16>, which is 2 chars long normally
- */
-static const int bootstrap_message_header_size = sizeof (logos::message::magic_number) + sizeof (uint8_t) + sizeof (uint8_t) + sizeof (uint8_t) + sizeof (logos::message_type) + 2;
+        /// current_attempt
+        /// @returns shared pointer of the current bootstrap_attempt
+        std::shared_ptr<bootstrap_attempt> current_attempt ();
 
-class bootstrap_client;
+        /// stop ends bootstrapping
+        void stop ();
 
-enum pull_type {
-    batch_block_pull = 1
-};
+    private:
+        Service & service;
+        logos::alarm & alarm;//std::shared_ptr<logos::alarm> alarm;
+        std::shared_ptr<bootstrap_attempt> attempt;
+        bool stopped;
+        std::mutex mutex;
+        std::condition_variable condition;
+        uint8_t max_connected;
+        std::thread thread;
+        Log log;
+    };
 
-class pull_info
-{
-public:
-    /// Default class constructor
-    pull_info ();
-
-    /// Class constructor
-    /// @param start
-    /// @param end
-    /// @param seq_start
-    /// @param seq_end
-    /// @param delegate_id
-    /// @param e_start (start of epoch block chain)
-    /// @param e_end (end of epoch block chain)
-    /// @param m_start (start of micro block chain)
-    /// @param m_end (end of micro block chain)
-    /// @param b_start (start of bsb block chain)
-    /// @param b_end (end of bsb block chain)
-    pull_info (uint64_t start, uint64_t end, uint64_t seq_start, uint64_t seq_end, int delegate_id, BlockHash e_start, BlockHash e_end, BlockHash m_start, BlockHash m_end, BlockHash b_start, BlockHash b_end);
-
-    logos::block_hash head;
-    logos::block_hash end;
-    unsigned attempts;
-    uint64_t  timestamp_start;
-    uint64_t  timestamp_end;
-    uint64_t  seq_start;
-    uint64_t  seq_end;
-    int       delegate_id;
-    BlockHash e_start;
-    BlockHash e_end;
-    BlockHash m_start;
-    BlockHash m_end;
-    BlockHash b_start;
-    BlockHash b_end;
-    pull_type type;
-};//TODO we don't pull different ApprovedBlocks together
-class tips_req_client;
-class bootstrap_attempt : public std::enable_shared_from_this<bootstrap_attempt>
-{
-public:
-    /// Class constructor
-    /// @param node
-    bootstrap_attempt (std::shared_ptr<logos::node> node_a);
-
-    /// Class destructor
-    ~bootstrap_attempt ();
-
-    /// run start of bootstrap_attempt
-    void run ();
-
-    /// connection
-    /// @param unique_lock
-    /// @returns a valid bootstrap_client
-    std::shared_ptr<logos::bootstrap_client> connection (std::unique_lock<std::mutex> &);
-
-    /// consume_future
-    /// @param future
-    /// @returns boolean
-    bool consume_future (std::future<bool> &);
-
-    /// populate_connections create connections for pull requests
-    void populate_connections ();
-
-    /// request_tips
-    /// @param unique_lock
-    /// @returns boolean
-    bool request_tips (std::unique_lock<std::mutex> &);
-
-    /// request_pull
-    /// @param unique_lock
-    void request_pull (std::unique_lock<std::mutex> &);
-
-    /// add_connection Add an endpoint
-    /// @param endpoint
-    void add_connection (logos::endpoint const &);
-
-    /// pool_connection store connection on idle queue for re-use
-    void pool_connection (std::shared_ptr<logos::bootstrap_client>);
-
-    /// stop stop the attempt
-    void stop ();
-
-    /// add_pull add a pull request
-    /// @param pull_info
-    void add_pull (logos::pull_info const &);
-
-    /// add_defered_pull add a pull request to be called at a later time.
-    /// @param pull_info
-    void add_defered_pull (logos::pull_info const &);
-
-    /// run_defered_pull
-    /// runs the pending pulls
-    void run_defered_pull();
-
-    /// pending_deferred_pulls
-    /// return size of our queue
-    int pending_deferred_pulls()
-    {
-        return dpulls.size(); // Note we are locked when this is called...
-    }
-
- 
-    /// add_pull_bsb
-    /// requests a bsb chain
-    void add_pull_bsb  (uint64_t start, uint64_t end, uint64_t seq_start, uint64_t seq_end, int delegate_id, BlockHash b_start, BlockHash b_end);
-
-    /// add_pull_micro
-    /// requests a micro block chain
-    void add_pull_micro(uint64_t start, uint64_t end, uint64_t seq_start, uint64_t seq_end, BlockHash m_start, BlockHash m_end);
-
-    /// add_pull_epoch
-    /// requests an epoch block chain
-    void add_pull_epoch(uint64_t start, uint64_t end, uint64_t seq_start, uint64_t seq_end, BlockHash e_start, BlockHash e_end);
-
-    /// still_pulling
-    /// @returns boolean (true if pulls are in progress)
-    bool still_pulling ();
-
-    /// process_fork
-    /// @param transaction MDB_txn
-    /// @param shared pointer of block
-    void process_fork (MDB_txn *, std::shared_ptr<logos::block>);
-
-    /// target_connections
-    /// @param pulls_remaining
-    /// @returns the number of connections to create given pulls
-    unsigned target_connections (size_t pulls_remaining);
-
-    /// should_log
-    /// @returns boolean (true if we should log)
-    bool should_log ();
-
-    int session_id;
-    std::chrono::steady_clock::time_point next_log;
-    std::deque<std::weak_ptr<logos::bootstrap_client>> clients;
-    std::weak_ptr<logos::bootstrap_client> connection_tips_request;
-    std::weak_ptr<logos::tips_req_client> tips;
-    std::deque<logos::pull_info> pulls;
-    static std::deque<logos::pull_info> dpulls; // At most one attempt at a time, ok for instance lock.
-    std::deque<std::shared_ptr<logos::bootstrap_client>> idle;
-    std::atomic<unsigned> connections;
-    std::atomic<unsigned> pulling;
-    std::shared_ptr<logos::node> node;
-    std::atomic<unsigned> account_count;
-    std::atomic<uint64_t> total_blocks;
-    // logical
-    // greater than one if we are to get
-    // the next micro in our bootstap_attempt::run()
-    // set in batch_block_validator.cpp after micro
-    // is validated. decremented in run().
-    std::atomic<int> get_next_micro;
-    std::vector<request_info> req;
-    bool stopped;
-    std::mutex mutex;
-    std::condition_variable condition;
-
-    PeerInfoProvider & peer_provider;
-};
-
-class bootstrap_client : public std::enable_shared_from_this<bootstrap_client>
-{
-public:
-    /// Class constructor
-    /// @param node
-    /// @param bootstrap_attempt
-    /// @param tcp_endpoint
-    bootstrap_client (std::shared_ptr<logos::node>, std::shared_ptr<logos::bootstrap_attempt>, logos::tcp_endpoint const &);
-
-    /// Class destructor
-    ~bootstrap_client ();
-
-    /// run start of client
-    void run ();
-
-    /// shared 
-    /// @returns returns shared pointer of this client
-    std::shared_ptr<logos::bootstrap_client> shared ();
-
-    /// start_timeout starts timeout on request
-    void start_timeout ();
-    /// stop_timeout called when request received
-    void stop_timeout ();
-
-    /// stop stops client
-    /// @param force true if we are to force clients to finish instead of gradual shutdown
-    void stop (bool force);
-
-    /// block_rate
-    /// @returns the block transfer rate
-    double block_rate () const;
-
-    /// elapsed_seconds
-    /// @returns seconds since start of operation
-    double elapsed_seconds () const;
-
-    std::shared_ptr<logos::node> node;
-    std::shared_ptr<logos::bootstrap_attempt> attempt;
-    boost::asio::ip::tcp::socket socket;
-    logos::socket_timeout timeout;
-    std::array<uint8_t, BatchBlock::bulk_pull_response_mesg_len * bootstrap_header_multiplier> receive_buffer; // Was 2
-    logos::tcp_endpoint endpoint;
-    std::chrono::steady_clock::time_point start_time;
-    std::atomic<uint64_t> block_count;
-    std::atomic<bool> pending_stop;
-    std::atomic<bool> hard_stop;
-};
-
-class bootstrap_initiator
-{
-public:
-    /// Class constructor
-    /// @param node
-    bootstrap_initiator (logos::node &);
-
-    /// Class desctructor
-    ~bootstrap_initiator ();
-
-    /// bootstrap
-    /// @param endpoint to bootstrap from
-    /// @param add_to_peers add this endpoint to list of peers to bootstrap from
-    void bootstrap (logos::endpoint const &, bool add_to_peers = true);
-
-    /// bootstrap initiates bootstrapping
-    void bootstrap ();
-
-    /// run_bootstrap start of bootstrapping
-    void run_bootstrap ();
-
-    /// notify_listeners
-    /// @param boolean
-    void notify_listeners (bool);
-
-    /// add_observer
-    /// @param function
-    void add_observer (std::function<void(bool)> const &);
-
-    /// in_progress
-    /// @returns true if bootstrapping is running
-    bool in_progress ();
-
-    /// current_attempt
-    /// @returns shared pointer of the current bootstrap_attempt
-    std::shared_ptr<logos::bootstrap_attempt> current_attempt ();
-
-    /// process_fork
-    /// @param transaction MDB_txn
-    /// @param shared pointer of block
-    void process_fork (MDB_txn *, std::shared_ptr<logos::block>);
-
-    /// stop ends bootstrapping
-    void stop ();
-
-private:
-    logos::node & node;
-    std::shared_ptr<logos::bootstrap_attempt> attempt;
-    bool stopped;
-    std::mutex mutex;
-    std::condition_variable condition;
-    std::vector<std::function<void(bool)>> observers;
-    std::thread thread;
-};
-class bootstrap_server;
 class bootstrap_listener
 {
 public:
     /// Class constructor
     /// @param boost io_service 
     /// @param node
-    bootstrap_listener (boost::asio::io_service &, uint16_t, logos::node &);
+    bootstrap_listener (Service & service,
+            Store & store,
+            std::string & local_address,
+            uint16_t port,
+            uint8_t max_accepted = 16);
 
     /// start beginning of listener
     void start ();
@@ -407,62 +93,21 @@ public:
     /// accept_action handles the server socket accept
     /// @param error_code
     /// @param shared pointer of socket
-    void accept_action (boost::system::error_code const &, std::shared_ptr<boost::asio::ip::tcp::socket>);
+    void accept_action (boost::system::error_code const &,
+            std::shared_ptr<boost::asio::ip::tcp::socket>);
 
-    std::mutex mutex;
-    std::unordered_map<logos::bootstrap_server *, std::weak_ptr<logos::bootstrap_server>> connections;
     logos::tcp_endpoint endpoint ();
+
     boost::asio::ip::tcp::acceptor acceptor;
     logos::tcp_endpoint local;
-    boost::asio::io_service & service;
-    logos::node & node;
-    bool on;
-};
-class message;
-class bootstrap_server : public std::enable_shared_from_this<logos::bootstrap_server>
-{
-public:
-    /// Class constructor
-    /// @param shared pointer of socket
-    /// @param node
-    bootstrap_server (std::shared_ptr<boost::asio::ip::tcp::socket>, std::shared_ptr<logos::node>);
+    Service & service;
+    Store & store;
+    uint8_t max_accepted;
 
-    /// Class destructor
-    ~bootstrap_server ();
-
-    /// receive composed operation
-    void receive ();
-
-    /// receive_header_action composed operation
-    /// @param error_code
-    /// @param size
-    void receive_header_action (boost::system::error_code const &, size_t);
-
-    /// receive_bulk_pull_action composed operation
-    /// @param error_code
-    /// @param size
-    void receive_bulk_pull_action (boost::system::error_code const &, size_t);
-
-    /// receive_tips_req_action composed operation
-    /// @param error_code
-    /// @param size
-    void receive_tips_req_action (boost::system::error_code const &, size_t);
-
-    /// add_request add a new work item
-    /// @param unique_ptr of logos message
-    void add_request (std::unique_ptr<logos::message>);
-
-    /// finish_request called to signal end of transmission by servers
-    void finish_request ();
-
-    /// run_next get the next work item to process
-    void run_next ();
-
-    std::array<uint8_t, logos::bulk_pull::SIZE * bootstrap_header_multiplier> receive_buffer;
-    std::shared_ptr<boost::asio::ip::tcp::socket> socket;
-    std::shared_ptr<logos::node> node;
     std::mutex mutex;
-    std::queue<std::unique_ptr<logos::message>> requests;
+    std::unordered_map<bootstrap_server *, std::weak_ptr<bootstrap_server>> connections;
+    bool on;
+    Log log;
 };
 
 }

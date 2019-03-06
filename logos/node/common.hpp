@@ -21,7 +21,7 @@ bool parse_tcp_endpoint (std::string const &, logos::tcp_endpoint &);
 bool reserved_address (logos::endpoint const &);
 }
 
-#include <logos/bootstrap/batch_block_tips.hpp>
+#include <logos/bootstrap/bootstrap_messages.hpp>
 
 static uint64_t endpoint_hash_raw (logos::endpoint const & endpoint_a)
 {

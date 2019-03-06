@@ -1,4 +1,4 @@
-#include <logos/bootstrap/batch_block_validator.hpp>
+#include <logos/bootstrap/block_cache.hpp>
 #include <logos/bootstrap/p2p.hpp>
 #include <set>
 
