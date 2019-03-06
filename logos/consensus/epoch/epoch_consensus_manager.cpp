@@ -52,7 +52,11 @@ EpochConsensusManager::QueueRequestPrimary(
     std::shared_ptr<Request> request)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
-    _cur_epoch = static_pointer_cast<PrePrepare>(request);
+    auto hash = request->Hash();
+    if (!_store.epoch_exists(hash))
+    {
+        _cur_epoch = static_pointer_cast<PrePrepare>(request);
+    }
 }
 
 auto

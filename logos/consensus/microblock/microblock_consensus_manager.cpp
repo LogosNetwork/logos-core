@@ -48,7 +48,11 @@ MicroBlockConsensusManager::QueueRequestPrimary(
     std::shared_ptr<Request> request)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
-    _cur_microblock = static_pointer_cast<PrePrepare>(request);
+    auto hash = request->Hash();
+    if (!_store.micro_block_exists(hash))
+    {
+        _cur_microblock = static_pointer_cast<PrePrepare>(request);
+    }
 }
 
 auto
