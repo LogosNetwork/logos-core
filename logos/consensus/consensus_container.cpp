@@ -293,6 +293,23 @@ ConsensusContainer::EpochTransitionEventsStart()
     }
     else if (_cur_epoch == nullptr)
     {
+        // update epoch number
+        ApprovedEB eb;
+        BlockHash hash;
+        if (_store.epoch_tip_get(hash))
+        {
+            LOG_FATAL(_log) << "ConsensusContainer::EpochTransitionEventsStart failed to get epoch tip";
+            trace_and_halt();
+        }
+
+        if (_store.epoch_get(hash, eb))
+        {
+            LOG_FATAL(_log) << "ConsensusContainer::EpochTransitionEventsStart failed to get epoch "
+                            << hash.to_string();
+            trace_and_halt();
+        }
+        _cur_epoch_number = eb.epoch_number + 1;
+
         _transition_delegate = EpochTransitionDelegate::New;
     }
     else
