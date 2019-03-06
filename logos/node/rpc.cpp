@@ -1633,14 +1633,14 @@ void logos::rpc_handler::account_history ()
         error_response (response, "Bad account number");
     }
 
-    logos::account_info info;
-    if (node.store.account_get (transaction, account, info))
+    std::shared_ptr<logos::Account> info; 
+    if (node.store.account_get (account, info, transaction))
     {
         error_response (response, "Account not found.");
     }
 
-    request_hash = info.head;
-    receive_hash = info.receive_head;
+    request_hash = info->head;
+    receive_hash = info->receive_head;
     // get optional send head block
     if (head_str)
     {
