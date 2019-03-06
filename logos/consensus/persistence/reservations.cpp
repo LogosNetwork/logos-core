@@ -76,6 +76,5 @@ Reservations::UpdateReservation(const logos::block_hash & hash, const logos::acc
 bool
 DefaultReservations::CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates)
 {
-    logos::reservation_info info;
-    return !_store.reservation_get(account, info);
+    return true;
 }

@@ -269,7 +269,7 @@ void PersistenceManager<BSBCT>::StoreBatchMessage(
         trace_and_halt();
     }
 
-    if(_store.batch_tip_put(delegate_id, hash, transaction))
+    if(_store.batch_tip_put(delegate_id, message.epoch_number, hash, transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
                         << "Failed to store batch block tip with hash: "

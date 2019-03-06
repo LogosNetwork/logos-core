@@ -904,21 +904,71 @@ void logos::rpc_handler::batch_blocks_latest ()
     }
     else
     {
-        auto tip_exists = !node.store.batch_tip_get(static_cast<uint8_t>(delegate_id), hash);
+        // Retrieve epoch number to get batch tip
+        // indirectly figure out if we are in stale epoch
+        BlockHash epoch_tip;
+        if (node.store.epoch_tip_get(epoch_tip))
+        {
+            error_response (response, "Internal data corruption: epoch tip doesn't exist.");
+        }
+
+        ApprovedEB epoch;
+        if (node.store.epoch_get(epoch_tip, epoch))
+        {
+            error_response (response, "Internal data corruption: failed to get epoch.");
+        }
+
+        auto tip_exists (false);
+        tip_exists = !node.store.batch_tip_get(static_cast<uint8_t>(delegate_id), epoch.epoch_number + 2, hash);
+
+        // if exists, then we are in epoch i + 1 but epoch block i hasn't been persisted yet
+
+        // otherwise, block i has been persisted, i.e. we are at least 1 MB interval past epoch start
+        if (!tip_exists)
+        {
+            if (node.store.batch_tip_get(static_cast<uint8_t>(delegate_id), epoch.epoch_number + 1, hash))
+            {
+                error_response (response, "Internal data corruption: request block tip doesn't exist.");
+            }
+        }
     }
 
     boost::property_tree::ptree response_l;
     boost::property_tree::ptree response_batch_blocks;
+    BlockHash prev_hash;
     while (!hash.is_zero() && count > 0)
     {
-        if (node.store.batch_block_get(hash, batch))
+        auto retrieve_prev_batch ([&](){
+            if (node.store.batch_block_get(hash, batch))
+            {
+                error_response (response, "Internal data corruption: batch not found.");
+            }
+            boost::property_tree::ptree response_batch;
+            batch.SerializeJson (response_batch);
+            response_batch_blocks.push_back(std::make_pair("", response_batch));
+            prev_hash = batch.previous;
+        });
+
+        retrieve_prev_batch();
+
+        // Check if there is a gap in the request block chain
+        if (prev_hash.is_zero() && batch.epoch_number > GENESIS_EPOCH + 1)
         {
-            error_response (response, "Internal data corruption");
+            // Attempt to get old epoch tip
+            if (node.store.batch_tip_get(static_cast<uint8_t>(delegate_id), batch.epoch_number - 1, prev_hash))
+            {
+                // Only case a tip retrieval fails is when an epoch persistence update just happened and erased the old tip
+                response_batch_blocks.pop_back();
+                // Try again
+                retrieve_prev_batch();
+                if (prev_hash.is_zero())
+                {
+                    error_response (response, "Internal data corruption: old request block tip was deleted without chain linking.");
+                }
+            }
         }
-        boost::property_tree::ptree response_batch;
-        batch.SerializeJson (response_batch);
-        response_batch_blocks.push_back(std::make_pair("", response_batch));
-        hash = batch.previous;
+        hash = prev_hash;
+        prev_hash.clear();
         count--;
     }
 

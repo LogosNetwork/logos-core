@@ -239,6 +239,9 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
 
 void update_PostCommittedBlock_next_field(const logos::mdb_val & mdbval, logos::mdb_val & mdbval_buf, const BlockHash & next);
 
+// This should only be called for the first request block in an epoch
+void update_PostCommittedRequestBlock_prev_field(const logos::mdb_val & mdbval, logos::mdb_val & mdbval_buf, const BlockHash & prev);
+
 // Prepare and Commit messages
 //
 template<MessageType MT, ConsensusType CT,

@@ -2,6 +2,7 @@
 /// This file contains specializations of the BackupDelegate class, which
 /// handle the specifics of BatchBlock consensus.
 #include <logos/consensus/batchblock/bb_backup_delegate.hpp>
+#include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/lib/epoch_time_util.hpp>
@@ -23,7 +24,9 @@ BBBackupDelegate::BBBackupDelegate(
     , _timer(service)
 {
     ApprovedBSB block;
-    promoter.GetStore().batch_tip_get(_delegate_ids.remote, _prev_pre_prepare_hash);
+    uint32_t cur_epoch_number = events_notifier.GetEpochNumber();
+    LOG_DEBUG (_log) << "BBBackupDelegate::BBBackupDelegate() - cur epoch number is " << cur_epoch_number;
+    promoter.GetStore().batch_tip_get(_delegate_ids.remote, cur_epoch_number, _prev_pre_prepare_hash);
     if ( ! _prev_pre_prepare_hash.is_zero() && !promoter.GetStore().batch_block_get(_prev_pre_prepare_hash, block))
     {
         _sequence_number = block.sequence + 1;

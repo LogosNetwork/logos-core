@@ -242,7 +242,11 @@ struct PrePrepareCommon
             uint64_t tsp = htole64(timestamp);
             blake2b_update(&hash, &tsp, sizeof(tsp));
         }
-        previous.Hash(hash);
+        // Don't hash previous if it is the first request (batch) block of an epoch
+        if (!previous.is_zero() || is_archive_block)
+        {
+            previous.Hash(hash);
+        }
     }
 
     uint32_t Serialize(logos::stream & stream) const

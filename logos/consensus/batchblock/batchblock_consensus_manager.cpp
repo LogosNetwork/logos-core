@@ -23,7 +23,10 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
     , _service(service)
 {
     _state = ConsensusState::INITIALIZING;
-    _store.batch_tip_get(_delegate_id, _prev_pre_prepare_hash);
+    // _sequence is reset to 0 in a new epoch
+    uint32_t cur_epoch_number = events_notifier.GetEpochNumber();
+    LOG_DEBUG (_log) << "BatchBlockConsensusManager::BatchBlockConsensusManager() - cur epoch number is " << cur_epoch_number;
+    _store.batch_tip_get(_delegate_id, cur_epoch_number, _prev_pre_prepare_hash);
     ApprovedBSB block;
     if ( !_prev_pre_prepare_hash.is_zero() && !_store.batch_block_get(_prev_pre_prepare_hash, block))
     {

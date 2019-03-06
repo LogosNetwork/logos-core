@@ -164,8 +164,10 @@ public:
     bool receive_put(const BlockHash & hash, const ReceiveBlock & block, MDB_txn *);
     bool receive_get(const BlockHash & hash, ReceiveBlock & block, MDB_txn *);
     bool receive_exists(const BlockHash & hash);
-    bool batch_tip_put(uint8_t delegate_id, const BlockHash & hash, MDB_txn *);
-    bool batch_tip_get(uint8_t delegate_id, BlockHash & hash);
+    bool batch_tip_put(uint8_t delegate_id, uint32_t epoch_number, const BlockHash & hash, MDB_txn *);
+    bool batch_tip_get(uint8_t delegate_id, uint32_t epoch_number, BlockHash & hash);
+    void batch_tip_del(uint8_t delegate_id, uint32_t epoch_number, MDB_txn *);
+    bool request_block_update_prev(const BlockHash & hash, const BlockHash & prev, MDB_txn * transaction);
 
     // micro-block
     bool get(MDB_dbi &db, const mdb_val &key, mdb_val &value, MDB_txn *tx);
@@ -241,9 +243,9 @@ public:
     MDB_dbi receive_db;
 
     /**
-     * Maps delegate id to hash of most
+     * Maps (delegate id, epoch number) combination to hash of most
      * recent batch block.
-     * uint8_t -> logos::block_hash
+     * (uint8_t + uint32_t) -> logos::block_hash
      */
     MDB_dbi batch_tips_db;
 
@@ -336,4 +338,11 @@ public:
 
     Log log;
 };
+
+/**
+ * Helper functions
+ */
+
+logos::mdb_val get_batch_tip_key(uint8_t delegate_id, uint32_t epoch_number);
+
 }

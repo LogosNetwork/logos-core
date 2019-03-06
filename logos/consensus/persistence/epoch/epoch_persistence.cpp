@@ -4,6 +4,7 @@
 #include <logos/consensus/persistence/epoch/epoch_persistence.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
+#include <logos/microblock/microblock_handler.hpp>
 #include <logos/lib/trace.hpp>
 
 PersistenceManager<ECT>::PersistenceManager(Store & store,
@@ -97,16 +98,68 @@ PersistenceManager<ECT>::ApplyUpdates(
 
     if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(epoch_hash, transaction))
     {
-        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdate failed to store epoch or epoch tip "
+        LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to store epoch or epoch tip "
                                 << epoch_hash.to_string();
         trace_and_halt();
     }
 
     if(_store.consensus_block_update_next(block.previous, epoch_hash, ConsensusType::Epoch, transaction))
     {
-        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdate failed to get previous block "
+        LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to get previous block "
                         << block.previous.to_string();
         trace_and_halt();
+    }
+
+    // Link epoch's first request block with previous epoch's last request block
+    // starting from epoch 4 (i.e. one after Genesis)
+    if (block.epoch_number <= GENESIS_EPOCH + 1)
+    {
+        return;
+    }
+
+    using BatchTips = BlockHash[NUM_DELEGATES];
+    BatchTips start, end, cur_e_first, prev_e_last;
+    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
+    {
+        if (_store.batch_tip_get(delegate, block.epoch_number, start[delegate]))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to get request block tip for delegate "
+                            << delegate << " for epoch number " << block.epoch_number;
+            trace_and_halt();
+        }
+    }
+    MicroBlockHandler::BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedBSB &batch)mutable->void{
+        if (batch.previous.is_zero())
+        {
+            cur_e_first[delegate] = batch.Hash();
+        }
+    });
+
+    // Update `previous` of first request block in epoch + Update `next` of last request block in previous epoch
+    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
+    {
+        if (_store.batch_tip_get(delegate, block.epoch_number - 1, prev_e_last[delegate]))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to get request block tip for delegate "
+                            << delegate << " for epoch number " << block.epoch_number - 1;
+            trace_and_halt();
+        }
+
+        if (_store.consensus_block_update_next(prev_e_last[delegate], cur_e_first[delegate], ConsensusType::BatchStateBlock, transaction))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to update prev epoch's "
+                            << "request block tip for delegate " << delegate;
+            trace_and_halt();
+        }
+
+        if (_store.request_block_update_prev(cur_e_first[delegate], prev_e_last[delegate], transaction))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to update current epoch's "
+                            << "first request block prev for delegate " << delegate;
+            trace_and_halt();
+        }
+
+        _store.batch_tip_del(delegate, block.epoch_number - 1, transaction);
     }
 }
 

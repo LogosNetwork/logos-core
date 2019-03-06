@@ -108,8 +108,8 @@ protected:
     DelegateSig          _pre_prepare_sig;
     AggSignature         _post_prepare_sig;
     AggSignature         _post_commit_sig;
-    std::atomic_bool     _ongoing;
-    std::atomic_bool     _state_changing;
+    std::atomic_bool     _ongoing         = ATOMIC_VAR_INIT(false);
+    std::atomic_bool     _state_changing  = ATOMIC_VAR_INIT(false);
     std::mutex           _state_mutex;
     Weights              _weights;
     ApprovedEB           _current_epoch;

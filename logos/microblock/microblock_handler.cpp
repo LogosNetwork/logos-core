@@ -256,7 +256,7 @@ MicroBlockHandler::Build(
     {
         for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
         {
-            if (_store.batch_tip_get(delegate, start[delegate]))
+            if (_store.batch_tip_get(delegate, previous_micro_block.epoch_number, start[delegate]))
             {
                 start[delegate].clear();
             }
