@@ -66,8 +66,9 @@ private:
                      const PostCommittedBlock<CT> & block,
                      std::shared_ptr<PostCommittedBlock<CT>> & pblock);
 
-    bool deserialize(const uint8_t *data,
+    bool Deserialize(const uint8_t *data,
                      uint32_t size,
+                     uint8_t version,
                      PostCommittedBlock<CT> &block);
 
     Log                                                                                         _log;

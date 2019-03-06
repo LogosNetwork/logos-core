@@ -257,11 +257,12 @@ bool ConsensusP2p<ConsensusType::Epoch>::ApplyCacheUpdates(
 }
 
 template<ConsensusType CT>
-bool ConsensusP2p<CT>::deserialize(const uint8_t *data, uint32_t size, PostCommittedBlock<CT> &block)
+bool ConsensusP2p<CT>::Deserialize(const uint8_t *data, uint32_t size,
+                                   uint8_t version, PostCommittedBlock<CT> &block)
 {
     logos::bufferstream stream(data, size);
     bool error = false;
-    new(&block) PostCommittedBlock<CT>(error, stream, logos_version, true, true);
+    new(&block) PostCommittedBlock<CT>(error, stream, version, true, true);
     return !error;
 }
 
@@ -276,7 +277,7 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const Prequel &prequel, const uint8_t
     LOG_INFO(_log) << "ConsensusP2p<" << ConsensusToName(CT)
                    << "> - received message of size " << size;
 
-    if (!deserialize(data, size, block))
+    if (!Deserialize(data, size, prequel.version, block))
     {
         LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)
                         << "> - error deserialization PostCommittedBlock";
