@@ -46,6 +46,8 @@ TransitionConnectionToName(const EpochConnection connection)
             return "Transition";
         case EpochConnection::WaitingDisconnect:
             return "WaitingDisconnect";
+        default:
+            assert(0);
     }
 }
 
@@ -62,6 +64,8 @@ TransitionStateToName(const EpochTransitionState &state)
             return "EpochStart";
         case EpochTransitionState::None:
             return "None";
+        default:
+            assert(0);
     }
 }
 
@@ -82,5 +86,7 @@ TransitionDelegateToName(const EpochTransitionDelegate &delegate)
             return "RetiringForwardOnly";
         case EpochTransitionDelegate::None:
             return "None";
+        default:
+            assert(0);
     }
 }

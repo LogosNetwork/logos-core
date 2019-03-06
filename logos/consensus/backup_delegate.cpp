@@ -332,7 +332,9 @@ void BackupDelegate<CT>::ResetRejectionStatus()
 
 template<ConsensusType CT>
 bool BackupDelegate<CT>::ValidateReProposal(const PrePrepare & message)
-{}
+{
+    return false;
+}
 
 template class BackupDelegate<ConsensusType::BatchStateBlock>;
 template class BackupDelegate<ConsensusType::MicroBlock>;

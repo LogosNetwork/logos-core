@@ -112,6 +112,8 @@ inline std::string RejectionReasonToName(RejectionReason reason)
             return "Invalid Previous Hash";
         case RejectionReason::Invalid_Primary_Index:
             return "Invalid Primary Index";
+        default:
+            assert(0);
     }
 }
 
