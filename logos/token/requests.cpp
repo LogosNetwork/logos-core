@@ -232,7 +232,8 @@ uint64_t Issuance::Serialize(logos::stream & stream) const
            logos::write(stream, fee_rate) +
            settings.Serialize(stream) +
            SerializeVector(stream, controllers) +
-           logos::write<uint16_t>(stream, issuer_info);
+           logos::write<uint16_t>(stream, issuer_info) +
+           logos::write(stream, signature);
 }
 
 void Issuance::Deserialize(bool & error, logos::stream & stream)
@@ -292,6 +293,12 @@ void Issuance::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read<uint16_t>(stream, issuer_info);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
 }
 
 void Issuance::DeserializeDB(bool & error, logos::stream & stream)
@@ -471,7 +478,8 @@ boost::property_tree::ptree IssueAdditional::SerializeJson() const
 uint64_t IssueAdditional::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
-           logos::write(stream, amount);
+           logos::write(stream, amount) +
+           logos::write(stream, signature);
 }
 
 void IssueAdditional::Deserialize(bool & error, logos::stream & stream)
@@ -482,6 +490,12 @@ void IssueAdditional::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, amount);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
 }
 
 void IssueAdditional::DeserializeDB(bool & error, logos::stream & stream)
@@ -606,7 +620,8 @@ uint64_t ChangeSetting::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write(stream, setting) +
-           logos::write(stream, value);
+           logos::write(stream, value) +
+           logos::write(stream, signature);
 }
 
 void ChangeSetting::Deserialize(bool & error, logos::stream & stream)
@@ -623,6 +638,12 @@ void ChangeSetting::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, value);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
 }
 
 void ChangeSetting::DeserializeDB(bool & error, logos::stream & stream)
@@ -756,7 +777,8 @@ boost::property_tree::ptree ImmuteSetting::SerializeJson() const
 uint64_t ImmuteSetting::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
-           logos::write(stream, setting);
+           logos::write(stream, setting) +
+           logos::write(stream, signature);
 }
 
 void ImmuteSetting::Deserialize(bool & error, logos::stream & stream)
@@ -767,6 +789,12 @@ void ImmuteSetting::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, setting);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
 }
 
 void ImmuteSetting::DeserializeDB(bool & error, logos::stream & stream)
@@ -942,7 +970,8 @@ uint64_t Revoke::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write(stream, source) +
-           transaction.Serialize(stream);
+           transaction.Serialize(stream) +
+           logos::write(stream, signature);
 }
 
 void Revoke::Deserialize(bool & error, logos::stream & stream)
@@ -959,6 +988,12 @@ void Revoke::Deserialize(bool & error, logos::stream & stream)
     }
 
     transaction = Transaction(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
 }
 
 void Revoke::DeserializeDB(bool & error, logos::stream & stream)
@@ -1089,7 +1124,8 @@ uint64_t AdjustUserStatus::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write(stream, account) +
-           logos::write(stream, status);
+           logos::write(stream, status) +
+           logos::write(stream, signature);
 }
 
 void AdjustUserStatus::Deserialize(bool & error, logos::stream & stream)
@@ -1106,6 +1142,12 @@ void AdjustUserStatus::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, status);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
 }
 
 void AdjustUserStatus::DeserializeDB(bool & error, logos::stream & stream)
@@ -1247,7 +1289,8 @@ uint64_t AdjustFee::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write(stream, fee_type) +
-           logos::write(stream, fee_rate.bytes);
+           logos::write(stream, fee_rate.bytes) +
+           logos::write(stream, signature);
 }
 
 void AdjustFee::Deserialize(bool & error, logos::stream & stream)
@@ -1264,6 +1307,12 @@ void AdjustFee::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, fee_rate);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
 }
 
 void AdjustFee::DeserializeDB(bool & error, logos::stream & stream)
@@ -1392,7 +1441,8 @@ boost::property_tree::ptree UpdateIssuerInfo::SerializeJson() const
 uint64_t UpdateIssuerInfo::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
-           logos::write<uint16_t>(stream, new_info);
+           logos::write<uint16_t>(stream, new_info) +
+           logos::write(stream, signature);
 }
 
 void UpdateIssuerInfo::Deserialize(bool & error, logos::stream & stream)
@@ -1403,6 +1453,12 @@ void UpdateIssuerInfo::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read<uint16_t>(stream, new_info);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
 }
 
 void UpdateIssuerInfo::DeserializeDB(bool & error, logos::stream & stream)
@@ -1582,7 +1638,8 @@ uint64_t UpdateController::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            logos::write(stream, action) +
-           controller.Serialize(stream);
+           controller.Serialize(stream) +
+           logos::write(stream, signature);
 }
 
 void UpdateController::Deserialize(bool & error, logos::stream & stream)
@@ -1594,6 +1651,12 @@ void UpdateController::Deserialize(bool & error, logos::stream & stream)
     }
 
     controller = ControllerInfo(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
 }
 
 void UpdateController::DeserializeDB(bool & error, logos::stream & stream)
@@ -1751,7 +1814,8 @@ boost::property_tree::ptree Burn::SerializeJson() const
 uint64_t Burn::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
-           logos::write(stream, amount);
+           logos::write(stream, amount) +
+           logos::write(stream, signature);
 }
 
 void Burn::Deserialize(bool & error, logos::stream & stream)
@@ -1762,6 +1826,12 @@ void Burn::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, amount);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
 }
 
 void Burn::DeserializeDB(bool & error, logos::stream & stream)
@@ -1910,12 +1980,19 @@ boost::property_tree::ptree Distribute::SerializeJson() const
 uint64_t Distribute::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
-           transaction.Serialize(stream);
+           transaction.Serialize(stream) +
+           logos::write(stream, signature);
 }
 
 void Distribute::Deserialize(bool & error, logos::stream & stream)
 {
     transaction = Transaction(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
 }
 
 void Distribute::DeserializeDB(bool & error, logos::stream & stream)
@@ -2062,12 +2139,19 @@ boost::property_tree::ptree WithdrawFee::SerializeJson() const
 uint64_t WithdrawFee::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
-           transaction.Serialize(stream);
+           transaction.Serialize(stream) +
+           logos::write(stream, signature);
 }
 
 void WithdrawFee::Deserialize(bool & error, logos::stream & stream)
 {
     transaction = Transaction(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
 }
 
 void WithdrawFee::DeserializeDB(bool & error, logos::stream & stream)
@@ -2270,7 +2354,8 @@ uint64_t TokenSend::Serialize(logos::stream & stream) const
 {
     return TokenRequest::Serialize(stream) +
            SerializeVector(stream, transactions) +
-           logos::write(stream, token_fee);
+           logos::write(stream, token_fee) +
+           logos::write(stream, signature);
 }
 
 void TokenSend::Deserialize(bool & error, logos::stream & stream)
@@ -2294,6 +2379,12 @@ void TokenSend::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, token_fee);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
 }
 
 void TokenSend::DeserializeDB(bool & error, logos::stream & stream)

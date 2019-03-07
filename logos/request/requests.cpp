@@ -33,8 +33,12 @@ Request::Locator::Locator(bool & error,
 
 uint64_t Request::Locator::Serialize(logos::stream & stream)
 {
-    return logos::write(stream, hash) +
-           logos::write(stream, index);
+    uint64_t bytes_written = 0;
+
+    bytes_written += logos::write(stream, hash);
+    bytes_written += logos::write(stream, index);
+
+    return bytes_written;
 }
 
 Request::Request(RequestType type)
@@ -45,12 +49,14 @@ Request::Request(RequestType type,
                  const AccountAddress & origin,
                  const BlockHash & previous,
                  const Amount & fee,
-                 uint32_t sequence)
+                 uint32_t sequence,
+                 uint64_t work)
     : type(type)
     , origin(origin)
     , previous(previous)
     , fee(fee)
     , sequence(sequence)
+    , work(work)
 {}
 
 Request::Request(RequestType type,
@@ -58,13 +64,15 @@ Request::Request(RequestType type,
                  const BlockHash & previous,
                  const Amount & fee,
                  uint32_t sequence,
+                 uint64_t work,
                  const AccountSig & signature)
     : type(type)
     , origin(origin)
-    , signature(signature)
     , previous(previous)
     , fee(fee)
     , sequence(sequence)
+    , work(work)
+    , signature(signature)
 {}
 
 Request::Request(bool & error,
@@ -100,12 +108,6 @@ Request::Request(bool & error,
             return;
         }
 
-        error = signature.decode_hex(tree.get<std::string>(SIGNATURE));
-        if(error)
-        {
-            return;
-        }
-
         error = previous.decode_hex(tree.get<std::string>(PREVIOUS));
         if(error)
         {
@@ -125,6 +127,22 @@ Request::Request(bool & error,
         }
 
         sequence = std::stoul(tree.get<std::string>(SEQUENCE));
+        if(error)
+        {
+            return;
+        }
+
+        error = logos::from_string_hex(tree.get<std::string>(WORK, "0"), work);
+        if(error)
+        {
+            return;
+        }
+
+        error = signature.decode_hex(tree.get<std::string>(SIGNATURE));
+        if(error)
+        {
+            return;
+        }
 
         Hash();
     }
@@ -198,20 +216,24 @@ std::string Request::ToJson() const
     return ostream.str();
 }
 
-uint64_t Request::ToStream(logos::stream & stream) const
+uint64_t Request::ToStream(logos::stream & stream, bool with_work) const
 {
-    return DoSerialize(stream) +
-           Serialize(stream);
+    auto bytes_written = 0;
+
+    bytes_written += DoSerialize(stream, with_work);
+    bytes_written += Serialize(stream);
+
+    return bytes_written;
 }
 
-logos::mdb_val Request::ToDatabase(std::vector<uint8_t> & buf) const
+logos::mdb_val Request::ToDatabase(std::vector<uint8_t> & buf, bool with_work) const
 {
     assert(buf.empty());
 
     {
         logos::vectorstream stream(buf);
 
-        DoSerialize(stream);
+        DoSerialize(stream, with_work);
         locator.Serialize(stream);
         Serialize(stream);
     }
@@ -237,24 +259,37 @@ boost::property_tree::ptree Request::SerializeJson() const
 
     tree.put(TYPE, GetRequestTypeField(type));
     tree.put(ORIGIN, origin.to_account());
-    tree.put(SIGNATURE, signature.to_string());
     tree.put(PREVIOUS, previous.to_string());
     tree.put(NEXT, next.to_string());
     tree.put(FEE, fee.to_string_dec());
     tree.put(SEQUENCE, std::to_string(sequence));
+    tree.put(WORK, std::to_string(work));
+    tree.put(SIGNATURE, signature.to_string());
 
     return tree;
 }
 
-uint64_t Request::DoSerialize(logos::stream & stream) const
+uint64_t Request::DoSerialize(logos::stream & stream, bool with_work) const
 {
-    return logos::write(stream, type) +
-           logos::write(stream, origin) +
-           logos::write(stream, signature) +
-           logos::write(stream, previous) +
-           logos::write(stream, next) +
-           logos::write(stream, fee) +
-           logos::write(stream, sequence);
+    uint64_t bytes_written = 0;
+
+    bytes_written += logos::write(stream, type);
+    bytes_written += logos::write(stream, origin);
+    bytes_written += logos::write(stream, previous);
+    bytes_written += logos::write(stream, next);
+    bytes_written += logos::write(stream, fee);
+    bytes_written += logos::write(stream, sequence);
+    bytes_written += logos::write(stream, with_work);
+
+    if(with_work)
+    {
+        bytes_written += logos::write(stream, work);
+    }
+
+    // Signature is serialized by derived
+    // classes.
+
+    return bytes_written;
 }
 
 // This is only implemented to prevent
@@ -273,12 +308,6 @@ void Request::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, origin);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, signature);
     if(error)
     {
         return;
@@ -303,6 +332,29 @@ void Request::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, sequence);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
+
+    // Signature is deserialized by derived
+    // classes.
 }
 
 bool Request::Validate(logos::process_return & result,
@@ -345,8 +397,8 @@ BlockHash Request::Hash() const
 void Request::Hash(blake2b_state & hash) const
 {
     blake2b_update(&hash, &type, sizeof(type));
-    previous.Hash(hash);
     origin.Hash(hash);
+    previous.Hash(hash);
     fee.Hash(hash);
     blake2b_update(&hash, &sequence, sizeof(sequence));
 }
@@ -355,22 +407,22 @@ uint16_t Request::WireSize() const
 {
     return sizeof(type) +
            sizeof(origin.bytes) +
-           sizeof(signature.bytes) +
            sizeof(previous.bytes) +
            sizeof(next.bytes) +
            sizeof(fee.bytes) +
-           sizeof(sequence);
+           sizeof(sequence) +
+           sizeof(signature.bytes);
 }
 
 bool Request::operator==(const Request & other) const
 {
     return type == other.type &&
            origin == other.origin &&
-           signature == other.signature &&
            previous == other.previous &&
            next == other.next &&
            fee == other.fee &&
-           sequence == other.sequence;
+           sequence == other.sequence &&
+           signature == other.signature;
 }
 
 Change::Change()
@@ -457,8 +509,13 @@ boost::property_tree::ptree Change::SerializeJson() const
 
 uint64_t Change::Serialize(logos::stream & stream) const
 {
-    return logos::write(stream, client) +
-           logos::write(stream, representative);
+    uint64_t bytes_written = 0;
+
+    bytes_written += logos::write(stream, client);
+    bytes_written += logos::write(stream, representative);
+    bytes_written += logos::write(stream, signature);
+
+    return bytes_written;
 }
 
 void Change::Deserialize(bool & error, logos::stream & stream)
@@ -470,6 +527,12 @@ void Change::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, representative);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
 }
 
 void Change::DeserializeDB(bool &error, logos::stream &stream)
@@ -485,6 +548,8 @@ void Change::DeserializeDB(bool &error, logos::stream &stream)
 
 void Change::Hash(blake2b_state & hash) const
 {
+    Request::Hash(hash);
+
     client.Hash(hash);
     representative.Hash(hash);
 }
@@ -529,8 +594,8 @@ Send::Send(const AccountAddress & account,
               account,
               previous,
               transaction_fee,
-              sequence)
-      , work(work)
+              sequence,
+              work)
 {
     transactions.push_back(Transaction(to, amount));
     Sign(priv, pub);
@@ -549,8 +614,8 @@ Send::Send(AccountAddress const & account,
               previous,
               transaction_fee,
               sequence,
+              work,
               sig)
-      , work(work)
 {
     transactions.push_back(Transaction(to, amount));
     Hash();
@@ -569,12 +634,6 @@ Send::Send(bool & error,
 
     try
     {
-        error = logos::from_string_hex(tree.get<std::string>("work"), work);
-        if(error)
-        {
-            return;
-        }
-
         auto transactions_tree = tree.get_child("transactions");
         for (auto & entry : transactions_tree)
         {
@@ -677,7 +736,6 @@ boost::property_tree::ptree Send::SerializeJson() const
 {
     auto tree = Request::SerializeJson();
 
-    tree.put("work", std::to_string(work));
     tree.put("number_transactions", std::to_string(transactions.size()));
 
     boost::property_tree::ptree transactions_tree;
@@ -697,9 +755,14 @@ boost::property_tree::ptree Send::SerializeJson() const
     return tree;
 }
 
-uint64_t Send::Serialize (logos::stream & stream) const
+uint64_t Send::Serialize(logos::stream & stream) const
 {
-    return SerializeVector(stream, transactions);
+    uint64_t bytes_written = 0;
+
+    bytes_written += SerializeVector(stream, transactions);
+    bytes_written += logos::write(stream, signature);
+
+    return bytes_written;
 }
 
 void Send::Deserialize(bool & error, logos::stream & stream)
@@ -721,6 +784,8 @@ void Send::Deserialize(bool & error, logos::stream & stream)
 
         transactions.push_back(t);
     }
+
+    error = logos::read(stream, signature);
 }
 
 void Send::DeserializeDB(bool &error, logos::stream &stream)
@@ -741,8 +806,7 @@ bool Send::operator==(const Request & other) const
         auto derived = dynamic_cast<const Send &>(other);
 
         return Request::operator==(other) &&
-               transactions == derived.transactions &&
-               work == derived.work;
+               transactions == derived.transactions;
     }
     catch(...)
     {}
