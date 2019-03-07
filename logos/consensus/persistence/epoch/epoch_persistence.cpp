@@ -121,10 +121,10 @@ PersistenceManager<ECT>::ApplyUpdates(
     BatchTips start, end, cur_e_first, prev_e_last;
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
     {
-        if (_store.batch_tip_get(delegate, block.epoch_number, start[delegate]))
+        if (_store.batch_tip_get(delegate, block.epoch_number + 1, start[delegate]))
         {
             LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to get request block tip for delegate "
-                            << delegate << " for epoch number " << block.epoch_number;
+                            << std::to_string(delegate) << " for epoch number " << block.epoch_number + 1;
             trace_and_halt();
         }
     }
@@ -138,28 +138,28 @@ PersistenceManager<ECT>::ApplyUpdates(
     // Update `previous` of first request block in epoch + Update `next` of last request block in previous epoch
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
     {
-        if (_store.batch_tip_get(delegate, block.epoch_number - 1, prev_e_last[delegate]))
+        if (_store.batch_tip_get(delegate, block.epoch_number, prev_e_last[delegate]))
         {
             LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to get request block tip for delegate "
-                            << delegate << " for epoch number " << block.epoch_number - 1;
+                            << std::to_string(delegate) << " for epoch number " << block.epoch_number;
             trace_and_halt();
         }
 
         if (_store.consensus_block_update_next(prev_e_last[delegate], cur_e_first[delegate], ConsensusType::BatchStateBlock, transaction))
         {
             LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to update prev epoch's "
-                            << "request block tip for delegate " << delegate;
+                            << "request block tip for delegate " << std::to_string(delegate);
             trace_and_halt();
         }
 
         if (_store.request_block_update_prev(cur_e_first[delegate], prev_e_last[delegate], transaction))
         {
             LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to update current epoch's "
-                            << "first request block prev for delegate " << delegate;
+                            << "first request block prev for delegate " << std::to_string(delegate);
             trace_and_halt();
         }
 
-        _store.batch_tip_del(delegate, block.epoch_number - 1, transaction);
+        _store.batch_tip_del(delegate, block.epoch_number, transaction);
     }
 }
 
