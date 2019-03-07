@@ -199,6 +199,6 @@ EpochConsensusManager::OnConsensusReached()
 
         _ongoing = false;
 
-        OnRequestQueued();
+        OnMessageQueued();
     }
 }

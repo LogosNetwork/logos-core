@@ -162,6 +162,6 @@ MicroBlockConsensusManager::OnConsensusReached()
 
         _ongoing = false;
 
-        OnRequestQueued();
+        OnMessageQueued();
     }
 }

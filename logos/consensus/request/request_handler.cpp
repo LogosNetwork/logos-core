@@ -35,14 +35,6 @@ void RequestHandler::OnPostCommit(const RequestBlock & block)
     }
 }
 
-RequestHandler::PrePrepare & RequestHandler::GetCurrentBatch()
-{
-    std::lock_guard<std::mutex> lock(_mutex);
-    LOG_DEBUG (_log) << "RequestHandler::GetCurrentBatch - "
-                     << "batch_size=" << _current_batch.requests.size();
-    return _current_batch;
-}
-
 RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(
     RequestHandler::Manager & manager,
     bool repropose)

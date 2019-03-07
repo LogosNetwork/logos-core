@@ -126,6 +126,8 @@ inline std::string RejectionReasonToName(RejectionReason reason)
         case RejectionReason::Invalid_Primary_Index:
             result = "Invalid Primary Index";
             break;
+        default:
+            assert(0);
     }
 
     return result;

@@ -177,7 +177,7 @@ bool ConsensusP2p<ConsensusType::Request>::ApplyCacheUpdates(
             _ApplyUpdates(block, delegate_id);
             _RetryValidate(block.Hash());
 
-            for(uint32_t i = 0; i < block.block_count; ++i)
+            for(uint32_t i = 0; i < block.requests.size(); ++i)
             {
                 _RetryValidate(block.requests[i]->Hash());
             }

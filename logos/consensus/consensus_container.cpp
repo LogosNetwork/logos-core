@@ -625,9 +625,9 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
             p2pheader.dest_delegate_id == epoch->GetDelegateId()))
     {
         ConsensusMsgProducer *producer = nullptr;
-        if (prequel.consensus_type == ConsensusType::BatchStateBlock)
+        if (prequel.consensus_type == ConsensusType::Request)
         {
-            producer = &epoch->_batch_manager;
+            producer = &epoch->_request_manager;
         }
         else if (prequel.consensus_type == ConsensusType::MicroBlock)
         {

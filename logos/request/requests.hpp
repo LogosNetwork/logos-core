@@ -68,13 +68,15 @@ struct Request
             const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,
-            uint32_t sequence);
+            uint32_t sequence,
+            uint64_t work);
 
     Request(RequestType type,
             const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,
             uint32_t sequence,
+            uint64_t work,
             const AccountSig & signature);
 
     Request(bool & error,
@@ -113,12 +115,12 @@ struct Request
     bool VerifySignature(AccountPubKey const & pub) const;
 
     std::string ToJson() const;
-    uint64_t ToStream(logos::stream & stream) const;
-    logos::mdb_val ToDatabase(std::vector<uint8_t> & buf) const;
+    uint64_t ToStream(logos::stream & stream, bool with_work = false) const;
+    logos::mdb_val ToDatabase(std::vector<uint8_t> & buf, bool with_work = false) const;
     virtual void DeserializeDB(bool & error, logos::stream & stream);
 
     virtual boost::property_tree::ptree SerializeJson() const;
-    uint64_t DoSerialize(logos::stream & stream) const;
+    uint64_t DoSerialize(logos::stream & stream, bool with_work) const;
     virtual uint64_t Serialize(logos::stream & stream) const;
     void Deserialize(bool & error, logos::stream & stream);
 
@@ -136,11 +138,12 @@ struct Request
 
     RequestType       type = RequestType::Unknown;
     AccountAddress    origin;
-    AccountSig        signature;
     BlockHash         previous;
     BlockHash         next;
     Amount            fee;
     uint32_t          sequence = 0;
+    uint64_t          work     = 0;
+    AccountSig        signature;
     mutable Locator   locator;
     mutable BlockHash digest;
 };
@@ -282,5 +285,4 @@ struct Send : Request
     static const uint8_t MAX_TRANSACTIONS = 8;
 
     Transactions      transactions;
-    uint64_t          work = 0;
 };
