@@ -42,6 +42,6 @@ ConsensusP2pBridge<CT>::ScheduleP2pTimer(TimeoutCb ontimeout, ConsensusP2pBridge
     _timer.async_wait(ontimeout);
 }
 
-template class ConsensusP2pBridge<ConsensusType::BatchStateBlock>;
+template class ConsensusP2pBridge<ConsensusType::Request>;
 template class ConsensusP2pBridge<ConsensusType::MicroBlock>;
 template class ConsensusP2pBridge<ConsensusType::Epoch>;

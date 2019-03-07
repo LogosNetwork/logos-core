@@ -12,7 +12,7 @@
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/backup_delegate.hpp>
-#include <logos/consensus/consensus_p2p.hpp>
+#include <logos/consensus/p2p/consensus_p2p.hpp>
 #include <logos/consensus/waiting_list.hpp>
 #include <logos/node/client_callback.hpp>
 
