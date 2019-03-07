@@ -3,6 +3,7 @@
 
 #include <logos/bootstrap/bootstrap_messages.hpp>
 #include <logos/bootstrap/connection.hpp>
+#include <logos/bootstrap/pull.hpp>
 
 namespace Bootstrap
 {
@@ -14,7 +15,7 @@ namespace Bootstrap
         /// Class constructor
         /// @param bootstrap_client
         /// @param pull_info
-        bulk_pull_client (std::shared_ptr<bootstrap_client>, PullPtr pull);
+        bulk_pull_client (std::shared_ptr<ISocket> connection, Puller & puller);
 
         /// Class desctructor
         ~bulk_pull_client ();
@@ -25,17 +26,19 @@ namespace Bootstrap
         /// receive_block composed operation
         void receive_block ();
 
-        /// received_type composed operation, receive 1 byte indicating block type
-        void received_type ();
+//        /// received_type composed operation, receive 1 byte indicating block type
+//        void received_type ();
+//
+//        /// received_block_size composed operation, receive the 4 byte size of the message
+//        void received_block_size(boost::system::error_code const &, size_t);
+//
+//        /// received_block composed operation, receive the actual block
+//        void received_block (boost::system::error_code const &, size_t);
 
-        /// received_block_size composed operation, receive the 4 byte size of the message
-        void received_block_size(boost::system::error_code const &, size_t);
-
-        /// received_block composed operation, receive the actual block
-        void received_block (boost::system::error_code const &, size_t);
-
-        std::shared_ptr<bootstrap_client> connection;
+        std::shared_ptr<ISocket> connection;
+        Puller & puller;
         PullPtr pull;
+        Log log;
     };
 
     class bulk_pull;
@@ -45,28 +48,33 @@ namespace Bootstrap
         /// Class constructor
         /// @param bootstrap_server
         /// @param bulk_pull (the actual request being made)
-        bulk_pull_server (std::shared_ptr<bootstrap_server> server, PullPtr pull);
+        bulk_pull_server (std::shared_ptr<ISocket> server, PullPtr pull);
 
-        /// set_current_end sets end of transmission
-        void set_current_end ();//walk backwards, set start and end
+        ~bulk_pull_server();
 
-        /// send_next sends next block
-        void send_next ();
+        void run();
 
-        /// sent_action composed operation
-        void sent_action (boost::system::error_code const &, size_t);
+        void send_block ();
+//        /// set_current_end sets end of transmission
+//        void set_current_end ();//walk backwards, set start and end
+//
+//        /// send_next sends next block
+//        void send_next ();
+//
+//        /// sent_action composed operation
+//        void sent_action (boost::system::error_code const &, size_t);
+//
+//        /// send_finished send end of transmission
+//        void send_finished ();
+//
+//        /// no_block_sent
+//        void no_block_sent (boost::system::error_code const &, size_t);
 
-        /// send_finished send end of transmission
-        void send_finished ();
-
-        /// no_block_sent
-        void no_block_sent (boost::system::error_code const &, size_t);
-
-        std::shared_ptr<bootstrap_server> connection;
+        std::shared_ptr<ISocket> connection;
         PullPtr request;
         std::vector<uint8_t> send_buffer;
+        Log log;
     };
-
 }
 
 

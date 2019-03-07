@@ -1,5 +1,4 @@
 #include <logos/bootstrap/bootstrap.hpp>
-#include <logos/bootstrap/bulk_pull.hpp>
 #include <logos/bootstrap/tips.hpp>
 #include <logos/bootstrap/bootstrap_messages.hpp>
 #include <logos/bootstrap/p2p.hpp>
@@ -8,6 +7,7 @@
 #include <logos/node/node.hpp>
 
 #include <boost/log/trivial.hpp>
+#include <logos/bootstrap/pull.hpp>
 #include <logos/lib/trace.hpp>
 
 
@@ -101,11 +101,13 @@ namespace Bootstrap
     }
 
     bootstrap_listener::bootstrap_listener(Service &service_a,
+            logos::alarm & alarm,
             Store & store,
             std::string & local_address,
             uint16_t port_a,
             uint8_t max_accepted)
     : acceptor(service_a)
+    , alarm(alarm)
     //, local(boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v6::any(), port_a))
     , local(get_endpoint(local_address))
     , service(service_a)

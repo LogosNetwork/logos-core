@@ -6,7 +6,6 @@
 
 #include <logos/lib/numbers.hpp>
 #include <logos/lib/blocks.hpp>
-#include <logos/bootstrap/bulk_pull_response.hpp>
 #include <logos/bootstrap/bootstrap_messages.hpp>
 #include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
@@ -30,6 +29,7 @@
 
 #include <logos/bootstrap/attempt.hpp>
 #include <logos/bootstrap/microblock.hpp>
+#include <logos/bootstrap/pull_connection.hpp>
 #include <logos/lib/trace.hpp>
 
 class BlockCache

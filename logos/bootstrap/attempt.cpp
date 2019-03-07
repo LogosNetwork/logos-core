@@ -1,23 +1,23 @@
 #include <logos/bootstrap/attempt.hpp>
-#include <logos/bootstrap/bulk_pull_response.hpp>
+#include <logos/bootstrap/pull_connection.hpp>
 
 namespace Bootstrap
 {
-    bootstrap_attempt::bootstrap_attempt (std::shared_ptr<logos::alarm> alarm,
+    bootstrap_attempt::bootstrap_attempt (logos::alarm & alarm,
             Store & store,
             BlockCache & cache,
             PeerInfoProvider &peer_provider,
             uint8_t max_connected)
-    : connections(0)
-    , alarm(alarm)
+    : alarm(alarm)
     , store(store)
+    , peer_provider(peer_provider)
+    , connections(0)
+    , max_connected(max_connected)
+    , session_id(PeerInfoProvider::GET_PEER_NEW_SESSION)
     , puller(cache, store)
     , stopped(false)
-    , max_connected(max_connected)
-    , peer_provider(peer_provider)
     {
-        LOG_INFO(log) << "Starting bootstrap attempt";
-        session_id = PeerInfoProvider::GET_PEER_NEW_SESSION;
+        LOG_DEBUG(log) << "Starting bootstrap attempt";
     }
 
     bootstrap_attempt::~bootstrap_attempt()
@@ -30,7 +30,7 @@ namespace Bootstrap
 
     bool bootstrap_attempt::request_tips(std::unique_lock<std::mutex> &lock_a)
     {
-        // NOTE: Get the connection from the pool (see 'connection') and get tips.
+        // NOTE: Get the connection from the pool and get tips.
         auto failed(true);
         auto connection_l(connection(lock_a));
         if (connection_l)
@@ -205,9 +205,9 @@ namespace Bootstrap
                         if (peer != logos::endpoint(boost::asio::ip::address_v6::any(), 0))
             */
 
-            auto client(std::make_shared<bootstrap_client>(alarm, shared_from_this(),
+            auto client(std::make_shared<bootstrap_client>(alarm, *this,//shared_from_this(),
                                                            logos::tcp_endpoint(address, BOOTSTRAP_PORT)));
-            client->run();
+            //client->run();
             /*
              * TODO when to give up the attempt
                         if (connections == 0)
@@ -221,7 +221,7 @@ namespace Bootstrap
 
         if (!stopped) {
             std::weak_ptr <bootstrap_attempt> this_w(shared_from_this());
-            alarm->add(std::chrono::steady_clock::now() + std::chrono::seconds(1), [this_w]()
+            alarm.add(std::chrono::steady_clock::now() + std::chrono::seconds(1), [this_w]()
             {
                 if (auto this_l = this_w.lock()) {
                     this_l->populate_connections();
@@ -236,7 +236,7 @@ namespace Bootstrap
         auto client(std::make_shared<bootstrap_client>(alarm, shared_from_this(),
                                                        logos::tcp_endpoint(endpoint_a.address(),
                                                                            endpoint_a.port())));
-        client->run();
+        //client->run();
     }
 
     void bootstrap_attempt::pool_connection(std::shared_ptr<bootstrap_client> client_a)

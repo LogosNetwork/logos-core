@@ -1,7 +1,7 @@
 #pragma once
 
 #include <logos/bootstrap/connection.hpp>
-#include <logos/bootstrap/bulk_pull.hpp>
+#include <logos/bootstrap/pull.hpp>
 
 namespace Bootstrap {
 
@@ -10,7 +10,7 @@ class bootstrap_attempt : public std::enable_shared_from_this<Bootstrap::bootstr
     public:
         /// Class constructor
         /// @param node
-        bootstrap_attempt(std::shared_ptr<logos::alarm> alarm,
+        bootstrap_attempt(logos::alarm & alarm,
                 Store & store,
                 BlockCache & cache,
                 PeerInfoProvider &peer_provider,
@@ -60,13 +60,12 @@ class bootstrap_attempt : public std::enable_shared_from_this<Bootstrap::bootstr
         void clean();
 
 
-        std::shared_ptr<logos::alarm> alarm;
+        logos::alarm & alarm;
         Store & store;
-        PeerInfoProvider &peer_provider;
+        PeerInfoProvider & peer_provider;
 
         std::mutex mutex;
         std::deque<std::shared_ptr<bootstrap_client>> working_clients;
-        //std::shared_ptr<bootstrap_client> connection_tips;
         std::deque<std::shared_ptr<bootstrap_client>> idle_clients;
         std::atomic<unsigned> connections;
         uint8_t max_connected;

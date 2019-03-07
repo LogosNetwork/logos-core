@@ -1,11 +1,11 @@
 #include <logos/bootstrap/bootstrap.hpp>
-#include <logos/bootstrap/bulk_pull.hpp>
 #include <logos/bootstrap/p2p.hpp>
 
 #include <logos/node/common.hpp>
 #include <logos/node/node.hpp>
 
 #include <boost/log/trivial.hpp>
+#include <logos/bootstrap/pull.hpp>
 
 #define _DEBUG 1
 

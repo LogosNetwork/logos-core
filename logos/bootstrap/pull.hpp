@@ -5,9 +5,9 @@
 
 #include <logos/bootstrap/bootstrap_messages.hpp>
 #include <logos/bootstrap/bootstrap.hpp>
-#include <logos/bootstrap/bulk_pull_response.hpp>
 #include <logos/bootstrap/microblock.hpp>
 #include <logos/bootstrap/block_cache.hpp>
+#include <logos/bootstrap/pull_connection.hpp>
 
 namespace Bootstrap
 {
@@ -15,7 +15,6 @@ namespace Bootstrap
     using BSBPtr = std::shared_ptr<ApprovedBSB>;
     using MBPtr = std::shared_ptr<ApprovedMB>;
     using EBPtr = std::shared_ptr<ApprovedEB>;
-//    using CachePtr = std::shared_ptr<BlockCache>;
 
     class Puller
     {

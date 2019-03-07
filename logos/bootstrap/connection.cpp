@@ -1,5 +1,6 @@
-#include <logos/bootstrap/connection.hpp>
 #include <logos/bootstrap/bootstrap_messages.hpp>
+#include <logos/bootstrap/connection.hpp>
+#include <logos/bootstrap/tip_connection.hpp>
 
 namespace Bootstrap
 {
@@ -11,17 +12,16 @@ namespace Bootstrap
     void socket_timeout::start (std::chrono::steady_clock::time_point timeout_a)
     {
         auto ticket_l (++ticket);
-        std::weak_ptr<Socket> client_w (socket.shared ());
-        socket.alarm->add (timeout_a, [client_w, ticket_l]()
+        std::weak_ptr<Socket> socket_w (socket.shared ());
+        socket.alarm.add (timeout_a, [socket_w, ticket_l]()
         {
             // NOTE: If we timeout, we disconnect.
-            if (auto client_l = client_w.lock ())
+            if (auto socket_l = socket_w.lock ())
             {
-                if (client_l->timeout.ticket == ticket_l)
+                if (socket_l->timeout.ticket == ticket_l)
                 {
-                    client_l->disconnect();
-                    LOG_DEBUG(client_l->log) << "timeout, Disconnecting from "
-                                             << client_l->socket.remote_endpoint ();
+                    socket_l->OnNetworkError();
+                    LOG_DEBUG(socket_l->log) << "timeout, remote_endpoint " << socket_l->endpoint;
                 }
             }
         });
@@ -33,43 +33,81 @@ namespace Bootstrap
         ++ticket;
     }
 
+    /////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////
 
-    Socket::Socket(logos::tcp_endpoint & endpoint, std::shared_ptr<logos::alarm> alarm)
+    using BoostError = boost::system::error_code;
+    using BoostBuffer = boost::asio::buffer;
+
+    Socket::Socket(logos::tcp_endpoint & endpoint, logos::alarm & alarm)
     : endpoint(endpoint)
     , alarm(alarm)
-    , socket(alarm->service)
+    , socket(alarm.service)
     , timeout (*this)
     {}
 
-    void Socket::AsyncSend(uint8_t * buf, size_t buf_len, SendComplete * cb, uint32_t timeout_ms = 0)
+    Socket::Socket(boost::asio::ip::tcp::socket &socket_a, logos::alarm & alarm)
+    : endpoint(socket_a.remote_endpoint())
+    , alarm(alarm)
+    , socket(std::move(socket_a))
+    , timeout (*this)
+    {}
+
+    void Socket::Connect (void (*ConnectComplete)(bool connected))
+    {
+        LOG_TRACE(log) << __func__ << " this: " << this << " timeout_ms: " << CONNECT_TIMEOUT_MS;
+        auto this_l(shared());
+        timeout.start (std::chrono::steady_clock::now () + std::chrono::milliseconds(CONNECT_TIMEOUT_MS));
+        socket.async_connect (endpoint, [this_l, ConnectComplete](BoostError const & ec)
+        {
+            this_l->timeout.stop();
+            if (!ec)
+            {
+                LOG_TRACE(this_l->log) << "Socket::connect: connected";
+                ConnectComplete(true);
+            }
+            else
+            {
+                LOG_ERROR(this_l->log) << "Socket::connect: network error: ec.message: " << ec.message();
+                ConnectComplete(false);
+            }
+        });
+    }
+
+    void Socket::Disconnect()
+    {
+        socket.close ();
+    }
+
+    void Socket::AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete * cb, uint32_t timeout_ms)
     {
         LOG_TRACE(log) << __func__ << " this: " << this << " timeout_ms: " << timeout_ms;
         auto this_l(shared());
         if(timeout_ms > 0) timeout.start (std::chrono::steady_clock::now () + std::chrono::milliseconds(timeout_ms));
-        boost::asio::async_write (socket, boost::asio::buffer (buf, buf_len),
-                [this_l, buf_len, cb, timeout_ms](boost::system::error_code const & ec, size_t size_a)
+        boost::asio::async_write (socket, BoostBuffer (buf->data(), buf->size()),
+                [this_l, cb, timeout_ms](BoostError const & ec, size_t size_a)
                 {
                     if(timeout_ms > 0) this_l->timeout.stop();
                     LOG_TRACE(this_l->log) << "Socket::sent data";
                     if (!ec)
                     {
-                        assert (size_a == buf_len);
-                        cb(true);
+                        (*cb)(true);
                     }else{
                         LOG_ERROR(this_l->log) << "Socket::Network error " << ec.message ();
-                        cb(false);
-                        disconnect();
+                        (*cb)(false);
+                        //this_l->Disconnect();//TODO cb should call OnNetworkError
                     }
-                }
+                });
     }
 
-    void Socket::AsyncReceive(uint8_t * buf, size_t buf_len, ReceiveComplete * cb, uint32_t timeout_ms = 0)
+    void Socket::AsyncReceive(ReceiveComplete * cb, uint32_t timeout_ms)
     {
         LOG_TRACE(log) << __func__ << " this: " << this << " timeout_ms: " << timeout_ms;
         auto this_l(shared());
         if(timeout_ms > 0) timeout.start (std::chrono::steady_clock::now () + std::chrono::milliseconds(timeout_ms));
-        boost::asio::async_read (socket, boost::asio::buffer (header_buf.data (), MessageHeader::WireSize),
-            [this_l, buf, buf_len, cb, timeout_ms](boost::system::error_code const & ec, size_t size_a)
+        boost::asio::async_read (socket, BoostBuffer (header_buf.data (), MessageHeader::WireSize),
+            [this_l, cb, timeout_ms](BoostError const & ec, size_t size_a)
             {
                 LOG_TRACE(this_l->log) << "Socket::received header data";
                 if (!ec)
@@ -81,34 +119,40 @@ namespace Bootstrap
                     if(error || ! header.Validate())
                     {
                         LOG_ERROR(this_l->log) << "Socket::Header error";
-                        cb(false, header);
-                        disconnect();
+                        (*cb)(false, header, nullptr);
+                        //this_l->Disconnect();
                         return;
                     }
 
-                    boost::asio::async_read (this_l->socket, boost::asio::buffer (buf, buf_len),
-                        [this_l, buf, buf_len, cb, timeout_ms, header](boost::system::error_code const & ec, size_t size_a)
+                    boost::asio::async_read (this_l->socket, BoostBuffer (this_l->receive_buf.data(), this_l->receive_buf.size()),
+                        [this_l, cb, timeout_ms, header](BoostError const & ec, size_t size_a)
                         {
                             if(timeout_ms > 0) this_l->timeout.stop();
                             LOG_TRACE(this_l->log) << "Socket::received data";
                             if (!ec) {
                                 assert (size_a == header.payload_size);
-                                cb(true, header);
+                                (*cb)(true, header, this_l->receive_buf.data());
                             }else{
                                 LOG_ERROR(this_l->log) << "Socket::Network error " << ec.message ();
-                                cb(false, header);
-                                disconnect();
+                                (*cb)(false, header, nullptr);
+                                //this_l->Disconnect();
                                 return;
                             }
                         });
 
                 }else{
-                    LOG_ERROR(this_l->log) << "Socket::Network error " << ec.message ());
-                    cb(false, header);
-                    disconnect();
+                    LOG_ERROR(this_l->log) << "Socket::Network error " << ec.message ();
+                    MessageHeader header;
+                    (*cb)(false, header, nullptr);
+                    //this_l->Disconnect();
                     return;
                 }
-            }
+            });
+    }
+
+    std::shared_ptr<Socket> Socket::shared ()
+    {
+        return shared_from_this();
     }
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -116,76 +160,49 @@ namespace Bootstrap
     ///////////////////////////////////////////////////////////////////////////////
 
     bootstrap_client::bootstrap_client (std::shared_ptr<bootstrap_attempt> attempt_a,
-            logos::tcp_endpoint const & endpoint_a)
-    : alarm (attempt_a->alarm)
+            logos::tcp_endpoint & endpoint_a)
+    : Socket (endpoint_a, attempt_a->alarm)
     , attempt (attempt_a)
-    , socket (attempt_a->alarm->service)
-    , timeout (*this)
-    , endpoint (endpoint_a)
-    , pending_stop (false)
-    , hard_stop (false)
     {
-        ++attempt->connections; // NOTE: Number of connection attempts.
+        auto this_l(shared());
+        auto on_connected = [this_l](bool connected)
+        {
+            ++(this_l->attempt.connections);
+            this_l->attempt.pool_connection (this_l);
+        };
+        Connect(on_connected);
     }
 
     bootstrap_client::~bootstrap_client ()
     {
         if(attempt)
-            --attempt->connections;
+            --attempt.connections;
         LOG_DEBUG(log) << "bootstrap_client::~bootstrap_client";
-        socket.close();
+        Socket::Disconnect();
     }
 
-    void bootstrap_client::stop (bool force)
+    void bootstrap_client::Disconnect ()
     {
-        LOG_DEBUG(log) << "bootstrap_client::stop:" << std::endl;
-        pending_stop = true;
-        if (force)
-        {
-            hard_stop = true;
-        }
+        LOG_DEBUG(log) << "bootstrap_client::Disconnect";
+        Socket::Disconnect();
+        OnNetworkError();
     }
 
-    void bootstrap_client::start_timeout ()
-    {
-        timeout.start (std::chrono::steady_clock::now () + std::chrono::seconds (20)); // NOTE: Set a timeout
-    }
-
-    void bootstrap_client::stop_timeout ()
-    {
-        timeout.stop ();
-    }
-
-    void bootstrap_client::run ()
-    {
-        auto this_l (shared_from_this ());
-        start_timeout ();
-        socket.async_connect (endpoint, [this_l](boost::system::error_code const & ec)
-        {
-            // NOTE: endpoint is passed into the constructor of bootstrap_client, attempt to connect.
-            this_l->stop_timeout ();
-            if (!ec)
-            {
-                this_l->attempt->pool_connection (this_l); // NOTE: Add connection, updates idle queue.
-            }
-            else
-            {
-                LOG_DEBUG(this_l->log) << "bootstrap_client::run: network error: ec.message: " << ec.message();
-            }
-        });
-    }
-
-/*    std::shared_ptr<bootstrap_client> bootstrap_client::shared ()
-    {
-        return std::shared_from_this ();
-    }*/
+	std::shared_ptr<bootstrap_client> bootstrap_client::shared ()
+	{
+		return reinterpret_cast<std::shared_ptr<bootstrap_client>>(shared_from_this());
+	}
 
     ////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////
 
-    bootstrap_server::bootstrap_server (std::shared_ptr<boost::asio::ip::tcp::socket> socket_a,
+    bootstrap_server::bootstrap_server (bootstrap_listener & listener,
+                                        BoostSocket & socket_a,
                                         Store & store)
-            : socket (socket_a)
-            , store (store)
+    : Socket (socket_a, listener.alarm)
+    , listener(listener)
+    , store (store)
     {
         LOG_DEBUG(log) << "bootstrap_server::bootstrap_server";
     }
@@ -193,114 +210,50 @@ namespace Bootstrap
     bootstrap_server::~bootstrap_server ()
     {
         LOG_INFO (log) << "Exiting bootstrap server";
-        socket->close();
-
-        //TODO
-        //        std::lock_guard<std::mutex> lock (bootstrap.mutex);
-        //        bootstrap.connections.erase (this);
+        Socket::Disconnect();//TODO check if can be call multiple times
     }
 
-    void bootstrap_server::receive ()
+    void bootstrap_server::receive_request ()
     {
         LOG_DEBUG(log) << "bootstrap_server::receive";
-        auto this_l (shared_from_this ());
-        boost::asio::async_read (*socket, boost::asio::buffer (receive_buffer.data (), MessageHeader::WireSize),
-                [this_l](boost::system::error_code const & ec, size_t size_a)
-                {
-                    this_l->receive_header_action (ec, size_a);
-                });
+        AsyncReceive(std::bind(&bootstrap_server::dispatch, this, std::placeholders::_1, std::placeholders::_2));
     }
 
-    void bootstrap_server::receive_header_action (boost::system::error_code const & ec, size_t size_a)
+    void bootstrap_server::Release()
     {
-        // NOTE: Start of server request handling.
-        LOG_DEBUG(log) << "bootstrap_server::receive_header_action";
-        if (!ec)
-        {
-            //assert (size_a == MessageHeader::WireSize);
-            logos::bufferstream stream (receive_buffer.data (), size_a);
-            bool error = false;
-            MessageHeader header(error, stream);
-            if(error || ! header.Validate())
-            {
-                LOG_INFO(log) << "Header error";
-                //TODO disconnect?
-                return;
-            }
+    	receive_request ();
+    }
 
+    void bootstrap_server::dispatch (bool good, MessageHeader header, uint8_t * buf)
+    {
+        LOG_DEBUG(log) << "bootstrap_server::dispatch";
+        bool error = false;
+        if (good)
+        {
+            logos::bufferstream stream (buf, header.payload_size);
             switch (header.type)
             {
                 case MessageType::TipRequest:
-                {
-                    auto this_l (shared_from_this ());
-                    boost::asio::async_read (*socket, boost::asio::buffer (receive_buffer.data (), header.payload_size),
-                                [this_l](boost::system::error_code const & ec, size_t size_a)
-                                {
-                                    this_l->receive_tips_req_action (ec, size_a);
-                                });
+                    TipSet request(error, stream);
+                    if(!error) {
+                    	tips_req_server tip_server(shared_from_this(), request, store);
+                    	tip_server.run();
+                    }
                     break;
-                }
                 case MessageType::PullRequest:
-                {
-                    auto this_l (shared_from_this ());
-                    boost::asio::async_read (*socket, boost::asio::buffer (receive_buffer.data (), header.payload_size),
-                            [this_l](boost::system::error_code const & ec, size_t size_a)
-                            {
-                                this_l->receive_pull_req_action (ec, size_a);
-                            });
+                    PullRequest pull(error, stream);
+                    if(!error) {
+
+                    }
                     break;
-                }
                 default:
-                    //TODO disconnect?
+                    error = true;
                     break;
             }
-        }
-        else
-        {
-            LOG_INFO(log) << "Error while receiving header "<<  ec.message ();
-        }
-    }
+        } else
+            error = true;
 
-    void bootstrap_server::receive_pull_req_action (boost::system::error_code const & ec, size_t size_a)
-    {
-        LOG_DEBUG(log) << "bootstrap_server::receive_bulk_pull_action";
-        if (!ec)
-        {
-            std::unique_ptr<logos::bulk_pull> request (new logos::bulk_pull);
-            logos::bufferstream stream (receive_buffer.data (), size_a);
-            auto error (request->deserialize (stream));
-            if (!error)
-            {
-                add_request (std::unique_ptr<logos::message> (request.release ()));
-                receive ();//TODO
-            } else {
-                LOG_ERROR(log) << "bootstrap_server::receive_bulk_pull_action:: error deserializing request";
-                //TODO disconnect
-            }
-        }
-    }
-
-    void bootstrap_server::receive_tips_req_action (boost::system::error_code const & ec, size_t size_a)
-    {
-        LOG_DEBUG(log) << "bootstrap_server::receive_tips_req_action";
-        if (!ec)
-        {
-            logos::bufferstream stream (receive_buffer.data (), size_a);
-            bool error = false;
-            TipSet request(error, stream);
-            if (!error)
-            {
-                tips_req_server server(shared_from_this(), request);
-                server.run();
-                receive ();//TODO
-            }
-            //else//TODO disconnect
-        }
-        else
-        {
-            LOG_ERROR(log) << "Error sending receiving tips request: " << ec.message ();
-            //TODO disconnect
-        }
+        if(error)
+            OnNetworkError();
     }
 }
-

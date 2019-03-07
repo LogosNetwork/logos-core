@@ -10,15 +10,22 @@
 namespace Bootstrap
 {
     constexpr uint16_t BOOTSTRAP_PORT = 7000;
+    constexpr uint16_t CONNECT_TIMEOUT_MS = 5000; // 5 seconds
+
+    using BoostSocket = boost::asio::ip::tcp::socket;
 
     class ISocket
     {
     public:
         typedef void (*SendComplete)(bool good);
-        typedef void (*ReceiveComplete)(bool good, MessageHeader header);
+        typedef void (*ReceiveComplete)(bool good, MessageHeader header, uint8_t * buf);
 
-        virtual void AsyncSend(uint8_t * buf, size_t buf_len, SendComplete * cb, uint32_t timeout_ms = 0) = 0;
-        virtual void AsyncReceive(uint8_t * buf, size_t buf_len, ReceiveComplete * cb, uint32_t timeout_ms = 0) = 0;
+        virtual void AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete * cb, uint32_t timeout_ms = 0) = 0;
+        virtual void AsyncReceive(ReceiveComplete * cb, uint32_t timeout_ms = 0) = 0;
+        virtual void OnNetworkError(bool black_list = false) = 0;
+        virtual void Release() = 0;
+
+        virtual ~ISocket();
     };
 
     class Socket;
@@ -44,186 +51,79 @@ namespace Bootstrap
     class Socket : public ISocket, public std::enable_shared_from_this<Socket>
     {
     public:
-        Socket(logos::tcp_endpoint & endpoint, std::shared_ptr<logos::alarm> alarm)
-        : endpoint(endpoint)
-        , alarm(alarm)
-        , socket(alarm->service)
-        , timeout (*this)
-        {}
+        //client side
+        Socket(logos::tcp_endpoint & endpoint, logos::alarm & alarm);
+        void Connect (void ConnectComplete(bool connected));
 
-        void AsyncSend(uint8_t * buf, size_t buf_len, SendComplete * cb, uint32_t timeout_ms = 0) override
-        {
-            LOG_TRACE(log) << __func__ << " this: " << this << " timeout_ms: " << timeout_ms;
-            auto this_l(shared());
-            if(timeout_ms > 0) timeout.start (std::chrono::steady_clock::now () + std::chrono::milliseconds(timeout_ms));
-            boost::asio::async_write (socket, boost::asio::buffer (buf, buf_len),
-                    [this_l, buf_len, cb, timeout_ms](boost::system::error_code const & ec, size_t size_a)
-                    {
-                        if(timeout_ms > 0) this_l->timeout.stop();
-                        LOG_TRACE(this_l->log) << "Socket::sent data";
-                        if (!ec)
-                        {
-                            assert (size_a == buf_len);
-                            cb(true);
-                        }else{
-                            LOG_ERROR(this_l->log) << "Socket::Network error " << ec.message ();
-                            cb(false);
-                            disconnect();
-                        }
-                    }
-        }
+        //server side
+        Socket(BoostSocket & socket_a, logos::alarm & alarm);
 
-        void AsyncReceive(uint8_t * buf, size_t buf_len, ReceiveComplete * cb, uint32_t timeout_ms = 0) override
-        {
-            LOG_TRACE(log) << __func__ << " this: " << this << " timeout_ms: " << timeout_ms;
-            auto this_l(shared());
-            if(timeout_ms > 0) timeout.start (std::chrono::steady_clock::now () + std::chrono::milliseconds(timeout_ms));
-            boost::asio::async_read (socket, boost::asio::buffer (header_buf.data (), MessageHeader::WireSize),
-                [this_l, buf, buf_len, cb, timeout_ms](boost::system::error_code const & ec, size_t size_a)
-                {
-                    LOG_TRACE(this_l->log) << "Socket::received header data";
-                    if (!ec)
-                    {
-                        assert (size_a == MessageHeader::WireSize);
-                        logos::bufferstream stream (this_l->header_buf.data (), size_a);
-                        bool error = false;
-                        MessageHeader header(error, stream);
-                        if(error || ! header.Validate())
-                        {
-                            LOG_ERROR(this_l->log) << "Socket::Header error";
-                            cb(false, header);
-                            disconnect();
-                            return;
-                        }
+        void AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete * cb, uint32_t timeout_ms = 0) override;
+        void AsyncReceive(ReceiveComplete * cb, uint32_t timeout_ms = 0) override;
 
-                        boost::asio::async_read (this_l->socket, boost::asio::buffer (buf, buf_len),
-                            [this_l, buf, buf_len, cb, timeout_ms, header](boost::system::error_code const & ec, size_t size_a)
-                            {
-                                if(timeout_ms > 0) this_l->timeout.stop();
-                                LOG_TRACE(this_l->log) << "Socket::received data";
-                                if (!ec) {
-                                    assert (size_a == header.payload_size);
-                                    cb(true, header);
-                                }else{
-                                    LOG_ERROR(this_l->log) << "Socket::Network error " << ec.message ();
-                                    cb(false, header);
-                                    disconnect();
-                                    return;
-                                }
-                            });
-
-                    }else{
-                        LOG_ERROR(this_l->log) << "Socket::Network error " << ec.message ());
-                        cb(false, header);
-                        disconnect();
-                        return;
-                    }
-                }
-        }
-
-        std::shared_ptr<Socket> shared ()
-        {
-            return shared_from_this();
-        }
-
-        void disconnect()
-        {
-            socket.close ();
-        }
+        void Disconnect();
+        std::shared_ptr<Socket> shared ();
 
         logos::tcp_endpoint endpoint;
-        std::shared_ptr<logos::alarm> alarm;
-        boost::asio::ip::tcp::socket socket;
+        logos::alarm & alarm;
+        BoostSocket socket;
         socket_timeout timeout;
         std::array<uint8_t, MessageHeader::WireSize> header_buf;
+        std::array<uint8_t, BootstrapBufSize> receive_buf;
         Log log;
     };
 
 
-
     class bootstrap_attempt;
-    class bootstrap_client : public std::enable_shared_from_this<bootstrap_client>
+    class bootstrap_client : public Socket//std::enable_shared_from_this<bootstrap_client>
     {
     public:
         /// Class constructor
         /// @param node
         /// @param bootstrap_attempt
         /// @param tcp_endpoint
-        bootstrap_client (std::shared_ptr<bootstrap_attempt>, logos::tcp_endpoint const &);
+        bootstrap_client (std::shared_ptr<bootstrap_attempt>, logos::tcp_endpoint &);
 
         /// Class destructor
         ~bootstrap_client ();
 
-        /// run start of client
-        void run ();
+        void OnNetworkError() override;
+        void Release() override;
+
+        void Disconnect ();
 
         /// shared
         /// @returns returns shared pointer of this client
         std::shared_ptr<bootstrap_client> shared ();
 
-        /// start_timeout starts timeout on request
-        void start_timeout ();
-        /// stop_timeout called when request received
-        void stop_timeout ();
-
-        /// stop stops client
-        /// @param force true if we are to force clients to finish instead of gradual shutdown
-        void stop (bool force);
-
-        std::shared_ptr<logos::alarm> alarm;
-        std::shared_ptr<bootstrap_attempt> attempt;
-
-        //logos::tcp_endpoint endpoint;
-        //boost::asio::ip::tcp::socket socket;
-        //socket_timeout timeout;
-
-        std::array<uint8_t, BootstrapBufSize> receive_buffer;
-        //std::chrono::steady_clock::time_point start_time;
-        //std::atomic<uint64_t> block_count;
-        //std::atomic<bool> pending_stop;
-        //std::atomic<bool> hard_stop;
+        bootstrap_attempt & attempt;
+        //Store & store;
         Log log;
     };
 
-    class bootstrap_server : public std::enable_shared_from_this<bootstrap_server>
+    class bootstrap_listener;
+    class bootstrap_server : public Socket //: public std::enable_shared_from_this<bootstrap_server>
     {
     public:
         /// Class constructor
         /// @param shared pointer of socket
         /// @param node
-        bootstrap_server (std::shared_ptr<boost::asio::ip::tcp::socket>, Store & store);
+        bootstrap_server (bootstrap_listener & listener,
+                BoostSocket & socket_a,
+                Store & store);
 
         /// Class destructor
         ~bootstrap_server ();
 
-        /// receive composed operation
-        void receive ();
+        void receive_request ();
+        void dispatch (bool good, MessageHeader header, uint8_t * buf);
 
-        /// receive_header_action composed operation
-        /// @param error_code
-        /// @param size
-        void receive_header_action (boost::system::error_code const &, size_t);
+        void OnNetworkError() override;
+        void Release() override;
 
-        /// receive_bulk_pull_action composed operation
-        /// @param error_code
-        /// @param size
-        void receive_pull_req_action (boost::system::error_code const &, size_t);
-
-        /// receive_tips_req_action composed operation
-        /// @param error_code
-        /// @param size
-        void receive_tips_req_action (boost::system::error_code const &, size_t);
-
-        /// finish_request called to signal end of transmission by servers
-        void finish_request ();
-
-        /// run_next get the next work item to process
-        void run_next ();
-
-        std::array<uint8_t, BootstrapBufSize> receive_buffer;
-        std::shared_ptr<boost::asio::ip::tcp::socket> socket;
+        bootstrap_listener & listener;
         Store & store;
-        std::mutex mutex;
+        //std::mutex mutex;
         Log log;
     };
 

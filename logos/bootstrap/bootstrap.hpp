@@ -30,7 +30,9 @@ namespace Bootstrap
     public:
         /// Class constructor
         /// @param node
-        bootstrap_initiator (Service & service, logos::alarm & alarm, uint8_t max_connected = 8);
+        bootstrap_initiator (Service & service,
+                logos::alarm & alarm,
+                uint8_t max_connected = 8);
 
         /// Class desctructor
         ~bootstrap_initiator ();
@@ -76,6 +78,7 @@ public:
     /// @param boost io_service 
     /// @param node
     bootstrap_listener (Service & service,
+            logos::alarm & alarm,
             Store & store,
             std::string & local_address,
             uint16_t port,
@@ -98,7 +101,10 @@ public:
 
     logos::tcp_endpoint endpoint ();
 
+    void on_network_error();
+
     boost::asio::ip::tcp::acceptor acceptor;
+    std::shared_ptr<logos::alarm> alarm;
     logos::tcp_endpoint local;
     Service & service;
     Store & store;
