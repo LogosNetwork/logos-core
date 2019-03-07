@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <logos/consensus/p2p/consensus_p2p_bridge.hpp>
+#include <logos/consensus/consensus_msg_sink.hpp>
 #include <logos/consensus/messages/rejection.hpp>
 #include <logos/consensus/messages/common.hpp>
 #include <logos/lib/log.hpp>
@@ -26,7 +28,8 @@ public:
 };
 
 template<ConsensusType CT>
-class DelegateBridge : public MessageParser
+class DelegateBridge : public ConsensusMsgSink,
+                       public ConsensusP2pBridge<CT>
 {
     using PrePrepare  = PrePrepareMessage<CT>;
     using Prepare     = PrepareMessage<CT>;
@@ -36,14 +39,12 @@ class DelegateBridge : public MessageParser
     using Rejection   = RejectionMessage<CT>;
 
 public:
-    DelegateBridge(std::shared_ptr<IOChannel>);
+    DelegateBridge(Service &service, std::shared_ptr<IOChannel>, p2p_interface & p2p, uint8_t delegate_id);
     virtual ~DelegateBridge() = default;
 
-    bool OnMessageData(const uint8_t * data,
-                       uint8_t version,
-                       MessageType message_type,
-                       ConsensusType consensus_type,
-                       uint32_t payload_size) override;
+    void OnMessage(std::shared_ptr<MessageBase> msg, MessageType message_type, bool is_p2p) override;
+    std::shared_ptr<MessageBase> Parse(const uint8_t * data, uint8_t version, MessageType message_type,
+                                       ConsensusType consensus_type, uint32_t payload_size) override;
 
     void Send(const void * data, size_t size);
 
@@ -59,6 +60,16 @@ protected:
     virtual void OnConsensusMessage(const Rejection & message) = 0;
 
     virtual uint8_t RemoteDelegateId() = 0;
+
+    bool SendP2p(const uint8_t *data, uint32_t size, MessageType message_type,
+                 uint32_t epoch_number, uint8_t dest_delegate_id) override
+    {
+        // backup delegate replies via p2p if the message was received via p2p
+        // p2p is disabled after the reply
+        auto ret = ConsensusP2pBridge<CT>::SendP2p(data, size, message_type, epoch_number, dest_delegate_id);
+        ConsensusP2pBridge<CT>::EnableP2p(false);
+        return ret;
+    }
 
 private:
 

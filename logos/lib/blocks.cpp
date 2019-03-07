@@ -75,7 +75,7 @@ bool logos::read (logos::stream & stream_a, std::vector<bool> & value)
     auto amount_read (stream_a.sgetn (bytes.data(), bytes.size()));
     if(amount_read != to_read)
     {
-        return false;
+        return true;
     }
 
     for( auto b : bytes)
@@ -84,7 +84,7 @@ bool logos::read (logos::stream & stream_a, std::vector<bool> & value)
         for(int i = 0; i < 8; ++i)
         {
             if(n_bits-- == 0)
-                return true;
+                return false;
 
             uint8_t mask = 1u<<i;
             if(mask & b)
@@ -94,7 +94,7 @@ bool logos::read (logos::stream & stream_a, std::vector<bool> & value)
         }
     }
 
-    return true;
+    return false;
 }
 
 uint32_t logos::write (logos::stream & stream_a, const std::vector<bool> & value)

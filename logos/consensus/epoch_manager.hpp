@@ -25,6 +25,7 @@ public:
     virtual std::string GetDelegateName() = 0;
     virtual std::string GetStateName() = 0;
     virtual bool IsWaitingDisconnect() = 0;
+    virtual uint8_t GetDelegateId() = 0;
 };
 
 class EpochEventsNotifier
@@ -67,7 +68,8 @@ public:
                  EpochConnection connection,
                  const uint32_t epoch_number,
                  NewEpochEventHandler & event_handler,
-                 p2p_interface & p2p);
+                 p2p_interface & p2p,
+                 uint8_t delegate_id);
 
     ~EpochManager();
 
@@ -95,6 +97,11 @@ public:
 
     void CleanUp();
 
+    uint8_t GetDelegateId() override
+    {
+        return _delegate_id;
+    }
+
 private:
 
     /// Update secondary request handler promoter during epoch transition
@@ -117,4 +124,5 @@ private:
     EpochConsensusManager	                _epoch_manager; 	///< Handles epoch consensus
     ConsensusNetIOManager                   _netio_manager; 	///< Establishes connections to other delegates
     Log                                     _log;               ///< Boost log
+    uint8_t                                 _delegate_id;       ///< Delegate id
 };

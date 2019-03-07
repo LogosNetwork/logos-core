@@ -12,7 +12,7 @@
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
-#include <logos/consensus/consensus_p2p.hpp>
+#include <logos/consensus/p2p/consensus_p2p.hpp>
 #include <logos/epoch/epoch_transition.hpp>
 
 #include <queue>

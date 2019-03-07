@@ -44,7 +44,8 @@ RequestHandler::BSBPrePrepare & RequestHandler::GetCurrentBatch()
 }
 
 RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch(
-    RequestHandler::Manager & manager)
+    RequestHandler::Manager & manager,
+    bool repropose)
 {
     std::lock_guard<std::mutex> lock(_mutex);
     _current_batch = BSBPrePrepare();
@@ -70,7 +71,9 @@ RequestHandler::BSBPrePrepare & RequestHandler::PrepareNextBatch(
         // Ignore request and erase from primary queue if the request doesn't pass validation
         logos::process_return ignored_result;
         // Don't allow duplicates since we are the primary and should not include old requests
-        if(!manager.ValidateAndUpdate(static_cast<const Request&>(**pos), ignored_result, false))
+        // unless we are reproposing
+        bool allow_duplicates = repropose;
+        if(!manager.ValidateAndUpdate(static_cast<const Request&>(**pos), ignored_result, allow_duplicates))
         {
             pos = sequence.erase(pos);
             continue;

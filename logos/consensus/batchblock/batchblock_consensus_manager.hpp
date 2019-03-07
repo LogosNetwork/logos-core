@@ -75,7 +75,7 @@ public:
     ///                interface.
     ///     @param[in] ids Delegate IDs for the local and
     ///                remote delegates.
-    std::shared_ptr<MessageParser>
+    std::shared_ptr<ConsensusMsgSink>
     BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                   const DelegateIdentities & ids) override;
 
@@ -101,7 +101,7 @@ protected:
     ///     @return number of stored blocks
     uint64_t GetStoredCount() override;
 
-    void InitiateConsensus() override;
+    void InitiateConsensus(bool reproposing = false) override;
 
     /// Sends buffered blocks.
     ///
@@ -182,7 +182,6 @@ private:
     std::mutex            _buffer_mutex;                  ///< SYL Integration fix: separate lock for benchmarking buffer
     static RequestHandler _handler;                       ///< Primary queue of batch state blocks.
     Timer                 _init_timer;
-    Service &             _service;
     uint64_t              _sequence              = 0;
     uint128_t             _connected_vote        = 0;
     uint128_t             _connected_stake       = 0;

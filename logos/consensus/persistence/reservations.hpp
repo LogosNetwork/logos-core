@@ -71,5 +71,8 @@ public:
     {}
     ~DefaultReservations() = default;
 
-    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) override;
+    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) override
+    {
+        return true;
+    }
 };
