@@ -23,7 +23,7 @@ struct PropagateMessage
 {
     std::vector<uint8_t>    message;
     uint64_t                label;
-    uint512                 hash;
+    uint256                 hash;
     struct ByHash {};
     struct ByLabel {};
 
@@ -46,7 +46,7 @@ private:
         boost::multi_index::indexed_by<
             boost::multi_index::ordered_unique<
                 boost::multi_index::tag<PropagateMessage::ByHash>,
-                boost::multi_index::member<PropagateMessage,uint512,&PropagateMessage::hash>
+                boost::multi_index::member<PropagateMessage,uint256,&PropagateMessage::hash>
             >,
             boost::multi_index::ordered_unique<
                 boost::multi_index::tag<PropagateMessage::ByLabel>,

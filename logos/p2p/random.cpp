@@ -301,7 +301,7 @@ static unsigned char rng_state[32] = {0};
 static uint64_t rng_counter = 0;
 
 static void AddDataToRng(void* data, size_t len) {
-    CHash512 hasher;
+    CHash256 hasher;
     hasher.Write((const unsigned char*)&len, sizeof(len));
     hasher.Write((const unsigned char*)data, len);
     unsigned char buf[64];
@@ -319,7 +319,7 @@ static void AddDataToRng(void* data, size_t len) {
 void GetStrongRandBytes(unsigned char* out, int num)
 {
     assert(num <= 32);
-    CHash512 hasher;
+    CHash256 hasher;
     unsigned char buf[64];
 
     // First source: OpenSSL's RNG
@@ -371,26 +371,26 @@ int GetRandInt(int nMax)
     return GetRand(nMax);
 }
 
-uint512 GetRandHash()
+uint256 GetRandHash()
 {
-    uint512 hash;
+    uint256 hash;
     GetRandBytes((unsigned char*)&hash, sizeof(hash));
     return hash;
 }
 
 void FastRandomContext::RandomSeed()
 {
-    uint512 seed = GetRandHash();
+    uint256 seed = GetRandHash();
     rng.SetKey(seed.begin(), 32);
     requires_seed = false;
 }
 
-uint512 FastRandomContext::rand512()
+uint256 FastRandomContext::rand256()
 {
     if (bytebuf_size < 32) {
         FillByteBuffer();
     }
-    uint512 ret;
+    uint256 ret;
     memcpy(ret.begin(), bytebuf + 64 - bytebuf_size, 32);
     bytebuf_size -= 32;
     return ret;
@@ -405,7 +405,7 @@ std::vector<unsigned char> FastRandomContext::randbytes(size_t len)
     return ret;
 }
 
-FastRandomContext::FastRandomContext(const uint512& seed) : requires_seed(false), bytebuf_size(0), bitbuf_size(0)
+FastRandomContext::FastRandomContext(const uint256& seed) : requires_seed(false), bytebuf_size(0), bitbuf_size(0)
 {
     rng.SetKey(seed.begin(), 32);
 }
@@ -459,7 +459,7 @@ FastRandomContext::FastRandomContext(bool fDeterministic) : requires_seed(!fDete
     if (!fDeterministic) {
         return;
     }
-    uint512 seed;
+    uint256 seed;
     rng.SetKey(seed.begin(), 32);
 }
 

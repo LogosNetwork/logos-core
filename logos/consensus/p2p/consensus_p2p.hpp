@@ -52,6 +52,7 @@ public:
     bool ProcessInputMessage(const Prequel &prequel, const uint8_t *data, uint32_t size);
 
     p2p_interface &                                                                             _p2p;
+    std::function<void (const logos::block_hash &)>                                             _RetryValidate;
 
 private:
     void RetryValidate(const logos::block_hash &hash);
@@ -77,7 +78,6 @@ private:
     std::function<bool (const PostCommittedBlock<CT> &)>                                        _BlockExists;
     std::multimap<logos::block_hash,std::pair<uint8_t,std::shared_ptr<PostCommittedBlock<CT>>>> _cache;
     std::mutex                                                                                  _cache_mutex;
-    ContainerP2p *                                                                              _container;
 
     friend class ContainerP2p;
     friend class PersistenceP2p<CT>;
@@ -132,9 +132,13 @@ public:
         , _epoch(p2p, store)
         , _session_id(0)
     {
-        _batch._p2p._container = this;
-        _micro._p2p._container = this;
-        _epoch._p2p._container = this;
+        _batch._p2p._RetryValidate
+            = _micro._p2p._RetryValidate
+            = _epoch._p2p._RetryValidate
+            = [this](const logos::block_hash &hash)
+                {
+                    this->RetryValidate(hash);
+                };
     }
 
     bool ProcessInputMessage(const Prequel &prequel, const void *data, uint32_t size);

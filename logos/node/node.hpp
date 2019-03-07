@@ -82,11 +82,11 @@ public:
     void add (std::chrono::steady_clock::time_point const &, std::function<void()> const &);
 
     void addAfter(std::function<void()> const &handler, unsigned ms) {
-	add(std::chrono::steady_clock::now() + std::chrono::milliseconds(ms), handler);
+        add(std::chrono::steady_clock::now() + std::chrono::milliseconds(ms), handler);
     }
 
     template<typename REP, typename PERIOD>
-    Handle add(std::chrono::duration<REP, PERIOD> const & duration, std::function<void()> const & handler)
+    void add(std::chrono::duration<REP, PERIOD> const & duration, std::function<void()> const & handler)
     {
         add(std::chrono::steady_clock::now() + duration,
             handler);

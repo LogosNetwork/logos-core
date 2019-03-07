@@ -82,6 +82,12 @@ ConsensusP2p<CT>::ConsensusP2p(p2p_interface & p2p,
                                std::function<void (const PostCommittedBlock<CT> &, uint8_t)> ApplyUpdates,
                                std::function<bool (const PostCommittedBlock<CT> &)> BlockExists)
     : _p2p(p2p)
+      /* In the unit test we redefine the _RetryValidate function, but the redefinition calls this initial version
+         of this function, see the file unit_test/p2p_test.cpp, the test VerifyCache. */
+    , _RetryValidate([this](const logos::block_hash &hash)
+        {
+            this->RetryValidate(hash);
+        })
     , _Validate(Validate)
     , _ApplyUpdates(ApplyUpdates)
     , _BlockExists(BlockExists)
@@ -169,11 +175,11 @@ bool ConsensusP2p<ConsensusType::BatchStateBlock>::ApplyCacheUpdates(
     {
         case logos::process_result::progress:
             _ApplyUpdates(block, delegate_id);
-            _container->RetryValidate(block.Hash());
+            _RetryValidate(block.Hash());
 
             for(uint32_t i = 0; i < block.block_count; ++i)
             {
-                _container->RetryValidate(block.blocks[i]->Hash());
+                _RetryValidate(block.blocks[i]->Hash());
             }
             return true;
 
@@ -207,7 +213,7 @@ bool ConsensusP2p<ConsensusType::MicroBlock>::ApplyCacheUpdates(
     {
         case logos::process_result::progress:
             _ApplyUpdates(block, delegate_id);
-            _container->RetryValidate(block.Hash());
+            _RetryValidate(block.Hash());
             return true;
 
         case logos::process_result::gap_previous:
@@ -240,7 +246,7 @@ bool ConsensusP2p<ConsensusType::Epoch>::ApplyCacheUpdates(
     {
         case logos::process_result::progress:
             _ApplyUpdates(block, delegate_id);
-            _container->RetryValidate(block.Hash());
+            _RetryValidate(block.Hash());
             return true;
 
         case logos::process_result::gap_previous:

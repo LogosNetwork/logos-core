@@ -87,19 +87,19 @@ public:
     }
 
     //! Calculate in which "tried" bucket this entry belongs
-    int GetTriedBucket(const uint512 &nKey) const;
+    int GetTriedBucket(const uint256 &nKey) const;
 
     //! Calculate in which "new" bucket this entry belongs, given a certain source
-    int GetNewBucket(const uint512 &nKey, const CNetAddr& src) const;
+    int GetNewBucket(const uint256 &nKey, const CNetAddr& src) const;
 
     //! Calculate in which "new" bucket this entry belongs, using its default source
-    int GetNewBucket(const uint512 &nKey) const
+    int GetNewBucket(const uint256 &nKey) const
     {
         return GetNewBucket(nKey, source);
     }
 
     //! Calculate in which position of a bucket to store this entry.
-    int GetBucketPosition(const uint512 &nKey, bool fNew, int nBucket) const;
+    int GetBucketPosition(const uint256 &nKey, bool fNew, int nBucket) const;
 
     //! Determine whether the statistics about this entry are bad enough so that it can just be deleted
     bool IsTerrible(int64_t nNow = GetAdjustedTime()) const;
@@ -129,7 +129,7 @@ public:
  *      * The actual bucket is chosen from one of these, based on the full address.
  *      * When adding a new good address to a full bucket, a randomly chosen entry (with a bias favoring less recently
  *        tried ones) is evicted from it, back to the "new" buckets.
- *    * Bucket selection is based on cryptographic hashing, using a randomly-generated 512-bit key, which should not
+ *    * Bucket selection is based on cryptographic hashing, using a randomly-generated 256-bit key, which should not
  *      be observable by adversaries.
  *    * Several indexes are kept for high performance. Defining DEBUG_ADDRMAN will introduce frequent (and expensive)
  *      consistency checks for the entire data structure.
@@ -223,7 +223,7 @@ private:
 
 protected:
     //! secret key to randomize bucket select with
-    uint512 nKey;
+    uint256 nKey;
 
     //! Source of random numbers for randomization in inner loops
     FastRandomContext insecure_rand;
