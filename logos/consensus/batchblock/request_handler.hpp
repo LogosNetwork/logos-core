@@ -43,7 +43,7 @@ public:
     void OnRequest(std::shared_ptr<StateBlock> block);
     void OnPostCommit(const BatchStateBlock & batch);
 
-    BSBPrePrepare & PrepareNextBatch(Manager & manager);
+    BSBPrePrepare & PrepareNextBatch(Manager & manager, bool repropose = false);
     BSBPrePrepare & GetCurrentBatch();
     void InsertFront(const std::list<std::shared_ptr<StateBlock>> & blocks);
     void Acquire(const BSBPrePrepare & batch);

@@ -11,18 +11,19 @@ BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
                                              RequestPromoter<CT> & promoter,
                                              MessageValidator & validator,
                                              const DelegateIdentities & ids,
-                                             EpochEventsNotifier & events_notifer,
+                                             EpochEventsNotifier & events_notifier,
                                              PersistenceManager<CT> & persistence_manager,
-                                             p2p_interface & p2p)
-    : DelegateBridge<CT>(iochannel)
+                                             p2p_interface & p2p,
+                                             Service & service)
+    : DelegateBridge<CT>(service, iochannel, p2p, ids.local)
     , _delegate_ids(ids)
     , _reason(RejectionReason::Void)
     , _validator(validator)
     , _primary(primary)
     , _promoter(promoter)
-    , _events_notifier(events_notifer)
+    , _events_notifier(events_notifier)
     , _persistence_manager(persistence_manager)
-    , _consensus_p2p(p2p, ids.remote)
+    , _epoch_number(events_notifier.GetEpochNumber())
 {}
 
 template<ConsensusType CT>
@@ -94,7 +95,7 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 
         std::vector<uint8_t> buf;
         block.Serialize(buf, true, true);
-        _consensus_p2p.ProcessOutputMessage(buf.data(), buf.size());
+        this->Broadcast(buf.data(), buf.size(), block.type);
     }
 }
 
@@ -180,6 +181,12 @@ bool BackupDelegate<CT>::Validate(const M & message)
 {
     if(message.type == MessageType::Post_Prepare)
     {
+        if (_pre_prepare_hash != message.preprepare_hash)
+        {
+            LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::Validate "
+                            << " invalid Post_Prepare, pre_prepare hash " << _pre_prepare_hash.to_string()
+                            << ", message pre_prepare hash " << message.preprepare_hash.to_string();
+        }
         assert(_pre_prepare_hash==message.preprepare_hash);
         auto good = _validator.Validate(_pre_prepare_hash, message.signature);
         if(!good)
@@ -197,6 +204,12 @@ bool BackupDelegate<CT>::Validate(const M & message)
     {
         if(_state == ConsensusState::COMMIT)
         {
+            if (_pre_prepare_hash != message.preprepare_hash)
+            {
+                LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::Validate "
+                                << " invalid Post_Commit, pre_prepare hash " << _pre_prepare_hash.to_string()
+                                << ", message pre_prepare hash " << message.preprepare_hash.to_string();
+            }
             assert(_pre_prepare_hash==message.preprepare_hash);
             return _validator.Validate(_post_prepare_hash, message.signature);
         }

@@ -7,6 +7,8 @@
     static_assert(false, "Only LITTLE_ENDIAN machines are not supported!");
 #endif
 
+constexpr size_t P2pConsensusHeader::P2PHEADER_SIZE;
+
 AggSignature::AggSignature(bool & error, logos::stream & stream)
 {
     unsigned long m;

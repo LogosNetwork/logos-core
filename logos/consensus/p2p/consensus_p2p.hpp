@@ -19,18 +19,20 @@ public:
     ConsensusP2pOutput(p2p_interface & p2p,
                        uint8_t delegate_id);
 
-    bool ProcessOutputMessage(const uint8_t *data, uint32_t size);
+    bool ProcessOutputMessage(const uint8_t *data, uint32_t size, MessageType message_type,
+                              uint32_t epoch_number, uint8_t dest_delegate_id);
 
     p2p_interface &         _p2p;
 
 private:
-    void CleanBatch();
-    void AddMessageToBatch(const uint8_t *data, uint32_t size);
-    bool PropagateBatch();
+    void Clean();
+    void AddMessageToBuffer(const uint8_t *data, uint32_t size, MessageType message_type,
+                            uint32_t epoch_number, uint8_t dest_delegate_id);
+    bool Propagate();
 
     Log                     _log;
     uint8_t                 _delegate_id;
-    std::vector<uint8_t>    _p2p_batch;	// PrePrepare + PostPrepare + PostCommit
+    std::vector<uint8_t>    _p2p_buffer; // Post_Committed_Block
 };
 
 class ContainerP2p;
@@ -47,7 +49,7 @@ public:
                  std::function<void (const PostCommittedBlock<CT> &, uint8_t)> ApplyUpdates,
                  std::function<bool (const PostCommittedBlock<CT> &)> BlockExists);
 
-    bool ProcessInputMessage(const uint8_t *data, uint32_t size);
+    bool ProcessInputMessage(const Prequel &prequel, const uint8_t *data, uint32_t size);
 
     p2p_interface &                                                                             _p2p;
     std::function<void (const logos::block_hash &)>                                             _RetryValidate;
@@ -65,8 +67,9 @@ private:
                      const PostCommittedBlock<CT> & block,
                      std::shared_ptr<PostCommittedBlock<CT>> & pblock);
 
-    bool deserialize(const uint8_t *data,
+    bool Deserialize(const uint8_t *data,
                      uint32_t size,
+                     uint8_t version,
                      PostCommittedBlock<CT> &block);
 
     Log                                                                                         _log;
@@ -103,9 +106,9 @@ public:
         )
     {}
 
-    bool ProcessInputMessage(const void *data, uint32_t size)
+    bool ProcessInputMessage(const Prequel &prequel, const void *data, uint32_t size)
     {
-        return _p2p.ProcessInputMessage((const uint8_t *)data, size);
+        return _p2p.ProcessInputMessage(prequel, (const uint8_t *)data, size);
     }
 
 private:
@@ -138,7 +141,7 @@ public:
                 };
     }
 
-    bool ProcessInputMessage(const void *data, uint32_t size);
+    bool ProcessInputMessage(const Prequel &prequel, const void *data, uint32_t size);
 
     /* Where session_id is initialized with an invalid value (-1) and a new session_id
      * is returned by the function, along with a list of peers. count indicates how

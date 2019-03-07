@@ -1219,6 +1219,12 @@ bool logos::block_store::epoch_exists (const ApprovedEB & block)
     return exists;
 }
 
+bool logos::block_store::epoch_exists (const BlockHash &hash, MDB_txn *transaction)
+{
+    ApprovedEB eb;
+    return (false == epoch_get(hash, eb, transaction));
+}
+
 bool logos::block_store::account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << account_a.to_string();

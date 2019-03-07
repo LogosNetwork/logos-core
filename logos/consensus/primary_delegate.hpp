@@ -42,7 +42,8 @@ public:
     };
 
     PrimaryDelegate(Service & service,
-                    MessageValidator & validator);
+                    MessageValidator & validator,
+                    uint32_t epoch_number);
 
     static void SetQuorum(uint128_t & max_fault, uint128_t & quorum, const uint128_t & total);
 
@@ -70,6 +71,7 @@ public:
         std::vector<uint8_t> buf;
         data.Serialize(buf);
         Send(buf.data(), buf.size());
+        SendP2p(buf.data(), buf.size(), data.type, _epoch_number, 0xff);
     }
 
     uint8_t GetDelegateIndex()
@@ -87,6 +89,9 @@ public:
     }
 
 protected:
+
+    virtual bool SendP2p(const uint8_t *, uint32_t, MessageType, uint32_t, uint8_t) = 0;
+    virtual void EnableP2p(bool enable) = 0;
 
     virtual void UpdateVotes();
 
@@ -125,6 +130,7 @@ protected:
     uint128_t            _my_vote         = 0;
     uint128_t            _my_stake        = 0;
     uint8_t              _delegate_id     = 0;
+    uint32_t             _epoch_number    = 0;
 
 private:
 
@@ -199,6 +205,7 @@ private:
     virtual void OnPrePrepareRejected();
 
     virtual void OnConsensusReached() = 0;
+    virtual void OnQuorumFailed() = 0;
 
     Signatures         _signatures;
     Log                _log;
