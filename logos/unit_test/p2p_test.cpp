@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
-#include "../consensus/consensus_p2p.hpp"
+#include "../consensus/p2p/consensus_p2p.hpp"
 
 #define TEST_DIR  ".logos_test"
 #define TEST_DB   TEST_DIR "/data.ldb"
@@ -130,15 +130,9 @@ static void generate_block(
     block.previous = hash;
     hash = block.Hash();
 
-    std::vector<uint8_t> buf0;
-    block.Serialize(buf0, true, true);
     buf.clear();
-    buf.push_back(4), buf.push_back(0), buf.push_back(0), buf.push_back(0);
-    buf.push_back(2), buf.push_back(logos_version),
-    buf.push_back((int)CT), buf.push_back(block.primary_delegate);
-    while (buf0.size() & 3) buf0.push_back(0);
-    buf.push_back(buf0.size() & 0xff), buf.push_back(buf0.size() / 0x100), buf.push_back(0), buf.push_back(0);
-    buf.insert(buf.end(), buf0.begin(), buf0.end());
+    block.Serialize(buf, true, true);
+    buf.erase(buf.begin(), buf.begin() + 8);
 }
 
 template <ConsensusType CT>
@@ -229,6 +223,8 @@ TEST (P2pTest, VerifyCache)
                 _RetryValidateE(hash);
             };
 
+    Prequel p;
+
     PostCommittedBlock<ConsensusType::BatchStateBlock> blockB;
     PostCommittedBlock<ConsensusType::MicroBlock> blockM;
     PostCommittedBlock<ConsensusType::Epoch> blockE;
@@ -243,39 +239,39 @@ TEST (P2pTest, VerifyCache)
     }
 
     /* BatchStateBlocks out of order */
-    EXPECT_EQ(cp2pB->ProcessInputMessage(bufB[1].data(), bufB[1].size()), true);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(p, bufB[1].data(), bufB[1].size()), true);
     EXPECT_EQ(max_savedB, 0);
-    EXPECT_EQ(cp2pB->ProcessInputMessage(bufB[2].data(), bufB[2].size()), true);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(p, bufB[2].data(), bufB[2].size()), true);
     EXPECT_EQ(max_savedB, 0);
-    EXPECT_EQ(cp2pB->ProcessInputMessage(bufB[4].data(), bufB[4].size()), true);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(p, bufB[4].data(), bufB[4].size()), true);
     EXPECT_EQ(max_savedB, 0);
-    EXPECT_EQ(cp2pB->ProcessInputMessage(bufB[0].data(), bufB[0].size()), true);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(p, bufB[0].data(), bufB[0].size()), true);
     EXPECT_EQ(max_savedB, 3);
-    EXPECT_EQ(cp2pB->ProcessInputMessage(bufB[3].data(), bufB[3].size()), true);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(p, bufB[3].data(), bufB[3].size()), true);
     EXPECT_EQ(max_savedB, 5);
 
     /* MicroBlocks out of order */
-    EXPECT_EQ(cp2pM->ProcessInputMessage(bufM[2].data(), bufM[2].size()), true);
+    EXPECT_EQ(cp2pM->ProcessInputMessage(p, bufM[2].data(), bufM[2].size()), true);
     EXPECT_EQ(max_savedM, 0);
-    EXPECT_EQ(cp2pM->ProcessInputMessage(bufM[1].data(), bufM[1].size()), true);
+    EXPECT_EQ(cp2pM->ProcessInputMessage(p, bufM[1].data(), bufM[1].size()), true);
     EXPECT_EQ(max_savedM, 0);
-    EXPECT_EQ(cp2pM->ProcessInputMessage(bufM[0].data(), bufM[0].size()), true);
+    EXPECT_EQ(cp2pM->ProcessInputMessage(p, bufM[0].data(), bufM[0].size()), true);
     EXPECT_EQ(max_savedM, 3);
-    EXPECT_EQ(cp2pM->ProcessInputMessage(bufM[4].data(), bufM[4].size()), true);
+    EXPECT_EQ(cp2pM->ProcessInputMessage(p, bufM[4].data(), bufM[4].size()), true);
     EXPECT_EQ(max_savedM, 3);
-    EXPECT_EQ(cp2pM->ProcessInputMessage(bufM[3].data(), bufM[3].size()), true);
+    EXPECT_EQ(cp2pM->ProcessInputMessage(p, bufM[3].data(), bufM[3].size()), true);
     EXPECT_EQ(max_savedM, 5);
 
     /* Epochs out of order */
-    EXPECT_EQ(cp2pE->ProcessInputMessage(bufE[4].data(), bufE[4].size()), true);
+    EXPECT_EQ(cp2pE->ProcessInputMessage(p, bufE[4].data(), bufE[4].size()), true);
     EXPECT_EQ(max_savedE, 0);
-    EXPECT_EQ(cp2pE->ProcessInputMessage(bufE[3].data(), bufE[3].size()), true);
+    EXPECT_EQ(cp2pE->ProcessInputMessage(p, bufE[3].data(), bufE[3].size()), true);
     EXPECT_EQ(max_savedE, 0);
-    EXPECT_EQ(cp2pE->ProcessInputMessage(bufE[0].data(), bufE[0].size()), true);
+    EXPECT_EQ(cp2pE->ProcessInputMessage(p, bufE[0].data(), bufE[0].size()), true);
     EXPECT_EQ(max_savedE, 1);
-    EXPECT_EQ(cp2pE->ProcessInputMessage(bufE[1].data(), bufE[1].size()), true);
+    EXPECT_EQ(cp2pE->ProcessInputMessage(p, bufE[1].data(), bufE[1].size()), true);
     EXPECT_EQ(max_savedE, 2);
-    EXPECT_EQ(cp2pE->ProcessInputMessage(bufE[2].data(), bufE[2].size()), true);
+    EXPECT_EQ(cp2pE->ProcessInputMessage(p, bufE[2].data(), bufE[2].size()), true);
     EXPECT_EQ(max_savedE, 5);
 
     /* BatchStateBlocks with StateBlocks out of order */
@@ -297,15 +293,15 @@ TEST (P2pTest, VerifyCache)
 
     max_savedB = 0;
 
-    EXPECT_EQ(cp2pB->ProcessInputMessage(bufS[0].data(), bufS[0].size()), true);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(p, bufS[0].data(), bufS[0].size()), true);
     EXPECT_EQ(max_savedB, 1);
-    EXPECT_EQ(cp2pB->ProcessInputMessage(bufS[2].data(), bufS[2].size()), true);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(p, bufS[2].data(), bufS[2].size()), true);
     EXPECT_EQ(max_savedB, 1);
-    EXPECT_EQ(cp2pB->ProcessInputMessage(bufS[4].data(), bufS[4].size()), true);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(p, bufS[4].data(), bufS[4].size()), true);
     EXPECT_EQ(max_savedB, 1);
-    EXPECT_EQ(cp2pB->ProcessInputMessage(bufS[1].data(), bufS[1].size()), true);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(p, bufS[1].data(), bufS[1].size()), true);
     EXPECT_EQ(max_savedB, 3);
-    EXPECT_EQ(cp2pB->ProcessInputMessage(bufS[3].data(), bufS[3].size()), true);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(p, bufS[3].data(), bufS[3].size()), true);
     EXPECT_EQ(max_savedB, 5);
 
     /* Microblock before BatchStateBlock tip */
@@ -320,11 +316,11 @@ TEST (P2pTest, VerifyCache)
     max_savedB = 0;
     max_savedM = 0;
 
-    EXPECT_EQ(cp2pM->ProcessInputMessage(bufMT.data(), bufMT.size()), true);
+    EXPECT_EQ(cp2pM->ProcessInputMessage(p, bufMT.data(), bufMT.size()), true);
     EXPECT_EQ(max_savedB, 0);
     EXPECT_EQ(max_savedM, 0);
     max_savedM = 1;
-    EXPECT_EQ(cp2pB->ProcessInputMessage(bufBT.data(), bufBT.size()), true);
+    EXPECT_EQ(cp2pB->ProcessInputMessage(p, bufBT.data(), bufBT.size()), true);
     EXPECT_EQ(max_savedB, 1);
     EXPECT_EQ(max_savedM, 2);
 
@@ -340,11 +336,11 @@ TEST (P2pTest, VerifyCache)
     max_savedM = 0;
     max_savedE = 0;
 
-    EXPECT_EQ(cp2pE->ProcessInputMessage(bufET.data(), bufET.size()), true);
+    EXPECT_EQ(cp2pE->ProcessInputMessage(p, bufET.data(), bufET.size()), true);
     EXPECT_EQ(max_savedM, 0);
     EXPECT_EQ(max_savedE, 0);
     max_savedE = 1;
-    EXPECT_EQ(cp2pM->ProcessInputMessage(bufEMT.data(), bufEMT.size()), true);
+    EXPECT_EQ(cp2pM->ProcessInputMessage(p, bufEMT.data(), bufEMT.size()), true);
     EXPECT_EQ(max_savedM, 1);
     EXPECT_EQ(max_savedE, 2);
 
