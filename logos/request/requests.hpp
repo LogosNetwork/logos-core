@@ -25,19 +25,19 @@ enum class RequestType : uint8_t
     Revoke           = 6,
     AdjustUserStatus = 7,
     AdjustFee        = 8,
-    UpdateIssuerInfo = 10,
-    UpdateController = 11,
-    Burn             = 12,
-    Distribute       = 13,
-    WithdrawFee      = 14,
+    UpdateIssuerInfo = 9,
+    UpdateController = 10,
+    Burn             = 11,
+    Distribute       = 12,
+    WithdrawFee      = 13,
 
     // Token User Requests
     //
-    TokenSend        = 15,
+    TokenSend        = 14,
 
     // Unknown
     //
-    Unknown          = 16
+    Unknown          = 15
 };
 
 class ReservationsProvider;

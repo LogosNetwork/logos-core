@@ -42,10 +42,10 @@ TokenAccount::TokenAccount(const BlockHash & head,
                            const BlockHash & receive_head,
                            uint32_t receive_count)
     : logos::Account(logos::AccountType::TokenAccount,
-                     head,
                      balance,
-                     block_count,
                      modified,
+                     head,
+                     block_count,
                      receive_head,
                      receive_count)
     , total_supply(token_balance)

@@ -113,10 +113,10 @@ public:
     Account(bool & error, logos::stream & stream);
 
     Account(AccountType type,
-            block_hash const & head,
             amount const & balance,
-            uint32_t block_count,
             uint64_t modified,
+            block_hash const & head,
+            uint32_t block_count,
             const BlockHash & receive_head,
             uint32_t receive_count);
 
@@ -128,10 +128,10 @@ public:
     virtual mdb_val to_mdb_val(std::vector<uint8_t> &buf) const = 0;
 
     AccountType type;
-    BlockHash   head;
     amount      balance;
-    uint32_t    block_count;
     uint64_t    modified;      ///< Seconds since posix epoch
+    BlockHash   head;
+    uint32_t    block_count;
     BlockHash   receive_head;
     uint32_t    receive_count;
 };

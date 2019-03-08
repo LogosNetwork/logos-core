@@ -205,10 +205,10 @@ std::unique_ptr<logos::block> logos::deserialize_block (MDB_val const & val_a)
 
 logos::Account::Account (AccountType type)
     : type (type)
-    , head (0)
     , balance (0)
-    , block_count (0)
     , modified (0)
+    , head (0)
+    , block_count (0)
     , receive_head (0)
     , receive_count (0)
 {}
@@ -226,17 +226,17 @@ logos::Account::Account (bool & error, logos::stream & stream)
 
 logos::Account::Account (
     AccountType type,
-    const BlockHash & head,
     const amount & balance,
-    uint32_t block_count,
     uint64_t modified,
+    const BlockHash & head,
+    uint32_t block_count,
     const BlockHash & receive_head,
     uint32_t receive_count)
     : type (type)
-    , head (head)
     , balance (balance)
-    , block_count (block_count)
     , modified (modified)
+    , head (head)
+    , block_count (block_count)
     , receive_head (receive_head)
     , receive_count (receive_count)
 {}
@@ -244,10 +244,10 @@ logos::Account::Account (
 uint32_t logos::Account::Serialize (stream & stream_a) const
 {
     auto s = write (stream_a, type);
-    s += write (stream_a, head.bytes);
     s += write (stream_a, balance.bytes);
-    s += write (stream_a, block_count);
     s += write (stream_a, modified);
+    s += write (stream_a, head.bytes);
+    s += write (stream_a, block_count);
     s += write (stream_a, receive_head.bytes);
     s += write (stream_a, receive_count);
     return s;
@@ -258,23 +258,23 @@ bool logos::Account::Deserialize (stream & stream_a)
     auto error (read (stream_a, type));
     if (!error)
     {
-        auto error(read(stream_a, head.bytes));
+        error = read(stream_a, balance.bytes);
         if (!error)
         {
-            error = read(stream_a, balance.bytes);
+            error = read(stream_a, modified);
             if (!error)
             {
-                error = read(stream_a, block_count);
+                auto error(read(stream_a, head.bytes));
                 if (!error)
                 {
-                    error = read(stream_a, modified);
+                    error = read(stream_a, block_count);
                     if (!error)
                     {
-                        error = read(stream_a, receive_head.bytes);
-                        if (!error)
-                        {
-                            error = read(stream_a, receive_count);
-                        }
+                            error = read(stream_a, receive_head.bytes);
+                            if (!error)
+                            {
+                                error = read(stream_a, receive_count);
+                            }
                     }
                 }
             }
@@ -287,10 +287,10 @@ bool logos::Account::Deserialize (stream & stream_a)
 bool logos::Account::operator== (Account const & other_a) const
 {
     return type == other_a.type &&
-           head == other_a.head &&
            balance == other_a.balance &&
-           block_count == other_a.block_count &&
            modified == other_a.modified &&
+           head == other_a.head &&
+           block_count == other_a.block_count &&
            receive_head == other_a.receive_head &&
            receive_count == other_a.receive_count;
 }
@@ -337,10 +337,10 @@ logos::account_info::account_info (
         uint32_t block_count_a,
         uint32_t receive_count_a)
     : Account(AccountType::LogosAccount,
-              head_a,
               balance_a,
-              block_count_a,
               modified_a,
+              head_a,
+              block_count_a,
               receive_head_a,
               receive_count_a)
     , rep_block (rep_block_a)
