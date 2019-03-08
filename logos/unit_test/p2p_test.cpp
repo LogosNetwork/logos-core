@@ -205,9 +205,9 @@ TEST (P2pTest, VerifyCache)
     EXPECT_EQ(p2p.Init(config), true);
 
     uint32_t max_savedB = 0, max_savedM = 0, max_savedE = 0;
-    ConsensusP2p<ConsensusType::BatchStateBlock> *cp2pB = get_cp2p<ConsensusType::BatchStateBlock>(p2p, max_savedB);
-    ConsensusP2p<ConsensusType::MicroBlock>      *cp2pM = get_cp2p<ConsensusType::MicroBlock>     (p2p, max_savedM);
-    ConsensusP2p<ConsensusType::Epoch>           *cp2pE = get_cp2p<ConsensusType::Epoch>          (p2p, max_savedE);
+    ConsensusP2p<ConsensusType::Request>    *cp2pB = get_cp2p<ConsensusType::Request>   (p2p, max_savedB);
+    ConsensusP2p<ConsensusType::MicroBlock> *cp2pM = get_cp2p<ConsensusType::MicroBlock>(p2p, max_savedM);
+    ConsensusP2p<ConsensusType::Epoch>      *cp2pE = get_cp2p<ConsensusType::Epoch>     (p2p, max_savedE);
 
     std::function<void (const logos::block_hash &)> _RetryValidateB = cp2pB->_RetryValidate;
     std::function<void (const logos::block_hash &)> _RetryValidateM = cp2pM->_RetryValidate;
@@ -225,7 +225,7 @@ TEST (P2pTest, VerifyCache)
 
     Prequel p;
 
-    PostCommittedBlock<ConsensusType::BatchStateBlock> blockB;
+    PostCommittedBlock<ConsensusType::Request> blockB;
     PostCommittedBlock<ConsensusType::MicroBlock> blockM;
     PostCommittedBlock<ConsensusType::Epoch> blockE;
     std::vector<uint8_t> bufB[5], bufM[5], bufE[5];
@@ -233,7 +233,7 @@ TEST (P2pTest, VerifyCache)
 
     for (uint32_t i = 0; i < 5; ++i)
     {
-        generate_block<ConsensusType::BatchStateBlock>  (blockB, bufB[i], hashB, i + 1, 7);
+        generate_block<ConsensusType::Request>  (blockB, bufB[i], hashB, i + 1, 7);
         generate_block<ConsensusType::MicroBlock>       (blockM, bufM[i], hashM, i + 1, 8);
         generate_block<ConsensusType::Epoch>            (blockE, bufE[i], hashE, i + 1, 9);
     }
@@ -275,20 +275,19 @@ TEST (P2pTest, VerifyCache)
     EXPECT_EQ(max_savedE, 5);
 
     /* BatchStateBlocks with StateBlocks out of order */
-    PostCommittedBlock<ConsensusType::BatchStateBlock> blockBS[5];
+    PostCommittedBlock<ConsensusType::Request> blockBS[5];
     logos::block_hash hashS;
     std::vector<uint8_t> bufS[5];
     for (uint32_t i = 0; i < 5; ++i)
     {
-        std::shared_ptr<StateBlock> S = make_shared<StateBlock>();
+        std::shared_ptr<Send> S = make_shared<Send>();
         S->sequence = i;
         S->previous = hashS;
         hashS = S->Hash();
-        blockBS[i].block_count = 1;
-        blockBS[i].blocks.push_back(S);
+        blockBS[i].requests.push_back(S);
         blockBS[i].hashes.push_back(hashS);
         memset(&hashB, 0, sizeof(hashB));
-        generate_block<ConsensusType::BatchStateBlock>(blockBS[i], bufS[i], hashB, i + 1, 10 + i);
+        generate_block<ConsensusType::Request>(blockBS[i], bufS[i], hashB, i + 1, 10 + i);
     }
 
     max_savedB = 0;
@@ -308,7 +307,7 @@ TEST (P2pTest, VerifyCache)
     std::vector<uint8_t> bufBT, bufMT;
 
     memset(&hashB, 0, sizeof(hashB));
-    generate_block<ConsensusType::BatchStateBlock>(blockB, bufBT, hashB, 1, 0);
+    generate_block<ConsensusType::Request>(blockB, bufBT, hashB, 1, 0);
     memset(&hashM, 0, sizeof(hashM));
     blockM.tips[0] = hashB;
     generate_block<ConsensusType::MicroBlock>(blockM, bufMT, hashM, 2, 15);

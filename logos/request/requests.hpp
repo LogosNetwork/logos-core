@@ -120,7 +120,7 @@ struct Request
     virtual void DeserializeDB(bool & error, logos::stream & stream);
 
     virtual boost::property_tree::ptree SerializeJson() const;
-    uint64_t DoSerialize(logos::stream & stream, bool with_work) const;
+    uint64_t DoSerialize(logos::stream & stream) const;
     virtual uint64_t Serialize(logos::stream & stream) const;
     void Deserialize(bool & error, logos::stream & stream);
 
@@ -139,11 +139,11 @@ struct Request
     RequestType       type = RequestType::Unknown;
     AccountAddress    origin;
     BlockHash         previous;
-    BlockHash         next;
     Amount            fee;
     uint32_t          sequence = 0;
-    uint64_t          work     = 0;
     AccountSig        signature;
+    uint64_t          work     = 0;
+    BlockHash         next;
     mutable Locator   locator;
     mutable BlockHash digest;
 };

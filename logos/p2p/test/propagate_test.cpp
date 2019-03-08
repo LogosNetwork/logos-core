@@ -52,7 +52,7 @@ static std::vector<uint8_t> random_vector(unsigned maxsize)
     unsigned size = rand() % maxsize;
     for (unsigned i = 0; i < size; ++i)
         v.push_back(rand() % 0x100);
-    printf("random vector of size %03x: ", v.size());
+    printf("random vector of size %03lx: ", v.size());
     for (unsigned i = 0; i < std::min(v.size(), (size_t)16); ++i)
         printf(" %02x", v[i]);
     printf("\n");

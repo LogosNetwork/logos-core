@@ -299,6 +299,26 @@ void Issuance::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
 }
 
 void Issuance::DeserializeDB(bool & error, logos::stream & stream)
@@ -310,6 +330,12 @@ void Issuance::DeserializeDB(bool & error, logos::stream & stream)
     }
 
     Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
 }
 
 void Issuance::Hash(blake2b_state & hash) const
@@ -496,6 +522,26 @@ void IssueAdditional::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
 }
 
 void IssueAdditional::DeserializeDB(bool & error, logos::stream & stream)
@@ -507,6 +553,12 @@ void IssueAdditional::DeserializeDB(bool & error, logos::stream & stream)
     }
 
     Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
 }
 
 void IssueAdditional::Hash(blake2b_state & hash) const
@@ -644,6 +696,26 @@ void ChangeSetting::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
 }
 
 void ChangeSetting::DeserializeDB(bool & error, logos::stream & stream)
@@ -655,6 +727,12 @@ void ChangeSetting::DeserializeDB(bool & error, logos::stream & stream)
     }
 
     Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
 }
 
 void ChangeSetting::Hash(blake2b_state & hash) const
@@ -795,6 +873,26 @@ void ImmuteSetting::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
 }
 
 void ImmuteSetting::DeserializeDB(bool & error, logos::stream & stream)
@@ -806,6 +904,12 @@ void ImmuteSetting::DeserializeDB(bool & error, logos::stream & stream)
     }
 
     Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
 }
 
 void ImmuteSetting::Hash(blake2b_state & hash) const
@@ -994,6 +1098,26 @@ void Revoke::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
 }
 
 void Revoke::DeserializeDB(bool & error, logos::stream & stream)
@@ -1005,6 +1129,12 @@ void Revoke::DeserializeDB(bool & error, logos::stream & stream)
     }
 
     Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
 }
 
 void Revoke::Hash(blake2b_state & hash) const
@@ -1148,6 +1278,26 @@ void AdjustUserStatus::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
 }
 
 void AdjustUserStatus::DeserializeDB(bool & error, logos::stream & stream)
@@ -1159,6 +1309,12 @@ void AdjustUserStatus::DeserializeDB(bool & error, logos::stream & stream)
     }
 
     Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
 }
 
 void AdjustUserStatus::Hash(blake2b_state & hash) const
@@ -1313,6 +1469,26 @@ void AdjustFee::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
 }
 
 void AdjustFee::DeserializeDB(bool & error, logos::stream & stream)
@@ -1324,6 +1500,12 @@ void AdjustFee::DeserializeDB(bool & error, logos::stream & stream)
     }
 
     Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
 }
 
 void AdjustFee::Hash(blake2b_state & hash) const
@@ -1459,6 +1641,26 @@ void UpdateIssuerInfo::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
 }
 
 void UpdateIssuerInfo::DeserializeDB(bool & error, logos::stream & stream)
@@ -1470,6 +1672,12 @@ void UpdateIssuerInfo::DeserializeDB(bool & error, logos::stream & stream)
     }
 
     Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
 }
 
 void UpdateIssuerInfo::Hash(blake2b_state & hash) const
@@ -1657,6 +1865,26 @@ void UpdateController::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
 }
 
 void UpdateController::DeserializeDB(bool & error, logos::stream & stream)
@@ -1668,6 +1896,12 @@ void UpdateController::DeserializeDB(bool & error, logos::stream & stream)
     }
 
     Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
 }
 
 void UpdateController::Hash(blake2b_state & hash) const
@@ -1832,6 +2066,26 @@ void Burn::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
 }
 
 void Burn::DeserializeDB(bool & error, logos::stream & stream)
@@ -1843,6 +2097,12 @@ void Burn::DeserializeDB(bool & error, logos::stream & stream)
     }
 
     Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
 }
 
 void Burn::Hash(blake2b_state & hash) const
@@ -1993,6 +2253,26 @@ void Distribute::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
 }
 
 void Distribute::DeserializeDB(bool & error, logos::stream & stream)
@@ -2004,6 +2284,12 @@ void Distribute::DeserializeDB(bool & error, logos::stream & stream)
     }
 
     Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
 }
 
 void Distribute::Hash(blake2b_state & hash) const
@@ -2152,6 +2438,26 @@ void WithdrawFee::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
 }
 
 void WithdrawFee::DeserializeDB(bool & error, logos::stream & stream)
@@ -2163,6 +2469,12 @@ void WithdrawFee::DeserializeDB(bool & error, logos::stream & stream)
     }
 
     Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
 }
 
 void WithdrawFee::Hash(blake2b_state & hash) const
@@ -2385,6 +2697,26 @@ void TokenSend::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
 }
 
 void TokenSend::DeserializeDB(bool & error, logos::stream & stream)
@@ -2396,6 +2728,12 @@ void TokenSend::DeserializeDB(bool & error, logos::stream & stream)
     }
 
     Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
 }
 
 void TokenSend::Hash(blake2b_state & hash) const

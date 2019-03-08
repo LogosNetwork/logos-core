@@ -114,12 +114,6 @@ Request::Request(bool & error,
             return;
         }
 
-        error = next.decode_hex(tree.get<std::string>(NEXT, ""));
-        if(error)
-        {
-            return;
-        }
-
         error = fee.decode_dec(tree.get<std::string>(FEE));
         if(error)
         {
@@ -132,13 +126,19 @@ Request::Request(bool & error,
             return;
         }
 
+        error = signature.decode_hex(tree.get<std::string>(SIGNATURE));
+        if(error)
+        {
+            return;
+        }
+
         error = logos::from_string_hex(tree.get<std::string>(WORK, "0"), work);
         if(error)
         {
             return;
         }
 
-        error = signature.decode_hex(tree.get<std::string>(SIGNATURE));
+        error = next.decode_hex(tree.get<std::string>(NEXT, ""));
         if(error)
         {
             return;
@@ -220,8 +220,15 @@ uint64_t Request::ToStream(logos::stream & stream, bool with_work) const
 {
     auto bytes_written = 0;
 
-    bytes_written += DoSerialize(stream, with_work);
+    bytes_written += DoSerialize(stream);
     bytes_written += Serialize(stream);
+
+    bytes_written += logos::write(stream, with_work);
+
+    if(with_work)
+    {
+        bytes_written += logos::write(stream, work);
+    }
 
     return bytes_written;
 }
@@ -233,9 +240,18 @@ logos::mdb_val Request::ToDatabase(std::vector<uint8_t> & buf, bool with_work) c
     {
         logos::vectorstream stream(buf);
 
-        DoSerialize(stream, with_work);
+        DoSerialize(stream);
         locator.Serialize(stream);
         Serialize(stream);
+
+        logos::write(stream, with_work);
+
+        if(with_work)
+        {
+            logos::write(stream, work);
+        }
+
+        logos::write(stream, next);
     }
 
     return {buf.size(), buf.data()};
@@ -260,31 +276,24 @@ boost::property_tree::ptree Request::SerializeJson() const
     tree.put(TYPE, GetRequestTypeField(type));
     tree.put(ORIGIN, origin.to_account());
     tree.put(PREVIOUS, previous.to_string());
-    tree.put(NEXT, next.to_string());
     tree.put(FEE, fee.to_string_dec());
     tree.put(SEQUENCE, std::to_string(sequence));
-    tree.put(WORK, std::to_string(work));
     tree.put(SIGNATURE, signature.to_string());
+    tree.put(WORK, std::to_string(work));
+    tree.put(NEXT, next.to_string());
 
     return tree;
 }
 
-uint64_t Request::DoSerialize(logos::stream & stream, bool with_work) const
+uint64_t Request::DoSerialize(logos::stream & stream) const
 {
     uint64_t bytes_written = 0;
 
     bytes_written += logos::write(stream, type);
     bytes_written += logos::write(stream, origin);
     bytes_written += logos::write(stream, previous);
-    bytes_written += logos::write(stream, next);
     bytes_written += logos::write(stream, fee);
     bytes_written += logos::write(stream, sequence);
-    bytes_written += logos::write(stream, with_work);
-
-    if(with_work)
-    {
-        bytes_written += logos::write(stream, work);
-    }
 
     // Signature is serialized by derived
     // classes.
@@ -319,12 +328,6 @@ void Request::Deserialize(bool & error, logos::stream & stream)
         return;
     }
 
-    error = logos::read(stream, next);
-    if(error)
-    {
-        return;
-    }
-
     error = logos::read(stream, fee);
     if(error)
     {
@@ -335,22 +338,6 @@ void Request::Deserialize(bool & error, logos::stream & stream)
     if(error)
     {
         return;
-    }
-
-    bool with_work;
-    error = logos::read(stream, with_work);
-    if(error)
-    {
-        return;
-    }
-
-    if(with_work)
-    {
-        error = logos::read(stream, work);
-        if(error)
-        {
-            return;
-        }
     }
 
     // Signature is deserialized by derived
@@ -408,10 +395,10 @@ uint16_t Request::WireSize() const
     return sizeof(type) +
            sizeof(origin.bytes) +
            sizeof(previous.bytes) +
-           sizeof(next.bytes) +
            sizeof(fee.bytes) +
            sizeof(sequence) +
-           sizeof(signature.bytes);
+           sizeof(signature.bytes) +
+           sizeof(next.bytes);
 }
 
 bool Request::operator==(const Request & other) const
@@ -419,10 +406,10 @@ bool Request::operator==(const Request & other) const
     return type == other.type &&
            origin == other.origin &&
            previous == other.previous &&
-           next == other.next &&
            fee == other.fee &&
            sequence == other.sequence &&
-           signature == other.signature;
+           signature == other.signature &&
+           next == other.next;
 }
 
 Change::Change()
@@ -533,6 +520,26 @@ void Change::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
 }
 
 void Change::DeserializeDB(bool &error, logos::stream &stream)
@@ -544,6 +551,12 @@ void Change::DeserializeDB(bool &error, logos::stream &stream)
     }
 
     Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
 }
 
 void Change::Hash(blake2b_state & hash) const
@@ -786,6 +799,26 @@ void Send::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
 }
 
 void Send::DeserializeDB(bool &error, logos::stream &stream)
@@ -797,6 +830,12 @@ void Send::DeserializeDB(bool &error, logos::stream &stream)
     }
 
     Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
 }
 
 bool Send::operator==(const Request & other) const
