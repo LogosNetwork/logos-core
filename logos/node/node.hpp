@@ -499,9 +499,6 @@ public:
 
     // consensus-related functionality.
 
-    void TestTokenRequests();
-    bool do_token_test = false;
-
     process_return OnRequest(std::shared_ptr<Request> request,
                              bool should_buffer);
     process_return BufferComplete();
