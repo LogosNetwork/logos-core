@@ -243,7 +243,7 @@ struct PrePrepareCommon
             blake2b_update(&hash, &tsp, sizeof(tsp));
         }
         // Don't hash previous if it is the first request (batch) block of an epoch
-        if (!previous.is_zero() || is_archive_block)
+        if (sequence || is_archive_block)
         {
             previous.Hash(hash);
         }
