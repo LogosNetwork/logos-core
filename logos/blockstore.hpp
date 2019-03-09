@@ -184,6 +184,7 @@ public:
     bool epoch_tip_put(const BlockHash &, MDB_txn*);
     bool epoch_tip_get(BlockHash &, MDB_txn *t=0);
     bool epoch_exists(const ApprovedEB &);
+    uint32_t epoch_number_stored();
 
     //////////////////
 

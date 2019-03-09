@@ -22,7 +22,7 @@ MicroBlockHandler::BatchBlocksIterator(
     {
         BlockHash hash = start[delegate];
         ApprovedBSB batch;
-        bool not_found = false;
+        bool not_found;
         for (not_found = store.batch_block_get(hash, batch);
              !not_found && hash != end[delegate];
              hash = batch.previous, not_found = store.batch_block_get(hash, batch))
@@ -203,7 +203,7 @@ MicroBlockHandler::GetTipsSlow(
     auto cutoff = min_timestamp + ((rem!=0)?TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count() - rem:0);
 
     // iterate over all blocks, selecting the ones that are less than cutoff time
-    uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff, true);
+    uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff, false);
 
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate) {
         for (auto it : entries[delegate]) {
@@ -250,9 +250,7 @@ MicroBlockHandler::Build(
 
     // first microblock after genesis, the cut-off time is the Min timestamp of the very first BSB
     // for all delegates + remainder from Min to nearest 10 min + 10 min; start is the current tips
-    // Also, we need to call GetTipsSlow if at the beginning of an epoch, since there is a gap
-    // between a retiring and a new delegate's batch chains
-    if (previous_micro_block.epoch_number == GENESIS_EPOCH || previous_micro_block.last_micro_block)
+    if (previous_micro_block.epoch_number == GENESIS_EPOCH)
     {
         for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
         {
@@ -269,6 +267,10 @@ MicroBlockHandler::Build(
     else
     {
         GetTipsFast(previous_micro_block.tips, previous_micro_block.timestamp, block.tips, block.number_batch_blocks);
+        // Note: if building the last micro block, GetTipsFast still works because previous epoch's request block tips
+        // aren't connected to the current epoch's request block chain yet
+        // if building the first micro block, the two request block chains will have already been linked at
+        // epoch persistence time (happened at roughly one MB interval ago)
     }
 
     // should be allowed to have no blocks so at least it doesn't crash

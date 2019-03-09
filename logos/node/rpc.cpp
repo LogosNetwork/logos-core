@@ -906,27 +906,17 @@ void logos::rpc_handler::batch_blocks_latest ()
     {
         // Retrieve epoch number to get batch tip
         // indirectly figure out if we are in stale epoch
-        BlockHash epoch_tip;
-        if (node.store.epoch_tip_get(epoch_tip))
-        {
-            error_response (response, "Internal data corruption: epoch tip doesn't exist.");
-        }
-
-        ApprovedEB epoch;
-        if (node.store.epoch_get(epoch_tip, epoch))
-        {
-            error_response (response, "Internal data corruption: failed to get epoch.");
-        }
+        auto epoch_number_stored (node.store.epoch_number_stored());
 
         auto tip_exists (false);
-        tip_exists = !node.store.batch_tip_get(static_cast<uint8_t>(delegate_id), epoch.epoch_number + 2, hash);
+        tip_exists = !node.store.batch_tip_get(static_cast<uint8_t>(delegate_id), epoch_number_stored + 2, hash);
 
         // if exists, then we are in epoch i + 1 but epoch block i hasn't been persisted yet
 
         // otherwise, block i has been persisted, i.e. we are at least 1 MB interval past epoch start
         if (!tip_exists)
         {
-            if (node.store.batch_tip_get(static_cast<uint8_t>(delegate_id), epoch.epoch_number + 1, hash))
+            if (node.store.batch_tip_get(static_cast<uint8_t>(delegate_id), epoch_number_stored + 1, hash))
             {
                 error_response (response, "Internal data corruption: request block tip doesn't exist.");
             }

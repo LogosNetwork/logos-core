@@ -1219,6 +1219,25 @@ bool logos::block_store::epoch_exists (const ApprovedEB & block)
     return exists;
 }
 
+uint32_t logos::block_store::epoch_number_stored()
+{
+    BlockHash epoch_tip;
+    if (epoch_tip_get(epoch_tip))
+    {
+        LOG_FATAL(log) << __func__ << " epoch tip doesn't exist.";
+        trace_and_halt();
+    }
+
+    ApprovedEB epoch;
+    if (epoch_get(epoch_tip, epoch))
+    {
+        LOG_FATAL(log) << __func__ << " failed to get epoch.";
+        trace_and_halt();
+    }
+
+    return epoch.epoch_number;
+}
+
 bool logos::block_store::account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << account_a.to_string();

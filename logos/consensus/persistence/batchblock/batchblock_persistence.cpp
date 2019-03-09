@@ -260,6 +260,37 @@ void PersistenceManager<BSBCT>::StoreBatchMessage(
     LOG_DEBUG(_log) << "PersistenceManager::StoreBatchMessage - "
                                 << message.Hash().to_string();
 
+    // Check if should link with previous epoch's last batch block, starting from the second "normal" epoch (i.e. 4)
+    if (!message.sequence && message.epoch_number > GENESIS_EPOCH + 1)
+    {
+        // should perform linking here only if after stale epoch (after an epoch block has been proposed in cur epoch)
+        // if latest stored epoch number is exactly 1 behind current, then we know
+        // no request block was proposed during first MB interval of cur epoch
+        //   --> so epoch persistence didn't perform chain connecting --> so we have to connect here
+        if (_store.epoch_number_stored() + 1 == message.epoch_number)
+        {
+            // Get current epoch's request block tip (updated by Epoch Persistence),
+            // which is also the end of previous epoch's request block chain
+            BlockHash cur_tip;
+            if (_store.batch_tip_get(message.primary_delegate, message.epoch_number, cur_tip))
+            {
+                LOG_FATAL(_log) << "PersistenceManager<BSBCT>::StoreBatchMessage failed to get request block tip for delegate "
+                                << std::to_string(message.primary_delegate) << " for epoch number " << message.epoch_number;
+                trace_and_halt();
+            }
+            // Update `next` of last request block in previous epoch
+            if (_store.consensus_block_update_next(cur_tip, hash, ConsensusType::BatchStateBlock, transaction))
+            {
+                LOG_FATAL(_log) << "PersistenceManager<BSBCT>::StoreBatchMessage failed to update prev epoch's "
+                                << "request block tip";
+                trace_and_halt();
+            }
+
+            // Update `previous` of this block
+            message.previous = cur_tip;
+        }
+    }
+
     if(_store.batch_block_put(message, hash, transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager::StoreBatchMessage - "
@@ -285,10 +316,6 @@ void PersistenceManager<BSBCT>::StoreBatchMessage(
             // TODO: bootstrap here.
         }
     }
-
-    // TODO: Add previous hash for batch blocks with
-    //       a previous set to zero because it was
-    //       the first batch of the epoch.
 }
 
 void PersistenceManager<BSBCT>::ApplyBatchMessage(

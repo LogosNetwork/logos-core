@@ -279,7 +279,7 @@ struct PrePrepareCommon
     uint32_t                epoch_number;
     uint32_t                sequence;
     uint64_t                timestamp;
-    BlockHash               previous;
+    mutable BlockHash       previous;
     DelegateSig             preprepare_sig;
 };
 

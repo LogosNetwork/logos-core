@@ -165,7 +165,16 @@ ConsensusContainer::OnSendRequest(
     {
         result.code = logos::process_result::not_delegate;
         LOG_WARN(_log) << "ConsensusContainer::OnSendRequest microblock, the node is not a delegate, "
-                        << (int)DelegateIdentityManager::_global_delegate_idx;
+                       << (int)DelegateIdentityManager::_global_delegate_idx;
+        return result;
+    }
+    // microblock proposed during epoch transition should be proposed by the new delegate set
+    else if (_transition_state != EpochTransitionState::None &&
+             _cur_epoch->GetConnection() != EpochConnection::Transitioning)
+    {
+        result.code = logos::process_result::old;
+        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest microblock, not new delegate set "
+                       << (int)DelegateIdentityManager::_global_delegate_idx;
         return result;
     }
 
