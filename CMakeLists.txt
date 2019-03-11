@@ -417,7 +417,6 @@ if (LOGOS_TEST)
 		logos/unit_test/consensus_msg_serialize.cpp
 		logos/unit_test/msg_validator_setup.cpp
 		logos/unit_test/request_serialization.cpp
-        #logos/unit_test/rpc.cpp
 		logos/unit_test/tallying.cpp)
 
 	set_target_properties (unit_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1 ")
