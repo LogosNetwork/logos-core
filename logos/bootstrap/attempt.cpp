@@ -36,7 +36,7 @@ namespace Bootstrap
         if (connection_l)
         {
             std::future<bool> future;
-            auto client(std::make_shared<tips_req_client>(connection_l));
+            auto client(std::make_shared<tips_req_client>(connection_l, store));
             client->run();
             future = client->promise.get_future();
             lock_a.unlock();
@@ -115,7 +115,7 @@ namespace Bootstrap
         else
             clean(); //TODO Must wait till threads using this have stopped, else mem fault...
 
-        LOG_DEBUG(log) << "bootstrap_attempt::run end }" << std::endl;
+        LOG_DEBUG(log) << "bootstrap_attempt::run end }";
     }
 
     std::shared_ptr<bootstrap_client> bootstrap_attempt::connection(std::unique_lock<std::mutex> &lock_a)

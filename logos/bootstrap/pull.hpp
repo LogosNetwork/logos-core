@@ -1,7 +1,10 @@
 #pragma once
 
 #include <deque>
-#include <unordered_set>
+#include <unordered_map>
+#include <memory>
+
+#include <logos/consensus/messages/messages.hpp>
 
 #include <logos/bootstrap/bootstrap_messages.hpp>
 #include <logos/bootstrap/bootstrap.hpp>
@@ -20,24 +23,49 @@ namespace Bootstrap
     {
     public:
         Puller(BlockCache & block_cache, Store & store);
-        void Init(const TipSet &my_tips, const TipSet &others_tips);
+        void Init(TipSet &my_tips, TipSet &others_tips);
 
-        PullPtr GetPull(/*bool & all_done*/);
-
+        PullPtr GetPull();
         bool AllDone();
         size_t GetNumWaitingPulls();
+
+        enum class PullStatus
+        {
+            Continue,
+			Done,
+            DisconnectSender,
+            BlackListSender,
+
+			Unknown				= 0xff
+        };
 
         /**
          * @param pull the pull that the block belongs to
          * @param block if nullptr, then no more blocks
          * @return if sender of the block should be blacklisted
          */
-        bool MBReceived(PullPtr pull, MBPtr block);
-        bool EBReceived(PullPtr pull, EBPtr block);
-        bool BSBReceived(PullPtr pull, BSBPtr block);
+		//        template<ConsensusType CT>
+		//        PullStatus BlockReceived(PullPtr pull,
+		//        		uint32_t block_number,
+		//        		std::shared_ptr<PostCommittedBlock<CT>> block,
+		//				bool last_block);
+
+        PullStatus EBReceived(PullPtr pull, EBPtr block);
+        PullStatus MBReceived(PullPtr pull, MBPtr block);
+		PullStatus BSBReceived(PullPtr pull, BSBPtr block, bool last_block);
+        void PullFailed(PullPtr pull);
 
     private:
+        /*
+         * should be called only when both waiting_pulls and ongoing_pulls are empty
+         */
         void CreateMorePulls();
+        void ExtraMicroBlock();
+
+//        /*
+//         * BSB tips only and the two tips should be in the same epoch
+//         */
+//        uint32_t ComputeNumBSBToPull(Tip &a, Tip &b);
 
         BlockCache & block_cache;
         Store & store;
@@ -45,19 +73,45 @@ namespace Bootstrap
         TipSet my_tips;
         TipSet others_tips;
 
-        std::mutex mutex;
+        std::mutex mtx;
         std::deque<PullPtr> waiting_pulls;
-        std::unordered_map<PullPtr, uint32_t> ongoing_pulls;
+        std::unordered_map<PullPtr, uint32_t> ongoing_pulls;//TODO change to hash_set?
+
+        enum class PullState
+		{
+        	Epoch,
+			Micro,
+			Batch,
+			Done
+		};
+        PullState state;
+
+        struct MicroPeriod
+        {
+        	MBPtr mb;
+        	std::unordered_set<BlockHash> bsb_tips;
+        };
+
+        struct EpochPeriod
+        {
+        	uint32_t epoch_num;
+            EBPtr eb;
+            MicroPeriod cur_mb;
+            bool need_next_mb;
+            MicroPeriod next_mb;//for corner case: bsb of cur_mb depends on bsb in next_mb
+        };
+
+        EpochPeriod working_epoch;
     };
 
     class PullRequestHandler
     {
     public:
-        PullRequestHandler(PullRequest &request, Store & store);
-        void GetNextSerializedResponse(std::vector<uint8_t> & buf);
+        PullRequestHandler(PullPtr request, Store & store);
+        bool GetNextSerializedResponse(std::vector<uint8_t> & buf);
     private:
 
-        PullRequest request;
+        PullPtr request;
         Store & store;
     };
 

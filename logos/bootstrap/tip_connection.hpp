@@ -1,5 +1,7 @@
 #pragma once
 
+#include <future>
+
 #include <logos/bootstrap/bootstrap_messages.hpp>
 #include <logos/lib/log.hpp>
 
@@ -23,15 +25,6 @@ namespace Bootstrap
         /// receive_tips receive the tips from server
         void receive_tips();
 
-//        /// received_batch_block_tips final call to receiving tips in composed operation
-//        /// @param error_code error if there was a problem in the network
-//        /// @param size_t length of message received
-//        void received_batch_block_tips (boost::system::error_code const &, size_t);
-//
-//        /// finish_request
-//        /// set promise and pool connection
-//        void finish_request();
-
         std::shared_ptr<ISocket> connection;
         TipSet request;
         TipSet response;
@@ -51,8 +44,8 @@ namespace Bootstrap
         /// Class destructor
         ~tips_req_server();
 
-        /// sends the batch block tips to the client
-        void run();
+        /// sends the tips to the client
+        void send_tips();
 
         std::shared_ptr<ISocket> connection;
         TipSet request;
@@ -60,3 +53,13 @@ namespace Bootstrap
         Log log;
     };
 }
+
+//        /// received_batch_block_tips final call to receiving tips in composed operation
+//        /// @param error_code error if there was a problem in the network
+//        /// @param size_t length of message received
+//        void received_batch_block_tips (boost::system::error_code const &, size_t);
+//
+//        /// finish_request
+//        /// set promise and pool connection
+//        void finish_request();
+

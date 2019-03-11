@@ -1,3 +1,5 @@
+#include <logos/node/utility.hpp>
+
 #include <logos/bootstrap/bootstrap.hpp>
 #include <logos/bootstrap/bootstrap_messages.hpp>
 #include <logos/bootstrap/microblock.hpp>
@@ -80,7 +82,7 @@ namespace Bootstrap
                 });
     }
 
-
+    /////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////
 
@@ -98,7 +100,7 @@ namespace Bootstrap
         LOG_TRACE(log) << __func__;
     }
 
-    void tips_req_server::run()
+    void tips_req_server::send_tips()
     {
         LOG_TRACE(log) << "tips_req_server::run";
         auto send_buffer(std::make_shared<std::vector<uint8_t>>());
@@ -129,82 +131,3 @@ namespace Bootstrap
     }
 
 }//namespace
-
-//                }
-//
-////        	if (!ec)
-////                    {
-////                        logos::bufferstream stream (this_l->connection->receive_buffer.data (), MessageHeader::WireSize);
-////                        bool error = false;
-////                        MessageHeader header(error, stream);
-////
-////                        if(error || ! header.Validate())
-////                        {
-////                            LOG_INFO(this_l->log) << "Header error";
-////                            //TODO disconnect?
-////                            return;
-////                        }
-////
-////                        if(header.type == MessageType::TipResponse)
-////                        {
-////                            LOG_DEBUG(this_l->log) << "received_batch_block_tips header";
-////                            boost::asio::async_read (this_l->connection->socket,
-////                                    boost::asio::buffer(this_l->connection->receive_buffer.data(), header.payload_size),
-////                                    [this_l](boost::system::error_code const & ec, size_t size_a)
-////                                    {
-////                                        this_l->received_batch_block_tips(ec, size_a);
-////                                    });
-////                        } else {
-////                            LOG_DEBUG(this_l->log) << "error message type";
-////                            this_l->connection->stop(false); //TODO stop the client.
-////                            //TODO this_l->promise.set_value(true); //why not set promise?
-////                        }
-////                    }
-////                    else
-////                    {
-////                        try {
-////                            LOG_DEBUG(this_l->log) << "tips:: line: " << __LINE__ << " ec.message: " << ec.message();
-////                            this_l->promise.set_value(true);
-////                        }
-////                        catch(const std::future_error &e)
-////                        {
-////                            LOG_INFO(this_l->log) << "tips_req_client::receive_tips_header: caught error in setting promise: " << e.what();
-////                        }
-////                    }
-////                });
-//    }
-//
-//    void tips_req_client::received_batch_block_tips(boost::system::error_code const &ec, size_t size_a)
-//    {
-//        LOG_DEBUG(log) << "tips_req_client::received_batch_block_tips: ec: " << ec;
-//        //auto address = connection->socket.remote_endpoint().address();
-//
-//        if(!ec)
-//        {
-//            logos::bufferstream stream (connection->receive_buffer.data (), size_a);
-//            bool error = false;
-//            TipSet tips(error, stream);
-//            if (!error)
-//            {
-//                response = tips;
-//                finish_request();
-//            }
-//            //else disconnect
-//        } else {
-//            LOG_WARN(log) << "tips_req_client::received_batch_block_tips error...";
-//            //Error handling
-//        }
-//    }
-//
-//    void tips_req_client::finish_request()
-//    {
-//        // Indicate we are done and all is well...
-//        try {
-//            promise.set_value(false); // We got everything, indicate we are ok to attempt
-//        }
-//        catch(const std::future_error &e)
-//        {
-//            LOG_DEBUG(log) << "tips_req_client::received_batch_block_tips caught error in setting promise: " << e.what();
-//        }
-//        connection->attempt->pool_connection (connection);
-//    }
