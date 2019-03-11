@@ -66,7 +66,8 @@ Reservations::UpdateReservation(const BlockHash & hash,
 {
     uint32_t current_epoch = ConsensusContainer::GetCurEpochNumber();
 
-    if(_reservations.find(account) != _reservations.end())
+    if(_reservations.find(account) != _reservations.end() &&
+           _reservations[account].reservation != hash)
     {
         if (_reservations[account].reservation_epoch + PersistenceManager<R>::RESERVATION_PERIOD > current_epoch)
         {

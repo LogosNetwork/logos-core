@@ -327,7 +327,6 @@ add_library (node
 	logos/consensus/backup_delegate.cpp
 	logos/consensus/consensus_container.cpp
 	logos/consensus/consensus_manager.cpp
-	logos/consensus/consensus_p2p.cpp
 	logos/consensus/delegate_key_store.cpp
 	logos/consensus/epoch_manager.cpp
 	logos/consensus/epoch/epoch_backup_delegate.cpp
@@ -335,10 +334,13 @@ add_library (node
 	logos/consensus/message_validator.cpp
 	logos/consensus/messages/common.cpp
 	logos/consensus/messages/messages.cpp
+	logos/consensus/consensus_msg_sink.cpp
 	logos/consensus/messages/receive_block.cpp
 	logos/consensus/messages/request_block.cpp
 	logos/consensus/microblock/microblock_backup_delegate.cpp
 	logos/consensus/microblock/microblock_consensus_manager.cpp
+	logos/consensus/p2p/consensus_p2p.cpp
+	logos/consensus/p2p/consensus_p2p_bridge.cpp
 	logos/consensus/persistence/persistence.cpp
 	logos/consensus/persistence/validator_builder.cpp
         logos/consensus/persistence/request/request_persistence.cpp
@@ -417,13 +419,18 @@ if (LOGOS_TEST)
 		logos/unit_test/consensus_msg_serialize.cpp
 		logos/unit_test/msg_validator_setup.cpp
 		logos/unit_test/request_serialization.cpp
-		logos/unit_test/tallying.cpp)
+		logos/unit_test/tallying.cpp
+        logos/unit_test/p2p_test.cpp
+        logos/p2p/test/propagate_test.cpp
+        logos/p2p/test/storage_test.cpp)
 
 	set_target_properties (unit_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1 ")
 	if (STRICT_CONSENSUS_THRESHOLD MATCHES ON)
 		set_property (TARGET unit_test APPEND_STRING PROPERTY COMPILE_FLAGS "-DSTRICT_CONSENSUS_THRESHOLD ")
 	endif (STRICT_CONSENSUS_THRESHOLD MATCHES ON)
 	set_target_properties (unit_test PROPERTIES LINK_FLAGS "${PLATFORM_LINK_FLAGS}")
+    target_include_directories (unit_test PRIVATE logos/p2p)
+    target_link_libraries (unit_test p2p)
 endif (LOGOS_TEST)
 
 add_executable (logos_core

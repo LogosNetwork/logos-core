@@ -35,8 +35,8 @@ std::unique_ptr<CBaseChainParams> CreateBaseChainParams(const std::string& chain
         throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
 }
 
-void SelectBaseParams(const std::string& chain)
+void SelectBaseParams(ArgsManager &Args, const std::string& chain)
 {
     globalChainBaseParams = CreateBaseChainParams(chain);
-    gArgs.SelectConfigNetwork(chain);
+    Args.SelectConfigNetwork(chain);
 }

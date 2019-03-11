@@ -30,7 +30,8 @@ public:
                                   ArchiverMicroBlockHandler & handler,
                                   EpochEventsNotifier & events_notifier,
                                   PersistenceManager<MBCT> & persistence_manager,
-                                  p2p_interface & p2p);
+                                  p2p_interface & p2p,
+                                  Service & service);
     ~MicroBlockBackupDelegate() = default;
 
     /// Validate PrePrepare message

@@ -18,14 +18,15 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
                                        MessageValidator & validator,
                                        EpochEventsNotifier & events_notifier,
                                        p2p_interface & p2p)
-    : PrimaryDelegate(service, validator)
+    : PrimaryDelegate(service, validator, events_notifier.GetEpochNumber())
+    , ConsensusP2pBridge<CT>(service, p2p, config.delegate_id)
+    , _service(service)
     , _store(store)
     , _validator(validator)
     , _waiting_list(GetWaitingList(service, this))
     , _events_notifier(events_notifier)
     , _reservations(std::make_shared<Reservations>(store))
     , _persistence_manager(store, _reservations)
-    , _consensus_p2p(p2p, config.delegate_id)
 {
     _delegate_id = config.delegate_id;
 
@@ -38,6 +39,9 @@ void ConsensusManager<CT>::HandleRequest(std::shared_ptr<DelegateMessage> messag
                                          BlockHash & hash,
                                          logos::process_return & result)
 {
+    result.code = logos::process_result::progress;
+    // SYL Integration fix: got rid of unnecessary lock here in favor of more granular locking
+
     LOG_INFO (_log) << "ConsensusManager<" << ConsensusToName(CT)
                     << ">::OnDelegateMessage() - hash: "
                     << hash.to_string();
@@ -79,7 +83,10 @@ void ConsensusManager<CT>::OnDelegateMessage(std::shared_ptr<DelegateMessage> bl
 
     HandleRequest(block, hash, result);
 
-    OnMessageQueued();
+    if (result.code == logos::process_result::progress)
+    {
+        OnMessageQueued();
+    }
 }
 
 template<>
@@ -91,6 +98,7 @@ ConsensusManager<ConsensusType::Request>::OnSendRequest(
 
     Responses response;
     logos::process_return result;
+    bool res = true;
 
     for (auto block : blocks)
     {
@@ -99,11 +107,15 @@ ConsensusManager<ConsensusType::Request>::OnSendRequest(
          if (result.code != logos::process_result::progress)
          {
              hash = 0;
+             res = false;
          }
          response.push_back({result.code, hash});
     }
 
-    OnMessageQueued();
+    if (res)
+    {
+        OnMessageQueued();
+    }
 
     return response;
 }
@@ -178,7 +190,7 @@ void ConsensusManager<CT>::OnConsensusReached()
 
     std::vector<uint8_t> buf;
     block.Serialize(buf, true, true);
-    _consensus_p2p.ProcessOutputMessage(buf.data(), buf.size());
+    this->Broadcast(buf.data(), buf.size(), block.type);
 
     SetPreviousPrePrepareHash(_pre_prepare_hash);
 
@@ -193,7 +205,7 @@ void ConsensusManager<CT>::OnConsensusReached()
 }
 
 template<ConsensusType CT>
-void ConsensusManager<CT>::InitiateConsensus()
+void ConsensusManager<CT>::InitiateConsensus(bool reproposing)
 {
     LOG_INFO(_log) << "Initiating "
                    << ConsensusToName(CT)
@@ -288,7 +300,7 @@ ConsensusManager<CT>::IsPendingMessage(
 }
 
 template<ConsensusType CT>
-std::shared_ptr<MessageParser>
+std::shared_ptr<ConsensusMsgSink>
 ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                                     const DelegateIdentities & ids)
 {
@@ -321,6 +333,113 @@ ConsensusManager<CT>::OnNetIOError(uint8_t delegate_id)
             _connections.erase(it);
             break;
         }
+    }
+}
+
+template<ConsensusType CT>
+bool
+ConsensusManager<CT>::AddToConsensusQueue(const uint8_t * data,
+                                          uint8_t version,
+                                          MessageType message_type,
+                                          ConsensusType consensus_type,
+                                          uint32_t payload_size,
+                                          uint8_t delegate_id)
+{
+    std::lock_guard<std::mutex> lock(_connection_mutex);
+
+    for (auto it = _connections.begin(); it != _connections.end(); ++it)
+    {
+        if ((*it)->RemoteDelegateId() == delegate_id)
+        {
+            (*it)->Push(data, version, message_type, consensus_type, payload_size, true);
+            break;
+        }
+    }
+    return true;
+}
+template<ConsensusType CT>
+void
+ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {
+
+    if (ec && ec == boost::asio::error::operation_aborted)
+    {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(_connection_mutex);
+
+    uint64_t quorum = 0;
+    logos::uint128_t vote = 0;
+    logos::uint128_t stake = 0;
+    for (auto it = _connections.begin(); it != _connections.end(); ++it)
+    {
+        auto sink = std::dynamic_pointer_cast<ConsensusMsgSink>(*it);
+        auto direct = sink->PrimaryDirectlyConnected()?1:0;
+        sink->ResetConnectCount();
+        vote += direct * _weights[(*it)->RemoteDelegateId()].vote_weight;
+        stake += direct * _weights[(*it)->RemoteDelegateId()].stake_weight;
+    }
+
+    if (!(vote >= _vote_quorum && stake >= _stake_quorum))
+    {
+        LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT)
+                        << ">::OnP2pTimeout, scheduling p2p timer "
+                        << " vote " << vote << "/" << _vote_quorum
+                        << " stake " << stake << "/" << _stake_quorum;
+        ConsensusP2pBridge<CT>::ScheduleP2pTimer(std::bind(&ConsensusManager::OnP2pTimeout, this,
+                                                           std::placeholders::_1));
+    }
+    else
+    {
+        LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT)
+                        << ">::OnP2pTimeout, DELEGATE " << (int)_delegate_id << " DISABLING P2P ";
+        ConsensusP2pBridge<CT>::EnableP2p(false);
+    }
+}
+
+template<ConsensusType CT>
+void
+ConsensusManager<CT>::EnableP2p(bool enable)
+{
+    ConsensusP2pBridge<CT>::EnableP2p(enable);
+
+    if (enable)
+    {
+       ConsensusP2pBridge<CT>::ScheduleP2pTimer(std::bind(&ConsensusManager::OnP2pTimeout, this,
+                                                std::placeholders::_1));
+    }
+}
+
+template<ConsensusType CT>
+bool
+ConsensusManager<CT>::ProceedWithRePropose()
+{
+    // ignore if the old delegate's set, the new delegate's set will pick it up
+    return  _events_notifier.GetState() == EpochTransitionState::None ||
+            _events_notifier.GetConnection() == EpochConnection::Transitioning;
+}
+
+template<ConsensusType CT>
+void
+ConsensusManager<CT>::OnQuorumFailed()
+{
+    if (ProceedWithRePropose())
+    {
+        LOG_ERROR(_log) << "ConsensusManager::OnQuorumFailed<" << ConsensusToName(CT)
+                        << "> - PRIMARY DELEGATE IS ENABLING P2P!!!";
+        {
+            std::lock_guard<std::mutex> lock(_connection_mutex);
+
+            for (auto it = _connections.begin(); it != _connections.end(); ++it)
+            {
+                (*it)->ResetConnectCount();
+            }
+        }
+        EnableP2p(true);
+
+        AdvanceState(ConsensusState::VOID);
+
+        InitiateConsensus(true);
     }
 }
 

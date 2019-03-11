@@ -54,6 +54,10 @@ public:
         PrimaryDelegate::SetPreviousPrePrepareHash(hash);
     }
 
+    /// Clean up on Post_Commit
+    /// @param block pre-prepare block
+    void OnPostCommit(const PrePrepare &block) override;
+
 protected:
 
     /// Commit to the store.
@@ -112,9 +116,16 @@ protected:
     MakeBackupDelegate(std::shared_ptr<IOChannel> iochannel,
                        const DelegateIdentities& ids) override;
 
+    /// Check condition to proceed with re-proposal on quorum failure
+    /// @returns true to proceed, false otherwise
+    bool ProceedWithRePropose() override;
+
+    /// Handle consensus reached
+    void OnConsensusReached() override;
+
 private:
 
     std::shared_ptr<PrePrepare>  _cur_microblock;     ///< Currently handled microblock
     ArchiverMicroBlockHandler &  _microblock_handler; ///< Is used for validation and database commit
-	int                          _enqueued;           ///< Request is enqueued
+	std::recursive_mutex         _mutex;              ///< _cur_microblock mutex
 };

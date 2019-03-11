@@ -25,19 +25,19 @@ enum class RequestType : uint8_t
     Revoke           = 6,
     AdjustUserStatus = 7,
     AdjustFee        = 8,
-    UpdateIssuerInfo = 10,
-    UpdateController = 11,
-    Burn             = 12,
-    Distribute       = 13,
-    WithdrawFee      = 14,
+    UpdateIssuerInfo = 9,
+    UpdateController = 10,
+    Burn             = 11,
+    Distribute       = 12,
+    WithdrawFee      = 13,
 
     // Token User Requests
     //
-    TokenSend        = 15,
+    TokenSend        = 14,
 
     // Unknown
     //
-    Unknown          = 16
+    Unknown          = 15
 };
 
 class ReservationsProvider;
@@ -68,13 +68,15 @@ struct Request
             const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,
-            uint32_t sequence);
+            uint32_t sequence,
+            uint64_t work);
 
     Request(RequestType type,
             const AccountAddress & origin,
             const BlockHash & previous,
             const Amount & fee,
             uint32_t sequence,
+            uint64_t work,
             const AccountSig & signature);
 
     Request(bool & error,
@@ -113,8 +115,8 @@ struct Request
     bool VerifySignature(AccountPubKey const & pub) const;
 
     std::string ToJson() const;
-    uint64_t ToStream(logos::stream & stream) const;
-    logos::mdb_val ToDatabase(std::vector<uint8_t> & buf) const;
+    uint64_t ToStream(logos::stream & stream, bool with_work = false) const;
+    logos::mdb_val ToDatabase(std::vector<uint8_t> & buf, bool with_work = false) const;
     virtual void DeserializeDB(bool & error, logos::stream & stream);
 
     virtual boost::property_tree::ptree SerializeJson() const;
@@ -136,11 +138,12 @@ struct Request
 
     RequestType       type = RequestType::Unknown;
     AccountAddress    origin;
-    AccountSig        signature;
     BlockHash         previous;
-    BlockHash         next;
     Amount            fee;
     uint32_t          sequence = 0;
+    AccountSig        signature;
+    uint64_t          work     = 0;
+    BlockHash         next;
     mutable Locator   locator;
     mutable BlockHash digest;
 };
@@ -282,5 +285,4 @@ struct Send : Request
     static const uint8_t MAX_TRANSACTIONS = 8;
 
     Transactions      transactions;
-    uint64_t          work = 0;
 };

@@ -34,6 +34,7 @@ const char SIGNATURE[]       = "signature";
 const char PREVIOUS[]        = "previous";
 const char NEXT[]            = "next";
 const char FEE[]             = "fee";
+const char SEQUENCE[]        = "sequence";
 const char TOKEN_ID[]        = "token_id";
 const char ACCOUNT[]         = "account";
 const char PRIVILEGES[]      = "privileges";
@@ -46,7 +47,7 @@ const char NAME[]            = "name";
 const char TOTAL_SUPPLY[]    = "total_supply";
 const char SETTINGS[]        = "settings";
 const char CONTROLLERS[]     = "controllers";
-const char INFO[]            = "issuer_info";
+const char ISSUER_INFO[]     = "issuer_info";
 const char NEW_INFO[]        = "new_info";
 const char SETTING[]         = "setting";
 const char VALUE[]           = "value";
@@ -58,17 +59,15 @@ const char TRANSACTIONS[]    = "transactions";
 const char CLIENT[]          = "client";
 const char REPRESENTATIVE[]  = "representative";
 const char TOKEN_FEE[]       = "token_fee";
-const char SEQUENCE[]        = "sequence";
 const char PRIVATE_KEY[]     = "private_key";
 const char PUBLIC_KEY[]      = "public_key";
-const char WORK[]            = "work";
 const char WALLET[]          = "wallet";
 const char FROZEN[]          = "frozen";
 const char UNFROZEN[]        = "unfrozen";
 const char WHITELISTED[]     = "whitelisted";
 const char NOT_WHITELISTED[] = "not_whitelisted";
 const char STATUS[]          = "status";
-const char ISSUER_INFO[]     = "issuer_info";
+const char WORK[]            = "work";
 
 // Token setting fields
 //

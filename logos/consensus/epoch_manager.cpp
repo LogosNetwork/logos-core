@@ -18,7 +18,8 @@ EpochManager::EpochManager(Service & service,
                            EpochConnection connection,
                            const uint32_t epoch_number,
                            NewEpochEventHandler & handler,
-                           p2p_interface & p2p)
+                           p2p_interface & p2p,
+                           uint8_t delegate_id)
     : _state(state)
     , _delegate(delegate)
     , _connection_state(connection)
@@ -36,6 +37,7 @@ EpochManager::EpochManager(Service & service,
         },
         service, alarm, config,
         _key_store, _validator, starter, *this)
+    , _delegate_id(delegate_id)
 {}
 
 EpochManager::~EpochManager()

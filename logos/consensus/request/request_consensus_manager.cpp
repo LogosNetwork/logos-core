@@ -19,7 +19,6 @@ RequestConsensusManager::RequestConsensusManager(Service & service,
     : Manager(service, store, config,
 	      validator, events_notifier, p2p)
     , _init_timer(service)
-    , _service(service)
 {
     _state = ConsensusState::INITIALIZING;
     _store.request_tip_get(_delegate_id, _prev_pre_prepare_hash);
@@ -55,7 +54,7 @@ RequestConsensusManager::BufferComplete(
     SendBufferedBlocks();
 }
 
-std::shared_ptr<MessageParser>
+std::shared_ptr<ConsensusMsgSink>
 RequestConsensusManager::BindIOChannel(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities & ids)
@@ -189,7 +188,7 @@ RequestConsensusManager::GetStoredCount()
 }
 
 void
-RequestConsensusManager::InitiateConsensus()
+RequestConsensusManager::InitiateConsensus(bool reproposing)
 {
     _ne_reject_vote = 0;
     _ne_reject_stake = 0;
@@ -199,9 +198,9 @@ RequestConsensusManager::InitiateConsensus()
     // SYL Integration: perform validation against account_db here instead of at request receive time
     {
         std::lock_guard<std::mutex> lock(_persistence_manager._write_mutex);
-        _handler.PrepareNextBatch(_persistence_manager);
+        _handler.PrepareNextBatch(_persistence_manager, reproposing);
     }
-    Manager::InitiateConsensus();
+    Manager::InitiateConsensus(reproposing);
 }
 
 void
@@ -259,7 +258,7 @@ RequestConsensusManager::MakeBackupDelegate(
 {
     return std::make_shared<RequestBackupDelegate>(
             iochannel, *this, *this, _validator,
-	    ids, _service, _events_notifier, _persistence_manager, Manager::_consensus_p2p._p2p);
+	    ids, _service, _events_notifier, _persistence_manager, GetP2p());
 }
 
 void

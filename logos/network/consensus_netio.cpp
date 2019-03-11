@@ -315,13 +315,25 @@ ConsensusNetIO::OnData(const uint8_t * data,
         case MessageType::Post_Prepare:
         case MessageType::Commit:
         case MessageType::Post_Commit:
-            if( ! _connections[idx]->OnMessageData(data,
-                    version,
-                    message_type,
-                    consensus_type,
-                    payload_size))
+        {
+#ifdef P2PTEST
+            // simulate network receive failure
+            struct stat sb;
+            std::string path = "./DB/Consensus_" +
+                               std::to_string((int) DelegateIdentityManager::_global_delegate_idx) +
+                               "/recvoff";
+            if (stat(path.c_str(), &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFREG) {
+                break;
+            }
+#endif
+            if (!AddToConsensusQueue(data,
+                                     version,
+                                     message_type,
+                                     consensus_type,
+                                     payload_size))
                 HandleMessageError("Wrong consensus message");
             break;
+        }
         default:
             HandleMessageError("Wrong message type");
             break;
@@ -342,7 +354,7 @@ ConsensusNetIO::OnPublicKey(KeyAdvertisement & key_adv)
 void
 ConsensusNetIO::AddConsensusConnection(
     ConsensusType t, 
-    std::shared_ptr<MessageParser> connection)
+    std::shared_ptr<ConsensusMsgSink> connection)
 {
     LOG_INFO(_log) << "ConsensusNetIO - Added consensus connection "
                    << ConsensusToName(t)
@@ -413,6 +425,8 @@ ConsensusNetIO::OnHeartBeat(HeartBeat &heartbeat)
         heartbeat.is_request = false;
         Send(heartbeat);
     }
+
+    _direct_connect++;
 }
 
 void ConsensusNetIO::HandleMessageError(const char * operation)
@@ -422,3 +436,14 @@ void ConsensusNetIO::HandleMessageError(const char * operation)
     OnNetIOError(error, true);
 }
 
+bool
+ConsensusNetIO::AddToConsensusQueue(const uint8_t * data,
+                                    uint8_t version,
+                                    MessageType message_type,
+                                    ConsensusType consensus_type,
+                                    uint32_t payload_size,
+                                    uint8_t delegate_id)
+{
+    return _connections[ConsensusTypeToIndex(consensus_type)]->Push(data, version, message_type,
+                                                                    consensus_type, payload_size, false);
+}

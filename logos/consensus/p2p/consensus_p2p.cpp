@@ -1,17 +1,5 @@
-#include <logos/consensus/consensus_p2p.hpp>
+#include <logos/consensus/p2p/consensus_p2p.hpp>
 #include <logos/consensus/messages/util.hpp>
-
-#define P2P_BATCH_VERSION	2
-
-constexpr unsigned P2P_MSG_SIZE_SIZE = sizeof(uint32_t);
-constexpr unsigned P2P_BATCH_N_MSG = 2;
-
-struct P2pBatchHeader {
-    uint8_t batch_version;
-    uint8_t logos_version;
-    ConsensusType consensus_type;
-    uint8_t delegate_id;
-};
 
 template<ConsensusType CT>
 ConsensusP2pOutput<CT>::ConsensusP2pOutput(p2p_interface & p2p,
@@ -21,70 +9,71 @@ ConsensusP2pOutput<CT>::ConsensusP2pOutput(p2p_interface & p2p,
 {}
 
 template<ConsensusType CT>
-void ConsensusP2pOutput<CT>::AddMessageToBatch(const uint8_t *data, uint32_t size)
+void ConsensusP2pOutput<CT>::AddMessageToBuffer(const uint8_t *data,
+                                                uint32_t size,
+                                                MessageType message_type,
+                                                uint32_t epoch_number,
+                                                uint8_t dest_delegate_id)
 {
-    uint32_t oldsize = _p2p_batch.size();
-    uint32_t aligned_size = (size + P2P_MSG_SIZE_SIZE - 1) & ~(P2P_MSG_SIZE_SIZE - 1);
-
-    _p2p_batch.resize(oldsize + aligned_size + P2P_MSG_SIZE_SIZE);
-    memcpy(&_p2p_batch[oldsize], &size, P2P_MSG_SIZE_SIZE);
-    memcpy(&_p2p_batch[oldsize + P2P_MSG_SIZE_SIZE], data, size);
-    if (aligned_size > size)
+    _p2p_buffer.resize(size + P2pConsensusHeader::P2PHEADER_SIZE);
+    uint8_t src_delegate_id = _delegate_id;
+    if (message_type == MessageType::Post_Committed_Block)
     {
-        memset(&_p2p_batch[oldsize + size + P2P_MSG_SIZE_SIZE], 0, aligned_size - size);
+        src_delegate_id = 0xff;
+        dest_delegate_id = 0xff;
     }
+    P2pConsensusHeader header={epoch_number, src_delegate_id, dest_delegate_id};
+    std::vector<uint8_t> hdr_buf;
+    assert(header.Serialize(hdr_buf) == P2pConsensusHeader::P2PHEADER_SIZE);
+    memcpy(_p2p_buffer.data(), hdr_buf.data(), hdr_buf.size());
+    memcpy(_p2p_buffer.data() + P2pConsensusHeader::P2PHEADER_SIZE, data, size);
 
     LOG_DEBUG(_log) << "ConsensusP2pOutput<" << ConsensusToName(CT)
-                    << "> - message of size " << size
-                    << " and type " << (unsigned)_p2p_batch[oldsize + P2P_MSG_SIZE_SIZE + 1]
-                    << " added to p2p batch to delegate " << (unsigned)_delegate_id;
+                    << "> - message type " << MessageToName(message_type)
+                    << ", size " << size
+                    << " is added to p2p to delegate " << (unsigned)_delegate_id;
 }
 
 template<ConsensusType CT>
-void ConsensusP2pOutput<CT>::CleanBatch()
+void ConsensusP2pOutput<CT>::Clean()
 {
-    _p2p_batch.clear();
+    _p2p_buffer.clear();
 }
 
 template<ConsensusType CT>
-bool ConsensusP2pOutput<CT>::PropagateBatch()
+bool ConsensusP2pOutput<CT>::Propagate()
 {
-    bool res = _p2p.PropagateMessage(&_p2p_batch[0], _p2p_batch.size(), true);
+    bool res = _p2p.PropagateMessage(&_p2p_buffer[0], _p2p_buffer.size(), true);
 
     if (res)
     {
         LOG_INFO(_log) << "ConsensusP2pOutput<" << ConsensusToName(CT)
-                       << "> - p2p batch of size " << _p2p_batch.size()
+                       << "> - p2p of size " << _p2p_buffer.size()
                        << " propagated to delegate " << (unsigned)_delegate_id << ".";
     }
     else
     {
         LOG_ERROR(_log) << "ConsensusP2pOutput<" << ConsensusToName(CT)
-                        << "> - p2p batch not propagated to delegate " << (unsigned)_delegate_id << ".";
+                        << "> - p2p not propagated to delegate " << (unsigned)_delegate_id << ".";
     }
 
-    CleanBatch();
+    Clean();
 
     return res;
 }
 
 template<ConsensusType CT>
-bool ConsensusP2pOutput<CT>::ProcessOutputMessage(const uint8_t *data, uint32_t size)
+bool ConsensusP2pOutput<CT>::ProcessOutputMessage(const uint8_t *data,
+                                                  uint32_t size,
+                                                  MessageType message_type,
+                                                  uint32_t epoch_number,
+                                                  uint8_t dest_delegate_id)
 {
-    CleanBatch();
+    Clean();
 
-    const struct P2pBatchHeader head =
-    {
-        .batch_version = P2P_BATCH_VERSION,
-        .logos_version = logos_version,
-        .consensus_type = CT,
-        .delegate_id = _delegate_id,
-    };
+    AddMessageToBuffer(data, size, message_type, epoch_number, dest_delegate_id);
 
-    AddMessageToBatch((uint8_t *)&head, sizeof(head));
-    AddMessageToBatch(data, size);
-
-    return PropagateBatch();
+    return Propagate();
 }
 
 template<ConsensusType CT>
@@ -93,6 +82,12 @@ ConsensusP2p<CT>::ConsensusP2p(p2p_interface & p2p,
                                std::function<void (const PostCommittedBlock<CT> &, uint8_t)> ApplyUpdates,
                                std::function<bool (const PostCommittedBlock<CT> &)> BlockExists)
     : _p2p(p2p)
+      /* In the unit test we redefine the _RetryValidate function, but the redefinition calls this initial version
+         of this function, see the file unit_test/p2p_test.cpp, the test VerifyCache. */
+    , _RetryValidate([this](const logos::block_hash &hash)
+        {
+            this->RetryValidate(hash);
+        })
     , _Validate(Validate)
     , _ApplyUpdates(ApplyUpdates)
     , _BlockExists(BlockExists)
@@ -180,11 +175,11 @@ bool ConsensusP2p<ConsensusType::Request>::ApplyCacheUpdates(
     {
         case logos::process_result::progress:
             _ApplyUpdates(block, delegate_id);
-            _container->RetryValidate(block.Hash());
+            _RetryValidate(block.Hash());
 
             for(uint32_t i = 0; i < block.requests.size(); ++i)
             {
-                _container->RetryValidate(block.requests[i]->Hash());
+                _RetryValidate(block.requests[i]->Hash());
             }
             return true;
 
@@ -218,7 +213,7 @@ bool ConsensusP2p<ConsensusType::MicroBlock>::ApplyCacheUpdates(
     {
         case logos::process_result::progress:
             _ApplyUpdates(block, delegate_id);
-            _container->RetryValidate(block.Hash());
+            _RetryValidate(block.Hash());
             return true;
 
         case logos::process_result::gap_previous:
@@ -251,7 +246,7 @@ bool ConsensusP2p<ConsensusType::Epoch>::ApplyCacheUpdates(
     {
         case logos::process_result::progress:
             _ApplyUpdates(block, delegate_id);
-            _container->RetryValidate(block.Hash());
+            _RetryValidate(block.Hash());
             return true;
 
         case logos::process_result::gap_previous:
@@ -268,179 +263,108 @@ bool ConsensusP2p<ConsensusType::Epoch>::ApplyCacheUpdates(
 }
 
 template<ConsensusType CT>
-bool ConsensusP2p<CT>::deserialize(const uint8_t *data, uint32_t size, PostCommittedBlock<CT> &block)
+bool ConsensusP2p<CT>::Deserialize(const uint8_t *data, uint32_t size,
+                                   uint8_t version, PostCommittedBlock<CT> &block)
 {
-    if (size < MessagePrequelSize)
-    {
-        return false;
-    }
-    logos::bufferstream stream(data + MessagePrequelSize, size - MessagePrequelSize);
+    logos::bufferstream stream(data, size);
     bool error = false;
-    new(&block) PostCommittedBlock<CT>(error, stream, logos_version, true, true);
+    new(&block) PostCommittedBlock<CT>(error, stream, version, true, true);
     return !error;
 }
 
 template<ConsensusType CT>
-bool ConsensusP2p<CT>::ProcessInputMessage(const uint8_t * data, uint32_t size)
+bool ConsensusP2p<CT>::ProcessInputMessage(const Prequel &prequel, const uint8_t * data, uint32_t size)
 {
     MessageType mtype = MessageType::Pre_Prepare;
     PostCommittedBlock<CT> block;
     std::shared_ptr<PostCommittedBlock<CT>> pblock;
     ValidationStatus status;
-    uint8_t delegate_id;
-    int mess_counter = 0;
 
     LOG_INFO(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                   << "> - received batch of size " << size;
+                   << "> - received message of size " << size;
 
-    while (size >= P2P_MSG_SIZE_SIZE)
-    {
-        uint32_t msize = *(uint32_t *)data;
-        data += P2P_MSG_SIZE_SIZE;
-        size -= P2P_MSG_SIZE_SIZE;
-        if (msize > size)
-        {
-            size = 1;
-            break;
-        }
-
-        LOG_DEBUG(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                        << "> - message of size " << msize
-                        << " and type " << (unsigned)data[1]
-                        << " extracted from p2p batch";
-
-        switch (mtype)
-        {
-            case MessageType::Pre_Prepare:
-            {
-                P2pBatchHeader *head = (P2pBatchHeader *)data;
-                if (msize != sizeof(P2pBatchHeader)
-                        || head->batch_version != P2P_BATCH_VERSION
-                        || head->logos_version != logos_version
-                        || head->consensus_type != CT)
-                {
-                    LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                                    << "> - error parsing p2p batch header";
-                    return false;
-                }
-
-                delegate_id = head->delegate_id;
-                LOG_DEBUG(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                                << "> - primary delegate id " << (unsigned)delegate_id
-                                << " extracted from p2p batch";
-                mtype = MessageType::Post_Committed_Block;
-                break;
-            }
-            case MessageType::Post_Committed_Block:
-            {
-                if (!deserialize(data, msize, block))
-                {
-                    LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                                    << "> - error deserialization PostCommittedBlock";
-                    return false;
-                }
-
-                LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                                << "> - PostCommittedBlock: deserialization done";
-
-                if (block.type != mtype || block.consensus_type != CT)
-                {
-                    LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                                    << "> - error parsing PostCommittedBlock";
-                    return false;
-                }
-
-                LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                                << "> - PostCommittedBlock: parsing done";
-
-                if (_BlockExists(block))
-                {
-                    LOG_WARN(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                                   << "> - stop validate block, it already exists in the storage";
-                    return true;
-                }
-
-                LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                                << "> - PostCommittedBlock: not exists";
-
-                if (!_Validate(block, delegate_id, &status))
-                {
-                    if (status.reason != logos::process_result::gap_previous
-                        && status.reason != logos::process_result::invalid_tip
-                        && status.reason != logos::process_result::invalid_request)
-                    {
-                        LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                                        << "> - error validation PostCommittedBlock: "
-                                        << ProcessResultToString(status.reason);
-                        return false;
-                    }
-                    else
-                    {
-                        LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                                        << "> - validation PostCommittedBlock failed, try add to cache: "
-                                        << ProcessResultToString(status.reason);
-                    }
-                }
-                else
-                {
-                    status.reason = logos::process_result::progress;
-                }
-
-                LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                                << "> - PostCommittedBlock: validation done";
-
-                mtype = MessageType::Unknown;
-                break;
-            }
-            default:
-                break;
-        }
-
-        msize = (msize + P2P_MSG_SIZE_SIZE - 1) & ~(P2P_MSG_SIZE_SIZE - 1);
-        data += msize;
-        size -= msize;
-
-        if (++mess_counter == P2P_BATCH_N_MSG)
-        {
-            break;
-        }
-    }
-
-    if (size || mess_counter != P2P_BATCH_N_MSG)
+    if (!Deserialize(data, size, prequel.version, block))
     {
         LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                        << "> - error parsing p2p batch";
+                        << "> - error deserialization PostCommittedBlock";
         return false;
     }
-    else if (ApplyCacheUpdates(block, pblock, delegate_id, status))
+
+    LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
+                    << "> - PostCommittedBlock: deserialization done";
+
+    if (block.consensus_type != CT)
+    {
+        LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)
+                        << "> - error parsing PostCommittedBlock";
+        return false;
+    }
+
+    LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
+                    << "> - PostCommittedBlock: parsing done";
+
+    if (_BlockExists(block))
+    {
+        LOG_WARN(_log) << "ConsensusP2p<" << ConsensusToName(CT)
+                       << "> - stop validate block, it already exists in the storage";
+        return true;
+    }
+
+    LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
+                    << "> - PostCommittedBlock: not exists";
+
+    if (!_Validate(block, block.primary_delegate, &status))
+    {
+        if (status.reason != logos::process_result::gap_previous
+            && status.reason != logos::process_result::invalid_tip
+            && status.reason != logos::process_result::invalid_request)
+        {
+            LOG_ERROR(_log) << "ConsensusP2p<" << ConsensusToName(CT)
+                            << "> - error validation PostCommittedBlock: "
+                            << ProcessResultToString(status.reason);
+            return false;
+        }
+        else
+        {
+            LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
+                            << "> - validation PostCommittedBlock failed, try add to cache: "
+                            << ProcessResultToString(status.reason);
+        }
+    }
+    else
+    {
+        status.reason = logos::process_result::progress;
+    }
+
+    LOG_TRACE(_log) << "ConsensusP2p<" << ConsensusToName(CT)
+                    << "> - PostCommittedBlock: validation done";
+
+    if (ApplyCacheUpdates(block, pblock, block.primary_delegate, status))
     {
         LOG_INFO(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                       << "> - PostCommittedBlock with primary delegate " << (unsigned)delegate_id
+                       << "> - PostCommittedBlock with primary delegate " << (unsigned)block.primary_delegate
                        << " saved to storage.";
         return true;
     }
     else
     {
         LOG_WARN(_log) << "ConsensusP2p<" << ConsensusToName(CT)
-                       << "> - PostCommittedBlock with primary delegate " << (unsigned)delegate_id
+                       << "> - PostCommittedBlock with primary delegate " << (unsigned)block.primary_delegate
                        << " added to cache.";
         return true;
     }
 }
 
-bool ContainerP2p::ProcessInputMessage(const void *data, uint32_t size)
+bool ContainerP2p::ProcessInputMessage(const Prequel &prequel, const void *data, uint32_t size)
 {
-    if (size < P2P_MSG_SIZE_SIZE + sizeof(P2pBatchHeader))
-        return false;
-
-    switch (((P2pBatchHeader *)((uint32_t *)data + 1))->consensus_type)
+    switch (prequel.consensus_type)
     {
         case ConsensusType::Request:
-            return _batch.ProcessInputMessage(data, size);
+            return _batch.ProcessInputMessage(prequel, data, size);
         case ConsensusType::MicroBlock:
-            return _micro.ProcessInputMessage(data, size);
+            return _micro.ProcessInputMessage(prequel, data, size);
         case ConsensusType::Epoch:
-            return _epoch.ProcessInputMessage(data, size);
+            return _epoch.ProcessInputMessage(prequel, data, size);
         default:
             break;
     }

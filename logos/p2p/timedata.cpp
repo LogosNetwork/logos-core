@@ -44,7 +44,7 @@ static int64_t abs64(int64_t n)
 
 #define BITCOIN_TIMEDATA_MAX_SAMPLES 200
 
-void AddTimeData(const CNetAddr& ip, int64_t nOffsetSample)
+void AddTimeData(ArgsManager &Args, const CNetAddr& ip, int64_t nOffsetSample)
 {
     LOCK(cs_nTimeOffset);
     // Ignore duplicates
@@ -81,7 +81,7 @@ void AddTimeData(const CNetAddr& ip, int64_t nOffsetSample)
         int64_t nMedian = vTimeOffsets.median();
         std::vector<int64_t> vSorted = vTimeOffsets.sorted();
         // Only let other nodes change our time by so much
-        if (abs64(nMedian) <= std::max<int64_t>(0, gArgs.GetArg("-maxtimeadjustment", DEFAULT_MAX_TIME_ADJUSTMENT)))
+        if (abs64(nMedian) <= std::max<int64_t>(0, Args.GetArg("-maxtimeadjustment", DEFAULT_MAX_TIME_ADJUSTMENT)))
         {
             nTimeOffset = nMedian;
         }

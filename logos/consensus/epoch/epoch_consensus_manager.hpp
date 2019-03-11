@@ -51,6 +51,10 @@ public:
         PrimaryDelegate::SetPreviousPrePrepareHash(hash);
     }
 
+    /// Clean up on Post_Commit
+    /// @param block pre-prepare block
+    void OnPostCommit(const PrePrepare &block) override;
+
 protected:
 	/// Commit to the store.
 	///
@@ -110,8 +114,14 @@ protected:
     /// @returns designated delegate
     uint8_t DesignatedDelegate(std::shared_ptr<DelegateMessage> message) override;
 
-private:
+    /// Check condition to proceed with re-proposal on quorum failure
+    /// @returns true to proceed, false otherwise
+    bool ProceedWithRePropose() override;
 
-    std::shared_ptr<PrePrepare> _cur_epoch; ///< Currently handled epoch
-	bool 						_enqueued;  ///< Request is enqueued
+    /// Handle consensus reached
+    void OnConsensusReached() override;
+
+private:
+    std::shared_ptr<PrePrepare>  _cur_epoch;     ///< Currently handled epoch
+    std::recursive_mutex         _mutex;         ///< _cur_epoch mutex
 };

@@ -91,8 +91,12 @@ class DefaultReservations : public ReservationsProvider
 {
 
 public:
-    explicit DefaultReservations(Store & store) : ReservationsProvider(store)
+
+    explicit DefaultReservations(Store & store)
+        : ReservationsProvider(store)
     {}
+
+    virtual ~DefaultReservations() = default;
 
     bool CanAcquire(const AccountAddress & account,
                     const BlockHash & hash,

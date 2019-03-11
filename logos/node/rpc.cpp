@@ -1,7 +1,6 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <logos/node/rpc.hpp>
-#include <logos/node/rpc_logic.hpp>
 #include <logos/microblock/microblock_tester.hpp>
 
 #include <logos/lib/interface.h>
@@ -336,6 +335,7 @@ void logos::rpc_handler::account_info ()
     if(!res.error)
     {
         response(res.contents);
+
 
     }
     else

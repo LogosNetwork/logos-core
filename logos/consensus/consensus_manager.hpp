@@ -4,13 +4,15 @@
 #include <logos/wallet_server/client/wallet_server_client.hpp>
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/consensus/persistence/reservations.hpp>
+#include <logos/consensus/p2p/consensus_p2p_bridge.hpp>
 #include <logos/consensus/request/request_handler.hpp>
+#include <logos/consensus/consensus_msg_producer.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/backup_delegate.hpp>
-#include <logos/consensus/consensus_p2p.hpp>
+#include <logos/consensus/p2p/consensus_p2p.hpp>
 #include <logos/consensus/waiting_list.hpp>
 #include <logos/node/client_callback.hpp>
 
@@ -28,7 +30,7 @@ public:
     virtual ~NetIOHandler() = default;
 
     virtual
-    std::shared_ptr<MessageParser>
+    std::shared_ptr<ConsensusMsgSink>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) = 0;
     virtual void OnNetIOError(uint8_t delegate_id) = 0;
@@ -59,7 +61,9 @@ public:
 template<ConsensusType CT>
 class ConsensusManager : public PrimaryDelegate,
                          public NetIOHandler,
-                         public MessagePromoter<CT>
+                         public MessagePromoter<CT>,
+                         public ConsensusP2pBridge<CT>,
+                         public ConsensusMsgProducer
 {
 
 protected:
@@ -77,6 +81,7 @@ protected:
     using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
     using ApprovedBlock   = PostCommittedBlock<CT>;
     using Responses       = std::vector<std::pair<logos::process_result, BlockHash>>;
+    using ErrorCode       = boost::system::error_code;
 
 public:
 
@@ -92,14 +97,14 @@ public:
                        logos::process_return & result);
 
     void OnDelegateMessage(std::shared_ptr<DelegateMessage> message,
-                           logos::process_return &result);
+                           logos::process_return & result);
 
     Responses OnSendRequest(std::vector<std::shared_ptr<DelegateMessage>>& blocks);
 
     void OnMessageQueued();
 
     virtual void OnBenchmarkDelegateMessage(std::shared_ptr<DelegateMessage> block,
-                                            logos::process_return &result) = 0;
+                                            logos::process_return & result) = 0;
 
     void Send(const void * data, size_t size) override;
 
@@ -114,7 +119,7 @@ public:
 
     Store & GetStore() override;
 
-    std::shared_ptr<MessageParser>
+    std::shared_ptr<ConsensusMsgSink>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) override;
 
@@ -136,7 +141,7 @@ protected:
     virtual uint64_t GetStoredCount() = 0;
 
     void OnConsensusReached() override;
-    virtual void InitiateConsensus();
+    virtual void InitiateConsensus(bool reproposing = false);
 
     virtual bool ReadyForConsensus();
 
@@ -177,7 +182,29 @@ protected:
         static WaitingList<CT> wl(service, promoter);
         return wl;
     }
-    
+
+    bool AddToConsensusQueue(const uint8_t * data,
+                             uint8_t version,
+                             MessageType message_type,
+                             ConsensusType consensus_type,
+                             uint32_t payload_size,
+                             uint8_t delegate_id=0xff) override;
+
+    bool SendP2p(const uint8_t *data, uint32_t size, MessageType message_type,
+                 uint32_t epoch_number, uint8_t dest_delegate_id) override
+    {
+        return ConsensusP2pBridge<CT>::SendP2p(data, size, message_type, epoch_number, dest_delegate_id);
+    }
+
+    void EnableP2p(bool enable) override;
+
+    void OnP2pTimeout(const ErrorCode &);
+
+    void OnQuorumFailed() override;
+
+    virtual bool ProceedWithRePropose();
+
+    Service &              _service;
     Connections            _connections;
     Store &                _store;
     MessageValidator &     _validator;
@@ -187,6 +214,5 @@ protected:
     EpochEventsNotifier &  _events_notifier; ///< Notifies epoch manager of transition related events
     ReservationsPtr        _reservations;
     PersistenceManager<CT> _persistence_manager;
-    ConsensusP2pOutput<CT> _consensus_p2p;
 };
 

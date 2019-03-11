@@ -25,6 +25,9 @@ inline std::string MessageToName(const MessageType & type)
         case MessageType::Post_Commit:
             ret = "Post_Commit";
             break;
+        case MessageType::Post_Committed_Block:
+            ret = "Post_Committed_Block";
+            break;
         case MessageType::Key_Advert:
             ret = "Key Advertisement";
             break;
@@ -123,6 +126,8 @@ inline std::string RejectionReasonToName(RejectionReason reason)
         case RejectionReason::Invalid_Primary_Index:
             result = "Invalid Primary Index";
             break;
+        default:
+            assert(0);
     }
 
     return result;

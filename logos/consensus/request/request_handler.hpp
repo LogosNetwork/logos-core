@@ -43,7 +43,7 @@ public:
     void OnRequest(RequestPtr request);
     void OnPostCommit(const RequestBlock & block);
 
-    PrePrepare & PrepareNextBatch(Manager & manager);
+    PrePrepare & PrepareNextBatch(Manager & manager, bool repropose = false);
     PrePrepare & GetCurrentBatch();
 
     void InsertFront(const std::list<RequestPtr> & requests);

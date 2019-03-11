@@ -11,20 +11,19 @@
 
 EpochConsensusManager::EpochConsensusManager(
                           Service & service,
-	                      Store & store,
-					      const Config & config,
+                          Store & store,
+                          const Config & config,
                           MessageValidator & validator,
                           EpochEventsNotifier & events_notifier,
                           p2p_interface & p2p)
-	: Manager(service, store, config,
-		      validator, events_notifier, p2p)
-	, _enqueued(false)
+    : Manager(service, store, config,
+              validator, events_notifier, p2p)
 {
-	if (_store.epoch_tip_get(_prev_pre_prepare_hash))
-	{
-		LOG_FATAL(_log) << "Failed to get epoch's previous hash";
-		trace_and_halt();
-	}
+    if (_store.epoch_tip_get(_prev_pre_prepare_hash))
+    {
+        LOG_FATAL(_log) << "Failed to get epoch's previous hash";
+        trace_and_halt();
+    }
 }
 
 void 
@@ -32,6 +31,7 @@ EpochConsensusManager::OnBenchmarkDelegateMessage(
     std::shared_ptr<DelegateMessage> message,
     logos::process_return & result)
 {
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
     _cur_epoch = static_pointer_cast<PrePrepare>(message);
     LOG_DEBUG (_log) << "EpochConsensusManager::OnBenchmarkDelegateMessage() - hash: "
                      << message->Hash().to_string();
@@ -51,32 +51,42 @@ void
 EpochConsensusManager::QueueMessagePrimary(
     std::shared_ptr<DelegateMessage> message)
 {
-    _cur_epoch = static_pointer_cast<PrePrepare>(message);
-    _enqueued = true;
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    auto hash = message->Hash();
+    if (!_store.epoch_exists(hash))
+    {
+        _cur_epoch = static_pointer_cast<PrePrepare>(message);
+    }
 }
 
 auto
 EpochConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    assert(_cur_epoch);
+    _cur_epoch->timestamp = GetStamp();
     return *_cur_epoch;
 }
 auto
 EpochConsensusManager::PrePrepareGetCurr() -> PrePrepare &
 {
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    assert(_cur_epoch);
     return *_cur_epoch;
 }
 
 void 
 EpochConsensusManager::PrePreparePopFront()
 {
-    _cur_epoch.reset();
-    _enqueued = false;
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    _cur_epoch = nullptr;
 }
 
 bool 
 EpochConsensusManager::PrePrepareQueueEmpty()
 {
-    return !_enqueued;
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    return _cur_epoch == nullptr;
 }
 
 void 
@@ -96,6 +106,7 @@ EpochConsensusManager::GetStoredCount()
 bool
 EpochConsensusManager::PrimaryContains(const BlockHash &hash)
 {
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
     return (_cur_epoch && _cur_epoch->Hash() == hash);
 }
 
@@ -116,7 +127,8 @@ EpochConsensusManager::MakeBackupDelegate(
         const DelegateIdentities& ids)
 {
     return std::make_shared<EpochBackupDelegate>(iochannel, *this, *this,
-            _validator, ids, _events_notifier, _persistence_manager, Manager::_consensus_p2p._p2p);
+            _validator, ids, _events_notifier, _persistence_manager,
+            GetP2p(), _service);
 }
 
 uint8_t
@@ -149,4 +161,44 @@ EpochConsensusManager::DesignatedDelegate(
     }
 
     return 0xff;
+}
+
+void
+EpochConsensusManager::OnPostCommit(const PrePrepare &block)
+{
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    if (_cur_epoch && block.Hash() == _cur_epoch->Hash())
+    {
+        PrePreparePopFront();
+    }
+
+    Manager::OnPostCommit(block);
+}
+
+bool
+EpochConsensusManager::ProceedWithRePropose()
+{
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    return !PrePrepareQueueEmpty() && Manager::ProceedWithRePropose();
+}
+
+void
+EpochConsensusManager::OnConsensusReached()
+{
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    if (!PrePrepareQueueEmpty())
+    {
+        Manager::OnConsensusReached();
+    }
+        // it was already committed by the backup
+    else
+    {
+        SetPreviousPrePrepareHash(_pre_prepare_hash);
+
+        PrePreparePopFront();
+
+        _ongoing = false;
+
+        OnMessageQueued();
+    }
 }

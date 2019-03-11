@@ -97,10 +97,16 @@ struct AggSignature
     DelegateSig     sig;
 };
 
+
+struct MessageBase {
+    MessageBase() = default;
+    virtual ~MessageBase() = default;
+};
+
 static constexpr uint32_t MessagePrequelSize = 8;
 
 template<MessageType MT, ConsensusType CT>
-struct MessagePrequel
+struct MessagePrequel : public MessageBase
 {
     MessagePrequel(uint8_t version = logos_version)
     : version(version)
