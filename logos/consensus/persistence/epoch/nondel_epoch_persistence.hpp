@@ -9,7 +9,7 @@
 #include <logos/consensus/persistence/nondel_persistence.hpp>
 
 template<>
-class NonDelPersistenceManager<ECT> : public PersistenceManager<ECT>, public NoneDelegatePersistence<ECT>
+class NonDelPersistenceManager<ECT> : public PersistenceManager<ECT>, public NonDelegatePersistence<ECT>
 {
 public:
     using PersistenceManager<ECT>::Validate;
@@ -17,7 +17,7 @@ public:
     NonDelPersistenceManager(Store &store,
                              Milliseconds clock_drift = ZERO_CLOCK_DRIFT)
         : PersistenceManager<ECT>(store, nullptr, clock_drift)
-        ,  NoneDelegatePersistence<ECT>(store)
+        , NonDelegatePersistence<ECT>(store)
     {}
 
     bool ValidatePreprepare(const PrePrepare & pre_prepare, ValidationStatus * status)

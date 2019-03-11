@@ -4,12 +4,11 @@
 // A delegate can have multiple TxAcceptors.
 //
 
-#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
+#include <logos/consensus/persistence/request/request_persistence.hpp>
 #include <logos/tx_acceptor/tx_acceptor_channel.hpp>
 #include <logos/tx_acceptor/tx_acceptor_config.hpp>
 #include <logos/tx_acceptor/tx_message_header.hpp>
 #include <logos/tx_acceptor/tx_acceptor.hpp>
-#include <logos/consensus/messages/state_block.hpp>
 #include <logos/node/node.hpp>
 
 constexpr uint32_t  TxAcceptor::MAX_REQUEST_SIZE;
@@ -116,25 +115,21 @@ TxAcceptor::RespondJson(std::shared_ptr<json_request> jrequest, const Responses 
     RespondJson(jrequest, tree);
 }
 
-std::shared_ptr<TxAcceptor::Request>
+std::shared_ptr<TxAcceptor::DM>
 TxAcceptor::ToRequest(const std::string &block_text)
 {
     Ptree pblock;
     std::stringstream block_stream(block_text);
     boost::property_tree::read_json(block_stream, pblock);
     bool error = false;
-    auto block = std::make_shared<StateBlock>(error, pblock, false, true);
 
-    if (error)
-    {
-        block = nullptr;
-    }
+    auto block = DeserializeRequest(error, pblock);
 
-    return static_pointer_cast<Request>(block);
+    return static_pointer_cast<DM>(block);
 }
 
 void
-TxAcceptor::ProcessBlock( std::shared_ptr<Request> block, Blocks &blocks, Responses &response, bool should_buffer)
+TxAcceptor::ProcessBlock( std::shared_ptr<DM> block, Messages &blocks, Responses &response, bool should_buffer)
 {
     BlockHash hash = 0;
 
@@ -179,7 +174,7 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
         Ptree request_tree;
         boost::property_tree::read_json(istream, request_tree);
 
-        Blocks blocks;
+        Messages blocks;
         Responses response;
 
         bool should_buffer = request_tree.get_optional<std::string>("buffer").is_initialized();
@@ -308,13 +303,14 @@ TxAcceptor::AsyncReadBin(std::shared_ptr<Socket> socket)
              logos::bufferstream  stream(buf->data(), buf->size());
              bool error = false;
              auto nblocks = header.mpf;
-             std::shared_ptr<Request> block = nullptr;
-             Blocks blocks;
+             std::shared_ptr<DM> block = nullptr;
+             Messages blocks;
 
              while (nblocks > 0)
              {
                  error = false;
-                 block = static_pointer_cast<Request>(std::make_shared<StateBlock>(error, stream));
+
+                 block = static_pointer_cast<DM>(DeserializeRequest(error, stream));
 
                  if (error)
                  {
@@ -344,26 +340,26 @@ TxAcceptor::AsyncReadBin(std::shared_ptr<Socket> socket)
 }
 
 logos::process_result
-TxAcceptor::Validate(const std::shared_ptr<Request> & block)
+TxAcceptor::Validate(const std::shared_ptr<DM> & block)
 {
-    if (!block->VerifySignature(block->account))
+    if (!block->VerifySignature(block->origin))
     {
         LOG_INFO(_log) << "TxAcceptor::Validate , bad signature: "
                        << block->signature.to_string()
-                       << " account: " << block->account.to_string();
+                       << " account: " << block->origin.to_string();
         return logos::process_result::bad_signature;
     }
 
-    if (block->account.is_zero())
+    if (block->origin.is_zero())
     {
         return logos::process_result::opened_burn_account;
     }
 
-    if (block->transaction_fee.number() < PersistenceManager<BSBCT>::MIN_TRANSACTION_FEE)
+    if (block->fee.number() < PersistenceManager<R>::MIN_TRANSACTION_FEE)
     {
         LOG_INFO(_log) << "TxAcceptor::Validate , bad transaction fee: "
-                       << block->transaction_fee.number()
-                       << " account: " << block->account.to_string();
+                       << block->fee.number()
+                       << " account: " << block->origin.to_string();
         return logos::process_result::insufficient_fee;
     }
 

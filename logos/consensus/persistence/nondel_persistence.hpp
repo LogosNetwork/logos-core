@@ -5,15 +5,16 @@
 #include <logos/consensus/messages/messages.hpp>
 
 template<ConsensusType CT>
-class NoneDelegatePersistence
+class NonDelegatePersistence
 {
 public:
+
     using PrePerpare    = PrePrepareMessage<CT>;
     using ApprovedBlock = PostCommittedBlock<CT>;
     using PostPrepare   = PostPrepareMessage<CT>;
 
-    NoneDelegatePersistence(logos::block_store &store)
-    : _builder(store)
+    NonDelegatePersistence(logos::block_store &store)
+        : _builder(store)
     {}
 
     bool Validate(const ApprovedBlock & block, ValidationStatus * status)
@@ -41,12 +42,15 @@ public:
         return ValidatePreprepare(pre_prepare, status);
     }
 
-    virtual ~NoneDelegatePersistence() = default;
+    virtual ~NonDelegatePersistence() = default;
 
 protected:
+
     virtual bool ValidatePreprepare(const PrePerpare & block, ValidationStatus * status) = 0;
+
     Log _logger;
 
 private:
-    ValidatorBuilder    _builder;
+
+    ValidatorBuilder _builder;
 };

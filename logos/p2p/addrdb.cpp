@@ -81,7 +81,7 @@ bool DeserializeDB(Stream& stream, Data& data, bool fCheckSum = true)
 
         // verify checksum
         if (fCheckSum) {
-	    uint512 hashTmp;
+        uint256 hashTmp;
             stream >> hashTmp;
             if (hashTmp != verifier.GetHash()) {
                 return error("%s: Checksum mismatch, data corrupted", __func__);

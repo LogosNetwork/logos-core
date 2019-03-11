@@ -19,7 +19,7 @@
 #include <random.h>
 #include <streams.h>
 #include <sync.h>
-#include <uint512.h>
+#include <uint256.h>
 #include <threadinterrupt.h>
 
 #include <atomic>
@@ -178,6 +178,17 @@ private:
     friend class CConnman;
 };
 
+enum
+{
+    LOCAL_NONE,   // unknown
+    LOCAL_IF,     // address a local interface listens on
+    LOCAL_BIND,   // address explicit bound to
+    LOCAL_UPNP,   // address reported by UPnP
+    LOCAL_MANUAL, // address explicitly specified (-externalip=)
+
+    LOCAL_MAX
+};
+
 class NetEventsInterface;
 class CConnman
 {
@@ -235,7 +246,7 @@ public:
         }
     }
 
-    CConnman(uint64_t seed0, uint64_t seed1);
+    CConnman(uint64_t seed0, uint64_t seed1, ArgsManager &Args);
     ~CConnman();
     bool Start(const Options& options);
     void Stop();
@@ -321,6 +332,8 @@ public:
     bool Unban(const CSubNet &ip);
     void GetBanned(banmap_t &banmap);
     void SetBanned(const banmap_t &banmap);
+    bool LoadData();
+    void DumpData();
 
     // This allows temporarily exceeding nMaxOutbound, with the goal of finding
     // a peer that is better than all our current peers.
@@ -335,6 +348,8 @@ public:
     // not yet fully disconnected.
     int GetExtraOutboundCount();
 
+    void Discover();
+    bool AddLocal(const CNetAddr& addr, int nScore = LOCAL_NONE);
     bool AddNode(const std::string& node);
     bool RemoveAddedNode(const std::string& node);
     std::vector<AddedNodeInfo> GetAddedNodeInfo();
@@ -345,7 +360,9 @@ public:
     bool DisconnectNode(NodeId id);
     void FinalizeNode(NodeId id, const CAddress &addr);
 
+    CAddress GetLocalAddress(const CNetAddr *paddrPeer, ServiceFlags nLocalServices);
     ServiceFlags GetLocalServices() const;
+    unsigned short GetListenPort();
 
     //!set the max outbound target in bytes
     void SetMaxOutboundTarget(uint64_t limit);
@@ -387,15 +404,18 @@ public:
     */
     int64_t PoissonNextSendInbound(int64_t now, int average_interval_seconds);
 
-    void scheduleEveryRecurse(std::function<void()> const &handler, unsigned ms) {
-	handler();
-	scheduleAfter(std::bind(&CConnman::scheduleEveryRecurse, this, handler, ms), ms);
+    void scheduleEveryRecurse(std::function<void()> const &handler, unsigned ms)
+    {
+        handler();
+        scheduleAfter(std::bind(&CConnman::scheduleEveryRecurse, this, handler, ms), ms);
     }
 
-    void scheduleEvery(std::function<void()> const &handler, unsigned ms) {
-	scheduleAfter(std::bind(&CConnman::scheduleEveryRecurse, this, handler, ms), ms);
+    void scheduleEvery(std::function<void()> const &handler, unsigned ms)
+    {
+        scheduleAfter(std::bind(&CConnman::scheduleEveryRecurse, this, handler, ms), ms);
     }
 
+    ArgsManager &Args;
     p2p_interface *p2p;
     PropagateStore *p2p_store;
     boost::asio::io_service *io_service;
@@ -443,7 +463,6 @@ private:
     //!clean unused entries (if bantime has expired)
     void SweepBanned();
     void DumpAddresses();
-    void DumpData();
     void DumpBanlist();
 
     // Network stats
@@ -531,12 +550,9 @@ private:
     friend class AsioSession;
     friend class p2p_internal;
 };
-extern std::unique_ptr<CConnman> g_connman;
-void Discover();
 void StartMapPort();
 void InterruptMapPort();
 void StopMapPort();
-unsigned short GetListenPort();
 bool BindListenPort(const CService &bindAddr, std::string& strError, bool fWhitelisted = false);
 
 struct CombinerAll
@@ -573,31 +589,18 @@ protected:
     ~NetEventsInterface() = default;
 };
 
-enum
-{
-    LOCAL_NONE,   // unknown
-    LOCAL_IF,     // address a local interface listens on
-    LOCAL_BIND,   // address explicit bound to
-    LOCAL_UPNP,   // address reported by UPnP
-    LOCAL_MANUAL, // address explicitly specified (-externalip=)
-
-    LOCAL_MAX
-};
-
 bool IsPeerAddrLocalGood(std::shared_ptr<CNode> pnode);
 void AdvertiseLocal(std::shared_ptr<CNode> pnode);
 void SetLimited(enum Network net, bool fLimited = true);
 bool IsLimited(enum Network net);
 bool IsLimited(const CNetAddr& addr);
 bool AddLocal(const CService& addr, int nScore = LOCAL_NONE);
-bool AddLocal(const CNetAddr& addr, int nScore = LOCAL_NONE);
 void RemoveLocal(const CService& addr);
 bool SeenLocal(const CService& addr);
 bool IsLocal(const CService& addr);
 bool GetLocal(CService &addr, const CNetAddr *paddrPeer = nullptr);
 bool IsReachable(enum Network net);
 bool IsReachable(const CNetAddr &addr);
-CAddress GetLocalAddress(const CNetAddr *paddrPeer, ServiceFlags nLocalServices);
 
 
 extern bool fDiscover;
@@ -654,8 +657,8 @@ public:
 
 class CNetMessage {
 private:
-    mutable CHash512 hasher;
-    mutable uint512 data_hash;
+    mutable CHash256 hasher;
+    mutable uint256 data_hash;
 public:
     bool in_data;                   // parsing header (false) or data (true)
 
@@ -683,7 +686,7 @@ public:
         return (hdr.nMessageSize == nDataPos);
     }
 
-    const uint512& GetMessageHash() const;
+    const uint256& GetMessageHash() const;
 
     void SetVersion(int nVersionIn)
     {
@@ -762,14 +765,14 @@ protected:
     mapMsgCmdSize mapRecvBytesPerMsgCmd;
 
 public:
-    uint512 hashContinue;
+    uint256 hashContinue;
     std::atomic<int> nStartingHeight;
 
     // flood relay
     std::vector<CAddress> vAddrToSend;
     CRollingBloomFilter addrKnown;
     bool fGetAddr;
-    std::set<uint512> setKnown;
+    std::set<uint256> setKnown;
     int64_t nNextAddrSend;
     int64_t nNextLocalAddrSend;
 
@@ -813,8 +816,8 @@ private:
     // Our address, as reported by the peer
     CService addrLocal;
     mutable Mutex cs_addrLocal;
-    CConnman &connman;
 public:
+    CConnman &connman;
 
     NodeId GetId() const {
         return id;

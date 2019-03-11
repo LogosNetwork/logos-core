@@ -8,7 +8,7 @@
 
 #include <crypto/chacha20.h>
 #include <crypto/common.h>
-#include <uint512.h>
+#include <uint256.h>
 
 #include <stdint.h>
 #include <limits>
@@ -22,7 +22,7 @@ void RandAddSeed();
 void GetRandBytes(unsigned char* buf, int num);
 uint64_t GetRand(uint64_t nMax);
 int GetRandInt(int nMax);
-uint512 GetRandHash();
+uint256 GetRandHash();
 
 /**
  * Add a little bit of randomness to the output of GetStrongRangBytes.
@@ -74,7 +74,7 @@ public:
     explicit FastRandomContext(bool fDeterministic = false);
 
     /** Initialize with explicit seed (only for testing) */
-    explicit FastRandomContext(const uint512& seed);
+    explicit FastRandomContext(const uint256& seed);
 
     /** Generate a random 64-bit integer. */
     uint64_t rand64()
@@ -117,8 +117,8 @@ public:
     /** Generate a random 32-bit integer. */
     uint32_t rand32() { return randbits(32); }
 
-    /** generate a random uint512. */
-    uint512 rand512();
+    /** generate a random uint256. */
+    uint256 rand256();
 
     /** Generate a random boolean. */
     bool randbool() { return randbits(1); }

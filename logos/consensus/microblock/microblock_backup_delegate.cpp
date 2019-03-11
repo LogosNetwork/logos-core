@@ -11,15 +11,16 @@
 MicroBlockBackupDelegate::MicroBlockBackupDelegate(
                                   std::shared_ptr<IOChannel> iochannel,
                                   PrimaryDelegate & primary,
-                                  RequestPromoter<MBCT> & promoter,
+                                  MessagePromoter<MBCT> & promoter,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler,
                                   EpochEventsNotifier & events_notifier,
                                   PersistenceManager<MBCT> & persistence_manager,
-                                  p2p_interface & p2p)
+                                  p2p_interface & p2p,
+                                  Service & service)
     : BackupDelegate<MBCT>(iochannel, primary, promoter, validator, ids,
-                                                     events_notifier, persistence_manager, p2p)
+                                                     events_notifier, persistence_manager, p2p, service)
     , _microblock_handler(handler)
 {
     if (promoter.GetStore().micro_block_tip_get(_prev_pre_prepare_hash))

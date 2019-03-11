@@ -46,23 +46,26 @@ char const * live_genesis_data = R"%%%({
 })%%%";
 
 char const * logos_genesis_data = R"%%%({
-"account": "lgs_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
+"type": "send",
+"origin": "lgs_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
 "previous": "0000000000000000000000000000000000000000000000000000000000000000",
 "sequence": "0",
+"next": "0000000000000000000000000000000000000000000000000000000000000000",
 "transaction_type": "send",
 "transaction_fee": "0",
 "signature": "B9102BBECB89D3E3B2EDCB7D09D76C07B51DB99760464CBB8F60829B907FF1504567F33414FC37270E9EB04F06BD7A41ADE2661B8C9AABAFEF3C90F78829A401",
 "work": "0",
-"number_transactions": "1",
+"fee": "100",
 "transactions": [
     {
-        "target": "lgs_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
+        "destination": "lgs_3e3j5tkog48pnny9dmfzj1r16pg8t1e76dz5tmac6iq689wyjfpiij4txtdo",
         "amount": "340282366920938463463374607431768211455"
     }
 ],
 "hash": "B2BC10F486B514C797DE1AE90A4774F1677FEE4A0261D1E3F36EA2AB9E50D56B",
 "batch_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-"index_in_batch": "0"
+"index_in_batch": "0",
+"work": "0"
 })%%%";
 
 
@@ -200,21 +203,128 @@ std::unique_ptr<logos::block> logos::deserialize_block (MDB_val const & val_a)
     return deserialize_block (stream);
 }
 
-logos::account_info::account_info ()
-    : head (0)
-    , receive_head (0)
-    , rep_block (0)
-    , open_block (0)
+logos::Account::Account (AccountType type)
+    : type (type)
     , balance (0)
     , modified (0)
+    , head (0)
     , block_count (0)
+    , receive_head (0)
     , receive_count (0)
+{}
+
+logos::Account::Account (bool & error, const mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
+    error = Deserialize (stream);
+}
+
+logos::Account::Account (bool & error, logos::stream & stream)
+{
+    error = Deserialize(stream);
+}
+
+logos::Account::Account (
+    AccountType type,
+    const amount & balance,
+    uint64_t modified,
+    const BlockHash & head,
+    uint32_t block_count,
+    const BlockHash & receive_head,
+    uint32_t receive_count)
+    : type (type)
+    , balance (balance)
+    , modified (modified)
+    , head (head)
+    , block_count (block_count)
+    , receive_head (receive_head)
+    , receive_count (receive_count)
+{}
+
+uint32_t logos::Account::Serialize (stream & stream_a) const
+{
+    auto s = write (stream_a, type);
+    s += write (stream_a, balance.bytes);
+    s += write (stream_a, modified);
+    s += write (stream_a, head.bytes);
+    s += write (stream_a, block_count);
+    s += write (stream_a, receive_head.bytes);
+    s += write (stream_a, receive_count);
+    return s;
+}
+
+bool logos::Account::Deserialize (stream & stream_a)
+{
+    auto error (read (stream_a, type));
+    if (!error)
+    {
+        error = read(stream_a, balance.bytes);
+        if (!error)
+        {
+            error = read(stream_a, modified);
+            if (!error)
+            {
+                auto error(read(stream_a, head.bytes));
+                if (!error)
+                {
+                    error = read(stream_a, block_count);
+                    if (!error)
+                    {
+                            error = read(stream_a, receive_head.bytes);
+                            if (!error)
+                            {
+                                error = read(stream_a, receive_count);
+                            }
+                    }
+                }
+            }
+        }
+    }
+
+    return error;
+}
+
+bool logos::Account::operator== (Account const & other_a) const
+{
+    return type == other_a.type &&
+           balance == other_a.balance &&
+           modified == other_a.modified &&
+           head == other_a.head &&
+           block_count == other_a.block_count &&
+           receive_head == other_a.receive_head &&
+           receive_count == other_a.receive_count;
+}
+
+bool logos::Account::operator!= (Account const & other_a) const
+{
+    return !(*this == other_a);
+}
+
+logos::mdb_val logos::Account::to_mdb_val(std::vector<uint8_t> &buf) const
+{
+    assert(buf.empty());
+    {
+        vectorstream stream(buf);
+        Serialize(stream);
+    }
+    return mdb_val(buf.size(), buf.data());
+}
+
+logos::account_info::account_info ()
+    : Account(AccountType::LogosAccount)
+    , rep_block (0)
+    , open_block (0)
 {}
 
 logos::account_info::account_info (bool & error, const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
-    error = deserialize (stream);
+    error = Deserialize(stream);
+}
+
+logos::account_info::account_info (bool & error, logos::stream & stream)
+{
+    error = Deserialize(stream);
 }
 
 logos::account_info::account_info (
@@ -226,82 +336,70 @@ logos::account_info::account_info (
         uint64_t modified_a,
         uint32_t block_count_a,
         uint32_t receive_count_a)
-    : head (head_a)
-    , receive_head (receive_head_a)
+    : Account(AccountType::LogosAccount,
+              balance_a,
+              modified_a,
+              head_a,
+              block_count_a,
+              receive_head_a,
+              receive_count_a)
     , rep_block (rep_block_a)
     , open_block (open_block_a)
-    , balance (balance_a)
-    , modified (modified_a)
-    , block_count (block_count_a)
-    , receive_count (receive_count_a)
 {}
 
-uint32_t logos::account_info::serialize (logos::stream & stream_a) const
+uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
 {
-    auto s = write (stream_a, head.bytes);
-    s += write (stream_a, receive_head.bytes);
+    auto s = Account::Serialize(stream_a);
     s += write (stream_a, rep_block.bytes);
     s += write (stream_a, open_block.bytes);
-    s += write (stream_a, balance.bytes);
-    s += write (stream_a, htole64(modified));
-    s += write (stream_a, htole32(block_count));
-    s += write (stream_a, htole32(receive_count));
+    s += write (stream_a, uint16_t(entries.size()));
+    for(auto & entry : entries)
+    {
+        s += entry.Serialize(stream_a);
+    }
     return s;
 }
 
-bool logos::account_info::deserialize (logos::stream & stream_a)
+bool logos::account_info::Deserialize(logos::stream &stream_a)
 {
-    auto error (read (stream_a, head.bytes));
+    auto error = Account::Deserialize(stream_a);
+
     if (!error)
     {
-        error = read (stream_a, receive_head.bytes);
+        error = read (stream_a, rep_block.bytes);
         if (!error)
         {
-            error = read (stream_a, rep_block.bytes);
+            error = read (stream_a, open_block.bytes);
             if (!error)
             {
-                error = read (stream_a, open_block.bytes);
                 if (!error)
                 {
-                    error = read (stream_a, balance.bytes);
-                    if (!error)
+                    uint16_t count;
+                    error = read(stream_a, count);
+
+                    for(size_t i = 0; i < count; ++i)
                     {
-                        uint64_t modified_le = 0;
-                        error = read (stream_a, modified_le);
-                        if (!error)
+                        TokenEntry entry(error, stream_a);
+                        if(error)
                         {
-                            modified = le64toh(modified_le);
-                            uint32_t block_count_le = 0;
-                            error = read (stream_a, block_count_le);
-                            if (!error)
-                            {
-                                block_count = le32toh(block_count_le);
-                                uint32_t receive_count_le = 0;
-                                error = read (stream_a, receive_count_le);
-                                if (!error)
-                                {
-                                    receive_count = le32toh(receive_count_le);
-                                }
-                            }
+                            break;
                         }
+
+                        entries.push_back(entry);
                     }
                 }
             }
         }
     }
+
     return error;
 }
 
 bool logos::account_info::operator== (logos::account_info const & other_a) const
 {
-    return head == other_a.head &&
-           rep_block == other_a.rep_block &&
-           receive_head == other_a.receive_head &&
+    return rep_block == other_a.rep_block &&
            open_block == other_a.open_block &&
-           balance == other_a.balance &&
-           modified == other_a.modified &&
-           block_count == other_a.block_count &&
-           receive_count == other_a.receive_count;
+           Account::operator==(other_a);
 }
 
 bool logos::account_info::operator!= (logos::account_info const & other_a) const
@@ -314,9 +412,56 @@ logos::mdb_val logos::account_info::to_mdb_val(std::vector<uint8_t> &buf) const
     assert(buf.empty());
     {
         logos::vectorstream stream(buf);
-        serialize(stream);
+        Serialize(stream);
     }
     return {buf.size(), buf.data()};
+}
+
+template<typename ...Args>
+std::shared_ptr<logos::Account> BuildAccount(logos::AccountType type, Args&& ...args)
+{
+    std::shared_ptr<logos::Account> result;
+
+    switch(type)
+    {
+        case logos::AccountType::LogosAccount:
+            result = std::make_shared<logos::account_info>(args...);
+            break;
+        case logos::AccountType::TokenAccount:
+            result = std::make_shared<TokenAccount>(args...);
+            break;
+    }
+
+    return result;
+}
+
+std::shared_ptr<logos::Account> logos::DeserializeAccount(bool & error, const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    AccountType type;
+
+    error = logos::read(stream, type);
+    if(error)
+    {
+        return {nullptr};
+    }
+
+    return BuildAccount(type, error, mdbval);
+}
+
+std::shared_ptr<logos::Account> logos::DeserializeAccount(bool & error, logos::stream & stream)
+{
+    AccountType type;
+
+    error = logos::peek(stream, type);
+    if(error)
+    {
+        return {nullptr};
+    }
+
+    return BuildAccount(type, error, stream);
 }
 
 logos::reservation_info::reservation_info ()
@@ -327,7 +472,7 @@ logos::reservation_info::reservation_info ()
 logos::reservation_info::reservation_info (bool & error, const logos::mdb_val & mdbval)
 {
     logos::bufferstream stream(reinterpret_cast<uint8_t const *> (mdbval.data()), mdbval.size());
-    error = deserialize (stream);
+    error = Deserialize(stream);
 }
 
 logos::reservation_info::reservation_info (
@@ -344,7 +489,7 @@ uint32_t logos::reservation_info::serialize (logos::stream & stream_a) const
     return s;
 }
 
-bool logos::reservation_info::deserialize (logos::stream & stream_a)
+bool logos::reservation_info::Deserialize(logos::stream &stream_a)
 {
     auto error (read (stream_a, reservation.bytes));
     if (!error)
@@ -378,6 +523,33 @@ logos::mdb_val logos::reservation_info::to_mdb_val(std::vector<uint8_t> &buf) co
         serialize(stream);
     }
     return {buf.size(), buf.data()};
+}
+
+bool logos::account_info::GetEntry(const BlockHash & token_id, TokenEntry & val) const
+{
+    bool result;
+
+    std::find_if(entries.begin(), entries.end(),
+                 [&token_id, &val, &result](const TokenEntry & entry)
+                 {
+                     if((result = (entry.token_id == token_id)))
+                     {
+                         val = entry;
+                     }
+
+                     return result;
+                 });
+
+    return result; // True if the entry is found.
+}
+
+auto logos::account_info::GetEntry(const BlockHash & token_id) -> Entries::iterator
+{
+    return std::find_if(entries.begin(), entries.end(),
+                        [&token_id](const TokenEntry & entry)
+                        {
+                            return entry.token_id == token_id;
+                        });
 }
 
 logos::block_counts::block_counts () :
@@ -791,93 +963,162 @@ std::string logos::ProcessResultToString(logos::process_result result)
 
     switch(result)
     {
-    case process_result::progress:
-        ret = "Progress";
-        break;
-    case process_result::bad_signature:
-        ret = "Bad Signature";
-        break;
-    case process_result::old:
-        ret = "Old Block";
-        break;
-    case process_result::negative_spend:
-        ret = "Negative Spend";
-        break;
-    case process_result::fork:
-        ret = "Fork";
-        break;
-    case process_result::unreceivable:
-        ret = "Unreceivable";
-        break;
-    case process_result::gap_previous:
-        ret = "Gap Previous Block";
-        break;
-    case process_result::gap_source:
-        ret = "Gap Source Block";
-        break;
-    case process_result::state_block_disabled:
-        ret = "State Blocks Are Disabled";
-        break;
-    case process_result::not_receive_from_send:
-        ret = "Not Receive From Send";
-        break;
-    case process_result::account_mismatch:
-        ret = "Account Mismatch";
-        break;
-    case process_result::opened_burn_account:
-        ret = "Invalid account (burn account)";
-        break;
-    case process_result::balance_mismatch:
-        ret = "Balance Mismatch";
-        break;
-    case process_result::block_position:
-        ret = "Block Position";
-        break;
-    case process_result::invalid_block_type:
-        ret = "Invalid Block Type";
-        break;
-    case process_result::unknown_source_account:
-        ret = "Unknown Source Account";
-        break;
-    case process_result::buffered:
-        ret = "Buffered";
-        break;
-    case process_result::buffering_done:
-        ret = "Buffering Done";
-        break;
-    case process_result::pending:
-        ret = "Already Pending";
-        break;
-    case process_result::already_reserved:
-        ret = "Account already Reserved";
-        break;
-    case process_result::initializing:
-        ret = "Delegate is initializing";
-        break;
-    case process_result::insufficient_fee:
-        ret = "Transaction fee is insufficient";
-        break;
-    case process_result::insufficient_balance:
-        ret = "Account balance is insufficient";
-        break;
-    case process_result::not_delegate:
-         ret = "Not a delegate";
-        break;
-    case process_result::clock_drift:
-        ret = "Clock drift";
-        break;
-    case process_result::wrong_sequence_number:
-        ret = "Wrong sequence number";
-        break;
-    case process_result::invalid_request:
-        ret = "Invalid request";
-        break;
-    case process_result::invalid_tip:
-        ret = "Invalid tip";
-        break;
-    case process_result::invalid_number_blocks:
-        ret = "Invalid number blocks";
-        break;
+        case process_result::progress:
+            ret = "Progress";
+            break;
+        case process_result::bad_signature:
+            ret = "Bad Signature";
+            break;
+        case process_result::old:
+            ret = "Old Block";
+            break;
+        case process_result::negative_spend:
+            ret = "Negative Spend";
+            break;
+        case process_result::fork:
+            ret = "Fork";
+            break;
+        case process_result::unreceivable:
+            ret = "Unreceivable";
+            break;
+        case process_result::gap_previous:
+            ret = "Gap Previous Block";
+            break;
+        case process_result::gap_source:
+            ret = "Gap Source Block";
+            break;
+        case process_result::state_block_disabled:
+            ret = "State Blocks Are Disabled";
+            break;
+        case process_result::not_receive_from_send:
+            ret = "Not Receive From Send";
+            break;
+        case process_result::account_mismatch:
+            ret = "Account Mismatch";
+            break;
+        case process_result::opened_burn_account:
+            ret = "Invalid account (burn account)";
+            break;
+        case process_result::balance_mismatch:
+            ret = "Balance Mismatch";
+            break;
+        case process_result::block_position:
+            ret = "Block Position";
+            break;
+        case process_result::invalid_block_type:
+            ret = "Invalid Block Type";
+            break;
+        case process_result::unknown_source_account:
+            ret = "Unknown Source Account";
+            break;
+        case process_result::unknown_origin:
+            ret = "The sender's account is unknown";
+            break;
+        case process_result::buffered:
+            ret = "Buffered";
+            break;
+        case process_result::buffering_done:
+            ret = "Buffering Done";
+            break;
+        case process_result::pending:
+            ret = "Already Pending";
+            break;
+        case process_result::already_reserved:
+            ret = "Account already Reserved";
+            break;
+        case process_result::initializing:
+            ret = "Delegate is initializing";
+            break;
+        case process_result::insufficient_fee:
+            ret = "Transaction fee is insufficient";
+            break;
+        case process_result::insufficient_balance:
+            ret = "Account balance is insufficient";
+            break;
+        case process_result::not_delegate:
+             ret = "Not a delegate";
+            break;
+        case process_result::clock_drift:
+            ret = "Clock drift";
+            break;
+        case process_result::wrong_sequence_number:
+            ret = "Wrong sequence number";
+            break;
+        case process_result::invalid_request:
+            ret = "Invalid request";
+            break;
+        case process_result::invalid_tip:
+            ret = "Invalid tip";
+            break;
+        case process_result::invalid_number_blocks:
+            ret = "Invalid number blocks";
+            break;
+        case process_result::revert_immutability:
+            ret = "Unable to revert immutability for token settings";
+            break;
+        case process_result::immutable:
+            ret = "Setting is not mutable";
+            break;
+        case process_result::redundant:
+            ret = "Setting change is redundant";
+            break;
+        case process_result::insufficient_token_balance:
+            ret = "Token balance is insufficient";
+            break;
+        case process_result::invalid_token_id:
+            ret = "Token ID is invalid";
+            break;
+        case process_result::untethered_account:
+            ret = "User account doesn't have a token balance";
+            break;
+        case process_result::invalid_controller:
+            ret = "Invalid controller specified";
+            break;
+        case process_result::controller_capacity:
+            ret = "Controllers list is full";
+            break;
+        case process_result::invalid_controller_action:
+            ret = "Invalid controller action";
+            break;
+        case process_result::unauthorized_request:
+            ret = "Not authorized to make request";
+            break;
+        case process_result::prohibitted_request:
+            ret = "The request is not allowed";
+            break;
+        case process_result::not_whitelisted:
+            ret = "Whitelisting is required";
+            break;
+        case process_result::frozen:
+            ret = "Account is frozen";
+            break;
+        case process_result::insufficient_token_fee:
+            ret = "Token fee is insufficient";
+            break;
+        case process_result::invalid_token_symbol:
+            ret = "Token symbol is invalid";
+            break;
+        case process_result::invalid_token_name:
+            ret = "Token symbol is invalid";
+            break;
+        case process_result::invalid_token_amount:
+            ret = "Token amount is invalid";
+            break;
+        case process_result::total_supply_overflow:
+            ret = "Total supply overflow";
+            break;
+        case process_result::key_collision:
+            ret = "There is already an account with this key";
+            break;
+        case process_result::invalid_fee:
+            ret = "The fee settings are invalid";
+            break;
+        case process_result::invalid_issuer_info:
+            ret = "The issuer info field is invalid";
+            break;
+        case process_result::too_many_token_entries:
+            ret = "The account has too many token entries";
+            break;
     }
 
     return ret;

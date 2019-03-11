@@ -22,10 +22,10 @@ void
 EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint endpoint,
                                        std::shared_ptr<EpochPeerManager::Socket> socket)
 {
-    auto buf = std::make_shared<std::array<uint8_t, ConnectedClientIds::STREAM_SIZE>>();
+    auto buf = std::make_shared<std::array<uint8_t, ConnectedClientIds::StreamSize()>>();
 
     boost::asio::async_read(*socket,
-                           boost::asio::buffer(buf->data(), ConnectedClientIds::STREAM_SIZE),
+                           boost::asio::buffer(buf->data(), ConnectedClientIds::StreamSize()),
                            [this, endpoint, socket, buf](const ErrorCode &error, size_t size) {
         if (error)
         {
@@ -33,7 +33,7 @@ EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint endpoint
             return;
         }
         bool stream_error = false;
-        logos::bufferstream stream(buf->data(), ConnectedClientIds::STREAM_SIZE);
+        logos::bufferstream stream(buf->data(), ConnectedClientIds::StreamSize());
         auto ids = std::make_shared<ConnectedClientIds>(stream_error, stream);
         if (stream_error)
         {

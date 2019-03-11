@@ -11,16 +11,17 @@ static constexpr ConsensusType MBCT = ConsensusType::MicroBlock;
 class ReservationsProvider;
 
 template<>
-class PersistenceManager<MBCT> : public Persistence {
+class PersistenceManager<MBCT> : public Persistence
+{
 
 protected:
 
-    using BatchTips                     = BlockHash[NUM_DELEGATES];
-    using Request                       = RequestMessage<MBCT>;
-    using PrePrepare                    = PrePrepareMessage<MBCT>;
-    using ReservationsPtr               = std::shared_ptr<ReservationsProvider>;
-    using IteratorBatchBlockReceiverCb  = std::function<void(uint8_t, const ApprovedBSB &)>;
-    using BatchBlockReceiverCb          = std::function<void(const ApprovedBSB &)>;
+    using BatchTips                    = BlockHash[NUM_DELEGATES];
+    using Message                      = DelegateMessage<MBCT>;
+    using PrePrepare                   = PrePrepareMessage<MBCT>;
+    using ReservationsPtr              = std::shared_ptr<ReservationsProvider>;
+    using IteratorBatchBlockReceiverCb = std::function<void(uint8_t, const ApprovedRB &)>;
+    using BatchBlockReceiverCb         = std::function<void(const ApprovedRB &)>;
 
 public:
     PersistenceManager(Store & store,
@@ -36,9 +37,9 @@ public:
     /// @param result of validation [in]
     /// @param allow_duplicate allow duplicate request [in]
     /// @returns true if validated
-    virtual bool Validate(const Request & block, logos::process_return & result, bool allow_duplicate = true)
+    virtual bool Validate(const Message & block, logos::process_return & result, bool allow_duplicate = true)
     { return true; }
-    virtual bool Validate(const Request & block)
+    virtual bool Validate(const Message & block)
     { return true; }
 
     /// Backup delegate validation

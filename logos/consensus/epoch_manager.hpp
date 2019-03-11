@@ -4,10 +4,10 @@
 
 #pragma once
 #include <logos/epoch/epoch_transition.hpp>
-#include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
-#include <logos/network/consensus_netio_manager.hpp>
+#include <logos/consensus/request/request_consensus_manager.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
+#include <logos/network/consensus_netio_manager.hpp>
 
 class Archiver;
 class NewEpochEventHandler;
@@ -25,6 +25,7 @@ public:
     virtual std::string GetDelegateName() = 0;
     virtual std::string GetStateName() = 0;
     virtual bool IsWaitingDisconnect() = 0;
+    virtual uint8_t GetDelegateId() = 0;
 };
 
 class EpochEventsNotifier
@@ -67,7 +68,8 @@ public:
                  EpochConnection connection,
                  const uint32_t epoch_number,
                  NewEpochEventHandler & event_handler,
-                 p2p_interface & p2p);
+                 p2p_interface & p2p,
+                 uint8_t delegate_id);
 
     ~EpochManager();
 
@@ -95,14 +97,19 @@ public:
 
     void CleanUp();
 
+    uint8_t GetDelegateId() override
+    {
+        return _delegate_id;
+    }
+
 private:
 
     /// Update secondary request handler promoter during epoch transition
     void UpdateRequestPromoter()
     {
-        _batch_manager.UpdateRequestPromoter();
-        _micro_manager.UpdateRequestPromoter();
-        _epoch_manager.UpdateRequestPromoter();
+        _request_manager.UpdateMessagePromoter();
+        _micro_manager.UpdateMessagePromoter();
+        _epoch_manager.UpdateMessagePromoter();
     }
 
     std::atomic<EpochTransitionState> &     _state;             ///< State of transition
@@ -110,11 +117,12 @@ private:
     std::atomic<EpochConnection>            _connection_state;  ///< Delegate's connection set
     const uint                              _epoch_number;      ///< Epoch's number
     NewEpochEventHandler &                  _new_epoch_handler; ///< Call back on new epoch events
-    DelegateKeyStore                        _key_store; 		///< Store delegates public keys
-    MessageValidator                        _validator; 		///< Validator/Signer of consensus messages
-    BatchBlockConsensusManager              _batch_manager; 	///< Handles batch block consensus
+    DelegateKeyStore                        _key_store;         ///< Store delegates public keys
+    MessageValidator                        _validator;         ///< Validator/Signer of consensus messages
+    RequestConsensusManager                 _request_manager; 	///< Handles batch block consensus
     MicroBlockConsensusManager	            _micro_manager; 	///< Handles micro block consensus
-    EpochConsensusManager	                _epoch_manager; 	///< Handles epoch consensus
+    EpochConsensusManager                   _epoch_manager;     ///< Handles epoch consensus
     ConsensusNetIOManager                   _netio_manager; 	///< Establishes connections to other delegates
     Log                                     _log;               ///< Boost log
+    uint8_t                                 _delegate_id;       ///< Delegate id
 };

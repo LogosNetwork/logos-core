@@ -24,13 +24,14 @@ public:
     /// @param events_notifier epoch transition helper [in]
     MicroBlockBackupDelegate(std::shared_ptr<IOChannel> iochannel,
                                   PrimaryDelegate & primary,
-                                  RequestPromoter<MBCT> & promoter,
+                                  MessagePromoter<MBCT> & promoter,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler,
                                   EpochEventsNotifier & events_notifier,
                                   PersistenceManager<MBCT> & persistence_manager,
-                                  p2p_interface & p2p);
+                                  p2p_interface & p2p,
+                                  Service & service);
     ~MicroBlockBackupDelegate() = default;
 
     /// Validate PrePrepare message

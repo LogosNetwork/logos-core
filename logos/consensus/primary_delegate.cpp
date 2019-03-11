@@ -4,38 +4,49 @@
 #include <boost/asio/error.hpp>
 #include <logos/lib/utility.hpp>
 
-template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
-template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
-template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
-template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
-template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
-template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::BatchStateBlock>&, uint8_t remote_delegate_id);
-template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::BatchStateBlock>&);
-template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
-template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
-template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
+// ConsensusType::Request
+//
+template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::Request>&, uint8_t);
+template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Request>&, uint8_t);
+template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Request>&, uint8_t);
+template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Request>&);
+template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::Request>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::Request>&, uint8_t remote_delegate_id);
+template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::Request>&, uint8_t remote_delegate_id);
+
+// ConsensusType::MicroBlock
+//
+template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::MicroBlock>&, uint8_t);
+template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::MicroBlock>&, uint8_t);
+template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::MicroBlock>&, uint8_t);
+template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::MicroBlock>&);
 template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::MicroBlock>&, uint8_t remote_delegate_id);
-template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::MicroBlock>&);
-template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
-template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
-template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
+
+// ConsensusType::Epoch
+//
+template void PrimaryDelegate::ProcessMessage<>(const RejectionMessage<ConsensusType::Epoch>&, uint8_t);
+template void PrimaryDelegate::ProcessMessage<>(const PrepareMessage<ConsensusType::Epoch>&, uint8_t);
+template void PrimaryDelegate::ProcessMessage<>(const CommitMessage<ConsensusType::Epoch>&, uint8_t);
+template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Epoch>&);
 template void PrimaryDelegate::Tally<>(const RejectionMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const PrepareMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
 template void PrimaryDelegate::Tally<>(const CommitMessage<ConsensusType::Epoch>&, uint8_t remote_delegate_id);
-template void PrimaryDelegate::OnConsensusInitiated<>(const PrePrepareMessage<ConsensusType::Epoch>&);
 
 const PrimaryDelegate::Seconds PrimaryDelegate::PRIMARY_TIMEOUT{60};
 const PrimaryDelegate::Seconds PrimaryDelegate::RECALL_TIMEOUT{300};
 
 PrimaryDelegate::PrimaryDelegate(Service & service,
-                                 MessageValidator & validator)
+                                 MessageValidator & validator,
+                                 uint32_t epoch_number)
     // NOTE: Don't use _validator in this constructor
     //       as it's not yet initialized.
     //
-    : _primary_timer(service)
+    : _ongoing(false)
+    , _primary_timer(service)
     , _validator(validator)
+    , _epoch_number(epoch_number)
     , _recall_timer(service)
 {}
 
@@ -134,7 +145,7 @@ void PrimaryDelegate::TallyStandardPhaseMessage(const M & message, uint8_t remot
                            message.signature});
 }
 
-void PrimaryDelegate::TallyPrepareMessage(const PrepareMessage<ConsensusType::BatchStateBlock> & message, uint8_t remote_delegate_id)
+void PrimaryDelegate::TallyPrepareMessage(const PrepareMessage<ConsensusType::Request> & message, uint8_t remote_delegate_id)
 {}
 
 void PrimaryDelegate::TallyPrepareMessage(const PrepareMessage<ConsensusType::MicroBlock> & message, uint8_t remote_delegate_id)
@@ -143,7 +154,7 @@ void PrimaryDelegate::TallyPrepareMessage(const PrepareMessage<ConsensusType::Mi
 void PrimaryDelegate::TallyPrepareMessage(const PrepareMessage<ConsensusType::Epoch> & message, uint8_t remote_delegate_id)
 {}
 
-void PrimaryDelegate::OnRejection(const RejectionMessage<ConsensusType::BatchStateBlock> & message, uint8_t remote_delegate_id)
+void PrimaryDelegate::OnRejection(const RejectionMessage<ConsensusType::Request> & message, uint8_t remote_delegate_id)
 {}
 
 void PrimaryDelegate::OnRejection(const RejectionMessage<ConsensusType::MicroBlock> & message, uint8_t remote_delegate_id)
@@ -207,8 +218,8 @@ void PrimaryDelegate::OnTimeout(const Error & error,
                        << " Aborting timeout.";
         return;
     }
-    LOG_ERROR(_log) << "PrimaryDelegate::OnTimeout<" << ConsensusToName(C) << "> - Delegate going into recall! ";
-    AdvanceState(ConsensusState::RECALL);
+
+    OnQuorumFailed();
 }
 
 template<ConsensusType C>
@@ -379,14 +390,14 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
         bool sig_aggregated = false;
         if(expected_state == ConsensusState::PRE_PREPARE )
         {
-            //need my own sig
+            // need my own sig
             _signatures.push_back({_delegate_id, _pre_prepare_sig});
             _post_prepare_sig.map.reset();
             sig_aggregated = _validator.AggregateSignature(_signatures, _post_prepare_sig);
         }
         else if (expected_state == ConsensusState::POST_PREPARE )
         {
-            //need my own sig
+            // need my own sig
             DelegateSig my_commit_sig;
             _validator.Sign(_post_prepare_hash, my_commit_sig);
             _signatures.push_back({_delegate_id, my_commit_sig});
@@ -397,10 +408,11 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
         if( ! sig_aggregated )
         {
             LOG_FATAL(_log) << "PrimaryDelegate - Failed to aggregate signatures"
-                    << " expected_state=" << StateToString(expected_state);
-            //The BLS key storage or the aggregation code has a fatal error, cannot be
-            //used to generate nor verify aggregated signatures. So the local node cannot
-            //be a delegate anymore.
+                            << " expected_state=" << StateToString(expected_state);
+
+            // The BLS key storage or the aggregation code has a fatal error, cannot be
+            // used to generate nor verify aggregated signatures. So the local node cannot
+            // be a delegate anymore.
             trace_and_halt();
         }
         // set transition flag so only one remote message can trigger state change

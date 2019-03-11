@@ -82,13 +82,13 @@ PersistenceManager<MBCT>::Validate(
         UpdateStatusReason(status, process_result::wrong_sequence_number);
         return false;
     }
-
+    
     // verify can get the batch block tips
     bool valid = true;
-    ApprovedBSB bsb;
+    ApprovedRB bsb;
     for (int del = 0; del < NUM_DELEGATES; ++del)
     {
-        if (! block.tips[del].is_zero() && _store.batch_block_get(block.tips[del], bsb))
+        if (! block.tips[del].is_zero() && _store.request_block_get(block.tips[del], bsb))
         {
             LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
                             << block.Hash().to_string() << " "
@@ -102,7 +102,7 @@ PersistenceManager<MBCT>::Validate(
     /// verify can iterate the chain and the number of blocks checks out
     int number_batch_blocks = 0;
     MicroBlockHandler::BatchBlocksIterator(_store, block.tips, previous_microblock.tips,
-                                           [&number_batch_blocks](uint8_t, const BatchStateBlock &) mutable -> void {
+                                           [&number_batch_blocks](uint8_t, const RequestBlock &) mutable -> void {
        ++number_batch_blocks;
     });
     if (number_batch_blocks != block.number_batch_blocks)

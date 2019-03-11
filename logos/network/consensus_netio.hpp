@@ -3,6 +3,7 @@
 /// an interface to the underlying socket.
 #pragma once
 
+#include <logos/consensus/consensus_msg_producer.hpp>
 #include <logos/network/net_io_assembler.hpp>
 #include <logos/network/net_io_send.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
@@ -15,7 +16,7 @@
 #include <atomic>
 #include <map>
 
-class MessageParser;
+class ConsensusMsgSink;
 class MessageValidator;
 class EpochInfo;
 class NetIOErrorHandler;
@@ -101,6 +102,7 @@ private:
 class ConsensusNetIO: public IOChannel,
                       public IOChannelReconnect,
                       public NetIOSend,
+                      public ConsensusMsgProducer,
                       public std::enable_shared_from_this<ConsensusNetIO>
 {
 
@@ -109,7 +111,7 @@ class ConsensusNetIO: public IOChannel,
     using Socket        = boost::asio::ip::tcp::socket;
     using Address       = boost::asio::ip::address;
     using IOBinder      = function<void(std::shared_ptr<ConsensusNetIO>, uint8_t)>;
-    using Connections   = std::shared_ptr<MessageParser> [CONSENSUS_TYPE_COUNT];
+    using Connections   = std::shared_ptr<ConsensusMsgSink> [CONSENSUS_TYPE_COUNT];
     using QueuedWrites  = std::list<std::shared_ptr<std::vector<uint8_t>>>;
 
 public:
@@ -198,7 +200,7 @@ public:
     ///     @param t consensus type
     ///     @param connection specific DelegateBridge
     void AddConsensusConnection(ConsensusType t,
-                                std::shared_ptr<MessageParser> connection);
+                                std::shared_ptr<ConsensusMsgSink> connection);
 
     /// Read prequel header, dispatch the message
     /// to respective consensus type.
@@ -268,11 +270,22 @@ public:
         }
     }
 
+    std::atomic<uint32_t> & DirectConnectRef()
+    {
+        return _direct_connect;
+    }
+
     static constexpr uint8_t CONNECT_RETRY_DELAY = 5;     ///< Reconnect delay in seconds.
 
 protected:
 
     void OnError(const ErrorCode &ec) override;
+    bool AddToConsensusQueue(const uint8_t * data,
+                             uint8_t version,
+                             MessageType message_type,
+                             ConsensusType consensus_type,
+                             uint32_t payload_size,
+                             uint8_t delegate_id=0xff) override;
 
 private:
 
@@ -335,4 +348,5 @@ private:
     std::recursive_mutex           _error_mutex;          ///< Error handling mutex
     bool                           _error_handled;        ///< Socket error handled, prevent continous error loop
     std::atomic<uint64_t>          _last_timestamp;       ///< Last message timestamp
+    std::atomic<uint32_t>          _direct_connect;       ///< Count of received messages, used to disable p2p
 };

@@ -9,7 +9,7 @@
 #include <logos/consensus/persistence/nondel_persistence.hpp>
 
 template<>
-class NonDelPersistenceManager<MBCT> : public PersistenceManager<MBCT>, public NoneDelegatePersistence<MBCT>
+class NonDelPersistenceManager<MBCT> : public PersistenceManager<MBCT>, public NonDelegatePersistence<MBCT>
 {
 public:
     using PersistenceManager<MBCT>::Validate;
@@ -17,7 +17,7 @@ public:
     NonDelPersistenceManager(Store &store,
                              Milliseconds clock_drift = ZERO_CLOCK_DRIFT)
         : PersistenceManager<MBCT>(store, nullptr, clock_drift)
-        , NoneDelegatePersistence<MBCT>(store)
+        , NonDelegatePersistence<MBCT>(store)
     {}
 
     bool ValidatePreprepare(const PrePrepare & pre_prepare, ValidationStatus * status)

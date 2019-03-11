@@ -1,8 +1,8 @@
 #pragma once
 
 #include <logos/consensus/messages/common.hpp>
-#include <logos/consensus/messages/state_block.hpp>
-#include <logos/consensus/messages/batch_state_block.hpp>
+#include <logos/consensus/messages/receive_block.hpp>
+#include <logos/consensus/messages/request_block.hpp>
 #include <logos/epoch/epoch_transition.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
@@ -13,36 +13,37 @@
 
 
 static constexpr size_t MAX_MSG_SIZE = 1024*1024;
-//The current largest message is a post-committed BSB with 1500 StateBlock,
-//each has 8 transactions. Its size is 850702;
+// TODO: Update based on new request types
+// The current largest message is a post-committed RequestBlock with 1500 Sends,
+// each has 8 transactions. Its size is 850702;
 
-//ConsensusBlock definitions
+// ConsensusBlock definitions
 template<ConsensusType CT, typename E = void>
 struct ConsensusBlock;
 
 template<>
-struct ConsensusBlock<ConsensusType::BatchStateBlock> : public BatchStateBlock
+struct ConsensusBlock<ConsensusType::Request> : public RequestBlock
 {
     ConsensusBlock() = default;
     ConsensusBlock(bool & error, logos::stream & stream, bool with_appendix)
-    : BatchStateBlock(error, stream, with_appendix)
-      {}
+        : RequestBlock(error, stream, with_appendix)
+    {}
 };
 template<>
 struct ConsensusBlock<ConsensusType::MicroBlock> : public MicroBlock
 {
     ConsensusBlock() = default;
     ConsensusBlock(bool & error, logos::stream & stream, bool with_appendix)
-    : MicroBlock(error, stream, with_appendix)
-      {}
+        : MicroBlock(error, stream, with_appendix)
+    {}
 };
 template<>
 struct ConsensusBlock<ConsensusType::Epoch> : public Epoch
 {
     ConsensusBlock() = default;
     ConsensusBlock(bool & error, logos::stream & stream, bool with_appendix)
-    : Epoch(error, stream, with_appendix)
-      {}
+        : Epoch(error, stream, with_appendix)
+    {}
 };
 
 template<ConsensusType CT> struct PostCommittedBlock;
@@ -54,16 +55,16 @@ struct PrePrepareMessage : public MessagePrequel<MessageType::Pre_Prepare, CT>,
     PrePrepareMessage() = default;
 
     PrePrepareMessage(bool & error,
-            logos::stream & stream,
-            uint8_t version,
-            bool with_appendix = true)
-    : MessagePrequel<MessageType::Pre_Prepare, CT>(version)
-    , ConsensusBlock<CT>(error, stream, with_appendix)
+                      logos::stream & stream,
+                      uint8_t version,
+                      bool with_appendix = true)
+        : MessagePrequel<MessageType::Pre_Prepare, CT>(version)
+        , ConsensusBlock<CT>(error, stream, with_appendix)
     {}
 
     PrePrepareMessage(const PostCommittedBlock<CT> & block)
-    : MessagePrequel<MessageType::Pre_Prepare, CT>(block.version)
-    , ConsensusBlock<CT>(block)
+        : MessagePrequel<MessageType::Pre_Prepare, CT>(block.version)
+        , ConsensusBlock<CT>(block)
     {}
 
     BlockHash Hash() const
@@ -116,29 +117,25 @@ template<ConsensusType CT>
 struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Block, CT>,
                             public ConsensusBlock<CT>
 {
-    AggSignature    post_prepare_sig;
-    AggSignature    post_commit_sig;
-    BlockHash       next;
-
     PostCommittedBlock() = default;
 
     PostCommittedBlock(PrePrepareMessage<CT> & block,
-            AggSignature & post_prepare_sig,
-            AggSignature & post_commit_sig)
-    : MessagePrequel<MessageType::Post_Committed_Block, CT>(block.version)
-    , ConsensusBlock<CT>(block)
-    , post_prepare_sig(post_prepare_sig)
-    , post_commit_sig(post_commit_sig)
-    , next()
+                       AggSignature & post_prepare_sig,
+                       AggSignature & post_commit_sig)
+        : MessagePrequel<MessageType::Post_Committed_Block, CT>(block.version)
+        , ConsensusBlock<CT>(block)
+        , post_prepare_sig(post_prepare_sig)
+        , post_commit_sig(post_commit_sig)
+        , next()
     { }
 
     PostCommittedBlock(bool & error,
-            logos::stream & stream,
-            uint8_t version,
-            bool with_appendix,
-            bool with_next)
-    : MessagePrequel<MessageType::Post_Committed_Block, CT>(version)
-    , ConsensusBlock<CT>(error, stream, with_appendix)
+                       logos::stream & stream,
+                       uint8_t version,
+                       bool with_appendix,
+                       bool with_next)
+        : MessagePrequel<MessageType::Post_Committed_Block, CT>(version)
+        , ConsensusBlock<CT>(error, stream, with_appendix)
     {
         if(error)
         {
@@ -235,9 +232,11 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
         HeaderStream header_stream(buf.data(), MessagePrequelSize);
         MessagePrequel<MessageType::Post_Committed_Block, CT>::Serialize(header_stream);
     }
-};
 
-void update_PostCommittedBlock_next_field(const logos::mdb_val & mdbval, logos::mdb_val & mdbval_buf, const BlockHash & next);
+    AggSignature post_prepare_sig;
+    AggSignature post_commit_sig;
+    BlockHash    next;
+};
 
 // This should only be called for the first request block in an epoch
 void update_PostCommittedRequestBlock_prev_field(const logos::mdb_val & mdbval, logos::mdb_val & mdbval_buf, const BlockHash & prev);
@@ -255,11 +254,11 @@ struct StandardPhaseMessage<MT, CT, std::enable_if_t<
     MT == MessageType::Commit>> : MessagePrequel<MT, CT>
 {
     StandardPhaseMessage(const BlockHash & preprepare_hash)
-    : preprepare_hash(preprepare_hash)
-      {}
+        : preprepare_hash(preprepare_hash)
+    {}
 
     StandardPhaseMessage(bool & error, logos::stream & stream, uint8_t version)
-    : MessagePrequel<MT, CT>(version)
+        : MessagePrequel<MT, CT>(version)
     {
         error = logos::read(stream, preprepare_hash);
         if(error)
@@ -285,7 +284,8 @@ struct StandardPhaseMessage<MT, CT, std::enable_if_t<
         HeaderStream header_stream(buf.data(), MessagePrequelSize);
         MessagePrequel<MT, CT>::Serialize(header_stream);
     }
-    BlockHash preprepare_hash;
+
+    BlockHash   preprepare_hash;
     DelegateSig signature;
 };
 
@@ -306,12 +306,12 @@ struct PostPhaseMessage<MT, CT, std::enable_if_t<
 {
 
     PostPhaseMessage(const BlockHash &preprepare_hash, const AggSignature &signature)
-    : preprepare_hash(preprepare_hash)
-    , signature(signature)
-      {}
+        : preprepare_hash(preprepare_hash)
+        , signature(signature)
+    {}
 
     PostPhaseMessage(bool & error, logos::stream & stream, uint8_t version)
-    : MessagePrequel<MT, CT>(version)
+        : MessagePrequel<MT, CT>(version)
     {
         error = logos::read(stream, preprepare_hash);
         if(error)
@@ -348,8 +348,8 @@ struct PostPhaseMessage<MT, CT, std::enable_if_t<
         HeaderStream header_stream(buf.data(), MessagePrequelSize);
         MessagePrequel<MT, CT>::Serialize(header_stream);
     }
-    BlockHash       preprepare_hash;
-    AggSignature    signature;
+    BlockHash    preprepare_hash;
+    AggSignature signature;
 };
 
 // Key advertisement
@@ -357,12 +357,12 @@ struct PostPhaseMessage<MT, CT, std::enable_if_t<
 struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert,
                                          ConsensusType::Any>
 {
-    DelegatePubKey public_key;
-
     KeyAdvertisement() = default;
 
-    KeyAdvertisement(bool & error, logos::stream & stream, uint8_t version)
-    : MessagePrequel<MessageType::Key_Advert, ConsensusType::Any>(version)
+    KeyAdvertisement(bool & error,
+                     logos::stream & stream,
+                     uint8_t version)
+        : MessagePrequel<MessageType::Key_Advert, ConsensusType::Any>(version)
     {
         error = logos::read(stream, public_key);
     }
@@ -380,81 +380,46 @@ struct KeyAdvertisement : MessagePrequel<MessageType::Key_Advert,
         HeaderStream header_stream(buf.data(), MessagePrequelSize);
         MessagePrequel<MessageType::Key_Advert, ConsensusType::Any>::Serialize(header_stream);
     }
+
+    DelegatePubKey public_key;
 };
 
 struct ConnectedClientIds
 {
-    uint32_t epoch_number;
-    uint8_t delegate_id;
-    EpochConnection connection;
-    char ip[INET6_ADDRSTRLEN];
-
-    static constexpr size_t STREAM_SIZE  =
-            sizeof(epoch_number) +
-            sizeof(delegate_id) +
-            sizeof(EpochConnection) +
-            INET6_ADDRSTRLEN;
-
     ConnectedClientIds() = default;
 
-    ConnectedClientIds(uint32_t epoch_number, uint8_t delegate_id,
-            EpochConnection connection, const char *ip)
-    : epoch_number(epoch_number)
-    , delegate_id(delegate_id)
-    , connection(connection)
+    ConnectedClientIds(uint32_t epoch_number,
+                       uint8_t delegate_id,
+                       EpochConnection connection,
+                       const char *ip);
+
+    ConnectedClientIds(bool & error, logos::stream & stream);
+
+    static constexpr size_t StreamSize()
     {
-        strncpy(this->ip, ip, INET6_ADDRSTRLEN);
+        return sizeof(epoch_number) +
+               sizeof(delegate_id) +
+               sizeof(EpochConnection) +
+               INET6_ADDRSTRLEN;
     }
 
-    ConnectedClientIds(bool & error, logos::stream & stream)
-    {
-        error = logos::read(stream, epoch_number);
-        if(error)
-        {
-            return;
-        }
-        epoch_number = le32toh(epoch_number);
+    uint32_t Serialize(std::vector<uint8_t> & buf) const;
 
-        error = logos::read(stream, delegate_id);
-        if(error)
-        {
-            return;
-        }
-
-        error = logos::read(stream, connection);
-        if(error)
-        {
-            return;
-        }
-
-        error = logos::read(stream, ip);
-   }
-
-    uint32_t Serialize(std::vector<uint8_t> & buf) const
-    {
-        assert(buf.empty());
-        logos::vectorstream stream(buf);
-
-        auto s = logos::write(stream, htole32(epoch_number));
-        s += logos::write(stream, delegate_id);
-        s += logos::write(stream, connection);
-        s += logos::write(stream, ip);
-
-        assert(STREAM_SIZE == s);
-        return s;
-    }
-
+    uint32_t        epoch_number;
+    uint8_t         delegate_id;
+    EpochConnection connection;
+    char            ip[INET6_ADDRSTRLEN];
 };
 
 struct HeartBeat : MessagePrequel<MessageType::Heart_Beat,
                                   ConsensusType::Any>
 {
-    uint8_t is_request = 1;
-
     HeartBeat() = default;
 
-    HeartBeat(bool & error, logos::stream & stream, uint8_t version)
-    : MessagePrequel<MessageType::Heart_Beat, ConsensusType::Any>(version)
+    HeartBeat(bool & error,
+              logos::stream & stream,
+              uint8_t version)
+        : MessagePrequel<MessageType::Heart_Beat, ConsensusType::Any>(version)
     {
         error = logos::read(stream, is_request);
     }
@@ -472,6 +437,53 @@ struct HeartBeat : MessagePrequel<MessageType::Heart_Beat,
         HeaderStream header_stream(buf.data(), MessagePrequelSize);
         MessagePrequel<MessageType::Heart_Beat, ConsensusType::Any>::Serialize(header_stream);
     }
+
+    uint8_t is_request = 1;
+};
+
+void UpdateNext(const logos::mdb_val &mdbval, logos::mdb_val &mdbval_buf, const BlockHash &next);
+
+struct P2pConsensusHeader
+{
+    P2pConsensusHeader(uint32_t epoch, uint8_t src, uint8_t dest)
+    : epoch_number(epoch)
+    , src_delegate_id(src)
+    , dest_delegate_id(dest) {}
+    P2pConsensusHeader(bool & error, logos::stream & stream)
+    {
+        Deserialize(error, stream);
+    }
+    P2pConsensusHeader(bool & error, std::vector<uint8_t> &buf)
+    {
+        logos::vectorstream stream(buf);
+        Deserialize(error, stream);
+    }
+    void Deserialize(bool &error, logos::stream &stream)
+    {
+        error = logos::read(stream, epoch_number) ||
+                logos::read(stream, src_delegate_id);
+                logos::read(stream, dest_delegate_id);
+    }
+
+    uint32_t Serialize(logos::vectorstream &stream)
+    {
+       return logos::write(stream, epoch_number) +
+              logos::write(stream, src_delegate_id) +
+              logos::write(stream, dest_delegate_id);
+    }
+
+    uint32_t Serialize(std::vector<uint8_t> &buf)
+    {
+        logos::vectorstream stream(buf);
+        return Serialize(stream);
+    }
+
+    uint32_t    epoch_number = 0;
+    uint8_t     src_delegate_id = 0;
+    uint8_t     dest_delegate_id = 0;
+    static constexpr size_t P2PHEADER_SIZE = sizeof(epoch_number) +
+                sizeof(src_delegate_id) +
+                sizeof(dest_delegate_id);
 };
 
 // Convenience aliases for message names.
@@ -488,24 +500,24 @@ using PostPrepareMessage = PostPhaseMessage<MessageType::Post_Prepare, CT>;
 template<ConsensusType CT>
 using PostCommitMessage = PostPhaseMessage<MessageType::Post_Commit, CT>;
 
-// Request Message specializations. The underlying type can
+// Delegate Message specializations. The underlying type can
 // vary based on the consensus type.
 //
 template<ConsensusType CT>
-struct RequestMessage;
+struct DelegateMessage;
 
 template<>
-struct RequestMessage<ConsensusType::BatchStateBlock> : StateBlock
+struct DelegateMessage<ConsensusType::Request> : Request
 {};
 
 template<>
-struct RequestMessage<ConsensusType::MicroBlock> : PrePrepareMessage<ConsensusType::MicroBlock>
+struct DelegateMessage<ConsensusType::MicroBlock> : PrePrepareMessage<ConsensusType::MicroBlock>
 {};
 
 template<>
-struct RequestMessage<ConsensusType::Epoch> : PrePrepareMessage<ConsensusType::Epoch>
+struct DelegateMessage<ConsensusType::Epoch> : PrePrepareMessage<ConsensusType::Epoch>
 {};
 
-using ApprovedBSB    = PostCommittedBlock<ConsensusType::BatchStateBlock>;
-using ApprovedMB     = PostCommittedBlock<ConsensusType::MicroBlock>;
-using ApprovedEB     = PostCommittedBlock<ConsensusType::Epoch>;
+using ApprovedRB = PostCommittedBlock<ConsensusType::Request>;
+using ApprovedMB = PostCommittedBlock<ConsensusType::MicroBlock>;
+using ApprovedEB = PostCommittedBlock<ConsensusType::Epoch>;

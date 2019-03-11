@@ -82,6 +82,7 @@ int main(int argc, char **argv) {
 
 	config.argc = argc;
 	config.argv = argv;
+    config.test_mode = false;
 
 	boost::log::add_common_attributes ();
 	boost::log::register_simple_formatter_factory< boost::log::trivial::severity_level, char > ("Severity");

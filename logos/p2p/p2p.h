@@ -34,6 +34,7 @@ struct p2p_config
     void *                                                          boost_io_service;
     std::function<void(std::function<void()> const &, unsigned)>    scheduleAfterMs;
     std::function<void(int,const char *)>                           userInterfaceMessage;
+    bool                                                            test_mode;
 };
 
 enum p2p_option_flags
@@ -57,12 +58,14 @@ public:
     void Shutdown();
     bool PropagateMessage(const void *message, unsigned size, bool output);
 
+    /* add nodes array to the database; return number of successfully added */
+    int add_peers(char **nodes, uint8_t count);
+
     /* Fills the nodes array of the count size by pointers to subsequent nodes
      * starting from the node with id *next.
      * Returns number of filled nodes, set *next to id of next node to fill.
      */
     int get_peers(int *next, char **nodes, uint8_t count);
-
 
     /* Add a peer to a blacklist
      * to be called when validation fails
@@ -73,6 +76,12 @@ public:
      * to be checked when we select a new peer to bootstrap from
      */
     bool is_blacklisted(const char *addr);
+
+    /* load peers and blacklist databases from disk; returns true if success */
+    bool load_databases();
+
+    /* save peers and blacklist databases to disk; returns true if success */
+    bool save_databases();
 
     virtual bool ReceiveMessageCallback(const void *message, unsigned size)
     {
