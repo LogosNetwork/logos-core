@@ -27,6 +27,7 @@ const char UNKNOWN[]            = "unknown";
 
 // Request fields
 //
+const char HASH[]            = "hash";
 const char TYPE[]            = "type";
 const char ORIGIN[]          = "origin";
 const char SIGNATURE[]       = "signature";
@@ -58,6 +59,9 @@ const char TRANSACTIONS[]    = "transactions";
 const char CLIENT[]          = "client";
 const char REPRESENTATIVE[]  = "representative";
 const char TOKEN_FEE[]       = "token_fee";
+const char PRIVATE_KEY[]     = "private_key";
+const char PUBLIC_KEY[]      = "public_key";
+const char WALLET[]          = "wallet";
 const char FROZEN[]          = "frozen";
 const char UNFROZEN[]        = "unfrozen";
 const char WHITELISTED[]     = "whitelisted";

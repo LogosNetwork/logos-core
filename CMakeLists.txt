@@ -377,6 +377,8 @@ add_library (node
 	logos/node/openclwork.hpp
 	logos/node/rpc.hpp
 	logos/node/rpc.cpp
+	logos/node/rpc_logic.hpp
+	logos/node/rpc_logic.cpp
 	logos/node/testing.hpp
 	logos/node/testing.cpp
 	logos/node/wallet.hpp
@@ -415,8 +417,9 @@ if (LOGOS_TEST)
 	add_executable (unit_test
 		logos/unit_test/account_serialization.cpp
 		logos/unit_test/consensus_msg_serialize.cpp
-        logos/unit_test/request_serialization.cpp
-        logos/unit_test/tallying.cpp
+		logos/unit_test/msg_validator_setup.cpp
+		logos/unit_test/request_serialization.cpp
+		logos/unit_test/tallying.cpp
         logos/unit_test/p2p_test.cpp
         logos/p2p/test/propagate_test.cpp
         logos/p2p/test/storage_test.cpp)

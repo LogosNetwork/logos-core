@@ -160,6 +160,45 @@ bool TokenAccount::Deserialize(logos::stream & stream)
     return error;
 }
 
+boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
+{
+    Log log;
+    boost::property_tree::ptree tree;
+    tree.put("token_balance",token_balance.to_string_dec());
+    tree.put("total_supply",total_supply.to_string_dec());
+    tree.put("token_fee_balance",token_fee_balance.to_string_dec());
+    tree.put("symbol",symbol);
+    tree.put("name",name);
+    tree.put("issuer_info",issuer_info);
+    tree.put("fee_rate",fee_rate.to_string_dec());
+    tree.put("fee_type",fee_type == TokenFeeType::Percentage ? "Percentage" : fee_type == TokenFeeType::Flat ? "Flat" : "Unknown");
+    if(details) {
+        boost::property_tree::ptree controllers_tree;
+        for(auto & c : controllers)
+        {
+            boost::property_tree::ptree ctree(c.SerializeJson());
+            controllers_tree.push_back(std::make_pair("",ctree));
+        }
+        tree.add_child("controllers", controllers_tree);
+        LOG_INFO(log) << "TokenAccount::SerializeJson - serializing settings "
+            << ".settings size is " << settings.field.size();
+        boost::property_tree::ptree settings_tree;
+        for(size_t i = 0; i < settings.field.size(); ++i)
+        {
+            LOG_INFO(log) << "TokenAccount::SerializeJson - serializing setting i = "
+                << i << " . SettingField is " << GetTokenSettingField(i)
+                << ". value is " << settings[i];
+            std::string field = GetTokenSettingField(i);
+            if(field != "" && settings[i])
+            {
+                settings_tree.put(field,settings[i] ? "true" : "false");
+            }
+        }
+        tree.add_child("settings", settings_tree);
+    }
+    return tree;
+}
+
 bool TokenAccount::operator== (TokenAccount const & other) const
 {
     return total_supply == other.total_supply &&

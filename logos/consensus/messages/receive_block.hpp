@@ -33,8 +33,8 @@ struct ReceiveBlock
     ReceiveBlock(bool & error, const logos::mdb_val & mdbval);
 
     /// Serialize the data members to a Json string
-    /// @returns the Json string
-    std::string SerializeJson() const;
+    /// @returns the Json as property_tree
+    boost::property_tree::ptree SerializeJson() const;
 
     /// Add the data members to the property_tree which will be encoded to Json
     /// @param batch_state_block the property_tree to add data members to

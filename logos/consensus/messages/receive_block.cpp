@@ -32,13 +32,11 @@ ReceiveBlock::ReceiveBlock(bool & error, const logos::mdb_val & mdbval)
     index2send= le16toh(index2send);
 }
 
-std::string ReceiveBlock::SerializeJson() const
+boost::property_tree::ptree ReceiveBlock::SerializeJson() const
 {
     boost::property_tree::ptree tree;
     SerializeJson (tree);
-    std::stringstream ostream;
-    boost::property_tree::write_json(ostream, tree);
-    return ostream.str();
+    return tree;
 }
 
 void ReceiveBlock::SerializeJson(boost::property_tree::ptree & tree) const

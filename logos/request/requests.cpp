@@ -126,10 +126,29 @@ Request::Request(bool & error,
             return;
         }
 
-        error = signature.decode_hex(tree.get<std::string>(SIGNATURE));
-        if(error)
+        if(tree.find(SIGNATURE)!=tree.not_found())
         {
-            return;
+            error = signature.decode_hex(tree.get<std::string>(SIGNATURE));
+            if(error)
+            {
+                return;
+            }
+        }
+        else
+        {
+            AccountPrivKey prv;
+            error = prv.decode_hex(tree.get<std::string>(PRIVATE_KEY));
+            if(error)
+            {
+                return;
+            }
+            AccountPubKey pub;
+            error = pub.decode_hex(tree.get<std::string>(PUBLIC_KEY));
+            if(error)
+            {
+                return;
+            }
+            Sign(pub,prv);
         }
 
         error = logos::from_string_hex(tree.get<std::string>(WORK, "0"), work);
