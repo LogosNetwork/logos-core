@@ -594,6 +594,9 @@ RequestConsensusManager::OnDelegatesConnected()
     {
         _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
         _init_timer.async_wait([this](const Error &error) {
+            // After startup consensus is performed
+            // with an empty batch block.
+            _handler.OnRequest(std::make_shared<Request>(Request()));
             _state = ConsensusState::VOID;
             _ongoing = true;
             InitiateConsensus();

@@ -3,13 +3,7 @@
 #include <logos/lib/blocks.hpp>
 
 RequestHandler::RequestHandler()
-{
-    // After startup consensus is performed
-    // with an empty batch block.
-    //
-
-    _requests.get<0>().push_back(std::make_shared<Request>(Request()));
-}
+{}
 
 void RequestHandler::OnRequest(RequestPtr request)
 {
