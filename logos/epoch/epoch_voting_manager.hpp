@@ -49,12 +49,6 @@ public:
     /// @returns vector of delegate-elects
     std::vector<Delegate> GetDelegateElects(size_t num_new, uint32_t next_epoch_num);
 
-    //TODO: documentation
-    void CacheElectionWinners(
-            std::vector<std::pair<AccountAddress,CandidateInfo>>& winners);
-
-    void InvalidateCache();
-
     void RedistributeVotes(Delegates &delegates);
 
     bool ShouldForceRetire(uint32_t next_epoch_num);
@@ -71,9 +65,6 @@ public:
 
 private:
 
-    std::vector<std::pair<AccountAddress,CandidateInfo>> _cached_election_winners;
-    std::mutex _cache_mutex; 
-    bool _cache_written = false;
     BlockStore &    _store; ///< logos block store reference
     Log             _log;   ///< boost asio log
 

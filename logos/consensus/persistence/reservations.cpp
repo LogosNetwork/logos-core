@@ -57,8 +57,6 @@ Reservations::CanAcquire(const AccountAddress & account,
 void
 Reservations::Release(const AccountAddress & account)
 {
-    LOG_INFO(_log) << "Reservations::Release - releasing account "
-        << account.to_string();
     _reservations.erase(account);
 }
 
@@ -67,8 +65,6 @@ Reservations::UpdateReservation(const BlockHash & hash,
                                 const AccountAddress & account)
 {
     uint32_t current_epoch = ConsensusContainer::GetCurEpochNumber();
-    LOG_INFO(_log) << "Reservations::UpdateReservation - reserving for account "
-        << account.to_string();
 
     if(_reservations.find(account) != _reservations.end() &&
            _reservations[account].reservation != hash)

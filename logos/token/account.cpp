@@ -162,6 +162,7 @@ bool TokenAccount::Deserialize(logos::stream & stream)
 
 boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
 {
+    Log log;
     boost::property_tree::ptree tree;
     tree.put("token_balance",token_balance.to_string_dec());
     tree.put("total_supply",total_supply.to_string_dec());
@@ -169,6 +170,8 @@ boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
     tree.put("symbol",symbol);
     tree.put("name",name);
     tree.put("issuer_info",issuer_info);
+    tree.put("fee_rate",fee_rate.to_string_dec());
+    tree.put("fee_type",fee_type == TokenFeeType::Percentage ? "Percentage" : fee_type == TokenFeeType::Flat ? "Flat" : "Unknown");
     if(details) {
         boost::property_tree::ptree controllers_tree;
         for(auto & c : controllers)
@@ -177,11 +180,19 @@ boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
             controllers_tree.push_back(std::make_pair("",ctree));
         }
         tree.add_child("controllers", controllers_tree);
-
+        LOG_INFO(log) << "TokenAccount::SerializeJson - serializing settings "
+            << ".settings size is " << settings.field.size();
         boost::property_tree::ptree settings_tree;
-        for(uint8_t i = 0; i < settings.field.size(); ++i)
+        for(size_t i = 0; i < settings.field.size(); ++i)
         {
-            settings_tree.put(GetTokenSettingField(i),settings[i]);
+            LOG_INFO(log) << "TokenAccount::SerializeJson - serializing setting i = "
+                << i << " . SettingField is " << GetTokenSettingField(i)
+                << ". value is " << settings[i];
+            std::string field = GetTokenSettingField(i);
+            if(field != "" && settings[i])
+            {
+                settings_tree.put(field,settings[i] ? "true" : "false");
+            }
         }
         tree.add_child("settings", settings_tree);
     }
@@ -396,9 +407,9 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
         case RequestType::TokenSend:
             result = true;
             break;
+        case RequestType::ElectionVote:
         case RequestType::AnnounceCandidacy:
         case RequestType::RenounceCandidacy:
-        case RequestType::ElectionVote:
         case RequestType::StartRepresenting:
         case RequestType::StopRepresenting:
         case RequestType::Unknown:

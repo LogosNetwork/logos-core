@@ -5,10 +5,8 @@
 RequestBlock::RequestBlock(bool & error, logos::stream & stream, bool with_requests)
     : PrePrepareCommon(error, stream)
 {
-    Log log;
     if(error)
     {
-        LOG_FATAL(log) << "RequestBlock - error in prepreparecommon";
         return;
     }
 
@@ -16,13 +14,11 @@ RequestBlock::RequestBlock(bool & error, logos::stream & stream, bool with_reque
     error = logos::read(stream, size);
     if(error)
     {
-        LOG_FATAL(log) << "RequestBlock - error reading size";
         return;
     }
 
     if((error = (size > CONSENSUS_BATCH_SIZE)))
     {
-        LOG_FATAL(log) << "RequestBlock - size is too great";
         return;
     }
 
@@ -32,7 +28,6 @@ RequestBlock::RequestBlock(bool & error, logos::stream & stream, bool with_reque
         error = logos::read(stream, hashes[i]);
         if(error)
         {
-            LOG_FATAL(log) << "RequestBlock - error reading hash : " << i;
             return;
         }
     }
@@ -44,8 +39,6 @@ RequestBlock::RequestBlock(bool & error, logos::stream & stream, bool with_reque
             auto val = DeserializeRequest(error, stream);
             if(error)
             {
-                LOG_FATAL(log) << "RequestBlock - error deserializing request: "
-                    << i;
                 return;
             }
 

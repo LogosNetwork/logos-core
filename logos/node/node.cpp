@@ -2535,15 +2535,9 @@ logos::thread_runner::thread_runner (boost::asio::io_service & service_a, unsign
             {
                 service_a.run ();
             }
-            catch (std::exception& e)
+            catch (...)
             {
-                std::cout << "Exception is " << e.what() << std::endl;
                 assert (false && "Unhandled service exception");
-            }
-            catch(...)
-            {
-                std::cout << "Exception is not std::exception" << std::endl;
-                assert(false && "Unhandled service exception");
             }
         }));
     }

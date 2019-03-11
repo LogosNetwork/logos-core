@@ -51,10 +51,12 @@ void
 EpochConsensusManager::QueueMessagePrimary(
     std::shared_ptr<DelegateMessage> message)
 {
-    _cur_epoch = static_pointer_cast<PrePrepare>(message);
-    
-    LOG_INFO(_log) << "EpochConsensusManager::QueueMessagePrimary -"
-        << "_cur_epoch is : " << _cur_epoch->SerializeJson();
+    std::lock_guard<std::recursive_mutex> lock(_mutex);
+    auto hash = message->Hash();
+    if (!_store.epoch_exists(hash))
+    {
+        _cur_epoch = static_pointer_cast<PrePrepare>(message);
+    }
 }
 
 auto

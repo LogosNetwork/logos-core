@@ -71,12 +71,13 @@ const char STATUS[]          = "status";
 const char WORK[]            = "work";
 const char PRIVATE_KEY[]     = "private_key";
 const char PUBLIC_KEY[]      = "public_key";
-const char WALLET[]         = "wallet";
-const char VOTES[]          = "votes";
-const char REQUEST[]        = "request";
-const char STAKE[]          = "stake";
-const char EPOCH_NUM[]      = "epoch_num";
-const char BLS_KEY[]        = "bls_key"; 
+const char WALLET[]          = "wallet";
+const char VOTES[]           = "votes";
+const char REQUEST[]         = "request";
+const char STAKE[]           = "stake";
+const char EPOCH_NUM[]       = "epoch_num";
+const char BLS_KEY[]         = "bls_key"; 
+const char HASH[]            = "hash";
 
 // Token setting fields
 //

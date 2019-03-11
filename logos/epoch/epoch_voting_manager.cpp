@@ -10,7 +10,6 @@
 #include <logos/lib/trace.hpp>
 #include <logos/elections/database.hpp>
 #include <unordered_map>
-#include <logos/elections/database_functions.hpp>
 #include <logos/consensus/consensus_container.hpp>
 
 #include <boost/multiprecision/cpp_dec_float.hpp>
@@ -47,19 +46,6 @@ EpochVotingManager::GetElectionWinners(
 uint32_t EpochVotingManager::START_ELECTIONS_EPOCH = 3;
 uint32_t EpochVotingManager::TERM_LENGTH = 4;
 
-void EpochVotingManager::CacheElectionWinners(std::vector<std::pair<AccountAddress,CandidateInfo>>& winners)
-{
-    std::lock_guard<std::mutex> guard(_cache_mutex);
-    _cached_election_winners = winners;
-    _cache_written = true;
-}
-
-void EpochVotingManager::InvalidateCache()
-{
-    std::lock_guard<std::mutex> guard(_cache_mutex);
-    _cache_written = false; 
-}
-
 //these are the delegates that are in their last epoch
 std::unordered_set<Delegate> EpochVotingManager::GetRetiringDelegates(
         uint32_t next_epoch_num)
@@ -94,7 +80,7 @@ EpochVotingManager::GetDelegatesToForceRetire(uint32_t next_epoch_num)
     std::unordered_set<Delegate> to_retire;
     size_t num_epochs_ago = next_epoch_num - START_ELECTIONS_EPOCH - 1;
     //TODO < not <=
-    assert(num_epochs_ago <= 4);
+    assert(num_epochs_ago < 4);
     ApprovedEB epoch;
     _store.epoch_get_n(num_epochs_ago, epoch);
     size_t offset = num_epochs_ago * (NUM_DELEGATES / TERM_LENGTH); 
@@ -123,9 +109,13 @@ std::vector<Delegate> EpochVotingManager::GetDelegateElects(size_t num_new, uint
         std::transform(results.begin(),results.end(),delegate_elects.begin(),
                 [this](auto p){
 
-                Delegate d(p.first,p.second.bls_key,p.second.votes_received_weighted,p.second.stake);
-                d.starting_term = true;
-                return d;
+                    Delegate d(
+                            p.first,
+                            p.second.bls_key,
+                            p.second.votes_received_weighted,
+                            p.second.stake);
+                    d.starting_term = true;
+                    return d;
                 });
         return delegate_elects;
     }
@@ -138,7 +128,8 @@ std::vector<Delegate> EpochVotingManager::GetDelegateElects(size_t num_new, uint
 //TODO: does this really need to use an output variable? Just return the delegates
 void
 EpochVotingManager::GetNextEpochDelegates(
-   Delegates &delegates, uint32_t next_epoch_num)
+        Delegates &delegates,
+        uint32_t next_epoch_num)
 {
     int constexpr num_epochs = 3;
     int constexpr num_new_delegates = 8;
@@ -146,7 +137,6 @@ EpochVotingManager::GetNextEpochDelegates(
     BlockHash hash;
     std::unordered_map<AccountPubKey,bool> delegates3epochs;
     
-    LOG_INFO(_log) << "EpochVotingManager::GetNextEpochDelegates";
     // get all delegate in the previous 3 epochs
     if (_store.epoch_tip_get(hash))
     {
@@ -189,9 +179,6 @@ EpochVotingManager::GetNextEpochDelegates(
         trace_and_halt();
     }
 
-    LOG_INFO(_log) << "EpochVotingManager::Delegate-Elects size is : " << delegate_elects.size()
-        << " . Retiring size is " << retiring.size();
-
     size_t del_elects_idx = 0;
     for (int del = 0; del < NUM_DELEGATES; ++del)
     {
@@ -230,7 +217,6 @@ bool EpochVotingManager::IsGreater(const Delegate& d1, const Delegate& d2)
 
 void EpochVotingManager::RedistributeVotes(Delegates &delegates)
 {
-    Log log;
     Amount total_votes = 0;
 
     for(int del = 0; del < NUM_DELEGATES; ++del)

@@ -322,7 +322,7 @@ add_library (node
 	logos/consensus/request/request_consensus_manager.cpp
 	logos/consensus/request/request_backup_delegate.cpp
 	logos/consensus/request/request_handler.cpp
-        logos/consensus/waiting_list.cpp
+	logos/consensus/waiting_list.cpp
 	logos/consensus/delegate_bridge.cpp
 	logos/consensus/backup_delegate.cpp
 	logos/consensus/consensus_container.cpp
@@ -343,14 +343,13 @@ add_library (node
 	logos/consensus/p2p/consensus_p2p_bridge.cpp
 	logos/consensus/persistence/persistence.cpp
 	logos/consensus/persistence/validator_builder.cpp
-        logos/consensus/persistence/request/request_persistence.cpp
+	logos/consensus/persistence/request/request_persistence.cpp
 	logos/consensus/persistence/epoch/epoch_persistence.cpp
 	logos/consensus/persistence/microblock/microblock_persistence.cpp
 	logos/consensus/persistence/reservations.cpp
 	logos/consensus/primary_delegate.cpp
 	logos/elections/requests.cpp
 	logos/elections/database.cpp
-    logos/elections/database_functions.cpp
 	logos/epoch/archiver.cpp
 	logos/epoch/epoch.cpp
 	logos/epoch/epoch_handler.cpp
@@ -390,14 +389,14 @@ add_library (node
 	logos/node/stats.cpp
 	logos/node/working.hpp
 	logos/node/xorshift.hpp
-    logos/request/requests.cpp
-    logos/request/utility.cpp
+	logos/request/requests.cpp
+	logos/request/utility.cpp
 	logos/request/utility.cpp
 	logos/token/account.cpp
 	logos/token/common.cpp
 	logos/token/entry.cpp
 	logos/token/requests.cpp
-    logos/token/utility.cpp
+	logos/token/utility.cpp
 	logos/tx_acceptor/tx_acceptor.cpp
 	logos/tx_acceptor/tx_acceptor_channel.cpp
 	logos/tx_acceptor/tx_message_header.cpp
@@ -420,12 +419,12 @@ if (LOGOS_TEST)
 	add_executable (unit_test
 		logos/unit_test/account_serialization.cpp
 		logos/unit_test/consensus_msg_serialize.cpp
-        logos/unit_test/p2p_test.cpp
-        logos/p2p/test/propagate_test.cpp
-        logos/p2p/test/storage_test.cpp
+		logos/unit_test/p2p_test.cpp
+		logos/p2p/test/propagate_test.cpp
+		logos/p2p/test/storage_test.cpp
 		logos/unit_test/msg_validator_setup.cpp
 		logos/unit_test/request_serialization.cpp
-        logos/unit_test/database.cpp
+		logos/unit_test/database.cpp
 		logos/unit_test/tallying.cpp)
 
 	set_target_properties (unit_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1 ")
