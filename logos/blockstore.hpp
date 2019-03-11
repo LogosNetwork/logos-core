@@ -8,6 +8,7 @@
 #include <logos/epoch/epoch.hpp>
 #include <logos/lib/log.hpp>
 #include <logos/common.hpp>
+#include <logos/elections/database.hpp>
 
 namespace logos
 {
@@ -246,6 +247,7 @@ public:
     /// @param list of delegate request block hash to populate [in]
     void GetEpochFirstRBs(uint32_t epoch_number, BatchTips & epoch_firsts);
 
+    bool epoch_exists(const ApprovedEB & block);
     uint32_t next_epoch_number();
     bool epoch_get_n(uint32_t ago, ApprovedEB &, MDB_txn *t=0);
 

@@ -2704,15 +2704,15 @@ void logos::rpc_handler::process ()
             case RequestType::WithdrawFee:
             case RequestType::WithdrawLogos:
             case RequestType::TokenSend:
+            case RequestType::ElectionVote:
             case RequestType::AnnounceCandidacy:
             case RequestType::RenounceCandidacy:
-            case RequestType::ElectionVote:
             case RequestType::StartRepresenting:
             case RequestType::StopRepresenting:
                 process(request);
                 break;
             case RequestType::Change:
-                error_response(response, "ChangeRep is not implemented yet");
+                error_response(response, "Change is not implemented yet");
                 break;
             default:
                 error_response(response, "Request is invalid");

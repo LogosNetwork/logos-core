@@ -338,7 +338,7 @@ enum class process_result
     key_collision,              // Logos - There is already a user account or token account with the same key.
     invalid_fee,                // Logos - The fee settings are invalid.
     invalid_issuer_info,        // Logos - The issuer info supplied is invalid.
-    too_many_token_entries      // Logos - The account has too many token entries.
+    too_many_token_entries,      // Logos - The account has too many token entries.
     elections_dead_period,           // Logos - the vote is at the beginning of the epoch when no votes are being processed
     not_a_rep,                 // Logos - the voter is not a representative
     already_voted,

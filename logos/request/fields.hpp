@@ -8,7 +8,6 @@ namespace fields
 
 // Request types
 //
-<<<<<<< HEAD
 const char SEND[]               = "send";
 const char CHANGE[]             = "change";
 const char ISSUANCE[]           = "issuance";
@@ -75,6 +74,8 @@ const char WHITELISTED[]     = "whitelisted";
 const char NOT_WHITELISTED[] = "not_whitelisted";
 const char STATUS[]          = "status";
 const char WORK[]            = "work";
+const char PRIVATE_KEY[]     = "private_key";
+const char PUBLIC_KEY[]      = "public_key";
 const char WALLET[]         = "wallet";
 const char VOTES[]          = "votes";
 const char REQUEST[]        = "request";
