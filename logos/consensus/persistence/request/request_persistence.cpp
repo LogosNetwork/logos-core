@@ -244,6 +244,67 @@ bool PersistenceManager<R>::ValidateRequest(
                 return false;
             }
             break;
+        case RequestType::ElectionVote:
+        {
+            logos::transaction txn(_store.environment,nullptr,false);
+            auto ev = dynamic_pointer_cast<const ElectionVote>(request);
+            if(!ValidateRequest(*ev, cur_epoch_num, txn, result))
+            {
+                LOG_ERROR(_log) << "ElectionVote is invalid: " << ev->Hash().to_string()
+                << " code is " << logos::ProcessResultToString(result.code);
+                return false;
+            }
+            break;
+        }
+        case RequestType::AnnounceCandidacy:
+        {
+            logos::transaction txn(_store.environment,nullptr,false);
+            auto ac = dynamic_pointer_cast<const AnnounceCandidacy>(request);
+            if(!ValidateRequest(*ac, cur_epoch_num, txn, result))
+            {
+                LOG_ERROR(_log) << "AnnounceCandidacy is invalid: " << ac->Hash().to_string()
+                << " code is " << logos::ProcessResultToString(result.code);
+                return false;
+            }
+            break;
+        }
+        case RequestType::RenounceCandidacy:
+        {
+            logos::transaction txn(_store.environment,nullptr,false);
+            auto rc = dynamic_pointer_cast<const RenounceCandidacy>(request);
+            if(!ValidateRequest(*rc,cur_epoch_num,txn, result))
+            {
+                LOG_ERROR(_log) << "RenounceCandidacy is invalid: " << rc->Hash().to_string()
+                << " code is " << logos::ProcessResultToString(result.code);
+                return false;
+            }
+            break;
+            
+        }
+        case RequestType::StartRepresenting:
+        {
+            logos::transaction txn(_store.environment,nullptr,false);
+            auto sr = dynamic_pointer_cast<const StartRepresenting>(request);
+            if(!ValidateRequest(*sr,cur_epoch_num,txn, result))
+            {
+                LOG_ERROR(_log) << "StartRepresenting is invalid: " << sr->Hash().to_string()
+                << " code is " << logos::ProcessResultToString(result.code);
+                return false;
+            }
+            break;
+        }
+        case RequestType::StopRepresenting:
+        {
+            logos::transaction txn(_store.environment,nullptr,false);
+            auto sr = dynamic_pointer_cast<const StopRepresenting>(request);
+            if(!ValidateRequest(*sr,cur_epoch_num,txn,result))
+            {
+                LOG_ERROR(_log) << "StartRepresenting is invalid: " << sr->Hash().to_string()
+                << " code is " << logos::ProcessResultToString(result.code);
+                return false;
+            }   
+            break;
+        }
         case RequestType::Unknown:
             LOG_ERROR(_log) << "PersistenceManager::Validate - Received unknown request type";
 
@@ -251,66 +312,6 @@ bool PersistenceManager<R>::ValidateRequest(
             return false;
 
             break;
-
-
-        }
-    }
-
-    if(request->type == RequestType::ElectionVote)
-    {
-        logos::transaction txn(_store.environment,nullptr,false);
-        auto ev = dynamic_pointer_cast<const ElectionVote>(request);
-        if(!ValidateRequest(*ev, cur_epoch_num, txn, result))
-        {
-            LOG_ERROR(_log) << "ElectionVote is invalid: " << ev->Hash().to_string()
-            << " code is " << logos::ProcessResultToString(result.code);
-            return false;
-        }
-    }
-    else if(request->type == RequestType::AnnounceCandidacy)
-    {
-        logos::transaction txn(_store.environment,nullptr,false);
-        auto ac = dynamic_pointer_cast<const AnnounceCandidacy>(request);
-        if(!ValidateRequest(*ac, cur_epoch_num, txn, result))
-        {
-            LOG_ERROR(_log) << "AnnounceCandidacy is invalid: " << ac->Hash().to_string()
-            << " code is " << logos::ProcessResultToString(result.code);
-            return false;
-        }
-    }
-    else if(request->type == RequestType::RenounceCandidacy)
-    {
-        logos::transaction txn(_store.environment,nullptr,false);
-        auto rc = dynamic_pointer_cast<const RenounceCandidacy>(request);
-        if(!ValidateRequest(*rc,cur_epoch_num,txn, result))
-        {
-            LOG_ERROR(_log) << "RenounceCandidacy is invalid: " << rc->Hash().to_string()
-            << " code is " << logos::ProcessResultToString(result.code);
-            return false;
-        }
-        
-    }
-    else if(request->type == RequestType::StartRepresenting)
-    {
-        logos::transaction txn(_store.environment,nullptr,false);
-        auto sr = dynamic_pointer_cast<const StartRepresenting>(request);
-        if(!ValidateRequest(*sr,cur_epoch_num,txn, result))
-        {
-            LOG_ERROR(_log) << "StartRepresenting is invalid: " << sr->Hash().to_string()
-            << " code is " << logos::ProcessResultToString(result.code);
-            return false;
-        }
-    }
-    else if(request->type == RequestType::StopRepresenting)
-    {
-        logos::transaction txn(_store.environment,nullptr,false);
-        auto sr = dynamic_pointer_cast<const StopRepresenting>(request);
-        if(!ValidateRequest(*sr,cur_epoch_num,txn,result))
-        {
-            LOG_ERROR(_log) << "StartRepresenting is invalid: " << sr->Hash().to_string()
-            << " code is " << logos::ProcessResultToString(result.code);
-            return false;
-        }   
     }
 
     result.code = logos::process_result::progress;

@@ -55,7 +55,6 @@ EpochConsensusManager::QueueMessagePrimary(
     
     LOG_INFO(_log) << "EpochConsensusManager::QueueMessagePrimary -"
         << "_cur_epoch is : " << _cur_epoch->SerializeJson();
-    _enqueued = true;
 }
 
 auto

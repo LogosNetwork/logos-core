@@ -4,30 +4,9 @@
 
 using namespace request::fields;
 
-AnnounceCandidacy::AnnounceCandidacy(
-            const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence)
-    : Request(
-            RequestType::AnnounceCandidacy,
-            origin, previous, fee, sequence)
-{
-    Hash();
-}  
-
-AnnounceCandidacy::AnnounceCandidacy(
-            const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence,
-            const AccountSig & sig)
-    : Request(
-            RequestType::AnnounceCandidacy,
-            origin, previous, fee, sequence, sig)
-{
-    Hash();
-}  
+AnnounceCandidacy::AnnounceCandidacy()
+    : Request(RequestType::AnnounceCandidacy)
+{}  
 
 AnnounceCandidacy::AnnounceCandidacy(bool & error,
             std::basic_streambuf<uint8_t> & stream) : Request(error, stream)
@@ -104,6 +83,7 @@ uint64_t AnnounceCandidacy::Serialize(logos::stream & stream) const
     val += logos::write(stream, bls_key);
     val += logos::write(stream, epoch_num);
     val += logos::write(stream, encryption_key);
+    val += logos::write(stream, signature);
     return val;
 }
 
@@ -125,6 +105,29 @@ void AnnounceCandidacy::Deserialize(bool & error, logos::stream & stream)
         return;
     }
     error = logos::read(stream, encryption_key);
+
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+    }
 }
 
 void AnnounceCandidacy::DeserializeDB(bool & error, logos::stream & stream)
@@ -155,31 +158,9 @@ uint16_t AnnounceCandidacy::WireSize() const
     return Request::WireSize() + sizeof(stake) + sizeof(bls_key) + sizeof(epoch_num); 
 }
 
-RenounceCandidacy::RenounceCandidacy(
-            const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence)
-    : Request(
-            RequestType::RenounceCandidacy,
-            origin, previous, fee, sequence)
-{
-    Hash();
-}  
-
-RenounceCandidacy::RenounceCandidacy(
-            const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence,
-            const AccountSig & sig)
-    : Request(
-            RequestType::RenounceCandidacy,
-            origin, previous, fee, sequence, sig)
-{
-
-    Hash();
-} 
+RenounceCandidacy::RenounceCandidacy()
+    : Request(RequestType::RenounceCandidacy)
+{}  
 
 RenounceCandidacy::RenounceCandidacy(bool & error,
             std::basic_streambuf<uint8_t> & stream) : Request(error, stream)
@@ -223,12 +204,35 @@ RenounceCandidacy::RenounceCandidacy(bool & error,
 
 uint64_t RenounceCandidacy::Serialize(logos::stream & stream) const
 {
-    return logos::write(stream, epoch_num);
+    return logos::write(stream, epoch_num)
+        + logos::write(stream, signature);
 }
 
 void RenounceCandidacy::Deserialize(bool & error, logos::stream & stream)
 {
     error = logos::read(stream, epoch_num);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+    }
 }
 
 void RenounceCandidacy::DeserializeDB(bool & error, logos::stream & stream)
@@ -249,30 +253,9 @@ boost::property_tree::ptree RenounceCandidacy::SerializeJson() const
     return tree;
 }
 
-ElectionVote::ElectionVote(
-        const AccountAddress & origin,
-        const BlockHash & previous,
-        const Amount & fee,
-        uint32_t sequence)
-    : Request(
-            RequestType::ElectionVote,
-            origin, previous, fee, sequence)
-{
-    Hash();
-}
-
-ElectionVote::ElectionVote(
-        const AccountAddress & origin,
-        const BlockHash & previous,
-        const Amount & fee,
-        uint32_t sequence,
-        const AccountSig & signature)
-    : Request(
-            RequestType::ElectionVote,
-            origin, previous, fee, sequence, signature)
-{
-    Hash();
-}
+ElectionVote::ElectionVote()
+    : Request(RequestType::ElectionVote)
+{}
 
 ElectionVote::ElectionVote(bool & error,
             std::basic_streambuf<uint8_t> & stream) : Request(error, stream)
@@ -419,6 +402,7 @@ uint64_t ElectionVote::Serialize(logos::stream & stream) const
         val += v.Serialize(stream);
    }
    val += logos::write(stream, epoch_num);
+   val += logos::write(stream, signature);
    return val;
 }
 
@@ -443,6 +427,28 @@ void ElectionVote::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, epoch_num);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+    }
 }
 
 void ElectionVote::DeserializeDB(bool & error, logos::stream & stream)
@@ -497,29 +503,9 @@ bool ElectionVote::operator!=(const ElectionVote& other) const
     return !(*this == other);
 }
 
-StartRepresenting::StartRepresenting(
-        const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence,
-            const Amount stake)
-    : Request(RequestType::StartRepresenting, origin, previous, fee, sequence), stake(stake)
-{
-    Hash();
-}
-
-StartRepresenting::StartRepresenting(
-        const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence,
-            const AccountSig & signature,
-            const Amount stake)
-    : Request(RequestType::StartRepresenting, origin, previous, fee, sequence, signature), stake(stake)
-{
-    Hash();
-}
-
+StartRepresenting::StartRepresenting()
+    : Request(RequestType::StartRepresenting)
+{}
 
 StartRepresenting::StartRepresenting(bool & error,
             std::basic_streambuf<uint8_t> & stream)
@@ -577,6 +563,7 @@ uint64_t StartRepresenting::Serialize(logos::stream & stream) const
 {
     auto val = logos::write(stream, stake);
     val += logos::write(stream, epoch_num);
+    val += logos::write(stream, signature);
     return val;
 }
 
@@ -589,6 +576,29 @@ void StartRepresenting::Deserialize(bool& error, logos::stream& stream)
         std::cout << "error reading stake" << std::endl;
     }
     error = logos::read(stream, epoch_num);
+
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+    }
 }
 
 void StartRepresenting::DeserializeDB(bool& error, logos::stream& stream)
@@ -613,27 +623,9 @@ boost::property_tree::ptree StartRepresenting::SerializeJson() const
     return tree;
 }
 
-StopRepresenting::StopRepresenting(
-        const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence)
-    : Request(RequestType::StopRepresenting, origin, previous, fee, sequence)
-{
-    Hash();
-}
-
-StopRepresenting::StopRepresenting(
-        const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence,
-            const AccountSig & signature)
-    : Request(RequestType::StopRepresenting, origin, previous, fee, sequence, signature)
-{
-    Hash();
-}
-
+StopRepresenting::StopRepresenting()
+    : Request(RequestType::StopRepresenting)
+{}
 
 StopRepresenting::StopRepresenting(bool & error,
             std::basic_streambuf<uint8_t> & stream)
@@ -697,6 +689,28 @@ boost::property_tree::ptree StopRepresenting::SerializeJson() const
 void StopRepresenting::Deserialize(bool& error, logos::stream& stream)
 {
     error = logos::read(stream, epoch_num); 
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+    }
 }
 
 void StopRepresenting::DeserializeDB(bool& error, logos::stream& stream)
@@ -712,6 +726,7 @@ void StopRepresenting::DeserializeDB(bool& error, logos::stream& stream)
 
 uint64_t StopRepresenting::Serialize(logos::stream & stream) const
 {
-    return logos::write(stream, epoch_num);
+    return logos::write(stream, epoch_num)
+        + logos::write(stream, signature);
 }
 

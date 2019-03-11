@@ -11,16 +11,16 @@
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/persistence/persistence.hpp>
 
-#define Unit_Test_Database
+#define Unit_Test_Elections
 
-#ifdef Unit_Test_Database
+#ifdef Unit_Test_Elections
 
 
 //TODO: json serialization?
 //TODO: GetOldEpochBlock test?
 //TODO: serialization 
 
-TEST (Database, blockstore)
+TEST (Elections, blockstore)
 {
     logos::block_store* store(get_db());
     ASSERT_NE(store,nullptr);
@@ -58,7 +58,12 @@ TEST (Database, blockstore)
         AccountSig sig = 1;
         Amount fee = 7;
         uint32_t sequence = 2;
-        ElectionVote ev(address, prev, fee, sequence, sig);
+        ElectionVote ev;
+        ev.origin = address;
+        ev.previous = prev;
+        ev.fee = fee;
+        ev.sequence = sequence;
+        ev.signature = sig;
         ev.epoch_num = 42;
 
         
@@ -69,9 +74,7 @@ TEST (Database, blockstore)
 
         ElectionVote ev2;
         ev2.type = RequestType::ElectionVote;
-        std::cout << "getting ev2" << std::endl;
         res = store->request_get(hash,ev2,txn);
-        std::cout << "got ev2" << std::endl;
         ASSERT_FALSE(res);
         ASSERT_EQ(ev2.type,ev.type);
         ASSERT_EQ(ev2.previous,ev.previous);
@@ -95,7 +98,6 @@ TEST (Database, blockstore)
         ev.votes = votes;
         ev.origin = 12;
 
-        std::cout << "putting" << std::endl;
         hash = ev.Hash();
         res = store->request_put(ev,txn);
         ASSERT_FALSE(res);
@@ -120,10 +122,15 @@ TEST (Database, blockstore)
         ASSERT_EQ(ev_json, ev3);
 
 
-        AnnounceCandidacy announce(7,12,23,2);
+        AnnounceCandidacy announce;
+        announce.origin = 7;
+        announce.previous = 12;
+        announce.sequence = 23;
+        announce.fee = 2;
         announce.stake = 4;
         announce.bls_key = 13;
         announce.epoch_num = 11;
+        announce.Hash();
 
         ASSERT_FALSE(store->request_put(announce,txn));
         AnnounceCandidacy announce2;
@@ -136,8 +143,13 @@ TEST (Database, blockstore)
         ASSERT_FALSE(res);
         ASSERT_EQ(announce_json, announce);
 
-        RenounceCandidacy renounce(2,3,5,7);
+        RenounceCandidacy renounce;
+        renounce.origin = 2;
+        renounce.previous = 3;
+        renounce.sequence = 5;
+        renounce.signature = 7;
         renounce.epoch_num = 26;
+        renounce.Hash();
         ASSERT_FALSE(store->request_put(renounce,txn));
         RenounceCandidacy renounce2;
         ASSERT_FALSE(store->request_get(renounce.Hash(),renounce2,txn));
@@ -148,8 +160,14 @@ TEST (Database, blockstore)
 
         ASSERT_EQ(renounce_json, renounce);
 
-        StartRepresenting start(4,5,2,3,32);
+        StartRepresenting start;
+        start.origin = 4;
+        start.previous = 5;
+        start.sequence = 2;
+        start.fee = 3;
+        start.stake = 32;
         start.epoch_num = 456;
+        start.Hash();
         ASSERT_FALSE(store->request_put(start,txn));
         StartRepresenting start2;
         ASSERT_EQ(GetRequestType<StartRepresenting>(),RequestType::StartRepresenting);
@@ -163,8 +181,13 @@ TEST (Database, blockstore)
         ASSERT_EQ(start_json, start);
 
 
-        StopRepresenting stop(4,5,2,3,32);
+        StopRepresenting stop;
+        stop.origin = 4;
+        stop.previous = 5;
+        stop.sequence = 47;
+        stop.fee = 12;
         stop.epoch_num = 456;
+        stop.Hash();
         ASSERT_FALSE(store->request_put(stop,txn));
         StopRepresenting stop2;
         ASSERT_EQ(GetRequestType<StopRepresenting>(),RequestType::StopRepresenting);
@@ -213,55 +236,7 @@ TEST (Database, blockstore)
    
 }
 
-TEST(Database, heap)
-{
-    std::vector<int> nums;
-    nums.resize(100);
-    {
-        for(size_t i = 0; i < nums.size(); ++i)
-        {
-            nums[i] = i;
-        }
-
-        FixedSizeHeap<int> heap(8,[](int a, int b){return a > b;});
-        for(int i : nums)
-        {
-            heap.try_push(i);
-        }
-
-        std::vector<int> res_exp{99,98,97,96,95,94,93,92};
-        ASSERT_EQ(res_exp,heap.getResults());
-    }
-    {
-        for(size_t i = 0; i < nums.size(); ++i)
-        {
-            if(i%10 == 0)
-            {
-                nums[i] *= 10;
-            }
-        }
-
-        FixedSizeHeap<int> heap(8,[](int a, int b){return a > b;});
-        for(int i : nums)
-        {
-            heap.try_push(i); 
-        }
-
-        std::vector<int> res_exp{900,800,700,600,500,400,300,200};
-        ASSERT_EQ(res_exp,heap.getResults());
-    }
-   
-    {
-        FixedSizeHeap<int> heap(8,[](int a, int b){return a > b;});
-        heap.try_push(10);
-        heap.try_push(12);
-        std::vector<int> res_exp{12,10};
-        ASSERT_EQ(res_exp,heap.getResults());
-    } 
-
-}
-
-TEST(Database, candidates_simple)
+TEST(Elections, candidates_simple)
 {
     
     logos::block_store* store = get_db();
@@ -320,7 +295,7 @@ TEST(Database, candidates_simple)
     //TODO: write tests for candidate functions
 }
 
-TEST(Database, get_winners)
+TEST(Elections, get_winners)
 {
 
     logos::block_store* store = get_db();
@@ -341,7 +316,6 @@ TEST(Database, get_winners)
         CandidateInfo c(false,false,(i % 3) * 100 + i);
         c.bls_key = i * 4 + 37;
         AccountAddress a(i);
-        std::cout << "i is " << i << std::endl;
         store->candidate_put(a,c,txn);
         candidates.push_back(std::make_pair(a,c));
     }
@@ -363,15 +337,7 @@ TEST(Database, get_winners)
             });
 
     ASSERT_EQ(winners.size(),results.size());
-//    for(auto p : results)
-//    {
-//        std::cout << "account is : " << p.first.to_string() << std::endl;
-//    }
-//
-//    for(auto c : winners)
-//    {
-//        std::cout << "account is : " << c.first.to_string() << std::endl;
-//    }
+
     ASSERT_EQ(winners,results);
     
 }
@@ -388,7 +354,7 @@ void iterateCandidatesDB(
     }
 }
 
-TEST(Database, representatives_db)
+TEST(Elections, representatives_db)
 {
     logos::block_store* store = get_db();
     store->clear(store->representative_db);
@@ -430,7 +396,7 @@ TEST(Database, representatives_db)
     
 }
 
-TEST(Database,candidates_transition)
+TEST(Elections,candidates_transition)
 {
     logos::block_store* store = get_db();
     store->clear(store->candidacy_db);
@@ -516,8 +482,7 @@ TEST(Database,candidates_transition)
         ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
 
     }    
-    uint32_t no_reelections = EpochVotingManager::START_ELECTIONS_EPOCH - 1;
-    uint32_t reelections = EpochVotingManager::START_ELECTIONS_EPOCH;
+
     mgr.MarkDelegateElectsAsRemove(txn);
     mgr.UpdateCandidatesDB(txn);
 
@@ -604,7 +569,7 @@ TEST(Database,candidates_transition)
 
 }
 
-TEST(Database,get_next_epoch_delegates)
+TEST(Elections,get_next_epoch_delegates)
 {
     logos::block_store* store = get_db();
     store->clear(store->candidacy_db);
@@ -662,7 +627,6 @@ TEST(Database,get_next_epoch_delegates)
 
     auto transition_epoch = [&](int retire_idx = -1)
     {
-        std::cout << "transitioning to epoch " << (epoch_num + 1) << std::endl;
         ++epoch_num;
         eb.previous = eb.Hash();
         eb.epoch_number = epoch_num-1;
@@ -678,7 +642,6 @@ TEST(Database,get_next_epoch_delegates)
     {
         for(size_t i = 0; i < 32; ++i)
         {
-            std::cout << "i is " << i << std::endl;
             ASSERT_EQ(eb.delegates[i].account,delegates[i].account);
 
             ASSERT_EQ(eb.delegates[i].stake,delegates[i].stake);
@@ -820,7 +783,6 @@ TEST(Database,get_next_epoch_delegates)
 
     for(size_t e = 0; e < 50; ++e)
     {
-        std::cout << "******LOOP NUMBER " << e << std::endl;
     candidates = get_candidates();
     ASSERT_EQ(candidates.size(),8);
     ASSERT_EQ(voting_mgr.GetRetiringDelegates(epoch_num+1).size(),8);
@@ -847,7 +809,7 @@ TEST(Database,get_next_epoch_delegates)
 
 }
 
-TEST(Database, redistribute_votes)
+TEST(Elections, redistribute_votes)
 {
 
     logos::block_store* store = get_db();
@@ -916,7 +878,7 @@ TEST(Database, redistribute_votes)
     }
 }
 
-TEST(Database,validate)
+TEST(Elections,validate)
 {
     logos::block_store* store = get_db();
     PersistenceManager<R> persistence_mgr(*store,nullptr);
@@ -1001,7 +963,6 @@ TEST(Database,validate)
     auto transition_epoch = [&](std::vector<AccountAddress> new_delegates = {})
     {
         ++epoch_num;
-        std::cout << "transitioning to epoch " << epoch_num << std::endl;
         eb.previous = eb.Hash();
         eb.epoch_number = epoch_num-1;
         vote.epoch_num = epoch_num;
@@ -1016,7 +977,6 @@ TEST(Database,validate)
         }
         for(size_t i = 0; i < new_delegates.size(); ++i)
         {
-            std::cout << "adding new delegate" << std::endl;
             eb.delegates[i].account = new_delegates[i];
             eb.delegates[i].starting_term = true;
         }
@@ -1043,7 +1003,6 @@ TEST(Database,validate)
         return results;
     };
 
-    std::cout << "first transition" << std::endl;
     transition_epoch();
 
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
@@ -1054,14 +1013,10 @@ TEST(Database,validate)
 
 
     persistence_mgr.ApplyRequest(vote,txn);
-    std::cout << "VOTED ************" << std::endl;
     ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
     persistence_mgr.ApplyRequest(announce,txn);
-    std::cout << "ANNOUNCED *************" << std::endl;
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
-    std::cout << "1 ************" << std::endl;
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
-    std::cout << "2 ***********" << std::endl;
 
     auto active = [](auto info) -> bool
     {
@@ -1082,13 +1037,11 @@ TEST(Database,validate)
     ASSERT_EQ(candidates.size(),1);
     candidates = get_candidates(active);
     ASSERT_EQ(candidates.size(),0);
-    std::cout << "second transition *********" << std::endl;
     transition_epoch();
 
     ASSERT_EQ(get_candidates(all).size(),1);
     ASSERT_EQ(get_candidates(active).size(),1);
 
-    std::cout << "TRANSITIONED *************" << std::endl;
     CandidateInfo info;
     ASSERT_FALSE(store->candidate_get(announce.origin,info,txn));
     ASSERT_TRUE(info.active);
@@ -1101,22 +1054,18 @@ TEST(Database,validate)
 
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
-    std::cout << "APPLYING RENOUNCE" << std::endl;
 
     persistence_mgr.ApplyRequest(renounce,txn);
 
     ASSERT_EQ(get_candidates(all).size(),1);
     ASSERT_EQ(get_candidates(active).size(),1);
     ASSERT_EQ(get_candidates(remove).size(),1);
-    std::cout << "APPLIED RENOUNCE" << std::endl;
 
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
-    std::cout << "1 ********" << std::endl;
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
 
-    std::cout << "CHECKED VALIDITY" << std::endl;
 
     vote.votes.emplace_back(sender_account,8);
     vote.Hash();
@@ -1124,7 +1073,6 @@ TEST(Database,validate)
     persistence_mgr.ApplyRequest(vote,txn);
 
     ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
-    std::cout << "ABOUT TO TRANSITION" << std::endl;
 
     transition_epoch();
 
@@ -1192,9 +1140,7 @@ TEST(Database,validate)
 
     std::vector<AccountAddress> new_delegates;
     new_delegates.push_back(announce.origin);
-    std::cout << "transitioning with new delegates" << std::endl;
     transition_epoch(new_delegates);
-    std::cout << "transitioned with new delegates" << std::endl;
 
    
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
@@ -1253,37 +1199,9 @@ TEST(Database,validate)
 
 }
 
-TEST(Database, transaction)
-{
-
-    logos::block_store* store = get_db();
-    {
-    logos::transaction txn(store->environment,nullptr,true);
-    std::cout << "opened first transaction" << std::endl;
-
-    std::thread new_thread([&store]()
-            {
-                std::cout << "opening second transaction" << std::endl;
-                logos::transaction txn(store->environment,nullptr,true);
-                std::cout << "opened second transaction" << std::endl;
-
-            }
-            );
-
-     new_thread.detach();
-
-    usleep(10000000);
-
-    std::cout << "woke up" << std::endl;
-    }
-    std::cout << "closed first transaction" << std::endl;
-    usleep(10000000);
 
 
-}
-
-
-TEST(Database, full)
+TEST(Elections, apply)
 {
 
     logos::block_store* store = get_db();
@@ -1345,16 +1263,9 @@ TEST(Database, full)
     EpochVotingManager::START_ELECTIONS_EPOCH = 4;
 
 
-
-
-
-
-        
-
     auto transition_epoch = [&]()
     {
         ++epoch_num;
-        std::cout << "transitioning to epoch " << epoch_num << std::endl;
         eb.previous = eb.Hash();
         eb.epoch_number = epoch_num-1;
         voting_mgr.GetNextEpochDelegates(eb.delegates,epoch_num);
@@ -1443,11 +1354,7 @@ TEST(Database, full)
     ev.origin = reps[0];
     ev.votes.emplace_back(eb.delegates[0].account,8);
     ev.epoch_num = epoch_num;
-    if(!req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result))
-    {
-        std::cout << ProcessResultToString(result.code) << std::endl;
-        assert(false);
-    }
+    ASSERT_TRUE(req_persistence_mgr.ValidateRequest(ev, epoch_num, txn, result));
     req_persistence_mgr.ApplyRequest(ev, txn);
 
     ev.votes.clear();
@@ -1622,62 +1529,9 @@ TEST(Database, full)
     ASSERT_TRUE(contains(reps[3]));
     ASSERT_TRUE(contains(reps[4]));
     
-
-
-
-
-
-
-
-//    std::vector<std::pair<AccountAddress,DelegatePubKey>> accounts;
-//    for(size_t i = 32; i < 64; ++i)
-//    {
-//        accounts.emplace_back(i,i);
-//    }
-//
-//    for(auto account : accounts)
-//    {
-//        StartRepresenting sr;
-//        sr.origin = account.first;
-//        sr.stake = MIN_REP_STAKE;
-//        sr.epoch_num = epoch_num;
-//        sr.Hash();
-//        ASSERT_TRUE(persistence_mgr.ValidateRequest(sr,epoch_num,txn,result));
-//        persistence_mgr.ApplyRequest(sr,txn);
-//    }
-//
-//
-//    for(auto account : accounts)
-//    {
-//        AnnounceCandidacy ac;
-//        ac.origin = account.first;
-//        ac.stake = MIN_DELEGATE_STAKE;
-//        ac.bls_key = account.second;
-//        ac.epoch_num = epoch_num;
-//        ASSERT_TRUE(persistence_mgr.ValidateRequest(ac,epoch_num,txn,result));
-//        persistence_mgr.ApplyRequest(ac,txn);
-//    }
-//
-//    ASSERT_EQ(get_candidates(all).size(),accounts.size());
-//    ASSERT_EQ(get_candidates(active).size(),0);
-//
-//    transition_epoch();
-//    ASSERT_EQ(get_candidates(active).size(),accounts.size());
-//
-//    for(size_t i = 0; i < accounts.size(); ++i)
-//    {
-//        ElectionVote v;
-//        v.origin = accounts[i].first;
-//        v.votes.emplace_back(accounts[i%8].first,8);
-//        v.epoch_num = epoch_num;
-//        ASSERT_TRUE(persistence_mgr.ValidateRequest(v,epoch_num,txn,result));
-//        persistence_mgr.ApplyRequest(v,txn);
-//    }
-//
-//    transition_epoch();
 }
 
-TEST(Database, weighted_votes)
+TEST(Elections, weighted_votes)
 {
 
     logos::block_store* store = get_db();
@@ -1729,7 +1583,7 @@ TEST(Database, weighted_votes)
 
 }
 
-TEST(Database, tiebreakers)
+TEST(Elections, tiebreakers)
 {
 
     Delegate d1(1,0,10,20);

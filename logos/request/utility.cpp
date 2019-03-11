@@ -230,19 +230,19 @@ std::shared_ptr<Request> BuildRequest(RequestType type, bool & error, Data && da
             result = std::make_shared<TokenSend>(error, data);
             break;
         case RequestType::AnnounceCandidacy:
-            result = std::make_shared<AnnounceCandidacy>(AnnounceCandidacy(args...));
+            result = std::make_shared<AnnounceCandidacy>(error, data);
             break;
         case RequestType::RenounceCandidacy:
-            result = std::make_shared<RenounceCandidacy>(RenounceCandidacy(args...));
+            result = std::make_shared<RenounceCandidacy>(error, data);
             break;
         case RequestType::ElectionVote:
-            result = std::make_shared<ElectionVote>(ElectionVote(args...));
+            result = std::make_shared<ElectionVote>(error, data);
             break;
         case RequestType::StartRepresenting:
-            result = std::make_shared<StartRepresenting>(StartRepresenting(args...));
+            result = std::make_shared<StartRepresenting>(error, data);
             break;
         case RequestType::StopRepresenting:
-            result = std::make_shared<StopRepresenting>(StopRepresenting(args...));
+            result = std::make_shared<StopRepresenting>(error, data);
             break;
         case RequestType::Unknown:
             error = true;

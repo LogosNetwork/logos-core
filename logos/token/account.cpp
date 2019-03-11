@@ -516,25 +516,3 @@ TokenSetting TokenAccount::GetMutabilitySetting(TokenSetting setting)
     //
     return static_cast<TokenSetting>(static_cast<EnumType>(setting) + 1);
 }
-
-bool TokenAccount::ValidateFee(TokenFeeType fee_type, Amount fee_rate)
-{
-    auto result = false;
-
-    switch(fee_type)
-    {
-        case TokenFeeType::Percentage:
-            if(fee_rate.number() <= 100)
-            {
-                result = true;
-            }
-            break;
-        case TokenFeeType::Flat:
-            result = true;
-            break;
-        case TokenFeeType::Unknown:
-            break;
-    }
-
-    return result;
-}

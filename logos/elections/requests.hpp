@@ -2,7 +2,7 @@
 
 #include <logos/common.hpp>
 #include <logos/lib/numbers.hpp>
-#include <logos/request/request.hpp>
+#include <logos/request/requests.hpp>
 #include <boost/optional.hpp>
 
 
@@ -60,21 +60,7 @@ struct ElectionVote : Request
         uint8_t num_votes;
     };
 
-    ElectionVote() : Request()
-    {
-        type = RequestType::ElectionVote; 
-    }
-
-    ElectionVote(const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence);
-
-    ElectionVote(const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence,
-            const AccountSig & signature);
+    ElectionVote();
 
     ElectionVote(bool & error,
             std::basic_streambuf<uint8_t> & stream);
@@ -111,21 +97,7 @@ struct ElectionVote : Request
 
 struct AnnounceCandidacy : Request
 {
-    AnnounceCandidacy() : Request()
-    {
-        type = RequestType::AnnounceCandidacy;
-    }
-
-    AnnounceCandidacy(const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence);
-
-    AnnounceCandidacy(const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence,
-            const AccountSig & signature);
+    AnnounceCandidacy();
 
     AnnounceCandidacy(bool & error,
             std::basic_streambuf<uint8_t> & stream);
@@ -161,21 +133,7 @@ struct AnnounceCandidacy : Request
 
 struct RenounceCandidacy : Request
 {
-    RenounceCandidacy() : Request()
-    {
-        type = RequestType::RenounceCandidacy;
-    }
-
-    RenounceCandidacy(const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence);
-
-    RenounceCandidacy(const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence,
-            const AccountSig & signature);
+    RenounceCandidacy();
 
     RenounceCandidacy(bool & error,
             std::basic_streambuf<uint8_t> & stream);
@@ -206,23 +164,7 @@ struct RenounceCandidacy : Request
 struct StartRepresenting : Request
 {
 
-    StartRepresenting() : Request()
-    {
-        type = RequestType::StartRepresenting;
-    }
-
-    StartRepresenting(const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence,
-            const Amount stake);
-
-    StartRepresenting(const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence,
-            const AccountSig & signature,
-            const Amount stake);
+    StartRepresenting();
 
     StartRepresenting(bool & error,
             std::basic_streambuf<uint8_t> & stream);
@@ -254,21 +196,7 @@ struct StartRepresenting : Request
 struct StopRepresenting : Request
 {
     
-    StopRepresenting() : Request()
-    {
-        type = RequestType::StopRepresenting;
-    }
-
-    StopRepresenting(const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence);
-
-    StopRepresenting(const AccountAddress & origin,
-            const BlockHash & previous,
-            const Amount & fee,
-            uint32_t sequence,
-            const AccountSig & signature);
+    StopRepresenting(); 
 
     StopRepresenting(bool & error,
             std::basic_streambuf<uint8_t> & stream);
