@@ -573,7 +573,6 @@ void StartRepresenting::Deserialize(bool& error, logos::stream& stream)
     if(error)
     {
         return;
-        std::cout << "error reading stake" << std::endl;
     }
     error = logos::read(stream, epoch_num);
 
@@ -606,7 +605,6 @@ void StartRepresenting::DeserializeDB(bool& error, logos::stream& stream)
     Request::DeserializeDB(error, stream);
     if(error)
     {
-        std::cout << "error in base" << std::endl;
         return;
     }
 

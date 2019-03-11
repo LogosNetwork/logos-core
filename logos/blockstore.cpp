@@ -1296,25 +1296,6 @@ bool logos::block_store::epoch_exists (const BlockHash &hash, MDB_txn *transacti
     return (false == epoch_get(hash, eb, transaction));
 }
 
-uint32_t logos::block_store::next_epoch_number()
-{
-    BlockHash epoch_tip;
-    if (epoch_tip_get(epoch_tip))
-    {
-        LOG_FATAL(log) << "block_store::next_epoch_num - failed to get epoch tip";
-        trace_and_halt();
-    }
-
-    ApprovedEB epoch;
-    if (epoch_get(epoch_tip, epoch))
-    {
-        LOG_FATAL(log) << "block_store::next_epoch_num - failed to get epoch: "
-                        << epoch_tip.to_string();
-        trace_and_halt();
-    }
-    return epoch.epoch_number + 1;
-}
-
 bool logos::block_store::rep_get(AccountAddress const & account, RepInfo & rep_info, MDB_txn* transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << account.to_string();

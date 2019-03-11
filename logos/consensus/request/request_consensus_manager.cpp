@@ -139,10 +139,7 @@ RequestConsensusManager::QueueMessagePrimary(
 auto
 RequestConsensusManager::PrePrepareGetNext() -> PrePrepare &
 {
-
-
     auto & batch = _handler.GetCurrentBatch();
-
 
     for(uint64_t i = 0; i < batch.requests.size(); ++i)
     {
@@ -202,6 +199,7 @@ RequestConsensusManager::InitiateConsensus(bool reproposing)
 
     batch.sequence = _sequence;
     batch.timestamp = GetStamp();
+    //need to set the current epoch number here for validation
     batch.epoch_number = _events_notifier.GetEpochNumber();
     batch.primary_delegate = _delegate_id;
     // SYL Integration fix: move previous assignment here to avoid overriding in archive blocks

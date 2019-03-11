@@ -248,7 +248,6 @@ public:
     void GetEpochFirstRBs(uint32_t epoch_number, BatchTips & epoch_firsts);
 
     bool epoch_exists(const ApprovedEB & block);
-    uint32_t next_epoch_number();
     bool epoch_get_n(uint32_t ago, ApprovedEB &, MDB_txn *t=0);
 
     bool rep_get(

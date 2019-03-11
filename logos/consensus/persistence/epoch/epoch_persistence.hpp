@@ -62,11 +62,4 @@ public:
     void MarkDelegateElectsAsRemove(MDB_txn* txn);
     void AddReelectionCandidates(MDB_txn* txn);
     void TransitionCandidatesDBNextEpoch(MDB_txn* txn, uint32_t next_epoch_num);
-
-    bool ShouldForceRetire(uint32_t next_epoch_number);
-    
-    std::unordered_set<Delegate> GetDelegatesToForceRetire(
-            uint32_t next_epoch_num,
-            MDB_txn* txn);
-
 };

@@ -1,7 +1,6 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <logos/node/rpc.hpp>
-#include <logos/node/rpc_logic.hpp>
 #include <logos/microblock/microblock_tester.hpp>
 
 #include <logos/lib/interface.h>
@@ -336,6 +335,7 @@ void logos::rpc_handler::account_info ()
     if(!res.error)
     {
         response(res.contents);
+
 
     }
     else
@@ -1174,7 +1174,6 @@ void logos::rpc_handler::block_create ()
 
 
             auto created_request = DeserializeRequest(error, request);
-
             if(error)
             {
 
@@ -1353,58 +1352,6 @@ void logos::rpc_handler::chain ()
     {
         error_response (response, "Invalid block hash");
     }
-}
-
-void logos::rpc_handler::candidates ()
-{
-    boost::property_tree::ptree res;
-
-    logos::transaction txn(node.store.environment,nullptr,false);
-
-    for(auto it = logos::store_iterator(txn,node.store.candidacy_db);
-           it != logos::store_iterator(nullptr); ++it)
-    {
-        boost::property_tree::ptree candidate;
-        bool error = false;
-        CandidateInfo info(error, it->second);
-        if(error)
-        {
-            error_response(response,"error reading candidate");
-            return;
-        }
-        if(info.active)
-        {
-            res.add_child(it->first.uint256().to_string(),info.SerializeJson());
-        }
-        res.add_child(it->first.uint256().to_string(),candidate);
-    } 
-    response(res);
-}
-
-void logos::rpc_handler::representatives ()
-{
-    boost::property_tree::ptree res;
-
-    logos::transaction txn(node.store.environment,nullptr,false);
-
-    for(auto it = logos::store_iterator(txn,node.store.representative_db);
-           it != logos::store_iterator(nullptr); ++it)
-    {
-        boost::property_tree::ptree candidate;
-        bool error = false;
-        RepInfo info(error, it->second);
-        if(error)
-        {
-            error_response(response,"error reading candidate");
-            return;
-        }
-        if(info.active)
-        {
-            res.add_child(it->first.uint256().to_string(),info.SerializeJson());
-        }
-        res.add_child(it->first.uint256().to_string(),candidate);
-    } 
-    response(res);
 }
 
 template <typename  CT>
@@ -2675,6 +2622,7 @@ void logos::rpc_handler::process ()
     std::shared_ptr<Request> request;
     try
     {
+
         request = DeserializeRequest(error, request_json);
     }
     catch(std::exception& e)
@@ -2704,15 +2652,10 @@ void logos::rpc_handler::process ()
             case RequestType::WithdrawFee:
             case RequestType::WithdrawLogos:
             case RequestType::TokenSend:
-            case RequestType::ElectionVote:
-            case RequestType::AnnounceCandidacy:
-            case RequestType::RenounceCandidacy:
-            case RequestType::StartRepresenting:
-            case RequestType::StopRepresenting:
                 process(request);
                 break;
             case RequestType::Change:
-                error_response(response, "Change is not implemented yet");
+                error_response(response, "ChangeRep is not implemented yet");
                 break;
             default:
                 error_response(response, "Request is invalid");
@@ -2926,6 +2869,57 @@ void logos::rpc_handler::receive_minimum_set ()
 }
 
 
+void logos::rpc_handler::candidates ()
+{
+    boost::property_tree::ptree res;
+
+    logos::transaction txn(node.store.environment,nullptr,false);
+
+    for(auto it = logos::store_iterator(txn,node.store.candidacy_db);
+           it != logos::store_iterator(nullptr); ++it)
+    {
+        boost::property_tree::ptree candidate;
+        bool error = false;
+        CandidateInfo info(error, it->second);
+        if(error)
+        {
+            error_response(response,"error reading candidate");
+            return;
+        }
+        if(info.active)
+        {
+            res.add_child(it->first.uint256().to_string(),info.SerializeJson());
+        }
+        res.add_child(it->first.uint256().to_string(),candidate);
+    } 
+    response(res);
+}
+
+void logos::rpc_handler::representatives ()
+{
+    boost::property_tree::ptree res;
+
+    logos::transaction txn(node.store.environment,nullptr,false);
+
+    for(auto it = logos::store_iterator(txn,node.store.representative_db);
+           it != logos::store_iterator(nullptr); ++it)
+    {
+        boost::property_tree::ptree candidate;
+        bool error = false;
+        RepInfo info(error, it->second);
+        if(error)
+        {
+            error_response(response,"error reading candidate");
+            return;
+        }
+        if(info.active)
+        {
+            res.add_child(it->first.uint256().to_string(),info.SerializeJson());
+        }
+        res.add_child(it->first.uint256().to_string(),candidate);
+    } 
+    response(res);
+}
 
 void logos::rpc_handler::representatives_online ()
 {

@@ -193,7 +193,6 @@ boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
             {
                 settings_tree.put(field,settings[i] ? "true" : "false");
             }
-
         }
         tree.add_child("settings", settings_tree);
     }
@@ -409,9 +408,9 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
         case RequestType::TokenSend:
             result = true;
             break;
+        case RequestType::ElectionVote:
         case RequestType::AnnounceCandidacy:
         case RequestType::RenounceCandidacy:
-        case RequestType::ElectionVote:
         case RequestType::StartRepresenting:
         case RequestType::StopRepresenting:
         case RequestType::Unknown:

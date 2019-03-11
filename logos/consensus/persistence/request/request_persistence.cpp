@@ -289,7 +289,6 @@ bool PersistenceManager<R>::ValidateRequest(
                 return false;
             }
             break;
-            
         }
         case RequestType::StartRepresenting:
         {
@@ -1158,13 +1157,12 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             auto rc = dynamic_pointer_cast<const RenounceCandidacy>(request);
             ApplyRequest(*rc,transaction);
             break;
-       
         }
         case RequestType::StartRepresenting:
         {
             auto sr = dynamic_pointer_cast<const StartRepresenting>(request);
             ApplyRequest(*sr,transaction);
-            break;       
+            break;
         }
         case RequestType::StopRepresenting:
         {
@@ -1447,20 +1445,19 @@ void PersistenceManager<R>::PlaceReceive(ReceiveBlock & receive,
 void PersistenceManager<R>::ApplyRequest(const StartRepresenting& request, MDB_txn* txn)
 {
     assert(!_store.request_put(request,txn));
-    
-    RepInfo rep(request);
 
+    RepInfo rep(request);
     assert(!_store.rep_put(request.origin,rep,txn));
 }
 
 void PersistenceManager<R>::ApplyRequest(const StopRepresenting& request, MDB_txn* txn)
 {
     assert(!_store.request_put(request,txn));
+
     RepInfo rep;
     assert(!_store.rep_get(request.origin,rep,txn));
     rep.remove = true;
     rep.rep_action_tip = request.Hash();
-
     assert(!_store.rep_put(request.origin,rep,txn));
 }
 
@@ -1503,8 +1500,9 @@ void PersistenceManager<R>::ApplyRequest(const AnnounceCandidacy& request, MDB_t
 
 void PersistenceManager<R>::ApplyRequest(const RenounceCandidacy& request, MDB_txn* txn)
 {
-    //If you are not currently a candidate, you might not be in the candidates
-    //list, so its ok for this to fail
+    //If you are not currently a candidate, but are a delegate,
+    //you might not be in the candidate list, but can still renounce
+    //so its ok for this to fail
     _store.candidate_mark_remove(request.origin,txn);
     RepInfo rep;
     assert(!_store.rep_get(request.origin, rep, txn));
@@ -1525,10 +1523,7 @@ bool PersistenceManager<R>::ValidateRequest(const ElectionVote& vote_request, ui
         result.code = logos::process_result::no_elections;
         return false;
     }
-        Log log;
-        LOG_INFO(log) << "ElectionVote epoch number is " << cur_epoch_num;
 
-    std::cout << "epoch boundary" << std::endl;
     if(!IsDeadPeriod(cur_epoch_num,txn))
     {
         result.code = logos::process_result::elections_dead_period;
@@ -1536,7 +1531,6 @@ bool PersistenceManager<R>::ValidateRequest(const ElectionVote& vote_request, ui
     }
     RepInfo info;
     //are you a rep at all?
-    std::cout << "rep get" << std::endl;
     if(_store.rep_get(vote_request.origin,info,txn))
     {
         result.code = logos::process_result::not_a_rep;
@@ -1604,7 +1598,6 @@ bool PersistenceManager<R>::ValidateRequest(
     Amount stake = request.stake != 0 ? request.stake : rep.stake;
     if(stake < MIN_DELEGATE_STAKE)
     {
-        std::cout << "stake is " << stake.to_string() << std::endl;
         result.code = logos::process_result::not_enough_stake;
         return false;
     }
@@ -1668,7 +1661,6 @@ bool PersistenceManager<R>::ValidateRequest(
     }
     shared_ptr<Request> req;
     assert(!_store.request_get(hash,req,txn));
-    
     if(req->type == RequestType::RenounceCandidacy)
     {
         result.code = logos::process_result::already_renounced_candidacy;
@@ -1681,27 +1673,17 @@ bool PersistenceManager<R>::ValidateRequest(
         result.code = logos::process_result::pending_candidacy_action;
         return false;
     }
-    
     return true;
 }
 
 bool PersistenceManager<R>::IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn)
 {
-//    EpochTimeUtil util;
-//    auto lapse = util.GetNextEpochTime(false);
-//    if(lapse < VOTING_DOWNTIME)
-//    {
-//        return false;
-//    }
-
-
     BlockHash hash; 
-    //has the epoch block been created?
     if(_store.epoch_tip_get(hash,txn))
     {
         return false;
     }
-    
+
     ApprovedEB eb;
     if(_store.epoch_get(hash,eb,txn))
     {
@@ -1790,8 +1772,3 @@ bool PersistenceManager<R>::ValidateRequest(const StopRepresenting& request, uin
     result.code = logos::process_result::not_a_rep;
     return false;
 }
-
-
-
-
-

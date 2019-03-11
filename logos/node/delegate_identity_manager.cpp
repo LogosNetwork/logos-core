@@ -158,28 +158,47 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
             get_bls(bls_keys[0]); // same in epoch 0, doesn't matter
             Delegate delegate = {0, dpk, 0, 0};
 
-            if (true)//e != 0 || !_epoch_transition_enabled)
+            uint8_t del = i;// + (e - 1) * 8 * _epoch_transition_enabled;
+            get_bls(bls_keys[del]);
+            char buff[5];
+            sprintf(buff, "%02x", del + 1);
+            logos::keypair pair(buff);
+            Amount stake = 100000 + (uint64_t)del * 100;
+            delegate = {pair.pub, dpk, 100000 + (uint64_t)del * 100, stake};
+            if(e == 0)
             {
-                uint8_t del = i;// + (e - 1) * 8 * _epoch_transition_enabled;
-                get_bls(bls_keys[del]);
-                char buff[5];
-                sprintf(buff, "%02x", del + 1);
-                logos::keypair pair(buff);
-                Amount stake = 100000 + (uint64_t)del * 100;
-                delegate = {pair.pub, dpk, 100000 + (uint64_t)del * 100, stake};
-                if(e == 0)
-                {
-                    RepInfo rep;
-                    rep.stake = stake;
-                    _store.rep_put(pair.pub,rep,transaction);
+                //TODO: how to initialize the delegate accounts for elections
+                //Every delegate should be a representative
+                //In the proper case, all delegates have submitted a
+                //StartRepresenting request, as well as AnnounceCandidacy
+                //Should we add them to the candidate db so that way when
+                //elections start they are candidates?
+                RepInfo rep;
+                rep.stake = stake;
+                //dummy request for epoch transition
+                StartRepresenting start;
+                start.epoch_num = 0;
+                start.origin = pair.pub;
+                start.stake = stake;
+                rep.rep_action_tip = start.Hash();
+                _store.request_put(start, transaction);
+                //dummy request for epoch transition
+                AnnounceCandidacy announce;
+                announce.epoch_num = 0;
+                announce.origin = pair.pub;
+                announce.stake = stake;
+                announce.bls_key = dpk;
+                rep.candidacy_action_tip = announce.Hash();
+                _store.request_put(announce, transaction);
+                rep.voted = false;
+                _store.rep_put(pair.pub, rep, transaction);
 
-                    _store.candidate_add_new(pair.pub,dpk,stake,transaction);
-                }
-
-
-            LOG_INFO(_log) << __func__ << " account for delegate i :" << (int)i
-                            << " account=" << pair.pub.to_account();
+                _store.candidate_add_new(pair.pub,dpk,stake,transaction);
             }
+
+
+            LOG_INFO(_log) << __func__ << "bls public key for delegate i=" << (int)i
+                            << " pub_key=" << pair.pub.to_account();
             if(i < NUM_DELEGATES)
             {
                 delegate.starting_term = false;

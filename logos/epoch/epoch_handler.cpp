@@ -6,7 +6,6 @@
 #include <logos/blockstore.hpp>
 #include <logos/lib/trace.hpp>
 #include <logos/lib/log.hpp>
-#include <logos/elections/database_functions.hpp>
 
 bool
 EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)

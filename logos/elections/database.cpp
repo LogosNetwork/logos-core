@@ -1,7 +1,4 @@
 #include <logos/elections/database.hpp>
-#
-
-//*** begin RepInfo functions ***
 
 RepInfo::RepInfo() 
     : candidacy_action_tip(0)
@@ -129,10 +126,7 @@ boost::property_tree::ptree RepInfo::SerializeJson() const
     tree.put("stake",stake.to_string()); 
     return tree;
 }
-//*** end RepInfo functions ***
 
-
-//*** begin CandidateInfo functions ***
 
 CandidateInfo::CandidateInfo() 
     : votes_received_weighted(0)
@@ -224,6 +218,3 @@ boost::property_tree::ptree CandidateInfo::SerializeJson() const
     tree.put("stake", stake.to_string());
     return tree;
 }
-//*** end CandidateInfo functions
-
-

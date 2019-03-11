@@ -6,7 +6,6 @@
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/microblock/microblock_handler.hpp>
 #include <logos/lib/trace.hpp>
-#include <logos/elections/database_functions.hpp>
 
 PersistenceManager<ECT>::PersistenceManager(Store & store,
                                             ReservationsPtr,
@@ -235,7 +234,7 @@ void PersistenceManager<ECT>::AddReelectionCandidates(MDB_txn* txn)
             {
                 auto ac = static_pointer_cast<AnnounceCandidacy>(req); 
                 assert(!_store.candidate_add_new(d.account,ac->bls_key,ac->stake,txn));
-            }         
+            }
         }
     }
 }
@@ -318,7 +317,3 @@ void PersistenceManager<ECT>::TransitionNextEpoch(MDB_txn* txn, uint32_t next_ep
     TransitionCandidatesDBNextEpoch(txn,next_epoch_num);
     UpdateRepresentativesDB(txn);
 }
-
-
-
-

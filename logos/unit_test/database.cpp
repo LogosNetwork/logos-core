@@ -6,7 +6,6 @@
 #include <logos/common.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/elections/database.hpp>
-#include <logos/elections/database_functions.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/persistence/persistence.hpp>
@@ -14,11 +13,6 @@
 #define Unit_Test_Elections
 
 #ifdef Unit_Test_Elections
-
-
-//TODO: json serialization?
-//TODO: GetOldEpochBlock test?
-//TODO: serialization 
 
 TEST (Elections, blockstore)
 {
