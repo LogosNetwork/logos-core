@@ -75,7 +75,7 @@ public:
     	if(!found)
     	{
     		epochs.emplace_front(Epoch(block));
-			Validate();//TODO Validate eb first
+			Validate();//TODO optimize: Validate eb first
     	}
 
     	return true;
@@ -140,7 +140,7 @@ public:
 		}
 		if(add2begin)
 		{
-			Validate();//TODO Validate mb first
+			Validate();//TODO optimize: Validate mb first
 		}
 
     	return true;
@@ -213,9 +213,9 @@ public:
     	return true;
     }
 
+    bool IsBSBCached(uint32_t epoch_num, BlockHash block_hash);
     bool IsMBCached(uint32_t epoch_num, BlockHash block_hash);
     bool IsEBCached(uint32_t epoch_num);
-    //TODO need to report bsbs are processed? if so, how
 
 private:
     struct Epoch
@@ -246,13 +246,18 @@ private:
     	EBPtr eb;
     	std::list<MBPtr> mbs;
     	std::list<BSBPtr> bsbs[NUM_DELEGATES];
+
+    	//TODO optimize
     	//1 for each unprocessed tip of the oldest mb
-        //TODO std::bitset<NUM_DELEGATES> mb_dependences;
+        //std::bitset<NUM_DELEGATES> mb_dependences;
 	};
     std::list<Epoch> epochs;
 
     /*
-     * should be called when a new block is added to the beginning of any chain of the oldest epoch
+     * should be called when:
+     * (1) a new block is added to the beginning of any chain of the oldest epoch
+     * (2) a new block is added to the beginning of any BSB chain of the newest epoch,
+     * 	   in which the first MB has not been received.
      */
     void Validate(uint8_t bsb_idx = 0)
     {

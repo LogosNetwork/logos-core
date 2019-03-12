@@ -249,18 +249,15 @@ namespace Bootstrap {
         uint32_t epoch_num;
         BlockHash prev_hash;
         BlockHash target; //ignored for EB and MB since we pull one at a time
-        //uint32_t num_blocks;
 
         PullRequest(ConsensusType block_type,
         	uint32_t epoch_num,
             const BlockHash &prev,
 			const BlockHash &target=0)
-//            uint32_t num_blocks)
         : block_type(block_type)
         , epoch_num(epoch_num)
         , prev_hash(prev)
         , target(target)
-//        , num_blocks(num_blocks)
         { }
 
         PullRequest(bool & error, logos::stream & stream)
@@ -281,7 +278,6 @@ namespace Bootstrap {
                 return;
             }
             error = logos::read(stream, target);
-//            error = logos::read(stream, num_blocks);
         }
 
         uint32_t Serialize(logos::stream & stream) const
