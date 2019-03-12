@@ -377,8 +377,6 @@ add_library (node
 	logos/node/openclwork.hpp
 	logos/node/rpc.hpp
 	logos/node/rpc.cpp
-	logos/node/rpc_logic.hpp
-	logos/node/rpc_logic.cpp
 	logos/node/testing.hpp
 	logos/node/testing.cpp
 	logos/node/wallet.hpp
