@@ -34,6 +34,18 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
     //       intermediate transactions to the database.
 
     auto batch_hash = message.Hash();
+
+    // SYL Integration: Temporary fix (same for epochs and micro blocks):
+    // Check if block exists again here to avoid situations where P2P receives a Post_Commit,
+    // doesn't think the block exists, but then direct consensus persists the block, and P2P tries to persist again.
+    // Ultimately we want to use the same global queue for direct consensus, P2P, and bootstrapping.
+
+    if (BlockExists(message))
+    {
+        LOG_DEBUG(_log) << "PersistenceManager<R>::ApplyUpdates - request block already exists, ignoring";
+        return;
+    }
+
     uint16_t count = 0;
     for(uint16_t i = 0; i < message.requests.size(); ++i)
     {

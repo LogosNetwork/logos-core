@@ -94,6 +94,14 @@ PersistenceManager<ECT>::ApplyUpdates(
     uint8_t)
 {
     logos::transaction transaction(_store.environment, nullptr, true);
+
+    // See comments in request_persistence.cpp
+    if (BlockExists(block))
+    {
+        LOG_DEBUG(_log) << "PersistenceManager<ECT>::ApplyUpdates - epoch already exists, ignoring";
+        return;
+    }
+
     BlockHash epoch_hash = block.Hash();
 
     if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(epoch_hash, transaction))
