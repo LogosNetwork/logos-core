@@ -786,8 +786,6 @@ boost::property_tree::ptree Send::SerializeJson() const
     }
     tree.add_child("transactions", transactions_tree);
 
-    tree.put("hash", digest.to_string());
-
     return tree;
 }
 
