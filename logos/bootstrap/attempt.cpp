@@ -82,7 +82,7 @@ namespace Bootstrap
     {
         LOG_DEBUG(log) << "bootstrap_attempt::run begin {" << std::endl;
         populate_connections();
-        std::unique_lock <std::mutex> lock(mutex);
+        std::unique_lock<std::mutex> lock(mutex);
         auto tips_failure(true);
         uint32_t retry = 0;
         while (!stopped && tips_failure)

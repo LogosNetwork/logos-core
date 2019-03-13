@@ -2,10 +2,11 @@
 
 #include <logos/bootstrap/connection.hpp>
 #include <logos/bootstrap/pull.hpp>
+#include <logos/bootstrap/block_cache.hpp>
 
 namespace Bootstrap {
 
-class bootstrap_attempt : public std::enable_shared_from_this<Bootstrap::bootstrap_attempt>
+class bootstrap_attempt : public std::enable_shared_from_this<bootstrap_attempt>
     {
     public:
         /// Class constructor

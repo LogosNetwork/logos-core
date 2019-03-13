@@ -1,5 +1,7 @@
+#include <logos/blockstore.hpp>
 #include <logos/node/common.hpp>
 #include <logos/node/node.hpp>
+#include <logos/node/utility.hpp>
 
 #include <logos/bootstrap/pull.hpp>
 #include <logos/bootstrap/bootstrap.hpp>
@@ -199,7 +201,6 @@ namespace Bootstrap
     	waiting_pulls.push_front(pull);
     }
 
-    //TODO setup expected tips set
     void Puller::CreateMorePulls()
     {
     	// should be called with mtx locked
@@ -213,7 +214,7 @@ namespace Bootstrap
 				{
 					waiting_pulls.push_back(std::make_shared<PullRequest>(
 							ConsensusType::Epoch,
-							working_epoch.epoch_num,
+							//working_epoch.epoch_num,
 							my_tips.eb.digest));
 					return;
 				}else{
@@ -229,7 +230,7 @@ namespace Bootstrap
 				{
 					waiting_pulls.push_back(std::make_shared<PullRequest>(
 							ConsensusType::MicroBlock,
-							working_epoch.epoch_num,
+							//working_epoch.epoch_num,
 							my_tips.mb.digest));
 					return;
 				}else{
@@ -266,7 +267,7 @@ namespace Bootstrap
 					{
 						waiting_pulls.push_back(std::make_shared<PullRequest>(
 								ConsensusType::BatchStateBlock,
-								working_epoch.epoch_num,
+								//working_epoch.epoch_num,
 								my_tips.bsb_vec[i].digest,
 								working_mbp.mb->tips[i]));
 						working_mbp.bsb_targets.insert(working_mbp.mb->tips[i]);
@@ -297,7 +298,7 @@ namespace Bootstrap
                     {
                     	waiting_pulls.push_back(std::make_shared<PullRequest>(
                     			ConsensusType::BatchStateBlock,
-								working_epoch.epoch_num,
+								//working_epoch.epoch_num,
 								my_tips.bsb_vec[i].digest,
 								others_tips.bsb_vec[i].digest));
                     	working_mbp.bsb_targets.insert(others_tips.bsb_vec[i].digest);
@@ -325,7 +326,7 @@ namespace Bootstrap
 					{
 						waiting_pulls.push_back(std::make_shared<PullRequest>(
 								ConsensusType::BatchStateBlock,
-								working_epoch.epoch_num,
+								//working_epoch.epoch_num,
 								my_tips.bsb_vec_new_epoch[i].digest,
 								others_tips.bsb_vec_new_epoch[i].digest));
 						working_epoch.cur_mbp.bsb_targets.insert(others_tips.bsb_vec_new_epoch[i].digest);
@@ -345,8 +346,142 @@ namespace Bootstrap
 		}
     }
 
+    void Puller::CheckProgress()
+    {
+		assert(working_epoch.cur_mbp.bsb_targets.empty());
+		if(working_epoch.two_mbps)
+		{
+			assert(working_epoch.cur_mbp.mb != nullptr);
+			assert(working_epoch.next_mbp.bsb_targets.empty());
+
+			auto digest(working_epoch.cur_mbp.mb->Hash());
+			bool mb_processed = !block_cache.IsMBCached(working_epoch.epoch_num, digest);
+			if(mb_processed)
+			{
+				working_epoch.cur_mbp = working_epoch.next_mbp;
+				working_epoch.two_mbps = false;
+				working_epoch.next_mbp.Clean();
+			}
+			else
+			{
+				LOG_FATAL(log) << "Puller::CreateMorePulls: pulled two MB periods,"
+								<< " but first MB has not been processed."
+								<< " epoch_num=" << working_epoch.epoch_num
+								<< " MB_1 hash=" << digest;
+				trace_and_halt();
+			}
+		}
+
+		if(working_epoch.cur_mbp.mb != nullptr)
+		{
+			auto digest(working_epoch.cur_mbp.mb->Hash());
+			bool mb_processed = !block_cache.IsMBCached(working_epoch.epoch_num, digest);
+			if(mb_processed)
+			{
+				if(working_epoch.cur_mbp.mb->last_micro_block)
+				{
+					if(working_epoch.eb != nullptr)
+					{
+						bool eb_processed = !block_cache.IsEBCached(working_epoch.epoch_num);
+						if(eb_processed)
+						{
+							LOG_INFO(log) << "Puller::BSBReceived: processed an epoch "<< working_epoch.epoch_num;
+						}
+						else
+						{
+							LOG_FATAL(log) << "Puller::BSBReceived: cannot process epoch block after last micro block "
+										   << working_epoch.epoch_num;
+							trace_and_halt();
+						}
+					}
+					else
+					{
+						//TODO add verification that we are in the next to last epoch after we can verify other's tips
+						LOG_WARN(log) << "Puller::BSBReceived: have last MB but not EB "<< working_epoch.epoch_num;
+					}
+					state = PullState::Epoch;
+				}
+				else
+				{
+					state = PullState::Micro;
+				}
+				working_epoch.cur_mbp.Clean();
+			}
+			else
+			{
+				working_epoch.two_mbps = true;
+				state = PullState::Micro;
+			}
+		}
+    }
+
+
     //TODO verify peer tips
-}
+
+    ///////////////////////////////////////////////////////////////////////
+    PullRequestHandler::PullRequestHandler(PullPtr request, Store & store)
+    : request(request)
+    , store(store)
+    {
+    	std::vector<uint8_t> & buf;
+    	uint32_t block_size = GetBlock(request->block_type, request->prev_hash, buf);
+		if(block_size > 0)//have block
+		{
+			memcpy (next.data(), buf.data() + PullResponseReserveSize + block_size - HASH_SIZE, HASH_SIZE);
+		}
+    }
+
+    uint32_t PullRequestHandler::GetBlock(BlockHash & hash, std::vector<uint8_t> & buf)
+    {
+		switch (request->block_type) {
+			case ConsensusType::BatchStateBlock:
+				return store.batch_block_get_raw(hash, PullResponseReserveSize, buf);
+			case ConsensusType::MicroBlock:
+				return store.micro_block_get_raw(hash, PullResponseReserveSize, buf);
+			case ConsensusType::Epoch:
+				return store.epoch_get_raw(hash, PullResponseReserveSize, buf);
+			default:
+				return 0;
+		}
+    }
+
+    bool PullRequestHandler::GetNextSerializedResponse(std::vector<uint8_t> & buf)
+    {
+    	assert(buf.empty());
+
+    	uint32_t block_size = 0;
+    	if(!next.is_zero())
+    	{
+    		block_size = GetBlock(next, buf);
+    	}
+
+    	auto status = PullResponseStatus::NoBlock;
+    	if(block_size > 0)//have block
+    	{
+    		if(next == request->target)
+    		{
+    			status = PullResponseStatus::LastBlock;
+    		}
+    		else
+    		{
+        		memcpy (next.data(), buf.data() + PullResponseReserveSize + block_size - HASH_SIZE, HASH_SIZE);
+        		if(next == 0)
+        		{
+        			status = PullResponseStatus::LastBlock;
+        		}
+    			else
+    			{
+    				status = PullResponseStatus::MoreBlock;
+    			}
+    		}
+    	}
+    	PullResponseSerializedLeadingFields(request->block_type, status, block_size, buf);
+    	return status == PullResponseStatus::MoreBlock;
+    }
+
+}//namespace
+
+
 
 
 //				if(working_epoch.two_mbps)

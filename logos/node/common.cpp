@@ -198,14 +198,12 @@ bool logos::frontier_req::deserialize (logos::stream & stream_a)
     assert (!result);
     assert (logos::message_type::frontier_req == type);
 
-    BatchBlock::tips_response::DeSerialize(stream_a, tips);
     return result;
 }
 
 void logos::frontier_req::serialize (logos::stream & stream_a)
 {
     write_header (stream_a);
-    tips.Serialize(stream_a);
 }
 
 void logos::frontier_req::visit (logos::message_visitor & visitor_a) const

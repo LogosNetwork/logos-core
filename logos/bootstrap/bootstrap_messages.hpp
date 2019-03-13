@@ -1,4 +1,5 @@
 #pragma once
+#include <boost/iostreams/stream_buffer.hpp>
 
 #include <logos/blockstore.hpp>
 #include <logos/consensus/messages/messages.hpp>
@@ -24,6 +25,13 @@ namespace Bootstrap {
     struct MessageHeader
     {
         MessageHeader() = default;
+
+        MessageHeader(uint8_t version, MessageType type, ConsensusType ct, uint32_t payload_size)
+        : version(version)
+        , type(type)
+        , pull_response_ct(ct)
+        , payload_size(payload_size)
+        {}
 
         MessageHeader(bool & error, logos::stream & stream)
         {
@@ -129,7 +137,7 @@ namespace Bootstrap {
             return s;
         }
 
-        bool operator<(const Tip & other)
+        bool operator<(const Tip & other) const
 		{
         	return epoch < other.epoch ||
         			(epoch == other.epoch && sqn < other.sqn) ||
@@ -200,7 +208,26 @@ namespace Bootstrap {
         static TipSet CreateTipSet(Store & store)
 		{
 			//logos::transaction transaction (store.environment, nullptr, false);
-
+			//            BlockHash epoch_tip = getEpochBlockTip(store);
+			//            BlockHash micro_tip = getMicroBlockTip(store);
+			//            uint32_t  epoch_seq = getEpochBlockSeqNr(store);
+			//            uint32_t  micro_seq = getMicroBlockSeqNr(store);
+			//            epoch_block_tip        = epoch_tip;
+			//            micro_block_tip        = micro_tip;
+			//            epoch_block_seq_number = epoch_seq;
+			//            micro_block_seq_number = micro_seq;
+			//
+			//            Micro::dumpMicroBlockTips(store,micro_tip);
+			//
+			//            // NOTE Get the tips for all delegates and send them one by one for processing...
+			//            for(int i = 0; i < NUMBER_DELEGATES; i++)
+			//            {
+			//                BlockHash bsb_tip   = getBatchBlockTip(store, i);
+			//                uint32_t  bsb_seq   = getBatchBlockSeqNr(store, i);
+			//                // Fill in the response...
+			//                batch_block_tip[i]        = bsb_tip;
+			//                batch_block_seq_number[i] = bsb_seq;
+			//            }
 			return TipSet();
 		}
 
@@ -246,16 +273,16 @@ namespace Bootstrap {
 
     struct PullRequest {
         ConsensusType block_type;
-        uint32_t epoch_num;
+        //uint32_t epoch_num;
         BlockHash prev_hash;
         BlockHash target; //ignored for EB and MB since we pull one at a time
 
         PullRequest(ConsensusType block_type,
-        	uint32_t epoch_num,
+        	//uint32_t epoch_num,
             const BlockHash &prev,
 			const BlockHash &target=0)
         : block_type(block_type)
-        , epoch_num(epoch_num)
+        //, epoch_num(epoch_num)
         , prev_hash(prev)
         , target(target)
         { }
@@ -267,11 +294,11 @@ namespace Bootstrap {
             {
                 return;
             }
-            error = logos::read(stream, epoch_num);
-            if(error)
-            {
-                return;
-            }
+//            error = logos::read(stream, epoch_num);
+//            if(error)
+//            {
+//                return;
+//            }
             error = logos::read(stream, prev_hash);
             if(error)
             {
@@ -283,7 +310,7 @@ namespace Bootstrap {
         uint32_t Serialize(logos::stream & stream) const
         {
             auto s = logos::write(stream, block_type);
-            s += logos::write(stream, epoch_num);
+            //s += logos::write(stream, epoch_num);
             s += logos::write(stream, prev_hash);
             s += logos::write(stream, target);
 
@@ -291,11 +318,11 @@ namespace Bootstrap {
             return s;
         }
 
-        static constexpr uint32_t WireSize = sizeof(block_type) + sizeof(epoch_num) + HASH_SIZE * 2;
+        static constexpr uint32_t WireSize = sizeof(block_type) + HASH_SIZE * 2;
     };
 
 
-    enum class PullResponseStatus
+    enum class PullResponseStatus : uint8_t
     {
         MoreBlock,
         LastBlock,
@@ -306,8 +333,6 @@ namespace Bootstrap {
     struct PullResponse
     {
         PullResponseStatus status;
-//        BlockHash pos;
-//        uint32_t block_number;
         shared_ptr<PostCommittedBlock<CT>> block;
 
         PullResponse(bool & error, logos::stream & stream)
@@ -319,79 +344,44 @@ namespace Bootstrap {
             }
             if(status == PullResponseStatus::NoBlock)
             {
+            	block = nullptr;
                 return;
             }
-//            error = logos::read(stream, pos);
-//            if(error)
-//            {
-//                return;
-//            }
-//            error = logos::read(stream, block_number);
-//            if(error)
-//            {
-//                return;
-//            }
-            //TODO block
+            block = std::make_shared<PostCommittedBlock<CT>>(error, stream, true, true);
         }
     };
 
     /**
      * At the server side, to save a round of deserialization and then serialization,
      * we serialize the meta-data fields and memcpy the block directly to the buffer.
+     * When this function is call, buf should already have the block
      */
-    uint32_t PullResponseSerialize(
+    constexpr uint32_t PullResponseReserveSize = MessageHeader::WireSize + sizeof(PullResponseStatus);
+    using LeadingFieldsStream =
+    		boost::iostreams::stream_buffer<boost::iostreams::basic_array_sink<uint8_t>>;
+    //return total message size including header
+    uint32_t PullResponseSerializedLeadingFields(ConsensusType ct,
             PullResponseStatus status,
-//            const BlockHash &pos,
-//            uint32_t block_number,
-            uint32_t header_reserve,
-            const logos::mdb_val & block,
+            uint32_t block_size,
             std::vector<uint8_t> & buf)
     {
-        //TODO
+        //uint32_t serial_size = MessageHeader::WireSize + sizeof(status);
+        LeadingFieldsStream stream(buf, PullResponseReserveSize);
+        uint32_t payload_size = sizeof(status) + block_size;
+        MessageHeader header(logos_version,
+        		MessageType::PullResponse,
+				ct,
+				payload_size);
+        header.Serialize(stream);
+        logos::write(stream, status);
+        return MessageHeader::WireSize + payload_size;
     }
 
 } // namespace
 
 
-/*
-/// getBatchBlockTip
-/// @param s Store reference
-/// @param delegate int
-/// @returns BlockHash (the tip we asked for)
-    BlockHash getBatchBlockTip(Store &s, int delegate);
-
-/// getBatchBlockSeqNr
-/// @param s Store reference
-/// @param delegate int
-/// @returns uint64_t (the sequence number)
-    uint64_t  getBatchBlockSeqNr(Store &s, int delegate);
-*/
-
-/*    struct PullEnd {
-        BlockHash pos;
-
-        PullEnd(const BlockHash &pos)
-        : pos(pos)
-        { }
-
-        PullEnd(bool & error, logos::stream & stream)
-        {
-            error = logos::read(stream, pos);
-        }
-
-        uint32_t Serialize(logos::stream & stream) const
-        {
-            auto s = logos::write(stream, pos);
-
-            assert(s == WireSize);
-            return s;
-        }
-
-        static constexpr uint32_t WireSize = HASH_SIZE;
-    };*/
 
 /*
-//TODO
 /// ostream operator
 /// @param out ostream reference
 /// @param resp BatchBlock::tips_response (object to stream out)
@@ -415,27 +405,3 @@ ostream& operator<<(ostream &out, BatchBlock::tips_response resp)
     return out;
 }
 */
-//            uint8_t new_epoch_byte = HaveNewEpochTips() ? 1: 0;
-//            s += logos::write(stream, new_epoch_byte);
-//            if(new_epoch_byte)
-//            {
-//            uint8_t has_new_epoch = 0;
-//            error = logos::read(stream, has_new_epoch);
-//            if (error) {
-//                return;
-//            }
-//            if (has_new_epoch)
-//            {
-//            bool operator==(const Tip & other)
-//			{
-//            	bool same = epoch == other.epoch && sqn == other.sqn;
-//            	//TODO if(same && digest!=other.digest) throw ;
-//            	return same;
-//			}
-//        bool HaveNewEpochTips() const
-//        {
-//            auto s = bsb_vec_new_epoch.size();
-//            assert(s == NUM_DELEGATES || s == 0);
-//            return s == NUM_DELEGATES;
-//        }
-

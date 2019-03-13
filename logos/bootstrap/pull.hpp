@@ -51,78 +51,45 @@ namespace Bootstrap
 
     private:
         void CreateMorePulls();
+        void CheckProgress();
 
-        void UpdateMyBSBTip(BSBPtr block);
-        void UpdateMyMBTip(MBPtr block);
-        void UpdateMyEBTip(EBPtr block);
-
-        void CheckProgress()
+        void UpdateMyBSBTip(BSBPtr block)
         {
-			assert(working_epoch.cur_mbp.bsb_targets.empty());
-			if(working_epoch.two_mbps)
-			{
-				assert(working_epoch.cur_mbp.mb != nullptr);
-				assert(working_epoch.next_mbp.bsb_targets.empty());
+        	auto d_idx = block->primary_delegate;
+        	BlockHash digest = block->Hash();
+        	//try old epoch
+        	if(my_tips.bsb_vec[d_idx].digest == block->previous)
+        	{
+            	my_tips.bsb_vec[d_idx].digest = block->Hash();
+            	my_tips.bsb_vec[d_idx].epoch = block->epoch_number;
+            	my_tips.bsb_vec[d_idx].sqn =  block->sequence;
+        	}
+        	else if(my_tips.bsb_vec_new_epoch[d_idx].digest == block->previous)
+        	{
+            	my_tips.bsb_vec_new_epoch[d_idx].digest = block->Hash();
+            	my_tips.bsb_vec_new_epoch[d_idx].epoch = block->epoch_number;
+            	my_tips.bsb_vec_new_epoch[d_idx].sqn =  block->sequence;
+        	}
+        	else
+        	{
+        		assert(false);
+        	}
+        }
 
-				auto digest(working_epoch.cur_mbp.mb->Hash());
-				bool mb_processed = !block_cache.IsMBCached(working_epoch.epoch_num, digest);
-				if(mb_processed)
-				{
-					working_epoch.cur_mbp = working_epoch.next_mbp;
-					working_epoch.two_mbps = false;
-					working_epoch.next_mbp.Clean();
-				}
-				else
-				{
-					LOG_FATAL(log) << "Puller::CreateMorePulls: pulled two MB periods,"
-									<< " but first MB has not been processed."
-									<< " epoch_num=" << working_epoch.epoch_num
-									<< " MB_1 hash=" << digest;
-					trace_and_halt();
-				}
-			}
+        void UpdateMyMBTip(MBPtr block)
+        {
+        	assert(my_tips.mb.digest == block->previous);
+        	my_tips.mb.digest = block->Hash();
+        	my_tips.mb.epoch = block->epoch_number;
+        	my_tips.mb.sqn =  block->sequence;
+        }
 
-			if(working_epoch.cur_mbp.mb != nullptr)
-			{
-				auto digest(working_epoch.cur_mbp.mb->Hash());
-				bool mb_processed = !block_cache.IsMBCached(working_epoch.epoch_num, digest);
-				if(mb_processed)
-				{
-					if(working_epoch.cur_mbp.mb->last_micro_block)
-					{
-						if(working_epoch.eb != nullptr)
-						{
-							bool eb_processed = !block_cache.IsEBCached(working_epoch.epoch_num);
-							if(eb_processed)
-							{
-								LOG_INFO(log) << "Puller::BSBReceived: processed an epoch "<< working_epoch.epoch_num;
-							}
-							else
-							{
-								LOG_FATAL(log) << "Puller::BSBReceived: cannot process epoch block after last micro block "
-											   << working_epoch.epoch_num;
-								trace_and_halt();
-							}
-						}
-						else
-						{
-							//TODO add verification that we are in the next to last epoch after we can verify other's tips
-							LOG_WARN(log) << "Puller::BSBReceived: have last MB but not EB "<< working_epoch.epoch_num;
-						}
-						state = PullState::Epoch;
-					}
-					else
-					{
-						state = PullState::Micro;
-					}
-					working_epoch.cur_mbp.Clean();
-				}
-				else
-				{
-					working_epoch.two_mbps = true;
-					state = PullState::Micro;
-				}
-			}
+        void UpdateMyEBTip(EBPtr block)
+        {
+        	assert(my_tips.eb.digest == block->previous);
+        	my_tips.eb.digest = block->Hash();
+        	my_tips.eb.epoch = block->epoch_number;
+        	my_tips.eb.sqn =  block->epoch_number;
         }
 
         BlockCache & block_cache;
@@ -177,22 +144,17 @@ namespace Bootstrap
     {
     public:
         PullRequestHandler(PullPtr request, Store & store);
+
+        //TODO rate limit the requester?
+        //return: if true call again for more blocks
         bool GetNextSerializedResponse(std::vector<uint8_t> & buf);
+
     private:
+        uint32_t GetBlock(BlockHash & hash, std::vector<uint8_t> & buf);
 
         PullPtr request;
         Store & store;
+        BlockHash next;
     };
 
 } //namespace
-
-//        /*
-//         * BSB tips only and the two tips should be in the same epoch
-//         */
-//        uint32_t ComputeNumBSBToPull(Tip &a, Tip &b);
-//        template<ConsensusType CT>
-//        PullStatus BlockReceived(PullPtr pull,
-//        		uint32_t block_number,
-//        		std::shared_ptr<PostCommittedBlock<CT>> block,
-//				bool last_block);
-

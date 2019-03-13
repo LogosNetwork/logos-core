@@ -53,19 +53,7 @@ namespace Bootstrap
         			if(good)
         	        {
         	            logos::bufferstream stream (buf, header.payload_size);
-        	            switch (header.pull_response_ct) {
-        	            case ConsensusType::BatchStateBlock:
-        	            	pull_status = this_l->process_reply<ConsensusType::BatchStateBlock>(stream);
-        	            	break;
-        	            case ConsensusType::MicroBlock:
-        	            	pull_status = this_l->process_reply<ConsensusType::MicroBlock>(stream);
-        	            	break;
-        	            case ConsensusType::Epoch:
-        	            	pull_status = this_l->process_reply<ConsensusType::Epoch>(stream);
-        	            	break;
-        	            default:
-        	            	break;
-						}
+    	            	pull_status = this_l->process_reply(header.pull_response_ct, stream);
         	        }
 
         			switch (pull_status) {
@@ -135,3 +123,17 @@ namespace Bootstrap
 				});
     }
 }
+
+//        	            switch (header.pull_response_ct) {
+//        	            case ConsensusType::BatchStateBlock:
+//        	            	pull_status = this_l->process_reply<ConsensusType::BatchStateBlock>(header.pull_response_ct, stream);
+//        	            	break;
+//        	            case ConsensusType::MicroBlock:
+//        	            	pull_status = this_l->process_reply<ConsensusType::MicroBlock>(stream);
+//        	            	break;
+//        	            case ConsensusType::Epoch:
+//        	            	pull_status = this_l->process_reply<ConsensusType::Epoch>(stream);
+//        	            	break;
+//        	            default:
+//        	            	break;
+//						}

@@ -33,7 +33,7 @@ namespace Bootstrap
     {
         std::unique_lock<std::mutex> lock(mutex);
         if (!stopped && attempt == nullptr) {
-            attempt = std::make_shared<bootstrap_attempt>(alarm);
+            attempt = std::make_shared<bootstrap_attempt>(alarm, stor);
             condition.notify_all();
         }
     }

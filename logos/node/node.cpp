@@ -5,6 +5,7 @@
 #include <logos/tx_acceptor/tx_receiver.hpp>
 
 #include <logos/lib/interface.h>
+#include <logos/lib/trace.hpp>
 #include <logos/node/common.hpp>
 #include <logos/node/rpc.hpp>
 #include <logos/node/client_callback.hpp>
@@ -12,7 +13,9 @@
 #include <logos/microblock/microblock.hpp>
 #include <logos/consensus/messages/state_block.hpp>
 
-#include <logos/lib/trace.hpp>
+#include <logos/bootstrap/p2p.hpp>
+#include <logos/bootstrap/connection.hpp>
+
 
 #include <algorithm>
 #include <future>
@@ -33,7 +36,7 @@
 
 #include <ed25519-donna/ed25519.h>
 
-#include <logos/bootstrap/p2p.hpp>
+
 
 #define _PRODUCTION 1
 
@@ -473,23 +476,23 @@ void logos::logging::serialize_json (boost::property_tree::ptree & tree_a) const
 bool logos::logging::upgrade_json (unsigned version_a, boost::property_tree::ptree & tree_a)
 {
     auto result (false);
-    switch (version_a)
-    {
-        case 1:
-            tree_a.put ("vote", vote_logging_value);
-            tree_a.put ("version", "2");
-            result = true;
-        case 2:
-            tree_a.put ("rotation_size", "4194304");
-            tree_a.put ("flush", "true");
-            tree_a.put ("version", "3");
-            result = true;
-        case 3:
-            break;
-        default:
-            throw std::runtime_error ("Unknown logging_config version");
-            break;
-    }
+	//    switch (version_a)
+	//    {
+	//        case 1:
+	//            tree_a.put ("vote", vote_logging_value);
+	//            tree_a.put ("version", "2");
+	//            result = true;
+	//        case 2:
+	//            tree_a.put ("rotation_size", "4194304");
+	//            tree_a.put ("flush", "true");
+	//            tree_a.put ("version", "3");
+	//            result = true;
+	//        case 3:
+	//            break;
+	//        default:
+	//            throw std::runtime_error ("Unknown logging_config version");
+	//            break;
+	//    }
     return result;
 }
 
@@ -1288,9 +1291,8 @@ store (init_a.block_store_init, application_path_a / "data.ldb", config_a.lmdb_m
 gap_cache (*this),
 ledger (store, stats, config.state_block_parse_canary, config.state_block_generate_canary),
 network (*this, config.peering_port),
-_validator(new BatchBlock::validator(this)),
 bootstrap_initiator (*this),
-bootstrap (service_a, BOOTSTRAP_PORT, *this),
+bootstrap_listener (service_a, Bootstrap::BOOTSTRAP_PORT, *this),
 peers (network.endpoint ()),
 application_path (application_path_a),
 wallets (init_a.block_store_init, *this),
@@ -1348,7 +1350,7 @@ _tx_receiver{config.tx_acceptor_config.tx_acceptors.size() != 0
         observers.disconnect ();
     };
 
-    BOOST_LOG (log) << "Node starting, version: " << LOGOS_VERSION_MAJOR << "." << LOGOS_VERSION_MINOR;
+    //BOOST_LOG (log) << "Node starting, version: " << LOGOS_VERSION_MAJOR << "." << LOGOS_VERSION_MINOR;
     BOOST_LOG (log) << boost::str (boost::format ("Work pool running %1% threads") % work.threads.size ());
 
     p2p_conf = config.p2p_conf;
@@ -1415,7 +1417,7 @@ logos::node::~node ()
         BOOST_LOG (log) << "Destructing node";
     }
     stop ();
-    delete _validator;
+//    delete _validator;
 }
 
 bool logos::node::copy_with_compaction (boost::filesystem::path const & destination_file)
@@ -1657,7 +1659,7 @@ void logos::node::start ()
     ongoing_bootstrap ();
     //ongoing_store_flush ();
     //ongoing_rep_crawl ();
-    bootstrap.start ();
+    bootstrap_listener.start ();
     backup_wallet ();
     //active.announce_votes ();
     //online_reps.recalculate_stake ();
@@ -1681,7 +1683,7 @@ void logos::node::stop ()
     //CH active.stop ();
     network.stop ();
     bootstrap_initiator.stop ();
-    bootstrap.stop ();
+    bootstrap_listener.stop ();
     port_mapping.stop ();
     wallets.stop ();
     p2p.Shutdown ();
@@ -1775,7 +1777,7 @@ void logos::node::ongoing_bootstrap ()
         }
     }
     std::cout << "ongoing_bootstrap:" << std::endl;
-    bootstrap_initiator.bootstrap ();
+    bootstrap_initiator.bootstrap_listener ();
     std::weak_ptr<logos::node> node_w (shared_from_this ());
     alarm.add (std::chrono::steady_clock::now () + std::chrono::seconds (next_wakeup), [node_w]() {
         if (auto node_l = node_w.lock ())
@@ -1802,14 +1804,14 @@ void logos::node::ongoing_bootstrap ()
     }
     // bootstrap if we need the next micro or if we exceed 300 seconds
     // wait, otherwise, go back to sleep...
-    if(BatchBlock::get_next_micro > 0 || count >= 60) {
-        bootstrap_initiator.bootstrap();
-        count = 0;
-        if(BatchBlock::get_next_micro > 0) --BatchBlock::get_next_micro;
-    } else {
-        std::cout << "count: " << count << std::endl;
-        ++count;
-    }
+	//    if(get_next_micro > 0 || count >= 60) {
+	//        bootstrap_initiator.bootstrap();
+	//        count = 0;
+	//        if(get_next_micro > 0) --get_next_micro;
+	//    } else {
+	//        std::cout << "count: " << count << std::endl;
+	//        ++count;
+	//    }
     std::weak_ptr<logos::node> node_w (shared_from_this ());
     alarm.add (std::chrono::steady_clock::now () + std::chrono::seconds (next_wakeup), [node_w]() {
         if (auto node_l = node_w.lock ())
@@ -2147,7 +2149,7 @@ void logos::node::add_initial_peers ()
 #ifdef _PRODUCTION
     LOG_DEBUG(log) << "logos::node::add_initial_peers: ";
     // Add our peers from the configuation...
-    uint32_t port = BOOTSTRAP_PORT;
+    uint32_t port = Bootstrap::BOOTSTRAP_PORT;
     for(int i = 0; i < config.consensus_manager_config.delegates.size(); ++i) {
 #if 0
         logos::endpoint peer = logos::endpoint(

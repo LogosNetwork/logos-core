@@ -1,11 +1,26 @@
 #pragma once
 
 #include <logos/consensus/consensus_container.hpp>
+#include <logos/consensus/messages/batch_state_block.hpp>
 #include <logos/microblock/microblock.hpp>
+#include <logos/epoch/epoch.hpp>
 
-namespace Micro
+namespace Bootstrap
 {
-    using Store   = ConsensusContainer::Store;
+	using Store      = logos::block_store;
+
+    /// getBatchBlockTip
+    /// @param s Store reference
+    /// @param delegate int
+    /// @returns BlockHash (the tip we asked for)
+	BlockHash getBatchBlockTip(Store &s, int delegate);
+
+    /// getBatchBlockSeqNr
+    /// @param s Store reference
+    /// @param delegate int
+    /// @returns uint64_t (the sequence number)
+	uint64_t  getBatchBlockSeqNr(Store &s, int delegate);
+
 
     /// getMicroBlockTip
     /// @param s BlockStore
@@ -46,18 +61,9 @@ namespace Micro
     /// @param hash representing micro block
     void dumpMicroBlockTips(Store &store, BlockHash &hash);
 
-}/* namespace Micro */
-
-#include <logos/consensus/consensus_container.hpp>
-#include <logos/epoch/epoch.hpp>
-
-namespace EpochBlock {
-
-    using Store = ConsensusContainer::Store;
-
-/// getEpochBlockTip
-/// @param store BlockStore
-/// @returns BlockHash of the epoch block tip
+	/// getEpochBlockTip
+	/// @param store BlockStore
+	/// @returns BlockHash of the epoch block tip
     BlockHash getEpochBlockTip(Store& s);
 
 /// getEpochBlockSeqNr

@@ -216,7 +216,8 @@ namespace Bootstrap
     void bootstrap_server::receive_request ()
     {
         LOG_DEBUG(log) << "bootstrap_server::receive";
-        AsyncReceive(std::bind(&bootstrap_server::dispatch, this, std::placeholders::_1, std::placeholders::_2));
+        AsyncReceive(std::bind(&bootstrap_server::dispatch,
+        		this, std::placeholders::_1, std::placeholders::_2));
     }
 
     void bootstrap_server::Release()

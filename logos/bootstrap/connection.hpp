@@ -58,8 +58,8 @@ namespace Bootstrap
         //server side
         Socket(BoostSocket & socket_a, logos::alarm & alarm);
 
-        void AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete * cb, uint32_t timeout_ms = 0) override;
-        void AsyncReceive(ReceiveComplete * cb, uint32_t timeout_ms = 0) override;
+        virtual void AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete * cb, uint32_t timeout_ms = 0) override;
+        virtual void AsyncReceive(ReceiveComplete * cb, uint32_t timeout_ms = 0) override;
 
         void Disconnect();
         std::shared_ptr<Socket> shared ();
@@ -87,12 +87,18 @@ namespace Bootstrap
         /// Class destructor
         ~bootstrap_client ();
 
-        void OnNetworkError() override;
-        void Release() override;
+        virtual void OnNetworkError(bool black_list = false) override
+        {
+        	Socket::Disconnect();
+        	//TODO notify attempt
+        }
+        virtual void Release() override
+        {
+        	//TODO attempt.pool_connection(shared());
+        }
 
         void Disconnect ();
 
-        /// shared
         /// @returns returns shared pointer of this client
         std::shared_ptr<bootstrap_client> shared ();
 
@@ -102,7 +108,7 @@ namespace Bootstrap
     };
 
     class bootstrap_listener;
-    class bootstrap_server : public Socket //: public std::enable_shared_from_this<bootstrap_server>
+    class bootstrap_server : public Socket
     {
     public:
         /// Class constructor
@@ -118,8 +124,12 @@ namespace Bootstrap
         void receive_request ();
         void dispatch (bool good, MessageHeader header, uint8_t * buf);
 
-        void OnNetworkError() override;
-        void Release() override;
+        virtual void OnNetworkError(bool black_list = false) override
+        {
+        	Socket::Disconnect();
+        	//TODO notify attempt
+        }
+        virtual void Release() override;
 
         bootstrap_listener & listener;
         Store & store;

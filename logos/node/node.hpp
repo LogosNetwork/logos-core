@@ -12,6 +12,8 @@
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/bootstrap/bootstrap_interface.hpp>
 #include <logos/bootstrap/block_cache.hpp>
+#include <logos/bootstrap/bootstrap.hpp>
+
 #include <logos/tx_acceptor/tx_acceptor_config.hpp>
 #include <logos/p2p/p2p.h>
 
@@ -524,7 +526,7 @@ public:
     //CH logos::active_transactions active;
     logos::network network;
     Bootstrap::bootstrap_initiator bootstrap_initiator;
-    Bootstrap::bootstrap_listener bootstrap;
+    Bootstrap::bootstrap_listener bootstrap_listener;
     logos::peer_container peers;
     boost::filesystem::path application_path;
     logos::node_observers observers;
@@ -538,7 +540,6 @@ public:
     logos::block_arrival block_arrival;
     //CH logos::online_reps online_reps;
     logos::stat stats;
-    BatchBlock::validator *_validator; //TODO
     RecallHandler _recall_handler;
     DelegateIdentityManager _identity_manager;
     Archiver _archiver;

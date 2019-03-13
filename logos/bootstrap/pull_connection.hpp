@@ -9,7 +9,7 @@ namespace Bootstrap
 {
     using PullPtr = std::shared_ptr<PullRequest>;
 
-    class bulk_pull_client : public std::enable_shared_from_this<Bootstrap::bulk_pull_client>
+    class bulk_pull_client : public std::enable_shared_from_this<bulk_pull_client>
     {
     public:
         /// Class constructor
@@ -26,24 +26,45 @@ namespace Bootstrap
         /// receive_block composed operation
         void receive_block ();
 
-        template<ConsensusType CT>
-        Puller::PullStatus process_reply (logos::bufferstream & stream)
+        //template<ConsensusType CT>
+        Puller::PullStatus process_reply (ConsensusType ct, logos::bufferstream & stream)
         {
         	bool error = false;
-        	PullResponse<CT> response(error, stream);
-        	if (!error)
-        	{
-        		return puller.BlockReceived(request,
-        				response.block_number,
-						response.block,
-						response.status==PullResponseStatus::LastBlock);
-        	}
-        	else
-        	{
-        		puller.PullFailed(request);
-        	}
-
-        	return Puller::PullStatus::Unknown;
+        	switch (ct) {
+				case ConsensusType::BatchStateBlock:
+				{
+					PullResponse<ConsensusType::BatchStateBlock> response(error, stream);
+					if(error || response.status == PullResponseStatus::NoBlock)
+					{
+						puller.PullFailed(request);
+						return Puller::PullStatus::DisconnectSender;
+					}
+					return puller.BSBReceived(request, response.block,
+									response.status == PullResponseStatus::LastBlock);
+				}
+				case ConsensusType::MicroBlock:
+				{
+					PullResponse<ConsensusType::MicroBlock> response(error, stream);
+					if(error || response.status == PullResponseStatus::NoBlock)
+					{
+						puller.PullFailed(request);
+						return Puller::PullStatus::DisconnectSender;
+					}
+					return puller.MBReceived(request, response.block);
+				}
+				case ConsensusType::Epoch:
+				{
+					PullResponse<ConsensusType::Epoch> response(error, stream);
+					if(error || response.status == PullResponseStatus::NoBlock)
+					{
+						puller.PullFailed(request);
+						return Puller::PullStatus::DisconnectSender;
+					}
+					return puller.EBReceived(request, response.block);
+				}
+				default:
+					return Puller::PullStatus::Unknown;
+			}
         }
 
         std::shared_ptr<ISocket> connection;
@@ -69,6 +90,6 @@ namespace Bootstrap
         PullRequestHandler request_handler;
         Log log;
     };
-
-    //template Puller::PullStatus process_reply<ConsensusType::BatchStateBlock>(logos::bufferstream & stream);
 }
+
+//template Puller::PullStatus process_reply<ConsensusType::BatchStateBlock>(logos::bufferstream & stream);

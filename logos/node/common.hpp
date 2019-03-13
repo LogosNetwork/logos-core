@@ -175,7 +175,6 @@ public:
     void serialize (logos::stream &) override;
     void visit (logos::message_visitor &) const override;
     bool operator== (logos::frontier_req const &) const;
-    BatchBlock::tips_response tips; // our tips.
 };
 class bulk_pull : public message
 {
