@@ -3,13 +3,14 @@
 //
 #include <logos/network/net_io_send.hpp>
 #include <boost/asio/write.hpp>
+#include <logos/lib/log.hpp>
 
 bool
 NetIOSend::AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf)
 {
     std::lock_guard<std::mutex> lock(_send_mutex);
 
-    if (nullptr == socket)
+    if (nullptr == _socket)
     {
         return false;
     }
