@@ -40,7 +40,7 @@ enum class RequestType : uint8_t
     Unknown          = 15
 };
 
-class ReservationsProvider;
+class Reservations;
 
 struct Request
 {

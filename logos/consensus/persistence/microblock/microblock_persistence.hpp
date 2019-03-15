@@ -8,7 +8,7 @@
 
 static constexpr ConsensusType MBCT = ConsensusType::MicroBlock;
 
-class ReservationsProvider;
+class Reservations;
 
 template<>
 class PersistenceManager<MBCT> : public Persistence
@@ -19,7 +19,7 @@ protected:
     using BatchTips                    = BlockHash[NUM_DELEGATES];
     using Message                      = DelegateMessage<MBCT>;
     using PrePrepare                   = PrePrepareMessage<MBCT>;
-    using ReservationsPtr              = std::shared_ptr<ReservationsProvider>;
+    using ReservationsPtr              = std::shared_ptr<Reservations>;
     using IteratorBatchBlockReceiverCb = std::function<void(uint8_t, const ApprovedRB &)>;
     using BatchBlockReceiverCb         = std::function<void(const ApprovedRB &)>;
 

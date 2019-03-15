@@ -21,7 +21,7 @@ PersistenceManager<R>::PersistenceManager(Store & store,
     if (_reservations == nullptr)
     {
         LOG_WARN(_log) << "PersistenceManager creating default reservations";
-        _reservations = std::make_shared<DefaultReservations>(store);
+        _reservations = std::make_shared<Reservations>(store);
     }
 }
 

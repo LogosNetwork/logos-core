@@ -573,9 +573,6 @@ RequestConsensusManager::OnPrePrepareRejected()
 
     AdvanceState(ConsensusState::VOID);
 
-    // SYL integration fix: this is the only place other than
-    // OnConsensusReached where we reset the ongoing status
-
     // Don't have to change _ongoing because we have to immediately repropose
     InitiateConsensus(true);
 }

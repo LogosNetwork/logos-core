@@ -942,7 +942,7 @@ void logos::rpc_handler::request_blocks_latest ()
 
         if (!retrieve_prev_batch())
         {
-            error_response (response, "Internal data corruption: batch not found.");
+            error_response (response, "Internal data corruption: batch not found for hash " + hash.to_string());
         }
 
         // Check if there is a gap in the request block chain

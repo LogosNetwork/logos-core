@@ -6,6 +6,6 @@
 #include <logos/consensus/persistence/persistence.hpp>
 #include <logos/node/common.hpp>
 
-class ReservationsProvider;
+class Reservations;
 
 template<ConsensusType CT> class PersistenceManager {};

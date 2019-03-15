@@ -7,7 +7,7 @@
 
 static constexpr ConsensusType ECT = ConsensusType::Epoch;
 
-class ReservationsProvider;
+class Reservations;
 
 template<>
 class PersistenceManager<ECT> : public Persistence
@@ -18,7 +18,7 @@ protected:
     using RequestBlockTips = BlockHash[NUM_DELEGATES];
     using Message          = DelegateMessage<ECT>;
     using PrePrepare       = PrePrepareMessage<ECT>;
-    using ReservationsPtr  = std::shared_ptr<ReservationsProvider>;
+    using ReservationsPtr  = std::shared_ptr<Reservations>;
 
 public:
 

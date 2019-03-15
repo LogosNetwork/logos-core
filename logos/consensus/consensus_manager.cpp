@@ -25,7 +25,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _validator(validator)
     , _waiting_list(GetWaitingList(service, this))
     , _events_notifier(events_notifier)
-    , _reservations(std::make_shared<Reservations>(store))
+    , _reservations(std::make_shared<ConsensusReservations>(store))
     , _persistence_manager(store, _reservations)
 {
     _delegate_id = config.delegate_id;

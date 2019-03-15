@@ -20,7 +20,7 @@ protected:
 
     using Message         = DelegateMessage<R>;
     using PrePrepare      = PrePrepareMessage<R>;
-    using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
+    using ReservationsPtr = std::shared_ptr<Reservations>;
     using RequestPtr      = std::shared_ptr<const Request>;
 
 public:
