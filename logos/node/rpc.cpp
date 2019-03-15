@@ -5051,6 +5051,8 @@ logos::rpc_handler::account_info(
                 response = token_account.SerializeJson(true);
                 response.put("type","TokenAccount");
                 response.put("sequence",token_account.block_count);
+                response.put("request_count",
+                        std::to_string(token_account.block_count + token_account.receive_count));
                 response.put("frontier",token_account.head.to_string());
                 response.put("receive_tip",token_account.receive_head.to_string());
                 std::string balance;
