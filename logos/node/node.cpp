@@ -1291,8 +1291,7 @@ store (init_a.block_store_init, application_path_a / "data.ldb", config_a.lmdb_m
 gap_cache (*this),
 ledger (store, stats, config.state_block_parse_canary, config.state_block_generate_canary),
 network (*this, config.peering_port),
-bootstrap_initiator (*this),
-bootstrap_listener (service_a, Bootstrap::BOOTSTRAP_PORT, *this),
+block_cache (store),
 peers (network.endpoint ()),
 application_path (application_path_a),
 wallets (init_a.block_store_init, *this),
@@ -1312,7 +1311,9 @@ _tx_acceptor{config.tx_acceptor_config.tx_acceptors.size() == 0
     : nullptr},
 _tx_receiver{config.tx_acceptor_config.tx_acceptors.size() != 0
     ? std::make_shared<TxReceiver>(service_a, alarm_a, _consensus_container, config)
-    : nullptr}
+    : nullptr},
+bootstrap_initiator (alarm_a, store, block_cache, _consensus_container->GetPeerInfoProvider()),
+bootstrap_listener (alarm_a, store, config.consensus_manager_config.local_address)
 {
     BlocksCallback::Instance(service_a, config.callback_address, config.callback_port, config.callback_target, config.logging.callback_logging ());
 // Used to modify the database file with the new account_info field.

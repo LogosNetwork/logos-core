@@ -8,6 +8,7 @@
 
 namespace Bootstrap
 {
+	class ISocket;
     class tips_req_client : public std::enable_shared_from_this<Bootstrap::tips_req_client>
     {
     public:
@@ -39,7 +40,7 @@ namespace Bootstrap
         /// Class constructor
         /// @param bootstrap_server
         /// @param frontier_req (request made by the client)
-        tips_req_server (std::shared_ptr<ISocket> connection, TipSet request, Store & store);
+        tips_req_server (std::shared_ptr<ISocket> connection, TipSet & request, Store & store);
 
         /// Class destructor
         ~tips_req_server();

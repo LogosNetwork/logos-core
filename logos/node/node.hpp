@@ -9,11 +9,9 @@
 #include <logos/epoch/archiver.hpp>
 #include <logos/epoch/recall_handler.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
-#include <logos/consensus/consensus_container.hpp>
-#include <logos/bootstrap/bootstrap_interface.hpp>
-#include <logos/bootstrap/block_cache.hpp>
 #include <logos/bootstrap/bootstrap.hpp>
-
+#include <logos/consensus/consensus_container.hpp>
+#include <logos/consensus/persistence/block_cache.hpp>
 #include <logos/tx_acceptor/tx_acceptor_config.hpp>
 #include <logos/p2p/p2p.h>
 
@@ -508,11 +506,11 @@ public:
                                  bool should_buffer);
     process_return BufferComplete();
 
-    PeerInfoProvider & GetPeerInfoProvider()
-    {
-        //config.consensus_manager_config.local_address
-        return _consensus_container->GetPeerInfoProvider();
-    }
+	//    PeerInfoProvider & GetPeerInfoProvider()
+	//    {
+	//        //config.consensus_manager_config.local_address
+	//        return _consensus_container->GetPeerInfoProvider();
+	//    }
 
 
     boost::asio::io_service & service;
@@ -525,8 +523,7 @@ public:
     logos::ledger ledger;
     //CH logos::active_transactions active;
     logos::network network;
-    Bootstrap::bootstrap_initiator bootstrap_initiator;
-    Bootstrap::bootstrap_listener bootstrap_listener;
+    BlockCache block_cache;
     logos::peer_container peers;
     boost::filesystem::path application_path;
     logos::node_observers observers;
@@ -547,6 +544,9 @@ public:
     std::shared_ptr<ConsensusContainer> _consensus_container;
     std::shared_ptr<TxAcceptor> _tx_acceptor;
     std::shared_ptr<TxReceiver> _tx_receiver;
+    Bootstrap::bootstrap_initiator bootstrap_initiator;
+    Bootstrap::bootstrap_listener bootstrap_listener;
+
     p2p_config p2p_conf;
     static double constexpr price_max = 16.0;
     static double constexpr free_cutoff = 1024.0;

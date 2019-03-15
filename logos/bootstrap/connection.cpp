@@ -1,6 +1,9 @@
 #include <logos/bootstrap/bootstrap_messages.hpp>
 #include <logos/bootstrap/connection.hpp>
 #include <logos/bootstrap/tip_connection.hpp>
+#include <logos/bootstrap/attempt.hpp>
+
+#include <boost/asio/buffer.hpp>
 
 namespace Bootstrap
 {
@@ -38,7 +41,6 @@ namespace Bootstrap
     /////////////////////////////////////////////////////////////////////////////
 
     using BoostError = boost::system::error_code;
-    using BoostBuffer = boost::asio::buffer;
 
     Socket::Socket(logos::tcp_endpoint & endpoint, logos::alarm & alarm)
     : endpoint(endpoint)
@@ -54,7 +56,7 @@ namespace Bootstrap
     , timeout (*this)
     {}
 
-    void Socket::Connect (void (*ConnectComplete)(bool connected))
+    void Socket::Connect (std::function<void(bool)> ConnectComplete)
     {
         LOG_TRACE(log) << __func__ << " this: " << this << " timeout_ms: " << CONNECT_TIMEOUT_MS;
         auto this_l(shared());
@@ -85,7 +87,7 @@ namespace Bootstrap
         LOG_TRACE(log) << __func__ << " this: " << this << " timeout_ms: " << timeout_ms;
         auto this_l(shared());
         if(timeout_ms > 0) timeout.start (std::chrono::steady_clock::now () + std::chrono::milliseconds(timeout_ms));
-        boost::asio::async_write (socket, BoostBuffer (buf->data(), buf->size()),
+        boost::asio::async_write (socket, boost::asio::buffer(buf->data(), buf->size()),
                 [this_l, cb, timeout_ms](BoostError const & ec, size_t size_a)
                 {
                     if(timeout_ms > 0) this_l->timeout.stop();
@@ -106,7 +108,7 @@ namespace Bootstrap
         LOG_TRACE(log) << __func__ << " this: " << this << " timeout_ms: " << timeout_ms;
         auto this_l(shared());
         if(timeout_ms > 0) timeout.start (std::chrono::steady_clock::now () + std::chrono::milliseconds(timeout_ms));
-        boost::asio::async_read (socket, BoostBuffer (header_buf.data (), MessageHeader::WireSize),
+        boost::asio::async_read (socket, boost::asio::buffer(header_buf.data (), MessageHeader::WireSize),
             [this_l, cb, timeout_ms](BoostError const & ec, size_t size_a)
             {
                 LOG_TRACE(this_l->log) << "Socket::received header data";
@@ -124,7 +126,7 @@ namespace Bootstrap
                         return;
                     }
 
-                    boost::asio::async_read (this_l->socket, BoostBuffer (this_l->receive_buf.data(), this_l->receive_buf.size()),
+                    boost::asio::async_read (this_l->socket, boost::asio::buffer(this_l->receive_buf.data(), this_l->receive_buf.size()),
                         [this_l, cb, timeout_ms, header](BoostError const & ec, size_t size_a)
                         {
                             if(timeout_ms > 0) this_l->timeout.stop();
@@ -159,24 +161,22 @@ namespace Bootstrap
     ///////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////
 
-    bootstrap_client::bootstrap_client (std::shared_ptr<bootstrap_attempt> attempt_a,
+    bootstrap_client::bootstrap_client (bootstrap_attempt & attempt_a,
             logos::tcp_endpoint & endpoint_a)
-    : Socket (endpoint_a, attempt_a->alarm)
+    : Socket (endpoint_a, attempt_a.alarm)
     , attempt (attempt_a)
     {
         auto this_l(shared());
         auto on_connected = [this_l](bool connected)
         {
-            ++(this_l->attempt.connections);
-            this_l->attempt.pool_connection (this_l);
+            if(connected)
+            	this_l->attempt.pool_connection (this_l);
         };
         Connect(on_connected);
     }
 
     bootstrap_client::~bootstrap_client ()
     {
-        if(attempt)
-            --attempt.connections;
         LOG_DEBUG(log) << "bootstrap_client::~bootstrap_client";
         Socket::Disconnect();
     }
@@ -188,9 +188,18 @@ namespace Bootstrap
         OnNetworkError();
     }
 
+    void bootstrap_client::OnNetworkError(bool black_list)
+    {
+    	attempt.remove_connection(shared(), black_list);
+    }
+    void bootstrap_client::Release()
+    {
+    	attempt.pool_connection(shared());
+    }
+
 	std::shared_ptr<bootstrap_client> bootstrap_client::shared ()
 	{
-		return reinterpret_cast<std::shared_ptr<bootstrap_client>>(shared_from_this());
+		return shared_from_base<bootstrap_client>();//safe
 	}
 
     ////////////////////////////////////////////////////////////////////////////////////////////
@@ -198,8 +207,8 @@ namespace Bootstrap
     ////////////////////////////////////////////////////////////////////////////////////////////
 
     bootstrap_server::bootstrap_server (bootstrap_listener & listener,
-                                        BoostSocket & socket_a,
-                                        Store & store)
+    		BoostSocket & socket_a,
+			Store & store)
     : Socket (socket_a, listener.alarm)
     , listener(listener)
     , store (store)
@@ -216,8 +225,8 @@ namespace Bootstrap
     void bootstrap_server::receive_request ()
     {
         LOG_DEBUG(log) << "bootstrap_server::receive";
-        AsyncReceive(std::bind(&bootstrap_server::dispatch,
-        		this, std::placeholders::_1, std::placeholders::_2));
+//TODO        AsyncReceive(std::bind(&bootstrap_server::dispatch, this,
+//        	std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), 0);
     }
 
     void bootstrap_server::Release()
@@ -235,18 +244,21 @@ namespace Bootstrap
             switch (header.type)
             {
                 case MessageType::TipRequest:
-                    TipSet request(error, stream);
+                {    TipSet request(error, stream);
                     if(!error) {
                     	tips_req_server tip_server(shared_from_this(), request, store);
-                    	tip_server.run();
+                    	tip_server.send_tips();
                     }
                     break;
+                }
                 case MessageType::PullRequest:
-                    PullRequest pull(error, stream);
+                {
+                	PullRequest pull(error, stream);
                     if(!error) {
 
                     }
                     break;
+                }
                 default:
                     error = true;
                     break;

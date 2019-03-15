@@ -15,7 +15,7 @@ namespace Bootstrap
 	, state(PullState::Epoch)
 	{}
 
-	void Puller::Init(TipSet &my_tips, TipSet &others_tips)
+	void Puller::Init(TipSet & my_tips, TipSet & others_tips)
 	{
 		std::lock_guard<std::mutex> lck (mtx);
 		this->my_tips = my_tips;
@@ -53,7 +53,7 @@ namespace Bootstrap
 		return waiting_pulls.size();
 	}
 
-	Puller::PullStatus Puller::EBReceived(PullPtr pull, EBPtr block)
+	PullStatus Puller::EBReceived(PullPtr pull, EBPtr block)
     {
     	assert(state==PullState::Epoch && working_epoch.eb == nullptr);
     	bool good_block = block->previous == pull->prev_hash &&
@@ -75,7 +75,7 @@ namespace Bootstrap
     	}
     }
 
-	Puller::PullStatus Puller::MBReceived(PullPtr pull, MBPtr block)
+	PullStatus Puller::MBReceived(PullPtr pull, MBPtr block)
     {
     	assert(state==PullState::Micro);
     	bool good_block = block->previous == pull->prev_hash &&
@@ -109,7 +109,7 @@ namespace Bootstrap
     	}
     }
 
-	Puller::PullStatus Puller::BSBReceived(PullPtr pull, BSBPtr block, bool last_block)
+	PullStatus Puller::BSBReceived(PullPtr pull, BSBPtr block, bool last_block)
 	{
     	assert(state==PullState::Batch || state==PullState::Batch_No_MB);
     	bool good_block = block->previous == pull->prev_hash &&
@@ -355,7 +355,7 @@ namespace Bootstrap
 			assert(working_epoch.next_mbp.bsb_targets.empty());
 
 			auto digest(working_epoch.cur_mbp.mb->Hash());
-			bool mb_processed = !block_cache.IsMBCached(working_epoch.epoch_num, digest);
+			bool mb_processed = !block_cache.IsBlockCached(digest);
 			if(mb_processed)
 			{
 				working_epoch.cur_mbp = working_epoch.next_mbp;
@@ -367,7 +367,7 @@ namespace Bootstrap
 				LOG_FATAL(log) << "Puller::CreateMorePulls: pulled two MB periods,"
 								<< " but first MB has not been processed."
 								<< " epoch_num=" << working_epoch.epoch_num
-								<< " MB_1 hash=" << digest;
+								<< " MB_1 hash=" << digest.to_string ();
 				trace_and_halt();
 			}
 		}
@@ -375,14 +375,14 @@ namespace Bootstrap
 		if(working_epoch.cur_mbp.mb != nullptr)
 		{
 			auto digest(working_epoch.cur_mbp.mb->Hash());
-			bool mb_processed = !block_cache.IsMBCached(working_epoch.epoch_num, digest);
+			bool mb_processed = !block_cache.IsBlockCached(digest);
 			if(mb_processed)
 			{
 				if(working_epoch.cur_mbp.mb->last_micro_block)
 				{
 					if(working_epoch.eb != nullptr)
 					{
-						bool eb_processed = !block_cache.IsEBCached(working_epoch.epoch_num);
+						bool eb_processed = !block_cache.IsBlockCached(working_epoch.eb->Hash());
 						if(eb_processed)
 						{
 							LOG_INFO(log) << "Puller::BSBReceived: processed an epoch "<< working_epoch.epoch_num;
@@ -415,6 +415,44 @@ namespace Bootstrap
 		}
     }
 
+    void Puller::UpdateMyBSBTip(BSBPtr block)
+    {
+    	auto d_idx = block->primary_delegate;
+    	BlockHash digest = block->Hash();
+    	//try old epoch
+    	if(my_tips.bsb_vec[d_idx].digest == block->previous)
+    	{
+        	my_tips.bsb_vec[d_idx].digest = block->Hash();
+        	my_tips.bsb_vec[d_idx].epoch = block->epoch_number;
+        	my_tips.bsb_vec[d_idx].sqn =  block->sequence;
+    	}
+    	else if(my_tips.bsb_vec_new_epoch[d_idx].digest == block->previous)
+    	{
+        	my_tips.bsb_vec_new_epoch[d_idx].digest = block->Hash();
+        	my_tips.bsb_vec_new_epoch[d_idx].epoch = block->epoch_number;
+        	my_tips.bsb_vec_new_epoch[d_idx].sqn =  block->sequence;
+    	}
+    	else
+    	{
+    		assert(false);
+    	}
+    }
+
+    void Puller::UpdateMyMBTip(MBPtr block)
+    {
+    	assert(my_tips.mb.digest == block->previous);
+    	my_tips.mb.digest = block->Hash();
+    	my_tips.mb.epoch = block->epoch_number;
+    	my_tips.mb.sqn =  block->sequence;
+    }
+
+    void Puller::UpdateMyEBTip(EBPtr block)
+    {
+    	assert(my_tips.eb.digest == block->previous);
+    	my_tips.eb.digest = block->Hash();
+    	my_tips.eb.epoch = block->epoch_number;
+    	my_tips.eb.sqn =  block->epoch_number;
+    }
 
     //TODO verify peer tips
 
@@ -423,8 +461,8 @@ namespace Bootstrap
     : request(request)
     , store(store)
     {
-    	std::vector<uint8_t> & buf;
-    	uint32_t block_size = GetBlock(request->block_type, request->prev_hash, buf);
+    	std::vector<uint8_t> buf;
+    	uint32_t block_size = GetBlock(request->prev_hash, buf);
 		if(block_size > 0)//have block
 		{
 			memcpy (next.data(), buf.data() + PullResponseReserveSize + block_size - HASH_SIZE, HASH_SIZE);
@@ -435,11 +473,11 @@ namespace Bootstrap
     {
 		switch (request->block_type) {
 			case ConsensusType::BatchStateBlock:
-				return store.batch_block_get_raw(hash, PullResponseReserveSize, buf);
+				return 0;//TODO store.batch_block_get_raw(hash, PullResponseReserveSize, buf);
 			case ConsensusType::MicroBlock:
-				return store.micro_block_get_raw(hash, PullResponseReserveSize, buf);
+				return 0;//TODO  store.micro_block_get_raw(hash, PullResponseReserveSize, buf);
 			case ConsensusType::Epoch:
-				return store.epoch_get_raw(hash, PullResponseReserveSize, buf);
+				return 0;//TODO  store.epoch_get_raw(hash, PullResponseReserveSize, buf);
 			default:
 				return 0;
 		}

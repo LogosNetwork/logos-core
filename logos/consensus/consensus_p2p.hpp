@@ -11,6 +11,7 @@
 #include <logos/consensus/persistence/nondel_persistence_manager_incl.hpp>
 
 constexpr Milliseconds P2P_DEFAULT_CLOCK_DRIFT = Milliseconds(1000*60*60);
+constexpr int P2P_GET_PEER_NEW_SESSION = -1;
 
 template<ConsensusType CT>
 class ConsensusP2pOutput

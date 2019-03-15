@@ -9,6 +9,8 @@ namespace Bootstrap
 {
     using PullPtr = std::shared_ptr<PullRequest>;
 
+    //class Puller;
+    //enum class PullStatus;
     class bulk_pull_client : public std::enable_shared_from_this<bulk_pull_client>
     {
     public:
@@ -27,45 +29,45 @@ namespace Bootstrap
         void receive_block ();
 
         //template<ConsensusType CT>
-        Puller::PullStatus process_reply (ConsensusType ct, logos::bufferstream & stream)
-        {
-        	bool error = false;
-        	switch (ct) {
-				case ConsensusType::BatchStateBlock:
-				{
-					PullResponse<ConsensusType::BatchStateBlock> response(error, stream);
-					if(error || response.status == PullResponseStatus::NoBlock)
-					{
-						puller.PullFailed(request);
-						return Puller::PullStatus::DisconnectSender;
-					}
-					return puller.BSBReceived(request, response.block,
-									response.status == PullResponseStatus::LastBlock);
-				}
-				case ConsensusType::MicroBlock:
-				{
-					PullResponse<ConsensusType::MicroBlock> response(error, stream);
-					if(error || response.status == PullResponseStatus::NoBlock)
-					{
-						puller.PullFailed(request);
-						return Puller::PullStatus::DisconnectSender;
-					}
-					return puller.MBReceived(request, response.block);
-				}
-				case ConsensusType::Epoch:
-				{
-					PullResponse<ConsensusType::Epoch> response(error, stream);
-					if(error || response.status == PullResponseStatus::NoBlock)
-					{
-						puller.PullFailed(request);
-						return Puller::PullStatus::DisconnectSender;
-					}
-					return puller.EBReceived(request, response.block);
-				}
-				default:
-					return Puller::PullStatus::Unknown;
-			}
-        }
+        PullStatus process_reply (ConsensusType ct, logos::bufferstream & stream);
+//        {
+//        	bool error = false;
+//        	switch (ct) {
+//				case ConsensusType::BatchStateBlock:
+//				{
+//					PullResponse<ConsensusType::BatchStateBlock> response(error, stream);
+//					if(error || response.status == PullResponseStatus::NoBlock)
+//					{
+//						puller.PullFailed(request);
+//						return Puller::PullStatus::DisconnectSender;
+//					}
+//					return puller.BSBReceived(request, response.block,
+//									response.status == PullResponseStatus::LastBlock);
+//				}
+//				case ConsensusType::MicroBlock:
+//				{
+//					PullResponse<ConsensusType::MicroBlock> response(error, stream);
+//					if(error || response.status == PullResponseStatus::NoBlock)
+//					{
+//						puller.PullFailed(request);
+//						return Puller::PullStatus::DisconnectSender;
+//					}
+//					return puller.MBReceived(request, response.block);
+//				}
+//				case ConsensusType::Epoch:
+//				{
+//					PullResponse<ConsensusType::Epoch> response(error, stream);
+//					if(error || response.status == PullResponseStatus::NoBlock)
+//					{
+//						puller.PullFailed(request);
+//						return Puller::PullStatus::DisconnectSender;
+//					}
+//					return puller.EBReceived(request, response.block);
+//				}
+//				default:
+//					return Puller::PullStatus::Unknown;
+//			}
+//        }
 
         std::shared_ptr<ISocket> connection;
         Puller & puller;
@@ -73,7 +75,6 @@ namespace Bootstrap
         Log log;
     };
 
-    class bulk_pull;
     class bulk_pull_server : public std::enable_shared_from_this<Bootstrap::bulk_pull_server>
     {
     public:

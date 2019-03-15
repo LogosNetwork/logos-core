@@ -46,7 +46,7 @@ work (1, nullptr)
         std::cout << "logos::system::system init done <2>..." << std::endl;
     }
     auto iterations1 (0);
-    while (std::any_of (nodes.begin (), nodes.end (), [](std::shared_ptr<logos::node> const & node_a) { return node_a->bootstrap_initiator.in_progress (); }))
+    while (std::any_of (nodes.begin (), nodes.end (), [](std::shared_ptr<logos::node> const & node_a) { return false; }))
     {
         std::cout << "logos::system::system init <3>..." << std::endl;
         poll ();
@@ -89,7 +89,7 @@ work (1, nullptr)
         } while (new1 == starting1 || new2 == starting2);
     }
     auto iterations1 (0);
-    while (std::any_of (nodes.begin (), nodes.end (), [](std::shared_ptr<logos::node> const & node_a) { return node_a->bootstrap_initiator.in_progress (); }))
+    while (std::any_of (nodes.begin (), nodes.end (), [](std::shared_ptr<logos::node> const & node_a) { return false; }))
     {
         poll ();
         ++iterations1;

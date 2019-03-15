@@ -320,15 +320,12 @@ add_library (node
 	${PLATFORM_NODE_SOURCE}
 	${SECURE_RPC_SOURCE}
     logos/bootstrap/attempt.cpp
-    logos/bootstrap/block_cache.cpp
     logos/bootstrap/bootstrap.cpp
     logos/bootstrap/bootstrap_messages.cpp
-    logos/bootstrap/bulk_pull.cpp
-    logos/bootstrap/bulk_pull_response.cpp
     logos/bootstrap/connection.cpp
-    logos/bootstrap/microblock.cpp
-	logos/bootstrap/p2p.cpp
-    logos/bootstrap/tips.cpp
+    logos/bootstrap/pull_connection.cpp
+    logos/bootstrap/pull.cpp
+    logos/bootstrap/tip_connection.cpp
 
 	logos/consensus/batchblock/batchblock_consensus_manager.cpp
 	logos/consensus/batchblock/bb_backup_delegate.cpp
@@ -347,6 +344,7 @@ add_library (node
 	logos/consensus/messages/messages.cpp
 	logos/consensus/microblock/microblock_backup_delegate.cpp
 	logos/consensus/microblock/microblock_consensus_manager.cpp
+	logos/consensus/persistence/block_cache.cpp
 	logos/consensus/persistence/persistence.cpp
 	logos/consensus/persistence/validator_builder.cpp
 	logos/consensus/persistence/batchblock/batchblock_persistence.cpp

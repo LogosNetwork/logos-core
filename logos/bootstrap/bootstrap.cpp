@@ -1,7 +1,8 @@
 #include <logos/bootstrap/bootstrap.hpp>
 #include <logos/bootstrap/tips.hpp>
 #include <logos/bootstrap/bootstrap_messages.hpp>
-#include <logos/bootstrap/p2p.hpp>
+#include <logos/bootstrap/connection.hpp>
+#include <logos/bootstrap/attempt.hpp>
 
 #include <logos/node/common.hpp>
 #include <logos/node/node.hpp>
@@ -13,11 +14,16 @@
 
 namespace Bootstrap
 {
-    bootstrap_initiator::bootstrap_initiator(Service & service,
-            logos::alarm & alarm,
+    bootstrap_initiator::bootstrap_initiator(logos::alarm & alarm,
+       		Store & store,
+			BlockCache & cache,
+			PeerInfoProvider & peer_provider,
             uint8_t max_connected)
-    : service(service)
+    : service(alarm.service)
     , alarm(alarm)
+    , store(store)
+    , cache(cache)
+    , peer_provider(peer_provider)
     , stopped(false)
     , max_connected(max_connected)
     , thread([this]() { run_bootstrap(); })
@@ -33,7 +39,11 @@ namespace Bootstrap
     {
         std::unique_lock<std::mutex> lock(mutex);
         if (!stopped && attempt == nullptr) {
-            attempt = std::make_shared<bootstrap_attempt>(alarm, stor);
+            attempt = std::make_shared<bootstrap_attempt>(alarm,
+            		store,
+					cache,
+					peer_provider,
+					max_connected);
             condition.notify_all();
         }
     }
@@ -43,21 +53,30 @@ namespace Bootstrap
         //cannot add endpoint_a to peer list, since it could be
         //one of the delegate
         std::unique_lock<std::mutex> lock(mutex);
-        if (!stopped) {
-            while (attempt != nullptr) {
-                attempt->stop();
-                condition.wait(lock);
+        if (!stopped)
+        {
+            if(attempt != nullptr)
+            {
+                attempt->add_connection(endpoint_a);
             }
-            attempt = std::make_shared<bootstrap_attempt>(alarm);
-            attempt->add_connection(endpoint_a);
-            condition.notify_all();
+            else
+            {
+				attempt = std::make_shared<bootstrap_attempt>(alarm,
+						store,
+						cache,
+						peer_provider,
+						max_connected);
+				attempt->add_connection(endpoint_a);
+				condition.notify_all();
+            }
         }
     }
 
     void bootstrap_initiator::run_bootstrap()
     {
         std::unique_lock<std::mutex> lock(mutex);
-        while (!stopped) {
+        while (!stopped)
+        {
             if (attempt != nullptr) {
                 lock.unlock();
                 attempt->run(); // NOTE Call bootstrap_attempt::run
@@ -69,16 +88,10 @@ namespace Bootstrap
             }
         }
     }
-
     bool bootstrap_initiator::in_progress()
     {
-        return current_attempt() != nullptr;
-    }
-
-    std::shared_ptr<bootstrap_attempt> bootstrap_initiator::current_attempt()
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        return attempt;
+    	std::lock_guard<std::mutex> lock(mutex);
+    	return attempt != nullptr;
     }
 
     void bootstrap_initiator::stop()
@@ -100,32 +113,31 @@ namespace Bootstrap
                         BOOTSTRAP_PORT);
     }
 
-    bootstrap_listener::bootstrap_listener(Service &service_a,
-            logos::alarm & alarm,
+    bootstrap_listener::bootstrap_listener(logos::alarm & alarm,
             Store & store,
             std::string & local_address,
-            uint16_t port_a,
+            //uint16_t port_a,
             uint8_t max_accepted)
-    : acceptor(service_a)
+    : acceptor(alarm.service)
     , alarm(alarm)
     //, local(boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v6::any(), port_a))
     , local(get_endpoint(local_address))
-    , service(service_a)
+    , service(alarm.service)
     , store(store)
     , max_accepted(max_accepted)
     {
-        LOG_DEBUG(log) << __func__ << " port=" << port_a;
+        LOG_DEBUG(log) << __func__;// << " port=" << port_a;
     }
 
     void bootstrap_listener::start()
     {
-        //acceptor.open (local.protocol ());
-        acceptor.open(endpoint().protocol());
+    	acceptor.open (local.protocol ());
+        //acceptor.open(endpoint().protocol());
         acceptor.set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
 
         boost::system::error_code ec;
-        //acceptor.bind (local, ec); // RGD
-        acceptor.bind(endpoint(), ec);
+        acceptor.bind (local, ec); // RGD
+        //acceptor.bind(endpoint(), ec);
         if (ec)
         {
             LOG_FATAL(log) << "Error while binding for bootstrap on port " << local.port()
@@ -139,28 +151,19 @@ namespace Bootstrap
 
     void bootstrap_listener::stop()
     {
-        decltype(connections) connections_l;
-        {
-            std::lock_guard<std::mutex> lock(mutex);
-            on = false;
-            connections_l.swap(connections);
-        }
         LOG_DEBUG(log) << "bootstrap_listener::stop: acceptor->close";
         acceptor.close();
-        for (auto &i : connections_l)
+        std::lock_guard<std::mutex> lock(mtx);
+        for (auto &con : connections)
         {
-            auto connection(i.second.lock());
-            if (connection)
-            {
-                LOG_DEBUG(log) << "bootstrap_listener::stop: socket->close";
-                connection->socket->close();
-            }
+        	LOG_DEBUG(log) << "bootstrap_listener::stop: socket->close";
+        	con->socket.close();
         }
     }
 
     void bootstrap_listener::accept_connection()
     {
-        auto socket(std::make_shared<boost::asio::ip::tcp::socket>(service));
+        auto socket(std::make_shared<BoostSocket>(service));
         acceptor.async_accept(*socket, [this, socket](boost::system::error_code const &ec)
         {
             accept_action(ec, socket);
@@ -168,20 +171,20 @@ namespace Bootstrap
     }
 
     void bootstrap_listener::accept_action(boost::system::error_code const &ec,
-                                           std::shared_ptr<boost::asio::ip::tcp::socket> socket_a)
+                                           std::shared_ptr<BoostSocket> socket_a)
     {
         if (!ec)
         {
             accept_connection();
-            auto connection(std::make_shared<bootstrap_server>(socket_a));//TODO
+            auto connection(std::make_shared<bootstrap_server>(*this, *socket_a, store));
             {
-                std::lock_guard<std::mutex> lock(mutex);
+                std::lock_guard<std::mutex> lock(mtx);
                 if (connections.size() < max_accepted && acceptor.is_open())
                 {
                     LOG_DEBUG(log) << "bootstrap_listener::accept_action: " << connections.size()
-                                        << " acceptor.is_open(): " << acceptor.is_open();
-                    connections[connection.get()] = connection;//TODO
-                    connection->receive();
+                                   << " acceptor.is_open(): " << acceptor.is_open();
+                    connections.insert(connection);
+                    connection->receive_request();
                 } else {
                     LOG_WARN(log) << "bootstrap_listener::accept_action: " << connections.size()
                                        << " acceptor.is_open(): " << acceptor.is_open();
@@ -192,4 +195,33 @@ namespace Bootstrap
                            << ec.message();
         }
     }
+
+    void bootstrap_listener::remove_connection(std::shared_ptr<bootstrap_server> server)
+    {
+    	LOG_DEBUG(log) << __func__;
+    	server->socket.close();
+    	std::lock_guard <std::mutex> lock(mtx);
+    	connections.erase(server);
+    }
 }
+
+//        decltype(connections) connections_l;
+//        {
+//            std::lock_guard<std::mutex> lock(mtx);
+//            //on = false;
+//            connections_l.swap(connections);
+//        }
+//    bool bootstrap_initiator::in_progress()
+//    {
+//        return current_attempt() != nullptr;
+//    }
+//    std::shared_ptr<bootstrap_attempt> bootstrap_initiator::current_attempt()
+//    {
+//        std::lock_guard<std::mutex> lock(mutex);
+//        return attempt;
+//    }
+//
+//    void bootstrap_listener::on_network_error()
+//    {
+//
+//    }

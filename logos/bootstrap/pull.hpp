@@ -5,12 +5,12 @@
 #include <memory>
 
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/consensus/persistence/block_cache.hpp>
 
 #include <logos/bootstrap/bootstrap_messages.hpp>
-#include <logos/bootstrap/bootstrap.hpp>
+//#include <logos/bootstrap/bootstrap.hpp>
 #include <logos/bootstrap/microblock.hpp>
-#include <logos/bootstrap/block_cache.hpp>
-#include <logos/bootstrap/pull_connection.hpp>
+//#include <logos/bootstrap/pull_connection.hpp>
 
 namespace Bootstrap
 {
@@ -18,6 +18,16 @@ namespace Bootstrap
     using BSBPtr = std::shared_ptr<ApprovedBSB>;
     using MBPtr = std::shared_ptr<ApprovedMB>;
     using EBPtr = std::shared_ptr<ApprovedEB>;
+
+    enum class PullStatus
+    {
+        Continue,
+		Done,
+        DisconnectSender,
+        BlackListSender,
+
+		Unknown				= 0xff
+    };
 
     class Puller
     {
@@ -28,16 +38,6 @@ namespace Bootstrap
         PullPtr GetPull();
         bool AllDone();
         size_t GetNumWaitingPulls();
-
-        enum class PullStatus
-        {
-            Continue,
-			Done,
-            DisconnectSender,
-            BlackListSender,
-
-			Unknown				= 0xff
-        };
 
         /**
          * @param pull the pull that the block belongs to
@@ -53,44 +53,9 @@ namespace Bootstrap
         void CreateMorePulls();
         void CheckProgress();
 
-        void UpdateMyBSBTip(BSBPtr block)
-        {
-        	auto d_idx = block->primary_delegate;
-        	BlockHash digest = block->Hash();
-        	//try old epoch
-        	if(my_tips.bsb_vec[d_idx].digest == block->previous)
-        	{
-            	my_tips.bsb_vec[d_idx].digest = block->Hash();
-            	my_tips.bsb_vec[d_idx].epoch = block->epoch_number;
-            	my_tips.bsb_vec[d_idx].sqn =  block->sequence;
-        	}
-        	else if(my_tips.bsb_vec_new_epoch[d_idx].digest == block->previous)
-        	{
-            	my_tips.bsb_vec_new_epoch[d_idx].digest = block->Hash();
-            	my_tips.bsb_vec_new_epoch[d_idx].epoch = block->epoch_number;
-            	my_tips.bsb_vec_new_epoch[d_idx].sqn =  block->sequence;
-        	}
-        	else
-        	{
-        		assert(false);
-        	}
-        }
-
-        void UpdateMyMBTip(MBPtr block)
-        {
-        	assert(my_tips.mb.digest == block->previous);
-        	my_tips.mb.digest = block->Hash();
-        	my_tips.mb.epoch = block->epoch_number;
-        	my_tips.mb.sqn =  block->sequence;
-        }
-
-        void UpdateMyEBTip(EBPtr block)
-        {
-        	assert(my_tips.eb.digest == block->previous);
-        	my_tips.eb.digest = block->Hash();
-        	my_tips.eb.epoch = block->epoch_number;
-        	my_tips.eb.sqn =  block->epoch_number;
-        }
+        void UpdateMyBSBTip(BSBPtr block);
+        void UpdateMyMBTip(MBPtr block);
+        void UpdateMyEBTip(EBPtr block);
 
         BlockCache & block_cache;
         Store & store;
@@ -111,6 +76,7 @@ namespace Bootstrap
 			Done
 		};
         PullState state;
+
         struct MicroPeriod
         {
         	MBPtr mb;

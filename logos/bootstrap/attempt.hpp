@@ -1,12 +1,18 @@
 #pragma once
 
-#include <logos/bootstrap/connection.hpp>
 #include <logos/bootstrap/pull.hpp>
-#include <logos/bootstrap/block_cache.hpp>
+#include <logos/consensus/persistence/block_cache.hpp>
 
-namespace Bootstrap {
+namespace logos
+{
+	class alarm;
+}
+class PeerInfoProvider;
 
-class bootstrap_attempt : public std::enable_shared_from_this<bootstrap_attempt>
+namespace Bootstrap
+{
+	class bootstrap_client;
+	class bootstrap_attempt : public std::enable_shared_from_this<bootstrap_attempt>
     {
     public:
         /// Class constructor
@@ -31,24 +37,25 @@ class bootstrap_attempt : public std::enable_shared_from_this<bootstrap_attempt>
 
         /// add_connection Add an endpoint
         /// @param endpoint
-        void add_connection(logos::endpoint const &);
+        void add_connection(logos::endpoint const & endpoint);
 
         /// pool_connection store connection on idle queue for re-use
-        void pool_connection(std::shared_ptr<bootstrap_client>);
+        void pool_connection(std::shared_ptr<bootstrap_client> client);
+        void remove_connection(std::shared_ptr<bootstrap_client> client, bool blacklist);
 
         /// connection
         /// @param unique_lock
         /// @returns a valid bootstrap_client
-        std::shared_ptr<bootstrap_client> connection(std::unique_lock<std::mutex> &);
+        std::shared_ptr<bootstrap_client> connection();//std::unique_lock<std::mutex> &);
 
         /// request_tips
         /// @param unique_lock
         /// @returns boolean
-        bool request_tips(std::unique_lock<std::mutex> &);
+        bool request_tips();//std::unique_lock<std::mutex> &);
 
         /// request_pull
         /// @param unique_lock
-        void request_pull(std::unique_lock<std::mutex> &);
+        void request_pull();//std::unique_lock<std::mutex> &);
 
         /// consume_future
         /// @param future
@@ -65,16 +72,15 @@ class bootstrap_attempt : public std::enable_shared_from_this<bootstrap_attempt>
         Store & store;
         PeerInfoProvider & peer_provider;
 
-        std::mutex mutex;
-        std::deque<std::shared_ptr<bootstrap_client>> working_clients;
-        std::deque<std::shared_ptr<bootstrap_client>> idle_clients;
-        std::atomic<unsigned> connections;
-        uint8_t max_connected;
+        std::mutex mtx;
+        std::unordered_set<std::shared_ptr<bootstrap_client>> working_clients;
+        std::unordered_set<std::shared_ptr<bootstrap_client>> idle_clients;
+        const uint8_t max_connected;
         int session_id;
 
         Puller puller;
         std::condition_variable condition;
-        bool stopped;
+        std::atomic<bool> stopped;
         Log log;
     };
 }

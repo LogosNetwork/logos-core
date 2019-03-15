@@ -25,7 +25,7 @@ namespace Bootstrap
         virtual void OnNetworkError(bool black_list = false) = 0;
         virtual void Release() = 0;
 
-        virtual ~ISocket();
+        virtual ~ISocket() = default;
     };
 
     class Socket;
@@ -53,7 +53,7 @@ namespace Bootstrap
     public:
         //client side
         Socket(logos::tcp_endpoint & endpoint, logos::alarm & alarm);
-        void Connect (void ConnectComplete(bool connected));
+        void Connect (std::function<void(bool)>);//void ConnectComplete(bool connected));
 
         //server side
         Socket(BoostSocket & socket_a, logos::alarm & alarm);
@@ -71,6 +71,13 @@ namespace Bootstrap
         std::array<uint8_t, MessageHeader::WireSize> header_buf;
         std::array<uint8_t, BootstrapBufSize> receive_buf;
         Log log;
+
+    protected:
+        template <typename Derived>
+        std::shared_ptr<Derived> shared_from_base()
+        {
+            return std::static_pointer_cast<Derived>(shared_from_this());
+        }
     };
 
 
@@ -82,20 +89,13 @@ namespace Bootstrap
         /// @param node
         /// @param bootstrap_attempt
         /// @param tcp_endpoint
-        bootstrap_client (std::shared_ptr<bootstrap_attempt>, logos::tcp_endpoint &);
+        bootstrap_client (bootstrap_attempt & attempt, logos::tcp_endpoint &);
 
         /// Class destructor
         ~bootstrap_client ();
 
-        virtual void OnNetworkError(bool black_list = false) override
-        {
-        	Socket::Disconnect();
-        	//TODO notify attempt
-        }
-        virtual void Release() override
-        {
-        	//TODO attempt.pool_connection(shared());
-        }
+        virtual void OnNetworkError(bool black_list = false) override;
+        virtual void Release() override;
 
         void Disconnect ();
 

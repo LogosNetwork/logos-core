@@ -347,7 +347,13 @@ namespace Bootstrap {
             	block = nullptr;
                 return;
             }
-            block = std::make_shared<PostCommittedBlock<CT>>(error, stream, true, true);
+
+            Prequel prequel(error, stream);
+            if (error)
+            {
+                return;
+            }
+            block = std::make_shared<PostCommittedBlock<CT>>(error, stream, prequel.version, true, true);
         }
     };
 
@@ -357,25 +363,26 @@ namespace Bootstrap {
      * When this function is call, buf should already have the block
      */
     constexpr uint32_t PullResponseReserveSize = MessageHeader::WireSize + sizeof(PullResponseStatus);
-    using LeadingFieldsStream =
-    		boost::iostreams::stream_buffer<boost::iostreams::basic_array_sink<uint8_t>>;
+//    using LeadingFieldsStream =
+//    		boost::iostreams::stream_buffer<boost::iostreams::basic_array_sink<uint8_t>>;
+
     //return total message size including header
     uint32_t PullResponseSerializedLeadingFields(ConsensusType ct,
             PullResponseStatus status,
             uint32_t block_size,
-            std::vector<uint8_t> & buf)
-    {
-        //uint32_t serial_size = MessageHeader::WireSize + sizeof(status);
-        LeadingFieldsStream stream(buf, PullResponseReserveSize);
-        uint32_t payload_size = sizeof(status) + block_size;
-        MessageHeader header(logos_version,
-        		MessageType::PullResponse,
-				ct,
-				payload_size);
-        header.Serialize(stream);
-        logos::write(stream, status);
-        return MessageHeader::WireSize + payload_size;
-    }
+            std::vector<uint8_t> & buf);
+
+//    {
+//        LeadingFieldsStream stream(buf.data(), PullResponseReserveSize);
+//        uint32_t payload_size = sizeof(status) + block_size;
+//        MessageHeader header(logos_version,
+//        		MessageType::PullResponse,
+//				ct,
+//				payload_size);
+//        header.Serialize(stream);
+//        logos::write(stream, status);
+//        return MessageHeader::WireSize + payload_size;
+//    }
 
 } // namespace
 
