@@ -577,7 +577,7 @@ RequestConsensusManager::OnPrePrepareRejected()
     // OnConsensusReached where we reset the ongoing status
 
     // Don't have to change _ongoing because we have to immediately repropose
-    InitiateConsensus();
+    InitiateConsensus(true);
 }
 
 void
