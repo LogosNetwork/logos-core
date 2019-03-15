@@ -928,18 +928,22 @@ void logos::rpc_handler::request_blocks_latest ()
     BlockHash prev_hash;
     while (!hash.is_zero() && count > 0)
     {
-        auto retrieve_prev_batch ([&](){
+        auto retrieve_prev_batch ([&]() -> bool {
             if (node.store.request_block_get(hash, batch))
             {
-                error_response (response, "Internal data corruption: batch not found.");
+                return false;
             }
             boost::property_tree::ptree response_batch;
             batch.SerializeJson (response_batch);
             response_batch_blocks.push_back(std::make_pair("", response_batch));
             prev_hash = batch.previous;
+            return true;
         });
 
-        retrieve_prev_batch();
+        if (!retrieve_prev_batch())
+        {
+            error_response (response, "Internal data corruption: batch not found.");
+        }
 
         // Check if there is a gap in the request block chain
         if (prev_hash.is_zero() && batch.epoch_number > GENESIS_EPOCH + 1)
@@ -950,7 +954,10 @@ void logos::rpc_handler::request_blocks_latest ()
                 // Only case a tip retrieval fails is when an epoch persistence update just happened and erased the old tip
                 response_batch_blocks.pop_back();
                 // Try again
-                retrieve_prev_batch();
+                if (!retrieve_prev_batch())
+                {
+                    error_response (response, "Internal data corruption: batch not found.");
+                }
                 if (prev_hash.is_zero())
                 {
                     error_response (response, "Internal data corruption: old request block tip was deleted without chain linking.");
