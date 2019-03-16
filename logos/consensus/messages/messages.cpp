@@ -90,7 +90,7 @@ void update_PostCommittedRequestBlock_prev_field(const logos::mdb_val & mdbval, 
     }
 
     struct PrePrepareCommon *p_ppc = 0;
-    auto pre_size (sizeof(MessagePrequel<MessageType::Post_Committed_Block, ConsensusType::Request>)
+    auto pre_size (MessagePrequelSize
         + sizeof(p_ppc->primary_delegate) + sizeof(p_ppc->epoch_number)
         + sizeof(p_ppc->sequence) + sizeof(p_ppc->timestamp));
     memcpy(mdbval_buf.data(), mdbval.data(), pre_size);
