@@ -317,14 +317,20 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "pending", MDB_CREATE, &pending) != 0;
         error_a |= mdb_dbi_open (transaction, "blocks_info", MDB_CREATE, &blocks_info) != 0;
         error_a |= mdb_dbi_open (transaction, "representation", MDB_CREATE, &representation) != 0;
-        error_a |= mdb_dbi_open (transaction, "representative_db", MDB_CREATE, &representative_db) != 0;
-        error_a |= mdb_dbi_open (transaction, "candidacy_db", MDB_CREATE, &candidacy_db) != 0;
-        error_a |= mdb_dbi_open (transaction, "leading_candidacy_db", MDB_CREATE, &leading_candidates_db);
         error_a |= mdb_dbi_open (transaction, "unchecked", MDB_CREATE | MDB_DUPSORT, &unchecked) != 0;
         error_a |= mdb_dbi_open (transaction, "checksum", MDB_CREATE, &checksum) != 0;
         error_a |= mdb_dbi_open (transaction, "vote", MDB_CREATE, &vote) != 0;
         error_a |= mdb_dbi_open (transaction, "meta", MDB_CREATE, &meta) != 0;
         error_a |= mdb_dbi_open (transaction, "p2p_db", MDB_CREATE, &p2p_db) != 0;
+
+        // elections
+        error_a |= mdb_dbi_open (transaction, "representative_db", MDB_CREATE, &representative_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "candidacy_db", MDB_CREATE, &candidacy_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "leading_candidacy_db", MDB_CREATE, &leading_candidates_db);
+
+        sync_leading_candidates(transaction);
+
+
         if (!error_a)
         {
             //CH do_upgrades (transaction);
@@ -1371,10 +1377,7 @@ bool logos::block_store::candidate_is_greater(
    return EpochVotingManager::IsGreater(del1,del2);
 }
 
-bool logos::block_store::update_leading_candidates(
-        const AccountAddress & account,
-        const CandidateInfo & candidate_info,
-        MDB_txn* txn)
+void logos::block_store::sync_leading_candidates(MDB_txn* txn)
 {
 
     size_t num_leading = 0;
@@ -1382,57 +1385,91 @@ bool logos::block_store::update_leading_candidates(
     for(auto it = logos::store_iterator(txn, leading_candidates_db);
             it != logos::store_iterator(nullptr); ++it)
     {
-        if(it->first.uint256() == account)
-        {
-            std::vector<uint8_t> buf;
-            auto status = mdb_put(txn, leading_candidates_db, logos::mdb_val(account), candidate_info.to_mdb_val(buf), 0);
-            assert(status == 0);
-            return status != 0;
 
-            return false;
-        }
         bool error = false;
         CandidateInfo current_candidate(error, it->second);
-        if(!error)
+        assert(!error);
+        ++num_leading;
+        if(num_leading == 1 || 
+                !candidate_is_greater(it->first.uint256(), current_candidate, min_candidate.first, min_candidate.second))
         {
-
-            ++num_leading;
-            if(num_leading == 1 || 
-                    !candidate_is_greater(it->first.uint256(), current_candidate, min_candidate.first, min_candidate.second))
-            {
-                min_candidate = 
-                    std::make_pair(it->first.uint256(),current_candidate);
-            }
-        }
-        else
-        {
-            return true;
+            min_candidate = 
+                std::make_pair(it->first.uint256(),current_candidate);
         }
     }
 
+    leading_candidates_size = num_leading;
+    min_leading_candidate = min_candidate;
+}
 
-    if(num_leading == (NUM_DELEGATES / EpochVotingManager::TERM_LENGTH)
-            && candidate_is_greater(
-                account,candidate_info,min_candidate.first,min_candidate.second))
+bool logos::block_store::update_leading_candidates(
+        const AccountAddress & account,
+        const CandidateInfo & candidate_info,
+        MDB_txn* txn)
+{
+    bool leading_candidates_full = 
+        leading_candidates_size == (NUM_DELEGATES / EpochVotingManager::TERM_LENGTH);
+
+    //check if candidate is already in leading_candidates_db
+    mdb_val val;
+    if(!get(leading_candidates_db, mdb_val(account), val, txn))
     {
-   
-        auto status(mdb_del(txn, leading_candidates_db, logos::mdb_val(min_candidate.first), nullptr));
-        assert(status == 0);
         std::vector<uint8_t> buf;
-        status = mdb_put(txn, leading_candidates_db, logos::mdb_val(account), candidate_info.to_mdb_val(buf), 0);
+        auto status = mdb_put(txn,
+                leading_candidates_db,
+                logos::mdb_val(account),
+                candidate_info.to_mdb_val(buf), 0);
+
         assert(status == 0);
+        //min could be different if this candidate was min
+        if(min_leading_candidate.first == account && leading_candidates_full)
+        {
+            sync_leading_candidates(txn);
+        }
         return status != 0;
     }
-    else if(num_leading < (NUM_DELEGATES / EpochVotingManager::TERM_LENGTH))
+
+    if(leading_candidates_full)
+    {
+        if(candidate_is_greater(account, candidate_info,
+                    min_leading_candidate.first, min_leading_candidate.second))
+        {
+            auto status(mdb_del(txn,
+                        leading_candidates_db,
+                        logos::mdb_val(min_leading_candidate.first),
+                        nullptr));
+
+            assert(status == 0);
+            std::vector<uint8_t> buf;
+            status = mdb_put(txn,
+                    leading_candidates_db,
+                    logos::mdb_val(account),
+                    candidate_info.to_mdb_val(buf),
+                    0);
+
+            assert(status == 0);
+            sync_leading_candidates(txn);
+            return status != 0;
+        }
+        return false;
+    } else
     {
         std::vector<uint8_t> buf;
-        auto status(mdb_put(txn, leading_candidates_db, logos::mdb_val(account), candidate_info.to_mdb_val(buf), 0));
+        auto status(mdb_put(txn,
+                    leading_candidates_db,
+                    logos::mdb_val(account),
+                    candidate_info.to_mdb_val(buf),
+                    0));
 
         assert(status == 0);
+        leading_candidates_size++;
+        if(leading_candidates_size == 
+                (NUM_DELEGATES / EpochVotingManager::TERM_LENGTH))
+        {
+            sync_leading_candidates(txn);
+        }
         return status != 0;
     }
-
-    return false;
 }
 
 bool logos::block_store::candidate_add_vote(
