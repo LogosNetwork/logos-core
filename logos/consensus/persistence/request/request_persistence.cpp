@@ -1524,7 +1524,7 @@ bool PersistenceManager<R>::ValidateRequest(const ElectionVote& vote_request, ui
         return false;
     }
 
-    if(!IsDeadPeriod(cur_epoch_num,txn))
+    if(IsDeadPeriod(cur_epoch_num,txn))
     {
         result.code = logos::process_result::elections_dead_period;
         return false;
@@ -1578,7 +1578,7 @@ bool PersistenceManager<R>::ValidateRequest(
         result.code = logos::process_result::wrong_epoch_number;
         return false;
     }
-    if(!IsDeadPeriod(cur_epoch_num,txn))
+    if(IsDeadPeriod(cur_epoch_num,txn))
     {
 
         result.code = logos::process_result::elections_dead_period;
@@ -1642,7 +1642,7 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    if(!IsDeadPeriod(cur_epoch_num,txn))
+    if(IsDeadPeriod(cur_epoch_num,txn))
     {
         result.code = logos::process_result::elections_dead_period;
         return false;
@@ -1676,21 +1676,24 @@ bool PersistenceManager<R>::ValidateRequest(
     return true;
 }
 
+/*
+ * The dead period is the time between when the epoch starts and when the epoch
+ * block is created. The reason for disallowing votes during this time is because
+ * the delegates do not come to consensus on the election results until the epoch
+ * block is created. If someone attempts to vote for a candidate during the dead
+ * period who was also a candidate in the last epoch, a delegate cannot reliably
+ * say whether the vote is valid: if that candidate won the election, the vote is
+ * invalid but if the candidate did not win, the vote is valid
+ */
 bool PersistenceManager<R>::IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn)
 {
     BlockHash hash; 
-    if(_store.epoch_tip_get(hash,txn))
-    {
-        return false;
-    }
+    assert(!_store.epoch_tip_get(hash,txn));
 
     ApprovedEB eb;
-    if(_store.epoch_get(hash,eb,txn))
-    {
-        return false;
-    }
+    assert(!_store.epoch_get(hash,eb,txn));
 
-    return (eb.epoch_number+1) == cur_epoch_num;
+    return (eb.epoch_number+2) == cur_epoch_num;
 }
 
 bool PersistenceManager<R>::ValidateRequest(const StartRepresenting& request, uint32_t cur_epoch_num, MDB_txn* txn, logos::process_return& result)
@@ -1700,7 +1703,7 @@ bool PersistenceManager<R>::ValidateRequest(const StartRepresenting& request, ui
         result.code = logos::process_result::wrong_epoch_number;
         return false;
     }
-    if(!IsDeadPeriod(cur_epoch_num,txn))
+    if(IsDeadPeriod(cur_epoch_num,txn))
     {
         result.code = logos::process_result::elections_dead_period;
         return false;
@@ -1729,7 +1732,7 @@ bool PersistenceManager<R>::ValidateRequest(const StopRepresenting& request, uin
         return false;
     }
 
-    if(!IsDeadPeriod(cur_epoch_num,txn))
+    if(IsDeadPeriod(cur_epoch_num,txn))
     {
         result.code = logos::process_result::elections_dead_period;
         return false;
