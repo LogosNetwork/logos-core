@@ -30,14 +30,15 @@ enum class RequestType : uint8_t
     Burn             = 11,
     Distribute       = 12,
     WithdrawFee      = 13,
+    WithdrawLogos    = 14,
 
     // Token User Requests
     //
-    TokenSend        = 14,
+    TokenSend        = 15,
 
     // Unknown
     //
-    Unknown          = 15
+    Unknown          = 16
 };
 
 class ReservationsProvider;

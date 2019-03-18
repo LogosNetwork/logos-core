@@ -404,6 +404,7 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
         case RequestType::Burn:
         case RequestType::Distribute:
         case RequestType::WithdrawFee:
+        case RequestType::WithdrawLogos:
         case RequestType::TokenSend:
             result = true;
             break;

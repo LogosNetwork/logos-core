@@ -114,6 +114,10 @@ RequestType GetRequestType()
     {
         result = RequestType::WithdrawFee;
     }
+    else if(std::is_same<Request, WithdrawLogos>::value)
+    {
+        result = RequestType::WithdrawLogos;
+    }
     else if(std::is_same<Request, TokenSend>::value)
     {
         result = RequestType::TokenSend;

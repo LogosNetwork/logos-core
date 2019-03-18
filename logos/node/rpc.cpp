@@ -2603,6 +2603,7 @@ void logos::rpc_handler::process ()
             case RequestType::Burn:
             case RequestType::Distribute:
             case RequestType::WithdrawFee:
+            case RequestType::WithdrawLogos:
             case RequestType::TokenSend:
                 process(request);
                 break;

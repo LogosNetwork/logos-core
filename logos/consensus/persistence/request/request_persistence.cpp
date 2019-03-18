@@ -230,6 +230,7 @@ bool PersistenceManager<R>::ValidateRequest(
         case RequestType::Burn:
         case RequestType::Distribute:
         case RequestType::WithdrawFee:
+        case RequestType::WithdrawLogos:
             if(!ValidateTokenAdminRequest(request, result, info))
             {
                 return false;
@@ -245,8 +246,6 @@ bool PersistenceManager<R>::ValidateRequest(
 
             result.code = logos::process_result::invalid_request;
             return false;
-
-            break;
     }
 
     result.code = logos::process_result::progress;
@@ -963,6 +962,22 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                       transaction,
                       withdraw->GetHash(),
                       withdraw->token_id);
+
+            break;
+        }
+        case RequestType::WithdrawLogos:
+        {
+            auto withdraw = dynamic_pointer_cast<const WithdrawLogos>(request);
+            auto token_account = dynamic_pointer_cast<TokenAccount>(info);
+            assert(withdraw && token_account);
+
+            token_account->balance -= withdraw->transaction.amount;
+
+            ApplySend(withdraw->transaction,
+                      timestamp,
+                      transaction,
+                      withdraw->GetHash(),
+                      {0});
 
             break;
         }

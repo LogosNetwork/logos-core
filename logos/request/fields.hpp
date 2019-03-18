@@ -22,6 +22,7 @@ const char UPDATE_CONTROLLER[]  = "update_controller";
 const char BURN[]               = "burn";
 const char DISTRIBUTE[]         = "distribute";
 const char WITHDRAW_FEE[]       = "withdraw_fee";
+const char WITHDRAW_LOGOS[]     = "withdraw_logos";
 const char TOKEN_SEND[]         = "token_send";
 const char UNKNOWN[]            = "unknown";
 
