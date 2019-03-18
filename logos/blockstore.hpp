@@ -260,6 +260,11 @@ public:
             const CandidateInfo & candidate_info,
             MDB_txn* txn);
 
+    //updates min_leading_candidate and leading_candidates_full members
+    //required on startup (in case of crash), and whenever leading_candidates_db
+    //is updated
+    void sync_leading_candidates(MDB_txn* txn);
+
     bool candidate_is_greater(
             const AccountAddress& account1,
             const CandidateInfo& candidate1,
@@ -289,6 +294,12 @@ public:
     int version_get (MDB_txn *);
 
     void clear (MDB_dbi, MDB_txn *t=0);
+
+    // The lowest ranked candidate in leading_candidates_db. Kept up to date
+    std::pair<AccountAddress, CandidateInfo> min_leading_candidate;
+
+    // Number of candidates in leading_candidates_db
+    size_t leading_candidates_size;
 
     logos::mdb_env environment;
 

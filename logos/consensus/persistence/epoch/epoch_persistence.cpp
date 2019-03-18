@@ -223,6 +223,7 @@ void PersistenceManager<ECT>::UpdateCandidatesDB(MDB_txn* txn)
     }
 
     _store.clear(_store.leading_candidates_db,txn);
+    _store.leading_candidates_size = 0;
 }
 
 
