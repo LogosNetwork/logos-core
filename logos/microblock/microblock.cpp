@@ -3,7 +3,7 @@
 /// in the Microblock processing
 #include <logos/microblock/microblock.hpp>
 
-std::string MicroBlock::SerializeJson() const
+std::string MicroBlock::ToJson() const
 {
     boost::property_tree::ptree micro_block;
     SerializeJson (micro_block);

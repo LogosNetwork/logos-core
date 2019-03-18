@@ -221,7 +221,7 @@ void ConsensusManager<CT>::InitiateConsensus(bool reproposing)
     AdvanceState(ConsensusState::PRE_PREPARE);
 
     pre_prepare.preprepare_sig = _pre_prepare_sig;
-    LOG_DEBUG(_log) << "JSON representation: " << pre_prepare.SerializeJson();
+    LOG_DEBUG(_log) << "JSON representation: " << pre_prepare.ToJson();
     PrimaryDelegate::Send<PrePrepare>(pre_prepare);
 }
 

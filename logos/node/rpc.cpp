@@ -991,16 +991,13 @@ void logos::rpc_handler::block ()
 
     Send send;
     ReceiveBlock receive;
-    std::string block_type;
     if (!node.store.request_get(hash, send, transaction))
     {
-        block_type = "send";
         response_l = send.SerializeJson ();
     }
     else if (!node.store.receive_get(hash, receive, transaction))
     {
-        block_type = "receive";
-        receive.SerializeJson ();
+        response_l = receive.SerializeJson ();
     }
     else
     {

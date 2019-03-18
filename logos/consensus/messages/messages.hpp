@@ -103,7 +103,7 @@ struct PrePrepareMessage : public MessagePrequel<MessageType::Pre_Prepare, CT>,
         tree.put("hash", Hash().to_string());
     }
 
-    std::string SerializeJson() const
+    std::string ToJson() const
     {
         boost::property_tree::ptree tree;
         SerializeJson (tree);
@@ -199,7 +199,7 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
         tree.put("hash", Hash().to_string());
     }
 
-    std::string SerializeJson() const
+    std::string ToJson() const
     {
         boost::property_tree::ptree tree;
         SerializeJson (tree);
