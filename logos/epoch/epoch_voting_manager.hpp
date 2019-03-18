@@ -33,12 +33,14 @@ public:
 
     /// Get the list of next epoch delegates
     /// @param delegates list of new delegates [in,out]
-    void GetNextEpochDelegates(Delegates &delegates, uint32_t next_epoch_num);
+    void GetNextEpochDelegates(Delegates& delegates, uint32_t next_epoch_num);
 
     /// Verify epoch delegates
     /// @param delegates list of epoch delegates [in,out]
     /// @returns true if valid
-    static bool ValidateEpochDelegates(const Delegates &delegates);
+    bool ValidateEpochDelegates(
+            const Delegates &delegates,
+            uint32_t next_epoch_num);
 
     /// Get the set of delegates in their last epoch
     /// @returns set of delegates in their last epoch

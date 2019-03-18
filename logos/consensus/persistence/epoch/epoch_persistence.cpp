@@ -75,7 +75,9 @@ PersistenceManager<ECT>::Validate(
         return false;
     }
 
-    if (!EpochVotingManager::ValidateEpochDelegates(epoch.delegates))
+    EpochVotingManager voting_mgr(_store);
+    //epoch block has epoch_number 1 less than current epoch, so +1
+    if (!voting_mgr.ValidateEpochDelegates(epoch.delegates, epoch.epoch_number + 1))
     {
         LOG_ERROR(_log) << "PersistenceManager::Validate invalid delegates ";
         UpdateStatusReason(status, process_result::not_delegate);
