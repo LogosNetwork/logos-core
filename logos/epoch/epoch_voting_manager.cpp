@@ -125,14 +125,13 @@ std::vector<Delegate> EpochVotingManager::GetDelegateElects(size_t num_new, uint
     }
 }
 
-//TODO: does this really need to use an output variable? Just return the delegates
-void
-EpochVotingManager::GetNextEpochDelegates(
-        Delegates &delegates,
+void EpochVotingManager::GetNextEpochDelegates(
+        Delegates& delegates,
         uint32_t next_epoch_num)
 {
     int constexpr num_epochs = 3;
     int constexpr num_new_delegates = 8;
+
     ApprovedEB previous_epoch;
     BlockHash hash;
     std::unordered_map<AccountPubKey,bool> delegates3epochs;
@@ -272,7 +271,8 @@ void EpochVotingManager::RedistributeVotes(Delegates &delegates)
 
 bool
 EpochVotingManager::ValidateEpochDelegates(
-   const Delegates &delegates)
+   const Delegates &delegates,
+   uint32_t next_epoch_num)
 {
    std::unordered_map<AccountPubKey, bool> verify;
    Log log;
@@ -291,6 +291,18 @@ EpochVotingManager::ValidateEpochDelegates(
            return false;
        }
    }
+
+   Delegates computed_delegates;
+   GetNextEpochDelegates(computed_delegates, next_epoch_num);
+
+   for(size_t i = 0; i < NUM_DELEGATES; ++i)
+   {
+        if(computed_delegates[i] != delegates[i])
+        {
+            return false;
+        }
+   }
+
 
    return true;
 }
