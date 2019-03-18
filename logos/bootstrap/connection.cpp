@@ -24,7 +24,8 @@ namespace Bootstrap
                 if (socket_l->timeout.ticket == ticket_l)
                 {
                     socket_l->OnNetworkError();
-                    LOG_DEBUG(socket_l->log) << "timeout, remote_endpoint " << socket_l->endpoint;
+                    LOG_DEBUG(socket_l->log) << "timeout: "
+                    				<<"remote_endpoint " << socket_l->peer;
                 }
             }
         });
@@ -43,30 +44,42 @@ namespace Bootstrap
     using BoostError = boost::system::error_code;
 
     Socket::Socket(logos::tcp_endpoint & endpoint, logos::alarm & alarm)
-    : endpoint(endpoint)
+    : peer(endpoint)
     , alarm(alarm)
     , socket(alarm.service)
     , timeout (*this)
+    , disconnected(true)
     {}
 
     Socket::Socket(boost::asio::ip::tcp::socket &socket_a, logos::alarm & alarm)
-    : endpoint(socket_a.remote_endpoint())
+    : peer(socket_a.remote_endpoint())
     , alarm(alarm)
     , socket(std::move(socket_a))
     , timeout (*this)
+    , disconnected(true)
     {}
+
+    Socket::~Socket()
+    {
+        LOG_TRACE(log) << __func__;
+        Socket::Disconnect();
+    }
 
     void Socket::Connect (std::function<void(bool)> ConnectComplete)
     {
         LOG_TRACE(log) << __func__ << " this: " << this << " timeout_ms: " << CONNECT_TIMEOUT_MS;
-        auto this_l(shared());
+        auto this_l(shared());//TODO simply capture this in lambda
         timeout.start (std::chrono::steady_clock::now () + std::chrono::milliseconds(CONNECT_TIMEOUT_MS));
-        socket.async_connect (endpoint, [this_l, ConnectComplete](BoostError const & ec)
+        socket.async_connect (peer, [this_l, ConnectComplete](BoostError const & ec)
         {
             this_l->timeout.stop();
             if (!ec)
             {
                 LOG_TRACE(this_l->log) << "Socket::connect: connected";
+                {
+                	std::lock_guard<std::mutex> lock(this_l->mtx);
+                	this_l->disconnected = false;
+                }
                 ConnectComplete(true);
             }
             else
@@ -79,13 +92,26 @@ namespace Bootstrap
 
     void Socket::Disconnect()
     {
-        socket.close ();
+    	/*
+    	 * Note that, even if the function indicates an error, the underlying descriptor is closed.
+    	 * To graceful closure of a connected socket, call shutdown() before closing the socket.
+    	 */
+        {
+        	std::lock_guard<std::mutex> lock(mtx);
+        	if(!disconnected)
+        	{
+            	LOG_TRACE(log) << "Socket::Disconnect " << this;
+            	BoostError ec;
+            	socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+                socket.close (ec);
+        	}
+        }
     }
 
-    void Socket::AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete * cb, uint32_t timeout_ms)
+    void Socket::AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete cb, uint32_t timeout_ms)
     {
         LOG_TRACE(log) << __func__ << " this: " << this << " timeout_ms: " << timeout_ms;
-        auto this_l(shared());
+        auto this_l(shared());//TODO simply capture this in lambda
         if(timeout_ms > 0) timeout.start (std::chrono::steady_clock::now () + std::chrono::milliseconds(timeout_ms));
         boost::asio::async_write (socket, boost::asio::buffer(buf->data(), buf->size()),
                 [this_l, cb, timeout_ms](BoostError const & ec, size_t size_a)
@@ -94,20 +120,22 @@ namespace Bootstrap
                     LOG_TRACE(this_l->log) << "Socket::sent data";
                     if (!ec)
                     {
-                        (*cb)(true);
+                        cb(true);
                     }else{
                         LOG_ERROR(this_l->log) << "Socket::Network error " << ec.message ();
-                        (*cb)(false);
-                        //this_l->Disconnect();//TODO cb should call OnNetworkError
+                        cb(false);
                     }
                 });
     }
 
-    void Socket::AsyncReceive(ReceiveComplete * cb, uint32_t timeout_ms)
+    void Socket::AsyncReceive(ReceiveComplete cb, uint32_t timeout_ms)
     {
         LOG_TRACE(log) << __func__ << " this: " << this << " timeout_ms: " << timeout_ms;
-        auto this_l(shared());
-        if(timeout_ms > 0) timeout.start (std::chrono::steady_clock::now () + std::chrono::milliseconds(timeout_ms));
+        auto this_l(shared());//TODO simply capture this in lambda
+        if(timeout_ms > 0)
+        {
+        	timeout.start (std::chrono::steady_clock::now () + std::chrono::milliseconds(timeout_ms));
+        }
         boost::asio::async_read (socket, boost::asio::buffer(header_buf.data (), MessageHeader::WireSize),
             [this_l, cb, timeout_ms](BoostError const & ec, size_t size_a)
             {
@@ -121,22 +149,23 @@ namespace Bootstrap
                     if(error || ! header.Validate())
                     {
                         LOG_ERROR(this_l->log) << "Socket::Header error";
-                        (*cb)(false, header, nullptr);
+                        cb(false, header, nullptr);
                         //this_l->Disconnect();
                         return;
                     }
 
-                    boost::asio::async_read (this_l->socket, boost::asio::buffer(this_l->receive_buf.data(), this_l->receive_buf.size()),
+                    boost::asio::async_read (this_l->socket,
+                    		boost::asio::buffer(this_l->receive_buf.data(), this_l->receive_buf.size()),
                         [this_l, cb, timeout_ms, header](BoostError const & ec, size_t size_a)
                         {
                             if(timeout_ms > 0) this_l->timeout.stop();
                             LOG_TRACE(this_l->log) << "Socket::received data";
                             if (!ec) {
                                 assert (size_a == header.payload_size);
-                                (*cb)(true, header, this_l->receive_buf.data());
+                                cb(true, header, this_l->receive_buf.data());
                             }else{
                                 LOG_ERROR(this_l->log) << "Socket::Network error " << ec.message ();
-                                (*cb)(false, header, nullptr);
+                                cb(false, header, nullptr);
                                 //this_l->Disconnect();
                                 return;
                             }
@@ -145,7 +174,7 @@ namespace Bootstrap
                 }else{
                     LOG_ERROR(this_l->log) << "Socket::Network error " << ec.message ();
                     MessageHeader header;
-                    (*cb)(false, header, nullptr);
+                    cb(false, header, nullptr);
                     //this_l->Disconnect();
                     return;
                 }
@@ -156,7 +185,10 @@ namespace Bootstrap
     {
         return shared_from_this();
     }
-
+	boost::asio::ip::address Socket::PeerAddress() const
+	{
+		return peer.address();
+	}
     ///////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////
@@ -177,19 +209,12 @@ namespace Bootstrap
 
     bootstrap_client::~bootstrap_client ()
     {
-        LOG_DEBUG(log) << "bootstrap_client::~bootstrap_client";
-        Socket::Disconnect();
-    }
-
-    void bootstrap_client::Disconnect ()
-    {
-        LOG_DEBUG(log) << "bootstrap_client::Disconnect";
-        Socket::Disconnect();
-        OnNetworkError();
+        LOG_TRACE(log) << __func__;
     }
 
     void bootstrap_client::OnNetworkError(bool black_list)
     {
+    	Socket::Disconnect();
     	attempt.remove_connection(shared(), black_list);
     }
     void bootstrap_client::Release()
@@ -199,7 +224,7 @@ namespace Bootstrap
 
 	std::shared_ptr<bootstrap_client> bootstrap_client::shared ()
 	{
-		return shared_from_base<bootstrap_client>();//safe
+		return shared_from_base<bootstrap_client>();
 	}
 
     ////////////////////////////////////////////////////////////////////////////////////////////
@@ -218,17 +243,20 @@ namespace Bootstrap
 
     bootstrap_server::~bootstrap_server ()
     {
-        LOG_INFO (log) << "Exiting bootstrap server";
-        Socket::Disconnect();//TODO check if can be call multiple times
+        LOG_TRACE(log) << __func__;
     }
 
     void bootstrap_server::receive_request ()
     {
         LOG_DEBUG(log) << "bootstrap_server::receive";
-//TODO        AsyncReceive(std::bind(&bootstrap_server::dispatch, this,
-//        	std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), 0);
+        AsyncReceive(std::bind(&bootstrap_server::dispatch, this,
+        	std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     }
-
+    void bootstrap_server::OnNetworkError(bool black_list)
+    {
+    	Socket::Disconnect();
+    	listener.remove_connection(shared());//server does not black list
+    }
     void bootstrap_server::Release()
     {
     	receive_request ();
@@ -269,4 +297,9 @@ namespace Bootstrap
         if(error)
             OnNetworkError();
     }
+
+	std::shared_ptr<bootstrap_server> bootstrap_server::shared ()
+	{
+		return shared_from_base<bootstrap_server>();
+	}
 }

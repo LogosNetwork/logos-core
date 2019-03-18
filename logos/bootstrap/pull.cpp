@@ -9,10 +9,9 @@
 
 namespace Bootstrap
 {
-	Puller::Puller(BlockCache & block_cache, Store & store)
+	Puller::Puller(IBlockCache & block_cache)//, Store & store)
 	: block_cache(block_cache)
-	, store(store)
-	, state(PullState::Epoch)
+//	, store(store)
 	{}
 
 	void Puller::Init(TipSet & my_tips, TipSet & others_tips)
@@ -23,6 +22,9 @@ namespace Bootstrap
 		if(my_tips.IsBehind(others_tips))
 		{
 			state = PullState::Epoch;
+			final_ep_number = std::max(
+					my_tips.GetLatestEpochNumber(),
+					others_tips.GetLatestEpochNumber());
 			CreateMorePulls();
 		}
 		else
@@ -79,7 +81,7 @@ namespace Bootstrap
     {
     	assert(state==PullState::Micro);
     	bool good_block = block->previous == pull->prev_hash &&
-    			block->epoch_number == working_epoch.epoch_num &&
+    			//block->epoch_number == working_epoch.epoch_num &&
 				block_cache.AddMB(block);
 
 		std::lock_guard<std::mutex> lck (mtx);
@@ -91,16 +93,14 @@ namespace Bootstrap
         	{
         		assert(working_epoch.cur_mbp.mb == nullptr);
         		working_epoch.cur_mbp.mb == block;
-            	CreateMorePulls();
         	}
         	else
         	{
         		assert(working_epoch.next_mbp.mb == nullptr);
         		working_epoch.next_mbp.mb == block;
-        		CreateMorePulls();
         	}
+        	CreateMorePulls();
          	return PullStatus::Done;
-
     	}
     	else
     	{
@@ -121,21 +121,19 @@ namespace Bootstrap
 		if(good_block)
     	{
 			pull->prev_hash = digest;
+        	/*
+        	 * ok to update my bsb tips which is a bootstrap internal state
+        	 * note the block is in Cache in case it cannot be stored yet
+        	 *
+        	 * note the definition of tip changed from "tip in DB" to "tip in DB or Cache",
+        	 * to ease the pull generation, we still keep the logical order, i.e. BSB -> MB -> EB
+        	 */
+        	UpdateMyBSBTip(block);
 
         	if(digest == pull->target)
         	{
     			LOG_TRACE(log) << "Puller::BSBReceived: one pull request done";
             	ongoing_pulls.erase(pull);
-
-            	/*
-            	 * (1) ok to update my bsb tips which is a bootstrap internal state
-            	 * note the block is in Cache in case it cannot be stored yet
-            	 * (2) don't need to update per block
-            	 *
-            	 * note the definition of tip changed from "tip in DB" to "tip in DB or Cache",
-            	 * to ease the pull generation, we still keep the logical order, i.e. BSB -> MB -> EB
-            	 */
-            	UpdateMyBSBTip(block);
 
             	auto & working_mbp = working_epoch.two_mbps?
             						 working_epoch.next_mbp : working_epoch.cur_mbp;
@@ -166,7 +164,9 @@ namespace Bootstrap
 //					{
 //						state = PullState::Micro;//Epoch;
 //					}
-					CheckProgress();
+
+					//check before go to next micro period
+					CheckMicroProgress();
 					CreateMorePulls();
 				}
 				//else: nothing to do
@@ -190,7 +190,7 @@ namespace Bootstrap
 			LOG_INFO(log) << "Puller::BSBReceived: bad block";
     		ongoing_pulls.erase(pull);
     		waiting_pulls.push_front(pull);
-    		return PullStatus::DisconnectSender;//blacklist?
+    		return PullStatus::BlackListSender;
     	}
 	}
 
@@ -254,15 +254,16 @@ namespace Bootstrap
             						 working_epoch.next_mbp : working_epoch.cur_mbp;
             	assert(working_mbp.mb != nullptr);
 				assert(my_tips.mb.sqn == working_mbp.mb->sequence -1);
+				assert(working_mbp.bsb_targets.empty());
 
 				for(uint i = 0; i < NUM_DELEGATES; ++i)
 				{
+					//cannot: if(my_tips.bsb_vec[i] < others_tips.bsb_vec[i])
 					//TODO add sqn to tip_db and micro_block tips
 					//and replace others_tips.bsb_vec with micro_block
 					//TODO work around is to update others_tips too and compare
 					//my_tips.bsb_vec[i] <= others_tips.bsb_vec[i] && my_tips.bsb_vec[i] != MB.tips[i]
-					//TODO another option is to just check my_tips.bsb_vec[i] != MB.tips[i].
-					//if(my_tips.bsb_vec[i] < others_tips.bsb_vec[i])
+					//TODO for now just check my_tips.bsb_vec[i] != MB.tips[i].
 					if(my_tips.bsb_vec[i].digest != working_mbp.mb->tips[i])
 					{
 						waiting_pulls.push_back(std::make_shared<PullRequest>(
@@ -276,7 +277,8 @@ namespace Bootstrap
 				}
 				if(!added_pulls)
 				{
-					CheckProgress();
+					//no bsb to pull, check before go to next micro period
+					CheckMicroProgress();
 					CreateMorePulls();
 				}
 				break;
@@ -311,7 +313,8 @@ namespace Bootstrap
                 }
                 else
                 {
-					CheckProgress();//before go to next epoch
+                	//check before go to next epoch
+					CheckMicroProgress();
                 }
 				/*
 				 * (2) my BSB tips in bsb_vec_new_epoch is behind.
@@ -320,6 +323,7 @@ namespace Bootstrap
 				 * So for (2), we move to the new epoch
 				 */
                 working_epoch = {working_epoch.epoch_num+1};
+                assert(working_epoch.epoch_num == final_ep_number);
 				for(uint i = 0; i < NUM_DELEGATES; ++i)
 				{
 					if(my_tips.bsb_vec_new_epoch[i] < others_tips.bsb_vec_new_epoch[i])
@@ -346,9 +350,10 @@ namespace Bootstrap
 		}
     }
 
-    void Puller::CheckProgress()
+    void Puller::CheckMicroProgress()
     {
 		assert(working_epoch.cur_mbp.bsb_targets.empty());
+		//reduce two mbps to one mbp
 		if(working_epoch.two_mbps)
 		{
 			assert(working_epoch.cur_mbp.mb != nullptr);
@@ -367,7 +372,7 @@ namespace Bootstrap
 				LOG_FATAL(log) << "Puller::CreateMorePulls: pulled two MB periods,"
 								<< " but first MB has not been processed."
 								<< " epoch_num=" << working_epoch.epoch_num
-								<< " MB_1 hash=" << digest.to_string ();
+								<< " first MB hash=" << digest.to_string ();
 				trace_and_halt();
 			}
 		}
@@ -396,8 +401,8 @@ namespace Bootstrap
 					}
 					else
 					{
-						//TODO add verification that we are in the next to last epoch after we can verify other's tips
-						LOG_WARN(log) << "Puller::BSBReceived: have last MB but not EB "<< working_epoch.epoch_num;
+						assert(working_epoch.epoch_num+1 == final_ep_number);
+						LOG_INFO(log) << "Puller::BSBReceived: have last MB but not EB "<< working_epoch.epoch_num;
 					}
 					state = PullState::Epoch;
 				}
@@ -422,13 +427,13 @@ namespace Bootstrap
     	//try old epoch
     	if(my_tips.bsb_vec[d_idx].digest == block->previous)
     	{
-        	my_tips.bsb_vec[d_idx].digest = block->Hash();
+        	my_tips.bsb_vec[d_idx].digest = digest;
         	my_tips.bsb_vec[d_idx].epoch = block->epoch_number;
         	my_tips.bsb_vec[d_idx].sqn =  block->sequence;
     	}
     	else if(my_tips.bsb_vec_new_epoch[d_idx].digest == block->previous)
     	{
-        	my_tips.bsb_vec_new_epoch[d_idx].digest = block->Hash();
+        	my_tips.bsb_vec_new_epoch[d_idx].digest = digest;
         	my_tips.bsb_vec_new_epoch[d_idx].epoch = block->epoch_number;
         	my_tips.bsb_vec_new_epoch[d_idx].sqn =  block->sequence;
     	}
@@ -454,9 +459,10 @@ namespace Bootstrap
     	my_tips.eb.sqn =  block->epoch_number;
     }
 
-    //TODO verify peer tips
-
     ///////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////
+
     PullRequestHandler::PullRequestHandler(PullPtr request, Store & store)
     : request(request)
     , store(store)

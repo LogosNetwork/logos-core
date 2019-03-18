@@ -37,7 +37,7 @@ namespace Bootstrap
 
     void bootstrap_initiator::bootstrap()
     {
-        std::unique_lock<std::mutex> lock(mutex);
+        std::unique_lock<std::mutex> lock(mtx);
         if (!stopped && attempt == nullptr) {
             attempt = std::make_shared<bootstrap_attempt>(alarm,
             		store,
@@ -52,7 +52,7 @@ namespace Bootstrap
     {
         //cannot add endpoint_a to peer list, since it could be
         //one of the delegate
-        std::unique_lock<std::mutex> lock(mutex);
+        std::unique_lock<std::mutex> lock(mtx);
         if (!stopped)
         {
             if(attempt != nullptr)
@@ -74,12 +74,12 @@ namespace Bootstrap
 
     void bootstrap_initiator::run_bootstrap()
     {
-        std::unique_lock<std::mutex> lock(mutex);
+        std::unique_lock<std::mutex> lock(mtx);
         while (!stopped)
         {
             if (attempt != nullptr) {
                 lock.unlock();
-                attempt->run(); // NOTE Call bootstrap_attempt::run
+                attempt->run();
                 lock.lock();
                 attempt = nullptr; // stop is called in destructor...
                 condition.notify_all();
@@ -88,15 +88,28 @@ namespace Bootstrap
             }
         }
     }
-    bool bootstrap_initiator::in_progress()
+
+    bool bootstrap_initiator::check_progress()
     {
-    	std::lock_guard<std::mutex> lock(mutex);
-    	return attempt != nullptr;
+    	std::lock_guard<std::mutex> lock(mtx);
+    	if(attempt == nullptr)
+    	{
+    		return false;
+    	}
+
+#ifdef BOOTSTRAP_PROGRESS
+    	if(get_block_progress_and_reset() == 0)//TODO ==0
+    	{
+    		attempt = nullptr;
+    		return false;
+    	}
+#endif
+    	return true;
     }
 
     void bootstrap_initiator::stop()
     {
-        std::unique_lock<std::mutex> lock(mutex);
+        std::unique_lock<std::mutex> lock(mtx);
         stopped = true;
         if (attempt != nullptr) {
             attempt->stop();
@@ -129,6 +142,11 @@ namespace Bootstrap
         LOG_DEBUG(log) << __func__;// << " port=" << port_a;
     }
 
+    bootstrap_listener::~bootstrap_listener()
+    {
+        stop();
+    }
+
     void bootstrap_listener::start()
     {
     	acceptor.open (local.protocol ());
@@ -153,11 +171,15 @@ namespace Bootstrap
     {
         LOG_DEBUG(log) << "bootstrap_listener::stop: acceptor->close";
         acceptor.close();
-        std::lock_guard<std::mutex> lock(mtx);
+        std::unique_lock<std::mutex> lock(mtx);
         for (auto &con : connections)
         {
         	LOG_DEBUG(log) << "bootstrap_listener::stop: socket->close";
-        	con->socket.close();
+        	con->Disconnect();
+        }
+        while (!connections.empty())
+        {
+        	condition.wait(lock);
         }
     }
 
@@ -199,29 +221,8 @@ namespace Bootstrap
     void bootstrap_listener::remove_connection(std::shared_ptr<bootstrap_server> server)
     {
     	LOG_DEBUG(log) << __func__;
-    	server->socket.close();
     	std::lock_guard <std::mutex> lock(mtx);
     	connections.erase(server);
+    	condition.notify_all();
     }
 }
-
-//        decltype(connections) connections_l;
-//        {
-//            std::lock_guard<std::mutex> lock(mtx);
-//            //on = false;
-//            connections_l.swap(connections);
-//        }
-//    bool bootstrap_initiator::in_progress()
-//    {
-//        return current_attempt() != nullptr;
-//    }
-//    std::shared_ptr<bootstrap_attempt> bootstrap_initiator::current_attempt()
-//    {
-//        std::lock_guard<std::mutex> lock(mutex);
-//        return attempt;
-//    }
-//
-//    void bootstrap_listener::on_network_error()
-//    {
-//
-//    }

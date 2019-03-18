@@ -49,9 +49,10 @@ namespace Bootstrap
 
         /// run_bootstrap start of bootstrapping
         void run_bootstrap ();
-        /// in_progress
-        /// @returns true if bootstrapping is running
-        bool in_progress ();
+        /// check_progress
+        /// @returns true if bootstrapping is running and have good progress
+        /// attempts with bad progress are stopped.
+        bool check_progress ();
 
         /// stop ends bootstrapping
         void stop ();
@@ -65,7 +66,7 @@ namespace Bootstrap
 
         std::shared_ptr<bootstrap_attempt> attempt;
         bool stopped;
-        std::mutex mutex;
+        std::mutex mtx;
         std::condition_variable condition;
         uint8_t max_connected;
         std::thread thread;
@@ -84,6 +85,8 @@ namespace Bootstrap
 				std::string & local_address,
 				//uint16_t port,
 				uint8_t max_accepted = 16);
+
+		~bootstrap_listener();
 
 		/// start beginning of listener
 		void start ();
@@ -109,16 +112,12 @@ namespace Bootstrap
 		uint8_t max_accepted;
 
 		std::mutex mtx;
+        std::condition_variable condition;
 		std::unordered_set<std::shared_ptr<bootstrap_server>> connections;
 		Log log;
 	};
 }
-//        /// in_progress
-//        /// @returns true if bootstrapping is running
-//        bool in_progress ();
+
 //        /// current_attempt
 //        /// @returns shared pointer of the current bootstrap_attempt
 //        std::shared_ptr<bootstrap_attempt> current_attempt ();
-//
-//    logos::tcp_endpoint endpoint ();
-//void on_network_error();

@@ -26,22 +26,31 @@
 #include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
 #include <logos/consensus/persistence/batchblock/nondel_batchblock_persistence.hpp>
 
-
-class BlockCache
+class IBlockCache
 {
 public:
-	using Store = logos::block_store;
     using BSBPtr = std::shared_ptr<ApprovedBSB>;
     using MBPtr = std::shared_ptr<ApprovedMB>;
     using EBPtr = std::shared_ptr<ApprovedEB>;
 
+    virtual bool AddEB(EBPtr block) = 0;
+    virtual bool AddMB(MBPtr block) = 0;
+    virtual bool AddBSB(BSBPtr block) = 0;
+    virtual bool IsBlockCached(const BlockHash &b) = 0;
+    virtual ~IBlockCache() = default;
+};
+
+class BlockCache: public IBlockCache
+{
+public:
+	using Store = logos::block_store;
+
     BlockCache(Store &store);
 
-    bool AddEB(EBPtr block);
-    bool AddMB(MBPtr block);
-    bool AddBSB(BSBPtr block);
-
-    bool IsBlockCached(const BlockHash &b);
+    bool AddEB(EBPtr block) override;
+    bool AddMB(MBPtr block) override;
+    bool AddBSB(BSBPtr block) override;
+    bool IsBlockCached(const BlockHash &b) override;
 
 private:
     struct Epoch

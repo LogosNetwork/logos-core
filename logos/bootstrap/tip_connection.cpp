@@ -6,6 +6,7 @@
 #include <logos/bootstrap/pull.hpp>
 #include <logos/bootstrap/tips.hpp>
 #include <logos/bootstrap/tip_connection.hpp>
+#include <logos/bootstrap/connection.hpp>
 
 
 namespace Bootstrap
@@ -32,54 +33,54 @@ namespace Bootstrap
         }
 
         auto this_l = shared_from_this();
-//        connection->AsyncSend(send_buffer, [this_l, send_buffer](bool good)
-//        		{
-//					if (good)
-//					{
-//						LOG_TRACE(this_l->log) << "waiting peer tips...";
-//						this_l->receive_tips();
-//					}
-//					else
-//					{
-//						try {
-//							this_l->promise.set_value(true); // Report the error to caller in bootstrap.cpp.
-//						}
-//						catch(const std::future_error &e)
-//						{
-//							LOG_TRACE(this_l->log) << "tips_req_client::run: error setting promise: " << e.what();
-//						}
-//					}
-//				});TODO
+        connection->AsyncSend(send_buffer, [this_l, send_buffer](bool good)
+        		{
+					if (good)
+					{
+						LOG_TRACE(this_l->log) << "waiting peer tips...";
+						this_l->receive_tips();
+					}
+					else
+					{
+						try {
+							this_l->promise.set_value(true); // Report the error to caller in bootstrap.cpp.
+						}
+						catch(const std::future_error &e)
+						{
+							LOG_TRACE(this_l->log) << "tips_req_client::run: error setting promise: " << e.what();
+						}
+					}
+				});
     }
 
     void tips_req_client::receive_tips()
     {
         auto this_l = shared_from_this ();
-//        connection->AsyncReceive([this_l](bool good, MessageHeader header, uint8_t * buf)
-//        		{
-//        			bool error = false;
-//        			if(good)
-//        	        {
-//        	            logos::bufferstream stream (buf, header.payload_size);
-//        	            new (&this_l->response) TipSet(error, stream);
-//        	            if (!error)
-//        	            {
-//        	            	this_l->connection->Release();
-//        	            	this_l->connection = nullptr;
-//        	            	this_l->promise.set_value(false);
-//        	            }
-//        	        } else {
-//        	            LOG_WARN(this_l->log) << "tips_req_client::received_tips error...";
-//        	            error = true;
-//        	        }
-//
-//        			if(error)
-//        			{
-//        				this_l->connection->OnNetworkError();
-//        				this_l->connection = nullptr;
-//        				this_l->promise.set_value(true);
-//        			}
-//                });TODO
+        connection->AsyncReceive([this_l](bool good, MessageHeader header, uint8_t * buf)
+        		{
+        			bool error = false;
+        			if(good)
+        	        {
+        	            logos::bufferstream stream (buf, header.payload_size);
+        	            new (&this_l->response) TipSet(error, stream);
+        	            if (!error)
+        	            {
+        	            	this_l->connection->Release();
+        	            	this_l->connection = nullptr;
+        	            	this_l->promise.set_value(false);
+        	            }
+        	        } else {
+        	            LOG_WARN(this_l->log) << "tips_req_client::received_tips error...";
+        	            error = true;
+        	        }
+
+        			if(error)
+        			{
+        				this_l->connection->OnNetworkError();
+        				this_l->connection = nullptr;
+        				this_l->promise.set_value(true);
+        			}
+                });
     }
 
     /////////////////////////////////////////////////////////////////////////////////
@@ -110,21 +111,19 @@ namespace Bootstrap
         }
 
         auto this_l = shared_from_this();
-//        connection->AsyncSend(send_buffer->data (), send_buffer->size (),
-//        		[this_l](bool good)
-//				{
-//        			if (good)
-//        			{
-//        				LOG_INFO (this_l->log) << "Sending tips done";
-//        				this_l->connection->Release();
-//        			}
-//        			else
-//        			{
-//        				LOG_ERROR(this_l->log) << "Error sending tips";
-//        				this_l->connection->OnNetworkError();
-//        			}
-//
-//				});//TODO
+        connection->AsyncSend(send_buffer, [this_l](bool good)
+				{
+        			if (good)
+        			{
+        				LOG_INFO (this_l->log) << "Sending tips done";
+        				this_l->connection->Release();
+        			}
+        			else
+        			{
+        				LOG_ERROR(this_l->log) << "Error sending tips";
+        				this_l->connection->OnNetworkError();
+        			}
+				});
 
         //TODO compare tips and trigger local bootstrap
         //connection->node->ongoing_bootstrap();

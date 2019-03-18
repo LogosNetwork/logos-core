@@ -407,6 +407,7 @@ option(TEST_REJECT "Makes delegate reject random transactions inside PrePrepare 
 
 if (LOGOS_TEST)
 	add_executable (unit_test
+        logos/unit_test/bootstrap.cpp	       
 		logos/unit_test/consensus_msg_serialize.cpp
         #[[logos/unit_test/node.cpp]]
 		logos/unit_test/tallying.cpp)

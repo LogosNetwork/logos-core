@@ -15,7 +15,7 @@ namespace Bootstrap
     , peer_provider(peer_provider)
     , max_connected(max_connected)
     , session_id(PeerInfoProvider::GET_PEER_NEW_SESSION)
-    , puller(cache, store)
+    , puller(cache)
     , stopped(false)
     {
         LOG_DEBUG(log) << "Starting bootstrap attempt";
@@ -74,21 +74,21 @@ namespace Bootstrap
     {
         // NOTE: Get the connection from the pool and get tips.
         auto failed(true);
-        auto connection_l(connection());
+        auto connection_l(get_connection());
         if (connection_l != nullptr)
         {
-            //std::future<bool> future;
             auto client = std::make_shared<tips_req_client>(connection_l, store);
             client->run();
             std::future<bool> future = client->promise.get_future();
-            //lock_a.unlock();
             failed = consume_future(future);
-            //lock_a.lock();
 
             if (failed)
                 LOG_INFO(log) << "tips_req failed, reattempting";
             else
             {
+#ifdef BOOTSTRAP_PROGRESS
+            	block_progressed();
+#endif
                 puller.Init(client->request, client->response);
             }
         }
@@ -105,7 +105,7 @@ namespace Bootstrap
                 result = future_a.get();
             } else {
                 // future timed out, return error.
-                LOG_DEBUG(log) << "bootstrap_attempt::consume_future: timeout" << std::endl;
+                LOG_DEBUG(log) << "bootstrap_attempt::consume_future: timeout";
                 result = true;
             }
         }
@@ -120,7 +120,7 @@ namespace Bootstrap
         LOG_DEBUG(log) << "bootstrap_attempt::request_pull: start";
         while(puller.GetNumWaitingPulls() > 0)
         {
-            auto connection_l = connection();
+            auto connection_l = get_connection();
             if (connection_l)
             {
                 auto client(std::make_shared<bulk_pull_client>(connection_l, puller));
@@ -133,7 +133,7 @@ namespace Bootstrap
         }
     }
 
-    std::shared_ptr<bootstrap_client> bootstrap_attempt::connection()//std::unique_lock<std::mutex> &lock_a)
+    std::shared_ptr<bootstrap_client> bootstrap_attempt::get_connection()//std::unique_lock<std::mutex> &lock_a)
     {
     	populate_connections(1);
     	std::unique_lock<std::mutex> lock(mtx);
@@ -197,9 +197,6 @@ namespace Bootstrap
 
         for (auto peer : peers)
         {
-			//        	auto client(std::make_shared<bootstrap_client>(alarm,
-			//        	        		shared_from_this(),
-			//        					logos::tcp_endpoint(peer.address(), BOOTSTRAP_PORT)));
         	add_connection(peer);
         }
 
@@ -208,19 +205,16 @@ namespace Bootstrap
 
 	void bootstrap_attempt::add_connection(logos::endpoint const &endpoint_a)
 	{
-		//std::lock_guard <std::mutex> lock(mtx);
 		logos::tcp_endpoint e (endpoint_a.address(), BOOTSTRAP_PORT);
 		auto client = std::make_shared<bootstrap_client>(*this, e);
-		//pool_connection(client);
 	}
 
     void bootstrap_attempt::remove_connection(std::shared_ptr<bootstrap_client> client, bool blacklist)
     {
     	LOG_DEBUG(log) << __func__;
-    	client->socket.close();//may not need
     	if(blacklist)
     	{
-    		logos::endpoint e(client->endpoint.address(), BOOTSTRAP_PORT);
+    		logos::endpoint e(client->PeerAddress(), BOOTSTRAP_PORT);
     		peer_provider.add_to_blacklist(e);
     	}
     	std::lock_guard <std::mutex> lock(mtx);
@@ -240,26 +234,37 @@ namespace Bootstrap
     void bootstrap_attempt::stop()
     {
         LOG_DEBUG(log) << "bootstrap_attempt::stop";
-        std::lock_guard <std::mutex> lock(mtx);
+        std::unique_lock<std::mutex> lock(mtx);
         stopped = true;
 
         for (auto client : idle_clients)
         {
             LOG_DEBUG(log) << "bootstrap_attempt::stop: socket->close "
-            			   << client->socket.remote_endpoint();
-            client->socket.close();
+            			   << client->PeerAddress();
+            client->Disconnect();
         }
         idle_clients.clear();
         for (auto client : working_clients)
         {
             LOG_DEBUG(log) << "bootstrap_attempt::stop: socket->close "
-            		       << client->socket.remote_endpoint();
-            client->socket.close();
+            		       << client->PeerAddress();
+            client->Disconnect();
         }
-        working_clients.clear();
-        //condition.notify_all();
+
+        /*
+         * don't call working_clients.clear();
+         * working clients are used by other threads
+         * test if working_clients is empty and wait if not
+         */
+        while (!working_clients.empty())
+        {
+        	condition.wait(lock);
+        }
+
+        condition.notify_all();
     }
 }
+
 ///*
 ////TODO Stop on-going tip request and set promise to unblock the thread in attempt::run
 // if (auto i = tips.lock()) {

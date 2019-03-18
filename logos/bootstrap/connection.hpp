@@ -17,14 +17,13 @@ namespace Bootstrap
     class ISocket
     {
     public:
-        typedef void (*SendComplete)(bool good);
-        typedef void (*ReceiveComplete)(bool good, MessageHeader header, uint8_t * buf);
+    	using SendComplete = std::function<void(bool)>;
+    	using ReceiveComplete = std::function<void(bool, MessageHeader, uint8_t *)>;
 
-        virtual void AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete * cb, uint32_t timeout_ms = 0) = 0;
-        virtual void AsyncReceive(ReceiveComplete * cb, uint32_t timeout_ms = 0) = 0;
+        virtual void AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete cb, uint32_t timeout_ms = 0) = 0;
+        virtual void AsyncReceive(ReceiveComplete cb, uint32_t timeout_ms = 0) = 0;
         virtual void OnNetworkError(bool black_list = false) = 0;
         virtual void Release() = 0;
-
         virtual ~ISocket() = default;
     };
 
@@ -58,19 +57,14 @@ namespace Bootstrap
         //server side
         Socket(BoostSocket & socket_a, logos::alarm & alarm);
 
-        virtual void AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete * cb, uint32_t timeout_ms = 0) override;
-        virtual void AsyncReceive(ReceiveComplete * cb, uint32_t timeout_ms = 0) override;
-
         void Disconnect();
-        std::shared_ptr<Socket> shared ();
+        virtual ~Socket() override;
 
-        logos::tcp_endpoint endpoint;
-        logos::alarm & alarm;
-        BoostSocket socket;
-        socket_timeout timeout;
-        std::array<uint8_t, MessageHeader::WireSize> header_buf;
-        std::array<uint8_t, BootstrapBufSize> receive_buf;
-        Log log;
+        virtual void AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete cb, uint32_t timeout_ms = 0) override;
+        virtual void AsyncReceive(ReceiveComplete cb, uint32_t timeout_ms = 0) override;
+
+        std::shared_ptr<Socket> shared ();
+        boost::asio::ip::address PeerAddress() const;
 
     protected:
         template <typename Derived>
@@ -78,6 +72,20 @@ namespace Bootstrap
         {
             return std::static_pointer_cast<Derived>(shared_from_this());
         }
+
+        logos::tcp_endpoint peer;
+        logos::alarm & alarm;
+        BoostSocket socket;
+        socket_timeout timeout;
+        std::array<uint8_t, MessageHeader::WireSize> header_buf;
+        std::array<uint8_t, BootstrapBufSize> receive_buf;
+
+        std::mutex mtx;
+        bool disconnected;
+        Log log;
+
+        friend class socket_timeout;
+        //friend class bootstrap_attempt;
     };
 
 
@@ -97,8 +105,6 @@ namespace Bootstrap
         virtual void OnNetworkError(bool black_list = false) override;
         virtual void Release() override;
 
-        void Disconnect ();
-
         /// @returns returns shared pointer of this client
         std::shared_ptr<bootstrap_client> shared ();
 
@@ -117,19 +123,15 @@ namespace Bootstrap
         bootstrap_server (bootstrap_listener & listener,
                 BoostSocket & socket_a,
                 Store & store);
-
         /// Class destructor
         ~bootstrap_server ();
 
         void receive_request ();
         void dispatch (bool good, MessageHeader header, uint8_t * buf);
 
-        virtual void OnNetworkError(bool black_list = false) override
-        {
-        	Socket::Disconnect();
-        	//TODO notify attempt
-        }
+        virtual void OnNetworkError(bool black_list = false) override;
         virtual void Release() override;
+        std::shared_ptr<bootstrap_server> shared ();
 
         bootstrap_listener & listener;
         Store & store;

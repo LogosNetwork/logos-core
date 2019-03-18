@@ -46,7 +46,7 @@ namespace Bootstrap
         /// connection
         /// @param unique_lock
         /// @returns a valid bootstrap_client
-        std::shared_ptr<bootstrap_client> connection();//std::unique_lock<std::mutex> &);
+        std::shared_ptr<bootstrap_client> get_connection();//std::unique_lock<std::mutex> &);
 
         /// request_tips
         /// @param unique_lock
@@ -64,9 +64,6 @@ namespace Bootstrap
 
         /// stop stop the attempt
         void stop();
-
-        void clean();
-
 
         logos::alarm & alarm;
         Store & store;

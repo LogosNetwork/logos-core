@@ -30,6 +30,32 @@ namespace Bootstrap
 
         //template<ConsensusType CT>
         PullStatus process_reply (ConsensusType ct, logos::bufferstream & stream);
+
+        std::shared_ptr<ISocket> connection;
+        Puller & puller;
+        PullPtr request;
+        Log log;
+    };
+
+    class bulk_pull_server : public std::enable_shared_from_this<Bootstrap::bulk_pull_server>
+    {
+    public:
+        /// Class constructor
+        /// @param bootstrap_server
+        /// @param bulk_pull (the actual request being made)
+        bulk_pull_server (std::shared_ptr<ISocket> server, PullPtr pull, Store & store);
+
+        ~bulk_pull_server();
+
+        void send_block ();
+
+        std::shared_ptr<ISocket> connection;
+        PullRequestHandler request_handler;
+        Log log;
+    };
+}
+
+//template Puller::PullStatus process_reply<ConsensusType::BatchStateBlock>(logos::bufferstream & stream);
 //        {
 //        	bool error = false;
 //        	switch (ct) {
@@ -68,29 +94,3 @@ namespace Bootstrap
 //					return Puller::PullStatus::Unknown;
 //			}
 //        }
-
-        std::shared_ptr<ISocket> connection;
-        Puller & puller;
-        PullPtr request;
-        Log log;
-    };
-
-    class bulk_pull_server : public std::enable_shared_from_this<Bootstrap::bulk_pull_server>
-    {
-    public:
-        /// Class constructor
-        /// @param bootstrap_server
-        /// @param bulk_pull (the actual request being made)
-        bulk_pull_server (std::shared_ptr<ISocket> server, PullPtr pull, Store & store);
-
-        ~bulk_pull_server();
-
-        void send_block ();
-
-        std::shared_ptr<ISocket> connection;
-        PullRequestHandler request_handler;
-        Log log;
-    };
-}
-
-//template Puller::PullStatus process_reply<ConsensusType::BatchStateBlock>(logos::bufferstream & stream);

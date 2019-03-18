@@ -1,90 +1,90 @@
-#include <gtest/gtest.h>
-#include <logos/node/testing.hpp>
-#include <logos/node/working.hpp>
-
-#include <boost/make_shared.hpp>
-#include <iostream>
-#include <fstream>
-
-#ifdef _TRACE_MEM
-#   include <LeakTrace/MemoryTrace.hpp>
-#endif
-
-TEST (node, logos_bootstrap_test)
-{
-#ifdef _TRACE_MEM
-    leaktracer::MemoryTrace::GetInstance().startMonitoringAllThreads();
-#endif
-
-    boost::filesystem::path path1("/home/ubuntu/Downloads/batchdb_test");
-    boost::filesystem::path path2("/home/ubuntu/Downloads/target");
-
-    std::cout << "initializing system..." << std::endl;
-    logos::system system0 (24000, path1);
-    std::cout << "done initializing system0 ..." << std::endl;
-    logos::system system1 (24001, path2);
-    std::cout << "done initializing system1 ..." << std::endl;
-    auto & node1 (*system0.nodes[0]);
-    auto & node2 (*system1.nodes[0]); // node2 will bootstrap from node1...
-    system0.wallet (0)->insert_adhoc (logos::test_genesis_key.prv);
-    //logos::block_hash latest (system0.nodes[0]->latest (logos::test_genesis_key.pub)); // Do we need this ?
-    logos::keypair key1;
-    std::cout << "done initializing system..." << std::endl;
-
-#if 0
-    auto send1 (std::make_shared<logos::send_block> (latest, key1.pub, logos::genesis_amount - logos::Gxrb_ratio, logos::test_genesis_key.prv, logos::test_genesis_key.pub, system0.work.generate (latest)));
-    logos::keypair key2;
-    auto send2 (std::make_shared<logos::send_block> (latest, key2.pub, logos::genesis_amount - logos::Gxrb_ratio, logos::test_genesis_key.prv, logos::test_genesis_key.pub, system0.work.generate (latest)));
-    // Insert but don't rebroadcast, simulating settled blocks
-    node1.block_processor.add (send1);
-    node1.block_processor.flush ();
-    node2.block_processor.add (send2);
-    node2.block_processor.flush ();
-#endif
-    {
-        logos::transaction transaction (node2.store.environment, nullptr, false);
-        //ASSERT_TRUE (node2.store.block_exists (transaction, send2->hash ())); // TODO
-    }
-    node1.network.send_keepalive (node2.network.endpoint ());
-    auto iterations1 (0);
-    std::cout << "waiting for peer discovery..." << std::endl;
-    while (node2.peers.empty ())
-    {
-        system0.poll ();
-        system1.poll ();
-        ++iterations1;
-        ASSERT_LT (iterations1, 2000);
-    }
-    std::cout << "initiating bootstrap from peer" << std::endl;
-    node2.bootstrap_initiator.bootstrap (node1.network.endpoint ());
-    std::cout << "waiting for response" << std::endl;
-    auto again (true);
-    auto iterations2 (0);
-    while (again)
-    {
-        system0.poll ();
-        system1.poll ();
-        ++iterations2;
-        //ASSERT_LT (iterations2, 20000);
-        if(iterations2 > 2000000) {
-            break;
-        }
-        //ASSERT_LT (iterations2, 5120000);
-        logos::transaction transaction (node2.store.environment, nullptr, false);
-        again = true; //!node2.store.block_exists (transaction, send1->hash ()); // TODO Decide on a block that should be there...
-    }
-#ifdef _TRACE_MEM
-    leaktracer::MemoryTrace::GetInstance().stopMonitoringAllocations();
-    leaktracer::MemoryTrace::GetInstance().stopAllMonitoring();
-    std::ofstream oleaks;
-    oleaks.open("leaks.out", std::ios_base::out);
-    if (oleaks.is_open())
-        leaktracer::MemoryTrace::GetInstance().writeLeaks(oleaks);
-    else
-        std::cerr << "Failed to write to \"leaks.out\"\n";
-#endif
-
-}
+//#include <gtest/gtest.h>
+//#include <logos/node/testing.hpp>
+//#include <logos/node/working.hpp>
+//
+//#include <boost/make_shared.hpp>
+//#include <iostream>
+//#include <fstream>
+//
+//#ifdef _TRACE_MEM
+//#   include <LeakTrace/MemoryTrace.hpp>
+//#endif
+//
+//TEST (node, logos_bootstrap_test)
+//{
+//#ifdef _TRACE_MEM
+//    leaktracer::MemoryTrace::GetInstance().startMonitoringAllThreads();
+//#endif
+//
+//    boost::filesystem::path path1("/home/ubuntu/Downloads/batchdb_test");
+//    boost::filesystem::path path2("/home/ubuntu/Downloads/target");
+//
+//    std::cout << "initializing system..." << std::endl;
+//    logos::system system0 (24000, path1);
+//    std::cout << "done initializing system0 ..." << std::endl;
+//    logos::system system1 (24001, path2);
+//    std::cout << "done initializing system1 ..." << std::endl;
+//    auto & node1 (*system0.nodes[0]);
+//    auto & node2 (*system1.nodes[0]); // node2 will bootstrap from node1...
+//    system0.wallet (0)->insert_adhoc (logos::test_genesis_key.prv);
+//    //logos::block_hash latest (system0.nodes[0]->latest (logos::test_genesis_key.pub)); // Do we need this ?
+//    logos::keypair key1;
+//    std::cout << "done initializing system..." << std::endl;
+//
+//#if 0
+//    auto send1 (std::make_shared<logos::send_block> (latest, key1.pub, logos::genesis_amount - logos::Gxrb_ratio, logos::test_genesis_key.prv, logos::test_genesis_key.pub, system0.work.generate (latest)));
+//    logos::keypair key2;
+//    auto send2 (std::make_shared<logos::send_block> (latest, key2.pub, logos::genesis_amount - logos::Gxrb_ratio, logos::test_genesis_key.prv, logos::test_genesis_key.pub, system0.work.generate (latest)));
+//    // Insert but don't rebroadcast, simulating settled blocks
+//    node1.block_processor.add (send1);
+//    node1.block_processor.flush ();
+//    node2.block_processor.add (send2);
+//    node2.block_processor.flush ();
+//#endif
+//    {
+//        logos::transaction transaction (node2.store.environment, nullptr, false);
+//        //ASSERT_TRUE (node2.store.block_exists (transaction, send2->hash ())); // TODO
+//    }
+//    node1.network.send_keepalive (node2.network.endpoint ());
+//    auto iterations1 (0);
+//    std::cout << "waiting for peer discovery..." << std::endl;
+//    while (node2.peers.empty ())
+//    {
+//        system0.poll ();
+//        system1.poll ();
+//        ++iterations1;
+//        ASSERT_LT (iterations1, 2000);
+//    }
+//    std::cout << "initiating bootstrap from peer" << std::endl;
+//    node2.bootstrap_initiator.bootstrap (node1.network.endpoint ());
+//    std::cout << "waiting for response" << std::endl;
+//    auto again (true);
+//    auto iterations2 (0);
+//    while (again)
+//    {
+//        system0.poll ();
+//        system1.poll ();
+//        ++iterations2;
+//        //ASSERT_LT (iterations2, 20000);
+//        if(iterations2 > 2000000) {
+//            break;
+//        }
+//        //ASSERT_LT (iterations2, 5120000);
+//        logos::transaction transaction (node2.store.environment, nullptr, false);
+//        again = true; //!node2.store.block_exists (transaction, send1->hash ()); // TODO Decide on a block that should be there...
+//    }
+//#ifdef _TRACE_MEM
+//    leaktracer::MemoryTrace::GetInstance().stopMonitoringAllocations();
+//    leaktracer::MemoryTrace::GetInstance().stopAllMonitoring();
+//    std::ofstream oleaks;
+//    oleaks.open("leaks.out", std::ios_base::out);
+//    if (oleaks.is_open())
+//        leaktracer::MemoryTrace::GetInstance().writeLeaks(oleaks);
+//    else
+//        std::cerr << "Failed to write to \"leaks.out\"\n";
+//#endif
+//
+//}
 
 #if 0
 TEST (node, stop)

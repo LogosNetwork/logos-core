@@ -1,19 +1,93 @@
 #pragma once
 
-//#include <logos/bootstrap/bootstrap_messages.hpp>
-////#include <logos/bootstrap/bootstrap.hpp>
-//#include <logos/lib/log.hpp>
-//
-//namespace Bootstrap
-//{
-//    class TipUtils{
-//    public:
-////        static TipSet CreateTipSet(Store & store)
-////        {
-////            //logos::transaction transaction (store.environment, nullptr, false);
-////
-////            return TipSet();
-////        }
+#include <logos/blockstore.hpp>
+#include <logos/consensus/messages/messages.hpp>
+#include <logos/bootstrap/bootstrap_messages.hpp>
+#include <logos/lib/log.hpp>
+
+namespace Bootstrap
+{
+	using Store = logos::block_store;
+
+	class TipUtils
+	{
+	public:
+    	static TipSet CreateTipSet(Store & store);
+
+    	BlockHash getBatchBlockTip(Store & store, int delegate)
+    	{
+    	    BlockHash hash = 0;
+    	    if(!store.batch_tip_get(delegate, hash)) {
+    	        return hash;
+    	    }
+    	    return hash;
+    	}
+
+    	uint32_t  getBatchBlockTipSeqNr(Store& store, uint8_t delegate)
+    	{
+    	    // The below code will dump core in bsb dtor.
+    	    // Also, the sequence number is not correct. Need real world database to test.
+    	    ApprovedBSB batch;
+    	    BlockHash hash = getBatchBlockTip(store,delegate);
+    	    if(hash.is_zero())
+    	    {
+    	        return 0;
+    	    }
+    	    if(store.batch_block_get(hash, batch))
+    	    {
+				trace_and_halt();
+    	    }
+    	    return batch.sequence;
+    	}
+
+    	BlockHash getMicroBlockTip(Store& s)
+    	{
+    	    BlockHash hash;
+    	    if(!s.micro_block_tip_get(hash)) {
+    	        return hash;
+    	    }
+    	    return BlockHash();
+    	}
+    	std::shared_ptr<ApprovedMB> readMicroBlock(Store &store, BlockHash &hash)
+    	{
+    	    std::shared_ptr<ApprovedMB> micro(new ApprovedMB);
+    	    if(!store.micro_block_get(hash,*micro)) {
+    	        return micro;
+    	    }
+    	    return nullptr;
+    	}
+    	uint32_t  getMicroBlockTipSeqNr(Store& s)
+    	{
+    	    BlockHash hash = getMicroBlockTip(s);
+    	    std::shared_ptr<ApprovedMB> tip = readMicroBlock(s,hash);
+    	    return tip->sequence;
+    	}
+
+    	BlockHash getEpochBlockTip(Store& s)
+    	{
+    	    BlockHash hash;
+    	    if(!s.epoch_tip_get(hash)) {
+    	        return hash;
+    	    }
+    	    return BlockHash();
+    	}
+    	std::shared_ptr<ApprovedEB> readEpochBlock(Store &store, BlockHash &hash)
+    	{
+    	    std::shared_ptr<ApprovedEB> epoch(new ApprovedEB);
+    	    if(!store.epoch_get(hash,*epoch)) {
+    	        return epoch;
+    	    }
+    	    return nullptr;
+    	}
+    	uint64_t  getEpochBlockSeqNr(Store& s)
+    	{
+    	    BlockHash hash = getEpochBlockTip(s);
+    	    std::shared_ptr<ApprovedEB> tip = readEpochBlock(s,hash);
+    	    return tip->epoch_number;
+    	}
+    };
+}
+
 //
 //	//        /*
 //	//         * We assume both a and b are valid tips, in this iteration of the bootstrapping.

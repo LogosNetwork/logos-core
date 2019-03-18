@@ -9,7 +9,7 @@
 
 #include <logos/bootstrap/bootstrap_messages.hpp>
 //#include <logos/bootstrap/bootstrap.hpp>
-#include <logos/bootstrap/microblock.hpp>
+//#include <logos/bootstrap/microblock.hpp>
 //#include <logos/bootstrap/pull_connection.hpp>
 
 namespace Bootstrap
@@ -19,7 +19,7 @@ namespace Bootstrap
     using MBPtr = std::shared_ptr<ApprovedMB>;
     using EBPtr = std::shared_ptr<ApprovedEB>;
 
-    enum class PullStatus
+    enum class PullStatus : uint8_t
     {
         Continue,
 		Done,
@@ -32,7 +32,7 @@ namespace Bootstrap
     class Puller
     {
     public:
-        Puller(BlockCache & block_cache, Store & store);
+        Puller(IBlockCache & block_cache);//, Store & store);
         void Init(TipSet &my_tips, TipSet &others_tips);
 
         PullPtr GetPull();
@@ -41,7 +41,7 @@ namespace Bootstrap
 
         /**
          * @param pull the pull that the block belongs to
-         * @param block if nullptr, then no more blocks
+         * @param block the block
          * @return status of the pull
          */
         PullStatus EBReceived(PullPtr pull, EBPtr block);
@@ -51,23 +51,22 @@ namespace Bootstrap
 
     private:
         void CreateMorePulls();
-        void CheckProgress();
+        void CheckMicroProgress();
 
         void UpdateMyBSBTip(BSBPtr block);
         void UpdateMyMBTip(MBPtr block);
         void UpdateMyEBTip(EBPtr block);
 
-        BlockCache & block_cache;
-        Store & store;
-
+        IBlockCache & block_cache;
+//        Store & store;
         TipSet my_tips;
         TipSet others_tips;
 
-        std::mutex mtx;
+        std::mutex mtx;//for waiting_pulls and ongoing_pulls
         std::deque<PullPtr> waiting_pulls;
         std::unordered_set<PullPtr> ongoing_pulls;
 
-        enum class PullState
+        enum class PullState : uint8_t
 		{
         	Epoch,
 			Micro,
@@ -75,7 +74,7 @@ namespace Bootstrap
 			Batch_No_MB,
 			Done
 		};
-        PullState state;
+        PullState state = PullState::Done;
 
         struct MicroPeriod
         {
@@ -98,10 +97,12 @@ namespace Bootstrap
         	uint32_t epoch_num;
             EBPtr eb;
             MicroPeriod cur_mbp;
+            //for corner case: bsb of cur_mbp depends on bsb in next_mbp
             bool two_mbps;
-            MicroPeriod next_mbp;//for corner case: bsb of cur_mb depends on bsb in next_mb
+            MicroPeriod next_mbp;
         };
         EpochPeriod working_epoch;
+        uint32_t final_ep_number = 0;
 
         Log log;
     };

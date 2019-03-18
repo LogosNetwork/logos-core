@@ -28,53 +28,59 @@ namespace Bootstrap
         }
 
         auto this_l = shared_from_this();
-//        connection->AsyncSend(send_buffer, [this_l, send_buffer](bool good)
-//        		{
-//					if (good)
-//					{
-//						LOG_TRACE(this_l->log) << "waiting peer tips...";
-//						this_l->receive_block();
-//					}
-//					else
-//					{
-//						LOG_TRACE(this_l->log) << "bulk_pull_client::run: net error";
-//						this_l->puller.PullFailed(this_l->request);
-//						this_l->connection->OnNetworkError();
-//					}
-//				});TODO
+        connection->AsyncSend(send_buffer, [this_l, send_buffer](bool good)
+        		{
+					if (good)
+					{
+						LOG_TRACE(this_l->log) << "waiting peer tips...";
+						this_l->receive_block();
+					}
+					else
+					{
+						LOG_TRACE(this_l->log) << "bulk_pull_client::run: net error";
+						this_l->puller.PullFailed(this_l->request);
+						this_l->connection->OnNetworkError();
+					}
+				});
 	}
 
     void bulk_pull_client::receive_block ()
     {
         auto this_l = shared_from_this ();
-//        connection->AsyncReceive([this_l](bool good, MessageHeader header, uint8_t * buf)
-//        		{
-//        			PullStatus pull_status = PullStatus::Unknown;
-//        			if(good)
-//        	        {
-//        	            logos::bufferstream stream (buf, header.payload_size);
-//    	            	pull_status = this_l->process_reply(header.pull_response_ct, stream);
-//        	        }
-//
-//        			switch (pull_status) {
-//        			case PullStatus::Continue:
-//        				this_l->receive_block();
-//						break;
-//					case PullStatus::Done:
-//						this_l->connection->Release();
-//						this_l->connection = nullptr;
-//						break;
-//					case PullStatus::BlackListSender:
-//						this_l->connection->OnNetworkError(true);
-//						this_l->connection = nullptr;
-//						break;
-//					case PullStatus::DisconnectSender:
-//					default:
-//						this_l->connection->OnNetworkError();
-//						this_l->connection = nullptr;
-//						break;
-//					}
-//                });TODO
+        connection->AsyncReceive([this_l](bool good, MessageHeader header, uint8_t * buf)
+        		{
+        			PullStatus pull_status = PullStatus::Unknown;
+        			if(good)
+        	        {
+        	            logos::bufferstream stream (buf, header.payload_size);
+    	            	pull_status = this_l->process_reply(header.pull_response_ct, stream);
+        	        }
+
+        			switch (pull_status) {
+        			case PullStatus::Continue:
+#ifdef BOOTSTRAP_PROGRESS
+        				block_progressed();
+#endif
+        				this_l->receive_block();
+						break;
+					case PullStatus::Done:
+#ifdef BOOTSTRAP_PROGRESS
+						block_progressed();
+#endif
+						this_l->connection->Release();
+						this_l->connection = nullptr;//TODO delete?
+						break;
+					case PullStatus::BlackListSender:
+						this_l->connection->OnNetworkError(true);
+						this_l->connection = nullptr;
+						break;
+					case PullStatus::DisconnectSender:
+					default:
+						this_l->connection->OnNetworkError();
+						this_l->connection = nullptr;
+						break;
+					}
+                });
     }
 
     PullStatus bulk_pull_client::process_reply (ConsensusType ct, logos::bufferstream & stream)
@@ -138,27 +144,26 @@ namespace Bootstrap
         auto send_buffer(std::make_shared<std::vector<uint8_t>>());
         auto more (request_handler.GetNextSerializedResponse(*send_buffer));
         auto this_l = shared_from_this();
-//        connection->AsyncSend(send_buffer->data (), send_buffer->size (),
-//        		[this_l, more](bool good)
-//				{
-//					if (good)
-//					{
-//						LOG_TRACE(this_l->log) << "Sent a block";
-//						if(more)
-//						{
-//							this_l->send_block();
-//						}
-//						else
-//						{
-//							this_l->connection->Release();
-//							this_l->connection = nullptr;
-//						}
-//					}
-//					else
-//					{
-//						LOG_ERROR(this_l->log) << "Error sending tips";
-//						this_l->connection->OnNetworkError();
-//					}
-//				});TODO
+        connection->AsyncSend(send_buffer, [this_l, more](bool good)
+				{
+					if (good)
+					{
+						LOG_TRACE(this_l->log) << "Sent a block";
+						if(more)
+						{
+							this_l->send_block();
+						}
+						else
+						{
+							this_l->connection->Release();
+							this_l->connection = nullptr;
+						}
+					}
+					else
+					{
+						LOG_ERROR(this_l->log) << "Error sending tips";
+						this_l->connection->OnNetworkError();
+					}
+				});
     }
 }
