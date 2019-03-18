@@ -191,7 +191,9 @@ boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
             std::string field = GetTokenSettingField(i);
             if(field != "" && settings[i])
             {
-                settings_tree.put(field,settings[i] ? "true" : "false");
+                boost::property_tree::ptree t;
+                t.put("",field);
+                settings_tree.push_back(std::make_pair("", t));
             }
         }
         tree.add_child("settings", settings_tree);
