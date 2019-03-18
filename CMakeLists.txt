@@ -423,7 +423,7 @@ if (LOGOS_TEST)
 		logos/p2p/test/propagate_test.cpp
 		logos/unit_test/msg_validator_setup.cpp
 		logos/unit_test/request_serialization.cpp
-		logos/unit_test/database.cpp
+		logos/unit_test/elections.cpp
 		logos/unit_test/tallying.cpp
 		logos/unit_test/msg_validator_setup.cpp
 		logos/unit_test/request_serialization.cpp
