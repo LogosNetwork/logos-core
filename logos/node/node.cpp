@@ -1830,6 +1830,7 @@ void logos::node::TestTokenRequests()
                     "change_revoke",
                     "change_freeze",
                     "withdraw_fee",
+                    "withdraw_logos",
                     "adjust_fee",
                     "change_adjust_fee",
                     "update_controller",
@@ -2903,6 +2904,55 @@ void logos::node::TestTokenRequests()
             break;
         }
     }
+
+    char const * withdraw_logos_json = R"%%%({
+        "type": "withdraw_logos",
+        "origin": "lgs_1mkqajo9pedc1x764b5y5yzkykcm3h3hx1bumznzhgjqimjpajy9w5qfsis6",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "10000000000000000000000",
+        "sequence": "1",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "token_id": "3EF080E14C25E31347948BFBF5E98B84536ED610D9831DCB1F5074EDC6F33E35",
+        "transaction" : {
+            "destination": "lgs_1mkqajo9pedc1x764b5y5yzkykcm3h3hx1bumznzhgjqimjpajy9w5qfsis6",
+            "amount": "10000000000000000000050"
+        }
+     })%%%";
+
+    tree = get_tree(withdraw_logos_json);
+    WithdrawLogos wl(error, tree);
+    assert(!error);
+
+    wl.sequence = issue_adtl.sequence + 1;
+    wl.previous = issue_adtl.GetHash();
+    wl.Sign(controller_2_key.data);
+
+    send_request(std::make_shared<WithdrawLogos>(wl),
+                 "Withdrawing Logos",
+                 process_result::progress);
+
+    while(true)
+    {
+        account_info info;
+        store.account_get(controller_2, info);
+
+        amount balance;
+        balance.decode_dec("10000000000000000000000000");
+
+        if(info.balance == balance)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        else
+        {
+            std::cout << "Done - balance: "
+                      << info.balance.to_string_dec()
+                      << std::endl;
+            break;
+        }
+    }
+
 }
 
 void logos::node::stop ()
