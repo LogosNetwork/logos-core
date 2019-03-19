@@ -214,16 +214,13 @@ TEST (Elections, blockstore)
         AccountAddress candidate_account;
         candidate_info.stake = 42;
         candidate_info.bls_key = 3;
+        candidate_info.epoch_modified = 67;
 
         ASSERT_FALSE(store->candidate_put(candidate_account,candidate_info,txn));
 
         CandidateInfo candidate_info2;
         ASSERT_FALSE(store->candidate_get(candidate_account,candidate_info2,txn));
         ASSERT_EQ(candidate_info,candidate_info2);
-
-
-
-
     }
    
 }
@@ -237,10 +234,12 @@ TEST(Elections, candidates_simple)
     CandidateInfo c1(100);
     c1.stake = 34;
     c1.bls_key = 4;
+    c1.epoch_modified = 12;
     AccountAddress a1(0);
     CandidateInfo c2(110);
     c2.stake = 456;
     c2.bls_key = 7;
+    c2.epoch_modified = 96;
     AccountAddress a2(1);
 
     logos::transaction txn(store->environment,nullptr,true);
@@ -260,22 +259,32 @@ TEST(Elections, candidates_simple)
         ASSERT_FALSE(res);
         ASSERT_EQ(c2,c2_copy);
 
-        res = store->candidate_add_vote(a1,100,txn);
+        res = store->candidate_add_vote(a1,100,c1.epoch_modified,txn);
         ASSERT_FALSE(res);
-        res = store->candidate_add_vote(a1,50,txn);
+        res = store->candidate_add_vote(a1,50,c1.epoch_modified,txn);
         ASSERT_FALSE(res);
 
         CandidateInfo c3_copy;
         res = store->candidate_get(a1,c3_copy,txn);
         ASSERT_FALSE(res);
         ASSERT_EQ(c3_copy.votes_received_weighted,c1.votes_received_weighted+100+50);
+        ASSERT_EQ(c3_copy.epoch_modified,c1.epoch_modified);
+
+        ASSERT_FALSE(store->candidate_add_vote(a1,70,c1.epoch_modified+1,txn));
+
+        ASSERT_FALSE(store->candidate_get(a1,c3_copy,txn));
+        ASSERT_EQ(c3_copy.votes_received_weighted,70);
+        ASSERT_EQ(c3_copy.epoch_modified,c1.epoch_modified+1);
+
+        ASSERT_FALSE(store->candidate_add_vote(a1,40,c1.epoch_modified+40,txn));
+        ASSERT_FALSE(store->candidate_get(a1,c3_copy,txn));
+        ASSERT_EQ(c3_copy.votes_received_weighted,40);
+        ASSERT_EQ(c3_copy.epoch_modified,c1.epoch_modified+40);
+
         
         AccountAddress a3(2);
-        ASSERT_TRUE(store->candidate_add_vote(a3,100,txn));
-        
+        ASSERT_TRUE(store->candidate_add_vote(a3,100,0,txn));
     }
-
-    //TODO: write tests for candidate functions
 }
 
 TEST(Elections, get_winners)
@@ -408,21 +417,13 @@ TEST(Elections,candidates_transition)
         candidate.bls_key = bls2;
         ASSERT_FALSE(store->candidate_put(a2, candidate, txn));
     }
+
     iterateCandidatesDB(*store,[](auto& it){
             bool error = false;
             CandidateInfo info(error,it->second);
             ASSERT_FALSE(error);
             ASSERT_EQ(info.votes_received_weighted,0);
             },txn);       
-
-    mgr.UpdateCandidatesDB(txn);
-
-    iterateCandidatesDB(*store,[](auto& it){
-            bool error = false;
-            CandidateInfo info(error,it->second);
-            ASSERT_FALSE(error);
-            ASSERT_EQ(info.votes_received_weighted,0);
-            },txn);
 
     {
         bool res = store->candidate_mark_remove(a1,txn);
@@ -447,11 +448,7 @@ TEST(Elections,candidates_transition)
         ASSERT_FALSE(res);
     }
 
-    iterateCandidatesDB(*store,[](auto& it){
-            bool error = false;
-            CandidateInfo info(error,it->second);
-            ASSERT_FALSE(error);
-            },txn);
+
     {
         ApprovedEB eb;
         eb.delegates[0].account = a2;
@@ -528,24 +525,6 @@ TEST(Elections,candidates_transition)
         bool res = store->candidate_get(a2,info,txn);
         ASSERT_FALSE(res);
     }
-
-    store->candidate_add_vote(a2,100,txn);
-
-    {
-        CandidateInfo info;
-        store->candidate_get(a2,info,txn);
-        ASSERT_EQ(info.votes_received_weighted,100);
-    }
-    
-    mgr.MarkDelegateElectsAsRemove(txn);
-    mgr.UpdateCandidatesDB(txn);
-
-    {
-        CandidateInfo info;
-        store->candidate_get(a2,info,txn);
-        ASSERT_EQ(info.votes_received_weighted,0);
-    }
-
 }
 
 TEST(Elections,get_next_epoch_delegates)
@@ -678,7 +657,7 @@ TEST(Elections,get_next_epoch_delegates)
         for(size_t i = 0; i < 8; ++i)
         {
             auto new_vote = delegates[i].vote+100;
-            store->candidate_add_vote(delegates[i].account,new_vote,txn);
+            store->candidate_add_vote(delegates[i].account,new_vote,epoch_num,txn);
             delegates[i].vote = new_vote; 
             delegates[i].starting_term = true;
         }
@@ -695,7 +674,7 @@ TEST(Elections,get_next_epoch_delegates)
         for(size_t i = 8; i < 16; ++i)
         {
             auto new_vote = delegates[i].vote+200;
-            store->candidate_add_vote(delegates[i].account,new_vote,txn);
+            store->candidate_add_vote(delegates[i].account,new_vote,epoch_num,txn);
             delegates[i].vote = new_vote; 
             delegates[i].starting_term = true;
         }
@@ -717,7 +696,7 @@ TEST(Elections,get_next_epoch_delegates)
         for(size_t i = 16; i < 24; ++i)
         {
             auto new_vote = delegates[i].vote+300;
-            store->candidate_add_vote(delegates[i].account,new_vote,txn);
+            store->candidate_add_vote(delegates[i].account,new_vote,epoch_num,txn);
             delegates[i].vote = new_vote; 
             delegates[i].starting_term = true;
         }
@@ -741,7 +720,7 @@ TEST(Elections,get_next_epoch_delegates)
         for(size_t i = 24; i < 32; ++i)
         {
             auto new_vote = delegates[i].vote+400;
-            store->candidate_add_vote(delegates[i].account,new_vote,txn);
+            store->candidate_add_vote(delegates[i].account,new_vote,epoch_num,txn);
             delegates[i].vote = new_vote; 
             delegates[i].starting_term = true;
         }
@@ -770,7 +749,7 @@ TEST(Elections,get_next_epoch_delegates)
             for(size_t i = 24; i < 32; ++i)
             {
                 auto new_vote = delegates[i].vote + 500;
-                ASSERT_FALSE(store->candidate_add_vote(delegates[i].account,new_vote,txn));
+                ASSERT_FALSE(store->candidate_add_vote(delegates[i].account,new_vote,epoch_num,txn));
                 delegates[i].vote = new_vote; 
                 delegates[i].starting_term = true;
             }
@@ -1176,8 +1155,6 @@ TEST(Elections,validate)
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
 
 }
-
-
 
 TEST(Elections, apply)
 {

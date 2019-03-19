@@ -59,5 +59,6 @@ struct CandidateInfo
     Amount votes_received_weighted;
     DelegatePubKey bls_key;
     Amount stake;
+    uint32_t epoch_modified;
 };
 

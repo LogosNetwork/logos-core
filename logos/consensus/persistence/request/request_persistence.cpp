@@ -1476,6 +1476,7 @@ void PersistenceManager<R>::ApplyRequest(const ElectionVote& request, MDB_txn* t
         assert(!_store.candidate_add_vote(
                     p.account,
                     p.num_votes*rep.stake.number(),
+                    request.epoch_num,
                     txn));
     }
 }

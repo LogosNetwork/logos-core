@@ -127,12 +127,15 @@ boost::property_tree::ptree RepInfo::SerializeJson() const
 CandidateInfo::CandidateInfo() 
     : votes_received_weighted(0)
     , stake(0) 
+    , epoch_modified(0)
 {}
 
-CandidateInfo::CandidateInfo(const AnnounceCandidacy& request) : CandidateInfo()
+CandidateInfo::CandidateInfo(const AnnounceCandidacy& request)
+    : votes_received_weighted(0)
+    , bls_key(request.bls_key)
+    , stake(request.stake)
+    , epoch_modified(request.epoch_num)
 {
-    stake = request.stake;
-    bls_key = request.bls_key;
 }
 
 CandidateInfo::CandidateInfo(bool & error, const logos::mdb_val & mdbval)
@@ -151,6 +154,7 @@ uint32_t CandidateInfo::serialize(logos::stream & stream) const
     auto val = logos::write(stream, votes_received_weighted);
     val += logos::write(stream, bls_key);
     val += logos::write(stream, stake);
+    val += logos::write(stream, epoch_modified);
     return val;
 }
 
@@ -166,13 +170,19 @@ bool CandidateInfo::deserialize(logos::stream & stream)
     {
         return error;
     }
-    return logos::read(stream, stake);
+    error = logos::read(stream, stake);
+    if(error)
+    {
+        return error;
+    }
+    return logos::read(stream, epoch_modified);
 }
 bool CandidateInfo::operator==(const CandidateInfo& other) const
 {
     return votes_received_weighted == other.votes_received_weighted
         && bls_key == other.bls_key
-        && stake == other.stake;
+        && stake == other.stake
+        && epoch_modified == other.epoch_modified;
 }
 bool CandidateInfo::operator!=(const CandidateInfo& other) const
 {
