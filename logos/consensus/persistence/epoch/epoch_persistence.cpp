@@ -243,6 +243,16 @@ void PersistenceManager<ECT>::AddReelectionCandidates(MDB_txn* txn)
 
 void PersistenceManager<ECT>::UpdateRepresentativesDB(MDB_txn* txn)
 {
+    for(auto it = logos::store_iterator(txn, _store.remove_reps_db);
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        auto status (mdb_del(txn, _store.representative_db, it->second, nullptr));
+        assert(status == 0);
+    }
+
+    _store.clear(_store.remove_reps_db, txn);
+
+
     for(auto it = logos::store_iterator(txn, _store.representative_db);
             it != logos::store_iterator(nullptr); ++it)
     {
@@ -271,6 +281,16 @@ void PersistenceManager<ECT>::UpdateRepresentativesDB(MDB_txn* txn)
 
 void PersistenceManager<ECT>::UpdateCandidatesDB(MDB_txn* txn)
 {
+
+    for(auto it = logos::store_iterator(txn, _store.remove_candidates_db);
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        auto status (mdb_del(txn, _store.candidacy_db, it->second, nullptr));
+        assert(status == 0);
+    }
+
+    _store.clear(_store.remove_candidates_db, txn);
+
     std::cout << "updating candidates db" << std::endl;
     for(auto it = logos::store_iterator(txn, _store.candidacy_db);
             it != logos::store_iterator(nullptr); ++it)

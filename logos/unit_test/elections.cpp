@@ -1612,6 +1612,97 @@ TEST(Elections, tiebreakers)
     ASSERT_TRUE(EpochVotingManager::IsGreater(d4,d3));
 }
 
+TEST(Elections, remove_db)
+{
+    logos::block_store* store = get_db();
+    store->clear(store->candidacy_db);
+    store->clear(store->representative_db);
+    store->clear(store->remove_candidates_db);
+    store->clear(store->remove_reps_db);
+    PersistenceManager<ECT> epoch_persistence_mgr(*store,nullptr);
+    logos::transaction txn(store->environment,nullptr,true);   
+
+
+    AccountAddress address = 42;
+
+    ASSERT_FALSE(store->candidate_mark_remove(address, txn));
+    ASSERT_FALSE(store->candidate_mark_remove(address, txn));
+
+    ASSERT_FALSE(store->rep_mark_remove(address, txn));
+    ASSERT_FALSE(store->rep_mark_remove(address, txn));
+
+    address = 45;
+
+    ASSERT_FALSE(store->candidate_mark_remove(address, txn));
+    ASSERT_FALSE(store->rep_mark_remove(address, txn));
+
+    size_t num_remove = 0;
+    for(auto it = logos::store_iterator(txn, store->remove_candidates_db);
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        num_remove++;
+    }
+    ASSERT_EQ(num_remove, 2);
+    num_remove = 0;
+    for(auto it = logos::store_iterator(txn, store->remove_reps_db);
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        num_remove++;
+    }
+    ASSERT_EQ(num_remove, 2);
+
+    store->clear(store->remove_candidates_db, txn);
+    store->clear(store->remove_reps_db, txn);
+
+    CandidateInfo c_info;
+    RepInfo r_info;
+    std::vector<AccountAddress> persistent;
+    for(size_t i = 0; i < 32; ++i)
+    {
+        address = i;
+        ASSERT_FALSE(store->candidate_put(address, c_info, txn));
+        ASSERT_FALSE(store->rep_put(address, r_info, txn));
+        if(i % 2 == 0 || i % 3 == 0)
+        {
+            ASSERT_FALSE(store->candidate_mark_remove(address, txn));
+            ASSERT_FALSE(store->rep_mark_remove(address, txn));
+        }
+        else
+        {
+            persistent.push_back(address);
+        }
+    }
+    std::sort(persistent.begin(), persistent.end());
+
+    epoch_persistence_mgr.UpdateCandidatesDB(txn);
+    epoch_persistence_mgr.UpdateRepresentativesDB(txn);
+
+    std::vector<AccountAddress> remaining;
+    for(auto it = logos::store_iterator(txn, store->representative_db);
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        remaining.push_back(it->first.uint256());
+    }
+    std::sort(remaining.begin(), remaining.end());
+
+    ASSERT_EQ(remaining, persistent);
+
+    num_remove = 0;
+    for(auto it = logos::store_iterator(txn, store->remove_candidates_db);
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        num_remove++;
+    }
+    ASSERT_EQ(num_remove, 0);
+    num_remove = 0;
+    for(auto it = logos::store_iterator(txn, store->remove_reps_db);
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        num_remove++;
+    }
+    ASSERT_EQ(num_remove, 0);
+}
+
 
 
 

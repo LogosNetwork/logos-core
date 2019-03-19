@@ -259,6 +259,10 @@ public:
             const RepInfo & rep_info,
             MDB_txn *);
 
+    bool rep_mark_remove(
+            const AccountAddress & account,
+            MDB_txn *);
+
     bool candidate_get(
             const AccountAddress & account,
             CandidateInfo & candidate_info,
@@ -446,10 +450,27 @@ public:
     MDB_dbi candidacy_db;
 
     /**
-     * Candidacy info of candidates to win
+     * Candidacy info of candidates who are currently winning election
      * AccountAddress -> CandidateInfo 
      */
     MDB_dbi leading_candidates_db;
+
+    /**
+     * AccountAddresses of candidates to be deleted at epoch transition
+     * 0 -> AccountAddress
+     * Note, this database uses duplicate keys, where every entry has a key
+     * of 0. 
+     */
+    MDB_dbi remove_candidates_db;
+
+    /**
+     * AccountAddresses of representatives to be deleted at epoch transition
+     * 0 -> AccountAddress
+     * Note, this database uses duplicate keys, where every entry has a key
+     * of 0. 
+     */
+    MDB_dbi remove_reps_db;
+
 
     /**
      * Unchecked bootstrap blocks.

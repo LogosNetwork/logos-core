@@ -327,6 +327,9 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "representative_db", MDB_CREATE, &representative_db) != 0;
         error_a |= mdb_dbi_open (transaction, "candidacy_db", MDB_CREATE, &candidacy_db) != 0;
         error_a |= mdb_dbi_open (transaction, "leading_candidacy_db", MDB_CREATE, &leading_candidates_db);
+        //Note, these databases use duplicate keys. The MDB_DUPSORT flag is necessary
+        error_a |= mdb_dbi_open (transaction, "remove_candidates_db", MDB_CREATE | MDB_DUPSORT, &remove_candidates_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "remove_reps_db", MDB_CREATE | MDB_DUPSORT, &remove_reps_db);
 
         sync_leading_candidates(transaction);
 
@@ -1511,19 +1514,23 @@ bool logos::block_store::candidate_mark_remove(
         const AccountAddress & account,
         MDB_txn * txn)
 {
-    CandidateInfo info;
-    //TODO only remove if remove is false and active is true?
-    if(!candidate_get(account,info,txn))
-    {
-        info.remove = true;
-        return candidate_put(account,info,txn);
-    }
-    return true;
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(txn, remove_candidates_db, logos::mdb_val(0), logos::mdb_val(account), 0));
+    assert(status == 0);
+
+    return status != 0;
 }
 
+bool logos::block_store::rep_mark_remove(
+        const AccountAddress & account,
+        MDB_txn * txn)
+{
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(txn, remove_reps_db, logos::mdb_val(0), logos::mdb_val(account), 0));
+    assert(status == 0);
 
-
-
+    return status != 0;
+}
 
 bool logos::block_store::token_user_status_get(const BlockHash & token_user_id, TokenUserStatus & status, MDB_txn * transaction)
 {
