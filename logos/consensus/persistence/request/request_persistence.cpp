@@ -358,6 +358,11 @@ bool PersistenceManager<R>::ValidateTokenAdminRequest(RequestPtr request,
         return false;
     }
 
+    if(request->type == RequestType::Revoke)
+    {
+        return true;
+    }
+
     return request->Validate(result, info);
 }
 
@@ -858,8 +863,8 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             ApplySend(revoke->transaction,
                       timestamp,
                       transaction,
-                      revoke->token_id,
-                      revoke->GetHash());
+                      revoke->GetHash(),
+                      revoke->token_id);
 
             break;
         }
