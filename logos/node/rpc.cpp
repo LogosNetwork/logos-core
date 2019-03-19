@@ -2886,11 +2886,7 @@ void logos::rpc_handler::candidates ()
             error_response(response,"error reading candidate");
             return;
         }
-        if(info.active)
-        {
-            res.add_child(it->first.uint256().to_string(),info.SerializeJson());
-        }
-        res.add_child(it->first.uint256().to_string(),candidate);
+        res.add_child(it->first.uint256().to_string(),info.SerializeJson());
     } 
     response(res);
 }

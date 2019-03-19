@@ -1500,7 +1500,11 @@ void PersistenceManager<R>::ApplyRequest(const AnnounceCandidacy& request, MDB_t
 
 void PersistenceManager<R>::ApplyRequest(const RenounceCandidacy& request, MDB_txn* txn)
 {
-    assert(!_store.candidate_mark_remove(request.origin,txn));
+    CandidateInfo candidate;
+    if(!_store.candidate_get(request.origin, candidate, txn))
+    {
+        assert(!_store.candidate_mark_remove(request.origin,txn));
+    }
     RepInfo rep;
     assert(!_store.rep_get(request.origin, rep, txn));
     rep.candidacy_action_tip = request.Hash();
@@ -1555,10 +1559,35 @@ bool PersistenceManager<R>::ValidateRequest(const ElectionVote& vote_request, ui
     {
         total += cp.num_votes;
         CandidateInfo info;
-        if(_store.candidate_get(cp.account,info,txn) || !info.active)
+        //check account is in candidacy_db
+        if(_store.candidate_get(cp.account,info,txn))
         {
             result.code = logos::process_result::invalid_candidate;
             return false;
+        }
+        else//check account is active candidate
+        {
+            RepInfo rep;
+            assert(!_store.rep_get(cp.account, rep, txn));
+            auto hash = rep.candidacy_action_tip;
+            assert(hash != 0);
+            std::shared_ptr<Request> candidacy_req;
+            assert(!_store.request_get(hash, candidacy_req, txn));
+            if(candidacy_req->type == RequestType::AnnounceCandidacy)
+            {
+                auto ac = static_pointer_cast<AnnounceCandidacy>(candidacy_req);
+                if(ac->epoch_num == cur_epoch_num)
+                {
+                    result.code = logos::process_result::invalid_candidate;
+                    return false;
+                }
+            }
+           /*
+            * If candidate renounced, the renounce was this epoch, which means
+            * they can still receive votes this epoch. If renounce was in
+            * previous epoch, should have been removed at epoch transition and
+            * first if condition would have been met
+            */ 
         }
     }
     return total <= MAX_VOTES;
@@ -1663,12 +1692,15 @@ bool PersistenceManager<R>::ValidateRequest(
         result.code = logos::process_result::already_renounced_candidacy;
         return false;
     }
-
-    CandidateInfo candidate;
-    if(!_store.candidate_get(request.origin,candidate,txn) && !candidate.active)
+    else
     {
-        result.code = logos::process_result::pending_candidacy_action;
-        return false;
+        assert(req->type == RequestType::AnnounceCandidacy);
+        auto ac = static_pointer_cast<AnnounceCandidacy>(req);
+        if(ac->epoch_num == cur_epoch_num)
+        {
+            result.code = logos::process_result::pending_candidacy_action;
+            return false;
+        }
     }
     return true;
 }

@@ -85,10 +85,6 @@ bool RepInfo::deserialize (logos::stream & stream)
         return error;
     }
     return logos::read(stream, voted);
-
-
-
-
 }
 
 bool RepInfo::operator== (RepInfo const & other) const
@@ -131,8 +127,6 @@ boost::property_tree::ptree RepInfo::SerializeJson() const
 CandidateInfo::CandidateInfo() 
     : votes_received_weighted(0)
     , stake(0) 
-    , active(false) 
-    , remove(false)
 {}
 
 CandidateInfo::CandidateInfo(const AnnounceCandidacy& request) : CandidateInfo()
@@ -148,17 +142,13 @@ CandidateInfo::CandidateInfo(bool & error, const logos::mdb_val & mdbval)
     error = deserialize (stream);
 }
 
-CandidateInfo::CandidateInfo(bool active,bool remove,uint64_t votes) : 
-    active(active),
-    remove(remove),
+CandidateInfo::CandidateInfo(uint64_t votes) : 
     votes_received_weighted(votes)
 {}
 
 uint32_t CandidateInfo::serialize(logos::stream & stream) const
 {
-    auto val = logos::write(stream, active);
-    val += logos::write(stream, remove);
-    val += logos::write(stream, votes_received_weighted);
+    auto val = logos::write(stream, votes_received_weighted);
     val += logos::write(stream, bls_key);
     val += logos::write(stream, stake);
     return val;
@@ -166,17 +156,7 @@ uint32_t CandidateInfo::serialize(logos::stream & stream) const
 
 bool CandidateInfo::deserialize(logos::stream & stream)
 {
-    bool error = logos::read(stream, active);
-    if(error)
-    {
-        return error;
-    }
-    error = logos::read(stream, remove);
-    if(error)
-    {
-        return error;
-    }
-    error = logos::read(stream, votes_received_weighted);
+    bool error = logos::read(stream, votes_received_weighted);
     if(error)
     {
         return error;
@@ -190,9 +170,7 @@ bool CandidateInfo::deserialize(logos::stream & stream)
 }
 bool CandidateInfo::operator==(const CandidateInfo& other) const
 {
-    return active == other.active
-        && remove == other.remove 
-        && votes_received_weighted == other.votes_received_weighted
+    return votes_received_weighted == other.votes_received_weighted
         && bls_key == other.bls_key
         && stake == other.stake;
 }
