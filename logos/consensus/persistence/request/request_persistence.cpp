@@ -1394,13 +1394,13 @@ void PersistenceManager<R>::ApplyRequest(const StartRepresenting& request, MDB_t
 
 void PersistenceManager<R>::ApplyRequest(const StopRepresenting& request, MDB_txn* txn)
 {
-    assert(!_store.request_put(request,txn));
-
+    assert(!_store.rep_mark_remove(request.origin, txn));
     RepInfo rep;
     assert(!_store.rep_get(request.origin,rep,txn));
     rep.remove = true;
     rep.rep_action_tip = request.Hash();
     assert(!_store.rep_put(request.origin,rep,txn));
+    assert(!_store.request_put(request,txn));
 }
 
 
@@ -1442,10 +1442,7 @@ void PersistenceManager<R>::ApplyRequest(const AnnounceCandidacy& request, MDB_t
 
 void PersistenceManager<R>::ApplyRequest(const RenounceCandidacy& request, MDB_txn* txn)
 {
-    //If you are not currently a candidate, but are a delegate,
-    //you might not be in the candidate list, but can still renounce
-    //so its ok for this to fail
-    _store.candidate_mark_remove(request.origin,txn);
+    assert(!_store.candidate_mark_remove(request.origin,txn));
     RepInfo rep;
     assert(!_store.rep_get(request.origin, rep, txn));
     rep.candidacy_action_tip = request.Hash();
