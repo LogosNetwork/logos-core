@@ -249,12 +249,6 @@ public:
             Amount weighted_vote,
             MDB_txn *);
 
-    bool candidate_add_new(
-            const AccountAddress & account,
-            const DelegatePubKey & bls_key,
-            const Amount & stake,
-            MDB_txn *);
-
     bool candidate_mark_remove(
             const AccountAddress & account,
             MDB_txn *);

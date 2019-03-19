@@ -212,8 +212,6 @@ TEST (Elections, blockstore)
 
         CandidateInfo candidate_info;
         AccountAddress candidate_account;
-        candidate_info.active = true;
-        candidate_info.remove = true;
         candidate_info.stake = 42;
         candidate_info.bls_key = 3;
 
@@ -236,11 +234,11 @@ TEST(Elections, candidates_simple)
     logos::block_store* store = get_db();
     store->clear(store->candidacy_db);
     
-    CandidateInfo c1(true,false,100);
+    CandidateInfo c1(100);
     c1.stake = 34;
     c1.bls_key = 4;
     AccountAddress a1(0);
-    CandidateInfo c2(false,false,110);
+    CandidateInfo c2(110);
     c2.stake = 456;
     c2.bls_key = 7;
     AccountAddress a2(1);
@@ -267,22 +265,13 @@ TEST(Elections, candidates_simple)
         res = store->candidate_add_vote(a1,50,txn);
         ASSERT_FALSE(res);
 
-//        CandidateInfo c3(true,false,250);
-//        res = store->candidate_put(a1,c3,txn);
-//        ASSERT_FALSE(res);
-//        ASSERT_EQ(c3.votesreceived_weighted,c1.votesreceived_weighted+100+50);
-
         CandidateInfo c3_copy;
         res = store->candidate_get(a1,c3_copy,txn);
         ASSERT_FALSE(res);
         ASSERT_EQ(c3_copy.votes_received_weighted,c1.votes_received_weighted+100+50);
         
-        res = store->candidate_add_vote(a2,100,txn);
-        ASSERT_TRUE(res);
-
         AccountAddress a3(2);
-        res = store->candidate_add_vote(a3,100,txn);
-        ASSERT_TRUE(res);
+        ASSERT_TRUE(store->candidate_add_vote(a3,100,txn));
         
     }
 
@@ -307,7 +296,7 @@ TEST(Elections, get_winners)
     for(size_t i = 0; i < num_candidates; ++i)
     {
         logos::transaction txn(store->environment,nullptr,true);
-        CandidateInfo c(false,false,(i % 3) * 100 + i);
+        CandidateInfo c((i % 3) * 100 + i);
         c.bls_key = i * 4 + 37;
         AccountAddress a(i);
         store->candidate_put(a,c,txn);
@@ -411,17 +400,18 @@ TEST(Elections,candidates_transition)
 
     logos::transaction txn(store->environment,nullptr,true);
     {
-        bool res = store->candidate_add_new(a1,bls1,stake1,txn);
-        ASSERT_FALSE(res);
-        res = store->candidate_add_new(a2,bls2,stake2,txn);
-        ASSERT_FALSE(res);
+        CandidateInfo candidate;
+        candidate.stake = stake1;
+        candidate.bls_key = bls1;
+        ASSERT_FALSE(store->candidate_put(a1, candidate, txn));
+        candidate.stake = stake2;
+        candidate.bls_key = bls2;
+        ASSERT_FALSE(store->candidate_put(a2, candidate, txn));
     }
     iterateCandidatesDB(*store,[](auto& it){
             bool error = false;
             CandidateInfo info(error,it->second);
             ASSERT_FALSE(error);
-            ASSERT_FALSE(info.active);
-            ASSERT_FALSE(info.remove);
             ASSERT_EQ(info.votes_received_weighted,0);
             },txn);       
 
@@ -431,8 +421,6 @@ TEST(Elections,candidates_transition)
             bool error = false;
             CandidateInfo info(error,it->second);
             ASSERT_FALSE(error);
-            ASSERT_TRUE(info.active);
-            ASSERT_FALSE(info.remove);
             ASSERT_EQ(info.votes_received_weighted,0);
             },txn);
 
@@ -440,12 +428,11 @@ TEST(Elections,candidates_transition)
         bool res = store->candidate_mark_remove(a1,txn);
         ASSERT_FALSE(res);
         CandidateInfo info;
-        res = store->candidate_get(a1,info,txn);
-        ASSERT_FALSE(res);
-        ASSERT_TRUE(info.remove);
-        ASSERT_TRUE(info.active);
-        res = store->candidate_add_new(a3,bls3,stake3,txn);
-        ASSERT_FALSE(res);
+        ASSERT_FALSE(store->candidate_get(a1,info,txn));
+        CandidateInfo candidate;
+        candidate.stake = stake3;
+        candidate.bls_key = bls3;
+        ASSERT_FALSE(store->candidate_put(a3, candidate, txn));
     }
 
     mgr.UpdateCandidatesDB(txn);
@@ -464,8 +451,6 @@ TEST(Elections,candidates_transition)
             bool error = false;
             CandidateInfo info(error,it->second);
             ASSERT_FALSE(error);
-            ASSERT_TRUE(info.active);
-            ASSERT_FALSE(info.remove);
             },txn);
     {
         ApprovedEB eb;
@@ -978,6 +963,7 @@ TEST(Elections,validate)
     auto transition_epoch = [&](std::vector<AccountAddress> new_delegates = {})
     {
         ++epoch_num;
+        std::cout << "transition to epoch_num " << epoch_num << std::endl;
         eb.previous = eb.Hash();
         eb.epoch_number = epoch_num-1;
         vote.epoch_num = epoch_num;
@@ -1001,7 +987,7 @@ TEST(Elections,validate)
     };
 
 
-    auto get_candidates = [&store,&txn](auto filter) -> std::vector<CandidateInfo>
+    auto get_candidates = [&store,&txn]() -> std::vector<CandidateInfo>
     {
         std::vector<CandidateInfo> results;
         for(auto it = logos::store_iterator(txn, store->candidacy_db);
@@ -1010,10 +996,7 @@ TEST(Elections,validate)
             bool error = false;
             CandidateInfo info(error,it->second);
             assert(!error);
-            if(filter(info))
-            {
-                results.push_back(info);
-            }
+            results.push_back(info);
         }
         return results;
     };
@@ -1033,34 +1016,17 @@ TEST(Elections,validate)
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
 
-    auto active = [](auto info) -> bool
-    {
-        return info.active;
-    };
 
-    auto all = [](auto info) -> bool
-    {
-        return true;
-    };
 
-    auto remove = [](auto info) -> bool
-    {
-        return info.remove;
-    };
 
-    auto candidates = get_candidates(all);
+    auto candidates = get_candidates();
     ASSERT_EQ(candidates.size(),1);
-    candidates = get_candidates(active);
-    ASSERT_EQ(candidates.size(),0);
     transition_epoch();
 
-    ASSERT_EQ(get_candidates(all).size(),1);
-    ASSERT_EQ(get_candidates(active).size(),1);
+    ASSERT_EQ(get_candidates().size(),1);
 
     CandidateInfo info;
     ASSERT_FALSE(store->candidate_get(announce.origin,info,txn));
-    ASSERT_TRUE(info.active);
-    ASSERT_FALSE(info.remove);
     ASSERT_EQ(info.votes_received_weighted,0);
 
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
@@ -1072,9 +1038,7 @@ TEST(Elections,validate)
 
     persistence_mgr.ApplyRequest(renounce,txn);
 
-    ASSERT_EQ(get_candidates(all).size(),1);
-    ASSERT_EQ(get_candidates(active).size(),1);
-    ASSERT_EQ(get_candidates(remove).size(),1);
+    ASSERT_EQ(get_candidates().size(),1);
 
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
@@ -1091,7 +1055,7 @@ TEST(Elections,validate)
 
     transition_epoch();
 
-    ASSERT_EQ(get_candidates(all).size(),0);
+    ASSERT_EQ(get_candidates().size(),0);
 
     
     ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
@@ -1211,7 +1175,6 @@ TEST(Elections,validate)
 
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
 
-
 }
 
 
@@ -1287,7 +1250,7 @@ TEST(Elections, apply)
         epoch_persistence_mgr.ApplyUpdates(eb);
     };
 
-    auto get_candidates = [&store](auto filter) -> std::vector<CandidateInfo>
+    auto get_candidates = [&store]() -> std::vector<CandidateInfo>
     {
 
         logos::transaction txn(store->environment,nullptr,true);
@@ -1298,28 +1261,11 @@ TEST(Elections, apply)
             bool error = false;
             CandidateInfo info(error,it->second);
             assert(!error);
-            if(filter(info))
-            {
-                results.push_back(info);
-            }
+            results.push_back(info);
         }
         return results;
     };
 
-    auto active = [](auto info) -> bool
-    {
-        return info.active;
-    };
-
-    auto all = [](auto info) -> bool
-    {
-        return true;
-    };
-
-    auto remove = [](auto info) -> bool
-    {
-        return info.remove;
-    };
 
     std::vector<AccountAddress> reps;
 
@@ -1336,7 +1282,7 @@ TEST(Elections, apply)
         reps.push_back(start_rep.origin);
     }
 
-    ASSERT_EQ(get_candidates(all).size(),0);
+    ASSERT_EQ(get_candidates().size(),0);
     transition_epoch();
     transition_epoch();
 
@@ -1358,7 +1304,7 @@ TEST(Elections, apply)
 
     transition_epoch();
 
-    ASSERT_EQ(get_candidates(all).size(),40);
+    ASSERT_EQ(get_candidates().size(),40);
 
     {
     logos::transaction txn(store->environment, nullptr, true);
@@ -1519,7 +1465,7 @@ TEST(Elections, apply)
 
     transition_epoch();
 
-    ASSERT_EQ(get_candidates(all).size(), 32);
+    ASSERT_EQ(get_candidates().size(), 32);
 
     auto contains = [&eb](auto account)
     {
@@ -1568,12 +1514,10 @@ TEST(Elections, weighted_votes)
 
     AccountAddress candidate_address = 12;
     CandidateInfo candidate;
-    candidate.active = true;
     store->candidate_put(candidate_address,candidate,txn);
 
     AccountAddress candidate2_address = 13;
     CandidateInfo candidate2;
-    candidate2.active = true;
     store->candidate_put(candidate2_address,candidate,txn);
     
     ElectionVote vote;
@@ -1593,9 +1537,6 @@ TEST(Elections, weighted_votes)
 
     ASSERT_EQ(candidate.votes_received_weighted,1600);
     ASSERT_EQ(candidate2.votes_received_weighted,800);
-
-
-
 }
 
 TEST(Elections, tiebreakers)

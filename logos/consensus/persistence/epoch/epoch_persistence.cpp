@@ -160,7 +160,8 @@ void PersistenceManager<ECT>::AddReelectionCandidates(MDB_txn* txn)
             if(req->type == RequestType::AnnounceCandidacy)
             {
                 auto ac = static_pointer_cast<AnnounceCandidacy>(req); 
-                assert(!_store.candidate_add_new(d.account,ac->bls_key,ac->stake,txn));
+                CandidateInfo candidate(*ac);
+                assert(!_store.candidate_put(d.account, candidate, txn));
             }
         }
     }
@@ -216,30 +217,16 @@ void PersistenceManager<ECT>::UpdateCandidatesDB(MDB_txn* txn)
 
     _store.clear(_store.remove_candidates_db, txn);
 
-    std::cout << "updating candidates db" << std::endl;
     for(auto it = logos::store_iterator(txn, _store.candidacy_db);
             it != logos::store_iterator(nullptr); ++it)
     {
         bool error = false;
         CandidateInfo info(error,it->second);
         assert(!error);
-        if(info.remove)
-        {
-            assert(!mdb_cursor_del(it.cursor,0));
-        }
-        else if(!info.active)
-        {
-            info.active = true;
-            std::vector<uint8_t> buf;
 
-            assert(!mdb_cursor_put(it.cursor,it->first,info.to_mdb_val(buf),MDB_CURRENT));
-        }
-        else
-        {
-            info.votes_received_weighted = 0;
-            std::vector<uint8_t> buf;
-            assert(!mdb_cursor_put(it.cursor,it->first,info.to_mdb_val(buf),MDB_CURRENT));
-        }
+        info.votes_received_weighted = 0;
+        std::vector<uint8_t> buf;
+        assert(!mdb_cursor_put(it.cursor,it->first,info.to_mdb_val(buf),MDB_CURRENT));
     }
 
     _store.clear(_store.leading_candidates_db,txn);

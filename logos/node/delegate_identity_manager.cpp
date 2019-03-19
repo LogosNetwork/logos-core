@@ -192,8 +192,10 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 _store.request_put(announce, transaction);
                 rep.voted = false;
                 _store.rep_put(pair.pub, rep, transaction);
-
-                _store.candidate_add_new(pair.pub,dpk,stake,transaction);
+                CandidateInfo candidate;
+                candidate.stake = stake;
+                candidate.bls_key = dpk;
+                _store.candidate_put(pair.pub, candidate, transaction);
             }
 
 

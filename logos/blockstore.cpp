@@ -1429,34 +1429,13 @@ bool logos::block_store::candidate_add_vote(
         MDB_txn * txn)
 {
     CandidateInfo info;
-    if(!candidate_get(account,info,txn) && info.active)
+    if(!candidate_get(account,info,txn))
     {
         info.votes_received_weighted += weighted_vote;
         return candidate_put(account,info,txn);
     }
     return true;
 }
-
-bool logos::block_store::candidate_add_new(
-        const AccountAddress & account,
-        const DelegatePubKey & bls_key,
-        const Amount & stake,
-        MDB_txn * txn)
-{
-    CandidateInfo info(false,false,0);
-    info.bls_key = bls_key;
-    info.stake = stake;
-    std::vector<uint8_t> buf;
-    auto status(mdb_put(txn, candidacy_db, logos::mdb_val(account), info.to_mdb_val(buf), MDB_NOOVERWRITE));
-    
-    if(status != 0)
-    {
-        LOG_INFO(log) << "candidate_add_new - status is " << status;
-    }
-    assert(status == 0);
-    return status != 0;
-}
-
 
 bool logos::block_store::candidate_mark_remove(
         const AccountAddress & account,
