@@ -329,10 +329,6 @@ bool TokenAccount::FeeSufficient(Amount token_total, Amount token_fee) const
 
             min_fee = Amount((fee_rate.number() / DENOM.number()) * token_total.number());
 
-            // Round down to the minimum token
-            // denomination.
-            min_fee -= {min_fee.number() % TOKEN_RAW};
-
             break;
         }
         case TokenFeeType::Unknown:

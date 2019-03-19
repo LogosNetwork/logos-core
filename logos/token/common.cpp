@@ -87,7 +87,7 @@ bool TokenRequest::ValidateTokenAmount(const Amount & amount, bool non_zero) con
         return false;
     }
 
-    return amount.number() % TOKEN_RAW == 0;
+    return true;
 }
 
 logos::AccountType TokenRequest::GetAccountType() const

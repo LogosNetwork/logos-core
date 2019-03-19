@@ -131,7 +131,7 @@ Request::Request(bool & error,
         {
             return;
         }
-        
+
         Hash();
     }
     catch (...)
