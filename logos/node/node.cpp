@@ -430,7 +430,7 @@ void logos::logging::init (boost::filesystem::path const & application_path_a)
 
         if (log_to_cerr ())
         {
-            boost::log::add_console_log (std::cerr, boost::log::keywords::format = "[%TimeStamp% %Severity%]: %Message%");
+            boost::log::add_console_log (std::cerr, boost::log::keywords::format = "[%TimeStamp% %ThreadID% %Severity%]: %Message%");
         }
 
         boost::log::add_file_log (boost::log::keywords::target = application_path_a / "log",
@@ -439,7 +439,7 @@ void logos::logging::init (boost::filesystem::path const & application_path_a)
                                   boost::log::keywords::auto_flush = flush,
                                   boost::log::keywords::scan_method = boost::log::sinks::file::scan_method::scan_matching,
                                   boost::log::keywords::max_size = max_size,
-                                  boost::log::keywords::format = "[%TimeStamp% %Severity%]: %Message%");
+                                  boost::log::keywords::format = "[%TimeStamp% %ThreadID% %Severity%]: %Message%");
     }
 }
 
