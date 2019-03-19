@@ -1426,12 +1426,21 @@ bool logos::block_store::update_leading_candidates(
 bool logos::block_store::candidate_add_vote(
         const AccountAddress & account,
         Amount weighted_vote,
+        uint32_t cur_epoch_num,
         MDB_txn * txn)
 {
     CandidateInfo info;
     if(!candidate_get(account,info,txn))
     {
-        info.votes_received_weighted += weighted_vote;
+        if(info.epoch_modified != cur_epoch_num)
+        {
+            info.votes_received_weighted = weighted_vote;
+        }
+        else
+        {
+            info.votes_received_weighted += weighted_vote;
+        }
+        info.epoch_modified = cur_epoch_num;
         return candidate_put(account,info,txn);
     }
     return true;

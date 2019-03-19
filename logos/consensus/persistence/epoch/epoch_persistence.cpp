@@ -217,18 +217,6 @@ void PersistenceManager<ECT>::UpdateCandidatesDB(MDB_txn* txn)
 
     _store.clear(_store.remove_candidates_db, txn);
 
-    for(auto it = logos::store_iterator(txn, _store.candidacy_db);
-            it != logos::store_iterator(nullptr); ++it)
-    {
-        bool error = false;
-        CandidateInfo info(error,it->second);
-        assert(!error);
-
-        info.votes_received_weighted = 0;
-        std::vector<uint8_t> buf;
-        assert(!mdb_cursor_put(it.cursor,it->first,info.to_mdb_val(buf),MDB_CURRENT));
-    }
-
     _store.clear(_store.leading_candidates_db,txn);
     _store.leading_candidates_size = 0;
 }

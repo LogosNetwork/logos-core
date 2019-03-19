@@ -247,6 +247,7 @@ public:
     bool candidate_add_vote(
             const AccountAddress & account,
             Amount weighted_vote,
+            uint32_t cur_epoch_num,
             MDB_txn *);
 
     bool candidate_mark_remove(
