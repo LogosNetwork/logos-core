@@ -1296,6 +1296,26 @@ bool logos::block_store::account_get(AccountAddress const & account_a, std::shar
     return error;
 }
 
+bool logos::block_store::is_first_epoch()
+{
+    BlockHash epoch_tip;
+
+    if (epoch_tip_get(epoch_tip))
+    {
+        LOG_ERROR(log) << __func__ << " failed to get epoch tip. Genesis blocks are being generated.";
+        return true;
+    }
+
+    ApprovedEB epoch;
+    if (epoch_get(epoch_tip, epoch))
+    {
+        LOG_FATAL(log) << __func__ << " failed to get epoch.";
+        trace_and_halt();
+    }
+
+    return epoch.epoch_number == GENESIS_EPOCH;
+}
+
 uint32_t logos::block_store::epoch_number_stored()
 {
     BlockHash epoch_tip;
@@ -1455,6 +1475,7 @@ bool logos::block_store::request_tip_del(uint8_t delegate_id, uint32_t epoch_num
     return del(request_tips_db, logos::get_request_tip_key(delegate_id, epoch_number), transaction);
 }
 
+// should only be used for the first request block of an epoch!
 bool logos::block_store::request_block_update_prev(const BlockHash & hash, const BlockHash & prev, MDB_txn * transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();

@@ -221,6 +221,7 @@ public:
     bool epoch_tip_get(BlockHash &, MDB_txn *t=0);
     bool epoch_exists(const ApprovedEB &);
     bool epoch_exists(const BlockHash &, MDB_txn* t=0);
+    bool is_first_epoch();
     uint32_t epoch_number_stored();
 
     //////////////////
