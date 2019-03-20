@@ -5,13 +5,11 @@
 
 #include <logos/bootstrap/pull.hpp>
 #include <logos/bootstrap/bootstrap.hpp>
-#include <logos/bootstrap/tips.hpp>
 
 namespace Bootstrap
 {
-	Puller::Puller(IBlockCache & block_cache)//, Store & store)
+	Puller::Puller(IBlockCache & block_cache)
 	: block_cache(block_cache)
-//	, store(store)
 	{
 		LOG_TRACE(log) << "Puller::"<<__func__;
 	}
@@ -222,7 +220,7 @@ namespace Bootstrap
 				{
 					waiting_pulls.push_back(std::make_shared<PullRequest>(
 							ConsensusType::Epoch,
-							//working_epoch.epoch_num,
+							working_epoch.epoch_num,
 							my_tips.eb.digest));
 					return;
 				}else{
@@ -238,7 +236,7 @@ namespace Bootstrap
 				{
 					waiting_pulls.push_back(std::make_shared<PullRequest>(
 							ConsensusType::MicroBlock,
-							//working_epoch.epoch_num,
+							working_epoch.epoch_num,
 							my_tips.mb.digest));
 					return;
 				}else{
@@ -273,10 +271,11 @@ namespace Bootstrap
 					//my_tips.bsb_vec[i] <= others_tips.bsb_vec[i] && my_tips.bsb_vec[i] != MB.tips[i]
 					//TODO for now just check my_tips.bsb_vec[i] != MB.tips[i].
 					if(my_tips.bsb_vec[i].digest != working_mbp.mb->tips[i])
+					//if(my_tips.bsb_vec[i] < working_mbp.mb->tips[i])
 					{
 						waiting_pulls.push_back(std::make_shared<PullRequest>(
 								ConsensusType::BatchStateBlock,
-								//working_epoch.epoch_num,
+								working_epoch.epoch_num,
 								my_tips.bsb_vec[i].digest,
 								working_mbp.mb->tips[i]));
 						working_mbp.bsb_targets.insert(working_mbp.mb->tips[i]);
@@ -308,7 +307,7 @@ namespace Bootstrap
                     {
                     	waiting_pulls.push_back(std::make_shared<PullRequest>(
                     			ConsensusType::BatchStateBlock,
-								//working_epoch.epoch_num,
+								working_epoch.epoch_num,
 								my_tips.bsb_vec[i].digest,
 								others_tips.bsb_vec[i].digest));
                     	working_mbp.bsb_targets.insert(others_tips.bsb_vec[i].digest);
@@ -338,7 +337,7 @@ namespace Bootstrap
 					{
 						waiting_pulls.push_back(std::make_shared<PullRequest>(
 								ConsensusType::BatchStateBlock,
-								//working_epoch.epoch_num,
+								working_epoch.epoch_num,
 								my_tips.bsb_vec_new_epoch[i].digest,
 								others_tips.bsb_vec_new_epoch[i].digest));
 						working_epoch.cur_mbp.bsb_targets.insert(others_tips.bsb_vec_new_epoch[i].digest);
@@ -399,7 +398,8 @@ namespace Bootstrap
 						bool eb_processed = !block_cache.IsBlockCached(working_epoch.eb->Hash());
 						if(eb_processed)
 						{
-							LOG_INFO(log) << "Puller::BSBReceived: processed an epoch "<< working_epoch.epoch_num;
+							LOG_INFO(log) << "Puller::BSBReceived: processed an epoch "
+									<< working_epoch.epoch_num;
 						}
 						else
 						{
@@ -411,7 +411,8 @@ namespace Bootstrap
 					else
 					{
 						assert(working_epoch.epoch_num+1 == final_ep_number);
-						LOG_INFO(log) << "Puller::BSBReceived: have last MB but not EB "<< working_epoch.epoch_num;
+						LOG_INFO(log) << "Puller::BSBReceived: have last MB but not EB "
+								<< working_epoch.epoch_num;
 					}
 					state = PullState::Epoch;
 				}
@@ -478,29 +479,63 @@ namespace Bootstrap
     PullRequestHandler::PullRequestHandler(PullRequest request, Store & store)
     : request(request)
     , store(store)
+    , next(0)
     {
 		LOG_TRACE(log) << "PullRequestHandler::"<<__func__;
 		std::vector<uint8_t> buf;
-    	uint32_t block_size = GetBlock(request.prev_hash, buf);
-		if(block_size > 0)//have block
+		if( ! request.prev_hash.is_zero())
 		{
-			memcpy (next.data(), buf.data() + PullResponseReserveSize + block_size - HASH_SIZE, HASH_SIZE);
+	    	uint32_t block_size = GetBlock(request.prev_hash, buf);
+			if(block_size > 0)//have block
+			{
+				memcpy (next.data(), buf.data() + PullResponseReserveSize + block_size - HASH_SIZE, HASH_SIZE);
+			}
+		}
+		else
+		{
+			if(request.block_type == ConsensusType::BatchStateBlock &&
+					! request.target.is_zero())
+			{
+				TraceToEpochBegin();
+			}
 		}
     }
 
     uint32_t PullRequestHandler::GetBlock(BlockHash & hash, std::vector<uint8_t> & buf)
     {
-		LOG_TRACE(log) << "PullRequestHandler::"<<__func__;
-		switch (request.block_type) {
-			case ConsensusType::BatchStateBlock:
-				return 0;//TODO store.batch_block_get_raw(hash, PullResponseReserveSize, buf);
-			case ConsensusType::MicroBlock:
-				return 0;//TODO  store.micro_block_get_raw(hash, PullResponseReserveSize, buf);
-			case ConsensusType::Epoch:
-				return 0;//TODO  store.epoch_get_raw(hash, PullResponseReserveSize, buf);
-			default:
-				return 0;
+		LOG_TRACE(log) << "PullRequestHandler::"<<__func__ <<" hash="<<hash.to_string();
+		if (request.block_type == ConsensusType::BatchStateBlock ||
+				request.block_type == ConsensusType::MicroBlock ||
+				request.block_type == ConsensusType::Epoch)
+		{
+			return store.consensus_block_get_raw(hash, request.block_type, PullResponseReserveSize, buf);
 		}
+		return 0;
+    }
+
+    void PullRequestHandler::TraceToEpochBegin()
+    {
+    	BlockHash cur(request.target);
+    	ApprovedBSB block;
+    	for(;;)
+    	{
+        	if(store.batch_block_get(cur, block))
+        	{
+        		next = 0;
+        		return;
+        	}
+    		if(block.previous.is_zero())
+    		{
+    			next = cur;
+    			return;
+    		}
+    		if(block.epoch_number!=request.epoch_num)
+    		{
+    			return;
+    		}
+			next = cur;
+    		cur = block.previous;
+    	}
     }
 
     bool PullRequestHandler::GetNextSerializedResponse(std::vector<uint8_t> & buf)

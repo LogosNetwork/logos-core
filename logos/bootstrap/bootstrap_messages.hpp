@@ -3,6 +3,7 @@
 
 #include <logos/blockstore.hpp>
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/consensus/persistence/tips.hpp>
 
 namespace Bootstrap {
 
@@ -43,62 +44,63 @@ namespace Bootstrap {
         static constexpr uint32_t WireSize = 8;
     };
 
-    struct Tip
-    {
-        uint32_t epoch;
-        uint32_t sqn; //same as epoch for epoch_blocks
-        BlockHash digest;
-
-        Tip();
-        Tip(uint32_t epoch, uint32_t sqn, const BlockHash & digest);
-        Tip(bool & error, logos::stream & stream);
-        uint32_t Serialize(logos::stream & stream) const;
-        bool operator<(const Tip & other) const;
-        bool operator==(const Tip & other) const;
-
-        static constexpr uint32_t WireSize = sizeof(epoch) + sizeof(sqn) + HASH_SIZE;
-    };
-
-    struct TipSet
-    {
-        Tip eb;
-        Tip mb;
-        std::array<Tip, NUM_DELEGATES> bsb_vec;
-        std::array<Tip, NUM_DELEGATES> bsb_vec_new_epoch;
-
-        /// Class constructor
-        TipSet() = default;
-        TipSet(bool & error, logos::stream & stream);
-
-        /// Serialize
-        /// write this object out as a stream.
-        uint32_t Serialize(logos::stream & stream) const;
-
-        bool operator==(const TipSet & other) const;
-
-        static constexpr uint32_t WireSize = Tip::WireSize * (1 + 1 + NUM_DELEGATES * 2);
-
-        static TipSet CreateTipSet(Store & store);
-
-        /*
-         * We assume both a and b are valid tips, in this iteration of the bootstrapping.
-         * One of the TODOs in the next release of bootstrapping is to validate the peer's tips.
-         * We could ask the peer for all the approved blocks included in the tips.
-         * If all the blocks have valid agg-signature, then we consider the peer's tips are valid.
-         */
-        bool IsBehind(const TipSet & other);
-
-        uint32_t GetLatestEpochNumber();
-    };
+//    struct Tip
+//    {
+//        uint32_t epoch;
+//        uint32_t sqn; //same as epoch for epoch_blocks
+//        BlockHash digest;
+//
+//        Tip();
+//        Tip(uint32_t epoch, uint32_t sqn, const BlockHash & digest);
+//        Tip(bool & error, logos::stream & stream);
+//        uint32_t Serialize(logos::stream & stream) const;
+//        bool operator<(const Tip & other) const;
+//        bool operator==(const Tip & other) const;
+//
+//        static constexpr uint32_t WireSize = sizeof(epoch) + sizeof(sqn) + HASH_SIZE;
+//    };
+//
+//    struct TipSet
+//    {
+//        Tip eb;
+//        Tip mb;
+//        std::array<Tip, NUM_DELEGATES> bsb_vec;
+//        std::array<Tip, NUM_DELEGATES> bsb_vec_new_epoch;
+//
+//        /// Class constructor
+//        TipSet() = default;
+//        TipSet(bool & error, logos::stream & stream);
+//
+//        /// Serialize
+//        /// write this object out as a stream.
+//        uint32_t Serialize(logos::stream & stream) const;
+//
+//        bool operator==(const TipSet & other) const;
+//
+//        static constexpr uint32_t WireSize = Tip::WireSize * (1 + 1 + NUM_DELEGATES * 2);
+//
+//        static TipSet CreateTipSet(Store & store);
+//
+//        /*
+//         * We assume both a and b are valid tips, in this iteration of the bootstrapping.
+//         * One of the TODOs in the next release of bootstrapping is to validate the peer's tips.
+//         * We could ask the peer for all the approved blocks included in the tips.
+//         * If all the blocks have valid agg-signature, then we consider the peer's tips are valid.
+//         */
+//        bool IsBehind(const TipSet & other);
+//
+//        uint32_t GetLatestEpochNumber();
+//    };
+//
 
     struct PullRequest {
         ConsensusType block_type;
-        //uint32_t epoch_num;
+        uint32_t epoch_num;
         BlockHash prev_hash;
         BlockHash target; //ignored for EB and MB since we pull one at a time
 
         PullRequest(ConsensusType block_type,
-        	//uint32_t epoch_num,
+        	uint32_t epoch_num,
             const BlockHash &prev,
 			const BlockHash &target=0);
 

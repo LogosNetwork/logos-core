@@ -24,7 +24,8 @@ namespace Bootstrap
         auto send_buffer (std::make_shared<std::vector<uint8_t>> ());
         {
             logos::vectorstream stream (*send_buffer);
-            MessageHeader header(logos_version, MessageType::PullRequest, ConsensusType::Any, PullRequest::WireSize);
+            MessageHeader header(logos_version, MessageType::PullRequest,
+            		ConsensusType::Any, PullRequest::WireSize);
             header.Serialize(stream);
             request->Serialize(stream);
         }

@@ -41,7 +41,7 @@ TEST (bootstrap, msg_header)
 
 TEST (bootstrap, msg_tip)
 {
-	Bootstrap::Tip tip(123,234,345);
+	Tip tip(123,234,345);
     std::vector<uint8_t> buf;
     {
         logos::vectorstream write_stream(buf);
@@ -51,7 +51,7 @@ TEST (bootstrap, msg_tip)
     {
         bool error = false;
         logos::bufferstream read_stream(buf.data(), buf.size());
-        Bootstrap::Tip tip2(error, read_stream);
+        Tip tip2(error, read_stream);
         ASSERT_FALSE(error);
         //        ASSERT_EQ(memcmp(&tip, &tip2, sizeof(tip2)), 0);
         ASSERT_EQ(tip, tip2);
@@ -59,15 +59,15 @@ TEST (bootstrap, msg_tip)
     {
         bool error = false;
         logos::bufferstream read_stream(buf.data(), buf.size()-1);
-        Bootstrap::Tip tip2(error, read_stream);
+        Tip tip2(error, read_stream);
         ASSERT_TRUE(error);
     }
 }
 
 
-static Bootstrap::TipSet create_tip_set()
+static TipSet create_tip_set()
 {
-	Bootstrap::TipSet tips;
+	TipSet tips;
 	uint32_t epoch_num = 1;
 	uint32_t mb_sqn = 1;
 
@@ -85,7 +85,7 @@ static Bootstrap::TipSet create_tip_set()
 
 TEST (bootstrap, msg_tip_set)
 {
-	Bootstrap::TipSet tips = create_tip_set();
+	TipSet tips = create_tip_set();
 
     std::vector<uint8_t> buf;
     {
@@ -96,7 +96,7 @@ TEST (bootstrap, msg_tip_set)
     {
         bool error = false;
         logos::bufferstream read_stream(buf.data(), buf.size());
-        Bootstrap::TipSet tips2(error, read_stream);
+        TipSet tips2(error, read_stream);
         ASSERT_FALSE(error);
         //ASSERT_EQ(memcmp(&tips, &tips2, sizeof(tips2)), 0);
         ASSERT_EQ(tips, tips2);
@@ -104,7 +104,7 @@ TEST (bootstrap, msg_tip_set)
     {
         bool error = false;
         logos::bufferstream read_stream(buf.data(), buf.size()-1);
-        Bootstrap::TipSet tips2(error, read_stream);
+        TipSet tips2(error, read_stream);
         ASSERT_TRUE(error);
     }
 }
@@ -230,8 +230,8 @@ TEST (bootstrap, puller)
 	}
 	{
 		Bootstrap::Puller puller(cache);
-		Bootstrap::TipSet tips = create_tip_set();
-		Bootstrap::TipSet tips_other = create_tip_set();
+		TipSet tips = create_tip_set();
+		TipSet tips_other = create_tip_set();
 		tips_other.eb.epoch++;
 		tips_other.eb.sqn++;
 		puller.Init(tips, tips_other);
@@ -239,16 +239,16 @@ TEST (bootstrap, puller)
 	}
 	{
 		Bootstrap::Puller puller(cache);
-		Bootstrap::TipSet tips = create_tip_set();
-		Bootstrap::TipSet tips_other = create_tip_set();
+		TipSet tips = create_tip_set();
+		TipSet tips_other = create_tip_set();
 		tips_other.mb.sqn++;
 		puller.Init(tips, tips_other);
 		ASSERT_EQ(puller.GetNumWaitingPulls(), 1);
 	}
 	{
 		Bootstrap::Puller puller(cache);
-		Bootstrap::TipSet tips = create_tip_set();
-		Bootstrap::TipSet tips_other = create_tip_set();
+		TipSet tips = create_tip_set();
+		TipSet tips_other = create_tip_set();
 		for (uint32_t i = 0; i < NUM_DELEGATES; ++i) {
 			tips_other.bsb_vec[i].sqn++;
 		}
@@ -258,8 +258,8 @@ TEST (bootstrap, puller)
 
 	{
 		Bootstrap::Puller puller(cache);
-		Bootstrap::TipSet tips = create_tip_set();
-		Bootstrap::TipSet tips_other = create_tip_set();
+		TipSet tips = create_tip_set();
+		TipSet tips_other = create_tip_set();
 		for (uint32_t i = 0; i < NUM_DELEGATES; ++i) {
 			tips_other.bsb_vec[i].sqn++;
 		}

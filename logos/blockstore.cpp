@@ -3,6 +3,7 @@
 #include <logos/versioning.hpp>
 #include <logos/lib/trace.hpp>
 #include <logos/consensus/messages/util.hpp>
+#include <logos/consensus/persistence/tips.hpp>
 
 namespace
 {
@@ -1423,3 +1424,82 @@ logos::store_iterator logos::block_store::latest_end ()
     logos::store_iterator result (nullptr);
     return result;
 }
+
+
+uint32_t logos::block_store::consensus_block_get_raw(const BlockHash & hash,
+		ConsensusType type,
+		uint32_t reserve,
+		std::vector<uint8_t> & buf)
+{
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    mdb_val value;
+    mdb_val key(hash);
+    MDB_dbi db = 0; //typedef unsigned int    MDB_dbi, maybe use a naked pointer?
+    logos::transaction transaction(environment, nullptr, false);
+
+    switch(type){
+    case ConsensusType::BatchStateBlock:
+        db = batch_db;
+        break;
+    case ConsensusType::MicroBlock:
+        db = micro_block_db;
+        break;
+    case ConsensusType::Epoch:
+        db = epoch_db;
+        break;
+    default:
+        LOG_FATAL(log) << __func__ << " wrong consensus type " << (uint)type;
+        trace_and_halt();
+    }
+
+    auto status(mdb_get (transaction, db, key, value));
+    if (status == MDB_NOTFOUND)
+    {
+        LOG_TRACE(log) << __func__ << " MDB_NOTFOUND";
+        return 0;
+    }
+    else if(status != 0)
+    {
+        LOG_FATAL(log) << __func__ << " failed to get consensus block "
+                << ConsensusToName(type);
+        trace_and_halt();
+    }
+    uint32_t block_size = value.size();
+    auto data_size(block_size + reserve);
+    buf.reserve(data_size);
+    memcpy(buf.data()+reserve, value.data(), block_size);
+    return block_size;
+}
+
+bool logos::block_store::request_tip_get(uint8_t delegate_id,
+		uint32_t epoch_number,
+		Tip &tip,
+		MDB_txn* t)
+{
+	return false;
+}
+bool logos::block_store::micro_block_tip_get(Tip &tip, MDB_txn* t)
+{
+	return false;
+}
+bool logos::block_store::epoch_tip_get(Tip &tip, MDB_txn *t)
+{
+	return false;
+}
+
+//bool logos::block_store::request_tip_get(uint8_t delegate_id,
+//		uint32_t epoch_number,
+//		Bootstrap::Tip &tip,
+//		MDB_txn* t)
+//{
+//	return false;
+//}
+//bool logos::block_store::micro_block_tip_get(Bootstrap::Tip &tip, MDB_txn* t)
+//{
+//	return false;
+//}
+//bool logos::block_store::epoch_tip_get(Bootstrap::Tip &tip, MDB_txn *t)
+//{
+//	return false;
+//}

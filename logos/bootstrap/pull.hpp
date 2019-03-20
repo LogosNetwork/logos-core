@@ -112,12 +112,12 @@ namespace Bootstrap
     public:
         PullRequestHandler(PullRequest request, Store & store);
 
-        //TODO rate limit the requester?
         //return: if true call again for more blocks
         bool GetNextSerializedResponse(std::vector<uint8_t> & buf);
 
     private:
         uint32_t GetBlock(BlockHash & hash, std::vector<uint8_t> & buf);
+        void TraceToEpochBegin();
 
         PullRequest request;
         Store & store;

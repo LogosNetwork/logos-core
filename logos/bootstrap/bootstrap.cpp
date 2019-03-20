@@ -1,5 +1,4 @@
 #include <logos/bootstrap/bootstrap.hpp>
-#include <logos/bootstrap/tips.hpp>
 #include <logos/bootstrap/bootstrap_messages.hpp>
 #include <logos/bootstrap/connection.hpp>
 #include <logos/bootstrap/attempt.hpp>

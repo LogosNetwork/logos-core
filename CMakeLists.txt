@@ -351,6 +351,7 @@ add_library (node
 	logos/consensus/persistence/epoch/epoch_persistence.cpp
 	logos/consensus/persistence/microblock/microblock_persistence.cpp
 	logos/consensus/persistence/reservations.cpp
+	logos/consensus/persistence/tips.cpp
 	logos/consensus/primary_delegate.cpp
 	logos/epoch/archiver.cpp
 	logos/epoch/epoch.cpp

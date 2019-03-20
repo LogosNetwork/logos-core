@@ -7,6 +7,9 @@
 #include <logos/epoch/epoch.hpp>
 #include <logos/lib/log.hpp>
 
+
+class Tip;
+
 namespace logos
 {
 /**
@@ -335,5 +338,15 @@ public:
     MDB_dbi p2p_db;
 
     Log log;
+
+    //////////////////
+
+    uint32_t consensus_block_get_raw(const BlockHash & hash,
+    		ConsensusType type,
+    		uint32_t reserve,
+			std::vector<uint8_t> & buf);
+    bool request_tip_get(uint8_t delegate_id, uint32_t epoch_number, Tip &tip, MDB_txn* t=0);
+    bool micro_block_tip_get(Tip &tip, MDB_txn* t=0);
+    bool epoch_tip_get(Tip &tip, MDB_txn *t=0);
 };
 }
