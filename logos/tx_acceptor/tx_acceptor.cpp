@@ -355,7 +355,8 @@ TxAcceptor::Validate(const std::shared_ptr<DM> & block)
         return logos::process_result::opened_burn_account;
     }
 
-    if (block->fee.number() < PersistenceManager<R>::MIN_TRANSACTION_FEE)
+    if (block->fee.number() < PersistenceManager<R>::MIN_TRANSACTION_FEE
+            && block->type != RequestType::ElectionVote)
     {
         LOG_INFO(_log) << "TxAcceptor::Validate , bad transaction fee: "
                        << block->fee.number()
