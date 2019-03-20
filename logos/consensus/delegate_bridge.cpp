@@ -114,6 +114,13 @@ DelegateBridge<CT>::ResetConnectCount()
     std::dynamic_pointer_cast<ConsensusNetIO>(_iochannel)->ResetConnectCount();
 }
 
+template<ConsensusType CT>
+bool
+DelegateBridge<CT>::PrimaryDirectlyConnected()
+{
+    return std::dynamic_pointer_cast<ConsensusNetIO>(_iochannel)->PrimaryDirectlyConnected();
+}
+
 template class DelegateBridge<ConsensusType::BatchStateBlock>;
 template class DelegateBridge<ConsensusType::MicroBlock>;
 template class DelegateBridge<ConsensusType::Epoch>;

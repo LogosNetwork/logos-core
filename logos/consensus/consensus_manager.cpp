@@ -350,9 +350,8 @@ ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {
     logos::uint128_t stake = 0;
     for (auto it = _connections.begin(); it != _connections.end(); ++it)
     {
-        auto sink = std::dynamic_pointer_cast<ConsensusMsgSink>(*it);
-        auto direct = sink->PrimaryDirectlyConnected()?1:0;
-        sink->ResetConnectCount();
+        auto direct = (*it)->PrimaryDirectlyConnected()?1:0;
+        (*it)->ResetConnectCount();
         vote += direct * _weights[(*it)->RemoteDelegateId()].vote_weight;
         stake += direct * _weights[(*it)->RemoteDelegateId()].stake_weight;
     }

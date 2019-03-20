@@ -44,6 +44,8 @@ public:
 
     void ResetConnectCount();
 
+    bool PrimaryDirectlyConnected();
+
 protected:
     // Messages received by backup delegates
     virtual void OnConsensusMessage(const PrePrepare & message) = 0;
