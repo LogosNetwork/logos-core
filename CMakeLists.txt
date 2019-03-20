@@ -349,6 +349,8 @@ add_library (node
 	logos/consensus/persistence/reservations.cpp
 	logos/consensus/primary_delegate.cpp
 	logos/elections/requests.cpp
+    logos/elections/representative.cpp
+    logos/elections/candidate.cpp
 	logos/elections/database.cpp
 	logos/epoch/archiver.cpp
 	logos/epoch/epoch.cpp
