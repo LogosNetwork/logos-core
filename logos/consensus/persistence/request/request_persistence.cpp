@@ -785,8 +785,10 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
     info->modified = logos::seconds_since_epoch();
 
     // TODO: Harvest fees
-    info->balance -= request->fee;
-
+    if(request->type != RequestType::ElectionVote)
+    {
+        info->balance -= request->fee;
+    }
     // Performs the actions required by whitelisting
     // and freezing.
     auto adjust_token_user_status = [this, &transaction](auto message, UserStatus status)
@@ -1778,7 +1780,11 @@ bool PersistenceManager<R>::IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn)
     return (eb.epoch_number+2) == cur_epoch_num;
 }
 
-bool PersistenceManager<R>::ValidateRequest(const StartRepresenting& request, uint32_t cur_epoch_num, MDB_txn* txn, logos::process_return& result)
+bool PersistenceManager<R>::ValidateRequest(
+        const StartRepresenting& request,
+        uint32_t cur_epoch_num,
+        MDB_txn* txn,
+        logos::process_return& result)
 {
     if(request.epoch_num != cur_epoch_num)
     {

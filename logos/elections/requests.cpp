@@ -378,7 +378,6 @@ uint16_t ElectionVote::WireSize() const
         + Request::WireSize();
 }
 
-
 boost::property_tree::ptree ElectionVote::SerializeJson() const
 {
     using namespace request::fields;
@@ -396,7 +395,6 @@ boost::property_tree::ptree ElectionVote::SerializeJson() const
     tree.put(EPOCH_NUM,epoch_num);
     return tree; 
 }
-
 
 uint64_t ElectionVote::Serialize(logos::stream & stream) const
 {
@@ -501,7 +499,6 @@ bool StopRepresenting::operator==(const StopRepresenting& other) const
     return epoch_num == other.epoch_num
         && Request::operator==(other);
 }
-
 
 bool ElectionVote::operator!=(const ElectionVote& other) const
 {
