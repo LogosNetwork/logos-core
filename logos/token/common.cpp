@@ -34,7 +34,10 @@ TokenRequest::TokenRequest(bool & error,
 
     try
     {
-        error = token_id.decode_hex(tree.get<std::string>(TOKEN_ID));
+        if(tree.get<std::string>(TOKEN_ID)!="placeholder")
+        {
+            error = token_id.decode_hex(tree.get<std::string>(TOKEN_ID));
+        }
     }
     catch(...)
     {
