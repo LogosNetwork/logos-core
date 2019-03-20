@@ -190,11 +190,12 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 announce.bls_key = dpk;
                 rep.candidacy_action_tip = announce.Hash();
                 _store.request_put(announce, transaction);
-                rep.voted = false;
                 _store.rep_put(pair.pub, rep, transaction);
                 CandidateInfo candidate;
                 candidate.stake = stake;
                 candidate.bls_key = dpk;
+                //TODO: should we put these accounts into candidate list even
+                //though elections are not being held yet?
                 _store.candidate_put(pair.pub, candidate, transaction);
             }
 

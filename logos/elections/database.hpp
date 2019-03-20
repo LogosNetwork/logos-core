@@ -33,10 +33,6 @@ struct RepInfo
     logos::block_hash election_vote_tip;
     logos::block_hash rep_action_tip;
     Amount stake; 
-    bool active;
-    bool remove;
-    bool voted;
-
 };
 
 struct CandidateInfo
