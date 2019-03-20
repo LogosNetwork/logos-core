@@ -169,19 +169,25 @@ ConsensusContainer::OnSendRequest(
                         << (int)DelegateIdentityManager::_global_delegate_idx;
         return result;
     }
+
+    auto epoch = _cur_epoch;
     // microblock proposed during epoch transition should be proposed by the new delegate set
-    else if (_transition_state != EpochTransitionState::None &&
+    if (_transition_state != EpochTransitionState::None &&
                 _cur_epoch->GetConnection() != EpochConnection::Transitioning)
     {
-        result.code = logos::process_result::old;
-        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest microblock, not new delegate set "
-                       << (int)DelegateIdentityManager::_global_delegate_idx;
-        return result;
+         if (_trans_epoch == nullptr || _trans_epoch->GetConnection() != EpochConnection::Transitioning)
+         {
+             result.code = logos::process_result::old;
+             LOG_WARN(_log) << "ConsensusContainer::OnSendRequest microblock, not new delegate set "
+                            << (int) DelegateIdentityManager::_global_delegate_idx;
+             return result;
+         }
+         epoch = _trans_epoch;
     }
 
-    block->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
-    _cur_epoch->_micro_manager.OnSendRequest(
-        std::static_pointer_cast<Request>(block), result);;
+    block->primary_delegate = epoch->_epoch_manager.GetDelegateIndex();
+    epoch->_micro_manager.OnSendRequest(
+        std::static_pointer_cast<Request>(block), result);
 
     return result;
 }
@@ -618,34 +624,15 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
     if (epoch && (p2pheader.dest_delegate_id == 0xff ||
             p2pheader.dest_delegate_id == epoch->GetDelegateId()))
     {
-        ConsensusMsgProducer *producer = nullptr;
-        if (prequel.consensus_type == ConsensusType::BatchStateBlock)
-        {
-            producer = &epoch->_batch_manager;
-        }
-        else if (prequel.consensus_type == ConsensusType::MicroBlock)
-        {
-            producer = &epoch->_micro_manager;
-        }
-        else if (prequel.consensus_type == ConsensusType::Epoch)
-        {
-            producer = &epoch->_epoch_manager;
-        }
-        else
-        {
-            LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid consensus type "
-                            << ConsensusToName(prequel.consensus_type);
-            return false;
-        }
-
         LOG_DEBUG(_log) << "ConsensusContainer::OnP2pReceive, adding to consensus queue "
                         << MessageToName(prequel.type) << " " << ConsensusToName(prequel.consensus_type)
                         << " payload size " << prequel.payload_size
                         << " src delegate " << (int)p2pheader.src_delegate_id
                         << " dest delegate " << (int)p2pheader.dest_delegate_id;
 
-        return producer->AddToConsensusQueue(payload_data, prequel.version, prequel.type, prequel.consensus_type,
-                                             prequel.payload_size, p2pheader.src_delegate_id);
+        return epoch->_netio_manager.AddToConsensusQueue(payload_data, prequel.version,
+                                                         prequel.type, prequel.consensus_type,
+                                                         prequel.payload_size, p2pheader.src_delegate_id);
     }
     else
     {

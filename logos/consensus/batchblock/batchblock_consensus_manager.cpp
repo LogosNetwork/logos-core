@@ -54,7 +54,7 @@ BatchBlockConsensusManager::BufferComplete(
     SendBufferedBlocks();
 }
 
-std::shared_ptr<ConsensusMsgSink>
+std::shared_ptr<MessageParser>
 BatchBlockConsensusManager::BindIOChannel(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities & ids)

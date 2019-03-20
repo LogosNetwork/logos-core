@@ -43,6 +43,14 @@ EpochManager::EpochManager(Service & service,
 EpochManager::~EpochManager()
 {
     LOG_DEBUG(_log) << "EpochManager::~EpochManager";
+    if (_delegate == EpochTransitionDelegate::Retiring ||
+            _delegate == EpochTransitionDelegate::RetiringForwardOnly ||
+            _delegate == EpochTransitionDelegate::None)
+    {
+        _batch_manager.ClearWaitingList();
+        _micro_manager.ClearWaitingList();
+        _epoch_manager.ClearWaitingList();
+    }
 }
 
 void

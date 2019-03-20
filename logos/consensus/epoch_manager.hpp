@@ -8,6 +8,7 @@
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
 #include <logos/network/consensus_netio_manager.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
 
 class Archiver;
 class NewEpochEventHandler;
@@ -107,6 +108,9 @@ private:
     /// Update secondary request handler promoter during epoch transition
     void UpdateRequestPromoter()
     {
+        LOG_DEBUG(_log) << "DelegateIdentityManager::UpdateRequestPromoter epoch " << _epoch_number
+                        << " delegate " << TransitionDelegateToName(_delegate) << " " << (int)_delegate_id
+                        << " global delegate "  << (int)DelegateIdentityManager::_global_delegate_idx;
         _batch_manager.UpdateRequestPromoter();
         _micro_manager.UpdateRequestPromoter();
         _epoch_manager.UpdateRequestPromoter();

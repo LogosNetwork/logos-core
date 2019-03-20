@@ -12,9 +12,7 @@ DelegateBridge<CT>::DelegateBridge(Service & service,
                                    std::shared_ptr<IOChannel> iochannel,
                                    p2p_interface & p2p,
                                    uint8_t delegate_id)
-    : ConsensusMsgSink(service,
-                       std::dynamic_pointer_cast<ConsensusNetIO>(iochannel)->DirectConnectRef())
-    , ConsensusP2pBridge<CT>(service, p2p, delegate_id)
+    : ConsensusP2pBridge<CT>(service, p2p, delegate_id)
     , _iochannel(iochannel)
 {}
 
@@ -33,56 +31,6 @@ void DelegateBridge<CT>::Send(const void * data, size_t size)
     }
 #endif
     _iochannel->Send(data, size);
-}
-
-template<ConsensusType CT>
-std::shared_ptr<MessageBase>
-DelegateBridge<CT>::Parse(const uint8_t * data, uint8_t version, MessageType message_type,
-                                   ConsensusType consensus_type, uint32_t payload_size)
-{
-    logos::bufferstream stream(data, payload_size);
-    std::shared_ptr<MessageBase> msg = nullptr;
-    bool error = false;
-
-    switch (message_type)
-    {
-        case MessageType::Pre_Prepare: {
-            msg = std::make_shared<PrePrepare>(error, stream, version);
-            break;
-        }
-        case MessageType::Prepare: {
-            msg = std::make_shared<Prepare>(error, stream, version);
-            break;
-        }
-        case MessageType::Post_Prepare: {
-            msg = std::make_shared<PostPrepare>(error, stream, version);
-            break;
-        }
-        case MessageType::Commit: {
-            msg = std::make_shared<Commit>(error, stream, version);
-            break;
-        }
-        case MessageType::Post_Commit: {
-            msg = std::make_shared<PostCommit>(error, stream, version);
-            break;
-        }
-        case MessageType::Rejection: {
-            msg = std::make_shared<Rejection>(error, stream, version);
-            break;
-        }
-        default:
-            return nullptr;
-    }
-
-    if (!error)
-    {
-        return msg;
-    }
-    else
-    {
-        LOG_ERROR(_log) << "DelegateBridge::Parser, failed to deserialize";
-        return nullptr;
-    }
 }
 
 template<ConsensusType CT>
@@ -157,6 +105,13 @@ void DelegateBridge<CT>::OnMessage(std::shared_ptr<MessageBase> message, Message
             break;
         }
     }
+}
+
+template<ConsensusType CT>
+void
+DelegateBridge<CT>::ResetConnectCount()
+{
+    std::dynamic_pointer_cast<ConsensusNetIO>(_iochannel)->ResetConnectCount();
 }
 
 template class DelegateBridge<ConsensusType::BatchStateBlock>;

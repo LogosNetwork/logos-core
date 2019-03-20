@@ -298,7 +298,7 @@ ConsensusManager<CT>::IsPendingRequest(
 }
 
 template<ConsensusType CT>
-std::shared_ptr<ConsensusMsgSink>
+std::shared_ptr<MessageParser>
 ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                                     const DelegateIdentities & ids)
 {
@@ -334,27 +334,6 @@ ConsensusManager<CT>::OnNetIOError(uint8_t delegate_id)
     }
 }
 
-template<ConsensusType CT>
-bool
-ConsensusManager<CT>::AddToConsensusQueue(const uint8_t * data,
-                                          uint8_t version,
-                                          MessageType message_type,
-                                          ConsensusType consensus_type,
-                                          uint32_t payload_size,
-                                          uint8_t delegate_id)
-{
-    std::lock_guard<std::mutex> lock(_connection_mutex);
-
-    for (auto it = _connections.begin(); it != _connections.end(); ++it)
-    {
-        if ((*it)->RemoteDelegateId() == delegate_id)
-        {
-            (*it)->Push(data, version, message_type, consensus_type, payload_size, true);
-            break;
-        }
-    }
-    return true;
-}
 template<ConsensusType CT>
 void
 ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {

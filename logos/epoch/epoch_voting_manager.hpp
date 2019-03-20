@@ -37,6 +37,10 @@ public:
     /// @returns true if valid
     static bool ValidateEpochDelegates(const Delegates &delegates);
 
+    /// Is this a first epoch after genesis
+    /// @returns true if first epoch
+    bool IsFirstEpoch();
+
 private:
 
     BlockStore &    _store; ///< logos block store reference

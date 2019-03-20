@@ -5,7 +5,6 @@
 #pragma once
 
 #include <logos/consensus/p2p/consensus_p2p_bridge.hpp>
-#include <logos/consensus/consensus_msg_sink.hpp>
 #include <logos/consensus/messages/rejection.hpp>
 #include <logos/consensus/messages/common.hpp>
 #include <logos/lib/log.hpp>
@@ -16,20 +15,16 @@ class IOChannel;
 class MessageParser
 {
 public:
-
-  virtual ~MessageParser() {}
+  MessageParser() = default;
+  virtual ~MessageParser() = default;
 
   // return true iff data is good
-  virtual bool OnMessageData(const uint8_t * data,
-          uint8_t version,
-          MessageType message_type,
-          ConsensusType consensus_type,
-          uint32_t payload_size) = 0;
+  virtual void OnMessage(std::shared_ptr<MessageBase>, MessageType, bool) = 0;
 };
 
 template<ConsensusType CT>
-class DelegateBridge : public ConsensusMsgSink,
-                       public ConsensusP2pBridge<CT>
+class DelegateBridge : public ConsensusP2pBridge<CT>,
+                       public MessageParser
 {
     using PrePrepare  = PrePrepareMessage<CT>;
     using Prepare     = PrepareMessage<CT>;
@@ -37,16 +32,17 @@ class DelegateBridge : public ConsensusMsgSink,
     using PostPrepare = PostPrepareMessage<CT>;
     using PostCommit  = PostCommitMessage<CT>;
     using Rejection   = RejectionMessage<CT>;
+    using Service     = boost::asio::io_service;
 
 public:
     DelegateBridge(Service &service, std::shared_ptr<IOChannel>, p2p_interface & p2p, uint8_t delegate_id);
     virtual ~DelegateBridge() = default;
 
     void OnMessage(std::shared_ptr<MessageBase> msg, MessageType message_type, bool is_p2p) override;
-    std::shared_ptr<MessageBase> Parse(const uint8_t * data, uint8_t version, MessageType message_type,
-                                       ConsensusType consensus_type, uint32_t payload_size) override;
 
     void Send(const void * data, size_t size);
+
+    void ResetConnectCount();
 
 protected:
     // Messages received by backup delegates

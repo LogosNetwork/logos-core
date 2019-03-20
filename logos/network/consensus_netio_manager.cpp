@@ -272,3 +272,24 @@ ConsensusNetIOManager::CleanUp()
     }
     connections.clear();
 }
+
+bool
+ConsensusNetIOManager::AddToConsensusQueue(const uint8_t * data,
+                                           uint8_t version,
+                                           MessageType message_type,
+                                           ConsensusType consensus_type,
+                                           uint32_t payload_size,
+                                           uint8_t delegate_id)
+{
+    std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
+
+    for (auto it = _connections.begin(); it != _connections.end(); ++it)
+    {
+        if ((*it)->GetRemoteDelegateId() == delegate_id)
+        {
+            (*it)->Push(data, version, message_type, consensus_type, payload_size, true);
+            break;
+        }
+    }
+    return true;
+}

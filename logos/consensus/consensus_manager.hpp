@@ -29,7 +29,7 @@ public:
     virtual ~NetIOHandler() = default;
 
     virtual
-    std::shared_ptr<ConsensusMsgSink>
+    std::shared_ptr<MessageParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) = 0;
     virtual void OnNetIOError(uint8_t delegate_id) = 0;
@@ -61,8 +61,7 @@ template<ConsensusType CT>
 class ConsensusManager : public PrimaryDelegate,
                          public NetIOHandler,
                          public RequestPromoter<CT>,
-                         public ConsensusP2pBridge<CT>,
-                         public ConsensusMsgProducer
+                         public ConsensusP2pBridge<CT>
 {
 
 protected:
@@ -118,7 +117,7 @@ public:
 
     Store & GetStore() override;
 
-    std::shared_ptr<ConsensusMsgSink>
+    std::shared_ptr<MessageParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) override;
 
@@ -126,6 +125,11 @@ public:
     void UpdateRequestPromoter();
 
     void OnNetIOError(uint8_t delegate_id) override;
+
+    void ClearWaitingList()
+    {
+        _secondary_handler.ClearWaitingList();
+    }
 
 protected:
 
@@ -181,13 +185,6 @@ protected:
         static SecondaryRequestHandler<CT> handler(service, promoter);
         return handler;
     }
-
-    bool AddToConsensusQueue(const uint8_t * data,
-                             uint8_t version,
-                             MessageType message_type,
-                             ConsensusType consensus_type,
-                             uint32_t payload_size,
-                             uint8_t delegate_id=0xff) override;
 
     bool SendP2p(const uint8_t *data, uint32_t size, MessageType message_type,
                  uint32_t epoch_number, uint8_t dest_delegate_id) override

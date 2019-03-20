@@ -10,9 +10,8 @@
 
 #include <sys/stat.h>
 
-ConsensusMsgSink::ConsensusMsgSink(Service &service, std::atomic<uint32_t> & direct_connect)
+ConsensusMsgSink::ConsensusMsgSink(Service &service)
     : _service(service)
-    , _direct_connect(direct_connect)
 {}
 
 bool
@@ -40,7 +39,7 @@ ConsensusMsgSink::Push(const uint8_t * data,
         _consuming = true;
         if (!_msg_queue.empty())
         {
-            _msg_queue.emplace(Message{is_p2p, message_type, message});
+            _msg_queue.emplace(Message{is_p2p, message_type, consensus_type, message});
 
             auto toconsume = _msg_queue.front();
             _msg_queue.pop();
@@ -50,11 +49,11 @@ ConsensusMsgSink::Push(const uint8_t * data,
             is_p2p = toconsume.is_p2p;
         }
 
-        Post(message, message_type, is_p2p);
+        Post(message, message_type, consensus_type, is_p2p);
     }
     else
     {
-        _msg_queue.emplace(Message{is_p2p, message_type, message});
+        _msg_queue.emplace(Message{is_p2p, message_type, consensus_type, message});
     }
     return true;
 }
@@ -73,14 +72,17 @@ ConsensusMsgSink::Pop()
     auto toconsume = _msg_queue.front();
     _msg_queue.pop();
 
-    Post(toconsume.message, toconsume.message_type, toconsume.is_p2p);
+    Post(toconsume.message, toconsume.message_type, toconsume.consensus_type, toconsume.is_p2p);
 }
 
 void
-ConsensusMsgSink::Post(std::shared_ptr<MessageBase> message, MessageType message_type, bool is_p2p)
+ConsensusMsgSink::Post(std::shared_ptr<MessageBase> message,
+                       MessageType message_type,
+                       ConsensusType consensus_type,
+                       bool is_p2p)
 {
-    _service.post([this, message, message_type, is_p2p]() {
-        OnMessage(message, message_type, is_p2p);
+    _service.post([this, message, message_type, consensus_type, is_p2p]() {
+        OnMessage(message, message_type, consensus_type, is_p2p);
         Pop();
     });
 }

@@ -29,8 +29,10 @@ public:
     /// Handle consensus message
     /// @param msg consensus message
     /// @param message_type consensus message type
+    /// @param consensus_type consensus type
     /// @param is_p2p true if message is received via p2p
-    virtual void OnMessage(std::shared_ptr<MessageBase> msg, MessageType message_type, bool is_p2p) = 0;
+    virtual void OnMessage(std::shared_ptr<MessageBase> msg, MessageType message_type,
+                           ConsensusType consensus_type, bool is_p2p) = 0;
 
 };
 

@@ -75,7 +75,7 @@ public:
     ///                interface.
     ///     @param[in] ids Delegate IDs for the local and
     ///                remote delegates.
-    std::shared_ptr<ConsensusMsgSink>
+    std::shared_ptr<MessageParser>
     BindIOChannel(std::shared_ptr<IOChannel> iochannel,
                   const DelegateIdentities & ids) override;
 

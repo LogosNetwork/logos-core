@@ -26,7 +26,8 @@ public:
 ///
 /// Creates ConsensusNetIO instances either as the client to connect
 /// to remote peers or as an accepted connection.
-class ConsensusNetIOManager : public NetIOErrorHandler
+class ConsensusNetIOManager : public NetIOErrorHandler,
+                              public ConsensusMsgProducer
 {
 
     using Service     = boost::asio::io_service;
@@ -84,6 +85,13 @@ public:
 
     /// Cleaup up before destruction
     void CleanUp();
+
+    bool AddToConsensusQueue(const uint8_t * data,
+                             uint8_t version,
+                             MessageType message_type,
+                             ConsensusType consensus_type,
+                             uint32_t payload_size,
+                             uint8_t delegate_id=0xff) override;
 
 protected:
 

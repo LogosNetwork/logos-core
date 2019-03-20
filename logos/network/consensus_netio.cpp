@@ -43,6 +43,7 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
                                EpochInfo & epoch_info,
                                NetIOErrorHandler & error_handler)
     : NetIOSend(std::make_shared<Socket>(service))
+    , ConsensusMsgSink(service)
     , _socket(*this)
     , _connected(false)
     , _endpoint(endpoint)
@@ -79,6 +80,7 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
                                EpochInfo & epoch_info,
                                NetIOErrorHandler & error_handler)
     : NetIOSend(socket)
+    , ConsensusMsgSink(socket->get_io_service())
     , _socket(socket)
     , _connected(false)
     , _endpoint(endpoint)
@@ -354,7 +356,7 @@ ConsensusNetIO::OnPublicKey(KeyAdvertisement & key_adv)
 void
 ConsensusNetIO::AddConsensusConnection(
     ConsensusType t, 
-    std::shared_ptr<ConsensusMsgSink> connection)
+    std::shared_ptr<MessageParser> connection)
 {
     LOG_INFO(_log) << "ConsensusNetIO - Added consensus connection "
                    << ConsensusToName(t)
@@ -444,6 +446,88 @@ ConsensusNetIO::AddToConsensusQueue(const uint8_t * data,
                                     uint32_t payload_size,
                                     uint8_t delegate_id)
 {
-    return _connections[ConsensusTypeToIndex(consensus_type)]->Push(data, version, message_type,
-                                                                    consensus_type, payload_size, false);
+    return Push(data, version, message_type, consensus_type, payload_size, false);
+}
+
+void
+ConsensusNetIO::OnMessage(std::shared_ptr<MessageBase> message,
+                          MessageType message_type,
+                          ConsensusType consensus_type,
+                          bool is_p2p)
+{
+    auto idx = ConsensusTypeToIndex(consensus_type);
+    _connections[idx]->OnMessage(message, message_type, is_p2p);
+}
+
+template<template <ConsensusType> typename T>
+std::shared_ptr<MessageBase>
+ConsensusNetIO::make(ConsensusType consensus_type, logos::bufferstream &stream, uint8_t version)
+{
+    bool error = false;
+    std::shared_ptr<MessageBase> msg;
+    switch (consensus_type)
+    {
+        case ConsensusType::BatchStateBlock: {
+            msg = std::make_shared<T<ConsensusType::BatchStateBlock>>(error, stream, version);
+            break;
+        }
+        case ConsensusType::MicroBlock: {
+            msg = std::make_shared<T<ConsensusType::MicroBlock>>(error, stream, version);
+            break;
+        }
+        case ConsensusType::Epoch: {
+            msg = std::make_shared<T<ConsensusType::Epoch>>(error, stream, version);
+            break;
+        }
+        default: {
+            LOG_ERROR(_log) << "ConsensusNetIO::Parser, invalid consensus type " << ConsensusToName(consensus_type);
+            return nullptr;
+        }
+    }
+    if (error)
+    {
+        LOG_ERROR(_log) << "ConsensusNetIO::Parser, failed to deserialize";
+        msg = nullptr;
+    }
+    return msg;
+}
+
+std::shared_ptr<MessageBase>
+ConsensusNetIO::Parse(const uint8_t * data, uint8_t version, MessageType message_type,
+                      ConsensusType consensus_type, uint32_t payload_size)
+{
+    logos::bufferstream stream(data, payload_size);
+    std::shared_ptr<MessageBase> msg = nullptr;
+
+    switch (message_type)
+    {
+        case MessageType::Pre_Prepare: {
+            msg = make<PrePrepareMessage>(consensus_type, stream, version);
+            break;
+        }
+        case MessageType::Prepare: {
+            msg = make<PrepareMessage>(consensus_type, stream, version);
+            break;
+        }
+        case MessageType::Post_Prepare: {
+            msg = make<PostPrepareMessage>(consensus_type, stream, version);
+            break;
+        }
+        case MessageType::Commit: {
+            msg = make<CommitMessage>(consensus_type, stream, version);
+            break;
+        }
+        case MessageType::Post_Commit: {
+            msg = make<PostCommitMessage>(consensus_type, stream, version);
+            break;
+        }
+        case MessageType::Rejection: {
+            msg = make<RejectionMessage>(consensus_type, stream, version);
+            break;
+        }
+        default:
+            return nullptr;
+    }
+
+    return msg;
 }

@@ -14,11 +14,11 @@ void
 EpochVotingManager::GetNextEpochDelegates(
    Delegates &delegates)
 {
-    int constexpr num_epochs = 3;
+    int constexpr num_epochs = 4;
     int constexpr num_new_delegates = 8;
     ApprovedEB previous_epoch;
     BlockHash hash;
-    std::unordered_map<AccountPubKey,bool> delegates3epochs;
+    std::unordered_map<AccountPubKey,bool> delegates_epochs;
 
     // get all delegate in the previous 3 epochs
     if (_store.epoch_tip_get(hash))
@@ -43,7 +43,8 @@ EpochVotingManager::GetNextEpochDelegates(
         return;
     }
 
-    for (int e = 0; e < num_epochs; ++e)
+    auto n_epochs = num_epochs - (IsFirstEpoch()?1:0);
+    for (int e = 0; e < n_epochs; ++e)
     {
         if (_store.epoch_get(hash, previous_epoch))
         {
@@ -55,7 +56,7 @@ EpochVotingManager::GetNextEpochDelegates(
         for (int del = 0; del < NUM_DELEGATES; ++del)
         {
             Delegate &delegate = previous_epoch.delegates[del];
-            delegates3epochs[delegate.account] = true;
+            delegates_epochs[delegate.account] = true;
             if (e == 0)
             {
                 // populate new delegates from the most recent epoch
@@ -64,11 +65,11 @@ EpochVotingManager::GetNextEpochDelegates(
         }
     }
 
-    // replace last 8 for now
-    int new_delegate = NUM_DELEGATES - num_new_delegates;
+    // replace first 8
+    int new_delegate = 0;
     for (auto delegate : logos::genesis_delegates)
     {
-       if (delegates3epochs.find(delegate.key.pub) == delegates3epochs.end())
+       if (delegates_epochs.find(delegate.key.pub) == delegates_epochs.end())
        {
            delegates[new_delegate].account = delegate.key.pub;
            {
@@ -82,7 +83,7 @@ EpochVotingManager::GetNextEpochDelegates(
            delegates[new_delegate].stake = delegate.stake;
            delegates[new_delegate].vote = delegate.vote;
           ++new_delegate;
-          if (NUM_DELEGATES == new_delegate)
+          if (num_new_delegates == new_delegate)
           {
               break;
           }
@@ -115,4 +116,27 @@ EpochVotingManager::ValidateEpochDelegates(
    }
 
    return true;
+}
+
+bool
+EpochVotingManager::IsFirstEpoch()
+{
+    BlockHash hash;
+    ApprovedEB epoch;
+
+    if (_store.epoch_tip_get(hash))
+    {
+        Log log;
+        LOG_ERROR(log) << "Archiver::IsFirstEpoch failed to get epoch tip. Genesis blocks are being generated.";
+        return true;
+    }
+
+    if (_store.epoch_get(hash, epoch))
+    {
+        LOG_ERROR(_log) << "Archiver::IsFirstEpoch failed to get epoch: "
+                        << hash.to_string();
+        return false;
+    }
+
+    return epoch.epoch_number == GENESIS_EPOCH;
 }

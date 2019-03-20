@@ -67,6 +67,14 @@ public:
 
     void UpdateRequestPromoter(RequestPromoter<CT>* promoter);
 
+    void  ClearWaitingList()
+    {
+        UpdateRequestPromoter(nullptr);
+        std::lock_guard<std::mutex> l(_mutex);
+        _requests. template get<0>().erase(_requests. template get<0>().begin(), _requests. template get<0>().end());
+        _timer.cancel();
+    }
+
 private:
 
     void PruneRequest(const BlockHash & hash);
