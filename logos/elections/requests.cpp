@@ -33,6 +33,7 @@ AnnounceCandidacy::AnnounceCandidacy(bool& error, const logos::mdb_val& mdbval)
             mdbval.size());
 
     DeserializeDB(error, stream);
+    error = error || type != RequestType::AnnounceCandidacy;
     if(error)
     {
         return;
@@ -165,6 +166,7 @@ RenounceCandidacy::RenounceCandidacy()
 RenounceCandidacy::RenounceCandidacy(bool & error,
             std::basic_streambuf<uint8_t> & stream) : Request(error, stream)
 {
+    error = error || type != RequestType::RenounceCandidacy;
     if(error)
     {
         return;
@@ -174,7 +176,6 @@ RenounceCandidacy::RenounceCandidacy(bool & error,
     {
         return;
     }
-    error = error || type != RequestType::RenounceCandidacy;
     Hash();
 }
 
@@ -184,6 +185,7 @@ RenounceCandidacy::RenounceCandidacy(bool& error, const logos::mdb_val& mdbval)
             mdbval.size());
 
     DeserializeDB(error, stream);
+    error = error || type != RequestType::RenounceCandidacy;
     if(error)
     {
         return;
@@ -260,6 +262,7 @@ ElectionVote::ElectionVote()
 ElectionVote::ElectionVote(bool & error,
             std::basic_streambuf<uint8_t> & stream) : Request(error, stream)
 {
+    error = error || type != RequestType::ElectionVote;
     if(error)
     {
         return;
@@ -280,6 +283,7 @@ ElectionVote::ElectionVote(bool & error,
             boost::property_tree::ptree const & tree)
     : Request(error, tree)
 {
+    error = error || type != RequestType::ElectionVote;
     if(error)
     {
         return;
@@ -313,6 +317,7 @@ ElectionVote::ElectionVote(bool & error,
             mdbval.size());
 
     DeserializeDB(error, stream);
+    error = error || type != RequestType::ElectionVote;
     if(error)
     {
         return;
@@ -511,7 +516,7 @@ StartRepresenting::StartRepresenting(bool & error,
             std::basic_streambuf<uint8_t> & stream)
     : Request(error, stream)
 {
-
+    error = error || type != RequestType::StartRepresenting;
     if(error)
     {
         return;
@@ -531,6 +536,7 @@ StartRepresenting::StartRepresenting(bool& error, const logos::mdb_val& mdbval)
             mdbval.size());
 
     DeserializeDB(error, stream);
+    error = error || type != RequestType::StartRepresenting;
     if(error)
     {
         return;
@@ -544,19 +550,20 @@ StartRepresenting::StartRepresenting(bool & error,
             boost::property_tree::ptree const & tree)
     : Request(error, tree)
 {
-   if(error)
-   {
+    error = error || type != RequestType::StartRepresenting;
+    if(error)
+    {
         return;
-   } 
-   try
-   {
+    } 
+    try
+    {
         stake = tree.get<std::string>(STAKE);
         epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
-   }
-   catch(...)
-   {
-    error = true;
-   }
+    }
+    catch(...)
+    {
+        error = true;
+    }
 }
 
 uint64_t StartRepresenting::Serialize(logos::stream & stream) const
@@ -629,7 +636,7 @@ StopRepresenting::StopRepresenting(bool & error,
             std::basic_streambuf<uint8_t> & stream)
     : Request(error, stream)
 {
-
+    error = error || type != RequestType::StopRepresenting;
     if(error)
     {
         return;
@@ -649,6 +656,7 @@ StopRepresenting::StopRepresenting(bool& error, const logos::mdb_val& mdbval)
             mdbval.size());
 
     DeserializeDB(error, stream);
+    error = error || type != RequestType::StopRepresenting;
     if(error)
     {
         return;
@@ -662,19 +670,20 @@ StopRepresenting::StopRepresenting(bool & error,
             boost::property_tree::ptree const & tree)
     : Request(error, tree)
 {
-   if(error)
-   {
+    error = error || type != RequestType::StopRepresenting;
+    if(error)
+    {
         return;
-   } 
+    } 
 
-   try
-   {
+    try
+    {
         epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
-   }
-   catch(...)
-   {
-       error = true;
-   }
+    }
+    catch(...)
+    {
+        error = true;
+    }
 }
 
 boost::property_tree::ptree StopRepresenting::SerializeJson() const
