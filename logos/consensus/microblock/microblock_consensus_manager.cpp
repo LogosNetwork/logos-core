@@ -49,10 +49,27 @@ MicroBlockConsensusManager::QueueMessagePrimary(
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
     auto hash = message->Hash();
-    if (!_store.micro_block_exists(hash))
+
+    // Super edge case scenario example:
+    // 1) at `t` the primary proposes, doesn't complete,
+    // 2) at `t+40s` some other fallback consensus reaches the original primary, doesn't complete,
+    // 3a) at `t+1min` the primary's secondary list times out,
+    // 3b) simultaneously its own PrePrepare timer also times out,
+    // Outcome: the primary's reference value may get corrupted
+    // Hence we need to skip if _cur_microblock hash is the same
+    if (_store.micro_block_exists(hash) || _cur_microblock->Hash() == hash)
     {
-        _cur_microblock = static_pointer_cast<PrePrepare>(message);
+        return;
     }
+    else if (_ongoing)
+    {
+        LOG_FATAL(_log) << "MicroBlockConsensusManager::QueueMessagePrimary - Unexpected scenario:"
+                        << " new block (possibly from secondary list) with hash " << hash.to_string()
+                        << " got promoted while current consensus round with hash " << _cur_microblock->Hash().to_string()
+                        << " is still ongoing!";
+        trace_and_halt();
+    }
+    _cur_microblock = static_pointer_cast<PrePrepare>(message);
 }
 
 auto

@@ -209,7 +209,7 @@ void ConsensusManager<CT>::InitiateConsensus(bool reproposing)
 {
     LOG_INFO(_log) << "Initiating "
                    << ConsensusToName(CT)
-                   << " consensus.";
+                   << " consensus, reproposing " << reproposing;
 
     auto & pre_prepare = PrePrepareGetNext();
 
