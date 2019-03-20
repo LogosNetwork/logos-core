@@ -2541,11 +2541,12 @@ logos::thread_runner::thread_runner (boost::asio::io_service & service_a, unsign
                 LOG_FATAL(log) << exc.what();
                 trace_and_halt();
             }
-//            catch (...)
-//            {
-//                trace_and_halt();
-//                assert (false && "Unhandled service exception");
-//            }
+            catch (...)
+            {
+                Log log;
+                LOG_FATAL(log) << "Unhandled service exception!";
+                trace_and_halt();
+            }
         }));
     }
 }
