@@ -1388,6 +1388,7 @@ void PersistenceManager<R>::PlaceReceive(ReceiveBlock & receive,
 
 void PersistenceManager<R>::ApplyRequest(const StartRepresenting& request, MDB_txn* txn)
 {
+    assert(txn != nullptr);
     RepInfo rep(request);
     assert(!_store.rep_put(request.origin,rep,txn));
     assert(!_store.request_put(request,txn));
@@ -1395,6 +1396,7 @@ void PersistenceManager<R>::ApplyRequest(const StartRepresenting& request, MDB_t
 
 void PersistenceManager<R>::ApplyRequest(const StopRepresenting& request, MDB_txn* txn)
 {
+    assert(txn != nullptr);
     RepInfo rep;
     assert(!_store.rep_get(request.origin,rep,txn));
     rep.rep_action_tip = request.Hash();
@@ -1405,6 +1407,7 @@ void PersistenceManager<R>::ApplyRequest(const StopRepresenting& request, MDB_tx
 
 void PersistenceManager<R>::ApplyRequest(const ElectionVote& request, MDB_txn* txn)
 {
+    assert(txn != nullptr);
     RepInfo rep;
     assert(!_store.rep_get(request.origin,rep,txn));
     rep.election_vote_tip = request.Hash();
@@ -1421,6 +1424,7 @@ void PersistenceManager<R>::ApplyRequest(const ElectionVote& request, MDB_txn* t
 }
 void PersistenceManager<R>::ApplyRequest(const AnnounceCandidacy& request, MDB_txn* txn)
 {
+    assert(txn != nullptr);
     RepInfo rep;
     assert(!_store.rep_get(request.origin,rep, txn));
     CandidateInfo candidate(request);
@@ -1440,6 +1444,7 @@ void PersistenceManager<R>::ApplyRequest(const AnnounceCandidacy& request, MDB_t
 
 void PersistenceManager<R>::ApplyRequest(const RenounceCandidacy& request, MDB_txn* txn)
 {
+    assert(txn != nullptr);
     CandidateInfo candidate;
     if(!_store.candidate_get(request.origin, candidate, txn))
     {
@@ -1488,8 +1493,13 @@ uint32_t GetEpochNum(std::shared_ptr<Request> req)
     }
 }
 
-bool PersistenceManager<R>::ValidateRequest(const ElectionVote& vote_request, uint32_t cur_epoch_num, MDB_txn* txn, logos::process_return & result)
+bool PersistenceManager<R>::ValidateRequest(
+        const ElectionVote& vote_request,
+        uint32_t cur_epoch_num,
+        MDB_txn* txn,
+        logos::process_return & result)
 {
+    assert(txn != nullptr);
     if(vote_request.epoch_num != cur_epoch_num)
     {
         result.code = logos::process_result::wrong_epoch_number;
@@ -1591,6 +1601,7 @@ bool PersistenceManager<R>::ValidateRequest(
         MDB_txn* txn,
         logos::process_return& result)
 {
+    assert(txn != nullptr);
     if(request.epoch_num != cur_epoch_num)
     {
         result.code = logos::process_result::wrong_epoch_number;
@@ -1661,6 +1672,7 @@ bool PersistenceManager<R>::ValidateRequest(
         MDB_txn* txn,
         logos::process_return& result)
 {
+    assert(txn != nullptr);
     if(request.epoch_num != cur_epoch_num)
     {
         result.code = logos::process_result::wrong_epoch_number;
@@ -1713,6 +1725,7 @@ bool PersistenceManager<R>::ValidateRequest(
  */
 bool PersistenceManager<R>::IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn)
 {
+    assert(txn != nullptr);
     BlockHash hash; 
     assert(!_store.epoch_tip_get(hash,txn));
 
@@ -1728,6 +1741,7 @@ bool PersistenceManager<R>::ValidateRequest(
         MDB_txn* txn,
         logos::process_return& result)
 {
+    assert(txn != nullptr);
     if(request.epoch_num != cur_epoch_num)
     {
         result.code = logos::process_result::wrong_epoch_number;
@@ -1775,6 +1789,7 @@ bool PersistenceManager<R>::ValidateRequest(
         MDB_txn* txn,
         logos::process_return& result)
 {
+    assert(txn != nullptr);
     if(request.epoch_num != cur_epoch_num)
     {
         result.code = logos::process_result::wrong_epoch_number;
