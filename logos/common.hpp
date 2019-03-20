@@ -341,7 +341,7 @@ enum class process_result
     too_many_token_entries,      // Logos - The account has too many token entries.
     elections_dead_period,           // Logos - the vote is at the beginning of the epoch when no votes are being processed
     not_a_rep,                 // Logos - the voter is not a representative
-    already_voted,
+    already_voted,              //TODO: add descriptions
     invalid_candidate,
     not_enough_stake,
     never_announced_candidacy,
