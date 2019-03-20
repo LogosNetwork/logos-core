@@ -196,9 +196,6 @@ TEST (Elections, blockstore)
         rep_info.election_vote_tip = ev.Hash();
         rep_info.candidacy_action_tip = announce.Hash();
         rep_info.rep_action_tip = start.Hash();
-        rep_info.active = true;
-        rep_info.remove = true;
-        rep_info.voted = true;
         rep_info.stake = 37;
 
         res = store->rep_put(rep_account,rep_info,txn);
@@ -344,48 +341,6 @@ void iterateCandidatesDB(
     {
         func(it);
     }
-}
-
-TEST(Elections, representatives_db)
-{
-    logos::block_store* store = get_db();
-    store->clear(store->representative_db);
-    logos::transaction txn(store->environment,nullptr,true);
-
-    AccountAddress rep_address;
-    RepInfo rep;
-    rep.candidacy_action_tip = 12;
-    rep.election_vote_tip = 4;
-    rep.rep_action_tip = 42;
-    rep.voted = false;
-    rep.active = false;
-    rep.remove = false;
-
-    store->rep_put(rep_address,rep,txn);
-    RepInfo rep2;
-    store->rep_get(rep_address,rep2,txn);
-    ASSERT_EQ(rep,rep2);
-
-    PersistenceManager<ECT> mgr(*store,nullptr);
-
-    mgr.UpdateRepresentativesDB(txn);
-
-    ASSERT_FALSE(store->rep_get(rep_address, rep2, txn));
-    ASSERT_TRUE(rep2.active);
-    rep.active = true;
-    rep.voted = true;
-    store->rep_put(rep_address, rep, txn);
-    mgr.UpdateRepresentativesDB(txn);
-    ASSERT_FALSE(store->rep_get(rep_address, rep2, txn));
-    ASSERT_FALSE(rep2.voted);
-
-    rep.remove = true;
-    store->rep_put(rep_address, rep, txn);
-    mgr.UpdateRepresentativesDB(txn);
-    
-    ASSERT_TRUE(store->rep_get(rep_address, rep2, txn));
-
-    
 }
 
 TEST(Elections,candidates_transition)

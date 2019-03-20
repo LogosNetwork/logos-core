@@ -2857,14 +2857,10 @@ void logos::rpc_handler::representatives ()
         RepInfo info(error, it->second);
         if(error)
         {
-            error_response(response,"error reading candidate");
+            error_response(response,"error reading representative");
             return;
         }
-        if(info.active)
-        {
-            res.add_child(it->first.uint256().to_string(),info.SerializeJson());
-        }
-        res.add_child(it->first.uint256().to_string(),candidate);
+        res.add_child(it->first.uint256().to_string(),info.SerializeJson());
     } 
     response(res);
 }

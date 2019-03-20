@@ -177,32 +177,6 @@ void PersistenceManager<ECT>::UpdateRepresentativesDB(MDB_txn* txn)
     }
 
     _store.clear(_store.remove_reps_db, txn);
-
-
-    for(auto it = logos::store_iterator(txn, _store.representative_db);
-            it != logos::store_iterator(nullptr); ++it)
-    {
-        bool error = false;
-        RepInfo info(error,it->second);
-        if(!error)
-        {
-            if(info.remove)
-            {
-                assert(!mdb_cursor_del(it.cursor,0));
-            }
-            else if(!info.active)
-            {
-                info.active = true;
-                std::vector<uint8_t> buf;
-                assert(!mdb_cursor_put(it.cursor,it->first,info.to_mdb_val(buf),MDB_CURRENT));
-            } else
-            {
-                info.voted = false;
-                std::vector<uint8_t> buf;
-                assert(!mdb_cursor_put(it.cursor,it->first,info.to_mdb_val(buf),MDB_CURRENT));
-            }
-        }
-    }
 }
 
 void PersistenceManager<ECT>::UpdateCandidatesDB(MDB_txn* txn)
