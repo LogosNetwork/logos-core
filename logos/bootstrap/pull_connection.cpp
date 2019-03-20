@@ -10,12 +10,12 @@ namespace Bootstrap
 	, puller(puller)
 	, request(puller.GetPull())
 	{
-		LOG_TRACE(log) << __func__;
+		LOG_TRACE(log) << "bulk_pull_client::"<<__func__;
 	}
 
 	bulk_pull_client::~bulk_pull_client ()
 	{
-		LOG_TRACE(log) << __func__;
+		LOG_TRACE(log) << "bulk_pull_client::"<<__func__;
 	}
 
 	void bulk_pull_client::run()
@@ -24,36 +24,39 @@ namespace Bootstrap
         auto send_buffer (std::make_shared<std::vector<uint8_t>> ());
         {
             logos::vectorstream stream (*send_buffer);
+            MessageHeader header(logos_version, MessageType::PullRequest, ConsensusType::Any, PullRequest::WireSize);
+            header.Serialize(stream);
             request->Serialize(stream);
         }
 
         auto this_l = shared_from_this();
-        connection->AsyncSend(send_buffer, [this_l, send_buffer](bool good)
+        connection->AsyncSend(send_buffer, [this, this_l, send_buffer](bool good)
         		{
 					if (good)
 					{
-						LOG_TRACE(this_l->log) << "waiting peer tips...";
-						this_l->receive_block();
+						LOG_TRACE(log) << "waiting peer tips...";
+						receive_block();
 					}
 					else
 					{
-						LOG_TRACE(this_l->log) << "bulk_pull_client::run: net error";
-						this_l->puller.PullFailed(this_l->request);
-						this_l->connection->OnNetworkError();
+						LOG_TRACE(log) << "bulk_pull_client::run: net error";
+						puller.PullFailed(request);
+						connection->OnNetworkError();
 					}
 				});
 	}
 
     void bulk_pull_client::receive_block ()
     {
+		LOG_TRACE(log) << "bulk_pull_client::"<<__func__;
         auto this_l = shared_from_this ();
-        connection->AsyncReceive([this_l](bool good, MessageHeader header, uint8_t * buf)
+        connection->AsyncReceive([this, this_l](bool good, MessageHeader header, uint8_t * buf)
         		{
         			PullStatus pull_status = PullStatus::Unknown;
         			if(good)
         	        {
         	            logos::bufferstream stream (buf, header.payload_size);
-    	            	pull_status = this_l->process_reply(header.pull_response_ct, stream);
+    	            	pull_status = process_reply(header.pull_response_ct, stream);
         	        }
 
         			switch (pull_status) {
@@ -61,23 +64,23 @@ namespace Bootstrap
 #ifdef BOOTSTRAP_PROGRESS
         				block_progressed();
 #endif
-        				this_l->receive_block();
+        				receive_block();
 						break;
 					case PullStatus::Done:
 #ifdef BOOTSTRAP_PROGRESS
 						block_progressed();
 #endif
-						this_l->connection->Release();
-						this_l->connection = nullptr;//TODO delete?
+						connection->Release();
+						connection = nullptr;
 						break;
 					case PullStatus::BlackListSender:
-						this_l->connection->OnNetworkError(true);
-						this_l->connection = nullptr;
+						connection->OnNetworkError(true);
+						connection = nullptr;
 						break;
 					case PullStatus::DisconnectSender:
 					default:
-						this_l->connection->OnNetworkError();
-						this_l->connection = nullptr;
+						connection->OnNetworkError();
+						connection = nullptr;
 						break;
 					}
                 });
@@ -85,6 +88,7 @@ namespace Bootstrap
 
     PullStatus bulk_pull_client::process_reply (ConsensusType ct, logos::bufferstream & stream)
     {
+		LOG_TRACE(log) << "bulk_pull_client::"<<__func__;
     	bool error = false;
     	switch (ct) {
 			case ConsensusType::BatchStateBlock:
@@ -126,43 +130,43 @@ namespace Bootstrap
     /////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////
 
-    bulk_pull_server::bulk_pull_server (std::shared_ptr<ISocket> server, PullPtr pull, Store & store)
+    bulk_pull_server::bulk_pull_server (std::shared_ptr<ISocket> server, PullRequest pull, Store & store)
     : connection(server)
     , request_handler(pull, store)
 	{
-		LOG_TRACE(log) << __func__;
+		LOG_TRACE(log) << "bulk_pull_server::"<<__func__;
 	}
 
     bulk_pull_server::~bulk_pull_server()
 	{
-		LOG_TRACE(log) << __func__;
+		LOG_TRACE(log) << "bulk_pull_server::"<<__func__;
 	}
 
     void bulk_pull_server::send_block ()
     {
-        LOG_TRACE(log) << "bulk_pull_server::send_block";
+		LOG_TRACE(log) << "bulk_pull_server::"<<__func__;
         auto send_buffer(std::make_shared<std::vector<uint8_t>>());
         auto more (request_handler.GetNextSerializedResponse(*send_buffer));
         auto this_l = shared_from_this();
-        connection->AsyncSend(send_buffer, [this_l, more](bool good)
+        connection->AsyncSend(send_buffer, [this, this_l, more](bool good)
 				{
 					if (good)
 					{
-						LOG_TRACE(this_l->log) << "Sent a block";
+						LOG_TRACE(log) << "Sent a block";
 						if(more)
 						{
-							this_l->send_block();
+							send_block();
 						}
 						else
 						{
-							this_l->connection->Release();
-							this_l->connection = nullptr;
+							connection->Release();
+							connection = nullptr;
 						}
 					}
 					else
 					{
-						LOG_ERROR(this_l->log) << "Error sending tips";
-						this_l->connection->OnNetworkError();
+						LOG_ERROR(log) << "Error sending tips";
+						connection->OnNetworkError();
 					}
 				});
     }

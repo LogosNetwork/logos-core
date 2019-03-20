@@ -183,7 +183,7 @@ namespace Bootstrap {
 #define BOOTSTRAP_PROGRESS
 #ifdef BOOTSTRAP_PROGRESS
 #include <atomic>
-    unsigned get_block_progress_and_reset();
+    unsigned get_block_progress();
 	void block_progressed();
 #endif
 

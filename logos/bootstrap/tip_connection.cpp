@@ -15,12 +15,12 @@ namespace Bootstrap
     : connection (connection)
     , request(TipSet::CreateTipSet(store))
     {
-        LOG_TRACE(log) << __func__;
+        LOG_TRACE(log) <<"tips_req_client::"<< __func__;
     }
 
     tips_req_client::~tips_req_client ()
     {
-    	 LOG_TRACE(log) << __func__;
+        LOG_TRACE(log) <<"tips_req_client::"<< __func__;
     }
 
     void tips_req_client::run ()
@@ -29,25 +29,28 @@ namespace Bootstrap
         auto send_buffer (std::make_shared<std::vector<uint8_t>> ());
         {
             logos::vectorstream stream (*send_buffer);
+            MessageHeader header(logos_version, MessageType::TipRequest, ConsensusType::Any, TipSet::WireSize);
+            header.Serialize(stream);
             request.Serialize(stream);
         }
 
-        auto this_l = shared_from_this();
-        connection->AsyncSend(send_buffer, [this_l, send_buffer](bool good)
+        //auto this_l = shared_from_this();//should be safe without
+        connection->AsyncSend(send_buffer, [this, send_buffer](bool good)
         		{
 					if (good)
 					{
-						LOG_TRACE(this_l->log) << "waiting peer tips...";
-						this_l->receive_tips();
+						//LOG_TRACE(log) << "tips_req_client::run waiting peer tips...";
+						receive_tips();
 					}
 					else
 					{
 						try {
-							this_l->promise.set_value(true); // Report the error to caller in bootstrap.cpp.
+							LOG_TRACE(log) << "tips_req_client::run AsyncSend error";
+							promise.set_value(true); // Report the error to caller in bootstrap.cpp.
 						}
 						catch(const std::future_error &e)
 						{
-							LOG_TRACE(this_l->log) << "tips_req_client::run: error setting promise: " << e.what();
+							LOG_TRACE(log) << "tips_req_client::run: error setting promise: " << e.what();
 						}
 					}
 				});
@@ -55,30 +58,33 @@ namespace Bootstrap
 
     void tips_req_client::receive_tips()
     {
+        LOG_TRACE(log) <<"tips_req_client::"<< __func__;
         auto this_l = shared_from_this ();
-        connection->AsyncReceive([this_l](bool good, MessageHeader header, uint8_t * buf)
+        connection->AsyncReceive([this, this_l](bool good, MessageHeader header, uint8_t * buf)
         		{
         			bool error = false;
         			if(good)
         	        {
         	            logos::bufferstream stream (buf, header.payload_size);
-        	            new (&this_l->response) TipSet(error, stream);
+        	            new (&response) TipSet(error, stream);
         	            if (!error)
         	            {
-        	            	this_l->connection->Release();
-        	            	this_l->connection = nullptr;
-        	            	this_l->promise.set_value(false);
+        	            	std::cout <<"tips_req_client::"<< __func__ << " tips parsed" << std::endl;//TODO
+            				LOG_TRACE(log) <<"tips_req_client::"<< __func__ << "tips parsed";
+        	            	connection->Release();
+        	            	connection = nullptr;
+        	            	promise.set_value(false);
         	            }
         	        } else {
-        	            LOG_WARN(this_l->log) << "tips_req_client::received_tips error...";
+        	            LOG_WARN(log) << "tips_req_client::received_tips error...";
         	            error = true;
         	        }
 
         			if(error)
         			{
-        				this_l->connection->OnNetworkError();
-        				this_l->connection = nullptr;
-        				this_l->promise.set_value(true);
+        				connection->OnNetworkError();
+        				connection = nullptr;
+        				promise.set_value(true);
         			}
                 });
     }
@@ -93,12 +99,12 @@ namespace Bootstrap
     , request (request)
     , response (TipSet::CreateTipSet(store))
     {
-        LOG_TRACE(log) << __func__;
+        LOG_TRACE(log) <<"tips_req_server::"<<__func__;
     }
 
     tips_req_server::~tips_req_server()
     {
-        LOG_TRACE(log) << __func__;
+        LOG_TRACE(log) << "tips_req_server::"<<__func__;
     }
 
     void tips_req_server::send_tips()
@@ -107,21 +113,31 @@ namespace Bootstrap
         auto send_buffer(std::make_shared<std::vector<uint8_t>>());
         {
             logos::vectorstream stream(*send_buffer);
+            MessageHeader header(logos_version, MessageType::TipResponse, ConsensusType::Any, TipSet::WireSize);
+            header.Serialize(stream);
             response.Serialize(stream);
         }
+		//    	{
+		//    	    std::stringstream stream;
+		//    	    for(size_t i = 0; i < send_buffer->size(); ++i)
+		//    	    {
+		//    	        stream << std::hex << std::noshowbase << std::setw (2) << std::setfill ('0') << (unsigned int)((*send_buffer)[i]);
+		//    	    }
+		//    	    LOG_TRACE(log) << "bootstrap_server::"<<__func__ <<" data:" << stream.str ();
+		//    	}
 
         auto this_l = shared_from_this();
-        connection->AsyncSend(send_buffer, [this_l](bool good)
+        connection->AsyncSend(send_buffer, [this, this_l](bool good)
 				{
         			if (good)
         			{
-        				LOG_INFO (this_l->log) << "Sending tips done";
-        				this_l->connection->Release();
+        				LOG_INFO (log) << "Sending tips done";
+        				connection->Release();
         			}
         			else
         			{
-        				LOG_ERROR(this_l->log) << "Error sending tips";
-        				this_l->connection->OnNetworkError();
+        				LOG_ERROR(log) << "Error sending tips";
+        				connection->OnNetworkError();
         			}
 				});
 

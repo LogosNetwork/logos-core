@@ -1657,10 +1657,8 @@ void logos::node::start ()
 //#ifdef _DEBUG
     network.receive (); // Needed to get unit test going...
     ongoing_keepalive ();
-    ongoing_bootstrap ();
     //ongoing_store_flush ();
     //ongoing_rep_crawl ();
-    bootstrap_listener.start ();
     backup_wallet ();
     //active.announce_votes ();
     //online_reps.recalculate_stake ();
@@ -1671,6 +1669,9 @@ void logos::node::start ()
 
 // CH added starting logic here instead of inside constructors
     _archiver.Start(*_consensus_container);
+
+    bootstrap_listener.start ();
+    ongoing_bootstrap ();
 }
 
 void logos::node::stop ()

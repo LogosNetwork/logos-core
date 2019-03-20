@@ -110,7 +110,7 @@ namespace Bootstrap
     class PullRequestHandler
     {
     public:
-        PullRequestHandler(PullPtr request, Store & store);
+        PullRequestHandler(PullRequest request, Store & store);
 
         //TODO rate limit the requester?
         //return: if true call again for more blocks
@@ -119,9 +119,10 @@ namespace Bootstrap
     private:
         uint32_t GetBlock(BlockHash & hash, std::vector<uint8_t> & buf);
 
-        PullPtr request;
+        PullRequest request;
         Store & store;
         BlockHash next;
+        Log log;
     };
 
 } //namespace

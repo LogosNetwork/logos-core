@@ -3,6 +3,8 @@
 #include <logos/bootstrap/pull.hpp>
 #include <logos/consensus/persistence/block_cache.hpp>
 
+constexpr uint32_t bootstrap_tip_max_retry = 16;
+
 namespace logos
 {
 	class alarm;
@@ -28,20 +30,23 @@ namespace Bootstrap
 
         /// run start of bootstrap_attempt
         void run();
-
-        /// @returns the number of connections to create
-        size_t target_connections(size_t need);
-
-        /// populate_connections create connections for pull requests
-        void populate_connections(size_t need = 0);
+        /// stop stop the attempt
+        void stop();
 
         /// add_connection Add an endpoint
         /// @param endpoint
         void add_connection(logos::endpoint const & endpoint);
-
         /// pool_connection store connection on idle queue for re-use
         void pool_connection(std::shared_ptr<bootstrap_client> client);
         void remove_connection(std::shared_ptr<bootstrap_client> client, bool blacklist);
+
+        logos::alarm & alarm;
+    private:
+        /// @returns the number of connections to create
+        size_t target_connections(size_t need);
+
+        /// populate_connections create connections for pull requests
+        bool populate_connections(size_t need = 0);
 
         /// connection
         /// @param unique_lock
@@ -62,16 +67,14 @@ namespace Bootstrap
         /// @returns boolean
         bool consume_future(std::future<bool> &);
 
-        /// stop stop the attempt
-        void stop();
 
-        logos::alarm & alarm;
         Store & store;
         PeerInfoProvider & peer_provider;
 
         std::mutex mtx;
         std::unordered_set<std::shared_ptr<bootstrap_client>> working_clients;
         std::unordered_set<std::shared_ptr<bootstrap_client>> idle_clients;
+        std::unordered_set<std::shared_ptr<bootstrap_client>> connecting_clients;
         const uint8_t max_connected;
         int session_id;
 

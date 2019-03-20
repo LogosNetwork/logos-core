@@ -43,7 +43,7 @@ namespace Bootstrap
         /// Class constructor
         /// @param bootstrap_server
         /// @param bulk_pull (the actual request being made)
-        bulk_pull_server (std::shared_ptr<ISocket> server, PullPtr pull, Store & store);
+        bulk_pull_server (std::shared_ptr<ISocket> server, PullRequest pull, Store & store);
 
         ~bulk_pull_server();
 

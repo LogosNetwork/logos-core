@@ -12,10 +12,13 @@ namespace Bootstrap
 	Puller::Puller(IBlockCache & block_cache)//, Store & store)
 	: block_cache(block_cache)
 //	, store(store)
-	{}
+	{
+		LOG_TRACE(log) << "Puller::"<<__func__;
+	}
 
 	void Puller::Init(TipSet & my_tips, TipSet & others_tips)
 	{
+		LOG_TRACE(log) << "Puller::"<<__func__;
 		std::lock_guard<std::mutex> lck (mtx);
 		this->my_tips = my_tips;
 		this->others_tips = others_tips;
@@ -57,6 +60,7 @@ namespace Bootstrap
 
 	PullStatus Puller::EBReceived(PullPtr pull, EBPtr block)
     {
+		LOG_TRACE(log) << "Puller::"<<__func__;
     	assert(state==PullState::Epoch && working_epoch.eb == nullptr);
     	bool good_block = block->previous == pull->prev_hash &&
     			block_cache.AddEB(block);
@@ -79,6 +83,7 @@ namespace Bootstrap
 
 	PullStatus Puller::MBReceived(PullPtr pull, MBPtr block)
     {
+		LOG_TRACE(log) << "Puller::"<<__func__;
     	assert(state==PullState::Micro);
     	bool good_block = block->previous == pull->prev_hash &&
     			//block->epoch_number == working_epoch.epoch_num &&
@@ -111,6 +116,7 @@ namespace Bootstrap
 
 	PullStatus Puller::BSBReceived(PullPtr pull, BSBPtr block, bool last_block)
 	{
+		LOG_TRACE(log) << "Puller::"<<__func__;
     	assert(state==PullState::Batch || state==PullState::Batch_No_MB);
     	bool good_block = block->previous == pull->prev_hash &&
     			block->epoch_number == working_epoch.epoch_num &&
@@ -196,6 +202,7 @@ namespace Bootstrap
 
     void Puller::PullFailed(PullPtr pull)
     {
+		LOG_TRACE(log) << "Puller::"<<__func__;
     	std::lock_guard<std::mutex> lck (mtx);
     	ongoing_pulls.erase(pull);
     	waiting_pulls.push_front(pull);
@@ -203,6 +210,7 @@ namespace Bootstrap
 
     void Puller::CreateMorePulls()
     {
+		LOG_TRACE(log) << "Puller::"<<__func__;
     	// should be called with mtx locked
     	// should be called only when both waiting_pulls and ongoing_pulls are empty
     	assert(waiting_pulls.empty() && ongoing_pulls.empty());
@@ -352,6 +360,7 @@ namespace Bootstrap
 
     void Puller::CheckMicroProgress()
     {
+		LOG_TRACE(log) << "Puller::"<<__func__;
 		assert(working_epoch.cur_mbp.bsb_targets.empty());
 		//reduce two mbps to one mbp
 		if(working_epoch.two_mbps)
@@ -422,7 +431,8 @@ namespace Bootstrap
 
     void Puller::UpdateMyBSBTip(BSBPtr block)
     {
-    	auto d_idx = block->primary_delegate;
+		LOG_TRACE(log) << "Puller::"<<__func__;
+		auto d_idx = block->primary_delegate;
     	BlockHash digest = block->Hash();
     	//try old epoch
     	if(my_tips.bsb_vec[d_idx].digest == block->previous)
@@ -445,6 +455,7 @@ namespace Bootstrap
 
     void Puller::UpdateMyMBTip(MBPtr block)
     {
+		LOG_TRACE(log) << "Puller::"<<__func__;
     	assert(my_tips.mb.digest == block->previous);
     	my_tips.mb.digest = block->Hash();
     	my_tips.mb.epoch = block->epoch_number;
@@ -453,6 +464,7 @@ namespace Bootstrap
 
     void Puller::UpdateMyEBTip(EBPtr block)
     {
+		LOG_TRACE(log) << "Puller::"<<__func__;
     	assert(my_tips.eb.digest == block->previous);
     	my_tips.eb.digest = block->Hash();
     	my_tips.eb.epoch = block->epoch_number;
@@ -463,12 +475,13 @@ namespace Bootstrap
     ///////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////
 
-    PullRequestHandler::PullRequestHandler(PullPtr request, Store & store)
+    PullRequestHandler::PullRequestHandler(PullRequest request, Store & store)
     : request(request)
     , store(store)
     {
-    	std::vector<uint8_t> buf;
-    	uint32_t block_size = GetBlock(request->prev_hash, buf);
+		LOG_TRACE(log) << "PullRequestHandler::"<<__func__;
+		std::vector<uint8_t> buf;
+    	uint32_t block_size = GetBlock(request.prev_hash, buf);
 		if(block_size > 0)//have block
 		{
 			memcpy (next.data(), buf.data() + PullResponseReserveSize + block_size - HASH_SIZE, HASH_SIZE);
@@ -477,7 +490,8 @@ namespace Bootstrap
 
     uint32_t PullRequestHandler::GetBlock(BlockHash & hash, std::vector<uint8_t> & buf)
     {
-		switch (request->block_type) {
+		LOG_TRACE(log) << "PullRequestHandler::"<<__func__;
+		switch (request.block_type) {
 			case ConsensusType::BatchStateBlock:
 				return 0;//TODO store.batch_block_get_raw(hash, PullResponseReserveSize, buf);
 			case ConsensusType::MicroBlock:
@@ -491,6 +505,7 @@ namespace Bootstrap
 
     bool PullRequestHandler::GetNextSerializedResponse(std::vector<uint8_t> & buf)
     {
+		LOG_TRACE(log) << "PullRequestHandler::"<<__func__;
     	assert(buf.empty());
 
     	uint32_t block_size = 0;
@@ -502,7 +517,7 @@ namespace Bootstrap
     	auto status = PullResponseStatus::NoBlock;
     	if(block_size > 0)//have block
     	{
-    		if(next == request->target)
+    		if(next == request.target)
     		{
     			status = PullResponseStatus::LastBlock;
     		}
@@ -519,7 +534,7 @@ namespace Bootstrap
     			}
     		}
     	}
-    	PullResponseSerializedLeadingFields(request->block_type, status, block_size, buf);
+    	PullResponseSerializedLeadingFields(request.block_type, status, block_size, buf);
     	return status == PullResponseStatus::MoreBlock;
     }
 

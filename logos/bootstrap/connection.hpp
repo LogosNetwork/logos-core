@@ -70,6 +70,7 @@ namespace Bootstrap
         template <typename Derived>
         std::shared_ptr<Derived> shared_from_base()
         {
+        	//LOG_TRACE(log) << "bootstrap_socket::"<<__func__;
             return std::static_pointer_cast<Derived>(shared_from_this());
         }
 

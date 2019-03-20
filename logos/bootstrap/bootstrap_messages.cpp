@@ -3,7 +3,10 @@
 namespace Bootstrap
 {
 
-    MessageHeader::MessageHeader(uint8_t version, MessageType type, ConsensusType ct, uint32_t payload_size)
+    MessageHeader::MessageHeader(uint8_t version,
+    		MessageType type,
+			ConsensusType ct,
+			uint32_t payload_size)
     : version(version)
     , type(type)
     , pull_response_ct(ct)
@@ -53,7 +56,7 @@ namespace Bootstrap
 
     bool MessageHeader::Validate()
     {
-        return version != logos_version &&
+        return version == logos_version &&
                (type == MessageType::TipRequest ||
                 type == MessageType::PullRequest ||
                 type == MessageType::TipResponse ||
@@ -342,8 +345,8 @@ namespace Bootstrap
 	}
 
 #ifdef BOOTSTRAP_PROGRESS
-	std::atomic<unsigned> num_blocks_processed(0);
-	unsigned get_block_progress_and_reset()
+	std::atomic<unsigned> num_blocks_processed(1);
+	unsigned get_block_progress()
 	{
 		unsigned b = num_blocks_processed;
 		num_blocks_processed = 0;

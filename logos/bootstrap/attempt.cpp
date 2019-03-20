@@ -18,12 +18,12 @@ namespace Bootstrap
     , puller(cache)
     , stopped(false)
     {
-        LOG_DEBUG(log) << "Starting bootstrap attempt";
+        LOG_DEBUG(log) << "Starting bootstrap_attempt";
     }
 
     bootstrap_attempt::~bootstrap_attempt()
     {
-        LOG_INFO(log) << "Exiting bootstrap attempt";
+        LOG_DEBUG(log) << "Exiting bootstrap_attempt";
         stop();
         if(session_id != PeerInfoProvider::GET_PEER_NEW_SESSION)
             peer_provider.close_session(session_id);
@@ -35,15 +35,8 @@ namespace Bootstrap
 
         //std::unique_lock<std::mutex> lock(mtx);
         auto tips_failure(true);
-        uint32_t retry = 0;
         while (!stopped && tips_failure)
         {
-            retry++;
-            if (retry > bootstrap_max_retry)
-            {
-                LOG_ERROR(log) << "bootstrap_attempt::run error too many retries for request_tips";
-                return; // Couldn't get tips in this attempt
-            }
             tips_failure = request_tips();
         }
 
@@ -63,15 +56,14 @@ namespace Bootstrap
         }
 
         if (!stopped)
-            LOG_INFO(log) << "Completed pulls";
-		//        else
-		//            clean(); //TODO Must wait till threads using this have stopped, else mem fault...
-
-        LOG_DEBUG(log) << "bootstrap_attempt::run end }";
+            LOG_DEBUG(log) << "bootstrap_attempt::run end. Completed pulls}";
+        else
+            LOG_DEBUG(log) << "bootstrap_attempt::run end. Stopped pulls}";
     }
 
-    bool bootstrap_attempt::request_tips()//std::unique_lock<std::mutex> &lock_a)
+    bool bootstrap_attempt::request_tips()
     {
+    	LOG_TRACE(log) << "bootstrap_attempt::"<<__func__;
         // NOTE: Get the connection from the pool and get tips.
         auto failed(true);
         auto connection_l(get_connection());
@@ -95,7 +87,9 @@ namespace Bootstrap
         return failed;
     }
 
-    bool bootstrap_attempt::consume_future(std::future<bool> &future_a) {
+    bool bootstrap_attempt::consume_future(std::future<bool> &future_a)
+    {
+    	LOG_TRACE(log) << "bootstrap_attempt::"<<__func__;
         bool result;
         try {
             std::chrono::system_clock::time_point minute_passed
@@ -115,7 +109,7 @@ namespace Bootstrap
         return result;
     }
 
-    void bootstrap_attempt::request_pull()//std::unique_lock<std::mutex> &lock_a)
+    void bootstrap_attempt::request_pull()
     {
         LOG_DEBUG(log) << "bootstrap_attempt::request_pull: start";
         while(puller.GetNumWaitingPulls() > 0)
@@ -133,30 +127,45 @@ namespace Bootstrap
         }
     }
 
-    std::shared_ptr<bootstrap_client> bootstrap_attempt::get_connection()//std::unique_lock<std::mutex> &lock_a)
+    std::shared_ptr<bootstrap_client> bootstrap_attempt::get_connection()
     {
-    	populate_connections(1);
+    	LOG_TRACE(log) << "bootstrap_attempt::"<<__func__;
+
     	std::unique_lock<std::mutex> lock(mtx);
-        while (!stopped && idle_clients.empty()) {
-            // The code has been observed to wait here if idle is empty...
-            // First we create connections in populate_connection, then those clients call run and
-            // if they successfully connect, the new connection goes into the idle queue. If we have
-            // no connections, we need to wait for them.
-            LOG_DEBUG(log) << "bootstrap_attempt::connection:: wait... "
-                           << "!idle.empty(): " << !idle_clients.empty()
-                           << " stopped: " << stopped;
-            condition.wait(lock);
+        while (!stopped && idle_clients.empty())
+        {
+        	if(populate_connections(1))
+        	{
+				LOG_DEBUG(log) << "bootstrap_attempt::get_connection: "
+							   << "trying to async-connect, wait... "
+							   << "idle.empty()=" << idle_clients.empty()
+							   << " stopped=" << stopped;
+				condition.wait(lock);
+				LOG_DEBUG(log) << "bootstrap_attempt::get_connection: wakeup ";
+        	}
+        	else
+        	{
+        		LOG_DEBUG(log) << "bootstrap_attempt::get_connection: will retry after sleep";
+        		lock.unlock();
+        		usleep(1000000);//TODO
+        		lock.lock();
+        	}
         }
         std::shared_ptr <bootstrap_client> result;
-        if (!idle_clients.empty())
+        if (!stopped && !idle_clients.empty())
         {
         	auto itor = idle_clients.begin();
         	result = *itor;
             idle_clients.erase(itor);
             working_clients.insert(result);
-        } else {
-            LOG_DEBUG(log) << "idle is empty: stopped: " << stopped
-                           << " !idle.empty(): " << !(idle_clients.empty());
+            LOG_DEBUG(log) << "bootstrap_attempt::" <<__func__
+            				<<" got a connection";
+        }
+        else
+        {
+            LOG_DEBUG(log) << "bootstrap_attempt::" <<__func__
+            				<< " idle_empty=" << idle_clients.empty()
+							<< " stopped=" << stopped;
         }
         return result;
     }
@@ -164,54 +173,70 @@ namespace Bootstrap
     size_t bootstrap_attempt::target_connections(size_t need)
     {
         need = std::max(need, puller.GetNumWaitingPulls());
-        std::lock_guard <std::mutex> lock(mtx);
+        //std::lock_guard <std::mutex> lock(mtx);
         auto num_con = working_clients.size() + idle_clients.size();
         assert(max_connected >= num_con);
         size_t allowed = max_connected - num_con;
         return std::min(allowed, need);
     }
 
-    void bootstrap_attempt::populate_connections(size_t need)
+    bool bootstrap_attempt::populate_connections(size_t need)
     {
         LOG_DEBUG(log) << "bootstrap_attempt::populate_connections begin {";
 
         uint8_t delta = target_connections(need);
 
-        LOG_DEBUG(log) << "bootstrap_attempt:: delta: " << delta
+        LOG_DEBUG(log) << "bootstrap_attempt:: delta: " << (uint)delta
                        << " working_clients.size: " << working_clients.size()
                        << " idle_clients.size: " << idle_clients.size();
 
         if(delta == 0)
         {
-            LOG_DEBUG(log) << __func__ << " don't need more connections";
-            return;
+            LOG_DEBUG(log) << "bootstrap_attempt::"<<__func__
+            				<< " don't need more connections";
+            return false;
         }
 
         std::vector<logos::endpoint> peers;
         session_id = peer_provider.get_peers(session_id, peers, delta);
         if(peers.size() == 0)
         {
-            LOG_INFO(log) << __func__ << " cannot get peers";
-            return;
+            LOG_INFO(log) << "bootstrap_attempt::"<<__func__
+            				<< " cannot get peers";
+            return false;
         }
 
         for (auto peer : peers)
         {
+        	LOG_DEBUG(log) << "bootstrap_attempt::populate_connection, "
+        					<<"peer " << peer.address().to_string();
         	add_connection(peer);
         }
 
         LOG_DEBUG(log) << "bootstrap_attempt::populate_connections end }";
+        return true;
     }
 
 	void bootstrap_attempt::add_connection(logos::endpoint const &endpoint_a)
 	{
+    	LOG_TRACE(log) << "bootstrap_attempt::"<<__func__
+    			<< ", peer ip: " << endpoint_a.address().to_string();
 		logos::tcp_endpoint e (endpoint_a.address(), BOOTSTRAP_PORT);
 		auto client = std::make_shared<bootstrap_client>(*this, e);
+		connecting_clients.insert(client);
+		client->Connect([client, this](bool connected)
+        {
+        	LOG_DEBUG(log) << "bootstrap_client::bootstrap_client: connected="
+        				<< connected;
+        	connecting_clients.erase(client);
+            if(connected && !stopped)
+            	pool_connection (client);
+        });
 	}
 
     void bootstrap_attempt::remove_connection(std::shared_ptr<bootstrap_client> client, bool blacklist)
     {
-    	LOG_DEBUG(log) << __func__;
+    	LOG_TRACE(log) << "bootstrap_attempt::"<<__func__;
     	if(blacklist)
     	{
     		logos::endpoint e(client->PeerAddress(), BOOTSTRAP_PORT);
@@ -225,43 +250,56 @@ namespace Bootstrap
 
     void bootstrap_attempt::pool_connection(std::shared_ptr<bootstrap_client> client)
     {
-        LOG_DEBUG(log) << __func__;
+    	LOG_TRACE(log) << "bootstrap_attempt::"<<__func__;
         std::lock_guard <std::mutex> lock(mtx);
         idle_clients.insert(client);
+    	working_clients.erase(client);
         condition.notify_all();
     }
 
     void bootstrap_attempt::stop()
     {
         LOG_DEBUG(log) << "bootstrap_attempt::stop";
-        std::unique_lock<std::mutex> lock(mtx);
         stopped = true;
+
+        std::unique_lock<std::mutex> lock(mtx);
 
         for (auto client : idle_clients)
         {
-            LOG_DEBUG(log) << "bootstrap_attempt::stop: socket->close "
+            LOG_DEBUG(log) << "bootstrap_attempt::stop: idle_clients socket->close "
             			   << client->PeerAddress();
             client->Disconnect();
         }
         idle_clients.clear();
+
+        for (auto client : connecting_clients)
+		{
+			LOG_DEBUG(log) << "bootstrap_attempt::stop: connecting_clients socket->close "
+						   << client->PeerAddress();
+			client->Disconnect();
+		}
         for (auto client : working_clients)
         {
-            LOG_DEBUG(log) << "bootstrap_attempt::stop: socket->close "
+            LOG_DEBUG(log) << "bootstrap_attempt::stop: working_clients socket->close "
             		       << client->PeerAddress();
             client->Disconnect();
         }
 
         /*
-         * don't call working_clients.clear();
-         * working clients are used by other threads
-         * test if working_clients is empty and wait if not
+         * don't call connecting_clients and working_clients.clear();
+         * their clients are used by other threads
+         * test if they are empty and wait if not
          */
-        while (!working_clients.empty())
+        while (!connecting_clients.empty() || !working_clients.empty())
         {
+            LOG_TRACE(log) << "bootstrap_attempt::stop: before wait"
+            		<< " connecting_clients.empty=" << connecting_clients.empty()
+					<< " working_clients.empty ="<<working_clients.empty();
         	condition.wait(lock);
+            LOG_TRACE(log) << "bootstrap_attempt::stop: after wait";
         }
 
-        condition.notify_all();
+        condition.notify_all();//needed
     }
 }
 

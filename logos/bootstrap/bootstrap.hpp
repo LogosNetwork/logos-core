@@ -12,10 +12,6 @@
 #include <logos/consensus/persistence/block_cache.hpp>
 #include <logos/consensus/consensus_p2p.hpp>
 
-
-constexpr uint32_t bootstrap_tips_retry_limit = 16;
-constexpr uint32_t bootstrap_max_retry = 64;
-
 namespace logos
 {
 	class alarm;
@@ -69,8 +65,9 @@ namespace Bootstrap
         std::mutex mtx;
         std::condition_variable condition;
         uint8_t max_connected;
-        std::thread thread;
         Log log;
+
+        std::thread thread;
     };
 
     class bootstrap_server;

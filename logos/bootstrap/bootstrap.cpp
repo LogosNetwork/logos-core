@@ -26,17 +26,22 @@ namespace Bootstrap
     , peer_provider(peer_provider)
     , stopped(false)
     , max_connected(max_connected)
-    , thread([this]() { run_bootstrap(); })
-    {}
+//    , thread([this]() { run_bootstrap(); })
+    {
+    	LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
+    	thread = std::thread([this]() { run_bootstrap(); });
+    }
 
     bootstrap_initiator::~bootstrap_initiator()
     {
-        stop();
+    	LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
+    	stop();
         thread.join();
     }
 
     void bootstrap_initiator::bootstrap()
     {
+    	LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
         std::unique_lock<std::mutex> lock(mtx);
         if (!stopped && attempt == nullptr) {
             attempt = std::make_shared<bootstrap_attempt>(alarm,
@@ -46,11 +51,13 @@ namespace Bootstrap
 					max_connected);
             condition.notify_all();
         }
+        LOG_TRACE(log) << "bootstrap_initiator::"<<__func__ <<"2";//TODO
     }
 
     void bootstrap_initiator::bootstrap(logos::endpoint const &endpoint_a)
     {
-        //cannot add endpoint_a to peer list, since it could be
+    	LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
+    	//cannot add endpoint_a to peer list, since it could be
         //one of the delegate
         std::unique_lock<std::mutex> lock(mtx);
         if (!stopped)
@@ -74,23 +81,30 @@ namespace Bootstrap
 
     void bootstrap_initiator::run_bootstrap()
     {
+    	LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
         std::unique_lock<std::mutex> lock(mtx);
         while (!stopped)
         {
-            if (attempt != nullptr) {
+            if (attempt != nullptr)
+            {
+            	std::shared_ptr<bootstrap_attempt> attempt_ref = attempt;
                 lock.unlock();
-                attempt->run();
+                attempt_ref->run();
+                attempt_ref->stop();
                 lock.lock();
-                attempt = nullptr; // stop is called in destructor...
+                attempt = nullptr;
                 condition.notify_all();
             } else {
+            	LOG_TRACE(log) << "bootstrap_initiator::"<<__func__<<" before wait";
                 condition.wait(lock);
+            	LOG_TRACE(log) << "bootstrap_initiator::"<<__func__<<" after wait";
             }
         }
     }
 
     bool bootstrap_initiator::check_progress()
     {
+    	LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
     	std::lock_guard<std::mutex> lock(mtx);
     	if(attempt == nullptr)
     	{
@@ -98,10 +112,11 @@ namespace Bootstrap
     	}
 
 #ifdef BOOTSTRAP_PROGRESS
-    	if(get_block_progress_and_reset() == 0)//TODO ==0
+    	if(get_block_progress() == 0)//TODO ==0
     	{
+    		attempt->stop();
     		attempt = nullptr;
-    		return false;
+    		//return false;
     	}
 #endif
     	return true;
@@ -109,10 +124,12 @@ namespace Bootstrap
 
     void bootstrap_initiator::stop()
     {
+    	LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
         std::unique_lock<std::mutex> lock(mtx);
         stopped = true;
         if (attempt != nullptr) {
             attempt->stop();
+            attempt = nullptr;
         }
         condition.notify_all();
     }
@@ -139,16 +156,18 @@ namespace Bootstrap
     , store(store)
     , max_accepted(max_accepted)
     {
-        LOG_DEBUG(log) << __func__;// << " port=" << port_a;
+    	LOG_TRACE(log) << "bootstrap_listener::"<<__func__ << " " << local_address;
     }
 
     bootstrap_listener::~bootstrap_listener()
     {
+    	LOG_TRACE(log) << "bootstrap_listener::"<<__func__;
         stop();
     }
 
     void bootstrap_listener::start()
     {
+    	LOG_TRACE(log) << "bootstrap_listener::"<<__func__;
     	acceptor.open (local.protocol ());
         //acceptor.open(endpoint().protocol());
         acceptor.set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
@@ -169,6 +188,8 @@ namespace Bootstrap
 
     void bootstrap_listener::stop()
     {
+    	LOG_TRACE(log) << "bootstrap_listener::"<<__func__;
+
         LOG_DEBUG(log) << "bootstrap_listener::stop: acceptor->close";
         acceptor.close();
         std::unique_lock<std::mutex> lock(mtx);
@@ -185,6 +206,7 @@ namespace Bootstrap
 
     void bootstrap_listener::accept_connection()
     {
+    	LOG_TRACE(log) << "bootstrap_listener::"<<__func__;
         auto socket(std::make_shared<BoostSocket>(service));
         acceptor.async_accept(*socket, [this, socket](boost::system::error_code const &ec)
         {
@@ -195,6 +217,7 @@ namespace Bootstrap
     void bootstrap_listener::accept_action(boost::system::error_code const &ec,
                                            std::shared_ptr<BoostSocket> socket_a)
     {
+    	LOG_TRACE(log) << "bootstrap_listener::"<<__func__;
         if (!ec)
         {
             accept_connection();
@@ -220,7 +243,7 @@ namespace Bootstrap
 
     void bootstrap_listener::remove_connection(std::shared_ptr<bootstrap_server> server)
     {
-    	LOG_DEBUG(log) << __func__;
+    	LOG_TRACE(log) << "bootstrap_listener::"<<__func__;
     	std::lock_guard <std::mutex> lock(mtx);
     	connections.erase(server);
     	condition.notify_all();
