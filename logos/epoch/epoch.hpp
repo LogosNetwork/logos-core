@@ -99,6 +99,7 @@ struct Delegate
     bool operator==(const Delegate& other) const
     {
         return account == other.account
+            && bls_pub == other.bls_pub
             && vote == other.vote
             && stake == other.stake
             && starting_term == other.starting_term;
@@ -106,7 +107,7 @@ struct Delegate
 
     bool operator!=(const Delegate& other) const
     {
-        return account != other.account;
+        return (*this) != other;
     }
 };
 
