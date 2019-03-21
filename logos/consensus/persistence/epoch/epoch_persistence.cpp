@@ -125,39 +125,14 @@ PersistenceManager<ECT>::ApplyUpdates(
         return;
     }
 
-    RequestBlockTips cur_e_first;
+    BatchTips cur_e_first;
     auto cur_epoch_number (block.epoch_number + 1);
-    GetEpochFirstRBs(cur_epoch_number, cur_e_first);
+    _store.GetEpochFirstRBs(cur_epoch_number, cur_e_first);
 
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
     {
         LinkAndUpdateTips(delegate, cur_epoch_number, cur_e_first[delegate], transaction);
     }
-}
-
-void
-PersistenceManager<ECT>::GetEpochFirstRBs(uint32_t epoch_number, RequestBlockTips & epoch_firsts)
-{
-    RequestBlockTips start, end;
-
-    // `start` is current epoch tip, `end` is empty
-    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
-    {
-        if (_store.request_tip_get(delegate, epoch_number, start[delegate]))
-        {
-            LOG_DEBUG(_log) << "PersistenceManager<ECT>::GetEpochFirstRBs request block tip for delegate "
-                            << std::to_string(delegate) << " for epoch number " << epoch_number
-                            << " doesn't exist yet, setting to zero.";
-        }
-    }
-
-    // iterate backwards from current tip till the gap (i.e. beginning of this current epoch)
-    MicroBlockHandler::BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable->void{
-        if (batch.previous.is_zero())
-        {
-            epoch_firsts[delegate] = batch.Hash();
-        }
-    });
 }
 
 void

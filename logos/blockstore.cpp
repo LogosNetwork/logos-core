@@ -1000,6 +1000,58 @@ bool logos::block_store::request_block_exists (const ApprovedRB & block)
     return exists;
 }
 
+void
+logos::block_store::BatchBlocksIterator(
+        const BatchTips &start,
+        const BatchTips &end,
+        IteratorBatchBlockReceiverCb batchblock_receiver)
+{
+    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
+    {
+        BlockHash hash = start[delegate];
+        ApprovedRB batch;
+        bool not_found;
+        for (not_found = request_block_get(hash, batch);
+             !not_found && hash != end[delegate];
+             hash = batch.previous, not_found = request_block_get(hash, batch))
+        {
+            batchblock_receiver(delegate, batch);
+        }
+        if (not_found && !hash.is_zero())
+        {
+            LOG_ERROR(log) << __func__ << " failed to get batch state block: "
+                           << hash.to_string();
+            return;
+        }
+    }
+}
+
+void
+logos::block_store::BatchBlocksIterator(
+        const BatchTips &start,
+        const uint64_t &cutoff,
+        IteratorBatchBlockReceiverCb batchblock_receiver)
+{
+    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
+    {
+        BlockHash hash = start[delegate];
+        ApprovedRB batch;
+        bool not_found = false;
+        for (not_found = request_block_get(hash, batch);
+             !not_found && batch.timestamp < cutoff;
+             hash = batch.next, not_found = request_block_get(hash, batch))
+        {
+            batchblock_receiver(delegate, batch);
+        }
+        if (not_found && !hash.is_zero())
+        {
+            LOG_ERROR(log) << __func__ << " failed to get batch state block: "
+                           << hash.to_string();
+            return;
+        }
+    }
+}
+
 bool logos::block_store::consensus_block_update_next(const BlockHash & hash, const BlockHash & next, ConsensusType type, MDB_txn * transaction)
 {
     LOG_TRACE(log) << __func__ << " key " << hash.to_string();
@@ -1333,6 +1385,31 @@ uint32_t logos::block_store::epoch_number_stored()
     }
 
     return epoch.epoch_number;
+}
+
+void
+logos::block_store::GetEpochFirstRBs(uint32_t epoch_number, BatchTips & epoch_firsts)
+{
+    BatchTips start, end;
+
+    // `start` is current epoch tip, `end` is empty
+    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
+    {
+        if (request_tip_get(delegate, epoch_number, start[delegate]))
+        {
+            LOG_DEBUG(log) << __func__ << " request block tip for delegate "
+                            << std::to_string(delegate) << " for epoch number " << epoch_number
+                            << " doesn't exist yet, setting to zero.";
+        }
+    }
+
+    // iterate backwards from current tip till the gap (i.e. beginning of this current epoch)
+    BatchBlocksIterator(start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable->void{
+        if (batch.previous.is_zero())
+        {
+            epoch_firsts[delegate] = batch.Hash();
+        }
+    });
 }
 
 bool logos::block_store::account_get(AccountAddress const & account_a, account_info & info_a, MDB_txn* transaction)

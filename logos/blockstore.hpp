@@ -52,6 +52,8 @@ public:
  */
 class block_store
 {
+    using IteratorBatchBlockReceiverCb = std::function<void(uint8_t, const ApprovedRB &)>;
+
 public:
     block_store (bool &, boost::filesystem::path const &, int lmdb_max_dbs = 128);
 
@@ -152,6 +154,23 @@ public:
     bool request_block_get(const BlockHash & hash, ApprovedRB & block);
     bool request_block_get(const BlockHash &hash, ApprovedRB &block, MDB_txn *);
 
+
+    /// Iterates each delegates' batch state block chain. Traversing previous pointer.
+    /// Stop when reached the end tips.
+    /// @param start tips to start iteration [in]
+    /// @param end tips to end iteration [in]
+    /// @param cb function to call for each delegate's batch state block, the function's argument are
+    ///   delegate id and BatchStateBlock
+    void BatchBlocksIterator(const BatchTips &start, const BatchTips &end, IteratorBatchBlockReceiverCb cb);
+
+    /// Iterates each delegates' batch state block chain. Traversing next pointer.
+    /// Stop when the timestamp is greater than the cutoff.
+    /// @param start tips to start iteration [in]
+    /// @param cutoff timestamp to end iteration [in]
+    /// @param cb function to call for each delegate's batch state block, the function's argument are
+    ///   delegate id and BatchStateBlock
+    void BatchBlocksIterator(const BatchTips &start, const uint64_t &cutoff, IteratorBatchBlockReceiverCb cb);
+
     template<typename T>
     bool request_get(const BlockHash &hash, T & request, MDB_txn *transaction)
     {
@@ -223,6 +242,10 @@ public:
     bool epoch_exists(const BlockHash &, MDB_txn* t=0);
     bool is_first_epoch();
     uint32_t epoch_number_stored();
+    /// Get each delegate's first request block in an epoch, only used when linking two request tips
+    /// @param epoch number to retrieve [in]
+    /// @param list of delegate request block hash to populate [in]
+    void GetEpochFirstRBs(uint32_t epoch_number, BatchTips & epoch_firsts);
 
     //////////////////
 

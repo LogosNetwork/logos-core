@@ -10,62 +10,6 @@
 
 using namespace logos;
 
-void
-MicroBlockHandler::BatchBlocksIterator(
-    BlockStore & store,
-    const BatchTips &start,
-    const BatchTips &end,
-    IteratorBatchBlockReceiverCb batchblock_receiver)
-{
-    Log log;
-    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
-    {
-        BlockHash hash = start[delegate];
-        ApprovedRB batch;
-        bool not_found;
-        for (not_found = store.request_block_get(hash, batch);
-             !not_found && hash != end[delegate];
-             hash = batch.previous, not_found = store.request_block_get(hash, batch))
-        {
-            batchblock_receiver(delegate, batch);
-        }
-        if (not_found && !hash.is_zero())
-        {
-            LOG_ERROR(log) << "MicroBlockHander::BatchBlocksIterator failed to get batch state block: "
-                           << hash.to_string();
-            return;
-        }
-    }
-}
-
-void
-MicroBlockHandler::BatchBlocksIterator(
-        BlockStore & store,
-        const BatchTips &start,
-        const uint64_t &cutoff,
-        IteratorBatchBlockReceiverCb batchblock_receiver)
-{
-    Log log;
-    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
-    {
-        BlockHash hash = start[delegate];
-        ApprovedRB batch;
-        bool not_found = false;
-        for (not_found = store.request_block_get(hash, batch);
-             !not_found && batch.timestamp < cutoff;
-             hash = batch.next, not_found = store.request_block_get(hash, batch))
-        {
-            batchblock_receiver(delegate, batch);
-        }
-        if (not_found && !hash.is_zero())
-        {
-            LOG_ERROR(log) << "MicroBlockHandler::BatchBlocksIterator failed to get batch state block: "
-                           << hash.to_string();
-            return;
-        }
-    }
-}
-
 BlockHash
 MicroBlockHandler::FastMerkleTree(
         const BatchTips &start,
@@ -76,7 +20,7 @@ MicroBlockHandler::FastMerkleTree(
 {
     uint64_t cutoff_msec = GetCutOffTimeMsec(timestamp);
     return merkle::MerkleHelper([&](merkle::HashReceiverCb element_receiver)->void {
-        BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
+        _store.BatchBlocksIterator(start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
             if (batch.timestamp < cutoff_msec)
             {
                 BlockHash hash = batch.Hash();
@@ -106,7 +50,7 @@ MicroBlockHandler::SlowMerkleTree(
     uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
 
     // first get hashes and timestamps of all blocks; and min timestamp to use as the base
-    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable->void{
+    _store.BatchBlocksIterator(start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable->void{
         entries[delegate].push_back({batch.timestamp, batch.Hash()});
         if (batch.timestamp < min_timestamp)
         {
@@ -158,7 +102,7 @@ MicroBlockHandler::GetTipsFast(
     }
 
     uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff);
-    BatchBlocksIterator(_store, next, cutoff_msec, [&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
+    _store.BatchBlocksIterator(next, cutoff_msec, [&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
         BlockHash hash = batch.Hash();
         tips[delegate] = hash;
         num_blocks++;
@@ -190,7 +134,7 @@ MicroBlockHandler::GetTipsSlow(
     uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
 
     // first get hashes and timestamps of all blocks; and min timestamp to use as the base
-    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable->void{
+    _store.BatchBlocksIterator(start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable->void{
         entries[delegate].push_back({batch.timestamp, batch.Hash()});
         if (batch.timestamp < min_timestamp)
         {

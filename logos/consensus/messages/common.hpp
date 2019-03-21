@@ -68,6 +68,7 @@ CONSENSUS_TYPE
 static const size_t NUM_DELEGATES        = 32;
 static const size_t CONSENSUS_BATCH_SIZE = 1500;
 
+using BatchTips       = BlockHash[NUM_DELEGATES];
 using ParicipationMap = std::bitset<NUM_DELEGATES>;
 using RejectionMap    = std::vector<bool>;
 
