@@ -351,7 +351,6 @@ add_library (node
 	logos/elections/requests.cpp
     logos/elections/representative.cpp
     logos/elections/candidate.cpp
-	logos/elections/database.cpp
 	logos/epoch/archiver.cpp
 	logos/epoch/epoch.cpp
 	logos/epoch/epoch_handler.cpp

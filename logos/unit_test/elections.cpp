@@ -5,7 +5,8 @@
 #include <logos/elections/requests.hpp>
 #include <logos/common.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
-#include <logos/elections/database.hpp>
+#include <logos/elections/candidate.hpp>
+#include <logos/elections/representative.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/persistence/persistence.hpp>

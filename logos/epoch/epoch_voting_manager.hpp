@@ -10,7 +10,9 @@
 #include <logos/lib/log.hpp>
 
 #include <unordered_set>
-#include <logos/elections/database.hpp>
+#include <logos/elections/candidate.hpp>
+#include <logos/elections/representative.hpp>
+
 
 namespace logos
 {
