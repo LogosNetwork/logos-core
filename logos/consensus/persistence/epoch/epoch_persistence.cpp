@@ -154,14 +154,16 @@ void PersistenceManager<ECT>::AddReelectionCandidates(MDB_txn* txn)
         if(d.starting_term)
         {
             RepInfo rep;
-            assert(!_store.rep_get(d.account,rep,txn));
-            std::shared_ptr<Request> req;
-            assert(!_store.request_get(rep.candidacy_action_tip,req,txn));
-            if(req->type == RequestType::AnnounceCandidacy)
+            if(!_store.rep_get(d.account,rep,txn))
             {
-                auto ac = static_pointer_cast<AnnounceCandidacy>(req); 
-                CandidateInfo candidate(*ac);
-                assert(!_store.candidate_put(d.account, candidate, txn));
+                std::shared_ptr<Request> req;
+                assert(!_store.request_get(rep.candidacy_action_tip,req,txn));
+                if(req->type == RequestType::AnnounceCandidacy)
+                {
+                    auto ac = static_pointer_cast<AnnounceCandidacy>(req); 
+                    CandidateInfo candidate(*ac);
+                    assert(!_store.candidate_put(d.account, candidate, txn));
+                }
             }
         }
     }

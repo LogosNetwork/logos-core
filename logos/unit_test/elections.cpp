@@ -15,12 +15,24 @@
 
 #ifdef Unit_Test_Elections
 
+void clear_dbs()
+{
+    logos::block_store* store = get_db();
+    store->clear(store->candidacy_db);
+    store->clear(store->representative_db);
+    store->clear(store->epoch_db);
+    store->clear(store->epoch_tip_db);
+    store->clear(store->remove_candidates_db);
+    store->clear(store->remove_reps_db);
+    store->clear(store->state_db);
+    store->clear(store->leading_candidates_db);
+}
+
 TEST (Elections, blockstore)
 {
     logos::block_store* store(get_db());
     ASSERT_NE(store,nullptr);
-    store->clear(store->representative_db);
-    store->clear(store->state_db);
+    clear_dbs();
     {
         logos::transaction txn(store->environment,nullptr,true);
 
@@ -227,7 +239,7 @@ TEST(Elections, candidates_simple)
 {
     
     logos::block_store* store = get_db();
-    store->clear(store->candidacy_db);
+    clear_dbs();
     
     CandidateInfo c1(100);
     c1.stake = 34;
@@ -289,8 +301,7 @@ TEST(Elections, get_winners)
 {
 
     logos::block_store* store = get_db();
-    store->clear(store->candidacy_db);
-    store->clear(store->leading_candidates_db);
+    clear_dbs();
 
     EpochVotingManager mgr(*store);
 
@@ -347,9 +358,7 @@ void iterateCandidatesDB(
 TEST(Elections,candidates_transition)
 {
     logos::block_store* store = get_db();
-    store->clear(store->candidacy_db);
-    store->clear(store->epoch_db);
-    store->clear(store->epoch_tip_db);
+    clear_dbs();
 
     AccountAddress a1(0);
     AccountAddress a2(1);
@@ -486,9 +495,7 @@ TEST(Elections,candidates_transition)
 TEST(Elections,get_next_epoch_delegates)
 {
     logos::block_store* store = get_db();
-    store->clear(store->candidacy_db);
-    store->clear(store->epoch_db);
-    store->clear(store->epoch_tip_db);
+    clear_dbs();
     DelegateIdentityManager::_epoch_transition_enabled = true;
 
     uint32_t epoch_num = 1;
@@ -795,10 +802,9 @@ TEST(Elections, redistribute_votes)
 TEST(Elections, is_dead_period)
 {
     logos::block_store* store = get_db();
+    clear_dbs();
     PersistenceManager<R> persistence_mgr(*store,nullptr);
     PersistenceManager<ECT> epoch_persistence_mgr(*store,nullptr);
-    store->clear(store->epoch_db);
-    store->clear(store->epoch_tip_db);
     logos::transaction txn(store->environment,nullptr,true);
 
     uint32_t epoch_num = 1;
@@ -816,12 +822,9 @@ TEST(Elections, is_dead_period)
 TEST(Elections,validate)
 {
     logos::block_store* store = get_db();
+    clear_dbs();
     PersistenceManager<R> persistence_mgr(*store,nullptr);
     PersistenceManager<ECT> epoch_persistence_mgr(*store,nullptr);
-    store->clear(store->candidacy_db);
-    store->clear(store->representative_db);
-    store->clear(store->epoch_db);
-    store->clear(store->epoch_tip_db);
     logos::transaction txn(store->environment,nullptr,true);
 
     logos::process_return result;
@@ -969,7 +972,7 @@ TEST(Elections,validate)
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
 
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,epoch_num,txn,result));
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
 
     persistence_mgr.ApplyRequest(renounce,txn);
 
@@ -1029,7 +1032,7 @@ TEST(Elections,validate)
     transition_epoch();
 
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,epoch_num,txn,result));
-//    ASSERT_TRUE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
     vote.votes.emplace_back(announce.origin,8);
@@ -1037,11 +1040,17 @@ TEST(Elections,validate)
     ASSERT_TRUE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
 
     persistence_mgr.ApplyRequest(renounce,txn);
+
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
     transition_epoch();
     ASSERT_TRUE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
     vote.votes.clear();
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    persistence_mgr.ApplyRequest(announce, txn);
+    transition_epoch();
+
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
     persistence_mgr.ApplyRequest(stop_rep,txn);
 
     transition_epoch();
@@ -1083,7 +1092,7 @@ TEST(Elections,validate)
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,epoch_num,txn,result));
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
 
 
@@ -1100,7 +1109,7 @@ TEST(Elections,validate)
 
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,epoch_num,txn,result));
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
 
     persistence_mgr.ApplyRequest(renounce,txn);
@@ -1116,7 +1125,7 @@ TEST(Elections,validate)
     ASSERT_TRUE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,epoch_num,txn,result));
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
 
     transition_epoch();
@@ -1144,17 +1153,31 @@ TEST(Elections,validate)
     transition_epoch();
 
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
 
+    persistence_mgr.ApplyRequest(stop_rep,txn);
+
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+
+
+    transition_epoch({announce.origin});
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+
+    transition_epoch();
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+
+    transition_epoch();
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+
+    transition_epoch();
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
 }
 
 TEST(Elections, apply)
 {
 
     logos::block_store* store = get_db();
-    store->clear(store->candidacy_db);
-    store->clear(store->epoch_db);
-    store->clear(store->epoch_tip_db);
-    store->clear(store->representative_db);
+    clear_dbs();
     DelegateIdentityManager::_epoch_transition_enabled = true;
 
     uint32_t epoch_num = 1;
@@ -1466,8 +1489,7 @@ TEST(Elections, weighted_votes)
     logos::block_store* store = get_db();
     PersistenceManager<R> persistence_mgr(*store,nullptr);
     PersistenceManager<ECT> epoch_persistence_mgr(*store,nullptr);
-    store->clear(store->candidacy_db);
-    store->clear(store->representative_db);
+    clear_dbs();
     logos::transaction txn(store->environment,nullptr,true);
 
     AccountAddress rep_address = 7;
@@ -1524,10 +1546,7 @@ TEST(Elections, tiebreakers)
 TEST(Elections, remove_db)
 {
     logos::block_store* store = get_db();
-    store->clear(store->candidacy_db);
-    store->clear(store->representative_db);
-    store->clear(store->remove_candidates_db);
-    store->clear(store->remove_reps_db);
+    clear_dbs();
     PersistenceManager<ECT> epoch_persistence_mgr(*store,nullptr);
     logos::transaction txn(store->environment,nullptr,true);   
 
