@@ -937,7 +937,17 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             //       Logos designated for the account's balance.
             account.balance += request->fee - MIN_TRANSACTION_FEE;
 
+            // SG: put Issuance Request on TokenAccount's receive chain as genesis receive,
+            // update TokenAccount's relevant fields
+            ReceiveBlock receive(0, issuance->GetHash(), 0);
+            account.receive_head = receive.Hash();
+            account.receive_count++;
+            account.modified = logos::seconds_since_epoch();
+
             _store.token_account_put(issuance->token_id, account, transaction);
+
+            PlaceReceive(receive, timestamp, transaction);
+
             break;
         }
         case RequestType::IssueAdditional:
