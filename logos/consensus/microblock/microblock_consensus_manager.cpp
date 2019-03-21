@@ -57,17 +57,17 @@ MicroBlockConsensusManager::QueueMessagePrimary(
     // 3b) simultaneously its own PrePrepare timer also times out,
     // Outcome: the primary's reference value may get corrupted
     // Hence we need to skip if _cur_microblock hash is the same
-    if (_store.micro_block_exists(hash) || _cur_microblock->Hash() == hash)
+    if (_store.micro_block_exists(hash) || (_cur_microblock && _cur_microblock->Hash() == hash))
     {
         return;
     }
     else if (_ongoing)
     {
-        LOG_FATAL(_log) << "MicroBlockConsensusManager::QueueMessagePrimary - Unexpected scenario:"
+        LOG_ERROR(_log) << "MicroBlockConsensusManager::QueueMessagePrimary - Unexpected scenario:"
                         << " new block (possibly from secondary list) with hash " << hash.to_string()
                         << " got promoted while current consensus round with hash " << _cur_microblock->Hash().to_string()
                         << " is still ongoing!";
-        trace_and_halt();
+        return;
     }
     _cur_microblock = static_pointer_cast<PrePrepare>(message);
 }

@@ -54,17 +54,17 @@ EpochConsensusManager::QueueMessagePrimary(
     std::lock_guard<std::recursive_mutex> lock(_mutex);
     auto hash = message->Hash();
     // See microblock_consensus_mamanger comment for the same method
-    if (_store.epoch_exists(hash) || _cur_epoch->Hash() == hash)
+    if (_store.epoch_exists(hash) || (_cur_epoch && _cur_epoch->Hash() == hash))
     {
         return;
     }
     else if (_ongoing)
     {
-        LOG_FATAL(_log) << "MicroBlockConsensusManager::QueueMessagePrimary - Unexpected scenario:"
+        LOG_ERROR(_log) << "MicroBlockConsensusManager::QueueMessagePrimary - Unexpected scenario:"
                         << " new block (possibly from secondary list) with hash " << hash.to_string()
                         << " got promoted while current consensus round with hash " << _cur_epoch->Hash().to_string()
                         << " is still ongoing!";
-        trace_and_halt();
+        return;
     }
     _cur_epoch = static_pointer_cast<PrePrepare>(message);
 }
