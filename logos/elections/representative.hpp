@@ -16,6 +16,8 @@ struct RepInfo
 
     RepInfo(const StartRepresenting& request);
 
+    RepInfo(const AnnounceCandidacy& request);
+
     uint32_t serialize (logos::stream &) const;
     bool deserialize (logos::stream &);
     bool operator== (RepInfo const &) const;

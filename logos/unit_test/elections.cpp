@@ -879,9 +879,9 @@ TEST(Elections,validate)
     ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
     ASSERT_FALSE(store->epoch_put(eb,txn));
 
-    //epoch block created, but only StartRepresenting should pass
+    //epoch block created, but only StartRepresenting and AnnounceCandidacy should pass
     ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(start_rep,epoch_num,txn,result));
@@ -1012,11 +1012,46 @@ TEST(Elections,validate)
 
 
     transition_epoch();
-    ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(start_rep,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
+
+    persistence_mgr.ApplyRequest(announce,txn);
+
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
+
+    transition_epoch();
+
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,epoch_num,txn,result));
+//    ASSERT_TRUE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    vote.votes.emplace_back(announce.origin,8);
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
+
+    persistence_mgr.ApplyRequest(renounce,txn);
+    transition_epoch();
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    vote.votes.clear();
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    persistence_mgr.ApplyRequest(stop_rep,txn);
+
+    transition_epoch();
+
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(start_rep,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
+    ASSERT_TRUE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+    ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
+
 
     persistence_mgr.ApplyRequest(start_rep,txn);
 

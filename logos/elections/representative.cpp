@@ -14,6 +14,14 @@ RepInfo::RepInfo(const StartRepresenting& request)
     stake = request.stake;
 }
 
+RepInfo::RepInfo(const AnnounceCandidacy& request)
+    : RepInfo()
+{
+    rep_action_tip = request.Hash();
+    stake = request.stake;
+}
+
+
 RepInfo::RepInfo(bool & error, const logos::mdb_val & mdbval)
 {
 
