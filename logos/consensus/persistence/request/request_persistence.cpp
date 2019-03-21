@@ -1696,11 +1696,10 @@ bool PersistenceManager<R>::ValidateRequest(
     if(hash != 0)
     {
         assert(!_store.request_get(hash,candidacy_req,txn));
-        auto type = candidacy_req->type;
-        assert(type == RequestType::AnnounceCandidacy
-                || type == RequestType::RenounceCandidacy
-                || type == RequestType::StopRepresenting);
-        if(type == RequestType::AnnounceCandidacy)
+        assert(candidacy_req->type == RequestType::AnnounceCandidacy
+                || candidacy_req->type == RequestType::RenounceCandidacy
+                || candidacy_req->type == RequestType::StopRepresenting);
+        if(candidacy_req->type == RequestType::AnnounceCandidacy)
         {
             result.code = logos::process_result::already_announced_candidacy;
             return false;
