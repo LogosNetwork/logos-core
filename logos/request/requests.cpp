@@ -728,7 +728,7 @@ Amount Send::GetLogosTotal() const
                                      return a + t.amount;
                                  });
 
-    return total + Request::GetLogosTotal();
+    return total;
 }
 
 bool Send::AddTransaction(const AccountAddress & to, const Amount & amount)
