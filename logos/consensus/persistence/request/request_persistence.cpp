@@ -1458,6 +1458,12 @@ void PersistenceManager<R>::ApplyRequest(const StopRepresenting& request, MDB_tx
     RepInfo rep;
     assert(!_store.rep_get(request.origin,rep,txn));
     rep.rep_action_tip = request.Hash();
+    CandidateInfo candidate;
+    if(!_store.candidate_get(request.origin,candidate,txn))
+    {
+        rep.candidacy_action_tip = request.Hash();
+        assert(!_store.candidate_mark_remove(request.origin,txn));
+    }
     assert(!_store.rep_put(request.origin,rep,txn));
     assert(!_store.rep_mark_remove(request.origin, txn));
     assert(!_store.request_put(request,txn));
@@ -1500,7 +1506,34 @@ void PersistenceManager<R>::ApplyRequest(const AnnounceCandidacy& request, MDB_t
     }
     rep.candidacy_action_tip = request.Hash();
     assert(!_store.rep_put(request.origin,rep,txn));
-    assert(!_store.candidate_put(request.origin,candidate,txn));
+    ApprovedEB eb;
+    assert(!_store.epoch_get_n(0, eb, txn));
+    //if account is current delegate, only add to candidates if in last epoch of term
+    //otherwise, epoch persistence mgr will add at proper time
+    bool add_to_candidates_db = true;
+    for(size_t i = 0; i < NUM_DELEGATES; ++i)
+    {
+        if(eb.delegates[i].account == request.origin)
+        {
+            add_to_candidates_db = false;
+            assert(!_store.epoch_get_n(3, eb, txn));
+            for(size_t j = 0; i < NUM_DELEGATES; ++j)
+            {
+                //account must be in last epoch of term if this is true
+                if(eb.delegates[j].account == request.origin
+                        && eb.delegates[j].starting_term)
+                {
+                    add_to_candidates_db = true;
+                    break;
+                }
+            }
+            break;
+        }
+    }
+    if(add_to_candidates_db)
+    {
+        assert(!_store.candidate_put(request.origin,candidate,txn));
+    }
     assert(!_store.request_put(request,txn));
 }
 
@@ -1642,18 +1675,19 @@ bool PersistenceManager<R>::ValidateRequest(
             assert(hash != 0);
             std::shared_ptr<Request> candidacy_req;
             assert(!_store.request_get(hash, candidacy_req, txn));
-            if(candidacy_req->type == RequestType::AnnounceCandidacy
-                    && GetEpochNum(candidacy_req) == cur_epoch_num)
+            if(candidacy_req->type == RequestType::AnnounceCandidacy)
+            {
+                if(GetEpochNum(candidacy_req) == cur_epoch_num)
+                {
+                    result.code = logos::process_result::invalid_candidate;
+                    return false;
+                }
+            }
+            else if(GetEpochNum(candidacy_req) < cur_epoch_num) //Renounce || StopRepresenting
             {
                 result.code = logos::process_result::invalid_candidate;
                 return false;
             }
-           /*
-            * If candidate renounced, the renounce was this epoch, which means
-            * they can still receive votes this epoch. If renounce was in
-            * previous epoch, should have been removed at epoch transition and
-            * first if condition would have been met
-            */ 
         }
     }
     return total <= MAX_VOTES;
@@ -1721,13 +1755,15 @@ bool PersistenceManager<R>::ValidateRequest(
     {
         assert(!_store.request_get(hash,candidacy_req,txn));
         auto type = candidacy_req->type;
-        assert(type == RequestType::AnnounceCandidacy || type == RequestType::RenounceCandidacy);
+        assert(type == RequestType::AnnounceCandidacy
+                || type == RequestType::RenounceCandidacy
+                || type == RequestType::StopRepresenting);
         if(type == RequestType::AnnounceCandidacy)
         {
             result.code = logos::process_result::already_announced_candidacy;
             return false;
         }
-        else if(GetEpochNum(candidacy_req) == cur_epoch_num) //RenounceCandidacy
+        else if(GetEpochNum(candidacy_req) == cur_epoch_num) //RenounceCandidacy || StopRepresenting
         {
             result.code = logos::process_result::pending_candidacy_action;
             return false;
@@ -1770,8 +1806,10 @@ bool PersistenceManager<R>::ValidateRequest(
     shared_ptr<Request> candidacy_req;
     assert(!_store.request_get(hash, candidacy_req, txn));
     assert(candidacy_req->type == RequestType::AnnounceCandidacy
-            || candidacy_req->type == RequestType::RenounceCandidacy);
-    if(candidacy_req->type == RequestType::RenounceCandidacy)
+            || candidacy_req->type == RequestType::RenounceCandidacy
+            || candidacy_req->type == RequestType::StopRepresenting);
+    if(candidacy_req->type == RequestType::RenounceCandidacy
+            || candidacy_req->type == RequestType::StopRepresenting)
     {
         result.code = logos::process_result::already_renounced_candidacy;
         return false;
@@ -1873,29 +1911,6 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    CandidateInfo candidate;
-    if(!_store.candidate_get(request.origin,candidate,txn))
-    {
-        //cant stop representing if you are a candidate
-        result.code = logos::process_result::is_candidate;
-        return false;
-    }
-
-    ApprovedEB epoch;
-    BlockHash hash;
-    assert(!_store.epoch_tip_get(hash,txn));
-    assert(!_store.epoch_get(hash,epoch,txn));
-
-    for(size_t i = 0; i < NUM_DELEGATES; ++i)
-    {
-        if(epoch.delegates[i].account == request.origin)
-        {
-            //can't stop representing if you are a delegate or delegate elect
-            result.code = logos::process_result::is_delegate;
-            return false;
-        }
-    }
-
     RepInfo rep;
     if(!_store.rep_get(request.origin,rep,txn))
     {
@@ -1916,6 +1931,18 @@ bool PersistenceManager<R>::ValidateRequest(
         {
             result.code = logos::process_result::not_a_rep;
             return false;
+        }
+
+        hash = rep.candidacy_action_tip;
+        if(hash != 0)
+        {
+            std::shared_ptr<Request> candidacy_req;
+            assert(!_store.request_get(hash, candidacy_req, txn));
+            if(GetEpochNum(candidacy_req) == cur_epoch_num)
+            {
+                result.code = logos::process_result::pending_candidacy_action;
+                return false;
+            }
         }
         return true;
     }
