@@ -4,9 +4,10 @@
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
-#include <logos/consensus/messages/state_block.hpp>
+#include <logos/consensus/messages/receive_block.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
+#include <logos/request/utility.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
@@ -79,12 +80,13 @@ ConsensusContainer::CreateEpochManager(
 {
     return std::make_shared<EpochManager>(_service, _store, _alarm, config,
                                           _archiver, _peer_manager, _transition_state,
-                                          delegate, connection, epoch_number, *this, _p2p._p2p);
+                                          delegate, connection, epoch_number, *this, _p2p._p2p,
+                                          config.delegate_id);
 }
 
 logos::process_return
-ConsensusContainer::OnSendRequest(
-    std::shared_ptr<Request> block,
+ConsensusContainer::OnDelegateMessage(
+    std::shared_ptr<DM> request,
     bool should_buffer)
 {
     logos::process_return result;
@@ -93,34 +95,39 @@ ConsensusContainer::OnSendRequest(
     if (_cur_epoch == nullptr)
     {
         result.code = logos::process_result::not_delegate;
-        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest transaction, the node is not a delegate, "
-                        << (int)DelegateIdentityManager::_global_delegate_idx;
+        LOG_WARN(_log) << "ConsensusContainer::OnDelegateMessage transaction, the node is not a delegate, "
+                       << (int)DelegateIdentityManager::_global_delegate_idx;
         return result;
     }
 
-    if(!block)
-    {
-        result.code = logos::process_result::invalid_block_type;
-        return result;
-    }
+	if(!request)
+	{
+	    result.code = logos::process_result::invalid_block_type;
+	    return result;
+	}
+
+    using DM = DelegateMessage<ConsensusType::Request>;
 
     if(should_buffer)
     {
         result.code = logos::process_result::buffered;
-        _cur_epoch->_batch_manager.OnBenchmarkSendRequest(block, result);
+        _cur_epoch->_request_manager.OnBenchmarkDelegateMessage(
+            static_pointer_cast<DM>(request), result);
     }
     else
     {
-        LOG_DEBUG(_log) << "ConsensusContainer::OnSendRequest: "
-                << "number_transaction=" << block->trans.size();
-        _cur_epoch->_batch_manager.OnSendRequest(block, result);
+        LOG_DEBUG(_log) << "ConsensusContainer::OnDelegateMessage: "
+                        << "RequestType="
+                        << GetRequestTypeField(request->type);
+        _cur_epoch->_request_manager.OnDelegateMessage(
+            static_pointer_cast<DM>(request), result);
     }
 
     return result;
 }
 
 TxChannel::Responses
-ConsensusContainer::OnSendRequest(vector<std::shared_ptr<Request>> &blocks)
+ConsensusContainer::OnSendRequest(vector<std::shared_ptr<DM>> &blocks)
 {
     logos::process_return result;
     OptLock lock(_transition_state, _mutex);
@@ -133,7 +140,7 @@ ConsensusContainer::OnSendRequest(vector<std::shared_ptr<Request>> &blocks)
         return {{result.code,0}};
     }
 
-    return _cur_epoch->_batch_manager.OnSendRequest(blocks);
+    return _cur_epoch->_request_manager.OnSendRequest(blocks);
 }
 
 void
@@ -150,51 +157,60 @@ ConsensusContainer::BufferComplete(
         return;
     }
 
-    _cur_epoch->_batch_manager.BufferComplete(result);
+    _cur_epoch->_request_manager.BufferComplete(result);
 }
 
 logos::process_return
-ConsensusContainer::OnSendRequest(
-    std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>> block)
+ConsensusContainer::OnDelegateMessage(
+    std::shared_ptr<DelegateMessage<ConsensusType::MicroBlock>> message)
 {
     OptLock lock(_transition_state, _mutex);
     logos::process_return result;
-    using Request = RequestMessage<ConsensusType::MicroBlock>;
+	using Request = DelegateMessage<ConsensusType::MicroBlock>;
 
     if (_cur_epoch == nullptr)
     {
         result.code = logos::process_result::not_delegate;
-        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest microblock, the node is not a delegate, "
+        LOG_WARN(_log) << "ConsensusContainer::OnDelegateMessage microblock, the node is not a delegate, "
                         << (int)DelegateIdentityManager::_global_delegate_idx;
         return result;
     }
+    // microblock proposed during epoch transition should be proposed by the new delegate set
+    else if (_transition_state != EpochTransitionState::None &&
+                _cur_epoch->GetConnection() != EpochConnection::Transitioning)
+    {
+        result.code = logos::process_result::old;
+        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest microblock, not new delegate set "
+                       << (int)DelegateIdentityManager::_global_delegate_idx;
+        return result;
+    }
 
-    block->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
-    _cur_epoch->_micro_manager.OnSendRequest(
-        std::static_pointer_cast<Request>(block), result);;
+    message->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
+    _cur_epoch->_micro_manager.OnDelegateMessage(
+        std::static_pointer_cast<Request>(message), result);
 
     return result;
 }
 
 logos::process_return
-ConsensusContainer::OnSendRequest(
-    std::shared_ptr<RequestMessage<ConsensusType::Epoch>> block)
+ConsensusContainer::OnDelegateMessage(
+    std::shared_ptr<DelegateMessage<ConsensusType::Epoch>> message)
 {
     OptLock lock(_transition_state, _mutex);
     logos::process_return result;
-    using Request = RequestMessage<ConsensusType::Epoch>;
+    using Request = DelegateMessage<ConsensusType::Epoch>;
 
     if (_cur_epoch == nullptr)
     {
         result.code = logos::process_result::not_delegate;
-        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest epoch, the node is not a delegate, "
+        LOG_WARN(_log) << "ConsensusContainer::OnDelegateMessage epoch, the node is not a delegate, "
                         << (int)DelegateIdentityManager::_global_delegate_idx;
         return result;
     }
 
-    block->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
-    _cur_epoch->_epoch_manager.OnSendRequest(
-            std::static_pointer_cast<Request>(block), result);;
+    message->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
+    _cur_epoch->_epoch_manager.OnDelegateMessage(
+        std::static_pointer_cast<Request>(message), result);
 
     return result;
 }
@@ -283,6 +299,23 @@ ConsensusContainer::EpochTransitionEventsStart()
     }
     else if (_cur_epoch == nullptr)
     {
+        // update epoch number
+        ApprovedEB eb;
+        BlockHash hash;
+        if (_store.epoch_tip_get(hash))
+        {
+            LOG_FATAL(_log) << "ConsensusContainer::EpochTransitionEventsStart failed to get epoch tip";
+            trace_and_halt();
+        }
+
+        if (_store.epoch_get(hash, eb))
+        {
+            LOG_FATAL(_log) << "ConsensusContainer::EpochTransitionEventsStart failed to get epoch "
+                            << hash.to_string();
+            trace_and_halt();
+        }
+        _cur_epoch_number = eb.epoch_number + 1;
+
         _transition_delegate = EpochTransitionDelegate::New;
     }
     else
@@ -535,6 +568,97 @@ ConsensusContainer::CheckEpochNull(bool is_null, const char* where)
 }
 
 bool
-ConsensusContainer::OnP2pReceive(const void *message, size_t size) {
-    return _p2p.ProcessInputMessage(message, size);
+ConsensusContainer::OnP2pReceive(const void *data, size_t size)
+{
+    auto hdrs_size = P2pConsensusHeader::P2PHEADER_SIZE + MessagePrequelSize;
+    if (size < hdrs_size)
+    {
+        LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid message, size is less than header, "
+                        << size;
+        return false;
+    }
+
+    bool error = false;
+    logos::bufferstream stream((const uint8_t*)data, size);
+    P2pConsensusHeader p2pheader(error, stream);
+    if (error)
+    {
+        LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, failed to deserialize P2pConsensusHeader";
+        return false;
+    }
+    Prequel prequel(error, stream);
+    if (error)
+    {
+        LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, failed to deserialize Prequel";
+        return false;
+    }
+
+    if (size != (hdrs_size + prequel.payload_size))
+    {
+        LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid message size, " << size
+                        << " payload size " << prequel.payload_size;
+        return false;
+    }
+
+    size -= hdrs_size;
+    uint8_t *payload_data = ((uint8_t*)data) + hdrs_size;
+    if (prequel.type == MessageType::Post_Committed_Block)
+    {
+        LOG_DEBUG(_log) << "ConsensusContainer::OnP2pReceive, processing post committed block, size "
+                        << size;
+        return _p2p.ProcessInputMessage(prequel, payload_data, size);
+    }
+
+    std::shared_ptr<EpochManager> epoch = nullptr;
+
+    {
+        OptLock lock(_transition_state, _mutex);
+
+        if (_cur_epoch && _cur_epoch->GetEpochNumber() == p2pheader.epoch_number) {
+            epoch = _cur_epoch;
+        } else if (_trans_epoch && _trans_epoch->GetEpochNumber() == p2pheader.epoch_number) {
+            epoch = _trans_epoch;
+        }
+    }
+
+    if (epoch && (p2pheader.dest_delegate_id == 0xff ||
+            p2pheader.dest_delegate_id == epoch->GetDelegateId()))
+    {
+        ConsensusMsgProducer *producer = nullptr;
+        if (prequel.consensus_type == ConsensusType::Request)
+        {
+            producer = &epoch->_request_manager;
+        }
+        else if (prequel.consensus_type == ConsensusType::MicroBlock)
+        {
+            producer = &epoch->_micro_manager;
+        }
+        else if (prequel.consensus_type == ConsensusType::Epoch)
+        {
+            producer = &epoch->_epoch_manager;
+        }
+        else
+        {
+            LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid consensus type "
+                            << ConsensusToName(prequel.consensus_type);
+            return false;
+        }
+
+        LOG_DEBUG(_log) << "ConsensusContainer::OnP2pReceive, adding to consensus queue "
+                        << MessageToName(prequel.type) << " " << ConsensusToName(prequel.consensus_type)
+                        << " payload size " << prequel.payload_size
+                        << " src delegate " << (int)p2pheader.src_delegate_id
+                        << " dest delegate " << (int)p2pheader.dest_delegate_id;
+
+        return producer->AddToConsensusQueue(payload_data, prequel.version, prequel.type, prequel.consensus_type,
+                                             prequel.payload_size, p2pheader.src_delegate_id);
+    }
+    else
+    {
+        LOG_WARN(_log) << "ConsensusContainer::OnP2pReceive, no matching epoch or delegate id "
+                       << ", epoch " << p2pheader.epoch_number
+                       << ", delegate id " << (int)p2pheader.dest_delegate_id;
+    }
+
+    return true;
 }

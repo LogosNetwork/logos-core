@@ -1,4 +1,5 @@
 #include <boost/property_tree/json_parser.hpp>
+
 #include <fstream>
 #include <gtest/gtest.h>
 #include <ed25519-donna/ed25519.h>
@@ -9,8 +10,8 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/messages/rejection.hpp>
 #include <logos/consensus/persistence/nondel_persistence.hpp>
-#include <logos/consensus/persistence/batchblock/nondel_batchblock_persistence.hpp>
 #include <logos/consensus/persistence/epoch/nondel_epoch_persistence.hpp>
+#include <logos/consensus/persistence/request/nondel_request_persistence.hpp>
 #include <logos/consensus/persistence/microblock/nondel_microblock_persistence.hpp>
 
 #include <logos/unit_test/msg_validator_setup.hpp>
@@ -25,7 +26,6 @@ using namespace std;
 #define Unit_Test_Msg_Validator
 #define Unit_Test_DB
 
-
 std::string byte_vector_to_string (const std::vector<uint8_t> & buf)
 {
     std::stringstream stream;
@@ -36,15 +36,15 @@ std::string byte_vector_to_string (const std::vector<uint8_t> & buf)
     return stream.str ();
 }
 
-PrePrepareMessage<ConsensusType::BatchStateBlock>
+PrePrepareMessage<ConsensusType::Request>
 create_bsb_preprepare(uint16_t num_sb)
 {
-    PrePrepareMessage<ConsensusType::BatchStateBlock> block;
-    block.blocks.reserve(num_sb);
+    PrePrepareMessage<ConsensusType::Request> block;
+    block.requests.reserve(num_sb);
     block.hashes.reserve(num_sb);
     for(uint32_t i = 0; i < num_sb; ++i)
     {
-        block.AddStateBlock(std::make_shared<StateBlock>(1,2,i,StateBlock::Type::send,5,6,7,8,9));
+        block.AddRequest(std::make_shared<Send>(Send(1, 2, i, 5, 6, 7, 8, 9)));
     }
 
     return block;
@@ -471,7 +471,7 @@ TEST (messages, PostPhaseMessage)
 TEST (messages, RejectionMessage)
 {
     BlockHash pp_hash = 11;
-    RejectionMessage<ConsensusType::BatchStateBlock> block(pp_hash);
+    RejectionMessage<ConsensusType::Request> block(pp_hash);
     block.reason = RejectionReason::Bad_Signature;
     for(uint16_t i = 0; i < CONSENSUS_BATCH_SIZE; i+=2)
     {
@@ -488,7 +488,7 @@ TEST (messages, RejectionMessage)
     ASSERT_EQ(prequel.type, block.type);
     ASSERT_EQ(prequel.consensus_type, block.consensus_type);
 
-    RejectionMessage<ConsensusType::BatchStateBlock> block2(error, stream, prequel.version);
+    RejectionMessage<ConsensusType::Request> block2(error, stream, prequel.version);
     ASSERT_EQ(block.Hash(), block2.Hash());
 }
 
@@ -513,22 +513,22 @@ TEST (blocks, receive_block)
 
 TEST (blocks, state_block)
 {
-    StateBlock block(1,2,3,StateBlock::Type::send,5,6,7,8,9);
+    Send send_a(1,2,3,5,6,7,8,9);
 
     std::vector<uint8_t> buf;
-    auto db_val = block.to_mdb_val(buf);
+    auto db_val = send_a.ToDatabase(buf);
 
     bool error = false;
-    StateBlock block2(error, db_val);
+    Send send_b(error, db_val);
 
     ASSERT_FALSE(error);
-    ASSERT_EQ(block.GetHash(), block2.GetHash());
-    ASSERT_EQ(block.Hash(), block2.Hash());
-    ASSERT_EQ(block.Hash(), block.GetHash());
-    ASSERT_EQ(block2.Hash(), block2.GetHash());
+    ASSERT_EQ(send_a.GetHash(), send_b.GetHash());
+    ASSERT_EQ(send_a.Hash(), send_b.Hash());
+    ASSERT_EQ(send_a.Hash(), send_a.GetHash());
+    ASSERT_EQ(send_b.Hash(), send_b.GetHash());
 }
 
-void create_real_StateBlock(StateBlock & block)
+void create_real_StateBlock(Send & request)
 {
     logos::keypair pair(std::string("34F0A37AAD20F4A260F0A5B3CB3D7FB50673212263E58A380BC10474BB039CE4"));
     Amount amount(std::numeric_limits<logos::uint128_t>::max());
@@ -539,23 +539,22 @@ void create_real_StateBlock(StateBlock & block)
     AccountPubKey pub_key = pair.pub;
     AccountPrivKey priv_key = pair.prv.data;
 
-    new (&block) StateBlock(account,  // account
-            BlockHash(), // previous
-            0, // sqn
-            StateBlock::Type::send, //Type
-            account,  // target
-            amount,
-            fee,
-            priv_key,
-            pub_key,
-            work);
+    new (&request) Send(account,     // account
+                        BlockHash(), // previous
+                        0,           // sqn
+                        account,     // destination
+                        amount,
+                        fee,
+                        priv_key,
+                        pub_key,
+                        work);
 }
 
 TEST (blocks, state_block_json)
 {
-    StateBlock block;
-    create_real_StateBlock(block);
-    auto s(block.SerializeJson(true, true));
+    Send send_a;
+    create_real_StateBlock(send_a);
+    auto s(send_a.ToJson());
 
     std::cout << "StateBlock1 json: " << s << std::endl;
 
@@ -563,16 +562,16 @@ TEST (blocks, state_block_json)
     boost::property_tree::ptree tree;
     std::stringstream istream(s);
     boost::property_tree::read_json(istream, tree);
-    StateBlock block2(error, tree, true, true);
-    auto s2(block2.SerializeJson(true, true));
+    Send send_b(error, tree);
+    auto s2(send_b.ToJson());
 
-    //    std::cout << "StateBlock2 json: " << s2 << std::endl;
+    std::cout << "StateBlock2 json: " << s2 << std::endl;
 
     ASSERT_FALSE(error);
-    ASSERT_EQ(block.GetHash(), block2.GetHash());
-    ASSERT_EQ(block.Hash(), block2.Hash());
-    ASSERT_EQ(block.Hash(), block.GetHash());
-    ASSERT_EQ(block2.Hash(), block2.GetHash());
+    ASSERT_EQ(send_a.GetHash(), send_b.GetHash());
+    ASSERT_EQ(send_a.Hash(), send_b.Hash());
+    ASSERT_EQ(send_a.Hash(), send_a.GetHash());
+    ASSERT_EQ(send_b.Hash(), send_b.GetHash());
 }
 
 #endif
@@ -586,7 +585,7 @@ TEST (blocks, batch_state_block_PrePrepare_empty)
 
     bool error = false;
     logos::bufferstream stream(buf.data()+MessagePrequelSize, buf.size()-MessagePrequelSize);
-    PrePrepareMessage<ConsensusType::BatchStateBlock> block2(error, stream, logos_version);
+    PrePrepareMessage<ConsensusType::Request> block2(error, stream, logos_version);
 
     ASSERT_FALSE(error);
     ASSERT_EQ(block.Hash(), block2.Hash());
@@ -596,14 +595,14 @@ TEST (blocks, batch_state_block_PrePrepare_empty)
 TEST (blocks, batch_state_block_PrePrepare_full)
 {
     auto block = create_bsb_preprepare(CONSENSUS_BATCH_SIZE);
-    ASSERT_FALSE(block.AddStateBlock(std::make_shared<StateBlock>(1,2,CONSENSUS_BATCH_SIZE+1,StateBlock::Type::send,5,6,7,8,9)));
-    ASSERT_EQ(block.block_count, CONSENSUS_BATCH_SIZE);
+    ASSERT_FALSE(block.AddRequest(std::make_shared<Send>(Send(1, 2, CONSENSUS_BATCH_SIZE + 1, 5, 6, 7, 8, 9))));
+    ASSERT_EQ(block.requests.size(), CONSENSUS_BATCH_SIZE);
     vector<uint8_t> buf;
     block.Serialize(buf);
 
     bool error = false;
     logos::bufferstream stream(buf.data()+MessagePrequelSize, buf.size()-MessagePrequelSize);
-    PrePrepareMessage<ConsensusType::BatchStateBlock> block2(error, stream, logos_version);
+    PrePrepareMessage<ConsensusType::Request> block2(error, stream, logos_version);
 
     ASSERT_FALSE(error);
     ASSERT_EQ(block.Hash(), block2.Hash());
@@ -612,14 +611,14 @@ TEST (blocks, batch_state_block_PrePrepare_full)
 TEST (blocks, batch_state_block_PostCommit_net)
 {
     auto block_pp = create_bsb_preprepare(CONSENSUS_BATCH_SIZE/3);/* /3 so not a full block*/
-    auto block = create_approved_block<ConsensusType::BatchStateBlock>(block_pp);
+    auto block = create_approved_block<ConsensusType::Request>(block_pp);
 
     vector<uint8_t> buf;
     block.Serialize(buf, true, false);
 
     bool error = false;
     logos::bufferstream stream(buf.data()+MessagePrequelSize, buf.size()-MessagePrequelSize);
-    PostCommittedBlock<ConsensusType::BatchStateBlock> block2(error, stream, logos_version, true, false);
+    PostCommittedBlock<ConsensusType::Request> block2(error, stream, logos_version, true, false);
 
     ASSERT_FALSE(error);
     ASSERT_EQ(block.Hash(), block2.Hash());
@@ -629,27 +628,32 @@ TEST (blocks, batch_state_block_PostCommit_DB)
 {
     uint16_t num_state_block =  CONSENSUS_BATCH_SIZE/2; /* /2 so not a full block*/
     auto block_pp = create_bsb_preprepare(num_state_block);
-    auto block = create_approved_block<ConsensusType::BatchStateBlock>(block_pp);
+    auto block = create_approved_block<ConsensusType::Request>(block_pp);
     block.next = 90;
 
     vector<uint8_t> buf;
     auto block_db_val = block.to_mdb_val(buf);
     vector<vector<uint8_t> > buffers(num_state_block);
     vector<logos::mdb_val> sb_db_vals;
-    for(uint16_t i = 0; i < num_state_block; ++i)
+    for(uint16_t i = 0; i < block.requests.size(); ++i)
     {
-        sb_db_vals.push_back(block.blocks[i]->to_mdb_val(buffers[i]));
+        sb_db_vals.push_back(block.requests[i]->ToDatabase(buffers[i]));
     }
 
     bool error = false;
-    PostCommittedBlock<ConsensusType::BatchStateBlock> block2(error, block_db_val);
+    PostCommittedBlock<ConsensusType::Request> block2(error, block_db_val);
     ASSERT_FALSE(error);
     if(! error)
     {
-        block.blocks.reserve(block.block_count);
-        for(uint16_t i = 0; i < block.block_count; ++i)
+        block.requests.reserve(block2.hashes.size());
+        for(uint16_t i = 0; i < block2.hashes.size(); ++i)
         {
-            block.blocks.emplace_back(std::make_shared<StateBlock>(error, sb_db_vals[i]));
+            block2.requests.push_back(
+                std::shared_ptr<Request>(
+                    new Send(error, sb_db_vals[i])
+                )
+            );
+
             ASSERT_FALSE(error);
         }
     }
@@ -1008,17 +1012,17 @@ TEST (DB, state_block)
         return;
     logos::transaction txn(store->environment, nullptr, true);
 
-    StateBlock block(1,2,3,StateBlock::Type::send,5,6,7,8,9);
+    Send send_a(1,2,3,5,6,7,8,9);
     std::vector<uint8_t> buf;
-    ASSERT_FALSE(store->state_block_put(block, txn));
+    ASSERT_FALSE(store->request_put(static_cast<Request&>(send_a), txn));
 
-    StateBlock block2;
-    ASSERT_FALSE(store->state_block_get(block.GetHash(), block2, txn));
+    Send send_b;
+    ASSERT_FALSE(store->request_get(send_a.GetHash(), send_b, txn));
 
-    ASSERT_EQ(block.GetHash(), block2.GetHash());
-    ASSERT_EQ(block.Hash(), block2.Hash());
-    ASSERT_EQ(block.Hash(), block.GetHash());
-    ASSERT_EQ(block2.Hash(), block2.GetHash());
+    ASSERT_EQ(send_a.GetHash(), send_b.GetHash());
+    ASSERT_EQ(send_a.Hash(), send_b.Hash());
+    ASSERT_EQ(send_a.Hash(), send_a.GetHash());
+    ASSERT_EQ(send_b.Hash(), send_b.GetHash());
 }
 
 TEST (DB, account)
@@ -1035,7 +1039,7 @@ TEST (DB, account)
     vector<uint8_t> buf;
     {
         logos::vectorstream stream(buf);
-        block.serialize(stream);
+        block.Serialize(stream);
     }
     std::cout << byte_vector_to_string(buf) << std::endl;
 
@@ -1056,14 +1060,14 @@ TEST (DB, bsb)
     logos::transaction txn(store->environment, nullptr, true);
 
     auto block_pp = create_bsb_preprepare(CONSENSUS_BATCH_SIZE/2);
-    auto block = create_approved_block<ConsensusType::BatchStateBlock>(block_pp);
+    auto block = create_approved_block<ConsensusType::Request>(block_pp);
     block.next = 90;
 
     auto block_hash(block.Hash());
-    ASSERT_FALSE(store->batch_block_put(block, block_hash, txn));
+    ASSERT_FALSE(store->request_block_put(block, block_hash, txn));
 
-    ApprovedBSB block2;
-    ASSERT_FALSE(store->batch_block_get(block_hash, block2, txn));
+    ApprovedRB block2;
+    ASSERT_FALSE(store->request_block_get(block_hash, block2, txn));
     ASSERT_EQ(block_hash, block2.Hash());
 }
 
@@ -1116,22 +1120,22 @@ TEST (DB, bsb_next)
 //    logos::transaction txn(store->environment, nullptr, true);
 
     auto block_pp = create_bsb_preprepare(CONSENSUS_BATCH_SIZE/4);
-    auto block = create_approved_block<ConsensusType::BatchStateBlock>(block_pp);
+    auto block = create_approved_block<ConsensusType::Request>(block_pp);
     auto block_hash(block.Hash());
     {
         logos::transaction txn(store->environment, nullptr, true);
-        ASSERT_FALSE(store->batch_block_put(block, block_hash, txn));
+        ASSERT_FALSE(store->request_block_put(block, block_hash, txn));
     }
 
     BlockHash next(90);
     {
         logos::transaction txn(store->environment, nullptr, true);
-        store->consensus_block_update_next(block_hash, next, ConsensusType::BatchStateBlock, txn);
+        store->consensus_block_update_next(block_hash, next, ConsensusType::Request, txn);
     }
 
     logos::transaction txn(store->environment, nullptr, false);
-    ApprovedBSB block2;
-    ASSERT_FALSE(store->batch_block_get(block_hash, block2, txn));
+    ApprovedRB block2;
+    ASSERT_FALSE(store->request_block_get(block_hash, block2, txn));
     ASSERT_EQ(block_hash, block2.Hash());
     ASSERT_EQ(block2.next, next);
 }

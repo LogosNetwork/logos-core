@@ -92,9 +92,9 @@ namespace Bootstrap
 		LOG_TRACE(log) << "bulk_pull_client::"<<__func__;
     	bool error = false;
     	switch (ct) {
-			case ConsensusType::BatchStateBlock:
+			case ConsensusType::Request:
 			{
-				PullResponse<ConsensusType::BatchStateBlock> response(error, stream);
+				PullResponse<ConsensusType::Request> response(error, stream);
 				if(error || response.status == PullResponseStatus::NoBlock)
 				{
 					puller.PullFailed(request);

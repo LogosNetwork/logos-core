@@ -226,7 +226,7 @@ DelegateIdentityManager::Init(const Config &config)
         boost::property_tree::ptree tree;
         std::stringstream istream(logos::logos_test_genesis);
         boost::property_tree::read_json(istream, tree);
-        StateBlock logos_genesis_block(error, tree, true, true);
+        Send logos_genesis_block(error, tree);
 
         if(error)
         {
@@ -236,21 +236,21 @@ DelegateIdentityManager::Init(const Config &config)
 
         //TODO check with Greg
         ReceiveBlock logos_genesis_receive(0, logos_genesis_block.GetHash(), 0);
-        _store.state_block_put(logos_genesis_block,
-                transaction);
+        _store.request_put(logos_genesis_block,
+                           transaction);
         _store.receive_put(logos_genesis_receive.Hash(),
-                logos_genesis_receive,
-                transaction);
+                           logos_genesis_receive,
+                           transaction);
         _store.account_put(logos::genesis_account,
-                {
-            /* Head         */ logos_genesis_block.GetHash(),
-            /* Receive Head */ logos_genesis_receive.Hash(),
-            /* Rep          */ 0,
-            /* Open         */ logos_genesis_block.GetHash(),
-            /* Amount       */ logos_genesis_block.trans[0].amount,
-            /* Time         */ logos::seconds_since_epoch(),
-            /* Count        */ 1,
-            /* Receive      */ 1
+            {
+                /* Head         */ logos_genesis_block.GetHash(),
+                /* Receive Head */ logos_genesis_receive.Hash(),
+                /* Rep          */ 0,
+                /* Open         */ logos_genesis_block.GetHash(),
+                /* Amount       */ logos_genesis_block.transactions[0].amount,
+                /* Time         */ logos::seconds_since_epoch(),
+                /* Count        */ 1,
+                /* Receive      */ 1
             },
             transaction);
         CreateGenesisAccounts(transaction);
@@ -294,25 +294,24 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
         logos::amount amount((del + 1) * 1000000 * 1000000);
         uint64_t work = 0;
 
-        StateBlock state(logos::logos_test_account,    // account
-                         genesis_account.head,         // previous
-                         genesis_account.block_count,  // sequence
-                         StateBlock::Type::send,
-                         pair.pub,  // link/to
-                         amount,
-                         0,       // transaction fee
-                         pair.prv.data,
-                         pair.pub,
-                         work);
+        Send request(logos::logos_test_account,   // account
+                     genesis_account.head,        // previous
+                     genesis_account.block_count, // sequence
+                     pair.pub,                    // link/to
+                     amount,
+                     0,                           // transaction fee
+                     pair.prv.data,
+                     pair.pub,
+                     work);
 
         genesis_account.balance = genesis_account.balance.number() - amount.number();
-        genesis_account.head = state.GetHash();
+        genesis_account.head = request.GetHash();
         genesis_account.block_count++;
         genesis_account.modified = logos::seconds_since_epoch();
 
-        ReceiveBlock receive(0, state.GetHash(), 0);
+        ReceiveBlock receive(0, request.GetHash(), 0);
 
-        _store.state_block_put(state, transaction);
+        _store.request_put(request, transaction);
 
         _store.receive_put(receive.Hash(),
                 receive,
@@ -323,7 +322,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
                                /* Head    */ 0,
                                /* Receive */ receive.Hash(),
                                /* Rep     */ 0,
-                               /* Open    */ state.GetHash(),
+                               /* Open    */ request.GetHash(),
                                /* Amount  */ amount,
                                /* Time    */ logos::seconds_since_epoch(),
                                /* Count   */ 0,

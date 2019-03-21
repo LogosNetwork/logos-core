@@ -18,24 +18,26 @@ EpochManager::EpochManager(Service & service,
                            EpochConnection connection,
                            const uint32_t epoch_number,
                            NewEpochEventHandler & handler,
-                           p2p_interface & p2p)
+                           p2p_interface & p2p,
+                           uint8_t delegate_id)
     : _state(state)
     , _delegate(delegate)
     , _connection_state(connection)
     , _epoch_number(epoch_number)
     , _new_epoch_handler(handler)
     , _validator(_key_store, logos::genesis_delegates[DelegateIdentityManager::_global_delegate_idx].bls_key)
-    , _batch_manager(service, store, config, _validator, *this, p2p)
+    , _request_manager(service, store, config, _validator, *this, p2p)
     , _micro_manager(service, store, config, _validator, archiver, *this, p2p)
     , _epoch_manager(service, store, config, _validator, *this, p2p)
     , _netio_manager(
         {
-            {ConsensusType::BatchStateBlock, _batch_manager},
+            {ConsensusType::Request, _request_manager},
             {ConsensusType::MicroBlock, _micro_manager},
             {ConsensusType::Epoch, _epoch_manager}
         },
         service, alarm, config,
         _key_store, _validator, starter, *this)
+    , _delegate_id(delegate_id)
 {}
 
 EpochManager::~EpochManager()

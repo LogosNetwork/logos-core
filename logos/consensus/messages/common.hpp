@@ -36,34 +36,40 @@ enum class MessageType : uint8_t
 static constexpr uint8_t logos_version = 0;
 
 /// To implement a new type of consensus :
-/// - define consensus type in consensus/messages/common.hpp - add new consensus type before Any
-///   and update NumberOfConsensus
-/// - add PrePrepareMessage and Request message for specific consensus in messages/messages.hpp (enf of file)
-/// - add newconsensus type folder in consensus
-/// - implement newconsensus_backup_delegate.cpp, and newconsensus_consensus_manager.[ch]pp
-/// - explicitly instanciate newconsensus consensus connection in backup_delegate.cpp (end of file)
-/// - explicitly instanciate newconsensus consensus manager in consensus_manager.cpp (end of file)
-/// - explicitly instanciate newconsensus function in primary_delegate.cpp (top of file)
+/// - define new consensus type in consensus/messages/common.hpp
+/// - add PrePrepareMessage and Request message for new consensus type in messages/messages.hpp (end of file)
+/// - add new consensus type folder in logos/consensus/
+/// - implement new consensus_backup_delegate.cpp, and new consensus_consensus_manager.[ch]pp
+/// - explicitly instantiate new consensus BackupDelegate in backup_delegate.cpp (end of file)
+/// - explicitly instantiate new consensus ConsensusManager in consensus_manager.cpp (end of file)
+/// - explicitly instantiate new consensus function in primary_delegate.cpp (top of file)
 /// - update ConsensusToName in messages/util.hpp
 /// - add new files to CMakeLists.txt
-#define CONSENSUS_TYPE(...) \
-  struct ConsensusType_Size { int __VA_ARGS__; }; \
-  enum class ConsensusType:uint8_t { __VA_ARGS__,Any=0xff}; \
-  static constexpr size_t CONSENSUS_TYPE_COUNT = (sizeof(ConsensusType_Size)/sizeof(int));
+#define CONSENSUS_TYPE(...)            \
+    struct ConsensusType_Size          \
+    {                                  \
+        int __VA_ARGS__;               \
+    } __attribute__((packed));         \
+    enum class ConsensusType : uint8_t \
+    {                                  \
+        __VA_ARGS__,                   \
+        Any = 0xff                     \
+    };                                 \
+    static constexpr size_t CONSENSUS_TYPE_COUNT = (sizeof(ConsensusType_Size)/sizeof(int));
 
 // Add new consensus types at the end
 CONSENSUS_TYPE
 (
-    BatchStateBlock = 0,
+    Request    = 0,
     MicroBlock = 1,
-    Epoch = 2
+    Epoch      = 2
 );
 
-static const size_t NUM_DELEGATES               = 32;
-static const size_t CONSENSUS_BATCH_SIZE        = 1500;
+static const size_t NUM_DELEGATES        = 32;
+static const size_t CONSENSUS_BATCH_SIZE = 1500;
 
-using ParicipationMap       = std::bitset<NUM_DELEGATES>;
-using RejectionMap          = std::vector<bool>;
+using ParicipationMap = std::bitset<NUM_DELEGATES>;
+using RejectionMap    = std::vector<bool>;
 
 inline uint64_t GetStamp()
 {
@@ -73,59 +79,34 @@ inline uint64_t GetStamp()
                 system_clock::now().time_since_epoch()).count();
 }
 
-template<typename T>
-BlockHash Blake2bHash(const T & t)
-{
-    BlockHash digest;
-    blake2b_state hash;
-
-    auto status(blake2b_init(&hash, HASH_SIZE));
-    assert(status == 0);
-
-    t.Hash(hash);
-
-    status = blake2b_final(&hash, digest.data(), HASH_SIZE);
-    assert(status == 0);
-
-    return digest;
-}
-
 struct AggSignature
 {
-    ParicipationMap     map;
-    DelegateSig         sig;
-    static_assert (sizeof(unsigned long)*8==64, "sizeof(unsigned long)*8!=64");
+    static_assert (sizeof(unsigned long)*8==64,
+                   "sizeof(unsigned long)*8!=64");
 
     AggSignature() = default;
 
     AggSignature(bool & error, logos::stream & stream);
 
-    void Hash(blake2b_state & hash) const
-    {
-        unsigned long m = htole64(map.to_ulong());
-        blake2b_update(&hash, &m, sizeof(m));
-        sig.Hash(hash);
-    }
+    void Hash(blake2b_state & hash) const;
 
-    uint32_t Serialize(logos::stream & stream) const
-    {
-        unsigned long m = htole64(map.to_ulong());
-        uint32_t s = logos::write(stream, m);
-        s += logos::write(stream, sig);
-        return s;
-    }
+    uint32_t Serialize(logos::stream & stream) const;
+    void SerializeJson(boost::property_tree::ptree & tree) const;
 
-    void SerializeJson(boost::property_tree::ptree & tree) const
-    {
-        tree.put("participation_map", map.to_string());
-        tree.put("signature", sig.to_string());
-    }
+    ParicipationMap map;
+    DelegateSig     sig;
+};
+
+
+struct MessageBase {
+    MessageBase() = default;
+    virtual ~MessageBase() = default;
 };
 
 static constexpr uint32_t MessagePrequelSize = 8;
 
 template<MessageType MT, ConsensusType CT>
-struct MessagePrequel
+struct MessagePrequel : public MessageBase
 {
     MessagePrequel(uint8_t version = logos_version)
     : version(version)
@@ -190,93 +171,34 @@ struct MessagePrequel
         return s;
     }
 
-    const uint8_t       version         = logos_version;
-    const MessageType   type            = MT;
-    const ConsensusType consensus_type  = CT;
-    uint8_t             mpf             = 0;
-    mutable uint32_t    payload_size    = 0;
+    const uint8_t       version        = logos_version;
+    const MessageType   type           = MT;
+    const ConsensusType consensus_type = CT;
+    uint8_t             mpf            = 0;
+    mutable uint32_t    payload_size   = 0;
 };
 
 using Prequel = MessagePrequel<MessageType::Unknown, ConsensusType::Any>;
 
 struct PrePrepareCommon
 {
-    PrePrepareCommon()
-    : primary_delegate(0xff)
-    , epoch_number(0)
-    , sequence(0)
-    , timestamp(GetStamp())
-    , previous()
-    , preprepare_sig()
-    { }
+    PrePrepareCommon();
 
     PrePrepareCommon(bool & error, logos::stream & stream);
 
-    PrePrepareCommon & operator= (const PrePrepareCommon & other)
-    {
-        primary_delegate        = other.primary_delegate;
-        epoch_number    = other.epoch_number;
-        sequence        = other.sequence;
-        timestamp       = other.timestamp;
-        previous        = other.previous;
-        preprepare_sig  = other.preprepare_sig;
-        return *this;
-    }
+    PrePrepareCommon & operator= (const PrePrepareCommon & other);
 
-    void Hash(blake2b_state & hash, bool is_archive_block = false) const
-    {
-        uint32_t en = htole32(epoch_number);
-        uint32_t sqn = htole32(sequence);
+    virtual void Hash(blake2b_state & hash, bool is_archive_block = false) const;
 
-        // SYL Integration: for archive blocks, we want to ensure the hash of a block with
-        // a given epoch_number and sequence is the same across all delegates
-        if (!is_archive_block)
-        {
-            blake2b_update(&hash, &primary_delegate, sizeof(primary_delegate));
-        }
-        blake2b_update(&hash, &en, sizeof(en));
-        blake2b_update(&hash, &sqn, sizeof(sqn));
+    uint32_t Serialize(logos::stream & stream) const;
+    void SerializeJson(boost::property_tree::ptree & tree) const;
 
-        if (!is_archive_block)
-        {
-            uint64_t tsp = htole64(timestamp);
-            blake2b_update(&hash, &tsp, sizeof(tsp));
-        }
-        previous.Hash(hash);
-    }
-
-    uint32_t Serialize(logos::stream & stream) const
-    {
-        uint32_t en = htole32(epoch_number);
-        uint32_t sqn = htole32(sequence);
-        uint64_t tsp = htole64(timestamp);
-
-        auto s = logos::write(stream, primary_delegate);
-        s += logos::write(stream, en);
-        s += logos::write(stream, sqn);
-        s += logos::write(stream, tsp);
-        s += logos::write(stream, previous);
-        s += logos::write(stream, preprepare_sig);
-
-        return s;
-    }
-
-    void SerializeJson(boost::property_tree::ptree & tree) const
-    {
-        tree.put("delegate", std::to_string(primary_delegate));
-        tree.put("epoch_number", std::to_string(epoch_number));
-        tree.put("sequence", std::to_string(sequence));
-        tree.put("timestamp", std::to_string(timestamp));
-        tree.put("previous", previous.to_string());
-        tree.put("signature", preprepare_sig.to_string());
-    }
-
-    uint8_t                 primary_delegate;
-    uint32_t                epoch_number;
-    uint32_t                sequence;
-    uint64_t                timestamp;
-    BlockHash               previous;
-    DelegateSig             preprepare_sig;
+    uint8_t     primary_delegate;
+    uint32_t    epoch_number;
+    uint32_t    sequence;
+    uint64_t    timestamp;
+    BlockHash   previous;
+    DelegateSig preprepare_sig;
 };
 
 using HeaderStream = boost::iostreams::stream_buffer<boost::iostreams::basic_array_sink<uint8_t>>;

@@ -15,7 +15,7 @@
 namespace Bootstrap
 {
     using PullPtr = std::shared_ptr<PullRequest>;
-    using BSBPtr = std::shared_ptr<ApprovedBSB>;
+    using BSBPtr = std::shared_ptr<ApprovedRB>;
     using MBPtr = std::shared_ptr<ApprovedMB>;
     using EBPtr = std::shared_ptr<ApprovedEB>;
 

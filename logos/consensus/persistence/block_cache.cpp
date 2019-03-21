@@ -208,7 +208,7 @@ void BlockCache::Validate(uint8_t bsb_idx)
 			}
 			else
 			{
-				ApprovedBSB & block = *(*to_validate);
+				ApprovedRB & block = *(*to_validate);
 				ValidationStatus status;
 				if(bsb_handler.VerifyContent(block, &status))
 				{

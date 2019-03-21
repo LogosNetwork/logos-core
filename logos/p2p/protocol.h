@@ -12,7 +12,7 @@
 
 #include <netaddress.h>
 #include <serialize.h>
-#include <uint512.h>
+#include <uint256.h>
 #include <version.h>
 
 #include <atomic>

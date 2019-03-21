@@ -5,39 +5,58 @@
 #include <logos/blockstore.hpp>
 #include <logos/lib/log.hpp>
 #include <logos/common.hpp>
-#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
-//#include <logos/node/delegate_identity_manager.hpp>
-//#include <logos/consensus/consensus_container.hpp>
 
 #include <unordered_map>
 
-class ReservationsProvider {
+namespace
+{
+
+using logos::reservation_info;
+
+}
+
+class ReservationsProvider
+{
 protected:
-    using Store = logos::block_store;
+
+    using Store           = logos::block_store;
+    using AccountPtr      = std::shared_ptr<logos::Account>;
+    using TokenAccountPtr = std::shared_ptr<TokenAccount>;
+    using LogosAccountPtr = std::shared_ptr<logos::account_info>;
+
 public:
+
     explicit ReservationsProvider(Store & store)
         : _store(store)
     {}
+
     virtual ~ReservationsProvider() = default;
-    virtual bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) {return false;}
+    virtual bool CanAcquire(const AccountAddress & account,
+                            const BlockHash & hash,
+                            bool allow_duplicates) {return false;}
+
     virtual void Release(const AccountAddress & account) {}
-    virtual void UpdateReservation(const logos::block_hash & hash, const logos::account & account) {}
+
+    virtual void UpdateReservation(const BlockHash & hash,
+                                   const AccountAddress & account) {}
 protected:
-    Store &      _store;
-    Log          _log;
+
+    Store & _store;
+    Log     _log;
 };
 
 class Reservations : public ReservationsProvider
 {
 protected:
 
-    using ReservationCache = std::unordered_map<AccountAddress, logos::reservation_info>;
+    using ReservationCache = std::unordered_map<AccountAddress, reservation_info>;
 
 public:
     explicit Reservations(Store & store)
         : ReservationsProvider(store)
     {}
-    ~Reservations() = default;
+
+    virtual ~Reservations() = default;
 
     //-------------------------------------------------------------------------
     // XXX - It is possible for a delegate D1 that has validated/Post-Comitted
@@ -53,23 +72,33 @@ public:
     //       this is not the only case in which a cached account will be
     //       acquired.
     //-------------------------------------------------------------------------
-    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) override;
+    bool CanAcquire(const AccountAddress & account,
+                    const BlockHash & hash,
+                    bool allow_duplicates) override;
 
     void Release(const AccountAddress & account) override;
 
     // Can only be called after checking CanAcquire to ensure we don't corrupt reservation
-    void UpdateReservation(const logos::block_hash & hash, const logos::account & account) override;
+    void UpdateReservation(const BlockHash & hash,
+                           const AccountAddress & account) override;
 
 private:
 
     ReservationCache _reservations;
 };
 
-class DefaultReservations : public ReservationsProvider {
-public:
-    explicit DefaultReservations(Store & store) : ReservationsProvider(store)
-    {}
-    ~DefaultReservations() = default;
+class DefaultReservations : public ReservationsProvider
+{
 
-    bool CanAcquire(const AccountAddress & account, const BlockHash & hash, bool allow_duplicates) override;
+public:
+
+    explicit DefaultReservations(Store & store)
+        : ReservationsProvider(store)
+    {}
+
+    virtual ~DefaultReservations() = default;
+
+    bool CanAcquire(const AccountAddress & account,
+                    const BlockHash & hash,
+                    bool allow_duplicates) override;
 };

@@ -88,9 +88,9 @@ void CConnman::AddOneShot(const std::string& strDest)
     vOneShots.push_back(strDest);
 }
 
-unsigned short GetListenPort()
+unsigned short CConnman::GetListenPort()
 {
-    return (unsigned short)(gArgs.GetArg("-port", Params().GetDefaultPort()));
+    return (unsigned short)(Args.GetArg("-port", Params().GetDefaultPort()));
 }
 
 // find 'best' local address for a particular peer
@@ -142,7 +142,7 @@ static std::vector<CAddress> convertSeed6(const std::vector<SeedSpec6> &vSeedsIn
 // Otherwise, return the unroutable 0.0.0.0 but filled in with
 // the normal parameters, since the IP may be changed to a useful
 // one by discovery.
-CAddress GetLocalAddress(const CNetAddr *paddrPeer, ServiceFlags nLocalServices)
+CAddress CConnman::GetLocalAddress(const CNetAddr *paddrPeer, ServiceFlags nLocalServices)
 {
     CAddress ret(CService(CNetAddr(),GetListenPort()), nLocalServices);
     CService addr;
@@ -175,10 +175,10 @@ void AdvertiseLocal(std::shared_ptr<CNode> pnode)
 {
     if (fListen && pnode->fSuccessfullyConnected)
     {
-        CAddress addrLocal = GetLocalAddress(&pnode->addr, pnode->GetLocalServices());
-        if (gArgs.GetBoolArg("-addrmantest", false)) {
+        CAddress addrLocal = pnode->connman.GetLocalAddress(&pnode->addr, pnode->GetLocalServices());
+        if (pnode->connman.Args.GetBoolArg("-addrmantest", false)) {
             // use IPv4 loopback during addrmantest
-            addrLocal = CAddress(CService(LookupNumeric("127.0.0.1", GetListenPort())), pnode->GetLocalServices());
+            addrLocal = CAddress(CService(LookupNumeric("127.0.0.1", pnode->connman.GetListenPort())), pnode->GetLocalServices());
         }
         // If discovery is enabled, sometimes give our peer the address it
         // tells us that it sees us as in case it has a better idea of our
@@ -188,7 +188,7 @@ void AdvertiseLocal(std::shared_ptr<CNode> pnode)
         {
             addrLocal.SetIP(pnode->GetAddrLocal());
         }
-        if (addrLocal.IsRoutable() || gArgs.GetBoolArg("-addrmantest", false))
+        if (addrLocal.IsRoutable() || pnode->connman.Args.GetBoolArg("-addrmantest", false))
         {
             LogPrint(BCLog::NET, "AdvertiseLocal: advertising address %s\n", addrLocal.ToString());
             FastRandomContext insecure_rand;
@@ -224,9 +224,9 @@ bool AddLocal(const CService& addr, int nScore)
     return true;
 }
 
-bool AddLocal(const CNetAddr &addr, int nScore)
+bool CConnman::AddLocal(const CNetAddr &addr, int nScore)
 {
-    return AddLocal(CService(addr, GetListenPort()), nScore);
+    return ::AddLocal(CService(addr, GetListenPort()), nScore);
 }
 
 void RemoveLocal(const CService& addr)
@@ -274,6 +274,7 @@ bool IsLocal(const CService& addr)
 {
     LOCK(cs_mapLocalHost);
     return mapLocalHost.count(addr) > 0;
+
 }
 
 /** check whether a given network is one we can probably connect to */
@@ -709,7 +710,7 @@ void CConnman::Ban(const CSubNet& subNet, const BanReason &banReason, int64_t ba
     banEntry.banReason = banReason;
     if (bantimeoffset <= 0)
     {
-        bantimeoffset = gArgs.GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME);
+        bantimeoffset = Args.GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME);
         sinceUnixEpoch = false;
     }
     banEntry.nBanUntil = (sinceUnixEpoch ? 0 : GetTime() )+bantimeoffset;
@@ -1031,7 +1032,7 @@ int CNetMessage::readData(const char *pch, unsigned int nBytes)
     return nCopy;
 }
 
-const uint512& CNetMessage::GetMessageHash() const
+const uint256& CNetMessage::GetMessageHash() const
 {
     assert(complete());
     if (data_hash.IsNull())
@@ -1671,7 +1672,7 @@ void CConnman::ThreadDNSAddressSeed()
     //  creating fewer identifying DNS requests, reduces trust by giving seeds
     //  less influence on the network topology, and reduces traffic to the seeds.
     if ((addrman.size() > 0) &&
-        (!gArgs.GetBoolArg("-forcednsseed", DEFAULT_FORCEDNSSEED))) {
+        (!Args.GetBoolArg("-forcednsseed", DEFAULT_FORCEDNSSEED))) {
         if (!interruptNet.sleep_for(std::chrono::seconds(11)))
             return;
 
@@ -2139,7 +2140,7 @@ bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, b
     return true;
 }
 
-void Discover()
+void CConnman::Discover()
 {
     if (!fDiscover)
         return;
@@ -2203,7 +2204,10 @@ void CConnman::SetNetworkActive(bool active)
     uiInterface.NotifyNetworkActiveChanged(fNetworkActive);
 }
 
-CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In) : nSeed0(nSeed0In), nSeed1(nSeed1In)
+CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In, ArgsManager &ArgsIn)
+    : nSeed0(nSeed0In)
+    , nSeed1(nSeed1In)
+    , Args(ArgsIn)
 {
     fNetworkActive = true;
     setBannedIsDirty = false;
@@ -2256,6 +2260,54 @@ bool CConnman::InitBinds(const std::vector<CService>& binds, const std::vector<C
     return fBound;
 }
 
+bool CConnman::LoadData()
+{
+    bool res = true;
+
+    if (clientInterface)
+    {
+        clientInterface->InitMessage(_("Loading P2P addresses..."));
+    }
+    // Load addresses from peers.dat
+    int64_t nStart = GetTimeMillis();
+    {
+        CAddrDB adb;
+        if (adb.Read(addrman))
+            LogPrintf("Loaded %i addresses from peers.dat  %dms\n", addrman.size(), GetTimeMillis() - nStart);
+        else
+        {
+            addrman.Clear(); // Addrman can be in an inconsistent state after failure, reset it
+            LogPrintf("Invalid or missing peers.dat; recreating\n");
+            DumpAddresses();
+            res = false;
+        }
+    }
+    if (clientInterface)
+        clientInterface->InitMessage(_("Loading banlist..."));
+    // Load addresses from banlist.dat
+    nStart = GetTimeMillis();
+    CBanDB bandb;
+    banmap_t banmap;
+    if (bandb.Read(banmap))
+    {
+        SetBanned(banmap); // thread save setter
+        SetBannedSetDirty(false); // no need to write down, just read data
+        SweepBanned(); // sweep out unused entries
+
+        LogPrint(BCLog::NET, "Loaded %d banned node ips/subnets from banlist.dat  %dms\n",
+            banmap.size(), GetTimeMillis() - nStart);
+    }
+    else
+    {
+        LogPrintf("Invalid or missing banlist.dat; recreating\n");
+        SetBannedSetDirty(true); // force write
+        DumpBanlist();
+        res = false;
+    }
+
+    return res;
+}
+
 bool CConnman::Start(const Options& connOptions)
 {
     Init(connOptions);
@@ -2282,39 +2334,7 @@ bool CConnman::Start(const Options& connOptions)
         AddOneShot(strDest);
     }
 
-    if (clientInterface) {
-        clientInterface->InitMessage(_("Loading P2P addresses..."));
-    }
-    // Load addresses from peers.dat
-    int64_t nStart = GetTimeMillis();
-    {
-        CAddrDB adb;
-        if (adb.Read(addrman))
-            LogPrintf("Loaded %i addresses from peers.dat  %dms\n", addrman.size(), GetTimeMillis() - nStart);
-        else {
-            addrman.Clear(); // Addrman can be in an inconsistent state after failure, reset it
-            LogPrintf("Invalid or missing peers.dat; recreating\n");
-            DumpAddresses();
-        }
-    }
-    if (clientInterface)
-        clientInterface->InitMessage(_("Loading banlist..."));
-    // Load addresses from banlist.dat
-    nStart = GetTimeMillis();
-    CBanDB bandb;
-    banmap_t banmap;
-    if (bandb.Read(banmap)) {
-        SetBanned(banmap); // thread save setter
-        SetBannedSetDirty(false); // no need to write down, just read data
-        SweepBanned(); // sweep out unused entries
-
-        LogPrint(BCLog::NET, "Loaded %d banned node ips/subnets from banlist.dat  %dms\n",
-            banmap.size(), GetTimeMillis() - nStart);
-    } else {
-        LogPrintf("Invalid or missing banlist.dat; recreating\n");
-        SetBannedSetDirty(true); // force write
-        DumpBanlist();
-    }
+    LoadData();
 
     uiInterface.InitMessage(_("Starting network threads..."));
 
@@ -2344,7 +2364,7 @@ bool CConnman::Start(const Options& connOptions)
     // Send and receive from sockets, accept connections
     threadSocketHandler = std::thread(&TraceThread<std::function<void()> >, "net", std::function<void()>(std::bind(&CConnman::ThreadSocketHandler, this)));
 
-    if (!gArgs.GetBoolArg("-dnsseed", true))
+    if (!Args.GetBoolArg("-dnsseed", true))
         LogPrintf("DNS seeding disabled\n");
     else
         threadDNSAddressSeed = std::thread(&TraceThread<std::function<void()> >, "dnsseed", std::function<void()>(std::bind(&CConnman::ThreadDNSAddressSeed, this)));
@@ -2704,7 +2724,7 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     fSuccessfullyConnected = false;
     fDisconnect = false;
     nSendSize = 0;
-    hashContinue = uint512();
+    hashContinue = uint256();
     nStartingHeight = -1;
     fGetAddr = false;
     nNextLocalAddrSend = 0;
@@ -2770,7 +2790,7 @@ void CConnman::PushMessage(std::shared_ptr<CNode> pnode, CSerializedNetMsg&& msg
 
     std::vector<unsigned char> serializedHeader;
     serializedHeader.reserve(CMessageHeader::HEADER_SIZE);
-    uint512 hash = Hash(msg.data.data(), msg.data.data() + nMessageSize);
+    uint256 hash = Hash(msg.data.data(), msg.data.data() + nMessageSize);
     CMessageHeader hdr(Params().MessageStart(), msg.command.c_str(), nMessageSize);
     memcpy(hdr.pchChecksum, hash.begin(), CMessageHeader::CHECKSUM_SIZE);
 

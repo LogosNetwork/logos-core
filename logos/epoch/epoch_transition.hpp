@@ -38,49 +38,80 @@ enum class EpochConnection : uint8_t
 inline std::string
 TransitionConnectionToName(const EpochConnection connection)
 {
+    std::string result;
+
     switch (connection)
     {
         case EpochConnection::Current:
-            return "Current";
+            result = "Current";
+            break;
         case EpochConnection::Transitioning:
-            return "Transition";
+            result = "Transition";
+            break;
         case EpochConnection::WaitingDisconnect:
-            return "WaitingDisconnect";
+            result = "WaitingDisconnect";
+            break;
+        default:
+            assert(0);
     }
+
+    return result;
 }
 
 inline std::string
 TransitionStateToName(const EpochTransitionState &state)
 {
+    std::string result;
+
     switch(state)
     {
         case EpochTransitionState::Connecting:
-            return "Connecting";
+            result = "Connecting";
+            break;
         case EpochTransitionState::EpochTransitionStart:
-            return "EpochTransitionStart";
+            result = "EpochTransitionStart";
+            break;
         case EpochTransitionState::EpochStart:
-            return "EpochStart";
+            result = "EpochStart";
+            break;
         case EpochTransitionState::None:
-            return "None";
+            result = "None";
+            break;
+        default:
+            assert(0);
     }
+
+    return result;
 }
 
 inline std::string
 TransitionDelegateToName(const EpochTransitionDelegate &delegate)
 {
+    std::string result;
+
     switch(delegate)
     {
         case EpochTransitionDelegate::New:
-            return "New";
+            result = "New";
+            break;
         case EpochTransitionDelegate::Persistent:
-            return "Persistent";
+            result = "Persistent";
+            break;
         case EpochTransitionDelegate::PersistentReject:
-            return "PersistentReject";
+            result = "PersistentReject";
+            break;
         case EpochTransitionDelegate::Retiring:
-            return "Retiring";
+            result = "Retiring";
+            break;
         case EpochTransitionDelegate::RetiringForwardOnly:
-            return "RetiringForwardOnly";
+            result = "RetiringForwardOnly";
+            break;
         case EpochTransitionDelegate::None:
-            return "None";
+            result = "None";
+            break;
+        default:
+            assert(0);
     }
+
+    return result;
 }

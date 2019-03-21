@@ -274,7 +274,7 @@ namespace Bootstrap
 					//if(my_tips.bsb_vec[i] < working_mbp.mb->tips[i])
 					{
 						waiting_pulls.push_back(std::make_shared<PullRequest>(
-								ConsensusType::BatchStateBlock,
+								ConsensusType::Request,
 								working_epoch.epoch_num,
 								my_tips.bsb_vec[i].digest,
 								working_mbp.mb->tips[i]));
@@ -306,7 +306,7 @@ namespace Bootstrap
                     if(my_tips.bsb_vec[i] < others_tips.bsb_vec[i])
                     {
                     	waiting_pulls.push_back(std::make_shared<PullRequest>(
-                    			ConsensusType::BatchStateBlock,
+                    			ConsensusType::Request,
 								working_epoch.epoch_num,
 								my_tips.bsb_vec[i].digest,
 								others_tips.bsb_vec[i].digest));
@@ -336,7 +336,7 @@ namespace Bootstrap
 					if(my_tips.bsb_vec_new_epoch[i] < others_tips.bsb_vec_new_epoch[i])
 					{
 						waiting_pulls.push_back(std::make_shared<PullRequest>(
-								ConsensusType::BatchStateBlock,
+								ConsensusType::Request,
 								working_epoch.epoch_num,
 								my_tips.bsb_vec_new_epoch[i].digest,
 								others_tips.bsb_vec_new_epoch[i].digest));
@@ -493,7 +493,7 @@ namespace Bootstrap
 		}
 		else
 		{
-			if(request.block_type == ConsensusType::BatchStateBlock &&
+			if(request.block_type == ConsensusType::Request&&
 					! request.target.is_zero())
 			{
 				TraceToEpochBegin();
@@ -504,7 +504,7 @@ namespace Bootstrap
     uint32_t PullRequestHandler::GetBlock(BlockHash & hash, std::vector<uint8_t> & buf)
     {
 		LOG_TRACE(log) << "PullRequestHandler::"<<__func__ <<" hash="<<hash.to_string();
-		if (request.block_type == ConsensusType::BatchStateBlock ||
+		if (request.block_type == ConsensusType::Request ||
 				request.block_type == ConsensusType::MicroBlock ||
 				request.block_type == ConsensusType::Epoch)
 		{
@@ -516,10 +516,10 @@ namespace Bootstrap
     void PullRequestHandler::TraceToEpochBegin()
     {
     	BlockHash cur(request.target);
-    	ApprovedBSB block;
+    	ApprovedRB block;
     	for(;;)
     	{
-        	if(store.batch_block_get(cur, block))
+        	if(store.request_block_get(cur, block))
         	{
         		next = 0;
         		return;

@@ -83,17 +83,18 @@ public:
 
     alarm (boost::asio::io_service &);
     ~alarm ();
-    void add (std::chrono::steady_clock::time_point const &, std::function<void()> const &);
+    Handle add (std::chrono::steady_clock::time_point const &, std::function<void()> const &);
 
-    void addAfter(std::function<void()> const &handler, unsigned ms) {
-	add(std::chrono::steady_clock::now() + std::chrono::milliseconds(ms), handler);
+    void addAfter(std::function<void()> const &handler, unsigned ms)
+    {
+        add(std::chrono::steady_clock::now() + std::chrono::milliseconds(ms), handler);
     }
 
     template<typename REP, typename PERIOD>
     Handle add(std::chrono::duration<REP, PERIOD> const & duration, std::function<void()> const & handler)
     {
-        add(std::chrono::steady_clock::now() + duration,
-            handler);
+        return add(std::chrono::steady_clock::now() + duration,
+                   handler);
     }
 
     void run ();
@@ -502,8 +503,8 @@ public:
 
     // consensus-related functionality.
 
-    process_return OnSendRequest(std::shared_ptr<StateBlock> block,
-                                 bool should_buffer);
+    process_return OnRequest(std::shared_ptr<Request> request,
+                             bool should_buffer);
     process_return BufferComplete();
 
 	//    PeerInfoProvider & GetPeerInfoProvider()

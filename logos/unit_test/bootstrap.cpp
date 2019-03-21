@@ -6,9 +6,9 @@
 #include <logos/node/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/persistence/block_cache.hpp>
-#include <logos/consensus/persistence/batchblock/nondel_batchblock_persistence.hpp>
-#include <logos/consensus/persistence/epoch/nondel_epoch_persistence.hpp>
-#include <logos/consensus/persistence/microblock/nondel_microblock_persistence.hpp>
+//#include <logos/consensus/persistence/batchblock/nondel_batchblock_persistence.hpp>
+//#include <logos/consensus/persistence/epoch/nondel_epoch_persistence.hpp>
+//#include <logos/consensus/persistence/microblock/nondel_microblock_persistence.hpp>
 
 
 TEST (bootstrap, msg_header)
@@ -135,7 +135,7 @@ TEST (bootstrap, msg_pull_request)
 TEST (bootstrap, msg_pull_response)
 {
 	{
-		Bootstrap::PullResponse<ConsensusType::BatchStateBlock> block;
+		Bootstrap::PullResponse<ConsensusType::Request> block;
 		block.status = Bootstrap::PullResponseStatus::NoBlock;
 
 		std::vector<uint8_t> buf;
@@ -147,14 +147,14 @@ TEST (bootstrap, msg_pull_response)
 		{
 			bool error = false;
 			logos::bufferstream read_stream(buf.data(), buf.size());
-			Bootstrap::PullResponse<ConsensusType::BatchStateBlock> block2(error, read_stream);
+			Bootstrap::PullResponse<ConsensusType::Request> block2(error, read_stream);
 			ASSERT_FALSE(error);
 			ASSERT_EQ(block, block2);
 		}
 		{
 			bool error = false;
 			logos::bufferstream read_stream(buf.data(), buf.size()-1);
-			Bootstrap::PullResponse<ConsensusType::BatchStateBlock> request2(error, read_stream);
+			Bootstrap::PullResponse<ConsensusType::Request> request2(error, read_stream);
 			ASSERT_TRUE(error);
 		}
 	}
@@ -277,7 +277,7 @@ TEST (bootstrap, puller)
 		ASSERT_EQ(puller.GetNumWaitingPulls(), NUM_DELEGATES);
 
 		PullPtr pull = puller.GetPull();
-		auto bsb = std::make_shared<PostCommittedBlock<ConsensusType::BatchStateBlock>>();
+		auto bsb = std::make_shared<PostCommittedBlock<ConsensusType::Request>>();
 		bsb->epoch_number = tips.bsb_vec.front().epoch;
 		bsb->sequence = tips.bsb_vec.front().sqn+1;
 		bsb->previous = pull->prev_hash;

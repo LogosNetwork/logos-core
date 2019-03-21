@@ -67,7 +67,7 @@ endif (WIN32)
 if (WIN32)
 	set (PLATFORM_CXX_FLAGS "/bigobj")
 else (WIN32)
-	set (PLATFORM_CXX_FLAGS "-std=c++14")
+	set (PLATFORM_CXX_FLAGS "-std=c++14 -Werror")
 endif (WIN32)
 
 if (WIN32)
@@ -152,10 +152,6 @@ set_target_properties( MCL PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/bls_
 add_library(MCLbn256 STATIC IMPORTED)
 set_target_properties( MCLbn256 PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/bls_agg/mcl/lib/libmclbn256.a)
 
-# With Efence
-#set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp efence)
-
-#set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp leaktrace)
 set (BLS_libs BLS MCL MCLbn256 crypto gmpxx gmp)
 
 ##########################################################################
@@ -293,6 +289,10 @@ add_library (secure
 	logos/ledger.hpp
 	logos/node/utility.cpp
 	logos/node/utility.hpp
+	logos/token/account.hpp
+	logos/token/account.cpp
+	logos/token/entry.hpp
+	logos/token/entry.cpp
 	logos/versioning.hpp
 	logos/versioning.cpp)
 
@@ -319,35 +319,39 @@ add_library (logos_lib_static STATIC ${LOGOS_LIB_SOURCES})
 add_library (node
 	${PLATFORM_NODE_SOURCE}
 	${SECURE_RPC_SOURCE}
-    logos/bootstrap/attempt.cpp
+	logos/bootstrap/attempt.cpp
     logos/bootstrap/bootstrap.cpp
     logos/bootstrap/bootstrap_messages.cpp
     logos/bootstrap/connection.cpp
     logos/bootstrap/pull_connection.cpp
     logos/bootstrap/pull.cpp
     logos/bootstrap/tip_connection.cpp
-
-	logos/consensus/batchblock/batchblock_consensus_manager.cpp
-	logos/consensus/batchblock/bb_backup_delegate.cpp
-	logos/consensus/batchblock/request_handler.cpp
-	logos/consensus/secondary_request_handler.cpp
+	logos/consensus/request/request_consensus_manager.cpp
+	logos/consensus/request/request_backup_delegate.cpp
+	logos/consensus/request/request_handler.cpp
+    logos/consensus/waiting_list.cpp
 	logos/consensus/delegate_bridge.cpp
 	logos/consensus/backup_delegate.cpp
 	logos/consensus/consensus_container.cpp
 	logos/consensus/consensus_manager.cpp
-	logos/consensus/consensus_p2p.cpp
 	logos/consensus/delegate_key_store.cpp
 	logos/consensus/epoch_manager.cpp
 	logos/consensus/epoch/epoch_backup_delegate.cpp
 	logos/consensus/epoch/epoch_consensus_manager.cpp
 	logos/consensus/message_validator.cpp
+	logos/consensus/messages/common.cpp
 	logos/consensus/messages/messages.cpp
+	logos/consensus/consensus_msg_sink.cpp
+	logos/consensus/messages/receive_block.cpp
+	logos/consensus/messages/request_block.cpp
 	logos/consensus/microblock/microblock_backup_delegate.cpp
 	logos/consensus/microblock/microblock_consensus_manager.cpp
+	logos/consensus/p2p/consensus_p2p.cpp
+	logos/consensus/p2p/consensus_p2p_bridge.cpp
 	logos/consensus/persistence/block_cache.cpp
 	logos/consensus/persistence/persistence.cpp
 	logos/consensus/persistence/validator_builder.cpp
-	logos/consensus/persistence/batchblock/batchblock_persistence.cpp
+    logos/consensus/persistence/request/request_persistence.cpp
 	logos/consensus/persistence/epoch/epoch_persistence.cpp
 	logos/consensus/persistence/microblock/microblock_persistence.cpp
 	logos/consensus/persistence/reservations.cpp
@@ -388,6 +392,14 @@ add_library (node
 	logos/node/stats.cpp
 	logos/node/working.hpp
 	logos/node/xorshift.hpp
+    logos/request/requests.cpp
+    logos/request/utility.cpp
+	logos/request/utility.cpp
+	logos/token/account.cpp
+	logos/token/common.cpp
+	logos/token/entry.cpp
+	logos/token/requests.cpp
+    logos/token/utility.cpp
 	logos/tx_acceptor/tx_acceptor.cpp
 	logos/tx_acceptor/tx_acceptor_channel.cpp
 	logos/tx_acceptor/tx_message_header.cpp
@@ -408,16 +420,23 @@ option(TEST_REJECT "Makes delegate reject random transactions inside PrePrepare 
 
 if (LOGOS_TEST)
 	add_executable (unit_test
-        logos/unit_test/bootstrap.cpp	       
+		logos/unit_test/account_serialization.cpp
 		logos/unit_test/consensus_msg_serialize.cpp
-        #[[logos/unit_test/node.cpp]]
-		logos/unit_test/tallying.cpp)
+		logos/unit_test/msg_validator_setup.cpp
+		logos/unit_test/request_serialization.cpp
+		logos/unit_test/tallying.cpp
+        logos/unit_test/p2p_test.cpp
+		logos/unit_test/bootstrap.cpp
+        logos/p2p/test/propagate_test.cpp
+        logos/p2p/test/storage_test.cpp)
 
 	set_target_properties (unit_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1 ")
 	if (STRICT_CONSENSUS_THRESHOLD MATCHES ON)
 		set_property (TARGET unit_test APPEND_STRING PROPERTY COMPILE_FLAGS "-DSTRICT_CONSENSUS_THRESHOLD ")
 	endif (STRICT_CONSENSUS_THRESHOLD MATCHES ON)
 	set_target_properties (unit_test PROPERTIES LINK_FLAGS "${PLATFORM_LINK_FLAGS}")
+    target_include_directories (unit_test PRIVATE logos/p2p)
+    target_link_libraries (unit_test p2p)
 endif (LOGOS_TEST)
 
 add_executable (logos_core
@@ -456,7 +475,7 @@ endif (LOGOS_TEST)
 target_link_libraries (logos_lib ed25519 ${BLS_libs} xxhash blake2 ${CRYPTOPP_LIBRARY})
 target_link_libraries (logos_lib_static ed25519 ${BLS_libs} xxhash blake2 ${CRYPTOPP_LIBRARY})
 
-target_link_libraries (logos_core node p2p node secure lmdb ed25519 ${BLS_libs} logos_lib_static argon2 ${OPENSSL_LIBRARIES} ${CRYPTOPP_LIBRARY} libminiupnpc-static ${Boost_ATOMIC_LIBRARY} ${Boost_CHRONO_LIBRARY} ${Boost_REGEX_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_LOG_LIBRARY} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_LOG_SETUP_LIBRARY} ${Boost_THREAD_LIBRARY} ${PLATFORM_LIBS})
+target_link_libraries (logos_core node p2p secure lmdb ed25519 ${BLS_libs} logos_lib_static argon2 ${OPENSSL_LIBRARIES} ${CRYPTOPP_LIBRARY} libminiupnpc-static ${Boost_ATOMIC_LIBRARY} ${Boost_CHRONO_LIBRARY} ${Boost_REGEX_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_LOG_LIBRARY} ${Boost_PROGRAM_OPTIONS_LIBRARY} ${Boost_LOG_SETUP_LIBRARY} ${Boost_THREAD_LIBRARY} ${PLATFORM_LIBS})
 
 set (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/LICENSE)
 

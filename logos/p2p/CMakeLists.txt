@@ -61,8 +61,8 @@ add_library (p2p
 	tinyformat.h
 	ui_interface.cpp
 	ui_interface.h
-	uint512.cpp
-	uint512.h
+    uint256.cpp
+    uint256.h
 	util.cpp
 	util.h
 	utilmemory.h

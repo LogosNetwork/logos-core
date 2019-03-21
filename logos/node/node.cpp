@@ -11,7 +11,7 @@
 #include <logos/node/client_callback.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/microblock/microblock.hpp>
-#include <logos/consensus/messages/state_block.hpp>
+#include <logos/consensus/messages/receive_block.hpp>
 
 #include <logos/bootstrap/p2p.hpp>
 #include <logos/bootstrap/connection.hpp>
@@ -343,7 +343,7 @@ void logos::alarm::run ()
     }
 }
 
-void logos::alarm::add (std::chrono::steady_clock::time_point const & wakeup_a, std::function<void()> const & operation)
+logos::alarm::Handle logos::alarm::add (std::chrono::steady_clock::time_point const & wakeup_a, std::function<void()> const & operation)
 {
     std::lock_guard<std::mutex> lock(mutex);
 
@@ -353,6 +353,8 @@ void logos::alarm::add (std::chrono::steady_clock::time_point const & wakeup_a, 
     pending_operations.insert(handle);
 
     condition.notify_all();
+
+    return handle;
 }
 
 void logos::alarm::cancel(Handle handle)
@@ -1367,7 +1369,6 @@ bootstrap_listener (alarm_a, store, config.consensus_manager_config.local_addres
             BOOST_LOG (log) << "Constructing node";
         }
 
-
         logos::transaction transaction (store.environment, nullptr, true);
         if (store.latest_begin (transaction) == store.latest_end ())
         {
@@ -2161,11 +2162,11 @@ void logos::node::add_initial_peers ()
 #endif
 }
 
-
-logos::process_return logos::node::OnSendRequest(std::shared_ptr<StateBlock> block, bool should_buffer)
+logos::process_return logos::node::OnRequest(std::shared_ptr<Request> request, bool should_buffer)
 {
-    return _consensus_container->OnSendRequest(
-            static_pointer_cast<RequestMessage<ConsensusType::BatchStateBlock>>(block), should_buffer);
+    return _consensus_container->OnDelegateMessage(
+        static_pointer_cast<DelegateMessage<ConsensusType::Request>>(request),
+        should_buffer);
 }
 
 logos::process_return logos::node::BufferComplete()

@@ -178,6 +178,7 @@ public:
     void pending ();
     void pending_exists ();
     void process ();
+    void process(std::shared_ptr<Request> request);
     void rai_to_raw ();
     void rai_from_raw ();
     void receive ();
@@ -192,6 +193,7 @@ public:
     void stats ();
     void stop ();
     void successors ();
+    void tokens_info ();
     void unchecked ();
     void unchecked_clear ();
     void unchecked_get ();
@@ -228,6 +230,29 @@ public:
     bool is_logos_request ();
     bool should_buffer_request ();
     bool flag_present (const std::string & flag_name);
+
+    template<typename T>
+    struct RpcResponse
+    {
+        T contents;
+        bool error = false;
+        std::string error_msg = "";
+    };
+
+    using BoostJson = boost::property_tree::ptree;
+    using BlockStore = logos::block_store;
+
+    RpcResponse<BoostJson> tokens_info(const BoostJson& request, BlockStore& store);
+
+    RpcResponse<BoostJson> account_info(const BoostJson& request, BlockStore& store);
+
+    RpcResponse<BoostJson> account_balance(const BoostJson& request, BlockStore& store);
+
+    RpcResponse<BoostJson> block(const BoostJson& request, BlockStore& store);
+
+    RpcResponse<BoostJson> blocks(const BoostJson& request, BlockStore& store);
+
+
     std::string body;
     logos::node & node;
     logos::rpc & rpc;

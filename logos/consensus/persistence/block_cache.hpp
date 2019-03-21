@@ -10,7 +10,7 @@
 
 #include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
-#include <logos/consensus/messages/batch_state_block.hpp>
+//#include <logos/consensus/messages/batch_state_block.hpp>
 
 #include <logos/epoch/epoch.hpp>
 #include <logos/epoch/epoch_handler.hpp>
@@ -23,13 +23,13 @@
 #include <logos/consensus/persistence/epoch/nondel_epoch_persistence.hpp>
 #include <logos/consensus/persistence/microblock/microblock_persistence.hpp>
 #include <logos/consensus/persistence/microblock/nondel_microblock_persistence.hpp>
-#include <logos/consensus/persistence/batchblock/batchblock_persistence.hpp>
-#include <logos/consensus/persistence/batchblock/nondel_batchblock_persistence.hpp>
+#include <logos/consensus/persistence/request/request_persistence.hpp>
+#include <logos/consensus/persistence/request/nondel_request_persistence.hpp>
 
 class IBlockCache
 {
 public:
-    using BSBPtr = std::shared_ptr<ApprovedBSB>;
+    using BSBPtr = std::shared_ptr<ApprovedRB>;
     using MBPtr = std::shared_ptr<ApprovedMB>;
     using EBPtr = std::shared_ptr<ApprovedEB>;
 
@@ -99,7 +99,7 @@ private:
 
     NonDelPersistenceManager<ECT> eb_handler;
     NonDelPersistenceManager<MBCT> mb_handler;
-    NonDelPersistenceManager<BSBCT> bsb_handler;
+    NonDelPersistenceManager<R> bsb_handler;
 
     std::mutex mtx;
     Log log;

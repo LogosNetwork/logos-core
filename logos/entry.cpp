@@ -99,6 +99,7 @@ int main (int argc, char * const * argv)
         });
         p2p_conf.argc = nopts;
         p2p_conf.argv = &opts[0];
+        p2p_conf.test_mode = false;
 
         daemon.run (data_path, p2p_conf);
     }

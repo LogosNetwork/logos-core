@@ -3,17 +3,17 @@
 /// consensus related types
 #pragma once
 
-#include <logos/consensus/batchblock/batchblock_consensus_manager.hpp>
 #include <logos/consensus/microblock/microblock_consensus_manager.hpp>
-#include <logos/network/consensus_netio_manager.hpp>
-#include <logos/network/epoch_peer_manager.hpp>
+#include <logos/consensus/request/request_consensus_manager.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
-#include <logos/tx_acceptor/tx_channel.hpp>
+#include <logos/network/epoch_peer_manager.hpp>
+#include <logos/network/consensus_netio_manager.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
-#include <logos/consensus/consensus_p2p.hpp>
+#include <logos/consensus/p2p/consensus_p2p.hpp>
 #include <logos/epoch/epoch_transition.hpp>
+#include <logos/tx_acceptor/tx_channel.hpp>
 
 #include <queue>
 
@@ -32,8 +32,6 @@ class EpochManager;
 /// It only needs to be locked during transition, for simplicity T-5min : T+20sec
 class OptLock
 {
-    bool _locked;
-    std::mutex & _mutex;
 public:
     OptLock(std::atomic<EpochTransitionState> &transition, std::mutex &mutex) : _locked(false), _mutex(mutex)
     {
@@ -51,6 +49,10 @@ public:
         }
     }
 
+private:
+
+    bool         _locked;
+    std::mutex & _mutex;
 };
 
 class NewEpochEventHandler
@@ -68,8 +70,8 @@ class InternalConsensus
 public:
     InternalConsensus() = default;
     virtual ~InternalConsensus() = default;
-    virtual logos::process_return OnSendRequest(std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>>) = 0;
-    virtual logos::process_return OnSendRequest(std::shared_ptr<RequestMessage<ConsensusType::Epoch>>) = 0;
+    virtual logos::process_return OnDelegateMessage(std::shared_ptr<DelegateMessage<ConsensusType::MicroBlock>>) = 0;
+    virtual logos::process_return OnDelegateMessage(std::shared_ptr<DelegateMessage<ConsensusType::Epoch>>) = 0;
     virtual void EpochTransitionEventsStart() = 0;
 };
 
@@ -92,7 +94,8 @@ class ConsensusContainer : public InternalConsensus,
     using Accounts   = AccountAddress[NUM_DELEGATES];
     using BindingMap = std::map<uint, std::shared_ptr<EpochManager>>;
 
-    struct ConnectionCache {
+    struct ConnectionCache
+    {
         std::shared_ptr<Socket> socket;
         ConnectedClientIds ids;
         Endpoint endpoint;
@@ -121,22 +124,22 @@ public:
 
     ~ConsensusContainer() = default;
 
-    /// Handles requests for batch block consensus.
+    /// Handles requests for request consensus.
     ///
-    /// Submits transactions to consensus logic.
-    ///     @param[in] block state_block containing the transaction
+    /// Submits requests to consensus logic.
+    ///     @param[in] request Incoming request message
     ///     @param[in] should_buffer bool flag that, when set, will
     ///                              cause the block to be buffered
     ///     @return process_return result of the operation
-    logos::process_return OnSendRequest(std::shared_ptr<Request> block,
-                                        bool should_buffer) override;
+    logos::process_return OnDelegateMessage(std::shared_ptr<DM> request,
+                                            bool should_buffer) override;
 
     /// Handles requests for batch block consensus.
     ///
     /// Submits transactions to consensus logic.
     ///     @param[in] blocks state blocks containing the transaction
     ///     @return responses containinig process_result and hash
-    Responses OnSendRequest(std::vector<std::shared_ptr<Request>> &blocks) override;
+    Responses OnSendRequest(std::vector<std::shared_ptr<DM>> &blocks) override;
 
     /// Called when buffering is done for batch block consensus.
     ///
@@ -174,11 +177,11 @@ protected:
 
 	/// Initiate MicroBlock consensus, internal request
 	///		@param[in] MicroBlock containing the batch blocks
-    logos::process_return OnSendRequest(std::shared_ptr<RequestMessage<ConsensusType::MicroBlock>>) override;
+    logos::process_return OnDelegateMessage(std::shared_ptr<DelegateMessage<ConsensusType::MicroBlock>> message) override;
 
     /// Initiate Epoch consensus, internal request
     ///		@param[in] Epoch containing the microblocks
-    logos::process_return OnSendRequest(std::shared_ptr<RequestMessage<ConsensusType::Epoch>>) override;
+    logos::process_return OnDelegateMessage(std::shared_ptr<DelegateMessage<ConsensusType::Epoch>> message) override;
 
 private:
 
@@ -250,22 +253,22 @@ private:
 
     static const std::chrono::seconds GARBAGE_COLLECT;
 
-    static std::atomic<uint32_t>        _cur_epoch_number;          ///< current epoch number
-    EpochPeerManager                    _peer_manager;              ///< processes accept callback
-    std::mutex                          _mutex;                     ///< protects access to _cur_epoch
-    std::shared_ptr<EpochManager>       _cur_epoch;                 ///< consensus objects
-    std::shared_ptr<EpochManager>       _trans_epoch;               ///< epoch transition consensus objects
-    Service &                           _service;                   ///< boost service
-    Store &                             _store;                     ///< block store reference
-    Alarm &                             _alarm;                     ///< alarm reference
-    const Config &                      _config;                    ///< consensus configuration reference
-    Log                                 _log;                       ///< boost log
-    Archiver &                          _archiver;                  ///< archiver (epoch/microblock) handler
-    DelegateIdentityManager &           _identity_manager;          ///< identity manager reference
-    std::atomic<EpochTransitionState>   _transition_state;          ///< transition state
-    EpochTransitionDelegate             _transition_delegate;       ///< type of delegate during transition
-    std::queue<ConnectionCache>         _connections_queue;         ///< queue for delegates set connections
-    BindingMap                          _binding_map;               ///< map for binding connection to epoch manager
-    static bool                         _validate_sig_config;       ///< validate sig in BBS for added security
-    ContainerP2p                        _p2p;                       ///< p2p-related data
+    static std::atomic<uint32_t>      _cur_epoch_number;    ///< current epoch number
+    EpochPeerManager                  _peer_manager;        ///< processes accept callback
+    std::mutex                        _mutex;               ///< protects access to _cur_epoch
+    std::shared_ptr<EpochManager>     _cur_epoch;           ///< consensus objects
+    std::shared_ptr<EpochManager>     _trans_epoch;         ///< epoch transition consensus objects
+    Service &                         _service;             ///< boost service
+    Store &                           _store;               ///< block store reference
+    Alarm &                           _alarm;               ///< alarm reference
+    const Config &                    _config;              ///< consensus configuration reference
+    Log                               _log;                 ///< boost log
+    Archiver &                        _archiver;            ///< archiver (epoch/microblock) handler
+    DelegateIdentityManager &         _identity_manager;    ///< identity manager reference
+    std::atomic<EpochTransitionState> _transition_state;    ///< transition state
+    EpochTransitionDelegate           _transition_delegate; ///< type of delegate during transition
+    std::queue<ConnectionCache>       _connections_queue;   ///< queue for delegates set connections
+    BindingMap                        _binding_map;         ///< map for binding connection to epoch manager
+    static bool                       _validate_sig_config; ///< validate sig in BBS for added security
+    ContainerP2p                      _p2p;                 ///< p2p-related data
 };

@@ -21,11 +21,11 @@ MicroBlockHandler::BatchBlocksIterator(
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
     {
         BlockHash hash = start[delegate];
-        ApprovedBSB batch;
+        ApprovedRB batch;
         bool not_found = false;
-        for (not_found = store.batch_block_get(hash, batch);
+        for (not_found = store.request_block_get(hash, batch);
              !not_found && hash != end[delegate];
-             hash = batch.previous, not_found = store.batch_block_get(hash, batch))
+             hash = batch.previous, not_found = store.request_block_get(hash, batch))
         {
             batchblock_receiver(delegate, batch);
         }
@@ -49,11 +49,11 @@ MicroBlockHandler::BatchBlocksIterator(
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
     {
         BlockHash hash = start[delegate];
-        ApprovedBSB batch;
+        ApprovedRB batch;
         bool not_found = false;
-        for (not_found = store.batch_block_get(hash, batch);
+        for (not_found = store.request_block_get(hash, batch);
              !not_found && batch.timestamp < cutoff;
-             hash = batch.next, not_found = store.batch_block_get(hash, batch))
+             hash = batch.next, not_found = store.request_block_get(hash, batch))
         {
             batchblock_receiver(delegate, batch);
         }
@@ -76,7 +76,7 @@ MicroBlockHandler::FastMerkleTree(
 {
     uint64_t cutoff_msec = GetCutOffTimeMsec(timestamp);
     return merkle::MerkleHelper([&](merkle::HashReceiverCb element_receiver)->void {
-        BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedBSB &batch)mutable -> void {
+        BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
             if (batch.timestamp < cutoff_msec)
             {
                 BlockHash hash = batch.Hash();
@@ -106,7 +106,7 @@ MicroBlockHandler::SlowMerkleTree(
     uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
 
     // first get hashes and timestamps of all blocks; and min timestamp to use as the base
-    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedBSB &batch)mutable->void{
+    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable->void{
         entries[delegate].push_back({batch.timestamp, batch.Hash()});
         if (batch.timestamp < min_timestamp)
         {
@@ -146,8 +146,8 @@ MicroBlockHandler::GetTipsFast(
     BatchTips next;
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
     {
-        ApprovedBSB batch;
-        if (_store.batch_block_get(start[delegate], batch))
+        ApprovedRB batch;
+        if (_store.request_block_get(start[delegate], batch))
         {
             next[delegate].clear();
         }
@@ -158,7 +158,7 @@ MicroBlockHandler::GetTipsFast(
     }
 
     uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff);
-    BatchBlocksIterator(_store, next, cutoff_msec, [&](uint8_t delegate, const ApprovedBSB &batch)mutable -> void {
+    BatchBlocksIterator(_store, next, cutoff_msec, [&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
         BlockHash hash = batch.Hash();
         tips[delegate] = hash;
         num_blocks++;
@@ -190,7 +190,7 @@ MicroBlockHandler::GetTipsSlow(
     uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
 
     // frist get hashes and timestamps of all blocks; and min timestamp to use as the base
-    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedBSB &batch)mutable->void{
+    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable->void{
         entries[delegate].push_back({batch.timestamp, batch.Hash()});
         if (batch.timestamp < min_timestamp)
         {
@@ -255,7 +255,7 @@ MicroBlockHandler::Build(
     {
         for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
         {
-            if (_store.batch_tip_get(delegate, start[delegate]))
+            if (_store.request_tip_get(delegate, start[delegate]))
             {
                 start[delegate].clear();
             }
