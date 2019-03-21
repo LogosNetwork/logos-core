@@ -32,6 +32,10 @@ public:
 
     virtual void ApplyUpdates(const ApprovedRB & message, uint8_t delegate_id);
 
+    void StoreRequestBlock(const ApprovedRB & message,
+                           MDB_txn * transaction,
+                           uint8_t delegate_id);
+
     virtual bool BlockExists(const ApprovedRB & message);
 
     bool ValidateRequest(RequestPtr request,
@@ -62,10 +66,6 @@ private:
                                logos::process_return & result,
                                std::shared_ptr<logos::Account> info,
                                const Amount & token_total);
-
-    void StoreRequestBlock(const ApprovedRB & message,
-                           MDB_txn * transaction,
-                           uint8_t delegate_id);
 
     void ApplyRequestBlock(const ApprovedRB & message,
                            MDB_txn * transaction);
