@@ -11,14 +11,18 @@
 
     struct Tip
     {
-        uint32_t epoch;
-        uint32_t sqn; //same as epoch for epoch_blocks
+        uint32_t epoch = 0;
+        uint32_t sqn = 0; //same as epoch for epoch_blocks
         BlockHash digest;
 
         Tip();
         Tip(uint32_t epoch, uint32_t sqn, const BlockHash & digest);
         Tip(bool & error, logos::stream & stream);
+        Tip(bool & error, logos::mdb_val & mdbval);
+
         uint32_t Serialize(logos::stream & stream) const;
+        logos::mdb_val to_mdb_val(std::vector<uint8_t> &buf) const;
+
         bool operator<(const Tip & other) const;
         bool operator==(const Tip & other) const;
 
@@ -31,6 +35,7 @@
         Tip mb;
         std::array<Tip, NUM_DELEGATES> bsb_vec;
         std::array<Tip, NUM_DELEGATES> bsb_vec_new_epoch;
+        //TODO in case of recall before epoch block, we could have more than two sets of tips
 
         /// Class constructor
         TipSet() = default;

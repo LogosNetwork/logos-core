@@ -98,7 +98,6 @@ TEST (bootstrap, msg_tip_set)
         logos::bufferstream read_stream(buf.data(), buf.size());
         TipSet tips2(error, read_stream);
         ASSERT_FALSE(error);
-        //ASSERT_EQ(memcmp(&tips, &tips2, sizeof(tips2)), 0);
         ASSERT_EQ(tips, tips2);
     }
     {

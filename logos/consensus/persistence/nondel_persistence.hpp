@@ -41,6 +41,34 @@ public:
         return ValidatePreprepare(pre_prepare, status);
     }
 
+    bool VerifyAggSignature(const ApprovedBlock & block)
+    {
+        PrePerpare pre_prepare(block);
+        BlockHash pre_prepare_hash(pre_prepare.Hash());
+        auto validator(_builder.GetValidator(block.epoch_number));
+
+        if(!validator->Validate(pre_prepare_hash, block.post_prepare_sig))
+        {
+            LOG_ERROR (_logger) << __func__ << " bad post_prepare signature";
+            return false;
+        }
+
+        PostPrepare post_prepare(pre_prepare_hash, block.post_prepare_sig);
+        BlockHash post_prepare_hash(post_prepare.ComputeHash());
+        if(!validator->Validate(post_prepare_hash, block.post_commit_sig))
+        {
+            LOG_ERROR (_logger) << __func__ << " bad post_commit signature";
+            return false;
+        }
+        return true;
+    }
+
+    bool VerifyContent(const ApprovedBlock & block, ValidationStatus * status)
+    {
+    	PrePerpare pre_prepare(block);
+    	return ValidatePreprepare(pre_prepare, status);
+    }
+
     virtual ~NoneDelegatePersistence() = default;
 
 protected:

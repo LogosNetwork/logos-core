@@ -1481,25 +1481,27 @@ bool logos::block_store::request_tip_get(uint8_t delegate_id,
 }
 bool logos::block_store::micro_block_tip_get(Tip &tip, MDB_txn* t)
 {
-	return false;
+    const uint8_t key = 0; // only one tip
+    mdb_val val;
+    if(get(micro_block_tip_db, mdb_val(key), val, t))
+    {
+        return true;
+    }
+    assert(val.size() == Tip::WireSize);
+    bool error = false;
+    new (&tip) Tip(error, val);
+    return error;
 }
 bool logos::block_store::epoch_tip_get(Tip &tip, MDB_txn *t)
 {
-	return false;
+    const uint8_t key = 0; // only one tip
+    mdb_val val;
+    if(get(epoch_tip_db, mdb_val(key), val, t))
+    {
+        return true;
+    }
+    assert(val.size() == Tip::WireSize);
+    bool error = false;
+    new (&tip) Tip(error, val);
+    return error;
 }
-
-//bool logos::block_store::request_tip_get(uint8_t delegate_id,
-//		uint32_t epoch_number,
-//		Bootstrap::Tip &tip,
-//		MDB_txn* t)
-//{
-//	return false;
-//}
-//bool logos::block_store::micro_block_tip_get(Bootstrap::Tip &tip, MDB_txn* t)
-//{
-//	return false;
-//}
-//bool logos::block_store::epoch_tip_get(Bootstrap::Tip &tip, MDB_txn *t)
-//{
-//	return false;
-//}

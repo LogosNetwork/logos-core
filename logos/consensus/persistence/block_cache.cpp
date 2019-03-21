@@ -8,7 +8,7 @@ BlockCache::BlockCache(Store &store)
 
 bool BlockCache::AddEB(EBPtr block)
 {
-	if(false)//!eb_handler.VerifyAggSignature(*block)) //TODO
+	if(!eb_handler.VerifyAggSignature(*block))
 	{
 		LOG_TRACE(log) << "BlockCache::AddEB: VerifyAggSignature failed";
 		return false;
@@ -49,7 +49,7 @@ bool BlockCache::AddEB(EBPtr block)
 
 bool BlockCache::AddMB(MBPtr block)
 {
-	if(false)//!mb_handler.VerifyAggSignature(*block)) //TODO
+	if(!mb_handler.VerifyAggSignature(*block))
 	{
 		LOG_TRACE(log) << "BlockCache::AddMB: VerifyAggSignature failed";
 		return false;
@@ -116,7 +116,7 @@ bool BlockCache::AddMB(MBPtr block)
 
 bool BlockCache::AddBSB(BSBPtr block)
 {
-	if(false)//!bsb_handler.VerifyAggSignature(*block)) //TODO
+	if(!bsb_handler.VerifyAggSignature(*block))
 	{
 		LOG_TRACE(log) << "BlockCache::AddBSB: VerifyAggSignature failed";
 		return false;
@@ -210,7 +210,7 @@ void BlockCache::Validate(uint8_t bsb_idx)
 			{
 				ApprovedBSB & block = *(*to_validate);
 				ValidationStatus status;
-				if(bsb_handler.Validate(block, &status))
+				if(bsb_handler.VerifyContent(block, &status))
 				{
 					bsb_handler.ApplyUpdates(block, block.primary_delegate);
 					e->bsbs[bsb_idx].pop_front();
@@ -248,7 +248,7 @@ void BlockCache::Validate(uint8_t bsb_idx)
 		{
 			ApprovedMB & block = *(e->mbs.front());
 			ValidationStatus status;
-			if(mb_handler.Validate(block, &status))
+			if(mb_handler.VerifyContent(block, &status))
 			{
 				mb_handler.ApplyUpdates(block, block.primary_delegate);
 				last_mb = block.last_micro_block;
@@ -269,7 +269,7 @@ void BlockCache::Validate(uint8_t bsb_idx)
 		{
 			ApprovedEB & block = *e->eb;
 			ValidationStatus status;
-			if(eb_handler.Validate(block, &status))
+			if(eb_handler.VerifyContent(block, &status))
 			{
 				eb_handler.ApplyUpdates(block, block.primary_delegate);
 				LOG_INFO(log) << "BlockCache::Validated EB, block hash: "
