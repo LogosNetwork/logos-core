@@ -8,7 +8,8 @@
 #include <logos/elections/requests.hpp>
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
-#include <logos/elections/database.hpp>
+#include <logos/elections/candidate.hpp>
+#include <logos/elections/representative.hpp>
 #include <unordered_map>
 #include <logos/consensus/consensus_container.hpp>
 
