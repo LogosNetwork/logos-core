@@ -1450,8 +1450,8 @@ bool logos::block_store::candidate_mark_remove(
         const AccountAddress & account,
         MDB_txn * txn)
 {
-    std::vector<uint8_t> buf;
-    auto status(mdb_put(txn, remove_candidates_db, logos::mdb_val(0), logos::mdb_val(account), 0));
+    const uint8_t key = 0; // only one key
+    auto status(mdb_put(txn, remove_candidates_db, logos::mdb_val(key), logos::mdb_val(account), 0));
     assert(status == 0);
 
     return status != 0;
@@ -1461,8 +1461,8 @@ bool logos::block_store::rep_mark_remove(
         const AccountAddress & account,
         MDB_txn * txn)
 {
-    std::vector<uint8_t> buf;
-    auto status(mdb_put(txn, remove_reps_db, logos::mdb_val(0), logos::mdb_val(account), 0));
+    const uint8_t key = 0; // only one key
+    auto status(mdb_put(txn, remove_reps_db, logos::mdb_val(key), logos::mdb_val(account), 0));
     assert(status == 0);
 
     return status != 0;
