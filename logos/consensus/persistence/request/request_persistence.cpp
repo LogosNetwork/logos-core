@@ -1399,11 +1399,11 @@ void PersistenceManager<R>::ApplyRequest(const StopRepresenting& request, MDB_tx
     assert(txn != nullptr);
     RepInfo rep;
     assert(!_store.rep_get(request.origin,rep,txn));
-    rep.rep_action_tip = request.Hash();
+    rep.rep_action_tip = request.GetHash();
     CandidateInfo candidate;
     if(!_store.candidate_get(request.origin,candidate,txn))
     {
-        rep.candidacy_action_tip = request.Hash();
+        rep.candidacy_action_tip = request.GetHash();
         assert(!_store.candidate_mark_remove(request.origin,txn));
     }
     assert(!_store.rep_put(request.origin,rep,txn));
@@ -1416,7 +1416,7 @@ void PersistenceManager<R>::ApplyRequest(const ElectionVote& request, MDB_txn* t
     assert(txn != nullptr);
     RepInfo rep;
     assert(!_store.rep_get(request.origin,rep,txn));
-    rep.election_vote_tip = request.Hash();
+    rep.election_vote_tip = request.GetHash();
     assert(!_store.rep_put(request.origin,rep,txn));
     for(auto& p : request.votes)
     {
@@ -1489,7 +1489,7 @@ void PersistenceManager<R>::ApplyRequest(const RenounceCandidacy& request, MDB_t
     }
     RepInfo rep;
     assert(!_store.rep_get(request.origin, rep, txn));
-    rep.candidacy_action_tip = request.Hash();
+    rep.candidacy_action_tip = request.GetHash();
     assert(!_store.rep_put(request.origin,rep,txn));
     assert(!_store.request_put(request,txn));
 }
@@ -1530,6 +1530,20 @@ uint32_t GetEpochNum(std::shared_ptr<Request> req)
     }
 }
 
+bool VerifyCandidacyActionType(RequestType& type)
+{
+    return type == RequestType::AnnounceCandidacy
+        || type == RequestType::RenounceCandidacy
+        || type == RequestType::StopRepresenting;
+}
+
+bool VerifyRepActionType(RequestType& type)
+{
+    return type == RequestType::AnnounceCandidacy
+        || type == RequestType::StartRepresenting
+        || type == RequestType::StopRepresenting;
+}
+
 bool PersistenceManager<R>::ValidateRequest(
         const ElectionVote& vote_request,
         uint32_t cur_epoch_num,
@@ -1566,9 +1580,7 @@ bool PersistenceManager<R>::ValidateRequest(
     assert(hash != 0);
     std::shared_ptr<Request> rep_req;
     assert(!_store.request_get(hash, rep_req, txn));
-    assert(rep_req->type == RequestType::StartRepresenting
-            || rep_req->type == RequestType::StopRepresenting
-            || rep_req->type == RequestType::AnnounceCandidacy);
+    assert(VerifyRepActionType(rep_req->type));
     uint32_t rep_req_epoch = GetEpochNum(rep_req);
     if((rep_req->type == RequestType::StartRepresenting 
             || rep_req->type == RequestType::AnnounceCandidacy)
@@ -1617,6 +1629,7 @@ bool PersistenceManager<R>::ValidateRequest(
             assert(hash != 0);
             std::shared_ptr<Request> candidacy_req;
             assert(!_store.request_get(hash, candidacy_req, txn));
+            assert(VerifyCandidacyActionType(candidacy_req->type));
             if(candidacy_req->type == RequestType::AnnounceCandidacy)
             {
                 if(GetEpochNum(candidacy_req) == cur_epoch_num)
@@ -1679,9 +1692,7 @@ bool PersistenceManager<R>::ValidateRequest(
         auto hash = rep.rep_action_tip;
         assert(hash != 0);
         assert(!_store.request_get(hash, rep_request, txn));
-        assert(rep_request->type == RequestType::StartRepresenting
-                || rep_request->type == RequestType::StopRepresenting
-                || rep_request->type == RequestType::AnnounceCandidacy);
+        assert(VerifyRepActionType(rep_request->type));
         if(GetEpochNum(rep_request) == cur_epoch_num)
         {
             result.code = logos::process_result::pending_rep_action;
@@ -1696,9 +1707,7 @@ bool PersistenceManager<R>::ValidateRequest(
     if(hash != 0)
     {
         assert(!_store.request_get(hash,candidacy_req,txn));
-        assert(candidacy_req->type == RequestType::AnnounceCandidacy
-                || candidacy_req->type == RequestType::RenounceCandidacy
-                || candidacy_req->type == RequestType::StopRepresenting);
+        assert(VerifyCandidacyActionType(candidacy_req->type));
         if(candidacy_req->type == RequestType::AnnounceCandidacy)
         {
             result.code = logos::process_result::already_announced_candidacy;
@@ -1746,9 +1755,7 @@ bool PersistenceManager<R>::ValidateRequest(
     }
     shared_ptr<Request> candidacy_req;
     assert(!_store.request_get(hash, candidacy_req, txn));
-    assert(candidacy_req->type == RequestType::AnnounceCandidacy
-            || candidacy_req->type == RequestType::RenounceCandidacy
-            || candidacy_req->type == RequestType::StopRepresenting);
+    assert(VerifyCandidacyActionType(candidacy_req->type));
     if(candidacy_req->type == RequestType::RenounceCandidacy
             || candidacy_req->type == RequestType::StopRepresenting)
     {
@@ -1815,9 +1822,7 @@ bool PersistenceManager<R>::ValidateRequest(
         assert(hash != 0);
         std::shared_ptr<Request> rep_req;
         assert(!_store.request_get(hash, rep_req, txn));
-        assert(rep_req->type == RequestType::StartRepresenting
-                || rep_req->type == RequestType::StopRepresenting
-                || rep_req->type == RequestType::AnnounceCandidacy);
+        assert(VerifyRepActionType(rep_req->type));
         if(rep_req->type == RequestType::StartRepresenting
                 || rep_req->type == RequestType::AnnounceCandidacy)
         {
@@ -1859,10 +1864,7 @@ bool PersistenceManager<R>::ValidateRequest(
         assert(hash != 0);
         std::shared_ptr<Request> rep_request;
         assert(!_store.request_get(hash, rep_request, txn));
-        assert(rep_request->type == RequestType::StartRepresenting
-                || rep_request->type == RequestType::StopRepresenting
-                || rep_request->type == RequestType::AnnounceCandidacy);
-
+        assert(VerifyRepActionType(rep_request->type));
         if(GetEpochNum(rep_request) == cur_epoch_num)
         {
             result.code = logos::process_result::pending_rep_action;
@@ -1879,6 +1881,7 @@ bool PersistenceManager<R>::ValidateRequest(
         {
             std::shared_ptr<Request> candidacy_req;
             assert(!_store.request_get(hash, candidacy_req, txn));
+            assert(VerifyCandidacyActionType(candidacy_req->type));
             if(GetEpochNum(candidacy_req) == cur_epoch_num)
             {
                 result.code = logos::process_result::pending_candidacy_action;

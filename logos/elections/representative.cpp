@@ -10,14 +10,14 @@ RepInfo::RepInfo()
 RepInfo::RepInfo(const StartRepresenting& request)
     : RepInfo()
 {
-    rep_action_tip = request.Hash();
+    rep_action_tip = request.GetHash();
     stake = request.stake;
 }
 
 RepInfo::RepInfo(const AnnounceCandidacy& request)
     : RepInfo()
 {
-    rep_action_tip = request.Hash();
+    rep_action_tip = request.GetHash();
     stake = request.stake;
 }
 

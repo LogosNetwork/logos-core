@@ -1142,12 +1142,6 @@ std::string logos::ProcessResultToString(logos::process_result result)
         case process_result::already_announced_candidacy:
             ret = "Already announced candidacy";
             break;
-        case process_result::is_delegate:
-            ret = "Account is delegate";
-            break;
-        case process_result::is_candidate:
-            ret = "Account is candidate";
-            break;
         case process_result::is_rep:
             ret = "Account is representative";
             break;

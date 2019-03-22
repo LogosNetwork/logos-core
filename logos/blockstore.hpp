@@ -260,7 +260,7 @@ public:
             const CandidateInfo & candidate_info,
             MDB_txn* txn);
 
-    //updates min_leading_candidate and leading_candidates_full members
+    //updates min_leading_candidate and leading_candidates_size members
     //required on startup (in case of crash), and whenever leading_candidates_db
     //is updated
     void sync_leading_candidates(MDB_txn* txn);
@@ -438,7 +438,6 @@ public:
      * of 0. 
      */
     MDB_dbi remove_reps_db;
-
 
     /**
      * Unchecked bootstrap blocks.

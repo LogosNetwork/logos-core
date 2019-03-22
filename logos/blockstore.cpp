@@ -1435,12 +1435,12 @@ bool logos::block_store::candidate_add_vote(
         if(info.epoch_modified != cur_epoch_num)
         {
             info.votes_received_weighted = weighted_vote;
+            info.epoch_modified = cur_epoch_num;
         }
         else
         {
             info.votes_received_weighted += weighted_vote;
         }
-        info.epoch_modified = cur_epoch_num;
         return candidate_put(account,info,txn);
     }
     return true;
