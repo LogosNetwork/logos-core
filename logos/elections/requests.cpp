@@ -153,12 +153,6 @@ boost::property_tree::ptree AnnounceCandidacy::SerializeJson() const
     return tree;
 }
 
-
-uint16_t AnnounceCandidacy::WireSize() const
-{
-    return Request::WireSize() + sizeof(stake) + sizeof(bls_key) + sizeof(epoch_num); 
-}
-
 RenounceCandidacy::RenounceCandidacy()
     : Request(RequestType::RenounceCandidacy)
 {}  
@@ -198,7 +192,14 @@ RenounceCandidacy::RenounceCandidacy(bool & error,
             boost::property_tree::ptree const & tree) : Request(error, tree)
 {
     error = error || type != RequestType::RenounceCandidacy;
-    epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
+    try
+    {
+        epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
+    }
+    catch(...)
+    {
+        error = true;
+    }
     Hash();
 }
 
@@ -288,7 +289,8 @@ ElectionVote::ElectionVote(bool & error,
     {
         return;
     } 
-    try {
+    try 
+    {
         auto votes_tree = tree.get_child(VOTES);
         for(const std::pair<std::string,boost::property_tree::ptree> &v : votes_tree)
         {
@@ -303,10 +305,9 @@ ElectionVote::ElectionVote(bool & error,
         epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
         Hash();
     }
-    catch(std::exception const & e)
+    catch(...)
     {
         error = true;
-        throw e;
     }
 }
 
@@ -330,9 +331,6 @@ ElectionVote::ElectionVote(bool & error,
 void ElectionVote::Hash(blake2b_state& hash) const
 {
     Request::Hash(hash);
-    //TODO: .size() can return bigger than uint8_t
-    uint8_t count = votes.size();
-    blake2b_update(&hash, &count, sizeof(count));
    
     for(const auto & v : votes)
     {
@@ -361,21 +359,14 @@ void AnnounceCandidacy::Hash(blake2b_state& hash) const
     Request::Hash(hash);
     blake2b_update(&hash, &stake, sizeof(stake));
     bls_key.Hash(hash);
-    encryption_key.Hash(hash);
     blake2b_update(&hash, &epoch_num, sizeof(epoch_num));
+    encryption_key.Hash(hash);
 }
 
 void RenounceCandidacy::Hash(blake2b_state& hash) const
 {
     Request::Hash(hash);
     blake2b_update(&hash, &epoch_num, sizeof(epoch_num));
-}
-
-uint16_t ElectionVote::WireSize() const
-{
-    return sizeof(uint8_t) + (votes.size() * CandidateVotePair::WireSize())
-        + sizeof(epoch_num)
-        + Request::WireSize();
 }
 
 boost::property_tree::ptree ElectionVote::SerializeJson() const

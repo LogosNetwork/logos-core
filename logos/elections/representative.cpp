@@ -41,18 +41,22 @@ RepInfo::RepInfo (
 
 uint32_t RepInfo::serialize (logos::stream & stream) const
 {
-    //TODO remove auto
     auto s = logos::write(stream, candidacy_action_tip.bytes);
-    s += logos::write(stream, election_vote_tip.bytes);
     s += logos::write(stream, rep_action_tip.bytes);
+    s += logos::write(stream, election_vote_tip.bytes);
     s += logos::write(stream, stake);
     return s;
 }
 
 bool RepInfo::deserialize (logos::stream & stream)
 {
-    //TODO remove auto
     auto error (logos::read (stream, candidacy_action_tip.bytes));
+    if(error)
+    {
+        return error;
+    }
+
+    error = logos::read(stream, rep_action_tip.bytes);
     if(error)
     {
         return error;
@@ -64,11 +68,6 @@ bool RepInfo::deserialize (logos::stream & stream)
         return error;
     }
 
-    error = logos::read(stream, rep_action_tip.bytes);
-    if(error)
-    {
-        return error;
-    }
     return logos::read(stream, stake);
 }
 

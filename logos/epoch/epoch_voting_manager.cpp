@@ -13,9 +13,6 @@
 #include <unordered_map>
 #include <logos/consensus/consensus_container.hpp>
 
-#include <boost/multiprecision/cpp_dec_float.hpp>
-
-
 std::vector<std::pair<AccountAddress,CandidateInfo>> 
 EpochVotingManager::GetElectionWinners(
         size_t num_winners)
@@ -53,9 +50,11 @@ std::unordered_set<Delegate> EpochVotingManager::GetRetiringDelegates(
 {
     std::unordered_set<Delegate> retiring;
 
+    bool do_verify = false;
     if(ShouldForceRetire(next_epoch_num))
     {
         retiring = GetDelegatesToForceRetire(next_epoch_num);
+        do_verify = true;
     }
     else if(next_epoch_num > START_ELECTIONS_EPOCH)
     {
@@ -70,8 +69,24 @@ std::unordered_set<Delegate> EpochVotingManager::GetRetiringDelegates(
                 retiring.insert(d);
             }
         }
+        do_verify = true;
     }
-    
+
+    if(do_verify)
+    {
+        ApprovedEB epoch;
+        _store.epoch_get_n(0, epoch);
+        size_t num_found = 0;
+        for(auto& d : epoch.delegates)
+        {
+            if(retiring.find(d) != retiring.end())
+            {
+                ++num_found;
+            }
+        }
+        assert(num_found == 8);
+    }
+
     return retiring;
 }
 
@@ -130,8 +145,8 @@ void EpochVotingManager::GetNextEpochDelegates(
         Delegates& delegates,
         uint32_t next_epoch_num)
 {
-    int constexpr num_epochs = 3;
-    int constexpr num_new_delegates = 8;
+    int num_new_delegates = next_epoch_num > START_ELECTIONS_EPOCH 
+        ? NUM_DELEGATES / TERM_LENGTH : 0;
 
     ApprovedEB previous_epoch;
     BlockHash hash;
@@ -169,7 +184,7 @@ void EpochVotingManager::GetNextEpochDelegates(
 
     std::unordered_set<Delegate> retiring = GetRetiringDelegates(next_epoch_num);
     std::vector<Delegate> delegate_elects = GetDelegateElects(num_new_delegates, next_epoch_num);
-    if(retiring.size() != delegate_elects.size())
+    if(retiring.size() != num_new_delegates || delegate_elects.size() != num_new_delegates)
     {
         LOG_FATAL(_log) << "EpochVotingManager::GetNextEpochDelegates mismatch"
            << " in size of retiring and delegate_elects. Need to be equal."
@@ -211,7 +226,7 @@ bool EpochVotingManager::IsGreater(const Delegate& d1, const Delegate& d2)
         return d1.stake > d2.stake;
     } else
     {
-        return d1.account.number() > d2.account.number();
+        return Blake2bHash(d1).number() > Blake2bHash(d2).number();
     }
 }
 
@@ -257,7 +272,7 @@ void EpochVotingManager::RedistributeVotes(Delegates &delegates)
                  * and we are doing them a favor by giving them any amount of
                  * votes for free
                  */
-                auto to_add = ((delegates[i].vote.number() * rem.number())
+                Amount to_add = ((delegates[i].vote.number() * rem.number())
                         / total_votes.number());
 
                 delegates[i].vote += to_add;

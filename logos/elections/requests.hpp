@@ -12,7 +12,6 @@ const size_t MAX_VOTES = 8;
 const Amount MIN_REP_STAKE = 1;
 const Amount MIN_DELEGATE_STAKE = 1;
 
-//TODO: add hashing for all
 struct ElectionVote : Request
 {
     struct CandidateVotePair
@@ -75,8 +74,6 @@ struct ElectionVote : Request
 
     using Request::Hash;
 
-    uint16_t WireSize() const override;
-
     boost::property_tree::ptree SerializeJson() const override;
 
     uint64_t Serialize(logos::stream & stream) const override;
@@ -118,8 +115,6 @@ struct AnnounceCandidacy : Request
     boost::property_tree::ptree SerializeJson() const override;
 
     bool operator==(const AnnounceCandidacy & other) const;
-
-    uint16_t WireSize() const override;
 
     void Hash(blake2b_state& hash) const override;
 
