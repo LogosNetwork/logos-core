@@ -26,11 +26,6 @@ struct RepInfo
 
     boost::property_tree::ptree SerializeJson() const;
     
-    //are these tips really needed? we store most info in the flags
-    //which is more efficient because we do less database reads
-    //i think we still need election_vote_tip, so that way
-    //we can easily find out who voted for who, but the rep_action_tip
-    //and candidacy_action_tip seem uneccessary
     logos::block_hash candidacy_action_tip;
     logos::block_hash election_vote_tip;
     logos::block_hash rep_action_tip;
