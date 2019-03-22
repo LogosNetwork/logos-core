@@ -425,6 +425,43 @@ struct WithdrawFee : TokenRequest
     Transaction transaction;
 };
 
+struct WithdrawLogos : TokenRequest
+{
+    using Request::Hash;
+
+    WithdrawLogos();
+
+    WithdrawLogos(bool & error,
+                  const logos::mdb_val & mdbval);
+
+    WithdrawLogos(bool & error,
+                  std::basic_streambuf<uint8_t> & stream);
+
+    WithdrawLogos(bool & error,
+                  boost::property_tree::ptree const & tree);
+
+    Amount GetTokenTotal() const override;
+    logos::AccountType GetSourceType() const override;
+
+    AccountAddress GetDestination() const override;
+
+    bool Validate(logos::process_return & result,
+                  std::shared_ptr<logos::Account> info) const override;
+
+    boost::property_tree::ptree SerializeJson() const override;
+    uint64_t Serialize(logos::stream & stream) const override;
+    void Deserialize(bool & error, logos::stream & stream);
+    void DeserializeDB(bool & error, logos::stream & stream) override;
+
+    void Hash(blake2b_state & hash) const override;
+
+    uint16_t WireSize() const override;
+
+    bool operator==(const Request & other) const override;
+
+    Transaction transaction;
+};
+
 struct TokenSend : TokenRequest
 {
     using Request::Hash;

@@ -299,6 +299,9 @@ bool ControllerInfo::IsAuthorized(std::shared_ptr<const Request> request) const
         case RequestType::WithdrawFee:
             result = privileges[size_t(ControllerPrivilege::WithdrawFee)];
             break;
+        case RequestType::WithdrawLogos:
+            result = privileges[size_t(ControllerPrivilege::WithdrawLogos)];
+            break;
 
         // TODO: N/A
         case RequestType::TokenSend:

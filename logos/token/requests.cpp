@@ -2504,6 +2504,180 @@ bool WithdrawFee::operator==(const Request & other) const
     return false;
 }
 
+WithdrawLogos::WithdrawLogos()
+    : TokenRequest(RequestType::WithdrawLogos)
+{}
+
+WithdrawLogos::WithdrawLogos(bool & error,
+                             const logos::mdb_val & mdbval)
+{
+    logos::bufferstream stream(reinterpret_cast<uint8_t const *>(mdbval.data()),
+                               mdbval.size());
+
+    DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Hash();
+}
+
+WithdrawLogos::WithdrawLogos(bool & error,
+                             std::basic_streambuf<uint8_t> & stream)
+    : TokenRequest(error, stream)
+{
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Hash();
+}
+
+WithdrawLogos::WithdrawLogos(bool & error,
+                             boost::property_tree::ptree const & tree)
+    : TokenRequest(error, tree)
+      , transaction(error,
+                    tree.get_child(request::fields::TRANSACTION,
+                                   boost::property_tree::ptree()))
+{
+    if(error)
+    {
+        return;
+    }
+
+    Hash();
+}
+
+Amount WithdrawLogos::GetTokenTotal() const
+{
+    return transaction.amount;
+}
+
+logos::AccountType WithdrawLogos::GetSourceType() const
+{
+    return logos::AccountType::TokenAccount;
+}
+
+AccountAddress WithdrawLogos::GetDestination() const
+{
+    return transaction.destination;
+}
+
+bool WithdrawLogos::Validate(logos::process_return & result,
+                             std::shared_ptr<logos::Account> info) const
+{
+    auto token_account = std::static_pointer_cast<TokenAccount>(info);
+
+    if(transaction.amount > token_account->balance)
+    {
+        result.code = logos::process_result::insufficient_balance;
+        return false;
+    }
+
+    return true;
+}
+
+boost::property_tree::ptree WithdrawLogos::SerializeJson() const
+{
+    using namespace request::fields;
+
+    boost::property_tree::ptree tree = TokenRequest::SerializeJson();
+
+    tree.add_child(TRANSACTION, transaction.SerializeJson());
+
+    return tree;
+}
+
+uint64_t WithdrawLogos::Serialize(logos::stream & stream) const
+{
+    return TokenRequest::Serialize(stream) +
+           transaction.Serialize(stream) +
+           logos::write(stream, signature);
+}
+
+void WithdrawLogos::Deserialize(bool & error, logos::stream & stream)
+{
+    transaction = Transaction(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, signature);
+    if(error)
+    {
+        return;
+    }
+
+    bool with_work;
+    error = logos::read(stream, with_work);
+    if(error)
+    {
+        return;
+    }
+
+    if(with_work)
+    {
+        error = logos::read(stream, work);
+        if(error)
+        {
+            return;
+        }
+    }
+}
+
+void WithdrawLogos::DeserializeDB(bool & error, logos::stream & stream)
+{
+    TokenRequest::DeserializeDB(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    Deserialize(error, stream);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, next);
+}
+
+void WithdrawLogos::Hash(blake2b_state & hash) const
+{
+    TokenRequest::Hash(hash);
+    transaction.Hash(hash);
+}
+
+uint16_t WithdrawLogos::WireSize() const
+{
+    return Transaction::WireSize() +
+           TokenRequest::WireSize();
+}
+
+bool WithdrawLogos::operator==(const Request & other) const
+{
+    try
+    {
+        auto derived = dynamic_cast<const WithdrawLogos &>(other);
+
+        return Request::operator==(other) &&
+               transaction == derived.transaction;
+    }
+    catch(...)
+    {}
+
+    return false;
+}
+
 TokenSend::TokenSend()
     : TokenRequest(RequestType::TokenSend)
 {}

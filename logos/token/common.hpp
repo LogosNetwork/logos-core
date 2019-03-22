@@ -88,8 +88,9 @@ enum class ControllerPrivilege : uint8_t
     Burn                  = 17,
     Distribute            = 18,
     WithdrawFee           = 19,
+    WithdrawLogos         = 20,
 
-    Unknown               = 20
+    Unknown               = 21
 };
 
 // Larger than necessary in anticipation of

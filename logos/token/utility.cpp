@@ -243,6 +243,10 @@ ControllerPrivilege GetControllerPrivilege(bool & error, std::string data)
     {
         ret = ControllerPrivilege::WithdrawFee;
     }
+    else if(data == WITHDRAW_LOGOS)
+    {
+        ret = ControllerPrivilege::WithdrawLogos;
+    }
     else
     {
         error = true;
@@ -323,6 +327,9 @@ std::string GetControllerPrivilegeField(ControllerPrivilege privilege)
             break;
         case ControllerPrivilege::WithdrawFee:
             ret = WITHDRAW_FEE;
+            break;
+        case ControllerPrivilege::WithdrawLogos:
+            ret = WITHDRAW_LOGOS;
             break;
         case ControllerPrivilege::Unknown:
             ret = UNKNOWN;
@@ -506,6 +513,7 @@ bool IsTokenAdminRequest(RequestType type)
         case RequestType::Burn:
         case RequestType::Distribute:
         case RequestType::WithdrawFee:
+        case RequestType::WithdrawLogos:
             result = true;
             break;
         case RequestType::TokenSend:
