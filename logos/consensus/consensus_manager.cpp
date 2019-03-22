@@ -25,7 +25,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _validator(validator)
     , _waiting_list(GetWaitingList(service, this))
     , _events_notifier(events_notifier)
-    , _reservations(std::make_shared<Reservations>(store))
+    , _reservations(std::make_shared<ConsensusReservations>(store))
     , _persistence_manager(store, _reservations)
 {
     _delegate_id = config.delegate_id;
@@ -209,7 +209,7 @@ void ConsensusManager<CT>::InitiateConsensus(bool reproposing)
 {
     LOG_INFO(_log) << "Initiating "
                    << ConsensusToName(CT)
-                   << " consensus.";
+                   << " consensus, reproposing " << reproposing;
 
     auto & pre_prepare = PrePrepareGetNext();
 
@@ -221,7 +221,7 @@ void ConsensusManager<CT>::InitiateConsensus(bool reproposing)
     AdvanceState(ConsensusState::PRE_PREPARE);
 
     pre_prepare.preprepare_sig = _pre_prepare_sig;
-    LOG_DEBUG(_log) << "JSON representation: " << pre_prepare.SerializeJson();
+    LOG_DEBUG(_log) << "JSON representation: " << pre_prepare.ToJson();
     PrimaryDelegate::Send<PrePrepare>(pre_prepare);
 }
 

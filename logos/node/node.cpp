@@ -430,7 +430,7 @@ void logos::logging::init (boost::filesystem::path const & application_path_a)
 
         if (log_to_cerr ())
         {
-            boost::log::add_console_log (std::cerr, boost::log::keywords::format = "[%TimeStamp% %Severity%]: %Message%");
+            boost::log::add_console_log (std::cerr, boost::log::keywords::format = "[%TimeStamp% %ThreadID% %Severity%]: %Message%");
         }
 
         boost::log::add_file_log (boost::log::keywords::target = application_path_a / "log",
@@ -439,7 +439,7 @@ void logos::logging::init (boost::filesystem::path const & application_path_a)
                                   boost::log::keywords::auto_flush = flush,
                                   boost::log::keywords::scan_method = boost::log::sinks::file::scan_method::scan_matching,
                                   boost::log::keywords::max_size = max_size,
-                                  boost::log::keywords::format = "[%TimeStamp% %Severity%]: %Message%");
+                                  boost::log::keywords::format = "[%TimeStamp% %ThreadID% %Severity%]: %Message%");
     }
 }
 
@@ -2498,7 +2498,7 @@ void logos::network::send_buffer (uint8_t const * data_a, size_t size_a, logos::
         this->node.stats.add (logos::stat::type::traffic, logos::stat::dir::out, size_a);
         if (this->node.config.logging.network_packet_logging ())
         {
-            BOOST_LOG (this->node.log) << "Packet send complete";
+            LOG_DEBUG (this->node.log) << "Packet send complete";
         }
     });
 }
@@ -2535,9 +2535,17 @@ logos::thread_runner::thread_runner (boost::asio::io_service & service_a, unsign
             {
                 service_a.run ();
             }
+            catch (const std::exception &exc)
+            {
+                Log log;
+                LOG_FATAL(log) << exc.what();
+                trace_and_halt();
+            }
             catch (...)
             {
-                assert (false && "Unhandled service exception");
+                Log log;
+                LOG_FATAL(log) << "Unhandled service exception!";
+                trace_and_halt();
             }
         }));
     }

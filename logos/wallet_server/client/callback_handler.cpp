@@ -37,7 +37,7 @@ void CallbackHandler::OnConnect(const boost::system::error_code & ec)
     _request->version(11);
     _request->insert(boost::beast::http::field::host, _callback_endpoint.address());
     _request->insert(boost::beast::http::field::content_type, "application/json");
-    _request->body() = _block.SerializeJson();
+    _request->body() = _block.ToJson();
     _request->prepare_payload();
 
     boost::beast::http::async_write(_socket, *_request,

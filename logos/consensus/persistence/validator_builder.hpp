@@ -45,6 +45,6 @@ private:
     static std::unordered_map<uint32_t, pki>    _epoch_pki;
     Log                                         _log;
     static std::shared_ptr<MessageValidator>    _cached_validator;
-    static uint16_t                             _cached_epoch;
+    static uint32_t                             _cached_epoch;
 };
 

@@ -19,7 +19,7 @@ class ConsensusMsgSink : public ConsensusMsgConsumer
 
     /// Message stored on the queue
     struct Message {
-        bool                            is_p2p;         /// Is the message received via p2p
+        bool                            is_p2p = false; /// Is the message received via p2p
         MessageType                     message_type;   /// Consensus message type
         std::shared_ptr<MessageBase>    message;        /// Message pointer
     };
@@ -68,7 +68,7 @@ protected:
     std::queue<Message>     _msg_queue;         /// Message queue of consensus messages
     std::mutex              _queue_mutex;       /// Queue mutex
     std::atomic<uint32_t>&  _direct_connect;    /// Direct connections count reference (ConsensusNetIO::_direct_connect)
-    bool                    _consuming;         /// Is message currently being consumed
+    bool                    _consuming = false; /// Is message currently being consumed
     Log                     _log;               /// Log object
 };
 

@@ -12,14 +12,11 @@ namespace logos {
 class IRecallHandler;
 
 using BlockStore                    = logos::block_store;
-using IteratorBatchBlockReceiverCb  = std::function<void(uint8_t, const ApprovedRB &)>;
 using BatchBlockReceiverCb          = std::function<void(const ApprovedRB &)>;
 
 /// MicroBlockHandler builds MicroBlock
 class MicroBlockHandler
 {
-
-    using BatchTips = BlockHash[NUM_DELEGATES];
 
 public:
     /// Class constructor
@@ -42,26 +39,6 @@ public:
     /// @param last_micro_block last microblock in the poch [in]
     /// @returns true on success
     bool Build(MicroBlock &block, bool last_micro_block);
-
-    /// Iterates each delegates' batch state block chain. Traversing previous pointer.
-    /// Stop when reached the end tips.
-    /// @param store block store reference [in]
-    /// @param start tips to start iteration [in]
-    /// @param end tips to end iteration [in]
-    /// @param cb function to call for each delegate's batch state block, the function's argument are
-    ///   delegate id and BatchStateBlock
-    static void BatchBlocksIterator(BlockStore & store, const BatchTips &start, const BatchTips &end,
-                                    IteratorBatchBlockReceiverCb cb);
-
-    /// Iterates each delegates' batch state block chain. Traversing next pointer.
-    /// Stop when the timestamp is greater than the cutoff.
-    /// @param store block store reference [in]
-    /// @param start tips to start iteration [in]
-    /// @param cutoff timestamp to end iteration [in]
-    /// @param cb function to call for each delegate's batch state block, the function's argument are
-    ///   delegate id and BatchStateBlock
-    static void BatchBlocksIterator(BlockStore & store, const BatchTips &start, const uint64_t &cutoff,
-                                    IteratorBatchBlockReceiverCb cb);
 
     /// Get microblock cut-off time in milliseconds
     /// @param timestamp the base time stamp

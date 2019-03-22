@@ -7,7 +7,7 @@
 
 static constexpr ConsensusType ECT = ConsensusType::Epoch;
 
-class ReservationsProvider;
+class Reservations;
 
 template<>
 class PersistenceManager<ECT> : public Persistence
@@ -15,9 +15,9 @@ class PersistenceManager<ECT> : public Persistence
 
 protected:
 
-    using Message         = DelegateMessage<ECT>;
-    using PrePrepare      = PrePrepareMessage<ECT>;
-    using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
+    using Message          = DelegateMessage<ECT>;
+    using PrePrepare       = PrePrepareMessage<ECT>;
+    using ReservationsPtr  = std::shared_ptr<Reservations>;
 
 public:
 
@@ -50,6 +50,8 @@ public:
     {
         ApplyUpdates(block, 0);
     }
+
+    void LinkAndUpdateTips(uint8_t delegate, uint32_t epoch_number, const BlockHash & first_request_block, MDB_txn *transaction);
 
     virtual bool BlockExists(const ApprovedEB & message);
 };

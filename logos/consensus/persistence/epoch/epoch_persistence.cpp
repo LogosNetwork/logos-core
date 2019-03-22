@@ -4,6 +4,7 @@
 #include <logos/consensus/persistence/epoch/epoch_persistence.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
+#include <logos/microblock/microblock_handler.hpp>
 #include <logos/lib/trace.hpp>
 
 PersistenceManager<ECT>::PersistenceManager(Store & store,
@@ -76,7 +77,7 @@ PersistenceManager<ECT>::Validate(
 
     if (!EpochVotingManager::ValidateEpochDelegates(epoch.delegates))
     {
-        LOG_ERROR(_log) << "PersistenceManager::Validate invalid deligates ";
+        LOG_ERROR(_log) << "PersistenceManager::Validate invalid delegates ";
         UpdateStatusReason(status, process_result::not_delegate);
         return false;
     }
@@ -93,21 +94,95 @@ PersistenceManager<ECT>::ApplyUpdates(
     uint8_t)
 {
     logos::transaction transaction(_store.environment, nullptr, true);
+
+    // See comments in request_persistence.cpp
+    if (BlockExists(block))
+    {
+        LOG_DEBUG(_log) << "PersistenceManager<ECT>::ApplyUpdates - epoch already exists, ignoring";
+        return;
+    }
+
     BlockHash epoch_hash = block.Hash();
 
     if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(epoch_hash, transaction))
     {
-        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdate failed to store epoch or epoch tip "
+        LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to store epoch or epoch tip "
                                 << epoch_hash.to_string();
         trace_and_halt();
     }
 
     if(_store.consensus_block_update_next(block.previous, epoch_hash, ConsensusType::Epoch, transaction))
     {
-        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdate failed to get previous block "
+        LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to get previous block "
                         << block.previous.to_string();
         trace_and_halt();
     }
+
+    // Link epoch's first request block with previous epoch's last request block
+    // starting from epoch 3 (i.e. after Genesis)
+    if (block.epoch_number <= GENESIS_EPOCH)
+    {
+        return;
+    }
+
+    BatchTips cur_e_first;
+    auto cur_epoch_number (block.epoch_number + 1);
+    _store.GetEpochFirstRBs(cur_epoch_number, cur_e_first);
+
+    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
+    {
+        LinkAndUpdateTips(delegate, cur_epoch_number, cur_e_first[delegate], transaction);
+    }
+}
+
+void
+PersistenceManager<ECT>::LinkAndUpdateTips(
+    uint8_t delegate,
+    uint32_t epoch_number,
+    const BlockHash & first_request_block,
+    MDB_txn *transaction)
+{
+    // Get previous epoch's request block tip
+    BlockHash prev_e_last;
+    if (_store.request_tip_get(delegate, epoch_number - 1, prev_e_last))
+    {
+        LOG_FATAL(_log) << "PersistenceManager<ECT>::LinkAndUpdateTips failed to get request block tip for delegate "
+                        << std::to_string(delegate) << " for epoch number " << epoch_number - 1;
+        trace_and_halt();
+    }
+
+    // Don't connect chains if current epoch doesn't contain a tip yet. See request block persistence for this case
+    if (first_request_block.is_zero())
+    {
+        // Use old request block tip for current epoch
+        if (_store.request_tip_put(delegate, epoch_number, prev_e_last, transaction))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<ECT>::LinkAndUpdateTips failed to put request block tip for delegate "
+                            << std::to_string(delegate) << " for epoch number " << epoch_number;
+            trace_and_halt();
+        }
+    }
+    else
+    {
+        // Update `next` of last request block in previous epoch
+        if (_store.consensus_block_update_next(prev_e_last, first_request_block, ConsensusType::Request, transaction))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<ECT>::LinkAndUpdateTips failed to update prev epoch's "
+                            << "request block tip for delegate " << std::to_string(delegate);
+            trace_and_halt();
+        }
+
+        // Update `previous` of first request block in epoch
+        if (_store.request_block_update_prev(first_request_block, prev_e_last, transaction))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<ECT>::LinkAndUpdateTips failed to update current epoch's "
+                            << "first request block prev for delegate " << std::to_string(delegate);
+            trace_and_halt();
+        }
+    }
+
+    // Can safely delete old epoch tip because it's either "rolled over" to current epoch or successfully linked
+    _store.request_tip_del(delegate, epoch_number - 1, transaction);
 }
 
 bool PersistenceManager<ECT>::BlockExists(

@@ -10,62 +10,6 @@
 
 using namespace logos;
 
-void
-MicroBlockHandler::BatchBlocksIterator(
-    BlockStore & store,
-    const BatchTips &start,
-    const BatchTips &end,
-    IteratorBatchBlockReceiverCb batchblock_receiver)
-{
-    Log log;
-    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
-    {
-        BlockHash hash = start[delegate];
-        ApprovedRB batch;
-        bool not_found = false;
-        for (not_found = store.request_block_get(hash, batch);
-             !not_found && hash != end[delegate];
-             hash = batch.previous, not_found = store.request_block_get(hash, batch))
-        {
-            batchblock_receiver(delegate, batch);
-        }
-        if (not_found && !hash.is_zero())
-        {
-            LOG_ERROR(log) << "MicroBlockHander::BatchBlocksIterator failed to get batch state block: "
-                           << hash.to_string();
-            return;
-        }
-    }
-}
-
-void
-MicroBlockHandler::BatchBlocksIterator(
-        BlockStore & store,
-        const BatchTips &start,
-        const uint64_t &cutoff,
-        IteratorBatchBlockReceiverCb batchblock_receiver)
-{
-    Log log;
-    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
-    {
-        BlockHash hash = start[delegate];
-        ApprovedRB batch;
-        bool not_found = false;
-        for (not_found = store.request_block_get(hash, batch);
-             !not_found && batch.timestamp < cutoff;
-             hash = batch.next, not_found = store.request_block_get(hash, batch))
-        {
-            batchblock_receiver(delegate, batch);
-        }
-        if (not_found && !hash.is_zero())
-        {
-            LOG_ERROR(log) << "MicroBlockHandler::BatchBlocksIterator failed to get batch state block: "
-                           << hash.to_string();
-            return;
-        }
-    }
-}
-
 BlockHash
 MicroBlockHandler::FastMerkleTree(
         const BatchTips &start,
@@ -76,7 +20,7 @@ MicroBlockHandler::FastMerkleTree(
 {
     uint64_t cutoff_msec = GetCutOffTimeMsec(timestamp);
     return merkle::MerkleHelper([&](merkle::HashReceiverCb element_receiver)->void {
-        BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
+        _store.BatchBlocksIterator(start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
             if (batch.timestamp < cutoff_msec)
             {
                 BlockHash hash = batch.Hash();
@@ -106,7 +50,7 @@ MicroBlockHandler::SlowMerkleTree(
     uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
 
     // first get hashes and timestamps of all blocks; and min timestamp to use as the base
-    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable->void{
+    _store.BatchBlocksIterator(start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable->void{
         entries[delegate].push_back({batch.timestamp, batch.Hash()});
         if (batch.timestamp < min_timestamp)
         {
@@ -158,7 +102,7 @@ MicroBlockHandler::GetTipsFast(
     }
 
     uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff);
-    BatchBlocksIterator(_store, next, cutoff_msec, [&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
+    _store.BatchBlocksIterator(next, cutoff_msec, [&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
         BlockHash hash = batch.Hash();
         tips[delegate] = hash;
         num_blocks++;
@@ -189,8 +133,8 @@ MicroBlockHandler::GetTipsSlow(
     array<vector<pair>, NUM_DELEGATES> entries;
     uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
 
-    // frist get hashes and timestamps of all blocks; and min timestamp to use as the base
-    BatchBlocksIterator(_store, start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable->void{
+    // first get hashes and timestamps of all blocks; and min timestamp to use as the base
+    _store.BatchBlocksIterator(start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable->void{
         entries[delegate].push_back({batch.timestamp, batch.Hash()});
         if (batch.timestamp < min_timestamp)
         {
@@ -200,10 +144,10 @@ MicroBlockHandler::GetTipsSlow(
 
     // remainder from min_timestamp to the nearest 10min
     auto rem = min_timestamp % TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count();
-    auto cutoff = min_timestamp + (rem!=0)?TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count() - rem:0;
+    auto cutoff = min_timestamp + ((rem!=0)?TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count() - rem:0);
 
     // iterate over all blocks, selecting the ones that are less than cutoff time
-    uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff, true);
+    uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff, false);
 
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate) {
         for (auto it : entries[delegate]) {
@@ -248,14 +192,14 @@ MicroBlockHandler::Build(
     // collect current batch block tips
     BatchTips start;
 
-    // first microblock after genesis, the cut-off time is
-    // the Min timestamp of the very first BSB for all delegates + remainder from Min to nearest 10 min + 10 min;
-    // start is the current tips
+    // first microblock after genesis, the cut-off time is the Min timestamp of the very first BSB
+    // for all delegates + remainder from Min to nearest 10 min + 10 min; start is the current tips
     if (previous_micro_block.epoch_number == GENESIS_EPOCH)
     {
         for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
         {
-            if (_store.request_tip_get(delegate, start[delegate]))
+            // add 1 because we need the current epoch's tips
+            if (_store.request_tip_get(delegate, previous_micro_block.epoch_number + 1, start[delegate]))
             {
                 start[delegate].clear();
             }
@@ -267,6 +211,10 @@ MicroBlockHandler::Build(
     else
     {
         GetTipsFast(previous_micro_block.tips, previous_micro_block.timestamp, block.tips, block.number_batch_blocks);
+        // Note: if building the last micro block, GetTipsFast still works because previous epoch's request block tips
+        // aren't connected to the current epoch's request block chain yet
+        // if building the first micro block, the two request block chains will have already been linked at
+        // epoch persistence time (happened at roughly one MB interval ago)
     }
 
     // should be allowed to have no blocks so at least it doesn't crash

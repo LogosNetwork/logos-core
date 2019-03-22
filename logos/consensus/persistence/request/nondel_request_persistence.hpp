@@ -20,7 +20,7 @@ public:
         , NonDelegatePersistence<R>(store)
     {}
 
-    bool ValidatePreprepare(const PrePrepare & message, ValidationStatus * status)
+    bool ValidatePreprepare(const PrePrepare & message, ValidationStatus * status) override
     {
         using namespace logos;
 

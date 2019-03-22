@@ -11,7 +11,7 @@
 Archiver::Archiver(logos::alarm & alarm,
                    BlockStore & store,
                    IRecallHandler & recall_handler)
-    : _first_epoch(IsFirstEpoch(store))
+    : _first_epoch(store.is_first_epoch())
     , _event_proposer(alarm, recall_handler, _first_epoch, IsFirstMicroBlock(store))
     , _micro_block_handler(store, recall_handler)
     , _voting_manager(store)
@@ -74,29 +74,6 @@ Archiver::Test_ProposeMicroBlock(InternalConsensus &consensus, bool last_microbl
         }
         consensus.OnDelegateMessage(micro_block);
     });
-}
-
-bool
-Archiver::IsFirstEpoch(BlockStore &store)
-{
-    BlockHash hash;
-    ApprovedEB epoch;
-
-    if (store.epoch_tip_get(hash))
-    {
-        Log log;
-        LOG_ERROR(log) << "Archiver::IsFirstEpoch failed to get epoch tip. Genesis blocks are being generated.";
-        return true;
-    }
-
-    if (store.epoch_get(hash, epoch))
-    {
-        LOG_ERROR(_log) << "Archiver::IsFirstEpoch failed to get epoch: "
-                        << hash.to_string();
-        return false;
-    }
-
-    return epoch.epoch_number == GENESIS_EPOCH;
 }
 
 bool

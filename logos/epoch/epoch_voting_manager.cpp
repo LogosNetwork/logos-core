@@ -4,6 +4,7 @@
 ///
 
 #include <logos/node/delegate_identity_manager.hpp>
+#include <logos/epoch/archiver.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
@@ -14,13 +15,13 @@ void
 EpochVotingManager::GetNextEpochDelegates(
    Delegates &delegates)
 {
-    int constexpr num_epochs = 3;
+    int constexpr num_epochs = 4;
     int constexpr num_new_delegates = 8;
     ApprovedEB previous_epoch;
     BlockHash hash;
-    std::unordered_map<AccountPubKey,bool> delegates3epochs;
+    std::unordered_map<AccountPubKey,bool> delegates_recent_epochs;
 
-    // get all delegate in the previous 3 epochs
+    // get all delegate in the previous 3 epochs if at first epoch post genesis, otherwise 4
     if (_store.epoch_tip_get(hash))
     {
         LOG_FATAL(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch tip";
@@ -43,7 +44,7 @@ EpochVotingManager::GetNextEpochDelegates(
         return;
     }
 
-    for (int e = 0; e < num_epochs; ++e)
+    for (int e = 0; e < num_epochs - (_store.is_first_epoch()?1:0); ++e)
     {
         if (_store.epoch_get(hash, previous_epoch))
         {
@@ -55,7 +56,7 @@ EpochVotingManager::GetNextEpochDelegates(
         for (int del = 0; del < NUM_DELEGATES; ++del)
         {
             Delegate &delegate = previous_epoch.delegates[del];
-            delegates3epochs[delegate.account] = true;
+            delegates_recent_epochs[delegate.account] = true;
             if (e == 0)
             {
                 // populate new delegates from the most recent epoch
@@ -64,11 +65,11 @@ EpochVotingManager::GetNextEpochDelegates(
         }
     }
 
-    // replace last 8 for now
-    int new_delegate = NUM_DELEGATES - num_new_delegates;
+    // replace first 8 for now
+    int new_delegate (0);
     for (auto delegate : logos::genesis_delegates)
     {
-       if (delegates3epochs.find(delegate.key.pub) == delegates3epochs.end())
+       if (delegates_recent_epochs.find(delegate.key.pub) == delegates_recent_epochs.end())
        {
            delegates[new_delegate].account = delegate.key.pub;
            {
@@ -82,7 +83,7 @@ EpochVotingManager::GetNextEpochDelegates(
            delegates[new_delegate].stake = delegate.stake;
            delegates[new_delegate].vote = delegate.vote;
           ++new_delegate;
-          if (NUM_DELEGATES == new_delegate)
+          if (new_delegate == num_new_delegates)
           {
               break;
           }

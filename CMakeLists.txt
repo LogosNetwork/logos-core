@@ -416,8 +416,9 @@ if (LOGOS_TEST)
 		logos/unit_test/account_serialization.cpp
 		logos/unit_test/consensus_msg_serialize.cpp
 		logos/unit_test/msg_validator_setup.cpp
-		logos/unit_test/request_serialization.cpp
-		logos/unit_test/tallying.cpp
+		logos/unit_test/dual_RB_tips.cpp
+        logos/unit_test/request_serialization.cpp
+        logos/unit_test/tallying.cpp
         logos/unit_test/p2p_test.cpp
         logos/p2p/test/propagate_test.cpp
         logos/p2p/test/storage_test.cpp)

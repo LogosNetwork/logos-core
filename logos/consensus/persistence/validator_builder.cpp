@@ -6,7 +6,7 @@
 #include <logos/node/delegate_identity_manager.hpp>
 
 std::unordered_map<uint32_t, ValidatorBuilder::pki> ValidatorBuilder::_epoch_pki;
-uint16_t ValidatorBuilder::_cached_epoch = 0;
+uint32_t ValidatorBuilder::_cached_epoch = 0;
 std::shared_ptr<MessageValidator> ValidatorBuilder::_cached_validator = nullptr;
 
 ValidatorBuilder::ValidatorBuilder(ValidatorBuilder::Store &store)

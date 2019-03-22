@@ -4,10 +4,18 @@
 #include <logos/consensus/persistence/reservations.hpp>
 #include <logos/consensus/consensus_container.hpp>
 
+ReservationCache Reservations::_reservations;
+
+void
+Reservations::Release(const AccountAddress & account)
+{
+    _reservations.erase(account);
+}
+
 // TODO: We should only write to database when the program terminates on an uncaught exception;
 //  otherwise we suffer from  a major performance hit
 bool
-Reservations::CanAcquire(const AccountAddress & account,
+ConsensusReservations::CanAcquire(const AccountAddress & account,
                          const BlockHash & hash,
                          bool allow_duplicates)
 {
@@ -32,7 +40,7 @@ Reservations::CanAcquire(const AccountAddress & account,
     {
         // We should technically do a sanity check here:
         // if LMDB doesn't contain the reservation then something is seriously wrong
-        LOG_WARN(_log) << "Reservations::CanAcquire - Warning - attempt to "
+        LOG_WARN(_log) << "ConsensusReservations::CanAcquire - Warning - attempt to "
                        << "acquire account "
                        << account.to_string()
                        << " which is already in the Reservations cache.";
@@ -55,13 +63,7 @@ Reservations::CanAcquire(const AccountAddress & account,
 }
 
 void
-Reservations::Release(const AccountAddress & account)
-{
-    _reservations.erase(account);
-}
-
-void
-Reservations::UpdateReservation(const BlockHash & hash,
+ConsensusReservations::UpdateReservation(const BlockHash & hash,
                                 const AccountAddress & account)
 {
     uint32_t current_epoch = ConsensusContainer::GetCurEpochNumber();
@@ -71,19 +73,10 @@ Reservations::UpdateReservation(const BlockHash & hash,
     {
         if (_reservations[account].reservation_epoch + PersistenceManager<R>::RESERVATION_PERIOD > current_epoch)
         {
-            LOG_FATAL(_log) << "Reservations::UpdateReservation - update called before reservation epoch expiration!";
+            LOG_FATAL(_log) << "ConsensusReservations::UpdateReservation - update called before reservation epoch expiration!";
             trace_and_halt();
         }
     }
     logos::reservation_info updated_reservation {hash, current_epoch};
     _reservations[account] = updated_reservation;
-}
-
-bool
-DefaultReservations::CanAcquire(const AccountAddress & account,
-                                const BlockHash & hash,
-                                bool allow_duplicates)
-{
-    logos::reservation_info info;
-    return !_store.reservation_get(account, info);
 }

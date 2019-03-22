@@ -1100,7 +1100,10 @@ void logos::bootstrap_attempt::add_bulk_push_target (logos::block_hash const & h
 logos::bootstrap_initiator::bootstrap_initiator (logos::node & node_a) :
 node (node_a),
 stopped (false),
-thread ([this]() { run_bootstrap (); })
+thread ([this]() {
+//    run_bootstrap ();
+    return;
+})
 {
 }
 

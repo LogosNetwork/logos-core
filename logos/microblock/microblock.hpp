@@ -61,7 +61,7 @@ struct MicroBlock : PrePrepareCommon
     }
 
     /// JSON representation of MicroBlock (primarily for RPC messages)
-    std::string SerializeJson() const;
+    std::string ToJson() const;
     void SerializeJson(boost::property_tree::ptree &) const;
     uint32_t Serialize(logos::stream & stream, bool with_appendix) const;
 

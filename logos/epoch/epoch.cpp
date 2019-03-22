@@ -4,7 +4,7 @@
 ///
 #include <logos/epoch/epoch.hpp>
 
-std::string Epoch::SerializeJson() const
+std::string Epoch::ToJson() const
 {
     boost::property_tree::ptree epoch_block;
     SerializeJson(epoch_block);

@@ -103,7 +103,7 @@ struct PrePrepareMessage : public MessagePrequel<MessageType::Pre_Prepare, CT>,
         tree.put("hash", Hash().to_string());
     }
 
-    std::string SerializeJson() const
+    std::string ToJson() const
     {
         boost::property_tree::ptree tree;
         SerializeJson (tree);
@@ -199,7 +199,7 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
         tree.put("hash", Hash().to_string());
     }
 
-    std::string SerializeJson() const
+    std::string ToJson() const
     {
         boost::property_tree::ptree tree;
         SerializeJson (tree);
@@ -237,6 +237,9 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
     AggSignature post_commit_sig;
     BlockHash    next;
 };
+
+// This should only be called for the first request block in an epoch
+void update_PostCommittedRequestBlock_prev_field(const logos::mdb_val & mdbval, logos::mdb_val & mdbval_buf, const BlockHash & prev);
 
 // Prepare and Commit messages
 //

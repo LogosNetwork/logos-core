@@ -157,7 +157,7 @@ public:
         return s;
     }
     /// JSON representation of Epoch (primarily for RPC messages)
-    std::string SerializeJson() const;
+    std::string ToJson() const;
     void SerializeJson(boost::property_tree::ptree &) const;
 
     BlockHash micro_block_tip;          ///< microblock tip of this epoch

@@ -21,7 +21,9 @@ RequestConsensusManager::RequestConsensusManager(Service & service,
     , _init_timer(service)
 {
     _state = ConsensusState::INITIALIZING;
-    _store.request_tip_get(_delegate_id, _prev_pre_prepare_hash);
+    // _sequence is reset to 0 in a new epoch
+    uint32_t cur_epoch_number = events_notifier.GetEpochNumber();
+    _store.request_tip_get(_delegate_id, cur_epoch_number, _prev_pre_prepare_hash);
 
     ApprovedRB block;
     if ( !_prev_pre_prepare_hash.is_zero() && !_store.request_block_get(_prev_pre_prepare_hash, block))
@@ -571,11 +573,8 @@ RequestConsensusManager::OnPrePrepareRejected()
 
     AdvanceState(ConsensusState::VOID);
 
-    // SYL integration fix: this is the only place other than
-    // OnConsensusReached where we reset the ongoing status
-
     // Don't have to change _ongoing because we have to immediately repropose
-    InitiateConsensus();
+    InitiateConsensus(true);
 }
 
 void
@@ -592,6 +591,10 @@ RequestConsensusManager::OnDelegatesConnected()
     {
         _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
         _init_timer.async_wait([this](const Error &error) {
+            // After startup consensus is performed
+            // with an empty batch block.
+            _handler.OnRequest(std::make_shared<Request>(Request()));
+            _state = ConsensusState::VOID;
             _ongoing = true;
             InitiateConsensus();
         });

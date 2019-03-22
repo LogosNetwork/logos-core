@@ -101,9 +101,9 @@ PersistenceManager<MBCT>::Validate(
 
     /// verify can iterate the chain and the number of blocks checks out
     int number_batch_blocks = 0;
-    MicroBlockHandler::BatchBlocksIterator(_store, block.tips, previous_microblock.tips,
-                                           [&number_batch_blocks](uint8_t, const RequestBlock &) mutable -> void {
-       ++number_batch_blocks;
+    _store.BatchBlocksIterator(block.tips, previous_microblock.tips,
+            [&number_batch_blocks](uint8_t, const RequestBlock &) mutable -> void {
+        ++number_batch_blocks;
     });
     if (number_batch_blocks != block.number_batch_blocks)
     {
@@ -123,22 +123,30 @@ PersistenceManager<MBCT>::ApplyUpdates(
     uint8_t)
 {
     logos::transaction transaction(_store.environment, nullptr, true);
+
+    // See comments in request_persistence.cpp
+    if (BlockExists(block))
+    {
+        LOG_DEBUG(_log) << "PersistenceManager<MBCT>::ApplyUpdates - micro block already exists, ignoring";
+        return;
+    }
+
     BlockHash hash = block.Hash();
     if( _store.micro_block_put(block, transaction) ||
             _store.micro_block_tip_put(hash, transaction))
     {
-        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdates failed to put block or tip"
+        LOG_FATAL(_log) << "PersistenceManager<MBCT>::ApplyUpdates failed to put block or tip"
                                 << hash.to_string();
         trace_and_halt();
     }
 
     if(_store.consensus_block_update_next(block.previous, hash, ConsensusType::MicroBlock, transaction))
     {
-        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdates failed to get previous block "
+        LOG_FATAL(_log) << "PersistenceManager<MBCT>::ApplyUpdates failed to get previous block "
                         << block.previous.to_string();
         trace_and_halt();
     }
-    LOG_INFO(_log) << "PersistenceManager::ApplyUpdates hash: " << hash.to_string()
+    LOG_INFO(_log) << "PersistenceManager<MBCT>::ApplyUpdates hash: " << hash.to_string()
                    << " previous " << block.previous.to_string();
 }
 

@@ -835,12 +835,12 @@ void logos::rpc_handler::available_supply ()
     response (response_l);
 }
 
-void logos::rpc_handler::batch_blocks ()
+void logos::rpc_handler::request_blocks ()
 {
     consensus_blocks<ApprovedRB>();
 }
 
-void logos::rpc_handler::batch_blocks_latest ()
+void logos::rpc_handler::request_blocks_latest ()
 {
     std::string delegate_id_text (request.get<std::string> ("delegate_id"));
     uint64_t delegate_id;
@@ -877,21 +877,68 @@ void logos::rpc_handler::batch_blocks_latest ()
     }
     else
     {
-        auto tip_exists = !node.store.request_tip_get(static_cast<uint8_t>(delegate_id), hash);
+        // Retrieve epoch number to get batch tip
+        // indirectly figure out if we are in stale epoch
+        auto epoch_number_stored (node.store.epoch_number_stored());
+
+        auto tip_exists (false);
+        tip_exists = !node.store.request_tip_get(static_cast<uint8_t>(delegate_id), epoch_number_stored + 2, hash);
+
+        // if exists, then we are in epoch i + 1 but epoch block i hasn't been persisted yet
+
+        // otherwise, block i has been persisted, i.e. we are at least 1 MB interval past epoch start
+        if (!tip_exists)
+        {
+            if (node.store.request_tip_get(static_cast<uint8_t>(delegate_id), epoch_number_stored + 1, hash))
+            {
+                error_response (response, "Internal data corruption: request block tip doesn't exist.");
+            }
+        }
     }
 
     boost::property_tree::ptree response_l;
     boost::property_tree::ptree response_batch_blocks;
+    BlockHash prev_hash;
     while (!hash.is_zero() && count > 0)
     {
-        if (node.store.request_block_get(hash, batch))
+        auto retrieve_prev_batch ([&]() -> bool {
+            if (node.store.request_block_get(hash, batch))
+            {
+                return false;
+            }
+            boost::property_tree::ptree response_batch;
+            batch.SerializeJson (response_batch);
+            response_batch_blocks.push_back(std::make_pair("", response_batch));
+            prev_hash = batch.previous;
+            return true;
+        });
+
+        if (!retrieve_prev_batch())
         {
-            error_response (response, "Internal data corruption");
+            error_response (response, "Internal data corruption: batch not found for hash " + hash.to_string());
         }
-        boost::property_tree::ptree response_batch;
-        batch.SerializeJson (response_batch);
-        response_batch_blocks.push_back(std::make_pair("", response_batch));
-        hash = batch.previous;
+
+        // Check if there is a gap in the request block chain
+        if (prev_hash.is_zero() && batch.epoch_number > GENESIS_EPOCH + 1)
+        {
+            // Attempt to get old epoch tip
+            if (node.store.request_tip_get(static_cast<uint8_t>(delegate_id), batch.epoch_number - 1, prev_hash))
+            {
+                // Only case a tip retrieval fails is when an epoch persistence update just happened and erased the old tip
+                response_batch_blocks.pop_back();
+                // Try again
+                if (!retrieve_prev_batch())
+                {
+                    error_response (response, "Internal data corruption: batch not found.");
+                }
+                if (prev_hash.is_zero())
+                {
+                    error_response (response, "Internal data corruption: old request block tip was deleted without chain linking.");
+                }
+            }
+        }
+        hash = prev_hash;
+        prev_hash.clear();
         count--;
     }
 
@@ -1633,7 +1680,7 @@ void logos::rpc_handler::account_history ()
         error_response (response, "Bad account number");
     }
 
-    std::shared_ptr<logos::Account> info; 
+    std::shared_ptr<logos::Account> info;
     if (node.store.account_get (account, info, transaction))
     {
         error_response (response, "Account not found.");
@@ -4445,13 +4492,13 @@ void logos::rpc_handler::process_request ()
         {
             available_supply ();
         }
-        else if (action == "batch_blocks")
+        else if (action == "request_blocks")
         {
-            batch_blocks ();
+            request_blocks ();
         }
-        else if (action == "batch_blocks_latest")
+        else if (action == "request_blocks_latest")
         {
-            batch_blocks_latest ();
+            request_blocks_latest ();
         }
         else if (action == "block")
         {
@@ -4890,7 +4937,7 @@ logos::rpc_handler::tokens_info(
         {
             details = details_text.get() == "true";
         }
-        
+
         for(auto & item : request.get_child("tokens"))
         {
             std::string account_string(item.second.get_value<std::string>());
@@ -4918,7 +4965,7 @@ logos::rpc_handler::tokens_info(
     return res;
 }
 
-logos::rpc_handler::RpcResponse<boost::property_tree::ptree> 
+logos::rpc_handler::RpcResponse<boost::property_tree::ptree>
 logos::rpc_handler::account_info(
         const boost::property_tree::ptree& request,
         logos::block_store& store)
@@ -4947,8 +4994,8 @@ logos::rpc_handler::account_info(
 
             if(account_ptr->type == logos::AccountType::TokenAccount)
             {
-                TokenAccount token_account = 
-                    *static_pointer_cast<TokenAccount>(account_ptr); 
+                TokenAccount token_account =
+                    *static_pointer_cast<TokenAccount>(account_ptr);
                 response = token_account.SerializeJson(true);
                 response.put("type","TokenAccount");
                 response.put("sequence",token_account.block_count);
@@ -4960,8 +5007,8 @@ logos::rpc_handler::account_info(
                 res.contents = response;
             }
             else
-            { 
-                logos::account_info info = 
+            {
+                logos::account_info info =
                     *static_pointer_cast<logos::account_info>(account_ptr);
 
                 MDB_dbi db = store.account_db;
@@ -5155,7 +5202,7 @@ logos::rpc_handler::block(
     return res;
 }
 
-logos::rpc_handler::RpcResponse<boost::property_tree::ptree> 
+logos::rpc_handler::RpcResponse<boost::property_tree::ptree>
 logos::rpc_handler::blocks(
         const boost::property_tree::ptree& request,
         logos::block_store& store)

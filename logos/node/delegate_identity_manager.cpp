@@ -195,7 +195,7 @@ DelegateIdentityManager::Init(const Config &config)
     _epoch_transition_enabled = config.all_delegates.size() == 2 * config.delegates.size();
 
     BlockHash epoch_tip;
-    uint16_t epoch_number = 0;
+    uint32_t epoch_number = 0;
     if (_store.epoch_tip_get(epoch_tip))
     {
         CreateGenesisBlocks(transaction);

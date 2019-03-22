@@ -65,7 +65,7 @@ public:
     void Start(MicroCb mcb, TransitionCb tcb, EpochCb ecb);
 private:
     // number of intervals to skip on first microblock after genesis microblock
-    const uint8_t       FIRST_MICROBLOCK_SKIP = 2;
+    const uint8_t       FIRST_MICROBLOCK_SKIP = 1;
     logos::alarm &      _alarm;            ///< logos::alarm reference
     EpochCb             _epoch_cb;         ///< delayed epoch call back
     Log                 _log;              ///< boost asio log

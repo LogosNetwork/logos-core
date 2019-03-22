@@ -78,10 +78,6 @@ private:
     /// @param last_microblock last microblock flag
     void Test_ProposeMicroBlock(InternalConsensus&, bool last_microblock);
 
-    /// Is this the first Epoch
-    /// @param store reference to block store
-    bool IsFirstEpoch(BlockStore &store);
-
     /// Is this the first MicroBlock
     /// @param store reference to block store
     bool IsFirstMicroBlock(BlockStore &store);

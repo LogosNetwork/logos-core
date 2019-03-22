@@ -58,6 +58,8 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
     , _epoch_info(epoch_info)
     , _error_handler(error_handler)
     , _last_timestamp(GetStamp())
+    , _error_handled(false)
+    , _direct_connect(0)
 {
     LOG_INFO(_log) << "ConsensusNetIO - Trying to connect to: "
                    <<  _endpoint << " remote delegate id "
@@ -123,7 +125,10 @@ ConsensusNetIO::Send(
     auto send_buffer(std::make_shared<std::vector<uint8_t>>(size, uint8_t(0)));
     std::memcpy(send_buffer->data(), data, size);
 
-    AsyncSend(send_buffer);
+    if (!AsyncSend(send_buffer))
+    {
+        LOG_ERROR(_log) << "ConsensusNetIO::Send - AsyncSend to endpoint " << _endpoint << " failed";
+    }
 }
 
 void 
@@ -370,11 +375,11 @@ ConsensusNetIO::AddConsensusConnection(
 void
 ConsensusNetIO::OnError(const ErrorCode &error)
 {
+    LOG_DEBUG(_log) << "ConsensusConnection - Error on write to socket, connected: " << _connected
+                    << ", error message: " << error.message() << ". Remote endpoint: "
+                    << _endpoint;
     if (_connected)
     {
-        LOG_ERROR(_log) << "ConsensusConnection - Error on write to socket: "
-                        << error.message() << ". Remote endpoint: "
-                        << _endpoint;
         OnNetIOError(error);
     }
 }
