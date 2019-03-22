@@ -83,6 +83,8 @@ private:
     bool IsFirstMicroBlock(BlockStore &store);
 
     bool                _first_epoch;
+    uint32_t            _mb_seq;
+    uint32_t            _eb_num;
     EpochVotingManager  _voting_manager;
     EventProposer       _event_proposer;
     MicroBlockHandler   _micro_block_handler;

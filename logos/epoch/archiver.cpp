@@ -18,7 +18,23 @@ Archiver::Archiver(logos::alarm & alarm,
     , _epoch_handler(store, _voting_manager)
     , _recall_handler(recall_handler)
     , _store(store)
-{}
+{
+    BlockHash mb_tip;
+    // fetch latest microblock (this requires DelegateIdentityManager be initialized earlier inside `node`)
+    if (_store.micro_block_tip_get(mb_tip))
+    {
+        LOG_FATAL(_log) << "Archiver::Archiver - Failed to get microblock tip";
+        trace_and_halt();
+    }
+    ApprovedMB mb;
+    if (_store.micro_block_get(mb_tip, mb))
+    {
+        LOG_FATAL(_log) << "Archiver::Archiver - Failed to get microblock";
+        trace_and_halt();
+    }
+    _mb_seq = mb.sequence;
+    _eb_num = mb.epoch_number;
+}
 
 void
 Archiver::Start(InternalConsensus &consensus)
@@ -31,21 +47,71 @@ Archiver::Start(InternalConsensus &consensus)
 
         bool one_mb_past = util.IsOneMBPastEpochTime();
 
-        if (false == _micro_block_handler.Build(*micro_block, last_microblock))
+        // check if latest in db is the same as our own in-memory counter
+        ApprovedMB mb;
+        {
+            BlockHash mb_tip;
+            // use write transaction to ensure sequencing
+            logos::transaction tx(_store.environment, nullptr, true);
+            if (_store.micro_block_tip_get(mb_tip, tx))
+            {
+                LOG_FATAL(_log) << "Archiver::Archiver - Failed to get microblock tip";
+                trace_and_halt();
+            }
+            if (_store.micro_block_get(mb_tip, mb, tx))
+            {
+                LOG_FATAL(_log) << "Archiver::Archiver - Failed to get microblock";
+                trace_and_halt();
+            }
+        }
+
+        // TODO: Archiver's internal counter should really be directly updated by post commit
+        if (_mb_seq != mb.sequence || _eb_num != mb.epoch_number)
+        {
+            if (_eb_num > mb.epoch_number || (_eb_num == mb.epoch_number && _mb_seq > mb.sequence))
+            {
+                // we are exactly one ahead of db, meaning that the current consensus session isn't done yet, do nothing
+                if ((_eb_num == mb.epoch_number + 1 && !_mb_seq) ||
+                    (_eb_num == mb.epoch_number && _mb_seq == mb.sequence + 1))
+                {
+                    return;
+                }
+                // we somehow ended up ahead more than one ahead, should not happen
+                else
+                {
+                    LOG_FATAL(_log) << "Archiver::Start - unexpected scenario, internal counter out of sync";
+                    trace_and_halt();
+                }
+            }
+            // we are behind in time, catch up and don't build
+            // TODO: sync clock?
+            else if (_eb_num < mb.epoch_number || (_eb_num == mb.epoch_number && _mb_seq < mb.sequence))
+            {
+                _eb_num = mb.epoch_number;
+                _mb_seq = mb.sequence;
+                return;
+            }
+        }
+
+        // if internal counter match db record, then we can go ahead and build the next MB
+
+        if (!_micro_block_handler.Build(*micro_block, last_microblock))
         {
             LOG_ERROR(_log) << "Archiver::Start failed to build micro block";
             return;
         }
 
         if (is_epoch_time
-        || (_first_epoch &&
-            !micro_block->sequence &&
-            micro_block->epoch_number == GENESIS_EPOCH + 1 &&
-            one_mb_past))
+            || (_first_epoch &&
+                !micro_block->sequence &&
+                micro_block->epoch_number == GENESIS_EPOCH + 1 &&
+                one_mb_past))
         {
             _first_epoch = false;
         }
 
+        _mb_seq = micro_block->sequence;
+        _eb_num = micro_block->epoch_number;
 
         consensus.OnDelegateMessage(micro_block);
     };
