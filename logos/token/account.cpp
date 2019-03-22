@@ -196,7 +196,16 @@ boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
                 settings_tree.push_back(std::make_pair("", t));
             }
         }
-        tree.add_child("settings", settings_tree);
+        // SG: maintain consistent data structure for JSON, no settings is empy array
+        if(settings_tree.empty())
+        {
+            tree.put("settings", "[]");
+        }
+        else
+        {
+            tree.add_child("settings", settings_tree);
+        }
+        tree.put("issuance_request", issuance_request.to_string());
     }
     return tree;
 }

@@ -227,8 +227,15 @@ boost::property_tree::ptree ControllerInfo::SerializeJson() const
                                      return GetControllerPrivilegeField(pos);
                                  }));
 
-    tree.add_child(PRIVILEGES, privileges_tree);
-
+    // SG: maintain consistent data structure for JSON, no priveleges is empy array
+    if(privileges_tree.empty())
+    {
+        tree.put(PRIVILEGES, "[]");
+    }
+    else
+    {
+        tree.add_child(PRIVILEGES, privileges_tree);
+    }
     return tree;
 }
 
