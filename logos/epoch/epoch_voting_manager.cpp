@@ -65,8 +65,8 @@ EpochVotingManager::GetNextEpochDelegates(
         }
     }
 
-    // replace last 8 for now
-    int new_delegate = NUM_DELEGATES - num_new_delegates;
+    // replace first 8 for now
+    int new_delegate (0);
     for (auto delegate : logos::genesis_delegates)
     {
        if (delegates_recent_epochs.find(delegate.key.pub) == delegates_recent_epochs.end())
@@ -83,7 +83,7 @@ EpochVotingManager::GetNextEpochDelegates(
            delegates[new_delegate].stake = delegate.stake;
            delegates[new_delegate].vote = delegate.vote;
           ++new_delegate;
-          if (NUM_DELEGATES == new_delegate)
+          if (new_delegate == num_new_delegates)
           {
               break;
           }
