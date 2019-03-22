@@ -126,10 +126,29 @@ Request::Request(bool & error,
             return;
         }
 
-        error = signature.decode_hex(tree.get<std::string>(SIGNATURE));
-        if(error)
+        if(tree.find(SIGNATURE)!=tree.not_found())
         {
-            return;
+            error = signature.decode_hex(tree.get<std::string>(SIGNATURE));
+            if(error)
+            {
+                return;
+            }
+        }
+        else
+        {
+            AccountPrivKey prv;
+            error = prv.decode_hex(tree.get<std::string>(PRIVATE_KEY));
+            if(error)
+            {
+                return;
+            }
+            AccountPubKey pub;
+            error = pub.decode_hex(tree.get<std::string>(PUBLIC_KEY));
+            if(error)
+            {
+                return;
+            }
+            Sign(pub,prv);
         }
 
         error = logos::from_string_hex(tree.get<std::string>(WORK, "0"), work);
@@ -281,6 +300,10 @@ boost::property_tree::ptree Request::SerializeJson() const
     tree.put(SIGNATURE, signature.to_string());
     tree.put(WORK, std::to_string(work));
     tree.put(NEXT, next.to_string());
+
+    tree.put(HASH, digest.to_string());
+    tree.put("request_block_hash", locator.hash.to_string());
+    tree.put("request_block_index", locator.index);
 
     return tree;
 }

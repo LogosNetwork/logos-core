@@ -361,7 +361,7 @@ TEST (Request_Serialization, json_deserialization)
               "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
     ASSERT_EQ(distribute.transaction.amount, 100);
 
-    // Token Account Withdraw Fee
+    // Withdraw Fee
     //
     //
     char const * withdraw_fee_json = R"%%%({
@@ -390,6 +390,36 @@ TEST (Request_Serialization, json_deserialization)
     ASSERT_EQ(withdraw_fee.transaction.destination.to_account(),
               "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
     ASSERT_EQ(withdraw_fee.transaction.amount, 50);
+
+    // Withdraw Logos
+    //
+    //
+    char const * withdraw_logos_json = R"%%%({
+        "type": "withdraw_logos",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "600",
+        "sequence": "1",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
+        "transaction" : {
+            "destination": "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz",
+            "amount": "1000"
+        }
+     })%%%";
+
+    tree = get_tree(withdraw_logos_json);
+    WithdrawFee withdraw_logos(error, tree);
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(withdraw_logos.type, RequestType::WithdrawLogos);
+    ASSERT_EQ(withdraw_logos.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(withdraw_logos.fee.number(), 600);
+    ASSERT_EQ(withdraw_logos.sequence, 1);
+    ASSERT_EQ(withdraw_logos.transaction.destination.to_account(),
+              "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
+    ASSERT_EQ(withdraw_logos.transaction.amount, 1000);
 
     // Token Send
     //
@@ -679,6 +709,17 @@ auto GenerateWithdrawFee = []()
     return withdraw;
 };
 
+auto GenerateWithdrawLogos = []()
+{
+    WithdrawLogos withdraw;
+
+    withdraw.type = RequestType::WithdrawLogos;
+    withdraw.transaction.destination.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
+    withdraw.transaction.amount = 750;
+
+    return withdraw;
+};
+
 auto GenerateTokenSend = []()
 {
     TokenSend send;
@@ -886,6 +927,21 @@ TEST (Request_Serialization, stream_methods)
     ASSERT_FALSE(error);
     ASSERT_EQ(withdraw_a, withdraw_b);
 
+    // Withdraw Logos
+    //
+    //
+    auto withdraw_logos_a(GenerateWithdrawLogos());
+    DoGetStreamedData(withdraw_logos_a, buf);
+
+    stream.close();
+    stream.open(buf.data(), buf.size());
+
+    error = false;
+    WithdrawLogos withdraw_logos_b(GetRequest<WithdrawLogos>(error, stream));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(withdraw_logos_a, withdraw_logos_b);
+
     // Token Send
     //
     //
@@ -1072,6 +1128,20 @@ TEST (Request_Serialization, database_methods)
     ASSERT_FALSE(error);
     ASSERT_EQ(withdraw_a, withdraw_b);
 
+    // Withdraw Logos
+    //
+    //
+    auto withdraw_logos_a(GenerateWithdrawLogos());
+
+    buf.clear();
+
+    error = false;
+    WithdrawLogos withdraw_logos_b(error,
+                                   withdraw_logos_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(withdraw_logos_a, withdraw_logos_b);
+
     // Token Send
     //
     //
@@ -1235,6 +1305,18 @@ TEST (Request_Serialization, json_serialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(withdraw_a, withdraw_b);
+
+    // Withdraw Logos
+    //
+    //
+    auto withdraw_logos_a(GenerateWithdrawLogos());
+
+    error = false;
+    WithdrawLogos withdraw_logos_b(error,
+                                 withdraw_logos_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(withdraw_logos_a, withdraw_logos_b);
 
     // Token Send
     //
