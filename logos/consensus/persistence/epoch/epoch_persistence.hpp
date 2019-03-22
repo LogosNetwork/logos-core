@@ -4,6 +4,7 @@
 #pragma once
 
 #include <logos/consensus/persistence/persistence_manager.hpp>
+#include <unordered_set>
 
 static constexpr ConsensusType ECT = ConsensusType::Epoch;
 
@@ -54,4 +55,11 @@ public:
     void LinkAndUpdateTips(uint8_t delegate, uint32_t epoch_number, const BlockHash & first_request_block, MDB_txn *transaction);
 
     virtual bool BlockExists(const ApprovedEB & message);
+
+    void UpdateCandidatesDB(MDB_txn* txn);
+    void UpdateRepresentativesDB(MDB_txn* txn);
+    void TransitionNextEpoch(MDB_txn* txn, uint32_t next_epoch_num);
+    void MarkDelegateElectsAsRemove(MDB_txn* txn);
+    void AddReelectionCandidates(MDB_txn* txn);
+    void TransitionCandidatesDBNextEpoch(MDB_txn* txn, uint32_t next_epoch_num);
 };

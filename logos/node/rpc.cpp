@@ -2652,6 +2652,11 @@ void logos::rpc_handler::process ()
             case RequestType::WithdrawFee:
             case RequestType::WithdrawLogos:
             case RequestType::TokenSend:
+            case RequestType::ElectionVote:
+            case RequestType::AnnounceCandidacy:
+            case RequestType::RenounceCandidacy:
+            case RequestType::StartRepresenting:
+            case RequestType::StopRepresenting:
                 process(request);
                 break;
             case RequestType::Change:
@@ -2868,49 +2873,49 @@ void logos::rpc_handler::receive_minimum_set ()
     }
 }
 
+
+void logos::rpc_handler::candidates ()
+{
+    boost::property_tree::ptree res;
+
+    logos::transaction txn(node.store.environment,nullptr,false);
+
+    for(auto it = logos::store_iterator(txn,node.store.candidacy_db);
+           it != logos::store_iterator(nullptr); ++it)
+    {
+        boost::property_tree::ptree candidate;
+        bool error = false;
+        CandidateInfo info(error, it->second);
+        if(error)
+        {
+            error_response(response,"error reading candidate");
+            return;
+        }
+        res.add_child(it->first.uint256().to_string(),info.SerializeJson());
+    } 
+    response(res);
+}
+
 void logos::rpc_handler::representatives ()
 {
-    uint64_t count (std::numeric_limits<uint64_t>::max ());
-    boost::optional<std::string> count_text (request.get_optional<std::string> ("count"));
-    if (count_text.is_initialized ())
+    boost::property_tree::ptree res;
+
+    logos::transaction txn(node.store.environment,nullptr,false);
+
+    for(auto it = logos::store_iterator(txn,node.store.representative_db);
+           it != logos::store_iterator(nullptr); ++it)
     {
-        auto error (decode_unsigned (count_text.get (), count));
-        if (error)
+        boost::property_tree::ptree candidate;
+        bool error = false;
+        RepInfo info(error, it->second);
+        if(error)
         {
-            error_response (response, "Invalid count limit");
+            error_response(response,"error reading representative");
+            return;
         }
-    }
-    const bool sorting = request.get<bool> ("sorting", false);
-    boost::property_tree::ptree response_l;
-    boost::property_tree::ptree representatives;
-    logos::transaction transaction (node.store.environment, nullptr, false);
-    if (!sorting) // Simple
-    {
-        for (auto i (node.store.representation_begin (transaction)), n (node.store.representation_end ()); i != n && representatives.size () < count; ++i)
-        {
-            logos::account account (i->first.uint256 ());
-            auto amount (node.store.representation_get (transaction, account));
-            representatives.put (account.to_account (), amount.convert_to<std::string> ());
-        }
-    }
-    else // Sorting
-    {
-        std::vector<std::pair<logos::uint128_union, std::string>> representation;
-        for (auto i (node.store.representation_begin (transaction)), n (node.store.representation_end ()); i != n; ++i)
-        {
-            logos::account account (i->first.uint256 ());
-            auto amount (node.store.representation_get (transaction, account));
-            representation.push_back (std::make_pair (amount, account.to_account ()));
-        }
-        std::sort (representation.begin (), representation.end ());
-        std::reverse (representation.begin (), representation.end ());
-        for (auto i (representation.begin ()), n (representation.end ()); i != n && representatives.size () < count; ++i)
-        {
-            representatives.put (i->second, (i->first).number ().convert_to<std::string> ());
-        }
-    }
-    response_l.add_child ("representatives", representatives);
-    response (response_l);
+        res.add_child(it->first.uint256().to_string(),info.SerializeJson());
+    } 
+    response(res);
 }
 
 void logos::rpc_handler::representatives_online ()
@@ -4547,6 +4552,10 @@ void logos::rpc_handler::process_request ()
         else if (action == "chain")
         {
             chain ();
+        }
+        else if (action == "candidates")
+        {
+            candidates();
         }
         else if (action == "delegators")
         {

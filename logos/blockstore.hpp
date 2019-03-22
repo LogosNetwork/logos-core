@@ -8,6 +8,8 @@
 #include <logos/epoch/epoch.hpp>
 #include <logos/lib/log.hpp>
 #include <logos/common.hpp>
+#include <logos/elections/candidate.hpp>
+#include <logos/elections/representative.hpp>
 
 namespace logos
 {
@@ -238,7 +240,6 @@ public:
     bool epoch_get(const BlockHash &, ApprovedEB &, MDB_txn *t=0);
     bool epoch_tip_put(const BlockHash &, MDB_txn*);
     bool epoch_tip_get(BlockHash &, MDB_txn *t=0);
-    bool epoch_exists(const ApprovedEB &);
     bool epoch_exists(const BlockHash &, MDB_txn* t=0);
     bool is_first_epoch();
     uint32_t epoch_number_stored();
@@ -246,6 +247,57 @@ public:
     /// @param epoch number to retrieve [in]
     /// @param list of delegate request block hash to populate [in]
     void GetEpochFirstRBs(uint32_t epoch_number, BatchTips & epoch_firsts);
+
+    bool epoch_exists(const ApprovedEB & block);
+    bool epoch_get_n(uint32_t ago, ApprovedEB &, MDB_txn *t=0);
+
+    bool rep_get(
+            AccountAddress const & account,
+            RepInfo & rep_info,
+            MDB_txn* t=0);
+    bool rep_put(
+            AccountAddress const & account,
+            const RepInfo & rep_info,
+            MDB_txn *);
+
+    bool rep_mark_remove(
+            const AccountAddress & account,
+            MDB_txn *);
+
+    bool candidate_get(
+            const AccountAddress & account,
+            CandidateInfo & candidate_info,
+            MDB_txn* t=0);
+    bool candidate_put(
+            const AccountAddress & account,
+            const CandidateInfo & candidate_info,
+            MDB_txn *);
+
+    bool candidate_add_vote(
+            const AccountAddress & account,
+            Amount weighted_vote,
+            uint32_t cur_epoch_num,
+            MDB_txn *);
+
+    bool candidate_mark_remove(
+            const AccountAddress & account,
+            MDB_txn *);
+
+    bool update_leading_candidates(
+            const AccountAddress & account,
+            const CandidateInfo & candidate_info,
+            MDB_txn* txn);
+
+    //updates min_leading_candidate and leading_candidates_size members
+    //required on startup (in case of crash), and whenever leading_candidates_db
+    //is updated
+    void sync_leading_candidates(MDB_txn* txn);
+
+    bool candidate_is_greater(
+            const AccountAddress& account1,
+            const CandidateInfo& candidate1,
+            const AccountAddress& account2,
+            const CandidateInfo& candidate2);
 
     //////////////////
 
@@ -269,7 +321,13 @@ public:
     void version_put (MDB_txn *, int);
     int version_get (MDB_txn *);
 
-    void clear (MDB_dbi);
+    void clear (MDB_dbi, MDB_txn *t=0);
+
+    // The lowest ranked candidate in leading_candidates_db. Kept up to date
+    std::pair<AccountAddress, CandidateInfo> min_leading_candidate;
+
+    // Number of candidates in leading_candidates_db
+    size_t leading_candidates_size;
 
     logos::mdb_env environment;
 
@@ -374,6 +432,40 @@ public:
      * logos::account -> logos::uint128_t
      */
     MDB_dbi representation;
+
+    /**
+     * Representative info
+     * logos::account -> logos::RepInfo
+     */
+    MDB_dbi representative_db;
+
+    /**
+     * Candidacy info
+     * AccountAddress -> CandidateInfo
+     */
+    MDB_dbi candidacy_db;
+
+    /**
+     * Candidacy info of candidates who are currently winning election
+     * AccountAddress -> CandidateInfo 
+     */
+    MDB_dbi leading_candidates_db;
+
+    /**
+     * AccountAddresses of candidates to be deleted at epoch transition
+     * 0 -> AccountAddress
+     * Note, this database uses duplicate keys, where every entry has a key
+     * of 0. 
+     */
+    MDB_dbi remove_candidates_db;
+
+    /**
+     * AccountAddresses of representatives to be deleted at epoch transition
+     * 0 -> AccountAddress
+     * Note, this database uses duplicate keys, where every entry has a key
+     * of 0. 
+     */
+    MDB_dbi remove_reps_db;
 
     /**
      * Unchecked bootstrap blocks.

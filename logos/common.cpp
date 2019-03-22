@@ -1118,8 +1118,45 @@ std::string logos::ProcessResultToString(logos::process_result result)
             break;
         case process_result::too_many_token_entries:
             ret = "The account has too many token entries";
+        case process_result::elections_dead_period:
+            ret = "Is currently elections dead period";
+            break;
+        case process_result::not_a_rep: 
+            ret = "Not a rep";
+            break;
+        case process_result::already_voted:
+            ret = "Already voted this epoch";
+            break;
+        case process_result::invalid_candidate:
+            ret = "Voted for an account that is not an active candidate";
+            break;
+        case process_result::not_enough_stake:
+            ret = "Not enough stake for action";
+            break;
+        case process_result::never_announced_candidacy:
+            ret = "Never announced candidacy";
+            break;
+        case process_result::already_renounced_candidacy:
+            ret = "Already renounced candidacy";
+            break;
+        case process_result::already_announced_candidacy:
+            ret = "Already announced candidacy";
+            break;
+        case process_result::is_rep:
+            ret = "Account is representative";
+            break;
+        case process_result::wrong_epoch_number:
+            ret = "Wrong epoch number in request";
+            break;
+        case process_result::no_elections:
+            ret = "Elections are not yet being held";
+            break;
+        case process_result::pending_rep_action:
+            ret = "Pending representative action";
+            break;
+        case process_result::pending_candidacy_action:
+            ret = "Pending candidacy action";
             break;
     }
-
     return ret;
 }

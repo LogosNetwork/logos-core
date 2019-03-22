@@ -75,7 +75,9 @@ PersistenceManager<ECT>::Validate(
         return false;
     }
 
-    if (!EpochVotingManager::ValidateEpochDelegates(epoch.delegates))
+    EpochVotingManager voting_mgr(_store);
+    //epoch block has epoch_number 1 less than current epoch, so +1
+    if (!voting_mgr.ValidateEpochDelegates(epoch.delegates, epoch.epoch_number + 1))
     {
         LOG_ERROR(_log) << "PersistenceManager::Validate invalid delegates ";
         UpdateStatusReason(status, process_result::not_delegate);
@@ -93,6 +95,7 @@ PersistenceManager<ECT>::ApplyUpdates(
     const ApprovedEB & block,
     uint8_t)
 {
+    LOG_INFO(_log) << "Applying updates for Epoch";
     logos::transaction transaction(_store.environment, nullptr, true);
 
     // See comments in request_persistence.cpp
@@ -103,12 +106,19 @@ PersistenceManager<ECT>::ApplyUpdates(
     }
 
     BlockHash epoch_hash = block.Hash();
+    bool transition = !BlockExists(block);
 
     if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(epoch_hash, transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to store epoch or epoch tip "
                                 << epoch_hash.to_string();
         trace_and_halt();
+    }
+
+    //The epoch number in the epoch block is one less than the current epoch
+    if(transition)
+    {
+        TransitionNextEpoch(transaction, block.epoch_number+1);
     }
 
     if(_store.consensus_block_update_next(block.previous, epoch_hash, ConsensusType::Epoch, transaction))
@@ -189,4 +199,95 @@ bool PersistenceManager<ECT>::BlockExists(
     const ApprovedEB & message)
 {
     return _store.epoch_exists(message);
+}
+
+
+
+void PersistenceManager<ECT>::MarkDelegateElectsAsRemove(MDB_txn* txn)
+{
+    BlockHash hash;
+    assert(!_store.epoch_tip_get(hash,txn));
+    ApprovedEB epoch;
+    assert(!_store.epoch_get(hash,epoch,txn));
+
+    for(Delegate& d: epoch.delegates)
+    {
+        if(d.starting_term)
+        {
+            assert(!_store.candidate_mark_remove(d.account,txn));
+        }
+    }
+}
+
+void PersistenceManager<ECT>::AddReelectionCandidates(MDB_txn* txn)
+{
+    ApprovedEB epoch;
+    assert(!_store.epoch_get_n(3,epoch,txn));
+
+    for(auto& d : epoch.delegates)
+    {
+        if(d.starting_term)
+        {
+            RepInfo rep;
+            if(!_store.rep_get(d.account,rep,txn))
+            {
+                std::shared_ptr<Request> req;
+                assert(!_store.request_get(rep.candidacy_action_tip,req,txn));
+                if(req->type == RequestType::AnnounceCandidacy)
+                {
+                    auto ac = static_pointer_cast<AnnounceCandidacy>(req); 
+                    CandidateInfo candidate(*ac);
+                    assert(!_store.candidate_put(d.account, candidate, txn));
+                }
+            }
+        }
+    }
+}
+
+void PersistenceManager<ECT>::UpdateRepresentativesDB(MDB_txn* txn)
+{
+    for(auto it = logos::store_iterator(txn, _store.remove_reps_db);
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        auto status (mdb_del(txn, _store.representative_db, it->second, nullptr));
+        assert(status == 0);
+    }
+
+    _store.clear(_store.remove_reps_db, txn);
+}
+
+void PersistenceManager<ECT>::UpdateCandidatesDB(MDB_txn* txn)
+{
+
+    for(auto it = logos::store_iterator(txn, _store.remove_candidates_db);
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        auto status (mdb_del(txn, _store.candidacy_db, it->second, nullptr));
+        assert(status == 0);
+    }
+
+    _store.clear(_store.remove_candidates_db, txn);
+
+    _store.clear(_store.leading_candidates_db,txn);
+    _store.leading_candidates_size = 0;
+}
+
+
+void PersistenceManager<ECT>::TransitionCandidatesDBNextEpoch(MDB_txn* txn, uint32_t next_epoch_num)
+{
+    if(next_epoch_num >= EpochVotingManager::START_ELECTIONS_EPOCH)
+    {
+        AddReelectionCandidates(txn);
+    }
+    if(next_epoch_num > EpochVotingManager::START_ELECTIONS_EPOCH)
+    {
+        MarkDelegateElectsAsRemove(txn);
+    }
+    UpdateCandidatesDB(txn);
+}
+
+void PersistenceManager<ECT>::TransitionNextEpoch(MDB_txn* txn, uint32_t next_epoch_num)
+{
+    TransitionCandidatesDBNextEpoch(txn,next_epoch_num);
+    UpdateRepresentativesDB(txn);
 }

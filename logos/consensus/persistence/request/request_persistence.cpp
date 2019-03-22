@@ -9,6 +9,7 @@
 #include <logos/token/entry.hpp>
 #include <logos/lib/trace.hpp>
 #include <logos/common.hpp>
+#include <logos/epoch/epoch_voting_manager.hpp>
 
 constexpr uint128_t PersistenceManager<R>::MIN_TRANSACTION_FEE;
 
@@ -81,16 +82,19 @@ bool PersistenceManager<R>::BlockExists(
 
 bool PersistenceManager<R>::ValidateRequest(
     RequestPtr request,
+    uint32_t cur_epoch_num,
     logos::process_return & result,
     bool allow_duplicates,
     bool prelim)
 {
+    LOG_INFO(_log) << "PersistenceManager::ValidateRequest - validating request"
+        << request->Hash().to_string();
     // SYL Integration: move signature validation here so we always check
     if(ConsensusContainer::ValidateSigConfig() && ! request->VerifySignature(request->origin))
     {
         LOG_WARN(_log) << "PersistenceManager<R> - Validate, bad signature: "
-                       << request->signature.to_string()
-                       << " account: " << request->origin.to_string();
+            << request->signature.to_string()
+            << " account: " << request->origin.to_string();
 
         result.code = logos::process_result::bad_signature;
         return false;
@@ -145,7 +149,7 @@ bool PersistenceManager<R>::ValidateRequest(
     {
         result.code = logos::process_result::wrong_sequence_number;
         LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request->sequence
-                       << " expecting=" << info->block_count;
+            << " expecting=" << info->block_count;
         return false;
     }
 
@@ -163,7 +167,7 @@ bool PersistenceManager<R>::ValidateRequest(
         {
             result.code = logos::process_result::gap_previous;
             LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << request->previous.to_string()
-                            << "; current account info head is: " << info->head.to_string();
+                << "; current account info head is: " << info->head.to_string();
             return false;
         }
     }
@@ -171,9 +175,9 @@ bool PersistenceManager<R>::ValidateRequest(
     if(request->previous != info->head)
     {
         LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash ("
-                        << request->previous.to_string()
-                        << ") and current account info head ("
-                        << info->head.to_string() << ")";
+            << request->previous.to_string()
+            << ") and current account info head ("
+            << info->head.to_string() << ")";
 
         // Allow duplicate requests (either hash == info.head or hash matches a transaction further up in the chain)
         // received from batch blocks.
@@ -250,11 +254,73 @@ bool PersistenceManager<R>::ValidateRequest(
                 return false;
             }
             break;
+        case RequestType::ElectionVote:
+        {
+            logos::transaction txn(_store.environment,nullptr,false);
+            auto ev = dynamic_pointer_cast<const ElectionVote>(request);
+            if(!ValidateRequest(*ev, cur_epoch_num, txn, result))
+            {
+                LOG_ERROR(_log) << "ElectionVote is invalid: " << ev->Hash().to_string()
+                << " code is " << logos::ProcessResultToString(result.code);
+                return false;
+            }
+            break;
+        }
+        case RequestType::AnnounceCandidacy:
+        {
+            logos::transaction txn(_store.environment,nullptr,false);
+            auto ac = dynamic_pointer_cast<const AnnounceCandidacy>(request);
+            if(!ValidateRequest(*ac, cur_epoch_num, txn, result))
+            {
+                LOG_ERROR(_log) << "AnnounceCandidacy is invalid: " << ac->Hash().to_string()
+                << " code is " << logos::ProcessResultToString(result.code);
+                return false;
+            }
+            break;
+        }
+        case RequestType::RenounceCandidacy:
+        {
+            logos::transaction txn(_store.environment,nullptr,false);
+            auto rc = dynamic_pointer_cast<const RenounceCandidacy>(request);
+            if(!ValidateRequest(*rc,cur_epoch_num,txn, result))
+            {
+                LOG_ERROR(_log) << "RenounceCandidacy is invalid: " << rc->Hash().to_string()
+                << " code is " << logos::ProcessResultToString(result.code);
+                return false;
+            }
+            break;
+        }
+        case RequestType::StartRepresenting:
+        {
+            logos::transaction txn(_store.environment,nullptr,false);
+            auto sr = dynamic_pointer_cast<const StartRepresenting>(request);
+            if(!ValidateRequest(*sr,cur_epoch_num,txn, result))
+            {
+                LOG_ERROR(_log) << "StartRepresenting is invalid: " << sr->Hash().to_string()
+                << " code is " << logos::ProcessResultToString(result.code);
+                return false;
+            }
+            break;
+        }
+        case RequestType::StopRepresenting:
+        {
+            logos::transaction txn(_store.environment,nullptr,false);
+            auto sr = dynamic_pointer_cast<const StopRepresenting>(request);
+            if(!ValidateRequest(*sr,cur_epoch_num,txn,result))
+            {
+                LOG_ERROR(_log) << "StartRepresenting is invalid: " << sr->Hash().to_string()
+                << " code is " << logos::ProcessResultToString(result.code);
+                return false;
+            }   
+            break;
+        }
         case RequestType::Unknown:
             LOG_ERROR(_log) << "PersistenceManager::Validate - Received unknown request type";
 
             result.code = logos::process_result::invalid_request;
             return false;
+
+            break;
     }
 
     result.code = logos::process_result::progress;
@@ -263,17 +329,21 @@ bool PersistenceManager<R>::ValidateRequest(
 
 // Use this for single transaction (non-batch) validation from RPC
 bool PersistenceManager<R>::ValidateSingleRequest(
-        const RequestPtr request, logos::process_return & result, bool allow_duplicates)
+        const RequestPtr request, uint32_t cur_epoch_num, logos::process_return & result, bool allow_duplicates)
 {
     std::lock_guard<std::mutex> lock(_write_mutex);
-    return ValidateRequest(request, result, allow_duplicates, false);
+    return ValidateRequest(request, cur_epoch_num, result, allow_duplicates, false);
 }
 
 // Use this for batched transactions validation (either PrepareNextBatch or backup validation)
 bool PersistenceManager<R>::ValidateAndUpdate(
-    RequestPtr request, logos::process_return & result, bool allow_duplicates)
+    RequestPtr request, uint32_t cur_epoch_num, logos::process_return & result, bool allow_duplicates)
 {
-    auto success (ValidateRequest(request, result, allow_duplicates, false));
+    auto success (ValidateRequest(request, cur_epoch_num, result, allow_duplicates, false));
+
+    LOG_INFO(_log) << "PersistenceManager::ValidateAndUpdate - "
+        << "request is : " << request->Hash().to_string() <<  " . result is "
+        << success;
     if (success)
     {
         _reservations->UpdateReservation(request->GetHash(), request->GetAccount());
@@ -291,9 +361,9 @@ bool PersistenceManager<R>::ValidateBatch(
     for(uint64_t i = 0; i < message.requests.size(); ++i)
     {
 #ifdef TEST_REJECT
-        if(!ValidateAndUpdate(message.requests[i], ignored_result, true) || bool(message.requests[i].hash().number() & 1))
+        if(!ValidateAndUpdate(message.requests[i], message.epoch_number, ignored_result, true) || bool(message.requests[i].hash().number() & 1))
 #else
-        if(!ValidateAndUpdate(message.requests[i], ignored_result, true))
+        if(!ValidateAndUpdate(message.requests[i], message.epoch_number, ignored_result, true))
 #endif
         {
             LOG_WARN(_log) << "PersistenceManager<R>::Validate - Rejecting " << message.requests[i]->GetHash().to_string();
@@ -318,10 +388,14 @@ bool PersistenceManager<R>::Validate(const PrePrepare & message,
     for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
         logos::process_return   result;
-        if(!ValidateRequest(message.requests[i], result, true, false))
+        LOG_INFO(_log) << "PersistenceManager::Validate - " 
+            << "attempting to validate : " << message.requests[i]->Hash().to_string();
+        if(!ValidateRequest(message.requests[i], message.epoch_number, result, true, false))
         {
             UpdateStatusRequests(status, i, result.code);
             UpdateStatusReason(status, process_result::invalid_request);
+            LOG_INFO(_log) << "PersistenceManager::Validate - "
+                << "failed to validate request : " << message.requests[i]->Hash().to_string(); 
 
             valid = false;
         }
@@ -667,16 +741,23 @@ void PersistenceManager<R>::ApplyRequestBlock(
 {
     for(uint16_t i = 0; i < message.requests.size(); ++i)
     {
+        LOG_INFO(_log) << "Applying request: " 
+            << message.requests[i]->Hash().to_string();
         ApplyRequest(message.requests[i],
                      message.timestamp,
+                     message.epoch_number,
                      transaction);
     }
 }
 
 void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                                          uint64_t timestamp,
+                                         uint32_t cur_epoch_num,
                                          MDB_txn * transaction)
 {
+
+    LOG_INFO(_log) << "PersistenceManager::ApplyRequest -"
+        << request->Hash().to_string();
     std::shared_ptr<logos::Account> info;
     auto account_error(_store.account_get(request->GetAccount(), info));
 
@@ -704,8 +785,10 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
     info->modified = logos::seconds_since_epoch();
 
     // TODO: Harvest fees
-    info->balance -= request->fee;
-
+    if(request->type != RequestType::ElectionVote)
+    {
+        info->balance -= request->fee;
+    }
     // Performs the actions required by whitelisting
     // and freezing.
     auto adjust_token_user_status = [this, &transaction](auto message, UserStatus status)
@@ -1059,6 +1142,36 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 
             break;
         }
+        case RequestType::ElectionVote:
+        {
+            auto ev = dynamic_pointer_cast<const ElectionVote>(request);
+            ApplyRequest(*ev,transaction);
+            break;
+        }
+        case RequestType::AnnounceCandidacy:
+        {
+            auto ac = dynamic_pointer_cast<const AnnounceCandidacy>(request);
+            ApplyRequest(*ac,transaction);
+            break;
+        }
+        case RequestType::RenounceCandidacy:
+        {
+            auto rc = dynamic_pointer_cast<const RenounceCandidacy>(request);
+            ApplyRequest(*rc,transaction);
+            break;
+        }
+        case RequestType::StartRepresenting:
+        {
+            auto sr = dynamic_pointer_cast<const StartRepresenting>(request);
+            ApplyRequest(*sr,transaction);
+            break;
+        }
+        case RequestType::StopRepresenting:
+        {
+            auto sr = dynamic_pointer_cast<const StopRepresenting>(request);
+            ApplyRequest(*sr,transaction);
+            break;
+        }
         case RequestType::Unknown:
             LOG_ERROR(_log) << "PersistenceManager::ApplyRequest - "
                             << "Unknown request type.";
@@ -1075,6 +1188,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
     }
 
 }
+
 
 template<typename SendType>
 void PersistenceManager<R>::ApplySend(std::shared_ptr<const SendType> request,
@@ -1328,3 +1442,514 @@ void PersistenceManager<R>::PlaceReceive(ReceiveBlock & receive,
         trace_and_halt();
     }
 }
+
+
+void PersistenceManager<R>::ApplyRequest(const StartRepresenting& request, MDB_txn* txn)
+{
+    assert(txn != nullptr);
+    RepInfo rep(request);
+    assert(!_store.rep_put(request.origin,rep,txn));
+    assert(!_store.request_put(request,txn));
+}
+
+void PersistenceManager<R>::ApplyRequest(const StopRepresenting& request, MDB_txn* txn)
+{
+    assert(txn != nullptr);
+    RepInfo rep;
+    assert(!_store.rep_get(request.origin,rep,txn));
+    rep.rep_action_tip = request.GetHash();
+    CandidateInfo candidate;
+    if(!_store.candidate_get(request.origin,candidate,txn))
+    {
+        rep.candidacy_action_tip = request.GetHash();
+        assert(!_store.candidate_mark_remove(request.origin,txn));
+    }
+    assert(!_store.rep_put(request.origin,rep,txn));
+    assert(!_store.rep_mark_remove(request.origin, txn));
+    assert(!_store.request_put(request,txn));
+}
+
+void PersistenceManager<R>::ApplyRequest(const ElectionVote& request, MDB_txn* txn)
+{
+    assert(txn != nullptr);
+    RepInfo rep;
+    assert(!_store.rep_get(request.origin,rep,txn));
+    rep.election_vote_tip = request.GetHash();
+    assert(!_store.rep_put(request.origin,rep,txn));
+    for(auto& p : request.votes)
+    {
+        assert(!_store.candidate_add_vote(
+                    p.account,
+                    p.num_votes*rep.stake.number(),
+                    request.epoch_num,
+                    txn));
+    }
+    assert(!_store.request_put(request,txn));
+}
+void PersistenceManager<R>::ApplyRequest(const AnnounceCandidacy& request, MDB_txn* txn)
+{
+    assert(txn != nullptr);
+    RepInfo rep;
+    if(_store.rep_get(request.origin,rep, txn))
+    {
+        //if not a rep already, make rep
+        rep = RepInfo(request);
+    }
+    CandidateInfo candidate(request);
+    if(candidate.stake > 0)
+    {
+        rep.stake = candidate.stake;
+    }
+    else
+    {
+        candidate.stake = rep.stake;
+    }
+    rep.candidacy_action_tip = request.Hash();
+    assert(!_store.rep_put(request.origin,rep,txn));
+    ApprovedEB eb;
+    assert(!_store.epoch_get_n(0, eb, txn));
+    //if account is current delegate, only add to candidates if in last epoch of term
+    //otherwise, epoch persistence mgr will add at proper time
+    bool add_to_candidates_db = true;
+    for(size_t i = 0; i < NUM_DELEGATES; ++i)
+    {
+        if(eb.delegates[i].account == request.origin)
+        {
+            add_to_candidates_db = false;
+            assert(!_store.epoch_get_n(3, eb, txn));
+            for(size_t j = 0; i < NUM_DELEGATES; ++j)
+            {
+                //account must be in last epoch of term if this is true
+                if(eb.delegates[j].account == request.origin
+                        && eb.delegates[j].starting_term)
+                {
+                    add_to_candidates_db = true;
+                    break;
+                }
+            }
+            break;
+        }
+    }
+    if(add_to_candidates_db)
+    {
+        assert(!_store.candidate_put(request.origin,candidate,txn));
+    }
+    assert(!_store.request_put(request,txn));
+}
+
+void PersistenceManager<R>::ApplyRequest(const RenounceCandidacy& request, MDB_txn* txn)
+{
+    assert(txn != nullptr);
+    CandidateInfo candidate;
+    if(!_store.candidate_get(request.origin, candidate, txn))
+    {
+        assert(!_store.candidate_mark_remove(request.origin,txn));
+    }
+    RepInfo rep;
+    assert(!_store.rep_get(request.origin, rep, txn));
+    rep.candidacy_action_tip = request.GetHash();
+    assert(!_store.rep_put(request.origin,rep,txn));
+    assert(!_store.request_put(request,txn));
+}
+
+//TODO: dynamic can be changed to static if we do type validation
+//in the constructors of ALL the request types
+uint32_t GetEpochNum(std::shared_ptr<Request> req)
+{
+    switch(req->type)
+    {
+        case RequestType::AnnounceCandidacy:
+        {
+            auto derived = dynamic_pointer_cast<AnnounceCandidacy>(req);
+            return derived->epoch_num;
+        }
+        case RequestType::RenounceCandidacy:
+        {
+            auto derived = dynamic_pointer_cast<RenounceCandidacy>(req);
+            return derived->epoch_num;
+        }
+        case RequestType::StartRepresenting:
+        {
+            auto derived = dynamic_pointer_cast<StartRepresenting>(req);
+            return derived->epoch_num;
+        }
+        case RequestType::StopRepresenting:
+        {
+            auto derived = dynamic_pointer_cast<StopRepresenting>(req);
+            return derived->epoch_num;
+        }
+        case RequestType::ElectionVote:
+        {
+            auto derived = dynamic_pointer_cast<ElectionVote>(req);
+            return derived->epoch_num;
+        }
+        default:
+            trace_and_halt();
+    }
+}
+
+bool VerifyCandidacyActionType(RequestType& type)
+{
+    return type == RequestType::AnnounceCandidacy
+        || type == RequestType::RenounceCandidacy
+        || type == RequestType::StopRepresenting;
+}
+
+bool VerifyRepActionType(RequestType& type)
+{
+    return type == RequestType::AnnounceCandidacy
+        || type == RequestType::StartRepresenting
+        || type == RequestType::StopRepresenting;
+}
+
+bool PersistenceManager<R>::ValidateRequest(
+        const ElectionVote& vote_request,
+        uint32_t cur_epoch_num,
+        MDB_txn* txn,
+        logos::process_return & result)
+{
+    assert(txn != nullptr);
+    if(vote_request.epoch_num != cur_epoch_num)
+    {
+        result.code = logos::process_result::wrong_epoch_number;
+        return false;
+    }
+    if(cur_epoch_num < EpochVotingManager::START_ELECTIONS_EPOCH)
+    {
+        result.code = logos::process_result::no_elections;
+        return false;
+    }
+
+    if(IsDeadPeriod(cur_epoch_num,txn))
+    {
+        result.code = logos::process_result::elections_dead_period;
+        return false;
+    }
+    RepInfo rep;
+    //are you a rep at all?
+    if(_store.rep_get(vote_request.origin,rep,txn))
+    {
+        result.code = logos::process_result::not_a_rep;
+        return false;
+    }
+
+    //What is your status as a rep
+    auto hash = rep.rep_action_tip;
+    assert(hash != 0);
+    std::shared_ptr<Request> rep_req;
+    assert(!_store.request_get(hash, rep_req, txn));
+    assert(VerifyRepActionType(rep_req->type));
+    uint32_t rep_req_epoch = GetEpochNum(rep_req);
+    if((rep_req->type == RequestType::StartRepresenting 
+            || rep_req->type == RequestType::AnnounceCandidacy)
+            && rep_req_epoch == cur_epoch_num) 
+    {
+        result.code = logos::process_result::pending_rep_action;
+        return false;
+    }
+    else if(rep_req->type == RequestType::StopRepresenting
+            && rep_req_epoch < cur_epoch_num)
+    {
+        result.code = logos::process_result::not_a_rep;
+        return false;
+    }
+
+    //did you vote already this epoch?
+    hash = rep.election_vote_tip;
+    if(hash != 0)
+    {
+        std::shared_ptr<Request> vote_req;
+        assert(!_store.request_get(hash, vote_req, txn));
+        if(GetEpochNum(vote_req) == cur_epoch_num)
+        {
+            result.code = logos::process_result::already_voted;
+            return false;
+        }
+    }
+
+    size_t total = 0;
+    //are these proper votes?
+    for(auto& cp : vote_request.votes)
+    {
+        total += cp.num_votes;
+        CandidateInfo info;
+        //check account is in candidacy_db
+        if(_store.candidate_get(cp.account,info,txn))
+        {
+            result.code = logos::process_result::invalid_candidate;
+            return false;
+        }
+        else//check account is active candidate
+        {
+            RepInfo c_rep;
+            assert(!_store.rep_get(cp.account, c_rep, txn));
+            auto hash = c_rep.candidacy_action_tip;
+            assert(hash != 0);
+            std::shared_ptr<Request> candidacy_req;
+            assert(!_store.request_get(hash, candidacy_req, txn));
+            assert(VerifyCandidacyActionType(candidacy_req->type));
+            if(candidacy_req->type == RequestType::AnnounceCandidacy)
+            {
+                if(GetEpochNum(candidacy_req) == cur_epoch_num)
+                {
+                    result.code = logos::process_result::invalid_candidate;
+                    return false;
+                }
+            }
+            else if(GetEpochNum(candidacy_req) < cur_epoch_num) //Renounce || StopRepresenting
+            {
+                result.code = logos::process_result::invalid_candidate;
+                return false;
+            }
+        }
+    }
+    return total <= MAX_VOTES;
+}
+
+bool PersistenceManager<R>::ValidateRequest(
+        const AnnounceCandidacy& request,
+        uint32_t cur_epoch_num,
+        MDB_txn* txn,
+        logos::process_return& result)
+{
+    assert(txn != nullptr);
+    if(request.epoch_num != cur_epoch_num)
+    {
+        result.code = logos::process_result::wrong_epoch_number;
+        return false;
+    }
+    if(IsDeadPeriod(cur_epoch_num,txn))
+    {
+        result.code = logos::process_result::elections_dead_period;
+        return false;
+    }
+    if(cur_epoch_num < EpochVotingManager::START_ELECTIONS_EPOCH - 1)
+    {
+        result.code = logos::process_result::no_elections;
+        return false;
+    }
+
+    RepInfo rep;
+    bool rep_exists = !_store.rep_get(request.origin, rep, txn);
+    
+    Amount stake = request.stake;
+    if(stake == 0 && rep_exists)
+    {
+        stake = rep.stake;
+    }
+    if(stake < MIN_DELEGATE_STAKE)
+    {
+        result.code = logos::process_result::not_enough_stake;
+        return false;
+    }
+
+    //what is your status as a rep?
+    if(rep_exists)
+    {
+        std::shared_ptr<Request> rep_request;
+        auto hash = rep.rep_action_tip;
+        assert(hash != 0);
+        assert(!_store.request_get(hash, rep_request, txn));
+        assert(VerifyRepActionType(rep_request->type));
+        if(GetEpochNum(rep_request) == cur_epoch_num)
+        {
+            result.code = logos::process_result::pending_rep_action;
+            return false;
+        }
+    }
+
+
+    //what is your status as a candidate?
+    std::shared_ptr<Request> candidacy_req;
+    auto hash = rep.candidacy_action_tip;
+    if(hash != 0)
+    {
+        assert(!_store.request_get(hash,candidacy_req,txn));
+        assert(VerifyCandidacyActionType(candidacy_req->type));
+        if(candidacy_req->type == RequestType::AnnounceCandidacy)
+        {
+            result.code = logos::process_result::already_announced_candidacy;
+            return false;
+        }
+        else if(GetEpochNum(candidacy_req) == cur_epoch_num) //RenounceCandidacy || StopRepresenting
+        {
+            result.code = logos::process_result::pending_candidacy_action;
+            return false;
+        }
+    }
+    return true;
+}
+
+bool PersistenceManager<R>::ValidateRequest(
+        const RenounceCandidacy& request,
+        uint32_t cur_epoch_num,
+        MDB_txn* txn,
+        logos::process_return& result)
+{
+    assert(txn != nullptr);
+    if(request.epoch_num != cur_epoch_num)
+    {
+        result.code = logos::process_result::wrong_epoch_number;
+        return false;
+    }
+
+    if(IsDeadPeriod(cur_epoch_num,txn))
+    {
+        result.code = logos::process_result::elections_dead_period;
+        return false;
+    }
+    RepInfo rep;
+    if(_store.rep_get(request.origin,rep,txn))
+    {
+        result.code = logos::process_result::not_a_rep;
+        return false;
+    }
+    //what is your candidacy status?
+    auto hash = rep.candidacy_action_tip;
+    if(hash == 0)
+    {
+        result.code = logos::process_result::never_announced_candidacy;
+        return false;
+    }
+    shared_ptr<Request> candidacy_req;
+    assert(!_store.request_get(hash, candidacy_req, txn));
+    assert(VerifyCandidacyActionType(candidacy_req->type));
+    if(candidacy_req->type == RequestType::RenounceCandidacy
+            || candidacy_req->type == RequestType::StopRepresenting)
+    {
+        result.code = logos::process_result::already_renounced_candidacy;
+        return false;
+    }
+    else if(GetEpochNum(candidacy_req) == cur_epoch_num) //AnnounceCandidacy
+    {
+        result.code = logos::process_result::pending_candidacy_action;
+        return false;
+    }
+    return true;
+}
+
+/*
+ * The dead period is the time between when the epoch starts and when the epoch
+ * block is created. The reason for disallowing votes during this time is because
+ * the delegates do not come to consensus on the election results until the epoch
+ * block is created. If someone attempts to vote for a candidate during the dead
+ * period who was also a candidate in the last epoch, a delegate cannot reliably
+ * say whether the vote is valid: if that candidate won the election, the vote is
+ * invalid but if the candidate did not win, the vote is valid
+ */
+bool PersistenceManager<R>::IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn)
+{
+    assert(txn != nullptr);
+    BlockHash hash; 
+    assert(!_store.epoch_tip_get(hash,txn));
+
+    ApprovedEB eb;
+    assert(!_store.epoch_get(hash,eb,txn));
+
+    return (eb.epoch_number+2) == cur_epoch_num;
+}
+
+bool PersistenceManager<R>::ValidateRequest(
+        const StartRepresenting& request,
+        uint32_t cur_epoch_num,
+        MDB_txn* txn,
+        logos::process_return& result)
+{
+    assert(txn != nullptr);
+    if(request.epoch_num != cur_epoch_num)
+    {
+        result.code = logos::process_result::wrong_epoch_number;
+        return false;
+    }
+    if(IsDeadPeriod(cur_epoch_num,txn))
+    {
+        result.code = logos::process_result::elections_dead_period;
+        return false;
+    }
+
+    if(request.stake < MIN_REP_STAKE)
+    {
+        result.code = logos::process_result::not_enough_stake;
+        return false;
+    } 
+
+    RepInfo rep;
+    if(!_store.rep_get(request.origin,rep,txn))
+    {
+        auto hash = rep.rep_action_tip;
+        assert(hash != 0);
+        std::shared_ptr<Request> rep_req;
+        assert(!_store.request_get(hash, rep_req, txn));
+        assert(VerifyRepActionType(rep_req->type));
+        if(rep_req->type == RequestType::StartRepresenting
+                || rep_req->type == RequestType::AnnounceCandidacy)
+        {
+            result.code = logos::process_result::is_rep;
+            return false;
+        }
+        else if(GetEpochNum(rep_req) == cur_epoch_num) //StopRepresenting
+        {
+            result.code = logos::process_result::pending_rep_action;
+            return false;
+        }
+    }
+    return true;
+}
+
+bool PersistenceManager<R>::ValidateRequest(
+        const StopRepresenting& request,
+        uint32_t cur_epoch_num,
+        MDB_txn* txn,
+        logos::process_return& result)
+{
+    assert(txn != nullptr);
+    if(request.epoch_num != cur_epoch_num)
+    {
+        result.code = logos::process_result::wrong_epoch_number;
+        return false;
+    }
+
+    if(IsDeadPeriod(cur_epoch_num,txn))
+    {
+        result.code = logos::process_result::elections_dead_period;
+        return false;
+    }
+
+    RepInfo rep;
+    if(!_store.rep_get(request.origin,rep,txn))
+    {
+        auto hash = rep.rep_action_tip;
+        assert(hash != 0);
+        std::shared_ptr<Request> rep_request;
+        assert(!_store.request_get(hash, rep_request, txn));
+        assert(VerifyRepActionType(rep_request->type));
+        if(GetEpochNum(rep_request) == cur_epoch_num)
+        {
+            result.code = logos::process_result::pending_rep_action;
+            return false;
+        }
+        else if(rep_request->type == RequestType::StopRepresenting) //stopped in previous epoch
+        {
+            result.code = logos::process_result::not_a_rep;
+            return false;
+        }
+
+        hash = rep.candidacy_action_tip;
+        if(hash != 0)
+        {
+            std::shared_ptr<Request> candidacy_req;
+            assert(!_store.request_get(hash, candidacy_req, txn));
+            assert(VerifyCandidacyActionType(candidacy_req->type));
+            if(GetEpochNum(candidacy_req) == cur_epoch_num)
+            {
+                result.code = logos::process_result::pending_candidacy_action;
+                return false;
+            }
+        }
+        return true;
+    }
+    result.code = logos::process_result::not_a_rep;
+    return false;
+}
+
+

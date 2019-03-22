@@ -46,7 +46,8 @@ EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
     epoch.primary_delegate = 0xff;//epoch_handler does not know the delegate index which could change after every epoch transition
     epoch.epoch_number = previous_epoch.epoch_number + 1;
     epoch.micro_block_tip = previous_micro_block_hash;
-    _voting_manager.GetNextEpochDelegates(epoch.delegates);
+    //Note, we write epoch block with epoch number i at the beginning of epoch i+1
+    _voting_manager.GetNextEpochDelegates(epoch.delegates,epoch.epoch_number+1);
     epoch.transaction_fee_pool = 0; // TODO
 
     LOG_INFO(_log) << "EpochHandler::Build, built epoch block:"

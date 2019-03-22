@@ -150,6 +150,7 @@ public:
     //CH void confirmation_history ();
     template <typename  CT>
     void consensus_blocks ();
+    void candidates ();
     void delegators ();
     void delegators_count ();
     void deterministic_key ();

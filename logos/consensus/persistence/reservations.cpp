@@ -64,6 +64,7 @@ ConsensusReservations::CanAcquire(const AccountAddress & account,
 
 void
 ConsensusReservations::UpdateReservation(const BlockHash & hash,
+
                                 const AccountAddress & account)
 {
     uint32_t current_epoch = ConsensusContainer::GetCurEpochNumber();
