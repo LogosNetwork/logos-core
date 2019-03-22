@@ -31,7 +31,6 @@ void clear_dbs()
 TEST (Elections, blockstore)
 {
     logos::block_store* store(get_db());
-    ASSERT_NE(store,nullptr);
     clear_dbs();
     {
         logos::transaction txn(store->environment,nullptr,true);
@@ -48,15 +47,6 @@ TEST (Elections, blockstore)
         res = store->request_get(req.Hash(),req2,txn);
 
         ASSERT_FALSE(res);
-        EXPECT_EQ(req.type,req2.type);
-        EXPECT_EQ(req.previous,req2.previous);
-        EXPECT_EQ(req.next,req2.next);
-        EXPECT_EQ(req.fee,req2.fee);
-        EXPECT_EQ(req.origin,req2.origin);
-        EXPECT_EQ(req.sequence,req2.sequence);
-        req.Hash();
-        req2.Hash();
-        EXPECT_EQ(req.digest,req2.digest);
         ASSERT_EQ(req,req2);
 
         //ElectionVote no votes
@@ -83,14 +73,6 @@ TEST (Elections, blockstore)
         ev2.type = RequestType::ElectionVote;
         res = store->request_get(hash,ev2,txn);
         ASSERT_FALSE(res);
-        ASSERT_EQ(ev2.type,ev.type);
-        ASSERT_EQ(ev2.previous,ev.previous);
-        ASSERT_EQ(ev2.origin,ev.origin);
-        ASSERT_EQ(ev2.signature,ev.signature);
-        ASSERT_EQ(ev2.fee,ev.fee);
-        ASSERT_EQ(ev2.sequence,ev.sequence);
-        ASSERT_EQ(ev2.votes,ev.votes);
-        ASSERT_EQ(ev2.digest,ev.digest);
         ASSERT_EQ(ev,ev2);
 
         ElectionVote ev_json(res, ev.SerializeJson());
@@ -113,14 +95,6 @@ TEST (Elections, blockstore)
         ev3.type = RequestType::ElectionVote;
         res = store->request_get(ev.Hash(),ev3,txn);
         ASSERT_FALSE(res);
-        ASSERT_EQ(ev3.type,ev.type);
-        ASSERT_EQ(ev3.previous,ev.previous);
-        ASSERT_EQ(ev3.origin,ev.origin);
-        ASSERT_EQ(ev3.signature,ev.signature);
-        ASSERT_EQ(ev3.fee,ev.fee);
-        ASSERT_EQ(ev3.sequence,ev.sequence);
-        ASSERT_EQ(ev3.votes,ev.votes);
-        ASSERT_EQ(ev3.digest,ev.digest);
         ASSERT_EQ(ev,ev3);
         ASSERT_NE(ev3,ev2);
 
@@ -857,12 +831,6 @@ TEST(Elections,validate)
     start_rep.Hash();
     stop_rep.Hash();
     vote.Hash();
-    //no epoch block created yet, everything should fail
-//    ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
-//    ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
-//    ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
-//    ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
-//    ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,epoch_num,txn,result));
 
     ApprovedEB eb;
     eb.epoch_number = epoch_num-1;
@@ -953,9 +921,6 @@ TEST(Elections,validate)
     persistence_mgr.ApplyRequest(announce,txn);
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
-
-
-
 
     auto candidates = get_candidates();
     ASSERT_EQ(candidates.size(),1);
@@ -1155,6 +1120,7 @@ TEST(Elections,validate)
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
 
+    //test stop_rep for delegates
     persistence_mgr.ApplyRequest(stop_rep,txn);
 
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));

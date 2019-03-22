@@ -286,7 +286,6 @@ std::shared_ptr<Request> DeserializeRequest(bool & error, logos::stream & stream
     error = logos::peek(stream, type);
     if(error)
     {
-        LOG_FATAL(log) << "DeserializeRequest - Error getting request type";
         return {nullptr};
     }
 
