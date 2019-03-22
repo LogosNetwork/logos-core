@@ -60,32 +60,43 @@ namespace Bootstrap
         LOG_TRACE(log) <<"tips_req_client::"<< __func__;
         auto this_l = shared_from_this ();
         connection->AsyncReceive([this, this_l](bool good, MessageHeader header, uint8_t * buf)
-        		{
-        			bool error = false;
-        			if(good)
-        	        {
-        	            logos::bufferstream stream (buf, header.payload_size);
-        	            new (&response) TipSet(error, stream);
-        	            if (!error)
-        	            {
-        	            	std::cout <<"tips_req_client::"<< __func__ << " tips parsed" << std::endl;//TODO
-            				LOG_TRACE(log) <<"tips_req_client::"<< __func__ << "tips parsed";
-        	            	connection->Release();
-        	            	connection = nullptr;
-        	            	promise.set_value(false);
-        	            }
-        	        } else {
-        	            LOG_WARN(log) << "tips_req_client::received_tips error...";
-        	            error = true;
-        	        }
+			{
+				bool error = false;
+				if(good)
+				{
+					logos::bufferstream stream (buf, header.payload_size);
+					new (&response) TipSet(error, stream);
+					if (!error)
+					{
+						std::cout <<"tips_req_client::"<< __func__ << " tips parsed" << std::endl;//TODO
+						LOG_TRACE(log) <<"tips_req_client::"<< __func__ << "tips parsed";
 
-        			if(error)
-        			{
-        				connection->OnNetworkError();
-        				connection = nullptr;
-        				promise.set_value(true);
-        			}
-                });
+						//TODO more validation of tips in bootstrap V2
+						if(response.eb.epoch != response.mb.epoch &&
+								response.eb.epoch+1 != response.mb.epoch)
+						{
+							LOG_INFO(log) << "tips_req_client::received_tips validation error";
+							error = true;
+						}
+						else
+						{
+							connection->Release();
+							connection = nullptr;
+							promise.set_value(false);
+						}
+					}
+				} else {
+					LOG_INFO(log) << "tips_req_client::received_tips parse error";
+					error = true;
+				}
+
+				if(error)
+				{
+					connection->OnNetworkError();
+					connection = nullptr;
+					promise.set_value(true);
+				}
+			});
     }
 
     /////////////////////////////////////////////////////////////////////////////////

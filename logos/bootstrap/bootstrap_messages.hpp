@@ -9,8 +9,7 @@ namespace Bootstrap {
 
     using Store = logos::block_store;
 
-    constexpr uint32_t BootstrapBufExtra = 4096;
-    //One page more than max consensus message size
+    constexpr uint32_t BootstrapBufExtra = 1024;
     constexpr uint32_t BootstrapBufSize = MAX_MSG_SIZE + BootstrapBufExtra;
 
     enum class MessageType : uint8_t
@@ -97,7 +96,11 @@ namespace Bootstrap {
             {
                 return;
             }
-            block = std::make_shared<PostCommittedBlock<CT>>(error, stream, prequel.version, true, true);
+            block = std::make_shared<PostCommittedBlock<CT>>(error,
+            		stream,
+					prequel.version,
+					true,
+					true);
         }
 
         uint32_t Serialize(logos::stream & stream) const

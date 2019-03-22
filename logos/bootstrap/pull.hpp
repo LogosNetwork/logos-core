@@ -4,13 +4,9 @@
 #include <unordered_map>
 #include <memory>
 
-#include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/persistence/block_cache.hpp>
-
 #include <logos/bootstrap/bootstrap_messages.hpp>
-//#include <logos/bootstrap/bootstrap.hpp>
-//#include <logos/bootstrap/microblock.hpp>
-//#include <logos/bootstrap/pull_connection.hpp>
+
 
 namespace Bootstrap
 {
@@ -32,7 +28,7 @@ namespace Bootstrap
     class Puller
     {
     public:
-        Puller(IBlockCache & block_cache);//, Store & store);
+        Puller(IBlockCache & block_cache);
         void Init(TipSet &my_tips, TipSet &others_tips);
 
         PullPtr GetPull();
@@ -58,7 +54,6 @@ namespace Bootstrap
         void UpdateMyEBTip(EBPtr block);
 
         IBlockCache & block_cache;
-//        Store & store;
         TipSet my_tips;
         TipSet others_tips;
 
@@ -66,7 +61,7 @@ namespace Bootstrap
         std::deque<PullPtr> waiting_pulls;
         std::unordered_set<PullPtr> ongoing_pulls;
 
-        enum class PullState : uint8_t
+        enum class PullerState : uint8_t
 		{
         	Epoch,
 			Micro,
@@ -74,7 +69,7 @@ namespace Bootstrap
 			Batch_No_MB,
 			Done
 		};
-        PullState state = PullState::Done;
+        PullerState state = PullerState::Done;
 
         struct MicroPeriod
         {
