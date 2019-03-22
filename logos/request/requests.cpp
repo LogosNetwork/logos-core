@@ -293,11 +293,7 @@ boost::property_tree::ptree Request::SerializeJson() const
     tree.put(SEQUENCE, std::to_string(sequence));
     tree.put(SIGNATURE, signature.to_string());
     tree.put(WORK, std::to_string(work));
-    tree.put(NEXT, next.to_string());
-
     tree.put(HASH, digest.to_string());
-    tree.put("request_block_hash", locator.hash.to_string());
-    tree.put("request_block_index", locator.index);
 
     return tree;
 }
