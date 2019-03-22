@@ -26,6 +26,22 @@ void clear_dbs()
     store->clear(store->remove_reps_db);
     store->clear(store->state_db);
     store->clear(store->leading_candidates_db);
+    store->leading_candidates_size = 0;
+}
+
+void init_tips(uint32_t epoch_num)
+{
+
+    logos::block_store* store = get_db();
+   
+    logos::transaction txn(store->environment, nullptr, true);
+    for(uint8_t del = 0; del < NUM_DELEGATES; ++del)
+    {
+        BlockHash dummy_hash = 0;
+        std::cout << "Writing tip for del " << del << " in epoch " << epoch_num << std::endl;
+        assert(!store->request_tip_put(del, epoch_num, dummy_hash, txn));
+    } 
+
 }
 
 TEST (Elections, blockstore)
@@ -1230,9 +1246,12 @@ TEST(Elections, apply)
 
     EpochVotingManager::START_ELECTIONS_EPOCH = 4;
 
+    init_tips(epoch_num);
+
 
     auto transition_epoch = [&]()
     {
+        init_tips(epoch_num);
         ++epoch_num;
         eb.previous = eb.Hash();
         eb.epoch_number = epoch_num-1;
