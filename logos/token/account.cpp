@@ -75,6 +75,7 @@ uint32_t TokenAccount::Serialize(logos::stream & stream) const
     }
 
     s += settings.Serialize(stream);
+    s += logos::write(stream, issuance_request.bytes);
 
     return s;
 }
@@ -156,6 +157,12 @@ bool TokenAccount::Deserialize(logos::stream & stream)
     }
 
     settings = Settings(error, stream);
+    if(error)
+    {
+        return error;
+    }
+
+    error = logos::read(stream, issuance_request.bytes);
 
     return error;
 }
@@ -222,6 +229,7 @@ bool TokenAccount::operator== (TokenAccount const & other) const
            issuer_info == other.issuer_info &&
            controllers == other.controllers &&
            settings == other.settings &&
+           issuance_request == other.issuance_request &&
            Account::operator==(other);
 }
 

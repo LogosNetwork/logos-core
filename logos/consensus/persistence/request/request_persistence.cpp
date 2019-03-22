@@ -943,6 +943,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             account.receive_head = receive.Hash();
             account.receive_count++;
             account.modified = logos::seconds_since_epoch();
+            account.issuance_request = receive.Hash();
 
             _store.token_account_put(issuance->token_id, account, transaction);
 
