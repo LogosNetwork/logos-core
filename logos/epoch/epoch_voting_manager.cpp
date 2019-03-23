@@ -42,7 +42,7 @@ EpochVotingManager::GetElectionWinners(
     return winners;
 }
 
-uint32_t EpochVotingManager::START_ELECTIONS_EPOCH = 3;
+uint32_t EpochVotingManager::START_ELECTIONS_EPOCH = 50;
 uint32_t EpochVotingManager::TERM_LENGTH = 4;
 
 //these are the delegates that are in their last epoch
