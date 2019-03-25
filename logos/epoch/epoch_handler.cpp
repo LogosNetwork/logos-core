@@ -10,12 +10,14 @@
 bool
 EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
 {
-    BlockHash previous_epoch_hash;
-    BlockHash previous_micro_block_hash;
+	Tip epoch_tip;
+	Tip micro_tip;
+    BlockHash & previous_epoch_hash = epoch_tip.digest;
+    BlockHash & previous_micro_block_hash = micro_tip.digest;
     ApprovedEB previous_epoch;
     ApprovedMB last_micro_block;
 
-    if (_store.epoch_tip_get(previous_epoch_hash))
+    if (_store.epoch_tip_get(epoch_tip))
     {
         LOG_FATAL(_log) << "EpochHandler::Build failed to get epoch tip";
         trace_and_halt();
@@ -28,25 +30,26 @@ EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
         trace_and_halt();
     }
 
-    if (_store.micro_block_tip_get(previous_micro_block_hash))
+    if (_store.micro_block_tip_get(micro_tip))
     {
         LOG_FATAL(_log) << "EpochHandler::Build failed to get micro block tip";
         trace_and_halt();
     }
 
-    if (_store.micro_block_get(previous_micro_block_hash, last_micro_block))
-    {
-        LOG_FATAL(_log) << "EpochHandler::Build failed to get micro block: " <<
-            previous_micro_block_hash.to_string();
-        trace_and_halt();
-    }
+	if (_store.micro_block_get(previous_micro_block_hash, last_micro_block))
+	{
+		LOG_FATAL(_log) << "EpochHandler::Build failed to get micro block: " <<
+			previous_micro_block_hash.to_string();
+		trace_and_halt();
+	}
 
     epoch.timestamp = GetStamp();
     epoch.previous = previous_epoch_hash;
     epoch.primary_delegate = 0xff;//epoch_handler does not know the delegate index which could change after every epoch transition
     epoch.epoch_number = previous_epoch.epoch_number + 1;
-    epoch.micro_block_tip = previous_micro_block_hash;
-    _voting_manager.GetNextEpochDelegates(epoch.delegates);
+    epoch.micro_block_tip = micro_tip;//previous_micro_block_hash;
+    //Note, we write epoch block with epoch number i at the beginning of epoch i+1
+    _voting_manager.GetNextEpochDelegates(epoch.delegates,epoch.epoch_number+1);
     epoch.transaction_fee_pool = 0; // TODO
 
     LOG_INFO(_log) << "EpochHandler::Build, built epoch block:"

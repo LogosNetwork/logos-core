@@ -338,7 +338,20 @@ enum class process_result
     key_collision,              // Logos - There is already a user account or token account with the same key.
     invalid_fee,                // Logos - The fee settings are invalid.
     invalid_issuer_info,        // Logos - The issuer info supplied is invalid.
-    too_many_token_entries      // Logos - The account has too many token entries.
+    too_many_token_entries,     // Logos - The account has too many token entries.
+    elections_dead_period,      // Logos - the time between epoch start and epoch block post-commit
+    not_a_rep,                  // Logos - the account is not a representative
+    already_voted,              // Logos - the rep already voted this epoch
+    invalid_candidate,          // Logos - the vote is for an account that is not a candidate
+    not_enough_stake,           // Logos - the rep does not have enough stake for action
+    never_announced_candidacy,  // Logos - the rep has never announced candidacy
+    already_renounced_candidacy,// Logos - the rep is already in a renounced candidacy state
+    already_announced_candidacy,// Logos - the rep is already in an announced candidacy state
+    is_rep,                     // Logos - the account is a representative
+    wrong_epoch_number,         // Logos - the request has an incorrect epoch number
+    no_elections,               // Logos - elections are not being held currently
+    pending_rep_action,         // Logos - the account has a pending representative action for this epoch
+    pending_candidacy_action    // Logos - the account has a pending candidacy action for this epoch
 };
 
 std::string ProcessResultToString(process_result result);

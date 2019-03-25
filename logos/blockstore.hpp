@@ -1,5 +1,6 @@
 #pragma once
 
+#include <logos/bootstrap/tips.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/messages/common.hpp>
 #include <logos/microblock/microblock.hpp>
@@ -8,9 +9,8 @@
 #include <logos/epoch/epoch.hpp>
 #include <logos/lib/log.hpp>
 #include <logos/common.hpp>
-
-
-class Tip;
+#include <logos/elections/candidate.hpp>
+#include <logos/elections/representative.hpp>
 
 namespace logos
 {
@@ -55,6 +55,8 @@ public:
  */
 class block_store
 {
+    using IteratorBatchBlockReceiverCb = std::function<void(uint8_t, const ApprovedRB &)>;
+
 public:
     block_store (bool &, boost::filesystem::path const &, int lmdb_max_dbs = 128);
 
@@ -148,12 +150,33 @@ public:
     bool consensus_block_get (const BlockHash & hash, ApprovedEB & block);
     // return true if cannot found hash
     bool consensus_block_update_next(const BlockHash & hash, const BlockHash & next, ConsensusType type, MDB_txn * transaction);
+    uint32_t consensus_block_get_raw(const BlockHash & hash,
+    		ConsensusType type,
+    		uint32_t reserve,
+			std::vector<uint8_t> & buf);
 
     bool request_block_exists(const ApprovedRB & block);
     bool request_block_put(ApprovedRB const & block, MDB_txn * transaction);
     bool request_block_put(ApprovedRB const & block, const BlockHash & hash, MDB_txn *transaction);
     bool request_block_get(const BlockHash & hash, ApprovedRB & block);
     bool request_block_get(const BlockHash &hash, ApprovedRB &block, MDB_txn *);
+
+
+    /// Iterates each delegates' batch state block chain. Traversing previous pointer.
+    /// Stop when reached the end tips.
+    /// @param start tips to start iteration [in]
+    /// @param end tips to end iteration [in]
+    /// @param cb function to call for each delegate's batch state block, the function's argument are
+    ///   delegate id and BatchStateBlock
+    void BatchBlocksIterator(const BatchTipHashes &start, const BatchTipHashes &end, IteratorBatchBlockReceiverCb cb);
+
+    /// Iterates each delegates' batch state block chain. Traversing next pointer.
+    /// Stop when the timestamp is greater than the cutoff.
+    /// @param start tips to start iteration [in]
+    /// @param cutoff timestamp to end iteration [in]
+    /// @param cb function to call for each delegate's batch state block, the function's argument are
+    ///   delegate id and BatchStateBlock
+    void BatchBlocksIterator(const BatchTipHashes &start, const uint64_t &cutoff, IteratorBatchBlockReceiverCb cb);
 
     template<typename T>
     bool request_get(const BlockHash &hash, T & request, MDB_txn *transaction)
@@ -203,25 +226,83 @@ public:
     bool receive_get(const BlockHash & hash, ReceiveBlock & block, MDB_txn *);
     bool receive_exists(const BlockHash & hash);
 
-    bool request_tip_put(uint8_t delegate_id, const BlockHash &hash, MDB_txn *);
-    bool request_tip_get(uint8_t delegate_id, BlockHash &hash);
+    bool request_tip_put(uint8_t delegate_id, uint32_t epoch_number, const Tip &tip, MDB_txn *);
+    bool request_tip_get(uint8_t delegate_id, uint32_t epoch_number, Tip & tip, MDB_txn *t=0);
+    bool request_tip_del(uint8_t delegate_id, uint32_t epoch_number, MDB_txn *);
+    bool request_block_update_prev(const BlockHash & hash, const BlockHash & prev, MDB_txn * transaction);
 
     // micro-block
     bool get(MDB_dbi &db, const mdb_val &key, mdb_val &value, MDB_txn *tx);
     bool micro_block_put(ApprovedMB const &, MDB_txn*);
     bool micro_block_get(const BlockHash &, ApprovedMB &, MDB_txn* t=0);
-    bool micro_block_tip_put(const BlockHash &, MDB_txn*);
-    bool micro_block_tip_get(BlockHash &, MDB_txn* t=0);
+    bool micro_block_tip_put(const Tip &, MDB_txn*);
+    bool micro_block_tip_get(Tip &, MDB_txn* t=0);
     bool micro_block_exists(const BlockHash &, MDB_txn* t=0);
     bool micro_block_exists(const ApprovedMB &);
 
     // epoch
     bool epoch_put(ApprovedEB const &, MDB_txn*);
     bool epoch_get(const BlockHash &, ApprovedEB &, MDB_txn *t=0);
-    bool epoch_tip_put(const BlockHash &, MDB_txn*);
-    bool epoch_tip_get(BlockHash &, MDB_txn *t=0);
-    bool epoch_exists(const ApprovedEB &);
+    bool epoch_tip_put(const Tip &, MDB_txn*);
+    bool epoch_tip_get(Tip &, MDB_txn *t=0);
     bool epoch_exists(const BlockHash &, MDB_txn* t=0);
+    bool is_first_epoch();
+    uint32_t epoch_number_stored();
+    /// Get each delegate's first request block in an epoch, only used when linking two request tips
+    /// @param epoch number to retrieve [in]
+    /// @param list of delegate request block hash to populate [in]
+    void GetEpochFirstRBs(uint32_t epoch_number, BatchTips & epoch_firsts);
+
+    bool epoch_exists(const ApprovedEB & block);
+    bool epoch_get_n(uint32_t ago, ApprovedEB &, MDB_txn *t=0);
+
+    bool rep_get(
+            AccountAddress const & account,
+            RepInfo & rep_info,
+            MDB_txn* t=0);
+    bool rep_put(
+            AccountAddress const & account,
+            const RepInfo & rep_info,
+            MDB_txn *);
+
+    bool rep_mark_remove(
+            const AccountAddress & account,
+            MDB_txn *);
+
+    bool candidate_get(
+            const AccountAddress & account,
+            CandidateInfo & candidate_info,
+            MDB_txn* t=0);
+    bool candidate_put(
+            const AccountAddress & account,
+            const CandidateInfo & candidate_info,
+            MDB_txn *);
+
+    bool candidate_add_vote(
+            const AccountAddress & account,
+            Amount weighted_vote,
+            uint32_t cur_epoch_num,
+            MDB_txn *);
+
+    bool candidate_mark_remove(
+            const AccountAddress & account,
+            MDB_txn *);
+
+    bool update_leading_candidates(
+            const AccountAddress & account,
+            const CandidateInfo & candidate_info,
+            MDB_txn* txn);
+
+    //updates min_leading_candidate and leading_candidates_size members
+    //required on startup (in case of crash), and whenever leading_candidates_db
+    //is updated
+    void sync_leading_candidates(MDB_txn* txn);
+
+    bool candidate_is_greater(
+            const AccountAddress& account1,
+            const CandidateInfo& candidate1,
+            const AccountAddress& account2,
+            const CandidateInfo& candidate2);
 
     //////////////////
 
@@ -245,7 +326,13 @@ public:
     void version_put (MDB_txn *, int);
     int version_get (MDB_txn *);
 
-    void clear (MDB_dbi);
+    void clear (MDB_dbi, MDB_txn *t=0);
+
+    // The lowest ranked candidate in leading_candidates_db. Kept up to date
+    std::pair<AccountAddress, CandidateInfo> min_leading_candidate;
+
+    // Number of candidates in leading_candidates_db
+    size_t leading_candidates_size;
 
     logos::mdb_env environment;
 
@@ -281,9 +368,9 @@ public:
     MDB_dbi receive_db;
 
     /**
-     * Maps delegate id to hash of most
+     * Maps (delegate id, epoch number) combination to hash of most
      * recent request block.
-     * uint8_t -> logos::block_hash
+     * (uint8_t + uint32_t) -> logos::block_hash
      */
     MDB_dbi request_tips_db;
 
@@ -352,6 +439,40 @@ public:
     MDB_dbi representation;
 
     /**
+     * Representative info
+     * logos::account -> logos::RepInfo
+     */
+    MDB_dbi representative_db;
+
+    /**
+     * Candidacy info
+     * AccountAddress -> CandidateInfo
+     */
+    MDB_dbi candidacy_db;
+
+    /**
+     * Candidacy info of candidates who are currently winning election
+     * AccountAddress -> CandidateInfo 
+     */
+    MDB_dbi leading_candidates_db;
+
+    /**
+     * AccountAddresses of candidates to be deleted at epoch transition
+     * 0 -> AccountAddress
+     * Note, this database uses duplicate keys, where every entry has a key
+     * of 0. 
+     */
+    MDB_dbi remove_candidates_db;
+
+    /**
+     * AccountAddresses of representatives to be deleted at epoch transition
+     * 0 -> AccountAddress
+     * Note, this database uses duplicate keys, where every entry has a key
+     * of 0. 
+     */
+    MDB_dbi remove_reps_db;
+
+    /**
      * Unchecked bootstrap blocks.
      * logos::block_hash -> logos::block
      */
@@ -382,15 +503,12 @@ public:
     MDB_dbi p2p_db;
 
     Log log;
-
-    //////////////////
-
-    uint32_t consensus_block_get_raw(const BlockHash & hash,
-    		ConsensusType type,
-    		uint32_t reserve,
-			std::vector<uint8_t> & buf);
-    bool request_tip_get(uint8_t delegate_id, uint32_t epoch_number, Tip &tip, MDB_txn* t=0);
-    bool micro_block_tip_get(Tip &tip, MDB_txn* t=0);
-    bool epoch_tip_get(Tip &tip, MDB_txn *t=0);
 };
+
+/**
+ * Helper functions
+ */
+
+uint64_t get_request_tip_key(uint8_t delegate_id, uint32_t epoch_number);
+
 }

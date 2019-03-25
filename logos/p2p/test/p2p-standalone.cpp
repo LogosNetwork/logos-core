@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
 				  boost::log::keywords::auto_flush = true,
 				  boost::log::keywords::scan_method = boost::log::sinks::file::scan_method::scan_matching,
 				  boost::log::keywords::max_size = 0x200000,
-				  boost::log::keywords::format = "[%TimeStamp% %Severity%]: %Message%");
+				  boost::log::keywords::format = "[%TimeStamp% %ThreadID% %Severity%]: %Message%");
 
 	boost::asio::io_service io_service;
 	config.boost_io_service = &io_service;

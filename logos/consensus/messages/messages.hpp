@@ -3,6 +3,7 @@
 #include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/receive_block.hpp>
 #include <logos/consensus/messages/request_block.hpp>
+#include <logos/consensus/messages/tip.hpp>
 #include <logos/epoch/epoch_transition.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
@@ -103,7 +104,7 @@ struct PrePrepareMessage : public MessagePrequel<MessageType::Pre_Prepare, CT>,
         tree.put("hash", Hash().to_string());
     }
 
-    std::string SerializeJson() const
+    std::string ToJson() const
     {
         boost::property_tree::ptree tree;
         SerializeJson (tree);
@@ -199,7 +200,7 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
         tree.put("hash", Hash().to_string());
     }
 
-    std::string SerializeJson() const
+    std::string ToJson() const
     {
         boost::property_tree::ptree tree;
         SerializeJson (tree);
@@ -233,10 +234,18 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
         MessagePrequel<MessageType::Post_Committed_Block, CT>::Serialize(header_stream);
     }
 
+    Tip CreateTip() const
+    {
+    	return Tip(ConsensusBlock<CT>::epoch_number, ConsensusBlock<CT>::sequence, Hash());
+    }
+
     AggSignature post_prepare_sig;
     AggSignature post_commit_sig;
     BlockHash    next;
 };
+
+// This should only be called for the first request block in an epoch
+void update_PostCommittedRequestBlock_prev_field(const logos::mdb_val & mdbval, logos::mdb_val & mdbval_buf, const BlockHash & prev);
 
 // Prepare and Commit messages
 //

@@ -408,6 +408,11 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
         case RequestType::TokenSend:
             result = true;
             break;
+        case RequestType::ElectionVote:
+        case RequestType::AnnounceCandidacy:
+        case RequestType::RenounceCandidacy:
+        case RequestType::StartRepresenting:
+        case RequestType::StopRepresenting:
         case RequestType::Unknown:
             result = false;
             break;

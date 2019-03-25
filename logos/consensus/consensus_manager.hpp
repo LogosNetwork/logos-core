@@ -78,7 +78,7 @@ protected:
     using PrePrepare      = PrePrepareMessage<CT>;
     using PostPrepare     = PostPrepareMessage<CT>;
     using PostCommit      = PostCommitMessage<CT>;
-    using ReservationsPtr = std::shared_ptr<ReservationsProvider>;
+    using ReservationsPtr = std::shared_ptr<Reservations>;
     using ApprovedBlock   = PostCommittedBlock<CT>;
     using Responses       = std::vector<std::pair<logos::process_result, BlockHash>>;
     using ErrorCode       = boost::system::error_code;

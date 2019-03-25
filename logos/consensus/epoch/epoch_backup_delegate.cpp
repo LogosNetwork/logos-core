@@ -21,11 +21,13 @@ EpochBackupDelegate::EpochBackupDelegate(
     : BackupDelegate<ECT>(iochannel, primary, promoter, validator,
                                                 ids, events_notifier, persistence_manager, p2p, service)
 {
-    if (promoter.GetStore().epoch_tip_get(_prev_pre_prepare_hash))
+	Tip tip;
+    if (promoter.GetStore().epoch_tip_get(tip))
     {
         LOG_FATAL(_log) << "Failed to get eporh's previous hash";
         trace_and_halt();
     }
+    _prev_pre_prepare_hash = tip.digest;
 }
 
 bool

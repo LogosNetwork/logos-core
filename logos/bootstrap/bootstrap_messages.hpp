@@ -2,8 +2,8 @@
 #include <boost/iostreams/stream_buffer.hpp>
 
 #include <logos/blockstore.hpp>
+#include <logos/bootstrap/tips.hpp>
 #include <logos/consensus/messages/messages.hpp>
-#include <logos/consensus/persistence/tips.hpp>
 
 namespace Bootstrap {
 

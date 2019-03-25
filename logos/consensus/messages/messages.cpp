@@ -79,3 +79,28 @@ void UpdateNext(const logos::mdb_val &mdbval, logos::mdb_val &mdbval_buf, const 
     const uint8_t * next_data = next.data();
     memcpy(start_of_next, next_data, HASH_SIZE);
 }
+
+void update_PostCommittedRequestBlock_prev_field(const logos::mdb_val & mdbval, logos::mdb_val & mdbval_buf, const BlockHash & prev)
+{
+    if(mdbval.size() <= HASH_SIZE)
+    {
+        Log log;
+        LOG_FATAL(log) << __func__ << " DB value too small";
+        trace_and_halt();
+    }
+
+    struct PrePrepareCommon *p_ppc = 0;
+    auto pre_size (MessagePrequelSize
+        + sizeof(p_ppc->primary_delegate) + sizeof(p_ppc->epoch_number)
+        + sizeof(p_ppc->sequence) + sizeof(p_ppc->timestamp));
+    memcpy(mdbval_buf.data(), mdbval.data(), pre_size);
+
+    uint8_t * start_of_prev = reinterpret_cast<uint8_t *>(mdbval_buf.data()) + pre_size;
+    const uint8_t * prev_data = prev.data();
+    memcpy(start_of_prev, prev_data, HASH_SIZE);
+
+    auto post_offset (pre_size + HASH_SIZE);
+    memcpy(reinterpret_cast<uint8_t *>(mdbval_buf.data()) + post_offset,
+           reinterpret_cast<uint8_t *>(mdbval.data()) + post_offset,
+           mdbval_buf.size() - post_offset);
+}

@@ -4,6 +4,7 @@
 ///
 #pragma once
 #include <logos/consensus/messages/common.hpp>
+#include <logos/consensus/messages/tip.hpp>
 #include <logos/lib/merkle.hpp>
 #include <logos/lib/numbers.hpp>
 
@@ -19,12 +20,14 @@ struct Delegate
     DelegatePubKey      bls_pub;
     Amount              vote;
     Amount              stake;
+    bool                starting_term;
 
     Delegate()
     : account()
     , bls_pub()
     , vote(0)
     , stake(0)
+    , starting_term(false)
     {}
 
     Delegate(AccountAddress const & account,
@@ -35,6 +38,7 @@ struct Delegate
     , bls_pub(bls_pub)
     , vote(vote)
     , stake(stake)
+    , starting_term(false)
     {}
 
     void Hash(blake2b_state & hash) const
@@ -51,6 +55,7 @@ struct Delegate
         s += logos::write(stream, bls_pub);
         s += logos::write(stream, vote);
         s += logos::write(stream, stake);
+        s += logos::write(stream, starting_term);
         return s;
     }
 
@@ -75,6 +80,11 @@ struct Delegate
         }
 
         error = logos::read(stream, stake);
+        if(error)
+        {
+            return;
+        }
+        error = logos::read(stream, starting_term);
     }
 
     void SerializeJson(boost::property_tree::ptree & epoch_block) const
@@ -83,8 +93,40 @@ struct Delegate
         epoch_block.put("bls_pub", bls_pub.to_string());
         epoch_block.put("vote", vote.to_string());
         epoch_block.put("stake", stake.to_string());
+        epoch_block.put("starting_term", starting_term);
+    }
+
+    //TODO: is this enough? do we need to use bls key too?
+    bool operator==(const Delegate& other) const
+    {
+        return account == other.account
+            && bls_pub == other.bls_pub
+            && vote == other.vote
+            && stake == other.stake
+            && starting_term == other.starting_term;
+    }
+
+    bool operator!=(const Delegate& other) const
+    {
+        return (*this) != other;
     }
 };
+
+
+namespace std
+{
+
+    template <>
+    struct hash<Delegate>
+    {
+        //TODO: is this enough? do we need to hash bls key as well?
+        size_t operator()(const Delegate& d) const
+        {
+            return hash<AccountAddress>()(d.account);
+        }
+    };
+
+}
 
 /// A epoch block is proposed after the last micro block.
 /// Like micro blocks, epoch block is used for checkpointing and boostrapping.
@@ -112,7 +154,8 @@ public:
             return;
         }
 
-        error = logos::read(stream, micro_block_tip);
+        new (&micro_block_tip) Tip(error, stream);
+        //        error = logos::read(stream, micro_block_tip);
         if(error)
         {
             return;
@@ -148,7 +191,8 @@ public:
     uint32_t Serialize(logos::stream & stream, bool with_appendix) const
     {
         auto s = PrePrepareCommon::Serialize(stream);
-        s += logos::write(stream, micro_block_tip);
+        s += micro_block_tip.Serialize(stream);
+        //s += logos::write(stream, micro_block_tip);
         s += logos::write(stream, transaction_fee_pool);
         for(int i = 0; i < NUM_DELEGATES; ++i)
         {
@@ -157,10 +201,10 @@ public:
         return s;
     }
     /// JSON representation of Epoch (primarily for RPC messages)
-    std::string SerializeJson() const;
+    std::string ToJson() const;
     void SerializeJson(boost::property_tree::ptree &) const;
 
-    BlockHash micro_block_tip;          ///< microblock tip of this epoch
+    Tip	      micro_block_tip;          ///< microblock tip of this epoch
     Amount    transaction_fee_pool;     ///< this epoch's transaction fee pool
     Delegate  delegates[NUM_DELEGATES]; ///< delegate'ls list
 };

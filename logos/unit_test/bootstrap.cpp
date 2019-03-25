@@ -3,6 +3,7 @@
 
 #include <logos/bootstrap/bootstrap_messages.hpp>
 #include <logos/bootstrap/pull.hpp>
+#include <logos/bootstrap/tips.hpp>
 #include <logos/node/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/persistence/block_cache.hpp>
@@ -65,9 +66,9 @@ TEST (bootstrap, msg_tip)
 }
 
 
-static TipSet create_tip_set()
+static Bootstrap::TipSet create_tip_set()
 {
-	TipSet tips;
+	Bootstrap::TipSet tips;
 	uint32_t epoch_num = 1;
 	uint32_t mb_sqn = 1;
 
@@ -85,7 +86,7 @@ static TipSet create_tip_set()
 
 TEST (bootstrap, msg_tip_set)
 {
-	TipSet tips = create_tip_set();
+	Bootstrap::TipSet tips = create_tip_set();
 
     std::vector<uint8_t> buf;
     {
@@ -96,14 +97,14 @@ TEST (bootstrap, msg_tip_set)
     {
         bool error = false;
         logos::bufferstream read_stream(buf.data(), buf.size());
-        TipSet tips2(error, read_stream);
+        Bootstrap::TipSet tips2(error, read_stream);
         ASSERT_FALSE(error);
         ASSERT_EQ(tips, tips2);
     }
     {
         bool error = false;
         logos::bufferstream read_stream(buf.data(), buf.size()-1);
-        TipSet tips2(error, read_stream);
+        Bootstrap::TipSet tips2(error, read_stream);
         ASSERT_TRUE(error);
     }
 }
@@ -229,8 +230,8 @@ TEST (bootstrap, puller)
 	}
 	{
 		Bootstrap::Puller puller(cache);
-		TipSet tips = create_tip_set();
-		TipSet tips_other = create_tip_set();
+		Bootstrap::TipSet tips = create_tip_set();
+		Bootstrap::TipSet tips_other = create_tip_set();
 		tips_other.eb.epoch++;
 		tips_other.eb.sqn++;
 		puller.Init(tips, tips_other);
@@ -238,16 +239,16 @@ TEST (bootstrap, puller)
 	}
 	{
 		Bootstrap::Puller puller(cache);
-		TipSet tips = create_tip_set();
-		TipSet tips_other = create_tip_set();
+		Bootstrap::TipSet tips = create_tip_set();
+		Bootstrap::TipSet tips_other = create_tip_set();
 		tips_other.mb.sqn++;
 		puller.Init(tips, tips_other);
 		ASSERT_EQ(puller.GetNumWaitingPulls(), 1);
 	}
 	{
 		Bootstrap::Puller puller(cache);
-		TipSet tips = create_tip_set();
-		TipSet tips_other = create_tip_set();
+		Bootstrap::TipSet tips = create_tip_set();
+		Bootstrap::TipSet tips_other = create_tip_set();
 		for (uint32_t i = 0; i < NUM_DELEGATES; ++i) {
 			tips_other.bsb_vec[i].sqn++;
 		}
@@ -257,8 +258,8 @@ TEST (bootstrap, puller)
 
 	{
 		Bootstrap::Puller puller(cache);
-		TipSet tips = create_tip_set();
-		TipSet tips_other = create_tip_set();
+		Bootstrap::TipSet tips = create_tip_set();
+		Bootstrap::TipSet tips_other = create_tip_set();
 		for (uint32_t i = 0; i < NUM_DELEGATES; ++i) {
 			tips_other.bsb_vec[i].sqn++;
 		}

@@ -12,14 +12,11 @@ namespace logos {
 class IRecallHandler;
 
 using BlockStore                    = logos::block_store;
-using IteratorBatchBlockReceiverCb  = std::function<void(uint8_t, const ApprovedRB &)>;
 using BatchBlockReceiverCb          = std::function<void(const ApprovedRB &)>;
 
 /// MicroBlockHandler builds MicroBlock
 class MicroBlockHandler
 {
-
-    using BatchTips = BlockHash[NUM_DELEGATES];
 
 public:
     /// Class constructor
@@ -43,26 +40,6 @@ public:
     /// @returns true on success
     bool Build(MicroBlock &block, bool last_micro_block);
 
-    /// Iterates each delegates' batch state block chain. Traversing previous pointer.
-    /// Stop when reached the end tips.
-    /// @param store block store reference [in]
-    /// @param start tips to start iteration [in]
-    /// @param end tips to end iteration [in]
-    /// @param cb function to call for each delegate's batch state block, the function's argument are
-    ///   delegate id and BatchStateBlock
-    static void BatchBlocksIterator(BlockStore & store, const BatchTips &start, const BatchTips &end,
-                                    IteratorBatchBlockReceiverCb cb);
-
-    /// Iterates each delegates' batch state block chain. Traversing next pointer.
-    /// Stop when the timestamp is greater than the cutoff.
-    /// @param store block store reference [in]
-    /// @param start tips to start iteration [in]
-    /// @param cutoff timestamp to end iteration [in]
-    /// @param cb function to call for each delegate's batch state block, the function's argument are
-    ///   delegate id and BatchStateBlock
-    static void BatchBlocksIterator(BlockStore & store, const BatchTips &start, const uint64_t &cutoff,
-                                    IteratorBatchBlockReceiverCb cb);
-
     /// Get microblock cut-off time in milliseconds
     /// @param timestamp the base time stamp
     /// @param add_cutoff if true then add cut off
@@ -85,7 +62,7 @@ private:
     /// @param num_blocks number of selected batch blocks [out]
     /// @param timestamp timestamp of the previous microblock [in]
     /// @returns Merkle root
-    BlockHash FastMerkleTree(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks,
+    BlockHash FastMerkleTree(const BatchTipHashes &start, const BatchTipHashes &end, BatchTipHashes &tips, uint &num_blocks,
                              const uint64_t timestamp);
 
     /// Calculate Merkle root and get batch block tips.
@@ -98,7 +75,7 @@ private:
     /// @param tips new batch block tips [in|out]
     /// @param num_blocks number of selected batch blocks [out]
     /// @returns Merkle root
-    BlockHash SlowMerkleTree(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks);
+    BlockHash SlowMerkleTree(const BatchTipHashes &start, const BatchTipHashes &end, BatchTipHashes &tips, uint &num_blocks);
 
     /// Get tips to include in the micro block.
     /// Walk from the previous microblock tips to the cutoff time.
@@ -117,7 +94,7 @@ private:
     /// @param end previous microblock tips [in]
     /// @param tips new batch block tips [in|out]
     /// @param num_blocks number of selected batch blocks [out]
-    void GetTipsSlow(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks);
+    void GetTipsSlow(const BatchTipHashes &start, const BatchTipHashes &end, BatchTips &tips, uint &num_blocks);
 
     BlockStore &            _store;
     IRecallHandler &        _recall_handler;    ///< recall handler reference

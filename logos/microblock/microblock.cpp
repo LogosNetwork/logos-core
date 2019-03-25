@@ -3,7 +3,7 @@
 /// in the Microblock processing
 #include <logos/microblock/microblock.hpp>
 
-std::string MicroBlock::SerializeJson() const
+std::string MicroBlock::ToJson() const
 {
     boost::property_tree::ptree micro_block;
     SerializeJson (micro_block);
@@ -21,7 +21,7 @@ void MicroBlock::SerializeJson(boost::property_tree::ptree & micro_block) const
     boost::property_tree::ptree ptree_tips;
     for (const auto & tip : tips) {
         boost::property_tree::ptree tip_member;
-        tip_member.put("", tip.to_string());
+        tip_member.put("", tip.digest.to_string());//TODO ask Tyler, digest only?
         ptree_tips.push_back(std::make_pair("", tip_member));
     }
     micro_block.add_child("tips", ptree_tips);
@@ -36,7 +36,7 @@ uint32_t MicroBlock::Serialize(logos::stream & stream, bool with_appendix) const
 
     for(int i = 0; i < NUM_DELEGATES; ++i)
     {
-        s += logos::write(stream, tips[i]);
+    	s += tips[i].Serialize(stream);
     }
 
     return s;

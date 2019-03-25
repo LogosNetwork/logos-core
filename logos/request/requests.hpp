@@ -36,12 +36,19 @@ enum class RequestType : uint8_t
     //
     TokenSend        = 15,
 
+    //Election Requests
+    ElectionVote      = 16,
+    AnnounceCandidacy = 17,
+    RenounceCandidacy = 18,
+    StartRepresenting = 19,
+    StopRepresenting  = 20,
+
     // Unknown
     //
-    Unknown          = 16
+    Unknown          = 21
 };
 
-class ReservationsProvider;
+class Reservations;
 
 struct Request
 {

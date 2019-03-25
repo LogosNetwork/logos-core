@@ -301,8 +301,9 @@ ConsensusContainer::EpochTransitionEventsStart()
     {
         // update epoch number
         ApprovedEB eb;
-        BlockHash hash;
-        if (_store.epoch_tip_get(hash))
+        Tip tip;
+        BlockHash &hash = tip.digest;
+        if (_store.epoch_tip_get(tip))
         {
             LOG_FATAL(_log) << "ConsensusContainer::EpochTransitionEventsStart failed to get epoch tip";
             trace_and_halt();

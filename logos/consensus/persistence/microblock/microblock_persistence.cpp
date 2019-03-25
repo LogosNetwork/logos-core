@@ -6,17 +6,11 @@
 #include <logos/consensus/message_validator.hpp>
 #include <logos/lib/trace.hpp>
 
-#include <mutex>
-
-static std::mutex global_mutex; // RGD
-
 bool
 PersistenceManager<MBCT>::Validate(
     const PrePrepare & block,
     ValidationStatus * status)
 {
-    std::lock_guard<std::mutex> lock(global_mutex);
-
     BlockHash hash = block.Hash();
     using namespace logos;
 
@@ -47,13 +41,14 @@ PersistenceManager<MBCT>::Validate(
         UpdateStatusReason(status, process_result::gap_previous);
         return false;
     }
-
-    if (_store.epoch_tip_get(hash))
+    Tip tip;
+    if (_store.epoch_tip_get(tip))
     {
         LOG_FATAL(_log) << "PersistenceManager::VerifyMicroBlock failed to get epoch tip "
                         << " hash " << hash.to_string();
         trace_and_halt();
     }
+    hash = tip.digest;
 
     if (_store.epoch_get(hash, previous_epoch))
     {
@@ -94,7 +89,7 @@ PersistenceManager<MBCT>::Validate(
     ApprovedRB bsb;
     for (int del = 0; del < NUM_DELEGATES; ++del)
     {
-        if (! block.tips[del].is_zero() && _store.request_block_get(block.tips[del], bsb))
+        if (! block.tips[del].digest.is_zero() && _store.request_block_get(block.tips[del].digest, bsb))
         {
             LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
                             << block.Hash().to_string() << " "
@@ -106,10 +101,16 @@ PersistenceManager<MBCT>::Validate(
     }
 
     /// verify can iterate the chain and the number of blocks checks out
+    BatchTipHashes start, end;
+    for (int del = 0; del < NUM_DELEGATES; ++del)
+    {
+    	start[del] = block.tips[del].digest;
+    	end[del] = previous_microblock.tips[del].digest;
+    }
     int number_batch_blocks = 0;
-    MicroBlockHandler::BatchBlocksIterator(_store, block.tips, previous_microblock.tips,
-                                           [&number_batch_blocks](uint8_t, const RequestBlock &) mutable -> void {
-       ++number_batch_blocks;
+    _store.BatchBlocksIterator(start, end,
+            [&number_batch_blocks](uint8_t, const RequestBlock &) mutable -> void {
+        ++number_batch_blocks;
     });
     if (number_batch_blocks != block.number_batch_blocks)
     {
@@ -128,25 +129,31 @@ PersistenceManager<MBCT>::ApplyUpdates(
     const ApprovedMB & block,
     uint8_t)
 {
-    std::lock_guard<std::mutex> lock(global_mutex);
-
     logos::transaction transaction(_store.environment, nullptr, true);
+
+    // See comments in request_persistence.cpp
+    if (BlockExists(block))
+    {
+        LOG_DEBUG(_log) << "PersistenceManager<MBCT>::ApplyUpdates - micro block already exists, ignoring";
+        return;
+    }
+
     BlockHash hash = block.Hash();
     if( _store.micro_block_put(block, transaction) ||
-            _store.micro_block_tip_put(hash, transaction))
+            _store.micro_block_tip_put(block.CreateTip(), transaction))
     {
-        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdates failed to put block or tip"
+        LOG_FATAL(_log) << "PersistenceManager<MBCT>::ApplyUpdates failed to put block or tip"
                                 << hash.to_string();
         trace_and_halt();
     }
 
     if(_store.consensus_block_update_next(block.previous, hash, ConsensusType::MicroBlock, transaction))
     {
-        LOG_FATAL(_log) << "PersistenceManager::ApplyUpdates failed to get previous block "
+        LOG_FATAL(_log) << "PersistenceManager<MBCT>::ApplyUpdates failed to get previous block "
                         << block.previous.to_string();
         trace_and_halt();
     }
-    LOG_INFO(_log) << "PersistenceManager::ApplyUpdates hash: " << hash.to_string()
+    LOG_INFO(_log) << "PersistenceManager<MBCT>::ApplyUpdates hash: " << hash.to_string()
                    << " previous " << block.previous.to_string();
 }
 

@@ -59,6 +59,9 @@
 #endif
 #endif
 
+#include <logos/lib/log.hpp>
+#include <logos/lib/trace.hpp>
+
 /** Used to pass flags to the Bind() function */
 enum BindFlags {
     BF_NONE         = 0,
@@ -523,7 +526,14 @@ void AsioClient::resolve_handler(const boost::system::error_code& ec, boost::asi
 
 std::shared_ptr<CNode> CConnman::ConnectNodeFinish(AsioClient *client, std::shared_ptr<AsioSession> session)
 {
-    boost::asio::ip::tcp::endpoint endpoint = session->get_socket().remote_endpoint();
+    boost::system::error_code ec;
+    boost::asio::ip::tcp::endpoint endpoint = session->get_socket().remote_endpoint(ec);
+    if (ec)
+    {
+        Log log;
+        LOG_FATAL(log) << "CConnman::ConnectNodeFinish - error retrieving remote endpoint with code: " << ec.message();
+        trace_and_halt();
+    }
     CService saddr = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
     CAddress addr(saddr, NODE_NONE);
 
@@ -1237,7 +1247,14 @@ std::shared_ptr<CNode> CConnman::AcceptConnection(std::shared_ptr<AsioSession> s
     int nInbound = 0;
     int nMaxInbound = nMaxConnections - (nMaxOutbound + nMaxFeeler);
 
-    boost::asio::ip::tcp::endpoint endpoint = session->get_socket().remote_endpoint();
+    boost::system::error_code ec;
+    boost::asio::ip::tcp::endpoint endpoint = session->get_socket().remote_endpoint(ec);
+    if (ec)
+    {
+        Log log;
+        LOG_FATAL(log) << "CConnman::AcceptConnection - error retrieving remote endpoint with code: " << ec.message();
+        trace_and_halt();
+    }
     CService saddr = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
     CAddress addr(saddr, NODE_NONE);
 

@@ -134,8 +134,8 @@ public:
     void accounts_frontiers ();
     void accounts_pending ();
     void available_supply ();
-    void batch_blocks ();
-    void batch_blocks_latest ();
+    void request_blocks ();
+    void request_blocks_latest ();
     void block ();
     //CH void block_confirm ();
     void blocks ();
@@ -150,6 +150,7 @@ public:
     //CH void confirmation_history ();
     template <typename  CT>
     void consensus_blocks ();
+    void candidates ();
     void delegators ();
     void delegators_count ();
     void deterministic_key ();

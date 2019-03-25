@@ -1,33 +1,12 @@
 #pragma once
 
-//#include <logos/blockstore.hpp>
 #include <logos/consensus/messages/messages.hpp>
-//#include <logos/bootstrap/bootstrap_messages.hpp>
+#include <logos/consensus/messages/tip.hpp>
 #include <logos/lib/log.hpp>
 
-//namespace Bootstrap
-//{
+namespace Bootstrap
+{
 	using Store = logos::block_store;
-
-    struct Tip
-    {
-        uint32_t epoch = 0;
-        uint32_t sqn = 0; //same as epoch for epoch_blocks
-        BlockHash digest;
-
-        Tip();
-        Tip(uint32_t epoch, uint32_t sqn, const BlockHash & digest);
-        Tip(bool & error, logos::stream & stream);
-        Tip(bool & error, logos::mdb_val & mdbval);
-
-        uint32_t Serialize(logos::stream & stream) const;
-        logos::mdb_val to_mdb_val(std::vector<uint8_t> &buf) const;
-
-        bool operator<(const Tip & other) const;
-        bool operator==(const Tip & other) const;
-
-        static constexpr uint32_t WireSize = sizeof(epoch) + sizeof(sqn) + HASH_SIZE;
-    };
 
     struct TipSet
     {
@@ -35,7 +14,7 @@
         Tip mb;
         std::array<Tip, NUM_DELEGATES> bsb_vec;
         std::array<Tip, NUM_DELEGATES> bsb_vec_new_epoch;
-        //TODO in case of recall before epoch block, we could have more than two sets of tips
+        //TODO Recall: in case of recall before epoch block, we could have more than two sets of tips
 
         /// Class constructor
         TipSet() = default;
@@ -60,7 +39,7 @@
         uint32_t GetLatestEpochNumber();
         static TipSet CreateTipSet(Store & store);
     };
-//}
+}
 
 //
 //	//        /*

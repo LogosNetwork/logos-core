@@ -835,12 +835,12 @@ void logos::rpc_handler::available_supply ()
     response (response_l);
 }
 
-void logos::rpc_handler::batch_blocks ()
+void logos::rpc_handler::request_blocks ()
 {
     consensus_blocks<ApprovedRB>();
 }
 
-void logos::rpc_handler::batch_blocks_latest ()
+void logos::rpc_handler::request_blocks_latest ()
 {
     std::string delegate_id_text (request.get<std::string> ("delegate_id"));
     uint64_t delegate_id;
@@ -877,21 +877,73 @@ void logos::rpc_handler::batch_blocks_latest ()
     }
     else
     {
-        auto tip_exists = !node.store.request_tip_get(static_cast<uint8_t>(delegate_id), hash);
+        // Retrieve epoch number to get batch tip
+        // indirectly figure out if we are in stale epoch
+        auto epoch_number_stored (node.store.epoch_number_stored());
+
+        auto tip_exists (false);
+        Tip tip;
+        tip_exists = !node.store.request_tip_get(static_cast<uint8_t>(delegate_id), epoch_number_stored + 2, tip);
+        hash = tip.digest;
+        // if exists, then we are in epoch i + 1 but epoch block i hasn't been persisted yet
+
+        // otherwise, block i has been persisted, i.e. we are at least 1 MB interval past epoch start
+        if (!tip_exists)
+        {
+        	Tip tip;
+            if (node.store.request_tip_get(static_cast<uint8_t>(delegate_id), epoch_number_stored + 1, tip))
+            {
+                error_response (response, "Internal data corruption: request block tip doesn't exist.");
+            }
+            hash = tip.digest;
+        }
     }
 
     boost::property_tree::ptree response_l;
     boost::property_tree::ptree response_batch_blocks;
+    BlockHash prev_hash;
     while (!hash.is_zero() && count > 0)
     {
-        if (node.store.request_block_get(hash, batch))
+        auto retrieve_prev_batch ([&]() -> bool {
+            if (node.store.request_block_get(hash, batch))
+            {
+                return false;
+            }
+            boost::property_tree::ptree response_batch;
+            batch.SerializeJson (response_batch);
+            response_batch_blocks.push_back(std::make_pair("", response_batch));
+            prev_hash = batch.previous;
+            return true;
+        });
+
+        if (!retrieve_prev_batch())
         {
-            error_response (response, "Internal data corruption");
+            error_response (response, "Internal data corruption: batch not found for hash " + hash.to_string());
         }
-        boost::property_tree::ptree response_batch;
-        batch.SerializeJson (response_batch);
-        response_batch_blocks.push_back(std::make_pair("", response_batch));
-        hash = batch.previous;
+
+        // Check if there is a gap in the request block chain
+        if (prev_hash.is_zero() && batch.epoch_number > GENESIS_EPOCH + 1)
+        {
+            // Attempt to get old epoch tip
+        	Tip tip;
+            if (node.store.request_tip_get(static_cast<uint8_t>(delegate_id), batch.epoch_number - 1, tip))
+            {
+                // Only case a tip retrieval fails is when an epoch persistence update just happened and erased the old tip
+                response_batch_blocks.pop_back();
+                // Try again
+                if (!retrieve_prev_batch())
+                {
+                    error_response (response, "Internal data corruption: batch not found.");
+                }
+                if (prev_hash.is_zero())
+                {
+                    error_response (response, "Internal data corruption: old request block tip was deleted without chain linking.");
+                }
+            }
+            prev_hash = tip.digest;
+        }
+        hash = prev_hash;
+        prev_hash.clear();
         count--;
     }
 
@@ -1474,7 +1526,9 @@ void logos::rpc_handler::epochs_latest ()
     }
     else
     {
-        auto tip_exists (!node.store.epoch_tip_get(hash));
+    	Tip tip;
+        auto tip_exists (!node.store.epoch_tip_get(tip));
+        hash = tip.digest;
         assert (tip_exists);
     }
 
@@ -1633,7 +1687,7 @@ void logos::rpc_handler::account_history ()
         error_response (response, "Bad account number");
     }
 
-    std::shared_ptr<logos::Account> info; 
+    std::shared_ptr<logos::Account> info;
     if (node.store.account_get (account, info, transaction))
     {
         error_response (response, "Account not found.");
@@ -1964,7 +2018,9 @@ void logos::rpc_handler::micro_blocks_latest ()
     }
     else
     {
-        auto tip_exists (!node.store.micro_block_tip_get(hash));
+    	Tip tip;
+        auto tip_exists (!node.store.micro_block_tip_get(tip));
+        hash = tip.digest;
         assert (tip_exists);
     }
 
@@ -2605,6 +2661,11 @@ void logos::rpc_handler::process ()
             case RequestType::WithdrawFee:
             case RequestType::WithdrawLogos:
             case RequestType::TokenSend:
+            case RequestType::ElectionVote:
+            case RequestType::AnnounceCandidacy:
+            case RequestType::RenounceCandidacy:
+            case RequestType::StartRepresenting:
+            case RequestType::StopRepresenting:
                 process(request);
                 break;
             case RequestType::Change:
@@ -2821,49 +2882,49 @@ void logos::rpc_handler::receive_minimum_set ()
     }
 }
 
+
+void logos::rpc_handler::candidates ()
+{
+    boost::property_tree::ptree res;
+
+    logos::transaction txn(node.store.environment,nullptr,false);
+
+    for(auto it = logos::store_iterator(txn,node.store.candidacy_db);
+           it != logos::store_iterator(nullptr); ++it)
+    {
+        boost::property_tree::ptree candidate;
+        bool error = false;
+        CandidateInfo info(error, it->second);
+        if(error)
+        {
+            error_response(response,"error reading candidate");
+            return;
+        }
+        res.add_child(it->first.uint256().to_string(),info.SerializeJson());
+    } 
+    response(res);
+}
+
 void logos::rpc_handler::representatives ()
 {
-    uint64_t count (std::numeric_limits<uint64_t>::max ());
-    boost::optional<std::string> count_text (request.get_optional<std::string> ("count"));
-    if (count_text.is_initialized ())
+    boost::property_tree::ptree res;
+
+    logos::transaction txn(node.store.environment,nullptr,false);
+
+    for(auto it = logos::store_iterator(txn,node.store.representative_db);
+           it != logos::store_iterator(nullptr); ++it)
     {
-        auto error (decode_unsigned (count_text.get (), count));
-        if (error)
+        boost::property_tree::ptree candidate;
+        bool error = false;
+        RepInfo info(error, it->second);
+        if(error)
         {
-            error_response (response, "Invalid count limit");
+            error_response(response,"error reading representative");
+            return;
         }
-    }
-    const bool sorting = request.get<bool> ("sorting", false);
-    boost::property_tree::ptree response_l;
-    boost::property_tree::ptree representatives;
-    logos::transaction transaction (node.store.environment, nullptr, false);
-    if (!sorting) // Simple
-    {
-        for (auto i (node.store.representation_begin (transaction)), n (node.store.representation_end ()); i != n && representatives.size () < count; ++i)
-        {
-            logos::account account (i->first.uint256 ());
-            auto amount (node.store.representation_get (transaction, account));
-            representatives.put (account.to_account (), amount.convert_to<std::string> ());
-        }
-    }
-    else // Sorting
-    {
-        std::vector<std::pair<logos::uint128_union, std::string>> representation;
-        for (auto i (node.store.representation_begin (transaction)), n (node.store.representation_end ()); i != n; ++i)
-        {
-            logos::account account (i->first.uint256 ());
-            auto amount (node.store.representation_get (transaction, account));
-            representation.push_back (std::make_pair (amount, account.to_account ()));
-        }
-        std::sort (representation.begin (), representation.end ());
-        std::reverse (representation.begin (), representation.end ());
-        for (auto i (representation.begin ()), n (representation.end ()); i != n && representatives.size () < count; ++i)
-        {
-            representatives.put (i->second, (i->first).number ().convert_to<std::string> ());
-        }
-    }
-    response_l.add_child ("representatives", representatives);
-    response (response_l);
+        res.add_child(it->first.uint256().to_string(),info.SerializeJson());
+    } 
+    response(res);
 }
 
 void logos::rpc_handler::representatives_online ()
@@ -4445,13 +4506,13 @@ void logos::rpc_handler::process_request ()
         {
             available_supply ();
         }
-        else if (action == "batch_blocks")
+        else if (action == "request_blocks")
         {
-            batch_blocks ();
+            request_blocks ();
         }
-        else if (action == "batch_blocks_latest")
+        else if (action == "request_blocks_latest")
         {
-            batch_blocks_latest ();
+            request_blocks_latest ();
         }
         else if (action == "block")
         {
@@ -4500,6 +4561,10 @@ void logos::rpc_handler::process_request ()
         else if (action == "chain")
         {
             chain ();
+        }
+        else if (action == "candidates")
+        {
+            candidates();
         }
         else if (action == "delegators")
         {
@@ -4890,7 +4955,7 @@ logos::rpc_handler::tokens_info(
         {
             details = details_text.get() == "true";
         }
-        
+
         for(auto & item : request.get_child("tokens"))
         {
             std::string account_string(item.second.get_value<std::string>());
@@ -4918,7 +4983,7 @@ logos::rpc_handler::tokens_info(
     return res;
 }
 
-logos::rpc_handler::RpcResponse<boost::property_tree::ptree> 
+logos::rpc_handler::RpcResponse<boost::property_tree::ptree>
 logos::rpc_handler::account_info(
         const boost::property_tree::ptree& request,
         logos::block_store& store)
@@ -4947,8 +5012,8 @@ logos::rpc_handler::account_info(
 
             if(account_ptr->type == logos::AccountType::TokenAccount)
             {
-                TokenAccount token_account = 
-                    *static_pointer_cast<TokenAccount>(account_ptr); 
+                TokenAccount token_account =
+                    *static_pointer_cast<TokenAccount>(account_ptr);
                 response = token_account.SerializeJson(true);
                 response.put("type","TokenAccount");
                 response.put("sequence",token_account.block_count);
@@ -4960,8 +5025,8 @@ logos::rpc_handler::account_info(
                 res.contents = response;
             }
             else
-            { 
-                logos::account_info info = 
+            {
+                logos::account_info info =
                     *static_pointer_cast<logos::account_info>(account_ptr);
 
                 MDB_dbi db = store.account_db;
@@ -5155,7 +5220,7 @@ logos::rpc_handler::block(
     return res;
 }
 
-logos::rpc_handler::RpcResponse<boost::property_tree::ptree> 
+logos::rpc_handler::RpcResponse<boost::property_tree::ptree>
 logos::rpc_handler::blocks(
         const boost::property_tree::ptree& request,
         logos::block_store& store)

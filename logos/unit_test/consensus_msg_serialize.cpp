@@ -71,7 +71,7 @@ PrePrepareMessage<ConsensusType::MicroBlock> create_mb_preprepare()
     block.number_batch_blocks = 2;
     for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
     {
-        block.tips[i] = i;
+        block.tips[i].digest = i;
     }
     return block;
 }
@@ -79,7 +79,7 @@ PrePrepareMessage<ConsensusType::MicroBlock> create_mb_preprepare()
 PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare()
 {
     PrePrepareMessage<ConsensusType::Epoch> block;
-    block.micro_block_tip = 1234;
+    block.micro_block_tip.digest = 1234;
     block.transaction_fee_pool = 2345;
     for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
     {
@@ -773,7 +773,7 @@ TEST (message_validator, consensus_session)
     //step 1, pre-prepare
     //primary, node[0], signs the preprepare
     PrePrepareMessage<ConsensusType::Epoch> preprepare;
-    preprepare.micro_block_tip = 1234;
+    preprepare.micro_block_tip.digest = 1234;
     preprepare.transaction_fee_pool = 2345;
     for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
     {

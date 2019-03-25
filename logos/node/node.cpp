@@ -5,17 +5,12 @@
 #include <logos/tx_acceptor/tx_receiver.hpp>
 
 #include <logos/lib/interface.h>
-#include <logos/lib/trace.hpp>
 #include <logos/node/common.hpp>
 #include <logos/node/rpc.hpp>
 #include <logos/node/client_callback.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/consensus/messages/receive_block.hpp>
-
-#include <logos/bootstrap/p2p.hpp>
-#include <logos/bootstrap/connection.hpp>
-
 
 #include <algorithm>
 #include <future>
@@ -35,10 +30,6 @@
 #include <upnpcommands.h>
 
 #include <ed25519-donna/ed25519.h>
-
-
-
-#define _PRODUCTION 1
 
 double constexpr logos::node::price_max;
 double constexpr logos::node::free_cutoff;
@@ -439,7 +430,7 @@ void logos::logging::init (boost::filesystem::path const & application_path_a)
 
         if (log_to_cerr ())
         {
-            boost::log::add_console_log (std::cerr, boost::log::keywords::format = "[%TimeStamp% %Severity%]: %Message%");
+            boost::log::add_console_log (std::cerr, boost::log::keywords::format = "[%TimeStamp% %ThreadID% %Severity%]: %Message%");
         }
 
         boost::log::add_file_log (boost::log::keywords::target = application_path_a / "log",
@@ -448,7 +439,7 @@ void logos::logging::init (boost::filesystem::path const & application_path_a)
                                   boost::log::keywords::auto_flush = flush,
                                   boost::log::keywords::scan_method = boost::log::sinks::file::scan_method::scan_matching,
                                   boost::log::keywords::max_size = max_size,
-                                  boost::log::keywords::format = "[%TimeStamp% %Severity%]: %Message%");
+                                  boost::log::keywords::format = "[%TimeStamp% %ThreadID% %Severity%]: %Message%");
     }
 }
 
@@ -478,23 +469,23 @@ void logos::logging::serialize_json (boost::property_tree::ptree & tree_a) const
 bool logos::logging::upgrade_json (unsigned version_a, boost::property_tree::ptree & tree_a)
 {
     auto result (false);
-	//    switch (version_a)
-	//    {
-	//        case 1:
-	//            tree_a.put ("vote", vote_logging_value);
-	//            tree_a.put ("version", "2");
-	//            result = true;
-	//        case 2:
-	//            tree_a.put ("rotation_size", "4194304");
-	//            tree_a.put ("flush", "true");
-	//            tree_a.put ("version", "3");
-	//            result = true;
-	//        case 3:
-	//            break;
-	//        default:
-	//            throw std::runtime_error ("Unknown logging_config version");
-	//            break;
-	//    }
+    switch (version_a)
+    {
+        case 1:
+            tree_a.put ("vote", vote_logging_value);
+            tree_a.put ("version", "2");
+            result = true;
+        case 2:
+            tree_a.put ("rotation_size", "4194304");
+            tree_a.put ("flush", "true");
+            tree_a.put ("version", "3");
+            result = true;
+        case 3:
+            break;
+        default:
+            throw std::runtime_error ("Unknown logging_config version");
+            break;
+    }
     return result;
 }
 
@@ -634,7 +625,6 @@ node_config (logos::network::node_port, logos::logging ())
 {
 }
 
-//#define _DEBUG 1 // Enable to get unit test going...
 logos::node_config::node_config (uint16_t peering_port_a, logos::logging const & logging_a) :
 peering_port (peering_port_a),
 logging (logging_a),
@@ -658,17 +648,13 @@ state_block_generate_canary (0)
         case logos::logos_networks::logos_test_network:
 //          LOGOS: ARCHIVE NANO
 //          -------------------
-#ifdef _DEBUG // Needed to get unit test going...
-            preconfigured_representatives.push_back (logos::genesis_account);
-#endif
+//            preconfigured_representatives.push_back (logos::genesis_account);
             break;
         case logos::logos_networks::logos_beta_network:
-#ifdef _DEBUG
-            preconfigured_peers.push_back ("logos-beta.logos.network");
-            preconfigured_representatives.push_back (logos::account ("C93F714298E6061E549E52BB8885085319BE977B3FE8F03A1B726E9BE4BE38DE"));
-            state_block_parse_canary = logos::block_hash ("5005F5283DE8D2DAB0DAC41DE9BD23640F962B4F0EA7D3128C2EA3D78D578E27");
-            state_block_generate_canary = logos::block_hash ("FC18E2265FB835E8CF60E63531053A768CEDF5194263B01A5C95574944E4660D");
-#endif
+//            preconfigured_peers.push_back ("logos-beta.logos.network");
+//            preconfigured_representatives.push_back (logos::account ("C93F714298E6061E549E52BB8885085319BE977B3FE8F03A1B726E9BE4BE38DE"));
+//            state_block_parse_canary = logos::block_hash ("5005F5283DE8D2DAB0DAC41DE9BD23640F962B4F0EA7D3128C2EA3D78D578E27");
+//            state_block_generate_canary = logos::block_hash ("FC18E2265FB835E8CF60E63531053A768CEDF5194263B01A5C95574944E4660D");
             break;
         case logos::logos_networks::logos_live_network:
 //            preconfigured_peers.push_back ("logos.logos.network");
@@ -1353,7 +1339,7 @@ bootstrap_listener (alarm_a, store, config.consensus_manager_config.local_addres
         observers.disconnect ();
     };
 
-    //BOOST_LOG (log) << "Node starting, version: " << LOGOS_VERSION_MAJOR << "." << LOGOS_VERSION_MINOR;
+    BOOST_LOG (log) << "Node starting, version: " << LOGOS_VERSION_MAJOR << "." << LOGOS_VERSION_MINOR;
     BOOST_LOG (log) << boost::str (boost::format ("Work pool running %1% threads") % work.threads.size ());
 
     p2p_conf = config.p2p_conf;
@@ -1409,7 +1395,6 @@ bootstrap_listener (alarm_a, store, config.consensus_manager_config.local_addres
             }
         }*/
     }
-
 }
 
 logos::node::~node ()
@@ -1419,7 +1404,6 @@ logos::node::~node ()
         BOOST_LOG (log) << "Destructing node";
     }
     stop ();
-//    delete _validator;
 }
 
 bool logos::node::copy_with_compaction (boost::filesystem::path const & destination_file)
@@ -1537,19 +1521,11 @@ std::map<logos::endpoint, unsigned> logos::peer_container::list_version ()
 
 logos::endpoint logos::peer_container::bootstrap_peer ()
 {
-/*TODO    logos::endpoint p2p_result = p2p::get_random_peer(); // Get a peer from p2p system...
-
-    if(p2p_result != logos::endpoint (boost::asio::ip::address_v6::any (), 0)) {
-        return p2p_result;
-    }
-*/
-    // Otherwise, use our values from config.consensus_manager_config.delegates
     logos::endpoint result (boost::asio::ip::address_v6::any (), 0);
     std::lock_guard<std::mutex> lock (mutex);
-    int count = 0;
+    ;
     for (auto i (peers.get<4> ().begin ()), n (peers.get<4> ().end ()); i != n;)
     {
-        count++;
         if (i->network_version >= 0x5)
         {
             result = i->endpoint;
@@ -1563,8 +1539,6 @@ logos::endpoint logos::peer_container::bootstrap_peer ()
             ++i;
         }
     }
-    auto address = result.address(); // RGD
-    std::cout << " peer: " << address.to_v6() << " count: " << count << std::endl;
     return result;
 }
 
@@ -1654,20 +1628,18 @@ void logos::node::start ()
 {
 //  LOGOS: ARCHIVE
 //  -------------------
-
-//#ifdef _DEBUG
-    network.receive (); // Needed to get unit test going...
-    ongoing_keepalive ();
-    //ongoing_store_flush ();
-    //ongoing_rep_crawl ();
-    backup_wallet ();
-    //active.announce_votes ();
-    //online_reps.recalculate_stake ();
-    port_mapping.start ();
-    add_initial_peers ();
-    observers.started (); // Seems to cause consensus to fail...
-//#endif
-
+//    network.receive ();
+//    ongoing_keepalive ();
+//    ongoing_bootstrap ();
+//    ongoing_store_flush ();
+//    ongoing_rep_crawl ();
+//    bootstrap.start ();
+//    backup_wallet ();
+//    active.announce_votes ();
+//    online_reps.recalculate_stake ();
+//    port_mapping.start ();
+//    add_initial_peers ();
+//    observers.started ();
 // CH added starting logic here instead of inside constructors
     _archiver.Start(*_consensus_container);
 
@@ -1765,31 +1737,6 @@ void logos::node::ongoing_keepalive ()
         }
     });
 }
-
-#if 0
-void logos::node::ongoing_bootstrap ()
-{
-    auto next_wakeup (300);
-    if (warmed_up < 3)
-    {
-        // Re-attempt bootstrapping more aggressively on startup
-        next_wakeup = 5;
-        if (!bootstrap_initiator.check_progress () && !peers.empty ())
-        {
-            ++warmed_up;
-        }
-    }
-    std::cout << "ongoing_bootstrap:" << std::endl;
-    bootstrap_initiator.bootstrap_listener ();
-    std::weak_ptr<logos::node> node_w (shared_from_this ());
-    alarm.add (std::chrono::steady_clock::now () + std::chrono::seconds (next_wakeup), [node_w]() {
-        if (auto node_l = node_w.lock ())
-        {
-            node_l->ongoing_bootstrap ();
-        }
-    });
-}
-#endif
 
 void logos::node::ongoing_bootstrap ()
 {
@@ -2132,34 +2079,6 @@ uint64_t logos::node::work_generate_blocking (logos::uint256_union const & hash_
 
 void logos::node::add_initial_peers ()
 {
-#ifdef _PRODUCTION
-    LOG_DEBUG(log) << "logos::node::add_initial_peers: ";
-    // Add our peers from the configuation...
-    uint32_t port = Bootstrap::BOOTSTRAP_PORT;
-    for(int i = 0; i < config.consensus_manager_config.delegates.size(); ++i) {
-#if 0
-        logos::endpoint peer = logos::endpoint(
-            boost::asio::ip::address::from_string(
-                (std::string("::") + config.consensus_manager_config.delegates[i].ip)) , port );
-#endif
-        boost::asio::ip::address_v4 v4 = boost::asio::ip::make_address_v4(config.consensus_manager_config.delegates[i].ip);
-        boost::asio::ip::address_v6 v6 = boost::asio::ip::make_address_v6(boost::asio::ip::v4_mapped,v4);
-        logos::endpoint peer = logos::endpoint(
-            boost::asio::ip::address::from_string(
-                v6.to_string()), port );
-
-        LOG_DEBUG(log) << "adding peer: " << config.consensus_manager_config.delegates[i].ip << std::endl;
-        try {
-            if(peers.insert( peer, logos::protocol_version )) {
-                LOG_DEBUG(log) << "error adding peer: " << config.consensus_manager_config.delegates[i].ip << std::endl;
-            }
-        } catch(boost::asio::ip::bad_address_cast &e) {
-            LOG_DEBUG(log) << " failed to add peer: " << config.consensus_manager_config.delegates[i].ip << " reason: " << e.what() << std::endl;
-        } catch(...) {
-            LOG_DEBUG(log) << " failed to add peer: " << config.consensus_manager_config.delegates[i].ip << std::endl;
-        }
-    }
-#endif
 }
 
 logos::process_return logos::node::OnRequest(std::shared_ptr<Request> request, bool should_buffer)
@@ -2278,8 +2197,7 @@ std::vector<logos::peer_information> logos::peer_container::purge_list (std::chr
     std::vector<logos::peer_information> result;
     {
         std::lock_guard<std::mutex> lock (mutex);
-        auto pivot (peers.get<1> ().lower_bound (cutoff - std::chrono::hours(24*365))); // Disable cut-off for testing... RGD
-        //auto pivot (peers.get<1> ().lower_bound (cutoff));
+        auto pivot (peers.get<1> ().lower_bound (cutoff));
         result.assign (pivot, peers.get<1> ().end ());
         // Remove peers that haven't been heard from past the cutoff
         peers.get<1> ().erase (peers.get<1> ().begin (), pivot);
@@ -2579,7 +2497,7 @@ void logos::network::send_buffer (uint8_t const * data_a, size_t size_a, logos::
         this->node.stats.add (logos::stat::type::traffic, logos::stat::dir::out, size_a);
         if (this->node.config.logging.network_packet_logging ())
         {
-            BOOST_LOG (this->node.log) << "Packet send complete";
+            LOG_DEBUG (this->node.log) << "Packet send complete";
         }
     });
 }
@@ -2607,7 +2525,6 @@ int logos::node::store_version ()
     return store.version_get (transaction);
 }
 
-
 logos::thread_runner::thread_runner (boost::asio::io_service & service_a, unsigned service_threads_a)
 {
     for (auto i (0); i < service_threads_a; ++i)
@@ -2617,14 +2534,11 @@ logos::thread_runner::thread_runner (boost::asio::io_service & service_a, unsign
             {
                 service_a.run ();
             }
-            catch (const std::runtime_error & e)
-            {
-                trace();
-                std::cerr << "Error while running thread_runner (" << e.what () << ")\n";
-            }
             catch (...)
             {
-                assert (false && "Unhandled service exception");
+                Log log;
+                LOG_FATAL(log) << "Unhandled service exception!";
+                trace_and_halt();
             }
         }));
     }

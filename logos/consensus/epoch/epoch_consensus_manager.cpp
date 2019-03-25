@@ -19,11 +19,13 @@ EpochConsensusManager::EpochConsensusManager(
     : Manager(service, store, config,
               validator, events_notifier, p2p)
 {
-    if (_store.epoch_tip_get(_prev_pre_prepare_hash))
+	Tip tip;
+    if (_store.epoch_tip_get(tip))
     {
         LOG_FATAL(_log) << "Failed to get epoch's previous hash";
         trace_and_halt();
     }
+    _prev_pre_prepare_hash = tip.digest;
 }
 
 void 
@@ -53,10 +55,20 @@ EpochConsensusManager::QueueMessagePrimary(
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
     auto hash = message->Hash();
-    if (!_store.epoch_exists(hash))
+    // See microblock_consensus_mamanger comment for the same method
+    if (_store.epoch_exists(hash) || (_cur_epoch && _cur_epoch->Hash() == hash))
     {
-        _cur_epoch = static_pointer_cast<PrePrepare>(message);
+        return;
     }
+    else if (_ongoing)
+    {
+        LOG_ERROR(_log) << "MicroBlockConsensusManager::QueueMessagePrimary - Unexpected scenario:"
+                        << " new block (possibly from secondary list) with hash " << hash.to_string()
+                        << " got promoted while current consensus round with hash " << _cur_epoch->Hash().to_string()
+                        << " is still ongoing!";
+        return;
+    }
+    _cur_epoch = static_pointer_cast<PrePrepare>(message);
 }
 
 auto
@@ -135,10 +147,11 @@ uint8_t
 EpochConsensusManager::DesignatedDelegate(
     std::shared_ptr<DelegateMessage> message)
 {
-    BlockHash hash;
+	Tip tip;
+    BlockHash &hash = tip.digest;
     ApprovedMB block;
 
-    if (_store.micro_block_tip_get(hash))
+    if (_store.micro_block_tip_get(tip))
     {
         LOG_FATAL(_log) << "EpochConsensusManager::DesignatedDelegate failed to get microblock tip";
         trace_and_halt();

@@ -34,6 +34,15 @@ void AggSignature::SerializeJson(boost::property_tree::ptree & tree) const
     tree.put("signature", sig.to_string());
 }
 
+bool AggSignature::operator== (AggSignature const & other) const
+{
+    return map == other.map && sig == other.sig;
+}
+bool AggSignature::operator!= (AggSignature const & other) const
+{
+    return !(*this == other);
+}
+
 PrePrepareCommon::PrePrepareCommon()
     : primary_delegate(0xff)
     , epoch_number(0)
@@ -112,7 +121,16 @@ void PrePrepareCommon::Hash(blake2b_state & hash, bool is_archive_block) const
         uint64_t tsp = htole64(timestamp);
         blake2b_update(&hash, &tsp, sizeof(tsp));
     }
-    previous.Hash(hash);
+    // Use a dummy 0 value as previous if it is the first request (batch) block of an epoch (for inter-epoch linking)
+    if (sequence || is_archive_block)
+    {
+        previous.Hash(hash);
+    }
+    else
+    {
+        BlockHash empty;
+        empty.Hash(hash);
+    }
 }
 
 uint32_t PrePrepareCommon::Serialize(logos::stream & stream) const

@@ -20,7 +20,7 @@ public:
         , NonDelegatePersistence<R>(store)
     {}
 
-    bool ValidatePreprepare(const PrePrepare & message, ValidationStatus * status)
+    bool ValidatePreprepare(const PrePrepare & message, ValidationStatus * status) override
     {
         using namespace logos;
 
@@ -49,7 +49,7 @@ public:
         return PersistenceManager<R>::Validate(message, status);
     }
 
-    bool ValidateSingleRequest(std::shared_ptr<const Request> block, logos::process_return &result, bool allow_duplicate=false) override
+    bool ValidateSingleRequest(std::shared_ptr<const Request> block, uint32_t cur_epoch_num, logos::process_return &result, bool allow_duplicate=false) override
     {
         if(block->origin.is_zero())
         {
@@ -63,12 +63,12 @@ public:
             return false;
         }
 
-        return PersistenceManager<R>::ValidateSingleRequest(block, result, allow_duplicate);
+        return PersistenceManager<R>::ValidateSingleRequest(block, cur_epoch_num, result, allow_duplicate);
     }
 
-    bool ValidateSingleRequest(const std::shared_ptr<Request> block)
+    bool ValidateSingleRequest(const std::shared_ptr<Request> block, uint32_t cur_epoch_num)
     {
        logos::process_return res;
-       return ValidateSingleRequest(block, res);
+       return ValidateSingleRequest(block, cur_epoch_num, res);
     }
 };

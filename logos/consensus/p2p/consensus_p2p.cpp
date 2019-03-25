@@ -225,7 +225,7 @@ bool ConsensusP2p<ConsensusType::MicroBlock>::ApplyCacheUpdates(
             {
                 if (status.requests[i] == logos::process_result::gap_previous)
                 {
-                    CacheInsert(block.tips[i], delegate_id, block, pblock);
+                    CacheInsert(block.tips[i].digest, delegate_id, block, pblock);
                 }
             }
             return false;
@@ -254,7 +254,7 @@ bool ConsensusP2p<ConsensusType::Epoch>::ApplyCacheUpdates(
             return false;
 
         case logos::process_result::invalid_tip:
-            CacheInsert(block.micro_block_tip, delegate_id, block, pblock);
+            CacheInsert(block.micro_block_tip.digest, delegate_id, block, pblock);
             return false;
 
         default:
@@ -343,7 +343,7 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const Prequel &prequel, const uint8_t
     {
         LOG_INFO(_log) << "ConsensusP2p<" << ConsensusToName(CT)
                        << "> - PostCommittedBlock with primary delegate " << (unsigned)block.primary_delegate
-                       << " saved to storage.";
+                       << " saved to storage (or already persisted).";
         return true;
     }
     else

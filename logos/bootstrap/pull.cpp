@@ -266,15 +266,15 @@ namespace Bootstrap
 				for(uint i = 0; i < NUM_DELEGATES; ++i)
 				{
 					//TODO add sqn to tip_db and micro_block tips, replace next line
-					if(my_tips.bsb_vec[i].digest != working_mbp.mb->tips[i])
-					//if(my_tips.bsb_vec[i] < working_mbp.mb->tips[i])
+					//if(my_tips.bsb_vec[i].digest != working_mbp.mb->tips[i])
+					if(my_tips.bsb_vec[i] < working_mbp.mb->tips[i])
 					{
 						waiting_pulls.push_back(std::make_shared<PullRequest>(
 								ConsensusType::Request,
 								working_epoch.epoch_num,
 								my_tips.bsb_vec[i].digest,
-								working_mbp.mb->tips[i]/*.digest*/));
-						working_mbp.bsb_targets.insert(working_mbp.mb->tips[i]);
+								working_mbp.mb->tips[i].digest));
+						working_mbp.bsb_targets.insert(working_mbp.mb->tips[i].digest);
 						added_pulls = true;
 					}
 				}

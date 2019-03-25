@@ -70,6 +70,7 @@ public:
     	return ValidatePreprepare(pre_prepare, status);
     }
 
+
     virtual ~NonDelegatePersistence() = default;
 
 protected:

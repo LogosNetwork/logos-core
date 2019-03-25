@@ -6,7 +6,7 @@
 #include <logos/node/delegate_identity_manager.hpp>
 
 std::unordered_map<uint32_t, ValidatorBuilder::pki> ValidatorBuilder::_epoch_pki;
-uint16_t ValidatorBuilder::_cached_epoch = 0;
+uint32_t ValidatorBuilder::_cached_epoch = 0;
 std::shared_ptr<MessageValidator> ValidatorBuilder::_cached_validator = nullptr;
 
 ValidatorBuilder::ValidatorBuilder(ValidatorBuilder::Store &store)
@@ -33,11 +33,13 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
 
     if (k == _epoch_pki.end())
     {
-        if (_store.epoch_tip_get(hash))
+    	Tip tip;
+        if (_store.epoch_tip_get(tip))
         {
             LOG_FATAL(_log) << "ValidatorBuilder::GetValidator failed to get epoch tip";
             trace_and_halt();
         }
+        hash = tip.digest;
 
         bool res;
         for (res = _store.epoch_get(hash, epoch); !res && epoch_number < epoch.epoch_number;
