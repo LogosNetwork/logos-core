@@ -87,8 +87,8 @@ public:
                      Store & store,
                      const Config & config,
                      MessageValidator & validator,
-                     EpochEventsNotifier & events_notifier,
-                     p2p_interface & p2p);
+                     p2p_interface & p2p,
+                     uint32_t epoch_number);
 
     void HandleRequest(std::shared_ptr<Request> block,
                        BlockHash &hash,
@@ -129,6 +129,11 @@ public:
     void ClearWaitingList()
     {
         _secondary_handler.ClearWaitingList();
+    }
+
+    void SetEventsNotifier(std::shared_ptr<EpochEventsNotifier> notifier)
+    {
+        _events_notifier = notifier;
     }
 
 protected:
@@ -207,7 +212,7 @@ protected:
     std::mutex                      _connection_mutex;
     Log                             _log;
     SecondaryRequestHandler<CT> &   _secondary_handler;    ///< Secondary queue of blocks.
-    EpochEventsNotifier &           _events_notifier;      ///< Notifies epoch manager of transition related events
+    std::weak_ptr<EpochEventsNotifier> _events_notifier;      ///< Notifies epoch manager of transition related events
     ReservationsPtr                 _reservations;
     PersistenceManager<CT>          _persistence_manager;
 };

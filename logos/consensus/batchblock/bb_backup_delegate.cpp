@@ -15,7 +15,7 @@ BBBackupDelegate::BBBackupDelegate(
         MessageValidator & validator,
         const DelegateIdentities & ids,
         Service & service,
-        EpochEventsNotifier & events_notifier,
+        std::shared_ptr<EpochEventsNotifier> events_notifier,
 	PersistenceManager<BSBCT> & persistence_manager,
 	p2p_interface & p2p)
     : Connection(iochannel, primary, promoter,
@@ -154,7 +154,8 @@ BBBackupDelegate::HandleReject(const PrePrepare & message)
         case RejectionReason::Invalid_Primary_Index:
             break;
         case RejectionReason::New_Epoch:
-            if (_events_notifier.GetDelegate() == EpochTransitionDelegate::PersistentReject)
+            auto notifier = _events_notifier.lock();
+            if (notifier && notifier->GetDelegate() == EpochTransitionDelegate::PersistentReject)
             {
                 SetPrePrepare(message);
                 ScheduleTimer(GetTimeout(TIMEOUT_MIN_EPOCH, TIMEOUT_RANGE_EPOCH));
@@ -207,10 +208,16 @@ BBBackupDelegate::ScheduleTimer(Seconds timeout)
         _cancel_timer = true;
     }
 
+    std::weak_ptr<BBBackupDelegate> this_w = std::dynamic_pointer_cast<BBBackupDelegate>(shared_from_this());
     _timer.async_wait(
-        [this](const Error & error)
+        [this_w](const Error & error)
         {
-            OnPrePrepareTimeout(error);
+            auto  this_s = this_w.lock();
+            if (!this_s)
+            {
+                return;
+            }
+            this_s->OnPrePrepareTimeout(error);
         });
 
     _callback_scheduled = true;

@@ -12,7 +12,6 @@ EpochManager::EpochManager(Service & service,
                            Alarm & alarm,
                            const Config & config,
                            Archiver & archiver,
-                           PeerAcceptorStarter & starter,
                            std::atomic<EpochTransitionState> & state,
                            EpochTransitionDelegate delegate,
                            EpochConnection connection,
@@ -26,19 +25,14 @@ EpochManager::EpochManager(Service & service,
     , _epoch_number(epoch_number)
     , _new_epoch_handler(handler)
     , _validator(_key_store, logos::genesis_delegates[DelegateIdentityManager::_global_delegate_idx].bls_key)
-    , _batch_manager(service, store, config, _validator, *this, p2p)
-    , _micro_manager(service, store, config, _validator, archiver, *this, p2p)
-    , _epoch_manager(service, store, config, _validator, *this, p2p)
-    , _netio_manager(
-        {
-            {ConsensusType::BatchStateBlock, _batch_manager},
-            {ConsensusType::MicroBlock, _micro_manager},
-            {ConsensusType::Epoch, _epoch_manager}
-        },
-        service, alarm, config,
-        _key_store, _validator, starter, *this)
+    , _batch_manager(std::make_shared<BatchBlockConsensusManager>(service, store, config, _validator, p2p, epoch_number))
+    , _micro_manager(std::make_shared<MicroBlockConsensusManager>(service, store, config, _validator, archiver, p2p, epoch_number))
+    , _epoch_manager(std::make_shared<EpochConsensusManager>(service, store, config, _validator, p2p, epoch_number))
+    , _netio_manager(std::make_shared<ConsensusNetIOManager>(_batch_manager, _micro_manager, _epoch_manager,
+                     service, alarm, config, _key_store, _validator))
     , _delegate_id(delegate_id)
-{}
+{
+}
 
 EpochManager::~EpochManager()
 {
@@ -47,9 +41,9 @@ EpochManager::~EpochManager()
             _delegate == EpochTransitionDelegate::RetiringForwardOnly ||
             _delegate == EpochTransitionDelegate::None)
     {
-        _batch_manager.ClearWaitingList();
-        _micro_manager.ClearWaitingList();
-        _epoch_manager.ClearWaitingList();
+        _batch_manager->ClearWaitingList();
+        _micro_manager->ClearWaitingList();
+        _epoch_manager->ClearWaitingList();
     }
 }
 
@@ -87,5 +81,15 @@ EpochManager::IsRecall()
 void
 EpochManager::CleanUp()
 {
-    _netio_manager.CleanUp();
+    _netio_manager->CleanUp();
+}
+
+void
+EpochManager::Start(PeerAcceptorStarter & starter)
+{
+    auto this_l = shared_from_this();
+    _batch_manager->SetEventsNotifier(this_l);
+    _micro_manager->SetEventsNotifier(this_l);
+    _epoch_manager->SetEventsNotifier(this_l);
+    _netio_manager->Start(this_l, starter);
 }

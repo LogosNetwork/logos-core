@@ -9,10 +9,10 @@ MicroBlockConsensusManager::MicroBlockConsensusManager(
                                const Config & config,
                                MessageValidator & validator,
                                ArchiverMicroBlockHandler & handler,
-                               EpochEventsNotifier & events_notifier,
-                               p2p_interface & p2p)
+                               p2p_interface & p2p,
+                               uint32_t epoch_number)
     : Manager(service, store, config,
-	      validator, events_notifier, p2p)
+	      validator, p2p, epoch_number)
     , _microblock_handler(handler)
 {
     if (_store.micro_block_tip_get(_prev_pre_prepare_hash))
@@ -49,10 +49,27 @@ MicroBlockConsensusManager::QueueRequestPrimary(
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
     auto hash = request->Hash();
-    if (!_store.micro_block_exists(hash))
+
+    // Super edge case scenario example:
+    // 1) at `t` the primary proposes, doesn't complete,
+    // 2) at `t+40s` some other fallback consensus reaches the original primary, doesn't complete,
+    // 3a) at `t+1min` the primary's secondary list times out,
+    // 3b) simultaneously its own PrePrepare timer also times out,
+    // Outcome: the primary's reference value may get corrupted
+    // Hence we need to skip if _cur_microblock hash is the same
+    if (_store.micro_block_exists(hash) || (_cur_microblock && _cur_microblock->Hash() == hash))
     {
-        _cur_microblock = static_pointer_cast<PrePrepare>(request);
+        return;
     }
+    else if (_ongoing)
+    {
+        LOG_ERROR(_log) << "MicroBlockConsensusManager::QueueMessagePrimary - Unexpected scenario:"
+                        << " new block (possibly from secondary list) with hash " << hash.to_string()
+                        << " got promoted while current consensus round with hash " << _cur_microblock->Hash().to_string()
+                        << " is still ongoing!";
+        return;
+    }
+    _cur_microblock = static_pointer_cast<PrePrepare>(request);
 }
 
 auto
@@ -121,8 +138,10 @@ MicroBlockConsensusManager::MakeBackupDelegate(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities& ids)
 {
+    auto notifier = _events_notifier.lock();
+    assert(notifier);
     return std::make_shared<MicroBlockBackupDelegate>(iochannel, *this, *this,
-            _validator, ids, _microblock_handler, _events_notifier, _persistence_manager,
+            _validator, ids, _microblock_handler, notifier, _persistence_manager,
             GetP2p(), _service);
 }
 

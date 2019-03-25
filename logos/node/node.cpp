@@ -2534,9 +2534,18 @@ logos::thread_runner::thread_runner (boost::asio::io_service & service_a, unsign
             {
                 service_a.run ();
             }
+            catch (const std::exception &exc)
+            {
+                Log log;
+                LOG_FATAL(log) << exc.what();
+                trace_and_halt();
+            }
             catch (...)
             {
-                assert (false && "Unhandled service exception");
+                std::exception_ptr p = std::current_exception();
+                Log log;
+                LOG_FATAL(log) << "Unhandled service exception! " << (p ? p.__cxa_exception_type()->name() : "null");
+                trace_and_halt();
             }
         }));
     }

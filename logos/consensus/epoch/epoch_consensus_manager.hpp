@@ -24,8 +24,8 @@ public:
                           Store & store,
                           const Config & config,
                           MessageValidator & validator,
-                          EpochEventsNotifier & events_notifier,
-                          p2p_interface & p2p);
+                          p2p_interface & p2p,
+                          uint32_t epoch_number);
 
     ~EpochConsensusManager() = default;
 

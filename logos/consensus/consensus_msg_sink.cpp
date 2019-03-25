@@ -81,8 +81,14 @@ ConsensusMsgSink::Post(std::shared_ptr<MessageBase> message,
                        ConsensusType consensus_type,
                        bool is_p2p)
 {
-    _service.post([this, message, message_type, consensus_type, is_p2p]() {
-        OnMessage(message, message_type, consensus_type, is_p2p);
-        Pop();
+    std::weak_ptr<ConsensusMsgSink> this_w = shared_from_this();
+    _service.post([this_w, message, message_type, consensus_type, is_p2p]() {
+        auto this_s = this_w.lock();
+        if (!this_s)
+        {
+            return;
+        }
+        this_s->OnMessage(message, message_type, consensus_type, is_p2p);
+        this_s->Pop();
     });
 }

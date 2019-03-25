@@ -71,7 +71,7 @@ protected:
 
 private:
 
-    std::shared_ptr<IOChannel>  _iochannel;
+    std::weak_ptr<IOChannel>    _iochannel;
     Log                         _log;
 };
 

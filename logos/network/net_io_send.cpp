@@ -3,6 +3,7 @@
 //
 #include <logos/network/net_io_send.hpp>
 #include <boost/asio/write.hpp>
+#include <iostream>
 
 bool
 NetIOSend::AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf)
@@ -54,17 +55,23 @@ NetIOSend::AsyncSendBuffered()
             bufs.push_back(boost::asio::buffer(b->data(), b->size()));
         }
 
+        std::weak_ptr<NetIOSend> this_w = shared_from_this();
         boost::asio::async_write(*_socket,
                                  bufs,
-                                 [this, bufs](const Error &ec, size_t size) {
+                                 [this_w, bufs](const Error &ec, size_t size) {
+            auto this_s = this_w.lock();
+            if (!this_s)
+            {
+                return;
+            }
             if (ec)
             {
-                OnError(ec);
+                this_s->OnError(ec);
                 return;
             }
 
-            std::lock_guard<std::mutex> lock(_send_mutex);
-                                     AsyncSendBuffered();
+            std::lock_guard<std::mutex> lock(this_s->_send_mutex);
+            this_s->AsyncSendBuffered();
        });
     }
 }

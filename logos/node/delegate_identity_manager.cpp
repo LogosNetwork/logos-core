@@ -286,7 +286,8 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
         stringstream str(bls_keys[del]);
         bls::KeyPair bls_key;
         str >> bls_key.prv >> bls_key.pub;
-        logos::genesis_delegate delegate{logos::keypair(buff), bls_key, 0, 100000 + (uint64_t) del * 100};
+        logos::genesis_delegate delegate{logos::keypair(buff), bls_key,
+                                         100000 + (uint64_t) del * 100, 100000 + (uint64_t) del * 100};
         logos::keypair &pair = delegate.key;
 
         logos::genesis_delegates.push_back(delegate);
@@ -344,7 +345,8 @@ DelegateIdentityManager::LoadGenesisAccounts()
         stringstream str(bls_keys[del]);
         bls::KeyPair bls_key;
         str >> bls_key.prv >> bls_key.pub;
-        logos::genesis_delegate delegate{logos::keypair(buff), bls_key, 0, 100000 + (uint64_t) del * 100};
+        logos::genesis_delegate delegate{logos::keypair(buff), bls_key,
+                                         100000 + (uint64_t) del * 100, 100000 + (uint64_t) del * 100};
         logos::keypair &pair = delegate.key;
 
         logos::genesis_delegates.push_back(delegate);

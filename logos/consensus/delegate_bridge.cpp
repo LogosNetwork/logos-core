@@ -30,7 +30,12 @@ void DelegateBridge<CT>::Send(const void * data, size_t size)
         return;
     }
 #endif
-    _iochannel->Send(data, size);
+    auto iochannel = _iochannel.lock();
+    if (!iochannel)
+    {
+        return;
+    }
+    iochannel->Send(data, size);
 }
 
 template<ConsensusType CT>
@@ -111,14 +116,24 @@ template<ConsensusType CT>
 void
 DelegateBridge<CT>::ResetConnectCount()
 {
-    std::dynamic_pointer_cast<ConsensusNetIO>(_iochannel)->ResetConnectCount();
+    auto iochannel = _iochannel.lock();
+    if (!iochannel)
+    {
+        return;
+    }
+    std::dynamic_pointer_cast<ConsensusNetIO>(iochannel)->ResetConnectCount();
 }
 
 template<ConsensusType CT>
 bool
 DelegateBridge<CT>::PrimaryDirectlyConnected()
 {
-    return std::dynamic_pointer_cast<ConsensusNetIO>(_iochannel)->PrimaryDirectlyConnected();
+    auto iochannel = _iochannel.lock();
+    if (!iochannel)
+    {
+        return true;
+    }
+    return std::dynamic_pointer_cast<ConsensusNetIO>(iochannel)->PrimaryDirectlyConnected();
 }
 
 template class DelegateBridge<ConsensusType::BatchStateBlock>;

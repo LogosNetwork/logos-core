@@ -337,6 +337,7 @@ bool ConsensusP2p<CT>::ProcessInputMessage(const Prequel &prequel, const uint8_t
     {
         LOG_INFO(_log) << "ConsensusP2p<" << ConsensusToName(CT)
                        << "> - PostCommittedBlock with primary delegate " << (unsigned)block.primary_delegate
+                       << ", epoch number " << block.epoch_number
                        << " saved to storage.";
         return true;
     }

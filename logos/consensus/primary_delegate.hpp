@@ -5,6 +5,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/consensus_state.hpp>
 #include <logos/consensus/messages/util.hpp>
+#include <logos/lib/utility.hpp>
 #include <logos/lib/log.hpp>
 
 #include <boost/asio/deadline_timer.hpp>
@@ -12,7 +13,7 @@
 
 #include <unordered_map>
 
-class PrimaryDelegate
+class PrimaryDelegate : public Self<PrimaryDelegate>
 {
     using uint128_t = logos::uint128_t;
 
@@ -86,6 +87,11 @@ public:
     virtual void SetPreviousPrePrepareHash(const BlockHash &hash)
     {
         _prev_pre_prepare_hash = hash;
+    }
+
+    uint32_t GetEpochNumber()
+    {
+        return _epoch_number;
     }
 
 protected:

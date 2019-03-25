@@ -224,15 +224,30 @@ void PrimaryDelegate::CycleTimers(bool cancel)
 
     _primary_timer.expires_from_now(PRIMARY_TIMEOUT);
 
+    std::weak_ptr<PrimaryDelegate> this_w = shared_from_this();
     if(StateReadyForConsensus())
     {
         _primary_timer.async_wait(
-                [this](const Error & error){OnPrePrepareTimeout<C>(error);});
+                [this_w](const Error & error){
+                    auto this_s = this_w.lock();
+                    if (!this_s)
+                    {
+                        return;
+                    }
+                    this_s->OnPrePrepareTimeout<C>(error);
+                });
     }
     else
     {
         _primary_timer.async_wait(
-                [this](const Error & error){OnPostPrepareTimeout<C>(error);});
+                [this_w](const Error & error){
+                    auto this_s = this_w.lock();
+                    if (!this_s)
+                    {
+                        return;
+                    }
+                    this_s->OnPostPrepareTimeout<C>(error);
+                });
     }
 }
 

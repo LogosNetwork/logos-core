@@ -9,6 +9,7 @@
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/log.hpp>
+#include <logos/lib/utility.hpp>
 #include <logos/consensus/consensus_msg_sink.hpp>
 
 #include <boost/asio/io_service.hpp>
@@ -78,7 +79,7 @@ class ConsensusNetIOAssembler : public NetIOAssembler {
     using Socket        = boost::asio::ip::tcp::socket;
     using Error         = boost::system::error_code;
 public:
-    ConsensusNetIOAssembler (std::shared_ptr<Socket> socket, EpochInfo& epoch_info, IOChannelReconnect &netio)
+    ConsensusNetIOAssembler (std::shared_ptr<Socket> socket, std::shared_ptr<EpochInfo> epoch_info, IOChannelReconnect &netio)
         : NetIOAssembler(socket)
         , _epoch_info(epoch_info)
         , _netio(netio)
@@ -89,8 +90,8 @@ protected:
     void OnRead() override;
 
 private:
-    EpochInfo &             _epoch_info;
-    IOChannelReconnect &    _netio;
+    std::weak_ptr<EpochInfo> _epoch_info;
+    IOChannelReconnect &     _netio;
 };
 
 /// ConsensusNetIO represent connection to a peer.
@@ -105,7 +106,7 @@ class ConsensusNetIO: public IOChannel,
                       public NetIOSend,
                       public ConsensusMsgProducer,
                       public ConsensusMsgSink,
-                      public std::enable_shared_from_this<ConsensusNetIO>
+                      public Self<ConsensusNetIO>
 {
 
     using Service       = boost::asio::io_service;
@@ -113,8 +114,10 @@ class ConsensusNetIO: public IOChannel,
     using Socket        = boost::asio::ip::tcp::socket;
     using Address       = boost::asio::ip::address;
     using IOBinder      = function<void(std::shared_ptr<ConsensusNetIO>, uint8_t)>;
-    using Connections   = std::shared_ptr<MessageParser> [CONSENSUS_TYPE_COUNT];
+    using Connections   = std::weak_ptr<MessageParser> [CONSENSUS_TYPE_COUNT];
     using QueuedWrites  = std::list<std::shared_ptr<std::vector<uint8_t>>>;
+    using CreatedCb     = void (ConsensusNetIO::*)();
+    template<typename T> using SPTR = std::shared_ptr<T>;
 
 public:
 
@@ -142,8 +145,9 @@ public:
                    MessageValidator & validator,
                    IOBinder binder,
                    std::recursive_mutex & connection_mutex,
-                   EpochInfo & epoch_info,
-                   NetIOErrorHandler & error_handler);
+                   std::shared_ptr<EpochInfo> epoch_info,
+                   NetIOErrorHandler & error_handler,
+                   CreatedCb &cb);
 
     /// Class constructor.
     ///
@@ -168,8 +172,9 @@ public:
                    MessageValidator & validator,
                    IOBinder binder,
                    std::recursive_mutex & connection_mutex,
-                   EpochInfo & epoch_info,
-                   NetIOErrorHandler & error_handler);
+                   std::shared_ptr<EpochInfo> epoch_info,
+                   NetIOErrorHandler & error_handler,
+                   CreatedCb &cb);
 
     virtual ~ConsensusNetIO()
     {
@@ -347,9 +352,9 @@ private:
     DelegateKeyStore &             _key_store;            ///< Delegates' public key store
     MessageValidator &             _validator;            ///< Validator/Signer of consensus messages
     IOBinder                       _io_channel_binder;    ///< Network i/o to consensus binder
-    ConsensusNetIOAssembler        _assembler;            ///< Assembles messages from TCP buffer
+    SPTR<ConsensusNetIOAssembler>  _assembler;            ///< Assembles messages from TCP buffer
     std::recursive_mutex &         _connection_mutex;     ///< _connections access mutex
-    EpochInfo &                    _epoch_info;           ///< Epoch transition info
+    std::weak_ptr<EpochInfo>       _epoch_info;           ///< Epoch transition info
     NetIOErrorHandler &            _error_handler;        ///< Pass socket error to ConsensusNetIOManager
     std::recursive_mutex           _error_mutex;          ///< Error handling mutex
     bool                           _error_handled;        ///< Socket error handled, prevent continous error loop

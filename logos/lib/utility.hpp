@@ -35,3 +35,15 @@ std::string string_to_hex_str(const std::string& input);
 std::string byte_vector_to_string(const std::vector<uint8_t> & buf);
 
 }
+
+struct SelfBase : std::enable_shared_from_this<SelfBase> {
+    virtual ~SelfBase() = default;
+};
+
+template <typename T>
+struct Self : virtual SelfBase {
+    virtual ~Self() = default;
+    std::shared_ptr<T> shared_from_this() {
+        return std::dynamic_pointer_cast<T>(SelfBase::shared_from_this());
+    }
+};

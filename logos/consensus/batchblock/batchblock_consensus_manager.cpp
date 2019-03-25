@@ -15,10 +15,10 @@ BatchBlockConsensusManager::BatchBlockConsensusManager(
         Store & store,
         const Config & config,
         MessageValidator & validator,
-        EpochEventsNotifier & events_notifier,
-        p2p_interface & p2p)
+        p2p_interface & p2p,
+        uint32_t epoch_number)
     : Manager(service, store, config,
-	      validator, events_notifier, p2p)
+	      validator, p2p, epoch_number)
     , _init_timer(service)
 {
     _state = ConsensusState::INITIALIZING;
@@ -134,7 +134,7 @@ BatchBlockConsensusManager::PrePrepareGetNext() -> PrePrepare &
 
     batch.sequence = _sequence;
     batch.timestamp = GetStamp();
-    batch.epoch_number = _events_notifier.GetEpochNumber();
+    batch.epoch_number = _epoch_number;
     batch.primary_delegate = _delegate_id;
     // SYL Integration fix: move previous assignment here to avoid overriding in archive blocks
     batch.previous = _prev_pre_prepare_hash;
@@ -250,9 +250,11 @@ BatchBlockConsensusManager::MakeBackupDelegate(
     std::shared_ptr<IOChannel> iochannel,
     const DelegateIdentities& ids)
 {
+    auto notifier = _events_notifier.lock();
+    assert(notifier);
     return std::make_shared<BBBackupDelegate>(
             iochannel, *this, *this, _validator,
-	    ids, _service, _events_notifier, _persistence_manager, GetP2p());
+	    ids, _service, notifier, _persistence_manager, GetP2p());
 }
 
 void
@@ -380,6 +382,11 @@ BatchBlockConsensusManager::IsPrePrepareRejected()
 void
 BatchBlockConsensusManager::OnPrePrepareRejected()
 {
+    auto notifier = _events_notifier.lock();
+    if (!notifier)
+    {
+        return;
+    }
     if (_state != ConsensusState::PRE_PREPARE)
     {
         LOG_FATAL(_log) << "BatchBlockConsensusManager::OnPrePrepareRejected - unexpected state " << StateToString(_state);
@@ -392,7 +399,7 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 
         // TODO: Retiring delegate in ForwardOnly state
         //       has to forward to new primary - deferred.
-        _events_notifier.OnPrePrepareRejected();
+        notifier->OnPrePrepareRejected();
 
         // forward
         return;
@@ -575,14 +582,16 @@ BatchBlockConsensusManager::OnPrePrepareRejected()
 void
 BatchBlockConsensusManager::OnDelegatesConnected()
 {
-    if(_delegates_connected)
+    auto  notifier = _events_notifier.lock();
+
+    if(!notifier || _delegates_connected)
     {
         return;
     }
 
     _delegates_connected = true;
 
-    if (_events_notifier.GetState() == EpochTransitionState::None)
+    if (notifier->GetState() == EpochTransitionState::None)
     {
         _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
         _init_timer.async_wait([this](const Error &error) {

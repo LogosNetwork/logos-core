@@ -14,10 +14,10 @@ EpochConsensusManager::EpochConsensusManager(
                           Store & store,
                           const Config & config,
                           MessageValidator & validator,
-                          EpochEventsNotifier & events_notifier,
-                          p2p_interface & p2p)
+                          p2p_interface & p2p,
+                          uint32_t epoch_number)
     : Manager(service, store, config,
-              validator, events_notifier, p2p)
+              validator, p2p, epoch_number)
 {
     if (_store.epoch_tip_get(_prev_pre_prepare_hash))
     {
@@ -53,10 +53,20 @@ EpochConsensusManager::QueueRequestPrimary(
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
     auto hash = request->Hash();
-    if (!_store.epoch_exists(hash))
+    if (_store.epoch_exists(hash) || (_cur_epoch && _cur_epoch->Hash() == hash))
     {
-        _cur_epoch = static_pointer_cast<PrePrepare>(request);
+        return;
     }
+    else if (_ongoing)
+    {
+        LOG_ERROR(_log) << "MicroBlockConsensusManager::QueueMessagePrimary - Unexpected scenario:"
+                        << " new block (possibly from secondary list) with hash " << hash.to_string()
+                        << " got promoted while current consensus round with hash " << _cur_epoch->Hash().to_string()
+                        << " is still ongoing!";
+
+        return;
+    }
+    _cur_epoch = static_pointer_cast<PrePrepare>(request);
 }
 
 auto
@@ -126,8 +136,10 @@ EpochConsensusManager::MakeBackupDelegate(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities& ids)
 {
+    auto notifier = _events_notifier.lock();
+    assert(notifier);
     return std::make_shared<EpochBackupDelegate>(iochannel, *this, *this,
-            _validator, ids, _events_notifier, _persistence_manager,
+            _validator, ids, notifier, _persistence_manager,
             GetP2p(), _service);
 }
 
@@ -155,7 +167,7 @@ EpochConsensusManager::DesignatedDelegate(
     {
         LOG_DEBUG(_log) << "EpochConsensusManager::DesignatedDelegate epoch proposed by delegate "
                         << (int)_delegate_id << " " << (int)DelegateIdentityManager::_global_delegate_idx
-                        << " " << _events_notifier.GetEpochNumber()
+                        << " " << _epoch_number
                         << " " << (int)block.primary_delegate;
         return _delegate_id;
     }

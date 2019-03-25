@@ -69,6 +69,7 @@ EventProposer::ProposeTransition(TransitionCb cb, bool next)
     lapse = (lapse > EPOCH_DELEGATES_CONNECT) ? lapse - EPOCH_DELEGATES_CONNECT : lapse;
     _skip_transition = false;
     _recall_handler.Reset();
+    LOG_DEBUG(_log) << "EventProposer::ProposeTransition: epoch transition in " << (lapse.count()/1000.) << " seconds";
     _alarm.add(std::chrono::steady_clock::now() + lapse, [this, cb]()mutable->void{
         cb();
         ProposeTransition(cb, true);

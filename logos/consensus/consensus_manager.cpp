@@ -16,15 +16,14 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
                                        Store & store,
                                        const Config & config,
                                        MessageValidator & validator,
-                                       EpochEventsNotifier & events_notifier,
-                                       p2p_interface & p2p)
-    : PrimaryDelegate(service, validator, events_notifier.GetEpochNumber())
+                                       p2p_interface & p2p,
+                                       uint32_t epoch_number)
+    : PrimaryDelegate(service, validator, epoch_number)
     , ConsensusP2pBridge<CT>(service, p2p, config.delegate_id)
     , _service(service)
     , _store(store)
     , _validator(validator)
     , _secondary_handler(SecondaryRequestHandlerInstance(service, this))
-    , _events_notifier(events_notifier)
     , _reservations(std::make_shared<Reservations>(store))
     , _persistence_manager(store, _reservations)
 {
@@ -362,8 +361,15 @@ ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {
                         << ">::OnP2pTimeout, scheduling p2p timer "
                         << " vote " << vote << "/" << _vote_quorum
                         << " stake " << stake << "/" << _stake_quorum;
-        ConsensusP2pBridge<CT>::ScheduleP2pTimer(std::bind(&ConsensusManager::OnP2pTimeout, this,
-                                                           std::placeholders::_1));
+        std::weak_ptr<ConsensusManager<CT>> this_w = std::dynamic_pointer_cast<ConsensusManager<CT>>(shared_from_this());
+        ConsensusP2pBridge<CT>::ScheduleP2pTimer([this_w](const ErrorCode &ec) {
+            auto this_s = this_w.lock();
+            if (!this_s)
+            {
+                return;
+            }
+            this_s->OnP2pTimeout(ec);
+        });
     }
     else
     {
@@ -381,8 +387,15 @@ ConsensusManager<CT>::EnableP2p(bool enable)
 
     if (enable)
     {
-       ConsensusP2pBridge<CT>::ScheduleP2pTimer(std::bind(&ConsensusManager::OnP2pTimeout, this,
-                                                std::placeholders::_1));
+        std::weak_ptr<ConsensusManager<CT>> this_w = std::dynamic_pointer_cast<ConsensusManager<CT>>(shared_from_this());
+       ConsensusP2pBridge<CT>::ScheduleP2pTimer([this_w](const ErrorCode &ec) {
+           auto this_s = this_w.lock();
+           if (!this_s)
+           {
+               return;
+           }
+           this_s->OnP2pTimeout(ec);
+       });
     }
 }
 
@@ -391,8 +404,15 @@ bool
 ConsensusManager<CT>::ProceedWithRePropose()
 {
     // ignore if the old delegate's set, the new delegate's set will pick it up
-    return  _events_notifier.GetState() == EpochTransitionState::None ||
-            _events_notifier.GetConnection() == EpochConnection::Transitioning;
+    auto notifier = _events_notifier.lock();
+    if (!notifier)
+    {
+        return false;
+    }
+
+    return  notifier->GetState() == EpochTransitionState::None &&
+            notifier->GetDelegate() == EpochTransitionDelegate::None ||
+            notifier->GetConnection() == EpochConnection::Transitioning;
 }
 
 template<ConsensusType CT>

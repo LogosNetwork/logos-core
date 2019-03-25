@@ -6,6 +6,7 @@
 
 #include <logos/consensus/consensus_msg_consumer.hpp>
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/lib/utility.hpp>
 #include <logos/lib/log.hpp>
 
 #include <boost/asio/io_service.hpp>
@@ -14,7 +15,8 @@
 #include <mutex>
 
 /// Sink for consensus messages, is also consumer of the message queue
-class ConsensusMsgSink : public ConsensusMsgConsumer
+class ConsensusMsgSink : public ConsensusMsgConsumer,
+                         public Self<ConsensusMsgSink>
 {
 
     /// Message stored on the queue
