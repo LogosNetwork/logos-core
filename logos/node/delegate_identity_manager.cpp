@@ -295,7 +295,7 @@ DelegateIdentityManager::Init(const Config &config)
 
     _delegate_account = logos::genesis_delegates[config.delegate_id].key.pub;
     _global_delegate_idx = config.delegate_id;
-    LOG_INFO(_log) << "delegate id is " << _global_delegate_idx;
+    LOG_INFO(_log) << "delegate id is " << (int)_global_delegate_idx;
 
     ConsensusContainer::SetCurEpochNumber(epoch_number);
 
@@ -324,7 +324,8 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
         stringstream str(bls_keys[del]);
         bls::KeyPair bls_key;
         str >> bls_key.prv >> bls_key.pub;
-        logos::genesis_delegate delegate{logos::keypair(buff), bls_key, 0, 100000 + (uint64_t) del * 100};
+        logos::genesis_delegate delegate{logos::keypair(buff), bls_key,
+                                         100000 + (uint64_t) del * 100, 100000 + (uint64_t) del * 100};
         logos::keypair &pair = delegate.key;
 
         logos::genesis_delegates.push_back(delegate);
@@ -381,7 +382,8 @@ DelegateIdentityManager::LoadGenesisAccounts()
         stringstream str(bls_keys[del]);
         bls::KeyPair bls_key;
         str >> bls_key.prv >> bls_key.pub;
-        logos::genesis_delegate delegate{logos::keypair(buff), bls_key, 0, 100000 + (uint64_t) del * 100};
+        logos::genesis_delegate delegate{logos::keypair(buff), bls_key,
+                                         100000 + (uint64_t) del * 100, 100000 + (uint64_t) del * 100};
         logos::keypair &pair = delegate.key;
 
         logos::genesis_delegates.push_back(delegate);

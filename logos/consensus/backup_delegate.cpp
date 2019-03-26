@@ -11,7 +11,7 @@ BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
                                    MessagePromoter<CT> & promoter,
                                    MessageValidator & validator,
                                    const DelegateIdentities & ids,
-                                   EpochEventsNotifier & events_notifier,
+                                   std::shared_ptr<EpochEventsNotifier> events_notifier,
                                    PersistenceManager<CT> & persistence_manager,
                                    p2p_interface & p2p,
                                    Service & service)
@@ -23,7 +23,7 @@ BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
     , _promoter(promoter)
     , _events_notifier(events_notifier)
     , _persistence_manager(persistence_manager)
-    , _epoch_number(events_notifier.GetEpochNumber())
+    , _epoch_number(primary.GetEpochNumber())
 {}
 
 template<ConsensusType CT>
@@ -79,6 +79,11 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostPrepare & message)
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 {
+    auto notifier = _events_notifier.lock();
+    if (!notifier)
+    {
+        return;
+    }
     if(ProceedWithMessage(message))
     {
         assert(_pre_prepare);
@@ -91,7 +96,7 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
         _state = ConsensusState::VOID;
         SetPreviousPrePrepareHash(_pre_prepare_hash);
 
-        _events_notifier.OnPostCommit(_pre_prepare->epoch_number);
+        notifier->OnPostCommit(_pre_prepare->epoch_number);
 
         std::vector<uint8_t> buf;
         block.Serialize(buf, true, true);
@@ -252,11 +257,16 @@ template<>
 bool BackupDelegate<ConsensusType::Request>::ValidateEpoch(
     const PrePrepareMessage<ConsensusType::Request> &message)
 {
+    auto notifier = _events_notifier.lock();
+    if (!notifier)
+    {
+        return false;
+    }
     bool valid = true;
 
-    auto delegate = _events_notifier.GetDelegate();
-    auto state = _events_notifier.GetState();
-    auto connect = _events_notifier.GetConnection();
+    auto delegate = notifier->GetDelegate();
+    auto state = notifier->GetState();
+    auto connect = notifier->GetConnection();
     if (delegate == EpochTransitionDelegate::PersistentReject ||
         delegate == EpochTransitionDelegate::RetiringForwardOnly)
     {

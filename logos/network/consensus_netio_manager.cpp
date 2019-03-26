@@ -7,35 +7,43 @@
 #include <logos/node/node.hpp>
 
 const boost::posix_time::seconds ConsensusNetIOManager::HEARTBEAT{20};
-const uint64_t ConsensusNetIOManager::GB_AGE = 20000; //milliseconds
 const uint64_t ConsensusNetIOManager::MESSAGE_AGE = 60000; //milliseconds
 const uint64_t ConsensusNetIOManager::MESSAGE_AGE_LIMIT = 100000; //milliseconds
 
 using boost::asio::ip::make_address_v4;
 
-ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
+ConsensusNetIOManager::ConsensusNetIOManager(std::shared_ptr<NetIOHandler> request_manager,
+                                             std::shared_ptr<NetIOHandler> micro_manager,
+                                             std::shared_ptr<NetIOHandler> epoch_manager,
                                              Service & service, 
                                              logos::alarm & alarm, 
                                              const Config & config,
                                              DelegateKeyStore & key_store,
-                                             MessageValidator & validator,
-                                             PeerAcceptorStarter & starter,
-                                             EpochInfo & epoch_info)
+                                             MessageValidator & validator)
     : _service(service)
     , _delegates(config.delegates)
-    , _consensus_managers(consensus_managers)
+    , _consensus_managers({
+            {ConsensusType::Request, request_manager},
+            {ConsensusType::MicroBlock, micro_manager},
+            {ConsensusType::Epoch, epoch_manager}
+        })
     , _alarm(alarm)
     , _key_store(key_store)
     , _validator(validator)
     , _delegate_id(config.delegate_id)
-    , _epoch_info(epoch_info)
     , _heartbeat_timer(service)
     , _config(config)
 {
+}
+
+void
+ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info, PeerAcceptorStarter & starter)
+{
+    _epoch_info = epoch_info;
     uint server_endpoints;
 
-    auto local_endpoint(Endpoint(make_address_v4(config.local_address),
-                        config.peer_port));
+    auto local_endpoint(Endpoint(make_address_v4(_config.local_address),
+                        _config.peer_port));
 
     _key_store.OnPublicKey(_delegate_id, _validator.GetPublicKey());
 
@@ -45,7 +53,7 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
         {
             auto endpoint = Endpoint(make_address_v4(delegate.ip),
                                      local_endpoint.port());
-            AddNetIOConnection(service, delegate.id, endpoint);
+            AddNetIOConnection(_service, delegate.id, endpoint);
         }
         else if (delegate.id != _delegate_id)
         {
@@ -61,20 +69,17 @@ ConsensusNetIOManager::ConsensusNetIOManager(Managers consensus_managers,
     ScheduleTimer(HEARTBEAT);
 }
 
+
 ConsensusNetIOManager::~ConsensusNetIOManager()
 {
-    LOG_DEBUG(_log) << "~ConsensusNetIOManager, connections " << _connections.size()
-                    << " connection " << TransitionConnectionToName(_epoch_info.GetConnection())
-                    << " " << (int)DelegateIdentityManager::_global_delegate_idx;
-
-    std::lock_guard<std::mutex> lock(_gb_mutex);
-
-    for (auto it : _gb_collection)
+    auto info = _epoch_info.lock();
+    if (!info)
     {
-        it.netio->UnbindIOChannel();
-        it.netio.reset();
+        return;
     }
-    _gb_collection.clear();
+    LOG_DEBUG(_log) << "~ConsensusNetIOManager, connections " << _connections.size()
+                    << " connection " << (info?TransitionConnectionToName(info->GetConnection()):" not available")
+                    << " " << (int)DelegateIdentityManager::_global_delegate_idx;
 }
 
 void
@@ -98,7 +103,7 @@ ConsensusNetIOManager::BindIOChannel(
     for (auto & entry : _consensus_managers)
     {
         netio->AddConsensusConnection(entry.first,
-                                      entry.second.BindIOChannel(netio, ids));
+                                      entry.second->BindIOChannel(netio, ids));
     }
 }
 
@@ -114,7 +119,7 @@ ConsensusNetIOManager::OnNetIOError(
 
         for (auto &entry : _consensus_managers)
         {
-            entry.second.OnNetIOError(delegate_id);
+            entry.second->OnNetIOError(delegate_id);
         }
     }
 
@@ -126,10 +131,12 @@ ConsensusNetIOManager::OnNetIOError(
     {
         if ((*it)->IsRemoteDelegate(delegate_id))
         {
-            auto netio(*it);
-
             LOG_ERROR(_log) << "ConsensusNetIOManager::OnNetIOError " << ec.message() << " " << (int)delegate_id
-                            << " " << netio->GetEndpoint();
+                            << " " << (*it)->GetEndpoint();
+
+            auto endpoint = (*it)->GetEndpoint();
+            (*it)->UnbindIOChannel();
+            (*it).reset();
 
             _connections.erase(it);
 
@@ -137,14 +144,17 @@ ConsensusNetIOManager::OnNetIOError(
             // otherwise TCP/IP server is already accepting connections
             if (reconnect && _delegate_id < delegate_id)
             {
-                auto endpoint = netio->GetEndpoint();
-                _alarm.add(Seconds(ConsensusNetIO::CONNECT_RETRY_DELAY), [this, delegate_id, endpoint]() {
-                    AddNetIOConnection(_service, delegate_id, endpoint);
+                std::weak_ptr<ConsensusNetIOManager> this_w = shared_from_this();
+                _alarm.add(Seconds(ConsensusNetIO::CONNECT_RETRY_DELAY), [this_w, delegate_id, endpoint]() {
+                    auto this_s = this_w.lock();
+                    if (!this_s)
+                    {
+                        return;
+                    }
+                    this_s->AddNetIOConnection(this_s->_service, delegate_id, endpoint);
                 });
             }
 
-            std::lock_guard<std::mutex> gblock(_gb_mutex);
-            _gb_collection.push_back({GetStamp(), netio});
             found = true;
             break;
         }
@@ -163,7 +173,6 @@ ConsensusNetIOManager::AddNetIOConnection(
     uint8_t remote_delegate_id,
     const Endpoint &endpoint)
 {
-    std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
 
     auto bc = [this](std::shared_ptr<ConsensusNetIO> netio,
                      uint8_t id)
@@ -171,19 +180,38 @@ ConsensusNetIOManager::AddNetIOConnection(
         BindIOChannel(netio, id);
     };
 
-    _connections.push_back(std::make_shared<ConsensusNetIO>(
+    void (ConsensusNetIO::*cb)();
+    auto info = _epoch_info.lock();
+    if (!info)
+    {
+        return;
+    }
+    auto netio = std::make_shared<ConsensusNetIO>(
             t, endpoint, _alarm, remote_delegate_id,
             _delegate_id, _key_store, _validator,
-            bc, _connection_mutex, _epoch_info, *this));
+            bc, _connection_mutex, info, *this, cb);
+    {
+        std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
+        _connections.push_back(netio);
+    }
+    ((*netio).*cb)();
+
 }
 
 void
 ConsensusNetIOManager::ScheduleTimer(
     boost::posix_time::seconds sec)
 {
+    std::weak_ptr<ConsensusNetIOManager> this_w = shared_from_this();
     _heartbeat_timer.expires_from_now(sec);
-    _heartbeat_timer.async_wait(std::bind(&ConsensusNetIOManager::OnTimeout, this,
-                                std::placeholders::_1));
+    _heartbeat_timer.async_wait([this_w](const Error &ec) {
+        auto this_s = this_w.lock();
+        if (!this_s)
+        {
+            return;
+        }
+        this_s->OnTimeout(ec);
+    });
 }
 
 void
@@ -233,26 +261,6 @@ ConsensusNetIOManager::OnTimeout(
         it->OnNetIOError(error, true);
     }
 
-    auto now = GetStamp();
-
-    std::lock_guard<std::mutex> lock(_gb_mutex);
-    for (auto it = _gb_collection.begin(); it != _gb_collection.end();)
-    {
-        if (now - it->timestamp > GB_AGE)
-        {
-            auto netio = it->netio;
-            LOG_DEBUG(_log) << "ConsensusNetIOManager::OnTimeout, gb collecting "
-                            << (int)netio->GetRemoteDelegateId();
-            it = _gb_collection.erase(it);
-            netio->UnbindIOChannel();
-            netio.reset();
-        }
-        else
-        {
-            ++it;
-        }
-    }
-
     ScheduleTimer(HEARTBEAT);
 }
 
@@ -271,4 +279,25 @@ ConsensusNetIOManager::CleanUp()
         it->OnNetIOError(error, false);
     }
     connections.clear();
+}
+
+bool
+ConsensusNetIOManager::AddToConsensusQueue(const uint8_t * data,
+                                           uint8_t version,
+                                           MessageType message_type,
+                                           ConsensusType consensus_type,
+                                           uint32_t payload_size,
+                                           uint8_t delegate_id)
+{
+    std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
+
+    for (auto it = _connections.begin(); it != _connections.end(); ++it)
+    {
+        if ((*it)->GetRemoteDelegateId() == delegate_id)
+        {
+            (*it)->Push(data, version, message_type, consensus_type, payload_size, true);
+            break;
+        }
+    }
+    return true;
 }

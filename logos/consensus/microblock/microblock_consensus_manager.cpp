@@ -9,10 +9,10 @@ MicroBlockConsensusManager::MicroBlockConsensusManager(
                                const Config & config,
                                MessageValidator & validator,
                                ArchiverMicroBlockHandler & handler,
-                               EpochEventsNotifier & events_notifier,
-                               p2p_interface & p2p)
+                               p2p_interface & p2p,
+                               uint32_t epoch_number)
     : Manager(service, store, config,
-	      validator, events_notifier, p2p)
+	      validator, p2p, epoch_number)
     , _microblock_handler(handler)
 {
     if (_store.micro_block_tip_get(_prev_pre_prepare_hash))
@@ -138,8 +138,10 @@ MicroBlockConsensusManager::MakeBackupDelegate(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities& ids)
 {
+    auto notifier = _events_notifier.lock();
+    assert(notifier);
     return std::make_shared<MicroBlockBackupDelegate>(iochannel, *this, *this,
-            _validator, ids, _microblock_handler, _events_notifier, _persistence_manager,
+            _validator, ids, _microblock_handler, notifier, _persistence_manager,
             GetP2p(), _service);
 }
 

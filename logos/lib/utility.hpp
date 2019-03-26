@@ -286,3 +286,15 @@ struct BitField
 
     std::bitset<N> field;
 };
+
+struct SelfBase : std::enable_shared_from_this<SelfBase> {
+    virtual ~SelfBase() = default;
+};
+
+template <typename T>
+struct Self : virtual SelfBase {
+    virtual ~Self() = default;
+    std::shared_ptr<T> shared_from_this() {
+        return std::dynamic_pointer_cast<T>(SelfBase::shared_from_this());
+    }
+};

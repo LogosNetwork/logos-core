@@ -86,6 +86,10 @@ public:
     static uint32_t TERM_LENGTH;
 
 
+    /// Is this a first epoch after genesis
+    /// @returns true if first epoch
+    bool IsFirstEpoch();
+
 private:
 
     BlockStore &    _store; ///< logos block store reference

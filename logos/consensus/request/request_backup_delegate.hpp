@@ -41,7 +41,7 @@ public:
                           MessageValidator & validator,
                           const DelegateIdentities & ids,
 						  Service & service,
-                          EpochEventsNotifier & events_notifier,
+                          std::shared_ptr<EpochEventsNotifier> events_notifier,
                           PersistenceManager<R> & persistence_manager,
                           p2p_interface & p2p);
     ~RequestBackupDelegate() {}

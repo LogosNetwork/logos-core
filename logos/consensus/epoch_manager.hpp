@@ -8,6 +8,8 @@
 #include <logos/consensus/request/request_consensus_manager.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 #include <logos/network/consensus_netio_manager.hpp>
+#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/lib/utility.hpp>
 
 class Archiver;
 class NewEpochEventHandler;
@@ -44,7 +46,8 @@ public:
 };
 
 class EpochManager : public EpochInfo,
-                     public EpochEventsNotifier
+                     public EpochEventsNotifier,
+                     public Self<EpochManager>
 {
 
     friend class ConsensusContainer;
@@ -54,6 +57,8 @@ class EpochManager : public EpochInfo,
     using Log        = boost::log::sources::logger_mt;
     using Store      = logos::block_store;
     using Alarm      = logos::alarm;
+    template<typename T>
+    using SPTR       = std::shared_ptr<T>;
 
 public:
 
@@ -62,7 +67,6 @@ public:
                  Alarm & alarm,
                  const Config & config,
                  Archiver & archiver,
-                 PeerAcceptorStarter & starter,
                  std::atomic<EpochTransitionState> & state,
                  EpochTransitionDelegate delegate,
                  EpochConnection connection,
@@ -102,14 +106,19 @@ public:
         return _delegate_id;
     }
 
+    void Start(PeerAcceptorStarter & starter);
+
 private:
 
     /// Update secondary request handler promoter during epoch transition
     void UpdateRequestPromoter()
     {
-        _request_manager.UpdateMessagePromoter();
-        _micro_manager.UpdateMessagePromoter();
-        _epoch_manager.UpdateMessagePromoter();
+        LOG_DEBUG(_log) << "DelegateIdentityManager::UpdateRequestPromoter epoch " << _epoch_number
+                        << " delegate " << TransitionDelegateToName(_delegate) << " " << (int)_delegate_id
+                        << " global delegate "  << (int)DelegateIdentityManager::_global_delegate_idx;
+        _request_manager->UpdateMessagePromoter();
+        _micro_manager->UpdateMessagePromoter();
+        _epoch_manager->UpdateMessagePromoter();
     }
 
     std::atomic<EpochTransitionState> &     _state;             ///< State of transition
@@ -117,12 +126,12 @@ private:
     std::atomic<EpochConnection>            _connection_state;  ///< Delegate's connection set
     const uint                              _epoch_number;      ///< Epoch's number
     NewEpochEventHandler &                  _new_epoch_handler; ///< Call back on new epoch events
-    DelegateKeyStore                        _key_store;         ///< Store delegates public keys
-    MessageValidator                        _validator;         ///< Validator/Signer of consensus messages
-    RequestConsensusManager                 _request_manager; 	///< Handles batch block consensus
-    MicroBlockConsensusManager	            _micro_manager; 	///< Handles micro block consensus
-    EpochConsensusManager                   _epoch_manager;     ///< Handles epoch consensus
-    ConsensusNetIOManager                   _netio_manager; 	///< Establishes connections to other delegates
+    DelegateKeyStore                        _key_store; 		///< Store delegates public keys
+    MessageValidator                        _validator; 		///< Validator/Signer of consensus messages
+    SPTR<RequestConsensusManager>           _request_manager; 	///< Handles batch block consensus
+    SPTR<MicroBlockConsensusManager>        _micro_manager; 	///< Handles micro block consensus
+    SPTR<EpochConsensusManager>             _epoch_manager; 	///< Handles epoch consensus
+    SPTR<ConsensusNetIOManager>             _netio_manager; 	///< Establishes connections to other delegates
     Log                                     _log;               ///< Boost log
     uint8_t                                 _delegate_id;       ///< Delegate id
 };

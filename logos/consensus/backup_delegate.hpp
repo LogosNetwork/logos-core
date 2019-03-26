@@ -9,6 +9,7 @@
 #include <logos/consensus/p2p/consensus_p2p.hpp>
 #include <logos/consensus/delegate_bridge.hpp>
 #include <logos/node/client_callback.hpp>
+#include <logos/lib/utility.hpp>
 
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/tcp.hpp>
@@ -28,7 +29,8 @@ class MessagePromoter;
 
 
 template<ConsensusType CT>
-class BackupDelegate : public DelegateBridge<CT>
+class BackupDelegate : public DelegateBridge<CT>,
+                       public Self<BackupDelegate<CT>>
 {
 protected:
 
@@ -43,6 +45,8 @@ protected:
 
     template<MessageType T>
     using SPMessage = StandardPhaseMessage<T, CT>;
+    template<typename T>
+    using WPTR          = std::weak_ptr<T>;
 
 public:
 
@@ -51,7 +55,7 @@ public:
                    MessagePromoter<CT> & promoter,
                    MessageValidator & validator,
                    const DelegateIdentities & ids,
-                   EpochEventsNotifier & events_notifier,
+                   std::shared_ptr<EpochEventsNotifier> events_notifier,
                    PersistenceManager<CT> & persistence_manager,
                    p2p_interface & p2p,
                    Service & service);
@@ -157,7 +161,7 @@ protected:
     ConsensusState              _state = ConsensusState::VOID;
     MessagePromoter<CT> &       _promoter; ///< secondary list request promoter
     uint64_t                    _sequence_number = 0;
-    EpochEventsNotifier &       _events_notifier;
+    WPTR<EpochEventsNotifier>   _events_notifier;
     PersistenceManager<CT> &    _persistence_manager;
     uint32_t                    _epoch_number;
 };

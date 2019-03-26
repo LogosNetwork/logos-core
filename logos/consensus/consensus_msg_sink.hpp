@@ -6,6 +6,7 @@
 
 #include <logos/consensus/consensus_msg_consumer.hpp>
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/lib/utility.hpp>
 #include <logos/lib/log.hpp>
 
 #include <boost/asio/io_service.hpp>
@@ -14,13 +15,15 @@
 #include <mutex>
 
 /// Sink for consensus messages, is also consumer of the message queue
-class ConsensusMsgSink : public ConsensusMsgConsumer
+class ConsensusMsgSink : public ConsensusMsgConsumer,
+                         public Self<ConsensusMsgSink>
 {
 
     /// Message stored on the queue
     struct Message {
         bool                            is_p2p = false; /// Is the message received via p2p
         MessageType                     message_type;   /// Consensus message type
+        ConsensusType                   consensus_type; /// Consensus type
         std::shared_ptr<MessageBase>    message;        /// Message pointer
     };
 
@@ -30,7 +33,7 @@ protected:
 public:
     /// Class constructor
     /// @param service boost asio service
-    ConsensusMsgSink(Service &service, std::atomic<uint32_t> & direct_connect);
+    ConsensusMsgSink(Service &service);
     /// Class destructor
     virtual ~ConsensusMsgSink() = default;
     /// Push the message onto the queue
@@ -48,8 +51,10 @@ public:
     /// Post the message for consuming on the thread pool
     /// @param message pointer
     /// @param message_type consensus message type
+    /// @param consensus_type consensus message type
     /// @param is_p2p true if received via p2p
-    void Post(std::shared_ptr<MessageBase> message, MessageType message_type, bool is_p2p);
+    void Post(std::shared_ptr<MessageBase> message, MessageType message_type,
+              ConsensusType consensus_type, bool is_p2p);
     /// Reset connection statistics
     void ResetConnectCount()
     {
@@ -67,7 +72,7 @@ protected:
     Service &               _service;           /// Boost asio service
     std::queue<Message>     _msg_queue;         /// Message queue of consensus messages
     std::mutex              _queue_mutex;       /// Queue mutex
-    std::atomic<uint32_t>&  _direct_connect;    /// Direct connections count reference (ConsensusNetIO::_direct_connect)
+    std::atomic<uint32_t>   _direct_connect{0}; /// Direct connections count reference (ConsensusNetIO::_direct_connect)
     bool                    _consuming = false; /// Is message currently being consumed
     Log                     _log;               /// Log object
 };

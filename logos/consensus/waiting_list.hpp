@@ -65,6 +65,14 @@ public:
 
     void UpdateMessagePromoter(MessagePromoter<CT>* promoter);
 
+    void  ClearWaitingList()
+    {
+        UpdateMessagePromoter(nullptr);
+        std::lock_guard<std::mutex> l(_mutex);
+        _entries. template get<0>().erase(_entries. template get<0>().begin(), _entries. template get<0>().end());
+        _timer.cancel();
+    }
+
 private:
 
     void PruneMessage(const BlockHash &hash);

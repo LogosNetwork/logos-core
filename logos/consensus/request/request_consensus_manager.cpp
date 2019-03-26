@@ -4,7 +4,6 @@
 #include <logos/consensus/request/request_consensus_manager.hpp>
 #include <logos/consensus/request/request_backup_delegate.hpp>
 #include <logos/consensus/epoch_manager.hpp>
-#include <logos/consensus/consensus_container.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 
 const boost::posix_time::seconds RequestConsensusManager::ON_CONNECTED_TIMEOUT{10};
@@ -14,15 +13,15 @@ RequestConsensusManager::RequestConsensusManager(Service & service,
                                                  Store & store,
                                                  const Config & config,
                                                  MessageValidator & validator,
-                                                 EpochEventsNotifier & events_notifier,
-                                                 p2p_interface & p2p)
+                                                 p2p_interface & p2p,
+                                                 uint32_t epoch_number)
     : Manager(service, store, config,
-	      validator, events_notifier, p2p)
+	      validator, p2p, epoch_number)
     , _init_timer(service)
 {
     _state = ConsensusState::INITIALIZING;
     // _sequence is reset to 0 in a new epoch
-    uint32_t cur_epoch_number = events_notifier.GetEpochNumber();
+    uint32_t cur_epoch_number = epoch_number;
     _store.request_tip_get(_delegate_id, cur_epoch_number, _prev_pre_prepare_hash);
 
     ApprovedRB block;
@@ -56,7 +55,7 @@ RequestConsensusManager::BufferComplete(
     SendBufferedBlocks();
 }
 
-std::shared_ptr<ConsensusMsgSink>
+std::shared_ptr<MessageParser>
 RequestConsensusManager::BindIOChannel(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities & ids)
@@ -108,7 +107,7 @@ RequestConsensusManager::Validate(
 {
 
 
-    return _persistence_manager.ValidateSingleRequest(message, _events_notifier.GetEpochNumber(), result, false);
+    return _persistence_manager.ValidateSingleRequest(message, _epoch_number, result, false);
 }
 
 bool
@@ -200,7 +199,7 @@ RequestConsensusManager::InitiateConsensus(bool reproposing)
     batch.sequence = _sequence;
     batch.timestamp = GetStamp();
     //need to set the current epoch number here for validation
-    batch.epoch_number = _events_notifier.GetEpochNumber();
+    batch.epoch_number = _epoch_number;
     batch.primary_delegate = _delegate_id;
     // SYL Integration fix: move previous assignment here to avoid overriding in archive blocks
     batch.previous = _prev_pre_prepare_hash;
@@ -265,9 +264,11 @@ RequestConsensusManager::MakeBackupDelegate(
     std::shared_ptr<IOChannel> iochannel,
     const DelegateIdentities& ids)
 {
+    auto notifier = _events_notifier.lock();
+    assert(notifier);
     return std::make_shared<RequestBackupDelegate>(
             iochannel, *this, *this, _validator,
-	    ids, _service, _events_notifier, _persistence_manager, GetP2p());
+	    ids, _service, notifier, _persistence_manager, GetP2p());
 }
 
 void
@@ -395,6 +396,11 @@ RequestConsensusManager::IsPrePrepareRejected()
 void
 RequestConsensusManager::OnPrePrepareRejected()
 {
+    auto notifier = _events_notifier.lock();
+    if (!notifier)
+    {
+        return;
+    }
     if (_state != ConsensusState::PRE_PREPARE)
     {
         LOG_FATAL(_log) << "BatchBlockConsensusManager::OnPrePrepareRejected - unexpected state " << StateToString(_state);
@@ -407,7 +413,7 @@ RequestConsensusManager::OnPrePrepareRejected()
 
         // TODO: Retiring delegate in ForwardOnly state
         //       has to forward to new primary - deferred.
-        _events_notifier.OnPrePrepareRejected();
+        notifier->OnPrePrepareRejected();
 
         // forward
         return;
@@ -587,6 +593,13 @@ RequestConsensusManager::OnPrePrepareRejected()
 void
 RequestConsensusManager::OnDelegatesConnected()
 {
+    auto  notifier = _events_notifier.lock();
+
+    if(!notifier || _delegates_connected)
+    {
+        return;
+    }
+
     if(_delegates_connected)
     {
         return;
@@ -594,7 +607,7 @@ RequestConsensusManager::OnDelegatesConnected()
 
     _delegates_connected = true;
 
-    if (_events_notifier.GetState() == EpochTransitionState::None)
+    if (notifier->GetState() == EpochTransitionState::None)
     {
         _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
         _init_timer.async_wait([this](const Error &error) {
