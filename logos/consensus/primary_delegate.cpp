@@ -237,7 +237,8 @@ void PrimaryDelegate::CycleTimers(bool cancel)
     {
         _primary_timer.async_wait(
                 [this_w](const Error & error){
-                    auto this_s = this_w.lock();
+                    auto this_s = GetSharedPtr(this_w, "PrimaryDelegate<", ConsensusToName(C),
+                            ">::CycleTimers, object destroyed");
                     if (!this_s)
                     {
                         return;
@@ -249,7 +250,8 @@ void PrimaryDelegate::CycleTimers(bool cancel)
     {
         _primary_timer.async_wait(
                 [this_w](const Error & error){
-                    auto this_s = this_w.lock();
+                    auto this_s = GetSharedPtr(this_w, "PrimaryDelegate<", ConsensusToName(C),
+                                               ">::CycleTimers, object destroyed");
                     if (!this_s)
                     {
                         return;

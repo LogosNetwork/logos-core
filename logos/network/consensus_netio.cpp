@@ -180,7 +180,7 @@ ConsensusNetIO::OnConnect(
         {
             std::weak_ptr<ConsensusNetIO> this_w = Self<ConsensusNetIO>::shared_from_this();
             _alarm.add(std::chrono::seconds(CONNECT_RETRY_DELAY), [this_w]() {
-                auto this_s = this_w.lock();
+                auto this_s = GetSharedPtr(this_w, "ConsensusNetIO::OnConnect, object destroyed");
                 if (!this_s)
                 {
                     return;
@@ -201,7 +201,7 @@ ConsensusNetIO::OnConnect(
     std::weak_ptr<ConsensusNetIO> this_w = Self<ConsensusNetIO>::shared_from_this();
     boost::asio::async_write(*_socket, boost::asio::buffer(buf->data(), buf->size()),
                              [this_w, ids](const ErrorCode &ec, size_t){
-        auto this_s = this_w.lock();
+        auto this_s = GetSharedPtr(this_w, "ConsensusNetIO::OnConnect, object destroyed");
         if (!this_s)
         {
             return;
@@ -230,7 +230,7 @@ ConsensusNetIO::ReadPrequel()
 {
     std::weak_ptr<ConsensusNetIO> this_w = Self<ConsensusNetIO>::shared_from_this();
     _assembler->ReadPrequel([this_w](const uint8_t *data) {
-        auto this_s = this_w.lock();
+        auto this_s = GetSharedPtr(this_w, "ConsensusNetIO::ReadPrequel, object destroyed");
         if (!this_s)
         {
             return;
@@ -275,7 +275,7 @@ ConsensusNetIO::OnPrequel(const uint8_t * data)
         std::weak_ptr<ConsensusNetIO> this_w = Self<ConsensusNetIO>::shared_from_this();
         _assembler->ReadBytes([this_w, msg_prequel](const uint8_t *data)
          {
-             auto this_s = this_w.lock();
+             auto this_s = GetSharedPtr(this_w, "ConsensusNetIO::OnPrequel, object destroyed");
              if (!this_s)
              {
                  return;

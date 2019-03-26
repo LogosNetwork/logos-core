@@ -593,14 +593,10 @@ RequestConsensusManager::OnPrePrepareRejected()
 void
 RequestConsensusManager::OnDelegatesConnected()
 {
-    auto  notifier = _events_notifier.lock();
+    auto  notifier = GetSharedPtr(_events_notifier,
+            "RequestConsensusManager::OnDelegatesConnected, epoch manager is destroyed");
 
     if(!notifier || _delegates_connected)
-    {
-        return;
-    }
-
-    if(_delegates_connected)
     {
         return;
     }
@@ -609,14 +605,21 @@ RequestConsensusManager::OnDelegatesConnected()
 
     if (notifier->GetState() == EpochTransitionState::None)
     {
+        std::weak_ptr<RequestConsensusManager> this_w =
+                std::dynamic_pointer_cast<RequestConsensusManager>(shared_from_this());
         _init_timer.expires_from_now(ON_CONNECTED_TIMEOUT);
-        _init_timer.async_wait([this](const Error &error) {
+        _init_timer.async_wait([this_w](const Error &error) {
+            auto this_s = GetSharedPtr(this_w, "RequestConsensusManager::OnDelegatesConnected, object destroyed");
+            if (!this_s)
+            {
+                return;
+            }
             // After startup consensus is performed
             // with an empty batch block.
-            _handler.OnRequest(std::make_shared<Request>(Request()));
-            _state = ConsensusState::VOID;
-            _ongoing = true;
-            InitiateConsensus();
+            this_s->_handler.OnRequest(std::make_shared<Request>(Request()));
+            this_s->_state = ConsensusState::VOID;
+            this_s->_ongoing = true;
+            this_s->InitiateConsensus();
         });
     }
     else

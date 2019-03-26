@@ -44,7 +44,7 @@ void NetIOAssembler::AsyncRead()
                             boost::asio::buffer(_buffer.data() + _buffer_size,
                                                 BUFFER_CAPACITY - _buffer_size),
                             boost::asio::transfer_at_least(1), [this_w](const ErrorCode &ec, size_t size) {
-                                auto this_s = this_w.lock();
+                                auto this_s = GetSharedPtr(this_w, "NetIOAssembler::AsyncRead, object destroyed");
                                 if (!this_s)
                                 {
                                     return;

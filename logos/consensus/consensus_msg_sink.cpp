@@ -83,7 +83,7 @@ ConsensusMsgSink::Post(std::shared_ptr<MessageBase> message,
 {
     std::weak_ptr<ConsensusMsgSink> this_w = shared_from_this();
     _service.post([this_w, message, message_type, consensus_type, is_p2p]() {
-        auto this_s = this_w.lock();
+        auto this_s = GetSharedPtr(this_w, "ConsensusMsgSink::Post, object destroyed");
         if (!this_s)
         {
             return;

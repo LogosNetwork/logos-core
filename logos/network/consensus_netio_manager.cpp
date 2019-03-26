@@ -146,7 +146,7 @@ ConsensusNetIOManager::OnNetIOError(
             {
                 std::weak_ptr<ConsensusNetIOManager> this_w = shared_from_this();
                 _alarm.add(Seconds(ConsensusNetIO::CONNECT_RETRY_DELAY), [this_w, delegate_id, endpoint]() {
-                    auto this_s = this_w.lock();
+                    auto this_s = GetSharedPtr(this_w, "ConsensusNetIOManager::OnNetIOError, object destroyed");
                     if (!this_s)
                     {
                         return;
@@ -205,7 +205,7 @@ ConsensusNetIOManager::ScheduleTimer(
     std::weak_ptr<ConsensusNetIOManager> this_w = shared_from_this();
     _heartbeat_timer.expires_from_now(sec);
     _heartbeat_timer.async_wait([this_w](const Error &ec) {
-        auto this_s = this_w.lock();
+        auto this_s = GetSharedPtr(this_w, "ConsensusNetIOManager::ScheduleTimer, object destroyed");
         if (!this_s)
         {
             return;

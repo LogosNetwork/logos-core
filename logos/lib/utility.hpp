@@ -2,6 +2,7 @@
 
 #include <boost/property_tree/ptree.hpp>
 #include <logos/lib/numbers.hpp>
+#include <logos/lib/log.hpp>
 
 #include <functional>
 #include <mutex>
@@ -298,3 +299,28 @@ struct Self : virtual SelfBase {
         return std::dynamic_pointer_cast<T>(SelfBase::shared_from_this());
     }
 };
+
+template <typename T>
+void Expand(std::stringstream &str, T arg) {
+    str << arg;
+}
+
+template <typename T, typename ... Args>
+void Expand(std::stringstream &str, T arg, Args ... args) {
+    str << arg;
+    Expand(str, args ...);
+}
+
+template<typename T, typename ... Args>
+std::shared_ptr<T> GetSharedPtr(std::weak_ptr<T> wptr, Args ... args)
+{
+    auto sptr = wptr.lock();
+    if (!sptr)
+    {
+        std::stringstream str;
+        Expand(str, args ...);
+        Log log;
+        LOG_TRACE(log) << str.str();
+    }
+    return sptr;
+}

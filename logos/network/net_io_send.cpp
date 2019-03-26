@@ -58,7 +58,7 @@ NetIOSend::AsyncSendBuffered()
         boost::asio::async_write(*_socket,
                                  bufs,
                                  [this_w, bufs](const Error &ec, size_t size) {
-            auto this_s = this_w.lock();
+            auto this_s = GetSharedPtr(this_w, "NetIOSend::AsyncSendBuffered, object destroyed");
             if (!this_s)
             {
                 return;

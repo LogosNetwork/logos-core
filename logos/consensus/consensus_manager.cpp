@@ -365,7 +365,8 @@ ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {
                         << " stake " << stake << "/" << _stake_quorum;
         std::weak_ptr<ConsensusManager<CT>> this_w = std::dynamic_pointer_cast<ConsensusManager<CT>>(shared_from_this());
         ConsensusP2pBridge<CT>::ScheduleP2pTimer([this_w](const ErrorCode &ec) {
-            auto this_s = this_w.lock();
+            auto this_s = GetSharedPtr(this_w, "ConsensusManager<", ConsensusToName(CT),
+                    ">::OnP2pTimeout, object destroyed");
             if (!this_s)
             {
                 return;
@@ -391,7 +392,8 @@ ConsensusManager<CT>::EnableP2p(bool enable)
     {
         std::weak_ptr<ConsensusManager<CT>> this_w = std::dynamic_pointer_cast<ConsensusManager<CT>>(shared_from_this());
        ConsensusP2pBridge<CT>::ScheduleP2pTimer([this_w](const ErrorCode &ec) {
-           auto this_s = this_w.lock();
+           auto this_s = GetSharedPtr(this_w, "ConsensusManager<", ConsensusToName(CT),
+                                      ">::EnableP2p, object destroyed");
            if (!this_s)
            {
                return;
