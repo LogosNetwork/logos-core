@@ -51,7 +51,7 @@ protected:
 public:
 
     BackupDelegate(std::shared_ptr<IOChannel> iochannel,
-                   PrimaryDelegate & primary,
+                   std::shared_ptr<PrimaryDelegate> primary,
                    MessagePromoter<CT> & promoter,
                    MessageValidator & validator,
                    const DelegateIdentities & ids,
@@ -157,7 +157,7 @@ protected:
     RejectionReason             _reason;
     MessageValidator &          _validator;
     Log                         _log;
-    PrimaryDelegate &           _primary;
+    WPTR<PrimaryDelegate>       _primary;
     ConsensusState              _state = ConsensusState::VOID;
     MessagePromoter<CT> &       _promoter; ///< secondary list request promoter
     uint64_t                    _sequence_number = 0;

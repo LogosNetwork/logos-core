@@ -10,7 +10,7 @@
 
 EpochBackupDelegate::EpochBackupDelegate(
                              std::shared_ptr<IOChannel> iochannel,
-                             PrimaryDelegate & primary,
+                             std::shared_ptr<PrimaryDelegate> primary,
                              MessagePromoter<ECT> & promoter,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,

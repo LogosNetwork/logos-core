@@ -267,7 +267,7 @@ RequestConsensusManager::MakeBackupDelegate(
     auto notifier = _events_notifier.lock();
     assert(notifier);
     return std::make_shared<RequestBackupDelegate>(
-            iochannel, *this, *this, _validator,
+            iochannel, shared_from_this(), *this, _validator,
 	    ids, _service, notifier, _persistence_manager, GetP2p());
 }
 

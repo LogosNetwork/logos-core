@@ -10,7 +10,7 @@
 
 RequestBackupDelegate::RequestBackupDelegate(
         std::shared_ptr<IOChannel> iochannel,
-        PrimaryDelegate & primary,
+        std::shared_ptr<PrimaryDelegate> primary,
         Promoter & promoter,
         MessageValidator & validator,
         const DelegateIdentities & ids,

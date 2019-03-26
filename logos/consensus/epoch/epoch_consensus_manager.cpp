@@ -138,7 +138,7 @@ EpochConsensusManager::MakeBackupDelegate(
 {
     auto notifier = _events_notifier.lock();
     assert(notifier);
-    return std::make_shared<EpochBackupDelegate>(iochannel, *this, *this,
+    return std::make_shared<EpochBackupDelegate>(iochannel, shared_from_this(), *this,
             _validator, ids, notifier, _persistence_manager,
             GetP2p(), _service);
 }

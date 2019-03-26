@@ -21,7 +21,7 @@ public:
     /// @param ids remote/local delegate id [in]
     /// @param events_notifier epoch transition helper [in]
     EpochBackupDelegate(std::shared_ptr<IOChannel> iochannel,
-                             PrimaryDelegate & primary,
+                             std::shared_ptr<PrimaryDelegate> primary,
                              MessagePromoter<ECT> & promoter,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
@@ -51,7 +51,11 @@ protected:
     /// @param hash to set
     void SetPreviousPrePrepareHash(const BlockHash &hash) override
     {
-        _primary.SetPreviousPrePrepareHash(hash);
+        auto primary = _primary.lock();
+        if (primary)
+        {
+            primary->SetPreviousPrePrepareHash(hash);
+        }
     }
 
 private:

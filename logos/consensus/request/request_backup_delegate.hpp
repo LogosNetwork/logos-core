@@ -36,7 +36,7 @@ public:
     /// @param ids remote/local delegate id [in]
     /// @param events_notifier epoch transition helper [in]
     RequestBackupDelegate(std::shared_ptr<IOChannel> iochannel,
-                          PrimaryDelegate & primary,
+                          std::shared_ptr<PrimaryDelegate> primary,
                           Promoter & promoter,
                           MessageValidator & validator,
                           const DelegateIdentities & ids,

@@ -140,7 +140,7 @@ MicroBlockConsensusManager::MakeBackupDelegate(
 {
     auto notifier = _events_notifier.lock();
     assert(notifier);
-    return std::make_shared<MicroBlockBackupDelegate>(iochannel, *this, *this,
+    return std::make_shared<MicroBlockBackupDelegate>(iochannel, shared_from_this(), *this,
             _validator, ids, _microblock_handler, notifier, _persistence_manager,
             GetP2p(), _service);
 }

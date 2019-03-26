@@ -7,7 +7,7 @@
 
 template<ConsensusType CT>
 BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
-                                   PrimaryDelegate & primary,
+                                   std::shared_ptr<PrimaryDelegate> primary,
                                    MessagePromoter<CT> & promoter,
                                    MessageValidator & validator,
                                    const DelegateIdentities & ids,
@@ -23,7 +23,7 @@ BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
     , _promoter(promoter)
     , _events_notifier(events_notifier)
     , _persistence_manager(persistence_manager)
-    , _epoch_number(primary.GetEpochNumber())
+    , _epoch_number(primary->GetEpochNumber())
 {}
 
 template<ConsensusType CT>
@@ -107,19 +107,34 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const Prepare & message)
 {
-    _primary.OnConsensusMessage(message, _delegate_ids.remote);
+    auto primary = _primary.lock();
+    if (!primary)
+    {
+        return;
+    }
+    primary->OnConsensusMessage(message, _delegate_ids.remote);
 }
 
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const Commit & message)
 {
-    _primary.OnConsensusMessage(message, _delegate_ids.remote);
+    auto primary = _primary.lock();
+    if (!primary)
+    {
+        return;
+    }
+    primary->OnConsensusMessage(message, _delegate_ids.remote);
 }
 
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const Rejection & message)
 {
-    _primary.OnConsensusMessage(message, _delegate_ids.remote);
+    auto primary = _primary.lock();
+    if (!primary)
+    {
+        return;
+    }
+    primary->OnConsensusMessage(message, _delegate_ids.remote);
 }
 
 template<ConsensusType CT>
