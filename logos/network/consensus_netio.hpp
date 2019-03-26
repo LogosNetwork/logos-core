@@ -340,7 +340,7 @@ private:
 
     void HandleMessageError(const char * operation);
 
-    template<template <ConsensusType> typename T>
+    template<template <ConsensusType> class T>
     std::shared_ptr<MessageBase>
     make(ConsensusType consensus_type, logos::bufferstream &stream, uint8_t version);
 

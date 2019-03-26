@@ -519,18 +519,18 @@ ConsensusNetIO::OnMessage(std::shared_ptr<MessageBase> message,
                           bool is_p2p)
 {
     auto idx = ConsensusTypeToIndex(consensus_type);
-    auto backup_delegate = _connections[idx].lock();
-    if (!backup_delegate)
+    auto delegate_bridge = _connections[idx].lock();
+    if (!delegate_bridge)
     {
         LOG_DEBUG(_log) << "ConsensusNetIO::OnMessage, BackupDelegate<"
                         << ConsensusToName(consensus_type) << "> is destroyed";
         return;
     }
 
-    backup_delegate->OnMessage(message, message_type, is_p2p);
+    delegate_bridge->OnMessage(message, message_type, is_p2p);
 }
 
-template<template <ConsensusType> typename T>
+template<template <ConsensusType> class T>
 std::shared_ptr<MessageBase>
 ConsensusNetIO::make(ConsensusType consensus_type, logos::bufferstream &stream, uint8_t version)
 {
