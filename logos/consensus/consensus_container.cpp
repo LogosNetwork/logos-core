@@ -193,8 +193,8 @@ ConsensusContainer::OnDelegateMessage(
          epoch = _trans_epoch;
     }
 
-    message->primary_delegate = _cur_epoch->_epoch_manager->GetDelegateIndex();
-    _cur_epoch->_micro_manager->OnDelegateMessage(
+    message->primary_delegate = epoch->_epoch_manager->GetDelegateIndex();
+    epoch->_micro_manager->OnDelegateMessage(
         std::static_pointer_cast<Request>(message), result);
 
     return result;
