@@ -88,8 +88,8 @@ void
 EpochManager::Start(PeerAcceptorStarter & starter)
 {
     auto this_l = shared_from_this();
-    _request_manager->SetEventsNotifier(this_l);
-    _micro_manager->SetEventsNotifier(this_l);
-    _epoch_manager->SetEventsNotifier(this_l);
+    _request_manager->Init(this_l);
+    _micro_manager->Init(this_l);
+    _epoch_manager->Init(this_l);
     _netio_manager->Start(this_l, starter);
 }

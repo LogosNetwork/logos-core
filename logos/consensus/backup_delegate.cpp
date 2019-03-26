@@ -79,7 +79,8 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostPrepare & message)
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 {
-    auto notifier = _events_notifier.lock();
+    auto notifier = GetSharedPtr(_events_notifier, "BackupDelegate<", ConsensusToName(CT),
+            ">::OnConsensusMessage, object destroyed");
     if (!notifier)
     {
         return;

@@ -52,7 +52,7 @@ class WaitingList
 
 public:
 
-    WaitingList(Service & service, Promoter * promoter);
+    WaitingList(Service & service);
 
     bool Contains(const BlockHash & hash);
 
@@ -63,7 +63,7 @@ public:
 
     void OnPostCommit(const PrePrepare & message);
 
-    void UpdateMessagePromoter(MessagePromoter<CT>* promoter);
+    void UpdateMessagePromoter(std::shared_ptr<Promoter> promoter);
 
     void  ClearWaitingList()
     {
@@ -83,11 +83,11 @@ private:
     static const Seconds REQUEST_TIMEOUT;
     static const Seconds MIN_TIMEOUT;
 
-    Entries    _entries;
-    Service &  _service;
-    Promoter * _promoter;
-    Log        _log;
-    std::mutex _mutex;
-    Timer      _timer;
-    std::mutex _promoter_mutex;
+    Entries                     _entries;
+    Service &                   _service;
+    std::shared_ptr<Promoter>   _promoter = nullptr;
+    Log                         _log;
+    std::mutex                  _mutex;
+    Timer                       _timer;
+    std::mutex                  _promoter_mutex;
 };

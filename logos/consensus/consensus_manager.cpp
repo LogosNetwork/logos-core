@@ -23,7 +23,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _service(service)
     , _store(store)
     , _validator(validator)
-    , _waiting_list(GetWaitingList(service, this))
+    , _waiting_list(GetWaitingList(service))
     , _reservations(std::make_shared<ConsensusReservations>(store))
     , _persistence_manager(store, _reservations)
 {
@@ -315,7 +315,8 @@ template<ConsensusType CT>
 void
 ConsensusManager<CT>::UpdateMessagePromoter()
 {
-    _waiting_list.UpdateMessagePromoter(this);
+    auto promoter = std::dynamic_pointer_cast<MessagePromoter<CT>>(shared_from_this());
+    _waiting_list.UpdateMessagePromoter(promoter);
 }
 
 template<ConsensusType CT>

@@ -134,9 +134,11 @@ public:
         _waiting_list.ClearWaitingList();
     }
 
-    void SetEventsNotifier(std::shared_ptr<EpochEventsNotifier> notifier)
+    void Init(std::shared_ptr<EpochEventsNotifier> notifier)
     {
         _events_notifier = notifier;
+        auto promoter = std::dynamic_pointer_cast<MessagePromoter<CT>>(shared_from_this());
+        _waiting_list.UpdateMessagePromoter(promoter);
     }
 
 protected:
@@ -184,13 +186,11 @@ protected:
             std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
 
     /// singleton secondary handler
-    static WaitingList<CT> & GetWaitingList(
-        Service & service,
-        MessagePromoter<CT>* promoter)
+    static WaitingList<CT> & GetWaitingList(Service & service)
     {
         // Promoter is assigned once when the object is constructed
         // Promoter is updated during transition
-        static WaitingList<CT> wl(service, promoter);
+        static WaitingList<CT> wl(service);
         return wl;
     }
 
