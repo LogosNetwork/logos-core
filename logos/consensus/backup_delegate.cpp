@@ -276,7 +276,7 @@ template<>
 bool BackupDelegate<ConsensusType::Request>::ValidateEpoch(
     const PrePrepareMessage<ConsensusType::Request> &message)
 {
-    auto notifier = _events_notifier.lock();
+    auto notifier = GetSharedPtr(_events_notifier, "BackupDelegate<Request>::ValidateEpoch, object destroyed");
     if (!notifier)
     {
         return false;
