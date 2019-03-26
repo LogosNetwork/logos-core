@@ -264,7 +264,8 @@ RequestConsensusManager::MakeBackupDelegate(
     std::shared_ptr<IOChannel> iochannel,
     const DelegateIdentities& ids)
 {
-    auto notifier = _events_notifier.lock();
+    auto notifier = GetSharedPtr(_events_notifier,
+            "RequestConsensusManager::MakeBackupDelegate, object destroyed");
     assert(notifier);
     return std::make_shared<RequestBackupDelegate>(
             iochannel, shared_from_this(), *this, _validator,
@@ -396,7 +397,8 @@ RequestConsensusManager::IsPrePrepareRejected()
 void
 RequestConsensusManager::OnPrePrepareRejected()
 {
-    auto notifier = _events_notifier.lock();
+    auto  notifier = GetSharedPtr(_events_notifier,
+                                  "RequestConsensusManager::OnPrePrepareRejected, object destroyed");
     if (!notifier)
     {
         return;
@@ -594,9 +596,10 @@ void
 RequestConsensusManager::OnDelegatesConnected()
 {
     auto  notifier = GetSharedPtr(_events_notifier,
-            "RequestConsensusManager::OnDelegatesConnected, epoch manager is destroyed");
+            "RequestConsensusManager::OnDelegatesConnected, object destroyed");
 
-    if(!notifier || _delegates_connected)
+    assert(notifier);
+    if(_delegates_connected)
     {
         return;
     }

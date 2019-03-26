@@ -155,7 +155,8 @@ RequestBackupDelegate::HandleReject(const PrePrepare & message)
         case RejectionReason::Invalid_Primary_Index:
             break;
         case RejectionReason::New_Epoch:
-            auto notifier = _events_notifier.lock();
+            auto notifier = GetSharedPtr(_events_notifier,
+                    "RequestBackupDelegate::HandlerReject, object destroyed");
             if (notifier && notifier->GetDelegate() == EpochTransitionDelegate::PersistentReject)
             {
                 SetPrePrepare(message);

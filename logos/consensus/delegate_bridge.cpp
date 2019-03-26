@@ -30,7 +30,7 @@ void DelegateBridge<CT>::Send(const void * data, size_t size)
         return;
     }
 #endif
-    auto iochannel = _iochannel.lock();
+    auto iochannel = GetSharedPtr(_iochannel, "DelegateBridge<", ConsensusToName(CT), ">::Send, object destroyed");
     if (!iochannel)
     {
         return;
@@ -116,7 +116,8 @@ template<ConsensusType CT>
 void
 DelegateBridge<CT>::ResetConnectCount()
 {
-    auto iochannel = _iochannel.lock();
+    auto iochannel = GetSharedPtr(_iochannel, "DelegateBridge<", ConsensusToName(CT),
+            ">::ResetConnectCount, object destroyed");
     if (!iochannel)
     {
         return;
@@ -128,7 +129,8 @@ template<ConsensusType CT>
 bool
 DelegateBridge<CT>::PrimaryDirectlyConnected()
 {
-    auto iochannel = _iochannel.lock();
+    auto iochannel = GetSharedPtr(_iochannel, "DelegateBridge<", ConsensusToName(CT),
+                                  ">::PrimaryDirectlyConnected, object destroyed");
     if (!iochannel)
     {
         return true;

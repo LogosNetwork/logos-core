@@ -138,7 +138,8 @@ MicroBlockConsensusManager::MakeBackupDelegate(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities& ids)
 {
-    auto notifier = _events_notifier.lock();
+    auto notifier = GetSharedPtr(_events_notifier,
+            "MicroBlockConsensusManager::MakeBackupDelegate, object destroyed");
     assert(notifier);
     return std::make_shared<MicroBlockBackupDelegate>(iochannel, shared_from_this(), *this,
             _validator, ids, _microblock_handler, notifier, _persistence_manager,

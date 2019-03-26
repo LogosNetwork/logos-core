@@ -54,7 +54,7 @@ protected:
     /// @param hash to set
     void SetPreviousPrePrepareHash(const BlockHash &hash) override
     {
-        auto primary = _primary.lock();
+        auto primary = GetSharedPtr(_primary, "MicroBlockBackupDelegate::SetPreviousPrepareHash, object destroyed");
         if (primary)
         {
             primary->SetPreviousPrePrepareHash(hash);

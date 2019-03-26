@@ -391,16 +391,17 @@ ConsensusManager<CT>::EnableP2p(bool enable)
 
     if (enable)
     {
-        std::weak_ptr<ConsensusManager<CT>> this_w = std::dynamic_pointer_cast<ConsensusManager<CT>>(shared_from_this());
-       ConsensusP2pBridge<CT>::ScheduleP2pTimer([this_w](const ErrorCode &ec) {
-           auto this_s = GetSharedPtr(this_w, "ConsensusManager<", ConsensusToName(CT),
-                                      ">::EnableP2p, object destroyed");
-           if (!this_s)
-           {
-               return;
-           }
-           this_s->OnP2pTimeout(ec);
-       });
+        std::weak_ptr<ConsensusManager<CT>> this_w =
+                std::dynamic_pointer_cast<ConsensusManager<CT>>(shared_from_this());
+        ConsensusP2pBridge<CT>::ScheduleP2pTimer([this_w](const ErrorCode &ec) {
+            auto this_s = GetSharedPtr(this_w, "ConsensusManager<", ConsensusToName(CT),
+                                       ">::EnableP2p, object destroyed");
+            if (!this_s)
+            {
+                return;
+            }
+            this_s->OnP2pTimeout(ec);
+        });
     }
 }
 
@@ -409,14 +410,15 @@ bool
 ConsensusManager<CT>::ProceedWithRePropose()
 {
     // ignore if the old delegate's set, the new delegate's set will pick it up
-    auto notifier = _events_notifier.lock();
+    auto notifier = GetSharedPtr(_events_notifier, "ConsensusManager<", ConsensusToName(CT),
+                                ">::ProceedWithRePropose, object destroyed");
     if (!notifier)
     {
         return false;
     }
 
-    return  notifier->GetState() == EpochTransitionState::None &&
-            notifier->GetDelegate() == EpochTransitionDelegate::None ||
+    return  (notifier->GetState() == EpochTransitionState::None &&
+             notifier->GetDelegate() == EpochTransitionDelegate::None) ||
             notifier->GetConnection() == EpochConnection::Transitioning;
 }
 

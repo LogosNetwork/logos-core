@@ -72,7 +72,7 @@ ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info, PeerAcceptor
 
 ConsensusNetIOManager::~ConsensusNetIOManager()
 {
-    auto info = _epoch_info.lock();
+    auto info = GetSharedPtr(_epoch_info, "ConsensusNetIOManager::~ConsensusNetIOManager, object destroyed");
     if (!info)
     {
         return;
@@ -181,7 +181,7 @@ ConsensusNetIOManager::AddNetIOConnection(
     };
 
     void (ConsensusNetIO::*cb)();
-    auto info = _epoch_info.lock();
+    auto info = GetSharedPtr(_epoch_info, "ConsensusNetIOManager::AddNetIOConnection, object destroyed");
     if (!info)
     {
         return;

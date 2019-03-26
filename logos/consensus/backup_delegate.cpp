@@ -108,7 +108,8 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const Prepare & message)
 {
-    auto primary = _primary.lock();
+    auto primary = GetSharedPtr(_primary, "BackupDelegate<", ConsensusToName(CT),
+            ">::OnConsensusMessage, object destroyed");
     if (!primary)
     {
         return;
@@ -119,7 +120,8 @@ void BackupDelegate<CT>::OnConsensusMessage(const Prepare & message)
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const Commit & message)
 {
-    auto primary = _primary.lock();
+    auto primary = GetSharedPtr(_primary, "BackupDelegate<", ConsensusToName(CT),
+                                ">::OnConsensusMessage, object destroyed");
     if (!primary)
     {
         return;
@@ -130,7 +132,8 @@ void BackupDelegate<CT>::OnConsensusMessage(const Commit & message)
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const Rejection & message)
 {
-    auto primary = _primary.lock();
+    auto primary = GetSharedPtr(_primary, "BackupDelegate<", ConsensusToName(CT),
+                                ">::OnConsensusMessage, object destroyed");
     if (!primary)
     {
         return;
@@ -290,9 +293,9 @@ bool BackupDelegate<ConsensusType::Request>::ValidateEpoch(
         valid = false;
     }
     else if (state == EpochTransitionState::Connecting &&
-         (delegate == EpochTransitionDelegate::Persistent && // Persistent from new Delegate's set
-            connect == EpochConnection::Transitioning ||
-          delegate == EpochTransitionDelegate::New))
+            ((delegate == EpochTransitionDelegate::Persistent && // Persistent from new Delegate's set
+              connect == EpochConnection::Transitioning) ||
+             delegate == EpochTransitionDelegate::New))
     {
         _reason = RejectionReason::Invalid_Epoch;
         valid = false;

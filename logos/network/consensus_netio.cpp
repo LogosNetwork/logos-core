@@ -13,7 +13,7 @@ const uint8_t ConsensusNetIO::CONNECT_RETRY_DELAY;
 void
 ConsensusNetIOAssembler::OnError(const Error &error)
 {
-    auto info = _epoch_info.lock();
+    auto info = GetSharedPtr(_epoch_info, "ConsensusNetIOManager::OnError, object destroyed");
     if (!info)
     {
         return;
@@ -67,7 +67,7 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
     , _last_timestamp(GetStamp())
     , _error_handled(false)
 {
-    auto info = _epoch_info.lock();
+    auto info = GetSharedPtr(_epoch_info, "ConsensusNetIO::ConsensusNetIO, object destroyed");
     assert(info);
     LOG_INFO(_log) << "ConsensusNetIO - Trying to connect to: "
                    <<  _endpoint << " remote delegate id "
@@ -107,7 +107,7 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
     , _error_handler(error_handler)
     , _last_timestamp(GetStamp())
 {
-    auto info = _epoch_info.lock();
+    auto info = GetSharedPtr(_epoch_info, "ConsensusNetIO::ConsensusNetIO, object destroyed");
     assert(info);
     LOG_INFO(_log) << "ConsensusNetIO client connected from: " << endpoint
                    << " remote delegate id " << (int)_remote_delegate_id
@@ -160,7 +160,7 @@ void
 ConsensusNetIO::OnConnect(
     ErrorCode const & ec)
 {
-    auto info = _epoch_info.lock();
+    auto info = GetSharedPtr(_epoch_info, "ConsensusNetIO::OnConnect, object destroyed");
     if (!info)
     {
         return;
@@ -353,7 +353,7 @@ ConsensusNetIO::OnData(const uint8_t * data,
         // backup is already destroyed
         if(_connections[idx].use_count() == 0)
         {
-            auto info = _epoch_info.lock();
+            auto info = GetSharedPtr(_epoch_info, "ConsensusNetIO::OnData, object destroyed");
             stringstream str;
             if (info)
             {
@@ -415,7 +415,7 @@ ConsensusNetIO::AddConsensusConnection(
     ConsensusType t, 
     std::shared_ptr<MessageParser> connection)
 {
-    auto info = _epoch_info.lock();
+    auto info = GetSharedPtr(_epoch_info, "ConsensusNetIO::AddConsensusConnection, object destroyed");
     if (!info)
     {
         return;
@@ -448,7 +448,7 @@ ConsensusNetIO::Close()
 {
     std::lock_guard<std::recursive_mutex>    lock(_error_mutex);
 
-    auto info = _epoch_info.lock();
+    auto info = GetSharedPtr(_epoch_info, "ConsensusNetIO::Close, object destroyed");
     if (info && _socket != nullptr && _connected)
     {
         LOG_DEBUG(_log) << "ConsensusNetIO::Close closing socket, connection "
