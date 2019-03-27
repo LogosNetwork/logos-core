@@ -147,7 +147,7 @@ MicroBlockHandler::GetTipsSlow(
     auto cutoff = min_timestamp + ((rem!=0)?TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count() - rem:0);
 
     // iterate over all blocks, selecting the ones that are less than cutoff time
-    uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff, false);
+    uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff, true);
 
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate) {
         for (auto it : entries[delegate]) {

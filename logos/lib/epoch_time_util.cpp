@@ -54,3 +54,15 @@ EpochTimeUtil::IsEpochTime()
 
     return (rem > min && rem < max);
 }
+
+bool
+EpochTimeUtil::IsOneMBPastEpochTime()
+{
+    auto now = GetStamp();
+    auto epoch = TConvert<Milliseconds>(EPOCH_PROPOSAL_TIME).count();
+    auto rem = now % epoch;
+    auto min = TConvert<Milliseconds>(MICROBLOCK_PROPOSAL_TIME * 2 - CLOCK_DRIFT).count();
+    auto max = TConvert<Milliseconds>(MICROBLOCK_PROPOSAL_TIME * 2 + CLOCK_DRIFT).count();
+
+    return (rem > min && rem < max);
+}
