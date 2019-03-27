@@ -34,11 +34,14 @@ Archiver::Start(InternalConsensus &consensus)
             return;
         }
 
-        if (is_epoch_time)
+        if (is_epoch_time
+        || (_first_epoch &&
+            !micro_block->sequence &&
+            micro_block->epoch_number == GENESIS_EPOCH + 1 &&
+            util.IsOneMBPastEpochTime()))
         {
             _first_epoch = false;
         }
-
 
         consensus.OnDelegateMessage(micro_block);
     };
