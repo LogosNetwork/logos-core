@@ -9,6 +9,8 @@
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/log.hpp>
+#include <logos/lib/utility.hpp>
+#include <logos/consensus/consensus_msg_sink.hpp>
 
 #include <boost/asio/io_service.hpp>
 
@@ -16,7 +18,7 @@
 #include <atomic>
 #include <map>
 
-class ConsensusMsgSink;
+class MessageParser;
 class MessageValidator;
 class EpochInfo;
 class NetIOErrorHandler;
@@ -77,7 +79,9 @@ class ConsensusNetIOAssembler : public NetIOAssembler {
     using Socket        = boost::asio::ip::tcp::socket;
     using Error         = boost::system::error_code;
 public:
-    ConsensusNetIOAssembler (std::shared_ptr<Socket> socket, EpochInfo& epoch_info, IOChannelReconnect &netio)
+    ConsensusNetIOAssembler (std::shared_ptr<Socket> socket, 
+                             std::shared_ptr<EpochInfo> epoch_info, 
+                             IOChannelReconnect &netio)
         : NetIOAssembler(socket)
         , _epoch_info(epoch_info)
         , _netio(netio)
@@ -88,8 +92,8 @@ protected:
     void OnRead() override;
 
 private:
-    EpochInfo &             _epoch_info;
-    IOChannelReconnect &    _netio;
+    std::weak_ptr<EpochInfo> _epoch_info;
+    IOChannelReconnect &     _netio;
 };
 
 /// ConsensusNetIO represent connection to a peer.
@@ -103,7 +107,8 @@ class ConsensusNetIO: public IOChannel,
                       public IOChannelReconnect,
                       public NetIOSend,
                       public ConsensusMsgProducer,
-                      public std::enable_shared_from_this<ConsensusNetIO>
+                      public ConsensusMsgSink,
+                      public Self<ConsensusNetIO>
 {
 
     using Service       = boost::asio::io_service;
@@ -111,8 +116,11 @@ class ConsensusNetIO: public IOChannel,
     using Socket        = boost::asio::ip::tcp::socket;
     using Address       = boost::asio::ip::address;
     using IOBinder      = function<void(std::shared_ptr<ConsensusNetIO>, uint8_t)>;
-    using Connections   = std::shared_ptr<ConsensusMsgSink> [CONSENSUS_TYPE_COUNT];
+    using Connections   = std::weak_ptr<MessageParser> [CONSENSUS_TYPE_COUNT];
     using QueuedWrites  = std::list<std::shared_ptr<std::vector<uint8_t>>>;
+    using CreatedCb     = void (ConsensusNetIO::*)();
+    template<typename T> 
+    using SPTR          = std::shared_ptr<T>;
 
 public:
 
@@ -140,8 +148,9 @@ public:
                    MessageValidator & validator,
                    IOBinder binder,
                    std::recursive_mutex & connection_mutex,
-                   EpochInfo & epoch_info,
-                   NetIOErrorHandler & error_handler);
+                   std::shared_ptr<EpochInfo> epoch_info,
+                   NetIOErrorHandler & error_handler,
+                   CreatedCb &cb);
 
     /// Class constructor.
     ///
@@ -166,8 +175,9 @@ public:
                    MessageValidator & validator,
                    IOBinder binder,
                    std::recursive_mutex & connection_mutex,
-                   EpochInfo & epoch_info,
-                   NetIOErrorHandler & error_handler);
+                   std::shared_ptr<EpochInfo> epoch_info,
+                   NetIOErrorHandler & error_handler,
+                   CreatedCb &cb);
 
     virtual ~ConsensusNetIO()
     {
@@ -200,7 +210,7 @@ public:
     ///     @param t consensus type
     ///     @param connection specific DelegateBridge
     void AddConsensusConnection(ConsensusType t,
-                                std::shared_ptr<ConsensusMsgSink> connection);
+                                std::shared_ptr<MessageParser> connection);
 
     /// Read prequel header, dispatch the message
     /// to respective consensus type.
@@ -270,11 +280,6 @@ public:
         }
     }
 
-    std::atomic<uint32_t> & DirectConnectRef()
-    {
-        return _direct_connect;
-    }
-
     static constexpr uint8_t CONNECT_RETRY_DELAY = 5;     ///< Reconnect delay in seconds.
 
 protected:
@@ -286,6 +291,11 @@ protected:
                              ConsensusType consensus_type,
                              uint32_t payload_size,
                              uint8_t delegate_id=0xff) override;
+    void OnMessage(std::shared_ptr<MessageBase> msg, MessageType message_type,
+                           ConsensusType consensus_type, bool is_p2p) override;
+
+    std::shared_ptr<MessageBase> Parse(const uint8_t * data, uint8_t version, MessageType message_type,
+                                       ConsensusType consensus_type, uint32_t payload_size) override;
 
 private:
 
@@ -330,6 +340,10 @@ private:
 
     void HandleMessageError(const char * operation);
 
+    template<template <ConsensusType> class T>
+    std::shared_ptr<MessageBase>
+    make(ConsensusType consensus_type, logos::bufferstream &stream, uint8_t version);
+
     std::shared_ptr<Socket>        _socket;               ///< Connected socket
     std::atomic_bool               _connected;            ///< is the socket is connected?
     Log                            _log;                  ///< boost asio log
@@ -341,12 +355,11 @@ private:
     DelegateKeyStore &             _key_store;            ///< Delegates' public key store
     MessageValidator &             _validator;            ///< Validator/Signer of consensus messages
     IOBinder                       _io_channel_binder;    ///< Network i/o to consensus binder
-    ConsensusNetIOAssembler        _assembler;            ///< Assembles messages from TCP buffer
+    SPTR<ConsensusNetIOAssembler>  _assembler;            ///< Assembles messages from TCP buffer
     std::recursive_mutex &         _connection_mutex;     ///< _connections access mutex
-    EpochInfo &                    _epoch_info;           ///< Epoch transition info
+    std::weak_ptr<EpochInfo>       _epoch_info;           ///< Epoch transition info
     NetIOErrorHandler &            _error_handler;        ///< Pass socket error to ConsensusNetIOManager
     std::recursive_mutex           _error_mutex;          ///< Error handling mutex
     bool                           _error_handled;        ///< Socket error handled, prevent continous error loop
     std::atomic<uint64_t>          _last_timestamp;       ///< Last message timestamp
-    std::atomic<uint32_t>          _direct_connect;       ///< Count of received messages, used to disable p2p
 };

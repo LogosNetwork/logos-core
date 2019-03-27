@@ -10,12 +10,12 @@
 
 MicroBlockBackupDelegate::MicroBlockBackupDelegate(
                                   std::shared_ptr<IOChannel> iochannel,
-                                  PrimaryDelegate & primary,
+                                  std::shared_ptr<PrimaryDelegate> primary,
                                   MessagePromoter<MBCT> & promoter,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler,
-                                  EpochEventsNotifier & events_notifier,
+                                  std::shared_ptr<EpochEventsNotifier> events_notifier,
                                   PersistenceManager<MBCT> & persistence_manager,
                                   p2p_interface & p2p,
                                   Service & service)

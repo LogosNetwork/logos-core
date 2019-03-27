@@ -8,10 +8,8 @@ template<ConsensusType CT>
 const  boost::posix_time::seconds WaitingList<CT>::MIN_TIMEOUT{2};
 
 template<ConsensusType CT>
-WaitingList<CT>::WaitingList(Service & service,
-                                                     Promoter* promoter)
+WaitingList<CT>::WaitingList(Service & service)
     : _service(service)
-    , _promoter(promoter)
     , _timer(service)
 {}
 
@@ -133,7 +131,7 @@ void WaitingList<CT>::PruneMessage(const BlockHash &hash)
 }
 
 template <ConsensusType CT>
-void WaitingList<CT>::UpdateMessagePromoter(MessagePromoter<CT>* promoter)
+void WaitingList<CT>::UpdateMessagePromoter(std::shared_ptr<Promoter> promoter)
 {
     std::lock_guard<std::mutex> lock(_promoter_mutex);
     _promoter = promoter;

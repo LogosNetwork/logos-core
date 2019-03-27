@@ -10,20 +10,20 @@
 
 RequestBackupDelegate::RequestBackupDelegate(
         std::shared_ptr<IOChannel> iochannel,
-        PrimaryDelegate & primary,
+        std::shared_ptr<PrimaryDelegate> primary,
         Promoter & promoter,
         MessageValidator & validator,
         const DelegateIdentities & ids,
         Service & service,
-        EpochEventsNotifier & events_notifier,
-        PersistenceManager<R> & persistence_manager,
-        p2p_interface & p2p)
+        std::shared_ptr<EpochEventsNotifier> events_notifier,
+	PersistenceManager<R> & persistence_manager,
+	p2p_interface & p2p)
     : Connection(iochannel, primary, promoter,
 		 validator, ids, events_notifier, persistence_manager, p2p, service)
     , _timer(service)
 {
     ApprovedRB block;
-    uint32_t cur_epoch_number = events_notifier.GetEpochNumber();
+    uint32_t cur_epoch_number = events_notifier->GetEpochNumber();
     promoter.GetStore().request_tip_get(_delegate_ids.remote, cur_epoch_number, _prev_pre_prepare_hash);
     if ( ! _prev_pre_prepare_hash.is_zero() && !promoter.GetStore().request_block_get(_prev_pre_prepare_hash, block))
     {
@@ -155,7 +155,9 @@ RequestBackupDelegate::HandleReject(const PrePrepare & message)
         case RejectionReason::Invalid_Primary_Index:
             break;
         case RejectionReason::New_Epoch:
-            if (_events_notifier.GetDelegate() == EpochTransitionDelegate::PersistentReject)
+            auto notifier = GetSharedPtr(_events_notifier,
+                    "RequestBackupDelegate::HandlerReject, object destroyed");
+            if (notifier && notifier->GetDelegate() == EpochTransitionDelegate::PersistentReject)
             {
                 SetPrePrepare(message);
                 ScheduleTimer(GetTimeout(TIMEOUT_MIN_EPOCH, TIMEOUT_RANGE_EPOCH));
@@ -208,10 +210,16 @@ RequestBackupDelegate::ScheduleTimer(Seconds timeout)
         _cancel_timer = true;
     }
 
+    std::weak_ptr<RequestBackupDelegate> this_w = std::dynamic_pointer_cast<RequestBackupDelegate>(shared_from_this());
     _timer.async_wait(
-        [this](const Error & error)
+        [this_w](const Error & error)
         {
-            OnPrePrepareTimeout(error);
+            auto this_s = GetSharedPtr(this_w, "RequestBackupDelegate::ScheduleTimer, object destroyed");
+            if (!this_s)
+            {
+                return;
+            }
+            this_s->OnPrePrepareTimeout(error);
         });
 
     _callback_scheduled = true;

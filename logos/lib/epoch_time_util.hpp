@@ -59,6 +59,7 @@ public:
     /// Is this epoch time (12h boundary +- clock drift)
     /// @returns true if it is epoch construction/transition time
     bool IsEpochTime();
+    bool IsOneMBPastEpochTime();
 private:
     /// Get next timeout value
     /// @param timeout value [in]

@@ -78,10 +78,12 @@ ConsensusContainer::CreateEpochManager(
     EpochTransitionDelegate delegate,
     EpochConnection connection )
 {
-    return std::make_shared<EpochManager>(_service, _store, _alarm, config,
-                                          _archiver, _peer_manager, _transition_state,
-                                          delegate, connection, epoch_number, *this, _p2p._p2p,
-                                          config.delegate_id);
+    auto res = std::make_shared<EpochManager>(_service, _store, _alarm, config,
+                                              _archiver, _transition_state,
+                                              delegate, connection, epoch_number, *this, _p2p._p2p,
+                                              config.delegate_id);
+    res->Start(_peer_manager);
+    return res;
 }
 
 logos::process_return
@@ -111,7 +113,7 @@ ConsensusContainer::OnDelegateMessage(
     if(should_buffer)
     {
         result.code = logos::process_result::buffered;
-        _cur_epoch->_request_manager.OnBenchmarkDelegateMessage(
+        _cur_epoch->_request_manager->OnBenchmarkDelegateMessage(
             static_pointer_cast<DM>(request), result);
     }
     else
@@ -119,7 +121,7 @@ ConsensusContainer::OnDelegateMessage(
         LOG_DEBUG(_log) << "ConsensusContainer::OnDelegateMessage: "
                         << "RequestType="
                         << GetRequestTypeField(request->type);
-        _cur_epoch->_request_manager.OnDelegateMessage(
+        _cur_epoch->_request_manager->OnDelegateMessage(
             static_pointer_cast<DM>(request), result);
     }
 
@@ -140,7 +142,7 @@ ConsensusContainer::OnSendRequest(vector<std::shared_ptr<DM>> &blocks)
         return {{result.code,0}};
     }
 
-    return _cur_epoch->_request_manager.OnSendRequest(blocks);
+    return _cur_epoch->_request_manager->OnSendRequest(blocks);
 }
 
 void
@@ -157,7 +159,7 @@ ConsensusContainer::BufferComplete(
         return;
     }
 
-    _cur_epoch->_request_manager.BufferComplete(result);
+    _cur_epoch->_request_manager->BufferComplete(result);
 }
 
 logos::process_return
@@ -175,18 +177,24 @@ ConsensusContainer::OnDelegateMessage(
                         << (int)DelegateIdentityManager::_global_delegate_idx;
         return result;
     }
+
+    auto epoch = _cur_epoch;
     // microblock proposed during epoch transition should be proposed by the new delegate set
-    else if (_transition_state != EpochTransitionState::None &&
+    if (_transition_state != EpochTransitionState::None &&
                 _cur_epoch->GetConnection() != EpochConnection::Transitioning)
     {
-        result.code = logos::process_result::old;
-        LOG_WARN(_log) << "ConsensusContainer::OnSendRequest microblock, not new delegate set "
-                       << (int)DelegateIdentityManager::_global_delegate_idx;
-        return result;
+         if (_trans_epoch == nullptr || _trans_epoch->GetConnection() != EpochConnection::Transitioning)
+         {
+             result.code = logos::process_result::old;
+             LOG_WARN(_log) << "ConsensusContainer::OnSendRequest microblock, not new delegate set "
+                            << (int) DelegateIdentityManager::_global_delegate_idx;
+             return result;
+         }
+         epoch = _trans_epoch;
     }
 
-    message->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
-    _cur_epoch->_micro_manager.OnDelegateMessage(
+    message->primary_delegate = epoch->_epoch_manager->GetDelegateIndex();
+    epoch->_micro_manager->OnDelegateMessage(
         std::static_pointer_cast<Request>(message), result);
 
     return result;
@@ -208,8 +216,8 @@ ConsensusContainer::OnDelegateMessage(
         return result;
     }
 
-    message->primary_delegate = _cur_epoch->_epoch_manager.GetDelegateIndex();
-    _cur_epoch->_epoch_manager.OnDelegateMessage(
+    message->primary_delegate = _cur_epoch->_epoch_manager->GetDelegateIndex();
+    _cur_epoch->_epoch_manager->OnDelegateMessage(
         std::static_pointer_cast<Request>(message), result);
 
     return result;
@@ -266,7 +274,7 @@ ConsensusContainer::PeerBinder(
                     << " state " << epoch->GetStateName()
                     << " " << (int)DelegateIdentityManager::_global_delegate_idx;
 
-    epoch->_netio_manager.OnConnectionAccepted(endpoint, socket, ids);
+    epoch->_netio_manager->OnConnectionAccepted(endpoint, socket, ids);
 }
 
 void
@@ -325,12 +333,6 @@ ConsensusContainer::EpochTransitionEventsStart()
 
     _transition_state = EpochTransitionState::Connecting;
 
-    LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEventsStart : delegate "
-                    << TransitionStateToName(_transition_state) << " "
-                    << TransitionDelegateToName(_transition_delegate) <<  " "
-                    << (int)delegate_idx << " " << (int)DelegateIdentityManager::_global_delegate_idx
-                    << " " << _cur_epoch_number;
-
     if (_transition_delegate != EpochTransitionDelegate::Retiring)
     {
         ConsensusManagerConfig epoch_config = BuildConsensusConfig(delegate_idx, delegates);
@@ -363,6 +365,13 @@ ConsensusContainer::EpochTransitionEventsStart()
     {
         lapse = Milliseconds(0);
     }
+
+    LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEventsStart : delegate "
+                   << TransitionStateToName(_transition_state) << " "
+                   << TransitionDelegateToName(_transition_delegate) <<  " "
+                   << (int)delegate_idx << " " << (int)DelegateIdentityManager::_global_delegate_idx
+                   << ", epoch " << _cur_epoch_number
+                   << ", binding map " << ((_trans_epoch) ? _trans_epoch->_epoch_number : 0);
 
     _alarm.add(lapse, std::bind(&ConsensusContainer::EpochTransitionStart, this, delegate_idx));
 
@@ -398,6 +407,7 @@ ConsensusContainer::EpochTransitionStart(uint8_t delegate_idx)
     {
         CheckEpochNull(!_trans_epoch, "EpochTransitionStart");
         _cur_epoch = _trans_epoch;
+        _cur_epoch->UpdateRequestPromoter();
         _trans_epoch = nullptr;
     }
 
@@ -504,11 +514,6 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
         _trans_epoch->CleanUp();
     }
 
-    // schedule for destruction
-    auto gb = _trans_epoch;
-    _alarm.add(GARBAGE_COLLECT, [gb]() mutable -> void {
-        gb = nullptr;
-    });
     _trans_epoch = nullptr;
 
     if (_transition_delegate == EpochTransitionDelegate::Retiring)
@@ -624,34 +629,15 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
     if (epoch && (p2pheader.dest_delegate_id == 0xff ||
             p2pheader.dest_delegate_id == epoch->GetDelegateId()))
     {
-        ConsensusMsgProducer *producer = nullptr;
-        if (prequel.consensus_type == ConsensusType::Request)
-        {
-            producer = &epoch->_request_manager;
-        }
-        else if (prequel.consensus_type == ConsensusType::MicroBlock)
-        {
-            producer = &epoch->_micro_manager;
-        }
-        else if (prequel.consensus_type == ConsensusType::Epoch)
-        {
-            producer = &epoch->_epoch_manager;
-        }
-        else
-        {
-            LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid consensus type "
-                            << ConsensusToName(prequel.consensus_type);
-            return false;
-        }
-
         LOG_DEBUG(_log) << "ConsensusContainer::OnP2pReceive, adding to consensus queue "
                         << MessageToName(prequel.type) << " " << ConsensusToName(prequel.consensus_type)
                         << " payload size " << prequel.payload_size
                         << " src delegate " << (int)p2pheader.src_delegate_id
                         << " dest delegate " << (int)p2pheader.dest_delegate_id;
 
-        return producer->AddToConsensusQueue(payload_data, prequel.version, prequel.type, prequel.consensus_type,
-                                             prequel.payload_size, p2pheader.src_delegate_id);
+        return epoch->_netio_manager->AddToConsensusQueue(payload_data, prequel.version,
+                                                         prequel.type, prequel.consensus_type,
+                                                         prequel.payload_size, p2pheader.src_delegate_id);
     }
     else
     {

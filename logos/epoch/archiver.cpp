@@ -28,13 +28,20 @@ Archiver::Start(InternalConsensus &consensus)
         auto micro_block = std::make_shared<DelegateMessage<ConsensusType::MicroBlock>>();
         bool is_epoch_time = util.IsEpochTime();
         bool last_microblock = !_recall_handler.IsRecall() && is_epoch_time && !_first_epoch;
+
+        bool one_mb_past = util.IsOneMBPastEpochTime();
+
         if (false == _micro_block_handler.Build(*micro_block, last_microblock))
         {
             LOG_ERROR(_log) << "Archiver::Start failed to build micro block";
             return;
         }
 
-        if (is_epoch_time)
+        if (is_epoch_time
+        || (_first_epoch &&
+            !micro_block->sequence &&
+            micro_block->epoch_number == GENESIS_EPOCH + 1 &&
+            one_mb_past))
         {
             _first_epoch = false;
         }

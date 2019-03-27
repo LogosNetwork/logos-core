@@ -107,7 +107,7 @@ struct Delegate
 
     bool operator!=(const Delegate& other) const
     {
-        return (*this) != other;
+        return !((*this) == other);
     }
 };
 

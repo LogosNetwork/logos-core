@@ -21,11 +21,11 @@ public:
     /// @param ids remote/local delegate id [in]
     /// @param events_notifier epoch transition helper [in]
     EpochBackupDelegate(std::shared_ptr<IOChannel> iochannel,
-                             PrimaryDelegate & primary,
+                             std::shared_ptr<PrimaryDelegate> primary,
                              MessagePromoter<ECT> & promoter,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
-                             EpochEventsNotifier & events_notifier,
+                             std::shared_ptr<EpochEventsNotifier> events_notifier,
                              PersistenceManager<ECT> & persistence_manager,
                              p2p_interface & p2p,
                              Service & service);
@@ -51,7 +51,11 @@ protected:
     /// @param hash to set
     void SetPreviousPrePrepareHash(const BlockHash &hash) override
     {
-        _primary.SetPreviousPrePrepareHash(hash);
+        auto primary = GetSharedPtr(_primary, "EpochBackupDelegate::SetPreviousPrepareHash, object destroyed");
+        if (primary)
+        {
+            primary->SetPreviousPrePrepareHash(hash);
+        }
     }
 
 private:

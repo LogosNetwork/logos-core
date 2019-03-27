@@ -14,7 +14,7 @@
 #include <unordered_map>
 #include <logos/consensus/consensus_container.hpp>
 
-std::vector<std::pair<AccountAddress,CandidateInfo>> 
+std::vector<std::pair<AccountAddress,CandidateInfo>>
 EpochVotingManager::GetElectionWinners(
         size_t num_winners)
 {
@@ -32,7 +32,7 @@ EpochVotingManager::GetElectionWinners(
         {
             auto pair = std::make_pair(it->first.uint256(),candidate_info);
             winners.push_back(pair);
-        } 
+        }
         else
         {
             assert(false);
@@ -91,7 +91,7 @@ std::unordered_set<Delegate> EpochVotingManager::GetRetiringDelegates(
     return retiring;
 }
 
-std::unordered_set<Delegate> 
+std::unordered_set<Delegate>
 EpochVotingManager::GetDelegatesToForceRetire(uint32_t next_epoch_num)
 {
     std::unordered_set<Delegate> to_retire;
@@ -100,7 +100,7 @@ EpochVotingManager::GetDelegatesToForceRetire(uint32_t next_epoch_num)
     assert(num_epochs_ago < 4);
     ApprovedEB epoch;
     _store.epoch_get_n(num_epochs_ago, epoch);
-    size_t offset = num_epochs_ago * (NUM_DELEGATES / TERM_LENGTH); 
+    size_t offset = num_epochs_ago * (NUM_DELEGATES / TERM_LENGTH);
 
     for(size_t i = offset; i < offset + (NUM_DELEGATES / TERM_LENGTH); ++i)
     {
@@ -111,7 +111,7 @@ EpochVotingManager::GetDelegatesToForceRetire(uint32_t next_epoch_num)
 
 bool EpochVotingManager::ShouldForceRetire(uint32_t next_epoch_number)
 {
-    return next_epoch_number > START_ELECTIONS_EPOCH 
+    return next_epoch_number > START_ELECTIONS_EPOCH
         && next_epoch_number <= START_ELECTIONS_EPOCH + TERM_LENGTH;
 }
 
@@ -146,13 +146,13 @@ void EpochVotingManager::GetNextEpochDelegates(
         Delegates& delegates,
         uint32_t next_epoch_num)
 {
-    int num_new_delegates = next_epoch_num > START_ELECTIONS_EPOCH 
+    int num_new_delegates = next_epoch_num > START_ELECTIONS_EPOCH
         ? NUM_DELEGATES / TERM_LENGTH : 0;
 
     ApprovedEB previous_epoch;
     BlockHash hash;
     std::unordered_map<AccountPubKey,bool> delegates3epochs;
-    
+
     // get all delegate in the previous 3 epochs
     if (_store.epoch_tip_get(hash))
     {
@@ -212,7 +212,7 @@ void EpochVotingManager::GetNextEpochDelegates(
     assert(del_elects_idx == delegate_elects.size());
 
     std::sort(std::begin(delegates), std::end(delegates),
-            EpochVotingManager::IsGreater 
+            EpochVotingManager::IsGreater
             );
     RedistributeVotes(delegates);
 }
@@ -267,7 +267,7 @@ void EpochVotingManager::RedistributeVotes(Delegates &delegates)
                  * of the representative who cast them, which means the votes
                  * received should be much greater than 31. Therefore, a
                  * delegate losing 31 votes is somewhat negligible. The only time
-                 * this is really a problem is when a delegate has received 0 
+                 * this is really a problem is when a delegate has received 0
                  * votes; in this situation, whether or not a delegate receives
                  * 31 additional votes does make a large difference. However,
                  * if a delegate received 0 votes, nobody voted for them at all

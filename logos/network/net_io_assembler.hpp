@@ -1,6 +1,7 @@
 #pragma once
 
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/lib/utility.hpp>
 #include <logos/lib/log.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/read.hpp>
@@ -11,7 +12,7 @@ class EpochInfo;
 class IOChannelReconnect;
 class NetIOErrorHandler;
 
-class NetIOAssembler
+class NetIOAssembler : public Self<NetIOAssembler>
 {
 
     using Socket    = boost::asio::ip::tcp::socket;
@@ -64,5 +65,6 @@ private:
     size_t                         _buffer_size         = 0;
     size_t                         _bytes_to_read       = 0;
     bool                           _processing_callback = false;
+    atomic_bool                    _handled_error{false};
 };
 

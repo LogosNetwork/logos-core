@@ -14,10 +14,10 @@ EpochConsensusManager::EpochConsensusManager(
                           Store & store,
                           const Config & config,
                           MessageValidator & validator,
-                          EpochEventsNotifier & events_notifier,
-                          p2p_interface & p2p)
+                          p2p_interface & p2p,
+                          uint32_t epoch_number)
     : Manager(service, store, config,
-              validator, events_notifier, p2p)
+              validator, p2p, epoch_number)
 {
     if (_store.epoch_tip_get(_prev_pre_prepare_hash))
     {
@@ -136,8 +136,10 @@ EpochConsensusManager::MakeBackupDelegate(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities& ids)
 {
-    return std::make_shared<EpochBackupDelegate>(iochannel, *this, *this,
-            _validator, ids, _events_notifier, _persistence_manager,
+    auto notifier = _events_notifier.lock();
+    assert(notifier);
+    return std::make_shared<EpochBackupDelegate>(iochannel, shared_from_this(), *this,
+            _validator, ids, notifier, _persistence_manager,
             GetP2p(), _service);
 }
 
@@ -165,7 +167,7 @@ EpochConsensusManager::DesignatedDelegate(
     {
         LOG_DEBUG(_log) << "EpochConsensusManager::DesignatedDelegate epoch proposed by delegate "
                         << (int)_delegate_id << " " << (int)DelegateIdentityManager::_global_delegate_idx
-                        << " " << _events_notifier.GetEpochNumber()
+                        << " " << _epoch_number
                         << " " << (int)block.primary_delegate;
         return _delegate_id;
     }

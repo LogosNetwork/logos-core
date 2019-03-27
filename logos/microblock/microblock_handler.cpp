@@ -5,6 +5,7 @@
 //#include <logos/microblock/microblock_tester.hpp>
 #include <logos/blockstore.hpp>
 #include <logos/node/node.hpp>
+#include <logos/lib/epoch_time_util.hpp>
 #include <logos/lib/trace.hpp>
 #include <time.h>
 
@@ -124,7 +125,8 @@ MicroBlockHandler::GetTipsSlow(
         const BatchTips &start,
         const BatchTips &end,
         BatchTips &tips,
-        uint &num_blocks)
+        uint &num_blocks,
+        bool add_cutoff)
 {
     struct pair {
         uint64_t timestamp;
@@ -147,7 +149,7 @@ MicroBlockHandler::GetTipsSlow(
     auto cutoff = min_timestamp + ((rem!=0)?TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count() - rem:0);
 
     // iterate over all blocks, selecting the ones that are less than cutoff time
-    uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff, false);
+    uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff, add_cutoff);
 
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate) {
         for (auto it : entries[delegate]) {
@@ -189,41 +191,6 @@ MicroBlockHandler::Build(
         trace_and_halt();
     }
 
-    // collect current batch block tips
-    BatchTips start;
-
-    // first microblock after genesis, the cut-off time is the Min timestamp of the very first BSB
-    // for all delegates + remainder from Min to nearest 10 min + 10 min; start is the current tips
-    if (previous_micro_block.epoch_number == GENESIS_EPOCH)
-    {
-        for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
-        {
-            // add 1 because we need the current epoch's tips
-            if (_store.request_tip_get(delegate, previous_micro_block.epoch_number + 1, start[delegate]))
-            {
-                start[delegate].clear();
-            }
-        }
-        GetTipsSlow(start, previous_micro_block.tips, block.tips, block.number_batch_blocks);
-    }
-    // Microblock cut off time is the previous microblock's proposed time;
-    // start points to the first block after the previous, i.e. previous.next
-    else
-    {
-        GetTipsFast(previous_micro_block.tips, previous_micro_block.timestamp, block.tips, block.number_batch_blocks);
-        // Note: if building the last micro block, GetTipsFast still works because previous epoch's request block tips
-        // aren't connected to the current epoch's request block chain yet
-        // if building the first micro block, the two request block chains will have already been linked at
-        // epoch persistence time (happened at roughly one MB interval ago)
-    }
-
-    // should be allowed to have no blocks so at least it doesn't crash
-    // for instance the node is disconnected for a while
-    // (block._number_batch_blocks != 0);
-
-    // should it be allowed to have no tips? same as above, i.e disconnected for a while
-    // (std::count(block._tips.begin(), block._tips.end(), 0) == 0);
-
     ApprovedEB epoch;
     BlockHash hash;
     if (_store.epoch_tip_get(hash))
@@ -252,6 +219,45 @@ MicroBlockHandler::Build(
                      ? 0
                      : previous_micro_block.sequence + 1;
     block.last_micro_block = last_micro_block;
+
+    // collect current batch block tips
+    BatchTips start;
+
+    // first microblock after genesis, the cut-off time is the Min timestamp of the very first BSB
+    // for all delegates + remainder from Min to nearest 10 min + 10 min; start is the current tips
+    if (previous_micro_block.epoch_number == GENESIS_EPOCH)
+    {
+        for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
+        {
+            // add 1 because we need the current epoch's tips
+            if (_store.request_tip_get(delegate, previous_micro_block.epoch_number + 1, start[delegate]))
+            {
+                start[delegate].clear();
+            }
+        }
+        EpochTimeUtil util;
+        bool add_cutoff = block.sequence ||
+                          block.epoch_number != GENESIS_EPOCH + 1 ||
+                          !util.IsOneMBPastEpochTime();
+        GetTipsSlow(start, previous_micro_block.tips, block.tips, block.number_batch_blocks, add_cutoff);
+    }
+    // Microblock cut off time is the previous microblock's proposed time;
+    // start points to the first block after the previous, i.e. previous.next
+    else
+    {
+        GetTipsFast(previous_micro_block.tips, previous_micro_block.timestamp, block.tips, block.number_batch_blocks);
+        // Note: if building the last micro block, GetTipsFast still works because previous epoch's request block tips
+        // aren't connected to the current epoch's request block chain yet
+        // if building the first micro block, the two request block chains will have already been linked at
+        // epoch persistence time (happened at roughly one MB interval ago)
+    }
+
+    // should be allowed to have no blocks so at least it doesn't crash
+    // for instance the node is disconnected for a while
+    // (block._number_batch_blocks != 0);
+
+    // should it be allowed to have no tips? same as above, i.e disconnected for a while
+    // (std::count(block._tips.begin(), block._tips.end(), 0) == 0);
 
     LOG_INFO(_log) << "MicroBlockHandler::Build, built microblock:"
                    << " hash " << Blake2bHash<MicroBlock>(block).to_string()
