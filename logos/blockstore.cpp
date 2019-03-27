@@ -1269,10 +1269,6 @@ bool logos::block_store::epoch_get_n(uint32_t num_epochs_ago, ApprovedEB &block,
     for(size_t i = 0; i < num_epochs_ago; ++i)
     {
         auto hash = block.previous;
-        std::cout << __func__ <<" i=" << i
-        		<< " hash=" << hash.to_string()
-				<< " e#=" << block.epoch_number
-				<< std::endl;
         assert(hash != 0);
         if(epoch_get(hash,block,txn))
         {
@@ -1994,8 +1990,7 @@ uint32_t logos::block_store::consensus_block_get_raw(const BlockHash & hash,
         trace_and_halt();
     }
     uint32_t block_size = value.size();
-    auto data_size(block_size + reserve);
-    buf.reserve(data_size);
+    buf.resize(reserve + block_size);
     memcpy(buf.data()+reserve, value.data(), block_size);
     return block_size;
 }

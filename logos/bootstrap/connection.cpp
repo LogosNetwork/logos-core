@@ -126,12 +126,12 @@ namespace Bootstrap
                     {
                     	timeout.stop();
                     }
-                    LOG_TRACE(log) << "Socket::sent data";
                     if (!ec)
                     {
+                        LOG_TRACE(log) << "Socket::AsyncSend: sent data, size=" << size_a;
                         cb(true);
                     }else{
-                        LOG_ERROR(log) << "Socket::Network error " << ec.message ();
+                        LOG_ERROR(log) << "Socket::AsyncSend: Network error " << ec.message ();
                         cb(false);
                     }
                 });

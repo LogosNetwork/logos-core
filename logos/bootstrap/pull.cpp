@@ -18,8 +18,12 @@ namespace Bootstrap
 	{
 		LOG_TRACE(log) << "Puller::"<<__func__;
 		std::lock_guard<std::mutex> lck (mtx);
+		LOG_TRACE(log) << "Puller::"<<__func__ << " in";
 		this->my_tips = my_tips;
 		this->others_tips = others_tips;
+
+		LOG_TRACE(log) << "Puller::"<<__func__ << " my_tips " << "\n" << my_tips;
+		LOG_TRACE(log) << "Puller::"<<__func__ << " others_tips " << "\n" << others_tips;
 
 		if(my_tips.IsBehind(others_tips))
 		{
@@ -28,6 +32,7 @@ namespace Bootstrap
 					my_tips.GetLatestEpochNumber(),
 					others_tips.GetLatestEpochNumber());
 			CreateMorePulls();
+			LOG_TRACE(log) <<"Puller::"<< __func__ << " I am behind, current # of pull=" << waiting_pulls.size();
 		}
 		else
 		{
@@ -48,6 +53,7 @@ namespace Bootstrap
 	bool Puller::AllDone()
 	{
 		std::lock_guard<std::mutex> lck (mtx);
+		LOG_TRACE(log) << "Puller::"<<__func__ << ": done=" << (state == PullerState::Done);
 		return state == PullerState::Done;
 	}
 
@@ -96,12 +102,12 @@ namespace Bootstrap
         	if(!working_epoch.two_mbps)
         	{
         		assert(working_epoch.cur_mbp.mb == nullptr);
-        		working_epoch.cur_mbp.mb == block;
+        		working_epoch.cur_mbp.mb = block;
         	}
         	else
         	{
         		assert(working_epoch.next_mbp.mb == nullptr);
-        		working_epoch.next_mbp.mb == block;
+        		working_epoch.next_mbp.mb = block;
         	}
         	CreateMorePulls();
          	return PullStatus::Done;
@@ -147,17 +153,20 @@ namespace Bootstrap
 
 				if(working_mbp.bsb_targets.empty())//all BSBs and MB (if have one) in block_cache now
 				{
-					if(working_mbp.mb != nullptr)
-					{
-						UpdateMyMBTip(working_mbp.mb);
-						if(working_mbp.mb->last_micro_block)
-						{
-							if(working_epoch.eb != nullptr)
-							{
-								UpdateMyEBTip(working_epoch.eb);
-							}
-						}
-					}
+//					if(working_mbp.mb != nullptr)
+//					{
+//						UpdateMyMBTip(working_mbp.mb);
+//						if(working_mbp.mb->last_micro_block)
+//						{
+//							if(working_epoch.eb != nullptr)
+//							{
+//								UpdateMyEBTip(working_epoch.eb);
+//							}
+//						}
+//					}
+
+
+
 //							state = PullState::Micro;//Epoch;
 //						}
 //						else
@@ -209,13 +218,14 @@ namespace Bootstrap
 
     void Puller::CreateMorePulls()
     {
-		LOG_TRACE(log) << "Puller::"<<__func__;
+		LOG_TRACE(log) << "Puller::"<<__func__<< " state="<<(uint)state;
     	// should be called with mtx locked
     	// should be called only when both waiting_pulls and ongoing_pulls are empty
     	assert(waiting_pulls.empty() && ongoing_pulls.empty());
 
     	switch (state) {
 			case PullerState::Epoch:
+				LOG_TRACE(log) << "Puller::"<<__func__<< " 1 ";
 				working_epoch = {my_tips.eb.epoch+1};
 				if(my_tips.eb < others_tips.eb)
 				{
@@ -223,6 +233,11 @@ namespace Bootstrap
 							ConsensusType::Epoch,
 							working_epoch.epoch_num,
 							my_tips.eb.digest));
+
+                	LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
+                			<< waiting_pulls.back()->to_string();
+
+					LOG_TRACE(log) << "Puller::"<<__func__<< " return Epoch";
 					return;
 				}else{
 					state = PullerState::Micro;
@@ -231,6 +246,7 @@ namespace Bootstrap
 				break;
 
 			case PullerState::Micro:
+				LOG_TRACE(log) << "Puller::"<<__func__<< " 2 ";
 				assert(working_epoch.cur_mbp.bsb_targets.empty());
 
 				if(my_tips.mb < others_tips.mb)
@@ -239,6 +255,11 @@ namespace Bootstrap
 							ConsensusType::MicroBlock,
 							working_epoch.epoch_num,
 							my_tips.mb.digest));
+
+					LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
+                			<< waiting_pulls.back()->to_string();
+
+					LOG_TRACE(log) << "Puller::"<<__func__<< " return Micro";
 					return;
 				}else{
 					state = PullerState::Batch_No_MB;
@@ -255,12 +276,16 @@ namespace Bootstrap
 
 			case PullerState::Batch:
 			{
+				LOG_TRACE(log) << "Puller::"<<__func__<< " 3 ";
+
 				bool added_pulls = false;
 				// if pulled a MB, use it to set up pulls
             	auto & working_mbp = working_epoch.two_mbps?
             						 working_epoch.next_mbp : working_epoch.cur_mbp;
             	assert(working_mbp.mb != nullptr);
-				assert(my_tips.mb.sqn == working_mbp.mb->sequence -1);
+				assert(my_tips.mb.sqn == working_mbp.mb->sequence -1 ||
+						((my_tips.mb.epoch == working_mbp.mb->epoch_number -1) &&
+								(working_mbp.mb->sequence == 0)));
 				assert(working_mbp.bsb_targets.empty());
 
 				for(uint i = 0; i < NUM_DELEGATES; ++i)
@@ -274,6 +299,10 @@ namespace Bootstrap
 								working_epoch.epoch_num,
 								my_tips.bsb_vec[i].digest,
 								working_mbp.mb->tips[i].digest));
+
+                    	LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
+                    			<< waiting_pulls.back()->to_string();
+
 						working_mbp.bsb_targets.insert(working_mbp.mb->tips[i].digest);
 						added_pulls = true;
 					}
@@ -288,6 +317,8 @@ namespace Bootstrap
 			}
 			case PullerState::Batch_No_MB:
 			{
+				LOG_TRACE(log) << "Puller::"<<__func__<< " 4 ";
+
 				bool added_pulls = false;
 				/*
 				 * since we don't have any MB, we are at the end of the bootstrap
@@ -306,12 +337,17 @@ namespace Bootstrap
 								working_epoch.epoch_num,
 								my_tips.bsb_vec[i].digest,
 								others_tips.bsb_vec[i].digest));
+
+                    	LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
+                    			<< waiting_pulls.back()->to_string();
+
                     	working_mbp.bsb_targets.insert(others_tips.bsb_vec[i].digest);
                     	added_pulls = true;
                     }
                 }
                 if(added_pulls)
                 {
+					LOG_TRACE(log) << "Puller::"<<__func__<< " return Batch_No_MB";
                 	return;
                 }
                 else
@@ -325,8 +361,9 @@ namespace Bootstrap
 				 * (created)received yet. No more to do for the current epoch.
 				 * So for (2), we move to the new epoch
 				 */
+				LOG_TRACE(log) << "Puller::"<<__func__<< " 5 ";
+
                 working_epoch = {working_epoch.epoch_num+1};
-                assert(working_epoch.epoch_num == final_ep_number);
 				for(uint i = 0; i < NUM_DELEGATES; ++i)
 				{
 					if(my_tips.bsb_vec_new_epoch[i] < others_tips.bsb_vec_new_epoch[i])
@@ -336,13 +373,22 @@ namespace Bootstrap
 								working_epoch.epoch_num,
 								my_tips.bsb_vec_new_epoch[i].digest,
 								others_tips.bsb_vec_new_epoch[i].digest));
+
+                    	LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
+                    			<< waiting_pulls.back()->to_string();
+
 						working_epoch.cur_mbp.bsb_targets.insert(others_tips.bsb_vec_new_epoch[i].digest);
 						added_pulls = true;
 					}
 				}
 
-				if(!added_pulls)
+				if(added_pulls)
 				{
+					assert(working_epoch.epoch_num == final_ep_number);
+				}
+				else
+				{
+					assert(working_epoch.epoch_num-1 == final_ep_number);
 					state = PullerState::Done;
 				}
 				break;
@@ -351,6 +397,7 @@ namespace Bootstrap
 			default:
 				break;
 		}
+		LOG_TRACE(log) << "Puller::"<<__func__<< " return last";
     }
 
     void Puller::CheckMicroProgress()
@@ -369,6 +416,7 @@ namespace Bootstrap
 			bool mb_processed = !block_cache.IsBlockCached(digest);
 			if(mb_processed)
 			{
+				UpdateMyMBTip(working_epoch.cur_mbp.mb);
 				working_epoch.cur_mbp = working_epoch.next_mbp;
 				working_epoch.two_mbps = false;
 				working_epoch.next_mbp.Clean();
@@ -389,6 +437,20 @@ namespace Bootstrap
 				return;
 			}
 		}
+		LOG_TRACE(log) << "Puller::"<<__func__ << " 2";
+
+
+//		if(working_mbp.mb != nullptr)
+//							{
+//								UpdateMyMBTip(working_mbp.mb);
+//								if(working_mbp.mb->last_micro_block)
+//								{
+//									if(working_epoch.eb != nullptr)
+//									{
+//										UpdateMyEBTip(working_epoch.eb);
+//									}
+//								}
+//							}
 
 		/*
 		 * step 2: check progress in case cur_mbp has a mb
@@ -399,6 +461,7 @@ namespace Bootstrap
 			bool mb_processed = !block_cache.IsBlockCached(digest);
 			if(mb_processed)
 			{
+				UpdateMyMBTip(working_epoch.cur_mbp.mb);
 				if(working_epoch.cur_mbp.mb->last_micro_block)
 				{
 					if(working_epoch.eb != nullptr)
@@ -406,6 +469,7 @@ namespace Bootstrap
 						bool eb_processed = !block_cache.IsBlockCached(working_epoch.eb->Hash());
 						if(eb_processed)
 						{
+							UpdateMyEBTip(working_epoch.eb);
 							LOG_INFO(log) << "Puller::BSBReceived: processed an epoch "
 										<< working_epoch.epoch_num;
 						}
@@ -460,6 +524,10 @@ namespace Bootstrap
     	{
     		assert(false);
     	}
+
+		LOG_TRACE(log) << "Puller::"<<__func__ << " my_tips " << "\n" << my_tips;
+		LOG_TRACE(log) << "Puller::"<<__func__ << " others_tips " << "\n" << others_tips;
+
     }
 
     void Puller::UpdateMyMBTip(MBPtr block)
@@ -469,6 +537,10 @@ namespace Bootstrap
     	my_tips.mb.digest = block->Hash();
     	my_tips.mb.epoch = block->epoch_number;
     	my_tips.mb.sqn =  block->sequence;
+
+		LOG_TRACE(log) << "Puller::"<<__func__ << " my_tips " << "\n" << my_tips;
+		LOG_TRACE(log) << "Puller::"<<__func__ << " others_tips " << "\n" << others_tips;
+
     }
 
     void Puller::UpdateMyEBTip(EBPtr block)
@@ -478,6 +550,9 @@ namespace Bootstrap
     	my_tips.eb.digest = block->Hash();
     	my_tips.eb.epoch = block->epoch_number;
     	my_tips.eb.sqn =  block->epoch_number;
+
+		LOG_TRACE(log) << "Puller::"<<__func__ << " my_tips " << "\n" << my_tips;
+		LOG_TRACE(log) << "Puller::"<<__func__ << " others_tips " << "\n" << others_tips;
     }
 
     ///////////////////////////////////////////////////////////////////////
@@ -528,6 +603,7 @@ namespace Bootstrap
 
     void PullRequestHandler::TraceToEpochBegin()
     {
+		LOG_TRACE(log) << "PullRequestHandler::"<<__func__;
     	BlockHash cur(request.target);
     	ApprovedRB block;
     	for(;;)
@@ -537,6 +613,10 @@ namespace Bootstrap
         		next = 0;
         		return;
         	}
+
+    		LOG_TRACE(log) << "PullRequestHandler::"<<__func__ << " work on block with tip: "
+    				<< block.CreateTip().to_string();
+
     		if(block.previous.is_zero())
     		{
     			next = cur;
@@ -562,12 +642,15 @@ namespace Bootstrap
     		block_size = GetBlock(next, buf);
     	}
 
-    	auto status = PullResponseStatus::NoBlock;
+		auto status = PullResponseStatus::NoBlock;
     	if(block_size > 0)//have block
     	{
-    		if(next == request.target)
+    		if(request.block_type == ConsensusType::MicroBlock ||
+    				request.block_type == ConsensusType::Epoch ||
+					next == request.target)
     		{
     			status = PullResponseStatus::LastBlock;
+    			next = 0;
     		}
     		else
     		{
@@ -584,147 +667,16 @@ namespace Bootstrap
     			}
     		}
     	}
-    	PullResponseSerializedLeadingFields(request.block_type, status, block_size, buf);
+    	auto ps = PullResponseSerializedLeadingFields(request.block_type, status, block_size, buf);
+
+		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
+				<<" status=" <<(uint)status
+				<<" packet size="<<ps
+				<<" block size="<<block_size
+				<<" buf size="<<buf.size();
+		assert(ps==buf.size());
+
     	return status == PullResponseStatus::MoreBlock;
     }
 
 }//namespace
-
-
-
-
-//				if(working_epoch.two_mbps)
-//				{
-//					assert(working_epoch.cur_mbp.mb != nullptr);
-//					assert(working_epoch.next_mbp.bsb_targets.empty());
-//
-//					auto digest(working_epoch.cur_mbp.mb->Hash());
-//					bool mb_processed = !block_cache.IsMBCached(working_epoch.epoch_num, digest);
-//					if(mb_processed)
-//					{
-//						working_epoch.cur_mbp = working_epoch.next_mbp;
-//						working_epoch.two_mbps = false;
-//					}
-//					else
-//					{
-//						LOG_FATAL(log) << "Puller::CreateMorePulls: pulled two MB periods,"
-//										<< " but first MB has not been processed."
-//										<< " epoch_num=" << working_epoch.epoch_num
-//										<< " MB_1 hash=" << digest;
-//						trace_and_halt();
-//					}
-//				}
-//
-//				if(working_epoch.cur_mbp.mb != nullptr)
-//				{
-//					auto digest(working_epoch.cur_mbp.mb->Hash());
-//					bool mb_processed = !block_cache.IsMBCached(working_epoch.epoch_num, digest);
-//					if(mb_processed)
-//					{
-//
-//						if(working_epoch.eb != nullptr)
-//						{
-//							bool eb_processed = !block_cache.IsEBCached(working_epoch.epoch_num);
-//							if(eb_processed)
-//							{
-//								//working_epoch too?
-//								LOG_INFO(log) << "Puller::BSBReceived: processed an epoch "<< working_epoch.epoch_num;
-//							}
-//							else
-//							{
-//								LOG_FATAL(log) << "Puller::BSBReceived: cannot process epoch block after last micro block "
-//											   << working_epoch.epoch_num;
-//								trace_and_halt();
-//							}
-//						}
-//					}
-//					else
-//					{
-//						working_epoch.two_mbps = true;
-//
-//						//						waiting_pulls.push_back(std::make_shared<PullRequest>(
-//						//								ConsensusType::MicroBlock,
-//						//								working_epoch.epoch_num,
-//						//								my_tips.mb.digest));
-//						//						return;
-//					}
-//				}
-//    uint32_t Puller::ComputeNumBSBToPull(Tip &a, Tip &b)
-//    {
-//    	assert(a.epoch == b.epoch && a < b);
-//    	if(a.digest == 0)
-//        {
-//    		return b.sqn - a.sqn + 1;
-//        }
-//    	else
-//    	{
-//    		return b.sqn - a.sqn;
-//    	}
-//    }
-//        						if(working_epoch.eb != nullptr)
-//        						{
-//        							bool eb_processed = !block_cache.IsEBCached(working_epoch.epoch_num);
-//        							if(eb_processed)
-//        							{
-//        								//TODO update eb tip
-//        								//working_epoch too?
-//        								LOG_INFO(log) << "Puller::BSBReceived: processed an epoch "<< working_epoch.epoch_num;
-//        							}
-//        							else
-//        							{
-//        								LOG_FATAL(log) << "Puller::BSBReceived: cannot process epoch block after last micro block "
-//        										   	   << working_epoch.epoch_num;
-//        								trace_and_halt();
-//        							}
-//        						}
-//        						{
-//        							if(working_epoch.epoch_num == others_tips.);
-//        						}
-//        					}
-//
-//
-//        					//////////////////////
-//
-//            				bool mb_processed = !block_cache.IsMBCached(working_epoch.epoch_num, digest);
-//            				if(mb_processed)
-//            				{
-//            					if(!working_mbp.mb->last_micro_block)
-//            					{
-//            						state = PullState::Micro;
-//
-//                        			return PullStatus::Done;
-//            					}
-//            					else
-//            					{
-//            						state = PullState::Epoch;
-//            						if(working_epoch.eb != nullptr)
-//            						{
-//            							bool eb_processed = !block_cache.IsEBCached(working_epoch.epoch_num);
-//            							if(eb_processed)
-//            							{
-//            								//TODO update eb tip
-//            								//working_epoch too?
-//            								LOG_INFO(log) << "Puller::BSBReceived: processed an epoch "<< working_epoch.epoch_num;
-//            							}
-//            							else
-//            							{
-//            								LOG_FATAL(log) << "Puller::BSBReceived: cannot process epoch block after last micro block "
-//            										   	   << working_epoch.epoch_num;
-//            								trace_and_halt();
-//            							}
-//            						}
-//            						{
-//            							if(working_epoch.epoch_num == others_tips.);
-//            						}
-//            					}
-//
-//            				}
-//            				else
-//            				{
-//            					working_epoch.two_mbps = true;
-//            				}
-//            			}
-//            			else //no mb, (1) we are done, or (2) last MB in epoch not received, but newest epoch started
-//            			{
-//            				state = PullState::Epoch;
-//            			}

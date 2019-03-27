@@ -54,13 +54,3 @@ namespace Bootstrap
         Log log;
     };
 }
-
-//        /// received_batch_block_tips final call to receiving tips in composed operation
-//        /// @param error_code error if there was a problem in the network
-//        /// @param size_t length of message received
-//        void received_batch_block_tips (boost::system::error_code const &, size_t);
-//
-//        /// finish_request
-//        /// set promise and pool connection
-//        void finish_request();
-

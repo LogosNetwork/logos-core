@@ -161,7 +161,8 @@ MicroBlockHandler::GetTipsSlow(
             num_blocks++;
         }
         //To-discuss, for Carl and Shangyan's assumption that we have all delegates on line at main net launch,
-        assert(!tips[delegate].digest.is_zero());
+        //In case a node lost the whole database and starts fresh. It won't have the 32 tips.
+        //assert(!tips[delegate].digest.is_zero());
     }
 }
 

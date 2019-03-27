@@ -33,24 +33,34 @@ namespace Bootstrap
     {
         LOG_DEBUG(log) << "bootstrap_attempt::run begin {";
 
+        {
+        	auto request(TipSet::CreateTipSet(store));
+            LOG_TRACE(log) <<"bootstrap_attempt::run my_tips \n" << request;
+        }
+
         //std::unique_lock<std::mutex> lock(mtx);
         auto tips_failure(true);
         while (!stopped && tips_failure)
         {
             tips_failure = request_tips();
         }
-
+        LOG_TRACE(log) <<"bootstrap_attempt::run 2";
         while (!stopped)
         {
+            LOG_TRACE(log) <<"bootstrap_attempt::run 3";
             if (!puller.AllDone())
             {
+                LOG_TRACE(log) <<"bootstrap_attempt::run 4";
+
                 request_pull();
-                LOG_DEBUG(log) << "bootstrap_attempt::run, wait...";
+                LOG_TRACE(log) << "bootstrap_attempt::run, wait...";
                 std::unique_lock<std::mutex> lock(mtx);
                 condition.wait(lock);
+                LOG_TRACE(log) << "bootstrap_attempt::run, wakeup";
             }
             else
             {
+            	std::cout<<"bootstrap_attempt::run puller.AllDone()"<<std::endl;
                 break;
             }
         }
@@ -229,8 +239,18 @@ namespace Bootstrap
         	LOG_DEBUG(log) << "bootstrap_client::bootstrap_client: connected="
         				<< connected;
         	connecting_clients.erase(client);
-            if(connected && !stopped)
-            	pool_connection (client);
+        	if(stopped)
+        	{
+        		condition.notify_all();//TODO check if need lock
+        	}
+        	else if(connected)
+        	{
+        		pool_connection (client);
+        	}
+        	else
+        	{
+        		condition.notify_all();//TODO check if need lock
+        	}
         });
 	}
 

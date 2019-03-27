@@ -35,7 +35,7 @@ namespace Bootstrap
         		{
 					if (good)
 					{
-						LOG_TRACE(log) << "waiting peer tips...";
+						//LOG_TRACE(log) << "bulk_pull_client::run: waiting peer blocks...";
 						receive_block();
 					}
 					else
@@ -49,10 +49,11 @@ namespace Bootstrap
 
     void bulk_pull_client::receive_block ()
     {
-		LOG_TRACE(log) << "bulk_pull_client::"<<__func__;
+		LOG_TRACE(log) << "bulk_pull_client::"<<__func__<< ": waiting peer blocks...";
         auto this_l = shared_from_this ();
         connection->AsyncReceive([this, this_l](bool good, MessageHeader header, uint8_t * buf)
         		{
+        			LOG_TRACE(log) << "bulk_pull_client::"<<__func__ <<" good="<<good;
         			PullStatus pull_status = PullStatus::Unknown;
         			if(good)
         	        {
@@ -135,7 +136,7 @@ namespace Bootstrap
     : connection(server)
     , request_handler(pull, store)
 	{
-		LOG_TRACE(log) << "bulk_pull_server::"<<__func__;
+		LOG_TRACE(log) << "bulk_pull_server::"<<__func__ << " " << pull.to_string();
 	}
 
     bulk_pull_server::~bulk_pull_server()
@@ -153,7 +154,7 @@ namespace Bootstrap
 				{
 					if (good)
 					{
-						LOG_TRACE(log) << "Sent a block";
+						LOG_TRACE(log) << "bulk_pull_server::send_block: Sent a block";
 						if(more)
 						{
 							send_block();

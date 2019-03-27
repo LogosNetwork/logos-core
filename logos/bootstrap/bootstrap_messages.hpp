@@ -58,6 +58,7 @@ namespace Bootstrap {
 
         uint32_t Serialize(logos::stream & stream) const;
         bool operator==(const PullRequest & other) const;
+        std::string to_string() const;
 
         static constexpr uint32_t WireSize = sizeof(block_type) +
         		sizeof(epoch_num) + HASH_SIZE * 2;
@@ -149,26 +150,5 @@ namespace Bootstrap {
 
 
 /*
-/// ostream operator
-/// @param out ostream reference
-/// @param resp BatchBlock::tips_response (object to stream out)
-/// @returns ostream operator
 
-friend
-ostream& operator<<(ostream &out, BatchBlock::tips_response resp)
-{
-    out << "block_type: tips_block timestamp_start: " << resp.timestamp_start
-        << " timestamp_end: " << resp.timestamp_end
-        << " delegate_id: "   << resp.delegate_id
-        << " epoch_block_tip: [" << resp.epoch_block_tip.to_string() << "] "
-        << " micro_block_tip: [" << resp.micro_block_tip.to_string() << "] "
-        << " epoch_block_seq_number: " << resp.epoch_block_seq_number
-        << " micro_block_seq_number: " << resp.micro_block_seq_number
-        << "\n";
-    for(int i = 0; i < NUMBER_DELEGATES; ++i) {
-        out << " batch_block_tip: [" << resp.batch_block_tip[i].to_string() << "] "
-            << " batch_block_seq_number: " << resp.batch_block_seq_number[i] << "\n";
-    }
-    return out;
-}
 */

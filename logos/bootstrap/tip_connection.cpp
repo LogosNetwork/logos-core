@@ -14,7 +14,7 @@ namespace Bootstrap
     : connection (connection)
     , request(TipSet::CreateTipSet(store))
     {
-        LOG_TRACE(log) <<"tips_req_client::"<< __func__;
+        LOG_TRACE(log) <<"tips_req_client::"<< __func__ << " my_tips" << std::endl << request;
     }
 
     tips_req_client::~tips_req_client ()
@@ -68,7 +68,6 @@ namespace Bootstrap
 					new (&response) TipSet(error, stream);
 					if (!error)
 					{
-						std::cout <<"tips_req_client::"<< __func__ << " tips parsed" << std::endl;//TODO
 						LOG_TRACE(log) <<"tips_req_client::"<< __func__ << "tips parsed";
 
 						//TODO more validation of tips in bootstrap V2
