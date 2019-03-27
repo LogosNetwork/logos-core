@@ -222,7 +222,12 @@ void PersistenceManager<ECT>::MarkDelegateElectsAsRemove(MDB_txn* txn)
 void PersistenceManager<ECT>::AddReelectionCandidates(MDB_txn* txn)
 {
     ApprovedEB epoch;
-    assert(!_store.epoch_get_n(3,epoch,txn));
+
+    auto is_not_extension = [](ApprovedEB& eb)
+    {
+        return !eb.is_extension;
+    };
+    assert(!_store.epoch_get_n(3,epoch,txn,is_not_extension));
 
     for(auto& d : epoch.delegates)
     {
