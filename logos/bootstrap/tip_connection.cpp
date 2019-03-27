@@ -2,7 +2,6 @@
 
 #include <logos/bootstrap/bootstrap.hpp>
 #include <logos/bootstrap/bootstrap_messages.hpp>
-#include <logos/bootstrap/microblock.hpp>
 #include <logos/bootstrap/pull.hpp>
 #include <logos/bootstrap/tip_connection.hpp>
 #include <logos/bootstrap/connection.hpp>

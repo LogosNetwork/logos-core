@@ -8,176 +8,176 @@ BlockCache::BlockCache(Store &store)
 
 bool BlockCache::AddEB(EBPtr block)
 {
-//	if(!eb_handler.VerifyAggSignature(*block))
-//	{
-//		LOG_TRACE(log) << "BlockCache::AddEB: VerifyAggSignature failed";
-//		return false;
-//	}
-//
-//	std::lock_guard<std::mutex> lck (mtx);
-//	//safe to ignore the block for both p2p and bootstrap
-//	if(eb_handler.BlockExists(*block))
-//	{
-//		LOG_TRACE(log) << "BlockCache::AddEB: BlockExists";
-//		return true;
-//	}
-//
-//	bool found = false;
-//	for(auto bi = epochs.rbegin(); bi != epochs.rend(); ++ bi)
-//	{
-//		if(bi->epoch_num == block->epoch_number)
-//		{
-//			//duplicate
-//			found = true;
-//			break;
-//		}
-//		else if(bi->epoch_num < block->epoch_number)
-//		{
-//			epochs.emplace(bi.base(), Epoch(block));
-//			found = true;
-//			break;
-//		}
-//	}
-//	if(!found)
-//	{
-//		epochs.emplace_front(Epoch(block));
-//		Validate();//TODO optimize: Validate eb first
-//	}
+	if(!eb_handler.VerifyAggSignature(*block))
+	{
+		LOG_TRACE(log) << "BlockCache::AddEB: VerifyAggSignature failed";
+		return false;
+	}
+
+	std::lock_guard<std::mutex> lck (mtx);
+	//safe to ignore the block for both p2p and bootstrap
+	if(eb_handler.BlockExists(*block))
+	{
+		LOG_TRACE(log) << "BlockCache::AddEB: BlockExists";
+		return true;
+	}
+
+	bool found = false;
+	for(auto bi = epochs.rbegin(); bi != epochs.rend(); ++ bi)
+	{
+		if(bi->epoch_num == block->epoch_number)
+		{
+			//duplicate
+			found = true;
+			break;
+		}
+		else if(bi->epoch_num < block->epoch_number)
+		{
+			epochs.emplace(bi.base(), Epoch(block));
+			found = true;
+			break;
+		}
+	}
+	if(!found)
+	{
+		epochs.emplace_front(Epoch(block));
+		Validate();//TODO optimize: Validate eb first
+	}
 
 	return true;
 }
 
 bool BlockCache::AddMB(MBPtr block)
 {
-//	if(!mb_handler.VerifyAggSignature(*block))
-//	{
-//		LOG_TRACE(log) << "BlockCache::AddMB: VerifyAggSignature failed";
-//		return false;
-//	}
-//
-//	std::lock_guard<std::mutex> lck (mtx);
-//	//safe to ignore the block for both p2p and bootstrap
-//	if(mb_handler.BlockExists(*block))
-//	{
-//		LOG_TRACE(log) << "BlockCache::AddMB: BlockExists";
-//		return true;
-//	}
-//
-//	bool found = false;
-//	bool add2begin = false;
-//	for(auto bi = epochs.rbegin(); bi != epochs.rend(); ++ bi)
-//	{
-//		if(bi->epoch_num == block->epoch_number)
-//		{
-//			for(auto mbi = bi->mbs.rbegin(); mbi != bi->mbs.rend(); ++ mbi)
-//			{
-//				if((*mbi)->sequence == block->sequence)
-//				{
-//					//duplicate
-//					found = true;
-//					break;
-//				}
-//				else if ((*mbi)->sequence < block->sequence)
-//				{
-//					bi->mbs.emplace(mbi.base(), block);
-//					found = true;
-//					break;
-//				}
-//			}
-//			if(!found)
-//			{
-//				bi->mbs.emplace_front(block);
-//				found = true;
-//				auto temp_i = bi;
-//				add2begin = ++temp_i == epochs.rend();
-//			}
-//			break;
-//		}
-//		else if(bi->epoch_num < block->epoch_number)
-//		{
-//			epochs.emplace(bi.base(), Epoch(block));
-//			found = true;
-//			break;
-//		}
-//	}
-//	if(!found)
-//	{
-//		epochs.emplace_front(Epoch(block));
-//		found = true;
-//		add2begin = true;
-//	}
-//	if(add2begin)
-//	{
-//		Validate();//TODO optimize: Validate mb first
-//	}
+	if(!mb_handler.VerifyAggSignature(*block))
+	{
+		LOG_TRACE(log) << "BlockCache::AddMB: VerifyAggSignature failed";
+		return false;
+	}
+
+	std::lock_guard<std::mutex> lck (mtx);
+	//safe to ignore the block for both p2p and bootstrap
+	if(mb_handler.BlockExists(*block))
+	{
+		LOG_TRACE(log) << "BlockCache::AddMB: BlockExists";
+		return true;
+	}
+
+	bool found = false;
+	bool add2begin = false;
+	for(auto bi = epochs.rbegin(); bi != epochs.rend(); ++ bi)
+	{
+		if(bi->epoch_num == block->epoch_number)
+		{
+			for(auto mbi = bi->mbs.rbegin(); mbi != bi->mbs.rend(); ++ mbi)
+			{
+				if((*mbi)->sequence == block->sequence)
+				{
+					//duplicate
+					found = true;
+					break;
+				}
+				else if ((*mbi)->sequence < block->sequence)
+				{
+					bi->mbs.emplace(mbi.base(), block);
+					found = true;
+					break;
+				}
+			}
+			if(!found)
+			{
+				bi->mbs.emplace_front(block);
+				found = true;
+				auto temp_i = bi;
+				add2begin = ++temp_i == epochs.rend();
+			}
+			break;
+		}
+		else if(bi->epoch_num < block->epoch_number)
+		{
+			epochs.emplace(bi.base(), Epoch(block));
+			found = true;
+			break;
+		}
+	}
+	if(!found)
+	{
+		epochs.emplace_front(Epoch(block));
+		found = true;
+		add2begin = true;
+	}
+	if(add2begin)
+	{
+		Validate();//TODO optimize: Validate mb first
+	}
 
 	return true;
 }
 
 bool BlockCache::AddBSB(BSBPtr block)
 {
-//	if(!bsb_handler.VerifyAggSignature(*block))
-//	{
-//		LOG_TRACE(log) << "BlockCache::AddBSB: VerifyAggSignature failed";
-//		return false;
-//	}
-//
-//	std::lock_guard<std::mutex> lck (mtx);
-//	//safe to ignore the block for both p2p and bootstrap
-//	if(bsb_handler.BlockExists(*block))
-//	{
-//		LOG_TRACE(log) << "BlockCache::AddMB: BlockExists";
-//		return true;
-//	}
-//
-//	bool found = false;
-//	bool add2begin = false;
-//	for(auto bi = epochs.rbegin(); bi != epochs.rend(); ++ bi)
-//	{
-//		if(bi->epoch_num == block->epoch_number)
-//		{
-//			for(auto bsbi = bi->bsbs[block->primary_delegate].rbegin();
-//					bsbi != bi->bsbs[block->primary_delegate].rend(); ++ bsbi)
-//			{
-//				if((*bsbi)->sequence == block->sequence)
-//				{
-//					//duplicate
-//					found = true;
-//					break;
-//				}
-//				else if ((*bsbi)->sequence < block->sequence)
-//				{
-//					bi->bsbs[block->primary_delegate].emplace(bsbi.base(), block);
-//					found = true;
-//					break;
-//				}
-//			}
-//			if(!found)
-//			{
-//				bi->bsbs[block->primary_delegate].emplace_front(block);
-//				found = true;
-//				auto temp_i = bi;
-//				add2begin = ++temp_i == epochs.rend();
-//			}
-//			break;
-//		}
-//		else if(bi->epoch_num < block->epoch_number)
-//		{
-//			epochs.emplace(bi.base(), Epoch(block));
-//			found = true;
-//			break;
-//		}
-//	}
-//	if(!found)
-//	{
-//		epochs.emplace_front(Epoch(block));
-//		found = true;
-//		add2begin = true;
-//	}
-//	if(add2begin)
-//	{
-//		Validate(block->primary_delegate);
-//	}
+	if(!bsb_handler.VerifyAggSignature(*block))
+	{
+		LOG_TRACE(log) << "BlockCache::AddBSB: VerifyAggSignature failed";
+		return false;
+	}
+
+	std::lock_guard<std::mutex> lck (mtx);
+	//safe to ignore the block for both p2p and bootstrap
+	if(bsb_handler.BlockExists(*block))
+	{
+		LOG_TRACE(log) << "BlockCache::AddMB: BlockExists";
+		return true;
+	}
+
+	bool found = false;
+	bool add2begin = false;
+	for(auto bi = epochs.rbegin(); bi != epochs.rend(); ++ bi)
+	{
+		if(bi->epoch_num == block->epoch_number)
+		{
+			for(auto bsbi = bi->bsbs[block->primary_delegate].rbegin();
+					bsbi != bi->bsbs[block->primary_delegate].rend(); ++ bsbi)
+			{
+				if((*bsbi)->sequence == block->sequence)
+				{
+					//duplicate
+					found = true;
+					break;
+				}
+				else if ((*bsbi)->sequence < block->sequence)
+				{
+					bi->bsbs[block->primary_delegate].emplace(bsbi.base(), block);
+					found = true;
+					break;
+				}
+			}
+			if(!found)
+			{
+				bi->bsbs[block->primary_delegate].emplace_front(block);
+				found = true;
+				auto temp_i = bi;
+				add2begin = ++temp_i == epochs.rend();
+			}
+			break;
+		}
+		else if(bi->epoch_num < block->epoch_number)
+		{
+			epochs.emplace(bi.base(), Epoch(block));
+			found = true;
+			break;
+		}
+	}
+	if(!found)
+	{
+		epochs.emplace_front(Epoch(block));
+		found = true;
+		add2begin = true;
+	}
+	if(add2begin)
+	{
+		Validate(block->primary_delegate);
+	}
 
 	return true;
 }
@@ -191,11 +191,10 @@ bool BlockCache::IsBlockCached(const BlockHash & b)
 void BlockCache::Validate(uint8_t bsb_idx)
 {
 	assert(bsb_idx<=NUM_DELEGATES);
-	while(!epochs.empty())
+	auto e = epochs.begin();
+	while( e != epochs.end())
 	{
 		uint num_bsb_chain_no_progress = 0;
-		auto e = epochs.begin();
-
 		// try bsb chains till num_bsb_chain_no_progress reaches NUM_DELEGATES
 		while(num_bsb_chain_no_progress < NUM_DELEGATES)
 		{
@@ -219,25 +218,33 @@ void BlockCache::Validate(uint8_t bsb_idx)
 				}
 				else
 				{
+#ifdef REASON_CLEARED
 					switch (status.reason) {
 						case logos::process_result::gap_previous:
 						case logos::process_result::gap_source:
+							//TODO any other cases that can be considered as gap?
 							num_bsb_chain_no_progress++;
 							bsb_idx = (bsb_idx+1)%NUM_DELEGATES;
 							break;
 						default:
 							//Since the agg-sigs are already verified,
-							//we expect gap etc reasons.
+							//we expect gap-like reasons.
 							//For any other reason, we log them, and investigate.
-							//(TODO) detect double spend?
-							LOG_INFO(log) << "BlockCache::Validate BSB status: "
+							LOG_ERROR(log) << "BlockCache::Validate BSB status: "
 									<< ProcessResultToString(status.reason)
-									<< " block hash " << block.Hash().to_string();
+									<< " block " << block.CreateTip().to_string();
 							//Throw the block out, otherwise it blocks the rest.
 							e->bsbs[bsb_idx].pop_front();
 							cached_blocks.erase(block.Hash());
+							//TODO recall?
+							//TODO detect double spend?
 							break;
 					}
+#else
+					num_bsb_chain_no_progress++;
+					bsb_idx = (bsb_idx+1)%NUM_DELEGATES;
+#endif
+
 				}
 			}
 		}
@@ -254,17 +261,32 @@ void BlockCache::Validate(uint8_t bsb_idx)
 				last_mb = block.last_micro_block;
 				e->mbs.pop_front();
 				cached_blocks.erase(block.Hash());
-				if(last_mb) assert(e->mbs.empty());
+				if(last_mb)
+					assert(e->mbs.empty());
 			}
 			else
 			{
-				LOG_INFO(log) << "BlockCache::Validate MB status: "
+#ifdef REASON_CLEARED
+				switch (status.reason) {
+					case logos::process_result::gap_previous:
+					case logos::process_result::gap_source:
+						//TODO any other cases that can be considered as gap?
+						break;
+					default:
+						LOG_ERROR(log) << "BlockCache::Validate MB status: "
 							<< ProcessResultToString(status.reason)
-							<< " block hash " << block.Hash().to_string();
+							<< " block " << block.CreateTip().to_string();
+						e->mbs.pop_front();
+						cached_blocks.erase(block.Hash());
+						//TODO recall?
+						break;
+				}
+#endif
+				break;
 			}
 		}
 
-		bool eb_stored = false;
+		bool e_finished = false;
 		if((last_mb || mbs_empty) && e->eb != nullptr)
 		{
 			ApprovedEB & block = *e->eb;
@@ -272,17 +294,53 @@ void BlockCache::Validate(uint8_t bsb_idx)
 			if(eb_handler.VerifyContent(block, &status))
 			{
 				eb_handler.ApplyUpdates(block, block.primary_delegate);
-				LOG_INFO(log) << "BlockCache::Validated EB, block hash: "
-							  << block.Hash().to_string();
+				LOG_INFO(log) << "BlockCache::Validated EB, block: "
+							  << block.CreateTip().to_string();
 				epochs.pop_front();
 				cached_blocks.erase(block.Hash());
-				eb_stored = true;
+				e_finished = true;
+			}
+			else
+			{
+#ifdef REASON_CLEARED
+				switch (status.reason) {
+					case logos::process_result::gap_previous:
+					case logos::process_result::gap_source:
+						//TODO any other cases that can be considered as gap?
+						break;
+					default:
+						LOG_ERROR(log) << "BlockCache::Validate EB status: "
+							<< ProcessResultToString(status.reason)
+							<< " block " << block.CreateTip().to_string();
+						epochs.pop_front();
+						cached_blocks.erase(block.Hash());
+						//TODO recall?
+						break;
+				}
+#endif
 			}
 		}
 
-		bool last_epoch_begin = epochs.size()==1 && epochs.front().mbs.empty();
-		if( (!eb_stored) && (!last_epoch_begin))
-			break;
+		if(e_finished)
+		{
+			e = epochs.begin();
+		}
+		else
+		{
+			//two-tip case, i.e. first 10 minutes of the latest epoch
+			bool last_epoch_begin = epochs.size()==2 &&
+					e->eb == nullptr &&
+					e->mbs.empty() &&
+					(++e)->mbs.empty();
+			if(!last_epoch_begin)
+			{
+				e = epochs.end();
+			}
+			else
+			{
+				//already did ++e
+			}
+		}
 	}
 }
 
