@@ -84,7 +84,7 @@ public:
 
     static uint32_t START_ELECTIONS_EPOCH;
     static uint32_t TERM_LENGTH;
-
+    static bool     ENABLE_ELECTIONS;
 
     /// Is this a first epoch after genesis
     /// @returns true if first epoch

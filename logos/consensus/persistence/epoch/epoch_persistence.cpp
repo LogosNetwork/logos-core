@@ -106,7 +106,7 @@ PersistenceManager<ECT>::ApplyUpdates(
     }
 
     BlockHash epoch_hash = block.Hash();
-    bool transition = !BlockExists(block);
+    bool transition = EpochVotingManager::ENABLE_ELECTIONS;
 
     if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(epoch_hash, transaction))
     {
