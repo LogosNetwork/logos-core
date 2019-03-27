@@ -488,6 +488,8 @@ TEST(Elections,get_next_epoch_delegates)
     clear_dbs();
     DelegateIdentityManager::_epoch_transition_enabled = true;
 
+    EpochVotingManager::ENABLE_ELECTIONS = true;
+
     uint32_t epoch_num = 1;
     ApprovedEB eb;
     eb.epoch_number = epoch_num-1;
@@ -718,6 +720,7 @@ TEST(Elections,get_next_epoch_delegates)
     compare_delegates();
     }
 
+    EpochVotingManager::ENABLE_ELECTIONS = false;
 }
 
 TEST(Elections, redistribute_votes)
@@ -823,6 +826,7 @@ TEST(Elections,validate)
     AccountAddress sender_account = 100;
     AccountAddress sender_account2 = 101;
     EpochVotingManager::START_ELECTIONS_EPOCH = 2;
+    EpochVotingManager::ENABLE_ELECTIONS = true;
 
     uint32_t epoch_num = 1;
     ElectionVote vote;
@@ -1186,6 +1190,8 @@ TEST(Elections,validate)
     ASSERT_TRUE(persistence_mgr.ValidateRequest(start_rep,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
+
+    EpochVotingManager::ENABLE_ELECTIONS = false;
 }
 
 TEST(Elections, apply)
@@ -1194,6 +1200,8 @@ TEST(Elections, apply)
     logos::block_store* store = get_db();
     clear_dbs();
     DelegateIdentityManager::_epoch_transition_enabled = true;
+
+    EpochVotingManager::ENABLE_ELECTIONS = true;
 
     uint32_t epoch_num = 1;
     ApprovedEB eb;
@@ -1516,7 +1524,9 @@ TEST(Elections, apply)
     ASSERT_FALSE(contains(reps[2]));
     ASSERT_TRUE(contains(reps[3]));
     ASSERT_TRUE(contains(reps[4]));
-    
+
+    EpochVotingManager::ENABLE_ELECTIONS = false;
+
 }
 
 TEST(Elections, weighted_votes)

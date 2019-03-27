@@ -44,6 +44,7 @@ EpochVotingManager::GetElectionWinners(
 
 uint32_t EpochVotingManager::START_ELECTIONS_EPOCH = 50;
 uint32_t EpochVotingManager::TERM_LENGTH = 4;
+bool EpochVotingManager::ENABLE_ELECTIONS = false;
 
 //these are the delegates that are in their last epoch
 std::unordered_set<Delegate> EpochVotingManager::GetRetiringDelegates(
@@ -146,7 +147,7 @@ void EpochVotingManager::GetNextEpochDelegates(
         Delegates& delegates,
         uint32_t next_epoch_num)
 {
-    int num_new_delegates = next_epoch_num > START_ELECTIONS_EPOCH 
+    int num_new_delegates = next_epoch_num > START_ELECTIONS_EPOCH && ENABLE_ELECTIONS 
         ? NUM_DELEGATES / TERM_LENGTH : 0;
 
     ApprovedEB previous_epoch;
@@ -160,7 +161,7 @@ void EpochVotingManager::GetNextEpochDelegates(
         trace_and_halt();
     }
 
-    if (!DelegateIdentityManager::IsEpochTransitionEnabled())
+    if (!DelegateIdentityManager::IsEpochTransitionEnabled() || !ENABLE_ELECTIONS)
     {
         ApprovedEB epoch;
         if (_store.epoch_get(hash, epoch))
