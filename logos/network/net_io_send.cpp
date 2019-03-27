@@ -71,6 +71,6 @@ NetIOSend::AsyncSendBuffered()
 
             std::lock_guard<std::mutex> lock(this_s->_send_mutex);
             this_s->AsyncSendBuffered();
-       });
+        });
     }
 }
