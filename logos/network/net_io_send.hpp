@@ -13,7 +13,7 @@
 
 /// Implements buffered async write.
 /// Boost doesn't support concurrent async ops on the same socket.
-class NetIOSend : Self<NetIOSend>
+class NetIOSend : public Self<NetIOSend>
 {
     using Socket        = boost::asio::ip::tcp::socket;
     using Error         = boost::system::error_code;
