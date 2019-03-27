@@ -47,7 +47,7 @@ EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
     epoch.epoch_number = previous_epoch.epoch_number + 1;
     epoch.micro_block_tip = previous_micro_block_hash;
     //Note, we write epoch block with epoch number i at the beginning of epoch i+1
-    _voting_manager.GetNextEpochDelegates(epoch.delegates,epoch.epoch_number+1);
+    epoch.is_extension = !_voting_manager.GetNextEpochDelegates(epoch.delegates,epoch.epoch_number+1);
     epoch.transaction_fee_pool = 0; // TODO
 
     LOG_INFO(_log) << "EpochHandler::Build, built epoch block:"
