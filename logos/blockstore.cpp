@@ -1251,12 +1251,14 @@ bool logos::block_store::epoch_get(const BlockHash &hash, ApprovedEB &block, MDB
 bool logos::block_store::epoch_get_n(uint32_t num_epochs_ago, ApprovedEB &block, MDB_txn *txn, const std::function<bool(ApprovedEB&)>& filter)
 {
     BlockHash hash;
-    assert(!epoch_tip_get(hash,txn));
+    bool res = epoch_tip_get(hash,txn);
+    assert(!res);
 
     for(size_t i = 0; i <= num_epochs_ago;)
     {
         assert(hash != 0);
-        assert(!epoch_get(hash,block,txn));
+        res = epoch_get(hash,block,txn);
+        assert(!res);
         if(filter(block))
         {
             ++i;
