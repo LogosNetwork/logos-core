@@ -227,7 +227,8 @@ void PersistenceManager<ECT>::AddReelectionCandidates(MDB_txn* txn)
     {
         return !eb.is_extension;
     };
-    assert(!_store.epoch_get_n(3,epoch,txn,is_not_extension));
+    bool res = _store.epoch_get_n(3,epoch,txn,is_not_extension);
+    assert(!res);
 
     for(auto& d : epoch.delegates)
     {

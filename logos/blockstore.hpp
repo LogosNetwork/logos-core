@@ -255,8 +255,6 @@ public:
             MDB_txn *t=0,
             const std::function<bool(ApprovedEB&)>& filter=[](ApprovedEB&)->bool{return true;});
 
-    bool epoch_get_n_unextended(uint32_t ago, ApprovedEB &, MDB_txn *t=0);
-
     bool rep_get(
             AccountAddress const & account,
             RepInfo & rep_info,
