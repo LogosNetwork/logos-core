@@ -1614,7 +1614,8 @@ bool PersistenceManager<R>::ValidateRequest(
         result.code = logos::process_result::wrong_epoch_number;
         return false;
     }
-    if(cur_epoch_num < EpochVotingManager::START_ELECTIONS_EPOCH)
+    if(cur_epoch_num < EpochVotingManager::START_ELECTIONS_EPOCH
+            || !EpochVotingManager::ENABLE_ELECTIONS)
     {
         result.code = logos::process_result::no_elections;
         return false;
@@ -1723,7 +1724,8 @@ bool PersistenceManager<R>::ValidateRequest(
         result.code = logos::process_result::elections_dead_period;
         return false;
     }
-    if(cur_epoch_num < EpochVotingManager::START_ELECTIONS_EPOCH - 1)
+    if(cur_epoch_num < EpochVotingManager::START_ELECTIONS_EPOCH - 1
+            || !EpochVotingManager::ENABLE_ELECTIONS)
     {
         result.code = logos::process_result::no_elections;
         return false;
@@ -1787,6 +1789,11 @@ bool PersistenceManager<R>::ValidateRequest(
         logos::process_return& result)
 {
     assert(txn != nullptr);
+    if(!EpochVotingManager::ENABLE_ELECTIONS)
+    {
+        result.code = logos::process_result::no_elections;
+        return false;
+    }
     if(request.epoch_num != cur_epoch_num)
     {
         result.code = logos::process_result::wrong_epoch_number;
@@ -1856,6 +1863,11 @@ bool PersistenceManager<R>::ValidateRequest(
         logos::process_return& result)
 {
     assert(txn != nullptr);
+    if(!EpochVotingManager::ENABLE_ELECTIONS)
+    {
+        result.code = logos::process_result::no_elections;
+        return false;
+    }
     if(request.epoch_num != cur_epoch_num)
     {
         result.code = logos::process_result::wrong_epoch_number;
@@ -1903,6 +1915,12 @@ bool PersistenceManager<R>::ValidateRequest(
         logos::process_return& result)
 {
     assert(txn != nullptr);
+    if(!EpochVotingManager::ENABLE_ELECTIONS)
+    {
+        result.code = logos::process_result::no_elections;
+        return false;
+    }
+
     if(request.epoch_num != cur_epoch_num)
     {
         result.code = logos::process_result::wrong_epoch_number;

@@ -57,6 +57,8 @@ struct ConsensusManagerConfig
 
         heartbeat = tree.get<bool>("heartbeat", true);
 
+        enable_elections = tree.get<bool>("enable_elections", false);
+
         return false;
     }
 
@@ -84,6 +86,7 @@ struct ConsensusManagerConfig
         tree.put("peer_port", std::to_string(peer_port));
         tree.put("delegate_id", std::to_string(delegate_id));
         tree.put("heartbeat", std::to_string(heartbeat));
+        tree.put("enable_elections", std::to_string(enable_elections));
     }
 
     std::vector<Delegate> delegates;
@@ -94,4 +97,5 @@ struct ConsensusManagerConfig
     uint16_t              peer_port;
     uint8_t               delegate_id;
     bool                  heartbeat;
+    bool                  enable_elections;
 };

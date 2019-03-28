@@ -36,7 +36,8 @@ public:
     /// Get the list of next epoch delegates
     /// @param delegates list of new delegates [in,out]
     /// @param next_epoch_num the number of the next epoch
-    void GetNextEpochDelegates(Delegates& delegates, uint32_t next_epoch_num);
+    /// @returns false if a term extension was needed (not enough elected delegates)
+    bool GetNextEpochDelegates(Delegates& delegates, uint32_t next_epoch_num);
 
     /// Verify epoch delegates
     /// @param delegates list of epoch delegates [in,out]
@@ -84,7 +85,7 @@ public:
 
     static uint32_t START_ELECTIONS_EPOCH;
     static uint32_t TERM_LENGTH;
-
+    static bool     ENABLE_ELECTIONS;
 
     /// Is this a first epoch after genesis
     /// @returns true if first epoch

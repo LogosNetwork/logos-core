@@ -141,6 +141,7 @@ public:
         , micro_block_tip()
         , transaction_fee_pool(0ull)
         , delegates()
+        , is_extension(false)
     {}
 
     ~Epoch() {}
@@ -173,6 +174,8 @@ public:
                 return;
             }
         }
+
+        error = logos::read(stream, is_extension);
     }
 
     void Hash(blake2b_state & hash) const
@@ -195,6 +198,7 @@ public:
         {
             s += delegates[i].Serialize(stream);
         }
+        s += logos::write(stream, is_extension);
         return s;
     }
     /// JSON representation of Epoch (primarily for RPC messages)
@@ -204,4 +208,5 @@ public:
     BlockHash micro_block_tip;          ///< microblock tip of this epoch
     Amount    transaction_fee_pool;     ///< this epoch's transaction fee pool
     Delegate  delegates[NUM_DELEGATES]; ///< delegate'ls list
+    bool is_extension;
 };

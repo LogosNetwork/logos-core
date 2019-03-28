@@ -106,7 +106,7 @@ PersistenceManager<ECT>::ApplyUpdates(
     }
 
     BlockHash epoch_hash = block.Hash();
-    bool transition = !BlockExists(block);
+    bool transition = EpochVotingManager::ENABLE_ELECTIONS;
 
     if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(epoch_hash, transaction))
     {
@@ -222,7 +222,13 @@ void PersistenceManager<ECT>::MarkDelegateElectsAsRemove(MDB_txn* txn)
 void PersistenceManager<ECT>::AddReelectionCandidates(MDB_txn* txn)
 {
     ApprovedEB epoch;
-    assert(!_store.epoch_get_n(3,epoch,txn));
+
+    auto is_not_extension = [](ApprovedEB& eb)
+    {
+        return !eb.is_extension;
+    };
+    bool res = _store.epoch_get_n(3,epoch,txn,is_not_extension);
+    assert(!res);
 
     for(auto& d : epoch.delegates)
     {

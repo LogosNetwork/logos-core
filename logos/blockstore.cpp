@@ -1248,18 +1248,24 @@ bool logos::block_store::epoch_get(const BlockHash &hash, ApprovedEB &block, MDB
     return error;
 }
 
-bool logos::block_store::epoch_get_n(uint32_t num_epochs_ago, ApprovedEB &block, MDB_txn *txn)
+bool logos::block_store::epoch_get_n(uint32_t num_epochs_ago, ApprovedEB &block, MDB_txn *txn, const std::function<bool(ApprovedEB&)>& filter)
 {
     BlockHash hash;
-    assert(!epoch_tip_get(hash,txn));
-    assert(!epoch_get(hash,block,txn));
+    bool res = epoch_tip_get(hash,txn);
+    assert(!res);
 
-    for(size_t i = 0; i < num_epochs_ago; ++i)
+    for(size_t i = 0; i <= num_epochs_ago;)
     {
-        hash = block.previous;
         assert(hash != 0);
-        assert(!epoch_get(hash,block,txn));
+        res = epoch_get(hash,block,txn);
+        assert(!res);
+        if(filter(block))
+        {
+            ++i;
+        }
+        hash = block.previous;
     }
+
     return false;
 }
 

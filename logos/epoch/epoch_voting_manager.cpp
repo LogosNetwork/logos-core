@@ -44,6 +44,7 @@ EpochVotingManager::GetElectionWinners(
 
 uint32_t EpochVotingManager::START_ELECTIONS_EPOCH = 50;
 uint32_t EpochVotingManager::TERM_LENGTH = 4;
+bool EpochVotingManager::ENABLE_ELECTIONS = false;
 
 //these are the delegates that are in their last epoch
 std::unordered_set<Delegate> EpochVotingManager::GetRetiringDelegates(
@@ -60,7 +61,11 @@ std::unordered_set<Delegate> EpochVotingManager::GetRetiringDelegates(
     else if(next_epoch_num > START_ELECTIONS_EPOCH)
     {
         ApprovedEB epoch;
-        _store.epoch_get_n(3,epoch);
+        auto is_not_extension = [](ApprovedEB& eb)
+        {
+            return !eb.is_extension;
+        };
+        _store.epoch_get_n(3,epoch,nullptr,is_not_extension);
 
         for(auto& d : epoch.delegates)
         {
@@ -142,25 +147,23 @@ std::vector<Delegate> EpochVotingManager::GetDelegateElects(size_t num_new, uint
     }
 }
 
-void EpochVotingManager::GetNextEpochDelegates(
+bool EpochVotingManager::GetNextEpochDelegates(
         Delegates& delegates,
         uint32_t next_epoch_num)
 {
-    int num_new_delegates = next_epoch_num > START_ELECTIONS_EPOCH
+    int num_new_delegates = next_epoch_num > START_ELECTIONS_EPOCH && ENABLE_ELECTIONS 
         ? NUM_DELEGATES / TERM_LENGTH : 0;
 
     ApprovedEB previous_epoch;
     BlockHash hash;
-    std::unordered_map<AccountPubKey,bool> delegates3epochs;
 
-    // get all delegate in the previous 3 epochs
     if (_store.epoch_tip_get(hash))
     {
         LOG_FATAL(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch tip";
         trace_and_halt();
     }
 
-    if (!DelegateIdentityManager::IsEpochTransitionEnabled())
+    if (!DelegateIdentityManager::IsEpochTransitionEnabled() || !ENABLE_ELECTIONS)
     {
         ApprovedEB epoch;
         if (_store.epoch_get(hash, epoch))
@@ -173,7 +176,7 @@ void EpochVotingManager::GetNextEpochDelegates(
         {
             delegates[del] = epoch.delegates[del];
         }
-        return;
+        return true;
     }
 
     if (_store.epoch_get(hash, previous_epoch))
@@ -185,7 +188,14 @@ void EpochVotingManager::GetNextEpochDelegates(
 
     std::unordered_set<Delegate> retiring = GetRetiringDelegates(next_epoch_num);
     std::vector<Delegate> delegate_elects = GetDelegateElects(num_new_delegates, next_epoch_num);
-    if(retiring.size() != num_new_delegates || delegate_elects.size() != num_new_delegates)
+    bool extend = false;
+    if(delegate_elects.size() != num_new_delegates)
+    {
+        LOG_ERROR(_log) << "EpochVotingManager::GetNextEpochDelegates not enough delegate elects. "
+            << "Extending term of retiring delegates by one epoch";
+        extend = true;
+    }
+    else if(retiring.size() != num_new_delegates)
     {
         LOG_FATAL(_log) << "EpochVotingManager::GetNextEpochDelegates mismatch"
            << " in size of retiring and delegate_elects. Need to be equal."
@@ -200,8 +210,31 @@ void EpochVotingManager::GetNextEpochDelegates(
     {
         if(retiring.find(previous_epoch.delegates[del])!=retiring.end())
         {
-            delegates[del] = delegate_elects[del_elects_idx];
-            ++del_elects_idx;
+            //if we need to extend the current delegate set,
+            //but we are in the period where we are force retiring
+            //genesis delegates, simply act like the genesis delgates
+            //to be retired were reelected. This will extend the
+            //genesis delegate term by 4 more epochs. If extending term
+            //of non-genesis delegate, term is extended by 1 epoch
+            //This is done to keep the logic for force retiring genesis
+            //delegates simple
+            if(extend)
+            {
+                delegates[del] = previous_epoch.delegates[del];
+                if(ShouldForceRetire(next_epoch_num))
+                {
+                    delegates[del].starting_term = true;
+                }
+                else
+                {
+                    delegates[del].starting_term = false;
+                }
+            }
+            else
+            {
+                delegates[del] = delegate_elects[del_elects_idx];
+                ++del_elects_idx;
+            }
         } else
         {
             delegates[del] = previous_epoch.delegates[del];
@@ -209,12 +242,21 @@ void EpochVotingManager::GetNextEpochDelegates(
         }
     }
 
-    assert(del_elects_idx == delegate_elects.size());
+    if(!extend)
+    {
+        assert(del_elects_idx == delegate_elects.size());
+    }
 
     std::sort(std::begin(delegates), std::end(delegates),
             EpochVotingManager::IsGreater
             );
     RedistributeVotes(delegates);
+    //don't mark this epoch block as extended if extending genesis delegates terms
+    if(extend)
+    {
+        return ShouldForceRetire(next_epoch_num);
+    }
+    return true;
 }
 
 bool EpochVotingManager::IsGreater(const Delegate& d1, const Delegate& d2)

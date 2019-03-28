@@ -434,14 +434,13 @@ TEST(Elections,candidates_transition)
             ASSERT_FALSE(store->epoch_tip_get(hash,txn));
             eb.previous = hash;
             eb.delegates[0].starting_term = false;
+            eb.delegates[1].starting_term = true;
             ASSERT_FALSE(store->epoch_put(eb,txn));
             eb.previous = eb.Hash();
             ASSERT_FALSE(store->epoch_put(eb,txn));
             ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
         }
 
-        mgr.MarkDelegateElectsAsRemove(txn);
-        mgr.UpdateCandidatesDB(txn);
         {
             CandidateInfo info;
             bool res = store->candidate_get(a2,info,txn);
@@ -458,8 +457,7 @@ TEST(Elections,candidates_transition)
         }
     }
 
-
-    mgr.TransitionNextEpoch(txn, EpochVotingManager::START_ELECTIONS_EPOCH+1);
+    mgr.AddReelectionCandidates(txn);
 
     {
         CandidateInfo info;
@@ -474,7 +472,7 @@ TEST(Elections,candidates_transition)
     store->request_put(req,txn);
     store->rep_put(a2,rep,txn);
 
-    mgr.TransitionNextEpoch(txn, EpochVotingManager::START_ELECTIONS_EPOCH+1);
+    mgr.AddReelectionCandidates(txn);
     {
         CandidateInfo info;
         bool res = store->candidate_get(a2,info,txn);
@@ -487,6 +485,8 @@ TEST(Elections,get_next_epoch_delegates)
     logos::block_store* store = get_db();
     clear_dbs();
     DelegateIdentityManager::_epoch_transition_enabled = true;
+
+    EpochVotingManager::ENABLE_ELECTIONS = true;
 
     uint32_t epoch_num = 1;
     ApprovedEB eb;
@@ -539,10 +539,11 @@ TEST(Elections,get_next_epoch_delegates)
     auto transition_epoch = [&](int retire_idx = -1)
     {
         ++epoch_num;
+        std::cout << "transitioning to epoch number " << epoch_num << std::endl;
         eb.previous = eb.Hash();
         eb.epoch_number = epoch_num-1;
         logos::transaction txn(store->environment,nullptr,true);
-        voting_mgr.GetNextEpochDelegates(eb.delegates,epoch_num);
+        eb.is_extension = !voting_mgr.GetNextEpochDelegates(eb.delegates,epoch_num);
         ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
         ASSERT_FALSE(store->epoch_put(eb,txn));
         persistence_mgr.TransitionCandidatesDBNextEpoch(txn, epoch_num);
@@ -718,6 +719,77 @@ TEST(Elections,get_next_epoch_delegates)
     compare_delegates();
     }
 
+
+    //Test extension of delegate term
+
+    ASSERT_FALSE(eb.is_extension);
+    std::unordered_set<Delegate> retiring = voting_mgr.GetRetiringDelegates(epoch_num+1);
+    ApprovedEB retiring_eb;
+    store->epoch_get_n(3, retiring_eb,nullptr,[](ApprovedEB& block) { return !block.is_extension;});
+    transition_epoch();
+    ASSERT_TRUE(eb.is_extension);
+
+    ApprovedEB eb2;
+    store->epoch_get_n(0, eb2);
+    ASSERT_TRUE(eb2.is_extension);
+    for(size_t i = 0; i < NUM_DELEGATES; ++i)
+    {
+        delegates[i].starting_term = false;
+    }
+
+    ApprovedEB retiring_eb2;
+    store->epoch_get_n(3, retiring_eb2,nullptr,[](ApprovedEB& block) { return !block.is_extension;});
+    ASSERT_EQ(retiring_eb.epoch_number,retiring_eb2.epoch_number);
+
+    compare_delegates();
+
+    ASSERT_EQ(voting_mgr.GetRetiringDelegates(epoch_num+1),retiring);
+    transition_epoch();
+    ASSERT_TRUE(eb.is_extension);
+    ASSERT_EQ(voting_mgr.GetRetiringDelegates(epoch_num+1), retiring);
+    compare_delegates();
+
+    
+    //not enough votes
+    for(size_t i = 24; i <28 ; ++i)
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        ASSERT_FALSE(store->candidate_add_vote(delegates[i].account,delegates[i].vote+500,epoch_num,txn));
+    }
+
+    transition_epoch();
+    ASSERT_TRUE(eb.is_extension);
+    ASSERT_EQ(voting_mgr.GetRetiringDelegates(epoch_num+1), retiring);
+
+
+    for(size_t i = 24; i < 32; ++i)
+    {
+        logos::transaction txn(store->environment,nullptr,true);
+        ASSERT_FALSE(store->candidate_add_vote(delegates[i].account,delegates[i].vote+500,epoch_num,txn));
+        delegates[i].vote += 500;
+        delegates[i].starting_term = true;
+    }
+    std::sort(delegates.begin(), delegates.end(),[](auto d1, auto d2)
+            {
+                return d1.vote > d2.vote;
+            });
+    transition_epoch();
+    ASSERT_FALSE(eb.is_extension);
+    compare_delegates();
+
+    //make sure proper candidates were added for reelection
+    for(size_t i = 24; i < 32; ++i)
+    {
+
+        logos::transaction txn(store->environment,nullptr,true);
+        ASSERT_FALSE(store->candidate_add_vote(delegates[i].account,delegates[i].vote+500,epoch_num,txn));
+        delegates[i].vote += 500;
+        delegates[i].starting_term = true;
+    }
+
+
+
+    EpochVotingManager::ENABLE_ELECTIONS = false;
 }
 
 TEST(Elections, redistribute_votes)
@@ -823,6 +895,7 @@ TEST(Elections,validate)
     AccountAddress sender_account = 100;
     AccountAddress sender_account2 = 101;
     EpochVotingManager::START_ELECTIONS_EPOCH = 2;
+    EpochVotingManager::ENABLE_ELECTIONS = true;
 
     uint32_t epoch_num = 1;
     ElectionVote vote;
@@ -1186,6 +1259,8 @@ TEST(Elections,validate)
     ASSERT_TRUE(persistence_mgr.ValidateRequest(start_rep,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,epoch_num,txn,result));
+
+    EpochVotingManager::ENABLE_ELECTIONS = false;
 }
 
 TEST(Elections, apply)
@@ -1194,6 +1269,8 @@ TEST(Elections, apply)
     logos::block_store* store = get_db();
     clear_dbs();
     DelegateIdentityManager::_epoch_transition_enabled = true;
+
+    EpochVotingManager::ENABLE_ELECTIONS = true;
 
     uint32_t epoch_num = 1;
     ApprovedEB eb;
@@ -1516,7 +1593,9 @@ TEST(Elections, apply)
     ASSERT_FALSE(contains(reps[2]));
     ASSERT_TRUE(contains(reps[3]));
     ASSERT_TRUE(contains(reps[4]));
-    
+
+    EpochVotingManager::ENABLE_ELECTIONS = false;
+
 }
 
 TEST(Elections, weighted_votes)
@@ -1666,9 +1745,5 @@ TEST(Elections, remove_db)
     }
     ASSERT_EQ(num_remove, 0);
 }
-
-
-
-
 
 #endif
