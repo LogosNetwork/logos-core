@@ -10,6 +10,7 @@ ReservationCache Reservations::_reservations;
 void
 Reservations::Release(const AccountAddress & account)
 {
+    std::lock_guard<std::mutex> lock(_mutex);
     _reservations.erase(account);
 }
 
@@ -23,6 +24,7 @@ ConsensusReservations::CanAcquire(const AccountAddress & account,
     logos::reservation_info info;
 
     // Check cache
+    std::lock_guard<std::mutex> lock(_mutex);
     if(_reservations.find(account) == _reservations.end())
     {
         // Not in LMDB either
@@ -72,6 +74,7 @@ ConsensusReservations::UpdateReservation(const BlockHash & hash,
 {
     uint32_t current_epoch = ConsensusContainer::GetCurEpochNumber();
 
+    std::lock_guard<std::mutex> lock(_mutex);
     if(_reservations.find(account) != _reservations.end() &&
            _reservations[account].reservation != hash)
     {
