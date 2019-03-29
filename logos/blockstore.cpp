@@ -1133,19 +1133,15 @@ bool logos::block_store::consensus_block_update_next(const BlockHash & hash, con
 bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, mdb_val &value, MDB_txn *tx)
 {
     int status = 0;
-    static int abc = 0;
     if (tx == 0)
     {
         logos::transaction transaction(environment, nullptr, false);
         status = mdb_get(transaction, db, key, value);
-        abc = 1;
     }
     else
     {
         status = mdb_get(tx, db, key, value);
-        abc = 2;
     }
-
     if( ! (status == 0 || status == MDB_NOTFOUND))
     {
         trace_and_halt();
@@ -1184,6 +1180,8 @@ bool logos::block_store::micro_block_get(const BlockHash &hash, ApprovedMB &bloc
 
 bool logos::block_store::micro_block_tip_put(const Tip & tip, MDB_txn *transaction)
 {
+    LOG_TRACE(log) << __func__ << " tip " << tip.to_string();
+
     const uint8_t key = 0; // only one tip
     std::vector<uint8_t> buf;
     auto status(mdb_put(transaction, micro_block_tip_db, logos::mdb_val(key), tip.to_mdb_val(buf), 0));
@@ -1203,7 +1201,7 @@ bool logos::block_store::micro_block_tip_get(Tip &tip, MDB_txn* t)
     bool error = false;
     new (&tip) Tip(error, val);
     if(!error)
-    	LOG_TRACE(log) << __func__ << " hash " << tip.digest.to_string();
+    	LOG_TRACE(log) << __func__ << " tip " << tip.to_string();
     return error;
 }
 
@@ -1254,27 +1252,28 @@ bool logos::block_store::epoch_get(const BlockHash &hash, ApprovedEB &block, MDB
     return error;
 }
 
-bool logos::block_store::epoch_get_n(uint32_t num_epochs_ago, ApprovedEB &block, MDB_txn *txn)
+bool logos::block_store::epoch_get_n(uint32_t num_epochs_ago, ApprovedEB &block, MDB_txn *txn, const std::function<bool(ApprovedEB&)>& filter)
 {
     Tip tip;
     if(epoch_tip_get(tip, txn))
     {
     	trace_and_halt();
     }
-    if(epoch_get(tip.digest,block,txn))
+    BlockHash hash = tip.digest;
+    for(size_t i = 0; i <= num_epochs_ago;)
     {
-    	trace_and_halt();
+        assert(hash != 0);
+        if (epoch_get(hash,block,txn))
+        {
+            trace_and_halt();
+        }
+        if(filter(block))
+        {
+            ++i;
+        }
+        hash = block.previous;
     }
 
-    for(size_t i = 0; i < num_epochs_ago; ++i)
-    {
-        auto hash = block.previous;
-        assert(hash != 0);
-        if(epoch_get(hash,block,txn))
-        {
-        	trace_and_halt();
-        }
-    }
     return false;
 }
 

@@ -100,15 +100,14 @@ PersistenceManager<ECT>::ApplyUpdates(
     logos::transaction transaction(_store.environment, nullptr, true);
 
     // See comments in request_persistence.cpp
-    bool b_exist = BlockExists(block);
-    if (b_exist)
+    if (BlockExists(block))
     {
         LOG_DEBUG(_log) << "PersistenceManager<ECT>::ApplyUpdates - epoch already exists, ignoring";
         return;
     }
 
     BlockHash epoch_hash = block.Hash();
-    bool transition = ! b_exist;
+    bool transition = EpochVotingManager::ENABLE_ELECTIONS;
 
     if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(block.CreateTip(), transaction))
     {
@@ -224,7 +223,13 @@ void PersistenceManager<ECT>::MarkDelegateElectsAsRemove(MDB_txn* txn)
 void PersistenceManager<ECT>::AddReelectionCandidates(MDB_txn* txn)
 {
     ApprovedEB epoch;
-    assert(!_store.epoch_get_n(3,epoch,txn));
+
+    auto is_not_extension = [](ApprovedEB& eb)
+    {
+        return !eb.is_extension;
+    };
+    bool res = _store.epoch_get_n(3,epoch,txn,is_not_extension);
+    assert(!res);
 
     for(auto& d : epoch.delegates)
     {

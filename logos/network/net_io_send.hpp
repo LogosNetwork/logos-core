@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <logos/lib/utility.hpp>
 #include <boost/asio/io_service.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <mutex>
@@ -12,7 +13,7 @@
 
 /// Implements buffered async write.
 /// Boost doesn't support concurrent async ops on the same socket.
-class NetIOSend
+class NetIOSend : public Self<NetIOSend>
 {
     using Socket        = boost::asio::ip::tcp::socket;
     using Error         = boost::system::error_code;

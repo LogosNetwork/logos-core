@@ -118,15 +118,14 @@ namespace Bootstrap
 
 	uint32_t TipSet::GetLatestEpochNumber()
 	{
+		uint32_t e = std::max(eb.epoch, mb.epoch);
 		for(uint i = 0; i < NUM_DELEGATES; ++i)
 		{
-			if(!bsb_vec_new_epoch[i].digest.is_zero())
-			{
-				return bsb_vec_new_epoch[i].epoch;
-			}
+			e = std::max(e, bsb_vec[i].epoch);
+			e = std::max(e, bsb_vec_new_epoch[i].epoch);
 		}
 
-		return bsb_vec[0].epoch;
+		return e;
 	}
 
 	TipSet TipSet::CreateTipSet(Store & store)

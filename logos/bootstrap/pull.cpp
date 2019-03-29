@@ -78,7 +78,7 @@ namespace Bootstrap
 
 	PullStatus Puller::EBReceived(PullPtr pull, EBPtr block)
     {
-		LOG_TRACE(log) << "Puller::"<<__func__ << " tip: " << block->CreateTip();
+		LOG_TRACE(log) << "Puller::"<<__func__ << " tip: " << block->CreateTip().to_string();
     	assert(state==PullerState::Epoch && working_epoch.eb == nullptr);
     	bool good_block = block->previous == pull->prev_hash &&
     			block_cache.AddEB(block);
@@ -101,7 +101,7 @@ namespace Bootstrap
 
 	PullStatus Puller::MBReceived(PullPtr pull, MBPtr block)
     {
-		LOG_TRACE(log) << "Puller::"<<__func__ << " tip: " << block->CreateTip();
+		LOG_TRACE(log) << "Puller::"<<__func__ << " tip: " << block->CreateTip().to_string();
     	assert(state==PullerState::Micro);
     	bool good_block = block->previous == pull->prev_hash &&
     			//block->epoch_number == working_epoch.epoch_num &&
@@ -138,7 +138,7 @@ namespace Bootstrap
 
 	PullStatus Puller::BSBReceived(PullPtr pull, BSBPtr block, bool last_block)
 	{
-		LOG_TRACE(log) << "Puller::"<<__func__ << " tip: " << block->CreateTip();
+		LOG_TRACE(log) << "Puller::"<<__func__ << " tip: " << block->CreateTip().to_string();
     	assert(state==PullerState::Batch || state==PullerState::Batch_No_MB);
     	bool good_block = block->previous == pull->prev_hash &&
     			block->epoch_number == working_epoch.epoch_num &&
@@ -399,15 +399,12 @@ namespace Bootstrap
 					}
 				}
 
-				if(added_pulls)
+				if(!added_pulls)
 				{
-					assert(working_epoch.epoch_num == final_ep_number);
-				}
-				else
-				{
-					assert(working_epoch.epoch_num-1 == final_ep_number);
 					state = PullerState::Done;
 				}
+				assert(working_epoch.epoch_num == final_ep_number ||
+						working_epoch.epoch_num-1 == final_ep_number);
 				break;
 			}
 			case PullerState::Done:

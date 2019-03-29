@@ -7,11 +7,11 @@
 
 template<ConsensusType CT>
 BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
-                                   PrimaryDelegate & primary,
+                                   std::shared_ptr<PrimaryDelegate> primary,
                                    MessagePromoter<CT> & promoter,
                                    MessageValidator & validator,
                                    const DelegateIdentities & ids,
-                                   EpochEventsNotifier & events_notifier,
+                                   std::shared_ptr<EpochEventsNotifier> events_notifier,
                                    PersistenceManager<CT> & persistence_manager,
                                    p2p_interface & p2p,
                                    Service & service)
@@ -23,7 +23,7 @@ BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
     , _promoter(promoter)
     , _events_notifier(events_notifier)
     , _persistence_manager(persistence_manager)
-    , _epoch_number(events_notifier.GetEpochNumber())
+    , _epoch_number(primary->GetEpochNumber())
 {}
 
 template<ConsensusType CT>
@@ -79,6 +79,12 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostPrepare & message)
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 {
+    auto notifier = GetSharedPtr(_events_notifier, "BackupDelegate<", ConsensusToName(CT),
+            ">::OnConsensusMessage, object destroyed");
+    if (!notifier)
+    {
+        return;
+    }
     if(ProceedWithMessage(message))
     {
         assert(_pre_prepare);
@@ -91,7 +97,7 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
         _state = ConsensusState::VOID;
         SetPreviousPrePrepareHash(_pre_prepare_hash);
 
-        _events_notifier.OnPostCommit(_pre_prepare->epoch_number);
+        notifier->OnPostCommit(_pre_prepare->epoch_number);
 
         std::vector<uint8_t> buf;
         block.Serialize(buf, true, true);
@@ -102,19 +108,37 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const Prepare & message)
 {
-    _primary.OnConsensusMessage(message, _delegate_ids.remote);
+    auto primary = GetSharedPtr(_primary, "BackupDelegate<", ConsensusToName(CT),
+            ">::OnConsensusMessage, object destroyed");
+    if (!primary)
+    {
+        return;
+    }
+    primary->OnConsensusMessage(message, _delegate_ids.remote);
 }
 
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const Commit & message)
 {
-    _primary.OnConsensusMessage(message, _delegate_ids.remote);
+    auto primary = GetSharedPtr(_primary, "BackupDelegate<", ConsensusToName(CT),
+                                ">::OnConsensusMessage, object destroyed");
+    if (!primary)
+    {
+        return;
+    }
+    primary->OnConsensusMessage(message, _delegate_ids.remote);
 }
 
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const Rejection & message)
 {
-    _primary.OnConsensusMessage(message, _delegate_ids.remote);
+    auto primary = GetSharedPtr(_primary, "BackupDelegate<", ConsensusToName(CT),
+                                ">::OnConsensusMessage, object destroyed");
+    if (!primary)
+    {
+        return;
+    }
+    primary->OnConsensusMessage(message, _delegate_ids.remote);
 }
 
 template<ConsensusType CT>
@@ -252,11 +276,16 @@ template<>
 bool BackupDelegate<ConsensusType::Request>::ValidateEpoch(
     const PrePrepareMessage<ConsensusType::Request> &message)
 {
+    auto notifier = GetSharedPtr(_events_notifier, "BackupDelegate<Request>::ValidateEpoch, object destroyed");
+    if (!notifier)
+    {
+        return false;
+    }
     bool valid = true;
 
-    auto delegate = _events_notifier.GetDelegate();
-    auto state = _events_notifier.GetState();
-    auto connect = _events_notifier.GetConnection();
+    auto delegate = notifier->GetDelegate();
+    auto state = notifier->GetState();
+    auto connect = notifier->GetConnection();
     if (delegate == EpochTransitionDelegate::PersistentReject ||
         delegate == EpochTransitionDelegate::RetiringForwardOnly)
     {
@@ -264,9 +293,9 @@ bool BackupDelegate<ConsensusType::Request>::ValidateEpoch(
         valid = false;
     }
     else if (state == EpochTransitionState::Connecting &&
-         (delegate == EpochTransitionDelegate::Persistent && // Persistent from new Delegate's set
-            connect == EpochConnection::Transitioning ||
-          delegate == EpochTransitionDelegate::New))
+            ((delegate == EpochTransitionDelegate::Persistent && // Persistent from new Delegate's set
+              connect == EpochConnection::Transitioning) ||
+             delegate == EpochTransitionDelegate::New))
     {
         _reason = RejectionReason::Invalid_Epoch;
         valid = false;

@@ -231,6 +231,8 @@ DelegateIdentityManager::Init(const Config &config)
 
     _epoch_transition_enabled = config.all_delegates.size() == 2 * config.delegates.size();
 
+    EpochVotingManager::ENABLE_ELECTIONS = config.enable_elections;
+
     Tip epoch_tip;
     BlockHash &epoch_tip_hash = epoch_tip.digest;
     uint32_t epoch_number = 0;
@@ -244,7 +246,7 @@ DelegateIdentityManager::Init(const Config &config)
         ApprovedEB previous_epoch;
         if (_store.epoch_get(epoch_tip_hash, previous_epoch))
         {
-            LOG_FATAL(_log) << "DelegateIdentityManager::Init Failed to get epoch: " << epoch_tip_hash.to_string();
+            LOG_FATAL(_log) << "DelegateIdentityManager::Init Failed to get epoch: " << epoch_tip.to_string();
             trace_and_halt();
         }
 
@@ -326,7 +328,8 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
         stringstream str(bls_keys[del]);
         bls::KeyPair bls_key;
         str >> bls_key.prv >> bls_key.pub;
-        logos::genesis_delegate delegate{logos::keypair(buff), bls_key, 0, 100000 + (uint64_t) del * 100};
+        logos::genesis_delegate delegate{logos::keypair(buff), bls_key,
+                                         100000 + (uint64_t) del * 100, 100000 + (uint64_t) del * 100};
         logos::keypair &pair = delegate.key;
 
         logos::genesis_delegates.push_back(delegate);
@@ -383,7 +386,8 @@ DelegateIdentityManager::LoadGenesisAccounts()
         stringstream str(bls_keys[del]);
         bls::KeyPair bls_key;
         str >> bls_key.prv >> bls_key.pub;
-        logos::genesis_delegate delegate{logos::keypair(buff), bls_key, 0, 100000 + (uint64_t) del * 100};
+        logos::genesis_delegate delegate{logos::keypair(buff), bls_key,
+                                         100000 + (uint64_t) del * 100, 100000 + (uint64_t) del * 100};
         logos::keypair &pair = delegate.key;
 
         logos::genesis_delegates.push_back(delegate);

@@ -39,19 +39,30 @@ void NetIOAssembler::ReadBytes(ReadCallback callback, size_t bytes, bool read_in
 
 void NetIOAssembler::AsyncRead()
 {
+    std::weak_ptr<NetIOAssembler> this_w = shared_from_this();
     boost::asio::async_read(*_socket,
                             boost::asio::buffer(_buffer.data() + _buffer_size,
                                                 BUFFER_CAPACITY - _buffer_size),
-                            boost::asio::transfer_at_least(1),
-                            std::bind(&NetIOAssembler::OnData, this,
-                                      std::placeholders::_1,
-                                      std::placeholders::_2));
+                            boost::asio::transfer_at_least(1), [this_w](const ErrorCode &ec, size_t size) {
+                                auto this_s = GetSharedPtr(this_w, "NetIOAssembler::AsyncRead, object destroyed");
+                                if (!this_s)
+                                {
+                                    return;
+                                }
+                                this_s->OnData(ec, size);
+                            });
 }
 
 void NetIOAssembler::OnData(const boost::system::error_code & error, size_t size)
 {
+    if (_handled_error)
+    {
+        return;
+    }
+
     if(error)
     {
+        _handled_error = true;
         OnError(error);
         return;
     }

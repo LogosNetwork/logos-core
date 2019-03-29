@@ -30,7 +30,7 @@ public:
     virtual ~NetIOHandler() = default;
 
     virtual
-    std::shared_ptr<ConsensusMsgSink>
+    std::shared_ptr<MessageParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) = 0;
     virtual void OnNetIOError(uint8_t delegate_id) = 0;
@@ -62,8 +62,7 @@ template<ConsensusType CT>
 class ConsensusManager : public PrimaryDelegate,
                          public NetIOHandler,
                          public MessagePromoter<CT>,
-                         public ConsensusP2pBridge<CT>,
-                         public ConsensusMsgProducer
+                         public ConsensusP2pBridge<CT>
 {
 
 protected:
@@ -82,6 +81,8 @@ protected:
     using ApprovedBlock   = PostCommittedBlock<CT>;
     using Responses       = std::vector<std::pair<logos::process_result, BlockHash>>;
     using ErrorCode       = boost::system::error_code;
+    template <typename T>
+    using WPTR            = std::weak_ptr<T>;
 
 public:
 
@@ -89,8 +90,8 @@ public:
                      Store & store,
                      const Config & config,
                      MessageValidator & validator,
-                     EpochEventsNotifier & events_notifier,
-                     p2p_interface & p2p);
+                     p2p_interface & p2p,
+                     uint32_t epoch_number);
 
     void HandleRequest(std::shared_ptr<DelegateMessage> message,
                        BlockHash &hash,
@@ -119,7 +120,7 @@ public:
 
     Store & GetStore() override;
 
-    std::shared_ptr<ConsensusMsgSink>
+    std::shared_ptr<MessageParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) override;
 
@@ -127,6 +128,18 @@ public:
     void UpdateMessagePromoter();
 
     void OnNetIOError(uint8_t delegate_id) override;
+
+    void ClearWaitingList()
+    {
+        _waiting_list.ClearWaitingList();
+    }
+
+    void Init(std::shared_ptr<EpochEventsNotifier> notifier)
+    {
+        _events_notifier = notifier;
+        auto promoter = std::dynamic_pointer_cast<MessagePromoter<CT>>(shared_from_this());
+        _waiting_list.UpdateMessagePromoter(promoter);
+    }
 
 protected:
 
@@ -173,22 +186,13 @@ protected:
             std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
 
     /// singleton secondary handler
-    static WaitingList<CT> & GetWaitingList(
-        Service & service,
-        MessagePromoter<CT>* promoter)
+    static WaitingList<CT> & GetWaitingList(Service & service)
     {
         // Promoter is assigned once when the object is constructed
         // Promoter is updated during transition
-        static WaitingList<CT> wl(service, promoter);
+        static WaitingList<CT> wl(service);
         return wl;
     }
-
-    bool AddToConsensusQueue(const uint8_t * data,
-                             uint8_t version,
-                             MessageType message_type,
-                             ConsensusType consensus_type,
-                             uint32_t payload_size,
-                             uint8_t delegate_id=0xff) override;
 
     bool SendP2p(const uint8_t *data, uint32_t size, MessageType message_type,
                  uint32_t epoch_number, uint8_t dest_delegate_id) override
@@ -204,15 +208,15 @@ protected:
 
     virtual bool ProceedWithRePropose();
 
-    Service &              _service;
-    Connections            _connections;
-    Store &                _store;
-    MessageValidator &     _validator;
-    std::mutex             _connection_mutex;
-    Log                    _log;
-    WaitingList<CT> &      _waiting_list;    ///< Secondary queue of requests/proposals.
-    EpochEventsNotifier &  _events_notifier; ///< Notifies epoch manager of transition related events
-    ReservationsPtr        _reservations;
-    PersistenceManager<CT> _persistence_manager;
+    Service &                 _service;
+    Connections               _connections;
+    Store &                   _store;
+    MessageValidator &        _validator;
+    std::mutex                _connection_mutex;
+    Log                       _log;
+    WaitingList<CT> &         _waiting_list;    ///< Secondary queue of requests/proposals.
+    WPTR<EpochEventsNotifier> _events_notifier; ///< Notifies epoch manager of transition related events
+    ReservationsPtr           _reservations;
+    PersistenceManager<CT>    _persistence_manager;
 };
 

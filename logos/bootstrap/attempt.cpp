@@ -184,7 +184,9 @@ namespace Bootstrap
     {
         need = std::max(need, puller.GetNumWaitingPulls());
         //std::lock_guard <std::mutex> lock(mtx);
-        auto num_con = working_clients.size() + idle_clients.size();
+        auto num_con = working_clients.size() +
+        		idle_clients.size() +
+				connecting_clients.size();
         assert(max_connected >= num_con);
         size_t allowed = max_connected - num_con;
         return std::min(allowed, need);

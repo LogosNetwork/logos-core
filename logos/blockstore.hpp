@@ -254,7 +254,11 @@ public:
     void GetEpochFirstRBs(uint32_t epoch_number, BatchTips & epoch_firsts);
 
     bool epoch_exists(const ApprovedEB & block);
-    bool epoch_get_n(uint32_t ago, ApprovedEB &, MDB_txn *t=0);
+    bool epoch_get_n(
+            uint32_t ago,
+            ApprovedEB &,
+            MDB_txn *t=0,
+            const std::function<bool(ApprovedEB&)>& filter=[](ApprovedEB&)->bool{return true;});
 
     bool rep_get(
             AccountAddress const & account,

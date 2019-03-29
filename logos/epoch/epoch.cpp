@@ -27,4 +27,5 @@ void Epoch::SerializeJson(boost::property_tree::ptree & epoch_block) const
     }
     epoch_block.add_child("delegates", ptree_delegates);
     epoch_block.put("transaction_fee_pool", transaction_fee_pool.to_string());
+    epoch_block.put("is_extension", is_extension);
 }

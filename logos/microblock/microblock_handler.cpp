@@ -5,6 +5,7 @@
 //#include <logos/microblock/microblock_tester.hpp>
 #include <logos/blockstore.hpp>
 #include <logos/node/node.hpp>
+#include <logos/lib/epoch_time_util.hpp>
 #include <logos/lib/trace.hpp>
 #include <time.h>
 
@@ -124,7 +125,8 @@ MicroBlockHandler::GetTipsSlow(
         const BatchTipHashes &start,
         const BatchTipHashes &end,
         BatchTips &tips,
-        uint &num_blocks)
+        uint &num_blocks,
+        bool add_cutoff)
 {
     struct pair {
         uint64_t timestamp;
@@ -147,7 +149,7 @@ MicroBlockHandler::GetTipsSlow(
     auto cutoff = min_timestamp + ((rem!=0)?TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count() - rem:0);
 
     // iterate over all blocks, selecting the ones that are less than cutoff time
-    uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff, false);
+    uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff, add_cutoff);
 
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate) {
         for (auto it : entries[delegate]) {
@@ -192,6 +194,35 @@ MicroBlockHandler::Build(
                         << "Stored micro block has a different hash from its DB key";
         trace_and_halt();
     }
+    ApprovedEB epoch;
+    Tip epoch_tip;
+    BlockHash & hash = epoch_tip.digest;
+    if (_store.epoch_tip_get(epoch_tip))
+    {
+        LOG_FATAL(_log) << "MicroBlockHandler::Build failed to get epoch tip";
+        trace_and_halt();
+    }
+
+    if (_store.epoch_get(hash, epoch))
+    {
+        LOG_FATAL(_log) << "MicroBlockHandler::Build failed to get epoch: "
+                        << hash.to_string();
+        trace_and_halt();
+    }
+
+    // first micro block in this epoch
+    bool first_micro_block = epoch.micro_block_tip.digest == previous_micro_block_hash;
+
+    block.timestamp = GetStamp();
+    block.previous = previous_micro_block_hash;
+    block.epoch_number = first_micro_block
+                         ? previous_micro_block.epoch_number + 1
+                         : previous_micro_block.epoch_number;
+    block.primary_delegate = 0xff;//epoch_handler does not know the delegate index which could change after every epoch transition
+    block.sequence = first_micro_block
+                     ? 0
+                     : previous_micro_block.sequence + 1;
+    block.last_micro_block = last_micro_block;
 
     // collect current batch block tips
     // first microblock after genesis, the cut-off time is the Min timestamp of the very first BSB
@@ -212,9 +243,13 @@ MicroBlockHandler::Build(
             {
             	start[delegate] = request_tip.digest;
             }
-        	end[delegate] == previous_micro_block.tips[delegate].digest;
+        	end[delegate] = previous_micro_block.tips[delegate].digest;
         }
-        GetTipsSlow(start, end, block.tips, block.number_batch_blocks);
+        EpochTimeUtil util;
+        bool add_cutoff = block.sequence ||
+                          block.epoch_number != GENESIS_EPOCH + 1 ||
+                          !util.IsOneMBPastEpochTime();
+        GetTipsSlow(start, end, block.tips, block.number_batch_blocks, add_cutoff);
     }
     // Microblock cut off time is the previous microblock's proposed time;
     // start points to the first block after the previous, i.e. previous.next
@@ -233,36 +268,6 @@ MicroBlockHandler::Build(
 
     // should it be allowed to have no tips? same as above, i.e disconnected for a while
     // (std::count(block._tips.begin(), block._tips.end(), 0) == 0);
-
-    Tip epoch_tip;
-    ApprovedEB epoch;
-    BlockHash & hash = epoch_tip.digest;
-    if (_store.epoch_tip_get(epoch_tip))
-    {
-        LOG_FATAL(_log) << "MicroBlockHandler::Build failed to get epoch tip";
-        trace_and_halt();
-    }
-
-    if (_store.epoch_get(hash, epoch))
-    {
-        LOG_FATAL(_log) << "MicroBlockHandler::Build failed to get epoch: "
-                        << hash.to_string();
-        trace_and_halt();
-    }
-
-    // first micro block in this epoch
-    bool first_micro_block = epoch.micro_block_tip == micro_tip;
-
-    block.timestamp = GetStamp();
-    block.previous = previous_micro_block_hash;
-    block.epoch_number = first_micro_block
-                         ? previous_micro_block.epoch_number + 1
-                         : previous_micro_block.epoch_number;
-    block.primary_delegate = 0xff;//epoch_handler does not know the delegate index which could change after every epoch transition
-    block.sequence = first_micro_block
-                     ? 0
-                     : previous_micro_block.sequence + 1;
-    block.last_micro_block = last_micro_block;
 
     LOG_INFO(_log) << "MicroBlockHandler::Build, built microblock:"
                    << " hash " << Blake2bHash<MicroBlock>(block).to_string()

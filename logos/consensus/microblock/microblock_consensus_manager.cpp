@@ -9,10 +9,10 @@ MicroBlockConsensusManager::MicroBlockConsensusManager(
                                const Config & config,
                                MessageValidator & validator,
                                ArchiverMicroBlockHandler & handler,
-                               EpochEventsNotifier & events_notifier,
-                               p2p_interface & p2p)
+                               p2p_interface & p2p,
+                               uint32_t epoch_number)
     : Manager(service, store, config,
-	      validator, events_notifier, p2p)
+	      validator, p2p, epoch_number)
     , _microblock_handler(handler)
 {
 	Tip tip;
@@ -140,8 +140,11 @@ MicroBlockConsensusManager::MakeBackupDelegate(
         std::shared_ptr<IOChannel> iochannel,
         const DelegateIdentities& ids)
 {
-    return std::make_shared<MicroBlockBackupDelegate>(iochannel, *this, *this,
-            _validator, ids, _microblock_handler, _events_notifier, _persistence_manager,
+    auto notifier = GetSharedPtr(_events_notifier,
+            "MicroBlockConsensusManager::MakeBackupDelegate, object destroyed");
+    assert(notifier);
+    return std::make_shared<MicroBlockBackupDelegate>(iochannel, shared_from_this(), *this,
+            _validator, ids, _microblock_handler, notifier, _persistence_manager,
             GetP2p(), _service);
 }
 
