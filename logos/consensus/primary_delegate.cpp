@@ -389,8 +389,9 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
     if(!Validate(message, remote_delegate_id))
     {
         LOG_WARN(_log) << "PrimaryDelegate - Failed to validate signature for "
-                       << MessageToName(message) << " with hash " << GetHashSigned(message).to_string()
-                       << " while in state: " << StateToString(_state);
+                       << MessageToName(message) << ", hash " << GetHashSigned(message).to_string()
+                       << " while in state: " << StateToString(_state) << ", suspected old consensus round message."
+                       << " Received message hash: " << message.preprepare_hash.to_string();
         return ProceedAction::DO_NOTHING;
     }
     _delegates_responded++;
