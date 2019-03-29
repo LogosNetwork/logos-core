@@ -212,8 +212,8 @@ void BlockCache::Validate(uint8_t bsb_idx)
 				if(bsb_handler.VerifyContent(block, &status))
 				{
 					bsb_handler.ApplyUpdates(block, block.primary_delegate);
-					e->bsbs[bsb_idx].pop_front();
 					cached_blocks.erase(block.Hash());
+					e->bsbs[bsb_idx].pop_front();
 					num_bsb_chain_no_progress = 0;
 				}
 				else
@@ -234,8 +234,8 @@ void BlockCache::Validate(uint8_t bsb_idx)
 									<< ProcessResultToString(status.reason)
 									<< " block " << block.CreateTip().to_string();
 							//Throw the block out, otherwise it blocks the rest.
-							e->bsbs[bsb_idx].pop_front();
 							cached_blocks.erase(block.Hash());
+							e->bsbs[bsb_idx].pop_front();
 							//TODO recall?
 							//TODO detect double spend?
 							break;
@@ -259,8 +259,8 @@ void BlockCache::Validate(uint8_t bsb_idx)
 			{
 				mb_handler.ApplyUpdates(block, block.primary_delegate);
 				last_mb = block.last_micro_block;
-				e->mbs.pop_front();
 				cached_blocks.erase(block.Hash());
+				e->mbs.pop_front();
 				if(last_mb)
 					assert(e->mbs.empty());
 			}
@@ -276,8 +276,8 @@ void BlockCache::Validate(uint8_t bsb_idx)
 						LOG_ERROR(log) << "BlockCache::Validate MB status: "
 							<< ProcessResultToString(status.reason)
 							<< " block " << block.CreateTip().to_string();
-						e->mbs.pop_front();
 						cached_blocks.erase(block.Hash());
+						e->mbs.pop_front();
 						//TODO recall?
 						break;
 				}
@@ -296,8 +296,8 @@ void BlockCache::Validate(uint8_t bsb_idx)
 				eb_handler.ApplyUpdates(block, block.primary_delegate);
 				LOG_INFO(log) << "BlockCache::Validated EB, block: "
 							  << block.CreateTip().to_string();
-				epochs.pop_front();
 				cached_blocks.erase(block.Hash());
+				epochs.pop_front();
 				e_finished = true;
 			}
 			else
@@ -312,8 +312,8 @@ void BlockCache::Validate(uint8_t bsb_idx)
 						LOG_ERROR(log) << "BlockCache::Validate EB status: "
 							<< ProcessResultToString(status.reason)
 							<< " block " << block.CreateTip().to_string();
-						epochs.pop_front();
 						cached_blocks.erase(block.Hash());
+						epochs.pop_front();
 						//TODO recall?
 						break;
 				}

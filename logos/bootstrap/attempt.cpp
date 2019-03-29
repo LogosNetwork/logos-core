@@ -60,7 +60,7 @@ namespace Bootstrap
             }
             else
             {
-            	std::cout<<"bootstrap_attempt::run puller.AllDone()"<<std::endl;
+            	//std::cout<<"bootstrap_attempt::run puller.AllDone()"<<std::endl;
                 break;
             }
         }

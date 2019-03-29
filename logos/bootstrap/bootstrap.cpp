@@ -113,6 +113,7 @@ namespace Bootstrap
 #ifdef BOOTSTRAP_PROGRESS
     	if(get_block_progress() == 0)//TODO ==0
     	{
+    		std::cout<<"bootstrap_initiator::check_progress calling attempt::stop"<<std::endl;
     		attempt->stop();
     		attempt = nullptr;
     		//return false;

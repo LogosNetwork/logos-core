@@ -57,6 +57,16 @@ namespace Bootstrap
         			PullStatus pull_status = PullStatus::Unknown;
         			if(good)
         	        {
+#ifdef DUMP_BLOCK_DATA
+{
+	std::stringstream stream;
+	for(size_t i = 0; i < header.payload_size; ++i)
+	{
+		stream << std::hex << std::noshowbase << std::setw (2) << std::setfill ('0') << (unsigned int)(buf[i]);
+	}
+	LOG_TRACE(log) << "bulk_pull_client::"<<__func__ <<"::data:" << stream.str ();
+}
+#endif
         	            logos::bufferstream stream (buf, header.payload_size);
     	            	pull_status = process_reply(header.pull_response_ct, stream);
         	        }
@@ -149,6 +159,19 @@ namespace Bootstrap
 		LOG_TRACE(log) << "bulk_pull_server::"<<__func__;
         auto send_buffer(std::make_shared<std::vector<uint8_t>>());
         auto more (request_handler.GetNextSerializedResponse(*send_buffer));
+
+#ifdef DUMP_BLOCK_DATA
+{
+	std::stringstream stream;
+	uint8_t * buf = send_buffer->data();
+	for(size_t i = MessageHeader::WireSize; i < send_buffer->size(); ++i)
+	{
+		stream << std::hex << std::noshowbase << std::setw (2) << std::setfill ('0') << (unsigned int)(buf[i]);
+	}
+	LOG_TRACE(log) << "bulk_pull_server::"<<__func__ <<"::data:" << stream.str ();
+}
+#endif
+
         auto this_l = shared_from_this();
         connection->AsyncSend(send_buffer, [this, this_l, more](bool good)
 				{

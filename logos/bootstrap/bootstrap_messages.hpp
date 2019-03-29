@@ -72,6 +72,27 @@ namespace Bootstrap {
         NoBlock
     };
 
+    inline std::string PullResponseStatusToName(const PullResponseStatus & s)
+    {
+        std::string ret;
+        switch (s)
+        {
+            case PullResponseStatus::MoreBlock:
+                ret = "MoreBlock";
+                break;
+            case PullResponseStatus::LastBlock:
+                ret = "LastBlock";
+                break;
+            case PullResponseStatus::NoBlock:
+                ret = "NoBlock";
+                break;
+            default:
+                ret = "Undefined";
+        }
+
+        return ret;
+    }
+
     template<ConsensusType CT>
     struct PullResponse
     {

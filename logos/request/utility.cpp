@@ -255,6 +255,7 @@ std::shared_ptr<Request> BuildRequest(RequestType type, bool & error, Data && da
             result = std::make_shared<StopRepresenting>(error, data);
             break;
         case RequestType::Unknown:
+        default:
             error = true;
             break;
     }

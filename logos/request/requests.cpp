@@ -157,11 +157,11 @@ Request::Request(bool & error,
             return;
         }
 
-        error = next.decode_hex(tree.get<std::string>(NEXT, ""));
-        if(error)
-        {
-            return;
-        }
+//        error = next.decode_hex(tree.get<std::string>(NEXT, ""));
+//        if(error)
+//        {
+//            return;
+//        }
 
         Hash();
     }

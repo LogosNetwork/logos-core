@@ -41,7 +41,7 @@ RequestBlock::RequestBlock(bool & error, logos::stream & stream, bool with_reque
             {
                 return;
             }
-
+            assert(val != nullptr);
             requests.push_back(val);
         }
     }

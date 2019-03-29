@@ -1280,7 +1280,7 @@ bool logos::block_store::epoch_get_n(uint32_t num_epochs_ago, ApprovedEB &block,
 
 bool logos::block_store::epoch_tip_put(const Tip &tip, MDB_txn *transaction)
 {
-    LOG_TRACE(log) << __func__ << " hash " << tip.digest.to_string();
+    LOG_TRACE(log) << __func__ << " tip " << tip.to_string();
 
     const uint8_t key = 0; // only one tip
     std::vector<uint8_t> buf;
@@ -1301,7 +1301,7 @@ bool logos::block_store::epoch_tip_get(Tip &tip, MDB_txn *t)
     bool error = false;
     new (&tip) Tip(error, val);
     if(!error)
-    	LOG_TRACE(log) << __func__ << " hash " << tip.digest.to_string();
+    	LOG_TRACE(log) << __func__ << " tip " << tip.to_string();
 
     return error;
 }
@@ -1813,7 +1813,7 @@ bool logos::block_store::request_tip_get(uint8_t delegate_id, uint32_t epoch_num
 
 bool logos::block_store::request_tip_del(uint8_t delegate_id, uint32_t epoch_number, MDB_txn * transaction)
 {
-    LOG_TRACE(log) << __func__ << " delegate " << delegate_id << ", epoch " << epoch_number;
+    LOG_TRACE(log) << __func__ << " delegate " << (int)delegate_id << ", epoch " << epoch_number;
     auto key = logos::get_request_tip_key(delegate_id, epoch_number);
     return del(request_tips_db, mdb_val(key), transaction);
 }
@@ -1985,14 +1985,70 @@ uint32_t logos::block_store::consensus_block_get_raw(const BlockHash & hash,
     }
     else if(status != 0)
     {
-        LOG_FATAL(log) << __func__ << " failed to get consensus block "
+        LOG_FATAL(log) << __func__ << " error when getting a consensus block "
                 << ConsensusToName(type);
         trace_and_halt();
     }
-    uint32_t block_size = value.size();
-    buf.resize(reserve + block_size);
-    memcpy(buf.data()+reserve, value.data(), block_size);
-    return block_size;
+
+//    if(type == ConsensusType::MicroBlock || type == ConsensusType::Epoch)
+//    {
+        uint32_t block_size = value.size();
+        buf.resize(reserve + block_size);
+        memcpy(buf.data()+reserve, value.data(), block_size);
+        return block_size;
+//    }
+//    else
+//    {
+//    	bool error = false;
+//    	ApprovedRB block;
+//        new(&block) ApprovedRB(error, value);
+//        assert(!error);
+//
+//    }
 }
-
-
+//
+//bool logos::block_store::request_block_get(const BlockHash &hash, ApprovedRB &block, MDB_txn *transaction)
+//{
+//    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+//
+//    mdb_val value;
+//    mdb_val key(hash);
+//
+//    auto status (mdb_get (transaction, batch_db, key, value));
+//    assert (status == 0 || status == MDB_NOTFOUND);
+//
+//    bool error = false;
+//    if (status == MDB_NOTFOUND)
+//    {
+//        LOG_TRACE(log) << __func__ << " MDB_NOTFOUND";
+//        error = true;
+//    }
+//    else
+//    {
+//        new(&block) ApprovedRB(error, value);
+//        assert(!error);
+//
+//        if(!error)
+//        {
+//            if(block.hashes.size() > CONSENSUS_BATCH_SIZE)
+//            {
+//                LOG_FATAL(log) << __func__
+//                               << " request_block_get failed, block.request_count > CONSENSUS_BATCH_SIZE";
+//                trace_and_halt();
+//            }
+//
+//            block.requests.reserve(block.hashes.size());
+//            for(uint16_t i = 0; i < block.hashes.size(); ++i)
+//            {
+//                block.requests.push_back(std::shared_ptr<Request>(nullptr));
+//                if(request_get(block.hashes[i], block.requests[i], transaction))
+//                {
+//                    LOG_ERROR(log) << __func__ << " request_get failed";
+//                    return true;
+//                }
+//            }
+//        }
+//    }
+//
+//    return error;
+//}

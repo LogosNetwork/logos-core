@@ -232,7 +232,7 @@ DelegateIdentityManager::Init(const Config &config)
     _epoch_transition_enabled = config.all_delegates.size() == 2 * config.delegates.size();
 
     Tip epoch_tip;
-    BlockHash epoch_tip_hash = epoch_tip.digest;
+    BlockHash &epoch_tip_hash = epoch_tip.digest;
     uint32_t epoch_number = 0;
     if (_store.epoch_tip_get(epoch_tip))
     {
