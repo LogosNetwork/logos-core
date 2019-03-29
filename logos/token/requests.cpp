@@ -104,6 +104,7 @@ Issuance::Issuance(bool & error,
 
         issuer_info = tree.get<std::string>(ISSUER_INFO, "");
         Hash();
+        SignIfNeccessary(error, tree);
     }
     catch (...)
     {
@@ -649,6 +650,7 @@ ChangeSetting::ChangeSetting(bool & error,
                 SettingValue::Disabled;
 
         Hash();
+        SignIfNeccessary(error, tree);
     }
     catch(...)
     {
@@ -823,6 +825,7 @@ ImmuteSetting::ImmuteSetting(bool & error,
         }
 
         Hash();
+        SignIfNeccessary(error, tree);
     }
     catch(...)
     {
@@ -1000,6 +1003,7 @@ Revoke::Revoke(bool & error,
         }
 
         Hash();
+        SignIfNeccessary(error, tree);
     }
     catch(...)
     {
@@ -1231,6 +1235,7 @@ AdjustUserStatus::AdjustUserStatus(bool & error,
         }
 
         Hash();
+        SignIfNeccessary(error, tree);
     }
     catch(...)
     {
@@ -1411,6 +1416,7 @@ AdjustFee::AdjustFee(bool & error,
         }
 
         Hash();
+        SignIfNeccessary(error, tree);
     }
     catch(...)
     {
@@ -1591,6 +1597,7 @@ UpdateIssuerInfo::UpdateIssuerInfo(bool & error,
     {
         new_info = tree.get<std::string>(NEW_INFO);
         Hash();
+        SignIfNeccessary(error, tree);
     }
     catch(...)
     {
@@ -1770,6 +1777,7 @@ UpdateController::UpdateController(bool & error,
         }
 
         Hash();
+        SignIfNeccessary(error, tree);
     }
     catch(...)
     {
@@ -1992,6 +2000,7 @@ Burn::Burn(bool & error,
         }
 
         Hash();
+        SignIfNeccessary(error, tree);
     }
     catch(...)
     {
@@ -2183,6 +2192,7 @@ Distribute::Distribute(bool & error,
     }
 
     Hash();
+    SignIfNeccessary(error, tree);
 }
 
 
@@ -2369,6 +2379,7 @@ WithdrawFee::WithdrawFee(bool & error,
     }
 
     Hash();
+    SignIfNeccessary(error, tree);
 }
 
 Amount WithdrawFee::GetTokenTotal() const
@@ -2554,6 +2565,7 @@ WithdrawLogos::WithdrawLogos(bool & error,
     }
 
     Hash();
+    SignIfNeccessary(error, tree);
 }
 
 Amount WithdrawLogos::GetTokenTotal() const
@@ -2747,6 +2759,7 @@ TokenSend::TokenSend(bool & error,
         }
 
         Hash();
+        SignIfNeccessary(error, tree);
     }
     catch(...)
     {

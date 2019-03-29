@@ -76,6 +76,7 @@ AnnounceCandidacy::AnnounceCandidacy(bool & error,
         error = true;
     }
     Hash();
+    SignIfNeccessary(error, tree);
 }
 
 uint64_t AnnounceCandidacy::Serialize(logos::stream & stream) const
@@ -201,6 +202,7 @@ RenounceCandidacy::RenounceCandidacy(bool & error,
         error = true;
     }
     Hash();
+    SignIfNeccessary(error, tree);
 }
 
 
@@ -304,6 +306,7 @@ ElectionVote::ElectionVote(bool & error,
         }
         epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
         Hash();
+        SignIfNeccessary(error, tree);
     }
     catch(...)
     {
@@ -547,6 +550,8 @@ StartRepresenting::StartRepresenting(bool & error,
     {
         stake = tree.get<std::string>(STAKE);
         epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
+        Hash();
+        SignIfNeccessary(error, tree);
     }
     catch(...)
     {
@@ -667,6 +672,8 @@ StopRepresenting::StopRepresenting(bool & error,
     try
     {
         epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
+        Hash();
+        SignIfNeccessary(error, tree); 
     }
     catch(...)
     {

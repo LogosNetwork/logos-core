@@ -120,6 +120,7 @@ struct Request
 
     void Sign(AccountPrivKey const & priv);
     void Sign(AccountPrivKey const & priv, AccountPubKey const & pub);
+    void SignIfNeccessary(bool & error, boost::property_tree::ptree const & ptree);
     bool VerifySignature(AccountPubKey const & pub) const;
 
     std::string ToJson() const;

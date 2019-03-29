@@ -134,22 +134,6 @@ Request::Request(bool & error,
                 return;
             }
         }
-        else
-        {
-            AccountPrivKey prv;
-            error = prv.decode_hex(tree.get<std::string>(PRIVATE_KEY));
-            if(error)
-            {
-                return;
-            }
-            AccountPubKey pub;
-            error = pub.decode_hex(tree.get<std::string>(PUBLIC_KEY));
-            if(error)
-            {
-                return;
-            }
-            Sign(pub,prv);
-        }
 
         error = logos::from_string_hex(tree.get<std::string>(WORK, "0"), work);
         if(error)
@@ -168,6 +152,22 @@ Request::Request(bool & error,
     catch (...)
     {
         error = true;
+    }
+}
+
+void Request::SignIfNeccessary(bool & error, boost::property_tree::ptree const & tree)
+{
+
+    using namespace request::fields;
+    if(tree.find(SIGNATURE)==tree.not_found())
+    {
+        AccountPrivKey prv;
+        error = prv.decode_hex(tree.get<std::string>(PRIVATE_KEY));
+        if(error)
+        {
+            return;
+        }
+        Sign(prv);
     }
 }
 
@@ -498,6 +498,7 @@ Change::Change(bool & error,
         }
 
         Hash();
+        SignIfNeccessary(error, tree);
     }
     catch(...)
     {
@@ -687,6 +688,7 @@ Send::Send(bool & error,
         }
 
         Hash();
+        SignIfNeccessary(error, tree);
     }
     catch (...)
     {
