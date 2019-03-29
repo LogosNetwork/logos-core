@@ -12,6 +12,7 @@
 #include <logos/epoch/epoch_voting_manager.hpp>
 
 constexpr uint128_t PersistenceManager<R>::MIN_TRANSACTION_FEE;
+std::mutex PersistenceManager<R>::_write_mutex;
 
 PersistenceManager<R>::PersistenceManager(Store & store,
                                           ReservationsPtr reservations,
@@ -41,6 +42,7 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
     // doesn't think the block exists, but then direct consensus persists the block, and P2P tries to persist again.
     // Ultimately we want to use the same global queue for direct consensus, P2P, and bootstrapping.
 
+    std::lock_guard<std::mutex> lock (_write_mutex);
     if (BlockExists(message))
     {
         LOG_DEBUG(_log) << "PersistenceManager<R>::ApplyUpdates - request block already exists, ignoring";
@@ -59,9 +61,8 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
                     << message.requests.size()
                     << " Requests";
 
-    // SYL integration: need to ensure the operations below execute atomically
+    // Need to ensure the operations below execute atomically
     // Otherwise, multiple calls to batch persistence may overwrite balance for the same account
-    std::lock_guard<std::mutex> lock (_write_mutex);
     {
         logos::transaction transaction(_store.environment, nullptr, true);
         StoreRequestBlock(message, transaction, delegate_id);

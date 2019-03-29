@@ -42,8 +42,7 @@ public:
                                    const AccountAddress & account) {}
 protected:
 
-    std::mutex              _mutex;
-    static ReservationCache _reservations;
+    static ReservationCache _cache;
     Store &                 _store;
     Log                     _log;
 };

@@ -39,19 +39,17 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(
     _current_batch.requests.reserve(sequence.size());
     _current_batch.hashes.reserve(sequence.size());
 
-
-
+    bool add_empty_delimiter (true);
     for(auto pos = sequence.begin(); pos != sequence.end();)
     {
         LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch requests_size="
                          << sequence.size();
 
         // 'Null' requests are used as batch delimiters. When
-        // one is encountered, remove it from the requests
-        // container and close the batch.
+        // one is encountered, close the batch. (Don't remove just yet in case of reproposal)
         if((*pos)->origin.is_zero() && (*pos)->type == RequestType::Unknown)
         {
-            sequence.erase(pos);
+            add_empty_delimiter = false;
             break;
         }
 
@@ -70,9 +68,19 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(
         if(! _current_batch.AddRequest(*pos))
         {
             LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch batch full";
+
+            // Need to add empty delimiter if next pos is either the end or a non-empty request
+            pos++;
+            if (pos != sequence.end() && (*pos)->origin.is_zero() && (*pos)->type == RequestType::Unknown) {
+                add_empty_delimiter = false;
+            }
             break;
         }
         pos++;
+    }
+
+    if (add_empty_delimiter) {
+        sequence.push_back(std::shared_ptr<Request>(new Request()));
     }
 
     return _current_batch;
@@ -122,6 +130,18 @@ void RequestHandler::PopFront()
     for(uint64_t pos = 0; pos < _current_batch.requests.size(); ++pos)
     {
         hashed.erase(_current_batch.requests[pos]->GetHash());
+    }
+
+    // Need to remove the empty delimiter as well
+    auto & sequence = _requests.get<0>();
+    auto pos = sequence.begin();
+    if((*pos)->origin.is_zero() && (*pos)->type == RequestType::Unknown)
+    {
+        sequence.erase(pos);
+    }
+    else {
+        LOG_FATAL(_log) << "RequestHandler::PopFront - container data corruption detected.";
+        trace_and_halt();
     }
 
     _current_batch = PrePrepare();
