@@ -126,15 +126,6 @@ Request::Request(bool & error,
             return;
         }
 
-        if(tree.find(SIGNATURE)!=tree.not_found())
-        {
-            error = signature.decode_hex(tree.get<std::string>(SIGNATURE));
-            if(error)
-            {
-                return;
-            }
-        }
-
         error = logos::from_string_hex(tree.get<std::string>(WORK, "0"), work);
         if(error)
         {
@@ -155,7 +146,7 @@ Request::Request(bool & error,
     }
 }
 
-void Request::SignIfNeccessary(bool & error, boost::property_tree::ptree const & tree)
+void Request::SignAndHash(bool & error, boost::property_tree::ptree const & tree)
 {
 
     using namespace request::fields;
@@ -168,6 +159,15 @@ void Request::SignIfNeccessary(bool & error, boost::property_tree::ptree const &
             return;
         }
         Sign(prv);
+    }
+    else
+    {
+        error = signature.decode_hex(tree.get<std::string>(SIGNATURE));
+        if(error)
+        {
+            return;
+        }
+        Hash();
     }
 }
 
@@ -497,8 +497,7 @@ Change::Change(bool & error,
             return;
         }
 
-        Hash();
-        SignIfNeccessary(error, tree);
+        SignAndHash(error, tree);
     }
     catch(...)
     {
@@ -687,8 +686,7 @@ Send::Send(bool & error,
             }
         }
 
-        Hash();
-        SignIfNeccessary(error, tree);
+        SignAndHash(error, tree);
     }
     catch (...)
     {

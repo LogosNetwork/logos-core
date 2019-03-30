@@ -103,8 +103,7 @@ Issuance::Issuance(bool & error,
         }
 
         issuer_info = tree.get<std::string>(ISSUER_INFO, "");
-        Hash();
-        SignIfNeccessary(error, tree);
+        SignAndHash(error, tree);
     }
     catch (...)
     {
@@ -649,8 +648,7 @@ ChangeSetting::ChangeSetting(bool & error,
                 SettingValue::Enabled :
                 SettingValue::Disabled;
 
-        Hash();
-        SignIfNeccessary(error, tree);
+        SignAndHash(error, tree);
     }
     catch(...)
     {
@@ -824,8 +822,7 @@ ImmuteSetting::ImmuteSetting(bool & error,
             return;
         }
 
-        Hash();
-        SignIfNeccessary(error, tree);
+        SignAndHash(error, tree);
     }
     catch(...)
     {
@@ -1002,8 +999,7 @@ Revoke::Revoke(bool & error,
             return;
         }
 
-        Hash();
-        SignIfNeccessary(error, tree);
+        SignAndHash(error, tree);
     }
     catch(...)
     {
@@ -1234,8 +1230,7 @@ AdjustUserStatus::AdjustUserStatus(bool & error,
             return;
         }
 
-        Hash();
-        SignIfNeccessary(error, tree);
+        SignAndHash(error, tree);
     }
     catch(...)
     {
@@ -1415,8 +1410,7 @@ AdjustFee::AdjustFee(bool & error,
             return;
         }
 
-        Hash();
-        SignIfNeccessary(error, tree);
+        SignAndHash(error, tree);
     }
     catch(...)
     {
@@ -1596,8 +1590,7 @@ UpdateIssuerInfo::UpdateIssuerInfo(bool & error,
     try
     {
         new_info = tree.get<std::string>(NEW_INFO);
-        Hash();
-        SignIfNeccessary(error, tree);
+        SignAndHash(error, tree);
     }
     catch(...)
     {
@@ -1776,8 +1769,7 @@ UpdateController::UpdateController(bool & error,
             return;
         }
 
-        Hash();
-        SignIfNeccessary(error, tree);
+        SignAndHash(error, tree);
     }
     catch(...)
     {
@@ -1999,8 +1991,7 @@ Burn::Burn(bool & error,
             return;
         }
 
-        Hash();
-        SignIfNeccessary(error, tree);
+        SignAndHash(error, tree);
     }
     catch(...)
     {
@@ -2191,8 +2182,7 @@ Distribute::Distribute(bool & error,
         return;
     }
 
-    Hash();
-    SignIfNeccessary(error, tree);
+    SignAndHash(error, tree);
 }
 
 
@@ -2378,8 +2368,7 @@ WithdrawFee::WithdrawFee(bool & error,
         return;
     }
 
-    Hash();
-    SignIfNeccessary(error, tree);
+    SignAndHash(error, tree);
 }
 
 Amount WithdrawFee::GetTokenTotal() const
@@ -2564,8 +2553,7 @@ WithdrawLogos::WithdrawLogos(bool & error,
         return;
     }
 
-    Hash();
-    SignIfNeccessary(error, tree);
+    SignAndHash(error, tree);
 }
 
 Amount WithdrawLogos::GetTokenTotal() const
@@ -2758,8 +2746,7 @@ TokenSend::TokenSend(bool & error,
             return;
         }
 
-        Hash();
-        SignIfNeccessary(error, tree);
+        SignAndHash(error, tree);
     }
     catch(...)
     {
