@@ -376,12 +376,14 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
         return ProceedAction::DO_NOTHING;
     }
 
-    if(_state != expected_state)
+    if(_state != expected_state || message.preprepare_hash != _pre_prepare_hash)
     {
         LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received "
                        << MessageToName(message)
                        << " message while in "
-                       << StateToString(_state);
+                       << StateToString(_state)
+                       << ", message pre_prepare hash: " << message.preprepare_hash.to_string()
+                       << ", internal pre_prepare hash: " << _pre_prepare_hash.to_string();
 
         return ProceedAction::DO_NOTHING;
     }
