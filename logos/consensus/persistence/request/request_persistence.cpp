@@ -145,14 +145,6 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
     // Move on to check account info
-    //sequence number
-    if(info->block_count != request->sequence)
-    {
-        result.code = logos::process_result::wrong_sequence_number;
-        LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request->sequence
-            << " expecting=" << info->block_count;
-        return false;
-    }
 
     // No previous block set.
     if(request->previous.is_zero() && info->block_count)
@@ -200,6 +192,14 @@ bool PersistenceManager<R>::ValidateRequest(
             result.code = logos::process_result::fork;
             return false;
         }
+    }
+    //sequence number
+    else if(info->block_count != request->sequence)
+    {
+        result.code = logos::process_result::wrong_sequence_number;
+        LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request->sequence
+                       << " expecting=" << info->block_count;
+        return false;
     }
 
     // Make sure there's enough Logos
