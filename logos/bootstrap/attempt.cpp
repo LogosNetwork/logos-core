@@ -240,6 +240,7 @@ namespace Bootstrap
         {
         	LOG_DEBUG(log) << "bootstrap_client::bootstrap_client: connected="
         				<< connected;
+        	std::lock_guard<std::mutex> lock(mtx);
         	connecting_clients.erase(client);
         	if(stopped)
         	{
@@ -247,7 +248,7 @@ namespace Bootstrap
         	}
         	else if(connected)
         	{
-        		pool_connection (client);
+        		pool_connection (client, true);
         	}
         	else
         	{
@@ -270,10 +271,11 @@ namespace Bootstrap
     	condition.notify_all();
     }
 
-    void bootstrap_attempt::pool_connection(std::shared_ptr<bootstrap_client> client)
+    void bootstrap_attempt::pool_connection(std::shared_ptr<bootstrap_client> client, bool with_lock)
     {
     	LOG_TRACE(log) << "bootstrap_attempt::"<<__func__;
-        std::lock_guard <std::mutex> lock(mtx);
+    	if(!with_lock)
+    		std::lock_guard <std::mutex> lock(mtx);
         idle_clients.insert(client);
     	working_clients.erase(client);
         condition.notify_all();

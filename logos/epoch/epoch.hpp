@@ -156,7 +156,6 @@ public:
         }
 
         new (&micro_block_tip) Tip(error, stream);
-        //        error = logos::read(stream, micro_block_tip);
         if(error)
         {
             return;
@@ -185,6 +184,7 @@ public:
         PrePrepareCommon::Hash(hash, true);
         micro_block_tip.Hash(hash);
         blake2b_update(&hash, transaction_fee_pool.bytes.data(), transaction_fee_pool.bytes.size());
+
         for(int i = 0; i < NUM_DELEGATES; ++i)
         {
             delegates[i].Hash(hash);
@@ -195,7 +195,6 @@ public:
     {
         auto s = PrePrepareCommon::Serialize(stream);
         s += micro_block_tip.Serialize(stream);
-        //s += logos::write(stream, micro_block_tip);
         s += logos::write(stream, transaction_fee_pool);
         for(int i = 0; i < NUM_DELEGATES; ++i)
         {

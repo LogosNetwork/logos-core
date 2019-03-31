@@ -19,6 +19,7 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
     std::shared_ptr<MessageValidator> validator = nullptr;
     BlockHash   hash;
     ApprovedEB  epoch;
+    std::cout << "ValidatorBuilder::GetValidator BEGIN " << __LINE__ << std::endl;
 
     // delegate's epoch block for requested epoch
     epoch_number -= 2;
@@ -26,6 +27,8 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
     if (_cached_validator != nullptr && _cached_epoch == epoch_number)
     {
         LOG_DEBUG(_log) << "ValidatorBuilder::GetValidator using cached validator for epoch block " << epoch_number;
+        std::cout << "ValidatorBuilder::GetValidator " << __LINE__ << std::endl;
+
         return _cached_validator;
     }
 
@@ -38,6 +41,8 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
         {
             LOG_FATAL(_log) << "ValidatorBuilder::GetValidator failed to get epoch tip";
             trace_and_halt();
+            std::cout << "ValidatorBuilder::GetValidator " << __LINE__ << std::endl;
+
         }
         hash = tip.digest;
 
@@ -52,6 +57,8 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
             LOG_FATAL(_log) << "ValidatorBuilder::GetValidator failed to get epoch "
                             << hash.to_string();
             trace_and_halt();
+            std::cout << "ValidatorBuilder::GetValidator " << __LINE__ << std::endl;
+
         }
 
         if (epoch_number == epoch.epoch_number)
@@ -59,6 +66,8 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
             auto key_store = std::make_shared<DelegateKeyStore>();
             validator = std::make_shared<MessageValidator>(*key_store,
                 logos::genesis_delegates[DelegateIdentityManager::_global_delegate_idx].bls_key);
+            std::cout << "ValidatorBuilder::GetValidator " << __LINE__ << std::endl;
+
             uint8_t id = 0;
             for (auto delegate : epoch.delegates)
             {
@@ -83,17 +92,23 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
             LOG_FATAL(_log) << "ValidatorBuilder::GetValidator invalid requested epoch " << epoch_number
                             << " tip's epoch " << epoch.epoch_number;
             trace_and_halt();
+            std::cout << "ValidatorBuilder::GetValidator " << __LINE__ << std::endl;
+
         }
     }
     else
     {
         validator = k->second.validator;
+        std::cout << "ValidatorBuilder::GetValidator " << __LINE__ << std::endl;
     }
 
     LOG_DEBUG(_log) << "ValidatorBuilder::GetValidator cached validator for epoch block " << epoch_number;
 
     _cached_epoch = epoch_number;
     _cached_validator = validator;
+
+    if(validator == nullptr)
+    	LOG_DEBUG(_log) << "ValidatorBuilder::GetValidator nullptr";
 
     return validator;
 }

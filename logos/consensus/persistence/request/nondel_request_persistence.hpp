@@ -25,7 +25,7 @@ public:
         using namespace logos;
 
         ApprovedRB previous;
-        if (message.previous != 0 && _store.request_block_get(message.previous, previous))
+        if ((!message.previous.is_zero()) && _store.request_block_get(message.previous, previous))
         {
             UpdateStatusReason(status, logos::process_result::gap_previous);
             return false;
@@ -40,11 +40,17 @@ public:
             }
         }
 
-        if (message.previous != 0 && message.sequence != (previous.sequence + 1))
-        {
-            UpdateStatusReason(status, logos::process_result::wrong_sequence_number);
-            return false;
-        }
+        //have previous now
+
+//        if(previous.epoch_number > 0)//TODO saw previous.epoch_number while debugging. remove this line after fixing that bug
+//        {
+//			if( ! ((previous.epoch_number == message.epoch_number) && (message.sequence == (previous.sequence + 1))) &&
+//					! (((previous.epoch_number+1) == message.epoch_number) && (message.sequence == 0)))
+//			{
+//				UpdateStatusReason(status, logos::process_result::wrong_sequence_number);
+//				return false;
+//			}
+//        }
 
         return PersistenceManager<R>::Validate(message, status);
     }

@@ -152,7 +152,11 @@ bool PersistenceManager<R>::ValidateRequest(
             << " expecting=" << info->block_count;
         return false;
     }
-
+    else
+    {
+    	LOG_INFO(_log) << "right_sequence_number, request sqn=" << request->sequence
+    	            << " expecting=" << info->block_count;
+    }
     // No previous block set.
     if(request->previous.is_zero() && info->block_count)
     {
@@ -784,6 +788,11 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
     info->block_count++;
     info->head = request->GetHash();
     info->modified = logos::seconds_since_epoch();
+
+    //TODO
+    LOG_TRACE(_log) << "PersistenceManager::ApplyRequest - Peng "
+                    << request->GetAccount().to_account()
+					<< " " << info->block_count;
 
     // TODO: Harvest fees
     if(request->type != RequestType::ElectionVote)

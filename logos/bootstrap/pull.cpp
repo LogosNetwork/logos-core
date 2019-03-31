@@ -78,7 +78,14 @@ namespace Bootstrap
 
 	PullStatus Puller::EBReceived(PullPtr pull, EBPtr block)
     {
-		LOG_TRACE(log) << "Puller::"<<__func__ << " tip: " << block->CreateTip().to_string();
+		LOG_TRACE(log) << "Puller::"<<__func__
+				<< " tip: " << block->CreateTip().to_string()
+				<< " block->previous: " << block->previous.to_string()
+				<< " pull->prev_hash: " << pull->prev_hash.to_string();
+
+		LOG_TRACE(log) << "Puller::"<<__func__
+				<< " block " << block->ToJson();
+
     	assert(state==PullerState::Epoch && working_epoch.eb == nullptr);
     	bool good_block = block->previous == pull->prev_hash &&
     			block_cache.AddEB(block);
@@ -101,7 +108,14 @@ namespace Bootstrap
 
 	PullStatus Puller::MBReceived(PullPtr pull, MBPtr block)
     {
-		LOG_TRACE(log) << "Puller::"<<__func__ << " tip: " << block->CreateTip().to_string();
+		LOG_TRACE(log) << "Puller::"<<__func__
+				<< " tip: " << block->CreateTip().to_string()
+				<< " block->previous: " << block->previous.to_string()
+				<< " pull->prev_hash: " << pull->prev_hash.to_string();
+
+		LOG_TRACE(log) << "Puller::"<<__func__
+				<< " block " << block->ToJson();
+
     	assert(state==PullerState::Micro);
     	bool good_block = block->previous == pull->prev_hash &&
     			//block->epoch_number == working_epoch.epoch_num &&
@@ -124,7 +138,7 @@ namespace Bootstrap
         	}
 
 
-        	LOG_TRACE(log) << "Puller::"<<__func__ << MBRequestTips_to_string(block);
+        	LOG_TRACE(log) << "Puller::"<<__func__ << MBRequestTips_to_string(*block);
 
         	CreateMorePulls();
          	return PullStatus::Done;
@@ -138,10 +152,18 @@ namespace Bootstrap
 
 	PullStatus Puller::BSBReceived(PullPtr pull, BSBPtr block, bool last_block)
 	{
-		LOG_TRACE(log) << "Puller::"<<__func__ << " tip: " << block->CreateTip().to_string();
+		LOG_TRACE(log) << "Puller::"<<__func__
+				<< " tip: " << block->CreateTip().to_string()
+				<< " block->previous: " << block->previous.to_string()
+				<< " pull->prev_hash: " << pull->prev_hash.to_string();
+
+		LOG_TRACE(log) << "Puller::"<<__func__
+				<< " block " << block->ToJson();
+
+
     	assert(state==PullerState::Batch || state==PullerState::Batch_No_MB);
-    	bool good_block = block->previous == pull->prev_hash &&
-    			block->epoch_number == working_epoch.epoch_num &&
+    	bool good_block = block->previous == pull->prev_hash &&//TODO
+    			//block->epoch_number == working_epoch.epoch_num &&
 				block_cache.AddBSB(block);
 
 		auto digest(block->Hash());
@@ -181,8 +203,6 @@ namespace Bootstrap
 //							}
 //						}
 //					}
-
-
 
 //							state = PullState::Micro;//Epoch;
 //						}
@@ -240,9 +260,12 @@ namespace Bootstrap
     	// should be called only when both waiting_pulls and ongoing_pulls are empty
     	assert(waiting_pulls.empty() && ongoing_pulls.empty());
 
-    	switch (state) {
+    	switch (state)
+    	{
 			case PullerState::Epoch:
+			{
 				LOG_TRACE(log) << "Puller::"<<__func__<< " 1 ";
+
 				working_epoch = {my_tips.eb.epoch+1};
 				if(my_tips.eb < others_tips.eb)
 				{
@@ -261,17 +284,21 @@ namespace Bootstrap
 					CreateMorePulls();
 				}
 				break;
-
+			}
 			case PullerState::Micro:
+			{
 				LOG_TRACE(log) << "Puller::"<<__func__<< " 2 ";
 				assert(working_epoch.cur_mbp.bsb_targets.empty());
 
-				if(my_tips.mb < others_tips.mb)
+				auto mb_tip = working_epoch.two_mbps?
+						working_epoch.cur_mbp.mb->CreateTip():my_tips.mb;
+
+				if(mb_tip < others_tips.mb)
 				{
 					waiting_pulls.push_back(std::make_shared<PullRequest>(
 							ConsensusType::MicroBlock,
 							working_epoch.epoch_num,
-							my_tips.mb.digest));
+							mb_tip.digest));
 
 					LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
                 			<< waiting_pulls.back()->to_string();
@@ -290,7 +317,7 @@ namespace Bootstrap
 #endif
 				}
 				break;
-
+			}
 			case PullerState::Batch:
 			{
 				LOG_TRACE(log) << "Puller::"<<__func__<< " 3 ";
@@ -300,9 +327,10 @@ namespace Bootstrap
             	auto & working_mbp = working_epoch.two_mbps?
             						 working_epoch.next_mbp : working_epoch.cur_mbp;
             	assert(working_mbp.mb != nullptr);
-				assert(my_tips.mb.sqn == working_mbp.mb->sequence -1 ||
-						((my_tips.mb.epoch == working_mbp.mb->epoch_number -1) &&
-								(working_mbp.mb->sequence == 0)));
+            	//TODO
+//				assert(my_tips.mb.sqn == working_mbp.mb->sequence -1 ||
+//						((my_tips.mb.epoch == working_mbp.mb->epoch_number -1) &&
+//								(working_mbp.mb->sequence == 0)));
 				assert(working_mbp.bsb_targets.empty());
 
 				for(uint i = 0; i < NUM_DELEGATES; ++i)
@@ -448,6 +476,7 @@ namespace Bootstrap
 								<< " first MB hash=" << digest.to_string ();
 				waiting_pulls.clear();
 				state = PullerState::Done;
+				assert(false);//DEBUG only TODO
 				return;
 			}
 		}
@@ -492,6 +521,7 @@ namespace Bootstrap
 							LOG_FATAL(log) << "Puller::BSBReceived: cannot process epoch block after last micro block "
 										   << working_epoch.epoch_num;
 							trace_and_halt();
+							assert(false);//TODO
 						}
 					}
 					else
@@ -511,6 +541,7 @@ namespace Bootstrap
 			}
 			else
 			{
+				assert(false);//TODO
 				working_epoch.two_mbps = true;
 				state = PullerState::Micro;
 			}
@@ -525,15 +556,11 @@ namespace Bootstrap
     	//try old epoch
     	if(my_tips.bsb_vec[d_idx].digest == block->previous)
     	{
-        	my_tips.bsb_vec[d_idx].digest = digest;
-        	my_tips.bsb_vec[d_idx].epoch = block->epoch_number;
-        	my_tips.bsb_vec[d_idx].sqn =  block->sequence;
+    		my_tips.bsb_vec[d_idx] = block->CreateTip();
     	}
     	else if(my_tips.bsb_vec_new_epoch[d_idx].digest == block->previous)
     	{
-        	my_tips.bsb_vec_new_epoch[d_idx].digest = digest;
-        	my_tips.bsb_vec_new_epoch[d_idx].epoch = block->epoch_number;
-        	my_tips.bsb_vec_new_epoch[d_idx].sqn =  block->sequence;
+    		my_tips.bsb_vec_new_epoch[d_idx] = block->CreateTip();
     	}
     	else
     	{
@@ -549,23 +576,16 @@ namespace Bootstrap
     {
 		LOG_TRACE(log) << "Puller::"<<__func__;
     	assert(my_tips.mb.digest == block->previous);
-    	my_tips.mb.digest = block->Hash();
-    	my_tips.mb.epoch = block->epoch_number;
-    	my_tips.mb.sqn =  block->sequence;
-
+    	my_tips.mb = block->CreateTip();
 		LOG_TRACE(log) << "Puller::"<<__func__ << " my_tips " << "\n" << my_tips;
 		LOG_TRACE(log) << "Puller::"<<__func__ << " others_tips " << "\n" << others_tips;
-
     }
 
     void Puller::UpdateMyEBTip(EBPtr block)
     {
 		LOG_TRACE(log) << "Puller::"<<__func__;
     	assert(my_tips.eb.digest == block->previous);
-    	my_tips.eb.digest = block->Hash();
-    	my_tips.eb.epoch = block->epoch_number;
-    	my_tips.eb.sqn =  block->epoch_number;
-
+    	my_tips.eb = block->CreateTip();
 		LOG_TRACE(log) << "Puller::"<<__func__ << " my_tips " << "\n" << my_tips;
 		LOG_TRACE(log) << "Puller::"<<__func__ << " others_tips " << "\n" << others_tips;
     }
@@ -615,6 +635,8 @@ namespace Bootstrap
         		next = block.next;
 
         		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
+        				<< " block " << block.ToJson();
+        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
         				<< " next=" << next.to_string();
 
             	buf.resize(PullResponseReserveSize);
@@ -633,6 +655,12 @@ namespace Bootstrap
         	else
         	{
         		next = block.next;
+
+        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
+        				<< " block " << block.ToJson();
+        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
+        				<< " next=" << next.to_string();
+
             	buf.resize(PullResponseReserveSize);
                 logos::vectorstream stream(buf);
                 return block.Serialize(stream, true, true);
@@ -649,6 +677,12 @@ namespace Bootstrap
         	else
         	{
         		next = block.next;
+
+        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
+        				<< " block " << block.ToJson();
+        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
+        				<< " next=" << next.to_string();
+
             	buf.resize(PullResponseReserveSize);
                 logos::vectorstream stream(buf);
                 return block.Serialize(stream, true, true);

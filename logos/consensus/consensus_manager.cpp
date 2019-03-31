@@ -211,6 +211,7 @@ void ConsensusManager<CT>::InitiateConsensus(bool reproposing)
                    << " consensus, reproposing " << reproposing;
 
     auto & pre_prepare = PrePrepareGetNext();
+    pre_prepare.delegates_epoch_number = _epoch_number;
 
     // SYL Integration: if we don't want to lock _state_mutex here it is important to
     // call OnConsensusInitiated before AdvanceState (otherwise PrimaryDelegate might

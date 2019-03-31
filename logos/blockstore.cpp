@@ -1227,7 +1227,7 @@ bool logos::block_store::micro_block_exists (const ApprovedMB & block)
 bool logos::block_store::epoch_put(ApprovedEB const &block, MDB_txn *transaction)
 {
     auto hash(block.Hash());
-    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+    LOG_TRACE(log) << "epoch_block_put key " << hash.to_string();
 
     std::vector<uint8_t> buf;
     auto status(mdb_put(transaction, epoch_db, mdb_val(hash), block.to_mdb_val(buf), 0));
@@ -1238,7 +1238,7 @@ bool logos::block_store::epoch_put(ApprovedEB const &block, MDB_txn *transaction
 
 bool logos::block_store::epoch_get(const BlockHash &hash, ApprovedEB &block, MDB_txn *transaction)
 {
-    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+    LOG_TRACE(log) << "epoch_block_get key " << hash.to_string();
 
     mdb_val val;
     if(get(epoch_db, mdb_val(hash), val, transaction))

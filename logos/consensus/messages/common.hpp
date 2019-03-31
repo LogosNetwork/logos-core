@@ -199,6 +199,7 @@ struct PrePrepareCommon
 
     uint8_t     primary_delegate;
     uint32_t    epoch_number;
+    uint32_t	delegates_epoch_number;//Identify the set of delegates approved the block
     uint32_t    sequence;
     uint64_t    timestamp;
     mutable BlockHash   previous;

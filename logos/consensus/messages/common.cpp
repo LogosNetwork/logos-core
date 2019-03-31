@@ -46,6 +46,7 @@ bool AggSignature::operator!= (AggSignature const & other) const
 PrePrepareCommon::PrePrepareCommon()
     : primary_delegate(0xff)
     , epoch_number(0)
+	, delegates_epoch_number(0)
     , sequence(0)
     , timestamp(GetStamp())
     , previous()
@@ -66,6 +67,13 @@ PrePrepareCommon::PrePrepareCommon(bool & error, logos::stream & stream)
         return;
     }
     epoch_number = le32toh(epoch_number);
+
+    error = logos::read(stream, delegates_epoch_number);
+    if(error)
+    {
+        return;
+    }
+    delegates_epoch_number = le32toh(delegates_epoch_number);
 
     error = logos::read(stream, sequence);
     if(error)
@@ -92,12 +100,13 @@ PrePrepareCommon::PrePrepareCommon(bool & error, logos::stream & stream)
 
 PrePrepareCommon & PrePrepareCommon::operator= (const PrePrepareCommon & other)
 {
-    primary_delegate = other.primary_delegate;
-    epoch_number     = other.epoch_number;
-    sequence         = other.sequence;
-    timestamp        = other.timestamp;
-    previous         = other.previous;
-    preprepare_sig   = other.preprepare_sig;
+    primary_delegate 		= other.primary_delegate;
+    epoch_number     		= other.epoch_number;
+    delegates_epoch_number 	= other.delegates_epoch_number;
+    sequence         		= other.sequence;
+    timestamp        		= other.timestamp;
+    previous         		= other.previous;
+    preprepare_sig   		= other.preprepare_sig;
 
     return *this;
 }
@@ -105,6 +114,7 @@ PrePrepareCommon & PrePrepareCommon::operator= (const PrePrepareCommon & other)
 void PrePrepareCommon::Hash(blake2b_state & hash, bool is_archive_block) const
 {
     uint32_t en = htole32(epoch_number);
+    uint32_t den = htole32(delegates_epoch_number);
     uint32_t sqn = htole32(sequence);
 
     // SYL Integration: for archive blocks, we want to ensure the hash of a block with
@@ -114,6 +124,7 @@ void PrePrepareCommon::Hash(blake2b_state & hash, bool is_archive_block) const
         blake2b_update(&hash, &primary_delegate, sizeof(primary_delegate));
     }
     blake2b_update(&hash, &en, sizeof(en));
+    blake2b_update(&hash, &den, sizeof(den));
     blake2b_update(&hash, &sqn, sizeof(sqn));
 
     if (!is_archive_block)
@@ -136,11 +147,13 @@ void PrePrepareCommon::Hash(blake2b_state & hash, bool is_archive_block) const
 uint32_t PrePrepareCommon::Serialize(logos::stream & stream) const
 {
     uint32_t en = htole32(epoch_number);
+    uint32_t den = htole32(delegates_epoch_number);
     uint32_t sqn = htole32(sequence);
     uint64_t tsp = htole64(timestamp);
 
     auto s = logos::write(stream, primary_delegate);
     s += logos::write(stream, en);
+    s += logos::write(stream, den);
     s += logos::write(stream, sqn);
     s += logos::write(stream, tsp);
     s += logos::write(stream, previous);
@@ -153,6 +166,7 @@ void PrePrepareCommon::SerializeJson(boost::property_tree::ptree & tree) const
 {
     tree.put("delegate", std::to_string(primary_delegate));
     tree.put("epoch_number", std::to_string(epoch_number));
+    tree.put("delegates_epoch_number", std::to_string(delegates_epoch_number));
     tree.put("sequence", std::to_string(sequence));
     tree.put("timestamp", std::to_string(timestamp));
     tree.put("previous", previous.to_string());

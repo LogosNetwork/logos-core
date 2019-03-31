@@ -103,7 +103,8 @@ MicroBlockHandler::GetTipsFast(
     }
 
     uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff);
-    _store.BatchBlocksIterator(next, cutoff_msec, [&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
+    _store.BatchBlocksIterator(next, cutoff_msec,
+    		[&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
         //BlockHash hash = batch.Hash();
         tips[delegate] = batch.CreateTip();
         num_blocks++;
@@ -224,6 +225,15 @@ MicroBlockHandler::Build(
                      : previous_micro_block.sequence + 1;
     block.last_micro_block = last_micro_block;
 
+//    {
+//    	if(last_micro_block && block.epoch_number == 6)
+//    	{
+//    		LOG_FATAL(_log) << "MicroBlockHandler::Build Done";
+//    		exit(0);
+//    	}
+//    }
+
+
     // collect current batch block tips
     // first microblock after genesis, the cut-off time is the Min timestamp of the very first BSB
     // for all delegates + remainder from Min to nearest 10 min + 10 min; start is the current tips
@@ -277,6 +287,7 @@ MicroBlockHandler::Build(
                    << " primary " << (int)block.primary_delegate
                    << " sequence " << block.sequence
                    << " last_micro_block " << (int)block.last_micro_block;
+    LOG_TRACE(_log)<< " " << MBRequestTips_to_string(block);
 
     return true;
 }

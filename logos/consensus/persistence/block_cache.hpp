@@ -62,7 +62,8 @@ private:
     	Epoch(EBPtr block)
     	: epoch_num(block->epoch_number)
     	, eb(block)
-    	{}
+    	{
+    	}
     	Epoch(MBPtr block)
     	: epoch_num(block->epoch_number)
     	, eb(nullptr)

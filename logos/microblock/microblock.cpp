@@ -33,11 +33,22 @@ uint32_t MicroBlock::Serialize(logos::stream & stream, bool with_appendix) const
     auto s = PrePrepareCommon::Serialize(stream);
     s += logos::write(stream, last_micro_block);
     s += logos::write(stream, htole32(number_batch_blocks));
-
     for(int i = 0; i < NUM_DELEGATES; ++i)
     {
     	s += tips[i].Serialize(stream);
     }
 
     return s;
+}
+
+std::string MBRequestTips_to_string (MicroBlock & block)
+{
+	std::stringstream stream;
+	//stream << " MB tip:" << block.CreateTip().to_string() <<std::endl;
+	stream << "MB request tips:" <<std::endl;
+	for(int i = 0; i < NUM_DELEGATES; ++i) {
+		stream << "i=" << i << "  " << block.tips[i].to_string() << std::endl;
+	}
+
+	return stream.str ();
 }
