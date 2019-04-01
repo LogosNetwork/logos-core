@@ -723,6 +723,19 @@ void logos::rpc_handler::accounts_create ()
     }
 }
 
+void logos::rpc_handler::accounts_exist ()
+{
+    auto res = accounts_exist(request, node.store);
+    if(!res.error)
+    {
+        response(res.contents);
+    }
+    else
+    {
+        error_response(response,res.error_msg);
+    }
+}
+
 void logos::rpc_handler::accounts_frontiers ()
 {
     boost::property_tree::ptree response_l;
@@ -968,6 +981,19 @@ void logos::rpc_handler::block ()
 void logos::rpc_handler::blocks ()
 {
     auto res = blocks(request,node.store);
+    if(!res.error)
+    {
+        response(res.contents);
+    }
+    else
+    {
+        error_response(response,res.error_msg);
+    }
+}
+
+void logos::rpc_handler::blocks_exist ()
+{
+    auto res = blocks_exist(request,node.store);
     if(!res.error)
     {
         response(res.contents);
@@ -4485,6 +4511,10 @@ void logos::rpc_handler::process_request ()
         {
             accounts_create ();
         }
+        else if (action == "accounts_exist")
+        {
+            accounts_exist ();
+        }
         else if (action == "accounts_frontiers")
         {
             accounts_frontiers ();
@@ -4516,6 +4546,10 @@ void logos::rpc_handler::process_request ()
         else if (action == "blocks")
         {
             blocks ();
+        }
+        else if (action == "blocks_exist")
+        {
+            blocks_exist ();
         }
         else if (action == "block_account")
         {
@@ -5157,6 +5191,47 @@ logos::rpc_handler::account_balance(
     return res;
 }
 
+logos::rpc_handler::RpcResponse<boost::property_tree::ptree>
+logos::rpc_handler::accounts_exist(
+        const boost::property_tree::ptree& request,
+        logos::block_store& store)
+{
+    RpcResponse<boost::property_tree::ptree> res;
+    res.error = false;
+    try
+    {
+        std::vector<std::string> hashes;
+        bool exist (true);
+        logos::transaction transaction (store.environment, nullptr, false);
+        for (const boost::property_tree::ptree::value_type & accounts : request.get_child ("accounts"))
+        {
+            std::string account_text = accounts.second.data ();
+            logos::account account;
+            if (account.decode_account (account_text))
+            {
+                res.error = true;
+                res.error_msg += "Bad account number: " + account_text + " ";
+                break;
+            }
+            else
+            {
+                if (!store.account_exists(account))
+                {
+                    exist = false;
+                    break;
+                }
+            }
+        }
+        res.contents.put ("exist", exist ? "1" : "0");
+    }
+    catch(std::exception& e)
+    {
+        res.error = true;
+        res.error_msg = e.what();
+    }
+    return res;
+}
+
 boost::property_tree::ptree getBlockJson(
         const logos::uint256_union& hash,
         logos::block_store& store)
@@ -5247,6 +5322,46 @@ logos::rpc_handler::blocks(
             }
         }
         res.contents.add_child ("blocks", blocks);
+    }
+    catch(std::exception& e)
+    {
+        res.error = true;
+        res.error_msg = e.what();
+    }
+    return res;
+}
+
+logos::rpc_handler::RpcResponse<boost::property_tree::ptree>
+logos::rpc_handler::blocks_exist(
+        const boost::property_tree::ptree& request,
+        logos::block_store& store)
+{
+    RpcResponse<boost::property_tree::ptree> res;
+    res.error = false;
+    try
+    {
+        std::vector<std::string> hashes;
+        bool exist (true);
+        logos::transaction transaction (store.environment, nullptr, false);
+        for (const boost::property_tree::ptree::value_type & hashes : request.get_child ("hashes"))
+        {
+            std::string hash_text = hashes.second.data ();
+            logos::uint256_union hash;
+            if (hash.decode_hex (hash_text))
+            {
+                res.error = true;
+                res.error_msg += "Bad hash number: " + hash_text + " .";
+            }
+            else
+            {
+                if (!store.request_exists(hash))
+                {
+                    exist = false;
+                    break;
+                }
+            }
+        }
+        res.contents.put ("exist", exist ? "1" : "0");
     }
     catch(std::exception& e)
     {
