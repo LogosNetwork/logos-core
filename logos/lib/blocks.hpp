@@ -23,7 +23,7 @@ enum class block_type : uint8_t
     receive = 3,
     open = 4,
     change = 5,
-    state = 6,
+    state = 6
 };
 class block
 {

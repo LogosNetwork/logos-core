@@ -1,7 +1,5 @@
 #pragma once
 
-#define _PRODUCTION 1
-
 #include <logos/ledger.hpp>
 #include <logos/lib/work.hpp>
 #include <logos/node/stats.hpp>
@@ -158,7 +156,7 @@ public:
     logos::endpoint endpoint;
     std::chrono::steady_clock::time_point last_attempt;
 };
-class peer_container//TODO overlapping functionality with p2p peer handling
+class peer_container
 {
 public:
     peer_container (logos::endpoint const &);

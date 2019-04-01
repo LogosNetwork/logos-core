@@ -10,7 +10,7 @@
 #include <logos/lib/log.hpp>
 #include <logos/node/common.hpp>
 #include <logos/consensus/persistence/block_cache.hpp>
-#include <logos/consensus/p2p/consensus_p2p.hpp>
+#include <logos/node/peer_provider.hpp>
 
 namespace logos
 {
