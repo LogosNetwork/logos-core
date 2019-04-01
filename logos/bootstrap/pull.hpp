@@ -28,21 +28,66 @@ namespace Bootstrap
     class Puller
     {
     public:
+    	/**
+    	 * constructor
+    	 * @param block_cache the block cache
+    	 */
         Puller(IBlockCache & block_cache);
+
+        /**
+         * initialize the puller
+         * @param my_tips my tips
+         * @param others_tips peer's tips
+         */
         void Init(TipSet &my_tips, TipSet &others_tips);
 
+        /**
+         * get a pull request
+         * @return shared_ptr of a pull request
+         */
         PullPtr GetPull();
+
+        /**
+         * if the bootstrap is completed
+         * @return true if the bootstrap is completed
+         */
         bool AllDone();
+
+        /**
+         * get the number of waiting pull requests
+         * @return the number of waiting pull requests
+         */
         size_t GetNumWaitingPulls();
 
         /**
-         * @param pull the pull that the block belongs to
+         * an epoch block is received
+         * @param pull the pull request that the block belongs to
          * @param block the block
          * @return status of the pull
          */
         PullStatus EBReceived(PullPtr pull, EBPtr block);
+
+        /**
+         * a micro block is received
+         * @param pull the pull request that the block belongs to
+         * @param block the block
+         * @return status of the pull
+         */
         PullStatus MBReceived(PullPtr pull, MBPtr block);
+
+        /**
+         * a request block is received
+         * @param pull the pull request that the block belongs to
+         * @param block the block
+         * @param last_block if the block is the last block that we can get
+         * @return status of the pull
+         */
 		PullStatus BSBReceived(PullPtr pull, BSBPtr block, bool last_block);
+
+		/**
+		 * the peer failed to provide more blocks
+		 * @param pull the pull request
+		 */
         void PullFailed(PullPtr pull);
 
     private:
@@ -105,9 +150,21 @@ namespace Bootstrap
     class PullRequestHandler
     {
     public:
+
+    	/**
+    	 * constructor
+    	 * @param request the pull request
+    	 * @param store the database
+    	 */
         PullRequestHandler(PullRequest request, Store & store);
 
         //return: if true call again for more blocks
+
+        /**
+         * Get the next serialized pull response
+         * @param buf the data buffer that will be filled with a pull response
+         * @return true if the caller should call again for more blocks
+         */
         bool GetNextSerializedResponse(std::vector<uint8_t> & buf);
 
     private:

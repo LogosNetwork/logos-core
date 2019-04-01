@@ -119,11 +119,14 @@ namespace Bootstrap
     void Socket::AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete cb, uint32_t timeout_ms)
     {
         LOG_TRACE(log) << "Socket::"<<__func__ << " this: " << this << " timeout_ms: " << timeout_ms;
-        if(timeout_ms > 0) timeout.start (std::chrono::steady_clock::now () + std::chrono::milliseconds(timeout_ms));
+        if(timeout_ms > timeout_disabled)
+        {
+        	timeout.start (std::chrono::steady_clock::now () + std::chrono::milliseconds(timeout_ms));
+        }
         boost::asio::async_write (socket, boost::asio::buffer(buf->data(), buf->size()),
                 [this, cb, timeout_ms](BoostError const & ec, size_t size_a)
                 {
-                    if(timeout_ms > 0)
+                    if(timeout_ms > timeout_disabled)
                     {
                     	timeout.stop();
                     }
@@ -141,17 +144,13 @@ namespace Bootstrap
     void Socket::AsyncReceive(ReceiveComplete cb, uint32_t timeout_ms)
     {
         LOG_TRACE(log) << "Socket::"<<__func__ << " this: " << this << " timeout_ms: " << timeout_ms;
-        if(timeout_ms > 0)
+        if(timeout_ms > timeout_disabled)
         {
         	timeout.start (std::chrono::steady_clock::now () + std::chrono::milliseconds(timeout_ms));
         }
         boost::asio::async_read (socket, boost::asio::buffer(header_buf.data (), MessageHeader::WireSize),
             [this, cb, timeout_ms](BoostError const & ec, size_t size_a)
             {
-				if(timeout_ms > 0)
-				{
-					timeout.stop();
-				}
                 if (!ec)
                 {
                     LOG_TRACE(log) << "Socket::AsyncReceive received header data";
@@ -170,7 +169,7 @@ namespace Bootstrap
                     		boost::asio::buffer(receive_buf.data(), header.payload_size),
                         [this, cb, timeout_ms, header](BoostError const & ec, size_t size_a)
                         {
-                            if(timeout_ms > 0)
+                            if(timeout_ms > timeout_disabled)
                             {
                             	timeout.stop();
                             }

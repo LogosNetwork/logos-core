@@ -153,7 +153,15 @@ namespace Bootstrap {
      */
     constexpr uint32_t PullResponseReserveSize =
     		MessageHeader::WireSize + sizeof(PullResponseStatus);
-    //return total message size including header
+
+	/**
+	 * serialize the message header and the leading fields of PullResponse
+	 * @param ct the ConsensusType of the block
+	 * @param status the status of the pull
+	 * @param block_size the size of the consensus block
+	 * @param buf the buffer to serialize to
+	 * @return total message size including header
+	 */
     uint32_t PullResponseSerializedLeadingFields(ConsensusType ct,
             PullResponseStatus status,
             uint32_t block_size,
@@ -162,7 +170,16 @@ namespace Bootstrap {
 #define BOOTSTRAP_PROGRESS
 #ifdef BOOTSTRAP_PROGRESS
 #include <atomic>
+    /**
+     * get the number of blocks received from peer and stored in the cache
+     * since last time this function was called
+     * @return the number of blocks stored
+     */
     unsigned get_block_progress();
+
+    /**
+     * adding 1 to the number of blocks stored
+     */
 	void block_progressed();
 #endif
 

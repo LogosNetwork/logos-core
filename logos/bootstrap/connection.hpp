@@ -11,35 +11,74 @@ namespace Bootstrap
 {
     constexpr uint16_t BOOTSTRAP_PORT = 7000;
     constexpr uint16_t CONNECT_TIMEOUT_MS = 5000; // 5 seconds
+    constexpr uint32_t timeout_disabled = 0;
 
     using BoostSocket = boost::asio::ip::tcp::socket;
 
+    /**
+     * Interface of a network endpoint used in bootstrap
+     */
     class ISocket
     {
     public:
     	using SendComplete = std::function<void(bool)>;
     	using ReceiveComplete = std::function<void(bool, MessageHeader, uint8_t *)>;
 
-        virtual void AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete cb, uint32_t timeout_ms = 0) = 0;
-        virtual void AsyncReceive(ReceiveComplete cb, uint32_t timeout_ms = 0) = 0;
+    	/**
+    	 * asynchronously send data to the connected peer
+    	 * @param buf the buffer of data
+    	 * @param cb the callback that will be call when the send completes
+    	 * @param timeout_ms timeout of the operation in ms
+    	 */
+        virtual void AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete cb, uint32_t timeout_ms = timeout_disabled) = 0;
+
+        /**
+         * asynchronously receive data sent by the connected peer
+         * @param cb the callback that will be call when the receive completes
+         * @param timeout_ms timeout of the operation in ms
+         */
+        virtual void AsyncReceive(ReceiveComplete cb, uint32_t timeout_ms = timeout_disabled) = 0;
+
+        /**
+         * called when the connection has any kind of error, eg. data received cannot be parsed
+         * @param black_list if the connected peer should be blacklisted
+         */
         virtual void OnNetworkError(bool black_list = false) = 0;
+
+        /**
+         * release the connect after use
+         */
         virtual void Release() = 0;
+
+        /*
+         * destructor
+         */
         virtual ~ISocket() = default;
     };
 
     class Socket;
+    /**
+     * the object that keeps track if an asynchronous operation has timed out.
+     * if so, the connection will be disconnected.
+     */
     class socket_timeout
     {
     public:
-        /// Class constructor
-        /// @param
-        socket_timeout (Socket & socket);
+    	/**
+    	 * constructor
+    	 * @param socket the connection object what will be used for async operations
+    	 */
+    	socket_timeout (Socket & socket);
 
-        /// start start of timer
-        /// @param time_point
+        /**
+         * start the timer
+         * @param time_point the time that the timeout event will be triggered
+         */
         void start (std::chrono::steady_clock::time_point);
 
-        /// stop stops the timer so as not to timeout
+        /**
+         *  stop the timer so as not to timeout
+         */
         void stop ();
 
     private:
@@ -47,23 +86,67 @@ namespace Bootstrap
         Socket & socket;
     };
 
+    /**
+     * The connection endpoint
+     */
     class Socket : public ISocket, public std::enable_shared_from_this<Socket>
     {
     public:
-        //client side
+    	/**
+    	 * client side constructor
+    	 * @param endpoint the peer to connect to
+    	 * @param alarm for timers
+    	 */
         Socket(logos::tcp_endpoint & endpoint, logos::alarm & alarm);
-        void Connect (std::function<void(bool)>);
 
-        //server side
+        /**
+         * server side constructor
+         * @param socket_a the connected low level socket
+         * @param alarm for timers
+         */
         Socket(BoostSocket & socket_a, logos::alarm & alarm);
 
+        /**
+         * connect to the peer
+         * @param ConnectComplete the connection completion callback
+         */
+        void Connect (std::function<void(bool)> ConnectComplete);
+
+        /**
+         * disconnect the connection
+         */
         void Disconnect();
+
+        /**
+         * destructor
+         */
         virtual ~Socket() override;
 
-        virtual void AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete cb, uint32_t timeout_ms = 0) override;
-        virtual void AsyncReceive(ReceiveComplete cb, uint32_t timeout_ms = 0) override;
+    	/**
+    	 * (inherited) asynchronously send data to the connected peer
+    	 * @param buf the buffer of data
+    	 * @param cb the callback that will be call when the send completes
+    	 * @param timeout_ms timeout of the operation in ms
+    	 */
+        virtual void AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete cb, uint32_t timeout_ms = timeout_disabled) override;
 
+        /**
+         * (inherited) asynchronously receive data sent by the connected peer
+         * @param cb the callback that will be call when the receive completes
+         * @param timeout_ms timeout of the operation in ms
+         */
+        virtual void AsyncReceive(ReceiveComplete cb, uint32_t timeout_ms = timeout_disabled) override;
+
+        /**
+         * get the shared_ptr of self
+         * @return the shared_ptr of self
+         */
         std::shared_ptr<Socket> shared ();
+
+        /**
+         * get the address of the connected peer
+         * @return the address of the connected peer
+         */
         boost::asio::ip::address PeerAddress() const;
 
     protected:
@@ -89,24 +172,43 @@ namespace Bootstrap
 
 
     class bootstrap_attempt;
+    /**
+     * the client side connection object
+     */
     class bootstrap_client : public Socket
     {
     public:
-        /// Class constructor
-        /// @param node
-        /// @param bootstrap_attempt
-        /// @param tcp_endpoint
-        bootstrap_client (bootstrap_attempt & attempt, logos::tcp_endpoint &);
+    	/**
+    	 * constructor
+    	 * @param attempt the bootstrap attempt constructing this object
+    	 * @param peer the peer's IP address
+    	 */
+    	bootstrap_client (bootstrap_attempt & attempt, logos::tcp_endpoint & peer);
 
-        /// Class destructor
+        /**
+         * destructor
+         */
         ~bootstrap_client ();
 
+        /**
+          * (inherited) called when the connection has any kind of error,
+          * eg. data received cannot be parsed
+          * @param black_list if the connected peer should be blacklisted
+          */
         virtual void OnNetworkError(bool black_list = false) override;
+
+        /**
+         * (inherited) release the connect after use
+         */
         virtual void Release() override;
 
-        /// @returns returns shared pointer of this client
+        /**
+         * get the shared_ptr of this object
+         * @return shared_ptr of this object
+         */
         std::shared_ptr<bootstrap_client> shared ();
 
+    private:
         bootstrap_attempt & attempt;
         Log log;
     };
@@ -115,21 +217,47 @@ namespace Bootstrap
     class bootstrap_server : public Socket
     {
     public:
-        /// Class constructor
-        /// @param shared pointer of socket
-        /// @param node
+        /**
+         * constructor
+         * @param listener the listener constructing this object
+         * @param socket_a the connected low level socket
+         * @param store the database
+         */
         bootstrap_server (bootstrap_listener & listener,
                 BoostSocket & socket_a,
                 Store & store);
-        /// Class destructor
+
+        /**
+         * destructor
+         */
         ~bootstrap_server ();
 
+        /**
+         * waiting to receive peer's request
+         */
         void receive_request ();
-        void dispatch (bool good, MessageHeader header, uint8_t * buf);
 
+        /**
+          * (inherited) called when the connection has any kind of error,
+          * eg. data received cannot be parsed
+          * @param black_list if the connected peer should be blacklisted
+          */
         virtual void OnNetworkError(bool black_list = false) override;
+
+        /**
+         * (inherited) release the connect after use
+         */
         virtual void Release() override;
+
+        /**
+         * get the shared_ptr of this object
+         * @return shared_ptr of this object
+         */
         std::shared_ptr<bootstrap_server> shared ();
+
+    private:
+
+        void dispatch (bool good, MessageHeader header, uint8_t * buf);
 
         bootstrap_listener & listener;
         Store & store;

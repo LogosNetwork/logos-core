@@ -18,39 +18,60 @@ namespace logos
 }
 namespace Bootstrap
 {
+	constexpr uint8_t max_out_connection = 8;
+	constexpr uint8_t max_accept_connection = 16;
+
     using Service = boost::asio::io_service;
 
     class bootstrap_attempt;
     class bootstrap_initiator
     {
     public:
-        /// Class constructor
-        /// @param node
+    	/**
+    	 * constructor
+    	 * @param alarm for timers
+    	 * @param store the database
+    	 * @param cache the block cache
+    	 * @param peer_provider the peer IP provider
+    	 * @param max_connected the max number of connections
+    	 */
         bootstrap_initiator (logos::alarm & alarm,
         		Store & store,
 				BlockCache & cache,
 				PeerInfoProvider & peer_provider,
-                uint8_t max_connected = 8);
+                uint8_t max_connected = max_out_connection);
 
-        /// Class desctructor
+        /**
+         * desctructor
+         */
         ~bootstrap_initiator ();
 
-        /// bootstrap
-        /// @param endpoint to bootstrap from
-        /// @param add_to_peers add this endpoint to list of peers to bootstrap from
-        void bootstrap (logos::endpoint const &);
+        /**
+         * create bootstrap attempt and try to bootstrap from the peer
+         * @param peer endpoint to bootstrap from
+         */
+        void bootstrap (logos::endpoint const & peer);
 
-        /// bootstrap initiates bootstrapping
+        /**
+         * create bootstrap attempt
+         */
         void bootstrap ();
 
-        /// run_bootstrap start of bootstrapping
+        /**
+         * starting function of the dedicated bootstrap kick off thread
+         */
         void run_bootstrap ();
-        /// check_progress
-        /// @returns true if bootstrapping is running and have good progress
-        /// attempts with bad progress are stopped.
+
+        /**
+         * check progress of an on-going attempt
+         * note that an attempt with bad progress is stopped
+         * @return true if bootstrapping is running and have good progress
+         */
         bool check_progress ();
 
-        /// stop ends bootstrapping
+        /**
+         * end client side bootstrapping
+         */
         void stop ();
 
     private:
@@ -74,34 +95,50 @@ namespace Bootstrap
 	class bootstrap_listener
 	{
 	public:
-		/// Class constructor
-		/// @param boost io_service
-		/// @param node
-		bootstrap_listener (logos::alarm & alarm,
+    	/**
+    	 * constructor
+    	 * @param alarm for timers
+    	 * @param store the database
+    	 * @param local_address address of the local node
+    	 * @param max_accepted the max number of connections will be accepted
+    	 */
+    	bootstrap_listener (logos::alarm & alarm,
 				Store & store,
 				std::string & local_address,
-				uint8_t max_accepted = 16);
+				uint8_t max_accepted = max_accept_connection);
 
+    	/**
+    	 * destructor
+    	 */
 		~bootstrap_listener();
 
-		/// start beginning of listener
+		/**
+		 * start listening for connection requests
+		 */
 		void start ();
 
-		/// stop end of listener
+		/**
+		 * end server side bootstrap
+		 */
 		void stop ();
 
-		/// accept_connection
-		void accept_connection ();
-
-		/// accept_action handles the server socket accept
-		/// @param error_code
-		/// @param shared pointer of socket
-		void accept_action (boost::system::error_code const &,
-				std::shared_ptr<boost::asio::ip::tcp::socket>);
+		/**
+		 * remove a connection from the list of connections
+		 * @param server shared_ptr of the connection object
+		 */
 		void remove_connection(std::shared_ptr<bootstrap_server> server);
 
-		boost::asio::ip::tcp::acceptor acceptor;
 		logos::alarm & alarm;
+
+	private:
+
+		void accept_connection ();
+
+		void accept_action (boost::system::error_code const &,
+				std::shared_ptr<boost::asio::ip::tcp::socket>);
+
+
+		boost::asio::ip::tcp::acceptor acceptor;
 		logos::tcp_endpoint local;
 		Service & service;
 		Store & store;

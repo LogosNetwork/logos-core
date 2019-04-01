@@ -32,10 +32,34 @@ public:
     using MBPtr = std::shared_ptr<ApprovedMB>;
     using EBPtr = std::shared_ptr<ApprovedEB>;
 
+    /**
+     * add an epoch block to the cache
+     * @param block the block
+     * @return true if the block has good signatures.
+     */
     virtual bool AddEB(EBPtr block) = 0;
+
+    /**
+     * add a micro block to the cache
+     * @param block the block
+     * @return true if the block has good signatures.
+     */
     virtual bool AddMB(MBPtr block) = 0;
+
+    /**
+     * add a request block to the cache
+     * @param block the block
+     * @return true if the block has good signatures.
+     */
     virtual bool AddBSB(BSBPtr block) = 0;
+
+    /**
+     * check if a block is cached
+     * @param b the hash of the block
+     * @return true if the block is in the cache
+     */
     virtual bool IsBlockCached(const BlockHash &b) = 0;
+
     virtual ~IBlockCache() = default;
 };
 
@@ -44,14 +68,42 @@ class BlockCache: public IBlockCache
 public:
 	using Store = logos::block_store;
 
+	/**
+	 * constructor
+	 * @param store the database
+	 */
     BlockCache(Store &store);
 
+    /**
+     * (inherited) add an epoch block to the cache
+     * @param block the block
+     * @return true if the block has good signatures.
+     */
     bool AddEB(EBPtr block) override;
+
+    /**
+     * (inherited) add a micro block to the cache
+     * @param block the block
+     * @return true if the block has good signatures.
+     */
     bool AddMB(MBPtr block) override;
+
+    /**
+     * (inherited) add a request block to the cache
+     * @param block the block
+     * @return true if the block has good signatures.
+     */
     bool AddBSB(BSBPtr block) override;
+
+    /**
+     * (inherited) check if a block is cached
+     * @param b the hash of the block
+     * @return true if the block is in the cache
+     */
     bool IsBlockCached(const BlockHash &b) override;
 
 private:
+
     struct Epoch
 	{
     	Epoch(uint32_t epoch_num)

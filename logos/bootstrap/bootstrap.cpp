@@ -51,7 +51,7 @@ namespace Bootstrap
         }
     }
 
-    void bootstrap_initiator::bootstrap(logos::endpoint const &endpoint_a)
+    void bootstrap_initiator::bootstrap(logos::endpoint const &peer)
     {
     	LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
     	//cannot add endpoint_a to peer list, since it could be
@@ -61,7 +61,7 @@ namespace Bootstrap
         {
             if(attempt != nullptr)
             {
-                attempt->add_connection(endpoint_a);
+                attempt->add_connection(peer);
             }
             else
             {
@@ -70,7 +70,7 @@ namespace Bootstrap
 						cache,
 						peer_provider,
 						max_connected);
-				attempt->add_connection(endpoint_a);
+				attempt->add_connection(peer);
 				condition.notify_all();
             }
         }

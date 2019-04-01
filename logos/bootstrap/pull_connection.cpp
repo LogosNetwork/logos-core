@@ -141,8 +141,8 @@ namespace Bootstrap
     /////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////
 
-    bulk_pull_server::bulk_pull_server (std::shared_ptr<ISocket> server, PullRequest pull, Store & store)
-    : connection(server)
+    bulk_pull_server::bulk_pull_server (std::shared_ptr<ISocket> connection, PullRequest pull, Store & store)
+    : connection(connection)
     , request_handler(pull, store)
 	{
 		LOG_TRACE(log) << "bulk_pull_server::"<<__func__ << " " << pull.to_string();
