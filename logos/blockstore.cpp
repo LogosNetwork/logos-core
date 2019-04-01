@@ -1989,65 +1989,25 @@ uint32_t logos::block_store::consensus_block_get_raw(const BlockHash & hash,
         trace_and_halt();
     }
 
-//    if(type == ConsensusType::MicroBlock || type == ConsensusType::Epoch)
-//    {
+    uint32_t block_size = value.size();
+    buf.resize(reserve + block_size);
+    memcpy(buf.data()+reserve, value.data(), block_size);
+    return block_size;
+#if 0
+    if(type == ConsensusType::MicroBlock || type == ConsensusType::Epoch)
+    {
         uint32_t block_size = value.size();
         buf.resize(reserve + block_size);
         memcpy(buf.data()+reserve, value.data(), block_size);
         return block_size;
-//    }
-//    else
-//    {
-//    	bool error = false;
-//    	ApprovedRB block;
-//        new(&block) ApprovedRB(error, value);
-//        assert(!error);
-//
-//    }
+    }
+    else
+    {
+    	bool error = false;
+    	ApprovedRB block;
+        new(&block) ApprovedRB(error, value);
+        assert(!error);
+//TODO
+    }
+#endif
 }
-//
-//bool logos::block_store::request_block_get(const BlockHash &hash, ApprovedRB &block, MDB_txn *transaction)
-//{
-//    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
-//
-//    mdb_val value;
-//    mdb_val key(hash);
-//
-//    auto status (mdb_get (transaction, batch_db, key, value));
-//    assert (status == 0 || status == MDB_NOTFOUND);
-//
-//    bool error = false;
-//    if (status == MDB_NOTFOUND)
-//    {
-//        LOG_TRACE(log) << __func__ << " MDB_NOTFOUND";
-//        error = true;
-//    }
-//    else
-//    {
-//        new(&block) ApprovedRB(error, value);
-//        assert(!error);
-//
-//        if(!error)
-//        {
-//            if(block.hashes.size() > CONSENSUS_BATCH_SIZE)
-//            {
-//                LOG_FATAL(log) << __func__
-//                               << " request_block_get failed, block.request_count > CONSENSUS_BATCH_SIZE";
-//                trace_and_halt();
-//            }
-//
-//            block.requests.reserve(block.hashes.size());
-//            for(uint16_t i = 0; i < block.hashes.size(); ++i)
-//            {
-//                block.requests.push_back(std::shared_ptr<Request>(nullptr));
-//                if(request_get(block.hashes[i], block.requests[i], transaction))
-//                {
-//                    LOG_ERROR(log) << __func__ << " request_get failed";
-//                    return true;
-//                }
-//            }
-//        }
-//    }
-//
-//    return error;
-//}

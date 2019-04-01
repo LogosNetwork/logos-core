@@ -55,7 +55,7 @@ namespace Bootstrap
 
     private:
         Service & service;
-        logos::alarm & alarm;//std::shared_ptr<logos::alarm> alarm;
+        logos::alarm & alarm;
 		Store & store;
 		BlockCache & cache;
 		PeerInfoProvider & peer_provider;
@@ -80,7 +80,6 @@ namespace Bootstrap
 		bootstrap_listener (logos::alarm & alarm,
 				Store & store,
 				std::string & local_address,
-				//uint16_t port,
 				uint8_t max_accepted = 16);
 
 		~bootstrap_listener();
@@ -114,7 +113,3 @@ namespace Bootstrap
 		Log log;
 	};
 }
-
-//        /// current_attempt
-//        /// @returns shared pointer of the current bootstrap_attempt
-//        std::shared_ptr<bootstrap_attempt> current_attempt ();

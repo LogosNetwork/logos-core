@@ -25,7 +25,6 @@ namespace Bootstrap
     , peer_provider(peer_provider)
     , stopped(false)
     , max_connected(max_connected)
-//    , thread([this]() { run_bootstrap(); })
     {
     	LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
     	thread = std::thread([this]() { run_bootstrap(); });
@@ -50,7 +49,6 @@ namespace Bootstrap
 					max_connected);
             condition.notify_all();
         }
-        LOG_TRACE(log) << "bootstrap_initiator::"<<__func__ <<"2";//TODO
     }
 
     void bootstrap_initiator::bootstrap(logos::endpoint const &endpoint_a)
@@ -111,12 +109,11 @@ namespace Bootstrap
     	}
 
 #ifdef BOOTSTRAP_PROGRESS
-    	if(get_block_progress() == 0)//TODO ==0
+    	if(get_block_progress() == 0)//TODO how many blocks?
     	{
-    		std::cout<<"bootstrap_initiator::check_progress calling attempt::stop"<<std::endl;
+    		LOG_DEBUG(log) <<"bootstrap_initiator::check_progress calling attempt::stop";
     		attempt->stop();
     		attempt = nullptr;
-    		//return false;
     	}
 #endif
     	return true;
@@ -131,6 +128,7 @@ namespace Bootstrap
             attempt->stop();
             attempt = nullptr;
         }
+        lock.unlock();
         condition.notify_all();
     }
 
@@ -150,7 +148,6 @@ namespace Bootstrap
             uint8_t max_accepted)
     : acceptor(alarm.service)
     , alarm(alarm)
-    //, local(boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v6::any(), port_a))
     , local(get_endpoint(local_address))
     , service(alarm.service)
     , store(store)
@@ -169,12 +166,10 @@ namespace Bootstrap
     {
     	LOG_TRACE(log) << "bootstrap_listener::"<<__func__;
     	acceptor.open (local.protocol ());
-        //acceptor.open(endpoint().protocol());
         acceptor.set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
 
         boost::system::error_code ec;
-        acceptor.bind (local, ec); // RGD
-        //acceptor.bind(endpoint(), ec);
+        acceptor.bind (local, ec);
         if (ec)
         {
             LOG_FATAL(log) << "Error while binding for bootstrap on port " << local.port()
@@ -188,8 +183,6 @@ namespace Bootstrap
 
     void bootstrap_listener::stop()
     {
-    	LOG_TRACE(log) << "bootstrap_listener::"<<__func__;
-
         LOG_DEBUG(log) << "bootstrap_listener::stop: acceptor->close";
         acceptor.close();
         std::unique_lock<std::mutex> lock(mtx);

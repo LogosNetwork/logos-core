@@ -507,12 +507,6 @@ public:
                              bool should_buffer);
     process_return BufferComplete();
 
-	//    PeerInfoProvider & GetPeerInfoProvider()
-	//    {
-	//        //config.consensus_manager_config.local_address
-	//        return _consensus_container->GetPeerInfoProvider();
-	//    }
-
 
     boost::asio::io_service & service;
     logos::node_config config;

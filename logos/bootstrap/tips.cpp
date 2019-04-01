@@ -28,8 +28,6 @@ namespace Bootstrap
 		}
 	}
 
-	/// Serialize
-	/// write this object out as a stream.
 	uint32_t TipSet::Serialize(logos::stream & stream) const
 	{
 		auto s = eb.Serialize(stream);
@@ -171,7 +169,6 @@ namespace Bootstrap
 			trace_and_halt();
 		}
 
-		//assert(tips.eb.epoch==tips.mb.epoch || tips.eb.epoch+1==tips.mb.epoch);
 		if(tips.eb.epoch==tips.mb.epoch)
 		{
 			for(uint8_t i=0; i < NUM_DELEGATES; ++i)

@@ -37,7 +37,7 @@ namespace Bootstrap
         /// @param endpoint
         void add_connection(logos::endpoint const & endpoint);
         /// pool_connection store connection on idle queue for re-use
-        void pool_connection(std::shared_ptr<bootstrap_client> client, bool with_lock=false);
+        void pool_connection(std::shared_ptr<bootstrap_client> client, bool locked=false);
         void remove_connection(std::shared_ptr<bootstrap_client> client, bool blacklist);
 
         logos::alarm & alarm;

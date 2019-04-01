@@ -33,25 +33,16 @@ namespace Bootstrap
     {
         LOG_DEBUG(log) << "bootstrap_attempt::run begin {";
 
-        {
-        	auto request(TipSet::CreateTipSet(store));
-            LOG_TRACE(log) <<"bootstrap_attempt::run my_tips \n" << request;
-        }
-
-        //std::unique_lock<std::mutex> lock(mtx);
         auto tips_failure(true);
         while (!stopped && tips_failure)
         {
             tips_failure = request_tips();
         }
-        LOG_TRACE(log) <<"bootstrap_attempt::run 2";
+
         while (!stopped)
         {
-            LOG_TRACE(log) <<"bootstrap_attempt::run 3";
             if (!puller.AllDone())
             {
-                LOG_TRACE(log) <<"bootstrap_attempt::run 4";
-
                 request_pull();
                 LOG_TRACE(log) << "bootstrap_attempt::run, wait...";
                 std::unique_lock<std::mutex> lock(mtx);
@@ -60,7 +51,6 @@ namespace Bootstrap
             }
             else
             {
-            	//std::cout<<"bootstrap_attempt::run puller.AllDone()"<<std::endl;
                 break;
             }
         }
@@ -157,7 +147,7 @@ namespace Bootstrap
         	{
         		LOG_DEBUG(log) << "bootstrap_attempt::get_connection: will retry after sleep";
         		lock.unlock();
-        		usleep(1000000);//TODO
+        		usleep(1000000);//TODO discuss
         		lock.lock();
         	}
         }
@@ -183,7 +173,6 @@ namespace Bootstrap
     size_t bootstrap_attempt::target_connections(size_t need)
     {
         need = std::max(need, puller.GetNumWaitingPulls());
-        //std::lock_guard <std::mutex> lock(mtx);
         auto num_con = working_clients.size() +
         		idle_clients.size() +
 				connecting_clients.size();
@@ -238,22 +227,24 @@ namespace Bootstrap
 		connecting_clients.insert(client);
 		client->Connect([client, this](bool connected)
         {
-        	LOG_DEBUG(log) << "bootstrap_client::bootstrap_client: connected="
+        	LOG_DEBUG(log) << "bootstrap_attempt::add_connection: connected="
         				<< connected;
-        	std::lock_guard<std::mutex> lock(mtx);
+        	std::unique_lock<std::mutex> lock(mtx);
         	connecting_clients.erase(client);
         	if(stopped)
         	{
-        		condition.notify_all();//TODO check if need lock
+        		//nothing special
         	}
         	else if(connected)
         	{
         		pool_connection (client, true);
         	}
-        	else
+        	else//failed to connect
         	{
-        		condition.notify_all();//TODO check if need lock
+        		//nothing special
         	}
+    		lock.unlock();
+    		condition.notify_all();
         });
 	}
 
@@ -265,20 +256,29 @@ namespace Bootstrap
     		logos::endpoint e(client->PeerAddress(), BOOTSTRAP_PORT);
     		peer_provider.add_to_blacklist(e);
     	}
-    	std::lock_guard <std::mutex> lock(mtx);
+    	std::unique_lock <std::mutex> lock(mtx);
     	working_clients.erase(client);
     	idle_clients.erase(client);
+    	lock.unlock();
     	condition.notify_all();
     }
 
-    void bootstrap_attempt::pool_connection(std::shared_ptr<bootstrap_client> client, bool with_lock)
+    void bootstrap_attempt::pool_connection(std::shared_ptr<bootstrap_client> client, bool locked)
     {
     	LOG_TRACE(log) << "bootstrap_attempt::"<<__func__;
-    	if(!with_lock)
-    		std::lock_guard <std::mutex> lock(mtx);
-        idle_clients.insert(client);
-    	working_clients.erase(client);
-        condition.notify_all();
+    	if(locked)
+    	{
+            idle_clients.insert(client);
+        	working_clients.erase(client);
+    	}
+    	else
+    	{
+    		std::unique_lock <std::mutex> lock(mtx);
+            idle_clients.insert(client);
+        	working_clients.erase(client);
+        	lock.unlock();
+        	condition.notify_all();
+    	}
     }
 
     void bootstrap_attempt::stop()
@@ -322,58 +322,7 @@ namespace Bootstrap
         	condition.wait(lock);
             LOG_TRACE(log) << "bootstrap_attempt::stop: after wait";
         }
-
+        lock.unlock();
         condition.notify_all();//needed
     }
 }
-
-///*
-////TODO Stop on-going tip request and set promise to unblock the thread in attempt::run
-// if (auto i = tips.lock()) {
-//            try {
-//                i->promise.set_value(true);
-//            }
-//            catch (std::future_error &e) {
-//                LOG_DEBUG(log) << "bootstrap_attempt::stop caught error in setting promise: " << e.what();
-//            }
-//        }
-//*/
-//        if (!stopped) {
-//            std::weak_ptr <bootstrap_attempt> this_w(shared_from_this());
-//            alarm.add(std::chrono::steady_clock::now() + std::chrono::seconds(1), [this_w]()
-//            {
-//                if (auto this_l = this_w.lock()) {
-//                    this_l->populate_connections();
-//                }
-//            });
-//        }
-//				//                auto pull = puller.GetPull();
-//				//                assert(pull.get() != nullptr);
-//                /*
-//                                // The bulk_pull_client destructor attempt to requeue_pull
-//                                // which can cause a deadlock if this is the last reference
-//                                // Dispatch request in an external thread in case it needs to be destroyed
-//                                background([connection_l, pull]() {
-//                */
-//    auto address = peer.address();
-//            /*
-//            //TODO for testing: filter out local address
-//                        if (address.to_v6().to_string() == std::string("::ffff:172.1.1.100")) {
-//                            continue; // RGD Hack TODO remove this...
-//                        }
-//
-//                        if (peer != logos::endpoint(boost::asio::ip::address_v6::any(), 0))
-//            */
-//
-//            auto client(std::make_shared<bootstrap_client>(shared_from_this(),
-//                                                           logos::tcp_endpoint(address, BOOTSTRAP_PORT)));
-//            //client->run();
-//            /*
-//             * TODO when to give up the attempt
-//                        if (connections == 0)
-//                        {
-//                            LOG_INFO(log) << "Bootstrap stopped because there are no peers";
-//                            stopped = true;
-//                            condition.notify_all();
-//                        }
-//            */

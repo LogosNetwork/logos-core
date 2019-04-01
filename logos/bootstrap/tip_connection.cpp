@@ -13,7 +13,7 @@ namespace Bootstrap
     : connection (connection)
     , request(TipSet::CreateTipSet(store))
     {
-        LOG_TRACE(log) <<"tips_req_client::"<< __func__ << " my_tips" << std::endl << request;
+        LOG_TRACE(log) <<"tips_req_client::"<< __func__;
     }
 
     tips_req_client::~tips_req_client ()
@@ -32,12 +32,10 @@ namespace Bootstrap
             request.Serialize(stream);
         }
 
-        //auto this_l = shared_from_this();//should be safe without
         connection->AsyncSend(send_buffer, [this, send_buffer](bool good)
         		{
 					if (good)
 					{
-						//LOG_TRACE(log) << "tips_req_client::run waiting peer tips...";
 						receive_tips();
 					}
 					else
@@ -125,14 +123,16 @@ namespace Bootstrap
             header.Serialize(stream);
             response.Serialize(stream);
         }
-		//    	{
-		//    	    std::stringstream stream;
-		//    	    for(size_t i = 0; i < send_buffer->size(); ++i)
-		//    	    {
-		//    	        stream << std::hex << std::noshowbase << std::setw (2) << std::setfill ('0') << (unsigned int)((*send_buffer)[i]);
-		//    	    }
-		//    	    LOG_TRACE(log) << "bootstrap_server::"<<__func__ <<" data:" << stream.str ();
-		//    	}
+#ifdef DUMP_BLOCK_DATA
+		{
+			std::stringstream stream;
+			for(size_t i = 0; i < send_buffer->size(); ++i)
+			{
+				stream << std::hex << std::noshowbase << std::setw (2) << std::setfill ('0') << (unsigned int)((*send_buffer)[i]);
+			}
+			LOG_TRACE(log) << "bootstrap_server::"<<__func__ <<" data:" << stream.str ();
+		}
+#endif
 
         auto this_l = shared_from_this();
         connection->AsyncSend(send_buffer, [this, this_l](bool good)

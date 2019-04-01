@@ -52,6 +52,7 @@ bool BlockCache::AddEB(EBPtr block)
 		Validate();//TODO optimize: Validate eb first
 	}
 
+	//TODO remove after integration tests
 	LOG_TRACE(log) << "BlockCache::"<<__func__<<": cached hashes: " << cached_blocks.size();
 	for(auto & h : cached_blocks)
 		LOG_TRACE(log) << h.to_string();
@@ -131,6 +132,7 @@ bool BlockCache::AddMB(MBPtr block)
 		Validate();//TODO optimize: Validate mb first
 	}
 
+	//TODO remove after integration tests
 	LOG_TRACE(log) << "BlockCache::"<<__func__<<": cached hashes: " << cached_blocks.size();
 	for(auto & h : cached_blocks)
 		LOG_TRACE(log) << h.to_string();
@@ -187,8 +189,6 @@ bool BlockCache::AddBSB(BSBPtr block)
 
 				found = true;
 				add2begin = true;
-//				auto temp_i = bi;
-//				add2begin = ++temp_i == epochs.rend();
 			}
 			break;
 		}
@@ -213,6 +213,7 @@ bool BlockCache::AddBSB(BSBPtr block)
 		Validate(block->primary_delegate);
 	}
 
+	//TODO remove after integration tests
 	LOG_TRACE(log) << "BlockCache::"<<__func__<<": cached hashes: " << cached_blocks.size();
 	for(auto & h : cached_blocks)
 		LOG_TRACE(log) << h.to_string();
@@ -238,8 +239,6 @@ void BlockCache::Validate(uint8_t bsb_idx)
 		// try bsb chains till num_bsb_chain_no_progress reaches NUM_DELEGATES
 		while(num_bsb_chain_no_progress < NUM_DELEGATES)
 		{
-			LOG_TRACE(log) << "BlockCache::Validate num_bsb_chain_no_progress="
-					<< num_bsb_chain_no_progress;
 			for(;;)
 			{
 				std::list<BSBPtr>::iterator to_validate = e->bsbs[bsb_idx].begin();
@@ -298,60 +297,6 @@ void BlockCache::Validate(uint8_t bsb_idx)
 					}
 				}
 			}
-
-//
-//
-//
-//
-//			std::list<BSBPtr>::iterator to_validate = e->bsbs[bsb_idx].begin();
-//			if(to_validate == e->bsbs[bsb_idx].end())
-//			{
-//				//cannot make progress with empty list
-//				num_bsb_chain_no_progress++;
-//				bsb_idx = (bsb_idx+1)%NUM_DELEGATES;
-//			}
-//			else
-//			{
-//				ApprovedRB & block = *(*to_validate);
-//				ValidationStatus status;
-//				if(bsb_handler.VerifyContent(block, &status))
-//				{
-//					bsb_handler.ApplyUpdates(block, block.primary_delegate);
-//					cached_blocks.erase(block.Hash());
-//					e->bsbs[bsb_idx].pop_front();
-//					num_bsb_chain_no_progress = 0;
-//				}
-//				else
-//				{
-//#ifdef REASON_CLEARED
-//					switch (status.reason) {
-//						case logos::process_result::gap_previous:
-//						case logos::process_result::gap_source:
-//							//TODO any other cases that can be considered as gap?
-//							num_bsb_chain_no_progress++;
-//							bsb_idx = (bsb_idx+1)%NUM_DELEGATES;
-//							break;
-//						default:
-//							//Since the agg-sigs are already verified,
-//							//we expect gap-like reasons.
-//							//For any other reason, we log them, and investigate.
-//							LOG_ERROR(log) << "BlockCache::Validate BSB status: "
-//									<< ProcessResultToString(status.reason)
-//									<< " block " << block.CreateTip().to_string();
-//							//Throw the block out, otherwise it blocks the rest.
-//							cached_blocks.erase(block.Hash());
-//							e->bsbs[bsb_idx].pop_front();
-//							//TODO recall?
-//							//TODO detect double spend?
-//							break;
-//					}
-//#else
-//					num_bsb_chain_no_progress++;
-//					bsb_idx = (bsb_idx+1)%NUM_DELEGATES;
-//#endif
-//
-//				}
-//			}
 		}
 
 		bool mbs_empty = e->mbs.empty();

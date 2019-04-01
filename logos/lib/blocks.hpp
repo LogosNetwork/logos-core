@@ -24,10 +24,6 @@ enum class block_type : uint8_t
     open = 4,
     change = 5,
     state = 6,
-    batch_block = 7,
-    micro_block = 8,
-    epoch_block = 9,
-    frontier_block = 10,
 };
 class block
 {

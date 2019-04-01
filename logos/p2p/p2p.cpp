@@ -843,7 +843,6 @@ void p2p_interface::Shutdown()
 
 bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool output)
 {
-	return false;//TODO for bootstrap debugging
     if (!p2p)
     {
         return false;

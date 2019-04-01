@@ -167,9 +167,3 @@ namespace Bootstrap {
 #endif
 
 } // namespace
-
-
-
-/*
-
-*/

@@ -35,7 +35,6 @@ namespace Bootstrap
         		{
 					if (good)
 					{
-						//LOG_TRACE(log) << "bulk_pull_client::run: waiting peer blocks...";
 						receive_block();
 					}
 					else

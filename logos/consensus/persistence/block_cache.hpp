@@ -10,7 +10,6 @@
 
 #include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
-//#include <logos/consensus/messages/batch_state_block.hpp>
 
 #include <logos/epoch/epoch.hpp>
 #include <logos/epoch/epoch_handler.hpp>
@@ -92,7 +91,7 @@ private:
 
     /*
      * should be called when:
-     * (1) a new block is added to the beginning of any chain of the oldest epoch
+     * (1) a new block is added to the beginning of any chain of the oldest epoch,
      * (2) a new block is added to the beginning of any BSB chain of the newest epoch,
      * 	   in which the first MB has not been received.
      */

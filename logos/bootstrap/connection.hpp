@@ -52,7 +52,7 @@ namespace Bootstrap
     public:
         //client side
         Socket(logos::tcp_endpoint & endpoint, logos::alarm & alarm);
-        void Connect (std::function<void(bool)>);//void ConnectComplete(bool connected));
+        void Connect (std::function<void(bool)>);
 
         //server side
         Socket(BoostSocket & socket_a, logos::alarm & alarm);
@@ -70,7 +70,6 @@ namespace Bootstrap
         template <typename Derived>
         std::shared_ptr<Derived> shared_from_base()
         {
-        	//LOG_TRACE(log) << "bootstrap_socket::"<<__func__;
             return std::static_pointer_cast<Derived>(shared_from_this());
         }
 
@@ -86,12 +85,11 @@ namespace Bootstrap
         Log log;
 
         friend class socket_timeout;
-        //friend class bootstrap_attempt;
     };
 
 
     class bootstrap_attempt;
-    class bootstrap_client : public Socket//std::enable_shared_from_this<bootstrap_client>
+    class bootstrap_client : public Socket
     {
     public:
         /// Class constructor
@@ -110,7 +108,6 @@ namespace Bootstrap
         std::shared_ptr<bootstrap_client> shared ();
 
         bootstrap_attempt & attempt;
-        //Store & store;
         Log log;
     };
 
@@ -136,7 +133,6 @@ namespace Bootstrap
 
         bootstrap_listener & listener;
         Store & store;
-        //std::mutex mutex;
         Log log;
     };
 

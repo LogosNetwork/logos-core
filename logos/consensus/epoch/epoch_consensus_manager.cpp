@@ -150,7 +150,6 @@ EpochConsensusManager::DesignatedDelegate(
     std::shared_ptr<DelegateMessage> message)
 {
 	Tip tip;
-    BlockHash &hash = tip.digest;
     ApprovedMB block;
 
     if (_store.micro_block_tip_get(tip))
@@ -158,7 +157,7 @@ EpochConsensusManager::DesignatedDelegate(
         LOG_FATAL(_log) << "EpochConsensusManager::DesignatedDelegate failed to get microblock tip";
         trace_and_halt();
     }
-
+    BlockHash & hash = tip.digest;
     if (_store.micro_block_get(hash, block))
     {
         LOG_FATAL(_log) << "EpochConsensusManager::DesignatedDelegate failed to get microblock";

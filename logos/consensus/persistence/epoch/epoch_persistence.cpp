@@ -59,14 +59,8 @@ PersistenceManager<ECT>::Validate(
     {
         LOG_FATAL(_log) << "PersistenceManager::Validate failed to get microblock tip";
         trace_and_halt();
+        return false;
     }
-
-	//    if (_store.micro_block_tip_get(micro_block_tip))
-	//    {
-	//        LOG_FATAL(_log) << "PersistenceManager::Validate micro block tip doesn't exist";
-	//        trace_and_halt();
-	//        return false;
-	//    }
 
     if (epoch.micro_block_tip != micro_block_tip)
     {

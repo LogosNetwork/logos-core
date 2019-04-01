@@ -16,10 +16,10 @@ using Hours = std::chrono::hours;
 /// Epoch transition starts every 12 hours
 /// Epoch events
 /// 1. Epoch start time: 12h
-//static const Hours EPOCH_PROPOSAL_TIME(12); // 12 hours
-static const Minutes EPOCH_PROPOSAL_TIME(60);
+static const Hours EPOCH_PROPOSAL_TIME(12); // 12 hours
+//static const Minutes EPOCH_PROPOSAL_TIME(5);
 /// 2. New delegates set connection time 12h - 5m
-static const Seconds EPOCH_DELEGATES_CONNECT(40); // 5 minunes
+static const Minutes EPOCH_DELEGATES_CONNECT(5); // 5 minunes
 /// 3. Epoch transition start time: 12h - 20s
 static const Seconds EPOCH_TRANSITION_START(20); // 20 seconds
 /// 4. Epoch start time: 12h
@@ -30,7 +30,7 @@ static const Minutes MICROBLOCK_PROPOSAL_TIME(10); // 10 minutes
 static const Minutes MICROBLOCK_CUTOFF_TIME(10); // 10 minutes
 static const Seconds CLOCK_DRIFT(20); // 20 seconds
 static const Seconds SECONDARY_LIST_TIMEOUT(20); // 20 seconds
-static const Seconds SECONDARY_LIST_TIMEOUT_CAP(30); // 8 minutes
+static const Minutes SECONDARY_LIST_TIMEOUT_CAP(8); // 8 minutes
 
 template<typename C, typename T>
 C TConvert(T t)

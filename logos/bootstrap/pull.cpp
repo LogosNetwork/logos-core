@@ -9,7 +9,7 @@
 namespace Bootstrap
 {
 
-	std::string MBRequestTips_to_string (MBPtr block)
+	std::string MBRequestTips_to_string (MBPtr block)//TODO remove
 	{
 		std::stringstream stream;
 		stream << " MB tip:" << block->CreateTip().to_string() <<std::endl;
@@ -31,7 +31,6 @@ namespace Bootstrap
 	{
 		LOG_TRACE(log) << "Puller::"<<__func__;
 		std::lock_guard<std::mutex> lck (mtx);
-		LOG_TRACE(log) << "Puller::"<<__func__ << " in";
 		this->my_tips = my_tips;
 		this->others_tips = others_tips;
 
@@ -82,9 +81,9 @@ namespace Bootstrap
 				<< " tip: " << block->CreateTip().to_string()
 				<< " block->previous: " << block->previous.to_string()
 				<< " pull->prev_hash: " << pull->prev_hash.to_string();
-
-		LOG_TRACE(log) << "Puller::"<<__func__
-				<< " block " << block->ToJson();
+		//TODO remove after integration tests
+		//		LOG_TRACE(log) << "Puller::"<<__func__
+		//				<< " block " << block->ToJson();
 
     	assert(state==PullerState::Epoch && working_epoch.eb == nullptr);
     	bool good_block = block->previous == pull->prev_hash &&
@@ -112,13 +111,12 @@ namespace Bootstrap
 				<< " tip: " << block->CreateTip().to_string()
 				<< " block->previous: " << block->previous.to_string()
 				<< " pull->prev_hash: " << pull->prev_hash.to_string();
-
-		LOG_TRACE(log) << "Puller::"<<__func__
-				<< " block " << block->ToJson();
+		//TODO remove after integration tests
+		//		LOG_TRACE(log) << "Puller::"<<__func__
+		//				<< " block " << block->ToJson();
 
     	assert(state==PullerState::Micro);
     	bool good_block = block->previous == pull->prev_hash &&
-    			//block->epoch_number == working_epoch.epoch_num &&
 				block_cache.AddMB(block);
 
 		std::lock_guard<std::mutex> lck (mtx);
@@ -156,14 +154,12 @@ namespace Bootstrap
 				<< " tip: " << block->CreateTip().to_string()
 				<< " block->previous: " << block->previous.to_string()
 				<< " pull->prev_hash: " << pull->prev_hash.to_string();
-
-		LOG_TRACE(log) << "Puller::"<<__func__
-				<< " block " << block->ToJson();
-
+		//TODO remove after integration tests
+		//		LOG_TRACE(log) << "Puller::"<<__func__
+		//				<< " block " << block->ToJson();
 
     	assert(state==PullerState::Batch || state==PullerState::Batch_No_MB);
-    	bool good_block = block->previous == pull->prev_hash &&//TODO
-    			//block->epoch_number == working_epoch.epoch_num &&
+    	bool good_block = block->previous == pull->prev_hash &&
 				block_cache.AddBSB(block);
 
 		auto digest(block->Hash());
@@ -192,30 +188,6 @@ namespace Bootstrap
 
 				if(working_mbp.bsb_targets.empty())//all BSBs and MB (if have one) in block_cache now
 				{
-//					if(working_mbp.mb != nullptr)
-//					{
-//						UpdateMyMBTip(working_mbp.mb);
-//						if(working_mbp.mb->last_micro_block)
-//						{
-//							if(working_epoch.eb != nullptr)
-//							{
-//								UpdateMyEBTip(working_epoch.eb);
-//							}
-//						}
-//					}
-
-//							state = PullState::Micro;//Epoch;
-//						}
-//						else
-//						{
-//							state = PullState::Micro;
-//						}
-//					}
-//					else // not MB, also means not EB
-//					{
-//						state = PullState::Micro;//Epoch;
-//					}
-
 					//check before go to next micro period
 					CheckMicroProgress();
 					CreateMorePulls();
@@ -264,8 +236,6 @@ namespace Bootstrap
     	{
 			case PullerState::Epoch:
 			{
-				LOG_TRACE(log) << "Puller::"<<__func__<< " 1 ";
-
 				working_epoch = {my_tips.eb.epoch+1};
 				if(my_tips.eb < others_tips.eb)
 				{
@@ -273,11 +243,10 @@ namespace Bootstrap
 							ConsensusType::Epoch,
 							working_epoch.epoch_num,
 							my_tips.eb.digest));
-
-                	LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
-                			<< waiting_pulls.back()->to_string();
-
-					LOG_TRACE(log) << "Puller::"<<__func__<< " return Epoch";
+					//TODO remove after integration tests
+//                	LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
+//                			<< waiting_pulls.back()->to_string();
+//					LOG_TRACE(log) << "Puller::"<<__func__<< " return Epoch";
 					return;
 				}else{
 					state = PullerState::Micro;
@@ -287,7 +256,6 @@ namespace Bootstrap
 			}
 			case PullerState::Micro:
 			{
-				LOG_TRACE(log) << "Puller::"<<__func__<< " 2 ";
 				assert(working_epoch.cur_mbp.bsb_targets.empty());
 
 				auto mb_tip = working_epoch.two_mbps?
@@ -299,16 +267,15 @@ namespace Bootstrap
 							ConsensusType::MicroBlock,
 							working_epoch.epoch_num,
 							mb_tip.digest));
-
-					LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
-                			<< waiting_pulls.back()->to_string();
-
-					LOG_TRACE(log) << "Puller::"<<__func__<< " return Micro";
+					//TODO remove after integration tests
+//					LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
+//                			<< waiting_pulls.back()->to_string();
+//					LOG_TRACE(log) << "Puller::"<<__func__<< " return Micro";
 					return;
 				}else{
 					state = PullerState::Batch_No_MB;
 					CreateMorePulls();
-#if 1
+#if 1 //TODO remove after integration tests
 					{
 		            	auto & working_mbp = working_epoch.two_mbps?
 		            						 working_epoch.next_mbp : working_epoch.cur_mbp;
@@ -320,14 +287,12 @@ namespace Bootstrap
 			}
 			case PullerState::Batch:
 			{
-				LOG_TRACE(log) << "Puller::"<<__func__<< " 3 ";
-
 				bool added_pulls = false;
 				// if pulled a MB, use it to set up pulls
             	auto & working_mbp = working_epoch.two_mbps?
             						 working_epoch.next_mbp : working_epoch.cur_mbp;
             	assert(working_mbp.mb != nullptr);
-            	//TODO
+            	////TODO remove after integration tests
 //				assert(my_tips.mb.sqn == working_mbp.mb->sequence -1 ||
 //						((my_tips.mb.epoch == working_mbp.mb->epoch_number -1) &&
 //								(working_mbp.mb->sequence == 0)));
@@ -335,8 +300,6 @@ namespace Bootstrap
 
 				for(uint i = 0; i < NUM_DELEGATES; ++i)
 				{
-					//TODO add sqn to tip_db and micro_block tips, replace next line
-					//if(my_tips.bsb_vec[i].digest != working_mbp.mb->tips[i])
 					if(my_tips.bsb_vec[i] < working_mbp.mb->tips[i])
 					{
 						waiting_pulls.push_back(std::make_shared<PullRequest>(
@@ -344,9 +307,9 @@ namespace Bootstrap
 								working_epoch.epoch_num,
 								my_tips.bsb_vec[i].digest,
 								working_mbp.mb->tips[i].digest));
-
-                    	LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
-                    			<< waiting_pulls.back()->to_string();
+						//TODO remove after integration tests
+//                    	LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
+//                    			<< waiting_pulls.back()->to_string();
 
 						working_mbp.bsb_targets.insert(working_mbp.mb->tips[i].digest);
 						added_pulls = true;
@@ -362,8 +325,6 @@ namespace Bootstrap
 			}
 			case PullerState::Batch_No_MB:
 			{
-				LOG_TRACE(log) << "Puller::"<<__func__<< " 4 ";
-
 				bool added_pulls = false;
 				/*
 				 * since we don't have any MB, we are at the end of the bootstrap
@@ -392,7 +353,8 @@ namespace Bootstrap
                 }
                 if(added_pulls)
                 {
-					LOG_TRACE(log) << "Puller::"<<__func__<< " return Batch_No_MB";
+                	//TODO remove after integration tests
+                	//LOG_TRACE(log) << "Puller::"<<__func__<< " return Batch_No_MB";
                 	return;
                 }
                 else
@@ -406,8 +368,6 @@ namespace Bootstrap
 				 * (created)received yet. No more to do for the current epoch.
 				 * So for (2), we move to the new epoch
 				 */
-				LOG_TRACE(log) << "Puller::"<<__func__<< " 5 ";
-
                 working_epoch = {working_epoch.epoch_num+1};
 				for(uint i = 0; i < NUM_DELEGATES; ++i)
 				{
@@ -418,9 +378,9 @@ namespace Bootstrap
 								working_epoch.epoch_num,
 								my_tips.bsb_vec_new_epoch[i].digest,
 								others_tips.bsb_vec_new_epoch[i].digest));
-
-                    	LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
-                    			<< waiting_pulls.back()->to_string();
+						//TODO remove after integration tests
+                    	//LOG_TRACE(log) << "Puller::"<<__func__<< " added:"
+                    	//		<< waiting_pulls.back()->to_string();
 
 						working_epoch.cur_mbp.bsb_targets.insert(others_tips.bsb_vec_new_epoch[i].digest);
 						added_pulls = true;
@@ -439,12 +399,13 @@ namespace Bootstrap
 			default:
 				break;
 		}
-		LOG_TRACE(log) << "Puller::"<<__func__<< " return last";
+    	//TODO remove after integration tests
+		//LOG_TRACE(log) << "Puller::"<<__func__<< " return last";
     }
 
     void Puller::CheckMicroProgress()
     {
-		LOG_TRACE(log) << "Puller::"<<__func__;
+		LOG_TRACE(log) << "Puller::"<<__func__<<": step 1";
 		/*
 		 * step 1: reduce two mbps to one mbp
 		 */
@@ -476,25 +437,12 @@ namespace Bootstrap
 								<< " first MB hash=" << digest.to_string ();
 				waiting_pulls.clear();
 				state = PullerState::Done;
-				assert(false);//DEBUG only TODO
+				assert(false);//TODO DEBUG only TODO
 				return;
 			}
 		}
-		LOG_TRACE(log) << "Puller::"<<__func__ << " 2";
 
-
-//		if(working_mbp.mb != nullptr)
-//							{
-//								UpdateMyMBTip(working_mbp.mb);
-//								if(working_mbp.mb->last_micro_block)
-//								{
-//									if(working_epoch.eb != nullptr)
-//									{
-//										UpdateMyEBTip(working_epoch.eb);
-//									}
-//								}
-//							}
-
+		LOG_TRACE(log) << "Puller::"<<__func__ << ": step 2";
 		/*
 		 * step 2: check progress in case cur_mbp has a mb
 		 */
@@ -541,7 +489,7 @@ namespace Bootstrap
 			}
 			else
 			{
-				assert(false);//TODO
+				//assert(false);//TODO
 				working_epoch.two_mbps = true;
 				state = PullerState::Micro;
 			}
@@ -567,9 +515,8 @@ namespace Bootstrap
     		assert(false);
     	}
 
-		LOG_TRACE(log) << "Puller::"<<__func__ << " my_tips " << "\n" << my_tips;
-		LOG_TRACE(log) << "Puller::"<<__func__ << " others_tips " << "\n" << others_tips;
-
+//		LOG_TRACE(log) << "Puller::"<<__func__ << " my_tips " << "\n" << my_tips;
+//		LOG_TRACE(log) << "Puller::"<<__func__ << " others_tips " << "\n" << others_tips;
     }
 
     void Puller::UpdateMyMBTip(MBPtr block)
@@ -577,8 +524,9 @@ namespace Bootstrap
 		LOG_TRACE(log) << "Puller::"<<__func__;
     	assert(my_tips.mb.digest == block->previous);
     	my_tips.mb = block->CreateTip();
-		LOG_TRACE(log) << "Puller::"<<__func__ << " my_tips " << "\n" << my_tips;
-		LOG_TRACE(log) << "Puller::"<<__func__ << " others_tips " << "\n" << others_tips;
+
+//    	LOG_TRACE(log) << "Puller::"<<__func__ << " my_tips " << "\n" << my_tips;
+//		LOG_TRACE(log) << "Puller::"<<__func__ << " others_tips " << "\n" << others_tips;
     }
 
     void Puller::UpdateMyEBTip(EBPtr block)
@@ -586,8 +534,9 @@ namespace Bootstrap
 		LOG_TRACE(log) << "Puller::"<<__func__;
     	assert(my_tips.eb.digest == block->previous);
     	my_tips.eb = block->CreateTip();
-		LOG_TRACE(log) << "Puller::"<<__func__ << " my_tips " << "\n" << my_tips;
-		LOG_TRACE(log) << "Puller::"<<__func__ << " others_tips " << "\n" << others_tips;
+
+//    	LOG_TRACE(log) << "Puller::"<<__func__ << " my_tips " << "\n" << my_tips;
+//		LOG_TRACE(log) << "Puller::"<<__func__ << " others_tips " << "\n" << others_tips;
     }
 
     ///////////////////////////////////////////////////////////////////////
@@ -634,10 +583,10 @@ namespace Bootstrap
         	{
         		next = block.next;
 
-        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
-        				<< " block " << block.ToJson();
-        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
-        				<< " next=" << next.to_string();
+//        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
+//        				<< " block " << block.ToJson();
+//        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
+//        				<< " next=" << next.to_string();
 
             	buf.resize(PullResponseReserveSize);
                 logos::vectorstream stream(buf);
@@ -656,10 +605,10 @@ namespace Bootstrap
         	{
         		next = block.next;
 
-        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
-        				<< " block " << block.ToJson();
-        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
-        				<< " next=" << next.to_string();
+//        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
+//        				<< " block " << block.ToJson();
+//        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
+//        				<< " next=" << next.to_string();
 
             	buf.resize(PullResponseReserveSize);
                 logos::vectorstream stream(buf);
@@ -678,10 +627,10 @@ namespace Bootstrap
         	{
         		next = block.next;
 
-        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
-        				<< " block " << block.ToJson();
-        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
-        				<< " next=" << next.to_string();
+//        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
+//        				<< " block " << block.ToJson();
+//        		LOG_TRACE(log) << "PullRequestHandler::"<<__func__
+//        				<< " next=" << next.to_string();
 
             	buf.resize(PullResponseReserveSize);
                 logos::vectorstream stream(buf);
@@ -706,8 +655,8 @@ namespace Bootstrap
         		return;
         	}
 
-    		LOG_TRACE(log) << "PullRequestHandler::"<<__func__ << " work on block with tip: "
-    				<< block.CreateTip().to_string();
+//    		LOG_TRACE(log) << "PullRequestHandler::"<<__func__ << " work on block with tip: "
+//    				<< block.CreateTip().to_string();
 
     		if(block.previous.is_zero())
     		{

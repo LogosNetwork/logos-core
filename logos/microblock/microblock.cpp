@@ -21,7 +21,7 @@ void MicroBlock::SerializeJson(boost::property_tree::ptree & micro_block) const
     boost::property_tree::ptree ptree_tips;
     for (const auto & tip : tips) {
         boost::property_tree::ptree tip_member;
-        tip_member.put("", tip.digest.to_string());//TODO ask Tyler, digest only?
+        tip_member.put("", tip.digest.to_string());
         ptree_tips.push_back(std::make_pair("", tip_member));
     }
     micro_block.add_child("tips", ptree_tips);
@@ -33,6 +33,7 @@ uint32_t MicroBlock::Serialize(logos::stream & stream, bool with_appendix) const
     auto s = PrePrepareCommon::Serialize(stream);
     s += logos::write(stream, last_micro_block);
     s += logos::write(stream, htole32(number_batch_blocks));
+
     for(int i = 0; i < NUM_DELEGATES; ++i)
     {
     	s += tips[i].Serialize(stream);

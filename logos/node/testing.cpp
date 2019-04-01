@@ -4,58 +4,6 @@
 #include <logos/node/common.hpp>
 #include <logos/node/testing.hpp>
 
-logos::system::system (uint16_t port_a, boost::filesystem::path &data_path) :
-alarm (service),
-work (1, nullptr)
-{
-    int count_a = 1;
-    logging.init (data_path);
-    nodes.reserve (count_a);
-    for (size_t i (0); i < count_a; ++i)
-    {
-        std::cout << "logos::system::system init <1>..." << std::endl;
-        logos::node_init init;
-        logos::node_config config (port_a + i, logging);
-        std::cout << " line: " << __LINE__ << " file: " << __FILE__ << std::endl;
-        auto node (std::make_shared<logos::node> (init, service, data_path, alarm, config, work)); // RGD Replaced unique_path with test provided data_path, see daemon.cpp grep logos::node...
-        std::cout << " line: " << __LINE__ << " file: " << __FILE__ << std::endl;
-        assert (!init.error ());
-        node->start ();
-        std::cout << " line: " << __LINE__ << " file: " << __FILE__ << std::endl;
-        logos::uint256_union wallet;
-        logos::random_pool.GenerateBlock (wallet.bytes.data (), wallet.bytes.size ());
-        std::cout << " line: " << __LINE__ << " file: " << __FILE__ << std::endl;
-        node->wallets.create (wallet);
-        nodes.push_back (node);
-        std::cout << "logos::system::system init done <1>..." << std::endl;
-    }
-    for (auto i (nodes.begin ()), j (nodes.begin () + 1), n (nodes.end ()); j != n; ++i, ++j)
-    {
-        std::cout << "logos::system::system init <2>..." << std::endl;
-        auto starting1 ((*i)->peers.size ());
-        auto new1 (starting1);
-        auto starting2 ((*j)->peers.size ());
-        auto new2 (starting2);
-        (*j)->network.send_keepalive ((*i)->network.endpoint ());
-        do
-        {
-            poll ();
-            new1 = (*i)->peers.size ();
-            new2 = (*j)->peers.size ();
-        } while (new1 == starting1 || new2 == starting2);
-        std::cout << "logos::system::system init done <2>..." << std::endl;
-    }
-    auto iterations1 (0);
-    while (std::any_of (nodes.begin (), nodes.end (), [](std::shared_ptr<logos::node> const & node_a) { return false; }))
-    {
-        std::cout << "logos::system::system init <3>..." << std::endl;
-        poll ();
-        ++iterations1;
-        assert (iterations1 < 10000);
-        std::cout << "logos::system::system init done <3>..." << std::endl;
-    }
-}
-
 logos::system::system (uint16_t port_a, size_t count_a) :
 alarm (service),
 work (1, nullptr)

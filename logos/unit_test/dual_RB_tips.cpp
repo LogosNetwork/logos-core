@@ -117,6 +117,7 @@ TEST (DualRBTip, EpochFirstRBs)
         ASSERT_FALSE(store->request_tip_put(delegate_with_tip, cur_epoch, block1.CreateTip(), txn));
     }
 
+
     // try to retrieve all tips
     BatchTips cur_e_first;
     store->GetEpochFirstRBs(cur_epoch, cur_e_first);

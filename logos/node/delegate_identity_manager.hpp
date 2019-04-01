@@ -90,4 +90,5 @@ public:
     static uint8_t          _global_delegate_idx;  ///< global delegate index in all delegate's list
     Log                     _log;                  ///< boost log instances
     static bool             _epoch_transition_enabled; ///< is epoch transition enabled
+
 };

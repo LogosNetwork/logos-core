@@ -75,7 +75,8 @@ namespace Bootstrap
         LOG_TRACE(log) << "bootstrap_socket::"<<__func__
         		<< " this: " << this
 				<< " timeout_ms: " << CONNECT_TIMEOUT_MS;
-        timeout.start (std::chrono::steady_clock::now () + std::chrono::milliseconds(CONNECT_TIMEOUT_MS));
+        timeout.start (std::chrono::steady_clock::now () +
+        				std::chrono::milliseconds(CONNECT_TIMEOUT_MS));
         socket.async_connect (peer, [this, ConnectComplete](BoostError const & ec)
         {
         	timeout.stop();
@@ -281,15 +282,16 @@ namespace Bootstrap
         if (good)
         {
 
-//        	{
-//        	    std::stringstream stream;
-//        	    for(size_t i = 0; i < header.payload_size; ++i)
-//        	    {
-//        	        stream << std::hex << std::noshowbase << std::setw (2) << std::setfill ('0') << (unsigned int)(buf[i]);
-//        	    }
-//        	    LOG_TRACE(log) << "bootstrap_server::"<<__func__ <<" data:" << stream.str ();
-//        	}
-
+#ifdef DUMP_BLOCK_DATA	//TODO delete after integration tests
+        	{
+        	    std::stringstream stream;
+        	    for(size_t i = 0; i < header.payload_size; ++i)
+        	    {
+        	        stream << std::hex << std::noshowbase << std::setw (2) << std::setfill ('0') << (unsigned int)(buf[i]);
+        	    }
+        	    LOG_TRACE(log) << "bootstrap_server::"<<__func__ <<" data:" << stream.str ();
+        	}
+#endif
             logos::bufferstream stream (buf, header.payload_size);
 
             switch (header.type)
@@ -333,7 +335,6 @@ namespace Bootstrap
 
 	std::shared_ptr<bootstrap_server> bootstrap_server::shared ()
 	{
-        //LOG_TRACE(log) << "bootstrap_server::"<<__func__;
 		return shared_from_base<bootstrap_server>();
 	}
 }

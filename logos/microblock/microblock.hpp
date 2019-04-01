@@ -55,7 +55,6 @@ struct MicroBlock : PrePrepareCommon
         PrePrepareCommon::Hash(hash, true);
         blake2b_update(&hash, &last_micro_block, sizeof(uint8_t));
         blake2b_update(&hash, &nbb, sizeof(uint32_t));
-
         for(int i = 0; i < NUM_DELEGATES; ++i)
         {
         	tips[i].Hash(hash);
@@ -73,4 +72,3 @@ struct MicroBlock : PrePrepareCommon
 };
 
 std::string MBRequestTips_to_string (MicroBlock & block);
-

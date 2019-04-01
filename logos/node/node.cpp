@@ -1346,7 +1346,6 @@ bootstrap_listener (alarm_a, store, config.consensus_manager_config.local_addres
     p2p_conf.lmdb_env = store.environment.environment;
     p2p_conf.lmdb_dbi = store.p2p_db;
     p2p_conf.boost_io_service = &service;
-    //p2p_conf.test_mode = true;
     init_a.p2p_init = !p2p.Init(p2p_conf);
 
     if (!init_a.error ())

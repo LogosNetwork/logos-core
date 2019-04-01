@@ -4,7 +4,6 @@
 
 #include <logos/node/utility.hpp>
 #include <logos/consensus/messages/byte_arrays.hpp>
-//#include <logos/consensus/messages/common.hpp>
 #include <boost/iostreams/stream_buffer.hpp>
 
 struct Tip

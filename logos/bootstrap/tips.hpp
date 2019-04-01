@@ -43,7 +43,6 @@ namespace Bootstrap
         /// @param out ostream reference
         /// @param resp BatchBlock::tips_response (object to stream out)
         /// @returns ostream operator
-
         friend
         ostream& operator<<(ostream &out, const TipSet & tips)
         {

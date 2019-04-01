@@ -204,35 +204,6 @@ bool PersistenceManager<R>::ValidateRequest(
         }
     }
 
-	//    if(request->previous != info->head)
-	//    {
-	//        LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash ("
-	//            << request->previous.to_string()
-	//            << ") and current account info head ("
-	//            << info->head.to_string() << ")";
-	//
-	//        // Allow duplicate requests (either hash == info.head or hash matches a transaction further up in the chain)
-	//        // received from batch blocks.
-	//        if(hash == info->head || _store.request_exists(hash))
-	//        {
-	//            if(allow_duplicates)
-	//            {
-	//                result.code = logos::process_result::progress;
-	//                return true;
-	//            }
-	//            else
-	//            {
-	//                result.code = logos::process_result::old;
-	//                return false;
-	//            }
-	//        }
-	//        else
-	//        {
-	//            result.code = logos::process_result::fork;
-	//            return false;
-	//        }
-	//    }
-
     // Make sure there's enough Logos
     // to cover the request.
     if(request->GetLogosTotal() > info->balance)
@@ -816,11 +787,6 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
     info->block_count++;
     info->head = request->GetHash();
     info->modified = logos::seconds_since_epoch();
-
-    //TODO
-    LOG_TRACE(_log) << "PersistenceManager::ApplyRequest - Peng "
-                    << request->GetAccount().to_account()
-					<< " " << info->block_count;
 
     // TODO: Harvest fees
     if(request->type != RequestType::ElectionVote)
