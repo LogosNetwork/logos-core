@@ -71,8 +71,12 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(
 
             // Need to add empty delimiter if next pos is either the end or a non-empty request
             pos++;
-            if (pos != sequence.end() && (*pos)->origin.is_zero() && (*pos)->type == RequestType::Unknown) {
+            if (pos != sequence.end()) {
                 add_empty_delimiter = false;
+                // insert delimiter in the middle if continuous sequence is longer than batch
+                if (!(*pos)->origin.is_zero() || (*pos)->type != RequestType::Unknown) {
+                    sequence.insert(pos, std::shared_ptr<Request>(new Request()));
+                }
             }
             break;
         }
