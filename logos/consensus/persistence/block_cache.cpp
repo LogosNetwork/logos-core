@@ -229,7 +229,7 @@ bool BlockCache::IsBlockCached(const BlockHash & b)
 
 void BlockCache::Validate(uint8_t bsb_idx)
 {
-	LOG_ERROR(log) << "BlockCache::"<<__func__<<"{";
+	LOG_TRACE(log) << "BlockCache::"<<__func__<<"{";
 	assert(bsb_idx<=NUM_DELEGATES);
 	auto e = epochs.begin();
 	while( e != epochs.end())

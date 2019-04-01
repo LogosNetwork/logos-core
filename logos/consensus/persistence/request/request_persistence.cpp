@@ -144,8 +144,36 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
     // Move on to check account info
+    if(request->previous != info->head)
+    {
+        LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash ("
+            << request->previous.to_string()
+            << ") and current account info head ("
+            << info->head.to_string() << ")";
+
+        // Allow duplicate requests (either hash == info.head or hash matches a transaction further up in the chain)
+        // received from batch blocks.
+        if(hash == info->head || _store.request_exists(hash))
+        {
+            if(allow_duplicates)
+            {
+                result.code = logos::process_result::progress;
+                return true;
+            }
+            else
+            {
+                result.code = logos::process_result::old;
+                return false;
+            }
+        }
+        else
+        {
+            result.code = logos::process_result::fork;
+            return false;
+        }
+    }
     //sequence number
-    if(info->block_count != request->sequence)
+    else if(info->block_count != request->sequence)
     {
         result.code = logos::process_result::wrong_sequence_number;
         LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request->sequence
@@ -176,34 +204,34 @@ bool PersistenceManager<R>::ValidateRequest(
         }
     }
 
-    if(request->previous != info->head)
-    {
-        LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash ("
-            << request->previous.to_string()
-            << ") and current account info head ("
-            << info->head.to_string() << ")";
-
-        // Allow duplicate requests (either hash == info.head or hash matches a transaction further up in the chain)
-        // received from batch blocks.
-        if(hash == info->head || _store.request_exists(hash))
-        {
-            if(allow_duplicates)
-            {
-                result.code = logos::process_result::progress;
-                return true;
-            }
-            else
-            {
-                result.code = logos::process_result::old;
-                return false;
-            }
-        }
-        else
-        {
-            result.code = logos::process_result::fork;
-            return false;
-        }
-    }
+	//    if(request->previous != info->head)
+	//    {
+	//        LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash ("
+	//            << request->previous.to_string()
+	//            << ") and current account info head ("
+	//            << info->head.to_string() << ")";
+	//
+	//        // Allow duplicate requests (either hash == info.head or hash matches a transaction further up in the chain)
+	//        // received from batch blocks.
+	//        if(hash == info->head || _store.request_exists(hash))
+	//        {
+	//            if(allow_duplicates)
+	//            {
+	//                result.code = logos::process_result::progress;
+	//                return true;
+	//            }
+	//            else
+	//            {
+	//                result.code = logos::process_result::old;
+	//                return false;
+	//            }
+	//        }
+	//        else
+	//        {
+	//            result.code = logos::process_result::fork;
+	//            return false;
+	//        }
+	//    }
 
     // Make sure there's enough Logos
     // to cover the request.
