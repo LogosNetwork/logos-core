@@ -10,6 +10,7 @@ void RequestHandler::OnRequest(RequestPtr request)
     LOG_DEBUG (_log) << "RequestHandler::OnMessage"
                      << request->ToJson();
 
+    std::lock_guard<std::mutex> lock(_mutex);
     _requests.get<0>().push_back(request);
 }
 
@@ -39,11 +40,11 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(
     _current_batch.requests.reserve(sequence.size());
     _current_batch.hashes.reserve(sequence.size());
 
+    LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch requests_size="
+                     << sequence.size();
     bool add_empty_delimiter (true);
     for(auto pos = sequence.begin(); pos != sequence.end();)
     {
-        LOG_DEBUG (_log) << "RequestHandler::PrepareNextBatch requests_size="
-                         << sequence.size();
 
         // 'Null' requests are used as batch delimiters. When
         // one is encountered, close the batch. (Don't remove just yet in case of reproposal)
@@ -60,7 +61,9 @@ RequestHandler::PrePrepare & RequestHandler::PrepareNextBatch(
         bool allow_duplicates = repropose;
         if(!manager.ValidateAndUpdate(*pos, _current_batch.epoch_number, ignored_result, allow_duplicates))
         {
-
+            LOG_DEBUG(_log) << "RequestHandler::PrepareNextBatch - cannot validate request with hash "
+                            << (*pos)->Hash().to_string() << " with error code: "
+                            << logos::ProcessResultToString(ignored_result.code);
             pos = sequence.erase(pos);
             continue;
         }
@@ -144,7 +147,7 @@ void RequestHandler::PopFront()
         sequence.erase(pos);
     }
     else {
-        LOG_FATAL(_log) << "RequestHandler::PopFront - container data corruption detected.";
+        LOG_FATAL(_log) << "RequestHandler::PopFront - container data corruption detected, pos data: " << (*pos)->ToJson();
         trace_and_halt();
     }
 
