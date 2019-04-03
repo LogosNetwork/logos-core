@@ -424,9 +424,9 @@ ConsensusContainer::OnPostCommit(uint32_t epoch_number)
 {
     std::lock_guard<std::mutex>   lock(_mutex);
 
-    CheckEpochNull(!_cur_epoch || !_trans_epoch, "OnPostCommit");
+    CheckEpochNull(!_cur_epoch && !_trans_epoch, "OnPostCommit");
 
-    if (_trans_epoch->_epoch_number == epoch_number)
+    if (_trans_epoch && _trans_epoch->_epoch_number == epoch_number)
     {
         TransitionPersistent();
     }

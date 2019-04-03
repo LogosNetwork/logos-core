@@ -188,7 +188,8 @@ void PrimaryDelegate::OnTimeout(const Error & error,
 
     LOG_DEBUG(_log) << timeout_str
                     << " timeout either expired or canceled. "
-                    << "Error code: "
+                    << "Current pre_prepare_hash: " << _pre_prepare_hash.to_string()
+                    << ". Error code: "
                     << error.message();
 
     if(_timer_cancelled)
