@@ -9,7 +9,7 @@
 namespace Bootstrap
 {
 	class ISocket;
-    class tips_req_client : public std::enable_shared_from_this<Bootstrap::tips_req_client>
+    class TipClient : public std::enable_shared_from_this<Bootstrap::TipClient>
     {
     public:
 
@@ -18,12 +18,12 @@ namespace Bootstrap
     	 * @param connection the connection to the peer
     	 * @param store the database
     	 */
-        tips_req_client (std::shared_ptr<ISocket> connection, Store & store);
+        TipClient (std::shared_ptr<ISocket> connection, Store & store);
 
         /**
          * desctructor
          */
-        ~tips_req_client ();
+        ~TipClient ();
 
         /**
          * Start the tip request
@@ -31,7 +31,7 @@ namespace Bootstrap
         void run ();
 
     private:
-        friend class bootstrap_attempt;
+        friend class BootstrapAttempt;
 
         void receive_tips();
 
@@ -42,7 +42,7 @@ namespace Bootstrap
         Log log;
     };
 
-    class tips_req_server : public std::enable_shared_from_this<Bootstrap::tips_req_server>
+    class TipServer : public std::enable_shared_from_this<Bootstrap::TipServer>
     {
     public:
         /**
@@ -51,12 +51,12 @@ namespace Bootstrap
          * @param request the tip request
          * @param store the database
          */
-        tips_req_server (std::shared_ptr<ISocket> connection, TipSet & request, Store & store);
+        TipServer (std::shared_ptr<ISocket> connection, TipSet & request, Store & store);
 
         /**
          * desctructor
          */
-        ~tips_req_server();
+        ~TipServer();
 
         /**
          * Start handling the tip request

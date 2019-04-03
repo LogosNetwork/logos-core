@@ -5,7 +5,7 @@
 
 namespace Bootstrap
 {
-    bootstrap_attempt::bootstrap_attempt (logos::alarm & alarm,
+    BootstrapAttempt::BootstrapAttempt (logos::alarm & alarm,
             Store & store,
             BlockCache & cache,
             PeerInfoProvider &peer_provider,
@@ -21,7 +21,7 @@ namespace Bootstrap
         LOG_DEBUG(log) << "Starting bootstrap_attempt";
     }
 
-    bootstrap_attempt::~bootstrap_attempt()
+    BootstrapAttempt::~BootstrapAttempt()
     {
         LOG_DEBUG(log) << "Exiting bootstrap_attempt";
         stop();
@@ -29,7 +29,7 @@ namespace Bootstrap
             peer_provider.close_session(session_id);
     }
 
-    void bootstrap_attempt::run()
+    void BootstrapAttempt::run()
     {
         LOG_DEBUG(log) << "bootstrap_attempt::run begin {";
 
@@ -61,7 +61,7 @@ namespace Bootstrap
             LOG_DEBUG(log) << "bootstrap_attempt::run end. Stopped pulls}";
     }
 
-    bool bootstrap_attempt::request_tips()
+    bool BootstrapAttempt::request_tips()
     {
     	LOG_TRACE(log) << "bootstrap_attempt::"<<__func__;
         // NOTE: Get the connection from the pool and get tips.
@@ -69,7 +69,7 @@ namespace Bootstrap
         auto connection_l(get_connection());
         if (connection_l != nullptr)
         {
-            auto client = std::make_shared<tips_req_client>(connection_l, store);
+            auto client = std::make_shared<TipClient>(connection_l, store);
             client->run();
             std::future<bool> future = client->promise.get_future();
             failed = consume_future(future);
@@ -87,7 +87,7 @@ namespace Bootstrap
         return failed;
     }
 
-    bool bootstrap_attempt::consume_future(std::future<bool> &future_a)
+    bool BootstrapAttempt::consume_future(std::future<bool> &future_a)
     {
     	LOG_TRACE(log) << "bootstrap_attempt::"<<__func__;
         bool result;
@@ -109,7 +109,7 @@ namespace Bootstrap
         return result;
     }
 
-    void bootstrap_attempt::request_pull()
+    void BootstrapAttempt::request_pull()
     {
         LOG_DEBUG(log) << "bootstrap_attempt::request_pull: start";
         while(puller.GetNumWaitingPulls() > 0)
@@ -117,7 +117,7 @@ namespace Bootstrap
             auto connection_l = get_connection();
             if (connection_l)
             {
-                auto client(std::make_shared<bulk_pull_client>(connection_l, puller));
+                auto client(std::make_shared<PullClient>(connection_l, puller));
                 client->run();
             }
             else
@@ -127,7 +127,7 @@ namespace Bootstrap
         }
     }
 
-    std::shared_ptr<bootstrap_client> bootstrap_attempt::get_connection()
+    std::shared_ptr<BootstrapClient> BootstrapAttempt::get_connection()
     {
     	LOG_TRACE(log) << "bootstrap_attempt::"<<__func__;
 
@@ -151,7 +151,7 @@ namespace Bootstrap
         		lock.lock();
         	}
         }
-        std::shared_ptr <bootstrap_client> result;
+        std::shared_ptr <BootstrapClient> result;
         if (!stopped && !idle_clients.empty())
         {
         	auto itor = idle_clients.begin();
@@ -170,7 +170,7 @@ namespace Bootstrap
         return result;
     }
 
-    size_t bootstrap_attempt::target_connections(size_t need)
+    size_t BootstrapAttempt::target_connections(size_t need)
     {
         need = std::max(need, puller.GetNumWaitingPulls());
         auto num_con = working_clients.size() +
@@ -181,7 +181,7 @@ namespace Bootstrap
         return std::min(allowed, need);
     }
 
-    bool bootstrap_attempt::populate_connections(size_t need)
+    bool BootstrapAttempt::populate_connections(size_t need)
     {
         LOG_DEBUG(log) << "bootstrap_attempt::populate_connections begin {";
 
@@ -218,37 +218,45 @@ namespace Bootstrap
         return true;
     }
 
-	void bootstrap_attempt::add_connection(logos::endpoint const &endpoint_a)
+	void BootstrapAttempt::add_connection(logos::endpoint const &endpoint_a, bool locked)
 	{
     	LOG_TRACE(log) << "bootstrap_attempt::"<<__func__
     			<< ", peer ip: " << endpoint_a.address().to_string();
 		logos::tcp_endpoint e (endpoint_a.address(), BOOTSTRAP_PORT);
-		auto client = std::make_shared<bootstrap_client>(*this, e);
-		connecting_clients.insert(client);
+		auto client = std::make_shared<BootstrapClient>(*this, e);
+		if(locked)
+		{
+			connecting_clients.insert(client);
+		}
+		else
+		{
+			std::lock_guard<std::mutex> lock(mtx);
+			connecting_clients.insert(client);
+		}
 		client->Connect([client, this](bool connected)
         {
-        	LOG_DEBUG(log) << "bootstrap_attempt::add_connection: connected="
-        				<< connected;
         	std::unique_lock<std::mutex> lock(mtx);
         	connecting_clients.erase(client);
         	if(stopped)
         	{
-        		//nothing special
+        		LOG_DEBUG(log) << "bootstrap_attempt::"<<__func__
+        				<< " stopped while connecting. connected="<< connected;
         	}
         	else if(connected)
         	{
         		pool_connection (client, true);
         	}
-        	else//failed to connect
+        	else
         	{
-        		//nothing special
+        		LOG_DEBUG(log) << "bootstrap_attempt::"<<__func__
+        				<<" failed to connect";
         	}
     		lock.unlock();
     		condition.notify_all();
         });
 	}
 
-    void bootstrap_attempt::remove_connection(std::shared_ptr<bootstrap_client> client, bool blacklist)
+    void BootstrapAttempt::remove_connection(std::shared_ptr<BootstrapClient> client, bool blacklist)
     {
     	LOG_TRACE(log) << "bootstrap_attempt::"<<__func__;
     	if(blacklist)
@@ -263,7 +271,7 @@ namespace Bootstrap
     	condition.notify_all();
     }
 
-    void bootstrap_attempt::pool_connection(std::shared_ptr<bootstrap_client> client, bool locked)
+    void BootstrapAttempt::pool_connection(std::shared_ptr<BootstrapClient> client, bool locked)
     {
     	LOG_TRACE(log) << "bootstrap_attempt::"<<__func__;
     	if(locked)
@@ -281,7 +289,7 @@ namespace Bootstrap
     	}
     }
 
-    void bootstrap_attempt::stop()
+    void BootstrapAttempt::stop()
     {
         LOG_DEBUG(log) << "bootstrap_attempt::stop";
         stopped = true;

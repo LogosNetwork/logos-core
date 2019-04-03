@@ -537,8 +537,8 @@ public:
     std::shared_ptr<ConsensusContainer> _consensus_container;
     std::shared_ptr<TxAcceptor> _tx_acceptor;
     std::shared_ptr<TxReceiver> _tx_receiver;
-    Bootstrap::bootstrap_initiator bootstrap_initiator;
-    Bootstrap::bootstrap_listener bootstrap_listener;
+    Bootstrap::BootstrapInitiator bootstrap_initiator;
+    Bootstrap::BootstrapListener bootstrap_listener;
 
     p2p_config p2p_conf;
     static double constexpr price_max = 16.0;

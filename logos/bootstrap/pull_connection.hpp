@@ -9,7 +9,7 @@ namespace Bootstrap
 {
     using PullPtr = std::shared_ptr<PullRequest>;
 
-    class bulk_pull_client : public std::enable_shared_from_this<bulk_pull_client>
+    class PullClient : public std::enable_shared_from_this<PullClient>
     {
     public:
 
@@ -18,12 +18,12 @@ namespace Bootstrap
     	 * @param connection the connection to the peer
     	 * @param puller the puller generated the pull request this client will work on
     	 */
-        bulk_pull_client (std::shared_ptr<ISocket> connection, Puller & puller);
+        PullClient (std::shared_ptr<ISocket> connection, Puller & puller);
 
         /**
          * desctructor
          */
-        ~bulk_pull_client ();
+        ~PullClient ();
 
         /**
          * Start the pull request
@@ -42,7 +42,7 @@ namespace Bootstrap
         Log log;
     };
 
-    class bulk_pull_server : public std::enable_shared_from_this<Bootstrap::bulk_pull_server>
+    class PullServer : public std::enable_shared_from_this<Bootstrap::PullServer>
     {
     public:
         /**
@@ -51,12 +51,12 @@ namespace Bootstrap
          * @param pull the pull request
          * @param store the database
          */
-        bulk_pull_server (std::shared_ptr<ISocket> connection, PullRequest pull, Store & store);
+        PullServer (std::shared_ptr<ISocket> connection, PullRequest pull, Store & store);
 
         /**
          * desctructor
          */
-        ~bulk_pull_server();
+        ~PullServer();
 
         /**
          * Start handling the pull request

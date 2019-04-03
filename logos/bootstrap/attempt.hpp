@@ -12,8 +12,8 @@ class PeerInfoProvider;
 
 namespace Bootstrap
 {
-	class bootstrap_client;
-	class bootstrap_attempt : public std::enable_shared_from_this<bootstrap_attempt>
+	class BootstrapClient;
+	class BootstrapAttempt : public std::enable_shared_from_this<BootstrapAttempt>
     {
     public:
         /**
@@ -24,7 +24,7 @@ namespace Bootstrap
          * @param peer_provider the peer IP provider
          * @param max_connected the max number of connections
          */
-        bootstrap_attempt(logos::alarm & alarm,
+        BootstrapAttempt(logos::alarm & alarm,
                 Store & store,
                 BlockCache & cache,
                 PeerInfoProvider &peer_provider,
@@ -33,7 +33,7 @@ namespace Bootstrap
         /**
          * destructor
          */
-        ~bootstrap_attempt();
+        ~BootstrapAttempt();
 
         /**
          * start of bootstrap_attempt
@@ -48,22 +48,23 @@ namespace Bootstrap
         /**
          * try connect to an endpoint, if connected, pool the connection
          * @param endpoint contain the IP of the peer
+         * @param locked if the mutex protecting the connection lists is already locked
          */
-        void add_connection(logos::endpoint const & endpoint);
+        void add_connection(logos::endpoint const & endpoint, bool locked=false);
 
         /**
          * pool connection on idle list for re-use
          * @param client shared_ptr of the connection object
-         * @param locked if the mutex protecting the idle list is already locked
+         * @param locked if the mutex protecting the connection lists is already locked
          */
-        void pool_connection(std::shared_ptr<bootstrap_client> client, bool locked=false);
+        void pool_connection(std::shared_ptr<BootstrapClient> client, bool locked=false);
 
         /**
          * remove a connection from the lists of connections
          * @param client shared_ptr of the connection object
          * @param blacklist if the peer should be blacklisted
          */
-        void remove_connection(std::shared_ptr<bootstrap_client> client, bool blacklist);
+        void remove_connection(std::shared_ptr<BootstrapClient> client, bool blacklist);
 
         logos::alarm & alarm;
     private:
@@ -72,7 +73,7 @@ namespace Bootstrap
 
         bool populate_connections(size_t need = 0);
 
-        std::shared_ptr<bootstrap_client> get_connection();
+        std::shared_ptr<BootstrapClient> get_connection();
 
         bool request_tips();
 
@@ -84,9 +85,9 @@ namespace Bootstrap
         PeerInfoProvider & peer_provider;
 
         std::mutex mtx;
-        std::unordered_set<std::shared_ptr<bootstrap_client>> working_clients;
-        std::unordered_set<std::shared_ptr<bootstrap_client>> idle_clients;
-        std::unordered_set<std::shared_ptr<bootstrap_client>> connecting_clients;
+        std::unordered_set<std::shared_ptr<BootstrapClient>> working_clients;
+        std::unordered_set<std::shared_ptr<BootstrapClient>> idle_clients;
+        std::unordered_set<std::shared_ptr<BootstrapClient>> connecting_clients;
         const uint8_t max_connected;
         int session_id;
 

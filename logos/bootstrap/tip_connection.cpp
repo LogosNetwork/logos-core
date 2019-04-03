@@ -9,19 +9,19 @@
 
 namespace Bootstrap
 {
-    tips_req_client::tips_req_client (std::shared_ptr<ISocket> connection, Store & store)
+    TipClient::TipClient (std::shared_ptr<ISocket> connection, Store & store)
     : connection (connection)
     , request(TipSet::CreateTipSet(store))
     {
         LOG_TRACE(log) <<"tips_req_client::"<< __func__;
     }
 
-    tips_req_client::~tips_req_client ()
+    TipClient::~TipClient ()
     {
         LOG_TRACE(log) <<"tips_req_client::"<< __func__;
     }
 
-    void tips_req_client::run ()
+    void TipClient::run ()
     {
         LOG_TRACE(log) << "tips_req_client::run";
         auto send_buffer (std::make_shared<std::vector<uint8_t>> ());
@@ -52,7 +52,7 @@ namespace Bootstrap
 				});
     }
 
-    void tips_req_client::receive_tips()
+    void TipClient::receive_tips()
     {
         LOG_TRACE(log) <<"tips_req_client::"<< __func__;
         auto this_l = shared_from_this ();
@@ -100,7 +100,7 @@ namespace Bootstrap
     /////////////////////////////////////////////////////////////////////////////////
 
     // NOTE Server sends tips to the client, client decides what to do
-    tips_req_server::tips_req_server (std::shared_ptr<ISocket> connection, TipSet & request, Store & store)
+    TipServer::TipServer (std::shared_ptr<ISocket> connection, TipSet & request, Store & store)
     : connection (connection)
     , request (request)
     , response (TipSet::CreateTipSet(store))
@@ -108,12 +108,12 @@ namespace Bootstrap
         LOG_TRACE(log) <<"tips_req_server::"<<__func__;
     }
 
-    tips_req_server::~tips_req_server()
+    TipServer::~TipServer()
     {
         LOG_TRACE(log) << "tips_req_server::"<<__func__;
     }
 
-    void tips_req_server::send_tips()
+    void TipServer::send_tips()
     {
         LOG_TRACE(log) << "tips_req_server::run";
         auto send_buffer(std::make_shared<std::vector<uint8_t>>());

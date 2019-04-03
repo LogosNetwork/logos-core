@@ -61,14 +61,14 @@ namespace Bootstrap
      * the object that keeps track if an asynchronous operation has timed out.
      * if so, the connection will be disconnected.
      */
-    class socket_timeout
+    class SocketTimeout
     {
     public:
     	/**
     	 * constructor
     	 * @param socket the connection object what will be used for async operations
     	 */
-    	socket_timeout (Socket & socket);
+    	SocketTimeout (Socket & socket);
 
         /**
          * start the timer
@@ -159,7 +159,7 @@ namespace Bootstrap
         logos::tcp_endpoint peer;
         logos::alarm & alarm;
         BoostSocket socket;
-        socket_timeout timeout;
+        SocketTimeout timeout;
         std::array<uint8_t, MessageHeader::WireSize> header_buf;
         std::array<uint8_t, BootstrapBufSize> receive_buf;
 
@@ -167,15 +167,15 @@ namespace Bootstrap
         bool disconnected;
         Log log;
 
-        friend class socket_timeout;
+        friend class SocketTimeout;
     };
 
 
-    class bootstrap_attempt;
+    class BootstrapAttempt;
     /**
      * the client side connection object
      */
-    class bootstrap_client : public Socket
+    class BootstrapClient : public Socket
     {
     public:
     	/**
@@ -183,12 +183,12 @@ namespace Bootstrap
     	 * @param attempt the bootstrap attempt constructing this object
     	 * @param peer the peer's IP address
     	 */
-    	bootstrap_client (bootstrap_attempt & attempt, logos::tcp_endpoint & peer);
+    	BootstrapClient (BootstrapAttempt & attempt, logos::tcp_endpoint & peer);
 
         /**
          * destructor
          */
-        ~bootstrap_client ();
+        ~BootstrapClient ();
 
         /**
           * (inherited) called when the connection has any kind of error,
@@ -206,15 +206,15 @@ namespace Bootstrap
          * get the shared_ptr of this object
          * @return shared_ptr of this object
          */
-        std::shared_ptr<bootstrap_client> shared ();
+        std::shared_ptr<BootstrapClient> shared ();
 
     private:
-        bootstrap_attempt & attempt;
+        BootstrapAttempt & attempt;
         Log log;
     };
 
-    class bootstrap_listener;
-    class bootstrap_server : public Socket
+    class BootstrapListener;
+    class BootstrapServer : public Socket
     {
     public:
         /**
@@ -223,14 +223,14 @@ namespace Bootstrap
          * @param socket_a the connected low level socket
          * @param store the database
          */
-        bootstrap_server (bootstrap_listener & listener,
+        BootstrapServer (BootstrapListener & listener,
                 BoostSocket & socket_a,
                 Store & store);
 
         /**
          * destructor
          */
-        ~bootstrap_server ();
+        ~BootstrapServer ();
 
         /**
          * waiting to receive peer's request
@@ -253,13 +253,13 @@ namespace Bootstrap
          * get the shared_ptr of this object
          * @return shared_ptr of this object
          */
-        std::shared_ptr<bootstrap_server> shared ();
+        std::shared_ptr<BootstrapServer> shared ();
 
     private:
 
         void dispatch (bool good, MessageHeader header, uint8_t * buf);
 
-        bootstrap_listener & listener;
+        BootstrapListener & listener;
         Store & store;
         Log log;
     };

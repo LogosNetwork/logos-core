@@ -5,7 +5,7 @@
 namespace Bootstrap
 {
 
-	bulk_pull_client::bulk_pull_client (std::shared_ptr<ISocket> connection, Puller & puller)
+	PullClient::PullClient (std::shared_ptr<ISocket> connection, Puller & puller)
 	: connection(connection)
 	, puller(puller)
 	, request(puller.GetPull())
@@ -13,12 +13,12 @@ namespace Bootstrap
 		LOG_TRACE(log) << "bulk_pull_client::"<<__func__;
 	}
 
-	bulk_pull_client::~bulk_pull_client ()
+	PullClient::~PullClient ()
 	{
 		LOG_TRACE(log) << "bulk_pull_client::"<<__func__;
 	}
 
-	void bulk_pull_client::run()
+	void PullClient::run()
 	{
         LOG_TRACE(log) << "bulk_pull_client::run";
         auto send_buffer (std::make_shared<std::vector<uint8_t>> ());
@@ -46,7 +46,7 @@ namespace Bootstrap
 				});
 	}
 
-    void bulk_pull_client::receive_block ()
+    void PullClient::receive_block ()
     {
 		LOG_TRACE(log) << "bulk_pull_client::"<<__func__<< ": waiting peer blocks...";
         auto this_l = shared_from_this ();
@@ -97,7 +97,7 @@ namespace Bootstrap
                 });
     }
 
-    PullStatus bulk_pull_client::process_reply (ConsensusType ct, logos::bufferstream & stream)
+    PullStatus PullClient::process_reply (ConsensusType ct, logos::bufferstream & stream)
     {
 		LOG_TRACE(log) << "bulk_pull_client::"<<__func__;
     	bool error = false;
@@ -141,19 +141,19 @@ namespace Bootstrap
     /////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////
 
-    bulk_pull_server::bulk_pull_server (std::shared_ptr<ISocket> connection, PullRequest pull, Store & store)
+    PullServer::PullServer (std::shared_ptr<ISocket> connection, PullRequest pull, Store & store)
     : connection(connection)
     , request_handler(pull, store)
 	{
 		LOG_TRACE(log) << "bulk_pull_server::"<<__func__ << " " << pull.to_string();
 	}
 
-    bulk_pull_server::~bulk_pull_server()
+    PullServer::~PullServer()
 	{
 		LOG_TRACE(log) << "bulk_pull_server::"<<__func__;
 	}
 
-    void bulk_pull_server::send_block ()
+    void PullServer::send_block ()
     {
 		LOG_TRACE(log) << "bulk_pull_server::"<<__func__;
         auto send_buffer(std::make_shared<std::vector<uint8_t>>());

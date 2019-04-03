@@ -8,12 +8,12 @@
 
 namespace Bootstrap
 {
-    socket_timeout::socket_timeout (Socket & socket)
+    SocketTimeout::SocketTimeout (Socket & socket)
     : ticket (0)
     , socket (socket)
     {}
 
-    void socket_timeout::start (std::chrono::steady_clock::time_point timeout_a)
+    void SocketTimeout::start (std::chrono::steady_clock::time_point timeout_a)
     {
         auto ticket_l (++ticket);
         std::weak_ptr<Socket> socket_w (socket.shared ());
@@ -32,7 +32,7 @@ namespace Bootstrap
         });
     }
 
-    void socket_timeout::stop ()
+    void SocketTimeout::stop ()
     {
         LOG_DEBUG(socket.log) << "socket_timeout::stop:";
         ++ticket;
@@ -206,7 +206,7 @@ namespace Bootstrap
     ///////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////
 
-    bootstrap_client::bootstrap_client (bootstrap_attempt & attempt_a,
+    BootstrapClient::BootstrapClient (BootstrapAttempt & attempt_a,
             logos::tcp_endpoint & endpoint_a)
     : Socket (endpoint_a, attempt_a.alarm)
     , attempt (attempt_a)
@@ -214,34 +214,34 @@ namespace Bootstrap
     	LOG_TRACE(log) << "bootstrap_client::"<<__func__;
     }
 
-    bootstrap_client::~bootstrap_client ()
+    BootstrapClient::~BootstrapClient ()
     {
     	LOG_TRACE(log) << "bootstrap_client::"<<__func__;
     }
 
-    void bootstrap_client::OnNetworkError(bool black_list)
+    void BootstrapClient::OnNetworkError(bool black_list)
     {
     	LOG_TRACE(log) << "bootstrap_client::"<<__func__<< " this=" <<this;
     	Socket::Disconnect();
     	attempt.remove_connection(shared(), black_list);
     }
-    void bootstrap_client::Release()
+    void BootstrapClient::Release()
     {
     	LOG_TRACE(log) << "bootstrap_client::"<<__func__<< " this=" <<this;
     	attempt.pool_connection(shared());
     }
 
-	std::shared_ptr<bootstrap_client> bootstrap_client::shared ()
+	std::shared_ptr<BootstrapClient> BootstrapClient::shared ()
 	{
     	//LOG_TRACE(log) << "bootstrap_client::"<<__func__;
-		return shared_from_base<bootstrap_client>();
+		return shared_from_base<BootstrapClient>();
 	}
 
     ////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////
 
-    bootstrap_server::bootstrap_server (bootstrap_listener & listener,
+    BootstrapServer::BootstrapServer (BootstrapListener & listener,
     		BoostSocket & socket_a,
 			Store & store)
     : Socket (socket_a, listener.alarm)
@@ -251,30 +251,30 @@ namespace Bootstrap
         LOG_TRACE(log) << "bootstrap_server::"<<__func__;
     }
 
-    bootstrap_server::~bootstrap_server ()
+    BootstrapServer::~BootstrapServer ()
     {
         LOG_TRACE(log) << "bootstrap_server::"<<__func__;
     }
 
-    void bootstrap_server::receive_request ()
+    void BootstrapServer::receive_request ()
     {
         LOG_TRACE(log) << "bootstrap_server::"<<__func__;
-        AsyncReceive(std::bind(&bootstrap_server::dispatch, this,
+        AsyncReceive(std::bind(&BootstrapServer::dispatch, this,
         	std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     }
-    void bootstrap_server::OnNetworkError(bool black_list)
+    void BootstrapServer::OnNetworkError(bool black_list)
     {
         LOG_TRACE(log) << "bootstrap_server::"<<__func__<< " this=" <<this;
     	Socket::Disconnect();
     	listener.remove_connection(shared());//server does not black list
     }
-    void bootstrap_server::Release()
+    void BootstrapServer::Release()
     {
         LOG_TRACE(log) << "bootstrap_server::"<<__func__<< " this=" <<this;
     	receive_request ();
     }
 
-    void bootstrap_server::dispatch (bool good, MessageHeader header, uint8_t * buf)
+    void BootstrapServer::dispatch (bool good, MessageHeader header, uint8_t * buf)
     {
         LOG_TRACE(log) << "bootstrap_server::"<<__func__ <<" good=" << good;
         bool error = false;
@@ -301,7 +301,7 @@ namespace Bootstrap
                     if(!error)
                     {
                     	LOG_TRACE(log) << "bootstrap_server::"<<__func__ <<" tip request parsed";
-                    	auto tip_server( std::make_shared<tips_req_server>(shared_from_this(), request, store));
+                    	auto tip_server( std::make_shared<TipServer>(shared_from_this(), request, store));
                     	tip_server->send_tips();
                     }
                     else
@@ -314,7 +314,7 @@ namespace Bootstrap
                     if(!error)
                     {
                     	LOG_TRACE(log) << "bootstrap_server::"<<__func__ <<" pull request parsed";
-                    	auto pull_server( std::make_shared<bulk_pull_server>(shared_from_this(), pull, store));
+                    	auto pull_server( std::make_shared<PullServer>(shared_from_this(), pull, store));
                     	pull_server->send_block();
                     }
                     else
@@ -332,8 +332,8 @@ namespace Bootstrap
             OnNetworkError();
     }
 
-	std::shared_ptr<bootstrap_server> bootstrap_server::shared ()
+	std::shared_ptr<BootstrapServer> BootstrapServer::shared ()
 	{
-		return shared_from_base<bootstrap_server>();
+		return shared_from_base<BootstrapServer>();
 	}
 }

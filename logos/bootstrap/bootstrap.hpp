@@ -23,8 +23,8 @@ namespace Bootstrap
 
     using Service = boost::asio::io_service;
 
-    class bootstrap_attempt;
-    class bootstrap_initiator
+    class BootstrapAttempt;
+    class BootstrapInitiator
     {
     public:
     	/**
@@ -35,7 +35,7 @@ namespace Bootstrap
     	 * @param peer_provider the peer IP provider
     	 * @param max_connected the max number of connections
     	 */
-        bootstrap_initiator (logos::alarm & alarm,
+        BootstrapInitiator (logos::alarm & alarm,
         		Store & store,
 				BlockCache & cache,
 				PeerInfoProvider & peer_provider,
@@ -44,7 +44,7 @@ namespace Bootstrap
         /**
          * desctructor
          */
-        ~bootstrap_initiator ();
+        ~BootstrapInitiator ();
 
         /**
          * create bootstrap attempt and try to bootstrap from the peer
@@ -81,7 +81,7 @@ namespace Bootstrap
 		BlockCache & cache;
 		PeerInfoProvider & peer_provider;
 
-        std::shared_ptr<bootstrap_attempt> attempt;
+        std::shared_ptr<BootstrapAttempt> attempt;
         bool stopped;
         std::mutex mtx;
         std::condition_variable condition;
@@ -91,8 +91,8 @@ namespace Bootstrap
         std::thread thread;
     };
 
-    class bootstrap_server;
-	class bootstrap_listener
+    class BootstrapServer;
+	class BootstrapListener
 	{
 	public:
     	/**
@@ -102,7 +102,7 @@ namespace Bootstrap
     	 * @param local_address address of the local node
     	 * @param max_accepted the max number of connections will be accepted
     	 */
-    	bootstrap_listener (logos::alarm & alarm,
+    	BootstrapListener (logos::alarm & alarm,
 				Store & store,
 				std::string & local_address,
 				uint8_t max_accepted = max_accept_connection);
@@ -110,7 +110,7 @@ namespace Bootstrap
     	/**
     	 * destructor
     	 */
-		~bootstrap_listener();
+		~BootstrapListener();
 
 		/**
 		 * start listening for connection requests
@@ -126,7 +126,7 @@ namespace Bootstrap
 		 * remove a connection from the list of connections
 		 * @param server shared_ptr of the connection object
 		 */
-		void remove_connection(std::shared_ptr<bootstrap_server> server);
+		void remove_connection(std::shared_ptr<BootstrapServer> server);
 
 		logos::alarm & alarm;
 
@@ -146,7 +146,7 @@ namespace Bootstrap
 
 		std::mutex mtx;
         std::condition_variable condition;
-		std::unordered_set<std::shared_ptr<bootstrap_server>> connections;
+		std::unordered_set<std::shared_ptr<BootstrapServer>> connections;
 		Log log;
 	};
 }
