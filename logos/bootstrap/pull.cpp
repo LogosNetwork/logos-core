@@ -55,11 +55,16 @@ namespace Bootstrap
 	PullPtr Puller::GetPull()
 	{
 		std::lock_guard<std::mutex> lck (mtx);
-		auto pull = waiting_pulls.front();
-		auto insert_res = ongoing_pulls.insert(pull);
-		assert(insert_res.second == true);
-		waiting_pulls.pop_front();
-		return pull;
+		if(waiting_pulls.empty())
+			return nullptr;
+		else
+		{
+			auto pull = waiting_pulls.front();
+			auto insert_res = ongoing_pulls.insert(pull);
+			assert(insert_res.second == true);
+			waiting_pulls.pop_front();
+			return pull;
+		}
 	}
 
 	bool Puller::AllDone()
@@ -160,6 +165,7 @@ namespace Bootstrap
 
     	assert(state==PullerState::Batch || state==PullerState::Batch_No_MB);
     	bool good_block = block->previous == pull->prev_hash &&
+    			block->primary_delegate < NUM_DELEGATES &&
 				block_cache.AddBSB(block);
 
 		auto digest(block->Hash());
@@ -500,6 +506,8 @@ namespace Bootstrap
     {
 		LOG_TRACE(log) << "Puller::"<<__func__;
 		auto d_idx = block->primary_delegate;
+		assert(d_idx < NUM_DELEGATES);
+
     	BlockHash digest = block->Hash();
     	//try old epoch
     	if(my_tips.bsb_vec[d_idx].digest == block->previous)
@@ -512,6 +520,7 @@ namespace Bootstrap
     	}
     	else
     	{
+    		LOG_ERROR(log) << "Puller::UpdateMyBSBTip, cannot find previous";
     		assert(false);
     	}
 

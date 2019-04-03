@@ -77,7 +77,8 @@ namespace Bootstrap
 				<< " timeout_ms: " << CONNECT_TIMEOUT_MS;
         timeout.start (std::chrono::steady_clock::now () +
         				std::chrono::milliseconds(CONNECT_TIMEOUT_MS));
-        socket.async_connect (peer, [this, ConnectComplete](BoostError const & ec)
+        auto this_l = shared();
+        socket.async_connect (peer, [this, this_l, ConnectComplete](BoostError const & ec)
         {
         	timeout.stop();
             if (!ec)
@@ -259,8 +260,11 @@ namespace Bootstrap
     void BootstrapServer::receive_request ()
     {
         LOG_TRACE(log) << "bootstrap_server::"<<__func__;
-        AsyncReceive(std::bind(&BootstrapServer::dispatch, this,
-        	std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+        auto this_l = shared();
+        AsyncReceive([this, this_l](bool good, MessageHeader header, uint8_t * buf)
+        	{
+        		dispatch(good, header, buf);
+        	});
     }
     void BootstrapServer::OnNetworkError(bool black_list)
     {

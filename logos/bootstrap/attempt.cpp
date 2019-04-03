@@ -211,7 +211,7 @@ namespace Bootstrap
         {
         	LOG_DEBUG(log) << "bootstrap_attempt::populate_connection, "
         					<<"peer " << peer.address().to_string();
-        	add_connection(peer);
+        	add_connection(peer, true);
         }
 
         LOG_DEBUG(log) << "bootstrap_attempt::populate_connections end }";

@@ -137,7 +137,22 @@ namespace Bootstrap
         	uint32_t epoch_num;
             EBPtr eb;
             MicroPeriod cur_mbp;
-            //for corner case: bsb of cur_mbp depends on bsb in next_mbp
+            /*
+             * for corner case: bsb of cur_mbp depends on bsb in next_mbp.
+             * in more detail, because of time draft allowed in the system,
+             * there is a chance that an earlier bsb A proposed by delegate X
+             * has a later timestamp comparing to another block B proposed by
+             * delegate Y. If that happens, then there is a small chance that
+             * B is included in a micro block and A is not (due to the later
+             * timestamp). There is also a small chance that two requests of the
+             * same account r1 and r2 end up in block A and block B respectively.
+             * If all above happens, the earlier micro block will have a
+             * dependency on a request block that is not included in this micro
+             * block.
+             * Note that the last micro block of an epoch uses epoch_number field
+             * in the block to cut off. So this cornor case will not happen
+             * cross the epoch boundary.
+             */
             bool two_mbps;
             MicroPeriod next_mbp;
         };

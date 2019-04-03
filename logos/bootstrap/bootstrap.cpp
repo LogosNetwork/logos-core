@@ -24,6 +24,7 @@ namespace Bootstrap
     , cache(cache)
     , peer_provider(peer_provider)
     , stopped(false)
+    , one_more(false)
     , max_connected(max_connected)
     {
     	LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
@@ -41,13 +42,23 @@ namespace Bootstrap
     {
     	LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
         std::unique_lock<std::mutex> lock(mtx);
-        if (!stopped && attempt == nullptr) {
+        if (stopped)
+        {
+        	LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__ << " already stopped";
+        	return;
+        }
+
+        if (attempt == nullptr) {
             attempt = std::make_shared<BootstrapAttempt>(alarm,
             		store,
 					cache,
 					peer_provider,
 					max_connected);
             condition.notify_all();
+        }
+        else
+        {
+        	one_more = true;
         }
     }
 
@@ -57,23 +68,27 @@ namespace Bootstrap
     	//cannot add endpoint_a to peer list, since it could be
         //one of the delegate
         std::unique_lock<std::mutex> lock(mtx);
-        if (!stopped)
+        if (stopped)
         {
-            if(attempt != nullptr)
-            {
-                attempt->add_connection(peer);
-            }
-            else
-            {
-				attempt = std::make_shared<BootstrapAttempt>(alarm,
-						store,
-						cache,
-						peer_provider,
-						max_connected);
-				attempt->add_connection(peer);
-				condition.notify_all();
-            }
+        	LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__ << " already stopped";
+        	return;
         }
+
+		if(attempt == nullptr)
+		{
+			attempt = std::make_shared<BootstrapAttempt>(alarm,
+					store,
+					cache,
+					peer_provider,
+					max_connected);
+			attempt->add_connection(peer);
+			condition.notify_all();
+		}
+		else
+		{
+			attempt->add_connection(peer);
+        	one_more = true;
+		}
     }
 
     void BootstrapInitiator::run_bootstrap()
@@ -89,8 +104,20 @@ namespace Bootstrap
                 attempt_ref->run();
                 attempt_ref->stop();
                 lock.lock();
-                attempt = nullptr;
-                condition.notify_all();
+                if( one_more )
+                {
+                	one_more = false;
+                	LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__<<" one more";
+                	attempt = std::make_shared<BootstrapAttempt>(alarm,
+        					store,
+        					cache,
+        					peer_provider,
+        					max_connected);
+                }
+                else
+                {
+                	attempt = nullptr;
+                }
             } else {
             	LOG_TRACE(log) << "bootstrap_initiator::"<<__func__<<" before wait";
                 condition.wait(lock);

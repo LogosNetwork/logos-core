@@ -60,7 +60,11 @@ PrePrepareCommon::PrePrepareCommon(bool & error, logos::stream & stream)
     {
         return;
     }
-
+    if(primary_delegate >= NUM_DELEGATES && primary_delegate != 0xff)
+    {
+    	error = true;
+    	return;
+    }
     error = logos::read(stream, epoch_number);
     if(error)
     {

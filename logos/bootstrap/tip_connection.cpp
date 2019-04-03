@@ -32,7 +32,8 @@ namespace Bootstrap
             request.Serialize(stream);
         }
 
-        connection->AsyncSend(send_buffer, [this, send_buffer](bool good)
+        auto this_l = shared_from_this();
+        connection->AsyncSend(send_buffer, [this, this_l, send_buffer](bool good)
         		{
 					if (good)
 					{

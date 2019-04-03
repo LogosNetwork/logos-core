@@ -83,6 +83,7 @@ namespace Bootstrap
 
         std::shared_ptr<BootstrapAttempt> attempt;
         bool stopped;
+        bool one_more;
         std::mutex mtx;
         std::condition_variable condition;
         uint8_t max_connected;
