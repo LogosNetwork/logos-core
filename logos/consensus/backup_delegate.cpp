@@ -36,25 +36,57 @@ void BackupDelegate<CT>::SetPrePrepare(const PrePrepare & message)
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const PrePrepare & message)
 {
-    _pre_prepare_timestamp = message.timestamp;
-    _pre_prepare_hash = message.Hash();
+    auto hash = message.Hash();
+    // Have we already seen this hash this round? If so, only rebroadcast prepare for the old message
+    if (hash == _pre_prepare_hash)
+    {
+        // Having advanced to PREPARE or COMMIT means we previously approved the pre_prepare
+        if (_state == ConsensusState::PREPARE || _state == ConsensusState::COMMIT) {
+            PrepareMessage<CT> msg(hash);
+            _validator.Sign(hash, msg.signature);
+
+            SendMessage<PrepareMessage<CT>>(msg);
+            LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT)
+                            << ">::OnConsensusMessage - Re-broadcast Prepare";
+            return;
+        }
+        // VOID: we might have previously rejected it, try again to see if approval conditions are now satisfied
+    }
+    // Ignore if it's an old block
+    else if (message.epoch_number < _epoch_number ||
+    (message.epoch_number == _epoch_number && message.sequence < _sequence_number))
+    {
+        return;
+    }
+
+    // Ignore if not in p2p2 mode and timestamp check fails
+    if(!ValidateTimestamp(message) && !this->P2pEnabled())
+    {
+        LOG_DEBUG(_log) << " BackupDelegate<" << ConsensusToName(CT) << ">::Validate - Clock_Drift";
+        return;
+    }
 
     if(ProceedWithMessage(message, ConsensusState::VOID))
     {
+        // Should only overwrite pre_prepare hash and timestamp tracker if message is valid
+        _pre_prepare_timestamp = message.timestamp;
+        _pre_prepare_hash = hash;
+
         _state = ConsensusState::PREPARE;
 
         SetPrePrepare(message);
 
         HandlePrePrepare(message);
 
-        PrepareMessage<CT> msg(_pre_prepare_hash);
-        _validator.Sign(_pre_prepare_hash, msg.signature);
+        PrepareMessage<CT> msg(hash);
+        _validator.Sign(hash, msg.signature);
+        LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::OnConsensusMessage - Sign";
         SendMessage<PrepareMessage<CT>>(msg);
     }
     else
     {
         HandleReject(message);
-        Reject();
+        Reject(hash);
         ResetRejectionStatus();
     }
 }
@@ -62,17 +94,36 @@ void BackupDelegate<CT>::OnConsensusMessage(const PrePrepare & message)
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnConsensusMessage(const PostPrepare & message)
 {
+    auto hash = message.ComputeHash();
+    if (hash == _post_prepare_hash)
+    {
+        if (_state == ConsensusState::VOID || _state == ConsensusState::PREPARE)
+        {
+            LOG_FATAL(_log) << "BackupDelegate<" << ConsensusToName(CT)
+                            << ">::OnConsensusMessage - PostPrepare already seen but in wrong internal state: "
+                            << StateToString(_state);
+            trace_and_halt();
+        }
+        // We must be in COMMIT, no need to check
+        assert(_state == ConsensusState::COMMIT); // remove assertion later
+        CommitMessage<CT> msg(hash);
+        _validator.Sign(_post_prepare_hash, msg.signature);
+        SendMessage<CommitMessage<CT>>(msg);
+        LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT)
+                        << ">::OnConsensusMessage - Re-broadcast Commit";
+        return;
+    }
 
     if(ProceedWithMessage(message, ConsensusState::PREPARE))
     {
-        _post_prepare_hash = message.ComputeHash();
+        _post_prepare_hash = hash;
         _post_prepare_sig = message.signature;
         _state = ConsensusState::COMMIT;
 
         CommitMessage<CT> msg(_pre_prepare_hash);
         _validator.Sign(_post_prepare_hash, msg.signature);
         SendMessage<CommitMessage<CT>>(msg);
-        LOG_DEBUG(_log) << __func__ << "<" << ConsensusToName(CT) << "> sent commit";
+        LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::" << __func__ << " - sent commit";
     }
 }
 
@@ -85,6 +136,7 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
     {
         return;
     }
+
     if(ProceedWithMessage(message))
     {
         assert(_pre_prepare);
@@ -96,6 +148,11 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 
         _state = ConsensusState::VOID;
         SetPreviousPrePrepareHash(_pre_prepare_hash);
+        _sequence_number = _pre_prepare->sequence + 1;
+        _pre_prepare_hash.clear();
+        _post_prepare_sig.clear();
+        _post_commit_sig.clear();
+        _post_prepare_hash.clear();
 
         notifier->OnPostCommit(_pre_prepare->epoch_number);
 
@@ -147,7 +204,7 @@ bool BackupDelegate<CT>::Validate(const PrePrepare & message)
     // TODO: Once ID management is ready, we have to check if signature and primary_delegate match
     if(message.primary_delegate != _delegate_ids.remote)
     {
-        LOG_DEBUG(_log) << " BackupDelegate<CT>::Validate wrong primary id "
+        LOG_DEBUG(_log) << " BackupDelegate<" << ConsensusToName(CT) << ">::Validate wrong primary id "
                 << " msg " << message.Hash().to_string()
                 << " id in pre-perpare " << (uint)message.primary_delegate
                 << " id by connection " << (uint)_delegate_ids.remote;
@@ -158,7 +215,7 @@ bool BackupDelegate<CT>::Validate(const PrePrepare & message)
 
     if(!_validator.Validate(message.Hash(), message.preprepare_sig, _delegate_ids.remote))
     {
-        LOG_DEBUG(_log) << " BackupDelegate<CT>::Validate Bad_Signature "
+        LOG_DEBUG(_log) << " BackupDelegate<" << ConsensusToName(CT) << ">::Validate Bad_Signature "
                 << " msg " << message.Hash().to_string()
                 << " sig " << message.preprepare_sig.to_string()
                 << " id " << (uint)_delegate_ids.remote;
@@ -177,22 +234,16 @@ bool BackupDelegate<CT>::Validate(const PrePrepare & message)
         return false;
     }
 
-    if(!ValidateTimestamp(message))
-    {
-        LOG_DEBUG(_log) << " BackupDelegate<CT>::Validate Clock_Drift";
-        _reason = RejectionReason::Clock_Drift;
-        return false;
-    }
 
     if(_state == ConsensusState::PREPARE && !ValidateReProposal(message))
     {
-        LOG_DEBUG(_log) << " BackupDelegate<CT>::Validate _state == ConsensusState::PREPARE && !ValidateReProposal(message)";
+        LOG_DEBUG(_log) << " BackupDelegate<" << ConsensusToName(CT) << ">::Validate _state == ConsensusState::PREPARE && !ValidateReProposal(message)";
         return false;
     }
 
     if(!DoValidate(message))
     {
-        LOG_DEBUG(_log) << " BackupDelegate<CT>::Validate DoValidate failed";
+        LOG_DEBUG(_log) << " BackupDelegate<" << ConsensusToName(CT) << ">::Validate DoValidate failed";
         return false;
     }
 
@@ -207,11 +258,12 @@ bool BackupDelegate<CT>::Validate(const M & message)
     {
         if (_pre_prepare_hash != message.preprepare_hash)
         {
-            LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::Validate "
-                            << " invalid Post_Prepare, pre_prepare hash " << _pre_prepare_hash.to_string()
-                            << ", message pre_prepare hash " << message.preprepare_hash.to_string();
+            LOG_WARN(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::Validate "
+                           << " invalid Post_Prepare, pre_prepare hash " << _pre_prepare_hash.to_string()
+                           << ", message pre_prepare hash " << message.preprepare_hash.to_string();
+            // TODO: bootstrap here
+            return false;
         }
-        assert(_pre_prepare_hash==message.preprepare_hash);
         auto good = _validator.Validate(_pre_prepare_hash, message.signature);
         if(!good)
         {
@@ -226,17 +278,17 @@ bool BackupDelegate<CT>::Validate(const M & message)
 
     if(message.type == MessageType::Post_Commit)
     {
-        if(_state == ConsensusState::COMMIT)
+        // must be in COMMIT since ProceedWithMessage guaranteed that; can remove later
+        assert(_state == ConsensusState::COMMIT);
+
+        if (_pre_prepare_hash != message.preprepare_hash)
         {
-            if (_pre_prepare_hash != message.preprepare_hash)
-            {
-                LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::Validate "
-                                << " invalid Post_Commit, pre_prepare hash " << _pre_prepare_hash.to_string()
-                                << ", message pre_prepare hash " << message.preprepare_hash.to_string();
-            }
-            assert(_pre_prepare_hash==message.preprepare_hash);
-            return _validator.Validate(_post_prepare_hash, message.signature);
+            LOG_WARN(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::Validate "
+                           << " invalid Post_Commit, pre_prepare hash " << _pre_prepare_hash.to_string()
+                           << ", message pre_prepare hash " << message.preprepare_hash.to_string();
+            return false;
         }
+        return _validator.Validate(_post_prepare_hash, message.signature);
 
         // We received the PostCommit without
         // having sent a commit message. We're
@@ -248,7 +300,7 @@ bool BackupDelegate<CT>::Validate(const M & message)
         // hope to get the post-committed block via bootstrap or p2p.
     }
 
-    LOG_ERROR(_log) << "BackupDelegate - Attempting to validate "
+    LOG_ERROR(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::Validate - Attempting to validate "
                     << MessageToName(message) << " while in "
                     << StateToString(_state);
 
@@ -311,13 +363,14 @@ bool BackupDelegate<CT>::ProceedWithMessage(const M & message,
 {
     if(_state != expected_state)
     {
-        LOG_INFO(_log) << "BackupDelegate - Received " << MessageToName(message)
+        LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::ProceedWithMessage - Received " << MessageToName(message)
                        << " message while in " << StateToString(_state);
+        return false;  // TODO: bootstrap here
     }
 
     if(!Validate(message))
     {
-        LOG_INFO(_log) << "BackupDelegate - Received " << MessageToName(message)
+        LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::ProceedWithMessage - Received " << MessageToName(message)
                        << ", Validate failed";
         return false;
     }
@@ -327,7 +380,7 @@ bool BackupDelegate<CT>::ProceedWithMessage(const M & message,
     // TODO epoch # must be changed, hash recalculated, and signed
     if (!ValidateEpoch(message))
     {
-        LOG_INFO(_log) << "BackupDelegate - Received " << MessageToName(message)
+        LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::ProceedWithMessage - Received " << MessageToName(message)
                        << ", ValidateEpoch failed";
         return false;
     }
@@ -340,18 +393,12 @@ bool BackupDelegate<CT>::ProceedWithMessage(const PostCommit & message)
 {
     if(_state != ConsensusState::COMMIT)
     {
-        LOG_INFO(_log) << "BackupDelegate - Proceeding with Post_Commit"
+        LOG_INFO(_log) << "BackupDelegate<" << ConsensusToName(CT) << ">::ProceedWithMessage - Proceeding with PostCommit"
                        << " message received while in " << StateToString(_state);
+        return false;
     }
 
-    if(Validate(message))
-    {
-        _sequence_number++;
-
-        return true;
-    }
-
-    return false;
+    return Validate(message);
 }
 
 template<ConsensusType CT>
@@ -365,7 +412,7 @@ void BackupDelegate<CT>::OnPostCommit()
 }
 
 template<ConsensusType CT>
-void BackupDelegate<CT>::Reject()
+void BackupDelegate<CT>::Reject(const BlockHash &)
 {}
 
 template<ConsensusType CT>

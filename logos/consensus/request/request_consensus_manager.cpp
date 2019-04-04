@@ -197,7 +197,6 @@ RequestConsensusManager::InitiateConsensus(bool reproposing)
     batch = PrePrepare();
 
     batch.sequence = _sequence;
-    batch.timestamp = GetStamp();
     //need to set the current epoch number here for validation
     batch.epoch_number = _epoch_number;
     batch.primary_delegate = _delegate_id;

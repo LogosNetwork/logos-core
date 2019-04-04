@@ -118,7 +118,7 @@ RequestBackupDelegate::DoUpdateMessage(Rejection & message)
 }
 
 void
-RequestBackupDelegate::Reject()
+RequestBackupDelegate::Reject(const BlockHash & preprepare_hash)
 {
     switch(_reason)
     {
@@ -132,7 +132,7 @@ RequestBackupDelegate::Reject()
     case RejectionReason::Invalid_Epoch:
     case RejectionReason::New_Epoch:
     case RejectionReason::Invalid_Primary_Index:
-        Rejection msg(_pre_prepare_hash);
+        Rejection msg(preprepare_hash);
         DoUpdateMessage(msg);
         _validator.Sign(msg.Hash(), msg.signature);
         SendMessage<Rejection>(msg);

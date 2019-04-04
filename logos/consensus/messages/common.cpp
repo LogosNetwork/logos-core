@@ -34,6 +34,12 @@ void AggSignature::SerializeJson(boost::property_tree::ptree & tree) const
     tree.put("signature", sig.to_string());
 }
 
+void AggSignature::clear()
+{
+    map.reset();
+    sig.clear();
+}
+
 bool AggSignature::operator== (AggSignature const & other) const
 {
     return map == other.map && sig == other.sig;

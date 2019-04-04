@@ -211,6 +211,14 @@ void ConsensusManager<CT>::InitiateConsensus(bool reproposing)
                    << " consensus, reproposing " << reproposing;
 
     auto & pre_prepare = PrePrepareGetNext();
+    if (reproposing)
+    {
+        pre_prepare.timestamp = _cur_batch_timestamp;
+    }
+    else
+    {
+        pre_prepare.timestamp = GetStamp();
+    }
 
     // SYL Integration: if we don't want to lock _state_mutex here it is important to
     // call OnConsensusInitiated before AdvanceState (otherwise PrimaryDelegate might
