@@ -21,15 +21,15 @@ namespace Bootstrap
     class ISocket
     {
     public:
-    	using SendComplete = std::function<void(bool)>;
-    	using ReceiveComplete = std::function<void(bool, MessageHeader, uint8_t *)>;
+        using SendComplete = std::function<void(bool)>;
+        using ReceiveComplete = std::function<void(bool, MessageHeader, uint8_t *)>;
 
-    	/**
-    	 * asynchronously send data to the connected peer
-    	 * @param buf the buffer of data
-    	 * @param cb the callback that will be call when the send completes
-    	 * @param timeout_ms timeout of the operation in ms
-    	 */
+        /**
+         * asynchronously send data to the connected peer
+         * @param buf the buffer of data
+         * @param cb the callback that will be call when the send completes
+         * @param timeout_ms timeout of the operation in ms
+         */
         virtual void AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete cb, uint32_t timeout_ms = timeout_disabled) = 0;
 
         /**
@@ -64,11 +64,11 @@ namespace Bootstrap
     class SocketTimeout
     {
     public:
-    	/**
-    	 * constructor
-    	 * @param socket the connection object what will be used for async operations
-    	 */
-    	SocketTimeout (Socket & socket);
+        /**
+         * constructor
+         * @param socket the connection object what will be used for async operations
+         */
+        SocketTimeout (Socket & socket);
 
         /**
          * start the timer
@@ -92,11 +92,11 @@ namespace Bootstrap
     class Socket : public ISocket, public std::enable_shared_from_this<Socket>
     {
     public:
-    	/**
-    	 * client side constructor
-    	 * @param endpoint the peer to connect to
-    	 * @param alarm for timers
-    	 */
+        /**
+         * client side constructor
+         * @param endpoint the peer to connect to
+         * @param alarm for timers
+         */
         Socket(logos::tcp_endpoint & endpoint, logos::alarm & alarm);
 
         /**
@@ -122,12 +122,12 @@ namespace Bootstrap
          */
         virtual ~Socket() override;
 
-    	/**
-    	 * (inherited) asynchronously send data to the connected peer
-    	 * @param buf the buffer of data
-    	 * @param cb the callback that will be call when the send completes
-    	 * @param timeout_ms timeout of the operation in ms
-    	 */
+        /**
+         * (inherited) asynchronously send data to the connected peer
+         * @param buf the buffer of data
+         * @param cb the callback that will be call when the send completes
+         * @param timeout_ms timeout of the operation in ms
+         */
         virtual void AsyncSend(std::shared_ptr<std::vector<uint8_t>> buf, SendComplete cb, uint32_t timeout_ms = timeout_disabled) override;
 
         /**
@@ -178,12 +178,12 @@ namespace Bootstrap
     class BootstrapClient : public Socket
     {
     public:
-    	/**
-    	 * constructor
-    	 * @param attempt the bootstrap attempt constructing this object
-    	 * @param peer the peer's IP address
-    	 */
-    	BootstrapClient (BootstrapAttempt & attempt, logos::tcp_endpoint & peer);
+        /**
+         * constructor
+         * @param attempt the bootstrap attempt constructing this object
+         * @param peer the peer's IP address
+         */
+        BootstrapClient (BootstrapAttempt & attempt, logos::tcp_endpoint & peer);
 
         /**
          * destructor

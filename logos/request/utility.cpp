@@ -255,13 +255,12 @@ std::shared_ptr<Request> BuildRequest(RequestType type, bool & error, Data && da
             result = std::make_shared<StopRepresenting>(error, data);
             break;
         case RequestType::Unknown:
-        default:
-            //have to have default here, otherwise a bad type could result in a nullptr
-            //being inserted in the vector of requests since error is not set to true
             error = true;
             break;
     }
 
+    if(result == nullptr)
+        error = true;
     return result;
 }
 

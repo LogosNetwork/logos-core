@@ -5,9 +5,9 @@ namespace Bootstrap
 {
 
     MessageHeader::MessageHeader(uint8_t version,
-    		MessageType type,
-			ConsensusType ct,
-			uint32_t payload_size)
+            MessageType type,
+            ConsensusType ct,
+            uint32_t payload_size)
     : version(version)
     , type(type)
     , pull_response_ct(ct)
@@ -71,9 +71,9 @@ namespace Bootstrap
     ////////////////////////////////////////////////////////////////////
 
     PullRequest::PullRequest(ConsensusType block_type,
-    	uint32_t epoch_num,
+        uint32_t epoch_num,
         const BlockHash &prev,
-		const BlockHash &target)
+        const BlockHash &target)
     : block_type(block_type)
     , epoch_num(epoch_num)
     , prev_hash(prev)
@@ -87,11 +87,11 @@ namespace Bootstrap
         {
             return;
         }
-		error = logos::read(stream, epoch_num);
-		if(error)
-		{
-			return;
-		}
+        error = logos::read(stream, epoch_num);
+        if(error)
+        {
+            return;
+        }
         error = logos::read(stream, prev_hash);
         if(error)
         {
@@ -112,10 +112,10 @@ namespace Bootstrap
     }
 
     bool PullRequest::operator==(const PullRequest & other) const{
-    	return block_type==other.block_type &&
-    			epoch_num==other.epoch_num &&
-    			prev_hash==other.prev_hash &&
-    			target==other.target;
+        return block_type==other.block_type &&
+                epoch_num==other.epoch_num &&
+                prev_hash==other.prev_hash &&
+                target==other.target;
     }
 
     std::string PullRequest::to_string() const{
@@ -128,42 +128,42 @@ namespace Bootstrap
     ////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////
 
-	using LeadingFieldsStream =
-			boost::iostreams::stream_buffer<boost::iostreams::basic_array_sink<uint8_t>>;
+    using LeadingFieldsStream =
+            boost::iostreams::stream_buffer<boost::iostreams::basic_array_sink<uint8_t>>;
 
-	//return total message size including header
-	uint32_t PullResponseSerializedLeadingFields(ConsensusType ct,
-			PullResponseStatus status,
-			uint32_t block_size,
-			std::vector<uint8_t> & buf)
-	{
-		if(buf.size() < PullResponseReserveSize)
-		{
-			buf.resize(PullResponseReserveSize);
-		}
+    //return total message size including header
+    uint32_t PullResponseSerializedLeadingFields(ConsensusType ct,
+            PullResponseStatus status,
+            uint32_t block_size,
+            std::vector<uint8_t> & buf)
+    {
+        if(buf.size() < PullResponseReserveSize)
+        {
+            buf.resize(PullResponseReserveSize);
+        }
 
-		LeadingFieldsStream stream(buf.data(), PullResponseReserveSize);
-		uint32_t payload_size = sizeof(status) + block_size;
-		MessageHeader header(logos_version,
-				MessageType::PullResponse,
-				ct,
-				payload_size);
-		header.Serialize(stream);
-		logos::write(stream, status);
-		return MessageHeader::WireSize + payload_size;
-	}
+        LeadingFieldsStream stream(buf.data(), PullResponseReserveSize);
+        uint32_t payload_size = sizeof(status) + block_size;
+        MessageHeader header(logos_version,
+                MessageType::PullResponse,
+                ct,
+                payload_size);
+        header.Serialize(stream);
+        logos::write(stream, status);
+        return MessageHeader::WireSize + payload_size;
+    }
 
 #ifdef BOOTSTRAP_PROGRESS
-	std::atomic<unsigned> num_blocks_processed(1);
-	unsigned get_block_progress()
-	{
-		unsigned b = num_blocks_processed;
-		num_blocks_processed = 0;
-		return b;
-	}
-	void block_progressed()
-	{
-		num_blocks_processed++;
-	}
+    std::atomic<unsigned> num_blocks_processed(1);
+    unsigned get_block_progress()
+    {
+        unsigned b = num_blocks_processed;
+        num_blocks_processed = 0;
+        return b;
+    }
+    void block_progressed()
+    {
+        num_blocks_processed++;
+    }
 #endif
 }

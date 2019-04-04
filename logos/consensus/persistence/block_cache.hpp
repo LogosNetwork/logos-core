@@ -66,12 +66,12 @@ public:
 class BlockCache: public IBlockCache
 {
 public:
-	using Store = logos::block_store;
+    using Store = logos::block_store;
 
-	/**
-	 * constructor
-	 * @param store the database
-	 */
+    /**
+     * constructor
+     * @param store the database
+     */
     BlockCache(Store &store);
 
     /**
@@ -105,39 +105,39 @@ public:
 private:
 
     struct Epoch
-	{
-    	Epoch(uint32_t epoch_num)
-    	: epoch_num(epoch_num)
-    	, eb(nullptr)
-    	{}
-    	Epoch(EBPtr block)
-    	: epoch_num(block->epoch_number)
-    	, eb(block)
-    	{
-    	}
-    	Epoch(MBPtr block)
-    	: epoch_num(block->epoch_number)
-    	, eb(nullptr)
-    	{
-    		mbs.push_front(block);
-    	}
-    	Epoch(BSBPtr block)
-    	: epoch_num(block->epoch_number)
-    	, eb(nullptr)
-    	{
-    		assert(block->primary_delegate < NUM_DELEGATES);
-    		bsbs[block->primary_delegate].push_front(block);
-    	}
+    {
+        Epoch(uint32_t epoch_num)
+        : epoch_num(epoch_num)
+        , eb(nullptr)
+        {}
+        Epoch(EBPtr block)
+        : epoch_num(block->epoch_number)
+        , eb(block)
+        {
+        }
+        Epoch(MBPtr block)
+        : epoch_num(block->epoch_number)
+        , eb(nullptr)
+        {
+            mbs.push_front(block);
+        }
+        Epoch(BSBPtr block)
+        : epoch_num(block->epoch_number)
+        , eb(nullptr)
+        {
+            assert(block->primary_delegate < NUM_DELEGATES);
+            bsbs[block->primary_delegate].push_front(block);
+        }
 
-    	uint32_t epoch_num;
-    	EBPtr eb;
-    	std::list<MBPtr> mbs;
-    	std::list<BSBPtr> bsbs[NUM_DELEGATES];
+        uint32_t epoch_num;
+        EBPtr eb;
+        std::list<MBPtr> mbs;
+        std::list<BSBPtr> bsbs[NUM_DELEGATES];
 
-    	//TODO optimize
-    	//1 for each unprocessed tip of the oldest mb
+        //TODO optimize
+        //1 for each unprocessed tip of the oldest mb
         //std::bitset<NUM_DELEGATES> mb_dependences;
-	};
+    };
     std::list<Epoch> epochs;
     std::unordered_set<BlockHash> cached_blocks;
 
@@ -145,7 +145,7 @@ private:
      * should be called when:
      * (1) a new block is added to the beginning of any chain of the oldest epoch,
      * (2) a new block is added to the beginning of any BSB chain of the newest epoch,
-     * 	   in which the first MB has not been received.
+     *        in which the first MB has not been received.
      */
     void Validate(uint8_t bsb_idx = 0);
 

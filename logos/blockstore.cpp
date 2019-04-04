@@ -1257,7 +1257,7 @@ bool logos::block_store::epoch_get_n(uint32_t num_epochs_ago, ApprovedEB &block,
     Tip tip;
     if(epoch_tip_get(tip, txn))
     {
-    	trace_and_halt();
+        trace_and_halt();
     }
     BlockHash hash = tip.digest;
     for(size_t i = 0; i <= num_epochs_ago;)

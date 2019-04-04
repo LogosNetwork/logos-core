@@ -18,20 +18,20 @@ namespace Bootstrap
     enum class PullStatus : uint8_t
     {
         Continue,
-		Done,
+        Done,
         DisconnectSender,
         BlackListSender,
 
-		Unknown				= 0xff
+        Unknown                = 0xff
     };
 
     class Puller
     {
     public:
-    	/**
-    	 * constructor
-    	 * @param block_cache the block cache
-    	 */
+        /**
+         * constructor
+         * @param block_cache the block cache
+         */
         Puller(IBlockCache & block_cache);
 
         /**
@@ -82,12 +82,12 @@ namespace Bootstrap
          * @param last_block if the block is the last block that we can get
          * @return status of the pull
          */
-		PullStatus BSBReceived(PullPtr pull, BSBPtr block, bool last_block);
+        PullStatus BSBReceived(PullPtr pull, BSBPtr block, bool last_block);
 
-		/**
-		 * the peer failed to provide more blocks
-		 * @param pull the pull request
-		 */
+        /**
+         * the peer failed to provide more blocks
+         * @param pull the pull request
+         */
         void PullFailed(PullPtr pull);
 
     private:
@@ -107,42 +107,42 @@ namespace Bootstrap
         std::unordered_set<PullPtr> ongoing_pulls;
 
         enum class PullerState : uint8_t
-		{
-        	Epoch,
-			Micro,
-			Batch,
-			Batch_No_MB,
-			Done
-		};
+        {
+            Epoch,
+            Micro,
+            Batch,
+            Batch_No_MB,
+            Done
+        };
         PullerState state = PullerState::Done;
 
         struct MicroPeriod
         {
-        	MBPtr mb;
-        	std::unordered_set<BlockHash> bsb_targets;
+            MBPtr mb;
+            std::unordered_set<BlockHash> bsb_targets;
 
-        	void Clean()
-        	{
-        		mb = nullptr;
-        		assert(bsb_targets.empty());
-        	}
+            void Clean()
+            {
+                mb = nullptr;
+                assert(bsb_targets.empty());
+            }
         };
         struct EpochPeriod
         {
-        	EpochPeriod(uint32_t epoch_num = 0)
-        	: epoch_num(epoch_num)
-        	, two_mbps(false)
-        	{}
+            EpochPeriod(uint32_t epoch_num = 0)
+            : epoch_num(epoch_num)
+            , two_mbps(false)
+            {}
 
-        	uint32_t epoch_num;
+            uint32_t epoch_num;
             EBPtr eb;
             MicroPeriod cur_mbp;
             /*
              * for corner case: bsb of cur_mbp depends on bsb in next_mbp.
-             * in more detail, because of time draft allowed in the system,
-             * there is a chance that an earlier bsb A proposed by delegate X
-             * has a later timestamp comparing to another block B proposed by
-             * delegate Y. If that happens, then there is a small chance that
+             * in more detail, because of time drift allowed in the system,
+             * there is a chance that an earlier request block A proposed by
+             * delegate X has a later timestamp comparing to another block B
+             * proposed by Y. If that happens, then there is a small chance that
              * B is included in a micro block and A is not (due to the later
              * timestamp). There is also a small chance that two requests of the
              * same account r1 and r2 end up in block A and block B respectively.
@@ -166,11 +166,11 @@ namespace Bootstrap
     {
     public:
 
-    	/**
-    	 * constructor
-    	 * @param request the pull request
-    	 * @param store the database
-    	 */
+        /**
+         * constructor
+         * @param request the pull request
+         * @param store the database
+         */
         PullRequestHandler(PullRequest request, Store & store);
 
         //return: if true call again for more blocks

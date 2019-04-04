@@ -6,14 +6,14 @@
 
 namespace logos
 {
-	class alarm;
+    class alarm;
 }
 class PeerInfoProvider;
 
 namespace Bootstrap
 {
-	class BootstrapClient;
-	class BootstrapAttempt : public std::enable_shared_from_this<BootstrapAttempt>
+    class BootstrapClient;
+    class BootstrapAttempt : public std::enable_shared_from_this<BootstrapAttempt>
     {
     public:
         /**

@@ -6,14 +6,14 @@
 
 namespace Bootstrap
 {
-	using Store = logos::block_store;
+    using Store = logos::block_store;
 
     struct TipSet
     {
-    	/**
-    	 * constructor
-    	 */
-		TipSet() = default;
+        /**
+         * constructor
+         */
+        TipSet() = default;
 
         /**
          * constructor from parsing data from a stream
@@ -36,13 +36,13 @@ namespace Bootstrap
          */
         bool operator==(const TipSet & other) const;
 
-		/**
-		 * If the tipset is behind the other tipset. A tipset is behind if its epoch tip,
-		 * or the micro block tip, or any of the request block tips is behind.
-		 *
-		 * @param other the other tipset
-		 * @return true if behind
-		 */
+        /**
+         * If the tipset is behind the other tipset. A tipset is behind if its epoch tip,
+         * or the micro block tip, or any of the request block tips is behind.
+         *
+         * @param other the other tipset
+         * @return true if behind
+         */
         bool IsBehind(const TipSet & other);
         /*
          * TODO

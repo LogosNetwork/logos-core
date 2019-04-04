@@ -13,11 +13,11 @@ namespace Bootstrap
     {
     public:
 
-    	/**
-    	 * constructor
-    	 * @param connection the connection to the peer
-    	 * @param puller the puller generated the pull request this client will work on
-    	 */
+        /**
+         * constructor
+         * @param connection the connection to the peer
+         * @param puller the puller generated the pull request this client will work on
+         */
         PullClient (std::shared_ptr<ISocket> connection, Puller & puller);
 
         /**

@@ -8,16 +8,16 @@
 
 namespace Bootstrap
 {
-	class ISocket;
+    class ISocket;
     class TipClient : public std::enable_shared_from_this<Bootstrap::TipClient>
     {
     public:
 
-    	/**
-    	 * constructor
-    	 * @param connection the connection to the peer
-    	 * @param store the database
-    	 */
+        /**
+         * constructor
+         * @param connection the connection to the peer
+         * @param store the database
+         */
         TipClient (std::shared_ptr<ISocket> connection, Store & store);
 
         /**

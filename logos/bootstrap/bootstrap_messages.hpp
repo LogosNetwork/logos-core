@@ -19,16 +19,16 @@ namespace Bootstrap {
         PullRequest  = 2,
         PullResponse = 3,
 
-		Unknown      = 0xff
+        Unknown      = 0xff
     };
 
     struct MessageHeader
     {
         MessageHeader() = default;
         MessageHeader(uint8_t version,
-        		MessageType type,
-				ConsensusType ct,
-				uint32_t payload_size);
+                MessageType type,
+                ConsensusType ct,
+                uint32_t payload_size);
         MessageHeader(bool & error, logos::stream & stream);
         uint32_t Serialize(logos::stream & stream) const;
 
@@ -50,9 +50,9 @@ namespace Bootstrap {
         BlockHash target; //ignored for EB and MB since we pull one at a time
 
         PullRequest(ConsensusType block_type,
-        	uint32_t epoch_num,
+            uint32_t epoch_num,
             const BlockHash &prev,
-			const BlockHash &target=0);
+            const BlockHash &target=0);
 
         PullRequest(bool & error, logos::stream & stream);
 
@@ -61,7 +61,7 @@ namespace Bootstrap {
         std::string to_string() const;
 
         static constexpr uint32_t WireSize = sizeof(block_type) +
-        		sizeof(epoch_num) + HASH_SIZE * 2;
+                sizeof(epoch_num) + HASH_SIZE * 2;
     };
 
 
@@ -109,7 +109,7 @@ namespace Bootstrap {
             }
             if(status == PullResponseStatus::NoBlock)
             {
-            	block = nullptr;
+                block = nullptr;
                 return;
             }
 
@@ -119,31 +119,31 @@ namespace Bootstrap {
                 return;
             }
             block = std::make_shared<PostCommittedBlock<CT>>(error,
-            		stream,
-					prequel.version,
-					true,
-					true);
+                    stream,
+                    prequel.version,
+                    true,
+                    true);
         }
 
         uint32_t Serialize(logos::stream & stream) const
         {
             auto s = logos::write(stream, status);
             if(status!=PullResponseStatus::NoBlock)
-            	s += block->Serialize(stream, true, true);
+                s += block->Serialize(stream, true, true);
             return s;
         }
 
         bool operator==(const PullResponse & other) const
-		{
-        	if(status!=other.status)
-        		return false;
+        {
+            if(status!=other.status)
+                return false;
 
-        	if(status!=PullResponseStatus::NoBlock)
-        	{
-        		return block->Hash() == other.block->Hash();
-        	}
-        	return true;
-		}
+            if(status!=PullResponseStatus::NoBlock)
+            {
+                return block->Hash() == other.block->Hash();
+            }
+            return true;
+        }
     };
 
     /**
@@ -152,16 +152,16 @@ namespace Bootstrap {
      * When this function is call, buf should already have the block
      */
     constexpr uint32_t PullResponseReserveSize =
-    		MessageHeader::WireSize + sizeof(PullResponseStatus);
+            MessageHeader::WireSize + sizeof(PullResponseStatus);
 
-	/**
-	 * serialize the message header and the leading fields of PullResponse
-	 * @param ct the ConsensusType of the block
-	 * @param status the status of the pull
-	 * @param block_size the size of the consensus block
-	 * @param buf the buffer to serialize to
-	 * @return total message size including header
-	 */
+    /**
+     * serialize the message header and the leading fields of PullResponse
+     * @param ct the ConsensusType of the block
+     * @param status the status of the pull
+     * @param block_size the size of the consensus block
+     * @param buf the buffer to serialize to
+     * @return total message size including header
+     */
     uint32_t PullResponseSerializedLeadingFields(ConsensusType ct,
             PullResponseStatus status,
             uint32_t block_size,
@@ -180,7 +180,7 @@ namespace Bootstrap {
     /**
      * adding 1 to the number of blocks stored
      */
-	void block_progressed();
+    void block_progressed();
 #endif
 
 } // namespace
