@@ -139,7 +139,7 @@ protected:
     virtual void HandlePrePrepare(const PrePrepare & message);
     virtual void OnPostCommit();
 
-    virtual void Reject();
+    virtual void Reject(const BlockHash &);
     virtual void ResetRejectionStatus();
     virtual void HandleReject(const PrePrepare & message) {}
 

@@ -78,7 +78,7 @@ private:
 
     void OnPrePrepareTimeout(const Error & error);
 
-    void Reject() override;
+    void Reject(const BlockHash &) override;
     void ResetRejectionStatus() override;
     void HandleReject(const PrePrepare&) override;
 
