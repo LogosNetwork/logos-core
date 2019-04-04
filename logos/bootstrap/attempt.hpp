@@ -49,8 +49,9 @@ namespace Bootstrap
          * try connect to an endpoint, if connected, pool the connection
          * @param endpoint contain the IP of the peer
          * @param locked if the mutex protecting the connection lists is already locked
+         * @return true if added (note that the connect operation is async)
          */
-        void add_connection(logos::endpoint const & endpoint, bool locked=false);
+        bool add_connection(logos::endpoint const & endpoint, bool locked=false);
 
         /**
          * pool connection on idle list for re-use

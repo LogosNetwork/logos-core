@@ -67,28 +67,35 @@ namespace Bootstrap
     	LOG_TRACE(log) << "bootstrap_initiator::"<<__func__;
     	//cannot add endpoint_a to peer list, since it could be
         //one of the delegate
-        std::unique_lock<std::mutex> lock(mtx);
-        if (stopped)
-        {
-        	LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__ << " already stopped";
-        	return;
-        }
+    	for(;;)
+    	{
+            std::unique_lock<std::mutex> lock(mtx);
+            if (stopped)
+            {
+            	LOG_DEBUG(log) << "bootstrap_initiator::"<<__func__ << " already stopped";
+            	return;
+            }
 
-		if(attempt == nullptr)
-		{
-			attempt = std::make_shared<BootstrapAttempt>(alarm,
-					store,
-					cache,
-					peer_provider,
-					max_connected);
-			attempt->add_connection(peer);
-			condition.notify_all();
-		}
-		else
-		{
-			attempt->add_connection(peer);
-        	one_more = true;
-		}
+    		if(attempt == nullptr)
+    		{
+    			attempt = std::make_shared<BootstrapAttempt>(alarm,
+    					store,
+    					cache,
+    					peer_provider,
+    					max_connected);
+    			attempt->add_connection(peer);
+    			condition.notify_all();
+    			return;
+    		}
+    		else
+    		{
+    			if(attempt->add_connection(peer))
+    			{
+    				one_more = true;
+    				return;
+    			}
+    		}
+    	}
     }
 
     void BootstrapInitiator::run_bootstrap()

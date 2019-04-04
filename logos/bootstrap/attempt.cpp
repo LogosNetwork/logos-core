@@ -218,7 +218,7 @@ namespace Bootstrap
         return true;
     }
 
-	void BootstrapAttempt::add_connection(logos::endpoint const &endpoint_a, bool locked)
+	bool BootstrapAttempt::add_connection(logos::endpoint const &endpoint_a, bool locked)
 	{
     	LOG_TRACE(log) << "bootstrap_attempt::"<<__func__
     			<< ", peer ip: " << endpoint_a.address().to_string();
@@ -226,11 +226,15 @@ namespace Bootstrap
 		auto client = std::make_shared<BootstrapClient>(*this, e);
 		if(locked)
 		{
+			if(stopped)
+				return false;
 			connecting_clients.insert(client);
 		}
 		else
 		{
 			std::lock_guard<std::mutex> lock(mtx);
+			if(stopped)
+				return false;
 			connecting_clients.insert(client);
 		}
 		client->Connect([client, this](bool connected)
@@ -254,6 +258,7 @@ namespace Bootstrap
     		lock.unlock();
     		condition.notify_all();
         });
+		return true;
 	}
 
     void BootstrapAttempt::remove_connection(std::shared_ptr<BootstrapClient> client, bool blacklist)
