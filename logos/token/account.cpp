@@ -55,7 +55,7 @@ TokenAccount::TokenAccount(const BlockHash & head,
 
 uint32_t TokenAccount::Serialize(logos::stream & stream) const
 {
-    assert(controllers.size() < MAX_CONTROLLERS);
+    assert(controllers.size() <= MAX_CONTROLLERS);
 
     auto s = Account::Serialize(stream);
 
@@ -144,7 +144,7 @@ bool TokenAccount::Deserialize(logos::stream & stream)
         return error;
     }
 
-    assert(size < MAX_CONTROLLERS);
+    assert(size <= MAX_CONTROLLERS);
     for(uint8_t i = 0; i < size; ++i)
     {
         ControllerInfo c(error, stream);
@@ -203,7 +203,7 @@ boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
                 settings_tree.push_back(std::make_pair("", t));
             }
         }
-        // SG: maintain consistent data structure for JSON, no settings is empy array
+        // SG: maintain consistent data structure for JSON, no settings is empty array
         if(settings_tree.empty())
         {
             tree.put("settings", "[]");
