@@ -10,6 +10,7 @@
 #include <logos/lib/trace.hpp>
 #include <logos/common.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
+#include <logos/node/node.hpp>
 
 constexpr uint128_t PersistenceManager<R>::MIN_TRANSACTION_FEE;
 
@@ -547,8 +548,9 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
         std::shared_ptr<logos::Account> source;
         if(_store.account_get(request->GetSource(), source))
         {
-            // TODO: Bootstrapping
             result.code = logos::process_result::unknown_source_account;
+            // TODO: high speed Bootstrapping
+            logos_global::Bootstrap();
             return false;
         }
 
@@ -734,7 +736,8 @@ void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,
     {
         if(_store.consensus_block_update_next(message.previous, hash, ConsensusType::Request, transaction))
         {
-            // TODO: bootstrap here.
+            // TODO: high speed Bootstrapping
+            logos_global::Bootstrap();
         }
     }
 }

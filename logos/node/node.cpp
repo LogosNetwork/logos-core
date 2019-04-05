@@ -1645,11 +1645,17 @@ void logos::node::start ()
 
     bootstrap_listener.start ();
     ongoing_bootstrap ();
+    auto this_l (shared_from_this());
+    logos_global::AssignNode(this_l);
 }
 
 void logos::node::stop ()
 {
     BOOST_LOG (log) << "Node stopping";
+    {
+        std::shared_ptr<logos::node> this_l(nullptr);
+        logos_global::AssignNode(this_l);
+    }
     block_processor.stop ();
     if (block_processor_thread.joinable ())
     {
@@ -1753,6 +1759,11 @@ void logos::node::ongoing_bootstrap ()
             node_l->ongoing_bootstrap ();
         }
     });
+}
+void logos::node::on_demand_bootstrap ()
+{
+    LOG_DEBUG (log) << __func__;
+    bootstrap_initiator.bootstrap ();
 }
 
 void logos::node::backup_wallet ()

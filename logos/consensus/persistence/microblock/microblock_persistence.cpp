@@ -5,6 +5,7 @@
 #include <logos/microblock/microblock_handler.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/lib/trace.hpp>
+#include <logos/node/node.hpp>
 
 bool
 PersistenceManager<MBCT>::Validate(
@@ -39,6 +40,10 @@ PersistenceManager<MBCT>::Validate(
                         << " hash " << hash.to_string()
                         << " previous " << block.previous.to_string();
         UpdateStatusReason(status, process_result::gap_previous);
+
+        // TODO: high speed bootstrap
+        logos_global::Bootstrap();
+
         return false;
     }
     Tip tip;

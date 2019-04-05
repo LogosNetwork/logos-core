@@ -3,6 +3,7 @@
 
 #include <logos/consensus/persistence/reservations.hpp>
 #include <logos/consensus/consensus_container.hpp>
+#include <logos/node/node.hpp>
 
 ReservationCache Reservations::_reservations;
 
@@ -33,6 +34,8 @@ ConsensusReservations::CanAcquire(const AccountAddress & account,
         {
             // TODO: Check bootstrap since we might have died and now fallen behind
             _reservations[account] = info;
+            // TODO: high speed bootstrap
+            logos_global::Bootstrap();
             return false;
         }
     }

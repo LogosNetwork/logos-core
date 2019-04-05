@@ -490,6 +490,7 @@ public:
     logos::account representative (logos::account const &);
     void ongoing_keepalive ();
     void ongoing_bootstrap ();
+    void on_demand_bootstrap ();
     void backup_wallet ();
     int price (logos::uint128_t const &, int);
     void work_generate_blocking (logos::block &);
