@@ -2737,7 +2737,12 @@ TokenSend::TokenSend(bool & error,
                 return;
             }
 
-            transactions.push_back(t);
+            // SG: Added check for maximum token transactions in a request
+            error = !AddTransaction(t);
+            if(error)
+            {
+                return;
+            }
         }
 
         error = token_fee.decode_dec(tree.get<std::string>(TOKEN_FEE));
@@ -2752,6 +2757,22 @@ TokenSend::TokenSend(bool & error,
     {
         error = true;
     }
+}
+
+// SG: Same structure as maximum logos transaction check in request
+bool TokenSend::AddTransaction(const AccountAddress & to, const Amount & amount)
+{
+    return AddTransaction(Transaction(to, amount));
+}
+
+bool TokenSend::AddTransaction(const Transaction & transaction)
+{
+    if(transactions.size() < MAX_TRANSACTIONS)
+    {
+        transactions.push_back(transaction);
+        return true;
+    }
+    return false;
 }
 
 Amount TokenSend::GetTokenTotal() const

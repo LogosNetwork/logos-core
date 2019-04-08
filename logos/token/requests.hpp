@@ -479,6 +479,9 @@ struct TokenSend : TokenRequest
     TokenSend(bool & error,
               boost::property_tree::ptree const & tree);
 
+    bool AddTransaction(const AccountAddress & to, const Amount & amount);
+    bool AddTransaction(const Transaction & transaction);
+
     Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;
 
