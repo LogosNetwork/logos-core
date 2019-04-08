@@ -890,7 +890,7 @@ void logos::rpc_handler::request_blocks_latest ()
         // otherwise, block i has been persisted, i.e. we are at least 1 MB interval past epoch start
         if (!tip_exists)
         {
-        	Tip tip;
+            Tip tip;
             if (node.store.request_tip_get(static_cast<uint8_t>(delegate_id), epoch_number_stored + 1, tip))
             {
                 error_response (response, "Internal data corruption: request block tip doesn't exist.");
@@ -925,7 +925,7 @@ void logos::rpc_handler::request_blocks_latest ()
         if (prev_hash.is_zero() && batch.epoch_number > GENESIS_EPOCH + 1)
         {
             // Attempt to get old epoch tip
-        	Tip tip;
+            Tip tip;
             if (node.store.request_tip_get(static_cast<uint8_t>(delegate_id), batch.epoch_number - 1, tip))
             {
                 // Only case a tip retrieval fails is when an epoch persistence update just happened and erased the old tip
@@ -1526,7 +1526,7 @@ void logos::rpc_handler::epochs_latest ()
     }
     else
     {
-    	Tip tip;
+        Tip tip;
         auto tip_exists (!node.store.epoch_tip_get(tip));
         hash = tip.digest;
         assert (tip_exists);
@@ -2018,7 +2018,7 @@ void logos::rpc_handler::micro_blocks_latest ()
     }
     else
     {
-    	Tip tip;
+        Tip tip;
         auto tip_exists (!node.store.micro_block_tip_get(tip));
         hash = tip.digest;
         assert (tip_exists);

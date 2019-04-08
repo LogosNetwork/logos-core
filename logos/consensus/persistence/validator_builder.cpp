@@ -33,7 +33,7 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
 
     if (k == _epoch_pki.end())
     {
-    	Tip tip;
+        Tip tip;
         if (_store.epoch_tip_get(tip))
         {
             LOG_FATAL(_log) << "ValidatorBuilder::GetValidator failed to get epoch tip";
@@ -96,7 +96,7 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
     _cached_validator = validator;
 
     if(validator == nullptr)
-    	LOG_DEBUG(_log) << "ValidatorBuilder::GetValidator nullptr";
+        LOG_DEBUG(_log) << "ValidatorBuilder::GetValidator nullptr";
 
     return validator;
 }

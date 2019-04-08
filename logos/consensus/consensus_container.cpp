@@ -102,11 +102,11 @@ ConsensusContainer::OnDelegateMessage(
         return result;
     }
 
-	if(!request)
-	{
-	    result.code = logos::process_result::invalid_block_type;
-	    return result;
-	}
+    if(!request)
+    {
+        result.code = logos::process_result::invalid_block_type;
+        return result;
+    }
 
     using DM = DelegateMessage<ConsensusType::Request>;
 
@@ -168,7 +168,7 @@ ConsensusContainer::OnDelegateMessage(
 {
     OptLock lock(_transition_state, _mutex);
     logos::process_return result;
-	using Request = DelegateMessage<ConsensusType::MicroBlock>;
+    using Request = DelegateMessage<ConsensusType::MicroBlock>;
 
     if (_cur_epoch == nullptr)
     {

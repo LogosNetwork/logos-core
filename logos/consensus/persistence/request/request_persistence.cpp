@@ -183,8 +183,8 @@ bool PersistenceManager<R>::ValidateRequest(
     }
     else
     {
-    	LOG_INFO(_log) << "right_sequence_number, request sqn=" << request->sequence
-    	            << " expecting=" << info->block_count;
+        LOG_INFO(_log) << "right_sequence_number, request sqn=" << request->sequence
+                    << " expecting=" << info->block_count;
     }
     // No previous block set.
     if(request->previous.is_zero() && info->block_count)
@@ -693,7 +693,7 @@ void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,
         {
             // Get current epoch's request block tip (updated by Epoch Persistence),
             // which is also the end of previous epoch's request block chain
-        	Tip cur_tip;
+            Tip cur_tip;
             BlockHash & cur_tip_hash = cur_tip.digest;
             if (_store.request_tip_get(message.primary_delegate, message.epoch_number, cur_tip))
             {
@@ -1858,13 +1858,13 @@ bool PersistenceManager<R>::IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn)
     BlockHash & hash = tip.digest;
     if(_store.epoch_tip_get(tip,txn))
     {
-    	trace_and_halt();
+        trace_and_halt();
     }
 
     ApprovedEB eb;
     if(_store.epoch_get(hash,eb,txn))
     {
-    	trace_and_halt();
+        trace_and_halt();
     }
 
     return (eb.epoch_number+2) == cur_epoch_num;

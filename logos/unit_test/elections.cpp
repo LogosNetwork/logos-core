@@ -430,7 +430,7 @@ TEST(Elections,candidates_transition)
 
         ApprovedEB eb;
         {
-        	Tip tip;
+            Tip tip;
             ASSERT_FALSE(store->epoch_tip_get(tip,txn));
             eb.previous = tip.digest;
             eb.delegates[0].starting_term = false;

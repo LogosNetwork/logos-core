@@ -16,10 +16,10 @@ RequestBackupDelegate::RequestBackupDelegate(
         const DelegateIdentities & ids,
         Service & service,
         std::shared_ptr<EpochEventsNotifier> events_notifier,
-	PersistenceManager<R> & persistence_manager,
-	p2p_interface & p2p)
+    PersistenceManager<R> & persistence_manager,
+    p2p_interface & p2p)
     : Connection(iochannel, primary, promoter,
-		 validator, ids, events_notifier, persistence_manager, p2p, service)
+         validator, ids, events_notifier, persistence_manager, p2p, service)
     , _timer(service)
 {
     ApprovedRB block;

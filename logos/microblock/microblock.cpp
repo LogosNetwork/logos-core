@@ -36,7 +36,7 @@ uint32_t MicroBlock::Serialize(logos::stream & stream, bool with_appendix) const
 
     for(int i = 0; i < NUM_DELEGATES; ++i)
     {
-    	s += tips[i].Serialize(stream);
+        s += tips[i].Serialize(stream);
     }
 
     return s;
@@ -44,12 +44,12 @@ uint32_t MicroBlock::Serialize(logos::stream & stream, bool with_appendix) const
 
 std::string MBRequestTips_to_string (MicroBlock & block)
 {
-	std::stringstream stream;
-	//stream << " MB tip:" << block.CreateTip().to_string() <<std::endl;
-	stream << "MB request tips:" <<std::endl;
-	for(int i = 0; i < NUM_DELEGATES; ++i) {
-		stream << "i=" << i << "  " << block.tips[i].to_string() << std::endl;
-	}
+    std::stringstream stream;
+    //stream << " MB tip:" << block.CreateTip().to_string() <<std::endl;
+    stream << "MB request tips:" <<std::endl;
+    for(int i = 0; i < NUM_DELEGATES; ++i) {
+        stream << "i=" << i << "  " << block.tips[i].to_string() << std::endl;
+    }
 
-	return stream.str ();
+    return stream.str ();
 }

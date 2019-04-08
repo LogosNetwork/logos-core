@@ -21,7 +21,7 @@ EpochBackupDelegate::EpochBackupDelegate(
     : BackupDelegate<ECT>(iochannel, primary, promoter, validator,
                                                 ids, events_notifier, persistence_manager, p2p, service)
 {
-	Tip tip;
+    Tip tip;
     if (promoter.GetStore().epoch_tip_get(tip))
     {
         LOG_FATAL(_log) << "Failed to get eporh's previous hash";

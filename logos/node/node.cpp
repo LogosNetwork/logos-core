@@ -1749,7 +1749,7 @@ void logos::node::ongoing_bootstrap ()
     auto next_wakeup (60);
     if (! bootstrap_initiator.check_progress ())
     {
-    	bootstrap_initiator.bootstrap ();
+        bootstrap_initiator.bootstrap ();
     }
 
     std::weak_ptr<logos::node> node_w (shared_from_this ());

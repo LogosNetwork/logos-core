@@ -16,7 +16,7 @@ RequestConsensusManager::RequestConsensusManager(Service & service,
                                                  p2p_interface & p2p,
                                                  uint32_t epoch_number)
     : Manager(service, store, config,
-	      validator, p2p, epoch_number)
+          validator, p2p, epoch_number)
     , _init_timer(service)
 {
     _state = ConsensusState::INITIALIZING;
@@ -270,7 +270,7 @@ RequestConsensusManager::MakeBackupDelegate(
     assert(notifier);
     return std::make_shared<RequestBackupDelegate>(
             iochannel, shared_from_this(), *this, _validator,
-	    ids, _service, notifier, _persistence_manager, GetP2p());
+        ids, _service, notifier, _persistence_manager, GetP2p());
 }
 
 void

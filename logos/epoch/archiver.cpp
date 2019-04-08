@@ -86,7 +86,7 @@ Archiver::Test_ProposeMicroBlock(InternalConsensus &consensus, bool last_microbl
 bool
 Archiver::IsFirstMicroBlock(BlockStore &store)
 {
-	Tip tip;
+    Tip tip;
     BlockHash &hash = tip.digest;
     ApprovedMB microblock;
 

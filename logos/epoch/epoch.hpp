@@ -206,7 +206,7 @@ public:
     std::string ToJson() const;
     void SerializeJson(boost::property_tree::ptree &) const;
 
-    Tip	      micro_block_tip;          ///< microblock tip of this epoch
+    Tip       micro_block_tip;          ///< microblock tip of this epoch
     Amount    transaction_fee_pool;     ///< this epoch's transaction fee pool
     Delegate  delegates[NUM_DELEGATES]; ///< delegate'ls list
     bool is_extension;

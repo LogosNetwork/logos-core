@@ -18,7 +18,7 @@ PersistenceManager<ECT>::Validate(
     const PrePrepare & epoch,
     ValidationStatus * status)
 {
-	Tip epoch_tip;
+    Tip epoch_tip;
     BlockHash & previous_epoch_hash = epoch_tip.digest;
     ApprovedEB previous_epoch;
     using namespace logos;

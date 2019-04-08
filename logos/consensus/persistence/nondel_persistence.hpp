@@ -66,8 +66,8 @@ public:
 
     bool VerifyContent(const ApprovedBlock & block, ValidationStatus * status)
     {
-    	PrePerpare pre_prepare(block);
-    	return ValidatePreprepare(pre_prepare, status);
+        PrePerpare pre_prepare(block);
+        return ValidatePreprepare(pre_prepare, status);
     }
 
     virtual ~NonDelegatePersistence() = default;

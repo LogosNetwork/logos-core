@@ -10,8 +10,8 @@
 bool
 EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
 {
-	Tip epoch_tip;
-	Tip micro_tip;
+    Tip epoch_tip;
+    Tip micro_tip;
     BlockHash & previous_epoch_hash = epoch_tip.digest;
     BlockHash & previous_micro_block_hash = micro_tip.digest;
     ApprovedEB previous_epoch;
@@ -36,12 +36,12 @@ EpochHandler::Build(DelegateMessage<ConsensusType::Epoch> &epoch)
         trace_and_halt();
     }
 
-	if (_store.micro_block_get(previous_micro_block_hash, last_micro_block))
-	{
-		LOG_FATAL(_log) << "EpochHandler::Build failed to get micro block: " <<
-			previous_micro_block_hash.to_string();
-		trace_and_halt();
-	}
+    if (_store.micro_block_get(previous_micro_block_hash, last_micro_block))
+    {
+        LOG_FATAL(_log) << "EpochHandler::Build failed to get micro block: " <<
+            previous_micro_block_hash.to_string();
+        trace_and_halt();
+    }
 
     epoch.timestamp = GetStamp();
     epoch.previous = previous_epoch_hash;

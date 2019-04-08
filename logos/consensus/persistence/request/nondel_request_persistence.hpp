@@ -43,16 +43,16 @@ public:
         //have previous now
         if(previous.epoch_number > 0)
         {
-			if( ! ((previous.epoch_number == message.epoch_number) && (message.sequence == (previous.sequence + 1))) &&
-					! (((previous.epoch_number+1) == message.epoch_number) && (message.sequence == 0)))
-			{
-				LOG_TRACE(_logger) << "NonDelPersistenceManager<R>::"<< __func__ << ":wrong_sequence_number:"
-						<< " previous=" << previous.epoch_number << ":" << previous.sequence
-						<< " verifiee=" << message.epoch_number << ":" << message.sequence;
+            if( ! ((previous.epoch_number == message.epoch_number) && (message.sequence == (previous.sequence + 1))) &&
+                    ! (((previous.epoch_number+1) == message.epoch_number) && (message.sequence == 0)))
+            {
+                LOG_TRACE(_logger) << "NonDelPersistenceManager<R>::"<< __func__ << ":wrong_sequence_number:"
+                        << " previous=" << previous.epoch_number << ":" << previous.sequence
+                        << " verifiee=" << message.epoch_number << ":" << message.sequence;
 
-				UpdateStatusReason(status, logos::process_result::wrong_sequence_number);
-				return false;
-			}
+                UpdateStatusReason(status, logos::process_result::wrong_sequence_number);
+                return false;
+            }
         }
 
         return PersistenceManager<R>::Validate(message, status);

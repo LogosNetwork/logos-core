@@ -104,7 +104,7 @@ MicroBlockHandler::GetTipsFast(
 
     uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff);
     _store.BatchBlocksIterator(next, cutoff_msec,
-    		[&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
+            [&](uint8_t delegate, const ApprovedRB &batch)mutable -> void {
         tips[delegate] = batch.CreateTip();
         num_blocks++;
     });
@@ -170,7 +170,7 @@ MicroBlockHandler::Build(
         MicroBlock &block,
         bool last_micro_block)
 {
-	Tip micro_tip;
+    Tip micro_tip;
     BlockHash & previous_micro_block_hash = micro_tip.digest;
     ApprovedMB previous_micro_block;
 
@@ -231,7 +231,7 @@ MicroBlockHandler::Build(
         BatchTipHashes end;
         for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
         {
-        	Tip request_tip;
+            Tip request_tip;
             // add 1 because we need the current epoch's tips
             if (_store.request_tip_get(delegate, previous_micro_block.epoch_number + 1, request_tip))
             {
@@ -239,9 +239,9 @@ MicroBlockHandler::Build(
             }
             else
             {
-            	start[delegate] = request_tip.digest;
+                start[delegate] = request_tip.digest;
             }
-        	end[delegate] = previous_micro_block.tips[delegate].digest;
+            end[delegate] = previous_micro_block.tips[delegate].digest;
         }
         EpochTimeUtil util;
         bool add_cutoff = block.sequence ||

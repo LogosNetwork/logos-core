@@ -236,7 +236,7 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
 
     Tip CreateTip() const
     {
-    	return Tip(ConsensusBlock<CT>::epoch_number, ConsensusBlock<CT>::sequence, Hash());
+        return Tip(ConsensusBlock<CT>::epoch_number, ConsensusBlock<CT>::sequence, Hash());
     }
 
     AggSignature post_prepare_sig;

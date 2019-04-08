@@ -92,17 +92,17 @@ PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare()
 ///////////////////////////////// utils tests
 TEST (crypto, ed25519)
 {
-	AccountPrivKey prv (0);
-	AccountPubKey pub;
-	ed25519_publickey (prv.data (), pub.data ());
-	BlockHash message (1234567890);
-	AccountSig signature;
-	ed25519_sign (message.data (), HASH_SIZE, prv.data (), pub.data (), signature.data ());
-	auto valid1 (ed25519_sign_open (message.data (), HASH_SIZE, pub.data (), signature.data ()));
-	ASSERT_EQ (0, valid1);
-	signature.data()[32] ^= 0x1;
-	auto valid2 (ed25519_sign_open (message.data (), HASH_SIZE, pub.data (), signature.data ()));
-	ASSERT_NE (0, valid2);
+    AccountPrivKey prv (0);
+    AccountPubKey pub;
+    ed25519_publickey (prv.data (), pub.data ());
+    BlockHash message (1234567890);
+    AccountSig signature;
+    ed25519_sign (message.data (), HASH_SIZE, prv.data (), pub.data (), signature.data ());
+    auto valid1 (ed25519_sign_open (message.data (), HASH_SIZE, pub.data (), signature.data ()));
+    ASSERT_EQ (0, valid1);
+    signature.data()[32] ^= 0x1;
+    auto valid2 (ed25519_sign_open (message.data (), HASH_SIZE, pub.data (), signature.data ()));
+    ASSERT_NE (0, valid2);
 }
 
 TEST (crypto, blake2b)

@@ -175,12 +175,12 @@ public:
 
 protected:
 
-	/// Initiate MicroBlock consensus, internal request
-	///		@param[in] MicroBlock containing the batch blocks
+    /// Initiate MicroBlock consensus, internal request
+    ///        @param[in] MicroBlock containing the batch blocks
     logos::process_return OnDelegateMessage(std::shared_ptr<DelegateMessage<ConsensusType::MicroBlock>> message) override;
 
     /// Initiate Epoch consensus, internal request
-    ///		@param[in] Epoch containing the microblocks
+    ///        @param[in] Epoch containing the microblocks
     logos::process_return OnDelegateMessage(std::shared_ptr<DelegateMessage<ConsensusType::Epoch>> message) override;
 
 private:

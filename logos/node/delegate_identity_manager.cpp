@@ -465,7 +465,7 @@ DelegateIdentityManager::IdentifyDelegates(
     uint8_t &delegate_idx,
     Accounts & delegates)
 {
-	Tip tip;
+    Tip tip;
     BlockHash hash;
     if (_store.epoch_tip_get(tip))
     {
@@ -521,7 +521,7 @@ DelegateIdentityManager::StaleEpoch()
 void
 DelegateIdentityManager::GetCurrentEpoch(BlockStore &store, ApprovedEB &epoch)
 {
-	Tip tip;
+    Tip tip;
     BlockHash &hash = tip.digest;
 
     if (store.epoch_tip_get(tip))

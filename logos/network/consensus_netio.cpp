@@ -120,7 +120,7 @@ ConsensusNetIO::Connect()
 {
     _socket->async_connect(_endpoint,
                            [this](ErrorCode const & ec) 
-						   { OnConnect(ec); });
+                           { OnConnect(ec); });
 }
 
 void

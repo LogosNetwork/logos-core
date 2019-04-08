@@ -19,7 +19,7 @@ EpochConsensusManager::EpochConsensusManager(
     : Manager(service, store, config,
               validator, p2p, epoch_number)
 {
-	Tip tip;
+    Tip tip;
     if (_store.epoch_tip_get(tip))
     {
         LOG_FATAL(_log) << "Failed to get epoch's previous hash";
@@ -149,7 +149,7 @@ uint8_t
 EpochConsensusManager::DesignatedDelegate(
     std::shared_ptr<DelegateMessage> message)
 {
-	Tip tip;
+    Tip tip;
     ApprovedMB block;
 
     if (_store.micro_block_tip_get(tip))

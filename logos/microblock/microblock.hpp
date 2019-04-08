@@ -41,7 +41,7 @@ struct MicroBlock : PrePrepareCommon
 
         for(int i = 0; i < NUM_DELEGATES; ++i)
         {
-        	new (&tips[i]) Tip(error, stream);
+            new (&tips[i]) Tip(error, stream);
             if(error)
             {
                 return;
@@ -57,7 +57,7 @@ struct MicroBlock : PrePrepareCommon
         blake2b_update(&hash, &nbb, sizeof(uint32_t));
         for(int i = 0; i < NUM_DELEGATES; ++i)
         {
-        	tips[i].Hash(hash);
+            tips[i].Hash(hash);
         }
     }
 

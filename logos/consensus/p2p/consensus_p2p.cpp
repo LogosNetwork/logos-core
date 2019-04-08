@@ -147,7 +147,7 @@ void ConsensusP2p<CT>::RetryValidate(const logos::block_hash &hash)
         }
         ApplyCacheUpdates(block, value.second.second, value.second.first, status);
     }
-}		
+}
 
 template<ConsensusType CT>
 void ConsensusP2p<CT>::CacheInsert(

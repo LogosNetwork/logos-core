@@ -46,7 +46,7 @@ bool AggSignature::operator!= (AggSignature const & other) const
 PrePrepareCommon::PrePrepareCommon()
     : primary_delegate(0xff)
     , epoch_number(0)
-	, delegates_epoch_number(0)
+    , delegates_epoch_number(0)
     , sequence(0)
     , timestamp(GetStamp())
     , previous()
@@ -62,8 +62,8 @@ PrePrepareCommon::PrePrepareCommon(bool & error, logos::stream & stream)
     }
     if(primary_delegate >= NUM_DELEGATES && primary_delegate != 0xff)
     {
-    	error = true;
-    	return;
+        error = true;
+        return;
     }
     error = logos::read(stream, epoch_number);
     if(error)
@@ -104,13 +104,13 @@ PrePrepareCommon::PrePrepareCommon(bool & error, logos::stream & stream)
 
 PrePrepareCommon & PrePrepareCommon::operator= (const PrePrepareCommon & other)
 {
-    primary_delegate 		= other.primary_delegate;
-    epoch_number     		= other.epoch_number;
-    delegates_epoch_number 	= other.delegates_epoch_number;
-    sequence         		= other.sequence;
-    timestamp        		= other.timestamp;
-    previous         		= other.previous;
-    preprepare_sig   		= other.preprepare_sig;
+    primary_delegate         = other.primary_delegate;
+    epoch_number             = other.epoch_number;
+    delegates_epoch_number     = other.delegates_epoch_number;
+    sequence                 = other.sequence;
+    timestamp                = other.timestamp;
+    previous                 = other.previous;
+    preprepare_sig           = other.preprepare_sig;
 
     return *this;
 }
