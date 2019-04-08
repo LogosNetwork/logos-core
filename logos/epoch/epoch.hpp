@@ -6,6 +6,7 @@
 #include <logos/consensus/messages/common.hpp>
 #include <logos/lib/merkle.hpp>
 #include <logos/lib/numbers.hpp>
+#include <logos/lib/ecies.hpp>
 
 #include <bls/bls.hpp>
 
@@ -17,6 +18,7 @@ struct Delegate
 {
     AccountAddress      account;
     DelegatePubKey      bls_pub;
+    ECIESPublicKey      ecies_pub;
     Amount              vote;
     Amount              stake;
     bool                starting_term;
@@ -24,6 +26,7 @@ struct Delegate
     Delegate()
     : account()
     , bls_pub()
+    , ecies_pub()
     , vote(0)
     , stake(0)
     , starting_term(false)
@@ -31,10 +34,12 @@ struct Delegate
 
     Delegate(AccountAddress const & account,
             DelegatePubKey const & bls_pub,
+            ECIESPublicKey & ecies_pub,
             Amount vote,
             Amount stake)
     : account(account)
     , bls_pub(bls_pub)
+    , ecies_pub(ecies_pub)
     , vote(vote)
     , stake(stake)
     , starting_term(false)
@@ -44,6 +49,7 @@ struct Delegate
     {
         account.Hash(hash);
         bls_pub.Hash(hash);
+        ecies_pub.Hash(hash);
         blake2b_update(&hash, vote.bytes.data(), vote.bytes.size());
         blake2b_update(&hash, stake.bytes.data(), stake.bytes.size());
     }
@@ -52,6 +58,7 @@ struct Delegate
     {
         uint32_t s = logos::write(stream, account);
         s += logos::write(stream, bls_pub);
+        s += ecies_pub.Serialize(stream);
         s += logos::write(stream, vote);
         s += logos::write(stream, stake);
         s += logos::write(stream, starting_term);
@@ -67,6 +74,12 @@ struct Delegate
         }
 
         error = logos::read(stream, bls_pub);
+        if(error)
+        {
+            return;
+        }
+
+        error = ecies_pub.Deserialize(stream);
         if(error)
         {
             return;
@@ -90,6 +103,7 @@ struct Delegate
     {
         epoch_block.put("account", account.to_string());
         epoch_block.put("bls_pub", bls_pub.to_string());
+        ecies_pub.SerializeJson(epoch_block);
         epoch_block.put("vote", vote.to_string());
         epoch_block.put("stake", stake.to_string());
         epoch_block.put("starting_term", starting_term);
@@ -100,6 +114,7 @@ struct Delegate
     {
         return account == other.account
             && bls_pub == other.bls_pub
+            && ecies_pub == other.ecies_pub
             && vote == other.vote
             && stake == other.stake
             && starting_term == other.starting_term;

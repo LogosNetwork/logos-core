@@ -6,7 +6,11 @@
     static_assert(false, "Only LITTLE_ENDIAN machines are supported!");
 #endif
 
-constexpr size_t P2pConsensusHeader::P2PHEADER_SIZE;
+constexpr size_t P2pConsensusHeader::HEADER_SIZE;
+constexpr size_t P2pHeader::HEADER_SIZE;
+constexpr size_t AddressAd::IP_LENGTH;
+constexpr size_t AddressAd::SIZE;
+constexpr size_t AddressAdTxAcceptor::SIZE;
 
 ConnectedClientIds::ConnectedClientIds(uint32_t epoch_number,
                                        uint8_t delegate_id,

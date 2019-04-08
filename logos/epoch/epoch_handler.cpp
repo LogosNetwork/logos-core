@@ -1,7 +1,7 @@
 /// @file
 /// This file contains implementation of the EpochHandler class, which is used
 /// in the Epoch processing
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/blockstore.hpp>
 #include <logos/lib/trace.hpp>

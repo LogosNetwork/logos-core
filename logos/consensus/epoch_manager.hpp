@@ -8,7 +8,7 @@
 #include <logos/consensus/request/request_consensus_manager.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 #include <logos/network/consensus_netio_manager.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/lib/utility.hpp>
 
 class Archiver;
@@ -73,7 +73,8 @@ public:
                  const uint32_t epoch_number,
                  NewEpochEventHandler & event_handler,
                  p2p_interface & p2p,
-                 uint8_t delegate_id);
+                 uint8_t delegate_id,
+                 PeerAcceptorStarter & starter);
 
     ~EpochManager();
 
@@ -106,7 +107,7 @@ public:
         return _delegate_id;
     }
 
-    void Start(PeerAcceptorStarter & starter);
+    void Start();
 
 private:
 

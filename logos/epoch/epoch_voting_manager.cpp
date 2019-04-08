@@ -3,7 +3,7 @@
 /// This file contains definition of the EpochVotingManager class which handles epoch voting
 ///
 
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/elections/requests.hpp>
@@ -134,6 +134,7 @@ std::vector<Delegate> EpochVotingManager::GetDelegateElects(size_t num_new, uint
                     Delegate d(
                             p.first,
                             p.second.bls_key,
+                            p.second.ecies_key,
                             p.second.votes_received_weighted,
                             p.second.stake);
                     d.starting_term = true;

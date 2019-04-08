@@ -4,7 +4,7 @@
 ///
 #include <logos/consensus/epoch/epoch_backup_delegate.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/lib/trace.hpp>

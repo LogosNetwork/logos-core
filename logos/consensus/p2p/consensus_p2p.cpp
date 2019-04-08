@@ -1,60 +1,62 @@
 #include <logos/consensus/p2p/consensus_p2p.hpp>
 #include <logos/consensus/messages/util.hpp>
 
-template<ConsensusType CT>
-ConsensusP2pOutput<CT>::ConsensusP2pOutput(p2p_interface & p2p,
-                                           uint8_t delegate_id)
+ConsensusP2pOutput::ConsensusP2pOutput(p2p_interface & p2p,
+                                       uint8_t delegate_id)
     : _p2p(p2p)
     , _delegate_id(delegate_id)
 {}
 
-template<ConsensusType CT>
-void ConsensusP2pOutput<CT>::AddMessageToBuffer(const uint8_t *data,
-                                                uint32_t size,
-                                                MessageType message_type,
-                                                uint32_t epoch_number,
-                                                uint8_t dest_delegate_id)
+void ConsensusP2pOutput::AddMessageToBuffer(const uint8_t *data,
+                                            uint32_t size,
+                                            MessageType message_type,
+                                            uint32_t epoch_number,
+                                            uint8_t dest_delegate_id)
 {
-    _p2p_buffer.resize(size + P2pConsensusHeader::P2PHEADER_SIZE);
+    P2pHeader p2pheader={logos_version, P2pAppType::Consensus};
+    auto hdrs_size = P2pHeader::HEADER_SIZE + P2pConsensusHeader::HEADER_SIZE;
+    _p2p_buffer.resize(size + hdrs_size);
     uint8_t src_delegate_id = _delegate_id;
     if (message_type == MessageType::Post_Committed_Block)
     {
         src_delegate_id = 0xff;
         dest_delegate_id = 0xff;
     }
-    P2pConsensusHeader header={epoch_number, src_delegate_id, dest_delegate_id};
-    std::vector<uint8_t> hdr_buf;
-    assert(header.Serialize(hdr_buf) == P2pConsensusHeader::P2PHEADER_SIZE);
-    memcpy(_p2p_buffer.data(), hdr_buf.data(), hdr_buf.size());
-    memcpy(_p2p_buffer.data() + P2pConsensusHeader::P2PHEADER_SIZE, data, size);
+    P2pConsensusHeader header = {epoch_number, src_delegate_id, dest_delegate_id};
+    std::vector<uint8_t> buf;
+    {
+        logos::vectorstream stream(buf);
+        assert(p2pheader.Serialize(stream) == P2pHeader::HEADER_SIZE);
+        assert(header.Serialize(buf) == P2pConsensusHeader::HEADER_SIZE);
+    }
+    memcpy(_p2p_buffer.data(), buf.data(), buf.size());
+    memcpy(_p2p_buffer.data() + hdrs_size, data, size);
 
-    LOG_DEBUG(_log) << "ConsensusP2pOutput<" << ConsensusToName(CT)
-                    << "> - message type " << MessageToName(message_type)
+    LOG_DEBUG(_log) << "ConsensusP2pOutput"
+                    << " - message type " << MessageToName(message_type)
                     << ", size " << size
                     << " is added to p2p to delegate " << (unsigned)_delegate_id;
 }
 
-template<ConsensusType CT>
-void ConsensusP2pOutput<CT>::Clean()
+void ConsensusP2pOutput::Clean()
 {
     _p2p_buffer.clear();
 }
 
-template<ConsensusType CT>
-bool ConsensusP2pOutput<CT>::Propagate()
+bool ConsensusP2pOutput::Propagate()
 {
     bool res = _p2p.PropagateMessage(&_p2p_buffer[0], _p2p_buffer.size(), true);
 
     if (res)
     {
-        LOG_INFO(_log) << "ConsensusP2pOutput<" << ConsensusToName(CT)
-                       << "> - p2p of size " << _p2p_buffer.size()
+        LOG_INFO(_log) << "ConsensusP2pOutput"
+                       << " - p2p of size " << _p2p_buffer.size()
                        << " propagated to delegate " << (unsigned)_delegate_id << ".";
     }
     else
     {
-        LOG_ERROR(_log) << "ConsensusP2pOutput<" << ConsensusToName(CT)
-                        << "> - p2p not propagated to delegate " << (unsigned)_delegate_id << ".";
+        LOG_ERROR(_log) << "ConsensusP2pOutput"
+                        << " - p2p not propagated to delegate " << (unsigned)_delegate_id << ".";
     }
 
     Clean();
@@ -62,12 +64,11 @@ bool ConsensusP2pOutput<CT>::Propagate()
     return res;
 }
 
-template<ConsensusType CT>
-bool ConsensusP2pOutput<CT>::ProcessOutputMessage(const uint8_t *data,
-                                                  uint32_t size,
-                                                  MessageType message_type,
-                                                  uint32_t epoch_number,
-                                                  uint8_t dest_delegate_id)
+bool ConsensusP2pOutput::ProcessOutputMessage(const uint8_t *data,
+                                              uint32_t size,
+                                              MessageType message_type,
+                                              uint32_t epoch_number,
+                                              uint8_t dest_delegate_id)
 {
     Clean();
 
@@ -432,10 +433,6 @@ bool ContainerP2p::is_blacklisted(const logos::endpoint & e)
 {
     return _p2p.is_blacklisted(e.address().to_string().c_str());
 }
-
-template class ConsensusP2pOutput<ConsensusType::Request>;
-template class ConsensusP2pOutput<ConsensusType::MicroBlock>;
-template class ConsensusP2pOutput<ConsensusType::Epoch>;
 
 template class ConsensusP2p<ConsensusType::Request>;
 template class ConsensusP2p<ConsensusType::MicroBlock>;

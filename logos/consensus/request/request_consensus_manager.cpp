@@ -4,7 +4,7 @@
 #include <logos/consensus/request/request_consensus_manager.hpp>
 #include <logos/consensus/request/request_backup_delegate.hpp>
 #include <logos/consensus/epoch_manager.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 
 const boost::posix_time::seconds RequestConsensusManager::ON_CONNECTED_TIMEOUT{10};
 RequestHandler RequestConsensusManager::_handler;

@@ -12,7 +12,6 @@
 
 constexpr Milliseconds P2P_DEFAULT_CLOCK_DRIFT = Milliseconds(1000*60*60);
 
-template<ConsensusType CT>
 class ConsensusP2pOutput
 {
 public:

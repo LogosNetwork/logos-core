@@ -8,7 +8,7 @@
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 #include <logos/network/epoch_peer_manager.hpp>
 #include <logos/network/consensus_netio_manager.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/p2p/consensus_p2p.hpp>
@@ -244,6 +244,10 @@ private:
     std::shared_ptr<EpochManager>
     CreateEpochManager(uint epoch_number, const ConsensusManagerConfig &config,
         EpochTransitionDelegate delegate, EpochConnection connnection);
+
+    bool DeliverP2pConsensus(logos::bufferstream &stream, const void *data, size_t size);
+    bool DeliverP2pAddressAd(logos::bufferstream &stream);
+    bool DeliverP2pAddressAdTxAcceptor(logos::bufferstream &stream);
 
     static const std::chrono::seconds GARBAGE_COLLECT;
 

@@ -7,7 +7,7 @@
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/elections/candidate.hpp>
 #include <logos/elections/representative.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/persistence/persistence.hpp>
 

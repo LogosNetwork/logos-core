@@ -9,8 +9,9 @@
 #include <logos/lib/blocks.hpp>
 #include <logos/lib/log.hpp>
 #include <logos/lib/trace.hpp>
-#include <arpa/inet.h>
+#include <logos/lib/ecies.hpp>
 
+#include <arpa/inet.h>
 
 static constexpr size_t MAX_MSG_SIZE = 1024*1024;
 // TODO: Update based on new request types
@@ -443,6 +444,41 @@ struct HeartBeat : MessagePrequel<MessageType::Heart_Beat,
 
 void UpdateNext(const logos::mdb_val &mdbval, logos::mdb_val &mdbval_buf, const BlockHash &next);
 
+struct P2pHeader
+{
+    P2pHeader(uint8_t v, P2pAppType at)
+    : version(v)
+    , app_type (at)
+    {}
+    P2pHeader(bool &error, logos::stream & stream)
+    {
+        Deserialize(error, stream);
+    }
+    P2pHeader(bool &error, std::vector<uint8_t> & buf)
+    {
+        logos::vectorstream stream(buf);
+        Deserialize(error, stream);
+    }
+    void Deserialize(bool &error, logos::stream &stream)
+    {
+        error = logos::read(stream, version) ||
+                logos::read(stream, app_type);
+    }
+    uint32_t Serialize(logos::vectorstream &stream)
+    {
+        return logos::write(stream, version) +
+               logos::write(stream, app_type);
+    }
+    uint32_t Serialize(std::vector<uint8_t> &buf)
+    {
+        logos::vectorstream stream(buf);
+        return Serialize(stream);
+    }
+    uint8_t version;
+    P2pAppType app_type;
+    static constexpr size_t HEADER_SIZE = sizeof(version) + sizeof(app_type);
+};
+
 struct P2pConsensusHeader
 {
     P2pConsensusHeader(uint32_t epoch, uint8_t src, uint8_t dest)
@@ -461,7 +497,7 @@ struct P2pConsensusHeader
     void Deserialize(bool &error, logos::stream &stream)
     {
         error = logos::read(stream, epoch_number) ||
-                logos::read(stream, src_delegate_id);
+                logos::read(stream, src_delegate_id) ||
                 logos::read(stream, dest_delegate_id);
     }
 
@@ -481,9 +517,153 @@ struct P2pConsensusHeader
     uint32_t    epoch_number = 0;
     uint8_t     src_delegate_id = 0;
     uint8_t     dest_delegate_id = 0;
-    static constexpr size_t P2PHEADER_SIZE = sizeof(epoch_number) +
+    static constexpr size_t HEADER_SIZE = sizeof(epoch_number) +
                 sizeof(src_delegate_id) +
                 sizeof(dest_delegate_id);
+};
+
+struct AddressAd
+{
+    static constexpr size_t IP_LENGTH = 16;
+    const std::string ipv6_prefix = "::ffff:";
+    AddressAd(uint8_t delegate_id_,
+              uint16_t epoch_number_,
+              const char* ip_,
+              uint16_t port_,
+              uint64_t stamp_,
+              DelegateSig signature_=0)
+    : delegate_id(delegate_id_)
+    , epoch_number(epoch_number_)
+    , port(port_)
+    , stamp(stamp_)
+    , signature(signature_)
+    {
+        std::string ipstr = ip_;
+        if (ipstr.find(ipv6_prefix) != 0)
+        {
+            ipstr = ipv6_prefix + ipstr;
+        }
+        inet_pton(AF_INET6, ipstr.c_str(), ip.data());
+    }
+    AddressAd(bool &error, logos::stream &stream)
+    {
+        Deserialize(error, stream);
+    }
+    void Deserialize(bool &error, logos::stream &stream)
+    {
+        std::string cyphertext;
+        error = logos::read(stream, delegate_id) ||
+                logos::read(stream, epoch_number) ||
+                logos::read(stream, cyphertext) ||
+                logos::read(stream, stamp) ||
+                logos::read(stream, signature);
+        if (!error) {
+            vector<uint8_t> buf(ip.size() + sizeof(port));
+            logos::genesis_delegates[0].ecies_key.prv.Decrypt(cyphertext, buf.data(), buf.size());
+            memcpy(ip.data(), buf.data(), ip.size());
+            memcpy(&port, buf.data()+ip.size(), sizeof(port));
+        }
+    }
+    uint32_t Serialize(logos::vectorstream &stream)
+    {
+        vector<uint8_t> buf(ip.size()+sizeof(port));
+        memcpy(buf.data(), ip.data(), ip.size());
+        memcpy(buf.data()+ip.size(), &port, sizeof(port));
+        std::string cyphertext;
+        //logos::genesis_delegates[0].ecies_key.pub.Encrypt(buf.data(), buf.size(), cyphertext);
+        logos::genesis_delegates[0].ecies_key.pub.Encrypt(cyphertext, buf.data(), buf.size());
+        return logos::write(stream, delegate_id) +
+               logos::write(stream, epoch_number) +
+               logos::write(stream, cyphertext) +
+               logos::write(stream, stamp) +
+               logos::write(stream, signature);
+    }
+    uint32_t Serialize(std::vector<uint8_t> &buf)
+    {
+        logos::vectorstream stream(buf);
+        return Serialize(stream);
+    }
+    virtual BlockHash Hash() const
+    {
+        return Blake2bHash<AddressAd>(*this);
+    }
+
+    virtual void Hash(blake2b_state & hash) const
+    {
+        blake2b_update(&hash, &delegate_id, sizeof(delegate_id));
+        blake2b_update(&hash, &epoch_number, sizeof(epoch_number));
+        blake2b_update(&hash, ip.data(), ip.size());
+        blake2b_update(&hash, &port, sizeof(port));
+        blake2b_update(&hash, &stamp, sizeof(stamp));
+        blake2b_update(&hash, &signature, sizeof(signature));
+    }
+
+    std::string GetIP()
+    {
+        std::string ipstr;
+        char ip_[INET6_ADDRSTRLEN+1]={0};
+        auto res = inet_ntop(AF_INET6, ip.data(), ip_, INET6_ADDRSTRLEN);
+        assert(res != NULL);
+        ipstr = ip_;
+        if (ipstr.find(ipv6_prefix) == 0)
+        {
+            ipstr = ipstr.substr(ipv6_prefix.size());
+        }
+        return ipstr;
+    }
+
+    uint8_t delegate_id;
+    uint16_t epoch_number;
+    std::array<uint8_t, IP_LENGTH> ip;
+    uint16_t port;
+    uint64_t stamp;
+    DelegateSig signature;
+    static constexpr size_t SIZE = sizeof(delegate_id) + sizeof(epoch_number) +
+                                   IP_LENGTH + sizeof(port) + sizeof(stamp) + sizeof(signature);
+};
+
+struct AddressAdTxAcceptor : AddressAd
+{
+    AddressAdTxAcceptor(uint8_t delegate_id_,
+              uint16_t epoch_number_,
+              const char* ip_,
+              uint16_t port_,
+              uint16_t json_port_,
+              uint64_t stamp_,
+              DelegateSig signature_)
+    : AddressAd(delegate_id_, epoch_number_, ip_, port_, stamp_, signature_)
+    , json_port(json_port_)
+    {}
+    AddressAdTxAcceptor(bool &error, logos::stream &stream)
+    : AddressAd(error, stream)
+    {
+        Deserialize(error, stream);
+    }
+    void Deserialize(bool &error, logos::stream &stream)
+    {
+        error = logos::read(stream, json_port);
+    }
+    uint32_t Serialize(logos::vectorstream &stream)
+    {
+        return logos::write(stream, json_port);
+    }
+    uint32_t Serialize(std::vector<uint8_t> &buf)
+    {
+        logos::vectorstream stream(buf);
+        return Serialize(stream);
+    }
+    BlockHash Hash() const override
+    {
+        AddressAd::Hash();
+        return Blake2bHash<AddressAdTxAcceptor>(*this);
+    }
+
+    void Hash(blake2b_state & hash) const override
+    {
+        blake2b_update(&hash, &json_port, sizeof(json_port));
+    }
+    uint16_t json_port;
+    static constexpr size_t SIZE = AddressAd::SIZE + sizeof(json_port);
 };
 
 // Convenience aliases for message names.

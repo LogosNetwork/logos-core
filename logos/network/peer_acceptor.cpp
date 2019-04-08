@@ -1,5 +1,5 @@
 #include <logos/network/peer_acceptor.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 
 PeerAcceptor::PeerAcceptor(Service & service,
                            const Endpoint & local_endpoint,

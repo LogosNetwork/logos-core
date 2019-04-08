@@ -17,7 +17,9 @@ namespace logos {
     class node_config;
     class block_store;
     class transaction;
+    class alarm;
 }
+class p2p_interface;
 
 static constexpr uint8_t NON_DELEGATE = 0xff;
 
@@ -32,12 +34,13 @@ class DelegateIdentityManager
     using Config    = ConsensusManagerConfig;
     using IPs       = std::map<AccountAddress, std::string>;
     using Accounts  = AccountAddress[NUM_DELEGATES];
+    using Alarm     = logos::alarm;
 
 public:
     /// Class constructor
     /// @param store logos block store reference
     /// @param config node configuration reference
-    DelegateIdentityManager(Store&, const Config&);
+    DelegateIdentityManager(Alarm &alarm, Store&, const Config&, p2p_interface & p2p);
 
     ~DelegateIdentityManager() = default;
 
@@ -84,11 +87,16 @@ public:
         return _epoch_transition_enabled;
     }
 
+    void Advertise(uint32_t epoch_number, uint8_t delegate_id);
+    static constexpr int RETRY_PROPAGATE = 5;
+
+    Alarm &                 _alarm;
     Store &                 _store;                ///< logos block store reference
     static AccountAddress   _delegate_account;     ///< this delegate's account or 0 if non-delegate
     static IPs              _delegates_ip;         ///< all delegates ip
     static uint8_t          _global_delegate_idx;  ///< global delegate index in all delegate's list
     Log                     _log;                  ///< boost log instances
     static bool             _epoch_transition_enabled; ///< is epoch transition enabled
-
+    p2p_interface &         _p2p;                  ///< p2p interface reference
+    Config                  _config;               ///< consensus configuration
 };

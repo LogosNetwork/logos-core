@@ -18,7 +18,8 @@ EpochManager::EpochManager(Service & service,
                            const uint32_t epoch_number,
                            NewEpochEventHandler & handler,
                            p2p_interface & p2p,
-                           uint8_t delegate_id)
+                           uint8_t delegate_id,
+                           PeerAcceptorStarter & starter)
     : _state(state)
     , _delegate(delegate)
     , _connection_state(connection)
@@ -29,7 +30,7 @@ EpochManager::EpochManager(Service & service,
     , _micro_manager(std::make_shared<MicroBlockConsensusManager>(service, store, config, _validator, archiver, p2p, epoch_number))
     , _epoch_manager(std::make_shared<EpochConsensusManager>(service, store, config, _validator, p2p, epoch_number))
     , _netio_manager(std::make_shared<ConsensusNetIOManager>(_request_manager, _micro_manager, _epoch_manager,
-                     service, alarm, config, _key_store, _validator))
+                     service, alarm, config, _key_store, _validator, starter))
     , _delegate_id(delegate_id)
 {
 }
@@ -85,11 +86,11 @@ EpochManager::CleanUp()
 }
 
 void
-EpochManager::Start(PeerAcceptorStarter & starter)
+EpochManager::Start()
 {
     auto this_l = shared_from_this();
     _request_manager->Init(this_l);
     _micro_manager->Init(this_l);
     _epoch_manager->Init(this_l);
-    _netio_manager->Start(this_l, starter);
+    _netio_manager->Start(this_l);
 }

@@ -345,6 +345,9 @@ void PrimaryDelegate::SetQuorum(uint128_t & max_fault, uint128_t & quorum, const
 
 bool PrimaryDelegate::ReachedQuorum(uint128_t vote, uint128_t stake)
 {
+    LOG_TRACE(_log) << "PrimaryDelegate::ReachedQuorum, vote " << _vote_quorum << "/" << vote
+                    << ", stake " << _stake_quorum << "/" << stake
+                    << ", quorum: " << (vote >= _vote_quorum) && (stake >= _stake_quorum);
     return (vote >= _vote_quorum) && (stake >= _stake_quorum);
 }
 

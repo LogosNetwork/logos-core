@@ -63,7 +63,8 @@ public:
         logos::alarm & alarm, 
         const Config & config,
         DelegateKeyStore & key_store,
-        MessageValidator & validator);
+        MessageValidator & validator,
+        PeerAcceptorStarter & starter);
 
     ~ConsensusNetIOManager();
 
@@ -95,7 +96,9 @@ public:
                              uint32_t payload_size,
                              uint8_t delegate_id=0xff) override;
 
-    void Start(std::shared_ptr<EpochInfo> epoch_info, PeerAcceptorStarter & starter);
+    void Start(std::shared_ptr<EpochInfo> epoch_info);
+
+    void AddDelegate(uint8_t delegate_id, std::string &&ip, uint16_t port);
 
 protected:
 
@@ -139,4 +142,5 @@ private:
     Timer                          _heartbeat_timer;    ///< Heartbeat/gb timer to handle heartbeat and gb
     std::mutex                     _gb_mutex;           ///< Garbage mutex
     Config                         _config;
+    PeerAcceptorStarter &          _acceptor;
 };

@@ -5,7 +5,7 @@
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/messages/receive_block.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/request/utility.hpp>
 #include <logos/epoch/archiver.hpp>
@@ -81,8 +81,9 @@ ConsensusContainer::CreateEpochManager(
     auto res = std::make_shared<EpochManager>(_service, _store, _alarm, config,
                                               _archiver, _transition_state,
                                               delegate, connection, epoch_number, *this, _p2p._p2p,
-                                              config.delegate_id);
-    res->Start(_peer_manager);
+                                              config.delegate_id, _peer_manager);
+    res->Start();
+    _identity_manager.Advertise(epoch_number, config.delegate_id);
     return res;
 }
 
@@ -575,7 +576,7 @@ ConsensusContainer::CheckEpochNull(bool is_null, const char* where)
 bool
 ConsensusContainer::OnP2pReceive(const void *data, size_t size)
 {
-    auto hdrs_size = P2pConsensusHeader::P2PHEADER_SIZE + MessagePrequelSize;
+    auto hdrs_size = P2pHeader::HEADER_SIZE + P2pConsensusHeader::HEADER_SIZE + MessagePrequelSize;
     if (size < hdrs_size)
     {
         LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid message, size is less than header, "
@@ -585,7 +586,36 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
 
     bool error = false;
     logos::bufferstream stream((const uint8_t*)data, size);
-    P2pConsensusHeader p2pheader(error, stream);
+    P2pHeader p2pheader(error, stream);
+    if (error)
+    {
+        LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, failed to deserialize P2pHeader";
+        return false;
+    }
+
+    LOG_DEBUG(_log) << "ConsensusContainer::OnP2pReceive, received p2p message "
+                    << p2pheader.app_type
+                    << ", size " << size;
+
+    switch (p2pheader.app_type)
+    {
+        case P2pAppType::Consensus:
+            return DeliverP2pConsensus(stream, data, size);
+        case P2pAppType::AddressAd:
+            return DeliverP2pAddressAd(stream);
+        case P2pAppType::AddressAdTxAcceptor:
+            return DeliverP2pAddressAdTxAcceptor(stream);
+        default:
+            return false;
+    }
+}
+
+bool
+ConsensusContainer::DeliverP2pConsensus(logos::bufferstream &stream, const void *data, size_t size)
+{
+    auto hdrs_size = P2pHeader::HEADER_SIZE + P2pConsensusHeader::HEADER_SIZE + MessagePrequelSize;
+    bool error;
+    P2pConsensusHeader p2pconsensus_header(error, stream);
     if (error)
     {
         LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, failed to deserialize P2pConsensusHeader";
@@ -619,32 +649,82 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
     {
         OptLock lock(_transition_state, _mutex);
 
-        if (_cur_epoch && _cur_epoch->GetEpochNumber() == p2pheader.epoch_number) {
+        if (_cur_epoch && _cur_epoch->GetEpochNumber() == p2pconsensus_header.epoch_number) {
             epoch = _cur_epoch;
-        } else if (_trans_epoch && _trans_epoch->GetEpochNumber() == p2pheader.epoch_number) {
+        } else if (_trans_epoch && _trans_epoch->GetEpochNumber() == p2pconsensus_header.epoch_number) {
             epoch = _trans_epoch;
         }
     }
 
-    if (epoch && (p2pheader.dest_delegate_id == 0xff ||
-            p2pheader.dest_delegate_id == epoch->GetDelegateId()))
+    if (epoch && (p2pconsensus_header.dest_delegate_id == 0xff ||
+                  p2pconsensus_header.dest_delegate_id == epoch->GetDelegateId()))
     {
         LOG_DEBUG(_log) << "ConsensusContainer::OnP2pReceive, adding to consensus queue "
                         << MessageToName(prequel.type) << " " << ConsensusToName(prequel.consensus_type)
                         << " payload size " << prequel.payload_size
-                        << " src delegate " << (int)p2pheader.src_delegate_id
-                        << " dest delegate " << (int)p2pheader.dest_delegate_id;
+                        << " src delegate " << (int)p2pconsensus_header.src_delegate_id
+                        << " dest delegate " << (int)p2pconsensus_header.dest_delegate_id;
 
         return epoch->_netio_manager->AddToConsensusQueue(payload_data, prequel.version,
-                                                         prequel.type, prequel.consensus_type,
-                                                         prequel.payload_size, p2pheader.src_delegate_id);
+                                                          prequel.type, prequel.consensus_type,
+                                                          prequel.payload_size, p2pconsensus_header.src_delegate_id);
     }
     else
     {
         LOG_WARN(_log) << "ConsensusContainer::OnP2pReceive, no matching epoch or delegate id "
-                       << ", epoch " << p2pheader.epoch_number
-                       << ", delegate id " << (int)p2pheader.dest_delegate_id;
+                       << ", epoch " << p2pconsensus_header.epoch_number
+                       << ", delegate id " << (int)p2pconsensus_header.dest_delegate_id;
     }
 
+    return true;
+}
+
+bool
+ConsensusContainer::DeliverP2pAddressAd(logos::bufferstream &stream)
+{
+    bool error = false;
+    AddressAd addressAd(error, stream);
+    assert(!error);
+
+    std::shared_ptr<EpochManager> epoch = nullptr;
+    {
+        OptLock lock(_transition_state, _mutex);
+
+        if (_cur_epoch && _cur_epoch->GetEpochNumber() == addressAd.epoch_number)
+        {
+            epoch = _cur_epoch;
+        }
+        else if (_trans_epoch && _trans_epoch->GetEpochNumber() == addressAd.epoch_number)
+        {
+            epoch = _trans_epoch;
+        }
+        else
+        {
+            LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, failed to deliver for epoch number "
+                            << addressAd.epoch_number << ", delegate " << (int)addressAd.delegate_id;
+            return false;
+        }
+    }
+
+    LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, delegate " << (int)addressAd.delegate_id
+                    << ", epoch number " << addressAd.epoch_number
+                    << ", ip " << addressAd.GetIP()
+                    << ", port " << addressAd.port;
+
+    epoch->_netio_manager->AddDelegate(addressAd.delegate_id, addressAd.GetIP(), addressAd.port);
+
+    return true;
+}
+
+bool
+ConsensusContainer::DeliverP2pAddressAdTxAcceptor(logos::bufferstream &stream)
+{
+    bool error = false;
+    AddressAdTxAcceptor addressAd(error, stream);
+    assert(!error);
+
+    LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAdTxAcceptor, ip " << addressAd.GetIP()
+                    << ", port " << addressAd.port
+                    << ", json port " << addressAd.json_port;
     return true;
 }

@@ -2,7 +2,7 @@
 // Implementes DelegateBridge class
 //
 
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/network/consensus_netio.hpp>
 #include <logos/consensus/delegate_bridge.hpp>
 #include <logos/consensus/messages/util.hpp>
@@ -12,7 +12,7 @@ DelegateBridge<CT>::DelegateBridge(Service & service,
                                    std::shared_ptr<IOChannel> iochannel,
                                    p2p_interface & p2p,
                                    uint8_t delegate_id)
-    : ConsensusP2pBridge<CT>(service, p2p, delegate_id)
+    : ConsensusP2pBridge(service, p2p, delegate_id)
     , _iochannel(iochannel)
 {}
 

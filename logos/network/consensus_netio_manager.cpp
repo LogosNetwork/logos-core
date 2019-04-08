@@ -19,9 +19,9 @@ ConsensusNetIOManager::ConsensusNetIOManager(std::shared_ptr<NetIOHandler> reque
                                              logos::alarm & alarm, 
                                              const Config & config,
                                              DelegateKeyStore & key_store,
-                                             MessageValidator & validator)
+                                             MessageValidator & validator,
+                                             PeerAcceptorStarter & starter)
     : _service(service)
-    , _delegates(config.delegates)
     , _consensus_managers({
             {ConsensusType::Request, request_manager},
             {ConsensusType::MicroBlock, micro_manager},
@@ -33,42 +33,47 @@ ConsensusNetIOManager::ConsensusNetIOManager(std::shared_ptr<NetIOHandler> reque
     , _delegate_id(config.delegate_id)
     , _heartbeat_timer(service)
     , _config(config)
+    , _acceptor(starter)
 {
+    _key_store.OnPublicKey(_delegate_id, _validator.GetPublicKey());
 }
 
 void
-ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info, PeerAcceptorStarter & starter)
+ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info)
 {
     _epoch_info = epoch_info;
-    uint server_endpoints;
 
-    auto local_endpoint(Endpoint(make_address_v4(_config.local_address),
-                        _config.peer_port));
-
-    _key_store.OnPublicKey(_delegate_id, _validator.GetPublicKey());
-
-    for(auto & delegate : _delegates)
+    if(_delegate_id != 0)
     {
-        if(_delegate_id < delegate.id)
-        {
-            auto endpoint = Endpoint(make_address_v4(delegate.ip),
-                                     local_endpoint.port());
-            AddNetIOConnection(_service, delegate.id, endpoint);
-        }
-        else if (delegate.id != _delegate_id)
-        {
-            ++server_endpoints;
-        }
-    }
-
-    if(server_endpoints > 0)
-    {
-        starter.Start();
+        _acceptor.Start();
     }
 
     ScheduleTimer(HEARTBEAT);
 }
 
+void
+ConsensusNetIOManager::AddDelegate(uint8_t delegate_id, std::string &&ip, uint16_t port)
+{
+    if (std::find_if(_delegates.begin(), _delegates.end(), [&](auto delegate){
+            return delegate.id == delegate_id;}) != _delegates.end())
+    {
+        LOG_DEBUG(_log) << "ConsensusNetIOManager::AddDelegate, delegate id " << (int) delegate_id
+                        << " is already connected ";
+        return;
+    }
+
+    _delegates.push_back({ip, delegate_id});
+
+    if (_delegate_id < delegate_id)
+    {
+        auto endpoint = Endpoint(make_address_v4(ip), port);
+        AddNetIOConnection(_service, delegate_id, endpoint);
+    }
+    else if (delegate_id != _delegate_id)
+    {
+        _acceptor.Start();
+    }
+}
 
 ConsensusNetIOManager::~ConsensusNetIOManager()
 {
@@ -180,7 +185,9 @@ ConsensusNetIOManager::AddNetIOConnection(
         BindIOChannel(netio, id);
     };
 
-    void (ConsensusNetIO::*cb)();
+    using PtrMemberFun = void (ConsensusNetIO::*)(); // ConsensusNetIO member function pointer
+
+    PtrMemberFun cb;
     auto info = GetSharedPtr(_epoch_info, "ConsensusNetIOManager::AddNetIOConnection, object destroyed");
     if (!info)
     {

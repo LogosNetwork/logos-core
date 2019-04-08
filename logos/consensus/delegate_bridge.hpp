@@ -23,7 +23,7 @@ public:
 };
 
 template<ConsensusType CT>
-class DelegateBridge : public ConsensusP2pBridge<CT>,
+class DelegateBridge : public ConsensusP2pBridge,
                        public MessageParser
 {
     using PrePrepare  = PrePrepareMessage<CT>;
@@ -64,8 +64,8 @@ protected:
     {
         // backup delegate replies via p2p if the message was received via p2p
         // p2p is disabled after the reply
-        auto ret = ConsensusP2pBridge<CT>::SendP2p(data, size, message_type, epoch_number, dest_delegate_id);
-        ConsensusP2pBridge<CT>::EnableP2p(false);
+        auto ret = ConsensusP2pBridge::SendP2p(data, size, message_type, epoch_number, dest_delegate_id);
+        ConsensusP2pBridge::EnableP2p(false);
         return ret;
     }
 

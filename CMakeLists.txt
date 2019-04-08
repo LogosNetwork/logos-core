@@ -357,6 +357,8 @@ add_library (node
 	logos/epoch/recall_handler.cpp
 	logos/epoch/epoch_voting_manager.cpp
 	logos/epoch/event_proposer.cpp
+	logos/identity_management/delegate_identity_manager.hpp
+	logos/identity_management/delegate_identity_manager.cpp
 	logos/microblock/microblock.cpp
 	logos/microblock/microblock_handler.cpp
 	logos/microblock/microblock_tester.cpp
@@ -374,8 +376,6 @@ add_library (node
 	logos/node/common.hpp
 	logos/node/node.hpp
 	logos/node/node.cpp
-	logos/node/delegate_identity_manager.hpp
-	logos/node/delegate_identity_manager.cpp
 	logos/node/openclwork.cpp
 	logos/node/openclwork.hpp
 	logos/node/rpc.hpp

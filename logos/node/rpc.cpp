@@ -1183,6 +1183,7 @@ void logos::rpc_handler::block_create ()
                 return;
 
             }
+            created_request->Sign(prv.data);
             if(type == RequestType::Issuance)
             {
                 auto issuance = static_pointer_cast<Issuance>(created_request);

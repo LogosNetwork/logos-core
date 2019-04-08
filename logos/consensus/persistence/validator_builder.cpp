@@ -3,7 +3,7 @@
 /// for non-delegate, TODO : THIS MUST BE UPDATED ONCE THERE IS A TRUE PKI HANDLING
 
 #include <logos/consensus/persistence/validator_builder.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 
 std::unordered_map<uint32_t, ValidatorBuilder::pki> ValidatorBuilder::_epoch_pki;
 uint32_t ValidatorBuilder::_cached_epoch = 0;

@@ -1,5 +1,5 @@
 #include <logos/consensus/consensus_manager.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 
 #include <boost/log/sources/severity_feature.hpp>
@@ -19,7 +19,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
                                        p2p_interface & p2p,
                                        uint32_t epoch_number)
     : PrimaryDelegate(service, validator, epoch_number)
-    , ConsensusP2pBridge<CT>(service, p2p, config.delegate_id)
+    , ConsensusP2pBridge(service, p2p, config.delegate_id)
     , _service(service)
     , _store(store)
     , _validator(validator)
@@ -365,7 +365,7 @@ ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {
                         << " vote " << vote << "/" << _vote_quorum
                         << " stake " << stake << "/" << _stake_quorum;
         std::weak_ptr<ConsensusManager<CT>> this_w = std::dynamic_pointer_cast<ConsensusManager<CT>>(shared_from_this());
-        ConsensusP2pBridge<CT>::ScheduleP2pTimer([this_w](const ErrorCode &ec) {
+        ConsensusP2pBridge::ScheduleP2pTimer([this_w](const ErrorCode &ec) {
             auto this_s = GetSharedPtr(this_w, "ConsensusManager<", ConsensusToName(CT),
                     ">::OnP2pTimeout, object destroyed");
             if (!this_s)
@@ -379,7 +379,7 @@ ConsensusManager<CT>::OnP2pTimeout(const ErrorCode &ec) {
     {
         LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT)
                         << ">::OnP2pTimeout, DELEGATE " << (int)_delegate_id << " DISABLING P2P ";
-        ConsensusP2pBridge<CT>::EnableP2p(false);
+        ConsensusP2pBridge::EnableP2p(false);
     }
 }
 
@@ -387,13 +387,13 @@ template<ConsensusType CT>
 void
 ConsensusManager<CT>::EnableP2p(bool enable)
 {
-    ConsensusP2pBridge<CT>::EnableP2p(enable);
+    ConsensusP2pBridge::EnableP2p(enable);
 
     if (enable)
     {
         std::weak_ptr<ConsensusManager<CT>> this_w =
                 std::dynamic_pointer_cast<ConsensusManager<CT>>(shared_from_this());
-        ConsensusP2pBridge<CT>::ScheduleP2pTimer([this_w](const ErrorCode &ec) {
+        ConsensusP2pBridge::ScheduleP2pTimer([this_w](const ErrorCode &ec) {
             auto this_s = GetSharedPtr(this_w, "ConsensusManager<", ConsensusToName(CT),
                                        ">::EnableP2p, object destroyed");
             if (!this_s)

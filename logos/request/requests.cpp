@@ -148,7 +148,7 @@ Request::Request(bool & error,
             {
                 return;
             }
-            Sign(pub,prv);
+            Sign(prv,pub);
         }
 
         error = logos::from_string_hex(tree.get<std::string>(WORK, "0"), work);
@@ -157,11 +157,11 @@ Request::Request(bool & error,
             return;
         }
 
-        error = next.decode_hex(tree.get<std::string>(NEXT, ""));
-        if(error)
-        {
-            return;
-        }
+        //error = next.decode_hex(tree.get<std::string>(NEXT, ""));
+        //if(error)
+        //{
+        //    return;
+        //}
 
         Hash();
     }

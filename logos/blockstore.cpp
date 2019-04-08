@@ -1372,14 +1372,17 @@ bool logos::block_store::candidate_is_greater(
         const AccountAddress& account2,
         const CandidateInfo& candidate2)
 {
-   Delegate del1(
+    ECIESPublicKey pk{};
+    Delegate del1(
           account1,
           0,
+          pk,
           candidate1.votes_received_weighted,
           candidate1.stake); 
-   Delegate del2(
+    Delegate del2(
           account2,
           0,
+          pk,
           candidate2.votes_received_weighted,
           candidate2.stake);
 

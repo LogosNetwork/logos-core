@@ -845,6 +845,7 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
 {
     if (!p2p)
     {
+         LogPrintf("p2p_interface::PropagateMessage, null p2p\n");
         return false;
     }
 
@@ -853,6 +854,7 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
             || !(output || ReceiveMessageCallback(message, size))
             || !p2p->Propagate(mess))
     {
+        LogPrintf("p2p_interface::PropagateMessage, failed to propagate\n");
         return false;
     }
 

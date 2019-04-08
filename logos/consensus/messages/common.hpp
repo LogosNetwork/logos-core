@@ -33,6 +33,13 @@ enum class MessageType : uint8_t
     Unknown      = 0xff
 };
 
+enum class P2pAppType : uint8_t
+{
+    Consensus = 0,
+    AddressAd = 1,
+    AddressAdTxAcceptor = 2
+};
+
 static constexpr uint8_t logos_version = 0;
 
 /// To implement a new type of consensus :

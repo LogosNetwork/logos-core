@@ -150,5 +150,22 @@ std::ostream& operator<<(std::ostream& os, const RejectionMessage<CT>& m)
     return os;
 }
 
+inline
+std::ostream& operator<<(std::ostream &os, P2pAppType at)
+{
+    switch (at)
+    {
+        case P2pAppType::Consensus:
+            os << "Consensus";
+            break;
+        case P2pAppType::AddressAd:
+            os << "AddressAd";
+            break;
+        case P2pAppType::AddressAdTxAcceptor:
+            os << "AddressAdTxAcceptor";
+            break;
+    }
+    return os;
+}
 
 
