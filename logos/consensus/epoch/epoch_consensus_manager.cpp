@@ -19,11 +19,13 @@ EpochConsensusManager::EpochConsensusManager(
     : Manager(service, store, config,
               validator, p2p, epoch_number)
 {
-    if (_store.epoch_tip_get(_prev_pre_prepare_hash))
+    Tip tip;
+    if (_store.epoch_tip_get(tip))
     {
         LOG_FATAL(_log) << "Failed to get epoch's previous hash";
         trace_and_halt();
     }
+    _prev_pre_prepare_hash = tip.digest;
 }
 
 void 
@@ -147,15 +149,15 @@ uint8_t
 EpochConsensusManager::DesignatedDelegate(
     std::shared_ptr<DelegateMessage> message)
 {
-    BlockHash hash;
+    Tip tip;
     ApprovedMB block;
 
-    if (_store.micro_block_tip_get(hash))
+    if (_store.micro_block_tip_get(tip))
     {
         LOG_FATAL(_log) << "EpochConsensusManager::DesignatedDelegate failed to get microblock tip";
         trace_and_halt();
     }
-
+    BlockHash & hash = tip.digest;
     if (_store.micro_block_get(hash, block))
     {
         LOG_FATAL(_log) << "EpochConsensusManager::DesignatedDelegate failed to get microblock";

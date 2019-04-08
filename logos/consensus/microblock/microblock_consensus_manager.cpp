@@ -12,14 +12,16 @@ MicroBlockConsensusManager::MicroBlockConsensusManager(
                                p2p_interface & p2p,
                                uint32_t epoch_number)
     : Manager(service, store, config,
-	      validator, p2p, epoch_number)
+          validator, p2p, epoch_number)
     , _microblock_handler(handler)
 {
-    if (_store.micro_block_tip_get(_prev_pre_prepare_hash))
+    Tip tip;
+    if (_store.micro_block_tip_get(tip))
     {
         LOG_FATAL(_log) << "Failed to get microblock's previous hash";
         trace_and_halt();
     }
+    _prev_pre_prepare_hash = tip.digest;
 }
 
 void

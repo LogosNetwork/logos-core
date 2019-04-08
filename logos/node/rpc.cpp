@@ -882,17 +882,20 @@ void logos::rpc_handler::request_blocks_latest ()
         auto epoch_number_stored (node.store.epoch_number_stored());
 
         auto tip_exists (false);
-        tip_exists = !node.store.request_tip_get(static_cast<uint8_t>(delegate_id), epoch_number_stored + 2, hash);
-
+        Tip tip;
+        tip_exists = !node.store.request_tip_get(static_cast<uint8_t>(delegate_id), epoch_number_stored + 2, tip);
+        hash = tip.digest;
         // if exists, then we are in epoch i + 1 but epoch block i hasn't been persisted yet
 
         // otherwise, block i has been persisted, i.e. we are at least 1 MB interval past epoch start
         if (!tip_exists)
         {
-            if (node.store.request_tip_get(static_cast<uint8_t>(delegate_id), epoch_number_stored + 1, hash))
+            Tip tip;
+            if (node.store.request_tip_get(static_cast<uint8_t>(delegate_id), epoch_number_stored + 1, tip))
             {
                 error_response (response, "Internal data corruption: request block tip doesn't exist.");
             }
+            hash = tip.digest;
         }
     }
 
@@ -922,7 +925,8 @@ void logos::rpc_handler::request_blocks_latest ()
         if (prev_hash.is_zero() && batch.epoch_number > GENESIS_EPOCH + 1)
         {
             // Attempt to get old epoch tip
-            if (node.store.request_tip_get(static_cast<uint8_t>(delegate_id), batch.epoch_number - 1, prev_hash))
+            Tip tip;
+            if (node.store.request_tip_get(static_cast<uint8_t>(delegate_id), batch.epoch_number - 1, tip))
             {
                 // Only case a tip retrieval fails is when an epoch persistence update just happened and erased the old tip
                 response_batch_blocks.pop_back();
@@ -936,6 +940,7 @@ void logos::rpc_handler::request_blocks_latest ()
                     error_response (response, "Internal data corruption: old request block tip was deleted without chain linking.");
                 }
             }
+            prev_hash = tip.digest;
         }
         hash = prev_hash;
         prev_hash.clear();
@@ -1521,7 +1526,9 @@ void logos::rpc_handler::epochs_latest ()
     }
     else
     {
-        auto tip_exists (!node.store.epoch_tip_get(hash));
+        Tip tip;
+        auto tip_exists (!node.store.epoch_tip_get(tip));
+        hash = tip.digest;
         assert (tip_exists);
     }
 
@@ -2011,7 +2018,9 @@ void logos::rpc_handler::micro_blocks_latest ()
     }
     else
     {
-        auto tip_exists (!node.store.micro_block_tip_get(hash));
+        Tip tip;
+        auto tip_exists (!node.store.micro_block_tip_get(tip));
+        hash = tip.digest;
         assert (tip_exists);
     }
 

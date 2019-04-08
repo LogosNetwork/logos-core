@@ -4,10 +4,12 @@
 #include <logos/lib/work.hpp>
 #include <logos/node/stats.hpp>
 #include <logos/node/wallet.hpp>
-#include <logos/node/bootstrap.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/epoch/recall_handler.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
+#include <logos/bootstrap/bootstrap.hpp>
+#include <logos/consensus/consensus_container.hpp>
+#include <logos/consensus/persistence/block_cache.hpp>
 #include <logos/tx_acceptor/tx_acceptor_config.hpp>
 #include <logos/p2p/p2p.h>
 
@@ -488,6 +490,7 @@ public:
     logos::account representative (logos::account const &);
     void ongoing_keepalive ();
     void ongoing_bootstrap ();
+    void on_demand_bootstrap ();
     void backup_wallet ();
     int price (logos::uint128_t const &, int);
     void work_generate_blocking (logos::block &);
@@ -514,8 +517,7 @@ public:
     logos::ledger ledger;
     //CH logos::active_transactions active;
     logos::network network;
-    logos::bootstrap_initiator bootstrap_initiator;
-    logos::bootstrap_listener bootstrap;
+    BlockCache block_cache;
     logos::peer_container peers;
     boost::filesystem::path application_path;
     logos::node_observers observers;
@@ -536,6 +538,9 @@ public:
     std::shared_ptr<ConsensusContainer> _consensus_container;
     std::shared_ptr<TxAcceptor> _tx_acceptor;
     std::shared_ptr<TxReceiver> _tx_receiver;
+    Bootstrap::BootstrapInitiator bootstrap_initiator;
+    Bootstrap::BootstrapListener bootstrap_listener;
+
     p2p_config p2p_conf;
     static double constexpr price_max = 16.0;
     static double constexpr free_cutoff = 1024.0;

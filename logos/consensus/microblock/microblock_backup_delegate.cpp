@@ -23,11 +23,13 @@ MicroBlockBackupDelegate::MicroBlockBackupDelegate(
                                                      events_notifier, persistence_manager, p2p, service)
     , _microblock_handler(handler)
 {
-    if (promoter.GetStore().micro_block_tip_get(_prev_pre_prepare_hash))
+    Tip tip;
+    if (promoter.GetStore().micro_block_tip_get(tip))
     {
         LOG_FATAL(_log) << "Failed to get microblock's previous hash";
         trace_and_halt();
     }
+    _prev_pre_prepare_hash = tip.digest;
 }
 
 bool

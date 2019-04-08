@@ -4,6 +4,7 @@
 #include <logos/lib/interface.h>
 #include <logos/node/common.hpp>
 #include <logos/versioning.hpp>
+#include <logos/node/node.hpp>
 
 #include <boost/property_tree/json_parser.hpp>
 
@@ -1159,4 +1160,29 @@ std::string logos::ProcessResultToString(logos::process_result result)
             break;
     }
     return ret;
+}
+
+namespace logos_global
+{
+    std::mutex mtx;
+    std::shared_ptr<logos::node> node = nullptr;
+
+    void AssignNode(std::shared_ptr<logos::node> &n)
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        node = n;
+    }
+    std::shared_ptr<logos::node> GetNode()
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        return node;
+    }
+    void Bootstrap()
+    {
+        auto n = GetNode();
+        if(n != nullptr)
+        {
+            n->on_demand_bootstrap();
+        }
+    }
 }

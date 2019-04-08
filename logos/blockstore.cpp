@@ -1023,8 +1023,8 @@ bool logos::block_store::request_block_exists (const ApprovedRB & block)
 
 void
 logos::block_store::BatchBlocksIterator(
-        const BatchTips &start,
-        const BatchTips &end,
+        const BatchTipHashes &start,
+        const BatchTipHashes &end,
         IteratorBatchBlockReceiverCb batchblock_receiver)
 {
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
@@ -1049,7 +1049,7 @@ logos::block_store::BatchBlocksIterator(
 
 void
 logos::block_store::BatchBlocksIterator(
-        const BatchTips &start,
+        const BatchTipHashes &start,
         const uint64_t &cutoff,
         IteratorBatchBlockReceiverCb batchblock_receiver)
 {
@@ -1178,27 +1178,31 @@ bool logos::block_store::micro_block_get(const BlockHash &hash, ApprovedMB &bloc
     return error;
 }
 
-bool logos::block_store::micro_block_tip_put(const BlockHash & hash, MDB_txn *transaction)
+bool logos::block_store::micro_block_tip_put(const Tip & tip, MDB_txn *transaction)
 {
+    LOG_TRACE(log) << __func__ << " tip " << tip.to_string();
+
     const uint8_t key = 0; // only one tip
-    auto status(mdb_put(transaction, micro_block_tip_db, logos::mdb_val(key), mdb_val(hash), 0));
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(transaction, micro_block_tip_db, logos::mdb_val(key), tip.to_mdb_val(buf), 0));
     assert(status == 0);
     return status != 0;
 }
 
-bool logos::block_store::micro_block_tip_get(BlockHash & hash, MDB_txn *transaction)
+bool logos::block_store::micro_block_tip_get(Tip &tip, MDB_txn* t)
 {
-    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
-
     const uint8_t key = 0; // only one tip
     mdb_val val;
-    if(get(micro_block_tip_db, mdb_val(key), val, transaction))
+    if(get(micro_block_tip_db, mdb_val(key), val, t))
     {
         return true;
     }
-    assert(val.size() == HASH_SIZE);
-    new (&hash) BlockHash(val.data(), val.size());
-    return false;
+    assert(val.size() == Tip::WireSize);
+    bool error = false;
+    new (&tip) Tip(error, val);
+    if(!error)
+        LOG_TRACE(log) << __func__ << " tip " << tip.to_string();
+    return error;
 }
 
 bool logos::block_store::micro_block_exists(const BlockHash &hash, MDB_txn *transaction)
@@ -1223,7 +1227,7 @@ bool logos::block_store::micro_block_exists (const ApprovedMB & block)
 bool logos::block_store::epoch_put(ApprovedEB const &block, MDB_txn *transaction)
 {
     auto hash(block.Hash());
-    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+    LOG_TRACE(log) << "epoch_block_put key " << hash.to_string();
 
     std::vector<uint8_t> buf;
     auto status(mdb_put(transaction, epoch_db, mdb_val(hash), block.to_mdb_val(buf), 0));
@@ -1234,7 +1238,7 @@ bool logos::block_store::epoch_put(ApprovedEB const &block, MDB_txn *transaction
 
 bool logos::block_store::epoch_get(const BlockHash &hash, ApprovedEB &block, MDB_txn *transaction)
 {
-    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+    LOG_TRACE(log) << "epoch_block_get key " << hash.to_string();
 
     mdb_val val;
     if(get(epoch_db, mdb_val(hash), val, transaction))
@@ -1250,15 +1254,19 @@ bool logos::block_store::epoch_get(const BlockHash &hash, ApprovedEB &block, MDB
 
 bool logos::block_store::epoch_get_n(uint32_t num_epochs_ago, ApprovedEB &block, MDB_txn *txn, const std::function<bool(ApprovedEB&)>& filter)
 {
-    BlockHash hash;
-    bool res = epoch_tip_get(hash,txn);
-    assert(!res);
-
+    Tip tip;
+    if(epoch_tip_get(tip, txn))
+    {
+        trace_and_halt();
+    }
+    BlockHash hash = tip.digest;
     for(size_t i = 0; i <= num_epochs_ago;)
     {
         assert(hash != 0);
-        res = epoch_get(hash,block,txn);
-        assert(!res);
+        if (epoch_get(hash,block,txn))
+        {
+            trace_and_halt();
+        }
         if(filter(block))
         {
             ++i;
@@ -1269,27 +1277,32 @@ bool logos::block_store::epoch_get_n(uint32_t num_epochs_ago, ApprovedEB &block,
     return false;
 }
 
-bool logos::block_store::epoch_tip_put(const BlockHash & hash, MDB_txn *transaction)
+bool logos::block_store::epoch_tip_put(const Tip &tip, MDB_txn *transaction)
 {
-    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+    LOG_TRACE(log) << __func__ << " tip " << tip.to_string();
 
     const uint8_t key = 0; // only one tip
-    auto status(mdb_put(transaction, epoch_tip_db, logos::mdb_val(key), mdb_val(hash), 0));
+    std::vector<uint8_t> buf;
+    auto status(mdb_put(transaction, epoch_tip_db, logos::mdb_val(key), tip.to_mdb_val(buf), 0));
     assert(status == 0);
     return status != 0;
 }
 
-bool logos::block_store::epoch_tip_get(BlockHash & hash, MDB_txn *transaction)
+bool logos::block_store::epoch_tip_get(Tip &tip, MDB_txn *t)
 {
     const uint8_t key = 0; // only one tip
     mdb_val val;
-    if(get(epoch_tip_db, mdb_val(key), val, transaction))
+    if(get(epoch_tip_db, mdb_val(key), val, t))
     {
         return true;
     }
-    new (&hash) BlockHash(val.data(), val.size());
-    LOG_TRACE(log) << __func__ << " value " << hash.to_string();
-    return false;
+    assert(val.size() == Tip::WireSize);
+    bool error = false;
+    new (&tip) Tip(error, val);
+    if(!error)
+        LOG_TRACE(log) << __func__ << " tip " << tip.to_string();
+
+    return error;
 }
 
 bool logos::block_store::epoch_exists (const ApprovedEB & block)
@@ -1607,7 +1620,7 @@ bool logos::block_store::account_get(AccountAddress const & account_a, std::shar
 
 bool logos::block_store::is_first_epoch()
 {
-    BlockHash epoch_tip;
+    Tip epoch_tip;
 
     if (epoch_tip_get(epoch_tip))
     {
@@ -1616,7 +1629,7 @@ bool logos::block_store::is_first_epoch()
     }
 
     ApprovedEB epoch;
-    if (epoch_get(epoch_tip, epoch))
+    if (epoch_get(epoch_tip.digest, epoch))
     {
         LOG_FATAL(log) << __func__ << " failed to get epoch.";
         trace_and_halt();
@@ -1627,36 +1640,32 @@ bool logos::block_store::is_first_epoch()
 
 uint32_t logos::block_store::epoch_number_stored()
 {
-    BlockHash epoch_tip;
+    Tip epoch_tip;
     if (epoch_tip_get(epoch_tip))
     {
         LOG_FATAL(log) << __func__ << " epoch tip doesn't exist.";
         trace_and_halt();
     }
 
-    ApprovedEB epoch;
-    if (epoch_get(epoch_tip, epoch))
-    {
-        LOG_FATAL(log) << __func__ << " failed to get epoch.";
-        trace_and_halt();
-    }
-
-    return epoch.epoch_number;
+    return epoch_tip.epoch;
 }
 
 void
 logos::block_store::GetEpochFirstRBs(uint32_t epoch_number, BatchTips & epoch_firsts)
 {
-    BatchTips start, end;
+    BatchTipHashes start, end;
 
     // `start` is current epoch tip, `end` is empty
     for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate)
     {
-        if (request_tip_get(delegate, epoch_number, start[delegate]))
+        Tip tip;
+        if (request_tip_get(delegate, epoch_number, tip))
         {
             LOG_DEBUG(log) << __func__ << " request block tip for delegate "
                             << std::to_string(delegate) << " for epoch number " << epoch_number
                             << " doesn't exist yet, setting to zero.";
+        }else{
+            start[delegate] = tip.digest;
         }
     }
 
@@ -1664,7 +1673,7 @@ logos::block_store::GetEpochFirstRBs(uint32_t epoch_number, BatchTips & epoch_fi
     BatchBlocksIterator(start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable->void{
         if (batch.previous.is_zero())
         {
-            epoch_firsts[delegate] = batch.Hash();
+            epoch_firsts[delegate] = batch.CreateTip();
         }
     });
 }
@@ -1768,45 +1777,44 @@ bool logos::block_store::receive_exists(const BlockHash & hash)
     return status == 0;
 }
 
-bool logos::block_store::request_tip_put(uint8_t delegate_id, uint32_t epoch_number, const BlockHash & hash, MDB_txn * transaction)
+bool logos::block_store::request_tip_put(uint8_t delegate_id, uint32_t epoch_number, const Tip & tip, MDB_txn * transaction)
 {
-    LOG_TRACE(log) << __func__ << " value " << hash.to_string();
+    LOG_TRACE(log) << __func__  << " key " << (uint)delegate_id << ":" << epoch_number << " value " << tip.to_string();
+    auto key(logos::get_request_tip_key(delegate_id, epoch_number));
 
+    std::vector<uint8_t> buf;
     auto status(mdb_put(transaction,
             request_tips_db,
-            logos::get_request_tip_key(delegate_id, epoch_number),
-            mdb_val(hash),
+            mdb_val(key),
+            tip.to_mdb_val(buf),
             0));
 
     assert(status == 0);
     return status != 0;
 }
 
-bool logos::block_store::request_tip_get(uint8_t delegate_id, uint32_t epoch_number, BlockHash & hash)
+bool logos::block_store::request_tip_get(uint8_t delegate_id, uint32_t epoch_number, Tip & tip, MDB_txn *t)
 {
-    logos::mdb_val value;
-    logos::transaction transaction(environment, nullptr, false);
-
-    auto status (mdb_get (transaction, request_tips_db, logos::get_request_tip_key(delegate_id, epoch_number), value));
-    assert (status == 0 || status == MDB_NOTFOUND);
+    mdb_val val;
+    auto key(logos::get_request_tip_key(delegate_id, epoch_number));
+    if(get(request_tips_db, mdb_val(key), val, t))
+    {
+        LOG_TRACE(log) << __func__ << " cannot find " << (uint)delegate_id << ":" << epoch_number;
+        return true;
+    }
+    assert(val.size() == Tip::WireSize);
     bool error = false;
-    if (status == MDB_NOTFOUND)
-    {
-        hash.clear();
-        error = true;
-    }
-    else
-    {
-        new (&hash) BlockHash(value.data (), value.size());
-        LOG_TRACE(log) << __func__ << " key " << hash.to_string();
-    }
+    new (&tip) Tip(error, val);
+    if(!error)
+        LOG_TRACE(log) << __func__ << " tip " << tip.to_string();
     return error;
 }
 
 bool logos::block_store::request_tip_del(uint8_t delegate_id, uint32_t epoch_number, MDB_txn * transaction)
 {
-    LOG_TRACE(log) << __func__ << " delegate " << delegate_id << ", epoch " << epoch_number;
-    return del(request_tips_db, logos::get_request_tip_key(delegate_id, epoch_number), transaction);
+    LOG_TRACE(log) << __func__ << " delegate " << (int)delegate_id << ", epoch " << epoch_number;
+    auto key = logos::get_request_tip_key(delegate_id, epoch_number);
+    return del(request_tips_db, mdb_val(key), transaction);
 }
 
 // should only be used for the first request block of an epoch!
@@ -1935,24 +1943,71 @@ logos::store_iterator logos::block_store::latest_end ()
     return result;
 }
 
-logos::mdb_val logos::get_request_tip_key(uint8_t delegate_id, uint32_t epoch_number)
+uint64_t logos::get_request_tip_key(uint8_t delegate_id, uint32_t epoch_number)
 {
-    auto id_size (sizeof(uint8_t));
-    auto epoch_n_size (sizeof(uint32_t));
-    uint8_t key_data[id_size + epoch_n_size];
-    auto shift (0);
-    for (size_t i = 0; i < id_size; ++i)
-    {
-        delegate_id >>= shift;
-        key_data[i] = delegate_id & 0xff;
-        shift = 8;
+    uint64_t res = delegate_id;
+    return (res << 32) | epoch_number;
+}
+
+uint32_t logos::block_store::consensus_block_get_raw(const BlockHash & hash,
+        ConsensusType type,
+        uint32_t reserve,
+        std::vector<uint8_t> & buf)
+{
+    LOG_TRACE(log) << __func__ << " key " << hash.to_string();
+
+    mdb_val value;
+    mdb_val key(hash);
+    MDB_dbi db = 0; //typedef unsigned int    MDB_dbi, maybe use a naked pointer?
+    logos::transaction transaction(environment, nullptr, false);
+
+    switch(type){
+    case ConsensusType::Request:
+        db = batch_db;
+        break;
+    case ConsensusType::MicroBlock:
+        db = micro_block_db;
+        break;
+    case ConsensusType::Epoch:
+        db = epoch_db;
+        break;
+    default:
+        LOG_FATAL(log) << __func__ << " wrong consensus type " << (uint)type;
+        trace_and_halt();
     }
-    shift = 0;
-    for (size_t i = 0; i < epoch_n_size; ++i)
+
+    auto status(mdb_get (transaction, db, key, value));
+    if (status == MDB_NOTFOUND)
     {
-        epoch_number >>= shift;
-        key_data[i + id_size] = epoch_number & 0xff;
-        shift = 8;
+        LOG_TRACE(log) << __func__ << " MDB_NOTFOUND";
+        return 0;
     }
-    return logos::mdb_val(sizeof(key_data), &key_data);
+    else if(status != 0)
+    {
+        LOG_FATAL(log) << __func__ << " error when getting a consensus block "
+                << ConsensusToName(type);
+        trace_and_halt();
+    }
+
+    uint32_t block_size = value.size();
+    buf.resize(reserve + block_size);
+    memcpy(buf.data()+reserve, value.data(), block_size);
+    return block_size;
+#if 0
+    if(type == ConsensusType::MicroBlock || type == ConsensusType::Epoch)
+    {
+        uint32_t block_size = value.size();
+        buf.resize(reserve + block_size);
+        memcpy(buf.data()+reserve, value.data(), block_size);
+        return block_size;
+    }
+    else
+    {
+        bool error = false;
+        ApprovedRB block;
+        new(&block) ApprovedRB(error, value);
+        assert(!error);
+//TODO
+    }
+#endif
 }

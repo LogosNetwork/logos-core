@@ -86,10 +86,11 @@ Archiver::Test_ProposeMicroBlock(InternalConsensus &consensus, bool last_microbl
 bool
 Archiver::IsFirstMicroBlock(BlockStore &store)
 {
-    BlockHash hash;
+    Tip tip;
+    BlockHash &hash = tip.digest;
     ApprovedMB microblock;
 
-    if (store.micro_block_tip_get(hash))
+    if (store.micro_block_tip_get(tip))
     {
         Log log;
         LOG_ERROR(log) << "Archiver::IsFirstMicroBlock failed to get microblock tip. Genesis blocks are being generated.";

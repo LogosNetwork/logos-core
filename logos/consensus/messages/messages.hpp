@@ -3,6 +3,7 @@
 #include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/receive_block.hpp>
 #include <logos/consensus/messages/request_block.hpp>
+#include <logos/consensus/messages/tip.hpp>
 #include <logos/epoch/epoch_transition.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
@@ -231,6 +232,11 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
 
         HeaderStream header_stream(buf.data(), MessagePrequelSize);
         MessagePrequel<MessageType::Post_Committed_Block, CT>::Serialize(header_stream);
+    }
+
+    Tip CreateTip() const
+    {
+        return Tip(ConsensusBlock<CT>::epoch_number, ConsensusBlock<CT>::sequence, Hash());
     }
 
     AggSignature post_prepare_sig;

@@ -1200,7 +1200,7 @@ logos::process_return logos::block_processor::process_receive_one (MDB_txn * tra
             if (!node.block_arrival.recent (hash))
             {
                 // Only let the bootstrap attempt know about forked blocks that did not arrive via UDP.
-                node.bootstrap_initiator.process_fork (transaction_a, block_a);
+                // node.bootstrap_initiator.process_fork (transaction_a, block_a);
             }
             if (node.config.logging.ledger_logging ())
             {
@@ -1279,8 +1279,7 @@ store (init_a.block_store_init, application_path_a / "data.ldb", config_a.lmdb_m
 gap_cache (*this),
 ledger (store, stats, config.state_block_parse_canary, config.state_block_generate_canary),
 network (*this, config.peering_port),
-bootstrap_initiator (*this),
-bootstrap (service_a, config.peering_port, *this),
+block_cache (store),
 peers (network.endpoint ()),
 application_path (application_path_a),
 wallets (init_a.block_store_init, *this),
@@ -1300,7 +1299,9 @@ _tx_acceptor{config.tx_acceptor_config.tx_acceptors.size() == 0
     : nullptr},
 _tx_receiver{config.tx_acceptor_config.tx_acceptors.size() != 0
     ? std::make_shared<TxReceiver>(service_a, alarm_a, _consensus_container, config)
-    : nullptr}
+    : nullptr},
+bootstrap_initiator (alarm_a, store, block_cache, _consensus_container->GetPeerInfoProvider()),
+bootstrap_listener (alarm_a, store, config.consensus_manager_config.local_address)
 {
     BlocksCallback::Instance(service_a, config.callback_address, config.callback_port, config.callback_target, config.logging.callback_logging ());
 // Used to modify the database file with the new account_info field.
@@ -1641,11 +1642,20 @@ void logos::node::start ()
 //    observers.started ();
 // CH added starting logic here instead of inside constructors
     _archiver.Start(*_consensus_container);
+
+    bootstrap_listener.start ();
+    ongoing_bootstrap ();
+    auto this_l (shared_from_this());
+    logos_global::AssignNode(this_l);
 }
 
 void logos::node::stop ()
 {
     BOOST_LOG (log) << "Node stopping";
+    {
+        std::shared_ptr<logos::node> this_l(nullptr);
+        logos_global::AssignNode(this_l);
+    }
     block_processor.stop ();
     if (block_processor_thread.joinable ())
     {
@@ -1654,7 +1664,7 @@ void logos::node::stop ()
     //CH active.stop ();
     network.stop ();
     bootstrap_initiator.stop ();
-    bootstrap.stop ();
+    bootstrap_listener.stop ();
     port_mapping.stop ();
     wallets.stop ();
     p2p.Shutdown ();
@@ -1736,17 +1746,12 @@ void logos::node::ongoing_keepalive ()
 
 void logos::node::ongoing_bootstrap ()
 {
-    auto next_wakeup (300);
-    if (warmed_up < 3)
+    auto next_wakeup (60);
+    if (! bootstrap_initiator.check_progress ())
     {
-        // Re-attempt bootstrapping more aggressively on startup
-        next_wakeup = 5;
-        if (!bootstrap_initiator.in_progress () && !peers.empty ())
-        {
-            ++warmed_up;
-        }
+        bootstrap_initiator.bootstrap ();
     }
-    bootstrap_initiator.bootstrap ();
+
     std::weak_ptr<logos::node> node_w (shared_from_this ());
     alarm.add (std::chrono::steady_clock::now () + std::chrono::seconds (next_wakeup), [node_w]() {
         if (auto node_l = node_w.lock ())
@@ -1754,6 +1759,11 @@ void logos::node::ongoing_bootstrap ()
             node_l->ongoing_bootstrap ();
         }
     });
+}
+void logos::node::on_demand_bootstrap ()
+{
+    LOG_DEBUG (log) << __func__;
+    bootstrap_initiator.bootstrap ();
 }
 
 void logos::node::backup_wallet ()

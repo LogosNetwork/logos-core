@@ -259,6 +259,8 @@ std::shared_ptr<Request> BuildRequest(RequestType type, bool & error, Data && da
             break;
     }
 
+    if(result == nullptr)
+        error = true;
     return result;
 }
 

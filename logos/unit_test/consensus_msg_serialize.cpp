@@ -71,7 +71,7 @@ PrePrepareMessage<ConsensusType::MicroBlock> create_mb_preprepare()
     block.number_batch_blocks = 2;
     for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
     {
-        block.tips[i] = i;
+        block.tips[i].digest = i;
     }
     return block;
 }
@@ -79,7 +79,7 @@ PrePrepareMessage<ConsensusType::MicroBlock> create_mb_preprepare()
 PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare()
 {
     PrePrepareMessage<ConsensusType::Epoch> block;
-    block.micro_block_tip = 1234;
+    block.micro_block_tip.digest = 1234;
     block.transaction_fee_pool = 2345;
     for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
     {
@@ -92,17 +92,17 @@ PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare()
 ///////////////////////////////// utils tests
 TEST (crypto, ed25519)
 {
-	AccountPrivKey prv (0);
-	AccountPubKey pub;
-	ed25519_publickey (prv.data (), pub.data ());
-	BlockHash message (1234567890);
-	AccountSig signature;
-	ed25519_sign (message.data (), HASH_SIZE, prv.data (), pub.data (), signature.data ());
-	auto valid1 (ed25519_sign_open (message.data (), HASH_SIZE, pub.data (), signature.data ()));
-	ASSERT_EQ (0, valid1);
-	signature.data()[32] ^= 0x1;
-	auto valid2 (ed25519_sign_open (message.data (), HASH_SIZE, pub.data (), signature.data ()));
-	ASSERT_NE (0, valid2);
+    AccountPrivKey prv (0);
+    AccountPubKey pub;
+    ed25519_publickey (prv.data (), pub.data ());
+    BlockHash message (1234567890);
+    AccountSig signature;
+    ed25519_sign (message.data (), HASH_SIZE, prv.data (), pub.data (), signature.data ());
+    auto valid1 (ed25519_sign_open (message.data (), HASH_SIZE, pub.data (), signature.data ()));
+    ASSERT_EQ (0, valid1);
+    signature.data()[32] ^= 0x1;
+    auto valid2 (ed25519_sign_open (message.data (), HASH_SIZE, pub.data (), signature.data ()));
+    ASSERT_NE (0, valid2);
 }
 
 TEST (crypto, blake2b)
@@ -773,7 +773,7 @@ TEST (message_validator, consensus_session)
     //step 1, pre-prepare
     //primary, node[0], signs the preprepare
     PrePrepareMessage<ConsensusType::Epoch> preprepare;
-    preprepare.micro_block_tip = 1234;
+    preprepare.micro_block_tip.digest = 1234;
     preprepare.transaction_fee_pool = 2345;
     for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
     {

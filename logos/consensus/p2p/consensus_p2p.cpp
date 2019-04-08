@@ -147,7 +147,7 @@ void ConsensusP2p<CT>::RetryValidate(const logos::block_hash &hash)
         }
         ApplyCacheUpdates(block, value.second.second, value.second.first, status);
     }
-}		
+}
 
 template<ConsensusType CT>
 void ConsensusP2p<CT>::CacheInsert(
@@ -225,7 +225,7 @@ bool ConsensusP2p<ConsensusType::MicroBlock>::ApplyCacheUpdates(
             {
                 if (status.requests[i] == logos::process_result::gap_previous)
                 {
-                    CacheInsert(block.tips[i], delegate_id, block, pblock);
+                    CacheInsert(block.tips[i].digest, delegate_id, block, pblock);
                 }
             }
             return false;
@@ -254,7 +254,7 @@ bool ConsensusP2p<ConsensusType::Epoch>::ApplyCacheUpdates(
             return false;
 
         case logos::process_result::invalid_tip:
-            CacheInsert(block.micro_block_tip, delegate_id, block, pblock);
+            CacheInsert(block.micro_block_tip.digest, delegate_id, block, pblock);
             return false;
 
         default:

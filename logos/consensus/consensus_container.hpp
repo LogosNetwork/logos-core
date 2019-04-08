@@ -88,7 +88,6 @@ class ConsensusContainer : public InternalConsensus,
 
     using Service    = boost::asio::io_service;
     using Config     = ConsensusManagerConfig;
-    using Store      = logos::block_store;
     using Alarm      = logos::alarm;
     using Endpoint   = boost::asio::ip::tcp::endpoint;
     using Socket     = boost::asio::ip::tcp::socket;
@@ -103,6 +102,8 @@ class ConsensusContainer : public InternalConsensus,
     };
 
 public:
+
+    using Store      = logos::block_store;
 
     /// Class constructor.
     ///
@@ -167,14 +168,19 @@ public:
         return _validate_sig_config;
     }
 
+    PeerInfoProvider & GetPeerInfoProvider()
+    {
+        return _p2p;
+    }
+
 protected:
 
-	/// Initiate MicroBlock consensus, internal request
-	///		@param[in] MicroBlock containing the batch blocks
+    /// Initiate MicroBlock consensus, internal request
+    ///        @param[in] MicroBlock containing the batch blocks
     logos::process_return OnDelegateMessage(std::shared_ptr<DelegateMessage<ConsensusType::MicroBlock>> message) override;
 
     /// Initiate Epoch consensus, internal request
-    ///		@param[in] Epoch containing the microblocks
+    ///        @param[in] Epoch containing the microblocks
     logos::process_return OnDelegateMessage(std::shared_ptr<DelegateMessage<ConsensusType::Epoch>> message) override;
 
 private:

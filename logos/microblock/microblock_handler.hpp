@@ -62,7 +62,7 @@ private:
     /// @param num_blocks number of selected batch blocks [out]
     /// @param timestamp timestamp of the previous microblock [in]
     /// @returns Merkle root
-    BlockHash FastMerkleTree(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks,
+    BlockHash FastMerkleTree(const BatchTipHashes &start, const BatchTipHashes &end, BatchTipHashes &tips, uint &num_blocks,
                              const uint64_t timestamp);
 
     /// Calculate Merkle root and get batch block tips.
@@ -75,7 +75,7 @@ private:
     /// @param tips new batch block tips [in|out]
     /// @param num_blocks number of selected batch blocks [out]
     /// @returns Merkle root
-    BlockHash SlowMerkleTree(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks);
+    BlockHash SlowMerkleTree(const BatchTipHashes &start, const BatchTipHashes &end, BatchTipHashes &tips, uint &num_blocks);
 
     /// Get tips to include in the micro block.
     /// Walk from the previous microblock tips to the cutoff time.
@@ -94,7 +94,7 @@ private:
     /// @param end previous microblock tips [in]
     /// @param tips new batch block tips [in|out]
     /// @param num_blocks number of selected batch blocks [out]
-    void GetTipsSlow(const BatchTips &start, const BatchTips &end, BatchTips &tips, uint &num_blocks, bool);
+    void GetTipsSlow(const BatchTipHashes &start, const BatchTipHashes &end, BatchTips &tips, uint &num_blocks, bool);
 
     BlockStore &            _store;
     IRecallHandler &        _recall_handler;    ///< recall handler reference

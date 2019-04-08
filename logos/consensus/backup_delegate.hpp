@@ -82,7 +82,7 @@ public:
         _prev_pre_prepare_hash = hash;
     }
 
-	uint8_t GetDelegateId()
+    uint8_t GetDelegateId()
     {
         return _delegate_ids.local;
     }

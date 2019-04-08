@@ -351,7 +351,7 @@ private:
     logos::alarm &                 _alarm;                ///< alarm reference
     uint8_t                        _remote_delegate_id;   ///< id of connected peer
     uint8_t                        _local_delegate_id;    ///< id of the local delegate
-    Connections                    _connections;       	  ///< vector of connections bound to the net i/o
+    Connections                    _connections;          ///< vector of connections bound to the net i/o
     DelegateKeyStore &             _key_store;            ///< Delegates' public key store
     MessageValidator &             _validator;            ///< Validator/Signer of consensus messages
     IOBinder                       _io_channel_binder;    ///< Network i/o to consensus binder

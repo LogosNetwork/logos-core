@@ -93,7 +93,7 @@ TEST (DualRBTip, EpochFirstRBs)
 
     uint32_t cur_epoch (5);
     uint8_t delegate_with_tip (2);
-    BlockHash tip;
+    Tip tip_0;
 
     {
         // create one none empty tip and store in db
@@ -104,17 +104,17 @@ TEST (DualRBTip, EpochFirstRBs)
         block0.epoch_number = cur_epoch;
         ASSERT_FALSE(store->request_block_put(block0, txn));
 
-        tip = block0.Hash();
-        ASSERT_FALSE(store->request_tip_put(delegate_with_tip, cur_epoch, tip, txn));
+        tip_0 = block0.CreateTip();
+        ASSERT_FALSE(store->request_tip_put(delegate_with_tip, cur_epoch, tip_0, txn));
 
         // create another one for the same delegate
         ApprovedRB block1;
         block1.primary_delegate = delegate_with_tip;
         block1.epoch_number = cur_epoch;
-        block1.previous = tip;
+        block1.previous = tip_0.digest;
         block1.sequence = 1;
         ASSERT_FALSE(store->request_block_put(block1, txn));
-        ASSERT_FALSE(store->request_tip_put(delegate_with_tip, cur_epoch, block1.Hash(), txn));
+        ASSERT_FALSE(store->request_tip_put(delegate_with_tip, cur_epoch, block1.CreateTip(), txn));
     }
 
 
@@ -127,11 +127,11 @@ TEST (DualRBTip, EpochFirstRBs)
     {
         if (delegate == delegate_with_tip)
         {
-            ASSERT_EQ(cur_e_first[delegate], tip);
+            ASSERT_EQ(cur_e_first[delegate], tip_0);
         }
         else
         {
-            ASSERT_TRUE(cur_e_first[delegate].is_zero());
+            ASSERT_TRUE(cur_e_first[delegate].digest.is_zero());
         }
     }
 }
@@ -155,24 +155,24 @@ TEST (DualRBTip, EpochLinking1)
         prev_hash = prev_block.Hash();
 
         ASSERT_FALSE(store->request_block_put(prev_block, txn));
-        ASSERT_FALSE(store->request_tip_put(delegate, cur_epoch - 1, prev_hash, txn));
+        ASSERT_FALSE(store->request_tip_put(delegate, cur_epoch - 1, prev_block.CreateTip(), txn));
     }
 
     std::shared_ptr<Reservations> reservations (std::make_shared<ConsensusReservations>(*store));
     PersistenceManager<ConsensusType::Epoch> epoch_persistence (*store, reservations);
 
     {
-        BlockHash nonexistent_hash;
-        ASSERT_TRUE(nonexistent_hash.is_zero());
+        Tip nonexistent_tip;
+        ASSERT_TRUE(nonexistent_tip.digest.is_zero());
         logos::transaction txn(store->environment, nullptr, true);
-        epoch_persistence.LinkAndUpdateTips(delegate, cur_epoch, nonexistent_hash, txn);
+        epoch_persistence.LinkAndUpdateTips(delegate, cur_epoch, nonexistent_tip, txn);
     }
 
     // request block tip should have been rolled over to current epoch
-    BlockHash hash;
-    ASSERT_TRUE(store->request_tip_get(delegate, cur_epoch - 1, hash));
-    ASSERT_FALSE(store->request_tip_get(delegate, cur_epoch, hash));
-    ASSERT_EQ(hash, prev_hash);
+    Tip tip;
+    ASSERT_TRUE(store->request_tip_get(delegate, cur_epoch - 1, tip));
+    ASSERT_FALSE(store->request_tip_get(delegate, cur_epoch, tip));
+    ASSERT_EQ(tip.digest, prev_hash);
 }
 
 // Test linking through epoch (PersistenceManager<ECT>::LinkAndUpdateTips), current epoch has request tip
@@ -183,7 +183,7 @@ TEST (DualRBTip, EpochLinking2)
     uint32_t cur_epoch (10);
     uint8_t delegate (15);
     BlockHash prev_hash, cur_hash;
-
+    Tip cur_tip;
     {
         // store prev + current epochs' tip blocks and hashes
         logos::transaction txn(store->environment, nullptr, true);
@@ -196,11 +196,12 @@ TEST (DualRBTip, EpochLinking2)
         cur_block.primary_delegate = delegate;
         cur_block.epoch_number = cur_epoch;
         cur_hash = cur_block.Hash();
+        cur_tip = cur_block.CreateTip();
 
         ASSERT_FALSE(store->request_block_put(prev_block, txn));
-        ASSERT_FALSE(store->request_tip_put(delegate, cur_epoch - 1, prev_hash, txn));
+        ASSERT_FALSE(store->request_tip_put(delegate, cur_epoch - 1, prev_block.CreateTip(), txn));
         ASSERT_FALSE(store->request_block_put(cur_block, txn));
-        ASSERT_FALSE(store->request_tip_put(delegate, cur_epoch, cur_hash, txn));
+        ASSERT_FALSE(store->request_tip_put(delegate, cur_epoch, cur_block.CreateTip(), txn));
     }
 
     std::shared_ptr<Reservations> reservations (std::make_shared<ConsensusReservations>(*store));
@@ -208,14 +209,14 @@ TEST (DualRBTip, EpochLinking2)
 
     {
         logos::transaction txn(store->environment, nullptr, true);
-        epoch_persistence.LinkAndUpdateTips(delegate, cur_epoch, cur_hash, txn);
+        epoch_persistence.LinkAndUpdateTips(delegate, cur_epoch, cur_tip, txn);
     }
 
     // request block tip should have been updated to current block's tip
-    BlockHash hash;
-    ASSERT_TRUE(store->request_tip_get(delegate, cur_epoch - 1, hash));
-    ASSERT_FALSE(store->request_tip_get(delegate, cur_epoch, hash));
-    ASSERT_EQ(hash, cur_hash);
+    Tip tip;
+    ASSERT_TRUE(store->request_tip_get(delegate, cur_epoch - 1, tip));
+    ASSERT_FALSE(store->request_tip_get(delegate, cur_epoch, tip));
+    ASSERT_EQ(tip.digest, cur_hash);
 
     ApprovedRB prev_block, cur_block;
     ASSERT_FALSE(store->request_block_get(prev_hash, prev_block));
@@ -245,9 +246,9 @@ TEST (DualRBTip, RequestBlockLinking1)
         logos::transaction txn(store->environment, nullptr, true);
 
         ASSERT_FALSE(store->epoch_put(preprev_e, txn));
-        ASSERT_FALSE(store->epoch_tip_put(preprev_e.Hash(), txn));
+        ASSERT_FALSE(store->epoch_tip_put(preprev_e.CreateTip(), txn));
         ASSERT_FALSE(store->request_block_put(prev_r, txn));
-        ASSERT_FALSE(store->request_tip_put(delegate, prev_r.epoch_number, prev_r.Hash(), txn));
+        ASSERT_FALSE(store->request_tip_put(delegate, prev_r.epoch_number, prev_r.CreateTip(), txn));
     }
 
     ApprovedRB cur_r;
@@ -263,10 +264,12 @@ TEST (DualRBTip, RequestBlockLinking1)
     }
 
     // check that hashes match
-    BlockHash db_prev_r_hash, db_cur_r_hash;
-    ASSERT_FALSE(store->request_tip_get(delegate, cur_epoch - 1, db_prev_r_hash));
+    Tip db_prev_r_tip, db_cur_r_tip;
+    BlockHash & db_prev_r_hash = db_prev_r_tip.digest;
+    BlockHash & db_cur_r_hash = db_cur_r_tip.digest;
+    ASSERT_FALSE(store->request_tip_get(delegate, cur_epoch - 1, db_prev_r_tip));
     ASSERT_EQ(db_prev_r_hash, prev_r.Hash());
-    ASSERT_FALSE(store->request_tip_get(delegate, cur_epoch, db_cur_r_hash));
+    ASSERT_FALSE(store->request_tip_get(delegate, cur_epoch, db_cur_r_tip));
     ASSERT_EQ(db_cur_r_hash, cur_r.Hash());
 
     // check that blocks aren't linked
@@ -298,14 +301,14 @@ TEST (DualRBTip, RequestBlockLinking2)
         logos::transaction txn(store->environment, nullptr, true);
 
         ASSERT_FALSE(store->epoch_put(preprev_e, txn));
-        ASSERT_FALSE(store->epoch_tip_put(preprev_e.Hash(), txn));
+        ASSERT_FALSE(store->epoch_tip_put(preprev_e.CreateTip(), txn));
         ASSERT_FALSE(store->request_block_put(prev_r, txn));
-        BlockHash empty;
+        Tip empty;
         for (uint8_t d = 0; d < NUM_DELEGATES; d++)
         {
             if (d == delegate)
             {
-                ASSERT_FALSE(store->request_tip_put(delegate, prev_r.epoch_number, prev_r.Hash(), txn));
+                ASSERT_FALSE(store->request_tip_put(delegate, prev_r.epoch_number, prev_r.CreateTip(), txn));
             }
             else // populate so LinkAndUpdateTips work correctly
             {
@@ -323,8 +326,9 @@ TEST (DualRBTip, RequestBlockLinking2)
     epoch_persistence.ApplyUpdates(prev_e);
 
     // check that prev hash has been removed
-    BlockHash db_prev_r_hash;
-    ASSERT_TRUE(store->request_tip_get(delegate, cur_epoch - 1, db_prev_r_hash));
+    Tip db_prev_r_tip;
+    BlockHash & db_prev_r_hash = db_prev_r_tip.digest;
+    ASSERT_TRUE(store->request_tip_get(delegate, cur_epoch - 1, db_prev_r_tip));
 
     // store current epoch's first request block and link
     ApprovedRB cur_r;
@@ -341,8 +345,9 @@ TEST (DualRBTip, RequestBlockLinking2)
     }
 
     // check that hashes match
-    BlockHash db_cur_r_hash;
-    ASSERT_FALSE(store->request_tip_get(delegate, cur_epoch, db_cur_r_hash));
+    Tip db_cur_r_tip;
+    BlockHash & db_cur_r_hash = db_cur_r_tip.digest;
+    ASSERT_FALSE(store->request_tip_get(delegate, cur_epoch, db_cur_r_tip));
     ASSERT_EQ(db_cur_r_hash, cur_r.Hash());
 
     // check that blocks are linked
@@ -375,14 +380,14 @@ TEST (DualRBTip, RaceLinking)
             logos::transaction txn(store->environment, nullptr, true);
 
             ASSERT_FALSE(store->epoch_put(preprev_e, txn));
-            ASSERT_FALSE(store->epoch_tip_put(preprev_e.Hash(), txn));
+            ASSERT_FALSE(store->epoch_tip_put(preprev_e.CreateTip(), txn));
             ASSERT_FALSE(store->request_block_put(prev_r, txn));
-            BlockHash empty;
+            Tip empty;
             for (uint8_t d = 0; d < NUM_DELEGATES; d++)
             {
                 if (d == delegate)
                 {
-                    ASSERT_FALSE(store->request_tip_put(delegate, prev_r.epoch_number, prev_r.Hash(), txn));
+                    ASSERT_FALSE(store->request_tip_put(delegate, prev_r.epoch_number, prev_r.CreateTip(), txn));
                 }
                 else // populate so LinkAndUpdateTips work correctly
                 {
@@ -425,12 +430,14 @@ TEST (DualRBTip, RaceLinking)
         t2.join();
 
         // check that prev hash has been removed
-        BlockHash db_prev_r_hash;
-        ASSERT_TRUE(store->request_tip_get(delegate, cur_epoch - 1, db_prev_r_hash));
+        Tip db_prev_r_tip;
+        BlockHash &db_prev_r_hash = db_prev_r_tip.digest;
+        ASSERT_TRUE(store->request_tip_get(delegate, cur_epoch - 1, db_prev_r_tip));
 
         // check that hashes match
-        BlockHash db_cur_r_hash;
-        ASSERT_FALSE(store->request_tip_get(delegate, cur_epoch, db_cur_r_hash));
+        Tip db_cur_r_tip;
+        BlockHash & db_cur_r_hash = db_cur_r_tip.digest;
+        ASSERT_FALSE(store->request_tip_get(delegate, cur_epoch, db_cur_r_tip));
         ASSERT_EQ(db_cur_r_hash, cur_r.Hash());
 
         // check that blocks are linked

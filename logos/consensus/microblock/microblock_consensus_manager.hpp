@@ -96,7 +96,7 @@ protected:
     void PrePreparePopFront() override;
 
     ///< Checks if the MicroBlock queue is empty
-	///		@return true if empty false otherwise
+    ///        @return true if empty false otherwise
     bool PrePrepareQueueEmpty() override;
 
     /// Primary list contains request with the hash
@@ -127,5 +127,5 @@ private:
 
     std::shared_ptr<PrePrepare>  _cur_microblock;     ///< Currently handled microblock
     ArchiverMicroBlockHandler &  _microblock_handler; ///< Is used for validation and database commit
-	std::recursive_mutex         _mutex;              ///< _cur_microblock mutex
+    std::recursive_mutex         _mutex;              ///< _cur_microblock mutex
 };

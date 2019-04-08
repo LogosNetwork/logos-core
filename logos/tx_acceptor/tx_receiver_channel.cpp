@@ -39,7 +39,7 @@ TxReceiverChannel::Connect()
 {
    _socket->async_connect(_endpoint,
                            [this](const Error & ec)
-						   { OnConnect(ec); });
+                           { OnConnect(ec); });
 }
 
 void

@@ -17,7 +17,7 @@ void Epoch::SerializeJson(boost::property_tree::ptree & epoch_block) const
 {
     PrePrepareCommon::SerializeJson(epoch_block);
     epoch_block.put("type", "Epoch");
-    epoch_block.put("micro_block_tip", micro_block_tip.to_string());
+    epoch_block.put("micro_block_tip", micro_block_tip.digest.to_string());
 
     boost::property_tree::ptree ptree_delegates;
     for (const auto & delegate : delegates) {

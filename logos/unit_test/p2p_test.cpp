@@ -309,7 +309,7 @@ TEST (P2pTest, VerifyCache)
     memset(&hashB, 0, sizeof(hashB));
     generate_block<ConsensusType::Request>(blockB, bufBT, hashB, 1, 0);
     memset(&hashM, 0, sizeof(hashM));
-    blockM.tips[0] = hashB;
+    blockM.tips[0].digest = hashB;
     generate_block<ConsensusType::MicroBlock>(blockM, bufMT, hashM, 2, 15);
 
     max_savedB = 0;
@@ -329,7 +329,7 @@ TEST (P2pTest, VerifyCache)
     memset(&hashM, 0, sizeof(hashM));
     generate_block<ConsensusType::MicroBlock>(blockM, bufEMT, hashM, 1, 0);
     memset(&hashE, 0, sizeof(hashE));
-    blockE.micro_block_tip = hashM;
+    blockE.micro_block_tip.digest = hashM;
     generate_block<ConsensusType::Epoch>(blockE, bufET, hashE, 2, 20);
 
     max_savedM = 0;

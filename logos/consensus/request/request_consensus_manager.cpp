@@ -16,14 +16,15 @@ RequestConsensusManager::RequestConsensusManager(Service & service,
                                                  p2p_interface & p2p,
                                                  uint32_t epoch_number)
     : Manager(service, store, config,
-	      validator, p2p, epoch_number)
+          validator, p2p, epoch_number)
     , _init_timer(service)
 {
     _state = ConsensusState::INITIALIZING;
     // _sequence is reset to 0 in a new epoch
     uint32_t cur_epoch_number = epoch_number;
-    _store.request_tip_get(_delegate_id, cur_epoch_number, _prev_pre_prepare_hash);
-
+    Tip tip;
+    _store.request_tip_get(_delegate_id, cur_epoch_number, tip);
+    _prev_pre_prepare_hash = tip.digest;
     ApprovedRB block;
     if ( !_prev_pre_prepare_hash.is_zero() && !_store.request_block_get(_prev_pre_prepare_hash, block))
     {
@@ -269,7 +270,7 @@ RequestConsensusManager::MakeBackupDelegate(
     assert(notifier);
     return std::make_shared<RequestBackupDelegate>(
             iochannel, shared_from_this(), *this, _validator,
-	    ids, _service, notifier, _persistence_manager, GetP2p());
+        ids, _service, notifier, _persistence_manager, GetP2p());
 }
 
 void

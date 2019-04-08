@@ -10,6 +10,7 @@
 #include <logos/lib/trace.hpp>
 #include <logos/common.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
+#include <logos/node/node.hpp>
 
 constexpr uint128_t PersistenceManager<R>::MIN_TRANSACTION_FEE;
 
@@ -144,34 +145,6 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
     // Move on to check account info
-    //sequence number
-    if(info->block_count != request->sequence)
-    {
-        result.code = logos::process_result::wrong_sequence_number;
-        LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request->sequence
-            << " expecting=" << info->block_count;
-        return false;
-    }
-
-    // No previous block set.
-    if(request->previous.is_zero() && info->block_count)
-    {
-        result.code = logos::process_result::fork;
-        return false;
-    }
-
-    // This account has issued at least one send transaction.
-    if(info->block_count)
-    {
-        if(!_store.request_exists(request->previous))
-        {
-            result.code = logos::process_result::gap_previous;
-            LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << request->previous.to_string()
-                << "; current account info head is: " << info->head.to_string();
-            return false;
-        }
-    }
-
     if(request->previous != info->head)
     {
         LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash ("
@@ -197,6 +170,37 @@ bool PersistenceManager<R>::ValidateRequest(
         else
         {
             result.code = logos::process_result::fork;
+            return false;
+        }
+    }
+    //sequence number
+    else if(info->block_count != request->sequence)
+    {
+        result.code = logos::process_result::wrong_sequence_number;
+        LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request->sequence
+            << " expecting=" << info->block_count;
+        return false;
+    }
+    else
+    {
+        LOG_INFO(_log) << "right_sequence_number, request sqn=" << request->sequence
+                    << " expecting=" << info->block_count;
+    }
+    // No previous block set.
+    if(request->previous.is_zero() && info->block_count)
+    {
+        result.code = logos::process_result::fork;
+        return false;
+    }
+
+    // This account has issued at least one send transaction.
+    if(info->block_count)
+    {
+        if(!_store.request_exists(request->previous))
+        {
+            result.code = logos::process_result::gap_previous;
+            LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << request->previous.to_string()
+                << "; current account info head is: " << info->head.to_string();
             return false;
         }
     }
@@ -544,8 +548,9 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
         std::shared_ptr<logos::Account> source;
         if(_store.account_get(request->GetSource(), source))
         {
-            // TODO: Bootstrapping
             result.code = logos::process_result::unknown_source_account;
+            // TODO: high speed Bootstrapping
+            logos_global::Bootstrap();
             return false;
         }
 
@@ -688,7 +693,8 @@ void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,
         {
             // Get current epoch's request block tip (updated by Epoch Persistence),
             // which is also the end of previous epoch's request block chain
-            BlockHash cur_tip;
+            Tip cur_tip;
+            BlockHash & cur_tip_hash = cur_tip.digest;
             if (_store.request_tip_get(message.primary_delegate, message.epoch_number, cur_tip))
             {
                 LOG_FATAL(_log) << "PersistenceManager<BSBCT>::StoreBatchMessage failed to get request block tip for delegate "
@@ -696,7 +702,7 @@ void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,
                 trace_and_halt();
             }
             // Update `next` of last request block in previous epoch
-            if (_store.consensus_block_update_next(cur_tip, hash, ConsensusType::Request, transaction))
+            if (_store.consensus_block_update_next(cur_tip_hash, hash, ConsensusType::Request, transaction))
             {
                 LOG_FATAL(_log) << "PersistenceManager<BSBCT>::StoreBatchMessage failed to update prev epoch's "
                                 << "request block tip";
@@ -704,7 +710,7 @@ void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,
             }
 
             // Update `previous` of this block
-            message.previous = cur_tip;
+            message.previous = cur_tip_hash;
         }
     }
 
@@ -717,7 +723,7 @@ void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,
         trace_and_halt();
     }
 
-    if(_store.request_tip_put(delegate_id, message.epoch_number, hash, transaction))
+    if(_store.request_tip_put(delegate_id, message.epoch_number, message.CreateTip(), transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager::StoreRequestBlock - "
                         << "Failed to store batch block tip with hash: "
@@ -730,7 +736,8 @@ void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,
     {
         if(_store.consensus_block_update_next(message.previous, hash, ConsensusType::Request, transaction))
         {
-            // TODO: bootstrap here.
+            // TODO: high speed Bootstrapping
+            logos_global::Bootstrap();
         }
     }
 }
@@ -1847,11 +1854,18 @@ bool PersistenceManager<R>::ValidateRequest(
 bool PersistenceManager<R>::IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn)
 {
     assert(txn != nullptr);
-    BlockHash hash; 
-    assert(!_store.epoch_tip_get(hash,txn));
+    Tip tip;
+    BlockHash & hash = tip.digest;
+    if(_store.epoch_tip_get(tip,txn))
+    {
+        trace_and_halt();
+    }
 
     ApprovedEB eb;
-    assert(!_store.epoch_get(hash,eb,txn));
+    if(_store.epoch_get(hash,eb,txn))
+    {
+        trace_and_halt();
+    }
 
     return (eb.epoch_number+2) == cur_epoch_num;
 }

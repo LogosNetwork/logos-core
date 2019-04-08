@@ -16,15 +16,17 @@ RequestBackupDelegate::RequestBackupDelegate(
         const DelegateIdentities & ids,
         Service & service,
         std::shared_ptr<EpochEventsNotifier> events_notifier,
-	PersistenceManager<R> & persistence_manager,
-	p2p_interface & p2p)
+    PersistenceManager<R> & persistence_manager,
+    p2p_interface & p2p)
     : Connection(iochannel, primary, promoter,
-		 validator, ids, events_notifier, persistence_manager, p2p, service)
+         validator, ids, events_notifier, persistence_manager, p2p, service)
     , _timer(service)
 {
     ApprovedRB block;
     uint32_t cur_epoch_number = events_notifier->GetEpochNumber();
-    promoter.GetStore().request_tip_get(_delegate_ids.remote, cur_epoch_number, _prev_pre_prepare_hash);
+    Tip tip;
+    promoter.GetStore().request_tip_get(_delegate_ids.remote, cur_epoch_number, tip);
+    _prev_pre_prepare_hash = tip.digest;
     if ( ! _prev_pre_prepare_hash.is_zero() && !promoter.GetStore().request_block_get(_prev_pre_prepare_hash, block))
     {
         _sequence_number = block.sequence + 1;
