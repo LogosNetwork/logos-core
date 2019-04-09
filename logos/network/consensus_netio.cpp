@@ -21,7 +21,7 @@ ConsensusNetIOAssembler::OnError(const Error &error)
     // cancelled at the end of epoch transition
     if (_netio.Connected() && !info->IsWaitingDisconnect()) {
         LOG_ERROR(_log) << "NetIOAssembler - Error receiving message: "
-                        << error.message() << " global " << (int) DelegateIdentityManager::_global_delegate_idx
+                        << error.message() << " global " << (int) DelegateIdentityManager::GetGlobalDelegateIdx()
                         << " connection " << info->GetConnectionName()
                         << " delegate " << info->GetDelegateName()
                         << " state " << info->GetStateName();
@@ -379,7 +379,7 @@ ConsensusNetIO::OnData(const uint8_t * data,
             // simulate network receive failure
             struct stat sb;
             std::string path = "./DB/Consensus_" +
-                               std::to_string((int) DelegateIdentityManager::_global_delegate_idx) +
+                               std::to_string((int) DelegateIdentityManager::GetGlobalDelegateIdx()) +
                                "/recvoff";
             if (stat(path.c_str(), &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFREG) {
                 break;
@@ -425,7 +425,7 @@ ConsensusNetIO::AddConsensusConnection(
                    << ' ' << ConsensusTypeToIndex(t)
                    << " local delegate " << uint64_t(_local_delegate_id)
                     << " remote delegate " << uint64_t(_remote_delegate_id)
-                    << " global " << (int)DelegateIdentityManager::_global_delegate_idx
+                    << " global " << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
                     << " Connection " << info->GetConnectionName();
 
     _connections[ConsensusTypeToIndex(t)] = connection;
@@ -454,7 +454,7 @@ ConsensusNetIO::Close()
         LOG_DEBUG(_log) << "ConsensusNetIO::Close closing socket, connection "
                         << info->GetConnectionName() << ", delegate "
                         << (int)_local_delegate_id << ", remote delegate " << (int)_remote_delegate_id
-                        << ", global " << (int)DelegateIdentityManager::_global_delegate_idx
+                        << ", global " << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
                         << " ptr " << (uint64_t)this;
         _connected = false;
         _socket->cancel();

@@ -8,9 +8,9 @@
 
 constexpr size_t P2pConsensusHeader::HEADER_SIZE;
 constexpr size_t P2pHeader::HEADER_SIZE;
-constexpr size_t AddressAd::IP_LENGTH;
-constexpr size_t AddressAd::SIZE;
-constexpr size_t AddressAdTxAcceptor::SIZE;
+constexpr size_t P2pAddressAdHeader::HEADER_SIZE;
+constexpr size_t CommonAddressAd::IP_LENGTH;
+constexpr char CommonAddressAd::ipv6_prefix[];
 
 ConnectedClientIds::ConnectedClientIds(uint32_t epoch_number,
                                        uint8_t delegate_id,

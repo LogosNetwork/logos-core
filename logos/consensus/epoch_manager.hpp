@@ -116,7 +116,7 @@ private:
     {
         LOG_DEBUG(_log) << "DelegateIdentityManager::UpdateRequestPromoter epoch " << _epoch_number
                         << " delegate " << TransitionDelegateToName(_delegate) << " " << (int)_delegate_id
-                        << " global delegate "  << (int)DelegateIdentityManager::_global_delegate_idx;
+                        << " global delegate "  << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
         _request_manager->UpdateMessagePromoter();
         _micro_manager->UpdateMessagePromoter();
         _epoch_manager->UpdateMessagePromoter();

@@ -25,7 +25,7 @@ EpochManager::EpochManager(Service & service,
     , _connection_state(connection)
     , _epoch_number(epoch_number)
     , _new_epoch_handler(handler)
-    , _validator(_key_store, logos::genesis_delegates[DelegateIdentityManager::_global_delegate_idx].bls_key)
+    , _validator(_key_store, logos::genesis_delegates[DelegateIdentityManager::GetGlobalDelegateIdx()].bls_key)
     , _request_manager(std::make_shared<RequestConsensusManager>(service, store, config, _validator, p2p, epoch_number))
     , _micro_manager(std::make_shared<MicroBlockConsensusManager>(service, store, config, _validator, archiver, p2p, epoch_number))
     , _epoch_manager(std::make_shared<EpochConsensusManager>(service, store, config, _validator, p2p, epoch_number))
@@ -66,8 +66,8 @@ EpochManager::OnPrePrepareRejected()
     // Retiring or Persistent in the old Delegate's set
     // received 1/3 PostCommit reject with New_Epoch error
     if (_delegate == EpochTransitionDelegate::Retiring ||
-            _delegate == EpochTransitionDelegate::Persistent &&
-            _connection_state == EpochConnection::Current)
+            (_delegate == EpochTransitionDelegate::Persistent &&
+            _connection_state == EpochConnection::Current))
     {
         _new_epoch_handler.OnPrePrepareRejected(_delegate);
     }

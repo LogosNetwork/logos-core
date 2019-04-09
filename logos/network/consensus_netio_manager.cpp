@@ -84,7 +84,7 @@ ConsensusNetIOManager::~ConsensusNetIOManager()
     }
     LOG_DEBUG(_log) << "~ConsensusNetIOManager, connections " << _connections.size()
                     << " connection " << (info?TransitionConnectionToName(info->GetConnection()):" not available")
-                    << " " << (int)DelegateIdentityManager::_global_delegate_idx;
+                    << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
 }
 
 void

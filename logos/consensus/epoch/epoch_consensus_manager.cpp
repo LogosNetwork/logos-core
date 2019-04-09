@@ -166,7 +166,7 @@ EpochConsensusManager::DesignatedDelegate(
     if (block.last_micro_block && block.primary_delegate == _delegate_id)
     {
         LOG_DEBUG(_log) << "EpochConsensusManager::DesignatedDelegate epoch proposed by delegate "
-                        << (int)_delegate_id << " " << (int)DelegateIdentityManager::_global_delegate_idx
+                        << (int)_delegate_id << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
                         << " " << _epoch_number
                         << " " << (int)block.primary_delegate;
         return _delegate_id;

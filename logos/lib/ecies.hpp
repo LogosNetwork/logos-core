@@ -161,6 +161,8 @@ public:
 };
 
 struct ECIESKeyPair {
+    ECIESKeyPair() = default;
+    ~ECIESKeyPair() = default;
     ECIESKeyPair(std::string &&hex, bool is_hex = true)
     {
         std::stringstream str(hex);

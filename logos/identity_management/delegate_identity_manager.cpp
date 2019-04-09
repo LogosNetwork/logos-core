@@ -152,6 +152,7 @@ uint8_t DelegateIdentityManager::_global_delegate_idx = 0;
 AccountAddress DelegateIdentityManager::_delegate_account = 0;
 DelegateIdentityManager::IPs DelegateIdentityManager::_delegates_ip;
 bool DelegateIdentityManager::_epoch_transition_enabled = true;
+ECIESKeyPair DelegateIdentityManager::_ecies_key = {};
 constexpr int DelegateIdentityManager::RETRY_PROPAGATE;
 
 DelegateIdentityManager::DelegateIdentityManager(Alarm &alarm,
@@ -382,6 +383,7 @@ DelegateIdentityManager::Init(const Config &config)
     else {LoadGenesisAccounts();}
 
     _delegate_account = logos::genesis_delegates[config.delegate_id].key.pub;
+    _ecies_key = logos::genesis_delegates[config.delegate_id].ecies_key;
     _global_delegate_idx = config.delegate_id;
     LOG_INFO(_log) << "delegate id is " << (int)_global_delegate_idx;
 
@@ -485,15 +487,15 @@ DelegateIdentityManager::IdentifyDelegates(
     EpochDelegates epoch_delegates,
     uint8_t &delegate_idx)
 {
-    Accounts delegates;
-    IdentifyDelegates(epoch_delegates, delegate_idx, delegates);
+    ApprovedEBPtr epoch;
+    IdentifyDelegates(epoch_delegates, delegate_idx, epoch);
 }
 
 void
 DelegateIdentityManager::IdentifyDelegates(
     EpochDelegates epoch_delegates,
     uint8_t &delegate_idx,
-    Accounts & delegates)
+    ApprovedEBPtr &epoch)
 {
     delegate_idx = NON_DELEGATE;
 
@@ -512,8 +514,8 @@ DelegateIdentityManager::IdentifyDelegates(
         trace_and_halt();
     }
 
-    ApprovedEB epoch;
-    if (_store.epoch_get(epoch_tip, epoch))
+    epoch = std::make_shared<ApprovedEB>();
+    if (_store.epoch_get(epoch_tip, *epoch))
     {
         LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get epoch: "
                         << epoch_tip.to_string();
@@ -522,22 +524,21 @@ DelegateIdentityManager::IdentifyDelegates(
 
     if (!stale_epoch && epoch_delegates == EpochDelegates::Current)
     {
-        if (_store.epoch_get(epoch.previous, epoch))
+        if (_store.epoch_get(epoch->previous, *epoch))
         {
             LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get current delegate's epoch: "
-                            << epoch.previous.to_string();
+                            << epoch->previous.to_string();
             trace_and_halt();
         }
     }
 
     LOG_DEBUG(_log) << "DelegateIdentityManager::IdentifyDelegates retrieving delegates from epoch "
-                    << epoch.epoch_number;
+                    << epoch->epoch_number;
     // Is this delegate included in the current/next epoch consensus?
     for (uint8_t del = 0; del < NUM_DELEGATES; ++del)
     {
         // update delegates for the requested epoch
-        delegates[del] = epoch.delegates[del].account;
-        if (epoch.delegates[del].account == _delegate_account)
+        if (epoch->delegates[del].account == _delegate_account)
         {
             delegate_idx = del;
         }
@@ -548,7 +549,7 @@ bool
 DelegateIdentityManager::IdentifyDelegates(
     uint epoch_number,
     uint8_t &delegate_idx,
-    Accounts & delegates)
+    ApprovedEBPtr & epoch)
 {
     BlockHash hash;
     if (_store.epoch_tip_get(hash))
@@ -557,8 +558,10 @@ DelegateIdentityManager::IdentifyDelegates(
         trace_and_halt();
     }
 
-    auto get = [this](BlockHash &hash, ApprovedEB &epoch) {
-        if (_store.epoch_get(hash, epoch))
+    epoch = std::make_shared<ApprovedEB>();
+
+    auto get = [this](BlockHash &hash, ApprovedEBPtr epoch) {
+        if (_store.epoch_get(hash, *epoch))
         {
             LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get epoch: "
                             << hash.to_string();
@@ -567,13 +570,12 @@ DelegateIdentityManager::IdentifyDelegates(
         return true;
     };
 
-    ApprovedEB epoch;
     bool found = false;
     for (bool res = get(hash, epoch);
-              res && !(found = epoch.epoch_number == epoch_number);
+              res && !(found = epoch->epoch_number == epoch_number);
               res = get(hash, epoch))
     {
-        hash = epoch.previous;
+        hash = epoch->previous;
     }
 
     if (found)
@@ -582,8 +584,7 @@ DelegateIdentityManager::IdentifyDelegates(
         delegate_idx = NON_DELEGATE;
         for (uint8_t del = 0; del < NUM_DELEGATES; ++del) {
             // update delegates for the requested epoch
-            delegates[del] = epoch.delegates[del].account;
-            if (epoch.delegates[del].account == _delegate_account) {
+            if (epoch->delegates[del].account == _delegate_account) {
                 delegate_idx = del;
             }
         }
@@ -627,8 +628,45 @@ DelegateIdentityManager::GetCurrentEpoch(BlockStore &store, ApprovedEB &epoch)
     }
 }
 
+std::vector<uint8_t>
+DelegateIdentityManager::GetDelegatesToAdvertise(uint8_t delegate_id)
+{
+    std::vector<uint8_t> ids;
+    for (uint8_t del; del < delegate_id; ++del)
+    {
+        ids.push_back(del);
+    }
+    return ids;
+}
+
 void
-DelegateIdentityManager::Advertise(uint32_t epoch_number, uint8_t delegate_id)
+DelegateIdentityManager::CheckAdvertise(uint32_t current_epoch_number, uint8_t &idx, ApprovedEBPtr &epoch_current)
+{
+    ApprovedEBPtr epoch_next;
+
+    // TODO add tx acceptor ad
+    // advertise for next epoch
+    IdentifyDelegates(EpochDelegates::Next, idx, epoch_next);
+    if (idx != NON_DELEGATE)
+    {
+        auto ids = GetDelegatesToAdvertise(idx);
+        Advertise(current_epoch_number+1, idx, epoch_next, ids);
+    }
+
+    // advertise for current epoch
+    IdentifyDelegates(EpochDelegates::Current, idx, epoch_current);
+    if (idx != NON_DELEGATE)
+    {
+        auto ids = GetDelegatesToAdvertise(idx);
+        Advertise(current_epoch_number, idx, epoch_current, ids);
+    }
+}
+
+void
+DelegateIdentityManager::P2pPropagate(
+    uint32_t epoch_number,
+    uint8_t delegate_id,
+    std::shared_ptr<std::vector<uint8_t>> buf)
 {
     auto log = [&](const char *m, size_t size) {
         LOG_DEBUG(_log) << "DelegateIdentityManager::Advertise, " << m
@@ -638,23 +676,47 @@ DelegateIdentityManager::Advertise(uint32_t epoch_number, uint8_t delegate_id)
                         << ", port " << _config.peer_port
                         << ", size " << size;
     };
-    std::vector<uint8_t> buf;
-    {
-        logos::vectorstream stream(buf);
-        P2pHeader header(logos_version, P2pAppType::AddressAd);
-        size_t size = header.Serialize(stream);
-        assert(size == P2pHeader::HEADER_SIZE);
-        AddressAd addressAd(delegate_id, epoch_number, _config.local_address.c_str(), _config.peer_port, GetStamp());
-        size = addressAd.Serialize(stream);
-        //assert(size == AddressAd::SIZE);
-    }
-    bool res = _p2p.PropagateMessage(buf.data(), buf.size(), true);
+    bool res = _p2p.PropagateMessage(buf->data(), buf->size(), true);
     if (res) {
-        log("propagating", buf.size());
+        log("propagating", buf->size());
     } else {
-        log("retrying", buf.size());
-        _alarm.add(std::chrono::seconds(RETRY_PROPAGATE), [this, epoch_number, delegate_id]() {
-            Advertise(epoch_number, delegate_id);
+        log("retrying", buf->size());
+        _alarm.add(std::chrono::seconds(RETRY_PROPAGATE), [this, epoch_number, delegate_id, buf]() {
+            P2pPropagate(epoch_number, delegate_id, buf);
         });
     }
+}
+
+void
+DelegateIdentityManager::Advertise(
+    uint32_t epoch_number,
+    uint8_t delegate_id,
+    std::shared_ptr<ApprovedEB> epoch,
+    const std::vector<uint8_t> &ids)
+{
+    for (auto it = ids.begin(); it != ids.end(); ++it)
+    {
+        auto buf = std::make_shared<std::vector<uint8_t>>();
+        {
+            logos::vectorstream stream(*buf);
+            P2pHeader header(logos_version, P2pAppType::AddressAd);
+            size_t size = header.Serialize(stream);
+            assert(size == P2pHeader::HEADER_SIZE);
+
+            P2pAddressAdHeader adHeader(epoch_number, *it);
+            size = adHeader.Serialize(stream);
+            assert(size == P2pAddressAdHeader::HEADER_SIZE);
+
+            AddressAd addressAd(delegate_id, _config.local_address.c_str(), _config.peer_port);
+            /// TODO : have to sign
+            addressAd.Serialize(stream, epoch->delegates[*it].ecies_pub);
+        }
+        P2pPropagate(epoch_number, delegate_id, buf);
+    }
+}
+
+void
+DelegateIdentityManager::Decrypt(const std::string &cyphertext, uint8_t *buf, size_t size)
+{
+    _ecies_key.prv.Decrypt(cyphertext, buf, size);
 }

@@ -530,9 +530,9 @@ public:
     //CH logos::online_reps online_reps;
     logos::stat stats;
     RecallHandler _recall_handler;
+    Logos_p2p_interface p2p;
     DelegateIdentityManager _identity_manager;
     Archiver _archiver;
-    Logos_p2p_interface p2p;
     std::shared_ptr<ConsensusContainer> _consensus_container;
     std::shared_ptr<TxAcceptor> _tx_acceptor;
     std::shared_ptr<TxReceiver> _tx_receiver;

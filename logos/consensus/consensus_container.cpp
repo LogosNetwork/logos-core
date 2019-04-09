@@ -38,8 +38,8 @@ ConsensusContainer::ConsensusContainer(Service & service,
     , _p2p(p2p, store)
 {
     uint8_t delegate_idx;
-    Accounts delegates;
-    _identity_manager.IdentifyDelegates(EpochDelegates::Current, delegate_idx, delegates);
+    std::shared_ptr<ApprovedEB> approvedEb;
+    _identity_manager.CheckAdvertise(_cur_epoch_number, delegate_idx, approvedEb);
 
     _validate_sig_config = config.tx_acceptor_config.validate_sig &&
             config.tx_acceptor_config.tx_acceptors.size() == 0; // delegate mode, don't need to re-validate sig
@@ -61,13 +61,13 @@ ConsensusContainer::ConsensusContainer(Service & service,
     }
     else if (in_epoch)
     {
-        ConsensusManagerConfig epoch_config = BuildConsensusConfig(delegate_idx, delegates);
+        ConsensusManagerConfig epoch_config = BuildConsensusConfig(delegate_idx, *approvedEb);
         create(epoch_config);
     }
 
     LOG_INFO(_log) << "ConsensusContainer::ConsensusContainer initialized delegate is in epoch "
                     << in_epoch << " epoch transition enabled " << DelegateIdentityManager::IsEpochTransitionEnabled()
-                    << " " << (int)delegate_idx << " " << (int)DelegateIdentityManager::_global_delegate_idx
+                    << " " << (int)delegate_idx << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
                     << " " << _cur_epoch_number;
 }
 
@@ -83,7 +83,6 @@ ConsensusContainer::CreateEpochManager(
                                               delegate, connection, epoch_number, *this, _p2p._p2p,
                                               config.delegate_id, _peer_manager);
     res->Start();
-    _identity_manager.Advertise(epoch_number, config.delegate_id);
     return res;
 }
 
@@ -99,7 +98,7 @@ ConsensusContainer::OnDelegateMessage(
     {
         result.code = logos::process_result::not_delegate;
         LOG_WARN(_log) << "ConsensusContainer::OnDelegateMessage transaction, the node is not a delegate, "
-                       << (int)DelegateIdentityManager::_global_delegate_idx;
+                       << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
         return result;
     }
 
@@ -139,7 +138,7 @@ ConsensusContainer::OnSendRequest(vector<std::shared_ptr<DM>> &blocks)
     {
         result.code = logos::process_result::not_delegate;
         LOG_WARN(_log) << "ConsensusContainer::OnSendRequest transaction, the node is not a delegate, "
-                        << (int)DelegateIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
         return {{result.code,0}};
     }
 
@@ -156,7 +155,7 @@ ConsensusContainer::BufferComplete(
     {
         result.code = logos::process_result::not_delegate;
         LOG_WARN(_log) << "ConsensusContainer::BufferComplete transaction, the node is not a delegate, "
-                        << (int)DelegateIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
         return;
     }
 
@@ -175,7 +174,7 @@ ConsensusContainer::OnDelegateMessage(
     {
         result.code = logos::process_result::not_delegate;
         LOG_WARN(_log) << "ConsensusContainer::OnDelegateMessage microblock, the node is not a delegate, "
-                        << (int)DelegateIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
         return result;
     }
 
@@ -188,7 +187,7 @@ ConsensusContainer::OnDelegateMessage(
          {
              result.code = logos::process_result::old;
              LOG_WARN(_log) << "ConsensusContainer::OnSendRequest microblock, not new delegate set "
-                            << (int) DelegateIdentityManager::_global_delegate_idx;
+                            << (int) DelegateIdentityManager::GetGlobalDelegateIdx();
              return result;
          }
          epoch = _trans_epoch;
@@ -213,7 +212,7 @@ ConsensusContainer::OnDelegateMessage(
     {
         result.code = logos::process_result::not_delegate;
         LOG_WARN(_log) << "ConsensusContainer::OnDelegateMessage epoch, the node is not a delegate, "
-                        << (int)DelegateIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
         return result;
     }
 
@@ -236,7 +235,7 @@ ConsensusContainer::PeerBinder(
     {
         socket->close();
         LOG_WARN(_log) << "ConsensusContainer::PeerBinder: the node is not accepting connections, "
-                        << (int)DelegateIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
         return;
     }
 
@@ -247,7 +246,7 @@ ConsensusContainer::PeerBinder(
     {
         _connections_queue.push(ConnectionCache{socket, ids, endpoint});
         LOG_WARN(_log) << "ConsensusContainer::PeerBinder: epoch transition has not started yet, "
-                        << (int)DelegateIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
         return;
     }
 
@@ -273,7 +272,7 @@ ConsensusContainer::PeerBinder(
                     << epoch->GetConnectionName()
                     << " delegate " << epoch->GetDelegateName()
                     << " state " << epoch->GetStateName()
-                    << " " << (int)DelegateIdentityManager::_global_delegate_idx;
+                    << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
 
     epoch->_netio_manager->OnConnectionAccepted(endpoint, socket, ids);
 }
@@ -283,22 +282,22 @@ ConsensusContainer::EpochTransitionEventsStart()
 {
     std::lock_guard<std::mutex> lock(_mutex);
     uint8_t delegate_idx;
-    Accounts delegates;
+    std::shared_ptr<ApprovedEB> approvedEb;
 
     if (!DelegateIdentityManager::IsEpochTransitionEnabled())
     {
         LOG_WARN(_log) << "ConsensusContainer::EpochTransitionEventsStart "
                            "epoch transition is not supported by this delegate "
-                        << (int)DelegateIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
         return;
     }
 
-    _identity_manager.IdentifyDelegates(EpochDelegates::Next, delegate_idx, delegates);
+    _identity_manager.IdentifyDelegates(EpochDelegates::Next, delegate_idx, approvedEb);
 
     if (delegate_idx == NON_DELEGATE && _cur_epoch == nullptr)
     {
         LOG_WARN(_log) << "ConsensusContainer::EpochTransitionEventsStart not a delegate in current or next epoch, "
-                        << (int)DelegateIdentityManager::_global_delegate_idx;
+                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
         return;
     }
 
@@ -336,7 +335,7 @@ ConsensusContainer::EpochTransitionEventsStart()
 
     if (_transition_delegate != EpochTransitionDelegate::Retiring)
     {
-        ConsensusManagerConfig epoch_config = BuildConsensusConfig(delegate_idx, delegates);
+        ConsensusManagerConfig epoch_config = BuildConsensusConfig(delegate_idx, *approvedEb);
         _trans_epoch = CreateEpochManager(_cur_epoch_number+1, epoch_config, _transition_delegate,
                                           EpochConnection::Transitioning);
 
@@ -370,7 +369,7 @@ ConsensusContainer::EpochTransitionEventsStart()
     LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEventsStart : delegate "
                    << TransitionStateToName(_transition_state) << " "
                    << TransitionDelegateToName(_transition_delegate) <<  " "
-                   << (int)delegate_idx << " " << (int)DelegateIdentityManager::_global_delegate_idx
+                   << (int)delegate_idx << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
                    << ", epoch " << _cur_epoch_number
                    << ", binding map " << ((_trans_epoch) ? _trans_epoch->_epoch_number : 0);
 
@@ -399,7 +398,7 @@ ConsensusContainer::EpochTransitionStart(uint8_t delegate_idx)
     LOG_INFO(_log) << "ConsensusContainer::EpochTransitionStart "
                     << TransitionDelegateToName(_transition_delegate) <<  " "
                     << (int)delegate_idx
-                    << " " << (int)DelegateIdentityManager::_global_delegate_idx
+                    << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
                     << " " << _cur_epoch_number;
 
     _transition_state = EpochTransitionState::EpochTransitionStart;
@@ -485,7 +484,7 @@ ConsensusContainer::EpochStart(uint8_t delegate_idx)
     LOG_INFO(_log) << "ConsensusContainer::EpochStart "
                     << TransitionDelegateToName(_transition_delegate) <<  " "
                     << (int)delegate_idx << " "
-                    << (int)DelegateIdentityManager::_global_delegate_idx << " " << (_cur_epoch_number + 1);
+                    << (int)DelegateIdentityManager::GetGlobalDelegateIdx() << " " << (_cur_epoch_number + 1);
 
     _transition_state = EpochTransitionState::EpochStart;
 
@@ -505,7 +504,7 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
 
     LOG_INFO(_log) << "ConsensusContainer::EpochTransitionEnd "
                    << TransitionDelegateToName(_transition_delegate)
-                   << " " << (int)delegate_idx << " " << (int)DelegateIdentityManager::_global_delegate_idx
+                   << " " << (int)delegate_idx << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
                    << " " << _cur_epoch_number;
 
     _transition_state = EpochTransitionState::None;
@@ -534,20 +533,20 @@ ConsensusContainer::EpochTransitionEnd(uint8_t delegate_idx)
 ConsensusManagerConfig
 ConsensusContainer::BuildConsensusConfig(
     const uint8_t delegate_idx,
-    const Accounts & delegates)
+    const ApprovedEB & epoch)
 {
    ConsensusManagerConfig config = _config;
 
    config.delegate_id = delegate_idx;
-   config.local_address = DelegateIdentityManager::_delegates_ip[DelegateIdentityManager::_delegate_account];
+   config.local_address = DelegateIdentityManager::GetDelegateIP();
    config.delegates.clear();
 
    stringstream str;
    str << "ConsensusContainer::BuildConsensusConfig: ";
    for (uint8_t del = 0; del < NUM_DELEGATES; ++del)
    {
-        auto account = delegates[del];
-        auto ip = DelegateIdentityManager::_delegates_ip[account];
+        auto account = epoch.delegates[del].account;
+        auto ip = DelegateIdentityManager::GetDelegateIP(account);
         config.delegates.push_back(ConsensusManagerConfig::Delegate{ip, del});
         str << (int)del << " " << ip << " ";
    }
@@ -576,8 +575,7 @@ ConsensusContainer::CheckEpochNull(bool is_null, const char* where)
 bool
 ConsensusContainer::OnP2pReceive(const void *data, size_t size)
 {
-    auto hdrs_size = P2pHeader::HEADER_SIZE + P2pConsensusHeader::HEADER_SIZE + MessagePrequelSize;
-    if (size < hdrs_size)
+    if (size < P2pHeader::HEADER_SIZE)
     {
         LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid message, size is less than header, "
                         << size;
@@ -599,12 +597,33 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
 
     switch (p2pheader.app_type)
     {
-        case P2pAppType::Consensus:
+        case P2pAppType::Consensus: {
+            if (size < (P2pHeader::HEADER_SIZE + P2pConsensusHeader::HEADER_SIZE + MessagePrequelSize))
+            {
+                LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid message, size is less than header, "
+                                << size;
+                return false;
+            }
             return DeliverP2pConsensus(stream, data, size);
-        case P2pAppType::AddressAd:
+        }
+        case P2pAppType::AddressAd: {
+            if (size < (P2pHeader::HEADER_SIZE + P2pAddressAdHeader::HEADER_SIZE))
+            {
+                LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid message, size is less than header, "
+                                << size;
+                return false;
+            }
             return DeliverP2pAddressAd(stream);
-        case P2pAppType::AddressAdTxAcceptor:
+        }
+        case P2pAppType::AddressAdTxAcceptor: {
+            if (size < (P2pHeader::HEADER_SIZE + P2pAddressAdHeader::HEADER_SIZE))
+            {
+                LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid message, size is less than header, "
+                                << size;
+                return false;
+            }
             return DeliverP2pAddressAdTxAcceptor(stream);
+        }
         default:
             return false;
     }
@@ -614,13 +633,14 @@ bool
 ConsensusContainer::DeliverP2pConsensus(logos::bufferstream &stream, const void *data, size_t size)
 {
     auto hdrs_size = P2pHeader::HEADER_SIZE + P2pConsensusHeader::HEADER_SIZE + MessagePrequelSize;
-    bool error;
+    bool error = false;
     P2pConsensusHeader p2pconsensus_header(error, stream);
     if (error)
     {
         LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, failed to deserialize P2pConsensusHeader";
         return false;
     }
+    error = false;
     Prequel prequel(error, stream);
     if (error)
     {
@@ -683,31 +703,53 @@ bool
 ConsensusContainer::DeliverP2pAddressAd(logos::bufferstream &stream)
 {
     bool error = false;
-    AddressAd addressAd(error, stream);
-    assert(!error);
+    P2pAddressAdHeader header(error, stream);
+    if (error)
+    {
+        LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, failed to deserialize P2pAddressAdHeader";
+        return false;
+    }
 
     std::shared_ptr<EpochManager> epoch = nullptr;
     {
         OptLock lock(_transition_state, _mutex);
 
-        if (_cur_epoch && _cur_epoch->GetEpochNumber() == addressAd.epoch_number)
+        if (_cur_epoch && _cur_epoch->GetEpochNumber() == header.epoch_number)
         {
             epoch = _cur_epoch;
         }
-        else if (_trans_epoch && _trans_epoch->GetEpochNumber() == addressAd.epoch_number)
+        else if (_trans_epoch && _trans_epoch->GetEpochNumber() == header.epoch_number)
         {
             epoch = _trans_epoch;
         }
         else
         {
             LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, failed to deliver for epoch number "
-                            << addressAd.epoch_number << ", delegate " << (int)addressAd.delegate_id;
+                            << header.epoch_number << ", delegate " << (int)header.delegate_id;
             return false;
         }
     }
 
+    if (header.delegate_id != epoch->_delegate_id)
+    {
+        LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, ad message not for this delegate "
+                        << (int)header.delegate_id
+                        << " " << (int)epoch->_delegate_id
+                        << ", epoch number " << header.epoch_number;
+        return true;
+    }
+
+    error = false;
+    AddressAd addressAd(error, stream, std::bind(&DelegateIdentityManager::Decrypt,
+            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+    if (error)
+    {
+        LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, failed to deserialize AddressAd";
+        return false;
+    }
+
     LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, delegate " << (int)addressAd.delegate_id
-                    << ", epoch number " << addressAd.epoch_number
+                    << ", epoch number " << header.epoch_number
                     << ", ip " << addressAd.GetIP()
                     << ", port " << addressAd.port;
 
@@ -721,7 +763,11 @@ ConsensusContainer::DeliverP2pAddressAdTxAcceptor(logos::bufferstream &stream)
 {
     bool error = false;
     AddressAdTxAcceptor addressAd(error, stream);
-    assert(!error);
+    if (error)
+    {
+        LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAdTxAcceptor, failed to deserialize AddressAdTxAcceptor";
+        return false;
+    }
 
     LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAdTxAcceptor, ip " << addressAd.GetIP()
                     << ", port " << addressAd.port

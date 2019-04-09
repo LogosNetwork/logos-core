@@ -317,25 +317,25 @@ MicroBlockTester::epoch_delegates(
     using Accounts = AccountAddress[NUM_DELEGATES];
     boost::property_tree::ptree response_l;
     uint8_t delegate_idx;
-    Accounts delegates;
+    std::shared_ptr<ApprovedEB> approvedEb;
 
     std::string epoch (_request.get<std::string> ("epoch", "current"));
     if (epoch == "current")
     {
-        node._identity_manager.IdentifyDelegates(EpochDelegates::Current, delegate_idx, delegates);
+        node._identity_manager.IdentifyDelegates(EpochDelegates::Current, delegate_idx, approvedEb);
     }
     else
     {
-        node._identity_manager.IdentifyDelegates(EpochDelegates::Next, delegate_idx, delegates);
+        node._identity_manager.IdentifyDelegates(EpochDelegates::Next, delegate_idx, approvedEb);
     }
 
     int del = 0;
-    for (auto acct : delegates)
+    for (auto acct : approvedEb->delegates)
     {
         boost::property_tree::ptree response;
         char buff[5];
         sprintf(buff, "%d", del);
-        response.put("ip", DelegateIdentityManager::_delegates_ip[acct]);
+        response.put("ip", DelegateIdentityManager::GetDelegateIP(acct.account));
         response_l.push_back(std::make_pair(buff, response));
         del++;
     }

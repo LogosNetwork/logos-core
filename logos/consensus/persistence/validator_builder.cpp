@@ -56,7 +56,7 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
         {
             auto key_store = std::make_shared<DelegateKeyStore>();
             validator = std::make_shared<MessageValidator>(*key_store,
-                logos::genesis_delegates[DelegateIdentityManager::_global_delegate_idx].bls_key);
+                logos::genesis_delegates[DelegateIdentityManager::GetGlobalDelegateIdx()].bls_key);
             uint8_t id = 0;
             for (auto delegate : epoch.delegates)
             {

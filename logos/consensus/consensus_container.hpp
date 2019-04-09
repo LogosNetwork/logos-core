@@ -200,7 +200,7 @@ private:
     /// @param delegate_idx delegate's index [in]
     /// @param delegates in the epoch [in]
     /// @returns delegate's configuration
-    Config BuildConsensusConfig(uint8_t delegate_idx, const Accounts & delegates);
+    Config BuildConsensusConfig(uint8_t delegate_idx, const ApprovedEB &epoch);
 
     /// Submit connections queue for binding to the correct epoch
     void BindConnectionsQueue();
