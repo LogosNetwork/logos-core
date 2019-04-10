@@ -618,6 +618,7 @@ struct CommonAddressAd {
     DelegateSig signature;
 };
 
+// TODO is encr_delegate_id and epoch_number needed in AddressAd?
 struct AddressAd : CommonAddressAd
 {
     using Decryptor = std::function<void(const std::string &cyphertext, uint8_t *data, size_t size)>;

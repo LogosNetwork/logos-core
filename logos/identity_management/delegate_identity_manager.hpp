@@ -32,7 +32,7 @@ enum class EpochDelegates {
 class DelegateIdentityManager
 {
     using Store     = logos::block_store;
-    using Config    = ConsensusManagerConfig;
+    using Config    = logos::node_config;
     using IPs       = std::map<AccountAddress, std::string>;
     using Accounts  = AccountAddress[NUM_DELEGATES];
     using Alarm     = logos::alarm;
@@ -189,6 +189,14 @@ private:
     /// Sign advertised message
     void Sign(uint32_t epoch_number, CommonAddressAd &ad);
 
+    template<typename Ad, typename SerializeF, typename ... Args>
+    void MakeAdAndPropagate(uint32_t epoch_number,
+                            uint8_t delegate_id,
+                            uint8_t encr_delegate_id,
+                            P2pAppType app_type,
+                            SerializeF &&f,
+                            Args ... args);
+
     static bool             _epoch_transition_enabled; ///< is epoch transition enabled
     static AccountAddress   _delegate_account;     ///< this delegate's account or 0 if non-delegate
     static uint8_t          _global_delegate_idx;  ///< global delegate index in all delegate's list
@@ -198,7 +206,7 @@ private:
     Alarm &                 _alarm;                ///< logos alarm reference
     Store &                 _store;                ///< logos block store reference
     p2p_interface &         _p2p;                  ///< p2p interface reference
-    Config                  _config;               ///< consensus configuration
+    const Config &          _config;               ///< consensus configuration
     Log                     _log;                  ///< boost log instances
     ValidatorBuilder        _validator_builder;    ///< validator builder
 };

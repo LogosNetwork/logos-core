@@ -710,6 +710,7 @@ ConsensusContainer::DeliverP2pAddressAd(logos::bufferstream &stream)
         return false;
     }
 
+    // TODO handle Ad for the next epoch, have to check if delegate in the next epoch
     std::shared_ptr<EpochManager> epoch = nullptr;
     {
         OptLock lock(_transition_state, _mutex);
@@ -725,11 +726,14 @@ ConsensusContainer::DeliverP2pAddressAd(logos::bufferstream &stream)
         else
         {
             LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, failed to deliver for epoch number "
-                            << header.epoch_number << ", delegate " << (int)header.delegate_id;
+                            << header.epoch_number << ", delegate " << (int)header.delegate_id
+                            << " cur " << (_cur_epoch?(_cur_epoch->GetEpochNumber()):0)
+                            << " trans " << (_trans_epoch?(_trans_epoch->GetEpochNumber()):0);
             return false;
         }
     }
 
+    /// TODO have to store Ad's for this and other delegates
     if (header.delegate_id != epoch->_delegate_id)
     {
         LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, ad message not for this delegate "

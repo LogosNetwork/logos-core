@@ -318,9 +318,10 @@ DelegateIdentityManager::Init(const Config &config)
 {
     logos::transaction transaction (_store.environment, nullptr, true);
 
-    _epoch_transition_enabled = config.all_delegates.size() == 2 * config.delegates.size();
+    const ConsensusManagerConfig &cmconfig = _config.consensus_manager_config;
+    _epoch_transition_enabled = cmconfig.all_delegates.size() == 2 * cmconfig.delegates.size();
 
-    EpochVotingManager::ENABLE_ELECTIONS = config.enable_elections;
+    EpochVotingManager::ENABLE_ELECTIONS = cmconfig.enable_elections;
 
     BlockHash epoch_tip;
     uint32_t epoch_number = 0;
@@ -385,19 +386,19 @@ DelegateIdentityManager::Init(const Config &config)
     }
     else {LoadGenesisAccounts();}
 
-    _delegate_account = logos::genesis_delegates[config.delegate_id].key.pub;
-    _ecies_key = logos::genesis_delegates[config.delegate_id].ecies_key;
-    *_bls_key = logos::genesis_delegates[config.delegate_id].bls_key;
-    _global_delegate_idx = config.delegate_id;
+    _delegate_account = logos::genesis_delegates[cmconfig.delegate_id].key.pub;
+    _ecies_key = logos::genesis_delegates[cmconfig.delegate_id].ecies_key;
+    *_bls_key = logos::genesis_delegates[cmconfig.delegate_id].bls_key;
+    _global_delegate_idx = cmconfig.delegate_id;
     LOG_INFO(_log) << "delegate id is " << (int)_global_delegate_idx;
 
     ConsensusContainer::SetCurEpochNumber(epoch_number);
 
     // get all ip's
-    for (uint8_t del = 0; del < 2 * NUM_DELEGATES && del < config.all_delegates.size(); ++del)
+    for (uint8_t del = 0; del < 2 * NUM_DELEGATES && del < cmconfig.all_delegates.size(); ++del)
     {
         auto account = logos::genesis_delegates[del].key.pub;
-        auto ip = config.all_delegates[del].ip;
+        auto ip = cmconfig.all_delegates[del].ip;
         _delegates_ip[account] = ip;
         LOG_INFO(_log) << "delegate ip is : " << ip;
     }
@@ -648,7 +649,6 @@ DelegateIdentityManager::CheckAdvertise(uint32_t current_epoch_number, uint8_t &
 {
     ApprovedEBPtr epoch_next;
 
-    // TODO add tx acceptor ad
     // advertise for next epoch
     IdentifyDelegates(EpochDelegates::Next, idx, epoch_next);
     if (idx != NON_DELEGATE)
@@ -676,8 +676,8 @@ DelegateIdentityManager::P2pPropagate(
         LOG_DEBUG(_log) << "DelegateIdentityManager::Advertise, " << m
                         << ": epoch number " << epoch_number
                         << ", delegate id " << (int) delegate_id
-                        << ", ip " << _config.local_address
-                        << ", port " << _config.peer_port
+                        << ", ip " << _config.consensus_manager_config.local_address
+                        << ", port " << _config.consensus_manager_config.peer_port
                         << ", size " << size;
     };
     bool res = _p2p.PropagateMessage(buf->data(), buf->size(), true);
@@ -707,6 +707,34 @@ DelegateIdentityManager::ValidateSignature(uint32_t epoch_number, const CommonAd
     return validator->Validate(hash, ad.signature, ad.delegate_id);
 }
 
+template<typename Ad, typename SerializeF, typename ... Args>
+void
+DelegateIdentityManager::MakeAdAndPropagate(
+    uint32_t epoch_number,
+    uint8_t delegate_id,
+    uint8_t encr_delegate_id,
+    P2pAppType app_type,
+    SerializeF &&serialize,
+    Args ... args)
+{
+    auto buf = std::make_shared<std::vector<uint8_t>>();
+    {
+        logos::vectorstream stream(*buf);
+        P2pHeader header(logos_version, app_type);
+        size_t size = header.Serialize(stream);
+        assert(size == P2pHeader::HEADER_SIZE);
+
+        P2pAddressAdHeader adHeader(epoch_number, encr_delegate_id);
+        size = adHeader.Serialize(stream);
+        assert(size == P2pAddressAdHeader::HEADER_SIZE);
+
+        Ad addressAd(delegate_id, args ... );
+        Sign(epoch_number, addressAd);
+        serialize(&addressAd, stream);
+    }
+    P2pPropagate(epoch_number, delegate_id, buf);
+}
+
 void
 DelegateIdentityManager::Advertise(
     uint32_t epoch_number,
@@ -714,24 +742,36 @@ DelegateIdentityManager::Advertise(
     std::shared_ptr<ApprovedEB> epoch,
     const std::vector<uint8_t> &ids)
 {
+    // Advertise to other delegats this delegate's ip
+    const ConsensusManagerConfig & cmconfig = _config.consensus_manager_config;
     for (auto it = ids.begin(); it != ids.end(); ++it)
     {
-        auto buf = std::make_shared<std::vector<uint8_t>>();
-        {
-            logos::vectorstream stream(*buf);
-            P2pHeader header(logos_version, P2pAppType::AddressAd);
-            size_t size = header.Serialize(stream);
-            assert(size == P2pHeader::HEADER_SIZE);
+        auto encr_delegate_id = *it;
+        MakeAdAndPropagate<AddressAd>(epoch_number,
+                                      delegate_id,
+                                      encr_delegate_id,
+                                      P2pAppType::AddressAd,
+                                      [&epoch, &encr_delegate_id](auto ad, logos::vectorstream &s){
+                                          (*ad).Serialize(s, epoch->delegates[encr_delegate_id].ecies_pub);
+                                      },
+                                      cmconfig.local_address.c_str(),
+                                      cmconfig.peer_port);
+    }
 
-            P2pAddressAdHeader adHeader(epoch_number, *it);
-            size = adHeader.Serialize(stream);
-            assert(size == P2pAddressAdHeader::HEADER_SIZE);
-
-            AddressAd addressAd(delegate_id, _config.local_address.c_str(), _config.peer_port);
-            Sign(epoch_number, addressAd);
-            addressAd.Serialize(stream, epoch->delegates[*it].ecies_pub);
-        }
-        P2pPropagate(epoch_number, delegate_id, buf);
+    // Advertise to all nodes this delegate's tx acceptors
+    const TxAcceptorConfig &txconfig = _config.tx_acceptor_config;
+    for (auto txa : txconfig.tx_acceptors)
+    {
+        MakeAdAndPropagate<AddressAdTxAcceptor>(epoch_number,
+                                                delegate_id,
+                                                0xff,
+                                                P2pAppType::AddressAdTxAcceptor,
+                                                [](auto ad, logos::vectorstream &s) {
+                                                    (*ad).Serialize(s);
+                                                },
+                                                txa.ip.c_str(),
+                                                txconfig.bin_port,
+                                                txconfig.json_port);
     }
 }
 

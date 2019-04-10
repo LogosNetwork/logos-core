@@ -72,12 +72,12 @@ struct TxAcceptorConfig
         return false;
     }
 
-    std::vector<Acceptor> tx_acceptors;
-    std::string           delegate_ip;
-    std::string           acceptor_ip;
-    uint16_t              port=56000;
-    uint16_t              json_port=56001;
-    uint16_t              bin_port=56002;
-    bool                  validate_sig=false;
-    uint32_t              max_connections = UINT32_MAX;
+    std::vector<Acceptor> tx_acceptors;                 /// list of delegate's tx-acceptors
+    std::string           delegate_ip;                  /// delegate's ip for verification
+    std::string           acceptor_ip;                  /// tx-acceptor ip to accept delegate's connection
+    uint16_t              port=56000;                   /// tx-acceptor port to accept delegate's connection
+    uint16_t              json_port=56001;              /// port to receive json formatted transactions
+    uint16_t              bin_port=56002;               /// port to receive binary formatted transactions
+    bool                  validate_sig=false;           /// if true then delegate validates transaction's signature
+    uint32_t              max_connections = UINT32_MAX; /// max allowed client connections
 };

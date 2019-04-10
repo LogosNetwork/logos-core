@@ -1291,7 +1291,7 @@ block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
 stats (config.stat_config),
 _recall_handler(),
 p2p(*this),
-_identity_manager(alarm_a, store, config.consensus_manager_config, p2p),
+_identity_manager(alarm_a, store, config, p2p),
 _archiver(alarm_a, store, _recall_handler),
 _consensus_container{std::make_shared<ConsensusContainer>(
         service_a, store, alarm_a, config, _archiver, _identity_manager, p2p)},
