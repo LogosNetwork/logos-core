@@ -152,7 +152,8 @@ uint8_t DelegateIdentityManager::_global_delegate_idx = 0;
 AccountAddress DelegateIdentityManager::_delegate_account = 0;
 DelegateIdentityManager::IPs DelegateIdentityManager::_delegates_ip;
 bool DelegateIdentityManager::_epoch_transition_enabled = true;
-ECIESKeyPair DelegateIdentityManager::_ecies_key = {};
+ECIESKeyPair DelegateIdentityManager::_ecies_key{};
+std::unique_ptr<bls::KeyPair> DelegateIdentityManager::_bls_key = nullptr;
 constexpr int DelegateIdentityManager::RETRY_PROPAGATE;
 
 DelegateIdentityManager::DelegateIdentityManager(Alarm &alarm,
@@ -163,7 +164,9 @@ DelegateIdentityManager::DelegateIdentityManager(Alarm &alarm,
     , _store(store)
     , _p2p(p2p)
     , _config(config)
+    , _validator_builder(store)
 {
+   _bls_key = std::make_unique<bls::KeyPair>();
    Init(config);
 }
 
@@ -384,6 +387,7 @@ DelegateIdentityManager::Init(const Config &config)
 
     _delegate_account = logos::genesis_delegates[config.delegate_id].key.pub;
     _ecies_key = logos::genesis_delegates[config.delegate_id].ecies_key;
+    *_bls_key = logos::genesis_delegates[config.delegate_id].bls_key;
     _global_delegate_idx = config.delegate_id;
     LOG_INFO(_log) << "delegate id is " << (int)_global_delegate_idx;
 
@@ -688,6 +692,22 @@ DelegateIdentityManager::P2pPropagate(
 }
 
 void
+DelegateIdentityManager::Sign(uint32_t epoch_number, CommonAddressAd &ad)
+{
+    auto validator = _validator_builder.GetValidator(epoch_number);
+    auto hash = ad.Hash();
+    validator->Sign(hash, ad.signature);
+}
+
+bool
+DelegateIdentityManager::ValidateSignature(uint32_t epoch_number, const CommonAddressAd &ad)
+{
+    auto hash = ad.Hash();
+    auto validator = _validator_builder.GetValidator(epoch_number);
+    return validator->Validate(hash, ad.signature, ad.delegate_id);
+}
+
+void
 DelegateIdentityManager::Advertise(
     uint32_t epoch_number,
     uint8_t delegate_id,
@@ -708,7 +728,7 @@ DelegateIdentityManager::Advertise(
             assert(size == P2pAddressAdHeader::HEADER_SIZE);
 
             AddressAd addressAd(delegate_id, _config.local_address.c_str(), _config.peer_port);
-            /// TODO : have to sign
+            Sign(epoch_number, addressAd);
             addressAd.Serialize(stream, epoch->delegates[*it].ecies_pub);
         }
         P2pPropagate(epoch_number, delegate_id, buf);

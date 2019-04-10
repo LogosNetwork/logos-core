@@ -664,12 +664,12 @@ struct AddressAd : CommonAddressAd
         logos::vectorstream stream(buf);
         return Serialize(stream, pub);
     }
-    BlockHash Hash() const
+    BlockHash Hash() const override
     {
         return Blake2bHash<AddressAd>(*this);
     }
 
-    virtual void Hash(blake2b_state & hash) const
+    void Hash(blake2b_state & hash) const override
     {
         CommonAddressAd::Hash(hash);
     }
@@ -711,13 +711,13 @@ struct AddressAdTxAcceptor : CommonAddressAd
         logos::vectorstream stream(buf);
         return Serialize(stream);
     }
-    BlockHash Hash() const
+    BlockHash Hash() const override
     {
         CommonAddressAd::Hash();
         return Blake2bHash<AddressAdTxAcceptor>(*this);
     }
 
-    void Hash(blake2b_state & hash) const
+    void Hash(blake2b_state & hash) const override
     {
         blake2b_update(&hash, &json_port, sizeof(json_port));
     }

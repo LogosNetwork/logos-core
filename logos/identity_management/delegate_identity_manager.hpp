@@ -4,6 +4,7 @@
 /// into epoch's voted delegates. It also creates genesis microblocks, epochs, and delegates genesis accounts
 ///
 #pragma once
+#include <logos/consensus/persistence/validator_builder.hpp>
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
@@ -35,7 +36,10 @@ class DelegateIdentityManager
     using IPs       = std::map<AccountAddress, std::string>;
     using Accounts  = AccountAddress[NUM_DELEGATES];
     using Alarm     = logos::alarm;
-    using ApprovedEBPtr = std::shared_ptr<ApprovedEB>;
+    using ApprovedEBPtr
+                    = std::shared_ptr<ApprovedEB>;
+    using BlsKeyPairPtr
+                    = std::unique_ptr<bls::KeyPair>;
 
 public:
     /// Class constructor
@@ -142,6 +146,38 @@ public:
         return _delegates_ip[_delegate_account];
     }
 
+    /// Validate signature
+    /// @param epoch_number epoch number
+    /// @param ad advertised message
+    /// @returns true if validated
+    bool ValidateSignature(uint32_t epoch_number, const CommonAddressAd &ad);
+
+    /// Sign with bls signature
+    /// @param hash to sign
+    /// @param sig hash's signature [out]
+    static void Sign(const BlockHash &hash, DelegateSig &sig)
+    {
+        string hash_str(reinterpret_cast<const char*>(hash.data()), HASH_SIZE);
+
+        bls::Signature sig_real;
+        _bls_key->prv.sign(sig_real, hash_str);
+
+        string sig_str;
+        sig_real.serialize(sig_str);
+        memcpy(&sig, sig_str.data(), CONSENSUS_SIG_SIZE);
+    }
+
+    static DelegatePubKey BlsPublicKey()
+    {
+        std::string keystring;
+        _bls_key->pub.serialize(keystring);
+
+        DelegatePubKey pk;
+        memcpy(pk.data(), keystring.data(), CONSENSUS_PUB_KEY_SIZE);
+
+        return pk;
+    }
+
     static constexpr int RETRY_PROPAGATE = 5;
 
 private:
@@ -150,14 +186,19 @@ private:
     /// @param delegate_id of the advertiser
     std::vector<uint8_t> GetDelegatesToAdvertise(uint8_t delegate_id);
 
+    /// Sign advertised message
+    void Sign(uint32_t epoch_number, CommonAddressAd &ad);
+
     static bool             _epoch_transition_enabled; ///< is epoch transition enabled
     static AccountAddress   _delegate_account;     ///< this delegate's account or 0 if non-delegate
     static uint8_t          _global_delegate_idx;  ///< global delegate index in all delegate's list
     static IPs              _delegates_ip;         ///< all delegates ip
     static ECIESKeyPair     _ecies_key;            ///< this delegate's ecies key pair for ip encr/decr
+    static BlsKeyPairPtr    _bls_key;              ///< bls key
     Alarm &                 _alarm;                ///< logos alarm reference
     Store &                 _store;                ///< logos block store reference
     p2p_interface &         _p2p;                  ///< p2p interface reference
     Config                  _config;               ///< consensus configuration
     Log                     _log;                  ///< boost log instances
+    ValidatorBuilder        _validator_builder;    ///< validator builder
 };

@@ -24,20 +24,11 @@ public:
         DelegateSig signature;
     };
 
-    MessageValidator(DelegateKeyStore & key_store, KeyPair &key_pair);
+    MessageValidator(DelegateKeyStore & key_store);
 
     //single
-    void Sign(const BlockHash & hash, DelegateSig & sig)
-    {
-        string hash_str(reinterpret_cast<const char*>(hash.data()), HASH_SIZE);
+    void Sign(const BlockHash & hash, DelegateSig & sig);
 
-        SignatureReal sig_real;
-        _keypair.prv.sign(sig_real, hash_str);
-
-        string sig_str;
-        sig_real.serialize(sig_str);
-        memcpy(&sig, sig_str.data(), CONSENSUS_SIG_SIZE);
-    }
     //single
     bool Validate(const BlockHash & hash, const DelegateSig & sig, uint8_t delegate_id)
     {
@@ -138,6 +129,5 @@ public:
 private:
 
     Log                 _log;
-    KeyPair             _keypair;
     DelegateKeyStore &  _keys;
 };

@@ -747,6 +747,11 @@ ConsensusContainer::DeliverP2pAddressAd(logos::bufferstream &stream)
         LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, failed to deserialize AddressAd";
         return false;
     }
+    if (!_identity_manager.ValidateSignature(header.epoch_number, addressAd))
+    {
+        LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, failed to validate AddressAd signature";
+        return false;
+    }
 
     LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, delegate " << (int)addressAd.delegate_id
                     << ", epoch number " << header.epoch_number
