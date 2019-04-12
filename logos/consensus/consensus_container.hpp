@@ -245,9 +245,9 @@ private:
     CreateEpochManager(uint epoch_number, const ConsensusManagerConfig &config,
         EpochTransitionDelegate delegate, EpochConnection connnection);
 
-    bool DeliverP2pConsensus(logos::bufferstream &stream, const void *data, size_t size);
-    bool DeliverP2pAddressAd(logos::bufferstream &stream);
-    bool DeliverP2pAddressAdTxAcceptor(logos::bufferstream &stream);
+    bool OnP2pConsensus(logos::bufferstream &stream, const void *data, size_t size);
+    bool OnAddressAd(logos::bufferstream &stream);
+    bool OnAddressAdTxAcceptor(logos::bufferstream &stream);
 
     static const std::chrono::seconds GARBAGE_COLLECT;
 

@@ -604,7 +604,7 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
                                 << size;
                 return false;
             }
-            return DeliverP2pConsensus(stream, data, size);
+            return OnP2pConsensus(stream, data, size);
         }
         case P2pAppType::AddressAd: {
             if (size < (P2pHeader::HEADER_SIZE + P2pAddressAdHeader::HEADER_SIZE))
@@ -613,7 +613,7 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
                                 << size;
                 return false;
             }
-            return DeliverP2pAddressAd(stream);
+            return OnAddressAd(stream);
         }
         case P2pAppType::AddressAdTxAcceptor: {
             if (size < (P2pHeader::HEADER_SIZE + P2pAddressAdHeader::HEADER_SIZE))
@@ -622,7 +622,7 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
                                 << size;
                 return false;
             }
-            return DeliverP2pAddressAdTxAcceptor(stream);
+            return OnAddressAdTxAcceptor(stream);
         }
         default:
             return false;
@@ -630,7 +630,7 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
 }
 
 bool
-ConsensusContainer::DeliverP2pConsensus(logos::bufferstream &stream, const void *data, size_t size)
+ConsensusContainer::OnP2pConsensus(logos::bufferstream &stream, const void *data, size_t size)
 {
     auto hdrs_size = P2pHeader::HEADER_SIZE + P2pConsensusHeader::HEADER_SIZE + MessagePrequelSize;
     bool error = false;
@@ -700,13 +700,13 @@ ConsensusContainer::DeliverP2pConsensus(logos::bufferstream &stream, const void 
 }
 
 bool
-ConsensusContainer::DeliverP2pAddressAd(logos::bufferstream &stream)
+ConsensusContainer::OnAddressAd(logos::bufferstream &stream)
 {
     bool error = false;
     P2pAddressAdHeader header(error, stream);
     if (error)
     {
-        LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, failed to deserialize P2pAddressAdHeader";
+        LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, failed to deserialize P2pAddressAdHeader";
         return false;
     }
 
@@ -725,7 +725,7 @@ ConsensusContainer::DeliverP2pAddressAd(logos::bufferstream &stream)
         }
         else
         {
-            LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, failed to deliver for epoch number "
+            LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, failed to deliver for epoch number "
                             << header.epoch_number << ", delegate " << (int)header.encr_delegate_id
                             << " cur " << (_cur_epoch?(_cur_epoch->GetEpochNumber()):0)
                             << " trans " << (_trans_epoch?(_trans_epoch->GetEpochNumber()):0);
@@ -736,7 +736,7 @@ ConsensusContainer::DeliverP2pAddressAd(logos::bufferstream &stream)
     /// TODO have to store Ad's for this and other delegates
     if (header.encr_delegate_id != epoch->_delegate_id)
     {
-        LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, ad message not for this delegate "
+        LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, ad message not for this delegate "
                         << (int)header.encr_delegate_id
                         << " " << (int)epoch->_delegate_id
                         << ", epoch number " << header.epoch_number;
@@ -748,16 +748,16 @@ ConsensusContainer::DeliverP2pAddressAd(logos::bufferstream &stream)
             std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     if (error)
     {
-        LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, failed to deserialize AddressAd";
+        LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, failed to deserialize AddressAd";
         return false;
     }
     if (!_identity_manager.ValidateSignature(header.epoch_number, addressAd))
     {
-        LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, failed to validate AddressAd signature";
+        LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, failed to validate AddressAd signature";
         return false;
     }
 
-    LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, delegate " << (int)addressAd.delegate_id
+    LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, delegate " << (int)addressAd.delegate_id
                     << ", epoch number " << header.epoch_number
                     << ", ip " << addressAd.GetIP()
                     << ", port " << addressAd.port;
@@ -768,17 +768,17 @@ ConsensusContainer::DeliverP2pAddressAd(logos::bufferstream &stream)
 }
 
 bool
-ConsensusContainer::DeliverP2pAddressAdTxAcceptor(logos::bufferstream &stream)
+ConsensusContainer::OnAddressAdTxAcceptor(logos::bufferstream &stream)
 {
     bool error = false;
     AddressAdTxAcceptor addressAd(error, stream);
     if (error)
     {
-        LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAdTxAcceptor, failed to deserialize AddressAdTxAcceptor";
+        LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAdTxAcceptor, failed to deserialize AddressAdTxAcceptor";
         return false;
     }
 
-    LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAdTxAcceptor, ip " << addressAd.GetIP()
+    LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAdTxAcceptor, ip " << addressAd.GetIP()
                     << ", port " << addressAd.port
                     << ", json port " << addressAd.json_port;
     return true;
