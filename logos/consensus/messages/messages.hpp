@@ -527,7 +527,7 @@ struct P2pAddressAdHeader
 {
     P2pAddressAdHeader(uint32_t epoch_number, uint8_t delegate_id)
     : epoch_number(epoch_number)
-    , delegate_id(delegate_id)
+    , encr_delegate_id(delegate_id)
     {}
 
     P2pAddressAdHeader(bool & error, logos::stream & stream)
@@ -542,12 +542,12 @@ struct P2pAddressAdHeader
     }
     void Deserialize(bool &error, logos::stream &stream)
     {
-        error = logos::read(stream, epoch_number) || logos::read(stream, delegate_id);
+        error = logos::read(stream, epoch_number) || logos::read(stream, encr_delegate_id);
     }
 
     uint32_t Serialize(logos::vectorstream &stream)
     {
-        return (logos::write(stream, epoch_number) + logos::write(stream, delegate_id));
+        return (logos::write(stream, epoch_number) + logos::write(stream, encr_delegate_id));
     }
 
     uint32_t Serialize(std::vector<uint8_t> &buf)
@@ -559,8 +559,8 @@ struct P2pAddressAdHeader
     uint32_t    epoch_number = 0;
     // if delegate address ad then delegate id is encryptor's delegate id
     // if tx acceptor address ad then not used
-    uint8_t     delegate_id = 0;
-    static constexpr size_t HEADER_SIZE = sizeof(epoch_number) + sizeof(delegate_id);
+    uint8_t     encr_delegate_id = 0;
+    static constexpr size_t HEADER_SIZE = sizeof(epoch_number) + sizeof(encr_delegate_id);
 };
 
 struct CommonAddressAd {

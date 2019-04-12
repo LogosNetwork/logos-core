@@ -31,6 +31,15 @@ enum class EpochDelegates {
 
 class DelegateIdentityManager
 {
+    struct address_ad {
+        std::string ip;
+        uint16_t port;
+    };
+    struct address_ad_txa {
+        std::string ip;
+        uint16_t bin_port;
+        uint16_t json_port;
+    };
     using Store     = logos::block_store;
     using Config    = logos::node_config;
     using IPs       = std::map<AccountAddress, std::string>;
@@ -40,6 +49,12 @@ class DelegateIdentityManager
                     = std::shared_ptr<ApprovedEB>;
     using BlsKeyPairPtr
                     = std::unique_ptr<bls::KeyPair>;
+    using AddressAdKey
+                    = std::pair<uint32_t, uint8_t>;
+    using AddressAdList
+                    = std::map<AddressAdKey, address_ad>;
+    using AddressAdTxAList
+                    = std::multimap<AddressAdKey, address_ad_txa>;
 
 public:
     /// Class constructor
@@ -209,4 +224,6 @@ private:
     const Config &          _config;               ///< consensus configuration
     Log                     _log;                  ///< boost log instances
     ValidatorBuilder        _validator_builder;    ///< validator builder
+    AddressAdList           _address_ad;           ///< list of other delegates advertisement messages
+    AddressAdTxAList        _address_ad_txa;       ///< list of other delegates advertisement messages
 };
