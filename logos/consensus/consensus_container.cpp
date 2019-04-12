@@ -726,7 +726,7 @@ ConsensusContainer::DeliverP2pAddressAd(logos::bufferstream &stream)
         else
         {
             LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, failed to deliver for epoch number "
-                            << header.epoch_number << ", delegate " << (int)header.delegate_id
+                            << header.epoch_number << ", delegate " << (int)header.encr_delegate_id
                             << " cur " << (_cur_epoch?(_cur_epoch->GetEpochNumber()):0)
                             << " trans " << (_trans_epoch?(_trans_epoch->GetEpochNumber()):0);
             return false;
@@ -734,10 +734,10 @@ ConsensusContainer::DeliverP2pAddressAd(logos::bufferstream &stream)
     }
 
     /// TODO have to store Ad's for this and other delegates
-    if (header.delegate_id != epoch->_delegate_id)
+    if (header.encr_delegate_id != epoch->_delegate_id)
     {
         LOG_DEBUG(_log) << "ConsensusContainer::DeliverP2pAddressAd, ad message not for this delegate "
-                        << (int)header.delegate_id
+                        << (int)header.encr_delegate_id
                         << " " << (int)epoch->_delegate_id
                         << ", epoch number " << header.epoch_number;
         return true;
