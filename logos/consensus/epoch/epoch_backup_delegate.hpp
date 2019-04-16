@@ -25,6 +25,7 @@ public:
                              MessagePromoter<ECT> & promoter,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
+                             ConsensusScheduler & scheduler,
                              std::shared_ptr<EpochEventsNotifier> events_notifier,
                              PersistenceManager<ECT> & persistence_manager,
                              p2p_interface & p2p,
@@ -40,8 +41,6 @@ public:
     /// @param message PrePrepare message [in]
     /// @param delegate_id delegate id [in]
     void ApplyUpdates(const ApprovedEB &, uint8_t delegate_id) override;
-
-    bool IsPrePrepared(const BlockHash & hash) override;
 
 protected:
     bool ValidateTimestamp(const PrePrepare &message) override;
@@ -59,4 +58,6 @@ protected:
     }
 
 private:
+    MessageHandler<ECT> & GetHandler() override { return _handler; }
+    EpochMessageHandler & _handler;
 };

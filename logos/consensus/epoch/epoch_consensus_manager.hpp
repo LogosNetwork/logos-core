@@ -11,18 +11,19 @@ class ArchiverEpochHandler;
 class EpochConsensusManager: public ConsensusManager<ConsensusType::Epoch>
 {
 public:
-    /// Class constructor
-    ///
-    /// Called by ConsensusContainer.
-    ///     @param[in] service reference to boost asio service
-    ///     @param[in] store reference to blockstore
-    ///     @param[in] log reference to boost asio log
-    ///     @param[in] config reference to ConsensusManagerConfig configuration
-    ///     @param[in] validator validator/signer of consensus messages
-    ///     @param[in] events_notifier epoch transition helper
-    EpochConsensusManager(Service & service,
-                          Store & store,
-                          const Config & config,
+	/// Class constructor
+	///
+	/// Called by ConsensusContainer.
+	///     @param[in] service reference to boost asio service
+	///     @param[in] store reference to blockstore
+	///     @param[in] log reference to boost asio log
+	///     @param[in] config reference to ConsensusManagerConfig configuration
+	///     @param[in] validator validator/signer of consensus messages
+	///     @param[in] events_notifier epoch transition helper
+	EpochConsensusManager(Service & service,
+	                      Store & store,
+					      const Config & config,
+						  ConsensusScheduler & scheduler,
                           MessageValidator & validator,
                           p2p_interface & p2p,
                           uint32_t epoch_number);
@@ -51,10 +52,6 @@ public:
         PrimaryDelegate::SetPreviousPrePrepareHash(hash);
     }
 
-    /// Clean up on Post_Commit
-    /// @param block pre-prepare block
-    void OnPostCommit(const PrePrepare &block) override;
-
 protected:
     /// Commit to the store.
     ///
@@ -78,12 +75,9 @@ protected:
         std::shared_ptr<DelegateMessage> block,
         logos::process_return & result) override;
 
-    /// Queues epoch block
-    void QueueMessagePrimary(std::shared_ptr<DelegateMessage> message) override;
-
     /// Gets next available epoch block
-    ///        @return reference to epoch block
-    PrePrepare & PrePrepareGetNext() override;
+	///		@return reference to epoch block
+    PrePrepare & PrePrepareGetNext(bool) override;
 
     PrePrepare & PrePrepareGetCurr() override;
 
@@ -91,15 +85,17 @@ protected:
     void PrePreparePopFront() override;
 
     /// Checks if the Epoch queue is empty
-    ///        @return true if empty false otherwise
-    bool PrePrepareQueueEmpty() override;
+	///		@return true if empty false otherwise
+    bool InternalQueueEmpty() override;
 
-    /// Primary list contains request with the hash
+    /// Internal list (i.e. not in message handler) contains request with the hash
     /// @param request's hash
     /// @returns true if the request is in the list
-    bool PrimaryContains(const BlockHash&) override;
+    bool InternalContains(const BlockHash&) override;
 
-    void QueueMessageSecondary(std::shared_ptr<DelegateMessage> message) override;
+	/// Gets secondary timeout value in seconds
+	///     @return Seconds
+	const Seconds & GetSecondaryTimeout() override;
 
     /// Create specialized instance of BackupDelegate
     ///     @param iochannel NetIOChannel pointer
@@ -114,14 +110,15 @@ protected:
     /// @returns designated delegate
     uint8_t DesignatedDelegate(std::shared_ptr<DelegateMessage> message) override;
 
-    /// Check condition to proceed with re-proposal on quorum failure
-    /// @returns true to proceed, false otherwise
-    bool ProceedWithRePropose() override;
-
-    /// Handle consensus reached
-    void OnConsensusReached() override;
+	///  Check if backup already cleared primary's preprepare from main message handler
+	///     @returns true if message is already cleared
+	bool AlreadyPostCommitted() override;
 
 private:
-    std::shared_ptr<PrePrepare>  _cur_epoch;     ///< Currently handled epoch
-    std::recursive_mutex         _mutex;         ///< _cur_epoch mutex
+
+	MessageHandler<ConsensusType::Epoch> & GetHandler() override { return _handler; }
+	EpochMessageHandler &  	 	 _handler;
+    std::shared_ptr<PrePrepare>  _cur_epoch;          ///< Currently handled epoch
+    std::recursive_mutex         _mutex;         	  ///< _cur_epoch mutex
+	Seconds                      _secondary_timeout;  ///< Secondary list timeout value for this delegate
 };

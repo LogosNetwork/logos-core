@@ -12,6 +12,7 @@
 class InternalConsensus;
 class IRecallHandler;
 class MicroBlockTester;
+class MicroBlockMessageHandler;
 
 namespace logos
 {
@@ -59,12 +60,7 @@ public:
 
     /// Commit micro block to the database, propose epoch
     /// @param block to commit
-    void OnApplyUpdates(const ApprovedMB &block) override
-    {
-        if (block.last_micro_block) {
-            _event_proposer.ProposeEpoch();
-        }
-    }
+    void OnApplyUpdates(const ApprovedMB &block) override;
 
     /// Is Recall
     /// @returns true if recall
@@ -82,14 +78,15 @@ private:
     /// @param store reference to block store
     bool IsFirstMicroBlock(BlockStore &store);
 
-    bool                _first_epoch;
-    uint32_t            _mb_seq;
-    uint32_t            _eb_num;
-    EpochVotingManager  _voting_manager;
-    EventProposer       _event_proposer;
-    MicroBlockHandler   _micro_block_handler;
-    EpochHandler        _epoch_handler;
-    IRecallHandler &    _recall_handler;
-    logos::block_store &_store;
-    Log                 _log;
+    bool                       _first_epoch;
+    uint32_t                   _mb_seq;         ///< indicates the most recently BUILT MB sequence number
+    uint32_t                   _eb_num;         ///< indicates the most recently BUILT MB epoch number
+    EpochVotingManager         _voting_manager;
+    EventProposer              _event_proposer;
+    MicroBlockHandler          _micro_block_handler;
+    EpochHandler               _epoch_handler;
+    MicroBlockMessageHandler & _mb_message_handler;
+    IRecallHandler &           _recall_handler;
+    logos::block_store &       _store;
+    Log                        _log;
 };

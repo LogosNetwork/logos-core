@@ -28,6 +28,7 @@ public:
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler,
+                                  ConsensusScheduler & scheduler,
                                   std::shared_ptr<EpochEventsNotifier> events_notifier,
                                   PersistenceManager<MBCT> & persistence_manager,
                                   p2p_interface & p2p,
@@ -44,7 +45,6 @@ public:
     /// @param delegate_id delegate id [in]
     void ApplyUpdates(const ApprovedMB &, uint8_t delegate_id) override;
 
-    bool IsPrePrepared(const BlockHash & hash) override;
 
 protected:
     bool ValidateTimestamp(const PrePrepare & message) override;
@@ -62,5 +62,9 @@ protected:
     }
 
 private:
+    void AdvanceCounter() override;
+
+    MessageHandler<MBCT> & GetHandler() override { return _handler; }
+    MicroBlockMessageHandler &   _handler;
     ArchiverMicroBlockHandler &  _microblock_handler;
 };
