@@ -4364,6 +4364,7 @@ void logos::rpc_connection::write_result (std::string body, unsigned version)
         res.set ("Access-Control-Allow-Headers", "Accept, Accept-Language, Content-Language, Content-Type");
         res.set ("Connection", "close");
         res.result (boost::beast::http::status::ok);
+        boost::replace_all(body, "\"[]\"", "[]");
         res.body () = body;
         res.version (version);
         res.prepare_payload ();
