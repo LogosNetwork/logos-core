@@ -5,6 +5,7 @@
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/primary_delegate.hpp>
+#include <logos/consensus/message_handler.hpp>
 #include <logos/consensus/consensus_state.hpp>
 #include <logos/consensus/p2p/consensus_p2p.hpp>
 #include <logos/consensus/delegate_bridge.hpp>
@@ -17,6 +18,7 @@
 
 class IOChannel;
 class EpochEventsNotifier;
+class ConsensusScheduler;
 
 struct DelegateIdentities
 {
@@ -55,6 +57,7 @@ public:
                    MessagePromoter<CT> & promoter,
                    MessageValidator & validator,
                    const DelegateIdentities & ids,
+                   ConsensusScheduler & scheduler,
                    std::shared_ptr<EpochEventsNotifier> events_notifier,
                    PersistenceManager<CT> & persistence_manager,
                    p2p_interface & p2p,
@@ -64,8 +67,6 @@ public:
     {
         LOG_DEBUG(_log) << "~BackupDelegate<" << ConsensusToName(CT) << ">";
     }
-
-    virtual bool IsPrePrepared(const BlockHash & hash) = 0;
 
     bool IsRemoteDelegate(uint8_t delegate_id)
     {
@@ -96,6 +97,7 @@ protected:
 
     static constexpr uint16_t MAX_CLOCK_DRIFT_MS = 20000;
 
+    virtual MessageHandler<CT> & GetHandler() = 0;
     virtual void ApplyUpdates(const ApprovedBlock &, uint8_t delegate_id) = 0;
 
     // Messages received by backup delegates
@@ -137,7 +139,9 @@ protected:
 
     void SetPrePrepare(const PrePrepare & message);
     virtual void HandlePrePrepare(const PrePrepare & message);
-    virtual void OnPostCommit();
+    void OnPostCommit();
+    bool IsOldBlock(const PrePrepare &);
+    virtual void AdvanceCounter(){}
 
     virtual void Reject(const BlockHash &);
     virtual void ResetRejectionStatus();
@@ -159,9 +163,10 @@ protected:
     Log                         _log;
     WPTR<PrimaryDelegate>       _primary;
     ConsensusState              _state = ConsensusState::VOID;
-    MessagePromoter<CT> &       _promoter; ///< secondary list request promoter
+    ConsensusScheduler &        _scheduler;
     uint64_t                    _sequence_number = 0;
     WPTR<EpochEventsNotifier>   _events_notifier;
     PersistenceManager<CT> &    _persistence_manager;
     uint32_t                    _epoch_number;
+    uint32_t                    _expected_epoch_number;
 };

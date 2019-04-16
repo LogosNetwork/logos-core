@@ -6,18 +6,21 @@
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 
-const boost::posix_time::seconds RequestConsensusManager::ON_CONNECTED_TIMEOUT{10};
-RequestHandler RequestConsensusManager::_handler;
+const RequestConsensusManager::Seconds RequestConsensusManager::ON_CONNECTED_TIMEOUT{10};
+const RequestConsensusManager::Seconds RequestConsensusManager::REQUEST_TIMEOUT{5};
 
 RequestConsensusManager::RequestConsensusManager(Service & service,
                                                  Store & store,
                                                  const Config & config,
+                                                 ConsensusScheduler & scheduler,
                                                  MessageValidator & validator,
                                                  p2p_interface & p2p,
                                                  uint32_t epoch_number)
     : Manager(service, store, config,
-	      validator, p2p, epoch_number)
+	      scheduler, validator, p2p, epoch_number)
     , _init_timer(service)
+    , _handler(RequestMessageHandler::GetMessageHandler())
+    , _secondary_timeout(REQUEST_TIMEOUT)
 {
     _state = ConsensusState::INITIALIZING;
     // _sequence is reset to 0 in a new epoch
@@ -65,6 +68,7 @@ RequestConsensusManager::BindIOChannel(
     _connected_vote += _weights[ids.remote].vote_weight;
     _connected_stake += _weights[ids.remote].stake_weight;
 
+    LOG_DEBUG (_log) << "_connected_vote: " << _connected_vote << ", _connected_stake: " << _connected_stake;
     // SYL Integration fix: need to add in our own vote and stake as well
     if(ReachedQuorum(_connected_vote + _my_vote,
                      _connected_stake + _my_stake))
@@ -110,64 +114,126 @@ RequestConsensusManager::Validate(
     return _persistence_manager.ValidateSingleRequest(message, _epoch_number, result, false);
 }
 
-bool
-RequestConsensusManager::ReadyForConsensus()
-{
-    if(_using_buffered_blocks)
-    {
-
-        std::lock_guard<std::mutex> lock(_buffer_mutex);
-        // TODO: Make sure that RequestHandler::_current_batch has
-        //       been prepared before calling _handler.BatchFull.
-        //
-        return !_ongoing && (_handler.BatchFull() ||
-                            (_buffer.empty() && !_handler.Empty()));
-    }
-
-    return Manager::ReadyForConsensus();
-}
-
-void
-RequestConsensusManager::QueueMessagePrimary(
-    std::shared_ptr<DelegateMessage> message)
-{
-    _handler.OnRequest(static_pointer_cast<Request>(message));
-}
-
 // This should only be called once per consensus round
 auto
-RequestConsensusManager::PrePrepareGetNext() -> PrePrepare &
+RequestConsensusManager::PrePrepareGetNext(bool reproposing) -> PrePrepare &
 {
-    auto & batch = _handler.GetCurrentBatch();
+    _ne_reject_vote = 0;
+    _ne_reject_stake = 0;
+    // make sure we start with a fresh set of hashes so as to not interfere with rejection logic
+    _hashes.clear();
 
-    for(uint64_t i = 0; i < batch.requests.size(); ++i)
+    // if reproposing whole batch (i.e. QuorumFailed), then just reuse current batch
+    if (reproposing && !_repropose_subset)
     {
-        _hashes.insert(batch.requests[i]->GetHash());
+        _repropose_subset = false;
+        return _current_batch;
     }
 
-    LOG_TRACE (_log) << "RequestConsensusManager::PrePrepareGetNext -"
-                     << " batch_size=" << batch.requests.size()
-                     << " batch.sequence=" << batch.sequence;
+    _repropose_subset = false;
 
-    return batch;
+    // check if internal queue is empty, copy up to max batch size from request handler
+    if (_request_queue.Empty())
+    {
+        LOG_DEBUG(_log) << "RequestConsensusManager::PrePrepareGetNext - request queue empty, _handler empty: "
+                        << _handler.Empty() << " _handler primary empty: " << _handler.PrimaryEmpty();
+        _handler.MoveToTarget(_request_queue, CONSENSUS_BATCH_SIZE);
+    }
+    ConstructBatch(reproposing);
+
+    return _current_batch;
 }
 
 auto
 RequestConsensusManager::PrePrepareGetCurr() -> PrePrepare &
 {
-    return _handler.GetCurrentBatch();
+    LOG_DEBUG (_log) << "RequestConsensusManager::PrePrepareGetCurr - "
+                     << "batch_size = "
+                     << _current_batch.requests.size();
+    return _current_batch;
+}
+
+void
+RequestConsensusManager::ConstructBatch(bool reproposing)
+{
+    // now our internal queue is populated, take first group from internal queue
+    auto & sequence = _request_queue._requests.get<0>();
+
+    _current_batch = PrePrepare();
+    _current_batch.requests.reserve(sequence.size());
+    _current_batch.hashes.reserve(sequence.size());
+
+    // perform validation against account_db here instead of at request receive time
+    std::lock_guard<std::mutex> lock(PersistenceManager<ConsensusType::Request>::_write_mutex);
+
+    // 'Null' requests are used as batch delimiters. When one is encountered, close the batch.
+    // Don't remove just yet in case of reproposal - RequestInternalQueue::PopFront handles removal.
+    for(auto pos = sequence.begin(); !(*pos)->origin.is_zero() && (*pos)->type != RequestType::Unknown; )
+    {
+        assert (pos!=sequence.end());
+        LOG_DEBUG(_log) << "RequestConsensusManager::ConstructBatch - " << (*pos)->ToJson();
+
+        // Ignore request and erase from primary queue if the request doesn't pass validation
+        logos::process_return ignored_result;
+
+        // Don't allow duplicates since we are the primary and should not include old requests
+        // unless we are reproposing
+        bool allow_duplicates = reproposing;
+
+        // Perhaps can optimize further to fully populate batch if some later validation fails and requests get removed
+        if(!_persistence_manager.ValidateAndUpdate(*pos, _current_batch.epoch_number, ignored_result, allow_duplicates))
+        {
+            LOG_DEBUG(_log) << "RequestConsensusManager::ConstructBatch - cannot validate request with hash "
+                            << (*pos)->Hash().to_string() << " with error code: "
+                            << logos::ProcessResultToString(ignored_result.code);
+            pos = sequence.erase(pos);
+            continue;
+        }
+        if(! _current_batch.AddRequest(*pos))
+        {
+            LOG_DEBUG(_log) << "RequestConsensusManager::PrePrepareGetNext - batch full";
+            break;
+        }
+        _hashes.insert((*pos)->GetHash());
+        pos++;
+    }
+
+    _current_batch.sequence = _sequence;
+
+    //need to set the current epoch number here for validation
+    _current_batch.epoch_number = _epoch_number;
+    _current_batch.primary_delegate = GetDelegateIndex();
+
+    // move previous assignment here to avoid overriding in archive blocks
+    _current_batch.previous = _prev_pre_prepare_hash;
+    _current_batch.timestamp = GetStamp();
+
+    LOG_TRACE (_log) << "RequestConsensusManager::ConstructBatch -"
+                     << " batch_size=" << _current_batch.requests.size()
+                     << " batch.sequence=" << _current_batch.sequence;
 }
 
 void
 RequestConsensusManager::PrePreparePopFront()
 {
-    _handler.PopFront();
+    _request_queue.PopFront(_current_batch);
+    _current_batch = PrePrepare();
 }
 
+// TODO: rename to indicate we are just checking for expired
 bool
-RequestConsensusManager::PrePrepareQueueEmpty()
+RequestConsensusManager::InternalQueueEmpty()
 {
-    return _handler.Empty();
+    if(_using_buffered_blocks)
+    {
+        std::lock_guard<std::mutex> lock(_buffer_mutex);
+        // TODO: Make sure that MessageHandler::_current_batch has
+        //       been prepared before calling _handler.BatchFull.
+        //
+        return !_ongoing && (_handler.BatchFull() ||
+                             (_buffer.empty() && !_handler.Empty()));
+    }
+    return _request_queue.Empty();
 }
 
 void
@@ -181,33 +247,7 @@ RequestConsensusManager::ApplyUpdates(
 uint64_t
 RequestConsensusManager::GetStoredCount()
 {
-    return _handler.GetCurrentBatch().requests.size();
-}
-
-void
-RequestConsensusManager::InitiateConsensus(bool reproposing)
-{
-    _ne_reject_vote = 0;
-    _ne_reject_stake = 0;
-    // make sure we start with a fresh set of hashes so as to not interfere with rejection logic
-    _hashes.clear();
-    _should_repropose = false;
-
-    auto & batch = _handler.GetCurrentBatch();
-    batch = PrePrepare();
-
-    batch.sequence = _sequence;
-    //need to set the current epoch number here for validation
-    batch.epoch_number = _epoch_number;
-    batch.primary_delegate = _delegate_id;
-    // SYL Integration fix: move previous assignment here to avoid overriding in archive blocks
-    batch.previous = _prev_pre_prepare_hash;
-    // SYL Integration: perform validation against account_db here instead of at request receive time
-    {
-        std::lock_guard<std::mutex> lock(_persistence_manager._write_mutex);
-        _handler.PrepareNextBatch(_persistence_manager, reproposing);
-    }
-    Manager::InitiateConsensus(reproposing);
+    return PrePrepareGetCurr().requests.size();
 }
 
 void
@@ -244,18 +284,15 @@ RequestConsensusManager::DesignatedDelegate(std::shared_ptr<DelegateMessage> mes
 }
 
 bool
-RequestConsensusManager::PrimaryContains(const BlockHash &hash)
+RequestConsensusManager::InternalContains(const BlockHash &hash)
 {
-    return _handler.Contains(hash);
+    return _request_queue.Contains(hash);
 }
 
-void
-RequestConsensusManager::OnPostCommit(const PrePrepare & pre_prepare)
+const RequestConsensusManager::Seconds &
+RequestConsensusManager::GetSecondaryTimeout()
 {
-    // SYL integration: don't need locking here because we can safely append to Primary queue,
-    // and OnRequestQueued has detection for ongoing consensus round
-    _handler.OnPostCommit(pre_prepare);
-    Manager::OnPostCommit(pre_prepare);
+    return _secondary_timeout;
 }
 
 std::shared_ptr<BackupDelegate<ConsensusType::Request>>
@@ -268,21 +305,12 @@ RequestConsensusManager::MakeBackupDelegate(
     assert(notifier);
     return std::make_shared<RequestBackupDelegate>(
             iochannel, shared_from_this(), *this, _validator,
-	    ids, _service, notifier, _persistence_manager, GetP2p());
-}
-
-void
-RequestConsensusManager::AcquirePrePrepare(const PrePrepare & message)
-{
-    // SYL integration: don't need locking here because we can safely append to Primary queue,
-    // and OnRequestQueued has detection for ongoing consensus round
-    _handler.Acquire(message);
-    OnMessageQueued();
+	    ids, _service, _scheduler, notifier, _persistence_manager, GetP2p());
 }
 
 void RequestConsensusManager::TallyPrepareMessage(const Prepare & message, uint8_t remote_delegate_id)
 {
-    if(!_should_repropose)  // We only check individual transactions if we have already seen Rejection messages
+    if(!_repropose_subset)  // We only check individual transactions if we have already seen Rejection messages
     {
         return;
     }
@@ -290,7 +318,7 @@ void RequestConsensusManager::TallyPrepareMessage(const Prepare & message, uint8
     auto & vote = _weights[remote_delegate_id].vote_weight;
     auto & stake = _weights[remote_delegate_id].stake_weight;
 
-    auto batch = _handler.GetCurrentBatch();
+    auto batch = PrePrepareGetCurr();
     auto block_count = batch.requests.size();
 
     for(uint64_t i = 0; i < block_count; ++i)
@@ -316,8 +344,8 @@ RequestConsensusManager::OnRejection(
     {
     case RejectionReason::Contains_Invalid_Request:
     {
-        _should_repropose = true;
-        auto batch = _handler.GetCurrentBatch();
+        _repropose_subset = true;
+        auto batch = PrePrepareGetCurr();
         auto block_count = batch.requests.size();
 
         for(uint64_t i = 0; i < block_count; ++i)
@@ -378,7 +406,7 @@ RequestConsensusManager::OnStateAdvanced()
 bool
 RequestConsensusManager::IsPrePrepareRejected()
 {
-    if(_hashes.empty() && _should_repropose)  // SYL Integration: extra flag prevents mistakenly rejecting an empty BSB
+    if(_hashes.empty() && _repropose_subset)  // SYL Integration: extra flag prevents mistakenly rejecting an empty BSB
     {
         LOG_DEBUG(_log) << "BatchBlockConsensusManager::OnRejection - all requests in current batch "
                         << "have been explicitly rejected or accepted";
@@ -430,7 +458,7 @@ RequestConsensusManager::OnPrePrepareRejected()
     //       lookup constant rather than O(n).
     std::list<SupportMap> subsets;
 
-    auto block_count = _handler.GetCurrentBatch().requests.size();
+    auto block_count = PrePrepareGetCurr().requests.size();
 
     // For each request, collect the delegate
     // ID's of those delegates that voted for
@@ -559,7 +587,7 @@ RequestConsensusManager::OnPrePrepareRejected()
     // based on the subsets.
     for(auto & subset : subsets)
     {
-        auto & batch = _handler.GetCurrentBatch();
+        auto & batch = PrePrepareGetCurr();
         auto & indexes = subset.second;
 
         uint64_t i = 0;
@@ -582,8 +610,8 @@ RequestConsensusManager::OnPrePrepareRejected()
         requests.push_back(std::shared_ptr<Request>(new Request()));
     }
 
-    _handler.PopFront();
-    _handler.InsertFront(requests);
+    PrePreparePopFront();
+    _request_queue.InsertFront(requests);
 
     AdvanceState(ConsensusState::VOID);
 
@@ -618,7 +646,7 @@ RequestConsensusManager::OnDelegatesConnected()
             }
             // After startup consensus is performed
             // with an empty batch block.
-            this_s->_handler.OnRequest(std::make_shared<Request>(Request()));
+            this_s->_request_queue.PushBack(std::shared_ptr<Request>(new Request()));
             this_s->_state = ConsensusState::VOID;
             this_s->_ongoing = true;
             this_s->InitiateConsensus();

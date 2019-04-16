@@ -41,6 +41,7 @@ public:
                           MessageValidator & validator,
                           const DelegateIdentities & ids,
 						  Service & service,
+                          ConsensusScheduler & scheduler,
                           std::shared_ptr<EpochEventsNotifier> events_notifier,
                           PersistenceManager<R> & persistence_manager,
                           p2p_interface & p2p);
@@ -56,12 +57,7 @@ public:
     /// @param delegate_id delegate id [in]
     void ApplyUpdates(const ApprovedRB &, uint8_t delegate_id) override;
 
-    bool IsPrePrepared(const BlockHash & hash) override;
-
     void DoUpdateMessage(Rejection & message);
-
-    /// Cleanup before destruction
-    void CleanUp() override;
 
 private:
 
@@ -70,19 +66,17 @@ private:
     static constexpr uint8_t TIMEOUT_MIN_EPOCH   = 10;
     static constexpr uint8_t TIMEOUT_RANGE_EPOCH = 20;
 
+    MessageHandler<R> & GetHandler() override { return _handler; }
+
     bool ValidateSequence(const PrePrepare & message);
     bool ValidateRequests(const PrePrepare & message);
 
     void HandlePrePrepare(const PrePrepare & message) override;
-    void OnPostCommit() override;
-
-    void OnPrePrepareTimeout(const Error & error);
+    void AdvanceCounter() override;
 
     void Reject(const BlockHash &) override;
     void ResetRejectionStatus() override;
     void HandleReject(const PrePrepare&) override;
-
-    void ScheduleTimer(Seconds timeout);
 
     bool IsSubset(const PrePrepare & message);
 
@@ -90,11 +84,7 @@ private:
 
     Seconds GetTimeout(uint8_t min, uint8_t range);
 
-
+    RequestMessageHandler & _handler;///< Queue of requests/proposals.
     Hashes       _pre_prepare_hashes;
-    Timer        _timer;
     RejectionMap _rejection_map;     ///< Sets a bit for each rejected request from the PrePrepare.
-    std::mutex   _timer_mutex;
-    bool         _cancel_timer       = false;
-    bool         _callback_scheduled = false;
 };

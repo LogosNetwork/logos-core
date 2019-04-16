@@ -11,6 +11,7 @@ BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
                                    MessagePromoter<CT> & promoter,
                                    MessageValidator & validator,
                                    const DelegateIdentities & ids,
+                                   ConsensusScheduler & scheduler,
                                    std::shared_ptr<EpochEventsNotifier> events_notifier,
                                    PersistenceManager<CT> & persistence_manager,
                                    p2p_interface & p2p,
@@ -20,7 +21,7 @@ BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
     , _reason(RejectionReason::Void)
     , _validator(validator)
     , _primary(primary)
-    , _promoter(promoter)
+    , _scheduler(scheduler)
     , _events_notifier(events_notifier)
     , _persistence_manager(persistence_manager)
     , _epoch_number(primary->GetEpochNumber())
@@ -50,12 +51,13 @@ void BackupDelegate<CT>::OnConsensusMessage(const PrePrepare & message)
                             << ">::OnConsensusMessage - Re-broadcast Prepare";
             return;
         }
-        // VOID: we might have previously rejected it, try again to see if approval conditions are now satisfied
+        // state VOID: we might have previously rejected it, try again to see if approval conditions are now satisfied
     }
     // Ignore if it's an old block
-    else if (message.epoch_number < _epoch_number ||
-    (message.epoch_number == _epoch_number && message.sequence < _sequence_number))
+    else if (IsOldBlock(message))
     {
+        LOG_DEBUG(_log) << "BackupDelegate<" << ConsensusToName(CT)
+                        << ">::OnConsensusMessage - Old block " << hash.to_string();
         return;
     }
 
@@ -148,7 +150,7 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
 
         _state = ConsensusState::VOID;
         SetPreviousPrePrepareHash(_pre_prepare_hash);
-        _sequence_number = _pre_prepare->sequence + 1;
+        AdvanceCounter();
         _pre_prepare_hash.clear();
         _post_prepare_sig.clear();
         _post_commit_sig.clear();
@@ -408,7 +410,14 @@ void BackupDelegate<CT>::HandlePrePrepare(const PrePrepare & message)
 template<ConsensusType CT>
 void BackupDelegate<CT>::OnPostCommit()
 {
-    _promoter.OnPostCommit(*_pre_prepare);
+    GetHandler().OnPostCommit(_pre_prepare);
+}
+
+template<ConsensusType CT>
+bool BackupDelegate<CT>::IsOldBlock(const PrePrepare & message)
+{
+    return message.epoch_number < _expected_epoch_number ||
+           (message.epoch_number == _expected_epoch_number && message.sequence < _sequence_number);
 }
 
 template<ConsensusType CT>

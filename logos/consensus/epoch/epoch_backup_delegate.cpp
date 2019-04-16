@@ -14,18 +14,28 @@ EpochBackupDelegate::EpochBackupDelegate(
                              MessagePromoter<ECT> & promoter,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
+                             ConsensusScheduler & scheduler,
                              std::shared_ptr<EpochEventsNotifier> events_notifier,
                              PersistenceManager<ECT> & persistence_manager,
                              p2p_interface & p2p,
                              Service &service)
     : BackupDelegate<ECT>(iochannel, primary, promoter, validator,
-                                                ids, events_notifier, persistence_manager, p2p, service)
+                                                ids, scheduler, events_notifier, persistence_manager, p2p, service)
+    , _handler(EpochMessageHandler::GetMessageHandler())
 {
     if (promoter.GetStore().epoch_tip_get(_prev_pre_prepare_hash))
     {
-        LOG_FATAL(_log) << "Failed to get eporh's previous hash";
+        LOG_FATAL(_log) << "Failed to get epoch's previous hash";
         trace_and_halt();
     }
+    ApprovedEB eb;
+    if (promoter.GetStore().epoch_get(_prev_pre_prepare_hash, eb))
+    {
+        LOG_FATAL(_log) << "EpochBackupDelegate::EpochBackupDelegate - Failed to get epoch";
+        trace_and_halt();
+    }
+    _sequence_number = eb.sequence;
+    _expected_epoch_number = eb.epoch_number + 1;
 }
 
 bool
@@ -42,16 +52,6 @@ EpochBackupDelegate::ApplyUpdates(
 {
     _persistence_manager.ApplyUpdates(block);
 }
-
-bool
-EpochBackupDelegate::IsPrePrepared(
-    const BlockHash & hash)
-{
-    std::lock_guard<std::mutex> lock(_mutex);
-
-    return (_pre_prepare && hash == _pre_prepare->Hash());
-}
-
 
 bool
 EpochBackupDelegate::ValidateTimestamp(

@@ -9,6 +9,7 @@
 #include <thread>
 #include <vector>
 #include <bitset>
+#include <unordered_map>
 
 namespace logos
 {
@@ -324,3 +325,18 @@ std::shared_ptr<T> GetSharedPtr(std::weak_ptr<T> wptr, Args ... args)
     }
     return sptr;
 }
+
+struct EnumClassHash
+{
+    template <typename T>
+    std::size_t operator()(T t) const
+    {
+        return static_cast<std::size_t>(t);
+    }
+};
+
+template <typename Key>
+using HashType = typename std::conditional<std::is_enum<Key>::value, EnumClassHash, std::hash<Key>>::type;
+
+template <typename Key, typename T>
+using umap = std::unordered_map<Key, T, HashType<Key>>;

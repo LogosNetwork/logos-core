@@ -16,6 +16,7 @@ Archiver::Archiver(logos::alarm & alarm,
     , _micro_block_handler(store, recall_handler)
     , _voting_manager(store)
     , _epoch_handler(store, _voting_manager)
+    , _mb_message_handler(MicroBlockMessageHandler::GetMessageHandler())
     , _recall_handler(recall_handler)
     , _store(store)
 {
@@ -47,7 +48,8 @@ Archiver::Start(InternalConsensus &consensus)
 
         bool one_mb_past = util.IsOneMBPastEpochTime();
 
-        // check if latest in db is the same as our own in-memory counter
+        // check if latest in db / queue is the same as our own in-memory counter
+        // get DB block first
         ApprovedMB mb;
         {
             BlockHash mb_tip;
@@ -65,14 +67,27 @@ Archiver::Start(InternalConsensus &consensus)
             }
         }
 
-        // TODO: Archiver's internal counter should really be directly updated by post commit
-        if (_mb_seq != mb.sequence || _eb_num != mb.epoch_number)
+        // check queue content
+        uint32_t latest_mb_seq, latest_eb_num;
+        _mb_message_handler.GetQueuedSequence(latest_mb_seq, latest_eb_num);
+        if (!latest_mb_seq && !latest_eb_num)  // both being 0 indicates queue is empty
         {
-            if (_eb_num > mb.epoch_number || (_eb_num == mb.epoch_number && _mb_seq > mb.sequence))
+            latest_mb_seq = mb.sequence;
+            latest_eb_num = mb.epoch_number;
+        }
+        else  // queued number must be greater than database-stored number
+        {
+            assert (latest_eb_num > mb.epoch_number || (latest_eb_num == mb.epoch_number && latest_mb_seq > mb.sequence));
+        }
+
+        // TODO: Archiver's internal counter should really be directly updated by post commit
+        if (_mb_seq != latest_mb_seq || _eb_num != latest_eb_num)
+        {
+            if (_eb_num > latest_eb_num || (_eb_num == latest_eb_num && _mb_seq > latest_mb_seq))
             {
                 // we are exactly one ahead of db, meaning that the current consensus session isn't done yet, do nothing
-                if ((_eb_num == mb.epoch_number + 1 && !_mb_seq) ||
-                    (_eb_num == mb.epoch_number && _mb_seq == mb.sequence + 1))
+                if ((_eb_num == latest_eb_num + 1 && !_mb_seq) ||
+                    (_eb_num == latest_eb_num && _mb_seq == latest_mb_seq + 1))
                 {
                     return;
                 }
@@ -85,10 +100,10 @@ Archiver::Start(InternalConsensus &consensus)
             }
             // we are behind in time, catch up and don't build
             // TODO: sync clock?
-            else if (_eb_num < mb.epoch_number || (_eb_num == mb.epoch_number && _mb_seq < mb.sequence))
+            else if (_eb_num < latest_eb_num || (_eb_num == latest_eb_num && _mb_seq < latest_mb_seq))
             {
-                _eb_num = mb.epoch_number;
-                _mb_seq = mb.sequence;
+                _eb_num = latest_eb_num;
+                _mb_seq = latest_mb_seq;
                 return;
             }
         }
@@ -133,6 +148,26 @@ Archiver::Start(InternalConsensus &consensus)
     };
 
     _event_proposer.Start(micro_cb, transition_cb, epoch_cb);
+}
+
+void
+Archiver::OnApplyUpdates(const ApprovedMB &block)
+{
+    if (block.last_micro_block) {
+        uint32_t epoch_number_stored;
+        {
+            // use write transaction to ensure sequencing
+            logos::transaction tx(_store.environment, nullptr, true);
+            epoch_number_stored = _store.epoch_number_stored();
+        }
+        // avoid duplicate proposals
+        if (epoch_number_stored + 1 != block.epoch_number)
+        {
+            LOG_WARN(_log) << "Archiver::OnApplyUpdates - skipping duplicate epoch block construction.";
+            return;
+        }
+        _event_proposer.ProposeEpoch();
+    }
 }
 
 void
