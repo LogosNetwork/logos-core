@@ -477,7 +477,7 @@ struct P2pHeader
     }
     uint8_t version;
     P2pAppType app_type;
-    static constexpr size_t HEADER_SIZE = sizeof(version) + sizeof(app_type);
+    static constexpr size_t SIZE = sizeof(version) + sizeof(app_type);
 };
 
 struct P2pConsensusHeader
@@ -518,36 +518,43 @@ struct P2pConsensusHeader
     uint32_t    epoch_number = 0;
     uint8_t     src_delegate_id = 0;
     uint8_t     dest_delegate_id = 0;
-    static constexpr size_t HEADER_SIZE = sizeof(epoch_number) +
+    static constexpr size_t SIZE = sizeof(epoch_number) +
                 sizeof(src_delegate_id) +
                 sizeof(dest_delegate_id);
 };
 
-struct P2pAddressAdHeader
+struct PrequelAddressAd
 {
-    P2pAddressAdHeader(uint32_t epoch_number, uint8_t delegate_id)
+    PrequelAddressAd() = default;
+    virtual ~PrequelAddressAd() = default;
+    PrequelAddressAd(uint32_t epoch_number, uint8_t delegate_id, uint8_t encr_delegate_id)
     : epoch_number(epoch_number)
-    , encr_delegate_id(delegate_id)
+    , delegate_id(delegate_id)
+    , encr_delegate_id(encr_delegate_id)
     {}
 
-    P2pAddressAdHeader(bool & error, logos::stream & stream)
+    PrequelAddressAd(bool & error, logos::stream & stream)
     {
         Deserialize(error, stream);
     }
 
-    P2pAddressAdHeader(bool & error, std::vector<uint8_t> &buf)
+    PrequelAddressAd(bool & error, std::vector<uint8_t> &buf)
     {
         logos::vectorstream stream(buf);
         Deserialize(error, stream);
     }
     void Deserialize(bool &error, logos::stream &stream)
     {
-        error = logos::read(stream, epoch_number) || logos::read(stream, encr_delegate_id);
+        error = logos::read(stream, epoch_number) ||
+                logos::read(stream, delegate_id);
+                logos::read(stream, encr_delegate_id);
     }
 
     uint32_t Serialize(logos::vectorstream &stream)
     {
-        return (logos::write(stream, epoch_number) + logos::write(stream, encr_delegate_id));
+        return (logos::write(stream, epoch_number) +
+                logos::write(stream, delegate_id) +
+                logos::write(stream, encr_delegate_id));
     }
 
     uint32_t Serialize(std::vector<uint8_t> &buf)
@@ -556,25 +563,42 @@ struct P2pAddressAdHeader
         return Serialize(stream);
     }
 
+    virtual BlockHash Hash() const
+    {
+        return Blake2bHash<PrequelAddressAd>(*this);
+    }
+
+    virtual void Hash(blake2b_state & hash) const
+    {
+        blake2b_update(&hash, &epoch_number, sizeof(epoch_number));
+        blake2b_update(&hash, &delegate_id, sizeof(delegate_id));
+        blake2b_update(&hash, &encr_delegate_id, sizeof(encr_delegate_id));
+    }
+
     uint32_t    epoch_number = 0;
-    // if delegate address ad then delegate id is encryptor's delegate id
+    uint8_t     delegate_id = 0;
+    // if delegate address ad then encr delegate id is encryptor's delegate id
     // if tx acceptor address ad then not used
     uint8_t     encr_delegate_id = 0;
-    static constexpr size_t HEADER_SIZE = sizeof(epoch_number) + sizeof(encr_delegate_id);
+    static constexpr size_t SIZE = sizeof(epoch_number) +
+                                   sizeof(delegate_id) +
+                                   sizeof(encr_delegate_id);
 };
 
-struct CommonAddressAd {
+struct CommonAddressAd : PrequelAddressAd {
     static constexpr size_t IP_LENGTH = 16;
     static constexpr char ipv6_prefix[] = "::ffff:";
 
-    CommonAddressAd() = default;
+    CommonAddressAd() : PrequelAddressAd () {}
     ~CommonAddressAd() = default;
 
-    CommonAddressAd(uint8_t delegate_id,
+    CommonAddressAd(uint32_t epoch_number,
+                    uint8_t delegate_id,
+                    uint8_t encr_delegate_id,
                     const char *ip,
                     uint16_t port,
                     DelegateSig signature = 0)
-    : delegate_id(delegate_id)
+    : PrequelAddressAd(epoch_number, delegate_id, encr_delegate_id)
     , port(port)
     , signature(signature)
     {
@@ -586,14 +610,14 @@ struct CommonAddressAd {
         inet_pton(AF_INET6, ipstr.c_str(), this->ip.data());
     }
 
-    virtual BlockHash Hash() const
+    BlockHash Hash() const
     {
         return Blake2bHash<CommonAddressAd>(*this);
     }
 
-    virtual void Hash(blake2b_state & hash) const
+    void Hash(blake2b_state & hash) const
     {
-        blake2b_update(&hash, &delegate_id, sizeof(delegate_id));
+        PrequelAddressAd::Hash(hash);
         blake2b_update(&hash, ip.data(), ip.size());
         blake2b_update(&hash, &port, sizeof(port));
     }
@@ -612,34 +636,45 @@ struct CommonAddressAd {
         return ipstr;
     }
 
-    uint8_t delegate_id;
     std::array<uint8_t, IP_LENGTH> ip;
     uint16_t port;
     DelegateSig signature;
 };
 
-// TODO is encr_delegate_id and epoch_number needed in AddressAd?
 struct AddressAd : CommonAddressAd
 {
-    using Decryptor = std::function<void(const std::string &cyphertext, uint8_t *data, size_t size)>;
-    AddressAd(uint8_t delegate_id,
+    using Decryptor = void(*)(const std::string &cyphertext, uint8_t *data, size_t size);
+    AddressAd(uint32_t epoch_number,
+              uint8_t delegate_id,
+              uint8_t encr_delegate_id,
               const char* ip,
               uint16_t port,
               DelegateSig signature=0)
-    : CommonAddressAd(delegate_id, ip, port, signature)
+    : CommonAddressAd(epoch_number, delegate_id, encr_delegate_id, ip, port, signature)
     {
     }
 
-    AddressAd(bool &error, logos::stream &stream, Decryptor decryptor)
+    AddressAd(bool &error, uint32_t epoch_number, uint8_t delegate_id, uint8_t encr_delegate_id,
+              logos::stream &stream, Decryptor decryptor)
     {
+        this->epoch_number = epoch_number;
+        this->delegate_id = delegate_id;
+        this->encr_delegate_id = encr_delegate_id;
+        Deserialize(error, stream, decryptor);
+    }
+
+    AddressAd(bool &error, const PrequelAddressAd &prequel, logos::stream &stream, Decryptor decryptor)
+    {
+        epoch_number = prequel.epoch_number;
+        delegate_id = prequel.delegate_id;
+        encr_delegate_id = prequel.encr_delegate_id;
         Deserialize(error, stream, decryptor);
     }
 
     void Deserialize(bool &error, logos::stream &stream, Decryptor decryptor)
     {
         std::string cyphertext;
-        error = logos::read(stream, delegate_id) ||
-                logos::read(stream, cyphertext) ||
+        error = logos::read(stream, cyphertext) ||
                 logos::read(stream, signature);
         if (!error)
         {
@@ -656,7 +691,9 @@ struct AddressAd : CommonAddressAd
         memcpy(buf.data()+ip.size(), &port, sizeof(port));
         std::string cyphertext;
         pub.Encrypt(cyphertext, buf.data(), buf.size());
-        return logos::write(stream, delegate_id) +
+        auto size = PrequelAddressAd::Serialize(stream);
+        assert(size == PrequelAddressAd::SIZE);
+        return size +
                logos::write(stream, cyphertext) +
                logos::write(stream, signature);
     }
@@ -678,30 +715,40 @@ struct AddressAd : CommonAddressAd
 
 struct AddressAdTxAcceptor : CommonAddressAd
 {
-    AddressAdTxAcceptor(uint8_t delegate_id,
-              const char* ip,
-              uint16_t port,
-              uint16_t json_port,
-              DelegateSig signature=0)
-    : CommonAddressAd(delegate_id, ip, port, signature)
+    AddressAdTxAcceptor(uint32_t epoch_number,
+                        uint8_t delegate_id,
+                        const char* ip,
+                        uint16_t port,
+                        uint16_t json_port,
+                        DelegateSig signature=0)
+    : CommonAddressAd(epoch_number, delegate_id, 0xff, ip, port, signature)
     , json_port(json_port)
     {
     }
-    AddressAdTxAcceptor(bool &error, logos::stream &stream)
+    AddressAdTxAcceptor(bool &error, uint32_t epoch_number, uint8_t delegate_id, logos::stream &stream)
     {
+        epoch_number = epoch_number;
+        delegate_id = delegate_id;
+        encr_delegate_id = 0xff;
+        Deserialize(error, stream);
+    }
+    AddressAdTxAcceptor(bool &error, const PrequelAddressAd &prequel, logos::stream &stream)
+    {
+        epoch_number = prequel.epoch_number;
+        delegate_id = prequel.delegate_id;
+        encr_delegate_id = 0xff;
         Deserialize(error, stream);
     }
     void Deserialize(bool &error, logos::stream &stream)
     {
-        error = logos::read(stream, delegate_id) ||
-                logos::read(stream, ip) ||
+        error = logos::read(stream, ip) ||
                 logos::read(stream, port) ||
                 logos::read(stream, json_port) ||
                 logos::read(stream, signature);
     }
     uint32_t Serialize(logos::vectorstream &stream)
     {
-        return logos::write(stream, delegate_id) +
+        return PrequelAddressAd::Serialize(stream) +
                logos::write(stream, ip) +
                logos::write(stream, port) +
                logos::write(stream, json_port);

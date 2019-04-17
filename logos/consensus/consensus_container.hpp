@@ -241,13 +241,34 @@ private:
     /// @param config delegate's configuration
     /// @param del type of transition delegate
     /// @param con type of delegate's set connection
+    /// @param eb epoch block with this epoch delegates
     std::shared_ptr<EpochManager>
     CreateEpochManager(uint epoch_number, const ConsensusManagerConfig &config,
-        EpochTransitionDelegate delegate, EpochConnection connnection);
+        EpochTransitionDelegate delegate, EpochConnection connnection,
+        std::shared_ptr<ApprovedEB> eb);
 
-    bool OnP2pConsensus(logos::bufferstream &stream, const void *data, size_t size);
-    bool OnAddressAd(logos::bufferstream &stream);
-    bool OnAddressAdTxAcceptor(logos::bufferstream &stream);
+    /// Handle consensus message
+    /// @param data serialized message
+    /// @param size message size
+    /// @returns true on success
+    bool OnP2pConsensus(uint8_t *data, size_t size);
+
+    /// Handle delegate address advertisement message
+    /// @param data serialized message
+    /// @param size message size
+    /// @returns true on success
+    bool OnAddressAd(uint8_t *data, size_t size);
+
+    /// Handle tx acceptor address advertisement message
+    /// @param data serialized message
+    /// @param size message size
+    /// @returns true on success
+    bool OnAddressAdTxAcceptor(uint8_t *data, size_t size);
+
+    /// Get epoch manager for the epoch number
+    /// @param epoch_number epoch number
+    /// @returns epoch manager or null
+    std::shared_ptr<EpochManager> GetEpochManager(uint32_t epoch_number);
 
     static const std::chrono::seconds GARBAGE_COLLECT;
 

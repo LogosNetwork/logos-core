@@ -19,7 +19,8 @@ EpochManager::EpochManager(Service & service,
                            NewEpochEventHandler & handler,
                            p2p_interface & p2p,
                            uint8_t delegate_id,
-                           PeerAcceptorStarter & starter)
+                           PeerAcceptorStarter & starter,
+                           std::shared_ptr<ApprovedEB> eb)
     : _state(state)
     , _delegate(delegate)
     , _connection_state(connection)
@@ -33,6 +34,10 @@ EpochManager::EpochManager(Service & service,
                      service, alarm, config, _key_store, _validator, starter))
     , _delegate_id(delegate_id)
 {
+    for (int del = 0; del < NUM_DELEGATES; del++)
+    {
+        _key_store.OnPublicKey(del, eb->delegates[del].bls_pub);
+    }
 }
 
 EpochManager::~EpochManager()

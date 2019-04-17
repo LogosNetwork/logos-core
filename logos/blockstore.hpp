@@ -303,6 +303,70 @@ public:
             const AccountAddress& account2,
             const CandidateInfo& candidate2);
 
+    // Address advertisement
+    struct ad_key {
+        uint32_t epoch_number;
+        uint8_t delegate_id;
+        uint8_t encr_delegate_id;
+    };
+    struct ad_txa_key {
+        uint32_t epoch_number;
+        uint8_t delegate_id;
+    };
+
+    template<typename KeyType>
+    MDB_dbi get_ad_db()
+    {
+        return (std::is_same<KeyType, ad_key>::value) ? address_ad_db : address_ad_txa_db;
+    }
+
+    template<typename KeyType, typename ... Args>
+    void ad_put(MDB_txn* t, uint8_t *data, size_t size, Args ... args)
+    {
+        KeyType key{args ... };
+        auto db = get_ad_db<KeyType>();
+        auto status(mdb_put(t, db, mdb_val(sizeof(key), &key), mdb_val(size, data), 0));
+        assert(status == 0);
+    }
+
+    template<typename KeyType, typename ... Args>
+    bool ad_get(MDB_txn *t, std::vector<uint8_t> &data, Args ... args)
+    {
+        KeyType key{args ... };
+        mdb_val value;
+
+        auto db = get_ad_db<KeyType>();
+        int status = 0;
+        if (t == 0) {
+            logos::transaction transaction(environment, nullptr, false);
+            status = mdb_get(transaction, db, mdb_val(sizeof(key), &key), value);
+        } else {
+            status = mdb_get(t, db, mdb_val(sizeof(key), &key), value);
+        }
+        assert (status == 0 || status == MDB_NOTFOUND);
+        bool result;
+        if (status == MDB_NOTFOUND)
+        {
+            result = true;
+        }
+        else
+        {
+            data.resize(value.size());
+            memcpy(data.data(), value.data(), value.size());
+        }
+        return result;
+    }
+
+    template<typename KeyType, typename ... Args>
+    void ad_del(MDB_txn *t, Args ... args)
+    {
+        KeyType key{args ... };
+        auto db = get_ad_db<KeyType>();
+        auto status (mdb_del (t, db, mdb_val(sizeof(key), &key), nullptr));
+
+        assert (status == 0 || status == MDB_NOTFOUND);
+    }
+
     //////////////////
 
     void checksum_put (MDB_txn *, uint64_t, uint8_t, logos::checksum const &);
@@ -500,6 +564,18 @@ public:
      * std::string (database name) -> std::vector<uint8_t>
      */
     MDB_dbi p2p_db;
+
+    /**
+     * AddressAd database
+     * epoch_number, delegate_id, encr_delegate_id -> std::vector<uint8_t>
+     */
+    MDB_dbi address_ad_db;
+
+    /**
+     * AddressAdTxAcceptor database
+     * epoch_number, delegate_id -> std::vector<uint8_t>
+     */
+    MDB_dbi address_ad_txa_db;
 
     Log log;
 };

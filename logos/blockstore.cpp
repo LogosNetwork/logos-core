@@ -333,6 +333,9 @@ checksum (0)
 
         sync_leading_candidates(transaction);
 
+        // address advertisement
+        error_a |= mdb_dbi_open (transaction, "address_ad_db", MDB_CREATE, &address_ad_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "address_ad_tx_db", MDB_CREATE | MDB_DUPSORT, &address_ad_txa_db) != 0;
 
         if (!error_a)
         {

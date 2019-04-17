@@ -47,10 +47,10 @@ ConsensusContainer::ConsensusContainer(Service & service,
     // is the node a delegate in this epoch
     bool in_epoch = delegate_idx != NON_DELEGATE;
 
-    auto create = [this](const ConsensusManagerConfig &epoch_config) mutable -> void {
+    auto create = [this, approvedEb](const ConsensusManagerConfig &epoch_config) mutable -> void {
         std::lock_guard<std::mutex> lock(_mutex);
         _cur_epoch = CreateEpochManager(_cur_epoch_number, epoch_config, EpochTransitionDelegate::None,
-                                        EpochConnection::Current);
+                                        EpochConnection::Current, approvedEb);
         _binding_map[_cur_epoch->_epoch_number] = _cur_epoch;
     };
 
@@ -76,12 +76,13 @@ ConsensusContainer::CreateEpochManager(
     uint epoch_number,
     const ConsensusManagerConfig &config,
     EpochTransitionDelegate delegate,
-    EpochConnection connection )
+    EpochConnection connection,
+    std::shared_ptr<ApprovedEB> eb)
 {
     auto res = std::make_shared<EpochManager>(_service, _store, _alarm, config,
                                               _archiver, _transition_state,
                                               delegate, connection, epoch_number, *this, _p2p._p2p,
-                                              config.delegate_id, _peer_manager);
+                                              config.delegate_id, _peer_manager, eb);
     res->Start();
     return res;
 }
@@ -337,7 +338,7 @@ ConsensusContainer::EpochTransitionEventsStart()
     {
         ConsensusManagerConfig epoch_config = BuildConsensusConfig(delegate_idx, *approvedEb);
         _trans_epoch = CreateEpochManager(_cur_epoch_number+1, epoch_config, _transition_delegate,
-                                          EpochConnection::Transitioning);
+                                          EpochConnection::Transitioning, approvedEb);
 
         if (_transition_delegate == EpochTransitionDelegate::Persistent)
         {
@@ -575,15 +576,8 @@ ConsensusContainer::CheckEpochNull(bool is_null, const char* where)
 bool
 ConsensusContainer::OnP2pReceive(const void *data, size_t size)
 {
-    if (size < P2pHeader::HEADER_SIZE)
-    {
-        LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid message, size is less than header, "
-                        << size;
-        return false;
-    }
-
     bool error = false;
-    logos::bufferstream stream((const uint8_t*)data, size);
+    logos::bufferstream stream((const uint8_t*)data, P2pHeader::SIZE);
     P2pHeader p2pheader(error, stream);
     if (error)
     {
@@ -595,34 +589,19 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
                     << p2pheader.app_type
                     << ", size " << size;
 
+    data = (uint8_t*)data + P2pHeader::SIZE;
+    size -= P2pHeader::SIZE;
+
     switch (p2pheader.app_type)
     {
         case P2pAppType::Consensus: {
-            if (size < (P2pHeader::HEADER_SIZE + P2pConsensusHeader::HEADER_SIZE + MessagePrequelSize))
-            {
-                LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid message, size is less than header, "
-                                << size;
-                return false;
-            }
-            return OnP2pConsensus(stream, data, size);
+            return OnP2pConsensus((uint8_t*)data, size);
         }
         case P2pAppType::AddressAd: {
-            if (size < (P2pHeader::HEADER_SIZE + P2pAddressAdHeader::HEADER_SIZE))
-            {
-                LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid message, size is less than header, "
-                                << size;
-                return false;
-            }
-            return OnAddressAd(stream);
+            return OnAddressAd((uint8_t*)data, size);
         }
         case P2pAppType::AddressAdTxAcceptor: {
-            if (size < (P2pHeader::HEADER_SIZE + P2pAddressAdHeader::HEADER_SIZE))
-            {
-                LOG_ERROR(_log) << "ConsensusContainer::OnP2pReceive, invalid message, size is less than header, "
-                                << size;
-                return false;
-            }
-            return OnAddressAdTxAcceptor(stream);
+            return OnAddressAdTxAcceptor((uint8_t*)data, size);
         }
         default:
             return false;
@@ -630,10 +609,11 @@ ConsensusContainer::OnP2pReceive(const void *data, size_t size)
 }
 
 bool
-ConsensusContainer::OnP2pConsensus(logos::bufferstream &stream, const void *data, size_t size)
+ConsensusContainer::OnP2pConsensus(uint8_t *data, size_t size)
 {
-    auto hdrs_size = P2pHeader::HEADER_SIZE + P2pConsensusHeader::HEADER_SIZE + MessagePrequelSize;
+    auto hdrs_size = P2pConsensusHeader::SIZE + MessagePrequelSize;
     bool error = false;
+    logos::bufferstream stream(data, size);
     P2pConsensusHeader p2pconsensus_header(error, stream);
     if (error)
     {
@@ -656,7 +636,7 @@ ConsensusContainer::OnP2pConsensus(logos::bufferstream &stream, const void *data
     }
 
     size -= hdrs_size;
-    uint8_t *payload_data = ((uint8_t*)data) + hdrs_size;
+    uint8_t *payload_data = data + hdrs_size;
     if (prequel.type == MessageType::Post_Committed_Block)
     {
         LOG_DEBUG(_log) << "ConsensusContainer::OnP2pReceive, processing post committed block, size "
@@ -699,87 +679,61 @@ ConsensusContainer::OnP2pConsensus(logos::bufferstream &stream, const void *data
     return true;
 }
 
+std::shared_ptr<EpochManager>
+ConsensusContainer::GetEpochManager(uint32_t epoch_number)
+{
+    OptLock lock(_transition_state, _mutex);
+
+    std::shared_ptr<EpochManager> epoch = nullptr;
+    if (_cur_epoch && _cur_epoch->GetEpochNumber() == epoch_number)
+    {
+        epoch = _cur_epoch;
+    }
+    else if (_trans_epoch && _trans_epoch->GetEpochNumber() == epoch_number)
+    {
+        epoch = _trans_epoch;
+    }
+
+    return epoch;
+}
+
 bool
-ConsensusContainer::OnAddressAd(logos::bufferstream &stream)
+ConsensusContainer::OnAddressAd(uint8_t *data, size_t size)
 {
     bool error = false;
-    P2pAddressAdHeader header(error, stream);
+    logos::bufferstream stream(data, PrequelAddressAd::SIZE);
+    PrequelAddressAd prequel(error, stream);
     if (error)
     {
-        LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, failed to deserialize P2pAddressAdHeader";
+        LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, failed to deserialize PrequelAddressAd";
         return false;
     }
 
-    // TODO handle Ad for the next epoch, have to check if delegate in the next epoch
-    std::shared_ptr<EpochManager> epoch = nullptr;
+    auto epoch = GetEpochManager(prequel.epoch_number);
+
+    data += PrequelAddressAd::SIZE;
+    size -= PrequelAddressAd::SIZE;
+
+    LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd epoch " << prequel.epoch_number
+                    << " delegate id " << (int)prequel.delegate_id
+                    << " encr delegate id " << (int)prequel.encr_delegate_id
+                    << " from epoch " << ((epoch!=0)?(int)epoch->_delegate_id:255)
+                    << " size " << size;
+
+    auto this_delegate_id = (epoch != 0)?epoch->_delegate_id:0xff;
+    std::string ip = "";
+    uint16_t port = 0;
+
+    if (_identity_manager.OnAddressAd(data, size, prequel, ip, port) && epoch)
     {
-        OptLock lock(_transition_state, _mutex);
-
-        if (_cur_epoch && _cur_epoch->GetEpochNumber() == header.epoch_number)
-        {
-            epoch = _cur_epoch;
-        }
-        else if (_trans_epoch && _trans_epoch->GetEpochNumber() == header.epoch_number)
-        {
-            epoch = _trans_epoch;
-        }
-        else
-        {
-            LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, failed to deliver for epoch number "
-                            << header.epoch_number << ", delegate " << (int)header.encr_delegate_id
-                            << " cur " << (_cur_epoch?(_cur_epoch->GetEpochNumber()):0)
-                            << " trans " << (_trans_epoch?(_trans_epoch->GetEpochNumber()):0);
-            return false;
-        }
+        epoch->_netio_manager->AddDelegate(prequel.delegate_id, ip, port);
     }
-
-    /// TODO have to store Ad's for this and other delegates
-    if (header.encr_delegate_id != epoch->_delegate_id)
-    {
-        LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, ad message not for this delegate "
-                        << (int)header.encr_delegate_id
-                        << " " << (int)epoch->_delegate_id
-                        << ", epoch number " << header.epoch_number;
-        return true;
-    }
-
-    error = false;
-    AddressAd addressAd(error, stream, std::bind(&DelegateIdentityManager::Decrypt,
-            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
-    if (error)
-    {
-        LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, failed to deserialize AddressAd";
-        return false;
-    }
-    if (!_identity_manager.ValidateSignature(header.epoch_number, addressAd))
-    {
-        LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, failed to validate AddressAd signature";
-        return false;
-    }
-
-    LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, delegate " << (int)addressAd.delegate_id
-                    << ", epoch number " << header.epoch_number
-                    << ", ip " << addressAd.GetIP()
-                    << ", port " << addressAd.port;
-
-    epoch->_netio_manager->AddDelegate(addressAd.delegate_id, addressAd.GetIP(), addressAd.port);
 
     return true;
 }
 
 bool
-ConsensusContainer::OnAddressAdTxAcceptor(logos::bufferstream &stream)
+ConsensusContainer::OnAddressAdTxAcceptor(uint8_t *data, size_t size)
 {
-    bool error = false;
-    AddressAdTxAcceptor addressAd(error, stream);
-    if (error)
-    {
-        LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAdTxAcceptor, failed to deserialize AddressAdTxAcceptor";
-        return false;
-    }
-
-    LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAdTxAcceptor, ip " << addressAd.GetIP()
-                    << ", port " << addressAd.port
-                    << ", json port " << addressAd.json_port;
-    return true;
+    return _identity_manager.OnAddressAdTxAcceptor(data, size);
 }

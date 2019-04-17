@@ -52,7 +52,7 @@ ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info)
 }
 
 void
-ConsensusNetIOManager::AddDelegate(uint8_t delegate_id, std::string &&ip, uint16_t port)
+ConsensusNetIOManager::AddDelegate(uint8_t delegate_id, std::string &ip, uint16_t port)
 {
     if (std::find_if(_delegates.begin(), _delegates.end(), [&](auto delegate){
             return delegate.id == delegate_id;}) != _delegates.end())
@@ -61,6 +61,7 @@ ConsensusNetIOManager::AddDelegate(uint8_t delegate_id, std::string &&ip, uint16
                         << " is already connected ";
         return;
     }
+
 
     _delegates.push_back({ip, delegate_id});
 

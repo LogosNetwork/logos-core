@@ -552,7 +552,7 @@ DelegateIdentityManager::IdentifyDelegates(
 
 bool
 DelegateIdentityManager::IdentifyDelegates(
-    uint epoch_number,
+    uint32_t epoch_number,
     uint8_t &delegate_idx,
     ApprovedEBPtr & epoch)
 {
@@ -568,9 +568,12 @@ DelegateIdentityManager::IdentifyDelegates(
     auto get = [this](BlockHash &hash, ApprovedEBPtr epoch) {
         if (_store.epoch_get(hash, *epoch))
         {
-            LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get epoch: "
-                            << hash.to_string();
-            trace_and_halt();
+            if (hash != 0) {
+                LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get epoch: "
+                                << hash.to_string();
+                trace_and_halt();
+            }
+            return false;
         }
         return true;
     };
@@ -710,11 +713,10 @@ DelegateIdentityManager::ValidateSignature(uint32_t epoch_number, const CommonAd
 template<typename Ad, typename SerializeF, typename ... Args>
 void
 DelegateIdentityManager::MakeAdAndPropagate(
-    uint32_t epoch_number,
-    uint8_t delegate_id,
-    uint8_t encr_delegate_id,
     P2pAppType app_type,
     SerializeF &&serialize,
+    uint32_t epoch_number,
+    uint8_t delegate_id,
     Args ... args)
 {
     auto buf = std::make_shared<std::vector<uint8_t>>();
@@ -722,13 +724,9 @@ DelegateIdentityManager::MakeAdAndPropagate(
         logos::vectorstream stream(*buf);
         P2pHeader header(logos_version, app_type);
         size_t size = header.Serialize(stream);
-        assert(size == P2pHeader::HEADER_SIZE);
+        assert(size == P2pHeader::SIZE);
 
-        P2pAddressAdHeader adHeader(epoch_number, encr_delegate_id);
-        size = adHeader.Serialize(stream);
-        assert(size == P2pAddressAdHeader::HEADER_SIZE);
-
-        Ad addressAd(delegate_id, args ... );
+        Ad addressAd(epoch_number, delegate_id, args ... );
         Sign(epoch_number, addressAd);
         serialize(&addressAd, stream);
     }
@@ -747,28 +745,32 @@ DelegateIdentityManager::Advertise(
     for (auto it = ids.begin(); it != ids.end(); ++it)
     {
         auto encr_delegate_id = *it;
-        MakeAdAndPropagate<AddressAd>(epoch_number,
-                                      delegate_id,
-                                      encr_delegate_id,
-                                      P2pAppType::AddressAd,
+        MakeAdAndPropagate<AddressAd>(P2pAppType::AddressAd,
                                       [&epoch, &encr_delegate_id](auto ad, logos::vectorstream &s){
                                           (*ad).Serialize(s, epoch->delegates[encr_delegate_id].ecies_pub);
                                       },
+                                      epoch_number,
+                                      delegate_id,
+                                      encr_delegate_id,
                                       cmconfig.local_address.c_str(),
                                       cmconfig.peer_port);
     }
 
     // Advertise to all nodes this delegate's tx acceptors
     const TxAcceptorConfig &txconfig = _config.tx_acceptor_config;
-    for (auto txa : txconfig.tx_acceptors)
+    auto acceptors = txconfig.tx_acceptors;
+    if (acceptors.empty())
     {
-        MakeAdAndPropagate<AddressAdTxAcceptor>(epoch_number,
-                                                delegate_id,
-                                                0xff,
-                                                P2pAppType::AddressAdTxAcceptor,
+        acceptors.push_back({txconfig.acceptor_ip, txconfig.port});
+    }
+    for (auto txa : acceptors)
+    {
+        MakeAdAndPropagate<AddressAdTxAcceptor>(P2pAppType::AddressAdTxAcceptor,
                                                 [](auto ad, logos::vectorstream &s) {
                                                     (*ad).Serialize(s);
                                                 },
+                                                epoch_number,
+                                                delegate_id,
                                                 txa.ip.c_str(),
                                                 txconfig.bin_port,
                                                 txconfig.json_port);
@@ -779,4 +781,157 @@ void
 DelegateIdentityManager::Decrypt(const std::string &cyphertext, uint8_t *buf, size_t size)
 {
     _ecies_key.prv.Decrypt(cyphertext, buf, size);
+}
+
+bool
+DelegateIdentityManager::OnAddressAd(uint8_t *data,
+                                     size_t size,
+                                     const PrequelAddressAd &prequel,
+                                     std::string &ip,
+                                     uint16_t &port)
+{
+    bool res = false;
+
+    LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd, epoch " << prequel.epoch_number
+                    << " delegate id " << (int)prequel.delegate_id
+                    << " encr delegate id " << (int)prequel.encr_delegate_id;
+
+    auto current_epoch_number = ConsensusContainer::GetCurEpochNumber();
+    bool current_or_next = prequel.epoch_number == current_epoch_number || (current_epoch_number + 1);
+    if (current_or_next)
+    {
+        static std::unordered_map<uint32_t,uint8_t> idx_cache;
+        static uint32_t min = prequel.epoch_number;
+        uint8_t idx;
+        if (idx_cache.find(prequel.epoch_number) != idx_cache.end()) {
+            idx = idx_cache[prequel.epoch_number];
+        }
+        else {
+            IdentifyDelegates(prequel.epoch_number - 2, idx);
+            idx_cache[prequel.epoch_number] = idx;
+            if (idx_cache.size() > 3) {
+                idx_cache.erase(min);
+                min++;
+            }
+        }
+
+        // ad is encrypted with this delegate's ecies public key
+        if (prequel.encr_delegate_id == idx)
+        {
+            bool error = false;
+            logos::bufferstream stream(data, size);
+            AddressAd addressAd(error, prequel, stream, &DelegateIdentityManager::Decrypt);
+            if (error)
+            {
+                LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd, failed to deserialize AddressAd";
+                return false;
+            }
+            if (!ValidateSignature(prequel.epoch_number, addressAd))
+            {
+                LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd, failed to validate AddressAd signature";
+                return false;
+            }
+
+            ip = addressAd.GetIP();
+            port = addressAd.port;
+
+            _address_ad[{prequel.epoch_number, prequel.delegate_id}] = {ip, port};
+            res = true;
+
+            LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd, delegate " << (int)addressAd.delegate_id
+                            << ", epoch number " << prequel.epoch_number
+                            << ", ip " << ip
+                            << ", port " << port;
+        }
+
+        UpdateDelegateAddressDB(prequel, data, size);
+    }
+
+    return res;
+}
+
+void
+DelegateIdentityManager::UpdateDelegateAddressDB(const PrequelAddressAd &prequel, uint8_t *data, size_t size)
+{
+    return;
+
+    logos::transaction transaction (_store.environment, nullptr, true);
+    // update new
+    _store.ad_put<logos::block_store::ad_key>(transaction,
+                                              data,
+                                              size,
+                                              prequel.epoch_number,
+                                              prequel.delegate_id,
+                                              prequel.encr_delegate_id);
+    // delete old
+    auto current_epoch_number = ConsensusContainer::GetCurEpochNumber();
+    _store.ad_del<logos::block_store::ad_key>(transaction,
+                                              current_epoch_number - 1,
+                                              prequel.delegate_id,
+                                              prequel.encr_delegate_id);
+}
+
+bool
+DelegateIdentityManager::OnAddressAdTxAcceptor(uint8_t *data, size_t size)
+{
+    bool res = false;
+    bool error = false;
+    logos::bufferstream stream(data, PrequelAddressAd::SIZE);
+    PrequelAddressAd prequel(error, stream);
+    if (error)
+    {
+        LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, failed to deserialize PrequelAddressAd";
+        return false;
+    }
+
+    auto current_epoch_number = ConsensusContainer::GetCurEpochNumber();
+    bool current_or_next = prequel.epoch_number == current_epoch_number || (current_epoch_number + 1);
+    if (current_or_next)
+    {
+
+        AddressAdTxAcceptor addressAd(error, prequel, stream);
+        if (error)
+        {
+            LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAdTxAcceptor, failed to deserialize AddressAdTxAcceptor";
+            return false;
+        }
+
+        if (!ValidateSignature(prequel.epoch_number, addressAd))
+        {
+            LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, failed to validate AddressAd signature";
+            return false;
+        }
+
+        _address_ad_txa.insert({{prequel.epoch_number, prequel.delegate_id},
+                               {addressAd.GetIP(), addressAd.port, addressAd.json_port}});
+
+        LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAdTxAcceptor, ip " << addressAd.GetIP()
+                        << ", port " << addressAd.port
+                        << ", json port " << addressAd.json_port;
+
+        UpdateTxAcceptorAddressDB(prequel, data, size);
+
+        res = true;
+    }
+
+    return res;
+}
+
+void
+DelegateIdentityManager::UpdateTxAcceptorAddressDB(const PrequelAddressAd &prequel, uint8_t *data, size_t size)
+{
+    return;
+
+    logos::transaction transaction (_store.environment, nullptr, true);
+    // update new
+    _store.ad_put<logos::block_store::ad_txa_key>(transaction,
+                                                  data,
+                                                  size,
+                                                  prequel.epoch_number,
+                                                  prequel.delegate_id);
+    // delete old
+    auto current_epoch_number = ConsensusContainer::GetCurEpochNumber();
+    _store.ad_del<logos::block_store::ad_txa_key>(transaction,
+                                                  current_epoch_number - 1,
+                                                  prequel.delegate_id);
 }

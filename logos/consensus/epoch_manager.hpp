@@ -74,7 +74,8 @@ public:
                  NewEpochEventHandler & event_handler,
                  p2p_interface & p2p,
                  uint8_t delegate_id,
-                 PeerAcceptorStarter & starter);
+                 PeerAcceptorStarter & starter,
+                 std::shared_ptr<ApprovedEB> eb);
 
     ~EpochManager();
 

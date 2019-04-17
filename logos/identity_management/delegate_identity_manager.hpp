@@ -91,7 +91,12 @@ public:
     /// @param idx this delegates index, NON_DELEGATE if not in the delegates list [out]
     /// @param eb approved epoch block [out]
     /// @return true if the epoch is found, false otherwise
-    bool IdentifyDelegates(uint epoch, uint8_t & idx, ApprovedEBPtr &eb);
+    bool IdentifyDelegates(uint32_t epoch, uint8_t & idx, ApprovedEBPtr &eb);
+    bool IdentifyDelegates(uint32_t epoch, uint8_t & idx)
+    {
+        ApprovedEBPtr eb = 0;
+        return IdentifyDelegates(epoch, idx, eb);
+    }
 
     /// @returns true if current time is between transition start and last microblock proposal time
     static bool StaleEpoch();
@@ -123,21 +128,46 @@ public:
     /// @param current_epoch_number current epoch number
     /// @param idx returns this delegate id in the Current epoch
     /// @param epoch approved epoch block for the current epoch
-    void CheckAdvertise(uint32_t current_epoch_number, uint8_t & idx, ApprovedEBPtr &epoch);
+    void CheckAdvertise(uint32_t current_epoch_number,
+                        uint8_t & idx,
+                        ApprovedEBPtr &epoch);
 
     /// Advertise delegates ip
     /// @param epoch_number to advertise for
     /// @param delegate_id of the advertiser
     /// @param epoch contains the list of other delegates ecies pub key
     /// @param ids delegate ids to advertise to
-    void Advertise(uint32_t epoch_number, uint8_t delegate_id,
-                   std::shared_ptr<ApprovedEB> epoch, const std::vector<uint8_t>& ids);
+    void Advertise(uint32_t epoch_number,
+                   uint8_t delegate_id,
+                   std::shared_ptr<ApprovedEB> epoch,
+                   const std::vector<uint8_t>& ids);
 
     /// Propagate advertisement message via p2p
     /// @param epoch_number to advertise for
     /// @param delegate_id to advertise to (0xff if tx acceptor)
     /// @param buf serialized message
-    void P2pPropagate(uint32_t epoch_number, uint8_t delegate_id, std::shared_ptr<std::vector<uint8_t>> buf);
+    void P2pPropagate(uint32_t epoch_number,
+                      uint8_t delegate_id,
+                      std::shared_ptr<std::vector<uint8_t>> buf);
+
+    /// Handle received AddressAd message
+    /// @param data serialized message
+    /// @param size size of the serialized message
+    /// @param prequel of the ad message [in]
+    /// @param ip delegate's ip [out]
+    /// @param port delegate's port [out]
+    /// @returns true if the message is valid
+    bool OnAddressAd(uint8_t *data,
+                     size_t size,
+                     const PrequelAddressAd &prequel,
+                     std::string &ip,
+                     uint16_t &port);
+
+    /// Handle received AddressAdTxAcceptor message
+    /// @param data serialized message
+    /// @param size size of the serialized message
+    /// @returns true if the message is valid
+    bool OnAddressAdTxAcceptor(uint8_t *data, size_t size);
 
     /// Decrypt cyphertext
     /// @param cyphertext to decrypt
@@ -182,6 +212,8 @@ public:
         memcpy(&sig, sig_str.data(), CONSENSUS_SIG_SIZE);
     }
 
+    /// Get this delegate bls public key
+    /// @returns bls public key
     static DelegatePubKey BlsPublicKey()
     {
         std::string keystring;
@@ -193,7 +225,7 @@ public:
         return pk;
     }
 
-    static constexpr int RETRY_PROPAGATE = 5;
+    static constexpr int RETRY_PROPAGATE = 5; // retry propagation timeout on failure, seconds
 
 private:
 
@@ -202,20 +234,40 @@ private:
     std::vector<uint8_t> GetDelegatesToAdvertise(uint8_t delegate_id);
 
     /// Sign advertised message
+    /// @param epoch_number epoch number
+    /// @param ad message to sign
     void Sign(uint32_t epoch_number, CommonAddressAd &ad);
 
+    /// Make Ad message and propagate it via p2p
+    /// @param app_type of the message
+    /// @param f serializer of the message
+    /// @param epoch_number epoch number
+    /// @param delegate_id delegate id
+    /// @param args variable arguments
     template<typename Ad, typename SerializeF, typename ... Args>
-    void MakeAdAndPropagate(uint32_t epoch_number,
-                            uint8_t delegate_id,
-                            uint8_t encr_delegate_id,
-                            P2pAppType app_type,
+    void MakeAdAndPropagate(P2pAppType app_type,
                             SerializeF &&f,
+                            uint32_t epoch_number,
+                            uint8_t delegate_id,
                             Args ... args);
+
+    /// Update the AddressAd database
+    /// @param prequel ad prequel
+    /// @param data serialized ad message
+    /// @param size size of the serialized message
+    void UpdateDelegateAddressDB(const PrequelAddressAd &prequel, uint8_t *data, size_t size);
+
+    /// Update the AddressAdTxAcceptor database
+    /// @param prequel ad prequel
+    /// @param data serialized ad message
+    /// @param size size of the serialized message
+    void UpdateTxAcceptorAddressDB(const PrequelAddressAd &prequel, uint8_t *data, size_t size);
 
     static bool             _epoch_transition_enabled; ///< is epoch transition enabled
     static AccountAddress   _delegate_account;     ///< this delegate's account or 0 if non-delegate
     static uint8_t          _global_delegate_idx;  ///< global delegate index in all delegate's list
     static IPs              _delegates_ip;         ///< all delegates ip
+    /// TODO keys should be retrieved on start up from the wallet
     static ECIESKeyPair     _ecies_key;            ///< this delegate's ecies key pair for ip encr/decr
     static BlsKeyPairPtr    _bls_key;              ///< bls key
     Alarm &                 _alarm;                ///< logos alarm reference
@@ -224,6 +276,6 @@ private:
     const Config &          _config;               ///< consensus configuration
     Log                     _log;                  ///< boost log instances
     ValidatorBuilder        _validator_builder;    ///< validator builder
-    AddressAdList           _address_ad;           ///< list of other delegates advertisement messages
-    AddressAdTxAList        _address_ad_txa;       ///< list of other delegates advertisement messages
+    AddressAdList           _address_ad;           ///< list of delegates advertisement messages
+    AddressAdTxAList        _address_ad_txa;       ///< list of delegates tx acceptor advertisement messages
 };

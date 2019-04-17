@@ -14,7 +14,7 @@ void ConsensusP2pOutput::AddMessageToBuffer(const uint8_t *data,
                                             uint8_t dest_delegate_id)
 {
     P2pHeader p2pheader={logos_version, P2pAppType::Consensus};
-    auto hdrs_size = P2pHeader::HEADER_SIZE + P2pConsensusHeader::HEADER_SIZE;
+    auto hdrs_size = P2pHeader::SIZE + P2pConsensusHeader::SIZE;
     _p2p_buffer.resize(size + hdrs_size);
     uint8_t src_delegate_id = _delegate_id;
     if (message_type == MessageType::Post_Committed_Block)
@@ -26,8 +26,8 @@ void ConsensusP2pOutput::AddMessageToBuffer(const uint8_t *data,
     std::vector<uint8_t> buf;
     {
         logos::vectorstream stream(buf);
-        assert(p2pheader.Serialize(stream) == P2pHeader::HEADER_SIZE);
-        assert(header.Serialize(buf) == P2pConsensusHeader::HEADER_SIZE);
+        assert(p2pheader.Serialize(stream) == P2pHeader::SIZE);
+        assert(header.Serialize(buf) == P2pConsensusHeader::SIZE);
     }
     memcpy(_p2p_buffer.data(), buf.data(), buf.size());
     memcpy(_p2p_buffer.data() + hdrs_size, data, size);

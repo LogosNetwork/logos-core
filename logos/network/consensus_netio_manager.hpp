@@ -98,7 +98,7 @@ public:
 
     void Start(std::shared_ptr<EpochInfo> epoch_info);
 
-    void AddDelegate(uint8_t delegate_id, std::string &&ip, uint16_t port);
+    void AddDelegate(uint8_t delegate_id, std::string &ip, uint16_t port);
 
 protected:
 

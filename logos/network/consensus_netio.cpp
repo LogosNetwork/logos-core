@@ -221,7 +221,6 @@ void
 ConsensusNetIO::SendKeyAdvertisement()
 {
     KeyAdvertisement advert;
-    advert.public_key = _validator.GetPublicKey();
     Send(advert);
 }
 
@@ -401,11 +400,11 @@ ConsensusNetIO::OnData(const uint8_t * data,
     ReadPrequel();
 }
 
+/// TODO public key doesnt have to be advertised. it's part of the epoch block
 void 
 ConsensusNetIO::OnPublicKey(KeyAdvertisement & key_adv)
 {
-    _key_store.OnPublicKey(_remote_delegate_id, key_adv.public_key);
-
+    // TODO change to AddressAd message, which perhaps should be used instead of ConnectedClientIds
     std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
     _io_channel_binder(Self<ConsensusNetIO>::shared_from_this(), _remote_delegate_id);
 }

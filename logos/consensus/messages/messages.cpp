@@ -6,9 +6,9 @@
     static_assert(false, "Only LITTLE_ENDIAN machines are supported!");
 #endif
 
-constexpr size_t P2pConsensusHeader::HEADER_SIZE;
-constexpr size_t P2pHeader::HEADER_SIZE;
-constexpr size_t P2pAddressAdHeader::HEADER_SIZE;
+constexpr size_t P2pConsensusHeader::SIZE;
+constexpr size_t P2pHeader::SIZE;
+constexpr size_t PrequelAddressAd::SIZE;
 constexpr size_t CommonAddressAd::IP_LENGTH;
 constexpr char CommonAddressAd::ipv6_prefix[];
 
