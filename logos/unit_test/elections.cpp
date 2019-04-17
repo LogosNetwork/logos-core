@@ -1,4 +1,3 @@
-
 #include <gtest/gtest.h>
 #include <logos/blockstore.hpp>
 #include <logos/unit_test/msg_validator_setup.hpp>

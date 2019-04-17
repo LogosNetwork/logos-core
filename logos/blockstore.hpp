@@ -557,6 +557,11 @@ public:
      * epoch_number, delegate_id -> std::vector<uint8_t>
      */
     MDB_dbi address_ad_txa_db;
+    /*
+     * Epoch Rewards Info
+     * logos::account || epoch_number -> EpochRewardsInfo
+     */
+    MDB_dbi epoch_rewards_db;
 
     Log log;
 };
