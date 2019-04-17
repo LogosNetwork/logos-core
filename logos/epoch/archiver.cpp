@@ -49,12 +49,16 @@ Archiver::Start(InternalConsensus &consensus)
         bool one_mb_past = util.IsOneMBPastEpochTime();
 
         // check if latest in db / queue is the same as our own in-memory counter
-        // get DB block first
+        uint32_t latest_mb_seq, latest_eb_num;
         ApprovedMB mb;
         {
             BlockHash mb_tip;
-            // use write transaction to ensure sequencing
+            // use write transaction to ensure sequencing:
+            // if MB backup writes first, then we can reliably get latest MB sequence from DB or MessageHandler Queue
+            // if we get tx handle first, then the latest MB sequence must still be in MH queue
+            // (since backup DB write takes place before queue clear)
             logos::transaction tx(_store.environment, nullptr, true);
+            // get DB block first
             if (_store.micro_block_tip_get(mb_tip, tx))
             {
                 LOG_FATAL(_log) << "Archiver::Archiver - Failed to get microblock tip";
@@ -65,19 +69,18 @@ Archiver::Start(InternalConsensus &consensus)
                 LOG_FATAL(_log) << "Archiver::Archiver - Failed to get microblock";
                 trace_and_halt();
             }
-        }
-
-        // check queue content
-        uint32_t latest_mb_seq, latest_eb_num;
-        _mb_message_handler.GetQueuedSequence(latest_mb_seq, latest_eb_num);
-        if (!latest_mb_seq && !latest_eb_num)  // both being 0 indicates queue is empty
-        {
-            latest_mb_seq = mb.sequence;
-            latest_eb_num = mb.epoch_number;
-        }
-        else  // queued number must be greater than database-stored number
-        {
-            assert (latest_eb_num > mb.epoch_number || (latest_eb_num == mb.epoch_number && latest_mb_seq > mb.sequence));
+            // check queue content
+            _mb_message_handler.GetQueuedSequence(latest_mb_seq, latest_eb_num);
+            if (!latest_mb_seq && !latest_eb_num)  // both being 0 indicates queue is empty
+            {
+                latest_mb_seq = mb.sequence;
+                latest_eb_num = mb.epoch_number;
+            }
+            else  // queued number must be greater than or equal to database-stored number
+            {
+                assert (latest_eb_num > mb.epoch_number
+                || (latest_eb_num == mb.epoch_number && latest_mb_seq >= mb.sequence));
+            }
         }
 
         // TODO: Archiver's internal counter should really be directly updated by post commit

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <logos/consensus/messages/messages.hpp>
+#include <logos/consensus/messages/util.hpp>
 #include <logos/consensus/request/request_internal_queue.hpp>
 #include <logos/lib/epoch_time_util.hpp>
 #include <logos/lib/blocks.hpp>

@@ -14,13 +14,14 @@ void MessageHandler<CT>::OnMessage(const MessagePtr & message, const Seconds & s
     std::lock_guard<std::mutex> lock(_mutex);
     if(_entries. template get<1>().find(hash) != _entries. template get<1>().end())
     {
-        LOG_WARN(_log) << "Ignoring duplicate message with hash: " << hash.to_string();
+        LOG_WARN(_log) << "MessageHandler<" << ConsensusToName(CT)
+                       << ">::OnMessage - Ignoring duplicate message with hash: " << hash.to_string();
         return;
     }
 
     // For MB/EB, persistence manager (Backup) / Archiver (Primary) checks guarantee that messages arrive
     // in ascending epoch + sequence number combination order
-    LOG_DEBUG (_log) << "MessageHandler::PushBack - "
+    LOG_DEBUG (_log) << "MessageHandler<" << ConsensusToName(CT) << ">::OnMessage - "
                      << message->ToJson();
     _entries.push_back(Entry{hash, message, Clock::universal_time() + seconds});
 }
@@ -39,7 +40,9 @@ void MessageHandler<CT>::OnPostCommit(std::shared_ptr<PrePrepare> block)
 {
     std::lock_guard<std::mutex> lock(_mutex);
     auto & hashed = _entries. template get <1> ();
-    hashed.erase(block->Hash());
+    auto hash = block->Hash();
+    hashed.erase(hash);
+    LOG_DEBUG (_log) << "MessageHandler<" << ConsensusToName(CT) << ">::OnPostCommit - erased " << hash.to_string();
 }
 
 template<ConsensusType CT>
