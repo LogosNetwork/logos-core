@@ -144,8 +144,9 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostCommit & message)
         assert(_pre_prepare);
         _post_commit_sig = message.signature;
         ApprovedBlock block(*_pre_prepare, _post_prepare_sig, _post_commit_sig);
-        OnPostCommit();
+        // Must apply to DB before clearing from queue so that Archiver can fetch latest microblock sequence
         ApplyUpdates(block, _delegate_ids.remote);
+        OnPostCommit();
         BlocksCallback::Callback<CT>(block);
 
         _state = ConsensusState::VOID;
