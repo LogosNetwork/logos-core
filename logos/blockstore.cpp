@@ -4,6 +4,7 @@
 #include <logos/lib/trace.hpp>
 #include <logos/consensus/messages/util.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
+#include <logos/rewards/epoch_rewards.hpp>
 
 namespace
 {
@@ -211,6 +212,10 @@ bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, T &t, MDB_txn *tx)
     return result;
 }
 
+//explicit instantiation of template functions
+template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, EpochRewardsInfo &, MDB_txn*);
+template void logos::block_store::put(MDB_dbi&, logos::mdb_val const &, EpochRewardsInfo const &, MDB_txn*);
+
 bool logos::block_store::del(MDB_dbi &db, const mdb_val &key, MDB_txn *tx)
 {
     auto status (mdb_del (tx, db, key, nullptr));
@@ -336,6 +341,10 @@ checksum (0)
         // address advertisement
         error_a |= mdb_dbi_open (transaction, "address_ad_db", MDB_CREATE, &address_ad_db) != 0;
         error_a |= mdb_dbi_open (transaction, "address_ad_tx_db", MDB_CREATE | MDB_DUPSORT, &address_ad_txa_db) != 0;
+        //rewards
+        error_a |= mdb_dbi_open (transaction, "epoch_rewards_db", MDB_CREATE, &epoch_rewards_db);
+
+
 
         if (!error_a)
         {
