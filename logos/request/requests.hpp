@@ -293,7 +293,5 @@ struct Send : Request
 
     bool operator==(const Request & other) const override;
 
-    //static const uint8_t MAX_TRANSACTIONS = 8;
-
     Transactions      transactions;
 };

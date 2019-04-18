@@ -11,7 +11,7 @@
 EpochBackupDelegate::EpochBackupDelegate(
                              std::shared_ptr<IOChannel> iochannel,
                              std::shared_ptr<PrimaryDelegate> primary,
-                             MessagePromoter<ECT> & promoter,
+                             Store & store,
                              MessageValidator & validator,
                              const DelegateIdentities & ids,
                              ConsensusScheduler & scheduler,
@@ -19,19 +19,19 @@ EpochBackupDelegate::EpochBackupDelegate(
                              PersistenceManager<ECT> & persistence_manager,
                              p2p_interface & p2p,
                              Service &service)
-    : BackupDelegate<ECT>(iochannel, primary, promoter, validator,
+    : BackupDelegate<ECT>(iochannel, primary, store, validator,
                                                 ids, scheduler, events_notifier, persistence_manager, p2p, service)
     , _handler(EpochMessageHandler::GetMessageHandler())
 {
     Tip tip;
-    if (promoter.GetStore().epoch_tip_get(tip))
+    if (store.epoch_tip_get(tip))
     {
         LOG_FATAL(_log) << "Failed to get epoch's previous hash";
         trace_and_halt();
     }
     _prev_pre_prepare_hash = tip.digest;
     ApprovedEB eb;
-    if (promoter.GetStore().epoch_get(_prev_pre_prepare_hash, eb))
+    if (store.epoch_get(_prev_pre_prepare_hash, eb))
     {
         LOG_FATAL(_log) << "EpochBackupDelegate::EpochBackupDelegate - Failed to get epoch";
         trace_and_halt();

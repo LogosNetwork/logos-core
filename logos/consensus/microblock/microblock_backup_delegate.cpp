@@ -11,7 +11,7 @@
 MicroBlockBackupDelegate::MicroBlockBackupDelegate(
                                   std::shared_ptr<IOChannel> iochannel,
                                   std::shared_ptr<PrimaryDelegate> primary,
-                                  MessagePromoter<MBCT> & promoter,
+                                  Store & store,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler,
@@ -20,20 +20,20 @@ MicroBlockBackupDelegate::MicroBlockBackupDelegate(
                                   PersistenceManager<MBCT> & persistence_manager,
                                   p2p_interface & p2p,
                                   Service & service)
-    : BackupDelegate<MBCT>(iochannel, primary, promoter, validator, ids, scheduler,
+    : BackupDelegate<MBCT>(iochannel, primary, store, validator, ids, scheduler,
                                                      events_notifier, persistence_manager, p2p, service)
     , _handler(MicroBlockMessageHandler::GetMessageHandler())
     , _microblock_handler(handler)
 {
     Tip tip;
-    if (promoter.GetStore().micro_block_tip_get(tip))
+    if (store.micro_block_tip_get(tip))
     {
         LOG_FATAL(_log) << "Failed to get microblock's previous hash";
         trace_and_halt();
     }
     _prev_pre_prepare_hash = tip.digest;
     ApprovedMB mb;
-    if (promoter.GetStore().micro_block_get(_prev_pre_prepare_hash, mb))
+    if (store.micro_block_get(_prev_pre_prepare_hash, mb))
     {
         LOG_FATAL(_log) << "MicroBlockBackupDelegate::MicroBlockBackupDelegate - Failed to get microblock";
         trace_and_halt();

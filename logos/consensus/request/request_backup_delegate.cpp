@@ -12,7 +12,7 @@
 RequestBackupDelegate::RequestBackupDelegate(
         std::shared_ptr<IOChannel> iochannel,
         std::shared_ptr<PrimaryDelegate> primary,
-        Promoter & promoter,
+        Store & store,
         MessageValidator & validator,
         const DelegateIdentities & ids,
         Service & service,
@@ -20,16 +20,16 @@ RequestBackupDelegate::RequestBackupDelegate(
         std::shared_ptr<EpochEventsNotifier> events_notifier,
 	    PersistenceManager<R> & persistence_manager,
 	    p2p_interface & p2p)
-    : Connection(iochannel, primary, promoter,
+    : Connection(iochannel, primary, store,
 		 validator, ids, scheduler, events_notifier, persistence_manager, p2p, service)
     , _handler(RequestMessageHandler::GetMessageHandler())
 {
     ApprovedRB block;
     _expected_epoch_number = events_notifier->GetEpochNumber();
     Tip tip;
-    promoter.GetStore().request_tip_get(_delegate_ids.remote, _expected_epoch_number, tip);
+    store.request_tip_get(_delegate_ids.remote, _expected_epoch_number, tip);
     _prev_pre_prepare_hash = tip.digest;
-    if ( ! _prev_pre_prepare_hash.is_zero() && !promoter.GetStore().request_block_get(_prev_pre_prepare_hash, block))
+    if ( ! _prev_pre_prepare_hash.is_zero() && !store.request_block_get(_prev_pre_prepare_hash, block))
     {
         _sequence_number = block.sequence + 1;
     }

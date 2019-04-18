@@ -24,7 +24,7 @@ public:
     /// @param events_notifier epoch transition helper [in]
     MicroBlockBackupDelegate(std::shared_ptr<IOChannel> iochannel,
                                   std::shared_ptr<PrimaryDelegate> primary,
-                                  MessagePromoter<MBCT> & promoter,
+                                  Store & store,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler,

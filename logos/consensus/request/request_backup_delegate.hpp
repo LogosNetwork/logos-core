@@ -17,7 +17,6 @@ class RequestBackupDelegate : public BackupDelegate<ConsensusType::Request>
 
     using Service    = boost::asio::io_service;
     using Connection = BackupDelegate<R>;
-    using Promoter   = MessagePromoter<R>;
     using Timer      = boost::asio::deadline_timer;
     using Seconds    = boost::posix_time::seconds;
     using Error      = boost::system::error_code;
@@ -29,7 +28,7 @@ public:
     /// Class constructor
     /// @param iochannel NetIO channel [in]
     /// @param primary pointer to PrimaryDelegate class [in]
-    /// @param promoter secondary list request promoter
+    /// @param store reference to block store
     /// @param persistence_manager reference to PersistenceManager [in]
     /// @param key_store Delegates' public key store [in]
     /// @param validator Validator/Signer of consensus message [in]
@@ -37,7 +36,7 @@ public:
     /// @param events_notifier epoch transition helper [in]
     RequestBackupDelegate(std::shared_ptr<IOChannel> iochannel,
                           std::shared_ptr<PrimaryDelegate> primary,
-                          Promoter & promoter,
+                          Store & store,
                           MessageValidator & validator,
                           const DelegateIdentities & ids,
 						  Service & service,

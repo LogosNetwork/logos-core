@@ -37,27 +37,8 @@ public:
 };
 
 template<ConsensusType CT>
-class MessagePromoter
-{
-
-    using Store      = logos::block_store;
-
-protected:
-
-    using Message    = DelegateMessage<CT>;
-    using PrePrepare = PrePrepareMessage<CT>;
-
-public:
-
-    virtual Store & GetStore() = 0;
-
-    virtual ~MessagePromoter() {}
-};
-
-template<ConsensusType CT>
 class ConsensusManager : public PrimaryDelegate,
                          public NetIOHandler,
-                         public MessagePromoter<CT>,
                          public ConsensusP2pBridge<CT>
 {
 
@@ -112,8 +93,6 @@ public:
     {
         LOG_DEBUG(_log) << "~ConsensusManager<" << ConsensusToName(CT) << ">";
     }
-
-    Store & GetStore() override;
 
     std::shared_ptr<MessageParser>
     BindIOChannel(std::shared_ptr<IOChannel>,

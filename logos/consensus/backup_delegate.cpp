@@ -8,7 +8,7 @@
 template<ConsensusType CT>
 BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
                                    std::shared_ptr<PrimaryDelegate> primary,
-                                   MessagePromoter<CT> & promoter,
+                                   Store & store,
                                    MessageValidator & validator,
                                    const DelegateIdentities & ids,
                                    ConsensusScheduler & scheduler,
@@ -21,6 +21,7 @@ BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
     , _reason(RejectionReason::Void)
     , _validator(validator)
     , _primary(primary)
+    , _store(store)
     , _scheduler(scheduler)
     , _events_notifier(events_notifier)
     , _persistence_manager(persistence_manager)
@@ -106,8 +107,6 @@ void BackupDelegate<CT>::OnConsensusMessage(const PostPrepare & message)
                             << StateToString(_state);
             trace_and_halt();
         }
-        // We must be in COMMIT, no need to check
-        assert(_state == ConsensusState::COMMIT); // remove assertion later
         CommitMessage<CT> msg(hash);
         _validator.Sign(_post_prepare_hash, msg.signature);
         SendMessage<CommitMessage<CT>>(msg);

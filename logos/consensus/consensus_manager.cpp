@@ -152,13 +152,6 @@ void ConsensusManager<CT>::OnMessageQueued()
 }
 
 template<ConsensusType CT>
-logos::block_store &
-ConsensusManager<CT>::GetStore()
-{
-    return _store;
-}
-
-template<ConsensusType CT>
 void ConsensusManager<CT>::Send(const void * data, size_t size)
 {
     std::lock_guard<std::mutex> lock(_connection_mutex);

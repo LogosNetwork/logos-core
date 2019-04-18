@@ -27,10 +27,6 @@ struct DelegateIdentities
 };
 
 template<ConsensusType CT>
-class MessagePromoter;
-
-
-template<ConsensusType CT>
 class BackupDelegate : public DelegateBridge<CT>,
                        public Self<BackupDelegate<CT>>
 {
@@ -44,6 +40,7 @@ protected:
     using Rejection     = RejectionMessage<CT>;
     using ApprovedBlock = PostCommittedBlock<CT>;
     using Service       = boost::asio::io_service;
+    using Store         = logos::block_store;
 
     template<MessageType T>
     using SPMessage = StandardPhaseMessage<T, CT>;
@@ -54,7 +51,7 @@ public:
 
     BackupDelegate(std::shared_ptr<IOChannel> iochannel,
                    std::shared_ptr<PrimaryDelegate> primary,
-                   MessagePromoter<CT> & promoter,
+                   Store & store,
                    MessageValidator & validator,
                    const DelegateIdentities & ids,
                    ConsensusScheduler & scheduler,
@@ -162,6 +159,7 @@ protected:
     MessageValidator &          _validator;
     Log                         _log;
     WPTR<PrimaryDelegate>       _primary;
+    Store &                     _store;
     ConsensusState              _state = ConsensusState::VOID;
     ConsensusScheduler &        _scheduler;
     uint64_t                    _sequence_number = 0;

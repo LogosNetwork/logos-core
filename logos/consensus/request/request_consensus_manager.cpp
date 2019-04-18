@@ -305,7 +305,7 @@ RequestConsensusManager::MakeBackupDelegate(
             "RequestConsensusManager::MakeBackupDelegate, object destroyed");
     assert(notifier);
     return std::make_shared<RequestBackupDelegate>(
-            iochannel, shared_from_this(), *this, _validator,
+            iochannel, shared_from_this(), _store, _validator,
 	    ids, _service, _scheduler, notifier, _persistence_manager, GetP2p());
 }
 
