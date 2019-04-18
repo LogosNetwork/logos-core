@@ -1069,7 +1069,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                 // SG: Add individual controller privileges to existing controller
                 if(controller != token_account->controllers.end())
                 {
-                    for(int i=0; i<32; i++)
+                    for(int i=0; i<CONTROLLER_PRIVILEGE_COUNT; i++)
                     {
                         if (update->controller.privileges[i])
                         {
