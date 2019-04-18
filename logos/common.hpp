@@ -151,7 +151,7 @@ struct account_info : Account
 
     account_info (block_hash const & head,
                   block_hash const & receive_head,
-                  block_hash const & rep_block,
+                  block_hash const & staking_subchain_head,
                   block_hash const & open_block,
                   amount const & balance,
                   uint64_t modified,
@@ -170,7 +170,7 @@ struct account_info : Account
 
     static constexpr uint16_t MAX_TOKEN_ENTRIES = std::numeric_limits<uint16_t>::max();
 
-    block_hash rep_block;
+    block_hash staking_subchain_head;
     block_hash open_block;
     Entries    entries;
 };

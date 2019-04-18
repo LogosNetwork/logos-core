@@ -1035,7 +1035,8 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                       timestamp,
                       transaction,
                       revoke->GetHash(),
-                      revoke->token_id);
+                      revoke->token_id,
+                      revoke->origin);
 
             break;
         }
@@ -1144,7 +1145,8 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                       timestamp,
                       transaction,
                       distribute->GetHash(),
-                      distribute->token_id);
+                      distribute->token_id,
+                      distribute->origin);
 
             break;
         }
@@ -1160,7 +1162,8 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                       timestamp,
                       transaction,
                       withdraw->GetHash(),
-                      withdraw->token_id);
+                      withdraw->token_id,
+                      withdraw->origin);
 
             break;
         }
@@ -1176,7 +1179,8 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                       timestamp,
                       transaction,
                       withdraw->GetHash(),
-                      {0});
+                      {0},
+                      withdraw->origin);
 
             break;
         }
@@ -1283,6 +1287,7 @@ void PersistenceManager<R>::ApplySend(std::shared_ptr<const SendType> request,
                   transaction,
                   request->GetHash(),
                   token_id,
+                  request->origin,
                   transaction_index++);
     }
 }
@@ -1293,6 +1298,7 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
                                       MDB_txn *transaction,
                                       const BlockHash &request_hash,
                                       const BlockHash &token_id,
+                                      const AccountAddress& origin,
                                       uint16_t transaction_index)
 {
     std::shared_ptr<logos::Account> info;
@@ -1312,6 +1318,28 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
         info.reset(new logos::account_info);
         static_pointer_cast<logos::account_info>(info)->open_block = hash;
 
+        std::shared_ptr<logos::Account> origin_account_info;
+        if(_store.account_get(origin, origin_account_info, transaction))
+        {
+            LOG_FATAL(_log) << "PersistenceManager::ApplySend - "
+                << "failed to get origin account";
+            trace_and_halt();
+        }
+        if(origin_account_info->type == logos::AccountType::LogosAccount)
+        {
+            //TODO unit test this code path
+            auto info_c = static_pointer_cast<logos::account_info>(info);
+            auto origin_info_c = 
+                static_pointer_cast<logos::account_info>(origin_account_info);
+            info_c->staking_subchain_head 
+                =  origin_info_c->staking_subchain_head;
+
+        }
+        else
+        {
+            LOG_DEBUG(_log) << "PersistenceManager::ApplySend - "
+                << "creating new account with no rep";
+        }
         LOG_DEBUG(_log) << "PersistenceManager::ApplySend - "
                         << "new account: "
                         << send.destination.to_string();

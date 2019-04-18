@@ -2,7 +2,7 @@
 
 logos::account_info_v1::account_info_v1 () :
 head (0),
-rep_block (0),
+staking_subchain_head (0),
 balance (0),
 modified (0)
 {
@@ -11,13 +11,13 @@ modified (0)
 logos::account_info_v1::account_info_v1 (MDB_val const & val_a)
 {
     assert (val_a.mv_size == sizeof (*this));
-    static_assert (sizeof (head) + sizeof (rep_block) + sizeof (balance) + sizeof (modified) == sizeof (*this), "Class not packed");
+    static_assert (sizeof (head) + sizeof (staking_subchain_head) + sizeof (balance) + sizeof (modified) == sizeof (*this), "Class not packed");
     std::copy (reinterpret_cast<uint8_t const *> (val_a.mv_data), reinterpret_cast<uint8_t const *> (val_a.mv_data) + sizeof (*this), reinterpret_cast<uint8_t *> (this));
 }
 
-logos::account_info_v1::account_info_v1 (logos::block_hash const & head_a, logos::block_hash const & rep_block_a, logos::amount const & balance_a, uint64_t modified_a) :
+logos::account_info_v1::account_info_v1 (logos::block_hash const & head_a, logos::block_hash const & staking_subchain_head_a, logos::amount const & balance_a, uint64_t modified_a) :
 head (head_a),
-rep_block (rep_block_a),
+staking_subchain_head (staking_subchain_head_a),
 balance (balance_a),
 modified (modified_a)
 {
@@ -26,7 +26,7 @@ modified (modified_a)
 void logos::account_info_v1::serialize (logos::stream & stream_a) const
 {
     write (stream_a, head.bytes);
-    write (stream_a, rep_block.bytes);
+    write (stream_a, staking_subchain_head.bytes);
     write (stream_a, balance.bytes);
     write (stream_a, modified);
 }
@@ -36,7 +36,7 @@ bool logos::account_info_v1::deserialize (logos::stream & stream_a)
     auto error (read (stream_a, head.bytes));
     if (!error)
     {
-        error = read (stream_a, rep_block.bytes);
+        error = read (stream_a, staking_subchain_head.bytes);
         if (!error)
         {
             error = read (stream_a, balance.bytes);
@@ -108,7 +108,7 @@ logos::mdb_val logos::pending_info_v3::val () const
 
 logos::account_info_v5::account_info_v5 () :
 head (0),
-rep_block (0),
+staking_subchain_head (0),
 open_block (0),
 balance (0),
 modified (0)
@@ -118,13 +118,13 @@ modified (0)
 logos::account_info_v5::account_info_v5 (MDB_val const & val_a)
 {
     assert (val_a.mv_size == sizeof (*this));
-    static_assert (sizeof (head) + sizeof (rep_block) + sizeof (open_block) + sizeof (balance) + sizeof (modified) == sizeof (*this), "Class not packed");
+    static_assert (sizeof (head) + sizeof (staking_subchain_head) + sizeof (open_block) + sizeof (balance) + sizeof (modified) == sizeof (*this), "Class not packed");
     std::copy (reinterpret_cast<uint8_t const *> (val_a.mv_data), reinterpret_cast<uint8_t const *> (val_a.mv_data) + sizeof (*this), reinterpret_cast<uint8_t *> (this));
 }
 
-logos::account_info_v5::account_info_v5 (logos::block_hash const & head_a, logos::block_hash const & rep_block_a, logos::block_hash const & open_block_a, logos::amount const & balance_a, uint64_t modified_a) :
+logos::account_info_v5::account_info_v5 (logos::block_hash const & head_a, logos::block_hash const & staking_subchain_head_a, logos::block_hash const & open_block_a, logos::amount const & balance_a, uint64_t modified_a) :
 head (head_a),
-rep_block (rep_block_a),
+staking_subchain_head (staking_subchain_head_a),
 open_block (open_block_a),
 balance (balance_a),
 modified (modified_a)
@@ -134,7 +134,7 @@ modified (modified_a)
 void logos::account_info_v5::serialize (logos::stream & stream_a) const
 {
     write (stream_a, head.bytes);
-    write (stream_a, rep_block.bytes);
+    write (stream_a, staking_subchain_head.bytes);
     write (stream_a, open_block.bytes);
     write (stream_a, balance.bytes);
     write (stream_a, modified);
@@ -145,7 +145,7 @@ bool logos::account_info_v5::deserialize (logos::stream & stream_a)
     auto error (read (stream_a, head.bytes));
     if (!error)
     {
-        error = read (stream_a, rep_block.bytes);
+        error = read (stream_a, staking_subchain_head.bytes);
         if (!error)
         {
             error = read (stream_a, open_block.bytes);

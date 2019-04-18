@@ -103,11 +103,11 @@ void ledger_processor::state_block_impl (logos::state_block const & block_a)
                     result.state_is_send = is_send;
                     ledger.store.block_put (transaction, hash, block_a);
 
-                    if (!info.rep_block.is_zero ())
+                    if (!info.staking_subchain_head.is_zero ())
                     {
                         // Move existing representation
                         //TODO Peng: will figure out how to compile if we need ledger
-                        //ledger.store.representation_add (transaction, info.rep_block, 0 - info.balance.number ());
+                        //ledger.store.representation_add (transaction, info.staking_subchain_head, 0 - info.balance.number ());
                     }
                     // Add in amount delta
                     ledger.store.representation_add (transaction, hash, block_a.hashables.amount.number ());
@@ -415,7 +415,7 @@ void logos::ledger::checksum_update (MDB_txn * transaction_a, logos::block_hash 
     store.checksum_put (transaction_a, 0, 0, value);
 }
 
-void logos::ledger::change_latest (MDB_txn * transaction_a, logos::account const & account_a, logos::block_hash const & hash_a, logos::block_hash const & rep_block_a, logos::amount const & balance_a, uint64_t block_count_a, bool is_state)
+void logos::ledger::change_latest (MDB_txn * transaction_a, logos::account const & account_a, logos::block_hash const & hash_a, logos::block_hash const & staking_subchain_head_a, logos::amount const & balance_a, uint64_t block_count_a, bool is_state)
 {
     logos::account_info info;
     auto exists (!store.account_get (transaction_a, account_a, info));
@@ -434,7 +434,7 @@ void logos::ledger::change_latest (MDB_txn * transaction_a, logos::account const
     {
         //TODO Peng: will figure out how to compile if we need ledger
         //        info.head = hash_a;
-        //        info.rep_block = rep_block_a;
+        //        info.staking_subchain_head = staking_subchain_head_a;
         info.balance = balance_a;
         info.modified = logos::seconds_since_epoch ();
         info.block_count = block_count_a;

@@ -313,7 +313,7 @@ logos::mdb_val logos::Account::to_mdb_val(std::vector<uint8_t> &buf) const
 
 logos::account_info::account_info ()
     : Account(AccountType::LogosAccount)
-    , rep_block (0)
+    , staking_subchain_head (0)
     , open_block (0)
 {}
 
@@ -331,7 +331,7 @@ logos::account_info::account_info (bool & error, logos::stream & stream)
 logos::account_info::account_info (
         logos::block_hash const & head_a,
         logos::block_hash const & receive_head_a,
-        logos::block_hash const & rep_block_a,
+        logos::block_hash const & staking_subchain_head_a,
         logos::block_hash const & open_block_a,
         logos::amount const & balance_a,
         uint64_t modified_a,
@@ -344,14 +344,14 @@ logos::account_info::account_info (
               block_count_a,
               receive_head_a,
               receive_count_a)
-    , rep_block (rep_block_a)
+    , staking_subchain_head (staking_subchain_head_a)
     , open_block (open_block_a)
 {}
 
 uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
 {
     auto s = Account::Serialize(stream_a);
-    s += write (stream_a, rep_block.bytes);
+    s += write (stream_a, staking_subchain_head.bytes);
     s += write (stream_a, open_block.bytes);
     s += write (stream_a, uint16_t(entries.size()));
     for(auto & entry : entries)
@@ -367,7 +367,7 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
 
     if (!error)
     {
-        error = read (stream_a, rep_block.bytes);
+        error = read (stream_a, staking_subchain_head.bytes);
         if (!error)
         {
             error = read (stream_a, open_block.bytes);
@@ -398,7 +398,7 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
 
 bool logos::account_info::operator== (logos::account_info const & other_a) const
 {
-    return rep_block == other_a.rep_block &&
+    return staking_subchain_head == other_a.staking_subchain_head &&
            open_block == other_a.open_block &&
            Account::operator==(other_a);
 }
