@@ -402,6 +402,7 @@ add_library (node
 	logos/request/utility.cpp
 	logos/request/utility.cpp
     logos/rewards/epoch_rewards_manager.cpp
+    logos/staking/voting_power_manager.cpp
 	logos/token/account.cpp
 	logos/token/common.cpp
 	logos/token/entry.cpp
@@ -437,6 +438,7 @@ if (LOGOS_TEST)
         logos/unit_test/tallying.cpp
 		logos/unit_test/elections.cpp
         logos/unit_test/epoch_rewards_db.cpp
+        logos/unit_test/voting_power.cpp
         logos/unit_test/p2p_test.cpp
         logos/p2p/test/propagate_test.cpp
         logos/p2p/test/storage_test.cpp

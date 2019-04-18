@@ -110,7 +110,7 @@ bool EpochRewardsManager::HarvestReward(
 {
     if(!txn)
     {
-        LOG_FATAL(_log) << "EpochRewardsManager::SetTotalReward - txn is null";
+        LOG_FATAL(_log) << "EpochRewardsManager::HarvestReward - txn is null";
         trace_and_halt();
     }
 

@@ -9,9 +9,7 @@
 
 TEST(Epoch_Rewards_DB, RewardsManager)
 {
-
     logos::block_store* store = get_db();
-
     logos::transaction txn(store->environment, nullptr, true);
 
     EpochRewardsManager rewards_mgr(*store);

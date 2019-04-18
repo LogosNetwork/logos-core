@@ -4,6 +4,7 @@
 #include <logos/consensus/persistence/epoch/epoch_persistence.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
+#include <logos/staking/voting_power_manager.hpp>
 #include <logos/microblock/microblock_handler.hpp>
 #include <logos/lib/trace.hpp>
 
@@ -247,9 +248,11 @@ void PersistenceManager<ECT>::AddReelectionCandidates(MDB_txn* txn)
 
 void PersistenceManager<ECT>::UpdateRepresentativesDB(MDB_txn* txn)
 {
+    VotingPowerManager voting_power_mgr(_store);
     for(auto it = logos::store_iterator(txn, _store.remove_reps_db);
             it != logos::store_iterator(nullptr); ++it)
     {
+        voting_power_mgr.TryPrune(it->second.uint256(), txn);
         auto status (mdb_del(txn, _store.representative_db, it->second, nullptr));
         assert(status == 0);
     }
