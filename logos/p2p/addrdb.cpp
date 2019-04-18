@@ -13,9 +13,7 @@
 #include <streams.h>
 #include <tinyformat.h>
 #include <util.h>
-
-MDB_env *g_p2p_lmdb_env;
-MDB_dbi g_p2p_lmdb_dbi;
+#include "../../lmdb/libraries/liblmdb/lmdb.h"
 
 namespace {
 

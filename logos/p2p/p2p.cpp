@@ -505,6 +505,7 @@ bool AppInitMain(p2p_config &config)
     g_connman = std::unique_ptr<CConnman>(new CConnman(
             GetRand(std::numeric_limits<uint64_t>::max()),
             GetRand(std::numeric_limits<uint64_t>::max()),
+            config,
             Args
             ));
     CConnman& connman = *g_connman;
@@ -764,9 +765,6 @@ bool p2p_interface::Init(p2p_config &config)
         InitError(std::string("illegal command line arguments: ") + error);
         return false;
     }
-
-    g_p2p_lmdb_env = config.lmdb_env;
-    g_p2p_lmdb_dbi = config.lmdb_dbi;
 
     // Process help and version before taking care about datadir
     if (HelpRequested(p2p->getArgs()))

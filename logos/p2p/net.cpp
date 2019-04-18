@@ -650,7 +650,7 @@ void CConnman::DumpBanlist()
 
     int64_t nStart = GetTimeMillis();
 
-    CBanDB bandb;
+    CBanDB bandb(config);
     banmap_t banmap;
     GetBanned(banmap);
     if (bandb.Write(banmap)) {
@@ -1747,7 +1747,7 @@ void CConnman::DumpAddresses()
 {
     int64_t nStart = GetTimeMillis();
 
-    CAddrDB adb;
+    CAddrDB adb(config);
     adb.Write(addrman);
 
     LogPrint(BCLog::NET, "Flushed %d addresses to peers.dat  %dms\n",
@@ -2221,9 +2221,10 @@ void CConnman::SetNetworkActive(bool active)
     uiInterface.NotifyNetworkActiveChanged(fNetworkActive);
 }
 
-CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In, ArgsManager &ArgsIn)
+CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In, p2p_config &conf, ArgsManager &ArgsIn)
     : nSeed0(nSeed0In)
     , nSeed1(nSeed1In)
+    , config(conf)
     , Args(ArgsIn)
 {
     fNetworkActive = true;
@@ -2288,7 +2289,7 @@ bool CConnman::LoadData()
     // Load addresses from peers.dat
     int64_t nStart = GetTimeMillis();
     {
-        CAddrDB adb;
+        CAddrDB adb(config);
         if (adb.Read(addrman))
             LogPrintf("Loaded %i addresses from peers.dat  %dms\n", addrman.size(), GetTimeMillis() - nStart);
         else
@@ -2303,7 +2304,7 @@ bool CConnman::LoadData()
         clientInterface->InitMessage(_("Loading banlist..."));
     // Load addresses from banlist.dat
     nStart = GetTimeMillis();
-    CBanDB bandb;
+    CBanDB bandb(config);
     banmap_t banmap;
     if (bandb.Read(banmap))
     {

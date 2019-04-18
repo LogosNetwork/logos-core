@@ -8,7 +8,7 @@
 
 #include <fs.h>
 #include <serialize.h>
-#include "../../lmdb/libraries/liblmdb/lmdb.h"
+#include "p2p.h"
 
 #include <string>
 #include <map>
@@ -77,9 +77,6 @@ public:
 
 typedef std::map<CSubNet, CBanEntry> banmap_t;
 
-extern MDB_env *g_p2p_lmdb_env;
-extern MDB_dbi g_p2p_lmdb_dbi;
-
 /** Access to the (IP) address database (peers.dat) */
 class CAddrDB
 {
@@ -87,7 +84,7 @@ private:
     MDB_env *env;
     MDB_dbi dbi;
 public:
-    CAddrDB(): env(g_p2p_lmdb_env), dbi(g_p2p_lmdb_dbi) {}
+    CAddrDB(struct p2p_config &config): env(config.lmdb_env), dbi(config.lmdb_dbi) {}
     bool Write(const CAddrMan& addr);
     bool Read(CAddrMan& addr);
     static bool Read(CAddrMan& addr, CDataStream& ssPeers);
@@ -100,7 +97,7 @@ private:
     MDB_env *env;
     MDB_dbi dbi;
 public:
-    CBanDB(): env(g_p2p_lmdb_env), dbi(g_p2p_lmdb_dbi) {}
+    CBanDB(struct p2p_config &config): env(config.lmdb_env), dbi(config.lmdb_dbi) {}
     bool Write(const banmap_t& banSet);
     bool Read(banmap_t& banSet);
 };

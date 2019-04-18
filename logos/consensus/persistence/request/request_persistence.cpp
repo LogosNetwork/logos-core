@@ -1592,6 +1592,7 @@ uint32_t GetEpochNum(std::shared_ptr<Request> req)
         }
         default:
             trace_and_halt();
+            return 0;
     }
 }
 

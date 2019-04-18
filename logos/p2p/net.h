@@ -246,7 +246,7 @@ public:
         }
     }
 
-    CConnman(uint64_t seed0, uint64_t seed1, ArgsManager &Args);
+    CConnman(uint64_t seed0, uint64_t seed1, p2p_config &config, ArgsManager &Args);
     ~CConnman();
     bool Start(const Options& options);
     void Stop();
@@ -415,6 +415,7 @@ public:
         scheduleAfter(std::bind(&CConnman::scheduleEveryRecurse, this, handler, ms), ms);
     }
 
+    p2p_config &config;
     ArgsManager &Args;
     p2p_interface *p2p;
     PropagateStore *p2p_store;
