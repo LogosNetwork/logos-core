@@ -20,7 +20,7 @@ Archiver::Archiver(logos::alarm & alarm,
     , _recall_handler(recall_handler)
     , _store(store)
 {
-    BlockHash mb_tip;
+    Tip mb_tip;
     // fetch latest microblock (this requires DelegateIdentityManager be initialized earlier inside `node`)
     if (_store.micro_block_tip_get(mb_tip))
     {
@@ -28,7 +28,7 @@ Archiver::Archiver(logos::alarm & alarm,
         trace_and_halt();
     }
     ApprovedMB mb;
-    if (_store.micro_block_get(mb_tip, mb))
+    if (_store.micro_block_get(mb_tip.digest, mb))
     {
         LOG_FATAL(_log) << "Archiver::Archiver - Failed to get microblock";
         trace_and_halt();
@@ -52,7 +52,7 @@ Archiver::Start(InternalConsensus &consensus)
         uint32_t latest_mb_seq, latest_eb_num;
         ApprovedMB mb;
         {
-            BlockHash mb_tip;
+            Tip mb_tip;
             // use write transaction to ensure sequencing:
             // if MB backup writes first, then we can reliably get latest MB sequence from DB or MessageHandler Queue
             // if we get tx handle first, then the latest MB sequence must still be in MH queue
@@ -64,7 +64,7 @@ Archiver::Start(InternalConsensus &consensus)
                 LOG_FATAL(_log) << "Archiver::Archiver - Failed to get microblock tip";
                 trace_and_halt();
             }
-            if (_store.micro_block_get(mb_tip, mb, tx))
+            if (_store.micro_block_get(mb_tip.digest, mb, tx))
             {
                 LOG_FATAL(_log) << "Archiver::Archiver - Failed to get microblock";
                 trace_and_halt();
