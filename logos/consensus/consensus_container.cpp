@@ -315,6 +315,7 @@ ConsensusContainer::OnDelegateMessage(
         return result;
     }
 
+    message->delegates_epoch_number = epoch->_epoch_number;
     epoch->_micro_manager->OnDelegateMessage(
         std::static_pointer_cast<Request>(message), result);
 
@@ -337,6 +338,7 @@ ConsensusContainer::OnDelegateMessage(
         return result;
     }
 
+    message->delegates_epoch_number = _cur_epoch_number;
     _cur_epoch->_epoch_manager->OnDelegateMessage(
         std::static_pointer_cast<Request>(message), result);
 

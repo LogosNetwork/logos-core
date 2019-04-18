@@ -223,7 +223,10 @@ void ConsensusManager<CT>::InitiateConsensus(bool reproposing)
 
     // Build next PrePrepare message (timestamp is also added in PrePrepareGetNext)
     auto & pre_prepare = PrePrepareGetNext(reproposing);
-    pre_prepare.delegates_epoch_number = _epoch_number;
+    if (CT == ConsensusType::Request)
+    {
+        pre_prepare.delegates_epoch_number = _epoch_number;
+    }
 
     // SYL Integration: if we don't want to lock _state_mutex here it is important to
     // call OnConsensusInitiated before AdvanceState (otherwise PrimaryDelegate might

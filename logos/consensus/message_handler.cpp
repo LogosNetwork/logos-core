@@ -41,8 +41,11 @@ void MessageHandler<CT>::OnPostCommit(std::shared_ptr<PrePrepare> block)
     std::lock_guard<std::mutex> lock(_mutex);
     auto & hashed = _entries. template get <1> ();
     auto hash = block->Hash();
-    hashed.erase(hash);
-    LOG_DEBUG (_log) << "MessageHandler<" << ConsensusToName(CT) << ">::OnPostCommit - erased " << hash.to_string();
+    auto n_erased = hashed.erase(hash);
+    if (n_erased)
+    {
+        LOG_DEBUG (_log) << "MessageHandler<" << ConsensusToName(CT) << ">::OnPostCommit - erased " << hash.to_string();
+    }
 }
 
 template<ConsensusType CT>
