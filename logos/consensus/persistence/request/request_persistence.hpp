@@ -138,6 +138,7 @@ private:
             MDB_txn *transaction,
             const BlockHash &request_hash,
             const BlockHash &token_id,
+            const AccountAddress& origin,
             uint16_t transaction_index = 0);
 
     void PlaceReceive(
