@@ -95,12 +95,11 @@ Issuance::Issuance(bool & error,
         for(const auto & entry : controller_tree)
         {
             ControllerInfo c(error, entry.second);
-            controller_accounts.push_back(entry.second.get<std::string>(ACCOUNT));
             if(error)
             {
                 return;
             }
-
+            controller_accounts.push_back(entry.second.get<std::string>(ACCOUNT));
             controllers.push_back(c);
         }
 
