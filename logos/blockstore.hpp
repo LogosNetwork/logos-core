@@ -563,6 +563,13 @@ public:
      */
     MDB_dbi epoch_rewards_db;
 
+    /**
+     * Voting Power Info per epoch
+     * logos::account -> VotingPowerInfo
+     */
+
+    MDB_dbi voting_power_db;
+
     Log log;
 };
 
