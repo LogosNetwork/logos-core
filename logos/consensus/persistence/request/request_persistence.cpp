@@ -1066,9 +1066,16 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             if(update->action == ControllerAction::Add)
             {
                 // Update an existing controller
+                // SG: Add individual controller privileges to existing controller
                 if(controller != token_account->controllers.end())
                 {
-                    *controller = update->controller;
+                    for(int i=0; i<32; i++)
+                    {
+                        if (update->controller.privileges[i])
+                        {
+                            controller->privileges.Set(i, true);
+                        }
+                    }
                 }
 
                 // Add a new controller
@@ -1080,7 +1087,23 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             else if(update->action == ControllerAction::Remove)
             {
                 assert(controller != token_account->controllers.end());
-                token_account->controllers.erase(controller);
+                // SG: Remove individual privileges from existing controller
+                bool remove_all = true;
+                for(int i=0; i<CONTROLLER_PRIVILEGE_COUNT; i++)
+                {
+                    if (update->controller.privileges[i])
+                    {
+                        controller->privileges.Set(i, false);
+                        remove_all = false;
+                    }
+
+                }
+
+                // SG: Remove entire controller if no privileges specified
+                if(remove_all)
+                {
+                    token_account->controllers.erase(controller);
+                }
             }
 
             break;
