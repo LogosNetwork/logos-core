@@ -46,6 +46,10 @@ Archiver::Start(InternalConsensus &consensus)
         bool is_epoch_time = util.IsEpochTime();
         bool last_microblock = !_recall_handler.IsRecall() && is_epoch_time && !_first_epoch;
 
+        // This is used for the edge case where software is launched within one MB interval before epoch cutoff,
+        // in which case the first time this callback is invoked will be two mb intervals past epoch start
+        // (i.e. one mb past epoch block proposal time), indicating that we are already past the first epoch skip time
+        // and need to set _first_epoch to false below
         bool one_mb_past = util.IsOneMBPastEpochTime();
 
         // check if latest in db / queue is the same as our own in-memory counter

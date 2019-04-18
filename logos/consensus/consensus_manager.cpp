@@ -249,12 +249,12 @@ ConsensusManager<CT>::QueueMessage(
 
     if(designated_delegate_id == _delegate_id)
     {
-        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueMessage primary";
+        LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT) << ">::QueueMessage primary";
         QueueMessagePrimary(message);
     }
     else
     {
-        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueMessage secondary";
+        LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT) << ">::QueueMessage secondary";
         QueueMessageSecondary(message);
     }
 }
