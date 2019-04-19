@@ -5,7 +5,7 @@
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/consensus/persistence/reservations.hpp>
 #include <logos/consensus/p2p/consensus_p2p_bridge.hpp>
-#include <logos/consensus/request/request_handler.hpp>
+#include <logos/consensus/message_handler.hpp>
 #include <logos/consensus/consensus_msg_producer.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
@@ -13,12 +13,12 @@
 #include <logos/consensus/primary_delegate.hpp>
 #include <logos/consensus/backup_delegate.hpp>
 #include <logos/consensus/p2p/consensus_p2p.hpp>
-#include <logos/consensus/waiting_list.hpp>
 #include <logos/node/client_callback.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
 
 class EpochEventsNotifier;
+class ConsensusScheduler;
 
 class NetIOHandler
 {
@@ -37,31 +37,8 @@ public:
 };
 
 template<ConsensusType CT>
-class MessagePromoter
-{
-
-    using Store      = logos::block_store;
-
-protected:
-
-    using Message    = DelegateMessage<CT>;
-    using PrePrepare = PrePrepareMessage<CT>;
-
-public:
-
-    virtual void OnMessageReady(std::shared_ptr<Message> message) = 0;
-    virtual void OnPostCommit(const PrePrepare & pre_prepare) = 0;
-    virtual Store & GetStore() = 0;
-
-    virtual void AcquirePrePrepare(const PrePrepare & message) {}
-
-    virtual ~MessagePromoter() {}
-};
-
-template<ConsensusType CT>
 class ConsensusManager : public PrimaryDelegate,
                          public NetIOHandler,
-                         public MessagePromoter<CT>,
                          public ConsensusP2pBridge<CT>
 {
 
@@ -84,11 +61,14 @@ protected:
     template <typename T>
     using WPTR            = std::weak_ptr<T>;
 
+    using Seconds         = boost::posix_time::seconds;
+
 public:
 
     ConsensusManager(Service & service,
                      Store & store,
                      const Config & config,
+                     ConsensusScheduler & scheduler,
                      MessageValidator & validator,
                      p2p_interface & p2p,
                      uint32_t epoch_number);
@@ -114,31 +94,20 @@ public:
         LOG_DEBUG(_log) << "~ConsensusManager<" << ConsensusToName(CT) << ">";
     }
 
-    void OnMessageReady(std::shared_ptr<DelegateMessage> block) override;
-
-    void OnPostCommit(const PrePrepare & block) override;
-
-    Store & GetStore() override;
-
     std::shared_ptr<MessageParser>
     BindIOChannel(std::shared_ptr<IOChannel>,
                   const DelegateIdentities &) override;
 
-    /// Update message promoter
-    void UpdateMessagePromoter();
-
     void OnNetIOError(uint8_t delegate_id) override;
 
-    void ClearWaitingList()
+    void ClearMessageList()
     {
-        _waiting_list.ClearWaitingList();
+        GetHandler().Clear();
     }
 
     void Init(std::shared_ptr<EpochEventsNotifier> notifier)
     {
         _events_notifier = notifier;
-        auto promoter = std::dynamic_pointer_cast<MessagePromoter<CT>>(shared_from_this());
-        _waiting_list.UpdateMessagePromoter(promoter);
     }
 
 protected:
@@ -146,6 +115,7 @@ protected:
     static constexpr uint8_t BATCH_TIMEOUT_DELAY = 15;
     static constexpr uint8_t DELIGATE_ID_MASK    = 5;
 
+    virtual MessageHandler<CT> & GetHandler() = 0;
     virtual void ApplyUpdates(const ApprovedBlock &, uint8_t delegate_id) = 0;
 
     virtual bool Validate(std::shared_ptr<DelegateMessage> block,
@@ -154,25 +124,25 @@ protected:
     virtual uint64_t GetStoredCount() = 0;
 
     void OnConsensusReached() override;
-    virtual void InitiateConsensus(bool reproposing = false);
-
-    virtual bool ReadyForConsensus();
+    void BeginNextRound();
+    void InitiateConsensus(bool reproposing = false);
 
     void QueueMessage(std::shared_ptr<DelegateMessage> message);
 
-    virtual PrePrepare & PrePrepareGetNext() = 0;
+    virtual PrePrepare & PrePrepareGetNext(bool) = 0;
     virtual PrePrepare & PrePrepareGetCurr() = 0;
 
     virtual void PrePreparePopFront() {};
-    virtual void QueueMessagePrimary(std::shared_ptr<DelegateMessage> message) = 0;
-    virtual void QueueMessageSecondary(std::shared_ptr<DelegateMessage> message);
-    virtual bool PrePrepareQueueEmpty() = 0;
-    virtual bool PrimaryContains(const BlockHash&) = 0;
-    virtual bool SecondaryContains(const BlockHash&);
+    void QueueMessagePrimary(std::shared_ptr<DelegateMessage> message);
+    void QueueMessageSecondary(std::shared_ptr<DelegateMessage> message);
+    virtual const Seconds & GetSecondaryTimeout() = 0;
+    bool PrePrepareQueueEmpty();
+    virtual bool InternalQueueEmpty() = 0;
+    virtual bool InternalContains(const BlockHash&) = 0;
+    bool Contains(const BlockHash&);
+    virtual bool AlreadyPostCommitted() {return false;}
 
     bool IsPendingMessage(std::shared_ptr<DelegateMessage> message);
-
-    bool IsPrePrepared(const BlockHash & hash);
 
     /// Message's primary delegate, 0 (delegate with most voting power) for Micro/Epoch Block
     /// @param message message
@@ -184,15 +154,6 @@ protected:
 
     virtual std::shared_ptr<BackupDelegate<CT>> MakeBackupDelegate(
             std::shared_ptr<IOChannel>, const DelegateIdentities&) = 0;
-
-    /// singleton secondary handler
-    static WaitingList<CT> & GetWaitingList(Service & service)
-    {
-        // Promoter is assigned once when the object is constructed
-        // Promoter is updated during transition
-        static WaitingList<CT> wl(service);
-        return wl;
-    }
 
     bool SendP2p(const uint8_t *data, uint32_t size, MessageType message_type,
                  uint32_t epoch_number, uint8_t dest_delegate_id) override
@@ -206,15 +167,15 @@ protected:
 
     void OnQuorumFailed() override;
 
-    virtual bool ProceedWithRePropose();
+    bool ProceedWithRePropose();
 
     Service &                 _service;
     Connections               _connections;
     Store &                   _store;
     MessageValidator &        _validator;
+    ConsensusScheduler &      _scheduler;
     std::mutex                _connection_mutex;
     Log                       _log;
-    WaitingList<CT> &         _waiting_list;    ///< Secondary queue of requests/proposals.
     WPTR<EpochEventsNotifier> _events_notifier; ///< Notifies epoch manager of transition related events
     ReservationsPtr           _reservations;
     PersistenceManager<CT>    _persistence_manager;

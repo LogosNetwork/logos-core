@@ -181,7 +181,7 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
 
         auto parse = [this, request, &blocks, &response, should_buffer](Ptree &request_tree) {
 
-            auto block = ToRequest(request_tree.get<std::string>("block"));
+            auto block = ToRequest(request_tree.get<std::string>("request"));
 
             if (block == nullptr)
             {
@@ -199,7 +199,7 @@ TxAcceptor::AsyncReadJson(std::shared_ptr<Socket> socket)
         // request could be malformed
         try
         {
-            auto tree = request_tree.get_child_optional("blocks");
+            auto tree = request_tree.get_child_optional("requests");
             if (tree)
             {
                 for (auto t : tree.value())

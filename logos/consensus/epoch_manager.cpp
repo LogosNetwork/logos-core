@@ -16,6 +16,7 @@ EpochManager::EpochManager(Service & service,
                            EpochTransitionDelegate delegate,
                            EpochConnection connection,
                            const uint32_t epoch_number,
+                           ConsensusScheduler & scheduler,
                            NewEpochEventHandler & handler,
                            p2p_interface & p2p,
                            uint8_t delegate_id)
@@ -25,9 +26,9 @@ EpochManager::EpochManager(Service & service,
     , _epoch_number(epoch_number)
     , _new_epoch_handler(handler)
     , _validator(_key_store, logos::genesis_delegates[DelegateIdentityManager::_global_delegate_idx].bls_key)
-    , _request_manager(std::make_shared<RequestConsensusManager>(service, store, config, _validator, p2p, epoch_number))
-    , _micro_manager(std::make_shared<MicroBlockConsensusManager>(service, store, config, _validator, archiver, p2p, epoch_number))
-    , _epoch_manager(std::make_shared<EpochConsensusManager>(service, store, config, _validator, p2p, epoch_number))
+    , _request_manager(std::make_shared<RequestConsensusManager>(service, store, config, scheduler, _validator, p2p, epoch_number))
+    , _micro_manager(std::make_shared<MicroBlockConsensusManager>(service, store, config, scheduler, _validator, archiver, p2p, epoch_number))
+    , _epoch_manager(std::make_shared<EpochConsensusManager>(service, store, config, scheduler, _validator, p2p, epoch_number))
     , _netio_manager(std::make_shared<ConsensusNetIOManager>(_request_manager, _micro_manager, _epoch_manager,
                      service, alarm, config, _key_store, _validator))
     , _delegate_id(delegate_id)
@@ -41,9 +42,9 @@ EpochManager::~EpochManager()
             _delegate == EpochTransitionDelegate::RetiringForwardOnly ||
             _delegate == EpochTransitionDelegate::None)
     {
-        _request_manager->ClearWaitingList();
-        _micro_manager->ClearWaitingList();
-        _epoch_manager->ClearWaitingList();
+        _request_manager->ClearMessageList();
+        _micro_manager->ClearMessageList();
+        _epoch_manager->ClearMessageList();
     }
 }
 
@@ -65,8 +66,8 @@ EpochManager::OnPrePrepareRejected()
     // Retiring or Persistent in the old Delegate's set
     // received 1/3 PostCommit reject with New_Epoch error
     if (_delegate == EpochTransitionDelegate::Retiring ||
-            _delegate == EpochTransitionDelegate::Persistent &&
-            _connection_state == EpochConnection::Current)
+            (_delegate == EpochTransitionDelegate::Persistent &&
+            _connection_state == EpochConnection::Current))
     {
         _new_epoch_handler.OnPrePrepareRejected(_delegate);
     }

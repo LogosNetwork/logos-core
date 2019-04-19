@@ -1,3 +1,4 @@
+#include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 #include <logos/node/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
@@ -15,6 +16,7 @@ template<ConsensusType CT>
 ConsensusManager<CT>::ConsensusManager(Service & service,
                                        Store & store,
                                        const Config & config,
+                                       ConsensusScheduler & scheduler,
                                        MessageValidator & validator,
                                        p2p_interface & p2p,
                                        uint32_t epoch_number)
@@ -23,7 +25,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , _service(service)
     , _store(store)
     , _validator(validator)
-    , _waiting_list(GetWaitingList(service))
+    , _scheduler(scheduler)
     , _reservations(std::make_shared<ConsensusReservations>(store))
     , _persistence_manager(store, _reservations)
 {
@@ -42,7 +44,7 @@ void ConsensusManager<CT>::HandleRequest(std::shared_ptr<DelegateMessage> messag
     // SYL Integration fix: got rid of unnecessary lock here in favor of more granular locking
 
     LOG_INFO (_log) << "ConsensusManager<" << ConsensusToName(CT)
-                    << ">::OnDelegateMessage() - hash: "
+                    << ">::HandleRequest - hash: "
                     << hash.to_string();
 
     if(_state == ConsensusState::INITIALIZING)
@@ -55,14 +57,14 @@ void ConsensusManager<CT>::HandleRequest(std::shared_ptr<DelegateMessage> messag
     {
         result.code = logos::process_result::pending;
         LOG_INFO(_log) << "ConsensusManager<" << ConsensusToName(CT)
-                       << "> - pending message "
+                       << ">::HandleRequest - pending message "
                        << hash.to_string();
         return;
     }
 
     if(!Validate(message, result))
     {
-        LOG_INFO(_log) << "ConsensusManager - message validation failed."
+        LOG_INFO(_log) << "ConsensusManager<" << ConsensusToName(CT) << ">::HandleRequest - message validation failed."
                        << " Result code: "
                        << logos::ProcessResultToString(result.code)
                        << " hash: " << hash.to_string();
@@ -97,16 +99,19 @@ ConsensusManager<ConsensusType::Request>::OnSendRequest(
 
     Responses response;
     logos::process_return result;
-    bool res = true;
+    bool res = false;
 
-    for (auto block : blocks)
+    for (const auto & block : blocks)
     {
          auto hash = block->Hash();
          HandleRequest(block, hash, result);
-         if (result.code != logos::process_result::progress)
+         if (result.code == logos::process_result::progress)
+         {
+             res = true;
+         }
+         else
          {
              hash = 0;
-             res = false;
          }
          response.push_back({result.code, hash});
     }
@@ -122,35 +127,28 @@ ConsensusManager<ConsensusType::Request>::OnSendRequest(
 template<ConsensusType CT>
 void ConsensusManager<CT>::OnMessageQueued()
 {
-    if(ReadyForConsensus())
+    if (_ongoing) return;  // primary will call this method again once consensus is completed
+    if(!PrePrepareQueueEmpty())
     {
-        // SYL integration fix: InitiateConsensus should only be called
+        if (_ongoing) // just in case two calls to method pass both checks above
+        {
+            LOG_WARN(_log) << "ConsensusManager<" << ConsensusToName(CT) << ">::OnMessageQueued - "
+                           << "unlikely scenario where two calls pass both checks.";
+            return;
+        }
+        // InitiateConsensus should only be called
         // when no consensus session is currently going on
         _ongoing = true;
+        _scheduler.CancelTimer(CT);
         InitiateConsensus();
     }
-}
-
-template<ConsensusType CT>
-void ConsensusManager<CT>::OnMessageReady(
-    std::shared_ptr<DelegateMessage> block)
-{
-    QueueMessagePrimary(block);
-    OnMessageQueued();
-}
-
-template<ConsensusType CT>
-void ConsensusManager<CT>::OnPostCommit(
-    const PrePrepare & block)
-{
-    _waiting_list.OnPostCommit(block);
-}
-
-template<ConsensusType CT>
-logos::block_store &
-ConsensusManager<CT>::GetStore()
-{
-    return _store;
+    else
+    {
+        // Get most imminent timeout, if any, and schedule timer
+        auto imminent_timeout = GetHandler().GetImminentTimeout();
+        if (imminent_timeout == Min_DT) return;
+        _scheduler.ScheduleTimer(CT, imminent_timeout);
+    }
 }
 
 template<ConsensusType CT>
@@ -167,32 +165,38 @@ void ConsensusManager<CT>::Send(const void * data, size_t size)
 template<ConsensusType CT>
 void ConsensusManager<CT>::OnConsensusReached()
 {
-    auto & pre_prepare (PrePrepareGetCurr());
-    ApprovedBlock block(pre_prepare, _post_prepare_sig, _post_commit_sig);
-
-    ApplyUpdates(block, _delegate_id);
-
-    BlocksCallback::Callback<CT>(block);
-
-    // Helpful for benchmarking
-    //
+    if (!AlreadyPostCommitted())  // Always execute below for Request
     {
-        static uint64_t messages_stored = 0;
-        messages_stored += GetStoredCount();
+        auto & pre_prepare (PrePrepareGetCurr());
+        ApprovedBlock block(pre_prepare, _post_prepare_sig, _post_commit_sig);
 
-        LOG_DEBUG(_log) << "ConsensusManager<"
-                        << ConsensusToName(CT)
-                        << "> - Stored "
-                        << messages_stored
-                        << " blocks.";
+        ApplyUpdates(block, _delegate_id);
+
+        BlocksCallback::Callback<CT>(block);
+
+        // Helpful for benchmarking
+        {
+            static uint64_t messages_stored = 0;
+            messages_stored += GetStoredCount();
+
+            LOG_DEBUG(_log) << "ConsensusManager<"
+                            << ConsensusToName(CT)
+                            << "> - Stored "
+                            << messages_stored
+                            << " blocks.";
+        }
+
+        std::vector<uint8_t> buf;
+        block.Serialize(buf, true, true);
+        this->Broadcast(buf.data(), buf.size(), block.type);
     }
+    BeginNextRound();
+}
 
-    std::vector<uint8_t> buf;
-    block.Serialize(buf, true, true);
-    this->Broadcast(buf.data(), buf.size(), block.type);
-
+template<ConsensusType CT>
+void ConsensusManager<CT>::BeginNextRound()
+{
     SetPreviousPrePrepareHash(_pre_prepare_hash);
-
     PrePreparePopFront();
 
     // SYL Integration: finally set ongoing consensus indicator to false to allow next round of consensus to being
@@ -210,8 +214,12 @@ void ConsensusManager<CT>::InitiateConsensus(bool reproposing)
                    << ConsensusToName(CT)
                    << " consensus, reproposing " << reproposing;
 
-    auto & pre_prepare = PrePrepareGetNext();
-    pre_prepare.delegates_epoch_number = _epoch_number;
+    // Build next PrePrepare message (timestamp is also added in PrePrepareGetNext)
+    auto & pre_prepare = PrePrepareGetNext(reproposing);
+    if (CT == ConsensusType::Request)
+    {
+        pre_prepare.delegates_epoch_number = _epoch_number;
+    }
 
     // SYL Integration: if we don't want to lock _state_mutex here it is important to
     // call OnConsensusInitiated before AdvanceState (otherwise PrimaryDelegate might
@@ -226,33 +234,6 @@ void ConsensusManager<CT>::InitiateConsensus(bool reproposing)
 }
 
 template<ConsensusType CT>
-bool ConsensusManager<CT>::ReadyForConsensus()
-{
-    if(_ongoing)
-    {
-        return false;
-    }
-    return !PrePrepareQueueEmpty();
-}
-
-template<ConsensusType CT>
-bool
-ConsensusManager<CT>::IsPrePrepared(const BlockHash & hash)
-{
-    std::lock_guard<std::mutex> lock(_connection_mutex);
-
-    for(auto conn : _connections)
-    {
-        if(conn->IsPrePrepared(hash))
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-template<ConsensusType CT>
 void
 ConsensusManager<CT>::QueueMessage(
         std::shared_ptr<DelegateMessage> message)
@@ -261,14 +242,22 @@ ConsensusManager<CT>::QueueMessage(
 
     if(designated_delegate_id == _delegate_id)
     {
-        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueMessage primary";
+        LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT) << ">::QueueMessage primary";
         QueueMessagePrimary(message);
     }
     else
     {
-        LOG_DEBUG(_log) << "ConsensusManager<CT>::QueueMessage secondary";
+        LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT) << ">::QueueMessage secondary";
         QueueMessageSecondary(message);
     }
+}
+
+template<ConsensusType CT>
+void
+ConsensusManager<CT>::QueueMessagePrimary(
+    std::shared_ptr<DelegateMessage> message)
+{
+    GetHandler().OnMessage(message);
 }
 
 template<ConsensusType CT>
@@ -276,15 +265,22 @@ void
 ConsensusManager<CT>::QueueMessageSecondary(
     std::shared_ptr<DelegateMessage> message)
 {
-    _waiting_list.OnMessage(message);
+    GetHandler().OnMessage(message, GetSecondaryTimeout());
 }
 
 template<ConsensusType CT>
 bool
-ConsensusManager<CT>::SecondaryContains(
+ConsensusManager<CT>::PrePrepareQueueEmpty()
+{
+    return InternalQueueEmpty() && GetHandler().PrimaryEmpty();
+}
+
+template<ConsensusType CT>
+bool
+ConsensusManager<CT>::Contains(
     const BlockHash &hash)
 {
-    return _waiting_list.Contains(hash);
+    return InternalContains(hash) || GetHandler().Contains(hash);
 }
 
 template<ConsensusType CT>
@@ -292,11 +288,7 @@ bool
 ConsensusManager<CT>::IsPendingMessage(
     std::shared_ptr<DelegateMessage> message)
 {
-    auto hash = message->Hash();
-
-    return (PrimaryContains(hash) ||
-            SecondaryContains(hash) ||
-            IsPrePrepared(hash));
+    return Contains(message->Hash());
 }
 
 template<ConsensusType CT>
@@ -310,14 +302,6 @@ ConsensusManager<CT>::BindIOChannel(std::shared_ptr<IOChannel> iochannel,
     _connections.push_back(connection);
 
     return connection;
-}
-
-template<ConsensusType CT>
-void
-ConsensusManager<CT>::UpdateMessagePromoter()
-{
-    auto promoter = std::dynamic_pointer_cast<MessagePromoter<CT>>(shared_from_this());
-    _waiting_list.UpdateMessagePromoter(promoter);
 }
 
 template<ConsensusType CT>
@@ -427,7 +411,13 @@ template<ConsensusType CT>
 void
 ConsensusManager<CT>::OnQuorumFailed()
 {
-    if (ProceedWithRePropose())
+    if (!ProceedWithRePropose()) return;
+
+    if (AlreadyPostCommitted())
+    {
+        BeginNextRound();
+    }
+    else
     {
         LOG_ERROR(_log) << "ConsensusManager::OnQuorumFailed<" << ConsensusToName(CT)
                         << "> - PRIMARY DELEGATE IS ENABLING P2P!!!";

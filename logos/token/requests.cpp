@@ -6,6 +6,7 @@
 #include <logos/token/utility.hpp>
 
 #include <numeric>
+#include <algorithm>
 
 Issuance::Issuance()
     : TokenRequest(RequestType::Issuance)
@@ -90,16 +91,24 @@ Issuance::Issuance(bool & error,
         }
 
         auto controller_tree = tree.get_child(CONTROLLERS);
+        vector<std::string> controller_accounts;
         for(const auto & entry : controller_tree)
         {
             ControllerInfo c(error, entry.second);
-
             if(error)
             {
                 return;
             }
-
+            controller_accounts.push_back(entry.second.get<std::string>(ACCOUNT));
             controllers.push_back(c);
+        }
+
+        // SG: Check for repeating controller accounts in single inssuance request
+        std::sort(controller_accounts.begin(), controller_accounts.end());
+        error = std::unique(controller_accounts.begin(), controller_accounts.end()) != controller_accounts.end();
+        if (error)
+        {
+            return;
         }
 
         issuer_info = tree.get<std::string>(ISSUER_INFO, "");
@@ -126,6 +135,20 @@ bool Issuance::Validate(logos::process_return & result) const
         return true;
     };
 
+    // SG: Token names allowed to include space, hyphen, underscore
+    auto is_valid_name = [](const auto & str)
+    {
+        for(auto c : str)
+        {
+            if(!(std::isalnum(c) or std::isspace(c) or c=='-' or c=='_'))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
     if(token_id != GetTokenID(*this))
     {
         result.code = logos::process_result::invalid_token_id;
@@ -138,7 +161,7 @@ bool Issuance::Validate(logos::process_return & result) const
         return false;
     }
 
-    if(name.empty() || !is_alphanumeric(name) || name.size() > NAME_MAX_SIZE)
+    if(name.empty() || !is_valid_name(name) || name.size() > NAME_MAX_SIZE)
     {
         result.code = logos::process_result::invalid_token_name;
         return false;
@@ -2737,7 +2760,12 @@ TokenSend::TokenSend(bool & error,
                 return;
             }
 
-            transactions.push_back(t);
+            // SG: Added check for maximum token transactions in a request
+            error = !AddTransaction(t);
+            if(error)
+            {
+                return;
+            }
         }
 
         error = token_fee.decode_dec(tree.get<std::string>(TOKEN_FEE));
@@ -2752,6 +2780,22 @@ TokenSend::TokenSend(bool & error,
     {
         error = true;
     }
+}
+
+// SG: Same structure as maximum logos transaction check in request
+bool TokenSend::AddTransaction(const AccountAddress & to, const Amount & amount)
+{
+    return AddTransaction(Transaction(to, amount));
+}
+
+bool TokenSend::AddTransaction(const Transaction & transaction)
+{
+    if(transactions.size() < MAX_TRANSACTIONS)
+    {
+        transactions.push_back(transaction);
+        return true;
+    }
+    return false;
 }
 
 Amount TokenSend::GetTokenTotal() const

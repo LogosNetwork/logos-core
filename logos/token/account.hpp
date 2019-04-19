@@ -75,4 +75,5 @@ struct TokenAccount : logos::Account
     std::string  issuer_info;
     Controllers  controllers;
     Settings     settings;
+    BlockHash    issuance_request;
 };

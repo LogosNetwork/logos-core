@@ -329,8 +329,8 @@ add_library (node
     logos/bootstrap/tips.cpp    
 	logos/consensus/request/request_consensus_manager.cpp
 	logos/consensus/request/request_backup_delegate.cpp
-	logos/consensus/request/request_handler.cpp
-	logos/consensus/waiting_list.cpp
+	logos/consensus/message_handler.cpp
+	logos/consensus/request/request_internal_queue.cpp
 	logos/consensus/delegate_bridge.cpp
 	logos/consensus/backup_delegate.cpp
 	logos/consensus/consensus_container.cpp

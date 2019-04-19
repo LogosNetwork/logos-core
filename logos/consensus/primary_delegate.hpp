@@ -137,6 +137,7 @@ protected:
     uint128_t            _my_stake        = 0;
     uint8_t              _delegate_id     = 0;
     uint32_t             _epoch_number    = 0;
+    uint64_t             _cur_batch_timestamp = 0;
 
 private:
 
@@ -221,7 +222,6 @@ private:
     MessageValidator & _validator;
     Timer              _recall_timer;
     Timer              _primary_timer;
-    uint64_t           _cur_batch_timestamp = 0;
     uint8_t            _delegates_responded = 0;
     bool               _timer_cancelled     = false;
 };

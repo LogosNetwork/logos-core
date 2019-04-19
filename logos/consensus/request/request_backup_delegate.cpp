@@ -3,6 +3,7 @@
 /// handle the specifics of BatchBlock consensus.
 #include <logos/consensus/request/request_backup_delegate.hpp>
 #include <logos/consensus/consensus_manager.hpp>
+#include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/lib/epoch_time_util.hpp>
 
@@ -11,23 +12,24 @@
 RequestBackupDelegate::RequestBackupDelegate(
         std::shared_ptr<IOChannel> iochannel,
         std::shared_ptr<PrimaryDelegate> primary,
-        Promoter & promoter,
+        Store & store,
         MessageValidator & validator,
         const DelegateIdentities & ids,
         Service & service,
+        ConsensusScheduler & scheduler,
         std::shared_ptr<EpochEventsNotifier> events_notifier,
-    PersistenceManager<R> & persistence_manager,
-    p2p_interface & p2p)
-    : Connection(iochannel, primary, promoter,
-         validator, ids, events_notifier, persistence_manager, p2p, service)
-    , _timer(service)
+	    PersistenceManager<R> & persistence_manager,
+	    p2p_interface & p2p)
+    : Connection(iochannel, primary, store,
+		 validator, ids, scheduler, events_notifier, persistence_manager, p2p, service)
+    , _handler(RequestMessageHandler::GetMessageHandler())
 {
     ApprovedRB block;
-    uint32_t cur_epoch_number = events_notifier->GetEpochNumber();
+    _expected_epoch_number = events_notifier->GetEpochNumber();
     Tip tip;
-    promoter.GetStore().request_tip_get(_delegate_ids.remote, cur_epoch_number, tip);
+    store.request_tip_get(_delegate_ids.remote, _expected_epoch_number, tip);
     _prev_pre_prepare_hash = tip.digest;
-    if ( ! _prev_pre_prepare_hash.is_zero() && !promoter.GetStore().request_block_get(_prev_pre_prepare_hash, block))
+    if ( ! _prev_pre_prepare_hash.is_zero() && !store.request_block_get(_prev_pre_prepare_hash, block))
     {
         _sequence_number = block.sequence + 1;
     }
@@ -97,21 +99,6 @@ RequestBackupDelegate::ApplyUpdates(
     _persistence_manager.ApplyUpdates(block, delegate_id);
 }
 
-bool
-RequestBackupDelegate::IsPrePrepared(
-    const BlockHash & hash)
-{
-    std::lock_guard<std::mutex> lock(_mutex);
-
-    if(!_pre_prepare)
-    {
-        return false;
-    }
-
-    return _pre_prepare_hashes.find(hash) !=
-            _pre_prepare_hashes.end();
-}
-
 void
 RequestBackupDelegate::DoUpdateMessage(Rejection & message)
 {
@@ -120,7 +107,7 @@ RequestBackupDelegate::DoUpdateMessage(Rejection & message)
 }
 
 void
-RequestBackupDelegate::Reject()
+RequestBackupDelegate::Reject(const BlockHash & preprepare_hash)
 {
     switch(_reason)
     {
@@ -134,7 +121,7 @@ RequestBackupDelegate::Reject()
     case RejectionReason::Invalid_Epoch:
     case RejectionReason::New_Epoch:
     case RejectionReason::Invalid_Primary_Index:
-        Rejection msg(_pre_prepare_hash);
+        Rejection msg(preprepare_hash);
         DoUpdateMessage(msg);
         _validator.Sign(msg.Hash(), msg.signature);
         SendMessage<Rejection>(msg);
@@ -147,9 +134,24 @@ RequestBackupDelegate::HandleReject(const PrePrepare & message)
 {
     switch(_reason)
     {
+        case RejectionReason::Contains_Invalid_Request:
+        {
+            // If reason is contain invalid request, still need to queue up requests we agree on
+            std::lock_guard<std::mutex> lock(_mutex);  // SYL Integration fix
+            _pre_prepare_hashes.clear();
+            auto timeout = GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE);
+            for(uint16_t i = 0; i < message.requests.size(); ++i)
+            {
+                if (!_rejection_map[i])
+                {
+                    _handler.OnMessage(std::static_pointer_cast<Request>(message.requests[i]), timeout);
+                }
+            }
+            _scheduler.ScheduleTimer(R, Clock::universal_time() + timeout);
+            break;
+        }
         case RejectionReason::Void:
         case RejectionReason::Clock_Drift:
-        case RejectionReason::Contains_Invalid_Request:
         case RejectionReason::Bad_Signature:
         case RejectionReason::Invalid_Previous_Hash:
         case RejectionReason::Wrong_Sequence_Number:
@@ -162,7 +164,12 @@ RequestBackupDelegate::HandleReject(const PrePrepare & message)
             if (notifier && notifier->GetDelegate() == EpochTransitionDelegate::PersistentReject)
             {
                 SetPrePrepare(message);
-                ScheduleTimer(GetTimeout(TIMEOUT_MIN_EPOCH, TIMEOUT_RANGE_EPOCH));
+                auto timeout = GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE);
+                for(uint64_t i = 0; i < message.requests.size(); ++i)
+                {
+                    _handler.OnMessage(std::static_pointer_cast<Request>(message.requests[i]), timeout);
+                }
+                _scheduler.ScheduleTimer(R, Clock::universal_time() + timeout);
             }
             break;
     }
@@ -179,91 +186,30 @@ RequestBackupDelegate::HandleReject(const PrePrepare & message)
 //       stay with the backup (BackupDelegate) and are only
 //       transferred when fallback consensus is to take place, in
 //       which case they are transferred to the primary list
-//       (RequestHandler).
+//       (MessageHandler).
 void
 RequestBackupDelegate::HandlePrePrepare(const PrePrepare & message)
 {
+    // TODO: should we accept partial message?
     std::lock_guard<std::mutex> lock(_mutex);  // SYL Integration fix
     _pre_prepare_hashes.clear();
 
+    auto timeout = GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE);
     for(uint64_t i = 0; i < message.requests.size(); ++i)
     {
         _pre_prepare_hashes.insert(message.requests[i]->GetHash());
+        _handler.OnMessage(std::static_pointer_cast<Request>(message.requests[i]), timeout);
     }
 
     // to make sure during epoch transition, a fallback session of the new epoch
     // is not rerun by the old epoch, the min timeout should be > clock_drift (i.e. 20seconds)
-    ScheduleTimer(GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE));
+    _scheduler.ScheduleTimer(R, Clock::universal_time() + timeout);
 }
 
 void
-RequestBackupDelegate::ScheduleTimer(Seconds timeout)
+RequestBackupDelegate::AdvanceCounter()
 {
-    std::lock_guard<std::mutex> lock(_timer_mutex);
-
-    // The below condition is true when the timeout callback
-    // has been scheduled and is about to be invoked. In this
-    // case, the callback cannot be cancelled, and we have to
-    // 'manually' cancel the callback by setting _cancel_timer.
-    // When the callback is invoked, it will check this value
-    // and return early.
-    if(!_timer.expires_from_now(timeout) && _callback_scheduled)
-    {
-        _cancel_timer = true;
-    }
-
-    std::weak_ptr<RequestBackupDelegate> this_w = std::dynamic_pointer_cast<RequestBackupDelegate>(shared_from_this());
-    _timer.async_wait(
-        [this_w](const Error & error)
-        {
-            auto this_s = GetSharedPtr(this_w, "RequestBackupDelegate::ScheduleTimer, object destroyed");
-            if (!this_s)
-            {
-                return;
-            }
-            this_s->OnPrePrepareTimeout(error);
-        });
-
-    _callback_scheduled = true;
-}
-
-void
-RequestBackupDelegate::OnPostCommit()
-{
-    {
-        std::lock_guard<std::mutex> lock(_timer_mutex);
-
-        if(!_timer.cancel() && _callback_scheduled)
-        {
-            _cancel_timer = true;
-            return;
-        }
-
-        _callback_scheduled = false;
-    }
-
-    Connection::OnPostCommit();
-}
-
-void
-RequestBackupDelegate::OnPrePrepareTimeout(const Error & error)
-{
-    std::lock_guard<std::mutex> lock(_timer_mutex);
-
-    if(_cancel_timer)
-    {
-        _cancel_timer = false;
-        return;
-    }
-
-    if(error == boost::asio::error::operation_aborted)
-    {
-        return;
-    }
-
-    _promoter.AcquirePrePrepare(*_pre_prepare);
-
-    _callback_scheduled = false;
+    _sequence_number = _pre_prepare->sequence + 1;
 }
 
 void
@@ -311,14 +257,3 @@ RequestBackupDelegate::GetTimeout(uint8_t min, uint8_t range)
 
     return Seconds(min + offset);
 }
-
-void
-RequestBackupDelegate::CleanUp()
-{
-    std::lock_guard<std::mutex> lock(_timer_mutex);
-
-    _timer.cancel();
-    _cancel_timer = true;
-}
-
-

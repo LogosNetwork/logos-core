@@ -13,6 +13,7 @@
 #include <logos/node/node.hpp>
 
 constexpr uint128_t PersistenceManager<R>::MIN_TRANSACTION_FEE;
+std::mutex PersistenceManager<R>::_write_mutex;
 
 PersistenceManager<R>::PersistenceManager(Store & store,
                                           ReservationsPtr reservations,
@@ -42,6 +43,7 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
     // doesn't think the block exists, but then direct consensus persists the block, and P2P tries to persist again.
     // Ultimately we want to use the same global queue for direct consensus, P2P, and bootstrapping.
 
+    std::lock_guard<std::mutex> lock (_write_mutex);
     if (BlockExists(message))
     {
         LOG_DEBUG(_log) << "PersistenceManager<R>::ApplyUpdates - request block already exists, ignoring";
@@ -60,9 +62,8 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
                     << message.requests.size()
                     << " Requests";
 
-    // SYL integration: need to ensure the operations below execute atomically
+    // Need to ensure the operations below execute atomically
     // Otherwise, multiple calls to batch persistence may overwrite balance for the same account
-    std::lock_guard<std::mutex> lock (_write_mutex);
     {
         logos::transaction transaction(_store.environment, nullptr, true);
         StoreRequestBlock(message, transaction, delegate_id);
@@ -145,6 +146,26 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
     // Move on to check account info
+
+    // No previous block set.
+    if(request->previous.is_zero() && info->block_count)
+    {
+        result.code = logos::process_result::fork;
+        return false;
+    }
+
+    // This account has issued at least one send transaction.
+    if(info->block_count)
+    {
+        if(!_store.request_exists(request->previous))
+        {
+            result.code = logos::process_result::gap_previous;
+            LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << request->previous.to_string()
+                << "; current account info head is: " << info->head.to_string();
+            return false;
+        }
+    }
+
     if(request->previous != info->head)
     {
         LOG_WARN (_log) << "PersistenceManager::Validate - discrepancy between block previous hash ("
@@ -916,7 +937,18 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             //       Logos designated for the account's balance.
             account.balance += request->fee - MIN_TRANSACTION_FEE;
 
+            // SG: put Issuance Request on TokenAccount's receive chain as genesis receive,
+            // update TokenAccount's relevant fields
+            ReceiveBlock receive(0, issuance->GetHash(), 0);
+            account.receive_head = receive.Hash();
+            account.receive_count++;
+            account.modified = logos::seconds_since_epoch();
+            account.issuance_request = receive.Hash();
+
             _store.token_account_put(issuance->token_id, account, transaction);
+
+            PlaceReceive(receive, timestamp, transaction);
+
             break;
         }
         case RequestType::IssueAdditional:
@@ -1034,9 +1066,16 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             if(update->action == ControllerAction::Add)
             {
                 // Update an existing controller
+                // SG: Add individual controller privileges to existing controller
                 if(controller != token_account->controllers.end())
                 {
-                    *controller = update->controller;
+                    for(int i=0; i<CONTROLLER_PRIVILEGE_COUNT; i++)
+                    {
+                        if (update->controller.privileges[i])
+                        {
+                            controller->privileges.Set(i, true);
+                        }
+                    }
                 }
 
                 // Add a new controller
@@ -1048,7 +1087,23 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             else if(update->action == ControllerAction::Remove)
             {
                 assert(controller != token_account->controllers.end());
-                token_account->controllers.erase(controller);
+                // SG: Remove individual privileges from existing controller
+                bool remove_all = true;
+                for(int i=0; i<CONTROLLER_PRIVILEGE_COUNT; i++)
+                {
+                    if (update->controller.privileges[i])
+                    {
+                        controller->privileges.Set(i, false);
+                        remove_all = false;
+                    }
+
+                }
+
+                // SG: Remove entire controller if no privileges specified
+                if(remove_all)
+                {
+                    token_account->controllers.erase(controller);
+                }
             }
 
             break;

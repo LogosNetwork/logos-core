@@ -99,9 +99,6 @@ enum class ControllerPrivilege : uint8_t
 const size_t TOKEN_SETTINGS_COUNT       = 32;
 const size_t CONTROLLER_PRIVILEGE_COUNT = 32;
 
-// The smallest denomination for token amounts.
-const logos::uint128_t TOKEN_RAW = 10000;
-
 struct TokenRequest : Request
 {
     using InfoSizeT   = uint16_t;
