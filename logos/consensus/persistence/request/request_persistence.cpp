@@ -229,7 +229,8 @@ bool PersistenceManager<R>::ValidateRequest(
     // Make sure there's enough Logos
     // to cover the request.
     // SG: Add fee back into total being checked because GetLogosTotal does not include the fee
-    if((request->GetLogosTotal()+request->fee) > info->balance)
+    // TODO: is this correct? GetLogosTotal() returns fee unless derived class overrides GetLogosTotal()
+    if((request->GetLogosTotal()+request->fee) > info->GetBalance())
     {
         result.code = logos::process_result::insufficient_balance;
         return false;
@@ -828,7 +829,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
     // TODO: Harvest fees
     if(request->type != RequestType::ElectionVote)
     {
-        info->balance -= request->fee;
+        info->SetBalance(info->GetBalance() - request->fee, cur_epoch_num, transaction);
     }
     // Performs the actions required by whitelisting
     // and freezing.
@@ -929,11 +930,12 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             auto source = dynamic_pointer_cast<logos::account_info>(info);
             assert(send && source);
 
-            source->balance -= send->GetLogosTotal();
+            source->SetBalance(source->GetBalance() - send->GetLogosTotal(), cur_epoch_num, transaction);
 
             ApplySend(send,
                       timestamp,
-                      transaction);
+                      transaction,
+                      cur_epoch_num);
             break;
         }
         case RequestType::Change:
@@ -948,7 +950,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             // TODO: Consider providing a TokenIsuance field
             //       for explicitly  declaring the amount of
             //       Logos designated for the account's balance.
-            account.balance += request->fee - MIN_TRANSACTION_FEE;
+            account.SetBalance(account.GetBalance() + request->fee - MIN_TRANSACTION_FEE, cur_epoch_num, transaction);
 
             // SG: put Issuance Request on TokenAccount's receive chain as genesis receive,
             // update TokenAccount's relevant fields
@@ -1036,7 +1038,9 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                       transaction,
                       revoke->GetHash(),
                       revoke->token_id,
-                      revoke->origin);
+                      revoke->origin,
+                      cur_epoch_num);
+
 
             break;
         }
@@ -1146,7 +1150,8 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                       transaction,
                       distribute->GetHash(),
                       distribute->token_id,
-                      distribute->origin);
+                      distribute->origin,
+                      cur_epoch_num);
 
             break;
         }
@@ -1163,7 +1168,8 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                       transaction,
                       withdraw->GetHash(),
                       withdraw->token_id,
-                      withdraw->origin);
+                      withdraw->origin,
+                      cur_epoch_num);
 
             break;
         }
@@ -1173,14 +1179,15 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             auto token_account = dynamic_pointer_cast<TokenAccount>(info);
             assert(withdraw && token_account);
 
-            token_account->balance -= withdraw->transaction.amount;
+            token_account->SetBalance(token_account->GetBalance() - withdraw->transaction.amount, cur_epoch_num, transaction);
 
             ApplySend(withdraw->transaction,
                       timestamp,
                       transaction,
                       withdraw->GetHash(),
                       {0},
-                      withdraw->origin);
+                      withdraw->origin,
+                      cur_epoch_num);
 
             break;
         }
@@ -1217,6 +1224,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             ApplySend(send,
                       timestamp,
                       transaction,
+                      cur_epoch_num,
                       send->token_id);
 
             break;
@@ -1273,6 +1281,7 @@ template<typename SendType>
 void PersistenceManager<R>::ApplySend(std::shared_ptr<const SendType> request,
                                       uint64_t timestamp,
                                       MDB_txn *transaction,
+                                      uint32_t const & epoch_num,
                                       BlockHash token_id)
 {
     // SYL: we don't need to lock destination mutex here because updates to same account within
@@ -1288,6 +1297,7 @@ void PersistenceManager<R>::ApplySend(std::shared_ptr<const SendType> request,
                   request->GetHash(),
                   token_id,
                   request->origin,
+                  epoch_num,
                   transaction_index++);
     }
 }
@@ -1299,6 +1309,7 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
                                       const BlockHash &request_hash,
                                       const BlockHash &token_id,
                                       const AccountAddress& origin,
+                                      uint32_t const & epoch_num,
                                       uint16_t transaction_index)
 {
     std::shared_ptr<logos::Account> info;
@@ -1352,7 +1363,7 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
     // This is a logos transaction
     if(token_id.is_zero())
     {
-        info->balance += send.amount;
+        info->SetBalance(info->GetBalance() + send.amount, epoch_num, transaction);
     }
 
     // This is a token transaction

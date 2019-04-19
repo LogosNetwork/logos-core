@@ -129,6 +129,7 @@ private:
             std::shared_ptr<const SendType> request,
             uint64_t timestamp,
             MDB_txn *transaction,
+            uint32_t const & epoch_num,
             BlockHash token_id = 0);
 
     template<typename AmountType>
@@ -139,6 +140,7 @@ private:
             const BlockHash &request_hash,
             const BlockHash &token_id,
             const AccountAddress& origin,
+            uint32_t const & epoch_num,
             uint16_t transaction_index = 0);
 
     void PlaceReceive(

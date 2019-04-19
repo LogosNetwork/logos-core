@@ -1433,7 +1433,7 @@ void logos::rpc_handler::delegators ()
             if (block->representative () == account)
             {
                 std::string balance;
-                logos::uint128_union (info.balance).encode_dec (balance);
+                logos::uint128_union (info.GetBalance()).encode_dec (balance);
                 delegators.put (logos::account (i->first.uint256 ()).to_account (), balance);
             }
         }
@@ -1925,7 +1925,7 @@ void logos::rpc_handler::ledger ()
                     response_l.put ("open_block", info.open_block.to_string ());
                     response_l.put ("representative_block", info.staking_subchain_head.to_string ());
                     std::string balance;
-                    logos::uint128_union (info.balance).encode_dec (balance);
+                    logos::uint128_union (info.GetBalance()).encode_dec (balance);
                     response_l.put ("balance", balance);
                     response_l.put ("modified_timestamp", std::to_string (info.modified));
                     response_l.put ("request_count", std::to_string (info.block_count));
@@ -1960,7 +1960,7 @@ void logos::rpc_handler::ledger ()
                 {
                     error_response (response, "account_info deserialize");
                 }
-                logos::uint128_union balance (info.balance);
+                logos::uint128_union balance (info.GetBalance());
                 if (info.modified >= modified_since)
                 {
                     ledger_l.push_back (std::make_pair (balance, logos::account (i->first.uint256 ())));
@@ -3052,7 +3052,7 @@ void logos::rpc_handler::send ()
                                 logos::account_info info;
                                 if (!node.store.account_get (transaction, source, info))
                                 {
-                                    balance = (info.balance).number ();
+                                    balance = (info.GetBalance()).number ();
                                 }
                                 else
                                 {
@@ -3835,7 +3835,7 @@ void logos::rpc_handler::wallet_ledger ()
                         entry.put ("open_block", info.open_block.to_string ());
                         entry.put ("representative_block", info.staking_subchain_head.to_string ());
                         std::string balance;
-                        logos::uint128_union (info.balance).encode_dec (balance);
+                        logos::uint128_union (info.GetBalance()).encode_dec (balance);
                         entry.put ("balance", balance);
                         entry.put ("modified_timestamp", std::to_string (info.modified));
                         entry.put ("request_count", std::to_string (info.block_count));
@@ -5100,7 +5100,7 @@ logos::rpc_handler::account_info(
                 response.put("frontier",token_account.head.to_string());
                 response.put("receive_tip",token_account.receive_head.to_string());
                 std::string balance;
-                logos::uint128_union (token_account.balance).encode_dec (balance);
+                logos::uint128_union (token_account.GetBalance()).encode_dec (balance);
                 response.put ("balance", balance);
                 res.contents = response;
             }
@@ -5120,7 +5120,7 @@ logos::rpc_handler::account_info(
                     response.put ("representative_block",
                             info.staking_subchain_head.to_string ());
                     std::string balance;
-                    logos::uint128_union (info.balance).encode_dec (balance);
+                    logos::uint128_union (info.GetBalance()).encode_dec (balance);
                     response.put ("balance", balance);
                     response.put ("modified_timestamp",
                             std::to_string (info.modified));
@@ -5208,7 +5208,7 @@ logos::rpc_handler::account_balance(
                 + account.to_string();
         }
         std::string balance_str;
-        account_info.balance.encode_dec(balance_str);
+        account_info.GetBalance().encode_dec(balance_str);
         response.put("balance",balance_str);
 
         std::unordered_set<std::string> token_ids;

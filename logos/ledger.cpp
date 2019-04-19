@@ -55,8 +55,8 @@ void ledger_processor::state_block_impl (logos::state_block const & block_a)
                         result.code = ledger.store.block_exists (transaction, block_a.hashables.previous) ? logos::process_result::progress : logos::process_result::gap_previous; // Does the previous block exist in the ledger? (Unambigious)
                         if (result.code == logos::process_result::progress)
                         {
-                            is_send = block_a.hashables.amount < info.balance;
-                            result.amount = is_send ? (info.balance.number () - result.amount.number ()) : (result.amount.number () - info.balance.number ());
+                            is_send = block_a.hashables.amount < info.GetBalance();
+                            result.amount = is_send ? (info.GetBalance().number () - result.amount.number ()) : (result.amount.number () - info.GetBalance().number ());
                             //TODO Peng: will figure out how to compile if we need ledger
                             //result.code = block_a.hashables.previous == info.head ? logos::process_result::progress : logos::process_result::fork; // Is the previous block the account's head block? (Ambigious)
                         }
@@ -107,7 +107,7 @@ void ledger_processor::state_block_impl (logos::state_block const & block_a)
                     {
                         // Move existing representation
                         //TODO Peng: will figure out how to compile if we need ledger
-                        //ledger.store.representation_add (transaction, info.staking_subchain_head, 0 - info.balance.number ());
+                        //ledger.store.representation_add (transaction, info.staking_subchain_head, 0 - info.GetBalance().number ());
                     }
                     // Add in amount delta
                     ledger.store.representation_add (transaction, hash, block_a.hashables.amount.number ());
@@ -182,7 +182,7 @@ logos::uint128_t logos::ledger::account_balance (MDB_txn * transaction_a, logos:
     auto none (store.account_get (transaction_a, account_a, info));
     if (!none)
     {
-        result = info.balance.number ();
+        result = info.GetBalance().number ();
     }
     return result;
 }
@@ -435,7 +435,7 @@ void logos::ledger::change_latest (MDB_txn * transaction_a, logos::account const
         //TODO Peng: will figure out how to compile if we need ledger
         //        info.head = hash_a;
         //        info.staking_subchain_head = staking_subchain_head_a;
-        info.balance = balance_a;
+        //info.SetBalance(balance_a,0,nullptr);
         info.modified = logos::seconds_since_epoch ();
         info.block_count = block_count_a;
         store.account_put (transaction_a, account_a, info);

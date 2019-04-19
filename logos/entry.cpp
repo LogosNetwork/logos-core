@@ -187,7 +187,7 @@ int main (int argc, char * const * argv)
             }
             logos::block_hash staking_subchain_head (node.node->ledger.representative_calculated (transaction, info.head));
             std::unique_ptr<logos::block> block (node.node->store.block_get (transaction, staking_subchain_head));
-            calculated[block->representative ()] += info.balance.number ();
+            calculated[block->representative ()] += info.GetBalance().number ();
         }
         total = 0;
         for (auto i (calculated.begin ()), n (calculated.end ()); i != n; ++i)
