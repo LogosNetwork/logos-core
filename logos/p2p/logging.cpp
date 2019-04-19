@@ -22,8 +22,6 @@
  */
 BCLog::Logger* const g_logger = new BCLog::Logger();
 
-bool fLogIPs = DEFAULT_LOGIPS;
-
 void BCLog::Logger::EnableCategory(BCLog::LogFlags flag)
 {
     m_categories |= flag;

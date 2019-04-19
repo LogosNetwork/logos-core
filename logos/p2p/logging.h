@@ -17,8 +17,7 @@
 #include <vector>
 #include "../lib/log.hpp"
 
-static const bool DEFAULT_LOGIPS        = false;
-extern bool fLogIPs;
+constexpr bool DEFAULT_LOGIPS        = false;
 
 struct CLogCategoryActive
 {

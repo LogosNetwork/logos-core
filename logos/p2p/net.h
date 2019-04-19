@@ -422,6 +422,7 @@ public:
     boost::asio::io_service *io_service;
     sem_t dataWritten;
     std::function<void(std::function<void()> const &, unsigned)> scheduleAfter;
+    bool fLogIPs;
 
 private:
     using ListenSocket = std::shared_ptr<AsioServer>;

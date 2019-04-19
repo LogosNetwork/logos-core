@@ -23,10 +23,6 @@
 #define MSG_NOSIGNAL 0
 #endif
 
-// Settings
-int nConnectTimeout = DEFAULT_CONNECT_TIMEOUT;
-bool fNameLookup = DEFAULT_NAME_LOOKUP;
-
 enum Network ParseNetwork(std::string net) {
     Downcase(net);
     if (net == "ipv4") return NET_IPV4;

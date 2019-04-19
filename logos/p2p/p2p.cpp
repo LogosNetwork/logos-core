@@ -81,6 +81,9 @@ private:
     std::unique_ptr<PeerLogicValidation>    peerLogic;
     PropagateStore                          store;
     ArgsManager                             Args;
+    int                                     nConnectTimeout;
+    bool                                    fNameLookup;
+    bool                                    fLogIPs;
 
 public:
     p2p_internal(p2p_interface & p2p,
@@ -92,6 +95,9 @@ public:
         , FEE_ESTIMATES_FILENAME("fee_estimates.dat")
         , nLocalServices(ServiceFlags(NODE_NETWORK | NODE_NETWORK_LIMITED))
         , io_service((boost::asio::io_service *)config.boost_io_service)
+        , nConnectTimeout(DEFAULT_CONNECT_TIMEOUT)
+        , fNameLookup(DEFAULT_NAME_LOOKUP)
+        , fLogIPs(DEFAULT_LOGIPS)
     {
     }
 
@@ -330,6 +336,8 @@ std::string ResolveErrMsg(const char * const optname, const std::string& strBind
  */
 void InitLogging()
 {
+    fLogIPs = Args.GetBoolArg("-logips", DEFAULT_LOGIPS);
+
     std::string version_string = FormatFullVersion();
 #ifdef DEBUG
     version_string += " (debug build)";
@@ -513,6 +521,7 @@ bool AppInitMain(p2p_config &config)
     connman.p2p_store = &store;
     connman.io_service = io_service;
     connman.scheduleAfter = config.scheduleAfterMs;
+    connman.fLogIPs = fLogIPs;
 
     if (config.test_mode)
         return true;
