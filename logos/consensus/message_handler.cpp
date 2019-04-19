@@ -46,6 +46,10 @@ void MessageHandler<CT>::OnPostCommit(std::shared_ptr<PrePrepare> block)
     {
         LOG_DEBUG (_log) << "MessageHandler<" << ConsensusToName(CT) << ">::OnPostCommit - erased " << hash.to_string();
     }
+    else
+    {
+        LOG_WARN (_log) << "MessageHandler<" << ConsensusToName(CT) << ">::OnPostCommit - already erased: " << hash.to_string();
+    }
 }
 
 template<ConsensusType CT>
