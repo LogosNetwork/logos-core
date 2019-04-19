@@ -252,8 +252,8 @@ void PersistenceManager<ECT>::UpdateRepresentativesDB(MDB_txn* txn)
     for(auto it = logos::store_iterator(txn, _store.remove_reps_db);
             it != logos::store_iterator(nullptr); ++it)
     {
-        voting_power_mgr.TryPrune(it->second.uint256(), txn);
         auto status (mdb_del(txn, _store.representative_db, it->second, nullptr));
+        voting_power_mgr.TryPrune(it->second.uint256(), txn);
         assert(status == 0);
     }
 

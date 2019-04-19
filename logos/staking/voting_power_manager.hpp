@@ -3,7 +3,8 @@
 #include <logos/blockstore.hpp>
 #include <logos/staking/voting_power.hpp>
 
-
+// integer between 0 and 100. Represents a percent
+const uint8_t DILUTION_FACTOR = 25;
 
 //TODO sensible return values for member functions
 //TODO does this class really belong in logos/staking?
@@ -59,8 +60,19 @@ class VotingPowerManager
             uint32_t const & epoch_number,
             MDB_txn* txn);
 
+    //returns true if info was found
+    bool GetVotingPowerInfo(
+            AccountAddress const & rep,
+            VotingPowerInfo& info,
+            MDB_txn* txn);
+
     void TryPrune(
             AccountAddress const & rep,
+            MDB_txn* txn);
+
+    bool CanPrune(
+            AccountAddress const & rep,
+            VotingPowerInfo const & info,
             MDB_txn* txn);
 
 
@@ -70,10 +82,6 @@ class VotingPowerManager
             VotingPowerInfo& info,
             MDB_txn* txn);
 
-    bool CanPrune(
-            AccountAddress const & rep,
-            VotingPowerInfo const & info,
-            MDB_txn* txn);
 
     BlockStore& _store;
     Log _log;
