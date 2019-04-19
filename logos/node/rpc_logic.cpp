@@ -86,7 +86,7 @@ RpcResponse<BoostJson> account_info(
                 response.put("frontier",token_account.head.to_string());
                 response.put("receive_tip",token_account.receive_head.to_string());
                 std::string balance;
-                logos::uint128_union (token_account.balance).encode_dec (balance);
+                logos::uint128_union (token_account.GetBalance()).encode_dec (balance);
                 response.put ("balance", balance);
                 res.contents = response;
             }
@@ -106,7 +106,7 @@ RpcResponse<BoostJson> account_info(
                     response.put ("representative_block",
                             info.staking_subchain_head.to_string ());
                     std::string balance;
-                    logos::uint128_union (info.balance).encode_dec (balance);
+                    logos::uint128_union (info.GetBalance()).encode_dec (balance);
                     response.put ("balance", balance);
                     response.put ("modified_timestamp",
                             std::to_string (info.modified));
@@ -193,7 +193,7 @@ RpcResponse<BoostJson> account_balance(
                 + account.to_string();
         }
         std::string balance_str;
-        account_info.balance.encode_dec(balance_str);
+        account_info.GetBalance().encode_dec(balance_str);
         response.put("balance",balance_str);
 
         std::unordered_set<std::string> token_ids;

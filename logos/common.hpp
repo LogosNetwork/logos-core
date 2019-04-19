@@ -127,14 +127,19 @@ public:
     bool operator!= (Account const &) const;
 
     virtual mdb_val to_mdb_val(std::vector<uint8_t> &buf) const = 0;
+    
+    virtual void SetBalance(amount const & new_balance, uint32_t epoch, MDB_txn* txn);
+    virtual amount const & GetBalance() const;
 
     AccountType type;
-    amount      balance;
     uint64_t    modified;      ///< Seconds since posix epoch
     BlockHash   head;
     uint32_t    block_count;
     BlockHash   receive_head;
     uint32_t    receive_count;
+
+    private:
+    amount balance;
 };
 
 /**

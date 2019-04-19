@@ -288,7 +288,7 @@ bool logos::Account::Deserialize (stream & stream_a)
 bool logos::Account::operator== (Account const & other_a) const
 {
     return type == other_a.type &&
-           balance == other_a.balance &&
+           balance == other_a.GetBalance() &&
            modified == other_a.modified &&
            head == other_a.head &&
            block_count == other_a.block_count &&
@@ -309,6 +309,16 @@ logos::mdb_val logos::Account::to_mdb_val(std::vector<uint8_t> &buf) const
         Serialize(stream);
     }
     return mdb_val(buf.size(), buf.data());
+}
+
+void logos::Account::SetBalance(Amount const & new_balance, uint32_t epoch, MDB_txn* txn)
+{
+    balance = new_balance;
+}
+
+Amount const & logos::Account::GetBalance() const
+{
+    return balance;
 }
 
 logos::account_info::account_info ()

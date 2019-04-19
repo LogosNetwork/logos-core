@@ -869,7 +869,7 @@ std::shared_ptr<logos::block> logos::wallet::receive_action (logos::block const 
                         assert (staking_subchain_head != nullptr);
                         if (should_generate_state_block (transaction, info.head))
                         {
-                            block.reset (new logos::state_block (account, info.head, staking_subchain_head->representative (), info.balance.number () + pending_info.amount.number (), 0, hash, prv, account, cached_work));
+                            block.reset (new logos::state_block (account, info.head, staking_subchain_head->representative (), info.GetBalance().number () + pending_info.amount.number (), 0, hash, prv, account, cached_work));
                         }
 
                     }
@@ -938,7 +938,7 @@ std::shared_ptr<logos::block> logos::wallet::change_action (logos::account const
                 store.work_get (transaction, source_a, cached_work);
                 if (should_generate_state_block (transaction, info.head))
                 {
-                    block.reset (new logos::state_block (source_a, info.head, representative_a, info.balance, 0, 0, prv, source_a, cached_work));
+                    block.reset (new logos::state_block (source_a, info.head, representative_a, info.GetBalance(), 0, 0, prv, source_a, cached_work));
                 }
 
             }

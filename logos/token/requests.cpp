@@ -2664,7 +2664,7 @@ bool WithdrawLogos::Validate(logos::process_return & result,
 
     auto token_account = std::static_pointer_cast<TokenAccount>(info);
 
-    if(transaction.amount > token_account->balance)
+    if(transaction.amount > token_account->GetBalance())
     {
         result.code = logos::process_result::insufficient_balance;
         return false;
