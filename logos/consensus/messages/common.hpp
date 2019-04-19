@@ -65,6 +65,8 @@ CONSENSUS_TYPE
     Epoch      = 2
 );
 
+static const ConsensusType CTs[] = {ConsensusType::Request, ConsensusType::MicroBlock, ConsensusType::Epoch};
+
 static const size_t NUM_DELEGATES        = 32;
 static const size_t CONSENSUS_BATCH_SIZE = 1500;
 
@@ -93,6 +95,7 @@ struct AggSignature
 
     uint32_t Serialize(logos::stream & stream) const;
     void SerializeJson(boost::property_tree::ptree & tree) const;
+    void clear();
 
     bool operator== (AggSignature const &) const;
     bool operator!= (AggSignature const &) const;

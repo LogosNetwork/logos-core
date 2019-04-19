@@ -16,9 +16,26 @@ Archiver::Archiver(logos::alarm & alarm,
     , _micro_block_handler(store, recall_handler)
     , _voting_manager(store)
     , _epoch_handler(store, _voting_manager)
+    , _mb_message_handler(MicroBlockMessageHandler::GetMessageHandler())
     , _recall_handler(recall_handler)
     , _store(store)
-{}
+{
+    Tip mb_tip;
+    // fetch latest microblock (this requires DelegateIdentityManager be initialized earlier inside `node`)
+    if (_store.micro_block_tip_get(mb_tip))
+    {
+        LOG_FATAL(_log) << "Archiver::Archiver - Failed to get microblock tip";
+        trace_and_halt();
+    }
+    ApprovedMB mb;
+    if (_store.micro_block_get(mb_tip.digest, mb))
+    {
+        LOG_FATAL(_log) << "Archiver::Archiver - Failed to get microblock";
+        trace_and_halt();
+    }
+    _mb_seq = mb.sequence;
+    _eb_num = mb.epoch_number;
+}
 
 void
 Archiver::Start(InternalConsensus &consensus)
@@ -29,23 +46,94 @@ Archiver::Start(InternalConsensus &consensus)
         bool is_epoch_time = util.IsEpochTime();
         bool last_microblock = !_recall_handler.IsRecall() && is_epoch_time && !_first_epoch;
 
+        // This is used for the edge case where software is launched within one MB interval before epoch cutoff,
+        // in which case the first time this callback is invoked will be two mb intervals past epoch start
+        // (i.e. one mb past epoch block proposal time), indicating that we are already past the first epoch skip time
+        // and need to set _first_epoch to false below
         bool one_mb_past = util.IsOneMBPastEpochTime();
 
-        if (false == _micro_block_handler.Build(*micro_block, last_microblock))
+        // check if latest in db / queue is the same as our own in-memory counter
+        uint32_t latest_mb_seq, latest_eb_num;
+        ApprovedMB mb;
+        {
+            Tip mb_tip;
+            // use write transaction to ensure sequencing:
+            // if MB backup writes first, then we can reliably get latest MB sequence from DB or MessageHandler Queue
+            // if we get tx handle first, then the latest MB sequence must still be in MH queue
+            // (since backup DB write takes place before queue clear)
+            logos::transaction tx(_store.environment, nullptr, true);
+            // get DB block first
+            if (_store.micro_block_tip_get(mb_tip, tx))
+            {
+                LOG_FATAL(_log) << "Archiver::Archiver - Failed to get microblock tip";
+                trace_and_halt();
+            }
+            if (_store.micro_block_get(mb_tip.digest, mb, tx))
+            {
+                LOG_FATAL(_log) << "Archiver::Archiver - Failed to get microblock";
+                trace_and_halt();
+            }
+            // check queue content
+            _mb_message_handler.GetQueuedSequence(latest_mb_seq, latest_eb_num);
+            if (!latest_mb_seq && !latest_eb_num)  // both being 0 indicates queue is empty
+            {
+                latest_mb_seq = mb.sequence;
+                latest_eb_num = mb.epoch_number;
+            }
+            else  // queued number must be greater than or equal to database-stored number
+            {
+                assert (latest_eb_num > mb.epoch_number
+                || (latest_eb_num == mb.epoch_number && latest_mb_seq >= mb.sequence));
+            }
+        }
+
+        // TODO: Archiver's internal counter should really be directly updated by post commit
+        if (_mb_seq != latest_mb_seq || _eb_num != latest_eb_num)
+        {
+            if (_eb_num > latest_eb_num || (_eb_num == latest_eb_num && _mb_seq > latest_mb_seq))
+            {
+                // we are exactly one ahead of db, meaning that the current consensus session isn't done yet, do nothing
+                if ((_eb_num == latest_eb_num + 1 && !_mb_seq) ||
+                    (_eb_num == latest_eb_num && _mb_seq == latest_mb_seq + 1))
+                {
+                    return;
+                }
+                // we somehow ended up ahead more than one ahead, should not happen
+                else
+                {
+                    LOG_FATAL(_log) << "Archiver::Start - unexpected scenario, internal counter out of sync";
+                    trace_and_halt();
+                }
+            }
+            // we are behind in time, catch up and don't build
+            // TODO: sync clock?
+            else if (_eb_num < latest_eb_num || (_eb_num == latest_eb_num && _mb_seq < latest_mb_seq))
+            {
+                _eb_num = latest_eb_num;
+                _mb_seq = latest_mb_seq;
+                return;
+            }
+        }
+
+        // if internal counter match db record, then we can go ahead and build the next MB
+
+        if (!_micro_block_handler.Build(*micro_block, last_microblock))
         {
             LOG_ERROR(_log) << "Archiver::Start failed to build micro block";
             return;
         }
 
         if (is_epoch_time
-        || (_first_epoch &&
-            !micro_block->sequence &&
-            micro_block->epoch_number == GENESIS_EPOCH + 1 &&
-            one_mb_past))
+            || (_first_epoch &&
+                !micro_block->sequence &&
+                micro_block->epoch_number == GENESIS_EPOCH + 1 &&
+                one_mb_past))
         {
             _first_epoch = false;
         }
 
+        _mb_seq = micro_block->sequence;
+        _eb_num = micro_block->epoch_number;
 
         consensus.OnDelegateMessage(micro_block);
     };
@@ -67,6 +155,26 @@ Archiver::Start(InternalConsensus &consensus)
     };
 
     _event_proposer.Start(micro_cb, transition_cb, epoch_cb);
+}
+
+void
+Archiver::OnApplyUpdates(const ApprovedMB &block)
+{
+    if (block.last_micro_block) {
+        uint32_t epoch_number_stored;
+        {
+            // use write transaction to ensure sequencing
+            logos::transaction tx(_store.environment, nullptr, true);
+            epoch_number_stored = _store.epoch_number_stored();
+        }
+        // avoid duplicate proposals
+        if (epoch_number_stored + 1 != block.epoch_number)
+        {
+            LOG_WARN(_log) << "Archiver::OnApplyUpdates - skipping duplicate epoch block construction.";
+            return;
+        }
+        _event_proposer.ProposeEpoch();
+    }
 }
 
 void

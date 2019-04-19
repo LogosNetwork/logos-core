@@ -131,6 +131,7 @@ public:
     void account_weight ();
     void accounts_balances ();
     void accounts_create ();
+    void accounts_exist ();
     void accounts_frontiers ();
     void accounts_pending ();
     void available_supply ();
@@ -139,6 +140,7 @@ public:
     void block ();
     //CH void block_confirm ();
     void blocks ();
+    void blocks_exist ();
     void block_account ();
     void block_count ();
     void block_count_type ();
@@ -244,14 +246,12 @@ public:
     using BlockStore = logos::block_store;
 
     RpcResponse<BoostJson> tokens_info(const BoostJson& request, BlockStore& store);
-
     RpcResponse<BoostJson> account_info(const BoostJson& request, BlockStore& store);
-
     RpcResponse<BoostJson> account_balance(const BoostJson& request, BlockStore& store);
-
+    RpcResponse<BoostJson> accounts_exist(const BoostJson& request, BlockStore& store);
     RpcResponse<BoostJson> block(const BoostJson& request, BlockStore& store);
-
     RpcResponse<BoostJson> blocks(const BoostJson& request, BlockStore& store);
+    RpcResponse<BoostJson> blocks_exist(const BoostJson& request, BlockStore& store);
 
 
     std::string body;

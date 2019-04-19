@@ -133,36 +133,20 @@ MicroBlockHandler::GetTipsSlow(
         Tip tip;
     };
     array<vector<pair>, NUM_DELEGATES> entries;
-    uint64_t min_timestamp = GetStamp() + TConvert<Milliseconds>(CLOCK_DRIFT).count();
+    auto now = GetStamp();
+    auto rem = now & TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count();
+    auto min_timestamp = now - rem - TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count();
 
-    // first get hashes and timestamps of all blocks; and min timestamp to use as the base
     _store.BatchBlocksIterator(start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable->void{
-        entries[delegate].push_back({batch.timestamp, batch.CreateTip()});
-        if (batch.timestamp < min_timestamp)
+        if (batch.timestamp <= min_timestamp)
         {
-            min_timestamp = batch.timestamp;
-        }
-    });
-
-    // remainder from min_timestamp to the nearest 10min
-    auto rem = min_timestamp % TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count();
-    auto cutoff = min_timestamp + ((rem!=0)?TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count() - rem:0);
-
-    // iterate over all blocks, selecting the ones that are less than cutoff time
-    uint64_t cutoff_msec = GetCutOffTimeMsec(cutoff, add_cutoff);
-
-    for (uint8_t delegate = 0; delegate < NUM_DELEGATES; ++delegate) {
-        for (auto it : entries[delegate]) {
-            if (it.timestamp >= cutoff_msec) {
-                continue;
-            }
             if (tips[delegate].digest.is_zero())
             {
-                tips[delegate] = it.tip;
+                tips[delegate] = batch.CreateTip();
             }
             num_blocks++;
         }
-    }
+    });
 }
 
 bool

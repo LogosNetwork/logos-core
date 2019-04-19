@@ -147,7 +147,7 @@ TEST (Request_Serialization, json_deserialization)
         "sequence": "1",
         "next": "0000000000000000000000000000000000000000000000000000000000000000",
         "token_id": "0000000000000000000000000000000000000000000000000000000000000000",
-        "setting": "modify_freeze"
+        "setting": "freeze"
      })%%%";
 
     tree = get_tree(immute_setting_json);
@@ -158,7 +158,7 @@ TEST (Request_Serialization, json_deserialization)
     ASSERT_EQ(immute_setting.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
     ASSERT_EQ(immute_setting.fee.number(), 100);
     ASSERT_EQ(immute_setting.sequence, 1);
-    ASSERT_EQ(immute_setting.setting, TokenSetting::ModifyFreeze);
+    ASSERT_EQ(immute_setting.setting, TokenSetting::Freeze);
 
     // Revoke
     //

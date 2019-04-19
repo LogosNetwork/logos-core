@@ -132,12 +132,6 @@ Request::Request(bool & error,
             return;
         }
 
-        error = next.decode_hex(tree.get<std::string>(NEXT, ""));
-        if(error)
-        {
-            return;
-        }
-
         Hash();
     }
     catch (...)
@@ -734,7 +728,7 @@ Amount Send::GetLogosTotal() const
                                      return a + t.amount;
                                  });
 
-    return total + Request::GetLogosTotal();
+    return total;
 }
 
 bool Send::AddTransaction(const AccountAddress & to, const Amount & amount)
@@ -785,8 +779,6 @@ boost::property_tree::ptree Send::SerializeJson() const
         transactions_tree.push_back(std::make_pair("", cur_transaction));
     }
     tree.add_child("transactions", transactions_tree);
-
-    tree.put("hash", digest.to_string());
 
     return tree;
 }

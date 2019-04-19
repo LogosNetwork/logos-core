@@ -56,7 +56,7 @@ EpochTimeUtil::IsEpochTime()
 }
 
 bool
-EpochTimeUtil::IsOneMBPastEpochTime()
+EpochTimeUtil::IsOneMBPastEpochTime() // Wouldn't work if EPOCH_PROPOSAL_TIME is exactly twice MICROBLOCK_PROPOSAL_TIME
 {
     auto now = GetStamp();
     auto epoch = TConvert<Milliseconds>(EPOCH_PROPOSAL_TIME).count();

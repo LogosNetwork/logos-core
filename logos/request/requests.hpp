@@ -145,6 +145,8 @@ struct Request
 
     virtual bool operator==(const Request & other) const;
 
+    static const uint8_t MAX_TRANSACTIONS = 8;
+
     RequestType       type = RequestType::Unknown;
     AccountAddress    origin;
     BlockHash         previous;
@@ -290,8 +292,6 @@ struct Send : Request
     void DeserializeDB(bool &error, logos::stream &stream) override;
 
     bool operator==(const Request & other) const override;
-
-    static const uint8_t MAX_TRANSACTIONS = 8;
 
     Transactions      transactions;
 };

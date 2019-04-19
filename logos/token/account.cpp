@@ -55,7 +55,7 @@ TokenAccount::TokenAccount(const BlockHash & head,
 
 uint32_t TokenAccount::Serialize(logos::stream & stream) const
 {
-    assert(controllers.size() < MAX_CONTROLLERS);
+    assert(controllers.size() <= MAX_CONTROLLERS);
 
     auto s = Account::Serialize(stream);
 
@@ -75,6 +75,7 @@ uint32_t TokenAccount::Serialize(logos::stream & stream) const
     }
 
     s += settings.Serialize(stream);
+    s += logos::write(stream, issuance_request.bytes);
 
     return s;
 }
@@ -143,7 +144,7 @@ bool TokenAccount::Deserialize(logos::stream & stream)
         return error;
     }
 
-    assert(size < MAX_CONTROLLERS);
+    assert(size <= MAX_CONTROLLERS);
     for(uint8_t i = 0; i < size; ++i)
     {
         ControllerInfo c(error, stream);
@@ -156,6 +157,12 @@ bool TokenAccount::Deserialize(logos::stream & stream)
     }
 
     settings = Settings(error, stream);
+    if(error)
+    {
+        return error;
+    }
+
+    error = logos::read(stream, issuance_request.bytes);
 
     return error;
 }
@@ -171,7 +178,7 @@ boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
     tree.put("name",name);
     tree.put("issuer_info",issuer_info);
     tree.put("fee_rate",fee_rate.to_string_dec());
-    tree.put("fee_type",fee_type == TokenFeeType::Percentage ? "Percentage" : fee_type == TokenFeeType::Flat ? "Flat" : "Unknown");
+    tree.put("fee_type",fee_type == TokenFeeType::Percentage ? "percentage" : fee_type == TokenFeeType::Flat ? "flat" : "unknown");
     if(details) {
         boost::property_tree::ptree controllers_tree;
         for(auto & c : controllers)
@@ -191,10 +198,21 @@ boost::property_tree::ptree TokenAccount::SerializeJson(bool details) const
             std::string field = GetTokenSettingField(i);
             if(field != "" && settings[i])
             {
-                settings_tree.put(field,settings[i] ? "true" : "false");
+                boost::property_tree::ptree t;
+                t.put("",field);
+                settings_tree.push_back(std::make_pair("", t));
             }
         }
-        tree.add_child("settings", settings_tree);
+        // SG: maintain consistent data structure for JSON, no settings is empty array
+        if(settings_tree.empty())
+        {
+            tree.put("settings", "[]");
+        }
+        else
+        {
+            tree.add_child("settings", settings_tree);
+        }
+        tree.put("issuance_request", issuance_request.to_string());
     }
     return tree;
 }
@@ -211,6 +229,7 @@ bool TokenAccount::operator== (TokenAccount const & other) const
            issuer_info == other.issuer_info &&
            controllers == other.controllers &&
            settings == other.settings &&
+           issuance_request == other.issuance_request &&
            Account::operator==(other);
 }
 
@@ -326,10 +345,6 @@ bool TokenAccount::FeeSufficient(Amount token_total, Amount token_fee) const
             const Amount DENOM = 100;
 
             min_fee = Amount((fee_rate.number() / DENOM.number()) * token_total.number());
-
-            // Round down to the minimum token
-            // denomination.
-            min_fee -= {min_fee.number() % TOKEN_RAW};
 
             break;
         }

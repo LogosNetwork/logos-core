@@ -75,12 +75,24 @@ public:
     virtual void EpochTransitionEventsStart() = 0;
 };
 
+class ConsensusScheduler
+{
+protected:
+    using TimePoint  = boost::posix_time::ptime;
+
+public:
+    virtual void AttemptInitiateConsensus(ConsensusType CT) = 0;
+    virtual void ScheduleTimer(ConsensusType CT, const TimePoint & timeout) = 0;
+    virtual void CancelTimer(ConsensusType CT) = 0;
+};
+
 /// Encapsulates consensus related objects.
 ///
 /// This class serves as a container for ConsensusManagers
 /// and other consensus-related types and provides an interface
 /// to the node object.
-class ConsensusContainer : public InternalConsensus,
+class ConsensusContainer : public ConsensusScheduler,
+                           public InternalConsensus,
                            public NewEpochEventHandler,
                            public TxChannel
 {
@@ -93,6 +105,9 @@ class ConsensusContainer : public InternalConsensus,
     using Socket     = boost::asio::ip::tcp::socket;
     using Accounts   = AccountAddress[NUM_DELEGATES];
     using BindingMap = std::map<uint, std::shared_ptr<EpochManager>>;
+
+    using Timer      = boost::asio::deadline_timer;
+    using Error      = boost::system::error_code;
 
     struct ConnectionCache
     {
@@ -140,6 +155,20 @@ public:
     ///     @param[in] blocks state blocks containing the transaction
     ///     @return responses containinig process_result and hash
     Responses OnSendRequest(std::vector<std::shared_ptr<DM>> &blocks) override;
+
+    /// Tells current epoch manager, if any, to initiate consensus of given type
+    ///     @param[in] consensus type
+    void AttemptInitiateConsensus(ConsensusType CT) override;
+
+    // Schedule a future call to AttemptInitiateConsensus at `timeout`, if a current timer
+    // doesn't exist or expires after `timeout`
+    //      @param[in] consensus type
+    //      @param[in] absolute time point at which callback is executed
+    void ScheduleTimer(ConsensusType CT, const TimePoint &timeout) override;
+
+    // Cancel a scheduled future call to AttemptInitiateConsensus at `timeout`, if one exists
+    //      @param[in] consensus type
+    void CancelTimer(ConsensusType CT) override;
 
     /// Called when buffering is done for batch block consensus.
     ///
@@ -251,6 +280,12 @@ private:
     CreateEpochManager(uint epoch_number, const ConsensusManagerConfig &config,
         EpochTransitionDelegate delegate, EpochConnection connnection);
 
+    /// Get correct epoch manager pointer to propose next micro block
+    /// Requires caller to lock _transition_state mutex
+    /// @return shared_ptr to correct EpochManager, or nullptr if not part of new delegate set
+    const std::shared_ptr<EpochManager> GetProposerEpoch();
+
+
     static const std::chrono::seconds GARBAGE_COLLECT;
 
     static std::atomic<uint32_t>      _cur_epoch_number;    ///< current epoch number
@@ -271,4 +306,8 @@ private:
     BindingMap                        _binding_map;         ///< map for binding connection to epoch manager
     static bool                       _validate_sig_config; ///< validate sig in BBS for added security
     ContainerP2p                      _p2p;                 ///< p2p-related data
+    umap<ConsensusType, Timer>        _timers;
+    umap<ConsensusType, bool>         _timer_set;
+    umap<ConsensusType, bool>         _timer_cancelled;
+    umap<ConsensusType, std::mutex>   _timer_mutexes;
 };
