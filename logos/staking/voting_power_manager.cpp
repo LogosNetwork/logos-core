@@ -69,10 +69,14 @@ bool VotingPowerManager::CanPrune(
             info.next.locked_proxied 
             + info.next.unlocked_proxied 
             + info.next.self_stake) == 0;
+    if(!power_is_zero)
+    {
+        return false;
+    }
     //if account is still rep, don't delete. EpochVotingManager will delete
     RepInfo rep_info; 
     bool is_rep = !_store.rep_get(rep,rep_info,txn);
-    return power_is_zero && !is_rep;
+    return !is_rep;
 
 }
 
@@ -81,8 +85,8 @@ void VotingPowerManager::TryPrune(
         MDB_txn* txn)
 {
     VotingPowerInfo info;
-    _store.get(_store.voting_power_db,rep,info,txn);
-    if(CanPrune(rep, info, txn))
+    bool found = !_store.get(_store.voting_power_db,rep,info,txn);
+    if(found && CanPrune(rep, info, txn))
     {
         _store.del(_store.voting_power_db,rep,txn);
     }
@@ -309,10 +313,21 @@ Amount VotingPowerManager::GetCurrentVotingPower(
     TransitionIfNecessary(info,epoch_number);
 
     //TODO: dilution factor
-    return info.current.self_stake + info.current.locked_proxied + info.current.unlocked_proxied;
+    Amount diluted_unlocked_proxied = 
+        (info.current.unlocked_proxied.number() * DILUTION_FACTOR) / 100;
+    return info.current.self_stake 
+        + info.current.locked_proxied 
+        + diluted_unlocked_proxied; 
 }
 
 
-
-
-
+bool VotingPowerManager::GetVotingPowerInfo(AccountAddress const & rep, VotingPowerInfo& info, MDB_txn* txn)
+{
+    if(!txn)
+    {
+        LOG_FATAL(_log) << "VotingPowerManager::GetVotingPowerInfo - "
+            << "txn is null";
+        trace_and_halt();
+    }
+    return !_store.get(_store.voting_power_db,rep,info,txn);
+}
