@@ -28,6 +28,7 @@ public:
     virtual std::string GetStateName() = 0;
     virtual bool IsWaitingDisconnect() = 0;
     virtual uint8_t GetDelegateId() = 0;
+    virtual DelegateIdentityManager & GetIdentityManager() = 0;
 };
 
 class EpochEventsNotifier
@@ -109,6 +110,8 @@ public:
     }
 
     void Start();
+
+    DelegateIdentityManager & GetIdentityManager() override;
 
 private:
 

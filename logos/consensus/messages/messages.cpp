@@ -11,55 +11,8 @@ constexpr size_t P2pHeader::SIZE;
 constexpr size_t PrequelAddressAd::SIZE;
 constexpr size_t CommonAddressAd::IP_LENGTH;
 constexpr char CommonAddressAd::ipv6_prefix[];
-
-ConnectedClientIds::ConnectedClientIds(uint32_t epoch_number,
-                                       uint8_t delegate_id,
-                                       EpochConnection connection,
-                                       const char *ip)
-    : epoch_number(epoch_number)
-    , delegate_id(delegate_id)
-    , connection(connection)
-{
-    strncpy(this->ip, ip, INET6_ADDRSTRLEN);
-}
-
-ConnectedClientIds::ConnectedClientIds(bool & error, logos::stream & stream)
-{
-    error = logos::read(stream, epoch_number);
-    if(error)
-    {
-        return;
-    }
-    epoch_number = le32toh(epoch_number);
-
-    error = logos::read(stream, delegate_id);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, connection);
-    if(error)
-    {
-        return;
-    }
-
-    error = logos::read(stream, ip);
-}
-
-uint32_t ConnectedClientIds::Serialize(std::vector<uint8_t> & buf) const
-{
-    assert(buf.empty());
-    logos::vectorstream stream(buf);
-
-    auto s = logos::write(stream, htole32(epoch_number));
-    s += logos::write(stream, delegate_id);
-    s += logos::write(stream, connection);
-    s += logos::write(stream, ip);
-
-    assert(StreamSize() == s);
-    return s;
-}
+constexpr size_t AddressAd::SIZE;
+constexpr size_t AddressAdTxAcceptor::SIZE;
 
 void UpdateNext(const logos::mdb_val &mdbval, logos::mdb_val &mdbval_buf, const BlockHash &next)
 {

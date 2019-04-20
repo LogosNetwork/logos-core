@@ -23,8 +23,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
                                        Archiver & archiver,
                                        DelegateIdentityManager & identity_manager,
                                        p2p_interface & p2p)
-    : _peer_manager(service, config.consensus_manager_config, std::bind(&ConsensusContainer::PeerBinder, this,
-            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3))
+    : _peer_manager(service, config.consensus_manager_config, *this)
     , _cur_epoch(nullptr)
     , _trans_epoch(nullptr)
     , _service(service)
@@ -224,11 +223,12 @@ ConsensusContainer::OnDelegateMessage(
     return result;
 }
 
-void
-ConsensusContainer::PeerBinder(
-    const Endpoint endpoint,
+bool
+ConsensusContainer::Bind(
     std::shared_ptr<Socket> socket,
-    ConnectedClientIds ids)
+    const Endpoint endpoint,
+    uint32_t epoch_number,
+    uint8_t delegate_id)
 {
     std::lock_guard<std::mutex> lock(_mutex);
 
@@ -237,45 +237,28 @@ ConsensusContainer::PeerBinder(
         socket->close();
         LOG_WARN(_log) << "ConsensusContainer::PeerBinder: the node is not accepting connections, "
                         << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
-        return;
+        return false;
     }
 
-    // due to the clock drift another delegate is already in the epoch transition state,
-    // while this delegate has not received yet the epoch transition event - queue up the connection
-    // for binding to the right instance of EpochManager once the epoch transition event is received
-    if (ids.connection == EpochConnection::Transitioning && _transition_state == EpochTransitionState::None)
-    {
-        _connections_queue.push(ConnectionCache{socket, ids, endpoint});
-        LOG_WARN(_log) << "ConsensusContainer::PeerBinder: epoch transition has not started yet, "
-                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
-        return;
-    }
-
-    if (ids.connection == EpochConnection::WaitingDisconnect)
-    {
-        LOG_WARN(_log) << "ConsensusContainer::PeerBinder will not connect retiring delegate";
-        return;
-    }
-
-    if (_binding_map.find(ids.epoch_number) == _binding_map.end())
+    if (_binding_map.find(epoch_number) == _binding_map.end())
     {
         LOG_WARN(_log) << "ConsensusContainer::PeerBinder epoch manager is not available for "
-                        << " delegate " << (int)ids.delegate_id << " connection "
-                        << TransitionConnectionToName(ids.connection)
-                        << " epoch " << ids.epoch_number;
-        return;
+                        << " delegate " << (int)delegate_id
+                        << " epoch " << epoch_number;
+        return false;
     }
 
-    auto epoch = _binding_map[ids.epoch_number];
+    auto epoch = _binding_map[epoch_number];
 
     LOG_INFO(_log) << "ConsensusContainer::PeerBinder, binding connection "
-                    << TransitionConnectionToName(ids.connection) << " to "
                     << epoch->GetConnectionName()
                     << " delegate " << epoch->GetDelegateName()
                     << " state " << epoch->GetStateName()
                     << " " << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
 
-    epoch->_netio_manager->OnConnectionAccepted(endpoint, socket, ids);
+    epoch->_netio_manager->OnConnectionAccepted(endpoint, socket, delegate_id);
+
+    return true;
 }
 
 void
@@ -375,21 +358,6 @@ ConsensusContainer::EpochTransitionEventsStart()
                    << ", binding map " << ((_trans_epoch) ? _trans_epoch->_epoch_number : 0);
 
     _alarm.add(lapse, std::bind(&ConsensusContainer::EpochTransitionStart, this, delegate_idx));
-
-    BindConnectionsQueue();
-}
-
-void
-ConsensusContainer::BindConnectionsQueue()
-{
-    while (_connections_queue.size() > 0)
-    {
-        auto element = _connections_queue.front();
-        _connections_queue.pop();
-        _alarm.add(std::chrono::steady_clock::now(), [this, element]()mutable->void{
-            PeerBinder(element.endpoint, element.socket, element.ids);
-        });
-    }
 }
 
 void
@@ -717,10 +685,9 @@ ConsensusContainer::OnAddressAd(uint8_t *data, size_t size)
     LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd epoch " << prequel.epoch_number
                     << " delegate id " << (int)prequel.delegate_id
                     << " encr delegate id " << (int)prequel.encr_delegate_id
-                    << " from epoch " << ((epoch!=0)?(int)epoch->_delegate_id:255)
+                    << " from epoch delegate id " << ((epoch!=0)?(int)epoch->_delegate_id:255)
                     << " size " << size;
 
-    auto this_delegate_id = (epoch != 0)?epoch->_delegate_id:0xff;
     std::string ip = "";
     uint16_t port = 0;
 

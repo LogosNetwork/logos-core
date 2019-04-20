@@ -326,14 +326,6 @@ private:
 
     void OnPrequel(const uint8_t * data);
 
-    /// Send public key to the connected peer.
-    void SendKeyAdvertisement();
-
-    /// Public key callback.
-    ///
-    ///     @param data received data
-    void OnPublicKey(KeyAdvertisement & key_adv);
-
     /// Handle heartbeat message
     /// @param prequel data
     void OnHeartBeat(HeartBeat &hb);

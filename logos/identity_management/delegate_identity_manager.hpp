@@ -13,6 +13,7 @@
 
 #include <boost/log/sources/record_ostream.hpp>
 #include <boost/log/sources/logger.hpp>
+#include <boost/asio.hpp>
 
 namespace logos {
     class node_config;
@@ -40,6 +41,8 @@ class DelegateIdentityManager
         uint16_t bin_port;
         uint16_t json_port;
     };
+    using Socket    = boost::asio::ip::tcp::socket;
+    using ErrorCode = boost::system::error_code;
     using Store     = logos::block_store;
     using Config    = logos::node_config;
     using IPs       = std::map<AccountAddress, std::string>;
@@ -97,6 +100,39 @@ public:
         ApprovedEBPtr eb = 0;
         return IdentifyDelegates(epoch, idx, eb);
     }
+
+    /// Make delegate serialized advertisement message
+    /// @param serialize serialization call back [in]
+    /// @param isp2p is ad for p2p propagation [in]
+    /// @param epoch_number epoch number [in]
+    /// @param delegate_id delegage id [in]
+    /// @return advertisement message
+    template<typename Ad, typename SerializeF, typename ... Args>
+    std::shared_ptr<std::vector<uint8_t>> MakeSerializedAd(SerializeF &&serialize,
+                                                           bool isp2p,
+                                                           uint32_t epoch_number,
+                                                           uint8_t delegate_id,
+                                                           Args ... args);
+
+    /// Make delegate serialized AddressAd message
+    /// @param store database reference [in]
+    /// @param epoch_number epoch number [in]
+    /// @param delegate_id delegage id [in]
+    /// @param encr_delegateId encrypto delegate id [in]
+    /// @param ip delegate's ip
+    /// @param port delegate's port
+    /// @return advertisement message
+    std::shared_ptr<std::vector<uint8_t>> MakeSerializedAddressAd(uint32_t epoch_number,
+                                                                  uint8_t delegate_id,
+                                                                  uint8_t encr_delegate_id,
+                                                                  const char *ip,
+                                                                  uint16_t port);
+
+    /// Get advertisement message to p2p app type
+    /// @return P2pAppType
+    template<typename Ad>
+    static
+    P2pAppType GetP2pAppType();
 
     /// @returns true if current time is between transition start and last microblock proposal time
     static bool StaleEpoch();
@@ -169,6 +205,14 @@ public:
     /// @returns true if the message is valid
     bool OnAddressAdTxAcceptor(uint8_t *data, size_t size);
 
+    void ServerHandshake(std::shared_ptr<Socket> socket, std::function<void(std::shared_ptr<AddressAd>)>);
+
+    void ClientHandshake(std::shared_ptr<Socket> socket,
+                         uint32_t epoch_number,
+                         uint8_t local_delegate_id,
+                         uint8_t remote_delegate_id,
+                         std::function<void(std::shared_ptr<AddressAd>)>);
+
     /// Decrypt cyphertext
     /// @param cyphertext to decrypt
     /// @param buf decrypted message
@@ -229,6 +273,17 @@ public:
 
 private:
 
+    static constexpr uint8_t INVALID_EPOCH_GAP = 10; ///< Gap client connections with epoch number greater than which plus our current epoch number will be rejected
+
+    void ReadAddressAd(std::shared_ptr<Socket> socket,
+                       std::function<void(std::shared_ptr<AddressAd>)>);
+
+    void WriteAddressAd(std::shared_ptr<Socket> socket,
+                        uint32_t epoch_number,
+                        uint8_t local_delegate_id,
+                        uint8_t remote_delegate_id,
+                        std::function<void(bool)>);
+
     /// Get id's of delegates for IP advertising
     /// @param delegate_id of the advertiser
     std::vector<uint8_t> GetDelegatesToAdvertise(uint8_t delegate_id);
@@ -239,14 +294,12 @@ private:
     void Sign(uint32_t epoch_number, CommonAddressAd &ad);
 
     /// Make Ad message and propagate it via p2p
-    /// @param app_type of the message
     /// @param f serializer of the message
     /// @param epoch_number epoch number
     /// @param delegate_id delegate id
     /// @param args variable arguments
     template<typename Ad, typename SerializeF, typename ... Args>
-    void MakeAdAndPropagate(P2pAppType app_type,
-                            SerializeF &&f,
+    void MakeAdAndPropagate(SerializeF &&f,
                             uint32_t epoch_number,
                             uint8_t delegate_id,
                             Args ... args);

@@ -152,7 +152,9 @@ ConsensusNetIO::OnConnect()
 
     _connected = true;
 
-    SendKeyAdvertisement();
+    std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
+    _io_channel_binder(Self<ConsensusNetIO>::shared_from_this(), _remote_delegate_id);
+
     ReadPrequel();
 }
 
@@ -192,36 +194,25 @@ ConsensusNetIO::OnConnect(
         return;
     }
 
-    ConnectedClientIds ids(info->GetEpochNumber(),
-            _local_delegate_id,
-            info->GetConnection(),
-            _endpoint.address().to_string().c_str());
-    auto buf = std::make_shared<std::vector<uint8_t>>();
-    ids.Serialize(*buf);
     std::weak_ptr<ConsensusNetIO> this_w = Self<ConsensusNetIO>::shared_from_this();
-    boost::asio::async_write(*_socket, boost::asio::buffer(buf->data(), buf->size()),
-                             [this_w, ids](const ErrorCode &ec, size_t){
+    info->GetIdentityManager().ClientHandshake(_socket,
+                                               info->GetEpochNumber(),
+                                               _local_delegate_id,
+                                               _remote_delegate_id,
+                                               [this_w](std::shared_ptr<AddressAd> ad) {
         auto this_s = GetSharedPtr(this_w, "ConsensusNetIO::OnConnect, object destroyed");
         if (!this_s)
         {
             return;
         }
-        if(ec)
+        if (ad)
         {
-            LOG_ERROR(this_s->_log) << "ConsensusNetIO - Error writing connected client info " << ec.message();
-            this_s->OnNetIOError(ec);
-            return;
+            this_s->OnConnect();
+        } else
+        {
+            this_s->HandleMessageError("Client handshake");
         }
-
-        this_s->OnConnect();
     });
-}
-
-void
-ConsensusNetIO::SendKeyAdvertisement()
-{
-    KeyAdvertisement advert;
-    Send(advert);
 }
 
 void
@@ -323,16 +314,6 @@ ConsensusNetIO::OnData(const uint8_t * data,
             }
             OnHeartBeat(hb);
         }
-        else if (message_type == MessageType::Key_Advert)
-        {
-            KeyAdvertisement key_adv(error, stream, version);
-            if(error)
-            {
-                HandleMessageError("Deserialize KeyAdvertisement");
-                return;
-            }
-            OnPublicKey(key_adv);
-        }
         else
         {
             HandleMessageError("Wrong message type for consensus Any");
@@ -398,15 +379,6 @@ ConsensusNetIO::OnData(const uint8_t * data,
         }
     }
     ReadPrequel();
-}
-
-/// TODO public key doesnt have to be advertised. it's part of the epoch block
-void 
-ConsensusNetIO::OnPublicKey(KeyAdvertisement & key_adv)
-{
-    // TODO change to AddressAd message, which perhaps should be used instead of ConnectedClientIds
-    std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
-    _io_channel_binder(Self<ConsensusNetIO>::shared_from_this(), _remote_delegate_id);
 }
 
 void

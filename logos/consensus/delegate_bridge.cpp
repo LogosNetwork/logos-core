@@ -99,7 +99,6 @@ void DelegateBridge<CT>::OnMessage(std::shared_ptr<MessageBase> message, Message
         case MessageType::Post_Committed_Block:
             // will not receive Post_Committed_Block
         case MessageType::Heart_Beat:
-        case MessageType::Key_Advert:
         case MessageType::TxAcceptor_Message:
         case MessageType::Unknown:
         {

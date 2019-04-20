@@ -75,7 +75,7 @@ public:
     ///     @param socket connected peer socket
     void OnConnectionAccepted(const Endpoint endpoint,
                               std::shared_ptr<Socket>,
-                              const ConnectedClientIds &ids);
+                              uint8_t delegate_id);
 
     /// Bind connected IO Channel to ConsensusConnection.
     ///

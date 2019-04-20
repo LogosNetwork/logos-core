@@ -92,9 +92,9 @@ void
 ConsensusNetIOManager::OnConnectionAccepted(
     const Endpoint endpoint,
     std::shared_ptr<Socket> socket,
-    const ConnectedClientIds &ids)
+    uint8_t delegate_id)
 {
-    AddNetIOConnection(socket, ids.delegate_id, endpoint);
+    AddNetIOConnection(socket, delegate_id, endpoint);
 }
 
 void

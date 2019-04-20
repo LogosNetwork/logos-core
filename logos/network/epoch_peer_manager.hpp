@@ -10,7 +10,7 @@
 #include <logos/network/peer_acceptor.hpp>
 #include <logos/network/peer_manager.hpp>
 
-struct KeyAdvertisement;
+class PeerBinder;
 
 class PeerAcceptorStarter
 {
@@ -31,7 +31,6 @@ class EpochPeerManager : public PeerManager,
     using Endpoint    = boost::asio::ip::tcp::endpoint;
     using Socket      = boost::asio::ip::tcp::socket;
     using Config      = ConsensusManagerConfig;
-    using PeerBinder  = std::function<void(const Endpoint, std::shared_ptr<Socket>, ConnectedClientIds)>;
     using ErrorCode   = boost::system::error_code;
 
 public:
@@ -39,7 +38,7 @@ public:
     /// @param service boost asio service reference
     /// @param config node's configuration reference
     /// @param binder binds received peer connection to NetIOConsensus
-    EpochPeerManager(Service&, const Config &, PeerBinder binder);
+    EpochPeerManager(Service&, const Config &, PeerBinder & binder);
     ~EpochPeerManager() = default;
 
     /// Accepts connection from a peer
@@ -59,5 +58,5 @@ private:
 
     PeerAcceptor    _peer_acceptor; ///< Accepts connections from peers
     Log             _log;           ///< Boost log
-    PeerBinder      _peer_binder;   ///< Peer binding to NetIOConsensus
+    PeerBinder &    _peer_binder;   ///< Peer binding to NetIOConsensus
 };

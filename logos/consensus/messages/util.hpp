@@ -28,9 +28,6 @@ inline std::string MessageToName(const MessageType & type)
         case MessageType::Post_Committed_Block:
             ret = "Post_Committed_Block";
             break;
-        case MessageType::Key_Advert:
-            ret = "Key Advertisement";
-            break;
         case MessageType::Rejection:
             ret = "Rejection";
             break;

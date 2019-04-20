@@ -63,6 +63,7 @@ public:
     virtual void OnPostCommit(uint32_t epoch_number) = 0;
     virtual void OnPrePrepareRejected(EpochTransitionDelegate delegate) = 0;
     virtual bool IsRecall() = 0;
+    virtual DelegateIdentityManager & GetIdentityManager() = 0;
 };
 
 class InternalConsensus
@@ -75,6 +76,23 @@ public:
     virtual void EpochTransitionEventsStart() = 0;
 };
 
+/// Binds accepted socket to the correct ConsensusNetIOManager
+/// Exposes DelegateIdentityManager to make/validate AddressAd
+class PeerBinder
+{
+protected:
+    using Socket     = boost::asio::ip::tcp::socket;
+    using Endpoint   = boost::asio::ip::tcp::endpoint;
+public:
+    PeerBinder() = default;
+    virtual ~PeerBinder() = default;
+    virtual DelegateIdentityManager & GetIdentityManager() = 0;
+    virtual bool Bind(std::shared_ptr<Socket>,
+                      const Endpoint endpoint,
+                      uint32_t epoch_number,
+                      uint8_t delegate_id) = 0;
+};
+
 /// Encapsulates consensus related objects.
 ///
 /// This class serves as a container for ConsensusManagers
@@ -82,7 +100,8 @@ public:
 /// to the node object.
 class ConsensusContainer : public InternalConsensus,
                            public NewEpochEventHandler,
-                           public TxChannel
+                           public TxChannel,
+                           public PeerBinder
 {
     friend class DelegateIdentityManager;
 
@@ -90,15 +109,12 @@ class ConsensusContainer : public InternalConsensus,
     using Config     = ConsensusManagerConfig;
     using Store      = logos::block_store;
     using Alarm      = logos::alarm;
-    using Endpoint   = boost::asio::ip::tcp::endpoint;
-    using Socket     = boost::asio::ip::tcp::socket;
     using Accounts   = AccountAddress[NUM_DELEGATES];
     using BindingMap = std::map<uint, std::shared_ptr<EpochManager>>;
 
     struct ConnectionCache
     {
         std::shared_ptr<Socket> socket;
-        ConnectedClientIds ids;
         Endpoint endpoint;
     };
 
@@ -154,7 +170,17 @@ public:
     /// @param endpoint connected endpoing
     /// @param socket connected socket
     /// @param connection type of peer's connection
-    void PeerBinder(const Endpoint, std::shared_ptr<Socket>, ConnectedClientIds ids);
+    bool Bind(std::shared_ptr<Socket>,
+              const Endpoint endpoint,
+              uint32_t epoch_number,
+              uint8_t delegate_id) override;
+
+    /// Get delegate identity manager reference
+    /// @returns DelegateIdentityManager reference
+    DelegateIdentityManager & GetIdentityManager() override
+    {
+        return _identity_manager;
+    }
 
     /// Start Epoch Transition
     void EpochTransitionEventsStart() override;
@@ -201,9 +227,6 @@ private:
     /// @param delegates in the epoch [in]
     /// @returns delegate's configuration
     Config BuildConsensusConfig(uint8_t delegate_idx, const ApprovedEB &epoch);
-
-    /// Submit connections queue for binding to the correct epoch
-    void BindConnectionsQueue();
 
     /// Transition if received PostCommit with E#_i
     /// @param epoch_number PrePrepare epoch number

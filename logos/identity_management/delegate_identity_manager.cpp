@@ -155,6 +155,7 @@ bool DelegateIdentityManager::_epoch_transition_enabled = true;
 ECIESKeyPair DelegateIdentityManager::_ecies_key{};
 std::unique_ptr<bls::KeyPair> DelegateIdentityManager::_bls_key = nullptr;
 constexpr int DelegateIdentityManager::RETRY_PROPAGATE;
+constexpr uint8_t DelegateIdentityManager::INVALID_EPOCH_GAP;
 
 DelegateIdentityManager::DelegateIdentityManager(Alarm &alarm,
                                                  Store &store,
@@ -640,7 +641,7 @@ std::vector<uint8_t>
 DelegateIdentityManager::GetDelegatesToAdvertise(uint8_t delegate_id)
 {
     std::vector<uint8_t> ids;
-    for (uint8_t del; del < delegate_id; ++del)
+    for (uint8_t del = 0; del < delegate_id; ++del)
     {
         ids.push_back(del);
     }
@@ -710,26 +711,73 @@ DelegateIdentityManager::ValidateSignature(uint32_t epoch_number, const CommonAd
     return validator->Validate(hash, ad.signature, ad.delegate_id);
 }
 
-template<typename Ad, typename SerializeF, typename ... Args>
-void
-DelegateIdentityManager::MakeAdAndPropagate(
-    P2pAppType app_type,
-    SerializeF &&serialize,
-    uint32_t epoch_number,
-    uint8_t delegate_id,
-    Args ... args)
+template<typename Ad>
+P2pAppType
+DelegateIdentityManager::GetP2pAppType()
 {
+    if (std::is_same<Ad, AddressAd>::value)
+    {
+        return P2pAppType::AddressAd;
+    }
+    else if (std::is_same<Ad, AddressAdTxAcceptor>::value)
+    {
+        return P2pAppType::AddressAdTxAcceptor;
+    }
+    assert(false);
+}
+
+std::shared_ptr<std::vector<uint8_t>>
+DelegateIdentityManager::MakeSerializedAddressAd(uint32_t epoch_number,
+                                                 uint8_t delegate_id,
+                                                 uint8_t encr_delegate_id,
+                                                 const char *ip,
+                                                 uint16_t port)
+{
+    uint8_t idx = 0xff;
+    ApprovedEBPtr eb;
+    IdentifyDelegates(epoch_number - 2, idx, eb);
+    return MakeSerializedAd<AddressAd>([encr_delegate_id, eb](auto ad, logos::vectorstream &s)->size_t{
+        return (*ad).Serialize(s, eb->delegates[encr_delegate_id].ecies_pub);
+    }, false, epoch_number, delegate_id, encr_delegate_id, ip, port);
+}
+
+template<typename Ad, typename SerializeF, typename ... Args>
+std::shared_ptr<std::vector<uint8_t>>
+DelegateIdentityManager::MakeSerializedAd(SerializeF &&serialize,
+                                          bool isp2p,
+                                          uint32_t epoch_number,
+                                          uint8_t delegate_id,
+                                          Args ... args)
+{
+    size_t size = 0;
     auto buf = std::make_shared<std::vector<uint8_t>>();
     {
         logos::vectorstream stream(*buf);
-        P2pHeader header(logos_version, app_type);
-        size_t size = header.Serialize(stream);
-        assert(size == P2pHeader::SIZE);
+        if (isp2p)
+        {
+            P2pHeader header(logos_version, GetP2pAppType<Ad>());
+            size = header.Serialize(stream);
+            assert(size == P2pHeader::SIZE);
+        }
 
         Ad addressAd(epoch_number, delegate_id, args ... );
         Sign(epoch_number, addressAd);
         serialize(&addressAd, stream);
     }
+    size = buf->size();
+    assert(size >= Ad::SIZE);
+    return buf;
+}
+
+template<typename Ad, typename SerializeF, typename ... Args>
+void
+DelegateIdentityManager::MakeAdAndPropagate(
+    SerializeF &&serialize,
+    uint32_t epoch_number,
+    uint8_t delegate_id,
+    Args ... args)
+{
+    auto buf = MakeSerializedAd<Ad>(serialize, true, epoch_number, delegate_id, args ...);
     P2pPropagate(epoch_number, delegate_id, buf);
 }
 
@@ -745,9 +793,8 @@ DelegateIdentityManager::Advertise(
     for (auto it = ids.begin(); it != ids.end(); ++it)
     {
         auto encr_delegate_id = *it;
-        MakeAdAndPropagate<AddressAd>(P2pAppType::AddressAd,
-                                      [&epoch, &encr_delegate_id](auto ad, logos::vectorstream &s){
-                                          (*ad).Serialize(s, epoch->delegates[encr_delegate_id].ecies_pub);
+        MakeAdAndPropagate<AddressAd>([&epoch, &encr_delegate_id](auto ad, logos::vectorstream &s)->size_t{
+                                          return (*ad).Serialize(s, epoch->delegates[encr_delegate_id].ecies_pub);
                                       },
                                       epoch_number,
                                       delegate_id,
@@ -765,9 +812,8 @@ DelegateIdentityManager::Advertise(
     }
     for (auto txa : acceptors)
     {
-        MakeAdAndPropagate<AddressAdTxAcceptor>(P2pAppType::AddressAdTxAcceptor,
-                                                [](auto ad, logos::vectorstream &s) {
-                                                    (*ad).Serialize(s);
+        MakeAdAndPropagate<AddressAdTxAcceptor>([](auto ad, logos::vectorstream &s)->size_t{
+                                                    return (*ad).Serialize(s);
                                                 },
                                                 epoch_number,
                                                 delegate_id,
@@ -794,54 +840,66 @@ DelegateIdentityManager::OnAddressAd(uint8_t *data,
 
     LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd, epoch " << prequel.epoch_number
                     << " delegate id " << (int)prequel.delegate_id
-                    << " encr delegate id " << (int)prequel.encr_delegate_id;
+                    << " encr delegate id " << (int)prequel.encr_delegate_id
+                    << " size " << size;
 
     auto current_epoch_number = ConsensusContainer::GetCurEpochNumber();
-    bool current_or_next = prequel.epoch_number == current_epoch_number || (current_epoch_number + 1);
+    bool current_or_next = prequel.epoch_number == current_epoch_number ||
+                           prequel.epoch_number == (current_epoch_number + 1);
     if (current_or_next)
     {
-        static std::unordered_map<uint32_t,uint8_t> idx_cache;
-        static uint32_t min = prequel.epoch_number;
+        static std::vector<std::pair<uint32_t,uint8_t>> idx_cache;
         uint8_t idx;
-        if (idx_cache.find(prequel.epoch_number) != idx_cache.end()) {
-            idx = idx_cache[prequel.epoch_number];
+        auto epoch_number = prequel.epoch_number;
+        auto it = std::find_if(idx_cache.begin(), idx_cache.end(),
+                            [epoch_number](const auto &item) {return item.first == epoch_number;});
+        if (it != idx_cache.end()) {
+            idx = it->second;
         }
         else {
-            IdentifyDelegates(prequel.epoch_number - 2, idx);
-            idx_cache[prequel.epoch_number] = idx;
-            if (idx_cache.size() > 3) {
-                idx_cache.erase(min);
-                min++;
+            IdentifyDelegates(epoch_number - 2, idx);
+            idx_cache.push_back({epoch_number, idx});
+            if (idx_cache.size() > 2) {
+                idx_cache.erase(idx_cache.begin());
             }
         }
 
         // ad is encrypted with this delegate's ecies public key
         if (prequel.encr_delegate_id == idx)
         {
-            bool error = false;
-            logos::bufferstream stream(data, size);
-            AddressAd addressAd(error, prequel, stream, &DelegateIdentityManager::Decrypt);
-            if (error)
+            try {
+                bool error = false;
+                logos::bufferstream stream(data, size);
+                AddressAd addressAd(error, prequel, stream, &DelegateIdentityManager::Decrypt);
+                if (error) {
+                    LOG_ERROR(_log) << "DelegateIdentityManager::OnAddressAd, failed to deserialize AddressAd";
+                    return false;
+                }
+                if (!ValidateSignature(prequel.epoch_number, addressAd)) {
+                    LOG_ERROR(_log) << "DelegateIdentityManager::OnAddressAd, failed to validate AddressAd signature";
+                    return false;
+                }
+
+                ip = addressAd.GetIP();
+                port = addressAd.port;
+
+                _address_ad[{prequel.epoch_number, prequel.delegate_id}] = {ip, port};
+                res = true;
+
+                LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd, delegate " << (int)addressAd.delegate_id
+                                << ", epoch number " << prequel.epoch_number
+                                << ", ip " << ip
+                                << ", port " << port;
+            } catch (const std::exception &e)
             {
-                LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd, failed to deserialize AddressAd";
+                LOG_ERROR(_log) << "DelegateIdentityManager::OnAddressAd, failed to decrypt AddressAd "
+                                << " epoch number " << prequel.epoch_number
+                                << " delegate id " << (int)prequel.delegate_id
+                                << " encr delegate id " << (int)prequel.encr_delegate_id
+                                << " size " << size
+                                << " exception " << e.what();
                 return false;
             }
-            if (!ValidateSignature(prequel.epoch_number, addressAd))
-            {
-                LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd, failed to validate AddressAd signature";
-                return false;
-            }
-
-            ip = addressAd.GetIP();
-            port = addressAd.port;
-
-            _address_ad[{prequel.epoch_number, prequel.delegate_id}] = {ip, port};
-            res = true;
-
-            LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd, delegate " << (int)addressAd.delegate_id
-                            << ", epoch number " << prequel.epoch_number
-                            << ", ip " << ip
-                            << ", port " << port;
         }
 
         UpdateDelegateAddressDB(prequel, data, size);
@@ -876,11 +934,11 @@ DelegateIdentityManager::OnAddressAdTxAcceptor(uint8_t *data, size_t size)
 {
     bool res = false;
     bool error = false;
-    logos::bufferstream stream(data, PrequelAddressAd::SIZE);
+    logos::bufferstream stream(data, size);
     PrequelAddressAd prequel(error, stream);
     if (error)
     {
-        LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, failed to deserialize PrequelAddressAd";
+        LOG_ERROR(_log) << "ConsensusContainer::OnAddressAdTxAcceptor, failed to deserialize PrequelAddressAd";
         return false;
     }
 
@@ -888,17 +946,17 @@ DelegateIdentityManager::OnAddressAdTxAcceptor(uint8_t *data, size_t size)
     bool current_or_next = prequel.epoch_number == current_epoch_number || (current_epoch_number + 1);
     if (current_or_next)
     {
-
+        error = false;
         AddressAdTxAcceptor addressAd(error, prequel, stream);
         if (error)
         {
-            LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAdTxAcceptor, failed to deserialize AddressAdTxAcceptor";
+            LOG_ERROR(_log) << "ConsensusContainer::OnAddressAdTxAcceptor, failed to deserialize AddressAdTxAcceptor";
             return false;
         }
 
         if (!ValidateSignature(prequel.epoch_number, addressAd))
         {
-            LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd, failed to validate AddressAd signature";
+            LOG_ERROR(_log) << "ConsensusContainer::OnAddressAdTxAcceptor, failed to validate AddressAd signature";
             return false;
         }
 
@@ -935,3 +993,169 @@ DelegateIdentityManager::UpdateTxAcceptorAddressDB(const PrequelAddressAd &prequ
                                                   current_epoch_number - 1,
                                                   prequel.delegate_id);
 }
+
+/// The server reads client's ad and responds with it's own ad if the client's ad is valid
+/// The server can still disconnect. One possible use case is during epoch transition.
+/// Due to the clock drift a client can transition to Connect state while the server
+/// has not transitioned to Connect state yet. In this case the server closes the connection
+/// and client will attempt reconnecting five seconds later.
+void
+DelegateIdentityManager::ServerHandshake(std::shared_ptr<Socket> socket,
+                                         std::function<void(std::shared_ptr<AddressAd>)> cb)
+{
+    ReadAddressAd(socket, [this, socket, cb](std::shared_ptr<AddressAd> ad){
+        if (!ad)
+        {
+            LOG_DEBUG(_log) << "DelegateIdentityManager::ServerHandshake failed to read client's ad";
+            cb(nullptr);
+            return;
+        }
+        WriteAddressAd(socket,
+                       ad->epoch_number,
+                       ad->encr_delegate_id,
+                       ad->delegate_id,
+                       [this, socket, ad, cb](bool result) {
+            if (result)
+            {
+                cb(ad);
+            }
+            else
+            {
+                cb(nullptr);
+            }
+        });
+    });
+}
+
+/// Client writes its ad to the server and then reads server's ad.
+void
+DelegateIdentityManager::ClientHandshake(std::shared_ptr<Socket> socket,
+                                         uint32_t epoch_number,
+                                         uint8_t local_delegate_id,
+                                         uint8_t remote_delegate_id,
+                                         std::function<void(std::shared_ptr<AddressAd>)> cb)
+{
+    WriteAddressAd(socket, epoch_number, local_delegate_id, remote_delegate_id, [this, socket, cb](bool result) {
+        if (result)
+        {
+            ReadAddressAd(socket, [this, socket, cb](std::shared_ptr<AddressAd> ad) {
+                cb(ad);
+            });
+        }
+        else
+        {
+            cb(nullptr);
+        }
+    });
+}
+
+void
+DelegateIdentityManager::WriteAddressAd(std::shared_ptr<Socket> socket,
+                                        uint32_t epoch_number,
+                                        uint8_t local_delegate_id,
+                                        uint8_t remote_delegate_id,
+                                        std::function<void(bool)> cb)
+{
+    auto & config = _config.consensus_manager_config;
+    auto buf = MakeSerializedAddressAd(epoch_number,
+                                       local_delegate_id,
+                                       remote_delegate_id,
+                                       config.local_address.c_str(),
+                                       config.peer_port);
+    boost::asio::async_write(*socket,
+                             boost::asio::buffer(buf->data(), buf->size()),
+                             [this, socket, buf, cb](const ErrorCode &ec, size_t size){
+        if (ec)
+        {
+            LOG_ERROR(_log) << "DelegateIdentityManager::WriteAddressAd write error " << ec.message();
+            cb(false);
+        }
+        else
+        {
+            LOG_DEBUG(_log) << "DelegateIdentityManager::WriteAddressAd wrote ad, size " << buf->size();
+            cb(true);
+        }
+    });
+}
+
+void
+DelegateIdentityManager::ReadAddressAd(std::shared_ptr<Socket> socket,
+                                       std::function<void(std::shared_ptr<AddressAd>)> cb)
+{
+    auto buf = std::make_shared<std::array<uint8_t, PrequelAddressAd::SIZE>>();
+
+    // Read prequel to get the payload size
+    boost::asio::async_read(*socket,
+                           boost::asio::buffer(buf->data(), buf->size()),
+                           [this, socket, buf, cb](const ErrorCode &ec, size_t size) {
+        if (ec)
+        {
+            LOG_ERROR(_log) << "DelegateIdentityManager::ReadAddressAd prequel read error: " << ec.message();
+            cb(nullptr);
+            return;
+        }
+
+        bool error = false;
+        logos::bufferstream stream(buf->data(), buf->size());
+        auto prequel = std::make_shared<PrequelAddressAd>(error, stream);
+        if (error)
+        {
+            LOG_ERROR(_log) << "DelegateIdentityManager::ReadAddressAd prequel deserialization error";
+            cb(nullptr);
+            return;
+        }
+
+        // check for bogus data
+        if (prequel->delegate_id > NUM_DELEGATES - 1 ||
+                prequel->epoch_number > ConsensusContainer::GetCurEpochNumber() + INVALID_EPOCH_GAP )
+        {
+            LOG_ERROR(_log) << "DelegateIdentityManager::ReadAddressAd - Likely received bogus data from unexpected connection."
+                            << " epoch number " << (int)prequel->epoch_number
+                            << " delegate id " << (int)prequel->delegate_id
+                            << " encr delegate id " << (int)prequel->encr_delegate_id
+                            << " payload size " << prequel->payload_size;
+            cb(nullptr);
+            return;
+        }
+
+        // Read the rest of the ad
+        auto buf_ad = std::make_shared<std::vector<uint8_t>>(prequel->payload_size);
+        boost::asio::async_read(*socket,
+                                boost::asio::buffer(buf_ad->data(), buf_ad->size()),
+                                [this, socket, prequel, buf_ad, cb](const ErrorCode &ec, size_t size) {
+            if (ec)
+            {
+                LOG_ERROR(_log) << "DelegateIdentityManager::ReadAddressAd ad read error: " << ec.message();
+                cb(nullptr);
+                return;
+            }
+
+            try
+            {
+                bool error = false;
+                logos::bufferstream stream(buf_ad->data(), buf_ad->size());
+                auto ad = std::make_shared<AddressAd>(error, *prequel, stream, &DelegateIdentityManager::Decrypt);
+                if (error)
+                {
+                    LOG_ERROR(_log) << "DelegateIdentityManager::ReadAddressAd failed to deserialize ad";
+                    cb(nullptr);
+                    return;
+                }
+                if (!ValidateSignature(prequel->epoch_number, *ad))
+                {
+                    LOG_ERROR(_log) << "DelegateIdentityManager::ReadAddressAd, failed to validate AddressAd signature";
+                    cb(nullptr);
+                    return;
+                }
+
+                cb(ad);
+            }
+            catch (...)
+            {
+                cb(nullptr);
+                LOG_ERROR(_log) << "DelegateIdentityManager::ReadAddressAd, failed to decrypt handshake message";
+            }
+        });
+    });
+}
+

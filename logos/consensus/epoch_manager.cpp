@@ -99,3 +99,9 @@ EpochManager::Start()
     _epoch_manager->Init(this_l);
     _netio_manager->Start(this_l);
 }
+
+DelegateIdentityManager &
+EpochManager::GetIdentityManager()
+{
+    return _new_epoch_handler.GetIdentityManager();
+}
