@@ -15,10 +15,6 @@
 #include <utilstrencodings.h>
 #include <warnings.h>
 
-
-static CCriticalSection cs_nTimeOffset;
-static int64_t nTimeOffset GUARDED_BY(cs_nTimeOffset) = 0;
-
 /**
  * "Never go to sea with two chronometers; take one or three."
  * Our three time sources are:
@@ -26,13 +22,13 @@ static int64_t nTimeOffset GUARDED_BY(cs_nTimeOffset) = 0;
  *  - Median of other nodes clocks
  *  - The user (asking the user to fix the system clock if the first two disagree)
  */
-int64_t GetTimeOffset()
+int64_t TimeData::GetTimeOffset()
 {
     LOCK(cs_nTimeOffset);
     return nTimeOffset;
 }
 
-int64_t GetAdjustedTime()
+int64_t TimeData::GetAdjustedTime()
 {
     return GetTime() + GetTimeOffset();
 }
@@ -42,20 +38,16 @@ static int64_t abs64(int64_t n)
     return (n >= 0 ? n : -n);
 }
 
-#define BITCOIN_TIMEDATA_MAX_SAMPLES 200
-
-void AddTimeData(ArgsManager &Args, const CNetAddr& ip, int64_t nOffsetSample)
+void TimeData::AddTimeData(ArgsManager &Args, const CNetAddr& ip, int64_t nOffsetSample)
 {
     LOCK(cs_nTimeOffset);
     // Ignore duplicates
-    static std::set<CNetAddr> setKnown;
     if (setKnown.size() == BITCOIN_TIMEDATA_MAX_SAMPLES)
         return;
     if (!setKnown.insert(ip).second)
         return;
 
     // Add data
-    static CMedianFilter<int64_t> vTimeOffsets(BITCOIN_TIMEDATA_MAX_SAMPLES, 0);
     vTimeOffsets.input(nOffsetSample);
     LogPrint(BCLog::NET,"added time data, samples %d, offset %+d (%+d minutes)\n", vTimeOffsets.size(), nOffsetSample, nOffsetSample/60);
 
@@ -89,7 +81,6 @@ void AddTimeData(ArgsManager &Args, const CNetAddr& ip, int64_t nOffsetSample)
         {
             nTimeOffset = 0;
 
-            static bool fDone;
             if (!fDone)
             {
                 // If nobody has a time different than ours but within 5 minutes of ours, give a warning

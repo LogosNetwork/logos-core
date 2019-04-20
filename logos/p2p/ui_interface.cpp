@@ -49,12 +49,3 @@ void InitWarning(const std::string& str)
     uiInterface.config->userInterfaceMessage(P2P_UI_WARNING|P2P_UI_INIT, str.c_str());
 }
 
-std::string AmountHighWarn(const std::string& optname)
-{
-    return strprintf(_("%s is set very high!"), optname);
-}
-
-std::string AmountErrMsg(const char* const optname, const std::string& strValue)
-{
-    return strprintf(_("Invalid amount for -%s=<amount>: '%s'"), optname, strValue);
-}

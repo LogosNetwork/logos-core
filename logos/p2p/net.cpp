@@ -153,7 +153,7 @@ CAddress CConnman::GetLocalAddress(const CNetAddr *paddrPeer, ServiceFlags nLoca
     {
         ret = CAddress(addr, nLocalServices);
     }
-    ret.nTime = GetAdjustedTime();
+    ret.nTime = timeData.GetAdjustedTime();
     return ret;
 }
 
@@ -621,7 +621,7 @@ void CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, std::share
     /// debug print
     LogPrint(BCLog::NET, "trying connection %s lastseen=%.1fhrs\n",
             pszDest ? pszDest : addrConnect.ToString(),
-            pszDest ? 0.0 : (double)(GetAdjustedTime() - addrConnect.nTime)/3600.0);
+            pszDest ? 0.0 : (double)(timeData.GetAdjustedTime() - addrConnect.nTime)/3600.0);
 
     AsioClient *client = new AsioClient(*this, pszDest, grantOutbound, flags);
     std::string host, port;
@@ -1910,7 +1910,7 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
 
         addrman.ResolveCollisions();
 
-        int64_t nANow = GetAdjustedTime();
+        int64_t nANow = timeData.GetAdjustedTime();
         int nTries = 0;
         while (!interruptNet)
         {
@@ -2226,6 +2226,7 @@ CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In, p2p_config &conf, ArgsM
     , nSeed1(nSeed1In)
     , config(conf)
     , Args(ArgsIn)
+    , addrman(timeData)
 {
     fNetworkActive = true;
     setBannedIsDirty = false;

@@ -486,7 +486,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
 
         // Be shy and don't send version until we hear
         if (pfrom->fInbound)
-            PushNodeVersion(pfrom, connman, GetAdjustedTime());
+            PushNodeVersion(pfrom, connman, connman->timeData.GetAdjustedTime());
 
         connman->PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERACK));
 
@@ -555,7 +555,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
 
         int64_t nTimeOffset = nTime - GetTime();
         pfrom->nTimeOffset = nTimeOffset;
-        AddTimeData(connman->Args, pfrom->addr, nTimeOffset);
+        connman->timeData.AddTimeData(connman->Args, pfrom->addr, nTimeOffset);
 
         // Feeler connections exist only to verify if address is online.
         if (pfrom->fFeeler) {
@@ -612,7 +612,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
 
         // Store the new addresses
         std::vector<CAddress> vAddrOk;
-        int64_t nNow = GetAdjustedTime();
+        int64_t nNow = connman->timeData.GetAdjustedTime();
         int64_t nSince = nNow - 10 * 60;
         for (CAddress& addr : vAddr)
         {

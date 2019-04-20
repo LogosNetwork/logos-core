@@ -44,14 +44,11 @@ add_library (p2p
 	random.h
 	reverselock.h
 	serialize.h
-	shutdown.cpp
-	shutdown.h
 	span.h
 	streams.h
 	support/allocators/zeroafterfree.h
 	support/cleanse.cpp
 	support/cleanse.h
-	sync.cpp
 	sync.h
 	threadinterrupt.cpp
 	threadinterrupt.h

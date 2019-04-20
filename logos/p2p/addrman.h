@@ -102,10 +102,10 @@ public:
     int GetBucketPosition(const uint256 &nKey, bool fNew, int nBucket) const;
 
     //! Determine whether the statistics about this entry are bad enough so that it can just be deleted
-    bool IsTerrible(int64_t nNow = GetAdjustedTime()) const;
+    bool IsTerrible(int64_t nNow) const;
 
     //! Calculate the relative chance this entry should be given when selecting nodes to connect to
-    double GetChance(int64_t nNow = GetAdjustedTime()) const;
+    double GetChance(int64_t nNow) const;
 
 };
 
@@ -220,6 +220,8 @@ private:
 
     //! Holds addrs inserted into tried table that collide with existing entries. Test-before-evict discipline used to resolve these collisions.
     std::set<int> m_tried_collisions;
+
+    TimeData &timeData;
 
 protected:
     //! secret key to randomize bucket select with
@@ -492,7 +494,8 @@ public:
         mapAddr.clear();
     }
 
-    CAddrMan()
+    CAddrMan(TimeData &timeDataIn)
+        : timeData(timeDataIn)
     {
         Clear();
     }
@@ -552,8 +555,10 @@ public:
     }
 
     //! Mark an entry as accessible.
-    void Good(const CService &addr, bool test_before_evict = true, int64_t nTime = GetAdjustedTime())
+    void Good(const CService &addr, bool test_before_evict = true, int64_t nTime = -1l)
     {
+        if (nTime == -1l)
+            nTime = timeData.GetAdjustedTime();
         LOCK(cs);
         Check();
         Good_(addr, test_before_evict, nTime);
@@ -561,8 +566,10 @@ public:
     }
 
     //! Mark an entry as connection attempted to.
-    void Attempt(const CService &addr, bool fCountFailure, int64_t nTime = GetAdjustedTime())
+    void Attempt(const CService &addr, bool fCountFailure, int64_t nTime = -1l)
     {
+        if (nTime == -1l)
+            nTime = timeData.GetAdjustedTime();
         LOCK(cs);
         Check();
         Attempt_(addr, fCountFailure, nTime);
@@ -620,8 +627,10 @@ public:
     }
 
     //! Mark an entry as currently-connected-to.
-    void Connected(const CService &addr, int64_t nTime = GetAdjustedTime())
+    void Connected(const CService &addr, int64_t nTime = -1l)
     {
+        if (nTime == -1l)
+            nTime = timeData.GetAdjustedTime();
         LOCK(cs);
         Check();
         Connected_(addr, nTime);

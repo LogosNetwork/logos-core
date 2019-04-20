@@ -267,7 +267,7 @@ bool CAddrMan::Add_(const CAddress& addr, const CNetAddr& source, int64_t nTimeP
 
     if (pinfo) {
         // periodically update nTime
-        bool fCurrentlyOnline = (GetAdjustedTime() - addr.nTime < 24 * 60 * 60);
+        bool fCurrentlyOnline = (timeData.GetAdjustedTime() - addr.nTime < 24 * 60 * 60);
         int64_t nUpdateInterval = (fCurrentlyOnline ? 60 * 60 : 24 * 60 * 60);
         if (addr.nTime && (!pinfo->nTime || pinfo->nTime < addr.nTime - nUpdateInterval - nTimePenalty))
             pinfo->nTime = std::max((int64_t)0, addr.nTime - nTimePenalty);
@@ -306,7 +306,7 @@ bool CAddrMan::Add_(const CAddress& addr, const CNetAddr& source, int64_t nTimeP
         bool fInsert = vvNew[nUBucket][nUBucketPos] == -1;
         if (!fInsert) {
             CAddrInfo& infoExisting = mapInfo[vvNew[nUBucket][nUBucketPos]];
-            if (infoExisting.IsTerrible() || (infoExisting.nRefCount > 1 && pinfo->nRefCount == 0)) {
+            if (infoExisting.IsTerrible(timeData.GetAdjustedTime()) || (infoExisting.nRefCount > 1 && pinfo->nRefCount == 0)) {
                 // Overwrite the existing new table entry.
                 fInsert = true;
             }
@@ -369,7 +369,7 @@ CAddrInfo CAddrMan::Select_(bool newOnly)
             int nId = vvTried[nKBucket][nKBucketPos];
             assert(mapInfo.count(nId) == 1);
             CAddrInfo& info = mapInfo[nId];
-            if (RandomInt(1 << 30) < fChanceFactor * info.GetChance() * (1 << 30))
+            if (RandomInt(1 << 30) < fChanceFactor * info.GetChance(timeData.GetAdjustedTime()) * (1 << 30))
                 return info;
             fChanceFactor *= 1.2;
         }
@@ -386,7 +386,7 @@ CAddrInfo CAddrMan::Select_(bool newOnly)
             int nId = vvNew[nUBucket][nUBucketPos];
             assert(mapInfo.count(nId) == 1);
             CAddrInfo& info = mapInfo[nId];
-            if (RandomInt(1 << 30) < fChanceFactor * info.GetChance() * (1 << 30))
+            if (RandomInt(1 << 30) < fChanceFactor * info.GetChance(timeData.GetAdjustedTime()) * (1 << 30))
                 return info;
             fChanceFactor *= 1.2;
         }
@@ -487,7 +487,7 @@ void CAddrMan::GetAddr_(std::vector<CAddress>& vAddr)
         assert(mapInfo.count(vRandom[n]) == 1);
 
         const CAddrInfo& ai = mapInfo[vRandom[n]];
-        if (!ai.IsTerrible())
+        if (!ai.IsTerrible(timeData.GetAdjustedTime()))
             vAddr.push_back(ai);
     }
 }
@@ -559,21 +559,21 @@ void CAddrMan::ResolveCollisions_()
                 CAddrInfo& info_old = mapInfo[id_old];
 
                 // Has successfully connected in last X hours
-                if (GetAdjustedTime() - info_old.nLastSuccess < ADDRMAN_REPLACEMENT_HOURS*(60*60)) {
+                if (timeData.GetAdjustedTime() - info_old.nLastSuccess < ADDRMAN_REPLACEMENT_HOURS*(60*60)) {
                     erase_collision = true;
-                } else if (GetAdjustedTime() - info_old.nLastTry < ADDRMAN_REPLACEMENT_HOURS*(60*60)) { // attempted to connect and failed in last X hours
+                } else if (timeData.GetAdjustedTime() - info_old.nLastTry < ADDRMAN_REPLACEMENT_HOURS*(60*60)) { // attempted to connect and failed in last X hours
 
                     // Give address at least 60 seconds to successfully connect
-                    if (GetAdjustedTime() - info_old.nLastTry > 60) {
+                    if (timeData.GetAdjustedTime() - info_old.nLastTry > 60) {
                         LogPrint(BCLog::ADDRMAN, "Swapping %s for %s in tried table\n", info_new.ToString(), info_old.ToString());
 
                         // Replaces an existing address already in the tried table with the new address
-                        Good_(info_new, false, GetAdjustedTime());
+                        Good_(info_new, false, timeData.GetAdjustedTime());
                         erase_collision = true;
                     }
                 }
             } else { // Collision is not actually a collision anymore
-                Good_(info_new, false, GetAdjustedTime());
+                Good_(info_new, false, timeData.GetAdjustedTime());
                 erase_collision = true;
             }
         }

@@ -423,6 +423,7 @@ public:
     sem_t dataWritten;
     std::function<void(std::function<void()> const &, unsigned)> scheduleAfter;
     bool fLogIPs;
+    TimeData timeData;
 
 private:
     using ListenSocket = std::shared_ptr<AsioServer>;

@@ -19,7 +19,6 @@
 #include <net.h>
 #include <net_processing.h>
 #include <propagate.h>
-#include <shutdown.h>
 #include <timedata.h>
 #include "ui_interface.h"
 #include <util.h>
@@ -182,29 +181,6 @@ ArgsManager &getArgs()
 {
     return Args;
 }
-
-/**
- * Signal handlers are very limited in what they are allowed to do.
- * The execution context the handler is invoked in is not guaranteed,
- * so we restrict handler operations to just touching variables:
- */
-#ifndef WIN32
-static void HandleSIGTERM(int)
-{
-    StartShutdown();
-}
-
-static void HandleSIGHUP(int)
-{
-}
-#else
-static BOOL WINAPI consoleCtrlHandler(DWORD dwCtrlType)
-{
-    StartShutdown();
-    Sleep(INFINITE);
-    return true;
-}
-#endif
 
 #ifndef WIN32
 static void registerSignalHandler(int signal, void(*handler)(int))
@@ -388,18 +364,8 @@ bool AppInitBasicSetup()
         return InitError("Initializing networking failed");
 
 #ifndef WIN32
-
-    // Clean shutdown on SIGTERM
-    registerSignalHandler(SIGTERM, HandleSIGTERM);
-    registerSignalHandler(SIGINT, HandleSIGTERM);
-
-    // Reopen debug.log on SIGHUP
-    registerSignalHandler(SIGHUP, HandleSIGHUP);
-
     // Ignore SIGPIPE, otherwise it will bring the daemon down if the client closes unexpectedly
     signal(SIGPIPE, SIG_IGN);
-#else
-    SetConsoleCtrlHandler(consoleCtrlHandler, true);
 #endif
 
     std::set_new_handler(new_handler_terminate);
