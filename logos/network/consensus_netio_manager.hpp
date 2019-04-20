@@ -6,7 +6,6 @@
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/network/consensus_netio.hpp>
 #include <logos/network/peer_acceptor.hpp>
-#include <logos/consensus/delegate_key_store.hpp>
 #include <logos/lib/utility.hpp>
 
 class NetIOHandler;
@@ -51,8 +50,6 @@ public:
     ///     @param service reference to boost asio service
     ///     @param reference to alarm
     ///     @param config reference to consensus manager configuration
-    ///     @param key_store delegates' public key store
-    ///     @param validator validator/signer of consensus messages
     ///     @param starter starts accepting peer connections
     ///     @param epoch_info epoch info
     ConsensusNetIOManager(
@@ -62,8 +59,6 @@ public:
         Service & service,
         logos::alarm & alarm, 
         const Config & config,
-        DelegateKeyStore & key_store,
-        MessageValidator & validator,
         PeerAcceptorStarter & starter);
 
     ~ConsensusNetIOManager();
@@ -133,8 +128,6 @@ private:
     Connections                    _connections;        ///< NetIO connections
     Log                            _log;                ///< boost asio log
     logos::alarm &                 _alarm;              ///< alarm
-    DelegateKeyStore &             _key_store;          ///< Delegates' public key store
-    MessageValidator &             _validator;          ///< Validator/Signer of consensus messages
     std::recursive_mutex           _connection_mutex;   ///< NetIO connections access mutex
     std::recursive_mutex           _bind_mutex;         ///< NetIO consensus connections mutex
     uint8_t                        _delegate_id;        ///< The local delegate id

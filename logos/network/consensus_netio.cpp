@@ -41,10 +41,7 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
                                const uint8_t local_delegate_id, 
-                               DelegateKeyStore & key_store,
-                               MessageValidator & validator,
                                IOBinder iobinder,
-                               std::recursive_mutex & connection_mutex,
                                std::shared_ptr<EpochInfo> epoch_info,
                                NetIOErrorHandler & error_handler,
                                CreatedCb &cb)
@@ -57,11 +54,8 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
     , _remote_delegate_id(remote_delegate_id)
     , _local_delegate_id(local_delegate_id)
     , _connections{}
-    , _key_store(key_store)
-    , _validator(validator)
     , _io_channel_binder(iobinder)
     , _assembler(std::make_shared<ConsensusNetIOAssembler>(_socket, epoch_info, *this))
-    , _connection_mutex(connection_mutex)
     , _epoch_info(epoch_info)
     , _error_handler(error_handler)
     , _last_timestamp(GetStamp())
@@ -82,10 +76,7 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
                                const uint8_t local_delegate_id, 
-                               DelegateKeyStore & key_store,
-                               MessageValidator & validator,
                                IOBinder iobinder,
-                               std::recursive_mutex & connection_mutex,
                                std::shared_ptr<EpochInfo> epoch_info,
                                NetIOErrorHandler & error_handler,
                                CreatedCb &cb)
@@ -98,11 +89,8 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
     , _remote_delegate_id(remote_delegate_id)
     , _local_delegate_id(local_delegate_id)
     , _connections{}
-    , _key_store(key_store)
-    , _validator(validator)
     , _io_channel_binder(iobinder)
     , _assembler(std::make_shared<ConsensusNetIOAssembler>(_socket, epoch_info, *this))
-    , _connection_mutex(connection_mutex)
     , _epoch_info(epoch_info)
     , _error_handler(error_handler)
     , _last_timestamp(GetStamp())
@@ -152,7 +140,6 @@ ConsensusNetIO::OnConnect()
 
     _connected = true;
 
-    std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
     _io_channel_binder(Self<ConsensusNetIO>::shared_from_this(), _remote_delegate_id);
 
     ReadPrequel();

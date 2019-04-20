@@ -18,8 +18,6 @@ ConsensusNetIOManager::ConsensusNetIOManager(std::shared_ptr<NetIOHandler> reque
                                              Service & service, 
                                              logos::alarm & alarm, 
                                              const Config & config,
-                                             DelegateKeyStore & key_store,
-                                             MessageValidator & validator,
                                              PeerAcceptorStarter & starter)
     : _service(service)
     , _consensus_managers({
@@ -28,14 +26,11 @@ ConsensusNetIOManager::ConsensusNetIOManager(std::shared_ptr<NetIOHandler> reque
             {ConsensusType::Epoch, epoch_manager}
         })
     , _alarm(alarm)
-    , _key_store(key_store)
-    , _validator(validator)
     , _delegate_id(config.delegate_id)
     , _heartbeat_timer(service)
     , _config(config)
     , _acceptor(starter)
 {
-    _key_store.OnPublicKey(_delegate_id, _validator.GetPublicKey());
 }
 
 void
@@ -196,8 +191,7 @@ ConsensusNetIOManager::AddNetIOConnection(
     }
     auto netio = std::make_shared<ConsensusNetIO>(
             t, endpoint, _alarm, remote_delegate_id,
-            _delegate_id, _key_store, _validator,
-            bc, _connection_mutex, info, *this, cb);
+            _delegate_id, bc, info, *this, cb);
     {
         std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
         _connections.push_back(netio);

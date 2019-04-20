@@ -6,7 +6,6 @@
 #include <logos/consensus/consensus_msg_producer.hpp>
 #include <logos/network/net_io_assembler.hpp>
 #include <logos/network/net_io_send.hpp>
-#include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/log.hpp>
 #include <logos/lib/utility.hpp>
@@ -19,7 +18,6 @@
 #include <map>
 
 class MessageParser;
-class MessageValidator;
 class EpochInfo;
 class NetIOErrorHandler;
 
@@ -132,11 +130,8 @@ public:
     ///     @param endpoint reference to peer's address
     ///     @param alarm reference to alarm
     ///     @param remote_delegate_id id of connected delegate
-    ///     @param key_store delegates' public key store
-    ///     @param validator validator/signer of consensus messages
     ///     @param binder callback for binding netio interface to a consensus manager
     ///     @param local_ip local ip of this node's delegate
-    ///     @param connection_mutex mutex to protect consensus connections
     ///     @param epoch_info epoch transition info
     ///     @param error_handler socket error handler
     ConsensusNetIO(Service & service,
@@ -144,10 +139,7 @@ public:
                    logos::alarm & alarm,
                    const uint8_t remote_delegate_id, 
                    const uint8_t local_delegate_id, 
-                   DelegateKeyStore & key_store,
-                   MessageValidator & validator,
                    IOBinder binder,
-                   std::recursive_mutex & connection_mutex,
                    std::shared_ptr<EpochInfo> epoch_info,
                    NetIOErrorHandler & error_handler,
                    CreatedCb &cb);
@@ -160,10 +152,7 @@ public:
     ///     @param endpoint reference to peer's address/port
     ///     @param alarm reference to alarm
     ///     @param remote_delegate_id id of connected delegate
-    ///     @param key_store delegates' public key store
-    ///     @param validator validator/signer of consensus messages
     ///     @param binder callback for binding netio interface to a consensus manager
-    ///     @param connection_mutex mutex to protect consensus connections
     ///     @param epoch_info epoch transition info
     ///     @param error_handler socket error handler
     ConsensusNetIO(std::shared_ptr<Socket> socket,
@@ -171,10 +160,7 @@ public:
                    logos::alarm & alarm,
                    const uint8_t remote_delegate_id, 
                    const uint8_t local_delegate_id, 
-                   DelegateKeyStore & key_store,
-                   MessageValidator & validator,
                    IOBinder binder,
-                   std::recursive_mutex & connection_mutex,
                    std::shared_ptr<EpochInfo> epoch_info,
                    NetIOErrorHandler & error_handler,
                    CreatedCb &cb);
@@ -344,11 +330,8 @@ private:
     uint8_t                        _remote_delegate_id;   ///< id of connected peer
     uint8_t                        _local_delegate_id;    ///< id of the local delegate
     Connections                    _connections;       	  ///< vector of connections bound to the net i/o
-    DelegateKeyStore &             _key_store;            ///< Delegates' public key store
-    MessageValidator &             _validator;            ///< Validator/Signer of consensus messages
     IOBinder                       _io_channel_binder;    ///< Network i/o to consensus binder
     SPTR<ConsensusNetIOAssembler>  _assembler;            ///< Assembles messages from TCP buffer
-    std::recursive_mutex &         _connection_mutex;     ///< _connections access mutex
     std::weak_ptr<EpochInfo>       _epoch_info;           ///< Epoch transition info
     NetIOErrorHandler &            _error_handler;        ///< Pass socket error to ConsensusNetIOManager
     std::recursive_mutex           _error_mutex;          ///< Error handling mutex

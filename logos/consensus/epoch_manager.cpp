@@ -31,7 +31,7 @@ EpochManager::EpochManager(Service & service,
     , _micro_manager(std::make_shared<MicroBlockConsensusManager>(service, store, config, _validator, archiver, p2p, epoch_number))
     , _epoch_manager(std::make_shared<EpochConsensusManager>(service, store, config, _validator, p2p, epoch_number))
     , _netio_manager(std::make_shared<ConsensusNetIOManager>(_request_manager, _micro_manager, _epoch_manager,
-                     service, alarm, config, _key_store, _validator, starter))
+                     service, alarm, config, starter))
     , _delegate_id(delegate_id)
 {
     for (int del = 0; del < NUM_DELEGATES; del++)
