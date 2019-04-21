@@ -67,9 +67,7 @@ add_library (p2p
 	utilstrencodings.h
 	utiltime.cpp
 	utiltime.h
-	version.h
-	warnings.cpp
-	warnings.h)
+    version.h)
 
 target_include_directories(p2p PRIVATE .)
 

@@ -9,9 +9,9 @@
  * network protocol versioning
  */
 
-static const int PROTOCOL_VERSION = 70015;
+constexpr int PROTOCOL_VERSION = 70015;
 
 //! initial proto version
-static const int INIT_PROTO_VERSION = PROTOCOL_VERSION;
+constexpr int INIT_PROTO_VERSION = PROTOCOL_VERSION;
 
 #endif // BITCOIN_VERSION_H

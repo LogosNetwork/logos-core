@@ -23,7 +23,6 @@
 #include "ui_interface.h"
 #include <util.h>
 #include <utilstrencodings.h>
-#include <warnings.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -85,6 +84,8 @@ private:
     bool                                    fLogIPs;
 
 public:
+    CClientUIInterface                      uiInterface;
+
     p2p_internal(p2p_interface & p2p,
                  p2p_config & config)
         : interface(p2p)
@@ -97,6 +98,7 @@ public:
         , nConnectTimeout(DEFAULT_CONNECT_TIMEOUT)
         , fNameLookup(DEFAULT_NAME_LOOKUP)
         , fLogIPs(DEFAULT_LOGIPS)
+        , uiInterface(config)
     {
     }
 
@@ -243,7 +245,7 @@ bool InitSanityCheck(void)
         return false;
 
     if (!Random_SanityCheck()) {
-        InitError("OS cryptographic RNG sanity check failure. Aborting.");
+        uiInterface.InitError("OS cryptographic RNG sanity check failure. Aborting.");
         return false;
     }
 
@@ -361,7 +363,7 @@ bool AppInitBasicSetup()
 #endif
 
     if (!SetupNetworking())
-        return InitError("Initializing networking failed");
+        return uiInterface.InitError("Initializing networking failed");
 
 #ifndef WIN32
     // Ignore SIGPIPE, otherwise it will bring the daemon down if the client closes unexpectedly
@@ -383,7 +385,7 @@ bool AppInitParameterInteraction()
     // -bind and -whitebind can't be set when not listening
     size_t nUserBind = Args.GetArgs("-bind").size() + Args.GetArgs("-whitebind").size();
     if (nUserBind != 0 && !Args.GetBoolArg("-listen", DEFAULT_LISTEN)) {
-        return InitError("Cannot set -bind or -whitebind together with -listen=0");
+        return uiInterface.InitError("Cannot set -bind or -whitebind together with -listen=0");
     }
 
     // Make sure enough file descriptors are available
@@ -396,11 +398,11 @@ bool AppInitParameterInteraction()
     nMaxConnections = std::max(std::min<int>(nMaxConnections, FD_SETSIZE - nBind - MIN_CORE_FILEDESCRIPTORS - MAX_ADDNODE_CONNECTIONS), 0);
     nFD = RaiseFileDescriptorLimit(nMaxConnections + MIN_CORE_FILEDESCRIPTORS + MAX_ADDNODE_CONNECTIONS);
     if (nFD < MIN_CORE_FILEDESCRIPTORS)
-        return InitError(_("Not enough file descriptors available."));
+        return uiInterface.InitError(_("Not enough file descriptors available."));
     nMaxConnections = std::min(nFD - MIN_CORE_FILEDESCRIPTORS - MAX_ADDNODE_CONNECTIONS, nMaxConnections);
 
     if (nMaxConnections < nUserMaxConnections)
-        InitWarning(strprintf(_("Reducing -maxconnections from %d to %d, because of system limitations."), nUserMaxConnections, nMaxConnections));
+        uiInterface.InitWarning(strprintf(_("Reducing -maxconnections from %d to %d, because of system limitations."), nUserMaxConnections, nMaxConnections));
 
     // ********************************************************* Step 3: parameter-to-internal-flags
     if (Args.IsArgSet("-debug")) {
@@ -411,7 +413,7 @@ bool AppInitParameterInteraction()
             [](std::string cat){return cat == "0" || cat == "none";})) {
             for (const auto& cat : categories) {
                 if (!g_logger->EnableCategory(cat)) {
-                    InitWarning(strprintf(_("Unsupported logging category %s=%s."), "-debug", cat));
+                    uiInterface.InitWarning(strprintf(_("Unsupported logging category %s=%s."), "-debug", cat));
                 }
             }
         }
@@ -420,23 +422,26 @@ bool AppInitParameterInteraction()
     // Now remove the logging categories which were explicitly excluded
     for (const std::string& cat : Args.GetArgs("-debugexclude")) {
         if (!g_logger->DisableCategory(cat)) {
-            InitWarning(strprintf(_("Unsupported logging category %s=%s."), "-debugexclude", cat));
+            uiInterface.InitWarning(strprintf(_("Unsupported logging category %s=%s."), "-debugexclude", cat));
         }
     }
 
     // Check for -debugnet
     if (Args.GetBoolArg("-debugnet", false))
-        InitWarning(_("Unsupported argument -debugnet ignored, use -debug=net."));
+        uiInterface.InitWarning(_("Unsupported argument -debugnet ignored, use -debug=net."));
 
     if (Args.GetBoolArg("-benchmark", false))
-        InitWarning(_("Unsupported argument -benchmark ignored, use -debug=bench."));
+        uiInterface.InitWarning(_("Unsupported argument -benchmark ignored, use -debug=bench."));
 
     if (Args.GetBoolArg("-whitelistalwaysrelay", false))
-        InitWarning(_("Unsupported argument -whitelistalwaysrelay ignored, use -whitelistrelay and/or -whitelistforcerelay."));
+        uiInterface.InitWarning(_("Unsupported argument -whitelistalwaysrelay ignored, use -whitelistrelay and/or -whitelistforcerelay."));
 
     nConnectTimeout = Args.GetArg("-timeout", DEFAULT_CONNECT_TIMEOUT);
     if (nConnectTimeout <= 0)
         nConnectTimeout = DEFAULT_CONNECT_TIMEOUT;
+
+    // Option to startup with mocktime set (used for regression testing):
+    SetMockTime(Args.GetArg("-mocktime", 0)); // SetMockTime(0) is a no-op
 
     return true;
 }
@@ -452,7 +457,7 @@ bool AppInitSanityChecks()
 
     // Sanity check
     if (!InitSanityCheck())
-        return InitError(strprintf(_("Initialization sanity check failed. %s is shutting down."), _(PACKAGE_NAME)));
+        return uiInterface.InitError(strprintf(_("Initialization sanity check failed. %s is shutting down."), _(PACKAGE_NAME)));
 
     return true;
 }
@@ -498,12 +503,12 @@ bool AppInitMain(p2p_config &config)
     std::vector<std::string> uacomments;
     for (const std::string& cmt : Args.GetArgs("-uacomment")) {
         if (cmt != SanitizeString(cmt, SAFE_CHARS_UA_COMMENT))
-            return InitError(strprintf(_("User Agent comment (%s) contains unsafe characters."), cmt));
+            return uiInterface.InitError(strprintf(_("User Agent comment (%s) contains unsafe characters."), cmt));
         uacomments.push_back(cmt);
     }
     strSubVersion = FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, uacomments);
     if (strSubVersion.size() > MAX_SUBVERSION_LENGTH) {
-        return InitError(strprintf(_("Total length of network version string (%i) exceeds maximum length (%i). Reduce the number or size of uacomments."),
+        return uiInterface.InitError(strprintf(_("Total length of network version string (%i) exceeds maximum length (%i). Reduce the number or size of uacomments."),
             strSubVersion.size(), MAX_SUBVERSION_LENGTH));
     }
 
@@ -512,7 +517,7 @@ bool AppInitMain(p2p_config &config)
         for (const std::string& snet : Args.GetArgs("-onlynet")) {
             enum Network net = ParseNetwork(snet);
             if (net == NET_UNROUTABLE)
-                return InitError(strprintf(_("Unknown network specified in -onlynet: '%s'"), snet));
+                return uiInterface.InitError(strprintf(_("Unknown network specified in -onlynet: '%s'"), snet));
             nets.insert(net);
         }
         for (int n = 0; n < NET_MAX; n++) {
@@ -534,7 +539,7 @@ bool AppInitMain(p2p_config &config)
         if (Lookup(strAddr.c_str(), addrLocal, connman.GetListenPort(), fNameLookup) && addrLocal.IsValid())
             AddLocal(addrLocal, LOCAL_MANUAL);
         else
-            return InitError(ResolveErrMsg("externalip", strAddr));
+            return uiInterface.InitError(ResolveErrMsg("externalip", strAddr));
     }
 
     uint64_t nMaxOutboundLimit = 0; //unlimited unless -maxuploadtarget is set
@@ -569,17 +574,17 @@ bool AppInitMain(p2p_config &config)
     for (const std::string& strBind : Args.GetArgs("-bind")) {
         CService addrBind;
         if (!Lookup(strBind.c_str(), addrBind, connman.GetListenPort(), false)) {
-            return InitError(ResolveErrMsg("bind", strBind));
+            return uiInterface.InitError(ResolveErrMsg("bind", strBind));
         }
         connOptions.vBinds.push_back(addrBind);
     }
     for (const std::string& strBind : Args.GetArgs("-whitebind")) {
         CService addrBind;
         if (!Lookup(strBind.c_str(), addrBind, 0, false)) {
-            return InitError(ResolveErrMsg("whitebind", strBind));
+            return uiInterface.InitError(ResolveErrMsg("whitebind", strBind));
         }
         if (addrBind.GetPort() == 0) {
-            return InitError(strprintf(_("Need to specify a port with -whitebind: '%s'"), strBind));
+            return uiInterface.InitError(strprintf(_("Need to specify a port with -whitebind: '%s'"), strBind));
         }
         connOptions.vWhiteBinds.push_back(addrBind);
     }
@@ -588,7 +593,7 @@ bool AppInitMain(p2p_config &config)
         CSubNet subnet;
         LookupSubNet(net.c_str(), subnet);
         if (!subnet.IsValid())
-            return InitError(strprintf(_("Invalid netmask specified in -whitelist: '%s'"), net));
+            return uiInterface.InitError(strprintf(_("Invalid netmask specified in -whitelist: '%s'"), net));
         connOptions.vWhitelistedRange.push_back(subnet);
     }
 
@@ -723,7 +728,6 @@ bool p2p_interface::Init(p2p_config &config)
         return false;
     }
 
-    uiInterface.config = &config;
     SetupEnvironment();
 
     p2p = std::make_shared<p2p_internal>(*this, config);
@@ -737,7 +741,7 @@ bool p2p_interface::Init(p2p_config &config)
 
     if (!p2p->getArgs().ParseParameters(config.argc, config.argv, error))
     {
-        InitError(std::string("illegal command line arguments: ") + error);
+        p2p->uiInterface.InitError(std::string("illegal command line arguments: ") + error);
         return false;
     }
 
@@ -751,7 +755,7 @@ bool p2p_interface::Init(p2p_config &config)
         strUsage += " [options]                     Start " PACKAGE_NAME " daemon\n";
         strUsage += "\n" + p2p->getArgs().GetHelpMessage();
 
-        uiInterface.InitMessage(strUsage);
+        p2p->uiInterface.InitMessage(strUsage);
         return false;
     }
 
@@ -762,7 +766,7 @@ bool p2p_interface::Init(p2p_config &config)
     }
     catch (const std::exception& e)
     {
-        InitError(e.what());
+        p2p->uiInterface.InitError(e.what());
         return false;
     }
 
@@ -771,7 +775,7 @@ bool p2p_interface::Init(p2p_config &config)
     {
         if (!IsSwitchChar(config.argv[i][0]))
         {
-            InitError(std::string("Command line contains unexpected token '") + config.argv[i]
+            p2p->uiInterface.InitError(std::string("Command line contains unexpected token '") + config.argv[i]
                                   + "', see " + config.argv[0] + " --help for a list of options.");
             return false;
         }

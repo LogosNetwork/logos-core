@@ -418,6 +418,7 @@ public:
     p2p_config &config;
     ArgsManager &Args;
     p2p_interface *p2p;
+    CClientUIInterface* clientInterface;
     PropagateStore *p2p_store;
     boost::asio::io_service *io_service;
     sem_t dataWritten;
@@ -519,7 +520,6 @@ private:
     int nMaxAddnode;
     int nMaxFeeler;
     std::atomic<int> nBestHeight;
-    CClientUIInterface* clientInterface;
     NetEventsInterface* m_msgproc;
 
     /** SipHasher seeds for deterministic randomness */

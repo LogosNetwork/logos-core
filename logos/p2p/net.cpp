@@ -2218,7 +2218,7 @@ void CConnman::SetNetworkActive(bool active)
 
     fNetworkActive = active;
 
-    uiInterface.NotifyNetworkActiveChanged(fNetworkActive);
+    clientInterface->NotifyNetworkActiveChanged(fNetworkActive);
 }
 
 CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In, p2p_config &conf, ArgsManager &ArgsIn)
@@ -2254,7 +2254,7 @@ bool CConnman::Bind(const CService &addr, unsigned int flags) {
     std::string strError;
     if (!BindListenPort(addr, strError, (flags & BF_WHITELIST) != 0)) {
         if ((flags & BF_REPORT_ERROR) && clientInterface) {
-	    InitError(strError);
+            clientInterface->InitError(strError);
         }
         return false;
     }
@@ -2344,7 +2344,7 @@ bool CConnman::Start(const Options& connOptions)
 
     if (fListen && !InitBinds(connOptions.vBinds, connOptions.vWhiteBinds)) {
         if (clientInterface) {
-	    InitError(_("Failed to listen on any port. Use -listen=0 if you want this."));
+            clientInterface->InitError(_("Failed to listen on any port. Use -listen=0 if you want this."));
         }
         return false;
     }
@@ -2355,7 +2355,7 @@ bool CConnman::Start(const Options& connOptions)
 
     LoadData();
 
-    uiInterface.InitMessage(_("Starting network threads..."));
+    clientInterface->InitMessage(_("Starting network threads..."));
 
     fAddressesInitialized = true;
 
@@ -2393,7 +2393,7 @@ bool CConnman::Start(const Options& connOptions)
 
     if (connOptions.m_use_addrman_outgoing && !connOptions.m_specified_outgoing.empty()) {
         if (clientInterface) {
-	    InitError(_("Cannot provide specific connections and have addrman find outgoing connections at the same."));
+            clientInterface->InitError(_("Cannot provide specific connections and have addrman find outgoing connections at the same."));
         }
         return false;
     }

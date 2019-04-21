@@ -13,7 +13,6 @@
 #include <ui_interface.h>
 #include <util.h>
 #include <utilstrencodings.h>
-#include <warnings.h>
 
 /**
  * "Never go to sea with two chronometers; take one or three."
@@ -38,7 +37,7 @@ static int64_t abs64(int64_t n)
     return (n >= 0 ? n : -n);
 }
 
-void TimeData::AddTimeData(ArgsManager &Args, const CNetAddr& ip, int64_t nOffsetSample)
+void TimeData::AddTimeData(ArgsManager &Args, CClientUIInterface &uiInterface, const CNetAddr& ip, int64_t nOffsetSample)
 {
     LOCK(cs_nTimeOffset);
     // Ignore duplicates
@@ -93,8 +92,7 @@ void TimeData::AddTimeData(ArgsManager &Args, const CNetAddr& ip, int64_t nOffse
                 {
                     fDone = true;
                     std::string strMessage = strprintf(_("Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly."), _(PACKAGE_NAME));
-                    SetMiscWarning(strMessage);
-		    InitWarning(strMessage);
+                    uiInterface.InitWarning(strMessage);
                 }
             }
         }

@@ -555,7 +555,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
 
         int64_t nTimeOffset = nTime - GetTime();
         pfrom->nTimeOffset = nTimeOffset;
-        connman->timeData.AddTimeData(connman->Args, pfrom->addr, nTimeOffset);
+        connman->timeData.AddTimeData(connman->Args, *connman->clientInterface, pfrom->addr, nTimeOffset);
 
         // Feeler connections exist only to verify if address is online.
         if (pfrom->fFeeler) {

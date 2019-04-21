@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <vector>
 #include "util.h"
+#include "ui_interface.h"
 
 #define BITCOIN_TIMEDATA_MAX_SAMPLES 200
 
@@ -90,7 +91,7 @@ public:
     }
     int64_t GetTimeOffset();
     int64_t GetAdjustedTime();
-    void AddTimeData(ArgsManager &Args, const CNetAddr& ip, int64_t nTime);
+    void AddTimeData(ArgsManager &Args, CClientUIInterface &uiInterface, const CNetAddr& ip, int64_t nTime);
 };
 
 #endif // BITCOIN_TIMEDATA_H
