@@ -16,29 +16,6 @@ struct ConsensusManagerConfig
     {
         auto rpc_tree(tree.get_child(""));
 
-        auto delegates_tree(tree.get_child("delegate_peers"));
-
-        uint8_t num_consensus_delegates = tree.get<uint8_t>("num_consensus_delegates", NUM_DELEGATES);
-
-        for(auto & delegate : delegates_tree)
-        {
-            try
-            {
-                auto ip = delegate.second.get<std::string>("ip_address");
-                auto id = std::stoul(delegate.second.get<std::string>("delegate_id"));
-
-                if (delegates.size() < num_consensus_delegates)
-                {
-                    delegates.push_back(Delegate{ip, uint8_t(id)});
-                }
-                all_delegates.push_back(Delegate{ip, uint8_t(id)});
-            }
-            catch(std::logic_error const &)
-            {
-                return true;
-            }
-        }
-
         local_address = tree.get<std::string>("local_address");
         callback_address = tree.get<std::string>("callback_address");
 
@@ -59,6 +36,8 @@ struct ConsensusManagerConfig
 
         enable_elections = tree.get<bool>("enable_elections", false);
 
+        enable_epoch_transition = tree.get<bool>("enable_epoch_transition", true);
+
         return false;
     }
 
@@ -68,18 +47,6 @@ struct ConsensusManagerConfig
     {
         boost::property_tree::ptree delegates_tree;
 
-        for (auto & delegate : delegates)
-        {
-            boost::property_tree::ptree entry;
-
-            entry.put("ip_address", delegate.ip);
-            entry.put("delegate_id", delegate.id);
-
-            delegates_tree.push_back(std::make_pair("", entry));
-        }
-
-        tree.add_child("delegate_peers", delegates_tree);
-
         tree.put("local_address", local_address);
         tree.put("callback_address", callback_address);
         tree.put("callback_port", std::to_string(callback_port));
@@ -87,6 +54,7 @@ struct ConsensusManagerConfig
         tree.put("delegate_id", std::to_string(delegate_id));
         tree.put("heartbeat", std::to_string(heartbeat));
         tree.put("enable_elections", std::to_string(enable_elections));
+        tree.put("enable_epoch_transition", std::to_string(enable_epoch_transition));
     }
 
     std::vector<Delegate> delegates;
@@ -98,4 +66,5 @@ struct ConsensusManagerConfig
     uint8_t               delegate_id;
     bool                  heartbeat;
     bool                  enable_elections;
+    bool                  enable_epoch_transition;
 };

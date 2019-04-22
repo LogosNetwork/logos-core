@@ -150,7 +150,6 @@ using namespace boost::multiprecision::literals;
 
 uint8_t DelegateIdentityManager::_global_delegate_idx = 0;
 AccountAddress DelegateIdentityManager::_delegate_account = 0;
-DelegateIdentityManager::IPs DelegateIdentityManager::_delegates_ip;
 bool DelegateIdentityManager::_epoch_transition_enabled = true;
 ECIESKeyPair DelegateIdentityManager::_ecies_key{};
 std::unique_ptr<bls::KeyPair> DelegateIdentityManager::_bls_key = nullptr;
@@ -169,6 +168,7 @@ DelegateIdentityManager::DelegateIdentityManager(Alarm &alarm,
 {
    _bls_key = std::make_unique<bls::KeyPair>();
    Init(config);
+   LoadDB();
 }
 
 /// THIS IS TEMP FOR EPOCH TESTING - NOTE HARD-CODED PUB KEYS!!! TODO
@@ -320,7 +320,7 @@ DelegateIdentityManager::Init(const Config &config)
     logos::transaction transaction (_store.environment, nullptr, true);
 
     const ConsensusManagerConfig &cmconfig = _config.consensus_manager_config;
-    _epoch_transition_enabled = cmconfig.all_delegates.size() == 2 * cmconfig.delegates.size();
+    _epoch_transition_enabled = cmconfig.enable_epoch_transition;
 
     EpochVotingManager::ENABLE_ELECTIONS = cmconfig.enable_elections;
 
@@ -394,15 +394,6 @@ DelegateIdentityManager::Init(const Config &config)
     LOG_INFO(_log) << "delegate id is " << (int)_global_delegate_idx;
 
     ConsensusContainer::SetCurEpochNumber(epoch_number);
-
-    // get all ip's
-    for (uint8_t del = 0; del < 2 * NUM_DELEGATES && del < cmconfig.all_delegates.size(); ++del)
-    {
-        auto account = logos::genesis_delegates[del].key.pub;
-        auto ip = cmconfig.all_delegates[del].ip;
-        _delegates_ip[account] = ip;
-        LOG_INFO(_log) << "delegate ip is : " << ip;
-    }
 }
 
 /// THIS IS TEMP FOR EPOCH TESTING - NOTE PRIVATE KEYS ARE 0-63!!! TBD
@@ -883,7 +874,10 @@ DelegateIdentityManager::OnAddressAd(uint8_t *data,
                 ip = addressAd.GetIP();
                 port = addressAd.port;
 
-                _address_ad[{prequel.epoch_number, prequel.delegate_id}] = {ip, port};
+                {
+                    std::lock_guard<std::mutex> lock(_ad_mutex);
+                    _address_ad[{prequel.epoch_number, prequel.delegate_id}] = {ip, port};
+                }
                 res = true;
 
                 LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd, delegate " << (int)addressAd.delegate_id
@@ -911,8 +905,6 @@ DelegateIdentityManager::OnAddressAd(uint8_t *data,
 void
 DelegateIdentityManager::UpdateDelegateAddressDB(const PrequelAddressAd &prequel, uint8_t *data, size_t size)
 {
-    return;
-
     logos::transaction transaction (_store.environment, nullptr, true);
     // update new
     _store.ad_put<logos::block_store::ad_key>(transaction,
@@ -960,8 +952,11 @@ DelegateIdentityManager::OnAddressAdTxAcceptor(uint8_t *data, size_t size)
             return false;
         }
 
-        _address_ad_txa.insert({{prequel.epoch_number, prequel.delegate_id},
-                               {addressAd.GetIP(), addressAd.port, addressAd.json_port}});
+        {
+            std::lock_guard<std::mutex> lock(_ad_mutex);
+            _address_ad_txa.insert({{prequel.epoch_number, prequel.delegate_id},
+                                    {addressAd.GetIP(),    addressAd.port, addressAd.json_port}});
+        }
 
         LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAdTxAcceptor, ip " << addressAd.GetIP()
                         << ", port " << addressAd.port
@@ -978,8 +973,6 @@ DelegateIdentityManager::OnAddressAdTxAcceptor(uint8_t *data, size_t size)
 void
 DelegateIdentityManager::UpdateTxAcceptorAddressDB(const PrequelAddressAd &prequel, uint8_t *data, size_t size)
 {
-    return;
-
     logos::transaction transaction (_store.environment, nullptr, true);
     // update new
     _store.ad_put<logos::block_store::ad_txa_key>(transaction,
@@ -1159,3 +1152,70 @@ DelegateIdentityManager::ReadAddressAd(std::shared_ptr<Socket> socket,
     });
 }
 
+void
+DelegateIdentityManager::LoadDB()
+{
+    logos::transaction transaction (_store.environment, nullptr, true);
+
+    logos::block_store::ad_key adKey;
+    logos::block_store::ad_txa_key adTxaKey;
+    auto current_epoch_number = ConsensusContainer::GetCurEpochNumber();
+    std::vector<logos::block_store::ad_key> ad2del;
+    std::vector<logos::block_store::ad_txa_key> adtxa2del;
+
+    for (auto it = logos::store_iterator(transaction, _store.address_ad_db);
+         it != logos::store_iterator(nullptr);
+         ++it)
+    {
+        bool error (false);
+        assert(sizeof(adKey) == it->first.size());
+        memcpy(&adKey, it->first.data(), it->first.size());
+        if (adKey.epoch_number < current_epoch_number)
+        {
+            ad2del.emplace_back(adKey);
+            continue;
+        }
+
+        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (it->second.data ()), it->second.size ());
+        AddressAd ad (error, stream, &DelegateIdentityManager::Decrypt);
+        assert (!error);
+        {
+            std::lock_guard<std::mutex> lock(_ad_mutex);
+            _address_ad.emplace(std::make_pair(ad.epoch_number, ad.delegate_id), address_ad{ad.GetIP(), ad.port});
+        }
+    }
+
+    for (auto it : ad2del)
+    {
+        _store.ad_del<logos::block_store::ad_key>(transaction, it.epoch_number, it.delegate_id, it.encr_delegate_id);
+    }
+
+
+    for (auto it = logos::store_iterator(transaction, _store.address_ad_txa_db);
+         it != logos::store_iterator(nullptr);
+         ++it)
+    {
+        bool error (false);
+        assert(sizeof(adTxaKey) == it->first.size());
+        memcpy(&adTxaKey, it->first.data(), it->first.size());
+        if (adTxaKey.epoch_number < current_epoch_number)
+        {
+            adtxa2del.emplace_back(adTxaKey);
+            continue;
+        }
+
+        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (it->second.data ()), it->second.size ());
+        AddressAdTxAcceptor ad (error, stream);
+        assert (!error);
+        {
+            std::lock_guard<std::mutex> lock(_ad_mutex);
+            _address_ad_txa.emplace(std::make_pair(ad.epoch_number, ad.delegate_id),
+                                    address_ad_txa{ad.GetIP(), ad.port, ad.json_port});
+        }
+    }
+
+    for (auto it : adtxa2del)
+    {
+        _store.ad_del<logos::block_store::ad_txa_key>(transaction, it.epoch_number, it.delegate_id);
+    }
+}

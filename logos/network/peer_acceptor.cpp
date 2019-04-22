@@ -15,8 +15,7 @@ void PeerAcceptor::Start()
     if (_acceptor.is_open())
     {
         LOG_WARN(_log) << "PeerAcceptor::Start, acceptor is already active "
-                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx() << " "
-                        << DelegateIdentityManager::GetDelegateIP();
+                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
         return;
     }
 

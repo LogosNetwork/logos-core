@@ -329,13 +329,12 @@ MicroBlockTester::epoch_delegates(
         node._identity_manager.IdentifyDelegates(EpochDelegates::Next, delegate_idx, approvedEb);
     }
 
-    int del = 0;
-    for (auto acct : approvedEb->delegates)
+    for (uint8_t del = 0; del < NUM_DELEGATES; del++)
     {
         boost::property_tree::ptree response;
         char buff[5];
-        sprintf(buff, "%d", del);
-        response.put("ip", DelegateIdentityManager::GetDelegateIP(acct.account));
+        sprintf(buff, "%d", (int)del);
+        response.put("ip", node._identity_manager.GetDelegateIP(approvedEb->epoch_number, del));
         response_l.push_back(std::make_pair(buff, response));
         del++;
     }

@@ -618,6 +618,15 @@ struct AddressAd : CommonAddressAd
         Deserialize(error, stream, decryptor);
     }
 
+    AddressAd(bool &error, logos::stream &stream, Decryptor decryptor)
+    {
+        PrequelAddressAd::Deserialize(error, stream);
+        if (!error)
+        {
+            Deserialize(error, stream, decryptor);
+        }
+    }
+
     void Deserialize(bool &error, logos::stream &stream, Decryptor decryptor)
     {
         std::string cyphertext;
@@ -687,6 +696,14 @@ struct AddressAdTxAcceptor : CommonAddressAd
         delegate_id = prequel.delegate_id;
         encr_delegate_id = 0xff;
         Deserialize(error, stream);
+    }
+    AddressAdTxAcceptor(bool &error, logos::stream &stream)
+    {
+        PrequelAddressAd::Deserialize(error, stream);
+        if (!error)
+        {
+            Deserialize(error, stream);
+        }
     }
     void Deserialize(bool &error, logos::stream &stream)
     {

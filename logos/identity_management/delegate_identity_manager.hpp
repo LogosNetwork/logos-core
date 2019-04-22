@@ -219,20 +219,16 @@ public:
     /// @param size of decrypted message
     static void Decrypt(const std::string &cyphertext, uint8_t *buf, size_t size);
 
-    /// Get delegate's ip
-    /// @param account delegate's account
-    /// @returns ip
-    static std::string GetDelegateIP(const AccountAddress &account)
-    {
-        assert (_delegates_ip.find(account) != _delegates_ip.end());
-        return _delegates_ip[account];
-    }
-
     /// Get this delegate's ip
     /// @returns ip
-    static std::string GetDelegateIP()
+    std::string GetDelegateIP(uint32_t epoch_number, uint8_t delegate_id)
     {
-        return _delegates_ip[_delegate_account];
+        std::lock_guard<std::mutex> lock(_ad_mutex);
+        if (_address_ad.find({epoch_number, delegate_id}) != _address_ad.end())
+        {
+            return _address_ad[{epoch_number, delegate_id}].ip;
+        }
+        return "";
     }
 
     /// Validate signature
@@ -316,10 +312,12 @@ private:
     /// @param size size of the serialized message
     void UpdateTxAcceptorAddressDB(const PrequelAddressAd &prequel, uint8_t *data, size_t size);
 
+    /// Load/clean up on start up ad information from DB
+    void LoadDB();
+
     static bool             _epoch_transition_enabled; ///< is epoch transition enabled
     static AccountAddress   _delegate_account;     ///< this delegate's account or 0 if non-delegate
     static uint8_t          _global_delegate_idx;  ///< global delegate index in all delegate's list
-    static IPs              _delegates_ip;         ///< all delegates ip
     /// TODO keys should be retrieved on start up from the wallet
     static ECIESKeyPair     _ecies_key;            ///< this delegate's ecies key pair for ip encr/decr
     static BlsKeyPairPtr    _bls_key;              ///< bls key
@@ -331,4 +329,5 @@ private:
     ValidatorBuilder        _validator_builder;    ///< validator builder
     AddressAdList           _address_ad;           ///< list of delegates advertisement messages
     AddressAdTxAList        _address_ad_txa;       ///< list of delegates tx acceptor advertisement messages
+    std::mutex              _ad_mutex;             ///< protect address ad/txa lists
 };

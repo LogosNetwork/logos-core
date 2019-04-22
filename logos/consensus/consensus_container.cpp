@@ -507,7 +507,7 @@ ConsensusContainer::BuildConsensusConfig(
    ConsensusManagerConfig config = _config;
 
    config.delegate_id = delegate_idx;
-   config.local_address = DelegateIdentityManager::GetDelegateIP();
+   config.local_address = _config.local_address;
    config.delegates.clear();
 
    stringstream str;
@@ -515,8 +515,11 @@ ConsensusContainer::BuildConsensusConfig(
    for (uint8_t del = 0; del < NUM_DELEGATES; ++del)
    {
         auto account = epoch.delegates[del].account;
-        auto ip = DelegateIdentityManager::GetDelegateIP(account);
-        config.delegates.push_back(ConsensusManagerConfig::Delegate{ip, del});
+        auto ip = _identity_manager.GetDelegateIP(epoch.epoch_number, del);
+        if (ip != "")
+        {
+            config.delegates.push_back(ConsensusManagerConfig::Delegate{ip, del});
+        }
         str << (int)del << " " << ip << " ";
    }
    LOG_DEBUG(_log) << str.str();
