@@ -499,7 +499,7 @@ bool IsTokenAdminRequest(RequestType type)
     switch(type)
     {
         case RequestType::Send:
-        case RequestType::Change:
+        case RequestType::Proxy:
         case RequestType::Issuance:
             break;
         case RequestType::IssueAdditional:

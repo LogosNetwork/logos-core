@@ -239,7 +239,7 @@ bool PersistenceManager<R>::ValidateRequest(
     switch(request->type)
     {
         case RequestType::Send:
-        case RequestType::Change:
+        case RequestType::Proxy:
             break;
         case RequestType::Issuance:
         {
@@ -938,7 +938,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
                       cur_epoch_num);
             break;
         }
-        case RequestType::Change:
+        case RequestType::Proxy:
             break;
         case RequestType::Issuance:
         {
