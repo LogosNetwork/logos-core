@@ -12,7 +12,11 @@ class VotingPowerManager
 {
     using BlockStore = logos::block_store;
 
-    //TODO does this need to be a pointer?
+    //Note, VotingPowerManager is not a singleton, but contains an instance
+    //for convenience. Some areas of the code do not have a reference to
+    //blockstore to create a VotingPowerManager. This instance
+    //is created when BlockStore is constructed. A client can use this instance
+    //or can create their own; the behavior is identical.
     static std::shared_ptr<VotingPowerManager> instance;
     public:
 
@@ -85,13 +89,6 @@ class VotingPowerManager
     bool CanPrune(
             AccountAddress const & rep,
             VotingPowerInfo const & info,
-            MDB_txn* txn);
-
-
-    void UpdateBalance(
-            logos::Account* account,
-            Amount const & new_balance,
-            uint32_t const & epoch,
             MDB_txn* txn);
 
     private:

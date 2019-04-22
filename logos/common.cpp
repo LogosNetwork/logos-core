@@ -313,15 +313,45 @@ logos::mdb_val logos::Account::to_mdb_val(std::vector<uint8_t> &buf) const
     return mdb_val(buf.size(), buf.data());
 }
 
-void logos::Account::SetBalance(Amount const & new_balance, uint32_t epoch, MDB_txn* txn)
-{
-    VotingPowerManager::Get()->UpdateBalance(this, new_balance, epoch, txn);
-    balance = new_balance;
-}
 
-Amount const & logos::Account::GetBalance() const
+Amount const & logos::account_info::GetBalance() const
 {
     return balance;
+}
+
+Amount const & logos::account_info::GetAvailableBalance() const
+{
+    //TODO prune thawing
+    return available_balance;
+}
+
+void logos::account_info::SetBalance(Amount const & new_balance, uint32_t const & epoch, MDB_txn* txn)
+{
+    if(new_balance > balance)
+    {
+        Amount diff = new_balance - balance;
+        available_balance += diff;
+        VotingPowerManager::Get()->AddUnlockedProxied(GetRep(),diff,epoch,txn);
+    }
+    else
+    {
+        Amount diff = balance - new_balance;
+        if(diff > available_balance)
+        {
+            Log log;
+            LOG_FATAL(log) << "Not enough available balance";
+            trace_and_halt();
+        }
+        available_balance -= diff;
+
+        VotingPowerManager::Get()->SubtractUnlockedProxied(GetRep(),diff,epoch,txn);
+    }
+}
+
+AccountAddress logos::account_info::GetRep() const
+{
+    //TODO return actual rep
+    return 0;
 }
 
 logos::account_info::account_info ()

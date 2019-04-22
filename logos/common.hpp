@@ -134,10 +134,11 @@ public:
     //voting_power_db will become out of sync
     virtual void SetBalance(
             amount const & new_balance,
-            uint32_t epoch,
-            MDB_txn* txn);
+            uint32_t const & epoch,
+            MDB_txn* txn) = 0;
 
-    virtual amount const & GetBalance() const;
+    virtual amount const & GetBalance() const = 0;
+    virtual amount const & GetAvailableBalance() const = 0;
 
     AccountType type;
     uint64_t    modified;      ///< Seconds since posix epoch
@@ -146,7 +147,7 @@ public:
     BlockHash   receive_head;
     uint32_t    receive_count;
 
-    private:
+    protected:
     amount balance;
 };
 
@@ -183,9 +184,26 @@ struct account_info : Account
 
     static constexpr uint16_t MAX_TOKEN_ENTRIES = std::numeric_limits<uint16_t>::max();
 
+    //IMPORTANT!: Calling this function persists the change in voting_power_db
+    //If you call this function, you must also store the new Account struct in
+    //account_db (by calling account_put). Otherwise, the account_db and
+    //voting_power_db will become out of sync
+    void SetBalance(
+            amount const & new_balance,
+            uint32_t const & epoch,
+            MDB_txn* txn) override;
+
+    amount const & GetAvailableBalance() const override;
+    amount const & GetBalance() const override;
+
+    AccountAddress GetRep() const;
+
     block_hash staking_subchain_head;
     block_hash open_block;
     Entries    entries;
+
+    protected:
+    amount available_balance;
 };
 
 std::shared_ptr<Account> DeserializeAccount(bool & error, const logos::mdb_val & mdbval);
