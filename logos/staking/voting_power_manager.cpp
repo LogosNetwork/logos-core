@@ -1,5 +1,7 @@
 #include <logos/staking/voting_power_manager.hpp>
+#include <logos/common.hpp>
 
+std::shared_ptr<VotingPowerManager> VotingPowerManager::instance = 0;
 
 void TransitionIfNecessary(
         VotingPowerInfo& info,
@@ -331,3 +333,57 @@ bool VotingPowerManager::GetVotingPowerInfo(AccountAddress const & rep, VotingPo
     }
     return !_store.get(_store.voting_power_db,rep,info,txn);
 }
+
+void VotingPowerManager::UpdateBalance(
+        logos::Account* account,
+        Amount const & new_balance,
+        uint32_t const & epoch,
+        MDB_txn* txn)
+{
+    bool all_reps_zero = true;
+    if(account->type == logos::AccountType::TokenAccount)
+    {
+        return; //Token accounts don't have reps
+    }
+
+    auto hash = static_cast<logos::account_info*>(account)->staking_subchain_head;
+    std::shared_ptr<Request> req;
+    if(!all_reps_zero && _store.request_get(hash, req, txn))
+    {
+        LOG_WARN(_log) << "VotingPowerManager::UpdateBalance - account has no "
+            << "representative";
+    }
+    else
+    {
+        //TODO change when Proxy is implemented
+        AccountAddress rep = 0;//static_pointer_cast<Proxy>(req)->representative;
+        Amount old_balance = account->GetBalance();
+        if(new_balance > old_balance)
+        {
+            Amount diff = new_balance - old_balance;
+            AddUnlockedProxied(rep, diff, epoch, txn);
+        }
+        else
+        {
+            Amount diff = old_balance - new_balance;
+            SubtractUnlockedProxied(rep, diff, epoch, txn);
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

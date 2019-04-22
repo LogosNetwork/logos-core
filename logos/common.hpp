@@ -128,7 +128,15 @@ public:
 
     virtual mdb_val to_mdb_val(std::vector<uint8_t> &buf) const = 0;
     
-    virtual void SetBalance(amount const & new_balance, uint32_t epoch, MDB_txn* txn);
+    //IMPORTANT!: Calling this function persists the change in voting_power_db
+    //If you call this function, you must also store the new Account struct in
+    //account_db (by calling account_put). Otherwise, the account_db and
+    //voting_power_db will become out of sync
+    virtual void SetBalance(
+            amount const & new_balance,
+            uint32_t epoch,
+            MDB_txn* txn);
+
     virtual amount const & GetBalance() const;
 
     AccountType type;

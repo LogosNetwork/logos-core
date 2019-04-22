@@ -6,6 +6,8 @@
 #include <logos/versioning.hpp>
 #include <logos/node/node.hpp>
 
+#include <logos/staking/voting_power_manager.hpp>
+
 #include <boost/property_tree/json_parser.hpp>
 
 #include <queue>
@@ -313,6 +315,7 @@ logos::mdb_val logos::Account::to_mdb_val(std::vector<uint8_t> &buf) const
 
 void logos::Account::SetBalance(Amount const & new_balance, uint32_t epoch, MDB_txn* txn)
 {
+    VotingPowerManager::Get()->UpdateBalance(this, new_balance, epoch, txn);
     balance = new_balance;
 }
 

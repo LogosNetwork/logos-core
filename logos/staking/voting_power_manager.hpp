@@ -12,9 +12,21 @@ class VotingPowerManager
 {
     using BlockStore = logos::block_store;
 
+    //TODO does this need to be a pointer?
+    static std::shared_ptr<VotingPowerManager> instance;
     public:
 
     VotingPowerManager(BlockStore& store) : _store(store) {}
+
+    static void Init(BlockStore& store)
+    {
+        instance.reset(new VotingPowerManager(store));
+    }
+
+    static std::shared_ptr<VotingPowerManager> Get()
+    {
+        return instance;
+    }
 
     bool SubtractLockedProxied(
             AccountAddress const & rep,
@@ -75,6 +87,12 @@ class VotingPowerManager
             VotingPowerInfo const & info,
             MDB_txn* txn);
 
+
+    void UpdateBalance(
+            logos::Account* account,
+            Amount const & new_balance,
+            uint32_t const & epoch,
+            MDB_txn* txn);
 
     private:
     void StoreOrPrune(
