@@ -3,6 +3,9 @@
 #include <logos/staking/voting_power_manager.hpp>
 #include <logos/unit_test/msg_validator_setup.hpp>
 #include <logos/consensus/persistence/epoch/epoch_persistence.hpp>
+#include <chrono>
+#include <ctime>
+#include <ratio>
 
 
 #define Unit_Test_Voting_Power
@@ -267,6 +270,78 @@ TEST(Voting_Power, ManyProxies)
         ASSERT_EQ(info.next.locked_proxied, total_locked_proxy);
         ASSERT_EQ(info.next.unlocked_proxied, total_unlocked_proxy);
     }
+}
+
+TEST(Voting_Power, AccountBalance)
+{
+    logos::block_store* store = get_db();
+    VotingPowerManager voting_power_mgr(*store);
+    AccountAddress rep = 0;
+    uint32_t epoch = 10;
+
+    {
+        logos::transaction txn(store->environment, nullptr, true);
+        store->clear(store->voting_power_db, txn);
+        store->clear(store->representative_db, txn);
+        store->clear(store->account_db, txn);
+
+        RepInfo rep_info;
+        store->rep_put(rep, rep_info, txn);
+
+        voting_power_mgr.AddSelfStake(rep, 1000, epoch, txn);
+    }
+    
+
+
+    std::vector<std::pair<AccountAddress,logos::account_info>> accounts;
+
+
+    {
+        logos::transaction txn(store->environment, nullptr, true);
+
+        for(size_t i = 0; i < 1000; ++i)
+        {
+            AccountAddress add = i;
+            logos::account_info info;
+            accounts.push_back(std::make_pair(i, info));
+            store->account_put(i,info,txn);
+        }
+    }
+
+    std::cout << "Setting balances" << std::endl;
+
+
+
+    std::chrono::steady_clock::time_point start_time 
+        = std::chrono::steady_clock::now();
+
+    {
+
+        logos::transaction txn(store->environment, nullptr, true);
+        for(size_t i  = 0; i < 1000; ++i)
+        {
+            accounts[i].second.SetBalance(100, epoch, txn);
+
+            store->account_put(accounts[i].first, accounts[i].second, txn);
+        }
+    }
+
+    std::chrono::steady_clock::time_point end_time
+        = std::chrono::steady_clock::now();
+    
+    std::cout << "Time difference = " 
+        << std::chrono::duration_cast<std::chrono::milliseconds> (end_time - start_time).count() <<std::endl;
+
+    std::cout << "Set Balances" << std::endl;
+
+    ++epoch;
+
+
+    logos::transaction txn(store->environment, nullptr, true);
+    VotingPowerInfo vp_info;
+    ASSERT_TRUE(voting_power_mgr.GetVotingPowerInfo(rep, vp_info, txn));
+
+    ASSERT_EQ(vp_info.next.unlocked_proxied,100*1000);
 }
 
 #endif

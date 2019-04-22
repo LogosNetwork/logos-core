@@ -6,6 +6,7 @@
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/rewards/epoch_rewards.hpp>
 #include <logos/staking/voting_power.hpp>
+#include <logos/staking/voting_power_manager.hpp>
 
 namespace
 {
@@ -346,6 +347,7 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "address_ad_tx_db", MDB_CREATE | MDB_DUPSORT, &address_ad_txa_db) != 0;
         //staking
         error_a |= mdb_dbi_open (transaction, "voting_power_db", MDB_CREATE, &voting_power_db);
+        VotingPowerManager::Init(*this);
 
         //rewards
         error_a |= mdb_dbi_open (transaction, "epoch_rewards_db", MDB_CREATE, &epoch_rewards_db);
