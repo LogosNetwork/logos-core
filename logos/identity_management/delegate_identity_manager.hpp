@@ -12,6 +12,7 @@
 #include <logos/lib/log.hpp>
 
 #include <boost/log/sources/record_ostream.hpp>
+#include <boost/asio/deadline_timer.hpp>
 #include <boost/log/sources/logger.hpp>
 #include <boost/asio.hpp>
 
@@ -22,6 +23,7 @@ namespace logos {
     class alarm;
 }
 class p2p_interface;
+class RecallHandler;
 
 static constexpr uint8_t NON_DELEGATE = 0xff;
 
@@ -58,12 +60,15 @@ class DelegateIdentityManager
                     = std::map<AddressAdKey, address_ad>;
     using AddressAdTxAList
                     = std::multimap<AddressAdKey, address_ad_txa>;
+    using Timer     = boost::asio::deadline_timer;
 
 public:
     /// Class constructor
     /// @param store logos block store reference
     /// @param config node configuration reference
-    DelegateIdentityManager(Alarm &alarm, Store&, const Config&, p2p_interface & p2p);
+    /// @param p2p p2p interface
+    /// @param recall recall handler references
+    DelegateIdentityManager(Alarm &alarm, Store&, const Config&, p2p_interface & p2p, RecallHandler &recall);
 
     ~DelegateIdentityManager() = default;
 
@@ -185,11 +190,20 @@ public:
 
     /// Advertise if delegate in current or next epoch
     /// @param current_epoch_number current epoch number
+    /// @param advertise_current advertise current epoch
     /// @param idx returns this delegate id in the Current epoch
     /// @param epoch approved epoch block for the current epoch
     void CheckAdvertise(uint32_t current_epoch_number,
+                        bool advertise_current,
                         uint8_t & idx,
                         ApprovedEBPtr &epoch);
+    void CheckAdvertise(uint32_t current_epoch_number,
+                        bool advertise_current)
+    {
+        uint8_t idx;
+        ApprovedEBPtr eb;
+        CheckAdvertise(current_epoch_number, advertise_current, idx, eb);
+    }
 
     /// Advertise delegates ip
     /// @param epoch_number to advertise for
@@ -293,6 +307,9 @@ public:
 private:
 
     static constexpr uint8_t INVALID_EPOCH_GAP = 10; ///< Gap client connections with epoch number greater than which plus our current epoch number will be rejected
+    static constexpr uint64_t AD_TIMEOUT_60{60*60*1000}; /// 60 minutes as msec
+    static constexpr uint64_t AD_TIMEOUT_30{60*30*1000}; /// 30 minutes as msec
+    static constexpr uint64_t PEER_TIMEOUT{60*10*1000}; /// 10 minutes as msec
 
     void ReadAddressAd(std::shared_ptr<Socket> socket,
                        std::function<void(std::shared_ptr<AddressAd>)>);
@@ -338,6 +355,17 @@ private:
     /// Load/clean up on start up ad information from DB
     void LoadDB();
 
+    /// Schedule advertisement
+    /// @param msec timeout value
+    void ScheduleAd(boost::posix_time::milliseconds msec);
+    /// Figure out advertisement time for the next epoch. Schedule if applicable.
+    /// @param in_next_epoch the node is delegate in the next epoch
+    void ScheduleAd(bool in_next_epoch);
+
+    /// Handle the ad timeout
+    /// @param ec error code
+    void Advert(const ErrorCode &ec);
+
     static bool             _epoch_transition_enabled; ///< is epoch transition enabled
     static AccountAddress   _delegate_account;     ///< this delegate's account or 0 if non-delegate
     static uint8_t          _global_delegate_idx;  ///< global delegate index in all delegate's list
@@ -353,4 +381,7 @@ private:
     AddressAdList           _address_ad;           ///< list of delegates advertisement messages
     AddressAdTxAList        _address_ad_txa;       ///< list of delegates tx acceptor advertisement messages
     std::mutex              _ad_mutex;             ///< protect address ad/txa lists
+    Timer                   _timer;                ///< time for delegate/txacceptor advertisement
+    RecallHandler &         _recall_handler;       ///< recall handler reference
+
 };

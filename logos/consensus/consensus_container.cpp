@@ -38,7 +38,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
 {
     uint8_t delegate_idx;
     std::shared_ptr<ApprovedEB> approvedEb;
-    _identity_manager.CheckAdvertise(_cur_epoch_number, delegate_idx, approvedEb);
+    _identity_manager.CheckAdvertise(_cur_epoch_number, true, delegate_idx, approvedEb);
 
     _validate_sig_config = config.tx_acceptor_config.validate_sig &&
             config.tx_acceptor_config.tx_acceptors.size() == 0; // delegate mode, don't need to re-validate sig

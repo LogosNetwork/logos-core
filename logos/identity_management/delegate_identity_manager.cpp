@@ -6,12 +6,13 @@
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/microblock/microblock_handler.hpp>
 #include <logos/identity_management/delegate_identity_manager.hpp>
+#include <logos/identity_management/keys.hpp>
+#include <logos/epoch/recall_handler.hpp>
 #include <logos/epoch/epoch_handler.hpp>
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
 #include <logos/lib/ecies.hpp>
 #include <logos/p2p/p2p.h>
-#include <logos/identity_management/keys.hpp>
 
 using boost::multiprecision::uint128_t;
 using namespace boost::multiprecision::literals;
@@ -23,16 +24,22 @@ ECIESKeyPair DelegateIdentityManager::_ecies_key{};
 std::unique_ptr<bls::KeyPair> DelegateIdentityManager::_bls_key = nullptr;
 constexpr int DelegateIdentityManager::RETRY_PROPAGATE;
 constexpr uint8_t DelegateIdentityManager::INVALID_EPOCH_GAP;
+constexpr uint64_t DelegateIdentityManager::AD_TIMEOUT_60;
+constexpr uint64_t DelegateIdentityManager::AD_TIMEOUT_30;
+constexpr uint64_t DelegateIdentityManager::PEER_TIMEOUT;
 
 DelegateIdentityManager::DelegateIdentityManager(Alarm &alarm,
                                                  Store &store,
                                                  const Config &config,
-                                                 p2p_interface &p2p)
+                                                 p2p_interface &p2p,
+                                                 RecallHandler &recall_handler)
     : _alarm(alarm)
     , _store(store)
     , _p2p(p2p)
     , _config(config)
     , _validator_builder(store)
+    , _timer(alarm.service)
+    , _recall_handler(recall_handler)
 {
    _bls_key = std::make_unique<bls::KeyPair>();
    Init(config);
@@ -508,9 +515,13 @@ DelegateIdentityManager::GetDelegatesToAdvertise(uint8_t delegate_id)
 }
 
 void
-DelegateIdentityManager::CheckAdvertise(uint32_t current_epoch_number, uint8_t &idx, ApprovedEBPtr &epoch_current)
+DelegateIdentityManager::CheckAdvertise(uint32_t current_epoch_number,
+                                        bool advertise_current,
+                                        uint8_t &idx,
+                                        ApprovedEBPtr &epoch_current)
 {
     ApprovedEBPtr epoch_next;
+    bool in_next_epoch = false;
 
     // advertise for next epoch
     IdentifyDelegates(EpochDelegates::Next, idx, epoch_next);
@@ -518,15 +529,20 @@ DelegateIdentityManager::CheckAdvertise(uint32_t current_epoch_number, uint8_t &
     {
         auto ids = GetDelegatesToAdvertise(idx);
         Advertise(current_epoch_number+1, idx, epoch_next, ids);
+        in_next_epoch = true;
     }
 
     // advertise for current epoch
-    IdentifyDelegates(EpochDelegates::Current, idx, epoch_current);
-    if (idx != NON_DELEGATE)
+    if (advertise_current)
     {
-        auto ids = GetDelegatesToAdvertise(idx);
-        Advertise(current_epoch_number, idx, epoch_current, ids);
+        IdentifyDelegates(EpochDelegates::Current, idx, epoch_current);
+        if (idx != NON_DELEGATE) {
+            auto ids = GetDelegatesToAdvertise(idx);
+            Advertise(current_epoch_number, idx, epoch_current, ids);
+        }
     }
+
+    ScheduleAd(in_next_epoch);
 }
 
 void
@@ -1169,4 +1185,33 @@ DelegateIdentityManager::ValidateTxAcceptorConnection(std::shared_ptr<Socket> so
             cb(true, "");
         });
     });
+}
+
+void
+DelegateIdentityManager::ScheduleAd(bool in_next_epoch)
+{
+    EpochTimeUtil util;
+
+    auto lapse = util.GetNextEpochTime(_store.is_first_epoch() || _recall_handler.IsRecall() || !in_next_epoch);
+
+    if (lapse.count() > AD_TIMEOUT_60)
+    {
+        ScheduleAd(boost::posix_time::milliseconds(lapse.count() - AD_TIMEOUT_60));
+    } else if (lapse.count() > AD_TIMEOUT_30)
+    {
+        ScheduleAd(boost::posix_time::milliseconds(lapse.count() - AD_TIMEOUT_30));
+    }
+}
+
+void
+DelegateIdentityManager::ScheduleAd(boost::posix_time::milliseconds msec)
+{
+    _timer.expires_from_now(msec);
+    _timer.async_wait(std::bind(&DelegateIdentityManager::Advert, this, std::placeholders::_1));
+}
+
+void
+DelegateIdentityManager::Advert(const ErrorCode &ec)
+{
+    CheckAdvertise(ConsensusContainer::GetCurEpochNumber(), false);
 }
