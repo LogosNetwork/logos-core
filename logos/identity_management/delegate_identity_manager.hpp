@@ -128,6 +128,29 @@ public:
                                                                   const char *ip,
                                                                   uint16_t port);
 
+    /// Delegate's tx acceptor handshake
+    /// @param socket connection to txacceptor
+    /// @param epoch_number epoch number
+    /// @param delegate_id delegate id
+    /// @param ip acceptor's ip
+    /// @param port acceptor's binary port
+    /// @param json_port acceptor's json port
+    /// @param cb ad write call back
+    void TxAcceptorHandshake(std::shared_ptr<Socket> socket,
+                             uint32_t epoch_number,
+                             uint8_t delegate_id,
+                             const char *ip,
+                             uint16_t port,
+                             uint16_t json_port,
+                             std::function<void(bool result)> cb);
+
+    /// Validate tx acceptor handshake
+    /// @param socket connected delegate's socket
+    /// @param cb call back handler
+    static void ValidateTxAcceptorConnection(std::shared_ptr<Socket> socket,
+                                             const bls::PublicKey &bls_pub,
+                                             std::function<void(bool result, const char *error)> cb);
+
     /// Get advertisement message to p2p app type
     /// @return P2pAppType
     template<typename Ad>

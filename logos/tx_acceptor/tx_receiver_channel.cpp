@@ -5,6 +5,7 @@
 
 #include <logos/tx_acceptor/tx_receiver_channel.hpp>
 #include <logos/tx_acceptor/tx_message_header.hpp>
+#include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/node/node.hpp>
 
@@ -22,7 +23,8 @@ TxReceiverChannel::TxReceiverChannel(TxReceiverChannel::Service &service,
                                      logos::alarm & alarm,
                                      const std::string &ip,
                                      const uint16_t port,
-                                     TxChannel & receiver)
+                                     std::shared_ptr<TxChannelExt> receiver,
+                                     const Config &config)
     : _service(service)
     , _endpoint(Endpoint(boost::asio::ip::make_address_v4(ip), port))
     , _socket(std::make_shared<Socket>(service))
@@ -30,6 +32,7 @@ TxReceiverChannel::TxReceiverChannel(TxReceiverChannel::Service &service,
     , _receiver(receiver)
     , _assembler(_socket, *this)
     , _inactivity_timer(service)
+    , _config(config)
 {
     Connect();
 }
@@ -64,9 +67,29 @@ TxReceiverChannel::OnConnect(const Error & ec)
         return;
     }
 
-    ScheduleTimer(TIMEOUT);
+    // send handshake to tx-acceptor
+    // current implementation only supports handshake sent from the delegate to tx-acceptor
+    // tx-acceptor doesn't proove its identity to the delegate since presently it doesn't
+    // have any keys
+    _receiver->GetIdentityManager().TxAcceptorHandshake(_socket,
+                                                        ConsensusContainer::GetCurEpochNumber(),
+                                                        0, // delegate id is not required, delegate's bls key is in config
+                                                        _config.tx_acceptor_config.acceptor_ip.c_str(),
+                                                        _config.tx_acceptor_config.bin_port,
+                                                        _config.tx_acceptor_config.json_port,
+                                                        [this](bool result) {
 
-    AsyncReadHeader();
+        if (result)
+        {
+            ScheduleTimer(TIMEOUT);
+
+            AsyncReadHeader();
+        }
+        else
+        {
+            ReConnect(false);
+        }
+    });
 }
 
 void
@@ -132,7 +155,7 @@ TxReceiverChannel::AsyncReadMessage(const TxMessageHeader & header)
         LOG_DEBUG(_log) << "TxReceiverChannel::AsyncReadMessage sending "
                         << blocks.size() << " to consensus protocol";
 
-        auto response = _receiver.OnSendRequest(blocks);
+        auto response = _receiver->OnSendRequest(blocks);
 
         for (auto r : response)
         {

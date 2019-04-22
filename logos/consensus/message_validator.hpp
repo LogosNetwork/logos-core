@@ -29,9 +29,16 @@ public:
     //single
     void Sign(const BlockHash & hash, DelegateSig & sig);
 
-    //single
     bool Validate(const BlockHash & hash, const DelegateSig & sig, uint8_t delegate_id)
     {
+        auto pub_key = _keys.GetPublicKey(delegate_id);
+        return Validate(hash, sig, pub_key);
+    }
+
+    //single
+    static bool Validate(const BlockHash & hash, const DelegateSig & sig, const PublicKeyReal &pub_key)
+    {
+        Log log;
         //hash
         string hash_str(reinterpret_cast<const char*>(hash.data()), HASH_SIZE);
 
@@ -45,12 +52,12 @@ public:
         }
         catch (const bls::Exception &)
         {
-            LOG_ERROR(_log) << "MessageValidator - Failed to deserialize signature.";
+            LOG_ERROR(log) << "MessageValidator - Failed to deserialize signature.";
             return false;
         }
 
         //verify
-        return sig_real.verify(_keys.GetPublicKey(delegate_id), hash_str);
+        return sig_real.verify(pub_key, hash_str);
     }
     //aggregate
     bool AggregateSignature(const std::vector<DelegateSignature> & signatures, AggSignature & agg_sig)

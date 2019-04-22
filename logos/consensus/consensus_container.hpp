@@ -100,7 +100,7 @@ public:
 /// to the node object.
 class ConsensusContainer : public InternalConsensus,
                            public NewEpochEventHandler,
-                           public TxChannel,
+                           public TxChannelExt,
                            public PeerBinder
 {
     friend class DelegateIdentityManager;

@@ -65,7 +65,7 @@ TxAcceptor::TxAcceptor(Service &service,
         , _config(config.tx_acceptor_config)
 {
     LOG_INFO(_log) << "TxAcceptor::TxAcceptor creating standalone TxAcceptor";
-    _acceptor_channel = std::make_shared<TxAcceptorChannel>(_service, _config.acceptor_ip, _config.port);
+    _acceptor_channel = std::make_shared<TxAcceptorChannel>(_service, _config);
 }
 
 void

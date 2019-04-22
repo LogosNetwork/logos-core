@@ -58,7 +58,6 @@ struct ConsensusManagerConfig
     }
 
     std::vector<Delegate> delegates;
-    std::vector<Delegate> all_delegates; /// ip's/id's of all delegates
     std::string           local_address;
     std::string           callback_address;
     uint16_t              callback_port;

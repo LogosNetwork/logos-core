@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <logos/tx_acceptor/tx_acceptor_config.hpp>
 #include <logos/tx_acceptor/tx_channel.hpp>
 #include <logos/network/peer_acceptor.hpp>
 #include <logos/network/peer_manager.hpp>
@@ -17,7 +18,8 @@ namespace logos { class node_config; }
 /// Implements forwarding to the Delegate
 class TxAcceptorChannel : public TxChannel,
                           public PeerManager,
-                          public NetIOSend
+                          public NetIOSend,
+                          public Self<TxAcceptorChannel>
 {
     using Service       = boost::asio::io_service;
     using Socket        = boost::asio::ip::tcp::socket;
@@ -29,9 +31,8 @@ class TxAcceptorChannel : public TxChannel,
 public:
     /// Class constructor
     /// @param service boost asio service reference [in]
-    /// @param ip to accept delegate connection [in]
-    /// @param port to accept delegate connection [in]
-    TxAcceptorChannel(Service & service, const std::string & ip, const uint16_t port);
+    /// @param config tx acceptor configuration [in]
+    TxAcceptorChannel(Service & service, const TxAcceptorConfig &config);
     /// Class distruction
     ~TxAcceptorChannel() = default;
 
@@ -50,13 +51,8 @@ private:
     /// @param socket  of accepted connection [in]
     void OnConnectionAccepted(const Endpoint endpoint, shared_ptr<Socket>) override;
     /// Validate connected delegate
-    /// @param endpoint of accepted delegate [in]
     /// @param socket of accepted [in]
-    /// @return true if validated
-    bool Validate(const Endpoint endpoint, std::shared_ptr<Socket> socket)
-    {
-        return true; // TODO
-    }
+    void Validate(std::shared_ptr<Socket> socket);
     /// Schedule timer
     /// @param timeout value [in]
     void ScheduleTimer(const Seconds & timeout);
@@ -65,9 +61,9 @@ private:
     void OnTimeout(const Error &error);
     /// Forward transaction to the delegate
     /// @param block transaction [in]
-    /// @param should_buffer used in benchmarking [in] TODO
+    /// @param should_buffer used in benchmarking [in]
     /// @return result of the operation
-    logos::process_return OnDelegateMessage(std::shared_ptr<DM> block, bool should_buffer);
+    logos::process_return OnDelegateMessage(std::shared_ptr<DM> block, bool should_buffer) override;
     /// Forwards transactions  for batch block consensus.
     /// Submits transactions to consensus logic.
     ///     @param blocks of transactions [in]
@@ -82,4 +78,6 @@ private:
     uint64_t                _last_sent;             /// last sent message's time stamp
     Timer                   _inactivity_timer;      /// inactivity timer
     std::mutex              _mutex;                 /// timer's mutex
+    TxAcceptorConfig        _config;                /// tx acceptor configuration
+    bls::PublicKey          _bls_pub;               /// delegate's bls public key
 };

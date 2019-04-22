@@ -42,6 +42,7 @@ struct TxAcceptorConfig
         port = tree.get<uint16_t>("port", 56000);
         validate_sig = tree.get<bool>("validate_sig", false);
         max_connections = tree.get<uint32_t>("max_connections", UINT32_MAX);
+        bls_pub = tree.get<std::string>("bls_pub", "");
 
         return false;
     }
@@ -68,6 +69,7 @@ struct TxAcceptorConfig
         tree.put("port", port);
         tree.put("validate_sig", validate_sig);
         tree.put("max_connections", max_connections);
+        tree.put("bls_pub", bls_pub);
 
         return false;
     }
@@ -80,4 +82,5 @@ struct TxAcceptorConfig
     uint16_t              bin_port=56002;               /// port to receive binary formatted transactions
     bool                  validate_sig=false;           /// if true then delegate validates transaction's signature
     uint32_t              max_connections = UINT32_MAX; /// max allowed client connections
+    std::string           bls_pub;                      /// bls public key
 };
