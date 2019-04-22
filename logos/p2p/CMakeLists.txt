@@ -24,7 +24,6 @@ add_library (p2p
 	fs.h
 	hash.cpp
 	hash.h
-	limitedmap.h
 	logging.cpp
 	logging.h
 	net.cpp
@@ -65,8 +64,6 @@ add_library (p2p
 	utilmemory.h
 	utilstrencodings.cpp
 	utilstrencodings.h
-	utiltime.cpp
-	utiltime.h
     version.h)
 
 target_include_directories(p2p PRIVATE .)

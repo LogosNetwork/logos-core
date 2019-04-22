@@ -18,9 +18,9 @@
 #include <vector>
 
 //! -timeout default
-static const int DEFAULT_CONNECT_TIMEOUT = 5000;
+constexpr int DEFAULT_CONNECT_TIMEOUT = 5000;
 //! -dns default
-static const int DEFAULT_NAME_LOOKUP = true;
+constexpr int DEFAULT_NAME_LOOKUP = true;
 
 enum Network ParseNetwork(std::string net);
 std::string GetNetworkName(enum Network net);

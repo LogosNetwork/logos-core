@@ -49,6 +49,8 @@ public:
     void EvictExtraOutboundPeers(int64_t time_in_seconds);
 
 private:
+    bool TipMayBeStale(int nPowTargetSpacing) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+
     int64_t m_stale_tip_check_time; //! Next time to check for stale tip
 
     /** Enable BIP61 (sending reject messages) */

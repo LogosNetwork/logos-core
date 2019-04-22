@@ -82,6 +82,8 @@ private:
     int                                     nConnectTimeout;
     bool                                    fNameLookup;
     bool                                    fLogIPs;
+    TimeData                                timeData;
+    CCriticalSection                        cs_Shutdown;
 
 public:
     CClientUIInterface                      uiInterface;
@@ -150,7 +152,6 @@ void Interrupt()
 void Shutdown()
 {
     LogPrintf("%s: In progress...\n", __func__);
-    static CCriticalSection cs_Shutdown;
     TRY_LOCK(cs_Shutdown, lockShutdown);
     if (!lockShutdown)
         return;
@@ -441,7 +442,7 @@ bool AppInitParameterInteraction()
         nConnectTimeout = DEFAULT_CONNECT_TIMEOUT;
 
     // Option to startup with mocktime set (used for regression testing):
-    SetMockTime(Args.GetArg("-mocktime", 0)); // SetMockTime(0) is a no-op
+    timeData.SetMockTime(Args.GetArg("-mocktime", 0)); // SetMockTime(0) is a no-op
 
     return true;
 }
@@ -471,7 +472,7 @@ bool AppInitMain(p2p_config &config)
 {
     const CChainParams& chainparams = Params();
     // ********************************************************* Step 4a: application initialization
-    LogPrintf("Startup time: %s\n", FormatISO8601DateTime(GetTime()));
+    LogPrintf("Startup time: %s\n", FormatISO8601DateTime(timeData.GetTime()));
     LogPrintf("Using at most %i automatic connections (%i file descriptors available)\n", nMaxConnections, nFD);
 
     // ********************************************************* Step 6: network initialization
@@ -485,7 +486,8 @@ bool AppInitMain(p2p_config &config)
             GetRand(std::numeric_limits<uint64_t>::max()),
             GetRand(std::numeric_limits<uint64_t>::max()),
             config,
-            Args
+            Args,
+            timeData
             ));
     CConnman& connman = *g_connman;
     connman.p2p = &interface;

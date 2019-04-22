@@ -12,6 +12,7 @@
 #include <tinyformat.h>
 #include <util.h>
 #include <utilstrencodings.h>
+#include <timedata.h>
 
 #include <atomic>
 

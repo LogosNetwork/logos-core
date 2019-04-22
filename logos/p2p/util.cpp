@@ -79,9 +79,6 @@
 #include <openssl/conf.h>
 #include <thread>
 
-// Application startup time (used for uptime calculation)
-const int64_t nStartupTime = GetTime();
-
 const char * const BITCOIN_CONF_FILENAME = PACKAGE_NAME ".conf";
 const char * const BITCOIN_PID_FILENAME = PACKAGE_NAME ".pid";
 
@@ -132,28 +129,6 @@ public:
     }
 }
 instance_of_cinit;
-
-/** A map that contains all the currently held directory locks. After
- * successful locking, these will be held here until the global destructor
- * cleans them up and thus automatically unlocks them, or ReleaseDirectoryLocks
- * is called.
- */
-static std::map<std::string, std::unique_ptr<fsbridge::FileLock>> dir_locks;
-/** Mutex to protect dir_locks. */
-static std::mutex cs_dir_locks;
-
-bool DirIsWritable(const fs::path& directory)
-{
-    fs::path tmpFile = directory / fs::unique_path();
-
-    FILE* file = fsbridge::fopen(tmpFile, "a");
-    if (!file) return false;
-
-    fclose(file);
-    remove(tmpFile);
-
-    return true;
-}
 
 /**
  * Interpret a string argument as a boolean.
@@ -629,9 +604,9 @@ bool HelpRequested(const ArgsManager& args)
     return args.IsArgSet("-?") || args.IsArgSet("-h") || args.IsArgSet("-help");
 }
 
-static const int screenWidth = 79;
-static const int optIndent = 2;
-static const int msgIndent = 7;
+constexpr int screenWidth = 79;
+constexpr int optIndent = 2;
+constexpr int msgIndent = 7;
 
 std::string HelpMessageGroup(const std::string &message) {
     return std::string(message) + std::string("\n\n");
@@ -932,12 +907,6 @@ std::string CopyrightHolders(const std::string& strPrefix)
     }
 #endif
     return strCopyrightHolders;
-}
-
-// Obtain the application startup time (used for uptime calculation)
-int64_t GetStartupTime()
-{
-    return nStartupTime;
 }
 
 int ScheduleBatchPriority(void)

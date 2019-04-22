@@ -72,8 +72,6 @@ static constexpr unsigned int AVG_FEEFILTER_BROADCAST_INTERVAL = 10 * 60;
 /** Maximum feefilter broadcast delay after significant change. */
 static constexpr unsigned int MAX_FEEFILTER_CHANGE_DELAY = 5 * 60;
 
-// Internal stuff
-namespace {
     /** Number of nodes with fSyncStarted. */
     int nSyncStarted GUARDED_BY(cs_main) = 0;
 
@@ -104,9 +102,6 @@ namespace {
             return &(*a) < &(*b);
         }
     };
-} // namespace
-
-namespace {
 
 /**
  * Maintain validation-specific state about nodes, protected by cs_main, instead
@@ -236,16 +231,14 @@ static void PushNodeVersion(std::shared_ptr<CNode> pnode, CConnman* connman, int
     }
 }
 
-static bool TipMayBeStale(int nPowTargetSpacing) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+bool PeerLogicValidation::TipMayBeStale(int nPowTargetSpacing) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     AssertLockHeld(cs_main);
     if (g_last_tip_update == 0) {
-	g_last_tip_update = GetTime();
+        g_last_tip_update = connman->timeData.GetTime();
     }
-    return g_last_tip_update < GetTime() - nPowTargetSpacing * 3 /* && mapBlocksInFlight.empty() */;
+    return g_last_tip_update < connman->timeData.GetTime() - nPowTargetSpacing * 3 /* && mapBlocksInFlight.empty() */;
 }
-
-} // namespace
 
 // Returns true for outbound peers, excluding manual connections, feelers, and
 // one-shots
@@ -263,7 +256,7 @@ void PeerLogicValidation::InitializeNode(std::shared_ptr<CNode> pnode) {
         mapNodeState.emplace_hint(mapNodeState.end(), std::piecewise_construct, std::forward_as_tuple(nodeid), std::forward_as_tuple(addr, std::move(addrName)));
     }
     if(!pnode->fInbound)
-        PushNodeVersion(pnode, connman, GetTime());
+        PushNodeVersion(pnode, connman, connman->timeData.GetTime());
 }
 
 void PeerLogicValidation::FinalizeNode(NodeId nodeid, bool& fUpdateConnectionTime) {
@@ -359,7 +352,7 @@ static void RelayAddress(const CAddress& addr, bool fReachable, CConnman* connma
     // Use deterministic randomness to send to the same nodes for 24 hours
     // at a time so the addrKnowns of the chosen nodes prevent repeats
     uint64_t hashAddr = addr.GetHash();
-    const CSipHasher hasher = connman->GetDeterministicRandomizer(RANDOMIZER_ID_ADDRESS_RELAY).Write(hashAddr << 32).Write((GetTime() + hashAddr) / (24*60*60));
+    const CSipHasher hasher = connman->GetDeterministicRandomizer(RANDOMIZER_ID_ADDRESS_RELAY).Write(hashAddr << 32).Write((connman->timeData.GetTime() + hashAddr) / (24*60*60));
     FastRandomContext insecure_rand;
 
     std::array<std::pair<uint64_t, std::shared_ptr<CNode>>,2> best{{{0, nullptr}, {0, nullptr}}};
@@ -553,7 +546,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
                   pfrom->nStartingHeight, addrMe.ToString(), pfrom->GetId(),
                   remoteAddr);
 
-        int64_t nTimeOffset = nTime - GetTime();
+        int64_t nTimeOffset = nTime - connman->timeData.GetTime();
         pfrom->nTimeOffset = nTimeOffset;
         connman->timeData.AddTimeData(connman->Args, *connman->clientInterface, pfrom->addr, nTimeOffset);
 
@@ -652,7 +645,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
 	vRecv >> mess;
     if (connman->p2p->PropagateMessage(&mess[0], mess.size(), false)) {
 	    CNodeState *nodestate = State(pfrom->GetId());
-	    nodestate->m_last_block_announcement = GetTime();
+        nodestate->m_last_block_announcement = connman->timeData.GetTime();
 	}
 	return true;
     }
@@ -984,7 +977,7 @@ void PeerLogicValidation::CheckForStaleTipAndEvictPeers(int nPowTargetSpacing)
     LogTrace(BCLog::NET, "Called CheckForStaleTipAndEvictPeers(%d)\n", nPowTargetSpacing);
     if (connman == nullptr) return;
 
-    int64_t time_in_seconds = GetTime();
+    int64_t time_in_seconds = connman->timeData.GetTime();
 
     EvictExtraOutboundPeers(time_in_seconds);
 
@@ -1133,7 +1126,7 @@ bool PeerLogicValidation::SendMessages(std::shared_ptr<CNode> pto)
 
         // Check that outbound peers have reasonable chains
         // GetTime() is used by this anti-DoS logic so we can test this using mocktime
-        ConsiderEviction(pto, GetTime());
+        ConsiderEviction(pto, connman->timeData.GetTime());
     }
     return true;
 }

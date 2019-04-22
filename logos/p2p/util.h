@@ -20,7 +20,6 @@
 #include <sync.h>
 #include <tinyformat.h>
 #include <utilmemory.h>
-#include <utiltime.h>
 
 #include <atomic>
 #include <exception>
@@ -32,9 +31,6 @@
 #include <vector>
 
 #include <boost/thread/condition_variable.hpp> // for boost::thread_interrupted
-
-// Application startup time (used for uptime calculation)
-int64_t GetStartupTime();
 
 extern const char * const BITCOIN_CONF_FILENAME;
 extern const char * const BITCOIN_PID_FILENAME;
@@ -67,7 +63,6 @@ bool TruncateFile(FILE *file, unsigned int length);
 int RaiseFileDescriptorLimit(int nMinFD);
 void AllocateFileRange(FILE *file, unsigned int offset, unsigned int length);
 bool RenameOver(fs::path src, fs::path dest);
-bool DirIsWritable(const fs::path& directory);
 
 bool TryCreateDirectories(const fs::path& p);
 void runCommand(const std::string& strCommand);

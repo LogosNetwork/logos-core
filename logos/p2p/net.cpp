@@ -122,7 +122,7 @@ bool GetLocal(CService& addr, const CNetAddr *paddrPeer)
 }
 
 //! Convert the pnSeed6 array into usable address objects.
-static std::vector<CAddress> convertSeed6(const std::vector<SeedSpec6> &vSeedsIn)
+std::vector<CAddress> CConnman::convertSeed6(const std::vector<SeedSpec6> &vSeedsIn)
 {
     // It'll only connect to one or two seed nodes because once it connects,
     // it'll get a pile of addresses with newer timestamps.
@@ -135,7 +135,7 @@ static std::vector<CAddress> convertSeed6(const std::vector<SeedSpec6> &vSeedsIn
         struct in6_addr ip;
         memcpy(&ip, seed_in.addr, sizeof(ip));
         CAddress addr(CService(ip, seed_in.port), GetDesirableServiceFlags(NODE_NONE));
-        addr.nTime = GetTime() - GetRand(nOneWeek) - nOneWeek;
+        addr.nTime = timeData.GetTime() - GetRand(nOneWeek) - nOneWeek;
         vSeedsOut.push_back(addr);
     }
     return vSeedsOut;
@@ -689,7 +689,7 @@ bool CConnman::IsBanned(CNetAddr ip)
         CSubNet subNet = it.first;
         CBanEntry banEntry = it.second;
 
-        if (subNet.Match(ip) && GetTime() < banEntry.nBanUntil) {
+        if (subNet.Match(ip) && timeData.GetTime() < banEntry.nBanUntil) {
             return true;
         }
     }
@@ -703,7 +703,7 @@ bool CConnman::IsBanned(CSubNet subnet)
     if (i != setBanned.end())
     {
         CBanEntry banEntry = (*i).second;
-        if (GetTime() < banEntry.nBanUntil) {
+        if (timeData.GetTime() < banEntry.nBanUntil) {
             return true;
         }
     }
@@ -716,14 +716,14 @@ void CConnman::Ban(const CNetAddr& addr, const BanReason &banReason, int64_t ban
 }
 
 void CConnman::Ban(const CSubNet& subNet, const BanReason &banReason, int64_t bantimeoffset, bool sinceUnixEpoch) {
-    CBanEntry banEntry(GetTime());
+    CBanEntry banEntry(timeData.GetTime());
     banEntry.banReason = banReason;
     if (bantimeoffset <= 0)
     {
         bantimeoffset = Args.GetArg("-bantime", DEFAULT_MISBEHAVING_BANTIME);
         sinceUnixEpoch = false;
     }
-    banEntry.nBanUntil = (sinceUnixEpoch ? 0 : GetTime() )+bantimeoffset;
+    banEntry.nBanUntil = (sinceUnixEpoch ? 0 : timeData.GetTime() )+bantimeoffset;
 
     {
         LOCK(cs_setBanned);
@@ -782,7 +782,7 @@ void CConnman::SetBanned(const banmap_t &banMap)
 
 void CConnman::SweepBanned()
 {
-    int64_t now = GetTime();
+    int64_t now = timeData.GetTime();
     bool notifyUI = false;
     {
         LOCK(cs_setBanned);
@@ -1728,7 +1728,7 @@ void CConnman::ThreadDNSAddressSeed()
 	    {
 		int nOneDay = 24*3600;
 		CAddress addr = CAddress(CService(ip, Params().GetDefaultPort()), requiredServiceBits);
-		addr.nTime = GetTime() - 3*nOneDay - GetRand(4*nOneDay); // use a random age between 3 and 7 days old
+        addr.nTime = timeData.GetTime() - 3*nOneDay - GetRand(4*nOneDay); // use a random age between 3 and 7 days old
 		vAdd.push_back(addr);
 		found++;
 	    }
@@ -1834,7 +1834,7 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
     }
 
     // Initiate network connections
-    int64_t nStart = GetTime();
+    int64_t nStart = timeData.GetTime();
 
     // Minimum time before next feeler connection (in microseconds).
     int64_t nNextFeeler = PoissonNextSend(nStart*1000*1000, FEELER_INTERVAL);
@@ -1850,7 +1850,7 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
             return;
 
         // Add seed nodes if DNS seeds are all down (an infrastructure attack?).
-        if (addrman.size() == 0 && (GetTime() - nStart > 60)) {
+        if (addrman.size() == 0 && (timeData.GetTime() - nStart > 60)) {
             static bool done = false;
             if (!done) {
                 LogPrintf("Adding fixed seed nodes as DNS doesn't seem to be available.\n");
@@ -2221,11 +2221,12 @@ void CConnman::SetNetworkActive(bool active)
     clientInterface->NotifyNetworkActiveChanged(fNetworkActive);
 }
 
-CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In, p2p_config &conf, ArgsManager &ArgsIn)
+CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In, p2p_config &conf, ArgsManager &ArgsIn, TimeData &timeDataIn)
     : nSeed0(nSeed0In)
     , nSeed1(nSeed1In)
     , config(conf)
     , Args(ArgsIn)
+    , timeData(timeDataIn)
     , addrman(timeData)
 {
     fNetworkActive = true;
@@ -2595,7 +2596,7 @@ void CConnman::RecordBytesSent(uint64_t bytes)
     LOCK(cs_totalBytesSent);
     nTotalBytesSent += bytes;
 
-    uint64_t now = GetTime();
+    uint64_t now = timeData.GetTime();
     if (nMaxOutboundCycleStartTime + nMaxOutboundTimeframe < now)
     {
         // timeframe expired, reset cycle
@@ -2635,8 +2636,8 @@ uint64_t CConnman::GetMaxOutboundTimeLeftInCycle()
         return nMaxOutboundTimeframe;
 
     uint64_t cycleEndTime = nMaxOutboundCycleStartTime + nMaxOutboundTimeframe;
-    uint64_t now = GetTime();
-    return (cycleEndTime < now) ? 0 : cycleEndTime - GetTime();
+    uint64_t now = timeData.GetTime();
+    return (cycleEndTime < now) ? 0 : cycleEndTime - timeData.GetTime();
 }
 
 void CConnman::SetMaxOutboundTimeframe(uint64_t timeframe)
@@ -2646,7 +2647,7 @@ void CConnman::SetMaxOutboundTimeframe(uint64_t timeframe)
     {
         // reset measure-cycle in case of changing
         // the timeframe
-        nMaxOutboundCycleStartTime = GetTime();
+        nMaxOutboundCycleStartTime = timeData.GetTime();
     }
     nMaxOutboundTimeframe = timeframe;
 }
