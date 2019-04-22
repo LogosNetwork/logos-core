@@ -2,7 +2,6 @@
 
 #include <logos/request/fields.hpp>
 #include <logos/lib/utility.hpp>
-#include <logos/elections/requests.hpp>
 #include <logos/lib/log.hpp>
 
 RequestType GetRequestType(bool &error, std::string data)
@@ -18,9 +17,9 @@ RequestType GetRequestType(bool &error, std::string data)
     {
         ret = RequestType::Send;
     }
-    else if(data == CHANGE)
+    else if(data == PROXY)
     {
-        ret = RequestType::Change;
+        ret = RequestType::Proxy;
     }
     else if(data == ISSUANCE)
     {
@@ -116,8 +115,8 @@ std::string GetRequestTypeField(RequestType type)
         case RequestType::Send:
             ret = SEND;
             break;
-        case RequestType::Change:
-            ret = CHANGE;
+        case RequestType::Proxy:
+            ret = PROXY;
             break;
         case RequestType::Issuance:
             ret = ISSUANCE;
@@ -194,8 +193,8 @@ std::shared_ptr<Request> BuildRequest(RequestType type, bool & error, Data && da
         case RequestType::Send:
             result = std::make_shared<Send>(error, data);
             break;
-        case RequestType::Change:
-            result = std::make_shared<Change>(error, data);
+        case RequestType::Proxy:
+            result = std::make_shared<Proxy>(error, data);
             break;
         case RequestType::Issuance:
             result = std::make_shared<Issuance>(error, data);

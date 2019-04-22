@@ -2690,7 +2690,7 @@ void logos::rpc_handler::process ()
             case RequestType::StopRepresenting:
                 process(request);
                 break;
-            case RequestType::Change:
+            case RequestType::Proxy:
                 error_response(response, "ChangeRep is not implemented yet");
                 break;
             default:

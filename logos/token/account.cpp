@@ -409,7 +409,7 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
     {
         // TODO: N/A
         case RequestType::Send:
-        case RequestType::Change:
+        case RequestType::Proxy:
         case RequestType::Issuance:
             break;
         case RequestType::IssueAdditional:

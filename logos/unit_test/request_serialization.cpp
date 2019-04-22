@@ -470,33 +470,6 @@ TEST (Request_Serialization, json_deserialization)
     ASSERT_EQ(token_send.transactions[2].amount, 3);
     ASSERT_EQ(token_send.token_fee, 5);
 
-    // Change Representative
-    //
-    //
-    char const * change_json = R"%%%({
-        "type": "change",
-        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
-        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
-        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
-        "fee": "100",
-        "sequence": "1",
-        "next": "0000000000000000000000000000000000000000000000000000000000000000",
-        "client": "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju",
-        "representative": "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz"
-     })%%%";
-
-    tree = get_tree(change_json);
-    Change change(error, tree);
-
-    ASSERT_FALSE(error);
-    ASSERT_EQ(change.type, RequestType::Change);
-    ASSERT_EQ(change.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
-    ASSERT_EQ(change.fee.number(), 100);
-    ASSERT_EQ(change.sequence, 1);
-    ASSERT_EQ(change.client.to_account(),
-              "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
-    ASSERT_EQ(change.representative.to_account(),
-              "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
 
     // Send
     //
