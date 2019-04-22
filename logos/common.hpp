@@ -132,6 +132,7 @@ public:
     //If you call this function, you must also store the new Account struct in
     //account_db (by calling account_put). Otherwise, the account_db and
     //voting_power_db will become out of sync
+    //This comment does not apply to token accounts
     virtual void SetBalance(
             amount const & new_balance,
             uint32_t const & epoch,
@@ -195,8 +196,6 @@ struct account_info : Account
 
     amount const & GetAvailableBalance() const override;
     amount const & GetBalance() const override;
-
-    AccountAddress GetRep() const;
 
     block_hash staking_subchain_head;
     block_hash open_block;

@@ -290,7 +290,7 @@ TEST(Voting_Power, AccountBalance)
 
         voting_power_mgr.AddSelfStake(rep, 1000, epoch, txn);
     }
-    
+
 
 
     std::vector<std::pair<AccountAddress,logos::account_info>> accounts;
@@ -321,14 +321,15 @@ TEST(Voting_Power, AccountBalance)
         for(size_t i  = 0; i < 1000; ++i)
         {
             accounts[i].second.SetBalance(100, epoch, txn);
-
+            ASSERT_EQ(accounts[i].second.GetBalance(),100);
+            ASSERT_EQ(accounts[i].second.GetAvailableBalance(),100);
             store->account_put(accounts[i].first, accounts[i].second, txn);
         }
     }
 
     std::chrono::steady_clock::time_point end_time
         = std::chrono::steady_clock::now();
-    
+
     std::cout << "Time difference = " 
         << std::chrono::duration_cast<std::chrono::milliseconds> (end_time - start_time).count() <<std::endl;
 
@@ -336,12 +337,35 @@ TEST(Voting_Power, AccountBalance)
 
     ++epoch;
 
-
     logos::transaction txn(store->environment, nullptr, true);
     VotingPowerInfo vp_info;
     ASSERT_TRUE(voting_power_mgr.GetVotingPowerInfo(rep, vp_info, txn));
 
     ASSERT_EQ(vp_info.next.unlocked_proxied,100*1000);
+    for(size_t i  = 0; i < 1000; ++i)
+    {
+        accounts[i].second.SetBalance(accounts[i].second.GetBalance() + 100, epoch, txn);
+        ASSERT_EQ(accounts[i].second.GetBalance(), 200);
+        ASSERT_EQ(accounts[i].second.GetAvailableBalance(), 200);
+    }
+
+    ASSERT_TRUE(voting_power_mgr.GetVotingPowerInfo(rep, vp_info, txn));
+
+    ASSERT_EQ(vp_info.current.unlocked_proxied,100*1000);
+    ASSERT_EQ(vp_info.next.unlocked_proxied,200*1000);
+
+    for(size_t i  = 0; i < 1000; ++i)
+    {
+        accounts[i].second.SetBalance(accounts[i].second.GetBalance() - 50, epoch, txn);
+        ASSERT_EQ(accounts[i].second.GetBalance(), 150);
+        ASSERT_EQ(accounts[i].second.GetAvailableBalance(), 150);
+    }
+
+    ASSERT_TRUE(voting_power_mgr.GetVotingPowerInfo(rep, vp_info, txn));
+    ASSERT_EQ(vp_info.current.unlocked_proxied,100*1000);
+    ASSERT_EQ(vp_info.next.unlocked_proxied,150*1000);
+
+
 }
 
 #endif

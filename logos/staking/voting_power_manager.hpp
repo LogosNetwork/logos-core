@@ -91,6 +91,8 @@ class VotingPowerManager
             VotingPowerInfo const & info,
             MDB_txn* txn);
 
+    AccountAddress GetRep(logos::account_info const & info, MDB_txn* txn);
+
     private:
     void StoreOrPrune(
             AccountAddress const & rep,

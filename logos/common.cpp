@@ -327,11 +327,16 @@ Amount const & logos::account_info::GetAvailableBalance() const
 
 void logos::account_info::SetBalance(Amount const & new_balance, uint32_t const & epoch, MDB_txn* txn)
 {
+    std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::Get();
     if(new_balance > balance)
     {
         Amount diff = new_balance - balance;
         available_balance += diff;
-        VotingPowerManager::Get()->AddUnlockedProxied(GetRep(),diff,epoch,txn);
+        vpm->AddUnlockedProxied(
+                vpm->GetRep(*this,txn),
+                diff,
+                epoch,
+                txn);
     }
     else
     {
@@ -344,20 +349,20 @@ void logos::account_info::SetBalance(Amount const & new_balance, uint32_t const 
         }
         available_balance -= diff;
 
-        VotingPowerManager::Get()->SubtractUnlockedProxied(GetRep(),diff,epoch,txn);
+        vpm->SubtractUnlockedProxied(
+                vpm->GetRep(*this,txn),
+                diff,
+                epoch,
+                txn);
     }
-}
-
-AccountAddress logos::account_info::GetRep() const
-{
-    //TODO return actual rep
-    return 0;
+    balance = new_balance;
 }
 
 logos::account_info::account_info ()
     : Account(AccountType::LogosAccount)
     , staking_subchain_head (0)
     , open_block (0)
+    , available_balance (0)
 {}
 
 logos::account_info::account_info (bool & error, const logos::mdb_val & mdbval)
@@ -389,6 +394,7 @@ logos::account_info::account_info (
               receive_count_a)
     , staking_subchain_head (staking_subchain_head_a)
     , open_block (open_block_a)
+    , available_balance (balance_a)
 {}
 
 uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
@@ -401,6 +407,7 @@ uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
     {
         s += entry.Serialize(stream_a);
     }
+    s += write (stream_a, available_balance.bytes);
     return s;
 }
 
@@ -431,6 +438,10 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
 
                         entries.push_back(entry);
                     }
+                    if(!error)
+                    {
+                        error = read(stream_a, available_balance.bytes);
+                    }
                 }
             }
         }
@@ -443,6 +454,7 @@ bool logos::account_info::operator== (logos::account_info const & other_a) const
 {
     return staking_subchain_head == other_a.staking_subchain_head &&
            open_block == other_a.open_block &&
+           available_balance == other_a.available_balance &&
            Account::operator==(other_a);
 }
 

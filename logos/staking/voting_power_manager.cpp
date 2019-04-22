@@ -335,6 +335,43 @@ bool VotingPowerManager::GetVotingPowerInfo(AccountAddress const & rep, VotingPo
 }
 
 
+AccountAddress VotingPowerManager::GetRep(
+        logos::account_info const & info,
+        MDB_txn* txn)
+{
+    if(!txn)
+    {
+        LOG_FATAL(_log) << "VotingPowerManager::GetRep - txn is null";
+        trace_and_halt();    
+    }
+    //TODO return actual rep
+    std::shared_ptr<Request> req;
+    if(info.staking_subchain_head == 0)
+    {
+        LOG_WARN(_log) << "VotingPowerManager::GetRep - account has no rep";
+    }
+    else
+    {
+        if(_store.request_get(info.staking_subchain_head, req, txn))
+        {
+            LOG_FATAL(_log) << "VotingPowerManager::GetRep - "
+                << "Error getting staking subchain head";
+            trace_and_halt();
+        }
+        if(req->type == RequestType::Proxy)
+        {
+            return static_pointer_cast<Proxy>(req)->rep;
+        }
+        else
+        {
+            //TODO handle other request types
+            LOG_FATAL(_log) << "VotingPowerManager::GetRep - "
+                << "Request on staking subchain is not Proxy";
+            trace_and_halt();
+        }
+    }
+    return 0;
+}
 
 
 
