@@ -1291,7 +1291,7 @@ block_processor_thread ([this]() { this->block_processor.process_blocks (); }),
 stats (config.stat_config),
 _recall_handler(),
 p2p(*this),
-_identity_manager(alarm_a, store, config, p2p, _recall_handler),
+_identity_manager(*this),
 _archiver(alarm_a, store, _recall_handler),
 _consensus_container{std::make_shared<ConsensusContainer>(
         service_a, store, alarm_a, config, _archiver, _identity_manager, p2p)},
@@ -1420,6 +1420,27 @@ void logos::node::send_keepalive (logos::endpoint const & endpoint_a)
     }
     assert (endpoint_l.address ().is_v6 ());
     network.send_keepalive (endpoint_l);
+}
+
+bool logos::node::update_tx_acceptor(const std::string &ip, uint16_t port, bool add)
+{
+    // can't transition from the delegate mode to standalone mode
+    // or deleting tx acceptor while in the delegate mode
+    if (_tx_acceptor != nullptr)
+    {
+        return false;
+    }
+
+    assert(_tx_receiver != nullptr);
+
+    if (add)
+    {
+        return _tx_receiver->AddChannel(ip, port);
+    }
+    else
+    {
+        return _tx_receiver->DeleteChannel(ip, port);
+    }
 }
 
 logos::gap_cache::gap_cache (logos::node & node_a) :

@@ -195,6 +195,7 @@ public:
     void stop ();
     void successors ();
     void tokens_info ();
+    void txacceptor_advertise ();
     void unchecked ();
     void unchecked_clear ();
     void unchecked_get ();

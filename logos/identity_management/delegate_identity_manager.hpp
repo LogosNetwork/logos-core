@@ -20,10 +20,8 @@ namespace logos {
     class node_config;
     class block_store;
     class transaction;
-    class alarm;
+    class node;
 }
-class p2p_interface;
-class RecallHandler;
 
 static constexpr uint8_t NON_DELEGATE = 0xff;
 
@@ -35,10 +33,17 @@ enum class EpochDelegates {
 class DelegateIdentityManager
 {
     struct address_ad {
+        address_ad() = default;
+        address_ad(std::string &ip, uint16_t port) : ip(ip), port(port) {}
         std::string ip;
         uint16_t port;
     };
     struct address_ad_txa {
+        address_ad_txa() = default;
+        address_ad_txa(std::string &ip, uint16_t bin_port, uint16_t json_port)
+        : ip(ip)
+        , bin_port(bin_port)
+        , json_port(json_port) {}
         std::string ip;
         uint16_t bin_port;
         uint16_t json_port;
@@ -49,7 +54,6 @@ class DelegateIdentityManager
     using Config    = logos::node_config;
     using IPs       = std::map<AccountAddress, std::string>;
     using Accounts  = AccountAddress[NUM_DELEGATES];
-    using Alarm     = logos::alarm;
     using ApprovedEBPtr
                     = std::shared_ptr<ApprovedEB>;
     using BlsKeyPairPtr
@@ -64,11 +68,8 @@ class DelegateIdentityManager
 
 public:
     /// Class constructor
-    /// @param store logos block store reference
-    /// @param config node configuration reference
-    /// @param p2p p2p interface
-    /// @param recall recall handler references
-    DelegateIdentityManager(Alarm &alarm, Store&, const Config&, p2p_interface & p2p, RecallHandler &recall);
+    /// @param node reference
+    DelegateIdentityManager(logos::node &node);
 
     ~DelegateIdentityManager() = default;
 
@@ -148,6 +149,20 @@ public:
                              uint16_t port,
                              uint16_t json_port,
                              std::function<void(bool result)> cb);
+
+    /// Handle rpc call to add/delete txacceptor
+    /// @param epoch current/next epoch
+    /// @param ip txacceptor ip
+    /// @param port txacceptor port
+    /// @param bin_port txacceptor port to accept binary request
+    /// @param json_port txacceptor port to accept json request
+    /// @param add if true then add txacceptor, otherwise delete
+    bool OnTxAcceptorUpdate(EpochDelegates epoch,
+                            std::string &ip,
+                            uint16_t port,
+                            uint16_t bin_port,
+                            uint16_t json_port,
+                            bool add);
 
     /// Validate tx acceptor handshake
     /// @param socket connected delegate's socket
@@ -347,10 +362,10 @@ private:
     void UpdateDelegateAddressDB(const PrequelAddressAd &prequel, uint8_t *data, size_t size);
 
     /// Update the AddressAdTxAcceptor database
-    /// @param prequel ad prequel
+    /// @param ad message
     /// @param data serialized ad message
     /// @param size size of the serialized message
-    void UpdateTxAcceptorAddressDB(const PrequelAddressAd &prequel, uint8_t *data, size_t size);
+    void UpdateTxAcceptorAddressDB(const AddressAdTxAcceptor &ad, uint8_t *data, size_t size);
 
     /// Load/clean up on start up ad information from DB
     void LoadDB();
@@ -372,16 +387,12 @@ private:
     /// TODO keys should be retrieved on start up from the wallet
     static ECIESKeyPair     _ecies_key;            ///< this delegate's ecies key pair for ip encr/decr
     static BlsKeyPairPtr    _bls_key;              ///< bls key
-    Alarm &                 _alarm;                ///< logos alarm reference
     Store &                 _store;                ///< logos block store reference
-    p2p_interface &         _p2p;                  ///< p2p interface reference
-    const Config &          _config;               ///< consensus configuration
     Log                     _log;                  ///< boost log instances
     ValidatorBuilder        _validator_builder;    ///< validator builder
     AddressAdList           _address_ad;           ///< list of delegates advertisement messages
     AddressAdTxAList        _address_ad_txa;       ///< list of delegates tx acceptor advertisement messages
     std::mutex              _ad_mutex;             ///< protect address ad/txa lists
     Timer                   _timer;                ///< time for delegate/txacceptor advertisement
-    RecallHandler &         _recall_handler;       ///< recall handler reference
-
+    logos::node &           _node;                 ///< logos node reference
 };

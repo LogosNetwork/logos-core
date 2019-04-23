@@ -503,6 +503,13 @@ public:
                              bool should_buffer);
     process_return BufferComplete();
 
+    /// update tx acceptor configuration, don't allow switch between the delegate and standalone modes
+    /// @param ip acceptor's ip
+    /// @param port acceptor's port
+    /// @param add true if adding
+    /// @returns true if can update
+    bool update_tx_acceptor(const std::string &ip, uint16_t port, bool add);
+
 
     boost::asio::io_service & service;
     logos::node_config config;

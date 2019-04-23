@@ -40,9 +40,16 @@ TxReceiverChannel::TxReceiverChannel(TxReceiverChannel::Service &service,
 void
 TxReceiverChannel::Connect()
 {
+    std::weak_ptr<TxReceiverChannel> this_w = Self<TxReceiverChannel>::shared_from_this();
    _socket->async_connect(_endpoint,
-                           [this](const Error & ec)
-						   { OnConnect(ec); });
+                           [this_w](const Error & ec) {
+       auto this_s = GetSharedPtr(this_w, "TxReceiverChannel::Connect, object destroyed");
+       if (!this_s)
+       {
+           return;
+       }
+       this_s->OnConnect(ec);
+    });
 }
 
 void
@@ -54,7 +61,15 @@ TxReceiverChannel::ReConnect(bool cancel)
         _inactivity_timer.cancel();
     }
     _socket->close();
-    _alarm.add(CONNECT_RETRY_DELAY, [this](){Connect();});
+    std::weak_ptr<TxReceiverChannel> this_w = Self<TxReceiverChannel>::shared_from_this();
+    _alarm.add(CONNECT_RETRY_DELAY, [this_w](){
+        auto this_s = GetSharedPtr(this_w, "TxReceiverChannel::ReConnect, object destroyed");
+        if (!this_s)
+        {
+            return;
+        }
+        this_s->Connect();
+    });
 }
 
 void
@@ -71,23 +86,28 @@ TxReceiverChannel::OnConnect(const Error & ec)
     // current implementation only supports handshake sent from the delegate to tx-acceptor
     // tx-acceptor doesn't proove its identity to the delegate since presently it doesn't
     // have any keys
+    std::weak_ptr<TxReceiverChannel> this_w = Self<TxReceiverChannel>::shared_from_this();
     _receiver->GetIdentityManager().TxAcceptorHandshake(_socket,
                                                         ConsensusContainer::GetCurEpochNumber(),
                                                         0, // delegate id is not required, delegate's bls key is in config
                                                         _config.tx_acceptor_config.acceptor_ip.c_str(),
                                                         _config.tx_acceptor_config.bin_port,
                                                         _config.tx_acceptor_config.json_port,
-                                                        [this](bool result) {
-
+                                                        [this_w](bool result) {
+        auto this_s = GetSharedPtr(this_w, "TxReceiverChannel::OnConnect, object destroyed");
+        if (!this_s)
+        {
+            return;
+        }
         if (result)
         {
-            ScheduleTimer(TIMEOUT);
+            this_s->ScheduleTimer(TIMEOUT);
 
-            AsyncReadHeader();
+            this_s->AsyncReadHeader();
         }
         else
         {
-            ReConnect(false);
+            this_s->ReConnect(false);
         }
     });
 }
@@ -95,28 +115,34 @@ TxReceiverChannel::OnConnect(const Error & ec)
 void
 TxReceiverChannel::AsyncReadHeader()
 {
-    _assembler.ReadBytes([this](const uint8_t *data) {
+    std::weak_ptr<TxReceiverChannel> this_w = Self<TxReceiverChannel>::shared_from_this();
+    _assembler.ReadBytes([this_w](const uint8_t *data) {
+        auto this_s = GetSharedPtr(this_w, "TxReceiverChannel::AsyncReadHeader, object destroyed");
+        if (!this_s)
+        {
+            return;
+        }
         bool error = false;
         TxMessageHeader header(error, data, TxMessageHeader::MESSAGE_SIZE);
         if (error)
         {
-            LOG_ERROR(_log) << "TxReceiverChannel::AsyncReadHeader header deserialize error";
-            ReConnect(true);
+            LOG_ERROR(this_s->_log) << "TxReceiverChannel::AsyncReadHeader header deserialize error";
+            this_s->ReConnect(true);
             return;
         }
 
         if (header.payload_size == 0) // heartbeat
         {
-            LOG_INFO(_log) << "TxReceiverChannel::AsyncReadHeader received heartbeat";
-            _last_received = GetStamp();
-            AsyncReadHeader();
+            LOG_INFO(this_s->_log) << "TxReceiverChannel::AsyncReadHeader received heartbeat";
+            this_s->_last_received = GetStamp();
+            this_s->AsyncReadHeader();
         }
         else
         {
-            LOG_INFO(_log) << "TxReceiverChannel::AsyncReadHeader received header, "
+            LOG_INFO(this_s->_log) << "TxReceiverChannel::AsyncReadHeader received header, "
                            << " number of blocks " << header.mpf
                            << " payload " << header.payload_size;
-            AsyncReadMessage(header);
+            this_s->AsyncReadMessage(header);
         }
     }, TxMessageHeader::MESSAGE_SIZE);
 }
@@ -125,15 +151,20 @@ void
 TxReceiverChannel::AsyncReadMessage(const TxMessageHeader & header)
 {
     using DM = DelegateMessage<ConsensusType::Request>;
+    std::weak_ptr<TxReceiverChannel> this_w = Self<TxReceiverChannel>::shared_from_this();
     auto payload_size = header.payload_size;
-    _assembler.ReadBytes([this, payload_size, header](const uint8_t *data) mutable -> void {
+    _assembler.ReadBytes([this_w, payload_size, header](const uint8_t *data) mutable -> void {
+        auto this_s = GetSharedPtr(this_w, "TxReceiverChannel::AsyncReadMessage, object destroyed");
+        if (!this_s)
+        {
+            return;
+        }
         logos::bufferstream stream(data, payload_size);
-        std::shared_ptr<DM> block = nullptr;
         std::vector<std::shared_ptr<DM>> blocks;
         auto nblocks = header.mpf;
         bool error = false;
 
-        LOG_DEBUG(_log) << "TxReceiverChannel::AsyncReadMessage received payload size "
+        LOG_DEBUG(this_s->_log) << "TxReceiverChannel::AsyncReadMessage received payload size "
                         << payload_size << " number blocks " << nblocks;
 
         while (nblocks > 0)
@@ -141,30 +172,30 @@ TxReceiverChannel::AsyncReadMessage(const TxMessageHeader & header)
             auto block = DeserializeRequest(error, stream);
             if (error)
             {
-                LOG_ERROR(_log) << "TxReceiverChannel::AsyncReadMessage deserialize error, payload size "
+                LOG_ERROR(this_s->_log) << "TxReceiverChannel::AsyncReadMessage deserialize error, payload size "
                                 << payload_size;
-                ReConnect(true);
+                this_s->ReConnect(true);
                 return;
             }
             blocks.push_back(static_pointer_cast<DM>(block));
             nblocks--;
         }
 
-        _last_received = GetStamp();
+        this_s->_last_received = GetStamp();
 
-        LOG_DEBUG(_log) << "TxReceiverChannel::AsyncReadMessage sending "
+        LOG_DEBUG(this_s->_log) << "TxReceiverChannel::AsyncReadMessage sending "
                         << blocks.size() << " to consensus protocol";
 
-        auto response = _receiver->OnSendRequest(blocks);
+        auto response = this_s->_receiver->OnSendRequest(blocks);
 
         for (auto r : response)
         {
-            LOG_DEBUG(_log) << "TxRec)eiverChannel::AsyncReadMessage response "
+            LOG_DEBUG(this_s->_log) << "TxRec)eiverChannel::AsyncReadMessage response "
                             << ProcessResultToString(r.first)
                             << " " << r.second.to_string();
         }
 
-        AsyncReadHeader();
+        this_s->AsyncReadHeader();
     }, payload_size);
 }
 

@@ -28,21 +28,14 @@ constexpr uint64_t DelegateIdentityManager::AD_TIMEOUT_60;
 constexpr uint64_t DelegateIdentityManager::AD_TIMEOUT_30;
 constexpr uint64_t DelegateIdentityManager::PEER_TIMEOUT;
 
-DelegateIdentityManager::DelegateIdentityManager(Alarm &alarm,
-                                                 Store &store,
-                                                 const Config &config,
-                                                 p2p_interface &p2p,
-                                                 RecallHandler &recall_handler)
-    : _alarm(alarm)
-    , _store(store)
-    , _p2p(p2p)
-    , _config(config)
-    , _validator_builder(store)
-    , _timer(alarm.service)
-    , _recall_handler(recall_handler)
+DelegateIdentityManager::DelegateIdentityManager(logos::node &node)
+    : _store(node.store)
+    , _validator_builder(_store)
+    , _timer(node.alarm.service)
+    , _node(node)
 {
    _bls_key = std::make_unique<bls::KeyPair>();
-   Init(config);
+   Init(node.config);
    LoadDB();
 }
 
@@ -194,7 +187,7 @@ DelegateIdentityManager::Init(const Config &config)
 {
     logos::transaction transaction (_store.environment, nullptr, true);
 
-    const ConsensusManagerConfig &cmconfig = _config.consensus_manager_config;
+    const ConsensusManagerConfig &cmconfig = _node.config.consensus_manager_config;
     _epoch_transition_enabled = cmconfig.enable_epoch_transition;
 
     EpochVotingManager::ENABLE_ELECTIONS = cmconfig.enable_elections;
@@ -555,16 +548,16 @@ DelegateIdentityManager::P2pPropagate(
         LOG_DEBUG(_log) << "DelegateIdentityManager::Advertise, " << m
                         << ": epoch number " << epoch_number
                         << ", delegate id " << (int) delegate_id
-                        << ", ip " << _config.consensus_manager_config.local_address
-                        << ", port " << _config.consensus_manager_config.peer_port
+                        << ", ip " << _node.config.consensus_manager_config.local_address
+                        << ", port " << _node.config.consensus_manager_config.peer_port
                         << ", size " << size;
     };
-    bool res = _p2p.PropagateMessage(buf->data(), buf->size(), true);
+    bool res = _node.p2p.PropagateMessage(buf->data(), buf->size(), true);
     if (res) {
         log("propagating", buf->size());
     } else {
         log("retrying", buf->size());
-        _alarm.add(std::chrono::seconds(RETRY_PROPAGATE), [this, epoch_number, delegate_id, buf]() {
+        _node.alarm.add(std::chrono::seconds(RETRY_PROPAGATE), [this, epoch_number, delegate_id, buf]() {
             P2pPropagate(epoch_number, delegate_id, buf);
         });
     }
@@ -664,7 +657,7 @@ DelegateIdentityManager::Advertise(
     const std::vector<uint8_t> &ids)
 {
     // Advertise to other delegats this delegate's ip
-    const ConsensusManagerConfig & cmconfig = _config.consensus_manager_config;
+    const ConsensusManagerConfig & cmconfig = _node.config.consensus_manager_config;
     for (auto it = ids.begin(); it != ids.end(); ++it)
     {
         auto encr_delegate_id = *it;
@@ -679,7 +672,7 @@ DelegateIdentityManager::Advertise(
     }
 
     // Advertise to all nodes this delegate's tx acceptors
-    const TxAcceptorConfig &txconfig = _config.tx_acceptor_config;
+    const TxAcceptorConfig &txconfig = _node.config.tx_acceptor_config;
     auto acceptors = txconfig.tx_acceptors;
     if (acceptors.empty())
     {
@@ -808,7 +801,6 @@ DelegateIdentityManager::UpdateDelegateAddressDB(const PrequelAddressAd &prequel
 bool
 DelegateIdentityManager::OnAddressAdTxAcceptor(uint8_t *data, size_t size)
 {
-    bool res = false;
     bool error = false;
     logos::bufferstream stream(data, size);
     PrequelAddressAd prequel(error, stream);
@@ -838,37 +830,53 @@ DelegateIdentityManager::OnAddressAdTxAcceptor(uint8_t *data, size_t size)
 
         {
             std::lock_guard<std::mutex> lock(_ad_mutex);
-            _address_ad_txa.insert({{prequel.epoch_number, prequel.delegate_id},
-                                    {addressAd.GetIP(),    addressAd.port, addressAd.json_port}});
+            if (addressAd.add)
+            {
+                std::string ip = addressAd.GetIP();
+                _address_ad_txa.emplace(std::piecewise_construct,
+                                        std::forward_as_tuple(prequel.epoch_number, prequel.delegate_id),
+                                        std::forward_as_tuple(ip, addressAd.port, addressAd.json_port));
+            }
+            else
+            {
+                _address_ad_txa.erase({prequel.epoch_number, prequel.delegate_id});
+            }
         }
 
         LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAdTxAcceptor, ip " << addressAd.GetIP()
                         << ", port " << addressAd.port
                         << ", json port " << addressAd.json_port;
 
-        UpdateTxAcceptorAddressDB(prequel, data, size);
-
-        res = true;
+        UpdateTxAcceptorAddressDB(addressAd, data, size);
     }
 
-    return res;
+    return true;
 }
 
 void
-DelegateIdentityManager::UpdateTxAcceptorAddressDB(const PrequelAddressAd &prequel, uint8_t *data, size_t size)
+DelegateIdentityManager::UpdateTxAcceptorAddressDB(const AddressAdTxAcceptor &ad, uint8_t *data, size_t size)
 {
     logos::transaction transaction (_store.environment, nullptr, true);
+
+    if (!ad.add)
+    {
+        _store.ad_del<logos::block_store::ad_txa_key>(transaction,
+                                                      ad.epoch_number,
+                                                      ad.delegate_id);
+        return;
+    }
+
     // update new
     _store.ad_put<logos::block_store::ad_txa_key>(transaction,
                                                   data,
                                                   size,
-                                                  prequel.epoch_number,
-                                                  prequel.delegate_id);
+                                                  ad.epoch_number,
+                                                  ad.delegate_id);
     // delete old
     auto current_epoch_number = ConsensusContainer::GetCurEpochNumber();
     _store.ad_del<logos::block_store::ad_txa_key>(transaction,
                                                   current_epoch_number - 1,
-                                                  prequel.delegate_id);
+                                                  ad.delegate_id);
 }
 
 /// The server reads client's ad and responds with it's own ad if the client's ad is valid
@@ -933,7 +941,7 @@ DelegateIdentityManager::WriteAddressAd(std::shared_ptr<Socket> socket,
                                         uint8_t remote_delegate_id,
                                         std::function<void(bool)> cb)
 {
-    auto & config = _config.consensus_manager_config;
+    auto & config = _node.config.consensus_manager_config;
     auto buf = MakeSerializedAddressAd(epoch_number,
                                        local_delegate_id,
                                        remote_delegate_id,
@@ -1056,7 +1064,7 @@ DelegateIdentityManager::LoadDB()
         memcpy(&adKey, it->first.data(), it->first.size());
         if (adKey.epoch_number < current_epoch_number)
         {
-            ad2del.emplace_back(adKey);
+            ad2del.push_back(adKey);
             continue;
         }
 
@@ -1065,7 +1073,10 @@ DelegateIdentityManager::LoadDB()
         assert (!error);
         {
             std::lock_guard<std::mutex> lock(_ad_mutex);
-            _address_ad.emplace(std::make_pair(ad.epoch_number, ad.delegate_id), address_ad{ad.GetIP(), ad.port});
+            std::string ip = ad.GetIP();
+            _address_ad.emplace(std::piecewise_construct,
+                                std::forward_as_tuple(ad.epoch_number, ad.delegate_id),
+                                std::forward_as_tuple(ip, ad.port));
         }
     }
 
@@ -1084,17 +1095,19 @@ DelegateIdentityManager::LoadDB()
         memcpy(&adTxaKey, it->first.data(), it->first.size());
         if (adTxaKey.epoch_number < current_epoch_number)
         {
-            adtxa2del.emplace_back(adTxaKey);
+            adtxa2del.push_back(adTxaKey);
             continue;
         }
 
         logos::bufferstream stream (reinterpret_cast<uint8_t const *> (it->second.data ()), it->second.size ());
         AddressAdTxAcceptor ad (error, stream);
+        std::string ip = ad.GetIP();
         assert (!error);
         {
             std::lock_guard<std::mutex> lock(_ad_mutex);
-            _address_ad_txa.emplace(std::make_pair(ad.epoch_number, ad.delegate_id),
-                                    address_ad_txa{ad.GetIP(), ad.port, ad.json_port});
+            _address_ad_txa.emplace(std::piecewise_construct,
+                                    std::forward_as_tuple(ad.epoch_number, ad.delegate_id),
+                                    std::forward_as_tuple(ip, ad.port, ad.json_port));
         }
     }
 
@@ -1192,7 +1205,7 @@ DelegateIdentityManager::ScheduleAd(bool in_next_epoch)
 {
     EpochTimeUtil util;
 
-    auto lapse = util.GetNextEpochTime(_store.is_first_epoch() || _recall_handler.IsRecall() || !in_next_epoch);
+    auto lapse = util.GetNextEpochTime(_store.is_first_epoch() || _node._recall_handler.IsRecall() || !in_next_epoch);
 
     if (lapse.count() > AD_TIMEOUT_60)
     {
@@ -1214,4 +1227,53 @@ void
 DelegateIdentityManager::Advert(const ErrorCode &ec)
 {
     CheckAdvertise(ConsensusContainer::GetCurEpochNumber(), false);
+}
+
+bool
+DelegateIdentityManager::OnTxAcceptorUpdate(EpochDelegates epoch,
+                                            std::string &ip,
+                                            uint16_t port,
+                                            uint16_t bin_port,
+                                            uint16_t json_port,
+                                            bool add)
+{
+    uint8_t idx = NON_DELEGATE;
+    ApprovedEBPtr eb;
+
+    IdentifyDelegates(epoch, idx, eb);
+    if (idx == NON_DELEGATE)
+    {
+        return false;
+    }
+
+    if ((add && _address_ad_txa.find({eb->epoch_number, idx}) != _address_ad_txa.end()) ||
+            (!add && _address_ad_txa.find({eb->epoch_number, idx}) == _address_ad_txa.end()))
+    {
+        return false;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(_ad_mutex);
+        if (add)
+        {
+            _address_ad_txa.emplace(std::piecewise_construct,
+                                    std::forward_as_tuple(eb->epoch_number, idx),
+                                    std::forward_as_tuple(ip, bin_port, json_port));
+        }
+        else
+        {
+            _address_ad_txa.erase({eb->epoch_number, idx});
+        }
+    }
+
+    AddressAdTxAcceptor ad(eb->epoch_number, idx, ip.c_str(), bin_port, json_port, add);
+    Sign(eb->epoch_number, ad);
+    auto buf = std::make_shared<std::vector<uint8_t>>();
+    ad.Serialize(*buf);
+
+    UpdateTxAcceptorAddressDB(ad, buf->data(), buf->size());
+
+    P2pPropagate(eb->epoch_number, idx, buf);
+
+    return _node.update_tx_acceptor(ip, port, add);
 }

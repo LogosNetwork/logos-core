@@ -43,7 +43,8 @@ private:
     TxReceiverErrorHandler & _error_handler;    /// reference to the error handler object
 };
 
-class TxReceiverChannel : public TxReceiverErrorHandler
+class TxReceiverChannel : public TxReceiverErrorHandler,
+                          public Self<TxReceiverChannel>
 {
     using Service       = boost::asio::io_service;
     using Socket        = boost::asio::ip::tcp::socket;
@@ -59,6 +60,11 @@ public:
                       std::shared_ptr<TxChannelExt> receiver,
                       const Config &config);
     ~TxReceiverChannel() = default;
+
+    bool Equal(const std::string &ip, uint16_t port)
+    {
+        return _endpoint.address().to_string() == ip && _endpoint.port() == port;
+    }
 
 private:
 

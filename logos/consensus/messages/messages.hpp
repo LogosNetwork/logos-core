@@ -678,9 +678,11 @@ struct AddressAdTxAcceptor : CommonAddressAd
                         const char* ip,
                         uint16_t port,
                         uint16_t json_port,
+                        bool add = true,
                         DelegateSig signature=0)
     : CommonAddressAd(epoch_number, delegate_id, 0xff, ip, port, signature)
     , json_port(json_port)
+    , add(add)
     {
     }
     AddressAdTxAcceptor(bool &error, uint32_t epoch_number, uint8_t delegate_id, logos::stream &stream)
@@ -710,15 +712,17 @@ struct AddressAdTxAcceptor : CommonAddressAd
         error = logos::read(stream, ip) ||
                 logos::read(stream, port) ||
                 logos::read(stream, json_port) ||
+                logos::read(stream, add) ||
                 logos::read(stream, signature);
     }
     uint32_t Serialize(logos::vectorstream &stream)
     {
-        payload_size = IP_LENGTH + sizeof(port) + sizeof(json_port) + sizeof(signature);
+        payload_size = IP_LENGTH + sizeof(port) + sizeof(json_port) + sizeof(add) + sizeof(signature);
         return PrequelAddressAd::Serialize(stream) +
                logos::write(stream, ip) +
                logos::write(stream, port) +
                logos::write(stream, json_port) +
+               logos::write(stream, add) +
                logos::write(stream, signature);
     }
     uint32_t Serialize(std::vector<uint8_t> &buf)
@@ -735,11 +739,13 @@ struct AddressAdTxAcceptor : CommonAddressAd
     void Hash(blake2b_state & hash) const override
     {
         blake2b_update(&hash, &json_port, sizeof(json_port));
+        blake2b_update(&hash, &add, sizeof(add));
     }
 
     uint16_t json_port;
+    bool add;
     static constexpr size_t SIZE = PrequelAddressAd::SIZE + IP_LENGTH + sizeof(port) +
-                                     sizeof(json_port) + sizeof(signature);
+                                     sizeof(json_port) + sizeof(add) + sizeof(signature);
 };
 
 // Convenience aliases for message names.

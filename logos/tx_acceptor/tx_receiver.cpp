@@ -14,9 +14,9 @@ TxReceiver::TxReceiver(Service &service,
     : _service(service)
     , _alarm(alarm)
     , _receiver(receiver)
-    , _config(config.tx_acceptor_config)
+    , _config(config)
 {
-    for (auto acceptor : _config.tx_acceptors)
+    for (auto acceptor : _config.tx_acceptor_config.tx_acceptors)
     {
         _channels.push_back(std::make_shared<TxReceiverChannel>(service,
                                                                 _alarm,
@@ -28,4 +28,46 @@ TxReceiver::TxReceiver(Service &service,
                        << " ip " << acceptor.ip
                        << " port " << acceptor.port;
     }
+}
+
+bool
+TxReceiver::AddChannel(const std::string &ip, uint16_t port)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    auto it = std::find_if(_channels.begin(),
+                           _channels.end(),
+                           [&ip,port](const auto &item){return item->Equal(ip,port);});
+    if (it != _channels.end())
+    {
+        return false;
+    }
+    _channels.push_back(std::make_shared<TxReceiverChannel>(_service,
+                                                            _alarm,
+                                                            ip,
+                                                            port,
+                                                            _receiver,
+                                                            _config));
+    LOG_INFO(_log) << "TxReceiver::TxReceiver created TxReceiverChannel "
+                   << " ip " << ip
+                   << " port " << port;
+    return true;
+}
+
+bool
+TxReceiver::DeleteChannel(const std::string &ip, uint16_t port)
+{
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    auto it = std::find_if(_channels.begin(),
+                           _channels.end(),
+                           [&ip,port](const auto &item){return item->Equal(ip,port);});
+    if (it == _channels.end() || _channels.size() == 1)
+    {
+        return false;
+    }
+
+    _channels.erase(it);
+
+    return true;
 }
