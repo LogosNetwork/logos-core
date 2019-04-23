@@ -72,18 +72,8 @@ enum BindFlags {
 
 const static std::string NET_MESSAGE_COMMAND_OTHER = "*other*";
 
-static const uint64_t RANDOMIZER_ID_NETGROUP = 0x6c0edd8036ef4036ULL; // SHA256("netgroup")[0:8]
-static const uint64_t RANDOMIZER_ID_LOCALHOSTNONCE = 0xd93e69e2bbfa5735ULL; // SHA256("localhostnonce")[0:8]
-//
-// Global state variables
-//
-bool fDiscover = true;
-bool fListen = true;
-bool fRelayTxes = true;
-CCriticalSection cs_mapLocalHost;
-std::map<CNetAddr, LocalServiceInfo> mapLocalHost;
-static bool vfLimited[NET_MAX] = {};
-std::string strSubVersion;
+constexpr uint64_t RANDOMIZER_ID_NETGROUP = 0x6c0edd8036ef4036ULL; // SHA256("netgroup")[0:8]
+constexpr uint64_t RANDOMIZER_ID_LOCALHOSTNONCE = 0xd93e69e2bbfa5735ULL; // SHA256("localhostnonce")[0:8]
 
 void CConnman::AddOneShot(const std::string& strDest)
 {
@@ -97,7 +87,7 @@ unsigned short CConnman::GetListenPort()
 }
 
 // find 'best' local address for a particular peer
-bool GetLocal(CService& addr, const CNetAddr *paddrPeer)
+bool CConnman::GetLocal(CService& addr, const CNetAddr *paddrPeer)
 {
     if (!fListen)
         return false;
@@ -157,7 +147,7 @@ CAddress CConnman::GetLocalAddress(const CNetAddr *paddrPeer, ServiceFlags nLoca
     return ret;
 }
 
-static int GetnScore(const CService& addr)
+int CConnman::GetnScore(const CService& addr)
 {
     LOCK(cs_mapLocalHost);
     if (mapLocalHost.count(addr) == LOCAL_NONE)
@@ -166,7 +156,7 @@ static int GetnScore(const CService& addr)
 }
 
 // Is our peer's addrLocal potentially useful as an external IP source?
-bool IsPeerAddrLocalGood(std::shared_ptr<CNode> pnode)
+bool CConnman::IsPeerAddrLocalGood(std::shared_ptr<CNode> pnode)
 {
     CService addrLocal = pnode->GetAddrLocal();
     return fDiscover && pnode->addr.IsRoutable() && addrLocal.IsRoutable() &&
@@ -174,14 +164,14 @@ bool IsPeerAddrLocalGood(std::shared_ptr<CNode> pnode)
 }
 
 // pushes our own address to a peer
-void AdvertiseLocal(std::shared_ptr<CNode> pnode)
+void CConnman::AdvertiseLocal(std::shared_ptr<CNode> pnode)
 {
     if (fListen && pnode->fSuccessfullyConnected)
     {
-        CAddress addrLocal = pnode->connman.GetLocalAddress(&pnode->addr, pnode->GetLocalServices());
-        if (pnode->connman.Args.GetBoolArg("-addrmantest", false)) {
+        CAddress addrLocal = GetLocalAddress(&pnode->addr, pnode->GetLocalServices());
+        if (Args.GetBoolArg("-addrmantest", false)) {
             // use IPv4 loopback during addrmantest
-            addrLocal = CAddress(CService(LookupNumeric("127.0.0.1", pnode->connman.GetListenPort())), pnode->GetLocalServices());
+            addrLocal = CAddress(CService(LookupNumeric("127.0.0.1", GetListenPort())), pnode->GetLocalServices());
         }
         // If discovery is enabled, sometimes give our peer the address it
         // tells us that it sees us as in case it has a better idea of our
@@ -191,7 +181,7 @@ void AdvertiseLocal(std::shared_ptr<CNode> pnode)
         {
             addrLocal.SetIP(pnode->GetAddrLocal());
         }
-        if (addrLocal.IsRoutable() || pnode->connman.Args.GetBoolArg("-addrmantest", false))
+        if (addrLocal.IsRoutable() || Args.GetBoolArg("-addrmantest", false))
         {
             LogPrint(BCLog::NET, "AdvertiseLocal: advertising address %s\n", addrLocal.ToString());
             FastRandomContext insecure_rand;
@@ -201,7 +191,7 @@ void AdvertiseLocal(std::shared_ptr<CNode> pnode)
 }
 
 // learn a new local address
-bool AddLocal(const CService& addr, int nScore)
+bool CConnman::AddLocal(const CService& addr, int nScore)
 {
     if (!addr.IsRoutable())
         return false;
@@ -229,10 +219,10 @@ bool AddLocal(const CService& addr, int nScore)
 
 bool CConnman::AddLocal(const CNetAddr &addr, int nScore)
 {
-    return ::AddLocal(CService(addr, GetListenPort()), nScore);
+    return AddLocal(CService(addr, GetListenPort()), nScore);
 }
 
-void RemoveLocal(const CService& addr)
+void CConnman::RemoveLocal(const CService& addr)
 {
     LOCK(cs_mapLocalHost);
     LogPrintf("RemoveLocal(%s)\n", addr.ToString());
@@ -240,7 +230,7 @@ void RemoveLocal(const CService& addr)
 }
 
 /** Make a particular network entirely off-limits (no automatic connects to it) */
-void SetLimited(enum Network net, bool fLimited)
+void CConnman::SetLimited(enum Network net, bool fLimited)
 {
     if (net == NET_UNROUTABLE || net == NET_INTERNAL)
         return;
@@ -248,19 +238,19 @@ void SetLimited(enum Network net, bool fLimited)
     vfLimited[net] = fLimited;
 }
 
-bool IsLimited(enum Network net)
+bool CConnman::IsLimited(enum Network net)
 {
     LOCK(cs_mapLocalHost);
     return vfLimited[net];
 }
 
-bool IsLimited(const CNetAddr &addr)
+bool CConnman::IsLimited(const CNetAddr &addr)
 {
     return IsLimited(addr.GetNetwork());
 }
 
 /** vote for a local address */
-bool SeenLocal(const CService& addr)
+bool CConnman::SeenLocal(const CService& addr)
 {
     {
         LOCK(cs_mapLocalHost);
@@ -273,7 +263,7 @@ bool SeenLocal(const CService& addr)
 
 
 /** check whether a given address is potentially local */
-bool IsLocal(const CService& addr)
+bool CConnman::IsLocal(const CService& addr)
 {
     LOCK(cs_mapLocalHost);
     return mapLocalHost.count(addr) > 0;
@@ -281,19 +271,18 @@ bool IsLocal(const CService& addr)
 }
 
 /** check whether a given network is one we can probably connect to */
-bool IsReachable(enum Network net)
+bool CConnman::IsReachable(enum Network net)
 {
     LOCK(cs_mapLocalHost);
     return !vfLimited[net];
 }
 
 /** check whether a given address is in a network we can probably connect to */
-bool IsReachable(const CNetAddr& addr)
+bool CConnman::IsReachable(const CNetAddr& addr)
 {
     enum Network net = addr.GetNetwork();
     return IsReachable(net);
 }
-
 
 std::shared_ptr<CNode> CConnman::FindNode(const CNetAddr& ip)
 {
@@ -2228,6 +2217,7 @@ CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In, p2p_config &conf, ArgsM
     , Args(ArgsIn)
     , timeData(timeDataIn)
     , addrman(timeData)
+    , vfLimited()
 {
     fNetworkActive = true;
     setBannedIsDirty = false;
@@ -2237,6 +2227,8 @@ CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In, p2p_config &conf, ArgsM
     nReceiveFloodSize = 0;
     flagInterruptMsgProc = false;
     SetTryNewOutboundPeer(false);
+    fDiscover = true;
+    fListen = true;
 
     Options connOptions;
     Init(connOptions);

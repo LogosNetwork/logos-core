@@ -508,10 +508,10 @@ bool AppInitMain(p2p_config &config)
             return uiInterface.InitError(strprintf(_("User Agent comment (%s) contains unsafe characters."), cmt));
         uacomments.push_back(cmt);
     }
-    strSubVersion = FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, uacomments);
-    if (strSubVersion.size() > MAX_SUBVERSION_LENGTH) {
+    connman.strSubVersion = FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, uacomments);
+    if (connman.strSubVersion.size() > MAX_SUBVERSION_LENGTH) {
         return uiInterface.InitError(strprintf(_("Total length of network version string (%i) exceeds maximum length (%i). Reduce the number or size of uacomments."),
-            strSubVersion.size(), MAX_SUBVERSION_LENGTH));
+            connman.strSubVersion.size(), MAX_SUBVERSION_LENGTH));
     }
 
     if (Args.IsArgSet("-onlynet")) {
@@ -525,7 +525,7 @@ bool AppInitMain(p2p_config &config)
         for (int n = 0; n < NET_MAX; n++) {
             enum Network net = (enum Network)n;
             if (!nets.count(net))
-                SetLimited(net);
+                connman.SetLimited(net);
         }
     }
 
@@ -533,13 +533,13 @@ bool AppInitMain(p2p_config &config)
     fNameLookup = Args.GetBoolArg("-dns", DEFAULT_NAME_LOOKUP);
 
     // see Step 2: parameter interactions for more information about these
-    fListen = Args.GetBoolArg("-listen", DEFAULT_LISTEN);
-    fDiscover = Args.GetBoolArg("-discover", true);
+    connman.fListen = Args.GetBoolArg("-listen", DEFAULT_LISTEN);
+    connman.fDiscover = Args.GetBoolArg("-discover", true);
 
     for (const std::string& strAddr : Args.GetArgs("-externalip")) {
         CService addrLocal;
         if (Lookup(strAddr.c_str(), addrLocal, connman.GetListenPort(), fNameLookup) && addrLocal.IsValid())
-            AddLocal(addrLocal, LOCAL_MANUAL);
+            connman.AddLocal(addrLocal, LOCAL_MANUAL);
         else
             return uiInterface.InitError(ResolveErrMsg("externalip", strAddr));
     }

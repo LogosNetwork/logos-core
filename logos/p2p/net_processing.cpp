@@ -222,7 +222,7 @@ static void PushNodeVersion(std::shared_ptr<CNode> pnode, CConnman* connman, int
     CAddress addrMe = CAddress(CService(), nLocalNodeServices);
 
     connman->PushMessage(pnode, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)nLocalNodeServices, nTime, addrYou, addrMe,
-            nonce, strSubVersion, nNodeStartingHeight, ::fRelayTxes));
+            nonce, connman->strSubVersion, nNodeStartingHeight, true));
 
     if (connman->fLogIPs) {
         LogPrint(BCLog::NET, "send version message: version %d, blocks=%d, us=%s, them=%s, peer=%d\n", PROTOCOL_VERSION, nNodeStartingHeight, addrMe.ToString(), addrYou.ToString(), nodeid);
@@ -474,7 +474,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
 
         if (pfrom->fInbound && addrMe.IsRoutable())
         {
-            SeenLocal(addrMe);
+            connman->SeenLocal(addrMe);
         }
 
         // Be shy and don't send version until we hear
@@ -516,7 +516,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
         if (!pfrom->fInbound)
         {
             // Advertise our address
-            if (fListen && !IsInitialBlockDownload())
+            if (connman->fListen && !IsInitialBlockDownload())
             {
                 CAddress addr = connman->GetLocalAddress(&pfrom->addr, pfrom->GetLocalServices());
                 FastRandomContext insecure_rand;
@@ -524,7 +524,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
                 {
                     LogPrint(BCLog::NET, "ProcessMessages: advertising address %s\n", addr.ToString());
                     pfrom->PushAddress(addr, insecure_rand);
-                } else if (IsPeerAddrLocalGood(pfrom)) {
+                } else if (connman->IsPeerAddrLocalGood(pfrom)) {
                     addr.SetIP(addrMe);
                     LogPrint(BCLog::NET, "ProcessMessages: advertising address %s\n", addr.ToString());
                     pfrom->PushAddress(addr, insecure_rand);
@@ -621,7 +621,7 @@ bool static ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strC
             if (addr.nTime <= 100000000 || addr.nTime > nNow + 10 * 60)
                 addr.nTime = nNow - 5 * 24 * 60 * 60;
             pfrom->AddAddressKnown(addr);
-            bool fReachable = IsReachable(addr);
+            bool fReachable = connman->IsReachable(addr);
             if (addr.nTime > nSince && !pfrom->fGetAddr && vAddr.size() <= 10 && addr.IsRoutable())
             {
                 // Relay to a limited number of other nodes
@@ -1040,7 +1040,7 @@ bool PeerLogicValidation::SendMessages(std::shared_ptr<CNode> pto)
         // Address refresh broadcast
         int64_t nNow = GetTimeMicros();
         if (!IsInitialBlockDownload() && pto->nNextLocalAddrSend < nNow) {
-            AdvertiseLocal(pto);
+            connman->AdvertiseLocal(pto);
             pto->nNextLocalAddrSend = PoissonNextSend(nNow, AVG_LOCAL_ADDRESS_BROADCAST_INTERVAL);
         }
 

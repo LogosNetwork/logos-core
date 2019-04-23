@@ -35,7 +35,6 @@
 #include <arpa/inet.h>
 #endif
 
-
 class CNode;
 
 /** Time between pings automatically sent out for latency probing and keepalive (in seconds). */
@@ -187,6 +186,11 @@ enum
     LOCAL_MANUAL, // address explicitly specified (-externalip=)
 
     LOCAL_MAX
+};
+
+struct LocalServiceInfo {
+    int nScore;
+    int nPort;
 };
 
 class NetEventsInterface;
@@ -350,6 +354,7 @@ public:
 
     void Discover();
     bool AddLocal(const CNetAddr& addr, int nScore = LOCAL_NONE);
+    bool AddLocal(const CService& addr, int nScore = LOCAL_NONE);
     bool AddNode(const std::string& node);
     bool RemoveAddedNode(const std::string& node);
     std::vector<AddedNodeInfo> GetAddedNodeInfo();
@@ -363,6 +368,11 @@ public:
     CAddress GetLocalAddress(const CNetAddr *paddrPeer, ServiceFlags nLocalServices);
     ServiceFlags GetLocalServices() const;
     unsigned short GetListenPort();
+    bool IsPeerAddrLocalGood(std::shared_ptr<CNode> pnode);
+    void AdvertiseLocal(std::shared_ptr<CNode> pnode);
+    bool SeenLocal(const CService& addr);
+    bool IsReachable(const CNetAddr &addr);
+    void SetLimited(enum Network net, bool fLimited = true);
 
     //!set the max outbound target in bytes
     void SetMaxOutboundTarget(uint64_t limit);
@@ -425,6 +435,11 @@ public:
     sem_t dataWritten;
     std::function<void(std::function<void()> const &, unsigned)> scheduleAfter;
     bool fLogIPs;
+    bool fDiscover;
+    bool fListen;
+
+    /** Subversion as sent to the P2P network in `version` messages */
+    std::string strSubVersion;
 
 private:
     using ListenSocket = std::shared_ptr<AsioServer>;
@@ -454,6 +469,13 @@ private:
     std::shared_ptr<CNode> ConnectNodeFinish(AsioClient *client, std::shared_ptr<AsioSession> session);
     bool IsWhitelistedRange(const CNetAddr &addr);
     std::vector<CAddress> convertSeed6(const std::vector<SeedSpec6> &vSeedsIn);
+    bool GetLocal(CService &addr, const CNetAddr *paddrPeer = nullptr);
+    int GetnScore(const CService& addr);
+    bool IsLimited(enum Network net);
+    bool IsLimited(const CNetAddr& addr);
+    void RemoveLocal(const CService& addr);
+    bool IsLocal(const CService& addr);
+    bool IsReachable(enum Network net);
 
     void DeleteNode(std::shared_ptr<CNode> pnode);
 
@@ -513,6 +535,9 @@ private:
 
     /** Services this instance offers */
     ServiceFlags nLocalServices;
+    CCriticalSection cs_mapLocalHost;
+    std::map<CNetAddr, LocalServiceInfo> mapLocalHost;
+    bool vfLimited[NET_MAX];
 
     std::unique_ptr<CSemaphore> semOutbound;
     std::unique_ptr<CSemaphore> semAddnode;
@@ -593,34 +618,6 @@ protected:
     ~NetEventsInterface() = default;
 };
 
-bool IsPeerAddrLocalGood(std::shared_ptr<CNode> pnode);
-void AdvertiseLocal(std::shared_ptr<CNode> pnode);
-void SetLimited(enum Network net, bool fLimited = true);
-bool IsLimited(enum Network net);
-bool IsLimited(const CNetAddr& addr);
-bool AddLocal(const CService& addr, int nScore = LOCAL_NONE);
-void RemoveLocal(const CService& addr);
-bool SeenLocal(const CService& addr);
-bool IsLocal(const CService& addr);
-bool GetLocal(CService &addr, const CNetAddr *paddrPeer = nullptr);
-bool IsReachable(enum Network net);
-bool IsReachable(const CNetAddr &addr);
-
-
-extern bool fDiscover;
-extern bool fListen;
-extern bool fRelayTxes;
-
-/** Subversion as sent to the P2P network in `version` messages */
-extern std::string strSubVersion;
-
-struct LocalServiceInfo {
-    int nScore;
-    int nPort;
-};
-
-extern CCriticalSection cs_mapLocalHost;
-extern std::map<CNetAddr, LocalServiceInfo> mapLocalHost;
 typedef std::map<std::string, uint64_t> mapMsgCmdSize; //command, total bytes
 
 class CNodeStats
@@ -655,9 +652,6 @@ public:
     // Bind address of our side of the connection
     CAddress addrBind;
 };
-
-
-
 
 class CNetMessage {
 private:
@@ -701,7 +695,6 @@ public:
     int readHeader(const char *pch, unsigned int nBytes);
     int readData(const char *pch, unsigned int nBytes);
 };
-
 
 /** Information about a peer */
 class CNode
@@ -886,10 +879,6 @@ public:
     void MaybeSetAddrName(const std::string& addrNameIn);
     friend class AsioSession;
 };
-
-
-
-
 
 /** Return a timestamp in the future (in microseconds) for exponentially distributed events. */
 int64_t PoissonNextSend(int64_t now, int average_interval_seconds);
