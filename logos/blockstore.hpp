@@ -564,6 +564,12 @@ public:
     MDB_dbi epoch_rewards_db;
 
     /**
+     * Aggregate of Epoch Rewards Info
+     * epoch_number -> GlobalEpochRewardsInfo
+     */
+    MDB_dbi global_epoch_rewards_db;
+
+    /**
      * Voting Power Info per epoch
      * logos::account -> VotingPowerInfo
      */
