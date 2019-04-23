@@ -210,10 +210,9 @@ ConsensusContainer::ScheduleTimer(ConsensusType CT, const TimePoint & timeout)
 {
     std::lock_guard<std::mutex> lock(_timer_mutexes[CT]);
     // Do nothing if there's a more imminent timer scheduled
-    auto timer_search = _timers.find(CT);
-    assert (timer_search != _timers.end());
-    auto & timer = timer_search->second;
-    if (timer.expires_at() <= timeout && _timer_set[CT]) {
+    auto & timer = _timers.at(CT);
+    if (timer.expires_at() <= timeout && _timer_set[CT])
+    {
         return;
     }
     // should be able to cancel / schedule successfully. remove failure check in production
@@ -243,9 +242,12 @@ ConsensusContainer::ScheduleTimer(ConsensusType CT, const TimePoint & timeout)
             std::lock_guard<std::mutex> lock(_timer_mutexes[CT]);
             if (_timer_cancelled[CT])
             {
+                LOG_DEBUG(_log) << "ConsensusContainer::ScheduleTimer " << ConsensusToName(CT) << " - forced timer cancellation.";
+                assert(!_timer_set[CT]);
                 _timer_cancelled[CT] = false;
                 return;
             }
+            _timer_set[CT] = false;
         }
 
         AttemptInitiateConsensus(CT);
@@ -253,6 +255,7 @@ ConsensusContainer::ScheduleTimer(ConsensusType CT, const TimePoint & timeout)
 
     // ConsensusManager will cancel the timer right before initiating consensus
     _timer_set[CT] = true;
+    LOG_DEBUG(_log) << "ConsensusContainer::ScheduleTimer " << ConsensusToName(CT) << " - scheduled new timer.";
 }
 
 void
@@ -260,7 +263,7 @@ ConsensusContainer::CancelTimer(ConsensusType CT)
 {
     std::lock_guard<std::mutex> lock(_timer_mutexes[CT]);
 
-    auto timer_entry = _timers.find(CT);
+    auto & timer = _timers.at(CT);
     // Borrowing Devon's design:
     // The below condition is true when the timeout callback
     // has been scheduled and is about to be invoked. In this
@@ -268,8 +271,10 @@ ConsensusContainer::CancelTimer(ConsensusType CT)
     // 'manually' cancel the callback by setting _cancel_timer.
     // When the callback is invoked, it will check this value
     // and return early.
-    if(timer_entry->second.cancel() && _timer_set[CT])
+    auto now = Clock::universal_time();
+    if(now < timer.expires_at() && !timer.cancel() && _timer_set[CT])
     {
+        LOG_DEBUG(_log) << "ConsensusContainer::CancelTimer " << ConsensusToName(CT) << " - force cancel.";
         _timer_cancelled[CT] = true;
     }
     _timer_set[CT] = false;
