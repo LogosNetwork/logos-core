@@ -55,7 +55,6 @@ void EpochRewardsManager::Init(
     }
     
     auto key = MakeKey(rep_address,rep_epoch_info.epoch_number);
-    LOG_INFO(_log) << "EpochRewardsManager::Init - key is " << toString(key);
 
     EpochRewardsInfo info{
         rep_epoch_info.levy_percentage,
@@ -68,6 +67,8 @@ void EpochRewardsManager::Init(
             logos::mdb_val(key.size(),key.data()),
             info,
             txn); 
+
+    AddGlobalStake(rep_epoch_info, txn);
 }
 
 
@@ -97,6 +98,8 @@ bool EpochRewardsManager::SetTotalReward(
             logos::mdb_val(key.size(),key.data()),
             info,
             txn); 
+
+    AddGlobalTotalReward(epoch_number,total_reward,txn);
 
     return false;
 }
@@ -131,11 +134,11 @@ bool EpochRewardsManager::HarvestReward(
 
     if(info.remaining_reward > 0)
     {
-    _store.put(
-            _store.epoch_rewards_db,
-            logos::mdb_val(key.size(),key.data()),
-            info,
-            txn); 
+        _store.put(
+                _store.epoch_rewards_db,
+                logos::mdb_val(key.size(),key.data()),
+                info,
+                txn); 
     }
     else
     {
@@ -144,6 +147,7 @@ bool EpochRewardsManager::HarvestReward(
                 logos::mdb_val(key.size(),key.data()),
                 txn);
     }
+    SubtractGlobalRemainingReward(epoch_number,harvest_amount,txn);
     return false;   
 }
 
@@ -175,4 +179,80 @@ EpochRewardsInfo EpochRewardsManager::GetEpochRewardsInfo(
         trace_and_halt();
     }
     return info;
+}
+
+GlobalEpochRewardsInfo EpochRewardsManager::GetGlobalEpochRewardsInfo(
+        uint32_t const & epoch_number,
+        MDB_txn* txn)
+{
+    auto key = logos::mdb_val(
+            sizeof(epoch_number),
+            const_cast<uint32_t *>(&epoch_number));
+    GlobalEpochRewardsInfo info;
+    if(_store.get(
+                _store.global_epoch_rewards_db
+                ,key
+                ,info
+                ,txn))
+    {
+        LOG_WARN(_log) << "EpochRewardsManager::GetGlobalEpochRewardsInfo - "
+            << "failed to get info for epoch = " << epoch_number;
+    }
+    return info;
+}
+
+void EpochRewardsManager::AddGlobalStake(
+        RepEpochInfo const & info,
+        MDB_txn* txn)
+{
+    auto key = logos::mdb_val(
+            sizeof(info.epoch_number),
+            const_cast<uint32_t *>(&(info.epoch_number)));
+
+    GlobalEpochRewardsInfo global_info(GetGlobalEpochRewardsInfo(info.epoch_number, txn));
+    global_info.total_stake += info.total_stake;
+    _store.put(_store.global_epoch_rewards_db,key,global_info,txn);
+}
+
+void EpochRewardsManager::AddGlobalTotalReward(
+        uint32_t const & epoch,
+        Amount const & to_add,
+        MDB_txn* txn)
+{
+    auto key = logos::mdb_val(
+            sizeof(epoch),
+            const_cast<uint32_t *>(&epoch));
+
+    GlobalEpochRewardsInfo global_info(GetGlobalEpochRewardsInfo(epoch, txn));
+    global_info.total_reward += to_add;
+    global_info.remaining_reward += to_add;
+    _store.put(_store.global_epoch_rewards_db,key,global_info,txn);
+
+}
+
+void EpochRewardsManager::SubtractGlobalRemainingReward(
+        uint32_t const & epoch,
+        Amount const & to_subtract,
+        MDB_txn* txn)
+{
+    auto key = logos::mdb_val(
+            sizeof(epoch),
+            const_cast<uint32_t *>(&epoch));
+
+    GlobalEpochRewardsInfo global_info(GetGlobalEpochRewardsInfo(epoch, txn));
+    if(to_subtract > global_info.remaining_reward)
+    {
+        LOG_FATAL(_log) << "EpochRewardsManager::SubtractGlobalRemainingReward -"
+            << "to_subtract is greater than remaining reward";
+        trace_and_halt();
+    }
+    global_info.remaining_reward -= to_subtract;
+    if(global_info.remaining_reward > 0)
+    {
+        _store.put(_store.global_epoch_rewards_db,key,global_info,txn);
+    }
+    else
+    {
+        _store.del(_store.global_epoch_rewards_db,key,txn);
+    }
 }

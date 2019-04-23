@@ -61,6 +61,22 @@ class EpochRewardsManager
             AccountAddress const & account,
             uint32_t const & epoch);
 
+    GlobalEpochRewardsInfo GetGlobalEpochRewardsInfo(
+            uint32_t const & epoch_number,
+            MDB_txn* txn);
+
+    private:
+    void AddGlobalStake(RepEpochInfo const & info, MDB_txn* txn);
+
+    void AddGlobalTotalReward(
+            uint32_t const & epoch,
+            Amount const & to_add,
+            MDB_txn* txn);
+
+    void SubtractGlobalRemainingReward(
+            uint32_t const & epoch,
+            Amount const & to_subtract,
+            MDB_txn* txn);
 
     private:
     BlockStore & _store;

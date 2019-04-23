@@ -217,6 +217,8 @@ bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, T &t, MDB_txn *tx)
 //explicit instantiation of template functions
 template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, EpochRewardsInfo &, MDB_txn*);
 template void logos::block_store::put(MDB_dbi&, logos::mdb_val const &, EpochRewardsInfo const &, MDB_txn*);
+template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, GlobalEpochRewardsInfo &, MDB_txn*);
+template void logos::block_store::put(MDB_dbi&, logos::mdb_val const &, GlobalEpochRewardsInfo const &, MDB_txn*);
 template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, VotingPowerInfo&, MDB_txn*);
 template void logos::block_store::put(MDB_dbi&, logos::mdb_val const &, VotingPowerInfo const &, MDB_txn*);
 
@@ -351,6 +353,7 @@ checksum (0)
 
         //rewards
         error_a |= mdb_dbi_open (transaction, "epoch_rewards_db", MDB_CREATE, &epoch_rewards_db);
+        error_a |= mdb_dbi_open (transaction, "global_epoch_rewards_db", MDB_CREATE, &global_epoch_rewards_db);
 
 
 
