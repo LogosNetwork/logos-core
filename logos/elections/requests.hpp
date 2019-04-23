@@ -125,6 +125,7 @@ struct AnnounceCandidacy : Request
     DelegatePubKey bls_key;
     ECIESPublicKey ecies_key;
     uint32_t epoch_num;
+    BlockHash staking_subchain_prev;
 };
 
 struct RenounceCandidacy : Request
@@ -155,6 +156,7 @@ struct RenounceCandidacy : Request
     using Request::Hash;
 
     uint32_t epoch_num;
+    BlockHash staking_subchain_prev;
 };
 
 struct StartRepresenting : Request
@@ -184,9 +186,10 @@ struct StartRepresenting : Request
     void Hash(blake2b_state& hash) const override;
 
     using Request::Hash;
-    Amount stake;
 
+    Amount stake;
     uint32_t epoch_num;
+    BlockHash staking_subchain_prev;
 };
 
 struct StopRepresenting : Request
@@ -216,7 +219,9 @@ struct StopRepresenting : Request
     void Hash(blake2b_state& hash) const override;
 
     using Request::Hash;
+
     uint32_t epoch_num;
+    BlockHash staking_subchain_prev;
 };
 
 

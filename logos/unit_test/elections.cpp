@@ -128,9 +128,11 @@ TEST (Elections, blockstore)
         announce.previous = 12;
         announce.sequence = 23;
         announce.fee = 2;
+        announce.signature = 7;
         announce.stake = 4;
         announce.bls_key = 13;
         announce.epoch_num = 11;
+        announce.staking_subchain_prev = 4267;
         announce.Hash();
 
         ASSERT_FALSE(store->request_put(announce,txn));
@@ -152,6 +154,7 @@ TEST (Elections, blockstore)
         renounce.sequence = 5;
         renounce.signature = 7;
         renounce.epoch_num = 26;
+        renounce.staking_subchain_prev = 23489;
         renounce.Hash();
         ASSERT_FALSE(store->request_put(renounce,txn));
         RenounceCandidacy renounce2;
@@ -170,6 +173,7 @@ TEST (Elections, blockstore)
         start.fee = 3;
         start.stake = 32;
         start.epoch_num = 456;
+        start.staking_subchain_prev = 10000654;
         start.Hash();
         ASSERT_FALSE(store->request_put(start,txn));
         StartRepresenting start2;
@@ -190,6 +194,7 @@ TEST (Elections, blockstore)
         stop.sequence = 47;
         stop.fee = 12;
         stop.epoch_num = 456;
+        stop.staking_subchain_prev = 7789;
         stop.Hash();
         ASSERT_FALSE(store->request_put(stop,txn));
         StopRepresenting stop2;
