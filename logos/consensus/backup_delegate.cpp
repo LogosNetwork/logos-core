@@ -43,7 +43,8 @@ void BackupDelegate<CT>::OnConsensusMessage(const PrePrepare & message)
     if (hash == _pre_prepare_hash)
     {
         // Having advanced to PREPARE or COMMIT means we previously approved the pre_prepare
-        if (_state == ConsensusState::PREPARE || _state == ConsensusState::COMMIT) {
+        if (_state == ConsensusState::PREPARE || _state == ConsensusState::COMMIT)
+        {
             PrepareMessage<CT> msg(hash);
             _validator.Sign(hash, msg.signature);
 
