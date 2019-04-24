@@ -43,8 +43,6 @@
 #include <boost/log/sources/logger.hpp>
 #include <boost/shared_ptr.hpp>
 
-extern CCriticalSection cs_main;
-
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
 
 void p2p_interface::TraverseCommandLineOptions(std::function<void(const char *option, const char *description, int flags)> callback)
