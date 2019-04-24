@@ -265,6 +265,15 @@ public:
                          uint8_t remote_delegate_id,
                          std::function<void(std::shared_ptr<AddressAd>)>);
 
+    /// Update ad in-memory and database
+    /// @param ad to update
+    void UpdateAddressAd(const AddressAd &ad);
+
+    /// Update this delegate's ad in-memory and database
+    /// @param epoch_number epoch number
+    /// @param delegate_id delegate id
+    void UpdateAddressAd(uint32_t epoch_number, uint8_t delegate_id);
+
     /// Decrypt cyphertext
     /// @param cyphertext to decrypt
     /// @param buf decrypted message
@@ -359,13 +368,13 @@ private:
     /// @param prequel ad prequel
     /// @param data serialized ad message
     /// @param size size of the serialized message
-    void UpdateDelegateAddressDB(const PrequelAddressAd &prequel, uint8_t *data, size_t size);
+    void UpdateAddressAdDB(const PrequelAddressAd &prequel, uint8_t *data, size_t size);
 
     /// Update the AddressAdTxAcceptor database
     /// @param ad message
     /// @param data serialized ad message
     /// @param size size of the serialized message
-    void UpdateTxAcceptorAddressDB(const AddressAdTxAcceptor &ad, uint8_t *data, size_t size);
+    void UpdateTxAcceptorAdDB(const AddressAdTxAcceptor &ad, uint8_t *data, size_t size);
 
     /// Load/clean up on start up ad information from DB
     void LoadDB();

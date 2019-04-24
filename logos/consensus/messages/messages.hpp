@@ -493,7 +493,7 @@ struct PrequelAddressAd
                 logos::read(stream, payload_size);
     }
 
-    uint32_t Serialize(logos::vectorstream &stream)
+    uint32_t Serialize(logos::vectorstream &stream) const
     {
         return (logos::write(stream, epoch_number) +
                 logos::write(stream, delegate_id) +
@@ -501,7 +501,7 @@ struct PrequelAddressAd
                 logos::write(stream, payload_size));
     }
 
-    uint32_t Serialize(std::vector<uint8_t> &buf)
+    uint32_t Serialize(std::vector<uint8_t> &buf) const
     {
         logos::vectorstream stream(buf);
         return Serialize(stream);
@@ -524,7 +524,7 @@ struct PrequelAddressAd
     // if delegate address ad then encr delegate id is encryptor's delegate id
     // if tx acceptor address ad then not used
     uint8_t     encr_delegate_id = 0;
-    uint32_t    payload_size = 0;
+    mutable uint32_t    payload_size = 0;
     static constexpr size_t SIZE = sizeof(epoch_number) +
                                    sizeof(delegate_id) +
                                    sizeof(encr_delegate_id) +
@@ -568,7 +568,7 @@ struct CommonAddressAd : PrequelAddressAd {
         blake2b_update(&hash, &port, sizeof(port));
     }
 
-    std::string GetIP()
+    std::string GetIP() const
     {
         std::string ipstr;
         char ip_[INET6_ADDRSTRLEN+1]={0};
@@ -640,7 +640,7 @@ struct AddressAd : CommonAddressAd
             memcpy(&port, buf.data()+ip.size(), sizeof(port));
         }
     }
-    uint32_t Serialize(logos::vectorstream &stream, ECIESPublicKey &pub)
+    uint32_t Serialize(logos::vectorstream &stream, ECIESPublicKey &pub) const
     {
         std::array<uint8_t, IP_LENGTH + sizeof(port)> buf;
         memcpy(buf.data(), ip.data(), ip.size());
@@ -654,7 +654,7 @@ struct AddressAd : CommonAddressAd
                 logos::write(stream, signature);
         return size;
     }
-    uint32_t Serialize(std::vector<uint8_t> &buf, ECIESPublicKey &pub)
+    uint32_t Serialize(std::vector<uint8_t> &buf, ECIESPublicKey &pub) const
     {
         logos::vectorstream stream(buf);
         return Serialize(stream, pub);
@@ -715,7 +715,7 @@ struct AddressAdTxAcceptor : CommonAddressAd
                 logos::read(stream, add) ||
                 logos::read(stream, signature);
     }
-    uint32_t Serialize(logos::vectorstream &stream)
+    uint32_t Serialize(logos::vectorstream &stream) const
     {
         payload_size = IP_LENGTH + sizeof(port) + sizeof(json_port) + sizeof(add) + sizeof(signature);
         return PrequelAddressAd::Serialize(stream) +
@@ -725,7 +725,7 @@ struct AddressAdTxAcceptor : CommonAddressAd
                logos::write(stream, add) +
                logos::write(stream, signature);
     }
-    uint32_t Serialize(std::vector<uint8_t> &buf)
+    uint32_t Serialize(std::vector<uint8_t> &buf) const
     {
         logos::vectorstream stream(buf);
         return Serialize(stream);

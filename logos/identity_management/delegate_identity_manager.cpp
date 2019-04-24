@@ -523,6 +523,7 @@ DelegateIdentityManager::CheckAdvertise(uint32_t current_epoch_number,
         auto ids = GetDelegatesToAdvertise(idx);
         Advertise(current_epoch_number+1, idx, epoch_next, ids);
         in_next_epoch = true;
+        UpdateAddressAd(current_epoch_number+1, idx);
     }
 
     // advertise for current epoch
@@ -532,6 +533,7 @@ DelegateIdentityManager::CheckAdvertise(uint32_t current_epoch_number,
         if (idx != NON_DELEGATE) {
             auto ids = GetDelegatesToAdvertise(idx);
             Advertise(current_epoch_number, idx, epoch_current, ids);
+            UpdateAddressAd(current_epoch_number, idx);
         }
     }
 
@@ -773,14 +775,14 @@ DelegateIdentityManager::OnAddressAd(uint8_t *data,
             }
         }
 
-        UpdateDelegateAddressDB(prequel, data, size);
+        UpdateAddressAdDB(prequel, data, size);
     }
 
     return res;
 }
 
 void
-DelegateIdentityManager::UpdateDelegateAddressDB(const PrequelAddressAd &prequel, uint8_t *data, size_t size)
+DelegateIdentityManager::UpdateAddressAdDB(const PrequelAddressAd &prequel, uint8_t *data, size_t size)
 {
     logos::transaction transaction (_store.environment, nullptr, true);
     // update new
@@ -847,14 +849,14 @@ DelegateIdentityManager::OnAddressAdTxAcceptor(uint8_t *data, size_t size)
                         << ", port " << addressAd.port
                         << ", json port " << addressAd.json_port;
 
-        UpdateTxAcceptorAddressDB(addressAd, data, size);
+        UpdateTxAcceptorAdDB(addressAd, data, size);
     }
 
     return true;
 }
 
 void
-DelegateIdentityManager::UpdateTxAcceptorAddressDB(const AddressAdTxAcceptor &ad, uint8_t *data, size_t size)
+DelegateIdentityManager::UpdateTxAcceptorAdDB(const AddressAdTxAcceptor &ad, uint8_t *data, size_t size)
 {
     logos::transaction transaction (_store.environment, nullptr, true);
 
@@ -1271,9 +1273,30 @@ DelegateIdentityManager::OnTxAcceptorUpdate(EpochDelegates epoch,
     auto buf = std::make_shared<std::vector<uint8_t>>();
     ad.Serialize(*buf);
 
-    UpdateTxAcceptorAddressDB(ad, buf->data(), buf->size());
+    UpdateTxAcceptorAdDB(ad, buf->data(), buf->size());
 
     P2pPropagate(eb->epoch_number, idx, buf);
 
     return _node.update_tx_acceptor(ip, port, add);
+}
+
+void
+DelegateIdentityManager::UpdateAddressAd(const AddressAd &ad)
+{
+    std::lock_guard<std::mutex> lock(_ad_mutex);
+    std::string ip = ad.GetIP();
+    _address_ad.emplace(std::piecewise_construct,
+                        std::forward_as_tuple(ad.epoch_number, ad.delegate_id),
+                        std::forward_as_tuple(ip, ad.port));
+    std::vector<uint8_t> buf;
+    ad.Serialize(buf, _ecies_key.pub);
+    UpdateAddressAdDB(ad, buf.data(), buf.size());
+}
+
+void
+DelegateIdentityManager::UpdateAddressAd(uint32_t epoch_number, uint8_t delegate_id)
+{
+    auto &config = _node.config.consensus_manager_config;
+    AddressAd ad(epoch_number, delegate_id, delegate_id, config.local_address.c_str(), config.peer_port);
+    UpdateAddressAd(ad);
 }

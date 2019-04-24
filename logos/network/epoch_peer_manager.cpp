@@ -39,6 +39,10 @@ EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint endpoint
             {
                 socket->close();
             }
+            else
+            {
+                _peer_binder.GetIdentityManager().UpdateAddressAd(*ad);
+            }
         }
     });
 }
