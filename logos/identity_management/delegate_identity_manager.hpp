@@ -280,7 +280,7 @@ public:
         {
             return _address_ad[{epoch_number, delegate_id}].ip;
         }
-        return "";
+            return "";
     }
 
     /// Validate signature

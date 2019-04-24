@@ -757,8 +757,8 @@ DelegateIdentityManager::OnAddressAd(uint8_t *data,
                 }
                 res = true;
 
-                LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd, delegate " << (int)addressAd.delegate_id
-                                << ", epoch number " << prequel.epoch_number
+                LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd, epoch number " << addressAd.epoch_number
+                                << ", delegate id " << (int)prequel.delegate_id
                                 << ", ip " << ip
                                 << ", port " << port;
             } catch (const std::exception &e)

@@ -1661,7 +1661,16 @@ void logos::node::start ()
 //    add_initial_peers ();
 //    observers.started ();
 // CH added starting logic here instead of inside constructors
+    _consensus_container->Start();
     _archiver.Start(*_consensus_container);
+    if (_tx_acceptor != nullptr)
+    {
+        _tx_acceptor->Start();
+    }
+    if (_tx_receiver != nullptr)
+    {
+        _tx_receiver->Start();
+    }
 }
 
 void logos::node::stop ()

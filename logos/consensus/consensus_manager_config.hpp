@@ -8,6 +8,8 @@ struct ConsensusManagerConfig
 
     struct Delegate
     {
+        Delegate() = default;
+        Delegate(const std::string &ip, uint8_t id) : ip(ip), id(id) {}
         std::string ip;
         uint8_t     id;
     };

@@ -106,7 +106,7 @@ class ConsensusContainer : public InternalConsensus,
     friend class DelegateIdentityManager;
 
     using Service    = boost::asio::io_service;
-    using Config     = ConsensusManagerConfig;
+    using Config     = logos::node_config;
     using Store      = logos::block_store;
     using Alarm      = logos::alarm;
     using Accounts   = AccountAddress[NUM_DELEGATES];
@@ -193,6 +193,9 @@ public:
         return _validate_sig_config;
     }
 
+    /// Start consensus container
+    void Start();
+
 protected:
 
 	/// Initiate MicroBlock consensus, internal request
@@ -226,7 +229,7 @@ private:
     /// @param delegate_idx delegate's index [in]
     /// @param delegates in the epoch [in]
     /// @returns delegate's configuration
-    Config BuildConsensusConfig(uint8_t delegate_idx, const ApprovedEB &epoch);
+    ConsensusManagerConfig BuildConsensusConfig(uint8_t delegate_idx, const ApprovedEB &epoch);
 
     /// Transition if received PostCommit with E#_i
     /// @param epoch_number PrePrepare epoch number

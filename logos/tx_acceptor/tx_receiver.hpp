@@ -42,6 +42,8 @@ public:
     /// @param port of the tx acceptor
     bool DeleteChannel(const std::string &ip, uint16_t port);
 
+    void Start();
+
 private:
     Service &                      _service;   /// boost asio service reference
     logos::alarm &                 _alarm;     /// logos alarm reference

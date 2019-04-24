@@ -30,6 +30,7 @@ ConsensusNetIOManager::ConsensusNetIOManager(std::shared_ptr<NetIOHandler> reque
     , _heartbeat_timer(service)
     , _config(config)
     , _acceptor(starter)
+    , _delegates(config.delegates)
 {
 }
 
@@ -37,6 +38,15 @@ void
 ConsensusNetIOManager::Start(std::shared_ptr<EpochInfo> epoch_info)
 {
     _epoch_info = epoch_info;
+
+    for(auto & delegate : _delegates)
+    {
+        if(_delegate_id < delegate.id)
+        {
+            auto endpoint = Endpoint(make_address_v4(delegate.ip), _config.peer_port);
+            AddNetIOConnection(_service, delegate.id, endpoint);
+        }
+    }
 
     if(_delegate_id != 0)
     {
@@ -57,17 +67,12 @@ ConsensusNetIOManager::AddDelegate(uint8_t delegate_id, std::string &ip, uint16_
         return;
     }
 
-
-    _delegates.push_back({ip, delegate_id});
+    _delegates.emplace_back(ip, delegate_id);
 
     if (_delegate_id < delegate_id)
     {
         auto endpoint = Endpoint(make_address_v4(ip), port);
         AddNetIOConnection(_service, delegate_id, endpoint);
-    }
-    else if (delegate_id != _delegate_id)
-    {
-        _acceptor.Start();
     }
 }
 

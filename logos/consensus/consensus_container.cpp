@@ -29,19 +29,24 @@ ConsensusContainer::ConsensusContainer(Service & service,
     , _service(service)
     , _store(store)
     , _alarm(alarm)
-    , _config(config.consensus_manager_config)
+    , _config(config)
     , _archiver(archiver)
     , _identity_manager(identity_manager)
     , _transition_state(EpochTransitionState::None)
     , _transition_delegate(EpochTransitionDelegate::None)
     , _p2p(p2p, store)
 {
+}
+
+void
+ConsensusContainer::Start()
+{
     uint8_t delegate_idx;
     std::shared_ptr<ApprovedEB> approvedEb;
     _identity_manager.CheckAdvertise(_cur_epoch_number, true, delegate_idx, approvedEb);
 
-    _validate_sig_config = config.tx_acceptor_config.validate_sig &&
-            config.tx_acceptor_config.tx_acceptors.size() == 0; // delegate mode, don't need to re-validate sig
+    _validate_sig_config = _config.tx_acceptor_config.validate_sig &&
+            _config.tx_acceptor_config.tx_acceptors.size() == 0; // delegate mode, don't need to re-validate sig
 
     // is the node a delegate in this epoch
     bool in_epoch = delegate_idx != NON_DELEGATE;
@@ -56,7 +61,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
     /// TODO epoch_transition_enabled is temp to facilitate testing without transition
     if (!DelegateIdentityManager::IsEpochTransitionEnabled())
     {
-        create(_config);
+        create(_config.consensus_manager_config);
     }
     else if (in_epoch)
     {
@@ -504,10 +509,10 @@ ConsensusContainer::BuildConsensusConfig(
     const uint8_t delegate_idx,
     const ApprovedEB & epoch)
 {
-   ConsensusManagerConfig config = _config;
+   ConsensusManagerConfig config = _config.consensus_manager_config;
 
    config.delegate_id = delegate_idx;
-   config.local_address = _config.local_address;
+   config.local_address = _config.consensus_manager_config.local_address;
    config.delegates.clear();
 
    stringstream str;
@@ -515,12 +520,12 @@ ConsensusContainer::BuildConsensusConfig(
    for (uint8_t del = 0; del < NUM_DELEGATES; ++del)
    {
         auto account = epoch.delegates[del].account;
-        auto ip = _identity_manager.GetDelegateIP(epoch.epoch_number, del);
+        auto ip = _identity_manager.GetDelegateIP(epoch.epoch_number+2, del);
         if (ip != "")
         {
             config.delegates.push_back(ConsensusManagerConfig::Delegate{ip, del});
         }
-        str << (int)del << " " << ip << " ";
+        str << (int)del << " " << ((ip != "")?ip:"-")<< " ";
    }
    LOG_DEBUG(_log) << str.str();
 
