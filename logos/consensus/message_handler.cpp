@@ -8,6 +8,12 @@ MessageHandler<CT>::MessageHandler()
 template<ConsensusType CT>
 void MessageHandler<CT>::OnMessage(const MessagePtr & message, const Seconds & seconds)
 {
+    OnMessage(message, Clock::universal_time() + seconds);
+}
+
+template<ConsensusType CT>
+void MessageHandler<CT>::OnMessage(const MessagePtr & message, const TimePoint & tp)
+{
     auto hash = message->Hash();
     // TODO: implement GetHash to avoid repeated hashing for MB/E
 
@@ -21,9 +27,9 @@ void MessageHandler<CT>::OnMessage(const MessagePtr & message, const Seconds & s
 
     // For MB/EB, persistence manager (Backup) / Archiver (Primary) checks guarantee that messages arrive
     // in ascending epoch + sequence number combination order
-    LOG_DEBUG (_log) << "MessageHandler<" << ConsensusToName(CT) << ">::OnMessage - "
+    LOG_DEBUG (_log) << "MessageHandler<" << ConsensusToName(CT) << ">::OnMessage - timeout is " << tp << ", "
                      << message->ToJson();
-    _entries.push_back(Entry{hash, message, Clock::universal_time() + seconds});
+    _entries.push_back(Entry{hash, message, tp});
 }
 
 template<ConsensusType CT>

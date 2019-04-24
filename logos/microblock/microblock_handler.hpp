@@ -94,7 +94,7 @@ private:
     /// @param end previous microblock tips [in]
     /// @param tips new batch block tips [in|out]
     /// @param num_blocks number of selected batch blocks [out]
-    void GetTipsSlow(const BatchTipHashes &start, const BatchTipHashes &end, BatchTips &tips, uint &num_blocks, bool);
+    void GetTipsSlow(const BatchTipHashes &start, const BatchTipHashes &end, BatchTips &tips, uint &num_blocks);
 
     BlockStore &            _store;
     IRecallHandler &        _recall_handler;    ///< recall handler reference

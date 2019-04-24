@@ -139,7 +139,7 @@ RequestBackupDelegate::HandleReject(const PrePrepare & message)
             // If reason is contain invalid request, still need to queue up requests we agree on
             std::lock_guard<std::mutex> lock(_mutex);  // SYL Integration fix
             _pre_prepare_hashes.clear();
-            auto timeout = GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE);
+            auto timeout = Clock::universal_time() + GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE);
             for(uint16_t i = 0; i < message.requests.size(); ++i)
             {
                 if (!_rejection_map[i])
@@ -147,7 +147,7 @@ RequestBackupDelegate::HandleReject(const PrePrepare & message)
                     _handler.OnMessage(std::static_pointer_cast<Request>(message.requests[i]), timeout);
                 }
             }
-            _scheduler.ScheduleTimer(R, Clock::universal_time() + timeout);
+            _scheduler.ScheduleTimer(R, timeout);
             break;
         }
         case RejectionReason::Void:
@@ -194,7 +194,7 @@ RequestBackupDelegate::HandlePrePrepare(const PrePrepare & message)
     std::lock_guard<std::mutex> lock(_mutex);  // SYL Integration fix
     _pre_prepare_hashes.clear();
 
-    auto timeout = GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE);
+    auto timeout = Clock::universal_time() + GetTimeout(TIMEOUT_MIN, TIMEOUT_RANGE);
     for(uint64_t i = 0; i < message.requests.size(); ++i)
     {
         _pre_prepare_hashes.insert(message.requests[i]->GetHash());
@@ -203,7 +203,7 @@ RequestBackupDelegate::HandlePrePrepare(const PrePrepare & message)
 
     // to make sure during epoch transition, a fallback session of the new epoch
     // is not rerun by the old epoch, the min timeout should be > clock_drift (i.e. 20seconds)
-    _scheduler.ScheduleTimer(R, Clock::universal_time() + timeout);
+    _scheduler.ScheduleTimer(R, timeout);
 }
 
 void
