@@ -125,8 +125,7 @@ MicroBlockHandler::GetTipsSlow(
         const BatchTipHashes &start,
         const BatchTipHashes &end,
         BatchTips &tips,
-        uint &num_blocks,
-        bool add_cutoff)
+        uint &num_blocks)
 {
     struct pair {
         uint64_t timestamp;
@@ -134,7 +133,7 @@ MicroBlockHandler::GetTipsSlow(
     };
     array<vector<pair>, NUM_DELEGATES> entries;
     auto now = GetStamp();
-    auto rem = now & TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count();
+    auto rem = now % TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count();
     auto min_timestamp = now - rem - TConvert<Milliseconds>(MICROBLOCK_CUTOFF_TIME).count();
 
     _store.BatchBlocksIterator(start, end, [&](uint8_t delegate, const ApprovedRB &batch)mutable->void{
@@ -228,10 +227,7 @@ MicroBlockHandler::Build(
             end[delegate] = previous_micro_block.tips[delegate].digest;
         }
         EpochTimeUtil util;
-        bool add_cutoff = block.sequence ||
-                          block.epoch_number != GENESIS_EPOCH + 1 ||
-                          !util.IsOneMBPastEpochTime();
-        GetTipsSlow(start, end, block.tips, block.number_batch_blocks, add_cutoff);
+        GetTipsSlow(start, end, block.tips, block.number_batch_blocks);
     }
     // Microblock cut off time is the previous microblock's proposed time;
     // start points to the first block after the previous, i.e. previous.next

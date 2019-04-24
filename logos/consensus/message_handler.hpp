@@ -46,6 +46,12 @@ public:
     /// @param[in] seconds from now at which this message is ready to be included in primary consensus
     void OnMessage(const MessagePtr & message, const Seconds & seconds = Seconds{0});
 
+    /// Queues smart pointer to incoming message
+    ///
+    /// @param[in] message to queue
+    /// @param[in] absolute timepoint at which this message is ready to be included in primary consensus
+    void OnMessage(const MessagePtr & message, const TimePoint &);
+
     /// Peaks into the front of the sequenced queue
     ///
     /// @return shared pointer to the queue's first message, if one exists, otherwise nullptr

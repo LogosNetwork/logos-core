@@ -230,7 +230,15 @@ boost::property_tree::ptree Issuance::SerializeJson() const
                                {
                                    return GetTokenSettingField(pos);
                                }));
-    tree.add_child(SETTINGS, settings_tree);
+    // SG: maintain consistent data structure for JSON, no settings is empty array
+    if(settings_tree.empty())
+    {
+        tree.put(SETTINGS, "[]");
+    }
+    else
+    {
+        tree.add_child(SETTINGS, settings_tree);
+    }
 
     boost::property_tree::ptree controllers_tree;
     for(size_t i = 0; i < controllers.size(); ++i)
