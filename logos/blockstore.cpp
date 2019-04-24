@@ -7,6 +7,8 @@
 #include <logos/rewards/epoch_rewards.hpp>
 #include <logos/staking/voting_power.hpp>
 #include <logos/staking/voting_power_manager.hpp>
+#include <logos/staking/staked_funds.hpp>
+#include <logos/staking/thawing_funds.hpp>
 
 namespace
 {
@@ -221,6 +223,11 @@ template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, GlobalEp
 template void logos::block_store::put(MDB_dbi&, logos::mdb_val const &, GlobalEpochRewardsInfo const &, MDB_txn*);
 template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, VotingPowerInfo&, MDB_txn*);
 template void logos::block_store::put(MDB_dbi&, logos::mdb_val const &, VotingPowerInfo const &, MDB_txn*);
+template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, StakedFunds&, MDB_txn*);
+template void logos::block_store::put(MDB_dbi&, logos::mdb_val const &, StakedFunds const &, MDB_txn*);
+template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, ThawingFunds&, MDB_txn*);
+template void logos::block_store::put(MDB_dbi&, logos::mdb_val const &, ThawingFunds const &, MDB_txn*);
+
 
 bool logos::block_store::del(MDB_dbi &db, const mdb_val &key, MDB_txn *tx)
 {
@@ -350,6 +357,8 @@ checksum (0)
         //staking
         error_a |= mdb_dbi_open (transaction, "voting_power_db", MDB_CREATE, &voting_power_db);
         VotingPowerManager::Init(*this);
+        error_a |= mdb_dbi_open (transaction, "staking_db", MDB_CREATE, &staking_db);
+        error_a |= mdb_dbi_open (transaction, "thawing_db", MDB_CREATE | MDB_DUPSORT, &thawing_db);
 
         //rewards
         error_a |= mdb_dbi_open (transaction, "epoch_rewards_db", MDB_CREATE, &epoch_rewards_db);

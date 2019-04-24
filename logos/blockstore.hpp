@@ -573,8 +573,21 @@ public:
      * Voting Power Info per epoch
      * logos::account -> VotingPowerInfo
      */
-
     MDB_dbi voting_power_db;
+
+    /**
+     * Staked funds per account (self stake and locked proxy)
+     * logos::account -> StakedFunds
+     */
+    MDB_dbi staking_db;
+
+    /**
+     * Thawing funds per account
+     * logos::account -> ThawingFunds
+     */
+    MDB_dbi thawing_db;
+
+
 
     Log log;
 };

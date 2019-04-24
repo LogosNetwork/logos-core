@@ -366,6 +366,13 @@ TEST(Voting_Power, AccountBalance)
     ASSERT_EQ(vp_info.next.unlocked_proxied,150*1000);
 
 
+    accounts[0].second.SetAvailableBalance(accounts[0].second.GetBalance() - 50, epoch, txn);
+    ASSERT_EQ(accounts[0].second.GetBalance(),150);
+    ASSERT_EQ(accounts[0].second.GetAvailableBalance(), 100);
+    accounts[0].second.SetBalance(accounts[0].second.GetBalance() - 50, epoch, txn);
+    ASSERT_EQ(accounts[0].second.GetBalance(), 100);
+    ASSERT_EQ(accounts[0].second.GetAvailableBalance(), 50);
+
 }
 
 #endif

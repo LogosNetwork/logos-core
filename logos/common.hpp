@@ -136,7 +136,8 @@ public:
     virtual void SetBalance(
             amount const & new_balance,
             uint32_t const & epoch,
-            MDB_txn* txn) = 0;
+            MDB_txn* txn,
+            bool persist = true) = 0;
 
     virtual amount const & GetBalance() const = 0;
     virtual amount const & GetAvailableBalance() const = 0;
@@ -192,7 +193,14 @@ struct account_info : Account
     void SetBalance(
             amount const & new_balance,
             uint32_t const & epoch,
-            MDB_txn* txn) override;
+            MDB_txn* txn,
+            bool persist = true) override;
+
+    void SetAvailableBalance(
+            amount const & new_available_bal,
+            uint32_t const & epoch,
+            MDB_txn* txn,
+            bool persist = true);
 
     amount const & GetAvailableBalance() const override;
     amount const & GetBalance() const override;
@@ -200,6 +208,8 @@ struct account_info : Account
     block_hash staking_subchain_head;
     block_hash open_block;
     Entries    entries;
+    //the last epoch in which thawing funds were checked for expiration for this account
+    uint32_t   epoch_thawing_updated;
 
     protected:
     amount available_balance;
