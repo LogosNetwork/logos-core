@@ -325,7 +325,11 @@ Amount const & logos::account_info::GetAvailableBalance() const
     return available_balance;
 }
 
-void logos::account_info::SetBalance(Amount const & new_balance, uint32_t const & epoch, MDB_txn* txn)
+void logos::account_info::SetBalance(
+        Amount const & new_balance,
+        uint32_t const & epoch, 
+        MDB_txn* txn,
+        bool persist)
 {
     std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::Get();
     if(new_balance > balance)
@@ -356,13 +360,59 @@ void logos::account_info::SetBalance(Amount const & new_balance, uint32_t const 
                 txn);
     }
     balance = new_balance;
+    if(persist)
+    {
+        //TODO store in blockstore
+    }
+}
+
+void logos::account_info::SetAvailableBalance(
+        Amount const & new_available_bal,
+        uint32_t const & epoch,
+        MDB_txn* txn,
+        bool persist)
+{
+    std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::Get();
+    if(new_available_bal > available_balance)
+    {
+        Amount diff = new_available_bal - available_balance;
+        available_balance += diff;
+        vpm->AddUnlockedProxied(
+                vpm->GetRep(*this,txn),
+                diff,
+                epoch,
+                txn);
+    }
+    else
+    {
+        Amount diff = available_balance - new_available_bal;
+        available_balance -= diff;
+
+        vpm->SubtractUnlockedProxied(
+                vpm->GetRep(*this,txn),
+                diff,
+                epoch,
+                txn);
+    }
+    if(available_balance > balance)
+    {
+       Log log;
+       LOG_FATAL(log) << "account_info::SetAvailableBalance - "
+         << "available balance is greater than balance"; 
+      trace_and_halt();
+    }
+    if(persist)
+    {
+        //TODO store in blockstore
+    }
 }
 
 logos::account_info::account_info ()
     : Account(AccountType::LogosAccount)
     , staking_subchain_head (0)
     , open_block (0)
-    , available_balance (0)
+    , available_balance (balance)
+    , epoch_thawing_updated(0)
 {}
 
 logos::account_info::account_info (bool & error, const logos::mdb_val & mdbval)
@@ -395,6 +445,7 @@ logos::account_info::account_info (
     , staking_subchain_head (staking_subchain_head_a)
     , open_block (open_block_a)
     , available_balance (balance_a)
+    , epoch_thawing_updated(0)
 {}
 
 uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
@@ -407,47 +458,31 @@ uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
     {
         s += entry.Serialize(stream_a);
     }
+    s += write (stream_a, epoch_thawing_updated);
     s += write (stream_a, available_balance.bytes);
     return s;
 }
 
 bool logos::account_info::Deserialize(logos::stream &stream_a)
 {
-    auto error = Account::Deserialize(stream_a);
-
-    if (!error)
+    uint16_t count;
+    auto error = Account::Deserialize(stream_a)
+        || read (stream_a, staking_subchain_head.bytes)
+        || read (stream_a, open_block.bytes)
+        || read (stream_a, count);
+    for(size_t i = 0; i < count && !error; ++i)
     {
-        error = read (stream_a, staking_subchain_head.bytes);
-        if (!error)
+        TokenEntry entry(error, stream_a);
+        if(!error)
         {
-            error = read (stream_a, open_block.bytes);
-            if (!error)
-            {
-                if (!error)
-                {
-                    uint16_t count;
-                    error = read(stream_a, count);
-
-                    for(size_t i = 0; i < count; ++i)
-                    {
-                        TokenEntry entry(error, stream_a);
-                        if(error)
-                        {
-                            break;
-                        }
-
-                        entries.push_back(entry);
-                    }
-                    if(!error)
-                    {
-                        error = read(stream_a, available_balance.bytes);
-                    }
-                }
-            }
+            entries.push_back(entry);
         }
     }
-
+    error = error
+        || read(stream_a, epoch_thawing_updated)
+        || read(stream_a, available_balance.bytes);
     return error;
+
 }
 
 bool logos::account_info::operator== (logos::account_info const & other_a) const
@@ -455,6 +490,7 @@ bool logos::account_info::operator== (logos::account_info const & other_a) const
     return staking_subchain_head == other_a.staking_subchain_head &&
            open_block == other_a.open_block &&
            available_balance == other_a.available_balance &&
+           epoch_thawing_updated  == other_a.epoch_thawing_updated &&
            Account::operator==(other_a);
 }
 

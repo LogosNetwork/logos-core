@@ -248,7 +248,7 @@ logos::mdb_val TokenAccount::to_mdb_val(std::vector<uint8_t> &buf) const
     return logos::mdb_val(buf.size(), buf.data());
 }
 
-void TokenAccount::SetBalance(Amount const & new_balance, uint32_t const & epoch, MDB_txn* txn)
+void TokenAccount::SetBalance(Amount const & new_balance, uint32_t const & epoch, MDB_txn* txn, bool persist)
 {
     balance = new_balance;
 }

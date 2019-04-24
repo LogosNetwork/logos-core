@@ -41,7 +41,7 @@ struct TokenAccount : logos::Account
     logos::mdb_val to_mdb_val(std::vector<uint8_t> &) const override;
 
     void SetBalance(Amount const & new_balance, uint32_t const & epoch,
-            MDB_txn* txn) override;
+            MDB_txn* txn, bool persist=true) override;
 
     Amount const & GetBalance() const override;
     Amount const & GetAvailableBalance() const override;

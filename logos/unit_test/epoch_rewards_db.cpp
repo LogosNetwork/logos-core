@@ -138,10 +138,6 @@ TEST(Epoch_Rewards_DB, RewardsManager)
             = rewards_mgr.GetGlobalEpochRewardsInfo(e, txn);
         ASSERT_EQ(global_info.total_stake,global_total_stakes[e]);
     }
-
-
-    
-
 }
 
 #endif
