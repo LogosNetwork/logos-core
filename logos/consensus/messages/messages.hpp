@@ -11,7 +11,7 @@
 #include <logos/lib/log.hpp>
 #include <logos/lib/trace.hpp>
 #include <arpa/inet.h>
-
+#include <boost/algorithm/string.hpp>
 
 static constexpr size_t MAX_MSG_SIZE = 1024*1024;
 // TODO: Update based on new request types
@@ -206,7 +206,9 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
         SerializeJson (tree);
         std::stringstream ostream;
         boost::property_tree::write_json(ostream, tree);
-        return ostream.str();
+        std::string s = ostream.str();
+        boost::replace_all(s, "\"[]\"", "[]");
+        return s;
     }
 
     uint32_t Serialize(logos::stream & stream, bool with_appendix, bool with_next) const
