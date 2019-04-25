@@ -1220,6 +1220,7 @@ void logos::rpc_handler::block_create ()
             {
                 created_request->sequence = info_ptr->block_count;
                 created_request->previous = info_ptr->head;
+                created_request->Sign(prv.data, pub);
             }
 
             boost::property_tree::ptree response_l;
