@@ -795,17 +795,29 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         return;
     }
 
+    auto hash = request->GetHash();
+
     // This can happen when a duplicate request
     // is accepted. We can ignore this transaction.
     if(request->previous != info->head)
     {
-        LOG_INFO(_log) << "Block previous ("
-                       << request->previous.to_string()
-                       << ") does not match account head ("
-                       << info->head.to_string()
-                       << "). Suspected duplicate request - "
-                       << "ignoring.";
-        return;
+        if (hash == info->head || _store.request_exists(hash))
+        {
+            LOG_INFO(_log) << "PersistenceManager<R>::ApplyRequest - Block previous ("
+                           << request->previous.to_string()
+                           << ") does not match account head ("
+                           << info->head.to_string()
+                           << "). Suspected duplicate request - "
+                           << "ignoring.";
+            return;
+        }
+        // Somehow a fork slipped through
+        else
+        {
+            LOG_FATAL(_log) << "PersistenceManager<R>::ApplyRequest - encountered fork with hash "
+                            << hash.to_string();
+            trace_and_halt();
+        }
     }
 
     info->block_count++;
@@ -1409,15 +1421,7 @@ void PersistenceManager<R>::PlaceReceive(ReceiveBlock & receive,
             }
 
             ApprovedRB approved;
-            if(_store.request_block_get(request->locator.hash, approved, transaction))
-            {
-                LOG_FATAL(_log) << "PersistenceManager::PlaceReceive - "
-                                << "Failed to get a previous batch state block with hash: "
-                                << request->locator.hash.to_string();
-                trace_and_halt();
-            }
-
-            auto timestamp_b = approved.timestamp;
+            auto timestamp_b = (_store.request_block_get(request->locator.hash, approved, transaction)) ? 0 : approved.timestamp;
             bool a_is_less;
             if(timestamp_a != timestamp_b)
             {
