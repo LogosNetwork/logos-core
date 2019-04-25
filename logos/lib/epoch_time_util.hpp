@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <mutex>
 #include <functional>
+#include <boost/asio/deadline_timer.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
 using Milliseconds = std::chrono::milliseconds;
@@ -14,7 +15,7 @@ using Seconds = std::chrono::seconds;
 using Minutes = std::chrono::minutes;
 using Hours = std::chrono::hours;
 
-using Clock = boost::posix_time::microsec_clock;
+using Clock = boost::asio::deadline_timer::traits_type;
 using TimePoint  = boost::posix_time::ptime;
 static const TimePoint Min_DT = TimePoint(boost::posix_time::min_date_time);
 

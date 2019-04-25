@@ -271,7 +271,7 @@ ConsensusContainer::CancelTimer(ConsensusType CT)
     // 'manually' cancel the callback by setting _cancel_timer.
     // When the callback is invoked, it will check this value
     // and return early.
-    auto now = Clock::universal_time();
+    auto now = Clock::now();
     if(now < timer.expires_at() && !timer.cancel() && _timer_set[CT])
     {
         LOG_DEBUG(_log) << "ConsensusContainer::CancelTimer " << ConsensusToName(CT) << " - force cancel.";

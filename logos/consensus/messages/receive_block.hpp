@@ -62,5 +62,3 @@ struct ReceiveBlock
     BlockHash send_hash;
     uint16_t  index2send = 0;
 };
-
-

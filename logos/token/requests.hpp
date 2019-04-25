@@ -182,6 +182,9 @@ struct Revoke : TokenRequest
 
     bool operator==(const Request & other) const override;
 
+    // offset of 128 to facilitate index lookup from revoke source's receive
+    static constexpr uint16_t REVOKE_OFFSET = 0x0080;
+
     AccountAddress source;
     Transaction    transaction;
 };
