@@ -8,7 +8,7 @@ MessageHandler<CT>::MessageHandler()
 template<ConsensusType CT>
 void MessageHandler<CT>::OnMessage(const MessagePtr & message, const Seconds & seconds)
 {
-    OnMessage(message, Clock::universal_time() + seconds);
+    OnMessage(message, Clock::now() + seconds);
 }
 
 template<ConsensusType CT>
@@ -64,7 +64,7 @@ bool MessageHandler<CT>::PrimaryEmpty()
     std::lock_guard<std::mutex> lock(_mutex);
     auto &expiration_index = _entries. template get<2>();
     auto it = expiration_index.lower_bound(Min_DT);
-    auto end = expiration_index.upper_bound(Clock::universal_time());
+    auto end = expiration_index.upper_bound(Clock::now());
     return it == end;
 }
 
@@ -73,7 +73,7 @@ auto MessageHandler<CT>::GetImminentTimeout() -> const TimePoint &
 {
     std::lock_guard<std::mutex> lock(_mutex);
     auto &expiration_index = _entries. template get<2>();
-    auto it = expiration_index.lower_bound(Clock::universal_time());
+    auto it = expiration_index.lower_bound(Clock::now());
     if (it == expiration_index.end()) return Min_DT;
     return it->expiration;
 }
@@ -137,8 +137,7 @@ void RequestMessageHandler::MoveToTarget(RequestInternalQueue & queue, size_t si
 {
     std::lock_guard<std::mutex> lock(_mutex);
     auto &expiration_index = _entries. template get<2>();
-
-    auto end = expiration_index.upper_bound(Clock::universal_time());  // strictly greater than
+    auto end = expiration_index.upper_bound(Clock::now());  // strictly greater than
 
     for(auto pos = expiration_index.lower_bound(Min_DT); pos != end && size != 0; size--)
     {

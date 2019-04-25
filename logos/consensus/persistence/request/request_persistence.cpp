@@ -995,7 +995,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 
                 entry->balance -= revoke->transaction.amount;
 
-                ReceiveBlock receive(user_account.receive_head, revoke->GetHash(), 0);
+                ReceiveBlock receive(user_account.receive_head, revoke->GetHash(), Revoke::REVOKE_OFFSET);
                 user_account.receive_head = receive.Hash();
 
                 PlaceReceive(receive, timestamp, transaction);

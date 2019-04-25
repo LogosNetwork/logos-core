@@ -147,6 +147,8 @@ void ConsensusManager<CT>::OnMessageQueued()
         // Get most imminent timeout, if any, and schedule timer
         auto imminent_timeout = GetHandler().GetImminentTimeout();
         if (imminent_timeout == Min_DT) return;
+        LOG_DEBUG(_log) << "ConsensusManager<" << ConsensusToName(CT) << ">::OnMessageQueued - "
+                        << "imminent timeout is " << imminent_timeout << ", scheduling timer";
         _scheduler.ScheduleTimer(CT, imminent_timeout);
     }
 }
