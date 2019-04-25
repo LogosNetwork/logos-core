@@ -10,8 +10,6 @@
 #include <logos/network/net_io_send.hpp>
 #include <logos/lib/log.hpp>
 
-#include <boost/asio/deadline_timer.hpp>
-
 namespace logos { class node_config; }
 
 /// Implements forwarding to the Delegate

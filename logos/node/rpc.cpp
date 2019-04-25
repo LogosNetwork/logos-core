@@ -1214,17 +1214,13 @@ void logos::rpc_handler::block_create ()
                 return;
 
             }
-            if(type == RequestType::Issuance)
-            {
-                auto issuance = static_pointer_cast<Issuance>(created_request);
-                issuance->token_id = GetTokenID(*issuance);
-            }
 
             std::shared_ptr<logos::Account> info_ptr;
             if(!node.store.account_get(created_request->GetAccount(),info_ptr))
             {
                 created_request->sequence = info_ptr->block_count;
                 created_request->previous = info_ptr->head;
+                created_request->Sign(prv.data, pub);
             }
 
             boost::property_tree::ptree response_l;
