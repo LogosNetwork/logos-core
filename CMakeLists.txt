@@ -441,6 +441,7 @@ if (LOGOS_TEST)
         logos/unit_test/request_serialization.cpp
         logos/unit_test/proxy.cpp
         logos/unit_test/staking_manager.cpp
+        logos/unit_test/liability_manager.cpp
         logos/unit_test/tallying.cpp
 		logos/unit_test/elections.cpp
         logos/unit_test/epoch_rewards_db.cpp

@@ -40,7 +40,7 @@ TEST (P2pTest, VerifyPeersInterface)
         p2p_interface p2p;
         bool error = false;
         boost::filesystem::path const data_path(TEST_DB);
-        logos::block_store store(error, data_path, 32);
+        logos::block_store store(error, data_path);
         EXPECT_EQ(error, false);
         ContainerP2p cp2p(p2p, store);
 

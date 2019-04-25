@@ -30,6 +30,8 @@ class EpochRewardsManager
 
     EpochRewardsManager(BlockStore & store);
 
+    //Called when a rep votes
+    //Note, total_reward is not set via this call
     void Init(
             AccountAddress const & rep_address,
             RepEpochInfo const & rep_epoch_info,

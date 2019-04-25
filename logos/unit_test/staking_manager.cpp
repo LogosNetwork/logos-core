@@ -169,4 +169,34 @@ TEST(Staking_Manager, Stake)
 
 }
 
+TEST(Staking_Manager, Thawing)
+{
+    logos::block_store* store = get_db(); 
+    logos::transaction txn(store->environment, nullptr, true);
+
+    store->clear(store->staking_db, txn);
+    store->clear(store->thawing_db, txn);
+    store->clear(store->account_db, txn);
+    store->clear(store->voting_power_db, txn);
+    StakingManager staking_mgr(*store);
+
+    AccountAddress origin = 456;
+    AccountAddress target = 44;
+    uint32_t epoch = 60;
+    ThawingFunds t = staking_mgr.CreateThawingFunds(target,origin,epoch,txn);
+    staking_mgr.Store(t, origin, txn);
+    ++epoch;
+    ThawingFunds t2 = staking_mgr.CreateThawingFunds(target,origin,epoch,txn);
+    staking_mgr.Store(t2, origin, txn);
+
+    std::vector<ThawingFunds> thawing;
+    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+            thawing.push_back(funds);
+            return true;
+            }, txn);
+    ASSERT_EQ(thawing.size(),2);
+    ASSERT_EQ(thawing[0].expiration_epoch,epoch+42-1);
+    ASSERT_EQ(thawing[1].expiration_epoch,epoch+42);
+}
+
 #endif
