@@ -227,6 +227,8 @@ template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, StakedFu
 template void logos::block_store::put(MDB_dbi&, logos::mdb_val const &, StakedFunds const &, MDB_txn*);
 template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, ThawingFunds&, MDB_txn*);
 template void logos::block_store::put(MDB_dbi&, logos::mdb_val const &, ThawingFunds const &, MDB_txn*);
+template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, Liability&, MDB_txn*);
+template void logos::block_store::put(MDB_dbi&, logos::mdb_val const &, Liability const &, MDB_txn*);
 
 
 bool logos::block_store::del(MDB_dbi &db, const mdb_val &key, MDB_txn *tx)
@@ -359,6 +361,11 @@ checksum (0)
         VotingPowerManager::Init(*this);
         error_a |= mdb_dbi_open (transaction, "staking_db", MDB_CREATE, &staking_db);
         error_a |= mdb_dbi_open (transaction, "thawing_db", MDB_CREATE | MDB_DUPSORT, &thawing_db);
+
+        //liabilities
+        error_a |= mdb_dbi_open (transaction, "master_liabilities_db", MDB_CREATE, &master_liabilities_db);
+        error_a |= mdb_dbi_open (transaction, "rep_liabilities_db", MDB_CREATE | MDB_DUPSORT, &rep_liabilities_db);
+        error_a |= mdb_dbi_open (transaction, "secondary_liabilities_db", MDB_CREATE | MDB_DUPSORT, &secondary_liabilities_db);
 
         //rewards
         error_a |= mdb_dbi_open (transaction, "epoch_rewards_db", MDB_CREATE, &epoch_rewards_db);

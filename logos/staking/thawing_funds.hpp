@@ -3,9 +3,9 @@
 
 struct ThawingFunds
 {
+    uint32_t expiration_epoch;
     AccountAddress target;
     Amount amount;
-    uint32_t expiration_epoch;
     LiabilityHash liability_hash;
 
     logos::mdb_val to_mdb_val(std::vector<uint8_t>& buf) const
@@ -21,18 +21,18 @@ struct ThawingFunds
     uint32_t Serialize(logos::stream & stream) const
     {
 
-        uint32_t s = logos::write(stream, target);;
+        uint32_t s = logos::write(stream, expiration_epoch);;
+        s += logos::write(stream, target);
         s += logos::write(stream, amount);
-        s += logos::write(stream, expiration_epoch);
         s += logos::write(stream, liability_hash);
         return s;
     }
 
     bool Deserialize(logos::stream & stream)
     {
-        return logos::read(stream, target)
+        return logos::read(stream, expiration_epoch)
+            || logos::read(stream, target)
             || logos::read(stream, amount)
-            || logos::read(stream, expiration_epoch)
             || logos::read(stream, liability_hash);
     }
 

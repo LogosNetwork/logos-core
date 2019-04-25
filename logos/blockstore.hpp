@@ -583,11 +583,33 @@ public:
 
     /**
      * Thawing funds per account
+     * Uses duplicate keys
      * logos::account -> ThawingFunds
      */
     MDB_dbi thawing_db;
 
+    /**
+     * Liabilities
+     * LiabilityHash -> Liability
+     */
+    MDB_dbi master_liabilities_db;
 
+
+    /**
+     * Liabilities where rep is a target
+     * Key is rep account address
+     * Uses duplicate keys
+     * logos::account -> LiabilityHash
+     */
+    MDB_dbi rep_liabilities_db;
+
+    /**
+     * Secondary liabilities per account
+     * Account is source of liability
+     * Uses duplicate keys
+     * logos::account -> LiabilityHash
+     */
+    MDB_dbi secondary_liabilities_db;
 
     Log log;
 };

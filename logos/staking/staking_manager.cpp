@@ -9,7 +9,7 @@ StakedFunds StakingManager::CreateStakedFunds(
     funds.amount = 0;
     funds.target = target;
     funds.liability_hash = 
-        _liability_mgr.CreateUnexpiringLiability(target, source, 0); 
+        _liability_mgr.CreateUnexpiringLiability(target, source, 0, txn); 
     return funds;
 }
 
@@ -24,7 +24,7 @@ ThawingFunds StakingManager::CreateThawingFunds(
     funds.target = target;
     funds.expiration_epoch = epoch_created + 42;
     funds.liability_hash = 
-        _liability_mgr.CreateExpiringLiability(target, source, 0, funds.expiration_epoch);
+        _liability_mgr.CreateExpiringLiability(target, source, 0, funds.expiration_epoch, txn);
     return funds;
 }
 
@@ -46,7 +46,7 @@ void StakingManager::UpdateAmount(
     }
     else
     {
-        _liability_mgr.DeleteLiability(funds.liability_hash);
+        _liability_mgr.DeleteLiability(funds.liability_hash, txn);
     }
 }
 
@@ -65,7 +65,7 @@ void StakingManager::UpdateAmount(
     else
     {
         Delete(funds, origin, txn);
-        _liability_mgr.DeleteLiability(funds.liability_hash);
+        _liability_mgr.DeleteLiability(funds.liability_hash,txn);
     }
 }
 
@@ -105,7 +105,7 @@ Amount StakingManager::Extract(
         {
             liability_expiration = epoch + 42;
         }
-        bool res = _liability_mgr.CreateSecondaryLiability(input.target,origin,to_extract,liability_expiration);
+        bool res = _liability_mgr.CreateSecondaryLiability(input.target,origin,to_extract,liability_expiration, txn);
         if(!res)
         {
             return 0;
@@ -149,7 +149,7 @@ void StakingManager::Store(
         MDB_txn* txn)
 {
     _store.put(_store.staking_db, logos::mdb_val(origin), funds, txn);
-    _liability_mgr.UpdateLiabilityAmount(funds.liability_hash, funds.amount);
+    _liability_mgr.UpdateLiabilityAmount(funds.liability_hash, funds.amount, txn);
 }
 
 void StakingManager::Store(
@@ -157,13 +157,9 @@ void StakingManager::Store(
         AccountAddress const & origin,
         MDB_txn* txn)
 {
-        for(auto it = logos::store_iterator(txn,_store.thawing_db, logos::mdb_val(origin));
-            it != logos::store_iterator(nullptr); ++it)
+    for(auto it = logos::store_iterator(txn,_store.thawing_db, logos::mdb_val(origin));
+            it != logos::store_iterator(nullptr) && it->first.uint256() == origin; ++it)
     {
-        if(it->first.uint256() != origin)
-        {
-            return;
-        }
         ThawingFunds t; 
         logos::bufferstream stream (reinterpret_cast<uint8_t const *> (it->second.data ()), it->second.size ());
         bool error = t.Deserialize (stream);
@@ -183,7 +179,7 @@ void StakingManager::Store(
 
     }
     _store.put(_store.thawing_db, logos::mdb_val(origin), funds, txn);
-    _liability_mgr.UpdateLiabilityAmount(funds.liability_hash, funds.amount);
+    _liability_mgr.UpdateLiabilityAmount(funds.liability_hash, funds.amount, txn);
 }
 
 void StakingManager::Delete(
@@ -232,7 +228,7 @@ void StakingManager::IterateThawingFunds(
         std::function<bool(ThawingFunds & funds)> func,
         MDB_txn* txn)
 {
-        for(auto it = logos::store_iterator(txn,_store.thawing_db, logos::mdb_val(origin));
+    for(auto it = logos::store_iterator(txn,_store.thawing_db, logos::mdb_val(origin));
             it != logos::store_iterator(nullptr); ++it)
     {
         if(it->first.uint256() != origin)
@@ -348,3 +344,46 @@ void StakingManager::Stake(AccountAddress const & origin,
     Store(cur_stake, origin, txn);
 }
 
+
+void StakingManager::PruneThawing(
+        AccountAddress const & origin,
+        uint32_t const & cur_epoch,
+        MDB_txn* txn)
+{
+
+    for(auto it = logos::store_iterator(txn,_store.thawing_db, logos::mdb_val(origin));
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        if(it->first.uint256() != origin)
+        {
+            return;
+        }
+        ThawingFunds t; 
+        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (it->second.data ()), it->second.size ());
+        bool error = t.Deserialize (stream);
+        if(error)
+        {
+            LOG_FATAL(_log) << "StakingManager::IterateThawingFunds - "
+                << "Error deserializing ThawingFunds for account = " << origin.to_string();
+            trace_and_halt();
+        }
+        if(t.expiration_epoch <= cur_epoch)
+        {
+           if(mdb_cursor_del(it.cursor,0))
+           {
+                LOG_FATAL(_log) << "StakingManager::PruneThawing - "
+                    << "Error deleting ThawingFunds. orign = " << origin.to_string();
+                trace_and_halt();
+           }
+        }
+        else
+        {
+            //thawing funds are ordered by expiration
+            //as soon as we see an unexpired thawing fund, we know
+            //later funds will also be unexpired
+            return;
+        }
+        
+    }
+    
+}

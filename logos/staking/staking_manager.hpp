@@ -74,12 +74,18 @@ class StakingManager
             std::function<bool(ThawingFunds & funds)> func,
             MDB_txn* txn);
 
+    void PruneThawing(
+            AccountAddress const & origin,
+            uint32_t const & cur_epoch,
+            MDB_txn* txn);
 
-    private:
+
     void Store(StakedFunds const & funds, AccountAddress const & origin, MDB_txn* txn);
     void Store(ThawingFunds & funds, AccountAddress const & origin, MDB_txn* txn);
     void Delete(ThawingFunds const & funds, AccountAddress const & origin, MDB_txn* txn);
     void Delete(StakedFunds const & funds, AccountAddress const & origin, MDB_txn* txn);
+
+    private:
     Log _log;
     LiabilityManager _liability_mgr;
     VotingPowerManager _voting_power_mgr;
