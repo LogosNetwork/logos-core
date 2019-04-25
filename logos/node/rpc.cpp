@@ -1214,11 +1214,6 @@ void logos::rpc_handler::block_create ()
                 return;
 
             }
-            if(type == RequestType::Issuance)
-            {
-                auto issuance = static_pointer_cast<Issuance>(created_request);
-                issuance->token_id = GetTokenID(*issuance);
-            }
 
             std::shared_ptr<logos::Account> info_ptr;
             if(!node.store.account_get(created_request->GetAccount(),info_ptr))

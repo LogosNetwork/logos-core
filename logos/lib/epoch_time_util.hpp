@@ -14,7 +14,7 @@ using Seconds = std::chrono::seconds;
 using Minutes = std::chrono::minutes;
 using Hours = std::chrono::hours;
 
-using Clock = boost::posix_time::second_clock;
+using Clock = boost::posix_time::microsec_clock;
 using TimePoint  = boost::posix_time::ptime;
 static const TimePoint Min_DT = TimePoint(boost::posix_time::min_date_time);
 

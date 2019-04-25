@@ -112,6 +112,8 @@ Issuance::Issuance(bool & error,
         }
 
         issuer_info = tree.get<std::string>(ISSUER_INFO, "");
+
+        token_id = GetTokenID(symbol, name, origin, previous);
         SignAndHash(error, tree);
     }
     catch (...)
@@ -479,7 +481,7 @@ IssueAdditional::IssueAdditional(bool & error,
             return;
         }
 
-        Hash();
+        SignAndHash(error, tree);
     }
     catch(...)
     {
