@@ -32,6 +32,18 @@ public:
     /** Return the list of hostnames to look up for DNS seeds */
     const std::vector<std::string>& DNSSeeds() const { return vSeeds; }
     const std::vector<SeedSpec6>& FixedSeeds() const { return vFixedSeeds; }
+    std::shared_ptr<CBaseChainParams> chainBaseParams;
+
+    /**
+     * Return the currently selected parameters. This won't change after app
+     * startup, except for unit tests.
+     */
+    const CBaseChainParams& BaseParams()
+    {
+        assert(chainBaseParams);
+        return *chainBaseParams;
+    }
+
 protected:
     CChainParams() {}
     CMessageHeader::MessageStartChars pchMessageStart;
@@ -45,18 +57,12 @@ protected:
  * @returns a CChainParams* of the chosen chain.
  * @throws a std::runtime_error if the chain is not supported.
  */
-std::unique_ptr<CChainParams> CreateChainParams(const std::string& chain);
-
-/**
- * Return the currently selected parameters. This won't change after app
- * startup, except for unit tests.
- */
-const CChainParams &Params();
+std::shared_ptr<CChainParams> CreateChainParams(const std::string& chain);
 
 /**
  * Sets the params returned by Params() to those for the given BIP70 chain name.
  * @throws std::runtime_error when the chain is not supported.
  */
-void SelectParams(ArgsManager &Args, const std::string& chain);
+std::shared_ptr<CChainParams> SelectParams(ArgsManager &Args, const std::string& chain);
 
 #endif // BITCOIN_CHAINPARAMS_H

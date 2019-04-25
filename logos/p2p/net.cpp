@@ -639,7 +639,7 @@ void CConnman::DumpBanlist()
 
     int64_t nStart = GetTimeMillis();
 
-    CBanDB bandb(config);
+    CBanDB bandb(config, chainParams);
     banmap_t banmap;
     GetBanned(banmap);
     if (bandb.Write(banmap)) {
@@ -916,7 +916,7 @@ bool CNode::ReceiveMsgBytes(const char *pch, unsigned int nBytes, bool& complete
         // get current incomplete message, or create a new one
         if (vRecvMsg.empty() ||
             vRecvMsg.back().complete())
-            vRecvMsg.push_back(CNetMessage(Params().MessageStart(), SER_NETWORK, INIT_PROTO_VERSION));
+            vRecvMsg.push_back(CNetMessage(session->connman.Params().MessageStart(), SER_NETWORK, INIT_PROTO_VERSION));
 
         CNetMessage& msg = vRecvMsg.back();
 
@@ -1736,7 +1736,7 @@ void CConnman::DumpAddresses()
 {
     int64_t nStart = GetTimeMillis();
 
-    CAddrDB adb(config);
+    CAddrDB adb(config, chainParams);
     adb.Write(addrman);
 
     LogPrint(BCLog::NET, "Flushed %d addresses to peers.dat  %dms\n",
@@ -2283,7 +2283,7 @@ bool CConnman::LoadData()
     // Load addresses from peers.dat
     int64_t nStart = GetTimeMillis();
     {
-        CAddrDB adb(config);
+        CAddrDB adb(config, chainParams);
         if (adb.Read(addrman))
             LogPrintf("Loaded %i addresses from peers.dat  %dms\n", addrman.size(), GetTimeMillis() - nStart);
         else
@@ -2298,7 +2298,7 @@ bool CConnman::LoadData()
         clientInterface->InitMessage(_("Loading banlist..."));
     // Load addresses from banlist.dat
     nStart = GetTimeMillis();
-    CBanDB bandb(config);
+    CBanDB bandb(config, chainParams);
     banmap_t banmap;
     if (bandb.Read(banmap))
     {

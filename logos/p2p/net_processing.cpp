@@ -809,7 +809,7 @@ bool PeerLogicValidation_internal::SendRejectsAndCheckIfBanned(
 
 bool PeerLogicValidation::ProcessMessages(std::shared_ptr<CNode> pfrom, std::atomic<bool>& interruptMsgProc)
 {
-    const CChainParams& chainparams = Params();
+    const CChainParams& chainparams = connman->Params();
     //
     // Message format
     //  (4) message start

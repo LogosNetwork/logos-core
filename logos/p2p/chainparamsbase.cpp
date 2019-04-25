@@ -15,28 +15,21 @@ const std::string CBaseChainParams::MAIN = "main";
 const std::string CBaseChainParams::TESTNET = "test";
 const std::string CBaseChainParams::REGTEST = "regtest";
 
-static std::unique_ptr<CBaseChainParams> globalChainBaseParams;
-
-const CBaseChainParams& BaseParams()
-{
-    assert(globalChainBaseParams);
-    return *globalChainBaseParams;
-}
-
-std::unique_ptr<CBaseChainParams> CreateBaseChainParams(const std::string& chain)
+std::shared_ptr<CBaseChainParams> CreateBaseChainParams(const std::string& chain)
 {
     if (chain == CBaseChainParams::MAIN)
-        return MakeUnique<CBaseChainParams>("", 8332);
+        return std::make_shared<CBaseChainParams>("", 8332);
     else if (chain == CBaseChainParams::TESTNET)
-        return MakeUnique<CBaseChainParams>("testnet3", 18332);
+        return std::make_shared<CBaseChainParams>("testnet3", 18332);
     else if (chain == CBaseChainParams::REGTEST)
-        return MakeUnique<CBaseChainParams>("regtest", 18443);
+        return std::make_shared<CBaseChainParams>("regtest", 18443);
     else
         throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
 }
 
-void SelectBaseParams(ArgsManager &Args, const std::string& chain)
+std::shared_ptr<CBaseChainParams> SelectBaseParams(ArgsManager &Args, const std::string& chain)
 {
-    globalChainBaseParams = CreateBaseChainParams(chain);
+    auto globalChainBaseParams = CreateBaseChainParams(chain);
     Args.SelectConfigNetwork(chain);
+    return globalChainBaseParams;
 }

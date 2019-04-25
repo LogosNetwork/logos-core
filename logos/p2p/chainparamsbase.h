@@ -38,15 +38,9 @@ private:
  * @returns a CBaseChainParams* of the chosen chain.
  * @throws a std::runtime_error if the chain is not supported.
  */
-std::unique_ptr<CBaseChainParams> CreateBaseChainParams(const std::string& chain);
-
-/**
- * Return the currently selected parameters. This won't change after app
- * startup, except for unit tests.
- */
-const CBaseChainParams& BaseParams();
+std::shared_ptr<CBaseChainParams> CreateBaseChainParams(const std::string& chain);
 
 /** Sets the params returned by Params() to those for the given network. */
-void SelectBaseParams(ArgsManager &Args, const std::string& chain);
+std::shared_ptr<CBaseChainParams> SelectBaseParams(ArgsManager &Args, const std::string& chain);
 
 #endif // BITCOIN_CHAINPARAMSBASE_H

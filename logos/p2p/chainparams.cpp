@@ -26,9 +26,9 @@ public:
         pchMessageStart[1] = 0xbe;
         pchMessageStart[2] = 0xb4;
         pchMessageStart[3] = 0xd9;
-	nDefaultPort = MAINNET_DEFAULT_PORT;
-	vFixedSeeds.clear(); //!< Mainnet mode doesn't have yet any fixed seeds.
-	vSeeds.clear();      //!< Mainnet mode doesn't have yet any DNS seeds.
+        nDefaultPort = MAINNET_DEFAULT_PORT;
+        vFixedSeeds.clear(); //!< Mainnet mode doesn't have yet any fixed seeds.
+        vSeeds.clear();      //!< Mainnet mode doesn't have yet any DNS seeds.
     }
 };
 
@@ -41,10 +41,10 @@ public:
         pchMessageStart[0] = 0x0b;
         pchMessageStart[1] = 0x11;
         pchMessageStart[2] = 0x09;
-	pchMessageStart[3] = 0x07;
-	nDefaultPort = TESTNET_DEFAULT_PORT;
-	vFixedSeeds.clear(); //!< Testnet mode doesn't have yet any fixed seeds.
-	vSeeds.clear();      //!< Testnet mode doesn't have yet any DNS seeds.
+        pchMessageStart[3] = 0x07;
+        nDefaultPort = TESTNET_DEFAULT_PORT;
+        vFixedSeeds.clear(); //!< Testnet mode doesn't have yet any fixed seeds.
+        vSeeds.clear();      //!< Testnet mode doesn't have yet any DNS seeds.
     }
 };
 
@@ -58,32 +58,27 @@ public:
         pchMessageStart[1] = 0xbf;
         pchMessageStart[2] = 0xb5;
         pchMessageStart[3] = 0xda;
-	nDefaultPort = REGTEST_DEFAULT_PORT;
-	vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
-	vSeeds.clear();      //!< Regtest mode doesn't have any DNS seeds.
+        nDefaultPort = REGTEST_DEFAULT_PORT;
+        vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
+        vSeeds.clear();      //!< Regtest mode doesn't have any DNS seeds.
     }
 };
 
-static std::unique_ptr<CChainParams> globalChainParams;
-
-const CChainParams &Params() {
-    assert(globalChainParams);
-    return *globalChainParams;
-}
-
-std::unique_ptr<CChainParams> CreateChainParams(const std::string& chain)
+std::shared_ptr<CChainParams> CreateChainParams(const std::string& chain)
 {
     if (chain == CBaseChainParams::MAIN)
-        return std::unique_ptr<CChainParams>(new CMainParams());
+        return std::make_shared<CMainParams>();
     else if (chain == CBaseChainParams::TESTNET)
-        return std::unique_ptr<CChainParams>(new CTestNetParams());
+        return std::make_shared<CTestNetParams>();
     else if (chain == CBaseChainParams::REGTEST)
-        return std::unique_ptr<CChainParams>(new CRegTestParams());
+        return std::make_shared<CRegTestParams>();
     throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
 }
 
-void SelectParams(ArgsManager &Args, const std::string& network)
+std::shared_ptr<CChainParams> SelectParams(ArgsManager &Args, const std::string& network)
 {
-    SelectBaseParams(Args, network);
-    globalChainParams = CreateChainParams(network);
+    auto baseParams = SelectBaseParams(Args, network);
+    auto params = CreateChainParams(network);
+    params->chainBaseParams = baseParams;
+    return params;
 }

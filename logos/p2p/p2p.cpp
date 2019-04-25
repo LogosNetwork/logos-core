@@ -85,6 +85,7 @@ private:
 
 public:
     CClientUIInterface                      uiInterface;
+    std::shared_ptr<CChainParams>           chainParams;
 
     p2p_internal(p2p_interface & p2p,
                  p2p_config & config)
@@ -376,7 +377,6 @@ bool AppInitBasicSetup()
 
 bool AppInitParameterInteraction()
 {
-    const CChainParams& chainparams = Params();
     // ********************************************************* Step 2: parameter interactions
 
     // also see: InitParameterInteraction()
@@ -468,7 +468,6 @@ bool AppInitLockDataDirectory()
 
 bool AppInitMain(p2p_config &config)
 {
-    const CChainParams& chainparams = Params();
     // ********************************************************* Step 4a: application initialization
     LogPrintf("Startup time: %s\n", FormatISO8601DateTime(timeData.GetTime()));
     LogPrintf("Using at most %i automatic connections (%i file descriptors available)\n", nMaxConnections, nFD);
@@ -493,6 +492,7 @@ bool AppInitMain(p2p_config &config)
     connman.io_service = io_service;
     connman.scheduleAfter = config.scheduleAfterMs;
     connman.fLogIPs = fLogIPs;
+    connman.chainParams = chainParams;
 
     if (config.test_mode)
         return true;
@@ -762,7 +762,7 @@ bool p2p_interface::Init(p2p_config &config)
     // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
     try
     {
-        SelectParams(p2p->getArgs(), p2p->getArgs().GetChainName());
+        p2p->chainParams = SelectParams(p2p->getArgs(), p2p->getArgs().GetChainName());
     }
     catch (const std::exception& e)
     {

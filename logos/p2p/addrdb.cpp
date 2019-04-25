@@ -18,13 +18,13 @@
 namespace {
 
 template <typename Stream, typename Data>
-bool SerializeDB(Stream& stream, const Data& data)
+bool SerializeDB(Stream& stream, const Data& data, std::shared_ptr<CChainParams> params)
 {
     // Write and commit header, data
     try {
         CHashWriter hasher(SER_DISK, CLIENT_VERSION);
-        stream << Params().MessageStart() << data;
-        hasher << Params().MessageStart() << data;
+        stream << params->MessageStart() << data;
+        hasher << params->MessageStart() << data;
         stream << hasher.GetHash();
     } catch (const std::exception& e) {
         return error("%s: Serialize or I/O error - %s", __func__, e.what());
@@ -34,14 +34,14 @@ bool SerializeDB(Stream& stream, const Data& data)
 }
 
 template <typename Data>
-bool SerializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, const Data& data)
+bool SerializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, const Data& data, std::shared_ptr<CChainParams> params)
 {
     CDataStream s(SER_DISK, CLIENT_VERSION);
     MDB_txn *txn;
     int err;
 
     // Serialize
-    if (!SerializeDB(s, data))
+    if (!SerializeDB(s, data, params))
 	return error("%s: Failed to serialize %s data", __func__, prefix.c_str());
 
     MDB_val key = { prefix.size(), (void *)prefix.c_str() }, value = { s.size(), s.data() };
@@ -63,7 +63,7 @@ bool SerializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, const D
 }
 
 template <typename Stream, typename Data>
-bool DeserializeDB(Stream& stream, Data& data, bool fCheckSum = true)
+bool DeserializeDB(Stream& stream, Data& data, std::shared_ptr<CChainParams> params, bool fCheckSum = true)
 {
     try {
         CHashVerifier<Stream> verifier(&stream);
@@ -71,7 +71,7 @@ bool DeserializeDB(Stream& stream, Data& data, bool fCheckSum = true)
         unsigned char pchMsgTmp[4];
         verifier >> pchMsgTmp;
         // ... verify the network matches ours
-        if (memcmp(pchMsgTmp, Params().MessageStart(), sizeof(pchMsgTmp)))
+        if (memcmp(pchMsgTmp, params->MessageStart(), sizeof(pchMsgTmp)))
             return error("%s: Invalid network magic number", __func__);
 
         // de-serialize data
@@ -94,7 +94,7 @@ bool DeserializeDB(Stream& stream, Data& data, bool fCheckSum = true)
 }
 
 template <typename Data>
-bool DeserializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, Data& data)
+bool DeserializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, Data& data, std::shared_ptr<CChainParams> params)
 {
     MDB_txn *txn;
     int err;
@@ -111,7 +111,7 @@ bool DeserializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, Data&
     CDataStream s((const char *)value.mv_data, (const char *)value.mv_data + value.mv_size, SER_DISK, CLIENT_VERSION);
 
     // Deserialize
-    if (!DeserializeDB(s, data)) {
+    if (!DeserializeDB(s, data, params)) {
 	mdb_txn_abort(txn);
 	return error("%s: Failed to deserialize %s data", __func__, prefix.c_str());
     }
@@ -125,30 +125,21 @@ bool DeserializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, Data&
 
 bool CBanDB::Write(const banmap_t& banSet)
 {
-    return SerializeLMDB("banlist", env, dbi, banSet);
+    return SerializeLMDB("banlist", env, dbi, banSet, chainParams);
 }
 
 bool CBanDB::Read(banmap_t& banSet)
 {
-    return DeserializeLMDB("banlist", env, dbi, banSet);
+    return DeserializeLMDB("banlist", env, dbi, banSet, chainParams);
 }
 
 bool CAddrDB::Write(const CAddrMan& addr)
 {
-    return SerializeLMDB("peers", env, dbi, addr);
+    return SerializeLMDB("peers", env, dbi, addr, chainParams);
 }
 
 bool CAddrDB::Read(CAddrMan& addr)
 {
-    return DeserializeLMDB("peers", env, dbi, addr);
+    return DeserializeLMDB("peers", env, dbi, addr, chainParams);
 }
 
-bool CAddrDB::Read(CAddrMan& addr, CDataStream& ssPeers)
-{
-    bool ret = DeserializeDB(ssPeers, addr, false);
-    if (!ret) {
-        // Ensure addrman is left in a clean state
-        addr.Clear();
-    }
-    return ret;
-}

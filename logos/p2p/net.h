@@ -441,6 +441,19 @@ public:
     /** Subversion as sent to the P2P network in `version` messages */
     std::string strSubVersion;
 
+    std::shared_ptr<CChainParams> chainParams;
+
+    /**
+     * Return the currently selected parameters. This won't change after app
+     * startup, except for unit tests.
+     */
+    const CChainParams &Params()
+    {
+        assert(chainParams);
+        return *chainParams;
+    }
+
+
 private:
     using ListenSocket = std::shared_ptr<AsioServer>;
 

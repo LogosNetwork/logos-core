@@ -8,6 +8,7 @@
 
 #include <fs.h>
 #include <serialize.h>
+#include <chainparams.h>
 #include "p2p.h"
 
 #include <string>
@@ -27,7 +28,7 @@ typedef enum BanReason
 class CBanEntry
 {
 public:
-    static const int CURRENT_VERSION=1;
+    static constexpr int CURRENT_VERSION=1;
     int nVersion;
     int64_t nCreateTime;
     int64_t nBanUntil;
@@ -83,11 +84,15 @@ class CAddrDB
 private:
     MDB_env *env;
     MDB_dbi dbi;
+    std::shared_ptr<CChainParams> chainParams;
 public:
-    CAddrDB(struct p2p_config &config): env(config.lmdb_env), dbi(config.lmdb_dbi) {}
+    CAddrDB(struct p2p_config &config, std::shared_ptr<CChainParams> chainParamsIn)
+        : env(config.lmdb_env)
+        , dbi(config.lmdb_dbi)
+        , chainParams(chainParamsIn)
+    {}
     bool Write(const CAddrMan& addr);
     bool Read(CAddrMan& addr);
-    static bool Read(CAddrMan& addr, CDataStream& ssPeers);
 };
 
 /** Access to the banlist database (banlist.dat) */
@@ -96,8 +101,13 @@ class CBanDB
 private:
     MDB_env *env;
     MDB_dbi dbi;
+    std::shared_ptr<CChainParams> chainParams;
 public:
-    CBanDB(struct p2p_config &config): env(config.lmdb_env), dbi(config.lmdb_dbi) {}
+    CBanDB(struct p2p_config &config, std::shared_ptr<CChainParams> chainParamsIn)
+        : env(config.lmdb_env)
+        , dbi(config.lmdb_dbi)
+        , chainParams(chainParamsIn)
+    {}
     bool Write(const banmap_t& banSet);
     bool Read(banmap_t& banSet);
 };
