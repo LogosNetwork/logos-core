@@ -61,6 +61,13 @@ class StakingManager
             uint32_t const & epoch,
             MDB_txn* txn);
 
+    bool Validate(
+            AccountAddress const & origin,
+            Amount const & amount,
+            AccountAddress const & target,
+            uint32_t const & epoch,
+            MDB_txn* txn);
+
     StakedFunds GetCurrentStakedFunds(
             AccountAddress const & origin,
             MDB_txn* txn);
