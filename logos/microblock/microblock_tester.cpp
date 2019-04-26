@@ -3,6 +3,7 @@
 #include <logos/microblock/microblock_tester.hpp>
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/epoch_time_util.hpp>
+#include <logos/node/utility.hpp>
 #include <logos/blockstore.hpp>
 #include <logos/lib/blocks.hpp>
 
@@ -249,14 +250,24 @@ MicroBlockTester::informational(
         logos::node &node)
 {
     boost::property_tree::ptree response_l;
+    std::stringstream str;
 
     std::string type = _request.get<std::string>("type", "");
 
     if (type == "epoch")
     {
         ApprovedEB epoch;
+        size_t size = 0;
 
-        std::stringstream str;
+        ECIESPublicKey ecies;
+        ecies.FromHexString("3059301306072a8648ce3d020106082a8648ce3d030107034200048e1ad798008baac3663c0c1a6ce04c7cb632eb504562de923845fccf39d1c46dee52df70f6cf46f1351ce7ac8e92055e5f168f5aff24bcaab7513d447fd677d3");
+
+        std::vector<uint8_t> buf;
+        {
+            logos::vectorstream stream(buf);
+            size = ecies.Serialize(stream);
+        }
+
         uint64_t start = (uint64_t) &epoch;
         uint64_t account = (uint64_t) &(epoch.primary_delegate);
         uint64_t enumber = (uint64_t) &(epoch.epoch_number);
@@ -267,14 +278,13 @@ MicroBlockTester::informational(
         uint64_t sig = (uint64_t) &(epoch.preprepare_sig);
         str << "epoch offsets: account " << (account - start) << " enumber " << (enumber - start)
             << " tip " << (tip - start) << " fee " << (fee - start) << " delegates " << (del - start)
-            << " next " << (next - start) << " sig " << (sig - start) << " size " << sizeof(epoch);
-        response_l.put("result", str.str());
+            << " next " << (next - start) << " sig " << (sig - start) << " size " << sizeof(epoch)
+            << " ecies size " << size;
     }
     else if (type == "microblock")
     {
         ApprovedMB block;
 
-        std::stringstream str;
         uint64_t start = (uint64_t) &block;
         uint64_t account = (uint64_t) &(block.primary_delegate);
         uint64_t enumber = (uint64_t) &(block.epoch_number);
@@ -287,12 +297,10 @@ MicroBlockTester::informational(
             << " sequence " << (seq - start) << " last " << (last - start)
             << "num blocks " << (num - start) << " tips " << (tips - start)
             << " sig " << (sig - start) << " size " << sizeof(block);
-        response_l.put("result", str.str());
     }
     else if (type == "batch")
     {
         ApprovedRB block;
-        std::stringstream str;
         uint64_t start = (uint64_t) &block;
         uint64_t account = (uint64_t) &(block.primary_delegate);
         uint64_t seq = (uint64_t) &(block.sequence);
@@ -303,8 +311,36 @@ MicroBlockTester::informational(
         str << "batch offsets: account " << (account - start) << " sequence " << (seq - start)
             << " epoch " << (enumber - start) << " blocks " << (blocks - start)
             << " next " << (next - start) << " sig " << (sig - start) << " size " << sizeof(block);
-        response_l.put("result", str.str());
     }
+    else if (type == "account")
+    {
+        logos::account_info info;
+        uint64_t start = (uint64_t)&info;
+        uint64_t typ = (uint64_t)&info.type;
+        uint64_t balance = (uint64_t)&info.balance;
+        uint64_t modified = (uint64_t)&info.modified;
+        uint64_t head = (uint64_t)&info.head;
+        uint64_t block_count = (uint64_t)&info.block_count;
+        uint64_t receive_head = (uint64_t)&info.receive_head;
+        uint64_t receive_count = (uint64_t)&info.receive_count;
+        uint64_t rep_block = (uint64_t)&info.rep_block;
+        uint64_t open_block = (uint64_t)&info.open_block;
+        uint64_t entries = (uint64_t)&info.entries;
+        std::vector<uint8_t> buf;
+        size_t size;
+        {
+            logos::vectorstream stream(buf);
+            size = info.Serialize(stream);
+        }
+
+        str << "account offsets: type " << (typ-start) << " balance " << (balance-start)
+            << " modified " << (modified-start) << " head " << (head-start)
+            << " block count " << (block_count-start) << " receive head " << (receive_head-start)
+            << " receive count " << (receive_count-start) << " rep block" << (rep_block-start)
+            << " open block " << (open_block-start) << " entries " << (entries-start)
+            << " size " << size;
+    }
+    response_l.put("result", str.str());
 
     response (response_l);
 }
