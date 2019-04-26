@@ -10,6 +10,7 @@
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/persistence/persistence.hpp>
 #include <logos/staking/staking_manager.hpp>
+#include <logos/staking/voting_power_manager.hpp>
 
 #define Unit_Test_Elections
 
@@ -30,6 +31,9 @@ void clear_dbs()
     store->clear(store->remove_reps_db);
     store->clear(store->state_db);
     store->clear(store->leading_candidates_db);
+    store->clear(store->voting_power_db);
+    store->clear(store->staking_db);
+    store->clear(store->thawing_db);
     store->leading_candidates_size = 0;
 }
 
@@ -277,6 +281,7 @@ TEST(Elections, candidates_simple)
         ASSERT_FALSE(res);
         ASSERT_EQ(c2,c2_copy);
 
+        VotingPowerManager::Get()->AddSelfStake(a1,c1.stake,c1.epoch_modified-1,txn);
         res = store->candidate_add_vote(a1,100,c1.epoch_modified,txn);
         ASSERT_FALSE(res);
         res = store->candidate_add_vote(a1,50,c1.epoch_modified,txn);
@@ -539,21 +544,22 @@ TEST(Elections,get_next_epoch_delegates)
 
         logos::transaction txn(store->environment, nullptr, true);
 
-        Delegate d(init_delegate(i,base_vote+i,i,i));
+        Delegate d(init_delegate(i,base_vote+i,i==0?1:i,i));
         d.starting_term = true;
         eb.delegates[i] = d;
         delegates.push_back(d);
 
         RepInfo rep;
-        rep.stake = i; 
+        rep.stake = i == 0 ? 1 : i; 
 
         AnnounceCandidacy announce;
         init_ecies(announce.ecies_key);
         announce.origin = i;
-        announce.stake = i;
         announce.bls_key = d.bls_pub;
+        announce.stake = i == 0 ? 1 : i;
         rep.candidacy_action_tip = announce.Hash();
         store->request_put(announce,txn);
+        VotingPowerManager::Get()->AddSelfStake(i,i==0?1:i,epoch_num,txn);
         
         StartRepresenting start_rep;
         start_rep.origin = i;
@@ -587,13 +593,33 @@ TEST(Elections,get_next_epoch_delegates)
 
     };
 
-    auto compare_delegates = [&eb,&delegates]()
+    auto compare_delegates = [&]()
     {
+
+        logos::transaction txn(store->environment,nullptr,true);
         for(size_t i = 0; i < 32; ++i)
         {
             ASSERT_EQ(eb.delegates[i].account,delegates[i].account);
+            if(eb.delegates[i].stake != delegates[i].stake)
+            {
+                VotingPowerInfo vp_info;
+                VotingPowerManager::Get()->GetVotingPowerInfo(
+                        delegates[i].account,
+                        eb.epoch_number+1,
+                        vp_info,
+                        txn);
 
+                std::cout << "epoch num = " << eb.epoch_number+1
+                    << " i = " << i 
+                    << " delegate stake = " << delegates[i].stake.number()
+                    << " eb delegate stake = " << eb.delegates[i].stake.number()
+                    << " voting power mgr stake = " 
+                     << vp_info.current.self_stake.number()
+                    << std::endl;
+                trace_and_halt();
+            }
             ASSERT_EQ(eb.delegates[i].stake,delegates[i].stake);
+
             ASSERT_EQ(eb.delegates[i].bls_pub,delegates[i].bls_pub);
 
             ASSERT_EQ(eb.delegates[i].vote,delegates[i].vote);
@@ -730,6 +756,8 @@ TEST(Elections,get_next_epoch_delegates)
 
 
 
+    std::cout << "starting long loop ********************"
+        << "epoch_num = " << epoch_num << std::endl;
 
     for(size_t e = 0; e < 50; ++e)
     {
@@ -756,6 +784,8 @@ TEST(Elections,get_next_epoch_delegates)
     transition_epoch();
     compare_delegates();
     }
+    
+    std::cout << "finished normal case ****************" << std::endl;
 
 
     //Test extension of delegate term
@@ -1341,18 +1371,19 @@ TEST(Elections, apply)
 
         logos::transaction txn(store->environment, nullptr, true);
 
-        Delegate d(init_delegate(i,i,base_vote+i,i));
+        Amount stake = i == 0 ? 1 : i;
+        Delegate d(init_delegate(i,base_vote+i,stake,false));
         d.starting_term = true;
         eb.delegates[i] = d;
         delegates.push_back(d);
 
         RepInfo rep;
-        rep.stake = i; 
+        rep.stake = stake;
 
         AnnounceCandidacy announce;
         init_ecies(announce.ecies_key);
         announce.origin = i;
-        announce.stake = i;
+        announce.stake = stake;
         announce.bls_key = i;
         rep.candidacy_action_tip = announce.Hash();
         store->request_put(announce,txn);
@@ -1364,6 +1395,9 @@ TEST(Elections, apply)
         store->request_put(start_rep,txn);
         
         store->rep_put(i,rep,txn);
+
+
+        VotingPowerManager::Get()->AddSelfStake(announce.origin,announce.stake,epoch_num,txn);
     }
 
     std::reverse(delegates.begin(),delegates.end());
@@ -1690,11 +1724,13 @@ TEST(Elections, weighted_votes)
     CandidateInfo candidate;
     init_ecies(candidate.ecies_key);
     store->candidate_put(candidate_address,candidate,txn);
+    VotingPowerManager::Get()->AddSelfStake(candidate_address,10,epoch,txn);
 
     AccountAddress candidate2_address = 13;
     CandidateInfo candidate2;
     init_ecies(candidate2.ecies_key);
     store->candidate_put(candidate2_address,candidate,txn);
+    VotingPowerManager::Get()->AddSelfStake(candidate2_address,10,epoch,txn);
     
     ElectionVote vote;
     vote.epoch_num = ++epoch;
