@@ -56,6 +56,10 @@ bool LiabilityManager::CanCreateSecondaryLiability(
         AccountAddress const & source,
         MDB_txn* txn)
 {
+    if(target == source)
+    {
+        return false;
+    }
     LiabilityHash hash;
     if(!mdb_get(txn, _store.secondary_liabilities_db, logos::mdb_val(source), logos::mdb_val(hash)))
     {

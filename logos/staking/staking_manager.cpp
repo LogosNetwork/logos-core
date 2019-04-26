@@ -118,6 +118,8 @@ Amount StakingManager::Extract(
 }
 
 
+//TODO: reading out the available balance here may be ignoring/overwriting pending
+//updates to account balance
 void StakingManager::StakeAvailableFunds(
         StakedFunds & output,
         Amount const & amount,
@@ -342,6 +344,60 @@ void StakingManager::Stake(AccountAddress const & origin,
        }
     }
     Store(cur_stake, origin, txn);
+}
+
+bool StakingManager::Validate(
+        AccountAddress const & origin,
+        Amount const & amount,
+        AccountAddress const & target,
+        uint32_t const & epoch,
+        MDB_txn* txn)
+{
+    logos::account_info info;
+    if(_store.account_get(origin, info, txn))
+    {
+        LOG_FATAL(_log) << "StakingManager::Validate - "
+            << "failed to get account info for account = " << origin.to_string();
+        trace_and_halt();
+    }
+    Amount available = info.GetAvailableBalance();
+    if(available > amount)
+    {
+        return true;
+    }
+    Amount remaining = amount - available;
+    StakedFunds cur_stake(GetCurrentStakedFunds(origin, txn));
+    bool secondary_liability_created = false;
+    if(cur_stake.amount > 0)
+    {
+        if(cur_stake.target == target 
+                || _liability_mgr.CanCreateSecondaryLiability(target, origin, txn))
+        {
+            if(cur_stake.amount > remaining)
+            {
+                return true;
+            }
+            remaining -= cur_stake.amount;
+            secondary_liability_created = cur_stake.target != target;
+        }
+    }
+    bool res = false;
+    IterateThawingFunds(origin,[&](ThawingFunds & t)
+            {
+                if(t.target == target 
+                        || (!secondary_liability_created &&
+                           _liability_mgr.CanCreateSecondaryLiability(target, origin, txn))
+                        || (secondary_liability_created && cur_stake.target == target))
+                {
+                    if(t.amount > remaining)
+                    {
+                        res = true;
+                        return false;   
+                    }
+                    remaining -= t.amount;
+                } 
+            },txn);
+    return res;
 }
 
 
