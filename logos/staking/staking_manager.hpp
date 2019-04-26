@@ -1,5 +1,4 @@
 #pragma once
-
 #include <logos/staking/staked_funds.hpp>
 #include <logos/staking/thawing_funds.hpp>
 #include <logos/blockstore.hpp>
@@ -10,7 +9,19 @@ class StakingManager
 {
 
     using BlockStore = logos::block_store;
+    static std::shared_ptr<StakingManager> instance;
     public:
+    
+    static void SetInstance(BlockStore& store)
+    {
+        instance.reset(new StakingManager(store));
+    }
+
+    static std::shared_ptr<StakingManager> GetInstance()
+    {
+        return instance;
+    }
+
     StakingManager(BlockStore& store) : _store(store), _liability_mgr(store), _voting_power_mgr(store) {}
 
     StakedFunds CreateStakedFunds(
@@ -28,6 +39,7 @@ class StakingManager
             StakedFunds & output,
             Amount const & amount,
             AccountAddress const & origin,
+            logos::account_info & account_info,
             uint32_t const & epoch,
             MDB_txn* txn);
 
@@ -56,6 +68,7 @@ class StakingManager
 
     void Stake(
             AccountAddress const & origin,
+            logos::account_info & account_info,
             Amount const & amount,
             AccountAddress const & target,
             uint32_t const & epoch,

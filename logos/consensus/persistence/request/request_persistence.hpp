@@ -63,11 +63,11 @@ protected:
     bool Validate(const PrePrepare & message, ValidationStatus * status = nullptr);
 
 
-    void ApplyRequest(const StartRepresenting& request, MDB_txn* txn);
-    void ApplyRequest(const StopRepresenting& request, MDB_txn* txn);
+    void ApplyRequest(const StartRepresenting& request, logos::account_info& info, MDB_txn* txn);
+    void ApplyRequest(const StopRepresenting& request, logos::account_info& info, MDB_txn* txn);
     void ApplyRequest(const ElectionVote& request, MDB_txn* txn);
-    void ApplyRequest(const AnnounceCandidacy& request, MDB_txn* txn);
-    void ApplyRequest(const RenounceCandidacy& request, MDB_txn* txn);
+    void ApplyRequest(const AnnounceCandidacy& request, logos::account_info& info, MDB_txn* txn);
+    void ApplyRequest(const RenounceCandidacy& request, logos::account_info& info, MDB_txn* txn);
 
     bool ValidateRequest(
             const ElectionVote& request,

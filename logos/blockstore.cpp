@@ -5,8 +5,10 @@
 #include <logos/consensus/messages/util.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
 #include <logos/rewards/epoch_rewards.hpp>
+#include <logos/rewards/epoch_rewards_manager.hpp>
 #include <logos/staking/voting_power.hpp>
 #include <logos/staking/voting_power_manager.hpp>
+#include <logos/staking/staking_manager.hpp>
 #include <logos/staking/staked_funds.hpp>
 #include <logos/staking/thawing_funds.hpp>
 
@@ -361,6 +363,7 @@ checksum (0)
         VotingPowerManager::Init(*this);
         error_a |= mdb_dbi_open (transaction, "staking_db", MDB_CREATE, &staking_db);
         error_a |= mdb_dbi_open (transaction, "thawing_db", MDB_CREATE | MDB_DUPSORT, &thawing_db);
+        StakingManager::SetInstance(*this);
 
         //liabilities
         error_a |= mdb_dbi_open (transaction, "master_liabilities_db", MDB_CREATE, &master_liabilities_db);
@@ -370,7 +373,7 @@ checksum (0)
         //rewards
         error_a |= mdb_dbi_open (transaction, "epoch_rewards_db", MDB_CREATE, &epoch_rewards_db);
         error_a |= mdb_dbi_open (transaction, "global_epoch_rewards_db", MDB_CREATE, &global_epoch_rewards_db);
-
+        EpochRewardsManager::SetInstance(*this);
 
 
         if (!error_a)

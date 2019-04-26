@@ -53,14 +53,13 @@ TEST(Staking_Manager, Stake)
     Amount to_stake = 50;
 
 
-    staking_mgr.Stake(origin, to_stake, target, epoch, txn);
+    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
 
     StakedFunds cur_stake(staking_mgr.GetCurrentStakedFunds(origin, txn));
     all_thawing = staking_mgr.GetThawingFunds(origin, txn);
     ASSERT_EQ(all_thawing.size(), 0);
     ASSERT_EQ(cur_stake.amount, to_stake);
     ASSERT_EQ(cur_stake.target, target);
-    store->account_get(origin, info, txn);
     ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake);
     ASSERT_EQ(info.GetBalance(),initial_balance);
 
@@ -70,14 +69,13 @@ TEST(Staking_Manager, Stake)
     ASSERT_EQ(vp_info.next.unlocked_proxied,info.GetAvailableBalance());
 
     to_stake += 100;
-    staking_mgr.Stake(origin, to_stake, target, epoch, txn);
+    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
 
     cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
     all_thawing = staking_mgr.GetThawingFunds(origin, txn);
     ASSERT_EQ(all_thawing.size(), 0);
     ASSERT_EQ(cur_stake.amount, to_stake);
     ASSERT_EQ(cur_stake.target, target);
-    store->account_get(origin, info, txn);
     ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake);
     ASSERT_EQ(info.GetBalance(),initial_balance);
 
@@ -88,7 +86,7 @@ TEST(Staking_Manager, Stake)
 
     to_stake -= 50;
 
-    staking_mgr.Stake(origin, to_stake, target, epoch, txn);
+    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
 
     all_thawing = staking_mgr.GetThawingFunds(origin, txn);
     ASSERT_EQ(all_thawing.size(), 1);
@@ -98,7 +96,6 @@ TEST(Staking_Manager, Stake)
     cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
     ASSERT_EQ(cur_stake.amount, to_stake);
     ASSERT_EQ(cur_stake.target, target);
-    store->account_get(origin, info, txn);
     ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake - 50);
     ASSERT_EQ(info.GetBalance(),initial_balance);
 
@@ -108,7 +105,7 @@ TEST(Staking_Manager, Stake)
     ASSERT_EQ(vp_info.next.unlocked_proxied,info.GetAvailableBalance());
 
     to_stake -= 25;
-    staking_mgr.Stake(origin, to_stake, target, epoch, txn);
+    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
     all_thawing = staking_mgr.GetThawingFunds(origin, txn);
     ASSERT_EQ(all_thawing.size(), 1);
     ASSERT_EQ(all_thawing[0].target, target);
@@ -117,7 +114,6 @@ TEST(Staking_Manager, Stake)
     cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
     ASSERT_EQ(cur_stake.amount, to_stake);
     ASSERT_EQ(cur_stake.target, target);
-    store->account_get(origin, info, txn);
     ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake - 50 - 25);
     ASSERT_EQ(info.GetBalance(),initial_balance);
 
@@ -130,7 +126,7 @@ TEST(Staking_Manager, Stake)
     voting_power_mgr.AddSelfStake(target,10,epoch,txn);
     to_stake -= 20;
 
-    staking_mgr.Stake(origin, to_stake, target, epoch, txn);
+    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
     all_thawing = staking_mgr.GetThawingFunds(origin, txn);
     ASSERT_EQ(all_thawing.size(), 1);
     ASSERT_EQ(all_thawing[0].target, 84);
@@ -139,7 +135,6 @@ TEST(Staking_Manager, Stake)
     cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
     ASSERT_EQ(cur_stake.amount, to_stake);
     ASSERT_EQ(cur_stake.target, target);
-    store->account_get(origin, info, txn);
     ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake - 50 - 25 - 20);
     ASSERT_EQ(info.GetBalance(),initial_balance);
 
@@ -148,7 +143,7 @@ TEST(Staking_Manager, Stake)
     ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
 
     to_stake += 50;
-    staking_mgr.Stake(origin, to_stake, target, epoch, txn);
+    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
     all_thawing = staking_mgr.GetThawingFunds(origin, txn);
     ASSERT_EQ(all_thawing.size(), 1);
     ASSERT_EQ(all_thawing[0].target, 84);
@@ -157,7 +152,6 @@ TEST(Staking_Manager, Stake)
     cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
     ASSERT_EQ(cur_stake.amount, to_stake);
     ASSERT_EQ(cur_stake.target, target);
-    store->account_get(origin, info, txn);
     ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake - 45);
     ASSERT_EQ(info.GetBalance(),initial_balance);
 

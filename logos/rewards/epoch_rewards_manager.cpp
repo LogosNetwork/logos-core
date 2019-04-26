@@ -1,5 +1,6 @@
 #include <logos/rewards/epoch_rewards_manager.hpp>
 
+std::shared_ptr<EpochRewardsManager> EpochRewardsManager::instance = 0;
 
 EpochRewardsManager::EpochRewardsManager(BlockStore &store) : _store(store) {}
 

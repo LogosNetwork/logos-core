@@ -2,6 +2,7 @@
 
 #include <logos/blockstore.hpp>
 #include <logos/staking/voting_power.hpp>
+#include <boost/optional.hpp>
 
 // integer between 0 and 100. Represents a percent
 const uint8_t DILUTION_FACTOR = 25;
@@ -91,7 +92,7 @@ class VotingPowerManager
             VotingPowerInfo const & info,
             MDB_txn* txn);
 
-    AccountAddress GetRep(logos::account_info const & info, MDB_txn* txn);
+    boost::optional<AccountAddress> GetRep(logos::account_info const & info, MDB_txn* txn);
 
     private:
     void StoreOrPrune(

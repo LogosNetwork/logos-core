@@ -5,6 +5,7 @@ RepInfo::RepInfo()
     , election_vote_tip(0)
     , rep_action_tip (0)
     , stake(0)
+    , levy_percentage(100)
 {}
 
 RepInfo::RepInfo(const StartRepresenting& request)
@@ -45,30 +46,17 @@ uint32_t RepInfo::serialize (logos::stream & stream) const
     s += logos::write(stream, rep_action_tip.bytes);
     s += logos::write(stream, election_vote_tip.bytes);
     s += logos::write(stream, stake);
+    s += logos::write(stream, levy_percentage);
     return s;
 }
 
 bool RepInfo::deserialize (logos::stream & stream)
 {
-    auto error (logos::read (stream, candidacy_action_tip.bytes));
-    if(error)
-    {
-        return error;
-    }
-
-    error = logos::read(stream, rep_action_tip.bytes);
-    if(error)
-    {
-        return error;
-    }
-
-    error = logos::read (stream, election_vote_tip.bytes);
-    if(error)
-    {
-        return error;
-    }
-
-    return logos::read(stream, stake);
+    return logos::read(stream, candidacy_action_tip.bytes)
+        || logos::read(stream, rep_action_tip.bytes)
+        || logos::read(stream, election_vote_tip.bytes)
+        || logos::read(stream, stake)
+        || logos::read(stream, levy_percentage);
 }
 
 bool RepInfo::operator== (RepInfo const & other) const
@@ -76,7 +64,8 @@ bool RepInfo::operator== (RepInfo const & other) const
     return candidacy_action_tip == other.candidacy_action_tip
         && election_vote_tip == other.election_vote_tip
         && rep_action_tip == other.rep_action_tip
-        && stake == other.stake;
+        && stake == other.stake
+        && levy_percentage == other.levy_percentage;
 }
 
 bool RepInfo::operator!= (RepInfo const & other) const
@@ -101,6 +90,7 @@ boost::property_tree::ptree RepInfo::SerializeJson() const
     tree.put("election_vote_tip",election_vote_tip.to_string());
     tree.put("rep_action_tip",rep_action_tip.to_string());
     tree.put("stake",stake.to_string()); 
+    tree.put("levy_percentage", levy_percentage);
     return tree;
 }
 

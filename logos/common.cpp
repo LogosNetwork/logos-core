@@ -332,15 +332,19 @@ void logos::account_info::SetBalance(
         bool persist)
 {
     std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::Get();
+    boost::optional<AccountAddress> rep = vpm->GetRep(*this, txn);
     if(new_balance > balance)
     {
         Amount diff = new_balance - balance;
         available_balance += diff;
-        vpm->AddUnlockedProxied(
-                vpm->GetRep(*this,txn),
-                diff,
-                epoch,
-                txn);
+        if(rep)
+        {
+            vpm->AddUnlockedProxied(
+                    *rep,
+                    diff,
+                    epoch,
+                    txn);
+        }
     }
     else
     {
@@ -352,12 +356,14 @@ void logos::account_info::SetBalance(
             trace_and_halt();
         }
         available_balance -= diff;
-
-        vpm->SubtractUnlockedProxied(
-                vpm->GetRep(*this,txn),
-                diff,
-                epoch,
-                txn);
+        if(rep)
+        {
+            vpm->SubtractUnlockedProxied(
+                    *rep,
+                    diff,
+                    epoch,
+                    txn);
+        }
     }
     balance = new_balance;
     if(persist)
@@ -373,33 +379,40 @@ void logos::account_info::SetAvailableBalance(
         bool persist)
 {
     std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::Get();
+    boost::optional<AccountAddress> rep = vpm->GetRep(*this, txn);
     if(new_available_bal > available_balance)
     {
         Amount diff = new_available_bal - available_balance;
         available_balance += diff;
-        vpm->AddUnlockedProxied(
-                vpm->GetRep(*this,txn),
-                diff,
-                epoch,
-                txn);
+        if(rep)
+        {
+            vpm->AddUnlockedProxied(
+                    *rep,
+                    diff,
+                    epoch,
+                    txn);
+        }
     }
     else
     {
         Amount diff = available_balance - new_available_bal;
         available_balance -= diff;
 
-        vpm->SubtractUnlockedProxied(
-                vpm->GetRep(*this,txn),
-                diff,
-                epoch,
-                txn);
+        if(rep)
+        {
+            vpm->SubtractUnlockedProxied(
+                    *rep,
+                    diff,
+                    epoch,
+                    txn);
+        }
     }
     if(available_balance > balance)
     {
-       Log log;
-       LOG_FATAL(log) << "account_info::SetAvailableBalance - "
-         << "available balance is greater than balance"; 
-      trace_and_halt();
+        Log log;
+        LOG_FATAL(log) << "account_info::SetAvailableBalance - "
+            << "available balance is greater than balance"; 
+        trace_and_halt();
     }
     if(persist)
     {
