@@ -3,15 +3,25 @@
 
 std::shared_ptr<VotingPowerManager> VotingPowerManager::instance = 0;
 
-void TransitionIfNecessary(
+bool VotingPowerManager::TransitionIfNecessary(
         VotingPowerInfo& info,
-        uint32_t const & epoch)
+        uint32_t const & epoch,
+        AccountAddress const & rep,
+        MDB_txn* txn)
 {
     if(epoch> info.epoch_modified)
     {
+        CandidateInfo c_info;
+        if(!_store.candidate_get(rep, c_info, txn))
+        {
+            c_info.stake = info.current.self_stake;
+            _store.candidate_put(rep, c_info, txn);
+        }
         info.current = info.next;
         info.epoch_modified = epoch;
+        return true;
     }
+    return false;
 }
 
 enum class DiffType
@@ -20,14 +30,16 @@ ADD = 1,
 SUBTRACT = 2
 };
 
-void Modify(
+void VotingPowerManager::Modify(
         VotingPowerInfo& info,
+        AccountAddress const & account,
         Amount VotingPowerSnapshot::*snapshot_member,
         uint32_t const & epoch,
         Amount const & diff,
-        DiffType diff_type)
+        DiffType diff_type,
+        MDB_txn* txn)
 {
-    TransitionIfNecessary(info, epoch);
+    TransitionIfNecessary(info, epoch, account, txn);
 
     VotingPowerSnapshot VotingPowerInfo::*info_member
         = epoch < info.epoch_modified 
@@ -119,10 +131,12 @@ bool VotingPowerManager::SubtractLockedProxied(
     }
 
     Modify(info,
+           rep,
            &VotingPowerSnapshot::locked_proxied,
            epoch_number,
            amount,
-           DiffType::SUBTRACT);
+           DiffType::SUBTRACT,
+           txn);
 
     StoreOrPrune(rep,info,txn);
 
@@ -151,10 +165,12 @@ bool VotingPowerManager::AddLockedProxied(
     }
 
     Modify(info,
+           rep,
            &VotingPowerSnapshot::locked_proxied,
            epoch_number,
            amount,
-           DiffType::ADD);
+           DiffType::ADD,
+           txn);
 
     StoreOrPrune(rep,info,txn);
 
@@ -183,10 +199,12 @@ bool VotingPowerManager::SubtractUnlockedProxied(
     }
 
     Modify(info,
+           rep,
            &VotingPowerSnapshot::unlocked_proxied,
            epoch_number,
            amount,
-           DiffType::SUBTRACT);
+           DiffType::SUBTRACT,
+           txn);
 
     StoreOrPrune(rep,info,txn);
 
@@ -215,10 +233,12 @@ bool VotingPowerManager::AddUnlockedProxied(
     }
 
     Modify(info,
+           rep,
            &VotingPowerSnapshot::unlocked_proxied,
            epoch_number,
            amount,
-           DiffType::ADD);
+           DiffType::ADD,
+           txn);
 
     StoreOrPrune(rep,info,txn);
 
@@ -249,10 +269,12 @@ bool VotingPowerManager::SubtractSelfStake(
     }
 
     Modify(info,
+           rep,
            &VotingPowerSnapshot::self_stake,
            epoch_number,
            amount,
-           DiffType::SUBTRACT);
+           DiffType::SUBTRACT,
+           txn);
 
     StoreOrPrune(rep,info,txn);
 
@@ -279,13 +301,16 @@ bool VotingPowerManager::AddSelfStake(
         LOG_WARN(_log) << "VotingPowerManager::AddSelfStake - "
             << "VotingPowerInfo does not exist for rep = " << rep.to_string()
             << " . Creating new VotingPowerInfo";
+        info.epoch_modified = epoch_number;
     }
 
     Modify(info,
+           rep,
            &VotingPowerSnapshot::self_stake,
            epoch_number,
            amount,
-           DiffType::ADD);
+           DiffType::ADD,
+           txn);
 
     StoreOrPrune(rep,info,txn);
 
@@ -312,9 +337,11 @@ Amount VotingPowerManager::GetCurrentVotingPower(
         trace_and_halt();
     }
     
-    TransitionIfNecessary(info,epoch_number);
+    if(TransitionIfNecessary(info,epoch_number,rep,txn))
+    {
+        StoreOrPrune(rep, info, txn);
+    }
 
-    //TODO: dilution factor
     Amount diluted_unlocked_proxied = 
         (info.current.unlocked_proxied.number() * DILUTION_FACTOR) / 100;
     return info.current.self_stake 
@@ -333,6 +360,24 @@ bool VotingPowerManager::GetVotingPowerInfo(AccountAddress const & rep, VotingPo
     }
     return !_store.get(_store.voting_power_db,rep,info,txn);
 }
+
+bool VotingPowerManager::GetVotingPowerInfo(
+        AccountAddress const & rep,
+        uint32_t const & epoch,
+        VotingPowerInfo& info,
+        MDB_txn* txn)
+{
+    if(GetVotingPowerInfo(rep, info, txn))
+    {
+        if(TransitionIfNecessary(info,epoch,rep,txn))
+        {
+            StoreOrPrune(rep, info, txn);
+        }
+        return true;
+    }
+    return false;
+}
+
 
 
 boost::optional<AccountAddress> VotingPowerManager::GetRep(

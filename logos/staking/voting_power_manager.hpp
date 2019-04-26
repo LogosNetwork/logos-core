@@ -83,6 +83,20 @@ class VotingPowerManager
             VotingPowerInfo& info,
             MDB_txn* txn);
 
+    //returns true if info was found
+    bool GetVotingPowerInfo(
+            AccountAddress const & rep,
+            uint32_t const & epoch,
+            VotingPowerInfo& info,
+            MDB_txn* txn);
+
+    bool TransitionIfNecessary(
+            VotingPowerInfo& info,
+            uint32_t const & epoch,
+            AccountAddress const & rep,
+            MDB_txn* txn);
+
+
     void TryPrune(
             AccountAddress const & rep,
             MDB_txn* txn);
@@ -95,6 +109,22 @@ class VotingPowerManager
     boost::optional<AccountAddress> GetRep(logos::account_info const & info, MDB_txn* txn);
 
     private:
+
+    enum class DiffType
+    {
+    ADD = 1,
+    SUBTRACT = 2
+    };
+    void Modify(
+            VotingPowerInfo& info,
+            AccountAddress const & account,
+            Amount VotingPowerSnapshot::*snapshot_member,
+            uint32_t const & epoch,
+            Amount const & diff,
+            DiffType diff_type,
+            MDB_txn* txn);
+
+
     void StoreOrPrune(
             AccountAddress const & rep,
             VotingPowerInfo& info,
