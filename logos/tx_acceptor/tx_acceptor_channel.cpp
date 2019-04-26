@@ -72,7 +72,7 @@ TxAcceptorChannel::OnSendRequest(std::vector<std::shared_ptr<DM>> &blocks)
         header.Serialize(stream);
         for (auto block : blocks)
         {
-            header.payload_size += block->Serialize(stream);
+            header.payload_size += block->ToStream(stream);
         }
     }
     HeaderStream header_stream(buf->data(), TxMessageHeader::MESSAGE_SIZE);

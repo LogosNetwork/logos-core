@@ -482,7 +482,7 @@ struct PrequelAddressAd
 
     PrequelAddressAd(bool & error, std::vector<uint8_t> &buf)
     {
-        logos::vectorstream stream(buf);
+        logos::bufferstream stream(buf.data(), buf.size());
         Deserialize(error, stream);
     }
     void Deserialize(bool &error, logos::stream &stream)

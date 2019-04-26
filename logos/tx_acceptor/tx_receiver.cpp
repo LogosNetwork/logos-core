@@ -23,12 +23,14 @@ TxReceiver::Start()
 {
     for (auto acceptor : _config.tx_acceptor_config.tx_acceptors)
     {
-        _channels.push_back(std::make_shared<TxReceiverChannel>(_service,
-                                                                _alarm,
-                                                                acceptor.ip,
-                                                                acceptor.port,
-                                                                _receiver,
-                                                                _config));
+        auto channel = std::make_shared<TxReceiverChannel>(_service,
+                                                           _alarm,
+                                                           acceptor.ip,
+                                                           acceptor.port,
+                                                           _receiver,
+                                                           _config);
+        _channels.push_back(channel);
+        channel->Start();
         LOG_INFO(_log) << "TxReceiver::TxReceiver created TxReceiverChannel "
                        << " ip " << acceptor.ip
                        << " port " << acceptor.port;

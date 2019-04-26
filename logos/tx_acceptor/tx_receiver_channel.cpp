@@ -30,11 +30,10 @@ TxReceiverChannel::TxReceiverChannel(TxReceiverChannel::Service &service,
     , _socket(std::make_shared<Socket>(service))
     , _alarm(alarm)
     , _receiver(receiver)
-    , _assembler(_socket, *this)
+    , _assembler(std::make_shared<TxReceiverNetIOAssembler>(_socket, *this))
     , _inactivity_timer(service)
     , _config(config)
 {
-    Connect();
 }
 
 void
@@ -81,10 +80,9 @@ TxReceiverChannel::OnConnect(const Error & ec)
         ReConnect(false);
         return;
     }
-
     // send handshake to tx-acceptor
     // current implementation only supports handshake sent from the delegate to tx-acceptor
-    // tx-acceptor doesn't proove its identity to the delegate since presently it doesn't
+    // tx-acceptor doesn't prove its identity to the delegate since presently it doesn't
     // have any keys
     std::weak_ptr<TxReceiverChannel> this_w = Self<TxReceiverChannel>::shared_from_this();
     _receiver->GetIdentityManager().TxAcceptorHandshake(_socket,
@@ -116,7 +114,7 @@ void
 TxReceiverChannel::AsyncReadHeader()
 {
     std::weak_ptr<TxReceiverChannel> this_w = Self<TxReceiverChannel>::shared_from_this();
-    _assembler.ReadBytes([this_w](const uint8_t *data) {
+    _assembler->ReadBytes([this_w](const uint8_t *data) {
         auto this_s = GetSharedPtr(this_w, "TxReceiverChannel::AsyncReadHeader, object destroyed");
         if (!this_s)
         {
@@ -153,7 +151,7 @@ TxReceiverChannel::AsyncReadMessage(const TxMessageHeader & header)
     using DM = DelegateMessage<ConsensusType::Request>;
     std::weak_ptr<TxReceiverChannel> this_w = Self<TxReceiverChannel>::shared_from_this();
     auto payload_size = header.payload_size;
-    _assembler.ReadBytes([this_w, payload_size, header](const uint8_t *data) mutable -> void {
+    _assembler->ReadBytes([this_w, payload_size, header](const uint8_t *data) mutable -> void {
         auto this_s = GetSharedPtr(this_w, "TxReceiverChannel::AsyncReadMessage, object destroyed");
         if (!this_s)
         {
