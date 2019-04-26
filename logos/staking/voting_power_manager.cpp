@@ -335,7 +335,7 @@ bool VotingPowerManager::GetVotingPowerInfo(AccountAddress const & rep, VotingPo
 }
 
 
-AccountAddress VotingPowerManager::GetRep(
+boost::optional<AccountAddress> VotingPowerManager::GetRep(
         logos::account_info const & info,
         MDB_txn* txn)
 {
@@ -349,6 +349,7 @@ AccountAddress VotingPowerManager::GetRep(
     if(info.staking_subchain_head == 0)
     {
         LOG_WARN(_log) << "VotingPowerManager::GetRep - account has no rep";
+        return boost::optional<AccountAddress>{};
     }
     else
     {
@@ -370,7 +371,6 @@ AccountAddress VotingPowerManager::GetRep(
             trace_and_halt();
         }
     }
-    return 0;
 }
 
 

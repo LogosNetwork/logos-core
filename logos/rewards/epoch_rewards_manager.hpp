@@ -25,8 +25,19 @@ const size_t EPOCH_REWARDS_KEYSIZE = 36;
 class EpochRewardsManager
 {
     using BlockStore = logos::block_store;
+    static std::shared_ptr<EpochRewardsManager> instance;
 
     public:
+
+    static void SetInstance(BlockStore& store)
+    {
+       instance.reset(new EpochRewardsManager(store)); 
+    }
+
+    static std::shared_ptr<EpochRewardsManager> GetInstance()
+    {
+        return instance;
+    }
 
     EpochRewardsManager(BlockStore & store);
 

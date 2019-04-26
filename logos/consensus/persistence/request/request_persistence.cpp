@@ -10,6 +10,9 @@
 #include <logos/lib/trace.hpp>
 #include <logos/common.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
+#include <logos/rewards/epoch_rewards_manager.hpp>
+#include <logos/staking/voting_power_manager.hpp>
+#include <logos/staking/staking_manager.hpp>
 #include <logos/node/node.hpp>
 
 constexpr uint128_t PersistenceManager<R>::MIN_TRANSACTION_FEE;
@@ -1238,25 +1241,29 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         case RequestType::AnnounceCandidacy:
         {
             auto ac = dynamic_pointer_cast<const AnnounceCandidacy>(request);
-            ApplyRequest(*ac,transaction);
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            ApplyRequest(*ac,*account_info,transaction);
             break;
         }
         case RequestType::RenounceCandidacy:
         {
             auto rc = dynamic_pointer_cast<const RenounceCandidacy>(request);
-            ApplyRequest(*rc,transaction);
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            ApplyRequest(*rc,*account_info,transaction);
             break;
         }
         case RequestType::StartRepresenting:
         {
             auto sr = dynamic_pointer_cast<const StartRepresenting>(request);
-            ApplyRequest(*sr,transaction);
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            ApplyRequest(*sr,*account_info,transaction);
             break;
         }
         case RequestType::StopRepresenting:
         {
             auto sr = dynamic_pointer_cast<const StopRepresenting>(request);
-            ApplyRequest(*sr,transaction);
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            ApplyRequest(*sr,*account_info,transaction);
             break;
         }
         case RequestType::Unknown:
@@ -1550,15 +1557,29 @@ void PersistenceManager<R>::PlaceReceive(ReceiveBlock & receive,
 }
 
 
-void PersistenceManager<R>::ApplyRequest(const StartRepresenting& request, MDB_txn* txn)
+void PersistenceManager<R>::ApplyRequest(
+        const StartRepresenting& request,
+        logos::account_info& info,
+        MDB_txn* txn)
 {
     assert(txn != nullptr);
     RepInfo rep(request);
     assert(!_store.rep_put(request.origin,rep,txn));
     assert(!_store.request_put(request,txn));
+
+    StakingManager::GetInstance()->Stake(
+            request.origin,
+            info,
+            request.stake,
+            request.origin,
+            request.epoch_num,
+            txn); 
 }
 
-void PersistenceManager<R>::ApplyRequest(const StopRepresenting& request, MDB_txn* txn)
+void PersistenceManager<R>::ApplyRequest(
+        const StopRepresenting& request,
+        logos::account_info& info,
+        MDB_txn* txn)
 {
     assert(txn != nullptr);
     RepInfo rep;
@@ -1575,24 +1596,43 @@ void PersistenceManager<R>::ApplyRequest(const StopRepresenting& request, MDB_tx
     assert(!_store.request_put(request,txn));
 }
 
-void PersistenceManager<R>::ApplyRequest(const ElectionVote& request, MDB_txn* txn)
+void PersistenceManager<R>::ApplyRequest(
+        const ElectionVote& request,
+        MDB_txn* txn)
 {
     assert(txn != nullptr);
     RepInfo rep;
     assert(!_store.rep_get(request.origin,rep,txn));
     rep.election_vote_tip = request.GetHash();
     assert(!_store.rep_put(request.origin,rep,txn));
+    //TODO 
+    Amount voting_power = VotingPowerManager::Get()->GetCurrentVotingPower(request.origin, request.epoch_num, txn);
     for(auto& p : request.votes)
     {
         assert(!_store.candidate_add_vote(
                     p.account,
-                    p.num_votes*rep.stake.number(),
+                    p.num_votes*voting_power.number(),
                     request.epoch_num,
                     txn));
     }
     assert(!_store.request_put(request,txn));
+
+    VotingPowerInfo vp_info;
+    if(!VotingPowerManager::Get()->GetVotingPowerInfo(request.origin, vp_info, txn))
+    {
+        LOG_FATAL(_log) << "PersistenceManager<R>::ApplyRequest - " <<
+            "failed to get voting power info for rep = " << request.origin.to_string();
+        trace_and_halt();
+    }
+
+    Amount total_stake = vp_info.current.locked_proxied + vp_info.current.self_stake;
+    RepEpochInfo rewards_info{rep.levy_percentage, request.epoch_num, total_stake}; 
+    EpochRewardsManager::GetInstance()->Init(request.origin, rewards_info, txn); 
 }
-void PersistenceManager<R>::ApplyRequest(const AnnounceCandidacy& request, MDB_txn* txn)
+void PersistenceManager<R>::ApplyRequest(
+        const AnnounceCandidacy& request,
+        logos::account_info& info,
+        MDB_txn* txn)
 {
     assert(txn != nullptr);
     RepInfo rep;
@@ -1643,7 +1683,10 @@ void PersistenceManager<R>::ApplyRequest(const AnnounceCandidacy& request, MDB_t
     assert(!_store.request_put(request,txn));
 }
 
-void PersistenceManager<R>::ApplyRequest(const RenounceCandidacy& request, MDB_txn* txn)
+void PersistenceManager<R>::ApplyRequest(
+        const RenounceCandidacy& request,
+        logos::account_info& info,
+        MDB_txn* txn)
 {
     assert(txn != nullptr);
     CandidateInfo candidate;

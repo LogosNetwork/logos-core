@@ -1,5 +1,7 @@
 #include <logos/staking/staking_manager.hpp>
 
+std::shared_ptr<StakingManager> StakingManager::instance = 0;
+
 StakedFunds StakingManager::CreateStakedFunds(
         AccountAddress const & target,
         AccountAddress const & source,
@@ -124,24 +126,17 @@ void StakingManager::StakeAvailableFunds(
         StakedFunds & output,
         Amount const & amount,
         AccountAddress const & origin,
+        logos::account_info & account_info,
         uint32_t const & epoch,
         MDB_txn* txn)
 {
-    logos::account_info info;
-    if(_store.account_get(origin, info, txn))
-    {
-        LOG_FATAL(_log) << "StakingManager::StakeAvailableFunds - "
-            << "account info not found. account = " << origin.to_string();
-        trace_and_halt();
-    }
-    if(amount > info.GetAvailableBalance())
+    if(amount > account_info.GetAvailableBalance())
     {
         LOG_FATAL(_log) << "StakingManager::StakeAvailableFunds - "
             << "not enough available balance. account = " << origin.to_string();
         trace_and_halt();
     }
-    info.SetAvailableBalance(info.GetAvailableBalance() - amount, epoch, txn);
-    _store.account_put(origin, info, txn);
+    account_info.SetAvailableBalance(account_info.GetAvailableBalance() - amount, epoch, txn);
     output.amount += amount;
 }
 
@@ -256,7 +251,9 @@ void StakingManager::IterateThawingFunds(
 
 //TODO staking_subchain head needs to be up to date before this function is 
 //called, for updates to available balance to work correctly
-void StakingManager::Stake(AccountAddress const & origin,
+void StakingManager::Stake(
+        AccountAddress const & origin,
+        logos::account_info & account_info,
         Amount const & amount,
         AccountAddress const & target,
         uint32_t const & epoch,
@@ -340,7 +337,7 @@ void StakingManager::Stake(AccountAddress const & origin,
        IterateThawingFunds(origin, extract_thawing, txn);
        if(amount_left > 0)
        {
-            StakeAvailableFunds(cur_stake, amount_left, origin, epoch, txn);
+            StakeAvailableFunds(cur_stake, amount_left, origin, account_info, epoch, txn);
        }
     }
     Store(cur_stake, origin, txn);
