@@ -331,9 +331,9 @@ public:
 private:
 
     static constexpr uint8_t INVALID_EPOCH_GAP = 10; ///< Gap client connections with epoch number greater than which plus our current epoch number will be rejected
-    static constexpr uint64_t AD_TIMEOUT_60{60*60*1000}; /// 60 minutes as msec
-    static constexpr uint64_t AD_TIMEOUT_30{60*30*1000}; /// 30 minutes as msec
-    static constexpr uint64_t PEER_TIMEOUT{60*10*1000}; /// 10 minutes as msec
+    static constexpr std::chrono::minutes AD_TIMEOUT_1{60};
+    static constexpr std::chrono::minutes AD_TIMEOUT_2{30};
+    static constexpr std::chrono::minutes PEER_TIMEOUT{10};
 
     void ReadAddressAd(std::shared_ptr<Socket> socket,
                        std::function<void(std::shared_ptr<AddressAd>)>);
@@ -383,8 +383,7 @@ private:
     /// @param msec timeout value
     void ScheduleAd(boost::posix_time::milliseconds msec);
     /// Figure out advertisement time for the next epoch. Schedule if applicable.
-    /// @param in_next_epoch the node is delegate in the next epoch
-    void ScheduleAd(bool in_next_epoch);
+    void ScheduleAd();
 
     /// Handle the ad timeout
     /// @param ec error code

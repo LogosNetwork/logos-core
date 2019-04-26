@@ -14,6 +14,9 @@
 #include <logos/lib/ecies.hpp>
 #include <logos/p2p/p2p.h>
 
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/date_time/posix_time/posix_time_io.hpp>
+
 using boost::multiprecision::uint128_t;
 using namespace boost::multiprecision::literals;
 
@@ -24,9 +27,9 @@ ECIESKeyPair DelegateIdentityManager::_ecies_key{};
 std::unique_ptr<bls::KeyPair> DelegateIdentityManager::_bls_key = nullptr;
 constexpr int DelegateIdentityManager::RETRY_PROPAGATE;
 constexpr uint8_t DelegateIdentityManager::INVALID_EPOCH_GAP;
-constexpr uint64_t DelegateIdentityManager::AD_TIMEOUT_60;
-constexpr uint64_t DelegateIdentityManager::AD_TIMEOUT_30;
-constexpr uint64_t DelegateIdentityManager::PEER_TIMEOUT;
+constexpr std::chrono::minutes DelegateIdentityManager::AD_TIMEOUT_1;
+constexpr std::chrono::minutes DelegateIdentityManager::AD_TIMEOUT_2;
+constexpr std::chrono::minutes DelegateIdentityManager::PEER_TIMEOUT;
 
 DelegateIdentityManager::DelegateIdentityManager(logos::node &node)
     : _store(node.store)
@@ -514,7 +517,6 @@ DelegateIdentityManager::CheckAdvertise(uint32_t current_epoch_number,
                                         ApprovedEBPtr &epoch_current)
 {
     ApprovedEBPtr epoch_next;
-    bool in_next_epoch = false;
 
     // advertise for next epoch
     IdentifyDelegates(EpochDelegates::Next, idx, epoch_next);
@@ -522,7 +524,6 @@ DelegateIdentityManager::CheckAdvertise(uint32_t current_epoch_number,
     {
         auto ids = GetDelegatesToAdvertise(idx);
         Advertise(current_epoch_number+1, idx, epoch_next, ids);
-        in_next_epoch = true;
         UpdateAddressAd(current_epoch_number+1, idx);
     }
 
@@ -537,7 +538,7 @@ DelegateIdentityManager::CheckAdvertise(uint32_t current_epoch_number,
         }
     }
 
-    ScheduleAd(in_next_epoch);
+    ScheduleAd();
 }
 
 void
@@ -546,23 +547,13 @@ DelegateIdentityManager::P2pPropagate(
     uint8_t delegate_id,
     std::shared_ptr<std::vector<uint8_t>> buf)
 {
-    auto log = [&](const char *m, size_t size) {
-        LOG_DEBUG(_log) << "DelegateIdentityManager::Advertise, " << m
-                        << ": epoch number " << epoch_number
-                        << ", delegate id " << (int) delegate_id
-                        << ", ip " << _node.config.consensus_manager_config.local_address
-                        << ", port " << _node.config.consensus_manager_config.peer_port
-                        << ", size " << size;
-    };
     bool res = _node.p2p.PropagateMessage(buf->data(), buf->size(), true);
-    if (res) {
-        log("propagating", buf->size());
-    } else {
-        log("retrying", buf->size());
-        _node.alarm.add(std::chrono::seconds(RETRY_PROPAGATE), [this, epoch_number, delegate_id, buf]() {
-            P2pPropagate(epoch_number, delegate_id, buf);
-        });
-    }
+    LOG_DEBUG(_log) << "DelegateIdentityManager::Advertise, " << (res?"propagating":"failed")
+                    << ": epoch number " << epoch_number
+                    << ", delegate id " << (int) delegate_id
+                    << ", ip " << _node.config.consensus_manager_config.local_address
+                    << ", port " << _node.config.consensus_manager_config.peer_port
+                    << ", size " << buf->size();
 }
 
 void
@@ -1203,19 +1194,28 @@ DelegateIdentityManager::ValidateTxAcceptorConnection(std::shared_ptr<Socket> so
 }
 
 void
-DelegateIdentityManager::ScheduleAd(bool in_next_epoch)
+DelegateIdentityManager::ScheduleAd()
 {
+    auto tomsec = [](auto m) { return boost::posix_time::milliseconds(TConvert<Milliseconds>(m).count()); };
     EpochTimeUtil util;
 
-    auto lapse = util.GetNextEpochTime(_store.is_first_epoch() || _node._recall_handler.IsRecall() || !in_next_epoch);
+    auto lapse = util.GetNextEpochTime(_store.is_first_epoch() || _node._recall_handler.IsRecall());
 
-    if (lapse.count() > AD_TIMEOUT_60)
+    auto msec = tomsec(lapse + EPOCH_PROPOSAL_TIME - AD_TIMEOUT_1);
+    if (lapse > (AD_TIMEOUT_1))
     {
-        ScheduleAd(boost::posix_time::milliseconds(lapse.count() - AD_TIMEOUT_60));
-    } else if (lapse.count() > AD_TIMEOUT_30)
-    {
-        ScheduleAd(boost::posix_time::milliseconds(lapse.count() - AD_TIMEOUT_30));
+        msec = tomsec(lapse + Milliseconds(1000) - AD_TIMEOUT_1);
     }
+    else if (lapse > (AD_TIMEOUT_2))
+    {
+        msec = tomsec(lapse + Milliseconds(1000) - AD_TIMEOUT_2);
+    }
+
+    auto t = boost::posix_time::microsec_clock::local_time() + msec;
+    LOG_DEBUG(_log) << "DelegateIdentityManager::ScheduleAd scheduling at "
+                    << boost::posix_time::to_simple_string(t) << " lapse " << msec;
+
+    ScheduleAd(msec);
 }
 
 void
@@ -1228,6 +1228,11 @@ DelegateIdentityManager::ScheduleAd(boost::posix_time::milliseconds msec)
 void
 DelegateIdentityManager::Advert(const ErrorCode &ec)
 {
+    if (ec)
+    {
+        LOG_DEBUG(_log) << "DelegateIdentityManager::Advert, error " << ec.message();
+        return;
+    }
     CheckAdvertise(ConsensusContainer::GetCurEpochNumber(), false);
 }
 
