@@ -229,6 +229,7 @@ bool BackupDelegate<CT>::Validate(const PrePrepare & message)
 
     if(message.previous != _prev_pre_prepare_hash)
     {
+        // TODO: potentially need to bootstrap here as we might be behind!
         LOG_DEBUG(_log) << " BackupDelegate<"<< ConsensusToName(CT)
                         << ">::Validate Invalid_Previous_Hash "
                         << message.previous.to_string() << " "
