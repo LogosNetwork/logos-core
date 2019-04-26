@@ -25,7 +25,6 @@ AccountAddress DelegateIdentityManager::_delegate_account = 0;
 bool DelegateIdentityManager::_epoch_transition_enabled = true;
 ECIESKeyPair DelegateIdentityManager::_ecies_key{};
 std::unique_ptr<bls::KeyPair> DelegateIdentityManager::_bls_key = nullptr;
-constexpr int DelegateIdentityManager::RETRY_PROPAGATE;
 constexpr uint8_t DelegateIdentityManager::INVALID_EPOCH_GAP;
 constexpr std::chrono::minutes DelegateIdentityManager::AD_TIMEOUT_1;
 constexpr std::chrono::minutes DelegateIdentityManager::AD_TIMEOUT_2;
@@ -596,7 +595,7 @@ DelegateIdentityManager::MakeSerializedAddressAd(uint32_t epoch_number,
 {
     uint8_t idx = 0xff;
     ApprovedEBPtr eb;
-    IdentifyDelegates(epoch_number - 2, idx, eb);
+    IdentifyDelegates(ToDelegatesEpoch(epoch_number), idx, eb);
     return MakeSerializedAd<AddressAd>([encr_delegate_id, eb](auto ad, logos::vectorstream &s)->size_t{
         return (*ad).Serialize(s, eb->delegates[encr_delegate_id].ecies_pub);
     }, false, epoch_number, delegate_id, encr_delegate_id, ip, port);
@@ -718,7 +717,7 @@ DelegateIdentityManager::OnAddressAd(uint8_t *data,
             idx = it->second;
         }
         else {
-            IdentifyDelegates(epoch_number - 2, idx);
+            IdentifyDelegates(ToDelegatesEpoch(epoch_number), idx);
             idx_cache.push_back({epoch_number, idx});
             if (idx_cache.size() > 2) {
                 idx_cache.erase(idx_cache.begin());
@@ -1147,7 +1146,7 @@ DelegateIdentityManager::TxAcceptorHandshake(std::shared_ptr<Socket> socket,
         }
         else
         {
-            LOG_ERROR(_log) << "DelegateIdentityManager::TxAcceptorHandshake wrote ad, size " << buf->size();
+            LOG_DEBUG(_log) << "DelegateIdentityManager::TxAcceptorHandshake wrote ad, size " << buf->size();
             cb(true);
         }
     });
@@ -1267,8 +1266,9 @@ DelegateIdentityManager::OnTxAcceptorUpdate(EpochDelegates epoch,
         return false;
     }
 
-    if ((add && _address_ad_txa.find({eb->epoch_number, idx}) != _address_ad_txa.end()) ||
-            (!add && _address_ad_txa.find({eb->epoch_number, idx}) == _address_ad_txa.end()))
+    auto  current_epoch_number = FromDelegatesEpoch(eb->epoch_number);
+    if ((add && _address_ad_txa.find({current_epoch_number, idx}) != _address_ad_txa.end()) ||
+            (!add && _address_ad_txa.find({current_epoch_number, idx}) == _address_ad_txa.end()))
     {
         return false;
     }
@@ -1278,23 +1278,23 @@ DelegateIdentityManager::OnTxAcceptorUpdate(EpochDelegates epoch,
         if (add)
         {
             _address_ad_txa.emplace(std::piecewise_construct,
-                                    std::forward_as_tuple(eb->epoch_number, idx),
+                                    std::forward_as_tuple(current_epoch_number, idx),
                                     std::forward_as_tuple(ip, bin_port, json_port));
         }
         else
         {
-            _address_ad_txa.erase({eb->epoch_number, idx});
+            _address_ad_txa.erase({current_epoch_number, idx});
         }
     }
 
-    AddressAdTxAcceptor ad(eb->epoch_number, idx, ip.c_str(), bin_port, json_port, add);
-    Sign(eb->epoch_number, ad);
+    AddressAdTxAcceptor ad(current_epoch_number, idx, ip.c_str(), bin_port, json_port, add);
+    Sign(current_epoch_number, ad);
     auto buf = std::make_shared<std::vector<uint8_t>>();
     ad.Serialize(*buf);
 
     UpdateTxAcceptorAdDB(ad, buf->data(), buf->size());
 
-    P2pPropagate(eb->epoch_number, idx, buf);
+    P2pPropagate(current_epoch_number, idx, buf);
 
     return _node.update_tx_acceptor(ip, port, add);
 }

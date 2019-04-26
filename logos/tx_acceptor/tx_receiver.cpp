@@ -49,13 +49,15 @@ TxReceiver::AddChannel(const std::string &ip, uint16_t port)
     {
         return false;
     }
-    _channels.push_back(std::make_shared<TxReceiverChannel>(_service,
-                                                            _alarm,
-                                                            ip,
-                                                            port,
-                                                            _receiver,
-                                                            _config));
-    LOG_INFO(_log) << "TxReceiver::TxReceiver created TxReceiverChannel "
+    auto channel = std::make_shared<TxReceiverChannel>(_service,
+                                                       _alarm,
+                                                       ip,
+                                                       port,
+                                                       _receiver,
+                                                       _config);
+    _channels.push_back(channel);
+    channel->Start();
+    LOG_INFO(_log) << "TxReceiver::AddChannel created TxReceiverChannel "
                    << " ip " << ip
                    << " port " << port;
     return true;
@@ -75,6 +77,10 @@ TxReceiver::DeleteChannel(const std::string &ip, uint16_t port)
     }
 
     _channels.erase(it);
+
+    LOG_INFO(_log) << "TxReceiver::DeleteChannel channel deleted "
+                   << " ip " << ip
+                   << " port " << port;
 
     return true;
 }

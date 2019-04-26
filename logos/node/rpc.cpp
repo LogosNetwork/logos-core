@@ -4766,6 +4766,10 @@ void logos::rpc_handler::process_request ()
         {
             tokens_info();
         }
+        else if(action == "txacceptor_advertise")
+        {
+            txacceptor_advertise();
+        }
         else if (action == "unchecked")
         {
             unchecked ();

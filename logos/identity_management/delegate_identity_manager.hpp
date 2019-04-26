@@ -274,6 +274,24 @@ public:
     /// @param delegate_id delegate id
     void UpdateAddressAd(uint32_t epoch_number, uint8_t delegate_id);
 
+    /// Convert delegates' epoch number (block with elected delegates)
+    /// to current epoch number. current is in the context of the delegates' epoch number;
+    /// i.e. it's not necessary the true current epoch number
+    /// @param epoch_number delegate's epoch number
+    /// @returns current epoch number
+    static uint32_t FromDelegatesEpoch(uint32_t epoch_number)
+    {
+        return epoch_number + 2;
+    }
+
+    /// Convert current epoch number to delegates' epoch number
+    /// @param epoch_number current epoch number
+    /// @returns delegates' epoch number
+    static uint32_t ToDelegatesEpoch(uint32_t epoch_number)
+    {
+        return epoch_number - 2;
+    }
+
     /// Decrypt cyphertext
     /// @param cyphertext to decrypt
     /// @param buf decrypted message
@@ -325,8 +343,6 @@ public:
 
         return pk;
     }
-
-    static constexpr int RETRY_PROPAGATE = 5; // retry propagation timeout on failure, seconds
 
 private:
 
