@@ -730,7 +730,7 @@ DelegateIdentityManager::OnAddressAd(uint8_t *data,
         {
             try {
                 bool error = false;
-                logos::bufferstream stream(data, size);
+                logos::bufferstream stream(data + PrequelAddressAd::SIZE, size - PrequelAddressAd::SIZE);
                 AddressAd addressAd(error, prequel, stream, &DelegateIdentityManager::Decrypt);
                 if (error) {
                     LOG_ERROR(_log) << "DelegateIdentityManager::OnAddressAd, failed to deserialize AddressAd";
@@ -1062,14 +1062,25 @@ DelegateIdentityManager::LoadDB()
         }
 
         logos::bufferstream stream (reinterpret_cast<uint8_t const *> (it->second.data ()), it->second.size ());
-        AddressAd ad (error, stream, &DelegateIdentityManager::Decrypt);
-        assert (!error);
+        try {
+            AddressAd ad(error, stream, &DelegateIdentityManager::Decrypt);
+            assert (!error);
+            {
+                std::lock_guard<std::mutex> lock(_ad_mutex);
+                std::string ip = ad.GetIP();
+                _address_ad.emplace(std::piecewise_construct,
+                                    std::forward_as_tuple(ad.epoch_number, ad.delegate_id),
+                                    std::forward_as_tuple(ip, ad.port));
+                LOG_DEBUG(_log) << "DelegateIdentityManager::LoadDB, ad epoch_number " << ad.epoch_number
+                                << " delegate id " << (int) ad.delegate_id
+                                << " ip " << ip << " port " << ad.port;
+            }
+        }
+        /// all ad messages are saved to the database even if they are encrypted
+        /// with another delegate id so that the delegate can respond to peer request
+        /// for ad messages. we only store in memory messages encryped with this delegate id
+        catch (...)
         {
-            std::lock_guard<std::mutex> lock(_ad_mutex);
-            std::string ip = ad.GetIP();
-            _address_ad.emplace(std::piecewise_construct,
-                                std::forward_as_tuple(ad.epoch_number, ad.delegate_id),
-                                std::forward_as_tuple(ip, ad.port));
         }
     }
 
@@ -1101,6 +1112,9 @@ DelegateIdentityManager::LoadDB()
             _address_ad_txa.emplace(std::piecewise_construct,
                                     std::forward_as_tuple(ad.epoch_number, ad.delegate_id),
                                     std::forward_as_tuple(ip, ad.port, ad.json_port));
+            LOG_DEBUG(_log) << "DelegateIdentityManager::LoadDB, ad txa epoch_number " << ad.epoch_number
+                            << " delegate id " << (int)ad.delegate_id
+                            << " ip " << ip << " port " << ad.port << " json port " << ad.json_port;
         }
     }
 

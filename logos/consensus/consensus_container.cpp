@@ -687,9 +687,6 @@ ConsensusContainer::OnAddressAd(uint8_t *data, size_t size)
 
     auto epoch = GetEpochManager(prequel.epoch_number);
 
-    data += PrequelAddressAd::SIZE;
-    size -= PrequelAddressAd::SIZE;
-
     LOG_DEBUG(_log) << "ConsensusContainer::OnAddressAd epoch " << prequel.epoch_number
                     << " delegate id " << (int)prequel.delegate_id
                     << " encr delegate id " << (int)prequel.encr_delegate_id
