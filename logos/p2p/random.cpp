@@ -73,61 +73,6 @@ static inline int64_t GetPerformanceCounter()
 #endif
 }
 
-
-#if defined(__x86_64__) || defined(__amd64__) || defined(__i386__)
-static std::atomic<bool> hwrand_initialized{false};
-static bool rdrand_supported = false;
-static constexpr uint32_t CPUID_F1_ECX_RDRAND = 0x40000000;
-static void RDRandInit()
-{
-    uint32_t eax, ebx, ecx, edx;
-    if (__get_cpuid(1, &eax, &ebx, &ecx, &edx) && (ecx & CPUID_F1_ECX_RDRAND)) {
-        LogPrintf("Using RdRand as an additional entropy source\n");
-        rdrand_supported = true;
-    }
-    hwrand_initialized.store(true);
-}
-#else
-static void RDRandInit() {}
-#endif
-
-static bool GetHWRand(unsigned char* ent32) {
-#if defined(__x86_64__) || defined(__amd64__) || defined(__i386__)
-    assert(hwrand_initialized.load(std::memory_order_relaxed));
-    if (rdrand_supported) {
-        uint8_t ok;
-        // Not all assemblers support the rdrand instruction, write it in hex.
-#ifdef __i386__
-        for (int iter = 0; iter < 4; ++iter) {
-            uint32_t r1, r2;
-            __asm__ volatile (".byte 0x0f, 0xc7, 0xf0;" // rdrand %eax
-                              ".byte 0x0f, 0xc7, 0xf2;" // rdrand %edx
-                              "setc %2" :
-                              "=a"(r1), "=d"(r2), "=q"(ok) :: "cc");
-            if (!ok) return false;
-            WriteLE32(ent32 + 8 * iter, r1);
-            WriteLE32(ent32 + 8 * iter + 4, r2);
-        }
-#else
-        uint64_t r1, r2, r3, r4;
-        __asm__ volatile (".byte 0x48, 0x0f, 0xc7, 0xf0, " // rdrand %rax
-                                "0x48, 0x0f, 0xc7, 0xf3, " // rdrand %rbx
-                                "0x48, 0x0f, 0xc7, 0xf1, " // rdrand %rcx
-                                "0x48, 0x0f, 0xc7, 0xf2; " // rdrand %rdx
-                          "setc %4" :
-                          "=a"(r1), "=b"(r2), "=c"(r3), "=d"(r4), "=q"(ok) :: "cc");
-        if (!ok) return false;
-        WriteLE64(ent32, r1);
-        WriteLE64(ent32 + 8, r2);
-        WriteLE64(ent32 + 16, r3);
-        WriteLE64(ent32 + 24, r4);
-#endif
-        return true;
-    }
-#endif
-    return false;
-}
-
 void RandAddSeed()
 {
     // Seed with CPU performance counter
@@ -278,78 +223,6 @@ void GetRandBytes(unsigned char* buf, int num)
     }
 }
 
-static void AddDataToRng(void* data, size_t len);
-
-void RandAddSeedSleep()
-{
-    int64_t nPerfCounter1 = GetPerformanceCounter();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    int64_t nPerfCounter2 = GetPerformanceCounter();
-
-    // Combine with and update state
-    AddDataToRng(&nPerfCounter1, sizeof(nPerfCounter1));
-    AddDataToRng(&nPerfCounter2, sizeof(nPerfCounter2));
-
-    memory_cleanse(&nPerfCounter1, sizeof(nPerfCounter1));
-    memory_cleanse(&nPerfCounter2, sizeof(nPerfCounter2));
-}
-
-
-static Mutex cs_rng_state;
-static unsigned char rng_state[32] = {0};
-static uint64_t rng_counter = 0;
-
-static void AddDataToRng(void* data, size_t len) {
-    CHash256 hasher;
-    hasher.Write((const unsigned char*)&len, sizeof(len));
-    hasher.Write((const unsigned char*)data, len);
-    unsigned char buf[64];
-    {
-        WAIT_LOCK(cs_rng_state, lock);
-        hasher.Write(rng_state, sizeof(rng_state));
-        hasher.Write((const unsigned char*)&rng_counter, sizeof(rng_counter));
-        ++rng_counter;
-        hasher.Finalize(buf);
-        memcpy(rng_state, buf + 32, 32);
-    }
-    memory_cleanse(buf, 64);
-}
-
-void GetStrongRandBytes(unsigned char* out, int num)
-{
-    assert(num <= 32);
-    CHash256 hasher;
-    unsigned char buf[64];
-
-    // First source: OpenSSL's RNG
-    RandAddSeedPerfmon();
-    GetRandBytes(buf, 32);
-    hasher.Write(buf, 32);
-
-    // Second source: OS RNG
-    GetOSRand(buf);
-    hasher.Write(buf, 32);
-
-    // Third source: HW RNG, if available.
-    if (GetHWRand(buf)) {
-        hasher.Write(buf, 32);
-    }
-
-    // Combine with and update state
-    {
-        WAIT_LOCK(cs_rng_state, lock);
-        hasher.Write(rng_state, sizeof(rng_state));
-        hasher.Write((const unsigned char*)&rng_counter, sizeof(rng_counter));
-        ++rng_counter;
-        hasher.Finalize(buf);
-        memcpy(rng_state, buf + 32, 32);
-    }
-
-    // Produce output
-    memcpy(out, buf, num);
-    memory_cleanse(buf, 64);
-}
-
 uint64_t GetRand(uint64_t nMax)
 {
     if (nMax == 0)
@@ -417,7 +290,7 @@ bool Random_SanityCheck()
      * OSRandom() overwrites all 32 bytes of the output given a maximum
      * number of tries.
      */
-    static const ssize_t MAX_TRIES = 1024;
+	constexpr ssize_t MAX_TRIES = 1024;
     uint8_t data[NUM_OS_RANDOM_BYTES];
     bool overwritten[NUM_OS_RANDOM_BYTES] = {}; /* Tracks which bytes have been overwritten at least once */
     int num_overwritten;
@@ -464,5 +337,4 @@ FastRandomContext::FastRandomContext(bool fDeterministic) : requires_seed(!fDete
 
 void RandomInit()
 {
-    RDRandInit();
 }

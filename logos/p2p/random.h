@@ -25,19 +25,6 @@ int GetRandInt(int nMax);
 uint256 GetRandHash();
 
 /**
- * Add a little bit of randomness to the output of GetStrongRangBytes.
- * This sleeps for a millisecond, so should only be called when there is
- * no other work to be done.
- */
-void RandAddSeedSleep();
-
-/**
- * Function to gather random data from multiple sources, failing whenever any
- * of those sources fail to provide a result.
- */
-void GetStrongRandBytes(unsigned char* buf, int num);
-
-/**
  * Fast randomness source. This is seeded once with secure random data, but
  * is completely deterministic and insecure after that.
  * This class is not thread-safe.
@@ -135,7 +122,7 @@ public:
  * sure that the underlying OS APIs for all platforms support the number.
  * (many cap out at 256 bytes).
  */
-static const int NUM_OS_RANDOM_BYTES = 32;
+constexpr int NUM_OS_RANDOM_BYTES = 32;
 
 /** Get 32 bytes of system entropy. Do not use this in application code: use
  * GetStrongRandBytes instead.
