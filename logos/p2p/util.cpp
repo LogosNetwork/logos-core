@@ -110,11 +110,6 @@ public:
         // that the config appears to have been loaded and there are no modules/engines available.
         OPENSSL_no_config();
 
-#ifdef WIN32
-        // Seed OpenSSL PRNG with current contents of the screen
-        RAND_screen();
-#endif
-
         // Seed OpenSSL PRNG with performance counter
         RandAddSeed();
     }
@@ -364,11 +359,6 @@ bool ArgsManager::ParseParameters(int argc, const char* const argv[], std::strin
             val = key.substr(is_index + 1);
             key.erase(is_index);
         }
-#ifdef WIN32
-        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-        if (key[0] == '/')
-            key[0] = '-';
-#endif
 
         if (key[0] != '-')
             break;
@@ -621,12 +611,7 @@ std::string HelpMessageOpt(const std::string &option, const std::string &message
 
 static std::string FormatException(const std::exception* pex, const char* pszThread)
 {
-#ifdef WIN32
-    char pszModule[MAX_PATH] = "";
-    GetModuleFileNameA(nullptr, pszModule, sizeof(pszModule));
-#else
     const char* pszModule = "logos-p2p";
-#endif
     if (pex)
         return strprintf(
             "EXCEPTION: %s       \n%s       \n%s in %s       \n", typeid(*pex).name(), pex->what(), pszModule, pszThread);
@@ -669,13 +654,8 @@ std::string ArgsManager::GetChainName() const
 
 bool RenameOver(fs::path src, fs::path dest)
 {
-#ifdef WIN32
-    return MoveFileExA(src.string().c_str(), dest.string().c_str(),
-                       MOVEFILE_REPLACE_EXISTING) != 0;
-#else
     int rc = std::rename(src.string().c_str(), dest.string().c_str());
     return (rc == 0);
-#endif /* WIN32 */
 }
 
 /**
@@ -703,39 +683,27 @@ bool FileCommit(FILE *file)
         LogPrintf("%s: fflush failed: %d\n", __func__, errno);
         return false;
     }
-#ifdef WIN32
-    HANDLE hFile = (HANDLE)_get_osfhandle(_fileno(file));
-    if (FlushFileBuffers(hFile) == 0) {
-        LogPrintf("%s: FlushFileBuffers failed: %d\n", __func__, GetLastError());
-        return false;
-    }
-#else
-    #if defined(__linux__) || defined(__NetBSD__)
+#if defined(__linux__) || defined(__NetBSD__)
     if (fdatasync(fileno(file)) != 0 && errno != EINVAL) { // Ignore EINVAL for filesystems that don't support sync
         LogPrintf("%s: fdatasync failed: %d\n", __func__, errno);
         return false;
     }
-    #elif defined(MAC_OSX) && defined(F_FULLFSYNC)
+#elif defined(MAC_OSX) && defined(F_FULLFSYNC)
     if (fcntl(fileno(file), F_FULLFSYNC, 0) == -1) { // Manpage says "value other than -1" is returned on success
         LogPrintf("%s: fcntl F_FULLFSYNC failed: %d\n", __func__, errno);
         return false;
     }
-    #else
+#else
     if (fsync(fileno(file)) != 0 && errno != EINVAL) {
         LogPrintf("%s: fsync failed: %d\n", __func__, errno);
         return false;
     }
-    #endif
 #endif
     return true;
 }
 
 bool TruncateFile(FILE *file, unsigned int length) {
-#if defined(WIN32)
-    return _chsize(_fileno(file), length) == 0;
-#else
     return ftruncate(fileno(file), length) == 0;
-#endif
 }
 
 /**
@@ -743,9 +711,6 @@ bool TruncateFile(FILE *file, unsigned int length) {
  * It returns the actual file descriptor limit (which may be more or less than nMinFD)
  */
 int RaiseFileDescriptorLimit(int nMinFD) {
-#if defined(WIN32)
-    return 2048;
-#else
     struct rlimit limitFD;
     if (getrlimit(RLIMIT_NOFILE, &limitFD) != -1) {
         if (limitFD.rlim_cur < (rlim_t)nMinFD) {
@@ -758,7 +723,6 @@ int RaiseFileDescriptorLimit(int nMinFD) {
         return limitFD.rlim_cur;
     }
     return nMinFD; // getrlimit failed, assume it's fine
-#endif
 }
 
 /**
@@ -766,16 +730,7 @@ int RaiseFileDescriptorLimit(int nMinFD) {
  * it is advisory, and the range specified in the arguments will never contain live data
  */
 void AllocateFileRange(FILE *file, unsigned int offset, unsigned int length) {
-#if defined(WIN32)
-    // Windows-specific version
-    HANDLE hFile = (HANDLE)_get_osfhandle(_fileno(file));
-    LARGE_INTEGER nFileSize;
-    int64_t nEndPos = (int64_t)offset + length;
-    nFileSize.u.LowPart = nEndPos & 0xFFFFFFFF;
-    nFileSize.u.HighPart = nEndPos >> 32;
-    SetFilePointerEx(hFile, nFileSize, 0, FILE_BEGIN);
-    SetEndOfFile(hFile);
-#elif defined(MAC_OSX)
+#if defined(MAC_OSX)
     // OSX specific version
     fstore_t fst;
     fst.fst_flags = F_ALLOCATECONTIG;
@@ -808,21 +763,6 @@ void AllocateFileRange(FILE *file, unsigned int offset, unsigned int length) {
     }
 #endif
 }
-
-#ifdef WIN32
-fs::path GetSpecialFolderPath(int nFolder, bool fCreate)
-{
-    char pszPath[MAX_PATH] = "";
-
-    if(SHGetSpecialFolderPathA(nullptr, pszPath, nFolder, fCreate))
-    {
-        return fs::path(pszPath);
-    }
-
-    LogPrintf("SHGetSpecialFolderPathA() failed, could not obtain requested path.\n");
-    return fs::path("");
-}
-#endif
 
 void runCommand(const std::string& strCommand)
 {
@@ -864,7 +804,7 @@ void SetupEnvironment()
 #endif
     // On most POSIX systems (e.g. Linux, but not BSD) the environment's locale
     // may be invalid, in which case the "C" locale is used as fallback.
-#if !defined(WIN32) && !defined(MAC_OSX) && !defined(__FreeBSD__) && !defined(__OpenBSD__)
+#if !defined(MAC_OSX) && !defined(__FreeBSD__) && !defined(__OpenBSD__)
     try {
         std::locale(""); // Raises a runtime error if current locale is invalid
     } catch (const std::runtime_error&) {
@@ -881,13 +821,6 @@ void SetupEnvironment()
 
 bool SetupNetworking()
 {
-#ifdef WIN32
-    // Initialize Windows Sockets
-    WSADATA wsadata;
-    int ret = WSAStartup(MAKEWORD(2,2), &wsadata);
-    if (ret != NO_ERROR || LOBYTE(wsadata.wVersion ) != 2 || HIBYTE(wsadata.wVersion) != 2)
-        return false;
-#endif
     return true;
 }
 
@@ -900,12 +833,6 @@ std::string CopyrightHolders(const std::string& strPrefix)
 {
     std::string strCopyrightHolders = strPrefix + strprintf(_(COPYRIGHT_HOLDERS ", %s"), _(COPYRIGHT_HOLDERS_SUBSTITUTION));
 
-#if 0
-    // Check for untranslated substitution to make sure Bitcoin Core copyright is not removed by accident
-    if (strprintf(COPYRIGHT_HOLDERS, COPYRIGHT_HOLDERS_SUBSTITUTION).find("Bitcoin Core") == std::string::npos) {
-        strCopyrightHolders += "\n" + strPrefix + "The Bitcoin Core developers";
-    }
-#endif
     return strCopyrightHolders;
 }
 

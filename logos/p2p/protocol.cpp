@@ -7,10 +7,7 @@
 
 #include <util.h>
 #include <utilstrencodings.h>
-
-#ifndef WIN32
-# include <arpa/inet.h>
-#endif
+#include <arpa/inet.h>
 
 namespace NetMsgType {
 const char *VERSION="version";

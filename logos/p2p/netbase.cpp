@@ -15,10 +15,7 @@
 #include <timedata.h>
 
 #include <atomic>
-
-#ifndef WIN32
 #include <fcntl.h>
-#endif
 
 #if !defined(MSG_NOSIGNAL)
 #define MSG_NOSIGNAL 0
@@ -50,11 +47,7 @@ bool static LookupIntern(const char *pszName, std::vector<CNetAddr>& vIP, unsign
     aiHint.ai_socktype = SOCK_STREAM;
     aiHint.ai_protocol = IPPROTO_TCP;
     aiHint.ai_family = AF_UNSPEC;
-#ifdef WIN32
-    aiHint.ai_flags = fAllowLookup ? 0 : AI_NUMERICHOST;
-#else
     aiHint.ai_flags = fAllowLookup ? AI_ADDRCONFIG : AI_NUMERICHOST;
-#endif
     struct addrinfo *aiRes = nullptr;
     int nErr = getaddrinfo(pszName, nullptr, &aiHint, &aiRes);
     if (nErr)
@@ -305,11 +298,7 @@ bool ConnectSocketDirectly(const CService &addrConnect, const SOCKET& hSocket, i
                 return false;
             }
         }
-#ifdef WIN32
-        else if (WSAGetLastError() != WSAEISCONN)
-#else
         else
-#endif
         {
             LogConnectFailure(manual_connection, "connect() to %s failed: %s", addrConnect.ToString(), NetworkErrorString(WSAGetLastError()));
             return false;
@@ -355,23 +344,6 @@ bool LookupSubNet(const char* pszName, CSubNet& ret)
     return false;
 }
 
-#ifdef WIN32
-std::string NetworkErrorString(int err)
-{
-    char buf[256];
-    buf[0] = 0;
-    if(FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK,
-            nullptr, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-            buf, sizeof(buf), nullptr))
-    {
-        return strprintf("%s (%d)", buf, err);
-    }
-    else
-    {
-        return strprintf("Unknown error (%d)", err);
-    }
-}
-#else
 std::string NetworkErrorString(int err)
 {
     char buf[256];
@@ -388,17 +360,12 @@ std::string NetworkErrorString(int err)
 #endif
     return strprintf("%s (%d)", s, err);
 }
-#endif
 
 bool CloseSocket(SOCKET& hSocket)
 {
     if (hSocket == INVALID_SOCKET)
         return false;
-#ifdef WIN32
-    int ret = closesocket(hSocket);
-#else
     int ret = close(hSocket);
-#endif
     if (ret) {
         LogPrintf("Socket close failed: %d. Error: %s\n", hSocket, NetworkErrorString(WSAGetLastError()));
     }
@@ -409,23 +376,13 @@ bool CloseSocket(SOCKET& hSocket)
 bool SetSocketNonBlocking(const SOCKET& hSocket, bool fNonBlocking)
 {
     if (fNonBlocking) {
-#ifdef WIN32
-        u_long nOne = 1;
-        if (ioctlsocket(hSocket, FIONBIO, &nOne) == SOCKET_ERROR) {
-#else
         int fFlags = fcntl(hSocket, F_GETFL, 0);
         if (fcntl(hSocket, F_SETFL, fFlags | O_NONBLOCK) == SOCKET_ERROR) {
-#endif
             return false;
         }
     } else {
-#ifdef WIN32
-        u_long nZero = 0;
-        if (ioctlsocket(hSocket, FIONBIO, &nZero) == SOCKET_ERROR) {
-#else
         int fFlags = fcntl(hSocket, F_GETFL, 0);
         if (fcntl(hSocket, F_SETFL, fFlags & ~O_NONBLOCK) == SOCKET_ERROR) {
-#endif
             return false;
         }
     }

@@ -42,15 +42,6 @@ Arg("seednode", "Connect to a node to retrieve peer addresses, and disconnect. T
 	false, OptionsCategory::CONNECTION, P2P_OPTION_MULTI);
 Arg("timeout", strprintf("Specify connection timeout in milliseconds (minimum: 1, default: %d)", DEFAULT_CONNECT_TIMEOUT),
 	false, OptionsCategory::CONNECTION, P2P_OPTION_ARGUMENT);
-#ifdef USE_UPNP
-#if USE_UPNP
-Arg("upnp", "Use UPnP to map the listening port (default: 1 when listening)",
-	false, OptionsCategory::CONNECTION, 0);
-#else
-Arg("upnp", strprintf("Use UPnP to map the listening port (default: %u)", 0),
-	false, OptionsCategory::CONNECTION, 0);
-#endif
-#endif
 Arg("whitebind", "Bind to given address and whitelist peers connecting to it. Use [host]:port notation for IPv6",
 	false, OptionsCategory::CONNECTION, P2P_OPTION_ARGUMENT);
 Arg("whitelist", "Whitelist peers connecting from the given IP address (e.g. 1.2.3.4) or CIDR notated network (e.g. 1.2.3.0/24). Can be specified multiple times. "

@@ -30,10 +30,7 @@
 #include <condition_variable>
 #include <semaphore.h>
 #include <boost/asio.hpp>
-
-#ifndef WIN32
 #include <arpa/inet.h>
-#endif
 
 class CNode;
 
@@ -60,11 +57,7 @@ constexpr int MAX_ADDNODE_CONNECTIONS = 8;
 /** -listen default */
 constexpr bool DEFAULT_LISTEN = true;
 /** -upnp default */
-#ifdef USE_UPNP
-constexpr bool DEFAULT_UPNP = USE_UPNP;
-#else
 constexpr bool DEFAULT_UPNP = false;
-#endif
 /** The maximum number of entries in mapAskFor */
 constexpr size_t MAPASKFOR_MAX_SZ = MAX_INV_SZ;
 /** The maximum number of entries in setAskFor (larger due to getdata latency)*/

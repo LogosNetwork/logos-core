@@ -69,11 +69,7 @@ void runCommand(const std::string& strCommand);
 
 inline bool IsSwitchChar(char c)
 {
-#ifdef WIN32
-    return c == '-' || c == '/';
-#else
     return c == '-';
-#endif
 }
 
 enum class OptionsCategory {

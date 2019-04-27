@@ -32,11 +32,7 @@ namespace fsbridge {
 
     private:
         std::string reason;
-#ifndef WIN32
         int fd = -1;
-#else
-        void* hFile = (void*)-1; // INVALID_HANDLE_VALUE
-#endif
     };
 };
 

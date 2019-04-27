@@ -187,21 +187,12 @@ struct is_convertible
         static succeed tryConvert(const T2&);
         static const T1& makeT1();
     public:
-#       ifdef _MSC_VER
-        // Disable spurious loss of precision warnings in tryConvert(makeT1())
-#       pragma warning(push)
-#       pragma warning(disable:4244)
-#       pragma warning(disable:4267)
-#       endif
         // Standard trick: the (...) version of tryConvert will be chosen from
         // the overload set only if the version taking a T2 doesn't match.
         // Then we compare the sizes of the return types to check which
         // function matched.  Very neat, in a disgusting kind of way :)
         static const bool value =
             sizeof(tryConvert(makeT1())) == sizeof(succeed);
-#       ifdef _MSC_VER
-#       pragma warning(pop)
-#       endif
 };
 
 

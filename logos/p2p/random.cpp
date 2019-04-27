@@ -7,10 +7,6 @@
 
 #include <hash.h>
 #include <support/cleanse.h>
-#ifdef WIN32
-#include <compat.h> // for Windows API
-#include <wincrypt.h>
-#endif
 #include <logging.h>  // for LogPrint()
 #include <sync.h>     // for WAIT_LOCK
 
@@ -18,10 +14,8 @@
 #include <chrono>
 #include <thread>
 
-#ifndef WIN32
 #include <fcntl.h>
 #include <sys/time.h>
-#endif
 
 #ifdef HAVE_SYS_GETRANDOM
 #include <sys/syscall.h>
@@ -57,13 +51,11 @@ static inline int64_t GetPerformanceCounter()
 {
     // Read the hardware time stamp counter when available.
     // See https://en.wikipedia.org/wiki/Time_Stamp_Counter for more information.
-#if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
-    return __rdtsc();
-#elif !defined(_MSC_VER) && defined(__i386__)
+#if defined(__i386__)
     uint64_t r = 0;
     __asm__ volatile ("rdtsc" : "=A"(r)); // Constrain the r variable to the eax:edx pair.
     return r;
-#elif !defined(_MSC_VER) && (defined(__x86_64__) || defined(__amd64__))
+#elif defined(__x86_64__) || defined(__amd64__)
     uint64_t r1 = 0, r2 = 0;
     __asm__ volatile ("rdtsc" : "=a"(r1), "=d"(r2)); // Constrain r1 to rax and r2 to rdx.
     return (r2 << 32) | r1;
@@ -84,44 +76,8 @@ void RandAddSeed()
 static void RandAddSeedPerfmon()
 {
     RandAddSeed();
-
-#ifdef WIN32
-    // Don't need this on Linux, OpenSSL automatically uses /dev/urandom
-    // Seed with the entire set of perfmon data
-
-    // This can take up to 2 seconds, so only do it every 10 minutes
-    static int64_t nLastPerfmon;
-    if (GetTime() < nLastPerfmon + 10 * 60)
-        return;
-    nLastPerfmon = GetTime();
-
-    std::vector<unsigned char> vData(250000, 0);
-    long ret = 0;
-    unsigned long nSize = 0;
-    const size_t nMaxSize = 10000000; // Bail out at more than 10MB of performance data
-    while (true) {
-        nSize = vData.size();
-        ret = RegQueryValueExA(HKEY_PERFORMANCE_DATA, "Global", nullptr, nullptr, vData.data(), &nSize);
-        if (ret != ERROR_MORE_DATA || vData.size() >= nMaxSize)
-            break;
-        vData.resize(std::max((vData.size() * 3) / 2, nMaxSize)); // Grow size of buffer exponentially
-    }
-    RegCloseKey(HKEY_PERFORMANCE_DATA);
-    if (ret == ERROR_SUCCESS) {
-        RAND_add(vData.data(), nSize, nSize / 100.0);
-        memory_cleanse(vData.data(), nSize);
-        LogPrint(BCLog::RAND, "%s: %lu bytes\n", __func__, nSize);
-    } else {
-        static bool warned = false; // Warn only once
-        if (!warned) {
-            LogPrintf("%s: Warning: RegQueryValueExA(HKEY_PERFORMANCE_DATA) failed with code %i\n", __func__, ret);
-            warned = true;
-        }
-    }
-#endif
 }
 
-#ifndef WIN32
 /** Fallback: get 32 bytes of system entropy from /dev/urandom. The most
  * compatible way to get cryptographic randomness on UNIX-ish platforms.
  */
@@ -142,23 +98,11 @@ static void GetDevURandom(unsigned char *ent32)
     } while (have < NUM_OS_RANDOM_BYTES);
     close(f);
 }
-#endif
 
 /** Get 32 bytes of system entropy. */
 void GetOSRand(unsigned char *ent32)
 {
-#if defined(WIN32)
-    HCRYPTPROV hProvider;
-    int ret = CryptAcquireContextW(&hProvider, nullptr, nullptr, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT);
-    if (!ret) {
-        RandFailure();
-    }
-    ret = CryptGenRandom(hProvider, NUM_OS_RANDOM_BYTES, ent32);
-    if (!ret) {
-        RandFailure();
-    }
-    CryptReleaseContext(hProvider, 0);
-#elif defined(HAVE_SYS_GETRANDOM)
+#if defined(HAVE_SYS_GETRANDOM)
     /* Linux. From the getrandom(2) man page:
      * "If the urandom source has been initialized, reads of up to 256 bytes
      * will always return as many bytes as requested and will not be
