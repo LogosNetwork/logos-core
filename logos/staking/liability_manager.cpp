@@ -34,11 +34,19 @@ bool LiabilityManager::CreateSecondaryLiability(
     return true;
 }
 
+//TODO should this be optimized so we only check secondary liabilities once
+//per epoch?
 void LiabilityManager::PruneSecondaryLiabilities(
         AccountAddress const & origin,
+        logos::account_info & info,
         uint32_t const & cur_epoch,
         MDB_txn* txn)
 {
+    if(info.epoch_secondary_liabilities_updated >= cur_epoch)
+    {
+        return;
+    }
+    info.epoch_secondary_liabilities_updated = cur_epoch;
     std::vector<LiabilityHash> hashes(GetSecondaryLiabilities(origin, txn));
     for(auto hash : hashes)
     {
@@ -51,20 +59,36 @@ void LiabilityManager::PruneSecondaryLiabilities(
     }
 }
 
+//TODO should this be optimized so we only check secondary liabilities once
+//per epoch?
 bool LiabilityManager::CanCreateSecondaryLiability(
         AccountAddress const & target,
         AccountAddress const & source,
+        logos::account_info & info,
+        uint32_t const & cur_epoch,
         MDB_txn* txn)
 {
+    //cannot proxy self_stake
     if(target == source)
     {
         return false;
     }
-    LiabilityHash hash;
-    if(!mdb_get(txn, _store.secondary_liabilities_db, logos::mdb_val(source), logos::mdb_val(hash)))
+
+    std::vector<LiabilityHash> hashes(GetSecondaryLiabilities(source, txn));
+    for(auto hash : hashes)
     {
         Liability l = Get(hash, txn);
-        return l.target == target;
+        if(info.epoch_secondary_liabilities_updated >= cur_epoch)
+        {
+            //secondary liabilities are all up to date
+            //only need to check first
+            //TODO don't get all hashes in this case
+            return l.target == target;
+        }
+        else if(l.expiration_epoch > cur_epoch)
+        {
+            return l.target == target;
+        }
     }
     return true;
 }

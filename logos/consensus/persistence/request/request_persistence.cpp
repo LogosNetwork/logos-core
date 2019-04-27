@@ -235,8 +235,27 @@ bool PersistenceManager<R>::ValidateRequest(
     // TODO: is this correct? GetLogosTotal() returns fee unless derived class overrides GetLogosTotal()
     if((request->GetLogosTotal()+request->fee) > info->GetBalance())
     {
-        result.code = logos::process_result::insufficient_balance;
-        return false;
+        if(info->type == logos::AccountType::LogosAccount)
+        {
+            logos::transaction txn(_store.environment, nullptr, false);
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            auto sm = StakingManager::GetInstance();
+            Amount pruneable = sm->GetPruneableThawingAmount(
+                    request->origin,
+                    *account_info,
+                    cur_epoch_num,
+                    txn);
+            if(request->GetLogosTotal() > info->GetAvailableBalance() + pruneable)
+            {
+                result.code = logos::process_result::insufficient_balance;
+                return false;
+            }
+        }
+        else
+        {
+            result.code = logos::process_result::insufficient_balance;
+            return false;
+        }
     }
 
     switch(request->type)
@@ -828,6 +847,11 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
     info->block_count++;
     info->head = request->GetHash();
     info->modified = logos::seconds_since_epoch();
+    if(info->type == logos::AccountType::LogosAccount)
+    {
+        auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+        StakingManager::GetInstance()->PruneThawing(request->origin, *account_info, cur_epoch_num, transaction);
+    }
 
     // TODO: Harvest fees
     if(request->type != RequestType::ElectionVote)

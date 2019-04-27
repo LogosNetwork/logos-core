@@ -96,6 +96,13 @@ class StakingManager
 
     void PruneThawing(
             AccountAddress const & origin,
+            logos::account_info & info,
+            uint32_t const & cur_epoch,
+            MDB_txn* txn);
+
+    Amount GetPruneableThawingAmount(
+            AccountAddress const & origin,
+            logos::account_info & info,
             uint32_t const & cur_epoch,
             MDB_txn* txn);
 
