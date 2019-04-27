@@ -27,14 +27,16 @@ void ConsensusP2pOutput::AddMessageToBuffer(const uint8_t *data,
     {
         logos::vectorstream stream(buf);
         assert(p2pheader.Serialize(stream) == P2pHeader::SIZE);
-        assert(header.Serialize(buf) == P2pConsensusHeader::SIZE);
+        assert(header.Serialize(stream) == P2pConsensusHeader::SIZE);
     }
     memcpy(_p2p_buffer.data(), buf.data(), buf.size());
     memcpy(_p2p_buffer.data() + hdrs_size, data, size);
 
     LOG_DEBUG(_log) << "ConsensusP2pOutput"
                     << " - message type " << MessageToName(message_type)
-                    << ", size " << size
+                    << ", size " << _p2p_buffer.size()
+                    << ", epoch number " << epoch_number
+                    << ", dest delegate id " << (int)dest_delegate_id
                     << " is added to p2p to delegate " << (unsigned)_delegate_id;
 }
 

@@ -65,6 +65,7 @@ class DelegateIdentityManager
     using AddressAdTxAList
                     = std::multimap<AddressAdKey, address_ad_txa>;
     using Timer     = boost::asio::deadline_timer;
+    using DelegateIdCache = std::map<uint32_t, uint8_t>;
 
 public:
     /// Class constructor
@@ -279,7 +280,7 @@ public:
     /// i.e. it's not necessary the true current epoch number
     /// @param epoch_number delegate's epoch number
     /// @returns current epoch number
-    static uint32_t FromDelegatesEpoch(uint32_t epoch_number)
+    static uint32_t CurFromDelegatesEpoch(uint32_t epoch_number)
     {
         return epoch_number + 2;
     }
@@ -287,7 +288,7 @@ public:
     /// Convert current epoch number to delegates' epoch number
     /// @param epoch_number current epoch number
     /// @returns delegates' epoch number
-    static uint32_t ToDelegatesEpoch(uint32_t epoch_number)
+    static uint32_t CurToDelegatesEpoch(uint32_t epoch_number)
     {
         return epoch_number - 2;
     }
@@ -405,6 +406,11 @@ private:
     /// @param ec error code
     void Advert(const ErrorCode &ec);
 
+    /// Return delegate's index in the current epoch
+    /// @param cur_epoch_number current epoch number
+    /// @returns delegate id
+    uint8_t GetDelegateIdFromCache(uint32_t cur_epoch_number);
+
     static bool             _epoch_transition_enabled; ///< is epoch transition enabled
     static AccountAddress   _delegate_account;     ///< this delegate's account or 0 if non-delegate
     static uint8_t          _global_delegate_idx;  ///< global delegate index in all delegate's list
@@ -419,4 +425,6 @@ private:
     std::mutex              _ad_mutex;             ///< protect address ad/txa lists
     Timer                   _timer;                ///< time for delegate/txacceptor advertisement
     logos::node &           _node;                 ///< logos node reference
+    DelegateIdCache         _idx_cache;            ///< epoch to this delegate id map
+    const uint8_t           MAX_CACHE_SIZE = 10;
 };

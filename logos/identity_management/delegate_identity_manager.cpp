@@ -595,7 +595,7 @@ DelegateIdentityManager::MakeSerializedAddressAd(uint32_t epoch_number,
 {
     uint8_t idx = 0xff;
     ApprovedEBPtr eb;
-    IdentifyDelegates(ToDelegatesEpoch(epoch_number), idx, eb);
+    IdentifyDelegates(CurToDelegatesEpoch(epoch_number), idx, eb);
     return MakeSerializedAd<AddressAd>([encr_delegate_id, eb](auto ad, logos::vectorstream &s)->size_t{
         return (*ad).Serialize(s, eb->delegates[encr_delegate_id].ecies_pub);
     }, false, epoch_number, delegate_id, encr_delegate_id, ip, port);
@@ -708,21 +708,7 @@ DelegateIdentityManager::OnAddressAd(uint8_t *data,
                            prequel.epoch_number == (current_epoch_number + 1);
     if (current_or_next)
     {
-        static std::vector<std::pair<uint32_t,uint8_t>> idx_cache;
-        uint8_t idx;
-        auto epoch_number = prequel.epoch_number;
-        auto it = std::find_if(idx_cache.begin(), idx_cache.end(),
-                            [epoch_number](const auto &item) {return item.first == epoch_number;});
-        if (it != idx_cache.end()) {
-            idx = it->second;
-        }
-        else {
-            IdentifyDelegates(ToDelegatesEpoch(epoch_number), idx);
-            idx_cache.push_back({epoch_number, idx});
-            if (idx_cache.size() > 2) {
-                idx_cache.erase(idx_cache.begin());
-            }
-        }
+        uint8_t idx = GetDelegateIdFromCache(prequel.epoch_number);
 
         // ad is encrypted with this delegate's ecies public key
         if (prequel.encr_delegate_id == idx)
@@ -1060,26 +1046,29 @@ DelegateIdentityManager::LoadDB()
             continue;
         }
 
-        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (it->second.data ()), it->second.size ());
-        try {
-            AddressAd ad(error, stream, &DelegateIdentityManager::Decrypt);
-            assert (!error);
-            {
-                std::lock_guard<std::mutex> lock(_ad_mutex);
-                std::string ip = ad.GetIP();
-                _address_ad.emplace(std::piecewise_construct,
-                                    std::forward_as_tuple(ad.epoch_number, ad.delegate_id),
-                                    std::forward_as_tuple(ip, ad.port));
-                LOG_DEBUG(_log) << "DelegateIdentityManager::LoadDB, ad epoch_number " << ad.epoch_number
-                                << " delegate id " << (int) ad.delegate_id
-                                << " ip " << ip << " port " << ad.port;
-            }
-        }
         /// all ad messages are saved to the database even if they are encrypted
         /// with another delegate id so that the delegate can respond to peer request
         /// for ad messages. we only store in memory messages encryped with this delegate id
-        catch (...)
-        {
+        auto idx = GetDelegateIdFromCache(adKey.epoch_number);
+        if (idx == adKey.encr_delegate_id) {
+            try {
+                logos::bufferstream stream(reinterpret_cast<uint8_t const *> (it->second.data()), it->second.size());
+                AddressAd ad(error, stream, &DelegateIdentityManager::Decrypt);
+                assert (!error);
+                {
+                    std::lock_guard<std::mutex> lock(_ad_mutex);
+                    std::string ip = ad.GetIP();
+                    _address_ad.emplace(std::piecewise_construct,
+                                        std::forward_as_tuple(ad.epoch_number, ad.delegate_id),
+                                        std::forward_as_tuple(ip, ad.port));
+                    LOG_DEBUG(_log) << "DelegateIdentityManager::LoadDB, ad epoch_number " << ad.epoch_number
+                                    << " delegate id " << (int) ad.delegate_id
+                                    << " ip " << ip << " port " << ad.port;
+                }
+            }
+            catch (const std::exception &e) {
+                LOG_ERROR(_log) << "DelegateIdentityManager::LoadDB, failed: " << e.what();
+            }
         }
     }
 
@@ -1266,7 +1255,7 @@ DelegateIdentityManager::OnTxAcceptorUpdate(EpochDelegates epoch,
         return false;
     }
 
-    auto  current_epoch_number = FromDelegatesEpoch(eb->epoch_number);
+    auto  current_epoch_number = CurFromDelegatesEpoch(eb->epoch_number);
     if ((add && _address_ad_txa.find({current_epoch_number, idx}) != _address_ad_txa.end()) ||
             (!add && _address_ad_txa.find({current_epoch_number, idx}) == _address_ad_txa.end()))
     {
@@ -1318,4 +1307,20 @@ DelegateIdentityManager::UpdateAddressAd(uint32_t epoch_number, uint8_t delegate
     auto &config = _node.config.consensus_manager_config;
     AddressAd ad(epoch_number, delegate_id, delegate_id, config.local_address.c_str(), config.peer_port);
     UpdateAddressAd(ad);
+}
+
+uint8_t
+DelegateIdentityManager::GetDelegateIdFromCache(uint32_t cur_epoch_number) {
+    auto it = _idx_cache.find(cur_epoch_number);
+    if (it != _idx_cache.end()) {
+        return it->second;
+    } else {
+        uint8_t idx;
+        IdentifyDelegates(CurToDelegatesEpoch(cur_epoch_number), idx);
+        _idx_cache.emplace(cur_epoch_number, idx);
+        if (_idx_cache.size() > MAX_CACHE_SIZE) {
+            _idx_cache.erase(_idx_cache.begin());
+        }
+        return idx;
+    }
 }

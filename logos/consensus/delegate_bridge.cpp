@@ -23,7 +23,7 @@ void DelegateBridge<CT>::Send(const void * data, size_t size)
     // simulate network send failure
     struct stat sb;
     std::string path = "./DB/Consensus_" +
-                       std::to_string((int) DelegateIdentityManager::_global_delegate_idx) +
+                       std::to_string((int) DelegateIdentityManager::GetGlobalDelegateIdx()) +
                        "/sndoff";
     if (stat(path.c_str(), &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFREG)
     {

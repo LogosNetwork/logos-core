@@ -520,7 +520,8 @@ ConsensusContainer::BuildConsensusConfig(
    for (uint8_t del = 0; del < NUM_DELEGATES; ++del)
    {
         auto account = epoch.delegates[del].account;
-        auto ip = _identity_manager.GetDelegateIP(epoch.epoch_number+2, del);
+        auto ip = _identity_manager.GetDelegateIP(
+                DelegateIdentityManager::CurFromDelegatesEpoch(epoch.epoch_number), del);
         if (ip != "")
         {
             config.delegates.push_back(ConsensusManagerConfig::Delegate{ip, del});
