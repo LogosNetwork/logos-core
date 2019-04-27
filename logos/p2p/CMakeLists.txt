@@ -20,8 +20,6 @@ add_library (p2p
 	crypto/chacha20.cpp
 	crypto/chacha20.h
 	crypto/common.h
-	fs.cpp
-	fs.h
 	hash.cpp
 	hash.h
 	logging.cpp

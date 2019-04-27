@@ -10,12 +10,9 @@
 #ifndef BITCOIN_UTIL_H
 #define BITCOIN_UTIL_H
 
-#if defined(HAVE_CONFIG_H)
 #include <config/bitcoin-config.h>
-#endif
 
 #include <compat.h>
-#include <fs.h>
 #include <logging.h>
 #include <sync.h>
 #include <tinyformat.h>
@@ -58,14 +55,7 @@ bool error(const char* fmt, const Args&... args)
 }
 
 void PrintExceptionContinue(const std::exception *pex, const char* pszThread);
-bool FileCommit(FILE *file);
-bool TruncateFile(FILE *file, unsigned int length);
 int RaiseFileDescriptorLimit(int nMinFD);
-void AllocateFileRange(FILE *file, unsigned int offset, unsigned int length);
-bool RenameOver(fs::path src, fs::path dest);
-
-bool TryCreateDirectories(const fs::path& p);
-void runCommand(const std::string& strCommand);
 
 inline bool IsSwitchChar(char c)
 {
@@ -259,12 +249,6 @@ std::string HelpMessageGroup(const std::string& message);
  */
 std::string HelpMessageOpt(const std::string& option, const std::string& message);
 
-/**
- * Return the number of cores available on the current system.
- * @note This does count virtual cores, such as those provided by HyperThreading.
- */
-int GetNumCores();
-
 void RenameThread(const char* name);
 
 /**
@@ -296,15 +280,6 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
 }
 
 std::string CopyrightHolders(const std::string& strPrefix);
-
-/**
- * On platforms that support it, tell the kernel the calling thread is
- * CPU-intensive and non-interactive. See SCHED_BATCH in sched(7) for details.
- *
- * @return The return value of sched_setschedule(), or 1 on systems without
- * sched_setschedule().
- */
-int ScheduleBatchPriority(void);
 
 namespace util {
 

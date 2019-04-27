@@ -73,11 +73,6 @@ void RandAddSeed()
     memory_cleanse((void*)&nCounter, sizeof(nCounter));
 }
 
-static void RandAddSeedPerfmon()
-{
-    RandAddSeed();
-}
-
 /** Fallback: get 32 bytes of system entropy from /dev/urandom. The most
  * compatible way to get cryptographic randomness on UNIX-ish platforms.
  */

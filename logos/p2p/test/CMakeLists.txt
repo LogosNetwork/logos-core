@@ -7,7 +7,8 @@ target_include_directories(p2p-standalone PRIVATE .)
 target_link_libraries (p2p-standalone
 	p2p
 	blake2
-	lmdb)
+    lmdb
+    ${Boost_LOG_LIBRARY} ${Boost_LOG_SETUP_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
 
 target_compile_definitions(p2p
 	PRIVATE

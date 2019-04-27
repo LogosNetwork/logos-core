@@ -14,7 +14,6 @@
 #include <chainparams.h>
 #include <clientversion.h>
 #include <compat/sanity.h>
-#include <fs.h>
 #include <netbase.h>
 #include <net.h>
 #include <net_processing.h>
