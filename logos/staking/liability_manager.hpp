@@ -52,10 +52,13 @@ class LiabilityManager
     bool CanCreateSecondaryLiability(
             AccountAddress const & target,
             AccountAddress const & source,
+            logos::account_info & info,
+            uint32_t const & cur_epoch,
             MDB_txn* txn);
 
     void PruneSecondaryLiabilities(
             AccountAddress const & origin,
+            logos::account_info & info,
             uint32_t const & cur_epoch,
             MDB_txn* txn);
 

@@ -274,6 +274,8 @@ void StakingManager::Stake(
         Store(thawing, origin, txn);
 
     };
+    //TODO should we always prune secondary liabilities?
+    _liability_mgr.PruneSecondaryLiabilities(origin, account_info, epoch, txn);
     //if changing target, extract from existing stake
     if(target != cur_stake.target)
     {
@@ -368,7 +370,7 @@ bool StakingManager::Validate(
     if(cur_stake.amount > 0)
     {
         if(cur_stake.target == target 
-                || _liability_mgr.CanCreateSecondaryLiability(target, origin, txn))
+                || _liability_mgr.CanCreateSecondaryLiability(target, origin, info, epoch, txn))
         {
             if(cur_stake.amount > remaining)
             {
@@ -383,7 +385,7 @@ bool StakingManager::Validate(
             {
                 if(t.target == target 
                         || (!secondary_liability_created &&
-                           _liability_mgr.CanCreateSecondaryLiability(target, origin, txn))
+                           _liability_mgr.CanCreateSecondaryLiability(target, origin, info, epoch, txn))
                         || (secondary_liability_created && cur_stake.target == target))
                 {
                     if(t.amount > remaining)
@@ -400,10 +402,15 @@ bool StakingManager::Validate(
 
 void StakingManager::PruneThawing(
         AccountAddress const & origin,
+        logos::account_info & info,
         uint32_t const & cur_epoch,
         MDB_txn* txn)
 {
-
+    if(info.epoch_thawing_updated >= cur_epoch)
+    {
+        return;
+    }
+    info.epoch_thawing_updated = cur_epoch;
     for(auto it = logos::store_iterator(txn,_store.thawing_db, logos::mdb_val(origin));
             it != logos::store_iterator(nullptr); ++it)
     {
@@ -428,6 +435,7 @@ void StakingManager::PruneThawing(
                     << "Error deleting ThawingFunds. orign = " << origin.to_string();
                 trace_and_halt();
            }
+           info.SetAvailableBalance(info.GetAvailableBalance()+t.amount,cur_epoch, txn);
         }
         else
         {
@@ -436,7 +444,48 @@ void StakingManager::PruneThawing(
             //later funds will also be unexpired
             return;
         }
-        
     }
-    
+}
+
+//TODO abstract thawing funds iteration
+Amount StakingManager::GetPruneableThawingAmount(
+        AccountAddress const & origin,
+        logos::account_info & info,
+        uint32_t const & cur_epoch,
+        MDB_txn* txn)
+{
+    Amount total = 0;
+    if(info.epoch_thawing_updated >= cur_epoch)
+    {
+        return total;
+    }
+    for(auto it = logos::store_iterator(txn,_store.thawing_db, logos::mdb_val(origin));
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        if(it->first.uint256() != origin)
+        {
+            return total;
+        }
+        ThawingFunds t; 
+        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (it->second.data ()), it->second.size ());
+        bool error = t.Deserialize (stream);
+        if(error)
+        {
+            LOG_FATAL(_log) << "StakingManager::IterateThawingFunds - "
+                << "Error deserializing ThawingFunds for account = " << origin.to_string();
+            trace_and_halt();
+        }
+        if(t.expiration_epoch <= cur_epoch)
+        {
+            total += t.amount;
+        }
+        else
+        {
+            //thawing funds are ordered by expiration
+            //as soon as we see an unexpired thawing fund, we know
+            //later funds will also be unexpired
+            return total;
+        }
+    }
+    return total;
 }

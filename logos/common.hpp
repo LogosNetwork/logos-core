@@ -210,6 +210,8 @@ struct account_info : Account
     Entries    entries;
     //the last epoch in which thawing funds were checked for expiration for this account
     uint32_t   epoch_thawing_updated;
+    //the last epoch in which secondary liablities were checked for expiration for this account
+    uint32_t   epoch_secondary_liabilities_updated;
 
     protected:
     amount available_balance;
