@@ -418,6 +418,7 @@ DelegateIdentityManager::IdentifyDelegates(
     uint8_t &delegate_idx,
     ApprovedEBPtr & epoch)
 {
+    delegate_idx = NON_DELEGATE;
     BlockHash hash;
     if (_store.epoch_tip_get(hash))
     {
@@ -516,6 +517,8 @@ DelegateIdentityManager::CheckAdvertise(uint32_t current_epoch_number,
                                         ApprovedEBPtr &epoch_current)
 {
     ApprovedEBPtr epoch_next;
+
+    LOG_DEBUG(_log) << "DelegateIdentityManager::CheckAdvertise for epoch " << current_epoch_number;
 
     // advertise for next epoch
     IdentifyDelegates(EpochDelegates::Next, idx, epoch_next);
@@ -1235,7 +1238,10 @@ DelegateIdentityManager::Advert(const ErrorCode &ec)
         LOG_DEBUG(_log) << "DelegateIdentityManager::Advert, error " << ec.message();
         return;
     }
-    CheckAdvertise(ConsensusContainer::GetCurEpochNumber(), false);
+
+    ApprovedEB eb;
+    GetCurrentEpoch(_store, eb);
+    CheckAdvertise(CurFromDelegatesEpoch(eb.epoch_number), false);
 }
 
 bool
@@ -1277,7 +1283,7 @@ DelegateIdentityManager::OnTxAcceptorUpdate(EpochDelegates epoch,
     }
 
     AddressAdTxAcceptor ad(current_epoch_number, idx, ip.c_str(), bin_port, json_port, add);
-    Sign(current_epoch_number, ad);
+        Sign(current_epoch_number, ad);
     auto buf = std::make_shared<std::vector<uint8_t>>();
     ad.Serialize(*buf);
 
