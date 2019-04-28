@@ -19,21 +19,6 @@
 
 #include <memory>
 
-/** Expiration time for orphan transactions in seconds */
-static constexpr int64_t ORPHAN_TX_EXPIRE_TIME = 20 * 60;
-/** Minimum time between orphan transactions expire time checks in seconds */
-static constexpr int64_t ORPHAN_TX_EXPIRE_INTERVAL = 5 * 60;
-/** Headers download timeout expressed in microseconds
- *  Timeout = base + per_header * (expected number of headers) */
-static constexpr int64_t HEADERS_DOWNLOAD_TIMEOUT_BASE = 15 * 60 * 1000000; // 15 minutes
-static constexpr int64_t HEADERS_DOWNLOAD_TIMEOUT_PER_HEADER = 1000; // 1ms/header
-/** Protect at least this many outbound peers from disconnection due to slow/
- * behind headers chain.
- */
-static constexpr int32_t MAX_OUTBOUND_PEERS_TO_PROTECT_FROM_DISCONNECT = 4;
-/** Timeout for (unprotected) outbound peers to sync to our chainwork, in seconds */
-static constexpr int64_t CHAIN_SYNC_TIMEOUT = 20 * 60; // 20 minutes
-/** How frequently to check for stale tips, in seconds */
 static constexpr int64_t STALE_CHECK_INTERVAL = 10 * 60; // 10 minutes
 /** How frequently to check for extra outbound peers and disconnect, in seconds */
 static constexpr int64_t EXTRA_PEER_CHECK_INTERVAL = 45;
@@ -41,37 +26,11 @@ static constexpr int64_t EXTRA_PEER_CHECK_INTERVAL = 45;
 static constexpr int64_t MINIMUM_CONNECT_TIME = 30;
 /** SHA256("main address relay")[0:8] */
 static constexpr uint64_t RANDOMIZER_ID_ADDRESS_RELAY = 0x3cac0035b5866b90ULL;
-/// Age after which a stale block will no longer be served if requested as
-/// protection against fingerprinting. Set to one month, denominated in seconds.
-static constexpr int STALE_RELAY_AGE_LIMIT = 30 * 24 * 60 * 60;
-/// Age after which a block is considered historical for purposes of rate
-/// limiting block relay. Set to one week, denominated in seconds.
-static constexpr int HISTORICAL_BLOCK_AGE = 7 * 24 * 60 * 60;
 
 /** Average delay between local address broadcasts in seconds. */
 static constexpr unsigned int AVG_LOCAL_ADDRESS_BROADCAST_INTERVAL = 24 * 60 * 60;
 /** Average delay between peer address broadcasts in seconds. */
 static constexpr unsigned int AVG_ADDRESS_BROADCAST_INTERVAL = 30;
-/** Average delay between trickled inventory transmissions in seconds.
- *  Blocks and whitelisted receivers bypass this, outbound peers get half this delay. */
-static constexpr unsigned int INVENTORY_BROADCAST_INTERVAL = 5;
-/** Maximum number of inventory items to send per transmission.
- *  Limits the impact of low-fee transaction floods. */
-static constexpr unsigned int INVENTORY_BROADCAST_MAX = 7 * INVENTORY_BROADCAST_INTERVAL;
-/** Average delay between feefilter broadcasts in seconds. */
-static constexpr unsigned int AVG_FEEFILTER_BROADCAST_INTERVAL = 10 * 60;
-/** Maximum feefilter broadcast delay after significant change. */
-static constexpr unsigned int MAX_FEEFILTER_CHANGE_DELAY = 5 * 60;
-
-
-    struct IteratorComparator
-    {
-        template<typename I>
-        bool operator()(const I& a, const I& b) const
-        {
-            return &(*a) < &(*b);
-        }
-    };
 
 /**
  * Maintain validation-specific state about nodes, protected by cs_main, instead
@@ -80,8 +39,6 @@ static constexpr unsigned int MAX_FEEFILTER_CHANGE_DELAY = 5 * 60;
  * and we're no longer holding the node's locks.
  */
 struct CNodeState {
-    //! The peer's address
-    const CService address;
     //! Whether we have a fully established connection.
     bool fCurrentlyConnected;
     //! Accumulated misbehaviour score for this peer.
@@ -90,68 +47,14 @@ struct CNodeState {
     bool fShouldBan;
     //! String name of this peer (debugging/logging purposes).
     const std::string name;
-    //! Length of current-streak of unconnecting headers announcements
-    int nUnconnectingHeaders;
-    //! Whether we've started headers synchronization with this peer.
-    bool fSyncStarted;
-    //! When to potentially disconnect peer for stalling headers download
-    int64_t nHeadersSyncTimeout;
-    //! Since when we're stalling block download progress (in microseconds), or 0.
-    int64_t nStallingSince;
-    //! When the first entry in vBlocksInFlight started downloading. Don't care when vBlocksInFlight is empty.
-    int64_t nDownloadingSince;
-    int nBlocksInFlight;
-    int nBlocksInFlightValidHeaders;
-    //! Whether we consider this a preferred download peer.
-    bool fPreferredDownload;
-    //! Whether this peer wants invs or headers (when possible) for block announcements.
-    bool fPreferHeaders;
-    //! Whether this peer wants invs or cmpctblocks (when possible) for block announcements.
-    bool fPreferHeaderAndIDs;
-
-    /** State used to enforce CHAIN_SYNC_TIMEOUT
-      * Only in effect for outbound, non-manual connections, with
-      * m_protect == false
-      * Algorithm: if a peer's best known block has less work than our tip,
-      * set a timeout CHAIN_SYNC_TIMEOUT seconds in the future:
-      *   - If at timeout their best known block now has more work than our tip
-      *     when the timeout was set, then either reset the timeout or clear it
-      *     (after comparing against our current tip's work)
-      *   - If at timeout their best known block still has less work than our
-      *     tip did when the timeout was set, then send a getheaders message,
-      *     and set a shorter timeout, HEADERS_RESPONSE_TIME seconds in future.
-      *     If their best known block is still behind when that new timeout is
-      *     reached, disconnect.
-      */
-    struct ChainSyncTimeoutState {
-        //! A timeout used for checking whether our peer has sufficiently synced
-        int64_t m_timeout;
-        //! After timeout is reached, set to true after sending getheaders
-        bool m_sent_getheaders;
-        //! Whether this peer is protected from disconnection due to a bad/slow chain
-        bool m_protect;
-    };
-
-    ChainSyncTimeoutState m_chain_sync;
 
     //! Time of last new block announcement
     int64_t m_last_block_announcement;
 
-    CNodeState(CAddress addrIn, std::string addrNameIn) : address(addrIn), name(addrNameIn) {
+    CNodeState(std::string addrNameIn) : name(addrNameIn) {
         fCurrentlyConnected = false;
         nMisbehavior = 0;
         fShouldBan = false;
-        nUnconnectingHeaders = 0;
-        fSyncStarted = false;
-        nHeadersSyncTimeout = 0;
-        nStallingSince = 0;
-        nDownloadingSince = 0;
-        nBlocksInFlight = 0;
-        nBlocksInFlightValidHeaders = 0;
-        fPreferredDownload = false;
-        fPreferHeaders = false;
-        fPreferHeaderAndIDs = false;
-	m_chain_sync = { 0, false, false };
         m_last_block_announcement = 0;
     }
 };
@@ -159,37 +62,14 @@ struct CNodeState {
 class PeerLogicValidation_internal {
 public:
     PeerLogicValidation_internal()
-        : nSyncStarted(0)
-        , nPreferredDownload(0)
-        , nPeersWithValidatedDownloads(0)
-        , g_outbound_peers_with_protect_from_disconnect(0)
-        , g_last_tip_update(0)
-        , nTimeBestReceived(0)
+        : g_last_tip_update(0)
     {
     }
 
     CCriticalSection cs_main;
 
-    /** Number of nodes with fSyncStarted. */
-    int nSyncStarted GUARDED_BY(cs_main);
-
-    /** Stack of nodes which we have set to announce using compact blocks */
-    std::list<NodeId> lNodesAnnouncingHeaderAndIDs GUARDED_BY(cs_main);
-
-    /** Number of preferable block download peers. */
-    int nPreferredDownload GUARDED_BY(cs_main);
-
-    /** Number of peers from which we're downloading blocks. */
-    int nPeersWithValidatedDownloads GUARDED_BY(cs_main);
-
-    /** Number of outbound peers with m_chain_sync.m_protect. */
-    int g_outbound_peers_with_protect_from_disconnect GUARDED_BY(cs_main);
-
     /** When our tip was last updated. */
     std::atomic<int64_t> g_last_tip_update;
-
-    /** Relay map */
-    std::atomic<int64_t> nTimeBestReceived; // Used only to inform the wallet of when we last received a block
 
     /** Map maintaining per-node state. */
     std::map<NodeId, CNodeState> mapNodeState GUARDED_BY(cs_main);
@@ -200,16 +80,6 @@ public:
         if (it == mapNodeState.end())
             return nullptr;
         return &it->second;
-    }
-
-    void UpdatePreferredDownload(std::shared_ptr<CNode> node, CNodeState* state) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
-    {
-        nPreferredDownload -= state->fPreferredDownload;
-
-        // Whether this node should be marked as a preferred download node.
-        state->fPreferredDownload = (!node->fInbound || node->fWhitelisted) && !node->fOneShot && !node->fClient;
-
-        nPreferredDownload += state->fPreferredDownload;
     }
 
     /**
@@ -251,10 +121,6 @@ public:
 
 };
 
-static int IsInitialBlockDownload() {
-	return 0; // todo
-}
-
 static void PushNodeVersion(std::shared_ptr<CNode> pnode, CConnman* connman, int64_t nTime)
 {
     ServiceFlags nLocalNodeServices = pnode->GetLocalServices();
@@ -293,12 +159,11 @@ static bool IsOutboundDisconnectionCandidate(std::shared_ptr<CNode> node)
 }
 
 void PeerLogicValidation::InitializeNode(std::shared_ptr<CNode> pnode) {
-    CAddress addr = pnode->addr;
     std::string addrName = pnode->GetAddrName();
     NodeId nodeid = pnode->GetId();
     {
         LOCK(internal->cs_main);
-        internal->mapNodeState.emplace_hint(internal->mapNodeState.end(), std::piecewise_construct, std::forward_as_tuple(nodeid), std::forward_as_tuple(addr, std::move(addrName)));
+        internal->mapNodeState.emplace_hint(internal->mapNodeState.end(), std::piecewise_construct, std::forward_as_tuple(nodeid), std::forward_as_tuple(std::move(addrName)));
     }
     if(!pnode->fInbound)
         PushNodeVersion(pnode, connman, connman->timeData.GetTime());
@@ -310,28 +175,12 @@ void PeerLogicValidation::FinalizeNode(NodeId nodeid, bool& fUpdateConnectionTim
     CNodeState *state = internal->State(nodeid);
     assert(state != nullptr);
 
-    if (state->fSyncStarted)
-        internal->nSyncStarted--;
-
     if (state->nMisbehavior == 0 && state->fCurrentlyConnected) {
         fUpdateConnectionTime = true;
     }
 
-    internal->nPreferredDownload -= state->fPreferredDownload;
-    internal->nPeersWithValidatedDownloads -= (state->nBlocksInFlightValidHeaders != 0);
-    assert(internal->nPeersWithValidatedDownloads >= 0);
-    internal->g_outbound_peers_with_protect_from_disconnect -= state->m_chain_sync.m_protect;
-    assert(internal->g_outbound_peers_with_protect_from_disconnect >= 0);
-
     internal->mapNodeState.erase(nodeid);
 
-    if (internal->mapNodeState.empty()) {
-        // Do a consistency check after the last peer is removed.
-//        assert(mapBlocksInFlight.empty());
-        assert(internal->nPreferredDownload == 0);
-        assert(internal->nPeersWithValidatedDownloads == 0);
-        assert(internal->g_outbound_peers_with_protect_from_disconnect == 0);
-    }
     LogPrint(BCLog::NET, "Cleared nodestate for peer=%d\n", nodeid);
 }
 
@@ -524,16 +373,10 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
         pfrom->SetSendVersion(nSendVersion);
         pfrom->nVersion = nVersion;
 
-        // Potentially mark this peer as a preferred download peer.
-        {
-            LOCK(cs_main);
-            UpdatePreferredDownload(pfrom, State(pfrom->GetId()));
-        }
-
         if (!pfrom->fInbound)
         {
             // Advertise our address
-            if (connman->fListen && !IsInitialBlockDownload())
+            if (connman->fListen)
             {
                 CAddress addr = connman->GetLocalAddress(&pfrom->addr, pfrom->GetLocalServices());
                 FastRandomContext insecure_rand;
@@ -917,24 +760,6 @@ bool PeerLogicValidation::ProcessMessages(std::shared_ptr<CNode> pfrom, std::ato
     return fMoreWork;
 }
 
-void PeerLogicValidation::ConsiderEviction(std::shared_ptr<CNode> pto, int64_t time_in_seconds)
-{
-    AssertLockHeld(internal->cs_main);
-
-    CNodeState &state = *internal->State(pto->GetId());
-//    const CNetMsgMaker msgMaker(pto->GetSendVersion());
-
-    if (!state.m_chain_sync.m_protect && IsOutboundDisconnectionCandidate(pto) && state.fSyncStarted) {
-        // This is an outbound peer subject to disconnection if they don't
-        // announce a block with as much work as the current tip within
-        // CHAIN_SYNC_TIMEOUT + HEADERS_RESPONSE_TIME seconds (note: if
-        // their chain has more work than ours, we should sync to it,
-        // unless it's invalid, in which case we should find that out and
-        // disconnect from them elsewhere).
-        pto->fDisconnect = true;
-    }
-}
-
 void PeerLogicValidation::EvictExtraOutboundPeers(int64_t time_in_seconds)
 {
     // Check whether we have too many outbound peers
@@ -956,8 +781,6 @@ void PeerLogicValidation::EvictExtraOutboundPeers(int64_t time_in_seconds)
             if (!IsOutboundDisconnectionCandidate(pnode) || pnode->fDisconnect) return;
             CNodeState *state = internal->State(pnode->GetId());
             if (state == nullptr) return; // shouldn't be possible, but just in case
-            // Don't evict our protected peers
-            if (state->m_chain_sync.m_protect) return;
             if (state->m_last_block_announcement < oldest_block_announcement || (state->m_last_block_announcement == oldest_block_announcement && pnode->GetId() > worst_peer)) {
                 worst_peer = pnode->GetId();
                 oldest_block_announcement = state->m_last_block_announcement;
@@ -972,13 +795,12 @@ void PeerLogicValidation::EvictExtraOutboundPeers(int64_t time_in_seconds)
                 // it time for new information to have arrived.
                 // Also don't disconnect any peer we're trying to download a
                 // block from.
-                CNodeState &state = *internal->State(pnode->GetId());
-                if (time_in_seconds - pnode->nTimeConnected > MINIMUM_CONNECT_TIME && state.nBlocksInFlight == 0) {
+                if (time_in_seconds - pnode->nTimeConnected > MINIMUM_CONNECT_TIME) {
                     LogPrint(BCLog::NET, "disconnecting extra outbound peer=%d (last block announcement received at time %d)\n", pnode->GetId(), oldest_block_announcement);
                     pnode->fDisconnect = true;
                     return true;
                 } else {
-                    LogPrint(BCLog::NET, "keeping outbound peer=%d chosen for eviction (connect time: %d, blocks_in_flight: %d)\n", pnode->GetId(), pnode->nTimeConnected, state.nBlocksInFlight);
+                    LogPrint(BCLog::NET, "keeping outbound peer=%d chosen for eviction (connect time: %d)\n", pnode->GetId(), pnode->nTimeConnected);
                     return false;
                 }
             });
@@ -1020,7 +842,6 @@ void PeerLogicValidation::CheckForStaleTipAndEvictPeers(int nPowTargetSpacing)
 
 bool PeerLogicValidation::SendMessages(std::shared_ptr<CNode> pto)
 {
-//    const Consensus::Params& consensusParams = Params().GetConsensus();
     {
         // Don't send anything until the version handshake is complete
         if (!pto->fSuccessfullyConnected || pto->fDisconnect)
@@ -1062,7 +883,7 @@ bool PeerLogicValidation::SendMessages(std::shared_ptr<CNode> pto)
 
         // Address refresh broadcast
         int64_t nNow = GetTimeMicros();
-        if (!IsInitialBlockDownload() && pto->nNextLocalAddrSend < nNow) {
+        if (pto->nNextLocalAddrSend < nNow) {
             connman->AdvertiseLocal(pto);
             pto->nNextLocalAddrSend = PoissonNextSend(nNow, AVG_LOCAL_ADDRESS_BROADCAST_INTERVAL);
         }
@@ -1096,62 +917,13 @@ bool PeerLogicValidation::SendMessages(std::shared_ptr<CNode> pto)
                 pto->vAddrToSend.shrink_to_fit();
         }
 
-	//
-	// Message: propagate
-	//
-	const PropagateMessage *promess = connman->p2p_store->GetNext(pto->next_propagate_index);
-	if (promess) {
-		connman->PushMessage(pto, msgMaker.Make(NetMsgType::PROPAGATE, promess->message));
-	}
-
-        // Detect whether we're stalling
-        nNow = GetTimeMicros();
-        if (state.nStallingSince && state.nStallingSince < nNow - 1000000 * BLOCK_STALLING_TIMEOUT) {
-            // Stalling only triggers when the block download window cannot move. During normal steady state,
-            // the download window should be much larger than the to-be-downloaded set of blocks, so disconnection
-            // should only happen during initial block download.
-            LogPrintf("Peer=%d is stalling block download, disconnecting\n", pto->GetId());
-            pto->fDisconnect = true;
-            return true;
+        //
+        // Message: propagate
+        //
+        const PropagateMessage *promess = connman->p2p_store->GetNext(pto->next_propagate_index);
+        if (promess) {
+            connman->PushMessage(pto, msgMaker.Make(NetMsgType::PROPAGATE, promess->message));
         }
-        // Check for headers sync timeouts
-        if (state.fSyncStarted && state.nHeadersSyncTimeout < std::numeric_limits<int64_t>::max()) {
-            // Detect whether this is a stalling initial-headers-sync peer
-	    if (0/*pindexBestHeader->GetBlockTime() <= GetAdjustedTime() - 24*60*60*/) {
-                if (nNow > state.nHeadersSyncTimeout
-                        && internal->nSyncStarted == 1
-                        && (internal->nPreferredDownload - state.fPreferredDownload >= 1)) {
-                    // Disconnect a (non-whitelisted) peer if it is our only sync peer,
-                    // and we have others we could be using instead.
-                    // Note: If all our peers are inbound, then we won't
-                    // disconnect our sync peer for stalling; we have bigger
-                    // problems if we can't get any outbound peers.
-                    if (!pto->fWhitelisted) {
-                        LogPrintf("Timeout downloading headers from peer=%d, disconnecting\n", pto->GetId());
-                        pto->fDisconnect = true;
-                        return true;
-                    } else {
-                        LogPrintf("Timeout downloading headers from whitelisted peer=%d, not disconnecting\n", pto->GetId());
-                        // Reset the headers sync state so that we have a
-                        // chance to try downloading from a different peer.
-                        // Note: this will also result in at least one more
-                        // getheaders message to be sent to
-                        // this peer (eventually).
-                        state.fSyncStarted = false;
-                        internal->nSyncStarted--;
-                        state.nHeadersSyncTimeout = 0;
-                    }
-                }
-            } else {
-                // After we've caught up once, reset the timeout so we can't trigger
-                // disconnect later.
-                state.nHeadersSyncTimeout = std::numeric_limits<int64_t>::max();
-            }
-        }
-
-        // Check that outbound peers have reasonable chains
-        // GetTime() is used by this anti-DoS logic so we can test this using mocktime
-        ConsiderEviction(pto, connman->timeData.GetTime());
     }
     return true;
 }

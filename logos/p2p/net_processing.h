@@ -8,10 +8,6 @@
 
 #include <net.h>
 
-/** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
-constexpr unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
-/** Default number of orphan+recently-replaced txn to keep around for block reconstruction */
-constexpr unsigned int DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN = 100;
 /** Default for BIP61 (sending reject messages) */
 constexpr bool DEFAULT_ENABLE_BIP61 = true;
 
@@ -44,8 +40,6 @@ public:
     */
     bool SendMessages(std::shared_ptr<CNode> pto) override;
 
-    /** Consider evicting an outbound peer based on the amount of time they've been behind our tip */
-    void ConsiderEviction(std::shared_ptr<CNode> pto, int64_t time_in_seconds) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     /** Evict extra outbound peers. If we think our tip may be stale, connect to an extra outbound */
     void CheckForStaleTipAndEvictPeers(int nPowTargetSpacing);
     /** If we have extra outbound peers, try to disconnect the one with the oldest block announcement */
