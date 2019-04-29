@@ -63,7 +63,7 @@ protected:
     p2p_interface & GetP2p() { return _p2p_output._p2p; }
     /// Is p2p enabled
     /// @returns true if p2p is enabled
-    bool P2pEnabled()
+    virtual bool P2pEnabled()
     {
         return _enable_p2p;
     }

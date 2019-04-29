@@ -145,7 +145,7 @@ private:
             uint64_t timestamp,
             MDB_txn * transaction);
 
-    Log                 _log;
-    ReservationsPtr     _reservations;
-    std::mutex          _write_mutex;
+    Log               _log;
+    ReservationsPtr   _reservations;
+    static std::mutex _write_mutex;
 };

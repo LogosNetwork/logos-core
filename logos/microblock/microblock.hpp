@@ -3,6 +3,7 @@
 /// in the Microblock processing
 #pragma once
 #include <logos/consensus/messages/common.hpp>
+#include <logos/consensus/messages/tip.hpp>
 #include <logos/lib/numbers.hpp>
 #include <logos/lib/merkle.hpp>
 #include <functional>
@@ -40,7 +41,7 @@ struct MicroBlock : PrePrepareCommon
 
         for(int i = 0; i < NUM_DELEGATES; ++i)
         {
-            error = logos::read(stream, tips[i]);
+            new (&tips[i]) Tip(error, stream);
             if(error)
             {
                 return;
@@ -56,7 +57,7 @@ struct MicroBlock : PrePrepareCommon
         blake2b_update(&hash, &nbb, sizeof(uint32_t));
         for(int i = 0; i < NUM_DELEGATES; ++i)
         {
-            blake2b_update(&hash, tips[i].data(), HASH_SIZE);
+            tips[i].Hash(hash);
         }
     }
 
@@ -67,5 +68,7 @@ struct MicroBlock : PrePrepareCommon
 
     uint8_t   last_micro_block;    ///< The last microblock in the epoch
     uint32_t  number_batch_blocks; ///< Number of batch blocks in the microblock
-    BlockHash tips[NUM_DELEGATES]; ///< Delegate's batch block tips
+    Tip       tips[NUM_DELEGATES]; ///< Delegate's batch block tips
 };
+
+std::string MBRequestTips_to_string (MicroBlock & block);

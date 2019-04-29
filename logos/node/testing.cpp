@@ -37,7 +37,7 @@ work (1, nullptr)
         } while (new1 == starting1 || new2 == starting2);
     }
     auto iterations1 (0);
-    while (std::any_of (nodes.begin (), nodes.end (), [](std::shared_ptr<logos::node> const & node_a) { return node_a->bootstrap_initiator.in_progress (); }))
+    while (std::any_of (nodes.begin (), nodes.end (), [](std::shared_ptr<logos::node> const & node_a) { return false; }))
     {
         poll ();
         ++iterations1;

@@ -157,12 +157,13 @@ bool EpochVotingManager::GetNextEpochDelegates(
 
     ApprovedEB previous_epoch;
     BlockHash hash;
-
-    if (_store.epoch_tip_get(hash))
+    Tip tip;
+    if (_store.epoch_tip_get(tip))
     {
         LOG_FATAL(_log) << "EpochVotingManager::GetNextEpochDelegates failed to get epoch tip";
         trace_and_halt();
     }
+    hash = tip.digest;
 
     if (!DelegateIdentityManager::IsEpochTransitionEnabled() || !ENABLE_ELECTIONS)
     {

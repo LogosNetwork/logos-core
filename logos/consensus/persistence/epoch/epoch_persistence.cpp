@@ -18,7 +18,8 @@ PersistenceManager<ECT>::Validate(
     const PrePrepare & epoch,
     ValidationStatus * status)
 {
-    BlockHash previous_epoch_hash;
+    Tip epoch_tip;
+    BlockHash & previous_epoch_hash = epoch_tip.digest;
     ApprovedEB previous_epoch;
     using namespace logos;
 
@@ -29,7 +30,7 @@ PersistenceManager<ECT>::Validate(
         return false;
     }
 
-    if (_store.epoch_tip_get(previous_epoch_hash))
+    if (_store.epoch_tip_get(epoch_tip))
     {
         LOG_FATAL(_log) << "PersistenceManager::Validate failed to get epoch tip";
         trace_and_halt();
@@ -53,16 +54,10 @@ PersistenceManager<ECT>::Validate(
     }
 
     // verify microblock tip exists
-    BlockHash micro_block_tip;
+    Tip micro_block_tip;
     if (_store.micro_block_tip_get(micro_block_tip))
     {
         LOG_FATAL(_log) << "PersistenceManager::Validate failed to get microblock tip";
-        trace_and_halt();
-    }
-
-    if (_store.micro_block_tip_get(micro_block_tip))
-    {
-        LOG_FATAL(_log) << "PersistenceManager::Validate micro block tip doesn't exist";
         trace_and_halt();
         return false;
     }
@@ -108,7 +103,7 @@ PersistenceManager<ECT>::ApplyUpdates(
     BlockHash epoch_hash = block.Hash();
     bool transition = EpochVotingManager::ENABLE_ELECTIONS;
 
-    if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(epoch_hash, transaction))
+    if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(block.CreateTip(), transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to store epoch or epoch tip "
                                 << epoch_hash.to_string();
@@ -149,11 +144,11 @@ void
 PersistenceManager<ECT>::LinkAndUpdateTips(
     uint8_t delegate,
     uint32_t epoch_number,
-    const BlockHash & first_request_block,
+    const Tip & first_request_block,
     MDB_txn *transaction)
 {
     // Get previous epoch's request block tip
-    BlockHash prev_e_last;
+    Tip prev_e_last;
     if (_store.request_tip_get(delegate, epoch_number - 1, prev_e_last))
     {
         LOG_FATAL(_log) << "PersistenceManager<ECT>::LinkAndUpdateTips failed to get request block tip for delegate "
@@ -162,7 +157,7 @@ PersistenceManager<ECT>::LinkAndUpdateTips(
     }
 
     // Don't connect chains if current epoch doesn't contain a tip yet. See request block persistence for this case
-    if (first_request_block.is_zero())
+    if (first_request_block.digest.is_zero())
     {
         // Use old request block tip for current epoch
         if (_store.request_tip_put(delegate, epoch_number, prev_e_last, transaction))
@@ -175,7 +170,7 @@ PersistenceManager<ECT>::LinkAndUpdateTips(
     else
     {
         // Update `next` of last request block in previous epoch
-        if (_store.consensus_block_update_next(prev_e_last, first_request_block, ConsensusType::Request, transaction))
+        if (_store.consensus_block_update_next(prev_e_last.digest, first_request_block.digest, ConsensusType::Request, transaction))
         {
             LOG_FATAL(_log) << "PersistenceManager<ECT>::LinkAndUpdateTips failed to update prev epoch's "
                             << "request block tip for delegate " << std::to_string(delegate);
@@ -183,7 +178,7 @@ PersistenceManager<ECT>::LinkAndUpdateTips(
         }
 
         // Update `previous` of first request block in epoch
-        if (_store.request_block_update_prev(first_request_block, prev_e_last, transaction))
+        if (_store.request_block_update_prev(first_request_block.digest, prev_e_last.digest, transaction))
         {
             LOG_FATAL(_log) << "PersistenceManager<ECT>::LinkAndUpdateTips failed to update current epoch's "
                             << "first request block prev for delegate " << std::to_string(delegate);
@@ -205,10 +200,10 @@ bool PersistenceManager<ECT>::BlockExists(
 
 void PersistenceManager<ECT>::MarkDelegateElectsAsRemove(MDB_txn* txn)
 {
-    BlockHash hash;
-    assert(!_store.epoch_tip_get(hash,txn));
+    Tip tip;
+    assert(!_store.epoch_tip_get(tip,txn));
     ApprovedEB epoch;
-    assert(!_store.epoch_get(hash,epoch,txn));
+    assert(!_store.epoch_get(tip.digest,epoch,txn));
 
     for(Delegate& d: epoch.delegates)
     {

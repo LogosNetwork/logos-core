@@ -4,6 +4,7 @@
 ///
 #pragma once
 #include <logos/consensus/messages/common.hpp>
+#include <logos/consensus/messages/tip.hpp>
 #include <logos/lib/merkle.hpp>
 #include <logos/lib/numbers.hpp>
 #include <logos/lib/ecies.hpp>
@@ -169,7 +170,7 @@ public:
             return;
         }
 
-        error = logos::read(stream, micro_block_tip);
+        new (&micro_block_tip) Tip(error, stream);
         if(error)
         {
             return;
@@ -207,7 +208,7 @@ public:
     uint32_t Serialize(logos::stream & stream, bool with_appendix) const
     {
         auto s = PrePrepareCommon::Serialize(stream);
-        s += logos::write(stream, micro_block_tip);
+        s += micro_block_tip.Serialize(stream);
         s += logos::write(stream, transaction_fee_pool);
         for(int i = 0; i < NUM_DELEGATES; ++i)
         {
@@ -220,7 +221,7 @@ public:
     std::string ToJson() const;
     void SerializeJson(boost::property_tree::ptree &) const;
 
-    BlockHash micro_block_tip;          ///< microblock tip of this epoch
+    Tip       micro_block_tip;          ///< microblock tip of this epoch
     Amount    transaction_fee_pool;     ///< this epoch's transaction fee pool
     Delegate  delegates[NUM_DELEGATES]; ///< delegate'ls list
     bool is_extension;

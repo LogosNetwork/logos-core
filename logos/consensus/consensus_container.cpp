@@ -41,6 +41,13 @@ ConsensusContainer::ConsensusContainer(Service & service,
 void
 ConsensusContainer::Start()
 {
+    for (const ConsensusType & CT : CTs)
+    {
+        _timer_mutexes[CT];
+        _timers.emplace(std::make_pair(CT, Timer(_service)));
+        _timer_set[CT] = false;
+        _timer_cancelled[CT] = false;
+    }
     uint8_t delegate_idx;
     std::shared_ptr<ApprovedEB> approvedEb;
     _identity_manager.CheckAdvertise(_cur_epoch_number, true, delegate_idx, approvedEb);
@@ -85,7 +92,7 @@ ConsensusContainer::CreateEpochManager(
 {
     auto res = std::make_shared<EpochManager>(_service, _store, _alarm, config,
                                               _archiver, _transition_state,
-                                              delegate, connection, epoch_number, *this, _p2p._p2p,
+                                              delegate, connection, epoch_number, *this, *this, _p2p._p2p,
                                               config.delegate_id, _peer_manager, eb);
     res->Start();
     return res;
@@ -107,11 +114,11 @@ ConsensusContainer::OnDelegateMessage(
         return result;
     }
 
-	if(!request)
-	{
-	    result.code = logos::process_result::invalid_block_type;
-	    return result;
-	}
+    if(!request)
+    {
+        result.code = logos::process_result::invalid_block_type;
+        return result;
+    }
 
     using DM = DelegateMessage<ConsensusType::Request>;
 
@@ -151,6 +158,134 @@ ConsensusContainer::OnSendRequest(vector<std::shared_ptr<DM>> &blocks)
 }
 
 void
+ConsensusContainer::AttemptInitiateConsensus(ConsensusType CT)
+{
+    // Do nothing if we are retired
+    OptLock lock(_transition_state, _mutex);
+
+    if (_cur_epoch == nullptr)
+    {
+        LOG_WARN(_log) << "ConsensusContainer::AttemptInitiateConsensus - the node is not a delegate. global id: "
+                       << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
+        return;
+    }
+
+    switch (CT) {
+        case ConsensusType::Request:
+            _cur_epoch->_request_manager->OnMessageQueued();
+            break;
+        case ConsensusType::MicroBlock:
+        {
+            auto epoch = GetProposerEpoch();
+            if (epoch)
+            {
+                epoch->_micro_manager->OnMessageQueued();
+            }
+            break;
+        }
+        case ConsensusType::Epoch:  // highly unlikely that epoch block doesn't complete consensus till next epoch start
+            _cur_epoch->_epoch_manager->OnMessageQueued();
+            break;
+        default:
+            LOG_ERROR(_log) << "ConsensusContainer::AttemptInitiateConsensus - invalid consensus type";
+    }
+}
+
+const std::shared_ptr<EpochManager>
+ConsensusContainer::GetProposerEpoch()
+{
+    auto epoch = _cur_epoch;
+    // microblock proposed during epoch transition should be proposed by the new delegate set
+    if (_transition_state != EpochTransitionState::None &&
+        _cur_epoch->GetConnection() != EpochConnection::Transitioning)
+    {
+        if (_trans_epoch == nullptr || _trans_epoch->GetConnection() != EpochConnection::Transitioning)
+        {
+            LOG_WARN(_log) << "ConsensusContainer::GetProposerEpoch - not new delegate set "
+                           << (int) DelegateIdentityManager::GetGlobalDelegateIdx();
+            return nullptr;
+        }
+        epoch = _trans_epoch;
+    }
+    return epoch;
+}
+
+void
+ConsensusContainer::ScheduleTimer(ConsensusType CT, const TimePoint & timeout)
+{
+    std::lock_guard<std::mutex> lock(_timer_mutexes[CT]);
+    // Do nothing if there's a more imminent timer scheduled
+    auto & timer = _timers.at(CT);
+    if (timer.expires_at() <= timeout && _timer_set[CT])
+    {
+        return;
+    }
+    // should be able to cancel / schedule successfully. remove failure check in production
+    auto num_cancelled = timer.expires_at(timeout);
+    if (_timer_set[CT] && !num_cancelled)
+    {
+        LOG_FATAL(_log) << "ConsensusContainer::ScheduleTimer - unexpected timer cancellation for type "
+                        << ConsensusToName(CT);
+        trace_and_halt();
+    }
+
+    timer.async_wait([this, CT](const Error & ec){
+
+        if(ec)
+        {
+            if (ec == boost::asio::error::operation_aborted)
+            {
+                LOG_TRACE(_log) << "ConsensusContainer::ScheduleTimer - Timer cancelled for type "
+                                << ConsensusToName(CT);
+                return;
+            }
+            LOG_INFO(_log) << "ConsensusContainer::ScheduleTimer - Error for type "
+                           << ConsensusToName(CT) << ": " << ec.message();
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(_timer_mutexes[CT]);
+            if (_timer_cancelled[CT])
+            {
+                LOG_DEBUG(_log) << "ConsensusContainer::ScheduleTimer " << ConsensusToName(CT) << " - forced timer cancellation.";
+                assert(!_timer_set[CT]);
+                _timer_cancelled[CT] = false;
+                return;
+            }
+            _timer_set[CT] = false;
+        }
+
+        AttemptInitiateConsensus(CT);
+    });
+
+    // ConsensusManager will cancel the timer right before initiating consensus
+    _timer_set[CT] = true;
+    LOG_DEBUG(_log) << "ConsensusContainer::ScheduleTimer " << ConsensusToName(CT) << " - scheduled new timer.";
+}
+
+void
+ConsensusContainer::CancelTimer(ConsensusType CT)
+{
+    std::lock_guard<std::mutex> lock(_timer_mutexes[CT]);
+
+    auto & timer = _timers.at(CT);
+    // Borrowing Devon's design:
+    // The below condition is true when the timeout callback
+    // has been scheduled and is about to be invoked. In this
+    // case, the callback cannot be cancelled, and we have to
+    // 'manually' cancel the callback by setting _cancel_timer.
+    // When the callback is invoked, it will check this value
+    // and return early.
+    auto now = Clock::now();
+    if(now < timer.expires_at() && !timer.cancel() && _timer_set[CT])
+    {
+        LOG_DEBUG(_log) << "ConsensusContainer::CancelTimer " << ConsensusToName(CT) << " - force cancel.";
+        _timer_cancelled[CT] = true;
+    }
+    _timer_set[CT] = false;
+}
+
+void
 ConsensusContainer::BufferComplete(
     logos::process_return & result)
 {
@@ -173,7 +308,7 @@ ConsensusContainer::OnDelegateMessage(
 {
     OptLock lock(_transition_state, _mutex);
     logos::process_return result;
-	using Request = DelegateMessage<ConsensusType::MicroBlock>;
+    using Request = DelegateMessage<ConsensusType::MicroBlock>;
 
     if (_cur_epoch == nullptr)
     {
@@ -183,22 +318,14 @@ ConsensusContainer::OnDelegateMessage(
         return result;
     }
 
-    auto epoch = _cur_epoch;
-    // microblock proposed during epoch transition should be proposed by the new delegate set
-    if (_transition_state != EpochTransitionState::None &&
-                _cur_epoch->GetConnection() != EpochConnection::Transitioning)
+    auto epoch = GetProposerEpoch();
+    if (!epoch)
     {
-         if (_trans_epoch == nullptr || _trans_epoch->GetConnection() != EpochConnection::Transitioning)
-         {
-             result.code = logos::process_result::old;
-             LOG_WARN(_log) << "ConsensusContainer::OnSendRequest microblock, not new delegate set "
-                            << (int) DelegateIdentityManager::GetGlobalDelegateIdx();
-             return result;
-         }
-         epoch = _trans_epoch;
+        result.code = logos::process_result::old;
+        return result;
     }
 
-    message->primary_delegate = epoch->_epoch_manager->GetDelegateIndex();
+    message->delegates_epoch_number = epoch->_epoch_number;
     epoch->_micro_manager->OnDelegateMessage(
         std::static_pointer_cast<Request>(message), result);
 
@@ -221,7 +348,7 @@ ConsensusContainer::OnDelegateMessage(
         return result;
     }
 
-    message->primary_delegate = _cur_epoch->_epoch_manager->GetDelegateIndex();
+    message->delegates_epoch_number = _cur_epoch_number;
     _cur_epoch->_epoch_manager->OnDelegateMessage(
         std::static_pointer_cast<Request>(message), result);
 
@@ -298,8 +425,9 @@ ConsensusContainer::EpochTransitionEventsStart()
     {
         // update epoch number
         ApprovedEB eb;
-        BlockHash hash;
-        if (_store.epoch_tip_get(hash))
+        Tip tip;
+        BlockHash &hash = tip.digest;
+        if (_store.epoch_tip_get(tip))
         {
             LOG_FATAL(_log) << "ConsensusContainer::EpochTransitionEventsStart failed to get epoch tip";
             trace_and_halt();
@@ -381,7 +509,6 @@ ConsensusContainer::EpochTransitionStart(uint8_t delegate_idx)
     {
         CheckEpochNull(!_trans_epoch, "EpochTransitionStart");
         _cur_epoch = _trans_epoch;
-        _cur_epoch->UpdateRequestPromoter();
         _trans_epoch = nullptr;
     }
 
@@ -397,9 +524,10 @@ ConsensusContainer::OnPostCommit(uint32_t epoch_number)
 {
     std::lock_guard<std::mutex>   lock(_mutex);
 
-    CheckEpochNull(!_cur_epoch || !_trans_epoch, "OnPostCommit");
+    CheckEpochNull(!_cur_epoch && !_trans_epoch, "OnPostCommit");
 
-    if (_trans_epoch->_epoch_number == epoch_number)
+    // only transition if it hasn't happened already (avoiding transitioning twice in race conditions)
+    if (_trans_epoch && _trans_epoch->_epoch_number == epoch_number)
     {
         TransitionPersistent();
     }
@@ -411,7 +539,6 @@ ConsensusContainer::TransitionPersistent()
     if (_trans_epoch->_delegate != EpochTransitionDelegate::PersistentReject)
     {
         _cur_epoch.swap(_trans_epoch);
-        _cur_epoch->UpdateRequestPromoter();
         _trans_epoch->_delegate = EpochTransitionDelegate::PersistentReject;
         _trans_epoch->_connection_state = EpochConnection::WaitingDisconnect;
     }
@@ -422,7 +549,13 @@ ConsensusContainer::TransitionDelegate(EpochTransitionDelegate delegate)
 {
     if (delegate == EpochTransitionDelegate::Retiring)
     {
-        CheckEpochNull(!_cur_epoch, "TransitionDelegate Retiring");
+        if (!_cur_epoch)
+        {
+            // We may have already called TransitionRetiring once (from OnPrePrepareRejected)
+            CheckEpochNull(!_trans_epoch || _trans_epoch->_delegate != EpochTransitionDelegate::RetiringForwardOnly,
+                    "TransitionDelegateRetiring");
+            return;
+        }
         TransitionRetiring();
     }
     else if (delegate == EpochTransitionDelegate::Persistent)

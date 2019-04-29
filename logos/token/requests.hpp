@@ -182,6 +182,9 @@ struct Revoke : TokenRequest
 
     bool operator==(const Request & other) const override;
 
+    // offset of 128 to facilitate index lookup from revoke source's receive
+    static constexpr uint16_t REVOKE_OFFSET = 0x0080;
+
     AccountAddress source;
     Transaction    transaction;
 };
@@ -478,6 +481,9 @@ struct TokenSend : TokenRequest
 
     TokenSend(bool & error,
               boost::property_tree::ptree const & tree);
+
+    bool AddTransaction(const AccountAddress & to, const Amount & amount);
+    bool AddTransaction(const Transaction & transaction);
 
     Amount GetTokenTotal() const override;
     logos::AccountType GetSourceType() const override;

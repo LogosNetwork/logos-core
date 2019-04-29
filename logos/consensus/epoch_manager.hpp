@@ -13,6 +13,7 @@
 
 class Archiver;
 class NewEpochEventHandler;
+class ConsensusScheduler;
 namespace logos { class alarm; };
 
 class EpochInfo
@@ -72,6 +73,7 @@ public:
                  EpochTransitionDelegate delegate,
                  EpochConnection connection,
                  const uint32_t epoch_number,
+                 ConsensusScheduler & scheduler,
                  NewEpochEventHandler & event_handler,
                  p2p_interface & p2p,
                  uint8_t delegate_id,
@@ -114,17 +116,6 @@ public:
     DelegateIdentityManager & GetIdentityManager() override;
 
 private:
-
-    /// Update secondary request handler promoter during epoch transition
-    void UpdateRequestPromoter()
-    {
-        LOG_DEBUG(_log) << "DelegateIdentityManager::UpdateRequestPromoter epoch " << _epoch_number
-                        << " delegate " << TransitionDelegateToName(_delegate) << " " << (int)_delegate_id
-                        << " global delegate "  << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
-        _request_manager->UpdateMessagePromoter();
-        _micro_manager->UpdateMessagePromoter();
-        _epoch_manager->UpdateMessagePromoter();
-    }
 
     std::atomic<EpochTransitionState> &     _state;             ///< State of transition
     std::atomic<EpochTransitionDelegate>    _delegate;          ///< Type of transition delegate

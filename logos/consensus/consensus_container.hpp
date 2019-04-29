@@ -76,6 +76,17 @@ public:
     virtual void EpochTransitionEventsStart() = 0;
 };
 
+class ConsensusScheduler
+{
+protected:
+    using TimePoint  = boost::posix_time::ptime;
+
+public:
+    virtual void AttemptInitiateConsensus(ConsensusType CT) = 0;
+    virtual void ScheduleTimer(ConsensusType CT, const TimePoint & timeout) = 0;
+    virtual void CancelTimer(ConsensusType CT) = 0;
+};
+
 /// Binds accepted socket to the correct ConsensusNetIOManager
 /// Exposes DelegateIdentityManager to make/validate AddressAd
 class PeerBinder
@@ -98,7 +109,8 @@ public:
 /// This class serves as a container for ConsensusManagers
 /// and other consensus-related types and provides an interface
 /// to the node object.
-class ConsensusContainer : public InternalConsensus,
+class ConsensusContainer : public ConsensusScheduler,
+                           public InternalConsensus,
                            public NewEpochEventHandler,
                            public TxChannelExt,
                            public PeerBinder
@@ -112,11 +124,8 @@ class ConsensusContainer : public InternalConsensus,
     using Accounts   = AccountAddress[NUM_DELEGATES];
     using BindingMap = std::map<uint, std::shared_ptr<EpochManager>>;
 
-    struct ConnectionCache
-    {
-        std::shared_ptr<Socket> socket;
-        Endpoint endpoint;
-    };
+    using Timer      = boost::asio::deadline_timer;
+    using Error      = boost::system::error_code;
 
 public:
 
@@ -155,6 +164,20 @@ public:
     ///     @param[in] blocks state blocks containing the transaction
     ///     @return responses containinig process_result and hash
     Responses OnSendRequest(std::vector<std::shared_ptr<DM>> &blocks) override;
+
+    /// Tells current epoch manager, if any, to initiate consensus of given type
+    ///     @param[in] consensus type
+    void AttemptInitiateConsensus(ConsensusType CT) override;
+
+    // Schedule a future call to AttemptInitiateConsensus at `timeout`, if a current timer
+    // doesn't exist or expires after `timeout`
+    //      @param[in] consensus type
+    //      @param[in] absolute time point at which callback is executed
+    void ScheduleTimer(ConsensusType CT, const TimePoint &timeout) override;
+
+    // Cancel a scheduled future call to AttemptInitiateConsensus at `timeout`, if one exists
+    //      @param[in] consensus type
+    void CancelTimer(ConsensusType CT) override;
 
     /// Called when buffering is done for batch block consensus.
     ///
@@ -196,14 +219,19 @@ public:
     /// Start consensus container
     void Start();
 
+    PeerInfoProvider & GetPeerInfoProvider()
+    {
+        return _p2p;
+    }
+
 protected:
 
-	/// Initiate MicroBlock consensus, internal request
-	///		@param[in] MicroBlock containing the batch blocks
+    /// Initiate MicroBlock consensus, internal request
+    ///        @param[in] MicroBlock containing the batch blocks
     logos::process_return OnDelegateMessage(std::shared_ptr<DelegateMessage<ConsensusType::MicroBlock>> message) override;
 
     /// Initiate Epoch consensus, internal request
-    ///		@param[in] Epoch containing the microblocks
+    ///        @param[in] Epoch containing the microblocks
     logos::process_return OnDelegateMessage(std::shared_ptr<DelegateMessage<ConsensusType::Epoch>> message) override;
 
 private:
@@ -296,6 +324,12 @@ private:
     /// @returns epoch manager or null
     std::shared_ptr<EpochManager> GetEpochManager(uint32_t epoch_number);
 
+    /// Get correct epoch manager pointer to propose next micro block
+    /// Requires caller to lock _transition_state mutex
+    /// @return shared_ptr to correct EpochManager, or nullptr if not part of new delegate set
+    const std::shared_ptr<EpochManager> GetProposerEpoch();
+
+
     static const std::chrono::seconds GARBAGE_COLLECT;
 
     static std::atomic<uint32_t>      _cur_epoch_number;    ///< current epoch number
@@ -312,8 +346,11 @@ private:
     DelegateIdentityManager &         _identity_manager;    ///< identity manager reference
     std::atomic<EpochTransitionState> _transition_state;    ///< transition state
     EpochTransitionDelegate           _transition_delegate; ///< type of delegate during transition
-    std::queue<ConnectionCache>       _connections_queue;   ///< queue for delegates set connections
     BindingMap                        _binding_map;         ///< map for binding connection to epoch manager
     static bool                       _validate_sig_config; ///< validate sig in BBS for added security
     ContainerP2p                      _p2p;                 ///< p2p-related data
+    umap<ConsensusType, Timer>        _timers;
+    umap<ConsensusType, bool>         _timer_set;
+    umap<ConsensusType, bool>         _timer_cancelled;
+    umap<ConsensusType, std::mutex>   _timer_mutexes;
 };

@@ -10,8 +10,10 @@
 #include <logos/lib/trace.hpp>
 #include <logos/common.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
+#include <logos/node/node.hpp>
 
 constexpr uint128_t PersistenceManager<R>::MIN_TRANSACTION_FEE;
+std::mutex PersistenceManager<R>::_write_mutex;
 
 PersistenceManager<R>::PersistenceManager(Store & store,
                                           ReservationsPtr reservations,
@@ -41,6 +43,7 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
     // doesn't think the block exists, but then direct consensus persists the block, and P2P tries to persist again.
     // Ultimately we want to use the same global queue for direct consensus, P2P, and bootstrapping.
 
+    std::lock_guard<std::mutex> lock (_write_mutex);
     if (BlockExists(message))
     {
         LOG_DEBUG(_log) << "PersistenceManager<R>::ApplyUpdates - request block already exists, ignoring";
@@ -59,9 +62,8 @@ void PersistenceManager<R>::ApplyUpdates(const ApprovedRB & message,
                     << message.requests.size()
                     << " Requests";
 
-    // SYL integration: need to ensure the operations below execute atomically
+    // Need to ensure the operations below execute atomically
     // Otherwise, multiple calls to batch persistence may overwrite balance for the same account
-    std::lock_guard<std::mutex> lock (_write_mutex);
     {
         logos::transaction transaction(_store.environment, nullptr, true);
         StoreRequestBlock(message, transaction, delegate_id);
@@ -144,14 +146,6 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
     // Move on to check account info
-    //sequence number
-    if(info->block_count != request->sequence)
-    {
-        result.code = logos::process_result::wrong_sequence_number;
-        LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request->sequence
-            << " expecting=" << info->block_count;
-        return false;
-    }
 
     // No previous block set.
     if(request->previous.is_zero() && info->block_count)
@@ -197,6 +191,37 @@ bool PersistenceManager<R>::ValidateRequest(
         else
         {
             result.code = logos::process_result::fork;
+            return false;
+        }
+    }
+    //sequence number
+    else if(info->block_count != request->sequence)
+    {
+        result.code = logos::process_result::wrong_sequence_number;
+        LOG_INFO(_log) << "wrong_sequence_number, request sqn=" << request->sequence
+            << " expecting=" << info->block_count;
+        return false;
+    }
+    else
+    {
+        LOG_INFO(_log) << "right_sequence_number, request sqn=" << request->sequence
+                    << " expecting=" << info->block_count;
+    }
+    // No previous block set.
+    if(request->previous.is_zero() && info->block_count)
+    {
+        result.code = logos::process_result::fork;
+        return false;
+    }
+
+    // This account has issued at least one send transaction.
+    if(info->block_count)
+    {
+        if(!_store.request_exists(request->previous))
+        {
+            result.code = logos::process_result::gap_previous;
+            LOG_WARN (_log) << "GAP_PREVIOUS: cannot find previous hash " << request->previous.to_string()
+                << "; current account info head is: " << info->head.to_string();
             return false;
         }
     }
@@ -544,8 +569,9 @@ bool PersistenceManager<R>::ValidateTokenTransfer(RequestPtr request,
         std::shared_ptr<logos::Account> source;
         if(_store.account_get(request->GetSource(), source))
         {
-            // TODO: Bootstrapping
             result.code = logos::process_result::unknown_source_account;
+            // TODO: high speed Bootstrapping
+            logos_global::Bootstrap();
             return false;
         }
 
@@ -688,7 +714,8 @@ void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,
         {
             // Get current epoch's request block tip (updated by Epoch Persistence),
             // which is also the end of previous epoch's request block chain
-            BlockHash cur_tip;
+            Tip cur_tip;
+            BlockHash & cur_tip_hash = cur_tip.digest;
             if (_store.request_tip_get(message.primary_delegate, message.epoch_number, cur_tip))
             {
                 LOG_FATAL(_log) << "PersistenceManager<BSBCT>::StoreBatchMessage failed to get request block tip for delegate "
@@ -696,7 +723,7 @@ void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,
                 trace_and_halt();
             }
             // Update `next` of last request block in previous epoch
-            if (_store.consensus_block_update_next(cur_tip, hash, ConsensusType::Request, transaction))
+            if (_store.consensus_block_update_next(cur_tip_hash, hash, ConsensusType::Request, transaction))
             {
                 LOG_FATAL(_log) << "PersistenceManager<BSBCT>::StoreBatchMessage failed to update prev epoch's "
                                 << "request block tip";
@@ -704,7 +731,7 @@ void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,
             }
 
             // Update `previous` of this block
-            message.previous = cur_tip;
+            message.previous = cur_tip_hash;
         }
     }
 
@@ -717,7 +744,7 @@ void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,
         trace_and_halt();
     }
 
-    if(_store.request_tip_put(delegate_id, message.epoch_number, hash, transaction))
+    if(_store.request_tip_put(delegate_id, message.epoch_number, message.CreateTip(), transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager::StoreRequestBlock - "
                         << "Failed to store batch block tip with hash: "
@@ -730,7 +757,8 @@ void PersistenceManager<R>::StoreRequestBlock(const ApprovedRB & message,
     {
         if(_store.consensus_block_update_next(message.previous, hash, ConsensusType::Request, transaction))
         {
-            // TODO: bootstrap here.
+            // TODO: high speed Bootstrapping
+            logos_global::Bootstrap();
         }
     }
 }
@@ -767,17 +795,29 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
         return;
     }
 
+    auto hash = request->GetHash();
+
     // This can happen when a duplicate request
     // is accepted. We can ignore this transaction.
     if(request->previous != info->head)
     {
-        LOG_INFO(_log) << "Block previous ("
-                       << request->previous.to_string()
-                       << ") does not match account head ("
-                       << info->head.to_string()
-                       << "). Suspected duplicate request - "
-                       << "ignoring.";
-        return;
+        if (hash == info->head || _store.request_exists(hash))
+        {
+            LOG_INFO(_log) << "PersistenceManager<R>::ApplyRequest - Block previous ("
+                           << request->previous.to_string()
+                           << ") does not match account head ("
+                           << info->head.to_string()
+                           << "). Suspected duplicate request - "
+                           << "ignoring.";
+            return;
+        }
+        // Somehow a fork slipped through
+        else
+        {
+            LOG_FATAL(_log) << "PersistenceManager<R>::ApplyRequest - encountered fork with hash "
+                            << hash.to_string();
+            trace_and_halt();
+        }
     }
 
     info->block_count++;
@@ -909,7 +949,18 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             //       Logos designated for the account's balance.
             account.balance += request->fee - MIN_TRANSACTION_FEE;
 
+            // SG: put Issuance Request on TokenAccount's receive chain as genesis receive,
+            // update TokenAccount's relevant fields
+            ReceiveBlock receive(0, issuance->GetHash(), 0);
+            account.receive_head = receive.Hash();
+            account.receive_count++;
+            account.modified = logos::seconds_since_epoch();
+            account.issuance_request = receive.Hash();
+
             _store.token_account_put(issuance->token_id, account, transaction);
+
+            PlaceReceive(receive, timestamp, transaction);
+
             break;
         }
         case RequestType::IssueAdditional:
@@ -956,7 +1007,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
 
                 entry->balance -= revoke->transaction.amount;
 
-                ReceiveBlock receive(user_account.receive_head, revoke->GetHash(), 0);
+                ReceiveBlock receive(user_account.receive_head, revoke->GetHash(), Revoke::REVOKE_OFFSET);
                 user_account.receive_head = receive.Hash();
 
                 PlaceReceive(receive, timestamp, transaction);
@@ -1027,9 +1078,16 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             if(update->action == ControllerAction::Add)
             {
                 // Update an existing controller
+                // SG: Add individual controller privileges to existing controller
                 if(controller != token_account->controllers.end())
                 {
-                    *controller = update->controller;
+                    for(int i=0; i<CONTROLLER_PRIVILEGE_COUNT; i++)
+                    {
+                        if (update->controller.privileges[i])
+                        {
+                            controller->privileges.Set(i, true);
+                        }
+                    }
                 }
 
                 // Add a new controller
@@ -1041,7 +1099,23 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             else if(update->action == ControllerAction::Remove)
             {
                 assert(controller != token_account->controllers.end());
-                token_account->controllers.erase(controller);
+                // SG: Remove individual privileges from existing controller
+                bool remove_all = true;
+                for(int i=0; i<CONTROLLER_PRIVILEGE_COUNT; i++)
+                {
+                    if (update->controller.privileges[i])
+                    {
+                        controller->privileges.Set(i, false);
+                        remove_all = false;
+                    }
+
+                }
+
+                // SG: Remove entire controller if no privileges specified
+                if(remove_all)
+                {
+                    token_account->controllers.erase(controller);
+                }
             }
 
             break;
@@ -1347,15 +1421,7 @@ void PersistenceManager<R>::PlaceReceive(ReceiveBlock & receive,
             }
 
             ApprovedRB approved;
-            if(_store.request_block_get(request->locator.hash, approved, transaction))
-            {
-                LOG_FATAL(_log) << "PersistenceManager::PlaceReceive - "
-                                << "Failed to get a previous batch state block with hash: "
-                                << request->locator.hash.to_string();
-                trace_and_halt();
-            }
-
-            auto timestamp_b = approved.timestamp;
+            auto timestamp_b = (_store.request_block_get(request->locator.hash, approved, transaction)) ? 0 : approved.timestamp;
             bool a_is_less;
             if(timestamp_a != timestamp_b)
             {
@@ -1847,11 +1913,18 @@ bool PersistenceManager<R>::ValidateRequest(
 bool PersistenceManager<R>::IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn)
 {
     assert(txn != nullptr);
-    BlockHash hash; 
-    assert(!_store.epoch_tip_get(hash,txn));
+    Tip tip;
+    BlockHash & hash = tip.digest;
+    if(_store.epoch_tip_get(tip,txn))
+    {
+        trace_and_halt();
+    }
 
     ApprovedEB eb;
-    assert(!_store.epoch_get(hash,eb,txn));
+    if(_store.epoch_get(hash,eb,txn))
+    {
+        trace_and_halt();
+    }
 
     return (eb.epoch_number+2) == cur_epoch_num;
 }

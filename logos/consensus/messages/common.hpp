@@ -71,10 +71,12 @@ CONSENSUS_TYPE
     Epoch      = 2
 );
 
+static const ConsensusType CTs[] = {ConsensusType::Request, ConsensusType::MicroBlock, ConsensusType::Epoch};
+
 static const size_t NUM_DELEGATES        = 32;
 static const size_t CONSENSUS_BATCH_SIZE = 1500;
 
-using BatchTips       = BlockHash[NUM_DELEGATES];
+using BatchTipHashes  = BlockHash[NUM_DELEGATES];
 using ParicipationMap = std::bitset<NUM_DELEGATES>;
 using RejectionMap    = std::vector<bool>;
 
@@ -99,6 +101,7 @@ struct AggSignature
 
     uint32_t Serialize(logos::stream & stream) const;
     void SerializeJson(boost::property_tree::ptree & tree) const;
+    void clear();
 
     bool operator== (AggSignature const &) const;
     bool operator!= (AggSignature const &) const;
@@ -205,6 +208,7 @@ struct PrePrepareCommon
 
     uint8_t     primary_delegate;
     uint32_t    epoch_number;
+    uint32_t    delegates_epoch_number;//Identify the set of delegates approved the block
     uint32_t    sequence;
     uint64_t    timestamp;
     mutable BlockHash   previous;

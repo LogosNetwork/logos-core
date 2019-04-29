@@ -9,8 +9,10 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/persistence/persistence.hpp>
 #include <logos/consensus/persistence/nondel_persistence_manager_incl.hpp>
+#include <logos/node/peer_provider.hpp>
 
 constexpr Milliseconds P2P_DEFAULT_CLOCK_DRIFT = Milliseconds(1000*60*60);
+constexpr int P2P_GET_PEER_NEW_SESSION = -1;
 
 class ConsensusP2pOutput
 {
@@ -118,9 +120,8 @@ private:
     friend class ConsensusP2p<CT>;
 };
 
-constexpr int P2P_GET_PEER_NEW_SESSION = -1;
 
-class ContainerP2p
+class ContainerP2p: public PeerInfoProvider
 {
 public:
     ContainerP2p(p2p_interface & p2p,

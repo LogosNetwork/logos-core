@@ -74,8 +74,9 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         micro_block.previous = microblock_hash;
         micro_block.last_micro_block = 0;
         microblock_hash = micro_block.Hash();
+        auto microblock_tip = micro_block.CreateTip();
         if (_store.micro_block_put(micro_block, transaction) ||
-                _store.micro_block_tip_put(microblock_hash, transaction) )
+                _store.micro_block_tip_put(microblock_tip, transaction) )
         {
             LOG_FATAL(_log) << "update failed to insert micro_block or micro_block tip"
                             << microblock_hash.to_string();
@@ -91,7 +92,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
         epoch.sequence = 0;
         epoch.timestamp = 0;
         epoch.previous = epoch_hash;
-        epoch.micro_block_tip = microblock_hash;
+        epoch.micro_block_tip = microblock_tip;
 
         bls::KeyPair bls_key;
         ECIESPublicKey ecies_key;
@@ -172,7 +173,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
 
         epoch_hash = epoch.Hash();
         if(_store.epoch_put(epoch, transaction) ||
-                _store.epoch_tip_put(epoch_hash, transaction))
+                _store.epoch_tip_put(epoch.CreateTip(), transaction))
         {
             LOG_FATAL(_log) << "update failed to insert epoch or epoch tip"
                             << epoch_hash.to_string();
@@ -194,7 +195,8 @@ DelegateIdentityManager::Init(const Config &config)
 
     EpochVotingManager::ENABLE_ELECTIONS = cmconfig.enable_elections;
 
-    BlockHash epoch_tip;
+    Tip epoch_tip;
+    BlockHash &epoch_tip_hash = epoch_tip.digest;
     uint32_t epoch_number = 0;
     if (_store.epoch_tip_get(epoch_tip))
     {
@@ -204,7 +206,7 @@ DelegateIdentityManager::Init(const Config &config)
     else
     {
         ApprovedEB previous_epoch;
-        if (_store.epoch_get(epoch_tip, previous_epoch))
+        if (_store.epoch_get(epoch_tip_hash, previous_epoch))
         {
             LOG_FATAL(_log) << "DelegateIdentityManager::Init Failed to get epoch: " << epoch_tip.to_string();
             trace_and_halt();
@@ -298,7 +300,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
                      amount,
                      0,                           // transaction fee
                      pair.prv.data,
-                     pair.pub,
+                     pair.pub, // SG: Sign with correct key
                      work);
 
         genesis_account.balance = genesis_account.balance.number() - amount.number();
@@ -374,7 +376,8 @@ DelegateIdentityManager::IdentifyDelegates(
         return;
     }
 
-    BlockHash epoch_tip;
+    Tip epoch_tip;
+    BlockHash & epoch_tip_hash = epoch_tip.digest;
     if (_store.epoch_tip_get(epoch_tip))
     {
         LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get epoch tip";
@@ -382,7 +385,7 @@ DelegateIdentityManager::IdentifyDelegates(
     }
 
     epoch = std::make_shared<ApprovedEB>();
-    if (_store.epoch_get(epoch_tip, *epoch))
+    if (_store.epoch_get(epoch_tip_hash, *epoch))
     {
         LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get epoch: "
                         << epoch_tip.to_string();
@@ -418,13 +421,15 @@ DelegateIdentityManager::IdentifyDelegates(
     uint8_t &delegate_idx,
     ApprovedEBPtr & epoch)
 {
+	Tip tip;
     delegate_idx = NON_DELEGATE;
     BlockHash hash;
-    if (_store.epoch_tip_get(hash))
+    if (_store.epoch_tip_get(tip))
     {
         LOG_FATAL(_log) << "DelegateIdentityManager::IdentifyDelegates failed to get epoch tip";
         trace_and_halt();
     }
+    hash = tip.digest;
 
     epoch = std::make_shared<ApprovedEB>();
 
@@ -476,9 +481,10 @@ DelegateIdentityManager::StaleEpoch()
 void
 DelegateIdentityManager::GetCurrentEpoch(BlockStore &store, ApprovedEB &epoch)
 {
-    BlockHash hash;
+    Tip tip;
+    BlockHash &hash = tip.digest;
 
-    if (store.epoch_tip_get(hash))
+    if (store.epoch_tip_get(tip))
     {
         trace_and_halt();
     }
@@ -1317,6 +1323,7 @@ DelegateIdentityManager::UpdateAddressAd(uint32_t epoch_number, uint8_t delegate
 
 uint8_t
 DelegateIdentityManager::GetDelegateIdFromCache(uint32_t cur_epoch_number) {
+    std::lock_guard<std::mutex> lock(_cache_mutex);
     auto it = _idx_cache.find(cur_epoch_number);
     if (it != _idx_cache.end()) {
         return it->second;

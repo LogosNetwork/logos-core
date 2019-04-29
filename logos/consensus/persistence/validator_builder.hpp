@@ -46,5 +46,6 @@ private:
     Log                                         _log;
     static std::shared_ptr<MessageValidator>    _cached_validator;
     static uint32_t                             _cached_epoch;
+    static std::mutex                           _mutex;
 };
 

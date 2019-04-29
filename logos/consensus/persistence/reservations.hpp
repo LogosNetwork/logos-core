@@ -42,7 +42,7 @@ public:
                                    const AccountAddress & account) {}
 protected:
 
-    static ReservationCache _reservations;
+    static ReservationCache _cache;
     Store &                 _store;
     Log                     _log;
 };

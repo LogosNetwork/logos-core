@@ -9,7 +9,6 @@
 
 boost::property_tree::ptree MicroBlockTester::_request;
 
-//TODO double check with Greg
 
 bool
 MicroBlockTester::microblock_tester(
@@ -105,7 +104,7 @@ MicroBlockTester::block_create_test(
             batch_block.previous = previous[i_del];
             previous[i_del] = batch_block.Hash();
             node.store.request_block_put(batch_block, transaction);
-            node.store.request_tip_put(i_del, batch_block.epoch_number, previous[i_del], transaction);
+            node.store.request_tip_put(i_del, batch_block.epoch_number, batch_block.CreateTip(), transaction);
         }
     }
     response (response_l);

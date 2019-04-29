@@ -127,6 +127,7 @@ public:
     mdb_val (logos::uint128_union const &);
     mdb_val (uint8_t const & v);
     mdb_val (const BlockHash & v);
+    mdb_val (const uint64_t & v);
     void * data () const;
     size_t size () const;
     logos::uint256_union uint256 () const;

@@ -34,7 +34,10 @@ TokenRequest::TokenRequest(bool & error,
 
     try
     {
-        error = token_id.decode_hex(tree.get<std::string>(TOKEN_ID));
+        if(tree.get<std::string>(TOKEN_ID)!="placeholder")
+        {
+            error = token_id.decode_hex(tree.get<std::string>(TOKEN_ID));
+        }
     }
     catch(...)
     {
@@ -87,7 +90,7 @@ bool TokenRequest::ValidateTokenAmount(const Amount & amount, bool non_zero) con
         return false;
     }
 
-    return amount.number() % TOKEN_RAW == 0;
+    return true;
 }
 
 logos::AccountType TokenRequest::GetAccountType() const
@@ -224,8 +227,15 @@ boost::property_tree::ptree ControllerInfo::SerializeJson() const
                                      return GetControllerPrivilegeField(pos);
                                  }));
 
-    tree.add_child(PRIVILEGES, privileges_tree);
-
+    // SG: maintain consistent data structure for JSON, no priveleges is empy array
+    if(privileges_tree.empty())
+    {
+        tree.put(PRIVILEGES, "[]");
+    }
+    else
+    {
+        tree.add_child(PRIVILEGES, privileges_tree);
+    }
     return tree;
 }
 

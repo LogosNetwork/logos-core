@@ -126,48 +126,42 @@ Request::Request(bool & error,
             return;
         }
 
-        if(tree.find(SIGNATURE)!=tree.not_found())
-        {
-            error = signature.decode_hex(tree.get<std::string>(SIGNATURE));
-            if(error)
-            {
-                return;
-            }
-        }
-        else
-        {
-            AccountPrivKey prv;
-            error = prv.decode_hex(tree.get<std::string>(PRIVATE_KEY));
-            if(error)
-            {
-                return;
-            }
-            AccountPubKey pub;
-            error = pub.decode_hex(tree.get<std::string>(PUBLIC_KEY));
-            if(error)
-            {
-                return;
-            }
-            Sign(prv,pub);
-        }
-
         error = logos::from_string_hex(tree.get<std::string>(WORK, "0"), work);
         if(error)
         {
             return;
         }
 
-        //error = next.decode_hex(tree.get<std::string>(NEXT, ""));
-        //if(error)
-        //{
-        //    return;
-        //}
-
         Hash();
     }
     catch (...)
     {
         error = true;
+    }
+}
+
+void Request::SignAndHash(bool & error, boost::property_tree::ptree const & tree)
+{
+
+    using namespace request::fields;
+    if(tree.find(SIGNATURE)==tree.not_found())
+    {
+        AccountPrivKey prv;
+        error = prv.decode_hex(tree.get<std::string>(PRIVATE_KEY));
+        if(error)
+        {
+            return;
+        }
+        Sign(prv);
+    }
+    else
+    {
+        error = signature.decode_hex(tree.get<std::string>(SIGNATURE));
+        if(error)
+        {
+            return;
+        }
+        Hash();
     }
 }
 
@@ -497,7 +491,7 @@ Change::Change(bool & error,
             return;
         }
 
-        Hash();
+        SignAndHash(error, tree);
     }
     catch(...)
     {
@@ -686,7 +680,7 @@ Send::Send(bool & error,
             }
         }
 
-        Hash();
+        SignAndHash(error, tree);
     }
     catch (...)
     {
@@ -734,7 +728,7 @@ Amount Send::GetLogosTotal() const
                                      return a + t.amount;
                                  });
 
-    return total + Request::GetLogosTotal();
+    return total;
 }
 
 bool Send::AddTransaction(const AccountAddress & to, const Amount & amount)
@@ -785,8 +779,6 @@ boost::property_tree::ptree Send::SerializeJson() const
         transactions_tree.push_back(std::make_pair("", cur_transaction));
     }
     tree.add_child("transactions", transactions_tree);
-
-    tree.put("hash", digest.to_string());
 
     return tree;
 }

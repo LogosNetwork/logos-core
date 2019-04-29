@@ -3,13 +3,14 @@
 
 #include <logos/consensus/persistence/reservations.hpp>
 #include <logos/consensus/consensus_container.hpp>
+#include <logos/node/node.hpp>
 
-ReservationCache Reservations::_reservations;
+ReservationCache Reservations::_cache;
 
 void
 Reservations::Release(const AccountAddress & account)
 {
-    _reservations.erase(account);
+    _cache.erase(account);
 }
 
 // TODO: We should only write to database when the program terminates on an uncaught exception;
@@ -22,7 +23,7 @@ ConsensusReservations::CanAcquire(const AccountAddress & account,
     logos::reservation_info info;
 
     // Check cache
-    if(_reservations.find(account) == _reservations.end())
+    if(_cache.find(account) == _cache.end())
     {
         // Not in LMDB either
         if (_store.reservation_get(account, info))
@@ -32,7 +33,9 @@ ConsensusReservations::CanAcquire(const AccountAddress & account,
         else // populate cache with database reservation
         {
             // TODO: Check bootstrap since we might have died and now fallen behind
-            _reservations[account] = info;
+            _cache[account] = info;
+            // TODO: high speed bootstrap
+            logos_global::Bootstrap();
             return false;
         }
     }
@@ -45,7 +48,7 @@ ConsensusReservations::CanAcquire(const AccountAddress & account,
                        << account.to_string()
                        << " which is already in the Reservations cache.";
 
-        info = _reservations[account];
+        info = _cache[account];
     }
 
     // Reservation exists
@@ -69,15 +72,15 @@ ConsensusReservations::UpdateReservation(const BlockHash & hash,
 {
     uint32_t current_epoch = ConsensusContainer::GetCurEpochNumber();
 
-    if(_reservations.find(account) != _reservations.end() &&
-           _reservations[account].reservation != hash)
+    if(_cache.find(account) != _cache.end() &&
+           _cache[account].reservation != hash)
     {
-        if (_reservations[account].reservation_epoch + PersistenceManager<R>::RESERVATION_PERIOD > current_epoch)
+        if (_cache[account].reservation_epoch + PersistenceManager<R>::RESERVATION_PERIOD > current_epoch)
         {
             LOG_FATAL(_log) << "ConsensusReservations::UpdateReservation - update called before reservation epoch expiration!";
             trace_and_halt();
         }
     }
     logos::reservation_info updated_reservation {hash, current_epoch};
-    _reservations[account] = updated_reservation;
+    _cache[account] = updated_reservation;
 }

@@ -106,9 +106,16 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
 void
 ConsensusNetIO::Connect()
 {
+    std::weak_ptr<ConsensusNetIO> this_w = Self<ConsensusNetIO>::shared_from_this();
     _socket->async_connect(_endpoint,
-                           [this](ErrorCode const & ec) 
-						   { OnConnect(ec); });
+                           [this_w](ErrorCode const & ec) {
+        auto this_s = GetSharedPtr(this_w, "ConsensusNetIO::Connect, object destroyed");
+        if (!this_s)
+        {
+            return;
+        }
+        this_s->OnConnect(ec);
+    });
 }
 
 void
@@ -195,7 +202,8 @@ ConsensusNetIO::OnConnect(
         if (ad)
         {
             this_s->OnConnect();
-        } else
+        }
+        else
         {
             this_s->HandleMessageError("Client handshake");
         }

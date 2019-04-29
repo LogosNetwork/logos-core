@@ -8,6 +8,7 @@
 std::unordered_map<uint32_t, ValidatorBuilder::pki> ValidatorBuilder::_epoch_pki;
 uint32_t ValidatorBuilder::_cached_epoch = 0;
 std::shared_ptr<MessageValidator> ValidatorBuilder::_cached_validator = nullptr;
+std::mutex ValidatorBuilder::_mutex;
 
 ValidatorBuilder::ValidatorBuilder(ValidatorBuilder::Store &store)
     : _store(store)
@@ -16,6 +17,7 @@ ValidatorBuilder::ValidatorBuilder(ValidatorBuilder::Store &store)
 std::shared_ptr<MessageValidator>
 ValidatorBuilder::GetValidator(uint32_t epoch_number)
 {
+    std::lock_guard<std::mutex> lock(_mutex);
     std::shared_ptr<MessageValidator> validator = nullptr;
     BlockHash   hash;
     ApprovedEB  epoch;
@@ -33,11 +35,13 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
 
     if (k == _epoch_pki.end())
     {
-        if (_store.epoch_tip_get(hash))
+        Tip tip;
+        if (_store.epoch_tip_get(tip))
         {
             LOG_FATAL(_log) << "ValidatorBuilder::GetValidator failed to get epoch tip";
             trace_and_halt();
         }
+        hash = tip.digest;
 
         bool res;
         for (res = _store.epoch_get(hash, epoch); !res && epoch_number < epoch.epoch_number;
@@ -91,6 +95,9 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
 
     _cached_epoch = epoch_number;
     _cached_validator = validator;
+
+    if(validator == nullptr)
+        LOG_DEBUG(_log) << "ValidatorBuilder::GetValidator nullptr";
 
     return validator;
 }

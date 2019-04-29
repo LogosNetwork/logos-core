@@ -4,7 +4,7 @@
 #pragma once
 
 #include <logos/consensus/request/request_backup_delegate.hpp>
-#include <logos/consensus/request/request_handler.hpp>
+#include <logos/consensus/request/request_internal_queue.hpp>
 #include <logos/consensus/consensus_manager.hpp>
 
 /// ConsensusManager that handles Request consensus.
@@ -47,11 +47,12 @@ public:
     RequestConsensusManager(Service & service,
                             Store & store,
                             const Config & config,
+                            ConsensusScheduler & scheduler,
                             MessageValidator & validator,
                             p2p_interface & p2p,
                             uint32_t epoch_number);
 
-    virtual ~RequestConsensusManager() {};
+    ~RequestConsensusManager() = default;
 
     /// Handles benchmark requests.
     ///     @param[in]  message message.
@@ -88,20 +89,11 @@ protected:
     ///     @param delegate_id delegate id
     void ApplyUpdates(const ApprovedRB & block, uint8_t delegate_id) override;
 
-    /// Checks if the system is ready to initiate consensus.
-    ///
-    ///  The extended override does additional processing if
-    ///  _using_buffered_blocks is true.
-    ///      @return true if ready false otherwise.
-    bool ReadyForConsensus() override;
-
     /// Returns number of stored blocks.
     ///
     /// Benchmarking related.
     ///     @return number of stored blocks
     uint64_t GetStoredCount() override;
-
-    void InitiateConsensus(bool reproposing = false) override;
 
     /// Sends buffered blocks.
     ///
@@ -120,32 +112,32 @@ protected:
     /// Benchmark related.
     void SendBufferedBlocks();
 
-    /// Queues request message.
-    ///
-    /// Queues state block.
-    void QueueMessagePrimary(
-        std::shared_ptr<DelegateMessage> message) override;
-
     /// Gets next available BatchStateBlock.
     ///     @return reference to BatchStateBlock
-    PrePrepare & PrePrepareGetNext() override;
+    PrePrepare & PrePrepareGetNext(bool) override;
 
     PrePrepare & PrePrepareGetCurr() override;
+
+    void ConstructBatch(bool);
 
     /// Pops the BatchStateBlock from the queue.
     void PrePreparePopFront() override;
 
-    /// Checks if the BatchStateBlock queue is empty.
+    /// Gets secondary timeout value in seconds
+    ///     @return Seconds
+    const Seconds & GetSecondaryTimeout() override;
+
+    /// Checks if the Request queue is empty.
     ///
+    /// This performs additional processing if
+    /// _using_buffered_blocks is true.
     ///     @return true if empty false otherwise
-    bool PrePrepareQueueEmpty() override;
+    bool InternalQueueEmpty() override;
 
-    /// Primary list contains request with the hash
+    /// Internal queue (i.e. not in message handler) contains request with the hash
     /// @param request's hash
-    /// @returns true if the request is in the list
-    bool PrimaryContains(const BlockHash &) override;
-
-    void OnPostCommit(const PrePrepare & pre_prepare) override;
+    /// @returns true if the request is in the queue
+    bool InternalContains(const BlockHash &) override;
 
     /// Create specialized instance of BackupDelegate
     ///     @param iochannel NetIOChannel pointer
@@ -163,9 +155,9 @@ protected:
 private:
 
     static const Seconds ON_CONNECTED_TIMEOUT;
+    static const Seconds REQUEST_TIMEOUT;
 
-    void AcquirePrePrepare(const PrePrepare & message) override;
-
+    MessageHandler<R> & GetHandler() override { return _handler; }
     void TallyPrepareMessage(const Prepare & message, uint8_t remote_delegate_id) override;
     void OnRejection(const Rejection & message, uint8_t remote_delegate_id) override;
     void OnStateAdvanced() override;
@@ -176,12 +168,12 @@ private:
 
     bool Rejected(uint128_t reject_vote, uint128_t reject_stake);
 
+    RequestMessageHandler &  _handler;         ///< Queue of requests/proposals.
     WeightList            _response_weights;
-    Hashes                _hashes;
-    bool                  _should_repropose      = false; ///< indicator of whether a Contains_Invalid_Request Rejection has been received
+    Hashes                _hashes;                        ///< keeps track of which request in cur batch hasn't been explictly accepted or rejected
+    bool                  _repropose_subset      = false; ///< indicator of whether a Contains_Invalid_Request Rejection has been received
     BlockBuffer           _buffer;                        ///< Buffered state blocks.
     std::mutex            _buffer_mutex;                  ///< SYL Integration fix: separate lock for benchmarking buffer
-    static RequestHandler _handler;                       ///< Primary queue of batch state blocks.
     Timer                 _init_timer;
     uint64_t              _sequence              = 0;
     uint128_t             _connected_vote        = 0;
@@ -190,4 +182,8 @@ private:
     uint128_t             _ne_reject_stake       = 0;     ///< New Epoch rejection stake weight.
     bool                  _using_buffered_blocks = false; ///< Flag to indicate if buffering is enabled - benchmark related.
     bool                  _delegates_connected   = false;
+    // No need for mutex protecting request queue or curr batch as all accesses are serialized (only accessible when _ongoing)
+    PrePrepare            _current_batch;
+    RequestInternalQueue  _request_queue;
+    Seconds               _secondary_timeout;             ///< Secondary list timeout value for this delegate
 };

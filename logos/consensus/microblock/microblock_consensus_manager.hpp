@@ -25,6 +25,7 @@ public:
     MicroBlockConsensusManager(Service & service,
                                Store & store,
                                const Config & config,
+                               ConsensusScheduler & scheduler,
                                MessageValidator & validator,
                                ArchiverMicroBlockHandler & handler,
                                p2p_interface & p2p,
@@ -54,10 +55,6 @@ public:
         PrimaryDelegate::SetPreviousPrePrepareHash(hash);
     }
 
-    /// Clean up on Post_Commit
-    /// @param block pre-prepare block
-    void OnPostCommit(const PrePrepare &block) override;
-
 protected:
 
     /// Commit to the store.
@@ -83,12 +80,9 @@ protected:
         std::shared_ptr<DelegateMessage> message,
         logos::process_return & result) override;
 
-    /// Queues micro block.
-    void QueueMessagePrimary(std::shared_ptr<DelegateMessage> message) override;
-
     /// Gets next available MicroBlock.
     ///     @return reference to MicroBlock
-    PrePrepare & PrePrepareGetNext() override;
+    PrePrepare & PrePrepareGetNext(bool) override;
 
     PrePrepare & PrePrepareGetCurr() override;
 
@@ -97,16 +91,16 @@ protected:
 
     ///< Checks if the MicroBlock queue is empty
 	///		@return true if empty false otherwise
-    bool PrePrepareQueueEmpty() override;
+    bool InternalQueueEmpty() override;
 
-    /// Primary list contains request with the hash
-    /// @param request's hash
-    /// @returns true if the request is in the list
-    bool PrimaryContains(const BlockHash&) override;
+    /// Internal list (i.e. not in message handler) contains request with the hash
+    ///     @param request's hash
+    ///     @returns true if the request is in the list
+    bool InternalContains(const BlockHash&) override;
 
-    /// Queue message in the secondary list
-    /// @param message
-    void QueueMessageSecondary(std::shared_ptr<DelegateMessage> message) override;
+    /// Gets secondary timeout value in seconds
+    ///     @return Seconds
+    const Seconds & GetSecondaryTimeout() override;
 
     /// Create specialized instance of BackupDelegate
     ///     @param iochannel NetIOChannel pointer
@@ -116,16 +110,16 @@ protected:
     MakeBackupDelegate(std::shared_ptr<IOChannel> iochannel,
                        const DelegateIdentities& ids) override;
 
-    /// Check condition to proceed with re-proposal on quorum failure
-    /// @returns true to proceed, false otherwise
-    bool ProceedWithRePropose() override;
-
-    /// Handle consensus reached
-    void OnConsensusReached() override;
+    ///  Check if backup already cleared primary's preprepare from main message handler
+    ///     @returns true if message is already cleared
+    bool AlreadyPostCommitted() override;
 
 private:
 
+    MessageHandler<ConsensusType::MicroBlock> & GetHandler() override { return _handler; }
+    MicroBlockMessageHandler &   _handler;
     std::shared_ptr<PrePrepare>  _cur_microblock;     ///< Currently handled microblock
     ArchiverMicroBlockHandler &  _microblock_handler; ///< Is used for validation and database commit
 	std::recursive_mutex         _mutex;              ///< _cur_microblock mutex
+	Seconds                      _secondary_timeout;  ///< Secondary list timeout value for this delegate
 };

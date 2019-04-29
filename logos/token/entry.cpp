@@ -107,8 +107,8 @@ TokenID::TokenID(const Issuance & issuance)
 
 void TokenID::Hash(blake2b_state & hash) const
 {
-    previous.Hash(hash);
     issuer.Hash(hash);
+    previous.Hash(hash);
     std::string handle(symbol + name);
     blake2b_update(&hash, handle.data(), handle.size());
 }

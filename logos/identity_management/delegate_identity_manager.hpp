@@ -426,5 +426,6 @@ private:
     Timer                   _timer;                ///< time for delegate/txacceptor advertisement
     logos::node &           _node;                 ///< logos node reference
     DelegateIdCache         _idx_cache;            ///< epoch to this delegate id map
+    std::mutex              _cache_mutex;
     const uint8_t           MAX_CACHE_SIZE = 10;
 };

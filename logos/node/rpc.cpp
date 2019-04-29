@@ -723,6 +723,19 @@ void logos::rpc_handler::accounts_create ()
     }
 }
 
+void logos::rpc_handler::accounts_exist ()
+{
+    auto res = accounts_exist(request, node.store);
+    if(!res.error)
+    {
+        response(res.contents);
+    }
+    else
+    {
+        error_response(response,res.error_msg);
+    }
+}
+
 void logos::rpc_handler::accounts_frontiers ()
 {
     boost::property_tree::ptree response_l;
@@ -882,17 +895,20 @@ void logos::rpc_handler::request_blocks_latest ()
         auto epoch_number_stored (node.store.epoch_number_stored());
 
         auto tip_exists (false);
-        tip_exists = !node.store.request_tip_get(static_cast<uint8_t>(delegate_id), epoch_number_stored + 2, hash);
-
+        Tip tip;
+        tip_exists = !node.store.request_tip_get(static_cast<uint8_t>(delegate_id), epoch_number_stored + 2, tip);
+        hash = tip.digest;
         // if exists, then we are in epoch i + 1 but epoch block i hasn't been persisted yet
 
         // otherwise, block i has been persisted, i.e. we are at least 1 MB interval past epoch start
         if (!tip_exists)
         {
-            if (node.store.request_tip_get(static_cast<uint8_t>(delegate_id), epoch_number_stored + 1, hash))
+            Tip tip;
+            if (node.store.request_tip_get(static_cast<uint8_t>(delegate_id), epoch_number_stored + 1, tip))
             {
                 error_response (response, "Internal data corruption: request block tip doesn't exist.");
             }
+            hash = tip.digest;
         }
     }
 
@@ -922,7 +938,8 @@ void logos::rpc_handler::request_blocks_latest ()
         if (prev_hash.is_zero() && batch.epoch_number > GENESIS_EPOCH + 1)
         {
             // Attempt to get old epoch tip
-            if (node.store.request_tip_get(static_cast<uint8_t>(delegate_id), batch.epoch_number - 1, prev_hash))
+            Tip tip;
+            if (node.store.request_tip_get(static_cast<uint8_t>(delegate_id), batch.epoch_number - 1, tip))
             {
                 // Only case a tip retrieval fails is when an epoch persistence update just happened and erased the old tip
                 response_batch_blocks.pop_back();
@@ -936,6 +953,7 @@ void logos::rpc_handler::request_blocks_latest ()
                     error_response (response, "Internal data corruption: old request block tip was deleted without chain linking.");
                 }
             }
+            prev_hash = tip.digest;
         }
         hash = prev_hash;
         prev_hash.clear();
@@ -968,6 +986,19 @@ void logos::rpc_handler::block ()
 void logos::rpc_handler::blocks ()
 {
     auto res = blocks(request,node.store);
+    if(!res.error)
+    {
+        response(res.contents);
+    }
+    else
+    {
+        error_response(response,res.error_msg);
+    }
+}
+
+void logos::rpc_handler::blocks_exist ()
+{
+    auto res = blocks_exist(request,node.store);
     if(!res.error)
     {
         response(res.contents);
@@ -1183,18 +1214,13 @@ void logos::rpc_handler::block_create ()
                 return;
 
             }
-            created_request->Sign(prv.data);
-            if(type == RequestType::Issuance)
-            {
-                auto issuance = static_pointer_cast<Issuance>(created_request);
-                issuance->token_id = GetTokenID(*issuance);
-            }
 
             std::shared_ptr<logos::Account> info_ptr;
             if(!node.store.account_get(created_request->GetAccount(),info_ptr))
             {
                 created_request->sequence = info_ptr->block_count;
                 created_request->previous = info_ptr->head;
+                created_request->Sign(prv.data, pub);
             }
 
             boost::property_tree::ptree response_l;
@@ -1522,7 +1548,9 @@ void logos::rpc_handler::epochs_latest ()
     }
     else
     {
-        auto tip_exists (!node.store.epoch_tip_get(hash));
+        Tip tip;
+        auto tip_exists (!node.store.epoch_tip_get(tip));
+        hash = tip.digest;
         assert (tip_exists);
     }
 
@@ -2012,7 +2040,9 @@ void logos::rpc_handler::micro_blocks_latest ()
     }
     else
     {
-        auto tip_exists (!node.store.micro_block_tip_get(hash));
+        Tip tip;
+        auto tip_exists (!node.store.micro_block_tip_get(tip));
+        hash = tip.digest;
         assert (tip_exists);
     }
 
@@ -3155,7 +3185,7 @@ void logos::rpc_handler::tokens_info ()
     }
 }
 
-void logos::rpc_handler::txacceptor_advertise ()
+void logos::rpc_handler::txacceptor_update (bool add)
 {
     if (rpc.config.enable_control)
     {
@@ -3173,7 +3203,6 @@ void logos::rpc_handler::txacceptor_advertise ()
         uint16_t port = request.get<uint16_t>("port");
         uint16_t bin_port = request.get<uint16_t>("bin_port");
         uint16_t json_port = request.get<uint16_t>("json_port");
-        bool add = request.get<bool>("add");
         bool res = node._identity_manager.OnTxAcceptorUpdate(epoch, ip, port, bin_port, json_port, add);
         boost::property_tree::ptree response_l;
         response_l.put ("result", res?"processing":"failed");
@@ -3183,6 +3212,16 @@ void logos::rpc_handler::txacceptor_advertise ()
     {
         error_response (response, "RPC control is disabled");
     }
+}
+
+void logos::rpc_handler::txacceptor_add ()
+{
+    txacceptor_update(true);
+}
+
+void logos::rpc_handler::txacceptor_delete ()
+{
+    txacceptor_update(false);
 }
 
 void logos::rpc_handler::unchecked ()
@@ -4360,6 +4399,7 @@ void logos::rpc_connection::write_result (std::string body, unsigned version)
         res.set ("Access-Control-Allow-Headers", "Accept, Accept-Language, Content-Language, Content-Type");
         res.set ("Connection", "close");
         res.result (boost::beast::http::status::ok);
+        boost::replace_all(body, "\"[]\"", "[]");
         res.body () = body;
         res.version (version);
         res.prepare_payload ();
@@ -4516,6 +4556,10 @@ void logos::rpc_handler::process_request ()
         {
             accounts_create ();
         }
+        else if (action == "accounts_exist")
+        {
+            accounts_exist ();
+        }
         else if (action == "accounts_frontiers")
         {
             accounts_frontiers ();
@@ -4547,6 +4591,10 @@ void logos::rpc_handler::process_request ()
         else if (action == "blocks")
         {
             blocks ();
+        }
+        else if (action == "blocks_exist")
+        {
+            blocks_exist ();
         }
         else if (action == "block_account")
         {
@@ -4766,9 +4814,13 @@ void logos::rpc_handler::process_request ()
         {
             tokens_info();
         }
-        else if(action == "txacceptor_advertise")
+        else if(action == "txacceptor_add")
         {
-            txacceptor_advertise();
+            txacceptor_add();
+        }
+        else if(action == "txacceptor_delete")
+        {
+            txacceptor_delete();
         }
         else if (action == "unchecked")
         {
@@ -5043,6 +5095,8 @@ logos::rpc_handler::account_info(
                 response = token_account.SerializeJson(true);
                 response.put("type","TokenAccount");
                 response.put("sequence",token_account.block_count);
+                response.put("request_count",
+                        std::to_string(token_account.block_count + token_account.receive_count));
                 response.put("frontier",token_account.head.to_string());
                 response.put("receive_tip",token_account.receive_head.to_string());
                 std::string balance;
@@ -5192,6 +5246,47 @@ logos::rpc_handler::account_balance(
     return res;
 }
 
+logos::rpc_handler::RpcResponse<boost::property_tree::ptree>
+logos::rpc_handler::accounts_exist(
+        const boost::property_tree::ptree& request,
+        logos::block_store& store)
+{
+    RpcResponse<boost::property_tree::ptree> res;
+    res.error = false;
+    try
+    {
+        std::vector<std::string> hashes;
+        bool exist (true);
+        logos::transaction transaction (store.environment, nullptr, false);
+        for (const boost::property_tree::ptree::value_type & accounts : request.get_child ("accounts"))
+        {
+            std::string account_text = accounts.second.data ();
+            logos::account account;
+            if (account.decode_account (account_text))
+            {
+                res.error = true;
+                res.error_msg += "Bad account number: " + account_text + " ";
+                break;
+            }
+            else
+            {
+                if (!store.account_exists(account))
+                {
+                    exist = false;
+                    break;
+                }
+            }
+        }
+        res.contents.put ("exist", exist ? "1" : "0");
+    }
+    catch(std::exception& e)
+    {
+        res.error = true;
+        res.error_msg = e.what();
+    }
+    return res;
+}
+
 boost::property_tree::ptree getBlockJson(
         const logos::uint256_union& hash,
         logos::block_store& store)
@@ -5282,6 +5377,46 @@ logos::rpc_handler::blocks(
             }
         }
         res.contents.add_child ("blocks", blocks);
+    }
+    catch(std::exception& e)
+    {
+        res.error = true;
+        res.error_msg = e.what();
+    }
+    return res;
+}
+
+logos::rpc_handler::RpcResponse<boost::property_tree::ptree>
+logos::rpc_handler::blocks_exist(
+        const boost::property_tree::ptree& request,
+        logos::block_store& store)
+{
+    RpcResponse<boost::property_tree::ptree> res;
+    res.error = false;
+    try
+    {
+        std::vector<std::string> hashes;
+        bool exist (true);
+        logos::transaction transaction (store.environment, nullptr, false);
+        for (const boost::property_tree::ptree::value_type & hashes : request.get_child ("hashes"))
+        {
+            std::string hash_text = hashes.second.data ();
+            logos::uint256_union hash;
+            if (hash.decode_hex (hash_text))
+            {
+                res.error = true;
+                res.error_msg += "Bad hash number: " + hash_text + " .";
+            }
+            else
+            {
+                if (!store.request_exists(hash))
+                {
+                    exist = false;
+                    break;
+                }
+            }
+        }
+        res.contents.put ("exist", exist ? "1" : "0");
     }
     catch(std::exception& e)
     {

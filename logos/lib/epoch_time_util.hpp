@@ -7,11 +7,17 @@
 #include <stdint.h>
 #include <mutex>
 #include <functional>
+#include <boost/asio/deadline_timer.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 using Milliseconds = std::chrono::milliseconds;
 using Seconds = std::chrono::seconds;
 using Minutes = std::chrono::minutes;
 using Hours = std::chrono::hours;
+
+using Clock = boost::asio::deadline_timer::traits_type;
+using TimePoint  = boost::posix_time::ptime;
+static const TimePoint Min_DT = TimePoint(boost::posix_time::min_date_time);
 
 /// Epoch transition starts every 12 hours
 /// Epoch events
@@ -36,7 +42,6 @@ template<typename C, typename T>
 C TConvert(T t)
 {
     return std::chrono::duration_cast<C>(t);
-
 }
 
 /// Defines times for epoch and microblock events

@@ -188,7 +188,8 @@ void PrimaryDelegate::OnTimeout(const Error & error,
 
     LOG_DEBUG(_log) << timeout_str
                     << " timeout either expired or canceled. "
-                    << "Error code: "
+                    << "Current pre_prepare_hash: " << _pre_prepare_hash.to_string()
+                    << ". Error code: "
                     << error.message();
 
     if(_timer_cancelled)
@@ -345,9 +346,6 @@ void PrimaryDelegate::SetQuorum(uint128_t & max_fault, uint128_t & quorum, const
 
 bool PrimaryDelegate::ReachedQuorum(uint128_t vote, uint128_t stake)
 {
-    LOG_TRACE(_log) << "PrimaryDelegate::ReachedQuorum, vote " << _vote_quorum << "/" << vote
-                    << ", stake " << _stake_quorum << "/" << stake
-                    << ", quorum: " << (vote >= _vote_quorum) && (stake >= _stake_quorum);
     return (vote >= _vote_quorum) && (stake >= _stake_quorum);
 }
 
@@ -379,12 +377,14 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
         return ProceedAction::DO_NOTHING;
     }
 
-    if(_state != expected_state)
+    if(_state != expected_state || message.preprepare_hash != _pre_prepare_hash)
     {
         LOG_INFO(_log) << "PrimaryDelegate - Disregarding message: Received "
                        << MessageToName(message)
                        << " message while in "
-                       << StateToString(_state);
+                       << StateToString(_state)
+                       << ", message pre_prepare hash: " << message.preprepare_hash.to_string()
+                       << ", internal pre_prepare hash: " << _pre_prepare_hash.to_string();
 
         return ProceedAction::DO_NOTHING;
     }
@@ -392,8 +392,9 @@ PrimaryDelegate::ProceedAction PrimaryDelegate::ProceedWithMessage(const M & mes
     if(!Validate(message, remote_delegate_id))
     {
         LOG_WARN(_log) << "PrimaryDelegate - Failed to validate signature for "
-                       << MessageToName(message) << " with hash " << GetHashSigned(message).to_string()
-                       << " while in state: " << StateToString(_state);
+                       << MessageToName(message) << ", hash " << GetHashSigned(message).to_string()
+                       << " while in state: " << StateToString(_state) << ", suspected old consensus round message."
+                       << " Received message hash: " << message.preprepare_hash.to_string();
         return ProceedAction::DO_NOTHING;
     }
     _delegates_responded++;

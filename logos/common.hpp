@@ -416,4 +416,13 @@ public:
     logos::block_hash hash () const;
     //CH std::unique_ptr<logos::open_block> open;
 };
+
+class node;
+}
+
+namespace logos_global
+{
+    void AssignNode(std::shared_ptr<logos::node> &n);
+    std::shared_ptr<logos::node> GetNode();
+    void Bootstrap();
 }

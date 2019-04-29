@@ -319,10 +319,18 @@ add_library (logos_lib_static STATIC ${LOGOS_LIB_SOURCES})
 add_library (node
 	${PLATFORM_NODE_SOURCE}
 	${SECURE_RPC_SOURCE}
+    logos/bootstrap/attempt.cpp
+    logos/bootstrap/bootstrap.cpp
+    logos/bootstrap/bootstrap_messages.cpp
+    logos/bootstrap/connection.cpp
+    logos/bootstrap/pull_connection.cpp
+    logos/bootstrap/pull.cpp
+    logos/bootstrap/tip_connection.cpp
+    logos/bootstrap/tips.cpp    
 	logos/consensus/request/request_consensus_manager.cpp
 	logos/consensus/request/request_backup_delegate.cpp
-	logos/consensus/request/request_handler.cpp
-	logos/consensus/waiting_list.cpp
+	logos/consensus/message_handler.cpp
+	logos/consensus/request/request_internal_queue.cpp
 	logos/consensus/delegate_bridge.cpp
 	logos/consensus/backup_delegate.cpp
 	logos/consensus/consensus_container.cpp
@@ -337,6 +345,7 @@ add_library (node
 	logos/consensus/consensus_msg_sink.cpp
 	logos/consensus/messages/receive_block.cpp
 	logos/consensus/messages/request_block.cpp
+	logos/consensus/messages/tip.cpp
 	logos/consensus/microblock/microblock_backup_delegate.cpp
 	logos/consensus/microblock/microblock_consensus_manager.cpp
 	logos/consensus/p2p/consensus_p2p.cpp
@@ -347,6 +356,7 @@ add_library (node
 	logos/consensus/persistence/epoch/epoch_persistence.cpp
 	logos/consensus/persistence/microblock/microblock_persistence.cpp
 	logos/consensus/persistence/reservations.cpp
+    logos/consensus/persistence/block_cache.cpp
 	logos/consensus/primary_delegate.cpp
 	logos/elections/requests.cpp
     logos/elections/representative.cpp
@@ -368,8 +378,6 @@ add_library (node
 	logos/network/net_io_send.cpp
 	logos/network/peer_acceptor.cpp
 	logos/network/epoch_peer_manager.cpp
-	logos/node/bootstrap.cpp
-	logos/node/bootstrap.hpp
 	logos/node/client_callback.cpp
 	logos/node/client_callback.hpp
 	logos/node/common.cpp
@@ -419,6 +427,7 @@ option(TEST_REJECT "Makes delegate reject random transactions inside PrePrepare 
 if (LOGOS_TEST)
 	add_executable (unit_test
 		logos/unit_test/account_serialization.cpp
+        logos/unit_test/bootstrap.cpp
 		logos/unit_test/consensus_msg_serialize.cpp
 		logos/unit_test/msg_validator_setup.cpp
 		logos/unit_test/dual_RB_tips.cpp

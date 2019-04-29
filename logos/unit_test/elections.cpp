@@ -37,10 +37,10 @@ void init_tips(uint32_t epoch_num)
     logos::transaction txn(store->environment, nullptr, true);
     for(uint8_t del = 0; del < NUM_DELEGATES; ++del)
     {
-        BlockHash dummy_hash = 0;
+        Tip dummy;
         std::cout << "Writing tip for del " << del << " in epoch " << epoch_num << std::endl;
-        assert(!store->request_tip_put(del, epoch_num, dummy_hash, txn));
-    } 
+        assert(!store->request_tip_put(del, epoch_num, dummy, txn));
+    }
 
 }
 
@@ -410,7 +410,7 @@ TEST(Elections,candidates_transition)
         eb.delegates[0].starting_term = true;
 
         ASSERT_FALSE(store->epoch_put(eb,txn));
-        ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
+        ASSERT_FALSE(store->epoch_tip_put(eb.CreateTip(),txn));
 
     }    
 
@@ -430,15 +430,15 @@ TEST(Elections,candidates_transition)
 
         ApprovedEB eb;
         {
-            BlockHash hash;
-            ASSERT_FALSE(store->epoch_tip_get(hash,txn));
-            eb.previous = hash;
+            Tip tip;
+            ASSERT_FALSE(store->epoch_tip_get(tip,txn));
+            eb.previous = tip.digest;
             eb.delegates[0].starting_term = false;
             eb.delegates[1].starting_term = true;
             ASSERT_FALSE(store->epoch_put(eb,txn));
             eb.previous = eb.Hash();
             ASSERT_FALSE(store->epoch_put(eb,txn));
-            ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
+            ASSERT_FALSE(store->epoch_tip_put(eb.CreateTip(),txn));
         }
 
         {
@@ -447,7 +447,7 @@ TEST(Elections,candidates_transition)
             ASSERT_TRUE(res);
             eb.previous = eb.Hash();
             ASSERT_FALSE(store->epoch_put(eb,txn));
-            ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
+            ASSERT_FALSE(store->epoch_tip_put(eb.CreateTip(),txn));
             RepInfo rep;
             RenounceCandidacy req;
             req.origin = a2;
@@ -530,7 +530,7 @@ TEST(Elections,get_next_epoch_delegates)
     std::reverse(std::begin(eb.delegates),std::end(eb.delegates));
     {
         logos::transaction txn(store->environment,nullptr,true);
-        ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
+        ASSERT_FALSE(store->epoch_tip_put(eb.CreateTip(),txn));
         ASSERT_FALSE(store->epoch_put(eb,txn));
     }
 
@@ -544,7 +544,7 @@ TEST(Elections,get_next_epoch_delegates)
         eb.epoch_number = epoch_num-1;
         logos::transaction txn(store->environment,nullptr,true);
         eb.is_extension = !voting_mgr.GetNextEpochDelegates(eb.delegates,epoch_num);
-        ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
+        ASSERT_FALSE(store->epoch_tip_put(eb.CreateTip(),txn));
         ASSERT_FALSE(store->epoch_put(eb,txn));
         persistence_mgr.TransitionCandidatesDBNextEpoch(txn, epoch_num);
 
@@ -749,7 +749,7 @@ TEST(Elections,get_next_epoch_delegates)
     ASSERT_EQ(voting_mgr.GetRetiringDelegates(epoch_num+1), retiring);
     compare_delegates();
 
-    
+
     //not enough votes
     for(size_t i = 24; i <28 ; ++i)
     {
@@ -874,7 +874,7 @@ TEST(Elections, is_dead_period)
     eb.epoch_number = epoch_num-1;
     eb.previous = 0;
 
-    ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
+    ASSERT_FALSE(store->epoch_tip_put(eb.CreateTip(),txn));
     ASSERT_FALSE(store->epoch_put(eb,txn));
 
     ASSERT_FALSE(persistence_mgr.IsDeadPeriod(epoch_num, txn));
@@ -936,7 +936,7 @@ TEST(Elections,validate)
         store->rep_put(i,rep,txn);
     }
     std::reverse(std::begin(eb.delegates),std::end(eb.delegates));
-    ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
+    ASSERT_FALSE(store->epoch_tip_put(eb.CreateTip(),txn));
     ASSERT_FALSE(store->epoch_put(eb,txn));
 
     //epoch block created, but only StartRepresenting and AnnounceCandidacy should pass
@@ -981,7 +981,7 @@ TEST(Elections,validate)
             eb.delegates[i].account = new_delegates[i];
             eb.delegates[i].starting_term = true;
         }
-        ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
+        ASSERT_FALSE(store->epoch_tip_put(eb.CreateTip(),txn));
         ASSERT_FALSE(store->epoch_put(eb,txn));
         epoch_persistence_mgr.TransitionNextEpoch(txn,epoch_num > 3 ? epoch_num : 0);
     };
@@ -1317,7 +1317,7 @@ TEST(Elections, apply)
     std::reverse(std::begin(eb.delegates),std::end(eb.delegates));
     {
         logos::transaction txn(store->environment,nullptr,true);
-        ASSERT_FALSE(store->epoch_tip_put(eb.Hash(),txn));
+        ASSERT_FALSE(store->epoch_tip_put(eb.CreateTip(),txn));
         ASSERT_FALSE(store->epoch_put(eb,txn));
     }
 

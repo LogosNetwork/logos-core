@@ -3,6 +3,7 @@
 #include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/receive_block.hpp>
 #include <logos/consensus/messages/request_block.hpp>
+#include <logos/consensus/messages/tip.hpp>
 #include <logos/epoch/epoch_transition.hpp>
 #include <logos/microblock/microblock.hpp>
 #include <logos/epoch/epoch.hpp>
@@ -13,6 +14,7 @@
 
 #include <arpa/inet.h>
 #include <string.h>
+#include <boost/algorithm/string.hpp>
 
 static constexpr size_t MAX_MSG_SIZE = 1024*1024;
 // TODO: Update based on new request types
@@ -207,7 +209,9 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
         SerializeJson (tree);
         std::stringstream ostream;
         boost::property_tree::write_json(ostream, tree);
-        return ostream.str();
+        std::string s = ostream.str();
+        boost::replace_all(s, "\"[]\"", "[]");
+        return s;
     }
 
     uint32_t Serialize(logos::stream & stream, bool with_appendix, bool with_next) const
@@ -233,6 +237,11 @@ struct PostCommittedBlock : public MessagePrequel<MessageType::Post_Committed_Bl
 
         HeaderStream header_stream(buf.data(), MessagePrequelSize);
         MessagePrequel<MessageType::Post_Committed_Block, CT>::Serialize(header_stream);
+    }
+
+    Tip CreateTip() const
+    {
+        return Tip(ConsensusBlock<CT>::epoch_number, ConsensusBlock<CT>::sequence, Hash());
     }
 
     AggSignature post_prepare_sig;

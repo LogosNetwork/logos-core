@@ -5,6 +5,7 @@
 #include <logos/microblock/microblock_handler.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/lib/trace.hpp>
+#include <logos/node/node.hpp>
 
 bool
 PersistenceManager<MBCT>::Validate(
@@ -39,15 +40,20 @@ PersistenceManager<MBCT>::Validate(
                         << " hash " << hash.to_string()
                         << " previous " << block.previous.to_string();
         UpdateStatusReason(status, process_result::gap_previous);
+
+        // TODO: high speed bootstrap
+        logos_global::Bootstrap();
+
         return false;
     }
-
-    if (_store.epoch_tip_get(hash))
+    Tip tip;
+    if (_store.epoch_tip_get(tip))
     {
         LOG_FATAL(_log) << "PersistenceManager::VerifyMicroBlock failed to get epoch tip "
                         << " hash " << hash.to_string();
         trace_and_halt();
     }
+    hash = tip.digest;
 
     if (_store.epoch_get(hash, previous_epoch))
     {
@@ -88,7 +94,7 @@ PersistenceManager<MBCT>::Validate(
     ApprovedRB bsb;
     for (int del = 0; del < NUM_DELEGATES; ++del)
     {
-        if (! block.tips[del].is_zero() && _store.request_block_get(block.tips[del], bsb))
+        if (! block.tips[del].digest.is_zero() && _store.request_block_get(block.tips[del].digest, bsb))
         {
             LOG_ERROR   (_log) << "PersistenceManager::VerifyMicroBlock failed to get batch tip: "
                             << block.Hash().to_string() << " "
@@ -100,8 +106,14 @@ PersistenceManager<MBCT>::Validate(
     }
 
     /// verify can iterate the chain and the number of blocks checks out
+    BatchTipHashes start, end;
+    for (int del = 0; del < NUM_DELEGATES; ++del)
+    {
+        start[del] = block.tips[del].digest;
+        end[del] = previous_microblock.tips[del].digest;
+    }
     int number_batch_blocks = 0;
-    _store.BatchBlocksIterator(block.tips, previous_microblock.tips,
+    _store.BatchBlocksIterator(start, end,
             [&number_batch_blocks](uint8_t, const RequestBlock &) mutable -> void {
         ++number_batch_blocks;
     });
@@ -133,7 +145,7 @@ PersistenceManager<MBCT>::ApplyUpdates(
 
     BlockHash hash = block.Hash();
     if( _store.micro_block_put(block, transaction) ||
-            _store.micro_block_tip_put(hash, transaction))
+            _store.micro_block_tip_put(block.CreateTip(), transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager<MBCT>::ApplyUpdates failed to put block or tip"
                                 << hash.to_string();

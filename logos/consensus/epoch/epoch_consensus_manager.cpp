@@ -13,17 +13,29 @@ EpochConsensusManager::EpochConsensusManager(
                           Service & service,
                           Store & store,
                           const Config & config,
+                          ConsensusScheduler & scheduler,
                           MessageValidator & validator,
                           p2p_interface & p2p,
                           uint32_t epoch_number)
     : Manager(service, store, config,
-              validator, p2p, epoch_number)
+              scheduler, validator, p2p, epoch_number)
+    , _secondary_timeout([](const uint8_t & delegate_id){
+        uint timeout_sec = (delegate_id + 1) * SECONDARY_LIST_TIMEOUT.count();
+        if (timeout_sec > TConvert<::Seconds>(SECONDARY_LIST_TIMEOUT_CAP).count())
+        {
+            timeout_sec = TConvert<::Seconds>(SECONDARY_LIST_TIMEOUT_CAP).count();
+        }
+        return Seconds(timeout_sec);
+    }(_delegate_id))
+    , _handler(EpochMessageHandler::GetMessageHandler())
 {
-    if (_store.epoch_tip_get(_prev_pre_prepare_hash))
+    Tip tip;
+    if (_store.epoch_tip_get(tip))
     {
         LOG_FATAL(_log) << "Failed to get epoch's previous hash";
         trace_and_halt();
     }
+    _prev_pre_prepare_hash = tip.digest;
 }
 
 void 
@@ -42,38 +54,23 @@ EpochConsensusManager::Validate(
     std::shared_ptr<DelegateMessage> block,
     logos::process_return & result)
 {
-    result.code = logos::process_result::progress;
+    if (_store.epoch_exists(block->Hash()))
+    {
+        result.code = logos::process_result::old;
+        return false;
+    }
 
+    result.code = logos::process_result::progress;
     return true;
 }
 
-void 
-EpochConsensusManager::QueueMessagePrimary(
-    std::shared_ptr<DelegateMessage> message)
-{
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-    auto hash = message->Hash();
-    // See microblock_consensus_mamanger comment for the same method
-    if (_store.epoch_exists(hash) || (_cur_epoch && _cur_epoch->Hash() == hash))
-    {
-        return;
-    }
-    else if (_ongoing)
-    {
-        LOG_ERROR(_log) << "MicroBlockConsensusManager::QueueMessagePrimary - Unexpected scenario:"
-                        << " new block (possibly from secondary list) with hash " << hash.to_string()
-                        << " got promoted while current consensus round with hash " << _cur_epoch->Hash().to_string()
-                        << " is still ongoing!";
-        return;
-    }
-    _cur_epoch = static_pointer_cast<PrePrepare>(message);
-}
-
 auto
-EpochConsensusManager::PrePrepareGetNext() -> PrePrepare &
+EpochConsensusManager::PrePrepareGetNext(bool) -> PrePrepare &
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
+    _cur_epoch = static_pointer_cast<PrePrepare>(_handler.GetFront());
     assert(_cur_epoch);
+    _cur_epoch->primary_delegate = GetDelegateIndex();
     _cur_epoch->timestamp = GetStamp();
     return *_cur_epoch;
 }
@@ -89,11 +86,13 @@ void
 EpochConsensusManager::PrePreparePopFront()
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
+    assert(_cur_epoch);
+    _handler.OnPostCommit(_cur_epoch);
     _cur_epoch = nullptr;
 }
 
 bool 
-EpochConsensusManager::PrePrepareQueueEmpty()
+EpochConsensusManager::InternalQueueEmpty()
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
     return _cur_epoch == nullptr;
@@ -114,21 +113,16 @@ EpochConsensusManager::GetStoredCount()
 }
 
 bool
-EpochConsensusManager::PrimaryContains(const BlockHash &hash)
+EpochConsensusManager::InternalContains(const BlockHash &hash)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);
     return (_cur_epoch && _cur_epoch->Hash() == hash);
 }
 
-void
-EpochConsensusManager::QueueMessageSecondary(std::shared_ptr<DelegateMessage> message)
+const EpochConsensusManager::Seconds &
+EpochConsensusManager::GetSecondaryTimeout()
 {
-    uint timeout_sec = (_delegate_id + 1) * SECONDARY_LIST_TIMEOUT.count();
-    if (timeout_sec > TConvert<::Seconds>(SECONDARY_LIST_TIMEOUT_CAP).count())
-    {
-        timeout_sec = TConvert<::Seconds>(SECONDARY_LIST_TIMEOUT_CAP).count();
-    }
-    _waiting_list.OnMessage(message, boost::posix_time::seconds(timeout_sec));
+    return _secondary_timeout;
 }
 
 std::shared_ptr<BackupDelegate<ConsensusType::Epoch>>
@@ -138,8 +132,8 @@ EpochConsensusManager::MakeBackupDelegate(
 {
     auto notifier = _events_notifier.lock();
     assert(notifier);
-    return std::make_shared<EpochBackupDelegate>(iochannel, shared_from_this(), *this,
-            _validator, ids, notifier, _persistence_manager,
+    return std::make_shared<EpochBackupDelegate>(iochannel, shared_from_this(), _store,
+            _validator, ids, _scheduler, notifier, _persistence_manager,
             GetP2p(), _service);
 }
 
@@ -147,15 +141,15 @@ uint8_t
 EpochConsensusManager::DesignatedDelegate(
     std::shared_ptr<DelegateMessage> message)
 {
-    BlockHash hash;
+    Tip tip;
     ApprovedMB block;
 
-    if (_store.micro_block_tip_get(hash))
+    if (_store.micro_block_tip_get(tip))
     {
         LOG_FATAL(_log) << "EpochConsensusManager::DesignatedDelegate failed to get microblock tip";
         trace_and_halt();
     }
-
+    BlockHash & hash = tip.digest;
     if (_store.micro_block_get(hash, block))
     {
         LOG_FATAL(_log) << "EpochConsensusManager::DesignatedDelegate failed to get microblock";
@@ -175,42 +169,9 @@ EpochConsensusManager::DesignatedDelegate(
     return 0xff;
 }
 
-void
-EpochConsensusManager::OnPostCommit(const PrePrepare &block)
+bool EpochConsensusManager::AlreadyPostCommitted()
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-    if (_cur_epoch && block.Hash() == _cur_epoch->Hash())
-    {
-        PrePreparePopFront();
-    }
-
-    Manager::OnPostCommit(block);
-}
-
-bool
-EpochConsensusManager::ProceedWithRePropose()
-{
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-    return !PrePrepareQueueEmpty() && Manager::ProceedWithRePropose();
-}
-
-void
-EpochConsensusManager::OnConsensusReached()
-{
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
-    if (!PrePrepareQueueEmpty())
-    {
-        Manager::OnConsensusReached();
-    }
-        // it was already committed by the backup
-    else
-    {
-        SetPreviousPrePrepareHash(_pre_prepare_hash);
-
-        PrePreparePopFront();
-
-        _ongoing = false;
-
-        OnMessageQueued();
-    }
+    if (!_cur_epoch) return true;
+    // only reason for ConsensusManager's current block hash to not exist in main queue is backup's removal
+    return !_handler.Contains(_cur_epoch->Hash());
 }
