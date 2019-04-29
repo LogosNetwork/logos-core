@@ -39,7 +39,6 @@ add_library (p2p
 	protocol.h
 	random.cpp
 	random.h
-	reverselock.h
 	serialize.h
 	span.h
 	streams.h

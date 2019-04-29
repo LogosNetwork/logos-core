@@ -1080,7 +1080,6 @@ struct NodeEvictionCandidate
     int64_t nLastTXTime;
     bool fRelevantServices;
     bool fRelayTxes;
-    bool fBloomFilter;
     CAddress addr;
     uint64_t nKeyedNetGroup;
 };
@@ -1112,7 +1111,6 @@ static bool CompareNodeTXTime(const NodeEvictionCandidate &a, const NodeEviction
     // There is a fall-through here because it is common for a node to have more than a few peers that have not yet relayed txn.
     if (a.nLastTXTime != b.nLastTXTime) return a.nLastTXTime < b.nLastTXTime;
     if (a.fRelayTxes != b.fRelayTxes) return b.fRelayTxes;
-    if (a.fBloomFilter != b.fBloomFilter) return a.fBloomFilter;
     return a.nTimeConnected > b.nTimeConnected;
 }
 
@@ -1150,7 +1148,7 @@ bool CConnman::AttemptToEvictConnection()
             NodeEvictionCandidate candidate = {node->GetId(), node->nTimeConnected, node->nMinPingUsecTime,
                                                node->nLastBlockTime, node->nLastTXTime,
                                                HasAllDesirableServiceFlags(node->nServices),
-                                               node->fRelayTxes, node->pfilter != nullptr, node->addr, node->nKeyedNetGroup};
+                                               node->fRelayTxes, node->addr, node->nKeyedNetGroup};
             vEvictionCandidates.push_back(candidate);
         }
     }
@@ -2589,7 +2587,6 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     nNextAddrSend = 0;
     fRelayTxes = false;
     fSentAddr = false;
-    pfilter = MakeUnique<CBloomFilter>();
     nLastBlockTime = 0;
     nLastTXTime = 0;
     nPingNonceSent = 0;

@@ -11,7 +11,6 @@
 #include <netmessagemaker.h>
 #include <netbase.h>
 #include <random.h>
-#include <reverse_iterator.h>
 #include <tinyformat.h>
 #include <ui_interface.h>
 #include <util.h>

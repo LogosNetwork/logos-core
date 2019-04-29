@@ -755,7 +755,6 @@ public:
     bool fSentAddr;
     CSemaphoreGrant grantOutbound;
     Mutex cs_filter;
-    std::unique_ptr<CBloomFilter> pfilter;
 
     const uint64_t nKeyedNetGroup;
     std::atomic_bool fPauseRecv;
