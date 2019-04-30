@@ -60,6 +60,6 @@ public:
     void UpdateRepresentativesDB(MDB_txn* txn);
     void TransitionNextEpoch(MDB_txn* txn, uint32_t next_epoch_num);
     void MarkDelegateElectsAsRemove(MDB_txn* txn);
-    void AddReelectionCandidates(MDB_txn* txn);
+    void AddReelectionCandidates(uint32_t next_epoch_num, MDB_txn* txn);
     void TransitionCandidatesDBNextEpoch(MDB_txn* txn, uint32_t next_epoch_num);
 };

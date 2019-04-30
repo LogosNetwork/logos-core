@@ -9,7 +9,7 @@ bool VotingPowerManager::TransitionIfNecessary(
         AccountAddress const & rep,
         MDB_txn* txn)
 {
-    if(epoch> info.epoch_modified)
+    if(epoch > info.epoch_modified)
     {
         CandidateInfo c_info;
         if(!_store.candidate_get(rep, c_info, txn))

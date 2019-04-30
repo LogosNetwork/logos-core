@@ -381,13 +381,16 @@ TEST(Elections,candidates_transition)
     DelegatePubKey bls1(0);
     DelegatePubKey bls2(1);
     DelegatePubKey bls3(2);
-    Amount stake1(0);
-    Amount stake2(1);
-    Amount stake3(2);
+    Amount stake1(1);
+    Amount stake2(2);
+    Amount stake3(3);
 
     PersistenceManager<ECT> mgr(*store,nullptr);
 
     logos::transaction txn(store->environment,nullptr,true);
+    VotingPowerManager::Get()->AddSelfStake(a1,stake1,0,txn);
+    VotingPowerManager::Get()->AddSelfStake(a2,stake2,0,txn);
+    VotingPowerManager::Get()->AddSelfStake(a3,stake3,0,txn);
     {
         CandidateInfo candidate;
         init_ecies(candidate.ecies_key);
@@ -493,7 +496,7 @@ TEST(Elections,candidates_transition)
         }
     }
 
-    mgr.AddReelectionCandidates(txn);
+    mgr.AddReelectionCandidates(0,txn);
 
     {
         CandidateInfo info;
@@ -510,7 +513,7 @@ TEST(Elections,candidates_transition)
     store->request_put(req,txn);
     store->rep_put(a2,rep,txn);
 
-    mgr.AddReelectionCandidates(txn);
+    mgr.AddReelectionCandidates(0,txn);
     {
         CandidateInfo info;
         init_ecies(info.ecies_key);
