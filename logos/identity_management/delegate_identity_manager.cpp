@@ -60,7 +60,12 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 return;
             }
             block.next = next;
-            (_store.*put)(block, tx);
+            auto status = (_store.*put)(block, tx);
+            if (status)
+            {
+                LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisBlocks, failed to update the database";
+                trace_and_halt();
+            }
         }
     };
     for (int e = 0; e <= GENESIS_EPOCH; e++)
@@ -141,7 +146,11 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 start.origin = pair.pub;
                 start.stake = stake;
                 rep.rep_action_tip = start.Hash();
-                _store.request_put(start, transaction);
+                if (_store.request_put(start, transaction))
+                {
+                    LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisBlocks, failed to update StartRepresenting";
+                    trace_and_halt();
+                }
                 //dummy request for epoch transition
                 AnnounceCandidacy announce;
                 announce.epoch_num = 0;
@@ -150,15 +159,22 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 announce.bls_key = dpk;
                 announce.ecies_key = ecies_key;
                 rep.candidacy_action_tip = announce.Hash();
-                _store.request_put(announce, transaction);
-                _store.rep_put(pair.pub, rep, transaction);
+                if (_store.request_put(announce, transaction) || _store.rep_put(pair.pub, rep, transaction))
+                {
+                    LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisBlocks, failed to update AnnounceCandidacy";
+                    trace_and_halt();
+                }
                 CandidateInfo candidate;
                 candidate.stake = stake;
                 candidate.bls_key = dpk;
                 candidate.ecies_key = ecies_key;
                 //TODO: should we put these accounts into candidate list even
                 //though elections are not being held yet?
-                _store.candidate_put(pair.pub, candidate, transaction);
+                if (_store.candidate_put(pair.pub, candidate, transaction))
+                {
+                    LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisBlocks, failed to update CandidateInfo";
+                    trace_and_halt();
+                }
             }
 
 
@@ -238,12 +254,9 @@ DelegateIdentityManager::Init(const Config &config)
 
         //TODO check with Greg
         ReceiveBlock logos_genesis_receive(0, logos_genesis_block.GetHash(), 0);
-        _store.request_put(logos_genesis_block,
-                           transaction);
-        _store.receive_put(logos_genesis_receive.Hash(),
-                           logos_genesis_receive,
-                           transaction);
-        _store.account_put(logos::genesis_account,
+        if (_store.request_put(logos_genesis_block, transaction) ||
+            _store.receive_put(logos_genesis_receive.Hash(), logos_genesis_receive, transaction) ||
+            _store.account_put(logos::genesis_account,
             {
                 /* Head         */ logos_genesis_block.GetHash(),
                 /* Receive Head */ logos_genesis_receive.Hash(),
@@ -254,7 +267,11 @@ DelegateIdentityManager::Init(const Config &config)
                 /* Count        */ 1,
                 /* Receive      */ 1
             },
-            transaction);
+            transaction))
+        {
+            LOG_FATAL(_log) << "DelegateIdentityManager::Init failed to update the database";
+            trace_and_halt();
+        }
         CreateGenesisAccounts(transaction);
     }
     else {LoadGenesisAccounts();}
@@ -275,7 +292,11 @@ void
 DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 {
     logos::account_info genesis_account;
-    _store.account_get(logos::logos_test_account, genesis_account, transaction);
+    if (_store.account_get(logos::logos_test_account, genesis_account, transaction))
+    {
+        LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisAccounts, failed to get account";
+        trace_and_halt();
+    }
 
     // create genesis delegate accounts
     for (int del = 0; del < NUM_DELEGATES*2; ++del) {
@@ -311,13 +332,9 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
 
         ReceiveBlock receive(0, request.GetHash(), 0);
 
-        _store.request_put(request, transaction);
-
-        _store.receive_put(receive.Hash(),
-                receive,
-                transaction);
-
-        _store.account_put(pair.pub,
+        if (_store.request_put(request, transaction) ||
+            _store.receive_put(receive.Hash(), receive, transaction) ||
+            _store.account_put(pair.pub,
                            {
                                /* Head    */ 0,
                                /* Receive */ receive.Hash(),
@@ -328,10 +345,18 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
                                /* Count   */ 0,
                                /* Receive Count */ 1
                            },
-                           transaction);
+                           transaction))
+        {
+           LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisAccounts, failed to update the database";
+           trace_and_halt();
+        }
     }
 
-    _store.account_put(logos::logos_test_account, genesis_account, transaction);
+    if (_store.account_put(logos::logos_test_account, genesis_account, transaction))
+    {
+        LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisAccounts, failed to update the account";
+        trace_and_halt();
+    }
 }
 
 void
@@ -708,6 +733,12 @@ DelegateIdentityManager::OnAddressAd(uint8_t *data,
 {
     bool res = false;
 
+    // don't update if already have it
+    if (_address_ad.find({prequel.epoch_number, prequel.delegate_id}) != _address_ad.end())
+    {
+        return true;
+    }
+
     LOG_DEBUG(_log) << "DelegateIdentityManager::OnAddressAd, epoch " << prequel.epoch_number
                     << " delegate id " << (int)prequel.delegate_id
                     << " encr delegate id " << (int)prequel.encr_delegate_id
@@ -772,12 +803,18 @@ DelegateIdentityManager::UpdateAddressAdDB(const PrequelAddressAd &prequel, uint
 {
     logos::transaction transaction (_store.environment, nullptr, true);
     // update new
-    _store.ad_put<logos::block_store::ad_key>(transaction,
-                                              data,
-                                              size,
-                                              prequel.epoch_number,
-                                              prequel.delegate_id,
-                                              prequel.encr_delegate_id);
+    if (_store.ad_put<logos::block_store::ad_key>(transaction,
+                                                  data,
+                                                  size,
+                                                  prequel.epoch_number,
+                                                  prequel.delegate_id,
+                                                  prequel.encr_delegate_id))
+    {
+        LOG_FATAL(_log) << "DelegateIdentityManager::UpdateAddressAdDB, epoch number " << prequel.epoch_number
+                        << " delegate id " << (int)prequel.delegate_id
+                        << " encr delegate id " << (int)prequel.encr_delegate_id;
+        trace_and_halt();
+    }
     // delete old
     auto current_epoch_number = ConsensusContainer::GetCurEpochNumber();
     _store.ad_del<logos::block_store::ad_key>(transaction,
@@ -796,6 +833,12 @@ DelegateIdentityManager::OnAddressAdTxAcceptor(uint8_t *data, size_t size)
     {
         LOG_ERROR(_log) << "ConsensusContainer::OnAddressAdTxAcceptor, failed to deserialize PrequelAddressAd";
         return false;
+    }
+
+    // don't update if already have it
+    if (_address_ad_txa.find({prequel.epoch_number, prequel.delegate_id}) != _address_ad_txa.end())
+    {
+        return true;
     }
 
     auto current_epoch_number = ConsensusContainer::GetCurEpochNumber();
@@ -855,11 +898,16 @@ DelegateIdentityManager::UpdateTxAcceptorAdDB(const AddressAdTxAcceptor &ad, uin
     }
 
     // update new
-    _store.ad_put<logos::block_store::ad_txa_key>(transaction,
-                                                  data,
-                                                  size,
-                                                  ad.epoch_number,
-                                                  ad.delegate_id);
+    if (_store.ad_put<logos::block_store::ad_txa_key>(transaction,
+                                                      data,
+                                                      size,
+                                                      ad.epoch_number,
+                                                      ad.delegate_id))
+    {
+        LOG_FATAL(_log) << "DelegateIdentityManager::UpdateTxAcceptorAdDB, epoch number " << ad.epoch_number
+                        << " delegate id " << (int)ad.delegate_id;
+        trace_and_halt();
+    }
     // delete old
     auto current_epoch_number = ConsensusContainer::GetCurEpochNumber();
     _store.ad_del<logos::block_store::ad_txa_key>(transaction,

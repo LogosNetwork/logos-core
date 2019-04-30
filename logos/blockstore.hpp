@@ -326,12 +326,13 @@ public:
     }
 
     template<typename KeyType, typename ... Args>
-    void ad_put(MDB_txn* t, uint8_t *data, size_t size, Args ... args)
+    bool ad_put(MDB_txn* t, uint8_t *data, size_t size, Args ... args)
     {
         KeyType key{args ... };
         auto db = get_ad_db<KeyType>();
         auto status(mdb_put(t, db, mdb_val(sizeof(key), &key), mdb_val(size, data), 0));
         assert(status == 0);
+        return status != 0;
     }
 
     template<typename KeyType, typename ... Args>
