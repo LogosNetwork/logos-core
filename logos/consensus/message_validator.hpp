@@ -27,7 +27,7 @@ public:
     MessageValidator(DelegateKeyStore & key_store);
 
     //single
-    void Sign(const BlockHash & hash, DelegateSig & sig);
+    virtual void Sign(const BlockHash & hash, DelegateSig & sig);
 
     bool Validate(const BlockHash & hash, const DelegateSig & sig, uint8_t delegate_id)
     {
@@ -131,7 +131,32 @@ public:
         return sig_real.verify(apk, hash_str);
     }
 
-    DelegatePubKey GetPublicKey();
+    virtual DelegatePubKey GetPublicKey();
+
+    static DelegatePubKey BlsPublicKey(bls::PublicKey &bls_pub)
+    {
+        std::string keystring;
+        bls_pub.serialize(keystring);
+
+        DelegatePubKey pk;
+        memcpy(pk.data(), keystring.data(), CONSENSUS_PUB_KEY_SIZE);
+
+        return pk;
+    }
+
+    template<typename F>
+    static void Sign(const BlockHash &hash, DelegateSig & sig, F &&signee)
+    {
+        string hash_str(reinterpret_cast<const char*>(hash.data()), HASH_SIZE);
+
+        bls::Signature sig_real;
+
+        signee(sig_real, hash_str);
+
+        string sig_str;
+        sig_real.serialize(sig_str);
+        memcpy(&sig, sig_str.data(), CONSENSUS_SIG_SIZE);
+    }
 
 private:
 

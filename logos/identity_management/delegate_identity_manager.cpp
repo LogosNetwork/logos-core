@@ -437,6 +437,7 @@ DelegateIdentityManager::IdentifyDelegates(
         if (epoch->delegates[del].account == _delegate_account)
         {
             delegate_idx = del;
+            break;
         }
     }
 }
@@ -488,6 +489,7 @@ DelegateIdentityManager::IdentifyDelegates(
             // update delegates for the requested epoch
             if (epoch->delegates[del].account == _delegate_account) {
                 delegate_idx = del;
+                break;
             }
         }
     }

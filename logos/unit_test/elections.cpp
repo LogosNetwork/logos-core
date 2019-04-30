@@ -16,6 +16,8 @@
 #ifdef Unit_Test_Elections
 
 extern Delegate init_delegate(AccountAddress account, Amount vote, Amount stake, bool starting_term);
+extern void init_ecies(ECIESPublicKey &ecies);
+extern PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare();
 
 void clear_dbs()
 {
@@ -122,6 +124,7 @@ TEST (Elections, blockstore)
 
 
         AnnounceCandidacy announce;
+        init_ecies(announce.ecies_key);
         announce.origin = 7;
         announce.previous = 12;
         announce.sequence = 23;
@@ -133,12 +136,14 @@ TEST (Elections, blockstore)
 
         ASSERT_FALSE(store->request_put(announce,txn));
         AnnounceCandidacy announce2;
+        init_ecies(announce2.ecies_key);
         ASSERT_FALSE(store->request_get(announce.Hash(),announce2,txn));
         ASSERT_EQ(announce2.type,RequestType::AnnounceCandidacy);
         ASSERT_EQ(announce.stake,announce2.stake);
         ASSERT_EQ(announce,announce2);
 
         AnnounceCandidacy announce_json(res, announce.SerializeJson());
+        init_ecies(announce_json.ecies_key);
         ASSERT_FALSE(res);
         ASSERT_EQ(announce_json, announce);
 
@@ -213,6 +218,7 @@ TEST (Elections, blockstore)
 
 
         CandidateInfo candidate_info;
+        init_ecies(candidate_info.ecies_key);
         AccountAddress candidate_account;
         candidate_info.stake = 42;
         candidate_info.bls_key = 3;
@@ -221,6 +227,7 @@ TEST (Elections, blockstore)
         ASSERT_FALSE(store->candidate_put(candidate_account,candidate_info,txn));
 
         CandidateInfo candidate_info2;
+        init_ecies(candidate_info2.ecies_key);
         ASSERT_FALSE(store->candidate_get(candidate_account,candidate_info2,txn));
         ASSERT_EQ(candidate_info,candidate_info2);
     }
@@ -234,11 +241,13 @@ TEST(Elections, candidates_simple)
     clear_dbs();
     
     CandidateInfo c1(100);
+    init_ecies(c1.ecies_key);
     c1.stake = 34;
     c1.bls_key = 4;
     c1.epoch_modified = 12;
     AccountAddress a1(0);
     CandidateInfo c2(110);
+    init_ecies(c2.ecies_key);
     c2.stake = 456;
     c2.bls_key = 7;
     c2.epoch_modified = 96;
@@ -252,11 +261,13 @@ TEST(Elections, candidates_simple)
         ASSERT_FALSE(res);
 
         CandidateInfo c1_copy;
+        init_ecies(c1_copy.ecies_key);
         res = store->candidate_get(a1,c1_copy,txn);
         ASSERT_FALSE(res);
         ASSERT_EQ(c1,c1_copy);
 
         CandidateInfo c2_copy;
+        init_ecies(c2_copy.ecies_key);
         res = store->candidate_get(a2,c2_copy,txn);
         ASSERT_FALSE(res);
         ASSERT_EQ(c2,c2_copy);
@@ -267,6 +278,7 @@ TEST(Elections, candidates_simple)
         ASSERT_FALSE(res);
 
         CandidateInfo c3_copy;
+        init_ecies(c3_copy.ecies_key);
         res = store->candidate_get(a1,c3_copy,txn);
         ASSERT_FALSE(res);
         ASSERT_EQ(c3_copy.votes_received_weighted,c1.votes_received_weighted+100+50);
@@ -307,6 +319,7 @@ TEST(Elections, get_winners)
     {
         logos::transaction txn(store->environment,nullptr,true);
         CandidateInfo c((i % 3) * 100 + i);
+        init_ecies(c.ecies_key);
         c.bls_key = i * 4 + 37;
         AccountAddress a(i);
         store->candidate_put(a,c,txn);
@@ -367,6 +380,7 @@ TEST(Elections,candidates_transition)
     logos::transaction txn(store->environment,nullptr,true);
     {
         CandidateInfo candidate;
+        init_ecies(candidate.ecies_key);
         candidate.stake = stake1;
         candidate.bls_key = bls1;
         ASSERT_FALSE(store->candidate_put(a1, candidate, txn));
@@ -378,6 +392,7 @@ TEST(Elections,candidates_transition)
     iterateCandidatesDB(*store,[](auto& it){
             bool error = false;
             CandidateInfo info(error,it->second);
+            init_ecies(info.ecies_key);
             ASSERT_FALSE(error);
             ASSERT_EQ(info.votes_received_weighted,0);
             },txn);       
@@ -386,8 +401,10 @@ TEST(Elections,candidates_transition)
         bool res = store->candidate_mark_remove(a1,txn);
         ASSERT_FALSE(res);
         CandidateInfo info;
+        init_ecies(info.ecies_key);
         ASSERT_FALSE(store->candidate_get(a1,info,txn));
         CandidateInfo candidate;
+        init_ecies(candidate.ecies_key);
         candidate.stake = stake3;
         candidate.bls_key = bls3;
         ASSERT_FALSE(store->candidate_put(a3, candidate, txn));
@@ -397,6 +414,7 @@ TEST(Elections,candidates_transition)
 
     {
         CandidateInfo info;
+        init_ecies(info.ecies_key);
         bool res = store->candidate_get(a1,info,txn);
         ASSERT_TRUE(res);
         res = store->candidate_get(a2,info,txn);
@@ -407,7 +425,9 @@ TEST(Elections,candidates_transition)
 
 
     {
-        ApprovedEB eb;
+        auto block = create_eb_preprepare();
+        AggSignature sig;
+        ApprovedEB eb(block, sig, sig);
         eb.delegates[0].account = a2;
         eb.delegates[0].starting_term = true;
 
@@ -422,6 +442,7 @@ TEST(Elections,candidates_transition)
 
     {
         CandidateInfo info;
+        init_ecies(info.ecies_key);
         bool res = store->candidate_get(a2,info,txn);
         ASSERT_TRUE(res);
         res = store->candidate_get(a3,info,txn);
@@ -430,7 +451,9 @@ TEST(Elections,candidates_transition)
 
     {
 
-        ApprovedEB eb;
+        auto block = create_eb_preprepare();
+        AggSignature sig;
+        ApprovedEB eb(block, sig, sig);
         {
             Tip tip;
             ASSERT_FALSE(store->epoch_tip_get(tip,txn));
@@ -445,6 +468,7 @@ TEST(Elections,candidates_transition)
 
         {
             CandidateInfo info;
+            init_ecies(info.ecies_key);
             bool res = store->candidate_get(a2,info,txn);
             ASSERT_TRUE(res);
             eb.previous = eb.Hash();
@@ -463,6 +487,7 @@ TEST(Elections,candidates_transition)
 
     {
         CandidateInfo info;
+        init_ecies(info.ecies_key);
         bool res = store->candidate_get(a2,info,txn);
         ASSERT_TRUE(res);
     }
@@ -477,6 +502,7 @@ TEST(Elections,candidates_transition)
     mgr.AddReelectionCandidates(txn);
     {
         CandidateInfo info;
+        init_ecies(info.ecies_key);
         bool res = store->candidate_get(a2,info,txn);
         ASSERT_FALSE(res);
     }
@@ -491,7 +517,9 @@ TEST(Elections,get_next_epoch_delegates)
     EpochVotingManager::ENABLE_ELECTIONS = true;
 
     uint32_t epoch_num = 1;
-    ApprovedEB eb;
+    auto block = create_eb_preprepare();
+    AggSignature sig;
+    ApprovedEB eb(block, sig, sig);
     eb.epoch_number = epoch_num-1;
     eb.previous = 0;
     EpochVotingManager voting_mgr(*store);
@@ -577,6 +605,7 @@ TEST(Elections,get_next_epoch_delegates)
         {
             bool error = false;
             CandidateInfo info(error,it->second);
+            init_ecies(info.ecies_key);
             assert(!error);
             results.push_back(info);
         }
@@ -726,12 +755,12 @@ TEST(Elections,get_next_epoch_delegates)
 
     ASSERT_FALSE(eb.is_extension);
     std::unordered_set<Delegate> retiring = voting_mgr.GetRetiringDelegates(epoch_num+1);
-    ApprovedEB retiring_eb;
+    ApprovedEB retiring_eb(block, sig, sig);
     store->epoch_get_n(3, retiring_eb,nullptr,[](ApprovedEB& block) { return !block.is_extension;});
     transition_epoch();
     ASSERT_TRUE(eb.is_extension);
 
-    ApprovedEB eb2;
+    ApprovedEB eb2(block, sig, sig);
     store->epoch_get_n(0, eb2);
     ASSERT_TRUE(eb2.is_extension);
     for(size_t i = 0; i < NUM_DELEGATES; ++i)
@@ -739,7 +768,7 @@ TEST(Elections,get_next_epoch_delegates)
         delegates[i].starting_term = false;
     }
 
-    ApprovedEB retiring_eb2;
+    ApprovedEB retiring_eb2(block, sig, sig);
     store->epoch_get_n(3, retiring_eb2,nullptr,[](ApprovedEB& block) { return !block.is_extension;});
     ASSERT_EQ(retiring_eb.epoch_number,retiring_eb2.epoch_number);
 
@@ -872,7 +901,9 @@ TEST(Elections, is_dead_period)
     logos::transaction txn(store->environment,nullptr,true);
 
     uint32_t epoch_num = 1;
-    ApprovedEB eb;
+    auto block = create_eb_preprepare();
+    AggSignature sig;
+    ApprovedEB eb(block, sig, sig);
     eb.epoch_number = epoch_num-1;
     eb.previous = 0;
 
@@ -923,7 +954,9 @@ TEST(Elections,validate)
     stop_rep.Hash();
     vote.Hash();
 
-    ApprovedEB eb;
+    auto block = create_eb_preprepare();
+    AggSignature sig;
+    ApprovedEB eb(block, sig, sig);
     eb.epoch_number = epoch_num-1;
     eb.previous = 0;
 
@@ -997,6 +1030,7 @@ TEST(Elections,validate)
         {
             bool error = false;
             CandidateInfo info(error,it->second);
+            init_ecies(info.ecies_key);
             assert(!error);
             results.push_back(info);
         }
@@ -1029,6 +1063,7 @@ TEST(Elections,validate)
 
     //active candidate
     CandidateInfo info;
+    init_ecies(info.ecies_key);
     ASSERT_FALSE(store->candidate_get(announce.origin,info,txn));
     ASSERT_EQ(info.votes_received_weighted,0);
 
@@ -1275,7 +1310,9 @@ TEST(Elections, apply)
     EpochVotingManager::ENABLE_ELECTIONS = true;
 
     uint32_t epoch_num = 1;
-    ApprovedEB eb;
+    auto block = create_eb_preprepare();
+    AggSignature sig;
+    ApprovedEB eb(block, sig, sig);
     eb.epoch_number = epoch_num-1;
     eb.previous = 0;
     EpochVotingManager voting_mgr(*store);
@@ -1348,6 +1385,7 @@ TEST(Elections, apply)
         {
             bool error = false;
             CandidateInfo info(error,it->second);
+            init_ecies(info.ecies_key);
             assert(!error);
             results.push_back(info);
         }
@@ -1525,6 +1563,7 @@ TEST(Elections, apply)
         {
             bool error = false;
             CandidateInfo info(error,it->second);
+            init_ecies(info.ecies_key);
             assert(!error);
             election_results[it->first.uint256()] = info.votes_received_weighted;
         }
@@ -1621,10 +1660,12 @@ TEST(Elections, weighted_votes)
 
     AccountAddress candidate_address = 12;
     CandidateInfo candidate;
+    init_ecies(candidate.ecies_key);
     store->candidate_put(candidate_address,candidate,txn);
 
     AccountAddress candidate2_address = 13;
     CandidateInfo candidate2;
+    init_ecies(candidate2.ecies_key);
     store->candidate_put(candidate2_address,candidate,txn);
     
     ElectionVote vote;
@@ -1700,6 +1741,7 @@ TEST(Elections, remove_db)
     store->clear(store->remove_reps_db, txn);
 
     CandidateInfo c_info;
+    init_ecies(c_info.ecies_key);
     RepInfo r_info;
     std::vector<AccountAddress> persistent;
     for(size_t i = 0; i < 32; ++i)

@@ -327,27 +327,17 @@ public:
     /// @param sig hash's signature [out]
     static void Sign(const BlockHash &hash, DelegateSig &sig)
     {
-        string hash_str(reinterpret_cast<const char*>(hash.data()), HASH_SIZE);
-
-        bls::Signature sig_real;
-        _bls_key->prv.sign(sig_real, hash_str);
-
-        string sig_str;
-        sig_real.serialize(sig_str);
-        memcpy(&sig, sig_str.data(), CONSENSUS_SIG_SIZE);
+        MessageValidator::Sign(hash, sig, [](bls::Signature &sig_real, const std::string &hash_str)
+        {
+            _bls_key->prv.sign(sig_real, hash_str);
+        });
     }
 
     /// Get this delegate bls public key
     /// @returns bls public key
     static DelegatePubKey BlsPublicKey()
     {
-        std::string keystring;
-        _bls_key->pub.serialize(keystring);
-
-        DelegatePubKey pk;
-        memcpy(pk.data(), keystring.data(), CONSENSUS_PUB_KEY_SIZE);
-
-        return pk;
+        return MessageValidator::BlsPublicKey(_bls_key->pub);
     }
 
 private:

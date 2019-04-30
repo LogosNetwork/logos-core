@@ -26,12 +26,17 @@ using namespace std;
 #define Unit_Test_Msg_Validator
 #define Unit_Test_DB
 
+void init_ecies(ECIESPublicKey &ecies)
+{
+    ecies.FromHexString("3059301306072a8648ce3d020106082a8648ce3d030107034200048e1ad7"
+                        "98008baac3663c0c1a6ce04c7cb632eb504562de923845fccf39d1c46dee"
+                        "52df70f6cf46f1351ce7ac8e92055e5f168f5aff24bcaab7513d447fd677d3");
+}
+
 Delegate init_delegate(AccountAddress account, Amount vote, Amount stake, bool starting_term)
 {
     ECIESPublicKey ecies;
-    ecies.FromHexString("3059301306072a8648ce3d020106082a8648ce3d030107034200048e1ad798008"
-                        "aac3663c0c1a6ce04c7cb632eb504562de923845fccf39d1c46dee52df70f6cf46"
-                        "f1351ce7ac8e92055e5f168f5aff24bcaab7513d447fd677d3");
+    init_ecies(ecies);
     bls::PublicKey bls_key;
     stringstream str("1 0x16d73fc6647d0f9c6c50ec2cae8a04f20e82bee1d91ad3f7e3b3db8008db64ba "
                      "0x17012477a44243795807c462a7cce92dc71d1626952cae8d78c6be6bd7c2bae4 "
@@ -899,7 +904,7 @@ TEST (message_validator, signature_order_twoThirds)
 {
     auto nodes = setup_nodes();
 
-    PrePrepareMessage<ConsensusType::Epoch> preperpare;
+    PrePrepareMessage<ConsensusType::Epoch> preperpare = create_eb_preprepare();
 
     auto & primary = nodes[0]->validator;
     auto preprepare_hash = preperpare.Hash();
