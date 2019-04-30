@@ -188,7 +188,14 @@ bool EpochVotingManager::GetNextEpochDelegates(
         trace_and_halt();
     }
 
-    std::unordered_set<Delegate> retiring = GetRetiringDelegates(next_epoch_num);
+    std::unordered_set<Delegate> retiring_dels = GetRetiringDelegates(next_epoch_num);
+    std::unordered_set<AccountAddress> retiring;
+    std::for_each(
+            retiring_dels.begin(),
+            retiring_dels.end(),
+            [&retiring](const Delegate& del) { 
+            retiring.insert(del.account);}
+            );
     std::vector<Delegate> delegate_elects = GetDelegateElects(num_new_delegates, next_epoch_num);
     bool extend = false;
     if(delegate_elects.size() != num_new_delegates)
@@ -203,14 +210,13 @@ bool EpochVotingManager::GetNextEpochDelegates(
            << " in size of retiring and delegate_elects. Need to be equal."
            << "Delegate-elects size : " << delegate_elects.size()
             << " . Retiring size " << retiring.size();
-        assert(false);
         trace_and_halt();
     }
 
     size_t del_elects_idx = 0;
     for (int del = 0; del < NUM_DELEGATES; ++del)
     {
-        if(retiring.find(previous_epoch.delegates[del])!=retiring.end())
+        if(retiring.find(previous_epoch.delegates[del].account)!=retiring.end())
         {
             //if we need to extend the current delegate set,
             //but we are in the period where we are force retiring

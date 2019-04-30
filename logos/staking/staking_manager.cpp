@@ -489,3 +489,64 @@ Amount StakingManager::GetPruneableThawingAmount(
     }
     return total;
 }
+
+void StakingManager::MarkThawingAsFrozen(
+        AccountAddress const & origin,
+        uint32_t const & epoch_to_mark_frozen,
+        MDB_txn* txn)
+{
+    if(!txn)
+    {
+        LOG_FATAL(_log) << "StakingManager::MarkThawingAsFrozen - "
+            << "txn is null";
+        trace_and_halt();
+    }
+    auto update = [&](ThawingFunds & funds)
+    {
+        if(funds.expiration_epoch == epoch_to_mark_frozen)
+        {
+            funds.expiration_epoch = 0;
+            _liability_mgr.DeleteLiability(funds.liability_hash, txn);
+            funds.liability_hash = 
+                _liability_mgr.CreateUnexpiringLiability(
+                    funds.target,
+                    origin,
+                    funds.amount,
+                    txn);
+        }
+        return true;
+    };
+    IterateThawingFunds(origin, update, txn);
+}
+
+void StakingManager::SetExpirationOfFrozen(
+        AccountAddress const & origin,
+        uint32_t const & epoch_unfrozen,
+        MDB_txn* txn)
+{
+
+    if(!txn)
+    {
+        LOG_FATAL(_log) << "StakingManager::MarkThawingAsFrozen - "
+            << "txn is null";
+        trace_and_halt();
+    }
+    uint32_t exp_epoch = epoch_unfrozen + 42;
+    auto update = [&](ThawingFunds & funds)
+    {
+        if(funds.expiration_epoch == 0)
+        {
+            funds.expiration_epoch = exp_epoch;
+            _liability_mgr.DeleteLiability(funds.liability_hash, txn);
+            funds.liability_hash = 
+                _liability_mgr.CreateExpiringLiability(
+                    funds.target,
+                    origin,
+                    funds.amount,
+                    exp_epoch,
+                    txn);
+        }
+        return true;
+    };
+    IterateThawingFunds(origin, update, txn);
+}

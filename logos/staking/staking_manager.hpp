@@ -106,6 +106,21 @@ class StakingManager
             uint32_t const & cur_epoch,
             MDB_txn* txn);
 
+    void UpdateThawingExpiration(
+            AccountAddress const & origin,
+            uint32_t const & cur_epoch,
+            MDB_txn* txn);
+
+    void MarkThawingAsFrozen(
+            AccountAddress const & origin,
+            uint32_t const & epoch_to_mark_frozen,
+            MDB_txn* txn);
+
+    void SetExpirationOfFrozen(
+            AccountAddress const & origin,
+            uint32_t const & epoch_unfrozen,
+            MDB_txn* txn);
+
 
     void Store(StakedFunds const & funds, AccountAddress const & origin, MDB_txn* txn);
     void Store(ThawingFunds & funds, AccountAddress const & origin, MDB_txn* txn);

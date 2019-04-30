@@ -238,7 +238,10 @@ bool logos::block_store::del(MDB_dbi &db, const mdb_val &key, MDB_txn *tx)
     auto status (mdb_del (tx, db, key, nullptr));
 
     auto error = status != 0;
-    assert (!error);
+    if(error)
+    {
+        trace_and_halt();
+    }
 
     return error;
 }
@@ -1564,6 +1567,8 @@ bool logos::block_store::candidate_add_vote(
                     << cur_epoch_num;
                 trace_and_halt();
             }
+            //if this check fails,
+            //VotingPowerManager already wrote self stake to db
             if(vp_info.epoch_modified == cur_epoch_num)
             {
                 info.stake = vp_info.current.self_stake;
