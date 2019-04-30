@@ -40,10 +40,6 @@ constexpr int PING_INTERVAL = 2 * 60;
 constexpr int TIMEOUT_INTERVAL = 20 * 60;
 /** Run the feeler connection loop once every 2 minutes or 120 seconds. **/
 constexpr int FEELER_INTERVAL = 120;
-/** The maximum number of entries in an 'inv' protocol message */
-constexpr unsigned int MAX_INV_SZ = 50000;
-/** The maximum number of entries in a locator */
-constexpr unsigned int MAX_LOCATOR_SZ = 101;
 /** The maximum number of new addresses to accumulate before announcing. */
 constexpr unsigned int MAX_ADDR_TO_SEND = 1000;
 /** Maximum length of incoming protocol messages (no message over 4 MB is currently acceptable). */
@@ -56,20 +52,12 @@ constexpr int MAX_OUTBOUND_CONNECTIONS = 8;
 constexpr int MAX_ADDNODE_CONNECTIONS = 8;
 /** -listen default */
 constexpr bool DEFAULT_LISTEN = true;
-/** -upnp default */
-constexpr bool DEFAULT_UPNP = false;
-/** The maximum number of entries in mapAskFor */
-constexpr size_t MAPASKFOR_MAX_SZ = MAX_INV_SZ;
-/** The maximum number of entries in setAskFor (larger due to getdata latency)*/
-constexpr size_t SETASKFOR_MAX_SZ = 2 * MAX_INV_SZ;
 /** The maximum number of peer connections to maintain. */
 constexpr unsigned int DEFAULT_MAX_PEER_CONNECTIONS = 125;
 /** The default for -maxuploadtarget. 0 = Unlimited */
 constexpr uint64_t DEFAULT_MAX_UPLOAD_TARGET = 0;
 /** The default timeframe for -maxuploadtarget. 1 day. */
 constexpr uint64_t MAX_UPLOAD_TIMEFRAME = 60 * 60 * 24;
-/** Default for blocks only*/
-constexpr bool DEFAULT_BLOCKSONLY = false;
 
 constexpr bool DEFAULT_FORCEDNSSEED = false;
 constexpr size_t DEFAULT_MAXRECEIVEBUFFER = 5 * 1000;
@@ -88,7 +76,6 @@ struct AddedNodeInfo
     bool fInbound;
 };
 
-class CNodeStats;
 class CClientUIInterface;
 
 struct CSerializedNetMsg
@@ -175,7 +162,6 @@ enum
     LOCAL_NONE,   // unknown
     LOCAL_IF,     // address a local interface listens on
     LOCAL_BIND,   // address explicit bound to
-    LOCAL_UPNP,   // address reported by UPnP
     LOCAL_MANUAL, // address explicitly specified (-externalip=)
 
     LOCAL_MAX
@@ -205,7 +191,6 @@ public:
         int nMaxOutbound = 0;
         int nMaxAddnode = 0;
         int nMaxFeeler = 0;
-        int nBestHeight = 0;
         CClientUIInterface* uiInterface = nullptr;
         NetEventsInterface* m_msgproc = nullptr;
         unsigned int nSendBufferMaxSize = 0;
@@ -226,7 +211,6 @@ public:
         nMaxOutbound = std::min(connOptions.nMaxOutbound, connOptions.nMaxConnections);
         nMaxAddnode = connOptions.nMaxAddnode;
         nMaxFeeler = connOptions.nMaxFeeler;
-        nBestHeight = connOptions.nBestHeight;
         clientInterface = connOptions.uiInterface;
         m_msgproc = connOptions.m_msgproc;
         nSendBufferMaxSize = connOptions.nSendBufferMaxSize;
@@ -300,7 +284,6 @@ public:
     };
 
     // Addrman functions
-    size_t GetAddressCount() const;
     void SetServices(const CService &addr, ServiceFlags nServices);
     void MarkAddressGood(const CAddress& addr);
     void AddNewAddresses(const std::vector<CAddress>& vAddr, const CAddress& addrFrom, int64_t nTimePenalty = 0);
@@ -352,8 +335,6 @@ public:
     bool RemoveAddedNode(const std::string& node);
     std::vector<AddedNodeInfo> GetAddedNodeInfo();
 
-    size_t GetNodeCount(NumConnections num);
-    void GetNodeStats(std::vector<CNodeStats>& vstats);
     bool DisconnectNode(const std::string& node);
     bool DisconnectNode(NodeId id);
     void FinalizeNode(NodeId id, const CAddress &addr);
@@ -391,21 +372,12 @@ public:
     uint64_t GetTotalBytesRecv();
     uint64_t GetTotalBytesSent();
 
-    void SetBestHeight(int height);
-    int GetBestHeight() const;
-
     /** Get a unique deterministic randomizer. */
     CSipHasher GetDeterministicRandomizer(uint64_t id) const;
 
     unsigned int GetReceiveFloodSize() const;
 
     void WakeMessageHandler();
-
-    /** Attempts to obfuscate tx time through exponentially distributed emitting.
-        Works assuming that a single interval is used.
-        Variable intervals will result in privacy decrease.
-    */
-    int64_t PoissonNextSendInbound(int64_t now, int average_interval_seconds);
 
     void scheduleEveryRecurse(std::function<void()> const &handler, unsigned ms)
     {
@@ -445,7 +417,6 @@ public:
         assert(chainParams);
         return *chainParams;
     }
-
 
 private:
     using ListenSocket = std::shared_ptr<AsioServer>;
@@ -551,7 +522,6 @@ private:
     int nMaxOutbound;
     int nMaxAddnode;
     int nMaxFeeler;
-    std::atomic<int> nBestHeight;
     NetEventsInterface* m_msgproc;
 
     /** SipHasher seeds for deterministic randomness */
@@ -585,25 +555,7 @@ private:
     friend class AsioSession;
     friend class p2p_internal;
 };
-void StartMapPort();
-void InterruptMapPort();
-void StopMapPort();
 bool BindListenPort(const CService &bindAddr, std::string& strError, bool fWhitelisted = false);
-
-struct CombinerAll
-{
-    typedef bool result_type;
-
-    template<typename I>
-    bool operator()(I first, I last) const
-    {
-        while (first != last) {
-            if (!(*first)) return false;
-            ++first;
-        }
-        return true;
-    }
-};
 
 /**
  * Interface for message handling
@@ -625,39 +577,6 @@ protected:
 };
 
 typedef std::map<std::string, uint64_t> mapMsgCmdSize; //command, total bytes
-
-class CNodeStats
-{
-public:
-    NodeId nodeid;
-    ServiceFlags nServices;
-    bool fRelayTxes;
-    int64_t nLastSend;
-    int64_t nLastRecv;
-    int64_t nTimeConnected;
-    int64_t nTimeOffset;
-    std::string addrName;
-    int nVersion;
-    std::string cleanSubVer;
-    bool fInbound;
-    bool m_manual_connection;
-    int nStartingHeight;
-    uint64_t nSendBytes;
-    mapMsgCmdSize mapSendBytesPerMsgCmd;
-    uint64_t nRecvBytes;
-    mapMsgCmdSize mapRecvBytesPerMsgCmd;
-    bool fWhitelisted;
-    double dPingTime;
-    double dPingWait;
-    double dMinPing;
-    CAmount minFeeFilter;
-    // Our address, as reported by the peer
-    std::string addrLocal;
-    // Address of this peer
-    CAddress addr;
-    // Bind address of our side of the connection
-    CAddress addrBind;
-};
 
 class CNetMessage {
 private:
@@ -742,19 +661,11 @@ public:
     bool fFeeler; // If true this node is being used as a short lived feeler.
     bool fOneShot;
     bool m_manual_connection;
-    bool fClient;
-    bool m_limited_node; //after BIP159
     const bool fInbound;
     std::atomic_bool fSuccessfullyConnected;
     std::atomic_bool fDisconnect;
-    // We use fRelayTxes for two purposes -
-    // a) it allows us to not relay tx invs before receiving the peer's version message
-    // b) the peer may tell us in its version message that we should not relay tx invs
-    //    unless it loads a bloom filter.
-    bool fRelayTxes; //protected by cs_filter
     bool fSentAddr;
     CSemaphoreGrant grantOutbound;
-    Mutex cs_filter;
 
     const uint64_t nKeyedNetGroup;
     std::atomic_bool fPauseRecv;
@@ -768,7 +679,6 @@ protected:
 
 public:
     uint256 hashContinue;
-    std::atomic<int> nStartingHeight;
 
     // flood relay
     std::vector<CAddress> vAddrToSend;
@@ -777,10 +687,6 @@ public:
     std::set<uint256> setKnown;
     int64_t nNextAddrSend;
     int64_t nNextLocalAddrSend;
-
-    // Block and TXN accept times
-    std::atomic<int64_t> nLastBlockTime;
-    std::atomic<int64_t> nLastTXTime;
 
     // Ping time measurement:
     // The pong reply we're expecting, or 0 if no pong expected.
@@ -793,12 +699,8 @@ public:
     std::atomic<int64_t> nMinPingUsecTime;
     // Whether a ping is requested.
     std::atomic<bool> fPingQueued;
-    // Minimum fee rate with which to filter inv's to this node
-    CAmount minFeeFilter;
-    CAmount lastSentFeeFilter;
-    int64_t nextSendTimeFeeFilter;
 
-    CNode(NodeId id, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, std::shared_ptr<AsioSession> sessionIn, const CAddress &addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string &addrNameIn = "", bool fInboundIn = false);
+    CNode(NodeId id, ServiceFlags nLocalServicesIn, std::shared_ptr<AsioSession> sessionIn, const CAddress &addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string &addrNameIn = "", bool fInboundIn = false);
     ~CNode();
     CNode(const CNode&) = delete;
     CNode& operator=(const CNode&) = delete;
@@ -808,7 +710,6 @@ private:
     const uint64_t nLocalHostNonce;
     // Services offered to this peer
     const ServiceFlags nLocalServices;
-    const int nMyStartingHeight;
     int nSendVersion;
     std::list<CNetMessage> vRecvMsg;  // Used only by SocketHandler thread
 
@@ -827,10 +728,6 @@ public:
 
     uint64_t GetLocalNonce() const {
         return nLocalHostNonce;
-    }
-
-    int GetMyStartingHeight() const {
-        return nMyStartingHeight;
     }
 
     bool ReceiveMsgBytes(const char *pch, unsigned int nBytes, bool& complete);
@@ -871,8 +768,6 @@ public:
     }
 
     void CloseSocketDisconnect();
-
-    void copyStats(CNodeStats &stats);
 
     ServiceFlags GetLocalServices() const
     {

@@ -135,7 +135,6 @@ public:
 
 void Interrupt()
 {
-    InterruptMapPort();
     if (g_connman)
         g_connman->Interrupt();
 }
@@ -152,7 +151,6 @@ void Shutdown()
     /// Be sure that anything that writes files or flushes caches only does this if the respective
     /// module was initialized.
     RenameThread(PACKAGE_NAME "-shutoff");
-    StopMapPort();
 
     // Because these depend on each-other, we make sure that neither can be
     // using the other before destroying them.
@@ -518,11 +516,6 @@ bool AppInitMain(p2p_config &config)
     }
 
     connman.Discover();
-
-    // Map ports with UPnP
-    if (Args.GetBoolArg("-upnp", DEFAULT_UPNP)) {
-        StartMapPort();
-    }
 
     CConnman::Options connOptions;
     connOptions.nLocalServices = nLocalServices;

@@ -124,7 +124,7 @@ static void PushNodeVersion(std::shared_ptr<CNode> pnode, CConnman* connman, int
 {
     ServiceFlags nLocalNodeServices = pnode->GetLocalServices();
     uint64_t nonce = pnode->GetLocalNonce();
-    int nNodeStartingHeight = pnode->GetMyStartingHeight();
+    int nNodeStartingHeight = -1; /* we do not change format of the message and remain this field constantly equal to -1 */
     NodeId nodeid = pnode->GetId();
     CAddress addr = pnode->addr;
 
@@ -135,9 +135,9 @@ static void PushNodeVersion(std::shared_ptr<CNode> pnode, CConnman* connman, int
             nonce, connman->strSubVersion, nNodeStartingHeight, true));
 
     if (connman->fLogIPs) {
-        LogPrint(BCLog::NET, "send version message: version %d, blocks=%d, us=%s, them=%s, peer=%d\n", PROTOCOL_VERSION, nNodeStartingHeight, addrMe.ToString(), addrYou.ToString(), nodeid);
+        LogPrint(BCLog::NET, "send version message: version %d, us=%s, them=%s, peer=%d\n", PROTOCOL_VERSION, addrMe.ToString(), addrYou.ToString(), nodeid);
     } else {
-        LogPrint(BCLog::NET, "send version message: version %d, blocks=%d, us=%s, peer=%d\n", PROTOCOL_VERSION, nNodeStartingHeight, addrMe.ToString(), nodeid);
+        LogPrint(BCLog::NET, "send version message: version %d, us=%s, peer=%d\n", PROTOCOL_VERSION, addrMe.ToString(), nodeid);
     }
 }
 
@@ -355,18 +355,6 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
             pfrom->strSubVer = strSubVer;
             pfrom->cleanSubVer = cleanSubVer;
         }
-        pfrom->nStartingHeight = nStartingHeight;
-
-        // set nodes not relaying blocks and tx and not serving (parts) of the historical blockchain as "clients"
-        pfrom->fClient = (!(nServices & NODE_NETWORK) && !(nServices & NODE_NETWORK_LIMITED));
-
-        // set nodes not capable of serving the complete blockchain history as "limited nodes"
-        pfrom->m_limited_node = (!(nServices & NODE_NETWORK) && (nServices & NODE_NETWORK_LIMITED));
-
-        {
-            LOCK(pfrom->cs_filter);
-            pfrom->fRelayTxes = fRelay; // set to true after we get the first filter* message
-        }
 
         // Change version
         pfrom->SetSendVersion(nSendVersion);
@@ -400,9 +388,9 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
         if (connman->fLogIPs)
             remoteAddr = ", peeraddr=" + pfrom->addr.ToString();
 
-        LogPrint(BCLog::NET, "receive version message: %s: version %d, blocks=%d, us=%s, peer=%d%s\n",
+        LogPrint(BCLog::NET, "receive version message: %s: version %d, us=%s, peer=%d%s\n",
                   cleanSubVer, pfrom->nVersion,
-                  pfrom->nStartingHeight, addrMe.ToString(), pfrom->GetId(),
+                  addrMe.ToString(), pfrom->GetId(),
                   remoteAddr);
 
         int64_t nTimeOffset = nTime - connman->timeData.GetTime();
@@ -435,8 +423,8 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
             // Mark this node as currently connected, so we update its timestamp later.
             LOCK(cs_main);
             State(pfrom->GetId())->fCurrentlyConnected = true;
-            LogPrintf("New outbound peer connected: version: %d, blocks=%d, peer=%d%s\n",
-                      pfrom->nVersion.load(), pfrom->nStartingHeight, pfrom->GetId(),
+            LogPrintf("New outbound peer connected: version: %d, peer=%d%s\n",
+                      pfrom->nVersion.load(), pfrom->GetId(),
                       (connman->fLogIPs ? strprintf(", peeraddr=%s", pfrom->addr.ToString()) : ""));
         }
 

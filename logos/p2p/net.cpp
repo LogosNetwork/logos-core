@@ -525,7 +525,7 @@ std::shared_ptr<CNode> CConnman::ConnectNodeFinish(AsioClient *client, std::shar
     // Add node
     NodeId id = GetNewNodeId();
     uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
-    std::shared_ptr<CNode> pnode = std::make_shared<CNode>(id, nLocalServices, GetBestHeight(), session, addr, CalculateKeyedNetGroup(addr), nonce, addr_bind,
+    std::shared_ptr<CNode> pnode = std::make_shared<CNode>(id, nLocalServices, session, addr, CalculateKeyedNetGroup(addr), nonce, addr_bind,
             client->name ? client->name : "", false);
     session->setNode(pnode);
 
@@ -820,66 +820,6 @@ void CNode::SetAddrLocal(const CService& addrLocalIn) {
     }
 }
 
-#undef X
-#define X(name) stats.name = name
-void CNode::copyStats(CNodeStats &stats)
-{
-    stats.nodeid = this->GetId();
-    X(nServices);
-    X(addr);
-    X(addrBind);
-    {
-        LOCK(cs_filter);
-        X(fRelayTxes);
-    }
-    X(nLastSend);
-    X(nLastRecv);
-    X(nTimeConnected);
-    X(nTimeOffset);
-    stats.addrName = GetAddrName();
-    X(nVersion);
-    {
-        LOCK(cs_SubVer);
-        X(cleanSubVer);
-    }
-    X(fInbound);
-    X(m_manual_connection);
-    X(nStartingHeight);
-    {
-        LOCK(cs_vSend);
-        X(mapSendBytesPerMsgCmd);
-        X(nSendBytes);
-    }
-    {
-        LOCK(cs_vRecv);
-        X(mapRecvBytesPerMsgCmd);
-        X(nRecvBytes);
-    }
-    X(fWhitelisted);
-    X(minFeeFilter);
-
-    // It is common for nodes with good ping times to suddenly become lagged,
-    // due to a new block arriving or other large transfer.
-    // Merely reporting pingtime might fool the caller into thinking the node was still responsive,
-    // since pingtime does not update until the ping is complete, which might take a while.
-    // So, if a ping is taking an unusually long time in flight,
-    // the caller can immediately detect that this is happening.
-    int64_t nPingUsecWait = 0;
-    if ((0 != nPingNonceSent) && (0 != nPingUsecStart)) {
-        nPingUsecWait = GetTimeMicros() - nPingUsecStart;
-    }
-
-    // Raw ping time is in microseconds, but show it to user as whole seconds (Bitcoin users should be well used to small numbers with many decimal places by now :)
-    stats.dPingTime = (((double)nPingUsecTime) / 1e6);
-    stats.dMinPing  = (((double)nMinPingUsecTime) / 1e6);
-    stats.dPingWait = (((double)nPingUsecWait) / 1e6);
-
-    // Leave string empty if addrLocal invalid (not filled in yet)
-    CService addrLocalUnlocked = GetAddrLocal();
-    stats.addrLocal = addrLocalUnlocked.IsValid() ? addrLocalUnlocked.ToString() : "";
-}
-#undef X
-
 bool CNode::ReceiveMsgBytes(const char *pch, unsigned int nBytes, bool& complete)
 {
     complete = false;
@@ -1076,10 +1016,7 @@ struct NodeEvictionCandidate
     NodeId id;
     int64_t nTimeConnected;
     int64_t nMinPingUsecTime;
-    int64_t nLastBlockTime;
-    int64_t nLastTXTime;
     bool fRelevantServices;
-    bool fRelayTxes;
     CAddress addr;
     uint64_t nKeyedNetGroup;
 };
@@ -1101,7 +1038,6 @@ static bool CompareNetGroupKeyed(const NodeEvictionCandidate &a, const NodeEvict
 static bool CompareNodeBlockTime(const NodeEvictionCandidate &a, const NodeEvictionCandidate &b)
 {
     // There is a fall-through here because it is common for a node to have many peers which have not yet relayed a block.
-    if (a.nLastBlockTime != b.nLastBlockTime) return a.nLastBlockTime < b.nLastBlockTime;
     if (a.fRelevantServices != b.fRelevantServices) return b.fRelevantServices;
     return a.nTimeConnected > b.nTimeConnected;
 }
@@ -1109,8 +1045,6 @@ static bool CompareNodeBlockTime(const NodeEvictionCandidate &a, const NodeEvict
 static bool CompareNodeTXTime(const NodeEvictionCandidate &a, const NodeEvictionCandidate &b)
 {
     // There is a fall-through here because it is common for a node to have more than a few peers that have not yet relayed txn.
-    if (a.nLastTXTime != b.nLastTXTime) return a.nLastTXTime < b.nLastTXTime;
-    if (a.fRelayTxes != b.fRelayTxes) return b.fRelayTxes;
     return a.nTimeConnected > b.nTimeConnected;
 }
 
@@ -1146,9 +1080,8 @@ bool CConnman::AttemptToEvictConnection()
             if (node->fDisconnect)
                 continue;
             NodeEvictionCandidate candidate = {node->GetId(), node->nTimeConnected, node->nMinPingUsecTime,
-                                               node->nLastBlockTime, node->nLastTXTime,
                                                HasAllDesirableServiceFlags(node->nServices),
-                                               node->fRelayTxes, node->addr, node->nKeyedNetGroup};
+                                               node->addr, node->nKeyedNetGroup};
             vEvictionCandidates.push_back(candidate);
         }
     }
@@ -1261,7 +1194,7 @@ std::shared_ptr<CNode> CConnman::AcceptConnection(std::shared_ptr<AsioSession> s
     saddr = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
     CAddress addr_bind(saddr, NODE_NONE);
 
-    std::shared_ptr<CNode> pnode = std::make_shared<CNode>(id, nLocalServices, GetBestHeight(), session, addr, CalculateKeyedNetGroup(addr), nonce, addr_bind, "", true);
+    std::shared_ptr<CNode> pnode = std::make_shared<CNode>(id, nLocalServices, session, addr, CalculateKeyedNetGroup(addr), nonce, addr_bind, "", true);
     session->setNode(pnode);
     pnode->fWhitelisted = whitelisted;
     m_msgproc->InitializeNode(pnode);
@@ -1521,19 +1454,6 @@ void CConnman::WakeMessageHandler()
         fMsgProcWake = true;
     }
     condMsgProc.notify_one();
-}
-
-void StartMapPort()
-{
-    // Intentionally left blank.
-}
-void InterruptMapPort()
-{
-    // Intentionally left blank.
-}
-void StopMapPort()
-{
-    // Intentionally left blank.
 }
 
 void CConnman::ThreadDNSAddressSeed()
@@ -2325,11 +2245,6 @@ CConnman::~CConnman()
     sem_destroy(&dataWritten);
 }
 
-size_t CConnman::GetAddressCount() const
-{
-    return addrman.size();
-}
-
 void CConnman::SetServices(const CService &addr, ServiceFlags nServices)
 {
     addrman.SetServices(addr, nServices);
@@ -2371,33 +2286,6 @@ bool CConnman::RemoveAddedNode(const std::string& strNode)
         }
     }
     return false;
-}
-
-size_t CConnman::GetNodeCount(NumConnections flags)
-{
-    LOCK(cs_vNodes);
-    if (flags == CConnman::CONNECTIONS_ALL) // Shortcut if we want total
-        return vNodes.size();
-
-    int nNum = 0;
-    for (auto&& pnode : vNodes) {
-        if (flags & (pnode->fInbound ? CONNECTIONS_IN : CONNECTIONS_OUT)) {
-            nNum++;
-        }
-    }
-
-    return nNum;
-}
-
-void CConnman::GetNodeStats(std::vector<CNodeStats>& vstats)
-{
-    vstats.clear();
-    LOCK(cs_vNodes);
-    vstats.reserve(vNodes.size());
-    for (auto&& pnode : vNodes) {
-        vstats.emplace_back();
-        pnode->copyStats(vstats.back());
-    }
 }
 
 bool CConnman::DisconnectNode(const std::string& strNode)
@@ -2534,19 +2422,9 @@ ServiceFlags CConnman::GetLocalServices() const
     return nLocalServices;
 }
 
-void CConnman::SetBestHeight(int height)
-{
-    nBestHeight.store(height, std::memory_order_release);
-}
-
-int CConnman::GetBestHeight() const
-{
-    return nBestHeight.load(std::memory_order_acquire);
-}
-
 unsigned int CConnman::GetReceiveFloodSize() const { return nReceiveFloodSize; }
 
-CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, std::shared_ptr<AsioSession> sessionIn, const CAddress& addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string& addrNameIn, bool fInboundIn) :
+CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, std::shared_ptr<AsioSession> sessionIn, const CAddress& addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string& addrNameIn, bool fInboundIn) :
     nTimeConnected(GetSystemTimeInSeconds()),
     addr(addrIn),
     addrBind(addrBindIn),
@@ -2556,7 +2434,6 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     id(idIn),
     nLocalHostNonce(nLocalHostNonceIn),
     nLocalServices(nLocalServicesIn),
-    nMyStartingHeight(nMyStartingHeightIn),
     nSendVersion(0),
     connman(sessionIn->connman)
 {
@@ -2574,29 +2451,20 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
     fWhitelisted = false;
     fOneShot = false;
     m_manual_connection = false;
-    fClient = false; // set by version message
-    m_limited_node = false; // set by version message
     fFeeler = false;
     fSuccessfullyConnected = false;
     fDisconnect = false;
     nSendSize = 0;
     hashContinue = uint256();
-    nStartingHeight = -1;
     fGetAddr = false;
     nNextLocalAddrSend = 0;
     nNextAddrSend = 0;
-    fRelayTxes = false;
     fSentAddr = false;
-    nLastBlockTime = 0;
-    nLastTXTime = 0;
     nPingNonceSent = 0;
     nPingUsecStart = 0;
     nPingUsecTime = 0;
     fPingQueued = false;
     nMinPingUsecTime = std::numeric_limits<int64_t>::max();
-    minFeeFilter = 0;
-    lastSentFeeFilter = 0;
-    nextSendTimeFeeFilter = 0;
     fPauseRecv = false;
     fPauseSend = false;
     nProcessQueueSize = 0;
@@ -2685,17 +2553,6 @@ bool CConnman::ForNode(NodeId id, std::function<bool(std::shared_ptr<CNode> pnod
         }
     }
     return found && NodeFullyConnected(found) && func(found);
-}
-
-int64_t CConnman::PoissonNextSendInbound(int64_t now, int average_interval_seconds)
-{
-    if (m_next_send_inv_to_incoming < now) {
-        // If this function were called from multiple threads simultaneously
-        // it would possible that both update the next send variable, and return a different result to their caller.
-        // This is not possible in practice as only the net processing thread invokes this function.
-        m_next_send_inv_to_incoming = PoissonNextSend(now, average_interval_seconds);
-    }
-    return m_next_send_inv_to_incoming;
 }
 
 int64_t PoissonNextSend(int64_t now, int average_interval_seconds)
