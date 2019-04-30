@@ -125,7 +125,6 @@ struct AnnounceCandidacy : Request
     DelegatePubKey bls_key;
     ECIESPublicKey ecies_key;
     uint32_t epoch_num;
-    ByteArray<32> encryption_key;
 };
 
 struct RenounceCandidacy : Request
