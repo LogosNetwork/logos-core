@@ -358,6 +358,7 @@ void AnnounceCandidacy::Hash(blake2b_state& hash) const
     Request::Hash(hash);
     blake2b_update(&hash, &stake, sizeof(stake));
     bls_key.Hash(hash);
+    ecies_key.Hash(hash);
     blake2b_update(&hash, &epoch_num, sizeof(epoch_num));
 }
 
@@ -464,9 +465,10 @@ bool ElectionVote::operator==(const ElectionVote& other) const
 bool AnnounceCandidacy::operator==(const AnnounceCandidacy& other) const
 {
     return stake == other.stake
-       && bls_key == other.bls_key 
-        && epoch_num == other.epoch_num
-        && Request::operator==(other);
+       && bls_key == other.bls_key
+       && ecies_key == other.ecies_key
+       && epoch_num == other.epoch_num
+       && Request::operator==(other);
 }
 
 bool RenounceCandidacy::operator==(const RenounceCandidacy& other) const
