@@ -259,6 +259,7 @@ DelegateIdentityManager::Init(const Config &config)
     }
     else {LoadGenesisAccounts();}
 
+    // TODO, wallet integration
     _delegate_account = logos::genesis_delegates[cmconfig.delegate_id].key.pub;
     _ecies_key = logos::genesis_delegates[cmconfig.delegate_id].ecies_key;
     *_bls_key = logos::genesis_delegates[cmconfig.delegate_id].bls_key;

@@ -192,6 +192,11 @@ public:
         return _epoch_transition_enabled;
     }
 
+    static void EpochTransitionEnable(bool enable)
+    {
+        _epoch_transition_enabled = enable;
+    }
+
     /// @returns this delegate account
     static AccountAddress GetDelegateAccount()
     {

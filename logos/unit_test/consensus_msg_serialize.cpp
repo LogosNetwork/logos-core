@@ -26,6 +26,25 @@ using namespace std;
 #define Unit_Test_Msg_Validator
 #define Unit_Test_DB
 
+Delegate init_delegate(AccountAddress account, Amount vote, Amount stake, bool starting_term)
+{
+    ECIESPublicKey ecies;
+    ecies.FromHexString("3059301306072a8648ce3d020106082a8648ce3d030107034200048e1ad798008"
+                        "aac3663c0c1a6ce04c7cb632eb504562de923845fccf39d1c46dee52df70f6cf46"
+                        "f1351ce7ac8e92055e5f168f5aff24bcaab7513d447fd677d3");
+    bls::PublicKey bls_key;
+    stringstream str("1 0x16d73fc6647d0f9c6c50ec2cae8a04f20e82bee1d91ad3f7e3b3db8008db64ba "
+                     "0x17012477a44243795807c462a7cce92dc71d1626952cae8d78c6be6bd7c2bae4 "
+                     "0x13ef6f7873bc4a78feae40e9a25396a0f0a52fbb28c3d38b4bf50e18c48632c "
+                     "0x7390eee94c740350098a653d57c1705b24470434709a92f624589dc8537429d");
+    str >> bls_key;
+    std::string s;
+    bls_key.serialize(s);
+    DelegatePubKey pub;
+    memcpy(pub.data(), s.data(), CONSENSUS_PUB_KEY_SIZE);
+    return {account, pub, ecies, vote, stake, starting_term};
+}
+
 std::string byte_vector_to_string (const std::vector<uint8_t> & buf)
 {
     std::stringstream stream;
@@ -83,7 +102,7 @@ PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare()
     block.transaction_fee_pool = 2345;
     for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
     {
-        block.delegates[i] = {i, i, i, i};
+        block.delegates[i] = init_delegate(i, i, i, i);
     }
     return block;
 }
@@ -350,29 +369,6 @@ TEST (write_read, short_msg)
 
 ///////////////////////////// message serialization tests
 #ifdef Unit_Test_Msg
-TEST (messages, KeyAdvertisement)
-{
-    KeyAdvertisement block;
-    block.public_key = 123;
-    vector<uint8_t> buf;
-    block.Serialize(buf);
-    //cout << "block.payload_size=" << block.payload_size << endl;
-
-    bool error = false;
-    logos::bufferstream stream(buf.data(), buf.size());
-
-    Prequel prequel(error, stream);
-    ASSERT_EQ(block.payload_size, prequel.payload_size);
-    //cout << "prequel.payload_size=" << prequel.payload_size << endl;
-
-    KeyAdvertisement block2(error, stream, prequel.version);
-
-    ASSERT_FALSE(error);
-    ASSERT_EQ(block.public_key, block2.public_key);
-    ASSERT_EQ(block.version, block2.version);
-    ASSERT_EQ(block.type, block2.type);
-    ASSERT_EQ(block.consensus_type, block2.consensus_type);
-}
 
 TEST (messages, HeartBeat)
 {
@@ -401,24 +397,6 @@ TEST (messages, HeartBeat)
         ASSERT_EQ(block.type, block2.type);
         ASSERT_EQ(block.consensus_type, block2.consensus_type);
     }
-}
-
-TEST (messages, ConnectedClientIds)
-{
-    char ip[INET6_ADDRSTRLEN] = {'c'};
-    ConnectedClientIds block(1u,2u,EpochConnection::Transitioning, ip);
-    vector<uint8_t> buf;
-    block.Serialize(buf);
-
-    bool error = false;
-    logos::bufferstream stream(buf.data(), buf.size());
-    ConnectedClientIds block2(error, stream);
-
-    ASSERT_FALSE(error);
-    ASSERT_EQ(block.epoch_number, block2.epoch_number);
-    ASSERT_EQ(block.delegate_id, block2.delegate_id);
-    ASSERT_EQ(block.connection, block2.connection);
-    ASSERT_EQ(memcmp(block.ip, block2.ip, INET6_ADDRSTRLEN), 0);
 }
 
 TEST (messages, StandardPhaseMessage)
@@ -777,7 +755,7 @@ TEST (message_validator, consensus_session)
     preprepare.transaction_fee_pool = 2345;
     for(uint8_t i = 0; i < NUM_DELEGATES; ++i)
     {
-        preprepare.delegates[i] = {i, i, i, i};
+        preprepare.delegates[i] = init_delegate(i, i, i, i);
     }
 
     auto & primary = nodes[0]->validator;

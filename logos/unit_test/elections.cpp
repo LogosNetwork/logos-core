@@ -15,6 +15,8 @@
 
 #ifdef Unit_Test_Elections
 
+extern Delegate init_delegate(AccountAddress account, Amount vote, Amount stake, bool starting_term);
+
 void clear_dbs()
 {
     logos::block_store* store = get_db();
@@ -484,7 +486,7 @@ TEST(Elections,get_next_epoch_delegates)
 {
     logos::block_store* store = get_db();
     clear_dbs();
-    DelegateIdentityManager::_epoch_transition_enabled = true;
+    DelegateIdentityManager::EpochTransitionEnable(true);
 
     EpochVotingManager::ENABLE_ELECTIONS = true;
 
@@ -503,7 +505,7 @@ TEST(Elections,get_next_epoch_delegates)
 
         logos::transaction txn(store->environment, nullptr, true);
 
-        Delegate d(i,i,base_vote+i,i);
+        Delegate d(init_delegate(i,i,base_vote+i,i));
         d.starting_term = true;
         eb.delegates[i] = d;
         delegates.push_back(d);
@@ -803,7 +805,7 @@ TEST(Elections, redistribute_votes)
     auto sum = 0;
     for(size_t i = 0; i < 32; ++i)
     {
-        Delegate d(i,i,i,i);
+        Delegate d(init_delegate(i,i,i,i));
         delegates[i] = d;
         sum += i;
     }
@@ -891,7 +893,7 @@ TEST(Elections,validate)
 
     logos::process_return result;
     result.code = logos::process_result::progress; 
-    DelegateIdentityManager::_epoch_transition_enabled = true;
+    DelegateIdentityManager::EpochTransitionEnable(true);
     AccountAddress sender_account = 100;
     AccountAddress sender_account2 = 101;
     EpochVotingManager::START_ELECTIONS_EPOCH = 2;
@@ -927,7 +929,7 @@ TEST(Elections,validate)
 
     for(size_t i = 0; i < 32; ++i)
     {
-        Delegate d(i,i,i,i);
+        Delegate d(init_delegate(i,i,i,i));
         d.starting_term = false; // this is not really neccessary in genesis
         eb.delegates[i] = d;
 
@@ -1268,7 +1270,7 @@ TEST(Elections, apply)
 
     logos::block_store* store = get_db();
     clear_dbs();
-    DelegateIdentityManager::_epoch_transition_enabled = true;
+    DelegateIdentityManager::EpochTransitionEnable(true);
 
     EpochVotingManager::ENABLE_ELECTIONS = true;
 
@@ -1289,7 +1291,7 @@ TEST(Elections, apply)
 
         logos::transaction txn(store->environment, nullptr, true);
 
-        Delegate d(i,i,base_vote+i,i);
+        Delegate d(init_delegate(i,i,base_vote+i,i));
         d.starting_term = true;
         eb.delegates[i] = d;
         delegates.push_back(d);
@@ -1647,10 +1649,10 @@ TEST(Elections, weighted_votes)
 TEST(Elections, tiebreakers)
 {
 
-    Delegate d1(1,0,10,20);
-    Delegate d2(2,0,10,30);
-    Delegate d3(3,0,10,30);
-    Delegate d4(4,0,100,2);
+    Delegate d1(init_delegate(1,0,10,20));
+    Delegate d2(init_delegate(2,0,10,30));
+    Delegate d3(init_delegate(3,0,10,30));
+    Delegate d4(init_delegate(4,0,100,2));
 
     ASSERT_TRUE(EpochVotingManager::IsGreater(d2,d1));
     ASSERT_TRUE(EpochVotingManager::IsGreater(d3,d2));

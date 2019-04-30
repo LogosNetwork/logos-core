@@ -15,7 +15,7 @@ struct BLS_Node
     BLS_Node()
     : key_store()
     , key_pair()
-    , validator(key_store, key_pair)
+    , validator(key_store)
     {}
 };
 

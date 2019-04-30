@@ -37,13 +37,14 @@ struct Delegate
             DelegatePubKey const & bls_pub,
             ECIESPublicKey & ecies_pub,
             Amount vote,
-            Amount stake)
+            Amount stake,
+            bool starting_term = false)
     : account(account)
     , bls_pub(bls_pub)
     , ecies_pub(ecies_pub)
     , vote(vote)
     , stake(stake)
-    , starting_term(false)
+    , starting_term(starting_term)
     {}
 
     void Hash(blake2b_state & hash) const
