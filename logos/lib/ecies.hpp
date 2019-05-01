@@ -130,21 +130,6 @@ public:
     }
 };
 
-class ECIESPublicKey : public ECIESKey<CryptoPP::DL_PublicKey_EC<ECP>> {
-public:
-    ECIESPublicKey() : ECIESKey<CryptoPP::DL_PublicKey_EC<ECP>> () {}
-    ECIESPublicKey(std::string &str, bool is_hex) : ECIESKey<CryptoPP::DL_PublicKey_EC<ECP>> (str, is_hex){}
-    ~ECIESPublicKey() = default;
-
-    template <typename ... Args>
-    void Encrypt(std::string &cyphertext, Args ... args)
-    {
-        CryptoPP::AutoSeededRandomPool prng;
-        ECIES<ECP>::Encryptor e(*this);
-        StringSource stringSource(args ..., true, new PK_EncryptorFilter(prng, e, new StringSink(cyphertext)));
-    }
-};
-
 class ECIESPrivateKey : public ECIESKey<CryptoPP::DL_PrivateKey_EC<ECP>> {
 public:
     ECIESPrivateKey() : ECIESKey<CryptoPP::DL_PrivateKey_EC<ECP>> () {
@@ -169,6 +154,25 @@ public:
     }
 };
 
+class ECIESPublicKey : public ECIESKey<CryptoPP::DL_PublicKey_EC<ECP>> {
+public:
+    ECIESPublicKey() : ECIESKey<CryptoPP::DL_PublicKey_EC<ECP>> () {}
+    ECIESPublicKey(const ECIESPrivateKey &pkey) : ECIESKey<CryptoPP::DL_PublicKey_EC<ECP>> ()
+    {
+        AssignFrom(pkey);
+    }
+    ECIESPublicKey(std::string &str, bool is_hex) : ECIESKey<CryptoPP::DL_PublicKey_EC<ECP>> (str, is_hex){}
+    ~ECIESPublicKey() = default;
+
+    template <typename ... Args>
+    void Encrypt(std::string &cyphertext, Args ... args)
+    {
+        CryptoPP::AutoSeededRandomPool prng;
+        ECIES<ECP>::Encryptor e(*this);
+        StringSource stringSource(args ..., true, new PK_EncryptorFilter(prng, e, new StringSink(cyphertext)));
+    }
+};
+
 struct ECIESKeyPair {
     ECIESKeyPair() : prv()
     {
@@ -179,15 +183,14 @@ struct ECIESKeyPair {
     {
         std::stringstream str(hex);
         std::string prv_hex, pub_hex;
-        str >> prv_hex >> pub_hex;
+        str >> prv_hex;
         if (is_hex) {
             prv.FromHexString(prv_hex);
-            pub.FromHexString(pub_hex);
         }
         else {
             prv.FromString(prv_hex);
-            pub.FromString(pub_hex);
         }
+        pub.AssignFrom(prv);
     }
     ECIESPrivateKey prv;
     ECIESPublicKey pub;

@@ -119,10 +119,6 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
             ecies_key.FromHexString(pubk);
         };
         for (uint8_t i = 0; i < NUM_DELEGATES*2; ++i) {
-            get_bls(bls_keys[0]); // same in epoch 0, doesn't matter
-            get_ecies(ecies_keys[0]);
-            Delegate delegate = {0, dpk, ecies_key, 0, 0};
-
             uint8_t del = i;// + (e - 1) * 8 * _epoch_transition_enabled;
             get_bls(bls_keys[del]);
             get_ecies(ecies_keys[del]);
@@ -130,7 +126,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
             sprintf(buff, "%02x", del + 1);
             logos::keypair pair(buff);
             Amount stake = 100000 + (uint64_t)del * 100;
-            delegate = {pair.pub, dpk, ecies_key, 100000 + (uint64_t)del * 100, stake};
+            Delegate delegate = {pair.pub, dpk, ecies_key, 100000 + (uint64_t)del * 100, stake};
             if(e == 0)
             {
                 //TODO: how to initialize the delegate accounts for elections
