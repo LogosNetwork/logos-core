@@ -29,6 +29,7 @@ constexpr uint8_t DelegateIdentityManager::INVALID_EPOCH_GAP;
 constexpr std::chrono::minutes DelegateIdentityManager::AD_TIMEOUT_1;
 constexpr std::chrono::minutes DelegateIdentityManager::AD_TIMEOUT_2;
 constexpr std::chrono::minutes DelegateIdentityManager::PEER_TIMEOUT;
+constexpr std::chrono::seconds DelegateIdentityManager::TIMEOUT_SPREAD;
 
 DelegateIdentityManager::DelegateIdentityManager(logos::node &node)
     : _store(node.store)
@@ -1263,14 +1264,16 @@ DelegateIdentityManager::ScheduleAd()
 
     auto lapse = util.GetNextEpochTime(_store.is_first_epoch() || _node._recall_handler.IsRecall());
 
-    auto msec = tomsec(lapse + EPOCH_PROPOSAL_TIME - AD_TIMEOUT_1);
-    if (lapse > (AD_TIMEOUT_1))
+    auto r1 = GetRandAdTime(AD_TIMEOUT_1);
+    auto r2 = GetRandAdTime(AD_TIMEOUT_2);
+    auto msec = tomsec(lapse + EPOCH_PROPOSAL_TIME - r1);
+    if (lapse > (AD_TIMEOUT_1+TIMEOUT_SPREAD))
     {
-        msec = tomsec(lapse + Milliseconds(1000) - AD_TIMEOUT_1);
+        msec = tomsec(lapse - r1);
     }
-    else if (lapse > (AD_TIMEOUT_2))
+    else if (lapse > (AD_TIMEOUT_2+TIMEOUT_SPREAD))
     {
-        msec = tomsec(lapse + Milliseconds(1000) - AD_TIMEOUT_2);
+        msec = tomsec(lapse - r2);
     }
 
     auto t = boost::posix_time::microsec_clock::local_time() + msec;
@@ -1340,7 +1343,7 @@ DelegateIdentityManager::OnTxAcceptorUpdate(EpochDelegates epoch,
     }
 
     AddressAdTxAcceptor ad(current_epoch_number, idx, ip.c_str(), bin_port, json_port, add);
-        Sign(current_epoch_number, ad);
+    Sign(current_epoch_number, ad);
     auto buf = std::make_shared<std::vector<uint8_t>>();
     ad.Serialize(*buf);
 

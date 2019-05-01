@@ -1695,10 +1695,10 @@ TEST(Elections, weighted_votes)
 TEST(Elections, tiebreakers)
 {
 
-    Delegate d1(init_delegate(1,0,10,20));
-    Delegate d2(init_delegate(2,0,10,30));
-    Delegate d3(init_delegate(3,0,10,30));
-    Delegate d4(init_delegate(4,0,100,2));
+    Delegate d1(init_delegate(1,10,20,false));
+    Delegate d2(init_delegate(2,10,30,false));
+    Delegate d3(init_delegate(3,10,30,false));
+    Delegate d4(init_delegate(4,100,2,false));
 
     ASSERT_TRUE(EpochVotingManager::IsGreater(d2,d1));
     ASSERT_TRUE(EpochVotingManager::IsGreater(d3,d2));
@@ -1794,5 +1794,6 @@ TEST(Elections, remove_db)
     }
     ASSERT_EQ(num_remove, 0);
 }
+
 
 #endif

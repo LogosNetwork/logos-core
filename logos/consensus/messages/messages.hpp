@@ -528,6 +528,14 @@ struct PrequelAddressAd
         blake2b_update(&hash, &encr_delegate_id, sizeof(encr_delegate_id));
     }
 
+    bool operator == (const PrequelAddressAd &prequel)
+    {
+        return prequel.epoch_number == epoch_number &&
+               prequel.delegate_id == delegate_id &&
+               prequel.encr_delegate_id == encr_delegate_id &&
+               prequel.payload_size == payload_size;
+    }
+
     uint32_t    epoch_number = 0;
     uint8_t     delegate_id = 0;
     // if delegate address ad then encr delegate id is encryptor's delegate id
@@ -591,6 +599,14 @@ struct CommonAddressAd : PrequelAddressAd {
         return ipstr;
     }
 
+    bool operator == (const CommonAddressAd &ad)
+    {
+        return PrequelAddressAd::operator==(ad) &&
+               ad.ip == ip &&
+               ad.port == port &&
+               ad.signature == signature;
+    }
+
     std::array<uint8_t, IP_LENGTH> ip;
     uint16_t port;
     DelegateSig signature;
@@ -599,7 +615,6 @@ struct CommonAddressAd : PrequelAddressAd {
 struct AddressAd : CommonAddressAd
 {
     using string_size_t = uint16_t;
-    using Decryptor     = void(*)(const std::string &cyphertext, uint8_t *data, size_t size);
     AddressAd(uint32_t epoch_number,
               uint8_t delegate_id,
               uint8_t encr_delegate_id,
@@ -610,8 +625,9 @@ struct AddressAd : CommonAddressAd
     {
     }
 
+    template<typename Decryptor>
     AddressAd(bool &error, uint32_t epoch_number, uint8_t delegate_id, uint8_t encr_delegate_id,
-              logos::stream &stream, Decryptor decryptor)
+              logos::stream &stream, Decryptor &&decryptor)
     {
         this->epoch_number = epoch_number;
         this->delegate_id = delegate_id;
@@ -619,7 +635,8 @@ struct AddressAd : CommonAddressAd
         Deserialize(error, stream, decryptor);
     }
 
-    AddressAd(bool &error, const PrequelAddressAd &prequel, logos::stream &stream, Decryptor decryptor)
+    template<typename Decryptor>
+    AddressAd(bool &error, const PrequelAddressAd &prequel, logos::stream &stream, Decryptor &&decryptor)
     {
         epoch_number = prequel.epoch_number;
         delegate_id = prequel.delegate_id;
@@ -627,7 +644,8 @@ struct AddressAd : CommonAddressAd
         Deserialize(error, stream, decryptor);
     }
 
-    AddressAd(bool &error, logos::stream &stream, Decryptor decryptor)
+    template<typename Decryptor>
+    AddressAd(bool &error, logos::stream &stream, Decryptor &&decryptor)
     {
         PrequelAddressAd::Deserialize(error, stream);
         if (!error)
@@ -636,7 +654,8 @@ struct AddressAd : CommonAddressAd
         }
     }
 
-    void Deserialize(bool &error, logos::stream &stream, Decryptor decryptor)
+    template<typename Decryptor>
+    void Deserialize(bool &error, logos::stream &stream, Decryptor &&decryptor)
     {
         std::string cyphertext;
         error = logos::read<string_size_t>(stream, cyphertext) ||
@@ -676,6 +695,11 @@ struct AddressAd : CommonAddressAd
     void Hash(blake2b_state & hash) const override
     {
         CommonAddressAd::Hash(hash);
+    }
+
+    bool operator == (const AddressAd &ad)
+    {
+        return CommonAddressAd::operator==(ad);
     }
     static constexpr size_t SIZE = PrequelAddressAd::SIZE + IP_LENGTH + sizeof(port) + sizeof(signature);
 };
@@ -749,6 +773,13 @@ struct AddressAdTxAcceptor : CommonAddressAd
     {
         blake2b_update(&hash, &json_port, sizeof(json_port));
         blake2b_update(&hash, &add, sizeof(add));
+    }
+
+    bool operator == (const AddressAdTxAcceptor &ad)
+    {
+        return CommonAddressAd::operator == (ad) &&
+               ad.json_port == json_port &
+               ad.add == add;
     }
 
     uint16_t json_port;

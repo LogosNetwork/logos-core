@@ -343,9 +343,10 @@ public:
 private:
 
     static constexpr uint8_t INVALID_EPOCH_GAP = 10; ///< Gap client connections with epoch number greater than which plus our current epoch number will be rejected
-    static constexpr std::chrono::minutes AD_TIMEOUT_1{60};
-    static constexpr std::chrono::minutes AD_TIMEOUT_2{30};
+    static constexpr std::chrono::minutes AD_TIMEOUT_1{50};
+    static constexpr std::chrono::minutes AD_TIMEOUT_2{20};
     static constexpr std::chrono::minutes PEER_TIMEOUT{10};
+    static constexpr std::chrono::seconds TIMEOUT_SPREAD{1200};
 
     void ReadAddressAd(std::shared_ptr<Socket> socket,
                        std::function<void(std::shared_ptr<AddressAd>)>);
@@ -405,6 +406,14 @@ private:
     /// @param cur_epoch_number current epoch number
     /// @returns delegate id
     uint8_t GetDelegateIdFromCache(uint32_t cur_epoch_number);
+
+    /// Get random time for ad scheduling
+    /// @param t base time
+    /// @returns rand time
+    std::chrono::seconds GetRandAdTime(const std::chrono::minutes &t)
+    {
+        return std::chrono::seconds(rand() % TIMEOUT_SPREAD.count()) + t;
+    }
 
     static bool             _epoch_transition_enabled; ///< is epoch transition enabled
     static AccountAddress   _delegate_account;     ///< this delegate's account or 0 if non-delegate
