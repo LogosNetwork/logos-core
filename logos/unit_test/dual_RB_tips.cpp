@@ -7,7 +7,7 @@
 #include <logos/unit_test/msg_validator_setup.hpp>
 #include <random>
 
-extern PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare();
+extern PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare(bool t = true);
 
 logos::block_store * get_and_setup_db()
 {

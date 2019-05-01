@@ -1388,7 +1388,10 @@ bool logos::block_store::candidate_is_greater(
         const AccountAddress& account2,
         const CandidateInfo& candidate2)
 {
-    ECIESPublicKey pk{};
+    std::string key_str = "3059301306072a8648ce3d020106082a8648ce3d030107034200048e1ad7"
+                          "98008baac3663c0c1a6ce04c7cb632eb504562de923845fccf39d1c46dee"
+                          "52df70f6cf46f1351ce7ac8e92055e5f168f5aff24bcaab7513d447fd677d3";
+    ECIESPublicKey pk(key_str, true);
     Delegate del1(
           account1,
           0,

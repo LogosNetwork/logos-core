@@ -17,7 +17,7 @@
 
 extern Delegate init_delegate(AccountAddress account, Amount vote, Amount stake, bool starting_term);
 extern void init_ecies(ECIESPublicKey &ecies);
-extern PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare();
+extern PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare(bool t=true);
 
 void clear_dbs()
 {
@@ -425,7 +425,7 @@ TEST(Elections,candidates_transition)
 
 
     {
-        auto block = create_eb_preprepare();
+        auto block = create_eb_preprepare(false);
         AggSignature sig;
         ApprovedEB eb(block, sig, sig);
         eb.delegates[0].account = a2;
@@ -451,7 +451,7 @@ TEST(Elections,candidates_transition)
 
     {
 
-        auto block = create_eb_preprepare();
+        auto block = create_eb_preprepare(false);
         AggSignature sig;
         ApprovedEB eb(block, sig, sig);
         {
@@ -493,6 +493,7 @@ TEST(Elections,candidates_transition)
     }
 
     AnnounceCandidacy req;
+    init_ecies(req.ecies_key);
     req.origin = a2;
     RepInfo rep;
     rep.candidacy_action_tip = req.Hash();
@@ -517,7 +518,7 @@ TEST(Elections,get_next_epoch_delegates)
     EpochVotingManager::ENABLE_ELECTIONS = true;
 
     uint32_t epoch_num = 1;
-    auto block = create_eb_preprepare();
+    auto block = create_eb_preprepare(false);
     AggSignature sig;
     ApprovedEB eb(block, sig, sig);
     eb.epoch_number = epoch_num-1;
@@ -542,6 +543,7 @@ TEST(Elections,get_next_epoch_delegates)
         rep.stake = i; 
 
         AnnounceCandidacy announce;
+        init_ecies(announce.ecies_key);
         announce.origin = i;
         announce.stake = i;
         announce.bls_key = i;
@@ -901,7 +903,7 @@ TEST(Elections, is_dead_period)
     logos::transaction txn(store->environment,nullptr,true);
 
     uint32_t epoch_num = 1;
-    auto block = create_eb_preprepare();
+    auto block = create_eb_preprepare(false);
     AggSignature sig;
     ApprovedEB eb(block, sig, sig);
     eb.epoch_number = epoch_num-1;
@@ -935,6 +937,7 @@ TEST(Elections,validate)
     vote.origin = sender_account;
     vote.epoch_num = epoch_num;
     AnnounceCandidacy announce;
+    init_ecies(announce.ecies_key);
     announce.origin = sender_account;
     announce.stake = 1;
     announce.epoch_num = epoch_num;
@@ -954,7 +957,7 @@ TEST(Elections,validate)
     stop_rep.Hash();
     vote.Hash();
 
-    auto block = create_eb_preprepare();
+    auto block = create_eb_preprepare(false);
     AggSignature sig;
     ApprovedEB eb(block, sig, sig);
     eb.epoch_number = epoch_num-1;
@@ -1310,7 +1313,7 @@ TEST(Elections, apply)
     EpochVotingManager::ENABLE_ELECTIONS = true;
 
     uint32_t epoch_num = 1;
-    auto block = create_eb_preprepare();
+    auto block = create_eb_preprepare(false);
     AggSignature sig;
     ApprovedEB eb(block, sig, sig);
     eb.epoch_number = epoch_num-1;
@@ -1337,6 +1340,7 @@ TEST(Elections, apply)
         rep.stake = i; 
 
         AnnounceCandidacy announce;
+        init_ecies(announce.ecies_key);
         announce.origin = i;
         announce.stake = i;
         announce.bls_key = i;
@@ -1419,6 +1423,7 @@ TEST(Elections, apply)
         {
             logos::transaction txn(store->environment, nullptr, true);
             AnnounceCandidacy announce;
+            init_ecies(announce.ecies_key);
             announce.origin = account;
             announce.epoch_num = epoch_num;
             announce.stake = 0;
