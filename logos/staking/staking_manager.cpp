@@ -325,11 +325,11 @@ void StakingManager::Stake(
     {
        if(target == origin)
        {
-        _voting_power_mgr.AddSelfStake(target, amount_left, epoch, txn);
+           _voting_power_mgr.AddSelfStake(target, amount_left, epoch, txn);
        }
        else
        {
-        _voting_power_mgr.AddLockedProxied(target, amount_left, epoch, txn);
+           _voting_power_mgr.AddLockedProxied(target, amount_left, epoch, txn);
        }
        auto extract_thawing = [&](ThawingFunds & t)
        {
@@ -423,7 +423,7 @@ void StakingManager::PruneThawing(
         bool error = t.Deserialize (stream);
         if(error)
         {
-            LOG_FATAL(_log) << "StakingManager::IterateThawingFunds - "
+            LOG_FATAL(_log) << "StakingManager::PruneThawing - "
                 << "Error deserializing ThawingFunds for account = " << origin.to_string();
             trace_and_halt();
         }
@@ -436,13 +436,6 @@ void StakingManager::PruneThawing(
                 trace_and_halt();
            }
            info.SetAvailableBalance(info.GetAvailableBalance()+t.amount,cur_epoch, txn);
-        }
-        else
-        {
-            //thawing funds are ordered by expiration
-            //as soon as we see an unexpired thawing fund, we know
-            //later funds will also be unexpired
-            return;
         }
     }
 }
@@ -478,13 +471,6 @@ Amount StakingManager::GetPruneableThawingAmount(
         if(t.expiration_epoch <= cur_epoch)
         {
             total += t.amount;
-        }
-        else
-        {
-            //thawing funds are ordered by expiration
-            //as soon as we see an unexpired thawing fund, we know
-            //later funds will also be unexpired
-            return total;
         }
     }
     return total;
