@@ -57,6 +57,10 @@ MicroBlockTester::microblock_tester(
     {
         epoch_delegates(response, node);
     }
+    else if (action == "advertise")
+    {
+        advertise(response, node);
+    }
     else
     {
         res = false;
@@ -374,4 +378,20 @@ MicroBlockTester::epoch_delegates(
     }
 
     response (response_l);
+}
+
+void
+MicroBlockTester::advertise(
+        std::function<void(boost::property_tree::ptree const &)> response,
+        logos::node &node)
+{
+    boost::property_tree::ptree response_l;
+
+    uint8_t idx;
+    std::shared_ptr<ApprovedEB> eb;
+    node._identity_manager.CheckAdvertise(ConsensusContainer::GetCurEpochNumber(), true, idx, eb);
+
+    response_l.put("result", "processing");
+
+    response(response_l);
 }
