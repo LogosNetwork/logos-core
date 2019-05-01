@@ -5,17 +5,48 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/lib/ecies.hpp>
 
+std::string string_to_hex(std::string& in) {
+    std::stringstream ss;
+
+    ss << std::hex << std::setfill('0');
+    for (size_t i = 0; in.length() > i; ++i) {
+        ss << std::setw(2) << static_cast<unsigned int>(static_cast<unsigned char>(in[i]));
+    }
+
+    return ss.str();
+}
+
+TEST(Advertise, ecies)
+{
+    std::cout << "--- Started ecies test\n";
+    ECIESKeyPair pair;
+    std::string text = "The Logos Network is a distributed, trustless transaction network designed for extreme scalability";
+    std::string cyphertext = "";
+
+    pair.pub.Encrypt(cyphertext, text);
+
+    std::string text1 = "";
+    std::string text2 = "";
+    std::vector<uint8_t> buf(text.size());
+
+    pair.prv.Decrypt(cyphertext, text1);
+    pair.prv.Decrypt(cyphertext, buf.data(), buf.size());
+
+    std::for_each(buf.begin(), buf.end(), [&](auto item){text2+=item;});
+    std::cout << "plain text\n";
+    std::cout << string_to_hex(text) << "\n";
+    std::cout << "cyphertext\n";
+    std::cout << string_to_hex(cyphertext) << "\n";
+
+    ASSERT_EQ(text, text1);
+    ASSERT_EQ(text, text2);
+}
 
 TEST(Advertise, serialize)
 {
     std::cout << "--- Started Advertise test\n";
     bls::KeyPair bls;
-    ECIESKeyPair ecies("3041020100301306072a8648ce3d020106082a8648ce3d03010704273025"
-                       "0201010420ccc3cdefdef6fe4c5ce4c2282b0d89d097c58ea5de5bd43aec"
-                       "5f6a2691d4a8d7 3059301306072a8648ce3d020106082a8648ce3d03010"
-                       "7034200048e1ad798008baac3663c0c1a6ce04c7cb632eb504562de92384"
-                       "5fccf39d1c46dee52df70f6cf46f1351ce7ac8e92055e5f168f5aff24bca"
-                       "ab7513d447fd677d3", true);
+    ECIESKeyPair ecies;
     uint32_t epoch_number = 3;
     uint8_t delegate_id = 4;
     uint8_t encr_delegate_id = 5;

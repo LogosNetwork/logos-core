@@ -8,6 +8,8 @@
 #include <cryptopp/eccrypto.h>
 #include <cryptopp/pubkey.h>
 #include <cryptopp/ecp.h>
+#include <cryptopp/asn.h>
+#include <cryptopp/oids.h>
 #include <blake2/blake2.h>
 
 #include <boost/property_tree/ptree.hpp>
@@ -16,8 +18,6 @@
 #include <iomanip>
 
 /*#include <cryptopp/cryptlib.h>
-#include <cryptopp/asn.h>
-#include <cryptopp/oids.h>
 
 #include <cryptopp/osrng.h>
 #include <cryptopp/integer.h>*/
@@ -147,7 +147,10 @@ public:
 
 class ECIESPrivateKey : public ECIESKey<CryptoPP::DL_PrivateKey_EC<ECP>> {
 public:
-    ECIESPrivateKey() : ECIESKey<CryptoPP::DL_PrivateKey_EC<ECP>> () {}
+    ECIESPrivateKey() : ECIESKey<CryptoPP::DL_PrivateKey_EC<ECP>> () {
+        CryptoPP::AutoSeededRandomPool prng;
+        Initialize(prng, CryptoPP::ASN1::secp256r1());
+    }
     ECIESPrivateKey(std::string &str, bool is_hex) : ECIESKey<CryptoPP::DL_PrivateKey_EC<ECP>> (str, is_hex){}
     ~ECIESPrivateKey() = default;
 
@@ -158,10 +161,19 @@ public:
         ECIES<ECP>::Decryptor d(*this);
         StringSource stringSource(cyphertex, true, new PK_DecryptorFilter(prng, d, new ArraySink(args ... )));
     }
+    void Decrypt(const std::string &cyphertex, std::string &text)
+    {
+        CryptoPP::AutoSeededRandomPool prng;
+        ECIES<ECP>::Decryptor d(*this);
+        StringSource stringSource(cyphertex, true, new PK_DecryptorFilter(prng, d, new StringSink(text)));
+    }
 };
 
 struct ECIESKeyPair {
-    ECIESKeyPair() = default;
+    ECIESKeyPair() : prv()
+    {
+        pub.AssignFrom(prv);
+    }
     ~ECIESKeyPair() = default;
     ECIESKeyPair(std::string &&hex, bool is_hex = true)
     {
@@ -177,6 +189,6 @@ struct ECIESKeyPair {
             pub.FromString(pub_hex);
         }
     }
-    ECIESPublicKey pub;
     ECIESPrivateKey prv;
+    ECIESPublicKey pub;
 };
