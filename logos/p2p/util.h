@@ -47,12 +47,16 @@ inline std::string _(const char* psz)
 void SetupEnvironment();
 bool SetupNetworking();
 
+#define logger_ g_logger
+
 template<typename... Args>
 bool error(const char* fmt, const Args&... args)
 {
     LogPrintf("ERROR: %s\n", tfm::format(fmt, args...));
     return false;
 }
+
+#undef logger_
 
 void PrintExceptionContinue(const std::exception *pex, const char* pszThread);
 int RaiseFileDescriptorLimit(int nMinFD);
@@ -251,6 +255,8 @@ std::string HelpMessageOpt(const std::string& option, const std::string& message
 
 void RenameThread(const char* name);
 
+#define logger_ g_logger
+
 /**
  * .. and a wrapper that just calls func once
  */
@@ -278,6 +284,8 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
         throw;
     }
 }
+
+#undef logger_
 
 std::string CopyrightHolders(const std::string& strPrefix);
 

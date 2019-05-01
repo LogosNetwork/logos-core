@@ -525,8 +525,8 @@ std::shared_ptr<CNode> CConnman::ConnectNodeFinish(AsioClient *client, std::shar
     // Add node
     NodeId id = GetNewNodeId();
     uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
-    std::shared_ptr<CNode> pnode = std::make_shared<CNode>(id, nLocalServices, session, addr, CalculateKeyedNetGroup(addr), nonce, addr_bind,
-            client->name ? client->name : "", false);
+    std::shared_ptr<CNode> pnode = std::make_shared<CNode>(id, nLocalServices, session, addr, CalculateKeyedNetGroup(addr),
+            nonce, addr_bind, logger_, client->name ? client->name : "", false);
     session->setNode(pnode);
 
     if (client->grantOutbound)
@@ -1194,7 +1194,8 @@ std::shared_ptr<CNode> CConnman::AcceptConnection(std::shared_ptr<AsioSession> s
     saddr = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
     CAddress addr_bind(saddr, NODE_NONE);
 
-    std::shared_ptr<CNode> pnode = std::make_shared<CNode>(id, nLocalServices, session, addr, CalculateKeyedNetGroup(addr), nonce, addr_bind, "", true);
+    std::shared_ptr<CNode> pnode = std::make_shared<CNode>(id, nLocalServices, session, addr, CalculateKeyedNetGroup(addr),
+            nonce, addr_bind, logger_, "", true);
     session->setNode(pnode);
     pnode->fWhitelisted = whitelisted;
     m_msgproc->InitializeNode(pnode);
@@ -1978,13 +1979,14 @@ void CConnman::SetNetworkActive(bool active)
     clientInterface->NotifyNetworkActiveChanged(fNetworkActive);
 }
 
-CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In, p2p_config &conf, ArgsManager &ArgsIn, TimeData &timeDataIn)
+CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In, p2p_config &conf, ArgsManager &ArgsIn, TimeData &timeDataIn, std::shared_ptr<BCLog::Logger> logger)
     : nSeed0(nSeed0In)
     , nSeed1(nSeed1In)
     , config(conf)
     , Args(ArgsIn)
     , timeData(timeDataIn)
-    , addrman(timeData)
+    , addrman(timeData, logger)
+    , logger_(logger)
     , vfLimited()
 {
     fNetworkActive = true;
@@ -2424,7 +2426,9 @@ ServiceFlags CConnman::GetLocalServices() const
 
 unsigned int CConnman::GetReceiveFloodSize() const { return nReceiveFloodSize; }
 
-CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, std::shared_ptr<AsioSession> sessionIn, const CAddress& addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string& addrNameIn, bool fInboundIn) :
+CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, std::shared_ptr<AsioSession> sessionIn, const CAddress& addrIn,
+             uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn,
+             std::shared_ptr<BCLog::Logger> logger, const std::string& addrNameIn, bool fInboundIn) :
     nTimeConnected(GetSystemTimeInSeconds()),
     addr(addrIn),
     addrBind(addrBindIn),
@@ -2435,6 +2439,7 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, std::shared_ptr<AsioSes
     nLocalHostNonce(nLocalHostNonceIn),
     nLocalServices(nLocalServicesIn),
     nSendVersion(0),
+    logger_(logger),
     connman(sessionIn->connman)
 {
     nServices = NODE_NONE;

@@ -53,11 +53,6 @@ bool BCLog::Logger::WillLogCategory(BCLog::LogFlags category) const
     return (m_categories.load(std::memory_order_relaxed) & category) != 0;
 }
 
-bool BCLog::Logger::DefaultShrinkDebugFile() const
-{
-    return m_categories == BCLog::NONE;
-}
-
 struct CLogCategoryDesc
 {
     BCLog::LogFlags flag;
@@ -69,25 +64,7 @@ const CLogCategoryDesc LogCategories[] =
     {BCLog::NONE, "0"},
     {BCLog::NONE, "none"},
     {BCLog::NET, "net"},
-    {BCLog::TOR, "tor"},
-    {BCLog::MEMPOOL, "mempool"},
-    {BCLog::HTTP, "http"},
-    {BCLog::BENCH, "bench"},
-    {BCLog::DB, "db"},
-    {BCLog::RPC, "rpc"},
-    {BCLog::ESTIMATEFEE, "estimatefee"},
     {BCLog::ADDRMAN, "addrman"},
-    {BCLog::SELECTCOINS, "selectcoins"},
-    {BCLog::REINDEX, "reindex"},
-    {BCLog::CMPCTBLOCK, "cmpctblock"},
-    {BCLog::RAND, "rand"},
-    {BCLog::PRUNE, "prune"},
-    {BCLog::PROXY, "proxy"},
-    {BCLog::MEMPOOLREJ, "mempoolrej"},
-    {BCLog::LIBEVENT, "libevent"},
-    {BCLog::COINDB, "coindb"},
-    {BCLog::QT, "qt"},
-    {BCLog::LEVELDB, "leveldb"},
     {BCLog::ALL, "1"},
     {BCLog::ALL, "all"},
 };
@@ -117,21 +94,6 @@ std::string ListLogCategories()
             if (outcount != 0) ret += ", ";
             ret += category_desc.category;
             outcount++;
-        }
-    }
-    return ret;
-}
-
-std::vector<CLogCategoryActive> ListActiveLogCategories()
-{
-    std::vector<CLogCategoryActive> ret;
-    for (const CLogCategoryDesc& category_desc : LogCategories) {
-        // Omit the special cases.
-        if (category_desc.flag != BCLog::NONE && category_desc.flag != BCLog::ALL) {
-            CLogCategoryActive catActive;
-            catActive.category = category_desc.category;
-            catActive.active = LogAcceptCategory(category_desc.flag);
-            ret.push_back(catActive);
         }
     }
     return ret;

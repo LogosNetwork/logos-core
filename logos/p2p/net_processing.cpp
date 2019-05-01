@@ -50,18 +50,23 @@ struct CNodeState {
     //! Time of last new block announcement
     int64_t m_last_block_announcement;
 
-    CNodeState(std::string addrNameIn) : name(addrNameIn) {
-        fCurrentlyConnected = false;
-        nMisbehavior = 0;
-        fShouldBan = false;
-        m_last_block_announcement = 0;
+    std::shared_ptr<BCLog::Logger> logger_;
+
+    CNodeState(std::string addrNameIn)
+        : name(addrNameIn)
+        , fCurrentlyConnected(false)
+        , nMisbehavior(0)
+        , fShouldBan(false)
+        , m_last_block_announcement(0)
+    {
     }
 };
 
 class PeerLogicValidation_internal {
 public:
-    PeerLogicValidation_internal()
+    PeerLogicValidation_internal(std::shared_ptr<BCLog::Logger> logger)
         : g_last_tip_update(0)
+        , logger_(logger)
     {
     }
 
@@ -72,6 +77,8 @@ public:
 
     /** Map maintaining per-node state. */
     std::map<NodeId, CNodeState> mapNodeState GUARDED_BY(cs_main);
+
+    std::shared_ptr<BCLog::Logger> logger_;
 
     CNodeState *State(NodeId pnode) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     {
@@ -188,11 +195,12 @@ void PeerLogicValidation::FinalizeNode(NodeId nodeid, bool& fUpdateConnectionTim
 // blockchain -> download logic notification
 //
 
-PeerLogicValidation::PeerLogicValidation(CConnman* connmanIn, bool enable_bip61)
+PeerLogicValidation::PeerLogicValidation(CConnman* connmanIn, bool enable_bip61, std::shared_ptr<BCLog::Logger> logger)
     : connman(connmanIn)
-    , internal(std::make_shared<PeerLogicValidation_internal>())
+    , internal(std::make_shared<PeerLogicValidation_internal>(logger))
     , m_stale_tip_check_time(0)
     , m_enable_bip61(enable_bip61)
+    , logger_(logger)
 {
     // Stale tip checking and peer eviction are on two different timers, but we
     // don't want them to get out of sync due to drift in the scheduler, so we

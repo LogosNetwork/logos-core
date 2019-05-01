@@ -223,6 +223,8 @@ private:
 
     TimeData &timeData;
 
+    std::shared_ptr<BCLog::Logger> logger_;
+
 protected:
     //! secret key to randomize bucket select with
     uint256 nKey;
@@ -494,8 +496,9 @@ public:
         mapAddr.clear();
     }
 
-    CAddrMan(TimeData &timeDataIn)
+    CAddrMan(TimeData &timeDataIn, std::shared_ptr<BCLog::Logger> logger)
         : timeData(timeDataIn)
+        , logger_(logger)
     {
         Clear();
     }

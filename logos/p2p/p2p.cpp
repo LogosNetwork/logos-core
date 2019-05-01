@@ -62,6 +62,7 @@ class p2p_internal
 {
 private:
     p2p_interface &                         interface;
+    std::shared_ptr<BCLog::Logger>          logger_;
     bool                                    fFeeEstimatesInitialized;
     const bool                              DEFAULT_REST_ENABLE;
     const bool                              DEFAULT_STOPAFTERBLOCKIMPORT;
@@ -89,6 +90,7 @@ public:
     p2p_internal(p2p_interface & p2p,
                  p2p_config & config)
         : interface(p2p)
+        , logger_(make_shared<BCLog::Logger>())
         , fFeeEstimatesInitialized(false)
         , DEFAULT_REST_ENABLE(false)
         , DEFAULT_STOPAFTERBLOCKIMPORT(false)
@@ -377,7 +379,7 @@ bool AppInitParameterInteraction()
         if (std::none_of(categories.begin(), categories.end(),
             [](std::string cat){return cat == "0" || cat == "none";})) {
             for (const auto& cat : categories) {
-                if (!g_logger->EnableCategory(cat)) {
+                if (!logger_->EnableCategory(cat)) {
                     uiInterface.InitWarning(strprintf(_("Unsupported logging category %s=%s."), "-debug", cat));
                 }
             }
@@ -386,7 +388,7 @@ bool AppInitParameterInteraction()
 
     // Now remove the logging categories which were explicitly excluded
     for (const std::string& cat : Args.GetArgs("-debugexclude")) {
-        if (!g_logger->DisableCategory(cat)) {
+        if (!logger_->DisableCategory(cat)) {
             uiInterface.InitWarning(strprintf(_("Unsupported logging category %s=%s."), "-debugexclude", cat));
         }
     }

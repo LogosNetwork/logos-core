@@ -509,6 +509,7 @@ private:
     std::vector<std::shared_ptr<CNode>> vNodes;
     mutable CCriticalSection cs_vNodes;
     std::atomic<NodeId> nLastNodeId;
+    std::shared_ptr<BCLog::Logger> logger_;
 
     /** Services this instance offers */
     ServiceFlags nLocalServices;
@@ -700,7 +701,9 @@ public:
     // Whether a ping is requested.
     std::atomic<bool> fPingQueued;
 
-    CNode(NodeId id, ServiceFlags nLocalServicesIn, std::shared_ptr<AsioSession> sessionIn, const CAddress &addrIn, uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn, const std::string &addrNameIn = "", bool fInboundIn = false);
+    CNode(NodeId id, ServiceFlags nLocalServicesIn, std::shared_ptr<AsioSession> sessionIn, const CAddress &addrIn,
+            uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn,
+            std::shared_ptr<BCLog::Logger> logger, const std::string &addrNameIn = "", bool fInboundIn = false);
     ~CNode();
     CNode(const CNode&) = delete;
     CNode& operator=(const CNode&) = delete;
@@ -719,6 +722,7 @@ private:
     // Our address, as reported by the peer
     CService addrLocal;
     mutable Mutex cs_addrLocal;
+    std::shared_ptr<BCLog::Logger> logger_;
 public:
     CConnman &connman;
 
