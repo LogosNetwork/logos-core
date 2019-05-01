@@ -534,7 +534,7 @@ TEST(Elections,get_next_epoch_delegates)
 
         logos::transaction txn(store->environment, nullptr, true);
 
-        Delegate d(init_delegate(i,i,base_vote+i,i));
+        Delegate d(init_delegate(i,base_vote+i,i,i));
         d.starting_term = true;
         eb.delegates[i] = d;
         delegates.push_back(d);
@@ -546,7 +546,7 @@ TEST(Elections,get_next_epoch_delegates)
         init_ecies(announce.ecies_key);
         announce.origin = i;
         announce.stake = i;
-        announce.bls_key = i;
+        announce.bls_key = d.bls_pub;
         rep.candidacy_action_tip = announce.Hash();
         store->request_put(announce,txn);
         

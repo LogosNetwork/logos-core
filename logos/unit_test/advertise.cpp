@@ -8,7 +8,8 @@
 
 TEST(Advertise, serialize)
 {
-    bls::KeyPair bls("0x1d413017341569eb7b7e74a031fa1a2dadaa600b449d49983fc920f9d89ae407");
+    std::cout << "--- Started Advertise test\n";
+    bls::KeyPair bls;
     ECIESKeyPair ecies("3041020100301306072a8648ce3d020106082a8648ce3d03010704273025"
                        "0201010420ccc3cdefdef6fe4c5ce4c2282b0d89d097c58ea5de5bd43aec"
                        "5f6a2691d4a8d7 3059301306072a8648ce3d020106082a8648ce3d03010"
@@ -30,7 +31,7 @@ TEST(Advertise, serialize)
         });
         std::vector<uint8_t> buf;
         ad.Serialize(buf, ecies.pub);
-        cout << "Serialized AddressAd\n";
+        std::cout << "Serialized AddressAd\n";
 
         logos::bufferstream str(buf.data(), buf.size());
         bool error = false;
@@ -38,17 +39,17 @@ TEST(Advertise, serialize)
             AddressAd ad1(error, str, [&ecies](const std::string &cyphertext, uint8_t *buf, size_t size) {
                 ecies.prv.Decrypt(cyphertext, buf, size);
             });
-            cout << "Deserialized AddressAd " << error << "\n";
+            std::cout << "Deserialized AddressAd " << error << "\n";
 
             ASSERT_FALSE(error);
 
             auto ret = MessageValidator::Validate(ad1.Hash(), ad1.signature, bls.pub);
-            cout << "Validated AddressAd " << ret << "\n";
+            std::cout << "Validated AddressAd " << ret << "\n";
 
             ASSERT_TRUE(ad == ad1);
         }
         catch (const std::exception &ex) {
-            cout << "AddressAd decryption failed\n";
+            std::cout << "AddressAd decryption failed\n";
             ASSERT_FALSE(true);
         }
     }
@@ -61,17 +62,17 @@ TEST(Advertise, serialize)
         std::vector<uint8_t> buf;
         adtxa.Serialize(buf);
 
-        cout << "Serialized AddressAdTxAcceptor\n";
+        std::cout << "Serialized AddressAdTxAcceptor\n";
 
         bool error = false;
         logos::bufferstream str(buf.data(), buf.size());
         AddressAdTxAcceptor adtxa1(error, str);
-        cout << "Deserialized AddressAdTxAcceptor " << error << "\n";
+        std::cout << "Deserialized AddressAdTxAcceptor " << error << "\n";
 
         ASSERT_FALSE(error);
 
         auto ret = MessageValidator::Validate(adtxa1.Hash(), adtxa1.signature, bls.pub);
-        cout << "Validated AddressAdTxAcceptor " << ret << "\n";
+        std::cout << "Validated AddressAdTxAcceptor " << ret << "\n";
         ASSERT_TRUE(ret);
 
         ASSERT_TRUE(adtxa == adtxa1);
