@@ -1,3 +1,4 @@
+#include <iostream>
 #include <gtest/gtest.h>
 
 #include <logos/consensus/message_validator.hpp>
@@ -29,6 +30,7 @@ TEST(Advertise, serialize)
         });
         std::vector<uint8_t> buf;
         ad.Serialize(buf, ecies.pub);
+        cout << "Serialized AddressAd\n";
 
         logos::bufferstream str(buf.data(), buf.size());
         bool error = false;
@@ -36,14 +38,17 @@ TEST(Advertise, serialize)
             AddressAd ad1(error, str, [&ecies](const std::string &cyphertext, uint8_t *buf, size_t size) {
                 ecies.prv.Decrypt(cyphertext, buf, size);
             });
+            cout << "Deserialized AddressAd " << error << "\n";
 
             ASSERT_FALSE(error);
 
-            ASSERT_TRUE(MessageValidator::Validate(ad1.Hash(), ad1.signature, bls.pub));
+            auto ret = MessageValidator::Validate(ad1.Hash(), ad1.signature, bls.pub);
+            cout << "Validated AddressAd " << ret << "\n";
 
             ASSERT_TRUE(ad == ad1);
         }
         catch (const std::exception &ex) {
+            cout << "AddressAd decryption failed\n";
             ASSERT_FALSE(true);
         }
     }
@@ -56,13 +61,18 @@ TEST(Advertise, serialize)
         std::vector<uint8_t> buf;
         adtxa.Serialize(buf);
 
+        cout << "Serialized AddressAdTxAcceptor\n";
+
         bool error = false;
         logos::bufferstream str(buf.data(), buf.size());
         AddressAdTxAcceptor adtxa1(error, str);
+        cout << "Deserialized AddressAdTxAcceptor " << error << "\n";
 
         ASSERT_FALSE(error);
 
-        ASSERT_TRUE(MessageValidator::Validate(adtxa1.Hash(), adtxa1.signature, bls.pub));
+        auto ret = MessageValidator::Validate(adtxa1.Hash(), adtxa1.signature, bls.pub);
+        cout << "Validated AddressAdTxAcceptor " << ret << "\n";
+        ASSERT_TRUE(ret);
 
         ASSERT_TRUE(adtxa == adtxa1);
     }
