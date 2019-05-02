@@ -222,7 +222,6 @@ TEST (Elections, blockstore)
         rep_info.election_vote_tip = ev.Hash();
         rep_info.candidacy_action_tip = announce.Hash();
         rep_info.rep_action_tip = start.Hash();
-        rep_info.stake = 37;
 
         res = store->rep_put(rep_account,rep_info,txn);
         ASSERT_FALSE(res);
@@ -560,7 +559,6 @@ TEST(Elections,get_next_epoch_delegates)
         delegates.push_back(d);
 
         RepInfo rep;
-        rep.stake = i == 0 ? 1 : i; 
 
         AnnounceCandidacy announce;
         init_ecies(announce.ecies_key);
@@ -1035,7 +1033,6 @@ TEST(Elections,validate)
         eb.delegates[i] = d;
 
         RepInfo rep;
-        rep.stake = i; 
         store->rep_put(i,rep,txn);
     }
     std::reverse(std::begin(eb.delegates),std::end(eb.delegates));
@@ -1454,7 +1451,6 @@ TEST(Elections, apply)
         delegates.push_back(d);
 
         RepInfo rep;
-        rep.stake = stake;
 
         AnnounceCandidacy announce;
         init_ecies(announce.ecies_key);
@@ -1788,17 +1784,15 @@ TEST(Elections, weighted_votes)
 
     AccountAddress rep_address = 7;
     RepInfo rep;
-    rep.stake = 100;
     store->rep_put(rep_address,rep,txn);
     store->account_put(rep_address,account_info,txn);
-    sm->Stake(rep_address,account_info,rep.stake,rep_address,epoch,txn);
+    sm->Stake(rep_address,account_info,100,rep_address,epoch,txn);
 
     AccountAddress rep2_address = 8;
     RepInfo rep2;
-    rep.stake = 200;
     store->rep_put(rep2_address,rep,txn);
     store->account_put(rep2_address,account_info2,txn);
-    sm->Stake(rep2_address,account_info2,rep.stake,rep2_address,epoch,txn);
+    sm->Stake(rep2_address,account_info2,200,rep2_address,epoch,txn);
 
     AccountAddress candidate_address = 12;
     CandidateInfo candidate;

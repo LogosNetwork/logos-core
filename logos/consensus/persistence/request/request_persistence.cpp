@@ -1760,13 +1760,11 @@ void PersistenceManager<R>::ApplyRequest(
         rep = RepInfo(request);
     }
     CandidateInfo candidate(request);
-    if(candidate.stake > 0)
+    if(!request.set_stake)
     {
-        rep.stake = candidate.stake;
-    }
-    else
-    {
-        candidate.stake = rep.stake;
+        candidate.stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
+                request.origin,
+                txn).amount;
     }
     rep.candidacy_action_tip = request.Hash();
     assert(!_store.rep_put(request.origin,rep,txn));

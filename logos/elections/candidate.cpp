@@ -12,8 +12,7 @@ CandidateInfo::CandidateInfo(const AnnounceCandidacy& request)
     , ecies_key(request.ecies_key)
     , stake(request.stake)
     , epoch_modified(request.epoch_num)
-{
-}
+{}
 
 CandidateInfo::CandidateInfo(bool & error, const logos::mdb_val & mdbval)
 {
