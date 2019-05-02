@@ -68,6 +68,9 @@ protected:
     void ApplyRequest(const ElectionVote& request, MDB_txn* txn);
     void ApplyRequest(const AnnounceCandidacy& request, logos::account_info& info, MDB_txn* txn);
     void ApplyRequest(const RenounceCandidacy& request, logos::account_info& info, MDB_txn* txn);
+    void ApplyRequest(const Proxy& request, logos::account_info& info, MDB_txn* txn);
+    void ApplyRequest(const Stake& request, logos::account_info& info, MDB_txn* txn);
+    void ApplyRequest(const Unstake& request, logos::account_info& info, MDB_txn* txn);
 
     bool ValidateRequest(
             const ElectionVote& request,
@@ -98,6 +101,27 @@ protected:
 
     bool ValidateRequest(
             const StopRepresenting& request,
+            logos::account_info const & info,
+            uint32_t cur_epoch_num,
+            MDB_txn* txn,
+            logos::process_return& result);
+
+    bool ValidateRequest(
+            const Proxy& request,
+            logos::account_info const & info,
+            uint32_t cur_epoch_num,
+            MDB_txn* txn,
+            logos::process_return& result);
+
+    bool ValidateRequest(
+            const Stake& request,
+            logos::account_info const & info,
+            uint32_t cur_epoch_num,
+            MDB_txn* txn,
+            logos::process_return& result);
+
+    bool ValidateRequest(
+            const Unstake& request,
             logos::account_info const & info,
             uint32_t cur_epoch_num,
             MDB_txn* txn,

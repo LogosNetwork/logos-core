@@ -1277,6 +1277,9 @@ std::string logos::ProcessResultToString(logos::process_result result)
         case process_result::invalid_account_type:
             ret = "Invalid account type for request";
             break;
+        case process_result::proxy_to_self:
+            ret = "Cannot proxy to self";
+            break;
     }
     return ret;
 }

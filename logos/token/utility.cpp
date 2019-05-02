@@ -522,6 +522,8 @@ bool IsTokenAdminRequest(RequestType type)
         case RequestType::ElectionVote:
         case RequestType::StartRepresenting:
         case RequestType::StopRepresenting:
+        case RequestType::Stake:
+        case RequestType::Unstake:
         case RequestType::Unknown:
             break;
     }
