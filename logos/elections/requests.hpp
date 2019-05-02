@@ -121,6 +121,7 @@ struct AnnounceCandidacy : Request
 
     using Request::Hash;
 
+    bool set_stake;
     Amount stake;
     DelegatePubKey bls_key;
     ECIESPublicKey ecies_key;
@@ -155,6 +156,8 @@ struct RenounceCandidacy : Request
 
     using Request::Hash;
 
+    bool set_stake;
+    Amount stake;
     uint32_t epoch_num;
     BlockHash staking_subchain_prev;
 };
@@ -187,6 +190,7 @@ struct StartRepresenting : Request
 
     using Request::Hash;
 
+    bool set_stake;
     Amount stake;
     uint32_t epoch_num;
     BlockHash staking_subchain_prev;
@@ -220,6 +224,8 @@ struct StopRepresenting : Request
 
     using Request::Hash;
 
+    bool set_stake;
+    Amount stake;
     uint32_t epoch_num;
     BlockHash staking_subchain_prev;
 };
