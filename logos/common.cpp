@@ -1268,6 +1268,15 @@ std::string logos::ProcessResultToString(logos::process_result result)
         case process_result::pending_candidacy_action:
             ret = "Pending candidacy action";
             break;
+        case process_result::insufficient_funds_for_stake:
+            ret = "Insufficient funds to satisfy stake portion of request";
+            break;
+        case process_result::invalid_staking_subchain:
+            ret = "Staking_subchain_prev does not match info.staking_subchain_head";
+            break;
+        case process_result::invalid_account_type:
+            ret = "Invalid account type for request";
+            break;
     }
     return ret;
 }

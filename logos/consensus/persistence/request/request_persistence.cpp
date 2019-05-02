@@ -85,6 +85,59 @@ bool PersistenceManager<R>::BlockExists(
     return _store.request_block_exists(message);
 }
 
+bool IsStakingRequest(std::shared_ptr<const Request> req)
+{
+    return req->type == RequestType::StartRepresenting
+        || req->type == RequestType::StopRepresenting
+        || req->type == RequestType::AnnounceCandidacy
+        || req->type == RequestType::RenounceCandidacy
+        || req->type == RequestType::Proxy;
+}
+
+template <typename T>
+bool ValidateStakingSubchain(
+        T const & req,
+        logos::account_info const & info,
+        logos::process_return& result,
+        MDB_txn* txn)
+{
+    if(info.staking_subchain_head != req.staking_subchain_prev)
+    {
+        std::cout << "head is " << info.staking_subchain_head.to_string()
+            << std::endl;
+        std::cout << "prev is " << req.staking_subchain_prev.to_string()
+            << std::endl;
+        result.code = logos::process_result::invalid_staking_subchain;
+        return false;
+    }
+    return true;
+}
+
+template <typename T>
+bool ValidateStake(
+        T const & req,
+        logos::process_return& result,
+        MDB_txn* txn)
+{
+    if(req.set_stake)
+    {
+        bool can_stake = StakingManager::GetInstance()->Validate(
+                req.origin,
+                req.stake,
+                req.origin,
+                req.epoch_num,
+                txn);
+        if(!can_stake)
+        {
+            //TODO different return code
+            result.code = logos::process_result::insufficient_funds_for_stake;
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool PersistenceManager<R>::ValidateRequest(
     RequestPtr request,
     uint32_t cur_epoch_num,
@@ -319,10 +372,16 @@ bool PersistenceManager<R>::ValidateRequest(
         {
             logos::transaction txn(_store.environment,nullptr,false);
             auto ac = dynamic_pointer_cast<const AnnounceCandidacy>(request);
-            if(!ValidateRequest(*ac, cur_epoch_num, txn, result))
+            if(info->type != logos::AccountType::LogosAccount)
+            {
+                result.code = logos::process_result::invalid_account_type;
+                return false; 
+            }
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            if(!ValidateRequest(*ac, *account_info, cur_epoch_num, txn, result))
             {
                 LOG_ERROR(_log) << "AnnounceCandidacy is invalid: " << ac->Hash().to_string()
-                << " code is " << logos::ProcessResultToString(result.code);
+                    << " code is " << logos::ProcessResultToString(result.code);
                 return false;
             }
             break;
@@ -331,10 +390,16 @@ bool PersistenceManager<R>::ValidateRequest(
         {
             logos::transaction txn(_store.environment,nullptr,false);
             auto rc = dynamic_pointer_cast<const RenounceCandidacy>(request);
-            if(!ValidateRequest(*rc,cur_epoch_num,txn, result))
+            if(info->type != logos::AccountType::LogosAccount)
+            {
+                result.code = logos::process_result::invalid_account_type;
+                return false; 
+            }
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            if(!ValidateRequest(*rc,*account_info,cur_epoch_num,txn, result))
             {
                 LOG_ERROR(_log) << "RenounceCandidacy is invalid: " << rc->Hash().to_string()
-                << " code is " << logos::ProcessResultToString(result.code);
+                    << " code is " << logos::ProcessResultToString(result.code);
                 return false;
             }
             break;
@@ -343,10 +408,17 @@ bool PersistenceManager<R>::ValidateRequest(
         {
             logos::transaction txn(_store.environment,nullptr,false);
             auto sr = dynamic_pointer_cast<const StartRepresenting>(request);
-            if(!ValidateRequest(*sr,cur_epoch_num,txn, result))
+            if(info->type != logos::AccountType::LogosAccount)
+            {
+                result.code = logos::process_result::invalid_account_type;
+                return false; 
+            }
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+
+            if(!ValidateRequest(*sr,*account_info,cur_epoch_num,txn, result))
             {
                 LOG_ERROR(_log) << "StartRepresenting is invalid: " << sr->Hash().to_string()
-                << " code is " << logos::ProcessResultToString(result.code);
+                    << " code is " << logos::ProcessResultToString(result.code);
                 return false;
             }
             break;
@@ -355,10 +427,16 @@ bool PersistenceManager<R>::ValidateRequest(
         {
             logos::transaction txn(_store.environment,nullptr,false);
             auto sr = dynamic_pointer_cast<const StopRepresenting>(request);
-            if(!ValidateRequest(*sr,cur_epoch_num,txn,result))
+            if(info->type != logos::AccountType::LogosAccount)
+            {
+                result.code = logos::process_result::invalid_account_type;
+                return false; 
+            }
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            if(!ValidateRequest(*sr,*account_info,cur_epoch_num,txn,result))
             {
                 LOG_ERROR(_log) << "StartRepresenting is invalid: " << sr->Hash().to_string()
-                << " code is " << logos::ProcessResultToString(result.code);
+                    << " code is " << logos::ProcessResultToString(result.code);
                 return false;
             }   
             break;
@@ -1674,6 +1752,7 @@ void PersistenceManager<R>::ApplyRequest(
         MDB_txn* txn)
 {
     assert(txn != nullptr);
+    info.staking_subchain_head = request.GetHash();
     RepInfo rep;
     if(_store.rep_get(request.origin,rep, txn))
     {
@@ -1738,6 +1817,7 @@ void PersistenceManager<R>::ApplyRequest(
         MDB_txn* txn)
 {
     assert(txn != nullptr);
+    info.staking_subchain_head = request.GetHash();
     CandidateInfo candidate;
     if(!_store.candidate_get(request.origin, candidate, txn))
     {
@@ -1916,33 +1996,11 @@ bool PersistenceManager<R>::ValidateRequest(
     return total <= MAX_VOTES;
 }
 
-template <typename T>
-bool ValidateStake(
-        T const & req,
-        logos::process_return& result,
-        MDB_txn* txn)
-{
-    if(req.set_stake)
-    {
-        bool can_stake = StakingManager::GetInstance()->Validate(
-                req.origin,
-                req.stake,
-                req.origin,
-                req.epoch_num,
-                txn);
-        if(!can_stake)
-        {
-            //TODO different return code
-            result.code = logos::process_result::not_enough_stake;
-            return false;
-        }
-    }
-    return true;
-}
 
 
 bool PersistenceManager<R>::ValidateRequest(
         const AnnounceCandidacy& request,
+        logos::account_info const & info,
         uint32_t cur_epoch_num,
         MDB_txn* txn,
         logos::process_return& result)
@@ -1967,11 +2025,7 @@ bool PersistenceManager<R>::ValidateRequest(
 
     RepInfo rep;
     bool rep_exists = !_store.rep_get(request.origin, rep, txn);
-    
-    if(!ValidateStake(request,result,txn))
-    {
-        return false;
-    }
+
     Amount stake = request.stake;
     if(!request.set_stake)
     {
@@ -1983,6 +2037,10 @@ bool PersistenceManager<R>::ValidateRequest(
     if(stake < MIN_DELEGATE_STAKE)
     {
         result.code = logos::process_result::not_enough_stake;
+        return false;
+    }
+    if(!ValidateStake(request,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
+    {
         return false;
     }
 
@@ -2025,6 +2083,7 @@ bool PersistenceManager<R>::ValidateRequest(
 
 bool PersistenceManager<R>::ValidateRequest(
         const RenounceCandidacy& request,
+        logos::account_info const & info,
         uint32_t cur_epoch_num,
         MDB_txn* txn,
         logos::process_return& result)
@@ -2044,6 +2103,11 @@ bool PersistenceManager<R>::ValidateRequest(
     if(IsDeadPeriod(cur_epoch_num,txn))
     {
         result.code = logos::process_result::elections_dead_period;
+        return false;
+    }
+
+    if(!ValidateStake(request,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
+    {
         return false;
     }
     RepInfo rep;
@@ -2074,10 +2138,6 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    if(!ValidateStake(request,result,txn))
-    {
-        return false;
-    }
     return true;
 }
 
@@ -2111,6 +2171,7 @@ bool PersistenceManager<R>::IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn)
 
 bool PersistenceManager<R>::ValidateRequest(
         const StartRepresenting& request,
+        logos::account_info const & info,
         uint32_t cur_epoch_num,
         MDB_txn* txn,
         logos::process_return& result)
@@ -2132,10 +2193,6 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    if(!ValidateStake(request,result,txn))
-    {
-        return false;
-    }
     Amount stake = request.stake;
 
     if(!request.set_stake)
@@ -2151,6 +2208,11 @@ bool PersistenceManager<R>::ValidateRequest(
         result.code = logos::process_result::not_enough_stake;
         return false;
     } 
+
+    if(!ValidateStake(request,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
+    {
+        return false;
+    }
 
     RepInfo rep;
     if(!_store.rep_get(request.origin,rep,txn))
@@ -2177,6 +2239,7 @@ bool PersistenceManager<R>::ValidateRequest(
 
 bool PersistenceManager<R>::ValidateRequest(
         const StopRepresenting& request,
+        logos::account_info const & info,
         uint32_t cur_epoch_num,
         MDB_txn* txn,
         logos::process_return& result)
@@ -2200,7 +2263,7 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    if(!ValidateStake(request,result,txn))
+    if(!ValidateStake(request,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
     {
         return false;
     }
