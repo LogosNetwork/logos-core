@@ -79,10 +79,18 @@ bool VotingPowerManager::CanPrune(
 
     //need to check next instead of current, because when next goes to 0,
     //the record may never be updated again
+    Amount total_power = info.next.locked_proxied
+        + info.next.unlocked_proxied
+        + info.next.self_stake;
     bool power_is_zero = (
             info.next.locked_proxied 
             + info.next.unlocked_proxied 
             + info.next.self_stake) == 0;
+    LOG_INFO(_log) << "power is zero = " << power_is_zero
+        << " info = " << total_power.to_string()
+        << " lock_proxy = " << info.next.locked_proxied.to_string()
+        << " unlocked proxy = " << info.next.unlocked_proxied.to_string()
+        << " self stake = " << info.next.self_stake.to_string();
     if(!power_is_zero)
     {
         return false;
@@ -102,6 +110,8 @@ void VotingPowerManager::TryPrune(
     bool found = !_store.get(_store.voting_power_db,rep,info,txn);
     if(found && CanPrune(rep, info, txn))
     {
+        LOG_INFO(_log) << "pruning rep = " << rep.to_string()
+            << " info = " << info.next.self_stake.to_string();
         _store.del(_store.voting_power_db,rep,txn);
     }
 }
@@ -408,11 +418,18 @@ boost::optional<AccountAddress> VotingPowerManager::GetRep(
         {
             return static_pointer_cast<Proxy>(req)->rep;
         }
+        else if(req->type == RequestType::StartRepresenting
+                || req->type == RequestType::StopRepresenting
+                || req->type == RequestType::AnnounceCandidacy
+                || req->type == RequestType::RenounceCandidacy)
+        {
+            return boost::optional<AccountAddress>{};
+        }
         else
         {
             //TODO handle other request types
             LOG_FATAL(_log) << "VotingPowerManager::GetRep - "
-                << "Request on staking subchain is not Proxy";
+                << "Request on staking subchain is wrong type";
             trace_and_halt();
         }
     }

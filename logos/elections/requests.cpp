@@ -6,6 +6,7 @@ using namespace request::fields;
 
 AnnounceCandidacy::AnnounceCandidacy()
     : Request(RequestType::AnnounceCandidacy)
+    , set_stake(false)
 {}  
 
 AnnounceCandidacy::AnnounceCandidacy(bool & error,
@@ -43,6 +44,36 @@ AnnounceCandidacy::AnnounceCandidacy(bool& error, const logos::mdb_val& mdbval)
 }
 
 
+bool DeserializeStakeJson(
+        boost::property_tree::ptree const & tree,
+        Amount & stake,
+        bool & set_stake)
+{
+    boost::optional<std::string> stake_text (
+            tree.get_optional<std::string>(STAKE));
+    //TODO add set_stake to request fields
+    boost::optional<std::string> set_stake_text (
+            tree.get_optional<std::string>("set_stake"));
+    if(set_stake_text.is_initialized())
+    {
+        set_stake = set_stake_text.get() == "true"; 
+    }
+    else
+    {
+        set_stake = stake_text.is_initialized();
+    }
+    if(stake_text.is_initialized())
+    {
+        return stake.decode_hex(stake_text.get());
+    }
+    else
+    {
+        stake = 0;
+        return set_stake;
+    }
+}
+
+
 
 AnnounceCandidacy::AnnounceCandidacy(bool & error,
             boost::property_tree::ptree const & tree) : Request(error, tree)
@@ -56,15 +87,8 @@ AnnounceCandidacy::AnnounceCandidacy(bool & error,
 
     try
     {
-        boost::optional<std::string> stake_text (tree.get_optional<std::string>(STAKE));
-        if(stake_text.is_initialized())
-        {
-            error = stake.decode_hex(stake_text.get());
-        }
-        else
-        {
-            stake = 0;
-        }
+        error = DeserializeStakeJson(tree, stake, set_stake);
+
 
         std::string bls_key_text = tree.get<std::string>(BLS_KEY);
         bls_key = DelegatePubKey(bls_key_text);
@@ -81,7 +105,11 @@ AnnounceCandidacy::AnnounceCandidacy(bool & error,
 
 uint64_t AnnounceCandidacy::Serialize(logos::stream & stream) const
 {
-    auto val = logos::write(stream, stake);
+    auto val = logos::write(stream, set_stake);
+    if(set_stake)
+    {
+        val += logos::write(stream, stake);
+    }
     val += logos::write(stream, bls_key);
     val += ecies_key.Serialize(stream);
     val += logos::write(stream, epoch_num);
@@ -92,12 +120,19 @@ uint64_t AnnounceCandidacy::Serialize(logos::stream & stream) const
 
 void AnnounceCandidacy::Deserialize(bool & error, logos::stream & stream)
 {
-    error = logos::read(stream, stake);
+    error = logos::read(stream, set_stake);
     if(error)
     {
         return;
     }
-
+    if(set_stake)
+    {
+        error = logos::read(stream, stake);
+        if(error)
+        {
+            return;
+        }
+    }
     error = logos::read(stream, bls_key);
     if(error)
     {
@@ -157,6 +192,7 @@ boost::property_tree::ptree AnnounceCandidacy::SerializeJson() const
 {
     boost::property_tree::ptree tree(Request::SerializeJson());
 
+    tree.put("set_stake",set_stake);
     tree.put(STAKE,stake.to_string());
     tree.put(BLS_KEY,bls_key.to_string());
     ecies_key.SerializeJson(tree);
@@ -167,6 +203,7 @@ boost::property_tree::ptree AnnounceCandidacy::SerializeJson() const
 
 RenounceCandidacy::RenounceCandidacy()
     : Request(RequestType::RenounceCandidacy)
+    , set_stake(false)
 {}  
 
 RenounceCandidacy::RenounceCandidacy(bool & error,
@@ -206,6 +243,7 @@ RenounceCandidacy::RenounceCandidacy(bool & error,
     error = error || type != RequestType::RenounceCandidacy;
     try
     {
+        error = DeserializeStakeJson(tree, stake, set_stake);
         epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
         staking_subchain_prev.decode_hex(tree.get<std::string>(STAKING_SUB_PREV));
     }
@@ -219,14 +257,34 @@ RenounceCandidacy::RenounceCandidacy(bool & error,
 
 
 uint64_t RenounceCandidacy::Serialize(logos::stream & stream) const
-{
-    return logos::write(stream, epoch_num)
-        + logos::write(stream, staking_subchain_prev)
-        + logos::write(stream, signature);
+{    
+    auto val = logos::write(stream, set_stake);
+    if(set_stake)
+    {
+        val += logos::write(stream, stake);
+    }
+    val += logos::write(stream, epoch_num);
+    val += logos::write(stream, staking_subchain_prev);
+    val += logos::write(stream, signature);
+    return val;
 }
 
 void RenounceCandidacy::Deserialize(bool & error, logos::stream & stream)
 {
+    error = logos::read(stream, set_stake);
+    if(error)
+    {
+        return;
+    }
+    if(set_stake)
+    {
+        error = logos::read(stream, stake);
+        if(error)
+        {
+            return;
+        }
+    }
+
     error = logos::read(stream, epoch_num);
     if(error)
     {
@@ -273,6 +331,9 @@ void RenounceCandidacy::DeserializeDB(bool & error, logos::stream & stream)
 boost::property_tree::ptree RenounceCandidacy::SerializeJson() const
 {
     boost::property_tree::ptree tree(Request::SerializeJson());
+
+    tree.put("set_stake",set_stake);
+    tree.put(STAKE, stake.to_string());
     tree.put(EPOCH_NUM,epoch_num);
     tree.put(STAKING_SUB_PREV,staking_subchain_prev.to_string());
     return tree;
@@ -524,6 +585,7 @@ bool ElectionVote::operator!=(const ElectionVote& other) const
 
 StartRepresenting::StartRepresenting()
     : Request(RequestType::StartRepresenting)
+    , set_stake(false)
 {}
 
 StartRepresenting::StartRepresenting(bool & error,
@@ -571,7 +633,7 @@ StartRepresenting::StartRepresenting(bool & error,
     } 
     try
     {
-        stake = tree.get<std::string>(STAKE);
+        error = DeserializeStakeJson(tree, stake, set_stake);
         epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
         staking_subchain_prev.decode_hex(tree.get<std::string>(STAKING_SUB_PREV));
         SignAndHash(error, tree);
@@ -584,7 +646,11 @@ StartRepresenting::StartRepresenting(bool & error,
 
 uint64_t StartRepresenting::Serialize(logos::stream & stream) const
 {
-    auto val = logos::write(stream, stake);
+    auto val = logos::write(stream, set_stake);
+    if(set_stake)
+    {
+        val += logos::write(stream, stake);
+    }
     val += logos::write(stream, epoch_num);
     val += logos::write(stream, staking_subchain_prev);
     val += logos::write(stream, signature);
@@ -593,10 +659,18 @@ uint64_t StartRepresenting::Serialize(logos::stream & stream) const
 
 void StartRepresenting::Deserialize(bool& error, logos::stream& stream)
 {
-    error = logos::read(stream, stake);
+    error = logos::read(stream, set_stake);
     if(error)
     {
         return;
+    }
+    if(set_stake)
+    {
+        error = logos::read(stream, stake);
+        if(error)
+        {
+            return;
+        }
     }
 
     error = logos::read(stream, epoch_num);
@@ -646,6 +720,7 @@ void StartRepresenting::DeserializeDB(bool& error, logos::stream& stream)
 boost::property_tree::ptree StartRepresenting::SerializeJson() const
 {
     boost::property_tree::ptree tree = Request::SerializeJson();
+    tree.put("set_stake",set_stake);
     tree.put(STAKE,stake.to_string());
     tree.put(EPOCH_NUM,epoch_num);
     tree.put(STAKING_SUB_PREV,staking_subchain_prev.to_string());
@@ -654,6 +729,7 @@ boost::property_tree::ptree StartRepresenting::SerializeJson() const
 
 StopRepresenting::StopRepresenting()
     : Request(RequestType::StopRepresenting)
+    , set_stake(false)
 {}
 
 StopRepresenting::StopRepresenting(bool & error,
@@ -702,6 +778,7 @@ StopRepresenting::StopRepresenting(bool & error,
 
     try
     {
+        error = DeserializeStakeJson(tree, stake, set_stake);
         epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
         staking_subchain_prev.decode_hex(tree.get<std::string>(STAKING_SUB_PREV));
         SignAndHash(error, tree); 
@@ -715,6 +792,9 @@ StopRepresenting::StopRepresenting(bool & error,
 boost::property_tree::ptree StopRepresenting::SerializeJson() const
 {
     boost::property_tree::ptree tree = Request::SerializeJson();
+
+    tree.put("set_stake",set_stake);
+    tree.put(STAKE,stake.to_string());
     tree.put(EPOCH_NUM,epoch_num);
     tree.put(STAKING_SUB_PREV,staking_subchain_prev.to_string());
     return tree;
@@ -722,6 +802,20 @@ boost::property_tree::ptree StopRepresenting::SerializeJson() const
 
 void StopRepresenting::Deserialize(bool& error, logos::stream& stream)
 {
+    error = logos::read(stream, set_stake);
+    if(error)
+    {
+        return;
+    }
+    if(set_stake)
+    {
+        error = logos::read(stream, stake);
+        if(error)
+        {
+            return;
+        }
+    }
+
     error = logos::read(stream, epoch_num); 
     if(error)
     {
@@ -766,8 +860,15 @@ void StopRepresenting::DeserializeDB(bool& error, logos::stream& stream)
 
 uint64_t StopRepresenting::Serialize(logos::stream & stream) const
 {
-    return logos::write(stream, epoch_num)
-        + logos::write(stream, staking_subchain_prev)
-        + logos::write(stream, signature);
+    auto val = logos::write(stream, set_stake);
+    if(set_stake)
+    {
+        val += logos::write(stream, stake);
+    }
+
+    val += logos::write(stream, epoch_num);
+    val += logos::write(stream, staking_subchain_prev);
+    val += logos::write(stream, signature);
+    return val;
 }
 

@@ -380,6 +380,7 @@ void logos::account_info::SetAvailableBalance(
 {
     std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::Get();
     boost::optional<AccountAddress> rep = vpm->GetRep(*this, txn);
+    //TODO get rep may return self, need to detect
     if(new_available_bal > available_balance)
     {
         Amount diff = new_available_bal - available_balance;

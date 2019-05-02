@@ -1587,17 +1587,21 @@ void PersistenceManager<R>::ApplyRequest(
         MDB_txn* txn)
 {
     assert(txn != nullptr);
+    info.staking_subchain_head = request.GetHash();
     RepInfo rep(request);
     assert(!_store.rep_put(request.origin,rep,txn));
     assert(!_store.request_put(request,txn));
 
-    StakingManager::GetInstance()->Stake(
-            request.origin,
-            info,
-            request.stake,
-            request.origin,
-            request.epoch_num,
-            txn); 
+    if(request.set_stake)
+    {
+        StakingManager::GetInstance()->Stake(
+                request.origin,
+                info,
+                request.stake,
+                request.origin,
+                request.epoch_num,
+                txn); 
+    }
 }
 
 void PersistenceManager<R>::ApplyRequest(
@@ -1606,6 +1610,7 @@ void PersistenceManager<R>::ApplyRequest(
         MDB_txn* txn)
 {
     assert(txn != nullptr);
+    info.staking_subchain_head = request.GetHash();
     RepInfo rep;
     assert(!_store.rep_get(request.origin,rep,txn));
     rep.rep_action_tip = request.GetHash();
@@ -1618,6 +1623,16 @@ void PersistenceManager<R>::ApplyRequest(
     assert(!_store.rep_put(request.origin,rep,txn));
     assert(!_store.rep_mark_remove(request.origin, txn));
     assert(!_store.request_put(request,txn));
+    if(request.set_stake)
+    {
+        StakingManager::GetInstance()->Stake(
+                request.origin,
+                info,
+                request.stake,
+                request.origin,
+                request.epoch_num,
+                txn); 
+    }
 }
 
 void PersistenceManager<R>::ApplyRequest(
@@ -1705,6 +1720,16 @@ void PersistenceManager<R>::ApplyRequest(
         assert(!_store.candidate_put(request.origin,candidate,txn));
     }
     assert(!_store.request_put(request,txn));
+    if(request.set_stake)
+    {
+        StakingManager::GetInstance()->Stake(
+                request.origin,
+                info,
+                request.stake,
+                request.origin,
+                request.epoch_num,
+                txn);
+    }
 }
 
 void PersistenceManager<R>::ApplyRequest(
@@ -1723,6 +1748,16 @@ void PersistenceManager<R>::ApplyRequest(
     rep.candidacy_action_tip = request.GetHash();
     assert(!_store.rep_put(request.origin,rep,txn));
     assert(!_store.request_put(request,txn));
+    if(request.set_stake)
+    {
+        StakingManager::GetInstance()->Stake(
+                request.origin,
+                info,
+                request.stake,
+                request.origin,
+                request.epoch_num,
+                txn); 
+    }
 }
 
 //TODO: dynamic can be changed to static if we do type validation
@@ -1881,6 +1916,31 @@ bool PersistenceManager<R>::ValidateRequest(
     return total <= MAX_VOTES;
 }
 
+template <typename T>
+bool ValidateStake(
+        T const & req,
+        logos::process_return& result,
+        MDB_txn* txn)
+{
+    if(req.set_stake)
+    {
+        bool can_stake = StakingManager::GetInstance()->Validate(
+                req.origin,
+                req.stake,
+                req.origin,
+                req.epoch_num,
+                txn);
+        if(!can_stake)
+        {
+            //TODO different return code
+            result.code = logos::process_result::not_enough_stake;
+            return false;
+        }
+    }
+    return true;
+}
+
+
 bool PersistenceManager<R>::ValidateRequest(
         const AnnounceCandidacy& request,
         uint32_t cur_epoch_num,
@@ -1908,10 +1968,17 @@ bool PersistenceManager<R>::ValidateRequest(
     RepInfo rep;
     bool rep_exists = !_store.rep_get(request.origin, rep, txn);
     
-    Amount stake = request.stake;
-    if(stake == 0 && rep_exists)
+    if(!ValidateStake(request,result,txn))
     {
-        stake = rep.stake;
+        return false;
+    }
+    Amount stake = request.stake;
+    if(!request.set_stake)
+    {
+        stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
+                request.origin,
+                txn)
+            .amount;
     }
     if(stake < MIN_DELEGATE_STAKE)
     {
@@ -2006,6 +2073,11 @@ bool PersistenceManager<R>::ValidateRequest(
         result.code = logos::process_result::pending_candidacy_action;
         return false;
     }
+
+    if(!ValidateStake(request,result,txn))
+    {
+        return false;
+    }
     return true;
 }
 
@@ -2060,6 +2132,20 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
+    if(!ValidateStake(request,result,txn))
+    {
+        return false;
+    }
+    Amount stake = request.stake;
+
+    if(!request.set_stake)
+    {
+        stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
+                request.origin,
+                txn)
+            .amount;
+    }
+
     if(request.stake < MIN_REP_STAKE)
     {
         result.code = logos::process_result::not_enough_stake;
@@ -2111,6 +2197,11 @@ bool PersistenceManager<R>::ValidateRequest(
     if(IsDeadPeriod(cur_epoch_num,txn))
     {
         result.code = logos::process_result::elections_dead_period;
+        return false;
+    }
+
+    if(!ValidateStake(request,result,txn))
+    {
         return false;
     }
 
