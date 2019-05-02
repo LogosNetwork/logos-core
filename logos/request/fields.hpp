@@ -29,6 +29,8 @@ const char RENOUNCE_CANDIDACY[] = "renounce_candidacy";
 const char ELECTION_VOTE[]      = "election_vote";
 const char START_REPRESENTING[] = "start_representing";
 const char STOP_REPRESENTING[]  = "stop_representing";
+const char UNSTAKE[]            = "unstake";
+const char STAKE[]              = "stake";
 const char UNKNOWN[]            = "unknown";
 
 // Request fields
@@ -76,7 +78,6 @@ const char STATUS[]           = "status";
 const char WORK[]             = "work";
 const char VOTES[]            = "votes";
 const char REQUEST[]          = "request";
-const char STAKE[]            = "stake";
 const char EPOCH_NUM[]        = "epoch_num";
 const char BLS_KEY[]          = "bls_key"; 
 const char ECIES_KEY[]       = "ecies_key";

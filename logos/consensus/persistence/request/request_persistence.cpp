@@ -435,7 +435,43 @@ bool PersistenceManager<R>::ValidateRequest(
             auto account_info = dynamic_pointer_cast<logos::account_info>(info);
             if(!ValidateRequest(*sr,*account_info,cur_epoch_num,txn,result))
             {
-                LOG_ERROR(_log) << "StartRepresenting is invalid: " << sr->Hash().to_string()
+                LOG_ERROR(_log) << "StopRepresenting is invalid: " << sr->Hash().to_string()
+                    << " code is " << logos::ProcessResultToString(result.code);
+                return false;
+            }   
+            break;
+        }
+        case RequestType::Stake:
+        {
+            logos::transaction txn(_store.environment,nullptr,false);
+            auto stake = dynamic_pointer_cast<const Stake>(request);
+            if(info->type != logos::AccountType::LogosAccount)
+            {
+                result.code = logos::process_result::invalid_account_type;
+                return false; 
+            }
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            if(!ValidateRequest(*stake,*account_info,cur_epoch_num,txn,result))
+            {
+                LOG_ERROR(_log) << "Stake is invalid: " << stake->GetHash().to_string()
+                    << " code is " << logos::ProcessResultToString(result.code);
+                return false;
+            }   
+            break;
+        }
+        case RequestType::Unstake:
+        {
+            logos::transaction txn(_store.environment,nullptr,false);
+            auto unstake = dynamic_pointer_cast<const Unstake>(request);
+            if(info->type != logos::AccountType::LogosAccount)
+            {
+                result.code = logos::process_result::invalid_account_type;
+                return false; 
+            }
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            if(!ValidateRequest(*unstake,*account_info,cur_epoch_num,txn,result))
+            {
+                LOG_ERROR(_log) << "Unstake is invalid: " << unstake->GetHash().to_string()
                     << " code is " << logos::ProcessResultToString(result.code);
                 return false;
             }   
@@ -1368,6 +1404,20 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             ApplyRequest(*sr,*account_info,transaction);
             break;
         }
+        case RequestType::Stake:
+        {
+            auto stake = dynamic_pointer_cast<const Stake>(request);
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            ApplyRequest(*stake,*account_info,transaction);
+            break;
+        }
+        case RequestType::Unstake:
+        {
+            auto unstake = dynamic_pointer_cast<const Unstake>(request);
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            ApplyRequest(*unstake,*account_info,transaction);
+            break;
+        }
         case RequestType::Unknown:
             LOG_ERROR(_log) << "PersistenceManager::ApplyRequest - "
                             << "Unknown request type.";
@@ -1838,6 +1888,88 @@ void PersistenceManager<R>::ApplyRequest(
     }
 }
 
+void PersistenceManager<R>::ApplyRequest(
+        const Proxy& request,
+        logos::account_info& info,
+        MDB_txn* txn)
+{
+    if(!txn)
+    {
+        LOG_FATAL(_log) << "PersistenceManager<R>::ApplyRequest (Proxy)"
+            << "txn is null";
+        trace_and_halt();
+    }
+
+    info.staking_subchain_head = request.GetHash();
+    StakingManager::GetInstance()->Stake(
+            request.origin,
+            info,
+            request.lock_proxy,
+            request.rep,
+            request.epoch_num,
+            txn);
+    
+    if(_store.request_put(request,txn))
+    {
+        trace_and_halt();
+    }
+
+}
+
+void PersistenceManager<R>::ApplyRequest(
+        const Stake& request,
+        logos::account_info& info,
+        MDB_txn* txn)
+{
+    if(!txn)
+    {
+        LOG_FATAL(_log) << "PersistenceManager<R>::ApplyRequest (Proxy)"
+            << "txn is null";
+        trace_and_halt();
+    }
+
+    info.staking_subchain_head = request.GetHash();
+    StakingManager::GetInstance()->Stake(
+            request.origin,
+            info,
+            request.stake,
+            request.origin,
+            request.epoch_num,
+            txn);
+    
+    if(_store.request_put(request,txn))
+    {
+        trace_and_halt();
+    }
+}
+
+
+void PersistenceManager<R>::ApplyRequest(
+        const Unstake& request,
+        logos::account_info& info,
+        MDB_txn* txn)
+{
+    if(!txn)
+    {
+        LOG_FATAL(_log) << "PersistenceManager<R>::ApplyRequest (Proxy)"
+            << "txn is null";
+        trace_and_halt();
+    }
+
+    info.staking_subchain_head = request.GetHash();
+    StakingManager::GetInstance()->Stake(
+            request.origin,
+            info,
+            0,
+            request.origin,
+            request.epoch_num,
+            txn);
+    
+    if(_store.request_put(request,txn))
+    {
+        trace_and_halt();
+    }
+}
 //TODO: dynamic can be changed to static if we do type validation
 //in the constructors of ALL the request types
 uint32_t GetEpochNum(std::shared_ptr<Request> req)
@@ -2303,4 +2435,151 @@ bool PersistenceManager<R>::ValidateRequest(
     return false;
 }
 
+bool PersistenceManager<R>::ValidateRequest(
+        const Proxy& request,
+        logos::account_info const & info,
+        uint32_t cur_epoch_num,
+        MDB_txn* txn,
+        logos::process_return& result)
+{
+    if(!txn)
+    {
+        LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest - "
+            << "txn is null";
+        trace_and_halt();
+    }
+    if(request.epoch_num != cur_epoch_num)
+    {
+        result.code = logos::process_result::wrong_epoch_number;
+        return false;
+    }
+
+    bool can_stake = StakingManager::GetInstance()->Validate(
+            request.origin,
+            request.lock_proxy,
+            request.rep,
+            request.epoch_num,
+            txn);
+    if(!can_stake)
+    {
+        //TODO different return code
+        result.code = logos::process_result::insufficient_funds_for_stake;
+        return false;
+    }
+
+    if(!ValidateStakingSubchain(request,info,result,txn))
+    {
+        return false;
+    }
+
+    if(request.rep == request.origin)
+    {
+        result.code = logos::process_result::proxy_to_self;
+        return false;
+    }
+    return true;
+}
+
+//TODO allow anyone to stake to themselves or disallow?
+bool PersistenceManager<R>::ValidateRequest(
+        const Stake& request,
+        logos::account_info const & info,
+        uint32_t cur_epoch_num,
+        MDB_txn* txn,
+        logos::process_return& result)
+{
+    if(!txn)
+    {
+        LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest - "
+            << "txn is null";
+        trace_and_halt();
+    }
+    if(request.epoch_num != cur_epoch_num)
+    {
+        result.code = logos::process_result::wrong_epoch_number;
+        return false;
+    }
+
+    bool can_stake = StakingManager::GetInstance()->Validate(
+            request.origin,
+            request.stake,
+            request.origin,
+            request.epoch_num,
+            txn);
+    if(!can_stake)
+    {
+        //TODO different return code
+        result.code = logos::process_result::insufficient_funds_for_stake;
+        return false;
+    }
+
+    //TODO better return code, and possibly more strict validation?
+    //Account could be not a rep, yet pass this check
+    //For example, they issued stop representing but
+    //did not pick a rep for themselves yet (via Proxy)
+    if(VotingPowerManager::Get()->GetRep(info,txn))
+    {
+       result.code = logos::process_result::not_a_rep;
+       return false; 
+    }
+
+    if(!ValidateStakingSubchain(request,info,result,txn))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+
+//TODO allow anyone to stake to themselves or disallow?
+bool PersistenceManager<R>::ValidateRequest(
+        const Unstake& request,
+        logos::account_info const & info,
+        uint32_t cur_epoch_num,
+        MDB_txn* txn,
+        logos::process_return& result)
+{
+    if(!txn)
+    {
+        LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest - "
+            << "txn is null";
+        trace_and_halt();
+    }
+    if(request.epoch_num != cur_epoch_num)
+    {
+        result.code = logos::process_result::wrong_epoch_number;
+        return false;
+    }
+
+    bool can_stake = StakingManager::GetInstance()->Validate(
+            request.origin,
+            0,
+            request.origin,
+            request.epoch_num,
+            txn);
+    if(!can_stake)
+    {
+        //TODO different return code
+        result.code = logos::process_result::insufficient_funds_for_stake;
+        return false;
+    }
+
+    //TODO better return code, and possibly more strict validation?
+    //Account could be not a rep, yet pass this check
+    //For example, they issued stop representing but
+    //did not pick a rep for themselves yet (via Proxy)
+    if(VotingPowerManager::Get()->GetRep(info,txn))
+    {
+       result.code = logos::process_result::not_a_rep;
+       return false; 
+    }
+
+    if(!ValidateStakingSubchain(request,info,result,txn))
+    {
+        return false;
+    }
+
+    return true;
+}
 

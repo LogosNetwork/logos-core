@@ -17,7 +17,7 @@ TEST(Proxy, Serialization)
     req.lock_proxy = 4267;
     req.rep = 1234;
     req.epoch_num = 720;
-    req.staking_subchain_previous = 89674;
+    req.staking_subchain_prev = 89674;
 
     req.Hash();
     store->request_put(req, txn);

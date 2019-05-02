@@ -42,10 +42,12 @@ enum class RequestType : uint8_t
     RenounceCandidacy = 18,
     StartRepresenting = 19,
     StopRepresenting  = 20,
+    Stake             = 21,
+    Unstake           = 22,
 
     // Unknown
     //
-    Unknown          = 21
+    Unknown          = 23
 };
 
 class Reservations;

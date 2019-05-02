@@ -175,6 +175,12 @@ std::string GetRequestTypeField(RequestType type)
         case RequestType::StopRepresenting:
             ret = STOP_REPRESENTING;
             break;
+        case RequestType::Stake:
+            ret = STAKE;
+            break;
+        case RequestType::Unstake:
+            ret = UNSTAKE;
+            break;
         case RequestType::Unknown:
             ret = UNKNOWN;
             break;
@@ -252,6 +258,12 @@ std::shared_ptr<Request> BuildRequest(RequestType type, bool & error, Data && da
             break;
         case RequestType::StopRepresenting:
             result = std::make_shared<StopRepresenting>(error, data);
+            break;
+        case RequestType::Stake:
+            result = std::make_shared<Stake>(error, data);
+            break;
+        case RequestType::Unstake:
+            result = std::make_shared<Unstake>(error, data);
             break;
         case RequestType::Unknown:
             error = true;
