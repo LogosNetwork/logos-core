@@ -605,19 +605,17 @@ DelegateIdentityManager::ValidateSignature(uint32_t epoch_number, const CommonAd
     return validator->Validate(hash, ad.signature, ad.delegate_id);
 }
 
-template<typename Ad>
+template<>
 P2pAppType
-DelegateIdentityManager::GetP2pAppType()
+DelegateIdentityManager::GetP2pAppType<AddressAd>()
 {
-    if (std::is_same<Ad, AddressAd>::value)
-    {
-        return P2pAppType::AddressAd;
-    }
-    else if (std::is_same<Ad, AddressAdTxAcceptor>::value)
-    {
-        return P2pAppType::AddressAdTxAcceptor;
-    }
-    assert(false);
+    return P2pAppType::AddressAd;
+}
+
+template<>
+P2pAppType
+DelegateIdentityManager::GetP2pAppType<AddressAdTxAcceptor>() {
+    return P2pAppType::AddressAdTxAcceptor;
 }
 
 std::shared_ptr<std::vector<uint8_t>>

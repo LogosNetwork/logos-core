@@ -845,7 +845,7 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
 {
     if (!p2p)
     {
-         LogPrintf("p2p_interface::PropagateMessage, null p2p\n");
+        LogPrintf("p2p_interface::PropagateMessage, null p2p\n");
         return false;
     }
 

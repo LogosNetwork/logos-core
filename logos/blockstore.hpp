@@ -310,13 +310,13 @@ public:
 
     // Address advertisement
     struct ad_key {
-        uint32_t epoch_number;
-        uint8_t delegate_id;
-        uint8_t encr_delegate_id;
+        uint32_t epoch_number;      ///< epoch number for which the advertised address is valid
+        uint8_t delegate_id;        ///< delegate who advertises its address
+        uint8_t encr_delegate_id;   ///< delegate whose ecies public key is used to encrypt the address
     };
     struct ad_txa_key {
-        uint32_t epoch_number;
-        uint8_t delegate_id;
+        uint32_t epoch_number;      ///< epoch number for which the advertised address is valid
+        uint8_t delegate_id;        ///< delegate who advertises its address
     };
 
     template<typename KeyType>
@@ -336,32 +336,7 @@ public:
     }
 
     template<typename KeyType, typename ... Args>
-    bool ad_get(MDB_txn *t, std::vector<uint8_t> &data, Args ... args)
-    {
-        KeyType key{args ... };
-        mdb_val value;
-
-        auto db = get_ad_db<KeyType>();
-        int status = 0;
-        if (t == 0) {
-            logos::transaction transaction(environment, nullptr, false);
-            status = mdb_get(transaction, db, mdb_val(sizeof(key), &key), value);
-        } else {
-            status = mdb_get(t, db, mdb_val(sizeof(key), &key), value);
-        }
-        assert (status == 0 || status == MDB_NOTFOUND);
-        bool result;
-        if (status == MDB_NOTFOUND)
-        {
-            result = true;
-        }
-        else
-        {
-            data.resize(value.size());
-            memcpy(data.data(), value.data(), value.size());
-        }
-        return result;
-    }
+    bool ad_get(MDB_txn *t, std::vector<uint8_t> &data, Args ... args);
 
     template<typename KeyType, typename ... Args>
     void ad_del(MDB_txn *t, Args ... args)

@@ -227,6 +227,7 @@ bool BackupDelegate<CT>::Validate(const PrePrepare & message)
         return false;
     }
 
+     // TODO: potentially need to bootstrap here as we might be behind!
     if(message.previous != _prev_pre_prepare_hash)
     {
         LOG_DEBUG(_log) << " BackupDelegate<"<< ConsensusToName(CT)

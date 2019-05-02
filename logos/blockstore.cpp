@@ -2020,3 +2020,32 @@ uint32_t logos::block_store::consensus_block_get_raw(const BlockHash & hash,
     }
 #endif
 }
+
+template<typename KeyType, typename ... Args>
+bool
+logos::block_store::ad_get(MDB_txn *t, std::vector<uint8_t> &data, Args ... args)
+{
+    KeyType key{args ... };
+    mdb_val value;
+
+    auto db = get_ad_db<KeyType>();
+    int status = 0;
+    if (t == 0) {
+        logos::transaction transaction(environment, nullptr, false);
+        status = mdb_get(transaction, db, mdb_val(sizeof(key), &key), value);
+    } else {
+        status = mdb_get(t, db, mdb_val(sizeof(key), &key), value);
+    }
+    assert (status == 0 || status == MDB_NOTFOUND);
+    bool result;
+    if (status == MDB_NOTFOUND)
+    {
+        result = true;
+    }
+    else
+    {
+        data.resize(value.size());
+        memcpy(data.data(), value.data(), value.size());
+    }
+    return result;
+}
