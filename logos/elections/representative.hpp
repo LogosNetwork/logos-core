@@ -30,5 +30,4 @@ struct RepInfo
     logos::block_hash election_vote_tip;
     logos::block_hash rep_action_tip;
     uint8_t levy_percentage;
-    Amount stake; 
 };
