@@ -77,24 +77,28 @@ protected:
 
     bool ValidateRequest(
             const AnnounceCandidacy& request,
+            logos::account_info const & info,
             uint32_t cur_epoch_num,
             MDB_txn* txn,
             logos::process_return& result);
 
     bool ValidateRequest(
             const RenounceCandidacy& request,
+            logos::account_info const & info,
             uint32_t cur_epoch_num,
             MDB_txn* txn,
             logos::process_return& result);
 
     bool ValidateRequest(
             const StartRepresenting& request,
+            logos::account_info const & info,
             uint32_t cur_epoch_num,
             MDB_txn* txn,
             logos::process_return& result);
 
     bool ValidateRequest(
             const StopRepresenting& request,
+            logos::account_info const & info,
             uint32_t cur_epoch_num,
             MDB_txn* txn,
             logos::process_return& result);

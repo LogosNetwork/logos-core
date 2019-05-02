@@ -7,6 +7,7 @@ using namespace request::fields;
 AnnounceCandidacy::AnnounceCandidacy()
     : Request(RequestType::AnnounceCandidacy)
     , set_stake(false)
+    , staking_subchain_prev(0)
 {}  
 
 AnnounceCandidacy::AnnounceCandidacy(bool & error,
@@ -204,6 +205,7 @@ boost::property_tree::ptree AnnounceCandidacy::SerializeJson() const
 RenounceCandidacy::RenounceCandidacy()
     : Request(RequestType::RenounceCandidacy)
     , set_stake(false)
+    , staking_subchain_prev(0)
 {}  
 
 RenounceCandidacy::RenounceCandidacy(bool & error,
@@ -586,6 +588,7 @@ bool ElectionVote::operator!=(const ElectionVote& other) const
 StartRepresenting::StartRepresenting()
     : Request(RequestType::StartRepresenting)
     , set_stake(false)
+    , staking_subchain_prev(0)
 {}
 
 StartRepresenting::StartRepresenting(bool & error,
@@ -730,6 +733,7 @@ boost::property_tree::ptree StartRepresenting::SerializeJson() const
 StopRepresenting::StopRepresenting()
     : Request(RequestType::StopRepresenting)
     , set_stake(false)
+    , staking_subchain_prev(0)
 {}
 
 StopRepresenting::StopRepresenting(bool & error,

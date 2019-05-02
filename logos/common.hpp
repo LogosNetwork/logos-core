@@ -394,7 +394,10 @@ enum class process_result
     wrong_epoch_number,         // Logos - the request has an incorrect epoch number
     no_elections,               // Logos - elections are not being held currently
     pending_rep_action,         // Logos - the account has a pending representative action for this epoch
-    pending_candidacy_action    // Logos - the account has a pending candidacy action for this epoch
+    pending_candidacy_action,   // Logos - the account has a pending candidacy action for this epoch
+    invalid_staking_subchain,   // Logos - hash sent as staking_subchain_prev does not match staking_subchain_head of account
+    insufficient_funds_for_stake, // Logos - not enough available funds to satisfy stake request
+    invalid_account_type        // Logos - origin account is not the proper type for the request
 };
 
 std::string ProcessResultToString(process_result result);
