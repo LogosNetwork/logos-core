@@ -17,6 +17,13 @@
 #include <fcntl.h>
 #include <sys/time.h>
 
+/* Number of random bytes returned by GetOSRand.
+ * When changing this constant make sure to change all call sites, and make
+ * sure that the underlying OS APIs for all platforms support the number.
+ * (many cap out at 256 bytes).
+ */
+constexpr int NUM_OS_RANDOM_BYTES = 32;
+
 #ifdef HAVE_SYS_GETRANDOM
 #include <sys/syscall.h>
 #include <linux/random.h>
@@ -38,10 +45,53 @@
 #include <cpuid.h>
 #endif
 
-#include <openssl/err.h>
+#include <openssl/crypto.h>
 #include <openssl/rand.h>
+#include <openssl/conf.h>
+#include <openssl/err.h>
+#include <boost/thread.hpp>
+#include <thread>
 
-[[noreturn]] static void RandFailure()
+/** Init OpenSSL library multithreading support */
+static std::unique_ptr<CCriticalSection[]> ppmutexOpenSSL;
+void locking_callback(int mode, int i, const char* file, int line) NO_THREAD_SAFETY_ANALYSIS
+{
+    if (mode & CRYPTO_LOCK) {
+        ENTER_CRITICAL_SECTION(ppmutexOpenSSL[i]);
+    } else {
+        LEAVE_CRITICAL_SECTION(ppmutexOpenSSL[i]);
+    }
+}
+
+Random::Random(BCLog::Logger &logger)
+        : logger_(logger)
+{
+        // Init OpenSSL library multithreading support
+        ppmutexOpenSSL.reset(new CCriticalSection[CRYPTO_num_locks()]);
+        CRYPTO_set_locking_callback(locking_callback);
+
+        // OpenSSL can optionally load a config file which lists optional loadable modules and engines.
+        // We don't use them so we don't require the config. However some of our libs may call functions
+        // which attempt to load the config file, possibly resulting in an exit() or crash if it is missing
+        // or corrupt. Explicitly tell OpenSSL not to try to load the file. The result for our libs will be
+        // that the config appears to have been loaded and there are no modules/engines available.
+        OPENSSL_no_config();
+
+        // Seed OpenSSL PRNG with performance counter
+        RandAddSeed();
+}
+
+Random::~Random()
+{
+        // Securely erase the memory used by the PRNG
+        RAND_cleanup();
+        // Shutdown OpenSSL library multithreading support
+        CRYPTO_set_locking_callback(nullptr);
+        // Clear the set of locks now to maintain symmetry with the constructor.
+        ppmutexOpenSSL.reset();
+}
+
+[[noreturn]] void Random::RandFailure()
 {
     LogPrintf("Failed to read randomness, aborting\n");
     std::abort();
@@ -65,7 +115,7 @@ static inline int64_t GetPerformanceCounter()
 #endif
 }
 
-void RandAddSeed()
+void Random::RandAddSeed()
 {
     // Seed with CPU performance counter
     int64_t nCounter = GetPerformanceCounter();
@@ -76,7 +126,7 @@ void RandAddSeed()
 /** Fallback: get 32 bytes of system entropy from /dev/urandom. The most
  * compatible way to get cryptographic randomness on UNIX-ish platforms.
  */
-static void GetDevURandom(unsigned char *ent32)
+void Random::GetDevURandom(unsigned char *ent32)
 {
     int f = open("/dev/urandom", O_RDONLY);
     if (f == -1) {
@@ -95,7 +145,7 @@ static void GetDevURandom(unsigned char *ent32)
 }
 
 /** Get 32 bytes of system entropy. */
-void GetOSRand(unsigned char *ent32)
+void Random::GetOSRand(unsigned char *ent32)
 {
 #if defined(HAVE_SYS_GETRANDOM)
     /* Linux. From the getrandom(2) man page:
@@ -155,14 +205,14 @@ void GetOSRand(unsigned char *ent32)
 #endif
 }
 
-void GetRandBytes(unsigned char* buf, int num)
+void Random::GetRandBytes(unsigned char* buf, int num)
 {
     if (RAND_bytes(buf, num) != 1) {
         RandFailure();
     }
 }
 
-uint64_t GetRand(uint64_t nMax)
+uint64_t Random::GetRand(uint64_t nMax)
 {
     if (nMax == 0)
         return 0;
@@ -177,12 +227,12 @@ uint64_t GetRand(uint64_t nMax)
     return (nRand % nMax);
 }
 
-int GetRandInt(int nMax)
+int Random::GetRandInt(int nMax)
 {
     return GetRand(nMax);
 }
 
-uint256 GetRandHash()
+uint256 Random::GetRandHash()
 {
     uint256 hash;
     GetRandBytes((unsigned char*)&hash, sizeof(hash));
@@ -191,7 +241,7 @@ uint256 GetRandHash()
 
 void FastRandomContext::RandomSeed()
 {
-    uint256 seed = GetRandHash();
+    uint256 seed = random_.GetRandHash();
     rng.SetKey(seed.begin(), 32);
     requires_seed = false;
 }
@@ -216,12 +266,16 @@ std::vector<unsigned char> FastRandomContext::randbytes(size_t len)
     return ret;
 }
 
-FastRandomContext::FastRandomContext(const uint256& seed) : requires_seed(false), bytebuf_size(0), bitbuf_size(0)
+FastRandomContext::FastRandomContext(Random &random, const uint256& seed)
+    : random_(random)
+    , requires_seed(false)
+    , bytebuf_size(0)
+    , bitbuf_size(0)
 {
     rng.SetKey(seed.begin(), 32);
 }
 
-bool Random_SanityCheck()
+bool Random::SanityCheck()
 {
     uint64_t start = GetPerformanceCounter();
 
@@ -265,15 +319,15 @@ bool Random_SanityCheck()
     return true;
 }
 
-FastRandomContext::FastRandomContext(bool fDeterministic) : requires_seed(!fDeterministic), bytebuf_size(0), bitbuf_size(0)
+FastRandomContext::FastRandomContext(Random &random, bool fDeterministic)
+    : random_(random)
+    , requires_seed(!fDeterministic)
+    , bytebuf_size(0)
+    , bitbuf_size(0)
 {
     if (!fDeterministic) {
         return;
     }
     uint256 seed;
     rng.SetKey(seed.begin(), 32);
-}
-
-void RandomInit()
-{
 }

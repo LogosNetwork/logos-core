@@ -16,10 +16,11 @@ class PeerLogicValidation_internal;
 class PeerLogicValidation final : public NetEventsInterface {
 private:
     CConnman* const connman;
+    BCLog::Logger &logger_;
     std::shared_ptr<PeerLogicValidation_internal> internal;
 
 public:
-    explicit PeerLogicValidation(CConnman* connman, bool enable_bip61, std::shared_ptr<BCLog::Logger> logger);
+    explicit PeerLogicValidation(CConnman* connman, bool enable_bip61);
 
     /** Initialize a peer by adding it to mapNodeState and pushing a message requesting its version */
     void InitializeNode(std::shared_ptr<CNode> pnode) override;
@@ -52,8 +53,6 @@ private:
 
     /** Enable BIP61 (sending reject messages) */
     const bool m_enable_bip61;
-
-    std::shared_ptr<BCLog::Logger> logger_;
 };
 
 #endif // BITCOIN_NET_PROCESSING_H

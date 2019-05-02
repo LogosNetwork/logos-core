@@ -45,57 +45,8 @@
 #include <malloc.h>
 #endif
 
-#include <boost/thread.hpp>
-#include <openssl/crypto.h>
-#include <openssl/rand.h>
-#include <openssl/conf.h>
-#include <thread>
-
 const char * const BITCOIN_CONF_FILENAME = PACKAGE_NAME ".conf";
 const char * const BITCOIN_PID_FILENAME = PACKAGE_NAME ".pid";
-
-/** Init OpenSSL library multithreading support */
-static std::unique_ptr<CCriticalSection[]> ppmutexOpenSSL;
-void locking_callback(int mode, int i, const char* file, int line) NO_THREAD_SAFETY_ANALYSIS
-{
-    if (mode & CRYPTO_LOCK) {
-        ENTER_CRITICAL_SECTION(ppmutexOpenSSL[i]);
-    } else {
-        LEAVE_CRITICAL_SECTION(ppmutexOpenSSL[i]);
-    }
-}
-
-// Singleton for wrapping OpenSSL setup/teardown.
-class CInit
-{
-public:
-    CInit()
-    {
-        // Init OpenSSL library multithreading support
-        ppmutexOpenSSL.reset(new CCriticalSection[CRYPTO_num_locks()]);
-        CRYPTO_set_locking_callback(locking_callback);
-
-        // OpenSSL can optionally load a config file which lists optional loadable modules and engines.
-        // We don't use them so we don't require the config. However some of our libs may call functions
-        // which attempt to load the config file, possibly resulting in an exit() or crash if it is missing
-        // or corrupt. Explicitly tell OpenSSL not to try to load the file. The result for our libs will be
-        // that the config appears to have been loaded and there are no modules/engines available.
-        OPENSSL_no_config();
-
-        // Seed OpenSSL PRNG with performance counter
-        RandAddSeed();
-    }
-    ~CInit()
-    {
-        // Securely erase the memory used by the PRNG
-        RAND_cleanup();
-        // Shutdown OpenSSL library multithreading support
-        CRYPTO_set_locking_callback(nullptr);
-        // Clear the set of locks now to maintain symmetry with the constructor.
-        ppmutexOpenSSL.reset();
-    }
-}
-instance_of_cinit;
 
 /**
  * Interpret a string argument as a boolean.
@@ -242,7 +193,7 @@ public:
  * options that are not normally boolean (e.g. using -nodebuglogfile to request
  * that debug log output is not sent to any file at all).
  */
-static bool InterpretNegatedOption(std::string& key, std::string& val)
+bool ArgsManager::InterpretNegatedOption(std::string& key, std::string& val)
 {
     assert(key[0] == '-');
 
@@ -266,18 +217,19 @@ static bool InterpretNegatedOption(std::string& key, std::string& val)
     return false;
 }
 
-ArgsManager::ArgsManager() :
+ArgsManager::ArgsManager(BCLog::Logger &logger)
     /* These options would cause cross-contamination if values for
      * mainnet were used while running on regtest/testnet (or vice-versa).
      * Setting them as section_only_args ensures that sharing a config file
      * between mainnet and regtest/testnet won't cause problems due to these
      * parameters by accident. */
-    m_network_only_args{
+    : m_network_only_args{
       "-addnode", "-connect",
       "-port", "-bind",
       "-rpcport", "-rpcbind",
       "-wallet",
-    }
+     }
+    , logger_(logger)
 {
     // nothing to do
 }
@@ -592,12 +544,16 @@ static std::string FormatException(const std::exception* pex, const char* pszThr
             "UNKNOWN EXCEPTION       \n%s in %s       \n", pszModule, pszThread);
 }
 
+#define logger_ (*g_logger)
+
 void PrintExceptionContinue(const std::exception* pex, const char* pszThread)
 {
     std::string message = FormatException(pex, pszThread);
     LogPrintf("\n\n************************\n%s\n", message);
     fprintf(stderr, "\n\n************************\n%s\n", message.c_str());
 }
+
+#undef logger_
 
 static std::string TrimString(const std::string& str, const std::string& pattern)
 {

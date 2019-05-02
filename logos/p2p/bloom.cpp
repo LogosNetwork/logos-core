@@ -11,7 +11,8 @@
 #include <math.h>
 #include <stdlib.h>
 
-CRollingBloomFilter::CRollingBloomFilter(const unsigned int nElements, const double fpRate)
+CRollingBloomFilter::CRollingBloomFilter(Random &random, const unsigned int nElements, const double fpRate)
+    : random_(random)
 {
     double logFpRate = log(fpRate);
     /* The optimal number of hash functions is log(fpRate) / log(0.5), but
@@ -110,7 +111,7 @@ bool CRollingBloomFilter::contains(const uint256& hash) const
 
 void CRollingBloomFilter::reset()
 {
-    nTweak = GetRand(std::numeric_limits<unsigned int>::max());
+    nTweak = random_.GetRand(std::numeric_limits<unsigned int>::max());
     nEntriesThisGeneration = 0;
     nGeneration = 1;
     for (std::vector<uint64_t>::iterator it = data.begin(); it != data.end(); it++) {

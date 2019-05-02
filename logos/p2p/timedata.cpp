@@ -103,7 +103,7 @@ void TimeData::AddTimeData(ArgsManager &Args, CClientUIInterface &uiInterface, c
             }
         }
 
-        if (LogAcceptCategory(BCLog::NET)) {
+        if (logger_.LogAcceptCategory(BCLog::NET)) {
             for (const int64_t n : vSorted) {
                 LogPrint(BCLog::NET, "%+d  ", n); /* Continued */
             }

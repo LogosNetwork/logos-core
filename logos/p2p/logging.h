@@ -79,7 +79,7 @@ template<typename... Args> std::string FormatStringFromLogArgs(const char *fmt, 
 // peer can fill up a user's disk with debug.log entries.
 
 #define LogPrintfSeverity(severity, ...) do { \
-    if (logger_->Enabled()) { \
+    if (logger_.Enabled()) { \
         std::string _log_msg_; /* Unlikely name to avoid shadowing variables */ \
         try { \
             _log_msg_ = tfm::format(__VA_ARGS__); \
@@ -87,12 +87,12 @@ template<typename... Args> std::string FormatStringFromLogArgs(const char *fmt, 
             /* Original format string will have newline so don't add one here */ \
             _log_msg_ = "Error \"" + std::string(fmterr.what()) + "\" while formatting log message: " + FormatStringFromLogArgs(__VA_ARGS__); \
         } \
-        logger_->LogPrintStr(severity, _log_msg_); \
+        logger_.LogPrintStr(severity, _log_msg_); \
     } \
 } while(0)
 
 #define LogPrintSeverity(severity, category, ...) do { \
-    if (logger_->LogAcceptCategory((category))) { \
+    if (logger_.LogAcceptCategory((category))) { \
         LogPrintfSeverity(severity, __VA_ARGS__); \
     } \
 } while(0)

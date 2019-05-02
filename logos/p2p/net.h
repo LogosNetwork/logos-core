@@ -105,6 +105,7 @@ public:
     void async_write(const char *buf, size_t bytes);
     CConnman &connman;
 private:
+    BCLog::Logger &logger_;
     boost::asio::ip::tcp::socket socket;
     std::shared_ptr<CNode> pnode;
     NodeId id;
@@ -135,6 +136,7 @@ public:
 		const boost::asio::ip::tcp::endpoint& endpoint);
 private:
     CConnman &connman;
+    BCLog::Logger &logger_;
     char *name;
     std::shared_ptr<CSemaphoreGrant> grantOutbound;
     int flags;
@@ -150,6 +152,7 @@ public:
     void shutdown();
 private:
     CConnman &connman;
+    BCLog::Logger &logger_;
     boost::asio::ip::tcp::acceptor acceptor;
     bool whitelisted;
     bool in_shutdown;
@@ -227,7 +230,7 @@ public:
         }
     }
 
-    CConnman(uint64_t seed0, uint64_t seed1, p2p_config &config, ArgsManager &Args, TimeData &timeDataIn);
+    CConnman(uint64_t seed0, uint64_t seed1, p2p_config &config, ArgsManager &Args, TimeData &timeDataIn, Random &random);
     ~CConnman();
     bool Start(const Options& options);
     void Stop();
@@ -390,9 +393,14 @@ public:
         scheduleAfter(std::bind(&CConnman::scheduleEveryRecurse, this, handler, ms), ms);
     }
 
+    /** Return a timestamp in the future (in microseconds) for exponentially distributed events. */
+    int64_t PoissonNextSend(int64_t now, int average_interval_seconds);
+
     p2p_config &config;
     ArgsManager &Args;
     TimeData &timeData;
+    BCLog::Logger &logger_;
+    Random &random_;
     p2p_interface *p2p;
     CClientUIInterface* clientInterface;
     PropagateStore *p2p_store;
@@ -509,7 +517,6 @@ private:
     std::vector<std::shared_ptr<CNode>> vNodes;
     mutable CCriticalSection cs_vNodes;
     std::atomic<NodeId> nLastNodeId;
-    std::shared_ptr<BCLog::Logger> logger_;
 
     /** Services this instance offers */
     ServiceFlags nLocalServices;
@@ -703,7 +710,7 @@ public:
 
     CNode(NodeId id, ServiceFlags nLocalServicesIn, std::shared_ptr<AsioSession> sessionIn, const CAddress &addrIn,
             uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn,
-            std::shared_ptr<BCLog::Logger> logger, const std::string &addrNameIn = "", bool fInboundIn = false);
+            const std::string &addrNameIn = "", bool fInboundIn = false);
     ~CNode();
     CNode(const CNode&) = delete;
     CNode& operator=(const CNode&) = delete;
@@ -722,7 +729,7 @@ private:
     // Our address, as reported by the peer
     CService addrLocal;
     mutable Mutex cs_addrLocal;
-    std::shared_ptr<BCLog::Logger> logger_;
+    BCLog::Logger &logger_;
 public:
     CConnman &connman;
 
@@ -783,8 +790,5 @@ public:
     void MaybeSetAddrName(const std::string& addrNameIn);
     friend class AsioSession;
 };
-
-/** Return a timestamp in the future (in microseconds) for exponentially distributed events. */
-int64_t PoissonNextSend(int64_t now, int average_interval_seconds);
 
 #endif // BITCOIN_NET_H

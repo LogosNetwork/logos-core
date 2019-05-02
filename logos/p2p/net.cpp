@@ -101,7 +101,7 @@ std::vector<CAddress> CConnman::convertSeed6(const std::vector<SeedSpec6> &vSeed
         struct in6_addr ip;
         memcpy(&ip, seed_in.addr, sizeof(ip));
         CAddress addr(CService(ip, seed_in.port), GetDesirableServiceFlags(NODE_NONE));
-        addr.nTime = timeData.GetTime() - GetRand(nOneWeek) - nOneWeek;
+        addr.nTime = timeData.GetTime() - random_.GetRand(nOneWeek) - nOneWeek;
         vSeedsOut.push_back(addr);
     }
     return vSeedsOut;
@@ -153,14 +153,14 @@ void CConnman::AdvertiseLocal(std::shared_ptr<CNode> pnode)
         // tells us that it sees us as in case it has a better idea of our
         // address than we do.
         if (IsPeerAddrLocalGood(pnode) && (!addrLocal.IsRoutable() ||
-             GetRand((GetnScore(addrLocal) > LOCAL_MANUAL) ? 8:2) == 0))
+             random_.GetRand((GetnScore(addrLocal) > LOCAL_MANUAL) ? 8:2) == 0))
         {
             addrLocal.SetIP(pnode->GetAddrLocal());
         }
         if (addrLocal.IsRoutable() || Args.GetBoolArg("-addrmantest", false))
         {
             LogPrint(BCLog::NET, "AdvertiseLocal: advertising address %s\n", addrLocal.ToString());
-            FastRandomContext insecure_rand;
+            FastRandomContext insecure_rand(random_);
             pnode->PushAddress(addrLocal, insecure_rand);
         }
     }
@@ -314,28 +314,13 @@ bool CConnman::CheckIncomingNonce(uint64_t nonce)
     return true;
 }
 
-/** Get the bind address for a socket as CAddress */
-static CAddress GetBindAddress(SOCKET sock)
-{
-    CAddress addr_bind;
-    struct sockaddr_storage sockaddr_bind;
-    socklen_t sockaddr_bind_len = sizeof(sockaddr_bind);
-    if (sock != INVALID_SOCKET) {
-        if (!getsockname(sock, (struct sockaddr*)&sockaddr_bind, &sockaddr_bind_len)) {
-            addr_bind.SetSockAddr((const struct sockaddr*)&sockaddr_bind);
-        } else {
-            LogPrint(BCLog::NET, "Warning: getsockname failed\n");
-        }
-    }
-    return addr_bind;
-}
-
 AsioSession::AsioSession(boost::asio::io_service& ios, CConnman &connman_)
     : connman(connman_)
     , socket(ios)
     , pnode(0)
     , id(-1ll)
     , in_shutdown(false)
+    , logger_(connman.logger_)
 {
     LogDebug(BCLog::NET, "Session created, this=%p", this);
 }
@@ -461,6 +446,7 @@ AsioClient::AsioClient(CConnman &conn, const char *nam, std::shared_ptr<CSemapho
     , grantOutbound(grant)
     , flags(fl)
     , resolver(*conn.io_service)
+    , logger_(conn.logger_)
 {
 }
 
@@ -526,7 +512,7 @@ std::shared_ptr<CNode> CConnman::ConnectNodeFinish(AsioClient *client, std::shar
     NodeId id = GetNewNodeId();
     uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
     std::shared_ptr<CNode> pnode = std::make_shared<CNode>(id, nLocalServices, session, addr, CalculateKeyedNetGroup(addr),
-            nonce, addr_bind, logger_, client->name ? client->name : "", false);
+            nonce, addr_bind, client->name ? client->name : "", false);
     session->setNode(pnode);
 
     if (client->grantOutbound)
@@ -1195,7 +1181,7 @@ std::shared_ptr<CNode> CConnman::AcceptConnection(std::shared_ptr<AsioSession> s
     CAddress addr_bind(saddr, NODE_NONE);
 
     std::shared_ptr<CNode> pnode = std::make_shared<CNode>(id, nLocalServices, session, addr, CalculateKeyedNetGroup(addr),
-            nonce, addr_bind, logger_, "", true);
+            nonce, addr_bind, "", true);
     session->setNode(pnode);
     pnode->fWhitelisted = whitelisted;
     m_msgproc->InitializeNode(pnode);
@@ -1218,6 +1204,7 @@ AsioServer::AsioServer(CConnman &conn,
     , acceptor(*conn.io_service, boost::asio::ip::tcp::endpoint(addr, port))
     , whitelisted(wlisted)
     , in_shutdown(false)
+    , logger_(conn.logger_)
 {
     LogDebug(BCLog::NET, "AsioServer initialized\n");
 }
@@ -1503,7 +1490,7 @@ void CConnman::ThreadDNSAddressSeed()
 	    {
 		int nOneDay = 24*3600;
 		CAddress addr = CAddress(CService(ip, Params().GetDefaultPort()), requiredServiceBits);
-        addr.nTime = timeData.GetTime() - 3*nOneDay - GetRand(4*nOneDay); // use a random age between 3 and 7 days old
+        addr.nTime = timeData.GetTime() - 3*nOneDay - random_.GetRand(4*nOneDay); // use a random age between 3 and 7 days old
 		vAdd.push_back(addr);
 		found++;
 	    }
@@ -1738,7 +1725,7 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
 
             if (fFeeler) {
                 // Add small amount of random noise before connection to avoid synchronization.
-                int randsleep = GetRandInt(FEELER_SLEEP_WINDOW * 1000);
+                int randsleep = random_.GetRandInt(FEELER_SLEEP_WINDOW * 1000);
                 if (!interruptNet.sleep_for(std::chrono::milliseconds(randsleep)))
                     return;
                 LogPrint(BCLog::NET, "Making feeler connection to %s\n", addrConnect.ToString());
@@ -1979,14 +1966,15 @@ void CConnman::SetNetworkActive(bool active)
     clientInterface->NotifyNetworkActiveChanged(fNetworkActive);
 }
 
-CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In, p2p_config &conf, ArgsManager &ArgsIn, TimeData &timeDataIn, std::shared_ptr<BCLog::Logger> logger)
+CConnman::CConnman(uint64_t nSeed0In, uint64_t nSeed1In, p2p_config &conf, ArgsManager &ArgsIn, TimeData &timeDataIn, Random &random)
     : nSeed0(nSeed0In)
     , nSeed1(nSeed1In)
     , config(conf)
     , Args(ArgsIn)
     , timeData(timeDataIn)
-    , addrman(timeData, logger)
-    , logger_(logger)
+    , addrman(timeData, random)
+    , logger_(timeData.logger_)
+    , random_(random)
     , vfLimited()
 {
     fNetworkActive = true;
@@ -2428,19 +2416,19 @@ unsigned int CConnman::GetReceiveFloodSize() const { return nReceiveFloodSize; }
 
 CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, std::shared_ptr<AsioSession> sessionIn, const CAddress& addrIn,
              uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn,
-             std::shared_ptr<BCLog::Logger> logger, const std::string& addrNameIn, bool fInboundIn) :
-    nTimeConnected(GetSystemTimeInSeconds()),
-    addr(addrIn),
-    addrBind(addrBindIn),
-    fInbound(fInboundIn),
-    nKeyedNetGroup(nKeyedNetGroupIn),
-    addrKnown(5000, 0.001),
-    id(idIn),
-    nLocalHostNonce(nLocalHostNonceIn),
-    nLocalServices(nLocalServicesIn),
-    nSendVersion(0),
-    logger_(logger),
-    connman(sessionIn->connman)
+             const std::string& addrNameIn, bool fInboundIn)
+    : nTimeConnected(GetSystemTimeInSeconds())
+    , addr(addrIn)
+    , addrBind(addrBindIn)
+    , fInbound(fInboundIn)
+    , nKeyedNetGroup(nKeyedNetGroupIn)
+    , addrKnown(sessionIn->connman.random_, 5000, 0.001)
+    , id(idIn)
+    , nLocalHostNonce(nLocalHostNonceIn)
+    , nLocalServices(nLocalServicesIn)
+    , nSendVersion(0)
+    , logger_(sessionIn->connman.logger_)
+    , connman(sessionIn->connman)
 {
     nServices = NODE_NONE;
     session = sessionIn;
@@ -2560,9 +2548,9 @@ bool CConnman::ForNode(NodeId id, std::function<bool(std::shared_ptr<CNode> pnod
     return found && NodeFullyConnected(found) && func(found);
 }
 
-int64_t PoissonNextSend(int64_t now, int average_interval_seconds)
+int64_t CConnman::PoissonNextSend(int64_t now, int average_interval_seconds)
 {
-    return now + (int64_t)(log1p(GetRand(1ULL << 48) * -0.0000000000000035527136788 /* -1/2^48 */) * average_interval_seconds * -1000000.0 + 0.5);
+    return now + (int64_t)(log1p(random_.GetRand(1ULL << 48) * -0.0000000000000035527136788 /* -1/2^48 */) * average_interval_seconds * -1000000.0 + 0.5);
 }
 
 CSipHasher CConnman::GetDeterministicRandomizer(uint64_t id) const

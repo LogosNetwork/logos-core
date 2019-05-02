@@ -62,7 +62,10 @@ class p2p_internal
 {
 private:
     p2p_interface &                         interface;
-    std::shared_ptr<BCLog::Logger>          logger_;
+    BCLog::Logger                           logger_;
+    ArgsManager                             Args;
+    TimeData                                timeData;
+    Random                                  random_;
     bool                                    fFeeEstimatesInitialized;
     const bool                              DEFAULT_REST_ENABLE;
     const bool                              DEFAULT_STOPAFTERBLOCKIMPORT;
@@ -76,11 +79,9 @@ private:
     std::unique_ptr<CConnman>               g_connman;
     std::unique_ptr<PeerLogicValidation>    peerLogic;
     PropagateStore                          store;
-    ArgsManager                             Args;
     int                                     nConnectTimeout;
     bool                                    fNameLookup;
     bool                                    fLogIPs;
-    TimeData                                timeData;
     CCriticalSection                        cs_Shutdown;
 
 public:
@@ -90,7 +91,9 @@ public:
     p2p_internal(p2p_interface & p2p,
                  p2p_config & config)
         : interface(p2p)
-        , logger_(make_shared<BCLog::Logger>())
+        , Args(logger_)
+        , timeData(logger_)
+        , random_(logger_)
         , fFeeEstimatesInitialized(false)
         , DEFAULT_REST_ENABLE(false)
         , DEFAULT_STOPAFTERBLOCKIMPORT(false)
@@ -234,7 +237,7 @@ bool InitSanityCheck(void)
     if (!glibc_sanity_test() || !glibcxx_sanity_test())
         return false;
 
-    if (!Random_SanityCheck()) {
+    if (!random_.SanityCheck()) {
         uiInterface.InitError("OS cryptographic RNG sanity check failure. Aborting.");
         return false;
     }
@@ -315,19 +318,6 @@ void InitLogging()
     LogPrintf(PACKAGE_NAME " version %s\n", version_string);
 }
 
-[[noreturn]] static void new_handler_terminate()
-{
-    // Rather than throwing std::bad-alloc if allocation fails, terminate
-    // immediately to (try to) avoid chain corruption.
-    // Since LogPrintf may itself allocate memory, set the handler directly
-    // to terminate first.
-    std::set_new_handler(std::terminate);
-    LogPrintf("Error: Out of memory. Terminating.\n");
-
-    // The log was successful, terminate now.
-    std::terminate();
-}
-
 bool AppInitBasicSetup()
 {
     // ********************************************************* Step 1: setup
@@ -337,8 +327,6 @@ bool AppInitBasicSetup()
 
     // Ignore SIGPIPE, otherwise it will bring the daemon down if the client closes unexpectedly
     signal(SIGPIPE, SIG_IGN);
-
-    std::set_new_handler(new_handler_terminate);
 
     return true;
 }
@@ -379,7 +367,7 @@ bool AppInitParameterInteraction()
         if (std::none_of(categories.begin(), categories.end(),
             [](std::string cat){return cat == "0" || cat == "none";})) {
             for (const auto& cat : categories) {
-                if (!logger_->EnableCategory(cat)) {
+                if (!logger_.EnableCategory(cat)) {
                     uiInterface.InitWarning(strprintf(_("Unsupported logging category %s=%s."), "-debug", cat));
                 }
             }
@@ -388,7 +376,7 @@ bool AppInitParameterInteraction()
 
     // Now remove the logging categories which were explicitly excluded
     for (const std::string& cat : Args.GetArgs("-debugexclude")) {
-        if (!logger_->DisableCategory(cat)) {
+        if (!logger_.DisableCategory(cat)) {
             uiInterface.InitWarning(strprintf(_("Unsupported logging category %s=%s."), "-debugexclude", cat));
         }
     }
@@ -420,7 +408,6 @@ bool AppInitSanityChecks()
     // Initialize elliptic curve code
     std::string hash256_algo = Hash256AutoDetect();
     LogPrintf("Using the '%s' Blake2b implementation\n", hash256_algo);
-    RandomInit();
 
     // Sanity check
     if (!InitSanityCheck())
@@ -448,11 +435,12 @@ bool AppInitMain(p2p_config &config)
 
     assert(!g_connman);
     g_connman = std::unique_ptr<CConnman>(new CConnman(
-            GetRand(std::numeric_limits<uint64_t>::max()),
-            GetRand(std::numeric_limits<uint64_t>::max()),
+            random_.GetRand(std::numeric_limits<uint64_t>::max()),
+            random_.GetRand(std::numeric_limits<uint64_t>::max()),
             config,
             Args,
-            timeData
+            timeData,
+            random_
             ));
     CConnman& connman = *g_connman;
     connman.p2p = &interface;

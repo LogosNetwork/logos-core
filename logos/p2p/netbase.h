@@ -30,16 +30,8 @@ bool Lookup(const char *pszName, CService& addr, int portDefault, bool fAllowLoo
 bool Lookup(const char *pszName, std::vector<CService>& vAddr, int portDefault, bool fAllowLookup, unsigned int nMaxSolutions);
 CService LookupNumeric(const char *pszName, int portDefault = 0);
 bool LookupSubNet(const char *pszName, CSubNet& subnet);
-SOCKET CreateSocket(const CService &addrConnect);
-bool ConnectSocketDirectly(const CService &addrConnect, const SOCKET& hSocketRet, int nTimeout, bool manual_connection);
 /** Return readable error string for a network error code */
 std::string NetworkErrorString(int err);
-/** Close socket and set hSocket to INVALID_SOCKET */
-bool CloseSocket(SOCKET& hSocket);
-/** Disable or enable blocking-mode for a socket */
-bool SetSocketNonBlocking(const SOCKET& hSocket, bool fNonBlocking);
-/** Set the TCP_NODELAY flag on a socket */
-bool SetSocketNoDelay(const SOCKET& hSocket);
 /**
  * Convert milliseconds to a struct timeval for e.g. select.
  */

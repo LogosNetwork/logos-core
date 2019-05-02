@@ -47,7 +47,7 @@ inline std::string _(const char* psz)
 void SetupEnvironment();
 bool SetupNetworking();
 
-#define logger_ g_logger
+#define logger_ (*g_logger)
 
 template<typename... Args>
 bool error(const char* fmt, const Args&... args)
@@ -85,6 +85,8 @@ enum class OptionsCategory {
 
 class ArgsManager
 {
+private:
+    bool InterpretNegatedOption(std::string& key, std::string& val);
 protected:
     friend class ArgsManagerHelper;
 
@@ -103,9 +105,10 @@ protected:
     std::string m_network GUARDED_BY(cs_args);
     std::set<std::string> m_network_only_args GUARDED_BY(cs_args);
     std::map<OptionsCategory, std::map<std::string, Arg>> m_available_args GUARDED_BY(cs_args);
+    BCLog::Logger &logger_;
 
 public:
-    ArgsManager();
+    ArgsManager(BCLog::Logger &logger);
 
     /**
      * Select the network in use
@@ -255,7 +258,7 @@ std::string HelpMessageOpt(const std::string& option, const std::string& message
 
 void RenameThread(const char* name);
 
-#define logger_ g_logger
+#define logger_ (*g_logger)
 
 /**
  * .. and a wrapper that just calls func once

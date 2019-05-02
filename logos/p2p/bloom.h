@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include <random.h>
 
 class uint256;
 
@@ -30,7 +31,7 @@ public:
     // A random bloom filter calls GetRand() at creation time.
     // Don't create global CRollingBloomFilter objects, as they may be
     // constructed before the randomizer is properly initialized.
-    CRollingBloomFilter(const unsigned int nElements, const double nFPRate);
+    CRollingBloomFilter(Random &random, const unsigned int nElements, const double nFPRate);
 
     void insert(const std::vector<unsigned char>& vKey);
     void insert(const uint256& hash);
@@ -40,6 +41,7 @@ public:
     void reset();
 
 private:
+    Random &random_;
     int nEntriesPerGeneration;
     int nEntriesThisGeneration;
     int nGeneration;

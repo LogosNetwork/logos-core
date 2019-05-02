@@ -14,6 +14,7 @@
 #include <serialize.h>
 #include <uint256.h>
 #include <version.h>
+#include <logging.h>
 
 #include <atomic>
 #include <stdint.h>
@@ -41,7 +42,7 @@ public:
     CMessageHeader(const MessageStartChars& pchMessageStartIn, const char* pszCommand, unsigned int nMessageSizeIn);
 
     std::string GetCommand() const;
-    bool IsValid(const MessageStartChars& messageStart) const;
+    bool IsValid(const MessageStartChars& messageStart, BCLog::Logger &logger_) const;
 
     ADD_SERIALIZE_METHODS;
 

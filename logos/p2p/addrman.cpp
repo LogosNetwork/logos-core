@@ -453,7 +453,7 @@ void CAddrMan::SetServices_(const CService& addr, ServiceFlags nServices)
 }
 
 int CAddrMan::RandomInt(int nMax){
-    return GetRandInt(nMax);
+    return random_.GetRandInt(nMax);
 }
 
 void CAddrMan::ResolveCollisions_()
@@ -515,7 +515,7 @@ CAddrInfo CAddrMan::SelectTriedCollision_()
     std::set<int>::iterator it = m_tried_collisions.begin();
 
     // Selects a random element from m_tried_collisions
-    std::advance(it, GetRandInt(m_tried_collisions.size()));
+    std::advance(it, random_.GetRandInt(m_tried_collisions.size()));
     int id_new = *it;
 
     // If id_new not found in mapInfo remove it from m_tried_collisions

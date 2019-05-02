@@ -9,20 +9,39 @@
 #include <crypto/chacha20.h>
 #include <crypto/common.h>
 #include <uint256.h>
+#include <logging.h>
 
 #include <stdint.h>
 #include <limits>
 
-/* Seed OpenSSL PRNG with additional entropy data */
-void RandAddSeed();
+class Random {
+public:
+    Random(BCLog::Logger &logger);
+    ~Random();
 
-/**
- * Functions to gather random data via the OpenSSL PRNG
- */
-void GetRandBytes(unsigned char* buf, int num);
-uint64_t GetRand(uint64_t nMax);
-int GetRandInt(int nMax);
-uint256 GetRandHash();
+    /** Check that OS randomness is available and returning the requested number
+     * of bytes.
+     */
+    bool SanityCheck();
+
+    /* Seed OpenSSL PRNG with additional entropy data */
+    void RandAddSeed();
+
+    /**
+     * Functions to gather random data via the OpenSSL PRNG
+     */
+    void GetRandBytes(unsigned char* buf, int num);
+    uint64_t GetRand(uint64_t nMax);
+    int GetRandInt(int nMax);
+    uint256 GetRandHash();
+
+private:
+    BCLog::Logger &logger_;
+
+    [[noreturn]] void RandFailure();
+    void GetDevURandom(unsigned char *ent32);
+    void GetOSRand(unsigned char *ent32);
+};
 
 /**
  * Fast randomness source. This is seeded once with secure random data, but
@@ -31,6 +50,7 @@ uint256 GetRandHash();
  */
 class FastRandomContext {
 private:
+    Random &random_;
     bool requires_seed;
     ChaCha20 rng;
 
@@ -58,10 +78,10 @@ private:
     }
 
 public:
-    explicit FastRandomContext(bool fDeterministic = false);
+    explicit FastRandomContext(Random &random, bool fDeterministic = false);
 
     /** Initialize with explicit seed (only for testing) */
-    explicit FastRandomContext(const uint256& seed);
+    explicit FastRandomContext(Random &random, const uint256& seed);
 
     /** Generate a random 64-bit integer. */
     uint64_t rand64()
@@ -116,25 +136,5 @@ public:
     static constexpr uint64_t max() { return std::numeric_limits<uint64_t>::max(); }
     inline uint64_t operator()() { return rand64(); }
 };
-
-/* Number of random bytes returned by GetOSRand.
- * When changing this constant make sure to change all call sites, and make
- * sure that the underlying OS APIs for all platforms support the number.
- * (many cap out at 256 bytes).
- */
-constexpr int NUM_OS_RANDOM_BYTES = 32;
-
-/** Get 32 bytes of system entropy. Do not use this in application code: use
- * GetStrongRandBytes instead.
- */
-void GetOSRand(unsigned char *ent32);
-
-/** Check that OS randomness is available and returning the requested number
- * of bytes.
- */
-bool Random_SanityCheck();
-
-/** Initialize the RNG. */
-void RandomInit();
 
 #endif // BITCOIN_RANDOM_H

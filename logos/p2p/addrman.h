@@ -223,7 +223,9 @@ private:
 
     TimeData &timeData;
 
-    std::shared_ptr<BCLog::Logger> logger_;
+    BCLog::Logger &logger_;
+
+    Random &random_;
 
 protected:
     //! secret key to randomize bucket select with
@@ -476,7 +478,7 @@ public:
     {
         LOCK(cs);
         std::vector<int>().swap(vRandom);
-        nKey = GetRandHash();
+        nKey = random_.GetRandHash();
         for (size_t bucket = 0; bucket < ADDRMAN_NEW_BUCKET_COUNT; bucket++) {
             for (size_t entry = 0; entry < ADDRMAN_BUCKET_SIZE; entry++) {
                 vvNew[bucket][entry] = -1;
@@ -496,9 +498,11 @@ public:
         mapAddr.clear();
     }
 
-    CAddrMan(TimeData &timeDataIn, std::shared_ptr<BCLog::Logger> logger)
+    CAddrMan(TimeData &timeDataIn, Random &random)
         : timeData(timeDataIn)
-        , logger_(logger)
+        , logger_(timeData.logger_)
+        , random_(random)
+        , insecure_rand(random)
     {
         Clear();
     }

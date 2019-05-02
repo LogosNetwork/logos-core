@@ -84,11 +84,13 @@ private:
     bool fDone;
     std::atomic<int64_t> nMockTime; //!< For unit testing
 public:
-    TimeData()
+    BCLog::Logger &logger_;
+    TimeData(BCLog::Logger &logger)
         : nTimeOffset(0)
         , vTimeOffsets(BITCOIN_TIMEDATA_MAX_SAMPLES, 0)
         , fDone(false)
         , nMockTime(0)
+        , logger_(logger)
     {
     }
     int64_t GetTimeOffset();
