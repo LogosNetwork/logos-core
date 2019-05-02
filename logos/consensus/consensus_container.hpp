@@ -8,7 +8,7 @@
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 #include <logos/network/epoch_peer_manager.hpp>
 #include <logos/network/consensus_netio_manager.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/consensus/delegate_key_store.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/consensus/p2p/consensus_p2p.hpp>
@@ -63,6 +63,7 @@ public:
     virtual void OnPostCommit(uint32_t epoch_number) = 0;
     virtual void OnPrePrepareRejected(EpochTransitionDelegate delegate) = 0;
     virtual bool IsRecall() = 0;
+    virtual DelegateIdentityManager & GetIdentityManager() = 0;
 };
 
 class InternalConsensus
@@ -86,6 +87,23 @@ public:
     virtual void CancelTimer(ConsensusType CT) = 0;
 };
 
+/// Binds accepted socket to the correct ConsensusNetIOManager
+/// Exposes DelegateIdentityManager to make/validate AddressAd
+class PeerBinder
+{
+protected:
+    using Socket     = boost::asio::ip::tcp::socket;
+    using Endpoint   = boost::asio::ip::tcp::endpoint;
+public:
+    PeerBinder() = default;
+    virtual ~PeerBinder() = default;
+    virtual DelegateIdentityManager & GetIdentityManager() = 0;
+    virtual bool Bind(std::shared_ptr<Socket>,
+                      const Endpoint endpoint,
+                      uint32_t epoch_number,
+                      uint8_t delegate_id) = 0;
+};
+
 /// Encapsulates consensus related objects.
 ///
 /// This class serves as a container for ConsensusManagers
@@ -94,31 +112,22 @@ public:
 class ConsensusContainer : public ConsensusScheduler,
                            public InternalConsensus,
                            public NewEpochEventHandler,
-                           public TxChannel
+                           public TxChannelExt,
+                           public PeerBinder
 {
     friend class DelegateIdentityManager;
 
     using Service    = boost::asio::io_service;
-    using Config     = ConsensusManagerConfig;
+    using Config     = logos::node_config;
+    using Store      = logos::block_store;
     using Alarm      = logos::alarm;
-    using Endpoint   = boost::asio::ip::tcp::endpoint;
-    using Socket     = boost::asio::ip::tcp::socket;
     using Accounts   = AccountAddress[NUM_DELEGATES];
     using BindingMap = std::map<uint, std::shared_ptr<EpochManager>>;
 
     using Timer      = boost::asio::deadline_timer;
     using Error      = boost::system::error_code;
 
-    struct ConnectionCache
-    {
-        std::shared_ptr<Socket> socket;
-        ConnectedClientIds ids;
-        Endpoint endpoint;
-    };
-
 public:
-
-    using Store      = logos::block_store;
 
     /// Class constructor.
     ///
@@ -184,7 +193,17 @@ public:
     /// @param endpoint connected endpoing
     /// @param socket connected socket
     /// @param connection type of peer's connection
-    void PeerBinder(const Endpoint, std::shared_ptr<Socket>, ConnectedClientIds ids);
+    bool Bind(std::shared_ptr<Socket>,
+              const Endpoint endpoint,
+              uint32_t epoch_number,
+              uint8_t delegate_id) override;
+
+    /// Get delegate identity manager reference
+    /// @returns DelegateIdentityManager reference
+    DelegateIdentityManager & GetIdentityManager() override
+    {
+        return _identity_manager;
+    }
 
     /// Start Epoch Transition
     void EpochTransitionEventsStart() override;
@@ -196,6 +215,9 @@ public:
     {
         return _validate_sig_config;
     }
+
+    /// Start consensus container
+    void Start();
 
     PeerInfoProvider & GetPeerInfoProvider()
     {
@@ -235,10 +257,7 @@ private:
     /// @param delegate_idx delegate's index [in]
     /// @param delegates in the epoch [in]
     /// @returns delegate's configuration
-    Config BuildConsensusConfig(uint8_t delegate_idx, const Accounts & delegates);
-
-    /// Submit connections queue for binding to the correct epoch
-    void BindConnectionsQueue();
+    ConsensusManagerConfig BuildConsensusConfig(uint8_t delegate_idx, const ApprovedEB &epoch);
 
     /// Transition if received PostCommit with E#_i
     /// @param epoch_number PrePrepare epoch number
@@ -276,9 +295,34 @@ private:
     /// @param config delegate's configuration
     /// @param del type of transition delegate
     /// @param con type of delegate's set connection
+    /// @param eb epoch block with this epoch delegates
     std::shared_ptr<EpochManager>
     CreateEpochManager(uint epoch_number, const ConsensusManagerConfig &config,
-        EpochTransitionDelegate delegate, EpochConnection connnection);
+        EpochTransitionDelegate delegate, EpochConnection connnection,
+        std::shared_ptr<ApprovedEB> eb);
+
+    /// Handle consensus message
+    /// @param data serialized message
+    /// @param size message size
+    /// @returns true on success
+    bool OnP2pConsensus(uint8_t *data, size_t size);
+
+    /// Handle delegate address advertisement message
+    /// @param data serialized message
+    /// @param size message size
+    /// @returns true on success
+    bool OnAddressAd(uint8_t *data, size_t size);
+
+    /// Handle tx acceptor address advertisement message
+    /// @param data serialized message
+    /// @param size message size
+    /// @returns true on success
+    bool OnAddressAdTxAcceptor(uint8_t *data, size_t size);
+
+    /// Get epoch manager for the epoch number
+    /// @param epoch_number epoch number
+    /// @returns epoch manager or null
+    std::shared_ptr<EpochManager> GetEpochManager(uint32_t epoch_number);
 
     /// Get correct epoch manager pointer to propose next micro block
     /// Requires caller to lock _transition_state mutex
@@ -302,7 +346,6 @@ private:
     DelegateIdentityManager &         _identity_manager;    ///< identity manager reference
     std::atomic<EpochTransitionState> _transition_state;    ///< transition state
     EpochTransitionDelegate           _transition_delegate; ///< type of delegate during transition
-    std::queue<ConnectionCache>       _connections_queue;   ///< queue for delegates set connections
     BindingMap                        _binding_map;         ///< map for binding connection to epoch manager
     static bool                       _validate_sig_config; ///< validate sig in BBS for added security
     ContainerP2p                      _p2p;                 ///< p2p-related data

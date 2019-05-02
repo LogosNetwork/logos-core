@@ -1,5 +1,6 @@
 #pragma once
 
+#include <logos/lib/ecies.hpp>
 #include <logos/lib/blocks.hpp>
 #include <logos/token/entry.hpp>
 #include <logos/node/utility.hpp>
@@ -386,6 +387,7 @@ struct genesis_delegate
 {
    logos::keypair  key; ///< EDDSA key for signing Micro/Epoch blocks (TBD, should come from wallet)
    bls::KeyPair    bls_key;
+   ECIESKeyPair    ecies_key;
    uint64_t        vote;
    uint64_t        stake;
 };

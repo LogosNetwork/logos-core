@@ -7,6 +7,8 @@
 #include <logos/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
 
+class DelegateIdentityManager;
+
 class TxChannel
 {
 protected:
@@ -30,4 +32,14 @@ public:
     ///     @param blocks of transaction [in]
     ///     @return process_return result of the operation, in standalone returns either progress or initializing
     virtual Responses OnSendRequest(std::vector<std::shared_ptr<DM>> &blocks) = 0;
+};
+
+class TxChannelExt : public TxChannel {
+public:
+    TxChannelExt () = default;
+    virtual ~TxChannelExt() = default;
+
+    /// Get identity manager
+    /// @returns identity manager reference
+    virtual DelegateIdentityManager & GetIdentityManager() = 0;
 };

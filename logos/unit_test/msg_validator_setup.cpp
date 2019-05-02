@@ -10,8 +10,6 @@ BLS_Nodes & setup_nodes()
     std::lock_guard<std::mutex> lock(setup_nodes_mutex);
     if(! inited )
     {
-        bls::init();
-
         vector<DelegatePubKey> pkeys;
         for(int i = 0; i < NUM_DELEGATES; ++i)
         {

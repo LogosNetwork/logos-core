@@ -3,6 +3,7 @@
 #include <logos/common.hpp>
 #include <logos/lib/numbers.hpp>
 #include <logos/request/requests.hpp>
+#include <logos/lib/ecies.hpp>
 #include <boost/optional.hpp>
 
 
@@ -122,8 +123,8 @@ struct AnnounceCandidacy : Request
 
     Amount stake;
     DelegatePubKey bls_key;
+    ECIESPublicKey ecies_key;
     uint32_t epoch_num;
-    ByteArray<32> encryption_key;
 };
 
 struct RenounceCandidacy : Request

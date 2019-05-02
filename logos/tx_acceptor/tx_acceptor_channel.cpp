@@ -2,6 +2,7 @@
 // This file declares TxAcceptorChannel which provides communication between standalone TxAcceptor
 // and Delegate
 
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/tx_acceptor/tx_acceptor_channel.hpp>
 #include <logos/tx_acceptor/tx_message_header.hpp>
 #include <logos/node/node.hpp>
@@ -9,30 +10,24 @@
 const TxAcceptorChannel::Seconds TxAcceptorChannel::TIMEOUT{15};
 const uint16_t TxAcceptorChannel::INACTIVITY{40000}; // milliseconds, 40 seconds
 
-TxAcceptorChannel::TxAcceptorChannel(Service &service, const std::string & ip, const uint16_t port)
+TxAcceptorChannel::TxAcceptorChannel(Service &service,
+                                     const TxAcceptorConfig &config)
     : _service(service)
-    , _endpoint(Endpoint(boost::asio::ip::make_address_v4(ip), port))
+    , _endpoint(Endpoint(boost::asio::ip::make_address_v4(config.acceptor_ip), config.port))
     , _delegate(service, _endpoint, *this)
     , _inactivity_timer(service)
+    , _config(config)
 {
+    assert(_config.bls_pub != "");
+    stringstream str(_config.bls_pub);
+    str >> _bls_pub;
     _delegate.Start();
 }
 
 void
 TxAcceptorChannel::OnConnectionAccepted(const Endpoint endpoint, shared_ptr<Socket> socket)
 {
-    std::lock_guard<std::mutex> lock(_mutex);
-
-    if (!Validate(endpoint, socket))
-    {
-        LOG_ERROR(_log) << "TxAcceptorChannel::OnConnectionAccepted failed to validate " << endpoint;
-        socket->close();
-        return;
-    }
-
-    Reset(socket);
-
-    ScheduleTimer(TIMEOUT);
+    Validate(socket);
 }
 
 logos::process_return
@@ -77,7 +72,7 @@ TxAcceptorChannel::OnSendRequest(std::vector<std::shared_ptr<DM>> &blocks)
         header.Serialize(stream);
         for (auto block : blocks)
         {
-            header.payload_size += block->Serialize(stream);
+            header.payload_size += block->ToStream(stream);
         }
     }
     HeaderStream header_stream(buf->data(), TxMessageHeader::MESSAGE_SIZE);
@@ -140,4 +135,29 @@ TxAcceptorChannel::OnTimeout(const Error &error)
     }
 
     ScheduleTimer(TIMEOUT);
+}
+
+void
+TxAcceptorChannel::Validate(std::shared_ptr<Socket> socket)
+{
+    std::weak_ptr<TxAcceptorChannel> this_w = Self<TxAcceptorChannel>::shared_from_this();
+    DelegateIdentityManager::ValidateTxAcceptorConnection(socket, _bls_pub, [this_w, socket](bool result, const char *err){
+        auto this_s = GetSharedPtr(this_w, "TxAcceptorChannel::Validate, object destroyed");
+        if (!this_s)
+        {
+            return;
+        }
+
+        std::lock_guard<std::mutex> lock(this_s->_mutex);
+        if (!result)
+        {
+            LOG_ERROR(this_s->_log) << err;
+            socket->close();
+            return;
+        }
+
+        this_s->Reset(socket);
+
+        this_s->ScheduleTimer(TIMEOUT);
+    });
 }

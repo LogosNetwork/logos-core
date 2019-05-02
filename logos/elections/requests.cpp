@@ -68,8 +68,8 @@ AnnounceCandidacy::AnnounceCandidacy(bool & error,
 
         std::string bls_key_text = tree.get<std::string>(BLS_KEY);
         bls_key = DelegatePubKey(bls_key_text);
+        ecies_key.DeserializeJson(tree);
         epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
-        //encryption_key = ByteArray<32>(tree.get<std::string>("encryption_key"));
     }
     catch(std::exception& e)
     {
@@ -82,8 +82,8 @@ uint64_t AnnounceCandidacy::Serialize(logos::stream & stream) const
 {
     auto val = logos::write(stream, stake);
     val += logos::write(stream, bls_key);
+    val += ecies_key.Serialize(stream);
     val += logos::write(stream, epoch_num);
-    val += logos::write(stream, encryption_key);
     val += logos::write(stream, signature);
     return val;
 }
@@ -100,13 +100,12 @@ void AnnounceCandidacy::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-    error = logos::read(stream, epoch_num);
-    if(error)
+    error = ecies_key.Deserialize(stream);
+    if (error)
     {
         return;
     }
-    error = logos::read(stream, encryption_key);
-
+    error = logos::read(stream, epoch_num);
     if(error)
     {
         return;
@@ -147,9 +146,9 @@ boost::property_tree::ptree AnnounceCandidacy::SerializeJson() const
     boost::property_tree::ptree tree(Request::SerializeJson());
 
     tree.put(STAKE,stake.to_string());
-    tree.put(BLS_KEY,bls_key.to_string());    
+    tree.put(BLS_KEY,bls_key.to_string());
+    ecies_key.SerializeJson(tree);
     tree.put(EPOCH_NUM,epoch_num);
-    //tree.put("encryption_key",encryption_key.to_string());
     return tree;
 }
 
@@ -359,8 +358,8 @@ void AnnounceCandidacy::Hash(blake2b_state& hash) const
     Request::Hash(hash);
     blake2b_update(&hash, &stake, sizeof(stake));
     bls_key.Hash(hash);
+    ecies_key.Hash(hash);
     blake2b_update(&hash, &epoch_num, sizeof(epoch_num));
-    encryption_key.Hash(hash);
 }
 
 void RenounceCandidacy::Hash(blake2b_state& hash) const
@@ -466,10 +465,10 @@ bool ElectionVote::operator==(const ElectionVote& other) const
 bool AnnounceCandidacy::operator==(const AnnounceCandidacy& other) const
 {
     return stake == other.stake
-       && bls_key == other.bls_key 
-        && epoch_num == other.epoch_num
-        && encryption_key == other.encryption_key
-        && Request::operator==(other);
+       && bls_key == other.bls_key
+       && ecies_key == other.ecies_key
+       && epoch_num == other.epoch_num
+       && Request::operator==(other);
 }
 
 bool RenounceCandidacy::operator==(const RenounceCandidacy& other) const

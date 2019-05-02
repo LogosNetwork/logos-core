@@ -2,7 +2,7 @@
 // Implementes DelegateBridge class
 //
 
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/network/consensus_netio.hpp>
 #include <logos/consensus/delegate_bridge.hpp>
 #include <logos/consensus/messages/util.hpp>
@@ -12,7 +12,7 @@ DelegateBridge<CT>::DelegateBridge(Service & service,
                                    std::shared_ptr<IOChannel> iochannel,
                                    p2p_interface & p2p,
                                    uint8_t delegate_id)
-    : ConsensusP2pBridge<CT>(service, p2p, delegate_id)
+    : ConsensusP2pBridge(service, p2p, delegate_id)
     , _iochannel(iochannel)
 {}
 
@@ -23,7 +23,7 @@ void DelegateBridge<CT>::Send(const void * data, size_t size)
     // simulate network send failure
     struct stat sb;
     std::string path = "./DB/Consensus_" +
-                       std::to_string((int) DelegateIdentityManager::_global_delegate_idx) +
+                       std::to_string((int) DelegateIdentityManager::GetGlobalDelegateIdx()) +
                        "/sndoff";
     if (stat(path.c_str(), &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFREG)
     {
@@ -99,7 +99,6 @@ void DelegateBridge<CT>::OnMessage(std::shared_ptr<MessageBase> message, Message
         case MessageType::Post_Committed_Block:
             // will not receive Post_Committed_Block
         case MessageType::Heart_Beat:
-        case MessageType::Key_Advert:
         case MessageType::TxAcceptor_Message:
         case MessageType::Unknown:
         {

@@ -3185,6 +3185,45 @@ void logos::rpc_handler::tokens_info ()
     }
 }
 
+void logos::rpc_handler::txacceptor_update (bool add)
+{
+    if (rpc.config.enable_control)
+    {
+        std::string sepoch = request.get<std::string>("epoch");
+        EpochDelegates epoch = EpochDelegates::Next;
+        if (sepoch == "current")
+        {
+            epoch = EpochDelegates::Current;
+        }
+        else if (sepoch != "next")
+        {
+            error_response(response, "Invalid epoch");
+        }
+        std::string ip = request.get<std::string>("ip");
+        uint16_t port = request.get<uint16_t>("port");
+        uint16_t bin_port = request.get<uint16_t>("bin_port");
+        uint16_t json_port = request.get<uint16_t>("json_port");
+        bool res = node._identity_manager.OnTxAcceptorUpdate(epoch, ip, port, bin_port, json_port, add);
+        boost::property_tree::ptree response_l;
+        response_l.put ("result", res?"processing":"failed");
+        response (response_l);
+    }
+    else
+    {
+        error_response (response, "RPC control is disabled");
+    }
+}
+
+void logos::rpc_handler::txacceptor_add ()
+{
+    txacceptor_update(true);
+}
+
+void logos::rpc_handler::txacceptor_delete ()
+{
+    txacceptor_update(false);
+}
+
 void logos::rpc_handler::unchecked ()
 {
     uint64_t count (std::numeric_limits<uint64_t>::max ());
@@ -4774,6 +4813,14 @@ void logos::rpc_handler::process_request ()
         else if(action == "tokens_info")
         {
             tokens_info();
+        }
+        else if(action == "txacceptor_add")
+        {
+            txacceptor_add();
+        }
+        else if(action == "txacceptor_delete")
+        {
+            txacceptor_delete();
         }
         else if (action == "unchecked")
         {

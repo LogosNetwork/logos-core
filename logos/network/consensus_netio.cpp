@@ -2,7 +2,7 @@
 /// This file contains implementation of the ConsensusNetIO and ConsensusNetIOManager classes, which handle
 /// network connections between the delegates.
 #include <logos/network/consensus_netio.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/consensus/epoch_manager.hpp>
 #include <logos/node/node.hpp>
 #include <logos/lib/trace.hpp>
@@ -21,7 +21,7 @@ ConsensusNetIOAssembler::OnError(const Error &error)
     // cancelled at the end of epoch transition
     if (_netio.Connected() && !info->IsWaitingDisconnect()) {
         LOG_ERROR(_log) << "NetIOAssembler - Error receiving message: "
-                        << error.message() << " global " << (int) DelegateIdentityManager::_global_delegate_idx
+                        << error.message() << " global " << (int) DelegateIdentityManager::GetGlobalDelegateIdx()
                         << " connection " << info->GetConnectionName()
                         << " delegate " << info->GetDelegateName()
                         << " state " << info->GetStateName();
@@ -41,10 +41,7 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
                                const uint8_t local_delegate_id, 
-                               DelegateKeyStore & key_store,
-                               MessageValidator & validator,
                                IOBinder iobinder,
-                               std::recursive_mutex & connection_mutex,
                                std::shared_ptr<EpochInfo> epoch_info,
                                NetIOErrorHandler & error_handler,
                                CreatedCb &cb)
@@ -57,11 +54,8 @@ ConsensusNetIO::ConsensusNetIO(Service & service,
     , _remote_delegate_id(remote_delegate_id)
     , _local_delegate_id(local_delegate_id)
     , _connections{}
-    , _key_store(key_store)
-    , _validator(validator)
     , _io_channel_binder(iobinder)
     , _assembler(std::make_shared<ConsensusNetIOAssembler>(_socket, epoch_info, *this))
-    , _connection_mutex(connection_mutex)
     , _epoch_info(epoch_info)
     , _error_handler(error_handler)
     , _last_timestamp(GetStamp())
@@ -82,10 +76,7 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
                                logos::alarm & alarm,
                                const uint8_t remote_delegate_id, 
                                const uint8_t local_delegate_id, 
-                               DelegateKeyStore & key_store,
-                               MessageValidator & validator,
                                IOBinder iobinder,
-                               std::recursive_mutex & connection_mutex,
                                std::shared_ptr<EpochInfo> epoch_info,
                                NetIOErrorHandler & error_handler,
                                CreatedCb &cb)
@@ -98,11 +89,8 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
     , _remote_delegate_id(remote_delegate_id)
     , _local_delegate_id(local_delegate_id)
     , _connections{}
-    , _key_store(key_store)
-    , _validator(validator)
     , _io_channel_binder(iobinder)
     , _assembler(std::make_shared<ConsensusNetIOAssembler>(_socket, epoch_info, *this))
-    , _connection_mutex(connection_mutex)
     , _epoch_info(epoch_info)
     , _error_handler(error_handler)
     , _last_timestamp(GetStamp())
@@ -118,9 +106,16 @@ ConsensusNetIO::ConsensusNetIO(std::shared_ptr<Socket> socket,
 void
 ConsensusNetIO::Connect()
 {
+    std::weak_ptr<ConsensusNetIO> this_w = Self<ConsensusNetIO>::shared_from_this();
     _socket->async_connect(_endpoint,
-                           [this](ErrorCode const & ec) 
-                           { OnConnect(ec); });
+                           [this_w](ErrorCode const & ec) {
+        auto this_s = GetSharedPtr(this_w, "ConsensusNetIO::Connect, object destroyed");
+        if (!this_s)
+        {
+            return;
+        }
+        this_s->OnConnect(ec);
+    });
 }
 
 void
@@ -152,7 +147,8 @@ ConsensusNetIO::OnConnect()
 
     _connected = true;
 
-    SendKeyAdvertisement();
+    _io_channel_binder(Self<ConsensusNetIO>::shared_from_this(), _remote_delegate_id);
+
     ReadPrequel();
 }
 
@@ -192,37 +188,26 @@ ConsensusNetIO::OnConnect(
         return;
     }
 
-    ConnectedClientIds ids(info->GetEpochNumber(),
-            _local_delegate_id,
-            info->GetConnection(),
-            _endpoint.address().to_string().c_str());
-    auto buf = std::make_shared<std::vector<uint8_t>>();
-    ids.Serialize(*buf);
     std::weak_ptr<ConsensusNetIO> this_w = Self<ConsensusNetIO>::shared_from_this();
-    boost::asio::async_write(*_socket, boost::asio::buffer(buf->data(), buf->size()),
-                             [this_w, ids](const ErrorCode &ec, size_t){
+    info->GetIdentityManager().ClientHandshake(_socket,
+                                               info->GetEpochNumber(),
+                                               _local_delegate_id,
+                                               _remote_delegate_id,
+                                               [this_w](std::shared_ptr<AddressAd> ad) {
         auto this_s = GetSharedPtr(this_w, "ConsensusNetIO::OnConnect, object destroyed");
         if (!this_s)
         {
             return;
         }
-        if(ec)
+        if (ad)
         {
-            LOG_ERROR(this_s->_log) << "ConsensusNetIO - Error writing connected client info " << ec.message();
-            this_s->OnNetIOError(ec);
-            return;
+            this_s->OnConnect();
         }
-
-        this_s->OnConnect();
+        else
+        {
+            this_s->HandleMessageError("Client handshake");
+        }
     });
-}
-
-void
-ConsensusNetIO::SendKeyAdvertisement()
-{
-    KeyAdvertisement advert;
-    advert.public_key = _validator.GetPublicKey();
-    Send(advert);
 }
 
 void
@@ -324,16 +309,6 @@ ConsensusNetIO::OnData(const uint8_t * data,
             }
             OnHeartBeat(hb);
         }
-        else if (message_type == MessageType::Key_Advert)
-        {
-            KeyAdvertisement key_adv(error, stream, version);
-            if(error)
-            {
-                HandleMessageError("Deserialize KeyAdvertisement");
-                return;
-            }
-            OnPublicKey(key_adv);
-        }
         else
         {
             HandleMessageError("Wrong message type for consensus Any");
@@ -379,7 +354,7 @@ ConsensusNetIO::OnData(const uint8_t * data,
             // simulate network receive failure
             struct stat sb;
             std::string path = "./DB/Consensus_" +
-                               std::to_string((int) DelegateIdentityManager::_global_delegate_idx) +
+                               std::to_string((int) DelegateIdentityManager::GetGlobalDelegateIdx()) +
                                "/recvoff";
             if (stat(path.c_str(), &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFREG) {
                 break;
@@ -401,15 +376,6 @@ ConsensusNetIO::OnData(const uint8_t * data,
     ReadPrequel();
 }
 
-void 
-ConsensusNetIO::OnPublicKey(KeyAdvertisement & key_adv)
-{
-    _key_store.OnPublicKey(_remote_delegate_id, key_adv.public_key);
-
-    std::lock_guard<std::recursive_mutex> lock(_connection_mutex);
-    _io_channel_binder(Self<ConsensusNetIO>::shared_from_this(), _remote_delegate_id);
-}
-
 void
 ConsensusNetIO::AddConsensusConnection(
     ConsensusType t, 
@@ -425,7 +391,7 @@ ConsensusNetIO::AddConsensusConnection(
                    << ' ' << ConsensusTypeToIndex(t)
                    << " local delegate " << uint64_t(_local_delegate_id)
                     << " remote delegate " << uint64_t(_remote_delegate_id)
-                    << " global " << (int)DelegateIdentityManager::_global_delegate_idx
+                    << " global " << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
                     << " Connection " << info->GetConnectionName();
 
     _connections[ConsensusTypeToIndex(t)] = connection;
@@ -454,7 +420,7 @@ ConsensusNetIO::Close()
         LOG_DEBUG(_log) << "ConsensusNetIO::Close closing socket, connection "
                         << info->GetConnectionName() << ", delegate "
                         << (int)_local_delegate_id << ", remote delegate " << (int)_remote_delegate_id
-                        << ", global " << (int)DelegateIdentityManager::_global_delegate_idx
+                        << ", global " << (int)DelegateIdentityManager::GetGlobalDelegateIdx()
                         << " ptr " << (uint64_t)this;
         _connected = false;
         _socket->cancel();

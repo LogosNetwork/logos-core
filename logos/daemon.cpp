@@ -110,6 +110,7 @@ void logos_daemon::daemon::run_tx_acceptor (boost::filesystem::path const & data
         try
         {
             auto tx_acceptor (std::make_shared<TxAcceptorStandalone> (service, config.node));
+            tx_acceptor->Start();
             runner = std::make_unique<logos::thread_runner> (service, config.node.io_threads);
             runner->join ();
         }
