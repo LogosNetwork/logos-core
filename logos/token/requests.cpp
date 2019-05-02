@@ -103,7 +103,7 @@ Issuance::Issuance(bool & error,
             controllers.push_back(c);
         }
 
-        // SG: Check for repeating controller accounts in single inssuance request
+        // SG: Check for repeating controller accounts in single issuance request
         std::sort(controller_accounts.begin(), controller_accounts.end());
         error = std::unique(controller_accounts.begin(), controller_accounts.end()) != controller_accounts.end();
         if (error)

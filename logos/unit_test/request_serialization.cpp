@@ -574,17 +574,14 @@ auto GenerateIssuance = []()
     issuance.fee_type = TokenFeeType::Flat;
     issuance.fee_rate = 10;
     issuance.settings = "1111111000";
-    issuance.controllers =
-        {
-            {
-                {"lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju"},
-                {"11111111110000000000"}
-            },
-            {
-                {"lgs_15p6h3z7dgif1kt8skmdmo8xmobh3xyfzthoden6jqu34t6i4sgtcr4pfj5h"},
-                {"11111111110000100100"}
-            }
-        };
+    ControllerInfo controller0;
+    controller0.account.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
+    controller0.privileges = "11111111110000000000";
+    ControllerInfo controller1;
+    controller1.account.decode_account("lgs_15p6h3z7dgif1kt8skmdmo8xmobh3xyfzthoden6jqu34t6i4sgtcr4pfj5h");
+    controller1.privileges = "11111111110000100100";
+
+    issuance.controllers = {controller0, controller1};
     issuance.issuer_info = "MyCoin was created by Bob";
 
     return issuance;
