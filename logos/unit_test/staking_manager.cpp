@@ -183,14 +183,18 @@ TEST(Staking_Manager, Thawing)
     ThawingFunds t2 = staking_mgr.CreateThawingFunds(target,origin,epoch,txn);
     staking_mgr.Store(t2, origin, txn);
 
+    ThawingFunds t3 = staking_mgr.CreateThawingFunds(target,origin,epoch-2,txn);
+    staking_mgr.Store(t3, origin, txn);
+
     std::vector<ThawingFunds> thawing;
     staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
             thawing.push_back(funds);
             return true;
             }, txn);
-    ASSERT_EQ(thawing.size(),2);
-    ASSERT_EQ(thawing[0].expiration_epoch,epoch+42-1);
-    ASSERT_EQ(thawing[1].expiration_epoch,epoch+42);
+    ASSERT_EQ(thawing.size(),3);
+    ASSERT_EQ(thawing[2].expiration_epoch,epoch+42-2);
+    ASSERT_EQ(thawing[1].expiration_epoch,epoch+42-1);
+    ASSERT_EQ(thawing[0].expiration_epoch,epoch+42);
 }
 
 #endif
