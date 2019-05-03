@@ -18,7 +18,7 @@
 namespace {
 
 template <typename Stream, typename Data>
-bool SerializeDB(Stream& stream, const Data& data, std::shared_ptr<CChainParams> params)
+bool SerializeDB(Stream& stream, const Data& data, BCLog::Logger &logger_, std::shared_ptr<CChainParams> params)
 {
     // Write and commit header, data
     try {
@@ -27,43 +27,43 @@ bool SerializeDB(Stream& stream, const Data& data, std::shared_ptr<CChainParams>
         hasher << params->MessageStart() << data;
         stream << hasher.GetHash();
     } catch (const std::exception& e) {
-        return error("%s: Serialize or I/O error - %s", __func__, e.what());
+        return error(logger_, "%s: Serialize or I/O error - %s", __func__, e.what());
     }
 
     return true;
 }
 
 template <typename Data>
-bool SerializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, const Data& data, std::shared_ptr<CChainParams> params)
+bool SerializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, const Data& data, BCLog::Logger &logger_, std::shared_ptr<CChainParams> params)
 {
     CDataStream s(SER_DISK, CLIENT_VERSION);
     MDB_txn *txn;
     int err;
 
     // Serialize
-    if (!SerializeDB(s, data, params))
-	return error("%s: Failed to serialize %s data", __func__, prefix.c_str());
+    if (!SerializeDB(s, data, logger_, params))
+    return error(logger_, "%s: Failed to serialize %s data", __func__, prefix.c_str());
 
     MDB_val key = { prefix.size(), (void *)prefix.c_str() }, value = { s.size(), s.data() };
 
     if ((err = mdb_txn_begin(env, 0, 0, &txn)))
-	return error("%s: Failed to open %s write transaction, error %d", __func__, prefix.c_str(), err);
+    return error(logger_, "%s: Failed to open %s write transaction, error %d", __func__, prefix.c_str(), err);
 
     if ((err = mdb_put(txn, dbi, &key, &value, 0))) {
 	mdb_txn_abort(txn);
-	return error("%s: Failed to put %s data, error %d", __func__, prefix.c_str(), err);
+    return error(logger_, "%s: Failed to put %s data, error %d", __func__, prefix.c_str(), err);
     }
 
     if ((err = mdb_txn_commit(txn))) {
 	mdb_txn_abort(txn);
-	return error("%s: Failed to commit %s transaction, error %d", __func__, prefix.c_str(), err);
+    return error(logger_, "%s: Failed to commit %s transaction, error %d", __func__, prefix.c_str(), err);
     }
 
     return true;
 }
 
 template <typename Stream, typename Data>
-bool DeserializeDB(Stream& stream, Data& data, std::shared_ptr<CChainParams> params, bool fCheckSum = true)
+bool DeserializeDB(Stream& stream, Data& data, BCLog::Logger &logger_, std::shared_ptr<CChainParams> params, bool fCheckSum = true)
 {
     try {
         CHashVerifier<Stream> verifier(&stream);
@@ -72,7 +72,7 @@ bool DeserializeDB(Stream& stream, Data& data, std::shared_ptr<CChainParams> par
         verifier >> pchMsgTmp;
         // ... verify the network matches ours
         if (memcmp(pchMsgTmp, params->MessageStart(), sizeof(pchMsgTmp)))
-            return error("%s: Invalid network magic number", __func__);
+            return error(logger_, "%s: Invalid network magic number", __func__);
 
         // de-serialize data
         verifier >> data;
@@ -82,38 +82,38 @@ bool DeserializeDB(Stream& stream, Data& data, std::shared_ptr<CChainParams> par
         uint256 hashTmp;
             stream >> hashTmp;
             if (hashTmp != verifier.GetHash()) {
-                return error("%s: Checksum mismatch, data corrupted", __func__);
+                return error(logger_, "%s: Checksum mismatch, data corrupted", __func__);
             }
         }
     }
     catch (const std::exception& e) {
-        return error("%s: Deserialize or I/O error - %s", __func__, e.what());
+        return error(logger_, "%s: Deserialize or I/O error - %s", __func__, e.what());
     }
 
     return true;
 }
 
 template <typename Data>
-bool DeserializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, Data& data, std::shared_ptr<CChainParams> params)
+bool DeserializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, Data& data, BCLog::Logger &logger_, std::shared_ptr<CChainParams> params)
 {
     MDB_txn *txn;
     int err;
     MDB_val key = { prefix.size(), (void *)prefix.c_str() }, value;
 
     if ((err = mdb_txn_begin(env, 0, MDB_RDONLY, &txn)))
-	return error("%s: Failed to open %s read transaction, error %d", __func__, prefix.c_str(), err);
+    return error(logger_, "%s: Failed to open %s read transaction, error %d", __func__, prefix.c_str(), err);
 
     if ((err = mdb_get(txn, dbi, &key, &value))) {
 	mdb_txn_abort(txn);
-	return error("%s: Failed to get %s data, error %d", __func__, prefix.c_str(), err);
+    return error(logger_, "%s: Failed to get %s data, error %d", __func__, prefix.c_str(), err);
     }
 
     CDataStream s((const char *)value.mv_data, (const char *)value.mv_data + value.mv_size, SER_DISK, CLIENT_VERSION);
 
     // Deserialize
-    if (!DeserializeDB(s, data, params)) {
+    if (!DeserializeDB(s, data, logger_, params)) {
 	mdb_txn_abort(txn);
-	return error("%s: Failed to deserialize %s data", __func__, prefix.c_str());
+    return error(logger_, "%s: Failed to deserialize %s data", __func__, prefix.c_str());
     }
 
     mdb_txn_abort(txn);
@@ -125,21 +125,21 @@ bool DeserializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, Data&
 
 bool CBanDB::Write(const banmap_t& banSet)
 {
-    return SerializeLMDB("banlist", env, dbi, banSet, chainParams);
+    return SerializeLMDB("banlist", env, dbi, banSet, logger_, params);
 }
 
 bool CBanDB::Read(banmap_t& banSet)
 {
-    return DeserializeLMDB("banlist", env, dbi, banSet, chainParams);
+    return DeserializeLMDB("banlist", env, dbi, banSet, logger_, params);
 }
 
 bool CAddrDB::Write(const CAddrMan& addr)
 {
-    return SerializeLMDB("peers", env, dbi, addr, chainParams);
+    return SerializeLMDB("peers", env, dbi, addr, logger_, params);
 }
 
 bool CAddrDB::Read(CAddrMan& addr)
 {
-    return DeserializeLMDB("peers", env, dbi, addr, chainParams);
+    return DeserializeLMDB("peers", env, dbi, addr, logger_, params);
 }
 

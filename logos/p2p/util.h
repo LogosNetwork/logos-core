@@ -47,18 +47,14 @@ inline std::string _(const char* psz)
 void SetupEnvironment();
 bool SetupNetworking();
 
-#define logger_ (*g_logger)
-
 template<typename... Args>
-bool error(const char* fmt, const Args&... args)
+bool error(BCLog::Logger &logger_, const char* fmt, const Args&... args)
 {
     LogPrintf("ERROR: %s\n", tfm::format(fmt, args...));
     return false;
 }
 
-#undef logger_
-
-void PrintExceptionContinue(const std::exception *pex, const char* pszThread);
+void PrintExceptionContinue(BCLog::Logger &logger_, const std::exception *pex, const char* pszThread);
 int RaiseFileDescriptorLimit(int nMinFD);
 
 inline bool IsSwitchChar(char c)
@@ -258,13 +254,12 @@ std::string HelpMessageOpt(const std::string& option, const std::string& message
 
 void RenameThread(const char* name);
 
-#define logger_ (*g_logger)
-
 /**
  * .. and a wrapper that just calls func once
  */
-template <typename Callable> void TraceThread(const char* name,  Callable func)
+template <typename Callable> void TraceThread(const char* name, BCLog::Logger *plogger_, Callable func)
 {
+    BCLog::Logger &logger_ = *plogger_;
     std::string s = strprintf("p2p-%s", name);
     RenameThread(s.c_str());
     try
@@ -279,16 +274,14 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
         throw;
     }
     catch (const std::exception& e) {
-        PrintExceptionContinue(&e, name);
+        PrintExceptionContinue(logger_, &e, name);
         throw;
     }
     catch (...) {
-        PrintExceptionContinue(nullptr, name);
+        PrintExceptionContinue(logger_, nullptr, name);
         throw;
     }
 }
-
-#undef logger_
 
 std::string CopyrightHolders(const std::string& strPrefix);
 

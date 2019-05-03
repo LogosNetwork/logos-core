@@ -63,8 +63,6 @@ namespace BCLog {
 
 } // namespace BCLog
 
-extern BCLog::Logger* const g_logger;
-
 /** Returns a string with the log categories. */
 std::string ListLogCategories();
 

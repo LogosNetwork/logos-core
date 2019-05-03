@@ -83,12 +83,14 @@ class CAddrDB
 private:
     MDB_env *env;
     MDB_dbi dbi;
-    std::shared_ptr<CChainParams> chainParams;
+    BCLog::Logger &logger_;
+    std::shared_ptr<CChainParams> params;
 public:
-    CAddrDB(struct p2p_config &config, std::shared_ptr<CChainParams> chainParamsIn)
+    CAddrDB(struct p2p_config &config, BCLog::Logger &logger, std::shared_ptr<CChainParams> paramsIn)
         : env(config.lmdb_env)
         , dbi(config.lmdb_dbi)
-        , chainParams(chainParamsIn)
+        , logger_(logger)
+        , params(paramsIn)
     {}
     bool Write(const CAddrMan& addr);
     bool Read(CAddrMan& addr);
@@ -100,12 +102,14 @@ class CBanDB
 private:
     MDB_env *env;
     MDB_dbi dbi;
-    std::shared_ptr<CChainParams> chainParams;
+    BCLog::Logger &logger_;
+    std::shared_ptr<CChainParams> params;
 public:
-    CBanDB(struct p2p_config &config, std::shared_ptr<CChainParams> chainParamsIn)
+    CBanDB(struct p2p_config &config, BCLog::Logger &logger, std::shared_ptr<CChainParams> paramsIn)
         : env(config.lmdb_env)
         , dbi(config.lmdb_dbi)
-        , chainParams(chainParamsIn)
+        , logger_(logger)
+        , params(paramsIn)
     {}
     bool Write(const banmap_t& banSet);
     bool Read(banmap_t& banSet);

@@ -737,13 +737,13 @@ bool PeerLogicValidation::ProcessMessages(std::shared_ptr<CNode> pfrom, std::ato
         }
         else
         {
-            PrintExceptionContinue(&e, "ProcessMessages()");
+            PrintExceptionContinue(logger_, &e, "ProcessMessages()");
         }
     }
     catch (const std::exception& e) {
-        PrintExceptionContinue(&e, "ProcessMessages()");
+        PrintExceptionContinue(logger_, &e, "ProcessMessages()");
     } catch (...) {
-        PrintExceptionContinue(nullptr, "ProcessMessages()");
+        PrintExceptionContinue(logger_, nullptr, "ProcessMessages()");
     }
 
     if (!fRet) {

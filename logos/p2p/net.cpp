@@ -601,7 +601,7 @@ void CConnman::DumpBanlist()
 
     int64_t nStart = GetTimeMillis();
 
-    CBanDB bandb(config, chainParams);
+    CBanDB bandb(config, logger_, chainParams);
     banmap_t banmap;
     GetBanned(banmap);
     if (bandb.Write(banmap)) {
@@ -800,7 +800,7 @@ CService CNode::GetAddrLocal() const {
 void CNode::SetAddrLocal(const CService& addrLocalIn) {
     LOCK(cs_addrLocal);
     if (addrLocal.IsValid()) {
-        error("Addr local already set for node: %i. Refusing to change from %s to %s", id, addrLocal.ToString(), addrLocalIn.ToString());
+        error(logger_, "Addr local already set for node: %i. Refusing to change from %s to %s", id, addrLocal.ToString(), addrLocalIn.ToString());
     } else {
         addrLocal = addrLocalIn;
     }
@@ -866,7 +866,7 @@ void CNode::SetSendVersion(int nVersionIn)
     // once a version message has been successfully processed. Any attempt to
     // set this twice is an error.
     if (nSendVersion != 0) {
-        error("Send version already set for node: %i. Refusing to change from %i to %i", id, nSendVersion, nVersionIn);
+        error(logger_, "Send version already set for node: %i. Refusing to change from %i to %i", id, nSendVersion, nVersionIn);
     } else {
         nSendVersion = nVersionIn;
     }
@@ -878,7 +878,7 @@ int CNode::GetSendVersion() const
     // INIT_PROTO_VERSION rather than using this value until SetSendVersion
     // has been called.
     if (nSendVersion == 0) {
-        error("Requesting unset send version for node: %i. Using %i", id, INIT_PROTO_VERSION);
+        error(logger_, "Requesting unset send version for node: %i. Using %i", id, INIT_PROTO_VERSION);
         return INIT_PROTO_VERSION;
     }
     return nSendVersion;
@@ -1509,7 +1509,7 @@ void CConnman::DumpAddresses()
 {
     int64_t nStart = GetTimeMillis();
 
-    CAddrDB adb(config, chainParams);
+    CAddrDB adb(config, logger_, chainParams);
     adb.Write(addrman);
 
     LogPrint(BCLog::NET, "Flushed %d addresses to peers.dat  %dms\n",
@@ -2041,7 +2041,7 @@ bool CConnman::LoadData()
     // Load addresses from peers.dat
     int64_t nStart = GetTimeMillis();
     {
-        CAddrDB adb(config, chainParams);
+        CAddrDB adb(config, logger_, chainParams);
         if (adb.Read(addrman))
             LogPrintf("Loaded %i addresses from peers.dat  %dms\n", addrman.size(), GetTimeMillis() - nStart);
         else
@@ -2056,7 +2056,7 @@ bool CConnman::LoadData()
         clientInterface->InitMessage(_("Loading banlist..."));
     // Load addresses from banlist.dat
     nStart = GetTimeMillis();
-    CBanDB bandb(config, chainParams);
+    CBanDB bandb(config, logger_, chainParams);
     banmap_t banmap;
     if (bandb.Read(banmap))
     {
@@ -2132,15 +2132,15 @@ bool CConnman::Start(const Options& connOptions)
     }
 
     // Send and receive from sockets, accept connections
-    threadSocketHandler = std::thread(&TraceThread<std::function<void()> >, "net", std::function<void()>(std::bind(&CConnman::ThreadSocketHandler, this)));
+    threadSocketHandler = std::thread(&TraceThread<std::function<void()> >, "net", &logger_, std::function<void()>(std::bind(&CConnman::ThreadSocketHandler, this)));
 
     if (!Args.GetBoolArg("-dnsseed", true))
         LogPrintf("DNS seeding disabled\n");
     else
-        threadDNSAddressSeed = std::thread(&TraceThread<std::function<void()> >, "dnsseed", std::function<void()>(std::bind(&CConnman::ThreadDNSAddressSeed, this)));
+        threadDNSAddressSeed = std::thread(&TraceThread<std::function<void()> >, "dnsseed", &logger_, std::function<void()>(std::bind(&CConnman::ThreadDNSAddressSeed, this)));
 
     // Initiate outbound connections from -addnode
-    threadOpenAddedConnections = std::thread(&TraceThread<std::function<void()> >, "addcon", std::function<void()>(std::bind(&CConnman::ThreadOpenAddedConnections, this)));
+    threadOpenAddedConnections = std::thread(&TraceThread<std::function<void()> >, "addcon", &logger_, std::function<void()>(std::bind(&CConnman::ThreadOpenAddedConnections, this)));
 
     if (connOptions.m_use_addrman_outgoing && !connOptions.m_specified_outgoing.empty()) {
         if (clientInterface) {
@@ -2149,10 +2149,10 @@ bool CConnman::Start(const Options& connOptions)
         return false;
     }
     if (connOptions.m_use_addrman_outgoing || !connOptions.m_specified_outgoing.empty())
-        threadOpenConnections = std::thread(&TraceThread<std::function<void()> >, "opencon", std::function<void()>(std::bind(&CConnman::ThreadOpenConnections, this, connOptions.m_specified_outgoing)));
+        threadOpenConnections = std::thread(&TraceThread<std::function<void()> >, "opencon", &logger_, std::function<void()>(std::bind(&CConnman::ThreadOpenConnections, this, connOptions.m_specified_outgoing)));
 
     // Process messages
-    threadMessageHandler = std::thread(&TraceThread<std::function<void()> >, "msghand", std::function<void()>(std::bind(&CConnman::ThreadMessageHandler, this)));
+    threadMessageHandler = std::thread(&TraceThread<std::function<void()> >, "msghand", &logger_, std::function<void()>(std::bind(&CConnman::ThreadMessageHandler, this)));
 
     // Dump network addresses
     scheduleEvery(std::bind(&CConnman::DumpData, this), DUMP_ADDRESSES_INTERVAL * 1000);
