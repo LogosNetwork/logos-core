@@ -45,13 +45,28 @@ void VotingPowerManager::Modify(
         = epoch < info.epoch_modified 
             ? &VotingPowerInfo::current : &VotingPowerInfo::next;
 
+    if(diff == 0)
+    {
+        return;
+    }
     if(diff_type == DiffType::ADD)
     {
         info.*info_member.*snapshot_member += diff;
+        if(info.*info_member.*snapshot_member < diff)
+        {
+            LOG_FATAL(_log) << "VotingPower::Modify - "
+                << "addition results in overflow";
+            trace_and_halt();
+        }
     }
-    else
+    else if(diff <= info.*info_member.*snapshot_member)
     {
         info.*info_member.*snapshot_member -= diff;
+    } else
+    {
+        LOG_FATAL(_log) << "VotingPowerManager::Modify - "
+            << "subtraction results in underflow";
+        trace_and_halt();
     }
 }
 

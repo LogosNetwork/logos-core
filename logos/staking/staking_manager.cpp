@@ -98,6 +98,7 @@ Amount StakingManager::Extract(
     }
     if(input.target != output.target)
     {
+        //Can't extract self stake into lock proxy
         if(input.target == origin)
         {
             return 0;
@@ -286,12 +287,10 @@ void StakingManager::Stake(
         else
         {
             _voting_power_mgr.SubtractLockedProxied(cur_stake.target, cur_stake.amount, epoch, txn);
-            logos::account_info info;
-            _store.account_get(origin, info, txn);
-            _voting_power_mgr.SubtractUnlockedProxied(cur_stake.target,info.GetAvailableBalance(),epoch,txn);
+            _voting_power_mgr.SubtractUnlockedProxied(cur_stake.target,account_info.GetAvailableBalance(),epoch,txn);
             if(target != origin)
             {
-                _voting_power_mgr.AddUnlockedProxied(target,info.GetAvailableBalance(), epoch, txn);
+                _voting_power_mgr.AddUnlockedProxied(target,account_info.GetAvailableBalance(), epoch, txn);
             }
         }
         StakedFunds new_stake = CreateStakedFunds(target, origin, txn);
@@ -300,7 +299,15 @@ void StakingManager::Stake(
         {
             begin_thawing(cur_stake.amount);
         }
-        _voting_power_mgr.AddLockedProxied(new_stake.target, new_stake.amount, epoch, txn);
+        if(target == origin)
+        {
+        
+            _voting_power_mgr.AddSelfStake(new_stake.target, new_stake.amount, epoch, txn);
+        }
+        else
+        {
+            _voting_power_mgr.AddLockedProxied(new_stake.target, new_stake.amount, epoch, txn);
+        }
         cur_stake = new_stake;
     }
     else if(amount_left < cur_stake.amount)

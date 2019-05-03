@@ -465,6 +465,17 @@ bool logos::uint128_union::operator> (logos::uint128_union const & other_a) cons
     return number () > other_a.number ();
 }
 
+bool logos::uint128_union::operator<= (logos::uint128_union const & other_a) const
+{
+    return number () <= other_a.number ();
+}
+
+bool logos::uint128_union::operator>= (logos::uint128_union const & other_a) const
+{
+    return number () >= other_a.number ();
+}
+
+
 logos::uint128_union logos::uint128_union::operator+ (logos::uint128_union const & other_a) const
 {
     return {number () + other_a.number ()};
