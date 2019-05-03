@@ -163,16 +163,24 @@ void StakingManager::Store(
         bool error = t.Deserialize (stream);
         if(error)
         {
-            LOG_FATAL(_log) << "StakingManager::IterateThawingFunds - "
+            LOG_FATAL(_log) << "StakingManager::Store - "
                 << "Error deserializing ThawingFunds for account = " << origin.to_string();
             trace_and_halt();
         }
+        //Thawing funds with same target and expiration epoch are consolidated
         if(t.target == funds.target && t.expiration_epoch == funds.expiration_epoch)
         {
             std::vector<uint8_t> buf;
             funds.amount += t.amount;
             mdb_cursor_put(it.cursor,it->first,funds.to_mdb_val(buf),MDB_CURRENT);
+            _liability_mgr.UpdateLiabilityAmount(funds.liability_hash,funds.amount,txn);
             return;
+        }
+        else if(t.expiration_epoch < funds.expiration_epoch)
+        {
+            //Thawing funds are stored in reverse order of expiration
+            //expiration_epoch will only continue to decrease
+            break;
         }
 
     }

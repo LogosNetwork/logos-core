@@ -1,6 +1,8 @@
 #pragma once
 #include <logos/staking/liability.hpp>
 
+const uint32_t max_uint32_t = 0 - 1;
+
 struct ThawingFunds
 {
     uint32_t expiration_epoch;
@@ -20,8 +22,9 @@ struct ThawingFunds
 
     uint32_t Serialize(logos::stream & stream) const
     {
-
-        uint32_t s = logos::write(stream, expiration_epoch);;
+        uint32_t invert_exp_epoch = max_uint32_t - expiration_epoch;
+        
+        uint32_t s = logos::write(stream, invert_exp_epoch);;
         s += logos::write(stream, target);
         s += logos::write(stream, amount);
         s += logos::write(stream, liability_hash);
@@ -30,7 +33,10 @@ struct ThawingFunds
 
     bool Deserialize(logos::stream & stream)
     {
-        return logos::read(stream, expiration_epoch)
+        uint32_t invert_exp_epoch = 0;
+        bool error = logos::read(stream, invert_exp_epoch);
+        expiration_epoch = max_uint32_t - invert_exp_epoch;
+        return error
             || logos::read(stream, target)
             || logos::read(stream, amount)
             || logos::read(stream, liability_hash);
