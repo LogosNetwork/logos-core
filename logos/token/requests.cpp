@@ -103,7 +103,7 @@ Issuance::Issuance(bool & error,
             controllers.push_back(c);
         }
 
-        // SG: Check for repeating controller accounts in single inssuance request
+        // SG: Check for repeating controller accounts in single issuance request
         std::sort(controller_accounts.begin(), controller_accounts.end());
         error = std::unique(controller_accounts.begin(), controller_accounts.end()) != controller_accounts.end();
         if (error)
@@ -124,6 +124,11 @@ Issuance::Issuance(bool & error,
 
 bool Issuance::Validate(logos::process_return & result) const
 {
+    if(!TokenRequest::Validate(result))
+    {
+        return false;
+    }
+
     auto is_alphanumeric = [](const auto & str)
     {
         for(auto c : str)
@@ -491,6 +496,11 @@ IssueAdditional::IssueAdditional(bool & error,
 
 bool IssueAdditional::Validate(logos::process_return & result) const
 {
+    if(!TokenRequest::Validate(result))
+    {
+        return false;
+    }
+
     if(!ValidateTokenAmount(amount))
     {
         result.code = logos::process_result::invalid_token_amount;
@@ -865,6 +875,11 @@ ImmuteSetting::ImmuteSetting(bool & error,
 
 bool ImmuteSetting::Validate(logos::process_return & result) const
 {
+    if(!TokenRequest::Validate(result))
+    {
+        return false;
+    }
+
     if(TokenAccount::IsMutabilitySetting(setting))
     {
         result.code = logos::process_result::prohibitted_request;
@@ -1061,6 +1076,11 @@ Amount Revoke::GetTokenTotal() const
 
 bool Revoke::Validate(logos::process_return & result) const
 {
+    if(!TokenRequest::Validate(result))
+    {
+        return false;
+    }
+
     if(!ValidateTokenAmount(transaction.amount))
     {
         result.code = logos::process_result::invalid_token_amount;
@@ -1453,6 +1473,11 @@ AdjustFee::AdjustFee(bool & error,
 
 bool AdjustFee::Validate(logos::process_return & result) const
 {
+    if(!TokenRequest::Validate(result))
+    {
+        return false;
+    }
+
     if(!ValidateFee(fee_type, fee_rate))
     {
         result.code = logos::process_result::invalid_fee;
@@ -1633,6 +1658,11 @@ UpdateIssuerInfo::UpdateIssuerInfo(bool & error,
 
 bool UpdateIssuerInfo::Validate(logos::process_return & result) const
 {
+    if(!TokenRequest::Validate(result))
+    {
+        return false;
+    }
+
     if(new_info.size() > Issuance::INFO_MAX_SIZE)
     {
         result.code = logos::process_result::invalid_issuer_info;
@@ -1812,6 +1842,11 @@ UpdateController::UpdateController(bool & error,
 
 bool UpdateController::Validate(logos::process_return & result) const
 {
+    if(!TokenRequest::Validate(result))
+    {
+        return false;
+    }
+
     switch(action)
     {
         case ControllerAction::Add:
@@ -2044,6 +2079,11 @@ logos::AccountType Burn::GetSourceType() const
 
 bool Burn::Validate(logos::process_return & result) const
 {
+    if(!TokenRequest::Validate(result))
+    {
+        return false;
+    }
+
     if(!ValidateTokenAmount(amount))
     {
         result.code = logos::process_result::invalid_token_amount;
@@ -2236,6 +2276,11 @@ AccountAddress Distribute::GetDestination() const
 
 bool Distribute::Validate(logos::process_return & result) const
 {
+    if(!TokenRequest::Validate(result))
+    {
+        return false;
+    }
+
     if(!ValidateTokenAmount(transaction.amount))
     {
         result.code = logos::process_result::invalid_token_amount;
@@ -2421,6 +2466,11 @@ AccountAddress WithdrawFee::GetDestination() const
 
 bool WithdrawFee::Validate(logos::process_return & result) const
 {
+    if(!TokenRequest::Validate(result))
+    {
+        return false;
+    }
+
     if(!ValidateTokenAmount(transaction.amount))
     {
         result.code = logos::process_result::invalid_token_amount;
@@ -2607,6 +2657,11 @@ AccountAddress WithdrawLogos::GetDestination() const
 bool WithdrawLogos::Validate(logos::process_return & result,
                              std::shared_ptr<logos::Account> info) const
 {
+    if(!TokenRequest::Validate(result))
+    {
+        return false;
+    }
+
     auto token_account = std::static_pointer_cast<TokenAccount>(info);
 
     if(transaction.amount > token_account->balance)
@@ -2827,6 +2882,11 @@ logos::AccountType TokenSend::GetSourceType() const
 
 bool TokenSend::Validate(logos::process_return & result) const
 {
+    if(!TokenRequest::Validate(result))
+    {
+        return false;
+    }
+
     for(auto & transaction : transactions)
     {
         if(!ValidateTokenAmount(transaction.amount))
