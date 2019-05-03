@@ -10,12 +10,9 @@
 TEST(Staking_Manager, Stake)
 {
     logos::block_store* store = get_db(); 
+    clear_dbs();
     logos::transaction txn(store->environment, nullptr, true);
 
-    store->clear(store->staking_db, txn);
-    store->clear(store->thawing_db, txn);
-    store->clear(store->account_db, txn);
-    store->clear(store->voting_power_db, txn);
     StakingManager staking_mgr(*store);
     VotingPowerManager voting_power_mgr(*store);
 
@@ -163,18 +160,22 @@ TEST(Staking_Manager, Stake)
 
 }
 
-TEST(Staking_Manager, Thawing)
+TEST(Staking_Manager, ThawingSimple)
 {
     logos::block_store* store = get_db(); 
+    clear_dbs();
     logos::transaction txn(store->environment, nullptr, true);
 
-    store->clear(store->staking_db, txn);
-    store->clear(store->thawing_db, txn);
-    store->clear(store->account_db, txn);
-    store->clear(store->voting_power_db, txn);
     StakingManager staking_mgr(*store);
+    LiabilityManager liability_mgr(*store);
 
     AccountAddress origin = 456;
+    logos::account_info info;
+    Amount starting_balance = 100000;
+    Amount starting_available = 100;
+    info.SetBalance(starting_balance,0,txn);
+    info.SetAvailableBalance(starting_available,0,txn);
+    ASSERT_EQ(info.epoch_thawing_updated,0);
     AccountAddress target = 44;
     uint32_t epoch = 60;
     ThawingFunds t = staking_mgr.CreateThawingFunds(target,origin,epoch,txn);
@@ -192,9 +193,352 @@ TEST(Staking_Manager, Thawing)
             return true;
             }, txn);
     ASSERT_EQ(thawing.size(),3);
+    //Test order
     ASSERT_EQ(thawing[2].expiration_epoch,epoch+42-2);
     ASSERT_EQ(thawing[1].expiration_epoch,epoch+42-1);
     ASSERT_EQ(thawing[0].expiration_epoch,epoch+42);
+
+    //Consolidation
+    ThawingFunds t4 = staking_mgr.CreateThawingFunds(target,origin,epoch-1,txn);
+    t4.amount = 100;
+    staking_mgr.Store(t4, origin, txn);
+
+    thawing.clear();
+    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+            thawing.push_back(funds);
+            return true;
+            }, txn);
+    ASSERT_EQ(thawing.size(),3);
+    ASSERT_EQ(thawing[2].expiration_epoch,epoch+42-2);
+    ASSERT_EQ(thawing[1].expiration_epoch,epoch+42-1);
+    ASSERT_EQ(thawing[0].expiration_epoch,epoch+42);
+
+    ASSERT_EQ(thawing[1].amount,t4.amount);
+    ASSERT_EQ(thawing[0].amount,0);
+    ASSERT_EQ(thawing[2].amount,0);
+
+    ThawingFunds t5 = staking_mgr.CreateThawingFunds(target,origin,epoch-1,txn);
+    t5.amount = 50;
+    staking_mgr.Store(t5, origin, txn);
+
+    thawing.clear();
+    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+            thawing.push_back(funds);
+            return true;
+            }, txn);
+    ASSERT_EQ(thawing.size(),3);
+    ASSERT_EQ(thawing[2].expiration_epoch,epoch+42-2);
+    ASSERT_EQ(thawing[1].expiration_epoch,epoch+42-1);
+    ASSERT_EQ(thawing[0].expiration_epoch,epoch+42);
+
+    ASSERT_EQ(thawing[1].amount,t4.amount+t5.amount);
+    ASSERT_EQ(thawing[0].amount,0);
+    ASSERT_EQ(thawing[2].amount,0);
+
+    ThawingFunds t6 = staking_mgr.CreateThawingFunds(target+1,origin,epoch-1,txn);
+    t6.amount = 100;
+    staking_mgr.Store(t6, origin, txn);
+    thawing.clear();
+    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+            thawing.push_back(funds);
+            return true;
+            }, txn);
+    ASSERT_EQ(thawing.size(),4);
+    ASSERT_EQ(thawing[3].expiration_epoch,epoch+42-2);
+    ASSERT_EQ(thawing[2].expiration_epoch,epoch+42-1);
+    ASSERT_EQ(thawing[1].expiration_epoch,epoch+42-1);
+    ASSERT_EQ(thawing[0].expiration_epoch,epoch+42);
+
+
+    ASSERT_EQ(thawing[3].target,target);
+    ASSERT_EQ(thawing[2].target,target+1);
+    ASSERT_EQ(thawing[1].target,target);
+    ASSERT_EQ(thawing[0].target,target);
+
+    ASSERT_EQ(thawing[1].amount,t4.amount+t5.amount);
+    ASSERT_EQ(thawing[0].amount,0);
+    ASSERT_EQ(thawing[2].amount,t6.amount);
+    ASSERT_EQ(thawing[3].amount,0);
+
+
+    //Liability consistency
+    auto liability_matches = [&](ThawingFunds& funds)
+    {
+       bool exists = liability_mgr.Exists(funds.liability_hash,txn);
+       if(!exists) return false;
+
+       Liability l = liability_mgr.Get(funds.liability_hash,txn);
+       return l.expiration_epoch == funds.expiration_epoch
+               && l.amount == funds.amount
+               && l.target == funds.target
+               && l.source == origin;
+    }; 
+
+    for(auto t : thawing)
+    {
+        ASSERT_TRUE(liability_matches(t));
+    }
+
+    //Prune
+
+    //Too early
+    ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
+    staking_mgr.PruneThawing(origin,info,epoch,txn);
+    ASSERT_EQ(info.epoch_thawing_updated,epoch);
+
+    ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
+
+    std::vector<ThawingFunds> thawing2;
+    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+            thawing2.push_back(funds);
+            return true;
+            }, txn);
+
+    ASSERT_EQ(thawing2,thawing);
+    std::for_each(thawing2.begin(),thawing2.end(),[&](auto t){ ASSERT_TRUE(liability_matches(t));});
+
+    //One epoch too early
+    epoch = epoch + 39;
+    ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
+    ASSERT_EQ(info.epoch_thawing_updated,epoch-39);
+    staking_mgr.PruneThawing(origin,info,epoch,txn);
+    ASSERT_EQ(info.epoch_thawing_updated,epoch);
+
+    ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
+
+    thawing2.clear();
+    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+            thawing2.push_back(funds);
+            return true;
+            }, txn);
+
+    ASSERT_EQ(thawing2,thawing);
+    std::for_each(thawing2.begin(),thawing2.end(),[&](auto t){ ASSERT_TRUE(liability_matches(t));});
+
+    //can prune some but not all
+    ++epoch;
+    ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),t.amount);
+    staking_mgr.PruneThawing(origin,info,epoch,txn);
+    ASSERT_EQ(info.epoch_thawing_updated,epoch);
+
+    ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
+
+    thawing2.clear();
+    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+            thawing2.push_back(funds);
+            return true;
+            }, txn);
+
+    ASSERT_NE(thawing2,thawing);
+    thawing.erase(thawing.begin()+3);
+    ASSERT_EQ(thawing2,thawing);
+    std::for_each(thawing2.begin(),thawing2.end(),[&](auto t){ ASSERT_TRUE(liability_matches(t));});
+
+    //Prune some more
+    ++epoch;
+    ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),t4.amount+t5.amount+t6.amount);
+    ASSERT_EQ(info.epoch_thawing_updated,epoch-1);
+    staking_mgr.PruneThawing(origin,info,epoch,txn);
+    ASSERT_EQ(info.epoch_thawing_updated,epoch);
+
+    ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
+
+    thawing2.clear();
+    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+            thawing2.push_back(funds);
+            return true;
+            }, txn);
+
+    ASSERT_NE(thawing2,thawing);
+    thawing.erase(thawing.begin()+1,thawing.end());
+    ASSERT_EQ(thawing2,thawing);
+    std::for_each(thawing2.begin(),thawing2.end(),[&](auto t){ ASSERT_TRUE(liability_matches(t));});
+
+
+    //make sure repeated pruning does nothing
+    Amount available = info.GetAvailableBalance();
+    Amount balance = info.GetBalance();
+    ASSERT_EQ(available,starting_available+t4.amount+t5.amount+t6.amount);
+    ASSERT_EQ(balance,starting_balance);
+    ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
+    staking_mgr.PruneThawing(origin,info,epoch,txn);
+    ASSERT_EQ(info.GetAvailableBalance(),available);
+    ASSERT_EQ(info.GetBalance(),balance);
+
+
+    //Prune the rest
+    ++epoch;
+    ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
+    staking_mgr.PruneThawing(origin,info,epoch,txn);
+    ASSERT_EQ(info.epoch_thawing_updated,epoch);
+
+    ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
+    thawing2.clear();
+    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+            thawing2.push_back(funds);
+            return true;
+            }, txn);
+
+    ASSERT_EQ(thawing2.size(),0);
+
+    ASSERT_EQ(info.GetAvailableBalance(),available);
+    ASSERT_EQ(info.GetBalance(),balance);
+
+    //Try to prune when no thawing funds exist
+    ++epoch;
+    ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
+    staking_mgr.PruneThawing(origin,info,epoch,txn);
+    ASSERT_EQ(info.epoch_thawing_updated,epoch);
+
+    ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
+    thawing2.clear();
+    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+            thawing2.push_back(funds);
+            return true;
+            }, txn);
+
+    ASSERT_EQ(thawing2.size(),0);
+
+    ASSERT_EQ(info.GetAvailableBalance(),available);
+    ASSERT_EQ(info.GetBalance(),balance);
 }
+
+TEST(Staking_Manager, Frozen)
+{
+
+    logos::block_store* store = get_db();
+    clear_dbs();
+    logos::transaction txn(store->environment,nullptr,true);
+   
+    AccountAddress origin = 42;
+    StakingManager staking_mgr(*store);
+    LiabilityManager liability_mgr(*store);
+    AccountAddress target = origin;
+
+    uint32_t epoch = 107;
+
+    ThawingFunds t1 = staking_mgr.CreateThawingFunds(origin,origin,epoch,txn);
+    t1.amount = 100;
+   staking_mgr.Store(t1,origin,txn);
+
+   std::vector<ThawingFunds> thawing(staking_mgr.GetThawingFunds(origin,txn));
+
+   ASSERT_EQ(thawing.size(),1);
+   ASSERT_EQ(thawing[0].expiration_epoch,epoch+42);
+   LiabilityHash old_liability = t1.liability_hash;
+   staking_mgr.MarkThawingAsFrozen(origin,epoch,txn);
+   ASSERT_FALSE(liability_mgr.Exists(old_liability,txn));
+   thawing = staking_mgr.GetThawingFunds(origin,txn);
+   ASSERT_EQ(thawing.size(),1);
+   ASSERT_EQ(thawing[0].expiration_epoch,0);
+   ASSERT_EQ(thawing[0].amount,t1.amount);
+   ASSERT_EQ(thawing[0].target,t1.target);
+
+    //Liability consistency
+    auto liability_matches = [&](ThawingFunds& funds)
+    {
+       bool exists = liability_mgr.Exists(funds.liability_hash,txn);
+       if(!exists) return false;
+
+       Liability l = liability_mgr.Get(funds.liability_hash,txn);
+       return l.expiration_epoch == funds.expiration_epoch
+               && l.amount == funds.amount
+               && l.target == funds.target
+               && l.source == origin;
+    }; 
+    ASSERT_TRUE(liability_matches(thawing[0]));
+
+    //make sure frozen is not pruneable
+    logos::account_info info;
+    info.epoch_thawing_updated = 0;
+    ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
+    staking_mgr.PruneThawing(origin,info,epoch,txn);
+
+
+   std::vector<ThawingFunds> thawing2(staking_mgr.GetThawingFunds(origin,txn));
+   ASSERT_EQ(thawing,thawing2);
+
+    ++epoch;
+
+    old_liability = thawing[0].liability_hash;
+    staking_mgr.SetExpirationOfFrozen(origin,epoch,txn);
+    ASSERT_FALSE(liability_mgr.Exists(old_liability,txn));
+
+   thawing = staking_mgr.GetThawingFunds(origin,txn);
+
+   ASSERT_EQ(thawing.size(),1);
+   ASSERT_EQ(thawing[0].expiration_epoch,epoch+42);
+   ASSERT_EQ(thawing[0].amount,t1.amount);
+   ASSERT_EQ(thawing[0].target,t1.target);
+ 
+   ASSERT_TRUE(liability_matches(thawing[0]));
+
+   //make sure won't freeze thawing funds with target != origin
+   ++epoch;
+   ThawingFunds t2 = staking_mgr.CreateThawingFunds(origin+1,origin,epoch,txn);
+   staking_mgr.Store(t2,origin,txn);
+
+   staking_mgr.MarkThawingAsFrozen(origin,epoch,txn);
+
+   thawing = staking_mgr.GetThawingFunds(origin,txn);
+   ASSERT_EQ(thawing.size(),2);
+   ASSERT_EQ(thawing[0].expiration_epoch,t2.expiration_epoch);
+   ASSERT_EQ(thawing[1].expiration_epoch,t2.expiration_epoch-1);
+
+
+
+    //mix frozen and unfrozen
+    ThawingFunds t3 = staking_mgr.CreateThawingFunds(origin,origin,epoch,txn);
+    ThawingFunds t4 = staking_mgr.CreateThawingFunds(origin,origin,epoch+1,txn);
+    ThawingFunds t5 = staking_mgr.CreateThawingFunds(origin,origin,epoch+2,txn);
+
+    staking_mgr.Store(t3,origin,txn);
+    staking_mgr.Store(t4,origin,txn);
+    staking_mgr.Store(t5,origin,txn);
+
+    thawing = staking_mgr.GetThawingFunds(origin,txn);
+    ASSERT_EQ(thawing.size(),5);
+
+    staking_mgr.MarkThawingAsFrozen(origin,epoch,txn);
+
+    thawing = staking_mgr.GetThawingFunds(origin,txn);
+    ASSERT_EQ(thawing.size(),5);
+    ASSERT_EQ(thawing[0].expiration_epoch, t5.expiration_epoch);
+    ASSERT_EQ(thawing[1].expiration_epoch, t4.expiration_epoch);
+    ASSERT_EQ(thawing[2].expiration_epoch, t2.expiration_epoch);
+    ASSERT_EQ(thawing[3].expiration_epoch, t2.expiration_epoch-1);
+    ASSERT_EQ(thawing[4].expiration_epoch, 0);
+
+    staking_mgr.MarkThawingAsFrozen(origin,epoch+1,txn);
+    thawing = staking_mgr.GetThawingFunds(origin,txn);
+    ASSERT_EQ(thawing.size(),4);
+
+    ASSERT_EQ(thawing[0].expiration_epoch, t5.expiration_epoch);
+    ASSERT_EQ(thawing[1].expiration_epoch, t2.expiration_epoch);
+    ASSERT_EQ(thawing[2].expiration_epoch, t2.expiration_epoch-1);
+    ASSERT_EQ(thawing[3].expiration_epoch, 0);
+
+    for(auto t : thawing)
+    {
+        ASSERT_TRUE(liability_matches(t));
+    }
+    epoch += 5;
+    staking_mgr.SetExpirationOfFrozen(origin,epoch,txn);
+
+    thawing = staking_mgr.GetThawingFunds(origin,txn);
+    ASSERT_EQ(thawing.size(),4);
+
+    ASSERT_EQ(thawing[0].expiration_epoch, epoch+42);
+    ASSERT_EQ(thawing[1].expiration_epoch, t5.expiration_epoch);
+    ASSERT_EQ(thawing[2].expiration_epoch, t2.expiration_epoch);
+    ASSERT_EQ(thawing[3].expiration_epoch, t2.expiration_epoch-1);
+
+    for(auto t : thawing)
+    {
+        ASSERT_TRUE(liability_matches(t));
+    }
+
+}
+
 
 #endif

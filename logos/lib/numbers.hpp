@@ -90,6 +90,8 @@ union uint256_union
     bool operator== (logos::uint256_union const &) const;
     bool operator!= (logos::uint256_union const &) const;
     bool operator< (logos::uint256_union const &) const;
+    uint256_union operator+ (logos::uint256_union const &) const;
+    uint256_union operator- (logos::uint256_union const &) const;
     void encode_hex (std::string &) const;
     bool decode_hex (std::string const &);
     void encode_dec (std::string &) const;

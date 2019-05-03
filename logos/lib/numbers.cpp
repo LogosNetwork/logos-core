@@ -188,6 +188,17 @@ logos::uint256_union logos::uint256_union::operator^ (logos::uint256_union const
     return result;
 }
 
+logos::uint256_union logos::uint256_union::operator+ (logos::uint256_union const & other_a) const
+{
+    return {number () + other_a.number ()};
+}
+
+logos::uint256_union logos::uint256_union::operator- (logos::uint256_union const & other_a) const
+{
+    return {number () - other_a.number ()};
+}
+
+
 logos::uint256_union::uint256_union (std::string const & hex_a)
 {
     decode_hex (hex_a);

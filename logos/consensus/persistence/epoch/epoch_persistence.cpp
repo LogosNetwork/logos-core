@@ -118,15 +118,11 @@ PersistenceManager<ECT>::ApplyUpdates(
     }
 
     std::unordered_set<AccountAddress> new_dels;
-    std::unordered_set<AccountAddress> old_dels;
     for(auto del : block.delegates)
     {
         new_dels.insert(del.account);
     }
-    for(auto del : prev_epoch.delegates)
-    {
-        old_dels.insert(del.account);
-    }
+
 
     for(auto del : prev_epoch.delegates)
     {
@@ -143,15 +139,12 @@ PersistenceManager<ECT>::ApplyUpdates(
 
     for(auto del : block.delegates)
     {
-        if(old_dels.find(del.account) == old_dels.end())
-        {
-            //Mark any funds that began thawing in previous epoch
-            //as frozen
-            StakingManager::GetInstance()->MarkThawingAsFrozen(
-                    del.account,
-                    block.epoch_number,
-                    transaction);
-        }
+        //Mark any funds that began thawing in previous epoch
+        //as frozen
+        StakingManager::GetInstance()->MarkThawingAsFrozen(
+                del.account,
+                block.epoch_number,
+                transaction);
     }
 
     if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(block.CreateTip(), transaction))
