@@ -10,6 +10,7 @@ struct Liability
     AccountAddress source;
     Amount amount;
     uint32_t expiration_epoch;
+    bool is_secondary;
 
     LiabilityHash Hash() const;
 
@@ -27,11 +28,11 @@ struct Liability
 
     uint32_t Serialize(logos::stream & stream) const
     {
-
         uint32_t s = logos::write(stream, target);;
         s += logos::write(stream, source);
         s += logos::write(stream, amount);
         s += logos::write(stream, expiration_epoch);
+        s += logos::write(stream, is_secondary);
         return s;
     }
 
@@ -40,7 +41,8 @@ struct Liability
         return logos::read(stream, target)
             || logos::read(stream, source)
             || logos::read(stream, amount)
-            || logos::read(stream, expiration_epoch);
+            || logos::read(stream, expiration_epoch)
+            || logos::read(stream, is_secondary);
     }
 
 
