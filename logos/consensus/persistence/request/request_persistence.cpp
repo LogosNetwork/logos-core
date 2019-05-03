@@ -314,8 +314,25 @@ bool PersistenceManager<R>::ValidateRequest(
     switch(request->type)
     {
         case RequestType::Send:
-        case RequestType::Proxy:
             break;
+        case RequestType::Proxy:
+        {
+            logos::transaction txn(_store.environment,nullptr,false);
+            auto proxy = dynamic_pointer_cast<const Proxy>(request);
+            if(info->type != logos::AccountType::LogosAccount)
+            {
+                result.code = logos::process_result::invalid_account_type;
+                return false;
+            }
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            if(!ValidateRequest(*proxy,*account_info,cur_epoch_num,txn,result))
+            {
+                LOG_ERROR(_log) << "Proxy is invalid: " << proxy->GetHash().to_string()
+                    << " code is " << logos::ProcessResultToString(result.code);
+                return false;
+            }
+            break;
+        }
         case RequestType::Issuance:
         {
             auto issuance = dynamic_pointer_cast<const Issuance>(request);
@@ -1080,7 +1097,12 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             break;
         }
         case RequestType::Proxy:
+        {
+            auto proxy = dynamic_pointer_cast<const Proxy>(request);
+            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+            ApplyRequest(*proxy,*account_info,transaction);
             break;
+        }
         case RequestType::Issuance:
         {
             auto issuance = dynamic_pointer_cast<const Issuance>(request);
