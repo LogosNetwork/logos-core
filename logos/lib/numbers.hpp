@@ -40,6 +40,8 @@ public:
     bool operator!= (logos::uint128_union const &) const;
     bool operator< (logos::uint128_union const &) const;
     bool operator> (logos::uint128_union const &) const;
+    bool operator<= (logos::uint128_union const &) const;
+    bool operator>= (logos::uint128_union const &) const;
     uint128_union & operator+=(const uint128_union & other);
     uint128_union & operator-=(const uint128_union & other);
     void encode_hex (std::string &) const;
