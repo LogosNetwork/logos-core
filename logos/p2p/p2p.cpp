@@ -60,9 +60,10 @@ void p2p_interface::TraverseCommandLineOptions(std::function<void(const char *op
 
 class p2p_internal
 {
+public:
+    BCLog::Logger                           logger_;
 private:
     p2p_interface &                         interface;
-    BCLog::Logger                           logger_;
     ArgsManager                             Args;
     TimeData                                timeData;
     Random                                  random_;
@@ -773,6 +774,7 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
 {
     if (!p2p)
     {
+        BCLog::Logger logger_;
         LogPrintf("p2p_interface::PropagateMessage, null p2p\n");
         return false;
     }
@@ -786,6 +788,7 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
             || (bprop=!p2p->Propagate(mess)))
     {
         if (!bfind) {
+            BCLog::Logger &logger_ = p2p->logger_;
             LogPrintf("p2p_interface::PropagateMessage, failed to propagate, %d,%d\n", brecv, bprop);
         }
         return false;
