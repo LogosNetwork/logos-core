@@ -42,6 +42,7 @@ void clear_dbs()
     store->leading_candidates_size = 0;
 }
 
+
 void init_tips(uint32_t epoch_num)
 {
 

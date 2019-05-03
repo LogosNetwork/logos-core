@@ -50,4 +50,6 @@ BLS_Nodes & setup_nodes();
 
 logos::block_store * get_db();
 
+void clear_dbs();
+
 

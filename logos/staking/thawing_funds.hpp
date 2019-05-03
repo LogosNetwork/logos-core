@@ -1,6 +1,7 @@
 #pragma once
 #include <logos/staking/liability.hpp>
 
+//TODO move functions to cpp file, or at least this constant definition
 const uint32_t max_uint32_t = 0 - 1;
 
 struct ThawingFunds
@@ -40,6 +41,14 @@ struct ThawingFunds
             || logos::read(stream, target)
             || logos::read(stream, amount)
             || logos::read(stream, liability_hash);
+    }
+
+    bool operator==(ThawingFunds const & other) const
+    {
+        return expiration_epoch == other.expiration_epoch
+            && target == other.target
+            && amount == other.amount
+            && liability_hash == other.liability_hash;
     }
 
 };

@@ -2476,6 +2476,30 @@ bool PersistenceManager<R>::ValidateRequest(
         result.code = logos::process_result::proxy_to_self;
         return false;
     }
+
+    //TODO should delegates that are not reps be allowed to proxy?
+    //make sure not a rep
+    RepInfo rep_info;
+    if(!_store.rep_get(request.origin,rep_info,txn))
+    {
+        auto hash = rep_info.rep_action_tip;
+        std::shared_ptr<Request> req;
+        if(_store.request_get(hash,req,txn))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Proxy)"
+                << " - failed to retrieve rep_action_tip"
+                << " hash = " << hash.to_string();
+            trace_and_halt();
+        }
+        if(req->type != RequestType::StopRepresenting
+                && req->type != RequestType::RenounceCandidacy)
+        {
+            result.code = logos::process_result::is_rep;
+            return false;
+        }
+
+    }
+
     return true;
 }
 

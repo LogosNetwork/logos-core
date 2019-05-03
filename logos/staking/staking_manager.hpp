@@ -94,6 +94,12 @@ class StakingManager
             std::function<bool(ThawingFunds & funds)> func,
             MDB_txn* txn);
 
+    void IterateThawingFunds(
+            AccountAddress const & origin,
+            std::function<bool(logos::store_iterator & it)> func,
+            MDB_txn* txn);
+
+
     void PruneThawing(
             AccountAddress const & origin,
             logos::account_info & info,

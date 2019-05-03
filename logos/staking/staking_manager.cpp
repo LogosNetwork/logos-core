@@ -170,10 +170,11 @@ void StakingManager::Store(
         //Thawing funds with same target and expiration epoch are consolidated
         if(t.target == funds.target && t.expiration_epoch == funds.expiration_epoch)
         {
+            assert(t.liability_hash == funds.liability_hash);
             std::vector<uint8_t> buf;
-            funds.amount += t.amount;
-            mdb_cursor_put(it.cursor,it->first,funds.to_mdb_val(buf),MDB_CURRENT);
-            _liability_mgr.UpdateLiabilityAmount(funds.liability_hash,funds.amount,txn);
+            t.amount += funds.amount;
+            mdb_cursor_put(it.cursor,it->first,t.to_mdb_val(buf),MDB_CURRENT);
+            _liability_mgr.UpdateLiabilityAmount(t.liability_hash,t.amount,txn);
             return;
         }
         else if(t.expiration_epoch < funds.expiration_epoch)
@@ -255,7 +256,25 @@ void StakingManager::IterateThawingFunds(
             return;
         }
     }
+}
 
+void StakingManager::IterateThawingFunds(
+        AccountAddress const & origin,
+        std::function<bool(logos::store_iterator&)> func,
+        MDB_txn* txn)
+{
+    for(auto it = logos::store_iterator(txn,_store.thawing_db, logos::mdb_val(origin));
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        if(it->first.uint256() != origin)
+        {
+            return;
+        }
+        if(!func(it))
+        {
+            return;
+        }
+    }
 }
 
 //TODO staking_subchain head needs to be up to date before this function is 
@@ -442,7 +461,7 @@ void StakingManager::PruneThawing(
                 << "Error deserializing ThawingFunds for account = " << origin.to_string();
             trace_and_halt();
         }
-        if(t.expiration_epoch <= cur_epoch)
+        if(t.expiration_epoch != 0 && t.expiration_epoch <= cur_epoch)
         {
            if(mdb_cursor_del(it.cursor,0))
            {
@@ -483,7 +502,7 @@ Amount StakingManager::GetPruneableThawingAmount(
                 << "Error deserializing ThawingFunds for account = " << origin.to_string();
             trace_and_halt();
         }
-        if(t.expiration_epoch <= cur_epoch)
+        if(t.expiration_epoch != 0 && t.expiration_epoch <= cur_epoch)
         {
             total += t.amount;
         }
@@ -493,7 +512,7 @@ Amount StakingManager::GetPruneableThawingAmount(
 
 void StakingManager::MarkThawingAsFrozen(
         AccountAddress const & origin,
-        uint32_t const & epoch_to_mark_frozen,
+        uint32_t const & epoch_created,
         MDB_txn* txn)
 {
     if(!txn)
@@ -502,10 +521,25 @@ void StakingManager::MarkThawingAsFrozen(
             << "txn is null";
         trace_and_halt();
     }
-    auto update = [&](ThawingFunds & funds)
+    uint32_t epoch_to_mark_frozen = epoch_created+42;
+    std::vector<ThawingFunds> updated;
+    auto update = [&](logos::store_iterator& it)
     {
-        if(funds.expiration_epoch == epoch_to_mark_frozen)
+        ThawingFunds funds; 
+        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (it->second.data ()), it->second.size ());
+        bool error = funds.Deserialize (stream);
+        if(error)
         {
+            LOG_FATAL(_log) << "StakingManager::MarkThawingAsFrozen - "
+                << "Error deserializing ThawingFunds for account = " << origin.to_string();
+            trace_and_halt();
+        }
+
+        //TODO terminate early based on sort order?
+        if(funds.expiration_epoch == epoch_to_mark_frozen
+                && funds.target == origin)
+        {
+
             funds.expiration_epoch = 0;
             _liability_mgr.DeleteLiability(funds.liability_hash, txn);
             funds.liability_hash = 
@@ -514,10 +548,21 @@ void StakingManager::MarkThawingAsFrozen(
                     origin,
                     funds.amount,
                     txn);
+            updated.push_back(funds);
+            if(mdb_cursor_del(it.cursor,0))
+            {
+                LOG_FATAL(_log) << "StakingManager::MarkThawingAsFrozen - "
+                    << "mdb_cursor_del failed. origin = "
+                    << origin.to_string();
+            }
         }
         return true;
     };
     IterateThawingFunds(origin, update, txn);
+    for(auto t : updated)
+    {
+        Store(t,origin,txn);
+    }
 }
 
 void StakingManager::SetExpirationOfFrozen(
@@ -533,8 +578,18 @@ void StakingManager::SetExpirationOfFrozen(
         trace_and_halt();
     }
     uint32_t exp_epoch = epoch_unfrozen + 42;
-    auto update = [&](ThawingFunds & funds)
+    std::vector<ThawingFunds> updated;
+    auto update = [&](logos::store_iterator& it)
     {
+        ThawingFunds funds; 
+        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (it->second.data ()), it->second.size ());
+        bool error = funds.Deserialize (stream);
+        if(error)
+        {
+            LOG_FATAL(_log) << "StakingManager::SetExpirationOfFrozen - "
+                << "Error deserializing ThawingFunds for account = " << origin.to_string();
+            trace_and_halt();
+        }
         if(funds.expiration_epoch == 0)
         {
             funds.expiration_epoch = exp_epoch;
@@ -546,8 +601,21 @@ void StakingManager::SetExpirationOfFrozen(
                     funds.amount,
                     exp_epoch,
                     txn);
+
+            updated.push_back(funds);
+            if(mdb_cursor_del(it.cursor,0))
+            {
+                LOG_FATAL(_log) << "StakingManager::SetExpirationOfFrozen - "
+                    << " mdb_cursor_del failed. origin = " 
+                    << origin.to_string();
+                trace_and_halt();
+            }
         }
         return true;
     };
     IterateThawingFunds(origin, update, txn);
+    for(auto t : updated)
+    {
+        Store(t,origin,txn);
+    }
 }
