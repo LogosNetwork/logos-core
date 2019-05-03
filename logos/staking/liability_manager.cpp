@@ -7,7 +7,7 @@ LiabilityHash LiabilityManager::CreateExpiringLiability(
         uint32_t const & expiration_epoch,
         MDB_txn* txn)
 {
-    Liability l{target,source,amount,expiration_epoch};
+    Liability l{target,source,amount,expiration_epoch,false};
     return Store(l, txn);
 }
 
@@ -17,7 +17,7 @@ LiabilityHash LiabilityManager::CreateUnexpiringLiability(
         Amount const & amount,
         MDB_txn* txn)
 {
-    Liability l{target,source,amount,0};
+    Liability l{target,source,amount,0,false};
     return Store(l, txn);
 }
 
@@ -28,7 +28,7 @@ bool LiabilityManager::CreateSecondaryLiability(
         uint32_t const & expiration_epoch,
         MDB_txn* txn)
 {
-    Liability l{target,source,amount,expiration_epoch};
+    Liability l{target,source,amount,expiration_epoch,true};
     auto hash = Store(l, txn);
     mdb_put(txn, _store.secondary_liabilities_db, logos::mdb_val(source), logos::mdb_val(hash), 0);
     return true;

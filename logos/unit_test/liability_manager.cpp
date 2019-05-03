@@ -66,8 +66,8 @@ TEST(Liabilities, liabilities)
 
     hashes = liability_mgr.GetRepLiabilities(rep, txn);
     ASSERT_EQ(hashes.size(), 2);
-    ASSERT_EQ(hashes[0],hash);
-    ASSERT_EQ(hashes[1],hash2);
+    ASSERT_EQ(hashes[0],hash2);
+    ASSERT_EQ(hashes[1],hash);
     hashes = liability_mgr.GetSecondaryLiabilities(origin, txn);
     ASSERT_EQ(hashes.size(), 0);
     l = liability_mgr.Get(hash,txn);
@@ -88,8 +88,8 @@ TEST(Liabilities, liabilities)
     ASSERT_EQ(hash3,hash);
     hashes = liability_mgr.GetRepLiabilities(rep, txn);
     ASSERT_EQ(hashes.size(), 2);
-    ASSERT_EQ(hashes[0],hash);
-    ASSERT_EQ(hashes[1],hash2);
+    ASSERT_EQ(hashes[0],hash2);
+    ASSERT_EQ(hashes[1],hash);
     hashes = liability_mgr.GetSecondaryLiabilities(origin, txn);
     ASSERT_EQ(hashes.size(), 0);
     l = liability_mgr.Get(hash,txn);
@@ -111,9 +111,9 @@ TEST(Liabilities, liabilities)
     ASSERT_NE(hash3,hash4);
     hashes = liability_mgr.GetRepLiabilities(rep, txn);
     ASSERT_EQ(hashes.size(), 3);
-    ASSERT_EQ(hashes[0],hash);
-    ASSERT_EQ(hashes[1],hash4);
-    ASSERT_EQ(hashes[2],hash2);
+    ASSERT_EQ(hashes[0],hash4);
+    ASSERT_EQ(hashes[1],hash2);
+    ASSERT_EQ(hashes[2],hash);
     hashes = liability_mgr.GetSecondaryLiabilities(origin, txn);
     ASSERT_EQ(hashes.size(), 0);
     l = liability_mgr.Get(hash,txn);

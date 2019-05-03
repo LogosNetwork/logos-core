@@ -155,9 +155,6 @@ TEST(Staking_Manager, Stake)
     voting_power_mgr.GetVotingPowerInfo(target, vp_info, txn);
     ASSERT_EQ(vp_info.next.self_stake, 10);
     ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
-
-
-
 }
 
 TEST(Staking_Manager, ThawingSimple)
@@ -537,6 +534,109 @@ TEST(Staking_Manager, Frozen)
     {
         ASSERT_TRUE(liability_matches(t));
     }
+
+}
+
+TEST(Staking_Manager, Extract)
+{
+
+    clear_dbs();
+    logos::block_store* store = get_db();
+
+    logos::transaction txn(store->environment,nullptr,true);
+    StakingManager staking_mgr(*store);
+    LiabilityManager liability_mgr(*store);
+
+    AccountAddress origin = 73;
+    AccountAddress target = 678;
+    AccountAddress target2 = 68780;
+
+    uint32_t epoch = 752;
+
+    auto liability_match = [&](StakedFunds& funds)
+    {
+        if(liability_mgr.Exists(funds.liability_hash, txn))
+        {
+            Liability l = liability_mgr.Get(funds.liability_hash,txn);
+            EXPECT_EQ(l.amount, funds.amount);
+            EXPECT_EQ(l.expiration_epoch, 0);
+            EXPECT_EQ(l.target, funds.target);
+            EXPECT_EQ(l.source, origin);
+            return l.amount == funds.amount
+                && l.expiration_epoch == 0
+                && l.target == funds.target
+                && l.source == origin;
+        }
+        return false;
+    };
+
+    auto liability_matcht =[&](ThawingFunds& funds)
+    {
+        if(liability_mgr.Exists(funds.liability_hash, txn))
+        {
+            Liability l = liability_mgr.Get(funds.liability_hash,txn);
+            EXPECT_EQ(l.amount, funds.amount);
+            EXPECT_EQ(l.expiration_epoch, funds.expiration_epoch);
+            EXPECT_EQ(l.target, funds.target);
+            EXPECT_EQ(l.source, origin);
+            return l.amount == funds.amount
+                && l.expiration_epoch == funds.expiration_epoch
+                && l.target == funds.target
+                && l.source == origin;
+        }
+        return false;   
+    };
+
+    StakedFunds s1 = staking_mgr.CreateStakedFunds(target,origin,txn);
+    ASSERT_TRUE(liability_match(s1));
+    staking_mgr.UpdateAmount(s1,origin,100,txn);
+
+    ASSERT_TRUE(liability_match(s1));
+
+    StakedFunds s2 = staking_mgr.CreateStakedFunds(target2,origin,txn);
+    ASSERT_TRUE(liability_match(s2));
+
+
+    auto extract = [&](auto& s1, auto& s2, auto amount)
+    {
+        staking_mgr.Extract(s1,s2,amount,origin,epoch,txn);
+        staking_mgr.Store(s2,origin,txn);
+    };
+
+    extract(s1,s2,40);
+
+
+    ASSERT_EQ(s1.amount,60);
+    ASSERT_EQ(s2.amount,40);
+
+
+    ASSERT_TRUE(liability_match(s1));
+    ASSERT_TRUE(liability_match(s2));
+
+
+    ThawingFunds t1 = staking_mgr.CreateThawingFunds(target,origin,epoch,txn);
+    ASSERT_EQ(t1.amount,0);
+    ASSERT_EQ(t1.expiration_epoch,epoch+42);
+    ASSERT_TRUE(liability_matcht(t1));
+
+    extract(s1,t1,15);
+
+    ASSERT_EQ(s1.amount,45);
+    ASSERT_EQ(t1.amount,15);
+
+    ASSERT_TRUE(liability_match(s1));
+    ASSERT_TRUE(liability_matcht(t1));
+
+    extract(s1,t1,45);
+
+    ASSERT_EQ(s1.amount,0);
+    ASSERT_EQ(t1.amount,60);
+
+
+
+
+
+
 
 }
 
