@@ -17,5 +17,6 @@ public:
     static void start_epoch_transition(std::function<void(boost::property_tree::ptree const &)> response, logos::node &node);
     static void informational(std::function<void(boost::property_tree::ptree const &)> response, logos::node &node);
     static void epoch_delegates(std::function<void(boost::property_tree::ptree const &)> response, logos::node &node);
+    static void advertise(std::function<void(boost::property_tree::ptree const &)> response, logos::node &node);
     static boost::property_tree::ptree _request;
 };

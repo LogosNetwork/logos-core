@@ -6,7 +6,6 @@
 #include <logos/consensus/consensus_manager_config.hpp>
 #include <logos/network/consensus_netio.hpp>
 #include <logos/network/peer_acceptor.hpp>
-#include <logos/consensus/delegate_key_store.hpp>
 #include <logos/lib/utility.hpp>
 
 class NetIOHandler;
@@ -51,8 +50,6 @@ public:
     ///     @param service reference to boost asio service
     ///     @param reference to alarm
     ///     @param config reference to consensus manager configuration
-    ///     @param key_store delegates' public key store
-    ///     @param validator validator/signer of consensus messages
     ///     @param starter starts accepting peer connections
     ///     @param epoch_info epoch info
     ConsensusNetIOManager(
@@ -62,8 +59,7 @@ public:
         Service & service,
         logos::alarm & alarm, 
         const Config & config,
-        DelegateKeyStore & key_store,
-        MessageValidator & validator);
+        PeerAcceptorStarter & starter);
 
     ~ConsensusNetIOManager();
 
@@ -74,7 +70,7 @@ public:
     ///     @param socket connected peer socket
     void OnConnectionAccepted(const Endpoint endpoint,
                               std::shared_ptr<Socket>,
-                              const ConnectedClientIds &ids);
+                              uint8_t delegate_id);
 
     /// Bind connected IO Channel to ConsensusConnection.
     ///
@@ -95,7 +91,9 @@ public:
                              uint32_t payload_size,
                              uint8_t delegate_id=0xff) override;
 
-    void Start(std::shared_ptr<EpochInfo> epoch_info, PeerAcceptorStarter & starter);
+    void Start(std::shared_ptr<EpochInfo> epoch_info);
+
+    void AddDelegate(uint8_t delegate_id, std::string &ip, uint16_t port);
 
 protected:
 
@@ -130,8 +128,6 @@ private:
     Connections                    _connections;        ///< NetIO connections
     Log                            _log;                ///< boost asio log
     logos::alarm &                 _alarm;              ///< alarm
-    DelegateKeyStore &             _key_store;          ///< Delegates' public key store
-    MessageValidator &             _validator;          ///< Validator/Signer of consensus messages
     std::recursive_mutex           _connection_mutex;   ///< NetIO connections access mutex
     std::recursive_mutex           _bind_mutex;         ///< NetIO consensus connections mutex
     uint8_t                        _delegate_id;        ///< The local delegate id
@@ -139,4 +135,5 @@ private:
     Timer                          _heartbeat_timer;    ///< Heartbeat/gb timer to handle heartbeat and gb
     std::mutex                     _gb_mutex;           ///< Garbage mutex
     Config                         _config;
+    PeerAcceptorStarter &          _acceptor;
 };

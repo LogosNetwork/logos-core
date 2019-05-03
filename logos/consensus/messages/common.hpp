@@ -21,16 +21,22 @@ enum class MessageType : uint8_t
     Post_Commit  = 4,
 
     // Other
-    Key_Advert   = 5,
-    Rejection    = 6,
-    Heart_Beat   = 7,
+    Rejection    = 5,
+    Heart_Beat   = 6,
 
-    Post_Committed_Block = 8, //to be stored locally and distributed to fall nodes
+    Post_Committed_Block = 7, //to be stored locally and distributed to fall nodes
 
-    TxAcceptor_Message   = 9,
+    TxAcceptor_Message   = 8,
 
     // Invalid
     Unknown      = 0xff
+};
+
+enum class P2pAppType : uint8_t
+{
+    Consensus = 0,
+    AddressAd = 1,
+    AddressAdTxAcceptor = 2
 };
 
 static constexpr uint8_t logos_version = 0;

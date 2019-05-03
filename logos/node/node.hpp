@@ -6,7 +6,7 @@
 #include <logos/node/wallet.hpp>
 #include <logos/epoch/archiver.hpp>
 #include <logos/epoch/recall_handler.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/bootstrap/bootstrap.hpp>
 #include <logos/consensus/consensus_container.hpp>
 #include <logos/consensus/persistence/block_cache.hpp>
@@ -506,6 +506,13 @@ public:
                              bool should_buffer);
     process_return BufferComplete();
 
+    /// update tx acceptor configuration, don't allow switch between the delegate and standalone modes
+    /// @param ip acceptor's ip
+    /// @param port acceptor's port
+    /// @param add true if adding
+    /// @returns true if can update
+    bool update_tx_acceptor(const std::string &ip, uint16_t port, bool add);
+
 
     boost::asio::io_service & service;
     logos::node_config config;
@@ -532,9 +539,9 @@ public:
     //CH logos::online_reps online_reps;
     logos::stat stats;
     RecallHandler _recall_handler;
+    Logos_p2p_interface p2p;
     DelegateIdentityManager _identity_manager;
     Archiver _archiver;
-    Logos_p2p_interface p2p;
     std::shared_ptr<ConsensusContainer> _consensus_container;
     std::shared_ptr<TxAcceptor> _tx_acceptor;
     std::shared_ptr<TxReceiver> _tx_receiver;

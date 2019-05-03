@@ -28,9 +28,6 @@ inline std::string MessageToName(const MessageType & type)
         case MessageType::Post_Committed_Block:
             ret = "Post_Committed_Block";
             break;
-        case MessageType::Key_Advert:
-            ret = "Key Advertisement";
-            break;
         case MessageType::Rejection:
             ret = "Rejection";
             break;
@@ -150,5 +147,22 @@ std::ostream& operator<<(std::ostream& os, const RejectionMessage<CT>& m)
     return os;
 }
 
+inline
+std::ostream& operator<<(std::ostream &os, P2pAppType at)
+{
+    switch (at)
+    {
+        case P2pAppType::Consensus:
+            os << "Consensus";
+            break;
+        case P2pAppType::AddressAd:
+            os << "AddressAd";
+            break;
+        case P2pAppType::AddressAdTxAcceptor:
+            os << "AddressAdTxAcceptor";
+            break;
+    }
+    return os;
+}
 
 

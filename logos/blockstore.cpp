@@ -333,6 +333,9 @@ checksum (0)
 
         sync_leading_candidates(transaction);
 
+        // address advertisement
+        error_a |= mdb_dbi_open (transaction, "address_ad_db", MDB_CREATE, &address_ad_db) != 0;
+        error_a |= mdb_dbi_open (transaction, "address_ad_tx_db", MDB_CREATE | MDB_DUPSORT, &address_ad_txa_db) != 0;
 
         if (!error_a)
         {
@@ -1385,14 +1388,20 @@ bool logos::block_store::candidate_is_greater(
         const AccountAddress& account2,
         const CandidateInfo& candidate2)
 {
-   Delegate del1(
+    std::string key_str = "3059301306072a8648ce3d020106082a8648ce3d030107034200048e1ad7"
+                          "98008baac3663c0c1a6ce04c7cb632eb504562de923845fccf39d1c46dee"
+                          "52df70f6cf46f1351ce7ac8e92055e5f168f5aff24bcaab7513d447fd677d3";
+    ECIESPublicKey pk(key_str, true);
+    Delegate del1(
           account1,
           0,
+          pk,
           candidate1.votes_received_weighted,
           candidate1.stake); 
-   Delegate del2(
+    Delegate del2(
           account2,
           0,
+          pk,
           candidate2.votes_received_weighted,
           candidate2.stake);
 
@@ -2010,4 +2019,33 @@ uint32_t logos::block_store::consensus_block_get_raw(const BlockHash & hash,
 //TODO
     }
 #endif
+}
+
+template<typename KeyType, typename ... Args>
+bool
+logos::block_store::ad_get(MDB_txn *t, std::vector<uint8_t> &data, Args ... args)
+{
+    KeyType key{args ... };
+    mdb_val value;
+
+    auto db = get_ad_db<KeyType>();
+    int status = 0;
+    if (t == 0) {
+        logos::transaction transaction(environment, nullptr, false);
+        status = mdb_get(transaction, db, mdb_val(sizeof(key), &key), value);
+    } else {
+        status = mdb_get(t, db, mdb_val(sizeof(key), &key), value);
+    }
+    assert (status == 0 || status == MDB_NOTFOUND);
+    bool result;
+    if (status == MDB_NOTFOUND)
+    {
+        result = true;
+    }
+    else
+    {
+        data.resize(value.size());
+        memcpy(data.data(), value.data(), value.size());
+    }
+    return result;
 }

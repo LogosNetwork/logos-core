@@ -15,7 +15,6 @@
 class p2p_interface;
 
 /// Bridge class between P2p and ConsensusManager/DelegateBridge
-template<ConsensusType CT>
 class ConsensusP2pBridge {
     using Timer         = boost::asio::deadline_timer;
     using ErrorCode     = boost::system::error_code;
@@ -76,7 +75,7 @@ protected:
 
 private:
     static const Seconds    P2P_TIMEOUT;    /// p2p default timeout 60 seconds
-    ConsensusP2pOutput<CT>  _p2p_output;    /// p2p object which handles p2p receive/send
+    ConsensusP2pOutput      _p2p_output;    /// p2p object which handles p2p receive/send
     atomic_bool             _enable_p2p;    /// Enable p2p flag for p2p backup consensus
     Log                     _log;           /// Log object
     Timer                   _timer;         /// P2p timer object

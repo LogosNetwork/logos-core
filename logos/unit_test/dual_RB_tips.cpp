@@ -7,6 +7,8 @@
 #include <logos/unit_test/msg_validator_setup.hpp>
 #include <random>
 
+extern PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare(bool t = true);
+
 logos::block_store * get_and_setup_db()
 {
     logos::block_store* store(get_db());
@@ -237,7 +239,9 @@ TEST (DualRBTip, RequestBlockLinking1)
     uint8_t delegate (15);
 
     // Store epoch block twice previous, epoch tip, prev epoch's last request block
-    ApprovedEB preprev_e;
+    auto block = create_eb_preprepare();
+    AggSignature sig;
+    ApprovedEB preprev_e(block, sig, sig);
     ApprovedRB prev_r;
 
     preprev_e.epoch_number = cur_epoch - 2;
@@ -291,7 +295,9 @@ TEST (DualRBTip, RequestBlockLinking2)
     uint8_t delegate (15);
 
     // Store epoch block twice previous, previous epoch, epoch tip, prev epoch's last request block
-    ApprovedEB preprev_e;
+    auto block = create_eb_preprepare();
+    AggSignature sig;
+    ApprovedEB preprev_e(block, sig, sig);
     ApprovedRB prev_r;
 
     preprev_e.epoch_number = cur_epoch - 2;
@@ -318,7 +324,7 @@ TEST (DualRBTip, RequestBlockLinking2)
     }
 
     // Simulate apply previous epoch block
-    ApprovedEB prev_e;
+    ApprovedEB prev_e(block, sig, sig);
     prev_e.epoch_number = cur_epoch - 1;
     prev_e.previous = preprev_e.Hash();
     PersistenceManager<ConsensusType::Epoch> epoch_persistence (*store,
@@ -361,6 +367,8 @@ TEST (DualRBTip, RequestBlockLinking2)
 // Test epoch and request possible race condition
 TEST (DualRBTip, RaceLinking)
 {
+    auto block = create_eb_preprepare();
+    AggSignature sig;
     for (int i = 0; i < 5; i++)
     {
         logos::block_store *store(get_and_setup_db());
@@ -370,7 +378,7 @@ TEST (DualRBTip, RaceLinking)
         uint8_t delegate (15);
 
         // Store epoch block twice previous, previous epoch, epoch tip, prev epoch's last request block
-        ApprovedEB preprev_e;
+        ApprovedEB preprev_e(block, sig, sig);
         ApprovedRB prev_r;
 
         preprev_e.epoch_number = cur_epoch - 2;
@@ -397,7 +405,7 @@ TEST (DualRBTip, RaceLinking)
         }
 
         // Simulate apply previous epoch block
-        ApprovedEB prev_e;
+        ApprovedEB prev_e(block, sig, sig);
         prev_e.epoch_number = cur_epoch - 1;
         prev_e.previous = preprev_e.Hash();
         PersistenceManager<ConsensusType::Epoch> epoch_persistence (*store,

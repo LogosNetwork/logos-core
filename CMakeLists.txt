@@ -367,6 +367,8 @@ add_library (node
 	logos/epoch/recall_handler.cpp
 	logos/epoch/epoch_voting_manager.cpp
 	logos/epoch/event_proposer.cpp
+	logos/identity_management/delegate_identity_manager.hpp
+	logos/identity_management/delegate_identity_manager.cpp
 	logos/microblock/microblock.cpp
 	logos/microblock/microblock_handler.cpp
 	logos/microblock/microblock_tester.cpp
@@ -382,8 +384,6 @@ add_library (node
 	logos/node/common.hpp
 	logos/node/node.hpp
 	logos/node/node.cpp
-	logos/node/delegate_identity_manager.hpp
-	logos/node/delegate_identity_manager.cpp
 	logos/node/openclwork.cpp
 	logos/node/openclwork.hpp
 	logos/node/rpc.hpp
@@ -426,6 +426,7 @@ option(TEST_REJECT "Makes delegate reject random transactions inside PrePrepare 
 
 if (LOGOS_TEST)
 	add_executable (unit_test
+		logos/unit_test/main.cpp
 		logos/unit_test/account_serialization.cpp
         logos/unit_test/bootstrap.cpp
 		logos/unit_test/consensus_msg_serialize.cpp
@@ -436,7 +437,8 @@ if (LOGOS_TEST)
 		logos/unit_test/elections.cpp
         logos/unit_test/p2p_test.cpp
         logos/p2p/test/propagate_test.cpp
-        logos/p2p/test/storage_test.cpp)
+        logos/p2p/test/storage_test.cpp
+		logos/unit_test/advertise.cpp)
 
 	set_target_properties (unit_test PROPERTIES COMPILE_FLAGS "${PLATFORM_CXX_FLAGS} ${PLATFORM_COMPILE_FLAGS} -DQT_NO_KEYWORDS -DACTIVE_NETWORK=${ACTIVE_NETWORK} -DLOGOS_VERSION_MAJOR=${CPACK_PACKAGE_VERSION_MAJOR} -DLOGOS_VERSION_MINOR=${CPACK_PACKAGE_VERSION_MINOR} -DBOOST_ASIO_HAS_STD_ARRAY=1 ")
 	if (STRICT_CONSENSUS_THRESHOLD MATCHES ON)

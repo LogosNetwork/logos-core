@@ -96,6 +96,9 @@ Archiver::Start(InternalConsensus &consensus)
                 if ((_eb_num == latest_eb_num + 1 && !_mb_seq) ||
                     (_eb_num == latest_eb_num && _mb_seq == latest_mb_seq + 1))
                 {
+                    LOG_ERROR(_log) << "Archiver::Start one ahead of db, _eb_num " << _eb_num
+                                    << " _mb_seq " << _mb_seq << " latest_eb_num " << latest_eb_num
+                                    << " latest_mb_seq " << latest_mb_seq;
                     return;
                 }
                 // we somehow ended up ahead more than one ahead, should not happen
@@ -109,6 +112,9 @@ Archiver::Start(InternalConsensus &consensus)
             // TODO: sync clock?
             else if (_eb_num < latest_eb_num || (_eb_num == latest_eb_num && _mb_seq < latest_mb_seq))
             {
+                LOG_ERROR(_log) << "Archiver::Start behind in time, _eb_num " << _eb_num
+                                << " _mb_seq " << _mb_seq << " latest_eb_num " << latest_eb_num
+                                << " latest_mb_seq " << latest_mb_seq;
                 _eb_num = latest_eb_num;
                 _mb_seq = latest_mb_seq;
                 return;

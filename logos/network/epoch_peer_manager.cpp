@@ -11,7 +11,7 @@
 
 EpochPeerManager::EpochPeerManager(Service& service,
                                    const Config &config,
-                                   PeerBinder binder)
+                                   PeerBinder & binder)
     : _peer_acceptor(service,
                      Endpoint(boost::asio::ip::make_address_v4(config.local_address),
                               config.peer_port), *this)
@@ -22,35 +22,27 @@ void
 EpochPeerManager::OnConnectionAccepted(const EpochPeerManager::Endpoint endpoint,
                                        std::shared_ptr<EpochPeerManager::Socket> socket)
 {
-    auto buf = std::make_shared<std::array<uint8_t, ConnectedClientIds::StreamSize()>>();
-
-    boost::asio::async_read(*socket,
-                           boost::asio::buffer(buf->data(), ConnectedClientIds::StreamSize()),
-                           [this, endpoint, socket, buf](const ErrorCode &error, size_t size) {
-        if (error)
+    auto port = endpoint.port();
+    _peer_binder.GetIdentityManager().ServerHandshake(socket, [this, socket, port](std::shared_ptr<AddressAd> ad) {
+        if (!ad)
         {
-            LOG_ERROR(_log) << "EpochPeerManager::OnConnectionAccepted error: " << error.message();
-            return;
-        }
-        bool stream_error = false;
-        logos::bufferstream stream(buf->data(), ConnectedClientIds::StreamSize());
-        auto ids = std::make_shared<ConnectedClientIds>(stream_error, stream);
-        if (stream_error)
-        {
-            LOG_ERROR(_log) << "EpochPeerManager::OnConnectionAccepted deserialization error";
-            return;
-        }
-
-        // check for bogus data
-        if (ids->delegate_id > NUM_DELEGATES - 1
-        || static_cast<int>(ids->connection) > 2
-        || ids->epoch_number > ConsensusContainer::GetCurEpochNumber() + INVALID_EPOCH_GAP )
-        {
-            LOG_ERROR(_log) << "EpochPeerManager::OnConnectionAccepted - Likely received bogus data from unexpected connection.";
+            LOG_DEBUG(_log) << "EpochPeerManager::OnConnectionAccepted, failed to read client's ad";
+            socket->close();
         }
         else
         {
-            _peer_binder(Endpoint(boost::asio::ip::make_address_v4(ids->ip), endpoint.port()), socket, *ids);
+            auto res = _peer_binder.Bind(socket,
+                                         Endpoint(boost::asio::ip::make_address_v4(ad->GetIP().c_str()), port),
+                                         ad->epoch_number,
+                                         ad->delegate_id);
+            if (!res)
+            {
+                socket->close();
+            }
+            else
+            {
+                _peer_binder.GetIdentityManager().UpdateAddressAd(*ad);
+            }
         }
     });
 }

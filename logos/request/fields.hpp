@@ -78,7 +78,8 @@ const char VOTES[]           = "votes";
 const char REQUEST[]         = "request";
 const char STAKE[]           = "stake";
 const char EPOCH_NUM[]       = "epoch_num";
-const char BLS_KEY[]         = "bls_key"; 
+const char BLS_KEY[]         = "bls_key";
+const char ECIES_KEY[]       = "ecies_key";
 
 // Token setting fields
 //

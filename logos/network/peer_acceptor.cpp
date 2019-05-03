@@ -1,5 +1,5 @@
 #include <logos/network/peer_acceptor.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 
 PeerAcceptor::PeerAcceptor(Service & service,
                            const Endpoint & local_endpoint,
@@ -15,8 +15,7 @@ void PeerAcceptor::Start()
     if (_acceptor.is_open())
     {
         LOG_WARN(_log) << "PeerAcceptor::Start, acceptor is already active "
-                        << (int)DelegateIdentityManager::_global_delegate_idx << " "
-                        << DelegateIdentityManager::_delegates_ip[DelegateIdentityManager::_delegate_account];
+                        << (int)DelegateIdentityManager::GetGlobalDelegateIdx();
         return;
     }
 

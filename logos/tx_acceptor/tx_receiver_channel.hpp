@@ -8,6 +8,7 @@
 #include <logos/tx_acceptor/tx_message_header.hpp>
 #include <logos/network/net_io_assembler.hpp>
 #include <logos/tx_acceptor/tx_channel.hpp>
+#include <logos/node/node.hpp>
 #include <logos/lib/log.hpp>
 
 #include <boost/asio/deadline_timer.hpp>
@@ -42,7 +43,8 @@ private:
     TxReceiverErrorHandler & _error_handler;    /// reference to the error handler object
 };
 
-class TxReceiverChannel : public TxReceiverErrorHandler
+class TxReceiverChannel : public TxReceiverErrorHandler,
+                          public Self<TxReceiverChannel>
 {
     using Service       = boost::asio::io_service;
     using Socket        = boost::asio::ip::tcp::socket;
@@ -50,12 +52,26 @@ class TxReceiverChannel : public TxReceiverErrorHandler
     using Error         = boost::system::error_code;
     using Timer         = boost::asio::deadline_timer;
     using Seconds       = boost::posix_time::seconds;
+    using Config        = logos::node_config;
+    template<typename T>
+    using SPTR          = std::shared_ptr<T>;
 
 public:
     TxReceiverChannel(Service & service, logos::alarm & alarm,
                       const std::string & ip, const uint16_t port,
-                      TxChannel & receiver);
+                      std::shared_ptr<TxChannelExt> receiver,
+                      const Config &config);
     ~TxReceiverChannel() = default;
+
+    bool Equal(const std::string &ip, uint16_t port)
+    {
+        return _endpoint.address().to_string() == ip && _endpoint.port() == port;
+    }
+
+    void Start()
+    {
+        Connect();
+    }
 
 private:
 
@@ -83,14 +99,15 @@ private:
     static const Seconds TIMEOUT; // 15 seconds
     static const uint16_t INACTIVITY; // milliseconds (60 seconds)
 
-    Service &                   _service;           /// boost asio service reference
-    Endpoint                    _endpoint;          /// local endpoint
-    std::shared_ptr<Socket>     _socket;            /// connected socket
-    logos::alarm &              _alarm;             /// logos's alarm reference
-    TxChannel &                 _receiver;          /// channel to forward transactions
-    Log                         _log;               /// boost log
-    TxReceiverNetIOAssembler    _assembler;         /// assembles messages from TCP buffer
-    uint64_t                    _last_received;     /// last received message timestamp
-    Timer                       _inactivity_timer;  /// inactivity timer
-    std::mutex                  _mutex;             /// timer's mutex
+    Service &                       _service;           /// boost asio service reference
+    Endpoint                        _endpoint;          /// local endpoint
+    std::shared_ptr<Socket>         _socket;            /// connected socket
+    logos::alarm &                  _alarm;             /// logos's alarm reference
+    std::shared_ptr<TxChannelExt>   _receiver;          /// channel to forward transactions
+    Log                             _log;               /// boost log
+    SPTR<TxReceiverNetIOAssembler>  _assembler;         /// assembles messages from TCP buffer
+    uint64_t                        _last_received;     /// last received message timestamp
+    Timer                           _inactivity_timer;  /// inactivity timer
+    std::mutex                      _mutex;             /// timer's mutex
+    Config                          _config;            /// node configuration reference
 };

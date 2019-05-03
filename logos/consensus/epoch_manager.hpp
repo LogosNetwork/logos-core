@@ -8,7 +8,7 @@
 #include <logos/consensus/request/request_consensus_manager.hpp>
 #include <logos/consensus/epoch/epoch_consensus_manager.hpp>
 #include <logos/network/consensus_netio_manager.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/lib/utility.hpp>
 
 class Archiver;
@@ -29,6 +29,7 @@ public:
     virtual std::string GetStateName() = 0;
     virtual bool IsWaitingDisconnect() = 0;
     virtual uint8_t GetDelegateId() = 0;
+    virtual DelegateIdentityManager & GetIdentityManager() = 0;
 };
 
 class EpochEventsNotifier
@@ -75,7 +76,9 @@ public:
                  ConsensusScheduler & scheduler,
                  NewEpochEventHandler & event_handler,
                  p2p_interface & p2p,
-                 uint8_t delegate_id);
+                 uint8_t delegate_id,
+                 PeerAcceptorStarter & starter,
+                 std::shared_ptr<ApprovedEB> eb);
 
     ~EpochManager();
 
@@ -108,7 +111,9 @@ public:
         return _delegate_id;
     }
 
-    void Start(PeerAcceptorStarter & starter);
+    void Start();
+
+    DelegateIdentityManager & GetIdentityManager() override;
 
 private:
 
@@ -117,12 +122,12 @@ private:
     std::atomic<EpochConnection>            _connection_state;  ///< Delegate's connection set
     const uint                              _epoch_number;      ///< Epoch's number
     NewEpochEventHandler &                  _new_epoch_handler; ///< Call back on new epoch events
-    DelegateKeyStore                        _key_store;         ///< Store delegates public keys
-    MessageValidator                        _validator;         ///< Validator/Signer of consensus messages
-    SPTR<RequestConsensusManager>           _request_manager;     ///< Handles batch block consensus
-    SPTR<MicroBlockConsensusManager>        _micro_manager;     ///< Handles micro block consensus
-    SPTR<EpochConsensusManager>             _epoch_manager;     ///< Handles epoch consensus
-    SPTR<ConsensusNetIOManager>             _netio_manager;     ///< Establishes connections to other delegates
+    DelegateKeyStore                        _key_store; 		///< Store delegates public keys
+    MessageValidator                        _validator; 		///< Validator/Signer of consensus messages
+    SPTR<RequestConsensusManager>           _request_manager; 	///< Handles batch block consensus
+    SPTR<MicroBlockConsensusManager>        _micro_manager; 	///< Handles micro block consensus
+    SPTR<EpochConsensusManager>             _epoch_manager; 	///< Handles epoch consensus
+    SPTR<ConsensusNetIOManager>             _netio_manager; 	///< Establishes connections to other delegates
     Log                                     _log;               ///< Boost log
     uint8_t                                 _delegate_id;       ///< Delegate id
 };

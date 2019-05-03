@@ -3,11 +3,12 @@
 /// for non-delegate, TODO : THIS MUST BE UPDATED ONCE THERE IS A TRUE PKI HANDLING
 
 #include <logos/consensus/persistence/validator_builder.hpp>
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 
 std::unordered_map<uint32_t, ValidatorBuilder::pki> ValidatorBuilder::_epoch_pki;
 uint32_t ValidatorBuilder::_cached_epoch = 0;
 std::shared_ptr<MessageValidator> ValidatorBuilder::_cached_validator = nullptr;
+std::mutex ValidatorBuilder::_mutex;
 
 ValidatorBuilder::ValidatorBuilder(ValidatorBuilder::Store &store)
     : _store(store)
@@ -16,6 +17,7 @@ ValidatorBuilder::ValidatorBuilder(ValidatorBuilder::Store &store)
 std::shared_ptr<MessageValidator>
 ValidatorBuilder::GetValidator(uint32_t epoch_number)
 {
+    std::lock_guard<std::mutex> lock(_mutex);
     std::shared_ptr<MessageValidator> validator = nullptr;
     BlockHash   hash;
     ApprovedEB  epoch;
@@ -57,8 +59,7 @@ ValidatorBuilder::GetValidator(uint32_t epoch_number)
         if (epoch_number == epoch.epoch_number)
         {
             auto key_store = std::make_shared<DelegateKeyStore>();
-            validator = std::make_shared<MessageValidator>(*key_store,
-                logos::genesis_delegates[DelegateIdentityManager::_global_delegate_idx].bls_key);
+            validator = std::make_shared<MessageValidator>(*key_store);
             uint8_t id = 0;
             for (auto delegate : epoch.delegates)
             {

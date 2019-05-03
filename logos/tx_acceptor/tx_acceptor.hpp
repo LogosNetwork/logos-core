@@ -80,6 +80,8 @@ public:
     /// @returns true if the client's connection can be accpted
     bool CanAcceptClientConnection(std::shared_ptr<boost::asio::ip::tcp::socket> socket);
 
+    virtual void Start() {}
+
 private:
     friend class TxAcceptorStandalone;
     friend class TxAcceptorDelegate;
@@ -204,6 +206,10 @@ public:
         : TxAcceptor(service, config)
     {}
     ~TxAcceptorStandalone() = default;
+    void Start() override
+    {
+        _acceptor_channel = std::make_shared<TxAcceptorChannel>(_service, _config);
+    }
 };
 
 /// Delegate parses batch request and sends transactions as vector.

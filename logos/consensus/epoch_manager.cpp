@@ -19,20 +19,26 @@ EpochManager::EpochManager(Service & service,
                            ConsensusScheduler & scheduler,
                            NewEpochEventHandler & handler,
                            p2p_interface & p2p,
-                           uint8_t delegate_id)
+                           uint8_t delegate_id,
+                           PeerAcceptorStarter & starter,
+                           std::shared_ptr<ApprovedEB> eb)
     : _state(state)
     , _delegate(delegate)
     , _connection_state(connection)
     , _epoch_number(epoch_number)
     , _new_epoch_handler(handler)
-    , _validator(_key_store, logos::genesis_delegates[DelegateIdentityManager::_global_delegate_idx].bls_key)
+    , _validator(_key_store)
     , _request_manager(std::make_shared<RequestConsensusManager>(service, store, config, scheduler, _validator, p2p, epoch_number))
     , _micro_manager(std::make_shared<MicroBlockConsensusManager>(service, store, config, scheduler, _validator, archiver, p2p, epoch_number))
     , _epoch_manager(std::make_shared<EpochConsensusManager>(service, store, config, scheduler, _validator, p2p, epoch_number))
     , _netio_manager(std::make_shared<ConsensusNetIOManager>(_request_manager, _micro_manager, _epoch_manager,
-                     service, alarm, config, _key_store, _validator))
+                     service, alarm, config, starter))
     , _delegate_id(delegate_id)
 {
+    for (int del = 0; del < NUM_DELEGATES; del++)
+    {
+        _key_store.OnPublicKey(del, eb->delegates[del].bls_pub);
+    }
 }
 
 EpochManager::~EpochManager()
@@ -86,11 +92,17 @@ EpochManager::CleanUp()
 }
 
 void
-EpochManager::Start(PeerAcceptorStarter & starter)
+EpochManager::Start()
 {
     auto this_l = shared_from_this();
     _request_manager->Init(this_l);
     _micro_manager->Init(this_l);
     _epoch_manager->Init(this_l);
-    _netio_manager->Start(this_l, starter);
+    _netio_manager->Start(this_l);
+}
+
+DelegateIdentityManager &
+EpochManager::GetIdentityManager()
+{
+    return _new_epoch_handler.GetIdentityManager();
 }

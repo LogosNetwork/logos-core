@@ -773,14 +773,21 @@ bool p2p_interface::PropagateMessage(const void *message, unsigned size, bool ou
 {
     if (!p2p)
     {
+        LogPrintf("p2p_interface::PropagateMessage, null p2p\n");
         return false;
     }
 
     struct PropagateMessage mess(message, size);
-    if (p2p->Find(mess)
-            || !(output || ReceiveMessageCallback(message, size))
-            || !p2p->Propagate(mess))
+    bool bfind=false;
+    bool brecv=false;
+    bool bprop=false;
+    if ((bfind=p2p->Find(mess))
+            || (brecv=!(output || ReceiveMessageCallback(message, size)))
+            || (bprop=!p2p->Propagate(mess)))
     {
+        if (!bfind) {
+            LogPrintf("p2p_interface::PropagateMessage, failed to propagate, %d,%d\n", brecv, bprop);
+        }
         return false;
     }
 

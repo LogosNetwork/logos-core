@@ -24,23 +24,21 @@ public:
         DelegateSig signature;
     };
 
-    MessageValidator(DelegateKeyStore & key_store, KeyPair &key_pair);
+    MessageValidator(DelegateKeyStore & key_store);
 
     //single
-    void Sign(const BlockHash & hash, DelegateSig & sig)
-    {
-        string hash_str(reinterpret_cast<const char*>(hash.data()), HASH_SIZE);
+    virtual void Sign(const BlockHash & hash, DelegateSig & sig);
 
-        SignatureReal sig_real;
-        _keypair.prv.sign(sig_real, hash_str);
-
-        string sig_str;
-        sig_real.serialize(sig_str);
-        memcpy(&sig, sig_str.data(), CONSENSUS_SIG_SIZE);
-    }
-    //single
     bool Validate(const BlockHash & hash, const DelegateSig & sig, uint8_t delegate_id)
     {
+        auto pub_key = _keys.GetPublicKey(delegate_id);
+        return Validate(hash, sig, pub_key);
+    }
+
+    //single
+    static bool Validate(const BlockHash & hash, const DelegateSig & sig, const PublicKeyReal &pub_key)
+    {
+        Log log;
         //hash
         string hash_str(reinterpret_cast<const char*>(hash.data()), HASH_SIZE);
 
@@ -54,12 +52,12 @@ public:
         }
         catch (const bls::Exception &)
         {
-            LOG_ERROR(_log) << "MessageValidator - Failed to deserialize signature.";
+            LOG_ERROR(log) << "MessageValidator - Failed to deserialize signature.";
             return false;
         }
 
         //verify
-        return sig_real.verify(_keys.GetPublicKey(delegate_id), hash_str);
+        return sig_real.verify(pub_key, hash_str);
     }
     //aggregate
     bool AggregateSignature(const std::vector<DelegateSignature> & signatures, AggSignature & agg_sig)
@@ -133,11 +131,35 @@ public:
         return sig_real.verify(apk, hash_str);
     }
 
-    DelegatePubKey GetPublicKey();
+    virtual DelegatePubKey GetPublicKey();
+
+    static DelegatePubKey BlsPublicKey(bls::PublicKey &bls_pub)
+    {
+        std::string keystring;
+        bls_pub.serialize(keystring);
+
+        DelegatePubKey pk;
+        memcpy(pk.data(), keystring.data(), CONSENSUS_PUB_KEY_SIZE);
+
+        return pk;
+    }
+
+    template<typename F>
+    static void Sign(const BlockHash &hash, DelegateSig & sig, F &&signee)
+    {
+        string hash_str(reinterpret_cast<const char*>(hash.data()), HASH_SIZE);
+
+        bls::Signature sig_real;
+
+        signee(sig_real, hash_str);
+
+        string sig_str;
+        sig_real.serialize(sig_str);
+        memcpy(&sig, sig_str.data(), CONSENSUS_SIG_SIZE);
+    }
 
 private:
 
     Log                 _log;
-    KeyPair             _keypair;
     DelegateKeyStore &  _keys;
 };

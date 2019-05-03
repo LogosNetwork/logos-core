@@ -28,15 +28,28 @@ public:
     /// @param receiver channel to pass transaction for consensus protocol [in]
     /// @param config of the node [in]
     TxReceiver(Service & service, logos::alarm &alarm,
-               std::shared_ptr<TxChannel> receiver, logos::node_config &config);
+               std::shared_ptr<TxChannelExt> receiver, logos::node_config &config);
     /// Class destructor
     ~TxReceiver() = default;
 
+    /// Add tx acceptor
+    /// @param ip of the tx acceptor
+    /// @param port of the tx acceptor
+    bool AddChannel(const std::string &ip, uint16_t port);
+
+    /// Delete tx acceptor
+    /// @param ip of the tx acceptor
+    /// @param port of the tx acceptor
+    bool DeleteChannel(const std::string &ip, uint16_t port);
+
+    void Start();
+
 private:
-    Service &                   _service;   /// boost asio service reference
-    logos::alarm &              _alarm;     /// logos alarm reference
-    TxAcceptorConfig            _config;    /// TxAcceptor configuration
-    std::shared_ptr<TxChannel>  _receiver;  /// channel receiving TxAcceptor transactions
-    std::vector<TxChannelPtr>   _channels;  /// channels to receive TxAcceptor transactions
-    Log                         _log;       /// boost log
+    Service &                      _service;   /// boost asio service reference
+    logos::alarm &                 _alarm;     /// logos alarm reference
+    logos::node_config              _config;    /// TxAcceptor configuration
+    std::shared_ptr<TxChannelExt>  _receiver;  /// channel receiving TxAcceptor transactions
+    std::vector<TxChannelPtr>      _channels;  /// channels to receive TxAcceptor transactions
+    Log                            _log;       /// boost log
+    std::mutex                     _mutex;     /// _channels access concurrency
 };

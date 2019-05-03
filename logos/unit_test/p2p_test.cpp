@@ -225,9 +225,14 @@ TEST (P2pTest, VerifyCache)
 
     Prequel p;
 
+    extern Delegate init_delegate(AccountAddress account, Amount vote, Amount stake, bool starting_term);
     PostCommittedBlock<ConsensusType::Request> blockB;
     PostCommittedBlock<ConsensusType::MicroBlock> blockM;
     PostCommittedBlock<ConsensusType::Epoch> blockE;
+    for (int i = 0; i < NUM_DELEGATES; i++)
+    {
+        blockE.delegates[i] = init_delegate(0, 0, 0, 0);
+    }
     std::vector<uint8_t> bufB[5], bufM[5], bufE[5];
     logos::block_hash hashB, hashM, hashE;
 

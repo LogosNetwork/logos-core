@@ -2,7 +2,7 @@
 // Defines sink for consensus message
 //
 
-#include <logos/node/delegate_identity_manager.hpp>
+#include <logos/identity_management/delegate_identity_manager.hpp>
 #include <logos/consensus/consensus_msg_sink.hpp>
 #include <logos/consensus/messages/util.hpp>
 
