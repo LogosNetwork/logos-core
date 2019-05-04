@@ -220,37 +220,10 @@ public:
     }
 
     /**
-     * Get the help string
-     */
-    std::string GetHelpMessage() const;
-
-    /**
      * Check whether we know of this arg
      */
     bool IsArgKnown(const std::string& key) const;
 };
-
-/**
- * @return true if help has been requested via a command-line arg
- */
-bool HelpRequested(const ArgsManager& args);
-
-/**
- * Format a string to be used as group of options in help messages
- *
- * @param message Group name (e.g. "RPC server options:")
- * @return the formatted string
- */
-std::string HelpMessageGroup(const std::string& message);
-
-/**
- * Format a string to be used as option description in help messages
- *
- * @param option Option message (e.g. "-rpcuser=<user>")
- * @param message Option description (e.g. "Username for JSON-RPC connections")
- * @return the formatted string
- */
-std::string HelpMessageOpt(const std::string& option, const std::string& message);
 
 void RenameThread(const char* name);
 

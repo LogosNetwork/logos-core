@@ -447,91 +447,9 @@ void ArgsManager::AddHiddenArgs(const std::vector<std::string>& names)
     }
 }
 
-std::string ArgsManager::GetHelpMessage() const
-{
-    const bool show_debug = GetBoolArg("-help-debug", false);
-
-    std::string usage = "";
-    LOCK(cs_args);
-    for (const auto& arg_map : m_available_args) {
-        switch(arg_map.first) {
-            case OptionsCategory::OPTIONS:
-                usage += HelpMessageGroup("Options:");
-                break;
-            case OptionsCategory::CONNECTION:
-                usage += HelpMessageGroup("Connection options:");
-                break;
-            case OptionsCategory::DEBUG_TEST:
-                usage += HelpMessageGroup("Debugging/Testing options:");
-                break;
-            case OptionsCategory::NODE_RELAY:
-                usage += HelpMessageGroup("Node relay options:");
-                break;
-            case OptionsCategory::BLOCK_CREATION:
-                usage += HelpMessageGroup("Block creation options:");
-                break;
-            case OptionsCategory::RPC:
-                usage += HelpMessageGroup("RPC server options:");
-                break;
-            case OptionsCategory::WALLET:
-                usage += HelpMessageGroup("Wallet options:");
-                break;
-            case OptionsCategory::WALLET_DEBUG_TEST:
-                if (show_debug) usage += HelpMessageGroup("Wallet debugging/testing options:");
-                break;
-            case OptionsCategory::CHAINPARAMS:
-                usage += HelpMessageGroup("Chain selection options:");
-                break;
-            case OptionsCategory::GUI:
-                usage += HelpMessageGroup("UI Options:");
-                break;
-            case OptionsCategory::COMMANDS:
-                usage += HelpMessageGroup("Commands:");
-                break;
-            case OptionsCategory::REGISTER_COMMANDS:
-                usage += HelpMessageGroup("Register Commands:");
-                break;
-            default:
-                break;
-        }
-
-        // When we get to the hidden options, stop
-        if (arg_map.first == OptionsCategory::HIDDEN) break;
-
-        for (const auto& arg : arg_map.second) {
-            if (show_debug || !arg.second.m_debug_only) {
-                std::string name;
-                if (arg.second.m_help_param.empty()) {
-                    name = arg.first;
-                } else {
-                    name = arg.first + arg.second.m_help_param;
-                }
-                usage += HelpMessageOpt(name, arg.second.m_help_text);
-            }
-        }
-    }
-    return usage;
-}
-
-bool HelpRequested(const ArgsManager& args)
-{
-    return args.IsArgSet("-?") || args.IsArgSet("-h") || args.IsArgSet("-help");
-}
-
 constexpr int screenWidth = 79;
 constexpr int optIndent = 2;
 constexpr int msgIndent = 7;
-
-std::string HelpMessageGroup(const std::string &message) {
-    return std::string(message) + std::string("\n\n");
-}
-
-std::string HelpMessageOpt(const std::string &option, const std::string &message) {
-    return std::string(optIndent,' ') + std::string(option) +
-           std::string("\n") + std::string(msgIndent,' ') +
-           FormatParagraph(message, screenWidth - msgIndent, msgIndent) +
-           std::string("\n\n");
-}
 
 static std::string FormatException(const std::exception* pex, const char* pszThread)
 {

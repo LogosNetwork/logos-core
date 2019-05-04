@@ -87,25 +87,18 @@ bool CMessageHeader::IsValid(const MessageStartChars& pchMessageStartIn, BCLog::
     return true;
 }
 
-
-ServiceFlags GetDesirableServiceFlags(ServiceFlags services) {
-    return ServiceFlags(NODE_NETWORK);
-}
-
 CAddress::CAddress() : CService()
 {
     Init();
 }
 
-CAddress::CAddress(CService ipIn, ServiceFlags nServicesIn) : CService(ipIn)
+CAddress::CAddress(CService ipIn) : CService(ipIn)
 {
     Init();
-    nServices = nServicesIn;
 }
 
 void CAddress::Init()
 {
-    nServices = NODE_NONE;
     nTime = 100000000;
 }
 

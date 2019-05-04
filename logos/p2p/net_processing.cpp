@@ -130,16 +130,15 @@ public:
 
 void PeerLogicValidation_internal::PushNodeVersion(std::shared_ptr<CNode> pnode, CConnman* connman, int64_t nTime)
 {
-    ServiceFlags nLocalNodeServices = pnode->GetLocalServices();
     uint64_t nonce = pnode->GetLocalNonce();
     int nNodeStartingHeight = -1; /* we do not change format of the message and remain this field constantly equal to -1 */
     NodeId nodeid = pnode->GetId();
     CAddress addr = pnode->addr;
 
-    CAddress addrYou = (addr.IsRoutable() ? addr : CAddress(CService(), addr.nServices));
-    CAddress addrMe = CAddress(CService(), nLocalNodeServices);
+    CAddress addrYou = (addr.IsRoutable() ? addr : CAddress());
+    CAddress addrMe;
 
-    connman->PushMessage(pnode, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)nLocalNodeServices, nTime, addrYou, addrMe,
+    connman->PushMessage(pnode, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)0, nTime, addrYou, addrMe,
             nonce, connman->strSubVersion, nNodeStartingHeight, true));
 
     if (connman->fLogIPs) {
@@ -301,7 +300,6 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
         CAddress addrFrom;
         uint64_t nNonce = 1;
         uint64_t nServiceInt;
-        ServiceFlags nServices;
         int nVersion;
         int nSendVersion;
         std::string strSubVer;
@@ -311,21 +309,6 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
 
         vRecv >> nVersion >> nServiceInt >> nTime >> addrMe;
         nSendVersion = std::min(nVersion, PROTOCOL_VERSION);
-        nServices = ServiceFlags(nServiceInt);
-        if (!pfrom->fInbound)
-        {
-            connman->SetServices(pfrom->addr, nServices);
-        }
-        if (!pfrom->fInbound && !pfrom->fFeeler && !pfrom->m_manual_connection && !HasAllDesirableServiceFlags(nServices))
-        {
-            LogPrint(BCLog::NET, "peer=%d does not offer the expected services (%08x offered, %08x expected); disconnecting\n", pfrom->GetId(), nServices, GetDesirableServiceFlags(nServices));
-            if (enable_bip61) {
-                connman->PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_NONSTANDARD,
-                                   strprintf("Expected to offer services %08x", GetDesirableServiceFlags(nServices))));
-            }
-            pfrom->fDisconnect = true;
-            return false;
-        }
 
         if (!vRecv.empty())
             vRecv >> addrFrom >> nNonce;
@@ -357,7 +340,6 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
 
         connman->PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERACK));
 
-        pfrom->nServices = nServices;
         pfrom->SetAddrLocal(addrMe);
         {
             LOCK(pfrom->cs_SubVer);
@@ -374,7 +356,7 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
             // Advertise our address
             if (connman->fListen)
             {
-                CAddress addr = connman->GetLocalAddress(&pfrom->addr, pfrom->GetLocalServices());
+                CAddress addr = connman->GetLocalAddress(&pfrom->addr);
                 FastRandomContext insecure_rand(connman->random_);
                 if (addr.IsRoutable())
                 {
@@ -467,12 +449,6 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
         {
             if (interruptMsgProc)
                 return true;
-
-            // We only bother storing full nodes, though this may include
-            // things which we would not make an outbound connection to, in
-            // part because we may make feeler connections to them.
-            if (!MayHaveUsefulAddressDB(addr.nServices) && !HasAllDesirableServiceFlags(addr.nServices))
-                continue;
 
             if (addr.nTime <= 100000000 || addr.nTime > nNow + 10 * 60)
                 addr.nTime = nNow - 5 * 24 * 60 * 60;

@@ -189,7 +189,6 @@ public:
 
     struct Options
     {
-        ServiceFlags nLocalServices = NODE_NONE;
         int nMaxConnections = 0;
         int nMaxOutbound = 0;
         int nMaxAddnode = 0;
@@ -209,7 +208,6 @@ public:
     };
 
     void Init(const Options& connOptions) {
-        nLocalServices = connOptions.nLocalServices;
         nMaxConnections = connOptions.nMaxConnections;
         nMaxOutbound = std::min(connOptions.nMaxOutbound, connOptions.nMaxConnections);
         nMaxAddnode = connOptions.nMaxAddnode;
@@ -287,7 +285,6 @@ public:
     };
 
     // Addrman functions
-    void SetServices(const CService &addr, ServiceFlags nServices);
     void MarkAddressGood(const CAddress& addr);
     void AddNewAddresses(const std::vector<CAddress>& vAddr, const CAddress& addrFrom, int64_t nTimePenalty = 0);
     std::vector<CAddress> GetAddresses();
@@ -342,8 +339,7 @@ public:
     bool DisconnectNode(NodeId id);
     void FinalizeNode(NodeId id, const CAddress &addr);
 
-    CAddress GetLocalAddress(const CNetAddr *paddrPeer, ServiceFlags nLocalServices);
-    ServiceFlags GetLocalServices() const;
+    CAddress GetLocalAddress(const CNetAddr *paddrPeer);
     unsigned short GetListenPort();
     bool IsPeerAddrLocalGood(std::shared_ptr<CNode> pnode);
     void AdvertiseLocal(std::shared_ptr<CNode> pnode);
@@ -519,7 +515,6 @@ private:
     std::atomic<NodeId> nLastNodeId;
 
     /** Services this instance offers */
-    ServiceFlags nLocalServices;
     CCriticalSection cs_mapLocalHost;
     std::map<CNetAddr, LocalServiceInfo> mapLocalHost;
     bool vfLimited[NET_MAX];
@@ -635,7 +630,6 @@ class CNode
     friend class CConnman;
 public:
     // socket
-    std::atomic<ServiceFlags> nServices;
     std::shared_ptr<AsioSession> session;
     size_t nSendSize; // total size of all vSendMsg entries
     uint64_t nSendBytes;
@@ -708,7 +702,7 @@ public:
     // Whether a ping is requested.
     std::atomic<bool> fPingQueued;
 
-    CNode(NodeId id, ServiceFlags nLocalServicesIn, std::shared_ptr<AsioSession> sessionIn, const CAddress &addrIn,
+    CNode(NodeId id, std::shared_ptr<AsioSession> sessionIn, const CAddress &addrIn,
             uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn,
             const std::string &addrNameIn = "", bool fInboundIn = false);
     ~CNode();
@@ -718,8 +712,6 @@ public:
 private:
     const NodeId id;
     const uint64_t nLocalHostNonce;
-    // Services offered to this peer
-    const ServiceFlags nLocalServices;
     int nSendVersion;
     std::list<CNetMessage> vRecvMsg;  // Used only by SocketHandler thread
 
@@ -779,11 +771,6 @@ public:
     }
 
     void CloseSocketDisconnect();
-
-    ServiceFlags GetLocalServices() const
-    {
-        return nLocalServices;
-    }
 
     std::string GetAddrName() const;
     //! Sets the addrName only if it was not previously set

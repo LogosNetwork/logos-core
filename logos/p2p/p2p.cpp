@@ -67,16 +67,10 @@ private:
     ArgsManager                             Args;
     TimeData                                timeData;
     Random                                  random_;
-    bool                                    fFeeEstimatesInitialized;
-    const bool                              DEFAULT_REST_ENABLE;
-    const bool                              DEFAULT_STOPAFTERBLOCKIMPORT;
-    const char*                             FEE_ESTIMATES_FILENAME;
-    ServiceFlags                            nLocalServices;
     boost::asio::io_service *               io_service;
     int                                     nMaxConnections;
     int                                     nUserMaxConnections;
     int                                     nFD;
-    boost::thread_group                     threadGroup;
     std::unique_ptr<CConnman>               g_connman;
     std::unique_ptr<PeerLogicValidation>    peerLogic;
     PropagateStore                          store;
@@ -95,11 +89,6 @@ public:
         , Args(logger_)
         , timeData(logger_)
         , random_(logger_)
-        , fFeeEstimatesInitialized(false)
-        , DEFAULT_REST_ENABLE(false)
-        , DEFAULT_STOPAFTERBLOCKIMPORT(false)
-        , FEE_ESTIMATES_FILENAME("fee_estimates.dat")
-        , nLocalServices(ServiceFlags(NODE_NETWORK | NODE_NETWORK_LIMITED))
         , io_service((boost::asio::io_service *)config.boost_io_service)
         , nConnectTimeout(DEFAULT_CONNECT_TIMEOUT)
         , fNameLookup(DEFAULT_NAME_LOOKUP)
@@ -161,11 +150,6 @@ void Shutdown()
     // Because these depend on each-other, we make sure that neither can be
     // using the other before destroying them.
     if (g_connman) g_connman->Stop();
-
-    // After everything has been shut down, but before things get flushed, stop the
-    // CScheduler/checkqueue threadGroup
-    threadGroup.interrupt_all();
-    threadGroup.join_all();
 
     // After the threads that potentially access these pointers have been stopped,
     // destruct and reset all to nullptr.
@@ -269,24 +253,14 @@ void InitParameterInteraction()
 
     if (!Args.GetBoolArg("-listen", DEFAULT_LISTEN)) {
         // do not map ports or try to retrieve public IP when not listening (pointless)
-        if (Args.SoftSetBoolArg("-upnp", false))
-            LogPrintf("%s: parameter interaction: -listen=0 -> setting -upnp=0\n", __func__);
         if (Args.SoftSetBoolArg("-discover", false))
             LogPrintf("%s: parameter interaction: -listen=0 -> setting -discover=0\n", __func__);
-        if (Args.SoftSetBoolArg("-listenonion", false))
-            LogPrintf("%s: parameter interaction: -listen=0 -> setting -listenonion=0\n", __func__);
     }
 
     if (Args.IsArgSet("-externalip")) {
         // if an explicit public IP is specified, do not try to find others
         if (Args.SoftSetBoolArg("-discover", false))
             LogPrintf("%s: parameter interaction: -externalip set -> setting -discover=0\n", __func__);
-    }
-
-    // Forcing relay from whitelisted hosts implies we will accept relays from them in the first place.
-    if (Args.GetBoolArg("-whitelistforcerelay", DEFAULT_WHITELISTFORCERELAY)) {
-        if (Args.SoftSetBoolArg("-whitelistrelay", true))
-            LogPrintf("%s: parameter interaction: -whitelistforcerelay=1 -> setting -whitelistrelay=1\n", __func__);
     }
 
     // Warn if network-specific options (-addnode, -connect, etc) are
@@ -382,16 +356,6 @@ bool AppInitParameterInteraction()
         }
     }
 
-    // Check for -debugnet
-    if (Args.GetBoolArg("-debugnet", false))
-        uiInterface.InitWarning(_("Unsupported argument -debugnet ignored, use -debug=net."));
-
-    if (Args.GetBoolArg("-benchmark", false))
-        uiInterface.InitWarning(_("Unsupported argument -benchmark ignored, use -debug=bench."));
-
-    if (Args.GetBoolArg("-whitelistalwaysrelay", false))
-        uiInterface.InitWarning(_("Unsupported argument -whitelistalwaysrelay ignored, use -whitelistrelay and/or -whitelistforcerelay."));
-
     nConnectTimeout = Args.GetArg("-timeout", DEFAULT_CONNECT_TIMEOUT);
     if (nConnectTimeout <= 0)
         nConnectTimeout = DEFAULT_CONNECT_TIMEOUT;
@@ -414,11 +378,6 @@ bool AppInitSanityChecks()
     if (!InitSanityCheck())
         return uiInterface.InitError(strprintf(_("Initialization sanity check failed. %s is shutting down."), _(PACKAGE_NAME)));
 
-    return true;
-}
-
-bool AppInitLockDataDirectory()
-{
     return true;
 }
 
@@ -454,20 +413,7 @@ bool AppInitMain(p2p_config &config)
     if (config.test_mode)
         return true;
 
-    peerLogic.reset(new PeerLogicValidation(&connman, Args.GetBoolArg("-enablebip61", DEFAULT_ENABLE_BIP61)));
-
-    // sanitize comments per BIP-0014, format user agent and check total size
-    std::vector<std::string> uacomments;
-    for (const std::string& cmt : Args.GetArgs("-uacomment")) {
-        if (cmt != SanitizeString(cmt, SAFE_CHARS_UA_COMMENT))
-            return uiInterface.InitError(strprintf(_("User Agent comment (%s) contains unsafe characters."), cmt));
-        uacomments.push_back(cmt);
-    }
-    connman.strSubVersion = FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, uacomments);
-    if (connman.strSubVersion.size() > MAX_SUBVERSION_LENGTH) {
-        return uiInterface.InitError(strprintf(_("Total length of network version string (%i) exceeds maximum length (%i). Reduce the number or size of uacomments."),
-            connman.strSubVersion.size(), MAX_SUBVERSION_LENGTH));
-    }
+    peerLogic.reset(new PeerLogicValidation(&connman, DEFAULT_ENABLE_BIP61));
 
     if (Args.IsArgSet("-onlynet")) {
         std::set<enum Network> nets;
@@ -509,7 +455,6 @@ bool AppInitMain(p2p_config &config)
     connman.Discover();
 
     CConnman::Options connOptions;
-    connOptions.nLocalServices = nLocalServices;
     connOptions.nMaxConnections = nMaxConnections;
     connOptions.nMaxOutbound = std::min(MAX_OUTBOUND_CONNECTIONS, connOptions.nMaxConnections);
     connOptions.nMaxAddnode = MAX_ADDNODE_CONNECTIONS;
@@ -694,20 +639,6 @@ bool p2p_interface::Init(p2p_config &config)
     if (!p2p->getArgs().ParseParameters(config.argc, config.argv, error))
     {
         p2p->uiInterface.InitError(std::string("illegal command line arguments: ") + error);
-        return false;
-    }
-
-    // Process help and version before taking care about datadir
-    if (HelpRequested(p2p->getArgs()))
-    {
-        std::string strUsage = PACKAGE_NAME " daemon version " + FormatFullVersion() + "\n";
-
-        strUsage += "\nUsage:  ";
-        strUsage += config.argv[0];
-        strUsage += " [options]                     Start " PACKAGE_NAME " daemon\n";
-        strUsage += "\n" + p2p->getArgs().GetHelpMessage();
-
-        p2p->uiInterface.InitMessage(strUsage);
         return false;
     }
 

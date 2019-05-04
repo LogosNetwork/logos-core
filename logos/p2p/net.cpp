@@ -100,7 +100,7 @@ std::vector<CAddress> CConnman::convertSeed6(const std::vector<SeedSpec6> &vSeed
     for (const auto& seed_in : vSeedsIn) {
         struct in6_addr ip;
         memcpy(&ip, seed_in.addr, sizeof(ip));
-        CAddress addr(CService(ip, seed_in.port), GetDesirableServiceFlags(NODE_NONE));
+        CAddress addr(CService(ip, seed_in.port));
         addr.nTime = timeData.GetTime() - random_.GetRand(nOneWeek) - nOneWeek;
         vSeedsOut.push_back(addr);
     }
@@ -111,13 +111,13 @@ std::vector<CAddress> CConnman::convertSeed6(const std::vector<SeedSpec6> &vSeed
 // Otherwise, return the unroutable 0.0.0.0 but filled in with
 // the normal parameters, since the IP may be changed to a useful
 // one by discovery.
-CAddress CConnman::GetLocalAddress(const CNetAddr *paddrPeer, ServiceFlags nLocalServices)
+CAddress CConnman::GetLocalAddress(const CNetAddr *paddrPeer)
 {
-    CAddress ret(CService(CNetAddr(),GetListenPort()), nLocalServices);
+    CAddress ret(CService(CNetAddr(),GetListenPort()));
     CService addr;
     if (GetLocal(addr, paddrPeer))
     {
-        ret = CAddress(addr, nLocalServices);
+        ret = CAddress(addr);
     }
     ret.nTime = timeData.GetAdjustedTime();
     return ret;
@@ -144,10 +144,10 @@ void CConnman::AdvertiseLocal(std::shared_ptr<CNode> pnode)
 {
     if (fListen && pnode->fSuccessfullyConnected)
     {
-        CAddress addrLocal = GetLocalAddress(&pnode->addr, pnode->GetLocalServices());
+        CAddress addrLocal = GetLocalAddress(&pnode->addr);
         if (Args.GetBoolArg("-addrmantest", false)) {
             // use IPv4 loopback during addrmantest
-            addrLocal = CAddress(CService(LookupNumeric("127.0.0.1", GetListenPort())), pnode->GetLocalServices());
+            addrLocal = CAddress(CService(LookupNumeric("127.0.0.1", GetListenPort())));
         }
         // If discovery is enabled, sometimes give our peer the address it
         // tells us that it sees us as in case it has a better idea of our
@@ -486,7 +486,7 @@ std::shared_ptr<CNode> CConnman::ConnectNodeFinish(AsioClient *client, std::shar
         trace_and_halt();
     }
     CService saddr = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
-    CAddress addr(saddr, NODE_NONE);
+    CAddress addr(saddr);
 
     // It is possible that we already have a connection to the IP/port resolved to.
     // In that case, drop the connection that was just created, and return the existing CNode instead.
@@ -506,12 +506,12 @@ std::shared_ptr<CNode> CConnman::ConnectNodeFinish(AsioClient *client, std::shar
 
     endpoint = session->get_socket().local_endpoint();
     CService saddr_bind = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
-    CAddress addr_bind(saddr_bind, NODE_NONE);
+    CAddress addr_bind(saddr_bind);
 
     // Add node
     NodeId id = GetNewNodeId();
     uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
-    std::shared_ptr<CNode> pnode = std::make_shared<CNode>(id, nLocalServices, session, addr, CalculateKeyedNetGroup(addr),
+    std::shared_ptr<CNode> pnode = std::make_shared<CNode>(id, session, addr, CalculateKeyedNetGroup(addr),
             nonce, addr_bind, client->name ? client->name : "", false);
     session->setNode(pnode);
 
@@ -1002,7 +1002,6 @@ struct NodeEvictionCandidate
     NodeId id;
     int64_t nTimeConnected;
     int64_t nMinPingUsecTime;
-    bool fRelevantServices;
     CAddress addr;
     uint64_t nKeyedNetGroup;
 };
@@ -1024,7 +1023,6 @@ static bool CompareNetGroupKeyed(const NodeEvictionCandidate &a, const NodeEvict
 static bool CompareNodeBlockTime(const NodeEvictionCandidate &a, const NodeEvictionCandidate &b)
 {
     // There is a fall-through here because it is common for a node to have many peers which have not yet relayed a block.
-    if (a.fRelevantServices != b.fRelevantServices) return b.fRelevantServices;
     return a.nTimeConnected > b.nTimeConnected;
 }
 
@@ -1066,7 +1064,6 @@ bool CConnman::AttemptToEvictConnection()
             if (node->fDisconnect)
                 continue;
             NodeEvictionCandidate candidate = {node->GetId(), node->nTimeConnected, node->nMinPingUsecTime,
-                                               HasAllDesirableServiceFlags(node->nServices),
                                                node->addr, node->nKeyedNetGroup};
             vEvictionCandidates.push_back(candidate);
         }
@@ -1138,7 +1135,7 @@ std::shared_ptr<CNode> CConnman::AcceptConnection(std::shared_ptr<AsioSession> s
         trace_and_halt();
     }
     CService saddr = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
-    CAddress addr(saddr, NODE_NONE);
+    CAddress addr(saddr);
 
     if (!addr.IsIPv4() && !addr.IsIPv6()) {
         LogPrintf("Warning: Unknown socket family\n");
@@ -1178,9 +1175,9 @@ std::shared_ptr<CNode> CConnman::AcceptConnection(std::shared_ptr<AsioSession> s
 
     endpoint = session->get_socket().local_endpoint();
     saddr = LookupNumeric(endpoint.address().to_string().c_str(), endpoint.port());
-    CAddress addr_bind(saddr, NODE_NONE);
+    CAddress addr_bind(saddr);
 
-    std::shared_ptr<CNode> pnode = std::make_shared<CNode>(id, nLocalServices, session, addr, CalculateKeyedNetGroup(addr),
+    std::shared_ptr<CNode> pnode = std::make_shared<CNode>(id, session, addr, CalculateKeyedNetGroup(addr),
             nonce, addr_bind, "", true);
     session->setNode(pnode);
     pnode->fWhitelisted = whitelisted;
@@ -1471,34 +1468,38 @@ void CConnman::ThreadDNSAddressSeed()
 
     LogPrintf("Loading addresses from DNS seeds (could take a while)\n");
 
-    for (const std::string &seed : vSeeds) {
-        if (interruptNet) {
+    for (const std::string &seed : vSeeds)
+    {
+        if (interruptNet)
+        {
             return;
         }
-	std::vector<CNetAddr> vIPs;
-	std::vector<CAddress> vAdd;
-	ServiceFlags requiredServiceBits = GetDesirableServiceFlags(NODE_NONE);
-	std::string host = strprintf("x%x.%s", requiredServiceBits, seed);
-	CNetAddr resolveSource;
-	if (!resolveSource.SetInternal(host)) {
-	    continue;
-	}
-	unsigned int nMaxIPs = 256; // Limits number of IPs learned from a DNS seed
-	if (LookupHost(host.c_str(), vIPs, nMaxIPs, true))
-	{
-	    for (const CNetAddr& ip : vIPs)
-	    {
-		int nOneDay = 24*3600;
-		CAddress addr = CAddress(CService(ip, Params().GetDefaultPort()), requiredServiceBits);
-        addr.nTime = timeData.GetTime() - 3*nOneDay - random_.GetRand(4*nOneDay); // use a random age between 3 and 7 days old
-		vAdd.push_back(addr);
-		found++;
-	    }
-	    addrman.Add(vAdd, resolveSource);
-	} else {
-	    // We now avoid directly using results from DNS Seeds which do not support service bit filtering,
-	    // instead using them as a oneshot to get nodes with our desired service bits.
-	    AddOneShot(seed);
+        std::vector<CNetAddr> vIPs;
+        std::vector<CAddress> vAdd;
+        std::string host = strprintf("x0.%s", seed);
+        CNetAddr resolveSource;
+        if (!resolveSource.SetInternal(host))
+        {
+            continue;
+        }
+        unsigned int nMaxIPs = 256; // Limits number of IPs learned from a DNS seed
+        if (LookupHost(host.c_str(), vIPs, nMaxIPs, true))
+        {
+            for (const CNetAddr& ip : vIPs)
+            {
+                int nOneDay = 24*3600;
+                CAddress addr = CAddress(CService(ip, Params().GetDefaultPort()));
+                addr.nTime = timeData.GetTime() - 3*nOneDay - random_.GetRand(4*nOneDay); // use a random age between 3 and 7 days old
+                vAdd.push_back(addr);
+                found++;
+            }
+            addrman.Add(vAdd, resolveSource);
+        }
+        else
+        {
+            // We now avoid directly using results from DNS Seeds which do not support service bit filtering,
+            // instead using them as a oneshot to get nodes with our desired service bits.
+            AddOneShot(seed);
         }
     }
 
@@ -1582,7 +1583,7 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
             ProcessOneShot();
             for (const std::string& strAddr : connect)
             {
-                CAddress addr(CService(), NODE_NONE);
+                CAddress addr;
                 OpenNetworkConnection(addr, false, nullptr, strAddr.c_str(), false, false, true);
                 for (int i = 0; i < 10 && i < nLoop; i++)
                 {
@@ -1684,11 +1685,12 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
             }
 
             // if we selected an invalid address, restart
-            if (!addr.IsValid() || setConnected.count(addr.GetGroup()) || IsLocal(addr)) {
-		LogTrace(BCLog::NET, "Rejected connection to %s: valid=%d, local=%d, group_count=%d, feeler=%d\n",
-			addr.ToString(), addr.IsValid(), IsLocal(addr), setConnected.count(addr.GetGroup()), fFeeler);
-                break;
-	    }
+            if (!addr.IsValid() || setConnected.count(addr.GetGroup()) || IsLocal(addr))
+            {
+                LogTrace(BCLog::NET, "Rejected connection to %s: valid=%d, local=%d, group_count=%d, feeler=%d\n",
+                        addr.ToString(), addr.IsValid(), IsLocal(addr), setConnected.count(addr.GetGroup()), fFeeler);
+                    break;
+            }
 
             // If we didn't find an appropriate destination after trying 100 addresses fetched from addrman,
             // stop this loop, and let the outer loop run again (which sleeps, adds seed nodes, recalculates
@@ -1703,15 +1705,6 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
             // only consider very recently tried nodes after 30 failed attempts
             if (nANow - addr.nLastTry < 600 && nTries < 30)
                 continue;
-
-            // for non-feelers, require all the services we'll want,
-            // for feelers, only require they be a full node (only because most
-            // SPV clients don't have a good address DB available)
-            if (!fFeeler && !HasAllDesirableServiceFlags(addr.nServices)) {
-                continue;
-            } else if (fFeeler && !MayHaveUsefulAddressDB(addr.nServices)) {
-                continue;
-            }
 
             // do not allow non-default ports, unless after 50 invalid addresses selected already
             if (addr.GetPort() != Params().GetDefaultPort() && nTries < 50)
@@ -1805,7 +1798,7 @@ void CConnman::ThreadOpenAddedConnections()
                     break;
                 }
                 tried = true;
-                CAddress addr(CService(), NODE_NONE);
+                CAddress addr;
                 OpenNetworkConnection(addr, false, grant, info.strAddedNode.c_str(), false, false, true);
                 if (!interruptNet.sleep_for(std::chrono::milliseconds(500)))
                     return;
@@ -2160,17 +2153,6 @@ bool CConnman::Start(const Options& connOptions)
     return true;
 }
 
-class CNetCleanup
-{
-public:
-    CNetCleanup() {}
-
-    ~CNetCleanup()
-    {
-    }
-}
-instance_of_cnetcleanup;
-
 void CConnman::Interrupt()
 {
     {
@@ -2233,11 +2215,6 @@ CConnman::~CConnman()
     Interrupt();
     Stop();
     sem_destroy(&dataWritten);
-}
-
-void CConnman::SetServices(const CService &addr, ServiceFlags nServices)
-{
-    addrman.SetServices(addr, nServices);
 }
 
 void CConnman::MarkAddressGood(const CAddress& addr)
@@ -2407,14 +2384,9 @@ uint64_t CConnman::GetTotalBytesSent()
     return nTotalBytesSent;
 }
 
-ServiceFlags CConnman::GetLocalServices() const
-{
-    return nLocalServices;
-}
-
 unsigned int CConnman::GetReceiveFloodSize() const { return nReceiveFloodSize; }
 
-CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, std::shared_ptr<AsioSession> sessionIn, const CAddress& addrIn,
+CNode::CNode(NodeId idIn, std::shared_ptr<AsioSession> sessionIn, const CAddress& addrIn,
              uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn,
              const std::string& addrNameIn, bool fInboundIn)
     : nTimeConnected(GetSystemTimeInSeconds())
@@ -2425,12 +2397,10 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, std::shared_ptr<AsioSes
     , addrKnown(sessionIn->connman.random_, 5000, 0.001)
     , id(idIn)
     , nLocalHostNonce(nLocalHostNonceIn)
-    , nLocalServices(nLocalServicesIn)
     , nSendVersion(0)
     , logger_(sessionIn->connman.logger_)
     , connman(sessionIn->connman)
 {
-    nServices = NODE_NONE;
     session = sessionIn;
     nRecvVersion = INIT_PROTO_VERSION;
     nLastSend = 0;
