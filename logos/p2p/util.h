@@ -29,9 +29,6 @@
 
 #include <boost/thread/condition_variable.hpp> // for boost::thread_interrupted
 
-extern const char * const BITCOIN_CONF_FILENAME;
-extern const char * const BITCOIN_PID_FILENAME;
-
 /** Translate a message to the native language of the user. */
 const extern std::function<std::string(const char*)> G_TRANSLATION_FUN;
 
@@ -45,7 +42,6 @@ inline std::string _(const char* psz)
 }
 
 void SetupEnvironment();
-bool SetupNetworking();
 
 template<typename... Args>
 bool error(BCLog::Logger &logger_, const char* fmt, const Args&... args)
@@ -63,20 +59,8 @@ inline bool IsSwitchChar(char c)
 }
 
 enum class OptionsCategory {
-    OPTIONS,
     CONNECTION,
-    WALLET,
-    WALLET_DEBUG_TEST,
     DEBUG_TEST,
-    CHAINPARAMS,
-    NODE_RELAY,
-    BLOCK_CREATION,
-    RPC,
-    GUI,
-    COMMANDS,
-    REGISTER_COMMANDS,
-
-    HIDDEN // Always the last option to avoid printing these in the help
 };
 
 class ArgsManager
@@ -205,11 +189,6 @@ public:
      * Add argument
      */
     void AddArg(const std::string& name, const std::string& help, const bool debug_only, const OptionsCategory& cat);
-
-    /**
-     * Add many hidden arguments
-     */
-    void AddHiddenArgs(const std::vector<std::string>& args);
 
     /**
      * Clear available arguments

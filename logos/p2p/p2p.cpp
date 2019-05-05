@@ -182,15 +182,9 @@ void SetupServerArgs()
     const auto testnetChainParams = CreateChainParams(CBaseChainParams::TESTNET);
     const auto regtestChainParams = CreateChainParams(CBaseChainParams::REGTEST);
 
-    // Hidden Options
-    std::vector<std::string> hidden_args = {"-benchmark", "-debugnet", "-help", "-whitelistalwaysrelay"};
-
 #define Arg(a, b, c, d, e) Args.AddArg(std::string("-") + a + (e ? "=<arg>" : ""), b, c, d);
 #include "options.h"
 #undef Arg
-
-    // Add the hidden options
-    Args.AddHiddenArgs(hidden_args);
 }
 
 std::string LicenseInfo()
@@ -296,9 +290,6 @@ void InitLogging()
 bool AppInitBasicSetup()
 {
     // ********************************************************* Step 1: setup
-
-    if (!SetupNetworking())
-        return uiInterface.InitError("Initializing networking failed");
 
     // Ignore SIGPIPE, otherwise it will bring the daemon down if the client closes unexpectedly
     signal(SIGPIPE, SIG_IGN);

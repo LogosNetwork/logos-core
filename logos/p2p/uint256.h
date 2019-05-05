@@ -49,8 +49,6 @@ public:
     friend inline bool operator<(const base_blob& a, const base_blob& b) { return a.Compare(b) < 0; }
 
     std::string GetHex() const;
-    void SetHex(const char* psz);
-    void SetHex(const std::string& str);
     std::string ToString() const;
 
     unsigned char* begin()
@@ -124,26 +122,5 @@ public:
         return ReadLE64(data);
     }
 };
-
-/* uint256 from const char *.
- * This is a separate function because the constructor uint256(const char*) can result
- * in dangerously catching uint256(0).
- */
-inline uint256 uint256S(const char *str)
-{
-    uint256 rv;
-    rv.SetHex(str);
-    return rv;
-}
-/* uint256 from std::string.
- * This is a separate function because the constructor uint256(const std::string &str) can result
- * in dangerously catching uint256(0) via std::string(const char*).
- */
-inline uint256 uint256S(const std::string& str)
-{
-    uint256 rv;
-    rv.SetHex(str);
-    return rv;
-}
 
 #endif // BITCOIN_UINT256_H

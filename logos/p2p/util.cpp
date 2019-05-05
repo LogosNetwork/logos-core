@@ -45,9 +45,6 @@
 #include <malloc.h>
 #endif
 
-const char * const BITCOIN_CONF_FILENAME = PACKAGE_NAME ".conf";
-const char * const BITCOIN_PID_FILENAME = PACKAGE_NAME ".pid";
-
 /**
  * Interpret a string argument as a boolean.
  *
@@ -225,9 +222,7 @@ ArgsManager::ArgsManager(BCLog::Logger &logger)
      * parameters by accident. */
     : m_network_only_args{
       "-addnode", "-connect",
-      "-port", "-bind",
-      "-rpcport", "-rpcbind",
-      "-wallet",
+      "-port", "-bind"
      }
     , logger_(logger)
 {
@@ -440,13 +435,6 @@ void ArgsManager::AddArg(const std::string& name, const std::string& help, const
     assert(ret.second); // Make sure an insertion actually happened
 }
 
-void ArgsManager::AddHiddenArgs(const std::vector<std::string>& names)
-{
-    for (const std::string& name : names) {
-        AddArg(name, "", false, OptionsCategory::HIDDEN);
-    }
-}
-
 constexpr int screenWidth = 79;
 constexpr int optIndent = 2;
 constexpr int msgIndent = 7;
@@ -558,11 +546,6 @@ void SetupEnvironment()
     // fs::path, which is then used to explicitly imbue the path.
     std::locale loc = boost::filesystem::path::imbue(std::locale::classic());
     boost::filesystem::path::imbue(loc);
-}
-
-bool SetupNetworking()
-{
-    return true;
 }
 
 std::string CopyrightHolders(const std::string& strPrefix)

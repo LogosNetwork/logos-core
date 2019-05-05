@@ -1474,33 +1474,8 @@ void CConnman::ThreadDNSAddressSeed()
         {
             return;
         }
-        std::vector<CNetAddr> vIPs;
-        std::vector<CAddress> vAdd;
-        std::string host = strprintf("x0.%s", seed);
-        CNetAddr resolveSource;
-        if (!resolveSource.SetInternal(host))
-        {
-            continue;
-        }
-        unsigned int nMaxIPs = 256; // Limits number of IPs learned from a DNS seed
-        if (LookupHost(host.c_str(), vIPs, nMaxIPs, true))
-        {
-            for (const CNetAddr& ip : vIPs)
-            {
-                int nOneDay = 24*3600;
-                CAddress addr = CAddress(CService(ip, Params().GetDefaultPort()));
-                addr.nTime = timeData.GetTime() - 3*nOneDay - random_.GetRand(4*nOneDay); // use a random age between 3 and 7 days old
-                vAdd.push_back(addr);
-                found++;
-            }
-            addrman.Add(vAdd, resolveSource);
-        }
-        else
-        {
-            // We now avoid directly using results from DNS Seeds which do not support service bit filtering,
-            // instead using them as a oneshot to get nodes with our desired service bits.
-            AddOneShot(seed);
-        }
+        // We using DNS Seeds as a oneshot to get nodes.
+        AddOneShot(seed);
     }
 
     LogPrintf("%d addresses found from DNS seeds\n", found);
