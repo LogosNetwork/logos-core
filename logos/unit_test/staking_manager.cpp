@@ -15,6 +15,265 @@ TEST(Staking_Manager, Stake)
 
     StakingManager staking_mgr(*store);
     VotingPowerManager voting_power_mgr(*store);
+    LiabilityManager liability_mgr(*store);
+
+    uint32_t epoch = 100;
+
+    logos::account_info info;
+    auto set_rep = [&](AccountAddress const & rep)
+    {
+        Proxy req;
+        req.rep = rep;
+        req.Hash();
+        store->request_put(req,txn);
+        info.staking_subchain_head = req.Hash();
+    };
+
+
+    AccountAddress target = 84;
+    set_rep(target);
+    voting_power_mgr.AddSelfStake(target, 10, epoch, txn);
+    Amount initial_balance = 1000;
+    info.SetBalance(initial_balance, epoch, txn);
+    AccountAddress origin = 42;
+
+    VotingPowerInfo vp_info;
+    voting_power_mgr.GetVotingPowerInfo(target, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, 0);
+    ASSERT_EQ(vp_info.next.unlocked_proxied, initial_balance);
+
+
+
+    store->account_put(origin, info, txn);
+    std::vector<ThawingFunds> all_thawing(staking_mgr.GetThawingFunds(origin, txn));
+
+    ASSERT_EQ(all_thawing.size(), 0);
+
+    Amount to_stake = 50;
+    auto get_secondary_liabilities = [&]()
+    {
+        std::vector<Liability> secondary;
+        auto hashes = liability_mgr.GetSecondaryLiabilities(origin,txn);
+        for(auto h : hashes)
+        {
+            secondary.push_back(liability_mgr.Get(h,txn));
+        }
+        return secondary;
+    };
+
+    //Stake to a rep
+    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
+
+    StakedFunds cur_stake(staking_mgr.GetCurrentStakedFunds(origin, txn));
+    all_thawing = staking_mgr.GetThawingFunds(origin, txn);
+    ASSERT_EQ(all_thawing.size(), 0);
+    ASSERT_EQ(cur_stake.amount, to_stake);
+    ASSERT_EQ(cur_stake.target, target);
+    ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake);
+    ASSERT_EQ(info.GetBalance(),initial_balance);
+
+    voting_power_mgr.GetVotingPowerInfo(target, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
+    ASSERT_EQ(vp_info.next.unlocked_proxied,info.GetAvailableBalance());
+
+    //Increase stake
+    to_stake += 100;
+    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
+
+    cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
+    all_thawing = staking_mgr.GetThawingFunds(origin, txn);
+    ASSERT_EQ(all_thawing.size(), 0);
+    ASSERT_EQ(cur_stake.amount, to_stake);
+    ASSERT_EQ(cur_stake.target, target);
+    ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake);
+    ASSERT_EQ(info.GetBalance(),initial_balance);
+
+    voting_power_mgr.GetVotingPowerInfo(target, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
+    ASSERT_EQ(vp_info.next.unlocked_proxied,info.GetAvailableBalance());
+
+
+    //Decrease stake
+    to_stake -= 50;
+    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
+
+    all_thawing = staking_mgr.GetThawingFunds(origin, txn);
+    ASSERT_EQ(all_thawing.size(), 1);
+    ASSERT_EQ(all_thawing[0].target, target);
+    ASSERT_EQ(all_thawing[0].amount, 50);
+    ASSERT_EQ(all_thawing[0].expiration_epoch,epoch + 42);
+    cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
+    ASSERT_EQ(cur_stake.amount, to_stake);
+    ASSERT_EQ(cur_stake.target, target);
+    ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake - 50);
+    ASSERT_EQ(info.GetBalance(),initial_balance);
+
+    voting_power_mgr.GetVotingPowerInfo(target, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
+    ASSERT_EQ(vp_info.next.unlocked_proxied,info.GetAvailableBalance());
+
+    //Decrease stake again
+    to_stake -= 25;
+    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
+    all_thawing = staking_mgr.GetThawingFunds(origin, txn);
+    ASSERT_EQ(all_thawing.size(), 1);
+    ASSERT_EQ(all_thawing[0].target, target);
+    ASSERT_EQ(all_thawing[0].amount, 75);
+    ASSERT_EQ(all_thawing[0].expiration_epoch,epoch + 42);
+    cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
+    ASSERT_EQ(cur_stake.amount, to_stake);
+    ASSERT_EQ(cur_stake.target, target);
+    ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake - 50 - 25);
+    ASSERT_EQ(info.GetBalance(),initial_balance);
+
+    voting_power_mgr.GetVotingPowerInfo(target, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
+    ASSERT_EQ(vp_info.next.unlocked_proxied,info.GetAvailableBalance());
+
+    //Change target
+    AccountAddress target2 = 85;
+    set_rep(target2);
+    voting_power_mgr.AddSelfStake(target2,10,epoch,txn);
+    to_stake -= 20;
+
+    staking_mgr.Stake(origin, info, to_stake, target2, epoch, txn);
+    all_thawing = staking_mgr.GetThawingFunds(origin, txn);
+    ASSERT_EQ(all_thawing.size(), 1);
+    ASSERT_EQ(all_thawing[0].target, 84);
+    ASSERT_EQ(all_thawing[0].amount, 95);
+    ASSERT_EQ(all_thawing[0].expiration_epoch,epoch + 42);
+    cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
+    ASSERT_EQ(cur_stake.amount, to_stake);
+    ASSERT_EQ(cur_stake.target, target2);
+    ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake - 50 - 25 - 20);
+    ASSERT_EQ(info.GetBalance(),initial_balance);
+
+    voting_power_mgr.GetVotingPowerInfo(target2, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
+    ASSERT_EQ(vp_info.current.locked_proxied, 0);
+    ASSERT_EQ(vp_info.current.unlocked_proxied, 0);
+    ASSERT_EQ(vp_info.next.unlocked_proxied, info.GetAvailableBalance());
+    voting_power_mgr.GetVotingPowerInfo(target, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, 0);
+    ASSERT_EQ(vp_info.next.unlocked_proxied, 0);
+
+    std::vector<Liability> secondary(get_secondary_liabilities());
+    ASSERT_EQ(secondary.size(),1);
+    ASSERT_EQ(secondary[0].target,target);
+    ASSERT_EQ(secondary[0].amount,to_stake);
+    ASSERT_EQ(secondary[0].expiration_epoch,epoch+42);
+    ASSERT_EQ(secondary[0].source,origin);
+
+
+    //Increase stake to new target
+    to_stake += 50;
+    staking_mgr.Stake(origin, info, to_stake, target2, epoch, txn);
+    all_thawing = staking_mgr.GetThawingFunds(origin, txn);
+    ASSERT_EQ(all_thawing.size(), 1);
+    ASSERT_EQ(all_thawing[0].target, 84);
+    ASSERT_EQ(all_thawing[0].amount, 45);
+    ASSERT_EQ(all_thawing[0].expiration_epoch,epoch + 42);
+    cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
+    ASSERT_EQ(cur_stake.amount, to_stake);
+    ASSERT_EQ(cur_stake.target, target2);
+    ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake - 45);
+    ASSERT_EQ(info.GetBalance(),initial_balance);
+
+    voting_power_mgr.GetVotingPowerInfo(target2, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
+    voting_power_mgr.GetVotingPowerInfo(target, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, 0);
+    ASSERT_EQ(vp_info.next.unlocked_proxied, 0);
+
+    secondary = get_secondary_liabilities();
+    ASSERT_EQ(secondary.size(),1);
+    ASSERT_EQ(secondary[0].target,target);
+    ASSERT_EQ(secondary[0].amount,to_stake);
+    ASSERT_EQ(secondary[0].expiration_epoch,epoch+42);
+    ASSERT_EQ(secondary[0].source,origin);
+
+
+
+    //Stake the rest of thawing funds, and then some available funds
+    to_stake += 65;
+
+    staking_mgr.Stake(origin, info, to_stake, target2, epoch, txn);
+    all_thawing = staking_mgr.GetThawingFunds(origin, txn);
+    ASSERT_EQ(all_thawing.size(), 0);
+    cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
+    ASSERT_EQ(cur_stake.amount, to_stake);
+    ASSERT_EQ(cur_stake.target, target2);
+    ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake);
+    ASSERT_EQ(info.GetBalance(),initial_balance);
+
+    voting_power_mgr.GetVotingPowerInfo(target2, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
+    voting_power_mgr.GetVotingPowerInfo(target, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, 0);
+    ASSERT_EQ(vp_info.next.unlocked_proxied, 0);
+
+    secondary = get_secondary_liabilities();
+    ASSERT_EQ(secondary.size(),1);
+    ASSERT_EQ(secondary[0].target,target);
+    ASSERT_EQ(secondary[0].amount,to_stake-20);
+    ASSERT_EQ(secondary[0].expiration_epoch,epoch+42);
+    ASSERT_EQ(secondary[0].source,origin);
+
+
+    //Create thawing to new target
+    to_stake -= 50;
+    staking_mgr.Stake(origin, info, to_stake, target2, epoch, txn);
+    all_thawing = staking_mgr.GetThawingFunds(origin, txn);
+    ASSERT_EQ(all_thawing.size(), 1);
+    ASSERT_EQ(all_thawing[0].target, target2);
+    ASSERT_EQ(all_thawing[0].amount, 50);
+    ASSERT_EQ(all_thawing[0].expiration_epoch,epoch + 42);
+
+    //Change target again
+    AccountAddress target3 = 5001;
+    set_rep(target3);
+    voting_power_mgr.AddSelfStake(target3,10,epoch,txn);
+    to_stake += 100;
+    staking_mgr.Stake(origin, info, to_stake, target3, epoch, txn);
+    all_thawing = staking_mgr.GetThawingFunds(origin, txn);
+    ASSERT_EQ(all_thawing.size(), 0);
+    ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake);
+
+    secondary = get_secondary_liabilities();
+    ASSERT_EQ(secondary.size(),2);
+    ASSERT_EQ(secondary[0].target,target);
+    ASSERT_EQ(secondary[0].amount,to_stake-20+50-100);
+    ASSERT_EQ(secondary[0].expiration_epoch,epoch+42);
+    ASSERT_EQ(secondary[0].source,origin);
+    ASSERT_EQ(secondary[1].target,target2);
+    ASSERT_EQ(secondary[1].amount,to_stake-50);
+    ASSERT_EQ(secondary[1].expiration_epoch,epoch+42);
+    ASSERT_EQ(secondary[1].source,origin);
+
+
+}
+
+
+TEST(Staking_Manager, StakeEpochTransition)
+{
+
+    logos::block_store* store = get_db(); 
+    clear_dbs();
+    logos::transaction txn(store->environment, nullptr, true);
+
+    StakingManager staking_mgr(*store);
+    VotingPowerManager voting_power_mgr(*store);
 
     uint32_t epoch = 100;
 
@@ -47,114 +306,98 @@ TEST(Staking_Manager, Stake)
 
     ASSERT_EQ(all_thawing.size(), 0);
 
-    Amount to_stake = 50;
-
-
+    Amount to_stake = 100;
+    Amount cur_thawing = 0;
     staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
-
-    StakedFunds cur_stake(staking_mgr.GetCurrentStakedFunds(origin, txn));
-    all_thawing = staking_mgr.GetThawingFunds(origin, txn);
-    ASSERT_EQ(all_thawing.size(), 0);
-    ASSERT_EQ(cur_stake.amount, to_stake);
-    ASSERT_EQ(cur_stake.target, target);
-    ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake);
-    ASSERT_EQ(info.GetBalance(),initial_balance);
-
-    voting_power_mgr.GetVotingPowerInfo(target, vp_info, txn);
+    ASSERT_EQ(info.GetAvailableBalance(),initial_balance-to_stake);
+    
+    voting_power_mgr.GetVotingPowerInfo(target, epoch, vp_info, txn);
     ASSERT_EQ(vp_info.next.self_stake, 10);
     ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
-    ASSERT_EQ(vp_info.next.unlocked_proxied,info.GetAvailableBalance());
+    ASSERT_EQ(vp_info.next.unlocked_proxied, info.GetAvailableBalance());
+    ASSERT_EQ(vp_info.current.locked_proxied, 0);
+    ASSERT_EQ(vp_info.current.unlocked_proxied, 0);
 
-    to_stake += 100;
-    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
 
-    cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
-    all_thawing = staking_mgr.GetThawingFunds(origin, txn);
-    ASSERT_EQ(all_thawing.size(), 0);
-    ASSERT_EQ(cur_stake.amount, to_stake);
-    ASSERT_EQ(cur_stake.target, target);
-    ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake);
-    ASSERT_EQ(info.GetBalance(),initial_balance);
+    ++epoch;
 
-    voting_power_mgr.GetVotingPowerInfo(target, vp_info, txn);
+    ASSERT_EQ(info.GetAvailableBalance(),initial_balance-to_stake);
+    voting_power_mgr.GetVotingPowerInfo(target, epoch, vp_info, txn);
     ASSERT_EQ(vp_info.next.self_stake, 10);
     ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
-    ASSERT_EQ(vp_info.next.unlocked_proxied,info.GetAvailableBalance());
-
-    to_stake -= 50;
-
-    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
-
-    all_thawing = staking_mgr.GetThawingFunds(origin, txn);
-    ASSERT_EQ(all_thawing.size(), 1);
-    ASSERT_EQ(all_thawing[0].target, target);
-    ASSERT_EQ(all_thawing[0].amount, 50);
-    ASSERT_EQ(all_thawing[0].expiration_epoch,epoch + 42);
-    cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
-    ASSERT_EQ(cur_stake.amount, to_stake);
-    ASSERT_EQ(cur_stake.target, target);
-    ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake - 50);
-    ASSERT_EQ(info.GetBalance(),initial_balance);
-
-    voting_power_mgr.GetVotingPowerInfo(target, vp_info, txn);
-    ASSERT_EQ(vp_info.next.self_stake, 10);
-    ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
-    ASSERT_EQ(vp_info.next.unlocked_proxied,info.GetAvailableBalance());
-
-    to_stake -= 25;
-    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
-    all_thawing = staking_mgr.GetThawingFunds(origin, txn);
-    ASSERT_EQ(all_thawing.size(), 1);
-    ASSERT_EQ(all_thawing[0].target, target);
-    ASSERT_EQ(all_thawing[0].amount, 75);
-    ASSERT_EQ(all_thawing[0].expiration_epoch,epoch + 42);
-    cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
-    ASSERT_EQ(cur_stake.amount, to_stake);
-    ASSERT_EQ(cur_stake.target, target);
-    ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake - 50 - 25);
-    ASSERT_EQ(info.GetBalance(),initial_balance);
-
-    voting_power_mgr.GetVotingPowerInfo(target, vp_info, txn);
-    ASSERT_EQ(vp_info.next.self_stake, 10);
-    ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
-    ASSERT_EQ(vp_info.next.unlocked_proxied,info.GetAvailableBalance());
-
-    target = 85; //change target
-    voting_power_mgr.AddSelfStake(target,10,epoch,txn);
-    to_stake -= 20;
-
-    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
-    all_thawing = staking_mgr.GetThawingFunds(origin, txn);
-    ASSERT_EQ(all_thawing.size(), 1);
-    ASSERT_EQ(all_thawing[0].target, 84);
-    ASSERT_EQ(all_thawing[0].amount, 95);
-    ASSERT_EQ(all_thawing[0].expiration_epoch,epoch + 42);
-    cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
-    ASSERT_EQ(cur_stake.amount, to_stake);
-    ASSERT_EQ(cur_stake.target, target);
-    ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake - 50 - 25 - 20);
-    ASSERT_EQ(info.GetBalance(),initial_balance);
-
-    voting_power_mgr.GetVotingPowerInfo(target, vp_info, txn);
-    ASSERT_EQ(vp_info.next.self_stake, 10);
-    ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
+    ASSERT_EQ(vp_info.next.unlocked_proxied, info.GetAvailableBalance());
+    ASSERT_EQ(vp_info.current.locked_proxied, to_stake);
+    ASSERT_EQ(vp_info.current.unlocked_proxied, info.GetAvailableBalance());
 
     to_stake += 50;
-    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
-    all_thawing = staking_mgr.GetThawingFunds(origin, txn);
-    ASSERT_EQ(all_thawing.size(), 1);
-    ASSERT_EQ(all_thawing[0].target, 84);
-    ASSERT_EQ(all_thawing[0].amount, 45);
-    ASSERT_EQ(all_thawing[0].expiration_epoch,epoch + 42);
-    cur_stake = staking_mgr.GetCurrentStakedFunds(origin, txn);
-    ASSERT_EQ(cur_stake.amount, to_stake);
-    ASSERT_EQ(cur_stake.target, target);
-    ASSERT_EQ(info.GetAvailableBalance(),initial_balance - to_stake - 45);
-    ASSERT_EQ(info.GetBalance(),initial_balance);
 
-    voting_power_mgr.GetVotingPowerInfo(target, vp_info, txn);
+    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
+
+    ASSERT_EQ(info.GetAvailableBalance(),initial_balance-to_stake);
+    voting_power_mgr.GetVotingPowerInfo(target, epoch, vp_info, txn);
     ASSERT_EQ(vp_info.next.self_stake, 10);
     ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
+    ASSERT_EQ(vp_info.next.unlocked_proxied, info.GetAvailableBalance());
+    ASSERT_EQ(vp_info.current.locked_proxied, to_stake - 50);
+    ASSERT_EQ(vp_info.current.unlocked_proxied, info.GetAvailableBalance()+50);
+
+
+    ++epoch;
+
+    ASSERT_EQ(info.GetAvailableBalance(),initial_balance-to_stake);
+    voting_power_mgr.GetVotingPowerInfo(target, epoch, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
+    ASSERT_EQ(vp_info.next.unlocked_proxied, info.GetAvailableBalance());
+    ASSERT_EQ(vp_info.current.locked_proxied, to_stake);
+    ASSERT_EQ(vp_info.current.unlocked_proxied, info.GetAvailableBalance());
+
+
+
+    to_stake -= 75;
+    cur_thawing += 75;
+    staking_mgr.Stake(origin, info, to_stake, target, epoch, txn);
+
+    ASSERT_EQ(info.GetAvailableBalance(),initial_balance-to_stake-cur_thawing);
+    voting_power_mgr.GetVotingPowerInfo(target, epoch, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
+    ASSERT_EQ(vp_info.next.unlocked_proxied, info.GetAvailableBalance());
+    ASSERT_EQ(vp_info.current.locked_proxied, to_stake + cur_thawing);
+    ASSERT_EQ(vp_info.current.unlocked_proxied, info.GetAvailableBalance());
+
+    ++epoch;
+    ASSERT_EQ(info.GetAvailableBalance(),initial_balance-to_stake-cur_thawing);
+    voting_power_mgr.GetVotingPowerInfo(target, epoch, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
+    ASSERT_EQ(vp_info.next.unlocked_proxied, info.GetAvailableBalance());
+    ASSERT_EQ(vp_info.current.locked_proxied, to_stake);
+    ASSERT_EQ(vp_info.current.unlocked_proxied, info.GetAvailableBalance());
+
+    AccountAddress target2 = 4567;
+    set_rep(target2);
+    voting_power_mgr.AddSelfStake(target2,10,epoch,txn); 
+
+    to_stake -= 25;
+    cur_thawing += 25;
+    staking_mgr.Stake(origin, info, to_stake, target2, epoch, txn);
+
+    ASSERT_EQ(info.GetAvailableBalance(),initial_balance-to_stake-cur_thawing);
+    voting_power_mgr.GetVotingPowerInfo(target, epoch, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, 0);
+    ASSERT_EQ(vp_info.next.unlocked_proxied, 0);
+    ASSERT_EQ(vp_info.current.locked_proxied, to_stake + 25);
+    ASSERT_EQ(vp_info.current.unlocked_proxied, info.GetAvailableBalance());
+    voting_power_mgr.GetVotingPowerInfo(target2, epoch, vp_info, txn);
+    ASSERT_EQ(vp_info.next.self_stake, 10);
+    ASSERT_EQ(vp_info.next.locked_proxied, to_stake);
+    ASSERT_EQ(vp_info.next.unlocked_proxied, info.GetAvailableBalance());
+    ASSERT_EQ(vp_info.current.locked_proxied, 0);
+    ASSERT_EQ(vp_info.current.unlocked_proxied, 0);
+    
+    
 }
 
 TEST(Staking_Manager, ThawingSimple)
