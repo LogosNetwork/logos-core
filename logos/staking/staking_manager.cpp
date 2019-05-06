@@ -302,6 +302,18 @@ void StakingManager::Stake(
         Store(thawing, origin, txn);
 
     };
+    auto rep_option = _voting_power_mgr.GetRep(account_info,txn);
+    if((target != origin && target != rep_option.get())
+            || (target == origin && rep_option))
+    {
+        std::cout << "target = " << target.to_string() << " origin = " << origin.to_string()
+            << " rep option = " << (rep_option ? rep_option.get().to_string() : " none ")
+            << std::endl;
+        LOG_FATAL(_log) << "StakingManager::Stake - " << "target does not match "
+            << "staking subchain. account = " << origin.to_string();
+        trace_and_halt();
+    }
+
     //TODO should we always prune secondary liabilities?
     _liability_mgr.PruneSecondaryLiabilities(origin, account_info, epoch, txn);
     //if changing target, extract from existing stake
