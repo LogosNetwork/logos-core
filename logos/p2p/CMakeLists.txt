@@ -33,14 +33,12 @@ add_library (p2p
 	net_processing.cpp
 	net_processing.h
 	p2p.h
-	p2p.cpp
-	prevector.h
-	protocol.cpp
+    p2p.cpp
+    protocol.cpp
 	protocol.h
 	random.cpp
 	random.h
 	serialize.h
-	span.h
 	streams.h
 	support/allocators/zeroafterfree.h
 	support/cleanse.cpp

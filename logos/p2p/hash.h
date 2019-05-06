@@ -7,7 +7,6 @@
 #define BITCOIN_HASH_H
 
 #include "../../blake2/blake2.h"
-#include <prevector.h>
 #include <serialize.h>
 #include <uint256.h>
 #include <version.h>
