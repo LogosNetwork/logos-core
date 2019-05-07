@@ -18,12 +18,6 @@
 
 constexpr bool DEFAULT_LOGIPS        = false;
 
-struct CLogCategoryActive
-{
-    std::string category;
-    bool active;
-};
-
 namespace BCLog {
     enum LogFlags : uint32_t {
         NONE        = 0,

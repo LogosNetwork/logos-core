@@ -6,11 +6,11 @@
 #ifndef BITCOIN_CHAINPARAMS_H
 #define BITCOIN_CHAINPARAMS_H
 
-#include <chainparamsbase.h>
 #include <protocol.h>
 
 #include <memory>
 #include <vector>
+#include <string>
 
 struct SeedSpec6 {
     uint8_t addr[16];
@@ -27,22 +27,15 @@ struct SeedSpec6 {
 class CChainParams
 {
 public:
+    static const std::string MAIN;
+    static const std::string TESTNET;
+    static const std::string REGTEST;
+
     const CMessageHeader::MessageStartChars& MessageStart() const { return pchMessageStart; }
     int GetDefaultPort() const { return nDefaultPort; }
     /** Return the list of hostnames to look up for DNS seeds */
     const std::vector<std::string>& DNSSeeds() const { return vSeeds; }
     const std::vector<SeedSpec6>& FixedSeeds() const { return vFixedSeeds; }
-    std::shared_ptr<CBaseChainParams> chainBaseParams;
-
-    /**
-     * Return the currently selected parameters. This won't change after app
-     * startup, except for unit tests.
-     */
-    const CBaseChainParams& BaseParams()
-    {
-        assert(chainBaseParams);
-        return *chainBaseParams;
-    }
 
 protected:
     CChainParams() {}
@@ -63,6 +56,6 @@ std::shared_ptr<CChainParams> CreateChainParams(const std::string& chain);
  * Sets the params returned by Params() to those for the given BIP70 chain name.
  * @throws std::runtime_error when the chain is not supported.
  */
-std::shared_ptr<CChainParams> SelectParams(ArgsManager &Args, const std::string& chain);
+std::shared_ptr<CChainParams> SelectParams(const std::string& chain);
 
 #endif // BITCOIN_CHAINPARAMS_H

@@ -17,24 +17,11 @@
 #include <atomic>
 #include <fcntl.h>
 
-#if !defined(MSG_NOSIGNAL)
-#define MSG_NOSIGNAL 0
-#endif
-
 enum Network ParseNetwork(std::string net) {
     Downcase(net);
     if (net == "ipv4") return NET_IPV4;
     if (net == "ipv6") return NET_IPV6;
     return NET_UNROUTABLE;
-}
-
-std::string GetNetworkName(enum Network net) {
-    switch(net)
-    {
-    case NET_IPV4: return "ipv4";
-    case NET_IPV6: return "ipv6";
-    default: return "";
-    }
 }
 
 bool static LookupIntern(const char *pszName, std::vector<CNetAddr>& vIP, unsigned int nMaxSolutions, bool fAllowLookup)
@@ -140,14 +127,6 @@ CService LookupNumeric(const char *pszName, int portDefault)
     if(!Lookup(pszName, addr, portDefault, false))
         addr = CService();
     return addr;
-}
-
-struct timeval MillisToTimeval(int64_t nTimeout)
-{
-    struct timeval timeout;
-    timeout.tv_sec  = nTimeout / 1000;
-    timeout.tv_usec = (nTimeout % 1000) * 1000;
-    return timeout;
 }
 
 /** Status codes that can be returned by InterruptibleRecv */

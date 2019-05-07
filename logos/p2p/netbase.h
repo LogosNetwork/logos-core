@@ -23,7 +23,6 @@ constexpr int DEFAULT_CONNECT_TIMEOUT = 5000;
 constexpr int DEFAULT_NAME_LOOKUP = true;
 
 enum Network ParseNetwork(std::string net);
-std::string GetNetworkName(enum Network net);
 bool LookupHost(const char *pszName, std::vector<CNetAddr>& vIP, unsigned int nMaxSolutions, bool fAllowLookup);
 bool LookupHost(const char *pszName, CNetAddr& addr, bool fAllowLookup);
 bool Lookup(const char *pszName, CService& addr, int portDefault, bool fAllowLookup);
@@ -32,9 +31,5 @@ CService LookupNumeric(const char *pszName, int portDefault = 0);
 bool LookupSubNet(const char *pszName, CSubNet& subnet);
 /** Return readable error string for a network error code */
 std::string NetworkErrorString(int err);
-/**
- * Convert milliseconds to a struct timeval for e.g. select.
- */
-struct timeval MillisToTimeval(int64_t nTimeout);
 
 #endif // BITCOIN_NETBASE_H

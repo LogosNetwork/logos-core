@@ -11,6 +11,10 @@
 
 #include <assert.h>
 
+const std::string CChainParams::MAIN = "main";
+const std::string CChainParams::TESTNET = "test";
+const std::string CChainParams::REGTEST = "regtest";
+
 /**
  * Main network
  */
@@ -66,19 +70,16 @@ public:
 
 std::shared_ptr<CChainParams> CreateChainParams(const std::string& chain)
 {
-    if (chain == CBaseChainParams::MAIN)
+    if (chain == CChainParams::MAIN)
         return std::make_shared<CMainParams>();
-    else if (chain == CBaseChainParams::TESTNET)
+    else if (chain == CChainParams::TESTNET)
         return std::make_shared<CTestNetParams>();
-    else if (chain == CBaseChainParams::REGTEST)
+    else if (chain == CChainParams::REGTEST)
         return std::make_shared<CRegTestParams>();
     throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
 }
 
-std::shared_ptr<CChainParams> SelectParams(ArgsManager &Args, const std::string& network)
+std::shared_ptr<CChainParams> SelectParams(const std::string& network)
 {
-    auto baseParams = SelectBaseParams(Args, network);
-    auto params = CreateChainParams(network);
-    params->chainBaseParams = baseParams;
-    return params;
+    return CreateChainParams(network);
 }

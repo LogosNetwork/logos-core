@@ -46,12 +46,9 @@ const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
 
 void p2p_interface::TraverseCommandLineOptions(std::function<void(const char *option, const char *description, int flags)> callback)
 {
-    const auto defaultBaseParams = CreateBaseChainParams(CBaseChainParams::MAIN);
-    const auto testnetBaseParams = CreateBaseChainParams(CBaseChainParams::TESTNET);
-    const auto regtestBaseParams = CreateBaseChainParams(CBaseChainParams::REGTEST);
-    const auto defaultChainParams = CreateChainParams(CBaseChainParams::MAIN);
-    const auto testnetChainParams = CreateChainParams(CBaseChainParams::TESTNET);
-    const auto regtestChainParams = CreateChainParams(CBaseChainParams::REGTEST);
+    const auto defaultChainParams = CreateChainParams(CChainParams::MAIN);
+    const auto testnetChainParams = CreateChainParams(CChainParams::TESTNET);
+    const auto regtestChainParams = CreateChainParams(CChainParams::REGTEST);
 
 #define Arg(a, b, c, d, e) callback(a, ((std::string)b).c_str(), e)
 #include "options.h"
@@ -175,12 +172,9 @@ static void registerSignalHandler(int signal, void(*handler)(int))
 
 void SetupServerArgs()
 {
-    const auto defaultBaseParams = CreateBaseChainParams(CBaseChainParams::MAIN);
-    const auto testnetBaseParams = CreateBaseChainParams(CBaseChainParams::TESTNET);
-    const auto regtestBaseParams = CreateBaseChainParams(CBaseChainParams::REGTEST);
-    const auto defaultChainParams = CreateChainParams(CBaseChainParams::MAIN);
-    const auto testnetChainParams = CreateChainParams(CBaseChainParams::TESTNET);
-    const auto regtestChainParams = CreateChainParams(CBaseChainParams::REGTEST);
+    const auto defaultChainParams = CreateChainParams(CChainParams::MAIN);
+    const auto testnetChainParams = CreateChainParams(CChainParams::TESTNET);
+    const auto regtestChainParams = CreateChainParams(CChainParams::REGTEST);
 
 #define Arg(a, b, c, d, e) Args.AddArg(std::string("-") + a + (e ? "=<arg>" : ""), b, c, d);
 #include "options.h"
@@ -636,7 +630,7 @@ bool p2p_interface::Init(p2p_config &config)
     // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
     try
     {
-        p2p->chainParams = SelectParams(p2p->getArgs(), p2p->getArgs().GetChainName());
+        p2p->chainParams = SelectParams(p2p->getArgs().GetChainName());
     }
     catch (const std::exception& e)
     {

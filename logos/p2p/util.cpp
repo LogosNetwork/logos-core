@@ -5,7 +5,7 @@
 
 #include <util.h>
 
-#include <chainparamsbase.h>
+#include <chainparams.h>
 #include <random.h>
 #include <serialize.h>
 #include <utilstrencodings.h>
@@ -78,7 +78,7 @@ public:
      *  See also comments around ArgsManager::ArgsManager() below. */
     static inline bool UseDefaultSection(const ArgsManager& am, const std::string& arg) EXCLUSIVE_LOCKS_REQUIRED(am.cs_args)
     {
-        return (am.m_network == CBaseChainParams::MAIN || am.m_network_only_args.count(arg) == 0);
+        return (am.m_network == CChainParams::MAIN || am.m_network_only_args.count(arg) == 0);
     }
 
     /** Convert regular argument into the network-specific setting */
@@ -237,7 +237,7 @@ void ArgsManager::WarnForSectionOnlyArgs()
     if (m_network.empty()) return;
 
     // if it's okay to use the default section for this network, don't worry
-    if (m_network == CBaseChainParams::MAIN) return;
+    if (m_network == CChainParams::MAIN) return;
 
     for (const auto& arg : m_network_only_args) {
         std::pair<bool, std::string> found_result;
@@ -257,12 +257,6 @@ void ArgsManager::WarnForSectionOnlyArgs()
         // otherwise, issue a warning
         LogPrintf("Warning: Config setting for %s only applied on %s network when in [%s] section.\n", arg, m_network, m_network);
     }
-}
-
-void ArgsManager::SelectConfigNetwork(const std::string& network)
-{
-    LOCK(cs_args);
-    m_network = network;
 }
 
 bool ArgsManager::ParseParameters(int argc, const char* const argv[], std::string& error)
@@ -467,7 +461,7 @@ static std::string TrimString(const std::string& str, const std::string& pattern
     return str.substr(front, end - front + 1);
 }
 
-std::string ArgsManager::GetChainName() const
+std::string ArgsManager::GetChainName()
 {
     LOCK(cs_args);
     bool fRegTest = ArgsManagerHelper::GetNetBoolArg(*this, "-regtest");
@@ -476,10 +470,10 @@ std::string ArgsManager::GetChainName() const
     if (fTestNet && fRegTest)
         throw std::runtime_error("Invalid combination of -regtest and -testnet.");
     if (fRegTest)
-        return CBaseChainParams::REGTEST;
+        return m_network = CChainParams::REGTEST;
     if (fTestNet)
-        return CBaseChainParams::TESTNET;
-    return CBaseChainParams::MAIN;
+        return m_network = CChainParams::TESTNET;
+    return m_network = CChainParams::MAIN;
 }
 
 /**

@@ -7,8 +7,6 @@ add_library (p2p
 	bloom.h
 	chainparams.cpp
 	chainparams.h
-	chainparamsbase.cpp
-	chainparamsbase.h
 	clientversion.cpp
 	clientversion.h
 	compat.h

@@ -19,24 +19,14 @@
 #include <fcntl.h>
 #include <math.h>
 
+#include <logos/lib/log.hpp>
+#include <logos/lib/trace.hpp>
+
 // Dump addresses to peers.dat and banlist.dat every 15 minutes (900s)
 #define DUMP_ADDRESSES_INTERVAL 900
 
 // We add a random period time (0 to 1 seconds) to feeler connections to prevent synchronization.
 #define FEELER_SLEEP_WINDOW 1
-
-// MSG_NOSIGNAL is not available on some platforms, if it doesn't exist define it as 0
-#if !defined(MSG_NOSIGNAL)
-#define MSG_NOSIGNAL 0
-#endif
-
-// MSG_DONTWAIT is not available on some platforms, if it doesn't exist define it as 0
-#if !defined(MSG_DONTWAIT)
-#define MSG_DONTWAIT 0
-#endif
-
-#include <logos/lib/log.hpp>
-#include <logos/lib/trace.hpp>
 
 /** Used to pass flags to the Bind() function */
 enum BindFlags {

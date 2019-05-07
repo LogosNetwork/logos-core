@@ -90,11 +90,6 @@ protected:
 public:
     ArgsManager(BCLog::Logger &logger);
 
-    /**
-     * Select the network in use
-     */
-    void SelectConfigNetwork(const std::string& network);
-
     bool ParseParameters(int argc, const char* const argv[], std::string& error);
 
     /**
@@ -183,7 +178,7 @@ public:
      * Looks for -regtest, -testnet and returns the appropriate BIP70 chain name.
      * @return CBaseChainParams::MAIN by default; raises runtime error if an invalid combination is given.
      */
-    std::string GetChainName() const;
+    std::string GetChainName();
 
     /**
      * Add argument
