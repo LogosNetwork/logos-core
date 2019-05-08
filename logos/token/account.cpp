@@ -344,8 +344,9 @@ bool TokenAccount::FeeSufficient(Amount token_total, Amount token_fee) const
         {
             const Amount DENOM = 100;
 
-            min_fee = Amount((fee_rate.number() / DENOM.number()) * token_total.number());
-
+            // SG: Fix min_fee percentage calculation by first multiplying (unable to store float) and removing
+            // token_fee from total being multiplied
+            min_fee = Amount((fee_rate.number() * (token_total.number()-token_fee.number())/DENOM.number()));
             break;
         }
         case TokenFeeType::Unknown:

@@ -71,7 +71,7 @@ private:
 
 /// TxAcceptor accepts client connection, reads json/binary transaction
 /// validates transaction, and forwards it to TxChannel. Standalone TxAcceptor writes
-/// transasction to the delegate. Delegate TxAcceptor passes transaction to ConsensusContainer (TxChannel).
+/// transaction to the delegate. Delegate TxAcceptor passes transaction to ConsensusContainer (TxChannel).
 class TxAcceptor
 {
 public:
