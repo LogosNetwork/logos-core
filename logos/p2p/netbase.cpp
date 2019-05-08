@@ -3,8 +3,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <atomic>
+#include <fcntl.h>
 #include <netbase.h>
-
 #include <hash.h>
 #include <sync.h>
 #include <uint256.h>
@@ -14,10 +15,8 @@
 #include <utilstrencodings.h>
 #include <timedata.h>
 
-#include <atomic>
-#include <fcntl.h>
-
-enum Network ParseNetwork(std::string net) {
+enum Network ParseNetwork(std::string net)
+{
     Downcase(net);
     if (net == "ipv4") return NET_IPV4;
     if (net == "ipv6") return NET_IPV6;
@@ -57,7 +56,8 @@ bool static LookupIntern(const char *pszName, std::vector<CNetAddr>& vIP, unsign
             resolved = CNetAddr(s6->sin6_addr, s6->sin6_scope_id);
         }
         /* Never allow resolving to an internal address. Consider any such result invalid */
-        if (!resolved.IsInternal()) {
+        if (!resolved.IsInternal())
+        {
             vIP.push_back(resolved);
         }
 
@@ -74,7 +74,8 @@ bool LookupHost(const char *pszName, std::vector<CNetAddr>& vIP, unsigned int nM
     std::string strHost(pszName);
     if (strHost.empty())
         return false;
-    if (strHost.front() == '[' && strHost.back() == ']') {
+    if (strHost.front() == '[' && strHost.back() == ']')
+    {
         strHost = strHost.substr(1, strHost.size() - 2);
     }
 
@@ -130,7 +131,8 @@ CService LookupNumeric(const char *pszName, int portDefault)
 }
 
 /** Status codes that can be returned by InterruptibleRecv */
-enum class IntrRecvError {
+enum class IntrRecvError
+{
     OK,
     Timeout,
     Disconnected,
@@ -153,14 +155,17 @@ bool LookupSubNet(const char* pszName, CSubNet& ret)
             std::string strNetmask = strSubnet.substr(slash + 1);
             int32_t n;
             // IPv4 addresses start at offset 12, and first 12 bytes must match, so just offset n
-            if (ParseInt32(strNetmask, &n)) { // If valid number, assume /24 syntax
+            if (ParseInt32(strNetmask, &n))
+            {
+                // If valid number, assume /24 syntax
                 ret = CSubNet(network, n);
                 return ret.IsValid();
             }
             else // If not a valid number, try full netmask syntax
             {
                 // Never allow lookup for netmask
-                if (LookupHost(strNetmask.c_str(), vIP, 1, false)) {
+                if (LookupHost(strNetmask.c_str(), vIP, 1, false))
+                {
                     ret = CSubNet(network, vIP[0]);
                     return ret.IsValid();
                 }

@@ -5,17 +5,13 @@
 #ifndef BITCOIN_NETBASE_H
 #define BITCOIN_NETBASE_H
 
-#if defined(HAVE_CONFIG_H)
 #include <config/bitcoin-config.h>
-#endif
-
-#include <compat.h>
-#include <netaddress.h>
-#include <serialize.h>
-
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <compat.h>
+#include <netaddress.h>
+#include <serialize.h>
 
 //! -timeout default
 constexpr int DEFAULT_CONNECT_TIMEOUT = 5000;

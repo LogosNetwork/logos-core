@@ -3,15 +3,15 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <bloom.h>
-
 #include <hash.h>
 #include <random.h>
 #include <streams.h>
-
 #include <math.h>
 #include <stdlib.h>
 
-CRollingBloomFilter::CRollingBloomFilter(Random &random, const unsigned int nElements, const double fpRate)
+CRollingBloomFilter::CRollingBloomFilter(Random &random,
+                                         const unsigned int nElements,
+                                         const double fpRate)
     : random_(random)
 {
     double logFpRate = log(fpRate);
@@ -40,7 +40,8 @@ CRollingBloomFilter::CRollingBloomFilter(Random &random, const unsigned int nEle
 }
 
 /* Similar to CBloomFilter::Hash */
-static inline uint32_t RollingBloomHash(unsigned int nHashNum, uint32_t nTweak, const std::vector<unsigned char>& vDataToHash) {
+static inline uint32_t RollingBloomHash(unsigned int nHashNum, uint32_t nTweak, const std::vector<unsigned char>& vDataToHash)
+{
     return MurmurHash3(nHashNum * 0xFBA4C795 + nTweak, vDataToHash);
 }
 
@@ -48,22 +49,24 @@ static inline uint32_t RollingBloomHash(unsigned int nHashNum, uint32_t nTweak, 
 // A replacement for x % n. This assumes that x and n are 32bit integers, and x is a uniformly random distributed 32bit value
 // which should be the case for a good hash.
 // See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
-static inline uint32_t FastMod(uint32_t x, size_t n) {
+static inline uint32_t FastMod(uint32_t x, size_t n)
+{
     return ((uint64_t)x * (uint64_t)n) >> 32;
 }
 
 void CRollingBloomFilter::insert(const std::vector<unsigned char>& vKey)
 {
-    if (nEntriesThisGeneration == nEntriesPerGeneration) {
+    if (nEntriesThisGeneration == nEntriesPerGeneration)
+    {
         nEntriesThisGeneration = 0;
         nGeneration++;
-        if (nGeneration == 4) {
+        if (nGeneration == 4)
             nGeneration = 1;
-        }
         uint64_t nGenerationMask1 = 0 - (uint64_t)(nGeneration & 1);
         uint64_t nGenerationMask2 = 0 - (uint64_t)(nGeneration >> 1);
         /* Wipe old entries that used this generation number. */
-        for (uint32_t p = 0; p < data.size(); p += 2) {
+        for (uint32_t p = 0; p < data.size(); p += 2)
+        {
             uint64_t p1 = data[p], p2 = data[p + 1];
             uint64_t mask = (p1 ^ nGenerationMask1) | (p2 ^ nGenerationMask2);
             data[p] = p1 & mask;
@@ -72,7 +75,8 @@ void CRollingBloomFilter::insert(const std::vector<unsigned char>& vKey)
     }
     nEntriesThisGeneration++;
 
-    for (int n = 0; n < nHashFuncs; n++) {
+    for (int n = 0; n < nHashFuncs; n++)
+    {
         uint32_t h = RollingBloomHash(n, nTweak, vKey);
         int bit = h & 0x3F;
         /* FastMod works with the upper bits of h, so it is safe to ignore that the lower bits of h are already used for bit. */
@@ -91,14 +95,14 @@ void CRollingBloomFilter::insert(const uint256& hash)
 
 bool CRollingBloomFilter::contains(const std::vector<unsigned char>& vKey) const
 {
-    for (int n = 0; n < nHashFuncs; n++) {
+    for (int n = 0; n < nHashFuncs; n++)
+    {
         uint32_t h = RollingBloomHash(n, nTweak, vKey);
         int bit = h & 0x3F;
         uint32_t pos = FastMod(h, data.size());
         /* If the relevant bit is not set in either data[pos & ~1] or data[pos | 1], the filter does not contain vKey */
-        if (!(((data[pos & ~1] | data[pos | 1]) >> bit) & 1)) {
+        if (!(((data[pos & ~1] | data[pos | 1]) >> bit) & 1))
             return false;
-        }
     }
     return true;
 }
@@ -114,7 +118,8 @@ void CRollingBloomFilter::reset()
     nTweak = random_.GetRand(std::numeric_limits<unsigned int>::max());
     nEntriesThisGeneration = 0;
     nGeneration = 1;
-    for (std::vector<uint64_t>::iterator it = data.begin(); it != data.end(); it++) {
+    for (std::vector<uint64_t>::iterator it = data.begin(); it != data.end(); it++)
+    {
         *it = 0;
     }
 }

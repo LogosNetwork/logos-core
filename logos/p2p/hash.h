@@ -6,13 +6,12 @@
 #ifndef BITCOIN_HASH_H
 #define BITCOIN_HASH_H
 
+#include <vector>
+#include <string>
 #include "../../blake2/blake2.h"
 #include <serialize.h>
 #include <uint256.h>
 #include <version.h>
-
-#include <vector>
-#include <string>
 
 typedef uint256 ChainCode;
 
@@ -21,6 +20,7 @@ class CHash256
 {
 private:
     blake2b_state__     state;
+
 public:
     static const size_t OUTPUT_SIZE = BLAKE2B_OUTBYTES / 2;
 
@@ -59,7 +59,7 @@ inline uint256 Hash(const T1 pbegin, const T1 pend)
     static const unsigned char pblank[1] = {};
     uint256 result;
     CHash256().Write(pbegin == pend ? pblank : (const unsigned char*)&pbegin[0], (pend - pbegin) * sizeof(pbegin[0]))
-              .Finalize((unsigned char*)&result);
+            .Finalize((unsigned char*)&result);
     return result;
 }
 
@@ -71,8 +71,8 @@ inline uint256 Hash(const T1 p1begin, const T1 p1end,
     static const unsigned char pblank[1] = {};
     uint256 result;
     CHash256().Write(p1begin == p1end ? pblank : (const unsigned char*)&p1begin[0], (p1end - p1begin) * sizeof(p1begin[0]))
-              .Write(p2begin == p2end ? pblank : (const unsigned char*)&p2begin[0], (p2end - p2begin) * sizeof(p2begin[0]))
-              .Finalize((unsigned char*)&result);
+            .Write(p2begin == p2end ? pblank : (const unsigned char*)&p2begin[0], (p2end - p2begin) * sizeof(p2begin[0]))
+            .Finalize((unsigned char*)&result);
     return result;
 }
 
@@ -86,7 +86,12 @@ private:
     const int nVersion;
 public:
 
-    CHashWriter(int nTypeIn, int nVersionIn) : nType(nTypeIn), nVersion(nVersionIn) {}
+    CHashWriter(int nTypeIn,
+                int nVersionIn)
+        : nType(nTypeIn)
+        , nVersion(nVersionIn)
+    {
+    }
 
     int GetType() const { return nType; }
     int GetVersion() const { return nVersion; }
@@ -121,7 +126,12 @@ private:
     Source* source;
 
 public:
-    explicit CHashVerifier(Source* source_) : CHashWriter(source_->GetType(), source_->GetVersion()), source(source_) {}
+    explicit CHashVerifier(Source* source_)
+        : CHashWriter(source_->GetType()
+        , source_->GetVersion())
+        , source(source_)
+    {
+    }
 
     void read(char* pch, size_t nSize)
     {

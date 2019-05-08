@@ -6,13 +6,13 @@
 #ifndef BITCOIN_CHAINPARAMS_H
 #define BITCOIN_CHAINPARAMS_H
 
-#include <protocol.h>
-
 #include <memory>
 #include <vector>
 #include <string>
+#include <protocol.h>
 
-struct SeedSpec6 {
+struct SeedSpec6
+{
     uint8_t addr[16];
     uint16_t port;
 };
@@ -31,14 +31,32 @@ public:
     static const std::string TESTNET;
     static const std::string REGTEST;
 
-    const CMessageHeader::MessageStartChars& MessageStart() const { return pchMessageStart; }
-    int GetDefaultPort() const { return nDefaultPort; }
+    const CMessageHeader::MessageStartChars& MessageStart() const
+    {
+        return pchMessageStart;
+    }
+
+    int GetDefaultPort() const
+    {
+        return nDefaultPort;
+    }
+
     /** Return the list of hostnames to look up for DNS seeds */
-    const std::vector<std::string>& DNSSeeds() const { return vSeeds; }
-    const std::vector<SeedSpec6>& FixedSeeds() const { return vFixedSeeds; }
+    const std::vector<std::string>& DNSSeeds() const
+    {
+        return vSeeds;
+    }
+
+    const std::vector<SeedSpec6>& FixedSeeds() const
+    {
+        return vFixedSeeds;
+    }
 
 protected:
-    CChainParams() {}
+    CChainParams()
+    {
+    }
+
     CMessageHeader::MessageStartChars pchMessageStart;
     int nDefaultPort;
     std::vector<std::string> vSeeds;

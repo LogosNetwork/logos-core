@@ -29,7 +29,8 @@ unsigned int MurmurHash3(unsigned int nHashSeed, const std::vector<unsigned char
     // body
     const uint8_t* blocks = vDataToHash.data();
 
-    for (int i = 0; i < nblocks; ++i) {
+    for (int i = 0; i < nblocks; ++i)
+    {
         uint32_t k1 = ReadLE32(blocks + i*4);
 
         k1 *= c1;
@@ -47,17 +48,18 @@ unsigned int MurmurHash3(unsigned int nHashSeed, const std::vector<unsigned char
 
     uint32_t k1 = 0;
 
-    switch (vDataToHash.size() & 3) {
-        case 3:
-            k1 ^= tail[2] << 16;
-        case 2:
-            k1 ^= tail[1] << 8;
-        case 1:
-            k1 ^= tail[0];
-            k1 *= c1;
-            k1 = ROTL32(k1, 15);
-            k1 *= c2;
-            h1 ^= k1;
+    switch (vDataToHash.size() & 3)
+    {
+    case 3:
+        k1 ^= tail[2] << 16;
+    case 2:
+        k1 ^= tail[1] << 8;
+    case 1:
+        k1 ^= tail[0];
+        k1 *= c1;
+        k1 = ROTL32(k1, 15);
+        k1 *= c2;
+        h1 ^= k1;
     }
 
     //----------
@@ -74,14 +76,16 @@ unsigned int MurmurHash3(unsigned int nHashSeed, const std::vector<unsigned char
 
 #define ROTL(x, b) (uint64_t)(((x) << (b)) | ((x) >> (64 - (b))))
 
-#define SIPROUND do { \
+#define SIPROUND do \
+{ \
     v0 += v1; v1 = ROTL(v1, 13); v1 ^= v0; \
     v0 = ROTL(v0, 32); \
     v2 += v3; v3 = ROTL(v3, 16); v3 ^= v2; \
     v0 += v3; v3 = ROTL(v3, 21); v3 ^= v0; \
     v2 += v1; v1 = ROTL(v1, 17); v1 ^= v2; \
     v2 = ROTL(v2, 32); \
-} while (0)
+} \
+while (0)
 
 CSipHasher::CSipHasher(uint64_t k0, uint64_t k1)
 {
@@ -119,10 +123,12 @@ CSipHasher& CSipHasher::Write(const unsigned char* data, size_t size)
     uint64_t t = tmp;
     int c = count;
 
-    while (size--) {
+    while (size--)
+    {
         t |= ((uint64_t)(*(data++))) << (8 * (c % 8));
         c++;
-        if ((c & 7) == 0) {
+        if ((c & 7) == 0)
+        {
             v3 ^= t;
             SIPROUND;
             SIPROUND;

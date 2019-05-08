@@ -3,9 +3,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <ctype.h>
 #include <logging.h>
 #include <timedata.h>
-#include <ctype.h>
 
 void BCLog::Logger::EnableCategory(BCLog::LogFlags flag)
 {
@@ -15,7 +15,8 @@ void BCLog::Logger::EnableCategory(BCLog::LogFlags flag)
 bool BCLog::Logger::EnableCategory(const std::string& str)
 {
     BCLog::LogFlags flag;
-    if (!GetLogCategory(flag, str)) return false;
+    if (!GetLogCategory(flag, str))
+        return false;
     EnableCategory(flag);
     return true;
 }
@@ -28,7 +29,8 @@ void BCLog::Logger::DisableCategory(BCLog::LogFlags flag)
 bool BCLog::Logger::DisableCategory(const std::string& str)
 {
     BCLog::LogFlags flag;
-    if (!GetLogCategory(flag, str)) return false;
+    if (!GetLogCategory(flag, str))
+        return false;
     DisableCategory(flag);
     return true;
 }
@@ -56,12 +58,15 @@ const CLogCategoryDesc LogCategories[] =
 
 bool GetLogCategory(BCLog::LogFlags& flag, const std::string& str)
 {
-    if (str == "") {
+    if (str == "")
+    {
         flag = BCLog::ALL;
         return true;
     }
-    for (const CLogCategoryDesc& category_desc : LogCategories) {
-        if (category_desc.category == str) {
+    for (const CLogCategoryDesc& category_desc : LogCategories)
+    {
+        if (category_desc.category == str)
+        {
             flag = category_desc.flag;
             return true;
         }
@@ -73,10 +78,13 @@ std::string ListLogCategories()
 {
     std::string ret;
     int outcount = 0;
-    for (const CLogCategoryDesc& category_desc : LogCategories) {
+    for (const CLogCategoryDesc& category_desc : LogCategories)
+    {
         // Omit the special cases.
-        if (category_desc.flag != BCLog::NONE && category_desc.flag != BCLog::ALL) {
-            if (outcount != 0) ret += ", ";
+        if (category_desc.flag != BCLog::NONE && category_desc.flag != BCLog::ALL)
+        {
+            if (outcount != 0)
+                ret += ", ";
             ret += category_desc.category;
             outcount++;
         }
@@ -87,6 +95,8 @@ std::string ListLogCategories()
 void BCLog::Logger::LogPrintStr(boost::log::trivial::severity_level level, const std::string &str)
 {
     std::string s = str;
-    while (isspace(s[s.length() - 1])) s.pop_back();
-    if(s.length()) BOOST_LOG_SEV(log, level) << "[p2p] " << s;
+    while (isspace(s[s.length() - 1]))
+        s.pop_back();
+    if (s.length())
+        BOOST_LOG_SEV(log, level) << "[p2p] " << s;
 }

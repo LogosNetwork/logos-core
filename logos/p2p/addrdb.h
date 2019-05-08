@@ -6,12 +6,11 @@
 #ifndef BITCOIN_ADDRDB_H
 #define BITCOIN_ADDRDB_H
 
-#include <serialize.h>
-#include <chainparams.h>
-#include "p2p.h"
-
 #include <string>
 #include <map>
+#include <serialize.h>
+#include <chainparams.h>
+#include <p2p.h>
 
 class CSubNet;
 class CAddrMan;
@@ -26,7 +25,7 @@ typedef enum BanReason
 class CBanEntry
 {
 public:
-    static constexpr int CURRENT_VERSION=1;
+    static constexpr int CURRENT_VERSION = 1;
     int nVersion;
     int64_t nCreateTime;
     int64_t nBanUntil;
@@ -46,7 +45,8 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(this->nVersion);
         READWRITE(nCreateTime);
         READWRITE(nBanUntil);
@@ -63,7 +63,8 @@ public:
 
     std::string banReasonToString() const
     {
-        switch (banReason) {
+        switch (banReason)
+        {
         case BanReasonNodeMisbehaving:
             return "node misbehaving";
         case BanReasonManuallyAdded:
@@ -90,7 +91,8 @@ public:
         , dbi(config.lmdb_dbi)
         , logger_(logger)
         , params(paramsIn)
-    {}
+    {
+    }
     bool Write(const CAddrMan& addr);
     bool Read(CAddrMan& addr);
 };
@@ -109,7 +111,8 @@ public:
         , dbi(config.lmdb_dbi)
         , logger_(logger)
         , params(paramsIn)
-    {}
+    {
+    }
     bool Write(const banmap_t& banSet);
     bool Read(banmap_t& banSet);
 };

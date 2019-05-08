@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "../../lmdb/libraries/liblmdb/lmdb.h"
 #include <addrdb.h>
-
 #include <addrman.h>
 #include <chainparams.h>
 #include <clientversion.h>
@@ -13,20 +13,23 @@
 #include <streams.h>
 #include <tinyformat.h>
 #include <util.h>
-#include "../../lmdb/libraries/liblmdb/lmdb.h"
 
-namespace {
+namespace
+{
 
 template <typename Stream, typename Data>
 bool SerializeDB(Stream& stream, const Data& data, BCLog::Logger &logger_, std::shared_ptr<CChainParams> params)
 {
     // Write and commit header, data
-    try {
+    try
+    {
         CHashWriter hasher(SER_DISK, CLIENT_VERSION);
         stream << params->MessageStart() << data;
         hasher << params->MessageStart() << data;
         stream << hasher.GetHash();
-    } catch (const std::exception& e) {
+    }
+    catch (const std::exception& e)
+    {
         return error(logger_, "%s: Serialize or I/O error - %s", __func__, e.what());
     }
 
@@ -42,21 +45,23 @@ bool SerializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, const D
 
     // Serialize
     if (!SerializeDB(s, data, logger_, params))
-    return error(logger_, "%s: Failed to serialize %s data", __func__, prefix.c_str());
+        return error(logger_, "%s: Failed to serialize %s data", __func__, prefix.c_str());
 
     MDB_val key = { prefix.size(), (void *)prefix.c_str() }, value = { s.size(), s.data() };
 
     if ((err = mdb_txn_begin(env, 0, 0, &txn)))
-    return error(logger_, "%s: Failed to open %s write transaction, error %d", __func__, prefix.c_str(), err);
+        return error(logger_, "%s: Failed to open %s write transaction, error %d", __func__, prefix.c_str(), err);
 
-    if ((err = mdb_put(txn, dbi, &key, &value, 0))) {
-	mdb_txn_abort(txn);
-    return error(logger_, "%s: Failed to put %s data, error %d", __func__, prefix.c_str(), err);
+    if ((err = mdb_put(txn, dbi, &key, &value, 0)))
+    {
+        mdb_txn_abort(txn);
+        return error(logger_, "%s: Failed to put %s data, error %d", __func__, prefix.c_str(), err);
     }
 
-    if ((err = mdb_txn_commit(txn))) {
-	mdb_txn_abort(txn);
-    return error(logger_, "%s: Failed to commit %s transaction, error %d", __func__, prefix.c_str(), err);
+    if ((err = mdb_txn_commit(txn)))
+    {
+        mdb_txn_abort(txn);
+        return error(logger_, "%s: Failed to commit %s transaction, error %d", __func__, prefix.c_str(), err);
     }
 
     return true;
@@ -65,7 +70,8 @@ bool SerializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, const D
 template <typename Stream, typename Data>
 bool DeserializeDB(Stream& stream, Data& data, BCLog::Logger &logger_, std::shared_ptr<CChainParams> params, bool fCheckSum = true)
 {
-    try {
+    try
+    {
         CHashVerifier<Stream> verifier(&stream);
         // de-serialize file header (network specific magic number) and ..
         unsigned char pchMsgTmp[4];
@@ -78,15 +84,16 @@ bool DeserializeDB(Stream& stream, Data& data, BCLog::Logger &logger_, std::shar
         verifier >> data;
 
         // verify checksum
-        if (fCheckSum) {
-        uint256 hashTmp;
+        if (fCheckSum)
+        {
+            uint256 hashTmp;
             stream >> hashTmp;
-            if (hashTmp != verifier.GetHash()) {
+            if (hashTmp != verifier.GetHash())
                 return error(logger_, "%s: Checksum mismatch, data corrupted", __func__);
-            }
         }
     }
-    catch (const std::exception& e) {
+    catch (const std::exception& e)
+    {
         return error(logger_, "%s: Deserialize or I/O error - %s", __func__, e.what());
     }
 
@@ -101,19 +108,21 @@ bool DeserializeLMDB(const std::string &prefix, MDB_env *env, MDB_dbi dbi, Data&
     MDB_val key = { prefix.size(), (void *)prefix.c_str() }, value;
 
     if ((err = mdb_txn_begin(env, 0, MDB_RDONLY, &txn)))
-    return error(logger_, "%s: Failed to open %s read transaction, error %d", __func__, prefix.c_str(), err);
+        return error(logger_, "%s: Failed to open %s read transaction, error %d", __func__, prefix.c_str(), err);
 
-    if ((err = mdb_get(txn, dbi, &key, &value))) {
-	mdb_txn_abort(txn);
-    return error(logger_, "%s: Failed to get %s data, error %d", __func__, prefix.c_str(), err);
+    if ((err = mdb_get(txn, dbi, &key, &value)))
+    {
+        mdb_txn_abort(txn);
+        return error(logger_, "%s: Failed to get %s data, error %d", __func__, prefix.c_str(), err);
     }
 
     CDataStream s((const char *)value.mv_data, (const char *)value.mv_data + value.mv_size, SER_DISK, CLIENT_VERSION);
 
     // Deserialize
-    if (!DeserializeDB(s, data, logger_, params)) {
-	mdb_txn_abort(txn);
-    return error(logger_, "%s: Failed to deserialize %s data", __func__, prefix.c_str());
+    if (!DeserializeDB(s, data, logger_, params))
+    {
+        mdb_txn_abort(txn);
+        return error(logger_, "%s: Failed to deserialize %s data", __func__, prefix.c_str());
     }
 
     mdb_txn_abort(txn);
