@@ -10,8 +10,6 @@ add_library (p2p
 	clientversion.cpp
 	clientversion.h
 	compat.h
-	compat/byteswap.h
-	compat/endian.h
 	compat/glibc_sanity.cpp
 	compat/glibcxx_sanity.cpp
 	compat/sanity.h
