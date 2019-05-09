@@ -7,9 +7,9 @@
 #define BITCOIN_UINT256_H
 
 #include <assert.h>
+#include <stdint.h>
 #include <cstring>
 #include <stdexcept>
-#include <stdint.h>
 #include <string>
 #include <vector>
 #include <crypto/common.h>
@@ -19,8 +19,8 @@ template<unsigned int BITS>
 class base_blob
 {
 protected:
-    static constexpr int WIDTH = BITS / 8;
-    uint8_t data[WIDTH];
+    static constexpr int    WIDTH = BITS / 8;
+    uint8_t                 data[WIDTH];
 public:
     base_blob()
     {
@@ -42,11 +42,23 @@ public:
         memset(data, 0, sizeof(data));
     }
 
-    inline int Compare(const base_blob& other) const { return memcmp(data, other.data, sizeof(data)); }
+    inline int Compare(const base_blob& other) const
+    {
+        return memcmp(data, other.data, sizeof(data));
+    }
 
-    friend inline bool operator==(const base_blob& a, const base_blob& b) { return a.Compare(b) == 0; }
-    friend inline bool operator!=(const base_blob& a, const base_blob& b) { return a.Compare(b) != 0; }
-    friend inline bool operator<(const base_blob& a, const base_blob& b) { return a.Compare(b) < 0; }
+    friend inline bool operator==(const base_blob& a, const base_blob& b)
+    {
+        return a.Compare(b) == 0;
+    }
+    friend inline bool operator!=(const base_blob& a, const base_blob& b)
+    {
+        return a.Compare(b) != 0;
+    }
+    friend inline bool operator<(const base_blob& a, const base_blob& b)
+    {
+        return a.Compare(b) < 0;
+    }
 
     std::string GetHex() const;
     std::string ToString() const;
@@ -79,14 +91,14 @@ public:
     uint64_t GetUint64(int pos) const
     {
         const uint8_t* ptr = data + pos * 8;
-        return ((uint64_t)ptr[0]) | \
-               ((uint64_t)ptr[1]) << 8 | \
-               ((uint64_t)ptr[2]) << 16 | \
-               ((uint64_t)ptr[3]) << 24 | \
-               ((uint64_t)ptr[4]) << 32 | \
-               ((uint64_t)ptr[5]) << 40 | \
-               ((uint64_t)ptr[6]) << 48 | \
-               ((uint64_t)ptr[7]) << 56;
+        return ((uint64_t)ptr[0])
+                | ((uint64_t)ptr[1]) << 8
+                | ((uint64_t)ptr[2]) << 16
+                | ((uint64_t)ptr[3]) << 24
+                | ((uint64_t)ptr[4]) << 32
+                | ((uint64_t)ptr[5]) << 40
+                | ((uint64_t)ptr[6]) << 48
+                | ((uint64_t)ptr[7]) << 56;
     }
 
     template<typename Stream>
@@ -107,10 +119,16 @@ public:
  * opaque blob of 256 bits and has no integer operations. Use arith_uint256 if
  * those are required.
  */
-class uint256 : public base_blob<256> {
+class uint256 : public base_blob<256>
+{
 public:
-    uint256() {}
-    explicit uint256(const std::vector<unsigned char>& vch) : base_blob<256>(vch) {}
+    uint256()
+    {
+    }
+    explicit uint256(const std::vector<unsigned char>& vch)
+        : base_blob<256>(vch)
+    {
+    }
 
     /** A cheap hash function that just returns 64 bits from the result, it can be
      * used when the contents are considered uniformly random. It is not appropriate

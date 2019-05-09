@@ -3,47 +3,19 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <util.h>
-
-#include <chainparams.h>
-#include <random.h>
-#include <serialize.h>
-#include <utilstrencodings.h>
-
 #include <stdarg.h>
-#include <boost/filesystem.hpp>
-
-#if (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
 #include <pthread.h>
-#include <pthread_np.h>
-#endif
-
-// for posix_fallocate
-#ifdef __linux__
-
-#ifdef _POSIX_C_SOURCE
-#undef _POSIX_C_SOURCE
-#endif
-
-#define _POSIX_C_SOURCE 200112L
-
-#include <pthread.h>
-
-#endif // __linux__
-
-#include <algorithm>
 #include <fcntl.h>
 #include <sched.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
-
-#ifdef HAVE_SYS_PRCTL_H
-#include <sys/prctl.h>
-#endif
-
-#ifdef HAVE_MALLOPT_ARENA_MAX
-#include <malloc.h>
-#endif
+#include <algorithm>
+#include <boost/filesystem.hpp>
+#include <util.h>
+#include <chainparams.h>
+#include <random.h>
+#include <serialize.h>
+#include <utilstrencodings.h>
 
 /**
  * Interpret a string argument as a boolean.
@@ -70,7 +42,8 @@ static bool InterpretBool(const std::string& strValue)
 }
 
 /** Internal helper functions for ArgsManager */
-class ArgsManagerHelper {
+class ArgsManagerHelper
+{
 public:
     typedef std::map<std::string, std::vector<std::string>> MapArgs;
 
@@ -92,9 +65,8 @@ public:
     static inline void AddArgs(std::vector<std::string>& res, const MapArgs& map_args, const std::string& arg)
     {
         auto it = map_args.find(arg);
-        if (it != map_args.end()) {
+        if (it != map_args.end())
             res.insert(res.end(), it->second.begin(), it->second.end());
-        }
     }
 
     /** Return true/false if an argument is set in a map, and also
@@ -104,15 +76,13 @@ public:
     {
         auto it = map_args.find(arg);
 
-        if (it == map_args.end() || it->second.empty()) {
+        if (it == map_args.end() || it->second.empty())
             return std::make_pair(false, std::string());
-        }
 
-        if (getLast) {
+        if (getLast)
             return std::make_pair(true, it->second.back());
-        } else {
+        else
             return std::make_pair(true, it->second.front());
-        }
     }
 
     /* Get the string value of an argument, returning a pair of a boolean
@@ -128,25 +98,24 @@ public:
         // argument value seen from the command line (so "bitcoind -foo=bar
         // -foo=baz" gives GetArg(am,"foo")=={true,"baz"}
         found_result = GetArgHelper(am.m_override_args, arg, true);
-        if (found_result.first) {
+        if (found_result.first)
             return found_result;
-        }
 
         // But in contrast we return the first argument seen in a config file,
         // so "foo=bar \n foo=baz" in the config file gives
         // GetArg(am,"foo")={true,"bar"}
-        if (!am.m_network.empty()) {
+        if (!am.m_network.empty())
+        {
             found_result = GetArgHelper(am.m_config_args, NetworkArg(am, arg));
-            if (found_result.first) {
+            if (found_result.first)
                 return found_result;
-            }
         }
 
-        if (UseDefaultSection(am, arg)) {
+        if (UseDefaultSection(am, arg))
+        {
             found_result = GetArgHelper(am.m_config_args, arg);
-            if (found_result.first) {
+            if (found_result.first)
                 return found_result;
-            }
         }
 
         return found_result;
@@ -159,11 +128,11 @@ public:
     {
         std::pair<bool,std::string> found_result(false,std::string());
         found_result = GetArgHelper(am.m_override_args, net_arg, true);
-        if (!found_result.first) {
+        if (!found_result.first)
+        {
             found_result = GetArgHelper(am.m_config_args, net_arg, true);
-            if (!found_result.first) {
+            if (!found_result.first)
                 return false; // not set
-            }
         }
         return InterpretBool(found_result.second); // is set, so evaluate
     }
@@ -195,21 +164,22 @@ bool ArgsManager::InterpretNegatedOption(std::string& key, std::string& val)
     assert(key[0] == '-');
 
     size_t option_index = key.find('.');
-    if (option_index == std::string::npos) {
+    if (option_index == std::string::npos)
         option_index = 1;
-    } else {
+    else
         ++option_index;
-    }
-    if (key.substr(option_index, 2) == "no") {
+    if (key.substr(option_index, 2) == "no")
+    {
         bool bool_val = InterpretBool(val);
         key.erase(option_index, 2);
-        if (!bool_val ) {
+        if (!bool_val )
+        {
             // Double negatives like -nofoo=0 are supported (but discouraged)
             LogPrintf("Warning: parsed potentially confusing double-negative %s=%s\n", key, val);
             val = "1";
-        } else {
-            return true;
         }
+        else
+            return true;
     }
     return false;
 }
@@ -220,10 +190,11 @@ ArgsManager::ArgsManager(BCLog::Logger &logger)
      * Setting them as section_only_args ensures that sharing a config file
      * between mainnet and regtest/testnet won't cause problems due to these
      * parameters by accident. */
-    : m_network_only_args{
-      "-addnode", "-connect",
-      "-port", "-bind"
-     }
+    : m_network_only_args
+        {
+            "-addnode", "-connect",
+            "-port", "-bind"
+        }
     , logger_(logger)
 {
     // nothing to do
@@ -239,7 +210,8 @@ void ArgsManager::WarnForSectionOnlyArgs()
     // if it's okay to use the default section for this network, don't worry
     if (m_network == CChainParams::MAIN) return;
 
-    for (const auto& arg : m_network_only_args) {
+    for (const auto& arg : m_network_only_args)
+    {
         std::pair<bool, std::string> found_result;
 
         // if this option is overridden it's fine
@@ -264,11 +236,13 @@ bool ArgsManager::ParseParameters(int argc, const char* const argv[], std::strin
     LOCK(cs_args);
     m_override_args.clear();
 
-    for (int i = 1; i < argc; i++) {
+    for (int i = 1; i < argc; i++)
+    {
         std::string key(argv[i]);
         std::string val;
         size_t is_index = key.find('=');
-        if (is_index != std::string::npos) {
+        if (is_index != std::string::npos)
+        {
             val = key.substr(is_index + 1);
             key.erase(is_index);
         }
@@ -281,15 +255,16 @@ bool ArgsManager::ParseParameters(int argc, const char* const argv[], std::strin
             key.erase(0, 1);
 
         // Check for -nofoo
-        if (InterpretNegatedOption(key, val)) {
+        if (InterpretNegatedOption(key, val))
             m_override_args[key].clear();
-        } else {
+        else
             m_override_args[key].push_back(val);
-        }
 
         // Check that the arg is known
-        if (!(IsSwitchChar(key[0]) && key.size() == 1)) {
-            if (!IsArgKnown(key)) {
+        if (!(IsSwitchChar(key[0]) && key.size() == 1))
+        {
+            if (!IsArgKnown(key))
+            {
                 error = strprintf("Invalid parameter %s", key.c_str());
                 return false;
             }
@@ -298,9 +273,12 @@ bool ArgsManager::ParseParameters(int argc, const char* const argv[], std::strin
 
     // we do not allow -includeconf from command line, so we clear it here
     auto it = m_override_args.find("-includeconf");
-    if (it != m_override_args.end()) {
-        if (it->second.size() > 0) {
-            for (const auto& ic : it->second) {
+    if (it != m_override_args.end())
+    {
+        if (it->second.size() > 0)
+        {
+            for (const auto& ic : it->second)
+            {
                 error += "-includeconf cannot be used from commandline; -includeconf=" + ic + "\n";
             }
             return false;
@@ -313,41 +291,43 @@ bool ArgsManager::IsArgKnown(const std::string& key) const
 {
     size_t option_index = key.find('.');
     std::string arg_no_net;
-    if (option_index == std::string::npos) {
+    if (option_index == std::string::npos)
         arg_no_net = key;
-    } else {
+    else
         arg_no_net = std::string("-") + key.substr(option_index + 1, std::string::npos);
-    }
 
     LOCK(cs_args);
-    for (const auto& arg_map : m_available_args) {
-        if (arg_map.second.count(arg_no_net)) return true;
+    for (const auto& arg_map : m_available_args)
+    {
+        if (arg_map.second.count(arg_no_net))
+            return true;
     }
     return false;
 }
 
 std::vector<std::string> ArgsManager::GetArgs(const std::string& strArg) const
 {
-    std::vector<std::string> result = {};
+    std::vector<std::string> result =
+    {
+    };
     if (IsArgNegated(strArg)) return result; // special case
 
     LOCK(cs_args);
 
     ArgsManagerHelper::AddArgs(result, m_override_args, strArg);
-    if (!m_network.empty()) {
+    if (!m_network.empty())
         ArgsManagerHelper::AddArgs(result, m_config_args, ArgsManagerHelper::NetworkArg(*this, strArg));
-    }
 
-    if (ArgsManagerHelper::UseDefaultSection(*this, strArg)) {
+    if (ArgsManagerHelper::UseDefaultSection(*this, strArg))
         ArgsManagerHelper::AddArgs(result, m_config_args, strArg);
-    }
 
     return result;
 }
 
 bool ArgsManager::IsArgSet(const std::string& strArg) const
 {
-    if (IsArgNegated(strArg)) return true; // special case
+    if (IsArgNegated(strArg))
+        return true; // special case
     return ArgsManagerHelper::GetArg(*this, strArg).first;
 }
 
@@ -356,47 +336,58 @@ bool ArgsManager::IsArgNegated(const std::string& strArg) const
     LOCK(cs_args);
 
     const auto& ov = m_override_args.find(strArg);
-    if (ov != m_override_args.end()) return ov->second.empty();
+    if (ov != m_override_args.end())
+        return ov->second.empty();
 
     if (!m_network.empty()) {
+
         const auto& cfs = m_config_args.find(ArgsManagerHelper::NetworkArg(*this, strArg));
-        if (cfs != m_config_args.end()) return cfs->second.empty();
+        if (cfs != m_config_args.end())
+            return cfs->second.empty();
     }
 
     const auto& cf = m_config_args.find(strArg);
-    if (cf != m_config_args.end()) return cf->second.empty();
+    if (cf != m_config_args.end())
+        return cf->second.empty();
 
     return false;
 }
 
 std::string ArgsManager::GetArg(const std::string& strArg, const std::string& strDefault) const
 {
-    if (IsArgNegated(strArg)) return "0";
+    if (IsArgNegated(strArg))
+        return "0";
     std::pair<bool,std::string> found_res = ArgsManagerHelper::GetArg(*this, strArg);
-    if (found_res.first) return found_res.second;
+    if (found_res.first)
+        return found_res.second;
     return strDefault;
 }
 
 int64_t ArgsManager::GetArg(const std::string& strArg, int64_t nDefault) const
 {
-    if (IsArgNegated(strArg)) return 0;
+    if (IsArgNegated(strArg))
+        return 0;
     std::pair<bool,std::string> found_res = ArgsManagerHelper::GetArg(*this, strArg);
-    if (found_res.first) return atoi64(found_res.second);
+    if (found_res.first)
+        return atoi64(found_res.second);
     return nDefault;
 }
 
 bool ArgsManager::GetBoolArg(const std::string& strArg, bool fDefault) const
 {
-    if (IsArgNegated(strArg)) return false;
+    if (IsArgNegated(strArg))
+        return false;
     std::pair<bool,std::string> found_res = ArgsManagerHelper::GetArg(*this, strArg);
-    if (found_res.first) return InterpretBool(found_res.second);
+    if (found_res.first)
+        return InterpretBool(found_res.second);
     return fDefault;
 }
 
 bool ArgsManager::SoftSetArg(const std::string& strArg, const std::string& strValue)
 {
     LOCK(cs_args);
-    if (IsArgSet(strArg)) return false;
+    if (IsArgSet(strArg))
+        return false;
     ForceSetArg(strArg, strValue);
     return true;
 }
@@ -419,9 +410,8 @@ void ArgsManager::AddArg(const std::string& name, const std::string& help, const
 {
     // Split arg name from its help param
     size_t eq_index = name.find('=');
-    if (eq_index == std::string::npos) {
+    if (eq_index == std::string::npos)
         eq_index = name.size();
-    }
 
     LOCK(cs_args);
     std::map<std::string, Arg>& arg_map = m_available_args[cat];
@@ -438,10 +428,10 @@ static std::string FormatException(const std::exception* pex, const char* pszThr
     const char* pszModule = "logos-p2p";
     if (pex)
         return strprintf(
-            "EXCEPTION: %s       \n%s       \n%s in %s       \n", typeid(*pex).name(), pex->what(), pszModule, pszThread);
+                    "EXCEPTION: %s       \n%s       \n%s in %s       \n", typeid(*pex).name(), pex->what(), pszModule, pszThread);
     else
         return strprintf(
-            "UNKNOWN EXCEPTION       \n%s in %s       \n", pszModule, pszThread);
+                    "UNKNOWN EXCEPTION       \n%s in %s       \n", pszModule, pszThread);
 }
 
 void PrintExceptionContinue(BCLog::Logger &logger_, const std::exception* pex, const char* pszThread)
@@ -454,9 +444,8 @@ void PrintExceptionContinue(BCLog::Logger &logger_, const std::exception* pex, c
 static std::string TrimString(const std::string& str, const std::string& pattern)
 {
     std::string::size_type front = str.find_first_not_of(pattern);
-    if (front == std::string::npos) {
+    if (front == std::string::npos)
         return std::string();
-    }
     std::string::size_type end = str.find_last_not_of(pattern);
     return str.substr(front, end - front + 1);
 }
@@ -480,10 +469,13 @@ std::string ArgsManager::GetChainName()
  * this function tries to raise the file descriptor limit to the requested number.
  * It returns the actual file descriptor limit (which may be more or less than nMinFD)
  */
-int RaiseFileDescriptorLimit(int nMinFD) {
+int RaiseFileDescriptorLimit(int nMinFD)
+{
     struct rlimit limitFD;
-    if (getrlimit(RLIMIT_NOFILE, &limitFD) != -1) {
-        if (limitFD.rlim_cur < (rlim_t)nMinFD) {
+    if (getrlimit(RLIMIT_NOFILE, &limitFD) != -1)
+    {
+        if (limitFD.rlim_cur < (rlim_t)nMinFD)
+        {
             limitFD.rlim_cur = nMinFD;
             if (limitFD.rlim_cur > limitFD.rlim_max)
                 limitFD.rlim_cur = limitFD.rlim_max;
@@ -497,43 +489,21 @@ int RaiseFileDescriptorLimit(int nMinFD) {
 
 void RenameThread(const char* name)
 {
-#if defined(PR_SET_NAME)
-    // Only the first 15 characters are used (16 - NUL terminator)
-    ::prctl(PR_SET_NAME, name, 0, 0, 0);
-#elif (defined(__linux__))
     pthread_setname_np(pthread_self(), name);
-#elif (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
-    pthread_set_name_np(pthread_self(), name);
-
-#elif defined(MAC_OSX)
-    pthread_setname_np(name);
-#else
-    // Prevent warnings for unused parameters...
-    (void)name;
-#endif
 }
 
 void SetupEnvironment()
 {
-#ifdef HAVE_MALLOPT_ARENA_MAX
-    // glibc-specific: On 32-bit systems set the number of arenas to 1.
-    // By default, since glibc 2.10, the C library will create up to two heap
-    // arenas per core. This is known to cause excessive virtual address space
-    // usage in our usage. Work around it by setting the maximum number of
-    // arenas to 1.
-    if (sizeof(void*) == 4) {
-        mallopt(M_ARENA_MAX, 1);
-    }
-#endif
     // On most POSIX systems (e.g. Linux, but not BSD) the environment's locale
     // may be invalid, in which case the "C" locale is used as fallback.
-#if !defined(MAC_OSX) && !defined(__FreeBSD__) && !defined(__OpenBSD__)
-    try {
+    try
+    {
         std::locale(""); // Raises a runtime error if current locale is invalid
-    } catch (const std::runtime_error&) {
+    }
+    catch (const std::runtime_error&)
+    {
         setenv("LC_ALL", "C", 1);
     }
-#endif
     // The path locale is lazy initialized and to avoid deinitialization errors
     // in multithreading environments, it is set explicitly by the main thread.
     // A dummy locale is used to extract the internal default locale, used by

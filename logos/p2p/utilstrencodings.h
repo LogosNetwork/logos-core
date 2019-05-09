@@ -22,9 +22,9 @@
 /** Used by SanitizeString() */
 enum SafeChars
 {
-    SAFE_CHARS_DEFAULT, //!< The full set of allowed chars
-    SAFE_CHARS_UA_COMMENT, //!< BIP-0014 subset
-    SAFE_CHARS_FILENAME, //!< Chars allowed in filenames
+    SAFE_CHARS_DEFAULT,     //!< The full set of allowed chars
+    SAFE_CHARS_UA_COMMENT,  //!< BIP-0014 subset
+    SAFE_CHARS_FILENAME,    //!< Chars allowed in filenames
 };
 
 /**
@@ -73,8 +73,11 @@ template<typename T>
 std::string HexStr(const T itbegin, const T itend, bool fSpaces=false)
 {
     std::string rv;
-    static const char hexmap[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
-                                     '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+    static const char hexmap[16] =
+    {
+        '0', '1', '2', '3', '4', '5', '6', '7',
+        '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+    };
     rv.reserve((itend-itbegin)*3);
     for(T it = itbegin; it < itend; ++it)
     {

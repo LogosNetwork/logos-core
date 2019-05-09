@@ -15,7 +15,7 @@
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/key_extractors.hpp>
 #include <boost/multi_index/ordered_index.hpp>
-#include "hash.h"
+#include <hash.h>
 
 #define DEFAULT_PROPAGATE_STORE_SIZE	0x10000
 
@@ -66,10 +66,12 @@ public:
         : max_size(size)
         , first_label(0)
         , next_label(0)
-    {}
+    {
+    }
 
     ~PropagateStore()
-    {}
+    {
+    }
 
     bool Find(const PropagateMessage &mess)
     {
@@ -86,9 +88,7 @@ public:
             {
                 auto iter = store.get<PropagateMessage::ByLabel>().find(first_label);
                 if (iter != store.get<PropagateMessage::ByLabel>().end())
-                {
                     store.get<PropagateMessage::ByLabel>().erase(iter);
-                }
                 first_label++;
             }
             mess.label = next_label++;
@@ -102,9 +102,7 @@ public:
     {
         std::lock_guard<std::mutex> lock(mutex);
         if (current_label < first_label)
-        {
             current_label = first_label;
-        }
 
         while (current_label < next_label)
         {

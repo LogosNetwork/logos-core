@@ -6,16 +6,16 @@
 #ifndef BITCOIN_UI_INTERFACE_H
 #define BITCOIN_UI_INTERFACE_H
 
+#include <stdint.h>
 #include <functional>
 #include <memory>
-#include <stdint.h>
 #include <string>
 
 /** Signals for UI communication. */
 class CClientUIInterface
 {
 private:
-    struct p2p_config &config;
+    struct p2p_config & config;
 
 public:
     CClientUIInterface(struct p2p_config &configIn)

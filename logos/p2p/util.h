@@ -12,12 +12,6 @@
 
 #include <config/bitcoin-config.h>
 
-#include <compat.h>
-#include <logging.h>
-#include <sync.h>
-#include <tinyformat.h>
-#include <utilmemory.h>
-
 #include <atomic>
 #include <exception>
 #include <map>
@@ -26,8 +20,12 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
-
 #include <boost/thread/condition_variable.hpp> // for boost::thread_interrupted
+#include <compat.h>
+#include <logging.h>
+#include <sync.h>
+#include <tinyformat.h>
+#include <utilmemory.h>
 
 /** Translate a message to the native language of the user. */
 const extern std::function<std::string(const char*)> G_TRANSLATION_FUN;
@@ -58,7 +56,8 @@ inline bool IsSwitchChar(char c)
     return c == '-';
 }
 
-enum class OptionsCategory {
+enum class OptionsCategory
+{
     CONNECTION,
     DEBUG_TEST,
 };
@@ -76,7 +75,14 @@ protected:
         std::string m_help_text;
         bool m_debug_only;
 
-        Arg(const std::string& help_param, const std::string& help_text, bool debug_only) : m_help_param(help_param), m_help_text(help_text), m_debug_only(debug_only) {};
+        Arg(const std::string& help_param,
+            const std::string& help_text,
+            bool debug_only)
+            : m_help_param(help_param)
+            , m_help_text(help_text)
+            , m_debug_only(debug_only)
+        {
+        };
     };
 
     mutable CCriticalSection cs_args;
@@ -188,7 +194,8 @@ public:
     /**
      * Clear available arguments
      */
-    void ClearArgs() {
+    void ClearArgs()
+    {
         LOCK(cs_args);
         m_available_args.clear();
     }
@@ -220,11 +227,13 @@ template <typename Callable> void TraceThread(const char* name, BCLog::Logger *p
         LogPrintf("%s thread interrupt\n", name);
         throw;
     }
-    catch (const std::exception& e) {
+    catch (const std::exception& e)
+    {
         PrintExceptionContinue(logger_, &e, name);
         throw;
     }
-    catch (...) {
+    catch (...)
+    {
         PrintExceptionContinue(logger_, nullptr, name);
         throw;
     }
@@ -232,15 +241,18 @@ template <typename Callable> void TraceThread(const char* name, BCLog::Logger *p
 
 std::string CopyrightHolders(const std::string& strPrefix);
 
-namespace util {
+namespace util
+{
 
 //! Simplification of std insertion
 template <typename Tdst, typename Tsrc>
-inline void insert(Tdst& dst, const Tsrc& src) {
+inline void insert(Tdst& dst, const Tsrc& src)
+{
     dst.insert(dst.begin(), src.begin(), src.end());
 }
 template <typename TsetT, typename Tsrc>
-inline void insert(std::set<TsetT>& dst, const Tsrc& src) {
+inline void insert(std::set<TsetT>& dst, const Tsrc& src)
+{
     dst.insert(src.begin(), src.end());
 }
 

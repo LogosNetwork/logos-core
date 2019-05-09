@@ -3,27 +3,28 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <arpa/inet.h>
 #include <protocol.h>
-
 #include <util.h>
 #include <utilstrencodings.h>
-#include <arpa/inet.h>
 
-namespace NetMsgType {
-const char *VERSION="version";
-const char *VERACK="verack";
-const char *ADDR="addr";
-const char *GETADDR="getaddr";
-const char *PING="ping";
-const char *PONG="pong";
-const char *REJECT="reject";
-const char *PROPAGATE="propagate";
+namespace NetMsgType
+{
+    const char *VERSION="version";
+    const char *VERACK="verack";
+    const char *ADDR="addr";
+    const char *GETADDR="getaddr";
+    const char *PING="ping";
+    const char *PONG="pong";
+    const char *REJECT="reject";
+    const char *PROPAGATE="propagate";
 } // namespace NetMsgType
 
 /** All known message types. Keep this in the same order as the list of
  * messages above and in protocol.h.
  */
-const static std::string allNetMessageTypes[] = {
+const static std::string allNetMessageTypes[] =
+{
     NetMsgType::VERSION,
     NetMsgType::VERACK,
     NetMsgType::ADDR,
@@ -43,7 +44,9 @@ CMessageHeader::CMessageHeader(const MessageStartChars& pchMessageStartIn)
     memset(pchChecksum, 0, CHECKSUM_SIZE);
 }
 
-CMessageHeader::CMessageHeader(const MessageStartChars& pchMessageStartIn, const char* pszCommand, unsigned int nMessageSizeIn)
+CMessageHeader::CMessageHeader(const MessageStartChars& pchMessageStartIn,
+                               const char* pszCommand,
+                               unsigned int nMessageSizeIn)
 {
     memcpy(pchMessageStart, pchMessageStartIn, MESSAGE_START_SIZE);
     memset(pchCommand, 0, sizeof(pchCommand));
@@ -87,12 +90,14 @@ bool CMessageHeader::IsValid(const MessageStartChars& pchMessageStartIn, BCLog::
     return true;
 }
 
-CAddress::CAddress() : CService()
+CAddress::CAddress()
+    : CService()
 {
     Init();
 }
 
-CAddress::CAddress(CService ipIn) : CService(ipIn)
+CAddress::CAddress(CService ipIn)
+    : CService(ipIn)
 {
     Init();
 }

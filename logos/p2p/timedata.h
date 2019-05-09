@@ -10,9 +10,9 @@
 #include <stdint.h>
 #include <vector>
 #include <string>
-#include "util.h"
-#include "ui_interface.h"
-#include "netaddress.h"
+#include <util.h>
+#include <ui_interface.h>
+#include <netaddress.h>
 
 #define BITCOIN_TIMEDATA_MAX_SAMPLES 200
 
@@ -26,12 +26,14 @@ template <typename T>
 class CMedianFilter
 {
 private:
-    std::vector<T> vValues;
-    std::vector<T> vSorted;
-    unsigned int nSize;
+    std::vector<T>  vValues;
+    std::vector<T>  vSorted;
+    unsigned int    nSize;
 
 public:
-    CMedianFilter(unsigned int _size, T initial_value) : nSize(_size)
+    CMedianFilter(unsigned int _size,
+                  T initial_value)
+        : nSize(_size)
     {
         vValues.reserve(_size);
         vValues.push_back(initial_value);
@@ -40,9 +42,8 @@ public:
 
     void input(T value)
     {
-        if (vValues.size() == nSize) {
+        if (vValues.size() == nSize)
             vValues.erase(vValues.begin());
-        }
         vValues.push_back(value);
 
         vSorted.resize(vValues.size());
@@ -57,7 +58,8 @@ public:
         if (vSortedSize & 1) // Odd number of elements
         {
             return vSorted[vSortedSize / 2];
-        } else // Even number of elements
+        }
+        else // Even number of elements
         {
             return (vSorted[vSortedSize / 2 - 1] + vSorted[vSortedSize / 2]) / 2;
         }
@@ -75,16 +77,17 @@ public:
 };
 
 /** Functions to keep track of adjusted P2P time */
-class TimeData {
+class TimeData
+{
 private:
-    CCriticalSection cs_nTimeOffset;
-    int64_t nTimeOffset GUARDED_BY(cs_nTimeOffset);
-    std::set<CNetAddr> setKnown;
-    CMedianFilter<int64_t> vTimeOffsets;
+    CCriticalSection        cs_nTimeOffset;
+    int64_t                 nTimeOffset GUARDED_BY(cs_nTimeOffset);
+    std::set<CNetAddr>      setKnown;
+    CMedianFilter<int64_t>  vTimeOffsets;
     bool fDone;
-    std::atomic<int64_t> nMockTime; //!< For unit testing
+    std::atomic<int64_t>    nMockTime; //!< For unit testing
 public:
-    BCLog::Logger &logger_;
+    BCLog::Logger &         logger_;
     TimeData(BCLog::Logger &logger)
         : nTimeOffset(0)
         , vTimeOffsets(BITCOIN_TIMEDATA_MAX_SAMPLES, 0)
@@ -112,17 +115,17 @@ public:
     int64_t GetMockTime();
 };
 
-    int64_t GetTimeMillis();
-    int64_t GetTimeMicros();
-    int64_t GetSystemTimeInSeconds(); // Like GetTime(), but not mockable
-    void MilliSleep(int64_t n);
+int64_t GetTimeMillis();
+int64_t GetTimeMicros();
+int64_t GetSystemTimeInSeconds(); // Like GetTime(), but not mockable
+void MilliSleep(int64_t n);
 
-    /**
+/**
      * ISO 8601 formatting is preferred. Use the FormatISO8601{DateTime,Date,Time}
      * helper functions if possible.
      */
-    std::string FormatISO8601DateTime(int64_t nTime);
-    std::string FormatISO8601Date(int64_t nTime);
-    std::string FormatISO8601Time(int64_t nTime);
+std::string FormatISO8601DateTime(int64_t nTime);
+std::string FormatISO8601Date(int64_t nTime);
+std::string FormatISO8601Time(int64_t nTime);
 
 #endif // BITCOIN_TIMEDATA_H

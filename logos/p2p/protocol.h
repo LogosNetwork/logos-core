@@ -3,22 +3,17 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef __cplusplus
-#error This header can only be compiled as C++.
-#endif
-
 #ifndef BITCOIN_PROTOCOL_H
 #define BITCOIN_PROTOCOL_H
 
+#include <atomic>
+#include <stdint.h>
+#include <string>
 #include <netaddress.h>
 #include <serialize.h>
 #include <uint256.h>
 #include <version.h>
 #include <logging.h>
-
-#include <atomic>
-#include <stdint.h>
-#include <string>
 
 /** Message header.
  * (4) message start.
@@ -65,7 +60,8 @@ public:
  * Bitcoin protocol message types. When adding new message types, don't forget
  * to update allNetMessageTypes in protocol.cpp.
  */
-namespace NetMsgType {
+namespace NetMsgType
+{
 
 /**
  * The version message provides information about the transmitting node to the
@@ -141,7 +137,7 @@ public:
         if (s.GetType() & SER_DISK)
             READWRITE(nVersion);
         if ((s.GetType() & SER_DISK) ||
-            (nVersion != 0 && !(s.GetType() & SER_GETHASH)))
+                (nVersion != 0 && !(s.GetType() & SER_GETHASH)))
             READWRITE(nTime);
         uint64_t nServicesInt = 0;
         READWRITE(nServicesInt);

@@ -2,10 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "ui_interface.h"
+#include <ui_interface.h>
 #include <util.h>
 #include <logging.h>
-#include "p2p.h"
+#include <p2p.h>
 
 /** Progress message during initialization. */
 void CClientUIInterface::InitMessage(const std::string& message)

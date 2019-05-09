@@ -6,18 +6,17 @@
 #ifndef BITCOIN_SERIALIZE_H
 #define BITCOIN_SERIALIZE_H
 
-#include <endian.h>
-
-#include <algorithm>
+#include <stdint.h>
+#include <string.h>
 #include <assert.h>
+#include <endian.h>
+#include <algorithm>
 #include <ios>
 #include <limits>
 #include <map>
 #include <memory>
 #include <set>
-#include <stdint.h>
 #include <string>
-#include <string.h>
 #include <utility>
 #include <vector>
 
@@ -34,8 +33,12 @@ constexpr unsigned int MAX_SIZE = 0x02000000;
  * deserializing it from s. If T contains const fields, this
  * is likely the only way to do so.
  */
-struct deserialize_type {};
-constexpr deserialize_type deserialize {};
+struct deserialize_type
+{
+};
+constexpr deserialize_type deserialize
+{
+};
 
 /**
  * Used to bypass the rule against non-const reference to temporary
@@ -58,10 +61,22 @@ inline T* NCONST_PTR(const T* val)
 }
 
 //! Safely convert odd char pointer types to standard ones.
-inline char* CharCast(char* c) { return c; }
-inline char* CharCast(unsigned char* c) { return (char*)c; }
-inline const char* CharCast(const char* c) { return c; }
-inline const char* CharCast(const unsigned char* c) { return (const char*)c; }
+inline char* CharCast(char* c)
+{
+    return c;
+}
+inline char* CharCast(unsigned char* c)
+{
+    return (char*)c;
+}
+inline const char* CharCast(const char* c)
+{
+    return c;
+}
+inline const char* CharCast(const unsigned char* c)
+{
+    return (const char*)c;
+}
 
 /*
  * Lowest-level serialization and conversion.
@@ -123,25 +138,41 @@ template<typename Stream> inline uint64_t ser_readdata64(Stream &s)
 }
 inline uint64_t ser_double_to_uint64(double x)
 {
-    union { double x; uint64_t y; } tmp;
+    union
+    {
+        double x;
+        uint64_t y;
+    } tmp;
     tmp.x = x;
     return tmp.y;
 }
 inline uint32_t ser_float_to_uint32(float x)
 {
-    union { float x; uint32_t y; } tmp;
+    union
+    {
+        float x;
+        uint32_t y;
+    } tmp;
     tmp.x = x;
     return tmp.y;
 }
 inline double ser_uint64_to_double(uint64_t y)
 {
-    union { double x; uint64_t y; } tmp;
+    union
+    {
+        double x;
+        uint64_t y;
+    } tmp;
     tmp.y = y;
     return tmp.x;
 }
 inline float ser_uint32_to_float(uint32_t y)
 {
-    union { float x; uint32_t y; } tmp;
+    union
+    {
+        float x;
+        uint32_t y;
+    } tmp;
     tmp.y = y;
     return tmp.x;
 }
@@ -164,8 +195,14 @@ enum
 };
 
 //! Convert the reference base type to X, without changing constness or reference type.
-template<typename X> X& ReadWriteAsHelper(X& x) { return x; }
-template<typename X> const X& ReadWriteAsHelper(const X& x) { return x; }
+template<typename X> X& ReadWriteAsHelper(X& x)
+{
+    return x;
+}
+template<typename X> const X& ReadWriteAsHelper(const X& x)
+{
+    return x;
+}
 
 #define READWRITE(...) (::SerReadWriteMany(s, ser_action, __VA_ARGS__))
 #define READWRITEAS(type, obj) (::SerReadWriteMany(s, ser_action, ReadWriteAsHelper<type>(obj)))
@@ -178,48 +215,136 @@ template<typename X> const X& ReadWriteAsHelper(const X& x) { return x; }
  */
 #define ADD_SERIALIZE_METHODS                                         \
     template<typename Stream>                                         \
-    void Serialize(Stream& s) const {                                 \
+    void Serialize(Stream& s) const                                   \
+    {                                                                 \
         NCONST_PTR(this)->SerializationOp(s, CSerActionSerialize());  \
     }                                                                 \
     template<typename Stream>                                         \
-    void Unserialize(Stream& s) {                                     \
+    void Unserialize(Stream& s)                                       \
+    {                                                                 \
         SerializationOp(s, CSerActionUnserialize());                  \
     }
 
 #ifndef CHAR_EQUALS_INT8
-template<typename Stream> inline void Serialize(Stream& s, char a    ) { ser_writedata8(s, a); } // TODO Get rid of bare char
+template<typename Stream> inline void Serialize(Stream& s, char a    )
+{
+    ser_writedata8(s, a);
+} // TODO Get rid of bare char
 #endif
-template<typename Stream> inline void Serialize(Stream& s, int8_t a  ) { ser_writedata8(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, uint8_t a ) { ser_writedata8(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, int16_t a ) { ser_writedata16(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, uint16_t a) { ser_writedata16(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, int32_t a ) { ser_writedata32(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, uint32_t a) { ser_writedata32(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, int64_t a ) { ser_writedata64(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, uint64_t a) { ser_writedata64(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, float a   ) { ser_writedata32(s, ser_float_to_uint32(a)); }
-template<typename Stream> inline void Serialize(Stream& s, double a  ) { ser_writedata64(s, ser_double_to_uint64(a)); }
-template<typename Stream, int N> inline void Serialize(Stream& s, const char (&a)[N]) { s.write(a, N); }
-template<typename Stream, int N> inline void Serialize(Stream& s, const unsigned char (&a)[N]) { s.write(CharCast(a), N); }
+template<typename Stream> inline void Serialize(Stream& s, int8_t a  )
+{
+    ser_writedata8(s, a);
+}
+template<typename Stream> inline void Serialize(Stream& s, uint8_t a )
+{
+    ser_writedata8(s, a);
+}
+template<typename Stream> inline void Serialize(Stream& s, int16_t a )
+{
+    ser_writedata16(s, a);
+}
+template<typename Stream> inline void Serialize(Stream& s, uint16_t a)
+{
+    ser_writedata16(s, a);
+}
+template<typename Stream> inline void Serialize(Stream& s, int32_t a )
+{
+    ser_writedata32(s, a);
+}
+template<typename Stream> inline void Serialize(Stream& s, uint32_t a)
+{
+    ser_writedata32(s, a);
+}
+template<typename Stream> inline void Serialize(Stream& s, int64_t a )
+{
+    ser_writedata64(s, a);
+}
+template<typename Stream> inline void Serialize(Stream& s, uint64_t a)
+{
+    ser_writedata64(s, a);
+}
+template<typename Stream> inline void Serialize(Stream& s, float a   )
+{
+    ser_writedata32(s, ser_float_to_uint32(a));
+}
+template<typename Stream> inline void Serialize(Stream& s, double a  )
+{
+    ser_writedata64(s, ser_double_to_uint64(a));
+}
+template<typename Stream, int N> inline void Serialize(Stream& s, const char (&a)[N])
+{
+    s.write(a, N);
+}
+template<typename Stream, int N> inline void Serialize(Stream& s, const unsigned char (&a)[N])
+{
+    s.write(CharCast(a), N);
+}
 
 #ifndef CHAR_EQUALS_INT8
-template<typename Stream> inline void Unserialize(Stream& s, char& a    ) { a = ser_readdata8(s); } // TODO Get rid of bare char
+template<typename Stream> inline void Unserialize(Stream& s, char& a    )
+{
+    a = ser_readdata8(s);
+} // TODO Get rid of bare char
 #endif
-template<typename Stream> inline void Unserialize(Stream& s, int8_t& a  ) { a = ser_readdata8(s); }
-template<typename Stream> inline void Unserialize(Stream& s, uint8_t& a ) { a = ser_readdata8(s); }
-template<typename Stream> inline void Unserialize(Stream& s, int16_t& a ) { a = ser_readdata16(s); }
-template<typename Stream> inline void Unserialize(Stream& s, uint16_t& a) { a = ser_readdata16(s); }
-template<typename Stream> inline void Unserialize(Stream& s, int32_t& a ) { a = ser_readdata32(s); }
-template<typename Stream> inline void Unserialize(Stream& s, uint32_t& a) { a = ser_readdata32(s); }
-template<typename Stream> inline void Unserialize(Stream& s, int64_t& a ) { a = ser_readdata64(s); }
-template<typename Stream> inline void Unserialize(Stream& s, uint64_t& a) { a = ser_readdata64(s); }
-template<typename Stream> inline void Unserialize(Stream& s, float& a   ) { a = ser_uint32_to_float(ser_readdata32(s)); }
-template<typename Stream> inline void Unserialize(Stream& s, double& a  ) { a = ser_uint64_to_double(ser_readdata64(s)); }
-template<typename Stream, int N> inline void Unserialize(Stream& s, char (&a)[N]) { s.read(a, N); }
-template<typename Stream, int N> inline void Unserialize(Stream& s, unsigned char (&a)[N]) { s.read(CharCast(a), N); }
+template<typename Stream> inline void Unserialize(Stream& s, int8_t& a  )
+{
+    a = ser_readdata8(s);
+}
+template<typename Stream> inline void Unserialize(Stream& s, uint8_t& a )
+{
+    a = ser_readdata8(s);
+}
+template<typename Stream> inline void Unserialize(Stream& s, int16_t& a )
+{
+    a = ser_readdata16(s);
+}
+template<typename Stream> inline void Unserialize(Stream& s, uint16_t& a)
+{
+    a = ser_readdata16(s);
+}
+template<typename Stream> inline void Unserialize(Stream& s, int32_t& a )
+{
+    a = ser_readdata32(s);
+}
+template<typename Stream> inline void Unserialize(Stream& s, uint32_t& a)
+{
+    a = ser_readdata32(s);
+}
+template<typename Stream> inline void Unserialize(Stream& s, int64_t& a )
+{
+    a = ser_readdata64(s);
+}
+template<typename Stream> inline void Unserialize(Stream& s, uint64_t& a)
+{
+    a = ser_readdata64(s);
+}
+template<typename Stream> inline void Unserialize(Stream& s, float& a   )
+{
+    a = ser_uint32_to_float(ser_readdata32(s));
+}
+template<typename Stream> inline void Unserialize(Stream& s, double& a  )
+{
+    a = ser_uint64_to_double(ser_readdata64(s));
+}
+template<typename Stream, int N> inline void Unserialize(Stream& s, char (&a)[N])
+{
+    s.read(a, N);
+}
+template<typename Stream, int N> inline void Unserialize(Stream& s, unsigned char (&a)[N])
+{
+    s.read(CharCast(a), N);
+}
 
-template<typename Stream> inline void Serialize(Stream& s, bool a)    { char f=a; ser_writedata8(s, f); }
-template<typename Stream> inline void Unserialize(Stream& s, bool& a) { char f=ser_readdata8(s); a=f; }
+template<typename Stream> inline void Serialize(Stream& s, bool a)
+{
+    char f=a;
+    ser_writedata8(s, f);
+}
+template<typename Stream> inline void Unserialize(Stream& s, bool& a)
+{
+    char f=ser_readdata8(s);
+    a=f;
+}
 
 /**
  * Compact Size
@@ -230,10 +355,14 @@ template<typename Stream> inline void Unserialize(Stream& s, bool& a) { char f=s
  */
 inline unsigned int GetSizeOfCompactSize(uint64_t nSize)
 {
-    if (nSize < 253)             return sizeof(unsigned char);
-    else if (nSize <= std::numeric_limits<unsigned short>::max()) return sizeof(unsigned char) + sizeof(unsigned short);
-    else if (nSize <= std::numeric_limits<unsigned int>::max())  return sizeof(unsigned char) + sizeof(unsigned int);
-    else                         return sizeof(unsigned char) + sizeof(uint64_t);
+    if (nSize < 253)
+        return sizeof(unsigned char);
+    else if (nSize <= std::numeric_limits<unsigned short>::max())
+        return sizeof(unsigned char) + sizeof(unsigned short);
+    else if (nSize <= std::numeric_limits<unsigned int>::max())
+        return sizeof(unsigned char) + sizeof(unsigned int);
+    else
+        return sizeof(unsigned char) + sizeof(uint64_t);
 }
 
 inline void WriteCompactSize(CSizeComputer& os, uint64_t nSize);
@@ -343,9 +472,8 @@ public:
     void Unserialize(Stream& s)
     {
         size_t size = ReadCompactSize(s);
-        if (size > Limit) {
+        if (size > Limit)
             throw std::ios_base::failure("String length limit exceeded");
-        }
         string.resize(size);
         if (size != 0)
             s.read((char*)string.data(), size);
@@ -361,7 +489,10 @@ public:
 };
 
 template<typename I>
-BigEndian<I> WrapBigEndian(I& n) { return BigEndian<I>(n); }
+BigEndian<I> WrapBigEndian(I& n)
+{
+    return BigEndian<I>(n);
+}
 
 /**
  * Forward declarations
@@ -643,7 +774,13 @@ protected:
     const int nType;
     const int nVersion;
 public:
-    CSizeComputer(int nTypeIn, int nVersionIn) : nSize(0), nType(nTypeIn), nVersion(nVersionIn) {}
+    CSizeComputer(int nTypeIn,
+                  int nVersionIn)
+        : nSize(0)
+        , nType(nTypeIn)
+        , nVersion(nVersionIn)
+    {
+    }
 
     void write(const char *psz, size_t _nSize)
     {
@@ -663,12 +800,19 @@ public:
         return (*this);
     }
 
-    size_t size() const {
+    size_t size() const
+    {
         return nSize;
     }
 
-    int GetVersion() const { return nVersion; }
-    int GetType() const { return nType; }
+    int GetVersion() const
+    {
+        return nVersion;
+    }
+    int GetType() const
+    {
+        return nType;
+    }
 };
 
 template<typename Stream>

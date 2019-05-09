@@ -6,15 +6,15 @@
 #ifndef BITCOIN_RANDOM_H
 #define BITCOIN_RANDOM_H
 
+#include <stdint.h>
+#include <limits>
 #include <crypto/chacha20.h>
 #include <crypto/common.h>
 #include <uint256.h>
 #include <logging.h>
 
-#include <stdint.h>
-#include <limits>
-
-class Random {
+class Random
+{
 public:
     Random(BCLog::Logger &logger);
     ~Random();
@@ -48,7 +48,8 @@ private:
  * is completely deterministic and insecure after that.
  * This class is not thread-safe.
  */
-class FastRandomContext {
+class FastRandomContext
+{
 private:
     Random &random_;
     bool requires_seed;
@@ -64,9 +65,8 @@ private:
 
     void FillByteBuffer()
     {
-        if (requires_seed) {
+        if (requires_seed)
             RandomSeed();
-        }
         rng.Output(bytebuf, sizeof(bytebuf));
         bytebuf_size = sizeof(bytebuf);
     }
@@ -78,7 +78,8 @@ private:
     }
 
 public:
-    explicit FastRandomContext(Random &random, bool fDeterministic = false);
+    explicit FastRandomContext(Random &random,
+                               bool fDeterministic = false);
 
     /** Initialize with explicit seed (only for testing) */
     explicit FastRandomContext(Random &random, const uint256& seed);
@@ -86,20 +87,24 @@ public:
     /** Generate a random 64-bit integer. */
     uint64_t rand64()
     {
-        if (bytebuf_size < 8) FillByteBuffer();
+        if (bytebuf_size < 8)
+            FillByteBuffer();
         uint64_t ret = ReadLE64(bytebuf + 64 - bytebuf_size);
         bytebuf_size -= 8;
         return ret;
     }
 
     /** Generate a random (bits)-bit integer. */
-    uint64_t randbits(int bits) {
-        if (bits == 0) {
+    uint64_t randbits(int bits)
+    {
+        if (bits == 0)
             return 0;
-        } else if (bits > 32) {
+        else if (bits > 32)
             return rand64() >> (64 - bits);
-        } else {
-            if (bitbuf_size < bits) FillBitBuffer();
+        else
+        {
+            if (bitbuf_size < bits)
+                FillBitBuffer();
             uint64_t ret = bitbuf & (~(uint64_t)0 >> (64 - bits));
             bitbuf >>= bits;
             bitbuf_size -= bits;
@@ -112,7 +117,8 @@ public:
     {
         --range;
         int bits = CountBits(range);
-        while (true) {
+        while (true)
+        {
             uint64_t ret = randbits(bits);
             if (ret <= range) return ret;
         }
@@ -122,19 +128,33 @@ public:
     std::vector<unsigned char> randbytes(size_t len);
 
     /** Generate a random 32-bit integer. */
-    uint32_t rand32() { return randbits(32); }
+    uint32_t rand32()
+    {
+        return randbits(32);
+    }
 
     /** generate a random uint256. */
     uint256 rand256();
 
     /** Generate a random boolean. */
-    bool randbool() { return randbits(1); }
+    bool randbool() {
+        return randbits(1);
+    }
 
     // Compatibility with the C++11 UniformRandomBitGenerator concept
     typedef uint64_t result_type;
-    static constexpr uint64_t min() { return 0; }
-    static constexpr uint64_t max() { return std::numeric_limits<uint64_t>::max(); }
-    inline uint64_t operator()() { return rand64(); }
+    static constexpr uint64_t min()
+    {
+        return 0;
+    }
+    static constexpr uint64_t max()
+    {
+        return std::numeric_limits<uint64_t>::max();
+    }
+    inline uint64_t operator()()
+    {
+        return rand64();
+    }
 };
 
 #endif // BITCOIN_RANDOM_H

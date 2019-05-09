@@ -8,7 +8,6 @@
 /**
  * network protocol versioning
  */
-
 constexpr int PROTOCOL_VERSION = 70015;
 
 //! initial proto version

@@ -3,15 +3,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <utilstrencodings.h>
-
-#include <tinyformat.h>
-
+#include <errno.h>
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
-#include <errno.h>
 #include <limits>
+#include <utilstrencodings.h>
+#include <tinyformat.h>
 
 static const std::string CHARS_ALPHA_NUM = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
@@ -34,7 +32,8 @@ std::string SanitizeString(const std::string& str, int rule)
 }
 
 const signed char p_util_hexdigit[256] =
-{ -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+{
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
   -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
   -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
   0,1,2,3,4,5,6,7,8,9,-1,-1,-1,-1,-1,-1,
@@ -49,7 +48,8 @@ const signed char p_util_hexdigit[256] =
   -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
   -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
   -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, };
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+};
 
 signed char HexDigit(char c)
 {
@@ -69,10 +69,10 @@ bool IsHex(const std::string& str)
 bool IsHexNumber(const std::string& str)
 {
     size_t starting_location = 0;
-    if (str.size() > 2 && *str.begin() == '0' && *(str.begin()+1) == 'x') {
+    if (str.size() > 2 && *str.begin() == '0' && *(str.begin()+1) == 'x')
         starting_location = 2;
-    }
-    for (const char c : str.substr(starting_location)) {
+    for (const char c : str.substr(starting_location))
+    {
         if (HexDigit(c) < 0) return false;
     }
     // Return false for empty string or "0x".
@@ -105,15 +105,18 @@ std::vector<unsigned char> ParseHex(const std::string& str)
     return ParseHex(str.c_str());
 }
 
-void SplitHostPort(std::string in, int &portOut, std::string &hostOut) {
+void SplitHostPort(std::string in, int &portOut, std::string &hostOut)
+{
     size_t colon = in.find_last_of(':');
     // if a : is found, and it either follows a [...], or no other : is in the string, treat it as port separator
     bool fHaveColon = colon != in.npos;
     bool fBracketed = fHaveColon && (in[0]=='[' && in[colon-1]==']'); // if there is a colon, and in[0]=='[', colon is not 0, so in[colon-1] is safe
     bool fMultiColon = fHaveColon && (in.find_last_of(':',colon-1) != in.npos);
-    if (fHaveColon && (colon==0 || fBracketed || !fMultiColon)) {
+    if (fHaveColon && (colon==0 || fBracketed || !fMultiColon))
+    {
         int32_t n;
-        if (ParseInt32(in.substr(colon + 1), &n) && n > 0 && n < 0x10000) {
+        if (ParseInt32(in.substr(colon + 1), &n) && n > 0 && n < 0x10000)
+        {
             in = in.substr(0, colon);
             portOut = n;
         }
@@ -147,8 +150,8 @@ bool ParseInt32(const std::string& str, int32_t *out)
     // we still have to check that the returned value is within the range of an *int32_t*. On 64-bit
     // platforms the size of these types may be different.
     return endp && *endp == 0 && !errno &&
-        n >= std::numeric_limits<int32_t>::min() &&
-        n <= std::numeric_limits<int32_t>::max();
+            n >= std::numeric_limits<int32_t>::min() &&
+            n <= std::numeric_limits<int32_t>::max();
 }
 
 std::string itostr(int n)

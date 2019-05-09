@@ -2,22 +2,18 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#if defined(HAVE_CONFIG_H)
 #include <config/bitcoin-config.h>
-#endif
 
+#include <atomic>
+#include <ctime>
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/thread.hpp>
 #include <timedata.h>
-
 #include <netaddress.h>
 #include <sync.h>
 #include <ui_interface.h>
 #include <util.h>
 #include <utilstrencodings.h>
-
-#include <atomic>
-#include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/thread.hpp>
-#include <ctime>
 #include <tinyformat.h>
 
 /**
@@ -103,10 +99,10 @@ void TimeData::AddTimeData(ArgsManager &Args, CClientUIInterface &uiInterface, c
             }
         }
 
-        if (logger_.LogAcceptCategory(BCLog::NET)) {
-            for (const int64_t n : vSorted) {
+        if (logger_.LogAcceptCategory(BCLog::NET))
+        {
+            for (const int64_t n : vSorted)
                 LogPrint(BCLog::NET, "%+d  ", n); /* Continued */
-            }
             LogPrint(BCLog::NET, "|  "); /* Continued */
 
             LogPrint(BCLog::NET, "nTimeOffset = %+d  (%+d minutes)\n", nTimeOffset, nTimeOffset/60);
@@ -158,36 +154,39 @@ int64_t GetSystemTimeInSeconds()
 void MilliSleep(int64_t n)
 {
 
-/**
- * Boost's sleep_for was uninterruptible when backed by nanosleep from 1.50
- * until fixed in 1.52. Use the deprecated sleep method for the broken case.
- * See: https://svn.boost.org/trac/boost/ticket/7238
- */
+    /**
+     * Boost's sleep_for was uninterruptible when backed by nanosleep from 1.50
+     * until fixed in 1.52. Use the deprecated sleep method for the broken case.
+     * See: https://svn.boost.org/trac/boost/ticket/7238
+     */
 #if defined(HAVE_WORKING_BOOST_SLEEP_FOR)
     boost::this_thread::sleep_for(boost::chrono::milliseconds(n));
 #elif defined(HAVE_WORKING_BOOST_SLEEP)
     boost::this_thread::sleep(boost::posix_time::milliseconds(n));
 #else
-//should never get here
+    //should never get here
 #error missing boost sleep implementation
 #endif
 }
 
-std::string FormatISO8601DateTime(int64_t nTime) {
+std::string FormatISO8601DateTime(int64_t nTime)
+{
     struct tm ts;
     time_t time_val = nTime;
     gmtime_r(&time_val, &ts);
     return strprintf("%04i-%02i-%02iT%02i:%02i:%02iZ", ts.tm_year + 1900, ts.tm_mon + 1, ts.tm_mday, ts.tm_hour, ts.tm_min, ts.tm_sec);
 }
 
-std::string FormatISO8601Date(int64_t nTime) {
+std::string FormatISO8601Date(int64_t nTime)
+{
     struct tm ts;
     time_t time_val = nTime;
     gmtime_r(&time_val, &ts);
     return strprintf("%04i-%02i-%02i", ts.tm_year + 1900, ts.tm_mon + 1, ts.tm_mday);
 }
 
-std::string FormatISO8601Time(int64_t nTime) {
+std::string FormatISO8601Time(int64_t nTime)
+{
     struct tm ts;
     time_t time_val = nTime;
     gmtime_r(&time_val, &ts);
