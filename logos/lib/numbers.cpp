@@ -497,6 +497,11 @@ logos::uint128_union logos::uint128_union::operator- (logos::uint128_union const
     return {number () - other_a.number ()};
 }
 
+logos::uint128_union logos::uint128_union::operator* (logos::uint128_union const & other_a) const
+{
+    return {number () * other_a.number ()};
+}
+
 logos::uint128_union & logos::uint128_union::operator+=(const logos::uint128_union & other)
 {
     *this = {number() + other.number()};

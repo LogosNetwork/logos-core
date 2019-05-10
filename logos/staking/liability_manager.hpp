@@ -52,7 +52,7 @@ class LiabilityManager
     bool CanCreateSecondaryLiability(
             AccountAddress const & target,
             AccountAddress const & source,
-            logos::account_info & info,
+            logos::account_info const & info,
             uint32_t const & cur_epoch,
             MDB_txn* txn);
 

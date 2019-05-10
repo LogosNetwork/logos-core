@@ -76,12 +76,14 @@ class StakingManager
 
     bool Validate(
             AccountAddress const & origin,
+            logos::account_info const & info,
             Amount const & amount,
             AccountAddress const & target,
             uint32_t const & epoch,
+            Amount const & fee,
             MDB_txn* txn);
 
-    StakedFunds GetCurrentStakedFunds(
+    boost::optional<StakedFunds> GetCurrentStakedFunds(
             AccountAddress const & origin,
             MDB_txn* txn);
 
@@ -108,7 +110,7 @@ class StakingManager
 
     Amount GetPruneableThawingAmount(
             AccountAddress const & origin,
-            logos::account_info & info,
+            logos::account_info const & info,
             uint32_t const & cur_epoch,
             MDB_txn* txn);
 

@@ -207,12 +207,15 @@ void StakingManager::Delete(
     _store.del(_store.staking_db, logos::mdb_val(origin), txn);
 }
 
-StakedFunds StakingManager::GetCurrentStakedFunds(
+boost::optional<StakedFunds> StakingManager::GetCurrentStakedFunds(
         AccountAddress const & origin,
         MDB_txn* txn)
 {
     StakedFunds funds;
-    _store.get(_store.staking_db, logos::mdb_val(origin), funds, txn);
+    if(_store.get(_store.staking_db, logos::mdb_val(origin), funds, txn))
+    {
+        return boost::optional<StakedFunds>{};
+    }
     return funds;
 }
 
@@ -279,6 +282,7 @@ void StakingManager::IterateThawingFunds(
 
 //TODO staking_subchain head needs to be up to date before this function is 
 //called, for updates to available balance to work correctly
+//The request that staking_subchain_head references must also be stored in the db
 void StakingManager::Stake(
         AccountAddress const & origin,
         logos::account_info & account_info,
@@ -288,11 +292,20 @@ void StakingManager::Stake(
         MDB_txn* txn)
 {
     Amount amount_left = amount;
-    StakedFunds cur_stake(GetCurrentStakedFunds(origin, txn));
+    StakedFunds cur_stake;
+    boost::optional<StakedFunds> cur_stake_option = GetCurrentStakedFunds(origin, txn);
     //no current stake
-    if(cur_stake.amount == 0)
+    if(!cur_stake_option)
     {
         cur_stake = CreateStakedFunds(target, origin, txn);
+        if(target != origin)
+        {
+            _voting_power_mgr.AddUnlockedProxied(target,account_info.GetAvailableBalance(), epoch, txn);
+        }
+    }
+    else
+    {
+        cur_stake = cur_stake_option.get();
     }
 
     auto begin_thawing = [&](Amount const & amount_to_thaw)
@@ -303,12 +316,9 @@ void StakingManager::Stake(
 
     };
     auto rep_option = _voting_power_mgr.GetRep(account_info,txn);
-    if((target != origin && target != rep_option.get())
+    if((target != origin && (!rep_option || target != rep_option.get()))
             || (target == origin && rep_option))
     {
-        std::cout << "target = " << target.to_string() << " origin = " << origin.to_string()
-            << " rep option = " << (rep_option ? rep_option.get().to_string() : " none ")
-            << std::endl;
         LOG_FATAL(_log) << "StakingManager::Stake - " << "target does not match "
             << "staking subchain. account = " << origin.to_string();
         trace_and_halt();
@@ -393,32 +403,34 @@ void StakingManager::Stake(
 
 bool StakingManager::Validate(
         AccountAddress const & origin,
+        logos::account_info const & info,
         Amount const & amount,
         AccountAddress const & target,
         uint32_t const & epoch,
+        Amount const & fee,
         MDB_txn* txn)
 {
-    logos::account_info info;
-    if(_store.account_get(origin, info, txn))
-    {
-        LOG_FATAL(_log) << "StakingManager::Validate - "
-            << "failed to get account info for account = " << origin.to_string();
-        trace_and_halt();
-    }
-    Amount available = info.GetAvailableBalance();
-    if(available > amount)
+    Amount available = info.GetAvailableBalance() - fee
+        + GetPruneableThawingAmount(origin, info, epoch, txn);
+    if(available >= amount)
     {
         return true;
     }
     Amount remaining = amount - available;
-    StakedFunds cur_stake(GetCurrentStakedFunds(origin, txn));
+    boost::optional<StakedFunds> cur_stake_option =
+        GetCurrentStakedFunds(origin, txn);
     bool secondary_liability_created = false;
+    StakedFunds cur_stake;
+    if(cur_stake_option)
+    {
+        cur_stake = cur_stake_option.get();
+    }
     if(cur_stake.amount > 0)
     {
         if(cur_stake.target == target 
-                || _liability_mgr.CanCreateSecondaryLiability(target, origin, info, epoch, txn))
+                || _liability_mgr.CanCreateSecondaryLiability(cur_stake.target, origin, info, epoch, txn))
         {
-            if(cur_stake.amount > remaining)
+            if(cur_stake.amount >= remaining)
             {
                 return true;
             }
@@ -431,10 +443,10 @@ bool StakingManager::Validate(
             {
                 if(t.target == target 
                         || (!secondary_liability_created &&
-                           _liability_mgr.CanCreateSecondaryLiability(target, origin, info, epoch, txn))
-                        || (secondary_liability_created && cur_stake.target == target))
+                           _liability_mgr.CanCreateSecondaryLiability(t.target, origin, info, epoch, txn))
+                        || (secondary_liability_created && cur_stake.target == t.target))
                 {
-                    if(t.amount > remaining)
+                    if(t.amount >= remaining)
                     {
                         res = true;
                         return false;   
@@ -442,6 +454,7 @@ bool StakingManager::Validate(
                     remaining -= t.amount;
                 } 
             },txn);
+
     return res;
 }
 
@@ -489,7 +502,7 @@ void StakingManager::PruneThawing(
 //TODO abstract thawing funds iteration
 Amount StakingManager::GetPruneableThawingAmount(
         AccountAddress const & origin,
-        logos::account_info & info,
+        logos::account_info const & info,
         uint32_t const & cur_epoch,
         MDB_txn* txn)
 {

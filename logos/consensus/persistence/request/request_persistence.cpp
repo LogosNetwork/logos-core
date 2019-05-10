@@ -85,15 +85,6 @@ bool PersistenceManager<R>::BlockExists(
     return _store.request_block_exists(message);
 }
 
-bool IsStakingRequest(std::shared_ptr<const Request> req)
-{
-    return req->type == RequestType::StartRepresenting
-        || req->type == RequestType::StopRepresenting
-        || req->type == RequestType::AnnounceCandidacy
-        || req->type == RequestType::RenounceCandidacy
-        || req->type == RequestType::Proxy;
-}
-
 template <typename T>
 bool ValidateStakingSubchain(
         T const & req,
@@ -116,6 +107,7 @@ bool ValidateStakingSubchain(
 template <typename T>
 bool ValidateStake(
         T const & req,
+        logos::account_info const & info,
         logos::process_return& result,
         MDB_txn* txn)
 {
@@ -123,9 +115,11 @@ bool ValidateStake(
     {
         bool can_stake = StakingManager::GetInstance()->Validate(
                 req.origin,
+                info,
                 req.stake,
                 req.origin,
                 req.epoch_num,
+                req.fee,
                 txn);
         if(!can_stake)
         {
@@ -1088,7 +1082,11 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             auto source = dynamic_pointer_cast<logos::account_info>(info);
             assert(send && source);
 
-            source->SetBalance(source->GetBalance() - send->GetLogosTotal(), cur_epoch_num, transaction);
+            //already harvested fee
+            source->SetBalance(
+                    source->GetBalance() - send->GetLogosTotal() + request->fee,
+                    cur_epoch_num,
+                    transaction);
 
             ApplySend(send,
                       timestamp,
@@ -1834,9 +1832,16 @@ void PersistenceManager<R>::ApplyRequest(
     CandidateInfo candidate(request);
     if(!request.set_stake)
     {
-        candidate.stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
+        boost::optional<StakedFunds> cur_stake_option = StakingManager::GetInstance()->GetCurrentStakedFunds(
                 request.origin,
-                txn).amount;
+                txn);
+        if(!cur_stake_option)
+        {
+            LOG_FATAL(_log) << "PersistenceManager<R>::ApplyRequest (AnnounceCandidacy) - "
+                << " cur stake is empty";
+            trace_and_halt();
+        }
+        candidate.stake = cur_stake_option.get().amount;
     }
     rep.candidacy_action_tip = request.Hash();
     assert(!_store.rep_put(request.origin,rep,txn));
@@ -1923,6 +1928,10 @@ void PersistenceManager<R>::ApplyRequest(
     }
 
     info.staking_subchain_head = request.GetHash();
+    if(_store.request_put(request,txn))
+    {
+        trace_and_halt();
+    }
     StakingManager::GetInstance()->Stake(
             request.origin,
             info,
@@ -1931,10 +1940,7 @@ void PersistenceManager<R>::ApplyRequest(
             request.epoch_num,
             txn);
     
-    if(_store.request_put(request,txn))
-    {
-        trace_and_halt();
-    }
+
 
 }
 
@@ -1951,6 +1957,10 @@ void PersistenceManager<R>::ApplyRequest(
     }
 
     info.staking_subchain_head = request.GetHash();
+    if(_store.request_put(request,txn))
+    {
+        trace_and_halt();
+    }
     StakingManager::GetInstance()->Stake(
             request.origin,
             info,
@@ -1959,10 +1969,7 @@ void PersistenceManager<R>::ApplyRequest(
             request.epoch_num,
             txn);
     
-    if(_store.request_put(request,txn))
-    {
-        trace_and_halt();
-    }
+
 }
 
 
@@ -1979,6 +1986,10 @@ void PersistenceManager<R>::ApplyRequest(
     }
 
     info.staking_subchain_head = request.GetHash();
+    if(_store.request_put(request,txn))
+    {
+        trace_and_halt();
+    }
     StakingManager::GetInstance()->Stake(
             request.origin,
             info,
@@ -1987,10 +1998,7 @@ void PersistenceManager<R>::ApplyRequest(
             request.epoch_num,
             txn);
     
-    if(_store.request_put(request,txn))
-    {
-        trace_and_halt();
-    }
+
 }
 //TODO: dynamic can be changed to static if we do type validation
 //in the constructors of ALL the request types
@@ -2179,19 +2187,27 @@ bool PersistenceManager<R>::ValidateRequest(
     bool rep_exists = !_store.rep_get(request.origin, rep, txn);
 
     Amount stake = request.stake;
+
+
     if(!request.set_stake)
     {
-        stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
+        boost::optional<StakedFunds> cur_stake_option = StakingManager::GetInstance()->GetCurrentStakedFunds(
                 request.origin,
-                txn)
-            .amount;
+                txn);
+        if(!cur_stake_option)
+        {
+            LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (AnnounceCandidacy) - "
+                << " cur stake is empty";
+            trace_and_halt();
+        }
+        stake = cur_stake_option.get().amount;
     }
     if(stake < MIN_DELEGATE_STAKE)
     {
         result.code = logos::process_result::not_enough_stake;
         return false;
     }
-    if(!ValidateStake(request,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
+    if(!ValidateStake(request,info,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
     {
         return false;
     }
@@ -2258,7 +2274,7 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    if(!ValidateStake(request,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
+    if(!ValidateStake(request,info,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
     {
         return false;
     }
@@ -2309,12 +2325,16 @@ bool PersistenceManager<R>::IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn)
     BlockHash & hash = tip.digest;
     if(_store.epoch_tip_get(tip,txn))
     {
+        LOG_FATAL(_log) << "PersistenceManager<R>::IsDeadPeriod - "
+            << "failed to get epoch_tip";
         trace_and_halt();
     }
 
     ApprovedEB eb;
     if(_store.epoch_get(hash,eb,txn))
     {
+        LOG_FATAL(_log) << "PersistenceManager<R>::IsDeadPeriod - "
+            << "failed to get epoch. hash = " << hash.to_string();
         trace_and_halt();
     }
 
@@ -2349,10 +2369,16 @@ bool PersistenceManager<R>::ValidateRequest(
 
     if(!request.set_stake)
     {
-        stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
+        boost::optional<StakedFunds> cur_stake_option = StakingManager::GetInstance()->GetCurrentStakedFunds(
                 request.origin,
-                txn)
-            .amount;
+                txn);
+        if(!cur_stake_option)
+        {
+            LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (StartRepresenting) - "
+                << " cur stake is empty";
+            trace_and_halt();
+        }
+        stake = cur_stake_option.get().amount;
     }
 
     if(request.stake < MIN_REP_STAKE)
@@ -2361,7 +2387,7 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     } 
 
-    if(!ValidateStake(request,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
+    if(!ValidateStake(request,info,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
     {
         return false;
     }
@@ -2415,7 +2441,7 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    if(!ValidateStake(request,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
+    if(!ValidateStake(request,info,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
     {
         return false;
     }
@@ -2478,9 +2504,11 @@ bool PersistenceManager<R>::ValidateRequest(
 
     bool can_stake = StakingManager::GetInstance()->Validate(
             request.origin,
+            info,
             request.lock_proxy,
             request.rep,
             request.epoch_num,
+            request.fee,
             txn);
     if(!can_stake)
     {
@@ -2520,9 +2548,26 @@ bool PersistenceManager<R>::ValidateRequest(
             result.code = logos::process_result::is_rep;
             return false;
         }
-
     }
 
+    if(!_store.rep_get(request.rep,rep_info,txn))
+    {
+        auto hash = rep_info.rep_action_tip;
+        std::shared_ptr<Request> req;
+        if(_store.request_get(hash,req,txn))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Proxy)"
+                << " - failed to retrieve rep_action_tip"
+                << " hash = " << hash.to_string();
+            trace_and_halt();
+        }
+        if(req->type == RequestType::StopRepresenting
+                || req->type == RequestType::RenounceCandidacy)
+        {
+            result.code = logos::process_result::not_a_rep;
+            return false;
+        }
+    }
     return true;
 }
 
@@ -2548,9 +2593,11 @@ bool PersistenceManager<R>::ValidateRequest(
 
     bool can_stake = StakingManager::GetInstance()->Validate(
             request.origin,
+            info,
             request.stake,
             request.origin,
             request.epoch_num,
+            request.fee,
             txn);
     if(!can_stake)
     {
@@ -2568,6 +2615,47 @@ bool PersistenceManager<R>::ValidateRequest(
        result.code = logos::process_result::not_a_rep;
        return false; 
     }
+
+    RepInfo rep_info;
+    if(!_store.rep_get(request.origin,rep_info,txn))
+    {
+        auto hash = rep_info.rep_action_tip;
+        std::shared_ptr<Request> req;
+        if(_store.request_get(hash,req,txn))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Proxy)"
+                << " - failed to retrieve rep_action_tip"
+                << " hash = " << hash.to_string();
+            trace_and_halt();
+        }
+        if(req->type != RequestType::StopRepresenting)
+        {
+            if(request.stake < MIN_REP_STAKE)
+            {
+                result.code = logos::process_result::not_enough_stake;
+                return false;
+            }
+        }
+
+        hash = rep_info.candidacy_action_tip;
+        if(_store.request_get(hash,req,txn))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Proxy)"
+                << " - failed to retreive candidacy_action_tip"
+                << " hash = " << hash.to_string();
+            trace_and_halt();
+        }
+        if(req->type != RequestType::StopRepresenting
+                && req->type != RequestType::RenounceCandidacy)
+        {
+            if(request.stake < MIN_DELEGATE_STAKE)
+            {
+                result.code = logos::process_result::not_enough_stake;
+                return false;
+            }
+        }
+    }
+
 
     if(!ValidateStakingSubchain(request,info,result,txn))
     {
@@ -2600,9 +2688,11 @@ bool PersistenceManager<R>::ValidateRequest(
 
     bool can_stake = StakingManager::GetInstance()->Validate(
             request.origin,
+            info,
             0,
             request.origin,
             request.epoch_num,
+            request.fee,
             txn);
     if(!can_stake)
     {
@@ -2620,6 +2710,42 @@ bool PersistenceManager<R>::ValidateRequest(
        result.code = logos::process_result::not_a_rep;
        return false; 
     }
+
+    RepInfo rep_info;
+    if(!_store.rep_get(request.origin,rep_info,txn))
+    {
+        auto hash = rep_info.rep_action_tip;
+        std::shared_ptr<Request> req;
+        if(_store.request_get(hash,req,txn))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Proxy)"
+                << " - failed to retrieve rep_action_tip"
+                << " hash = " << hash.to_string();
+            trace_and_halt();
+        }
+        if(req->type != RequestType::StopRepresenting)
+        {
+            result.code = logos::process_result::not_enough_stake;
+            return false;
+        }
+
+        hash = rep_info.candidacy_action_tip;
+        if(_store.request_get(hash,req,txn))
+        {
+            LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Proxy)"
+                << " - failed to retreive candidacy_action_tip"
+                << " hash = " << hash.to_string();
+            trace_and_halt();
+        }
+        if(req->type != RequestType::StopRepresenting
+                && req->type != RequestType::RenounceCandidacy)
+        {
+            result.code = logos::process_result::not_enough_stake;
+            return false;
+        }
+    }
+
+
 
     if(!ValidateStakingSubchain(request,info,result,txn))
     {
