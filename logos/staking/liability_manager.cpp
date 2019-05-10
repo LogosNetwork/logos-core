@@ -29,6 +29,12 @@ bool LiabilityManager::CreateSecondaryLiability(
         MDB_txn* txn)
 {
     Liability l{target,source,amount,expiration_epoch,true};
+    logos::account_info dummy;
+    if(!CanCreateSecondaryLiability(target,source,dummy,dummy.epoch_secondary_liabilities_updated, txn))
+    {
+        return false;
+    }
+
     auto hash = Store(l, txn);
     mdb_put(txn, _store.secondary_liabilities_db, logos::mdb_val(source), logos::mdb_val(hash), 0);
     return true;
@@ -64,7 +70,7 @@ void LiabilityManager::PruneSecondaryLiabilities(
 bool LiabilityManager::CanCreateSecondaryLiability(
         AccountAddress const & target,
         AccountAddress const & source,
-        logos::account_info & info,
+        logos::account_info const & info,
         uint32_t const & cur_epoch,
         MDB_txn* txn)
 {

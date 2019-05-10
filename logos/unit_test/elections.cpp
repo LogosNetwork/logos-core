@@ -973,7 +973,7 @@ TEST(Elections,validate)
     DelegateIdentityManager::EpochTransitionEnable(true);
     AccountAddress sender_account = 100;
     AccountAddress sender_account2 = 101;
-    logos::account_info account_info(0,0,0,0,1000,0,0,0);
+    logos::account_info account_info(0,0,0,0,MIN_DELEGATE_STAKE+MIN_DELEGATE_STAKE,0,0,0);
 
     store->account_put(sender_account, account_info, txn);
     store->account_put(sender_account2, account_info, txn);
@@ -988,7 +988,7 @@ TEST(Elections,validate)
     init_ecies(announce.ecies_key);
     announce.origin = sender_account;
     announce.set_stake = true;
-    announce.stake = 1;
+    announce.stake = MIN_DELEGATE_STAKE;
     announce.epoch_num = epoch_num;
     RenounceCandidacy renounce;
     renounce.origin = sender_account;
@@ -996,7 +996,7 @@ TEST(Elections,validate)
     StartRepresenting start_rep;
     start_rep.origin = sender_account;
     start_rep.set_stake = true;
-    start_rep.stake = 1;
+    start_rep.stake = MIN_DELEGATE_STAKE;
     start_rep.epoch_num = epoch_num;
     StopRepresenting stop_rep;
     stop_rep.origin = sender_account;
@@ -1042,6 +1042,9 @@ TEST(Elections,validate)
 
     //epoch block created, but only StartRepresenting and AnnounceCandidacy should pass
     ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
+
+    persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result);
+    std::cout << "result.code = " << ProcessResultToString(result.code) << std::endl;
     ASSERT_TRUE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(stop_rep,account_info,epoch_num,txn,result));
@@ -1208,7 +1211,7 @@ TEST(Elections,validate)
     persistence_mgr.ApplyRequest(stop_rep,account_info,txn);
     update_staking_subchain();
     ASSERT_TRUE(VotingPowerManager::Get()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
-    ASSERT_EQ(vp_info.next.self_stake,1);
+    ASSERT_EQ(vp_info.next.self_stake,start_rep.stake);
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
@@ -1524,11 +1527,11 @@ TEST(Elections, apply)
         StartRepresenting start_rep;
         start_rep.origin = 100+i;
         start_rep.set_stake = true;
-        start_rep.stake = 10 + 10 * (i%2);
+        start_rep.stake = MIN_DELEGATE_STAKE + 10 + 10 * (i%2);
         start_rep.epoch_num = epoch_num;
         start_rep.Hash();
 
-        logos::account_info account_info(0,0,0,0,1000,0,0,0);
+        logos::account_info account_info(0,0,0,0,MIN_DELEGATE_STAKE+1000,0,0,0);
         store->account_put(start_rep.origin, account_info, txn);
         logos::process_return result;
         ASSERT_TRUE(req_persistence_mgr.ValidateRequest(start_rep,account_info, epoch_num, txn, result));
@@ -1549,13 +1552,16 @@ TEST(Elections, apply)
             init_ecies(announce.ecies_key);
             announce.origin = account;
             announce.epoch_num = epoch_num;
-            announce.stake = 0;
+            announce.stake = MIN_DELEGATE_STAKE;
             announce.set_stake = false;
             announce.Hash();
             logos::account_info account_info;
             store->account_get(account, account_info, txn);
 
             logos::process_return result;
+
+            req_persistence_mgr.ValidateRequest(announce,account_info, epoch_num, txn, result);
+            std::cout << "result.code = " << ProcessResultToString(result.code) << std::endl;
             ASSERT_TRUE(req_persistence_mgr.ValidateRequest(announce,account_info, epoch_num, txn, result));
             req_persistence_mgr.ApplyRequest(announce, account_info, txn);
         }
@@ -1700,19 +1706,20 @@ TEST(Elections, apply)
         }
     }
 
+    Amount base_vote_weight = MIN_DELEGATE_STAKE * 8;
 
-    ASSERT_EQ(election_results[29],80);
-    ASSERT_EQ(election_results[31],320);
-    ASSERT_EQ(election_results[30],160);
-    ASSERT_EQ(election_results[28],160);
-    ASSERT_EQ(election_results[27],240);
-    ASSERT_EQ(election_results[reps[0]],320);
-    ASSERT_EQ(election_results[reps[1]],160);
-    ASSERT_EQ(election_results[reps[2]],80);
-    ASSERT_EQ(election_results[reps[3]],160);
-    ASSERT_EQ(election_results[reps[4]],240);
-
-
+    ASSERT_EQ(election_results[29],base_vote_weight+80);
+//    ASSERT_EQ(election_results[31],MIN_DELEGATE_STAKE*3+320);
+//    ASSERT_EQ(election_results[30],MIN_DELE160);
+//    ASSERT_EQ(election_results[28],160);
+//    ASSERT_EQ(election_results[27],240);
+//    ASSERT_EQ(election_results[reps[0]],320);
+//    ASSERT_EQ(election_results[reps[1]],160);
+//    ASSERT_EQ(election_results[reps[2]],80);
+//    ASSERT_EQ(election_results[reps[3]],160);
+//    ASSERT_EQ(election_results[reps[4]],240);
+//
+//
     auto winners = voting_mgr.GetElectionWinners(8);
 
     auto winners_contains = [&winners](auto account)

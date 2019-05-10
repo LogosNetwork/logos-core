@@ -44,7 +44,6 @@ AnnounceCandidacy::AnnounceCandidacy(bool& error, const logos::mdb_val& mdbval)
     Hash();
 }
 
-
 bool DeserializeStakeJson(
         boost::property_tree::ptree const & tree,
         Amount & stake,
@@ -73,8 +72,6 @@ bool DeserializeStakeJson(
         return set_stake;
     }
 }
-
-
 
 AnnounceCandidacy::AnnounceCandidacy(bool & error,
             boost::property_tree::ptree const & tree) : Request(error, tree)

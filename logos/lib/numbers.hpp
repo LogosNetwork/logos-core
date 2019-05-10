@@ -36,6 +36,7 @@ public:
     uint128_union (logos::uint128_t const &);
     uint128_union operator+ (logos::uint128_union const &) const;
     uint128_union operator- (logos::uint128_union const &) const;
+    uint128_union operator* (logos::uint128_union const &) const;
     bool operator== (logos::uint128_union const &) const;
     bool operator!= (logos::uint128_union const &) const;
     bool operator< (logos::uint128_union const &) const;

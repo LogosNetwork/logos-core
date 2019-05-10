@@ -129,6 +129,11 @@ protected:
 
     bool IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn);
 
+    void ApplyRequest(RequestPtr request,
+            uint64_t timestamp,
+            uint32_t cur_epoch_num,
+            MDB_txn * transaction);
+
     static constexpr uint32_t  RESERVATION_PERIOD  = 2;
     static constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
 
@@ -147,10 +152,7 @@ private:
 
     void ApplyRequestBlock(const ApprovedRB & message,
             MDB_txn * transaction);
-    void ApplyRequest(RequestPtr request,
-            uint64_t timestamp,
-            uint32_t cur_epoch_num,
-            MDB_txn * transaction);
+
 
     template<typename SendType>
     void ApplySend(

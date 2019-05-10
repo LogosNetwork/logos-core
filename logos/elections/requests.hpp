@@ -10,8 +10,9 @@
 using AccountAddress = logos::uint256_union;
 
 const size_t MAX_VOTES = 8;
-const Amount MIN_REP_STAKE = 1;
-const Amount MIN_DELEGATE_STAKE = 1;
+//TODO what should these be?
+const Amount MIN_REP_STAKE = 1000;
+const Amount MIN_DELEGATE_STAKE = 10000;
 
 struct ElectionVote : Request
 {
