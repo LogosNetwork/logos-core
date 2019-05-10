@@ -80,10 +80,10 @@ inline uint256 Hash(const T1 p1begin, const T1 p1end,
 class CHashWriter
 {
 private:
-    CHash256 ctx;
+    CHash256    ctx;
 
-    const int nType;
-    const int nVersion;
+    const int   nType;
+    const int   nVersion;
 public:
 
     CHashWriter(int nTypeIn,
@@ -174,9 +174,9 @@ unsigned int MurmurHash3(unsigned int nHashSeed, const std::vector<unsigned char
 class CSipHasher
 {
 private:
-    uint64_t v[4];
-    uint64_t tmp;
-    int count;
+    uint64_t    v[4];
+    uint64_t    tmp;
+    int         count;
 
 public:
     /** Construct a SipHash calculator initialized with 128-bit key (k0, k1) */

@@ -26,8 +26,8 @@ enum Network
 class CNetAddr
 {
 protected:
-    unsigned char ip[16]; // in network byte order
-    uint32_t scopeId; // for scoped/link-local ipv6 addresses
+    unsigned char   ip[16]; // in network byte order
+    uint32_t        scopeId; // for scoped/link-local ipv6 addresses
 
 public:
     CNetAddr();
@@ -101,11 +101,11 @@ class CSubNet
 {
 protected:
     /// Network (base) address
-    CNetAddr network;
+    CNetAddr    network;
     /// Netmask, in network byte order
-    uint8_t netmask[16];
+    uint8_t     netmask[16];
     /// Is this value valid? (only used to signal parse errors)
-    bool valid;
+    bool        valid;
 
 public:
     CSubNet();

@@ -3,9 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <support/cleanse.h>
-
 #include <cstring>
+#include <support/cleanse.h>
 
 /* Compilers have a bad habit of removing "superfluous" memset calls that
  * are trying to zero memory. For example, when memset()ing a buffer and

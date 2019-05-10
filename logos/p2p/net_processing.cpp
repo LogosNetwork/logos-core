@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <memory>
 #include <net_processing.h>
-
 #include <addrman.h>
 #include <chainparams.h>
 #include <hash.h>
@@ -15,8 +15,6 @@
 #include <ui_interface.h>
 #include <util.h>
 #include <utilstrencodings.h>
-
-#include <memory>
 
 static constexpr int64_t STALE_CHECK_INTERVAL = 10 * 60; // 10 minutes
 /** How frequently to check for extra outbound peers and disconnect, in seconds */
@@ -37,20 +35,21 @@ static constexpr unsigned int AVG_ADDRESS_BROADCAST_INTERVAL = 30;
  * processing of incoming data is done after the ProcessMessage call returns,
  * and we're no longer holding the node's locks.
  */
-struct CNodeState {
+struct CNodeState
+{
     //! Whether we have a fully established connection.
-    bool fCurrentlyConnected;
+    bool                            fCurrentlyConnected;
     //! Accumulated misbehaviour score for this peer.
-    int nMisbehavior;
+    int                             nMisbehavior;
     //! Whether this peer should be disconnected and banned (unless whitelisted).
-    bool fShouldBan;
+    bool                            fShouldBan;
     //! String name of this peer (debugging/logging purposes).
-    const std::string name;
+    const std::string               name;
 
     //! Time of last new block announcement
-    int64_t m_last_block_announcement;
+    int64_t                         m_last_block_announcement;
 
-    std::shared_ptr<BCLog::Logger> logger_;
+    std::shared_ptr<BCLog::Logger>  logger_;
 
     CNodeState(std::string addrNameIn)
         : name(addrNameIn)
@@ -62,7 +61,8 @@ struct CNodeState {
     }
 };
 
-class PeerLogicValidation_internal {
+class PeerLogicValidation_internal
+{
 public:
     PeerLogicValidation_internal(BCLog::Logger &logger)
         : g_last_tip_update(0)
@@ -70,15 +70,15 @@ public:
     {
     }
 
-    CCriticalSection cs_main;
+    CCriticalSection                cs_main;
 
     /** When our tip was last updated. */
-    std::atomic<int64_t> g_last_tip_update;
+    std::atomic<int64_t>            g_last_tip_update;
 
     /** Map maintaining per-node state. */
-    std::map<NodeId, CNodeState> mapNodeState GUARDED_BY(cs_main);
+    std::map<NodeId, CNodeState>    mapNodeState GUARDED_BY(cs_main);
 
-    BCLog::Logger &logger_;
+    BCLog::Logger &                 logger_;
 
     CNodeState *State(NodeId pnode) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     {
@@ -104,10 +104,12 @@ public:
         std::string message_prefixed = message.empty() ? "" : (": " + message);
         if (state->nMisbehavior >= banscore && state->nMisbehavior - howmuch < banscore)
         {
-            LogPrint(BCLog::NET, "%s: %s peer=%d (%d -> %d) BAN THRESHOLD EXCEEDED%s\n", __func__, state->name, pnode, state->nMisbehavior-howmuch, state->nMisbehavior, message_prefixed);
+            LogPrint(BCLog::NET, "%s: %s peer=%d (%d -> %d) BAN THRESHOLD EXCEEDED%s\n",
+                    __func__, state->name, pnode, state->nMisbehavior-howmuch, state->nMisbehavior, message_prefixed);
             state->fShouldBan = true;
         } else
-            LogPrint(BCLog::NET, "%s: %s peer=%d (%d -> %d)%s\n", __func__, state->name, pnode, state->nMisbehavior-howmuch, state->nMisbehavior, message_prefixed);
+            LogPrint(BCLog::NET, "%s: %s peer=%d (%d -> %d)%s\n",
+                    __func__, state->name, pnode, state->nMisbehavior-howmuch, state->nMisbehavior, message_prefixed);
     }
 
     void RelayAddress(const CAddress& addr, bool fReachable, CConnman* connman);
@@ -138,22 +140,30 @@ void PeerLogicValidation_internal::PushNodeVersion(std::shared_ptr<CNode> pnode,
     CAddress addrYou = (addr.IsRoutable() ? addr : CAddress());
     CAddress addrMe;
 
-    connman->PushMessage(pnode, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)0, nTime, addrYou, addrMe,
-            nonce, connman->strSubVersion, nNodeStartingHeight, true));
+    connman->PushMessage(pnode, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERSION,
+                                                                      PROTOCOL_VERSION,
+                                                                      (uint64_t)0,
+                                                                      nTime,
+                                                                      addrYou,
+                                                                      addrMe,
+                                                                      nonce,
+                                                                      connman->strSubVersion,
+                                                                      nNodeStartingHeight,
+                                                                      true));
 
-    if (connman->fLogIPs) {
-        LogPrint(BCLog::NET, "send version message: version %d, us=%s, them=%s, peer=%d\n", PROTOCOL_VERSION, addrMe.ToString(), addrYou.ToString(), nodeid);
-    } else {
-        LogPrint(BCLog::NET, "send version message: version %d, us=%s, peer=%d\n", PROTOCOL_VERSION, addrMe.ToString(), nodeid);
-    }
+    if (connman->fLogIPs)
+        LogPrint(BCLog::NET, "send version message: version %d, us=%s, them=%s, peer=%d\n",
+                 PROTOCOL_VERSION, addrMe.ToString(), addrYou.ToString(), nodeid);
+    else
+        LogPrint(BCLog::NET, "send version message: version %d, us=%s, peer=%d\n",
+                 PROTOCOL_VERSION, addrMe.ToString(), nodeid);
 }
 
 bool PeerLogicValidation::TipMayBeStale(int nPowTargetSpacing) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     AssertLockHeld(internal->cs_main);
-    if (internal->g_last_tip_update == 0) {
+    if (internal->g_last_tip_update == 0)
         internal->g_last_tip_update = connman->timeData.GetTime();
-    }
     return internal->g_last_tip_update < connman->timeData.GetTime() - nPowTargetSpacing * 3 /* && mapBlocksInFlight.empty() */;
 }
 
@@ -164,26 +174,30 @@ static bool IsOutboundDisconnectionCandidate(std::shared_ptr<CNode> node)
     return !(node->fInbound || node->m_manual_connection || node->fFeeler || node->fOneShot);
 }
 
-void PeerLogicValidation::InitializeNode(std::shared_ptr<CNode> pnode) {
+void PeerLogicValidation::InitializeNode(std::shared_ptr<CNode> pnode)
+{
     std::string addrName = pnode->GetAddrName();
     NodeId nodeid = pnode->GetId();
     {
         LOCK(internal->cs_main);
-        internal->mapNodeState.emplace_hint(internal->mapNodeState.end(), std::piecewise_construct, std::forward_as_tuple(nodeid), std::forward_as_tuple(std::move(addrName)));
+        internal->mapNodeState.emplace_hint(internal->mapNodeState.end(),
+                                            std::piecewise_construct,
+                                            std::forward_as_tuple(nodeid),
+                                            std::forward_as_tuple(std::move(addrName)));
     }
     if(!pnode->fInbound)
         internal->PushNodeVersion(pnode, connman, connman->timeData.GetTime());
 }
 
-void PeerLogicValidation::FinalizeNode(NodeId nodeid, bool& fUpdateConnectionTime) {
+void PeerLogicValidation::FinalizeNode(NodeId nodeid, bool& fUpdateConnectionTime)
+{
     fUpdateConnectionTime = false;
     LOCK(internal->cs_main);
     CNodeState *state = internal->State(nodeid);
     assert(state != nullptr);
 
-    if (state->nMisbehavior == 0 && state->fCurrentlyConnected) {
+    if (state->nMisbehavior == 0 && state->fCurrentlyConnected)
         fUpdateConnectionTime = true;
-    }
 
     internal->mapNodeState.erase(nodeid);
 
@@ -195,7 +209,8 @@ void PeerLogicValidation::FinalizeNode(NodeId nodeid, bool& fUpdateConnectionTim
 // blockchain -> download logic notification
 //
 
-PeerLogicValidation::PeerLogicValidation(CConnman* connmanIn, bool enable_bip61)
+PeerLogicValidation::PeerLogicValidation(CConnman* connmanIn,
+                                         bool enable_bip61)
     : connman(connmanIn)
     , logger_(connman->logger_)
     , internal(std::make_shared<PeerLogicValidation_internal>(logger_))
@@ -207,7 +222,8 @@ PeerLogicValidation::PeerLogicValidation(CConnman* connmanIn, bool enable_bip61)
     // combine them in one function and schedule at the quicker (peer-eviction)
     // timer.
     static_assert(EXTRA_PEER_CHECK_INTERVAL < STALE_CHECK_INTERVAL, "peer eviction timer should be less than stale tip check timer");
-    connmanIn->scheduleEvery(std::bind(&PeerLogicValidation::CheckForStaleTipAndEvictPeers, this, N_POW_TARGET_SPACING), EXTRA_PEER_CHECK_INTERVAL * 1000);
+    connmanIn->scheduleEvery(std::bind(&PeerLogicValidation::CheckForStaleTipAndEvictPeers, this, N_POW_TARGET_SPACING),
+                             EXTRA_PEER_CHECK_INTERVAL * 1000);
 }
 
 // All of the following cache a recent block, and are protected by cs_most_recent_block
@@ -225,27 +241,35 @@ void PeerLogicValidation_internal::RelayAddress(const CAddress& addr, bool fReac
     // Use deterministic randomness to send to the same nodes for 24 hours
     // at a time so the addrKnowns of the chosen nodes prevent repeats
     uint64_t hashAddr = addr.GetHash();
-    const CSipHasher hasher = connman->GetDeterministicRandomizer(RANDOMIZER_ID_ADDRESS_RELAY).Write(hashAddr << 32).Write((connman->timeData.GetTime() + hashAddr) / (24*60*60));
+    const CSipHasher hasher
+            = connman->GetDeterministicRandomizer(RANDOMIZER_ID_ADDRESS_RELAY).Write(hashAddr << 32).Write((connman->timeData.GetTime()
+            + hashAddr) / (24*60*60));
     FastRandomContext insecure_rand(connman->random_);
 
     std::array<std::pair<uint64_t, std::shared_ptr<CNode>>,2> best{{{0, nullptr}, {0, nullptr}}};
     assert(nRelayNodes <= best.size());
 
-    auto sortfunc = [&best, &hasher, nRelayNodes](std::shared_ptr<CNode> pnode) {
-        if (pnode->nVersion != 0) {
+    auto sortfunc = [&best, &hasher, nRelayNodes](std::shared_ptr<CNode> pnode)
+    {
+        if (pnode->nVersion != 0)
+        {
             uint64_t hashKey = CSipHasher(hasher).Write(pnode->GetId()).Finalize();
-            for (unsigned int i = 0; i < nRelayNodes; i++) {
-                 if (hashKey > best[i].first) {
-                     std::copy(best.begin() + i, best.begin() + nRelayNodes - 1, best.begin() + i + 1);
-                     best[i] = std::make_pair(hashKey, pnode);
-                     break;
-                 }
+            for (unsigned int i = 0; i < nRelayNodes; i++)
+            {
+                if (hashKey > best[i].first)
+                {
+                    std::copy(best.begin() + i, best.begin() + nRelayNodes - 1, best.begin() + i + 1);
+                    best[i] = std::make_pair(hashKey, pnode);
+                    break;
+                }
             }
         }
     };
 
-    auto pushfunc = [&addr, &best, nRelayNodes, &insecure_rand] {
-        for (unsigned int i = 0; i < nRelayNodes && best[i].first != 0; i++) {
+    auto pushfunc = [&addr, &best, nRelayNodes, &insecure_rand]
+    {
+        for (unsigned int i = 0; i < nRelayNodes && best[i].first != 0; i++)
+        {
             best[i].second->PushAddress(addr, insecure_rand);
         }
     };
@@ -253,7 +277,14 @@ void PeerLogicValidation_internal::RelayAddress(const CAddress& addr, bool fReac
     connman->ForEachNodeThen(std::move(sortfunc), std::move(pushfunc));
 }
 
-bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, const std::string& strCommand, CDataStream& vRecv, int64_t nTimeReceived, const CChainParams& chainparams, CConnman* connman, const std::atomic<bool>& interruptMsgProc, bool enable_bip61)
+bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom,
+                                                  const std::string& strCommand,
+                                                  CDataStream& vRecv,
+                                                  int64_t nTimeReceived,
+                                                  const CChainParams& chainparams,
+                                                  CConnman* connman,
+                                                  const std::atomic<bool>& interruptMsgProc,
+                                                  bool enable_bip61)
 {
     LogPrint(BCLog::NET, "received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->GetId());
     if (connman->Args.IsArgSet("-dropmessagestest") && connman->random_.GetRand(connman->Args.GetArg("-dropmessagestest", 0)) == 0)
@@ -264,16 +295,21 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
 
     if (strCommand == NetMsgType::REJECT)
     {
-        if (logger_.LogAcceptCategory(BCLog::NET)) {
-            try {
+        if (logger_.LogAcceptCategory(BCLog::NET))
+        {
+            try
+            {
                 std::string strMsg; unsigned char ccode; std::string strReason;
-                vRecv >> LIMITED_STRING(strMsg, CMessageHeader::COMMAND_SIZE) >> ccode >> LIMITED_STRING(strReason, MAX_REJECT_MESSAGE_LENGTH);
+                vRecv >> LIMITED_STRING(strMsg, CMessageHeader::COMMAND_SIZE)
+                        >> ccode >> LIMITED_STRING(strReason, MAX_REJECT_MESSAGE_LENGTH);
 
                 std::ostringstream ss;
                 ss << strMsg << " code " << itostr(ccode) << ": " << strReason;
 
                 LogPrint(BCLog::NET, "Reject %s\n", SanitizeString(ss.str()));
-            } catch (const std::ios_base::failure&) {
+            }
+            catch (const std::ios_base::failure&)
+            {
                 // Avoid feedback loops by preventing reject messages from triggering a new reject message.
                 LogPrint(BCLog::NET, "Unparseable reject message received\n");
             }
@@ -283,12 +319,16 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
 
     int banscore = connman->Args.GetArg("-banscore", DEFAULT_BANSCORE_THRESHOLD);
 
-    if (strCommand == NetMsgType::VERSION) {
+    if (strCommand == NetMsgType::VERSION)
+    {
         // Each connection can only send one version message
         if (pfrom->nVersion != 0)
         {
             if (enable_bip61) {
-                connman->PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_DUPLICATE, std::string("Duplicate version message")));
+                connman->PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT,
+                                                                                  strCommand,
+                                                                                  REJECT_DUPLICATE,
+                                                                                  std::string("Duplicate version message")));
             }
             LOCK(cs_main);
             Misbehaving(pfrom->GetId(), 1, banscore);
@@ -312,11 +352,13 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
 
         if (!vRecv.empty())
             vRecv >> addrFrom >> nNonce;
-        if (!vRecv.empty()) {
+        if (!vRecv.empty())
+        {
             vRecv >> LIMITED_STRING(strSubVer, MAX_SUBVERSION_LENGTH);
             cleanSubVer = SanitizeString(strSubVer);
         }
-        if (!vRecv.empty()) {
+        if (!vRecv.empty())
+        {
             vRecv >> nStartingHeight;
         }
         if (!vRecv.empty())
@@ -362,7 +404,9 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
                 {
                     LogPrint(BCLog::NET, "ProcessMessages: advertising address %s\n", addr.ToString());
                     pfrom->PushAddress(addr, insecure_rand);
-                } else if (connman->IsPeerAddrLocalGood(pfrom)) {
+                }
+                else if (connman->IsPeerAddrLocalGood(pfrom))
+                {
                     addr.SetIP(addrMe);
                     LogPrint(BCLog::NET, "ProcessMessages: advertising address %s\n", addr.ToString());
                     pfrom->PushAddress(addr, insecure_rand);
@@ -380,23 +424,25 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
             remoteAddr = ", peeraddr=" + pfrom->addr.ToString();
 
         LogPrint(BCLog::NET, "receive version message: %s: version %d, us=%s, peer=%d%s\n",
-                  cleanSubVer, pfrom->nVersion,
-                  addrMe.ToString(), pfrom->GetId(),
-                  remoteAddr);
+                 cleanSubVer, pfrom->nVersion,
+                 addrMe.ToString(), pfrom->GetId(),
+                 remoteAddr);
 
         int64_t nTimeOffset = nTime - connman->timeData.GetTime();
         pfrom->nTimeOffset = nTimeOffset;
         connman->timeData.AddTimeData(connman->Args, *connman->clientInterface, pfrom->addr, nTimeOffset);
 
         // Feeler connections exist only to verify if address is online.
-        if (pfrom->fFeeler) {
+        if (pfrom->fFeeler)
+        {
             assert(pfrom->fInbound == false);
             pfrom->fDisconnect = true;
         }
         return true;
     }
 
-    if (pfrom->nVersion == 0) {
+    if (pfrom->nVersion == 0)
+    {
         // Must have a version message before anything else
         LOCK(cs_main);
         Misbehaving(pfrom->GetId(), 1, banscore);
@@ -410,7 +456,8 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
     {
         pfrom->SetRecvVersion(std::min(pfrom->nVersion.load(), PROTOCOL_VERSION));
 
-        if (!pfrom->fInbound) {
+        if (!pfrom->fInbound)
+        {
             // Mark this node as currently connected, so we update its timestamp later.
             LOCK(cs_main);
             State(pfrom->GetId())->fCurrentlyConnected = true;
@@ -423,14 +470,16 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
         return true;
     }
 
-    if (!pfrom->fSuccessfullyConnected) {
+    if (!pfrom->fSuccessfullyConnected)
+    {
         // Must have a verack message before anything else
         LOCK(cs_main);
         Misbehaving(pfrom->GetId(), 1, banscore);
         return false;
     }
 
-    if (strCommand == NetMsgType::ADDR) {
+    if (strCommand == NetMsgType::ADDR)
+    {
         std::vector<CAddress> vAddr;
         vRecv >> vAddr;
 
@@ -484,20 +533,23 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
         return true;
     }
 
-    if (strCommand == NetMsgType::GETADDR) {
+    if (strCommand == NetMsgType::GETADDR)
+    {
         // This asymmetric behavior for inbound and outbound connections was introduced
         // to prevent a fingerprinting attack: an attacker can send specific fake addresses
         // to users' AddrMan and later request them by sending getaddr messages.
         // Making nodes which are behind NAT and can only make outgoing connections ignore
         // the getaddr message mitigates the attack.
-        if (!pfrom->fInbound) {
+        if (!pfrom->fInbound)
+        {
             LogPrint(BCLog::NET, "Ignoring \"getaddr\" from outbound connection. peer=%d\n", pfrom->GetId());
             return true;
         }
 
         // Only send one GetAddr response per connection to reduce resource waste
         //  and discourage addr stamping of INV announcements.
-        if (pfrom->fSentAddr) {
+        if (pfrom->fSentAddr)
+        {
             LogPrint(BCLog::NET, "Ignoring repeated \"getaddr\". peer=%d\n", pfrom->GetId());
             return true;
         }
@@ -511,7 +563,8 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
         return true;
     }
 
-    if (strCommand == NetMsgType::PING) {
+    if (strCommand == NetMsgType::PING)
+    {
         uint64_t nonce = 0;
         vRecv >> nonce;
         // Echo the message back with the nonce. This allows for two useful features:
@@ -529,57 +582,73 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
         return true;
     }
 
-    if (strCommand == NetMsgType::PONG) {
+    if (strCommand == NetMsgType::PONG)
+    {
         int64_t pingUsecEnd = nTimeReceived;
         uint64_t nonce = 0;
         size_t nAvail = vRecv.in_avail();
         bool bPingFinished = false;
         std::string sProblem;
 
-        if (nAvail >= sizeof(nonce)) {
+        if (nAvail >= sizeof(nonce))
+        {
             vRecv >> nonce;
 
             // Only process pong message if there is an outstanding ping (old ping without nonce should never pong)
-            if (pfrom->nPingNonceSent != 0) {
-                if (nonce == pfrom->nPingNonceSent) {
+            if (pfrom->nPingNonceSent != 0)
+            {
+                if (nonce == pfrom->nPingNonceSent)
+                {
                     // Matching pong received, this ping is no longer outstanding
                     bPingFinished = true;
                     int64_t pingUsecTime = pingUsecEnd - pfrom->nPingUsecStart;
-                    if (pingUsecTime > 0) {
+                    if (pingUsecTime > 0)
+                    {
                         // Successful ping time measurement, replace previous
                         pfrom->nPingUsecTime = pingUsecTime;
                         pfrom->nMinPingUsecTime = std::min(pfrom->nMinPingUsecTime.load(), pingUsecTime);
-                    } else {
+                    }
+                    else
+                    {
                         // This should never happen
                         sProblem = "Timing mishap";
                     }
-                } else {
+                }
+                else
+                {
                     // Nonce mismatches are normal when pings are overlapping
                     sProblem = "Nonce mismatch";
-                    if (nonce == 0) {
+                    if (nonce == 0)
+                    {
                         // This is most likely a bug in another implementation somewhere; cancel this ping
                         bPingFinished = true;
                         sProblem = "Nonce zero";
                     }
                 }
-            } else {
+            }
+            else
+            {
                 sProblem = "Unsolicited pong without ping";
             }
-        } else {
+        }
+        else
+        {
             // This is most likely a bug in another implementation somewhere; cancel this ping
             bPingFinished = true;
             sProblem = "Short payload";
         }
 
-        if (!(sProblem.empty())) {
+        if (!(sProblem.empty()))
+        {
             LogPrint(BCLog::NET, "pong peer=%d: %s, %x expected, %x received, %u bytes\n",
-                pfrom->GetId(),
-                sProblem,
-                pfrom->nPingNonceSent,
-                nonce,
-                nAvail);
+                     pfrom->GetId(),
+                     sProblem,
+                     pfrom->nPingNonceSent,
+                     nonce,
+                     nAvail);
         }
-        if (bPingFinished) {
+        if (bPingFinished)
+        {
             pfrom->nPingNonceSent = 0;
         }
         return true;
@@ -590,21 +659,22 @@ bool PeerLogicValidation_internal::ProcessMessage(std::shared_ptr<CNode> pfrom, 
     return true;
 }
 
-bool PeerLogicValidation_internal::SendRejectsAndCheckIfBanned(
-            std::shared_ptr<CNode> pnode,
-            CConnman* connman,
-            bool enable_bip61) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+bool PeerLogicValidation_internal::SendRejectsAndCheckIfBanned(std::shared_ptr<CNode> pnode,
+                                                               CConnman* connman,
+                                                               bool enable_bip61) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     AssertLockHeld(cs_main);
     CNodeState &state = *State(pnode->GetId());
 
-    if (state.fShouldBan) {
+    if (state.fShouldBan)
+    {
         state.fShouldBan = false;
         if (pnode->fWhitelisted)
             LogPrintf("Warning: not punishing whitelisted peer %s!\n", pnode->addr.ToString());
         else if (pnode->m_manual_connection)
             LogPrintf("Warning: not punishing manually-connected peer %s!\n", pnode->addr.ToString());
-        else {
+        else
+        {
             pnode->fDisconnect = true;
             if (pnode->addr.IsLocal())
                 LogPrintf("Warning: not banning local peer %s!\n", pnode->addr.ToString());
@@ -653,7 +723,8 @@ bool PeerLogicValidation::ProcessMessages(std::shared_ptr<CNode> pfrom, std::ato
 
     msg.SetVersion(pfrom->GetRecvVersion());
     // Scan for message start
-    if (memcmp(msg.hdr.pchMessageStart, chainparams.MessageStart(), CMessageHeader::MESSAGE_START_SIZE) != 0) {
+    if (memcmp(msg.hdr.pchMessageStart, chainparams.MessageStart(), CMessageHeader::MESSAGE_START_SIZE) != 0)
+    {
         LogPrint(BCLog::NET, "PROCESSMESSAGE: INVALID MESSAGESTART %s peer=%d\n", SanitizeString(msg.hdr.GetCommand()), pfrom->GetId());
         pfrom->fDisconnect = true;
         return false;
@@ -677,9 +748,9 @@ bool PeerLogicValidation::ProcessMessages(std::shared_ptr<CNode> pfrom, std::ato
     if (memcmp(hash.begin(), hdr.pchChecksum, CMessageHeader::CHECKSUM_SIZE) != 0)
     {
         LogPrint(BCLog::NET, "%s(%s, %u bytes): CHECKSUM ERROR expected %s was %s\n", __func__,
-           SanitizeString(strCommand), nMessageSize,
-           HexStr(hash.begin(), hash.begin()+CMessageHeader::CHECKSUM_SIZE),
-           HexStr(hdr.pchChecksum, hdr.pchChecksum+CMessageHeader::CHECKSUM_SIZE));
+                 SanitizeString(strCommand), nMessageSize,
+                 HexStr(hash.begin(), hash.begin()+CMessageHeader::CHECKSUM_SIZE),
+                 HexStr(hdr.pchChecksum, hdr.pchChecksum+CMessageHeader::CHECKSUM_SIZE));
         return fMoreWork;
     }
 
@@ -693,36 +764,47 @@ bool PeerLogicValidation::ProcessMessages(std::shared_ptr<CNode> pfrom, std::ato
     }
     catch (const std::ios_base::failure& e)
     {
-        if (m_enable_bip61) {
-            connman->PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT, strCommand, REJECT_MALFORMED, std::string("error parsing message")));
+        if (m_enable_bip61)
+        {
+            connman->PushMessage(pfrom, CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::REJECT,
+                                                                              strCommand,
+                                                                              REJECT_MALFORMED,
+                                                                              std::string("error parsing message")));
         }
         if (strstr(e.what(), "end of data"))
         {
             // Allow exceptions from under-length message on vRecv
-            LogPrint(BCLog::NET, "%s(%s, %u bytes): Exception '%s' caught, normally caused by a message being shorter than its stated length\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
+            LogPrint(BCLog::NET, "%s(%s, %u bytes): Exception '%s' caught, normally caused by a message being shorter "
+                     "than its stated length\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
         }
         else if (strstr(e.what(), "size too large"))
         {
             // Allow exceptions from over-long size
-            LogPrint(BCLog::NET, "%s(%s, %u bytes): Exception '%s' caught\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
+            LogPrint(BCLog::NET, "%s(%s, %u bytes): Exception '%s' caught\n",
+                     __func__, SanitizeString(strCommand), nMessageSize, e.what());
         }
         else if (strstr(e.what(), "non-canonical ReadCompactSize()"))
         {
             // Allow exceptions from non-canonical encoding
-            LogPrint(BCLog::NET, "%s(%s, %u bytes): Exception '%s' caught\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
+            LogPrint(BCLog::NET, "%s(%s, %u bytes): Exception '%s' caught\n",
+                     __func__, SanitizeString(strCommand), nMessageSize, e.what());
         }
         else
         {
             PrintExceptionContinue(logger_, &e, "ProcessMessages()");
         }
     }
-    catch (const std::exception& e) {
+    catch (const std::exception& e)
+    {
         PrintExceptionContinue(logger_, &e, "ProcessMessages()");
-    } catch (...) {
+    }
+    catch (...)
+    {
         PrintExceptionContinue(logger_, nullptr, "ProcessMessages()");
     }
 
-    if (!fRet) {
+    if (!fRet)
+    {
         LogPrint(BCLog::NET, "%s(%s, %u bytes) FAILED peer=%d\n", __func__, SanitizeString(strCommand), nMessageSize, pfrom->GetId());
     }
 
@@ -736,7 +818,8 @@ void PeerLogicValidation::EvictExtraOutboundPeers(int64_t time_in_seconds)
 {
     // Check whether we have too many outbound peers
     int extra_peers = connman->GetExtraOutboundCount();
-    if (extra_peers > 0) {
+    if (extra_peers > 0)
+    {
         // If we have more outbound peers than we target, disconnect one.
         // Pick the outbound peer that least recently announced
         // us a new block, with ties broken by choosing the more recent
@@ -746,20 +829,25 @@ void PeerLogicValidation::EvictExtraOutboundPeers(int64_t time_in_seconds)
 
         LOCK(internal->cs_main);
 
-        connman->ForEachNode([&](std::shared_ptr<CNode> pnode) {
+        connman->ForEachNode([&](std::shared_ptr<CNode> pnode)
+        {
             AssertLockHeld(internal->cs_main);
 
             // Ignore non-outbound peers, or nodes marked for disconnect already
             if (!IsOutboundDisconnectionCandidate(pnode) || pnode->fDisconnect) return;
             CNodeState *state = internal->State(pnode->GetId());
             if (state == nullptr) return; // shouldn't be possible, but just in case
-            if (state->m_last_block_announcement < oldest_block_announcement || (state->m_last_block_announcement == oldest_block_announcement && pnode->GetId() > worst_peer)) {
+            if (state->m_last_block_announcement < oldest_block_announcement
+                    || (state->m_last_block_announcement == oldest_block_announcement && pnode->GetId() > worst_peer))
+            {
                 worst_peer = pnode->GetId();
                 oldest_block_announcement = state->m_last_block_announcement;
             }
         });
-        if (worst_peer != -1) {
-            bool disconnected = connman->ForNode(worst_peer, [&](std::shared_ptr<CNode> pnode) {
+        if (worst_peer != -1)
+        {
+            bool disconnected = connman->ForNode(worst_peer, [&](std::shared_ptr<CNode> pnode)
+            {
                 AssertLockHeld(internal->cs_main);
 
                 // Only disconnect a peer that has been connected to us for
@@ -767,16 +855,22 @@ void PeerLogicValidation::EvictExtraOutboundPeers(int64_t time_in_seconds)
                 // it time for new information to have arrived.
                 // Also don't disconnect any peer we're trying to download a
                 // block from.
-                if (time_in_seconds - pnode->nTimeConnected > MINIMUM_CONNECT_TIME) {
-                    LogPrint(BCLog::NET, "disconnecting extra outbound peer=%d (last block announcement received at time %d)\n", pnode->GetId(), oldest_block_announcement);
+                if (time_in_seconds - pnode->nTimeConnected > MINIMUM_CONNECT_TIME)
+                {
+                    LogPrint(BCLog::NET, "disconnecting extra outbound peer=%d (last block announcement received at time %d)\n",
+                             pnode->GetId(), oldest_block_announcement);
                     pnode->fDisconnect = true;
                     return true;
-                } else {
-                    LogPrint(BCLog::NET, "keeping outbound peer=%d chosen for eviction (connect time: %d)\n", pnode->GetId(), pnode->nTimeConnected);
+                }
+                else
+                {
+                    LogPrint(BCLog::NET, "keeping outbound peer=%d chosen for eviction (connect time: %d)\n",
+                             pnode->GetId(), pnode->nTimeConnected);
                     return false;
                 }
             });
-            if (disconnected) {
+            if (disconnected)
+            {
                 // If we disconnected an extra peer, that means we successfully
                 // connected to at least one peer after the last time we
                 // detected a stale tip. Don't try any more extra peers until
@@ -797,15 +891,19 @@ void PeerLogicValidation::CheckForStaleTipAndEvictPeers(int nPowTargetSpacing)
 
     EvictExtraOutboundPeers(time_in_seconds);
 
-    if (time_in_seconds > m_stale_tip_check_time) {
+    if (time_in_seconds > m_stale_tip_check_time)
+    {
         LOCK(internal->cs_main);
         // Check whether our tip is stale, and if so, allow using an extra
         // outbound peer
-	if (TipMayBeStale(nPowTargetSpacing)) {
+        if (TipMayBeStale(nPowTargetSpacing))
+        {
             LogPrintf("Potential stale tip detected, will try using extra outbound peer "
-                    "(last tip update: %d seconds ago)\n", time_in_seconds - internal->g_last_tip_update);
+                      "(last tip update: %d seconds ago)\n", time_in_seconds - internal->g_last_tip_update);
             connman->SetTryNewOutboundPeer(true);
-        } else if (connman->GetTryNewOutboundPeer()) {
+        }
+        else if (connman->GetTryNewOutboundPeer())
+        {
             connman->SetTryNewOutboundPeer(false);
         }
         m_stale_tip_check_time = time_in_seconds + STALE_CHECK_INTERVAL;
@@ -826,17 +924,21 @@ bool PeerLogicValidation::SendMessages(std::shared_ptr<CNode> pto)
         // Message: ping
         //
         bool pingSend = false;
-        if (pto->fPingQueued) {
+        if (pto->fPingQueued)
+        {
             // RPC ping request by user
             pingSend = true;
         }
-        if (pto->nPingNonceSent == 0 && pto->nPingUsecStart + PING_INTERVAL * 1000000 < GetTimeMicros()) {
+        if (pto->nPingNonceSent == 0 && pto->nPingUsecStart + PING_INTERVAL * 1000000 < GetTimeMicros())
+        {
             // Ping automatically sent as a latency probe & keepalive.
             pingSend = true;
         }
-        if (pingSend) {
+        if (pingSend)
+        {
             uint64_t nonce = 0;
-            while (nonce == 0) {
+            while (nonce == 0)
+            {
                 connman->random_.GetRandBytes((unsigned char*)&nonce, sizeof(nonce));
             }
             pto->fPingQueued = false;
@@ -855,7 +957,8 @@ bool PeerLogicValidation::SendMessages(std::shared_ptr<CNode> pto)
 
         // Address refresh broadcast
         int64_t nNow = GetTimeMicros();
-        if (pto->nNextLocalAddrSend < nNow) {
+        if (pto->nNextLocalAddrSend < nNow)
+        {
             connman->AdvertiseLocal(pto);
             pto->nNextLocalAddrSend = connman->PoissonNextSend(nNow, AVG_LOCAL_ADDRESS_BROADCAST_INTERVAL);
         }
@@ -863,7 +966,8 @@ bool PeerLogicValidation::SendMessages(std::shared_ptr<CNode> pto)
         //
         // Message: addr
         //
-        if (pto->nNextAddrSend < nNow) {
+        if (pto->nNextAddrSend < nNow)
+        {
             pto->nNextAddrSend = connman->PoissonNextSend(nNow, AVG_ADDRESS_BROADCAST_INTERVAL);
             std::vector<CAddress> vAddr;
             vAddr.reserve(pto->vAddrToSend.size());
@@ -893,7 +997,8 @@ bool PeerLogicValidation::SendMessages(std::shared_ptr<CNode> pto)
         // Message: propagate
         //
         const PropagateMessage *promess = connman->p2p_store->GetNext(pto->next_propagate_index);
-        if (promess) {
+        if (promess)
+        {
             connman->PushMessage(pto, msgMaker.Make(NetMsgType::PROPAGATE, promess->message));
         }
     }

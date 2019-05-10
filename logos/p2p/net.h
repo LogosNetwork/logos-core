@@ -6,6 +6,15 @@
 #ifndef BITCOIN_NET_H
 #define BITCOIN_NET_H
 
+#include <atomic>
+#include <deque>
+#include <stdint.h>
+#include <thread>
+#include <memory>
+#include <condition_variable>
+#include <semaphore.h>
+#include <arpa/inet.h>
+#include <boost/asio.hpp>
 #include <addrdb.h>
 #include <addrman.h>
 #include <bloom.h>
@@ -21,16 +30,6 @@
 #include <uint256.h>
 #include <threadinterrupt.h>
 #include <chainparams.h>
-
-#include <atomic>
-#include <deque>
-#include <stdint.h>
-#include <thread>
-#include <memory>
-#include <condition_variable>
-#include <semaphore.h>
-#include <boost/asio.hpp>
-#include <arpa/inet.h>
 
 class CNode;
 
@@ -70,10 +69,10 @@ typedef int64_t NodeId;
 
 struct AddedNodeInfo
 {
-    std::string strAddedNode;
-    CService resolvedAddress;
-    bool fConnected;
-    bool fInbound;
+    std::string     strAddedNode;
+    CService        resolvedAddress;
+    bool            fConnected;
+    bool            fInbound;
 };
 
 class CClientUIInterface;
@@ -87,8 +86,8 @@ struct CSerializedNetMsg
     CSerializedNetMsg(const CSerializedNetMsg& msg) = delete;
     CSerializedNetMsg& operator=(const CSerializedNetMsg&) = delete;
 
-    std::vector<unsigned char> data;
-    std::string command;
+    std::vector<unsigned char>  data;
+    std::string                 command;
 };
 
 class CConnman;
@@ -96,66 +95,82 @@ class CConnman;
 class AsioSession : public std::enable_shared_from_this<AsioSession>
 {
 public:
-    AsioSession(boost::asio::io_service& ios, CConnman &connman_);
+    AsioSession(boost::asio::io_service& ios,
+                CConnman &connman_);
     ~AsioSession();
-    boost::asio::ip::tcp::socket& get_socket() { return socket; }
+    boost::asio::ip::tcp::socket& get_socket()
+    {
+        return socket;
+    }
     void setNode(std::shared_ptr<CNode> pnode_);
     void start();
     void shutdown();
     void async_write(const char *buf, size_t bytes);
-    CConnman &connman;
+    CConnman &                      connman;
 private:
-    BCLog::Logger &logger_;
-    boost::asio::ip::tcp::socket socket;
-    std::shared_ptr<CNode> pnode;
-    NodeId id;
-    bool in_shutdown;
+    BCLog::Logger &                 logger_;
+    boost::asio::ip::tcp::socket    socket;
+    std::shared_ptr<CNode>          pnode;
+    NodeId                          id;
+    bool                            in_shutdown;
     void handle_read(std::shared_ptr<AsioSession> s, const boost::system::error_code& err,
-		size_t bytes_transferred);
+                     size_t bytes_transferred);
     void handle_write(std::shared_ptr<AsioSession> s, const boost::system::error_code& err,
-		size_t bytes_transferred);
-    enum { max_length = 0x10000 };
-    char data[max_length];
+                      size_t bytes_transferred);
+    enum
+    {
+        max_length = 0x10000
+    };
+    char                            data[max_length];
 };
 
-enum ConnFlags {
-	CONN_ONE_SHOT	= 1,
+enum ConnFlags
+{
+    CONN_ONE_SHOT	= 1,
     CONN_FEELER     = 2,
     CONN_MANUAL     = 4,
-	CONN_FAILURE	= 8,
+    CONN_FAILURE	= 8,
 };
 
-class AsioClient {
+class AsioClient
+{
 public:
-    AsioClient(CConnman &conn, const char *nam, std::shared_ptr<CSemaphoreGrant> grant, int fl);
+    AsioClient(CConnman &conn,
+               const char *nam,
+               std::shared_ptr<CSemaphoreGrant> grant,
+               int fl);
     ~AsioClient();
     void connect(const std::string &host, const std::string &port);
     void resolve_handler(const boost::system::error_code& ec,
-		boost::asio::ip::tcp::resolver::results_type results);
+                         boost::asio::ip::tcp::resolver::results_type results);
     void connect_handler(std::shared_ptr<AsioSession> session, const boost::system::error_code& ec,
-		const boost::asio::ip::tcp::endpoint& endpoint);
+                         const boost::asio::ip::tcp::endpoint& endpoint);
 private:
-    CConnman &connman;
-    BCLog::Logger &logger_;
-    char *name;
-    std::shared_ptr<CSemaphoreGrant> grantOutbound;
-    int flags;
-    boost::asio::ip::tcp::resolver resolver;
+    CConnman &                          connman;
+    BCLog::Logger &                     logger_;
+    char *                              name;
+    std::shared_ptr<CSemaphoreGrant>    grantOutbound;
+    int                                 flags;
+    boost::asio::ip::tcp::resolver      resolver;
     friend class CConnman;
 };
 
-class AsioServer : public std::enable_shared_from_this<AsioServer> {
+class AsioServer : public std::enable_shared_from_this<AsioServer>
+{
 public:
-    AsioServer(CConnman &, boost::asio::ip::address &, short port, bool wlisted);
+    AsioServer(CConnman &,
+               boost::asio::ip::address &,
+               short port,
+               bool wlisted);
     ~AsioServer();
     void start();
     void shutdown();
 private:
-    CConnman &connman;
-    BCLog::Logger &logger_;
-    boost::asio::ip::tcp::acceptor acceptor;
-    bool whitelisted;
-    bool in_shutdown;
+    CConnman &                      connman;
+    BCLog::Logger &                 logger_;
+    boost::asio::ip::tcp::acceptor  acceptor;
+    bool                            whitelisted;
+    bool                            in_shutdown;
     void handle_accept(std::shared_ptr<AsioServer>, std::shared_ptr<AsioSession>, const boost::system::error_code&);
     friend class CConnman;
 };
@@ -170,7 +185,8 @@ enum
     LOCAL_MAX
 };
 
-struct LocalServiceInfo {
+struct LocalServiceInfo
+{
     int nScore;
     int nPort;
 };
@@ -180,34 +196,37 @@ class CConnman
 {
 public:
 
-    enum NumConnections {
-        CONNECTIONS_NONE = 0,
-        CONNECTIONS_IN = (1U << 0),
-        CONNECTIONS_OUT = (1U << 1),
-        CONNECTIONS_ALL = (CONNECTIONS_IN | CONNECTIONS_OUT),
+    enum NumConnections
+    {
+        CONNECTIONS_NONE    = 0,
+        CONNECTIONS_IN      = (1U << 0),
+        CONNECTIONS_OUT     = (1U << 1),
+        CONNECTIONS_ALL     = (CONNECTIONS_IN | CONNECTIONS_OUT),
     };
 
     struct Options
     {
-        int nMaxConnections = 0;
-        int nMaxOutbound = 0;
-        int nMaxAddnode = 0;
-        int nMaxFeeler = 0;
-        CClientUIInterface* uiInterface = nullptr;
-        NetEventsInterface* m_msgproc = nullptr;
-        unsigned int nSendBufferMaxSize = 0;
-        unsigned int nReceiveFloodSize = 0;
-        uint64_t nMaxOutboundTimeframe = 0;
-        uint64_t nMaxOutboundLimit = 0;
-        std::vector<std::string> vSeedNodes;
-        std::vector<CSubNet> vWhitelistedRange;
-        std::vector<CService> vBinds, vWhiteBinds;
-        bool m_use_addrman_outgoing = true;
-        std::vector<std::string> m_specified_outgoing;
-        std::vector<std::string> m_added_nodes;
+        int                         nMaxConnections = 0;
+        int                         nMaxOutbound = 0;
+        int                         nMaxAddnode = 0;
+        int                         nMaxFeeler = 0;
+        CClientUIInterface*         uiInterface = nullptr;
+        NetEventsInterface*         m_msgproc = nullptr;
+        unsigned int                nSendBufferMaxSize = 0;
+        unsigned int                nReceiveFloodSize = 0;
+        uint64_t                    nMaxOutboundTimeframe = 0;
+        uint64_t                    nMaxOutboundLimit = 0;
+        std::vector<std::string>    vSeedNodes;
+        std::vector<CSubNet>        vWhitelistedRange;
+        std::vector<CService>       vBinds,
+                                    vWhiteBinds;
+        bool                        m_use_addrman_outgoing = true;
+        std::vector<std::string>    m_specified_outgoing;
+        std::vector<std::string>    m_added_nodes;
     };
 
-    void Init(const Options& connOptions) {
+    void Init(const Options& connOptions)
+    {
         nMaxConnections = connOptions.nMaxConnections;
         nMaxOutbound = std::min(connOptions.nMaxOutbound, connOptions.nMaxConnections);
         nMaxAddnode = connOptions.nMaxAddnode;
@@ -228,14 +247,28 @@ public:
         }
     }
 
-    CConnman(uint64_t seed0, uint64_t seed1, p2p_config &config, ArgsManager &Args, TimeData &timeDataIn, Random &random);
+    CConnman(uint64_t seed0,
+             uint64_t seed1,
+             p2p_config &config,
+             ArgsManager &Args,
+             TimeData &timeDataIn,
+             Random &random);
     ~CConnman();
     bool Start(const Options& options);
     void Stop();
     void Interrupt();
-    bool GetNetworkActive() const { return fNetworkActive; };
+    bool GetNetworkActive() const
+    {
+        return fNetworkActive;
+    };
     void SetNetworkActive(bool active);
-    void OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, std::shared_ptr<CSemaphoreGrant> grantOutbound, const char *strDest = nullptr, bool fOneShot = false, bool fFeeler = false, bool manual_connection = false);
+    void OpenNetworkConnection(const CAddress& addrConnect,
+                               bool fCountFailure,
+                               std::shared_ptr<CSemaphoreGrant> grantOutbound,
+                               const char *strDest = nullptr,
+                               bool fOneShot = false,
+                               bool fFeeler = false,
+                               bool manual_connection = false);
     bool CheckIncomingNonce(uint64_t nonce);
 
     bool ForNode(NodeId id, std::function<bool(std::shared_ptr<CNode> pnode)> func);
@@ -246,7 +279,8 @@ public:
     void ForEachNode(Callable&& func)
     {
         LOCK(cs_vNodes);
-        for (auto&& node : vNodes) {
+        for (auto&& node : vNodes)
+        {
             if (NodeFullyConnected(node))
                 func(node);
         }
@@ -256,7 +290,8 @@ public:
     void ForEachNode(Callable&& func) const
     {
         LOCK(cs_vNodes);
-        for (auto&& node : vNodes) {
+        for (auto&& node : vNodes)
+        {
             if (NodeFullyConnected(node))
                 func(node);
         }
@@ -266,7 +301,8 @@ public:
     void ForEachNodeThen(Callable&& pre, CallableAfter&& post)
     {
         LOCK(cs_vNodes);
-        for (auto&& node : vNodes) {
+        for (auto&& node : vNodes)
+        {
             if (NodeFullyConnected(node))
                 pre(node);
         }
@@ -277,7 +313,8 @@ public:
     void ForEachNodeThen(Callable&& pre, CallableAfter&& post) const
     {
         LOCK(cs_vNodes);
-        for (auto&& node : vNodes) {
+        for (auto&& node : vNodes)
+        {
             if (NodeFullyConnected(node))
                 pre(node);
         }
@@ -392,25 +429,25 @@ public:
     /** Return a timestamp in the future (in microseconds) for exponentially distributed events. */
     int64_t PoissonNextSend(int64_t now, int average_interval_seconds);
 
-    p2p_config &config;
-    ArgsManager &Args;
-    TimeData &timeData;
-    BCLog::Logger &logger_;
-    Random &random_;
-    p2p_interface *p2p;
-    CClientUIInterface* clientInterface;
-    PropagateStore *p2p_store;
-    boost::asio::io_service *io_service;
-    sem_t dataWritten;
-    std::function<void(std::function<void()> const &, unsigned)> scheduleAfter;
-    bool fLogIPs;
-    bool fDiscover;
-    bool fListen;
+    p2p_config &                                                    config;
+    ArgsManager &                                                   Args;
+    TimeData &                                                      timeData;
+    BCLog::Logger &                                                 logger_;
+    Random &                                                        random_;
+    p2p_interface *                                                 p2p;
+    CClientUIInterface*                                             clientInterface;
+    PropagateStore *                                                p2p_store;
+    boost::asio::io_service *                                       io_service;
+    sem_t                                                           dataWritten;
+    std::function<void(std::function<void()> const &, unsigned)>    scheduleAfter;
+    bool                                                            fLogIPs;
+    bool                                                            fDiscover;
+    bool                                                            fListen;
 
     /** Subversion as sent to the P2P network in `version` messages */
-    std::string strSubVersion;
+    std::string                                                     strSubVersion;
 
-    std::shared_ptr<CChainParams> chainParams;
+    std::shared_ptr<CChainParams>                                   chainParams;
 
     /**
      * Return the currently selected parameters. This won't change after app
@@ -481,76 +518,77 @@ private:
     static bool NodeFullyConnected(std::shared_ptr<CNode> pnode);
 
     // Network usage totals
-    CCriticalSection cs_totalBytesRecv;
-    CCriticalSection cs_totalBytesSent;
-    uint64_t nTotalBytesRecv GUARDED_BY(cs_totalBytesRecv);
-    uint64_t nTotalBytesSent GUARDED_BY(cs_totalBytesSent);
+    CCriticalSection                                                cs_totalBytesRecv;
+    CCriticalSection                                                cs_totalBytesSent;
+    uint64_t                                                        nTotalBytesRecv GUARDED_BY(cs_totalBytesRecv);
+    uint64_t                                                        nTotalBytesSent GUARDED_BY(cs_totalBytesSent);
 
     // outbound limit & stats
-    uint64_t nMaxOutboundTotalBytesSentInCycle GUARDED_BY(cs_totalBytesSent);
-    uint64_t nMaxOutboundCycleStartTime GUARDED_BY(cs_totalBytesSent);
-    uint64_t nMaxOutboundLimit GUARDED_BY(cs_totalBytesSent);
-    uint64_t nMaxOutboundTimeframe GUARDED_BY(cs_totalBytesSent);
+    uint64_t                                                        nMaxOutboundTotalBytesSentInCycle GUARDED_BY(cs_totalBytesSent);
+    uint64_t                                                        nMaxOutboundCycleStartTime GUARDED_BY(cs_totalBytesSent);
+    uint64_t                                                        nMaxOutboundLimit GUARDED_BY(cs_totalBytesSent);
+    uint64_t                                                        nMaxOutboundTimeframe GUARDED_BY(cs_totalBytesSent);
 
     // Whitelisted ranges. Any node connecting from these is automatically
     // whitelisted (as well as those connecting to whitelisted binds).
-    std::vector<CSubNet> vWhitelistedRange;
+    std::vector<CSubNet>                                            vWhitelistedRange;
 
-    unsigned int nSendBufferMaxSize;
-    unsigned int nReceiveFloodSize;
+    unsigned int                                                    nSendBufferMaxSize;
+    unsigned int                                                    nReceiveFloodSize;
 
-    std::vector<ListenSocket> vhListenSocket;
-    std::atomic<bool> fNetworkActive;
-    banmap_t setBanned;
-    CCriticalSection cs_setBanned;
-    bool setBannedIsDirty;
-    bool fAddressesInitialized;
-    CAddrMan addrman;
-    std::deque<std::string> vOneShots;
-    CCriticalSection cs_vOneShots;
-    std::vector<std::string> vAddedNodes GUARDED_BY(cs_vAddedNodes);
-    CCriticalSection cs_vAddedNodes;
-    std::vector<std::shared_ptr<CNode>> vNodes;
-    mutable CCriticalSection cs_vNodes;
-    std::atomic<NodeId> nLastNodeId;
+    std::vector<ListenSocket>                                       vhListenSocket;
+    std::atomic<bool>                                               fNetworkActive;
+    banmap_t                                                        setBanned;
+    CCriticalSection                                                cs_setBanned;
+    bool                                                            setBannedIsDirty;
+    bool                                                            fAddressesInitialized;
+    CAddrMan                                                        addrman;
+    std::deque<std::string>                                         vOneShots;
+    CCriticalSection                                                cs_vOneShots;
+    std::vector<std::string>                                        vAddedNodes GUARDED_BY(cs_vAddedNodes);
+    CCriticalSection                                                cs_vAddedNodes;
+    std::vector<std::shared_ptr<CNode>>                             vNodes;
+    mutable CCriticalSection                                        cs_vNodes;
+    std::atomic<NodeId>                                             nLastNodeId;
 
     /** Services this instance offers */
-    CCriticalSection cs_mapLocalHost;
-    std::map<CNetAddr, LocalServiceInfo> mapLocalHost;
-    bool vfLimited[NET_MAX];
+    CCriticalSection                                                cs_mapLocalHost;
+    std::map<CNetAddr, LocalServiceInfo>                            mapLocalHost;
+    bool                                                            vfLimited[NET_MAX];
 
-    std::unique_ptr<CSemaphore> semOutbound;
-    std::unique_ptr<CSemaphore> semAddnode;
-    int nMaxConnections;
-    int nMaxOutbound;
-    int nMaxAddnode;
-    int nMaxFeeler;
-    NetEventsInterface* m_msgproc;
+    std::unique_ptr<CSemaphore>                                     semOutbound;
+    std::unique_ptr<CSemaphore>                                     semAddnode;
+    int                                                             nMaxConnections;
+    int                                                             nMaxOutbound;
+    int                                                             nMaxAddnode;
+    int                                                             nMaxFeeler;
+    NetEventsInterface*                                             m_msgproc;
 
     /** SipHasher seeds for deterministic randomness */
-    const uint64_t nSeed0, nSeed1;
+    const uint64_t                                                  nSeed0,
+                                                                    nSeed1;
 
     /** flag for waking the message processor. */
-    bool fMsgProcWake;
+    bool                                                            fMsgProcWake;
 
-    std::condition_variable condMsgProc;
-    Mutex mutexMsgProc;
-    std::atomic<bool> flagInterruptMsgProc;
+    std::condition_variable                                         condMsgProc;
+    Mutex                                                           mutexMsgProc;
+    std::atomic<bool>                                               flagInterruptMsgProc;
 
-    CThreadInterrupt interruptNet;
+    CThreadInterrupt                                                interruptNet;
 
-    std::thread threadDNSAddressSeed;
-    std::thread threadSocketHandler;
-    std::thread threadOpenAddedConnections;
-    std::thread threadOpenConnections;
-    std::thread threadMessageHandler;
+    std::thread                                                     threadDNSAddressSeed;
+    std::thread                                                     threadSocketHandler;
+    std::thread                                                     threadOpenAddedConnections;
+    std::thread                                                     threadOpenConnections;
+    std::thread                                                     threadMessageHandler;
 
     /** flag for deciding to connect to an extra outbound peer,
      *  in excess of nMaxOutbound
      *  This takes the place of a feeler connection */
-    std::atomic_bool m_try_another_outbound_peer;
+    std::atomic_bool                                                m_try_another_outbound_peer;
 
-    std::atomic<int64_t> m_next_send_inv_to_incoming{0};
+    std::atomic<int64_t>                                            m_next_send_inv_to_incoming{0};
 
     friend struct CConnmanTest;
     friend class AsioClient;
@@ -558,6 +596,7 @@ private:
     friend class AsioSession;
     friend class p2p_internal;
 };
+
 bool BindListenPort(const CService &bindAddr, std::string& strError, bool fWhitelisted = false);
 
 /**
@@ -581,23 +620,30 @@ protected:
 
 typedef std::map<std::string, uint64_t> mapMsgCmdSize; //command, total bytes
 
-class CNetMessage {
+class CNetMessage
+{
 private:
-    mutable CHash256 hasher;
-    mutable uint256 data_hash;
+    mutable CHash256    hasher;
+    mutable uint256     data_hash;
 public:
-    bool in_data;                   // parsing header (false) or data (true)
+    bool                in_data;         // parsing header (false) or data (true)
 
-    CDataStream hdrbuf;             // partially received header
-    CMessageHeader hdr;             // complete header
-    unsigned int nHdrPos;
+    CDataStream         hdrbuf;          // partially received header
+    CMessageHeader      hdr;             // complete header
+    unsigned int        nHdrPos;
 
-    CDataStream vRecv;              // received message data
-    unsigned int nDataPos;
+    CDataStream         vRecv;           // received message data
+    unsigned int        nDataPos;
 
-    int64_t nTime;                  // time (in microseconds) of message receipt.
+    int64_t             nTime;           // time (in microseconds) of message receipt.
 
-    CNetMessage(const CMessageHeader::MessageStartChars& pchMessageStartIn, int nTypeIn, int nVersionIn) : hdrbuf(nTypeIn, nVersionIn), hdr(pchMessageStartIn), vRecv(nTypeIn, nVersionIn) {
+    CNetMessage(const CMessageHeader::MessageStartChars& pchMessageStartIn,
+                int nTypeIn,
+                int nVersionIn)
+        : hdrbuf(nTypeIn, nVersionIn)
+        , hdr(pchMessageStartIn)
+        , vRecv(nTypeIn, nVersionIn)
+    {
         hdrbuf.resize(24);
         in_data = false;
         nHdrPos = 0;
@@ -630,106 +676,114 @@ class CNode
     friend class CConnman;
 public:
     // socket
-    std::shared_ptr<AsioSession> session;
-    size_t nSendSize; // total size of all vSendMsg entries
-    uint64_t nSendBytes;
-    std::deque<std::vector<unsigned char>> vSendMsg;
-    Mutex cs_vSend;
-    Mutex cs_vRecv;
+    std::shared_ptr<AsioSession>            session;
+    size_t                                  nSendSize; // total size of all vSendMsg entries
+    uint64_t                                nSendBytes;
+    std::deque<std::vector<unsigned char>>  vSendMsg;
+    Mutex                                   cs_vSend;
+    Mutex                                   cs_vRecv;
 
-    Mutex cs_vProcessMsg;
-    std::list<CNetMessage> vProcessMsg;
-    size_t nProcessQueueSize;
+    Mutex                                   cs_vProcessMsg;
+    std::list<CNetMessage>                  vProcessMsg;
+    size_t                                  nProcessQueueSize;
 
-    uint64_t nRecvBytes;
-    std::atomic<int> nRecvVersion;
+    uint64_t                                nRecvBytes;
+    std::atomic<int>                        nRecvVersion;
 
-    std::atomic<int64_t> nLastSend;
-    std::atomic<int64_t> nLastRecv;
-    const int64_t nTimeConnected;
-    std::atomic<int64_t> nTimeOffset;
+    std::atomic<int64_t>                    nLastSend;
+    std::atomic<int64_t>                    nLastRecv;
+    const int64_t                           nTimeConnected;
+    std::atomic<int64_t>                    nTimeOffset;
     // Address of this peer
-    const CAddress addr;
+    const CAddress                          addr;
     // Bind address of our side of the connection
-    const CAddress addrBind;
-    std::atomic<int> nVersion;
+    const CAddress                          addrBind;
+    std::atomic<int>                        nVersion;
     // strSubVer is whatever byte array we read from the wire. However, this field is intended
     // to be printed out, displayed to humans in various forms and so on. So we sanitize it and
     // store the sanitized version in cleanSubVer. The original should be used when dealing with
     // the network or wire types and the cleaned string used when displayed or logged.
-    std::string strSubVer, cleanSubVer;
-    Mutex cs_SubVer; // used for both cleanSubVer and strSubVer
-    bool fWhitelisted; // This peer can bypass DoS banning.
-    bool fFeeler; // If true this node is being used as a short lived feeler.
-    bool fOneShot;
-    bool m_manual_connection;
-    const bool fInbound;
-    std::atomic_bool fSuccessfullyConnected;
-    std::atomic_bool fDisconnect;
-    bool fSentAddr;
-    CSemaphoreGrant grantOutbound;
+    std::string                             strSubVer,
+                                            cleanSubVer;
+    Mutex                                   cs_SubVer; // used for both cleanSubVer and strSubVer
+    bool                                    fWhitelisted; // This peer can bypass DoS banning.
+    bool                                    fFeeler; // If true this node is being used as a short lived feeler.
+    bool                                    fOneShot;
+    bool                                    m_manual_connection;
+    const bool                              fInbound;
+    std::atomic_bool                        fSuccessfullyConnected;
+    std::atomic_bool                        fDisconnect;
+    bool                                    fSentAddr;
+    CSemaphoreGrant                         grantOutbound;
 
-    const uint64_t nKeyedNetGroup;
-    std::atomic_bool fPauseRecv;
-    std::atomic_bool fPauseSend;
-    uint64_t next_propagate_index;
-    std::atomic_bool sendCompleted;
+    const uint64_t                          nKeyedNetGroup;
+    std::atomic_bool                        fPauseRecv;
+    std::atomic_bool                        fPauseSend;
+    uint64_t                                next_propagate_index;
+    std::atomic_bool                        sendCompleted;
 protected:
 
-    mapMsgCmdSize mapSendBytesPerMsgCmd;
-    mapMsgCmdSize mapRecvBytesPerMsgCmd;
+    mapMsgCmdSize                           mapSendBytesPerMsgCmd;
+    mapMsgCmdSize                           mapRecvBytesPerMsgCmd;
 
 public:
-    uint256 hashContinue;
+    uint256                                 hashContinue;
 
     // flood relay
-    std::vector<CAddress> vAddrToSend;
-    CRollingBloomFilter addrKnown;
-    bool fGetAddr;
-    std::set<uint256> setKnown;
-    int64_t nNextAddrSend;
-    int64_t nNextLocalAddrSend;
+    std::vector<CAddress>                   vAddrToSend;
+    CRollingBloomFilter                     addrKnown;
+    bool                                    fGetAddr;
+    std::set<uint256>                       setKnown;
+    int64_t                                 nNextAddrSend;
+    int64_t                                 nNextLocalAddrSend;
 
     // Ping time measurement:
     // The pong reply we're expecting, or 0 if no pong expected.
-    std::atomic<uint64_t> nPingNonceSent;
+    std::atomic<uint64_t>                   nPingNonceSent;
     // Time (in usec) the last ping was sent, or 0 if no ping was ever sent.
-    std::atomic<int64_t> nPingUsecStart;
+    std::atomic<int64_t>                    nPingUsecStart;
     // Last measured round-trip time.
-    std::atomic<int64_t> nPingUsecTime;
+    std::atomic<int64_t>                    nPingUsecTime;
     // Best measured round-trip time.
-    std::atomic<int64_t> nMinPingUsecTime;
+    std::atomic<int64_t>                    nMinPingUsecTime;
     // Whether a ping is requested.
-    std::atomic<bool> fPingQueued;
+    std::atomic<bool>                       fPingQueued;
 
-    CNode(NodeId id, std::shared_ptr<AsioSession> sessionIn, const CAddress &addrIn,
-            uint64_t nKeyedNetGroupIn, uint64_t nLocalHostNonceIn, const CAddress &addrBindIn,
-            const std::string &addrNameIn = "", bool fInboundIn = false);
+    CNode(NodeId id,
+          std::shared_ptr<AsioSession> sessionIn,
+          const CAddress &addrIn,
+          uint64_t nKeyedNetGroupIn,
+          uint64_t nLocalHostNonceIn,
+          const CAddress &addrBindIn,
+          const std::string &addrNameIn = "",
+          bool fInboundIn = false);
     ~CNode();
     CNode(const CNode&) = delete;
     CNode& operator=(const CNode&) = delete;
 
 private:
-    const NodeId id;
-    const uint64_t nLocalHostNonce;
-    int nSendVersion;
-    std::list<CNetMessage> vRecvMsg;  // Used only by SocketHandler thread
+    const NodeId                            id;
+    const uint64_t                          nLocalHostNonce;
+    int                                     nSendVersion;
+    std::list<CNetMessage>                  vRecvMsg;  // Used only by SocketHandler thread
 
-    mutable CCriticalSection cs_addrName;
-    std::string addrName;
+    mutable CCriticalSection                cs_addrName;
+    std::string                             addrName;
 
     // Our address, as reported by the peer
-    CService addrLocal;
-    mutable Mutex cs_addrLocal;
-    BCLog::Logger &logger_;
+    CService                                addrLocal;
+    mutable Mutex                           cs_addrLocal;
+    BCLog::Logger &                         logger_;
 public:
-    CConnman &connman;
+    CConnman &                              connman;
 
-    NodeId GetId() const {
+    NodeId GetId() const
+    {
         return id;
     }
 
-    uint64_t GetLocalNonce() const {
+    uint64_t GetLocalNonce() const
+    {
         return nLocalHostNonce;
     }
 
@@ -761,12 +815,12 @@ public:
         // Known checking here is only to save space from duplicates.
         // SendMessages will filter it again for knowns that were added
         // after addresses were pushed.
-        if (_addr.IsValid() && !addrKnown.contains(_addr.GetKey())) {
-            if (vAddrToSend.size() >= MAX_ADDR_TO_SEND) {
+        if (_addr.IsValid() && !addrKnown.contains(_addr.GetKey()))
+        {
+            if (vAddrToSend.size() >= MAX_ADDR_TO_SEND)
                 vAddrToSend[insecure_rand.randrange(vAddrToSend.size())] = _addr;
-            } else {
+            else
                 vAddrToSend.push_back(_addr);
-            }
         }
     }
 

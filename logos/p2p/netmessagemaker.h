@@ -12,7 +12,10 @@
 class CNetMsgMaker
 {
 public:
-    explicit CNetMsgMaker(int nVersionIn) : nVersion(nVersionIn){}
+    explicit CNetMsgMaker(int nVersionIn)
+        : nVersion(nVersionIn)
+    {
+    }
 
     template <typename... Args>
     CSerializedNetMsg Make(int nFlags, std::string sCommand, Args&&... args) const

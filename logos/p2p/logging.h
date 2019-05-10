@@ -32,16 +32,19 @@ class Logger
 {
 private:
     /** Log categories bitfield. */
-    std::atomic<uint32_t> m_categories{0};
+    std::atomic<uint32_t>   m_categories{0};
 
 public:
-    Log log;
+    Log                     log;
 
     /** Send a string to the log output */
     void LogPrintStr(boost::log::trivial::severity_level level, const std::string &str);
 
     /** Returns whether logs will be written to any output */
-    bool Enabled() const { return true; }
+    bool Enabled() const
+    {
+        return true;
+    }
 
     void EnableCategory(LogFlags flag);
     bool EnableCategory(const std::string& str);

@@ -25,11 +25,11 @@ typedef enum BanReason
 class CBanEntry
 {
 public:
-    static constexpr int CURRENT_VERSION = 1;
-    int nVersion;
-    int64_t nCreateTime;
-    int64_t nBanUntil;
-    uint8_t banReason;
+    static constexpr int    CURRENT_VERSION = 1;
+    int                     nVersion;
+    int64_t                 nCreateTime;
+    int64_t                 nBanUntil;
+    uint8_t                 banReason;
 
     CBanEntry()
     {
@@ -81,12 +81,14 @@ typedef std::map<CSubNet, CBanEntry> banmap_t;
 class CAddrDB
 {
 private:
-    MDB_env *env;
-    MDB_dbi dbi;
-    BCLog::Logger &logger_;
-    std::shared_ptr<CChainParams> params;
+    MDB_env *                       env;
+    MDB_dbi                         dbi;
+    BCLog::Logger &                 logger_;
+    std::shared_ptr<CChainParams>   params;
 public:
-    CAddrDB(struct p2p_config &config, BCLog::Logger &logger, std::shared_ptr<CChainParams> paramsIn)
+    CAddrDB(struct p2p_config &config,
+            BCLog::Logger &logger,
+            std::shared_ptr<CChainParams> paramsIn)
         : env(config.lmdb_env)
         , dbi(config.lmdb_dbi)
         , logger_(logger)
@@ -101,12 +103,14 @@ public:
 class CBanDB
 {
 private:
-    MDB_env *env;
-    MDB_dbi dbi;
-    BCLog::Logger &logger_;
-    std::shared_ptr<CChainParams> params;
+    MDB_env *                       env;
+    MDB_dbi                         dbi;
+    BCLog::Logger &                 logger_;
+    std::shared_ptr<CChainParams>   params;
 public:
-    CBanDB(struct p2p_config &config, BCLog::Logger &logger, std::shared_ptr<CChainParams> paramsIn)
+    CBanDB(struct p2p_config &config,
+           BCLog::Logger &logger,
+           std::shared_ptr<CChainParams> paramsIn)
         : env(config.lmdb_env)
         , dbi(config.lmdb_dbi)
         , logger_(logger)

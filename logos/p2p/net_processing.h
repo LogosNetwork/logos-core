@@ -13,11 +13,12 @@ constexpr bool DEFAULT_ENABLE_BIP61 = true;
 
 class PeerLogicValidation_internal;
 
-class PeerLogicValidation final : public NetEventsInterface {
+class PeerLogicValidation final : public NetEventsInterface
+{
 private:
-    CConnman* const connman;
-    BCLog::Logger &logger_;
-    std::shared_ptr<PeerLogicValidation_internal> internal;
+    CConnman* const                                 connman;
+    BCLog::Logger &                                 logger_;
+    std::shared_ptr<PeerLogicValidation_internal>   internal;
 
 public:
     explicit PeerLogicValidation(CConnman* connman, bool enable_bip61);
@@ -49,10 +50,10 @@ public:
 private:
     bool TipMayBeStale(int nPowTargetSpacing) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
-    int64_t m_stale_tip_check_time; //! Next time to check for stale tip
+    int64_t                                         m_stale_tip_check_time; //! Next time to check for stale tip
 
     /** Enable BIP61 (sending reject messages) */
-    const bool m_enable_bip61;
+    const bool                                      m_enable_bip61;
 };
 
 #endif // BITCOIN_NET_PROCESSING_H

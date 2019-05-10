@@ -51,15 +51,15 @@ private:
 class FastRandomContext
 {
 private:
-    Random &random_;
-    bool requires_seed;
-    ChaCha20 rng;
+    Random &        random_;
+    bool            requires_seed;
+    ChaCha20        rng;
 
-    unsigned char bytebuf[64];
-    int bytebuf_size;
+    unsigned char   bytebuf[64];
+    int             bytebuf_size;
 
-    uint64_t bitbuf;
-    int bitbuf_size;
+    uint64_t        bitbuf;
+    int             bitbuf_size;
 
     void RandomSeed();
 

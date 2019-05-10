@@ -11,8 +11,14 @@
 
 TEST (StorageTest, VerifyPeersInterface)
 {
-    const char *argv[] = {"unit_test", "-debug=net", 0};
-    const char *peers[] = {"230.1.0.129:12345", "63.15.7.3:65535", "8.8.8.8:8888", "8.8.8.9:8888", "4.4.4.4:14495", "230.1.0.129:12346"};
+    const char *argv[] =
+    {
+        "unit_test", "-debug=net", 0
+    };
+    const char *peers[] =
+    {
+        "230.1.0.129:12345", "63.15.7.3:65535", "8.8.8.8:8888", "8.8.8.9:8888", "4.4.4.4:14495", "230.1.0.129:12346"
+    };
     constexpr int npeers = sizeof(peers) / sizeof(char *);
     p2p_config config;
 
@@ -22,15 +28,15 @@ TEST (StorageTest, VerifyPeersInterface)
     config.test_mode = true;
 
     config.scheduleAfterMs = [](std::function<void()> const &handler, unsigned ms)
-    {
-        printf("scheduleAfterMs called.\n");
-    };
+        {
+            printf("scheduleAfterMs called.\n");
+        };
 
     config.userInterfaceMessage = [](int type, const char *mess)
-    {
-        printf("%s%s: %s\n", (type & P2P_UI_INIT ? "init " : ""),
-            (type & P2P_UI_ERROR ? "error" : type & P2P_UI_WARNING ? "warning" : "message"), mess);
-    };
+        {
+            printf("%s%s: %s\n", (type & P2P_UI_INIT ? "init " : ""),
+                   (type & P2P_UI_ERROR ? "error" : type & P2P_UI_WARNING ? "warning" : "message"), mess);
+        };
 
     system("rm -rf " TEST_DIR "; mkdir " TEST_DIR);
 

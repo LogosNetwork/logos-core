@@ -41,13 +41,13 @@ public:
     void reset();
 
 private:
-    Random &random_;
-    int nEntriesPerGeneration;
-    int nEntriesThisGeneration;
-    int nGeneration;
-    std::vector<uint64_t> data;
-    unsigned int nTweak;
-    int nHashFuncs;
+    Random &                random_;
+    int                     nEntriesPerGeneration;
+    int                     nEntriesThisGeneration;
+    int                     nGeneration;
+    std::vector<uint64_t>   data;
+    unsigned int            nTweak;
+    int                     nHashFuncs;
 };
 
 #endif // BITCOIN_BLOOM_H

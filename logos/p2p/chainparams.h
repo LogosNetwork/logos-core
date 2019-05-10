@@ -13,8 +13,8 @@
 
 struct SeedSpec6
 {
-    uint8_t addr[16];
-    uint16_t port;
+    uint8_t     addr[16];
+    uint16_t    port;
 };
 
 /**
@@ -27,9 +27,9 @@ struct SeedSpec6
 class CChainParams
 {
 public:
-    static const std::string MAIN;
-    static const std::string TESTNET;
-    static const std::string REGTEST;
+    static const std::string            MAIN;
+    static const std::string            TESTNET;
+    static const std::string            REGTEST;
 
     const CMessageHeader::MessageStartChars& MessageStart() const
     {
@@ -57,10 +57,10 @@ protected:
     {
     }
 
-    CMessageHeader::MessageStartChars pchMessageStart;
-    int nDefaultPort;
-    std::vector<std::string> vSeeds;
-    std::vector<SeedSpec6> vFixedSeeds;
+    CMessageHeader::MessageStartChars   pchMessageStart;
+    int                                 nDefaultPort;
+    std::vector<std::string>            vSeeds;
+    std::vector<SeedSpec6>              vFixedSeeds;
 };
 
 /**

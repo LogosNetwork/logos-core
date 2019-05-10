@@ -9,7 +9,8 @@
 #define MAX_SIZE        0x1000
 #define HASH_LEN        32
 
-static std::string prepare_digest(const char *str, uint8_t arr[HASH_LEN]) {
+static std::string prepare_digest(const char *str, uint8_t arr[HASH_LEN])
+{
     std::string res;
     char buf[3];
     int i;

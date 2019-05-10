@@ -26,29 +26,29 @@ class CAddrInfo : public CAddress
 
 public:
     //! last try whatsoever by us (memory only)
-    int64_t nLastTry;
+    int64_t         nLastTry;
 
     //! last counted attempt (memory only)
-    int64_t nLastCountAttempt;
+    int64_t         nLastCountAttempt;
 
 private:
     //! where knowledge about this address first came from
-    CNetAddr source;
+    CNetAddr        source;
 
     //! last successful connection by us
-    int64_t nLastSuccess;
+    int64_t         nLastSuccess;
 
     //! connection attempts since last successful attempt
-    int nAttempts;
+    int             nAttempts;
 
     //! reference count in new sets (memory only)
-    int nRefCount;
+    int             nRefCount;
 
     //! in tried set? (memory only)
-    bool fInTried;
+    bool            fInTried;
 
     //! position in vRandom
-    int nRandomPos;
+    int             nRandomPos;
 
     friend class CAddrMan;
 
@@ -76,12 +76,17 @@ public:
         nRandomPos = -1;
     }
 
-    CAddrInfo(const CAddress &addrIn, const CNetAddr &addrSource) : CAddress(addrIn), source(addrSource)
+    CAddrInfo(const CAddress &addrIn,
+              const CNetAddr &addrSource)
+        : CAddress(addrIn)
+        , source(addrSource)
     {
         Init();
     }
 
-    CAddrInfo() : CAddress(), source()
+    CAddrInfo()
+        : CAddress()
+        , source()
     {
         Init();
     }
@@ -188,50 +193,50 @@ class CAddrMan
 {
 private:
     //! critical section to protect the inner data structures
-    mutable CCriticalSection cs;
+    mutable CCriticalSection    cs;
 
     //! last used nId
-    int nIdCount;
+    int                         nIdCount;
 
     //! table with information about all nIds
-    std::map<int, CAddrInfo> mapInfo;
+    std::map<int, CAddrInfo>    mapInfo;
 
     //! find an nId based on its network address
-    std::map<CNetAddr, int> mapAddr;
+    std::map<CNetAddr, int>     mapAddr;
 
     //! randomly-ordered vector of all nIds
-    std::vector<int> vRandom;
+    std::vector<int>            vRandom;
 
     // number of "tried" entries
-    int nTried;
+    int                         nTried;
 
     //! list of "tried" buckets
-    int vvTried[ADDRMAN_TRIED_BUCKET_COUNT][ADDRMAN_BUCKET_SIZE];
+    int                         vvTried[ADDRMAN_TRIED_BUCKET_COUNT][ADDRMAN_BUCKET_SIZE];
 
     //! number of (unique) "new" entries
-    int nNew;
+    int                         nNew;
 
     //! list of "new" buckets
-    int vvNew[ADDRMAN_NEW_BUCKET_COUNT][ADDRMAN_BUCKET_SIZE];
+    int                         vvNew[ADDRMAN_NEW_BUCKET_COUNT][ADDRMAN_BUCKET_SIZE];
 
     //! last time Good was called (memory only)
-    int64_t nLastGood;
+    int64_t                     nLastGood;
 
     //! Holds addrs inserted into tried table that collide with existing entries. Test-before-evict discipline used to resolve these collisions.
-    std::set<int> m_tried_collisions;
+    std::set<int>               m_tried_collisions;
 
-    TimeData &timeData;
+    TimeData &                  timeData;
 
-    BCLog::Logger &logger_;
+    BCLog::Logger &             logger_;
 
-    Random &random_;
+    Random &                    random_;
 
 protected:
     //! secret key to randomize bucket select with
-    uint256 nKey;
+    uint256                     nKey;
 
     //! Source of random numbers for randomization in inner loops
-    FastRandomContext insecure_rand;
+    FastRandomContext           insecure_rand;
 
     //! Find an entry.
     CAddrInfo* Find(const CNetAddr& addr, int *pnId = nullptr);
