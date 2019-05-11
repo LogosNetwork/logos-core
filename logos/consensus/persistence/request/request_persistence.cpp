@@ -1788,6 +1788,7 @@ void PersistenceManager<R>::ApplyRequest(
         MDB_txn* txn)
 {
     assert(txn != nullptr);
+    assert(!_store.request_put(request,txn));
     RepInfo rep;
     assert(!_store.rep_get(request.origin,rep,txn));
     rep.election_vote_tip = request.GetHash();
@@ -1802,7 +1803,7 @@ void PersistenceManager<R>::ApplyRequest(
                     request.epoch_num,
                     txn));
     }
-    assert(!_store.request_put(request,txn));
+
 
     VotingPowerInfo vp_info;
     if(!VotingPowerManager::Get()->GetVotingPowerInfo(request.origin, vp_info, txn))
@@ -1812,7 +1813,10 @@ void PersistenceManager<R>::ApplyRequest(
         trace_and_halt();
     }
 
-    Amount total_stake = vp_info.current.locked_proxied + vp_info.current.self_stake;
+    //TODO these values could be wrong if a certain race condition occurs
+    //have fallback_db store not just voting power, but these values as well
+    Amount total_stake = VotingPowerManager::Get()->GetCurrentTotalStake(request.origin, request.epoch_num, txn);
+    //TODO maybe delete fallback record after this usage
     RepEpochInfo rewards_info{rep.levy_percentage, request.epoch_num, total_stake}; 
     EpochRewardsManager::GetInstance()->Init(request.origin, rewards_info, txn); 
 }
@@ -2374,9 +2378,8 @@ bool PersistenceManager<R>::ValidateRequest(
                 txn);
         if(!cur_stake_option)
         {
-            LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (StartRepresenting) - "
-                << " cur stake is empty";
-            trace_and_halt();
+            result.code = logos::process_result::not_enough_stake; 
+            return false;
         }
         stake = cur_stake_option.get().amount;
     }
@@ -2638,20 +2641,23 @@ bool PersistenceManager<R>::ValidateRequest(
         }
 
         hash = rep_info.candidacy_action_tip;
-        if(_store.request_get(hash,req,txn))
+        if(hash != 0)
         {
-            LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Proxy)"
-                << " - failed to retreive candidacy_action_tip"
-                << " hash = " << hash.to_string();
-            trace_and_halt();
-        }
-        if(req->type != RequestType::StopRepresenting
-                && req->type != RequestType::RenounceCandidacy)
-        {
-            if(request.stake < MIN_DELEGATE_STAKE)
+            if(_store.request_get(hash, req, txn))
             {
-                result.code = logos::process_result::not_enough_stake;
-                return false;
+                LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Proxy)"
+                    << " - failed to retreive candidacy_action_tip"
+                    << " hash = " << hash.to_string();
+                trace_and_halt();
+            }
+            if(req->type != RequestType::StopRepresenting
+                    && req->type != RequestType::RenounceCandidacy)
+            {
+                if(request.stake < MIN_DELEGATE_STAKE)
+                {
+                    result.code = logos::process_result::not_enough_stake;
+                    return false;
+                }
             }
         }
     }
@@ -2724,21 +2730,6 @@ bool PersistenceManager<R>::ValidateRequest(
             trace_and_halt();
         }
         if(req->type != RequestType::StopRepresenting)
-        {
-            result.code = logos::process_result::not_enough_stake;
-            return false;
-        }
-
-        hash = rep_info.candidacy_action_tip;
-        if(_store.request_get(hash,req,txn))
-        {
-            LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Proxy)"
-                << " - failed to retreive candidacy_action_tip"
-                << " hash = " << hash.to_string();
-            trace_and_halt();
-        }
-        if(req->type != RequestType::StopRepresenting
-                && req->type != RequestType::RenounceCandidacy)
         {
             result.code = logos::process_result::not_enough_stake;
             return false;

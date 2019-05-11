@@ -231,6 +231,8 @@ template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, ThawingF
 template void logos::block_store::put(MDB_dbi&, logos::mdb_val const &, ThawingFunds const &, MDB_txn*);
 template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, Liability&, MDB_txn*);
 template void logos::block_store::put(MDB_dbi&, logos::mdb_val const &, Liability const &, MDB_txn*);
+template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, VotingPowerFallback&, MDB_txn*);
+template void logos::block_store::put(MDB_dbi&, logos::mdb_val const &, VotingPowerFallback const &, MDB_txn*);
 
 
 bool logos::block_store::del(MDB_dbi &db, const mdb_val &key, MDB_txn *tx)
@@ -238,10 +240,6 @@ bool logos::block_store::del(MDB_dbi &db, const mdb_val &key, MDB_txn *tx)
     auto status (mdb_del (tx, db, key, nullptr));
 
     auto error = status != 0;
-    if(error)
-    {
-        trace_and_halt();
-    }
 
     return error;
 }
@@ -363,6 +361,7 @@ checksum (0)
         error_a |= mdb_dbi_open (transaction, "address_ad_tx_db", MDB_CREATE | MDB_DUPSORT, &address_ad_txa_db) != 0;
         //staking
         error_a |= mdb_dbi_open (transaction, "voting_power_db", MDB_CREATE, &voting_power_db);
+        error_a |= mdb_dbi_open (transaction, "voting_power_fallback_db", MDB_CREATE, &voting_power_fallback_db);
         VotingPowerManager::Init(*this);
         error_a |= mdb_dbi_open (transaction, "staking_db", MDB_CREATE, &staking_db);
         error_a |= mdb_dbi_open (transaction, "thawing_db", MDB_CREATE | MDB_DUPSORT, &thawing_db);

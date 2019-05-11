@@ -576,6 +576,13 @@ public:
     MDB_dbi voting_power_db;
 
     /**
+     * Voting Power for previous epoch
+     * Used for certain race conditions
+     * logos::account -> amount
+     */
+    MDB_dbi voting_power_fallback_db;
+
+    /**
      * Staked funds per account (self stake and locked proxy)
      * logos::account -> StakedFunds
      */

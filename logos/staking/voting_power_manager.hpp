@@ -77,6 +77,11 @@ class VotingPowerManager
             uint32_t const & epoch_number,
             MDB_txn* txn);
 
+   Amount GetCurrentTotalStake(
+           AccountAddress const & rep,
+           uint32_t const & epoch_number,
+           MDB_txn* txn);
+
     //returns true if info was found
     bool GetVotingPowerInfo(
             AccountAddress const & rep,
@@ -94,6 +99,11 @@ class VotingPowerManager
             VotingPowerInfo& info,
             uint32_t const & epoch,
             AccountAddress const & rep,
+            MDB_txn* txn);
+    void HandleFallback(
+            VotingPowerInfo const & info,
+            AccountAddress const & rep,
+            uint32_t epoch,
             MDB_txn* txn);
 
 

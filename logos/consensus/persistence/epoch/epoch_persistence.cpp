@@ -105,47 +105,10 @@ PersistenceManager<ECT>::ApplyUpdates(
     BlockHash epoch_hash = block.Hash();
     bool transition = EpochVotingManager::ENABLE_ELECTIONS;
 
-    //TODO put this into a separate function?
-    //TODO maybe a set is not faster, since array of delegates is already
-    //allocated
-    ApprovedEB prev_epoch;
-    Tip prev_tip;
-    if(_store.epoch_tip_get(prev_tip, transaction) || _store.epoch_get(prev_tip.digest, prev_epoch, transaction))
-    {
-        LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates - "
-            << "failed to get previous epoch";
-        trace_and_halt();
-    }
 
-    std::unordered_set<AccountAddress> new_dels;
-    for(auto del : block.delegates)
-    {
-        new_dels.insert(del.account);
-    }
+    UpdateThawing(block, transaction);
 
 
-    for(auto del : prev_epoch.delegates)
-    {
-        if(new_dels.find(del.account) == new_dels.end())
-        {
-            //epoch_number+2 because delegate is retired
-            //in the epoch following current epoch
-            StakingManager::GetInstance()->SetExpirationOfFrozen(
-                    del.account,
-                    block.epoch_number+2,
-                    transaction);
-        }
-    }
-
-    for(auto del : block.delegates)
-    {
-        //Mark any funds that began thawing in previous epoch
-        //as frozen
-        StakingManager::GetInstance()->MarkThawingAsFrozen(
-                del.account,
-                block.epoch_number,
-                transaction);
-    }
 
     if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(block.CreateTip(), transaction))
     {
@@ -240,6 +203,50 @@ bool PersistenceManager<ECT>::BlockExists(
     return _store.epoch_exists(message);
 }
 
+
+void PersistenceManager<ECT>::UpdateThawing(ApprovedEB const & block, MDB_txn* txn)
+{
+    //TODO maybe a set is not faster, since array of delegates is already
+    //allocated
+    ApprovedEB prev_epoch;
+    Tip prev_tip;
+    if(_store.epoch_tip_get(prev_tip, txn) || _store.epoch_get(prev_tip.digest, prev_epoch, txn))
+    {
+        LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates - "
+            << "failed to get previous epoch";
+        trace_and_halt();
+    }
+
+    std::unordered_set<AccountAddress> new_dels;
+    for(auto del : block.delegates)
+    {
+        new_dels.insert(del.account);
+    }
+
+
+    for(auto del : prev_epoch.delegates)
+    {
+        if(new_dels.find(del.account) == new_dels.end())
+        {
+            //epoch_number+2 because delegate is retired
+            //in the epoch following current epoch
+            StakingManager::GetInstance()->SetExpirationOfFrozen(
+                    del.account,
+                    block.epoch_number+2,
+                    txn);
+        }
+    }
+
+    for(auto del : block.delegates)
+    {
+        //Mark any funds that began thawing in previous epoch
+        //as frozen
+        StakingManager::GetInstance()->MarkThawingAsFrozen(
+                del.account,
+                block.epoch_number,
+                txn);
+    }
+}
 
 
 void PersistenceManager<ECT>::MarkDelegateElectsAsRemove(MDB_txn* txn)

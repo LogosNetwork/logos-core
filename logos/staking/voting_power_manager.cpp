@@ -3,6 +3,69 @@
 
 std::shared_ptr<VotingPowerManager> VotingPowerManager::instance = 0;
 
+Amount GetPower(VotingPowerInfo const & info)
+{
+    Amount diluted_unlocked_proxied = 
+        (info.current.unlocked_proxied.number() * DILUTION_FACTOR) / 100;
+    return info.current.self_stake 
+        + info.current.locked_proxied 
+        + diluted_unlocked_proxied; 
+}
+
+void VotingPowerManager::HandleFallback(
+        VotingPowerInfo const & info,
+        AccountAddress const & rep,
+        uint32_t epoch,
+        MDB_txn* txn)
+{
+    RepInfo rep_info;
+    if(!_store.rep_get(rep, rep_info, txn))
+    {
+       auto hash = rep_info.election_vote_tip;
+       bool store_fallback = false;
+       //if rep hasnt voted yet this epoch, store fallback voting power
+       //to avoid race condition. rep may be voting on epoch boundary
+       if(hash != 0)
+       {
+           ElectionVote ev;
+            if(_store.request_get(hash, ev, txn))
+            {
+                LOG_FATAL(_log) << "VotingPowerManager::HandleFallback - "
+                    "failed to get election vote tip of rep";
+                trace_and_halt();
+            }
+
+            if(ev.epoch_num < epoch - 1)
+            {
+                store_fallback = true;
+            }            
+       }
+       else
+       {
+            store_fallback = true;
+       }
+
+       std::cout << "store fallback = " << store_fallback << std::endl;
+      if(store_fallback)
+      {
+          VotingPowerFallback f;
+          f.power = GetPower(info);
+          f.total_stake = info.current.locked_proxied + info.current.self_stake;
+          _store.put(_store.voting_power_fallback_db,rep,f,txn);
+      } 
+      else
+      {
+          //if voted, delete previous fallback record, if one exists
+        _store.del(_store.voting_power_fallback_db,rep,txn);
+      }
+    }
+    else
+    {
+        //delete previous fallback record, if one exists
+        _store.del(_store.voting_power_fallback_db,rep,txn);
+    }
+}
+
 bool VotingPowerManager::TransitionIfNecessary(
         VotingPowerInfo& info,
         uint32_t const & epoch,
@@ -17,6 +80,7 @@ bool VotingPowerManager::TransitionIfNecessary(
             c_info.stake = info.current.self_stake;
             _store.candidate_put(rep, c_info, txn);
         }
+        HandleFallback(info,rep,epoch,txn);
         info.current = info.next;
         info.epoch_modified = epoch;
         return true;
@@ -342,6 +406,46 @@ bool VotingPowerManager::AddSelfStake(
     return false;
 }
 
+Amount VotingPowerManager::GetCurrentTotalStake(
+        AccountAddress const & rep,
+        uint32_t const & epoch_number,
+        MDB_txn* txn)
+{
+    if(!txn)
+    {
+        LOG_FATAL(_log) << "VotingPowerManager::GetCurrentVotingPower - "
+            << "txn is null";
+        trace_and_halt();
+    }
+    VotingPowerInfo info;
+    if(_store.get(_store.voting_power_db,rep,info,txn))
+    {
+        LOG_FATAL(_log) << "VotingPowerManager::GetCurrentVotingPower - "
+            << "VotingPowerInfo does not exist for rep = " << rep.to_string();
+        trace_and_halt();
+    }
+    
+    if(TransitionIfNecessary(info,epoch_number,rep,txn))
+    {
+        StoreOrPrune(rep, info, txn);
+    }
+    if(epoch_number < info.epoch_modified)
+    {
+        VotingPowerFallback f;
+        if(_store.get(_store.voting_power_fallback_db, rep, f, txn))
+        {
+        
+        LOG_FATAL(_log) << "VotingPowerManager::GetCurrentVotingPower - "
+            << "failed to get fallback record";
+        trace_and_halt();
+        }
+        
+        return f.total_stake;
+    }
+
+    return info.current.locked_proxied + info.current.self_stake;
+}
+
 
 Amount VotingPowerManager::GetCurrentVotingPower(
         AccountAddress const & rep,
@@ -366,12 +470,21 @@ Amount VotingPowerManager::GetCurrentVotingPower(
     {
         StoreOrPrune(rep, info, txn);
     }
+    if(epoch_number < info.epoch_modified)
+    {
+        VotingPowerFallback f;
+        if(_store.get(_store.voting_power_fallback_db, rep, f, txn))
+        {
+        
+        LOG_FATAL(_log) << "VotingPowerManager::GetCurrentVotingPower - "
+            << "failed to get fallback record";
+        trace_and_halt();
+        }
+        
+        return f.power;
+    }
 
-    Amount diluted_unlocked_proxied = 
-        (info.current.unlocked_proxied.number() * DILUTION_FACTOR) / 100;
-    return info.current.self_stake 
-        + info.current.locked_proxied 
-        + diluted_unlocked_proxied; 
+    return GetPower(info);
 }
 
 
@@ -405,6 +518,9 @@ bool VotingPowerManager::GetVotingPowerInfo(
 
 
 
+//TODO change return type in the event that you are a rep
+//Currently, this function returns empty if you are a rep,
+//or if you are an account with no rep
 boost::optional<AccountAddress> VotingPowerManager::GetRep(
         logos::account_info const & info,
         MDB_txn* txn)
@@ -436,7 +552,9 @@ boost::optional<AccountAddress> VotingPowerManager::GetRep(
         else if(req->type == RequestType::StartRepresenting
                 || req->type == RequestType::StopRepresenting
                 || req->type == RequestType::AnnounceCandidacy
-                || req->type == RequestType::RenounceCandidacy)
+                || req->type == RequestType::RenounceCandidacy
+                || req->type == RequestType::Stake
+                || req->type == RequestType::Unstake)
         {
             return boost::optional<AccountAddress>{};
         }

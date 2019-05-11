@@ -15,6 +15,7 @@
 TEST(Voting_Power, SimpleAddAndSubtract)
 {
     logos::block_store* store = get_db();
+    clear_dbs();
     logos::transaction txn(store->environment, nullptr, true);
     store->clear(store->voting_power_db, txn);
     store->clear(store->representative_db, txn);
@@ -112,6 +113,7 @@ TEST(Voting_Power, SimpleAddAndSubtract)
 TEST(Voting_Power, Pruning)
 {
     logos::block_store* store = get_db();
+    clear_dbs();
     logos::transaction txn(store->environment, nullptr, true);
     store->clear(store->voting_power_db, txn);
     store->clear(store->representative_db, txn);
@@ -207,6 +209,7 @@ TEST(Voting_Power, ManyProxies)
 {
 
     logos::block_store* store = get_db();
+    clear_dbs();
     logos::transaction txn(store->environment, nullptr, true);
     store->clear(store->voting_power_db, txn);
     store->clear(store->representative_db, txn);
