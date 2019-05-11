@@ -228,7 +228,8 @@ bool PersistenceManager<R>::ValidateRequest(
 
     // Make sure there's enough Logos
     // to cover the request.
-    if(request->GetLogosTotal() > info->balance)
+    // SG: Add fee back into total being checked because GetLogosTotal does not include the fee
+    if((request->GetLogosTotal()+request->fee) > info->balance)
     {
         result.code = logos::process_result::insufficient_balance;
         return false;
