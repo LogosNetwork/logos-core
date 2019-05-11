@@ -1552,7 +1552,6 @@ TEST(Elections, apply)
             init_ecies(announce.ecies_key);
             announce.origin = account;
             announce.epoch_num = epoch_num;
-            announce.stake = MIN_DELEGATE_STAKE;
             announce.set_stake = false;
             announce.Hash();
             logos::account_info account_info;
@@ -1709,17 +1708,17 @@ TEST(Elections, apply)
     Amount base_vote_weight = MIN_DELEGATE_STAKE * 8;
 
     ASSERT_EQ(election_results[29],base_vote_weight+80);
-//    ASSERT_EQ(election_results[31],MIN_DELEGATE_STAKE*3+320);
-//    ASSERT_EQ(election_results[30],MIN_DELE160);
-//    ASSERT_EQ(election_results[28],160);
-//    ASSERT_EQ(election_results[27],240);
-//    ASSERT_EQ(election_results[reps[0]],320);
-//    ASSERT_EQ(election_results[reps[1]],160);
-//    ASSERT_EQ(election_results[reps[2]],80);
-//    ASSERT_EQ(election_results[reps[3]],160);
-//    ASSERT_EQ(election_results[reps[4]],240);
-//
-//
+    ASSERT_EQ(election_results[31],base_vote_weight*3+320);
+    ASSERT_EQ(election_results[30],base_vote_weight+160);
+    ASSERT_EQ(election_results[28],base_vote_weight+160);
+    ASSERT_EQ(election_results[27],base_vote_weight*2+240);
+    ASSERT_EQ(election_results[reps[0]],base_vote_weight*3+320);
+    ASSERT_EQ(election_results[reps[1]],base_vote_weight+160);
+    ASSERT_EQ(election_results[reps[2]],base_vote_weight+80);
+    ASSERT_EQ(election_results[reps[3]],base_vote_weight+160);
+    ASSERT_EQ(election_results[reps[4]],base_vote_weight*2+240);
+
+
     auto winners = voting_mgr.GetElectionWinners(8);
 
     auto winners_contains = [&winners](auto account)

@@ -1,6 +1,34 @@
 #pragma once
 
 
+struct VotingPowerFallback
+{
+    Amount power;
+    Amount total_stake;
+
+    logos::mdb_val to_mdb_val(std::vector<uint8_t>& buf) const
+    {
+        assert(buf.empty());
+        {
+            logos::vectorstream stream(buf);
+            Serialize(stream);
+        }
+        return logos::mdb_val(buf.size(), buf.data());
+    }
+
+    uint32_t Serialize(logos::stream & stream) const
+    {
+
+        return logos::write(stream, power) + logos::write(stream, total_stake);
+    }
+
+    bool Deserialize(logos::stream & stream)
+    {
+        return logos::read(stream, power) || logos::read(stream, total_stake);
+    }
+
+};
+
 struct VotingPowerSnapshot
 {
 

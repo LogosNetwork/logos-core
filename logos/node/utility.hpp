@@ -131,6 +131,7 @@ public:
     void * data () const;
     size_t size () const;
     logos::uint256_union uint256 () const;
+    logos::uint128_union uint128 () const;
     operator MDB_val * () const;
     operator MDB_val const & () const;
     MDB_val value;
