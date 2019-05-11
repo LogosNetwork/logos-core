@@ -9,9 +9,9 @@
 #include <vector>
 #include <string>
 #include "../../blake2/blake2.h"
+#include <config/bitcoin-config.h>
 #include <serialize.h>
 #include <uint256.h>
-#include <version.h>
 
 typedef uint256 ChainCode;
 

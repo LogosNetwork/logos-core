@@ -6,13 +6,13 @@
 #ifndef BITCOIN_PROTOCOL_H
 #define BITCOIN_PROTOCOL_H
 
-#include <atomic>
 #include <stdint.h>
+#include <atomic>
 #include <string>
+#include <config/bitcoin-config.h>
 #include <netaddress.h>
 #include <serialize.h>
 #include <uint256.h>
-#include <version.h>
 #include <logging.h>
 
 /** Message header.

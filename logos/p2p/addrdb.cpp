@@ -4,10 +4,10 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "../../lmdb/libraries/liblmdb/lmdb.h"
+#include <config/bitcoin-config.h>
 #include <addrdb.h>
 #include <addrman.h>
 #include <chainparams.h>
-#include <clientversion.h>
 #include <hash.h>
 #include <random.h>
 #include <streams.h>

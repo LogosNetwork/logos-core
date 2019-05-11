@@ -3,15 +3,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <config/bitcoin-config.h>
-
 #include <fcntl.h>
 #include <math.h>
 #include <logos/lib/log.hpp>
 #include <logos/lib/trace.hpp>
+#include <config/bitcoin-config.h>
 #include <net.h>
 #include <chainparams.h>
-#include <clientversion.h>
 #include <crypto/common.h>
 #include <netbase.h>
 #include <ui_interface.h>

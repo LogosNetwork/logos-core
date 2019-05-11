@@ -3,8 +3,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <config/bitcoin-config.h>
-
 #include <stdint.h>
 #include <stdio.h>
 #include <signal.h>
@@ -21,11 +19,11 @@
 #include <boost/log/sources/logger.hpp>
 #include <boost/shared_ptr.hpp>
 
+#include <config/bitcoin-config.h>
 #include <p2p.h>
 #include <addrdb.h>
 #include <addrman.h>
 #include <chainparams.h>
-#include <clientversion.h>
 #include <compat/sanity.h>
 #include <netbase.h>
 #include <net.h>

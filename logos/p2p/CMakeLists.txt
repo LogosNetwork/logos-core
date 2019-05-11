@@ -7,8 +7,6 @@ add_library (p2p
 	bloom.h
 	chainparams.cpp
 	chainparams.h
-	clientversion.cpp
-	clientversion.h
 	compat.h
 	compat/glibc_sanity.cpp
 	compat/glibcxx_sanity.cpp
@@ -54,8 +52,7 @@ add_library (p2p
 	util.h
 	utilmemory.h
 	utilstrencodings.cpp
-	utilstrencodings.h
-    version.h)
+	utilstrencodings.h)
 
 target_include_directories(p2p PRIVATE .)
 
