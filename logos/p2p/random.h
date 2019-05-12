@@ -8,10 +8,12 @@
 
 #include <stdint.h>
 #include <limits>
+#include <atomic>
 #include <crypto/chacha20.h>
 #include <crypto/common.h>
 #include <uint256.h>
 #include <logging.h>
+#include <sync.h>
 
 class Random
 {
@@ -36,7 +38,11 @@ public:
     uint256 GetRandHash();
 
 private:
-    BCLog::Logger &logger_;
+    BCLog::Logger &                             logger_;
+    static std::atomic<int>                     ninstances;
+    static std::unique_ptr<CCriticalSection[]>  ppmutexOpenSSL;
+
+    static void locking_callback(int mode, int i, const char* file, int line) NO_THREAD_SAFETY_ANALYSIS;
 
     [[noreturn]] void RandFailure();
     void GetDevURandom(unsigned char *ent32);

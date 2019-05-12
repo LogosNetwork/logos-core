@@ -33,10 +33,12 @@
  */
 constexpr int NUM_OS_RANDOM_BYTES = 32;
 
-/** Init OpenSSL library multithreading support */
-static std::unique_ptr<CCriticalSection[]> ppmutexOpenSSL;
+std::atomic<int> Random::ninstances(0);
 
-void locking_callback(int mode, int i, const char* file, int line) NO_THREAD_SAFETY_ANALYSIS
+/** Init OpenSSL library multithreading support */
+std::unique_ptr<CCriticalSection[]> Random::ppmutexOpenSSL;
+
+void Random::locking_callback(int mode, int i, const char* file, int line) NO_THREAD_SAFETY_ANALYSIS
 {
     if (mode & CRYPTO_LOCK)
     {
@@ -51,6 +53,8 @@ void locking_callback(int mode, int i, const char* file, int line) NO_THREAD_SAF
 Random::Random(BCLog::Logger &logger)
     : logger_(logger)
 {
+    if (ninstances++) return;
+
     // Init OpenSSL library multithreading support
     ppmutexOpenSSL.reset(new CCriticalSection[CRYPTO_num_locks()]);
     CRYPTO_set_locking_callback(locking_callback);
@@ -68,6 +72,8 @@ Random::Random(BCLog::Logger &logger)
 
 Random::~Random()
 {
+    if (--ninstances) return;
+
     // Securely erase the memory used by the PRNG
     RAND_cleanup();
     // Shutdown OpenSSL library multithreading support
