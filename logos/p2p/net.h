@@ -108,6 +108,7 @@ public:
     void async_write(const char *buf, size_t bytes);
     CConnman &                      connman;
 private:
+    std::shared_ptr<p2p_internal>   p2p;
     BCLog::Logger &                 logger_;
     boost::asio::ip::tcp::socket    socket;
     std::shared_ptr<CNode>          pnode;
@@ -146,6 +147,7 @@ public:
     void connect_handler(std::shared_ptr<AsioSession> session, const boost::system::error_code& ec,
                          const boost::asio::ip::tcp::endpoint& endpoint);
 private:
+    std::shared_ptr<p2p_internal>       p2p;
     CConnman &                          connman;
     BCLog::Logger &                     logger_;
     char *                              name;
@@ -166,6 +168,7 @@ public:
     void start();
     void shutdown();
 private:
+    std::shared_ptr<p2p_internal>   p2p;
     CConnman &                      connman;
     BCLog::Logger &                 logger_;
     boost::asio::ip::tcp::acceptor  acceptor;

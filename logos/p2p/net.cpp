@@ -304,7 +304,8 @@ bool CConnman::CheckIncomingNonce(uint64_t nonce)
 
 AsioSession::AsioSession(boost::asio::io_service& ios,
                          CConnman &connman_)
-    : connman(connman_)
+    : p2p(connman_.p2p->p2p)
+    , connman(connman_)
     , socket(ios)
     , pnode(0)
     , id(-1ll)
@@ -435,7 +436,8 @@ AsioClient::AsioClient(CConnman &conn,
                        const char *nam,
                        std::shared_ptr<CSemaphoreGrant> grant,
                        int fl)
-    : connman(conn)
+    : p2p(conn.p2p->p2p)
+    , connman(conn)
     , name(nam ? strdup(nam) : nullptr)
     , grantOutbound(grant)
     , flags(fl)
@@ -1217,7 +1219,8 @@ AsioServer::AsioServer(CConnman &conn,
                        boost::asio::ip::address &addr,
                        short port,
                        bool wlisted)
-    : connman(conn)
+    : p2p(conn.p2p->p2p)
+    , connman(conn)
     , acceptor(*conn.io_service, boost::asio::ip::tcp::endpoint(addr, port))
     , whitelisted(wlisted)
     , in_shutdown(false)
