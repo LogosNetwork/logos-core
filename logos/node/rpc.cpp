@@ -335,8 +335,6 @@ void logos::rpc_handler::account_info ()
     if(!res.error)
     {
         response(res.contents);
-
-
     }
     else
     {
@@ -2688,10 +2686,10 @@ void logos::rpc_handler::process ()
             case RequestType::RenounceCandidacy:
             case RequestType::StartRepresenting:
             case RequestType::StopRepresenting:
-                process(request);
-                break;
             case RequestType::Proxy:
-                error_response(response, "ChangeRep is not implemented yet");
+            case RequestType::Stake:
+            case RequestType::Unstake:
+                process(request);
                 break;
             default:
                 error_response(response, "Request is invalid");
@@ -5127,6 +5125,7 @@ logos::rpc_handler::account_info(
                     response.put ("request_count",
                             std::to_string(info.block_count + info.receive_count));
                     response.put("sequence",info.block_count);
+                    response.put("staking_subchain_head",info.staking_subchain_head.to_string());
 
                     std::unordered_set<std::string> token_ids;
                     boost::property_tree::ptree token_tree;

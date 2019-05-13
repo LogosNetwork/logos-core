@@ -20,28 +20,6 @@ extern Delegate init_delegate(AccountAddress account, Amount vote, Amount stake,
 extern void init_ecies(ECIESPublicKey &ecies);
 extern PrePrepareMessage<ConsensusType::Epoch> create_eb_preprepare(bool t=true);
 
-void clear_dbs()
-{
-    logos::block_store* store = get_db();
-    store->clear(store->candidacy_db);
-    store->clear(store->representative_db);
-    store->clear(store->epoch_db);
-    store->clear(store->epoch_tip_db);
-    store->clear(store->remove_candidates_db);
-    store->clear(store->remove_reps_db);
-    store->clear(store->state_db);
-    store->clear(store->leading_candidates_db);
-    store->clear(store->voting_power_db);
-    store->clear(store->staking_db);
-    store->clear(store->thawing_db);
-    store->clear(store->master_liabilities_db);
-    store->clear(store->secondary_liabilities_db);
-    store->clear(store->rep_liabilities_db);
-    store->clear(store->epoch_rewards_db);
-    store->clear(store->global_epoch_rewards_db);
-    store->leading_candidates_size = 0;
-}
-
 
 void init_tips(uint32_t epoch_num)
 {
@@ -153,6 +131,11 @@ TEST (Elections, blockstore)
         ASSERT_FALSE(store->request_get(announce.Hash(),announce2,txn));
         ASSERT_EQ(announce2.type,RequestType::AnnounceCandidacy);
         ASSERT_EQ(announce.stake,announce2.stake);
+        ASSERT_EQ(announce.ecies_key,announce2.ecies_key);
+        ASSERT_EQ(announce.set_stake,announce2.set_stake);
+        ASSERT_EQ(announce.bls_key,announce2.bls_key);
+        ASSERT_EQ(announce.epoch_num,announce2.epoch_num);
+        ASSERT_EQ(announce.staking_subchain_prev,announce2.staking_subchain_prev);
         ASSERT_EQ(announce,announce2);
 
         AnnounceCandidacy announce_json(res, announce.SerializeJson());

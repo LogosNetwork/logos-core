@@ -258,7 +258,7 @@ bool EpochVotingManager::GetNextEpochDelegates(
     std::sort(std::begin(delegates), std::end(delegates),
             EpochVotingManager::IsGreater
             );
-    RedistributeVotes(delegates);
+    Redistribute(delegates,&Delegate::vote);
     //don't mark this epoch block as extended if extending genesis delegates terms
     if(extend)
     {
@@ -278,6 +278,60 @@ bool EpochVotingManager::IsGreater(const Delegate& d1, const Delegate& d2)
     } else
     {
         return Blake2bHash(d1).number() > Blake2bHash(d2).number();
+    }
+}
+
+void EpochVotingManager::Redistribute(Delegates &delegates, Amount Delegate::*member)
+{
+    Amount total_votes = 0;
+
+    for(int del = 0; del < NUM_DELEGATES; ++del)
+    {
+        if(delegates[del].*member == 0)
+        {
+
+            delegates[del].*member = 1;
+        }
+        total_votes += delegates[del].*member;
+    }
+
+    Amount cap = total_votes.number() / 8;
+
+    for(int del = 0; del < NUM_DELEGATES; ++del)
+    {
+        if(delegates[del].*member > cap)
+        {
+            total_votes -= delegates[del].*member;
+            Amount rem = delegates[del].*member - cap;
+            delegates[del].*member = cap;
+            Amount add_back = 0;
+            for(int i = del + 1; i < NUM_DELEGATES; ++i)
+            {
+
+                /*
+                 * This operation can cause us to lose votes because of integer
+                 * rounding. This is not ideal, but overall, the loss of votes
+                 * is tolerated, since we will lose less than one vote each time
+                 * this line is ran, which is at most 31 times for a given
+                 * delegate. These votes are already weighted by the stake
+                 * of the representative who cast them, which means the votes
+                 * received should be much greater than 31. Therefore, a
+                 * delegate losing 31 votes is somewhat negligible. The only time
+                 * this is really a problem is when a delegate has received 0
+                 * votes; in this situation, whether or not a delegate receives
+                 * 31 additional votes does make a large difference. However,
+                 * if a delegate received 0 votes, nobody voted for them at all
+                 * and we are doing them a favor by giving them any amount of
+                 * votes for free
+                 */
+                Amount to_add = (((delegates[i].*member).number() * rem.number())
+                        / total_votes.number());
+
+                delegates[i].*member += to_add;
+                add_back += to_add;
+            }
+            total_votes += add_back;
+        }
     }
 }
 

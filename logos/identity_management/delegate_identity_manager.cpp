@@ -13,6 +13,7 @@
 #include <logos/lib/trace.hpp>
 #include <logos/lib/ecies.hpp>
 #include <logos/p2p/p2p.h>
+#include <logos/staking/voting_power_manager.hpp>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/date_time/posix_time/posix_time_io.hpp>
@@ -136,7 +137,6 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 //Should we add them to the candidate db so that way when
                 //elections start they are candidates?
                 RepInfo rep;
-                rep.stake = stake;
                 //dummy request for epoch transition
                 StartRepresenting start;
                 start.epoch_num = 0;
@@ -161,6 +161,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                     LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisBlocks, failed to update AnnounceCandidacy";
                     trace_and_halt();
                 }
+                VotingPowerManager::Get()->AddSelfStake(pair.pub,stake,0,transaction);
                 CandidateInfo candidate;
                 candidate.stake = stake;
                 candidate.bls_key = dpk;
@@ -322,7 +323,7 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
                      pair.pub, // SG: Sign with correct key
                      work);
 
-        genesis_account.balance = genesis_account.balance.number() - amount.number();
+        genesis_account.SetBalance(genesis_account.GetBalance() - amount,0,transaction);
         genesis_account.head = request.GetHash();
         genesis_account.block_count++;
         genesis_account.modified = logos::seconds_since_epoch();
