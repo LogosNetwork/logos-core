@@ -320,13 +320,13 @@ MicroBlockTester::informational(
         logos::account_info info;
         uint64_t start = (uint64_t)&info;
         uint64_t typ = (uint64_t)&info.type;
-        uint64_t balance = (uint64_t)&info.balance;
+        uint64_t balance = (uint64_t)&(info.GetBalance());
         uint64_t modified = (uint64_t)&info.modified;
         uint64_t head = (uint64_t)&info.head;
         uint64_t block_count = (uint64_t)&info.block_count;
         uint64_t receive_head = (uint64_t)&info.receive_head;
         uint64_t receive_count = (uint64_t)&info.receive_count;
-        uint64_t rep_block = (uint64_t)&info.rep_block;
+        uint64_t rep_block = (uint64_t)&info.staking_subchain_head;
         uint64_t open_block = (uint64_t)&info.open_block;
         uint64_t entries = (uint64_t)&info.entries;
         std::vector<uint8_t> buf;

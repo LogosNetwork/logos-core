@@ -12,6 +12,9 @@ RequestType GetRequestType(bool &error, std::string data)
                    data.begin(), ::tolower);
 
     RequestType ret = RequestType::Unknown;
+    Log log;
+    LOG_INFO(log) << "GetRequestType- type string is "
+        << data;
 
     if(data == SEND)
     {
@@ -96,6 +99,14 @@ RequestType GetRequestType(bool &error, std::string data)
     else if(data == STOP_REPRESENTING)
     {
         ret = RequestType::StopRepresenting;
+    }
+    else if(data == STAKE)
+    {
+        ret = RequestType::Stake;
+    }
+    else if(data == UNSTAKE)
+    {
+        ret = RequestType::Unstake;
     }
     else
     {

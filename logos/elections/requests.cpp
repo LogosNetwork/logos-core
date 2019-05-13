@@ -141,14 +141,12 @@ void AnnounceCandidacy::Deserialize(bool & error, logos::stream & stream)
     {
         return;
     }
-    error = logos::read(stream, epoch_num);
 
     error = logos::read(stream, epoch_num);
     if(error)
     {
         return;
     }
-
 
     error = logos::read(stream, staking_subchain_prev);
     if(error)

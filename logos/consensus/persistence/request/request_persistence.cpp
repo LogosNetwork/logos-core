@@ -2500,6 +2500,9 @@ bool PersistenceManager<R>::ValidateRequest(
     }
     if(request.epoch_num != cur_epoch_num)
     {
+        LOG_ERROR(_log) << "PersistenceManager<R>::ValidateRequest (Proxy) - "
+            << "cur_epoch_num = " << cur_epoch_num
+            << " request.epoch_num  = " << request.epoch_num;
         result.code = logos::process_result::wrong_epoch_number;
         return false;
     }
@@ -2570,6 +2573,12 @@ bool PersistenceManager<R>::ValidateRequest(
             return false;
         }
     }
+    else
+    {
+        //Can't proxy to account that is not a rep
+        result.code = logos::process_result::not_a_rep;
+        return false;
+    }
     return true;
 }
 
@@ -2625,7 +2634,7 @@ bool PersistenceManager<R>::ValidateRequest(
         std::shared_ptr<Request> req;
         if(_store.request_get(hash,req,txn))
         {
-            LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Proxy)"
+            LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Stake)"
                 << " - failed to retrieve rep_action_tip"
                 << " hash = " << hash.to_string();
             trace_and_halt();
@@ -2644,7 +2653,7 @@ bool PersistenceManager<R>::ValidateRequest(
         {
             if(_store.request_get(hash, req, txn))
             {
-                LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Proxy)"
+                LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Stake)"
                     << " - failed to retreive candidacy_action_tip"
                     << " hash = " << hash.to_string();
                 trace_and_halt();

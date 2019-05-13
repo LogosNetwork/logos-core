@@ -62,6 +62,10 @@ public:
     /// @param delegates list of epoch delegates [in,out]
     void RedistributeVotes(Delegates &delegates);
 
+    /// Redistribute voting power amongst elected delegates
+    /// @param delegates list of epoch delegates [in,out]
+    void Redistribute(Delegates &delegates, Amount Delegate::*member);
+
     /// Return if we need to force delegates to retire
     /// @param next_epoch_num the number of the next epoch
     /// @returns false if we retire oldest 8 
