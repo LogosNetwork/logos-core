@@ -58,12 +58,9 @@ public:
     /// @returns vector of delegate-elects
     std::vector<Delegate> GetDelegateElects(size_t num_new, uint32_t next_epoch_num);
 
-    /// Redistribute voting power amongst elected delegates
+    /// Redistribute voting power or stake amongst elected delegates
     /// @param delegates list of epoch delegates [in,out]
-    void RedistributeVotes(Delegates &delegates);
-
-    /// Redistribute voting power amongst elected delegates
-    /// @param delegates list of epoch delegates [in,out]
+    /// @param member struct member to redistribute (vote or stake)
     void Redistribute(Delegates &delegates, Amount Delegate::*member);
 
     /// Return if we need to force delegates to retire

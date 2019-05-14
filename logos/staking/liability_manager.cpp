@@ -40,8 +40,6 @@ bool LiabilityManager::CreateSecondaryLiability(
     return true;
 }
 
-//TODO should this be optimized so we only check secondary liabilities once
-//per epoch?
 void LiabilityManager::PruneSecondaryLiabilities(
         AccountAddress const & origin,
         logos::account_info & info,
@@ -65,8 +63,7 @@ void LiabilityManager::PruneSecondaryLiabilities(
     }
 }
 
-//TODO should this be optimized so we only check secondary liabilities once
-//per epoch?
+
 bool LiabilityManager::CanCreateSecondaryLiability(
         AccountAddress const & target,
         AccountAddress const & source,
@@ -88,7 +85,7 @@ bool LiabilityManager::CanCreateSecondaryLiability(
         {
             //secondary liabilities are all up to date
             //only need to check first
-            //TODO don't get all hashes in this case
+            //Possible optimization: don't get all hashes in this case
             return l.target == target;
         }
         else if(l.expiration_epoch > cur_epoch)

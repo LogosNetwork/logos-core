@@ -24,7 +24,7 @@ void VotingPowerManager::HandleFallback(
        auto hash = rep_info.election_vote_tip;
        bool store_fallback = false;
        //if rep hasnt voted yet this epoch, store fallback voting power
-       //to avoid race condition. rep may be voting on epoch boundary
+       //to avoid race condition. rep may be voting on epoch boundary and 
        if(hash != 0)
        {
            ElectionVote ev;
@@ -45,7 +45,6 @@ void VotingPowerManager::HandleFallback(
             store_fallback = true;
        }
 
-       std::cout << "store fallback = " << store_fallback << std::endl;
       if(store_fallback)
       {
           VotingPowerFallback f;
@@ -77,8 +76,18 @@ bool VotingPowerManager::TransitionIfNecessary(
         CandidateInfo c_info;
         if(!_store.candidate_get(rep, c_info, txn))
         {
-            c_info.stake = info.current.self_stake;
-            _store.candidate_put(rep, c_info, txn);
+            //Candidate self stake is set when they receive their first vote
+            //in an epoch. However, if a candidate receives their first vote
+            //on the epoch boundary, the software may transition candidates voting
+            //power before setting self stake, causing self stake to be set to
+            //the wrong value. Setting self stake on transition if the candidate
+            //record is stale avoids this race condition
+            if(epoch > c_info.epoch_modified+1)
+            {
+
+                c_info.stake = info.current.self_stake;
+                _store.candidate_put(rep, c_info, txn);
+            }
         }
         HandleFallback(info,rep,epoch,txn);
         info.current = info.next;
@@ -165,11 +174,6 @@ bool VotingPowerManager::CanPrune(
             info.next.locked_proxied 
             + info.next.unlocked_proxied 
             + info.next.self_stake) == 0;
-    LOG_INFO(_log) << "power is zero = " << power_is_zero
-        << " info = " << total_power.to_string()
-        << " lock_proxy = " << info.next.locked_proxied.to_string()
-        << " unlocked proxy = " << info.next.unlocked_proxied.to_string()
-        << " self stake = " << info.next.self_stake.to_string();
     if(!power_is_zero)
     {
         return false;
