@@ -24,7 +24,7 @@ void VotingPowerManager::HandleFallback(
        auto hash = rep_info.election_vote_tip;
        bool store_fallback = false;
        //if rep hasnt voted yet this epoch, store fallback voting power
-       //to avoid race condition. rep may be voting on epoch boundary and 
+       //to avoid race condition. rep may be voting on epoch boundary 
        if(hash != 0)
        {
            ElectionVote ev;

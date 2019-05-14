@@ -1032,13 +1032,16 @@ TEST(Staking, SwitchProxy)
         ASSERT_EQ(vp_info.current.locked_proxied, 0);
         ASSERT_EQ(vp_info.current.unlocked_proxied, 0); 
 
-        StakingManager::GetInstance()->IterateThawingFunds(account, [&thawing](ThawingFunds& t)
-                {
-                thawing += t.amount;
-                return true;
-                },txn);
-        ASSERT_EQ(thawing,proxy.lock_proxy);
+
+
+        std::vector<ThawingFunds> thawing = StakingManager::GetInstance()->GetThawingFunds(account,txn);
+        Amount thawing_amt = 0;
+        for(auto t : thawing)
+        {
+            thawing_amt += t.amount;
         }
+        ASSERT_EQ(thawing_amt,proxy.lock_proxy);
+    }
 
     proxy.rep = rep4;
     //stake all possible to next rep
