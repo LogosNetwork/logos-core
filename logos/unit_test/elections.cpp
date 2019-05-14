@@ -873,7 +873,7 @@ TEST(Elections, redistribute_votes)
             {
             return d1.vote > d2.vote;
             });
-    mgr.RedistributeVotes(delegates);
+    mgr.Redistribute(delegates, &Delegate::vote);
 
     for(size_t i = 0; i < 32; ++i)
     {
@@ -895,7 +895,7 @@ TEST(Elections, redistribute_votes)
     ASSERT_EQ(sum, 6400);
     ASSERT_EQ(cap, 800);
 
-    mgr.RedistributeVotes(delegates);
+    mgr.Redistribute(delegates, &Delegate::vote);
 
     for(size_t i = 0; i < 32; ++i)
     {
@@ -913,7 +913,7 @@ TEST(Elections, redistribute_votes)
 
     ASSERT_EQ(sum,2030);
     ASSERT_EQ(cap,253);
-    mgr.RedistributeVotes(delegates);
+    mgr.Redistribute(delegates, &Delegate::vote);
     for(size_t i = 0; i < 32; ++i)
     {
         ASSERT_LE(delegates[i].vote.number(),cap);

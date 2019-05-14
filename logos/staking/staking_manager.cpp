@@ -24,7 +24,7 @@ ThawingFunds StakingManager::CreateThawingFunds(
     ThawingFunds funds;
     funds.amount = 0;
     funds.target = target;
-    funds.expiration_epoch = epoch_created + 42;
+    funds.expiration_epoch = epoch_created + THAWING_PERIOD;
     funds.liability_hash = 
         _liability_mgr.CreateExpiringLiability(target, source, 0, funds.expiration_epoch, txn);
     return funds;
@@ -106,9 +106,9 @@ Amount StakingManager::Extract(
         uint32_t liability_expiration = GetExpiration(input);
         if(liability_expiration  == 0)
         {
-            liability_expiration = epoch + 42;
+            liability_expiration = epoch + THAWING_PERIOD;
         }
-        bool res = _liability_mgr.CreateSecondaryLiability(input.target,origin,to_extract,liability_expiration, txn);
+        bool res = _liability_mgr.CreateSecondaryLiability(input.target,origin,to_extract,liability_expiration,txn);
         if(!res)
         {
             return 0;
@@ -546,7 +546,7 @@ void StakingManager::MarkThawingAsFrozen(
             << "txn is null";
         trace_and_halt();
     }
-    uint32_t epoch_to_mark_frozen = epoch_created+42;
+    uint32_t epoch_to_mark_frozen = epoch_created+THAWING_PERIOD;
     std::vector<ThawingFunds> updated;
     auto update = [&](logos::store_iterator& it)
     {
@@ -602,7 +602,7 @@ void StakingManager::SetExpirationOfFrozen(
             << "txn is null";
         trace_and_halt();
     }
-    uint32_t exp_epoch = epoch_unfrozen + 42;
+    uint32_t exp_epoch = epoch_unfrozen + THAWING_PERIOD;
     std::vector<ThawingFunds> updated;
     auto update = [&](logos::store_iterator& it)
     {
