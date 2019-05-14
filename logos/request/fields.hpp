@@ -80,8 +80,9 @@ const char VOTES[]            = "votes";
 const char REQUEST[]          = "request";
 const char EPOCH_NUM[]        = "epoch_num";
 const char BLS_KEY[]          = "bls_key"; 
-const char ECIES_KEY[]       = "ecies_key";
+const char ECIES_KEY[]        = "ecies_key";
 const char LOCK_PROXY[]       = "lock_proxy";
+const char SET_STAKE[]        = "set_stake";
 const char STAKING_SUB_PREV[] = "staking_subchain_previous";
 
 // Token setting fields

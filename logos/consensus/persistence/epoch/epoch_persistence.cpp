@@ -206,8 +206,6 @@ bool PersistenceManager<ECT>::BlockExists(
 
 void PersistenceManager<ECT>::UpdateThawing(ApprovedEB const & block, MDB_txn* txn)
 {
-    //TODO maybe a set is not faster, since array of delegates is already
-    //allocated
     ApprovedEB prev_epoch;
     Tip prev_tip;
     if(_store.epoch_tip_get(prev_tip, txn) || _store.epoch_get(prev_tip.digest, prev_epoch, txn))

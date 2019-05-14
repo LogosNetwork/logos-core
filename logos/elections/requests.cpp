@@ -51,9 +51,8 @@ bool DeserializeStakeJson(
 {
     boost::optional<std::string> stake_text (
             tree.get_optional<std::string>(STAKE));
-    //TODO add set_stake to request fields
     boost::optional<std::string> set_stake_text (
-            tree.get_optional<std::string>("set_stake"));
+            tree.get_optional<std::string>(SET_STAKE));
     if(set_stake_text.is_initialized())
     {
         set_stake = set_stake_text.get() == "true"; 

@@ -136,8 +136,7 @@ public:
     virtual void SetBalance(
             amount const & new_balance,
             uint32_t const & epoch,
-            MDB_txn* txn,
-            bool persist = true) = 0;
+            MDB_txn* txn) = 0;
 
     virtual amount const & GetBalance() const = 0;
     virtual amount const & GetAvailableBalance() const = 0;
@@ -193,14 +192,12 @@ struct account_info : Account
     void SetBalance(
             amount const & new_balance,
             uint32_t const & epoch,
-            MDB_txn* txn,
-            bool persist = true) override;
+            MDB_txn* txn);
 
     void SetAvailableBalance(
             amount const & new_available_bal,
             uint32_t const & epoch,
-            MDB_txn* txn,
-            bool persist = true);
+            MDB_txn* txn);
 
     amount const & GetAvailableBalance() const override;
     amount const & GetBalance() const override;
