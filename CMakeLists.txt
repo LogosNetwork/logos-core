@@ -402,6 +402,8 @@ add_library (node
 	logos/request/utility.cpp
 	logos/request/utility.cpp
     logos/rewards/epoch_rewards_manager.cpp
+    logos/staking/thawing_funds.cpp
+    logos/staking/staked_funds.cpp
     logos/staking/liability.cpp
     logos/staking/liability_manager.cpp
     logos/staking/voting_power_manager.cpp
