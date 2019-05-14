@@ -94,10 +94,6 @@ bool ValidateStakingSubchain(
 {
     if(info.staking_subchain_head != req.staking_subchain_prev)
     {
-        std::cout << "head is " << info.staking_subchain_head.to_string()
-            << std::endl;
-        std::cout << "prev is " << req.staking_subchain_prev.to_string()
-            << std::endl;
         result.code = logos::process_result::invalid_staking_subchain;
         return false;
     }
@@ -123,7 +119,6 @@ bool ValidateStake(
                 txn);
         if(!can_stake)
         {
-            //TODO different return code
             result.code = logos::process_result::insufficient_funds_for_stake;
             return false;
         }
@@ -278,9 +273,7 @@ bool PersistenceManager<R>::ValidateRequest(
 
     // Make sure there's enough Logos
     // to cover the request.
-    // SG: Add fee back into total being checked because GetLogosTotal does not include the fee
-    // TODO: is this correct? GetLogosTotal() returns fee unless derived class overrides GetLogosTotal()
-    if((request->GetLogosTotal()+request->fee) > info->GetBalance())
+    if(request->GetLogosTotal() > info->GetAvailableBalance())
     {
         if(info->type == logos::AccountType::LogosAccount)
         {
@@ -1517,7 +1510,7 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
         }
         if(origin_account_info->type == logos::AccountType::LogosAccount)
         {
-            //TODO unit test this code path
+            //set rep of destination account to same as sending accounts rep
             auto info_c = static_pointer_cast<logos::account_info>(info);
             auto origin_info_c = 
                 static_pointer_cast<logos::account_info>(origin_account_info);
@@ -1527,7 +1520,7 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
         }
         else
         {
-            LOG_DEBUG(_log) << "PersistenceManager::ApplySend - "
+            LOG_WARN(_log) << "PersistenceManager::ApplySend - "
                 << "creating new account with no rep";
         }
         LOG_DEBUG(_log) << "PersistenceManager::ApplySend - "
@@ -1793,7 +1786,6 @@ void PersistenceManager<R>::ApplyRequest(
     assert(!_store.rep_get(request.origin,rep,txn));
     rep.election_vote_tip = request.GetHash();
     assert(!_store.rep_put(request.origin,rep,txn));
-    //TODO 
     Amount voting_power = VotingPowerManager::Get()->GetCurrentVotingPower(request.origin, request.epoch_num, txn);
     for(auto& p : request.votes)
     {
@@ -1805,18 +1797,8 @@ void PersistenceManager<R>::ApplyRequest(
     }
 
 
-    VotingPowerInfo vp_info;
-    if(!VotingPowerManager::Get()->GetVotingPowerInfo(request.origin, vp_info, txn))
-    {
-        LOG_FATAL(_log) << "PersistenceManager<R>::ApplyRequest - " <<
-            "failed to get voting power info for rep = " << request.origin.to_string();
-        trace_and_halt();
-    }
 
-    //TODO these values could be wrong if a certain race condition occurs
-    //have fallback_db store not just voting power, but these values as well
     Amount total_stake = VotingPowerManager::Get()->GetCurrentTotalStake(request.origin, request.epoch_num, txn);
-    //TODO maybe delete fallback record after this usage
     RepEpochInfo rewards_info{rep.levy_percentage, request.epoch_num, total_stake}; 
     EpochRewardsManager::GetInstance()->Init(request.origin, rewards_info, txn); 
 }
@@ -2159,8 +2141,6 @@ bool PersistenceManager<R>::ValidateRequest(
     }
     return total <= MAX_VOTES;
 }
-
-
 
 bool PersistenceManager<R>::ValidateRequest(
         const AnnounceCandidacy& request,
@@ -2613,15 +2593,12 @@ bool PersistenceManager<R>::ValidateRequest(
             txn);
     if(!can_stake)
     {
-        //TODO different return code
         result.code = logos::process_result::insufficient_funds_for_stake;
         return false;
     }
 
-    //TODO better return code, and possibly more strict validation?
-    //Account could be not a rep, yet pass this check
-    //For example, they issued stop representing but
-    //did not pick a rep for themselves yet (via Proxy)
+
+    //Can't submit Stake request if you have a rep already
     if(VotingPowerManager::Get()->GetRep(info,txn))
     {
        result.code = logos::process_result::not_a_rep;
@@ -2681,7 +2658,7 @@ bool PersistenceManager<R>::ValidateRequest(
 }
 
 
-//TODO allow anyone to stake to themselves or disallow?
+//TODO allow anyone to unstake?
 bool PersistenceManager<R>::ValidateRequest(
         const Unstake& request,
         logos::account_info const & info,
@@ -2711,15 +2688,11 @@ bool PersistenceManager<R>::ValidateRequest(
             txn);
     if(!can_stake)
     {
-        //TODO different return code
         result.code = logos::process_result::insufficient_funds_for_stake;
         return false;
     }
 
-    //TODO better return code, and possibly more strict validation?
-    //Account could be not a rep, yet pass this check
-    //For example, they issued stop representing but
-    //did not pick a rep for themselves yet (via Proxy)
+
     if(VotingPowerManager::Get()->GetRep(info,txn))
     {
        result.code = logos::process_result::not_a_rep;

@@ -7,8 +7,6 @@
 // integer between 0 and 100. Represents a percent
 const uint8_t DILUTION_FACTOR = 25;
 
-//TODO sensible return values for member functions
-//TODO does this class really belong in logos/staking?
 class VotingPowerManager
 {
     using BlockStore = logos::block_store;

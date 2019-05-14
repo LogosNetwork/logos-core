@@ -438,10 +438,10 @@ Amount VotingPowerManager::GetCurrentTotalStake(
         VotingPowerFallback f;
         if(_store.get(_store.voting_power_fallback_db, rep, f, txn))
         {
-        
-        LOG_FATAL(_log) << "VotingPowerManager::GetCurrentVotingPower - "
-            << "failed to get fallback record";
-        trace_and_halt();
+
+            LOG_FATAL(_log) << "VotingPowerManager::GetCurrentVotingPower - "
+                << "failed to get fallback record";
+            trace_and_halt();
         }
         
         return f.total_stake;
@@ -522,9 +522,7 @@ bool VotingPowerManager::GetVotingPowerInfo(
 
 
 
-//TODO change return type in the event that you are a rep
-//Currently, this function returns empty if you are a rep,
-//or if you are an account with no rep
+
 boost::optional<AccountAddress> VotingPowerManager::GetRep(
         logos::account_info const & info,
         MDB_txn* txn)
@@ -534,7 +532,6 @@ boost::optional<AccountAddress> VotingPowerManager::GetRep(
         LOG_FATAL(_log) << "VotingPowerManager::GetRep - txn is null";
         trace_and_halt();    
     }
-    //TODO return actual rep
     std::shared_ptr<Request> req;
     if(info.staking_subchain_head == 0)
     {
@@ -564,7 +561,6 @@ boost::optional<AccountAddress> VotingPowerManager::GetRep(
         }
         else
         {
-            //TODO handle other request types
             LOG_FATAL(_log) << "VotingPowerManager::GetRep - "
                 << "Request on staking subchain is wrong type";
             trace_and_halt();

@@ -321,15 +321,13 @@ Amount const & logos::account_info::GetBalance() const
 
 Amount const & logos::account_info::GetAvailableBalance() const
 {
-    //TODO prune thawing
     return available_balance;
 }
 
 void logos::account_info::SetBalance(
         Amount const & new_balance,
         uint32_t const & epoch, 
-        MDB_txn* txn,
-        bool persist)
+        MDB_txn* txn)
 {
     std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::Get();
     boost::optional<AccountAddress> rep = vpm->GetRep(*this, txn);
@@ -366,21 +364,15 @@ void logos::account_info::SetBalance(
         }
     }
     balance = new_balance;
-    if(persist)
-    {
-        //TODO store in blockstore
-    }
 }
 
 void logos::account_info::SetAvailableBalance(
         Amount const & new_available_bal,
         uint32_t const & epoch,
-        MDB_txn* txn,
-        bool persist)
+        MDB_txn* txn)
 {
     std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::Get();
     boost::optional<AccountAddress> rep = vpm->GetRep(*this, txn);
-    //TODO get rep may return self, need to detect
     if(new_available_bal > available_balance)
     {
         Amount diff = new_available_bal - available_balance;
@@ -414,10 +406,6 @@ void logos::account_info::SetAvailableBalance(
         LOG_FATAL(log) << "account_info::SetAvailableBalance - "
             << "available balance is greater than balance"; 
         trace_and_halt();
-    }
-    if(persist)
-    {
-        //TODO store in blockstore
     }
 }
 

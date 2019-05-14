@@ -121,8 +121,6 @@ Amount StakingManager::Extract(
 }
 
 
-//TODO: reading out the available balance here may be ignoring/overwriting pending
-//updates to account balance
 void StakingManager::StakeAvailableFunds(
         StakedFunds & output,
         Amount const & amount,
@@ -280,7 +278,7 @@ void StakingManager::IterateThawingFunds(
     }
 }
 
-//TODO staking_subchain head needs to be up to date before this function is 
+//Note, staking_subchain head needs to be up to date before this function is 
 //called, for updates to available balance to work correctly
 //The request that staking_subchain_head references must also be stored in the db
 void StakingManager::Stake(
@@ -324,7 +322,6 @@ void StakingManager::Stake(
         trace_and_halt();
     }
 
-    //TODO should we always prune secondary liabilities?
     _liability_mgr.PruneSecondaryLiabilities(origin, account_info, epoch, txn);
     //if changing target, extract from existing stake
     if(target != cur_stake.target)
@@ -560,7 +557,6 @@ void StakingManager::MarkThawingAsFrozen(
             trace_and_halt();
         }
 
-        //TODO terminate early based on sort order?
         if(funds.expiration_epoch == epoch_to_mark_frozen
                 && funds.target == origin)
         {
@@ -580,6 +576,13 @@ void StakingManager::MarkThawingAsFrozen(
                     << "mdb_cursor_del failed. origin = "
                     << origin.to_string();
             }
+        }
+        //thawing funds are stored in reverse order of expiration_epoch
+        //expiration epoch decreases as loop continues
+        //can terminate here
+        else if(funds.expiration_epoch < epoch_to_mark_frozen)
+        {
+            return false;
         }
         return true;
     };
