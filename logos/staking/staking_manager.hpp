@@ -224,6 +224,11 @@ class StakingManager
             std::function<bool(logos::store_iterator & it)> func,
             MDB_txn* txn);
 
+    void IterateThawingFunds(
+            AccountAddress const & origin,
+            std::function<bool(ThawingFunds& funds, logos::store_iterator&)> func,
+            MDB_txn* txn);
+
 
     // Stores StakedFunds in db, and updates amount of associated liability
     void Store(StakedFunds const & funds, AccountAddress const & origin, MDB_txn* txn);
