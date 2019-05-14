@@ -10,9 +10,10 @@
 using AccountAddress = logos::uint256_union;
 
 const size_t MAX_VOTES = 8;
-//TODO what should these be?
-const Amount MIN_REP_STAKE = 1000;
-const Amount MIN_DELEGATE_STAKE = 10000;
+//TODO with inflation, total supply will increase over time
+//these need to be dynamic
+const Amount MIN_REP_STAKE = std::numeric_limits<logos::uint128_t>::max () / 10000;
+const Amount MIN_DELEGATE_STAKE = std::numeric_limits<logos::uint128_t>::max () / 1000;
 
 struct ElectionVote : Request
 {
