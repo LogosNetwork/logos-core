@@ -1786,7 +1786,7 @@ void PersistenceManager<R>::ApplyRequest(
     assert(!_store.rep_get(request.origin,rep,txn));
     rep.election_vote_tip = request.GetHash();
     assert(!_store.rep_put(request.origin,rep,txn));
-    Amount voting_power = VotingPowerManager::Get()->GetCurrentVotingPower(request.origin, request.epoch_num, txn);
+    Amount voting_power = VotingPowerManager::GetInstance()->GetCurrentVotingPower(request.origin, request.epoch_num, txn);
     for(auto& p : request.votes)
     {
         assert(!_store.candidate_add_vote(
@@ -1798,7 +1798,7 @@ void PersistenceManager<R>::ApplyRequest(
 
 
 
-    Amount total_stake = VotingPowerManager::Get()->GetCurrentTotalStake(request.origin, request.epoch_num, txn);
+    Amount total_stake = VotingPowerManager::GetInstance()->GetCurrentTotalStake(request.origin, request.epoch_num, txn);
     RepEpochInfo rewards_info{rep.levy_percentage, request.epoch_num, total_stake}; 
     EpochRewardsManager::GetInstance()->Init(request.origin, rewards_info, txn); 
 }
@@ -2599,7 +2599,7 @@ bool PersistenceManager<R>::ValidateRequest(
 
 
     //Can't submit Stake request if you have a rep already
-    if(VotingPowerManager::Get()->GetRep(info,txn))
+    if(VotingPowerManager::GetInstance()->GetRep(info,txn))
     {
        result.code = logos::process_result::not_a_rep;
        return false; 
@@ -2693,7 +2693,7 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
 
-    if(VotingPowerManager::Get()->GetRep(info,txn))
+    if(VotingPowerManager::GetInstance()->GetRep(info,txn))
     {
        result.code = logos::process_result::not_a_rep;
        return false; 

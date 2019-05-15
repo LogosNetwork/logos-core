@@ -291,7 +291,8 @@ void PersistenceManager<ECT>::AddReelectionCandidates(
                     CandidateInfo candidate(*ac);
                 
                     VotingPowerInfo vp_info;
-                    res = VotingPowerManager::Get()->GetVotingPowerInfo(d.account, next_epoch_num, vp_info, txn);
+                    res = VotingPowerManager::GetInstance()
+                        ->GetVotingPowerInfo(d.account, next_epoch_num, vp_info, txn);
                     if(!res)
                     {
                         LOG_FATAL(_log) << "PersistenceManager<ECT>::AddReelectionCandidates - "

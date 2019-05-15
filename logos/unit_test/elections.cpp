@@ -271,7 +271,7 @@ TEST(Elections, candidates_simple)
         ASSERT_FALSE(res);
         ASSERT_EQ(c2,c2_copy);
 
-        VotingPowerManager::Get()->AddSelfStake(a1,c1.stake,c1.epoch_modified-1,txn);
+        VotingPowerManager::GetInstance()->AddSelfStake(a1,c1.stake,c1.epoch_modified-1,txn);
         res = store->candidate_add_vote(a1,100,c1.epoch_modified,txn);
         ASSERT_FALSE(res);
         res = store->candidate_add_vote(a1,50,c1.epoch_modified,txn);
@@ -378,9 +378,9 @@ TEST(Elections,candidates_transition)
     PersistenceManager<ECT> mgr(*store,nullptr);
 
     logos::transaction txn(store->environment,nullptr,true);
-    VotingPowerManager::Get()->AddSelfStake(a1,stake1,0,txn);
-    VotingPowerManager::Get()->AddSelfStake(a2,stake2,0,txn);
-    VotingPowerManager::Get()->AddSelfStake(a3,stake3,0,txn);
+    VotingPowerManager::GetInstance()->AddSelfStake(a1,stake1,0,txn);
+    VotingPowerManager::GetInstance()->AddSelfStake(a2,stake2,0,txn);
+    VotingPowerManager::GetInstance()->AddSelfStake(a3,stake3,0,txn);
     {
         CandidateInfo candidate;
         init_ecies(candidate.ecies_key);
@@ -551,7 +551,7 @@ TEST(Elections,get_next_epoch_delegates)
         announce.stake = i == 0 ? 1 : i;
         rep.candidacy_action_tip = announce.Hash();
         store->request_put(announce,txn);
-        VotingPowerManager::Get()->AddSelfStake(i,i==0?1:i,epoch_num,txn);
+        VotingPowerManager::GetInstance()->AddSelfStake(i,i==0?1:i,epoch_num,txn);
         
         StartRepresenting start_rep;
         start_rep.origin = i;
@@ -595,7 +595,7 @@ TEST(Elections,get_next_epoch_delegates)
             if(eb.delegates[i].stake != delegates[i].stake)
             {
                 VotingPowerInfo vp_info;
-                VotingPowerManager::Get()->GetVotingPowerInfo(
+                VotingPowerManager::GetInstance()->GetVotingPowerInfo(
                         delegates[i].account,
                         eb.epoch_number+1,
                         vp_info,
@@ -1038,7 +1038,7 @@ TEST(Elections,validate)
 
 
     VotingPowerInfo vp_info;
-    ASSERT_TRUE(VotingPowerManager::Get()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
+    ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,start_rep.stake);
     ASSERT_EQ(vp_info.next.unlocked_proxied,0);
 
@@ -1105,7 +1105,7 @@ TEST(Elections,validate)
 
     transition_epoch();
 
-    ASSERT_TRUE(VotingPowerManager::Get()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
+    ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,start_rep.stake);
 
     //active rep
@@ -1127,7 +1127,7 @@ TEST(Elections,validate)
     ASSERT_FALSE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
     persistence_mgr.ApplyRequest(announce,account_info,txn);
     update_staking_subchain();
-    ASSERT_TRUE(VotingPowerManager::Get()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
+    ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,announce.stake);
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
     ASSERT_FALSE(persistence_mgr.ValidateRequest(renounce,account_info,epoch_num,txn,result));
@@ -1137,7 +1137,7 @@ TEST(Elections,validate)
     ASSERT_EQ(candidates.size(),1);
     transition_epoch();
 
-    ASSERT_TRUE(VotingPowerManager::Get()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
+    ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,start_rep.stake);
 
     ASSERT_EQ(get_candidates().size(),1);
@@ -1157,7 +1157,7 @@ TEST(Elections,validate)
 
     persistence_mgr.ApplyRequest(renounce,account_info,txn);
     update_staking_subchain();
-    ASSERT_TRUE(VotingPowerManager::Get()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
+    ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,announce.stake);
 
     ASSERT_EQ(get_candidates().size(),1);
@@ -1193,7 +1193,7 @@ TEST(Elections,validate)
 
     persistence_mgr.ApplyRequest(stop_rep,account_info,txn);
     update_staking_subchain();
-    ASSERT_TRUE(VotingPowerManager::Get()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
+    ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,start_rep.stake);
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
@@ -1204,7 +1204,7 @@ TEST(Elections,validate)
 
 
     transition_epoch();
-    ASSERT_TRUE(VotingPowerManager::Get()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
+    ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,announce.stake);
     //no longer rep
     ASSERT_TRUE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
@@ -1216,7 +1216,7 @@ TEST(Elections,validate)
     //announce will also auto add account as rep
     persistence_mgr.ApplyRequest(announce,account_info,txn);
     update_staking_subchain();
-    ASSERT_TRUE(VotingPowerManager::Get()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
+    ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,announce.stake);
 
     ASSERT_FALSE(persistence_mgr.ValidateRequest(start_rep,account_info,epoch_num,txn,result));
@@ -1240,7 +1240,7 @@ TEST(Elections,validate)
     //stop_rep will also auto renounce candidacy
     persistence_mgr.ApplyRequest(stop_rep,account_info,txn);
     update_staking_subchain();
-    ASSERT_TRUE(VotingPowerManager::Get()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
+    ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,announce.stake);
 
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
@@ -1260,7 +1260,7 @@ TEST(Elections,validate)
 
     persistence_mgr.ApplyRequest(start_rep,account_info,txn);
     update_staking_subchain();
-    ASSERT_TRUE(VotingPowerManager::Get()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
+    ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(start_rep.origin, vp_info,txn));
     ASSERT_EQ(vp_info.next.self_stake,announce.stake);
 
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
@@ -1281,7 +1281,7 @@ TEST(Elections,validate)
 
     persistence_mgr.ApplyRequest(announce,account_info,txn);
     update_staking_subchain();
-    ASSERT_TRUE(VotingPowerManager::Get()->GetVotingPowerInfo(announce.origin, vp_info,txn));
+    ASSERT_TRUE(VotingPowerManager::GetInstance()->GetVotingPowerInfo(announce.origin, vp_info,txn));
 
     ASSERT_FALSE(persistence_mgr.ValidateRequest(announce,account_info,epoch_num,txn,result));
     ASSERT_TRUE(persistence_mgr.ValidateRequest(vote,epoch_num,txn,result));
@@ -1458,7 +1458,7 @@ TEST(Elections, apply)
         store->rep_put(i,rep,txn);
 
 
-        VotingPowerManager::Get()->AddSelfStake(announce.origin,announce.stake,epoch_num,txn);
+        VotingPowerManager::GetInstance()->AddSelfStake(announce.origin,announce.stake,epoch_num,txn);
     }
 
     std::reverse(delegates.begin(),delegates.end());
@@ -1788,13 +1788,13 @@ TEST(Elections, weighted_votes)
     CandidateInfo candidate;
     init_ecies(candidate.ecies_key);
     store->candidate_put(candidate_address,candidate,txn);
-    VotingPowerManager::Get()->AddSelfStake(candidate_address,10,epoch,txn);
+    VotingPowerManager::GetInstance()->AddSelfStake(candidate_address,10,epoch,txn);
 
     AccountAddress candidate2_address = 13;
     CandidateInfo candidate2;
     init_ecies(candidate2.ecies_key);
     store->candidate_put(candidate2_address,candidate,txn);
-    VotingPowerManager::Get()->AddSelfStake(candidate2_address,10,epoch,txn);
+    VotingPowerManager::GetInstance()->AddSelfStake(candidate2_address,10,epoch,txn);
     
     ElectionVote vote;
     vote.epoch_num = ++epoch;

@@ -1558,7 +1558,7 @@ bool logos::block_store::candidate_add_vote(
             info.votes_received_weighted = weighted_vote;
             info.epoch_modified = cur_epoch_num;
             VotingPowerInfo vp_info;
-            if(!VotingPowerManager::Get()->GetVotingPowerInfo(account, cur_epoch_num, vp_info, txn))
+            if(!VotingPowerManager::GetInstance()->GetVotingPowerInfo(account, cur_epoch_num, vp_info, txn))
             {
                 LOG_FATAL(log) << "block_store::candidate_add_vote - "
                     << "failed to set self stake for candidate = "

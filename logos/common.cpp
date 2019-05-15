@@ -329,7 +329,7 @@ void logos::account_info::SetBalance(
         uint32_t const & epoch, 
         MDB_txn* txn)
 {
-    std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::Get();
+    std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::GetInstance();
     boost::optional<AccountAddress> rep = vpm->GetRep(*this, txn);
     if(new_balance > balance)
     {
@@ -371,7 +371,7 @@ void logos::account_info::SetAvailableBalance(
         uint32_t const & epoch,
         MDB_txn* txn)
 {
-    std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::Get();
+    std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::GetInstance();
     boost::optional<AccountAddress> rep = vpm->GetRep(*this, txn);
     if(new_available_bal > available_balance)
     {
