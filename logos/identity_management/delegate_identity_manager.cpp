@@ -161,7 +161,7 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                     LOG_FATAL(_log) << "DelegateIdentityManager::CreateGenesisBlocks, failed to update AnnounceCandidacy";
                     trace_and_halt();
                 }
-                VotingPowerManager::Get()->AddSelfStake(pair.pub,stake,0,transaction);
+                VotingPowerManager::GetInstance()->AddSelfStake(pair.pub,stake,0,transaction);
                 CandidateInfo candidate;
                 candidate.stake = stake;
                 candidate.bls_key = dpk;

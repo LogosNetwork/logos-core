@@ -12,7 +12,7 @@ class VotingPowerManager
     using BlockStore = logos::block_store;
 
     //Note, VotingPowerManager is not a singleton, but contains an instance
-    //for convenience. Some areas of the code do not have a reference to
+    //for convenience. Some areas of the codebase do not have a reference to
     //blockstore to create a VotingPowerManager. This instance
     //is created when BlockStore is constructed. A client can use this instance
     //or can create their own; the behavior is identical.
@@ -26,7 +26,7 @@ class VotingPowerManager
         instance.reset(new VotingPowerManager(store));
     }
 
-    static std::shared_ptr<VotingPowerManager> Get()
+    static std::shared_ptr<VotingPowerManager> GetInstance()
     {
         return instance;
     }
@@ -157,11 +157,6 @@ class VotingPowerManager
 
     private:
 
-    enum class DiffType
-    {
-    ADD = 1,
-    SUBTRACT = 2
-    };
     /*
      * Helper function
      * Adds or subtracts diff from appropriate member of info
@@ -172,8 +167,9 @@ class VotingPowerManager
             Amount VotingPowerSnapshot::*snapshot_member,
             uint32_t const & epoch,
             Amount const & diff,
-            DiffType diff_type,
+            std::function<Amount&(Amount&, Amount const &)> func,
             MDB_txn* txn);
+
 
 
     /* Stores info in voting_power_db with rep as key if total power is > 0

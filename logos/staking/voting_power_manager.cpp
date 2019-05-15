@@ -97,10 +97,38 @@ bool VotingPowerManager::TransitionIfNecessary(
     return false;
 }
 
-enum class DiffType
-{
-ADD = 1,
-SUBTRACT = 2
+struct AddFunc {
+    Amount& operator() (Amount& member, Amount const & diff)
+    {
+        if(diff == 0) return member;
+        member += diff;
+        if(member < diff)
+        {
+            Log log;
+            LOG_FATAL(log) << "VotingPowerManager::AddFunc - "
+                << " overflow - member = " << member.to_string()
+                << " diff = " << diff.to_string();
+            trace_and_halt();
+        }
+        return member;
+    }
+};
+
+struct SubtractFunc {
+    Amount& operator() (Amount& member, Amount const & diff)
+    {
+        if(diff == 0) return member;
+        if(diff > member)
+        {
+            Log log;
+            LOG_FATAL(log) << "VotingPowerManager::SubtractFunc - "
+                << " overflow - member = " << member.to_string()
+                << " diff = " << diff.to_string();
+            trace_and_halt();
+        }
+        member -= diff;
+        return member;
+    }
 };
 
 void VotingPowerManager::Modify(
@@ -109,7 +137,7 @@ void VotingPowerManager::Modify(
         Amount VotingPowerSnapshot::*snapshot_member,
         uint32_t const & epoch,
         Amount const & diff,
-        DiffType diff_type,
+        std::function<Amount&(Amount&, Amount const &)> func,
         MDB_txn* txn)
 {
     TransitionIfNecessary(info, epoch, account, txn);
@@ -118,29 +146,7 @@ void VotingPowerManager::Modify(
         = epoch < info.epoch_modified 
             ? &VotingPowerInfo::current : &VotingPowerInfo::next;
 
-    if(diff == 0)
-    {
-        return;
-    }
-    if(diff_type == DiffType::ADD)
-    {
-        info.*info_member.*snapshot_member += diff;
-        if(info.*info_member.*snapshot_member < diff)
-        {
-            LOG_FATAL(_log) << "VotingPower::Modify - "
-                << "addition results in overflow";
-            trace_and_halt();
-        }
-    }
-    else if(diff <= info.*info_member.*snapshot_member)
-    {
-        info.*info_member.*snapshot_member -= diff;
-    } else
-    {
-        LOG_FATAL(_log) << "VotingPowerManager::Modify - "
-            << "subtraction results in underflow";
-        trace_and_halt();
-    }
+    func(info.*info_member.*snapshot_member, diff);
 }
 
 
@@ -228,7 +234,7 @@ bool VotingPowerManager::SubtractLockedProxied(
            &VotingPowerSnapshot::locked_proxied,
            epoch_number,
            amount,
-           DiffType::SUBTRACT,
+           SubtractFunc(),
            txn);
 
     StoreOrPrune(rep,info,txn);
@@ -262,7 +268,7 @@ bool VotingPowerManager::AddLockedProxied(
            &VotingPowerSnapshot::locked_proxied,
            epoch_number,
            amount,
-           DiffType::ADD,
+           AddFunc(),
            txn);
 
     StoreOrPrune(rep,info,txn);
@@ -296,7 +302,7 @@ bool VotingPowerManager::SubtractUnlockedProxied(
            &VotingPowerSnapshot::unlocked_proxied,
            epoch_number,
            amount,
-           DiffType::SUBTRACT,
+           SubtractFunc(),
            txn);
 
     StoreOrPrune(rep,info,txn);
@@ -330,7 +336,7 @@ bool VotingPowerManager::AddUnlockedProxied(
            &VotingPowerSnapshot::unlocked_proxied,
            epoch_number,
            amount,
-           DiffType::ADD,
+           AddFunc(),
            txn);
 
     StoreOrPrune(rep,info,txn);
@@ -366,7 +372,7 @@ bool VotingPowerManager::SubtractSelfStake(
            &VotingPowerSnapshot::self_stake,
            epoch_number,
            amount,
-           DiffType::SUBTRACT,
+           SubtractFunc(),
            txn);
 
     StoreOrPrune(rep,info,txn);
@@ -402,7 +408,7 @@ bool VotingPowerManager::AddSelfStake(
            &VotingPowerSnapshot::self_stake,
            epoch_number,
            amount,
-           DiffType::ADD,
+           AddFunc(),
            txn);
 
     StoreOrPrune(rep,info,txn);
@@ -523,6 +529,9 @@ bool VotingPowerManager::GetVotingPowerInfo(
 
 
 
+//Note, staking_subchain_head of account_info needs to be up to date before
+//this function is called, and the request that the hash references must already
+//be stored in state_db
 boost::optional<AccountAddress> VotingPowerManager::GetRep(
         logos::account_info const & info,
         MDB_txn* txn)

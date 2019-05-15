@@ -244,6 +244,7 @@ void StakingManager::IterateThawingFunds(
 
 }
 
+//Is this function used?
 void StakingManager::IterateThawingFunds(
         AccountAddress const & origin,
         std::function<bool(logos::store_iterator&)> func,
