@@ -278,6 +278,10 @@ void StakingManager::ProcessThawingFunds(
 
 
 
+
+
+
+
 //Note, staking_subchain head needs to be up to date before this function is 
 //called, for updates to available balance to work correctly
 //The request that staking_subchain_head references must also be stored in the db
@@ -291,6 +295,85 @@ void StakingManager::Stake(
 {
     Amount amount_left = amount;
     StakedFunds cur_stake;
+    
+
+    //****Definition of various lambda functions****
+
+    auto begin_thawing = [&](Amount const & amount_to_thaw)
+    {
+        ThawingFunds thawing = CreateThawingFunds(cur_stake.target, origin, epoch, txn);
+        Extract(cur_stake, thawing, amount_to_thaw, origin, epoch, txn);
+        Store(thawing, origin, txn);
+
+    };
+
+    auto subtract_voting_power = [&](StakedFunds const & cur_stake)
+    {
+        //Subtract voting power from target
+        if(target == origin)
+        {
+            _voting_power_mgr.SubtractSelfStake(cur_stake.target, cur_stake.amount, epoch, txn);
+        }
+        else
+        {
+            _voting_power_mgr.SubtractLockedProxied(cur_stake.target, cur_stake.amount, epoch, txn);
+            _voting_power_mgr.SubtractUnlockedProxied(cur_stake.target,account_info.GetAvailableBalance(),epoch,txn);
+
+        }
+    };
+
+    auto add_voting_power = [&](StakedFunds const & new_stake)
+    {
+        //Add voting power to new target
+        if(target == origin)
+        {
+        
+            _voting_power_mgr.AddSelfStake(new_stake.target, new_stake.amount, epoch, txn);
+        }
+        else
+        {
+            _voting_power_mgr.AddLockedProxied(new_stake.target, new_stake.amount, epoch, txn);
+
+            _voting_power_mgr.AddUnlockedProxied(new_stake.target,account_info.GetAvailableBalance(), epoch, txn);
+        }
+    };
+
+    auto change_target = [&]()
+    {
+
+        subtract_voting_power(cur_stake);
+
+        StakedFunds new_stake = CreateStakedFunds(target, origin, txn);
+        amount_left -= Extract(cur_stake, new_stake, amount_left, origin, epoch, txn);
+
+        add_voting_power(new_stake);
+
+
+        //thaw any remaining funds
+        if(cur_stake.amount > 0)
+        {
+            begin_thawing(cur_stake.amount);
+        }
+        return new_stake;
+    };
+
+    auto reduce_stake = [&]()
+    {
+        Amount amount_to_thaw = cur_stake.amount - amount_left;
+        if(cur_stake.target == origin)
+        {
+           _voting_power_mgr.SubtractSelfStake(cur_stake.target, amount_to_thaw, epoch, txn); 
+        }
+        else
+        {
+            _voting_power_mgr.SubtractLockedProxied(cur_stake.target, amount_to_thaw, epoch, txn);
+        }
+        begin_thawing(amount_to_thaw);
+    
+    };
+
+    //*****Actual work of member function****
+
     boost::optional<StakedFunds> cur_stake_option = GetCurrentStakedFunds(origin, txn);
     //no current stake
     if(!cur_stake_option)
@@ -306,13 +389,7 @@ void StakingManager::Stake(
         cur_stake = cur_stake_option.get();
     }
 
-    auto begin_thawing = [&](Amount const & amount_to_thaw)
-    {
-        ThawingFunds thawing = CreateThawingFunds(cur_stake.target, origin, epoch, txn);
-        Extract(cur_stake, thawing, amount_to_thaw, origin, epoch, txn);
-        Store(thawing, origin, txn);
-
-    };
+    //consistency check
     auto rep_option = _voting_power_mgr.GetRep(account_info,txn);
     if((target != origin && (!rep_option || target != rep_option.get()))
             || (target == origin && rep_option))
@@ -323,59 +400,29 @@ void StakingManager::Stake(
     }
 
     _liability_mgr.PruneSecondaryLiabilities(origin, account_info, epoch, txn);
+
     //if changing target, extract from existing stake
-    if(target != cur_stake.target)
+    if(target != cur_stake.target && cur_stake_option)
     {
-        if(cur_stake.target == origin)
-        {
-            _voting_power_mgr.SubtractSelfStake(cur_stake.target, cur_stake.amount, epoch, txn);
-        }
-        else
-        {
-            _voting_power_mgr.SubtractLockedProxied(cur_stake.target, cur_stake.amount, epoch, txn);
-            _voting_power_mgr.SubtractUnlockedProxied(cur_stake.target,account_info.GetAvailableBalance(),epoch,txn);
-            if(target != origin)
-            {
-                _voting_power_mgr.AddUnlockedProxied(target,account_info.GetAvailableBalance(), epoch, txn);
-            }
-        }
-        StakedFunds new_stake = CreateStakedFunds(target, origin, txn);
-        amount_left -= Extract(cur_stake, new_stake, amount_left, origin, epoch, txn);
-        if(cur_stake.amount > 0)
-        {
-            begin_thawing(cur_stake.amount);
-        }
-        if(target == origin)
-        {
-        
-            _voting_power_mgr.AddSelfStake(new_stake.target, new_stake.amount, epoch, txn);
-        }
-        else
-        {
-            _voting_power_mgr.AddLockedProxied(new_stake.target, new_stake.amount, epoch, txn);
-        }
-        cur_stake = new_stake;
+        cur_stake = change_target();
     }
+    //request is not changing target and is reducing stake to current target
     else if(amount_left < cur_stake.amount)
     {
-        Amount amount_to_thaw = cur_stake.amount - amount_left;
-        if(cur_stake.target == origin)
-        {
-           _voting_power_mgr.SubtractSelfStake(cur_stake.target, amount_to_thaw, epoch, txn); 
-        }
-        else
-        {
-            _voting_power_mgr.SubtractLockedProxied(cur_stake.target, amount_to_thaw, epoch, txn);
-        }
-        begin_thawing(amount_to_thaw);
+        reduce_stake();
         return;
     }
+    //request is not changing target, and is increasing stake to current target
     else
     {
         amount_left -= cur_stake.amount;
     }
+
+
     if(amount_left > 0)
     {
+        //stake portion of request has not been fulfilled, need to use thawing funds
+        //and possibly available funds
        if(target == origin)
        {
            _voting_power_mgr.AddSelfStake(target, amount_left, epoch, txn);
@@ -384,17 +431,21 @@ void StakingManager::Stake(
        {
            _voting_power_mgr.AddLockedProxied(target, amount_left, epoch, txn);
        }
+
        auto extract_thawing = [&](ThawingFunds & t)
        {
             amount_left -= Extract(t, cur_stake, amount_left, origin, epoch, txn);
             return amount_left > 0;
        }; 
        ProcessThawingFunds(origin, extract_thawing, txn);
+
        if(amount_left > 0)
        {
+           //still need to stake more even after using thawing, so use available funds
             StakeAvailableFunds(cur_stake, amount_left, origin, account_info, epoch, txn);
        }
     }
+    //Finally, store the updated staked funds
     Store(cur_stake, origin, txn);
 }
 
@@ -409,10 +460,13 @@ bool StakingManager::Validate(
 {
     Amount available = info.GetAvailableBalance() - fee
         + GetPruneableThawingAmount(origin, info, epoch, txn);
+    //if account has enough available funds, we know request will succeed, even
+    //if software uses thawing funds or existing staked funds instead
     if(available >= amount)
     {
         return true;
     }
+
     Amount remaining = amount - available;
     boost::optional<StakedFunds> cur_stake_option =
         GetCurrentStakedFunds(origin, txn);
@@ -422,7 +476,9 @@ bool StakingManager::Validate(
     {
         cur_stake = cur_stake_option.get();
     }
-    if(cur_stake.amount > 0)
+    //if not enough available funds, attempt to use existing stake to satisfy
+    //remaining portion of request
+    if(cur_stake_option && cur_stake.amount > 0)
     {
         if(cur_stake.target == target 
                 || _liability_mgr.CanCreateSecondaryLiability(cur_stake.target, origin, info, epoch, txn))
@@ -436,22 +492,25 @@ bool StakingManager::Validate(
         }
     }
     bool res = false;
+    //if available funds and staked funds together cannot satisfy request,
+    //attempt to use thawing funds to satisfy remaining portion of request
     ProcessThawingFunds(origin,[&](ThawingFunds & t)
+        {
+            if(t.target == target 
+                    || (!secondary_liability_created &&
+                        _liability_mgr.CanCreateSecondaryLiability(t.target, origin, info, epoch, txn))
+                    || (secondary_liability_created && cur_stake.target == t.target))
             {
-                if(t.target == target 
-                        || (!secondary_liability_created &&
-                           _liability_mgr.CanCreateSecondaryLiability(t.target, origin, info, epoch, txn))
-                        || (secondary_liability_created && cur_stake.target == t.target))
+                if(t.amount >= remaining)
                 {
-                    if(t.amount >= remaining)
-                    {
-                        res = true;
-                        return false;   
-                    }
-                    remaining -= t.amount;
+                    res = true;
+                    return false;   
                 }
-               return true; 
-            },txn);
+                remaining -= t.amount;
+            }
+            return true; 
+        }
+        ,txn);
 
     return res;
 }
@@ -488,7 +547,6 @@ void StakingManager::PruneThawing(
 
 }
 
-//TODO abstract thawing funds iteration
 Amount StakingManager::GetPruneableThawingAmount(
         AccountAddress const & origin,
         logos::account_info const & info,

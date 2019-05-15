@@ -43,6 +43,13 @@ class StakingManager
             MDB_txn* txn);
 
     /* Returns true if origin can stake amount to target in epoch
+     * @param origin account that owns funds to stake
+     * @param info account_info associated with origin
+     * @param amount amount to set stake to (can be less than current stake)
+     * @param target account to stake to (either self or origin's rep)
+     * @param epoch epoch number in which this action will occur
+     * @param fee fee being charged for request
+     * @returns true if action is valid
      * No side effects
      */
     bool Validate(
