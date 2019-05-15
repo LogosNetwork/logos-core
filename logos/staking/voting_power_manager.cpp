@@ -498,6 +498,7 @@ Amount VotingPowerManager::GetCurrentVotingPower(
 }
 
 
+//Note, this function does not transition, only use for testing
 bool VotingPowerManager::GetVotingPowerInfo(AccountAddress const & rep, VotingPowerInfo& info, MDB_txn* txn)
 {
     if(!txn)

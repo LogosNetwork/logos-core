@@ -31,16 +31,16 @@ ThawingFunds StakingManager::CreateThawingFunds(
 }
 
 
-void StakingManager::UpdateAmount(
+void StakingManager::UpdateAmountAndStore(
         ThawingFunds & funds,
         AccountAddress const & origin,
-        Amount const & amount,
+        Amount const & new_amount,
         MDB_txn* txn)
 {
     //Since thawing_db uses duplicate keys, must delete old record
     //and store new record in order to update
     Delete(funds, origin, txn);
-    funds.amount = amount;
+    funds.amount = new_amount;
 
     if(funds.amount > 0)
     {
@@ -52,13 +52,13 @@ void StakingManager::UpdateAmount(
     }
 }
 
-void StakingManager::UpdateAmount(
+void StakingManager::UpdateAmountAndStore(
         StakedFunds & funds,
         AccountAddress const & origin,
-        Amount const & amount,
+        Amount const & new_amount,
         MDB_txn* txn)
 {
-    funds.amount = amount;
+    funds.amount = new_amount;
 
     if(funds.amount > 0)
     {
@@ -86,12 +86,12 @@ template <typename T, typename R>
 Amount StakingManager::Extract(
         T & input,
         R & output,
-        Amount const & amount,
+        Amount const & amount_to_extract,
         AccountAddress const & origin,
         uint32_t const & epoch,
         MDB_txn* txn)
 {
-    Amount to_extract = amount;
+    Amount to_extract = amount_to_extract;
     if(to_extract > input.amount)
     {
         to_extract = input.amount;
@@ -103,18 +103,21 @@ Amount StakingManager::Extract(
         {
             return 0;
         }
+        //If extracting from thawing, secondary liability will have same expiration
+        //as ThawingFunds
         uint32_t liability_expiration = GetExpiration(input);
         if(liability_expiration  == 0)
         {
             liability_expiration = epoch + THAWING_PERIOD;
         }
         bool res = _liability_mgr.CreateSecondaryLiability(input.target,origin,to_extract,liability_expiration,txn);
+        //failed to create secondary liability
         if(!res)
         {
             return 0;
         }
     }
-    UpdateAmount(input, origin, input.amount - to_extract, txn);
+    UpdateAmountAndStore(input, origin, input.amount - to_extract, txn);
     output.amount += to_extract;
     
     return to_extract;
@@ -153,18 +156,9 @@ void StakingManager::Store(
         AccountAddress const & origin,
         MDB_txn* txn)
 {
-    for(auto it = logos::store_iterator(txn,_store.thawing_db, logos::mdb_val(origin));
-            it != logos::store_iterator(nullptr) && it->first.uint256() == origin; ++it)
+    bool stored = false;
+    auto update = [&funds,&stored,&txn,this](ThawingFunds& t, logos::store_iterator& it)
     {
-        ThawingFunds t; 
-        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (it->second.data ()), it->second.size ());
-        bool error = t.Deserialize (stream);
-        if(error)
-        {
-            LOG_FATAL(_log) << "StakingManager::Store - "
-                << "Error deserializing ThawingFunds for account = " << origin.to_string();
-            trace_and_halt();
-        }
         //Thawing funds with same target and expiration epoch are consolidated
         if(t.target == funds.target && t.expiration_epoch == funds.expiration_epoch)
         {
@@ -173,18 +167,25 @@ void StakingManager::Store(
             t.amount += funds.amount;
             mdb_cursor_put(it.cursor,it->first,t.to_mdb_val(buf),MDB_CURRENT);
             _liability_mgr.UpdateLiabilityAmount(t.liability_hash,t.amount,txn);
-            return;
+            stored = true;
+            return false;
         }
+        //return t.expiration_epoch > funds.expiration_epoch;
         else if(t.expiration_epoch < funds.expiration_epoch)
         {
             //Thawing funds are stored in reverse order of expiration
             //expiration_epoch will only continue to decrease
-            break;
+            return false;
         }
+        return true;
+    };
+    ProcessThawingFunds(origin,update,txn);
 
+    if(!stored)
+    {
+        _store.put(_store.thawing_db, logos::mdb_val(origin), funds, txn);
+        _liability_mgr.UpdateLiabilityAmount(funds.liability_hash, funds.amount, txn);
     }
-    _store.put(_store.thawing_db, logos::mdb_val(origin), funds, txn);
-    _liability_mgr.UpdateLiabilityAmount(funds.liability_hash, funds.amount, txn);
 }
 
 void StakingManager::Delete(
@@ -227,11 +228,11 @@ std::vector<ThawingFunds> StakingManager::GetThawingFunds(
         thawing.push_back(funds);
         return true;
     };
-    IterateThawingFunds(origin, make_vec, txn);
+    ProcessThawingFunds(origin, make_vec, txn);
     return thawing;
 }
 
-void StakingManager::IterateThawingFunds(
+void StakingManager::ProcessThawingFunds(
         AccountAddress const & origin,
         std::function<bool(ThawingFunds & funds)> func,
         MDB_txn* txn)
@@ -240,24 +241,13 @@ void StakingManager::IterateThawingFunds(
     {
         return func(funds);
     };
-    IterateThawingFunds(origin,func2,txn);
+    ProcessThawingFunds(origin,func2,txn);
 
 }
 
-//Is this function used?
-void StakingManager::IterateThawingFunds(
-        AccountAddress const & origin,
-        std::function<bool(logos::store_iterator&)> func,
-        MDB_txn* txn)
-{
-    auto func2 = [func](ThawingFunds& funds, logos::store_iterator& it)
-    {
-        return func(it);
-    };
-    IterateThawingFunds(origin, func2, txn);
-}
 
-void StakingManager::IterateThawingFunds(
+
+void StakingManager::ProcessThawingFunds(
         AccountAddress const & origin,
         std::function<bool(ThawingFunds& funds, logos::store_iterator&)> func,
         MDB_txn* txn)
@@ -270,11 +260,12 @@ void StakingManager::IterateThawingFunds(
             return;
         }
         ThawingFunds t; 
-        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (it->second.data ()), it->second.size ());
+        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (
+                    it->second.data ()), it->second.size ());
         bool error = t.Deserialize (stream);
         if(error)
         {
-            LOG_FATAL(_log) << "StakingManager::IterateThawingFunds - "
+            LOG_FATAL(_log) << "StakingManager::ProcessThawingFunds - "
                 << "Error deserializing ThawingFunds for account = " << origin.to_string();
             trace_and_halt();
         }
@@ -398,7 +389,7 @@ void StakingManager::Stake(
             amount_left -= Extract(t, cur_stake, amount_left, origin, epoch, txn);
             return amount_left > 0;
        }; 
-       IterateThawingFunds(origin, extract_thawing, txn);
+       ProcessThawingFunds(origin, extract_thawing, txn);
        if(amount_left > 0)
        {
             StakeAvailableFunds(cur_stake, amount_left, origin, account_info, epoch, txn);
@@ -445,7 +436,7 @@ bool StakingManager::Validate(
         }
     }
     bool res = false;
-    IterateThawingFunds(origin,[&](ThawingFunds & t)
+    ProcessThawingFunds(origin,[&](ThawingFunds & t)
             {
                 if(t.target == target 
                         || (!secondary_liability_created &&
@@ -493,7 +484,7 @@ void StakingManager::PruneThawing(
         }
         return true;
     };
-    IterateThawingFunds(origin,func,txn);
+    ProcessThawingFunds(origin,func,txn);
 
 }
 
@@ -518,7 +509,7 @@ Amount StakingManager::GetPruneableThawingAmount(
         return true;
     };
 
-    IterateThawingFunds(origin,func,txn);
+    ProcessThawingFunds(origin,func,txn);
     return total;
 }
 
@@ -567,7 +558,7 @@ void StakingManager::MarkThawingAsFrozen(
         }
         return true;
     };
-    IterateThawingFunds(origin, update, txn);
+    ProcessThawingFunds(origin, update, txn);
     for(auto t : updated)
     {
         Store(t,origin,txn);
@@ -613,7 +604,7 @@ void StakingManager::SetExpirationOfFrozen(
         }
         return true;
     };
-    IterateThawingFunds(origin, update, txn);
+    ProcessThawingFunds(origin, update, txn);
     for(auto t : updated)
     {
         Store(t,origin,txn);

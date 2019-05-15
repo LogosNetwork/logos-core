@@ -544,7 +544,7 @@ TEST(Staking_Manager, Thawing)
     staking_mgr.Store(t3, origin, txn);
 
     std::vector<ThawingFunds> thawing;
-    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+    staking_mgr.ProcessThawingFunds(origin,[&](ThawingFunds & funds) {
             thawing.push_back(funds);
             return true;
             }, txn);
@@ -560,7 +560,7 @@ TEST(Staking_Manager, Thawing)
     staking_mgr.Store(t4, origin, txn);
 
     thawing.clear();
-    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+    staking_mgr.ProcessThawingFunds(origin,[&](ThawingFunds & funds) {
             thawing.push_back(funds);
             return true;
             }, txn);
@@ -578,7 +578,7 @@ TEST(Staking_Manager, Thawing)
     staking_mgr.Store(t5, origin, txn);
 
     thawing.clear();
-    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+    staking_mgr.ProcessThawingFunds(origin,[&](ThawingFunds & funds) {
             thawing.push_back(funds);
             return true;
             }, txn);
@@ -595,7 +595,7 @@ TEST(Staking_Manager, Thawing)
     t6.amount = 100;
     staking_mgr.Store(t6, origin, txn);
     thawing.clear();
-    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+    staking_mgr.ProcessThawingFunds(origin,[&](ThawingFunds & funds) {
             thawing.push_back(funds);
             return true;
             }, txn);
@@ -645,7 +645,7 @@ TEST(Staking_Manager, Thawing)
     ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
 
     std::vector<ThawingFunds> thawing2;
-    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+    staking_mgr.ProcessThawingFunds(origin,[&](ThawingFunds & funds) {
             thawing2.push_back(funds);
             return true;
             }, txn);
@@ -663,7 +663,7 @@ TEST(Staking_Manager, Thawing)
     ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
 
     thawing2.clear();
-    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+    staking_mgr.ProcessThawingFunds(origin,[&](ThawingFunds & funds) {
             thawing2.push_back(funds);
             return true;
             }, txn);
@@ -680,7 +680,7 @@ TEST(Staking_Manager, Thawing)
     ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
 
     thawing2.clear();
-    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+    staking_mgr.ProcessThawingFunds(origin,[&](ThawingFunds & funds) {
             thawing2.push_back(funds);
             return true;
             }, txn);
@@ -700,7 +700,7 @@ TEST(Staking_Manager, Thawing)
     ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
 
     thawing2.clear();
-    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+    staking_mgr.ProcessThawingFunds(origin,[&](ThawingFunds & funds) {
             thawing2.push_back(funds);
             return true;
             }, txn);
@@ -730,7 +730,7 @@ TEST(Staking_Manager, Thawing)
 
     ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
     thawing2.clear();
-    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+    staking_mgr.ProcessThawingFunds(origin,[&](ThawingFunds & funds) {
             thawing2.push_back(funds);
             return true;
             }, txn);
@@ -748,7 +748,7 @@ TEST(Staking_Manager, Thawing)
 
     ASSERT_EQ(staking_mgr.GetPruneableThawingAmount(origin,info,epoch,txn),0);
     thawing2.clear();
-    staking_mgr.IterateThawingFunds(origin,[&](ThawingFunds & funds) {
+    staking_mgr.ProcessThawingFunds(origin,[&](ThawingFunds & funds) {
             thawing2.push_back(funds);
             return true;
             }, txn);
@@ -948,7 +948,7 @@ TEST(Staking_Manager, Extract)
 
     StakedFunds s1 = staking_mgr.CreateStakedFunds(target,origin,txn);
     ASSERT_TRUE(liability_match(s1));
-    staking_mgr.UpdateAmount(s1,origin,100,txn);
+    staking_mgr.UpdateAmountAndStore(s1,origin,100,txn);
 
     ASSERT_TRUE(liability_match(s1));
 
