@@ -155,10 +155,10 @@ class StakingManager
      * liability
      * If amount is 0, deletes funds and associated liability
      */
-    void UpdateAmount(
+    void UpdateAmountAndStore(
             ThawingFunds & funds,
             AccountAddress const & origin,
-            Amount const & amount,
+            Amount const & new_amount,
             MDB_txn* txn);
 
     /*
@@ -166,33 +166,35 @@ class StakingManager
      * liability
      * If amount is 0, deletes funds and associated liability
      */
-    void UpdateAmount(
+    void UpdateAmountAndStore(
             StakedFunds & funds,
             AccountAddress const & origin,
-            Amount const & amount,
+            Amount const & new_amount,
             MDB_txn* txn);
 
-    /* Extract attempts to move amount funds from input to output
-    * If input.amount < amount, extract moves all of input.amount to output
+    /* Extract attempts to move amount_to_extract funds from input to output
+    * If input.amount < amount_to_extract, extract moves all of input.amount to output
+    * @param input funds to extract from
+    * @param output funds to extract into 
+    * @param amount_to_extract amount to attempt to extract
     * @param origin account that owns the funds
     * @param epoch epoch during which to move funds
-    * Returns the amount moved
+    * @return the amount extracted
     * Side effects :
     * creates secondary liability if necessary
-    * Stores updated input in db
-    * Updates liability for input in db
+    * calls UpdateAmountAndStore(...) for input
     *
     * Note:
     * Any changes to output are not stored in db
     * It is the callers responsibility to store output in db
-    * Reasoning is that caller may want to call extract multiple
+    * Caller may want to call extract multiple
     * times with the same output and different inputs
     */
     template <typename T, typename R>
     Amount Extract(
             T & input,
             R & output,
-            Amount const & amount,
+            Amount const & amount_to_extract,
             AccountAddress const & origin,
             uint32_t const & epoch,
             MDB_txn* txn);
@@ -205,26 +207,20 @@ class StakingManager
      * Note, thawing funds are stored and processed in reverse order of expiration
      * (furthest from thawing stored first)
      */
-    void IterateThawingFunds(
+    void ProcessThawingFunds(
             AccountAddress const & origin,
             std::function<bool(ThawingFunds & funds)> func,
             MDB_txn* txn);
 
+
+
     /*
-     * Iterates ThawingFunds for origin, and executes func for each store_iterator
-     * that points to a thawing fund
+     * Executes func for each ThawingFund owned by origin
      * If func returns false, iteration stops
      * Note, thawing funds are stored and processed in reverse order of expiration
      * (furthest from thawing stored first)
-     * Note, this function allows the caller to execute mdb_cursor operations
-     * for each thawing fund (such as deletion)
      */
-    void IterateThawingFunds(
-            AccountAddress const & origin,
-            std::function<bool(logos::store_iterator & it)> func,
-            MDB_txn* txn);
-
-    void IterateThawingFunds(
+    void ProcessThawingFunds(
             AccountAddress const & origin,
             std::function<bool(ThawingFunds& funds, logos::store_iterator&)> func,
             MDB_txn* txn);
