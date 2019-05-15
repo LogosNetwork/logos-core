@@ -129,6 +129,7 @@ struct AnnounceCandidacy : Request
     ECIESPublicKey ecies_key;
     uint32_t epoch_num;
     BlockHash staking_subchain_prev;
+    uint8_t levy_percentage;
 };
 
 struct RenounceCandidacy : Request
@@ -196,6 +197,7 @@ struct StartRepresenting : Request
     Amount stake;
     uint32_t epoch_num;
     BlockHash staking_subchain_prev;
+    uint8_t levy_percentage;
 };
 
 struct StopRepresenting : Request

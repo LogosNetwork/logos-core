@@ -11,12 +11,18 @@ RepInfo::RepInfo(const StartRepresenting& request)
     : RepInfo()
 {
     rep_action_tip = request.GetHash();
+    levy_percentage = request.levy_percentage;
 }
 
 RepInfo::RepInfo(const AnnounceCandidacy& request)
     : RepInfo()
 {
     rep_action_tip = request.GetHash();
+    candidacy_action_tip = request.GetHash();
+    //TODO this is not necessarily correct. The levy_percentage associated
+    //with announce candidacy is a delegate levy_percentage
+    //need a way to specify two levy percentages in the same request?
+    levy_percentage = request.levy_percentage;
 }
 
 

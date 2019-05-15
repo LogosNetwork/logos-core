@@ -8,6 +8,7 @@ AnnounceCandidacy::AnnounceCandidacy()
     : Request(RequestType::AnnounceCandidacy)
     , set_stake(false)
     , staking_subchain_prev(0)
+    , levy_percentage(100)
 {}  
 
 AnnounceCandidacy::AnnounceCandidacy(bool & error,
@@ -92,6 +93,7 @@ AnnounceCandidacy::AnnounceCandidacy(bool & error,
         ecies_key.DeserializeJson(tree);
         epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
         staking_subchain_prev.decode_hex(tree.get<std::string>(STAKING_SUB_PREV));
+        levy_percentage = std::stol(tree.get<std::string>("levy_percentage"));
     }
     catch(std::exception& e)
     {
@@ -111,6 +113,7 @@ uint64_t AnnounceCandidacy::Serialize(logos::stream & stream) const
     val += ecies_key.Serialize(stream);
     val += logos::write(stream, epoch_num);
     val += logos::write(stream, staking_subchain_prev);
+    val += logos::write(stream, levy_percentage);
     val += logos::write(stream, signature);
     return val;
 }
@@ -148,6 +151,12 @@ void AnnounceCandidacy::Deserialize(bool & error, logos::stream & stream)
     }
 
     error = logos::read(stream, staking_subchain_prev);
+    if(error)
+    {
+       return; 
+    }
+
+    error = logos::read(stream, levy_percentage);
     if(error)
     {
        return; 
@@ -193,6 +202,7 @@ boost::property_tree::ptree AnnounceCandidacy::SerializeJson() const
     ecies_key.SerializeJson(tree);
     tree.put(EPOCH_NUM,epoch_num);
     tree.put(STAKING_SUB_PREV,staking_subchain_prev.to_string());
+    tree.put("levy_percentage",levy_percentage);
     return tree;
 }
 
@@ -425,6 +435,7 @@ void StartRepresenting::Hash(blake2b_state& hash) const
 
     blake2b_update(&hash, &stake, sizeof(stake));
     blake2b_update(&hash, &epoch_num, sizeof(epoch_num));
+    blake2b_update(&hash, &levy_percentage, sizeof(levy_percentage));
 }
 
 void StopRepresenting::Hash(blake2b_state& hash) const
@@ -440,6 +451,7 @@ void AnnounceCandidacy::Hash(blake2b_state& hash) const
     bls_key.Hash(hash);
     ecies_key.Hash(hash);
     blake2b_update(&hash, &epoch_num, sizeof(epoch_num));
+    blake2b_update(&hash, &levy_percentage, sizeof(levy_percentage));
 }
 
 void RenounceCandidacy::Hash(blake2b_state& hash) const
@@ -549,6 +561,7 @@ bool AnnounceCandidacy::operator==(const AnnounceCandidacy& other) const
        && ecies_key == other.ecies_key
        && epoch_num == other.epoch_num
         && staking_subchain_prev == other.staking_subchain_prev
+        && levy_percentage == other.levy_percentage
         && Request::operator==(other);
 }
 
@@ -564,6 +577,7 @@ bool StartRepresenting::operator==(const StartRepresenting& other) const
     return stake == other.stake
         && epoch_num == other.epoch_num
         && staking_subchain_prev == other.staking_subchain_prev
+        && levy_percentage == other.levy_percentage
         && Request::operator==(other);
 }
 
@@ -583,6 +597,7 @@ StartRepresenting::StartRepresenting()
     : Request(RequestType::StartRepresenting)
     , set_stake(false)
     , staking_subchain_prev(0)
+    , levy_percentage(100)
 {}
 
 StartRepresenting::StartRepresenting(bool & error,
@@ -633,6 +648,7 @@ StartRepresenting::StartRepresenting(bool & error,
         error = DeserializeStakeJson(tree, stake, set_stake);
         epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
         staking_subchain_prev.decode_hex(tree.get<std::string>(STAKING_SUB_PREV));
+        levy_percentage = std::stol(tree.get<std::string>("levy_percentage"));
         SignAndHash(error, tree);
     }
     catch(...)
@@ -650,6 +666,7 @@ uint64_t StartRepresenting::Serialize(logos::stream & stream) const
     }
     val += logos::write(stream, epoch_num);
     val += logos::write(stream, staking_subchain_prev);
+    val += logos::write(stream, levy_percentage);
     val += logos::write(stream, signature);
     return val;
 }
@@ -677,6 +694,12 @@ void StartRepresenting::Deserialize(bool& error, logos::stream& stream)
     }
 
     error = logos::read(stream, staking_subchain_prev);
+    if(error)
+    {
+        return;
+    }
+
+    error = logos::read(stream, levy_percentage);
     if(error)
     {
         return;
@@ -721,6 +744,7 @@ boost::property_tree::ptree StartRepresenting::SerializeJson() const
     tree.put(STAKE,stake.to_string());
     tree.put(EPOCH_NUM,epoch_num);
     tree.put(STAKING_SUB_PREV,staking_subchain_prev.to_string());
+    tree.put("levy_percentage",levy_percentage);
     return tree;
 }
 

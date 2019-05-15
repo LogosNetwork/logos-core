@@ -2480,9 +2480,6 @@ bool PersistenceManager<R>::ValidateRequest(
     }
     if(request.epoch_num != cur_epoch_num)
     {
-        LOG_ERROR(_log) << "PersistenceManager<R>::ValidateRequest (Proxy) - "
-            << "cur_epoch_num = " << cur_epoch_num
-            << " request.epoch_num  = " << request.epoch_num;
         result.code = logos::process_result::wrong_epoch_number;
         return false;
     }

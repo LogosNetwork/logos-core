@@ -21,7 +21,7 @@ class VotingPowerManager
 
     VotingPowerManager(BlockStore& store) : _store(store) {}
 
-    static void Init(BlockStore& store)
+    static void SetInstance(BlockStore& store)
     {
         instance.reset(new VotingPowerManager(store));
     }

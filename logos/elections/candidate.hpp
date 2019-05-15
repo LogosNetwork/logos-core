@@ -26,4 +26,5 @@ struct CandidateInfo
     ECIESPublicKey ecies_key;
     Amount stake;
     uint32_t epoch_modified;
+    uint8_t levy_percentage;
 };

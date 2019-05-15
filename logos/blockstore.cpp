@@ -362,7 +362,7 @@ checksum (0)
         //staking
         error_a |= mdb_dbi_open (transaction, "voting_power_db", MDB_CREATE, &voting_power_db);
         error_a |= mdb_dbi_open (transaction, "voting_power_fallback_db", MDB_CREATE, &voting_power_fallback_db);
-        VotingPowerManager::Init(*this);
+        VotingPowerManager::SetInstance(*this);
         error_a |= mdb_dbi_open (transaction, "staking_db", MDB_CREATE, &staking_db);
         error_a |= mdb_dbi_open (transaction, "thawing_db", MDB_CREATE | MDB_DUPSORT, &thawing_db);
         StakingManager::SetInstance(*this);

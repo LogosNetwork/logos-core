@@ -311,11 +311,12 @@ void PersistenceManager<ECT>::AddReelectionCandidates(
 void PersistenceManager<ECT>::UpdateRepresentativesDB(MDB_txn* txn)
 {
     VotingPowerManager voting_power_mgr(_store);
+    auto vpm = VotingPowerManager::GetInstance();
     for(auto it = logos::store_iterator(txn, _store.remove_reps_db);
             it != logos::store_iterator(nullptr); ++it)
     {
         auto status (mdb_del(txn, _store.representative_db, it->second, nullptr));
-        voting_power_mgr.TryPrune(it->second.uint256(), txn);
+        vpm->TryPrune(it->second.uint256(), txn);
         assert(status == 0);
     }
 
