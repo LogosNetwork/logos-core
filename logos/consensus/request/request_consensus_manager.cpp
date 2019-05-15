@@ -164,7 +164,7 @@ RequestConsensusManager::ConstructBatch(bool reproposing)
     _current_batch.requests.reserve(sequence.size());
     _current_batch.hashes.reserve(sequence.size());
 
-    //epoch number needs to be set prior to calling ValidateAndUpdated
+    //epoch number needs to be set prior to calling ValidateAndUpdate
     _current_batch.epoch_number = _epoch_number;
     // perform validation against account_db here instead of at request receive time
     std::lock_guard<std::mutex> lock(PersistenceManager<ConsensusType::Request>::_write_mutex);

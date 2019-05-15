@@ -4,6 +4,7 @@ CandidateInfo::CandidateInfo()
     : votes_received_weighted(0)
     , stake(0) 
     , epoch_modified(0)
+    , levy_percentage(100)
 {}
 
 CandidateInfo::CandidateInfo(const AnnounceCandidacy& request)
@@ -12,6 +13,7 @@ CandidateInfo::CandidateInfo(const AnnounceCandidacy& request)
     , ecies_key(request.ecies_key)
     , stake(request.stake)
     , epoch_modified(request.epoch_num)
+    , levy_percentage(request.levy_percentage)
 {}
 
 CandidateInfo::CandidateInfo(bool & error, const logos::mdb_val & mdbval)
@@ -32,6 +34,7 @@ uint32_t CandidateInfo::serialize(logos::stream & stream) const
     val += ecies_key.Serialize(stream);
     val += logos::write(stream, stake);
     val += logos::write(stream, epoch_modified);
+    val += logos::write(stream, levy_percentage);
     return val;
 }
 
@@ -57,15 +60,22 @@ bool CandidateInfo::deserialize(logos::stream & stream)
     {
         return error;
     }
-    return logos::read(stream, epoch_modified);
+    error = logos::read(stream, epoch_modified);
+    if(error)
+    {
+        return error;
+    }
+    return logos::read(stream, levy_percentage);
 }
+
 bool CandidateInfo::operator==(const CandidateInfo& other) const
 {
     return votes_received_weighted == other.votes_received_weighted
         && bls_key == other.bls_key
         && ecies_key == other.ecies_key
         && stake == other.stake
-        && epoch_modified == other.epoch_modified;
+        && epoch_modified == other.epoch_modified
+        && levy_percentage == other.levy_percentage;
 }
 bool CandidateInfo::operator!=(const CandidateInfo& other) const
 {
@@ -88,5 +98,6 @@ boost::property_tree::ptree CandidateInfo::SerializeJson() const
     tree.put("bls_key", bls_key.to_string());
     ecies_key.SerializeJson(tree);
     tree.put("stake", stake.to_string());
+    tree.put("levy_percentage", levy_percentage);
     return tree;
 }
