@@ -245,6 +245,25 @@ void StakingManager::ProcessThawingFunds(
 
 }
 
+uint8_t StakingManager::GetThawingCount(
+        AccountAddress const & origin,
+        MDB_txn* txn)
+{
+    uint8_t count = 0;
+    for(auto it = logos::store_iterator(txn,_store.thawing_db, logos::mdb_val(origin));
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        if(it->first.uint256() != origin)
+        {
+            return count;
+        }
+        else
+        {
+            ++count;
+        }
+    }
+}
+
 
 
 void StakingManager::ProcessThawingFunds(
@@ -460,32 +479,81 @@ bool StakingManager::Validate(
 {
     Amount available = info.GetAvailableBalance() - fee
         + GetPruneableThawingAmount(origin, info, epoch, txn);
-    //if account has enough available funds, we know request will succeed, even
-    //if software uses thawing funds or existing staked funds instead
-    if(available >= amount)
-    {
-        return true;
-    }
 
-    Amount remaining = amount - available;
+
     boost::optional<StakedFunds> cur_stake_option =
         GetCurrentStakedFunds(origin, txn);
-    bool secondary_liability_created = false;
     StakedFunds cur_stake;
     if(cur_stake_option)
     {
         cur_stake = cur_stake_option.get();
     }
+    //function local cache, since CanCreateSecondaryLiability is invoked
+    //multiple times in this function from multiple places
+    //avoiding repeating the same work by using cache
+    std::unordered_map<AccountAddress,bool> secondary_liability_cache;
+    bool already_created_secondary = false;
+
+    auto can_create_secondary_liability = [&](AccountAddress& target)
+    {
+
+        if(secondary_liability_cache.find(target) == secondary_liability_cache.end())
+        {
+            if(already_created_secondary)
+            {
+                return false;
+            }
+            bool can_create = 
+                _liability_mgr.CanCreateSecondaryLiability(target, origin, info, epoch, txn);
+            if(can_create)
+            {
+                already_created_secondary = true;
+            }
+            secondary_liability_cache[target] = can_create;
+            return can_create;
+        }
+        return secondary_liability_cache[target];
+    };
+
+    //make sure request does not create more thawing funds than software allows at one time
+    auto thawing_check = [&]()
+    {
+        //Setting max_thawing to THAWING_PERIOD allows users to create
+        //one set of thawing funds per epoch
+        uint8_t max_thawing = THAWING_PERIOD;
+        if(cur_stake_option)
+        {
+            //if these conditions hold, thawing funds will be created
+            if(amount < cur_stake.amount
+                    || (cur_stake.target != target
+                        && !can_create_secondary_liability(cur_stake.target)))
+            {
+               
+                return GetThawingCount(origin,txn) <= max_thawing;
+            }
+        }
+        return true;
+    };
+    //if account has enough available funds, we know request will succeed, even
+    //if software uses thawing funds or existing staked funds instead
+    if(available >= amount)
+    {
+        return thawing_check();
+    }
+
+    Amount remaining = amount - available;
+    bool secondary_liability_created = false;
+
     //if not enough available funds, attempt to use existing stake to satisfy
     //remaining portion of request
     if(cur_stake_option && cur_stake.amount > 0)
     {
         if(cur_stake.target == target 
-                || _liability_mgr.CanCreateSecondaryLiability(cur_stake.target, origin, info, epoch, txn))
+                || can_create_secondary_liability(cur_stake.target))
         {
             if(cur_stake.amount >= remaining)
             {
-                return true;
+                return thawing_check();
             }
             remaining -= cur_stake.amount;
             secondary_liability_created = cur_stake.target != target;
@@ -497,9 +565,7 @@ bool StakingManager::Validate(
     ProcessThawingFunds(origin,[&](ThawingFunds & t)
         {
             if(t.target == target 
-                    || (!secondary_liability_created &&
-                        _liability_mgr.CanCreateSecondaryLiability(t.target, origin, info, epoch, txn))
-                    || (secondary_liability_created && cur_stake.target == t.target))
+                    || can_create_secondary_liability(t.target))
             {
                 if(t.amount >= remaining)
                 {
@@ -512,7 +578,7 @@ bool StakingManager::Validate(
         }
         ,txn);
 
-    return res;
+    return res && thawing_check();
 }
 
 

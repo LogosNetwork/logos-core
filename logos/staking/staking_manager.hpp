@@ -122,6 +122,9 @@ class StakingManager
 
     private:
 
+    //Returns number of thawing funds owned by origin
+    uint8_t GetThawingCount(AccountAddress const & origin, MDB_txn*);
+
     /*
      * Creates new StakedFunds with amount = 0, and creates associated liability
      * Liabilities are consolidated based on epoch and target, so the associated
