@@ -229,7 +229,7 @@ bool PersistenceManager<R>::ValidateRequest(
     // Make sure there's enough Logos
     // to cover the request.
     // SG: Add fee back into total being checked because GetLogosTotal does not include the fee
-    if((request->GetLogosTotal()+request->fee) > info->balance)
+    if(request->GetLogosTotal() > info->balance)
     {
         result.code = logos::process_result::insufficient_balance;
         return false;
@@ -929,7 +929,7 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             auto source = dynamic_pointer_cast<logos::account_info>(info);
             assert(send && source);
 
-            source->balance -= send->GetLogosTotal();
+            source->balance -= send->GetLogosTotal()-request->fee;
 
             ApplySend(send,
                       timestamp,
