@@ -323,7 +323,7 @@ void StakingManager::Stake(
     StakedFunds cur_stake;
     
 
-    //****Definition of various lambda functions****
+    //****Definition of various helper lambda functions****
 
     auto begin_thawing = [&](Amount const & amount_to_thaw)
     {

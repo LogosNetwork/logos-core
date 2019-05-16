@@ -1399,16 +1399,6 @@ TEST(Staking, MultipleProxy)
     }
 }
 
-TEST(Staking, ProxyNegativeCase)
-{
-
-    /*
-     * This test ensures all invalid proxy requests are rejected
-     *
-     */
-
-}
-
 TEST(Staking, StakeUnstake)
 {
     /*

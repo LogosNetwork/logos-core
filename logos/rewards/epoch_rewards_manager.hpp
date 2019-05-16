@@ -22,6 +22,9 @@ struct RepEpochInfo
 
 const size_t EPOCH_REWARDS_KEYSIZE = 36;
 
+//TODO: this class is designed to be used for rewards distribution and calculation
+//Devon can use this class in rewards implementation, 
+//or modify it significantly, or throw it out and use something else entirely
 class EpochRewardsManager
 {
     using BlockStore = logos::block_store;
@@ -79,6 +82,9 @@ class EpochRewardsManager
             MDB_txn* txn);
 
     private:
+    //Need to keep track of the total stake that voted in an epoch
+    //because rewards are distributed based on a reps percentage
+    //of total stake that voted (sum of all voting reps stakes)
     void AddGlobalStake(RepEpochInfo const & info, MDB_txn* txn);
 
     void AddGlobalTotalReward(
