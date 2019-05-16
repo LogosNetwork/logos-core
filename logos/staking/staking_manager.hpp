@@ -123,7 +123,10 @@ class StakingManager
     private:
 
     //Returns number of thawing funds owned by origin
-    uint8_t GetThawingCount(AccountAddress const & origin, MDB_txn*);
+    uint8_t GetThawingCount(
+            AccountAddress const & origin,
+            uint32_t cur_epoch,
+            MDB_txn*);
 
     /*
      * Creates new StakedFunds with amount = 0, and creates associated liability
@@ -241,8 +244,9 @@ class StakingManager
 
     /* Stores ThawingFunds in db, and updates amount of associated liability
      * Note, thawing funds that have the same expiration and target are consolidated together
+     * returns true if consolidation occured, or false if a new record was created in db
      */
-    void Store(ThawingFunds & funds, AccountAddress const & origin, MDB_txn* txn);
+    bool Store(ThawingFunds & funds, AccountAddress const & origin, MDB_txn* txn);
 
     // Deletes ThawingFunds from db. Caller's responsibility to delete associated liability
     void Delete(ThawingFunds const & funds, AccountAddress const & origin, MDB_txn* txn);
