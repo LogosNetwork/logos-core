@@ -16,6 +16,21 @@ using LiabilityHash = logos::uint256_union;
  * specifies, then a secondary liability is created, in addition to the liability
  * described above. A secondary liability can be loosely thought of as a record of when
  * an account changed their rep. See StakingManager::Extract for more details
+ * All non-expired secondary liabilities associated with an account must have the
+ * same target, meaning if you reproxy your stake, you must wait one thawing period
+ * to reproxy your stake again. Note that you can still submit a proxy request
+ * with a new rep,except you will have to use new funds (logos) to stake instead of reproxying
+ * existing stake.
+ * Liabilities are referenced by their hash, which is a hash of target, source,
+ * expiration_epoch and is_secondary. Liabilities that are created that have the
+ * same hash will be consolidated together, meaning their amounts will be added
+ * together
+ * Liabilities themselves are stored in master_liabilities_db, but hashes to the
+ * liabilities are stored in rep_liabilities_db, secondary_liabilities_db and
+ * are data members of StakedFunds and ThawingFunds, which are stored in staking_db
+ * and thawing_db
+ * Liabilities are used for slashing, as well as limiting how quickly an account
+ * may reproxy their stake
  */
 struct Liability
 {

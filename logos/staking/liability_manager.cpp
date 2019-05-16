@@ -78,6 +78,15 @@ bool LiabilityManager::CanCreateSecondaryLiability(
         return false;
     }
 
+    Liability l{target, source, 0, cur_epoch + THAWING_PERIOD, true};
+    auto hash = l.Hash();
+
+    if(Exists(hash, txn))
+    {
+        //consolidation will occur, no way for this to fail
+        return true;
+    }
+
     //setting max to THAWING_PERIOD allows accounts to create
     //one secondary liability per epoch
     size_t max_secondary_liabilities = THAWING_PERIOD;
@@ -174,7 +183,7 @@ LiabilityHash LiabilityManager::Store(Liability const & l, MDB_txn* txn)
 {
     LiabilityHash hash = l.Hash();
     Liability existing;
-    //if liability with same expiration, target and source exists, just add to it
+    //if liability with same expiration, target and source exists, consolidate
     if(!_store.get(_store.master_liabilities_db, logos::mdb_val(hash), existing, txn))
     {
         existing.amount += l.amount;
