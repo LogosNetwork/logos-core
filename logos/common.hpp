@@ -129,7 +129,7 @@ public:
     virtual mdb_val to_mdb_val(std::vector<uint8_t> &buf) const = 0;
     
     //IMPORTANT!: Calling this function persists the change in voting_power_db
-    //If you call this function, you must also store the new Account struct in
+    //If you call this function, you must also store the modified Account struct in
     //account_db (by calling account_put). Otherwise, the account_db and
     //voting_power_db will become out of sync
     //This comment does not apply to token accounts
@@ -186,7 +186,7 @@ struct account_info : Account
     static constexpr uint16_t MAX_TOKEN_ENTRIES = std::numeric_limits<uint16_t>::max();
 
     //IMPORTANT!: Calling this function persists the change in voting_power_db
-    //If you call this function, you must also store the new Account struct in
+    //If you call this function, you must also store the modified Account struct in
     //account_db (by calling account_put). Otherwise, the account_db and
     //voting_power_db will become out of sync
     void SetBalance(
