@@ -157,6 +157,9 @@ class VotingPowerManager
 
     private:
 
+    enum STAKE_TYPE { LOCKED_PROXY, UNLOCKED_PROXY, SELF_STAKE};
+    enum OP_TYPE {ADD, SUBTRACT};
+
     /*
      * Helper function
      * Adds or subtracts diff from appropriate member of info
@@ -164,10 +167,10 @@ class VotingPowerManager
     void Modify(
             VotingPowerInfo& info,
             AccountAddress const & account,
-            Amount VotingPowerSnapshot::*snapshot_member,
+            STAKE_TYPE stake_type,
+            OP_TYPE op_type,
             uint32_t const & epoch,
             Amount const & diff,
-            std::function<Amount&(Amount&, Amount const &)> func,
             MDB_txn* txn);
 
 

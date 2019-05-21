@@ -97,56 +97,79 @@ bool VotingPowerManager::TransitionIfNecessary(
     return false;
 }
 
-struct AddFunc {
-    Amount& operator() (Amount& member, Amount const & diff)
-    {
-        if(diff == 0) return member;
-        member += diff;
-        if(member < diff)
-        {
-            Log log;
-            LOG_FATAL(log) << "VotingPowerManager::AddFunc - "
-                << " overflow - member = " << member.to_string()
-                << " diff = " << diff.to_string();
-            trace_and_halt();
-        }
-        return member;
-    }
-};
-
-struct SubtractFunc {
-    Amount& operator() (Amount& member, Amount const & diff)
-    {
-        if(diff == 0) return member;
-        if(diff > member)
-        {
-            Log log;
-            LOG_FATAL(log) << "VotingPowerManager::SubtractFunc - "
-                << " overflow - member = " << member.to_string()
-                << " diff = " << diff.to_string();
-            trace_and_halt();
-        }
-        member -= diff;
-        return member;
-    }
-};
 
 void VotingPowerManager::Modify(
         VotingPowerInfo& info,
         AccountAddress const & account,
-        Amount VotingPowerSnapshot::*snapshot_member,
+        STAKE_TYPE stake_type,
+        OP_TYPE op_type,
         uint32_t const & epoch,
         Amount const & diff,
-        std::function<Amount&(Amount&, Amount const &)> func,
         MDB_txn* txn)
 {
     TransitionIfNecessary(info, epoch, account, txn);
+    auto func = [&op_type](Amount& data, Amount const& diff)
+    {
+        if(diff == 0) return;
+        if(op_type == ADD)
+        {
+            data += diff;
+            if(data < diff)
+            {
+                Log log;
+                LOG_FATAL(log) << "VotingPowerManager::AddFunc - "
+                    << " overflow - data = " << data.to_string()
+                    << " diff = " << diff.to_string();
+                trace_and_halt();
+            }
+        }
+        else
+        {
+            if(diff > data)
+            {
+                Log log;
+                LOG_FATAL(log) << "VotingPowerManager::SubtractFunc - "
+                    << " overflow - data = " << data.to_string()
+                    << " diff = " << diff.to_string();
+                trace_and_halt();
+            }
 
-    VotingPowerSnapshot VotingPowerInfo::*info_member
-        = epoch < info.epoch_modified 
-            ? &VotingPowerInfo::current : &VotingPowerInfo::next;
+            data -= diff;
+        }
+    };
 
-    func(info.*info_member.*snapshot_member, diff);
+
+    if(epoch < info.epoch_modified)
+    {
+        if(stake_type == LOCKED_PROXY)
+        {
+            func(info.current.locked_proxied, diff);
+        }
+        else if(stake_type == UNLOCKED_PROXY)
+        {
+            func(info.current.unlocked_proxied, diff);
+        }
+        else
+        {
+            func(info.current.self_stake, diff);
+        }
+    }
+    else
+    {
+        if(stake_type == LOCKED_PROXY)
+        {
+            func(info.next.locked_proxied, diff);
+        }
+        else if(stake_type == UNLOCKED_PROXY)
+        {
+            func(info.next.unlocked_proxied, diff);
+        }
+        else
+        {
+            func(info.next.self_stake, diff);
+        }
+    }
+
 }
 
 
@@ -231,10 +254,10 @@ bool VotingPowerManager::SubtractLockedProxied(
 
     Modify(info,
            rep,
-           &VotingPowerSnapshot::locked_proxied,
+           STAKE_TYPE::LOCKED_PROXY,
+           OP_TYPE::SUBTRACT,
            epoch_number,
            amount,
-           SubtractFunc(),
            txn);
 
     StoreOrPrune(rep,info,txn);
@@ -265,10 +288,10 @@ bool VotingPowerManager::AddLockedProxied(
 
     Modify(info,
            rep,
-           &VotingPowerSnapshot::locked_proxied,
+           STAKE_TYPE::LOCKED_PROXY,
+           OP_TYPE::ADD,
            epoch_number,
            amount,
-           AddFunc(),
            txn);
 
     StoreOrPrune(rep,info,txn);
@@ -299,10 +322,10 @@ bool VotingPowerManager::SubtractUnlockedProxied(
 
     Modify(info,
            rep,
-           &VotingPowerSnapshot::unlocked_proxied,
+           STAKE_TYPE::UNLOCKED_PROXY,
+           OP_TYPE::SUBTRACT,
            epoch_number,
            amount,
-           SubtractFunc(),
            txn);
 
     StoreOrPrune(rep,info,txn);
@@ -333,10 +356,10 @@ bool VotingPowerManager::AddUnlockedProxied(
 
     Modify(info,
            rep,
-           &VotingPowerSnapshot::unlocked_proxied,
+           STAKE_TYPE::UNLOCKED_PROXY,
+           OP_TYPE::ADD,
            epoch_number,
            amount,
-           AddFunc(),
            txn);
 
     StoreOrPrune(rep,info,txn);
@@ -369,10 +392,10 @@ bool VotingPowerManager::SubtractSelfStake(
 
     Modify(info,
            rep,
-           &VotingPowerSnapshot::self_stake,
+           STAKE_TYPE::SELF_STAKE,
+           OP_TYPE::SUBTRACT,
            epoch_number,
            amount,
-           SubtractFunc(),
            txn);
 
     StoreOrPrune(rep,info,txn);
@@ -405,10 +428,10 @@ bool VotingPowerManager::AddSelfStake(
 
     Modify(info,
            rep,
-           &VotingPowerSnapshot::self_stake,
+           STAKE_TYPE::SELF_STAKE,
+           OP_TYPE::ADD,
            epoch_number,
            amount,
-           AddFunc(),
            txn);
 
     StoreOrPrune(rep,info,txn);
