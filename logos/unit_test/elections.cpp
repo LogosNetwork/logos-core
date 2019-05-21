@@ -219,7 +219,8 @@ TEST (Elections, blockstore)
         CandidateInfo candidate_info;
         init_ecies(candidate_info.ecies_key);
         AccountAddress candidate_account;
-        candidate_info.stake = 42;
+        candidate_info.cur_stake = 42;
+        candidate_info.next_stake = 5000;
         candidate_info.bls_key = 3;
         candidate_info.epoch_modified = 67;
 
@@ -241,13 +242,15 @@ TEST(Elections, candidates_simple)
     
     CandidateInfo c1(100);
     init_ecies(c1.ecies_key);
-    c1.stake = 34;
+    c1.cur_stake = 34;
+    c1.next_stake = 45;
     c1.bls_key = 4;
     c1.epoch_modified = 12;
     AccountAddress a1(0);
     CandidateInfo c2(110);
     init_ecies(c2.ecies_key);
-    c2.stake = 456;
+    c2.cur_stake = 456;
+    c2.next_stake = 123;
     c2.bls_key = 7;
     c2.epoch_modified = 96;
     AccountAddress a2(1);
@@ -271,7 +274,7 @@ TEST(Elections, candidates_simple)
         ASSERT_FALSE(res);
         ASSERT_EQ(c2,c2_copy);
 
-        VotingPowerManager::GetInstance()->AddSelfStake(a1,c1.stake,c1.epoch_modified-1,txn);
+        VotingPowerManager::GetInstance()->AddSelfStake(a1,c1.cur_stake,c1.epoch_modified-1,txn);
         res = store->candidate_add_vote(a1,100,c1.epoch_modified,txn);
         ASSERT_FALSE(res);
         res = store->candidate_add_vote(a1,50,c1.epoch_modified,txn);
@@ -384,10 +387,12 @@ TEST(Elections,candidates_transition)
     {
         CandidateInfo candidate;
         init_ecies(candidate.ecies_key);
-        candidate.stake = stake1;
+        candidate.cur_stake = stake1;
+        candidate.next_stake = stake1;
         candidate.bls_key = bls1;
         ASSERT_FALSE(store->candidate_put(a1, candidate, txn));
-        candidate.stake = stake2;
+        candidate.cur_stake = stake2;
+        candidate.next_stake = stake2;
         candidate.bls_key = bls2;
         ASSERT_FALSE(store->candidate_put(a2, candidate, txn));
     }
@@ -408,7 +413,8 @@ TEST(Elections,candidates_transition)
         ASSERT_FALSE(store->candidate_get(a1,info,txn));
         CandidateInfo candidate;
         init_ecies(candidate.ecies_key);
-        candidate.stake = stake3;
+        candidate.cur_stake = stake3;
+        candidate.next_stake = stake3;
         candidate.bls_key = bls3;
         ASSERT_FALSE(store->candidate_put(a3, candidate, txn));
     }

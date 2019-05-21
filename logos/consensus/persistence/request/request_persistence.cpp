@@ -1760,6 +1760,12 @@ void PersistenceManager<R>::ApplyRequest(
     {
         rep.candidacy_action_tip = request.GetHash();
         assert(!_store.candidate_mark_remove(request.origin,txn));
+        candidate.TransitionIfNecessary(request.epoch_num);
+        if(request.set_stake)
+        {
+            candidate.next_stake = request.stake; 
+        }
+        _store.candidate_put(request.origin,candidate,txn);
     }
     assert(!_store.rep_put(request.origin,rep,txn));
     assert(!_store.rep_mark_remove(request.origin, txn));
@@ -1773,6 +1779,8 @@ void PersistenceManager<R>::ApplyRequest(
                 request.origin,
                 request.epoch_num,
                 txn); 
+
+
     }
 }
 
@@ -1827,7 +1835,7 @@ void PersistenceManager<R>::ApplyRequest(
                 << " cur stake is empty";
             trace_and_halt();
         }
-        candidate.stake = cur_stake_option.get().amount;
+        candidate.next_stake = cur_stake_option.get().amount;
     }
     rep.candidacy_action_tip = request.Hash();
     assert(!_store.rep_put(request.origin,rep,txn));
@@ -1882,7 +1890,13 @@ void PersistenceManager<R>::ApplyRequest(
     CandidateInfo candidate;
     if(!_store.candidate_get(request.origin, candidate, txn))
     {
+        candidate.TransitionIfNecessary(request.epoch_num);
         assert(!_store.candidate_mark_remove(request.origin,txn));
+        if(request.set_stake)
+        {
+            candidate.next_stake = request.stake; 
+        }
+        _store.candidate_put(request.origin,candidate,txn);
     }
     RepInfo rep;
     assert(!_store.rep_get(request.origin, rep, txn));
@@ -1925,7 +1939,7 @@ void PersistenceManager<R>::ApplyRequest(
             request.rep,
             request.epoch_num,
             txn);
-    
+
 
 
 }
@@ -1954,7 +1968,15 @@ void PersistenceManager<R>::ApplyRequest(
             request.origin,
             request.epoch_num,
             txn);
-    
+
+    //update candidate stake
+    CandidateInfo candidate;
+    if(!_store.candidate_get(request.origin,candidate,txn))
+    {
+        candidate.TransitionIfNecessary(request.epoch_num);
+        candidate.next_stake = request.stake; 
+        _store.candidate_put(request.origin,candidate,txn);
+    }
 
 }
 
@@ -1983,8 +2005,15 @@ void PersistenceManager<R>::ApplyRequest(
             request.origin,
             request.epoch_num,
             txn);
-    
 
+    //update candidate stake
+    CandidateInfo candidate;
+    if(!_store.candidate_get(request.origin,candidate,txn))
+    {
+        candidate.TransitionIfNecessary(request.epoch_num);
+        candidate.next_stake = 0; 
+        _store.candidate_put(request.origin,candidate,txn);
+    }
 }
 //TODO: dynamic can be changed to static if we do type validation
 //in the constructors of ALL the request types

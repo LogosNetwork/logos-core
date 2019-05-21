@@ -300,7 +300,8 @@ void PersistenceManager<ECT>::AddReelectionCandidates(
                             << d.account.to_string();
                         trace_and_halt();
                     }
-                    candidate.stake = vp_info.current.self_stake;
+                    candidate.cur_stake = vp_info.current.self_stake;
+                    candidate.next_stake = vp_info.next.self_stake;
                     assert(!_store.candidate_put(d.account, candidate, txn));
                 }
             }

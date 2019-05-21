@@ -136,7 +136,7 @@ std::vector<Delegate> EpochVotingManager::GetDelegateElects(size_t num_new, uint
                             p.second.bls_key,
                             p.second.ecies_key,
                             p.second.votes_received_weighted,
-                            p.second.stake);
+                            p.second.cur_stake);
                     d.starting_term = true;
                     return d;
                 });
