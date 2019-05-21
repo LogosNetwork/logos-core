@@ -185,7 +185,9 @@ class StakingManager
             Amount const & new_amount,
             MDB_txn* txn);
 
-    /* Extract attempts to move amount_to_extract funds from input to output
+   /* Extract attempts to move amount_to_extract funds from input to output
+    * If extraction will create secondary liabilities that origin is not allowed to create
+    * at this time, this function will do nothing
     * If input.amount < amount_to_extract, extract moves all of input.amount to output
     * @param input funds to extract from
     * @param output funds to extract into 
@@ -253,6 +255,50 @@ class StakingManager
 
     // Deletes StakedFunds from db. Callers responsibility to delete associated liability
     void Delete(StakedFunds const & funds, AccountAddress const & origin, MDB_txn* txn);
+
+    //Helper function used by Stake(...)
+    //Changes target of staked funds and creates any secondary liabilities that are required
+    //Creates new staked funds and attempts to extract amount_left from cur_stake into new staked funds
+    //Amount_left is reduced by the amount extracted from cur_stake
+    //updates voting power of affected reps
+    //Returns newly created staked funds with proper target and liability hash
+    //modifies cur_stake, amount_left and account_info
+    StakedFunds ChangeTarget(
+            AccountAddress const & origin,
+            logos::account_info& account_info,
+            uint32_t epoch,
+            StakedFunds& cur_stake,
+            AccountAddress const & new_target,
+            Amount & amount_left,
+            MDB_txn* txn);
+
+    /* Helper function used by Stake(...)
+     * Reduce's origin's current stake by amount_to_thaw
+     * updates voting power of affected reps
+     * modifies cur_stake and account_info
+     */
+    void ReduceStake(
+            AccountAddress const & origin,
+            logos::account_info& account_info,
+            uint32_t epoch,
+            StakedFunds& cur_stake,
+            Amount const & amount_to_thaw,
+            MDB_txn* txn);
+
+    /*
+     * Helper function used by ChangeTarget(...) and ReduceStake(...)
+     * Moves amount_to_thaw funds from cur_stake to the thawing state
+     * Stores ThawingFunds in db
+     * Modifies cur_stake and account_info
+     */
+    void BeginThawing(
+            AccountAddress const & origin,
+            logos::account_info& account_info,
+            uint32_t epoch,
+            StakedFunds& cur_stake,
+            Amount const & amount_to_thaw,
+            MDB_txn* txn);
+
 
     private:
     Log _log;

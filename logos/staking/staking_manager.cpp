@@ -304,6 +304,93 @@ void StakingManager::ProcessThawingFunds(
 
 
 
+//modifies cur_stake and account_info
+void StakingManager::BeginThawing(
+        AccountAddress const & origin,
+        logos::account_info& account_info,
+        uint32_t epoch,
+        StakedFunds& cur_stake,
+        Amount const & amount_to_thaw,
+        MDB_txn* txn)
+{
+    ThawingFunds thawing = CreateThawingFunds(cur_stake.target, origin, epoch, txn);
+    Extract(cur_stake, thawing, amount_to_thaw, origin, epoch, txn);
+    bool consolidated = Store(thawing, origin, txn);
+    if(!consolidated)
+    {
+        account_info.thawing_count++;
+    }
+}
+
+//modifies cur_stake and account_info
+void StakingManager::ReduceStake(
+        AccountAddress const & origin,
+        logos::account_info& account_info,
+        uint32_t epoch,
+        StakedFunds& cur_stake,
+        Amount const & amount_to_thaw,
+        MDB_txn* txn)
+{
+    if(cur_stake.target == origin)
+    {
+        _voting_power_mgr.SubtractSelfStake(cur_stake.target, amount_to_thaw, epoch, txn); 
+    }
+    else
+    {
+        _voting_power_mgr.SubtractLockedProxied(cur_stake.target, amount_to_thaw, epoch, txn);
+    }
+    BeginThawing(origin, account_info, epoch, cur_stake, amount_to_thaw,txn);
+}
+
+//modifies cur_stake, account_info and amount_left
+StakedFunds StakingManager::ChangeTarget(
+        AccountAddress const & origin,
+        logos::account_info& account_info,
+        uint32_t epoch,
+        StakedFunds& cur_stake,
+        AccountAddress const & new_target,
+        Amount & amount_left,
+        MDB_txn* txn)
+{
+
+        //Subtract voting power from target
+        if(new_target == origin)
+        {
+            _voting_power_mgr.SubtractSelfStake(cur_stake.target, cur_stake.amount, epoch, txn);
+        }
+        else
+        {
+            _voting_power_mgr.SubtractLockedProxied(cur_stake.target, cur_stake.amount, epoch, txn);
+            _voting_power_mgr.SubtractUnlockedProxied(cur_stake.target,account_info.GetAvailableBalance(),epoch,txn);
+
+        }
+
+        StakedFunds new_stake = CreateStakedFunds(new_target, origin, txn);
+        //note that amount_left is updated based on amount actually extracted
+        amount_left -= Extract(cur_stake, new_stake, amount_left, origin, epoch, txn);
+
+        //Add voting power to new target
+        if(new_target == origin)
+        {
+        
+            _voting_power_mgr.AddSelfStake(new_stake.target, new_stake.amount, epoch, txn);
+        }
+        else
+        {
+            _voting_power_mgr.AddLockedProxied(new_stake.target, new_stake.amount, epoch, txn);
+
+            _voting_power_mgr.AddUnlockedProxied(new_stake.target,account_info.GetAvailableBalance(), epoch, txn);
+        }
+
+
+
+        //thaw any remaining funds
+        if(cur_stake.amount > 0)
+        {
+            BeginThawing(origin,account_info,epoch,cur_stake,cur_stake.amount,txn);
+        }
+        return new_stake;
+}
 
 
 
@@ -321,87 +408,7 @@ void StakingManager::Stake(
 {
     Amount amount_left = amount;
     StakedFunds cur_stake;
-    
 
-    //****Definition of various helper lambda functions****
-
-    auto begin_thawing = [&](Amount const & amount_to_thaw)
-    {
-        ThawingFunds thawing = CreateThawingFunds(cur_stake.target, origin, epoch, txn);
-        Extract(cur_stake, thawing, amount_to_thaw, origin, epoch, txn);
-        bool consolidated = Store(thawing, origin, txn);
-        if(!consolidated)
-        {
-            account_info.thawing_count++;
-        }
-    };
-
-    auto subtract_voting_power = [&](StakedFunds const & cur_stake)
-    {
-        //Subtract voting power from target
-        if(target == origin)
-        {
-            _voting_power_mgr.SubtractSelfStake(cur_stake.target, cur_stake.amount, epoch, txn);
-        }
-        else
-        {
-            _voting_power_mgr.SubtractLockedProxied(cur_stake.target, cur_stake.amount, epoch, txn);
-            _voting_power_mgr.SubtractUnlockedProxied(cur_stake.target,account_info.GetAvailableBalance(),epoch,txn);
-
-        }
-    };
-
-    auto add_voting_power = [&](StakedFunds const & new_stake)
-    {
-        //Add voting power to new target
-        if(target == origin)
-        {
-        
-            _voting_power_mgr.AddSelfStake(new_stake.target, new_stake.amount, epoch, txn);
-        }
-        else
-        {
-            _voting_power_mgr.AddLockedProxied(new_stake.target, new_stake.amount, epoch, txn);
-
-            _voting_power_mgr.AddUnlockedProxied(new_stake.target,account_info.GetAvailableBalance(), epoch, txn);
-        }
-    };
-
-    auto change_target = [&]()
-    {
-
-        subtract_voting_power(cur_stake);
-
-        StakedFunds new_stake = CreateStakedFunds(target, origin, txn);
-        amount_left -= Extract(cur_stake, new_stake, amount_left, origin, epoch, txn);
-
-        add_voting_power(new_stake);
-
-
-        //thaw any remaining funds
-        if(cur_stake.amount > 0)
-        {
-            begin_thawing(cur_stake.amount);
-        }
-        return new_stake;
-    };
-
-    auto reduce_stake = [&]()
-    {
-        Amount amount_to_thaw = cur_stake.amount - amount_left;
-        if(cur_stake.target == origin)
-        {
-           _voting_power_mgr.SubtractSelfStake(cur_stake.target, amount_to_thaw, epoch, txn); 
-        }
-        else
-        {
-            _voting_power_mgr.SubtractLockedProxied(cur_stake.target, amount_to_thaw, epoch, txn);
-        }
-        begin_thawing(amount_to_thaw);
-    
-    };
-
-    //*****Actual work of member function****
 
     boost::optional<StakedFunds> cur_stake_option = GetCurrentStakedFunds(origin, txn);
     //no current stake
@@ -433,12 +440,13 @@ void StakingManager::Stake(
     //if changing target, extract from existing stake
     if(target != cur_stake.target && cur_stake_option)
     {
-        cur_stake = change_target();
+        cur_stake = ChangeTarget(origin,account_info,epoch,cur_stake,target,amount_left,txn);
     }
     //request is not changing target and is reducing stake to current target
     else if(amount_left < cur_stake.amount)
     {
-        reduce_stake();
+        Amount amount_to_thaw = cur_stake.amount - amount_left;
+        ReduceStake(origin,account_info,epoch,cur_stake,amount_to_thaw,txn);
         return;
     }
     //request is not changing target, and is increasing stake to current target
