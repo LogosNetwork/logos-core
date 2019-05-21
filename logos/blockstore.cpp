@@ -1438,13 +1438,13 @@ bool logos::block_store::candidate_is_greater(
           0,
           pk,
           candidate1.votes_received_weighted,
-          candidate1.stake); 
+          candidate1.cur_stake); 
     Delegate del2(
           account2,
           0,
           pk,
           candidate2.votes_received_weighted,
-          candidate2.stake);
+          candidate2.cur_stake);
 
    return EpochVotingManager::IsGreater(del1,del2);
 }
@@ -1553,30 +1553,9 @@ bool logos::block_store::candidate_add_vote(
     CandidateInfo info;
     if(!candidate_get(account,info,txn))
     {
-        if(info.epoch_modified != cur_epoch_num)
-        {
-            info.votes_received_weighted = weighted_vote;
-            info.epoch_modified = cur_epoch_num;
-            VotingPowerInfo vp_info;
-            if(!VotingPowerManager::GetInstance()->GetVotingPowerInfo(account, cur_epoch_num, vp_info, txn))
-            {
-                LOG_FATAL(log) << "block_store::candidate_add_vote - "
-                    << "failed to set self stake for candidate = "
-                    << account.to_string() << " epoch_num = "
-                    << cur_epoch_num;
-                trace_and_halt();
-            }
-            //if this check fails,
-            //VotingPowerManager already wrote self stake to db
-            if(vp_info.epoch_modified == cur_epoch_num)
-            {
-                info.stake = vp_info.current.self_stake;
-            }
-        }
-        else
-        {
-            info.votes_received_weighted += weighted_vote;
-        }
+        info.TransitionIfNecessary(cur_epoch_num);
+        info.votes_received_weighted += weighted_vote;
+
         return candidate_put(account,info,txn);
     }
     return true;

@@ -163,7 +163,8 @@ DelegateIdentityManager::CreateGenesisBlocks(logos::transaction &transaction)
                 }
                 VotingPowerManager::GetInstance()->AddSelfStake(pair.pub,stake,0,transaction);
                 CandidateInfo candidate;
-                candidate.stake = stake;
+                candidate.next_stake = stake;
+                candidate.cur_stake = stake;
                 candidate.bls_key = dpk;
                 candidate.ecies_key = ecies_key;
                 //TODO: should we put these accounts into candidate list even

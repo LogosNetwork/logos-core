@@ -2084,7 +2084,7 @@ TEST(Staking, Votes)
 
     ASSERT_EQ(winners.size(),1);
     ASSERT_EQ(winners[0].first,candidate);
-    ASSERT_EQ(winners[0].second.stake,announce.stake);
+    ASSERT_EQ(winners[0].second.cur_stake,announce.stake);
     ASSERT_EQ(winners[0].second.votes_received_weighted,total_power*8);
 
     transition_epoch();
@@ -2106,7 +2106,7 @@ TEST(Staking, Votes)
     ASSERT_EQ(winners.size(),1);
     ASSERT_EQ(winners[0].first,candidate);
     //uses stake from previous epoch
-    ASSERT_EQ(winners[0].second.stake,announce.stake);
+    ASSERT_EQ(winners[0].second.cur_stake,announce.stake);
     ASSERT_EQ(winners[0].second.votes_received_weighted,total_power*8);
     
 
@@ -2121,7 +2121,7 @@ TEST(Staking, Votes)
     ASSERT_EQ(winners.size(),1);
     ASSERT_EQ(winners[0].first,candidate);
     //now stake is updated
-    ASSERT_EQ(winners[0].second.stake,stake.stake);
+    ASSERT_EQ(winners[0].second.cur_stake,stake.stake);
     ASSERT_EQ(winners[0].second.votes_received_weighted,total_power*8);
 
 
@@ -2145,7 +2145,7 @@ TEST(Staking, Votes)
 
     ASSERT_EQ(winners.size(),1);
     ASSERT_EQ(winners[0].first,candidate);
-    ASSERT_EQ(winners[0].second.stake,MIN_DELEGATE_STAKE+10);
+    ASSERT_EQ(winners[0].second.cur_stake,MIN_DELEGATE_STAKE+10);
     ASSERT_EQ(winners[0].second.votes_received_weighted,total_power*8);
 
 
@@ -2165,7 +2165,7 @@ TEST(Staking, Votes)
 
     ASSERT_EQ(winners.size(),1);
     ASSERT_EQ(winners[0].first,candidate);
-    ASSERT_EQ(winners[0].second.stake,stake.stake);
+    ASSERT_EQ(winners[0].second.cur_stake,stake.stake);
     ASSERT_EQ(winners[0].second.votes_received_weighted,total_power*8);
 
     

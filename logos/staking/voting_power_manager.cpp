@@ -73,22 +73,6 @@ bool VotingPowerManager::TransitionIfNecessary(
 {
     if(epoch > info.epoch_modified)
     {
-        CandidateInfo c_info;
-        if(!_store.candidate_get(rep, c_info, txn))
-        {
-            //Candidate self stake is set when they receive their first vote
-            //in an epoch. However, if a candidate receives their first vote
-            //on the epoch boundary, the software may transition candidates voting
-            //power before setting self stake, causing self stake to be set to
-            //the wrong value. Setting self stake on transition if the candidate
-            //record is stale avoids this race condition
-            if(epoch > c_info.epoch_modified+1)
-            {
-
-                c_info.stake = info.current.self_stake;
-                _store.candidate_put(rep, c_info, txn);
-            }
-        }
         HandleFallback(info,rep,epoch,txn);
         info.current = info.next;
         info.epoch_modified = epoch;
