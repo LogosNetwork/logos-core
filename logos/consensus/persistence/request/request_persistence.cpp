@@ -258,11 +258,35 @@ bool PersistenceManager<R>::ValidateRequest(
 
             break;
         }
+        case RequestType::AdjustUserStatus:
+        {
+            // SG: AdjustUserStatus needs to check that address is not a TokenAccount, ValidateTokenTransfer()
+            // only checks requests with tokens amounts attached
+            std::shared_ptr<logos::Account> account;
+            auto adj_request = dynamic_pointer_cast<const AdjustUserStatus>(request);
+            auto found = !_store.account_get(adj_request->account, account);
+            auto user = dynamic_pointer_cast<logos::account_info>(account);
+
+            if(!user)
+            {
+            // The destination account type for
+            // this token transfer is incorrect.
+            // Only user accounts can receive
+            // tokens.
+                result.code = logos::process_result::invalid_request;
+                return false;
+            }
+
+            if(!ValidateTokenAdminRequest(request, result, info))
+            {
+                return false;
+            }
+            break;
+        }
         case RequestType::ChangeSetting:
         case RequestType::IssueAdditional:
         case RequestType::ImmuteSetting:
         case RequestType::Revoke:
-        case RequestType::AdjustUserStatus:
         case RequestType::AdjustFee:
         case RequestType::UpdateIssuerInfo:
         case RequestType::UpdateController:
