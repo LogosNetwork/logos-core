@@ -87,61 +87,20 @@ bool LiabilityManager::CanCreateSecondaryLiability(
         return true;
     }
 
-    //setting max to THAWING_PERIOD allows accounts to create
-    //one secondary liability per epoch
-    size_t max_secondary_liabilities = THAWING_PERIOD;
-
     std::vector<LiabilityHash> hashes(GetSecondaryLiabilities(source, txn));
-    if(hashes.size() >= max_secondary_liabilities)
+    for(auto hash : hashes)
     {
+        Liability l = Get(hash, txn);
         if(info.epoch_secondary_liabilities_updated >= cur_epoch)
         {
-            return false;
+            //secondary liabilities are all up to date
+            //only need to check first
+            //Possible optimization: don't get all hashes in this case
+            return l.target == target;
         }
-        else //some secondary liabilities may be expired
+        else if(l.expiration_epoch > cur_epoch)
         {
-            size_t num_expired = 0;
-            for(auto hash : hashes)
-            {
-                Liability l = Get(hash, txn);
-                if(l.expiration_epoch > cur_epoch)
-                {
-                    //found a conflict
-                    if(l.target != target)
-                    {
-                        return false;
-                    }
-                    //no conflict, and found enough expired
-                    else if(hashes.size() - num_expired < max_secondary_liabilities)
-                    {
-                        return true;
-                    }
-                }
-                else
-                {
-                    ++num_expired;
-                }
-            }
-            //no unexpired conflicts found
-            return hashes.size() - num_expired < max_secondary_liabilities;
-        }
-    }
-    else
-    {
-        for(auto hash : hashes)
-        {
-            Liability l = Get(hash, txn);
-            if(info.epoch_secondary_liabilities_updated >= cur_epoch)
-            {
-                //secondary liabilities are all up to date
-                //only need to check first
-                //Possible optimization: don't get all hashes in this case
-                return l.target == target;
-            }
-            else if(l.expiration_epoch > cur_epoch)
-            {
-                return l.target == target;
-            }
+            return l.target == target;
         }
     }
     return true;
