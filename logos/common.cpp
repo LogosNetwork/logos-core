@@ -330,15 +330,14 @@ void logos::account_info::SetBalance(
         MDB_txn* txn)
 {
     std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::GetInstance();
-    boost::optional<AccountAddress> rep = vpm->GetRep(*this, txn);
     if(new_balance > balance)
     {
         Amount diff = new_balance - balance;
         available_balance += diff;
-        if(rep)
+        if(rep != 0)
         {
             vpm->AddUnlockedProxied(
-                    *rep,
+                    rep,
                     diff,
                     epoch,
                     txn);
@@ -354,10 +353,10 @@ void logos::account_info::SetBalance(
             trace_and_halt();
         }
         available_balance -= diff;
-        if(rep)
+        if(rep != 0)
         {
             vpm->SubtractUnlockedProxied(
-                    *rep,
+                    rep,
                     diff,
                     epoch,
                     txn);
@@ -372,15 +371,14 @@ void logos::account_info::SetAvailableBalance(
         MDB_txn* txn)
 {
     std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::GetInstance();
-    boost::optional<AccountAddress> rep = vpm->GetRep(*this, txn);
     if(new_available_bal > available_balance)
     {
         Amount diff = new_available_bal - available_balance;
         available_balance += diff;
-        if(rep)
+        if(rep != 0)
         {
             vpm->AddUnlockedProxied(
-                    *rep,
+                    rep,
                     diff,
                     epoch,
                     txn);
@@ -391,10 +389,10 @@ void logos::account_info::SetAvailableBalance(
         Amount diff = available_balance - new_available_bal;
         available_balance -= diff;
 
-        if(rep)
+        if(rep != 0)
         {
             vpm->SubtractUnlockedProxied(
-                    *rep,
+                    rep,
                     diff,
                     epoch,
                     txn);
@@ -412,6 +410,7 @@ void logos::account_info::SetAvailableBalance(
 logos::account_info::account_info ()
     : Account(AccountType::LogosAccount)
     , staking_subchain_head (0)
+    , rep(0)
     , open_block (0)
     , available_balance (balance)
     , epoch_thawing_updated(0)
@@ -447,6 +446,7 @@ logos::account_info::account_info (
               receive_head_a,
               receive_count_a)
     , staking_subchain_head (staking_subchain_head_a)
+    , rep(0)
     , open_block (open_block_a)
     , available_balance (balance_a)
     , epoch_thawing_updated(0)
@@ -458,6 +458,7 @@ uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
 {
     auto s = Account::Serialize(stream_a);
     s += write (stream_a, staking_subchain_head.bytes);
+    s += write (stream_a, rep);
     s += write (stream_a, open_block.bytes);
     s += write (stream_a, uint16_t(entries.size()));
     for(auto & entry : entries)
@@ -476,6 +477,7 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
     uint16_t count;
     auto error = Account::Deserialize(stream_a)
         || read (stream_a, staking_subchain_head.bytes)
+        || read (stream_a, rep)
         || read (stream_a, open_block.bytes)
         || read (stream_a, count);
     for(size_t i = 0; i < count && !error; ++i)
@@ -498,6 +500,7 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
 bool logos::account_info::operator== (logos::account_info const & other_a) const
 {
     return staking_subchain_head == other_a.staking_subchain_head &&
+           rep == other_a.rep &&
            open_block == other_a.open_block &&
            available_balance == other_a.available_balance &&
            epoch_thawing_updated  == other_a.epoch_thawing_updated &&

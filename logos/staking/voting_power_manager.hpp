@@ -150,11 +150,6 @@ class VotingPowerManager
             VotingPowerInfo const & info,
             MDB_txn* txn);
 
-    /* Returns AccountAddress of rep associated with info
-     * If account has no rep, or is rep themselves, returns empty optional
-     */
-    boost::optional<AccountAddress> GetRep(logos::account_info const & info, MDB_txn* txn);
-
     private:
 
     enum STAKE_TYPE { LOCKED_PROXY, UNLOCKED_PROXY, SELF_STAKE};

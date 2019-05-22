@@ -279,7 +279,7 @@ TEST(Voting_Power, AccountBalance)
 {
     logos::block_store* store = get_db();
     VotingPowerManager voting_power_mgr(*store);
-    AccountAddress rep = 0;
+    AccountAddress rep = 1234433;
     uint32_t epoch = 10;
 
     {
@@ -328,6 +328,7 @@ TEST(Voting_Power, AccountBalance)
         for(size_t i  = 0; i < 1000; ++i)
         {
             accounts[i].second.staking_subchain_head = proxy_hash;
+            accounts[i].second.rep = rep;
             accounts[i].second.SetBalance(100, epoch, txn);
             ASSERT_EQ(accounts[i].second.GetBalance(),100);
             ASSERT_EQ(accounts[i].second.GetAvailableBalance(),100);
