@@ -50,18 +50,18 @@ void VotingPowerManager::HandleFallback(
           VotingPowerFallback f;
           f.power = GetPower(info);
           f.total_stake = info.current.locked_proxied + info.current.self_stake;
-          _store.put(_store.voting_power_fallback_db,rep,f,txn);
+          _store.fallback_voting_power_put(rep,f,txn);
       } 
       else
       {
           //if voted, delete previous fallback record, if one exists
-        _store.del(_store.voting_power_fallback_db,rep,txn);
+        _store.fallback_voting_power_del(rep,txn);
       }
     }
     else
     {
         //delete previous fallback record, if one exists
-        _store.del(_store.voting_power_fallback_db,rep,txn);
+        _store.fallback_voting_power_del(rep,txn);
     }
 }
 
@@ -164,11 +164,17 @@ void VotingPowerManager::StoreOrPrune(
 {
     if(CanPrune(rep,info,txn))
     {
-        _store.del(_store.voting_power_db,rep,txn);
+        if(_store.voting_power_del(rep,txn))
+        {
+            LOG_FATAL(_log) << "VotingPowerManager::StoreOrPrune - "
+                << "error pruning rep = "
+                << rep.to_string();
+            trace_and_halt();
+        }
     }
     else
     {
-        _store.put(_store.voting_power_db,rep,info,txn);
+        _store.voting_power_put(rep,info,txn);
     }
 }
 
@@ -178,16 +184,8 @@ bool VotingPowerManager::CanPrune(
         MDB_txn* txn)
 {
 
-    //need to check next instead of current, because when next goes to 0,
-    //the record may never be updated again
-    Amount total_power = info.next.locked_proxied
-        + info.next.unlocked_proxied
-        + info.next.self_stake;
-    bool power_is_zero = (
-            info.next.locked_proxied 
-            + info.next.unlocked_proxied 
-            + info.next.self_stake) == 0;
-    if(!power_is_zero)
+    //need to check next instead of current
+    if(info.next.locked_proxied != 0 || info.next.self_stake != 0 || info.next.unlocked_proxied != 0)
     {
         return false;
     }
@@ -203,12 +201,16 @@ void VotingPowerManager::TryPrune(
         MDB_txn* txn)
 {
     VotingPowerInfo info;
-    bool found = !_store.get(_store.voting_power_db,rep,info,txn);
+    bool found = GetVotingPowerInfo(rep,info,txn);
     if(found && CanPrune(rep, info, txn))
     {
-        LOG_INFO(_log) << "pruning rep = " << rep.to_string()
-            << " info = " << info.next.self_stake.to_string();
-        _store.del(_store.voting_power_db,rep,txn);
+       if(_store.voting_power_del(rep,txn))
+       {
+            LOG_FATAL(_log) << "VotingPowerManager::TryPrune - "
+                << "error pruning rep = "
+                << rep.to_string();
+            trace_and_halt();
+       }
     }
 }
 
@@ -221,15 +223,8 @@ bool VotingPowerManager::SubtractLockedProxied(
         uint32_t const & epoch_number,
         MDB_txn* txn)
 {
-    if(!txn)
-    {
-        LOG_FATAL(_log) << "VotingPowerManager::SubtractLockedProxied - "
-            << "txn is null";
-        trace_and_halt();
-    }
-
     VotingPowerInfo info;
-    if(_store.get(_store.voting_power_db,rep,info,txn))
+    if(!GetVotingPowerInfo(rep,info,txn))
     {
         LOG_FATAL(_log) << "VotingPowerManager::SubtractLockedProxied - "
             << "VotingPowerInfo does not exist for rep = " << rep.to_string();
@@ -255,15 +250,8 @@ bool VotingPowerManager::AddLockedProxied(
         uint32_t const & epoch_number,
         MDB_txn* txn)
 {
-    if(!txn)
-    {
-        LOG_FATAL(_log) << "VotingPowerManager::AddLockedProxied - "
-            << "txn is null";
-        trace_and_halt();
-    }
-
     VotingPowerInfo info;
-    if(_store.get(_store.voting_power_db,rep,info,txn))
+    if(!GetVotingPowerInfo(rep,info,txn))
     {
         LOG_FATAL(_log) << "VotingPowerManager::AddLockedProxied - "
             << "VotingPowerInfo does not exist for rep = " << rep.to_string();
@@ -289,15 +277,8 @@ bool VotingPowerManager::SubtractUnlockedProxied(
         uint32_t const & epoch_number,
         MDB_txn* txn)
 {
-    if(!txn)
-    {
-        LOG_FATAL(_log) << "VotingPowerManager::SubtractUnlockedProxied - "
-            << "txn is null";
-        trace_and_halt();
-    }
-
     VotingPowerInfo info;
-    if(_store.get(_store.voting_power_db,rep,info,txn))
+    if(!GetVotingPowerInfo(rep,info,txn))
     {
         LOG_FATAL(_log) << "VotingPowerManager::SubtractUnlockedProxied - "
             << "VotingPowerInfo does not exist for rep = " << rep.to_string();
@@ -324,14 +305,8 @@ bool VotingPowerManager::AddUnlockedProxied(
         uint32_t const & epoch_number,
         MDB_txn* txn)
 {
-    if(!txn)
-    {
-        LOG_FATAL(_log) << "VotingPowerManager::AddUnlockedProxied - txn is null";
-        trace_and_halt();
-    }
     VotingPowerInfo info;
-
-    if(_store.get(_store.voting_power_db,rep,info,txn))
+    if(!GetVotingPowerInfo(rep,info,txn))
     {
         LOG_FATAL(_log) << "VotingPowerManager::AddUnlockedProxied - "
             << "VotingPowerInfo does not exist for rep = " << rep.to_string();
@@ -360,14 +335,8 @@ bool VotingPowerManager::SubtractSelfStake(
         MDB_txn* txn)
 {
 
-    if(!txn)
-    {
-        LOG_FATAL(_log) << "VotingPowerManager::SubtractSelfStake - txn is null";
-        trace_and_halt();
-    }
     VotingPowerInfo info;
-
-    if(_store.get(_store.voting_power_db,rep,info,txn))
+    if(!GetVotingPowerInfo(rep,info,txn))
     {
         LOG_FATAL(_log) << "VotingPowerManager::SubtractSelfStake - "
             << "VotingPowerInfo does not exist for rep = " << rep.to_string();
@@ -395,14 +364,8 @@ bool VotingPowerManager::AddSelfStake(
         uint32_t const & epoch_number,
         MDB_txn* txn)
 {
-    if(!txn)
-    {
-        LOG_FATAL(_log) << "VotingPowerManager::AddSelfStake - txn is null";
-        trace_and_halt();
-    }
     VotingPowerInfo info;
-
-    if(_store.get(_store.voting_power_db,rep,info,txn))
+    if(!GetVotingPowerInfo(rep,info,txn))
     {
         LOG_WARN(_log) << "VotingPowerManager::AddSelfStake - "
             << "VotingPowerInfo does not exist for rep = " << rep.to_string()
@@ -428,14 +391,8 @@ Amount VotingPowerManager::GetCurrentTotalStake(
         uint32_t const & epoch_number,
         MDB_txn* txn)
 {
-    if(!txn)
-    {
-        LOG_FATAL(_log) << "VotingPowerManager::GetCurrentVotingPower - "
-            << "txn is null";
-        trace_and_halt();
-    }
     VotingPowerInfo info;
-    if(_store.get(_store.voting_power_db,rep,info,txn))
+    if(!GetVotingPowerInfo(rep,info,txn))
     {
         LOG_FATAL(_log) << "VotingPowerManager::GetCurrentVotingPower - "
             << "VotingPowerInfo does not exist for rep = " << rep.to_string();
@@ -449,7 +406,7 @@ Amount VotingPowerManager::GetCurrentTotalStake(
     if(epoch_number < info.epoch_modified)
     {
         VotingPowerFallback f;
-        if(_store.get(_store.voting_power_fallback_db, rep, f, txn))
+        if(_store.fallback_voting_power_get(rep, f, txn))
         {
 
             LOG_FATAL(_log) << "VotingPowerManager::GetCurrentVotingPower - "
@@ -469,14 +426,8 @@ Amount VotingPowerManager::GetCurrentVotingPower(
         uint32_t const & epoch_number,
         MDB_txn* txn)
 {    
-    if(!txn)
-    {
-        LOG_FATAL(_log) << "VotingPowerManager::GetCurrentVotingPower - "
-            << "txn is null";
-        trace_and_halt();
-    }
     VotingPowerInfo info;
-    if(_store.get(_store.voting_power_db,rep,info,txn))
+    if(!GetVotingPowerInfo(rep,info,txn))
     {
         LOG_FATAL(_log) << "VotingPowerManager::GetCurrentVotingPower - "
             << "VotingPowerInfo does not exist for rep = " << rep.to_string();
@@ -490,12 +441,11 @@ Amount VotingPowerManager::GetCurrentVotingPower(
     if(epoch_number < info.epoch_modified)
     {
         VotingPowerFallback f;
-        if(_store.get(_store.voting_power_fallback_db, rep, f, txn))
+        if(_store.fallback_voting_power_get(rep, f, txn))
         {
-        
-        LOG_FATAL(_log) << "VotingPowerManager::GetCurrentVotingPower - "
-            << "failed to get fallback record";
-        trace_and_halt();
+            LOG_FATAL(_log) << "VotingPowerManager::GetCurrentVotingPower - "
+                << "failed to get fallback record";
+            trace_and_halt();
         }
         
         return f.power;
@@ -505,7 +455,7 @@ Amount VotingPowerManager::GetCurrentVotingPower(
 }
 
 
-//Note, this function does not transition, only use for testing
+//Note, this function does not transition, only use for testing or internally
 bool VotingPowerManager::GetVotingPowerInfo(AccountAddress const & rep, VotingPowerInfo& info, MDB_txn* txn)
 {
     if(!txn)
@@ -514,7 +464,7 @@ bool VotingPowerManager::GetVotingPowerInfo(AccountAddress const & rep, VotingPo
             << "txn is null";
         trace_and_halt();
     }
-    return !_store.get(_store.voting_power_db,rep,info,txn);
+    return !_store.voting_power_get(rep,info,txn);
 }
 
 bool VotingPowerManager::GetVotingPowerInfo(

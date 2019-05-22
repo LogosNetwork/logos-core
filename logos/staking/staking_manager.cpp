@@ -147,7 +147,7 @@ void StakingManager::Store(
         AccountAddress const & origin,
         MDB_txn* txn)
 {
-    _store.put(_store.staking_db, logos::mdb_val(origin), funds, txn);
+    _store.stake_put(origin, funds, txn);
     _liability_mgr.UpdateLiabilityAmount(funds.liability_hash, funds.amount, txn);
 }
 
@@ -183,7 +183,7 @@ bool StakingManager::Store(
 
     if(!consolidated)
     {
-        _store.put(_store.thawing_db, logos::mdb_val(origin), funds, txn);
+        _store.thawing_put(origin, funds, txn);
         _liability_mgr.UpdateLiabilityAmount(funds.liability_hash, funds.amount, txn);
     }
     return consolidated;
@@ -194,9 +194,7 @@ void StakingManager::Delete(
         AccountAddress const & origin,
         MDB_txn* txn)
 {
-    std::vector<uint8_t> buf;
-    //thawing_db uses duplicate keys. Need to pass in value to delete
-    mdb_del(txn, _store.thawing_db, logos::mdb_val(origin), funds.to_mdb_val(buf));
+    _store.thawing_del(origin, funds, txn);
 }
 
 void StakingManager::Delete(
@@ -204,7 +202,7 @@ void StakingManager::Delete(
         AccountAddress const & origin,
         MDB_txn* txn)
 {
-    _store.del(_store.staking_db, logos::mdb_val(origin), txn);
+    _store.stake_del(origin, txn);
 }
 
 boost::optional<StakedFunds> StakingManager::GetCurrentStakedFunds(
@@ -212,7 +210,7 @@ boost::optional<StakedFunds> StakingManager::GetCurrentStakedFunds(
         MDB_txn* txn)
 {
     StakedFunds funds;
-    if(_store.get(_store.staking_db, logos::mdb_val(origin), funds, txn))
+    if(_store.stake_get(origin, funds, txn))
     {
         return boost::optional<StakedFunds>{};
     }
@@ -350,7 +348,7 @@ StakedFunds StakingManager::ChangeTarget(
 {
 
         //Subtract voting power from target
-        if(new_target == origin)
+        if(cur_stake.target == origin)
         {
             _voting_power_mgr.SubtractSelfStake(cur_stake.target, cur_stake.amount, epoch, txn);
         }
