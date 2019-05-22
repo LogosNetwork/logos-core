@@ -426,9 +426,11 @@ void StakingManager::Stake(
     }
 
     //consistency check
-    auto rep_option = _voting_power_mgr.GetRep(account_info,txn);
-    if((target != origin && (!rep_option || target != rep_option.get()))
-            || (target == origin && rep_option))
+    //if not staking to self, rep and target must match
+    //if staking to self, rep must be 0
+    auto rep = account_info.rep;
+    if((target != origin && target != rep)
+            || (target == origin && rep != 0))
     {
         LOG_FATAL(_log) << "StakingManager::Stake - " << "target does not match "
             << "staking subchain. account = " << origin.to_string();

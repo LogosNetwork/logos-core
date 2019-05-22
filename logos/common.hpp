@@ -203,6 +203,8 @@ struct account_info : Account
     amount const & GetBalance() const override;
 
     block_hash staking_subchain_head;
+    //0 means no rep. Note, reps themselves have this field set to 0
+    AccountAddress rep;
     block_hash open_block;
     Entries    entries;
     //the last epoch in which thawing funds were checked for expiration for this account

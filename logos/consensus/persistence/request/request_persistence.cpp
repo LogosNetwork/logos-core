@@ -1516,6 +1516,7 @@ void PersistenceManager<R>::ApplySend(const Transaction<AmountType> &send,
                 static_pointer_cast<logos::account_info>(origin_account_info);
             info_c->staking_subchain_head 
                 =  origin_info_c->staking_subchain_head;
+            info_c->rep = origin_info_c->rep;
 
         }
         else
@@ -1729,6 +1730,7 @@ void PersistenceManager<R>::ApplyRequest(
 {
     assert(txn != nullptr);
     info.staking_subchain_head = request.GetHash();
+    info.rep = 0;
     RepInfo rep(request);
     assert(!_store.rep_put(request.origin,rep,txn));
     assert(!_store.request_put(request,txn));
@@ -1817,6 +1819,7 @@ void PersistenceManager<R>::ApplyRequest(
 {
     assert(txn != nullptr);
     info.staking_subchain_head = request.GetHash();
+    info.rep = 0;
     RepInfo rep;
     if(_store.rep_get(request.origin,rep, txn))
     {
@@ -1928,6 +1931,7 @@ void PersistenceManager<R>::ApplyRequest(
     }
 
     info.staking_subchain_head = request.GetHash();
+    info.rep = request.rep;
     if(_store.request_put(request,txn))
     {
         trace_and_halt();
@@ -1957,6 +1961,7 @@ void PersistenceManager<R>::ApplyRequest(
     }
 
     info.staking_subchain_head = request.GetHash();
+    info.rep = 0;
     if(_store.request_put(request,txn))
     {
         trace_and_halt();
@@ -1994,6 +1999,7 @@ void PersistenceManager<R>::ApplyRequest(
     }
 
     info.staking_subchain_head = request.GetHash();
+    info.rep = 0;
     if(_store.request_put(request,txn))
     {
         trace_and_halt();
@@ -2625,7 +2631,7 @@ bool PersistenceManager<R>::ValidateRequest(
 
 
     //Can't submit Stake request if you have a rep already
-    if(VotingPowerManager::GetInstance()->GetRep(info,txn))
+    if(info.rep != 0)
     {
        result.code = logos::process_result::not_a_rep;
        return false; 
@@ -2719,7 +2725,7 @@ bool PersistenceManager<R>::ValidateRequest(
     }
 
 
-    if(VotingPowerManager::GetInstance()->GetRep(info,txn))
+    if(info.rep != 0)
     {
        result.code = logos::process_result::not_a_rep;
        return false; 
