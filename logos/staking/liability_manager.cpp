@@ -30,6 +30,10 @@ bool LiabilityManager::CreateSecondaryLiability(
         MDB_txn* txn)
 {
     Liability l{target,source,amount,expiration_epoch,true};
+    //using dummy info here, and passing dummy.epoch_secondary_liabilities_updated
+    //as the epoch argument ensures only the first liability is checked
+    //this is fine, as PruneSecondaryLiabilities() is called prior to any
+    //CreateSecondaryLiability() calls
     logos::account_info dummy;
     if(!CanCreateSecondaryLiability(target,source,dummy,dummy.epoch_secondary_liabilities_updated, txn))
     {
@@ -37,7 +41,7 @@ bool LiabilityManager::CreateSecondaryLiability(
     }
 
     auto hash = Store(l, txn);
-    mdb_put(txn, _store.secondary_liabilities_db, logos::mdb_val(source), logos::mdb_val(hash), 0);
+    _store.secondary_liability_put(source, hash, txn);
     return true;
 }
 
@@ -58,8 +62,7 @@ void LiabilityManager::PruneSecondaryLiabilities(
         Liability l = Get(hash, txn);
         if(l.expiration_epoch <= cur_epoch)
         {
-            mdb_del(txn, _store.secondary_liabilities_db, logos::mdb_val(origin), logos::mdb_val(hash));
-            _store.del(_store.master_liabilities_db, logos::mdb_val(hash), txn);
+            _store.secondary_liability_del(hash, txn);
         }
     }
 }
@@ -111,49 +114,21 @@ void LiabilityManager::UpdateLiabilityAmount(
         Amount const & amount,
         MDB_txn* txn)
 {
-    Liability l;
-    if(_store.get(_store.master_liabilities_db, logos::mdb_val(hash), l, txn))
-    {
-        LOG_FATAL(_log) << "LiabilityManager::UpdateLiabilityAmount - "
-            << "liability does not exist for hash = " << hash.to_string();
-        trace_and_halt();
-    }
-    l.amount = amount;
-    _store.put(_store.master_liabilities_db, logos::mdb_val(hash), l, txn);
+    _store.liability_update_amount(hash, amount, txn);
 }
 
 void LiabilityManager::DeleteLiability(
         LiabilityHash const & hash,
         MDB_txn* txn)
 {
-    Liability l;
-    if(_store.get(_store.master_liabilities_db, logos::mdb_val(hash), l, txn))
-    {
-        LOG_FATAL(_log) << "LiabilityManager::DeleteLiability - "
-            << "liability does not exist for hash = " << hash.to_string();
-        trace_and_halt();
-    }
-    mdb_del(txn, _store.rep_liabilities_db, logos::mdb_val(l.target), logos::mdb_val(hash));
-    _store.del(_store.master_liabilities_db, logos::mdb_val(hash), txn);
+    _store.liability_del(hash,txn);
 
 }
 
 LiabilityHash LiabilityManager::Store(Liability const & l, MDB_txn* txn)
 {
-    LiabilityHash hash = l.Hash();
-    Liability existing;
-    //if liability with same expiration, target and source exists, consolidate
-    if(!_store.get(_store.master_liabilities_db, logos::mdb_val(hash), existing, txn))
-    {
-        existing.amount += l.amount;
-        _store.put(_store.master_liabilities_db, logos::mdb_val(hash), existing, txn);
-    }
-    else
-    {
-        _store.put(_store.master_liabilities_db, logos::mdb_val(hash), l, txn);
-        mdb_put(txn, _store.rep_liabilities_db, logos::mdb_val(l.target), logos::mdb_val(hash), 0);
-    }
-    return hash;
+    _store.liability_put(l,txn);
+    return l.Hash();
 }
 
 std::vector<LiabilityHash> LiabilityManager::GetHashes(
@@ -188,7 +163,7 @@ std::vector<LiabilityHash> LiabilityManager::GetRepLiabilities(
 Liability LiabilityManager::Get(LiabilityHash const & hash, MDB_txn* txn)
 {
     Liability l;
-    if(_store.get(_store.master_liabilities_db, logos::mdb_val(hash), l, txn))
+    if(_store.liability_get(hash, l, txn))
     {
         LOG_FATAL(_log) << "LiabilityManager::Get - liability does not exist "
             << ". hash = " << hash.to_string();
@@ -199,6 +174,5 @@ Liability LiabilityManager::Get(LiabilityHash const & hash, MDB_txn* txn)
 
 bool LiabilityManager::Exists(LiabilityHash const & hash, MDB_txn* txn)
 {
-    Liability l;
-    return !_store.get(_store.master_liabilities_db, logos::mdb_val(hash), l, txn);
+    return _store.liability_exists(hash, txn);
 }
