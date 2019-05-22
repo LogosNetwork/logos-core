@@ -415,7 +415,6 @@ logos::account_info::account_info ()
     , available_balance (balance)
     , epoch_thawing_updated(0)
     , epoch_secondary_liabilities_updated(0)
-    , thawing_count(0)
 {}
 
 logos::account_info::account_info (bool & error, const logos::mdb_val & mdbval)
@@ -451,7 +450,6 @@ logos::account_info::account_info (
     , available_balance (balance_a)
     , epoch_thawing_updated(0)
     , epoch_secondary_liabilities_updated(0)
-    , thawing_count(0)
 {}
 
 uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
@@ -467,7 +465,6 @@ uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
     }
     s += write (stream_a, epoch_thawing_updated);
     s += write (stream_a, epoch_secondary_liabilities_updated);
-    s += write (stream_a, thawing_count);
     s += write (stream_a, available_balance.bytes);
     return s;
 }
@@ -491,7 +488,6 @@ bool logos::account_info::Deserialize(logos::stream &stream_a)
     error = error
         || read(stream_a, epoch_thawing_updated)
         || read(stream_a, epoch_secondary_liabilities_updated)
-        || read(stream_a, thawing_count)
         || read(stream_a, available_balance.bytes);
     return error;
 
@@ -505,7 +501,6 @@ bool logos::account_info::operator== (logos::account_info const & other_a) const
            available_balance == other_a.available_balance &&
            epoch_thawing_updated  == other_a.epoch_thawing_updated &&
            epoch_secondary_liabilities_updated == other_a.epoch_secondary_liabilities_updated &&
-           thawing_count == other_a.thawing_count &&
            Account::operator==(other_a);
 }
 

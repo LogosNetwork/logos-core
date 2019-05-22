@@ -44,9 +44,9 @@ fi
 eval set -- "${PARSED}"
 if ! [[ -x "$(command -v nproc)" ]]; then
     # Mac
-    numCPUs=$(($(sysctl -n hw.ncpu) + 1))
+    numCPUs=$(($(sysctl -n hw.ncpu)))
 else
-    numCPUs=$(($(nproc) + 1))
+    numCPUs=$(($(nproc)))
 fi
 cmakeBuildType="Debug" activeNetwork="logos_test_network" rebuild=false
 # now enjoy the options in order and nicely split until we see --

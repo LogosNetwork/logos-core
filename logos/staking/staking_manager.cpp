@@ -316,10 +316,6 @@ void StakingManager::BeginThawing(
     ThawingFunds thawing = CreateThawingFunds(cur_stake.target, origin, epoch, txn);
     Extract(cur_stake, thawing, amount_to_thaw, origin, epoch, txn);
     bool consolidated = Store(thawing, origin, txn);
-    if(!consolidated)
-    {
-        account_info.thawing_count++;
-    }
 }
 
 //modifies cur_stake and account_info
@@ -474,10 +470,6 @@ void StakingManager::Stake(
        auto extract_thawing = [&](ThawingFunds & t)
        {
             amount_left -= Extract(t, cur_stake, amount_left, origin, epoch, txn);
-            if(t.amount == 0)
-            {
-                account_info.thawing_count--;
-            }
             return amount_left > 0;
        }; 
        ProcessThawingFunds(origin, extract_thawing, txn);
@@ -512,12 +504,21 @@ bool StakingManager::Validate(
     {
         cur_stake = cur_stake_option.get();
     }
-    //function local cache, _liability_manager.CanCreateSecondaryLiability is called
-    //multiple times in this function from multiple places, possibly with the same arguments
-    //also, all secondary liabilities created must have the same target
+
+    /* Helper lambda function
+     * A) _liability_mgr.CanCreateSecondaryLiability is called multiple times
+     * within this function, possibly with the same arguments, so results
+     * are cached to avoid repeating the same work.
+     * B) Any secondary liabilities created must have the same target
+     * While two separate calls to 
+     * _liability_mgr.CanCreateSecondaryLiability() with different targets 
+     * may both return true, the software will be unable to create both of 
+     * those secondary liabilities when the request is applied.
+     * The map and bool flag make sure that this function is aware of any 
+     * possible conflicts between secondary liabilities that will be created
+     */
     std::unordered_map<AccountAddress,bool> secondary_liability_cache;
     bool already_created_secondary = false;
-
     auto can_create_secondary_liability = [&](AccountAddress& target)
     {
 
@@ -540,67 +541,12 @@ bool StakingManager::Validate(
         return secondary_liability_cache[target];
     };
 
-    //make sure request does not create more thawing funds than software allows at one time
-    auto under_thawing_limit = [&]()
-    {
-        //Setting max_thawing to THAWING_PERIOD allows users to create
-        //one set of thawing funds per epoch
-        uint8_t max_thawing = THAWING_PERIOD;
-        if(info.thawing_count < max_thawing)
-        {
-            //have room for more thawing funds to be created
-            return true;
-        }
-        else if(cur_stake_option)
-        {
-            //if these conditions hold, thawing funds will be created
-            if(amount < cur_stake.amount
-                    || (cur_stake.target != target
-                        && !can_create_secondary_liability(cur_stake.target)))
-            {
-                uint32_t exp_epoch = epoch + THAWING_PERIOD;
-                bool can_consolidate = false;
-                bool can_prune = false;
-                //check if thawing funds can be pruned or new thawing funds will be
-                //consolidated
-                ProcessThawingFunds(origin,
-                        [&exp_epoch,&cur_stake,&epoch,&can_prune,&can_consolidate,&info]
-                        (ThawingFunds& f)
-                        {
-                            if(f.expiration_epoch == exp_epoch && f.target == cur_stake.target)
-                            {
-                                can_consolidate = true;
-                                return false; 
-                            }
-                            else if(f.expiration_epoch < exp_epoch && info.epoch_thawing_updated >= epoch)
-                            {
-                                //can't prune because all thawing is up to date
-                                //can't consolidate because all thawing after this has diff
-                                //expiration than expiration epoch, so break
-                                return false;
-                            }
-                            else if(f.expiration_epoch <= epoch)
-                            {
-                                can_prune = true;
-                                return false;
-                            }
-                            else
-                            {
-                                //continue loop
-                                return true;
-                            }
-                        },txn);
-                return can_consolidate || can_prune;
-            }
-        }
-        //no thawing is created, return true;
-        return true;
-    };
+
     //if account has enough available funds, we know request will succeed, even
     //if software uses thawing funds or existing staked funds instead
     if(available >= amount)
     {
-        return under_thawing_limit();
+        return true;
     }
 
     Amount remaining = amount - available;
@@ -614,7 +560,7 @@ bool StakingManager::Validate(
         {
             if(cur_stake.amount >= remaining)
             {
-                return under_thawing_limit();
+                return true;
             }
             remaining -= cur_stake.amount;
         }
@@ -638,7 +584,7 @@ bool StakingManager::Validate(
         }
         ,txn);
 
-    return res && under_thawing_limit();
+    return res;
 }
 
 
@@ -666,7 +612,6 @@ void StakingManager::PruneThawing(
                 trace_and_halt();
            }
            info.SetAvailableBalance(info.GetAvailableBalance()+t.amount,cur_epoch, txn);
-           info.thawing_count--;
         }
         return true;
     };
