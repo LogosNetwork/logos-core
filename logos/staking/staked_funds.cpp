@@ -3,34 +3,6 @@
 
 StakedFunds::StakedFunds() : target(0), amount(0), liability_hash(0) {}
 
-StakedFunds::StakedFunds(boost::optional<StakedFunds> const & option)
-{
-    if(option)
-    {
-        *this = option.get();
-    }
-    else
-    {
-        Log log;
-        LOG_FATAL(log) << "StakedFunds::StakedFunds - option is empty";
-        trace_and_halt();
-    }
-}
-
-StakedFunds StakedFunds::operator=(boost::optional<StakedFunds> const & option)
-{
-    if(option)
-    {
-        *this = option.get();
-    }
-    else
-    {
-        Log log;
-        LOG_FATAL(log) << "StakedFunds::StakedFunds - option is empty";
-        trace_and_halt();
-    }
-}
-
 logos::mdb_val StakedFunds::to_mdb_val(std::vector<uint8_t>& buf) const
 {
     assert(buf.empty());

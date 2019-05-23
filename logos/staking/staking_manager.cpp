@@ -205,16 +205,12 @@ void StakingManager::Delete(
     _store.stake_del(origin, txn);
 }
 
-boost::optional<StakedFunds> StakingManager::GetCurrentStakedFunds(
+bool StakingManager::GetCurrentStakedFunds(
         AccountAddress const & origin,
+        StakedFunds& funds,
         MDB_txn* txn)
 {
-    StakedFunds funds;
-    if(_store.stake_get(origin, funds, txn))
-    {
-        return boost::optional<StakedFunds>{};
-    }
-    return funds;
+    return !_store.stake_get(origin, funds, txn);
 }
 
 std::vector<ThawingFunds> StakingManager::GetThawingFunds(
@@ -400,9 +396,9 @@ void StakingManager::Stake(
     StakedFunds cur_stake;
 
 
-    boost::optional<StakedFunds> cur_stake_option = GetCurrentStakedFunds(origin, txn);
+    bool has_stake = GetCurrentStakedFunds(origin, cur_stake, txn);
     //no current stake
-    if(!cur_stake_option)
+    if(!has_stake)
     {
         cur_stake = CreateStakedFunds(target, origin, txn);
         if(target != origin)
@@ -410,10 +406,7 @@ void StakingManager::Stake(
             _voting_power_mgr.AddUnlockedProxied(target,account_info.GetAvailableBalance(), epoch, txn);
         }
     }
-    else
-    {
-        cur_stake = cur_stake_option.get();
-    }
+
 
     //consistency check
     //if not staking to self, rep and target must match
@@ -430,7 +423,7 @@ void StakingManager::Stake(
     _liability_mgr.PruneSecondaryLiabilities(origin, account_info, epoch, txn);
 
     //if changing target, extract from existing stake
-    if(target != cur_stake.target && cur_stake_option)
+    if(target != cur_stake.target && has_stake)
     {
         cur_stake = ChangeTarget(origin,account_info,epoch,cur_stake,target,amount_left,txn);
     }
@@ -491,13 +484,9 @@ bool StakingManager::Validate(
         + GetPruneableThawingAmount(origin, info, epoch, txn);
 
 
-    boost::optional<StakedFunds> cur_stake_option =
-        GetCurrentStakedFunds(origin, txn);
     StakedFunds cur_stake;
-    if(cur_stake_option)
-    {
-        cur_stake = cur_stake_option.get();
-    }
+    bool has_stake =
+        GetCurrentStakedFunds(origin, cur_stake, txn);
 
     /* Helper lambda function
      * A) _liability_mgr.CanCreateSecondaryLiability is called multiple times
@@ -547,7 +536,7 @@ bool StakingManager::Validate(
 
     //if not enough available funds, attempt to use existing stake to satisfy
     //remaining portion of request
-    if(cur_stake_option && cur_stake.amount > 0)
+    if(has_stake && cur_stake.amount > 0)
     {
         if(cur_stake.target == target 
                 || can_create_secondary_liability(cur_stake.target))
