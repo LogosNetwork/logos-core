@@ -245,6 +245,36 @@ bool logos::block_store::del(MDB_dbi &db, const mdb_val &key, MDB_txn *tx)
     return error;
 }
 
+template <typename T, typename R>
+bool logos::block_store::iterate_db(
+        MDB_dbi& db,
+        T const & start,
+        std::function<bool(R& record, logos::store_iterator& it)> const & operation,
+        MDB_txn* txn)
+{
+    bool error = false;
+    for(auto it = logos::store_iterator(txn,db, logos::mdb_val(start));
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        R r;
+        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (
+                    it->second.data ()), it->second.size ());
+        error |= r.Deserialize (stream);
+        if(error)
+        {
+            LOG_FATAL(log) << "block_store::iterate_db - "
+                << "Error deserializing";
+            trace_and_halt();
+        }
+        if(!operation(r, it))
+        {
+            return error;
+        }
+    }
+}
+
+template bool logos::block_store::iterate_db(MDB_dbi&, AccountAddress const &, std::function<bool(ThawingFunds&, logos::store_iterator&)> const &,MDB_txn*);
+
 logos::store_iterator logos::block_store::block_info_begin (MDB_txn * transaction_a, logos::block_hash const & hash_a)
 {
     logos::store_iterator result (transaction_a, blocks_info, logos::mdb_val (hash_a));
