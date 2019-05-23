@@ -62,10 +62,14 @@ class StakingManager
             MDB_txn* txn);
 
 
-    /* Returns StakedFunds if origin has any funds staked
+    /* @param origin - account that owns StakedFunds
+     * @param funds - struct to populate with result
+     * @param txn - lmdb transaction
+     * @returns - true if found and funds argument was populated
      */
-    boost::optional<StakedFunds> GetCurrentStakedFunds(
+    bool GetCurrentStakedFunds(
             AccountAddress const & origin,
+            StakedFunds & funds,
             MDB_txn* txn);
 
 

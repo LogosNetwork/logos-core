@@ -1762,16 +1762,18 @@ void PersistenceManager<R>::ApplyRequest(
     CandidateInfo candidate(request);
     if(!request.set_stake)
     {
-        boost::optional<StakedFunds> cur_stake_option = StakingManager::GetInstance()->GetCurrentStakedFunds(
+        StakedFunds cur_stake;
+        bool has_stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
                 request.origin,
+                cur_stake,
                 txn);
-        if(!cur_stake_option)
+        if(!has_stake)
         {
             LOG_FATAL(_log) << "PersistenceManager<R>::ApplyRequest (AnnounceCandidacy) - "
                 << " cur stake is empty";
             trace_and_halt();
         }
-        candidate.next_stake = cur_stake_option.get().amount;
+        candidate.next_stake = cur_stake.amount;
     }
     rep.candidacy_action_tip = request.Hash();
     assert(!_store.rep_put(request.origin,rep,txn));
@@ -2143,16 +2145,18 @@ bool PersistenceManager<R>::ValidateRequest(
 
     if(!request.set_stake)
     {
-        boost::optional<StakedFunds> cur_stake_option = StakingManager::GetInstance()->GetCurrentStakedFunds(
+        StakedFunds cur_stake;
+       bool has_stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
                 request.origin,
+                cur_stake,
                 txn);
-        if(!cur_stake_option)
+        if(!has_stake)
         {
             LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (AnnounceCandidacy) - "
                 << " cur stake is empty";
             trace_and_halt();
         }
-        stake = cur_stake_option.get().amount;
+        stake = cur_stake.amount;
     }
     if(stake < MIN_DELEGATE_STAKE)
     {
@@ -2321,15 +2325,17 @@ bool PersistenceManager<R>::ValidateRequest(
 
     if(!request.set_stake)
     {
-        boost::optional<StakedFunds> cur_stake_option = StakingManager::GetInstance()->GetCurrentStakedFunds(
+        StakedFunds cur_stake;
+        bool has_stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
                 request.origin,
+                cur_stake,
                 txn);
-        if(!cur_stake_option)
+        if(!has_stake)
         {
             result.code = logos::process_result::not_enough_stake; 
             return false;
         }
-        stake = cur_stake_option.get().amount;
+        stake = cur_stake.amount;
     }
 
     if(request.stake < MIN_REP_STAKE)
