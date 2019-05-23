@@ -15,6 +15,7 @@
 #include <logos/staking/thawing_funds.hpp>
 #include <logos/staking/liability.hpp>
 #include <logos/staking/voting_power.hpp>
+#
 
 namespace logos
 {
@@ -428,6 +429,21 @@ public:
             MDB_txn * txn);
     
     bool liability_del(LiabilityHash const & hash, MDB_txn* txn);
+
+    /* @param db - db to iterate
+     * @param start - key to start iteration on
+     * @param operation - function to execute for each record in iteration
+     * if operation returns false, iteration stops
+     * @param txn - transaction (must be non-null)
+     * @ returns true if error occurred, false otherwise
+     * TODO Temprory abstraction, we still need to go through process to design an abstraction layer
+     */
+    template <typename T, typename R>
+    bool iterate_db(
+            MDB_dbi& db,
+            T const & start,
+            std::function<bool(R& record, logos::store_iterator&)> const & operation,
+            MDB_txn* txn);
 
     //////////////////
 

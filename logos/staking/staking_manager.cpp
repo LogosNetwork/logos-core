@@ -276,28 +276,24 @@ void StakingManager::ProcessThawingFunds(
         std::function<bool(ThawingFunds& funds, logos::store_iterator&)> func,
         MDB_txn* txn)
 {
-    for(auto it = logos::store_iterator(txn,_store.thawing_db, logos::mdb_val(origin));
-            it != logos::store_iterator(nullptr); ++it)
+    using FuncType = std::function<bool(ThawingFunds& funds, logos::store_iterator&)>;
+    //no matter what the func passed as argument is, we never want to iterate
+    //through thawing funds that are not owned by origin
+    //adding this filter on top of whatever func is avoids repetition in 
+    //calling code (otherwise all callers would need to include this filter)
+    FuncType filter = [&func,&origin](ThawingFunds& funds, logos::store_iterator& it) -> bool
     {
+        //if the key is not origin, stop iteration
         if(it->first.uint256() != origin)
         {
-            return;
+            return false;
         }
-        ThawingFunds t; 
-        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (
-                    it->second.data ()), it->second.size ());
-        bool error = t.Deserialize (stream);
-        if(error)
+        else
         {
-            LOG_FATAL(_log) << "StakingManager::ProcessThawingFunds - "
-                << "Error deserializing ThawingFunds for account = " << origin.to_string();
-            trace_and_halt();
+            return func(funds, it);
         }
-        if(!func(t, it))
-        {
-            return;
-        }
-    }
+    };
+    _store.iterate_db(_store.thawing_db, origin, filter, txn);
 }
 
 
