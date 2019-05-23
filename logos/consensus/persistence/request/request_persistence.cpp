@@ -127,6 +127,7 @@ bool ValidateStake(
     return true;
 }
 
+
 bool PersistenceManager<R>::ValidateRequest(
     RequestPtr request,
     uint32_t cur_epoch_num,
@@ -304,18 +305,8 @@ bool PersistenceManager<R>::ValidateRequest(
             break;
         case RequestType::Proxy:
         {
-            logos::transaction txn(_store.environment,nullptr,false);
-            auto proxy = dynamic_pointer_cast<const Proxy>(request);
-            if(info->type != logos::AccountType::LogosAccount)
+            if(!ValidateRequestWithStaking<Proxy>(request,info,cur_epoch_num,result))
             {
-                result.code = logos::process_result::invalid_account_type;
-                return false;
-            }
-            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
-            if(!ValidateRequest(*proxy,*account_info,cur_epoch_num,txn,result))
-            {
-                LOG_ERROR(_log) << "Proxy is invalid: " << proxy->GetHash().to_string()
-                    << " code is " << logos::ProcessResultToString(result.code);
                 return false;
             }
             break;
@@ -374,111 +365,53 @@ bool PersistenceManager<R>::ValidateRequest(
         }
         case RequestType::AnnounceCandidacy:
         {
-            logos::transaction txn(_store.environment,nullptr,false);
-            auto ac = dynamic_pointer_cast<const AnnounceCandidacy>(request);
-            if(info->type != logos::AccountType::LogosAccount)
+            if(!ValidateRequestWithStaking<AnnounceCandidacy>(request,info,cur_epoch_num,result))
             {
-                result.code = logos::process_result::invalid_account_type;
-                return false; 
-            }
-            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
-            if(!ValidateRequest(*ac, *account_info, cur_epoch_num, txn, result))
-            {
-                LOG_ERROR(_log) << "AnnounceCandidacy is invalid: " << ac->Hash().to_string()
-                    << " code is " << logos::ProcessResultToString(result.code);
                 return false;
             }
+
             break;
         }
         case RequestType::RenounceCandidacy:
         {
-            logos::transaction txn(_store.environment,nullptr,false);
-            auto rc = dynamic_pointer_cast<const RenounceCandidacy>(request);
-            if(info->type != logos::AccountType::LogosAccount)
+            if(!ValidateRequestWithStaking<RenounceCandidacy>(request,info,cur_epoch_num,result))
             {
-                result.code = logos::process_result::invalid_account_type;
-                return false; 
-            }
-            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
-            if(!ValidateRequest(*rc,*account_info,cur_epoch_num,txn, result))
-            {
-                LOG_ERROR(_log) << "RenounceCandidacy is invalid: " << rc->Hash().to_string()
-                    << " code is " << logos::ProcessResultToString(result.code);
                 return false;
             }
             break;
         }
         case RequestType::StartRepresenting:
         {
-            logos::transaction txn(_store.environment,nullptr,false);
-            auto sr = dynamic_pointer_cast<const StartRepresenting>(request);
-            if(info->type != logos::AccountType::LogosAccount)
+            if(!ValidateRequestWithStaking<StartRepresenting>(request,info,cur_epoch_num,result))
             {
-                result.code = logos::process_result::invalid_account_type;
-                return false; 
-            }
-            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
-
-            if(!ValidateRequest(*sr,*account_info,cur_epoch_num,txn, result))
-            {
-                LOG_ERROR(_log) << "StartRepresenting is invalid: " << sr->Hash().to_string()
-                    << " code is " << logos::ProcessResultToString(result.code);
                 return false;
             }
             break;
         }
         case RequestType::StopRepresenting:
         {
-            logos::transaction txn(_store.environment,nullptr,false);
-            auto sr = dynamic_pointer_cast<const StopRepresenting>(request);
-            if(info->type != logos::AccountType::LogosAccount)
+            if(!ValidateRequestWithStaking<StopRepresenting>(request,info,cur_epoch_num,result))
             {
-                result.code = logos::process_result::invalid_account_type;
-                return false; 
-            }
-            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
-            if(!ValidateRequest(*sr,*account_info,cur_epoch_num,txn,result))
-            {
-                LOG_ERROR(_log) << "StopRepresenting is invalid: " << sr->Hash().to_string()
-                    << " code is " << logos::ProcessResultToString(result.code);
                 return false;
-            }   
+            }
             break;
         }
         case RequestType::Stake:
         {
-            logos::transaction txn(_store.environment,nullptr,false);
-            auto stake = dynamic_pointer_cast<const Stake>(request);
-            if(info->type != logos::AccountType::LogosAccount)
+
+            if(!ValidateRequestWithStaking<Stake>(request,info,cur_epoch_num,result))
             {
-                result.code = logos::process_result::invalid_account_type;
-                return false; 
-            }
-            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
-            if(!ValidateRequest(*stake,*account_info,cur_epoch_num,txn,result))
-            {
-                LOG_ERROR(_log) << "Stake is invalid: " << stake->GetHash().to_string()
-                    << " code is " << logos::ProcessResultToString(result.code);
                 return false;
-            }   
+            }
             break;
         }
         case RequestType::Unstake:
         {
-            logos::transaction txn(_store.environment,nullptr,false);
-            auto unstake = dynamic_pointer_cast<const Unstake>(request);
-            if(info->type != logos::AccountType::LogosAccount)
+ 
+            if(!ValidateRequestWithStaking<Unstake>(request,info,cur_epoch_num,result))
             {
-                result.code = logos::process_result::invalid_account_type;
-                return false; 
-            }
-            auto account_info = dynamic_pointer_cast<logos::account_info>(info);
-            if(!ValidateRequest(*unstake,*account_info,cur_epoch_num,txn,result))
-            {
-                LOG_ERROR(_log) << "Unstake is invalid: " << unstake->GetHash().to_string()
-                    << " code is " << logos::ProcessResultToString(result.code);
                 return false;
-            }   
+            }
             break;
         }
         case RequestType::Unknown:

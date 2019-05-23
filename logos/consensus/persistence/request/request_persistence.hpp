@@ -78,6 +78,35 @@ protected:
             MDB_txn* txn,
             logos::process_return& result); 
 
+    //This function is only to be called for requests that involve staking
+    //Specifically, StartRepresenting, StopRepresenting, AnnounceCandidacy,
+    //RenounceCandidacy, Stake and Unstake
+    template <typename T>
+    bool ValidateRequestWithStaking(
+            RequestPtr request,
+            std::shared_ptr<logos::Account> info,
+            uint32_t cur_epoch_num,
+            logos::process_return& result)
+    {
+        logos::transaction txn(_store.environment,nullptr,false);
+        auto derived = dynamic_pointer_cast<const T>(request);
+        if(info->type != logos::AccountType::LogosAccount)
+        {
+            result.code = logos::process_result::invalid_account_type;
+            return false;
+        }
+        auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+        if(!ValidateRequest(*derived,*account_info,cur_epoch_num,txn,result))
+        {
+            LOG_ERROR(_log) << "PersistenceManager<R>::ValidateRequestWithStaking - "
+               << " request is invalid: " << derived->GetHash().to_string()
+                << " code is " << logos::ProcessResultToString(result.code)
+                << " type is " << GetRequestTypeField(request->type);
+            return false;
+        }
+        return true;
+    }
+
     bool ValidateRequest(
             const AnnounceCandidacy& request,
             logos::account_info const & info,
