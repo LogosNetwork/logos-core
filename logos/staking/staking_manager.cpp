@@ -86,41 +86,66 @@ template <typename T, typename R>
 Amount StakingManager::Extract(
         T & input,
         R & output,
-        Amount const & amount_to_extract,
+        Amount amount_to_extract,
         AccountAddress const & origin,
         uint32_t const & epoch,
         MDB_txn* txn)
 {
-    Amount to_extract = amount_to_extract;
-    if(to_extract > input.amount)
+    if(amount_to_extract > input.amount)
     {
-        to_extract = input.amount;
+        //if the argument passed in is greater than max possible to extract
+        //just extract max possible (all of input)
+        amount_to_extract = input.amount;
     }
+    //changing target is a special case
+    //need to handle secondary liabilities
     if(input.target != output.target)
     {
         //Can't extract self stake into lock proxy
         if(input.target == origin)
         {
+            //no funds were extracted, return 0
             return 0;
         }
-        //If extracting from thawing, secondary liability will have same expiration
-        //as ThawingFunds
+        //If extracting from thawing, secondary liability will have same
+        //expiration as ThawingFunds
         uint32_t liability_expiration = GetExpiration(input);
         if(liability_expiration  == 0)
         {
+            //if liability_expiration is 0, input is StakedFunds
+            //therefore, need to set expiration of liability to one thawing
+            //period past current epoch
             liability_expiration = epoch + THAWING_PERIOD;
         }
-        bool res = _liability_mgr.CreateSecondaryLiability(input.target,origin,to_extract,liability_expiration,txn);
+
+        //Whenever extracting into diff target, need to create secondary
+        //liability
+        bool res = _liability_mgr.CreateSecondaryLiability(input.target,origin,amount_to_extract,liability_expiration,txn);
         //failed to create secondary liability
+        //this can happen if origin already has secondary liabilities with a
+        //different target
         if(!res)
         {
+            //no funds were extracted, return 0
             return 0;
         }
     }
-    UpdateAmountAndStore(input, origin, input.amount - to_extract, txn);
-    output.amount += to_extract;
+    //Adjust the amount of input based on how much was extracted
+    //Note, UpdateAmountAndStore() updates associated liabilities
+    //and handles deletion if amount == 0
+    //if amount_to_extract == input.amount, input will be deleted from db
+    //as well as associated liabilities
+    UpdateAmountAndStore(input, origin, input.amount - amount_to_extract, txn);
+
+    //Defer storing of output to caller, since caller may
+    //may call Extract multiple times with same output and different input
+    //See Stake() member function
+    output.amount += amount_to_extract;
     
-    return to_extract;
+    LOG_DEBUG(_log) << "amount_to_extract = " << amount_to_extract.to_string();
+    //Return the amount extracted, which could be less than amount_to_extract
+    //see first if statement of this function
+    return amount_to_extract;
 }
 
 
@@ -240,33 +265,6 @@ void StakingManager::ProcessThawingFunds(
 
 }
 
-uint8_t StakingManager::GetThawingCount(
-        AccountAddress const & origin,
-        uint32_t cur_epoch,
-        MDB_txn* txn)
-{
-    uint8_t count = 0;
-    ProcessThawingFunds(origin, [&count,&cur_epoch](ThawingFunds& funds)
-            {
-                if(funds.expiration_epoch == 0)
-                {
-                    return true;
-                }
-                else if(funds.expiration_epoch > cur_epoch)
-                {
-                    ++count;
-                }
-                else if(funds.expiration_epoch <= cur_epoch)
-                {
-                    //terminate loop
-                    return false;
-                }
-            },txn);
-    return count;
-}
-
-
-
 void StakingManager::ProcessThawingFunds(
         AccountAddress const & origin,
         std::function<bool(ThawingFunds& funds, logos::store_iterator&)> func,
@@ -295,20 +293,26 @@ void StakingManager::ProcessThawingFunds(
 
 
 //modifies cur_stake and account_info
+//stores modified cur_stake and newly created ThawingFunds in db
 void StakingManager::BeginThawing(
         AccountAddress const & origin,
         logos::account_info& account_info,
         uint32_t epoch,
         StakedFunds& cur_stake,
-        Amount const & amount_to_thaw,
+        Amount amount_to_thaw,
         MDB_txn* txn)
 {
     ThawingFunds thawing = CreateThawingFunds(cur_stake.target, origin, epoch, txn);
-    Extract(cur_stake, thawing, amount_to_thaw, origin, epoch, txn);
-    bool consolidated = Store(thawing, origin, txn);
+    LOG_DEBUG(_log) << "amount to thaw = " << amount_to_thaw.to_string()
+        << " cur_stake.amount = " << cur_stake.amount.to_string();
+    Amount extracted = Extract(cur_stake, thawing, amount_to_thaw, origin, epoch, txn);
+    assert(amount_to_thaw == extracted);
+    //Don't care about return value here
+    Store(thawing, origin, txn);
 }
 
 //modifies cur_stake and account_info
+//Note, stores modified cur_stake and newly created ThawingFunds in db
 void StakingManager::ReduceStake(
         AccountAddress const & origin,
         logos::account_info& account_info,
@@ -329,6 +333,18 @@ void StakingManager::ReduceStake(
 }
 
 //modifies cur_stake, account_info and amount_left
+//This function attempts to extract amount_left from cur_stake into new StakedFunds, which are returned by value. This function also updates affected
+//voting power, and any affected liabilities. 
+//If some funds remain in cur_stake after extraction, those
+//remaining funds begin thawing, and are stored in the DB
+//It is the responsibility of the caller to store the returned value in the DB
+//via Store()
+//Note, if amount_left is greater than 0 when this function returns, there
+//is still more work to be done to satisfy the staking request
+//The software will attempt to use thawing funds and then available balance
+//This later work will also have an effect on liabilities and voting power,
+//which is not handled here, but handled later on in the Stake() member function
+//Note, this funtion does not alter the available balance of an account 
 StakedFunds StakingManager::ChangeTarget(
         AccountAddress const & origin,
         logos::account_info& account_info,
@@ -356,19 +372,18 @@ StakedFunds StakingManager::ChangeTarget(
         amount_left -= Extract(cur_stake, new_stake, amount_left, origin, epoch, txn);
 
         //Add voting power to new target
+        //Note this only adds voting power based on the amount extracted here
         if(new_target == origin)
         {
         
             _voting_power_mgr.AddSelfStake(new_stake.target, new_stake.amount, epoch, txn);
         }
         else
-        {
+        { 
             _voting_power_mgr.AddLockedProxied(new_stake.target, new_stake.amount, epoch, txn);
 
             _voting_power_mgr.AddUnlockedProxied(new_stake.target,account_info.GetAvailableBalance(), epoch, txn);
         }
-
-
 
         //thaw any remaining funds
         if(cur_stake.amount > 0)
@@ -381,9 +396,8 @@ StakedFunds StakingManager::ChangeTarget(
 
 
 
-//Note, staking_subchain head needs to be up to date before this function is 
-//called, for updates to available balance to work correctly
-//The request that staking_subchain_head references must also be stored in the db
+//Note, account_info.rep needs to be up to date before this function is called
+//for updates to available balance to work correctly 
 void StakingManager::Stake(
         AccountAddress const & origin,
         logos::account_info & account_info,
@@ -395,17 +409,18 @@ void StakingManager::Stake(
     Amount amount_left = amount;
     StakedFunds cur_stake;
 
+    /*
+     * This function iteratively builds StakedFunds with the requested amount
+     * amount_left is modified throughout the function, and in called functions,
+     * until amount_left is 0.
+     */
 
     bool has_stake = GetCurrentStakedFunds(origin, cur_stake, txn);
-    //no current stake
     if(!has_stake)
     {
         cur_stake = CreateStakedFunds(target, origin, txn);
-        if(target != origin)
-        {
-            _voting_power_mgr.AddUnlockedProxied(target,account_info.GetAvailableBalance(), epoch, txn);
-        }
     }
+
 
 
     //consistency check
@@ -422,29 +437,75 @@ void StakingManager::Stake(
 
     _liability_mgr.PruneSecondaryLiabilities(origin, account_info, epoch, txn);
 
-    //if changing target, extract from existing stake
+    /* Handle the case where origin is staking to a new target.
+     * ChangeTarget() will create any secondary liabilities (if possible)
+     * and update voting power of old target and new target (including 
+     * unlocked proxy).
+     * If amount is less than cur_stake.amount, the remaining amount that was
+     * not extracted moves to the thawing state and is stored in the db as
+     * ThawingFunds
+     * Note the returned value is not stored in the db, as the software may
+     * need to extract ThawingFunds or use available funds to stake the amount
+     * requested. This additional work is not done in ChangeTarget()
+     * but later on in this function (Stake())
+     */
     if(target != cur_stake.target && has_stake)
     {
+        //Note, amount_left is passed in by ref and modified
         cur_stake = ChangeTarget(origin,account_info,epoch,cur_stake,target,amount_left,txn);
+        if(amount == 0)
+        {
+            Delete(cur_stake, origin, txn);
+            return;  
+        }
+
     }
-    //request is not changing target and is reducing stake to current target
+   /* Handle the case where origin is not changing target of stake,
+    * and is reducing stake to current target
+    * Note the return here. We do not need to touch thawing funds or available
+    * funds in this case. ReduceStake stores any created ThawingFunds, as well
+    * as the modified cur_stake in db, and updates any associated liabilities
+    * in db
+    */
     else if(amount_left < cur_stake.amount)
     {
         Amount amount_to_thaw = cur_stake.amount - amount_left;
         ReduceStake(origin,account_info,epoch,cur_stake,amount_to_thaw,txn);
         return;
     }
-    //request is not changing target, and is increasing stake to current target
+    /* Handle case where origin is not changing target of stake, and is
+     * increasing the amount staked to current target. We only set the
+     * amount here, as the extraction from ThawingFunds or staking of
+     * additional available funds is done below
+     */
     else
     {
         amount_left -= cur_stake.amount;
+        //Special case around unlocked proxy when origin has no current stake
+        //In the normal case, addition of unlocked proxy to a new target is done
+        //in ChangeTarget(). However, ChangeTarget() assumes the account already
+        //
+        if(!has_stake && target != origin)
+        {
+            _voting_power_mgr.AddUnlockedProxied(target,account_info.GetAvailableBalance(), epoch, txn);
+        }
     }
 
 
+   /* Handle the case where the software needs to use ThawingFunds or
+    * additional available funds to satisfy the request.
+    * At this point, cur_stake.target == target and but
+    * cur_stake.amount is less than amount requested.
+    * The software needs more funds to satsify the request
+    * First, attempt to stake ThawingFunds
+    * Then, use available funds if necessary
+    * This code path will be hit when increasing stake to current target,
+    * and can also be hit when changing target (if changing target and 
+    * increasing stake, or if secondary liabilities prevented the instant
+    * redelegation of existing stake)
+    */
     if(amount_left > 0)
     {
-        //stake portion of request has not been fulfilled, need to use thawing funds
-        //and possibly available funds
        if(target == origin)
        {
            _voting_power_mgr.AddSelfStake(target, amount_left, epoch, txn);
@@ -454,6 +515,9 @@ void StakingManager::Stake(
            _voting_power_mgr.AddLockedProxied(target, amount_left, epoch, txn);
        }
 
+       //Extract from thawing until amount_left is 0
+       //Any modified ThawingFunds are stored in db (see Extract())
+       //cur_stake is not stored in db
        auto extract_thawing = [&](ThawingFunds & t)
        {
             amount_left -= Extract(t, cur_stake, amount_left, origin, epoch, txn);
@@ -463,11 +527,12 @@ void StakingManager::Stake(
 
        if(amount_left > 0)
        {
-           //still need to stake more even after using thawing, so use available funds
+           //still need to stake more even after using thawing,
             StakeAvailableFunds(cur_stake, amount_left, origin, account_info, epoch, txn);
        }
     }
     //Finally, store the updated staked funds
+    //Note this code path is not hit for the reduce stake to current target case
     Store(cur_stake, origin, txn);
 }
 
@@ -480,8 +545,25 @@ bool StakingManager::Validate(
         Amount const & fee,
         MDB_txn* txn)
 {
-    Amount available = info.GetAvailableBalance() - fee
-        + GetPruneableThawingAmount(origin, info, epoch, txn);
+    Amount available = info.GetAvailableBalance() - fee;
+    //if account has enough available funds, we know request will succeed,
+    //even if software uses thawing funds or existing staked funds instead
+    if(available >= amount)
+    {
+        return true;
+    }
+    else
+    {
+        //add in any thawing funds that have expired
+        available += GetPruneableThawingAmount(origin, info, epoch, txn); 
+        if(available >= amount)
+        {
+            return true;
+        }
+    }
+    //If we get here, there are not enough available funds. need to check if
+    //software can use existing StakedFunds (in case of changing target)
+    //and/or ThawingFunds
 
 
     StakedFunds cur_stake;
@@ -502,10 +584,10 @@ bool StakingManager::Validate(
      */
     std::unordered_map<AccountAddress,bool> secondary_liability_cache;
     bool already_created_secondary = false;
-    auto can_create_secondary_liability = [&](AccountAddress& target)
+    auto can_create_secondary_liability = [&](AccountAddress& liability_target)
     {
 
-        if(secondary_liability_cache.find(target) == secondary_liability_cache.end())
+        if(secondary_liability_cache.find(liability_target) == secondary_liability_cache.end())
         {
             if(already_created_secondary)
             {
@@ -513,24 +595,19 @@ bool StakingManager::Validate(
                 return false;
             }
             bool can_create = 
-                _liability_mgr.CanCreateSecondaryLiability(target, origin, info, epoch, txn);
+                _liability_mgr.CanCreateSecondaryLiability(liability_target, origin, info, epoch, txn);
             if(can_create)
             {
                 already_created_secondary = true;
             }
-            secondary_liability_cache[target] = can_create;
+            secondary_liability_cache[liability_target] = can_create;
             return can_create;
         }
-        return secondary_liability_cache[target];
+        return secondary_liability_cache[liability_target];
     };
 
 
-    //if account has enough available funds, we know request will succeed, even
-    //if software uses thawing funds or existing staked funds instead
-    if(available >= amount)
-    {
-        return true;
-    }
+
 
     Amount remaining = amount - available;
 
@@ -583,22 +660,29 @@ void StakingManager::PruneThawing(
     }
     info.epoch_thawing_updated = cur_epoch;
 
-    auto func = [&info,&cur_epoch,&txn,&origin](ThawingFunds& t, logos::store_iterator& it)
+    Amount amount_pruned = 0;
+
+    auto func = [&cur_epoch,&origin,&amount_pruned](ThawingFunds& t, logos::store_iterator& it)
     {
         if(t.expiration_epoch != 0 && t.expiration_epoch <= cur_epoch)
         {
-           if(mdb_cursor_del(it.cursor,0))
-           {
-               Log log;
+            if(it.delete_current_record())
+            {
+                Log log;
                 LOG_FATAL(log) << "StakingManager::PruneThawing - "
-                    << "Error deleting ThawingFunds. orign = " << origin.to_string();
+                    << "Error deleting ThawingFunds. origin = " << origin.to_string();
                 trace_and_halt();
-           }
-           info.SetAvailableBalance(info.GetAvailableBalance()+t.amount,cur_epoch, txn);
+            }
+            amount_pruned += t.amount;
         }
         return true;
     };
     ProcessThawingFunds(origin,func,txn);
+
+    info.SetAvailableBalance(
+            info.GetAvailableBalance()+amount_pruned,
+            cur_epoch,
+            txn);
 
 }
 
@@ -654,8 +738,10 @@ void StakingManager::MarkThawingAsFrozen(
                     origin,
                     funds.amount,
                     txn);
+            //cannot modify records while iterating
+            //since modification will change sort order
             updated.push_back(funds);
-            if(mdb_cursor_del(it.cursor,0))
+            if(it.delete_current_record())
             {
                 LOG_FATAL(_log) << "StakingManager::MarkThawingAsFrozen - "
                     << "mdb_cursor_del failed. origin = "
@@ -694,6 +780,7 @@ void StakingManager::SetExpirationOfFrozen(
     std::vector<ThawingFunds> updated;
     auto update = [&exp_epoch,&origin,&updated,&txn,this](ThawingFunds& funds, logos::store_iterator& it)
     {
+        //expiration of 0 represents frozen funds
         if(funds.expiration_epoch == 0)
         {
             funds.expiration_epoch = exp_epoch;
@@ -706,8 +793,10 @@ void StakingManager::SetExpirationOfFrozen(
                     exp_epoch,
                     txn);
 
+            //cannot modify records while iterating
+            //since modification will change sort order
             updated.push_back(funds);
-            if(mdb_cursor_del(it.cursor,0))
+            if(it.delete_current_record())
             {
                 LOG_FATAL(_log) << "StakingManager::SetExpirationOfFrozen - "
                     << " mdb_cursor_del failed. origin = " 

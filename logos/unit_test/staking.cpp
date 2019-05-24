@@ -31,6 +31,7 @@ bool IsStakingRequest(Request const & req)
         || req.type == RequestType::ElectionVote;
 }
 
+
 TEST(Staking, Basic)
 {
     /*
@@ -380,6 +381,10 @@ TEST(Staking, Basic)
         ASSERT_EQ(tf.size(),1);
         ASSERT_EQ(tf[0].amount, 50);
         ASSERT_EQ(tf[0].target, proxy.rep);
+
+        StakedFunds staked;
+        sm.GetCurrentStakedFunds(proxy.origin, staked, txn);
+        ASSERT_EQ(staked.amount, proxy.lock_proxy);
     }
 
 
@@ -548,6 +553,40 @@ TEST(Staking, Basic)
 
     //funds should have thawed
     ASSERT_TRUE(validate(send3));
+
+    proxy.lock_proxy = 0;
+    ASSERT_TRUE(validate(proxy));
+    apply(proxy);
+    update_info();
+
+    {
+    //    logos::transaction txn(store->environment,nullptr,true);
+    //    VotingPowerInfo vp_info;
+    //    vpm.GetVotingPowerInfo(rep,epoch_num,vp_info,txn);
+    //    ASSERT_EQ(vp_info.next.self_stake, start_rep.stake);
+    //    ASSERT_EQ(vp_info.next.locked_proxied, proxy.lock_proxy);
+    //    ASSERT_EQ(vp_info.next.unlocked_proxied, info.GetAvailableBalance());
+    //
+    //    StakedFunds f;
+    //    ASSERT_FALSE(sm.GetCurrentStakedFunds(proxy.origin,f,txn));
+    }
+
+    proxy.lock_proxy = 10;
+    ASSERT_TRUE(validate(proxy));
+    apply(proxy);
+    update_info();
+    {
+    //    logos::transaction txn(store->environment,nullptr,true);
+    //    VotingPowerInfo vp_info;
+    //    vpm.GetVotingPowerInfo(rep,epoch_num,vp_info,txn);
+    //    ASSERT_EQ(vp_info.next.self_stake, start_rep.stake);
+    //    ASSERT_EQ(vp_info.next.locked_proxied, proxy.lock_proxy);
+    //    ASSERT_EQ(vp_info.next.unlocked_proxied, info.GetAvailableBalance());
+    //
+    //    StakedFunds f;
+    //    ASSERT_TRUE(sm.GetCurrentStakedFunds(proxy.origin,f,txn));
+    }
+
 
 }
 
