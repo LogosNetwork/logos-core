@@ -396,8 +396,7 @@ StakedFunds StakingManager::ChangeTarget(
 
 
 
-//Note, account_info.rep needs to be up to date before this function is called
-//for updates to available balance to work correctly 
+//Note, this function sets the rep of account_info based on target
 void StakingManager::Stake(
         AccountAddress const & origin,
         logos::account_info & account_info,
@@ -418,21 +417,9 @@ void StakingManager::Stake(
     bool has_stake = GetCurrentStakedFunds(origin, cur_stake, txn);
     if(!has_stake)
     {
+        //Return by value here produces a copy that is not elided
+        //TODO refactor to avoid the copy?
         cur_stake = CreateStakedFunds(target, origin, txn);
-    }
-
-
-
-    //consistency check
-    //if not staking to self, rep and target must match
-    //if staking to self, rep must be 0
-    auto rep = account_info.rep;
-    if((target != origin && target != rep)
-            || (target == origin && rep != 0))
-    {
-        LOG_FATAL(_log) << "StakingManager::Stake - " << "target does not match "
-            << "staking subchain. account = " << origin.to_string();
-        trace_and_halt();
     }
 
     _liability_mgr.PruneSecondaryLiabilities(origin, account_info, epoch, txn);
@@ -445,14 +432,17 @@ void StakingManager::Stake(
      * not extracted moves to the thawing state and is stored in the db as
      * ThawingFunds
      * Note the returned value is not stored in the db, as the software may
-     * need to extract ThawingFunds or use available funds to stake the amount
-     * requested. This additional work is not done in ChangeTarget()
+     * need to extract additional ThawingFunds 
+     * or use available funds to stake the amount requested. 
+     * This additional work is not done in ChangeTarget()
      * but later on in this function (Stake())
      */
     if(target != cur_stake.target && has_stake)
     {
         //Note, amount_left is passed in by ref and modified
         cur_stake = ChangeTarget(origin,account_info,epoch,cur_stake,target,amount_left,txn);
+        //if we are changing target and reducing the amount to 0, delete the
+        //StakedFunds record in db and return early
         if(amount == 0)
         {
             Delete(cur_stake, origin, txn);
@@ -467,7 +457,7 @@ void StakingManager::Stake(
     * as the modified cur_stake in db, and updates any associated liabilities
     * in db
     */
-    else if(amount_left < cur_stake.amount)
+    else if(amount_left < cur_stake.amount && has_stake)
     {
         Amount amount_to_thaw = cur_stake.amount - amount_left;
         ReduceStake(origin,account_info,epoch,cur_stake,amount_to_thaw,txn);
@@ -478,20 +468,34 @@ void StakingManager::Stake(
      * amount here, as the extraction from ThawingFunds or staking of
      * additional available funds is done below
      */
-    else
+    else if(has_stake)
     {
         amount_left -= cur_stake.amount;
-        //Special case around unlocked proxy when origin has no current stake
-        //In the normal case, addition of unlocked proxy to a new target is done
-        //in ChangeTarget(). However, ChangeTarget() assumes the account already
-        //
-        if(!has_stake && target != origin)
+    }
+    /* Handle the case where origin has no current staked funds
+     * Note, origin may still have a rep in this case
+     */
+    else
+    {
+        //Add unlocked proxied, unless staking to self
+        if(target != origin)
         {
             _voting_power_mgr.AddUnlockedProxied(target,account_info.GetAvailableBalance(), epoch, txn);
         }
+        //subtract unlocked proxy from old rep, if one exists
+        if(account_info.rep != 0)
+        {
+            _voting_power_mgr.SubtractUnlockedProxied(account_info.rep,account_info.GetAvailableBalance(), epoch, txn);
+        }
     }
 
+    //Set rep of account
+    //Needs to be done before StakeAvailableFunds is called, else updates
+    //to unlocked proxy voting power will be wrong
+    //But needs to be done after handling each of the 4 cases above
+    account_info.rep = target == origin ? 0 : target;
 
+    
    /* Handle the case where the software needs to use ThawingFunds or
     * additional available funds to satisfy the request.
     * At this point, cur_stake.target == target and but

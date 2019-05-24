@@ -1663,7 +1663,6 @@ void PersistenceManager<R>::ApplyRequest(
 {
     assert(txn != nullptr);
     info.staking_subchain_head = request.GetHash();
-    info.rep = 0;
     RepInfo rep(request);
     assert(!_store.rep_put(request.origin,rep,txn));
     assert(!_store.request_put(request,txn));
@@ -1752,7 +1751,6 @@ void PersistenceManager<R>::ApplyRequest(
 {
     assert(txn != nullptr);
     info.staking_subchain_head = request.GetHash();
-    info.rep = 0;
     RepInfo rep;
     if(_store.rep_get(request.origin,rep, txn))
     {
@@ -1866,7 +1864,6 @@ void PersistenceManager<R>::ApplyRequest(
     }
 
     info.staking_subchain_head = request.GetHash();
-    info.rep = request.rep;
     if(_store.request_put(request,txn))
     {
         trace_and_halt();
@@ -1896,7 +1893,6 @@ void PersistenceManager<R>::ApplyRequest(
     }
 
     info.staking_subchain_head = request.GetHash();
-    info.rep = 0;
     if(_store.request_put(request,txn))
     {
         trace_and_halt();
@@ -1934,7 +1930,6 @@ void PersistenceManager<R>::ApplyRequest(
     }
 
     info.staking_subchain_head = request.GetHash();
-    info.rep = 0;
     if(_store.request_put(request,txn))
     {
         trace_and_halt();
