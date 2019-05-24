@@ -51,6 +51,7 @@ public:
     logos::store_entry & operator-> ();
     bool operator== (logos::store_iterator const &) const;
     bool operator!= (logos::store_iterator const &) const;
+    int delete_current_record(unsigned int flags = 0);
     MDB_cursor * cursor;
     logos::store_entry current;
 };

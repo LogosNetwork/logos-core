@@ -175,6 +175,11 @@ bool logos::store_iterator::operator!= (logos::store_iterator const & other_a) c
     return !(*this == other_a);
 }
 
+int logos::store_iterator::delete_current_record(unsigned int flags)
+{
+    return mdb_cursor_del(cursor,flags);
+}
+
 template<typename T>
 bool logos::block_store::put(MDB_dbi &db, const mdb_val &key, const T &t, MDB_txn *tx)
 {

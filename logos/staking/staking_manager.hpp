@@ -213,7 +213,7 @@ class StakingManager
     Amount Extract(
             T & input,
             R & output,
-            Amount const & amount_to_extract,
+            Amount amount_to_extract,
             AccountAddress const & origin,
             uint32_t const & epoch,
             MDB_txn* txn);
@@ -300,7 +300,7 @@ class StakingManager
             logos::account_info& account_info,
             uint32_t epoch,
             StakedFunds& cur_stake,
-            Amount const & amount_to_thaw,
+            Amount amount_to_thaw,
             MDB_txn* txn);
 
 
