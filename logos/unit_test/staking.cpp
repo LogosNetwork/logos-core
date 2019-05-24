@@ -560,15 +560,15 @@ TEST(Staking, Basic)
     update_info();
 
     {
-    //    logos::transaction txn(store->environment,nullptr,true);
-    //    VotingPowerInfo vp_info;
-    //    vpm.GetVotingPowerInfo(rep,epoch_num,vp_info,txn);
-    //    ASSERT_EQ(vp_info.next.self_stake, start_rep.stake);
-    //    ASSERT_EQ(vp_info.next.locked_proxied, proxy.lock_proxy);
-    //    ASSERT_EQ(vp_info.next.unlocked_proxied, info.GetAvailableBalance());
-    //
-    //    StakedFunds f;
-    //    ASSERT_FALSE(sm.GetCurrentStakedFunds(proxy.origin,f,txn));
+        logos::transaction txn(store->environment,nullptr,true);
+        VotingPowerInfo vp_info;
+        vpm.GetVotingPowerInfo(rep,epoch_num,vp_info,txn);
+        ASSERT_EQ(vp_info.next.self_stake, start_rep.stake);
+        ASSERT_EQ(vp_info.next.locked_proxied, proxy.lock_proxy);
+        ASSERT_EQ(vp_info.next.unlocked_proxied, info.GetAvailableBalance());
+    
+        StakedFunds f;
+        ASSERT_FALSE(sm.GetCurrentStakedFunds(proxy.origin,f,txn));
     }
 
     proxy.lock_proxy = 10;
@@ -576,15 +576,15 @@ TEST(Staking, Basic)
     apply(proxy);
     update_info();
     {
-    //    logos::transaction txn(store->environment,nullptr,true);
-    //    VotingPowerInfo vp_info;
-    //    vpm.GetVotingPowerInfo(rep,epoch_num,vp_info,txn);
-    //    ASSERT_EQ(vp_info.next.self_stake, start_rep.stake);
-    //    ASSERT_EQ(vp_info.next.locked_proxied, proxy.lock_proxy);
-    //    ASSERT_EQ(vp_info.next.unlocked_proxied, info.GetAvailableBalance());
-    //
-    //    StakedFunds f;
-    //    ASSERT_TRUE(sm.GetCurrentStakedFunds(proxy.origin,f,txn));
+        logos::transaction txn(store->environment,nullptr,true);
+        VotingPowerInfo vp_info;
+        vpm.GetVotingPowerInfo(rep,epoch_num,vp_info,txn);
+        ASSERT_EQ(vp_info.next.self_stake, start_rep.stake);
+        ASSERT_EQ(vp_info.next.locked_proxied, proxy.lock_proxy);
+        ASSERT_EQ(vp_info.next.unlocked_proxied, info.GetAvailableBalance());
+    
+        StakedFunds f;
+        ASSERT_TRUE(sm.GetCurrentStakedFunds(proxy.origin,f,txn));
     }
 
 
