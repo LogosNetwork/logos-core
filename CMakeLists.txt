@@ -327,6 +327,12 @@ add_library (node
     logos/bootstrap/pull.cpp
     logos/bootstrap/tip_connection.cpp
     logos/bootstrap/tips.cpp
+    logos/cache/block_container.cpp
+    logos/cache/block_container.hpp
+    logos/cache/block_write_queue.cpp
+    logos/cache/block_write_queue.hpp
+    logos/cache/cache.cpp
+    logos/cache/cache.hpp
     logos/consensus/request/request_consensus_manager.cpp
     logos/consensus/request/request_backup_delegate.cpp
     logos/consensus/message_handler.cpp
