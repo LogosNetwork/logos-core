@@ -7,24 +7,15 @@ add_library (p2p
 	bloom.h
 	chainparams.cpp
 	chainparams.h
-	chainparamsbase.cpp
-	chainparamsbase.h
-	clientversion.cpp
-	clientversion.h
 	compat.h
-	compat/byteswap.h
-	compat/endian.h
 	compat/glibc_sanity.cpp
 	compat/glibcxx_sanity.cpp
 	compat/sanity.h
 	crypto/chacha20.cpp
 	crypto/chacha20.h
 	crypto/common.h
-	fs.cpp
-	fs.h
 	hash.cpp
 	hash.h
-	limitedmap.h
 	logging.cpp
 	logging.h
 	net.cpp
@@ -36,22 +27,16 @@ add_library (p2p
 	net_processing.cpp
 	net_processing.h
 	p2p.h
-	p2p.cpp
-	prevector.h
-	protocol.cpp
+    p2p.cpp
+    protocol.cpp
 	protocol.h
 	random.cpp
 	random.h
-	reverselock.h
 	serialize.h
-	shutdown.cpp
-	shutdown.h
-	span.h
 	streams.h
 	support/allocators/zeroafterfree.h
 	support/cleanse.cpp
 	support/cleanse.h
-	sync.cpp
 	sync.h
 	threadinterrupt.cpp
 	threadinterrupt.h
@@ -67,12 +52,7 @@ add_library (p2p
 	util.h
 	utilmemory.h
 	utilstrencodings.cpp
-	utilstrencodings.h
-	utiltime.cpp
-	utiltime.h
-	version.h
-	warnings.cpp
-	warnings.h)
+	utilstrencodings.h)
 
 target_include_directories(p2p PRIVATE .)
 

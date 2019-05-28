@@ -6,13 +6,13 @@
 #ifndef BITCOIN_SUPPORT_ALLOCATORS_ZEROAFTERFREE_H
 #define BITCOIN_SUPPORT_ALLOCATORS_ZEROAFTERFREE_H
 
-#include <support/cleanse.h>
-
 #include <memory>
 #include <vector>
+#include <support/cleanse.h>
 
 template <typename T>
-struct zero_after_free_allocator : public std::allocator<T> {
+struct zero_after_free_allocator : public std::allocator<T>
+{
     // MSVC8 default copy constructor is broken
     typedef std::allocator<T> base;
     typedef typename base::size_type size_type;
@@ -22,15 +22,24 @@ struct zero_after_free_allocator : public std::allocator<T> {
     typedef typename base::reference reference;
     typedef typename base::const_reference const_reference;
     typedef typename base::value_type value_type;
-    zero_after_free_allocator() noexcept {}
-    zero_after_free_allocator(const zero_after_free_allocator& a) noexcept : base(a) {}
-    template <typename U>
-    zero_after_free_allocator(const zero_after_free_allocator<U>& a) noexcept : base(a)
+    zero_after_free_allocator() noexcept
     {
     }
-    ~zero_after_free_allocator() noexcept {}
+    zero_after_free_allocator(const zero_after_free_allocator& a) noexcept
+        : base(a)
+    {
+    }
+    template <typename U>
+    zero_after_free_allocator(const zero_after_free_allocator<U>& a) noexcept
+        : base(a)
+    {
+    }
+    ~zero_after_free_allocator() noexcept
+    {
+    }
     template <typename _Other>
-    struct rebind {
+    struct rebind
+    {
         typedef zero_after_free_allocator<_Other> other;
     };
 

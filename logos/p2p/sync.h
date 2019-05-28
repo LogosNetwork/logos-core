@@ -6,11 +6,10 @@
 #ifndef BITCOIN_SYNC_H
 #define BITCOIN_SYNC_H
 
-#include <threadsafety.h>
-
 #include <condition_variable>
 #include <thread>
 #include <mutex>
+#include <threadsafety.h>
 
 typedef std::mutex Mutex;
 typedef std::recursive_mutex CCriticalSection;
@@ -35,12 +34,18 @@ private:
     int value;
 
 public:
-    explicit CSemaphore(int init) : value(init) {}
+    explicit CSemaphore(int init)
+        : value(init)
+    {
+    }
 
     void wait()
     {
         std::unique_lock<std::mutex> lock(mutex);
-        condition.wait(lock, [&]() { return value >= 1; });
+        condition.wait(lock, [&]()
+            {
+                return value >= 1;
+            });
         value--;
     }
 
@@ -102,9 +107,16 @@ public:
         fHaveGrant = false;
     }
 
-    CSemaphoreGrant() : sem(nullptr), fHaveGrant(false) {}
+    CSemaphoreGrant()
+        : sem(nullptr)
+        , fHaveGrant(false)
+    {
+    }
 
-    explicit CSemaphoreGrant(CSemaphore& sema, bool fTry = false) : sem(&sema), fHaveGrant(false)
+    explicit CSemaphoreGrant(CSemaphore& sema,
+                             bool fTry = false)
+        : sem(&sema)
+        , fHaveGrant(false)
     {
         if (fTry)
             TryAcquire();

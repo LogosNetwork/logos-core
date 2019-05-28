@@ -115,7 +115,15 @@
 #ifndef TINYFORMAT_H_INCLUDED
 #define TINYFORMAT_H_INCLUDED
 
-namespace tinyformat {}
+#include <algorithm>
+#include <cassert>
+#include <iostream>
+#include <sstream>
+#include <stdexcept>
+
+namespace tinyformat
+{
+}
 //------------------------------------------------------------------------------
 // Config section.  Customize to your liking!
 
@@ -132,11 +140,6 @@ namespace tfm = tinyformat;
 
 //------------------------------------------------------------------------------
 // Implementation details.
-#include <algorithm>
-#include <cassert>
-#include <iostream>
-#include <sstream>
-#include <stdexcept>
 
 #ifndef TINYFORMAT_ERROR
 #   define TINYFORMAT_ERROR(reason) assert(0 && reason)
@@ -162,55 +165,67 @@ namespace tfm = tinyformat;
 #   define TINYFORMAT_HIDDEN
 #endif
 
-namespace tinyformat {
+namespace tinyformat
+{
 
-class format_error: public std::runtime_error
+class format_error : public std::runtime_error
 {
 public:
-    explicit format_error(const std::string &what): std::runtime_error(what) {
+    explicit format_error(const std::string &what)
+        : std::runtime_error(what)
+    {
     }
 };
 
 //------------------------------------------------------------------------------
-namespace detail {
+namespace detail
+{
 
 // Test whether type T1 is convertible to type T2
 template <typename T1, typename T2>
 struct is_convertible
 {
-    private:
-        // two types of different size
-        struct fail { char dummy[2]; };
-        struct succeed { char dummy; };
-        // Try to convert a T1 to a T2 by plugging into tryConvert
-        static fail tryConvert(...);
-        static succeed tryConvert(const T2&);
-        static const T1& makeT1();
-    public:
-#       ifdef _MSC_VER
-        // Disable spurious loss of precision warnings in tryConvert(makeT1())
-#       pragma warning(push)
-#       pragma warning(disable:4244)
-#       pragma warning(disable:4267)
-#       endif
-        // Standard trick: the (...) version of tryConvert will be chosen from
-        // the overload set only if the version taking a T2 doesn't match.
-        // Then we compare the sizes of the return types to check which
-        // function matched.  Very neat, in a disgusting kind of way :)
-        static const bool value =
+private:
+    // two types of different size
+    struct fail
+    {
+        char dummy[2];
+    };
+    struct succeed
+    {
+        char dummy;
+    };
+    // Try to convert a T1 to a T2 by plugging into tryConvert
+    static fail tryConvert(...);
+    static succeed tryConvert(const T2&);
+    static const T1& makeT1();
+public:
+    // Standard trick: the (...) version of tryConvert will be chosen from
+    // the overload set only if the version taking a T2 doesn't match.
+    // Then we compare the sizes of the return types to check which
+    // function matched.  Very neat, in a disgusting kind of way :)
+    static const bool value =
             sizeof(tryConvert(makeT1())) == sizeof(succeed);
-#       ifdef _MSC_VER
-#       pragma warning(pop)
-#       endif
 };
 
 
 // Detect when a type is not a wchar_t string
-template<typename T> struct is_wchar { typedef int tinyformat_wchar_is_not_supported; };
-template<> struct is_wchar<wchar_t*> {};
-template<> struct is_wchar<const wchar_t*> {};
-template<int n> struct is_wchar<const wchar_t[n]> {};
-template<int n> struct is_wchar<wchar_t[n]> {};
+template<typename T> struct is_wchar
+{
+    typedef int tinyformat_wchar_is_not_supported;
+};
+template<> struct is_wchar<wchar_t*>
+{
+};
+template<> struct is_wchar<const wchar_t*>
+{
+};
+template<int n> struct is_wchar<const wchar_t[n]>
+{
+};
+template<int n> struct is_wchar<wchar_t[n]>
+{
+};
 
 
 // Format the value by casting to type fmtT.  This default implementation
@@ -218,7 +233,10 @@ template<int n> struct is_wchar<wchar_t[n]> {};
 template<typename T, typename fmtT, bool convertible = is_convertible<T, fmtT>::value>
 struct formatValueAsType
 {
-    static void invoke(std::ostream& /*out*/, const T& /*value*/) { assert(0); }
+    static void invoke(std::ostream& /*out*/, const T& /*value*/)
+    {
+        assert(0);
+    }
 };
 // Specialized version for types that can actually be converted to fmtT, as
 // indicated by the "convertible" template parameter.
@@ -226,14 +244,19 @@ template<typename T, typename fmtT>
 struct formatValueAsType<T,fmtT,true>
 {
     static void invoke(std::ostream& out, const T& value)
-        { out << static_cast<fmtT>(value); }
+    {
+        out << static_cast<fmtT>(value);
+    }
 };
 
 #ifdef TINYFORMAT_OLD_LIBSTDCPLUSPLUS_WORKAROUND
 template<typename T, bool convertible = is_convertible<T, int>::value>
 struct formatZeroIntegerWorkaround
 {
-    static bool invoke(std::ostream& /**/, const T& /**/) { return false; }
+    static bool invoke(std::ostream& /**/, const T& /**/)
+    {
+        return false;
+    }
 };
 template<typename T>
 struct formatZeroIntegerWorkaround<T,true>
@@ -266,7 +289,10 @@ struct convertToInt
 template<typename T>
 struct convertToInt<T,true>
 {
-    static int invoke(const T& value) { return static_cast<int>(value); }
+    static int invoke(const T& value)
+    {
+        return static_cast<int>(value);
+    }
 };
 
 // Format at most ntrunc characters to the given stream.
@@ -278,14 +304,14 @@ inline void formatTruncated(std::ostream& out, const T& value, int ntrunc)
     std::string result = tmp.str();
     out.write(result.c_str(), (std::min)(ntrunc, static_cast<int>(result.size())));
 }
-#define TINYFORMAT_DEFINE_FORMAT_TRUNCATED_CSTR(type)       \
-inline void formatTruncated(std::ostream& out, type* value, int ntrunc) \
-{                                                           \
-    std::streamsize len = 0;                                \
-    while(len < ntrunc && value[len] != 0)                  \
-        ++len;                                              \
-    out.write(value, len);                                  \
-}
+#define TINYFORMAT_DEFINE_FORMAT_TRUNCATED_CSTR(type)                       \
+    inline void formatTruncated(std::ostream& out, type* value, int ntrunc) \
+    {                                                                       \
+        std::streamsize len = 0;                                            \
+        while(len < ntrunc && value[len] != 0)                              \
+        ++len;                                                              \
+        out.write(value, len);                                              \
+    }
 // Overload for const char* and char*.  Could overload for signed & unsigned
 // char too, but these are technically unneeded for printf compatibility.
 TINYFORMAT_DEFINE_FORMAT_TRUNCATED_CSTR(const char)
@@ -347,18 +373,18 @@ inline void formatValue(std::ostream& out, const char* /*fmtBegin*/,
 
 
 // Overloaded version for char types to support printing as an integer
-#define TINYFORMAT_DEFINE_FORMATVALUE_CHAR(charType)                  \
-inline void formatValue(std::ostream& out, const char* /*fmtBegin*/,  \
-                        const char* fmtEnd, int /**/, charType value) \
-{                                                                     \
-    switch(*(fmtEnd-1))                                               \
-    {                                                                 \
-        case 'u': case 'd': case 'i': case 'o': case 'X': case 'x':   \
-            out << static_cast<int>(value); break;                    \
-        default:                                                      \
-            out << value;                   break;                    \
-    }                                                                 \
-}
+#define TINYFORMAT_DEFINE_FORMATVALUE_CHAR(charType)                        \
+    inline void formatValue(std::ostream& out, const char* /*fmtBegin*/,    \
+    const char* fmtEnd, int /**/, charType value)                           \
+    {                                                                       \
+        switch(*(fmtEnd-1))                                                 \
+        {                                                                   \
+        case 'u': case 'd': case 'i': case 'o': case 'X': case 'x':         \
+            out << static_cast<int>(value); break;                          \
+        default:                                                            \
+            out << value;                   break;                          \
+        }                                                                   \
+    }
 // per 3.9.1: char, signed char and unsigned char are all distinct types
 TINYFORMAT_DEFINE_FORMATVALUE_CHAR(char)
 TINYFORMAT_DEFINE_FORMATVALUE_CHAR(signed char)
@@ -486,27 +512,30 @@ cog.outl('#define TINYFORMAT_FOREACH_ARGNUM(m) \\\n    ' +
 
 
 
-namespace detail {
-
-// Type-opaque holder for an argument to format(), with associated actions on
-// the type held as explicit function pointers.  This allows FormatArg's for
-// each argument to be allocated as a homogenous array inside FormatList
-// whereas a naive implementation based on inheritance does not.
-class FormatArg
+namespace detail
 {
+
+    // Type-opaque holder for an argument to format(), with associated actions on
+    // the type held as explicit function pointers.  This allows FormatArg's for
+    // each argument to be allocated as a homogenous array inside FormatList
+    // whereas a naive implementation based on inheritance does not.
+    class FormatArg
+    {
     public:
         FormatArg()
-             : m_value(nullptr),
-             m_formatImpl(nullptr),
-             m_toIntImpl(nullptr)
-         { }
+            : m_value(nullptr)
+            , m_formatImpl(nullptr)
+            , m_toIntImpl(nullptr)
+        {
+        }
 
         template<typename T>
         explicit FormatArg(const T& value)
-            : m_value(static_cast<const void*>(&value)),
-            m_formatImpl(&formatImpl<T>),
-            m_toIntImpl(&toIntImpl<T>)
-        { }
+            : m_value(static_cast<const void*>(&value))
+            , m_formatImpl(&formatImpl<T>)
+            , m_toIntImpl(&toIntImpl<T>)
+        {
+        }
 
         void format(std::ostream& out, const char* fmtBegin,
                     const char* fmtEnd, int ntrunc) const
@@ -526,7 +555,7 @@ class FormatArg
     private:
         template<typename T>
         TINYFORMAT_HIDDEN static void formatImpl(std::ostream& out, const char* fmtBegin,
-                        const char* fmtEnd, int ntrunc, const void* value)
+                                                 const char* fmtEnd, int ntrunc, const void* value)
         {
             formatValue(out, fmtBegin, fmtEnd, ntrunc, *static_cast<const T*>(value));
         }
@@ -538,35 +567,35 @@ class FormatArg
         }
 
         const void* m_value;
-        void (*m_formatImpl)(std::ostream& out, const char* fmtBegin,
+        void        (*m_formatImpl)(std::ostream& out, const char* fmtBegin,
                              const char* fmtEnd, int ntrunc, const void* value);
-        int (*m_toIntImpl)(const void* value);
-};
+        int         (*m_toIntImpl)(const void* value);
+    };
 
 
-// Parse and return an integer from the string c, as atoi()
-// On return, c is set to one past the end of the integer.
-inline int parseIntAndAdvance(const char*& c)
-{
-    int i = 0;
-    for(;*c >= '0' && *c <= '9'; ++c)
-        i = 10*i + (*c - '0');
-    return i;
-}
-
-// Print literal part of format string and return next format spec
-// position.
-//
-// Skips over any occurrences of '%%', printing a literal '%' to the
-// output.  The position of the first % character of the next
-// nontrivial format spec is returned, or the end of string.
-inline const char* printFormatStringLiteral(std::ostream& out, const char* fmt)
-{
-    const char* c = fmt;
-    for(;; ++c)
+    // Parse and return an integer from the string c, as atoi()
+    // On return, c is set to one past the end of the integer.
+    inline int parseIntAndAdvance(const char*& c)
     {
-        switch(*c)
+        int i = 0;
+        for(; *c >= '0' && *c <= '9'; ++c)
+            i = 10*i + (*c - '0');
+        return i;
+    }
+
+    // Print literal part of format string and return next format spec
+    // position.
+    //
+    // Skips over any occurrences of '%%', printing a literal '%' to the
+    // output.  The position of the first % character of the next
+    // nontrivial format spec is returned, or the end of string.
+    inline const char* printFormatStringLiteral(std::ostream& out, const char* fmt)
+    {
+        const char* c = fmt;
+        for(;; ++c)
         {
+            switch(*c)
+            {
             case '\0':
                 out.write(fmt, c - fmt);
                 return c;
@@ -579,48 +608,48 @@ inline const char* printFormatStringLiteral(std::ostream& out, const char* fmt)
                 break;
             default:
                 break;
+            }
         }
     }
-}
 
 
-// Parse a format string and set the stream state accordingly.
-//
-// The format mini-language recognized here is meant to be the one from C99,
-// with the form "%[flags][width][.precision][length]type".
-//
-// Formatting options which can't be natively represented using the ostream
-// state are returned in spacePadPositive (for space padded positive numbers)
-// and ntrunc (for truncating conversions).  argIndex is incremented if
-// necessary to pull out variable width and precision.  The function returns a
-// pointer to the character after the end of the current format spec.
-inline const char* streamStateFromFormat(std::ostream& out, bool& spacePadPositive,
-                                         int& ntrunc, const char* fmtStart,
-                                         const detail::FormatArg* formatters,
-                                         int& argIndex, int numFormatters)
-{
-    if(*fmtStart != '%')
+    // Parse a format string and set the stream state accordingly.
+    //
+    // The format mini-language recognized here is meant to be the one from C99,
+    // with the form "%[flags][width][.precision][length]type".
+    //
+    // Formatting options which can't be natively represented using the ostream
+    // state are returned in spacePadPositive (for space padded positive numbers)
+    // and ntrunc (for truncating conversions).  argIndex is incremented if
+    // necessary to pull out variable width and precision.  The function returns a
+    // pointer to the character after the end of the current format spec.
+    inline const char* streamStateFromFormat(std::ostream& out, bool& spacePadPositive,
+                                             int& ntrunc, const char* fmtStart,
+                                             const detail::FormatArg* formatters,
+                                             int& argIndex, int numFormatters)
     {
-        TINYFORMAT_ERROR("tinyformat: Not enough conversion specifiers in format string");
-        return fmtStart;
-    }
-    // Reset stream state to defaults.
-    out.width(0);
-    out.precision(6);
-    out.fill(' ');
-    // Reset most flags; ignore irrelevant unitbuf & skipws.
-    out.unsetf(std::ios::adjustfield | std::ios::basefield |
-               std::ios::floatfield | std::ios::showbase | std::ios::boolalpha |
-               std::ios::showpoint | std::ios::showpos | std::ios::uppercase);
-    bool precisionSet = false;
-    bool widthSet = false;
-    int widthExtra = 0;
-    const char* c = fmtStart + 1;
-    // 1) Parse flags
-    for(;; ++c)
-    {
-        switch(*c)
+        if(*fmtStart != '%')
         {
+            TINYFORMAT_ERROR("tinyformat: Not enough conversion specifiers in format string");
+            return fmtStart;
+        }
+        // Reset stream state to defaults.
+        out.width(0);
+        out.precision(6);
+        out.fill(' ');
+        // Reset most flags; ignore irrelevant unitbuf & skipws.
+        out.unsetf(std::ios::adjustfield | std::ios::basefield |
+                   std::ios::floatfield | std::ios::showbase | std::ios::boolalpha |
+                   std::ios::showpoint | std::ios::showpos | std::ios::uppercase);
+        bool precisionSet = false;
+        bool widthSet = false;
+        int widthExtra = 0;
+        const char* c = fmtStart + 1;
+        // 1) Parse flags
+        for(;; ++c)
+        {
+            switch(*c)
+            {
             case '#':
                 out.setf(std::ios::showpoint | std::ios::showbase);
                 continue;
@@ -650,66 +679,66 @@ inline const char* streamStateFromFormat(std::ostream& out, bool& spacePadPositi
                 continue;
             default:
                 break;
+            }
+            break;
         }
-        break;
-    }
-    // 2) Parse width
-    if(*c >= '0' && *c <= '9')
-    {
-        widthSet = true;
-        out.width(parseIntAndAdvance(c));
-    }
-    if(*c == '*')
-    {
-        widthSet = true;
-        int width = 0;
-        if(argIndex < numFormatters)
-            width = formatters[argIndex++].toInt();
-        else
-            TINYFORMAT_ERROR("tinyformat: Not enough arguments to read variable width");
-        if(width < 0)
+        // 2) Parse width
+        if(*c >= '0' && *c <= '9')
         {
-            // negative widths correspond to '-' flag set
-            out.fill(' ');
-            out.setf(std::ios::left, std::ios::adjustfield);
-            width = -width;
+            widthSet = true;
+            out.width(parseIntAndAdvance(c));
         }
-        out.width(width);
-        ++c;
-    }
-    // 3) Parse precision
-    if(*c == '.')
-    {
-        ++c;
-        int precision = 0;
         if(*c == '*')
         {
-            ++c;
+            widthSet = true;
+            int width = 0;
             if(argIndex < numFormatters)
-                precision = formatters[argIndex++].toInt();
+                width = formatters[argIndex++].toInt();
             else
-                TINYFORMAT_ERROR("tinyformat: Not enough arguments to read variable precision");
+                TINYFORMAT_ERROR("tinyformat: Not enough arguments to read variable width");
+            if(width < 0)
+            {
+                // negative widths correspond to '-' flag set
+                out.fill(' ');
+                out.setf(std::ios::left, std::ios::adjustfield);
+                width = -width;
+            }
+            out.width(width);
+            ++c;
         }
-        else
+        // 3) Parse precision
+        if(*c == '.')
         {
-            if(*c >= '0' && *c <= '9')
-                precision = parseIntAndAdvance(c);
-            else if(*c == '-') // negative precisions ignored, treated as zero.
-                parseIntAndAdvance(++c);
+            ++c;
+            int precision = 0;
+            if(*c == '*')
+            {
+                ++c;
+                if(argIndex < numFormatters)
+                    precision = formatters[argIndex++].toInt();
+                else
+                    TINYFORMAT_ERROR("tinyformat: Not enough arguments to read variable precision");
+            }
+            else
+            {
+                if(*c >= '0' && *c <= '9')
+                    precision = parseIntAndAdvance(c);
+                else if(*c == '-') // negative precisions ignored, treated as zero.
+                    parseIntAndAdvance(++c);
+            }
+            out.precision(precision);
+            precisionSet = true;
         }
-        out.precision(precision);
-        precisionSet = true;
-    }
-    // 4) Ignore any C99 length modifier
-    while(*c == 'l' || *c == 'h' || *c == 'L' ||
-          *c == 'j' || *c == 'z' || *c == 't')
-        ++c;
-    // 5) We're up to the conversion specifier character.
-    // Set stream flags based on conversion specifier (thanks to the
-    // boost::format class for forging the way here).
-    bool intConversion = false;
-    switch(*c)
-    {
+        // 4) Ignore any C99 length modifier
+        while(*c == 'l' || *c == 'h' || *c == 'L' ||
+              *c == 'j' || *c == 'z' || *c == 't')
+            ++c;
+        // 5) We're up to the conversion specifier character.
+        // Set stream flags based on conversion specifier (thanks to the
+        // boost::format class for forging the way here).
+        bool intConversion = false;
+        switch(*c)
+        {
         case 'u': case 'd': case 'i':
             out.setf(std::ios::dec, std::ios::basefield);
             intConversion = true;
@@ -769,79 +798,79 @@ inline const char* streamStateFromFormat(std::ostream& out, bool& spacePadPositi
             return c;
         default:
             break;
+        }
+        if(intConversion && precisionSet && !widthSet)
+        {
+            // "precision" for integers gives the minimum number of digits (to be
+            // padded with zeros on the left).  This isn't really supported by the
+            // iostreams, but we can approximately simulate it with the width if
+            // the width isn't otherwise used.
+            out.width(out.precision() + widthExtra);
+            out.setf(std::ios::internal, std::ios::adjustfield);
+            out.fill('0');
+        }
+        return c+1;
     }
-    if(intConversion && precisionSet && !widthSet)
+
+
+    //------------------------------------------------------------------------------
+    inline void formatImpl(std::ostream& out, const char* fmt,
+                           const detail::FormatArg* formatters,
+                           int numFormatters)
     {
-        // "precision" for integers gives the minimum number of digits (to be
-        // padded with zeros on the left).  This isn't really supported by the
-        // iostreams, but we can approximately simulate it with the width if
-        // the width isn't otherwise used.
-        out.width(out.precision() + widthExtra);
-        out.setf(std::ios::internal, std::ios::adjustfield);
-        out.fill('0');
-    }
-    return c+1;
-}
+        // Saved stream state
+        std::streamsize origWidth = out.width();
+        std::streamsize origPrecision = out.precision();
+        std::ios::fmtflags origFlags = out.flags();
+        char origFill = out.fill();
 
+        for (int argIndex = 0; argIndex < numFormatters; ++argIndex)
+        {
+            // Parse the format string
+            fmt = printFormatStringLiteral(out, fmt);
+            bool spacePadPositive = false;
+            int ntrunc = -1;
+            const char* fmtEnd = streamStateFromFormat(out, spacePadPositive, ntrunc, fmt,
+                                                       formatters, argIndex, numFormatters);
+            if (argIndex >= numFormatters)
+            {
+                // Check args remain after reading any variable width/precision
+                TINYFORMAT_ERROR("tinyformat: Not enough format arguments");
+                return;
+            }
+            const FormatArg& arg = formatters[argIndex];
+            // Format the arg into the stream.
+            if(!spacePadPositive)
+                arg.format(out, fmt, fmtEnd, ntrunc);
+            else
+            {
+                // The following is a special case with no direct correspondence
+                // between stream formatting and the printf() behaviour.  Simulate
+                // it crudely by formatting into a temporary string stream and
+                // munging the resulting string.
+                std::ostringstream tmpStream;
+                tmpStream.copyfmt(out);
+                tmpStream.setf(std::ios::showpos);
+                arg.format(tmpStream, fmt, fmtEnd, ntrunc);
+                std::string result = tmpStream.str(); // allocates... yuck.
+                for(size_t i = 0, iend = result.size(); i < iend; ++i)
+                    if(result[i] == '+') result[i] = ' ';
+                out << result;
+            }
+            fmt = fmtEnd;
+        }
 
-//------------------------------------------------------------------------------
-inline void formatImpl(std::ostream& out, const char* fmt,
-                       const detail::FormatArg* formatters,
-                       int numFormatters)
-{
-    // Saved stream state
-    std::streamsize origWidth = out.width();
-    std::streamsize origPrecision = out.precision();
-    std::ios::fmtflags origFlags = out.flags();
-    char origFill = out.fill();
-
-    for (int argIndex = 0; argIndex < numFormatters; ++argIndex)
-    {
-        // Parse the format string
+        // Print remaining part of format string.
         fmt = printFormatStringLiteral(out, fmt);
-        bool spacePadPositive = false;
-        int ntrunc = -1;
-        const char* fmtEnd = streamStateFromFormat(out, spacePadPositive, ntrunc, fmt,
-                                                   formatters, argIndex, numFormatters);
-        if (argIndex >= numFormatters)
-        {
-            // Check args remain after reading any variable width/precision
-            TINYFORMAT_ERROR("tinyformat: Not enough format arguments");
-            return;
-        }
-        const FormatArg& arg = formatters[argIndex];
-        // Format the arg into the stream.
-        if(!spacePadPositive)
-            arg.format(out, fmt, fmtEnd, ntrunc);
-        else
-        {
-            // The following is a special case with no direct correspondence
-            // between stream formatting and the printf() behaviour.  Simulate
-            // it crudely by formatting into a temporary string stream and
-            // munging the resulting string.
-            std::ostringstream tmpStream;
-            tmpStream.copyfmt(out);
-            tmpStream.setf(std::ios::showpos);
-            arg.format(tmpStream, fmt, fmtEnd, ntrunc);
-            std::string result = tmpStream.str(); // allocates... yuck.
-            for(size_t i = 0, iend = result.size(); i < iend; ++i)
-                if(result[i] == '+') result[i] = ' ';
-            out << result;
-        }
-        fmt = fmtEnd;
+        if(*fmt != '\0')
+            TINYFORMAT_ERROR("tinyformat: Too many conversion specifiers in format string");
+
+        // Restore stream state
+        out.width(origWidth);
+        out.precision(origPrecision);
+        out.flags(origFlags);
+        out.fill(origFill);
     }
-
-    // Print remaining part of format string.
-    fmt = printFormatStringLiteral(out, fmt);
-    if(*fmt != '\0')
-        TINYFORMAT_ERROR("tinyformat: Too many conversion specifiers in format string");
-
-    // Restore stream state
-    out.width(origWidth);
-    out.precision(origPrecision);
-    out.flags(origFlags);
-    out.fill(origFill);
-}
 
 } // namespace detail
 
@@ -854,53 +883,64 @@ inline void formatImpl(std::ostream& out, const char* fmt,
 /// common interface to perform formatting as required.
 class FormatList
 {
-    public:
-        FormatList(detail::FormatArg* formatters, int N)
-            : m_formatters(formatters), m_N(N) { }
+public:
+    FormatList(detail::FormatArg* formatters,
+               int N)
+        : m_formatters(formatters)
+        , m_N(N)
+    {
+    }
 
-        friend void vformat(std::ostream& out, const char* fmt,
-                            const FormatList& list);
+    friend void vformat(std::ostream& out, const char* fmt,
+                        const FormatList& list);
 
-    private:
-        const detail::FormatArg* m_formatters;
-        int m_N;
+private:
+    const detail::FormatArg*    m_formatters;
+    int                         m_N;
 };
 
 /// Reference to type-opaque format list for passing to vformat()
 typedef const FormatList& FormatListRef;
 
 
-namespace detail {
+namespace detail
+{
 
 // Format list subclass with fixed storage to avoid dynamic allocation
 template<int N>
 class FormatListN : public FormatList
 {
-    public:
+public:
 #ifdef TINYFORMAT_USE_VARIADIC_TEMPLATES
-        template<typename... Args>
-        explicit FormatListN(const Args&... args)
-            : FormatList(&m_formatterStore[0], N),
-            m_formatterStore { FormatArg(args)... }
-        { static_assert(sizeof...(args) == N, "Number of args must be N"); }
+    template<typename... Args>
+    explicit FormatListN(const Args&... args)
+        : FormatList(&m_formatterStore[0], N)
+        , m_formatterStore
+            {
+                FormatArg(args)...
+            }
+    {
+        static_assert(sizeof...(args) == N, "Number of args must be N");
+    }
 #else // C++98 version
-        void init(int) {}
-#       define TINYFORMAT_MAKE_FORMATLIST_CONSTRUCTOR(n)       \
-                                                               \
-        template<TINYFORMAT_ARGTYPES(n)>                       \
-        explicit FormatListN(TINYFORMAT_VARARGS(n))            \
-            : FormatList(&m_formatterStore[0], n)              \
-        { assert(n == N); init(0, TINYFORMAT_PASSARGS(n)); }   \
-                                                               \
-        template<TINYFORMAT_ARGTYPES(n)>                       \
-        void init(int i, TINYFORMAT_VARARGS(n))                \
-        {                                                      \
-            m_formatterStore[i] = FormatArg(v1);               \
-            init(i+1 TINYFORMAT_PASSARGS_TAIL(n));             \
-        }
+    void init(int) {}
+#define TINYFORMAT_MAKE_FORMATLIST_CONSTRUCTOR(n)          \
+    template<TINYFORMAT_ARGTYPES(n)>                       \
+    explicit FormatListN(TINYFORMAT_VARARGS(n))            \
+        : FormatList(&m_formatterStore[0], n)              \
+        {                                                  \
+            assert(n == N);                                \
+            init(0, TINYFORMAT_PASSARGS(n));               \
+        }                                                  \
+    template<TINYFORMAT_ARGTYPES(n)>                       \
+    void init(int i, TINYFORMAT_VARARGS(n))                \
+    {                                                      \
+        m_formatterStore[i] = FormatArg(v1);               \
+        init(i+1 TINYFORMAT_PASSARGS_TAIL(n));             \
+    }
 
-        TINYFORMAT_FOREACH_ARGNUM(TINYFORMAT_MAKE_FORMATLIST_CONSTRUCTOR)
-#       undef TINYFORMAT_MAKE_FORMATLIST_CONSTRUCTOR
+    TINYFORMAT_FOREACH_ARGNUM(TINYFORMAT_MAKE_FORMATLIST_CONSTRUCTOR)
+#undef TINYFORMAT_MAKE_FORMATLIST_CONSTRUCTOR
 #endif
 
     private:
@@ -910,7 +950,11 @@ class FormatListN : public FormatList
 // Special 0-arg version - MSVC says zero-sized C array in struct is nonstandard
 template<> class FormatListN<0> : public FormatList
 {
-    public: FormatListN() : FormatList(0, 0) {}
+public:
+    FormatListN()
+        : FormatList(0, 0)
+    {
+    }
 };
 
 } // namespace detail
@@ -939,12 +983,12 @@ inline detail::FormatListN<0> makeFormatList()
 {
     return detail::FormatListN<0>();
 }
-#define TINYFORMAT_MAKE_MAKEFORMATLIST(n)                     \
-template<TINYFORMAT_ARGTYPES(n)>                              \
-detail::FormatListN<n> makeFormatList(TINYFORMAT_VARARGS(n))  \
-{                                                             \
-    return detail::FormatListN<n>(TINYFORMAT_PASSARGS(n));    \
-}
+#define TINYFORMAT_MAKE_MAKEFORMATLIST(n)                         \
+    template<TINYFORMAT_ARGTYPES(n)>                              \
+    detail::FormatListN<n> makeFormatList(TINYFORMAT_VARARGS(n))  \
+    {                                                             \
+        return detail::FormatListN<n>(TINYFORMAT_PASSARGS(n));    \
+    }
 TINYFORMAT_FOREACH_ARGNUM(TINYFORMAT_MAKE_MAKEFORMATLIST)
 #undef TINYFORMAT_MAKE_MAKEFORMATLIST
 
@@ -1018,34 +1062,30 @@ inline void printfln(const char* fmt)
     std::cout << '\n';
 }
 
-#define TINYFORMAT_MAKE_FORMAT_FUNCS(n)                                   \
-                                                                          \
-template<TINYFORMAT_ARGTYPES(n)>                                          \
-void format(std::ostream& out, const char* fmt, TINYFORMAT_VARARGS(n))    \
-{                                                                         \
-    vformat(out, fmt, makeFormatList(TINYFORMAT_PASSARGS(n)));            \
-}                                                                         \
-                                                                          \
-template<TINYFORMAT_ARGTYPES(n)>                                          \
-std::string format(const char* fmt, TINYFORMAT_VARARGS(n))                \
-{                                                                         \
-    std::ostringstream oss;                                               \
-    format(oss, fmt, TINYFORMAT_PASSARGS(n));                             \
-    return oss.str();                                                     \
-}                                                                         \
-                                                                          \
-template<TINYFORMAT_ARGTYPES(n)>                                          \
-void printf(const char* fmt, TINYFORMAT_VARARGS(n))                       \
-{                                                                         \
-    format(std::cout, fmt, TINYFORMAT_PASSARGS(n));                       \
-}                                                                         \
-                                                                          \
-template<TINYFORMAT_ARGTYPES(n)>                                          \
-void printfln(const char* fmt, TINYFORMAT_VARARGS(n))                     \
-{                                                                         \
-    format(std::cout, fmt, TINYFORMAT_PASSARGS(n));                       \
-    std::cout << '\n';                                                    \
-}
+#define TINYFORMAT_MAKE_FORMAT_FUNCS(n)                                       \
+    template<TINYFORMAT_ARGTYPES(n)>                                          \
+    void format(std::ostream& out, const char* fmt, TINYFORMAT_VARARGS(n))    \
+    {                                                                         \
+        vformat(out, fmt, makeFormatList(TINYFORMAT_PASSARGS(n)));            \
+    }                                                                         \
+    template<TINYFORMAT_ARGTYPES(n)>                                          \
+    std::string format(const char* fmt, TINYFORMAT_VARARGS(n))                \
+    {                                                                         \
+        std::ostringstream oss;                                               \
+        format(oss, fmt, TINYFORMAT_PASSARGS(n));                             \
+        return oss.str();                                                     \
+    }                                                                         \
+    template<TINYFORMAT_ARGTYPES(n)>                                          \
+    void printf(const char* fmt, TINYFORMAT_VARARGS(n))                       \
+    {                                                                         \
+        format(std::cout, fmt, TINYFORMAT_PASSARGS(n));                       \
+    }                                                                         \
+    template<TINYFORMAT_ARGTYPES(n)>                                          \
+    void printfln(const char* fmt, TINYFORMAT_VARARGS(n))                     \
+    {                                                                         \
+        format(std::cout, fmt, TINYFORMAT_PASSARGS(n));                       \
+        std::cout << '\n';                                                    \
+    }
 
 TINYFORMAT_FOREACH_ARGNUM(TINYFORMAT_MAKE_FORMAT_FUNCS)
 #undef TINYFORMAT_MAKE_FORMAT_FUNCS

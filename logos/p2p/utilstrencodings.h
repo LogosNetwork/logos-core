@@ -22,9 +22,9 @@
 /** Used by SanitizeString() */
 enum SafeChars
 {
-    SAFE_CHARS_DEFAULT, //!< The full set of allowed chars
-    SAFE_CHARS_UA_COMMENT, //!< BIP-0014 subset
-    SAFE_CHARS_FILENAME, //!< Chars allowed in filenames
+    SAFE_CHARS_DEFAULT,     //!< The full set of allowed chars
+    SAFE_CHARS_UA_COMMENT,  //!< BIP-0014 subset
+    SAFE_CHARS_FILENAME,    //!< Chars allowed in filenames
 };
 
 /**
@@ -45,17 +45,8 @@ bool IsHex(const std::string& str);
 * Return true if the string is a hex number, optionally prefixed with "0x"
 */
 bool IsHexNumber(const std::string& str);
-std::vector<unsigned char> DecodeBase64(const char* p, bool* pfInvalid = nullptr);
-std::string DecodeBase64(const std::string& str);
-std::string EncodeBase64(const unsigned char* pch, size_t len);
-std::string EncodeBase64(const std::string& str);
-std::vector<unsigned char> DecodeBase32(const char* p, bool* pfInvalid = nullptr);
-std::string DecodeBase32(const std::string& str);
-std::string EncodeBase32(const unsigned char* pch, size_t len);
-std::string EncodeBase32(const std::string& str);
 
 void SplitHostPort(std::string in, int &portOut, std::string &hostOut);
-std::string i64tostr(int64_t n);
 std::string itostr(int n);
 int64_t atoi64(const char* psz);
 int64_t atoi64(const std::string& str);
@@ -78,40 +69,15 @@ constexpr bool IsDigit(char c)
  */
 bool ParseInt32(const std::string& str, int32_t *out);
 
-/**
- * Convert string to signed 64-bit integer with strict parse error feedback.
- * @returns true if the entire string could be parsed as valid integer,
- *   false if not the entire string could be parsed or when overflow or underflow occurred.
- */
-bool ParseInt64(const std::string& str, int64_t *out);
-
-/**
- * Convert decimal string to unsigned 32-bit integer with strict parse error feedback.
- * @returns true if the entire string could be parsed as valid integer,
- *   false if not the entire string could be parsed or when overflow or underflow occurred.
- */
-bool ParseUInt32(const std::string& str, uint32_t *out);
-
-/**
- * Convert decimal string to unsigned 64-bit integer with strict parse error feedback.
- * @returns true if the entire string could be parsed as valid integer,
- *   false if not the entire string could be parsed or when overflow or underflow occurred.
- */
-bool ParseUInt64(const std::string& str, uint64_t *out);
-
-/**
- * Convert string to double with strict parse error feedback.
- * @returns true if the entire string could be parsed as valid double,
- *   false if not the entire string could be parsed or when overflow or underflow occurred.
- */
-bool ParseDouble(const std::string& str, double *out);
-
 template<typename T>
 std::string HexStr(const T itbegin, const T itend, bool fSpaces=false)
 {
     std::string rv;
-    static const char hexmap[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
-                                     '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+    static const char hexmap[16] =
+    {
+        '0', '1', '2', '3', '4', '5', '6', '7',
+        '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+    };
     rv.reserve((itend-itbegin)*3);
     for(T it = itbegin; it < itend; ++it)
     {
@@ -130,61 +96,6 @@ inline std::string HexStr(const T& vch, bool fSpaces=false)
 {
     return HexStr(vch.begin(), vch.end(), fSpaces);
 }
-
-/**
- * Format a paragraph of text to a fixed width, adding spaces for
- * indentation to any added line.
- */
-std::string FormatParagraph(const std::string& in, size_t width = 79, size_t indent = 0);
-
-/**
- * Timing-attack-resistant comparison.
- * Takes time proportional to length
- * of first argument.
- */
-template <typename T>
-bool TimingResistantEqual(const T& a, const T& b)
-{
-    if (b.size() == 0) return a.size() == 0;
-    size_t accumulator = a.size() ^ b.size();
-    for (size_t i = 0; i < a.size(); i++)
-        accumulator |= a[i] ^ b[i%b.size()];
-    return accumulator == 0;
-}
-
-/** Parse number as fixed point according to JSON number syntax.
- * See http://json.org/number.gif
- * @returns true on success, false on error.
- * @note The result must be in the range (-10^18,10^18), otherwise an overflow error will trigger.
- */
-bool ParseFixedPoint(const std::string &val, int decimals, int64_t *amount_out);
-
-/** Convert from one power-of-2 number base to another. */
-template<int frombits, int tobits, bool pad, typename O, typename I>
-bool ConvertBits(const O& outfn, I it, I end) {
-    size_t acc = 0;
-    size_t bits = 0;
-    constexpr size_t maxv = (1 << tobits) - 1;
-    constexpr size_t max_acc = (1 << (frombits + tobits - 1)) - 1;
-    while (it != end) {
-        acc = ((acc << frombits) | *it) & max_acc;
-        bits += frombits;
-        while (bits >= tobits) {
-            bits -= tobits;
-            outfn((acc >> bits) & maxv);
-        }
-        ++it;
-    }
-    if (pad) {
-        if (bits) outfn((acc << (tobits - bits)) & maxv);
-    } else if (bits >= frombits || ((acc << (tobits - bits)) & maxv)) {
-        return false;
-    }
-    return true;
-}
-
-/** Parse an HD keypaths like "m/7/0'/2000". */
-bool ParseHDKeypath(const std::string& keypath_str, std::vector<uint32_t>& keypath);
 
 /**
  * Converts the given character to its lowercase equivalent.
@@ -206,28 +117,5 @@ constexpr unsigned char ToLower(unsigned char c)
  * @param[in,out] str   the string to convert to lowercase.
  */
 void Downcase(std::string& str);
-
-/**
- * Converts the given character to its uppercase equivalent.
- * This function is locale independent. It only converts lowercase
- * characters in the standard 7-bit ASCII range.
- * @param[in] c     the character to convert to uppercase.
- * @return          the uppercase equivalent of c; or the argument
- *                  if no conversion is possible.
- */
-constexpr unsigned char ToUpper(unsigned char c)
-{
-    return (c >= 'a' && c <= 'z' ? (c - 'a') + 'A' : c);
-}
-
-/**
- * Capitalizes the first character of the given string.
- * This function is locale independent. It only capitalizes the
- * first character of the argument if it has an uppercase equivalent
- * in the standard 7-bit ASCII range.
- * @param[in] str   the string to capitalize.
- * @return          string with the first letter capitalized.
- */
-std::string Capitalize(std::string str);
 
 #endif // BITCOIN_UTILSTRENCODINGS_H

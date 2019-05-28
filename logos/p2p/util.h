@@ -10,17 +10,7 @@
 #ifndef BITCOIN_UTIL_H
 #define BITCOIN_UTIL_H
 
-#if defined(HAVE_CONFIG_H)
 #include <config/bitcoin-config.h>
-#endif
-
-#include <compat.h>
-#include <fs.h>
-#include <logging.h>
-#include <sync.h>
-#include <tinyformat.h>
-#include <utilmemory.h>
-#include <utiltime.h>
 
 #include <atomic>
 #include <exception>
@@ -30,14 +20,12 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
-
 #include <boost/thread/condition_variable.hpp> // for boost::thread_interrupted
-
-// Application startup time (used for uptime calculation)
-int64_t GetStartupTime();
-
-extern const char * const BITCOIN_CONF_FILENAME;
-extern const char * const BITCOIN_PID_FILENAME;
+#include <compat.h>
+#include <logging.h>
+#include <sync.h>
+#include <tinyformat.h>
+#include <utilmemory.h>
 
 /** Translate a message to the native language of the user. */
 const extern std::function<std::string(const char*)> G_TRANSLATION_FUN;
@@ -52,54 +40,32 @@ inline std::string _(const char* psz)
 }
 
 void SetupEnvironment();
-bool SetupNetworking();
 
 template<typename... Args>
-bool error(const char* fmt, const Args&... args)
+bool error(BCLog::Logger &logger_, const char* fmt, const Args&... args)
 {
     LogPrintf("ERROR: %s\n", tfm::format(fmt, args...));
     return false;
 }
 
-void PrintExceptionContinue(const std::exception *pex, const char* pszThread);
-bool FileCommit(FILE *file);
-bool TruncateFile(FILE *file, unsigned int length);
+void PrintExceptionContinue(BCLog::Logger &logger_, const std::exception *pex, const char* pszThread);
 int RaiseFileDescriptorLimit(int nMinFD);
-void AllocateFileRange(FILE *file, unsigned int offset, unsigned int length);
-bool RenameOver(fs::path src, fs::path dest);
-bool DirIsWritable(const fs::path& directory);
-
-bool TryCreateDirectories(const fs::path& p);
-void runCommand(const std::string& strCommand);
 
 inline bool IsSwitchChar(char c)
 {
-#ifdef WIN32
-    return c == '-' || c == '/';
-#else
     return c == '-';
-#endif
 }
 
-enum class OptionsCategory {
-    OPTIONS,
+enum class OptionsCategory
+{
     CONNECTION,
-    WALLET,
-    WALLET_DEBUG_TEST,
     DEBUG_TEST,
-    CHAINPARAMS,
-    NODE_RELAY,
-    BLOCK_CREATION,
-    RPC,
-    GUI,
-    COMMANDS,
-    REGISTER_COMMANDS,
-
-    HIDDEN // Always the last option to avoid printing these in the help
 };
 
 class ArgsManager
 {
+private:
+    bool InterpretNegatedOption(std::string& key, std::string& val);
 protected:
     friend class ArgsManagerHelper;
 
@@ -109,7 +75,14 @@ protected:
         std::string m_help_text;
         bool m_debug_only;
 
-        Arg(const std::string& help_param, const std::string& help_text, bool debug_only) : m_help_param(help_param), m_help_text(help_text), m_debug_only(debug_only) {};
+        Arg(const std::string& help_param,
+            const std::string& help_text,
+            bool debug_only)
+            : m_help_param(help_param)
+            , m_help_text(help_text)
+            , m_debug_only(debug_only)
+        {
+        };
     };
 
     mutable CCriticalSection cs_args;
@@ -118,14 +91,10 @@ protected:
     std::string m_network GUARDED_BY(cs_args);
     std::set<std::string> m_network_only_args GUARDED_BY(cs_args);
     std::map<OptionsCategory, std::map<std::string, Arg>> m_available_args GUARDED_BY(cs_args);
+    BCLog::Logger &logger_;
 
 public:
-    ArgsManager();
-
-    /**
-     * Select the network in use
-     */
-    void SelectConfigNetwork(const std::string& network);
+    ArgsManager(BCLog::Logger &logger);
 
     bool ParseParameters(int argc, const char* const argv[], std::string& error);
 
@@ -215,7 +184,7 @@ public:
      * Looks for -regtest, -testnet and returns the appropriate BIP70 chain name.
      * @return CBaseChainParams::MAIN by default; raises runtime error if an invalid combination is given.
      */
-    std::string GetChainName() const;
+    std::string GetChainName();
 
     /**
      * Add argument
@@ -223,22 +192,13 @@ public:
     void AddArg(const std::string& name, const std::string& help, const bool debug_only, const OptionsCategory& cat);
 
     /**
-     * Add many hidden arguments
-     */
-    void AddHiddenArgs(const std::vector<std::string>& args);
-
-    /**
      * Clear available arguments
      */
-    void ClearArgs() {
+    void ClearArgs()
+    {
         LOCK(cs_args);
         m_available_args.clear();
     }
-
-    /**
-     * Get the help string
-     */
-    std::string GetHelpMessage() const;
 
     /**
      * Check whether we know of this arg
@@ -246,41 +206,14 @@ public:
     bool IsArgKnown(const std::string& key) const;
 };
 
-/**
- * @return true if help has been requested via a command-line arg
- */
-bool HelpRequested(const ArgsManager& args);
-
-/**
- * Format a string to be used as group of options in help messages
- *
- * @param message Group name (e.g. "RPC server options:")
- * @return the formatted string
- */
-std::string HelpMessageGroup(const std::string& message);
-
-/**
- * Format a string to be used as option description in help messages
- *
- * @param option Option message (e.g. "-rpcuser=<user>")
- * @param message Option description (e.g. "Username for JSON-RPC connections")
- * @return the formatted string
- */
-std::string HelpMessageOpt(const std::string& option, const std::string& message);
-
-/**
- * Return the number of cores available on the current system.
- * @note This does count virtual cores, such as those provided by HyperThreading.
- */
-int GetNumCores();
-
 void RenameThread(const char* name);
 
 /**
  * .. and a wrapper that just calls func once
  */
-template <typename Callable> void TraceThread(const char* name,  Callable func)
+template <typename Callable> void TraceThread(const char* name, BCLog::Logger *plogger_, Callable func)
 {
+    BCLog::Logger &logger_ = *plogger_;
     std::string s = strprintf("p2p-%s", name);
     RenameThread(s.c_str());
     try
@@ -294,36 +227,32 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
         LogPrintf("%s thread interrupt\n", name);
         throw;
     }
-    catch (const std::exception& e) {
-        PrintExceptionContinue(&e, name);
+    catch (const std::exception& e)
+    {
+        PrintExceptionContinue(logger_, &e, name);
         throw;
     }
-    catch (...) {
-        PrintExceptionContinue(nullptr, name);
+    catch (...)
+    {
+        PrintExceptionContinue(logger_, nullptr, name);
         throw;
     }
 }
 
 std::string CopyrightHolders(const std::string& strPrefix);
 
-/**
- * On platforms that support it, tell the kernel the calling thread is
- * CPU-intensive and non-interactive. See SCHED_BATCH in sched(7) for details.
- *
- * @return The return value of sched_setschedule(), or 1 on systems without
- * sched_setschedule().
- */
-int ScheduleBatchPriority(void);
-
-namespace util {
+namespace util
+{
 
 //! Simplification of std insertion
 template <typename Tdst, typename Tsrc>
-inline void insert(Tdst& dst, const Tsrc& src) {
+inline void insert(Tdst& dst, const Tsrc& src)
+{
     dst.insert(dst.begin(), src.begin(), src.end());
 }
 template <typename TsetT, typename Tsrc>
-inline void insert(std::set<TsetT>& dst, const Tsrc& src) {
+inline void insert(std::set<TsetT>& dst, const Tsrc& src)
+{
     dst.insert(src.begin(), src.end());
 }
 

@@ -6,14 +6,12 @@
 #ifndef BITCOIN_HASH_H
 #define BITCOIN_HASH_H
 
-#include "../../blake2/blake2.h"
-#include <prevector.h>
-#include <serialize.h>
-#include <uint256.h>
-#include <version.h>
-
 #include <vector>
 #include <string>
+#include "../../blake2/blake2.h"
+#include <config/bitcoin-config.h>
+#include <serialize.h>
+#include <uint256.h>
 
 typedef uint256 ChainCode;
 
@@ -22,6 +20,7 @@ class CHash256
 {
 private:
     blake2b_state__     state;
+
 public:
     static const size_t OUTPUT_SIZE = BLAKE2B_OUTBYTES / 2;
 
@@ -60,7 +59,7 @@ inline uint256 Hash(const T1 pbegin, const T1 pend)
     static const unsigned char pblank[1] = {};
     uint256 result;
     CHash256().Write(pbegin == pend ? pblank : (const unsigned char*)&pbegin[0], (pend - pbegin) * sizeof(pbegin[0]))
-              .Finalize((unsigned char*)&result);
+            .Finalize((unsigned char*)&result);
     return result;
 }
 
@@ -72,8 +71,8 @@ inline uint256 Hash(const T1 p1begin, const T1 p1end,
     static const unsigned char pblank[1] = {};
     uint256 result;
     CHash256().Write(p1begin == p1end ? pblank : (const unsigned char*)&p1begin[0], (p1end - p1begin) * sizeof(p1begin[0]))
-              .Write(p2begin == p2end ? pblank : (const unsigned char*)&p2begin[0], (p2end - p2begin) * sizeof(p2begin[0]))
-              .Finalize((unsigned char*)&result);
+            .Write(p2begin == p2end ? pblank : (const unsigned char*)&p2begin[0], (p2end - p2begin) * sizeof(p2begin[0]))
+            .Finalize((unsigned char*)&result);
     return result;
 }
 
@@ -81,13 +80,18 @@ inline uint256 Hash(const T1 p1begin, const T1 p1end,
 class CHashWriter
 {
 private:
-    CHash256 ctx;
+    CHash256    ctx;
 
-    const int nType;
-    const int nVersion;
+    const int   nType;
+    const int   nVersion;
 public:
 
-    CHashWriter(int nTypeIn, int nVersionIn) : nType(nTypeIn), nVersion(nVersionIn) {}
+    CHashWriter(int nTypeIn,
+                int nVersionIn)
+        : nType(nTypeIn)
+        , nVersion(nVersionIn)
+    {
+    }
 
     int GetType() const { return nType; }
     int GetVersion() const { return nVersion; }
@@ -122,7 +126,12 @@ private:
     Source* source;
 
 public:
-    explicit CHashVerifier(Source* source_) : CHashWriter(source_->GetType(), source_->GetVersion()), source(source_) {}
+    explicit CHashVerifier(Source* source_)
+        : CHashWriter(source_->GetType()
+        , source_->GetVersion())
+        , source(source_)
+    {
+    }
 
     void read(char* pch, size_t nSize)
     {
@@ -165,9 +174,9 @@ unsigned int MurmurHash3(unsigned int nHashSeed, const std::vector<unsigned char
 class CSipHasher
 {
 private:
-    uint64_t v[4];
-    uint64_t tmp;
-    int count;
+    uint64_t    v[4];
+    uint64_t    tmp;
+    int         count;
 
 public:
     /** Construct a SipHash calculator initialized with 128-bit key (k0, k1) */
@@ -182,18 +191,5 @@ public:
     /** Compute the 64-bit SipHash-2-4 of the data written so far. The object remains untouched. */
     uint64_t Finalize() const;
 };
-
-/** Optimized SipHash-2-4 implementation for uint256.
- *
- *  It is identical to:
- *    SipHasher(k0, k1)
- *      .Write(val.GetUint64(0))
- *      .Write(val.GetUint64(1))
- *      .Write(val.GetUint64(2))
- *      .Write(val.GetUint64(3))
- *      .Finalize()
- */
-uint64_t SipHashUint256(uint64_t k0, uint64_t k1, const uint256& val);
-uint64_t SipHashUint256Extra(uint64_t k0, uint64_t k1, const uint256& val, uint32_t extra);
 
 #endif // BITCOIN_HASH_H

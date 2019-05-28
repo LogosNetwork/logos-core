@@ -6,16 +6,14 @@
 #ifndef BITCOIN_ADDRDB_H
 #define BITCOIN_ADDRDB_H
 
-#include <fs.h>
-#include <serialize.h>
-#include "../../lmdb/libraries/liblmdb/lmdb.h"
-
 #include <string>
 #include <map>
+#include <serialize.h>
+#include <chainparams.h>
+#include <p2p.h>
 
 class CSubNet;
 class CAddrMan;
-class CDataStream;
 
 typedef enum BanReason
 {
@@ -27,11 +25,11 @@ typedef enum BanReason
 class CBanEntry
 {
 public:
-    static const int CURRENT_VERSION=1;
-    int nVersion;
-    int64_t nCreateTime;
-    int64_t nBanUntil;
-    uint8_t banReason;
+    static constexpr int    CURRENT_VERSION = 1;
+    int                     nVersion;
+    int64_t                 nCreateTime;
+    int64_t                 nBanUntil;
+    uint8_t                 banReason;
 
     CBanEntry()
     {
@@ -47,7 +45,8 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(this->nVersion);
         READWRITE(nCreateTime);
         READWRITE(nBanUntil);
@@ -64,7 +63,8 @@ public:
 
     std::string banReasonToString() const
     {
-        switch (banReason) {
+        switch (banReason)
+        {
         case BanReasonNodeMisbehaving:
             return "node misbehaving";
         case BanReasonManuallyAdded:
@@ -77,30 +77,46 @@ public:
 
 typedef std::map<CSubNet, CBanEntry> banmap_t;
 
-extern MDB_env *g_p2p_lmdb_env;
-extern MDB_dbi g_p2p_lmdb_dbi;
-
 /** Access to the (IP) address database (peers.dat) */
 class CAddrDB
 {
 private:
-    MDB_env *env;
-    MDB_dbi dbi;
+    MDB_env *                       env;
+    MDB_dbi                         dbi;
+    BCLog::Logger &                 logger_;
+    std::shared_ptr<CChainParams>   params;
 public:
-    CAddrDB(): env(g_p2p_lmdb_env), dbi(g_p2p_lmdb_dbi) {}
+    CAddrDB(struct p2p_config &config,
+            BCLog::Logger &logger,
+            std::shared_ptr<CChainParams> paramsIn)
+        : env(config.lmdb_env)
+        , dbi(config.lmdb_dbi)
+        , logger_(logger)
+        , params(paramsIn)
+    {
+    }
     bool Write(const CAddrMan& addr);
     bool Read(CAddrMan& addr);
-    static bool Read(CAddrMan& addr, CDataStream& ssPeers);
 };
 
 /** Access to the banlist database (banlist.dat) */
 class CBanDB
 {
 private:
-    MDB_env *env;
-    MDB_dbi dbi;
+    MDB_env *                       env;
+    MDB_dbi                         dbi;
+    BCLog::Logger &                 logger_;
+    std::shared_ptr<CChainParams>   params;
 public:
-    CBanDB(): env(g_p2p_lmdb_env), dbi(g_p2p_lmdb_dbi) {}
+    CBanDB(struct p2p_config &config,
+           BCLog::Logger &logger,
+           std::shared_ptr<CChainParams> paramsIn)
+        : env(config.lmdb_env)
+        , dbi(config.lmdb_dbi)
+        , logger_(logger)
+        , params(paramsIn)
+    {
+    }
     bool Write(const banmap_t& banSet);
     bool Read(banmap_t& banSet);
 };

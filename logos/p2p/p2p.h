@@ -45,10 +45,9 @@ enum p2p_option_flags
 
 class p2p_interface
 {
-private:
+public:
     std::shared_ptr<p2p_internal>   p2p;
 
-public:
     ~p2p_interface()
     {
         Shutdown();

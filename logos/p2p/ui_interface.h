@@ -6,18 +6,31 @@
 #ifndef BITCOIN_UI_INTERFACE_H
 #define BITCOIN_UI_INTERFACE_H
 
+#include <stdint.h>
 #include <functional>
 #include <memory>
-#include <stdint.h>
 #include <string>
 
 /** Signals for UI communication. */
 class CClientUIInterface
 {
+private:
+    struct p2p_config & config;
+
 public:
+    CClientUIInterface(struct p2p_config &configIn)
+        : config(configIn)
+    {
+    }
 
     /** Progress message during initialization. */
     void InitMessage(const std::string& message);
+
+    /** Show warning message **/
+    void InitWarning(const std::string& str);
+
+    /** Show error message **/
+    bool InitError(const std::string& str);
 
     /** Number of network connections changed. */
     void NotifyNumConnectionsChanged(int newNumConnections);
@@ -27,20 +40,6 @@ public:
 
     /** Banlist did change. */
     void BannedListChanged();
-
-    struct p2p_config *config;
 };
-
-/** Show warning message **/
-void InitWarning(const std::string& str);
-
-/** Show error message **/
-bool InitError(const std::string& str);
-
-std::string AmountHighWarn(const std::string& optname);
-
-std::string AmountErrMsg(const char* const optname, const std::string& strValue);
-
-extern CClientUIInterface uiInterface;
 
 #endif // BITCOIN_UI_INTERFACE_H
