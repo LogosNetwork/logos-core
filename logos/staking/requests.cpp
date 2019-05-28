@@ -43,7 +43,7 @@ Proxy::Proxy(bool& error, const logos::mdb_val& mdbval)
 Proxy::Proxy(bool & error,
             boost::property_tree::ptree const & tree) : Request(error, tree)
 {
-    error = error || type != RequestType::Proxy;
+    error |= type != RequestType::Proxy;
     
     if(error)
     {
@@ -63,14 +63,18 @@ Proxy::Proxy(bool & error,
             lock_proxy = 0;
         }
 
-        error = rep.decode_hex(tree.get<std::string>(REPRESENTATIVE));
+        error |= rep.decode_hex(tree.get<std::string>(REPRESENTATIVE));
         epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
-        error = staking_subchain_prev.decode_hex(tree.get<std::string>(STAKING_SUB_PREV));
-
+        error |= staking_subchain_prev.decode_hex(tree.get<std::string>(STAKING_SUB_PREV));
+        if(error)
+        {
+            return;
+        }
     }
     catch(std::exception& e)
     {
         error = true;
+        return;
     }
     SignAndHash(error, tree);
 }
@@ -194,7 +198,7 @@ Stake::Stake(bool& error, const logos::mdb_val& mdbval)
 Stake::Stake(bool & error,
             boost::property_tree::ptree const & tree) : Request(error, tree)
 {
-    error = error || type != RequestType::Stake;
+    error |= type != RequestType::Stake;
     
     if(error)
     {
@@ -203,14 +207,18 @@ Stake::Stake(bool & error,
 
     try
     {
-        error = stake.decode_hex(tree.get<std::string>(STAKE));
+        error |= stake.decode_hex(tree.get<std::string>(STAKE));
         epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
-        error = staking_subchain_prev.decode_hex(tree.get<std::string>(STAKING_SUB_PREV));
-
+        error |= staking_subchain_prev.decode_hex(tree.get<std::string>(STAKING_SUB_PREV));
+        if(error)
+        {
+            return;
+        }
     }
     catch(std::exception& e)
     {
         error = true;
+        return;
     }
     SignAndHash(error, tree);
 }
@@ -330,7 +338,7 @@ Unstake::Unstake(bool& error, const logos::mdb_val& mdbval)
 Unstake::Unstake(bool & error,
             boost::property_tree::ptree const & tree) : Request(error, tree)
 {
-    error = error || type != RequestType::Unstake;
+    error |= type != RequestType::Unstake;
     
     if(error)
     {
@@ -340,11 +348,16 @@ Unstake::Unstake(bool & error,
     try
     {
         epoch_num = std::stol(tree.get<std::string>(EPOCH_NUM));
-        error = staking_subchain_prev.decode_hex(tree.get<std::string>(STAKING_SUB_PREV));
+        error |= staking_subchain_prev.decode_hex(tree.get<std::string>(STAKING_SUB_PREV));
+        if(error)
+        {
+            return;
+        }
     }
     catch(std::exception& e)
     {
         error = true;
+        return;
     }
     SignAndHash(error, tree);
 }
