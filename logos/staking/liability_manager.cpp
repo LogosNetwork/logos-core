@@ -27,15 +27,17 @@ bool LiabilityManager::CreateSecondaryLiability(
         AccountAddress const & source,
         Amount const & amount,
         uint32_t const & expiration_epoch,
+        logos::account_info & info,
+        uint32_t const & cur_epoch,
         MDB_txn* txn)
 {
+    assert(expiration_epoch > cur_epoch);
     Liability l{target,source,amount,expiration_epoch,true};
-    //using dummy info here, and passing dummy.epoch_secondary_liabilities_updated
-    //as the epoch argument ensures only the first liability is checked
-    //this is fine, as PruneSecondaryLiabilities() is called prior to any
-    //CreateSecondaryLiability() calls
-    logos::account_info dummy;
-    if(!CanCreateSecondaryLiability(target,source,dummy,dummy.epoch_secondary_liabilities_updated, txn))
+    //Prune first
+    PruneSecondaryLiabilities(source, info, cur_epoch,txn);
+
+    //if can't create this specific secondary liability, return failure
+    if(!CanCreateSecondaryLiability(target,source,cur_epoch, txn))
     {
         return false;
     }
@@ -76,7 +78,6 @@ void LiabilityManager::PruneSecondaryLiabilities(
 bool LiabilityManager::CanCreateSecondaryLiability(
         AccountAddress const & target,
         AccountAddress const & source,
-        logos::account_info const & info,
         uint32_t const & cur_epoch,
         MDB_txn* txn)
 {

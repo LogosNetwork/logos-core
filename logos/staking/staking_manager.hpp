@@ -215,7 +215,8 @@ class StakingManager
             R & output,
             Amount amount_to_extract,
             AccountAddress const & origin,
-            uint32_t const & epoch,
+            logos::account_info & info,
+            uint32_t const & cur_epoch,
             MDB_txn* txn);
 
 

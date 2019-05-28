@@ -913,6 +913,7 @@ TEST(Staking_Manager, Extract)
     LiabilityManager liability_mgr(*store);
 
     AccountAddress origin = 73;
+    logos::account_info info;
     AccountAddress target = 678;
     AccountAddress target2 = 68780;
 
@@ -964,7 +965,7 @@ TEST(Staking_Manager, Extract)
 
     auto extract = [&](auto& s1, auto& s2, auto amount)
     {
-        staking_mgr.Extract(s1,s2,amount,origin,epoch,txn);
+        staking_mgr.Extract(s1,s2,amount,origin,info, epoch,txn);
         staking_mgr.Store(s2,origin,txn);
     };
 

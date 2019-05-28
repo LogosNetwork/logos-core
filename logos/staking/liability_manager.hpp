@@ -47,6 +47,8 @@ class LiabilityManager
             AccountAddress const & source,
             Amount const & amount,
             uint32_t const & expiration_epoch,
+            logos::account_info & info,
+            uint32_t const & cur_epoch,
             MDB_txn* txn);
 
     /*
@@ -94,7 +96,6 @@ class LiabilityManager
     bool CanCreateSecondaryLiability(
             AccountAddress const & target,
             AccountAddress const & source,
-            logos::account_info const & info,
             uint32_t const & cur_epoch,
             MDB_txn* txn);
 

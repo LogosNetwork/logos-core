@@ -88,7 +88,8 @@ Amount StakingManager::Extract(
         R & output,
         Amount amount_to_extract,
         AccountAddress const & origin,
-        uint32_t const & epoch,
+        logos::account_info & info,
+        uint32_t const & cur_epoch,
         MDB_txn* txn)
 {
     if(amount_to_extract > input.amount)
@@ -115,12 +116,19 @@ Amount StakingManager::Extract(
             //if liability_expiration is 0, input is StakedFunds
             //therefore, need to set expiration of liability to one thawing
             //period past current epoch
-            liability_expiration = epoch + THAWING_PERIOD;
+            liability_expiration = cur_epoch + THAWING_PERIOD;
         }
 
         //Whenever extracting into diff target, need to create secondary
         //liability
-        bool res = _liability_mgr.CreateSecondaryLiability(input.target,origin,amount_to_extract,liability_expiration,txn);
+        bool res = _liability_mgr.CreateSecondaryLiability(
+                input.target,
+                origin,
+                amount_to_extract,
+                liability_expiration,
+                info,
+                cur_epoch,
+                txn);
         //failed to create secondary liability
         //this can happen if origin already has secondary liabilities with a
         //different target
@@ -142,7 +150,6 @@ Amount StakingManager::Extract(
     //See Stake() member function
     output.amount += amount_to_extract;
     
-    LOG_DEBUG(_log) << "amount_to_extract = " << amount_to_extract.to_string();
     //Return the amount extracted, which could be less than amount_to_extract
     //see first if statement of this function
     return amount_to_extract;
@@ -303,9 +310,7 @@ void StakingManager::BeginThawing(
         MDB_txn* txn)
 {
     ThawingFunds thawing = CreateThawingFunds(cur_stake.target, origin, epoch, txn);
-    LOG_DEBUG(_log) << "amount to thaw = " << amount_to_thaw.to_string()
-        << " cur_stake.amount = " << cur_stake.amount.to_string();
-    Amount extracted = Extract(cur_stake, thawing, amount_to_thaw, origin, epoch, txn);
+    Amount extracted = Extract(cur_stake, thawing, amount_to_thaw, origin, account_info, epoch, txn);
     assert(amount_to_thaw == extracted);
     //Don't care about return value here
     Store(thawing, origin, txn);
@@ -370,7 +375,7 @@ StakedFunds StakingManager::ChangeTarget(
 
     StakedFunds new_stake = CreateStakedFunds(new_target, origin, txn);
     //note that amount_left is updated based on amount actually extracted
-    amount_left -= Extract(cur_stake, new_stake, amount_left, origin, epoch, txn);
+    amount_left -= Extract(cur_stake, new_stake, amount_left, origin, account_info, epoch, txn);
 
     //Add voting power to new target
     //Note this only adds voting power based on the amount extracted here
@@ -422,8 +427,6 @@ void StakingManager::Stake(
         //TODO refactor to avoid the copy?
         cur_stake = CreateStakedFunds(target, origin, txn);
     }
-
-    _liability_mgr.PruneSecondaryLiabilities(origin, account_info, epoch, txn);
 
     /* Handle the case where origin is staking to a new target.
      * ChangeTarget() will create any secondary liabilities (if possible)
@@ -525,7 +528,7 @@ void StakingManager::Stake(
        //cur_stake is not stored in db
        auto extract_thawing = [&](ThawingFunds & t)
        {
-            amount_left -= Extract(t, cur_stake, amount_left, origin, epoch, txn);
+            amount_left -= Extract(t, cur_stake, amount_left, origin, account_info, epoch, txn);
             return amount_left > 0;
        }; 
        ProcessThawingFunds(origin, extract_thawing, txn);
@@ -607,7 +610,7 @@ bool StakingManager::Validate(
                 return false;
             }
             bool can_create = 
-                _liability_mgr.CanCreateSecondaryLiability(liability_target, origin, info, epoch, txn);
+                _liability_mgr.CanCreateSecondaryLiability(liability_target, origin, epoch, txn);
             if(can_create)
             {
                 already_created_secondary = true;
