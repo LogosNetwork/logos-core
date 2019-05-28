@@ -333,7 +333,8 @@ void StakingManager::ReduceStake(
 }
 
 //modifies cur_stake, account_info and amount_left
-//This function attempts to extract amount_left from cur_stake into new StakedFunds, which are returned by value. This function also updates affected
+//This function attempts to extract amount_left from cur_stake into new StakedFunds,
+//which are returned by value. This function also updates affected
 //voting power, and any affected liabilities. 
 //If some funds remain in cur_stake after extraction, those
 //remaining funds begin thawing, and are stored in the DB
@@ -355,42 +356,42 @@ StakedFunds StakingManager::ChangeTarget(
         MDB_txn* txn)
 {
 
-        //Subtract voting power from target
-        if(cur_stake.target == origin)
-        {
-            _voting_power_mgr.SubtractSelfStake(cur_stake.target, cur_stake.amount, epoch, txn);
-        }
-        else
-        {
-            _voting_power_mgr.SubtractLockedProxied(cur_stake.target, cur_stake.amount, epoch, txn);
-            _voting_power_mgr.SubtractUnlockedProxied(cur_stake.target,account_info.GetAvailableBalance(),epoch,txn);
+    //Subtract voting power from target
+    if(cur_stake.target == origin)
+    {
+        _voting_power_mgr.SubtractSelfStake(cur_stake.target, cur_stake.amount, epoch, txn);
+    }
+    else
+    {
+        _voting_power_mgr.SubtractLockedProxied(cur_stake.target, cur_stake.amount, epoch, txn);
+        _voting_power_mgr.SubtractUnlockedProxied(cur_stake.target,account_info.GetAvailableBalance(),epoch,txn);
 
-        }
+    }
 
-        StakedFunds new_stake = CreateStakedFunds(new_target, origin, txn);
-        //note that amount_left is updated based on amount actually extracted
-        amount_left -= Extract(cur_stake, new_stake, amount_left, origin, epoch, txn);
+    StakedFunds new_stake = CreateStakedFunds(new_target, origin, txn);
+    //note that amount_left is updated based on amount actually extracted
+    amount_left -= Extract(cur_stake, new_stake, amount_left, origin, epoch, txn);
 
-        //Add voting power to new target
-        //Note this only adds voting power based on the amount extracted here
-        if(new_target == origin)
-        {
-        
-            _voting_power_mgr.AddSelfStake(new_stake.target, new_stake.amount, epoch, txn);
-        }
-        else
-        { 
-            _voting_power_mgr.AddLockedProxied(new_stake.target, new_stake.amount, epoch, txn);
+    //Add voting power to new target
+    //Note this only adds voting power based on the amount extracted here
+    if(new_target == origin)
+    {
 
-            _voting_power_mgr.AddUnlockedProxied(new_stake.target,account_info.GetAvailableBalance(), epoch, txn);
-        }
+        _voting_power_mgr.AddSelfStake(new_stake.target, new_stake.amount, epoch, txn);
+    }
+    else
+    { 
+        _voting_power_mgr.AddLockedProxied(new_stake.target, new_stake.amount, epoch, txn);
 
-        //thaw any remaining funds
-        if(cur_stake.amount > 0)
-        {
-            BeginThawing(origin,account_info,epoch,cur_stake,cur_stake.amount,txn);
-        }
-        return new_stake;
+        _voting_power_mgr.AddUnlockedProxied(new_stake.target,account_info.GetAvailableBalance(), epoch, txn);
+    }
+
+    //thaw any remaining funds
+    if(cur_stake.amount > 0)
+    {
+        BeginThawing(origin,account_info,epoch,cur_stake,cur_stake.amount,txn);
+    }
+    return new_stake;
 }
 
 
@@ -537,7 +538,10 @@ void StakingManager::Stake(
     }
     //Finally, store the updated staked funds
     //Note this code path is not hit for the reduce stake to current target case
-    Store(cur_stake, origin, txn);
+    if(cur_stake.amount != 0)
+    {
+        Store(cur_stake, origin, txn);
+    }
 }
 
 bool StakingManager::Validate(
