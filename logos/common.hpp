@@ -192,7 +192,7 @@ struct account_info : Account
     void SetBalance(
             amount const & new_balance,
             uint32_t const & epoch,
-            MDB_txn* txn);
+            MDB_txn* txn) override;
 
     void SetAvailableBalance(
             amount const & new_available_bal,
@@ -209,7 +209,7 @@ struct account_info : Account
     Entries    entries;
     //the last epoch in which thawing funds were checked for expiration for this account
     uint32_t   epoch_thawing_updated;
-    //the last epoch in which secondary liablities were checked for expiration for this account
+    //the last epoch in which secondary liabilities were checked for expiration for this account
     uint32_t   epoch_secondary_liabilities_updated;
 
     protected:
