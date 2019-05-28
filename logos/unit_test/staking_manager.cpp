@@ -14,7 +14,7 @@ TEST(Staking_Manager, Stake)
     logos::transaction txn(store->environment, nullptr, true);
 
     StakingManager staking_mgr(*store);
-    VotingPowerManager voting_power_mgr(*store);
+    VotingPowerManager voting_power_mgr = *VotingPowerManager::GetInstance();
     LiabilityManager liability_mgr(*store);
 
     uint32_t epoch = 100;
@@ -271,7 +271,7 @@ TEST(Staking_Manager, StakeEpochTransition)
     logos::transaction txn(store->environment, nullptr, true);
 
     StakingManager staking_mgr(*store);
-    VotingPowerManager voting_power_mgr(*store);
+    VotingPowerManager voting_power_mgr = *VotingPowerManager::GetInstance();
 
     uint32_t epoch = 100;
 
@@ -410,7 +410,7 @@ TEST(Staking_Manager, Validate)
     logos::transaction txn(store->environment, nullptr, true);
 
     StakingManager staking_mgr(*store);
-    VotingPowerManager voting_power_mgr(*store);
+    VotingPowerManager voting_power_mgr = *VotingPowerManager::GetInstance();
     LiabilityManager liability_mgr(*store);
 
     uint32_t epoch = 100;
