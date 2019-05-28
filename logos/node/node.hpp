@@ -2,6 +2,7 @@
 
 #include <logos/ledger.hpp>
 #include <logos/lib/work.hpp>
+#include <logos/cache/cache.hpp>
 #include <logos/node/stats.hpp>
 #include <logos/node/wallet.hpp>
 #include <logos/epoch/archiver.hpp>
@@ -520,6 +521,7 @@ public:
     logos::work_pool & work;
     Log log;
     logos::block_store store;
+    logos::Cache cache;
     logos::gap_cache gap_cache;
     logos::ledger ledger;
     //CH logos::active_transactions active;
