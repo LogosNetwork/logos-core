@@ -12,6 +12,9 @@
 #include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
 
+namespace logos
+{
+
 class BlockChain;
 
 using ChainPtr = std::shared_ptr<BlockChain>;
@@ -47,3 +50,5 @@ private:
     std::unordered_map<BlockHash, ChainPtr>         hash_dependency_table;
     std::unordered_map<AccountAddress, ChainPtr>    account_dependency_table;
 };
+
+}

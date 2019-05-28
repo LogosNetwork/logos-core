@@ -4,6 +4,9 @@
 
 #include <logos/consensus/messages/messages.hpp>
 
+namespace logos
+{
+
 class BlockWriteQueue
 {
     using RBPtr = std::shared_ptr<ApprovedRB>;
@@ -15,3 +18,5 @@ private:
     std::queue<MBPtr>   mbs;
     std::queue<RBPtr>   rbs;
 };
+
+}
