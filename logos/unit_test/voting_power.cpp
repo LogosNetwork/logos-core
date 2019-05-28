@@ -19,7 +19,7 @@ TEST(Voting_Power, SimpleAddAndSubtract)
     logos::transaction txn(store->environment, nullptr, true);
     store->clear(store->voting_power_db, txn);
     store->clear(store->representative_db, txn);
-    VotingPowerManager voting_power_mgr(*store);
+    VotingPowerManager voting_power_mgr = *VotingPowerManager::GetInstance();
 
     AccountAddress rep = 42;
     uint32_t epoch = 10;
@@ -117,7 +117,7 @@ TEST(Voting_Power, Pruning)
     logos::transaction txn(store->environment, nullptr, true);
     store->clear(store->voting_power_db, txn);
     store->clear(store->representative_db, txn);
-    VotingPowerManager voting_power_mgr(*store);
+    VotingPowerManager voting_power_mgr = *VotingPowerManager::GetInstance();
 
     AccountAddress rep = 42;
     uint32_t epoch = 10;
@@ -213,7 +213,7 @@ TEST(Voting_Power, ManyProxies)
     logos::transaction txn(store->environment, nullptr, true);
     store->clear(store->voting_power_db, txn);
     store->clear(store->representative_db, txn);
-    VotingPowerManager voting_power_mgr(*store);
+    VotingPowerManager voting_power_mgr = *VotingPowerManager::GetInstance();
 
     AccountAddress rep = 42;
     uint32_t epoch = 10;
@@ -278,7 +278,7 @@ TEST(Voting_Power, ManyProxies)
 TEST(Voting_Power, AccountBalance)
 {
     logos::block_store* store = get_db();
-    VotingPowerManager voting_power_mgr(*store);
+    VotingPowerManager voting_power_mgr = *VotingPowerManager::GetInstance();
     AccountAddress rep = 1234433;
     uint32_t epoch = 10;
 

@@ -12,7 +12,12 @@ class StakingManager
 
     using BlockStore = logos::block_store;
     static std::shared_ptr<StakingManager> instance;
+
+    StakingManager(BlockStore& store) : _store(store), _liability_mgr(store), _voting_power_mgr(store) {}
+
     public:
+    //Note, whether you use the singleton pattern, or create your own StakingManager
+    //with the constructor, the behavior is identical
     static void SetInstance(BlockStore& store)
     {
         instance.reset(new StakingManager(store));
@@ -23,7 +28,6 @@ class StakingManager
         return instance;
     }
 
-    StakingManager(BlockStore& store) : _store(store), _liability_mgr(store), _voting_power_mgr(store) {}
 
     /* Set origins amount staked to amount
      * Direct the stake at target (target is either origin, or origins rep)

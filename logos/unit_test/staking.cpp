@@ -48,8 +48,8 @@ TEST(Staking, Basic)
     clear_dbs();
     std::shared_ptr<Reservations> reservations (std::make_shared<ConsensusReservations>(*store));
     PersistenceManager<R> req_pm(*store, reservations);
-    VotingPowerManager vpm(*store);
-    StakingManager sm(*store);
+    VotingPowerManager vpm = *VotingPowerManager::GetInstance();
+    StakingManager sm  = *StakingManager::GetInstance();
 
     uint32_t epoch_num = 1000;
     EpochVotingManager::ENABLE_ELECTIONS = true;
@@ -606,7 +606,7 @@ TEST(Staking, SwitchProxy)
     clear_dbs();
     std::shared_ptr<Reservations> reservations (std::make_shared<ConsensusReservations>(*store));
     PersistenceManager<R> req_pm(*store, reservations);
-    VotingPowerManager vpm(*store);
+    VotingPowerManager vpm = *VotingPowerManager::GetInstance();
 
     uint32_t epoch_num = 666;
     EpochVotingManager::ENABLE_ELECTIONS = true;
@@ -1108,7 +1108,7 @@ TEST(Staking, MultipleProxy)
     clear_dbs();
     std::shared_ptr<Reservations> reservations (std::make_shared<ConsensusReservations>(*store));
     PersistenceManager<R> req_pm(*store, reservations);
-    VotingPowerManager vpm(*store);
+    VotingPowerManager vpm = *VotingPowerManager::GetInstance();
 
     uint32_t epoch_num = 666;
     EpochVotingManager::ENABLE_ELECTIONS = true;
@@ -1450,7 +1450,7 @@ TEST(Staking, StakeUnstake)
     std::shared_ptr<Reservations> reservations (std::make_shared<ConsensusReservations>(*store));
     PersistenceManager<R> req_pm(*store, reservations);
     PersistenceManager<ECT> epoch_pm(*store,nullptr);
-    VotingPowerManager vpm(*store);
+    VotingPowerManager vpm = *VotingPowerManager::GetInstance();
 
     uint32_t epoch_num = 666;
     EpochVotingManager::ENABLE_ELECTIONS = true;
@@ -1868,7 +1868,7 @@ TEST(Staking, Votes)
     std::shared_ptr<Reservations> reservations (std::make_shared<ConsensusReservations>(*store));
     PersistenceManager<R> req_pm(*store, reservations);
     PersistenceManager<ECT> epoch_pm(*store,nullptr);
-    VotingPowerManager vpm(*store);
+    VotingPowerManager vpm = *VotingPowerManager::GetInstance();
 
     uint32_t epoch_num = 666;
     EpochVotingManager::ENABLE_ELECTIONS = true;

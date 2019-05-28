@@ -15,11 +15,11 @@ class VotingPowerManager
     //for convenience. Some areas of the codebase do not have a reference to
     //blockstore to create a VotingPowerManager. This instance
     //is created when BlockStore is constructed. A client can use this instance
-    //or can create their own; the behavior is identical.
+    //or can create their own using the public constructor; the behavior is identical.
     static std::shared_ptr<VotingPowerManager> instance;
-    public:
 
     VotingPowerManager(BlockStore& store) : _store(store) {}
+    public:
 
     static void SetInstance(BlockStore& store)
     {
@@ -181,4 +181,6 @@ class VotingPowerManager
 
     BlockStore& _store;
     Log _log;
+    
+    friend class StakingManager;
 };
