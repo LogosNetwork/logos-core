@@ -12,6 +12,29 @@ Amount GetPower(VotingPowerInfo const & info)
         + diluted_unlocked_proxied; 
 }
 
+//There is a certain race condition regarding voting near the epoch boundary
+//Problem:
+//Consider an ElectionVote submitted at the very end of epoch i,
+//and a Send submitted at the very beginning of epoch i+1
+//Assume the origin account of the Send has a rep. Assume this rep is
+//the origin account of the ElectionVote
+//When the ElectionVote is applied, the software will look up the reps voting
+//power for epoch i in voting_power_db
+//When the Send is applied, the software will transition reps voting power
+//to epoch i+1. During this transition, the voting power for epoch i is overwritten
+//If the Send is applied before the ElectionVote, the voting power for the rep
+//for epoch i is no longer stored anywhere. 
+//Solution:
+//To mitigate this race condition,there is a special database called voting_power_fallback_db
+//Whenever the software is transitioning voting power of a rep to epoch i+1, the software
+//checks that the rep voted in epoch i. If the rep did not vote in epoch i, the reps
+//voting power for epoch i is first stored in voting_power_fallback_db, and then voting power
+//for the rep (stored in voting_power_db) is transitioned to epoch i + 1.
+//If the rep did vote in epoch i, no data is stored in voting_power_fallback_db.
+//When applying an ElectionVote, the software checks if the epoch number of the
+//ElectionVote is less than the epoch modified field of VotingPowerInfo. If so,
+//the software reads voting power from voting_power_fallback_db. Otherwise, the
+//software reads voting power from voting_power_db
 void VotingPowerManager::HandleFallback(
         VotingPowerInfo const & info,
         AccountAddress const & rep,
@@ -23,23 +46,24 @@ void VotingPowerManager::HandleFallback(
     {
        auto hash = rep_info.election_vote_tip;
        bool store_fallback = false;
-       //if rep hasnt voted yet this epoch, store fallback voting power
-       //to avoid race condition. rep may be voting on epoch boundary 
        if(hash != 0)
        {
            ElectionVote ev;
-            if(_store.request_get(hash, ev, txn))
-            {
-                LOG_FATAL(_log) << "VotingPowerManager::HandleFallback - "
-                    "failed to get election vote tip of rep";
-                trace_and_halt();
-            }
+           if(_store.request_get(hash, ev, txn))
+           {
+               LOG_FATAL(_log) << "VotingPowerManager::HandleFallback - "
+                   "failed to get election vote tip of rep";
+               trace_and_halt();
+           }
 
-            if(ev.epoch_num < epoch - 1)
-            {
-                store_fallback = true;
-            }            
+           //if rep did not vote in previous epoch, store fallback voting power
+           //to avoid race condition. rep may be voting on epoch boundary 
+           if(ev.epoch_num < epoch - 1)
+           {
+               store_fallback = true;
+           }            
        }
+       //rep has never voted, store fallback
        else
        {
             store_fallback = true;

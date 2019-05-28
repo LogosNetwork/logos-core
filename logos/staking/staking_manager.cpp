@@ -514,30 +514,30 @@ void StakingManager::Stake(
     */
     if(amount_left > 0)
     {
-       if(target == origin)
-       {
-           _voting_power_mgr.AddSelfStake(target, amount_left, epoch, txn);
-       }
-       else
-       {
-           _voting_power_mgr.AddLockedProxied(target, amount_left, epoch, txn);
-       }
+        if(target == origin)
+        {
+            _voting_power_mgr.AddSelfStake(target, amount_left, epoch, txn);
+        }
+        else
+        {
+            _voting_power_mgr.AddLockedProxied(target, amount_left, epoch, txn);
+        }
 
-       //Extract from thawing until amount_left is 0
-       //Any modified ThawingFunds are stored in db (see Extract())
-       //cur_stake is not stored in db
-       auto extract_thawing = [&](ThawingFunds & t)
-       {
+        //Extract from thawing until amount_left is 0
+        //Any modified ThawingFunds are stored in db (see Extract())
+        //cur_stake is not stored in db
+        auto extract_thawing = [&](ThawingFunds & t)
+        {
             amount_left -= Extract(t, cur_stake, amount_left, origin, account_info, epoch, txn);
             return amount_left > 0;
-       }; 
-       ProcessThawingFunds(origin, extract_thawing, txn);
+        }; 
+        ProcessThawingFunds(origin, extract_thawing, txn);
 
-       if(amount_left > 0)
-       {
-           //still need to stake more even after using thawing,
+        if(amount_left > 0)
+        {
+            //still need to stake more even after using thawing,
             StakeAvailableFunds(cur_stake, amount_left, origin, account_info, epoch, txn);
-       }
+        }
     }
     //Finally, store the updated staked funds
     //Note this code path is not hit for the reduce stake to current target case
@@ -601,7 +601,6 @@ bool StakingManager::Validate(
     bool already_created_secondary = false;
     auto can_create_secondary_liability = [&](AccountAddress& liability_target)
     {
-
         if(secondary_liability_cache.find(liability_target) == secondary_liability_cache.end())
         {
             if(already_created_secondary)

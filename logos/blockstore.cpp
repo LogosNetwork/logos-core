@@ -1454,8 +1454,12 @@ bool logos::block_store::candidate_put(
     std::vector<uint8_t> buf;
     auto status(mdb_put(transaction, candidacy_db, logos::mdb_val(account), candidate_info.to_mdb_val(buf), 0));
 
-    
-    assert(status == 0);
+    if(status != 0)
+    {
+        LOG_FATAL(log) << "block_store::candidate_put - failed to write candidate to db"
+            << ". account = " << account.to_string();
+        trace_and_halt();
+    }
     return update_leading_candidates(account,candidate_info,transaction);
 }
 
