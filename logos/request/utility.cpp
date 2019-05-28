@@ -12,9 +12,6 @@ RequestType GetRequestType(bool &error, std::string data)
                    data.begin(), ::tolower);
 
     RequestType ret = RequestType::Unknown;
-    Log log;
-    LOG_INFO(log) << "GetRequestType- type string is "
-        << data;
 
     if(data == SEND)
     {

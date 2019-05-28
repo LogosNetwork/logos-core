@@ -97,7 +97,6 @@ class EpochRewardsManager
             Amount const & to_subtract,
             MDB_txn* txn);
 
-    private:
     BlockStore & _store;
     Log          _log;
 

@@ -123,6 +123,10 @@ struct AnnounceCandidacy : Request
 
     using Request::Hash;
 
+    //If set_stake is true, this request will adjust origin's self stake
+    //to the amount specified in the stake field
+    //If set_stake is false, this request will ignore the stake field,
+    //and origin's self stake will remain the same as before this request
     bool set_stake;
     Amount stake;
     DelegatePubKey bls_key;
@@ -159,6 +163,10 @@ struct RenounceCandidacy : Request
 
     using Request::Hash;
 
+    //If set_stake is true, this request will adjust origin's self stake
+    //to the amount specified in the stake field
+    //If set_stake is false, this request will ignore the stake field,
+    //and origin's self stake will remain the same as before this request
     bool set_stake;
     Amount stake;
     uint32_t epoch_num;
@@ -193,6 +201,10 @@ struct StartRepresenting : Request
 
     using Request::Hash;
 
+    //If set_stake is true, this request will adjust origin's self stake
+    //to the amount specified in the stake field
+    //If set_stake is false, this request will ignore the stake field,
+    //and origin's self stake will remain the same as before this request
     bool set_stake;
     Amount stake;
     uint32_t epoch_num;
@@ -228,6 +240,10 @@ struct StopRepresenting : Request
 
     using Request::Hash;
 
+    //If set_stake is true, this request will adjust origin's self stake
+    //to the amount specified in the stake field
+    //If set_stake is false, this request will ignore the stake field,
+    //and origin's self stake will remain the same as before this request
     bool set_stake;
     Amount stake;
     uint32_t epoch_num;
