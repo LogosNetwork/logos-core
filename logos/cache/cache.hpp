@@ -2,10 +2,13 @@
 
 #include <logos/lib/numbers.hpp>
 #include <logos/lib/hash.hpp>
+#include <logos/blockstore.hpp>
 #include <logos/consensus/messages/messages.hpp>
 
 #include "block_container.hpp"
 #include "block_write_queue.hpp"
+
+namespace logos {
 
 class Cache
 {
@@ -14,6 +17,8 @@ class Cache
     using EBPtr = std::shared_ptr<ApprovedEB>;
 
 public:
+    Cache(block_store & store);
+
     // should be called by bootstrap and P2P
     bool AddEpochBlock(EBPtr block);
     bool AddMicroBlock(MBPtr block);
@@ -30,4 +35,7 @@ public:
 private:
     PendingBlockContainer   block_container;
     BlockWriteQueue         write_q;
+    block_store &           store_;
 };
+
+}
