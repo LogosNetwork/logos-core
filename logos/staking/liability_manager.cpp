@@ -68,6 +68,11 @@ void LiabilityManager::PruneSecondaryLiabilities(
 }
 
 
+//This function returns true if the software is able to create a secondary liability
+//with the given arguments
+//Currently, all liabilities with the same source must also have the same target
+//This function returns false if there are any liabilities with the same source but
+//different target. Otherwise, this function returns true
 bool LiabilityManager::CanCreateSecondaryLiability(
         AccountAddress const & target,
         AccountAddress const & source,
@@ -86,7 +91,9 @@ bool LiabilityManager::CanCreateSecondaryLiability(
 
     if(Exists(hash, txn))
     {
-        //consolidation will occur, no way for this to fail
+        //LiabilityHash is a hash of source, target and expiration epoch
+        //if a liability with the same hash already exists, we know that existing
+        //liability has the same target, so no conflict exists
         return true;
     }
 
@@ -94,18 +101,18 @@ bool LiabilityManager::CanCreateSecondaryLiability(
     for(auto hash : hashes)
     {
         Liability l = Get(hash, txn);
-        if(info.epoch_secondary_liabilities_updated >= cur_epoch)
-        {
-            //secondary liabilities are all up to date
-            //only need to check first
-            //Possible optimization: don't get all hashes in this case
-            return l.target == target;
-        }
-        else if(l.expiration_epoch > cur_epoch)
+
+        //if l.expiration_epoch <= cur_epoch, the liability is expired, so skip it
+        //otherwise, make sure target is same and return
+        //no need to check any other secondary liabilities, since all secondary
+        //liabilities for this account will have the same target
+        if(l.expiration_epoch > cur_epoch)
         {
             return l.target == target;
         }
     }
+    //Execution gets here if source has no secondary liabilities, or all secondary
+    //liabilities of source are expired
     return true;
 }
 
@@ -127,8 +134,9 @@ void LiabilityManager::DeleteLiability(
 
 LiabilityHash LiabilityManager::Store(Liability const & l, MDB_txn* txn)
 {
-    _store.liability_put(l,txn);
-    return l.Hash();
+    LiabilityHash hash = l.Hash();
+    _store.liability_put(hash, l,txn);
+    return hash;
 }
 
 std::vector<LiabilityHash> LiabilityManager::GetHashes(

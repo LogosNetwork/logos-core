@@ -2194,11 +2194,11 @@ bool logos::block_store::liability_exists(
 }
 
 bool logos::block_store::liability_put(
+        LiabilityHash const & hash,
         Liability const & l,
         MDB_txn* txn)
 {
     Liability existing;
-    LiabilityHash hash = l.Hash();
     //if liability with same expiration, target and source exists, consolidate
     bool error = false;
     if(!get(master_liabilities_db, logos::mdb_val(hash), existing, txn))

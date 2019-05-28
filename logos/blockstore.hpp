@@ -383,7 +383,7 @@ public:
             Liability & l,
             MDB_txn* txn);
 
-    bool liability_put(Liability const & l, MDB_txn* txn);
+    bool liability_put(LiabilityHash const & hash, Liability const & l, MDB_txn* txn);
 
     bool liability_update_amount(
             LiabilityHash const & hash,
