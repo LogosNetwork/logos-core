@@ -549,6 +549,10 @@ bool StakingManager::Validate(
         Amount const & fee,
         MDB_txn* txn)
 {
+    if(info.GetAvailableBalance() < fee)
+    {
+        return false;
+    }
     Amount available = info.GetAvailableBalance() - fee;
     //if account has enough available funds, we know request will succeed,
     //even if software uses thawing funds or existing staked funds instead

@@ -276,11 +276,20 @@ bool PersistenceManager<R>::ValidateRequest(
     // to cover the request.
     if(request->GetLogosTotal() > info->GetAvailableBalance())
     {
+        //For a LogosAccount (as opposed to a TokenAccount), software needs to
+        //check if there are any thawing funds that have expired, therefore
+        //increasing the available balance. Thawing funds are not spendable, but
+        //have an expiration epoch, during and after which the funds become spendable
+        //and are no longer thawing
         if(info->type == logos::AccountType::LogosAccount)
         {
             logos::transaction txn(_store.environment, nullptr, false);
             auto account_info = dynamic_pointer_cast<logos::account_info>(info);
             auto sm = StakingManager::GetInstance();
+            //Note, this call does not actually prune the thawing funds (and subsequently
+            //update available_balance), but simply calculates the additional funds
+            //that would be available if pruning were to occur. Pruning is always
+            //done when the request is applied, as opposed to validated
             Amount pruneable = sm->GetPruneableThawingAmount(
                     request->origin,
                     *account_info,
@@ -2114,16 +2123,19 @@ bool PersistenceManager<R>::ValidateRequest(
         logos::process_return& result)
 {
     assert(txn != nullptr);
+    //epoch consistency
     if(request.epoch_num != cur_epoch_num)
     {
         result.code = logos::process_result::wrong_epoch_number;
         return false;
     }
+    //No elections requests during dead period. See comments near IsDeadPeriod()
     if(IsDeadPeriod(cur_epoch_num,txn))
     {
         result.code = logos::process_result::elections_dead_period;
         return false;
     }
+    //are elections enabled?
     if(cur_epoch_num < EpochVotingManager::START_ELECTIONS_EPOCH - 1
             || !EpochVotingManager::ENABLE_ELECTIONS)
     {
@@ -2131,12 +2143,53 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
+    //verify staking_subchain_prev is correct
+    if(!ValidateStakingSubchain(request,info,result,txn))
+    {
+        return false;
+    }
+
+    //verify rep status of origin
     RepInfo rep;
-    bool rep_exists = !_store.rep_get(request.origin, rep, txn);
+    if(!_store.rep_get(request.origin, rep, txn))
+    {
+        std::shared_ptr<Request> rep_request;
+        auto hash = rep.rep_action_tip;
+        assert(hash != 0);
+        assert(!_store.request_get(hash, rep_request, txn));
+        assert(VerifyRepActionType(rep_request->type));
+        //already submitted rep action this epoch, reject
+        if(GetEpochNum(rep_request) == cur_epoch_num)
+        {
+            result.code = logos::process_result::pending_rep_action;
+            return false;
+        }
+    }
 
+    //verify candidacy status of origin
+    std::shared_ptr<Request> candidacy_req;
+    auto hash = rep.candidacy_action_tip;
+    if(hash != 0)
+    {
+        assert(!_store.request_get(hash,candidacy_req,txn));
+        assert(VerifyCandidacyActionType(candidacy_req->type));
+        //already a candidate, reject
+        if(candidacy_req->type == RequestType::AnnounceCandidacy)
+        {
+            result.code = logos::process_result::already_announced_candidacy;
+            return false;
+        }
+        //already submitted candidacy action this epoch, reject
+        else if(GetEpochNum(candidacy_req) == cur_epoch_num) //RenounceCandidacy || StopRepresenting
+        {
+            result.code = logos::process_result::pending_candidacy_action;
+            return false;
+        }
+    }
+    
+    //verify origin will have enough stake to be candidate after this request is
+    //applied
     Amount stake = request.stake;
-
-
     if(!request.set_stake)
     {
         StakedFunds cur_stake;
@@ -2157,46 +2210,8 @@ bool PersistenceManager<R>::ValidateRequest(
         result.code = logos::process_result::not_enough_stake;
         return false;
     }
-    if(!ValidateStake(request,info,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
-    {
-        return false;
-    }
-
-    //what is your status as a rep?
-    if(rep_exists)
-    {
-        std::shared_ptr<Request> rep_request;
-        auto hash = rep.rep_action_tip;
-        assert(hash != 0);
-        assert(!_store.request_get(hash, rep_request, txn));
-        assert(VerifyRepActionType(rep_request->type));
-        if(GetEpochNum(rep_request) == cur_epoch_num)
-        {
-            result.code = logos::process_result::pending_rep_action;
-            return false;
-        }
-    }
-
-
-    //what is your status as a candidate?
-    std::shared_ptr<Request> candidacy_req;
-    auto hash = rep.candidacy_action_tip;
-    if(hash != 0)
-    {
-        assert(!_store.request_get(hash,candidacy_req,txn));
-        assert(VerifyCandidacyActionType(candidacy_req->type));
-        if(candidacy_req->type == RequestType::AnnounceCandidacy)
-        {
-            result.code = logos::process_result::already_announced_candidacy;
-            return false;
-        }
-        else if(GetEpochNum(candidacy_req) == cur_epoch_num) //RenounceCandidacy || StopRepresenting
-        {
-            result.code = logos::process_result::pending_candidacy_action;
-            return false;
-        }
-    }
-    return true;
+    //verify origin can actually stake amount requested
+    return ValidateStake(request,info,result,txn);
 }
 
 bool PersistenceManager<R>::ValidateRequest(
@@ -2207,34 +2222,40 @@ bool PersistenceManager<R>::ValidateRequest(
         logos::process_return& result)
 {
     assert(txn != nullptr);
+    //are elections enabled?
     if(!EpochVotingManager::ENABLE_ELECTIONS)
     {
         result.code = logos::process_result::no_elections;
         return false;
     }
+    //epoch consistency
     if(request.epoch_num != cur_epoch_num)
     {
         result.code = logos::process_result::wrong_epoch_number;
         return false;
     }
-
+    //No elections requests during dead period. See comments near IsDeadPeriod()
     if(IsDeadPeriod(cur_epoch_num,txn))
     {
         result.code = logos::process_result::elections_dead_period;
         return false;
     }
 
-    if(!ValidateStake(request,info,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
+    //verify staking_subchain_prev is correct
+    if(!ValidateStakingSubchain(request,info,result,txn))
     {
         return false;
     }
+
+    //verify rep status
     RepInfo rep;
     if(_store.rep_get(request.origin,rep,txn))
     {
         result.code = logos::process_result::not_a_rep;
         return false;
     }
-    //what is your candidacy status?
+
+    //verify candidacy status
     auto hash = rep.candidacy_action_tip;
     if(hash == 0)
     {
@@ -2244,19 +2265,45 @@ bool PersistenceManager<R>::ValidateRequest(
     shared_ptr<Request> candidacy_req;
     assert(!_store.request_get(hash, candidacy_req, txn));
     assert(VerifyCandidacyActionType(candidacy_req->type));
+    //if already renounced candidacy, reject
     if(candidacy_req->type == RequestType::RenounceCandidacy
             || candidacy_req->type == RequestType::StopRepresenting)
     {
         result.code = logos::process_result::already_renounced_candidacy;
         return false;
     }
-    else if(GetEpochNum(candidacy_req) == cur_epoch_num) //AnnounceCandidacy
+    //if already submitted candidacy action this epoch, reject
+    else if(GetEpochNum(candidacy_req) == cur_epoch_num)
     {
         result.code = logos::process_result::pending_candidacy_action;
         return false;
     }
 
-    return true;
+    //verify that origin will still have enough stake to be a rep after this 
+    //request is applied
+    Amount stake = request.stake;
+    if(!request.set_stake)
+    {
+        StakedFunds cur_stake;
+        bool has_stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
+                request.origin,
+                cur_stake,
+                txn);
+        if(!has_stake)
+        {
+            result.code = logos::process_result::not_enough_stake; 
+            return false;
+        }
+        stake = cur_stake.amount;
+    }
+    if(stake < MIN_REP_STAKE)
+    {
+        result.code = logos::process_result::not_enough_stake;
+        return false;
+    } 
+
+    //verify origin can actually stake amount requested
+    return ValidateStake(request,info,result,txn);
 }
 
 /*
@@ -2299,24 +2346,57 @@ bool PersistenceManager<R>::ValidateRequest(
         logos::process_return& result)
 {
     assert(txn != nullptr);
+    //are elections enabled?
     if(!EpochVotingManager::ENABLE_ELECTIONS)
     {
         result.code = logos::process_result::no_elections;
         return false;
     }
+    //epoch consistency
     if(request.epoch_num != cur_epoch_num)
     {
         result.code = logos::process_result::wrong_epoch_number;
         return false;
     }
+    //No elections requests during dead period. See comments near IsDeadPeriod()
     if(IsDeadPeriod(cur_epoch_num,txn))
     {
         result.code = logos::process_result::elections_dead_period;
         return false;
     }
 
-    Amount stake = request.stake;
+    //verify staking_subchain_prev is correct
+    if(!ValidateStakingSubchain(request,info,result,txn))
+    {
+        return false;
+    }
 
+    //Verify current rep status of origin
+    RepInfo rep;
+    if(!_store.rep_get(request.origin,rep,txn))
+    {
+        auto hash = rep.rep_action_tip;
+        assert(hash != 0);
+        std::shared_ptr<Request> rep_req;
+        assert(!_store.request_get(hash, rep_req, txn));
+        assert(VerifyRepActionType(rep_req->type));
+        //if already rep, reject
+        if(rep_req->type == RequestType::StartRepresenting
+                || rep_req->type == RequestType::AnnounceCandidacy)
+        {
+            result.code = logos::process_result::is_rep;
+            return false;
+        }
+        //if already issued rep action this epoch, reject
+        else if(GetEpochNum(rep_req) == cur_epoch_num)
+        {
+            result.code = logos::process_result::pending_rep_action;
+            return false;
+        }
+    }
+    //verify origin either already has enough self stake to be a rep
+    //or is requesting to increase self stake above threshold
+    Amount stake = request.stake;
     if(!request.set_stake)
     {
         StakedFunds cur_stake;
@@ -2331,39 +2411,13 @@ bool PersistenceManager<R>::ValidateRequest(
         }
         stake = cur_stake.amount;
     }
-
-    if(request.stake < MIN_REP_STAKE)
+    if(stake < MIN_REP_STAKE)
     {
         result.code = logos::process_result::not_enough_stake;
         return false;
     } 
-
-    if(!ValidateStake(request,info,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
-    {
-        return false;
-    }
-
-    RepInfo rep;
-    if(!_store.rep_get(request.origin,rep,txn))
-    {
-        auto hash = rep.rep_action_tip;
-        assert(hash != 0);
-        std::shared_ptr<Request> rep_req;
-        assert(!_store.request_get(hash, rep_req, txn));
-        assert(VerifyRepActionType(rep_req->type));
-        if(rep_req->type == RequestType::StartRepresenting
-                || rep_req->type == RequestType::AnnounceCandidacy)
-        {
-            result.code = logos::process_result::is_rep;
-            return false;
-        }
-        else if(GetEpochNum(rep_req) == cur_epoch_num) //StopRepresenting
-        {
-            result.code = logos::process_result::pending_rep_action;
-            return false;
-        }
-    }
-    return true;
+    //verify origin can actually stake amount requested
+    return ValidateStake(request,info,result,txn);
 }
 
 bool PersistenceManager<R>::ValidateRequest(
@@ -2374,29 +2428,34 @@ bool PersistenceManager<R>::ValidateRequest(
         logos::process_return& result)
 {
     assert(txn != nullptr);
+    //are elections enabled?
     if(!EpochVotingManager::ENABLE_ELECTIONS)
     {
         result.code = logos::process_result::no_elections;
         return false;
     }
-
+    //epoch consistency
     if(request.epoch_num != cur_epoch_num)
     {
         result.code = logos::process_result::wrong_epoch_number;
         return false;
     }
 
+    //No elections related requests allowed in dead period
+    //See comments around IsDeadPeriod() function
     if(IsDeadPeriod(cur_epoch_num,txn))
     {
         result.code = logos::process_result::elections_dead_period;
         return false;
     }
 
-    if(!ValidateStake(request,info,result,txn) || !ValidateStakingSubchain(request,info,result,txn))
+    //Verify staking_subchain_prev is correct
+    if(!ValidateStakingSubchain(request,info,result,txn))
     {
         return false;
     }
 
+    //Verify representative and candidacy status of origin
     RepInfo rep;
     if(!_store.rep_get(request.origin,rep,txn))
     {
@@ -2405,17 +2464,21 @@ bool PersistenceManager<R>::ValidateRequest(
         std::shared_ptr<Request> rep_request;
         assert(!_store.request_get(hash, rep_request, txn));
         assert(VerifyRepActionType(rep_request->type));
+        //verify rep status
         if(GetEpochNum(rep_request) == cur_epoch_num)
         {
+            //pending rep action in current epoch
             result.code = logos::process_result::pending_rep_action;
             return false;
         }
-        else if(rep_request->type == RequestType::StopRepresenting) //stopped in previous epoch
+        else if(rep_request->type == RequestType::StopRepresenting)
         {
+            //already stopped representing in previous epoch
             result.code = logos::process_result::not_a_rep;
             return false;
         }
 
+        //verify candidacy status
         hash = rep.candidacy_action_tip;
         if(hash != 0)
         {
@@ -2424,14 +2487,20 @@ bool PersistenceManager<R>::ValidateRequest(
             assert(VerifyCandidacyActionType(candidacy_req->type));
             if(GetEpochNum(candidacy_req) == cur_epoch_num)
             {
+                //pending candidacy action in current epoch
                 result.code = logos::process_result::pending_candidacy_action;
                 return false;
             }
         }
-        return true;
     }
-    result.code = logos::process_result::not_a_rep;
-    return false;
+    //if origin is not a rep, reject
+    else
+    {
+        result.code = logos::process_result::not_a_rep;
+        return false;
+    }
+    //Verify origin can stake amount requested
+    return ValidateStake(request,info,result,txn);
 }
 
 bool PersistenceManager<R>::ValidateRequest(
@@ -2447,40 +2516,28 @@ bool PersistenceManager<R>::ValidateRequest(
             << "txn is null";
         trace_and_halt();
     }
+    //epoch consistency
     if(request.epoch_num != cur_epoch_num)
     {
         result.code = logos::process_result::wrong_epoch_number;
         return false;
     }
 
-    bool can_stake = StakingManager::GetInstance()->Validate(
-            request.origin,
-            info,
-            request.lock_proxy,
-            request.rep,
-            request.epoch_num,
-            request.fee,
-            txn);
-    if(!can_stake)
-    {
-        //TODO different return code
-        result.code = logos::process_result::insufficient_funds_for_stake;
-        return false;
-    }
-
+    //Verify staking_subchain_prev is correct
     if(!ValidateStakingSubchain(request,info,result,txn))
     {
         return false;
     }
 
+    //Cannot proxy to self
     if(request.rep == request.origin)
     {
         result.code = logos::process_result::proxy_to_self;
         return false;
     }
 
+    //Cannot proxy if origin account is already rep (or will be rep next epoch)
     //TODO should delegates that are not reps be allowed to proxy?
-    //make sure not a rep
     RepInfo rep_info;
     if(!_store.rep_get(request.origin,rep_info,txn))
     {
@@ -2493,6 +2550,9 @@ bool PersistenceManager<R>::ValidateRequest(
                 << " hash = " << hash.to_string();
             trace_and_halt();
         }
+        //If origin account is resigning as rep, Proxy request is valid
+        //otherwise, reject. Note, account can resign as rep via StopRepresenting
+        //or RenounceCandidacy
         if(req->type != RequestType::StopRepresenting
                 && req->type != RequestType::RenounceCandidacy)
         {
@@ -2501,6 +2561,7 @@ bool PersistenceManager<R>::ValidateRequest(
         }
     }
 
+    //Verify origin account is proxying to a valid rep
     if(!_store.rep_get(request.rep,rep_info,txn))
     {
         auto hash = rep_info.rep_action_tip;
@@ -2512,6 +2573,7 @@ bool PersistenceManager<R>::ValidateRequest(
                 << " hash = " << hash.to_string();
             trace_and_halt();
         }
+        //request.rep is a current rep, but is not a rep next epoch. Reject
         if(req->type == RequestType::StopRepresenting
                 || req->type == RequestType::RenounceCandidacy)
         {
@@ -2521,14 +2583,27 @@ bool PersistenceManager<R>::ValidateRequest(
     }
     else
     {
-        //Can't proxy to account that is not a rep
+        //Reject Proxy to account that is not a rep
         result.code = logos::process_result::not_a_rep;
         return false;
     }
-    return true;
+
+    //Verify origin is able to stake (lock proxy) amount requested
+    bool can_stake = StakingManager::GetInstance()->Validate(
+            request.origin,
+            info,
+            request.lock_proxy,
+            request.rep,
+            request.epoch_num,
+            request.fee,
+            txn);
+    if(!can_stake)
+    {
+        result.code = logos::process_result::insufficient_funds_for_stake;
+    }
+    return can_stake;
 }
 
-//TODO allow anyone to stake to themselves or disallow?
 bool PersistenceManager<R>::ValidateRequest(
         const Stake& request,
         logos::account_info const & info,
@@ -2542,26 +2617,18 @@ bool PersistenceManager<R>::ValidateRequest(
             << "txn is null";
         trace_and_halt();
     }
+    //epoch consistency
     if(request.epoch_num != cur_epoch_num)
     {
         result.code = logos::process_result::wrong_epoch_number;
         return false;
     }
 
-    bool can_stake = StakingManager::GetInstance()->Validate(
-            request.origin,
-            info,
-            request.stake,
-            request.origin,
-            request.epoch_num,
-            request.fee,
-            txn);
-    if(!can_stake)
+    //Verify staking_subchain_prev is correct
+    if(!ValidateStakingSubchain(request,info,result,txn))
     {
-        result.code = logos::process_result::insufficient_funds_for_stake;
         return false;
     }
-
 
     //Can't submit Stake request if you have a rep already
     if(info.rep != 0)
@@ -2570,6 +2637,8 @@ bool PersistenceManager<R>::ValidateRequest(
        return false; 
     }
 
+    //Verify the desired amount to stake is above Representative and Delegate
+    //threshold if necessary
     RepInfo rep_info;
     if(!_store.rep_get(request.origin,rep_info,txn))
     {
@@ -2582,6 +2651,7 @@ bool PersistenceManager<R>::ValidateRequest(
                 << " hash = " << hash.to_string();
             trace_and_halt();
         }
+        //If account is rep next epoch, need to have at least MIN_REP_STAKE
         if(req->type != RequestType::StopRepresenting)
         {
             if(request.stake < MIN_REP_STAKE)
@@ -2597,12 +2667,13 @@ bool PersistenceManager<R>::ValidateRequest(
             if(_store.request_get(hash, req, txn))
             {
                 LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (Stake)"
-                    << " - failed to retreive candidacy_action_tip"
+                    << " - failed to retrieve candidacy_action_tip"
                     << " hash = " << hash.to_string();
                 trace_and_halt();
             }
-            if(req->type != RequestType::StopRepresenting
-                    && req->type != RequestType::RenounceCandidacy)
+            //If account is candidate next epoch (or will be candidate when up
+            //for reelection, in the case of delegate), need to have MIN_DELEGATE_STAKE
+            if(req->type == RequestType::AnnounceCandidacy)
             {
                 if(request.stake < MIN_DELEGATE_STAKE)
                 {
@@ -2613,17 +2684,22 @@ bool PersistenceManager<R>::ValidateRequest(
         }
     }
 
-
-    if(!ValidateStakingSubchain(request,info,result,txn))
+    //Verify account is able to stake amount requested
+    bool can_stake = StakingManager::GetInstance()->Validate(
+            request.origin,
+            info,
+            request.stake,
+            request.origin,
+            request.epoch_num,
+            request.fee,
+            txn);
+    if(!can_stake)
     {
-        return false;
+        result.code = logos::process_result::insufficient_funds_for_stake;
     }
-
-    return true;
+    return can_stake;
 }
 
-
-//TODO allow anyone to unstake?
 bool PersistenceManager<R>::ValidateRequest(
         const Unstake& request,
         logos::account_info const & info,
@@ -2637,33 +2713,29 @@ bool PersistenceManager<R>::ValidateRequest(
             << "txn is null";
         trace_and_halt();
     }
+    //epoch consistency
     if(request.epoch_num != cur_epoch_num)
     {
         result.code = logos::process_result::wrong_epoch_number;
         return false;
     }
-
-    bool can_stake = StakingManager::GetInstance()->Validate(
-            request.origin,
-            info,
-            0,
-            request.origin,
-            request.epoch_num,
-            request.fee,
-            txn);
-    if(!can_stake)
+    //Verify staking_subchain_prev is correct
+    if(!ValidateStakingSubchain(request,info,result,txn))
     {
-        result.code = logos::process_result::insufficient_funds_for_stake;
         return false;
     }
 
-
+    //if account has a rep already, cannot perform Unstake
+    //any self staked funds should have began thawing when account selected a rep
+    //via Proxy request
     if(info.rep != 0)
     {
        result.code = logos::process_result::not_a_rep;
        return false; 
     }
 
+    //Verify account is not a rep next epoch
+    //If account is rep next epoch, reject Unstake request
     RepInfo rep_info;
     if(!_store.rep_get(request.origin,rep_info,txn))
     {
@@ -2681,13 +2753,6 @@ bool PersistenceManager<R>::ValidateRequest(
             result.code = logos::process_result::not_enough_stake;
             return false;
         }
-    }
-
-
-
-    if(!ValidateStakingSubchain(request,info,result,txn))
-    {
-        return false;
     }
 
     return true;
