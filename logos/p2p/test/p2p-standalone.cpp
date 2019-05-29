@@ -98,7 +98,7 @@ int main(int argc, char **argv)
         {
             char buf[OPTMAX];
             int pos, len, i, c;
-            sprintf(buf, "  -%s%-*s", option, OPTHEAD - 3 - strlen(option), flags & P2P_OPTION_ARGUMENT ? "=arg" : "    ");
+            sprintf(buf, "  -%s%-*s", option, static_cast<uint32_t>(OPTHEAD - 3 - strlen(option)), flags & P2P_OPTION_ARGUMENT ? "=arg" : "    ");
             pos = len = strlen(buf);
             while (*description)
             {

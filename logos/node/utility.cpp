@@ -151,6 +151,14 @@ logos::uint256_union logos::mdb_val::uint256 () const
     return result;
 }
 
+logos::uint128_union logos::mdb_val::uint128 () const
+{
+    logos::uint128_union result;
+    assert (size () == sizeof (result));
+    std::copy (reinterpret_cast<uint8_t const *> (data ()), reinterpret_cast<uint8_t const *> (data ()) + sizeof (result), result.bytes.data ());
+    return result;
+}
+
 logos::mdb_val::operator MDB_val * () const
 {
     // Allow passing a temporary to a non-c++ function which doesn't have constness

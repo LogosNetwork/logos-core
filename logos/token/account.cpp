@@ -248,6 +248,21 @@ logos::mdb_val TokenAccount::to_mdb_val(std::vector<uint8_t> &buf) const
     return logos::mdb_val(buf.size(), buf.data());
 }
 
+void TokenAccount::SetBalance(Amount const & new_balance, uint32_t const & epoch, MDB_txn* txn)
+{
+    balance = new_balance;
+}
+
+Amount const & TokenAccount::GetBalance() const
+{
+    return balance;
+}
+
+Amount const & TokenAccount::GetAvailableBalance() const
+{
+    return balance;
+}
+
 bool TokenAccount::Validate(TokenSetting setting, bool value, logos::process_return & result) const
 {
     auto pos = static_cast<EnumType>(setting);
@@ -394,7 +409,7 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
     {
         // TODO: N/A
         case RequestType::Send:
-        case RequestType::Change:
+        case RequestType::Proxy:
         case RequestType::Issuance:
             break;
         case RequestType::IssueAdditional:
@@ -429,6 +444,8 @@ bool TokenAccount::IsAllowed(std::shared_ptr<const Request> request) const
         case RequestType::RenounceCandidacy:
         case RequestType::StartRepresenting:
         case RequestType::StopRepresenting:
+        case RequestType::Stake:
+        case RequestType::Unstake:
         case RequestType::Unknown:
             result = false;
             break;

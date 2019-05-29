@@ -10,8 +10,10 @@
 using AccountAddress = logos::uint256_union;
 
 const size_t MAX_VOTES = 8;
-const Amount MIN_REP_STAKE = 1;
-const Amount MIN_DELEGATE_STAKE = 1;
+//TODO with inflation, total supply will increase over time
+//these need to be dynamic
+const Amount MIN_REP_STAKE = std::numeric_limits<logos::uint128_t>::max () / 10000;
+const Amount MIN_DELEGATE_STAKE = std::numeric_limits<logos::uint128_t>::max () / 1000;
 
 struct ElectionVote : Request
 {
@@ -121,10 +123,17 @@ struct AnnounceCandidacy : Request
 
     using Request::Hash;
 
+    //If set_stake is true, this request will adjust origin's self stake
+    //to the amount specified in the stake field
+    //If set_stake is false, this request will ignore the stake field,
+    //and origin's self stake will remain the same as before this request
+    bool set_stake;
     Amount stake;
     DelegatePubKey bls_key;
     ECIESPublicKey ecies_key;
     uint32_t epoch_num;
+    BlockHash staking_subchain_prev;
+    uint8_t levy_percentage;
 };
 
 struct RenounceCandidacy : Request
@@ -154,7 +163,14 @@ struct RenounceCandidacy : Request
 
     using Request::Hash;
 
+    //If set_stake is true, this request will adjust origin's self stake
+    //to the amount specified in the stake field
+    //If set_stake is false, this request will ignore the stake field,
+    //and origin's self stake will remain the same as before this request
+    bool set_stake;
+    Amount stake;
     uint32_t epoch_num;
+    BlockHash staking_subchain_prev;
 };
 
 struct StartRepresenting : Request
@@ -184,9 +200,16 @@ struct StartRepresenting : Request
     void Hash(blake2b_state& hash) const override;
 
     using Request::Hash;
-    Amount stake;
 
+    //If set_stake is true, this request will adjust origin's self stake
+    //to the amount specified in the stake field
+    //If set_stake is false, this request will ignore the stake field,
+    //and origin's self stake will remain the same as before this request
+    bool set_stake;
+    Amount stake;
     uint32_t epoch_num;
+    BlockHash staking_subchain_prev;
+    uint8_t levy_percentage;
 };
 
 struct StopRepresenting : Request
@@ -216,7 +239,15 @@ struct StopRepresenting : Request
     void Hash(blake2b_state& hash) const override;
 
     using Request::Hash;
+
+    //If set_stake is true, this request will adjust origin's self stake
+    //to the amount specified in the stake field
+    //If set_stake is false, this request will ignore the stake field,
+    //and origin's self stake will remain the same as before this request
+    bool set_stake;
+    Amount stake;
     uint32_t epoch_num;
+    BlockHash staking_subchain_prev;
 };
 
 

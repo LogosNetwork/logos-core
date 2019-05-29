@@ -499,7 +499,7 @@ bool IsTokenAdminRequest(RequestType type)
     switch(type)
     {
         case RequestType::Send:
-        case RequestType::Change:
+        case RequestType::Proxy:
         case RequestType::Issuance:
             break;
         case RequestType::IssueAdditional:
@@ -522,6 +522,8 @@ bool IsTokenAdminRequest(RequestType type)
         case RequestType::ElectionVote:
         case RequestType::StartRepresenting:
         case RequestType::StopRepresenting:
+        case RequestType::Stake:
+        case RequestType::Unstake:
         case RequestType::Unknown:
             break;
     }

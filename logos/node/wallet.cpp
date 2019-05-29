@@ -865,11 +865,11 @@ std::shared_ptr<logos::block> logos::wallet::receive_action (logos::block const 
                     auto new_account (node.ledger.store.account_get (transaction, account, info));
                     if (!new_account)
                     {
-                        std::shared_ptr<logos::block> rep_block = node.ledger.store.block_get (transaction, info.rep_block);
-                        assert (rep_block != nullptr);
+                        std::shared_ptr<logos::block> staking_subchain_head = node.ledger.store.block_get (transaction, info.staking_subchain_head);
+                        assert (staking_subchain_head != nullptr);
                         if (should_generate_state_block (transaction, info.head))
                         {
-                            block.reset (new logos::state_block (account, info.head, rep_block->representative (), info.balance.number () + pending_info.amount.number (), 0, hash, prv, account, cached_work));
+                            block.reset (new logos::state_block (account, info.head, staking_subchain_head->representative (), info.GetBalance().number () + pending_info.amount.number (), 0, hash, prv, account, cached_work));
                         }
 
                     }
@@ -938,7 +938,7 @@ std::shared_ptr<logos::block> logos::wallet::change_action (logos::account const
                 store.work_get (transaction, source_a, cached_work);
                 if (should_generate_state_block (transaction, info.head))
                 {
-                    block.reset (new logos::state_block (source_a, info.head, representative_a, info.balance, 0, 0, prv, source_a, cached_work));
+                    block.reset (new logos::state_block (source_a, info.head, representative_a, info.GetBalance(), 0, 0, prv, source_a, cached_work));
                 }
 
             }
@@ -1008,13 +1008,13 @@ std::shared_ptr<logos::block> logos::wallet::send_action (logos::account const &
                         logos::raw_key prv;
                         auto error2 (store.fetch (transaction, source_a, prv));
                         assert (!error2);
-                        std::shared_ptr<logos::block> rep_block = node.ledger.store.block_get (transaction, info.rep_block);
-                        assert (rep_block != nullptr);
+                        std::shared_ptr<logos::block> staking_subchain_head = node.ledger.store.block_get (transaction, info.staking_subchain_head);
+                        assert (staking_subchain_head != nullptr);
                         uint64_t cached_work (0);
                         store.work_get (transaction, source_a, cached_work);
                         if (should_generate_state_block (transaction, info.head))
                         {
-                            block.reset (new logos::state_block (source_a, info.head, rep_block->representative (), balance - amount_a, 0, account_a, prv, source_a, cached_work));
+                            block.reset (new logos::state_block (source_a, info.head, staking_subchain_head->representative (), balance - amount_a, 0, account_a, prv, source_a, cached_work));
                         }
                         else
                         {

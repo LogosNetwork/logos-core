@@ -127,14 +127,29 @@ public:
     bool operator!= (Account const &) const;
 
     virtual mdb_val to_mdb_val(std::vector<uint8_t> &buf) const = 0;
+    
+    //IMPORTANT!: Calling this function persists the change in voting_power_db
+    //If you call this function, you must also store the modified Account struct in
+    //account_db (by calling account_put). Otherwise, the account_db and
+    //voting_power_db will become out of sync
+    //This comment does not apply to token accounts
+    virtual void SetBalance(
+            amount const & new_balance,
+            uint32_t const & epoch,
+            MDB_txn* txn) = 0;
+
+    virtual amount const & GetBalance() const = 0;
+    virtual amount const & GetAvailableBalance() const = 0;
 
     AccountType type;
-    amount      balance;
     uint64_t    modified;      ///< Seconds since posix epoch
     BlockHash   head;
     uint32_t    block_count;
     BlockHash   receive_head;
     uint32_t    receive_count;
+
+    protected:
+    amount balance;
 };
 
 /**
@@ -151,7 +166,7 @@ struct account_info : Account
 
     account_info (block_hash const & head,
                   block_hash const & receive_head,
-                  block_hash const & rep_block,
+                  block_hash const & staking_subchain_head,
                   block_hash const & open_block,
                   amount const & balance,
                   uint64_t modified,
@@ -170,9 +185,35 @@ struct account_info : Account
 
     static constexpr uint16_t MAX_TOKEN_ENTRIES = std::numeric_limits<uint16_t>::max();
 
-    block_hash rep_block;
+    //IMPORTANT!: Calling this function persists the change in voting_power_db
+    //If you call this function, you must also store the modified Account struct in
+    //account_db (by calling account_put). Otherwise, the account_db and
+    //voting_power_db will become out of sync
+    void SetBalance(
+            amount const & new_balance,
+            uint32_t const & epoch,
+            MDB_txn* txn) override;
+
+    void SetAvailableBalance(
+            amount const & new_available_bal,
+            uint32_t const & epoch,
+            MDB_txn* txn);
+
+    amount const & GetAvailableBalance() const override;
+    amount const & GetBalance() const override;
+
+    block_hash staking_subchain_head;
+    //0 means no rep. Note, reps themselves have this field set to 0
+    AccountAddress rep;
     block_hash open_block;
     Entries    entries;
+    //the last epoch in which thawing funds were checked for expiration for this account
+    uint32_t   epoch_thawing_updated;
+    //the last epoch in which secondary liabilities were checked for expiration for this account
+    uint32_t   epoch_secondary_liabilities_updated;
+
+    protected:
+    amount available_balance;
 };
 
 std::shared_ptr<Account> DeserializeAccount(bool & error, const logos::mdb_val & mdbval);
@@ -352,7 +393,11 @@ enum class process_result
     wrong_epoch_number,         // Logos - the request has an incorrect epoch number
     no_elections,               // Logos - elections are not being held currently
     pending_rep_action,         // Logos - the account has a pending representative action for this epoch
-    pending_candidacy_action    // Logos - the account has a pending candidacy action for this epoch
+    pending_candidacy_action,   // Logos - the account has a pending candidacy action for this epoch
+    invalid_staking_subchain,   // Logos - hash sent as staking_subchain_prev does not match staking_subchain_head of account
+    insufficient_funds_for_stake, // Logos - not enough available funds to satisfy stake request
+    invalid_account_type,        // Logos - origin account is not the proper type for the request
+    proxy_to_self               // Logos - request is attempting to proxy to self
 };
 
 std::string ProcessResultToString(process_result result);

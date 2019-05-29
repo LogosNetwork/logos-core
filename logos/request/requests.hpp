@@ -13,7 +13,7 @@ enum class RequestType : uint8_t
     // Native Logos Requests
     //
     Send              = 0,
-    Change            = 1,
+    Proxy             = 1,
     Issuance          = 2,
 
     // Administrative Token
@@ -42,10 +42,12 @@ enum class RequestType : uint8_t
     RenounceCandidacy = 18,
     StartRepresenting = 19,
     StopRepresenting  = 20,
+    Stake             = 21,
+    Unstake           = 22,
 
     // Unknown
     //
-    Unknown          = 21
+    Unknown          = 23
 };
 
 class Reservations;
@@ -157,36 +159,6 @@ struct Request
     BlockHash         next;
     mutable Locator   locator;
     mutable BlockHash digest;
-};
-
-struct Change : Request
-{
-    using Request::Hash;
-
-    Change();
-
-    Change(bool & error,
-           const logos::mdb_val & mdbval);
-
-    Change(bool & error,
-           std::basic_streambuf<uint8_t> & stream);
-
-    Change(bool & error,
-           boost::property_tree::ptree const & tree);
-
-    boost::property_tree::ptree SerializeJson() const override;
-    uint64_t Serialize(logos::stream & stream) const override;
-    void Deserialize(bool & error, logos::stream & stream);
-    void DeserializeDB(bool &error, logos::stream &stream) override;
-
-    void Hash(blake2b_state & hash) const override;
-
-    uint16_t WireSize() const override;
-
-    bool operator==(const Request & other) const override;
-
-    AccountAddress client;
-    AccountAddress representative;
 };
 
 struct Send : Request

@@ -4,6 +4,13 @@
 #include <logos/lib/trace.hpp>
 #include <logos/consensus/messages/util.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
+#include <logos/rewards/epoch_rewards.hpp>
+#include <logos/rewards/epoch_rewards_manager.hpp>
+#include <logos/staking/voting_power.hpp>
+#include <logos/staking/voting_power_manager.hpp>
+#include <logos/staking/staking_manager.hpp>
+#include <logos/staking/staked_funds.hpp>
+#include <logos/staking/thawing_funds.hpp>
 
 namespace
 {
@@ -168,12 +175,18 @@ bool logos::store_iterator::operator!= (logos::store_iterator const & other_a) c
     return !(*this == other_a);
 }
 
+int logos::store_iterator::delete_current_record(unsigned int flags)
+{
+    return mdb_cursor_del(cursor,flags);
+}
+
 template<typename T>
-void logos::block_store::put(MDB_dbi &db, const mdb_val &key, const T &t, MDB_txn *tx)
+bool logos::block_store::put(MDB_dbi &db, const mdb_val &key, const T &t, MDB_txn *tx)
 {
     std::vector<uint8_t> buf;
     auto status(mdb_put(tx, db, key, t.to_mdb_val(buf), 0));
     assert(status == 0);
+    return status;
 }
 
 template<typename T>
@@ -211,15 +224,61 @@ bool logos::block_store::get(MDB_dbi &db, const mdb_val &key, T &t, MDB_txn *tx)
     return result;
 }
 
+//explicit instantiation of template functions
+template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, EpochRewardsInfo &, MDB_txn*);
+template bool logos::block_store::put(MDB_dbi&, logos::mdb_val const &, EpochRewardsInfo const &, MDB_txn*);
+template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, GlobalEpochRewardsInfo &, MDB_txn*);
+template bool logos::block_store::put(MDB_dbi&, logos::mdb_val const &, GlobalEpochRewardsInfo const &, MDB_txn*);
+template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, VotingPowerInfo&, MDB_txn*);
+template bool logos::block_store::put(MDB_dbi&, logos::mdb_val const &, VotingPowerInfo const &, MDB_txn*);
+template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, StakedFunds&, MDB_txn*);
+template bool logos::block_store::put(MDB_dbi&, logos::mdb_val const &, StakedFunds const &, MDB_txn*);
+template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, ThawingFunds&, MDB_txn*);
+template bool logos::block_store::put(MDB_dbi&, logos::mdb_val const &, ThawingFunds const &, MDB_txn*);
+template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, Liability&, MDB_txn*);
+template bool logos::block_store::put(MDB_dbi&, logos::mdb_val const &, Liability const &, MDB_txn*);
+template bool logos::block_store::get(MDB_dbi&, logos::mdb_val const &, VotingPowerFallback&, MDB_txn*);
+template bool logos::block_store::put(MDB_dbi&, logos::mdb_val const &, VotingPowerFallback const &, MDB_txn*);
+
+
 bool logos::block_store::del(MDB_dbi &db, const mdb_val &key, MDB_txn *tx)
 {
     auto status (mdb_del (tx, db, key, nullptr));
 
     auto error = status != 0;
-    assert (!error);
 
     return error;
 }
+
+template <typename T, typename R>
+bool logos::block_store::iterate_db(
+        MDB_dbi& db,
+        T const & start,
+        std::function<bool(R& record, logos::store_iterator& it)> const & operation,
+        MDB_txn* txn)
+{
+    bool error = false;
+    for(auto it = logos::store_iterator(txn,db, logos::mdb_val(start));
+            it != logos::store_iterator(nullptr); ++it)
+    {
+        R r;
+        logos::bufferstream stream (reinterpret_cast<uint8_t const *> (
+                    it->second.data ()), it->second.size ());
+        error |= r.Deserialize (stream);
+        if(error)
+        {
+            LOG_FATAL(log) << "block_store::iterate_db - "
+                << "Error deserializing";
+            trace_and_halt();
+        }
+        if(!operation(r, it))
+        {
+            return error;
+        }
+    }
+}
+
+template bool logos::block_store::iterate_db(MDB_dbi&, AccountAddress const &, std::function<bool(ThawingFunds&, logos::store_iterator&)> const &,MDB_txn*);
 
 logos::store_iterator logos::block_store::block_info_begin (MDB_txn * transaction_a, logos::block_hash const & hash_a)
 {
@@ -336,6 +395,24 @@ checksum (0)
         // address advertisement
         error_a |= mdb_dbi_open (transaction, "address_ad_db", MDB_CREATE, &address_ad_db) != 0;
         error_a |= mdb_dbi_open (transaction, "address_ad_tx_db", MDB_CREATE | MDB_DUPSORT, &address_ad_txa_db) != 0;
+        //staking
+        error_a |= mdb_dbi_open (transaction, "voting_power_db", MDB_CREATE, &voting_power_db);
+        error_a |= mdb_dbi_open (transaction, "voting_power_fallback_db", MDB_CREATE, &voting_power_fallback_db);
+        VotingPowerManager::SetInstance(*this);
+        error_a |= mdb_dbi_open (transaction, "staking_db", MDB_CREATE, &staking_db);
+        error_a |= mdb_dbi_open (transaction, "thawing_db", MDB_CREATE | MDB_DUPSORT, &thawing_db);
+        StakingManager::SetInstance(*this);
+
+        //liabilities
+        error_a |= mdb_dbi_open (transaction, "master_liabilities_db", MDB_CREATE, &master_liabilities_db);
+        error_a |= mdb_dbi_open (transaction, "rep_liabilities_db", MDB_CREATE | MDB_DUPSORT, &rep_liabilities_db);
+        error_a |= mdb_dbi_open (transaction, "secondary_liabilities_db", MDB_CREATE | MDB_DUPSORT, &secondary_liabilities_db);
+
+        //rewards
+        error_a |= mdb_dbi_open (transaction, "epoch_rewards_db", MDB_CREATE, &epoch_rewards_db);
+        error_a |= mdb_dbi_open (transaction, "global_epoch_rewards_db", MDB_CREATE, &global_epoch_rewards_db);
+        EpochRewardsManager::SetInstance(*this);
+
 
         if (!error_a)
         {
@@ -1377,8 +1454,12 @@ bool logos::block_store::candidate_put(
     std::vector<uint8_t> buf;
     auto status(mdb_put(transaction, candidacy_db, logos::mdb_val(account), candidate_info.to_mdb_val(buf), 0));
 
-    
-    assert(status == 0);
+    if(status != 0)
+    {
+        LOG_FATAL(log) << "block_store::candidate_put - failed to write candidate to db"
+            << ". account = " << account.to_string();
+        trace_and_halt();
+    }
     return update_leading_candidates(account,candidate_info,transaction);
 }
 
@@ -1397,13 +1478,13 @@ bool logos::block_store::candidate_is_greater(
           0,
           pk,
           candidate1.votes_received_weighted,
-          candidate1.stake); 
+          candidate1.cur_stake); 
     Delegate del2(
           account2,
           0,
           pk,
           candidate2.votes_received_weighted,
-          candidate2.stake);
+          candidate2.cur_stake);
 
    return EpochVotingManager::IsGreater(del1,del2);
 }
@@ -1512,15 +1593,9 @@ bool logos::block_store::candidate_add_vote(
     CandidateInfo info;
     if(!candidate_get(account,info,txn))
     {
-        if(info.epoch_modified != cur_epoch_num)
-        {
-            info.votes_received_weighted = weighted_vote;
-            info.epoch_modified = cur_epoch_num;
-        }
-        else
-        {
-            info.votes_received_weighted += weighted_vote;
-        }
+        info.TransitionIfNecessary(cur_epoch_num);
+        info.votes_received_weighted += weighted_vote;
+
         return candidate_put(account,info,txn);
     }
     return true;
@@ -2049,3 +2124,252 @@ logos::block_store::ad_get(MDB_txn *t, std::vector<uint8_t> &data, Args ... args
     }
     return result;
 }
+
+bool logos::block_store::stake_put(
+        AccountAddress const & account,
+        StakedFunds const & funds,
+        MDB_txn* txn)
+{
+    auto error = put(staking_db, logos::mdb_val(account), funds, txn);
+    if(error)
+    {
+        LOG_FATAL(log) << "block_store::stake_put - "
+            << "error storing StakedFunds. account = "
+            << account.to_string();
+        trace_and_halt();
+    }
+    return error;
+}
+
+bool logos::block_store::stake_get(
+        AccountAddress const & account,
+        StakedFunds & funds,
+        MDB_txn* txn)
+{
+    return get(staking_db, logos::mdb_val(account), funds, txn);
+}
+
+bool logos::block_store::stake_del(
+        AccountAddress const & account,
+        MDB_txn* txn)
+{
+    return del(staking_db, logos::mdb_val(account), txn);
+}
+
+bool logos::block_store::thawing_put(
+        AccountAddress const & account,
+        ThawingFunds const & funds,
+        MDB_txn* txn)
+{
+    auto error = put(thawing_db, logos::mdb_val(account), funds, txn);
+    if(error)
+    {
+        LOG_FATAL(log) << "block_store::thawing_put - "
+            << "error storing StakedFunds. account = "
+            << account.to_string();
+        trace_and_halt();
+    }
+    return error;
+}
+
+bool logos::block_store::thawing_del(
+        AccountAddress const & account,
+        ThawingFunds const & funds,
+        MDB_txn* txn)
+{
+    std::vector<uint8_t> buf;
+    return mdb_del(txn, thawing_db, logos::mdb_val(account), funds.to_mdb_val(buf));
+}
+
+bool logos::block_store::liability_get(
+        LiabilityHash const & hash,
+        Liability & l,
+        MDB_txn* txn)
+{
+    return get(master_liabilities_db, logos::mdb_val(hash), l, txn);
+}
+
+bool logos::block_store::liability_exists(
+        LiabilityHash const & hash,
+        MDB_txn* txn)
+{
+    Liability l;
+    return !get(master_liabilities_db, logos::mdb_val(hash), l, txn);
+}
+
+bool logos::block_store::liability_put(
+        LiabilityHash const & hash,
+        Liability const & l,
+        MDB_txn* txn)
+{
+    Liability existing;
+    //if liability with same expiration, target and source exists, consolidate
+    bool error = false;
+    if(!get(master_liabilities_db, logos::mdb_val(hash), existing, txn))
+    {
+        existing.amount += l.amount;
+        error = put(master_liabilities_db, logos::mdb_val(hash), existing, txn);
+    }
+    else
+    {
+        error = put(master_liabilities_db, logos::mdb_val(hash), l, txn);
+        error |= mdb_put(txn, rep_liabilities_db, logos::mdb_val(l.target), logos::mdb_val(hash), 0);
+    }
+    if(error)
+    {
+        LOG_FATAL(log) << "block_store::liability_put - "
+            << "error storing liability - "
+            << "hash = " << l.Hash().to_string();
+        trace_and_halt();
+    }
+    return error;
+}
+
+bool logos::block_store::liability_update_amount(
+        LiabilityHash const & hash,
+        Amount const & amount,
+        MDB_txn* txn)
+{
+    Liability l;
+    if(liability_get(hash, l, txn))
+    {
+        LOG_FATAL(log) << "LiabilityManager::UpdateLiabilityAmount - "
+            << "liability does not exist for hash = " << hash.to_string();
+        trace_and_halt();
+    }
+    l.amount = amount;
+    auto error = put(master_liabilities_db, logos::mdb_val(hash), l, txn);
+    if(error)
+    {
+        LOG_FATAL(log) << "block_store::liability_update_amount - "
+            << "error storing liability - "
+            << "hash = " << hash.to_string();
+        trace_and_halt();
+    }
+    return error;
+}
+
+bool logos::block_store::secondary_liability_put(
+        AccountAddress const & source,
+        LiabilityHash const & hash,
+        MDB_txn* txn)
+{
+    
+    auto error = mdb_put(txn, secondary_liabilities_db, logos::mdb_val(source), logos::mdb_val(hash), 0);
+    if(error)
+    {
+        LOG_FATAL(log) << "block_store::secondary_liability_put - "
+            << "error storing liability hash - "
+            << "hash = " << hash.to_string();
+        trace_and_halt();
+    }
+    return error;
+}
+
+bool logos::block_store::liability_del(
+        LiabilityHash const & hash,
+        MDB_txn* txn)
+{
+    Liability l;
+    if(get(master_liabilities_db, logos::mdb_val(hash), l, txn))
+    {
+        LOG_FATAL(log) << "block_store::liability_del - "
+            << "liability does not exist for hash = " << hash.to_string();
+        trace_and_halt();
+    }
+    auto error = mdb_del(txn, rep_liabilities_db, logos::mdb_val(l.target), logos::mdb_val(hash));
+    error |= del(master_liabilities_db, logos::mdb_val(hash), txn);
+    if(error)
+    {
+        LOG_FATAL(log) << "block_store::liability_del - "
+            << "error deleting liability with hash = " << hash.to_string();
+        trace_and_halt();
+    }
+    return error;
+}
+
+bool logos::block_store::secondary_liability_del(
+        LiabilityHash const & hash,
+        MDB_txn* txn)
+{
+    Liability l;
+    if(get(master_liabilities_db, logos::mdb_val(hash), l, txn))
+    {
+        LOG_FATAL(log) << "block_store::secondary_liability_del - "
+            << "liability does not exist for hash = " << hash.to_string();
+        trace_and_halt();
+    }
+    auto error = mdb_del(txn, secondary_liabilities_db, logos::mdb_val(l.source), logos::mdb_val(hash));
+    error |= del(master_liabilities_db, logos::mdb_val(hash), txn);
+    if(error)
+    {
+        LOG_FATAL(log) << "block_store::liability_del - "
+            << "error deleting liability with hash = " << hash.to_string();
+        trace_and_halt();
+    }
+    return error;
+}
+
+bool logos::block_store::voting_power_get(
+        AccountAddress const & rep,
+        VotingPowerInfo & info,
+        MDB_txn* txn)
+{
+    return get(voting_power_db, rep, info, txn);
+}
+
+bool logos::block_store::voting_power_put(
+        AccountAddress const & rep,
+        VotingPowerInfo const & info,
+        MDB_txn* txn)
+{
+    bool error = put(voting_power_db, logos::mdb_val(rep), info, txn);
+    if(error)
+    {
+        LOG_FATAL(log) << "block_store::voting_power_put - "
+            << "error putting VotingPowerInfo with rep = "
+            << rep.to_string();
+        trace_and_halt();
+    }
+    return error;
+}
+
+bool logos::block_store::voting_power_del(
+        AccountAddress const & rep,
+        MDB_txn* txn)
+{
+    return del(voting_power_db, rep, txn);
+}
+
+bool logos::block_store::fallback_voting_power_get(
+        AccountAddress const & rep,
+        VotingPowerFallback & f,
+        MDB_txn* txn)
+{
+    return get(voting_power_fallback_db, rep, f, txn);
+}
+
+bool logos::block_store::fallback_voting_power_put(
+        AccountAddress const & rep,
+        VotingPowerFallback const & f,
+        MDB_txn* txn)
+{
+    bool error = put(voting_power_fallback_db, logos::mdb_val(rep), f, txn);
+    if(error)
+    {
+        LOG_FATAL(log) << "block_store::fallback_voting_power_put - "
+            << "error putting VotingPowerFallback with rep = "
+            << rep.to_string();
+        trace_and_halt();
+    }
+    return error;
+}
+
+bool logos::block_store::fallback_voting_power_del(
+        AccountAddress const & rep,
+        MDB_txn* txn)
+{
+    return del(voting_power_fallback_db, rep, txn);
+}
+
+

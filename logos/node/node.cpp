@@ -1321,8 +1321,8 @@ bootstrap_listener (alarm_a, store, config.consensus_manager_config.local_addres
 //                std::cout << "FAILED TO FIND ACCOUNT: " << a.to_string() << std::endl;
 //                continue;
 //            }
-//            if(info.balance.number() > 0)
-//                std::cout << "Account balance: " << info.balance.number() << std::endl;
+//            if(info.GetBalance().number() > 0)
+//                std::cout << "Account balance: " << info.GetBalance().number() << std::endl;
 //            //store.account_put(a, info, transaction);
 //            // process pair (a,b)
 //        }
@@ -1752,7 +1752,7 @@ logos::account logos::node::representative (logos::account const & account_a)
     logos::account result (0);
     if (!store.account_get (transaction, account_a, info))
     {
-        result = info.rep_block;
+        result = info.staking_subchain_head;
     }
     return result;
 }

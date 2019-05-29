@@ -190,9 +190,9 @@ MicroBlockTester::read_accounts(
         boost::property_tree::ptree response;
         response.put ("frontier", info.head.to_string ());
         response.put ("open_block", info.open_block.to_string ());
-        response.put ("representative_block", info.rep_block.to_string ());
+        response.put ("representative_block", info.staking_subchain_head.to_string ());
         std::string balance;
-        logos::uint128_union (info.balance).encode_dec (balance);
+        logos::uint128_union (info.GetBalance()).encode_dec (balance);
         response.put ("balance", balance);
         response.put ("modified_timestamp", std::to_string (info.modified));
         response.put ("request_count", std::to_string (info.block_count));
@@ -320,13 +320,13 @@ MicroBlockTester::informational(
         logos::account_info info;
         uint64_t start = (uint64_t)&info;
         uint64_t typ = (uint64_t)&info.type;
-        uint64_t balance = (uint64_t)&info.balance;
+        uint64_t balance = (uint64_t)&(info.GetBalance());
         uint64_t modified = (uint64_t)&info.modified;
         uint64_t head = (uint64_t)&info.head;
         uint64_t block_count = (uint64_t)&info.block_count;
         uint64_t receive_head = (uint64_t)&info.receive_head;
         uint64_t receive_count = (uint64_t)&info.receive_count;
-        uint64_t rep_block = (uint64_t)&info.rep_block;
+        uint64_t rep_block = (uint64_t)&info.staking_subchain_head;
         uint64_t open_block = (uint64_t)&info.open_block;
         uint64_t entries = (uint64_t)&info.entries;
         std::vector<uint8_t> buf;

@@ -36,10 +36,13 @@ public:
     uint128_union (logos::uint128_t const &);
     uint128_union operator+ (logos::uint128_union const &) const;
     uint128_union operator- (logos::uint128_union const &) const;
+    uint128_union operator* (logos::uint128_union const &) const;
     bool operator== (logos::uint128_union const &) const;
     bool operator!= (logos::uint128_union const &) const;
     bool operator< (logos::uint128_union const &) const;
     bool operator> (logos::uint128_union const &) const;
+    bool operator<= (logos::uint128_union const &) const;
+    bool operator>= (logos::uint128_union const &) const;
     uint128_union & operator+=(const uint128_union & other);
     uint128_union & operator-=(const uint128_union & other);
     void encode_hex (std::string &) const;
@@ -88,6 +91,8 @@ union uint256_union
     bool operator== (logos::uint256_union const &) const;
     bool operator!= (logos::uint256_union const &) const;
     bool operator< (logos::uint256_union const &) const;
+    uint256_union operator+ (logos::uint256_union const &) const;
+    uint256_union operator- (logos::uint256_union const &) const;
     void encode_hex (std::string &) const;
     bool decode_hex (std::string const &);
     void encode_dec (std::string &) const;

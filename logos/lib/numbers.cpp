@@ -188,6 +188,17 @@ logos::uint256_union logos::uint256_union::operator^ (logos::uint256_union const
     return result;
 }
 
+logos::uint256_union logos::uint256_union::operator+ (logos::uint256_union const & other_a) const
+{
+    return {number () + other_a.number ()};
+}
+
+logos::uint256_union logos::uint256_union::operator- (logos::uint256_union const & other_a) const
+{
+    return {number () - other_a.number ()};
+}
+
+
 logos::uint256_union::uint256_union (std::string const & hex_a)
 {
     decode_hex (hex_a);
@@ -465,6 +476,17 @@ bool logos::uint128_union::operator> (logos::uint128_union const & other_a) cons
     return number () > other_a.number ();
 }
 
+bool logos::uint128_union::operator<= (logos::uint128_union const & other_a) const
+{
+    return number () <= other_a.number ();
+}
+
+bool logos::uint128_union::operator>= (logos::uint128_union const & other_a) const
+{
+    return number () >= other_a.number ();
+}
+
+
 logos::uint128_union logos::uint128_union::operator+ (logos::uint128_union const & other_a) const
 {
     return {number () + other_a.number ()};
@@ -473,6 +495,11 @@ logos::uint128_union logos::uint128_union::operator+ (logos::uint128_union const
 logos::uint128_union logos::uint128_union::operator- (logos::uint128_union const & other_a) const
 {
     return {number () - other_a.number ()};
+}
+
+logos::uint128_union logos::uint128_union::operator* (logos::uint128_union const & other_a) const
+{
+    return {number () * other_a.number ()};
 }
 
 logos::uint128_union & logos::uint128_union::operator+=(const logos::uint128_union & other)

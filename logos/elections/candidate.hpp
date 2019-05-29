@@ -18,12 +18,16 @@ struct CandidateInfo
     bool operator!=(const CandidateInfo &) const;
     logos::mdb_val to_mdb_val(std::vector<uint8_t> & buf) const;
 
+    void TransitionIfNecessary(uint32_t cur_epoch);
+
 
     boost::property_tree::ptree SerializeJson() const;
 
     Amount votes_received_weighted;
     DelegatePubKey bls_key;
     ECIESPublicKey ecies_key;
-    Amount stake;
+    Amount cur_stake;
+    Amount next_stake;
     uint32_t epoch_modified;
+    uint8_t levy_percentage;
 };

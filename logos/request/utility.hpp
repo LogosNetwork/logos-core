@@ -2,6 +2,7 @@
 
 #include <logos/request/requests.hpp>
 #include <logos/token/requests.hpp>
+#include <logos/staking/requests.hpp>
 #include <logos/elections/requests.hpp>
 
 RequestType GetRequestType(bool &error, std::string data);
@@ -63,9 +64,9 @@ RequestType GetRequestType()
     {
         result = RequestType::Send;
     }
-    else if(std::is_same<Request, Change>::value)
+    else if(std::is_same<Request, Proxy>::value)
     {
-        result = RequestType::Change;
+        result = RequestType::Proxy;
     }
     else if(std::is_same<Request, Issuance>::value)
     {

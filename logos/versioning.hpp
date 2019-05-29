@@ -16,7 +16,7 @@ public:
     bool deserialize (logos::stream &);
     logos::mdb_val val () const;
     logos::block_hash head;
-    logos::block_hash rep_block;
+    logos::block_hash staking_subchain_head;
     logos::amount balance;
     uint64_t modified;
 };
@@ -46,7 +46,7 @@ public:
     bool deserialize (logos::stream &);
     logos::mdb_val val () const;
     logos::block_hash head;
-    logos::block_hash rep_block;
+    logos::block_hash staking_subchain_head;
     logos::block_hash open_block;
     logos::amount balance;
     uint64_t modified;

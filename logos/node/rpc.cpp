@@ -335,8 +335,6 @@ void logos::rpc_handler::account_info ()
     if(!res.error)
     {
         response(res.contents);
-
-
     }
     else
     {
@@ -528,7 +526,7 @@ void logos::rpc_handler::account_representative ()
         auto error (node.store.account_get (transaction, account, info));
         if (!error)
         {
-            auto block (node.store.block_get (transaction, info.rep_block));
+            auto block (node.store.block_get (transaction, info.staking_subchain_head));
             assert (block != nullptr);
             boost::property_tree::ptree response_l;
             response_l.put ("representative", block->representative ().to_account ());
@@ -1428,12 +1426,12 @@ void logos::rpc_handler::delegators ()
             {
                 error_response (response, "account_info deserialize");
             }
-            auto block (node.store.block_get (transaction, info.rep_block));
+            auto block (node.store.block_get (transaction, info.staking_subchain_head));
             assert (block != nullptr);
             if (block->representative () == account)
             {
                 std::string balance;
-                logos::uint128_union (info.balance).encode_dec (balance);
+                logos::uint128_union (info.GetBalance()).encode_dec (balance);
                 delegators.put (logos::account (i->first.uint256 ()).to_account (), balance);
             }
         }
@@ -1463,7 +1461,7 @@ void logos::rpc_handler::delegators_count ()
             {
                 error_response (response, "account_info deserialize");
             }
-            auto block (node.store.block_get (transaction, info.rep_block));
+            auto block (node.store.block_get (transaction, info.staking_subchain_head));
             assert (block != nullptr);
             if (block->representative () == account)
             {
@@ -1923,15 +1921,15 @@ void logos::rpc_handler::ledger ()
                     boost::property_tree::ptree response_l;
                     response_l.put ("frontier", info.head.to_string ());
                     response_l.put ("open_block", info.open_block.to_string ());
-                    response_l.put ("representative_block", info.rep_block.to_string ());
+                    response_l.put ("representative_block", info.staking_subchain_head.to_string ());
                     std::string balance;
-                    logos::uint128_union (info.balance).encode_dec (balance);
+                    logos::uint128_union (info.GetBalance()).encode_dec (balance);
                     response_l.put ("balance", balance);
                     response_l.put ("modified_timestamp", std::to_string (info.modified));
                     response_l.put ("request_count", std::to_string (info.block_count));
                     if (representative)
                     {
-                        auto block (node.store.block_get (transaction, info.rep_block));
+                        auto block (node.store.block_get (transaction, info.staking_subchain_head));
                         assert (block != nullptr);
                         response_l.put ("representative", block->representative ().to_account ());
                     }
@@ -1960,7 +1958,7 @@ void logos::rpc_handler::ledger ()
                 {
                     error_response (response, "account_info deserialize");
                 }
-                logos::uint128_union balance (info.balance);
+                logos::uint128_union balance (info.GetBalance());
                 if (info.modified >= modified_since)
                 {
                     ledger_l.push_back (std::make_pair (balance, logos::account (i->first.uint256 ())));
@@ -1975,7 +1973,7 @@ void logos::rpc_handler::ledger ()
                 logos::account account (i->second);
                 response_l.put ("frontier", info.head.to_string ());
                 response_l.put ("open_block", info.open_block.to_string ());
-                response_l.put ("representative_block", info.rep_block.to_string ());
+                response_l.put ("representative_block", info.staking_subchain_head.to_string ());
                 std::string balance;
                 (i->first).encode_dec (balance);
                 response_l.put ("balance", balance);
@@ -1983,7 +1981,7 @@ void logos::rpc_handler::ledger ()
                 response_l.put ("request_count", std::to_string (info.block_count));
                 if (representative)
                 {
-                    auto block (node.store.block_get (transaction, info.rep_block));
+                    auto block (node.store.block_get (transaction, info.staking_subchain_head));
                     assert (block != nullptr);
                     response_l.put ("representative", block->representative ().to_account ());
                 }
@@ -2688,10 +2686,10 @@ void logos::rpc_handler::process ()
             case RequestType::RenounceCandidacy:
             case RequestType::StartRepresenting:
             case RequestType::StopRepresenting:
+            case RequestType::Proxy:
+            case RequestType::Stake:
+            case RequestType::Unstake:
                 process(request);
-                break;
-            case RequestType::Change:
-                error_response(response, "ChangeRep is not implemented yet");
                 break;
             default:
                 error_response(response, "Request is invalid");
@@ -3052,7 +3050,7 @@ void logos::rpc_handler::send ()
                                 logos::account_info info;
                                 if (!node.store.account_get (transaction, source, info))
                                 {
-                                    balance = (info.balance).number ();
+                                    balance = (info.GetBalance()).number ();
                                 }
                                 else
                                 {
@@ -3833,15 +3831,15 @@ void logos::rpc_handler::wallet_ledger ()
                         boost::property_tree::ptree entry;
                         entry.put ("frontier", info.head.to_string ());
                         entry.put ("open_block", info.open_block.to_string ());
-                        entry.put ("representative_block", info.rep_block.to_string ());
+                        entry.put ("representative_block", info.staking_subchain_head.to_string ());
                         std::string balance;
-                        logos::uint128_union (info.balance).encode_dec (balance);
+                        logos::uint128_union (info.GetBalance()).encode_dec (balance);
                         entry.put ("balance", balance);
                         entry.put ("modified_timestamp", std::to_string (info.modified));
                         entry.put ("request_count", std::to_string (info.block_count));
                         if (representative)
                         {
-                            auto block (node.store.block_get (transaction, info.rep_block));
+                            auto block (node.store.block_get (transaction, info.staking_subchain_head));
                             assert (block != nullptr);
                             entry.put ("representative", block->representative ().to_account ());
                         }
@@ -5100,7 +5098,7 @@ logos::rpc_handler::account_info(
                 response.put("frontier",token_account.head.to_string());
                 response.put("receive_tip",token_account.receive_head.to_string());
                 std::string balance;
-                logos::uint128_union (token_account.balance).encode_dec (balance);
+                logos::uint128_union (token_account.GetBalance()).encode_dec (balance);
                 response.put ("balance", balance);
                 res.contents = response;
             }
@@ -5118,15 +5116,16 @@ logos::rpc_handler::account_info(
                     response.put ("receive_tip", info.receive_head.to_string ());
                     response.put ("open_block", info.open_block.to_string ());
                     response.put ("representative_block",
-                            info.rep_block.to_string ());
+                            info.staking_subchain_head.to_string ());
                     std::string balance;
-                    logos::uint128_union (info.balance).encode_dec (balance);
+                    logos::uint128_union (info.GetBalance()).encode_dec (balance);
                     response.put ("balance", balance);
                     response.put ("modified_timestamp",
                             std::to_string (info.modified));
                     response.put ("request_count",
                             std::to_string(info.block_count + info.receive_count));
                     response.put("sequence",info.block_count);
+                    response.put("staking_subchain_head",info.staking_subchain_head.to_string());
 
                     std::unordered_set<std::string> token_ids;
                     boost::property_tree::ptree token_tree;
@@ -5208,7 +5207,7 @@ logos::rpc_handler::account_balance(
                 + account.to_string();
         }
         std::string balance_str;
-        account_info.balance.encode_dec(balance_str);
+        account_info.GetBalance().encode_dec(balance_str);
         response.put("balance",balance_str);
 
         std::unordered_set<std::string> token_ids;

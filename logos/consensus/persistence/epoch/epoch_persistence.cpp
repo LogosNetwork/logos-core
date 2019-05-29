@@ -4,6 +4,8 @@
 #include <logos/consensus/persistence/epoch/epoch_persistence.hpp>
 #include <logos/consensus/message_validator.hpp>
 #include <logos/epoch/epoch_voting_manager.hpp>
+#include <logos/staking/voting_power_manager.hpp>
+#include <logos/staking/staking_manager.hpp>
 #include <logos/microblock/microblock_handler.hpp>
 #include <logos/lib/trace.hpp>
 
@@ -103,6 +105,11 @@ PersistenceManager<ECT>::ApplyUpdates(
     BlockHash epoch_hash = block.Hash();
     bool transition = EpochVotingManager::ENABLE_ELECTIONS;
 
+
+    UpdateThawing(block, transaction);
+
+
+
     if(_store.epoch_put(block, transaction) || _store.epoch_tip_put(block.CreateTip(), transaction))
     {
         LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates failed to store epoch or epoch tip "
@@ -197,6 +204,48 @@ bool PersistenceManager<ECT>::BlockExists(
 }
 
 
+void PersistenceManager<ECT>::UpdateThawing(ApprovedEB const & block, MDB_txn* txn)
+{
+    ApprovedEB prev_epoch;
+    Tip prev_tip;
+    if(_store.epoch_tip_get(prev_tip, txn) || _store.epoch_get(prev_tip.digest, prev_epoch, txn))
+    {
+        LOG_FATAL(_log) << "PersistenceManager<ECT>::ApplyUpdates - "
+            << "failed to get previous epoch";
+        trace_and_halt();
+    }
+
+    std::unordered_set<AccountAddress> new_dels;
+    for(auto del : block.delegates)
+    {
+        new_dels.insert(del.account);
+    }
+
+
+    for(auto del : prev_epoch.delegates)
+    {
+        if(new_dels.find(del.account) == new_dels.end())
+        {
+            //epoch_number+2 because delegate is retired
+            //in the epoch following current epoch
+            StakingManager::GetInstance()->SetExpirationOfFrozen(
+                    del.account,
+                    block.epoch_number+2,
+                    txn);
+        }
+    }
+
+    for(auto del : block.delegates)
+    {
+        //Mark any funds that began thawing in previous epoch
+        //as frozen
+        StakingManager::GetInstance()->MarkThawingAsFrozen(
+                del.account,
+                block.epoch_number,
+                txn);
+    }
+}
+
 
 void PersistenceManager<ECT>::MarkDelegateElectsAsRemove(MDB_txn* txn)
 {
@@ -214,7 +263,9 @@ void PersistenceManager<ECT>::MarkDelegateElectsAsRemove(MDB_txn* txn)
     }
 }
 
-void PersistenceManager<ECT>::AddReelectionCandidates(MDB_txn* txn)
+void PersistenceManager<ECT>::AddReelectionCandidates(
+        uint32_t next_epoch_num,
+        MDB_txn* txn)
 {
     ApprovedEB epoch;
 
@@ -238,6 +289,19 @@ void PersistenceManager<ECT>::AddReelectionCandidates(MDB_txn* txn)
                 {
                     auto ac = static_pointer_cast<AnnounceCandidacy>(req); 
                     CandidateInfo candidate(*ac);
+                
+                    VotingPowerInfo vp_info;
+                    res = VotingPowerManager::GetInstance()
+                        ->GetVotingPowerInfo(d.account, next_epoch_num, vp_info, txn);
+                    if(!res)
+                    {
+                        LOG_FATAL(_log) << "PersistenceManager<ECT>::AddReelectionCandidates - "
+                            << "failed to find voting power info for account = "
+                            << d.account.to_string();
+                        trace_and_halt();
+                    }
+                    candidate.cur_stake = vp_info.current.self_stake;
+                    candidate.next_stake = vp_info.next.self_stake;
                     assert(!_store.candidate_put(d.account, candidate, txn));
                 }
             }
@@ -247,10 +311,12 @@ void PersistenceManager<ECT>::AddReelectionCandidates(MDB_txn* txn)
 
 void PersistenceManager<ECT>::UpdateRepresentativesDB(MDB_txn* txn)
 {
+    auto vpm = VotingPowerManager::GetInstance();
     for(auto it = logos::store_iterator(txn, _store.remove_reps_db);
             it != logos::store_iterator(nullptr); ++it)
     {
         auto status (mdb_del(txn, _store.representative_db, it->second, nullptr));
+        vpm->TryPrune(it->second.uint256(), txn);
         assert(status == 0);
     }
 
@@ -278,7 +344,7 @@ void PersistenceManager<ECT>::TransitionCandidatesDBNextEpoch(MDB_txn* txn, uint
 {
     if(next_epoch_num >= EpochVotingManager::START_ELECTIONS_EPOCH)
     {
-        AddReelectionCandidates(txn);
+        AddReelectionCandidates(next_epoch_num,txn);
     }
     if(next_epoch_num > EpochVotingManager::START_ELECTIONS_EPOCH)
     {

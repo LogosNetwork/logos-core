@@ -6,6 +6,8 @@
 #include <logos/versioning.hpp>
 #include <logos/node/node.hpp>
 
+#include <logos/staking/voting_power_manager.hpp>
+
 #include <boost/property_tree/json_parser.hpp>
 
 #include <queue>
@@ -288,7 +290,7 @@ bool logos::Account::Deserialize (stream & stream_a)
 bool logos::Account::operator== (Account const & other_a) const
 {
     return type == other_a.type &&
-           balance == other_a.balance &&
+           balance == other_a.GetBalance() &&
            modified == other_a.modified &&
            head == other_a.head &&
            block_count == other_a.block_count &&
@@ -311,10 +313,108 @@ logos::mdb_val logos::Account::to_mdb_val(std::vector<uint8_t> &buf) const
     return mdb_val(buf.size(), buf.data());
 }
 
+
+Amount const & logos::account_info::GetBalance() const
+{
+    return balance;
+}
+
+Amount const & logos::account_info::GetAvailableBalance() const
+{
+    return available_balance;
+}
+
+void logos::account_info::SetBalance(
+        Amount const & new_balance,
+        uint32_t const & epoch, 
+        MDB_txn* txn)
+{
+    std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::GetInstance();
+    if(new_balance > balance)
+    {
+        Amount diff = new_balance - balance;
+        available_balance += diff;
+        if(rep != 0)
+        {
+            vpm->AddUnlockedProxied(
+                    rep,
+                    diff,
+                    epoch,
+                    txn);
+        }
+    }
+    else
+    {
+        Amount diff = balance - new_balance;
+        if(diff > available_balance)
+        {
+            Log log;
+            LOG_FATAL(log) << "Not enough available balance";
+            trace_and_halt();
+        }
+        available_balance -= diff;
+        if(rep != 0)
+        {
+            vpm->SubtractUnlockedProxied(
+                    rep,
+                    diff,
+                    epoch,
+                    txn);
+        }
+    }
+    balance = new_balance;
+}
+
+void logos::account_info::SetAvailableBalance(
+        Amount const & new_available_bal,
+        uint32_t const & epoch,
+        MDB_txn* txn)
+{
+    std::shared_ptr<VotingPowerManager> vpm = VotingPowerManager::GetInstance();
+    if(new_available_bal > available_balance)
+    {
+        Amount diff = new_available_bal - available_balance;
+        available_balance += diff;
+        if(rep != 0)
+        {
+            vpm->AddUnlockedProxied(
+                    rep,
+                    diff,
+                    epoch,
+                    txn);
+        }
+    }
+    else
+    {
+        Amount diff = available_balance - new_available_bal;
+        available_balance -= diff;
+
+        if(rep != 0)
+        {
+            vpm->SubtractUnlockedProxied(
+                    rep,
+                    diff,
+                    epoch,
+                    txn);
+        }
+    }
+    if(available_balance > balance)
+    {
+        Log log;
+        LOG_FATAL(log) << "account_info::SetAvailableBalance - "
+            << "available balance is greater than balance"; 
+        trace_and_halt();
+    }
+}
+
 logos::account_info::account_info ()
     : Account(AccountType::LogosAccount)
-    , rep_block (0)
+    , staking_subchain_head (0)
+    , rep(0)
     , open_block (0)
+    , available_balance (balance)
+    , epoch_thawing_updated(0)
+    , epoch_secondary_liabilities_updated(0)
 {}
 
 logos::account_info::account_info (bool & error, const logos::mdb_val & mdbval)
@@ -331,7 +431,7 @@ logos::account_info::account_info (bool & error, logos::stream & stream)
 logos::account_info::account_info (
         logos::block_hash const & head_a,
         logos::block_hash const & receive_head_a,
-        logos::block_hash const & rep_block_a,
+        logos::block_hash const & staking_subchain_head_a,
         logos::block_hash const & open_block_a,
         logos::amount const & balance_a,
         uint64_t modified_a,
@@ -344,62 +444,63 @@ logos::account_info::account_info (
               block_count_a,
               receive_head_a,
               receive_count_a)
-    , rep_block (rep_block_a)
+    , staking_subchain_head (staking_subchain_head_a)
+    , rep(0)
     , open_block (open_block_a)
+    , available_balance (balance_a)
+    , epoch_thawing_updated(0)
+    , epoch_secondary_liabilities_updated(0)
 {}
 
 uint32_t logos::account_info::Serialize(logos::stream &stream_a) const
 {
     auto s = Account::Serialize(stream_a);
-    s += write (stream_a, rep_block.bytes);
+    s += write (stream_a, staking_subchain_head.bytes);
+    s += write (stream_a, rep);
     s += write (stream_a, open_block.bytes);
     s += write (stream_a, uint16_t(entries.size()));
     for(auto & entry : entries)
     {
         s += entry.Serialize(stream_a);
     }
+    s += write (stream_a, epoch_thawing_updated);
+    s += write (stream_a, epoch_secondary_liabilities_updated);
+    s += write (stream_a, available_balance.bytes);
     return s;
 }
 
 bool logos::account_info::Deserialize(logos::stream &stream_a)
 {
-    auto error = Account::Deserialize(stream_a);
-
-    if (!error)
+    uint16_t count;
+    auto error = Account::Deserialize(stream_a)
+        || read (stream_a, staking_subchain_head.bytes)
+        || read (stream_a, rep)
+        || read (stream_a, open_block.bytes)
+        || read (stream_a, count);
+    for(size_t i = 0; i < count && !error; ++i)
     {
-        error = read (stream_a, rep_block.bytes);
-        if (!error)
+        TokenEntry entry(error, stream_a);
+        if(!error)
         {
-            error = read (stream_a, open_block.bytes);
-            if (!error)
-            {
-                if (!error)
-                {
-                    uint16_t count;
-                    error = read(stream_a, count);
-
-                    for(size_t i = 0; i < count; ++i)
-                    {
-                        TokenEntry entry(error, stream_a);
-                        if(error)
-                        {
-                            break;
-                        }
-
-                        entries.push_back(entry);
-                    }
-                }
-            }
+            entries.push_back(entry);
         }
     }
-
+    error = error
+        || read(stream_a, epoch_thawing_updated)
+        || read(stream_a, epoch_secondary_liabilities_updated)
+        || read(stream_a, available_balance.bytes);
     return error;
+
 }
 
 bool logos::account_info::operator== (logos::account_info const & other_a) const
 {
-    return rep_block == other_a.rep_block &&
+    return staking_subchain_head == other_a.staking_subchain_head &&
+           rep == other_a.rep &&
            open_block == other_a.open_block &&
+           available_balance == other_a.available_balance &&
+           epoch_thawing_updated  == other_a.epoch_thawing_updated &&
+           epoch_secondary_liabilities_updated == other_a.epoch_secondary_liabilities_updated &&
            Account::operator==(other_a);
 }
 
@@ -1157,6 +1258,18 @@ std::string logos::ProcessResultToString(logos::process_result result)
             break;
         case process_result::pending_candidacy_action:
             ret = "Pending candidacy action";
+            break;
+        case process_result::insufficient_funds_for_stake:
+            ret = "Insufficient funds to satisfy stake portion of request";
+            break;
+        case process_result::invalid_staking_subchain:
+            ret = "Staking_subchain_prev does not match info.staking_subchain_head";
+            break;
+        case process_result::invalid_account_type:
+            ret = "Invalid account type for request";
+            break;
+        case process_result::proxy_to_self:
+            ret = "Cannot proxy to self";
             break;
     }
     return ret;

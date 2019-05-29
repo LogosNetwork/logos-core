@@ -470,33 +470,6 @@ TEST (Request_Serialization, json_deserialization)
     ASSERT_EQ(token_send.transactions[2].amount, 3);
     ASSERT_EQ(token_send.token_fee, 5);
 
-    // Change Representative
-    //
-    //
-    char const * change_json = R"%%%({
-        "type": "change",
-        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
-        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
-        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
-        "fee": "100",
-        "sequence": "1",
-        "next": "0000000000000000000000000000000000000000000000000000000000000000",
-        "client": "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju",
-        "representative": "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz"
-     })%%%";
-
-    tree = get_tree(change_json);
-    Change change(error, tree);
-
-    ASSERT_FALSE(error);
-    ASSERT_EQ(change.type, RequestType::Change);
-    ASSERT_EQ(change.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
-    ASSERT_EQ(change.fee.number(), 100);
-    ASSERT_EQ(change.sequence, 1);
-    ASSERT_EQ(change.client.to_account(),
-              "lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
-    ASSERT_EQ(change.representative.to_account(),
-              "lgs_3niwauda6c9nhf4dt8hxowgp5gsembnqqiukm8bh3ikrwm6z1uwjctrsi9tz");
 
     // Send
     //
@@ -574,14 +547,18 @@ auto GenerateIssuance = []()
     issuance.fee_type = TokenFeeType::Flat;
     issuance.fee_rate = 10;
     issuance.settings = "1111111000";
+    AccountAddress controller1;
+    controller1.decode_account("lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju");
+    AccountAddress controller2;
+    controller2.decode_account("lgs_15p6h3z7dgif1kt8skmdmo8xmobh3xyfzthoden6jqu34t6i4sgtcr4pfj5h");
     issuance.controllers =
         {
             {
-                {"lgs_38qxo4xfj1ic9c5iyi867x5a8do7yfqkywyxbxtm4wk3ssdgarbxhejd6jju"},
+                {controller1},
                 {"11111111110000000000"}
             },
             {
-                {"lgs_15p6h3z7dgif1kt8skmdmo8xmobh3xyfzthoden6jqu34t6i4sgtcr4pfj5h"},
+                {controller2},
                 {"11111111110000100100"}
             }
         };
@@ -1167,6 +1144,10 @@ TEST (Request_Serialization, json_serialization)
     bool error = false;
     Issuance issuance_b(error,
                         issuance_a.SerializeJson());
+
+    std::vector<int> ints{1,2,34,4};
+    auto it = std::unique(ints.begin(),ints.end());
+    std::cout << (it == ints.end()) << std::endl;
 
     std::cout << issuance_a.ToJson() << std::endl;
     std::cout << issuance_b.ToJson() << std::endl;

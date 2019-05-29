@@ -11,6 +11,11 @@
 #include <logos/common.hpp>
 #include <logos/elections/candidate.hpp>
 #include <logos/elections/representative.hpp>
+#include <logos/staking/staked_funds.hpp>
+#include <logos/staking/thawing_funds.hpp>
+#include <logos/staking/liability.hpp>
+#include <logos/staking/voting_power.hpp>
+#
 
 namespace logos
 {
@@ -46,6 +51,7 @@ public:
     logos::store_entry & operator-> ();
     bool operator== (logos::store_iterator const &) const;
     bool operator!= (logos::store_iterator const &) const;
+    int delete_current_record(unsigned int flags = 0);
     MDB_cursor * cursor;
     logos::store_entry current;
 };
@@ -122,7 +128,7 @@ public:
     size_t unchecked_count (MDB_txn *);
     std::unordered_multimap<logos::block_hash, std::shared_ptr<logos::block>> unchecked_cache;
 
-    template<typename T> void put(MDB_dbi&, const mdb_val &, const T &, MDB_txn *);
+    template<typename T> bool put(MDB_dbi&, const mdb_val &, const T &, MDB_txn *);
     template<typename T> void put(MDB_dbi& db, const Byte32Array &key_32b, const T &t, MDB_txn *tx)
     {
         mdb_val key(key_32b);
@@ -348,6 +354,98 @@ public:
         assert (status == 0 || status == MDB_NOTFOUND);
     }
 
+    bool stake_put(
+            AccountAddress const & account,
+            StakedFunds const & funds,
+            MDB_txn* txn);
+
+    bool stake_get(
+            AccountAddress const & account,
+            StakedFunds & funds,
+            MDB_txn* txn);
+
+    bool stake_del(
+            AccountAddress const & account,
+            MDB_txn* txn);
+
+    bool thawing_put(
+            AccountAddress const & account,
+            ThawingFunds const & funds,
+            MDB_txn* txn);
+
+    bool thawing_del(
+            AccountAddress const & account,
+            ThawingFunds const & funds,
+            MDB_txn* txn);
+
+    bool liability_get(
+            LiabilityHash const & hash,
+            Liability & l,
+            MDB_txn* txn);
+
+    bool liability_put(LiabilityHash const & hash, Liability const & l, MDB_txn* txn);
+
+    bool liability_update_amount(
+            LiabilityHash const & hash,
+            Amount const & amount,
+            MDB_txn* txn);
+
+    bool liability_exists(LiabilityHash const & hash, MDB_txn* txn);
+
+    bool secondary_liability_put(
+            AccountAddress const & source,
+            LiabilityHash const & hash,
+            MDB_txn* txn);
+
+    bool secondary_liability_del(
+            LiabilityHash const & hash,
+            MDB_txn* txn);
+
+    bool voting_power_get(
+            AccountAddress const & rep,
+            VotingPowerInfo& info,
+            MDB_txn* txn);
+
+    bool voting_power_put(
+            AccountAddress const & rep,
+            VotingPowerInfo const & info,
+            MDB_txn* txn);
+
+    bool voting_power_del(
+            AccountAddress const & rep,
+            MDB_txn* txn);
+
+    bool fallback_voting_power_get(
+            AccountAddress const & rep,
+            VotingPowerFallback& f,
+            MDB_txn* txn);
+
+    bool fallback_voting_power_put(
+            AccountAddress const & rep,
+            VotingPowerFallback const & f,
+            MDB_txn* txn);
+
+    bool fallback_voting_power_del(
+            AccountAddress const & rep,
+            MDB_txn * txn);
+    
+    bool liability_del(LiabilityHash const & hash, MDB_txn* txn);
+
+    /* @param db - db to iterate
+     * @param start - key to start iteration on
+     * @param operation - function to execute for each record in iteration
+     * if operation returns false, iteration stops
+     * @param txn - transaction (must be non-null)
+     * @ returns true if error occurred, false otherwise
+     * TODO Temprory abstraction, we still need to go through process to design an abstraction layer
+     */
+    template <typename T, typename R>
+    bool iterate_db(
+            MDB_dbi& db,
+            T const & start,
+            std::function<bool(R& record, logos::store_iterator&)> const & operation,
+            MDB_txn* txn);
+
     //////////////////
 
     void checksum_put (MDB_txn *, uint64_t, uint8_t, logos::checksum const &);
@@ -557,6 +655,66 @@ public:
      * epoch_number, delegate_id -> std::vector<uint8_t>
      */
     MDB_dbi address_ad_txa_db;
+    /*
+     * Epoch Rewards Info
+     * logos::account || epoch_number -> EpochRewardsInfo
+     */
+    MDB_dbi epoch_rewards_db;
+
+    /**
+     * Aggregate of Epoch Rewards Info
+     * epoch_number -> GlobalEpochRewardsInfo
+     */
+    MDB_dbi global_epoch_rewards_db;
+
+    /**
+     * Voting Power Info per epoch
+     * logos::account -> VotingPowerInfo
+     */
+    MDB_dbi voting_power_db;
+
+    /**
+     * Voting Power for previous epoch
+     * Used for certain race conditions
+     * logos::account -> amount
+     */
+    MDB_dbi voting_power_fallback_db;
+
+    /**
+     * Staked funds per account (self stake and locked proxy)
+     * logos::account -> StakedFunds
+     */
+    MDB_dbi staking_db;
+
+    /**
+     * Thawing funds per account
+     * Uses duplicate keys
+     * logos::account -> ThawingFunds
+     */
+    MDB_dbi thawing_db;
+
+    /**
+     * Liabilities
+     * LiabilityHash -> Liability
+     */
+    MDB_dbi master_liabilities_db;
+
+
+    /**
+     * Liabilities where rep is a target
+     * Key is rep account address
+     * Uses duplicate keys
+     * logos::account -> LiabilityHash
+     */
+    MDB_dbi rep_liabilities_db;
+
+    /**
+     * Secondary liabilities per account
+     * Account is source of liability
+     * Uses duplicate keys
+     * logos::account -> LiabilityHash
+     */
+    MDB_dbi secondary_liabilities_db;
 
     Log log;
 };

@@ -50,3 +50,26 @@ logos::block_store * get_db()
 
     return store;
 }
+
+void clear_dbs()
+{
+    logos::block_store* store = get_db();
+    store->clear(store->candidacy_db);
+    store->clear(store->representative_db);
+    store->clear(store->epoch_db);
+    store->clear(store->epoch_tip_db);
+    store->clear(store->remove_candidates_db);
+    store->clear(store->remove_reps_db);
+    store->clear(store->state_db);
+    store->clear(store->leading_candidates_db);
+    store->clear(store->voting_power_db);
+    store->clear(store->staking_db);
+    store->clear(store->thawing_db);
+    store->clear(store->master_liabilities_db);
+    store->clear(store->secondary_liabilities_db);
+    store->clear(store->rep_liabilities_db);
+    store->clear(store->epoch_rewards_db);
+    store->clear(store->global_epoch_rewards_db);
+    store->clear(store->account_db);
+    store->leading_candidates_size = 0;
+}

@@ -63,11 +63,14 @@ protected:
     bool Validate(const PrePrepare & message, ValidationStatus * status = nullptr);
 
 
-    void ApplyRequest(const StartRepresenting& request, MDB_txn* txn);
-    void ApplyRequest(const StopRepresenting& request, MDB_txn* txn);
+    void ApplyRequest(const StartRepresenting& request, logos::account_info& info, MDB_txn* txn);
+    void ApplyRequest(const StopRepresenting& request, logos::account_info& info, MDB_txn* txn);
     void ApplyRequest(const ElectionVote& request, MDB_txn* txn);
-    void ApplyRequest(const AnnounceCandidacy& request, MDB_txn* txn);
-    void ApplyRequest(const RenounceCandidacy& request, MDB_txn* txn);
+    void ApplyRequest(const AnnounceCandidacy& request, logos::account_info& info, MDB_txn* txn);
+    void ApplyRequest(const RenounceCandidacy& request, logos::account_info& info, MDB_txn* txn);
+    void ApplyRequest(const Proxy& request, logos::account_info& info, MDB_txn* txn);
+    void ApplyRequest(const Stake& request, logos::account_info& info, MDB_txn* txn);
+    void ApplyRequest(const Unstake& request, logos::account_info& info, MDB_txn* txn);
 
     bool ValidateRequest(
             const ElectionVote& request,
@@ -75,31 +78,90 @@ protected:
             MDB_txn* txn,
             logos::process_return& result); 
 
+    //This function is only to be called for requests that involve staking
+    //Specifically, StartRepresenting, StopRepresenting, AnnounceCandidacy,
+    //RenounceCandidacy, Stake and Unstake
+    template <typename T>
+    bool ValidateRequestWithStaking(
+            RequestPtr request,
+            std::shared_ptr<logos::Account> info,
+            uint32_t cur_epoch_num,
+            logos::process_return& result)
+    {
+        logos::transaction txn(_store.environment,nullptr,false);
+        auto derived = dynamic_pointer_cast<const T>(request);
+        if(info->type != logos::AccountType::LogosAccount)
+        {
+            result.code = logos::process_result::invalid_account_type;
+            return false;
+        }
+        auto account_info = dynamic_pointer_cast<logos::account_info>(info);
+        if(!ValidateRequest(*derived,*account_info,cur_epoch_num,txn,result))
+        {
+            LOG_ERROR(_log) << "PersistenceManager<R>::ValidateRequestWithStaking - "
+               << " request is invalid: " << derived->GetHash().to_string()
+                << " code is " << logos::ProcessResultToString(result.code)
+                << " type is " << GetRequestTypeField(request->type);
+            return false;
+        }
+        return true;
+    }
+
     bool ValidateRequest(
             const AnnounceCandidacy& request,
+            logos::account_info const & info,
             uint32_t cur_epoch_num,
             MDB_txn* txn,
             logos::process_return& result);
 
     bool ValidateRequest(
             const RenounceCandidacy& request,
+            logos::account_info const & info,
             uint32_t cur_epoch_num,
             MDB_txn* txn,
             logos::process_return& result);
 
     bool ValidateRequest(
             const StartRepresenting& request,
+            logos::account_info const & info,
             uint32_t cur_epoch_num,
             MDB_txn* txn,
             logos::process_return& result);
 
     bool ValidateRequest(
             const StopRepresenting& request,
+            logos::account_info const & info,
+            uint32_t cur_epoch_num,
+            MDB_txn* txn,
+            logos::process_return& result);
+
+    bool ValidateRequest(
+            const Proxy& request,
+            logos::account_info const & info,
+            uint32_t cur_epoch_num,
+            MDB_txn* txn,
+            logos::process_return& result);
+
+    bool ValidateRequest(
+            const Stake& request,
+            logos::account_info const & info,
+            uint32_t cur_epoch_num,
+            MDB_txn* txn,
+            logos::process_return& result);
+
+    bool ValidateRequest(
+            const Unstake& request,
+            logos::account_info const & info,
             uint32_t cur_epoch_num,
             MDB_txn* txn,
             logos::process_return& result);
 
     bool IsDeadPeriod(uint32_t cur_epoch_num, MDB_txn* txn);
+
+    void ApplyRequest(RequestPtr request,
+            uint64_t timestamp,
+            uint32_t cur_epoch_num,
+            MDB_txn * transaction);
 
     static constexpr uint32_t  RESERVATION_PERIOD  = 2;
     static constexpr uint128_t MIN_TRANSACTION_FEE = 0x21e19e0c9bab2400000_cppui128; // 10^22
@@ -119,16 +181,14 @@ private:
 
     void ApplyRequestBlock(const ApprovedRB & message,
             MDB_txn * transaction);
-    void ApplyRequest(RequestPtr request,
-            uint64_t timestamp,
-            uint32_t cur_epoch_num,
-            MDB_txn * transaction);
+
 
     template<typename SendType>
     void ApplySend(
             std::shared_ptr<const SendType> request,
             uint64_t timestamp,
             MDB_txn *transaction,
+            uint32_t const & epoch_num,
             BlockHash token_id = 0);
 
     template<typename AmountType>
@@ -138,6 +198,8 @@ private:
             MDB_txn *transaction,
             const BlockHash &request_hash,
             const BlockHash &token_id,
+            const AccountAddress& origin,
+            uint32_t const & epoch_num,
             uint16_t transaction_index = 0);
 
     void PlaceReceive(

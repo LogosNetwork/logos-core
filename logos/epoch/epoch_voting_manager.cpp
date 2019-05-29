@@ -136,7 +136,7 @@ std::vector<Delegate> EpochVotingManager::GetDelegateElects(size_t num_new, uint
                             p.second.bls_key,
                             p.second.ecies_key,
                             p.second.votes_received_weighted,
-                            p.second.stake);
+                            p.second.cur_stake);
                     d.starting_term = true;
                     return d;
                 });
@@ -188,7 +188,14 @@ bool EpochVotingManager::GetNextEpochDelegates(
         trace_and_halt();
     }
 
-    std::unordered_set<Delegate> retiring = GetRetiringDelegates(next_epoch_num);
+    std::unordered_set<Delegate> retiring_dels = GetRetiringDelegates(next_epoch_num);
+    std::unordered_set<AccountAddress> retiring;
+    std::for_each(
+            retiring_dels.begin(),
+            retiring_dels.end(),
+            [&retiring](const Delegate& del) { 
+            retiring.insert(del.account);}
+            );
     std::vector<Delegate> delegate_elects = GetDelegateElects(num_new_delegates, next_epoch_num);
     bool extend = false;
     if(delegate_elects.size() != num_new_delegates)
@@ -203,14 +210,13 @@ bool EpochVotingManager::GetNextEpochDelegates(
            << " in size of retiring and delegate_elects. Need to be equal."
            << "Delegate-elects size : " << delegate_elects.size()
             << " . Retiring size " << retiring.size();
-        assert(false);
         trace_and_halt();
     }
 
     size_t del_elects_idx = 0;
     for (int del = 0; del < NUM_DELEGATES; ++del)
     {
-        if(retiring.find(previous_epoch.delegates[del])!=retiring.end())
+        if(retiring.find(previous_epoch.delegates[del].account)!=retiring.end())
         {
             //if we need to extend the current delegate set,
             //but we are in the period where we are force retiring
@@ -252,7 +258,8 @@ bool EpochVotingManager::GetNextEpochDelegates(
     std::sort(std::begin(delegates), std::end(delegates),
             EpochVotingManager::IsGreater
             );
-    RedistributeVotes(delegates);
+    Redistribute(delegates,&Delegate::vote);
+    Redistribute(delegates,&Delegate::stake);
     //don't mark this epoch block as extended if extending genesis delegates terms
     if(extend)
     {
@@ -275,29 +282,29 @@ bool EpochVotingManager::IsGreater(const Delegate& d1, const Delegate& d2)
     }
 }
 
-void EpochVotingManager::RedistributeVotes(Delegates &delegates)
+void EpochVotingManager::Redistribute(Delegates &delegates, Amount Delegate::*member)
 {
     Amount total_votes = 0;
 
     for(int del = 0; del < NUM_DELEGATES; ++del)
     {
-        if(delegates[del].vote == 0)
+        if(delegates[del].*member == 0)
         {
 
-            delegates[del].vote = 1;
+            delegates[del].*member = 1;
         }
-        total_votes += delegates[del].vote;
+        total_votes += delegates[del].*member;
     }
 
     Amount cap = total_votes.number() / 8;
 
     for(int del = 0; del < NUM_DELEGATES; ++del)
     {
-        if(delegates[del].vote > cap)
+        if(delegates[del].*member > cap)
         {
-            total_votes -= delegates[del].vote;
-            Amount rem = delegates[del].vote - cap;
-            delegates[del].vote = cap;
+            total_votes -= delegates[del].*member;
+            Amount rem = delegates[del].*member - cap;
+            delegates[del].*member = cap;
             Amount add_back = 0;
             for(int i = del + 1; i < NUM_DELEGATES; ++i)
             {
@@ -318,18 +325,16 @@ void EpochVotingManager::RedistributeVotes(Delegates &delegates)
                  * and we are doing them a favor by giving them any amount of
                  * votes for free
                  */
-                Amount to_add = ((delegates[i].vote.number() * rem.number())
+                Amount to_add = (((delegates[i].*member).number() * rem.number())
                         / total_votes.number());
 
-                delegates[i].vote += to_add;
+                delegates[i].*member += to_add;
                 add_back += to_add;
             }
             total_votes += add_back;
         }
     }
 }
-
-
 
 bool
 EpochVotingManager::ValidateEpochDelegates(

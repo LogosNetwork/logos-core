@@ -401,6 +401,14 @@ add_library (node
 	logos/request/requests.cpp
 	logos/request/utility.cpp
 	logos/request/utility.cpp
+    logos/rewards/epoch_rewards_manager.cpp
+    logos/staking/thawing_funds.cpp
+    logos/staking/staked_funds.cpp
+    logos/staking/liability.cpp
+    logos/staking/liability_manager.cpp
+    logos/staking/voting_power_manager.cpp
+    logos/staking/staking_manager.cpp
+    logos/staking/requests.cpp
 	logos/token/account.cpp
 	logos/token/common.cpp
 	logos/token/entry.cpp
@@ -433,8 +441,14 @@ if (LOGOS_TEST)
 		logos/unit_test/msg_validator_setup.cpp
 		logos/unit_test/dual_RB_tips.cpp
         logos/unit_test/request_serialization.cpp
+        logos/unit_test/proxy.cpp
+        logos/unit_test/staking_manager.cpp
+        logos/unit_test/liability_manager.cpp
         logos/unit_test/tallying.cpp
 		logos/unit_test/elections.cpp
+        logos/unit_test/staking.cpp
+        logos/unit_test/epoch_rewards_db.cpp
+        logos/unit_test/voting_power.cpp
         logos/unit_test/p2p_test.cpp
         logos/p2p/test/propagate_test.cpp
         logos/p2p/test/storage_test.cpp
