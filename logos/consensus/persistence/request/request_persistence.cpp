@@ -2129,7 +2129,9 @@ bool HasMinGovernanceStake(T & request, MDB_txn* txn)
     return stake >= MIN_REP_STAKE && (!is_announce_candidacy || stake >= MIN_DELEGATE_STAKE);
 }
 
-bool IsDelegate(
+//Returns true if account is a delegate in the next epoch
+//This function should not be called inside elections dead period
+bool IsDelegateNextEpoch(
         logos::block_store& store,
         AccountAddress const & account,
         MDB_txn* txn)
@@ -2466,7 +2468,9 @@ bool PersistenceManager<R>::ValidateRequest(
         }
 
         //verify candidacy status
-        //StopRepresenting is invalid if origin is a current candidate
+        //StopRepresenting is invalid if origin previously submitted
+        //AnnounceCandidacy, and has not submitted RenounceCandidacy prior
+        //to the current epoch
         hash = rep.candidacy_action_tip;
         if(hash != 0)
         {
@@ -2494,9 +2498,9 @@ bool PersistenceManager<R>::ValidateRequest(
         return false;
     }
 
-    //Verify origin is not a delegate
+    //Verify origin is not a delegate next epoch
     //Delegate must wait until last epoch of term to submit StopRepresenting
-    if(IsDelegate(_store, request.origin, txn))
+    if(IsDelegateNextEpoch(_store, request.origin, txn))
     {
         result.code = logos::process_result::is_delegate;
         return false;
