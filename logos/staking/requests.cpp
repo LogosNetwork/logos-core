@@ -73,6 +73,9 @@ Proxy::Proxy(bool & error,
     }
     catch(std::exception& e)
     {
+        Log log;
+        LOG_ERROR(log) << "Proxy::Proxy(error, ptree) - "
+            << "exception in constructor. e.what() = " << e.what();
         error = true;
         return;
     }
@@ -217,6 +220,9 @@ Stake::Stake(bool & error,
     }
     catch(std::exception& e)
     {
+        Log log;
+        LOG_ERROR(log) << "Stake::Stake(error, ptree) - "
+            << "exception in constructor. e.what() = " << e.what();
         error = true;
         return;
     }
@@ -356,6 +362,9 @@ Unstake::Unstake(bool & error,
     }
     catch(std::exception& e)
     {
+        Log log;
+        LOG_ERROR(log) << "Stake::Stake(error, ptree) - "
+            << "exception in constructor. e.what() = " << e.what();
         error = true;
         return;
     }

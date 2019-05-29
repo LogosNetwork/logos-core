@@ -2116,6 +2116,32 @@ bool PersistenceManager<R>::ValidateRequest(
     return total <= MAX_VOTES;
 }
 
+template <typename T>
+bool HasMinGovernanceStake(T & request, MDB_txn* txn)
+{
+    //verify origin will have enough stake to be candidate after this request is
+    //applied
+    Amount stake = request.stake;
+    if(!request.set_stake)
+    {
+        StakedFunds cur_stake;
+        bool has_stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
+                request.origin,
+                cur_stake,
+                txn);
+        if(!has_stake)
+        {
+            Log log;
+            LOG_WARN(log) << "HasMinGovernanceStake - account has no stake. "
+                << "request does not set stake";
+            return false;
+        }
+        stake = cur_stake.amount;
+    }
+    bool is_announce_candidacy = request.type == RequestType::AnnounceCandidacy;
+    return stake >= MIN_REP_STAKE && (!is_announce_candidacy || stake >= MIN_DELEGATE_STAKE);
+}
+
 bool PersistenceManager<R>::ValidateRequest(
         const AnnounceCandidacy& request,
         logos::account_info const & info,
@@ -2187,26 +2213,10 @@ bool PersistenceManager<R>::ValidateRequest(
             return false;
         }
     }
-    
-    //verify origin will have enough stake to be candidate after this request is
-    //applied
-    Amount stake = request.stake;
-    if(!request.set_stake)
-    {
-        StakedFunds cur_stake;
-       bool has_stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
-                request.origin,
-                cur_stake,
-                txn);
-        if(!has_stake)
-        {
-            LOG_FATAL(_log) << "PersistenceManager<R>::ValidateRequest (AnnounceCandidacy) - "
-                << " cur stake is empty";
-            trace_and_halt();
-        }
-        stake = cur_stake.amount;
-    }
-    if(stake < MIN_DELEGATE_STAKE)
+
+    //verify origin will have enough stake to be candidate and rep
+    //after this request is applied
+    if(!HasMinGovernanceStake(request,txn))
     {
         result.code = logos::process_result::not_enough_stake;
         return false;
@@ -2282,27 +2292,11 @@ bool PersistenceManager<R>::ValidateRequest(
 
     //verify that origin will still have enough stake to be a rep after this 
     //request is applied
-    Amount stake = request.stake;
-    if(!request.set_stake)
-    {
-        StakedFunds cur_stake;
-        bool has_stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
-                request.origin,
-                cur_stake,
-                txn);
-        if(!has_stake)
-        {
-            result.code = logos::process_result::not_enough_stake; 
-            return false;
-        }
-        stake = cur_stake.amount;
-    }
-    if(stake < MIN_REP_STAKE)
+    if(!HasMinGovernanceStake(request,txn))
     {
         result.code = logos::process_result::not_enough_stake;
         return false;
-    } 
-
+    }
     //verify origin can actually stake amount requested
     return ValidateStake(request,info,result,txn);
 }
@@ -2397,27 +2391,16 @@ bool PersistenceManager<R>::ValidateRequest(
     }
     //verify origin either already has enough self stake to be a rep
     //or is requesting to increase self stake above threshold
-    Amount stake = request.stake;
-    if(!request.set_stake)
-    {
-        StakedFunds cur_stake;
-        bool has_stake = StakingManager::GetInstance()->GetCurrentStakedFunds(
-                request.origin,
-                cur_stake,
-                txn);
-        if(!has_stake)
-        {
-            result.code = logos::process_result::not_enough_stake; 
-            return false;
-        }
-        stake = cur_stake.amount;
-    }
-    if(stake < MIN_REP_STAKE)
+    if(!HasMinGovernanceStake(request,txn))
     {
         result.code = logos::process_result::not_enough_stake;
         return false;
-    } 
+    }
     //verify origin can actually stake amount requested
+    //Note, if an account issues StartRepresenting while that account has locked
+    //proxied stake, the locked proxied stake will be redelegated to self (if
+    //secondary liabilities allow it) or will begin thawing. Representatives
+    //cannot have locked proxied stake 
     return ValidateStake(request,info,result,txn);
 }
 
@@ -2749,7 +2732,8 @@ bool PersistenceManager<R>::ValidateRequest(
                 << " hash = " << hash.to_string();
             trace_and_halt();
         }
-        if(req->type != RequestType::StopRepresenting)
+        if(req->type != RequestType::StopRepresenting
+                && req->type != RequestType::RenounceCandidacy)
         {
             result.code = logos::process_result::not_enough_stake;
             return false;

@@ -504,7 +504,7 @@ void StakingManager::Stake(
     * additional available funds to satisfy the request.
     * At this point, cur_stake.target == target and but
     * cur_stake.amount is less than amount requested.
-    * The software needs more funds to satsify the request
+    * The software needs more funds to satisfy the request
     * First, attempt to stake ThawingFunds
     * Then, use available funds if necessary
     * This code path will be hit when increasing stake to current target,
