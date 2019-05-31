@@ -1,12 +1,16 @@
-#include <logos/consensus/persistence/block_cache.hpp>
+#include "block_cache.hpp"
+
+namespace logos {
 
 BlockCache::BlockCache(Store &store)
-    : eb_handler(store)
-      , mb_handler(store)
+    : store_(store)
+    , eb_handler(store)
+    , mb_handler(store)
     , bsb_handler(store)
-    {}
+{
+}
 
-bool BlockCache::AddEB(EBPtr block)
+bool BlockCache::AddEpochBlock(EBPtr block)
 {
     LOG_TRACE(log) << "BlockCache::" << __func__ <<":" << block->CreateTip().to_string();
     if(!eb_handler.VerifyAggSignature(*block))
@@ -60,7 +64,7 @@ bool BlockCache::AddEB(EBPtr block)
     return true;
 }
 
-bool BlockCache::AddMB(MBPtr block)
+bool BlockCache::AddMicroBlock(MBPtr block)
 {
     LOG_TRACE(log) << "BlockCache::" << __func__ <<":" << block->CreateTip().to_string();
     if(!mb_handler.VerifyAggSignature(*block))
@@ -140,7 +144,7 @@ bool BlockCache::AddMB(MBPtr block)
     return true;
 }
 
-bool BlockCache::AddBSB(BSBPtr block)
+bool BlockCache::AddRequestBlock(RBPtr block)
 {
     LOG_TRACE(log) << "BlockCache::" << __func__ <<":" << block->CreateTip().to_string();
 
@@ -221,6 +225,21 @@ bool BlockCache::AddBSB(BSBPtr block)
     return true;
 }
 
+void BlockCache::StoreEpochBlock(EBPtr block)
+{
+    //TODO
+}
+
+void BlockCache::StoreMicroBlock(MBPtr block)
+{
+    //TODO
+}
+
+void BlockCache::StoreRequestBlock(RBPtr block)
+{
+    //TODO
+}
+
 bool BlockCache::IsBlockCached(const BlockHash & b)
 {
     LOG_TRACE(log) << "BlockCache::" << __func__ << ":" << b.to_string();
@@ -241,7 +260,7 @@ void BlockCache::Validate(uint8_t bsb_idx)
         {
             for(;;)
             {
-                std::list<BSBPtr>::iterator to_validate = e->bsbs[bsb_idx].begin();
+                std::list<RBPtr>::iterator to_validate = e->bsbs[bsb_idx].begin();
                 if(to_validate == e->bsbs[bsb_idx].end())
                 {
                     //cannot make progress with empty list
@@ -406,3 +425,4 @@ void BlockCache::Validate(uint8_t bsb_idx)
     LOG_ERROR(log) << "BlockCache::"<<__func__<<"}";
 }
 
+}

@@ -5,8 +5,11 @@
 #include <unordered_set>
 
 #include <logos/lib/numbers.hpp>
+#include <logos/lib/hash.hpp>
 #include <logos/lib/blocks.hpp>
 #include <logos/lib/trace.hpp>
+
+#include <logos/blockstore.hpp>
 
 #include <logos/consensus/messages/common.hpp>
 #include <logos/consensus/messages/messages.hpp>
@@ -25,34 +28,46 @@
 #include <logos/consensus/persistence/request/request_persistence.hpp>
 #include <logos/consensus/persistence/request/nondel_request_persistence.hpp>
 
+#include "block_container.hpp"
+#include "block_write_queue.hpp"
+
+namespace logos {
+
 class IBlockCache
 {
 public:
-    using BSBPtr = std::shared_ptr<ApprovedRB>;
+    using RBPtr = std::shared_ptr<ApprovedRB>;
     using MBPtr = std::shared_ptr<ApprovedMB>;
     using EBPtr = std::shared_ptr<ApprovedEB>;
 
+    // should be called by bootstrap and P2P
     /**
      * add an epoch block to the cache
      * @param block the block
      * @return true if the block has good signatures.
      */
-    virtual bool AddEB(EBPtr block) = 0;
+    virtual bool AddEpochBlock(EBPtr block) = 0;
 
     /**
      * add a micro block to the cache
      * @param block the block
      * @return true if the block has good signatures.
      */
-    virtual bool AddMB(MBPtr block) = 0;
+    virtual bool AddMicroBlock(MBPtr block) = 0;
 
     /**
      * add a request block to the cache
      * @param block the block
      * @return true if the block has good signatures.
      */
-    virtual bool AddBSB(BSBPtr block) = 0;
+    virtual bool AddRequestBlock(RBPtr block) = 0;
 
+    // should be called by consensus
+    virtual void StoreEpochBlock(EBPtr block) = 0;
+    virtual void StoreMicroBlock(MBPtr block) = 0;
+    virtual void StoreRequestBlock(RBPtr block) = 0;
+
+    // should be called by bootstrap
     /**
      * check if a block is cached
      * @param b the hash of the block
@@ -79,21 +94,25 @@ public:
      * @param block the block
      * @return true if the block has good signatures.
      */
-    bool AddEB(EBPtr block) override;
+    bool AddEpochBlock(EBPtr block) override;
 
     /**
      * (inherited) add a micro block to the cache
      * @param block the block
      * @return true if the block has good signatures.
      */
-    bool AddMB(MBPtr block) override;
+    bool AddMicroBlock(MBPtr block) override;
 
     /**
      * (inherited) add a request block to the cache
      * @param block the block
      * @return true if the block has good signatures.
      */
-    bool AddBSB(BSBPtr block) override;
+    bool AddRequestBlock(RBPtr block) override;
+
+    void StoreEpochBlock(EBPtr block) override;
+    void StoreMicroBlock(MBPtr block) override;
+    void StoreRequestBlock(RBPtr block) override;
 
     /**
      * (inherited) check if a block is cached
@@ -121,7 +140,7 @@ private:
         {
             mbs.push_front(block);
         }
-        Epoch(BSBPtr block)
+        Epoch(RBPtr block)
         : epoch_num(block->epoch_number)
         , eb(nullptr)
         {
@@ -132,7 +151,7 @@ private:
         uint32_t epoch_num;
         EBPtr eb;
         std::list<MBPtr> mbs;
-        std::list<BSBPtr> bsbs[NUM_DELEGATES];
+        std::list<RBPtr> bsbs[NUM_DELEGATES];
 
         //TODO optimize
         //1 for each unprocessed tip of the oldest mb
@@ -149,6 +168,10 @@ private:
      */
     void Validate(uint8_t bsb_idx = 0);
 
+    block_store &           store_;
+    PendingBlockContainer   block_container;
+    BlockWriteQueue         write_q;
+
     NonDelPersistenceManager<ECT> eb_handler;
     NonDelPersistenceManager<MBCT> mb_handler;
     NonDelPersistenceManager<R> bsb_handler;
@@ -157,3 +180,4 @@ private:
     Log log;
 };
 
+}
