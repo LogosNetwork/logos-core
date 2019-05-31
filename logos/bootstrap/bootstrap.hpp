@@ -37,7 +37,7 @@ namespace Bootstrap
          */
         BootstrapInitiator (logos::alarm & alarm,
                 Store & store,
-                BlockCache & cache,
+                logos::BlockCache & cache,
                 PeerInfoProvider & peer_provider,
                 uint8_t max_connected = max_out_connection);
 
@@ -78,7 +78,7 @@ namespace Bootstrap
         Service & service;
         logos::alarm & alarm;
         Store & store;
-        BlockCache & cache;
+        logos::BlockCache & cache;
         PeerInfoProvider & peer_provider;
 
         std::shared_ptr<BootstrapAttempt> attempt;

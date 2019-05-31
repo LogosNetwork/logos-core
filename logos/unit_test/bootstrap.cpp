@@ -192,20 +192,29 @@ TEST (bootstrap, msg_pull_response)
 
 }
 
-class UT_Cache: public IBlockCache
+class UT_Cache: public logos::IBlockCache
 {
 public:
-    virtual bool AddEB(EBPtr block) override
+    virtual bool AddEpochBlock(EBPtr block) override
     {
         return addeb;
     }
-    virtual bool AddMB(MBPtr block) override
+    virtual bool AddMicroBlock(MBPtr block) override
     {
         return addmb;
     }
-    virtual bool AddBSB(BSBPtr block) override
+    virtual bool AddRequestBlock(RBPtr block) override
     {
         return addbsb;
+    }
+    virtual void StoreEpochBlock(EBPtr block) override
+    {
+    }
+    virtual void StoreMicroBlock(MBPtr block) override
+    {
+    }
+    virtual void StoreRequestBlock(RBPtr block) override
+    {
     }
     virtual bool IsBlockCached(const BlockHash &b) override
     {
