@@ -2,7 +2,6 @@
 
 #include <logos/ledger.hpp>
 #include <logos/lib/work.hpp>
-#include <logos/cache/cache.hpp>
 #include <logos/node/stats.hpp>
 #include <logos/node/wallet.hpp>
 #include <logos/epoch/archiver.hpp>
@@ -521,12 +520,11 @@ public:
     logos::work_pool & work;
     Log log;
     logos::block_store store;
-    logos::Cache cache;
     logos::gap_cache gap_cache;
     logos::ledger ledger;
     //CH logos::active_transactions active;
     logos::network network;
-    BlockCache block_cache;
+    logos::BlockCache block_cache;
     logos::peer_container peers;
     boost::filesystem::path application_path;
     logos::node_observers observers;

@@ -32,7 +32,7 @@ namespace Bootstrap
          * constructor
          * @param block_cache the block cache
          */
-        Puller(IBlockCache & block_cache);
+        Puller(logos::IBlockCache & block_cache);
 
         /**
          * initialize the puller
@@ -98,7 +98,7 @@ namespace Bootstrap
         void UpdateMyMBTip(MBPtr block);
         void UpdateMyEBTip(EBPtr block);
 
-        IBlockCache & block_cache;
+        logos::IBlockCache & block_cache;
         TipSet my_tips;
         TipSet others_tips;
 
