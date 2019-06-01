@@ -9,6 +9,7 @@
 #include <logos/consensus/messages/messages.hpp>
 #include <logos/consensus/persistence/persistence.hpp>
 #include <logos/consensus/persistence/nondel_persistence_manager_incl.hpp>
+#include <logos/consensus/persistence/block_cache.hpp>
 #include <logos/node/peer_provider.hpp>
 
 constexpr Milliseconds P2P_DEFAULT_CLOCK_DRIFT = Milliseconds(1000*60*60);
@@ -89,20 +90,20 @@ class PersistenceP2p
 {
 public:
     PersistenceP2p(p2p_interface & p2p,
-                   logos::block_store &store)
-        : _persistence(store, P2P_DEFAULT_CLOCK_DRIFT)
+                   std::function<void (std::shared_ptr<PostCommittedBlock<CT> >)> add_block)
+        : _add_block(add_block)
         , _p2p(p2p,
             [this](const PostCommittedBlock<CT> &message, uint8_t delegate_id, ValidationStatus * status)
             {
-                return this->_persistence.Validate(message, status);
+                return true;
             },
             [this](const PostCommittedBlock<CT> &message, uint8_t delegate_id)
             {
-                this->_persistence.ApplyUpdates(message, delegate_id);
+                this->_add_block(std::make_shared<PostCommittedBlock<CT>>(message));
             },
             [this](const PostCommittedBlock<CT> &message)
             {
-                return this->_persistence.BlockExists(message);
+                return false;
             }
         )
     {}
@@ -113,8 +114,8 @@ public:
     }
 
 private:
-    NonDelPersistenceManager<CT>    _persistence;
-    ConsensusP2p<CT>                _p2p;
+    std::function<void (std::shared_ptr<PostCommittedBlock<CT> >)>  _add_block;
+    ConsensusP2p<CT>                                                _p2p;
 
     friend class ContainerP2p;
     friend class ConsensusP2p<CT>;
@@ -125,11 +126,21 @@ class ContainerP2p: public PeerInfoProvider
 {
 public:
     ContainerP2p(p2p_interface & p2p,
-                 logos::block_store &store)
+                 logos::IBlockCache & block_cache)
         : _p2p(p2p)
-        , _batch(p2p, store)
-        , _micro(p2p, store)
-        , _epoch(p2p, store)
+        , _block_cache(block_cache)
+        , _batch(p2p, [this](std::shared_ptr<PostCommittedBlock<ConsensusType::Request> >    rptr)
+            {
+                this->_block_cache.AddRequestBlock(rptr);
+            })
+        , _micro(p2p, [this](std::shared_ptr<PostCommittedBlock<ConsensusType::MicroBlock> > mptr)
+            {
+                this->_block_cache.AddMicroBlock  (mptr);
+            })
+        , _epoch(p2p, [this](std::shared_ptr<PostCommittedBlock<ConsensusType::Epoch> >      eptr)
+            {
+                this->_block_cache.AddEpochBlock  (eptr);
+            })
         , _session_id(0)
     {
         _batch._p2p._RetryValidate
@@ -177,6 +188,7 @@ private:
         _epoch._p2p.RetryValidate(hash);
     }
 
+    logos::IBlockCache &                            _block_cache;
     PersistenceP2p<ConsensusType::Request>          _batch;
     PersistenceP2p<ConsensusType::MicroBlock>       _micro;
     PersistenceP2p<ConsensusType::Epoch>            _epoch;

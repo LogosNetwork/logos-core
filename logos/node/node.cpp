@@ -1293,7 +1293,7 @@ p2p(*this),
 _identity_manager(*this),
 _archiver(alarm_a, store, _recall_handler),
 _consensus_container{std::make_shared<ConsensusContainer>(
-        service_a, store, alarm_a, config, _archiver, _identity_manager, p2p)},
+        service_a, store, block_cache, alarm_a, config, _archiver, _identity_manager, p2p)},
 _tx_acceptor{config.tx_acceptor_config.tx_acceptors.size() == 0
     ? std::make_shared<TxAcceptorDelegate>(service_a, _consensus_container, config)
     : nullptr},

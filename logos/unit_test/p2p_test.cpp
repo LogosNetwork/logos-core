@@ -41,8 +41,9 @@ TEST (P2pTest, VerifyPeersInterface)
         bool error = false;
         boost::filesystem::path const data_path(TEST_DB);
         logos::block_store store(error, data_path);
+        logos::BlockCache block_cache(store);
         EXPECT_EQ(error, false);
-        ContainerP2p cp2p(p2p, store);
+        ContainerP2p cp2p(p2p, block_cache);
 
         config.lmdb_env = store.environment.environment;
         config.lmdb_dbi = store.p2p_db;
