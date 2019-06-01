@@ -18,6 +18,7 @@ bool ConsensusContainer::_validate_sig_config = false;
 
 ConsensusContainer::ConsensusContainer(Service & service,
                                        Store & store,
+                                       Cache & block_cache,
                                        logos::alarm & alarm,
                                        const logos::node_config & config,
                                        Archiver & archiver,
@@ -34,7 +35,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
     , _identity_manager(identity_manager)
     , _transition_state(EpochTransitionState::None)
     , _transition_delegate(EpochTransitionDelegate::None)
-    , _p2p(p2p, store)
+    , _p2p(p2p, block_cache)
 {
 }
 
