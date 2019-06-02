@@ -9,6 +9,7 @@
 
 EpochManager::EpochManager(Service & service,
                            Store & store,
+                           Cache & block_cache,
                            Alarm & alarm,
                            const Config & config,
                            Archiver & archiver,
@@ -28,9 +29,9 @@ EpochManager::EpochManager(Service & service,
     , _epoch_number(epoch_number)
     , _new_epoch_handler(handler)
     , _validator(_key_store)
-    , _request_manager(std::make_shared<RequestConsensusManager>(service, store, config, scheduler, _validator, p2p, epoch_number))
-    , _micro_manager(std::make_shared<MicroBlockConsensusManager>(service, store, config, scheduler, _validator, archiver, p2p, epoch_number))
-    , _epoch_manager(std::make_shared<EpochConsensusManager>(service, store, config, scheduler, _validator, p2p, epoch_number))
+    , _request_manager(std::make_shared<RequestConsensusManager>(service, store, block_cache, config, scheduler, _validator, p2p, epoch_number))
+    , _micro_manager(std::make_shared<MicroBlockConsensusManager>(service, store, block_cache, config, scheduler, _validator, archiver, p2p, epoch_number))
+    , _epoch_manager(std::make_shared<EpochConsensusManager>(service, store, block_cache, config, scheduler, _validator, p2p, epoch_number))
     , _netio_manager(std::make_shared<ConsensusNetIOManager>(_request_manager, _micro_manager, _epoch_manager,
                      service, alarm, config, starter))
     , _delegate_id(delegate_id)

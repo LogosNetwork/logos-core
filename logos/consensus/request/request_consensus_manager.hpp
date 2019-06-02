@@ -46,6 +46,7 @@ public:
     ///     @param[in] events_notifier transition helper
     RequestConsensusManager(Service & service,
                             Store & store,
+                            Cache & block_cache,
                             const Config & config,
                             ConsensusScheduler & scheduler,
                             MessageValidator & validator,

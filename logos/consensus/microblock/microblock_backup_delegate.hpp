@@ -25,6 +25,7 @@ public:
     MicroBlockBackupDelegate(std::shared_ptr<IOChannel> iochannel,
                                   std::shared_ptr<PrimaryDelegate> primary,
                                   Store & store,
+                                  Cache & block_cache,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler,
