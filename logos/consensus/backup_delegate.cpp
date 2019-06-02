@@ -9,6 +9,7 @@ template<ConsensusType CT>
 BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
                                    std::shared_ptr<PrimaryDelegate> primary,
                                    Store & store,
+                                   Cache & block_cache,
                                    MessageValidator & validator,
                                    const DelegateIdentities & ids,
                                    ConsensusScheduler & scheduler,
@@ -22,6 +23,7 @@ BackupDelegate<CT>::BackupDelegate(std::shared_ptr<IOChannel> iochannel,
     , _validator(validator)
     , _primary(primary)
     , _store(store)
+    , _block_cache(block_cache)
     , _scheduler(scheduler)
     , _events_notifier(events_notifier)
     , _persistence_manager(persistence_manager)

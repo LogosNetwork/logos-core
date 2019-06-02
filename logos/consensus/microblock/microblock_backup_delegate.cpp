@@ -12,6 +12,7 @@ MicroBlockBackupDelegate::MicroBlockBackupDelegate(
                                   std::shared_ptr<IOChannel> iochannel,
                                   std::shared_ptr<PrimaryDelegate> primary,
                                   Store & store,
+                                  Cache & block_cache,
                                   MessageValidator & validator,
                                   const DelegateIdentities & ids,
                                   ArchiverMicroBlockHandler & handler,
@@ -20,7 +21,7 @@ MicroBlockBackupDelegate::MicroBlockBackupDelegate(
                                   PersistenceManager<MBCT> & persistence_manager,
                                   p2p_interface & p2p,
                                   Service & service)
-    : BackupDelegate<MBCT>(iochannel, primary, store, validator, ids, scheduler,
+    : BackupDelegate<MBCT>(iochannel, primary, store, block_cache, validator, ids, scheduler,
                                                      events_notifier, persistence_manager, p2p, service)
     , _handler(MicroBlockMessageHandler::GetMessageHandler())
     , _microblock_handler(handler)
@@ -54,7 +55,8 @@ MicroBlockBackupDelegate::ApplyUpdates(
     const ApprovedMB & block,
     uint8_t)
 {
-    _persistence_manager.ApplyUpdates(block);
+//    _persistence_manager.ApplyUpdates(block);
+    _block_cache.StoreMicroBlock(std::make_shared<ApprovedMB>(block));
 
     _microblock_handler.OnApplyUpdates(block);
 }

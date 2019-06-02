@@ -341,6 +341,7 @@ private:
     std::shared_ptr<EpochManager>     _trans_epoch;         ///< epoch transition consensus objects
     Service &                         _service;             ///< boost service
     Store &                           _store;               ///< block store reference
+    Cache &                           _block_cache;         ///< block cache reference
     Alarm &                           _alarm;               ///< alarm reference
     const Config &                    _config;              ///< consensus configuration reference
     Log                               _log;                 ///< boost log

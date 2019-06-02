@@ -29,6 +29,7 @@ ConsensusContainer::ConsensusContainer(Service & service,
     , _trans_epoch(nullptr)
     , _service(service)
     , _store(store)
+    , _block_cache(block_cache)
     , _alarm(alarm)
     , _config(config)
     , _archiver(archiver)
@@ -91,7 +92,7 @@ ConsensusContainer::CreateEpochManager(
     EpochConnection connection,
     std::shared_ptr<ApprovedEB> eb)
 {
-    auto res = std::make_shared<EpochManager>(_service, _store, _alarm, config,
+    auto res = std::make_shared<EpochManager>(_service, _store, _block_cache, _alarm, config,
                                               _archiver, _transition_state,
                                               delegate, connection, epoch_number, *this, *this, _p2p._p2p,
                                               config.delegate_id, _peer_manager, eb);

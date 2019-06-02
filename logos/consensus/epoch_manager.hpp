@@ -58,6 +58,7 @@ class EpochManager : public EpochInfo,
     using Config     = ConsensusManagerConfig;
     using Log        = boost::log::sources::logger_mt;
     using Store      = logos::block_store;
+    using Cache      = logos::IBlockCache;
     using Alarm      = logos::alarm;
     template<typename T>
     using SPTR       = std::shared_ptr<T>;
@@ -66,6 +67,7 @@ public:
 
     EpochManager(Service & service,
                  Store & store,
+                 Cache & block_cache,
                  Alarm & alarm,
                  const Config & config,
                  Archiver & archiver,
