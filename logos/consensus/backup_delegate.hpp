@@ -41,6 +41,7 @@ protected:
     using ApprovedBlock = PostCommittedBlock<CT>;
     using Service       = boost::asio::io_service;
     using Store         = logos::block_store;
+    using Cache         = logos::IBlockCache;
 
     template<MessageType T>
     using SPMessage = StandardPhaseMessage<T, CT>;
@@ -52,6 +53,7 @@ public:
     BackupDelegate(std::shared_ptr<IOChannel> iochannel,
                    std::shared_ptr<PrimaryDelegate> primary,
                    Store & store,
+                   Cache & block_cache,
                    MessageValidator & validator,
                    const DelegateIdentities & ids,
                    ConsensusScheduler & scheduler,
@@ -160,6 +162,7 @@ protected:
     Log                         _log;
     WPTR<PrimaryDelegate>       _primary;
     Store &                     _store;
+    Cache &                     _block_cache;
     ConsensusState              _state = ConsensusState::VOID;
     ConsensusScheduler &        _scheduler;
     uint64_t                    _sequence_number = 0;

@@ -15,6 +15,7 @@ constexpr uint8_t ConsensusManager<CT>::DELIGATE_ID_MASK;
 template<ConsensusType CT>
 ConsensusManager<CT>::ConsensusManager(Service & service,
                                        Store & store,
+                                       Cache & block_cache,
                                        const Config & config,
                                        ConsensusScheduler & scheduler,
                                        MessageValidator & validator,
@@ -24,6 +25,7 @@ ConsensusManager<CT>::ConsensusManager(Service & service,
     , ConsensusP2pBridge(service, p2p, config.delegate_id)
     , _service(service)
     , _store(store)
+    , _block_cache(block_cache)
     , _validator(validator)
     , _scheduler(scheduler)
     , _reservations(std::make_shared<ConsensusReservations>(store))

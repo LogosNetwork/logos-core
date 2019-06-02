@@ -22,7 +22,8 @@ public:
 	///     @param[in] events_notifier epoch transition helper
 	EpochConsensusManager(Service & service,
 	                      Store & store,
-					      const Config & config,
+                          Cache & block_cache,
+                          const Config & config,
 						  ConsensusScheduler & scheduler,
                           MessageValidator & validator,
                           p2p_interface & p2p,

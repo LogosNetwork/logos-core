@@ -11,13 +11,14 @@ const RequestConsensusManager::Seconds RequestConsensusManager::REQUEST_TIMEOUT{
 
 RequestConsensusManager::RequestConsensusManager(Service & service,
                                                  Store & store,
+                                                 Cache & block_cache,
                                                  const Config & config,
                                                  ConsensusScheduler & scheduler,
                                                  MessageValidator & validator,
                                                  p2p_interface & p2p,
                                                  uint32_t epoch_number,
                                                  EpochHandler & epoch_handler)
-    : Manager(service, store, config,
+    : Manager(service, store, block_cache, config,
 	      scheduler, validator, p2p, epoch_number)
     , _init_timer(service)
     , _handler(RequestMessageHandler::GetMessageHandler())
@@ -244,7 +245,8 @@ RequestConsensusManager::ApplyUpdates(
   const ApprovedRB & block,
   uint8_t delegate_id)
 {
-    _persistence_manager.ApplyUpdates(block, _delegate_id);
+//    _persistence_manager.ApplyUpdates(block, _delegate_id);
+    _block_cache.StoreRequestBlock(std::make_shared<ApprovedRB>(block));
 }
 
 uint64_t
@@ -307,7 +309,7 @@ RequestConsensusManager::MakeBackupDelegate(
             "RequestConsensusManager::MakeBackupDelegate, object destroyed");
     assert(notifier);
     return std::make_shared<RequestBackupDelegate>(
-            iochannel, shared_from_this(), _store, _validator,
+            iochannel, shared_from_this(), _store, _block_cache, _validator,
 	    ids, _service, _scheduler, notifier, _persistence_manager, GetP2p());
 }
 

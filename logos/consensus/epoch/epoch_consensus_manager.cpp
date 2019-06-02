@@ -12,12 +12,13 @@
 EpochConsensusManager::EpochConsensusManager(
                           Service & service,
                           Store & store,
+                          Cache & block_cache,
                           const Config & config,
                           ConsensusScheduler & scheduler,
                           MessageValidator & validator,
                           p2p_interface & p2p,
                           uint32_t epoch_number)
-    : Manager(service, store, config,
+    : Manager(service, store, block_cache, config,
               scheduler, validator, p2p, epoch_number)
     , _secondary_timeout([](const uint8_t & delegate_id){
         uint timeout_sec = (delegate_id + 1) * SECONDARY_LIST_TIMEOUT.count();
@@ -103,7 +104,8 @@ EpochConsensusManager::ApplyUpdates(
     const ApprovedEB & block,
     uint8_t delegate_id)
 {
-    _persistence_manager.ApplyUpdates(block);
+//    _persistence_manager.ApplyUpdates(block);
+    _block_cache.StoreEpochBlock(std::make_shared<ApprovedEB>(block));
 }
 
 uint64_t 
@@ -132,7 +134,7 @@ EpochConsensusManager::MakeBackupDelegate(
 {
     auto notifier = _events_notifier.lock();
     assert(notifier);
-    return std::make_shared<EpochBackupDelegate>(iochannel, shared_from_this(), _store,
+    return std::make_shared<EpochBackupDelegate>(iochannel, shared_from_this(), _store, _block_cache,
             _validator, ids, _scheduler, notifier, _persistence_manager,
             GetP2p(), _service);
 }

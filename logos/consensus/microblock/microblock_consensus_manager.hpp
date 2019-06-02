@@ -24,6 +24,7 @@ public:
     ///     @param[in] events_notifier epoch transition helper
     MicroBlockConsensusManager(Service & service,
                                Store & store,
+                               Cache & block_cache,
                                const Config & config,
                                ConsensusScheduler & scheduler,
                                MessageValidator & validator,

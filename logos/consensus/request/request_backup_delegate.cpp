@@ -13,6 +13,7 @@ RequestBackupDelegate::RequestBackupDelegate(
         std::shared_ptr<IOChannel> iochannel,
         std::shared_ptr<PrimaryDelegate> primary,
         Store & store,
+        Cache & block_cache,
         MessageValidator & validator,
         const DelegateIdentities & ids,
         Service & service,
@@ -20,7 +21,7 @@ RequestBackupDelegate::RequestBackupDelegate(
         std::shared_ptr<EpochEventsNotifier> events_notifier,
 	    PersistenceManager<R> & persistence_manager,
 	    p2p_interface & p2p)
-    : Connection(iochannel, primary, store,
+    : Connection(iochannel, primary, store, block_cache,
 		 validator, ids, scheduler, events_notifier, persistence_manager, p2p, service)
     , _handler(RequestMessageHandler::GetMessageHandler())
 {
@@ -96,7 +97,8 @@ RequestBackupDelegate::ApplyUpdates(
     const ApprovedRB & block,
     uint8_t delegate_id)
 {
-    _persistence_manager.ApplyUpdates(block, delegate_id);
+//    _persistence_manager.ApplyUpdates(block, delegate_id);
+    _block_cache.StoreRequestBlock(std::make_shared<ApprovedRB>(block));
 }
 
 void
