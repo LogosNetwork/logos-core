@@ -17,34 +17,58 @@ static const uint GENESIS_EPOCH = 2;
 /// it received
 struct Delegate 
 {
-    AccountAddress      account;
-    DelegatePubKey      bls_pub;
-    ECIESPublicKey      ecies_pub;
-    Amount              vote;
-    Amount              stake;
-    bool                starting_term;
+    AccountAddress account;
+    DelegatePubKey bls_pub;
+    ECIESPublicKey ecies_pub;
+    Amount         raw_vote;
+    Amount         raw_stake;
+    Amount         vote;
+    Amount         stake;
+    bool           starting_term;
 
     Delegate()
-    : account()
-    , bls_pub()
-    , ecies_pub()
-    , vote(0)
-    , stake(0)
-    , starting_term(false)
+        : account()
+        , bls_pub()
+        , ecies_pub()
+        , raw_vote(0)
+        , raw_stake(0)
+        , vote(0)
+        , stake(0)
+        , starting_term(false)
     {}
 
     Delegate(AccountAddress const & account,
-            DelegatePubKey const & bls_pub,
-            ECIESPublicKey & ecies_pub,
-            Amount vote,
-            Amount stake,
-            bool starting_term = false)
-    : account(account)
-    , bls_pub(bls_pub)
-    , ecies_pub(ecies_pub)
-    , vote(vote)
-    , stake(stake)
-    , starting_term(starting_term)
+             DelegatePubKey const & bls_pub,
+             ECIESPublicKey & ecies_pub,
+             Amount vote,
+             Amount stake,
+             bool starting_term = false)
+        : account(account)
+        , bls_pub(bls_pub)
+        , ecies_pub(ecies_pub)
+        , raw_vote(vote)
+        , raw_stake(stake)
+        , vote(vote)
+        , stake(stake)
+        , starting_term(starting_term)
+    {}
+
+    Delegate(AccountAddress const & account,
+             DelegatePubKey const & bls_pub,
+             ECIESPublicKey & ecies_pub,
+             Amount raw_vote,
+             Amount raw_stake,
+             Amount vote,
+             Amount stake,
+             bool starting_term = false)
+        : account(account)
+          , bls_pub(bls_pub)
+          , ecies_pub(ecies_pub)
+          , raw_vote(raw_vote)
+          , raw_stake(raw_stake)
+          , vote(vote)
+          , stake(stake)
+          , starting_term(starting_term)
     {}
 
     void Hash(blake2b_state & hash) const
@@ -52,6 +76,8 @@ struct Delegate
         account.Hash(hash);
         bls_pub.Hash(hash);
         ecies_pub.Hash(hash);
+        blake2b_update(&hash, raw_vote.bytes.data(), raw_vote.bytes.size());
+        blake2b_update(&hash, raw_stake.bytes.data(), raw_stake.bytes.size());
         blake2b_update(&hash, vote.bytes.data(), vote.bytes.size());
         blake2b_update(&hash, stake.bytes.data(), stake.bytes.size());
     }
@@ -61,6 +87,8 @@ struct Delegate
         uint32_t s = logos::write(stream, account);
         s += logos::write(stream, bls_pub);
         s += ecies_pub.Serialize(stream);
+        s += logos::write(stream, raw_vote);
+        s += logos::write(stream, raw_stake);
         s += logos::write(stream, vote);
         s += logos::write(stream, stake);
         s += logos::write(stream, starting_term);
@@ -87,6 +115,18 @@ struct Delegate
             return;
         }
 
+        error = logos::read(stream, raw_vote);
+        if(error)
+        {
+            return;
+        }
+
+        error = logos::read(stream, raw_stake);
+        if(error)
+        {
+            return;
+        }
+
         error = logos::read(stream, vote);
         if(error)
         {
@@ -106,6 +146,8 @@ struct Delegate
         epoch_block.put("account", account.to_string());
         epoch_block.put("bls_pub", bls_pub.to_string());
         ecies_pub.SerializeJson(epoch_block);
+        epoch_block.put("raw_vote", raw_vote.to_string());
+        epoch_block.put("raw_stake", raw_stake.to_string());
         epoch_block.put("vote", vote.to_string());
         epoch_block.put("stake", stake.to_string());
         epoch_block.put("starting_term", starting_term);
@@ -117,6 +159,8 @@ struct Delegate
         return account == other.account
             && bls_pub == other.bls_pub
             && ecies_pub == other.ecies_pub
+            && raw_vote == other.raw_vote
+            && raw_stake == other.raw_stake
             && vote == other.vote
             && stake == other.stake
             && starting_term == other.starting_term;
