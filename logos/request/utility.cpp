@@ -105,6 +105,10 @@ RequestType GetRequestType(bool &error, std::string data)
     {
         ret = RequestType::Unstake;
     }
+    else if(data == CLAIM)
+    {
+        ret = RequestType::Claim;
+    }
     else
     {
         error = true;
@@ -189,6 +193,9 @@ std::string GetRequestTypeField(RequestType type)
         case RequestType::Unstake:
             ret = UNSTAKE;
             break;
+        case RequestType::Claim:
+            ret = CLAIM;
+            break;
         case RequestType::Unknown:
             ret = UNKNOWN;
             break;
@@ -272,6 +279,8 @@ std::shared_ptr<Request> BuildRequest(RequestType type, bool & error, Data && da
             break;
         case RequestType::Unstake:
             result = std::make_shared<Unstake>(error, data);
+            break;
+        case RequestType::Claim:
             break;
         case RequestType::Unknown:
             error = true;

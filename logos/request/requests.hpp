@@ -45,6 +45,10 @@ enum class RequestType : uint8_t
     Stake             = 21,
     Unstake           = 22,
 
+    // Reward Requests
+    //
+    Claim             = 24,
+
     // Unknown
     //
     Unknown          = 23

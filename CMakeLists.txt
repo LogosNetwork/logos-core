@@ -319,14 +319,14 @@ add_library (logos_lib_static STATIC ${LOGOS_LIB_SOURCES})
 add_library (node
 	${PLATFORM_NODE_SOURCE}
 	${SECURE_RPC_SOURCE}
-    logos/bootstrap/attempt.cpp
-    logos/bootstrap/bootstrap.cpp
-    logos/bootstrap/bootstrap_messages.cpp
-    logos/bootstrap/connection.cpp
-    logos/bootstrap/pull_connection.cpp
-    logos/bootstrap/pull.cpp
-    logos/bootstrap/tip_connection.cpp
-    logos/bootstrap/tips.cpp    
+	logos/bootstrap/attempt.cpp
+	logos/bootstrap/bootstrap.cpp
+	logos/bootstrap/bootstrap_messages.cpp
+	logos/bootstrap/connection.cpp
+	logos/bootstrap/pull_connection.cpp
+	logos/bootstrap/pull.cpp
+	logos/bootstrap/tip_connection.cpp
+	logos/bootstrap/tips.cpp    
 	logos/consensus/request/request_consensus_manager.cpp
 	logos/consensus/request/request_backup_delegate.cpp
 	logos/consensus/message_handler.cpp
@@ -356,11 +356,11 @@ add_library (node
 	logos/consensus/persistence/epoch/epoch_persistence.cpp
 	logos/consensus/persistence/microblock/microblock_persistence.cpp
 	logos/consensus/persistence/reservations.cpp
-    logos/consensus/persistence/block_cache.cpp
+	logos/consensus/persistence/block_cache.cpp
 	logos/consensus/primary_delegate.cpp
 	logos/elections/requests.cpp
-    logos/elections/representative.cpp
-    logos/elections/candidate.cpp
+	logos/elections/representative.cpp
+	logos/elections/candidate.cpp
 	logos/epoch/archiver.cpp
 	logos/epoch/epoch.cpp
 	logos/epoch/epoch_handler.cpp
@@ -401,14 +401,15 @@ add_library (node
 	logos/request/requests.cpp
 	logos/request/utility.cpp
 	logos/request/utility.cpp
-    logos/rewards/epoch_rewards_manager.cpp
-    logos/staking/thawing_funds.cpp
-    logos/staking/staked_funds.cpp
-    logos/staking/liability.cpp
-    logos/staking/liability_manager.cpp
-    logos/staking/voting_power_manager.cpp
-    logos/staking/staking_manager.cpp
-    logos/staking/requests.cpp
+	logos/rewards/claim.cpp
+	logos/rewards/epoch_rewards_manager.cpp
+	logos/staking/thawing_funds.cpp
+	logos/staking/staked_funds.cpp
+	logos/staking/liability.cpp
+	logos/staking/liability_manager.cpp
+	logos/staking/voting_power_manager.cpp
+	logos/staking/staking_manager.cpp
+	logos/staking/requests.cpp
 	logos/token/account.cpp
 	logos/token/common.cpp
 	logos/token/entry.cpp
