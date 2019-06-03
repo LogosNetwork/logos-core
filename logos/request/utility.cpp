@@ -1,6 +1,7 @@
 #include <logos/request/utility.hpp>
 
 #include <logos/request/fields.hpp>
+#include <logos/rewards/claim.hpp>
 #include <logos/lib/utility.hpp>
 #include <logos/lib/log.hpp>
 
@@ -281,6 +282,7 @@ std::shared_ptr<Request> BuildRequest(RequestType type, bool & error, Data && da
             result = std::make_shared<Unstake>(error, data);
             break;
         case RequestType::Claim:
+            result = std::make_shared<Claim>(error, data);
             break;
         case RequestType::Unknown:
             error = true;
