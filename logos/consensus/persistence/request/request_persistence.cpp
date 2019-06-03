@@ -405,6 +405,8 @@ bool PersistenceManager<R>::ValidateRequest(
             }
             break;
         }
+        case RequestType::Claim:
+            break;
         case RequestType::Unknown:
             LOG_ERROR(_log) << "PersistenceManager::Validate - Received unknown request type";
 
@@ -1355,6 +1357,8 @@ void PersistenceManager<R>::ApplyRequest(RequestPtr request,
             ApplyRequest(*unstake,*account_info,transaction);
             break;
         }
+        case RequestType::Claim:
+            break;
         case RequestType::Unknown:
             LOG_ERROR(_log) << "PersistenceManager::ApplyRequest - "
                             << "Unknown request type.";

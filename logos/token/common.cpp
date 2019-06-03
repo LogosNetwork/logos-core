@@ -322,6 +322,7 @@ bool ControllerInfo::IsAuthorized(std::shared_ptr<const Request> request) const
         case RequestType::StopRepresenting:
         case RequestType::Stake:
         case RequestType::Unstake:
+        case RequestType::Claim:
         case RequestType::Unknown:
             result = false;
             break;

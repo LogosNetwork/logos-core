@@ -2691,6 +2691,8 @@ void logos::rpc_handler::process ()
             case RequestType::Unstake:
                 process(request);
                 break;
+            case RequestType::Claim:
+                break;
             default:
                 error_response(response, "Request is invalid");
         }

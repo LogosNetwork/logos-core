@@ -524,6 +524,7 @@ bool IsTokenAdminRequest(RequestType type)
         case RequestType::StopRepresenting:
         case RequestType::Stake:
         case RequestType::Unstake:
+        case RequestType::Claim:
         case RequestType::Unknown:
             break;
     }

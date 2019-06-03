@@ -31,6 +31,7 @@ const char START_REPRESENTING[] = "start_representing";
 const char STOP_REPRESENTING[]  = "stop_representing";
 const char UNSTAKE[]            = "unstake";
 const char STAKE[]              = "stake";
+const char CLAIM[]              = "claim";
 const char UNKNOWN[]            = "unknown";
 
 // Request fields
@@ -84,6 +85,8 @@ const char ECIES_KEY[]        = "ecies_key";
 const char LOCK_PROXY[]       = "lock_proxy";
 const char SET_STAKE[]        = "set_stake";
 const char STAKING_SUB_PREV[] = "staking_subchain_previous";
+const char EPOCH_HASH[]       = "epoch_hash";
+const char EPOCH_NUMBER[]     = "epoch_number";
 
 // Token setting fields
 //
