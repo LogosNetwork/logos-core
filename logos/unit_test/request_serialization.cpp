@@ -2,6 +2,7 @@
 
 #include <logos/request/utility.hpp>
 #include <logos/token/requests.hpp>
+#include <logos/rewards/claim.hpp>
 
 #include <boost/property_tree/ptree.hpp>
 
@@ -517,6 +518,35 @@ TEST (Request_Serialization, json_deserialization)
     ASSERT_EQ(logos_send.transactions[2].destination.to_account(),
               "lgs_1mkqajo9pedc1x764b5y5yzkykcm3h3hx1bumznzhgjqimjpajy9w5qfsis6");
     ASSERT_EQ(logos_send.transactions[2].amount, 3);
+
+    // Claim
+    //
+    //
+    char const * claim_json = R"%%%({
+        "type": "claim",
+        "origin": "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio",
+        "signature": "0000000000000000000000000000000000000000000000000000000000000000",
+        "previous": "0000000000000000000000000000000000000000000000000000000000000000",
+        "fee": "10000",
+        "sequence": "5",
+        "next": "0000000000000000000000000000000000000000000000000000000000000000",
+        "epoch_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "epoch_number": "23",
+        "work": "6"
+     })%%%";
+
+    tree = get_tree(claim_json);
+    Claim claim(error, tree);
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(claim.type, RequestType::Claim);
+    ASSERT_EQ(claim.origin.to_account(), "lgs_3njdeqz6nywhb4so3w85sndaojguptiw43w4wi3nfunrd8yesmif96nwtxio");
+    ASSERT_EQ(claim.fee.number(), 10000);
+    ASSERT_EQ(claim.sequence, 5);
+    ASSERT_EQ(claim.next.to_string(), "0000000000000000000000000000000000000000000000000000000000000000");
+    ASSERT_EQ(claim.epoch_hash.to_string(), "0000000000000000000000000000000000000000000000000000000000000000");
+    ASSERT_EQ(claim.epoch_number, 23);
+    ASSERT_EQ(claim.work, 6);
 }
 
 auto DoGetStreamedData = [](const auto & data, auto & buf)
@@ -716,6 +746,18 @@ auto GenerateTokenSend = []()
     send.token_fee = 20;
 
     return send;
+};
+
+auto GenerateClaim = []()
+{
+    Claim claim;
+
+    claim.type = RequestType::Claim;
+
+    claim.epoch_hash = {0xDEADBEEF};
+    claim.epoch_number = 23;
+
+    return claim;
 };
 
 template<typename RequestType, typename ...Args>
@@ -933,6 +975,21 @@ TEST (Request_Serialization, stream_methods)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(send_a, send_b);
+
+    // Claim
+    //
+    //
+    auto claim_a(GenerateClaim());
+    DoGetStreamedData(claim_a, buf);
+
+    stream.close();
+    stream.open(buf.data(), buf.size());
+
+    error = false;
+    Claim claim_b(GetRequest<Claim>(error, stream));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(claim_a, claim_b);
 }
 
 TEST (Request_Serialization, database_methods)
@@ -1132,6 +1189,20 @@ TEST (Request_Serialization, database_methods)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(send_a, send_b);
+
+    // Claim
+    //
+    //
+    auto claim_a(GenerateClaim());
+
+    buf.clear();
+
+    error = false;
+    Claim claim_b(error,
+                  claim_a.ToDatabase(buf));
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(claim_a, claim_b);
 }
 
 TEST (Request_Serialization, json_serialization)
@@ -1144,13 +1215,6 @@ TEST (Request_Serialization, json_serialization)
     bool error = false;
     Issuance issuance_b(error,
                         issuance_a.SerializeJson());
-
-    std::vector<int> ints{1,2,34,4};
-    auto it = std::unique(ints.begin(),ints.end());
-    std::cout << (it == ints.end()) << std::endl;
-
-    std::cout << issuance_a.ToJson() << std::endl;
-    std::cout << issuance_b.ToJson() << std::endl;
 
     ASSERT_FALSE(error);
     ASSERT_EQ(issuance_a, issuance_b);
@@ -1310,6 +1374,18 @@ TEST (Request_Serialization, json_serialization)
 
     ASSERT_FALSE(error);
     ASSERT_EQ(send_a, send_b);
+
+    // Claim
+    //
+    //
+    auto claim_a(GenerateClaim());
+
+    error = false;
+    Claim claim_b(error,
+                  claim_a.SerializeJson());
+
+    ASSERT_FALSE(error);
+    ASSERT_EQ(claim_a, claim_b);
 }
 
 #endif // #ifdef Unit_Test_Request_Serialization
