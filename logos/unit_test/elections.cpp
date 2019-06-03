@@ -616,6 +616,7 @@ TEST(Elections,get_next_epoch_delegates)
                     << std::endl;
                 trace_and_halt();
             }
+
             ASSERT_EQ(eb.delegates[i].stake,delegates[i].stake);
 
             ASSERT_EQ(eb.delegates[i].bls_pub,delegates[i].bls_pub);
@@ -674,7 +675,8 @@ TEST(Elections,get_next_epoch_delegates)
         {
             auto new_vote = delegates[i].vote+100;
             store->candidate_add_vote(delegates[i].account,new_vote,epoch_num,txn);
-            delegates[i].vote = new_vote; 
+            delegates[i].raw_vote = new_vote;
+            delegates[i].vote = new_vote;
             delegates[i].starting_term = true;
         }
         std::sort(delegates.begin(),delegates.end(),[](auto d1, auto d2){
@@ -691,6 +693,7 @@ TEST(Elections,get_next_epoch_delegates)
         {
             auto new_vote = delegates[i].vote+200;
             store->candidate_add_vote(delegates[i].account,new_vote,epoch_num,txn);
+            delegates[i].raw_vote = new_vote;
             delegates[i].vote = new_vote; 
             delegates[i].starting_term = true;
         }
@@ -713,6 +716,7 @@ TEST(Elections,get_next_epoch_delegates)
         {
             auto new_vote = delegates[i].vote+300;
             store->candidate_add_vote(delegates[i].account,new_vote,epoch_num,txn);
+            delegates[i].raw_vote = new_vote;
             delegates[i].vote = new_vote; 
             delegates[i].starting_term = true;
         }
@@ -737,6 +741,7 @@ TEST(Elections,get_next_epoch_delegates)
         {
             auto new_vote = delegates[i].vote+400;
             store->candidate_add_vote(delegates[i].account,new_vote,epoch_num,txn);
+            delegates[i].raw_vote = new_vote;
             delegates[i].vote = new_vote; 
             delegates[i].starting_term = true;
         }
@@ -768,6 +773,7 @@ TEST(Elections,get_next_epoch_delegates)
             {
                 auto new_vote = delegates[i].vote + 500;
                 ASSERT_FALSE(store->candidate_add_vote(delegates[i].account,new_vote,epoch_num,txn));
+                delegates[i].raw_vote = new_vote;
                 delegates[i].vote = new_vote; 
                 delegates[i].starting_term = true;
             }
@@ -832,6 +838,7 @@ TEST(Elections,get_next_epoch_delegates)
     {
         logos::transaction txn(store->environment,nullptr,true);
         ASSERT_FALSE(store->candidate_add_vote(delegates[i].account,delegates[i].vote+500,epoch_num,txn));
+        delegates[i].raw_vote += 500;
         delegates[i].vote += 500;
         delegates[i].starting_term = true;
     }
@@ -846,9 +853,9 @@ TEST(Elections,get_next_epoch_delegates)
     //make sure proper candidates were added for reelection
     for(size_t i = 24; i < 32; ++i)
     {
-
         logos::transaction txn(store->environment,nullptr,true);
         ASSERT_FALSE(store->candidate_add_vote(delegates[i].account,delegates[i].vote+500,epoch_num,txn));
+        delegates[i].raw_vote += 500;
         delegates[i].vote += 500;
         delegates[i].starting_term = true;
     }
@@ -1808,7 +1815,7 @@ TEST(Elections, tiebreakers)
     Delegate d4(init_delegate(4,100,2,false));
 
     ASSERT_TRUE(EpochVotingManager::IsGreater(d2,d1));
-    ASSERT_TRUE(EpochVotingManager::IsGreater(d3,d2));
+    ASSERT_TRUE(EpochVotingManager::IsGreater(d2,d3));
     ASSERT_TRUE(EpochVotingManager::IsGreater(d3,d1));
     ASSERT_TRUE(EpochVotingManager::IsGreater(d4,d3));
 }

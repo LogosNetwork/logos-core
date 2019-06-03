@@ -349,7 +349,7 @@ bool PersistenceManager<R>::ValidateRequest(
             if(!ValidateRequest(*ev, cur_epoch_num, txn, result))
             {
                 LOG_ERROR(_log) << "ElectionVote is invalid: " << ev->Hash().to_string()
-                << " code is " << logos::ProcessResultToString(result.code);
+                                << " code is " << logos::ProcessResultToString(result.code);
                 return false;
             }
             break;

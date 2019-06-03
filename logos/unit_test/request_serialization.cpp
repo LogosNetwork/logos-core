@@ -1358,7 +1358,7 @@ TEST (Request_Serialization, json_serialization)
 
     error = false;
     WithdrawLogos withdraw_logos_b(error,
-                                 withdraw_logos_a.SerializeJson());
+                                   withdraw_logos_a.SerializeJson());
 
     ASSERT_FALSE(error);
     ASSERT_EQ(withdraw_logos_a, withdraw_logos_b);
