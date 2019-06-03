@@ -123,43 +123,6 @@ public:
 
 private:
 
-    struct Epoch
-    {
-        Epoch(uint32_t epoch_num)
-        : epoch_num(epoch_num)
-        , eb(nullptr)
-        {}
-        Epoch(EBPtr block)
-        : epoch_num(block->epoch_number)
-        , eb(block)
-        {
-        }
-        Epoch(MBPtr block)
-        : epoch_num(block->epoch_number)
-        , eb(nullptr)
-        {
-            mbs.push_front(block);
-        }
-        Epoch(RBPtr block)
-        : epoch_num(block->epoch_number)
-        , eb(nullptr)
-        {
-            assert(block->primary_delegate < NUM_DELEGATES);
-            bsbs[block->primary_delegate].push_front(block);
-        }
-
-        uint32_t epoch_num;
-        EBPtr eb;
-        std::list<MBPtr> mbs;
-        std::list<RBPtr> bsbs[NUM_DELEGATES];
-
-        //TODO optimize
-        //1 for each unprocessed tip of the oldest mb
-        //std::bitset<NUM_DELEGATES> mb_dependences;
-    };
-    std::list<Epoch> epochs;
-    std::unordered_set<BlockHash> cached_blocks;
-
     /*
      * should be called when:
      * (1) a new block is added to the beginning of any chain of the oldest epoch,
@@ -168,16 +131,16 @@ private:
      */
     void Validate(uint8_t bsb_idx = 0);
 
-    block_store &           store_;
-    PendingBlockContainer   block_container;
-    BlockWriteQueue         write_q;
+    block_store &                   store_;
+    PendingBlockContainer           block_container;
+    BlockWriteQueue                 write_q;
 
-    NonDelPersistenceManager<ECT> eb_handler;
-    NonDelPersistenceManager<MBCT> mb_handler;
-    NonDelPersistenceManager<R> bsb_handler;
+    NonDelPersistenceManager<ECT>   eb_handler;
+    NonDelPersistenceManager<MBCT>  mb_handler;
+    NonDelPersistenceManager<R>     rb_handler;
 
-    std::mutex mtx;
-    Log log;
+    std::mutex                      mtx;
+    Log                             log;
 };
 
 }
