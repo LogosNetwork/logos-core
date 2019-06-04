@@ -1016,7 +1016,7 @@ TEST (DB, account)
         return;
     logos::transaction txn(store->environment, nullptr, true);
 
-    logos::account_info block(1, 2, 3, 4, 5, 6, 7, 8);
+    logos::account_info block(1, 2, 3, 4, 5, 6, 7, 8, 9);
     AccountAddress address(11);
 
     vector<uint8_t> buf;

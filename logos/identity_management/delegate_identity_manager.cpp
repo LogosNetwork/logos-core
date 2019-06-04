@@ -264,7 +264,8 @@ DelegateIdentityManager::Init(const Config &config)
                 /* Amount       */ logos_genesis_block.transactions[0].amount,
                 /* Time         */ logos::seconds_since_epoch(),
                 /* Count        */ 1,
-                /* Receive      */ 1
+                /* Receive      */ 1,
+                /* Claim Epoch  */ 0
             },
             transaction))
         {
@@ -335,14 +336,15 @@ DelegateIdentityManager::CreateGenesisAccounts(logos::transaction &transaction)
             _store.receive_put(receive.Hash(), receive, transaction) ||
             _store.account_put(pair.pub,
                            {
-                               /* Head    */ 0,
-                               /* Receive */ receive.Hash(),
-                               /* Rep     */ 0,
-                               /* Open    */ request.GetHash(),
-                               /* Amount  */ amount,
-                               /* Time    */ logos::seconds_since_epoch(),
-                               /* Count   */ 0,
-                               /* Receive Count */ 1
+                               /* Head          */ 0,
+                               /* Receive       */ receive.Hash(),
+                               /* Rep           */ 0,
+                               /* Open          */ request.GetHash(),
+                               /* Amount        */ amount,
+                               /* Time          */ logos::seconds_since_epoch(),
+                               /* Count         */ 0,
+                               /* Receive Count */ 1,
+                               /* Claim Epoch   */ 0
                            },
                            transaction))
         {
