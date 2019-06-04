@@ -4,16 +4,14 @@ namespace logos {
 
 BlockCache::BlockCache(Store &store)
     : store_(store)
-    , eb_handler(store)
-    , mb_handler(store)
-    , rb_handler(store)
+    , write_q(store)
 {
 }
 
 bool BlockCache::AddEpochBlock(EBPtr block)
 {
     LOG_TRACE(log) << "BlockCache::" << __func__ <<":" << block->CreateTip().to_string();
-    if(!eb_handler.VerifyAggSignature(*block))
+    if (!write_q.VerifyAggSignature(block))
     {
         LOG_TRACE(log) << "BlockCache::AddEB: VerifyAggSignature failed";
         return false;
@@ -21,7 +19,7 @@ bool BlockCache::AddEpochBlock(EBPtr block)
 
     std::lock_guard<std::mutex> lck (mtx);
     //safe to ignore the block for both p2p and bootstrap
-    if(eb_handler.BlockExists(*block))
+    if (write_q.BlockExists(block))
     {
         LOG_TRACE(log) << "BlockCache::AddEB: BlockExists";
         return true;
@@ -67,7 +65,7 @@ bool BlockCache::AddEpochBlock(EBPtr block)
 bool BlockCache::AddMicroBlock(MBPtr block)
 {
     LOG_TRACE(log) << "BlockCache::" << __func__ <<":" << block->CreateTip().to_string();
-    if(!mb_handler.VerifyAggSignature(*block))
+    if (!write_q.VerifyAggSignature(block))
     {
         LOG_TRACE(log) << "BlockCache::AddMB: VerifyAggSignature failed";
         return false;
@@ -75,7 +73,7 @@ bool BlockCache::AddMicroBlock(MBPtr block)
 
     std::lock_guard<std::mutex> lck (mtx);
     //safe to ignore the block for both p2p and bootstrap
-    if(mb_handler.BlockExists(*block))
+    if (write_q.BlockExists(block))
     {
         LOG_TRACE(log) << "BlockCache::AddMB: BlockExists";
         return true;
@@ -148,7 +146,7 @@ bool BlockCache::AddRequestBlock(RBPtr block)
 {
     LOG_TRACE(log) << "BlockCache::" << __func__ <<":" << block->CreateTip().to_string();
 
-    if(!rb_handler.VerifyAggSignature(*block))
+    if (!write_q.VerifyAggSignature(block))
     {
         LOG_TRACE(log) << "BlockCache::AddBSB: VerifyAggSignature failed";
         return false;
@@ -156,7 +154,7 @@ bool BlockCache::AddRequestBlock(RBPtr block)
 
     std::lock_guard<std::mutex> lck (mtx);
     //safe to ignore the block for both p2p and bootstrap
-    if(rb_handler.BlockExists(*block))
+    if (write_q.BlockExists(block))
     {
         LOG_TRACE(log) << "BlockCache::AddMB: BlockExists";
         return true;
@@ -227,17 +225,17 @@ bool BlockCache::AddRequestBlock(RBPtr block)
 
 void BlockCache::StoreEpochBlock(EBPtr block)
 {
-    eb_handler.ApplyUpdates(*block, block->primary_delegate);
+    write_q.StoreBlock(block);
 }
 
 void BlockCache::StoreMicroBlock(MBPtr block)
 {
-    mb_handler.ApplyUpdates(*block, block->primary_delegate);
+    write_q.StoreBlock(block);
 }
 
 void BlockCache::StoreRequestBlock(RBPtr block)
 {
-    rb_handler.ApplyUpdates(*block, block->primary_delegate);
+    write_q.StoreBlock(block);
 }
 
 bool BlockCache::IsBlockCached(const BlockHash & b)
@@ -271,13 +269,14 @@ void BlockCache::Validate(uint8_t rb_idx)
                 else
                 {
                     ApprovedRB & block = *(*to_validate);
+                    std::shared_ptr<ApprovedRB> sblock = std::make_shared<ApprovedRB>(block); // rewrite
                     ValidationStatus status;
                     LOG_TRACE(log) << "BlockCache::"<<__func__<<": verifying "
                             << block.CreateTip().to_string();
 
-                    if(rb_handler.VerifyContent(block, &status))
+                    if (write_q.VerifyContent(sblock, &status))
                     {
-                        rb_handler.ApplyUpdates(block, block.primary_delegate);
+                        write_q.StoreBlock(sblock);
                         block_container.cached_blocks.erase(block.Hash());
                         e->rbs[rb_idx].pop_front();
                         num_rb_chain_no_progress = 0;
@@ -323,10 +322,11 @@ void BlockCache::Validate(uint8_t rb_idx)
         while(!e->mbs.empty())
         {
             ApprovedMB & block = *(e->mbs.front());
+            std::shared_ptr<ApprovedMB> sblock = std::make_shared<ApprovedMB>(block); // rewrite
             ValidationStatus status;
-            if(mb_handler.VerifyContent(block, &status))
+            if (write_q.VerifyContent(sblock, &status))
             {
-                mb_handler.ApplyUpdates(block, block.primary_delegate);
+                write_q.StoreBlock(sblock);
                 last_mb = block.last_micro_block;
                 block_container.cached_blocks.erase(block.Hash());
                 e->mbs.pop_front();
@@ -363,10 +363,11 @@ void BlockCache::Validate(uint8_t rb_idx)
             if( e->eb != nullptr)
             {
                 ApprovedEB & block = *e->eb;
+                std::shared_ptr<ApprovedEB> sblock = std::make_shared<ApprovedEB>(block); // rewrite
                 ValidationStatus status;
-                if(eb_handler.VerifyContent(block, &status))
+                if (write_q.VerifyContent(sblock, &status))
                 {
-                    eb_handler.ApplyUpdates(block, block.primary_delegate);
+                    write_q.StoreBlock(sblock);
                     LOG_INFO(log) << "BlockCache::Validated EB, block: "
                                   << block.CreateTip().to_string();
                     block_container.cached_blocks.erase(block.Hash());
